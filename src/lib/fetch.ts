@@ -7,9 +7,9 @@ export const fetchURL = async (url: string): Promise<any> => {
   return (await res.json()) as any
 }
 
-// since this is a PWA, non existing files still responde with 200,
-// so to check if a given wasm file exists we need to check the
-// returned content-type and act accordingly
+// WASM files are served by nginx with proper MIME type (application/wasm)
+// and CORS headers. The nginx config ensures 404 for non-existing files
+// instead of falling back to index.html
 export const fetchWasm = async (url: string): Promise<Response> => {
   const response = await fetch(url, {
     cache: 'no-store',
