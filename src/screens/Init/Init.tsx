@@ -41,7 +41,6 @@ export default function Init() {
           <LogoIcon big />
           <FlexCol centered gap='0'>
             <Text bigger>Arkade</Text>
-            <Text color='dark50'>Ark wallet PoC</Text>
           </FlexCol>
           <Error error={error} text='Ark server unreachable' />
         </CenterScreen>
