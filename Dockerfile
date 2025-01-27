@@ -1,5 +1,8 @@
 FROM node:18-alpine AS builder
 
+# Ensure we use yarn v1
+RUN yarn set version 1.22.22
+
 WORKDIR /app
 
 # Copy package files
@@ -8,13 +11,18 @@ COPY .yarn ./.yarn
 
 # Install production dependencies only
 ENV NODE_ENV=production
+ENV DISABLE_ESLINT_PLUGIN=true
 RUN yarn install --frozen-lockfile --production=false
 
 # Copy source code
 COPY . .
 
-# Build the app
-RUN yarn build
+# Create git commit file directly (skip the script approach)
+RUN mkdir -p src && \
+    echo "export const gitCommit = 'docker';" > src/_gitCommit.ts
+
+# Build the app with ESLint disabled
+RUN DISABLE_ESLINT_PLUGIN=true CI=true yarn craco build
 
 # Production stage
 FROM nginx:alpine
