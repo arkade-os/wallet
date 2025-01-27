@@ -26,17 +26,25 @@ RUN DISABLE_ESLINT_PLUGIN=true CI=true yarn craco build
 # Production stage
 FROM nginx:alpine
 
+# Remove default nginx configs
+RUN rm -rf /etc/nginx/conf.d/* && \
+    rm -f /etc/nginx/nginx.conf
+
 # Copy custom nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/nginx.conf
 
 # Copy built files from builder
 COPY --from=builder /app/build /usr/share/nginx/html
 
-# Make sure files are owned by nginx user
+# Make sure nginx can access the files
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
-    chmod -R 755 /usr/share/nginx/html
+    chmod -R 755 /usr/share/nginx/html && \
+    chown -R nginx:nginx /var/cache/nginx && \
+    chown -R nginx:nginx /var/log/nginx && \
+    touch /var/run/nginx.pid && \
+    chown -R nginx:nginx /var/run/nginx.pid
 
-# Expose port 3000
-EXPOSE 3000
+# Expose port 80
+EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"] 
