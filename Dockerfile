@@ -32,7 +32,11 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copy built files from builder
 COPY --from=builder /app/build /usr/share/nginx/html
 
-# Expose port 80
-EXPOSE 80
+# Make sure files are owned by nginx user
+RUN chown -R nginx:nginx /usr/share/nginx/html && \
+    chmod -R 755 /usr/share/nginx/html
+
+# Expose port 3000
+EXPOSE 3000
 
 CMD ["nginx", "-g", "daemon off;"] 
