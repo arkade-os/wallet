@@ -9,16 +9,20 @@ WORKDIR /app
 COPY package.json yarn.lock ./
 
 # NODE_ENV=production is for runtime optimization
+# --production=false to install devDependencies needed for build
 ENV NODE_ENV=production
 ENV DISABLE_ESLINT_PLUGIN=true
-# --production=false is for installing devDependencies needed for build
 RUN yarn install --frozen-lockfile --production=false --network-timeout 100000
 
 # Copy source code
 COPY . .
 
-# Create git commit file from .git
-RUN echo "export const gitCommit = '$(cat .git/refs/heads/master | cut -c 1-8)';" > src/_gitCommit.ts
+# Create git commit file from current branch HEAD
+RUN if [ -d ".git" ]; then \
+      echo "export const gitCommit = '$(cat .git/HEAD | cut -d '/' -f 3- | xargs -I {} cat .git/refs/heads/{} | cut -c 1-8)';" > src/_gitCommit.ts; \
+    else \
+      echo "export const gitCommit = 'dev';" > src/_gitCommit.ts; \
+    fi
 
 # Build the app
 RUN yarn craco build
