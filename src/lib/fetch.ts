@@ -7,9 +7,9 @@ export const fetchURL = async (url: string): Promise<any> => {
   return (await res.json()) as any
 }
 
-// WASM files are served by nginx with proper MIME type (application/wasm)
-// and CORS headers. The nginx config ensures 404 for non-existing files
-// instead of falling back to index.html
+// In production, WASM files are served by nginx with proper MIME type and CORS headers
+// In development, Create React App's dev server will serve the file with correct MIME type
+// thanks to the Accept header we set in the request
 export const fetchWasm = async (url: string): Promise<Response> => {
   const response = await fetch(url, {
     cache: 'no-store',
