@@ -8,20 +8,20 @@ WORKDIR /app
 # Copy package files
 COPY package.json yarn.lock ./
 
-# Install production dependencies only
+# NODE_ENV=production is for runtime optimization
 ENV NODE_ENV=production
 ENV DISABLE_ESLINT_PLUGIN=true
+# --production=false is for installing devDependencies needed for build
 RUN yarn install --frozen-lockfile --production=false --network-timeout 100000
 
 # Copy source code
 COPY . .
 
-# Create git commit file directly (skip the script approach)
-RUN mkdir -p src && \
-    echo "export const gitCommit = 'docker';" > src/_gitCommit.ts
+# Create git commit file from .git
+RUN echo "export const gitCommit = '$(cat .git/refs/heads/master | cut -c 1-8)';" > src/_gitCommit.ts
 
-# Build the app with ESLint disabled
-RUN DISABLE_ESLINT_PLUGIN=true CI=true yarn craco build
+# Build the app
+RUN yarn craco build
 
 # Production stage
 FROM nginx:alpine
