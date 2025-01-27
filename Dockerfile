@@ -26,9 +26,10 @@ RUN DISABLE_ESLINT_PLUGIN=true CI=true yarn craco build
 # Production stage
 FROM nginx:alpine
 
-# Remove default nginx configs
+# Remove default nginx configs and create new structure
 RUN rm -rf /etc/nginx/conf.d/* && \
-    rm -f /etc/nginx/nginx.conf
+    rm -f /etc/nginx/nginx.conf && \
+    rm -f /etc/nginx/mime.types
 
 # Create necessary directories with correct permissions
 RUN mkdir -p /tmp/nginx && \
@@ -45,11 +46,12 @@ COPY nginx.conf /etc/nginx/nginx.conf
 # Copy built files from builder
 COPY --from=builder /app/build /usr/share/nginx/html
 
-# Set permissions for nginx directories
+# Set permissions for nginx directories and ensure WASM files have correct permissions
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
     chmod -R 755 /usr/share/nginx/html && \
     chown -R nginx:nginx /etc/nginx/nginx.conf && \
-    chmod -R 755 /etc/nginx
+    chmod -R 755 /etc/nginx && \
+    find /usr/share/nginx/html -name "*.wasm" -exec chmod 644 {} \;
 
 # Expose port 3000
 EXPOSE 3000
