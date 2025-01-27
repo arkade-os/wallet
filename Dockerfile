@@ -7,12 +7,11 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json yarn.lock ./
-COPY .yarn ./.yarn
 
 # Install production dependencies only
 ENV NODE_ENV=production
 ENV DISABLE_ESLINT_PLUGIN=true
-RUN yarn install --frozen-lockfile --production=false
+RUN yarn install --frozen-lockfile --production=false --network-timeout 100000
 
 # Copy source code
 COPY . .
