@@ -26,12 +26,18 @@ RUN DISABLE_ESLINT_PLUGIN=true CI=true yarn craco build
 # Production stage
 FROM nginx:alpine
 
-# Create nginx user if it doesn't exist
-RUN adduser -D -H -u 101 -s /sbin/nologin nginx || true
-
 # Remove default nginx configs
 RUN rm -rf /etc/nginx/conf.d/* && \
     rm -f /etc/nginx/nginx.conf
+
+# Create necessary directories with correct permissions
+RUN mkdir -p /tmp/nginx && \
+    mkdir -p /tmp/client_temp /tmp/proxy_temp_path /tmp/fastcgi_temp /tmp/uwsgi_temp /tmp/scgi_temp && \
+    mkdir -p /var/cache/nginx /var/log/nginx && \
+    chown -R nginx:nginx /tmp/nginx && \
+    chown -R nginx:nginx /tmp/client_temp && \
+    chown -R nginx:nginx /var/cache/nginx && \
+    chown -R nginx:nginx /var/log/nginx
 
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/nginx.conf
@@ -39,18 +45,14 @@ COPY nginx.conf /etc/nginx/nginx.conf
 # Copy built files from builder
 COPY --from=builder /app/build /usr/share/nginx/html
 
-# Create necessary directories and set permissions
-RUN mkdir -p /var/cache/nginx /var/log/nginx /var/run && \
-    chown -R nginx:nginx /var/cache/nginx && \
-    chown -R nginx:nginx /var/log/nginx && \
-    chown -R nginx:nginx /var/run && \
-    chown -R nginx:nginx /usr/share/nginx/html && \
+# Set permissions for nginx directories
+RUN chown -R nginx:nginx /usr/share/nginx/html && \
     chmod -R 755 /usr/share/nginx/html && \
-    touch /var/run/nginx.pid && \
-    chown nginx:nginx /var/run/nginx.pid
+    chown -R nginx:nginx /etc/nginx/nginx.conf && \
+    chmod -R 755 /etc/nginx
 
-# Expose port 80
-EXPOSE 80
+# Expose port 3000
+EXPOSE 3000
 
 # Switch to non-root user
 USER nginx
