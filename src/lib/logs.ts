@@ -18,6 +18,8 @@ export const getLogs = (): LogLine[] => {
   return JSON.parse(logs ?? '[]') as LogLine[]
 }
 
+export const getInfoLogs = (): LogLine[] => getLogs().filter((l) => l.level === 'info')
+
 export const clearLogs = () => localStorage.removeItem(itemName)
 
 const addLog = (level: LogLevel, args: string[]) => {
@@ -41,8 +43,6 @@ export const consoleError = (err: any, msg = '') => {
   console.error(str)
 }
 
-export const getLogsLength = () => getLogs().length
+export const getInfoLogsLength = () => getInfoLogs().length
 
-export const getLogLineMsg = (index: number) => {
-  return getLogs()[index].msg
-}
+export const getInfoLogLineMsg = (index: number) => getInfoLogs()[index].msg
