@@ -24,3 +24,11 @@ export const readWalletFromStorage = (): Wallet | undefined => {
   const wallet = JSON.parse(data)
   return wallet
 }
+
+export const saveHasPasskeyToStorage = (): void => {
+  localStorage.setItem('credentialId', '1')
+}
+
+export const readHasPasskeyFromStorage = (): boolean => {
+  return Boolean(localStorage.getItem('credentialId'))
+}

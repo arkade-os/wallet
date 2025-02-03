@@ -10,6 +10,7 @@ import Header from '../../components/Header'
 import { authenticateUser, isBiometricsSupported, registerUser } from '../../lib/biometrics'
 import { extractError } from '../../lib/error'
 import { consoleError } from '../../lib/logs'
+import { readHasPasskeyFromStorage } from '../../lib/storage'
 
 export default function InitPassword() {
   const { navigate } = useContext(NavigationContext)
@@ -25,14 +26,11 @@ export default function InitPassword() {
 
   const handleBiometric = () => {
     if (!isBiometricsSupported()) return
-    authenticateUser()
+    const handler = readHasPasskeyFromStorage() ? authenticateUser : registerUser
+    handler()
       .then(connect)
-      .catch(() => {
-        registerUser()
-          .then(connect)
-          .catch((err) => {
-            consoleError(extractError(err), 'Biometric registration failed:')
-          })
+      .catch((err) => {
+        consoleError(extractError(err), 'Biometric registration failed:')
       })
   }
 
