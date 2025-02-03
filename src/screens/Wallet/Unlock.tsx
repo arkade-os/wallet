@@ -10,36 +10,36 @@ import InputPassword from '../../components/InputPassword'
 import Header from '../../components/Header'
 import { consoleError } from '../../lib/logs'
 import FlexCol from '../../components/FlexCol'
+import { authenticateUser, isBiometricsSupported } from '../../lib/biometrics'
 
 export default function Unlock() {
   const { reloadWallet, unlockWallet } = useContext(WalletContext)
 
   const [error, setError] = useState('')
-  const [label, setLabel] = useState('Unlock')
   const [password, setPassword] = useState('')
-  const [unlocking, setUnlocking] = useState(false)
 
   useEffect(() => {
-    setLabel(unlocking ? 'Unlocking' : 'Unlock')
-  }, [unlocking])
-
-  const handleChange = (ev: Event) => {
-    const password = (ev.target as HTMLInputElement).value
-    setPassword(password)
+    if (!password) return
     unlockWallet(password)
       .then(reloadWallet)
       .catch(() => {})
+  }, [password])
+
+  const handleBiometric = async () => {
+    setPassword(await authenticateUser())
+  }
+
+  const handleChange = (ev: Event) => {
+    setPassword((ev.target as HTMLInputElement).value)
   }
 
   const handleUnlock = async () => {
     if (!password) return
-    setUnlocking(true)
     unlockWallet(password)
       .then(reloadWallet)
       .catch((err) => {
         consoleError(err, 'error unlocking wallet')
         setError(extractError(err))
-        setUnlocking(false)
       })
   }
 
@@ -50,14 +50,15 @@ export default function Unlock() {
         <Padded>
           <form>
             <FlexCol gap='1rem'>
-              {unlocking ? null : <InputPassword focus label='Insert password' onChange={handleChange} />}
+              <InputPassword focus label='Insert password' onChange={handleChange} />
               <Error error={Boolean(error)} text={error} />
             </FlexCol>
           </form>
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleUnlock} label={label} disabled={unlocking} />
+        {isBiometricsSupported() ? <Button onClick={handleBiometric} label='Use biometric' secondary /> : null}
+        <Button onClick={handleUnlock} label='Unlock' />
       </ButtonsOnBottom>
     </>
   )

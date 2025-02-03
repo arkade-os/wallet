@@ -7,6 +7,9 @@ import NewPassword from '../../components/NewPassword'
 import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
 import Header from '../../components/Header'
+import { authenticateUser, isBiometricsSupported, registerUser } from '../../lib/biometrics'
+import { extractError } from '../../lib/error'
+import { consoleError } from '../../lib/logs'
 
 export default function InitPassword() {
   const { navigate } = useContext(NavigationContext)
@@ -15,12 +18,27 @@ export default function InitPassword() {
   const [label, setLabel] = useState('')
   const [password, setPassword] = useState('')
 
-  const handleCancel = () => navigate(Pages.Init)
-
-  const handleProceed = async () => {
-    setInitInfo({ ...initInfo, password })
+  const connect = (p: string) => {
+    setInitInfo({ ...initInfo, password: p })
     navigate(Pages.InitConnect)
   }
+
+  const handleBiometric = () => {
+    if (!isBiometricsSupported()) return
+    authenticateUser()
+      .then(connect)
+      .catch(() => {
+        registerUser()
+          .then(connect)
+          .catch((err) => {
+            consoleError(extractError(err), 'Biometric registration failed:')
+          })
+      })
+  }
+
+  const handleCancel = () => navigate(Pages.Init)
+
+  const handleProceed = () => connect(password)
 
   return (
     <>
@@ -33,6 +51,7 @@ export default function InitPassword() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
+        {isBiometricsSupported() ? <Button onClick={handleBiometric} label='Use biometric' secondary /> : null}
         <Button onClick={handleProceed} label={label} disabled={!password} />
         <Button onClick={handleCancel} label='Cancel' secondary />
       </ButtonsOnBottom>

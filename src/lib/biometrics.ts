@@ -1,0 +1,61 @@
+function generateRandomUint8Array(size: number = 32): Uint8Array {
+  const array = new Uint8Array(size)
+  window.crypto.getRandomValues(array)
+  return array
+}
+
+export function isBiometricsSupported(): boolean {
+  return 'credentials' in navigator
+}
+
+// Function to register a new user
+export async function registerUser(): Promise<string> {
+  const username = 'Arkade'
+  console.log('Registering user:', username)
+  const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
+    challenge: generateRandomUint8Array(32),
+    rp: {
+      name: 'Arkade',
+      id: window.location.hostname,
+    },
+    user: {
+      id: generateRandomUint8Array(16),
+      name: username,
+      displayName: username,
+    },
+    pubKeyCredParams: [
+      {
+        type: 'public-key',
+        alg: -7, // ES256 (-7 is the COSE identifier for ES256)
+      },
+      {
+        type: 'public-key',
+        alg: -257, // RS256 (-257 is the COSE identifier for RS256)
+      },
+    ],
+    authenticatorSelection: {
+      authenticatorAttachment: 'platform',
+      userVerification: 'preferred',
+    },
+    timeout: 60000,
+    excludeCredentials: [],
+  }
+
+  const credential = await navigator.credentials.create({ publicKey: publicKeyCredentialCreationOptions })
+  const pubKeyCred = credential as PublicKeyCredential
+  return Buffer.from(pubKeyCred.rawId).toString('hex').slice(0, 21)
+}
+
+// Function to authenticate a user
+export async function authenticateUser(): Promise<string> {
+  const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
+    challenge: generateRandomUint8Array(32),
+    allowCredentials: [],
+    timeout: 60000,
+    userVerification: 'preferred',
+  }
+
+  const credential = await navigator.credentials.get({ publicKey: publicKeyCredentialRequestOptions })
+  const pubKeyCred = credential as PublicKeyCredential
+  return Buffer.from(pubKeyCred.rawId).toString('hex').slice(0, 21)
+}
