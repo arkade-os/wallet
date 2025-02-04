@@ -9,7 +9,7 @@ import { WalletContext } from '../providers/wallet'
 import { defaultFee } from '../lib/constants'
 import Error from './Error'
 import Button from './Button'
-import Padded from './Padded'
+import ButtonsOnBottom from './ButtonsOnBottom'
 
 interface KeyboardProps {
   back: () => void
@@ -102,9 +102,9 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
           </IonRow>
         ))}
       </IonGrid>
-      <Padded>
+      <ButtonsOnBottom>
         <Button label='Save' disabled={disabled} onClick={handleSave} />
-      </Padded>
+      </ButtonsOnBottom>
     </>
   )
 }
