@@ -17,7 +17,7 @@ export default function InitConnect() {
 
   useEffect(() => {
     if (!password || !privateKey) return
-    initWallet(password, privateKey).then(() => navigate(Pages.Unlock))
+    initWallet(password, privateKey).then(() => navigate(Pages.Wallet))
   }, [])
 
   const handleCancel = () => navigate(Pages.Init)
