@@ -1,5 +1,3 @@
-import { saveHasPasskeyToStorage } from './storage'
-
 function generateRandomUint8Array(size: number = 32): Uint8Array {
   const array = new Uint8Array(size)
   window.crypto.getRandomValues(array)
@@ -34,13 +32,11 @@ export async function registerUser(): Promise<string> {
     },
     timeout: 60000,
     user: {
-      id: generateRandomUint8Array(16),
+      id: new Uint8Array(16),
       name: username,
       displayName: username,
     },
   }
-
-  saveHasPasskeyToStorage()
 
   const credential = await navigator.credentials.create({ publicKey: publicKeyCredentialCreationOptions })
   const pubKeyCred = credential as PublicKeyCredential
