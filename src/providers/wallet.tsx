@@ -17,6 +17,7 @@ export interface Wallet {
   explorer: string
   initialized: boolean
   lastUpdate: number
+  lockedByBiometrics?: boolean
   network: string
   nextRollover: number
   txs: Tx[]

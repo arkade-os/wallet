@@ -10,10 +10,13 @@ import InputPassword from '../../components/InputPassword'
 import Header from '../../components/Header'
 import { consoleError } from '../../lib/logs'
 import FlexCol from '../../components/FlexCol'
-import { authenticateUser, isBiometricsSupported } from '../../lib/biometrics'
+import { authenticateUser } from '../../lib/biometrics'
+import FingerprintIcon from '../../icons/Fingerprint'
+import CenterScreen from '../../components/CenterScreen'
+import Text from '../../components/Text'
 
 export default function Unlock() {
-  const { reloadWallet, unlockWallet } = useContext(WalletContext)
+  const { reloadWallet, unlockWallet, wallet, walletUnlocked } = useContext(WalletContext)
 
   const [error, setError] = useState('')
   const [password, setPassword] = useState('')
@@ -25,9 +28,12 @@ export default function Unlock() {
       .catch(() => {})
   }, [password])
 
-  const handleBiometric = async () => {
-    setPassword(await authenticateUser())
-  }
+  useEffect(() => {
+    if (!wallet.lockedByBiometrics || walletUnlocked) return
+    authenticateUser()
+      .then(setPassword)
+      .catch(() => {})
+  }, [wallet.lockedByBiometrics])
 
   const handleChange = (ev: Event) => {
     setPassword((ev.target as HTMLInputElement).value)
@@ -43,6 +49,19 @@ export default function Unlock() {
       })
   }
 
+  if (wallet.lockedByBiometrics)
+    return (
+      <>
+        <Header text='Unlock' />
+        <CenterScreen>
+          <FingerprintIcon />
+          <Text centered small wrap>
+            Unlocking with biometrics
+          </Text>
+        </CenterScreen>
+      </>
+    )
+
   return (
     <>
       <Header text='Unlock' />
@@ -57,7 +76,6 @@ export default function Unlock() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        {isBiometricsSupported() ? <Button onClick={handleBiometric} label='Use biometric' secondary /> : null}
         <Button onClick={handleUnlock} label='Unlock' />
       </ButtonsOnBottom>
     </>
