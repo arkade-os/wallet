@@ -7,11 +7,12 @@ interface FlexColProps {
   end?: boolean
   gap?: string
   margin?: string
+  strech?: boolean
 }
 
-export default function FlexCol({ between, centered, children, end, gap, margin }: FlexColProps) {
+export default function FlexCol({ between, centered, children, end, gap, margin, strech }: FlexColProps) {
   const style: any = {
-    alignItems: centered ? 'center' : end ? 'end' : 'start',
+    alignItems: centered ? 'center' : end ? 'end' : strech ? 'strech' : 'start',
     display: 'flex',
     flexDirection: 'column',
     gap: gap ?? '1rem',

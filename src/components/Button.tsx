@@ -13,10 +13,6 @@ interface ButtonProps {
 }
 
 export default function Button({ clear, disabled, icon, label, onClick, red, secondary, short }: ButtonProps) {
-  const style = {
-    marginTop: clear ? undefined : '1rem',
-  }
-
   return (
     <IonButton
       color={red ? 'danger' : 'dark'}
@@ -24,7 +20,6 @@ export default function Button({ clear, disabled, icon, label, onClick, red, sec
       expand={short ? undefined : 'block'}
       fill={secondary ? 'outline' : clear ? 'clear' : 'solid'}
       onClick={onClick}
-      style={style}
     >
       {icon}
       {label}
