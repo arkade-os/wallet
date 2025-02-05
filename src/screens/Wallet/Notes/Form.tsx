@@ -1,7 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
-import Button from '../../../components/Button'
 import Error from '../../../components/Error'
-import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
@@ -40,16 +38,11 @@ export default function NotesForm() {
         consoleError(err, 'error decoding note')
       }
     }
-    if (!error) setError('Invalid note')
   }, [note])
 
   const handleBack = () => {
     setOption(Options.Menu)
     navigate(Pages.Settings)
-  }
-
-  const handleContinue = () => {
-    navigate(Pages.NotesRedeem)
   }
 
   if (scan) return <Scanner close={() => setScan(false)} label='Ark note' setData={setNote} setError={setError} />
@@ -61,13 +54,10 @@ export default function NotesForm() {
         <Padded>
           <FlexCol gap='2rem'>
             <Error error={Boolean(error)} text={error} />
-            <InputNote label='Ark note' onChange={setNote} openScan={() => setScan(true)} />
+            <InputNote label='Ark note' onChange={setNote} openScan={() => setScan(true)} value={note} />
           </FlexCol>
         </Padded>
       </Content>
-      <ButtonsOnBottom>
-        <Button onClick={handleContinue} label='Continue' />
-      </ButtonsOnBottom>
     </>
   )
 }

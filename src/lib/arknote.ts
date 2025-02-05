@@ -71,7 +71,7 @@ export class ArkNote {
 
 export const isArkNote = (input: string): boolean => {
   const regex = new RegExp(`^${arknoteHRP}`, 'i')
-  return regex.test(input)
+  return regex.test(input) && input.length > 100
 }
 
 export const arkNoteInUrl = (): string => {
