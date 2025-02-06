@@ -24,8 +24,8 @@ function Wallet() {
         <LogoIcon />
         <Balance amount={wallet.balance} />
         <Error error={error} text='Ark server unreachable' />
+        <TransactionsList />
       </Padded>
-      <TransactionsList />
     </Content>
   )
 }

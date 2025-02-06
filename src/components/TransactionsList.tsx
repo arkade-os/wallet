@@ -89,7 +89,7 @@ export default function TransactionsList() {
   const key = (tx: Tx) => `${tx.amount}${tx.createdAt}${tx.boardingTxid}${tx.roundTxid}${tx.redeemTxid}${tx.type}`
 
   return (
-    <>
+    <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
       <div onClick={reloadWallet}>
         <TextLabel>Transaction history</TextLabel>
       </div>
@@ -98,6 +98,6 @@ export default function TransactionsList() {
           <TransactionLine key={key(tx)} tx={tx} />
         ))}
       </div>
-    </>
+    </div>
   )
 }
