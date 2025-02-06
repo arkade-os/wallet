@@ -13,7 +13,7 @@ const saveLog = (log) => {
     json.push({
       time: mate[1],
       level: mate[2],
-      msg: mate[3],
+      msg: mate[3].replace('round', 'batch'), // TODO: remove replace func after ark PR 452 merged,
     })
   }
   localStorage.setItem('logs', JSON.stringify(json))
