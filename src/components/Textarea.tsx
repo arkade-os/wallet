@@ -29,7 +29,7 @@ export default function Textarea({ children, label, onChange, value }: TextareaP
         </Text>
       ) : null}
       <Shadow>
-        <IonTextarea onIonChange={handleChange} readonly={typeof onChange === 'undefined'} style={style} value={value}>
+        <IonTextarea onIonInput={handleChange} readonly={typeof onChange === 'undefined'} style={style} value={value}>
           {children}
         </IonTextarea>
       </Shadow>
