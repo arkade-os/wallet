@@ -1,5 +1,4 @@
-import { Config } from '../providers/config'
-import { Wallet } from '../providers/wallet'
+import { Config, Wallet } from '../lib/types'
 
 export const clearStorage = () => {
   return localStorage.clear()

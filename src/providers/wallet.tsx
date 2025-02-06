@@ -1,7 +1,6 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
 import { readWalletFromStorage, saveWalletToStorage } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
-import { Tx, Vtxos } from '../lib/types'
 import { getRestApiExplorerURL } from '../lib/explorers'
 import { settleVtxos, getBalance, getVtxos, lock, unlock, getTxHistory } from '../lib/asp'
 import { AspContext } from './asp'
@@ -10,20 +9,7 @@ import { FlowContext } from './flow'
 import { ArkNote, arkNoteInUrl } from '../lib/arknote'
 import { fetchWasm } from '../lib/fetch'
 import { consoleError } from '../lib/logs'
-
-export interface Wallet {
-  arkAddress: string
-  balance: number
-  explorer: string
-  initialized: boolean
-  lastUpdate: number
-  lockedByBiometrics?: boolean
-  network: string
-  nextRollover: number
-  txs: Tx[]
-  vtxos: Vtxos
-  wasmVersion: string
-}
+import { Wallet } from '../lib/types'
 
 const defaultWallet: Wallet = {
   arkAddress: '',

@@ -10,99 +10,82 @@ import NoteIcon from '../icons/Note'
 import VtxosIcon from '../icons/Vtxos'
 import ServerIcon from '../icons/Server'
 import LogsIcon from '../icons/Logs'
+import { SettingsOptions, SettingsSections } from '../lib/types'
 
-export enum Sections {
-  Advanced = 'Advanced',
-  General = 'General',
-  Security = 'Security',
-}
-
-export enum Options {
-  Menu = 'menu',
-  About = 'about',
-  Appearance = 'appearance',
-  Backup = 'backup',
-  Lock = 'lock wallet',
-  Logs = 'logs',
-  Notifications = 'notifications',
-  Nostr = 'nostr',
-  Notes = 'notes',
-  Password = 'password',
-  Reset = 'reset wallet',
-  Server = 'server',
-  Vtxos = 'coin control',
-}
-
-export interface Option {
+interface Option {
   icon: ReactElement
-  option: Options
-  section: Sections
+  option: SettingsOptions
+  section: SettingsSections
 }
 
 const options: Option[] = [
   {
     icon: <InfoIcon />,
-    option: Options.About,
-    section: Sections.General,
+    option: SettingsOptions.About,
+    section: SettingsSections.General,
   },
   {
     icon: <AppearanceIcon />,
-    option: Options.Appearance,
-    section: Sections.General,
+    option: SettingsOptions.Appearance,
+    section: SettingsSections.General,
   },
   {
     icon: <BackupIcon />,
-    option: Options.Backup,
-    section: Sections.Security,
+    option: SettingsOptions.Backup,
+    section: SettingsSections.Security,
   },
   {
     icon: <LockIcon />,
-    option: Options.Lock,
-    section: Sections.Security,
+    option: SettingsOptions.Lock,
+    section: SettingsSections.Security,
   },
   {
     icon: <LogsIcon />,
-    option: Options.Logs,
-    section: Sections.Advanced,
+    option: SettingsOptions.Logs,
+    section: SettingsSections.Advanced,
   },
   {
     icon: <NostrIcon />,
-    option: Options.Nostr,
-    section: Sections.General,
+    option: SettingsOptions.Nostr,
+    section: SettingsSections.General,
   },
   {
     icon: <NoteIcon />,
-    option: Options.Notes,
-    section: Sections.General,
+    option: SettingsOptions.Notes,
+    section: SettingsSections.General,
   },
   {
     icon: <NotificationIcon />,
-    option: Options.Notifications,
-    section: Sections.General,
+    option: SettingsOptions.Notifications,
+    section: SettingsSections.General,
   },
   {
     icon: <ResetIcon />,
-    option: Options.Reset,
-    section: Sections.Security,
+    option: SettingsOptions.Reset,
+    section: SettingsSections.Security,
   },
   {
     icon: <ServerIcon />,
-    option: Options.Server,
-    section: Sections.Advanced,
+    option: SettingsOptions.Server,
+    section: SettingsSections.Advanced,
   },
   {
     icon: <VtxosIcon />,
-    option: Options.Vtxos,
-    section: Sections.Advanced,
+    option: SettingsOptions.Vtxos,
+    section: SettingsSections.Advanced,
   },
 ]
 
 interface SectionResponse {
-  section: Sections
+  section: SettingsSections
   options: Option[]
 }
 
-const allOptions: SectionResponse[] = [Sections.General, Sections.Security, Sections.Advanced].map((section) => {
+const allOptions: SectionResponse[] = [
+  SettingsSections.General,
+  SettingsSections.Security,
+  SettingsSections.Advanced,
+].map((section) => {
   return {
     section,
     options: options.filter((o) => o.section === section),
@@ -110,23 +93,23 @@ const allOptions: SectionResponse[] = [Sections.General, Sections.Security, Sect
 })
 
 interface OptionsContextProps {
-  option: Options
+  option: SettingsOptions
   goBack: () => void
-  setOption: (o: Options) => void
+  setOption: (o: SettingsOptions) => void
   validOptions: () => SectionResponse[]
 }
 
 export const OptionsContext = createContext<OptionsContextProps>({
-  option: Options.Menu,
+  option: SettingsOptions.Menu,
   goBack: () => {},
   setOption: () => {},
   validOptions: () => [],
 })
 
 export const OptionsProvider = ({ children }: { children: ReactNode }) => {
-  const [option, setOption] = useState(Options.Menu)
+  const [option, setOption] = useState(SettingsOptions.Menu)
 
-  const goBack = () => setOption(Options.Menu)
+  const goBack = () => setOption(SettingsOptions.Menu)
 
   const validOptions = (): SectionResponse[] => {
     return allOptions

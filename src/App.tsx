@@ -27,9 +27,10 @@ import HomeIcon from './icons/Home'
 import ReceiveIcon from './icons/Receive'
 import SettingsIcon from './icons/Settings'
 import SendIcon from './icons/Send'
-import { Options, OptionsContext } from './providers/options'
+import { OptionsContext } from './providers/options'
 import { emptyRecvInfo, emptySendInfo, FlowContext } from './providers/flow'
 import { AspContext } from './providers/asp'
+import { SettingsOptions } from './lib/types'
 
 setupIonicReact()
 
@@ -57,7 +58,7 @@ export default function App() {
   }
 
   const handleSettings = () => {
-    setOption(Options.Menu)
+    setOption(SettingsOptions.Menu)
     navigate(Pages.Settings)
   }
 

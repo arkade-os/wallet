@@ -1,11 +1,12 @@
 import { useContext } from 'react'
-import { ConfigContext, Themes } from '../../providers/config'
+import { ConfigContext } from '../../providers/config'
 import Content from '../../components/Content'
 import Padded from '../../components/Padded'
 import Header from './Header'
 import { TextSecondary } from '../../components/Text'
 import Toggle from '../../components/Toggle'
 import FlexCol from '../../components/FlexCol'
+import { Themes } from '../../lib/types'
 
 export default function Theme() {
   const { config, updateConfig } = useContext(ConfigContext)

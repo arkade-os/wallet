@@ -9,27 +9,28 @@ import Nostr from './Nostr'
 import Vtxos from './Vtxos'
 import NotesForm from '../Wallet/Notes/Form'
 import Server from './Server'
-import { Options, OptionsContext } from '../../providers/options'
+import { OptionsContext } from '../../providers/options'
 import Menu from './Menu'
 import Logs from './Logs'
+import { SettingsOptions } from '../../lib/types'
 
 export default function Settings() {
   const { option } = useContext(OptionsContext)
 
   return (
     <>
-      {option === Options.Menu && <Menu />}
-      {option === Options.About && <About />}
-      {option === Options.Backup && <Backup />}
-      {option === Options.Lock && <Lock />}
-      {option === Options.Logs && <Logs />}
-      {option === Options.Nostr && <Nostr />}
-      {option === Options.Notes && <NotesForm />}
-      {option === Options.Notifications && <Notifications />}
-      {option === Options.Reset && <Reset />}
-      {option === Options.Server && <Server />}
-      {option === Options.Appearance && <Appearance />}
-      {option === Options.Vtxos && <Vtxos />}
+      {option === SettingsOptions.Menu && <Menu />}
+      {option === SettingsOptions.About && <About />}
+      {option === SettingsOptions.Backup && <Backup />}
+      {option === SettingsOptions.Lock && <Lock />}
+      {option === SettingsOptions.Logs && <Logs />}
+      {option === SettingsOptions.Nostr && <Nostr />}
+      {option === SettingsOptions.Notes && <NotesForm />}
+      {option === SettingsOptions.Notifications && <Notifications />}
+      {option === SettingsOptions.Reset && <Reset />}
+      {option === SettingsOptions.Server && <Server />}
+      {option === SettingsOptions.Appearance && <Appearance />}
+      {option === SettingsOptions.Vtxos && <Vtxos />}
     </>
   )
 }

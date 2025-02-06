@@ -1,4 +1,4 @@
-import { Wallet } from '../providers/wallet'
+import { Wallet } from '../lib/types'
 
 type ExplorerURLs = {
   api: string

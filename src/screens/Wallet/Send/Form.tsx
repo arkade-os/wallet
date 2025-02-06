@@ -20,9 +20,9 @@ import Keyboard from '../../../components/Keyboard'
 import Text from '../../../components/Text'
 import Scanner from '../../../components/Scanner'
 import { consoleError } from '../../../lib/logs'
-import { Addresses } from '../../../lib/types'
+import { Addresses, SettingsOptions } from '../../../lib/types'
 import { getReceivingAddresses } from '../../../lib/asp'
-import { Options, OptionsContext } from '../../../providers/options'
+import { OptionsContext } from '../../../providers/options'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
@@ -102,7 +102,7 @@ export default function SendForm() {
   }
 
   const gotoRollover = () => {
-    setOption(Options.Vtxos)
+    setOption(SettingsOptions.Vtxos)
     navigate(Pages.Settings)
   }
 

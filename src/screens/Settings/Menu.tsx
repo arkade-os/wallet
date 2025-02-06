@@ -1,10 +1,11 @@
 import { useContext } from 'react'
 import ArrowIcon from '../../icons/Arrow'
 import Header from '../../components/Header'
-import { Options, OptionsContext } from '../../providers/options'
+import { OptionsContext } from '../../providers/options'
 import Text, { TextLabel } from '../../components/Text'
 import FlexRow from '../../components/FlexRow'
 import Content from '../../components/Content'
+import { SettingsOptions } from '../../lib/types'
 
 export default function Menu() {
   const { setOption, validOptions } = useContext(OptionsContext)
@@ -15,11 +16,11 @@ export default function Menu() {
     borderTop: border,
   }
 
-  const rowStyle = (option: Options) => ({
+  const rowStyle = (option: SettingsOptions) => ({
     alignItems: 'center',
-    backgroundColor: option === Options.Reset ? 'var(--redbg)' : 'var(--dark10)',
+    backgroundColor: option === SettingsOptions.Reset ? 'var(--redbg)' : 'var(--dark10)',
     borderBottom: border,
-    color: option === Options.Reset ? 'var(--white)' : 'var(--dark)',
+    color: option === SettingsOptions.Reset ? 'var(--white)' : 'var(--dark)',
     cursor: 'pointer',
     display: 'flex',
     justifyContent: 'space-between',
@@ -39,7 +40,7 @@ export default function Menu() {
                 <div key={option} onClick={() => setOption(option)} style={rowStyle(option)}>
                   <FlexRow>
                     {icon}
-                    <Text color={option === Options.Reset ? 'white' : ''} capitalize>
+                    <Text color={option === SettingsOptions.Reset ? 'white' : ''} capitalize>
                       {option}
                     </Text>
                   </FlexRow>

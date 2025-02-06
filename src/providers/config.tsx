@@ -1,28 +1,7 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
 import { clearStorage, readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
 import { defaultAsp } from '../lib/constants'
-
-export enum Themes {
-  Dark = 'Dark',
-  Light = 'Light',
-}
-
-export enum Unit {
-  BTC = 'btc',
-  EUR = 'eur',
-  USD = 'usd',
-  SAT = 'sat',
-}
-
-export interface Config {
-  aspUrl: string
-  nostr: boolean
-  notifications: boolean
-  npub: string
-  showBalance: boolean
-  theme: Themes
-  unit: Unit
-}
+import { Config, Themes, Unit } from '../lib/types'
 
 const defaultConfig: Config = {
   aspUrl: defaultAsp,

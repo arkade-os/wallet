@@ -1,13 +1,63 @@
 import { NetworkName } from './network'
 
-export type Mnemonic = string
-export type Password = string
-export type Satoshis = number
-
 export type Addresses = {
   boardingAddr: string
   offchainAddr: string
 }
+
+export type Config = {
+  aspUrl: string
+  nostr: boolean
+  notifications: boolean
+  npub: string
+  showBalance: boolean
+  theme: Themes
+  unit: Unit
+}
+
+export type Mnemonic = string
+
+export type Password = string
+
+export type Satoshis = number
+
+export enum SettingsSections {
+  Advanced = 'Advanced',
+  General = 'General',
+  Security = 'Security',
+}
+
+export enum SettingsOptions {
+  Menu = 'menu',
+  About = 'about',
+  Appearance = 'appearance',
+  Backup = 'backup',
+  Lock = 'lock wallet',
+  Logs = 'logs',
+  Notifications = 'notifications',
+  Nostr = 'nostr',
+  Notes = 'notes',
+  Password = 'password',
+  Reset = 'reset wallet',
+  Server = 'server',
+  Vtxos = 'coin control',
+}
+
+export enum Themes {
+  Dark = 'Dark',
+  Light = 'Light',
+}
+
+export type Transaction = {
+  amount: number
+  date: string
+  hex?: string
+  txid: string
+  refresh?: number
+  sweep?: boolean
+  unixdate: number
+}
+export type Transactions = Record<NetworkName, Transaction[]>
 
 export type Tx = {
   amount: number
@@ -22,16 +72,12 @@ export type Tx = {
   type: string
 }
 
-export type Transaction = {
-  amount: number
-  date: string
-  hex?: string
-  txid: string
-  refresh?: number
-  sweep?: boolean
-  unixdate: number
+export enum Unit {
+  BTC = 'btc',
+  EUR = 'eur',
+  USD = 'usd',
+  SAT = 'sat',
 }
-export type Transactions = Record<NetworkName, Transaction[]>
 
 export type Vtxo = {
   amount: number
@@ -50,4 +96,18 @@ export type Vtxo = {
 export type Vtxos = {
   spendable: Vtxo[]
   spent: Vtxo[]
+}
+
+export type Wallet = {
+  arkAddress: string
+  balance: number
+  explorer: string
+  initialized: boolean
+  lastUpdate: number
+  lockedByBiometrics?: boolean
+  network: string
+  nextRollover: number
+  txs: Tx[]
+  vtxos: Vtxos
+  wasmVersion: string
 }

@@ -9,10 +9,11 @@ import { ConfigContext } from '../../../providers/config'
 import Header from '../../../components/Header'
 import InputNote from '../../../components/InputNote'
 import Scanner from '../../../components/Scanner'
-import { Options, OptionsContext } from '../../../providers/options'
+import { OptionsContext } from '../../../providers/options'
 import { extractError } from '../../../lib/error'
 import FlexCol from '../../../components/FlexCol'
 import { consoleError } from '../../../lib/logs'
+import { SettingsOptions } from '../../../lib/types'
 
 export default function NotesForm() {
   const { showConfig, toggleShowConfig } = useContext(ConfigContext)
@@ -41,7 +42,7 @@ export default function NotesForm() {
   }, [note])
 
   const handleBack = () => {
-    setOption(Options.Menu)
+    setOption(SettingsOptions.Menu)
     navigate(Pages.Settings)
   }
 
