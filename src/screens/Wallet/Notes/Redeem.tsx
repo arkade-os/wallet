@@ -61,7 +61,7 @@ export default function NotesRedeem() {
       <Header text='Redeem note' back={handleBack} />
       <Content>
         {redeeming ? (
-          <Loading text='Redeeming a note requires a round, which can take a few seconds' />
+          <Loading text='Redeeming a note requires a batch, which can take a few seconds' />
         ) : (
           <Padded>
             <FlexCol gap='2rem'>

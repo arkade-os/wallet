@@ -15,7 +15,7 @@ export default function About() {
     ['Dust', `${aspInfo.dust} sats`],
     ['Forfeit address', aspInfo.forfeitAddress],
     ['Network', aspInfo.network],
-    ['Round interval', `${aspInfo.roundInterval} secs`],
+    ['Batch interval', `${aspInfo.roundInterval} secs`],
     ['VTXO tree expiry', `${Math.round(aspInfo.vtxoTreeExpiry / 60 / 60 / 24)} days`],
     ['Server pubkey', aspInfo.pubkey],
     ['Server URL', aspInfo.url],

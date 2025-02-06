@@ -105,7 +105,7 @@ export default function ReceiveAmount() {
       <>
         <Header text='Fauceting' />
         <Content>
-          <Loading text='Getting sats from a faucet requires a round, which can take a few seconds' />
+          <Loading text='Getting sats from a faucet requires a batch, which can take a few seconds' />
         </Content>
       </>
     )
