@@ -21,6 +21,12 @@ export default function Unlock() {
   const [error, setError] = useState('')
   const [password, setPassword] = useState('')
 
+  const getPasswordFromBiometrics = () => {
+    authenticateUser()
+      .then(setPassword)
+      .catch(() => {})
+  }
+
   useEffect(() => {
     if (!password) return
     unlockWallet(password)
@@ -30,16 +36,13 @@ export default function Unlock() {
 
   useEffect(() => {
     if (!wallet.lockedByBiometrics || walletUnlocked) return
-    authenticateUser()
-      .then(setPassword)
-      .catch(() => {})
+    getPasswordFromBiometrics()
   }, [wallet.lockedByBiometrics])
 
-  const handleChange = (ev: Event) => {
-    setPassword((ev.target as HTMLInputElement).value)
-  }
+  const handleChange = (ev: any) => setPassword(ev.target.value)
 
   const handleUnlock = async () => {
+    if (wallet.lockedByBiometrics) return getPasswordFromBiometrics()
     if (!password) return
     unlockWallet(password)
       .then(reloadWallet)
@@ -49,28 +52,24 @@ export default function Unlock() {
       })
   }
 
-  if (wallet.lockedByBiometrics)
-    return (
-      <>
-        <Header text='Unlock' />
-        <CenterScreen>
-          <FingerprintIcon />
-          <Text centered small wrap>
-            Unlocking with biometrics
-          </Text>
-        </CenterScreen>
-      </>
-    )
-
   return (
     <>
       <Header text='Unlock' />
       <Content>
         <Padded>
-          <FlexCol gap='1rem'>
-            <InputPassword focus label='Insert password' onChange={handleChange} onEnter={handleUnlock} />
-            <Error error={Boolean(error)} text={error} />
-          </FlexCol>
+          {wallet.lockedByBiometrics ? (
+            <CenterScreen onClick={getPasswordFromBiometrics}>
+              <FingerprintIcon />
+              <Text centered small wrap>
+                Unlock with biometrics
+              </Text>
+            </CenterScreen>
+          ) : (
+            <FlexCol gap='1rem'>
+              <InputPassword focus label='Insert password' onChange={handleChange} onEnter={handleUnlock} />
+              <Error error={Boolean(error)} text={error} />
+            </FlexCol>
+          )}
         </Padded>
       </Content>
       <ButtonsOnBottom>

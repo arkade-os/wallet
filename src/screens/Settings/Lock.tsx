@@ -7,42 +7,49 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import { extractError } from '../../lib/error'
 import Content from '../../components/Content'
 import Error from '../../components/Error'
-import Loading from '../../components/Loading'
 import InputPassword from '../../components/InputPassword'
 import Header from './Header'
 import FlexCol from '../../components/FlexCol'
-import { TextSecondary } from '../../components/Text'
+import Text, { TextSecondary } from '../../components/Text'
+import { authenticateUser } from '../../lib/biometrics'
+import CenterScreen from '../../components/CenterScreen'
+import FingerprintIcon from '../../icons/Fingerprint'
+import { consoleError } from '../../lib/logs'
 
 export default function Lock() {
   const { navigate } = useContext(NavigationContext)
-  const { lockWallet } = useContext(WalletContext)
+  const { lockWallet, walletUnlocked, wallet } = useContext(WalletContext)
 
   const [error, setError] = useState('')
-  const [label, setLabel] = useState('Lock')
   const [password, setPassword] = useState('')
-  const [locking, setLocking] = useState(false)
 
-  useEffect(() => {
-    setLabel(locking ? 'Locking...' : 'Lock')
-  }, [locking])
-
-  const handleChange = (pass: string) => {
-    setError('')
-    setPassword(pass)
-    lockWallet(pass)
-      .then(() => navigate(Pages.Unlock))
+  const getPasswordFromBiometrics = () => {
+    authenticateUser()
+      .then(setPassword)
       .catch(() => {})
   }
 
-  const handleLock = async () => {
-    setLocking(true)
+  useEffect(() => {
+    if (!wallet.lockedByBiometrics || !walletUnlocked) return
+    getPasswordFromBiometrics()
+  }, [wallet.lockedByBiometrics])
+
+  useEffect(() => {
+    if (!password) return
     lockWallet(password)
-      .then(() => {
-        setPassword('')
-        setLocking(false)
-        navigate(Pages.Unlock)
-      })
+      .then(() => navigate(Pages.Unlock))
+      .catch(() => {})
+  }, [password])
+
+  const handleChange = (ev: any) => setPassword(ev.target.value)
+
+  const handleLock = async () => {
+    if (wallet.lockedByBiometrics) return getPasswordFromBiometrics()
+    if (!password) return
+    lockWallet(password)
+      .then(() => navigate(Pages.Unlock))
       .catch((err) => {
+        consoleError(err, 'error locking wallet')
         setError(extractError(err))
       })
   }
@@ -51,20 +58,25 @@ export default function Lock() {
     <>
       <Header text='Lock' back />
       <Content>
-        {locking ? (
-          <Loading />
-        ) : (
-          <Padded>
+        <Padded>
+          {wallet.lockedByBiometrics ? (
+            <CenterScreen onClick={getPasswordFromBiometrics}>
+              <FingerprintIcon />
+              <Text centered small wrap>
+                Lock with biometrics
+              </Text>
+            </CenterScreen>
+          ) : (
             <FlexCol>
-              <InputPassword label='Insert password' onChange={handleChange} />
               <Error error={Boolean(error)} text={error} />
+              <InputPassword label='Insert password' onChange={handleChange} />
               <TextSecondary>After locking you'll need to re-enter your password to unlock.</TextSecondary>
             </FlexCol>
-          </Padded>
-        )}
+          )}
+        </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleLock} label={label} disabled={locking} />
+        <Button onClick={handleLock} label='Lock' />
       </ButtonsOnBottom>
     </>
   )
