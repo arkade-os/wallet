@@ -61,20 +61,13 @@ body {
   text-transform: uppercase;
 }
 
-/* Hide scrollbar for Chrome, Safari and Opera */
-ion-content::part(scroll)::-webkit-scrollbar {
-  display: none;
-}
-
-/* Hide scrollbar for IE, Edge and Firefox */
-ion-content::part(scroll) {
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
-}
-
 p a {
   color: inherit;
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+iframe#webpack-dev-server-client-overlay {
+  display: none !important;
 }
