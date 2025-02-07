@@ -179,7 +179,7 @@ export const getVtxos = async (): Promise<Vtxos> => {
 }
 
 export const lock = async (password: string): Promise<void> => {
-  await window.lock(password)
+  return await window.lock(password)
 }
 
 export const redeemNotes = async (notes: string[]): Promise<void> => {
