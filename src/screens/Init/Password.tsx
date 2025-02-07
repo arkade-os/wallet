@@ -12,14 +12,12 @@ import { WalletContext } from '../../providers/wallet'
 import CenterScreen from '../../components/CenterScreen'
 import FingerprintIcon from '../../icons/Fingerprint'
 import Text from '../../components/Text'
-import Error from '../../components/Error'
 
 export default function InitPassword() {
   const { navigate } = useContext(NavigationContext)
   const { initInfo, setInitInfo } = useContext(FlowContext)
   const { updateWallet, wallet } = useContext(WalletContext)
 
-  const [error, setError] = useState('')
   const [label, setLabel] = useState('')
   const [password, setPassword] = useState('')
   const [useBiometrics, setUseBiometrics] = useState(isBiometricsSupported())
@@ -29,15 +27,18 @@ export default function InitPassword() {
     navigate(Pages.InitConnect)
   }
 
-  useEffect(() => {
-    setError('')
-    if (!useBiometrics) return
+  const registerUserBiometrics = () => {
     registerUser()
       .then((password) => {
         updateWallet({ ...wallet, lockedByBiometrics: true })
         connect(password)
       })
-      .catch(() => setError('Biometric registration failed'))
+      .catch(() => {})
+  }
+
+  useEffect(() => {
+    if (!useBiometrics) return
+    registerUserBiometrics()
   }, [useBiometrics])
 
   const handleCancel = () => navigate(Pages.Init)
@@ -49,9 +50,8 @@ export default function InitPassword() {
       <Header text='Define password' back={handleCancel} />
       <Content>
         <Padded>
-          <Error error={Boolean(error)} text={error} />
           {useBiometrics ? (
-            <CenterScreen>
+            <CenterScreen onClick={registerUserBiometrics}>
               <FingerprintIcon />
               <Text centered small wrap>
                 Use biometrics
