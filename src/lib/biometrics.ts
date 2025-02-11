@@ -14,6 +14,8 @@ export async function registerUser(): Promise<string> {
   const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
     authenticatorSelection: {
       authenticatorAttachment: 'platform',
+      residentKey: 'required',
+      requireResidentKey: true,
     },
     challenge: generateRandomUint8Array(32),
     pubKeyCredParams: [
