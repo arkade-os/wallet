@@ -4,13 +4,24 @@ function generateRandomUint8Array(size: number = 32): Uint8Array {
   return array
 }
 
+function getDeviceId(): string {
+  const userAgent = window.navigator.userAgent
+  const match = userAgent.match(/\(([^)]+)/)
+  if (match?.[1]) return match[1]
+  return 'unknown'
+}
+
+function getBrowserId(): Uint8Array {
+  const encoder = new TextEncoder()
+  return encoder.encode(getDeviceId())
+}
+
 export function isBiometricsSupported(): boolean {
   return 'credentials' in navigator
 }
 
 // Function to register a new user
 export async function registerUser(): Promise<string> {
-  const username = 'Arkade'
   const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
     authenticatorSelection: {
       authenticatorAttachment: 'platform',
@@ -34,9 +45,9 @@ export async function registerUser(): Promise<string> {
     },
     timeout: 60000,
     user: {
-      id: new Uint8Array(16),
-      name: username,
-      displayName: username,
+      id: getBrowserId(),
+      name: getDeviceId(),
+      displayName: 'Arkade',
     },
   }
 
