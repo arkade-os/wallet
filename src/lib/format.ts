@@ -87,3 +87,7 @@ export const prettyUnixTimestamp = (num: number): string => {
     timeStyle: 'long',
   }).format(date)
 }
+
+export const toUint8Array = (str: string): Uint8Array => {
+  return new TextEncoder().encode(str)
+}

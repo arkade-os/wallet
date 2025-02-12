@@ -1,19 +1,16 @@
-function generateRandomUint8Array(size: number = 32): Uint8Array {
-  const array = new Uint8Array(size)
+import { toUint8Array } from './format'
+
+function generateRandomChallenge(): Uint8Array {
+  const array = new Uint8Array(32)
   window.crypto.getRandomValues(array)
   return array
 }
 
-function getDeviceId(): string {
+function getBrowserId(): string {
   const userAgent = window.navigator.userAgent
   const match = userAgent.match(/\(([^)]+)/)
   if (match?.[1]) return match[1]
   return 'unknown'
-}
-
-function getBrowserId(): Uint8Array {
-  const encoder = new TextEncoder()
-  return encoder.encode(getDeviceId())
 }
 
 export function isBiometricsSupported(): boolean {
@@ -28,7 +25,7 @@ export async function registerUser(): Promise<string> {
       residentKey: 'required',
       requireResidentKey: true,
     },
-    challenge: generateRandomUint8Array(32),
+    challenge: generateRandomChallenge(),
     pubKeyCredParams: [
       {
         type: 'public-key',
@@ -45,8 +42,8 @@ export async function registerUser(): Promise<string> {
     },
     timeout: 60000,
     user: {
-      id: getBrowserId(),
-      name: getDeviceId(),
+      id: toUint8Array(getBrowserId()),
+      name: getBrowserId(),
       displayName: 'Arkade',
     },
   }
@@ -59,7 +56,7 @@ export async function registerUser(): Promise<string> {
 // Function to authenticate a user
 export async function authenticateUser(): Promise<string> {
   const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
-    challenge: generateRandomUint8Array(32),
+    challenge: generateRandomChallenge(),
     timeout: 60000,
   }
 
