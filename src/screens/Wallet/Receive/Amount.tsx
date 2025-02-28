@@ -116,7 +116,7 @@ export default function ReceiveAmount() {
       <>
         <Header text='Success' />
         <Content>
-          <Success text={`${prettyNumber(amount)} sats fauceted`} />
+          <Success text={`${prettyNumber(amount)} sats received from faucet`} />
         </Content>
       </>
     )
