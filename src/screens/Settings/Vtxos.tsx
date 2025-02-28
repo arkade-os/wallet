@@ -49,7 +49,7 @@ export default function Vtxos() {
   const { config } = useContext(ConfigContext)
   const { rolloverVtxos, wallet } = useContext(WalletContext)
 
-  const defaultLabel = 'Roll Over VTXOs'
+  const defaultLabel = 'Renew Virtual Coins'
 
   const [error, setError] = useState('')
   const [label, setLabel] = useState(defaultLabel)
@@ -60,7 +60,7 @@ export default function Vtxos() {
   const [duration, setDuration] = useState(0)
 
   useEffect(() => {
-    setLabel(rollingover ? 'Rolling over...' : defaultLabel)
+    setLabel(rollingover ? 'Renewing...' : defaultLabel)
   }, [rollingover])
 
   useEffect(() => {
@@ -90,9 +90,9 @@ export default function Vtxos() {
     <>
       <Header
         auxFunc={() => setShowList(!showList)}
-        auxText={showList ? 'Date' : 'VTXOs'}
+        auxText={showList ? 'Date' : 'Coins'}
         back
-        text={showList ? 'VTXOs list' : 'Next roll over'}
+        text={showList ? 'Virtual Coins' : 'Next Renewal'}
       />
       <Content>
         {rollingover ? (
@@ -102,7 +102,7 @@ export default function Vtxos() {
             <FlexCol gap='0.5rem'>
               <Error error={Boolean(error)} text={error} />
               <Text capitalize color='dark50' smaller>
-                Your VTXOs with amount and expiration
+                Your virtual coins with amount and expiration
               </Text>
               {wallet.vtxos.spendable?.map((v) => (
                 <VtxoLine key={v.txid} hide={!config.showBalance} vtxo={v} />
@@ -116,7 +116,7 @@ export default function Vtxos() {
                 <FlexCol gap='0.5rem' margin='0 0 1rem 0'>
                   <Error error={Boolean(error)} text={error} />
                   <Text capitalize color='dark50' smaller>
-                    Next roll over
+                    Next renewal
                   </Text>
                   <Box>
                     <Text>{prettyDate(wallet.nextRollover)}</Text>
@@ -156,7 +156,7 @@ export default function Vtxos() {
         callback={() => setReminderIsOpen(false)}
         duration={duration}
         isOpen={reminderIsOpen}
-        name='VTXOs rollover'
+        name='Virtual Coin Renewal'
         startTime={startTime}
       />
     </>
