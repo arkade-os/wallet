@@ -49,7 +49,7 @@ export default function Vtxos() {
   const { config } = useContext(ConfigContext)
   const { rolloverVtxos, wallet } = useContext(WalletContext)
 
-  const defaultLabel = 'Roll over VTXOs now'
+  const defaultLabel = 'Roll Over VTXOs'
 
   const [error, setError] = useState('')
   const [label, setLabel] = useState(defaultLabel)
@@ -124,24 +124,24 @@ export default function Vtxos() {
                   </Box>
                 </FlexCol>
                 <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
-                  <TextSecondary>Your oldest VTXO will expire {prettyAgo(wallet.nextRollover)}.</TextSecondary>
+                  <TextSecondary>First virtual coin expiration: {prettyAgo(wallet.nextRollover)}.</TextSecondary>
                   <TextSecondary>
-                    Your VTXOs have a lifetime of {prettyDelta(aspInfo.vtxoTreeExpiry)} and they need to be rolled over
-                    prior to expiration.
+                    Your virtual coins have a lifetime of {prettyDelta(aspInfo.vtxoTreeExpiry)} and need renewal
+                    before expiration.
                   </TextSecondary>
                   <TextSecondary>
-                    The app will try to auto roll over all VTXOs which expire in less than 24 hours.
+                    Automatic renewal occurs for virtual coins expiring within 24 hours.
                   </TextSecondary>
                   {startTime ? (
                     <TextSecondary>
-                      You can settle it at the best market hour for lower fees. Best market hour starts at{' '}
-                      {prettyDate(startTime)} ({prettyAgo(startTime, true)}) and lasts for {prettyDelta(duration)}.
+                      Settlement during market hours offers lower fees. Next market hour: {' '}
+                      {prettyDate(startTime)} ({prettyAgo(startTime, true)}) for {prettyDelta(duration)}.
                     </TextSecondary>
                   ) : null}
                 </FlexCol>
               </>
             ) : (
-              <WarningBox red text="You don't have any VTXOs" />
+              <WarningBox red text="No virtual coins available" />
             )}
           </Padded>
         )}

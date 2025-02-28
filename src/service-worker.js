@@ -72,8 +72,8 @@ function notify(title, body) {
 
 // notify user of expiring vtxos
 function notifyUser(nextRollOver) {
-  const title = `VTXOs expiring ${prettyAgo(nextRollOver)}`
-  const body = 'Go to wallet to rollover VTXOs'
+  const title = `Virtual coins expiring ${prettyAgo(nextRollOver)}`
+  const body = 'Open wallet to renew virtual coins'
   notify(title, body)
 }
 

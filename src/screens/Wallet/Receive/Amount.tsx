@@ -105,7 +105,7 @@ export default function ReceiveAmount() {
       <>
         <Header text='Fauceting' />
         <Content>
-          <Loading text='Getting sats from a faucet requires a batch, which can take a few seconds' />
+          <Loading text='Getting sats from a faucet. This may take a few moments.' />
         </Content>
       </>
     )
@@ -116,7 +116,7 @@ export default function ReceiveAmount() {
       <>
         <Header text='Success' />
         <Content>
-          <Success text={`${prettyNumber(amount)} sats received from faucet`} />
+          <Success text={`${prettyNumber(amount)} sats received from faucet successfully`} />
         </Content>
       </>
     )

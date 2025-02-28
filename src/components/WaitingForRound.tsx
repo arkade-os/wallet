@@ -5,7 +5,7 @@ import { sleep } from '../lib/sleep'
 
 export default function WaitingForRound({ rollover, settle }: { rollover?: boolean; settle?: boolean }) {
   const initial = settle ? 'Settling transactions' : rollover ? 'Rolling over your VTXOs' : 'Payments to mainnet'
-  const message = initial + ' requires a batch, which can take a few seconds'
+  const message = initial + '. This may take a few moments.'
 
   const [logLength, setLogLength] = useState(getInfoLogsLength())
   const [logMessage, setLogMessage] = useState(message)

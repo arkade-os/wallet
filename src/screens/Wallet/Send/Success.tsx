@@ -45,7 +45,7 @@ export default function SendSuccess() {
     <>
       <Header text='Success' />
       <Content>
-        <Success text={`Sent ${prettyNumber(sendInfo.total)} sats`} />
+        <Success text={`Payment of ${prettyNumber(sendInfo.total)} sats sent successfully`} />
       </Content>
       <ButtonsOnBottom>
         <BackToWalletButton />

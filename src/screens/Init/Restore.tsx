@@ -28,10 +28,10 @@ export default function InitRestore() {
     try {
       if (someKey.match(/^nsec/)) privateKey = nsecToSeed(someKey)
       const invalid = invalidPrivateKey(privateKey)
-      setLabel(invalid ? 'Invalid private key' : buttonLabel)
+      setLabel(invalid ? 'Unable to validate private key format' : buttonLabel)
       setError(invalid)
     } catch (err) {
-      setLabel('Invalid nsec')
+      setLabel('Unable to validate key format')
       setError(extractError(err))
     }
     setPrivateKey(privateKey)

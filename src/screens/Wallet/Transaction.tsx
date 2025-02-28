@@ -29,7 +29,7 @@ export default function Transaction() {
   const { settlePending, wallet } = useContext(WalletContext)
 
   const tx = txInfo
-  const defaultButtonLabel = 'Settle pending'
+  const defaultButtonLabel = 'Settle Transaction'
 
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
   const [canSettleOnMarketHour, setCanSettleOnMarketHour] = useState(false)
@@ -101,19 +101,19 @@ export default function Transaction() {
               {tx.settled ? null : (
                 <Info color='yellowoutlier' title='Pending'>
                   <TextSecondary>
-                    This transaction is not yet final. Funds will become non-reversible once the transaction is settled.
+                    Transaction pending. Funds will be non-reversible after settlement.
                   </TextSecondary>
                   {canSettleOnMarketHour ? (
                     <TextSecondary>
-                      You can settle it at the next market hour for lower fees. Next market hour starts at{' '}
-                      {prettyDate(startTime)} ({prettyAgo(startTime, true)}) and lasts for {prettyDelta(duration)}.
+                      Settlement during market hours offers lower fees. Next market hour: {' '}
+                      {prettyDate(startTime)} ({prettyAgo(startTime, true)}) for {prettyDelta(duration)}.
                     </TextSecondary>
                   ) : null}
                 </Info>
               )}
               {settleSuccess ? (
                 <Info color='green' title='Success'>
-                  <TextSecondary>Your transactions are now settled</TextSecondary>
+                  <TextSecondary>Transaction settled successfully</TextSecondary>
                 </Info>
               ) : null}
               <Table data={data} />

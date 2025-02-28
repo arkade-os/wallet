@@ -20,7 +20,7 @@ export default function ReceiveSuccess() {
     <>
       <Header text='Success' />
       <Content>
-        <Success text={`Received ${prettyNumber(recvInfo.satoshis)} sats`} />
+        <Success text={`${prettyNumber(recvInfo.satoshis)} sats received successfully`} />
       </Content>
       <ButtonsOnBottom>
         <BackToWalletButton />

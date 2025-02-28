@@ -19,7 +19,7 @@ export default function NotesRedeem() {
   const { noteInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
 
-  const defaultButtonLabel = 'Redeem note'
+  const defaultButtonLabel = 'Redeem Note'
 
   const [details, setDetails] = useState<DetailsProps>()
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
@@ -58,10 +58,10 @@ export default function NotesRedeem() {
 
   return (
     <>
-      <Header text='Redeem note' back={handleBack} />
+      <Header text='Redeem Note' back={handleBack} />
       <Content>
         {redeeming ? (
-          <Loading text='Redeeming a note requires a batch, which can take a few seconds' />
+          <Loading text='Redeeming a note Processing. This may take a few moments.' />
         ) : (
           <Padded>
             <FlexCol gap='2rem'>

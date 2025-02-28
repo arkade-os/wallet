@@ -76,7 +76,7 @@ export default function Lock() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleLock} label='Lock' />
+        <Button onClick={handleLock} label='Lock Wallet' />
       </ButtonsOnBottom>
     </>
   )

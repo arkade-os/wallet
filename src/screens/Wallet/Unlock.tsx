@@ -57,7 +57,7 @@ export default function Unlock() {
       <Minimal>
         <FlexRow>
           <input type='password' onChange={handleChange} />
-          <Button onClick={handleUnlock} label='Unlock' small />
+          <Button onClick={handleUnlock} label='Unlock Wallet' small />
         </FlexRow>
       </Minimal>
     )
@@ -83,7 +83,7 @@ export default function Unlock() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleUnlock} label='Unlock' />
+        <Button onClick={handleUnlock} label='Unlock Wallet' />
       </ButtonsOnBottom>
     </>
   )

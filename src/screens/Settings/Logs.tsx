@@ -22,7 +22,7 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
   return (
     <div style={{ margin: '1rem' }}>
       {logs.length === 0 ? (
-        <p>No logs</p>
+        <p>No activity logs available</p>
       ) : (
         <FlexCol gap='0.5rem'>
           {[...logs].reverse().map(({ time, msg, level }) => (
