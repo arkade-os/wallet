@@ -1,7 +1,11 @@
 import { prettyDate } from '../lib/format'
 import { IonActionSheet } from '@ionic/react'
-import { generateAppleCalendarUrl, generateGoogleCalendarUrl, generateOutlookCalendarUrl, type CalendarEvent } from '../lib/calendar'
-
+import { 
+  CalendarEvent, 
+  generateAppleCalendarUrl, 
+  generateGoogleCalendarUrl, 
+  generateOutlookCalendarUrl 
+} from '../lib/calendar'
 interface ReminderProps {
   callback: () => void
   duration: number
@@ -11,35 +15,27 @@ interface ReminderProps {
 }
 
 export default function Reminder({ callback, duration, name, isOpen, startTime }: ReminderProps) {
-  const event: CalendarEvent = {
+  // Create CalendarEvent object to pass to helper functions
+  const calendarEvent: CalendarEvent = {
     name,
     startTime,
     duration
   }
-
+  
   const handleApple = () => {
-    const url = generateAppleCalendarUrl(event)
-    if (url.startsWith('webcal://')) {
-      window.location.href = url
-    } else {
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${name.toLowerCase().replace(/\s+/g, '-')}.ics`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    }
+    const url = generateAppleCalendarUrl(calendarEvent)
+    window.open(url, '_blank')
     callback()
   }
 
   const handleGoogle = () => {
-    const url = generateGoogleCalendarUrl(event)
+    const url = generateGoogleCalendarUrl(calendarEvent)
     window.open(url, '_blank')
     callback()
   }
 
   const handleOutlook = () => {
-    const url = generateOutlookCalendarUrl(event)
+    const url = generateOutlookCalendarUrl(calendarEvent)
     window.open(url, '_blank')
     callback()
   }

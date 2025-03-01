@@ -51,38 +51,41 @@ export const stringify = (input: Record<string, any>): string => {
 }
 
 export const generateAppleCalendarUrl = (event: CalendarEvent): string => {
-  const params = new URLSearchParams({
-    start: event.startTime.toString(),
-    name: event.name
-  });
-
-  return `webcal://calendar.arkade.workers.dev/?${params.toString()}`;
+  const icsData = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+URL:${window.location.href}
+DTSTART:${formatTime(event.startTime)}
+DTEND:${formatTime(event.startTime + event.duration)}
+SUMMARY:${event.name}
+END:VEVENT
+END:VCALENDAR`
+  return `data:text/calendar;charset=utf8,${encodeURIComponent(icsData)}`
 }
 
 export const generateGoogleCalendarUrl = (event: CalendarEvent): string => {
-  // Use 1-minute duration for Google Calendar
-  const endTime = event.startTime + 60 // 1 minute in seconds
-  
-  // Format dates in Google Calendar format
-  const startDate = formatGoogleDate(event.startTime)
-  const endDate = formatGoogleDate(endTime)
-  
   const details = {
     text: event.name,
     details: DEFAULT_EVENT_MESSAGE,
-    dates: `${startDate}/${endDate}`,
+    dates: formatTime(event.startTime) + '/' + formatTime(event.startTime + event.duration),
   }
   return `https://www.google.com/calendar/render?action=TEMPLATE&${stringify(details)}`
 }
 
 export const generateOutlookCalendarUrl = (event: CalendarEvent): string => {
-  const params = new URLSearchParams({
-    start: event.startTime.toString(),
-    name: event.name
-  });
-  
-  return `https://outlook.office.com/calendar/0/addfromweb?url=webcal://calendar.arkade.workers.dev/?${params.toString()}`;
-} 
+  const details = {
+    path: '/calendar/action/compose',
+    rru: 'addevent',
+    startdt: formatTime(event.startTime, 'yyyy-mm-ddThh:mm:ss'),
+    enddt: formatTime(event.startTime + event.duration, 'yyyy-mm-ddThh:mm:ss'),
+    subject: event.name,
+    body: DEFAULT_EVENT_MESSAGE,
+    allday: false,
+  }
+  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints
+  const action = isMobile ? 'deeplink' : 'compose'
+  return `https://outlook.live.com/calendar/0/action/${action}?${stringify(details)}`
+}
 
 /**
  * Generate an ICS file content for a calendar event
