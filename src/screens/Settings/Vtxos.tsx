@@ -157,7 +157,7 @@ export default function Vtxos() {
         duration={duration}
         isOpen={reminderIsOpen}
         name='Virtual Coin Renewal'
-        startTime={startTime}
+        startTime={wallet.nextRollover}
       />
     </>
   )
