@@ -91,10 +91,9 @@ export const prettyNumber = (num?: number, maximumFractionDigits = 8): string =>
 }
 
 const prettySats = (sats: number): [string, string] => {
-  const pretty = (dp = 3, divider = 1) => prettyNumber(fromSatoshis(sats / divider), dp)
-  if (sats > 100_000_000_000) return [pretty(2), 'BTC']
-  if (sats > 100_000_000) return [pretty(3), 'BTC']
-  if (sats > 1_000_000) return [pretty(3, 1_000_000), 'M sats']
+  if (sats > 100_000_000_000) return [prettyNumber(fromSatoshis(sats), 2), 'BTC']
+  if (sats > 100_000_000) return [prettyNumber(fromSatoshis(sats), 3), 'BTC']
+  if (sats > 1_000_000) return [prettyNumber(sats / 1_000_000, 3), 'M sats']
   return [prettyNumber(sats), 'sats']
 }
 
