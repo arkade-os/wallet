@@ -2,7 +2,7 @@ import { useContext } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { Tx } from '../lib/types'
-import { prettyAmount, prettyDate, prettyHide, prettyLongText } from '../lib/format'
+import { prettyAmount, prettyDate, prettyLongText } from '../lib/format'
 import PendingIcon from '../icons/Pending'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
@@ -12,16 +12,19 @@ import { NavigationContext, Pages } from '../providers/navigation'
 import { defaultFee } from '../lib/constants'
 import SelfSendIcon from '../icons/SelfSend'
 import { ConfigContext } from '../providers/config'
+import { FiatContext } from '../providers/fiat'
 
 const border = '1px solid var(--dark20)'
 
 const TransactionLine = ({ tx }: { tx: Tx }) => {
   const { config } = useContext(ConfigContext)
+  const { toUSD } = useContext(FiatContext)
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
 
-  const prefix = tx.type === 'sent' ? '-' : '+'
-  const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount) : prettyHide(tx.amount)}`
+  const amountPrefix = tx.type === 'sent' ? '-' : '+'
+  const amountInSats = tx.type === 'sent' ? tx.amount - defaultFee : tx.amount
+  const amount = `${amountPrefix} ${prettyAmount(amountInSats, config, toUSD)}`
   const txid = tx.explorable ? `(${prettyLongText(tx.explorable, 3)})` : ''
 
   const Icon = () =>

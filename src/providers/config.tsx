@@ -9,6 +9,7 @@ const defaultConfig: Config = {
   notifications: false,
   npub: '',
   showBalance: true,
+  showFiat: false,
   theme: Themes.Dark,
   unit: Unit.BTC,
 }

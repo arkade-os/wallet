@@ -1,5 +1,5 @@
 import { useContext } from 'react'
-import { prettyHide, prettyNumber } from '../lib/format'
+import { prettyAmount } from '../lib/format'
 import { Satoshis } from '../lib/types'
 import { FiatContext } from '../providers/fiat'
 import Text from './Text'
@@ -16,13 +16,8 @@ export default function Balance({ amount }: BalanceProps) {
   const { config, updateConfig } = useContext(ConfigContext)
   const { toUSD } = useContext(FiatContext)
 
-  const sats = prettyNumber(amount)
-  const fiat = prettyNumber(toUSD(amount), 2)
-
-  const satsBalance = (config.showBalance ? sats : prettyHide(sats)) + ' sats'
-  const fiatBalance = (config.showBalance ? fiat : prettyHide(fiat)) + ' USD'
-
   const toggleShow = () => updateConfig({ ...config, showBalance: !config.showBalance })
+  const toggleFiat = () => updateConfig({ ...config, showFiat: !config.showFiat })
 
   return (
     <FlexCol gap='4px' margin='3rem 0 2rem 0'>
@@ -30,12 +25,14 @@ export default function Balance({ amount }: BalanceProps) {
         My balance
       </Text>
       <FlexRow>
-        <Text bigger>{satsBalance}</Text>
+        <Text bigger>{prettyAmount(amount, config, toUSD)}</Text>
         <div onClick={toggleShow} style={{ cursor: 'pointer' }}>
           <EyeIcon />
         </div>
       </FlexRow>
-      <Text color='dark80'>{fiatBalance}</Text>
+      <div onClick={toggleFiat} style={{ cursor: 'pointer' }}>
+        <Text color='dark80'>{prettyAmount(amount, config, toUSD, true)}</Text>
+      </div>
     </FlexCol>
   )
 }

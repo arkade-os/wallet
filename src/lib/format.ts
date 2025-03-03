@@ -1,4 +1,4 @@
-import { Satoshis } from './types'
+import { Config, Satoshis } from './types'
 import { Decimal } from 'decimal.js'
 
 export const fromSatoshis = (num: Satoshis): number => {
@@ -19,11 +19,22 @@ export const prettyAgo = (timestamp: number | string, long = false): string => {
   return ''
 }
 
-export const prettyAmount = (sats: number, suffix = 'sats'): string => {
-  if (sats > 100_000_000_000) return `${prettyNumber(fromSatoshis(sats), 0)} btc`
-  if (sats > 100_000_000) return `${prettyNumber(fromSatoshis(sats), 3)} btc`
-  if (sats > 1_000_000) return `${prettyNumber(sats / 1_000_000, 3)}M ${suffix}`
-  return `${prettyNumber(sats)} ${suffix}`
+export const prettyAmount = (
+  amountInSats: number,
+  config: Config,
+  toUSD: (sats: number) => number,
+  inverted = false,
+): string => {
+  const showFiat = inverted ? !config.showFiat : config.showFiat
+  if (showFiat) {
+    const amountToShow = toUSD(amountInSats)
+    const amountToView = config.showBalance ? prettyNumber(amountToShow) : prettyHide(amountToShow)
+    return `${amountToView} USD`
+  } else {
+    const [amountToShow, suffix] = prettySats(amountInSats)
+    const amountToView = config.showBalance ? amountToShow : prettyHide(amountToShow)
+    return `${amountToView} ${config.showBalance ? suffix : 'sats'}`
+  }
 }
 
 export const prettyDelta = (seconds: number, long = true): string => {
@@ -60,7 +71,7 @@ export const prettyDate = (num: number): string => {
 }
 
 export const prettyHide = (value: string | number): string => {
-  if (!value) return ''
+  if (!value) return '···'
   const str = typeof value === 'string' ? value : value.toString()
   const length = str.length * 2 > 6 ? str.length * 2 : 6
   return Array(length).fill('·').join('')
@@ -77,6 +88,14 @@ export const prettyLongText = (str?: string, showChars = 12): string => {
 export const prettyNumber = (num?: number, maximumFractionDigits = 8): string => {
   if (!num) return '0'
   return new Intl.NumberFormat('en', { style: 'decimal', maximumFractionDigits }).format(num)
+}
+
+const prettySats = (sats: number): [string, string] => {
+  const pretty = (dp = 3, divider = 1) => prettyNumber(fromSatoshis(sats / divider), dp)
+  if (sats > 100_000_000_000) return [pretty(2), 'BTC']
+  if (sats > 100_000_000) return [pretty(3), 'BTC']
+  if (sats > 1_000_000) return [pretty(3, 1_000_000), 'M sats']
+  return [prettyNumber(sats), 'sats']
 }
 
 export const prettyUnixTimestamp = (num: number): string => {

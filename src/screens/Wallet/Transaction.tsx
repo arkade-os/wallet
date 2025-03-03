@@ -5,7 +5,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
-import { prettyAgo, prettyDate, prettyDelta, prettyHide, prettyNumber } from '../../lib/format'
+import { prettyAgo, prettyAmount, prettyDate, prettyDelta } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
 import Table from '../../components/Table'
 import Error from '../../components/Error'
@@ -20,10 +20,12 @@ import { sleep } from '../../lib/sleep'
 import { AspContext } from '../../providers/asp'
 import { TextSecondary } from '../../components/Text'
 import Reminder from '../../components/Reminder'
+import { FiatContext } from '../../providers/fiat'
 
 export default function Transaction() {
   const { aspInfo, calcNextMarketHour } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
+  const { toUSD } = useContext(FiatContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { settlePending, wallet } = useContext(WalletContext)
@@ -77,15 +79,15 @@ export default function Transaction() {
 
   if (!tx) return <></>
 
-  const amount = tx.type === 'sent' ? tx.amount - defaultFee : tx.amount
+  const amountInSats = tx.type === 'sent' ? tx.amount - defaultFee : tx.amount
 
   const data = [
     ['Direction', tx.type === 'sent' ? 'Sent' : 'Received'],
     ['When', prettyAgo(tx.createdAt)],
     ['Date', prettyDate(tx.createdAt)],
-    ['Amount', `${config.showBalance ? prettyNumber(amount) : prettyHide(amount)} sats`],
-    ['Network fees', `${prettyNumber(tx.type === 'sent' ? defaultFee : 0)} sats`],
-    ['Total', `${config.showBalance ? prettyNumber(tx.amount) : prettyHide(tx.amount)} sats`],
+    ['Amount', prettyAmount(amountInSats, config, toUSD)],
+    ['Network fees', prettyAmount(tx.type === 'sent' ? defaultFee : 0, config, toUSD)],
+    ['Total', prettyAmount(tx.amount, config, toUSD)],
   ].filter((l) => l[1])
 
   return (
@@ -100,13 +102,11 @@ export default function Transaction() {
               <Error error={Boolean(error)} text={error} />
               {tx.settled ? null : (
                 <Info color='yellowoutlier' title='Pending'>
-                  <TextSecondary>
-                    Transaction pending. Funds will be non-reversible after settlement.
-                  </TextSecondary>
+                  <TextSecondary>Transaction pending. Funds will be non-reversible after settlement.</TextSecondary>
                   {canSettleOnMarketHour ? (
                     <TextSecondary>
-                      Settlement during market hours offers lower fees. Next market hour: {' '}
-                      {prettyDate(startTime)} ({prettyAgo(startTime, true)}) for {prettyDelta(duration)}.
+                      Settlement during market hours offers lower fees. Next market hour: {prettyDate(startTime)} (
+                      {prettyAgo(startTime, true)}) for {prettyDelta(duration)}.
                     </TextSecondary>
                   ) : null}
                 </Info>

@@ -11,6 +11,7 @@ export type Config = {
   notifications: boolean
   npub: string
   showBalance: boolean
+  showFiat: boolean
   theme: Themes
   unit: Unit
 }
