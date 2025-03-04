@@ -85,9 +85,9 @@ export default function Transaction() {
     ['Direction', tx.type === 'sent' ? 'Sent' : 'Received'],
     ['When', prettyAgo(tx.createdAt)],
     ['Date', prettyDate(tx.createdAt)],
-    ['Amount', prettyAmount(amountInSats, config, toUSD)],
-    ['Network fees', prettyAmount(tx.type === 'sent' ? defaultFee : 0, config, toUSD)],
-    ['Total', prettyAmount(tx.amount, config, toUSD)],
+    ['Amount', prettyAmount(amountInSats, config.showBalance, config.showFiat, toUSD)],
+    ['Network fees', prettyAmount(tx.type === 'sent' ? defaultFee : 0, config.showBalance, config.showFiat, toUSD)],
+    ['Total', prettyAmount(tx.amount, config.showBalance, config.showFiat, toUSD)],
   ].filter((l) => l[1])
 
   return (

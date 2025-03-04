@@ -25,13 +25,13 @@ export default function Balance({ amount }: BalanceProps) {
         My balance
       </Text>
       <FlexRow>
-        <Text bigger>{prettyAmount(amount, config, toUSD)}</Text>
+        <Text bigger>{prettyAmount(amount, config.showBalance, config.showFiat, toUSD)}</Text>
         <div onClick={toggleShow} style={{ cursor: 'pointer' }}>
           <EyeIcon />
         </div>
       </FlexRow>
       <div onClick={toggleFiat} style={{ cursor: 'pointer' }}>
-        <Text color='dark80'>{prettyAmount(amount, config, toUSD, true)}</Text>
+        <Text color='dark80'>{prettyAmount(amount, config.showBalance, !config.showFiat, toUSD)}</Text>
       </div>
     </FlexCol>
   )

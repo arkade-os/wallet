@@ -1,4 +1,4 @@
-import { Config, Satoshis } from './types'
+import { Satoshis } from './types'
 import { Decimal } from 'decimal.js'
 
 export const fromSatoshis = (num: Satoshis): number => {
@@ -20,20 +20,19 @@ export const prettyAgo = (timestamp: number | string, long = false): string => {
 }
 
 export const prettyAmount = (
-  amountInSats: number,
-  config: Config,
+  amountInSats: Satoshis,
+  showBalance: boolean,
+  showFiat: boolean,
   toUSD: (sats: number) => number,
-  inverted = false,
 ): string => {
-  const showFiat = inverted ? !config.showFiat : config.showFiat
   if (showFiat) {
     const amountToShow = toUSD(amountInSats)
-    const amountToView = config.showBalance ? prettyNumber(amountToShow) : prettyHide(amountToShow)
+    const amountToView = showBalance ? prettyNumber(amountToShow) : prettyHide(amountToShow)
     return `${amountToView} USD`
   } else {
     const [amountToShow, suffix] = prettySats(amountInSats)
-    const amountToView = config.showBalance ? amountToShow : prettyHide(amountToShow)
-    return `${amountToView} ${config.showBalance ? suffix : 'sats'}`
+    const amountToView = showBalance ? amountToShow : prettyHide(amountToShow)
+    return `${amountToView} ${showBalance ? suffix : 'sats'}`
   }
 }
 

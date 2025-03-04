@@ -24,7 +24,8 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
 
   const amountPrefix = tx.type === 'sent' ? '-' : '+'
   const amountInSats = tx.type === 'sent' ? tx.amount - defaultFee : tx.amount
-  const amount = `${amountPrefix} ${prettyAmount(amountInSats, config, toUSD)}`
+  const amountToShow = prettyAmount(amountInSats, config.showBalance, config.showFiat, toUSD)
+  const amount = `${amountPrefix} ${amountToShow}`
   const txid = tx.explorable ? `(${prettyLongText(tx.explorable, 3)})` : ''
 
   const Icon = () =>
