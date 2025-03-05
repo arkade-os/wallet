@@ -14,7 +14,7 @@ import '@ionic/react/css/display.css'
 
 import '@ionic/react/css/palettes/dark.class.css'
 
-import { useContext, useEffect } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { ConfigContext } from './providers/config'
 import { NavigationContext, pageComponent, Pages, Tabs } from './providers/navigation'
 import { WalletContext } from './providers/wallet'
@@ -34,6 +34,8 @@ import { SettingsOptions } from './lib/types'
 import * as serviceWorkerRegistration from './serviceWorkerRegistration'
 import { newVersionAvailable } from './lib/toast'
 import { IframeContext } from './providers/iframe'
+import InstallPWAPopup from './components/InstallPWAPopup'
+import { shouldShowPWAInstallPopup, markPWAInstallPopupAsDismissed, incrementInteractionCount } from './lib/pwaDetection'
 
 setupIonicReact()
 
@@ -44,7 +46,8 @@ export default function App() {
   const { iframeUrl } = useContext(IframeContext)
   const { navigate, screen, tab } = useContext(NavigationContext)
   const { setOption } = useContext(OptionsContext)
-  const { reloadWallet, wasmLoaded } = useContext(WalletContext)
+  const { reloadWallet, wasmLoaded, walletUnlocked } = useContext(WalletContext)
+  const [showInstallPopup, setShowInstallPopup] = useState(false)
 
   const [present] = useIonToast()
 
@@ -63,6 +66,46 @@ export default function App() {
       })
     }, 1000 * 60 * 60)
   }, [])
+
+  // Check if we should show the PWA installation popup
+  useEffect(() => {
+    // Track user interactions with the app - use a debounced version to prevent excessive calls
+    let interactionTimeout: ReturnType<typeof setTimeout>;
+    
+    const trackInteraction = () => {
+      clearTimeout(interactionTimeout);
+      interactionTimeout = setTimeout(() => {
+        incrementInteractionCount();
+        checkPWAStatus();
+      }, 300); // Debounce for 300ms
+    };
+
+    // Check PWA status
+    const checkPWAStatus = () => {
+      if (shouldShowPWAInstallPopup(walletUnlocked)) {
+        setShowInstallPopup(true);
+      }
+    };
+
+    // Initial check after a delay
+    const timer = setTimeout(checkPWAStatus, 3000);
+    
+    // Add interaction listeners
+    window.addEventListener('click', trackInteraction);
+    window.addEventListener('touchstart', trackInteraction);
+    
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(interactionTimeout);
+      window.removeEventListener('click', trackInteraction);
+      window.removeEventListener('touchstart', trackInteraction);
+    };
+  }, [walletUnlocked]);
+
+  const handleCloseInstallPopup = () => {
+    setShowInstallPopup(false)
+    markPWAInstallPopupAsDismissed(7) // Dismiss for 7 days
+  }
 
   const handleHome = () => {
     reloadWallet()
@@ -130,6 +173,8 @@ export default function App() {
             </IonTabBar>
           </IonTabs>
         )}
+        
+        {showInstallPopup ? <InstallPWAPopup onClose={handleCloseInstallPopup} /> : null}
       </IonPage>
     </IonApp>
   )
