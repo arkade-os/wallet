@@ -6,12 +6,16 @@ import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import Success from '../../../components/Success'
 import BackToWalletButton from '../../../components/BackToWalletButton'
-import { prettyNumber } from '../../../lib/format'
+import { prettyAmount } from '../../../lib/format'
 import { IframeContext } from '../../../providers/iframe'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
+import { FiatContext } from '../../../providers/fiat'
+import { ConfigContext } from '../../../providers/config'
 
 export default function SendSuccess() {
+  const { config } = useContext(ConfigContext)
+  const { toUSD } = useContext(FiatContext)
   const { sendInfo } = useContext(FlowContext)
   const { iframeUrl, sendMessage } = useContext(IframeContext)
   const { navigate } = useContext(NavigationContext)
@@ -45,7 +49,7 @@ export default function SendSuccess() {
     <>
       <Header text='Success' />
       <Content>
-        <Success text={`Payment of ${prettyNumber(sendInfo.total)} sats sent successfully`} />
+        <Success text={`Payment of ${prettyAmount(sendInfo.total, true, config.showFiat, toUSD)} sent successfully`} />
       </Content>
       <ButtonsOnBottom>
         <BackToWalletButton />

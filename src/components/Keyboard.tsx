@@ -4,12 +4,13 @@ import Content from './Content'
 import { useContext, useEffect, useState } from 'react'
 import Text, { TextSecondary } from './Text'
 import { FiatContext } from '../providers/fiat'
-import { prettyNumber } from '../lib/format'
+import { prettyAmount } from '../lib/format'
 import { WalletContext } from '../providers/wallet'
 import { defaultFee } from '../lib/constants'
 import Error from './Error'
 import Button from './Button'
 import ButtonsOnBottom from './ButtonsOnBottom'
+import { ConfigContext } from '../providers/config'
 
 interface KeyboardProps {
   back: () => void
@@ -19,43 +20,40 @@ interface KeyboardProps {
 }
 
 export default function Keyboard({ back, hideBalance, onChange, value }: KeyboardProps) {
-  const { toUSD } = useContext(FiatContext)
+  const { config } = useContext(ConfigContext)
+  const { fromUSD, toUSD } = useContext(FiatContext)
   const { wallet } = useContext(WalletContext)
 
-  const [sats, setSats] = useState(0)
+  const [amount, setAmount] = useState(0)
+  const [amountInSats, setAmountInSats] = useState(0)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    setSats(value)
+    setAmount(value)
   }, [value])
 
-  const amountWithSats = () => {
-    if (sats) return prettyNumber(sats) + ' SATS'
-  }
-
-  const fiatValueWithUSD = () => {
-    if (!sats) return
-    return prettyNumber(toUSD(sats), 2) + ' USD'
-  }
+  useEffect(() => {
+    setAmountInSats(config.showFiat ? fromUSD(amount) : amount)
+  }, [amount])
 
   const handleKeyPress = (k: string) => {
-    if (k === 'x' && !sats) return
-    const text = sats.toString()
+    if (k === 'x' && !amount) return
+    const text = amount.toString()
     const res = k === 'x' ? text.slice(0, -1) : text + k
-    setSats(Number(res))
+    setAmount(Number(res))
   }
 
   const handleMaxPress = () => {
     if (wallet.balance < defaultFee) return setError('Total balance is below fee')
-    setSats(wallet.balance - defaultFee)
+    setAmount(wallet.balance - defaultFee)
   }
 
   const handleSave = () => {
-    onChange(sats)
+    onChange(amount)
     back()
   }
 
-  const disabled = !sats || Number.isNaN(sats)
+  const disabled = !amount || Number.isNaN(amount)
 
   const gridStyle = {
     borderTop: '1px solid var(--dark50)',
@@ -86,11 +84,15 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
         <Error error={Boolean(error)} text={error} />
         <div style={{ paddingTop: '3rem' }} />
         <Text big centered>
-          {amountWithSats()}
+          {prettyAmount(amountInSats, true, config.showFiat, toUSD)}
         </Text>
-        <TextSecondary centered>{fiatValueWithUSD()}</TextSecondary>
+        <TextSecondary centered>{prettyAmount(amountInSats, true, !config.showFiat, toUSD)}</TextSecondary>
       </Content>
-      {hideBalance ? null : <TextSecondary centered>{wallet.balance} sats available</TextSecondary>}
+      {hideBalance ? null : (
+        <TextSecondary centered>
+          {prettyAmount(wallet.balance, config.showBalance, config.showFiat, toUSD)} available
+        </TextSecondary>
+      )}
       <IonGrid style={gridStyle}>
         {keys.map((row) => (
           <IonRow style={rowStyle} key={row[0]}>

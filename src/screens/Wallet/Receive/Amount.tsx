@@ -15,13 +15,17 @@ import Keyboard from '../../../components/Keyboard'
 import { WalletContext } from '../../../providers/wallet'
 import { callFaucet, pingFaucet } from '../../../lib/faucet'
 import Loading from '../../../components/Loading'
-import { prettyNumber } from '../../../lib/format'
+import { prettyAmount } from '../../../lib/format'
 import Success from '../../../components/Success'
 import { consoleError } from '../../../lib/logs'
 import { AspContext } from '../../../providers/asp'
+import { ConfigContext } from '../../../providers/config'
+import { FiatContext } from '../../../providers/fiat'
 
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
+  const { config } = useContext(ConfigContext)
+  const { fromUSD, toUSD } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { wallet } = useContext(WalletContext)
@@ -30,6 +34,7 @@ export default function ReceiveAmount() {
   const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints
 
   const [amount, setAmount] = useState(0)
+  const [amountInSats, setAmountInSats] = useState(0)
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
   const [error, setError] = useState('')
   const [fauceting, setFauceting] = useState(false)
@@ -60,16 +65,16 @@ export default function ReceiveAmount() {
       })
   }, [])
 
-  const handleChange = (sats: number) => {
-    setAmount(sats)
-    setButtonLabel(sats ? 'Continue' : defaultButtonLabel)
-  }
+  useEffect(() => {
+    setButtonLabel(amount ? 'Continue' : defaultButtonLabel)
+    setAmountInSats(config.showFiat ? fromUSD(amount) : amount)
+  }, [amount])
 
   const handleFaucet = async () => {
     try {
       if (!amount) throw 'Invalid amount'
       setFauceting(true)
-      const ok = await callFaucet(recvInfo.offchainAddr, amount, aspInfo.url)
+      const ok = await callFaucet(recvInfo.offchainAddr, amountInSats, aspInfo.url)
       if (!ok) throw 'Faucet failed'
       setFauceting(false)
       setFaucetSuccess(true)
@@ -84,20 +89,15 @@ export default function ReceiveAmount() {
     if (isMobile) setShowKeys(true)
   }
 
-  const handleProceed = async () => {
-    try {
-      setRecvInfo({ ...recvInfo, satoshis: amount })
-      navigate(Pages.ReceiveQRCode)
-    } catch (err) {
-      consoleError(err, 'error getting addresses')
-      setError(extractError(err))
-    }
+  const handleProceed = () => {
+    setRecvInfo({ ...recvInfo, satoshis: amountInSats })
+    navigate(Pages.ReceiveQRCode)
   }
 
   const showFaucetButton = wallet.balance === 0 && faucetAvailable
 
   if (showKeys) {
-    return <Keyboard back={() => setShowKeys(false)} hideBalance onChange={handleChange} value={amount} />
+    return <Keyboard back={() => setShowKeys(false)} hideBalance onChange={setAmount} value={amount} />
   }
 
   if (fauceting) {
@@ -105,7 +105,7 @@ export default function ReceiveAmount() {
       <>
         <Header text='Fauceting' />
         <Content>
-          <Loading text='Getting sats from a faucet. This may take a few moments.' />
+          <Loading text='Getting funds from the faucet. This may take a few moments.' />
         </Content>
       </>
     )
@@ -116,7 +116,7 @@ export default function ReceiveAmount() {
       <>
         <Header text='Success' />
         <Content>
-          <Success text={`${prettyNumber(amount)} sats received from faucet successfully`} />
+          <Success text={`${prettyAmount(amountInSats, true, config.showFiat, toUSD)} received successfully`} />
         </Content>
       </>
     )
@@ -132,7 +132,7 @@ export default function ReceiveAmount() {
             <InputAmount
               focus={!isMobile}
               label='Amount'
-              onChange={handleChange}
+              onChange={setAmount}
               onEnter={handleProceed}
               onFocus={handleFocus}
               value={amount}

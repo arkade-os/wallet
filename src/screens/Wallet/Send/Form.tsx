@@ -13,7 +13,7 @@ import InputAmount from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
-import { prettyNumber } from '../../../lib/format'
+import { prettyAmount } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import Keyboard from '../../../components/Keyboard'
@@ -23,15 +23,20 @@ import { consoleError } from '../../../lib/logs'
 import { Addresses, SettingsOptions } from '../../../lib/types'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
+import { ConfigContext } from '../../../providers/config'
+import { FiatContext } from '../../../providers/fiat'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
+  const { config } = useContext(ConfigContext)
+  const { fromUSD, toUSD } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
   const { wallet } = useContext(WalletContext)
 
   const [amount, setAmount] = useState(0)
+  const [amountInSats, setAmountInSats] = useState(0)
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
   const [label, setLabel] = useState('')
@@ -81,8 +86,12 @@ export default function SendForm() {
   }, [recipient])
 
   useEffect(() => {
-    setState({ ...sendInfo, satoshis: amount })
+    setAmountInSats(config.showFiat ? fromUSD(amount) : amount)
   }, [amount])
+
+  useEffect(() => {
+    setSendInfo({ ...sendInfo, satoshis: amountInSats })
+  }, [amountInSats])
 
   useEffect(() => {
     setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
@@ -106,13 +115,8 @@ export default function SendForm() {
     navigate(Pages.Settings)
   }
 
-  const handleContinue = () => {
-    setState({ ...sendInfo, satoshis: amount })
-    navigate(Pages.SendDetails)
-  }
-
   const handleEnter = () => {
-    if (!disabled) return handleContinue()
+    if (!disabled) return handleProceed()
     if (!amount) return setFocus('amount')
     if (!recipient) return setFocus('recipient')
   }
@@ -121,13 +125,18 @@ export default function SendForm() {
     if (isMobile) setKeys(true)
   }
 
+  const handleProceed = () => {
+    setState({ ...sendInfo, satoshis: amountInSats })
+    navigate(Pages.SendDetails)
+  }
+
   const smartSetError = (str: string) => {
     setError(str === '' ? (aspInfo.unreachable ? 'Ark server unreachable' : '') : str)
   }
 
   const Available = () => (
     <Text color='dark50' smaller>
-      {`${prettyNumber(wallet.balance)} sats available`}
+      {`${prettyAmount(wallet.balance, config.showBalance, config.showFiat, toUSD)} available`}
     </Text>
   )
 
@@ -177,7 +186,7 @@ export default function SendForm() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleContinue} label={label} disabled={disabled} />
+        <Button onClick={handleProceed} label={label} disabled={disabled} />
       </ButtonsOnBottom>
     </>
   )

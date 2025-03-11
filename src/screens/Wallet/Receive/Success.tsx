@@ -5,10 +5,14 @@ import { NotificationsContext } from '../../../providers/notifications'
 import { FlowContext } from '../../../providers/flow'
 import Header from '../../../components/Header'
 import Success from '../../../components/Success'
-import { prettyNumber } from '../../../lib/format'
+import { prettyAmount } from '../../../lib/format'
 import BackToWalletButton from '../../../components/BackToWalletButton'
+import { ConfigContext } from '../../../providers/config'
+import { FiatContext } from '../../../providers/fiat'
 
 export default function ReceiveSuccess() {
+  const { config } = useContext(ConfigContext)
+  const { toUSD } = useContext(FiatContext)
   const { recvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
 
@@ -20,7 +24,7 @@ export default function ReceiveSuccess() {
     <>
       <Header text='Success' />
       <Content>
-        <Success text={`${prettyNumber(recvInfo.satoshis)} sats received successfully`} />
+        <Success text={`${prettyAmount(recvInfo.satoshis, true, config.showFiat, toUSD)} received successfully`} />
       </Content>
       <ButtonsOnBottom>
         <BackToWalletButton />

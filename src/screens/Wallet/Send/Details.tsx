@@ -9,7 +9,7 @@ import Error from '../../../components/Error'
 import { WalletContext } from '../../../providers/wallet'
 import Header from '../../../components/Header'
 import { defaultFee } from '../../../lib/constants'
-import { prettyNumber } from '../../../lib/format'
+import { prettyAmount } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { collaborativeExit, sendOffChain } from '../../../lib/asp'
@@ -21,11 +21,15 @@ import { IframeContext } from '../../../providers/iframe'
 import Minimal from '../../../components/Minimal'
 import Text from '../../../components/Text'
 import FlexRow from '../../../components/FlexRow'
+import { ConfigContext } from '../../../providers/config'
+import { FiatContext } from '../../../providers/fiat'
 
 export default function SendDetails() {
-  const { navigate } = useContext(NavigationContext)
+  const { config } = useContext(ConfigContext)
+  const { toUSD } = useContext(FiatContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { iframeUrl } = useContext(IframeContext)
+  const { navigate } = useContext(NavigationContext)
   const { wallet } = useContext(WalletContext)
 
   const [buttonLabel, setButtonLabel] = useState('')
@@ -49,7 +53,8 @@ export default function SendDetails() {
     })
     if (wallet.balance < total) {
       setButtonLabel('Insufficient funds')
-      setError(`Insufficient funds, you just have ${prettyNumber(wallet.balance)} sats`)
+      const prettyBalance = prettyAmount(wallet.balance, config.showBalance, config.showFiat, toUSD)
+      setError(`Insufficient funds, you just have ${prettyBalance} available`)
     } else {
       setButtonLabel('Tap to Sign')
     }

@@ -1,8 +1,9 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import { IonInput, IonText } from '@ionic/react'
 import { FiatContext } from '../providers/fiat'
-import { prettyNumber } from '../lib/format'
+import { prettyAmount } from '../lib/format'
 import InputContainer from './InputContainer'
+import { ConfigContext } from '../providers/config'
 
 interface InputAmountProps {
   focus?: boolean
@@ -15,10 +16,11 @@ interface InputAmountProps {
 }
 
 export default function InputAmount({ focus, label, onChange, onEnter, onFocus, right, value }: InputAmountProps) {
-  const { toUSD } = useContext(FiatContext)
+  const { config } = useContext(ConfigContext)
+  const { fromUSD, toUSD } = useContext(FiatContext)
 
   const [error, setError] = useState('')
-  const [fiatValue, setFiatValue] = useState('')
+  const [otherValue, setOtherValue] = useState('')
 
   const firstRun = useRef(true)
   const input = useRef<HTMLIonInputElement>(null)
@@ -31,7 +33,8 @@ export default function InputAmount({ focus, label, onChange, onEnter, onFocus, 
   })
 
   useEffect(() => {
-    setFiatValue(prettyNumber(toUSD(value ?? 0), 2))
+    const val = config.showFiat ? fromUSD(value) : value
+    setOtherValue(prettyAmount(val, true, !config.showFiat, toUSD))
     setError(value ? (value < 0 ? 'Invalid amount' : '') : '')
   }, [value])
 
@@ -52,7 +55,14 @@ export default function InputAmount({ focus, label, onChange, onEnter, onFocus, 
           type='number'
           value={value ? value : undefined}
         >
-          <IonText slot='end' style={{ color: 'var(--dark50)', fontSize: '13px' }}>{`$${fiatValue}`}</IonText>
+          {config.showFiat ? (
+            <IonText slot='start' style={{ color: 'var(--dark50)', fontSize: '13px' }}>
+              USD &nbsp;
+            </IonText>
+          ) : null}
+          <IonText slot='end' style={{ color: 'var(--dark50)', fontSize: '13px' }}>
+            &nbsp; {otherValue}
+          </IonText>
         </IonInput>
       </InputContainer>
     </>
