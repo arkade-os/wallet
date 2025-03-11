@@ -1,44 +1,47 @@
 export interface CalendarEvent {
-  name: string;
-  startTime: number;
-  duration: number;
+  name: string
+  startTime: number
+  duration: number
 }
 
-const DEFAULT_EVENT_MESSAGE = 'Open your application at https://Arkade.Money to renew your virtual coins for optimal fees during market hours. This ensures lower transaction costs and better efficiency.'
+const DEFAULT_EVENT_MESSAGE =
+  'Open your application at https://Arkade.Money to renew your virtual coins for optimal fees during market hours. This ensures lower transaction costs and better efficiency.'
 
 export const formatTime = (time: number, format = 'yyyymmddThhmmss'): string => {
   // Ensure we're working with milliseconds
-  const timeInMs = time * 1000;
-  
+  const timeInMs = time * 1000
+
   // Create date in local timezone
-  const date = new Date(timeInMs);
-  
+  const date = new Date(timeInMs)
+
   // Format for iCal requires UTC format with specific formatting
   if (format === 'yyyymmddThhmmss') {
     // Format as YYYYMMDDTHHMMSSZ (UTC)
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}T${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}Z`;
+    const pad = (n: number) => n.toString().padStart(2, '0')
+    return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}T${pad(
+      date.getUTCHours(),
+    )}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}Z`
   }
-  
+
   // For other formats, use ISO string and clean it up
-  return date.toISOString().replace(/[.-]/g, '').replace(/:/g, '').slice(0, format.length);
+  return date.toISOString().replace(/[.-]/g, '').replace(/:/g, '').slice(0, format.length)
 }
 
 export const formatGoogleDate = (timestamp: number): string => {
   // Always treat input as seconds and convert to milliseconds
-  const timeInMs = timestamp * 1000;
-  const date = new Date(timeInMs);
-  
+  const timeInMs = timestamp * 1000
+  const date = new Date(timeInMs)
+
   // Format as YYYYMMDDTHHMMSSZ
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  const year = date.getUTCFullYear();
-  const month = pad(date.getUTCMonth() + 1);
-  const day = pad(date.getUTCDate());
-  const hours = pad(date.getUTCHours());
-  const minutes = pad(date.getUTCMinutes());
-  const seconds = pad(date.getUTCSeconds());
-  
-  return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  const year = date.getUTCFullYear()
+  const month = pad(date.getUTCMonth() + 1)
+  const day = pad(date.getUTCDate())
+  const hours = pad(date.getUTCHours())
+  const minutes = pad(date.getUTCMinutes())
+  const seconds = pad(date.getUTCSeconds())
+
+  return `${year}${month}${day}T${hours}${minutes}${seconds}Z`
 }
 
 export const stringify = (input: Record<string, any>): string => {
