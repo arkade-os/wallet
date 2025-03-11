@@ -6,7 +6,7 @@ export const fromSatoshis = (num: Satoshis): number => {
 }
 
 export const toSatoshis = (num: number): Satoshis => {
-  return Decimal.mul(num, 100_000_000).toNumber()
+  return Decimal.mul(num, 100_000_000).floor().toNumber()
 }
 
 export const prettyAgo = (timestamp: number | string, long = false): string => {
@@ -20,14 +20,14 @@ export const prettyAgo = (timestamp: number | string, long = false): string => {
 }
 
 export const prettyAmount = (
-  amountInSats: Satoshis,
+  amountInSats: Satoshis = 0,
   showBalance: boolean,
   showFiat: boolean,
   toUSD: (sats: number) => number,
 ): string => {
   if (showFiat) {
     const amountToShow = toUSD(amountInSats)
-    const amountToView = showBalance ? prettyNumber(amountToShow) : prettyHide(amountToShow)
+    const amountToView = showBalance ? prettyNumber(amountToShow, 2) : prettyHide(amountToShow)
     return `${amountToView} USD`
   } else {
     const [amountToShow, suffix] = prettySats(amountInSats)
