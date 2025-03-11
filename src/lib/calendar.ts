@@ -27,23 +27,6 @@ export const formatTime = (time: number, format = 'yyyymmddThhmmss'): string => 
   return date.toISOString().replace(/[.-]/g, '').replace(/:/g, '').slice(0, format.length)
 }
 
-export const formatGoogleDate = (timestamp: number): string => {
-  // Always treat input as seconds and convert to milliseconds
-  const timeInMs = timestamp * 1000
-  const date = new Date(timeInMs)
-
-  // Format as YYYYMMDDTHHMMSSZ
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  const year = date.getUTCFullYear()
-  const month = pad(date.getUTCMonth() + 1)
-  const day = pad(date.getUTCDate())
-  const hours = pad(date.getUTCHours())
-  const minutes = pad(date.getUTCMinutes())
-  const seconds = pad(date.getUTCSeconds())
-
-  return `${year}${month}${day}T${hours}${minutes}${seconds}Z`
-}
-
 export const stringify = (input: Record<string, any>): string => {
   const params = new URLSearchParams()
   Object.keys(input).forEach((key) => {
