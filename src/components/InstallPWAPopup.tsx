@@ -1,55 +1,55 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { IonButton, IonIcon } from '@ionic/react';
-import ArkadeOnGrid from '../icons/ArkadeOnGrid';
-import { add, close, shareOutline } from 'ionicons/icons';
+import React, { useEffect, useState, useRef } from 'react'
+import { IonButton, IonIcon } from '@ionic/react'
+import ArkadeOnGrid from '../icons/ArkadeOnGrid'
+import { add, close, shareOutline } from 'ionicons/icons'
 
 interface InstallPWAPopupProps {
-  onClose: () => void;
+  onClose: () => void
 }
 
 const InstallPWAPopup: React.FC<InstallPWAPopupProps> = ({ onClose }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const popupRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false)
+  const popupRef = useRef<HTMLDivElement>(null)
 
   // Handle keyboard navigation and accessibility
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        handleClose();
+        handleClose()
       }
-    };
+    }
 
-    window.addEventListener('keydown', handleKeyDown);
-    
+    window.addEventListener('keydown', handleKeyDown)
+
     // Focus trap inside the popup
     if (popupRef.current) {
-      popupRef.current.focus();
+      popupRef.current.focus()
     }
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
 
   useEffect(() => {
     // Animate in after a short delay
     const timer = setTimeout(() => {
-      setIsVisible(true);
-    }, 300);
+      setIsVisible(true)
+    }, 300)
 
-    return () => clearTimeout(timer);
-  }, []);
+    return () => clearTimeout(timer)
+  }, [])
 
   const handleClose = () => {
     // Animate out
-    setIsVisible(false);
-    
+    setIsVisible(false)
+
     // Wait for animation to complete before calling onClose
-    setTimeout(onClose, 300);
-  };
+    setTimeout(onClose, 300)
+  }
 
   return (
-    <div 
+    <div
       style={{
         position: 'absolute',
         width: '358px',
@@ -67,67 +67,69 @@ const InstallPWAPopup: React.FC<InstallPWAPopupProps> = ({ onClose }) => {
         transform: isVisible ? 'translateY(0)' : 'translateY(20px)',
         transition: 'opacity 0.3s ease, transform 0.3s ease',
       }}
-      role="dialog" 
-      aria-modal="true" 
-      aria-labelledby="pwa-install-title"
+      role='dialog'
+      aria-modal='true'
+      aria-labelledby='pwa-install-title'
       ref={popupRef}
       tabIndex={-1}
     >
-      <IonButton 
-        style={{
-          position: 'absolute',
-          right: '16px',
-          top: '16px',
-          '--background': 'transparent',
-          '--padding-start': '0',
-          '--padding-end': '0',
-        } as React.CSSProperties}
-        fill="clear"
-        onClick={handleClose} 
-        aria-label="Close popup"
+      <IonButton
+        style={
+          {
+            position: 'absolute',
+            right: '16px',
+            top: '16px',
+            '--background': 'transparent',
+            '--padding-start': '0',
+            '--padding-end': '0',
+          } as React.CSSProperties
+        }
+        fill='clear'
+        onClick={handleClose}
+        aria-label='Close popup'
       >
         <IonIcon icon={close} style={{ color: 'rgba(251, 251, 251, 0.5)' }} />
       </IonButton>
-      
+
       <div style={{ marginBottom: '16px' }}>
         <ArkadeOnGrid />
       </div>
-      
-      <h2 
-        id="pwa-install-title" 
-        style={{ 
-          fontSize: '16px', 
-          fontWeight: 590, 
-          color: '#FBFBFB', 
-          margin: '0 0 8px 0' 
+
+      <h2
+        id='pwa-install-title'
+        style={{
+          fontSize: '16px',
+          fontWeight: 590,
+          color: '#FBFBFB',
+          margin: '0 0 8px 0',
         }}
       >
         Install Arkade
       </h2>
-      
-      <p 
-        style={{ 
-          fontSize: '14px', 
-          color: 'rgba(251, 251, 251, 0.7)', 
-          textAlign: 'center', 
-          margin: '0 0 16px 0' 
+
+      <p
+        style={{
+          fontSize: '14px',
+          color: 'rgba(251, 251, 251, 0.7)',
+          textAlign: 'center',
+          margin: '0 0 16px 0',
         }}
       >
         Adding Arkade to Home enable push notifications and better user experience.
       </p>
-      
-      <div 
-        style={{ 
-          fontSize: '14px', 
-          color: 'rgba(251, 251, 251, 0.7)', 
-          margin: '0 0 16px 0' 
+
+      <div
+        style={{
+          fontSize: '14px',
+          color: 'rgba(251, 251, 251, 0.7)',
+          margin: '0 0 16px 0',
         }}
       >
         ↓ See how
       </div>
-      
-      <div 
-        style={{ 
+
+      <div
+        style={{
           background: 'linear-gradient(180deg, rgba(251, 251, 251, 0.1) 0%, rgba(251, 251, 251, 0.07) 100%)',
           borderRadius: '12px',
           padding: '24px',
@@ -135,8 +137,8 @@ const InstallPWAPopup: React.FC<InstallPWAPopupProps> = ({ onClose }) => {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
-          <div 
-            style={{ 
+          <div
+            style={{
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
@@ -150,8 +152,8 @@ const InstallPWAPopup: React.FC<InstallPWAPopupProps> = ({ onClose }) => {
             1
           </div>
           <div style={{ color: '#FBFBFB', marginRight: '8px' }}>Tap</div>
-          <div 
-            style={{ 
+          <div
+            style={{
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
@@ -163,10 +165,10 @@ const InstallPWAPopup: React.FC<InstallPWAPopupProps> = ({ onClose }) => {
             <IonIcon icon={shareOutline} style={{ color: '#000' }} />
           </div>
         </div>
-        
+
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <div 
-            style={{ 
+          <div
+            style={{
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
@@ -180,8 +182,8 @@ const InstallPWAPopup: React.FC<InstallPWAPopupProps> = ({ onClose }) => {
             2
           </div>
           <div style={{ color: '#FBFBFB', marginRight: '8px' }}>Then</div>
-          <div 
-            style={{ 
+          <div
+            style={{
               display: 'flex',
               alignItems: 'center',
               padding: '6px 12px',
@@ -189,15 +191,13 @@ const InstallPWAPopup: React.FC<InstallPWAPopupProps> = ({ onClose }) => {
               borderRadius: '8px',
             }}
           >
-            <span style={{ fontSize: '14px', color: '#000000', marginRight: '8px' }}>
-              Add to Home Screen
-            </span>
+            <span style={{ fontSize: '14px', color: '#000000', marginRight: '8px' }}>Add to Home Screen</span>
             <IonIcon icon={add} style={{ color: '#000' }} />
           </div>
         </div>
       </div>
-      
-      <div 
+
+      <div
         style={{
           width: '20px',
           height: '20px',
@@ -208,10 +208,10 @@ const InstallPWAPopup: React.FC<InstallPWAPopupProps> = ({ onClose }) => {
           borderRight: '1px solid rgba(255, 255, 255, 0.2)',
           borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
         }}
-        aria-hidden="true" 
+        aria-hidden='true'
       />
     </div>
-  );
-};
+  )
+}
 
-export default InstallPWAPopup; 
+export default InstallPWAPopup

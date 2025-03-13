@@ -35,7 +35,11 @@ import * as serviceWorkerRegistration from './serviceWorkerRegistration'
 import { newVersionAvailable } from './lib/toast'
 import { IframeContext } from './providers/iframe'
 import InstallPWAPopup from './components/InstallPWAPopup'
-import { shouldShowPWAInstallPopup, markPWAInstallPopupAsDismissed, incrementInteractionCount } from './lib/pwaDetection'
+import {
+  shouldShowPWAInstallPopup,
+  markPWAInstallPopupAsDismissed,
+  incrementInteractionCount,
+} from './lib/pwaDetection'
 
 setupIonicReact()
 
@@ -70,37 +74,37 @@ export default function App() {
   // Check if we should show the PWA installation popup
   useEffect(() => {
     // Track user interactions with the app - use a debounced version to prevent excessive calls
-    let interactionTimeout: ReturnType<typeof setTimeout>;
-    
+    let interactionTimeout: ReturnType<typeof setTimeout>
+
     const trackInteraction = () => {
-      clearTimeout(interactionTimeout);
+      clearTimeout(interactionTimeout)
       interactionTimeout = setTimeout(() => {
-        incrementInteractionCount();
-        checkPWAStatus();
-      }, 300); // Debounce for 300ms
-    };
+        incrementInteractionCount()
+        checkPWAStatus()
+      }, 300) // Debounce for 300ms
+    }
 
     // Check PWA status
     const checkPWAStatus = () => {
       if (shouldShowPWAInstallPopup(walletUnlocked)) {
-        setShowInstallPopup(true);
+        setShowInstallPopup(true)
       }
-    };
+    }
 
     // Initial check after a delay
-    const timer = setTimeout(checkPWAStatus, 3000);
-    
+    const timer = setTimeout(checkPWAStatus, 3000)
+
     // Add interaction listeners
-    window.addEventListener('click', trackInteraction);
-    window.addEventListener('touchstart', trackInteraction);
-    
+    window.addEventListener('click', trackInteraction)
+    window.addEventListener('touchstart', trackInteraction)
+
     return () => {
-      clearTimeout(timer);
-      clearTimeout(interactionTimeout);
-      window.removeEventListener('click', trackInteraction);
-      window.removeEventListener('touchstart', trackInteraction);
-    };
-  }, [walletUnlocked]);
+      clearTimeout(timer)
+      clearTimeout(interactionTimeout)
+      window.removeEventListener('click', trackInteraction)
+      window.removeEventListener('touchstart', trackInteraction)
+    }
+  }, [walletUnlocked])
 
   const handleCloseInstallPopup = () => {
     setShowInstallPopup(false)
@@ -173,7 +177,7 @@ export default function App() {
             </IonTabBar>
           </IonTabs>
         )}
-        
+
         {showInstallPopup ? <InstallPWAPopup onClose={handleCloseInstallPopup} /> : null}
       </IonPage>
     </IonApp>
