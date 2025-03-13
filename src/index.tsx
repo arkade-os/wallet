@@ -11,6 +11,11 @@ import { NotificationsProvider } from './providers/notifications'
 import { WalletProvider } from './providers/wallet'
 import { OptionsProvider } from './providers/options'
 import { IframeProvider } from './providers/iframe'
+import * as Sentry from '@sentry/react'
+
+Sentry.init({
+  dsn: 'https://155067b98b323b6e06845b78a4f9adb0@o4508966055313408.ingest.de.sentry.io/4508970382131280',
+})
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 root.render(
