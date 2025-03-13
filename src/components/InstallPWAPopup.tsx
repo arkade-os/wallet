@@ -7,7 +7,7 @@ interface InstallPWAPopupProps {
   onClose: () => void
 }
 
-const InstallPWAPopup: React.FC<InstallPWAPopupProps> = ({ onClose }) => {
+export default function InstallPWAPopup({ onClose }: InstallPWAPopupProps) {
   const [isVisible, setIsVisible] = useState(false)
   const popupRef = useRef<HTMLDivElement>(null)
 
@@ -213,5 +213,3 @@ const InstallPWAPopup: React.FC<InstallPWAPopupProps> = ({ onClose }) => {
     </div>
   )
 }
-
-export default InstallPWAPopup

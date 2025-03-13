@@ -1,6 +1,4 @@
-import React from 'react'
-
-const ArkadeIcon: React.FC = () => {
+export default function ArkadeIcon() {
   return (
     <svg width='230' height='189' viewBox='0 0 230 189' fill='none' xmlns='http://www.w3.org/2000/svg'>
       <mask
@@ -460,5 +458,3 @@ const ArkadeIcon: React.FC = () => {
     </svg>
   )
 }
-
-export default ArkadeIcon
