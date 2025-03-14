@@ -37,6 +37,7 @@ module.exports = {
         crypto: require.resolve('crypto-browserify'),
         stream: require.resolve('stream-browserify'),
         fs: false,
+        'process/browser': require.resolve('process/browser'),
       }
       webpackConfig.module.rules = [
         ...webpackConfig.module.rules,
