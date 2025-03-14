@@ -4,6 +4,7 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
+    "@babel/helper-simple-access": "^7.25.9",
     "@bitcoinerlab/secp256k1": "^1.0.5",
     "@boltz/bitcoin-ops": "^2.0.0",
     "@ionic/react": "^8.4.0",
