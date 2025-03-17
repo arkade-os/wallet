@@ -1,21 +1,17 @@
 FROM node:18-alpine AS builder
 
-# Ensure we use yarn v1
-RUN yarn set version 1.22.22
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json yarn.lock ./
+# Copy files
+COPY . .
 
 # NODE_ENV=production is for runtime optimization
-# --production=false to install devDependencies needed for build
 ENV NODE_ENV=production
 ENV DISABLE_ESLINT_PLUGIN=true
-RUN yarn install --frozen-lockfile --production=false --network-timeout 100000
-
-# Copy source code
-COPY . .
+RUN pnpm install --prod --ignore-scripts
 
 # Create git commit file from current branch HEAD
 RUN if [ -d ".git" ]; then \
@@ -25,7 +21,7 @@ RUN if [ -d ".git" ]; then \
     fi
 
 # Build the app
-RUN yarn craco build
+RUN pnpm run build
 
 # Production stage
 FROM nginx:alpine

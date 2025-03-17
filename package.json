@@ -110,7 +110,8 @@
     "jest-environment-jsdom": "27.5.1",
     "jest-environment-node": "27.5.1",
     "prettier": "^2.8.8",
-    "ts-jest": "^29.1.2"
+    "ts-jest": "^29.1.2",
+    "webpack": "^5.98.0"
   },
   "packageManager": "pnpm@8.15.4",
   "engines": {

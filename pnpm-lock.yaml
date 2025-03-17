@@ -237,6 +237,9 @@ importers:
       ts-jest:
         specifier: ^29.1.2
         version: 29.2.6(@babel/core@7.26.10)(@jest/types@29.6.3)(jest@27.5.1(ts-node@10.9.2(@types/node@22.13.10)(typescript@5.8.2)))(typescript@5.8.2)
+      webpack:
+        specifier: ^5.98.0
+        version: 5.98.0
 
 packages:
 
