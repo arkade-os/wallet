@@ -19,6 +19,7 @@ import { prettyNumber } from '../../../lib/format'
 import Success from '../../../components/Success'
 import { consoleError } from '../../../lib/logs'
 import { AspContext } from '../../../providers/asp'
+import { isMobileBrowser } from '../../../lib/browser'
 
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
@@ -27,7 +28,6 @@ export default function ReceiveAmount() {
   const { wallet } = useContext(WalletContext)
 
   const defaultButtonLabel = 'Continue without amount'
-  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints
 
   const [amount, setAmount] = useState(0)
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
@@ -81,7 +81,7 @@ export default function ReceiveAmount() {
   }
 
   const handleFocus = () => {
-    if (isMobile) setShowKeys(true)
+    if (isMobileBrowser) setShowKeys(true)
   }
 
   const handleProceed = async () => {
@@ -130,7 +130,7 @@ export default function ReceiveAmount() {
           <FlexCol>
             <Error error={Boolean(error)} text={error} />
             <InputAmount
-              focus={!isMobile}
+              focus={!isMobileBrowser}
               label='Amount'
               onChange={handleChange}
               onEnter={handleProceed}

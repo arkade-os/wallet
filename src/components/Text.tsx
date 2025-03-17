@@ -37,7 +37,7 @@ export default function Text({
   const className = capitalize ? 'first-letter' : ''
 
   const style: any = {
-    color: `var(--${color})`,
+    color: color ? `var(--${color})` : undefined,
     cursor: copy ? 'pointer' : undefined,
     fontSize,
     fontWeight: bold ? '600' : undefined,

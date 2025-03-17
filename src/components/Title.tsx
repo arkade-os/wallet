@@ -1,13 +1,8 @@
 interface TitleProps {
-  subtext?: string
   text: string
 }
 
-export default function Title({ subtext, text }: TitleProps) {
-  return (
-    <>
-      <h1>{text}</h1>
-      {subtext ? <h2>{subtext}</h2> : null}
-    </>
-  )
+export default function Title({ text }: TitleProps) {
+  const style = { margin: '0' }
+  return <h1 style={style}>{text}</h1>
 }

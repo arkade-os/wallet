@@ -106,7 +106,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!wasmLoaded) return
     const wallet = readWalletFromStorage()
     updateWallet(wallet?.initialized ? wallet : defaultWallet)
-    navigate(wallet?.initialized ? Pages.Unlock : Pages.Init)
+    navigate(wallet?.initialized ? Pages.Unlock : Pages.Onboard)
     setWalletLoaded(wallet)
   }, [wasmLoaded])
 

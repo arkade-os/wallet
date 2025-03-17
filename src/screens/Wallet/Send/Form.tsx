@@ -23,6 +23,7 @@ import { consoleError } from '../../../lib/logs'
 import { Addresses, SettingsOptions } from '../../../lib/types'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
+import { isMobileBrowser } from '../../../lib/browser'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
@@ -40,8 +41,6 @@ export default function SendForm() {
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
   const [scan, setScan] = useState(false)
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
-
-  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints
 
   useEffect(() => {
     const { recipient, satoshis } = sendInfo
@@ -118,7 +117,7 @@ export default function SendForm() {
   }
 
   const handleFocus = () => {
-    if (isMobile) setKeys(true)
+    if (isMobileBrowser) setKeys(true)
   }
 
   const smartSetError = (str: string) => {
@@ -158,7 +157,7 @@ export default function SendForm() {
               value={recipient}
             />
             <InputAmount
-              focus={focus === 'amount' && !isMobile}
+              focus={focus === 'amount' && !isMobileBrowser}
               label='Amount'
               onChange={setAmount}
               onEnter={handleEnter}

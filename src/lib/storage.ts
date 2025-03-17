@@ -4,22 +4,35 @@ export const clearStorage = () => {
   return localStorage.clear()
 }
 
+export const getStorageItem = <T>(key: string, fallback: T, parser: (val: string) => T): T => {
+  try {
+    const item = localStorage.getItem(key)
+    return item !== null ? parser(item) : fallback
+  } catch (e) {
+    return fallback
+  }
+}
+
+export const setStorageItem = (key: string, value: string): void => {
+  localStorage.setItem(key, value)
+}
+
+export const removeStorageItem = (key: string): void => {
+  localStorage.removeItem(key)
+}
+
 export const saveConfigToStorage = (config: Config): void => {
-  localStorage.setItem('config', JSON.stringify(config))
+  setStorageItem('config', JSON.stringify(config))
 }
 
 export const readConfigFromStorage = (): Config | undefined => {
-  const config = localStorage.getItem('config')
-  return config ? JSON.parse(config) : undefined
+  return getStorageItem('config', undefined, (val) => JSON.parse(val))
 }
 
 export const saveWalletToStorage = (wallet: Wallet): void => {
-  localStorage.setItem('wallet', JSON.stringify(wallet))
+  setStorageItem('wallet', JSON.stringify(wallet))
 }
 
 export const readWalletFromStorage = (): Wallet | undefined => {
-  const data = localStorage.getItem('wallet')
-  if (!data) return undefined
-  const wallet = JSON.parse(data)
-  return wallet
+  return getStorageItem('wallet', undefined, (val) => JSON.parse(val))
 }
