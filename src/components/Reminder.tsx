@@ -1,10 +1,10 @@
 import { prettyDate } from '../lib/format'
 import { IonActionSheet } from '@ionic/react'
-import { 
-  CalendarEvent, 
-  generateAppleCalendarUrl, 
-  generateGoogleCalendarUrl, 
-  generateOutlookCalendarUrl 
+import {
+  CalendarEvent,
+  generateAppleCalendarUrl,
+  generateGoogleCalendarUrl,
+  generateOutlookCalendarUrl,
 } from '../lib/calendar'
 interface ReminderProps {
   callback: () => void
@@ -19,9 +19,9 @@ export default function Reminder({ callback, duration, name, isOpen, startTime }
   const calendarEvent: CalendarEvent = {
     name,
     startTime,
-    duration
+    duration,
   }
-  
+
   const handleApple = () => {
     const url = generateAppleCalendarUrl(calendarEvent)
     window.open(url, '_blank')

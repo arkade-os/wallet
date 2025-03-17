@@ -67,6 +67,8 @@
     "build": "pnpm git-info; craco build",
     "test": "craco test",
     "lint": "eslint --ext .ts,.tsx src",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
     "eject": "craco eject",
     "git-info": "echo export const gitCommit = \\'$(cat .git/refs/heads/master | cut -c 1-8)\\' > src/_gitCommit.ts"
   },
@@ -106,7 +108,7 @@
     "husky": "^8.0.1",
     "jest-environment-jsdom": "27.5.1",
     "jest-environment-node": "27.5.1",
-    "prettier": "^2.7.1",
+    "prettier": "^2.8.8",
     "ts-jest": "^29.1.2"
   },
   "packageManager": "pnpm@8.15.4",

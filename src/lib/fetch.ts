@@ -14,10 +14,10 @@ export const fetchWasm = async (url: string): Promise<Response> => {
   const response = await fetch(url, {
     cache: 'no-store',
     headers: {
-      'Accept': 'application/wasm'
-    }
+      Accept: 'application/wasm',
+    },
   })
-  
+
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`)
   }
