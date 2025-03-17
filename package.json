@@ -63,6 +63,7 @@
     "ws-electrumx-client": "^1.0.5"
   },
   "scripts": {
+    "prepare": "husky install",
     "start": "pnpm git-info; craco start",
     "build": "pnpm git-info; craco build",
     "test": "craco test",
