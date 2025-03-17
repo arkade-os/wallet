@@ -2,8 +2,8 @@ build:
   image: node:latest
   stage: build
   script:
-    - yarn install
-    - yarn build
+    - pnpm install
+    - pnpm run build
   artifacts:
     paths:
       - build/
