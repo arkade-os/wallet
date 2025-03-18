@@ -40,7 +40,7 @@ RUN mkdir -p /tmp/nginx /tmp/client_temp /tmp/proxy_temp_path /tmp/fastcgi_temp 
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # Copy built files from builder
-COPY --from=builder /app/build /usr/share/nginx/html
+COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Set correct permissions
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
