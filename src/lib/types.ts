@@ -1,5 +1,3 @@
-import { NetworkName } from './network'
-
 export type Addresses = {
   boardingAddr: string
   offchainAddr: string
@@ -14,10 +12,6 @@ export type Config = {
   theme: Themes
   unit: Unit
 }
-
-export type Mnemonic = string
-
-export type Password = string
 
 export type Satoshis = number
 
@@ -47,17 +41,6 @@ export enum Themes {
   Dark = 'Dark',
   Light = 'Light',
 }
-
-export type Transaction = {
-  amount: number
-  date: string
-  hex?: string
-  txid: string
-  refresh?: number
-  sweep?: boolean
-  unixdate: number
-}
-export type Transactions = Record<NetworkName, Transaction[]>
 
 export type Tx = {
   amount: number

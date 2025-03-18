@@ -1,5 +1,5 @@
 import { getPublicKey, nip19 } from 'nostr-tools'
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
+import { hex } from '@scure/base'
 
 export const invalidPrivateKey = (key: string): string => {
   if (key.length === 0) return ''
@@ -23,15 +23,15 @@ export const invalidNpub = (npub: string): string => {
 export const nsecToSeed = (nsec: string): string => {
   const { type, data } = nip19.decode(nsec)
   if (type !== 'nsec') throw 'Invalid nsec format'
-  return bytesToHex(data)
+  return hex.encode(data)
 }
 
 export const seedToNsec = (seed: string | Uint8Array): string => {
-  const sk = typeof seed === 'string' ? hexToBytes(seed) : seed
+  const sk = typeof seed === 'string' ? hex.decode(seed) : seed
   return nip19.nsecEncode(sk)
 }
 
 export const seedToNpub = (seed: string | Uint8Array): string => {
-  const sk = typeof seed === 'string' ? hexToBytes(seed) : seed
+  const sk = typeof seed === 'string' ? hex.decode(seed) : seed
   return nip19.npubEncode(getPublicKey(sk))
 }

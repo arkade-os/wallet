@@ -1,3 +1,4 @@
+import { hex } from '@scure/base'
 import { toUint8Array } from './format'
 
 function generateRandomChallenge(): Uint8Array {
@@ -50,7 +51,7 @@ export async function registerUser(): Promise<string> {
 
   const credential = await navigator.credentials.create({ publicKey: publicKeyCredentialCreationOptions })
   const pubKeyCred = credential as PublicKeyCredential
-  return Buffer.from(pubKeyCred.rawId).toString('hex').slice(0, 21)
+  return hex.encode(new Uint8Array(pubKeyCred.rawId)).slice(0, 21)
 }
 
 // Function to authenticate a user
@@ -62,5 +63,5 @@ export async function authenticateUser(): Promise<string> {
 
   const credential = await navigator.credentials.get({ publicKey: publicKeyCredentialRequestOptions })
   const pubKeyCred = credential as PublicKeyCredential
-  return Buffer.from(pubKeyCred.rawId).toString('hex').slice(0, 21)
+  return hex.encode(new Uint8Array(pubKeyCred.rawId)).slice(0, 21)
 }
