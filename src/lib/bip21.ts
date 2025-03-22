@@ -33,7 +33,11 @@ export const decode = (uri: string) => {
 }
 
 export const encode = (address: string, arkAddress: string, sats: number) => {
-  return `bitcoin:${address}` + `?ark=${arkAddress}` + `&amount=${fromSatoshis(sats)}`
+  const amount = fromSatoshis(sats)
+  const amountStr = Number(amount)
+    .toFixed(8)
+    .replace(/\.?0+$/, '')
+  return `bitcoin:${address}` + `?ark=${arkAddress}` + `&amount=${amountStr}`
 }
 
 export const isBip21 = (data: string): boolean => {
