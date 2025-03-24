@@ -1,9 +1,9 @@
 import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
+import { hex } from '@scure/base'
 import { ConfigContext } from './config'
 import { sendNotification } from '../lib/notifications'
 import { prettyNumber } from '../lib/format'
 import { finalizeEvent, getPublicKey, Relay } from 'nostr-tools'
-import { hexToBytes } from '@noble/hashes/utils'
 import { getPrivateKey } from '../lib/asp'
 import { consoleLog } from '../lib/logs'
 
@@ -35,7 +35,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     if (!relay.current) return
     if (!relay.current.connected) await connectRelay()
     const seed = await getPrivateKey()
-    const sk = hexToBytes(seed)
+    const sk = hex.decode(seed)
     const pk = getPublicKey(sk)
     relay.current.subscribe(
       [

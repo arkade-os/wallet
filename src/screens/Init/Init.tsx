@@ -1,10 +1,11 @@
 import { useContext, useEffect, useState } from 'react'
+import { generateMnemonic } from '@scure/bip39'
+import { wordlist } from '@scure/bip39/wordlists/english'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { AspContext } from '../../providers/asp'
 import Error from '../../components/Error'
-import { generateMnemonic } from 'bip39'
 import { getPrivateKeyFromMnemonic } from '../../lib/wallet'
 import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
@@ -28,7 +29,7 @@ export default function Init() {
   }, [aspInfo.unreachable])
 
   const handleNewWallet = () => {
-    const mnemonic = generateMnemonic()
+    const mnemonic = generateMnemonic(wordlist)
     getPrivateKeyFromMnemonic(mnemonic).then((privateKey) => {
       setInitInfo({ privateKey })
       navigate(Pages.InitPassword)

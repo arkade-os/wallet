@@ -2,7 +2,7 @@
 // bitcoin:<address>[?amount=<amount>][?label=<label>][?message=<message>]
 
 import qs from 'qs'
-import { fromSatoshis, toSatoshis } from './format'
+import { fromSatoshis, prettyNumber, toSatoshis } from './format'
 
 export const decode = (uri: string) => {
   if (!isBip21(uri)) throw new Error('Invalid BIP21 URI: ' + uri)
@@ -33,7 +33,7 @@ export const decode = (uri: string) => {
 }
 
 export const encode = (address: string, arkAddress: string, sats: number) => {
-  return `bitcoin:${address}` + `?ark=${arkAddress}` + `&amount=${fromSatoshis(sats)}`
+  return `bitcoin:${address}` + `?ark=${arkAddress}` + `&amount=${prettyNumber(fromSatoshis(sats))}`
 }
 
 export const isBip21 = (data: string): boolean => {

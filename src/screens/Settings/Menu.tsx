@@ -6,6 +6,7 @@ import Text, { TextLabel } from '../../components/Text'
 import FlexRow from '../../components/FlexRow'
 import Content from '../../components/Content'
 import { SettingsOptions } from '../../lib/types'
+import FlexCol from '../../components/FlexCol'
 
 export default function Menu() {
   const { setOption, validOptions } = useContext(OptionsContext)
@@ -32,24 +33,26 @@ export default function Menu() {
     <>
       <Header text='Settings' />
       <Content>
-        {validOptions().map((op) => (
-          <div key={op.section} style={{ marginTop: '1rem' }}>
-            <TextLabel>{op.section}</TextLabel>
-            <div style={gridStyle}>
-              {op.options.map(({ icon, option }) => (
-                <div key={option} onClick={() => setOption(option)} style={rowStyle(option)}>
-                  <FlexRow>
-                    {icon}
-                    <Text color={option === SettingsOptions.Reset ? 'white' : ''} capitalize>
-                      {option}
-                    </Text>
-                  </FlexRow>
-                  <ArrowIcon />
-                </div>
-              ))}
+        <FlexCol>
+          {validOptions().map((op) => (
+            <div key={op.section} style={{ width: '100%' }}>
+              <TextLabel>{op.section}</TextLabel>
+              <div style={gridStyle}>
+                {op.options.map(({ icon, option }) => (
+                  <div key={option} onClick={() => setOption(option)} style={rowStyle(option)}>
+                    <FlexRow>
+                      {icon}
+                      <Text color={option === SettingsOptions.Reset ? 'white' : ''} capitalize>
+                        {option}
+                      </Text>
+                    </FlexRow>
+                    <ArrowIcon />
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </FlexCol>
       </Content>
     </>
   )

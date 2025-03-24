@@ -100,13 +100,11 @@ export default function Transaction() {
               <Error error={Boolean(error)} text={error} />
               {tx.settled ? null : (
                 <Info color='yellowoutlier' title='Pending'>
-                  <TextSecondary>
-                    Transaction pending. Funds will be non-reversible after settlement.
-                  </TextSecondary>
+                  <TextSecondary>Transaction pending. Funds will be non-reversible after settlement.</TextSecondary>
                   {canSettleOnMarketHour ? (
                     <TextSecondary>
-                      Settlement during market hours offers lower fees. Next market hour: {' '}
-                      {prettyDate(startTime)} ({prettyAgo(startTime, true)}) for {prettyDelta(duration)}.
+                      Settlement during market hours offers lower fees. Next market hour: {prettyDate(startTime)} (
+                      {prettyAgo(startTime, true)}) for {prettyDelta(duration)}.
                     </TextSecondary>
                   ) : null}
                 </Info>

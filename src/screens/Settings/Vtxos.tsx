@@ -97,21 +97,21 @@ export default function Vtxos() {
       <Content>
         {rollingover ? (
           <WaitingForRound rollover />
-        ) : showList ? (
-          <Padded>
-            <FlexCol gap='0.5rem'>
-              <Error error={Boolean(error)} text={error} />
-              <Text capitalize color='dark50' smaller>
-                Your virtual coins with amount and expiration
-              </Text>
-              {wallet.vtxos.spendable?.map((v) => (
-                <VtxoLine key={v.txid} hide={!config.showBalance} vtxo={v} />
-              ))}
-            </FlexCol>
-          </Padded>
         ) : (
           <Padded>
-            {wallet.vtxos.spendable?.length > 0 ? (
+            {wallet.vtxos.spendable?.length === 0 ? (
+              <WarningBox red text='No virtual coins available' />
+            ) : showList ? (
+              <FlexCol gap='0.5rem'>
+                <Error error={Boolean(error)} text={error} />
+                <Text capitalize color='dark50' smaller>
+                  Your virtual coins with amount and expiration
+                </Text>
+                {wallet.vtxos.spendable?.map((v) => (
+                  <VtxoLine key={v.txid} hide={!config.showBalance} vtxo={v} />
+                ))}
+              </FlexCol>
+            ) : (
               <>
                 <FlexCol gap='0.5rem' margin='0 0 1rem 0'>
                   <Error error={Boolean(error)} text={error} />
@@ -126,22 +126,18 @@ export default function Vtxos() {
                 <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
                   <TextSecondary>First virtual coin expiration: {prettyAgo(wallet.nextRollover)}.</TextSecondary>
                   <TextSecondary>
-                    Your virtual coins have a lifetime of {prettyDelta(aspInfo.vtxoTreeExpiry)} and need renewal
-                    before expiration.
+                    Your virtual coins have a lifetime of {prettyDelta(aspInfo.vtxoTreeExpiry)} and need renewal before
+                    expiration.
                   </TextSecondary>
-                  <TextSecondary>
-                    Automatic renewal occurs for virtual coins expiring within 24 hours.
-                  </TextSecondary>
+                  <TextSecondary>Automatic renewal occurs for virtual coins expiring within 24 hours.</TextSecondary>
                   {startTime ? (
                     <TextSecondary>
-                      Settlement during market hours offers lower fees. Next market hour: {' '}
-                      {prettyDate(startTime)} ({prettyAgo(startTime, true)}) for {prettyDelta(duration)}.
+                      Settlement during market hours offers lower fees. Next market hour: {prettyDate(startTime)} (
+                      {prettyAgo(startTime, true)}) for {prettyDelta(duration)}.
                     </TextSecondary>
                   ) : null}
                 </FlexCol>
               </>
-            ) : (
-              <WarningBox red text="No virtual coins available" />
             )}
           </Padded>
         )}
