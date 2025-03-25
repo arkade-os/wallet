@@ -12,6 +12,7 @@ import { WalletContext } from '../../providers/wallet'
 import CenterScreen from '../../components/CenterScreen'
 import FingerprintIcon from '../../icons/Fingerprint'
 import Text from '../../components/Text'
+import { consoleLog } from '../../lib/logs'
 
 export default function InitPassword() {
   const { navigate } = useContext(NavigationContext)
@@ -29,11 +30,11 @@ export default function InitPassword() {
 
   const registerUserBiometrics = () => {
     registerUser()
-      .then((password) => {
-        updateWallet({ ...wallet, lockedByBiometrics: true })
+      .then(({ password, passkeyId }) => {
+        updateWallet({ ...wallet, lockedByBiometrics: true, passkeyId })
         connect(password)
       })
-      .catch(() => {})
+      .catch(consoleLog)
   }
 
   useEffect(() => {

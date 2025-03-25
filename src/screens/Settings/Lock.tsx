@@ -24,13 +24,11 @@ export default function Lock() {
   const [password, setPassword] = useState('')
 
   const getPasswordFromBiometrics = () => {
-    authenticateUser()
-      .then(setPassword)
-      .catch(() => {})
+    authenticateUser(wallet.passkeyId).then(setPassword).catch(consoleError)
   }
 
   useEffect(() => {
-    if (!wallet.lockedByBiometrics || !walletUnlocked) return
+    if (!wallet.lockedByBiometrics || !walletUnlocked || !wallet.passkeyId) return
     getPasswordFromBiometrics()
   }, [wallet.lockedByBiometrics])
 

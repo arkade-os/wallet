@@ -89,6 +89,7 @@ export type Wallet = {
   lockedByBiometrics?: boolean
   network: string
   nextRollover: number
+  passkeyId?: string
   txs: Tx[]
   vtxos: Vtxos
   wasmVersion: string
