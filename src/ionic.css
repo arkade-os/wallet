@@ -16,9 +16,12 @@
   --green: #2c760a;
   --greenbg: #054a19;
   --liz: #d5c6ff;
+  --tatiana: #8563e4;
   --orange: #e98116;
   --orangebg: #572d00;
   --purple: #391998;
+  --purple20: #39199833;
+  --purplebg: #391998;
   --red: #a51515;
   --redbg: #68222b;
   --white: #fbfbfb;
@@ -41,8 +44,10 @@
   --greenbg: #092d13;
   --orange: #e98349;
   --orangebg: #2e1800;
+  --purplebg: #39199833;
   --red: #e04d4d;
   --redbg: #380008;
+  --white: #040404;
   --yellow: #ffdd46;
   --yellowoutlier: #ffdd46;
   --ion-background-color: #101010;
@@ -53,10 +58,30 @@ ion-button {
   --border-radius: 0.5rem;
   --padding-top: 1rem;
   --padding-bottom: 1rem;
-  &.button-small {
-    min-height: 2em;
-    --padding-top: 0;
-    --padding-bottom: 0;
+  &.clear {
+    --background: none;
+    --border-color: none;
+    --color: var(--black);
+  }
+  &.dark {
+    --background: var(--black);
+    --border-color: var(--black);
+    --color: var(--white);
+  }
+  &.purple {
+    --background: var(--purple);
+    --border-color: var(--purple);
+    --color: white;
+  }
+  &.red {
+    --background: var(--red);
+    --border-color: var(--red);
+    --color: white;
+  }
+  &.secondary {
+    --background: none;
+    --border-color: var(--black);
+    --color: var(--black);
   }
 }
 
@@ -165,4 +190,14 @@ ion-action-sheet.my-ion-action-sheet {
     padding-top: 1rem;
     padding-bottom: 1rem;
   }
+}
+
+ion-modal::part(content) {
+  --background: var(--ion-background-color);
+  --border-radius: 1rem;
+  --height: auto;
+  --max-width: 100%;
+  --width: 100%;
+  position: absolute;
+  bottom: -1rem;
 }

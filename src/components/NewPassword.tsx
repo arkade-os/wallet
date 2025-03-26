@@ -6,12 +6,11 @@ import CheckList from './CheckList'
 import StrengthBars, { calcStrength } from './Strength'
 
 interface NewPasswordProps {
-  handleProceed: () => void
   setLabel: (label: string) => void
   onNewPassword: (password: string) => void
 }
 
-export default function NewPassword({ handleProceed, onNewPassword, setLabel }: NewPasswordProps) {
+export default function NewPassword({ onNewPassword, setLabel }: NewPasswordProps) {
   const [confirm, setConfirm] = useState('')
   const [focus, setFocus] = useState('password')
   const [password, setPassword] = useState('')
@@ -33,7 +32,6 @@ export default function NewPassword({ handleProceed, onNewPassword, setLabel }: 
   const handleChangeConfirm = (e: any) => setConfirm(e.target.value)
 
   const handleEnter = () => {
-    if (password && password === confirm) handleProceed()
     if (!password) setFocus('password')
     else if (!confirm) setFocus('confirm')
   }

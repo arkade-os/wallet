@@ -7,16 +7,28 @@ interface ButtonProps {
   icon?: ReactElement
   label: string
   onClick: (event: any) => void
+  purple?: boolean
   red?: boolean
   secondary?: boolean
   short?: boolean
   small?: boolean
 }
 
-export default function Button({ clear, disabled, icon, label, onClick, red, secondary, short, small }: ButtonProps) {
+export default function Button({
+  clear,
+  disabled,
+  icon,
+  label,
+  onClick,
+  purple,
+  red,
+  secondary,
+  short,
+  small,
+}: ButtonProps) {
   return (
     <IonButton
-      color={red ? 'danger' : 'dark'}
+      className={red ? 'red' : purple ? 'purple' : secondary ? 'secondary' : clear ? 'clear' : 'dark'}
       disabled={disabled}
       expand={short ? undefined : 'block'}
       fill={secondary ? 'outline' : clear ? 'clear' : 'solid'}

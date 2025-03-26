@@ -106,3 +106,16 @@ button.reminder-button.action-sheet-button {
   background-color: #222;
   color: #f7fafc;
 }
+
+.show-on-dark-theme {
+  display: none;
+}
+
+.ion-palette-dark {
+  & .show-on-light-theme {
+    display: none;
+  }
+  & .show-on-dark-theme {
+    display: block;
+  }
+}

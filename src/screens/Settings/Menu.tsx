@@ -21,7 +21,7 @@ export default function Menu() {
     alignItems: 'center',
     backgroundColor: option === SettingsOptions.Reset ? 'var(--redbg)' : 'var(--dark10)',
     borderBottom: border,
-    color: option === SettingsOptions.Reset ? 'var(--white)' : 'var(--dark)',
+    color: option === SettingsOptions.Reset ? 'white' : 'var(--dark)',
     cursor: 'pointer',
     display: 'flex',
     justifyContent: 'space-between',
@@ -42,9 +42,7 @@ export default function Menu() {
                   <div key={option} onClick={() => setOption(option)} style={rowStyle(option)}>
                     <FlexRow>
                       {icon}
-                      <Text color={option === SettingsOptions.Reset ? 'white' : ''} capitalize>
-                        {option}
-                      </Text>
+                      <Text capitalize>{option}</Text>
                     </FlexRow>
                     <ArrowIcon />
                   </div>

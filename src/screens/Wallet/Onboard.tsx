@@ -9,7 +9,6 @@ import Content from '../../components/Content'
 import Padded from '../../components/Padded'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
-import { IonIcon } from '@ionic/react'
 import Bullet from '../../components/Bullet'
 import FlexCol from '../../components/FlexCol'
 import FlexRow from '../../components/FlexRow'
@@ -59,20 +58,20 @@ export default function Onboard() {
     }
     if (step === 1) {
       return info({
-        title: 'Welcome to Arkade',
-        text: 'Begin using Bitcoin in a faster, more efficient way. Arkade creates a private space where your transactions happen instantly without waiting for network confirmation.',
+        title: 'Greetings, Earthling!',
+        text: "Your Bitcoin has entered a new dimension.Send, receive, and swap in Arkade's virtual environment. Space-time limits don't apply. Experience the future of Bitcoin today.",
       })
     }
     if (step === 2) {
       return info({
-        title: 'Stay in control',
-        text: 'Your Bitcoin remains yours at all times. Choose when to move transactions to the main Bitcoin network to save on fees, with the freedom to withdraw whenever you want.',
+        title: 'Leveling up',
+        text: 'Arkade is your gateway to a new generation of Bitcoin-native applications. Access Lightning payments, DeFi, assets, and more—all secured by Bitcoin.',
       })
     }
     if (step === 3) {
       return info({
-        title: 'Connect seamlessly',
-        text: "Easily bundle your transactions for secure settlement on the Bitcoin network. Enjoy smart features and functions while maintaining Bitcoin's core security benefits.",
+        title: 'Stay in control',
+        text: 'Your Bitcoin remains yours at all times. Settle your balance at your convenience and save on fees with batched transactions. Maintain complete freedom to withdraw, always.',
       })
     }
     if (step === 4) {
@@ -80,13 +79,13 @@ export default function Onboard() {
         <FlexCol gap='0.5rem'>
           <Title text='Install Arkade on Home' />
           <Text wrap>Adding Arkade to Home enable push notifications and better user experience.</Text>
-          <Shadow>
+          <Shadow purple>
             <FlexCol gap='1rem'>
               <FlexRow>
                 <Bullet number={1} />
                 <Text>Tap</Text>
                 <Shadow flex inverted slim>
-                  <ShareIcon reversed />
+                  <ShareIcon />
                 </Shadow>
               </FlexRow>
               <FlexRow>
@@ -94,8 +93,8 @@ export default function Onboard() {
                 <Text>Then</Text>
                 <Shadow flex inverted slim>
                   <FlexRow>
-                    <Text color='ion-background-color'>Add to Home Screen</Text>
-                    <AddIcon reversed />
+                    <Text>Add to Home Screen</Text>
+                    <AddIcon />
                   </FlexRow>
                 </Shadow>
               </FlexRow>
@@ -111,7 +110,7 @@ export default function Onboard() {
       <Content>
         <Padded>
           <FlexCol between>
-            <StepBars active={step} length={steps} />
+            {step < 4 ? <StepBars active={step} length={steps - 1} /> : null}
             <ImageContainer />
             <InfoContainer />
           </FlexCol>
@@ -119,9 +118,9 @@ export default function Onboard() {
       </Content>
       <ButtonsOnBottom bordered>
         {step < steps ? (
-          <Button onClick={handleContinue} label='Continue' />
+          <Button purple onClick={handleContinue} label='Continue' />
         ) : (
-          <Button onClick={handleSkip} label='Skip for now' secondary />
+          <Button onClick={handleSkip} label='Skip for now' clear />
         )}
       </ButtonsOnBottom>
     </>

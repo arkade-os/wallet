@@ -1,16 +1,14 @@
-import LoadingIcon from '../icons/Loading'
+import LoadingBar from '../icons/LoadingBar'
 import CenterScreen from './CenterScreen'
 import Text from './Text'
 
 export default function Loading({ text }: { text?: string }) {
   return (
     <CenterScreen>
-      <LoadingIcon />
-      {text ? (
-        <Text centered small wrap>
-          {text}
-        </Text>
-      ) : null}
+      <LoadingBar />
+      <Text centered small wrap>
+        {text || 'Loading...'}
+      </Text>
     </CenterScreen>
   )
 }

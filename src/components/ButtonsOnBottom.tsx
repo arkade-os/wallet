@@ -8,17 +8,16 @@ interface ButtonsOnBottomProps {
 }
 
 export default function ButtonsOnBottom({ bordered, children }: ButtonsOnBottomProps) {
-  const gap = '0.5rem'
   const borderStyle = {
     backgroundColor: 'var(--dark10)',
-    marginTop: gap,
+    marginTop: '1rem',
     width: '100%',
   }
   return (
     <>
       {bordered ? <hr style={borderStyle} /> : null}
       <IonFooter class='ion-padding ion-no-border'>
-        <FlexCol gap={gap} strech>
+        <FlexCol gap='0.5rem' strech>
           {children}
         </FlexCol>
       </IonFooter>
