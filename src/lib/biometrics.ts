@@ -1,17 +1,20 @@
 import { hex } from '@scure/base'
-import { toUint8Array } from './format'
 
-function generateRandomChallenge(): Uint8Array {
-  const array = new Uint8Array(32)
+function generateRandomArray(length: number): Uint8Array {
+  const array = new Uint8Array(length)
   window.crypto.getRandomValues(array)
   return array
 }
 
-function getBrowserId(): string {
-  const userAgent = window.navigator.userAgent
-  const match = userAgent.match(/\(([^)]+)/)
-  if (match?.[1]) return match[1]
-  return 'unknown'
+// used to validate the challenge.
+// webauth api does some transformations to the base64 string
+// so we need to do the same transformations to validate the challenge
+function arrayToBase64(data: Uint8Array | ArrayBuffer): string {
+  const array = data instanceof ArrayBuffer ? new Uint8Array(data) : data
+  return btoa(String.fromCharCode(...array))
+    .replaceAll('=', '')
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
 }
 
 export function isBiometricsSupported(): boolean {
@@ -19,14 +22,18 @@ export function isBiometricsSupported(): boolean {
 }
 
 // Function to register a new user
-export async function registerUser(): Promise<string> {
-  const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
+export async function registerUser(): Promise<{ password: string; passkeyId: string }> {
+  const decoder = new TextDecoder()
+  const challenge = generateRandomArray(32)
+  const password = generateRandomArray(21)
+
+  const options: PublicKeyCredentialCreationOptions = {
     authenticatorSelection: {
       authenticatorAttachment: 'platform',
       residentKey: 'required',
       requireResidentKey: true,
     },
-    challenge: generateRandomChallenge(),
+    challenge,
     pubKeyCredParams: [
       {
         type: 'public-key',
@@ -43,25 +50,49 @@ export async function registerUser(): Promise<string> {
     },
     timeout: 60000,
     user: {
-      id: toUint8Array(getBrowserId()),
-      name: getBrowserId(),
-      displayName: 'Arkade',
+      id: password,
+      name: 'Arkade wallet',
+      displayName: 'Arkade wallet',
     },
   }
 
-  const credential = await navigator.credentials.create({ publicKey: publicKeyCredentialCreationOptions })
-  const pubKeyCred = credential as PublicKeyCredential
-  return hex.encode(new Uint8Array(pubKeyCred.rawId)).slice(0, 21)
+  const credentials = (await navigator.credentials.create({ publicKey: options })) as PublicKeyCredential
+  const authResponse = credentials.response as AuthenticatorAttestationResponse
+  const clientDataJSON = JSON.parse(decoder.decode(authResponse.clientDataJSON))
+
+  if (clientDataJSON.type !== 'webauthn.create') throw new Error('Invalid clientDataJSON type')
+  if (clientDataJSON.challenge !== arrayToBase64(challenge)) throw new Error('Invalid challenge')
+  if (clientDataJSON.origin !== window.location.origin) throw new Error('Invalid origin')
+
+  return { password: hex.encode(password), passkeyId: hex.encode(new Uint8Array(credentials.rawId)) }
 }
 
 // Function to authenticate a user
-export async function authenticateUser(): Promise<string> {
-  const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
-    challenge: generateRandomChallenge(),
+export async function authenticateUser(passkeyId: string | undefined): Promise<string> {
+  if (!passkeyId) throw new Error('Missing passkey id')
+  const decoder = new TextDecoder()
+  const challenge = generateRandomArray(32)
+
+  const options: PublicKeyCredentialRequestOptions = {
+    allowCredentials: [
+      {
+        id: hex.decode(passkeyId),
+        type: 'public-key',
+      },
+    ],
+    challenge,
+    rpId: window.location.hostname,
     timeout: 60000,
   }
 
-  const credential = await navigator.credentials.get({ publicKey: publicKeyCredentialRequestOptions })
-  const pubKeyCred = credential as PublicKeyCredential
-  return hex.encode(new Uint8Array(pubKeyCred.rawId)).slice(0, 21)
+  const credentials = (await navigator.credentials.get({ publicKey: options })) as PublicKeyCredential
+  const authResponse = credentials.response as AuthenticatorAssertionResponse
+  const clientDataJSON = JSON.parse(decoder.decode(authResponse.clientDataJSON))
+  const userHandle = new Uint8Array(authResponse.userHandle ?? new ArrayBuffer(0))
+
+  if (clientDataJSON.type !== 'webauthn.get') throw new Error('Invalid clientDataJSON type')
+  if (clientDataJSON.challenge !== arrayToBase64(challenge)) throw new Error('Invalid challenge')
+  if (clientDataJSON.origin !== window.location.origin) throw new Error('Invalid origin')
+
+  return hex.encode(userHandle)
 }
