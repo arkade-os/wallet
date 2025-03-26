@@ -14,13 +14,10 @@ import '@ionic/react/css/display.css'
 
 import '@ionic/react/css/palettes/dark.class.css'
 
-import { useContext, useEffect } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { ConfigContext } from './providers/config'
 import { NavigationContext, pageComponent, Pages, Tabs } from './providers/navigation'
 import { WalletContext } from './providers/wallet'
-
-import './wasm_exec.js'
-import './wasmTypes.d.ts'
 
 import { IonApp, IonPage, IonTab, IonTabBar, IonTabButton, IonTabs, setupIonicReact, useIonToast } from '@ionic/react'
 import HomeIcon from './icons/Home'
@@ -34,6 +31,7 @@ import { SettingsOptions } from './lib/types'
 import * as serviceWorkerRegistration from './serviceWorkerRegistration'
 import { newVersionAvailable } from './lib/toast'
 import { IframeContext } from './providers/iframe'
+import Loading from './components/Loading'
 
 setupIonicReact()
 
@@ -44,11 +42,25 @@ export default function App() {
   const { iframeUrl } = useContext(IframeContext)
   const { navigate, screen, tab } = useContext(NavigationContext)
   const { setOption } = useContext(OptionsContext)
-  const { reloadWallet, wasmLoaded } = useContext(WalletContext)
+  const { reloadWallet } = useContext(WalletContext)
+  const [loadingError, setLoadingError] = useState<string | null>(null)
 
   const [present] = useIonToast()
 
   useEffect(() => {
+    if (!configLoaded) {
+      setLoadingError(null)
+    }
+  }, [configLoaded])
+
+  useEffect(() => {
+    if (aspInfo.unreachable) {
+      setLoadingError('Unable to connect to the server. Please check your internet connection and try again.')
+    }
+  }, [aspInfo.unreachable])
+
+  useEffect(() => {
+    console.log('registering service worker')
     serviceWorkerRegistration.register({
       onUpdate: () => {
         present(newVersionAvailable)
@@ -87,9 +99,13 @@ export default function App() {
     navigate(Pages.Settings)
   }
 
-  const page = configLoaded && wasmLoaded && (aspInfo.pubkey || aspInfo.unreachable) ? screen : Pages.Loading
+  const page = configLoaded && (aspInfo.pubkey || aspInfo.unreachable) ? screen : Pages.Loading
 
-  const comp = pageComponent(page)
+  const comp = page === Pages.Loading ? (
+    <Loading text={loadingError || undefined} />
+  ) : (
+    pageComponent(page)
+  )
 
   if (iframeUrl)
     return (

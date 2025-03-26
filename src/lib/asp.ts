@@ -1,6 +1,7 @@
+import { IWallet } from '@arklabs/wallet-sdk'
 import { consoleError, consoleLog } from './logs'
-import { invalidNpub } from './privateKey'
-import { Addresses, Satoshis, Tx, Vtxo, Vtxos } from './types'
+import { Addresses, Satoshis, Tx } from './types'
+import { ArkNote } from './arknote'
 
 export interface AspInfo {
   boardingDescriptorTemplate: string
@@ -54,8 +55,24 @@ const get = async (endpoint: string, url: string) => {
   return await response.json()
 }
 
-export const collaborativeExit = async (amount: number, address: string): Promise<string> => {
-  return await window.collaborativeExit(address, amount, false)
+export const collaborativeExit = async (wallet: IWallet, amount: number, address: string): Promise<string> => {
+  const vtxos = await getVtxos(wallet)
+  const selectedVtxos = []
+  let selectedAmount = 0
+  for (const vtxo of vtxos) {
+    if (selectedAmount >= amount) break
+    selectedVtxos.push(vtxo)
+    selectedAmount += vtxo.value
+  }
+  const changeAmount = selectedAmount - amount
+
+  const outputs = [{ address, amount: BigInt(amount) }]
+  if (changeAmount > 0) {
+    const { offchainAddr } = await getReceivingAddresses(wallet)
+    outputs.push({ address: offchainAddr, amount: BigInt(changeAmount) })
+  }
+
+  return wallet.settle({ inputs: selectedVtxos, outputs }, consoleLog)
 }
 
 export const getAspInfo = async (url: string): Promise<AspInfo> => {
@@ -106,45 +123,35 @@ export const getAspInfo = async (url: string): Promise<AspInfo> => {
   })
 }
 
-export const getBalance = async (): Promise<Satoshis> => {
-  return new Promise((resolve) => {
-    window
-      .balance(false)
-      .then((balance) => {
-        if (!balance) resolve(0)
-        const { offchainBalance, onchainBalance } = balance
-        resolve(offchainBalance + onchainBalance.spendable + onchainBalance.locked)
-      })
-      .catch((err) => {
-        consoleError(err, 'error getting balance')
-        resolve(0)
-      })
-  })
+export const getBalance = async (wallet: IWallet): Promise<Satoshis> => {
+  const balance = await wallet.getBalance()
+  const { total } = balance
+  return total
 }
 
 export const getPrivateKey = async () => {
-  return await window.dump()
+  throw new Error('not implemented')
 }
 
-export const getTxHistory = async (): Promise<Tx[]> => {
+export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
   const txs: Tx[] = []
   try {
-    const res = await window.getTransactionHistory()
+    const res = await wallet.getTransactionHistory()
     if (!res) return []
-    for (const tx of JSON.parse(res)) {
+    for (const tx of res) {
       const date = new Date(tx.createdAt)
       const unix = Math.floor(date.getTime() / 1000)
-      const { boardingTxid, settled, redeemTxid, roundTxid, type } = tx
-      const explorable = boardingTxid ? boardingTxid : roundTxid ? roundTxid : undefined
+      const { key, settled, type, amount } = tx
+      const explorable = key.boardingTxid ? key.boardingTxid : key.roundTxid ? key.roundTxid : undefined
       txs.push({
-        amount: Math.abs(parseInt(tx.amount, 10)),
-        boardingTxid,
+        amount: Math.abs(amount),
+        boardingTxid: key.boardingTxid,
+        redeemTxid: key.redeemTxid,
+        roundTxid: key.roundTxid,
         createdAt: unix,
         explorable,
         pending: !settled,
         settled: type === 'SENT' ? true : settled, // show all sent tx as settled
-        redeemTxid,
-        roundTxid,
         type: type.toLowerCase(),
       })
     }
@@ -160,82 +167,52 @@ export const getTxHistory = async (): Promise<Tx[]> => {
   return txs
 }
 
-export const getReceivingAddresses = async (): Promise<Addresses> => {
-  return await window.receive()
+export const getReceivingAddresses = async (wallet: IWallet): Promise<Addresses> => {
+  const address = await wallet.getAddress()
+  return {
+    boardingAddr: address.boarding?.address ?? '',
+    offchainAddr: address.offchain?.address ?? '',
+  }
 }
 
-export const getVtxos = async (): Promise<Vtxos> => {
-  const toVtxo = (v: any): Vtxo => {
-    return {
-      amount: v.Amount,
-      createdAt: v.CreatedAt,
-      descriptor: v.Descriptor,
-      expireAt: v.ExpiresAt,
-      pending: v.IsPending,
-      roundTxid: v.RoundTxid,
-      redeemTx: v.RedeemTx,
-      spent: v.Spent,
-      spentBy: v.SpentBy,
-      txid: v.Txid,
-      vout: v.VOut,
-    }
-  }
+export const getVtxos = async (wallet: IWallet): Promise<ReturnType<IWallet['getVtxos']>> => {
   try {
-    const json = await window.listVtxos()
-    const data = JSON.parse(json)
-    const spendable = data.spendable?.map(toVtxo) ?? []
-    const spent = data.spent?.map(toVtxo) ?? []
-    return { spendable, spent }
+    return wallet.getVtxos()
   } catch {
-    return { spendable: [], spent: [] }
+    return []
   }
 }
 
-export const lock = async (password: string): Promise<void> => {
-  return await window.lock(password)
+export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<void> => {
+  const totalNoteAmount = notes
+    .map((note) => {
+      const { value } = ArkNote.fromString(note).data
+      return value
+    })
+    .reduce((acc, curr) => acc + curr, 0)
+
+  const { offchainAddr } = await getReceivingAddresses(wallet)
+  
+  await wallet.settle({
+    inputs: notes,
+    outputs: [{ address: offchainAddr, amount: BigInt(totalNoteAmount) }],
+  })
 }
 
-export const redeemNotes = async (notes: string[]): Promise<void> => {
-  try {
-    await window.redeemNotes(notes)
-  } catch {
-    await window.redeemNotes(notes)
-  }
-}
-
-export const sendOffChain = async (sats: number, address: string): Promise<string> => {
+export const sendOffChain = async (wallet: IWallet, sats: number, address: string): Promise<string> => {
   const withZeroFees = true
-  const withExpiryCoinselect = false
-  return await window.sendOffChain(withExpiryCoinselect, [{ To: address, Amount: sats }], withZeroFees)
+  return wallet.sendBitcoin({ address, amount: sats }, withZeroFees)
 }
 
-export const sendOnChain = async (sats: number, address: string): Promise<string> => {
-  return await window.sendOnChain([{ To: address, Amount: sats }])
+export const sendOnChain = async (wallet: IWallet, sats: number, address: string): Promise<string> => {
+  return wallet.sendBitcoin({ address, amount: sats })
 }
 
-export const settleVtxos = async (): Promise<void> => {
+export const settleVtxos = async (wallet: IWallet): Promise<void> => {
   try {
-    await window.settle()
+    await wallet.settle(undefined, consoleLog)
   } catch (err) {
     consoleError(err, 'error settling vtxos')
     throw err
   }
-}
-
-export const setNostrNotificationRecipient = async (npub: string): Promise<void> => {
-  if (invalidNpub(npub)) return
-  return window.setNostrNotificationRecipient(npub)
-}
-
-export const startListenTransactionStream = async (callback: () => {}) => {
-  consoleLog('start listening', typeof callback)
-  // return await window.getTransactionStream(callback)
-}
-
-export const unlock = async (password: string): Promise<void> => {
-  return await window.unlock(password)
-}
-
-export const walletLocked = async (): Promise<boolean> => {
-  return await window.locked()
 }

@@ -2,17 +2,18 @@ import { ReactNode, createContext, useContext, useEffect, useState } from 'react
 import { readWalletFromStorage, saveWalletToStorage } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
-import { settleVtxos, getBalance, getVtxos, lock, unlock, getTxHistory, getReceivingAddresses } from '../lib/asp'
+import { settleVtxos, getBalance, getVtxos, getTxHistory, getReceivingAddresses } from '../lib/asp'
 import { AspContext } from './asp'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
 import { ArkNote, arkNoteInUrl } from '../lib/arknote'
-import { fetchWasm } from '../lib/fetch'
 import { consoleError } from '../lib/logs'
 import { Wallet } from '../lib/types'
 import { sleep } from '../lib/sleep'
 import { ConfigContext } from './config'
 import { calcNextRollover, vtxosExpiringSoon } from '../lib/wallet'
+import { ServiceWorkerWallet } from '@arklabs/wallet-sdk'
+import { NetworkName } from '@arklabs/wallet-sdk/dist/types/networks'
 
 const defaultWallet: Wallet = {
   arkAddress: '',
@@ -23,72 +24,45 @@ const defaultWallet: Wallet = {
   network: '',
   nextRollover: 0,
   txs: [],
-  vtxos: {
-    spendable: [],
-    spent: [],
-  },
-  wasmVersion: '',
+  vtxos: [],
 }
 
 interface WalletContextProps {
-  initWallet: (password: string, privateKey: string) => Promise<void>
-  lockWallet: (password: string) => Promise<void>
+  initWallet: (privateKey: string) => Promise<void>
   rolloverVtxos: (raise?: boolean) => Promise<void>
   reloadWallet: () => void
   resetWallet: () => void
   settlePending: () => Promise<void>
   updateWallet: (w: Wallet) => void
-  unlockWallet: (password: string) => Promise<void>
-  walletUnlocked: boolean
   wallet: Wallet
   walletLoaded: Wallet | undefined
-  wasmLoaded: boolean
+  svcWallet: ServiceWorkerWallet
 }
 
 export const WalletContext = createContext<WalletContextProps>({
   initWallet: () => Promise.resolve(),
-  lockWallet: () => Promise.resolve(),
   rolloverVtxos: () => Promise.resolve(),
   reloadWallet: () => {},
   resetWallet: () => {},
   settlePending: () => Promise.resolve(),
-  unlockWallet: () => Promise.resolve(),
   updateWallet: () => {},
-  walletUnlocked: false,
   wallet: defaultWallet,
   walletLoaded: undefined,
-  wasmLoaded: false,
+  svcWallet: new ServiceWorkerWallet(),
 })
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { config, configLoaded } = useContext(ConfigContext)
-  const { noteInfo, setNoteInfo } = useContext(FlowContext)
+  const { setNoteInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { notifyVtxosRollover, notifyTxSettled } = useContext(NotificationsContext)
 
-  const [walletUnlocked, setWalletUnlocked] = useState(false)
+  const svcWallet = new ServiceWorkerWallet()
+  
   const [walletLoaded, setWalletLoaded] = useState<Wallet>()
-  const [wasmLoaded, setWasmLoaded] = useState(false)
   const [wallet, setWallet] = useState(defaultWallet)
 
-  const instantiateWasm = (wasm: any) => {
-    const go = new window.Go()
-    WebAssembly.instantiateStreaming(wasm, go.importObject).then((result) => {
-      go.run(result.instance)
-      setWasmLoaded(true)
-    })
-  }
-
-  // load wasm on startup
-  useEffect(() => {
-    if (wasmLoaded) return
-    fetchWasm('/ark-sdk.wasm')
-      .then(instantiateWasm)
-      .catch((err) => consoleError(err, 'error loading wasm'))
-  }, [])
-
-  // if voucher on url, add it to state and remove from url
   useEffect(() => {
     const note = arkNoteInUrl()
     if (!note) return
@@ -103,25 +77,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   // load wallet from storage
   useEffect(() => {
-    if (!wasmLoaded) return
     const wallet = readWalletFromStorage()
     updateWallet(wallet?.initialized ? wallet : defaultWallet)
     navigate(wallet?.initialized ? Pages.Unlock : Pages.Init)
     setWalletLoaded(wallet)
-  }, [wasmLoaded])
-
-  // if voucher present, go to redeem page
-  useEffect(() => {
-    if (!walletUnlocked) return
-    reloadWallet()
-    navigate(noteInfo.satoshis ? Pages.NotesRedeem : Pages.Wallet)
-  }, [walletUnlocked])
+  }, [])
 
   // auto settle vtxos if next roll over in less than 24 hours
   useEffect(() => {
-    if (!wallet.nextRollover || !walletUnlocked) return
+    if (!wallet.nextRollover) return
     if (vtxosExpiringSoon(wallet.nextRollover)) rolloverVtxos()
-  }, [walletUnlocked, wallet.nextRollover])
+  }, [wallet.nextRollover])
 
   // instruct service worker to start checking for vtxos expirations
   // if user set notifications off it should stop checking
@@ -134,29 +100,21 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     })
   }, [configLoaded, config.notifications, walletLoaded, wallet.initialized])
 
-  const initWallet = async (password: string, privateKey: string) => {
-    const aspUrl = aspInfo.url
-    const chain = 'bitcoin'
-    const clientType = 'rest'
-    const walletType = 'singlekey'
-    const explorerUrl = getRestApiExplorerURL(wallet.network) ?? ''
-    await window.init(walletType, clientType, aspUrl, privateKey, password, chain, explorerUrl)
-    await unlockWallet(password)
-    updateWallet({ ...wallet, explorer: explorerUrl, initialized: true, network: aspInfo.network })
-  }
-
-  const lockWallet = async (password: string) => {
-    try {
-      await lock(password)
-      setWalletUnlocked(false)
-    } catch {
-      throw 'Invalid password'
-    }
+  const initWallet = async (privateKey: string) => {
+    const arkServerUrl = aspInfo.url
+    const esploraUrl = getRestApiExplorerURL(wallet.network) ?? ''
+    await svcWallet.init({
+      arkServerUrl,
+      privateKey,
+      network: aspInfo.network as NetworkName,
+      esploraUrl,
+    })
+    updateWallet({ ...wallet, explorer: esploraUrl, initialized: true, network: aspInfo.network })
   }
 
   const rolloverVtxos = async (raise = false) => {
     try {
-      await settleVtxos()
+      await settleVtxos(svcWallet)
       await sleep(1000) // server needs time to update vtxos list
       await reloadWallet()
       notifyVtxosRollover()
@@ -166,12 +124,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const reloadWallet = async () => {
-    const { offchainAddr } = await getReceivingAddresses()
-    const vtxos = await getVtxos()
-    const balance = await getBalance()
-    const txs = await getTxHistory()
+    const { offchainAddr } = await getReceivingAddresses(svcWallet)
+    const vtxos = await getVtxos(svcWallet)
+    const balance = await getBalance(svcWallet)
+    const txs = await getTxHistory(svcWallet)
     const now = Math.floor(new Date().getTime() / 1000)
-    const nextRollover = calcNextRollover(vtxos)
+    const nextRollover = calcNextRollover(aspInfo.vtxoTreeExpiry, vtxos)
     updateWallet({
       ...wallet,
       arkAddress: offchainAddr,
@@ -189,19 +147,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const settlePending = async () => {
-    await settleVtxos()
+    await settleVtxos(svcWallet)
     await reloadWallet()
     notifyTxSettled()
   }
 
-  const unlockWallet = async (password: string) => {
-    await unlock(password)
-    setWalletUnlocked(true)
-  }
-
   const updateWallet = async (data: Wallet) => {
-    const wasmVersion = await window.getVersion()
-    setWallet({ ...data, wasmVersion })
+    setWallet({ ...data })
     saveWalletToStorage(data)
   }
 
@@ -209,17 +161,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     <WalletContext.Provider
       value={{
         initWallet,
-        lockWallet,
         rolloverVtxos,
         reloadWallet,
         resetWallet,
         settlePending,
-        unlockWallet,
         updateWallet,
-        walletUnlocked,
         wallet,
         walletLoaded,
-        wasmLoaded,
+        svcWallet,
       }}
     >
       {children}

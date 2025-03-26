@@ -1,3 +1,5 @@
+import { IWallet } from '@arklabs/wallet-sdk'
+
 export type Addresses = {
   boardingAddr: string
   offchainAddr: string
@@ -61,25 +63,6 @@ export enum Unit {
   SAT = 'sat',
 }
 
-export type Vtxo = {
-  amount: number
-  createdAt: string
-  descriptor: string
-  expireAt: number
-  pending: boolean
-  roundTxid: string
-  redeemTx: string
-  spent: boolean
-  spentBy: string
-  txid: string
-  vout: number
-}
-
-export type Vtxos = {
-  spendable: Vtxo[]
-  spent: Vtxo[]
-}
-
 export type Wallet = {
   arkAddress: string
   balance: number
@@ -91,6 +74,5 @@ export type Wallet = {
   nextRollover: number
   passkeyId?: string
   txs: Tx[]
-  vtxos: Vtxos
-  wasmVersion: string
+  vtxos: Awaited<ReturnType<IWallet['getVtxos']>>
 }

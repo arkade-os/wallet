@@ -7,7 +7,6 @@ import Content from '../../components/Content'
 import { copyToClipboard } from '../../lib/clipboard'
 import { invalidNpub } from '../../lib/privateKey'
 import Error from '../../components/Error'
-import { setNostrNotificationRecipient } from '../../lib/asp'
 import Header from './Header'
 import Toggle from '../../components/Toggle'
 import { TextSecondary } from '../../components/Text'
@@ -44,7 +43,8 @@ export default function Nostr() {
 
   const handleSave = () => {
     updateConfig({ ...config, npub })
-    setNostrNotificationRecipient(npub)
+    // setNostrNotificationRecipient(npub)
+    throw 'not implemented'
   }
 
   const showCopyButton = config.nostr && config.npub === npub && npub
