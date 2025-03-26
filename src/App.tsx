@@ -101,11 +101,7 @@ export default function App() {
 
   const page = configLoaded && (aspInfo.pubkey || aspInfo.unreachable) ? screen : Pages.Loading
 
-  const comp = page === Pages.Loading ? (
-    <Loading text={loadingError || undefined} />
-  ) : (
-    pageComponent(page)
-  )
+  const comp = page === Pages.Loading ? <Loading text={loadingError || undefined} /> : pageComponent(page)
 
   if (iframeUrl)
     return (

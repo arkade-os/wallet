@@ -59,7 +59,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { notifyVtxosRollover, notifyTxSettled } = useContext(NotificationsContext)
 
   const svcWallet = new ServiceWorkerWallet()
-  
+
   const [walletLoaded, setWalletLoaded] = useState<Wallet>()
   const [wallet, setWallet] = useState(defaultWallet)
 

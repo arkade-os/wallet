@@ -192,7 +192,7 @@ export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<voi
     .reduce((acc, curr) => acc + curr, 0)
 
   const { offchainAddr } = await getReceivingAddresses(wallet)
-  
+
   await wallet.settle({
     inputs: notes,
     outputs: [{ address: offchainAddr, amount: BigInt(totalNoteAmount) }],

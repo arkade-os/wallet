@@ -33,13 +33,15 @@ export default function Unlock() {
 
   useEffect(() => {
     if (!password) return
-    getSeed(password).then(seed => {
-      if (!seed) return
-      initWallet(hex.encode(seed))
-    }).catch(err => {
-      consoleError(err, 'error unlocking wallet')
-      setError(extractError(err))
-    })
+    getSeed(password)
+      .then((seed) => {
+        if (!seed) return
+        initWallet(hex.encode(seed))
+      })
+      .catch((err) => {
+        consoleError(err, 'error unlocking wallet')
+        setError(extractError(err))
+      })
   }, [password])
 
   useEffect(() => {
@@ -52,13 +54,15 @@ export default function Unlock() {
   const handleUnlock = async () => {
     if (wallet.lockedByBiometrics) return getPasswordFromBiometrics()
     if (!password) return
-    getSeed(password).then(seed => {
-      if (!seed) return
-      initWallet(hex.encode(seed))
-    }).catch(err => {
-      consoleError(err, 'error unlocking wallet')
-      setError(extractError(err))
-    })
+    getSeed(password)
+      .then((seed) => {
+        if (!seed) return
+        initWallet(hex.encode(seed))
+      })
+      .catch((err) => {
+        consoleError(err, 'error unlocking wallet')
+        setError(extractError(err))
+      })
   }
 
   if (iframeUrl)

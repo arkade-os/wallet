@@ -41,7 +41,7 @@ export const seedToNpub = (seed: string | Uint8Array): string => {
 export const getSeed = async (password: string): Promise<Uint8Array | null> => {
   const encryptedKey = getEncryptedKey()
   if (!encryptedKey) return null
-  
+
   try {
     return decryptPrivateKey(encryptedKey, password)
   } catch (error) {
@@ -82,13 +82,10 @@ const getEncryptedKey = (): string | null => {
 const encryptPrivateKey = async (privateKey: string, password: string): Promise<string> => {
   // Convert password to key material
   const encoder = new TextEncoder()
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(password),
-    'PBKDF2',
-    false,
-    ['deriveBits', 'deriveKey']
-  )
+  const keyMaterial = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, [
+    'deriveBits',
+    'deriveKey',
+  ])
 
   // Generate salt
   const salt = crypto.getRandomValues(new Uint8Array(16))
@@ -99,12 +96,12 @@ const encryptPrivateKey = async (privateKey: string, password: string): Promise<
       name: 'PBKDF2',
       salt,
       iterations: 100000,
-      hash: 'SHA-256'
+      hash: 'SHA-256',
     },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
     true,
-    ['encrypt']
+    ['encrypt'],
   )
 
   // Generate IV
@@ -114,10 +111,10 @@ const encryptPrivateKey = async (privateKey: string, password: string): Promise<
   const encrypted = await crypto.subtle.encrypt(
     {
       name: 'AES-GCM',
-      iv
+      iv,
     },
     key,
-    encoder.encode(privateKey)
+    encoder.encode(privateKey),
   )
 
   // Combine salt, IV, and encrypted data
@@ -133,7 +130,9 @@ const encryptPrivateKey = async (privateKey: string, password: string): Promise<
 const decryptPrivateKey = async (encryptedKey: string, password: string): Promise<Uint8Array> => {
   // Convert base64 to Uint8Array
   const combined = new Uint8Array(
-    atob(encryptedKey).split('').map(c => c.charCodeAt(0))
+    atob(encryptedKey)
+      .split('')
+      .map((c) => c.charCodeAt(0)),
   )
 
   // Extract salt, IV, and encrypted data
@@ -143,13 +142,10 @@ const decryptPrivateKey = async (encryptedKey: string, password: string): Promis
 
   // Convert password to key material
   const encoder = new TextEncoder()
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(password),
-    'PBKDF2',
-    false,
-    ['deriveBits', 'deriveKey']
-  )
+  const keyMaterial = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, [
+    'deriveBits',
+    'deriveKey',
+  ])
 
   // Derive key
   const key = await crypto.subtle.deriveKey(
@@ -157,21 +153,21 @@ const decryptPrivateKey = async (encryptedKey: string, password: string): Promis
       name: 'PBKDF2',
       salt,
       iterations: 100000,
-      hash: 'SHA-256'
+      hash: 'SHA-256',
     },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
     true,
-    ['decrypt']
+    ['decrypt'],
   )
 
   const decrypted = await crypto.subtle.decrypt(
     {
       name: 'AES-GCM',
-      iv
+      iv,
     },
     key,
-    encrypted
+    encrypted,
   )
 
   return new Uint8Array(decrypted)
