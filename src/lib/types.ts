@@ -1,4 +1,5 @@
 import { IWallet } from '@arklabs/wallet-sdk'
+import { SpendableVtxo, VirtualCoin } from '@arklabs/wallet-sdk/dist/types/wallet'
 
 export type Addresses = {
   boardingAddr: string
@@ -62,6 +63,8 @@ export enum Unit {
   USD = 'usd',
   SAT = 'sat',
 }
+
+export type Vtxo = SpendableVtxo & VirtualCoin
 
 export type Wallet = {
   arkAddress: string
