@@ -44,7 +44,7 @@ export default function Unlock() {
   }, [password])
 
   useEffect(() => {
-    if (!wallet.lockedByBiometrics || wallet.initialized) return
+    if (!wallet.lockedByBiometrics || wallet.seed) return
     getPasswordFromBiometrics()
   }, [wallet.lockedByBiometrics])
 
