@@ -35,11 +35,11 @@ const Box = ({ children }: { children: ReactNode }) => {
 }
 
 const VtxoLine = ({ hide, vtxo }: { hide: boolean; vtxo: Vtxo }) => {
-  const amount = hide ? prettyHide(vtxo.amount) : prettyNumber(vtxo.amount)
+  const amount = hide ? prettyHide(vtxo.value) : prettyNumber(vtxo.value)
   return (
     <Box>
       <Text>{amount} sats</Text>
-      <Text>{prettyAgo(vtxo.expireAt)}</Text>
+      <Text>{prettyAgo(vtxo.virtualStatus.batchExpiry ?? '')}</Text>
     </Box>
   )
 }
@@ -99,7 +99,7 @@ export default function Vtxos() {
           <WaitingForRound rollover />
         ) : (
           <Padded>
-            {wallet.vtxos.spendable?.length === 0 ? (
+            {wallet.vtxos.length === 0 ? (
               <WarningBox red text='No virtual coins available' />
             ) : showList ? (
               <FlexCol gap='0.5rem'>
@@ -107,7 +107,7 @@ export default function Vtxos() {
                 <Text capitalize color='dark50' smaller>
                   Your virtual coins with amount and expiration
                 </Text>
-                {wallet.vtxos.spendable?.map((v) => (
+                {wallet.vtxos.map((v) => (
                   <VtxoLine key={v.txid} hide={!config.showBalance} vtxo={v} />
                 ))}
               </FlexCol>
@@ -143,9 +143,7 @@ export default function Vtxos() {
         )}
       </Content>
       <ButtonsOnBottom>
-        {wallet.vtxos.spendable?.length > 0 ? (
-          <Button onClick={handleRollover} label={label} disabled={rollingover} />
-        ) : null}
+        {wallet.vtxos.length > 0 ? <Button onClick={handleRollover} label={label} disabled={rollingover} /> : null}
         {wallet.nextRollover ? <Button onClick={() => setReminderIsOpen(true)} label='Add reminder' secondary /> : null}
       </ButtonsOnBottom>
       <Reminder
