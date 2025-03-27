@@ -10,9 +10,10 @@ import { ArkNote, arkNoteInUrl } from '../lib/arknote'
 import { consoleError } from '../lib/logs'
 import { Wallet } from '../lib/types'
 import { sleep } from '../lib/sleep'
-import { calcNextRollover, getPrivateKeyFromSeed, vtxosExpiringSoon } from '../lib/wallet'
+import { calcNextRollover, vtxosExpiringSoon } from '../lib/wallet'
 import { ServiceWorkerWallet } from '@arklabs/wallet-sdk'
 import { NetworkName } from '@arklabs/wallet-sdk/dist/types/networks'
+import { hex } from '@scure/base'
 
 const defaultWallet: Wallet = {
   arkAddress: '',
@@ -92,22 +93,21 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (vtxosExpiringSoon(wallet.nextRollover)) rolloverVtxos()
   }, [wallet.nextRollover])
 
-  const initWallet = async (seed: Uint8Array) => {
-    const privateKey = getPrivateKeyFromSeed(seed)
+  const initWallet = async (privateKey: Uint8Array) => {
     const arkServerUrl = aspInfo.url
     const esploraUrl = getRestApiExplorerURL(wallet.network) ?? ''
     await svcWallet.init({
       arkServerUrl,
-      privateKey,
+      privateKey: hex.encode(privateKey),
       network: aspInfo.network as NetworkName,
       esploraUrl,
     })
-    updateWallet({ ...wallet, explorer: esploraUrl, initialized: true, network: aspInfo.network, seed })
+    updateWallet({ ...wallet, explorer: esploraUrl, initialized: true, network: aspInfo.network, privateKey })
   }
 
   const lockWallet = async () => {
     // TODO: delete wallet instance in service worker (change to wallet-sdk)
-    setWallet({ ...wallet, seed: undefined })
+    setWallet({ ...wallet, privateKey: undefined })
   }
 
   const rolloverVtxos = async (raise = false) => {

@@ -3,7 +3,7 @@ import { Tx } from '../lib/types'
 
 export interface InitInfo {
   password?: string
-  seed?: Uint8Array
+  privateKey?: Uint8Array
 }
 
 export interface NoteInfo {
@@ -45,7 +45,7 @@ interface FlowContextProps {
 
 export const emptyInitInfo: InitInfo = {
   password: undefined,
-  seed: undefined,
+  privateKey: undefined,
 }
 
 export const emptyNoteInfo: NoteInfo = {

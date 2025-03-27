@@ -14,6 +14,7 @@ import LogoIcon from '../../icons/Logo'
 import FlexCol from '../../components/FlexCol'
 import { IframeContext } from '../../providers/iframe'
 import Minimal from '../../components/Minimal'
+import { deriveKeyFromSeed } from '../../lib/wallet'
 
 export default function Init() {
   const { aspInfo } = useContext(AspContext)
@@ -30,7 +31,8 @@ export default function Init() {
   const handleNewWallet = () => {
     const mnemonic = generateMnemonic(wordlist)
     const seed = mnemonicToSeedSync(mnemonic)
-    setInitInfo({ seed })
+    const privateKey = deriveKeyFromSeed(seed)
+    setInitInfo({ privateKey })
     navigate(Pages.InitPassword)
   }
 

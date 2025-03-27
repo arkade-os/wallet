@@ -76,6 +76,5 @@ export type Wallet = {
   txs: Tx[]
   vtxos: Awaited<ReturnType<IWallet['getVtxos']>>
   // set when wallet is unlocked
-  // TODO safe???
-  seed?: Uint8Array
+  privateKey?: Uint8Array
 }

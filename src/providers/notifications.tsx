@@ -3,8 +3,6 @@ import { ConfigContext } from './config'
 import { sendNotification } from '../lib/notifications'
 import { prettyNumber } from '../lib/format'
 import { finalizeEvent, getPublicKey, Relay } from 'nostr-tools'
-import { hex } from '@scure/base'
-import { getPrivateKeyFromSeed } from '../lib/wallet'
 import { WalletContext } from './wallet'
 import { consoleLog } from '../lib/logs'
 
@@ -32,13 +30,11 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   }
 
   const sendNostrNotification = async (content: string) => {
-    if (!wallet.seed) throw new Error('wallet is locked')
+    if (!wallet.privateKey) throw new Error('wallet is locked')
     if (!config.nostr) return
     if (!relay.current) return
     if (!relay.current.connected) await connectRelay()
-    const seed = await getPrivateKeyFromSeed(wallet.seed)
-    const sk = hex.decode(seed)
-    const pk = getPublicKey(sk)
+    const pk = getPublicKey(wallet.privateKey)
     relay.current.subscribe(
       [
         {
@@ -58,7 +54,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
       tags: [],
       content,
     }
-    const signedEvent = finalizeEvent(eventTemplate, sk)
+    const signedEvent = finalizeEvent(eventTemplate, wallet.privateKey)
     await relay.current.publish(signedEvent)
   }
 

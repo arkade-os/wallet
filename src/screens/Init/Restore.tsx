@@ -6,11 +6,12 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import Padded from '../../components/Padded'
 import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
-import { invalidPrivateKey, nsecToSeed } from '../../lib/privateKey'
+import { invalidPrivateKey, nsecToPrivateKey } from '../../lib/privateKey'
 import Textarea from '../../components/Textarea'
 import Header from '../../components/Header'
 import FlexCol from '../../components/FlexCol'
 import { extractError } from '../../lib/error'
+import { hex } from '@scure/base'
 
 export default function InitRestore() {
   const { navigate } = useContext(NavigationContext)
@@ -20,13 +21,15 @@ export default function InitRestore() {
 
   const [error, setError] = useState('')
   const [label, setLabel] = useState(buttonLabel)
-  const [privateKey, setPrivateKey] = useState('')
-  const [someKey, setSomeKey] = useState('')
+  const [privateKey, setPrivateKey] = useState<Uint8Array>()
+  const [someKey, setSomeKey] = useState<string>()
 
   useEffect(() => {
-    let privateKey = someKey
+    if (!someKey) return
+    let privateKey = undefined
     try {
-      if (someKey.match(/^nsec/)) privateKey = nsecToSeed(someKey)
+      if (someKey?.match(/^nsec/)) privateKey = nsecToPrivateKey(someKey)
+      else privateKey = hex.decode(someKey)
       const invalid = invalidPrivateKey(privateKey)
       setLabel(invalid ? 'Unable to validate private key format' : buttonLabel)
       setError(invalid)

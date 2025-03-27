@@ -28,7 +28,7 @@ export default function Lock() {
   }
 
   useEffect(() => {
-    if (!wallet.lockedByBiometrics || !wallet.seed || !wallet.passkeyId) return
+    if (!wallet.lockedByBiometrics || !wallet.privateKey || !wallet.passkeyId) return
     getPasswordFromBiometrics()
   }, [wallet.lockedByBiometrics])
 

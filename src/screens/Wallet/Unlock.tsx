@@ -17,7 +17,7 @@ import Text from '../../components/Text'
 import { IframeContext } from '../../providers/iframe'
 import FlexRow from '../../components/FlexRow'
 import Minimal from '../../components/Minimal'
-import { getSeed } from '../../lib/privateKey'
+import { getPrivateKey } from '../../lib/privateKey'
 import { NavigationContext, Pages } from '../../providers/navigation'
 
 export default function Unlock() {
@@ -34,7 +34,7 @@ export default function Unlock() {
 
   useEffect(() => {
     if (!password) return
-    getSeed(password)
+    getPrivateKey(password)
       .then(initWallet)
       .then(() => navigate(Pages.Wallet))
       .catch((err) => {
@@ -44,7 +44,7 @@ export default function Unlock() {
   }, [password])
 
   useEffect(() => {
-    if (!wallet.lockedByBiometrics || wallet.seed) return
+    if (!wallet.lockedByBiometrics || wallet.privateKey) return
     getPasswordFromBiometrics()
   }, [wallet.lockedByBiometrics])
 
@@ -53,7 +53,7 @@ export default function Unlock() {
   const handleUnlock = async () => {
     if (wallet.lockedByBiometrics) return getPasswordFromBiometrics()
     if (!password) return
-    getSeed(password)
+    getPrivateKey(password)
       .then(initWallet)
       .then(() => navigate(Pages.Wallet))
       .catch((err) => {

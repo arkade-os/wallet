@@ -30,7 +30,7 @@ export const IframeProvider = ({ children }: { children: ReactNode }) => {
     sendMessage(
       JSON.stringify({
         action: 'status',
-        status: !w.initialized ? 'uninitialized' : w.seed ? 'unlocked' : 'locked',
+        status: !w.initialized ? 'uninitialized' : w.privateKey ? 'unlocked' : 'locked',
       }),
     )
   }
@@ -83,7 +83,7 @@ export const IframeProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (walletLoaded) sendStatus(walletLoaded)
-  }, [walletLoaded, wallet.seed])
+  }, [walletLoaded, wallet.privateKey])
 
   return <IframeContext.Provider value={{ iframeUrl, sendMessage }}>{children}</IframeContext.Provider>
 }

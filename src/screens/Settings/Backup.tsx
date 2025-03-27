@@ -5,13 +5,13 @@ import Padded from '../../components/Padded'
 import Textarea from '../../components/Textarea'
 import Content from '../../components/Content'
 import { copyToClipboard } from '../../lib/clipboard'
-import { seedToNsec } from '../../lib/privateKey'
 import Header from './Header'
 import { TextSecondary } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
 import { copiedToClipboard } from '../../lib/toast'
 import { useIonToast } from '@ionic/react'
 import { WalletContext } from '../../providers/wallet'
+import { privateKeyToNsec } from '../../lib/privateKey'
 
 export default function Backup() {
   const { wallet } = useContext(WalletContext)
@@ -19,9 +19,9 @@ export default function Backup() {
   const [present] = useIonToast()
 
   useEffect(() => {
-    if (!wallet.seed) return
-    setNsec(seedToNsec(wallet.seed))
-  }, [wallet.seed])
+    if (!wallet.privateKey) return
+    setNsec(privateKeyToNsec(wallet.privateKey))
+  }, [wallet.privateKey])
 
   const handleCopy = async () => {
     await copyToClipboard(nsec)

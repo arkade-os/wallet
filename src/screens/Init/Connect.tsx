@@ -7,19 +7,19 @@ import Content from '../../components/Content'
 import { WalletContext } from '../../providers/wallet'
 import Loading from '../../components/Loading'
 import Header from '../../components/Header'
-import { setSeed } from '../../lib/privateKey'
+import { setPrivateKey } from '../../lib/privateKey'
 import { consoleError } from '../../lib/logs'
 export default function InitConnect() {
   const { initInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { initWallet } = useContext(WalletContext)
 
-  const { password, seed } = initInfo
+  const { password, privateKey } = initInfo
 
   useEffect(() => {
-    if (!password || !seed) return
-    setSeed(seed, password)
-      .then(() => initWallet(seed))
+    if (!password || !privateKey) return
+    setPrivateKey(privateKey, password)
+      .then(() => initWallet(privateKey))
       .then(() => navigate(Pages.Wallet))
       .catch(consoleError)
   }, [])
