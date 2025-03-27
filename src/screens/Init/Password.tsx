@@ -25,7 +25,6 @@ export default function InitPassword() {
   const [label, setLabel] = useState('')
   const [password, setPassword] = useState('')
   const [showSheet, setShowSheet] = useState(false)
-  const [useBiometrics, setUseBiometrics] = useState(isBiometricsSupported())
 
   const registerUserBiometrics = () => {
     registerUser()
@@ -38,9 +37,8 @@ export default function InitPassword() {
   }
 
   useEffect(() => {
-    if (!useBiometrics) return
-    registerUserBiometrics()
-  }, [useBiometrics])
+    if (isBiometricsSupported()) registerUserBiometrics()
+  }, [isBiometricsSupported()])
 
   const handleCancel = () => navigate(Pages.Init)
 
@@ -49,12 +47,14 @@ export default function InitPassword() {
     setShowSheet(true)
   }
 
+  const usingBiometrics = isBiometricsSupported()
+
   return (
     <>
       <Header text='Define password' back={handleCancel} />
       <Content>
         <Padded>
-          {useBiometrics ? (
+          {usingBiometrics ? (
             <CenterScreen onClick={registerUserBiometrics}>
               <PasskeyIcon />
               <Text big centered>
@@ -70,31 +70,26 @@ export default function InitPassword() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        {useBiometrics ? (
-          <Button onClick={() => setUseBiometrics(false)} label='Use password' secondary />
+        {usingBiometrics ? (
+          <Button onClick={registerUserBiometrics} label='Create passkey' />
         ) : (
-          <>
-            <Button onClick={handleContinue} label={label} disabled={!password} />
-            {isBiometricsSupported() ? (
-              <Button onClick={() => setUseBiometrics(true)} label='Use biometrics' secondary />
-            ) : null}
-          </>
+          <Button onClick={handleContinue} label={label} disabled={!password} />
         )}
       </ButtonsOnBottom>
-      <SheetModal isOpen={showSheet} onDidDismiss={() => setShowSheet(false)}>
+      <SheetModal isOpen={showSheet} onClose={() => setShowSheet(false)}>
         <FlexCol centered>
           <SuccessIcon small />
           <FlexCol gap='0.5rem' centered>
             <Text bold>Wallet created</Text>
             <Text small>Your wallet is ready for use!</Text>
             <Text color='dark50' small>
-              {useBiometrics
+              {usingBiometrics
                 ? 'Use your biometrics saved as a passkey for easy login.'
                 : "You'll need your password to login."}
             </Text>
           </FlexCol>
           <div style={{ width: '100%' }}>
-            <Button onClick={() => navigate(Pages.Wallet)} label='Continue' />
+            <Button onClick={() => navigate(Pages.InitConnect)} label='Continue' />
           </div>
         </FlexCol>
       </SheetModal>

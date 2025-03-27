@@ -4,12 +4,12 @@ import CloseIcon from '../icons/Close'
 interface SheetModalProps {
   children?: React.ReactNode
   isOpen: boolean
-  onDidDismiss: () => void
+  onClose: () => void
 }
 
-export default function SheetModal({ children, isOpen, onDidDismiss }: SheetModalProps) {
+export default function SheetModal({ children, isOpen, onClose }: SheetModalProps) {
   return (
-    <IonModal initialBreakpoint={1} isOpen={isOpen} onDidDismiss={onDidDismiss}>
+    <IonModal initialBreakpoint={1} isOpen={isOpen} onDidDismiss={onClose}>
       <div
         style={{
           borderTop: '1px solid var(--dark50)',
@@ -19,7 +19,7 @@ export default function SheetModal({ children, isOpen, onDidDismiss }: SheetModa
           paddingBottom: '2rem',
         }}
       >
-        <div style={{ cursor: 'pointer', position: 'absolute', right: '1rem', top: '1rem' }} onClick={onDidDismiss}>
+        <div style={{ cursor: 'pointer', position: 'absolute', right: '1rem', top: '1rem' }} onClick={onClose}>
           <CloseIcon />
         </div>
         {children}

@@ -118,7 +118,7 @@ export default function Onboard() {
       </Content>
       <ButtonsOnBottom bordered>
         {step < steps ? (
-          <Button purple onClick={handleContinue} label='Continue' />
+          <Button onClick={handleContinue} label='Continue' />
         ) : (
           <Button onClick={handleSkip} label='Skip for now' clear />
         )}

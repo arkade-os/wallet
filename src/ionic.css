@@ -29,6 +29,7 @@
   --yellowoutlier: #debb20;
   --ion-background-color: #fff;
   --ion-tabbar-background-color: #fafafa;
+  --ion-backdrop-color: #fff;
 }
 
 .ion-palette-dark {
@@ -52,23 +53,21 @@
   --yellowoutlier: #ffdd46;
   --ion-background-color: #101010;
   --ion-tabbar-background-color: #181818;
+  --ion-backdrop-color: #000;
 }
 
 ion-button {
   --border-radius: 0.5rem;
   --padding-top: 1rem;
   --padding-bottom: 1rem;
+  text-transform: none;
+  width: 100%;
   &.clear {
     --background: none;
     --border-color: none;
     --color: var(--black);
   }
   &.dark {
-    --background: var(--black);
-    --border-color: var(--black);
-    --color: var(--white);
-  }
-  &.purple {
     --background: var(--purple);
     --border-color: var(--purple);
     --color: white;
@@ -79,7 +78,7 @@ ion-button {
     --color: white;
   }
   &.secondary {
-    --background: none;
+    --background: var(--dark20);
     --border-color: var(--black);
     --color: var(--black);
   }

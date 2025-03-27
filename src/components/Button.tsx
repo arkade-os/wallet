@@ -1,13 +1,14 @@
 import { IonButton } from '@ionic/react'
 import { ReactElement } from 'react'
+import FlexRow from './FlexRow'
 
 interface ButtonProps {
   clear?: boolean
   disabled?: boolean
+  fancy?: boolean
   icon?: ReactElement
   label: string
   onClick: (event: any) => void
-  purple?: boolean
   red?: boolean
   secondary?: boolean
   short?: boolean
@@ -17,10 +18,10 @@ interface ButtonProps {
 export default function Button({
   clear,
   disabled,
+  fancy,
   icon,
   label,
   onClick,
-  purple,
   red,
   secondary,
   short,
@@ -28,15 +29,27 @@ export default function Button({
 }: ButtonProps) {
   return (
     <IonButton
-      className={red ? 'red' : purple ? 'purple' : secondary ? 'secondary' : clear ? 'clear' : 'dark'}
+      className={red ? 'red' : secondary ? 'secondary' : clear ? 'clear' : 'dark'}
       disabled={disabled}
       expand={short ? undefined : 'block'}
-      fill={secondary ? 'outline' : clear ? 'clear' : 'solid'}
+      fill={clear ? 'clear' : 'solid'}
       onClick={onClick}
       size={small ? 'small' : 'default'}
     >
-      {icon}
-      {label}
+      {fancy ? (
+        <FlexRow between>
+          <div>
+            {icon}
+            {label}
+          </div>
+          <p>&gt;</p>
+        </FlexRow>
+      ) : (
+        <>
+          {icon}
+          {label}
+        </>
+      )}
     </IonButton>
   )
 }

@@ -15,6 +15,7 @@ import LogoIcon from '../../icons/Logo'
 import FlexCol from '../../components/FlexCol'
 import { IframeContext } from '../../providers/iframe'
 import Minimal from '../../components/Minimal'
+import SheetModal from '../../components/SheetModal'
 
 export default function Init() {
   const { aspInfo } = useContext(AspContext)
@@ -23,6 +24,7 @@ export default function Init() {
   const { navigate } = useContext(NavigationContext)
 
   const [error, setError] = useState(false)
+  const [showOptions, setShowOptions] = useState(false)
 
   useEffect(() => {
     setError(aspInfo.unreachable)
@@ -59,9 +61,15 @@ export default function Init() {
         </CenterScreen>
       </Content>
       <ButtonsOnBottom>
-        <Button disabled={error} onClick={handleNewWallet} label='New wallet' />
-        <Button disabled={error} onClick={handleOldWallet} label='Restore wallet' />
+        <Button disabled={error} onClick={handleNewWallet} label='+ Create wallet' />
+        <Button disabled={error} onClick={() => setShowOptions(true)} label='Other login options' clear />
       </ButtonsOnBottom>
+      <SheetModal isOpen={showOptions} onClose={() => setShowOptions(false)}>
+        <FlexCol gap='1rem'>
+          <Text>Other login options</Text>
+          <Button fancy disabled={error} onClick={handleOldWallet} label='Restore wallet' secondary />
+        </FlexCol>
+      </SheetModal>
     </>
   )
 }

@@ -18,7 +18,7 @@ export default function WarningBox({ green, red, text }: WarningProps) {
     backgroundColor,
     border: `1px solid ${borderColor}`,
     borderRadius: '0.5rem',
-    color: 'var(--white)',
+    color: 'white',
     padding: '1rem',
     width: '100%',
   }
