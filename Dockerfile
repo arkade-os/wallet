@@ -1,26 +1,32 @@
-FROM node:18-alpine AS builder
+FROM node:23-alpine AS builder
 
 # Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.7.0 --activate
 
+# Set up pnpm store
+ENV PNPM_HOME="/root/.local/share/pnpm"
+RUN mkdir -p $PNPM_HOME/store
+
+# Set working directory
 WORKDIR /app
 
-# Copy files
+# Copy package files first for better caching
+COPY package.json pnpm-lock.yaml ./
+
+# Install dependencies
+RUN pnpm install
+
+# Copy the rest of the application
 COPY . .
 
-# NODE_ENV=production is for runtime optimization
-ENV NODE_ENV=production
-ENV DISABLE_ESLINT_PLUGIN=true
-RUN pnpm install --prod --ignore-scripts
-
-# Create git commit file from current branch HEAD
+# Create git commit file
 RUN if [ -d ".git" ]; then \
       echo "export const gitCommit = '$(cat .git/HEAD | cut -d '/' -f 3- | xargs -I {} cat .git/refs/heads/{} | cut -c 1-8)';" > src/_gitCommit.ts; \
     else \
       echo "export const gitCommit = 'dev';" > src/_gitCommit.ts; \
     fi
 
-# Build the app
+# Build the application
 RUN pnpm run build
 
 # Production stage
