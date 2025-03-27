@@ -38,48 +38,41 @@ export const seedToNpub = (seed: string | Uint8Array): string => {
   return nip19.npubEncode(getPublicKey(sk))
 }
 
-export const getSeed = async (password: string): Promise<Uint8Array | null> => {
-  const encryptedKey = getEncryptedKey()
-  if (!encryptedKey) return null
-
-  try {
-    return decryptPrivateKey(encryptedKey, password)
-  } catch (error) {
-    console.error('Failed to decrypt seed:', error)
-    return null
-  }
+export const getSeed = async (password: string): Promise<Uint8Array> => {
+  const encryptedSeed = getEncryptedSeed()
+  if (!encryptedSeed) throw new Error('No encrypted seed found')
+  return decryptSeed(encryptedSeed, password)
 }
 
-export const setSeed = async (seed: string | Uint8Array, password: string): Promise<void> => {
+export const setSeed = async (seed: Uint8Array, password: string): Promise<void> => {
   try {
-    const seedHex = typeof seed === 'string' ? seed : hex.encode(seed)
-    const encryptedKey = await encryptPrivateKey(seedHex, password)
-    storeEncryptedKey(encryptedKey)
+    const encryptedSeed = await encryptSeed(seed, password)
+    storeEncryptedSeed(encryptedSeed)
   } catch (error) {
     console.error('Failed to encrypt and store seed:', error)
     throw new Error('Failed to encrypt and store seed')
   }
 }
 
-const storeEncryptedKey = (encryptedKey: string): void => {
+const storeEncryptedSeed = (encryptedSeed: string): void => {
   try {
-    localStorage.setItem(STORAGE_KEY, encryptedKey)
+    localStorage.setItem(STORAGE_KEY, encryptedSeed)
   } catch (error) {
-    console.error('Failed to store encrypted key:', error)
-    throw new Error('Failed to store encrypted key')
+    console.error('Failed to store encrypted seed:', error)
+    throw new Error('Failed to store encrypted seed')
   }
 }
 
-const getEncryptedKey = (): string | null => {
+const getEncryptedSeed = (): string | null => {
   try {
     return localStorage.getItem(STORAGE_KEY)
   } catch (error) {
-    console.error('Failed to retrieve encrypted key:', error)
+    console.error('Failed to retrieve encrypted seed:', error)
     return null
   }
 }
 
-const encryptPrivateKey = async (privateKey: string, password: string): Promise<string> => {
+const encryptSeed = async (seed: Uint8Array, password: string): Promise<string> => {
   // Convert password to key material
   const encoder = new TextEncoder()
   const keyMaterial = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, [
@@ -114,7 +107,7 @@ const encryptPrivateKey = async (privateKey: string, password: string): Promise<
       iv,
     },
     key,
-    encoder.encode(privateKey),
+    seed,
   )
 
   // Combine salt, IV, and encrypted data
@@ -127,10 +120,10 @@ const encryptPrivateKey = async (privateKey: string, password: string): Promise<
   return btoa(String.fromCharCode(...combined))
 }
 
-const decryptPrivateKey = async (encryptedKey: string, password: string): Promise<Uint8Array> => {
+const decryptSeed = async (encryptedSeed: string, password: string): Promise<Uint8Array> => {
   // Convert base64 to Uint8Array
   const combined = new Uint8Array(
-    atob(encryptedKey)
+    atob(encryptedSeed)
       .split('')
       .map((c) => c.charCodeAt(0)),
   )

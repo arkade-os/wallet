@@ -10,8 +10,7 @@ import { ArkNote, arkNoteInUrl } from '../lib/arknote'
 import { consoleError } from '../lib/logs'
 import { Wallet } from '../lib/types'
 import { sleep } from '../lib/sleep'
-import { ConfigContext } from './config'
-import { calcNextRollover, vtxosExpiringSoon } from '../lib/wallet'
+import { calcNextRollover, getPrivateKeyFromSeed, vtxosExpiringSoon } from '../lib/wallet'
 import { ServiceWorkerWallet } from '@arklabs/wallet-sdk'
 import { NetworkName } from '@arklabs/wallet-sdk/dist/types/networks'
 
@@ -28,7 +27,8 @@ const defaultWallet: Wallet = {
 }
 
 interface WalletContextProps {
-  initWallet: (privateKey: string) => Promise<void>
+  initWallet: (seed: Uint8Array) => Promise<void>
+  lockWallet: () => Promise<void>
   rolloverVtxos: (raise?: boolean) => Promise<void>
   reloadWallet: () => void
   resetWallet: () => void
@@ -41,6 +41,7 @@ interface WalletContextProps {
 
 export const WalletContext = createContext<WalletContextProps>({
   initWallet: () => Promise.resolve(),
+  lockWallet: () => Promise.resolve(),
   rolloverVtxos: () => Promise.resolve(),
   reloadWallet: () => {},
   resetWallet: () => {},
@@ -53,15 +54,17 @@ export const WalletContext = createContext<WalletContextProps>({
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { config, configLoaded } = useContext(ConfigContext)
   const { setNoteInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { notifyVtxosRollover, notifyTxSettled } = useContext(NotificationsContext)
 
-  const svcWallet = new ServiceWorkerWallet()
-
   const [walletLoaded, setWalletLoaded] = useState<Wallet>()
   const [wallet, setWallet] = useState(defaultWallet)
+  const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>(new ServiceWorkerWallet())
+
+  useEffect(() => {
+    ServiceWorkerWallet.create('/wallet-service-worker.mjs').then(setSvcWallet).catch(consoleError)
+  }, [])
 
   useEffect(() => {
     const note = arkNoteInUrl()
@@ -89,18 +92,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (vtxosExpiringSoon(wallet.nextRollover)) rolloverVtxos()
   }, [wallet.nextRollover])
 
-  // instruct service worker to start checking for vtxos expirations
-  // if user set notifications off it should stop checking
-  useEffect(() => {
-    if (!walletLoaded || !wallet.initialized || !configLoaded) return
-    const type = config.notifications ? 'START_CHECK' : 'STOP_CHECK'
-    const data = { arkAddress: walletLoaded.arkAddress, serverUrl: aspInfo.url }
-    navigator.serviceWorker.getRegistration().then((registration) => {
-      registration?.active?.postMessage({ type, data })
-    })
-  }, [configLoaded, config.notifications, walletLoaded, wallet.initialized])
-
-  const initWallet = async (privateKey: string) => {
+  const initWallet = async (seed: Uint8Array) => {
+    const privateKey = getPrivateKeyFromSeed(seed)
     const arkServerUrl = aspInfo.url
     const esploraUrl = getRestApiExplorerURL(wallet.network) ?? ''
     await svcWallet.init({
@@ -109,7 +102,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       network: aspInfo.network as NetworkName,
       esploraUrl,
     })
-    updateWallet({ ...wallet, explorer: esploraUrl, initialized: true, network: aspInfo.network })
+    updateWallet({ ...wallet, explorer: esploraUrl, initialized: true, network: aspInfo.network, seed })
+  }
+
+  const lockWallet = async () => {
+    // TODO: delete wallet instance in service worker (change to wallet-sdk)
+    setWallet({ ...wallet, seed: undefined })
   }
 
   const rolloverVtxos = async (raise = false) => {
@@ -169,6 +167,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         wallet,
         walletLoaded,
         svcWallet,
+        lockWallet,
       }}
     >
       {children}

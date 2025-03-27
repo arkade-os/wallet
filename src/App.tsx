@@ -19,7 +19,7 @@ import { ConfigContext } from './providers/config'
 import { NavigationContext, pageComponent, Pages, Tabs } from './providers/navigation'
 import { WalletContext } from './providers/wallet'
 
-import { IonApp, IonPage, IonTab, IonTabBar, IonTabButton, IonTabs, setupIonicReact, useIonToast } from '@ionic/react'
+import { IonApp, IonPage, IonTab, IonTabBar, IonTabButton, IonTabs, setupIonicReact } from '@ionic/react'
 import HomeIcon from './icons/Home'
 import ReceiveIcon from './icons/Receive'
 import SettingsIcon from './icons/Settings'
@@ -28,8 +28,6 @@ import { OptionsContext } from './providers/options'
 import { emptyRecvInfo, emptySendInfo, FlowContext } from './providers/flow'
 import { AspContext } from './providers/asp'
 import { SettingsOptions } from './lib/types'
-import * as serviceWorkerRegistration from './serviceWorkerRegistration'
-import { newVersionAvailable } from './lib/toast'
 import { IframeContext } from './providers/iframe'
 import Loading from './components/Loading'
 
@@ -45,8 +43,6 @@ export default function App() {
   const { reloadWallet } = useContext(WalletContext)
   const [loadingError, setLoadingError] = useState<string | null>(null)
 
-  const [present] = useIonToast()
-
   useEffect(() => {
     if (!configLoaded) {
       setLoadingError(null)
@@ -58,23 +54,6 @@ export default function App() {
       setLoadingError('Unable to connect to the server. Please check your internet connection and try again.')
     }
   }, [aspInfo.unreachable])
-
-  useEffect(() => {
-    console.log('registering service worker')
-    serviceWorkerRegistration.register({
-      onUpdate: () => {
-        present(newVersionAvailable)
-      },
-    })
-  }, [])
-
-  useEffect(() => {
-    setInterval(() => {
-      navigator.serviceWorker.getRegistration().then((registration) => {
-        if (registration) registration.update()
-      })
-    }, 1000 * 60 * 60)
-  }, [])
 
   const handleHome = () => {
     reloadWallet()

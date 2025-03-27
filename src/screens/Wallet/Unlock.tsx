@@ -18,11 +18,12 @@ import { IframeContext } from '../../providers/iframe'
 import FlexRow from '../../components/FlexRow'
 import Minimal from '../../components/Minimal'
 import { getSeed } from '../../lib/privateKey'
-import { hex } from '@scure/base'
+import { NavigationContext, Pages } from '../../providers/navigation'
 
 export default function Unlock() {
   const { iframeUrl } = useContext(IframeContext)
   const { wallet, initWallet } = useContext(WalletContext)
+  const { navigate } = useContext(NavigationContext)
 
   const [error, setError] = useState('')
   const [password, setPassword] = useState('')
@@ -34,10 +35,8 @@ export default function Unlock() {
   useEffect(() => {
     if (!password) return
     getSeed(password)
-      .then((seed) => {
-        if (!seed) return
-        initWallet(hex.encode(seed))
-      })
+      .then(initWallet)
+      .then(() => navigate(Pages.Wallet))
       .catch((err) => {
         consoleError(err, 'error unlocking wallet')
         setError(extractError(err))
@@ -55,10 +54,8 @@ export default function Unlock() {
     if (wallet.lockedByBiometrics) return getPasswordFromBiometrics()
     if (!password) return
     getSeed(password)
-      .then((seed) => {
-        if (!seed) return
-        initWallet(hex.encode(seed))
-      })
+      .then(initWallet)
+      .then(() => navigate(Pages.Wallet))
       .catch((err) => {
         consoleError(err, 'error unlocking wallet')
         setError(extractError(err))

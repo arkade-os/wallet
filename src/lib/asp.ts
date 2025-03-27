@@ -129,10 +129,6 @@ export const getBalance = async (wallet: IWallet): Promise<Satoshis> => {
   return total
 }
 
-export const getPrivateKey = async () => {
-  throw new Error('not implemented')
-}
-
 export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
   const txs: Tx[] = []
   try {

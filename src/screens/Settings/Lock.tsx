@@ -18,7 +18,7 @@ import { consoleError } from '../../lib/logs'
 
 export default function Lock() {
   const { navigate } = useContext(NavigationContext)
-  const { lockWallet, walletUnlocked, wallet } = useContext(WalletContext)
+  const { lockWallet, wallet } = useContext(WalletContext)
 
   const [error, setError] = useState('')
   const [password, setPassword] = useState('')
@@ -28,13 +28,13 @@ export default function Lock() {
   }
 
   useEffect(() => {
-    if (!wallet.lockedByBiometrics || !walletUnlocked || !wallet.passkeyId) return
+    if (!wallet.lockedByBiometrics || !wallet.seed || !wallet.passkeyId) return
     getPasswordFromBiometrics()
   }, [wallet.lockedByBiometrics])
 
   useEffect(() => {
     if (!password) return
-    lockWallet(password)
+    lockWallet()
       .then(() => navigate(Pages.Unlock))
       .catch(() => {})
   }, [password])
@@ -44,7 +44,7 @@ export default function Lock() {
   const handleLock = async () => {
     if (wallet.lockedByBiometrics) return getPasswordFromBiometrics()
     if (!password) return
-    lockWallet(password)
+    lockWallet()
       .then(() => navigate(Pages.Unlock))
       .catch((err) => {
         consoleError(err, 'error locking wallet')

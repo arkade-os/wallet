@@ -1,10 +1,11 @@
 import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
-import { hex } from '@scure/base'
 import { ConfigContext } from './config'
 import { sendNotification } from '../lib/notifications'
 import { prettyNumber } from '../lib/format'
 import { finalizeEvent, getPublicKey, Relay } from 'nostr-tools'
-import { getPrivateKey } from '../lib/asp'
+import { hex } from '@scure/base'
+import { getPrivateKeyFromSeed } from '../lib/wallet'
+import { WalletContext } from './wallet'
 import { consoleLog } from '../lib/logs'
 
 interface NotificationsContextProps {
@@ -23,7 +24,7 @@ export const NotificationsContext = createContext<NotificationsContextProps>({
 
 export const NotificationsProvider = ({ children }: { children: ReactNode }) => {
   const { config } = useContext(ConfigContext)
-
+  const { wallet } = useContext(WalletContext)
   const relay = useRef<Relay>()
 
   const connectRelay = async (): Promise<void> => {
@@ -31,10 +32,11 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   }
 
   const sendNostrNotification = async (content: string) => {
+    if (!wallet.seed) throw new Error('wallet is locked')
     if (!config.nostr) return
     if (!relay.current) return
     if (!relay.current.connected) await connectRelay()
-    const seed = await getPrivateKey()
+    const seed = await getPrivateKeyFromSeed(wallet.seed)
     const sk = hex.decode(seed)
     const pk = getPublicKey(sk)
     relay.current.subscribe(

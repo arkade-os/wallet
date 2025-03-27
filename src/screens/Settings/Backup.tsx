@@ -1,27 +1,27 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useContext } from 'react'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
 import Textarea from '../../components/Textarea'
 import Content from '../../components/Content'
 import { copyToClipboard } from '../../lib/clipboard'
-import { getPrivateKey } from '../../lib/asp'
 import { seedToNsec } from '../../lib/privateKey'
 import Header from './Header'
 import { TextSecondary } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
 import { copiedToClipboard } from '../../lib/toast'
 import { useIonToast } from '@ionic/react'
+import { WalletContext } from '../../providers/wallet'
 
 export default function Backup() {
+  const { wallet } = useContext(WalletContext)
   const [nsec, setNsec] = useState('')
   const [present] = useIonToast()
 
   useEffect(() => {
-    getPrivateKey().then((sk) => {
-      setNsec(seedToNsec(sk))
-    })
-  }, [])
+    if (!wallet.seed) return
+    setNsec(seedToNsec(wallet.seed))
+  }, [wallet.seed])
 
   const handleCopy = async () => {
     await copyToClipboard(nsec)

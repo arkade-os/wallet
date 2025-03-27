@@ -53,18 +53,6 @@ importers:
       typescript:
         specifier: ^5.6.3
         version: 5.8.2
-      workbox-core:
-        specifier: ^6.4.2
-        version: 6.6.1
-      workbox-precaching:
-        specifier: ^6.4.2
-        version: 6.6.1
-      workbox-routing:
-        specifier: ^6.4.2
-        version: 6.6.1
-      workbox-strategies:
-        specifier: ^6.4.2
-        version: 6.6.1
     devDependencies:
       '@types/node':
         specifier: ^22.8.7
@@ -2686,22 +2674,6 @@ packages:
   word-wrap@1.2.5:
     resolution: {integrity: sha512-BN22B5eaMMI9UMtjrGd5g5eCYPpCPDUy0FJXbYsaT5zYxjFOckS53SQDE3pWkVoWpHXVb3BrYcEN4Twa55B5cA==}
     engines: {node: '>=0.10.0'}
-
-  workbox-core@6.6.1:
-    resolution: {integrity: sha512-ZrGBXjjaJLqzVothoE12qTbVnOAjFrHDXpZe7coCb6q65qI/59rDLwuFMO4PcZ7jcbxY+0+NhUVztzR/CbjEFw==}
-    deprecated: this package has been deprecated
-
-  workbox-precaching@6.6.1:
-    resolution: {integrity: sha512-K4znSJ7IKxCnCYEdhNkMr7X1kNh8cz+mFgx9v5jFdz1MfI84pq8C2zG+oAoeE5kFrUf7YkT5x4uLWBNg0DVZ5A==}
-    deprecated: this package has been deprecated
-
-  workbox-routing@6.6.1:
-    resolution: {integrity: sha512-j4ohlQvfpVdoR8vDYxTY9rA9VvxTHogkIDwGdJ+rb2VRZQ5vt1CWwUUZBeD/WGFAni12jD1HlMXvJ8JS7aBWTg==}
-    deprecated: this package has been deprecated
-
-  workbox-strategies@6.6.1:
-    resolution: {integrity: sha512-WQLXkRnsk4L81fVPkkgon1rZNxnpdO5LsO+ws7tYBC6QQQFJVI6v98klrJEjFtZwzw/mB/HT5yVp7CcX0O+mrw==}
-    deprecated: this package has been deprecated
 
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
@@ -5562,22 +5534,6 @@ snapshots:
       stackback: 0.0.2
 
   word-wrap@1.2.5: {}
-
-  workbox-core@6.6.1: {}
-
-  workbox-precaching@6.6.1:
-    dependencies:
-      workbox-core: 6.6.1
-      workbox-routing: 6.6.1
-      workbox-strategies: 6.6.1
-
-  workbox-routing@6.6.1:
-    dependencies:
-      workbox-core: 6.6.1
-
-  workbox-strategies@6.6.1:
-    dependencies:
-      workbox-core: 6.6.1
 
   wrappy@1.0.2: {}
 

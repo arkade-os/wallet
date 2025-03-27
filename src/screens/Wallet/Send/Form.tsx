@@ -29,7 +29,7 @@ export default function SendForm() {
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
-  const { wallet } = useContext(WalletContext)
+  const { wallet, svcWallet } = useContext(WalletContext)
 
   const [amount, setAmount] = useState(0)
   const [error, setError] = useState('')
@@ -47,7 +47,7 @@ export default function SendForm() {
     const { recipient, satoshis } = sendInfo
     setRecipient(recipient ?? '')
     setAmount(satoshis ?? 0)
-    getReceivingAddresses().then(setReceivingAddresses)
+    getReceivingAddresses(svcWallet).then(setReceivingAddresses)
   }, [])
 
   useEffect(() => {

@@ -1,2 +1,14 @@
 pnpm format:check
 pnpm lint
+
+# Verify worker has been built and is up to date
+if [ ! -f "public/wallet-service-worker.mjs" ]; then
+  echo "Error: Worker has not been built. Please run 'pnpm build:worker' first."
+  exit 1
+fi
+
+# Check if worker needs to be rebuilt
+if [ "public/wallet-service-worker.mjs" -ot "src/wallet-service-worker.ts" ]; then
+  echo "Error: Worker is out of date. Please run 'pnpm build:worker' to rebuild."
+  exit 1
+fi

@@ -22,7 +22,7 @@ export default function ReceiveQRCode() {
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { wallet } = useContext(WalletContext)
+  const { wallet, svcWallet } = useContext(WalletContext)
 
   const [error, setError] = useState('')
   const [sharing, setSharing] = useState(false)
@@ -36,7 +36,7 @@ export default function ReceiveQRCode() {
     if (!wallet) return
     try {
       poolAspIntervalId.current = setInterval(() => {
-        getBalance().then((balance) => {
+        getBalance(svcWallet).then((balance) => {
           if (balance > wallet.balance) {
             clearInterval(poolAspIntervalId.current)
             onFinish(balance - wallet.balance)

@@ -24,7 +24,7 @@ export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { wallet } = useContext(WalletContext)
+  const { wallet, svcWallet } = useContext(WalletContext)
 
   const defaultButtonLabel = 'Continue without amount'
   const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints
@@ -48,7 +48,7 @@ export default function ReceiveAmount() {
   }, [])
 
   useEffect(() => {
-    getReceivingAddresses()
+    getReceivingAddresses(svcWallet)
       .then(({ offchainAddr, boardingAddr }) => {
         if (!offchainAddr) throw 'Unable to get offchain address'
         if (!boardingAddr) throw 'Unable to get boarding address'

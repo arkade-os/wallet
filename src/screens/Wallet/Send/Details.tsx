@@ -26,7 +26,7 @@ export default function SendDetails() {
   const { navigate } = useContext(NavigationContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { iframeUrl } = useContext(IframeContext)
-  const { wallet } = useContext(WalletContext)
+  const { wallet, svcWallet } = useContext(WalletContext)
 
   const [buttonLabel, setButtonLabel] = useState('')
   const [details, setDetails] = useState<DetailsProps>()
@@ -76,9 +76,9 @@ export default function SendDetails() {
     if (!satoshis) return
     setSending(true)
     if (arkAddress) {
-      sendOffChain(satoshis, arkAddress).then(handleTxid).catch(handleError)
+      sendOffChain(svcWallet, satoshis, arkAddress).then(handleTxid).catch(handleError)
     } else if (address) {
-      collaborativeExit(satoshis, address).then(handleTxid).catch(handleError)
+      collaborativeExit(svcWallet, satoshis, address).then(handleTxid).catch(handleError)
     }
   }
 

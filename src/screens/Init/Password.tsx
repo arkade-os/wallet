@@ -43,7 +43,6 @@ export default function InitPassword() {
   }, [useBiometrics])
 
   const handleCancel = () => navigate(Pages.Init)
-
   const handleProceed = () => connect(password)
 
   return (
