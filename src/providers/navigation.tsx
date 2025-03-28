@@ -19,8 +19,10 @@ import Vtxos from '../screens/Settings/Vtxos'
 import Wallet from '../screens/Wallet/Index'
 import Settings from '../screens/Settings/Index'
 import Onboard from '../screens/Wallet/Onboard'
+import Apps from '../screens/Apps'
 
 export enum Pages {
+  Apps,
   Init,
   InitRestore,
   InitPassword,
@@ -44,14 +46,14 @@ export enum Pages {
 }
 
 export enum Tabs {
+  Apps = 'apps',
   None = 'none',
-  Home = 'home',
-  Send = 'send',
-  Receive = 'receive',
   Settings = 'settings',
+  Wallet = 'wallet',
 }
 
 const pageTab = {
+  [Pages.Apps]: Tabs.Apps,
   [Pages.Init]: Tabs.None,
   [Pages.InitRestore]: Tabs.None,
   [Pages.InitPassword]: Tabs.None,
@@ -61,21 +63,23 @@ const pageTab = {
   [Pages.NotesForm]: Tabs.Settings,
   [Pages.NotesSuccess]: Tabs.Settings,
   [Pages.Onboard]: Tabs.None,
-  [Pages.ReceiveAmount]: Tabs.Receive,
-  [Pages.ReceiveQRCode]: Tabs.Receive,
-  [Pages.ReceiveSuccess]: Tabs.Receive,
-  [Pages.SendForm]: Tabs.Send,
-  [Pages.SendDetails]: Tabs.Send,
-  [Pages.SendSuccess]: Tabs.Send,
+  [Pages.ReceiveAmount]: Tabs.Wallet,
+  [Pages.ReceiveQRCode]: Tabs.Wallet,
+  [Pages.ReceiveSuccess]: Tabs.Wallet,
+  [Pages.SendForm]: Tabs.Wallet,
+  [Pages.SendDetails]: Tabs.Wallet,
+  [Pages.SendSuccess]: Tabs.Wallet,
   [Pages.Settings]: Tabs.Settings,
-  [Pages.Transaction]: Tabs.Home,
+  [Pages.Transaction]: Tabs.Wallet,
   [Pages.Unlock]: Tabs.None,
   [Pages.Vtxos]: Tabs.Settings,
-  [Pages.Wallet]: Tabs.Home,
+  [Pages.Wallet]: Tabs.Wallet,
 }
 
 export const pageComponent = (page: Pages): JSX.Element => {
   switch (page) {
+    case Pages.Apps:
+      return <Apps />
     case Pages.Init:
       return <Init />
     case Pages.InitConnect:

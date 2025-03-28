@@ -60,6 +60,7 @@ ion-button {
   --border-radius: 0.5rem;
   --padding-top: 1rem;
   --padding-bottom: 1rem;
+  min-height: 56px;
   text-transform: none;
   width: 100%;
   &.clear {
@@ -102,6 +103,7 @@ ion-header {
 
 ion-tab-bar {
   border-top: 1px solid var(--dark20);
+  width: 100%;
   & ion-tab-button {
     --color-selected: var(--ion-color-dark);
     background-color: var(--ion-tabbar-background-color);

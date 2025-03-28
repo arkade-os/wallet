@@ -143,7 +143,7 @@ export default function SendForm() {
 
   return (
     <>
-      <Header text='Send' />
+      <Header text='Send' back={() => navigate(Pages.Wallet)} />
       <Content>
         <Padded>
           <FlexCol gap='2rem'>

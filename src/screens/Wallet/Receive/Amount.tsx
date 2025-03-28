@@ -20,6 +20,7 @@ import Success from '../../../components/Success'
 import { consoleError } from '../../../lib/logs'
 import { AspContext } from '../../../providers/asp'
 import { isMobileBrowser } from '../../../lib/browser'
+import BackToWalletButton from '../../../components/BackToWalletButton'
 
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
@@ -118,13 +119,16 @@ export default function ReceiveAmount() {
         <Content>
           <Success text={`${prettyNumber(amount)} sats received from faucet successfully`} />
         </Content>
+        <ButtonsOnBottom>
+          <BackToWalletButton />
+        </ButtonsOnBottom>
       </>
     )
   }
 
   return (
     <>
-      <Header text='Receive' />
+      <Header text='Receive' back={() => navigate(Pages.Wallet)} />
       <Content>
         <Padded>
           <FlexCol>

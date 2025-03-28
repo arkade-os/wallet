@@ -39,17 +39,17 @@ export default function Button({
     >
       {fancy ? (
         <FlexRow between>
-          <div>
+          <FlexRow>
             {icon}
             {label}
-          </div>
+          </FlexRow>
           <ArrowIcon />
         </FlexRow>
       ) : (
-        <>
+        <FlexRow centered>
           {icon}
           {label}
-        </>
+        </FlexRow>
       )}
     </IonButton>
   )
