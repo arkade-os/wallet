@@ -1,11 +1,11 @@
 import Header from './Header'
-import { options, SectionResponse } from '../../providers/options'
+import { options } from '../../providers/options'
 import Content from '../../components/Content'
 import { SettingsSections } from '../../lib/types'
 import Menu from '../../components/Menu'
 
-export default function SettingsMenu() {
-  const rows: SectionResponse[] = [SettingsSections.General, SettingsSections.Security].map((section) => {
+export default function Advanced() {
+  const rows = [SettingsSections.Advanced].map((section) => {
     return {
       section,
       options: options.filter((o) => o.section === section),
@@ -14,7 +14,7 @@ export default function SettingsMenu() {
 
   return (
     <>
-      <Header text='Settings' />
+      <Header text='Advanced' back />
       <Content>
         <Menu rows={rows} />
       </Content>

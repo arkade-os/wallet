@@ -68,7 +68,7 @@ export default function Text({
 
 export function TextLabel({ children }: TextProps) {
   return (
-    <div style={{ padding: '0 1rem', marginBottom: '0.5rem' }}>
+    <div style={{ padding: '0 .5rem' }}>
       <Text capitalize color='dark50' smaller>
         {children}
       </Text>

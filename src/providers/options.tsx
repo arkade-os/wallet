@@ -1,56 +1,56 @@
 import { ReactElement, ReactNode, createContext, useState } from 'react'
 import BackupIcon from '../icons/Backup'
-import AppearanceIcon from '../icons/Appearance'
 import InfoIcon from '../icons/Info'
-// import LockIcon from '../icons/Lock'
-import NostrIcon from '../icons/Nostr'
 import NotificationIcon from '../icons/Notification'
 import ResetIcon from '../icons/Reset'
-import NoteIcon from '../icons/Note'
+import NotesIcon from '../icons/Notes'
 import VtxosIcon from '../icons/Vtxos'
 import ServerIcon from '../icons/Server'
 import LogsIcon from '../icons/Logs'
 import { SettingsOptions, SettingsSections } from '../lib/types'
+import CogIcon from '../icons/Cog'
+import LockIcon from '../icons/Lock'
+import PuzzleIcon from '../icons/Puzzle'
 
-interface Option {
+export interface Option {
   icon: ReactElement
   option: SettingsOptions
   section: SettingsSections
 }
 
-const options: Option[] = [
+export const options: Option[] = [
   {
     icon: <InfoIcon />,
     option: SettingsOptions.About,
     section: SettingsSections.General,
   },
   {
-    icon: <AppearanceIcon />,
-    option: SettingsOptions.Appearance,
-    section: SettingsSections.General,
+    icon: <PuzzleIcon />,
+    option: SettingsOptions.Advanced,
+    section: SettingsSections.Security,
   },
   {
     icon: <BackupIcon />,
     option: SettingsOptions.Backup,
     section: SettingsSections.Security,
   },
-  // {
-  //   icon: <LockIcon />,
-  //   option: SettingsOptions.Lock,
-  //   section: SettingsSections.Security,
-  // },
+  {
+    icon: <CogIcon />,
+    option: SettingsOptions.General,
+    section: SettingsSections.General,
+  },
+  {
+    icon: <LockIcon />,
+    option: SettingsOptions.Lock,
+    section: SettingsSections.Security,
+  },
   {
     icon: <LogsIcon />,
     option: SettingsOptions.Logs,
     section: SettingsSections.Advanced,
   },
   {
-    icon: <NostrIcon />,
-    option: SettingsOptions.Nostr,
-    section: SettingsSections.General,
-  },
-  {
-    icon: <NoteIcon />,
+    icon: <NotesIcon />,
     option: SettingsOptions.Notes,
     section: SettingsSections.General,
   },
@@ -76,16 +76,12 @@ const options: Option[] = [
   },
 ]
 
-interface SectionResponse {
+export interface SectionResponse {
   section: SettingsSections
   options: Option[]
 }
 
-const allOptions: SectionResponse[] = [
-  SettingsSections.General,
-  SettingsSections.Security,
-  SettingsSections.Advanced,
-].map((section) => {
+const allOptions: SectionResponse[] = [SettingsSections.General, SettingsSections.Security].map((section) => {
   return {
     section,
     options: options.filter((o) => o.section === section),
@@ -94,6 +90,7 @@ const allOptions: SectionResponse[] = [
 
 interface OptionsContextProps {
   option: SettingsOptions
+  options: Option[]
   goBack: () => void
   setOption: (o: SettingsOptions) => void
   validOptions: () => SectionResponse[]
@@ -101,6 +98,7 @@ interface OptionsContextProps {
 
 export const OptionsContext = createContext<OptionsContextProps>({
   option: SettingsOptions.Menu,
+  options: [],
   goBack: () => {},
   setOption: () => {},
   validOptions: () => [],
@@ -109,7 +107,12 @@ export const OptionsContext = createContext<OptionsContextProps>({
 export const OptionsProvider = ({ children }: { children: ReactNode }) => {
   const [option, setOption] = useState(SettingsOptions.Menu)
 
-  const goBack = () => setOption(SettingsOptions.Menu)
+  const optionSection = (option: SettingsOptions): SettingsSections => {
+    return options.find((o) => o.option === option)?.section || SettingsSections.General
+  }
+
+  const goBack = () =>
+    setOption(optionSection(option) == SettingsSections.Advanced ? SettingsOptions.Advanced : SettingsOptions.Menu)
 
   const validOptions = (): SectionResponse[] => {
     return allOptions
@@ -119,6 +122,7 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
     <OptionsContext.Provider
       value={{
         option,
+        options,
         goBack,
         setOption,
         validOptions,

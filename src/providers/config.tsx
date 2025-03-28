@@ -1,10 +1,12 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
 import { clearStorage, readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
 import { defaultArkServer } from '../lib/constants'
-import { Config, Themes, Unit } from '../lib/types'
+import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
 
 const defaultConfig: Config = {
   aspUrl: defaultArkServer(),
+  currencyDisplay: CurrencyDisplay.Both,
+  fiat: Fiats.EUR,
   nostr: false,
   notifications: false,
   npub: '',

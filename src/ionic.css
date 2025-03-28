@@ -200,3 +200,12 @@ ion-modal::part(content) {
   position: absolute;
   bottom: -1rem;
 }
+
+ion-select {
+  --background: var(--dark20);
+  --border-radius: 0.5rem;
+  width: 100%;
+  &::part(container) {
+    padding: 0 1rem;
+  }
+}

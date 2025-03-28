@@ -1,6 +1,7 @@
 import { IonButton } from '@ionic/react'
 import { ReactElement } from 'react'
 import FlexRow from './FlexRow'
+import ArrowIcon from '../icons/Arrow'
 
 interface ButtonProps {
   clear?: boolean
@@ -42,7 +43,7 @@ export default function Button({
             {icon}
             {label}
           </div>
-          <p>&gt;</p>
+          <ArrowIcon />
         </FlexRow>
       ) : (
         <>
