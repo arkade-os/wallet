@@ -4,13 +4,15 @@ import Text from './Text'
 
 interface SelectProps {
   disabled?: boolean
+  header?: string
   onSelect: (value: any) => void
   options: string[]
   selected: string
+  subHeader?: string
   title?: string
 }
 
-export default function Select({ disabled, onSelect, options, selected, title }: SelectProps) {
+export default function Select({ disabled, header, onSelect, options, selected, subHeader, title }: SelectProps) {
   const onChange = (e: CustomEvent) => onSelect(e.detail.value)
 
   const Label = ({ text }: { text: string }) => (
@@ -28,7 +30,7 @@ export default function Select({ disabled, onSelect, options, selected, title }:
         style={{
           position: 'absolute',
           right: '0.5rem',
-          top: title ? '3rem' : '0.75rem',
+          top: title ? '3rem' : '.75rem',
           zIndex: 100,
         }}
       >
@@ -36,11 +38,9 @@ export default function Select({ disabled, onSelect, options, selected, title }:
       </div>
       <IonSelect
         disabled={disabled}
-        fill='solid'
-        interface='popover'
+        interface='action-sheet'
+        interfaceOptions={{ header, subHeader }}
         onIonChange={onChange}
-        onIonFocus={console.log}
-        onIonBlur={console.log}
         placeholder={options[0]}
         toggleIcon=''
         value={selected}

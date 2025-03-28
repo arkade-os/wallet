@@ -29,18 +29,24 @@ export default function General() {
         <Padded>
           <FlexCol gap='1rem'>
             <Select
+              header='Choose theme'
+              subHeader='Dark theme is easier on the eyes'
               onSelect={handleThemeChange}
               options={[Themes.Dark, Themes.Light]}
               selected={config.theme}
               title='Theme'
             />
             <Select
+              header='Fiat currency'
+              subHeader='Choose how you want to see your fiat balance'
               onSelect={handleFiatChange}
               options={[Fiats.EUR, Fiats.USD]}
               selected={config.fiat}
               title='Fiat currency'
             />
             <Select
+              header='Display preferences'
+              subHeader='Choose how you want to see your balances'
               onSelect={handleCurrencyDisplayChange}
               options={[CurrencyDisplay.Both, CurrencyDisplay.Sats, CurrencyDisplay.Fiat]}
               selected={config.currencyDisplay}

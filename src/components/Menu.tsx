@@ -24,7 +24,7 @@ export default function Advanced({ rows }: { rows: SectionResponse[] }) {
   })
 
   return (
-    <FlexCol>
+    <FlexCol gap='1.25rem'>
       {rows.map((op) => (
         <div key={op.section} style={{ width: '100%' }}>
           <TextLabel>{op.section}</TextLabel>
