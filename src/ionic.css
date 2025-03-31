@@ -112,6 +112,7 @@ ion-tab-bar {
   & ion-tab-button {
     --color-selected: var(--ion-color-dark);
     background-color: var(--ion-tabbar-background-color);
+    max-width: none;
     &:hover,
     &:hover svg,
     &.tab-selected,
