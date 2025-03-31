@@ -11,11 +11,11 @@ import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
 import CenterScreen from '../../components/CenterScreen'
 import Text from '../../components/Text'
-import LogoIcon from '../../icons/Logo'
 import FlexCol from '../../components/FlexCol'
 import { IframeContext } from '../../providers/iframe'
 import Minimal from '../../components/Minimal'
 import SheetModal from '../../components/SheetModal'
+import WalletNewIcon from '../../icons/WalletNew'
 
 export default function Init() {
   const { aspInfo } = useContext(AspContext)
@@ -53,7 +53,7 @@ export default function Init() {
     <>
       <Content>
         <CenterScreen>
-          <LogoIcon big />
+          <WalletNewIcon />
           <FlexCol centered gap='0'>
             <Text bigger>Arkade Wallet</Text>
           </FlexCol>
