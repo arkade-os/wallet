@@ -109,7 +109,7 @@ export default function Transaction() {
             <FlexCol>
               <Error error={Boolean(error)} text={error} />
               {tx.settled ? null : (
-                <Info color='yellowoutlier' title='Pending'>
+                <Info color='orange' title='Pending'>
                   <TextSecondary>Transaction pending. Funds will be non-reversible after settlement.</TextSecondary>
                   {canSettleOnMarketHour ? (
                     <TextSecondary>

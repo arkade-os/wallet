@@ -6,7 +6,7 @@ import { prettyLongText } from '../lib/format'
 export default function Table({ data }: { data: string[][] }) {
   const color = (text: string): string => {
     if (text === 'Settled') return 'green'
-    if (text === 'Pending') return 'yellow'
+    if (text === 'Pending') return 'orange'
     return 'dark'
   }
 

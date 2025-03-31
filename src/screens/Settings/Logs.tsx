@@ -12,7 +12,7 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 function LogsTable({ logs }: { logs: LogLine[] }) {
   const color = (level: string): string => {
     if (level === 'info') return ''
-    if (level === 'warn') return 'yellow'
+    if (level === 'warn') return 'orange'
     if (level === 'error') return 'red'
     return ''
   }

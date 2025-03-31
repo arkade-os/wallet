@@ -31,7 +31,7 @@ export default function Shadow({
       : lighter
       ? 'var(--dark05)'
       : inverted
-      ? 'var(--tatiana)'
+      ? 'var(--magenta)'
       : 'var(--dark10)',
     borderRadius: squared ? undefined : '0.5rem',
     color: purple ? 'white' : '',

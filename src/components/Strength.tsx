@@ -4,7 +4,7 @@ import FlexRow from './FlexRow'
 
 const getColor = (strength: number): string => {
   if (strength <= 1) return 'red'
-  if (strength < 4) return 'yellow'
+  if (strength < 4) return 'orange'
   return 'green'
 }
 

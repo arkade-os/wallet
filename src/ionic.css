@@ -6,18 +6,11 @@
   --dark20: rgba(var(--ion-color-dark-rgb), 0.2);
   --dark10: rgba(var(--ion-color-dark-rgb), 0.1);
   --dark05: rgba(var(--ion-color-dark-rgb), 0.05);
-  --gray0: #f6f6f6;
-  --gray2: #d9d9d9;
-  --gray7: #bababa;
-  --grayb: #737373;
-  --grayc: #444444;
-  --grayd: #292929;
-  --grayf: #070707;
-  --green: #2c760a;
+  --green: #60b18a;
   --greenbg: #054a19;
   --liz: #d5c6ff;
-  --tatiana: #8563e4;
-  --orange: #e98116;
+  --magenta: #8563e4;
+  --orange: #c3730a;
   --orangebg: #572d00;
   --purple: #391998;
   --purple20: #39199833;
@@ -34,16 +27,8 @@
 
 .ion-palette-dark {
   --black: #fbfbfb;
-  --gray0: #070707;
-  --gray2: #292929;
-  --gray7: #737373;
-  --grayb: #bababa;
-  --grayc: #c8c8c8;
-  --grayd: #d9d9d9;
-  --grayf: #f6f6f6;
-  --green: #69ae48;
   --greenbg: #092d13;
-  --orange: #e98349;
+  --orange: #e69b39;
   --orangebg: #2e1800;
   --purplebg: #39199833;
   --red: #e04d4d;

@@ -27,7 +27,14 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
   const txid = tx.explorable ? `(${prettyLongText(tx.explorable, 3)})` : ''
 
   const Fiat = () => {
-    const color = config.currencyDisplay === CurrencyDisplay.Both ? 'dark50' : tx.type === 'sent' ? 'green' : ''
+    const color =
+      config.currencyDisplay === CurrencyDisplay.Both
+        ? 'dark50'
+        : tx.type
+        ? 'yellow'
+        : tx.type === 'sent'
+        ? 'green'
+        : ''
     const value = config.fiat === Fiats.EUR ? toEuro(tx.amount) : toUSD(tx.amount)
     const small = config.currencyDisplay === CurrencyDisplay.Both
     const world = (config.showBalance ? value : prettyHide(value)) + ' ' + config.fiat
@@ -49,9 +56,13 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
     ) : (
       <ReceivedIcon />
     )
-  const Kind = () => (tx.type === 'sent' ? <Text>Sent {txid}</Text> : <Text>Received {txid}</Text>)
+  const Kind = () => (
+    <Text>
+      {tx.type === 'sent' ? 'Sent' : 'Received'} {txid}
+    </Text>
+  )
   const Date = () => <TextSecondary>{prettyDate(tx.createdAt)}</TextSecondary>
-  const Sats = () => (tx.type === 'sent' ? <Text>{amount}</Text> : <Text color='green'>{amount}</Text>)
+  const Sats = () => <Text color={tx.pending ? 'orange' : tx.type === 'received' ? 'green' : ''}>{amount}</Text>
 
   const handleClick = () => {
     setTxInfo(tx)
