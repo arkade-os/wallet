@@ -8,20 +8,24 @@ import Button from '../../../components/Button'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { extractError } from '../../../lib/error'
 import { redeemNotes } from '../../../lib/asp'
-import Details, { DetailsProps } from '../../../components/Details'
-import { ArkNote } from '../../../lib/arknote'
 import Loading from '../../../components/Loading'
 import Header from '../../../components/Header'
 import FlexCol from '../../../components/FlexCol'
 import { consoleError } from '../../../lib/logs'
+import Table from '../../../components/Table'
+import { ConfigContext } from '../../../providers/config'
+import { prettyAmount } from '../../../lib/format'
+import { CurrencyDisplay } from '../../../lib/types'
+import { FiatContext } from '../../../providers/fiat'
 
 export default function NotesRedeem() {
+  const { config } = useContext(ConfigContext)
+  const { toEuro, toUSD } = useContext(FiatContext)
   const { noteInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
 
   const defaultButtonLabel = 'Redeem Note'
 
-  const [details, setDetails] = useState<DetailsProps>()
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
   const [error, setError] = useState('')
   const [redeeming, setRedeeming] = useState(false)
@@ -29,15 +33,6 @@ export default function NotesRedeem() {
   useEffect(() => {
     setButtonLabel(redeeming ? 'Redeeming...' : defaultButtonLabel)
   }, [redeeming])
-
-  useEffect(() => {
-    if (!noteInfo.note) return
-    const { value } = ArkNote.fromString(noteInfo.note).data
-    setDetails({
-      arknote: noteInfo.note,
-      satoshis: value,
-    })
-  }, [noteInfo.note])
 
   const handleBack = () => {
     navigate(Pages.NotesForm)
@@ -56,6 +51,17 @@ export default function NotesRedeem() {
     setRedeeming(false)
   }
 
+  const fiatAmount = config.fiat === 'EUR' ? toEuro(noteInfo.satoshis) : toUSD(noteInfo.satoshis)
+  const amount = prettyAmount(
+    config.currencyDisplay === CurrencyDisplay.Fiat ? fiatAmount : noteInfo.satoshis,
+    config.currencyDisplay === CurrencyDisplay.Fiat ? config.fiat : undefined,
+  )
+
+  const data = [
+    ['Arknote', noteInfo.note],
+    ['Amount', amount],
+  ]
+
   return (
     <>
       <Header text='Redeem Note' back={handleBack} />
@@ -66,7 +72,7 @@ export default function NotesRedeem() {
           <Padded>
             <FlexCol gap='2rem'>
               <Error error={Boolean(error)} text={error} />
-              <Details details={details} />
+              <Table data={data} />
             </FlexCol>
           </Padded>
         )}

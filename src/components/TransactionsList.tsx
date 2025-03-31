@@ -2,7 +2,7 @@ import { useContext } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Fiats, Tx } from '../lib/types'
-import { prettyAmount, prettyDate, prettyHide, prettyLongText, prettyNumber } from '../lib/format'
+import { prettyAmount, prettyDate, prettyHide, prettyLongText } from '../lib/format'
 import PendingIcon from '../icons/Pending'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
@@ -28,7 +28,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
 
   const Fiat = () => {
     const color = config.currencyDisplay === CurrencyDisplay.Both ? 'dark50' : tx.type === 'sent' ? 'green' : ''
-    const value = prettyNumber(config.fiat === Fiats.EUR ? toEuro(tx.amount) : toUSD(tx.amount), 2)
+    const value = config.fiat === Fiats.EUR ? toEuro(tx.amount) : toUSD(tx.amount)
     const small = config.currencyDisplay === CurrencyDisplay.Both
     const world = (config.showBalance ? value : prettyHide(value)) + ' ' + config.fiat
     return (

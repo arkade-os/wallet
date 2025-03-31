@@ -1,5 +1,5 @@
 import { useContext } from 'react'
-import { prettyAmount, prettyHide, prettyNumber } from '../lib/format'
+import { prettyAmount, prettyHide } from '../lib/format'
 import { Fiats, Satoshis } from '../lib/types'
 import { FiatContext } from '../providers/fiat'
 import Text from './Text'
@@ -16,7 +16,7 @@ export default function Balance({ amount }: BalanceProps) {
   const { config, updateConfig } = useContext(ConfigContext)
   const { toEuro, toUSD } = useContext(FiatContext)
 
-  const fiatAmount = prettyNumber(config.fiat === Fiats.EUR ? toEuro(amount) : toUSD(amount), 2)
+  const fiatAmount = config.fiat === Fiats.EUR ? toEuro(amount) : toUSD(amount)
 
   const satsBalance = config.showBalance ? prettyAmount(amount) : prettyHide(amount)
   const fiatBalance = config.showBalance ? prettyAmount(fiatAmount, config.fiat) : prettyHide(fiatAmount, config.fiat)

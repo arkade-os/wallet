@@ -5,7 +5,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
-import { prettyAgo, prettyDate, prettyDelta, prettyHide, prettyNumber } from '../../lib/format'
+import { prettyAgo, prettyAmount, prettyDate, prettyDelta, prettyHide } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
 import Table from '../../components/Table'
 import Error from '../../components/Error'
@@ -20,10 +20,13 @@ import { sleep } from '../../lib/sleep'
 import { AspContext } from '../../providers/asp'
 import { TextSecondary } from '../../components/Text'
 import Reminder from '../../components/Reminder'
+import { CurrencyDisplay, Fiats } from '../../lib/types'
+import { FiatContext } from '../../providers/fiat'
 
 export default function Transaction() {
   const { aspInfo, calcNextMarketHour } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
+  const { toEuro, toUSD } = useContext(FiatContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { settlePending, wallet } = useContext(WalletContext)
@@ -77,15 +80,22 @@ export default function Transaction() {
 
   if (!tx) return <></>
 
-  const amount = tx.type === 'sent' ? tx.amount - defaultFee : tx.amount
+  const formatAmount = (amount: number) => {
+    const prettyFunc = config.showBalance ? prettyAmount : prettyHide
+    if (config.currencyDisplay === CurrencyDisplay.Fiat) {
+      const fiatAmount = config.fiat === Fiats.EUR ? toEuro(amount) : toUSD(amount)
+      return prettyFunc(fiatAmount, config.fiat)
+    }
+    return prettyFunc(amount)
+  }
 
   const data = [
     ['Direction', tx.type === 'sent' ? 'Sent' : 'Received'],
     ['When', prettyAgo(tx.createdAt)],
     ['Date', prettyDate(tx.createdAt)],
-    ['Amount', `${config.showBalance ? prettyNumber(amount) : prettyHide(amount)} sats`],
-    ['Network fees', `${prettyNumber(tx.type === 'sent' ? defaultFee : 0)} sats`],
-    ['Total', `${config.showBalance ? prettyNumber(tx.amount) : prettyHide(tx.amount)} sats`],
+    ['Amount', formatAmount(tx.type === 'sent' ? tx.amount - defaultFee : tx.amount)],
+    ['Network fees', formatAmount(tx.type === 'sent' ? defaultFee : 0)],
+    ['Total', formatAmount(tx.amount)],
   ].filter((l) => l[1])
 
   return (
