@@ -22,7 +22,7 @@ export enum CurrencyDisplay {
 }
 
 export enum Fiats {
-  EUR = 'Euro',
+  EUR = 'EUR',
   USD = 'USD',
 }
 

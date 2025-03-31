@@ -19,7 +19,8 @@ export const prettyAgo = (timestamp: number | string, long = false): string => {
   return ''
 }
 
-export const prettyAmount = (sats: number, suffix = 'sats'): string => {
+export const prettyAmount = (amount: string | number, suffix = 'SATS'): string => {
+  const sats = typeof amount === 'string' ? Number(amount) : amount
   if (sats > 100_000_000_000) return `${prettyNumber(fromSatoshis(sats), 0)} btc`
   if (sats > 100_000_000) return `${prettyNumber(fromSatoshis(sats), 3)} btc`
   if (sats > 1_000_000) return `${prettyNumber(sats / 1_000_000, 3)}M ${suffix}`
@@ -59,11 +60,11 @@ export const prettyDate = (num: number): string => {
   }).format(date)
 }
 
-export const prettyHide = (value: string | number): string => {
+export const prettyHide = (value: string | number, suffix = 'SATS'): string => {
   if (!value) return ''
   const str = typeof value === 'string' ? value : value.toString()
   const length = str.length * 2 > 6 ? str.length * 2 : 6
-  return Array(length).fill('·').join('')
+  return Array(length).fill('·').join('') + ' ' + suffix
 }
 
 export const prettyLongText = (str?: string, showChars = 12): string => {
