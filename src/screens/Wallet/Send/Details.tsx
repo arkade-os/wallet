@@ -41,10 +41,10 @@ export default function SendDetails() {
     if (!satoshis) return setError('Missing amount')
     const total = satoshis + feeInSats
     setDetails({
-      address: arkAddress ?? address,
-      comment: arkAddress ? 'Paying inside Ark' : 'Paying to mainnet',
-      satoshis,
+      address: arkAddress || address,
+      direction: arkAddress ? 'Paying inside Ark' : 'Paying to mainnet',
       fees: feeInSats,
+      satoshis,
       total,
     })
     if (wallet.balance < total) {

@@ -50,7 +50,7 @@ export default function Wallet() {
           <Text capitalize color='dark50' tiny>
             Balance
           </Text>
-          <Text small>{wallet.balance} sats</Text>
+          <Text small>{wallet.balance} SATS</Text>
         </FlexCol>
       </Minimal>
     )

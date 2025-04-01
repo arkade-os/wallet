@@ -5,15 +5,17 @@ interface FlexRowProps {
   between?: boolean
   children: ReactNode
   centered?: boolean
+  color?: string
   end?: boolean
   gap?: string
   onClick?: () => void
 }
 
-export default function FlexRow({ alignItems, between, centered, children, end, gap, onClick }: FlexRowProps) {
+export default function FlexRow({ alignItems, between, centered, children, color, end, gap, onClick }: FlexRowProps) {
   const justifyContent = between ? 'space-between' : centered ? 'center' : end ? 'end' : 'start'
   const style = {
     alignItems: alignItems ?? 'center',
+    color: color ? `var(--${color})` : 'inherit',
     cursor: onClick ? 'pointer' : 'inherit',
     display: 'flex',
     gap: gap ?? '.5rem',

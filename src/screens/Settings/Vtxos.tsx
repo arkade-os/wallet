@@ -38,7 +38,7 @@ const VtxoLine = ({ hide, vtxo }: { hide: boolean; vtxo: Vtxo }) => {
   const amount = hide ? prettyHide(vtxo.amount) : prettyNumber(vtxo.amount)
   return (
     <Box>
-      <Text>{amount} sats</Text>
+      <Text>{amount} SATS</Text>
       <Text>{prettyAgo(vtxo.expireAt)}</Text>
     </Box>
   )

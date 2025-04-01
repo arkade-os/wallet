@@ -12,15 +12,9 @@ import Loading from '../../../components/Loading'
 import Header from '../../../components/Header'
 import FlexCol from '../../../components/FlexCol'
 import { consoleError } from '../../../lib/logs'
-import Table from '../../../components/Table'
-import { ConfigContext } from '../../../providers/config'
-import { prettyAmount } from '../../../lib/format'
-import { CurrencyDisplay } from '../../../lib/types'
-import { FiatContext } from '../../../providers/fiat'
+import Details, { DetailsProps } from '../../../components/Details'
 
 export default function NotesRedeem() {
-  const { config } = useContext(ConfigContext)
-  const { toEuro, toUSD } = useContext(FiatContext)
   const { noteInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
 
@@ -51,16 +45,10 @@ export default function NotesRedeem() {
     setRedeeming(false)
   }
 
-  const fiatAmount = config.fiat === 'EUR' ? toEuro(noteInfo.satoshis) : toUSD(noteInfo.satoshis)
-  const amount = prettyAmount(
-    config.currencyDisplay === CurrencyDisplay.Fiat ? fiatAmount : noteInfo.satoshis,
-    config.currencyDisplay === CurrencyDisplay.Fiat ? config.fiat : undefined,
-  )
-
-  const data = [
-    ['Arknote', noteInfo.note],
-    ['Amount', amount],
-  ]
+  const details: DetailsProps = {
+    arknote: noteInfo.note,
+    satoshis: noteInfo.satoshis,
+  }
 
   return (
     <>
@@ -72,7 +60,7 @@ export default function NotesRedeem() {
           <Padded>
             <FlexCol gap='2rem'>
               <Error error={Boolean(error)} text={error} />
-              <Table data={data} />
+              <Details details={details} />
             </FlexCol>
           </Padded>
         )}

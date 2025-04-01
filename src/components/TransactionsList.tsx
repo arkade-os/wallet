@@ -30,10 +30,10 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
     const color =
       config.currencyDisplay === CurrencyDisplay.Both
         ? 'dark50'
-        : tx.type
-        ? 'yellow'
         : tx.type === 'sent'
         ? 'green'
+        : tx.pending
+        ? 'orange'
         : ''
     const value = config.fiat === Fiats.EUR ? toEuro(tx.amount) : toUSD(tx.amount)
     const small = config.currencyDisplay === CurrencyDisplay.Both

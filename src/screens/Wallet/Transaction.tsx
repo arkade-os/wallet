@@ -5,28 +5,23 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
-import { prettyAgo, prettyAmount, prettyDate, prettyDelta, prettyHide } from '../../lib/format'
+import { prettyAgo, prettyDate, prettyDelta } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
-import Table from '../../components/Table'
 import Error from '../../components/Error'
 import { extractError } from '../../lib/error'
 import Header from '../../components/Header'
 import Content from '../../components/Content'
 import Info from '../../components/Info'
 import FlexCol from '../../components/FlexCol'
-import { ConfigContext } from '../../providers/config'
 import WaitingForRound from '../../components/WaitingForRound'
 import { sleep } from '../../lib/sleep'
 import { AspContext } from '../../providers/asp'
 import { TextSecondary } from '../../components/Text'
 import Reminder from '../../components/Reminder'
-import { CurrencyDisplay, Fiats } from '../../lib/types'
-import { FiatContext } from '../../providers/fiat'
+import Details, { DetailsProps } from '../../components/Details'
 
 export default function Transaction() {
   const { aspInfo, calcNextMarketHour } = useContext(AspContext)
-  const { config } = useContext(ConfigContext)
-  const { toEuro, toUSD } = useContext(FiatContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { settlePending, wallet } = useContext(WalletContext)
@@ -80,23 +75,14 @@ export default function Transaction() {
 
   if (!tx) return <></>
 
-  const formatAmount = (amount: number) => {
-    const prettyFunc = config.showBalance ? prettyAmount : prettyHide
-    if (config.currencyDisplay === CurrencyDisplay.Fiat) {
-      const fiatAmount = config.fiat === Fiats.EUR ? toEuro(amount) : toUSD(amount)
-      return prettyFunc(fiatAmount, config.fiat)
-    }
-    return prettyFunc(amount)
+  const details: DetailsProps = {
+    direction: tx.type === 'sent' ? 'Sent' : 'Received',
+    when: prettyAgo(tx.createdAt),
+    date: prettyDate(tx.createdAt),
+    satoshis: tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
+    fees: tx.type === 'sent' ? defaultFee : 0,
+    total: tx.amount,
   }
-
-  const data = [
-    ['Direction', tx.type === 'sent' ? 'Sent' : 'Received'],
-    ['When', prettyAgo(tx.createdAt)],
-    ['Date', prettyDate(tx.createdAt)],
-    ['Amount', formatAmount(tx.type === 'sent' ? tx.amount - defaultFee : tx.amount)],
-    ['Network fees', formatAmount(tx.type === 'sent' ? defaultFee : 0)],
-    ['Total', formatAmount(tx.amount)],
-  ].filter((l) => l[1])
 
   return (
     <>
@@ -124,7 +110,7 @@ export default function Transaction() {
                   <TextSecondary>Transaction settled successfully</TextSecondary>
                 </Info>
               ) : null}
-              <Table data={data} />
+              <Details details={details} />
             </FlexCol>
           </Padded>
         )}

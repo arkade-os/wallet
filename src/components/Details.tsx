@@ -1,45 +1,59 @@
 import { useContext } from 'react'
-import { prettyAmount, prettyNumber } from '../lib/format'
+import { prettyAmount, prettyHide } from '../lib/format'
 import { ConfigContext } from '../providers/config'
 import Table from './Table'
 import { CurrencyDisplay, Fiats } from '../lib/types'
 import { FiatContext } from '../providers/fiat'
+import FeesIcon from '../icons/Fees'
+import AmountIcon from '../icons/Amount'
+import TotalIcon from '../icons/Total'
+import DateIcon from '../icons/Date'
+import DirectionIcon from '../icons/Direction'
+import TypeIcon from '../icons/Type'
+import WhenIcon from '../icons/When'
+import NotesIcon from '../icons/Notes'
 
 export interface DetailsProps {
   address?: string
   arknote?: string
-  invoice?: string
-  comment?: string
+  date?: string
+  direction?: string
   fees?: number
   satoshis?: number
   total?: number
+  type?: string
+  when?: string
 }
 
 export default function Details({ details }: { details?: DetailsProps }) {
   const { config } = useContext(ConfigContext)
   const { toEuro, toUSD } = useContext(FiatContext)
 
+  console.log('Details', details)
   if (!details) return <></>
 
-  const { address, arknote, comment, fees, invoice, satoshis, total } = details
-  const sats = satoshis || 0
+  const { address, arknote, date, direction, fees, satoshis, type, total, when } = details
 
-  const amount =
-    config.currencyDisplay === CurrencyDisplay.Fiat
-      ? config.fiat === Fiats.EUR
-        ? prettyAmount(toEuro(sats), config.fiat)
-        : prettyAmount(toUSD(sats), config.fiat)
-      : prettyAmount(sats)
+  const formatAmount = (amount = 0) => {
+    const prettyFunc = config.showBalance ? prettyAmount : prettyHide
+    if (config.currencyDisplay === CurrencyDisplay.Fiat) {
+      const fiatAmount = config.fiat === Fiats.EUR ? toEuro(amount) : toUSD(amount)
+      return prettyFunc(fiatAmount, config.fiat)
+    }
+    return prettyFunc(amount)
+  }
 
   const table = []
 
-  if (arknote) table.push(['Arknote', arknote])
-  if (invoice) table.push(['Invoice', invoice])
-  if (address) table.push(['Address', address])
-  if (comment) table.push(['Comment', comment])
-  if (satoshis) table.push(['Amount', amount])
-  if (fees === 0 || fees) table.push(['Network fees', `${prettyNumber(fees)} sats`])
-  if (total) table.push(['Total', `${prettyNumber(total)} sats`])
+  if (address) table.push(['Address', address, <TypeIcon />])
+  if (arknote) table.push(['Arknote', arknote, <NotesIcon small />])
+  if (direction) table.push(['Direction', direction, <DirectionIcon />])
+  if (type) table.push(['Type', type, <TypeIcon />])
+  if (when) table.push(['When', when, <WhenIcon />])
+  if (date) table.push(['Date', date, <DateIcon />])
+  if (satoshis) table.push(['Amount', formatAmount(satoshis), <AmountIcon />])
+  if (fees === 0 || fees) table.push(['Network fees', formatAmount(fees), <FeesIcon />])
+  if (total) table.push(['Total', formatAmount(total), <TotalIcon />])
 
   return <Table data={table} />
 }
