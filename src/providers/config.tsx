@@ -6,7 +6,7 @@ import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
 const defaultConfig: Config = {
   aspUrl: defaultArkServer(),
   currencyDisplay: CurrencyDisplay.Both,
-  fiat: Fiats.EUR,
+  fiat: Fiats.USD,
   nostr: false,
   notifications: false,
   npub: '',
@@ -68,6 +68,8 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
       window.location.hash = ''
     }
     const config = readConfigFromStorage() ?? { ...defaultConfig, theme: preferredTheme() }
+    if (!config.fiat) config.fiat = defaultConfig.fiat
+    if (!config.currencyDisplay) config.currencyDisplay = defaultConfig.currencyDisplay
     updateConfig(config)
     setConfigLoaded(true)
   }, [configLoaded])
