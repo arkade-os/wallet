@@ -1,12 +1,12 @@
-import { bech32m } from '@scure/base'
+import { bech32m, hex } from '@scure/base'
 
 export const decodeArkAddress = (addr: string) => {
   const decoded = bech32m.decodeUnsafe(addr, 300)
   if (!decoded) throw 'Error'
   const buf = bech32m.fromWords(decoded.words)
   return {
-    aspKey: Buffer.from(buf.slice(0, 32)).toString('hex'),
-    usrKey: Buffer.from(buf.slice(32)).toString('hex'),
+    aspKey: hex.encode(buf.slice(0, 32)),
+    usrKey: hex.encode(buf.slice(32)),
   }
 }
 
