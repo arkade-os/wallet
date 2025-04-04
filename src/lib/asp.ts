@@ -191,8 +191,8 @@ export const getVtxos = async (): Promise<Vtxos> => {
   }
 }
 
-export const lock = async (password: string): Promise<void> => {
-  return await window.lock(password)
+export const lock = async (): Promise<void> => {
+  return await window.lock()
 }
 
 export const redeemNotes = async (notes: string[]): Promise<void> => {

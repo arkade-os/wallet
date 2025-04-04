@@ -17,7 +17,7 @@ declare global {
       explorer: string,
     ) => Promise<void>
     listVtxos: () => Promise<any>
-    lock: (password: string) => Promise<any>
+    lock: () => Promise<any>
     locked: () => Promise<bool>
     receive: () => Promise<any>
     redeemNotes: (notes: string[]) => Promise<void>

@@ -33,7 +33,7 @@ const defaultWallet: Wallet = {
 
 interface WalletContextProps {
   initWallet: (password: string, privateKey: string) => Promise<void>
-  lockWallet: (password: string) => Promise<void>
+  lockWallet: () => Promise<void>
   rolloverVtxos: (raise?: boolean) => Promise<void>
   reloadWallet: () => void
   resetWallet: () => void
@@ -146,9 +146,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     updateWallet({ ...wallet, explorer: explorerUrl, initialized: true, network: aspInfo.network })
   }
 
-  const lockWallet = async (password: string) => {
+  const lockWallet = async () => {
     try {
-      await lock(password)
+      await lock()
       setWalletUnlocked(false)
     } catch {
       throw 'Invalid password'
