@@ -1,17 +1,23 @@
 FROM node:18-alpine AS builder
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install pnpm and required build dependencies
+RUN apk add --no-cache python3 make g++
+RUN corepack enable && corepack prepare pnpm@8.15.4 --activate
 
 WORKDIR /app
 
-# Copy files
-COPY . .
+# Copy package files first to leverage Docker cache
+COPY package.json pnpm-lock.yaml ./
 
-# NODE_ENV=production is for runtime optimization
-ENV NODE_ENV=production
-ENV DISABLE_ESLINT_PLUGIN=true
-RUN pnpm install --prod --ignore-scripts
+# Install dependencies with force to handle lockfile compatibility
+ENV ROLLUP_SKIP_NODE_RESOLUTION=true
+RUN pnpm install
+
+# Copy source files
+COPY src ./src
+COPY public ./public
+COPY index.html vite.config.ts tsconfig.json .eslintrc* ./
+COPY .git ./.git
 
 # Create git commit file from current branch HEAD
 RUN if [ -d ".git" ]; then \
@@ -21,6 +27,8 @@ RUN if [ -d ".git" ]; then \
     fi
 
 # Build the app
+ENV NODE_ENV=production
+ENV DISABLE_ESLINT_PLUGIN=true
 RUN pnpm run build
 
 # Production stage
@@ -54,4 +62,4 @@ EXPOSE 3000
 # Switch to non-root user
 USER nginx
 
-CMD ["nginx", "-g", "daemon off;"] 
+CMD ["nginx", "-g", "daemon off;"]
