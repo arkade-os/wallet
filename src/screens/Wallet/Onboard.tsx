@@ -58,7 +58,7 @@ export default function Onboard() {
     }
     if (step === 1) {
       return info({
-        title: 'Greetings, Earthling!',
+        title: 'Greetings, Earthling! 👾',
         text: "Your Bitcoin has entered a new dimension.Send, receive, and swap in Arkade's virtual environment. Space-time limits don't apply. Experience the future of Bitcoin today.",
       })
     }
