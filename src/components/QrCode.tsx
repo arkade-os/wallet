@@ -25,7 +25,7 @@ export default function QrCode({ value }: QrCodeProps) {
             width: '420px',
           }}
         >
-          <img src={qrGifDataUrl(value)} alt='QR Code' style={{ margin: '0 auto', width: '100%' }} />
+          <img src={qrGifDataUrl(value)} alt='QR Code' style={{ width: '100%' }} />
         </div>
       ) : null}
     </FlexCol>
