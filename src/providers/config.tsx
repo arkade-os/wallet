@@ -22,6 +22,7 @@ interface ConfigContextProps {
   showConfig: boolean
   toggleShowConfig: () => void
   updateConfig: (c: Config) => void
+  useFiat: boolean
 }
 
 export const ConfigContext = createContext<ConfigContextProps>({
@@ -31,6 +32,7 @@ export const ConfigContext = createContext<ConfigContextProps>({
   showConfig: false,
   toggleShowConfig: () => {},
   updateConfig: () => {},
+  useFiat: false,
 })
 
 export const ConfigProvider = ({ children }: { children: ReactNode }) => {
@@ -74,8 +76,12 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     setConfigLoaded(true)
   }, [configLoaded])
 
+  const useFiat = config.currencyDisplay === CurrencyDisplay.Fiat
+
   return (
-    <ConfigContext.Provider value={{ config, configLoaded, resetConfig, showConfig, toggleShowConfig, updateConfig }}>
+    <ConfigContext.Provider
+      value={{ config, configLoaded, resetConfig, showConfig, toggleShowConfig, updateConfig, useFiat }}
+    >
       {children}
     </ConfigContext.Provider>
   )

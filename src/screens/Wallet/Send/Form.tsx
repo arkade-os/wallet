@@ -13,7 +13,7 @@ import InputAmount from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
-import { prettyNumber } from '../../../lib/format'
+import { prettyAmount } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import Keyboard from '../../../components/Keyboard'
@@ -24,9 +24,13 @@ import { Addresses, SettingsOptions } from '../../../lib/types'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
+import { ConfigContext } from '../../../providers/config'
+import { FiatContext } from '../../../providers/fiat'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
+  const { config, useFiat } = useContext(ConfigContext)
+  const { toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
@@ -62,10 +66,10 @@ export default function SendForm() {
     if (isArkAddress(lowerCaseData)) {
       const { aspKey } = decodeArkAddress(lowerCaseData)
       if (aspKey !== aspInfo.pubkey.slice(2)) return setError('Invalid Ark server pubkey')
-      return setState({ ...sendInfo, arkAddress: lowerCaseData })
+      return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
     }
     if (isBTCAddress(lowerCaseData)) {
-      return setState({ ...sendInfo, address: lowerCaseData })
+      return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
     }
     if (isArkNote(lowerCaseData)) {
       try {
@@ -81,6 +85,7 @@ export default function SendForm() {
 
   useEffect(() => {
     setState({ ...sendInfo, satoshis: amount })
+    setLabel(amount > wallet.balance ? 'Insufficient funds' : 'Continue')
   }, [amount])
 
   useEffect(() => {
@@ -91,13 +96,13 @@ export default function SendForm() {
   const setState = (info: SendInfo) => {
     setScan(false)
     setSendInfo(info)
+    console.log('sendInfo', info)
     if (!receivingAddresses) return
     const { address, arkAddress } = info
     const { boardingAddr, offchainAddr } = receivingAddresses
-    if (address === boardingAddr || arkAddress === offchainAddr) {
-      setError('Cannot send to yourself')
-      setTryingToSelfSend(true)
-    }
+    const selfSend = address === boardingAddr || arkAddress === offchainAddr
+    setError(selfSend ? 'Cannot send to yourself' : '')
+    setTryingToSelfSend(selfSend)
   }
 
   const gotoRollover = () => {
@@ -124,15 +129,23 @@ export default function SendForm() {
     setError(str === '' ? (aspInfo.unreachable ? 'Ark server unreachable' : '') : str)
   }
 
-  const Available = () => (
-    <Text color='dark50' smaller>
-      {`${prettyNumber(wallet.balance)} sats available`}
-    </Text>
-  )
+  const Available = () => {
+    const amount = useFiat ? toFiat(wallet.balance) : wallet.balance
+    const pretty = useFiat ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
+    return (
+      <Text color='dark50' smaller>
+        {`${pretty} available`}
+      </Text>
+    )
+  }
 
   const { address, arkAddress, satoshis } = sendInfo
 
-  const disabled = !((address || arkAddress) && satoshis && satoshis > 0) || aspInfo.unreachable || tryingToSelfSend
+  const disabled =
+    !((address || arkAddress) && satoshis && satoshis > 0) ||
+    aspInfo.unreachable ||
+    tryingToSelfSend ||
+    satoshis > wallet.balance
 
   if (scan)
     return (
@@ -163,7 +176,7 @@ export default function SendForm() {
               onEnter={handleEnter}
               onFocus={handleFocus}
               right={<Available />}
-              value={amount}
+              sats={amount}
             />
             {tryingToSelfSend ? (
               <div style={{ width: '100%' }}>

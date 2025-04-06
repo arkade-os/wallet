@@ -5,7 +5,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
-import { prettyAgo, prettyDate, prettyDelta } from '../../lib/format'
+import { prettyAgo, prettyDate } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
 import Error from '../../components/Error'
 import { extractError } from '../../lib/error'
@@ -15,47 +15,27 @@ import Info from '../../components/Info'
 import FlexCol from '../../components/FlexCol'
 import WaitingForRound from '../../components/WaitingForRound'
 import { sleep } from '../../lib/sleep'
-import { AspContext } from '../../providers/asp'
-import { TextSecondary } from '../../components/Text'
-import Reminder from '../../components/Reminder'
+import Text, { TextSecondary } from '../../components/Text'
 import Details, { DetailsProps } from '../../components/Details'
+import VtxosIcon from '../../icons/Vtxos'
+import CheckMarkIcon from '../../icons/CheckMark'
 
 export default function Transaction() {
-  const { aspInfo, calcNextMarketHour } = useContext(AspContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { settlePending, wallet } = useContext(WalletContext)
+  const { settlePending } = useContext(WalletContext)
 
   const tx = txInfo
   const defaultButtonLabel = 'Settle Transaction'
 
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
-  const [canSettleOnMarketHour, setCanSettleOnMarketHour] = useState(false)
-  const [duration, setDuration] = useState(0)
   const [error, setError] = useState('')
-  const [reminderIsOpen, setReminderIsOpen] = useState(false)
   const [settleSuccess, setSettleSuccess] = useState(false)
   const [settling, setSettling] = useState(false)
-  const [startTime, setStartTime] = useState(0)
 
   useEffect(() => {
     setButtonLabel(settling ? 'Settling...' : defaultButtonLabel)
   }, [settling])
-
-  useEffect(() => {
-    if (!tx) return
-    const expiration = tx?.createdAt + aspInfo.vtxoTreeExpiry
-    const nextMarketHour = calcNextMarketHour(expiration)
-    if (nextMarketHour) {
-      setCanSettleOnMarketHour(true)
-      setStartTime(nextMarketHour.startTime)
-      setDuration(nextMarketHour.duration)
-    } else {
-      setCanSettleOnMarketHour(false)
-      setStartTime(wallet.nextRollover)
-      setDuration(0)
-    }
-  }, [wallet.nextRollover])
 
   const handleBack = () => navigate(Pages.Wallet)
 
@@ -95,18 +75,15 @@ export default function Transaction() {
             <FlexCol>
               <Error error={Boolean(error)} text={error} />
               {tx.settled ? null : (
-                <Info color='orange' title='Pending'>
-                  <TextSecondary>Transaction pending. Funds will be non-reversible after settlement.</TextSecondary>
-                  {canSettleOnMarketHour ? (
-                    <TextSecondary>
-                      Settlement during market hours offers lower fees. Next market hour: {prettyDate(startTime)} (
-                      {prettyAgo(startTime, true)}) for {prettyDelta(duration)}.
-                    </TextSecondary>
-                  ) : null}
+                <Info color='orange' icon={<VtxosIcon />} title='Pending'>
+                  <Text wrap>
+                    Although received, you are required to execute transaction settlement. This is a mechanism in which
+                    you may choose the time when fees are the lowest.
+                  </Text>
                 </Info>
               )}
               {settleSuccess ? (
-                <Info color='green' title='Success'>
+                <Info color='green' icon={<CheckMarkIcon small />} title='Success'>
                   <TextSecondary>Transaction settled successfully</TextSecondary>
                 </Info>
               ) : null}
@@ -118,16 +95,8 @@ export default function Transaction() {
       {tx.settled ? null : (
         <ButtonsOnBottom>
           <Button onClick={handleSettle} label={buttonLabel} disabled={settling} />
-          <Button onClick={() => setReminderIsOpen(true)} label='Add reminder' secondary />
         </ButtonsOnBottom>
       )}
-      <Reminder
-        isOpen={reminderIsOpen}
-        callback={() => setReminderIsOpen(false)}
-        duration={duration}
-        name='Settle transaction'
-        startTime={startTime}
-      />
     </>
   )
 }

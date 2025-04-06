@@ -1,11 +1,10 @@
 export default function SuccessIcon({ small }: { small?: boolean }) {
-  if (small) return <img height='96px' width='96px' src='/success-icon-rounded.png' />
-  return <img height='144px' width='144px' src='/success-icon-rounded.png' />
-}
-
-export function SuccessIcon2() {
+  const size = {
+    height: small ? '77px' : '154px',
+    width: small ? '80px' : '160px',
+  }
   return (
-    <svg width='160' height='154' viewBox='0 0 160 154' fill='none' xmlns='http://www.w3.org/2000/svg'>
+    <svg width={size.width} height={size.height} viewBox='0 0 160 154' fill='none' xmlns='http://www.w3.org/2000/svg'>
       <path
         d='M127.106 23.3868H37.7376V31.2557H30.4307L29.8687 120.624H38.2996V128.493L127.106 127.931V121.186H135.537L134.975 31.2557H127.106V23.3868Z'
         fill='#391998'

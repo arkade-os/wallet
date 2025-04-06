@@ -1,8 +1,8 @@
 import { useContext } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
-import { CurrencyDisplay, Fiats, Tx } from '../lib/types'
-import { prettyAmount, prettyDate, prettyHide, prettyLongText } from '../lib/format'
+import { CurrencyDisplay, Tx } from '../lib/types'
+import { prettyAmount, prettyDate, prettyHide, prettyLongText, prettyNumber } from '../lib/format'
 import PendingIcon from '../icons/Pending'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
@@ -18,7 +18,7 @@ const border = '1px solid var(--dark20)'
 
 const TransactionLine = ({ tx }: { tx: Tx }) => {
   const { config } = useContext(ConfigContext)
-  const { toEuro, toUSD } = useContext(FiatContext)
+  const { toFiat } = useContext(FiatContext)
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
 
@@ -30,14 +30,14 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
     const color =
       config.currencyDisplay === CurrencyDisplay.Both
         ? 'dark50'
-        : tx.type === 'sent'
+        : tx.type === 'received'
         ? 'green'
         : tx.pending
         ? 'orange'
         : ''
-    const value = config.fiat === Fiats.EUR ? toEuro(tx.amount) : toUSD(tx.amount)
+    const value = toFiat(tx.amount)
     const small = config.currencyDisplay === CurrencyDisplay.Both
-    const world = (config.showBalance ? value : prettyHide(value)) + ' ' + config.fiat
+    const world = (config.showBalance ? prettyNumber(value, 2) : prettyHide(value)) + ' ' + config.fiat
     return (
       <Text color={color} small={small}>
         {world}

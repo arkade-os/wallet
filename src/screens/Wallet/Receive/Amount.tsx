@@ -15,15 +15,19 @@ import Keyboard from '../../../components/Keyboard'
 import { WalletContext } from '../../../providers/wallet'
 import { callFaucet, pingFaucet } from '../../../lib/faucet'
 import Loading from '../../../components/Loading'
-import { prettyNumber } from '../../../lib/format'
+import { prettyAmount } from '../../../lib/format'
 import Success from '../../../components/Success'
 import { consoleError } from '../../../lib/logs'
 import { AspContext } from '../../../providers/asp'
 import { isMobileBrowser } from '../../../lib/browser'
 import BackToWalletButton from '../../../components/BackToWalletButton'
+import { ConfigContext } from '../../../providers/config'
+import { FiatContext } from '../../../providers/fiat'
 
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
+  const { config, useFiat } = useContext(ConfigContext)
+  const { toFiat } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { wallet } = useContext(WalletContext)
@@ -62,7 +66,7 @@ export default function ReceiveAmount() {
   }, [])
 
   const handleChange = (sats: number) => {
-    setAmount(sats)
+    setAmount(sats ?? 0)
     setButtonLabel(sats ? 'Continue' : defaultButtonLabel)
   }
 
@@ -86,13 +90,9 @@ export default function ReceiveAmount() {
   }
 
   const handleProceed = async () => {
-    try {
-      setRecvInfo({ ...recvInfo, satoshis: amount })
-      navigate(Pages.ReceiveQRCode)
-    } catch (err) {
-      consoleError(err, 'error getting addresses')
-      setError(extractError(err))
-    }
+    console.log('amount', amount)
+    setRecvInfo({ ...recvInfo, satoshis: amount })
+    navigate(Pages.ReceiveQRCode)
   }
 
   const showFaucetButton = wallet.balance === 0 && faucetAvailable
@@ -113,11 +113,12 @@ export default function ReceiveAmount() {
   }
 
   if (faucetSuccess) {
+    const displayAmount = useFiat ? prettyAmount(toFiat(amount), config.fiat) : prettyAmount(amount)
     return (
       <>
         <Header text='Success' />
         <Content>
-          <Success text={`${prettyNumber(amount)} sats received from faucet successfully`} />
+          <Success text={`${displayAmount} received from faucet successfully`} />
         </Content>
         <ButtonsOnBottom>
           <BackToWalletButton />
@@ -139,7 +140,6 @@ export default function ReceiveAmount() {
               onChange={handleChange}
               onEnter={handleProceed}
               onFocus={handleFocus}
-              value={amount}
             />
           </FlexCol>
         </Padded>

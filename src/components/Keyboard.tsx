@@ -19,7 +19,7 @@ interface KeyboardProps {
 }
 
 export default function Keyboard({ back, hideBalance, onChange, value }: KeyboardProps) {
-  const { toUSD } = useContext(FiatContext)
+  const { toFiat } = useContext(FiatContext)
   const { wallet } = useContext(WalletContext)
 
   const [sats, setSats] = useState(0)
@@ -35,7 +35,7 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
 
   const fiatValueWithUSD = () => {
     if (!sats) return
-    return prettyNumber(toUSD(sats), 2) + ' USD'
+    return toFiat(sats)
   }
 
   const handleKeyPress = (k: string) => {

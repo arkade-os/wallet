@@ -18,6 +18,7 @@ function arrayToBase64(data: Uint8Array | ArrayBuffer): string {
 }
 
 export function isBiometricsSupported(): boolean {
+  return false
   return 'credentials' in navigator
 }
 

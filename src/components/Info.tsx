@@ -1,34 +1,30 @@
-import Shadow from './Shadow'
 import FlexRow from './FlexRow'
 import { InfoIconDark } from '../icons/Info'
-import Padded from './Padded'
 import FlexCol from './FlexCol'
 import Text from './Text'
-import { ReactNode } from 'react'
+import { ReactElement, ReactNode } from 'react'
 
 interface InfoProps {
   children: ReactNode
   color: string
+  icon?: ReactElement
   title: string
 }
 
-export default function Info({ children, color, title }: InfoProps) {
+export default function Info({ children, color, icon, title }: InfoProps) {
   return (
-    <Shadow lighter>
-      <Padded>
-        <FlexCol>
-          <Text bold color={color}>
-            {title}
-          </Text>
-          <hr style={{ backgroundColor: 'var(--dark10)', width: '100%' }} />
-          <FlexRow alignItems='flex-start'>
-            <div style={{ minWidth: '20px' }}>
-              <InfoIconDark />
-            </div>
-            <FlexCol gap='0.5rem'>{children}</FlexCol>
-          </FlexRow>
-        </FlexCol>
-      </Padded>
-    </Shadow>
+    <FlexCol margin='0 0 2rem 0'>
+      <FlexRow color={color}>
+        {icon}
+        <Text bold>{title}</Text>
+      </FlexRow>
+      <hr style={{ backgroundColor: 'var(--dark20)', width: '100%' }} />
+      <FlexRow alignItems='flex-start'>
+        <div style={{ marginTop: '2px' }}>
+          <InfoIconDark />
+        </div>
+        <FlexCol gap='0.5rem'>{children}</FlexCol>
+      </FlexRow>
+    </FlexCol>
   )
 }

@@ -13,7 +13,7 @@ export default function About() {
   const { wallet } = useContext(WalletContext)
 
   const data = [
-    ['Dust', `${aspInfo.dust} sats`],
+    ['Dust', `${aspInfo.dust} SATS`],
     ['Forfeit address', aspInfo.forfeitAddress],
     ['Network', aspInfo.network],
     ['Batch interval', `${aspInfo.roundInterval} secs`],

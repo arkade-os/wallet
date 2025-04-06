@@ -131,10 +131,13 @@ export default function Vtxos() {
                   </TextSecondary>
                   <TextSecondary>Automatic renewal occurs for virtual coins expiring within 24 hours.</TextSecondary>
                   {startTime ? (
-                    <TextSecondary>
-                      Settlement during market hours offers lower fees. Next market hour: {prettyDate(startTime)} (
-                      {prettyAgo(startTime, true)}) for {prettyDelta(duration)}.
-                    </TextSecondary>
+                    <>
+                      <TextSecondary>Settlement during market hours offers lower fees.</TextSecondary>
+                      <TextSecondary>
+                        Next market hour: {prettyDate(startTime)} ({prettyAgo(startTime, true)}) for{' '}
+                        {prettyDelta(duration)}.
+                      </TextSecondary>
+                    </>
                   ) : null}
                 </FlexCol>
               </>

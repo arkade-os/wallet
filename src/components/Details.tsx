@@ -1,8 +1,6 @@
 import { useContext } from 'react'
 import { prettyAmount, prettyHide } from '../lib/format'
 import { ConfigContext } from '../providers/config'
-import Table from './Table'
-import { CurrencyDisplay, Fiats } from '../lib/types'
 import { FiatContext } from '../providers/fiat'
 import FeesIcon from '../icons/Fees'
 import AmountIcon from '../icons/Amount'
@@ -12,6 +10,7 @@ import DirectionIcon from '../icons/Direction'
 import TypeIcon from '../icons/Type'
 import WhenIcon from '../icons/When'
 import NotesIcon from '../icons/Notes'
+import Table from './Table'
 
 export interface DetailsProps {
   address?: string
@@ -26,21 +25,16 @@ export interface DetailsProps {
 }
 
 export default function Details({ details }: { details?: DetailsProps }) {
-  const { config } = useContext(ConfigContext)
-  const { toEuro, toUSD } = useContext(FiatContext)
+  const { config, useFiat } = useContext(ConfigContext)
+  const { toFiat } = useContext(FiatContext)
 
-  console.log('Details', details)
   if (!details) return <></>
 
   const { address, arknote, date, direction, fees, satoshis, type, total, when } = details
 
   const formatAmount = (amount = 0) => {
     const prettyFunc = config.showBalance ? prettyAmount : prettyHide
-    if (config.currencyDisplay === CurrencyDisplay.Fiat) {
-      const fiatAmount = config.fiat === Fiats.EUR ? toEuro(amount) : toUSD(amount)
-      return prettyFunc(fiatAmount, config.fiat)
-    }
-    return prettyFunc(amount)
+    return useFiat ? prettyFunc(toFiat(amount), config.fiat) : prettyFunc(amount)
   }
 
   const table = []
