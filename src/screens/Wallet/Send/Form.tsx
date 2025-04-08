@@ -96,7 +96,6 @@ export default function SendForm() {
   const setState = (info: SendInfo) => {
     setScan(false)
     setSendInfo(info)
-    console.log('sendInfo', info)
     if (!receivingAddresses) return
     const { address, arkAddress } = info
     const { boardingAddr, offchainAddr } = receivingAddresses
