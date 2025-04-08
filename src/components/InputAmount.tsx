@@ -58,6 +58,7 @@ export default function InputAmount({ focus, label, onChange, onEnter, onFocus, 
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
           ref={input}
           type='number'
+          value={sats}
         >
           <IonText slot='start' style={{ ...fontStyle, marginRight: '0.5rem' }}>
             {leftLabel}
