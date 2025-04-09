@@ -60,11 +60,13 @@ export default function Wallet() {
       <Padded>
         <LogoIcon />
         <Balance amount={wallet.balance} />
-        <Error error={error} text='Ark server unreachable' />
-        <FlexRow>
-          <Button icon={<SendIcon />} label='Send' onClick={handleSend} />
-          <Button icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
-        </FlexRow>
+        <FlexCol>
+          <Error error={error} text='Ark server unreachable' />
+          <FlexRow>
+            <Button icon={<SendIcon />} label='Send' onClick={handleSend} />
+            <Button icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
+          </FlexRow>
+        </FlexCol>
         <TransactionsList />
       </Padded>
     </Content>
