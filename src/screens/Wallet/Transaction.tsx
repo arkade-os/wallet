@@ -76,10 +76,7 @@ export default function Transaction() {
               <Error error={Boolean(error)} text={error} />
               {tx.settled ? null : (
                 <Info color='orange' icon={<VtxosIcon />} title='Pending'>
-                  <Text wrap>
-                    Although received, you are required to execute transaction settlement. This is a mechanism in which
-                    you may choose the time when fees are the lowest.
-                  </Text>
+                  <Text wrap>Transaction pending. Funds will be non-reversible after settlement.</Text>
                 </Info>
               )}
               {settleSuccess ? (
