@@ -22,7 +22,7 @@ export default function QrCode({ value }: QrCodeProps) {
             borderRadius: '0.5rem',
             padding: '1rem',
             maxWidth: '100%',
-            width: '420px',
+            width: '320px',
           }}
         >
           <img src={qrGifDataUrl(value)} alt='QR Code' style={{ width: '100%' }} />

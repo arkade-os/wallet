@@ -48,7 +48,7 @@ export default function ExpandAddresses({ bip21uri, boardingAddr, offchainAddr }
   )
 
   return (
-    <div style={{ margin: '0 auto', maxWidth: '100%', width: '420px' }}>
+    <div style={{ margin: '0 auto', maxWidth: '100%', width: '320px' }}>
       <Shadow>
         <FlexRow between onClick={handleExpand}>
           <Text>Copy address</Text>
