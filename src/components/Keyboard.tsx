@@ -15,7 +15,7 @@ interface KeyboardProps {
   back: () => void
   hideBalance?: boolean
   onChange: (arg0: number) => void
-  value: number
+  value: number | undefined
 }
 
 export default function Keyboard({ back, hideBalance, onChange, value }: KeyboardProps) {
@@ -26,7 +26,7 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
   const [error, setError] = useState('')
 
   useEffect(() => {
-    setSats(value)
+    setSats(value ?? 0)
   }, [value])
 
   const amountWithSats = () => {

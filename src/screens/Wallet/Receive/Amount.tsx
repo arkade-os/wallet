@@ -27,19 +27,20 @@ import { FiatContext } from '../../../providers/fiat'
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
-  const { toFiat } = useContext(FiatContext)
+  const { fromFiat, toFiat } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { wallet } = useContext(WalletContext)
 
   const defaultButtonLabel = 'Continue without amount'
 
-  const [amount, setAmount] = useState(0)
+  const [amount, setAmount] = useState<number>()
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
   const [error, setError] = useState('')
   const [fauceting, setFauceting] = useState(false)
   const [faucetSuccess, setFaucetSuccess] = useState(false)
   const [faucetAvailable, setFaucetAvailable] = useState(false)
+  const [satoshis, setSatoshis] = useState(0)
   const [showKeys, setShowKeys] = useState(false)
 
   useEffect(() => {
@@ -65,16 +66,20 @@ export default function ReceiveAmount() {
       })
   }, [])
 
-  const handleChange = (sats: number) => {
-    setAmount(sats ?? 0)
-    setButtonLabel(sats ? 'Continue' : defaultButtonLabel)
+  useEffect(() => {
+    setSatoshis(useFiat ? fromFiat(amount) : amount ?? 0)
+  }, [amount])
+
+  const handleChange = (amount: number) => {
+    setAmount(amount)
+    setButtonLabel(amount ? 'Continue' : defaultButtonLabel)
   }
 
   const handleFaucet = async () => {
     try {
       if (!amount) throw 'Invalid amount'
       setFauceting(true)
-      const ok = await callFaucet(recvInfo.offchainAddr, amount, aspInfo)
+      const ok = await callFaucet(recvInfo.offchainAddr, satoshis, aspInfo)
       if (!ok) throw 'Faucet failed'
       setFauceting(false)
       setFaucetSuccess(true)
@@ -90,8 +95,7 @@ export default function ReceiveAmount() {
   }
 
   const handleProceed = async () => {
-    console.log('amount', amount)
-    setRecvInfo({ ...recvInfo, satoshis: amount })
+    setRecvInfo({ ...recvInfo, satoshis })
     navigate(Pages.ReceiveQRCode)
   }
 
@@ -113,7 +117,7 @@ export default function ReceiveAmount() {
   }
 
   if (faucetSuccess) {
-    const displayAmount = useFiat ? prettyAmount(toFiat(amount), config.fiat) : prettyAmount(amount)
+    const displayAmount = useFiat ? prettyAmount(toFiat(amount), config.fiat) : prettyAmount(amount ?? 0)
     return (
       <>
         <Header text='Success' />
@@ -140,6 +144,7 @@ export default function ReceiveAmount() {
               onChange={handleChange}
               onEnter={handleProceed}
               onFocus={handleFocus}
+              value={amount}
             />
           </FlexCol>
         </Padded>

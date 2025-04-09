@@ -12,16 +12,15 @@ interface InputAmountProps {
   onEnter?: () => void
   onFocus?: () => void
   right?: JSX.Element
-  sats?: number
+  value?: number
 }
 
-export default function InputAmount({ focus, label, onChange, onEnter, onFocus, right, sats }: InputAmountProps) {
+export default function InputAmount({ focus, label, onChange, onEnter, onFocus, right, value }: InputAmountProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
 
   const [error, setError] = useState('')
   const [otherValue, setOtherValue] = useState('')
-  const [value, setValue] = useState(useFiat ? toFiat(sats) : sats)
 
   const firstRun = useRef(true)
   const input = useRef<HTMLIonInputElement>(null)
@@ -36,13 +35,12 @@ export default function InputAmount({ focus, label, onChange, onEnter, onFocus, 
   useEffect(() => {
     setOtherValue(useFiat ? prettyNumber(fromFiat(value)) : prettyNumber(toFiat(value), 2))
     setError(value ? (value < 0 ? 'Invalid amount' : '') : '')
-    onChange(useFiat ? fromFiat(value) : value)
   }, [value])
 
   const handleInput = (ev: Event) => {
     const value = Number((ev.target as HTMLInputElement).value)
     if (Number.isNaN(value)) return
-    setValue(value)
+    onChange(value)
   }
 
   const leftLabel = useFiat ? config.fiat : 'SATS'
@@ -58,7 +56,7 @@ export default function InputAmount({ focus, label, onChange, onEnter, onFocus, 
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
           ref={input}
           type='number'
-          value={sats}
+          value={value}
         >
           <IonText slot='start' style={{ ...fontStyle, marginRight: '0.5rem' }}>
             {leftLabel}

@@ -30,7 +30,7 @@ import { FiatContext } from '../../../providers/fiat'
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
-  const { toFiat } = useContext(FiatContext)
+  const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
@@ -43,6 +43,7 @@ export default function SendForm() {
   const [keys, setKeys] = useState(false)
   const [recipient, setRecipient] = useState('')
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
+  const [satoshis, setSatoshis] = useState(0)
   const [scan, setScan] = useState(false)
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
 
@@ -60,7 +61,7 @@ export default function SendForm() {
     if (bip21.isBip21(lowerCaseData)) {
       const { address, arkAddress, satoshis } = bip21.decode(lowerCaseData)
       if (!address && !arkAddress) return setError('Unable to parse bip21')
-      setAmount(satoshis ?? 0)
+      setAmount(useFiat ? toFiat(satoshis) : satoshis ?? 0)
       return setState({ address, arkAddress, recipient, satoshis })
     }
     if (isArkAddress(lowerCaseData)) {
@@ -84,9 +85,13 @@ export default function SendForm() {
   }, [recipient])
 
   useEffect(() => {
-    setState({ ...sendInfo, satoshis: amount })
-    setLabel(amount > wallet.balance ? 'Insufficient funds' : 'Continue')
+    setSatoshis(useFiat ? fromFiat(amount) : amount)
   }, [amount])
+
+  useEffect(() => {
+    setState({ ...sendInfo, satoshis })
+    setLabel(satoshis > wallet.balance ? 'Insufficient funds' : 'Continue')
+  }, [satoshis])
 
   useEffect(() => {
     setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
@@ -110,7 +115,7 @@ export default function SendForm() {
   }
 
   const handleContinue = () => {
-    setState({ ...sendInfo, satoshis: amount })
+    setState({ ...sendInfo, satoshis })
     navigate(Pages.SendDetails)
   }
 
@@ -138,7 +143,7 @@ export default function SendForm() {
     )
   }
 
-  const { address, arkAddress, satoshis } = sendInfo
+  const { address, arkAddress } = sendInfo
 
   const disabled =
     !((address || arkAddress) && satoshis && satoshis > 0) ||
@@ -175,7 +180,7 @@ export default function SendForm() {
               onEnter={handleEnter}
               onFocus={handleFocus}
               right={<Available />}
-              sats={amount}
+              value={amount}
             />
             {tryingToSelfSend ? (
               <div style={{ width: '100%' }}>
