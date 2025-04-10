@@ -13,8 +13,10 @@ import Header from '../../../components/Header'
 import FlexCol from '../../../components/FlexCol'
 import { consoleError } from '../../../lib/logs'
 import Details, { DetailsProps } from '../../../components/Details'
+import { AspContext } from '../../../providers/asp'
 
 export default function NotesRedeem() {
+  const { aspInfo } = useContext(AspContext)
   const { noteInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
 
@@ -23,6 +25,10 @@ export default function NotesRedeem() {
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
   const [error, setError] = useState('')
   const [redeeming, setRedeeming] = useState(false)
+
+  useEffect(() => {
+    setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
+  }, [aspInfo.unreachable])
 
   useEffect(() => {
     setButtonLabel(redeeming ? 'Redeeming...' : defaultButtonLabel)

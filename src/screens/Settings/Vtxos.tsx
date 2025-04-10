@@ -60,6 +60,10 @@ export default function Vtxos() {
   const [duration, setDuration] = useState(0)
 
   useEffect(() => {
+    setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
+  }, [aspInfo.unreachable])
+
+  useEffect(() => {
     setLabel(rollingover ? 'Renewing...' : defaultLabel)
   }, [rollingover])
 
@@ -99,49 +103,51 @@ export default function Vtxos() {
           <WaitingForRound rollover />
         ) : (
           <Padded>
-            {wallet.vtxos.spendable?.length === 0 ? (
-              <WarningBox red text='No virtual coins available' />
-            ) : showList ? (
-              <FlexCol gap='0.5rem'>
-                <Error error={Boolean(error)} text={error} />
-                <Text capitalize color='dark50' smaller>
-                  Your virtual coins with amount and expiration
-                </Text>
-                {wallet.vtxos.spendable?.map((v) => (
-                  <VtxoLine key={v.txid} hide={!config.showBalance} vtxo={v} />
-                ))}
-              </FlexCol>
-            ) : (
-              <>
-                <FlexCol gap='0.5rem' margin='0 0 1rem 0'>
-                  <Error error={Boolean(error)} text={error} />
+            <FlexCol>
+              <Error error={Boolean(error)} text={error} />
+              {wallet.vtxos.spendable?.length === 0 ? (
+                <WarningBox red text='No virtual coins available' />
+              ) : showList ? (
+                <FlexCol gap='0.5rem'>
                   <Text capitalize color='dark50' smaller>
-                    Next renewal
+                    Your virtual coins with amount and expiration
                   </Text>
-                  <Box>
-                    <Text>{prettyDate(wallet.nextRollover)}</Text>
-                    <Text>{prettyAgo(wallet.nextRollover)}</Text>
-                  </Box>
+                  {wallet.vtxos.spendable?.map((v) => (
+                    <VtxoLine key={v.txid} hide={!config.showBalance} vtxo={v} />
+                  ))}
                 </FlexCol>
-                <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
-                  <TextSecondary>First virtual coin expiration: {prettyAgo(wallet.nextRollover)}.</TextSecondary>
-                  <TextSecondary>
-                    Your virtual coins have a lifetime of {prettyDelta(aspInfo.vtxoTreeExpiry)} and need renewal before
-                    expiration.
-                  </TextSecondary>
-                  <TextSecondary>Automatic renewal occurs for virtual coins expiring within 24 hours.</TextSecondary>
-                  {startTime ? (
-                    <>
-                      <TextSecondary>Settlement during market hours offers lower fees.</TextSecondary>
-                      <TextSecondary>
-                        Next market hour: {prettyDate(startTime)} ({prettyAgo(startTime, true)}) for{' '}
-                        {prettyDelta(duration)}.
-                      </TextSecondary>
-                    </>
-                  ) : null}
-                </FlexCol>
-              </>
-            )}
+              ) : (
+                <>
+                  <FlexCol gap='0.5rem' margin='0 0 1rem 0'>
+                    <Error error={Boolean(error)} text={error} />
+                    <Text capitalize color='dark50' smaller>
+                      Next renewal
+                    </Text>
+                    <Box>
+                      <Text>{prettyDate(wallet.nextRollover)}</Text>
+                      <Text>{prettyAgo(wallet.nextRollover)}</Text>
+                    </Box>
+                  </FlexCol>
+                  <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
+                    <TextSecondary>First virtual coin expiration: {prettyAgo(wallet.nextRollover)}.</TextSecondary>
+                    <TextSecondary>
+                      Your virtual coins have a lifetime of {prettyDelta(aspInfo.vtxoTreeExpiry)} and need renewal
+                      before expiration.
+                    </TextSecondary>
+                    <TextSecondary>Automatic renewal occurs for virtual coins expiring within 24 hours.</TextSecondary>
+                    {startTime ? (
+                      <>
+                        <TextSecondary>Settlement during market hours offers lower fees.</TextSecondary>
+                        <TextSecondary>
+                          Next market hour: {prettyDate(startTime)} ({prettyAgo(startTime, true)}) for{' '}
+                          {prettyDelta(duration)}.
+                        </TextSecondary>
+                      </>
+                    ) : null}
+                  </FlexCol>
+                </>
+              )}
+            </FlexCol>
           </Padded>
         )}
       </Content>
