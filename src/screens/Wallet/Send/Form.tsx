@@ -62,7 +62,7 @@ export default function SendForm() {
     if (bip21.isBip21(lowerCaseData)) {
       const { address, arkAddress, invoice, satoshis } = bip21.decode(lowerCaseData)
       if (!address && !arkAddress && !invoice) return setError('Unable to parse bip21')
-        setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
+      setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
       return setState({ address, arkAddress, invoice, recipient, satoshis })
     }
     if (isArkAddress(lowerCaseData)) {
