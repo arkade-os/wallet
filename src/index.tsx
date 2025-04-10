@@ -14,7 +14,7 @@ import { IframeProvider } from './providers/iframe'
 import * as Sentry from '@sentry/react'
 
 Sentry.init({
-  dsn: 'https://155067b98b323b6e06845b78a4f9adb0@o4508966055313408.ingest.de.sentry.io/4508970382131280',
+  dsn: process.env.VITE_SENTRY_DSN,
 })
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
