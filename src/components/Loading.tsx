@@ -5,10 +5,14 @@ import Text from './Text'
 export default function Loading({ text }: { text?: string }) {
   return (
     <CenterScreen>
-      <LoadingBar />
-      <Text centered small wrap>
-        {text || 'Loading...'}
-      </Text>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '120px', justifyContent: 'flex-end' }}>
+        <LoadingBar />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '120px' }}>
+        <Text centered small wrap>
+          {text || 'Loading...'}
+        </Text>
+      </div>
     </CenterScreen>
   )
 }
