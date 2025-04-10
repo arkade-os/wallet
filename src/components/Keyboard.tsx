@@ -11,6 +11,7 @@ import Error from './Error'
 import Button from './Button'
 import ButtonsOnBottom from './ButtonsOnBottom'
 import { ConfigContext } from '../providers/config'
+import FlexCol from './FlexCol'
 
 interface KeyboardProps {
   back: () => void
@@ -50,6 +51,7 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
 
   const primaryAmount = useFiat ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
   const secondaryAmount = useFiat ? prettyAmount(fromFiat(amount)) : prettyAmount(toFiat(amount), config.fiat)
+  const balanceAmount = useFiat ? prettyAmount(wallet.balance, config.fiat) : prettyAmount(wallet.balance)
 
   const disabled = !amount || Number.isNaN(amount)
 
@@ -79,14 +81,15 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
     <>
       <Header auxFunc={auxFunc} auxText={auxText} back={back} text='Amount' />
       <Content>
-        <Error error={Boolean(error)} text={error} />
-        <div style={{ paddingTop: '3rem' }} />
-        <Text big centered>
-          {primaryAmount}
-        </Text>
-        <TextSecondary centered>{secondaryAmount}</TextSecondary>
+        <FlexCol centered gap='0.5rem'>
+          <Error error={Boolean(error)} text={error} />
+          <Text big centered>
+            {primaryAmount}
+          </Text>
+          <TextSecondary centered>{secondaryAmount}</TextSecondary>
+          {hideBalance ? null : <TextSecondary centered>{balanceAmount} available</TextSecondary>}
+        </FlexCol>
       </Content>
-      {hideBalance ? null : <TextSecondary centered>{wallet.balance} sats available</TextSecondary>}
       <IonGrid style={gridStyle}>
         {keys.map((row) => (
           <IonRow style={rowStyle} key={row[0]}>
