@@ -20,6 +20,7 @@ import Wallet from '../screens/Wallet/Index'
 import Settings from '../screens/Settings/Index'
 import Onboard from '../screens/Wallet/Onboard'
 import Apps from '../screens/Apps'
+import SendLightningForm from '../screens/Wallet/SendLightning/Form'
 
 export enum Pages {
   Apps,
@@ -36,6 +37,7 @@ export enum Pages {
   ReceiveQRCode,
   ReceiveSuccess,
   SendForm,
+  SendLightningForm,
   SendDetails,
   SendSuccess,
   Settings,
@@ -67,6 +69,7 @@ const pageTab = {
   [Pages.ReceiveQRCode]: Tabs.Wallet,
   [Pages.ReceiveSuccess]: Tabs.Wallet,
   [Pages.SendForm]: Tabs.Wallet,
+  [Pages.SendLightningForm]: Tabs.Wallet,
   [Pages.SendDetails]: Tabs.Wallet,
   [Pages.SendSuccess]: Tabs.Wallet,
   [Pages.Settings]: Tabs.Settings,
@@ -106,6 +109,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <ReceiveSuccess />
     case Pages.SendForm:
       return <SendForm />
+    case Pages.SendLightningForm:
+      return <SendLightningForm />
     case Pages.SendDetails:
       return <SendDetails />
     case Pages.SendSuccess:
