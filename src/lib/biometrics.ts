@@ -1,4 +1,5 @@
 import { hex } from '@scure/base'
+import { IndexedDbCredentials } from './db'
 
 function generateRandomArray(length: number): Uint8Array {
   const array = new Uint8Array(length)
@@ -6,93 +7,153 @@ function generateRandomArray(length: number): Uint8Array {
   return array
 }
 
-// used to validate the challenge.
-// webauth api does some transformations to the base64 string
-// so we need to do the same transformations to validate the challenge
-function arrayToBase64(data: Uint8Array | ArrayBuffer): string {
-  const array = data instanceof ArrayBuffer ? new Uint8Array(data) : data
-  return btoa(String.fromCharCode(...array))
-    .replaceAll('=', '')
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
-}
-
 export function isBiometricsSupported(): boolean {
   return 'credentials' in navigator
 }
 
 // Function to register a new user
-export async function registerUser(): Promise<{ password: string; passkeyId: string }> {
-  const decoder = new TextDecoder()
-  const challenge = generateRandomArray(32)
+export async function registerUser(): Promise<{ password: string }> {
   const password = generateRandomArray(21)
-
-  const options: PublicKeyCredentialCreationOptions = {
-    authenticatorSelection: {
-      authenticatorAttachment: 'platform',
-      residentKey: 'required',
-      requireResidentKey: true,
-    },
-    challenge,
-    pubKeyCredParams: [
-      {
-        type: 'public-key',
-        alg: -7, // ES256 (-7 is the COSE identifier for ES256)
-      },
-      {
-        type: 'public-key',
-        alg: -257, // RS256 (-257 is the COSE identifier for RS256)
-      },
-    ],
-    rp: {
-      name: 'Arkade',
-      id: window.location.hostname,
-    },
-    timeout: 60000,
-    user: {
-      id: password,
-      name: 'Arkade wallet',
-      displayName: 'Arkade wallet',
-    },
-  }
-
-  const credentials = (await navigator.credentials.create({ publicKey: options })) as PublicKeyCredential
-  const authResponse = credentials.response as AuthenticatorAttestationResponse
-  const clientDataJSON = JSON.parse(decoder.decode(authResponse.clientDataJSON))
-
-  if (clientDataJSON.type !== 'webauthn.create') throw new Error('Invalid clientDataJSON type')
-  if (clientDataJSON.challenge !== arrayToBase64(challenge)) throw new Error('Invalid challenge')
-  if (clientDataJSON.origin !== window.location.origin) throw new Error('Invalid origin')
-
-  return { password: hex.encode(password), passkeyId: hex.encode(new Uint8Array(credentials.rawId)) }
+  await encryptWithPasskey(password)
+  return { password: hex.encode(password) }
 }
 
 // Function to authenticate a user
-export async function authenticateUser(passkeyId: string | undefined): Promise<string> {
-  if (!passkeyId) throw new Error('Missing passkey id')
-  const decoder = new TextDecoder()
-  const challenge = generateRandomArray(32)
+export async function authenticateUser(): Promise<string> {
+  const password = await decryptWithPasskey()
+  return hex.encode(password)
+}
 
+// encrypt the password using biometrics
+async function encryptWithPasskey(payload: Uint8Array): Promise<void> {
+  const credentialsDB = await IndexedDbCredentials.create()
+
+  // Generate a unique user ID for the WebAuthn credential
+  const userId = new TextEncoder().encode(crypto.randomUUID())
+
+  const prfSalt = crypto.getRandomValues(new Uint8Array(32))
+
+  // Configure WebAuthn credential creation options
+  const options: PublicKeyCredentialCreationOptions = {
+    challenge: crypto.getRandomValues(new Uint8Array(32)), // Random challenge for security
+    rp: { name: 'Arkade' }, // Relying party name
+    user: {
+      id: userId,
+      name: 'arkade-user',
+      displayName: 'Arkade User',
+    },
+    pubKeyCredParams: [
+      { type: 'public-key', alg: -7 }, // ES256
+      { type: 'public-key', alg: -257 }, // RS256
+    ],
+    authenticatorSelection: { userVerification: 'required' }, // Require biometric verification
+    extensions: {
+      prf: {
+        eval: {
+          first: prfSalt,
+        },
+      },
+    },
+  }
+
+  // Create the WebAuthn credential using biometrics
+  const credential = await navigator.credentials.create({ publicKey: options })
+  if (!credential) {
+    throw new Error('Failed to create credentials')
+  }
+
+  const credentialId = hex.encode(new Uint8Array((credential as PublicKeyCredential).rawId))
+
+  const prfResult = (credential as PublicKeyCredential).getClientExtensionResults().prf
+  if (prfResult && prfResult.enabled && prfResult.results) {
+    let prfKey: Uint8Array
+    if (prfResult.results.first instanceof ArrayBuffer) {
+      prfKey = new Uint8Array(prfResult.results.first)
+    } else {
+      prfKey = new Uint8Array(prfResult.results.first.buffer)
+    }
+
+    // Import the PRF key into the Web Crypto API
+    const cryptoKey = await crypto.subtle.importKey('raw', prfKey, { name: 'AES-GCM' }, false, ['encrypt'])
+
+    const iv = crypto.getRandomValues(new Uint8Array(12))
+
+    // Encrypt the seed
+    const encryptedData = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, cryptoKey, payload)
+
+    // Combine salt, IV, and encrypted data into a single array for storage
+    const combinedData = new Uint8Array(prfSalt.length + iv.length + encryptedData.byteLength)
+    combinedData.set(prfSalt, 0)
+    combinedData.set(iv, prfSalt.length)
+    combinedData.set(new Uint8Array(encryptedData), prfSalt.length + iv.length)
+
+    return credentialsDB.set({
+      encryptedPassword: hex.encode(combinedData),
+      passkeyId: credentialId,
+    })
+  } else {
+    throw new Error('PRF not enabled')
+  }
+}
+
+// Decrypts the encrypted password stored in indexed DB using biometric authentication
+async function decryptWithPasskey(): Promise<Uint8Array> {
+  const credentialsDB = await IndexedDbCredentials.create()
+  const credentials = await credentialsDB.get()
+
+  // Decode the combined data from hex
+  const combinedData = hex.decode(credentials.encryptedPassword)
+
+  // Extract salt (32 bytes), IV (12 bytes), and encrypted data
+  const prfSalt = combinedData.slice(0, 32)
+  const iv = combinedData.slice(32, 44)
+  const encryptedData = combinedData.slice(44)
+
+  // Request biometric authentication
+  const challenge = generateRandomArray(32)
   const options: PublicKeyCredentialRequestOptions = {
     allowCredentials: [
       {
-        id: hex.decode(passkeyId),
+        id: hex.decode(credentials.passkeyId),
         type: 'public-key',
       },
     ],
+    userVerification: 'required',
     challenge,
     rpId: window.location.hostname,
     timeout: 60000,
+    extensions: {
+      prf: {
+        eval: {
+          first: prfSalt,
+        },
+      },
+    },
   }
 
-  const credentials = (await navigator.credentials.get({ publicKey: options })) as PublicKeyCredential
-  const authResponse = credentials.response as AuthenticatorAssertionResponse
-  const clientDataJSON = JSON.parse(decoder.decode(authResponse.clientDataJSON))
-  const userHandle = new Uint8Array(authResponse.userHandle ?? new ArrayBuffer(0))
+  // Get the authenticator response
+  const credential = (await navigator.credentials.get({ publicKey: options })) as PublicKeyCredential
 
-  if (clientDataJSON.type !== 'webauthn.get') throw new Error('Invalid clientDataJSON type')
-  if (clientDataJSON.challenge !== arrayToBase64(challenge)) throw new Error('Invalid challenge')
-  if (clientDataJSON.origin !== window.location.origin) throw new Error('Invalid origin')
+  const prfResult = credential.getClientExtensionResults().prf
+  if (prfResult && prfResult.results) {
+    let prfKey: Uint8Array
+    if (prfResult.results.first instanceof ArrayBuffer) {
+      prfKey = new Uint8Array(prfResult.results.first)
+    } else {
+      prfKey = new Uint8Array(prfResult.results.first.buffer)
+    }
 
-  return hex.encode(userHandle)
+    const cryptoKey = await crypto.subtle.importKey('raw', prfKey, { name: 'AES-GCM' }, false, ['decrypt'])
+    const decryptedData = await crypto.subtle.decrypt(
+      {
+        name: 'AES-GCM',
+        iv,
+      },
+      cryptoKey,
+      encryptedData,
+    )
+    return new Uint8Array(decryptedData)
+  } else {
+    throw new Error('PRF not enabled')
+  }
 }
