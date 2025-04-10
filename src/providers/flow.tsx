@@ -21,6 +21,7 @@ export interface RecvInfo {
 export type SendInfo = {
   address?: string
   arkAddress?: string
+  invoice?: string
   recipient?: string
   satoshis?: number
   total?: number

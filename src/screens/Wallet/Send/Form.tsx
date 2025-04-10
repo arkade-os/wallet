@@ -5,7 +5,7 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext, SendInfo } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
-import { isArkAddress, isBTCAddress, decodeArkAddress } from '../../../lib/address'
+import { isArkAddress, isBTCAddress, decodeArkAddress, isLightningInvoice } from '../../../lib/address'
 import { AspContext } from '../../../providers/asp'
 import * as bip21 from '../../../lib/bip21'
 import { ArkNote, isArkNote } from '../../../lib/arknote'
@@ -26,6 +26,7 @@ import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
+import { decodeInvoice } from '../../../lib/boltz'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
@@ -59,18 +60,23 @@ export default function SendForm() {
     if (!recipient) return
     const lowerCaseData = recipient.toLowerCase()
     if (bip21.isBip21(lowerCaseData)) {
-      const { address, arkAddress, satoshis } = bip21.decode(lowerCaseData)
-      if (!address && !arkAddress) return setError('Unable to parse bip21')
+      const { address, arkAddress, invoice, satoshis } = bip21.decode(lowerCaseData)
+      if (!address && !arkAddress && !invoice) return setError('Unable to parse bip21')
       setAmount(useFiat ? toFiat(satoshis) : satoshis ?? 0)
-      return setState({ address, arkAddress, recipient, satoshis })
+      return setState({ address, arkAddress, invoice, recipient, satoshis })
     }
     if (isArkAddress(lowerCaseData)) {
       const { aspKey } = decodeArkAddress(lowerCaseData)
       if (aspKey !== aspInfo.pubkey.slice(2)) return setError('Invalid Ark server pubkey')
-      return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
+      return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData, invoice: '' })
+    }
+    if (isLightningInvoice(lowerCaseData)) {
+      const { satoshis } = decodeInvoice(lowerCaseData)
+      setAmount(useFiat ? toFiat(satoshis) : satoshis ?? 0)
+      return setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData, satoshis })
     }
     if (isBTCAddress(lowerCaseData)) {
-      return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
+      return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '', invoice: '' })
     }
     if (isArkNote(lowerCaseData)) {
       try {
@@ -143,10 +149,10 @@ export default function SendForm() {
     )
   }
 
-  const { address, arkAddress } = sendInfo
+  const { address, arkAddress, invoice } = sendInfo
 
   const disabled =
-    !((address || arkAddress) && satoshis && satoshis > 0) ||
+    !((address || arkAddress || invoice) && satoshis && satoshis > 0) ||
     aspInfo.unreachable ||
     tryingToSelfSend ||
     satoshis > wallet.balance

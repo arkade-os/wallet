@@ -33,7 +33,7 @@ export default function SendDetails() {
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
 
-  const { address, arkAddress, satoshis, text } = sendInfo
+  const { address, arkAddress, invoice, satoshis, text } = sendInfo
   const feeInSats = arkAddress ? defaultFee : 0
 
   useEffect(() => {
@@ -41,8 +41,9 @@ export default function SendDetails() {
     if (!satoshis) return setError('Missing amount')
     const total = satoshis + feeInSats
     setDetails({
-      address: arkAddress || address,
-      direction: arkAddress ? 'Paying inside Ark' : 'Paying to mainnet',
+      address: arkAddress ? arkAddress : address ? address : undefined,
+      invoice,
+      direction: arkAddress ? 'Paying inside Ark' : invoice ? 'Paying to Lightning' : 'Paying to mainnet',
       fees: feeInSats,
       satoshis,
       total,
