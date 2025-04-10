@@ -17,7 +17,7 @@ const isLocalhost = Boolean(
     window.location.hostname.match(/^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/),
 )
 
-export function register(config) {
+export function register(config: any) {
   if ('serviceWorker' in navigator) {
     // The URL constructor is available in all browsers that support SW.
     const publicUrl = new URL(import.meta.env.BASE_URL, window.location.href)
@@ -28,7 +28,7 @@ export function register(config) {
       return
     }
     window.addEventListener('load', () => {
-      const swUrl = `${import.meta.env.BASE_URL}service-worker.js`
+      const swUrl = `${import.meta.env.BASE_URL}service-worker.mjs`
 
       if (isLocalhost) {
         // This is running on localhost. Let's check if a service worker still exists or not.
@@ -47,7 +47,7 @@ export function register(config) {
   }
 }
 
-function registerValidSW(swUrl, config) {
+function registerValidSW(swUrl: string, config: any) {
   navigator.serviceWorker
     .register(swUrl)
     .then((registration) => {
@@ -88,7 +88,7 @@ function registerValidSW(swUrl, config) {
     })
 }
 
-function checkValidServiceWorker(swUrl, config) {
+function checkValidServiceWorker(swUrl: string, config: any) {
   // Check if the service worker can be found. If it can't reload the page.
   fetch(swUrl, {
     headers: { 'Service-Worker': 'script' },
