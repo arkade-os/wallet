@@ -5,7 +5,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
-import { prettyAgo, prettyDate } from '../../lib/format'
+import { prettyAgo, prettyDate, prettyDelta } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
 import Error from '../../components/Error'
 import { extractError } from '../../lib/error'
@@ -19,23 +19,45 @@ import Text, { TextSecondary } from '../../components/Text'
 import Details, { DetailsProps } from '../../components/Details'
 import VtxosIcon from '../../icons/Vtxos'
 import CheckMarkIcon from '../../icons/CheckMark'
+import { AspContext } from '../../providers/asp'
+import Reminder from '../../components/Reminder'
 
 export default function Transaction() {
+  const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { settlePending } = useContext(WalletContext)
+  const { settlePending, wallet } = useContext(WalletContext)
 
   const tx = txInfo
   const defaultButtonLabel = 'Settle Transaction'
 
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
+  const [canSettleOnMarketHour, setCanSettleOnMarketHour] = useState(false)
+  const [duration, setDuration] = useState(0)
   const [error, setError] = useState('')
+  const [reminderIsOpen, setReminderIsOpen] = useState(false)
   const [settleSuccess, setSettleSuccess] = useState(false)
   const [settling, setSettling] = useState(false)
+  const [startTime, setStartTime] = useState(0)
 
   useEffect(() => {
     setButtonLabel(settling ? 'Settling...' : defaultButtonLabel)
   }, [settling])
+
+  useEffect(() => {
+    if (!tx) return
+    const expiration = tx.createdAt + aspInfo.vtxoTreeExpiry
+    const bestMarketHour = calcBestMarketHour(expiration)
+    if (bestMarketHour) {
+      setCanSettleOnMarketHour(true)
+      setStartTime(bestMarketHour.startTime)
+      setDuration(bestMarketHour.duration)
+    } else {
+      setCanSettleOnMarketHour(false)
+      setStartTime(wallet.nextRollover)
+      setDuration(0)
+    }
+  }, [wallet.nextRollover])
 
   const handleBack = () => navigate(Pages.Wallet)
 
@@ -64,6 +86,8 @@ export default function Transaction() {
     total: tx.amount,
   }
 
+  const bestMarketHourStr = `${prettyDate(startTime)} (${prettyAgo(startTime, true)}) for ${prettyDelta(duration)}`
+
   return (
     <>
       <Header text='Transaction' back={handleBack} />
@@ -77,6 +101,13 @@ export default function Transaction() {
               {tx.settled ? null : (
                 <Info color='orange' icon={<VtxosIcon />} title='Pending'>
                   <Text wrap>Transaction pending. Funds will be non-reversible after settlement.</Text>
+                  {canSettleOnMarketHour ? (
+                    <TextSecondary>
+                      Settlement during market hours offers lower fees.
+                      <br />
+                      Best market hour: {bestMarketHourStr}.
+                    </TextSecondary>
+                  ) : null}
                 </Info>
               )}
               {settleSuccess ? (
@@ -92,8 +123,16 @@ export default function Transaction() {
       {tx.settled ? null : (
         <ButtonsOnBottom>
           <Button onClick={handleSettle} label={buttonLabel} disabled={settling} />
+          <Button onClick={() => setReminderIsOpen(true)} label='Add reminder' secondary />
         </ButtonsOnBottom>
       )}
+      <Reminder
+        isOpen={reminderIsOpen}
+        callback={() => setReminderIsOpen(false)}
+        duration={duration}
+        name='Settle transaction'
+        startTime={startTime}
+      />
     </>
   )
 }
