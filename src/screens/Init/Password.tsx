@@ -16,11 +16,13 @@ import PasskeyIcon from '../../icons/Passkey'
 import SheetModal from '../../components/SheetModal'
 import FlexCol from '../../components/FlexCol'
 import SuccessIcon from '../../icons/Success'
+import { useIonToast } from '@ionic/react'
 
 export default function InitPassword() {
   const { navigate } = useContext(NavigationContext)
   const { initInfo, setInitInfo } = useContext(FlowContext)
   const { updateWallet, wallet } = useContext(WalletContext)
+  const [present] = useIonToast()
 
   const [label, setLabel] = useState('')
   const [password, setPassword] = useState('')
@@ -33,7 +35,15 @@ export default function InitPassword() {
         setInitInfo({ ...initInfo, password })
         setShowSheet(true)
       })
-      .catch(consoleLog)
+      .catch((error) => {
+        consoleLog(error)
+        present({
+          message: `Create passkey failed (${error.message})`,
+          duration: 5000,
+          position: 'top',
+          color: 'danger',
+        })
+      })
   }
 
   useEffect(() => {

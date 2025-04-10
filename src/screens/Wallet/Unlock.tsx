@@ -17,16 +17,28 @@ import { IframeContext } from '../../providers/iframe'
 import FlexRow from '../../components/FlexRow'
 import Minimal from '../../components/Minimal'
 import PasskeyIcon from '../../icons/Passkey'
+import { useIonToast } from '@ionic/react'
 
 export default function Unlock() {
   const { iframeUrl } = useContext(IframeContext)
   const { unlockWallet, wallet, walletUnlocked } = useContext(WalletContext)
+  const [present] = useIonToast()
 
   const [error, setError] = useState('')
   const [password, setPassword] = useState('')
 
   const getPasswordFromBiometrics = () => {
-    authenticateUser().then(setPassword).catch(consoleError)
+    authenticateUser()
+      .then(setPassword)
+      .catch((err) => {
+        consoleError(err)
+        present({
+          message: `Unlock failed (${err.message})`,
+          duration: 5000,
+          position: 'top',
+          color: 'danger',
+        })
+      })
   }
 
   useEffect(() => {
