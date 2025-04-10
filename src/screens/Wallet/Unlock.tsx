@@ -26,7 +26,7 @@ export default function Unlock() {
   const [password, setPassword] = useState('')
 
   const getPasswordFromBiometrics = () => {
-    authenticateUser(wallet.passkeyId).then(setPassword).catch(consoleError)
+    authenticateUser().then(setPassword).catch(consoleError)
   }
 
   useEffect(() => {
