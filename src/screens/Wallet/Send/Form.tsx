@@ -107,6 +107,7 @@ export default function SendForm() {
     const selfSend = address === boardingAddr || arkAddress === offchainAddr
     setError(selfSend ? 'Cannot send to yourself' : '')
     setTryingToSelfSend(selfSend)
+    setError(!arkAddress ? 'Invalid Ark address' : '') // TODO: remove after event
   }
 
   const gotoRollover = () => {
