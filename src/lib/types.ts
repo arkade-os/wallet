@@ -106,4 +106,5 @@ export type Wallet = {
   txs: Tx[]
   vtxos: Vtxos
   wasmVersion: string
+  passkeyId?: string
 }

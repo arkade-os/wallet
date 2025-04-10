@@ -28,8 +28,8 @@ export default function InitPassword() {
 
   const registerUserBiometrics = () => {
     registerUser()
-      .then(({ password }) => {
-        updateWallet({ ...wallet, lockedByBiometrics: true })
+      .then(({ password, passkeyId }) => {
+        updateWallet({ ...wallet, lockedByBiometrics: true, passkeyId })
         setInitInfo({ ...initInfo, password })
         setShowSheet(true)
       })
