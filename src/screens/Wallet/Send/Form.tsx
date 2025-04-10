@@ -85,6 +85,7 @@ export default function SendForm() {
   }, [recipient])
 
   useEffect(() => {
+    setError('')
     setSatoshis(useFiat ? fromFiat(amount) : amount)
   }, [amount])
 
@@ -115,6 +116,7 @@ export default function SendForm() {
   }
 
   const handleContinue = () => {
+    if (satoshis < aspInfo.dust) return setError(`Amount below dust limit of ${aspInfo.dust} sats`)
     setState({ ...sendInfo, satoshis })
     navigate(Pages.SendDetails)
   }

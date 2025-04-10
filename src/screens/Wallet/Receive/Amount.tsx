@@ -67,6 +67,7 @@ export default function ReceiveAmount() {
   }, [])
 
   useEffect(() => {
+    setError('')
     setSatoshis(useFiat ? fromFiat(amount) : amount ?? 0)
   }, [amount])
 
@@ -95,6 +96,7 @@ export default function ReceiveAmount() {
   }
 
   const handleProceed = async () => {
+    if (satoshis < aspInfo.dust) return setError(`Amount below dust limit of ${aspInfo.dust} sats`)
     setRecvInfo({ ...recvInfo, satoshis })
     navigate(Pages.ReceiveQRCode)
   }
