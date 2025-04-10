@@ -44,6 +44,7 @@ ion-button {
   --border-radius: 0.5rem;
   --padding-top: 1rem;
   --padding-bottom: 1rem;
+  font-size: 0.875rem;
   min-height: 56px;
   text-transform: uppercase;
   width: 100%;
