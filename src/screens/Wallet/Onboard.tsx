@@ -38,7 +38,7 @@ export default function Onboard() {
       display: 'flex',
       justifyContent: 'center',
       margin: '0 auto',
-      width: '100%',
+      maxHeight: '50%',
     }
     return (
       <div style={style}>
@@ -110,7 +110,7 @@ export default function Onboard() {
       <Content>
         <Padded>
           <FlexCol between>
-            {step < 4 ? <StepBars active={step} length={steps - 1} /> : null}
+            {step < 4 ? <StepBars active={step} length={steps - 1} /> : <div />}
             <ImageContainer />
             <InfoContainer />
           </FlexCol>
