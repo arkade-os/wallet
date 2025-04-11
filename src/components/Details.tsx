@@ -18,6 +18,7 @@ export interface DetailsProps {
   date?: string
   direction?: string
   fees?: number
+  invoice?: string
   satoshis?: number
   total?: number
   type?: string
@@ -30,7 +31,7 @@ export default function Details({ details }: { details?: DetailsProps }) {
 
   if (!details) return <></>
 
-  const { address, arknote, date, direction, fees, satoshis, type, total, when } = details
+  const { address, arknote, date, direction, fees, invoice, satoshis, type, total, when } = details
 
   const formatAmount = (amount = 0) => {
     const prettyFunc = config.showBalance ? prettyAmount : prettyHide
@@ -41,6 +42,7 @@ export default function Details({ details }: { details?: DetailsProps }) {
 
   if (address) table.push(['Address', address, <TypeIcon />])
   if (arknote) table.push(['Arknote', arknote, <NotesIcon small />])
+  if (invoice) table.push(['Invoice', invoice, <TypeIcon />])
   if (direction) table.push(['Direction', direction, <DirectionIcon />])
   if (type) table.push(['Type', type, <TypeIcon />])
   if (when) table.push(['When', when, <WhenIcon />])

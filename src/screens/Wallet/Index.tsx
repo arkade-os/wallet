@@ -15,12 +15,12 @@ import Button from '../../components/Button'
 import SendIcon from '../../icons/Send'
 import ReceiveIcon from '../../icons/Receive'
 import FlexRow from '../../components/FlexRow'
-import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
+import { emptyRecvInfo, emptySendInfo, emptyToLightningInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
-  const { setRecvInfo, setSendInfo } = useContext(FlowContext)
+  const { setRecvInfo, setSendInfo, setToLightningInfo } = useContext(FlowContext)
   const { iframeUrl } = useContext(IframeContext)
   const { navigate } = useContext(NavigationContext)
   const { reloadWallet, wallet } = useContext(WalletContext)
@@ -41,6 +41,12 @@ export default function Wallet() {
     reloadWallet()
     setSendInfo(emptySendInfo)
     navigate(Pages.SendForm)
+  }
+
+  const handleToLightning = () => {
+    reloadWallet()
+    setToLightningInfo(emptyToLightningInfo)
+    navigate(Pages.SendLightningForm)
   }
 
   if (iframeUrl)

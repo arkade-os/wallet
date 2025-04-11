@@ -11,6 +11,7 @@ interface InputAddressProps {
   openScan: () => void
   placeholder?: string
   value?: string
+  validator?: (data: string) => boolean
 }
 
 export default function InputAddress({
@@ -21,6 +22,7 @@ export default function InputAddress({
   openScan,
   placeholder,
   value,
+  validator,
 }: InputAddressProps) {
   const isAddress = (data: string): boolean => {
     return (
@@ -39,7 +41,7 @@ export default function InputAddress({
       onEnter={onEnter}
       openScan={openScan}
       placeholder={placeholder}
-      validator={isAddress}
+      validator={validator ?? isAddress}
       value={value}
     />
   )

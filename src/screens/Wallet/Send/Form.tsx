@@ -5,7 +5,7 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext, SendInfo } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
-import { isArkAddress, isBTCAddress, decodeArkAddress } from '../../../lib/address'
+import { isArkAddress, isBTCAddress, decodeArkAddress, isLightningInvoice } from '../../../lib/address'
 import { AspContext } from '../../../providers/asp'
 import * as bip21 from '../../../lib/bip21'
 import { ArkNote, isArkNote } from '../../../lib/arknote'
@@ -26,6 +26,7 @@ import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
+import { getInvoiceSatoshis, getPubKey, submarineSwap } from '../../../lib/boltz'
 
 export default function SendForm() {
   const { aspInfo, amountIsAboveMaxLimit, amountIsBelowMinLimit } = useContext(AspContext)
@@ -59,20 +60,23 @@ export default function SendForm() {
     if (!recipient) return
     const lowerCaseData = recipient.toLowerCase()
     if (bip21.isBip21(lowerCaseData)) {
-      const { address, arkAddress, satoshis } = bip21.decode(lowerCaseData)
-      if (!address && !arkAddress) return setError('Unable to parse bip21')
+      const { address, arkAddress, invoice, satoshis } = bip21.decode(lowerCaseData)
+      if (!address && !arkAddress && !invoice) return setError('Unable to parse bip21')
       setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
-      return setState({ address, arkAddress, recipient, satoshis })
+      return setState({ address, arkAddress, invoice, recipient, satoshis })
     }
     if (isArkAddress(lowerCaseData)) {
       const { aspKey } = decodeArkAddress(lowerCaseData)
       if (aspKey !== aspInfo.pubkey.slice(2)) return setError('Invalid Ark server pubkey')
-      return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
+      return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData, invoice: '' })
+    }
+    if (isLightningInvoice(lowerCaseData)) {
+      const satoshis = getInvoiceSatoshis(lowerCaseData)
+      setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
+      return setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData, satoshis })
     }
     if (isBTCAddress(lowerCaseData)) {
-      setError('Invalid Ark address') // TODO: remove after event
-      return
-      // return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
+      return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
     }
     if (isArkNote(lowerCaseData)) {
       try {
@@ -105,8 +109,8 @@ export default function SendForm() {
     setLabel(
       satoshis > wallet.balance
         ? 'Insufficient funds'
-        : amountIsBelowMinLimit(satoshis)
-        ? 'Amount below dust limit'
+        : amountIsBelowMinLimit(satoshis) || (sendInfo.invoice && satoshis < 1000)
+        ? 'Amount below min limit'
         : amountIsAboveMaxLimit(satoshis)
         ? 'Amount above max limit'
         : 'Continue',
@@ -134,9 +138,20 @@ export default function SendForm() {
     navigate(Pages.Settings)
   }
 
-  const handleContinue = () => {
-    setState({ ...sendInfo, satoshis })
-    navigate(Pages.SendDetails)
+  const handleContinue = async () => {
+    try {
+      if (sendInfo.invoice) {
+        const pubkey = await getPubKey()
+        const { address, amount } = await submarineSwap(sendInfo.invoice, pubkey, wallet)
+        setState({ ...sendInfo, satoshis: amount, swapAddress: address })
+      } else {
+        setState({ ...sendInfo, satoshis })
+      }
+      navigate(Pages.SendDetails)
+    } catch (error) {
+      consoleError(error, 'Swap failed')
+      setError('Swap failed: ' + error)
+    }
   }
 
   const handleEnter = () => {
@@ -163,15 +178,16 @@ export default function SendForm() {
     )
   }
 
-  const { address, arkAddress } = sendInfo
+  const { address, arkAddress, invoice } = sendInfo
 
   const disabled =
-    !((address || arkAddress) && satoshis && satoshis > 0) ||
+    !((address || arkAddress || invoice) && satoshis && satoshis > 0) ||
     aspInfo.unreachable ||
     tryingToSelfSend ||
     satoshis > wallet.balance ||
     amountIsAboveMaxLimit(satoshis) ||
     amountIsBelowMinLimit(satoshis) ||
+    (sendInfo.invoice && satoshis < 1000) ||
     Boolean(error)
 
   if (scan)
