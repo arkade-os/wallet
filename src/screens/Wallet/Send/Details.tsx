@@ -37,7 +37,7 @@ export default function SendDetails() {
   const feeInSats = arkAddress ? defaultFee : 0
 
   useEffect(() => {
-    if (!address && !arkAddress) return setError('Missing address')
+    if (!address && !arkAddress && !invoice) return setError('Missing address')
     if (!satoshis) return setError('Missing amount')
     const total = satoshis + feeInSats
     setDetails({
@@ -73,13 +73,27 @@ export default function SendDetails() {
     navigate(Pages.Wallet)
   }
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!satoshis) return
     setSending(true)
     if (arkAddress) {
       sendOffChain(satoshis, arkAddress).then(handleTxid).catch(handleError)
-    } else if (address) {
+    }
+    if (address) {
       collaborativeExit(satoshis, address).then(handleTxid).catch(handleError)
+    }
+    if (invoice) {
+      try {
+        if (!sendInfo.satoshis || !sendInfo.swapAddress) return
+        const txid = await sendOffChain(sendInfo.satoshis, sendInfo.swapAddress)
+        if (!txid) throw 'Error sending transaction'
+        // TODO: use websocket or check /swap/<id> to show pending/success states
+        setSendInfo({ ...sendInfo, total: sendInfo.satoshis, txid })
+        navigate(Pages.SendSuccess)
+      } catch (err) {
+        console.error('Error creating Lightning payment:', err)
+        setError('Failed to connect to payment server')
+      }
     }
   }
 
@@ -99,7 +113,9 @@ export default function SendDetails() {
       <Header text='Sign transaction' back={() => navigate(Pages.SendForm)} />
       <Content>
         {sending ? (
-          arkAddress ? (
+          invoice ? (
+            <Loading text='Paying to Lightning' />
+          ) : arkAddress ? (
             <Loading text='Paying inside the Ark' />
           ) : (
             <WaitingForRound />

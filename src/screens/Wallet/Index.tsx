@@ -72,9 +72,6 @@ export default function Wallet() {
             <Button icon={<SendIcon />} label='Send' onClick={handleSend} />
             <Button icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
           </FlexRow>
-          <FlexRow>
-            <Button label='To lightning' onClick={handleToLightning} />
-          </FlexRow>
         </FlexCol>
         <TransactionsList />
       </Padded>

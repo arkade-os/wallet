@@ -1,18 +1,10 @@
 import { hex } from '@scure/base'
 import { Wallet } from './types'
 import { secp256k1 as secp } from '@noble/curves/secp256k1'
-import { sendOffChain } from './asp'
+import * as bolt11 from './bolt11'
 
-export const decodeInvoice = (invoice: string): { invoice: string; satoshis: number } => {
-  const decoded = '' // bolt11.decode(invoice)
-  let satoshis = Number(findTag(decoded, 'satoshis'))
-  if (!satoshis) satoshis = Math.floor(Number(findTag(decoded, 'millisatoshis') ?? 0) / 1000)
-  return { invoice, satoshis }
-}
-
-const findTag = (decoded: any, tag: string) => {
-  if (decoded[tag]) return decoded[tag]
-  return decoded.tags.find((a: any) => a.tagName === tag)?.data
+export const getInvoiceSatoshis = (invoice: string): number => {
+  return bolt11.decode(invoice).satoshis ?? 0
 }
 
 export const getBoltzApiUrl = (wallet: Wallet) => {
@@ -29,7 +21,7 @@ export const submarineSwap = async (
   invoice: string,
   refundPublicKey: string,
   wallet: Wallet,
-): Promise<{ txid: string; amount: number }> => {
+): Promise<{ address: string; amount: number }> => {
   const response = await fetch(`${getBoltzApiUrl(wallet)}/v2/swap/submarine`, {
     method: 'POST',
     headers: {
@@ -54,8 +46,5 @@ export const submarineSwap = async (
   }
   console.log('Swap created:', res)
 
-  const txid = await sendOffChain(res.expectedAmount, res.address)
-  if (!txid) throw 'Error sending transaction'
-
-  return { txid, amount: res.expectedAmount }
+  return { address: res.address, amount: res.expectedAmount }
 }

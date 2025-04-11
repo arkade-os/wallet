@@ -24,6 +24,7 @@ export type SendInfo = {
   invoice?: string
   recipient?: string
   satoshis?: number
+  swapAddress?: string
   total?: number
   text?: string
   txid?: string
@@ -71,6 +72,7 @@ export const emptySendInfo: SendInfo = {
   arkAddress: '',
   recipient: '',
   satoshis: 0,
+  swapAddress: '',
   total: 0,
   txid: '',
 }

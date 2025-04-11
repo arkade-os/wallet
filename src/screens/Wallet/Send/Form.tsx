@@ -26,7 +26,7 @@ import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { decodeInvoice } from '../../../lib/boltz'
+import { getInvoiceSatoshis, getPubKey, submarineSwap } from '../../../lib/boltz'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
@@ -71,7 +71,7 @@ export default function SendForm() {
       return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData, invoice: '' })
     }
     if (isLightningInvoice(lowerCaseData)) {
-      const { satoshis } = decodeInvoice(lowerCaseData)
+      const satoshis = getInvoiceSatoshis(lowerCaseData)
       setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
       return setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData, satoshis })
     }
@@ -120,7 +120,6 @@ export default function SendForm() {
     const selfSend = address === boardingAddr || arkAddress === offchainAddr
     setError(selfSend ? 'Cannot send to yourself' : '')
     setTryingToSelfSend(selfSend)
-    setError(!arkAddress ? 'Invalid Ark address' : '') // TODO: remove after event
   }
 
   const gotoRollover = () => {
@@ -128,8 +127,14 @@ export default function SendForm() {
     navigate(Pages.Settings)
   }
 
-  const handleContinue = () => {
-    setState({ ...sendInfo, satoshis })
+  const handleContinue = async () => {
+    if (sendInfo.invoice) {
+      const pubkey = await getPubKey()
+      const { address, amount } = await submarineSwap(sendInfo.invoice, pubkey, wallet)
+      setState({ ...sendInfo, satoshis: amount, swapAddress: address })
+    } else {
+      setState({ ...sendInfo, satoshis })
+    }
     navigate(Pages.SendDetails)
   }
 
