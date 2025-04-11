@@ -1,63 +1,10 @@
 import { bech32 } from '@scure/base'
-import BN from 'bn.js'
 
 interface Network {
   bech32: string
   pubKeyHash: number
   scriptHash: number
   validWitnessVersions: number[]
-}
-
-interface Tag {
-  tagName: string
-  data: any
-}
-
-interface DecodedPaymentRequest {
-  paymentRequest: string
-  complete: boolean
-  prefix: string
-  wordsTemp: string
-  network: Network
-  satoshis: number | null
-  millisatoshis: string | null
-  timestamp: number
-  timestampString: string
-  payeeNodeKey: string
-  signature: string
-  recoveryFlag: number
-  tags: Tag[]
-  timeExpireDate?: number
-  timeExpireDateString?: string
-}
-
-interface FeatureBits {
-  word_length: number
-  [key: string]:
-    | {
-        required: boolean
-        supported: boolean
-      }
-    | number
-    | {
-        start_bit: number
-        bits: boolean[]
-        has_required: boolean
-      }
-}
-
-interface Route {
-  pubkey: string
-  short_channel_id: string
-  fee_base_msat: number
-  fee_proportional_millionths: number
-  cltv_expiry_delta: number
-}
-
-interface FallbackAddress {
-  code: number
-  address: string | null
-  addressHash: string
 }
 
 const DEFAULTNETWORK: Network = {
@@ -84,63 +31,17 @@ const SIMNETWORK: Network = {
   scriptHash: 0x7b,
   validWitnessVersions: [0, 1],
 }
-const DEFAULTEXPIRETIME = 3600
-const DEFAULTCLTVEXPIRY = 9
-const DEFAULTDESCRIPTION = ''
-const DEFAULTFEATUREBITS = {
-  word_length: 4, // last bit set default is 15
-  var_onion_optin: {
-    required: false,
-    supported: true,
-  },
-  payment_secret: {
-    required: false,
-    supported: true,
-  },
+
+const DIVISORS: Record<string, bigint> = {
+  m: BigInt(1e3),
+  u: BigInt(1e6),
+  n: BigInt(1e9),
+  p: BigInt(1e12),
 }
 
-const FEATUREBIT_ORDER = [
-  'option_data_loss_protect',
-  'initial_routing_sync',
-  'option_upfront_shutdown_script',
-  'gossip_queries',
-  'var_onion_optin',
-  'gossip_queries_ex',
-  'option_static_remotekey',
-  'payment_secret',
-  'basic_mpp',
-  'option_support_large_channel',
-  'option_anchor_outputs',
-  'option_anchors_zero_fee_htlc_tx',
-  'option_route_blinding',
-  'option_shutdown_anysegwit',
-  'option_channel_type',
-  'option_scid_alias',
-  'option_payment_metadata',
-  'option_zeroconf',
-  'option_dual_fund',
-  'option_onion_messages',
-  'option_channel_upgrade',
-  'option_gossip_queries',
-  'option_keysend',
-  'option_wumbo',
-  'option_amp',
-]
+const MAX_MILLISATS = BigInt('2100000000000000000')
 
-const DIVISORS: Record<string, BN> = {
-  m: new BN(1e3, 10),
-  u: new BN(1e6, 10),
-  n: new BN(1e9, 10),
-  p: new BN(1e12, 10),
-}
-
-const MAX_MILLISATS = new BN('2100000000000000000', 10)
-
-const MILLISATS_PER_BTC = new BN(1e11, 10)
-const MILLISATS_PER_MILLIBTC = new BN(1e8, 10)
-const MILLISATS_PER_MICROBTC = new BN(1e5, 10)
-const MILLISATS_PER_NANOBTC = new BN(1e2, 10)
-const PICOBTC_PER_MILLISATS = new BN(10, 10)
+const MILLISATS_PER_BTC = BigInt(1e11)
 
 const TAGCODES: Record<string, number> = {
   payment_hash: 1,
@@ -215,13 +116,11 @@ function hrpToMillisat(hrpString: string, outputString: boolean) {
 
   if (!value.match(/^\d+$/)) throw new Error('Not a valid human readable amount')
 
-  const valueBN = new BN(value, 10)
+  const valueBN = BigInt(value)
 
-  const millisatoshisBN = divisor
-    ? valueBN.mul(MILLISATS_PER_BTC).div(DIVISORS[divisor])
-    : valueBN.mul(MILLISATS_PER_BTC)
+  const millisatoshisBN = divisor ? (valueBN * MILLISATS_PER_BTC) / DIVISORS[divisor] : valueBN * MILLISATS_PER_BTC
 
-  if ((divisor === 'p' && !valueBN.mod(new BN(10, 10)).eq(new BN(0, 10))) || millisatoshisBN.gt(MAX_MILLISATS)) {
+  if ((divisor === 'p' && valueBN % BigInt(10) !== BigInt(0)) || millisatoshisBN > MAX_MILLISATS) {
     throw new Error('Amount is outside of valid range')
   }
 
@@ -302,11 +201,11 @@ export function decode(paymentRequest: string, network?: Network) {
   if (value) {
     const divisor = prefixMatches[3]
     try {
-      const millisatoshisBN = hrpToMillisat(value + divisor, false) as BN
-      if (!millisatoshisBN.mod(new BN(1000, 10)).eq(new BN(0, 10))) {
+      const millisatoshisBN = hrpToMillisat(value + divisor, false) as bigint
+      if (millisatoshisBN % BigInt(1000) !== BigInt(0)) {
         throw new Error('Amount is outside of valid range')
       }
-      satoshis = millisatoshisBN.div(new BN(1000, 10)).toNumber()
+      satoshis = Number(millisatoshisBN / BigInt(1000))
     } catch (e) {
       satoshis = null
       removeSatoshis = true
