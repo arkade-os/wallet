@@ -29,7 +29,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { getInvoiceSatoshis, getPubKey, submarineSwap } from '../../../lib/boltz'
 
 export default function SendForm() {
-  const { aspInfo } = useContext(AspContext)
+  const { aspInfo, amountIsAboveMaxLimit, amountIsBelowMinLimit } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
@@ -76,7 +76,9 @@ export default function SendForm() {
       return setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData, satoshis })
     }
     if (isBTCAddress(lowerCaseData)) {
-      return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '', invoice: '' })
+      setError('Invalid Ark address') // TODO: remove after event
+      return
+      // return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
     }
     if (isArkNote(lowerCaseData)) {
       try {
@@ -91,7 +93,16 @@ export default function SendForm() {
   }, [recipient])
 
   useEffect(() => {
+    if (sendInfo.address && !sendInfo.arkAddress && aspInfo.utxoMaxAmount === 0) {
+      return setError('Sending onchain not allowed')
+    }
+    if (!sendInfo.address && sendInfo.arkAddress && aspInfo.vtxoMaxAmount === 0) {
+      return setError('Sending offchain not allowed')
+    }
     setError('')
+  }, [sendInfo.address, sendInfo.arkAddress])
+
+  useEffect(() => {
     setSatoshis(useFiat ? fromFiat(amount) : amount ?? 0)
   }, [amount])
 
@@ -100,8 +111,10 @@ export default function SendForm() {
     setLabel(
       satoshis > wallet.balance
         ? 'Insufficient funds'
-        : satoshis < aspInfo.dust
+        : amountIsBelowMinLimit(satoshis)
         ? 'Amount below dust limit'
+        : amountIsAboveMaxLimit(satoshis)
+        ? 'Amount above max limit'
         : 'Continue',
     )
   }, [satoshis])
@@ -118,7 +131,7 @@ export default function SendForm() {
     const { address, arkAddress } = info
     const { boardingAddr, offchainAddr } = receivingAddresses
     const selfSend = address === boardingAddr || arkAddress === offchainAddr
-    setError(selfSend ? 'Cannot send to yourself' : '')
+    setError(selfSend ? 'Cannot send to yourself' : error)
     setTryingToSelfSend(selfSend)
   }
 
@@ -169,7 +182,9 @@ export default function SendForm() {
     aspInfo.unreachable ||
     tryingToSelfSend ||
     satoshis > wallet.balance ||
-    satoshis < aspInfo.dust
+    amountIsAboveMaxLimit(satoshis) ||
+    amountIsBelowMinLimit(satoshis) ||
+    Boolean(error)
 
   if (scan)
     return (

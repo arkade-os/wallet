@@ -25,7 +25,7 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 
 export default function ReceiveAmount() {
-  const { aspInfo } = useContext(AspContext)
+  const { aspInfo, amountIsAboveMaxLimit, amountIsBelowMinLimit } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
@@ -71,7 +71,15 @@ export default function ReceiveAmount() {
   }, [amount])
 
   useEffect(() => {
-    setButtonLabel(satoshis < aspInfo.dust ? 'Amount below dust limit' : 'Continue')
+    setButtonLabel(
+      !satoshis
+        ? defaultButtonLabel
+        : amountIsBelowMinLimit(satoshis)
+        ? 'Amount below dust limit'
+        : amountIsAboveMaxLimit(satoshis)
+        ? 'Amount above max limit'
+        : 'Continue',
+    )
   }, [satoshis])
 
   const handleChange = (amount: number) => {
@@ -104,7 +112,7 @@ export default function ReceiveAmount() {
   }
 
   const showFaucetButton = wallet.balance === 0 && faucetAvailable
-  const disabled = satoshis > 0 && satoshis < aspInfo.dust
+  const disabled = !satoshis ? false : amountIsBelowMinLimit(satoshis) || amountIsAboveMaxLimit(satoshis)
 
   if (showKeys) {
     return <Keyboard back={() => setShowKeys(false)} hideBalance onChange={handleChange} value={amount} />

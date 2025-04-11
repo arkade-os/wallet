@@ -17,9 +17,9 @@ interface AppProps {
   name: string
 }
 
-function App({ icon, link, name }: AppProps) {
+function App({ icon, name }: AppProps) {
   return (
-    <Shadow onClick={() => link && window.open(link, '_blank')}>
+    <Shadow>
       <FlexRow>
         {icon}
         <FlexCol gap='0'>
@@ -38,23 +38,12 @@ export default function Apps() {
       <Content>
         <Padded>
           <FlexCol>
-            <App
-              name='Ark Invaders'
-              icon={<InvadersIcon />}
-              desc='The classic arcade game'
-              link='https://ark-invaders.pages.dev/'
-            />
-            <App
-              name='Coinflip'
-              icon={<CoinflipIcon />}
-              desc='A fun game to play with your friends'
-              link='https://coinflip.casino/'
-            />
+            <App name='Ark Invaders' icon={<InvadersIcon />} desc='The classic arcade game' />
+            <App name='Coinflip' icon={<CoinflipIcon />} desc='A fun game to play with your friends' />
             <App
               name='Fuji Money'
               icon={<FujiMoneyIcon />}
               desc='Synthetic asset smart contract for the Liquid network'
-              link='https://fuji.money/'
             />
           </FlexCol>
         </Padded>
