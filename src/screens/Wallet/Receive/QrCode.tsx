@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
@@ -27,8 +27,6 @@ export default function ReceiveQRCode() {
   const [error, setError] = useState('')
   const [sharing, setSharing] = useState(false)
 
-  const poolAspIntervalId = useRef<NodeJS.Timeout>()
-
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
   // const bip21uri = bip21.encode(boardingAddr, offchainAddr, satoshis)
   const bip21uri = bip21.encode('', offchainAddr, satoshis) // TODO: remove after event
@@ -43,11 +41,9 @@ export default function ReceiveQRCode() {
       consoleError(err, 'error waiting for payment')
       setError(extractError(err))
     }
-    return () => clearInterval(poolAspIntervalId.current)
   }, [wallet])
 
   const onFinish = (satoshis: number) => {
-    clearInterval(poolAspIntervalId.current)
     setRecvInfo({ ...recvInfo, satoshis })
     notifyPaymentReceived(satoshis)
     navigate(Pages.ReceiveSuccess)
