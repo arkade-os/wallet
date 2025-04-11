@@ -17,8 +17,10 @@ import { consoleError } from '../../../lib/logs'
 import { canBrowserShareData, shareData } from '../../../lib/share'
 import ExpandAddresses from '../../../components/ExpandAddresses'
 import FlexCol from '../../../components/FlexCol'
+import { AspContext } from '../../../providers/asp'
 
 export default function ReceiveQRCode() {
+  const { aspInfo } = useContext(AspContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
@@ -28,8 +30,9 @@ export default function ReceiveQRCode() {
   const [sharing, setSharing] = useState(false)
 
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
-  // const bip21uri = bip21.encode(boardingAddr, offchainAddr, satoshis)
-  const bip21uri = bip21.encode('', offchainAddr, satoshis) // TODO: remove after event
+  const address = aspInfo.utxoMaxAmount === 0 ? '' : boardingAddr
+  const arkAddress = aspInfo.vtxoMaxAmount === 0 ? '' : offchainAddr
+  const bip21uri = bip21.encode(address, arkAddress, satoshis)
 
   useEffect(() => {
     if (!wallet) return
@@ -67,7 +70,7 @@ export default function ReceiveQRCode() {
           <FlexCol>
             <Error error={Boolean(error)} text={error} />
             <QrCode value={bip21uri ?? ''} />
-            <ExpandAddresses bip21uri={bip21uri} boardingAddr={boardingAddr} offchainAddr={offchainAddr} />
+            <ExpandAddresses bip21uri={bip21uri} boardingAddr={address} offchainAddr={arkAddress} />
           </FlexCol>
         </Padded>
       </Content>
