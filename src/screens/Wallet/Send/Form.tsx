@@ -70,8 +70,7 @@ export default function SendForm() {
       return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
     }
     if (isBTCAddress(lowerCaseData)) {
-      // show an error, not allowed to send BTC on mainnet
-      setError('Invalid recipient address') // TODO: remove after event
+      setError('Invalid Ark address') // TODO: remove after event
       return
       // return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
     }
