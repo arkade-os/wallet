@@ -70,7 +70,9 @@ export default function SendForm() {
       return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
     }
     if (isBTCAddress(lowerCaseData)) {
-      return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
+      setError('Invalid Ark address') // TODO: remove after event
+      return
+      // return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
     }
     if (isArkNote(lowerCaseData)) {
       try {
