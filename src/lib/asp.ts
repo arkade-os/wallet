@@ -43,9 +43,9 @@ export const emptyAspInfo: AspInfo = {
     period: 0,
     roundInterval: 0,
   },
-  utxoMinAmount: -1,
+  utxoMinAmount: 333,
   utxoMaxAmount: -1,
-  vtxoMinAmount: -1,
+  vtxoMinAmount: 333,
   vtxoMaxAmount: -1,
 }
 
