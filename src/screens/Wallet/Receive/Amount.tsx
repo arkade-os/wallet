@@ -32,7 +32,7 @@ export default function ReceiveAmount() {
   const { navigate } = useContext(NavigationContext)
   const { wallet } = useContext(WalletContext)
 
-  const defaultButtonLabel = 'Continue without amount'
+  const defaultButtonLabel = 'Skip'
 
   const [amount, setAmount] = useState<number>()
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
