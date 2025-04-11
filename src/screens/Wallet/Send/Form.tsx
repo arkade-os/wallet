@@ -76,6 +76,7 @@ export default function SendForm() {
       return setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData, satoshis })
     }
     if (isBTCAddress(lowerCaseData)) {
+      return setError('Onchain address not allowed') // TODO remove after event
       return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
     }
     if (isArkNote(lowerCaseData)) {

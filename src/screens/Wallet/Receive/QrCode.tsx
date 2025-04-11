@@ -30,7 +30,8 @@ export default function ReceiveQRCode() {
   const [sharing, setSharing] = useState(false)
 
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
-  const address = aspInfo.utxoMaxAmount === 0 ? '' : boardingAddr
+  const address = '' // TODO remove after event
+  // const address = aspInfo.utxoMaxAmount === 0 ? '' : boardingAddr
   const arkAddress = aspInfo.vtxoMaxAmount === 0 ? '' : offchainAddr
   const bip21uri = bip21.encode(address, arkAddress, satoshis)
 
