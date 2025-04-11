@@ -125,7 +125,7 @@ export const getBalance = async (): Promise<Satoshis> => {
 export const notifyIncomingFunds = async (): Promise<number> => {
   const { offchainAddr } = await getReceivingAddresses()
   const res = await window.notifyIncomingFunds(offchainAddr)
-  const { incomingVtxos } = JSON.parse(res as string)
+  const { incomingVtxos } = JSON.parse(res)
   if (!incomingVtxos) throw new Error('No incoming vtxos')
   return incomingVtxos.reduce((acc: number, vtxo: any) => acc + vtxo.Amount, 0)
 }
