@@ -76,9 +76,7 @@ export default function SendForm() {
       return setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData, satoshis })
     }
     if (isBTCAddress(lowerCaseData)) {
-      setError('Invalid Ark address') // TODO: remove after event
-      return
-      // return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
+      return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
     }
     if (isArkNote(lowerCaseData)) {
       try {
@@ -111,8 +109,8 @@ export default function SendForm() {
     setLabel(
       satoshis > wallet.balance
         ? 'Insufficient funds'
-        : amountIsBelowMinLimit(satoshis)
-        ? 'Amount below dust limit'
+        : amountIsBelowMinLimit(satoshis) || (sendInfo.invoice && satoshis < 1000)
+        ? 'Amount below min limit'
         : amountIsAboveMaxLimit(satoshis)
         ? 'Amount above max limit'
         : 'Continue',
@@ -184,6 +182,7 @@ export default function SendForm() {
     satoshis > wallet.balance ||
     amountIsAboveMaxLimit(satoshis) ||
     amountIsBelowMinLimit(satoshis) ||
+    (sendInfo.invoice && satoshis < 1000) ||
     Boolean(error)
 
   if (scan)
