@@ -122,8 +122,16 @@ export const getBalance = async (): Promise<Satoshis> => {
   })
 }
 
+export const notifyIncomingFunds = async (): Promise<number> => {
+  const { offchainAddr } = await getReceivingAddresses()
+  const res = await window.notifyIncomingFunds(offchainAddr)
+  const { incomingVtxos } = JSON.parse(res)
+  if (!incomingVtxos) throw new Error('No incoming vtxos')
+  return incomingVtxos.reduce((acc: number, vtxo: any) => acc + vtxo.Amount, 0)
+}
+
 export const getPrivateKey = async () => {
-  return await window.dump()
+  return window.dump()
 }
 
 export const getTxHistory = async (): Promise<Tx[]> => {

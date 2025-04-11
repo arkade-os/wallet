@@ -36,7 +36,7 @@ export default function SendForm() {
   const { navigate } = useContext(NavigationContext)
   const { wallet } = useContext(WalletContext)
 
-  const [amount, setAmount] = useState(0)
+  const [amount, setAmount] = useState<number>()
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
   const [label, setLabel] = useState('')
@@ -50,7 +50,7 @@ export default function SendForm() {
   useEffect(() => {
     const { recipient, satoshis } = sendInfo
     setRecipient(recipient ?? '')
-    setAmount(satoshis ?? 0)
+    setAmount(satoshis ? satoshis : undefined)
     getReceivingAddresses().then(setReceivingAddresses)
   }, [])
 
@@ -61,7 +61,7 @@ export default function SendForm() {
     if (bip21.isBip21(lowerCaseData)) {
       const { address, arkAddress, satoshis } = bip21.decode(lowerCaseData)
       if (!address && !arkAddress) return setError('Unable to parse bip21')
-      setAmount(useFiat ? toFiat(satoshis) : satoshis ?? 0)
+      setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
       return setState({ address, arkAddress, recipient, satoshis })
     }
     if (isArkAddress(lowerCaseData)) {
@@ -70,7 +70,9 @@ export default function SendForm() {
       return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
     }
     if (isBTCAddress(lowerCaseData)) {
-      return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
+      setError('Invalid Ark address') // TODO: remove after event
+      return
+      // return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
     }
     if (isArkNote(lowerCaseData)) {
       try {
@@ -85,12 +87,19 @@ export default function SendForm() {
   }, [recipient])
 
   useEffect(() => {
-    setSatoshis(useFiat ? fromFiat(amount) : amount)
+    setError('')
+    setSatoshis(useFiat ? fromFiat(amount) : amount ?? 0)
   }, [amount])
 
   useEffect(() => {
     setState({ ...sendInfo, satoshis })
-    setLabel(satoshis > wallet.balance ? 'Insufficient funds' : 'Continue')
+    setLabel(
+      satoshis > wallet.balance
+        ? 'Insufficient funds'
+        : satoshis < aspInfo.dust
+        ? 'Amount below dust limit'
+        : 'Continue',
+    )
   }, [satoshis])
 
   useEffect(() => {
@@ -107,6 +116,7 @@ export default function SendForm() {
     const selfSend = address === boardingAddr || arkAddress === offchainAddr
     setError(selfSend ? 'Cannot send to yourself' : '')
     setTryingToSelfSend(selfSend)
+    setError(!arkAddress ? 'Invalid Ark address' : '') // TODO: remove after event
   }
 
   const gotoRollover = () => {
@@ -149,7 +159,8 @@ export default function SendForm() {
     !((address || arkAddress) && satoshis && satoshis > 0) ||
     aspInfo.unreachable ||
     tryingToSelfSend ||
-    satoshis > wallet.balance
+    satoshis > wallet.balance ||
+    satoshis < aspInfo.dust
 
   if (scan)
     return (

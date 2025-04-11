@@ -70,6 +70,10 @@ export default function ReceiveAmount() {
     setSatoshis(useFiat ? fromFiat(amount) : amount ?? 0)
   }, [amount])
 
+  useEffect(() => {
+    setButtonLabel(satoshis < aspInfo.dust ? 'Amount below dust limit' : 'Continue')
+  }, [satoshis])
+
   const handleChange = (amount: number) => {
     setAmount(amount)
     setButtonLabel(amount ? 'Continue' : defaultButtonLabel)
@@ -100,6 +104,7 @@ export default function ReceiveAmount() {
   }
 
   const showFaucetButton = wallet.balance === 0 && faucetAvailable
+  const disabled = satoshis > 0 && satoshis < aspInfo.dust
 
   if (showKeys) {
     return <Keyboard back={() => setShowKeys(false)} hideBalance onChange={handleChange} value={amount} />
@@ -150,7 +155,7 @@ export default function ReceiveAmount() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button label={buttonLabel} onClick={handleProceed} />
+        <Button label={buttonLabel} onClick={handleProceed} disabled={disabled} />
         {showFaucetButton ? <Button disabled={!amount} label='Faucet' onClick={handleFaucet} secondary /> : null}
       </ButtonsOnBottom>
     </>

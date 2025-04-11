@@ -1,6 +1,6 @@
 function OnboardImage1Dark() {
   return (
-    <svg width='390' height='493' viewBox='0 0 390 493' fill='none' xmlns='http://www.w3.org/2000/svg'>
+    <svg style={{ width: '100%' }} viewBox='0 0 390 493' fill='none' xmlns='http://www.w3.org/2000/svg'>
       <g clipPath='url(#clip0_3383_11459)'>
         <g opacity='0.6'>
           <rect opacity='0.5' x='178.417' y='73.5273' width='52.0273' height='52.0273' stroke='#391998' />
@@ -2894,7 +2894,7 @@ function OnboardImage1Dark() {
 }
 function OnboardImage1Light() {
   return (
-    <svg width='390' height='493' viewBox='0 0 390 493' fill='none' xmlns='http://www.w3.org/2000/svg'>
+    <svg style={{ width: '100%' }} viewBox='0 0 390 493' fill='none' xmlns='http://www.w3.org/2000/svg'>
       <g clipPath='url(#clip0_3383_11434)'>
         <g opacity='0.6'>
           <rect
@@ -6016,7 +6016,7 @@ function OnboardImage1Light() {
 
 function OnboardImage2Dark() {
   return (
-    <svg width='388' height='493' viewBox='0 0 388 493' fill='none' xmlns='http://www.w3.org/2000/svg'>
+    <svg style={{ width: '100%' }} viewBox='0 0 388 493' fill='none' xmlns='http://www.w3.org/2000/svg'>
       <g clipPath='url(#clip0_3383_11442)'>
         <path
           d='M195.029 180.052H192.593V181.713H191.651V182.543H189.935V183.429H188.44V185.09H189.16V186.751H190.046V190.96H192.426V190.074H195.084V190.96H197.52V186.751H198.462V185.09H199.237V183.429H197.52V182.543H195.859V181.713H195.029V180.052Z'
@@ -6556,7 +6556,7 @@ function OnboardImage2Dark() {
 }
 function OnboardImage2Light() {
   return (
-    <svg width='389' height='493' viewBox='0 0 389 493' fill='none' xmlns='http://www.w3.org/2000/svg'>
+    <svg style={{ width: '100%' }} viewBox='0 0 389 493' fill='none' xmlns='http://www.w3.org/2000/svg'>
       <g clipPath='url(#clip0_3383_11432)'>
         <rect opacity='0.26' width='10' height='10' transform='matrix(1 0 0 -1 308.705 107)' fill='#010101' />
         <rect opacity='0.22' width='10' height='10' transform='matrix(1 0 0 -1 241.705 76)' fill='#010101' />
@@ -7125,7 +7125,7 @@ function OnboardImage2Light() {
 
 function OnboardImage3Dark() {
   return (
-    <svg width='390' height='493' viewBox='0 0 390 493' fill='none' xmlns='http://www.w3.org/2000/svg'>
+    <svg style={{ width: '100%' }} viewBox='0 0 390 493' fill='none' xmlns='http://www.w3.org/2000/svg'>
       <g opacity='0.6'>
         <mask id='path-1-inside-1_3383_11440' fill='white'>
           <path d='M26 43H59.9V76.9H26V43Z' />
@@ -12179,7 +12179,7 @@ function OnboardImage3Dark() {
 }
 function OnboardImage3Light() {
   return (
-    <svg width='390' height='494' viewBox='0 0 390 494' fill='none' xmlns='http://www.w3.org/2000/svg'>
+    <svg style={{ width: '100%' }} viewBox='0 0 390 494' fill='none' xmlns='http://www.w3.org/2000/svg'>
       <rect width='390' height='494' fill='white' />
       <g opacity='0.6'>
         <mask id='path-1-inside-1_3383_10956' fill='white'>
@@ -17235,7 +17235,7 @@ function OnboardImage3Light() {
 
 function OnboardImage4Dark() {
   return (
-    <svg width='387' height='408' viewBox='0 0 387 408' fill='none' xmlns='http://www.w3.org/2000/svg'>
+    <svg style={{ width: '100%' }} viewBox='0 0 387 408' fill='none' xmlns='http://www.w3.org/2000/svg'>
       <path
         d='M296.174 100.5H94.0991M94.0991 100.5H90.3361V106.521H83.1863V111.037H77.1654V117.057H71.5209V123.455H65.5V248.764H76.7891M94.0991 100.5V219.412M94.0991 219.412H180.273M94.0991 219.412V226.186H88.4545V232.206H82.81V237.851H76.7891V248.764M192.691 324.401V219.412H180.273M192.691 324.401H318M192.691 324.401V329.669H186.67V335.69H179.52V340.958H174.628V353M318 324.401V123.455M318 324.401V329.669H311.979V335.69H306.711V340.958H300.314V347.355H294.669V353M296.174 353H294.669M162.586 248.764V353H174.628M162.586 248.764V243.119H169.36V236.722H173.876V231.454H180.273V219.412M162.586 248.764H76.7891M294.669 353H174.628'
         stroke='black'
@@ -19744,7 +19744,7 @@ function OnboardImage4Dark() {
 }
 function OnboardImage4Light() {
   return (
-    <svg width='390' height='409' viewBox='0 0 390 409' fill='none' xmlns='http://www.w3.org/2000/svg'>
+    <svg style={{ width: '100%' }} viewBox='0 0 390 409' fill='none' xmlns='http://www.w3.org/2000/svg'>
       <path
         d='M297.657 90.0962H95.9674M95.9674 90.0962H92.2115V96.1075H85.0754V100.616H79.066V106.627H73.4322V113.014H67.4228V238.125H78.6904M95.9674 90.0962V208.82M95.9674 208.82H181.977M95.9674 208.82V215.583H90.3336V221.594H84.6998V227.229H78.6904V238.125M194.371 313.642V208.82H181.977M194.371 313.642H319.441M194.371 313.642V318.902H188.362V324.913H181.226V330.173H176.343V342.196M319.441 313.642V113.014M319.441 313.642V318.902H313.432V324.913H308.174V330.173H301.789V336.56H296.155V342.196M297.657 342.196H296.155M164.324 238.125V342.196H176.343M164.324 238.125V232.489H171.085V226.102H175.592V220.842H181.977V208.82M164.324 238.125H78.6904M296.155 342.196H176.343'
         stroke='#F0F0F0'
