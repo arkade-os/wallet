@@ -109,10 +109,10 @@ export const getAspInfo = async (url: string): Promise<AspInfo> => {
             period: Number(marketHour.period),
             roundInterval: Number(marketHour.roundInterval),
           },
-          utxoMinAmount: Number(utxoMinAmount),
-          utxoMaxAmount: Number(utxoMaxAmount),
-          vtxoMinAmount: Number(vtxoMinAmount),
-          vtxoMaxAmount: Number(vtxoMaxAmount),
+          utxoMinAmount: typeof utxoMinAmount === 'undefined' ? Number(dust) : Number(utxoMinAmount),
+          utxoMaxAmount: typeof utxoMaxAmount === 'undefined' ? -1 : Number(utxoMaxAmount),
+          vtxoMinAmount: typeof vtxoMinAmount === 'undefined' ? Number(dust) : Number(vtxoMinAmount),
+          vtxoMaxAmount: typeof vtxoMaxAmount === 'undefined' ? -1 : Number(vtxoMaxAmount),
         })
       })
       .catch((err) => {
