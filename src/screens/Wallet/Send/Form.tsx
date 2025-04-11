@@ -139,14 +139,19 @@ export default function SendForm() {
   }
 
   const handleContinue = async () => {
-    if (sendInfo.invoice) {
-      const pubkey = await getPubKey()
-      const { address, amount } = await submarineSwap(sendInfo.invoice, pubkey, wallet)
-      setState({ ...sendInfo, satoshis: amount, swapAddress: address })
-    } else {
-      setState({ ...sendInfo, satoshis })
+    try {
+      if (sendInfo.invoice) {
+        const pubkey = await getPubKey()
+        const { address, amount } = await submarineSwap(sendInfo.invoice, pubkey, wallet)
+        setState({ ...sendInfo, satoshis: amount, swapAddress: address })
+      } else {
+        setState({ ...sendInfo, satoshis })
+      }
+      navigate(Pages.SendDetails)
+    } catch (error) {
+      consoleError(error, 'Swap failed')
+      setError('Swap failed: ' + error)
     }
-    navigate(Pages.SendDetails)
   }
 
   const handleEnter = () => {
