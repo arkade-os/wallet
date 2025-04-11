@@ -43,10 +43,10 @@ export const emptyAspInfo: AspInfo = {
     period: 0,
     roundInterval: 0,
   },
-  utxoMinAmount: 0,
-  utxoMaxAmount: 0,
-  vtxoMinAmount: 0,
-  vtxoMaxAmount: 0,
+  utxoMinAmount: -1,
+  utxoMaxAmount: -1,
+  vtxoMinAmount: -1,
+  vtxoMaxAmount: -1,
 }
 
 export interface MarketHour {
