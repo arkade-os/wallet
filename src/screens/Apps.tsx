@@ -17,16 +17,19 @@ interface AppProps {
   name: string
 }
 
-function App({ icon, name }: AppProps) {
+function App({ desc, icon, name }: AppProps) {
   return (
     <Shadow>
-      <FlexRow>
-        {icon}
-        <FlexCol gap='0'>
-          <Text>{name}</Text>
-          <TextSecondary>COMING SOON</TextSecondary>
-        </FlexCol>
-      </FlexRow>
+      <FlexCol gap='0.75rem'>
+        <FlexRow>
+          {icon}
+          <FlexCol gap='0'>
+            <Text>{name}</Text>
+            <TextSecondary>COMING SOON</TextSecondary>
+          </FlexCol>
+        </FlexRow>
+        <TextSecondary>{desc}</TextSecondary>
+      </FlexCol>
     </Shadow>
   )
 }
