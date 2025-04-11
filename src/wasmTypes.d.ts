@@ -26,6 +26,7 @@ declare global {
     settle: () => Promise<void>
     setNostrNotificationRecipient: (npub: string) => Promise<any>
     unlock: (password: string) => Promise<any>
+    notifyIncomingFunds: (address: string) => Promise<string>
   }
 }
 export {}

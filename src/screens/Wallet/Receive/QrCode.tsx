@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
@@ -8,7 +8,7 @@ import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { extractError } from '../../../lib/error'
 import * as bip21 from '../../../lib/bip21'
-import { getBalance } from '../../../lib/asp'
+import { notifyIncomingFunds } from '../../../lib/asp'
 import { WalletContext } from '../../../providers/wallet'
 import { NotificationsContext } from '../../../providers/notifications'
 import Header from '../../../components/Header'
@@ -29,8 +29,6 @@ export default function ReceiveQRCode() {
   const [error, setError] = useState('')
   const [sharing, setSharing] = useState(false)
 
-  const poolAspIntervalId = useRef<NodeJS.Timeout>()
-
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
   const address = aspInfo.utxoMaxAmount === 0 ? '' : boardingAddr
   const arkAddress = aspInfo.vtxoMaxAmount === 0 ? '' : offchainAddr
@@ -39,23 +37,16 @@ export default function ReceiveQRCode() {
   useEffect(() => {
     if (!wallet) return
     try {
-      poolAspIntervalId.current = setInterval(() => {
-        getBalance().then((balance) => {
-          if (balance > wallet.balance) {
-            clearInterval(poolAspIntervalId.current)
-            onFinish(balance - wallet.balance)
-          }
-        })
-      }, 1000)
+      notifyIncomingFunds().then((amount) => {
+        onFinish(amount)
+      })
     } catch (err) {
       consoleError(err, 'error waiting for payment')
       setError(extractError(err))
     }
-    return () => clearInterval(poolAspIntervalId.current)
   }, [wallet])
 
   const onFinish = (satoshis: number) => {
-    clearInterval(poolAspIntervalId.current)
     setRecvInfo({ ...recvInfo, satoshis })
     notifyPaymentReceived(satoshis)
     navigate(Pages.ReceiveSuccess)
