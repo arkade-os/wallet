@@ -8,12 +8,25 @@ export type Addresses = {
 
 export type Config = {
   aspUrl: string
+  currencyDisplay: CurrencyDisplay
+  fiat: Fiats
   nostr: boolean
   notifications: boolean
   npub: string
   showBalance: boolean
   theme: Themes
   unit: Unit
+}
+
+export enum CurrencyDisplay {
+  Both = 'Show both',
+  Fiat = 'Fiat only',
+  Sats = 'Sats only',
+}
+
+export enum Fiats {
+  EUR = 'EUR',
+  USD = 'USD',
 }
 
 export type Satoshis = number
@@ -27,8 +40,9 @@ export enum SettingsSections {
 export enum SettingsOptions {
   Menu = 'menu',
   About = 'about',
-  Appearance = 'appearance',
-  Backup = 'backup',
+  Advanced = 'advanced',
+  Backup = 'backup and privacy',
+  General = 'general',
   Lock = 'lock wallet',
   Logs = 'logs',
   Notifications = 'notifications',
@@ -75,9 +89,9 @@ export type Wallet = {
   lockedByBiometrics?: boolean
   network: string
   nextRollover: number
-  passkeyId?: string
   txs: Tx[]
   vtxos: Awaited<ReturnType<IWallet['getVtxos']>>
   // set when wallet is unlocked
   privateKey?: Uint8Array
+  passkeyId?: string
 }

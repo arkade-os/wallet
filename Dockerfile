@@ -1,7 +1,8 @@
 FROM node:23-alpine AS builder
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@10.7.0 --activate
+# Install pnpm and required build dependencies
+RUN apk add --no-cache python3 make g++
+RUN corepack enable && corepack prepare pnpm@8.15.4 --activate
 
 # Set up pnpm store
 ENV PNPM_HOME="/root/.local/share/pnpm"
@@ -10,23 +11,29 @@ RUN mkdir -p $PNPM_HOME/store
 # Set working directory
 WORKDIR /app
 
-# Copy package files first for better caching
+# Copy package files first to leverage Docker cache
 COPY package.json pnpm-lock.yaml ./
 
-# Install dependencies
+# Install dependencies with force to handle lockfile compatibility
+ENV ROLLUP_SKIP_NODE_RESOLUTION=true
 RUN pnpm install
 
-# Copy the rest of the application
-COPY . .
+# Copy source files
+COPY src ./src
+COPY public ./public
+COPY index.html vite.config.ts tsconfig.json .eslintrc* ./
+COPY .git ./.git
 
-# Create git commit file
+# Create git commit file from current branch HEAD
 RUN if [ -d ".git" ]; then \
       echo "export const gitCommit = '$(cat .git/HEAD | cut -d '/' -f 3- | xargs -I {} cat .git/refs/heads/{} | cut -c 1-8)';" > src/_gitCommit.ts; \
     else \
       echo "export const gitCommit = 'dev';" > src/_gitCommit.ts; \
     fi
 
-# Build the application
+# Build the app
+ENV NODE_ENV=production
+ENV DISABLE_ESLINT_PLUGIN=true
 RUN pnpm run build
 
 # Production stage
@@ -60,4 +67,4 @@ EXPOSE 3000
 # Switch to non-root user
 USER nginx
 
-CMD ["nginx", "-g", "daemon off;"] 
+CMD ["nginx", "-g", "daemon off;"]

@@ -1,3 +1,5 @@
+import { isMobileBrowser } from './browser'
+
 export interface CalendarEvent {
   name: string
   startTime: number
@@ -68,7 +70,6 @@ export const generateOutlookCalendarUrl = (event: CalendarEvent): string => {
     body: DEFAULT_EVENT_MESSAGE,
     allday: false,
   }
-  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints
-  const action = isMobile ? 'deeplink' : 'compose'
+  const action = isMobileBrowser ? 'deeplink' : 'compose'
   return `https://outlook.live.com/calendar/0/action/${action}?${stringify(details)}`
 }

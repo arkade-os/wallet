@@ -13,8 +13,10 @@ import WarningBox from '../../components/Warning'
 import InputUrl from '../../components/InputUrl'
 import FlexCol from '../../components/FlexCol'
 import Scanner from '../../components/Scanner'
+import { AspContext } from '../../providers/asp'
 
 export default function Server() {
+  const { aspInfo } = useContext(AspContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { updateWallet, wallet } = useContext(WalletContext)
 
@@ -22,6 +24,10 @@ export default function Server() {
   const [error, setError] = useState('')
   const [info, setInfo] = useState<AspInfo>()
   const [scan, setScan] = useState(false)
+
+  useEffect(() => {
+    setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
+  }, [aspInfo.unreachable])
 
   useEffect(() => {
     if (!aspUrl) return
@@ -55,6 +61,7 @@ export default function Server() {
       <Content>
         <Padded>
           <FlexCol>
+            <Error error={Boolean(error)} text={error} />
             <InputUrl
               focus
               label='Server URL'
@@ -64,7 +71,6 @@ export default function Server() {
               placeholder={config.aspUrl}
               value={aspUrl}
             />
-            <Error error={Boolean(error)} text={error} />
             {info && !error ? <WarningBox green text='Server found' /> : null}
             <WarningBox text='Your wallet will be reset. Make sure you backup your wallet first.' />
           </FlexCol>

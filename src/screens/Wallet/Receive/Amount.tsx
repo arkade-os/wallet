@@ -15,26 +15,32 @@ import Keyboard from '../../../components/Keyboard'
 import { WalletContext } from '../../../providers/wallet'
 import { callFaucet, pingFaucet } from '../../../lib/faucet'
 import Loading from '../../../components/Loading'
-import { prettyNumber } from '../../../lib/format'
+import { prettyAmount } from '../../../lib/format'
 import Success from '../../../components/Success'
 import { consoleError } from '../../../lib/logs'
 import { AspContext } from '../../../providers/asp'
+import { isMobileBrowser } from '../../../lib/browser'
+import BackToWalletButton from '../../../components/BackToWalletButton'
+import { ConfigContext } from '../../../providers/config'
+import { FiatContext } from '../../../providers/fiat'
 
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
+  const { config, useFiat } = useContext(ConfigContext)
+  const { fromFiat, toFiat } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { wallet, svcWallet } = useContext(WalletContext)
 
   const defaultButtonLabel = 'Continue without amount'
-  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints
 
-  const [amount, setAmount] = useState(0)
+  const [amount, setAmount] = useState<number>()
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
   const [error, setError] = useState('')
   const [fauceting, setFauceting] = useState(false)
   const [faucetSuccess, setFaucetSuccess] = useState(false)
   const [faucetAvailable, setFaucetAvailable] = useState(false)
+  const [satoshis, setSatoshis] = useState(0)
   const [showKeys, setShowKeys] = useState(false)
 
   useEffect(() => {
@@ -60,16 +66,24 @@ export default function ReceiveAmount() {
       })
   }, [])
 
-  const handleChange = (sats: number) => {
-    setAmount(sats)
-    setButtonLabel(sats ? 'Continue' : defaultButtonLabel)
+  useEffect(() => {
+    setSatoshis(useFiat ? fromFiat(amount) : amount ?? 0)
+  }, [amount])
+
+  useEffect(() => {
+    setButtonLabel(satoshis < aspInfo.dust ? 'Amount below dust limit' : 'Continue')
+  }, [satoshis])
+
+  const handleChange = (amount: number) => {
+    setAmount(amount)
+    setButtonLabel(amount ? 'Continue' : defaultButtonLabel)
   }
 
   const handleFaucet = async () => {
     try {
       if (!amount) throw 'Invalid amount'
       setFauceting(true)
-      const ok = await callFaucet(recvInfo.offchainAddr, amount, aspInfo)
+      const ok = await callFaucet(recvInfo.offchainAddr, satoshis, aspInfo)
       if (!ok) throw 'Faucet failed'
       setFauceting(false)
       setFaucetSuccess(true)
@@ -81,20 +95,16 @@ export default function ReceiveAmount() {
   }
 
   const handleFocus = () => {
-    if (isMobile) setShowKeys(true)
+    if (isMobileBrowser) setShowKeys(true)
   }
 
   const handleProceed = async () => {
-    try {
-      setRecvInfo({ ...recvInfo, satoshis: amount })
-      navigate(Pages.ReceiveQRCode)
-    } catch (err) {
-      consoleError(err, 'error getting addresses')
-      setError(extractError(err))
-    }
+    setRecvInfo({ ...recvInfo, satoshis })
+    navigate(Pages.ReceiveQRCode)
   }
 
   const showFaucetButton = wallet.balance === 0 && faucetAvailable
+  const disabled = satoshis > 0 && satoshis < aspInfo.dust
 
   if (showKeys) {
     return <Keyboard back={() => setShowKeys(false)} hideBalance onChange={handleChange} value={amount} />
@@ -112,25 +122,29 @@ export default function ReceiveAmount() {
   }
 
   if (faucetSuccess) {
+    const displayAmount = useFiat ? prettyAmount(toFiat(amount), config.fiat) : prettyAmount(amount ?? 0)
     return (
       <>
         <Header text='Success' />
         <Content>
-          <Success text={`${prettyNumber(amount)} sats received from faucet successfully`} />
+          <Success text={`${displayAmount} received from faucet successfully`} />
         </Content>
+        <ButtonsOnBottom>
+          <BackToWalletButton />
+        </ButtonsOnBottom>
       </>
     )
   }
 
   return (
     <>
-      <Header text='Receive' />
+      <Header text='Receive' back={() => navigate(Pages.Wallet)} />
       <Content>
         <Padded>
           <FlexCol>
             <Error error={Boolean(error)} text={error} />
             <InputAmount
-              focus={!isMobile}
+              focus={!isMobileBrowser}
               label='Amount'
               onChange={handleChange}
               onEnter={handleProceed}
@@ -141,7 +155,7 @@ export default function ReceiveAmount() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button label={buttonLabel} onClick={handleProceed} />
+        <Button label={buttonLabel} onClick={handleProceed} disabled={disabled} />
         {showFaucetButton ? <Button disabled={!amount} label='Faucet' onClick={handleFaucet} secondary /> : null}
       </ButtonsOnBottom>
     </>

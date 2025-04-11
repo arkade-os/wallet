@@ -6,12 +6,16 @@ import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import Success from '../../../components/Success'
 import BackToWalletButton from '../../../components/BackToWalletButton'
-import { prettyNumber } from '../../../lib/format'
+import { prettyAmount } from '../../../lib/format'
 import { IframeContext } from '../../../providers/iframe'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
+import { ConfigContext } from '../../../providers/config'
+import { FiatContext } from '../../../providers/fiat'
 
 export default function SendSuccess() {
+  const { config, useFiat } = useContext(ConfigContext)
+  const { toFiat } = useContext(FiatContext)
   const { sendInfo } = useContext(FlowContext)
   const { iframeUrl, sendMessage } = useContext(IframeContext)
   const { navigate } = useContext(NavigationContext)
@@ -41,11 +45,13 @@ export default function SendSuccess() {
     return <></>
   }
 
+  const displayAmount = useFiat ? prettyAmount(toFiat(sendInfo.total), config.fiat) : prettyAmount(sendInfo.total ?? 0)
+
   return (
     <>
       <Header text='Success' />
       <Content>
-        <Success text={`Payment of ${prettyNumber(sendInfo.total)} sats sent successfully`} />
+        <Success text={`Payment of ${displayAmount} sent successfully`} />
       </Content>
       <ButtonsOnBottom>
         <BackToWalletButton />

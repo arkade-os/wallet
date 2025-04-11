@@ -1,16 +1,18 @@
-import LoadingIcon from '../icons/Loading'
+import LoadingBar from '../icons/LoadingBar'
 import CenterScreen from './CenterScreen'
 import Text from './Text'
 
 export default function Loading({ text }: { text?: string }) {
   return (
     <CenterScreen>
-      <LoadingIcon />
-      {text ? (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '120px', justifyContent: 'flex-end' }}>
+        <LoadingBar />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '120px' }}>
         <Text centered small wrap>
-          {text}
+          {text || 'Loading...'}
         </Text>
-      ) : null}
+      </div>
     </CenterScreen>
   )
 }

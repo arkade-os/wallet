@@ -14,6 +14,7 @@ import { calcNextRollover, vtxosExpiringSoon } from '../lib/wallet'
 import { ServiceWorkerWallet } from '@arklabs/wallet-sdk'
 import { NetworkName } from '@arklabs/wallet-sdk/dist/types/networks'
 import { hex } from '@scure/base'
+import { isPWAInstalled } from '../lib/pwaDetection'
 
 const defaultWallet: Wallet = {
   arkAddress: '',
@@ -83,7 +84,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const wallet = readWalletFromStorage()
     updateWallet(wallet?.initialized ? wallet : defaultWallet)
-    navigate(wallet?.initialized ? Pages.Unlock : Pages.Init)
+    navigate(wallet?.initialized ? Pages.Unlock : isPWAInstalled() ? Pages.Init : Pages.Onboard)
     setWalletLoaded(wallet)
   }, [])
 

@@ -30,7 +30,8 @@ export default function ReceiveQRCode() {
   const poolAspIntervalId = useRef<NodeJS.Timeout>()
 
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
-  const bip21uri = bip21.encode(boardingAddr, offchainAddr, satoshis)
+  // const bip21uri = bip21.encode(boardingAddr, offchainAddr, satoshis)
+  const bip21uri = bip21.encode('', offchainAddr, satoshis) // TODO: remove after event
 
   useEffect(() => {
     if (!wallet) return

@@ -1,10 +1,12 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
 import { clearStorage, readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
 import { defaultArkServer } from '../lib/constants'
-import { Config, Themes, Unit } from '../lib/types'
+import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
 
 const defaultConfig: Config = {
   aspUrl: defaultArkServer(),
+  currencyDisplay: CurrencyDisplay.Both,
+  fiat: Fiats.USD,
   nostr: false,
   notifications: false,
   npub: '',
@@ -20,6 +22,7 @@ interface ConfigContextProps {
   showConfig: boolean
   toggleShowConfig: () => void
   updateConfig: (c: Config) => void
+  useFiat: boolean
 }
 
 export const ConfigContext = createContext<ConfigContextProps>({
@@ -29,6 +32,7 @@ export const ConfigContext = createContext<ConfigContextProps>({
   showConfig: false,
   toggleShowConfig: () => {},
   updateConfig: () => {},
+  useFiat: false,
 })
 
 export const ConfigProvider = ({ children }: { children: ReactNode }) => {
@@ -66,12 +70,18 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
       window.location.hash = ''
     }
     const config = readConfigFromStorage() ?? { ...defaultConfig, theme: preferredTheme() }
+    if (!config.fiat) config.fiat = defaultConfig.fiat
+    if (!config.currencyDisplay) config.currencyDisplay = defaultConfig.currencyDisplay
     updateConfig(config)
     setConfigLoaded(true)
   }, [configLoaded])
 
+  const useFiat = config.currencyDisplay === CurrencyDisplay.Fiat
+
   return (
-    <ConfigContext.Provider value={{ config, configLoaded, resetConfig, showConfig, toggleShowConfig, updateConfig }}>
+    <ConfigContext.Provider
+      value={{ config, configLoaded, resetConfig, showConfig, toggleShowConfig, updateConfig, useFiat }}
+    >
       {children}
     </ConfigContext.Provider>
   )

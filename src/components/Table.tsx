@@ -3,18 +3,21 @@ import FlexRow from './FlexRow'
 import FlexCol from './FlexCol'
 import { prettyLongText } from '../lib/format'
 
-export default function Table({ data }: { data: string[][] }) {
+export default function Table({ data }: { data: any[][] }) {
   const color = (text: string): string => {
     if (text === 'Settled') return 'green'
-    if (text === 'Pending') return 'yellow'
-    return 'dark50'
+    if (text === 'Pending') return 'orange'
+    return 'dark'
   }
 
   return (
     <FlexCol gap='0.5rem'>
-      {data.map(([title, value]) => (
+      {data.map(([title, value, icon]) => (
         <FlexRow between key={`${title}${value}`}>
-          <Text>{title}</Text>
+          <FlexRow color='dark50'>
+            {icon}
+            <Text>{title}</Text>
+          </FlexRow>
           <Text color={color(value)} copy={value}>
             {prettyLongText(value)}
           </Text>

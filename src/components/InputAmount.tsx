@@ -1,8 +1,9 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import { IonInput, IonText } from '@ionic/react'
 import { FiatContext } from '../providers/fiat'
-import { prettyNumber } from '../lib/format'
 import InputContainer from './InputContainer'
+import { ConfigContext } from '../providers/config'
+import { prettyNumber } from '../lib/format'
 
 interface InputAmountProps {
   focus?: boolean
@@ -15,10 +16,11 @@ interface InputAmountProps {
 }
 
 export default function InputAmount({ focus, label, onChange, onEnter, onFocus, right, value }: InputAmountProps) {
-  const { toUSD } = useContext(FiatContext)
+  const { config, useFiat } = useContext(ConfigContext)
+  const { fromFiat, toFiat } = useContext(FiatContext)
 
   const [error, setError] = useState('')
-  const [fiatValue, setFiatValue] = useState('')
+  const [otherValue, setOtherValue] = useState('')
 
   const firstRun = useRef(true)
   const input = useRef<HTMLIonInputElement>(null)
@@ -31,15 +33,19 @@ export default function InputAmount({ focus, label, onChange, onEnter, onFocus, 
   })
 
   useEffect(() => {
-    setFiatValue(prettyNumber(toUSD(value ?? 0), 2))
+    setOtherValue(useFiat ? prettyNumber(fromFiat(value)) : prettyNumber(toFiat(value), 2))
     setError(value ? (value < 0 ? 'Invalid amount' : '') : '')
   }, [value])
 
   const handleInput = (ev: Event) => {
-    const newValue = Number((ev.target as HTMLInputElement).value)
-    if (Number.isNaN(newValue)) return
-    onChange(newValue)
+    const value = Number((ev.target as HTMLInputElement).value)
+    if (Number.isNaN(value)) return
+    onChange(value)
   }
+
+  const leftLabel = useFiat ? config.fiat : 'SATS'
+  const rightLabel = `${otherValue} ${useFiat ? 'SATS' : config.fiat}`
+  const fontStyle = { color: 'var(--dark50)', fontSize: '13px' }
 
   return (
     <>
@@ -50,9 +56,14 @@ export default function InputAmount({ focus, label, onChange, onEnter, onFocus, 
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
           ref={input}
           type='number'
-          value={value ? value : undefined}
+          value={value}
         >
-          <IonText slot='end' style={{ color: 'var(--dark50)', fontSize: '13px' }}>{`$${fiatValue}`}</IonText>
+          <IonText slot='start' style={{ ...fontStyle, marginRight: '0.5rem' }}>
+            {leftLabel}
+          </IonText>
+          <IonText slot='end' style={{ ...fontStyle, marginLeft: '0.5rem' }}>
+            {rightLabel}
+          </IonText>
         </IonInput>
       </InputContainer>
     </>

@@ -5,25 +5,25 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
-import { prettyAgo, prettyDate, prettyDelta, prettyHide, prettyNumber } from '../../lib/format'
+import { prettyAgo, prettyDate, prettyDelta } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
-import Table from '../../components/Table'
 import Error from '../../components/Error'
 import { extractError } from '../../lib/error'
 import Header from '../../components/Header'
 import Content from '../../components/Content'
 import Info from '../../components/Info'
 import FlexCol from '../../components/FlexCol'
-import { ConfigContext } from '../../providers/config'
 import WaitingForRound from '../../components/WaitingForRound'
 import { sleep } from '../../lib/sleep'
+import Text, { TextSecondary } from '../../components/Text'
+import Details, { DetailsProps } from '../../components/Details'
+import VtxosIcon from '../../icons/Vtxos'
+import CheckMarkIcon from '../../icons/CheckMark'
 import { AspContext } from '../../providers/asp'
-import { TextSecondary } from '../../components/Text'
 import Reminder from '../../components/Reminder'
 
 export default function Transaction() {
-  const { aspInfo, calcNextMarketHour } = useContext(AspContext)
-  const { config } = useContext(ConfigContext)
+  const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { settlePending, wallet } = useContext(WalletContext)
@@ -46,12 +46,12 @@ export default function Transaction() {
 
   useEffect(() => {
     if (!tx) return
-    const expiration = tx?.createdAt + aspInfo.vtxoTreeExpiry
-    const nextMarketHour = calcNextMarketHour(expiration)
-    if (nextMarketHour) {
+    const expiration = tx.createdAt + aspInfo.vtxoTreeExpiry
+    const bestMarketHour = calcBestMarketHour(expiration)
+    if (bestMarketHour) {
       setCanSettleOnMarketHour(true)
-      setStartTime(nextMarketHour.startTime)
-      setDuration(nextMarketHour.duration)
+      setStartTime(bestMarketHour.startTime)
+      setDuration(bestMarketHour.duration)
     } else {
       setCanSettleOnMarketHour(false)
       setStartTime(wallet.nextRollover)
@@ -77,16 +77,16 @@ export default function Transaction() {
 
   if (!tx) return <></>
 
-  const amount = tx.type === 'sent' ? tx.amount - defaultFee : tx.amount
+  const details: DetailsProps = {
+    direction: tx.type === 'sent' ? 'Sent' : 'Received',
+    when: prettyAgo(tx.createdAt),
+    date: prettyDate(tx.createdAt),
+    satoshis: tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
+    fees: tx.type === 'sent' ? defaultFee : 0,
+    total: tx.amount,
+  }
 
-  const data = [
-    ['Direction', tx.type === 'sent' ? 'Sent' : 'Received'],
-    ['When', prettyAgo(tx.createdAt)],
-    ['Date', prettyDate(tx.createdAt)],
-    ['Amount', `${config.showBalance ? prettyNumber(amount) : prettyHide(amount)} sats`],
-    ['Network fees', `${prettyNumber(tx.type === 'sent' ? defaultFee : 0)} sats`],
-    ['Total', `${config.showBalance ? prettyNumber(tx.amount) : prettyHide(tx.amount)} sats`],
-  ].filter((l) => l[1])
+  const bestMarketHourStr = `${prettyDate(startTime)} (${prettyAgo(startTime, true)}) for ${prettyDelta(duration)}`
 
   return (
     <>
@@ -99,22 +99,23 @@ export default function Transaction() {
             <FlexCol>
               <Error error={Boolean(error)} text={error} />
               {tx.settled ? null : (
-                <Info color='yellowoutlier' title='Pending'>
-                  <TextSecondary>Transaction pending. Funds will be non-reversible after settlement.</TextSecondary>
+                <Info color='orange' icon={<VtxosIcon />} title='Pending'>
+                  <Text wrap>Transaction pending. Funds will be non-reversible after settlement.</Text>
                   {canSettleOnMarketHour ? (
                     <TextSecondary>
-                      Settlement during market hours offers lower fees. Next market hour: {prettyDate(startTime)} (
-                      {prettyAgo(startTime, true)}) for {prettyDelta(duration)}.
+                      Settlement during market hours offers lower fees.
+                      <br />
+                      Best market hour: {bestMarketHourStr}.
                     </TextSecondary>
                   ) : null}
                 </Info>
               )}
               {settleSuccess ? (
-                <Info color='green' title='Success'>
+                <Info color='green' icon={<CheckMarkIcon small />} title='Success'>
                   <TextSecondary>Transaction settled successfully</TextSecondary>
                 </Info>
               ) : null}
-              <Table data={data} />
+              <Details details={details} />
             </FlexCol>
           </Padded>
         )}

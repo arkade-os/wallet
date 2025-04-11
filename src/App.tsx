@@ -21,22 +21,19 @@ import { WalletContext } from './providers/wallet'
 
 import { IonApp, IonPage, IonTab, IonTabBar, IonTabButton, IonTabs, setupIonicReact } from '@ionic/react'
 import HomeIcon from './icons/Home'
-import ReceiveIcon from './icons/Receive'
 import SettingsIcon from './icons/Settings'
-import SendIcon from './icons/Send'
 import { OptionsContext } from './providers/options'
-import { emptyRecvInfo, emptySendInfo, FlowContext } from './providers/flow'
 import { AspContext } from './providers/asp'
 import { SettingsOptions } from './lib/types'
 import { IframeContext } from './providers/iframe'
 import Loading from './components/Loading'
+import AppsIcon from './icons/Apps'
 
 setupIonicReact()
 
 export default function App() {
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
-  const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { iframeUrl } = useContext(IframeContext)
   const { navigate, screen, tab } = useContext(NavigationContext)
   const { setOption } = useContext(OptionsContext)
@@ -55,21 +52,14 @@ export default function App() {
     }
   }, [aspInfo.unreachable])
 
-  const handleHome = () => {
+  const handleWallet = () => {
     reloadWallet()
     navigate(Pages.Wallet)
   }
 
-  const handleSend = () => {
+  const handleApps = () => {
     reloadWallet()
-    setSendInfo(emptySendInfo)
-    navigate(Pages.SendForm)
-  }
-
-  const handleReceive = () => {
-    reloadWallet()
-    setRecvInfo(emptyRecvInfo)
-    navigate(Pages.ReceiveAmount)
+    navigate(Pages.Apps)
   }
 
   const handleSettings = () => {
@@ -97,22 +87,17 @@ export default function App() {
           comp
         ) : (
           <IonTabs>
-            <IonTab tab={Tabs.Home}>{comp}</IonTab>
-            <IonTab tab={Tabs.Send}>{comp}</IonTab>
-            <IonTab tab={Tabs.Receive}>{comp}</IonTab>
+            <IonTab tab={Tabs.Wallet}>{comp}</IonTab>
+            <IonTab tab={Tabs.Apps}>{comp}</IonTab>
             <IonTab tab={Tabs.Settings}>{comp}</IonTab>
             <IonTabBar slot='bottom'>
-              <IonTabButton tab={Tabs.Home} selected={tab === Tabs.Home} onClick={handleHome}>
+              <IonTabButton tab={Tabs.Wallet} selected={tab === Tabs.Wallet} onClick={handleWallet}>
                 <HomeIcon />
                 Home
               </IonTabButton>
-              <IonTabButton tab={Tabs.Send} selected={tab === Tabs.Send} onClick={handleSend}>
-                <SendIcon />
-                Send
-              </IonTabButton>
-              <IonTabButton tab={Tabs.Receive} selected={tab === Tabs.Receive} onClick={handleReceive}>
-                <ReceiveIcon />
-                Receive
+              <IonTabButton tab={Tabs.Apps} selected={tab === Tabs.Apps} onClick={handleApps}>
+                <AppsIcon />
+                Apps
               </IonTabButton>
               <IonTabButton tab={Tabs.Settings} selected={tab === Tabs.Settings} onClick={handleSettings}>
                 <SettingsIcon />

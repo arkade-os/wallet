@@ -37,7 +37,7 @@ export default function Text({
   const className = capitalize ? 'first-letter' : ''
 
   const style: any = {
-    color: `var(--${color})`,
+    color: color ? `var(--${color})` : undefined,
     cursor: copy ? 'pointer' : undefined,
     fontSize,
     fontWeight: bold ? '600' : undefined,
@@ -68,7 +68,7 @@ export default function Text({
 
 export function TextLabel({ children }: TextProps) {
   return (
-    <div style={{ padding: '0 1rem', marginBottom: '0.5rem' }}>
+    <div style={{ padding: '0.5rem 1rem' }}>
       <Text capitalize color='dark50' smaller>
         {children}
       </Text>

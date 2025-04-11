@@ -18,9 +18,9 @@ export default function Toggle({ checked, label, onClick, text }: ToggleProps) {
       <TextLabel>{label}</TextLabel>
       <Shadow squared>
         <Padded>
-          <FlexRow between>
+          <FlexRow between onClick={onClick}>
             <Text>{text}</Text>
-            <IonToggle checked={checked} onClick={onClick} />
+            <IonToggle checked={checked} />
           </FlexRow>
         </Padded>
       </Shadow>

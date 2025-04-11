@@ -14,8 +14,10 @@ import { extractError } from '../../../lib/error'
 import FlexCol from '../../../components/FlexCol'
 import { consoleError } from '../../../lib/logs'
 import { SettingsOptions } from '../../../lib/types'
+import { AspContext } from '../../../providers/asp'
 
 export default function NotesForm() {
+  const { aspInfo } = useContext(AspContext)
   const { showConfig, toggleShowConfig } = useContext(ConfigContext)
   const { setNoteInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
@@ -26,10 +28,14 @@ export default function NotesForm() {
   const [scan, setScan] = useState(false)
 
   useEffect(() => {
-    setError('')
+    setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
+  }, [aspInfo.unreachable])
+
+  useEffect(() => {
     if (!note) return
     if (isArkNote(note)) {
       try {
+        setError('')
         const decoded = ArkNote.fromString(note)
         setNoteInfo({ note, satoshis: decoded.data.value })
         if (showConfig) toggleShowConfig()

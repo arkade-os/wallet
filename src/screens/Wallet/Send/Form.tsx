@@ -13,7 +13,7 @@ import InputAmount from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
-import { prettyNumber } from '../../../lib/format'
+import { prettyAmount } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import Keyboard from '../../../components/Keyboard'
@@ -23,30 +23,34 @@ import { consoleError } from '../../../lib/logs'
 import { Addresses, SettingsOptions } from '../../../lib/types'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
+import { isMobileBrowser } from '../../../lib/browser'
+import { ConfigContext } from '../../../providers/config'
+import { FiatContext } from '../../../providers/fiat'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
+  const { config, useFiat } = useContext(ConfigContext)
+  const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
   const { wallet, svcWallet } = useContext(WalletContext)
 
-  const [amount, setAmount] = useState(0)
+  const [amount, setAmount] = useState<number>()
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
   const [label, setLabel] = useState('')
   const [keys, setKeys] = useState(false)
   const [recipient, setRecipient] = useState('')
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
+  const [satoshis, setSatoshis] = useState(0)
   const [scan, setScan] = useState(false)
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
-
-  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints
 
   useEffect(() => {
     const { recipient, satoshis } = sendInfo
     setRecipient(recipient ?? '')
-    setAmount(satoshis ?? 0)
+    setAmount(satoshis ? satoshis : undefined)
     getReceivingAddresses(svcWallet).then(setReceivingAddresses)
   }, [])
 
@@ -57,16 +61,16 @@ export default function SendForm() {
     if (bip21.isBip21(lowerCaseData)) {
       const { address, arkAddress, satoshis } = bip21.decode(lowerCaseData)
       if (!address && !arkAddress) return setError('Unable to parse bip21')
-      setAmount(satoshis ?? 0)
+      setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
       return setState({ address, arkAddress, recipient, satoshis })
     }
     if (isArkAddress(lowerCaseData)) {
       const { aspKey } = decodeArkAddress(lowerCaseData)
       if (aspKey !== aspInfo.pubkey.slice(2)) return setError('Invalid Ark server pubkey')
-      return setState({ ...sendInfo, arkAddress: lowerCaseData })
+      return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
     }
     if (isBTCAddress(lowerCaseData)) {
-      return setState({ ...sendInfo, address: lowerCaseData })
+      return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
     }
     if (isArkNote(lowerCaseData)) {
       try {
@@ -81,8 +85,20 @@ export default function SendForm() {
   }, [recipient])
 
   useEffect(() => {
-    setState({ ...sendInfo, satoshis: amount })
+    setError('')
+    setSatoshis(useFiat ? fromFiat(amount) : amount ?? 0)
   }, [amount])
+
+  useEffect(() => {
+    setState({ ...sendInfo, satoshis })
+    setLabel(
+      satoshis > wallet.balance
+        ? 'Insufficient funds'
+        : satoshis < aspInfo.dust
+        ? 'Amount below dust limit'
+        : 'Continue',
+    )
+  }, [satoshis])
 
   useEffect(() => {
     setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
@@ -95,10 +111,10 @@ export default function SendForm() {
     if (!receivingAddresses) return
     const { address, arkAddress } = info
     const { boardingAddr, offchainAddr } = receivingAddresses
-    if (address === boardingAddr || arkAddress === offchainAddr) {
-      setError('Cannot send to yourself')
-      setTryingToSelfSend(true)
-    }
+    const selfSend = address === boardingAddr || arkAddress === offchainAddr
+    setError(selfSend ? 'Cannot send to yourself' : '')
+    setTryingToSelfSend(selfSend)
+    setError(!arkAddress ? 'Invalid Ark address' : '') // TODO: remove after event
   }
 
   const gotoRollover = () => {
@@ -107,7 +123,7 @@ export default function SendForm() {
   }
 
   const handleContinue = () => {
-    setState({ ...sendInfo, satoshis: amount })
+    setState({ ...sendInfo, satoshis })
     navigate(Pages.SendDetails)
   }
 
@@ -118,22 +134,31 @@ export default function SendForm() {
   }
 
   const handleFocus = () => {
-    if (isMobile) setKeys(true)
+    if (isMobileBrowser) setKeys(true)
   }
 
   const smartSetError = (str: string) => {
     setError(str === '' ? (aspInfo.unreachable ? 'Ark server unreachable' : '') : str)
   }
 
-  const Available = () => (
-    <Text color='dark50' smaller>
-      {`${prettyNumber(wallet.balance)} sats available`}
-    </Text>
-  )
+  const Available = () => {
+    const amount = useFiat ? toFiat(wallet.balance) : wallet.balance
+    const pretty = useFiat ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
+    return (
+      <Text color='dark50' smaller>
+        {`${pretty} available`}
+      </Text>
+    )
+  }
 
-  const { address, arkAddress, satoshis } = sendInfo
+  const { address, arkAddress } = sendInfo
 
-  const disabled = !((address || arkAddress) && satoshis && satoshis > 0) || aspInfo.unreachable || tryingToSelfSend
+  const disabled =
+    !((address || arkAddress) && satoshis && satoshis > 0) ||
+    aspInfo.unreachable ||
+    tryingToSelfSend ||
+    satoshis > wallet.balance ||
+    satoshis < aspInfo.dust
 
   if (scan)
     return (
@@ -144,7 +169,7 @@ export default function SendForm() {
 
   return (
     <>
-      <Header text='Send' />
+      <Header text='Send' back={() => navigate(Pages.Wallet)} />
       <Content>
         <Padded>
           <FlexCol gap='2rem'>
@@ -158,7 +183,7 @@ export default function SendForm() {
               value={recipient}
             />
             <InputAmount
-              focus={focus === 'amount' && !isMobile}
+              focus={focus === 'amount' && !isMobileBrowser}
               label='Amount'
               onChange={setAmount}
               onEnter={handleEnter}

@@ -1,14 +1,20 @@
 :root {
+  --black: #040404;
   --dark80: rgba(var(--ion-color-dark-rgb), 0.8);
   --dark70: rgba(var(--ion-color-dark-rgb), 0.7);
   --dark50: rgba(var(--ion-color-dark-rgb), 0.5);
   --dark20: rgba(var(--ion-color-dark-rgb), 0.2);
   --dark10: rgba(var(--ion-color-dark-rgb), 0.1);
   --dark05: rgba(var(--ion-color-dark-rgb), 0.05);
-  --green: #2c760a;
+  --green: #60b18a;
   --greenbg: #054a19;
-  --orange: #e98349;
+  --liz: #d5c6ff;
+  --magenta: #8563e4;
+  --orange: #c3730a;
   --orangebg: #572d00;
+  --purple: #391998;
+  --purple20: #39199833;
+  --purplebg: #391998;
   --red: #a51515;
   --redbg: #68222b;
   --white: #fbfbfb;
@@ -16,29 +22,56 @@
   --yellowoutlier: #debb20;
   --ion-background-color: #fff;
   --ion-tabbar-background-color: #fafafa;
+  --ion-backdrop-color: #fff;
 }
 
 .ion-palette-dark {
-  --green: #69ae48;
+  --black: #fbfbfb;
   --greenbg: #092d13;
-  --orange: #e98349;
+  --orange: #e69b39;
   --orangebg: #2e1800;
+  --purplebg: #39199833;
   --red: #e04d4d;
   --redbg: #380008;
   --yellow: #ffdd46;
   --yellowoutlier: #ffdd46;
   --ion-background-color: #101010;
   --ion-tabbar-background-color: #181818;
+  --ion-backdrop-color: #000;
 }
 
 ion-button {
   --border-radius: 0.5rem;
   --padding-top: 1rem;
   --padding-bottom: 1rem;
-  &.button-small {
-    min-height: 2em;
-    --padding-top: 0;
-    --padding-bottom: 0;
+  font-size: 0.875rem;
+  min-height: 56px;
+  text-transform: uppercase;
+  width: 100%;
+  &.clear {
+    --background: none;
+    --border-color: none;
+    --color: var(--black);
+  }
+  &.dark {
+    --background: var(--purple);
+    --border-color: var(--purple);
+    --color: white;
+  }
+  &.red {
+    --background: var(--red);
+    --border-color: var(--red);
+    --color: white;
+  }
+  &.secondary {
+    --background: var(--dark20);
+    --border-color: var(--black);
+    --color: var(--black);
+  }
+  &[size='small'] {
+    min-height: 16px;
+    --padding-top: 0.5rem;
+    --padding-bottom: 0.5rem;
   }
 }
 
@@ -60,9 +93,11 @@ ion-header {
 
 ion-tab-bar {
   border-top: 1px solid var(--dark20);
+  width: 100%;
   & ion-tab-button {
     --color-selected: var(--ion-color-dark);
     background-color: var(--ion-tabbar-background-color);
+    max-width: none;
     &:hover,
     &:hover svg,
     &.tab-selected,
@@ -146,5 +181,24 @@ ion-action-sheet.my-ion-action-sheet {
     border-radius: 0.5rem;
     padding-top: 1rem;
     padding-bottom: 1rem;
+  }
+}
+
+ion-modal::part(content) {
+  --background: var(--ion-background-color);
+  --border-radius: 1rem;
+  --height: auto;
+  --max-width: 100%;
+  --width: 100%;
+  position: absolute;
+  bottom: -1rem;
+}
+
+ion-select {
+  --background: var(--dark20);
+  --border-radius: 0.5rem;
+  width: 100%;
+  &::part(container) {
+    padding: 0 1rem;
   }
 }
