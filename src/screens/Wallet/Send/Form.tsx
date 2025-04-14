@@ -8,7 +8,7 @@ import Padded from '../../../components/Padded'
 import { isArkAddress, isBTCAddress, decodeArkAddress } from '../../../lib/address'
 import { AspContext } from '../../../providers/asp'
 import * as bip21 from '../../../lib/bip21'
-import { ArkNote, isArkNote } from '../../../lib/arknote'
+import { isArkNote } from '../../../lib/arknote'
 import InputAmount from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
@@ -26,6 +26,7 @@ import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
+import { ArkNote } from '@arklabs/wallet-sdk'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
@@ -34,7 +35,7 @@ export default function SendForm() {
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
-  const { wallet, svcWallet } = useContext(WalletContext)
+  const { balance, svcWallet } = useContext(WalletContext)
 
   const [amount, setAmount] = useState<number>()
   const [error, setError] = useState('')
@@ -92,11 +93,7 @@ export default function SendForm() {
   useEffect(() => {
     setState({ ...sendInfo, satoshis })
     setLabel(
-      satoshis > wallet.balance
-        ? 'Insufficient funds'
-        : satoshis < aspInfo.dust
-        ? 'Amount below dust limit'
-        : 'Continue',
+      satoshis > balance ? 'Insufficient funds' : satoshis < aspInfo.dust ? 'Amount below dust limit' : 'Continue',
     )
   }, [satoshis])
 
@@ -142,7 +139,7 @@ export default function SendForm() {
   }
 
   const Available = () => {
-    const amount = useFiat ? toFiat(wallet.balance) : wallet.balance
+    const amount = useFiat ? toFiat(balance) : balance
     const pretty = useFiat ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
     return (
       <Text color='dark50' smaller>
@@ -157,7 +154,7 @@ export default function SendForm() {
     !((address || arkAddress) && satoshis && satoshis > 0) ||
     aspInfo.unreachable ||
     tryingToSelfSend ||
-    satoshis > wallet.balance ||
+    satoshis > balance ||
     satoshis < aspInfo.dust
 
   if (scan)

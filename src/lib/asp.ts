@@ -1,7 +1,7 @@
-import { IWallet } from '@arklabs/wallet-sdk'
+import { ExtendedVirtualCoin, IWallet, ArkNote } from '@arklabs/wallet-sdk'
 import { consoleError, consoleLog } from './logs'
 import { Addresses, Satoshis, Tx } from './types'
-import { ArkNote } from './arknote'
+import { vtxosRepository } from './db'
 
 export interface AspInfo {
   boardingDescriptorTemplate: string
@@ -56,7 +56,7 @@ const get = async (endpoint: string, url: string) => {
 }
 
 export const collaborativeExit = async (wallet: IWallet, amount: number, address: string): Promise<string> => {
-  const vtxos = await getVtxos(wallet)
+  const vtxos = await getVtxos()
   const selectedVtxos = []
   let selectedAmount = 0
   for (const vtxo of vtxos) {
@@ -171,10 +171,11 @@ export const getReceivingAddresses = async (wallet: IWallet): Promise<Addresses>
   }
 }
 
-export const getVtxos = async (wallet: IWallet): Promise<ReturnType<IWallet['getVtxos']>> => {
+async function getVtxos(): Promise<ExtendedVirtualCoin[]> {
   try {
-    return wallet.getVtxos()
-  } catch {
+    return vtxosRepository.getSpendableVtxos()
+  } catch (err) {
+    consoleError(err, 'error getting vtxos from DB')
     return []
   }
 }

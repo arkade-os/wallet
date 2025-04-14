@@ -58,8 +58,8 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     else root.classList.remove(darkPalette)
   }
 
-  const resetConfig = () => {
-    clearStorage()
+  const resetConfig = async () => {
+    await clearStorage()
     updateConfig(defaultConfig)
   }
 

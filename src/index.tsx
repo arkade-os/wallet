@@ -17,6 +17,25 @@ Sentry.init({
   dsn: 'https://155067b98b323b6e06845b78a4f9adb0@o4508966055313408.ingest.de.sentry.io/4508970382131280',
 })
 
+const isValidUrl = (url: string) => {
+  try {
+    new URL(url)
+    return true
+  } catch {
+    return false
+  }
+}
+
+const hash = window.location.hash
+const possibleUrl = hash.startsWith('#') ? hash.slice(1) : hash
+const hasIframe = isValidUrl(possibleUrl)
+
+const AppWithProviders = () => {
+  const baseApp = <App />
+
+  return hasIframe ? <IframeProvider>{baseApp}</IframeProvider> : baseApp
+}
+
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 root.render(
   // <React.StrictMode>
@@ -28,9 +47,7 @@ root.render(
             <FlowProvider>
               <WalletProvider>
                 <OptionsProvider>
-                  <IframeProvider>
-                    <App />
-                  </IframeProvider>
+                  <AppWithProviders />
                 </OptionsProvider>
               </WalletProvider>
             </FlowProvider>

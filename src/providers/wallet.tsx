@@ -1,57 +1,61 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
-import { readWalletFromStorage, saveWalletToStorage } from '../lib/storage'
+import { clearStorage, readWalletFromStorage, saveWalletToStorage } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
-import { settleVtxos, getBalance, getVtxos, getTxHistory, getReceivingAddresses } from '../lib/asp'
+import { getBalance, getTxHistory, settleVtxos } from '../lib/asp'
 import { AspContext } from './asp'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
-import { ArkNote, arkNoteInUrl } from '../lib/arknote'
+import { arkNoteInUrl } from '../lib/arknote'
 import { consoleError } from '../lib/logs'
-import { Wallet } from '../lib/types'
+import { Tx, Vtxo, Wallet } from '../lib/types'
 import { sleep } from '../lib/sleep'
 import { calcNextRollover, vtxosExpiringSoon } from '../lib/wallet'
-import { ServiceWorkerWallet } from '@arklabs/wallet-sdk'
+import { ArkNote, ServiceWorkerWallet } from '@arklabs/wallet-sdk'
 import { NetworkName } from '@arklabs/wallet-sdk/dist/types/networks'
 import { hex } from '@scure/base'
 import { isPWAInstalled } from '../lib/pwaDetection'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db } from '../lib/db'
 
 const defaultWallet: Wallet = {
   arkAddress: '',
-  balance: 0,
   explorer: '',
   initialized: false,
-  lastUpdate: 0,
   network: '',
   nextRollover: 0,
-  txs: [],
-  vtxos: [],
 }
 
 interface WalletContextProps {
   initWallet: (seed: Uint8Array) => Promise<void>
   lockWallet: () => Promise<void>
   rolloverVtxos: (raise?: boolean) => Promise<void>
-  reloadWallet: () => void
-  resetWallet: () => void
+  resetWallet: () => Promise<void>
   settlePending: () => Promise<void>
   updateWallet: (w: Wallet) => void
+  isLocked: () => Promise<boolean>
   wallet: Wallet
   walletLoaded: Wallet | undefined
   svcWallet: ServiceWorkerWallet
+  txs: Tx[]
+  vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
+  balance: number
 }
 
 export const WalletContext = createContext<WalletContextProps>({
   initWallet: () => Promise.resolve(),
   lockWallet: () => Promise.resolve(),
   rolloverVtxos: () => Promise.resolve(),
-  reloadWallet: () => {},
-  resetWallet: () => {},
+  resetWallet: () => Promise.resolve(),
   settlePending: () => Promise.resolve(),
   updateWallet: () => {},
   wallet: defaultWallet,
   walletLoaded: undefined,
   svcWallet: new ServiceWorkerWallet(),
+  isLocked: () => Promise.resolve(true),
+  balance: 0,
+  txs: [],
+  vtxos: { spendable: [], spent: [] },
 })
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
@@ -63,6 +67,60 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [walletLoaded, setWalletLoaded] = useState<Wallet>()
   const [wallet, setWallet] = useState(defaultWallet)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>(new ServiceWorkerWallet())
+
+  const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
+  const [txs, setTxs] = useState<Tx[]>([])
+  const [balance, setBalance] = useState(0)
+
+  const allVtxos = useLiveQuery(() => db.vtxos?.toArray())
+
+  useEffect(() => {
+    if (!allVtxos) return
+    const spendable = []
+    const spent = []
+    for (const vtxo of allVtxos) {
+      if (vtxo.spentBy && vtxo.spentBy.length > 0) {
+        spent.push(vtxo)
+      } else {
+        spendable.push(vtxo)
+      }
+    }
+    setVtxos({ spendable, spent })
+  }, [allVtxos])
+
+  useEffect(() => {
+    if (!svcWallet) return
+    if (!wallet.initialized) return
+
+    isLocked().then((locked) => {
+      if (locked) return
+      // update the txs history list
+      getTxHistory(svcWallet).then(setTxs).catch(consoleError)
+      // update the balance
+      getBalance(svcWallet).then(setBalance).catch(consoleError)
+    })
+
+    // update the next rollover date
+    if (vtxos?.spendable && vtxos?.spendable.length > 0) {
+      const nextRollover = calcNextRollover(aspInfo.vtxoTreeExpiry, vtxos?.spendable)
+      updateWallet({ ...wallet, nextRollover })
+    }
+  }, [vtxos, svcWallet])
+
+  // ping service worker status every 30 seconds
+  useEffect(() => {
+    if (!svcWallet || !wallet.initialized) return
+
+    const pingInterval = setInterval(async () => {
+      try {
+        await svcWallet.getStatus()
+      } catch (err) {
+        consoleError(err, 'Error pinging wallet status')
+      }
+    }, 30000)
+
+    return () => clearInterval(pingInterval)
+  }, [svcWallet, wallet.initialized])
 
   useEffect(() => {
     ServiceWorkerWallet.create('/wallet-service-worker.mjs').then(setSvcWallet).catch(consoleError)
@@ -103,51 +161,32 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       network: aspInfo.network as NetworkName,
       esploraUrl,
     })
-    updateWallet({ ...wallet, explorer: esploraUrl, initialized: true, network: aspInfo.network, privateKey })
+    updateWallet({ ...wallet, explorer: esploraUrl, initialized: true, network: aspInfo.network })
   }
 
   const lockWallet = async () => {
-    // TODO: delete wallet instance in service worker (change to wallet-sdk)
-    setWallet({ ...wallet, privateKey: undefined })
+    await svcWallet.clear()
+    setWallet({ ...wallet })
   }
 
   const rolloverVtxos = async (raise = false) => {
     try {
       await settleVtxos(svcWallet)
       await sleep(1000) // server needs time to update vtxos list
-      await reloadWallet()
       notifyVtxosRollover()
     } catch (err) {
       if (raise) throw err
     }
   }
 
-  const reloadWallet = async () => {
-    const { offchainAddr } = await getReceivingAddresses(svcWallet)
-    const vtxos = await getVtxos(svcWallet)
-    const balance = await getBalance(svcWallet)
-    const txs = await getTxHistory(svcWallet)
-    const now = Math.floor(new Date().getTime() / 1000)
-    const nextRollover = calcNextRollover(aspInfo.vtxoTreeExpiry, vtxos)
-    updateWallet({
-      ...wallet,
-      arkAddress: offchainAddr,
-      balance,
-      initialized: true,
-      lastUpdate: now,
-      nextRollover,
-      txs,
-      vtxos,
-    })
-  }
-
   const resetWallet = async () => {
+    await svcWallet.clear()
+    await clearStorage()
     updateWallet(defaultWallet)
   }
 
   const settlePending = async () => {
     await settleVtxos(svcWallet)
-    await reloadWallet()
     notifyTxSettled()
   }
 
@@ -156,12 +195,18 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     saveWalletToStorage(data)
   }
 
+  const isLocked = async () => {
+    if (!wallet.initialized) return true
+    const { walletInitialized } = await svcWallet.getStatus()
+    return !walletInitialized
+  }
+
   return (
     <WalletContext.Provider
       value={{
         initWallet,
+        isLocked,
         rolloverVtxos,
-        reloadWallet,
         resetWallet,
         settlePending,
         updateWallet,
@@ -169,6 +214,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         walletLoaded,
         svcWallet,
         lockWallet,
+        txs,
+        balance,
+        vtxos: vtxos ?? { spendable: [], spent: [] },
       }}
     >
       {children}

@@ -23,7 +23,7 @@ interface KeyboardProps {
 export default function Keyboard({ back, hideBalance, onChange, value }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
-  const { wallet } = useContext(WalletContext)
+  const { balance } = useContext(WalletContext)
 
   const [amount, setAmount] = useState(0)
   const [error, setError] = useState('')
@@ -40,8 +40,8 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
   }
 
   const handleMaxPress = () => {
-    if (wallet.balance < defaultFee) return setError('Total balance is below fee')
-    setAmount(wallet.balance - defaultFee)
+    if (balance < defaultFee) return setError('Total balance is below fee')
+    setAmount(balance - defaultFee)
   }
 
   const handleSave = () => {
@@ -51,7 +51,7 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
 
   const primaryAmount = useFiat ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
   const secondaryAmount = useFiat ? prettyAmount(fromFiat(amount)) : prettyAmount(toFiat(amount), config.fiat)
-  const balanceAmount = useFiat ? prettyAmount(wallet.balance, config.fiat) : prettyAmount(wallet.balance)
+  const balanceAmount = useFiat ? prettyAmount(balance, config.fiat) : prettyAmount(balance)
 
   const disabled = !amount || Number.isNaN(amount)
 

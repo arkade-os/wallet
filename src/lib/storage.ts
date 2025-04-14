@@ -1,7 +1,11 @@
 import { Config, Wallet } from '../lib/types'
+import { vtxosRepository } from './db'
 
-export const clearStorage = () => {
-  return localStorage.clear()
+export async function clearStorage(): Promise<void> {
+  // Clear localStorage
+  localStorage.clear()
+  await vtxosRepository.deleteAll()
+  await vtxosRepository.close()
 }
 
 export const getStorageItem = <T>(key: string, fallback: T, parser: (val: string) => T): T => {

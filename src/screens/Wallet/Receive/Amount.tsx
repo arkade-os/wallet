@@ -30,7 +30,7 @@ export default function ReceiveAmount() {
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { wallet, svcWallet } = useContext(WalletContext)
+  const { balance, svcWallet } = useContext(WalletContext)
 
   const defaultButtonLabel = 'Continue without amount'
 
@@ -103,7 +103,7 @@ export default function ReceiveAmount() {
     navigate(Pages.ReceiveQRCode)
   }
 
-  const showFaucetButton = wallet.balance === 0 && faucetAvailable
+  const showFaucetButton = balance === 0 && faucetAvailable
   const disabled = satoshis > 0 && satoshis < aspInfo.dust
 
   if (showKeys) {

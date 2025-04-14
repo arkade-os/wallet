@@ -1,5 +1,4 @@
-import { IWallet } from '@arklabs/wallet-sdk'
-import { SpendableVtxo, VirtualCoin } from '@arklabs/wallet-sdk/dist/types/wallet'
+import type { ExtendedVirtualCoin } from '@arklabs/wallet-sdk'
 
 export type Addresses = {
   boardingAddr: string
@@ -78,20 +77,14 @@ export enum Unit {
   SAT = 'sat',
 }
 
-export type Vtxo = SpendableVtxo & VirtualCoin
+export type Vtxo = ExtendedVirtualCoin
 
 export type Wallet = {
   arkAddress: string
-  balance: number
   explorer: string
   initialized: boolean
-  lastUpdate: number
   lockedByBiometrics?: boolean
   network: string
   nextRollover: number
-  txs: Tx[]
-  vtxos: Awaited<ReturnType<IWallet['getVtxos']>>
-  // set when wallet is unlocked
-  privateKey?: Uint8Array
   passkeyId?: string
 }

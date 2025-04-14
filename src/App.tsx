@@ -17,7 +17,6 @@ import '@ionic/react/css/palettes/dark.class.css'
 import { useContext, useEffect, useState } from 'react'
 import { ConfigContext } from './providers/config'
 import { NavigationContext, pageComponent, Pages, Tabs } from './providers/navigation'
-import { WalletContext } from './providers/wallet'
 
 import { IonApp, IonPage, IonTab, IonTabBar, IonTabButton, IonTabs, setupIonicReact } from '@ionic/react'
 import HomeIcon from './icons/Home'
@@ -37,7 +36,6 @@ export default function App() {
   const { iframeUrl } = useContext(IframeContext)
   const { navigate, screen, tab } = useContext(NavigationContext)
   const { setOption } = useContext(OptionsContext)
-  const { reloadWallet } = useContext(WalletContext)
   const [loadingError, setLoadingError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -53,17 +51,14 @@ export default function App() {
   }, [aspInfo.unreachable])
 
   const handleWallet = () => {
-    reloadWallet()
     navigate(Pages.Wallet)
   }
 
   const handleApps = () => {
-    reloadWallet()
     navigate(Pages.Apps)
   }
 
   const handleSettings = () => {
-    reloadWallet()
     setOption(SettingsOptions.Menu)
     navigate(Pages.Settings)
   }

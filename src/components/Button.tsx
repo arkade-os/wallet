@@ -14,6 +14,7 @@ interface ButtonProps {
   secondary?: boolean
   short?: boolean
   small?: boolean
+  loading?: boolean
 }
 
 export default function Button({
@@ -27,6 +28,7 @@ export default function Button({
   secondary,
   short,
   small,
+  loading,
 }: ButtonProps) {
   return (
     <IonButton
@@ -37,7 +39,11 @@ export default function Button({
       onClick={onClick}
       size={small ? 'small' : 'default'}
     >
-      {fancy ? (
+      {loading ? (
+        <FlexRow centered>
+          <div className='spinner' />
+        </FlexRow>
+      ) : fancy ? (
         <FlexRow between>
           <FlexRow>
             {icon}

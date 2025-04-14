@@ -1,11 +1,12 @@
-import { Worker } from '@arklabs/wallet-sdk'
+import { ExtendedVirtualCoin, Worker } from '@arklabs/wallet-sdk'
 import { vtxosExpiringSoon } from './lib/wallet'
 import { prettyAgo } from './lib/format'
+import { vtxosRepository } from './lib/db'
 
 // service worker global scope
 declare const self: ServiceWorkerGlobalScope
 
-const worker = new Worker()
+const worker = new Worker(vtxosRepository)
 worker.start().catch(console.error)
 
 function notify(title: string, body: string): void {
@@ -19,38 +20,21 @@ function notifyUser(nextRollOver: number): void {
   notify(title, body)
 }
 
-interface Vtxo {
-  expireAt: string
-}
-
-interface VtxosResponse {
-  spendableVtxos?: Vtxo[]
-}
-
 // we can't use ./lib/wallet/calcNextRollover because vtxos have different types
-function calcNextRollover(vtxos: VtxosResponse): number {
-  return vtxos.spendableVtxos
-    ? vtxos.spendableVtxos.reduce((acc: number, cur: Vtxo) => {
-        const unixtimestamp = parseInt(cur.expireAt)
+function calcNextRollover(vtxos: ExtendedVirtualCoin[]): number {
+  return vtxos
+    ? vtxos.reduce((acc: number, cur: ExtendedVirtualCoin) => {
+        const expiry = cur.virtualStatus.batchExpiry
+        if (!expiry) return acc
+        const unixtimestamp = expiry
         return unixtimestamp < acc || acc === 0 ? unixtimestamp : acc
       }, 0)
     : 0
 }
 
-// get vtxos from server
-async function getVtxos(arkAddress: string, serverUrl: string): Promise<VtxosResponse> {
-  try {
-    const headers = { 'Content-Type': 'application/json' }
-    const response = await fetch(`${serverUrl}/v1/vtxos/${arkAddress}`, { headers })
-    return await response.json()
-  } catch {
-    return {}
-  }
-}
-
 // check for expiring vtxos
-async function checkExpiringVtxos(arkAddress: string, serverUrl: string): Promise<void> {
-  const vtxos = await getVtxos(arkAddress, serverUrl)
+async function checkExpiringVtxos(): Promise<void> {
+  const vtxos = await vtxosRepository.getSpendableVtxos()
   const nextRollOver = calcNextRollover(vtxos)
   if (vtxosExpiringSoon(nextRollOver)) notifyUser(nextRollOver)
 }
@@ -59,7 +43,7 @@ async function checkExpiringVtxos(arkAddress: string, serverUrl: string): Promis
 self.addEventListener('message', (event: any) => {
   let intervalId: number | undefined
   if (!event.data) return
-  const { data, type } = event.data as { data?: { arkAddress: string; serverUrl: string }; type: string }
+  const { type } = event.data as { type: string }
   // This allows the web app to trigger skipWaiting via
   // registration.waiting.postMessage({type: 'SKIP_WAITING'})
   if (type === 'SKIP_WAITING') {
@@ -67,9 +51,9 @@ self.addEventListener('message', (event: any) => {
   }
   // This allows the web app to trigger the vtxo expiration check via
   // registration.active.postMessage({type: 'START_CHECK', data: {arkAddress, serverUrl}})
-  if (type === 'START_CHECK' && data) {
+  if (type === 'START_CHECK') {
     intervalId = window.setInterval(() => {
-      checkExpiringVtxos(data.arkAddress, data.serverUrl)
+      checkExpiringVtxos()
     }, 4 * 60 * 60 * 1000) // every 4 hours
   }
   // This allows the web app to stop the vtxo expiration check via

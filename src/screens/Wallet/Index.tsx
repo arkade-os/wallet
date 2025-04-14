@@ -23,7 +23,7 @@ export default function Wallet() {
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { iframeUrl } = useContext(IframeContext)
   const { navigate } = useContext(NavigationContext)
-  const { reloadWallet, wallet } = useContext(WalletContext)
+  const { balance } = useContext(WalletContext)
 
   const [error, setError] = useState(false)
 
@@ -32,13 +32,11 @@ export default function Wallet() {
   }, [aspInfo.unreachable])
 
   const handleReceive = () => {
-    reloadWallet()
     setRecvInfo(emptyRecvInfo)
     navigate(Pages.ReceiveAmount)
   }
 
   const handleSend = () => {
-    reloadWallet()
     setSendInfo(emptySendInfo)
     navigate(Pages.SendForm)
   }
@@ -50,7 +48,7 @@ export default function Wallet() {
           <Text capitalize color='dark50' tiny>
             Balance
           </Text>
-          <Text small>{wallet.balance} SATS</Text>
+          <Text small>{balance} SATS</Text>
         </FlexCol>
       </Minimal>
     )
@@ -59,7 +57,7 @@ export default function Wallet() {
     <Content>
       <Padded>
         <LogoIcon />
-        <Balance amount={wallet.balance} />
+        <Balance amount={balance} />
         <FlexCol>
           <Error error={error} text='Ark server unreachable' />
           <FlexRow>

@@ -7,19 +7,28 @@ import Content from '../../components/Content'
 import Header from './Header'
 import Text from '../../components/Text'
 import Checkbox from '../../components/Checkbox'
+import { consoleError } from '../../lib/logs'
 
 export default function Reset() {
   const { resetWallet } = useContext(WalletContext)
 
   const [disabled, setDisabled] = useState(true)
+  const [loading, setLoading] = useState(false)
 
   const handleCheck = () => {
     setDisabled(!disabled)
   }
 
   const handleReset = () => {
+    setLoading(true)
     resetWallet()
-    location.reload()
+      .then(() => {
+        location.reload()
+      })
+      .catch((err) => {
+        consoleError(err)
+        setLoading(false)
+      })
   }
 
   return (
@@ -33,7 +42,7 @@ export default function Reset() {
       </Content>
       <ButtonsOnBottom>
         <Checkbox onChange={handleCheck} text='I have backed up my wallet' />
-        <Button disabled={disabled} label='Reset wallet' onClick={handleReset} red />
+        <Button disabled={disabled || loading} label='Reset wallet' onClick={handleReset} red loading={loading} />
       </ButtonsOnBottom>
     </>
   )

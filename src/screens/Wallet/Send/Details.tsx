@@ -26,7 +26,7 @@ export default function SendDetails() {
   const { navigate } = useContext(NavigationContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { iframeUrl } = useContext(IframeContext)
-  const { wallet, svcWallet } = useContext(WalletContext)
+  const { balance, svcWallet } = useContext(WalletContext)
 
   const [buttonLabel, setButtonLabel] = useState('')
   const [details, setDetails] = useState<DetailsProps>()
@@ -47,9 +47,9 @@ export default function SendDetails() {
       satoshis,
       total,
     })
-    if (wallet.balance < total) {
+    if (balance < total) {
       setButtonLabel('Insufficient funds')
-      setError(`Insufficient funds, you just have ${prettyNumber(wallet.balance)} sats`)
+      setError(`Insufficient funds, you just have ${prettyNumber(balance)} sats`)
     } else {
       setButtonLabel('Tap to Sign')
     }
@@ -73,6 +73,7 @@ export default function SendDetails() {
   }
 
   const handleContinue = () => {
+    console.log('handleContinue', satoshis, arkAddress, address)
     if (!satoshis) return
     setSending(true)
     if (arkAddress) {

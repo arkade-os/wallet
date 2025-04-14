@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@arklabs/wallet-sdk':
-        specifier: file:../wallet-sdk
-        version: file:../wallet-sdk
+        specifier: 0.0.11
+        version: 0.0.11
       '@ionic/react':
         specifier: ^8.4.0
         version: 8.5.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -35,6 +35,12 @@ importers:
       decimal.js:
         specifier: ^10.4.3
         version: 10.5.0
+      dexie:
+        specifier: ^4.0.11
+        version: 4.0.11
+      dexie-react-hooks:
+        specifier: ^1.1.7
+        version: 1.1.7(@types/react@18.3.20)(dexie@4.0.11)(react@18.3.1)
       nostr-tools:
         specifier: ^2.8.0
         version: 2.12.0(typescript@5.8.2)
@@ -118,8 +124,8 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@arklabs/wallet-sdk@file:../wallet-sdk':
-    resolution: {directory: ../wallet-sdk, type: directory}
+  '@arklabs/wallet-sdk@0.0.11':
+    resolution: {integrity: sha512-RThRdSQilCv6g5a1KOEzmagsHT4b6hpkSvWBtkx3en/66xl0d+AjcBTkLzGtJyT6+VEm4qBwtpr/c0O491/E4g==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
 
   '@babel/code-frame@7.12.11':
@@ -1187,6 +1193,16 @@ packages:
   define-properties@1.2.1:
     resolution: {integrity: sha512-8QmQKqEASLd5nx0U1B1okLElbUuuttJ/AnYmRXbbbGDWh6uS208EjD4Xqq/I9wK7u0v6O08XhTWnt5XtEbR6Dg==}
     engines: {node: '>= 0.4'}
+
+  dexie-react-hooks@1.1.7:
+    resolution: {integrity: sha512-Lwv5W0Hk+uOW3kGnsU9GZoR1er1B7WQ5DSdonoNG+focTNeJbHW6vi6nBoX534VKI3/uwHebYzSw1fwY6a7mTw==}
+    peerDependencies:
+      '@types/react': '>=16'
+      dexie: ^3.2 || ^4.0.1-alpha
+      react: '>=16'
+
+  dexie@4.0.11:
+    resolution: {integrity: sha512-SOKO002EqlvBYYKQSew3iymBoN2EQ4BDw/3yprjh7kAfFzjBYkaMNa/pZvcA7HSWlcKSQb9XhPe3wKyQ0x4A8A==}
 
   diff-sequences@29.6.3:
     resolution: {integrity: sha512-EjePK1srD3P08o2j4f0ExnylqRs5B9tJjcp9t1krH2qRi8CCdsYfwe9JgSLurFBWwq4uOlipzfk5fHNvwFKr8Q==}
@@ -2497,7 +2513,7 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.8
       '@jridgewell/trace-mapping': 0.3.25
 
-  '@arklabs/wallet-sdk@file:../wallet-sdk':
+  '@arklabs/wallet-sdk@0.0.11':
     dependencies:
       '@noble/curves': 1.7.0
       '@noble/hashes': 1.6.1
@@ -3494,6 +3510,14 @@ snapshots:
       define-data-property: 1.1.4
       has-property-descriptors: 1.0.2
       object-keys: 1.1.1
+
+  dexie-react-hooks@1.1.7(@types/react@18.3.20)(dexie@4.0.11)(react@18.3.1):
+    dependencies:
+      '@types/react': 18.3.20
+      dexie: 4.0.11
+      react: 18.3.1
+
+  dexie@4.0.11: {}
 
   diff-sequences@29.6.3: {}
 

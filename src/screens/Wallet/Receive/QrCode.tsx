@@ -3,12 +3,9 @@ import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
-import Error from '../../../components/Error'
 import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import { extractError } from '../../../lib/error'
 import * as bip21 from '../../../lib/bip21'
-import { getBalance } from '../../../lib/asp'
 import { WalletContext } from '../../../providers/wallet'
 import { NotificationsContext } from '../../../providers/notifications'
 import Header from '../../../components/Header'
@@ -22,41 +19,28 @@ export default function ReceiveQRCode() {
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { wallet, svcWallet } = useContext(WalletContext)
+  const { vtxos } = useContext(WalletContext)
 
-  const [error, setError] = useState('')
   const [sharing, setSharing] = useState(false)
-
-  const poolAspIntervalId = useRef<NodeJS.Timeout>()
+  const isFirstMount = useRef(true)
 
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
   // const bip21uri = bip21.encode(boardingAddr, offchainAddr, satoshis)
   const bip21uri = bip21.encode('', offchainAddr, satoshis) // TODO: remove after event
 
   useEffect(() => {
-    if (!wallet) return
-    try {
-      poolAspIntervalId.current = setInterval(() => {
-        getBalance(svcWallet).then((balance) => {
-          if (balance > wallet.balance) {
-            clearInterval(poolAspIntervalId.current)
-            onFinish(balance - wallet.balance)
-          }
-        })
-      }, 1000)
-    } catch (err) {
-      consoleError(err, 'error waiting for payment')
-      setError(extractError(err))
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      return
     }
-    return () => clearInterval(poolAspIntervalId.current)
-  }, [wallet])
 
-  const onFinish = (satoshis: number) => {
-    clearInterval(poolAspIntervalId.current)
-    setRecvInfo({ ...recvInfo, satoshis })
-    notifyPaymentReceived(satoshis)
+    const lastVtxo = vtxos.spendable.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0]
+    if (!lastVtxo) return
+    const { value } = lastVtxo
+    setRecvInfo({ ...recvInfo, satoshis: value })
+    notifyPaymentReceived(value)
     navigate(Pages.ReceiveSuccess)
-  }
+  }, [vtxos])
 
   const handleShare = () => {
     setSharing(true)
@@ -74,7 +58,6 @@ export default function ReceiveQRCode() {
       <Content>
         <Padded>
           <FlexCol>
-            <Error error={Boolean(error)} text={error} />
             <QrCode value={bip21uri ?? ''} />
             <ExpandAddresses bip21uri={bip21uri} boardingAddr={boardingAddr} offchainAddr={offchainAddr} />
           </FlexCol>

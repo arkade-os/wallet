@@ -2,8 +2,7 @@ import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
 import { ConfigContext } from './config'
 import { sendNotification } from '../lib/notifications'
 import { prettyNumber } from '../lib/format'
-import { finalizeEvent, getPublicKey, Relay } from 'nostr-tools'
-import { WalletContext } from './wallet'
+import { Relay } from 'nostr-tools'
 import { consoleLog } from '../lib/logs'
 
 interface NotificationsContextProps {
@@ -22,7 +21,6 @@ export const NotificationsContext = createContext<NotificationsContextProps>({
 
 export const NotificationsProvider = ({ children }: { children: ReactNode }) => {
   const { config } = useContext(ConfigContext)
-  const { wallet } = useContext(WalletContext)
   const relay = useRef<Relay>()
 
   const connectRelay = async (): Promise<void> => {
@@ -30,32 +28,33 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   }
 
   const sendNostrNotification = async (content: string) => {
-    if (!wallet.privateKey) throw new Error('wallet is locked')
-    if (!config.nostr) return
-    if (!relay.current) return
-    if (!relay.current.connected) await connectRelay()
-    const pk = getPublicKey(wallet.privateKey)
-    relay.current.subscribe(
-      [
-        {
-          kinds: [1],
-          authors: [pk],
-        },
-      ],
-      {
-        onevent(event: any) {
-          consoleLog('got event:', event)
-        },
-      },
-    )
-    const eventTemplate = {
-      kind: 1,
-      created_at: Math.floor(Date.now() / 1000),
-      tags: [],
-      content,
-    }
-    const signedEvent = finalizeEvent(eventTemplate, wallet.privateKey)
-    await relay.current.publish(signedEvent)
+    consoleLog('notImplemented: sendNostrNotification(', content, ')')
+    // if (!wallet.privateKey) throw new Error('wallet is locked')
+    // if (!config.nostr) return
+    // if (!relay.current) return
+    // if (!relay.current.connected) await connectRelay()
+    // const pk = getPublicKey(wallet.privateKey)
+    // relay.current.subscribe(
+    //   [
+    //     {
+    //       kinds: [1],
+    //       authors: [pk],
+    //     },
+    //   ],
+    //   {
+    //     onevent(event: any) {
+    //       consoleLog('got event:', event)
+    //     },
+    //   },
+    // )
+    // const eventTemplate = {
+    //   kind: 1,
+    //   created_at: Math.floor(Date.now() / 1000),
+    //   tags: [],
+    //   content,
+    // }
+    // const signedEvent = finalizeEvent(eventTemplate, wallet.privateKey)
+    // await relay.current.publish(signedEvent)
   }
 
   const sendSystemNotification = (title: string, body: string) => {

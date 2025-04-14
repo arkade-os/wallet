@@ -39,7 +39,7 @@ const VtxoLine = ({ hide, vtxo }: { hide: boolean; vtxo: Vtxo }) => {
   return (
     <Box>
       <Text>{amount} SATS</Text>
-      <Text>{prettyAgo(vtxo.expireAt)}</Text>
+      <Text>{prettyAgo(vtxo.createdAt.getTime())}</Text>
     </Box>
   )
 }
@@ -47,7 +47,7 @@ const VtxoLine = ({ hide, vtxo }: { hide: boolean; vtxo: Vtxo }) => {
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
-  const { rolloverVtxos, wallet } = useContext(WalletContext)
+  const { rolloverVtxos, vtxos, wallet } = useContext(WalletContext)
 
   const defaultLabel = 'Renew Virtual Coins'
 
@@ -105,14 +105,14 @@ export default function Vtxos() {
           <Padded>
             <FlexCol>
               <Error error={Boolean(error)} text={error} />
-              {wallet.vtxos.spendable?.length === 0 ? (
+              {vtxos.spendable?.length === 0 ? (
                 <WarningBox red text='No virtual coins available' />
               ) : showList ? (
                 <FlexCol gap='0.5rem'>
                   <Text capitalize color='dark50' smaller>
                     Your virtual coins with amount and expiration
                   </Text>
-                  {wallet.vtxos.spendable?.map((v: Vtxo) => (
+                  {vtxos.spendable?.map((v: Vtxo) => (
                     <VtxoLine key={v.txid} hide={!config.showBalance} vtxo={v} />
                   ))}
                 </FlexCol>
@@ -152,7 +152,7 @@ export default function Vtxos() {
         )}
       </Content>
       <ButtonsOnBottom>
-        {wallet.vtxos.length > 0 ? <Button onClick={handleRollover} label={label} disabled={rollingover} /> : null}
+        {vtxos.spendable.length > 0 ? <Button onClick={handleRollover} label={label} disabled={rollingover} /> : null}
         {wallet.nextRollover ? <Button onClick={() => setReminderIsOpen(true)} label='Add reminder' secondary /> : null}
       </ButtonsOnBottom>
       <Reminder

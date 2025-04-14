@@ -9,7 +9,6 @@ import BackToWalletButton from '../../../components/BackToWalletButton'
 import { prettyAmount } from '../../../lib/format'
 import { IframeContext } from '../../../providers/iframe'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import { WalletContext } from '../../../providers/wallet'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 
@@ -20,7 +19,6 @@ export default function SendSuccess() {
   const { iframeUrl, sendMessage } = useContext(IframeContext)
   const { navigate } = useContext(NavigationContext)
   const { notifyPaymentSent } = useContext(NotificationsContext)
-  const { reloadWallet } = useContext(WalletContext)
 
   useEffect(() => {
     if (sendInfo.total) notifyPaymentSent(sendInfo.total)
@@ -36,7 +34,6 @@ export default function SendSuccess() {
           txid: sendInfo.txid,
         }),
       )
-      reloadWallet()
       navigate(Pages.Wallet)
     }
   }, [iframeUrl, sendInfo, sendMessage, navigate])

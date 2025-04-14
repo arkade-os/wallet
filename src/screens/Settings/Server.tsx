@@ -14,17 +14,18 @@ import InputUrl from '../../components/InputUrl'
 import FlexCol from '../../components/FlexCol'
 import Scanner from '../../components/Scanner'
 import { AspContext } from '../../providers/asp'
+import { consoleError } from '../../lib/logs'
 
 export default function Server() {
   const { aspInfo } = useContext(AspContext)
   const { config, updateConfig } = useContext(ConfigContext)
-  const { updateWallet, wallet } = useContext(WalletContext)
+  const { updateWallet, wallet, svcWallet } = useContext(WalletContext)
 
   const [aspUrl, setAspUrl] = useState('')
   const [error, setError] = useState('')
   const [info, setInfo] = useState<AspInfo>()
   const [scan, setScan] = useState(false)
-
+  const [loading, setLoading] = useState(false)
   useEffect(() => {
     setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
   }, [aspInfo.unreachable])
@@ -40,12 +41,20 @@ export default function Server() {
     })
   }, [aspUrl])
 
-  const handleConnect = () => {
-    if (!info) return
-    clearStorage()
-    updateConfig({ ...config, aspUrl: info.url })
-    updateWallet({ ...wallet, network: info.network, initialized: false })
-    location.reload() // reload app or else weird things happen
+  const handleConnect = async () => {
+    setLoading(true)
+    try {
+      if (!info) return
+      await svcWallet.clear()
+      await clearStorage()
+      updateConfig({ ...config, aspUrl: info.url })
+      updateWallet({ ...wallet, network: info.network, initialized: false })
+      location.reload() // reload app or else weird things happen
+    } catch (err) {
+      consoleError(err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleEnter = () => {
@@ -77,7 +86,12 @@ export default function Server() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleConnect} label='Connect to server' disabled={!info || Boolean(error)} />
+        <Button
+          onClick={handleConnect}
+          label='Connect to server'
+          disabled={!info || Boolean(error)}
+          loading={loading}
+        />
       </ButtonsOnBottom>
     </>
   )
