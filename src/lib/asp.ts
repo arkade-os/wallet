@@ -21,6 +21,10 @@ export interface AspInfo {
     period: number
     roundInterval: number
   }
+  utxoMinAmount: number
+  utxoMaxAmount: number
+  vtxoMinAmount: number
+  vtxoMaxAmount: number
 }
 
 export const emptyAspInfo: AspInfo = {
@@ -40,6 +44,10 @@ export const emptyAspInfo: AspInfo = {
     period: 0,
     roundInterval: 0,
   },
+  utxoMinAmount: 333,
+  utxoMaxAmount: -1,
+  vtxoMinAmount: 333,
+  vtxoMaxAmount: -1,
 }
 
 export interface MarketHour {
@@ -96,6 +104,10 @@ export const getAspInfo = async (url: string): Promise<AspInfo> => {
           unilateralExitDelay,
           vtxoTreeExpiry,
           marketHour,
+          utxoMinAmount,
+          utxoMaxAmount,
+          vtxoMinAmount,
+          vtxoMaxAmount,
         } = info
         resolve({
           boardingDescriptorTemplate,
@@ -114,6 +126,10 @@ export const getAspInfo = async (url: string): Promise<AspInfo> => {
             period: Number(marketHour.period),
             roundInterval: Number(marketHour.roundInterval),
           },
+          utxoMinAmount: typeof utxoMinAmount === 'undefined' ? Number(dust) : Number(utxoMinAmount),
+          utxoMaxAmount: typeof utxoMaxAmount === 'undefined' ? -1 : Number(utxoMaxAmount),
+          vtxoMinAmount: typeof vtxoMinAmount === 'undefined' ? Number(dust) : Number(vtxoMinAmount),
+          vtxoMaxAmount: typeof vtxoMaxAmount === 'undefined' ? -1 : Number(vtxoMaxAmount),
         })
       })
       .catch((err) => {

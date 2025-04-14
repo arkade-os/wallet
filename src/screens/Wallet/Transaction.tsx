@@ -49,7 +49,8 @@ export default function Transaction() {
     const expiration = tx.createdAt + aspInfo.vtxoTreeExpiry
     const bestMarketHour = calcBestMarketHour(expiration)
     if (bestMarketHour) {
-      setCanSettleOnMarketHour(true)
+      // setCanSettleOnMarketHour(true) TODO remove after
+      setCanSettleOnMarketHour(false)
       setStartTime(bestMarketHour.startTime)
       setDuration(bestMarketHour.duration)
     } else {

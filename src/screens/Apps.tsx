@@ -17,16 +17,19 @@ interface AppProps {
   name: string
 }
 
-function App({ icon, link, name }: AppProps) {
+function App({ desc, icon, name }: AppProps) {
   return (
-    <Shadow onClick={() => link && window.open(link, '_blank')}>
-      <FlexRow>
-        {icon}
-        <FlexCol gap='0'>
-          <Text>{name}</Text>
-          <TextSecondary>COMING SOON</TextSecondary>
-        </FlexCol>
-      </FlexRow>
+    <Shadow>
+      <FlexCol gap='0.75rem'>
+        <FlexRow>
+          {icon}
+          <FlexCol gap='0'>
+            <Text>{name}</Text>
+            <TextSecondary>COMING SOON</TextSecondary>
+          </FlexCol>
+        </FlexRow>
+        <TextSecondary>{desc}</TextSecondary>
+      </FlexCol>
     </Shadow>
   )
 }
@@ -38,24 +41,9 @@ export default function Apps() {
       <Content>
         <Padded>
           <FlexCol>
-            <App
-              name='Ark Invaders'
-              icon={<InvadersIcon />}
-              desc='The classic arcade game'
-              link='https://ark-invaders.pages.dev/'
-            />
-            <App
-              name='Coinflip'
-              icon={<CoinflipIcon />}
-              desc='A fun game to play with your friends'
-              link='https://coinflip.casino/'
-            />
-            <App
-              name='Fuji Money'
-              icon={<FujiMoneyIcon />}
-              desc='Synthetic asset smart contract for the Liquid network'
-              link='https://fuji.money/'
-            />
+            <App name='Ark Invaders' icon={<InvadersIcon />} desc='The classic arcade game' />
+            <App name='Coinflip' icon={<CoinflipIcon />} desc='Head or Tails? Place your bet!' />
+            <App name='Fuji Money' icon={<FujiMoneyIcon />} desc='Synthetic Assets on the Bitcoin network' />
           </FlexCol>
         </Padded>
       </Content>
