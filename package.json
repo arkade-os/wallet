@@ -20,14 +20,14 @@
   },
   "scripts": {
     "prepare": "husky install",
-    "start": "pnpm git-info; vite",
-    "build": "pnpm git-info; vite build",
+    "start": "pnpm run git-info && vite",
+    "build": "pnpm run git-info && vite build",
     "build:worker": "vite build -c vite.worker.config.ts",
     "test": "vitest",
     "lint": "eslint --ext .ts,.tsx src",
     "format": "prettier --write src",
     "format:check": "prettier --check src",
-    "git-info": "echo export const gitCommit = \\'$(cat .git/refs/heads/master | cut -c 1-8)\\' > src/_gitCommit.ts"
+    "git-info": "node scripts/git-commit-info.js"
   },
   "eslintConfig": {
     "extends": [
