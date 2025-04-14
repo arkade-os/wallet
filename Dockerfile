@@ -21,7 +21,7 @@ RUN pnpm install
 # Copy source files
 COPY src ./src
 COPY public ./public
-COPY index.html vite.config.ts tsconfig.json .eslintrc* ./
+COPY index.html vite.config.ts vite.worker.config.ts tsconfig.json .eslintrc* ./
 COPY .git ./.git
 
 # Create git commit file from current branch HEAD
