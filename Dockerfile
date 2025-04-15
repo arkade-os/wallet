@@ -15,6 +15,7 @@ RUN pnpm install
 
 # Copy source files
 COPY src ./src
+COPY scripts ./scripts
 COPY public ./public
 COPY index.html vite.config.ts tsconfig.json .eslintrc* ./
 COPY .git ./.git
