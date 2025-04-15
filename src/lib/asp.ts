@@ -2,6 +2,7 @@ import { ExtendedVirtualCoin, IWallet, ArkNote } from '@arklabs/wallet-sdk'
 import { consoleError, consoleLog } from './logs'
 import { Addresses, Satoshis, Tx } from './types'
 import { vtxosRepository } from './db'
+import { sleep } from './sleep'
 
 export interface AspInfo {
   boardingDescriptorTemplate: string
@@ -230,6 +231,7 @@ export const settleVtxos = async (wallet: IWallet): Promise<void> => {
       break
     } catch (err) {
       consoleError(err, 'error settling vtxos')
+      await sleep(2000)
       retries++
     }
   }
