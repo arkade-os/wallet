@@ -197,8 +197,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const isLocked = async () => {
     if (!wallet.initialized) return true
-    const { walletInitialized } = await svcWallet.getStatus()
-    return !walletInitialized
+    try {
+      const { walletInitialized } = await svcWallet.getStatus()
+      return !walletInitialized
+    } catch {
+      return true
+    }
   }
 
   return (
