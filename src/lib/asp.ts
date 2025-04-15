@@ -222,10 +222,18 @@ export const sendOnChain = async (wallet: IWallet, sats: number, address: string
 }
 
 export const settleVtxos = async (wallet: IWallet): Promise<void> => {
-  try {
-    await wallet.settle(undefined, consoleLog)
-  } catch (err) {
-    consoleError(err, 'error settling vtxos')
-    throw err
+  const MAX_RETRIES = 3
+  let retries = 0
+  while (retries < MAX_RETRIES) {
+    try {
+      await wallet.settle(undefined, consoleLog)
+      break
+    } catch (err) {
+      consoleError(err, 'error settling vtxos')
+      retries++
+    }
+  }
+  if (retries === MAX_RETRIES) {
+    throw new Error('failed to settle vtxos')
   }
 }
