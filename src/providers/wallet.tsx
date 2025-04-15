@@ -113,11 +113,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
     const pingInterval = setInterval(async () => {
       try {
-        await svcWallet.getStatus()
+        const locked = await isLocked()
+        if (locked) {
+          updateWallet({ ...wallet, initialized: false })
+        }
       } catch (err) {
+        updateWallet({ ...wallet, initialized: false })
         consoleError(err, 'Error pinging wallet status')
       }
-    }, 30000)
+    }, 5_000)
 
     return () => clearInterval(pingInterval)
   }, [svcWallet, wallet.initialized])
