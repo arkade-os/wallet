@@ -27,6 +27,7 @@ import { SettingsOptions } from './lib/types'
 import { IframeContext } from './providers/iframe'
 import Loading from './components/Loading'
 import AppsIcon from './icons/Apps'
+import { WalletContext } from './providers/wallet'
 
 setupIonicReact()
 
@@ -36,6 +37,7 @@ export default function App() {
   const { iframeUrl } = useContext(IframeContext)
   const { navigate, screen, tab } = useContext(NavigationContext)
   const { setOption } = useContext(OptionsContext)
+  const { wallet } = useContext(WalletContext)
   const [loadingError, setLoadingError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -49,6 +51,12 @@ export default function App() {
       setLoadingError('Unable to connect to the server. Please check your internet connection and try again.')
     }
   }, [aspInfo.unreachable])
+
+  useEffect(() => {
+    if (!wallet.initialized) {
+      navigate(Pages.Unlock)
+    }
+  }, [wallet.initialized])
 
   const handleWallet = () => {
     navigate(Pages.Wallet)

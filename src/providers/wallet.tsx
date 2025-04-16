@@ -107,7 +107,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [vtxos, svcWallet])
 
-  // ping service worker status every 30 seconds
+  // ping service worker status every 5 seconds
+  // if the service worker is not responding or is not initialized:
+  // update the wallet status to redirect to Unlock page
   useEffect(() => {
     if (!svcWallet || !wallet.initialized) return
 
