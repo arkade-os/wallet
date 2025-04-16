@@ -48,13 +48,16 @@ export default function App() {
 
   useEffect(() => {
     if (aspInfo.unreachable) {
-      setLoadingError('Unable to connect to the server. Please check your internet connection and try again.')
+      setLoadingError('Unable t connect to the server. Please check your internet connection and try again.')
     }
   }, [aspInfo.unreachable])
 
   useEffect(() => {
     if (!wallet.initialized) {
-      navigate(Pages.Unlock)
+      if (wallet.network === '') navigate(Pages.Onboard)
+      else navigate(Pages.Unlock)
+    } else {
+      navigate(Pages.Wallet)
     }
   }, [wallet.initialized])
 

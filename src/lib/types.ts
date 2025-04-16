@@ -80,8 +80,6 @@ export enum Unit {
 export type Vtxo = ExtendedVirtualCoin
 
 export type Wallet = {
-  arkAddress: string
-  explorer: string
   initialized: boolean
   lockedByBiometrics?: boolean
   network: string

@@ -15,9 +15,9 @@ import { ConfigContext } from '../../providers/config'
 import { extractError } from '../../lib/error'
 import Error from '../../components/Error'
 import WaitingForRound from '../../components/WaitingForRound'
-import { sleep } from '../../lib/sleep'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
+import { settleVtxos } from '../../lib/asp'
 
 const Box = ({ children }: { children: ReactNode }) => {
   const style = {
@@ -47,7 +47,7 @@ const VtxoLine = ({ hide, vtxo }: { hide: boolean; vtxo: Vtxo }) => {
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
-  const { rolloverVtxos, vtxos, wallet } = useContext(WalletContext)
+  const { vtxos, wallet, svcWallet } = useContext(WalletContext)
 
   const defaultLabel = 'Renew Virtual Coins'
 
@@ -81,8 +81,7 @@ export default function Vtxos() {
   const handleRollover = async () => {
     try {
       setRollingover(true)
-      await rolloverVtxos(true)
-      await sleep(2000) // give time to read last message
+      await settleVtxos(svcWallet)
       setRollingover(false)
     } catch (err) {
       setError(extractError(err))
