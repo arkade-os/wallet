@@ -6563,7 +6563,7 @@ const Gw = {
       return { type: "tr", pubkey: t[1] };
   },
   decode: (t) => t.type === "tr" ? [1, t.pubkey] : void 0
-}, t0 = {
+}, ty = {
   encode(t) {
     const e = t.length - 1;
     if (t[e] !== "CHECKSIG")
@@ -6590,7 +6590,7 @@ const Gw = {
       e.push(t.pubkeys[n], "CHECKSIGVERIFY");
     return e.push(t.pubkeys[t.pubkeys.length - 1], "CHECKSIG"), e;
   }
-}, e0 = {
+}, ey = {
   encode(t) {
     const e = t.length - 1;
     if (t[e] !== "NUMEQUAL" || t[1] !== "CHECKSIG")
@@ -6619,12 +6619,12 @@ const Gw = {
       e.push(t.pubkeys[n], "CHECKSIGADD");
     return e.push(t.m, "NUMEQUAL"), e;
   }
-}, n0 = {
+}, ny = {
   encode(t) {
     return { type: "unknown", script: At.encode(t) };
   },
   decode: (t) => t.type === "unknown" ? At.decode(t.script) : void 0
-}, r0 = [
+}, ry = [
   zw,
   Gw,
   Ww,
@@ -6633,10 +6633,10 @@ const Gw = {
   Xw,
   Qw,
   Jw,
-  t0,
-  e0,
-  n0
-], i0 = Yn(At, Ss.match(r0)), we = Le(i0, (t) => {
+  ty,
+  ey,
+  ny
+], iy = Yn(At, Ss.match(ry)), we = Le(iy, (t) => {
   if (t.type === "pk" && !Rr(t.pubkey, _e.ecdsa))
     throw new Error("OutScript/pk: wrong key");
   if ((t.type === "pkh" || t.type === "sh" || t.type === "wpkh") && (!Pt(t.hash) || t.hash.length !== 20))
@@ -6697,7 +6697,7 @@ function zd(t, e, n) {
     r.type === "wsh" && n && sl(r, n);
   }
 }
-function o0(t) {
+function oy(t) {
   const e = {};
   for (const n of t) {
     const r = Rt.encode(n);
@@ -6706,7 +6706,7 @@ function o0(t) {
     e[r] = !0;
   }
 }
-function s0(t, e, n = !1, r) {
+function sy(t, e, n = !1, r) {
   const i = we.decode(t);
   if (i.type === "unknown" && n)
     return;
@@ -6770,7 +6770,7 @@ function Ec(t, e, n = !1, r) {
     const p = typeof l == "string" ? Rt.decode(l) : l;
     if (!Pt(p))
       throw new Error(`checkScript: wrong script type=${p}`);
-    return s0(p, e, n), {
+    return sy(p, e, n), {
       type: "leaf",
       version: f,
       script: p,
@@ -6817,8 +6817,8 @@ function Wd(t, e, n = zr, r = !1, i) {
   };
   return p && (w.leaves = p), h && (w.tapLeafScript = h), c && (w.tapMerkleRoot = c), w;
 }
-function a0(t, e, n = !1) {
-  return n || o0(e), {
+function ay(t, e, n = !1) {
+  return n || oy(e), {
     type: "tr_ms",
     script: we.encode({ type: "tr_ms", pubkeys: e, m: t })
   };
@@ -6898,8 +6898,8 @@ class Mt extends Error {
     super(e), this.name = "TxTreeError";
   }
 }
-const c0 = new Mt("leaf not found in tx tree"), u0 = new Mt("parent not found");
-class f0 {
+const cy = new Mt("leaf not found in tx tree"), uy = new Mt("parent not found");
+class fy {
   constructor(e) {
     this.tree = e;
   }
@@ -6936,7 +6936,7 @@ class f0 {
   branch(e) {
     const n = [], i = this.leaves().find((a) => a.txid === e);
     if (!i)
-      throw c0;
+      throw cy;
     n.push(i);
     const o = this.root().txid;
     for (; n[0].txid !== o; ) {
@@ -6951,7 +6951,7 @@ class f0 {
       for (const r of n)
         if (r.txid === e.parentTxid)
           return r;
-    throw u0;
+    throw uy;
   }
   // Validates that the tree is coherent by checking txids and parent relationships
   validate() {
@@ -6970,7 +6970,7 @@ class f0 {
 }
 const Ha = new Uint8Array("cosigner".split("").map((t) => t.charCodeAt(0)));
 new Uint8Array("expiry".split("").map((t) => t.charCodeAt(0)));
-function l0(t) {
+function ly(t) {
   if (t.length < Ha.length)
     return !1;
   for (let e = 0; e < Ha.length; e++)
@@ -6983,7 +6983,7 @@ function Xd(t) {
   if (!n.unknown)
     return e;
   for (const r of n.unknown)
-    l0(new Uint8Array([r[0].type, ...r[0].key])) && e.push(r[1]);
+    ly(new Uint8Array([r[0].type, ...r[0].key])) && e.push(r[1]);
   return e;
 }
 const Va = new Error("missing vtxo tree");
@@ -7071,7 +7071,7 @@ class Pi {
       taprootTweak: this.scriptRoot
     });
     for (let h = 0; h < e.inputsLength; h++) {
-      const w = d0(l, this.tree, this.rootSharedOutputAmount, e);
+      const w = dy(l, this.tree, this.rootSharedOutputAmount, e);
       a.push(w.amount), c.push(w.script);
     }
     const p = e.preimageWitnessV1(
@@ -7087,7 +7087,7 @@ class Pi {
   }
 }
 Pi.NOT_INITIALIZED = new Error("session not initialized, call init method");
-function d0(t, e, n, r) {
+function dy(t, e, n, r) {
   const i = At.encode(["OP_1", t.slice(1)]), o = e.levels[0][0];
   if (!o)
     throw new Error("empty vtxo tree");
@@ -7218,7 +7218,7 @@ var en;
       return {
         type: ne.Multisig,
         params: c,
-        script: a0(c.pubkeys.length, c.pubkeys).script,
+        script: ay(c.pubkeys.length, c.pubkeys).script,
         witnessSize: () => c.pubkeys.length * 64
       };
     const f = [];
@@ -7582,7 +7582,7 @@ var ul;
 (function(t) {
   class e extends ei {
     constructor(r) {
-      const { sender: i, receiver: o, server: a, preimageHash: c, refundLocktime: f, unilateralClaimDelay: l, unilateralRefundDelay: p, unilateralRefundWithoutReceiverDelay: h } = r, w = h0(c), m = ps.encode({
+      const { sender: i, receiver: o, server: a, preimageHash: c, refundLocktime: f, unilateralClaimDelay: l, unilateralRefundDelay: p, unilateralRefundWithoutReceiverDelay: h } = r, w = hy(c), m = ps.encode({
         conditionScript: w,
         pubkeys: [o, a]
       }).script, T = en.encode({
@@ -7631,7 +7631,7 @@ var ul;
   }
   t.Script = e;
 })(ul || (ul = {}));
-function h0(t) {
+function hy(t) {
   return At.encode(["HASH160", t, "EQUAL"]);
 }
 var Di;
@@ -7662,19 +7662,19 @@ var Mi;
 (function(t) {
   t.TxSent = "SENT", t.TxReceived = "RECEIVED";
 })(Mi || (Mi = {}));
-function p0(t, e) {
+function py(t, e) {
   return e.virtualStatus.state === "pending" ? [] : t.filter((n) => n.spentBy ? n.spentBy === e.virtualStatus.batchTxID : !1);
 }
-function g0(t, e) {
+function gy(t, e) {
   return t.filter((n) => n.spentBy ? n.spentBy === e.txid : !1);
 }
-function w0(t, e) {
+function wy(t, e) {
   return t.filter((n) => n.virtualStatus.state !== "pending" && n.virtualStatus.batchTxID === e ? !0 : n.txid === e);
 }
 function Oo(t) {
   return t.reduce((e, n) => e + n.value, 0);
 }
-function y0(t, e) {
+function yy(t, e) {
   return t.length === 0 ? e[0] : t[0];
 }
 function Jd(t, e, n) {
@@ -7683,12 +7683,12 @@ function Jd(t, e, n) {
   for (const a of [...t, ...e]) {
     if (a.virtualStatus.state !== "pending" && n.has(a.virtualStatus.batchTxID || ""))
       continue;
-    const c = p0(i, a);
+    const c = py(i, a);
     i = fl(i, c);
     const f = Oo(c);
     if (a.value <= f)
       continue;
-    const l = g0(i, a);
+    const l = gy(i, a);
     i = fl(i, l);
     const p = Oo(l);
     if (a.value <= p)
@@ -7716,10 +7716,10 @@ function Jd(t, e, n) {
     o.set(a.spentBy, [...c, a]);
   }
   for (const [a, c] of o) {
-    const f = w0([...t, ...e], a), l = Oo(f), p = Oo(c);
+    const f = wy([...t, ...e], a), l = Oo(f), p = Oo(c);
     if (p <= l)
       continue;
-    const h = y0(f, c), w = {
+    const h = yy(f, c), w = {
       roundTxid: h.virtualStatus.batchTxID || "",
       boardingTxid: "",
       redeemTxid: ""
@@ -7787,7 +7787,7 @@ class ll {
     };
   }
 }
-function m0(t, e) {
+function my(t, e) {
   const n = [...t].sort((a, c) => c.value - a.value), r = [];
   let i = 0;
   for (const a of n)
@@ -7801,7 +7801,7 @@ function m0(t, e) {
     changeAmount: o
   };
 }
-function b0(t, e) {
+function by(t, e) {
   const n = [...t].sort((a, c) => {
     const f = a.virtualStatus.batchExpiry || Number.MAX_SAFE_INTEGER, l = c.virtualStatus.batchExpiry || Number.MAX_SAFE_INTEGER;
     return f !== l ? f - l : c.value - a.value;
@@ -7818,7 +7818,7 @@ function b0(t, e) {
     changeAmount: o
   };
 }
-const v0 = (t) => E0[t], E0 = {
+const vy = (t) => Ey[t], Ey = {
   bitcoin: vi(zr, "ark"),
   testnet: vi(_o, "tark"),
   signet: vi(_o, "tark"),
@@ -7836,14 +7836,14 @@ function vi(t, e) {
     hrp: e
   };
 }
-const x0 = {
+const xy = {
   bitcoin: "https://mempool.space/api",
   testnet: "https://mempool.space/testnet/api",
   signet: "https://mempool.space/signet/api",
   mutinynet: "https://mutinynet.com/api",
   regtest: "http://localhost:3000"
 };
-class S0 {
+class Sy {
   constructor(e) {
     this.baseUrl = e;
   }
@@ -8045,7 +8045,7 @@ class th {
       body: JSON.stringify({
         roundId: e,
         pubkey: n,
-        treeNonces: T0(r)
+        treeNonces: Ty(r)
       })
     });
     if (!o.ok) {
@@ -8062,7 +8062,7 @@ class th {
       body: JSON.stringify({
         roundId: e,
         pubkey: n,
-        treeSignatures: I0(r)
+        treeSignatures: Iy(r)
       })
     });
     if (!o.ok) {
@@ -8181,7 +8181,7 @@ class th {
     const n = /* @__PURE__ */ new Set();
     return e.levels.forEach((r) => r.nodes.forEach((i) => {
       i.parentTxid && n.add(i.parentTxid);
-    })), new f0(e.levels.map((r) => r.nodes.map((i) => ({
+    })), new fy(e.levels.map((r) => r.nodes.map((i) => ({
       txid: i.txid,
       tx: i.tx,
       parentTxid: i.parentTxid,
@@ -8215,7 +8215,7 @@ class th {
     } : e.roundSigningNoncesGenerated ? {
       type: xe.SigningNoncesGenerated,
       id: e.roundSigningNoncesGenerated.id,
-      treeNonces: k0(yt.decode(e.roundSigningNoncesGenerated.treeNonces))
+      treeNonces: ky(yt.decode(e.roundSigningNoncesGenerated.treeNonces))
     } : (console.warn("Unknown event structure:", e), null);
   }
 }
@@ -8238,7 +8238,7 @@ function eh(t) {
   }
   return new Uint8Array(n);
 }
-function A0(t, e) {
+function Ay(t, e) {
   const n = new DataView(t.buffer, t.byteOffset, t.byteLength);
   let r = 0;
   const i = n.getUint32(r, !0);
@@ -8260,13 +8260,13 @@ function A0(t, e) {
   }
   return o;
 }
-function k0(t) {
-  return A0(t, 66).map((n) => n.map((r) => ({ pubNonce: r })));
+function ky(t) {
+  return Ay(t, 66).map((n) => n.map((r) => ({ pubNonce: r })));
 }
-function T0(t) {
+function Ty(t) {
   return yt.encode(eh(t.map((e) => e.map((n) => n ? n.pubNonce : new Uint8Array()))));
 }
-function I0(t) {
+function Iy(t) {
   return yt.encode(eh(t.map((e) => e.map((n) => n ? n.encode() : new Uint8Array()))));
 }
 function Lo(t) {
@@ -8286,7 +8286,7 @@ function Lo(t) {
     createdAt: new Date(t.createdAt * 1e3)
   };
 }
-function B0({ connectorInput: t, vtxoInput: e, vtxoAmount: n, connectorAmount: r, feeAmount: i, vtxoPkScript: o, connectorPkScript: a, serverPkScript: c, txLocktime: f }) {
+function By({ connectorInput: t, vtxoInput: e, vtxoAmount: n, connectorAmount: r, feeAmount: i, vtxoPkScript: o, connectorPkScript: a, serverPkScript: c, txLocktime: f }) {
   const l = new Zt({
     version: 2,
     lockTime: f
@@ -8339,7 +8339,7 @@ class Ht {
   vsize() {
     const e = (a) => a < 253 ? 1 : a < 65535 ? 3 : a < 4294967295 ? 5 : 9, n = e(this.inputCount), r = e(this.outputCount);
     let o = (Ht.BASE_TX_SIZE + n + this.inputSize + r + this.outputSize) * Ht.WITNESS_SCALE_FACTOR;
-    return this.hasWitness && (o += Ht.WITNESS_HEADER_SIZE + this.inputWitnessSize), _0(o);
+    return this.hasWitness && (o += Ht.WITNESS_HEADER_SIZE + this.inputWitnessSize), _y(o);
   }
 }
 Ht.P2PKH_SCRIPT_SIG_SIZE = 108;
@@ -8350,16 +8350,16 @@ Ht.P2WKH_OUTPUT_SIZE = 22;
 Ht.BASE_TX_SIZE = 10;
 Ht.WITNESS_HEADER_SIZE = 2;
 Ht.WITNESS_SCALE_FACTOR = 4;
-const _0 = (t) => {
+const _y = (t) => {
   const e = BigInt(Math.ceil(t / Ht.WITNESS_SCALE_FACTOR));
   return {
     value: e,
     fee: (n) => n * e
   };
-}, N0 = new Mt("invalid settlement transaction"), Sc = new Mt("invalid settlement transaction outputs"), nh = new Mt("empty tree"), C0 = new Mt("invalid root level"), xu = new Mt("invalid number of inputs"), Ii = new Mt("wrong settlement txid"), Ac = new Mt("invalid amount"), U0 = new Mt("no leaves"), $0 = new Mt("node transaction empty"), R0 = new Mt("node txid empty"), O0 = new Mt("node parent txid empty"), L0 = new Mt("node txid different"), dl = new Mt("parent txid input mismatch"), P0 = new Mt("leaf node has children"), hl = new Mt("invalid taproot script"), K0 = new Mt("invalid internal key");
+}, Ny = new Mt("invalid settlement transaction"), Sc = new Mt("invalid settlement transaction outputs"), nh = new Mt("empty tree"), Cy = new Mt("invalid root level"), xu = new Mt("invalid number of inputs"), Ii = new Mt("wrong settlement txid"), Ac = new Mt("invalid amount"), Uy = new Mt("no leaves"), $y = new Mt("node transaction empty"), Ry = new Mt("node txid empty"), Oy = new Mt("node parent txid empty"), Ly = new Mt("node txid different"), dl = new Mt("parent txid input mismatch"), Py = new Mt("leaf node has children"), hl = new Mt("invalid taproot script"), Ky = new Mt("invalid internal key");
 new Mt("invalid control block");
-const D0 = new Mt("invalid root transaction"), M0 = new Mt("invalid node transaction"), ja = 0, pl = 1;
-function q0(t, e) {
+const Dy = new Mt("invalid root transaction"), My = new Mt("invalid node transaction"), ja = 0, pl = 1;
+function qy(t, e) {
   e.validate();
   const n = e.root();
   if (!n)
@@ -8374,13 +8374,13 @@ function q0(t, e) {
   if (!i.txid || yt.encode(i.txid) !== a || i.index !== pl)
     throw Ii;
 }
-function F0(t, e, n) {
+function Fy(t, e, n) {
   e.validate();
   let r;
   try {
     r = Zt.fromPSBT(Be.decode(t));
   } catch {
-    throw N0;
+    throw Ny;
   }
   if (r.outputsLength <= ja)
     throw Sc;
@@ -8391,13 +8391,13 @@ function F0(t, e, n) {
   if (e.numberOfNodes() === 0)
     throw nh;
   if (e.levels[0].length !== 1)
-    throw C0;
+    throw Cy;
   const c = e.levels[0][0];
   let f;
   try {
     f = Zt.fromPSBT(Be.decode(c.tx));
   } catch {
-    throw D0;
+    throw Dy;
   }
   if (f.inputsLength !== 1)
     throw xu;
@@ -8415,26 +8415,26 @@ function F0(t, e, n) {
   if (h >= o)
     throw Ac;
   if (e.leaves().length === 0)
-    throw U0;
+    throw Uy;
   for (const w of e.levels)
     for (const m of w)
-      H0(e, m, n);
+      Hy(e, m, n);
 }
-function H0(t, e, n) {
+function Hy(t, e, n) {
   if (!e.tx)
-    throw $0;
+    throw $y;
   if (!e.txid)
-    throw R0;
+    throw Ry;
   if (!e.parentTxid)
-    throw O0;
+    throw Oy;
   let r;
   try {
     r = Zt.fromPSBT(Be.decode(e.tx));
   } catch {
-    throw M0;
+    throw My;
   }
   if (yt.encode(je(r.toBytes(!0)).reverse()) !== e.txid)
-    throw L0;
+    throw Ly;
   if (r.inputsLength !== 1)
     throw xu;
   const o = r.getInput(0);
@@ -8442,7 +8442,7 @@ function H0(t, e, n) {
     throw dl;
   const a = t.children(e.txid);
   if (e.leaf && a.length >= 1)
-    throw P0;
+    throw Py;
   for (let c = 0; c < a.length; c++) {
     const f = a[c], l = Zt.fromPSBT(Be.decode(f.tx)), p = r.getOutput(c);
     if (!(p != null && p.script))
@@ -8454,7 +8454,7 @@ function H0(t, e, n) {
       taprootTweak: n
     });
     if (yt.encode(m) !== yt.encode(h.slice(2)))
-      throw K0;
+      throw Ky;
     let T = 0n;
     for (let x = 0; x < l.outputsLength; x++) {
       const v = l.getOutput(x);
@@ -8464,25 +8464,25 @@ function H0(t, e, n) {
       throw Ac;
   }
 }
-const V0 = 255;
+const Vy = 255;
 new TextEncoder().encode("condition");
-const j0 = new TextEncoder().encode("taptree");
-function z0(t, e, n) {
+const jy = new TextEncoder().encode("taptree");
+function zy(t, e, n) {
   var r;
   e.updateInput(t, {
     unknown: [
       ...((r = e.getInput(t)) == null ? void 0 : r.unknown) ?? [],
       [
         {
-          type: V0,
-          key: j0
+          type: Vy,
+          key: jy
         },
-        W0(n)
+        Wy(n)
       ]
     ]
   });
 }
-function G0(t, e) {
+function Gy(t, e) {
   let n;
   for (const i of t) {
     const o = Qd(Eu(i.tapLeafScript));
@@ -8502,7 +8502,7 @@ function G0(t, e) {
         amount: BigInt(o.value)
       },
       tapLeafScript: [o.tapLeafScript]
-    }), z0(i, r, o.scripts.map(yt.decode));
+    }), zy(i, r, o.scripts.map(yt.decode));
   for (const i of e)
     r.addOutput({
       amount: i.amount,
@@ -8510,7 +8510,7 @@ function G0(t, e) {
     });
   return r;
 }
-function W0(t) {
+function Wy(t) {
   const e = [];
   e.push(gl(t.length));
   for (const o of t)
@@ -8541,12 +8541,12 @@ class Su {
   }
   encode() {
     const e = new Uint8Array(12);
-    return Y0(e, this.id, 0), X0(e, this.value, 8), e;
+    return Yy(e, this.id, 0), Xy(e, this.value, 8), e;
   }
   static decode(e) {
     if (e.length !== 12)
       throw new Error(`invalid data length: expected 12 bytes, got ${e.length}`);
-    const n = Z0(e, 0), r = Q0(e, 8);
+    const n = Zy(e, 0), r = Qy(e, 8);
     return new Su(n, r);
   }
 }
@@ -8582,16 +8582,16 @@ class Sn {
   }
 }
 Sn.HRP = "arknote";
-function Y0(t, e, n) {
+function Yy(t, e, n) {
   new DataView(t.buffer, t.byteOffset + n, 8).setBigUint64(0, e, !1);
 }
-function Z0(t, e) {
+function Zy(t, e) {
   return new DataView(t.buffer, t.byteOffset + e, 8).getBigUint64(0, !1);
 }
-function X0(t, e, n) {
+function Xy(t, e, n) {
   new DataView(t.buffer, t.byteOffset + n, 4).setUint32(0, e, !1);
 }
-function Q0(t, e) {
+function Qy(t, e) {
   return new DataView(t.buffer, t.byteOffset + e, 4).getUint32(0, !1);
 }
 class Tn {
@@ -8599,31 +8599,34 @@ class Tn {
     this.identity = e, this.network = n, this.onchainProvider = r, this.onchainP2TR = i, this.arkProvider = o, this.arkServerPublicKey = a, this.offchainTapscript = c, this.boardingTapscript = f;
   }
   static async create(e) {
-    const n = v0(e.network), r = new S0(e.esploraUrl || x0[e.network]), i = e.identity.xOnlyPublicKey();
+    const n = vy(e.network), r = new Sy(e.esploraUrl || xy[e.network]), i = e.identity.xOnlyPublicKey();
     if (!i)
       throw new Error("Invalid configured public key");
     let o;
     e.arkServerUrl && (o = new th(e.arkServerUrl));
     const a = Wd(i, void 0, n);
     if (o) {
-      let c = e.arkServerPublicKey, f = e.boardingTimelock;
+      let c = e.arkServerPublicKey, f = e.exitTimelock, l = e.boardingTimelock;
       if (!c || !f) {
-        const m = await o.getInfo();
-        c = m.pubkey, f = {
-          value: m.unilateralExitDelay * 2n,
-          type: m.unilateralExitDelay * 2n < 512n ? "blocks" : "seconds"
+        const T = await o.getInfo();
+        c = T.pubkey, f = {
+          value: T.unilateralExitDelay,
+          type: T.unilateralExitDelay < 512n ? "blocks" : "seconds"
+        }, l = {
+          value: T.unilateralExitDelay * 2n,
+          type: T.unilateralExitDelay * 2n < 512n ? "blocks" : "seconds"
         };
       }
-      const l = yt.decode(c).slice(1), p = new Di.Script({
+      const p = yt.decode(c).slice(1), h = new Di.Script({
         pubKey: i,
-        serverPubKey: l,
+        serverPubKey: p,
         csvTimelock: f
-      }), h = new Di.Script({
+      }), w = new Di.Script({
         pubKey: i,
-        serverPubKey: l,
-        csvTimelock: f
-      }), w = p;
-      return new Tn(e.identity, n, r, a, o, l, w, h);
+        serverPubKey: p,
+        csvTimelock: l
+      }), m = h;
+      return new Tn(e.identity, n, r, a, o, p, m, w);
     }
     return new Tn(e.identity, n, r, a);
   }
@@ -8798,7 +8801,7 @@ class Tn {
     }
   }
   async sendOnchain(e) {
-    const n = await this.getCoins(), r = e.feeRate || Tn.FEE_RATE, i = Math.ceil(174 * r), o = e.amount + i, a = m0(n, o);
+    const n = await this.getCoins(), r = e.feeRate || Tn.FEE_RATE, i = Math.ceil(174 * r), o = e.amount + i, a = my(n, o);
     if (!a.inputs)
       throw new Error("Insufficient funds");
     let c = new Zt();
@@ -8818,7 +8821,7 @@ class Tn {
   async sendOffchain(e, n = !0) {
     if (!this.arkProvider || !this.offchainAddress || !this.offchainTapscript)
       throw new Error("wallet not initialized");
-    const r = await this.getVirtualCoins(), i = n ? 0 : Math.ceil(174 * (e.feeRate || Tn.FEE_RATE)), o = e.amount + i, a = b0(r, o);
+    const r = await this.getVirtualCoins(), i = n ? 0 : Math.ceil(174 * (e.feeRate || Tn.FEE_RATE)), o = e.amount + i, a = by(r, o);
     if (!a || !a.inputs)
       throw new Error("Insufficient funds");
     const c = this.offchainTapscript.forfeit();
@@ -8835,7 +8838,7 @@ class Tn {
       amount: BigInt(a.changeAmount)
     });
     const l = this.offchainTapscript.encode();
-    let p = G0(a.inputs.map((w) => ({
+    let p = Gy(a.inputs.map((w) => ({
       ...w,
       tapLeafScript: c,
       scripts: l
@@ -8957,7 +8960,7 @@ class Tn {
     const i = e.unsignedVtxoTree;
     if (!this.arkProvider)
       throw new Error("Ark provider not configured");
-    F0(e.unsignedSettlementTx, i, n);
+    Fy(e.unsignedSettlementTx, i, n);
     const o = Be.decode(e.unsignedSettlementTx), c = Zt.fromPSBT(o).getOutput(0);
     if (!(c != null && c.amount))
       throw new Error("Shared output not found");
@@ -8993,7 +8996,7 @@ class Tn {
         f = await this.identity.sign(f, V);
         continue;
       }
-      p || (q0(e.roundTx, e.connectors), p = !0);
+      p || (qy(e.roundTx, e.connectors), p = !0);
       const m = Vn.encode(h.tapLeafScript[0]), T = Qd(Eu(h.tapLeafScript)), x = Ht.create().addKeySpendInput().addTapscriptInput(
         T.witnessSize(100),
         // TODO: handle conditional script
@@ -9013,7 +9016,7 @@ class Tn {
           }
       if (!U || !U.amount || !U.script)
         throw new Error("Connector output not found");
-      let L = B0({
+      let L = By({
         connectorInput: k,
         connectorAmount: U.amount,
         feeAmount: x,
@@ -9358,7 +9361,7 @@ class Qt {
 Qt.DB_NAME = "wallet-db";
 Qt.STORE_NAME = "vtxos";
 Qt.DB_VERSION = 1;
-class J0 {
+class Jy {
   constructor(e = new Qt(), n = () => {
   }) {
     this.vtxoRepository = e, this.messageCallback = n;
@@ -9669,7 +9672,7 @@ class J0 {
     }
   }
 }
-const ty = (t) => {
+const t0 = (t) => {
   if (!t) return !1;
   const e = Math.floor((/* @__PURE__ */ new Date()).getTime() / 1e3), n = 60 * 60 * 24;
   return e + n > t;
@@ -9739,7 +9742,7 @@ var kc = 9e15, Jn = 1e9, Tc = "0123456789abcdef", gs = "2.3025850929940456840179
   // Whether to use cryptographically-secure random number generation, if available.
   crypto: !1
   // true/false
-}, rh, In, wt = !0, Os = "[DecimalError] ", Qn = Os + "Invalid argument: ", ih = Os + "Precision limit exceeded", oh = Os + "crypto unavailable", sh = "[object Decimal]", Te = Math.floor, ee = Math.pow, ey = /^0b([01]+(\.[01]*)?|\.[01]+)(p[+-]?\d+)?$/i, ny = /^0x([0-9a-f]+(\.[0-9a-f]*)?|\.[0-9a-f]+)(p[+-]?\d+)?$/i, ry = /^0o([0-7]+(\.[0-7]*)?|\.[0-7]+)(p[+-]?\d+)?$/i, ah = /^(\d+(\.\d*)?|\.\d+)(e[+-]?\d+)?$/i, Je = 1e7, pt = 7, iy = 9007199254740991, oy = gs.length - 1, Bc = ws.length - 1, W = { toStringTag: sh };
+}, rh, In, wt = !0, Os = "[DecimalError] ", Qn = Os + "Invalid argument: ", ih = Os + "Precision limit exceeded", oh = Os + "crypto unavailable", sh = "[object Decimal]", Te = Math.floor, ee = Math.pow, e0 = /^0b([01]+(\.[01]*)?|\.[01]+)(p[+-]?\d+)?$/i, n0 = /^0x([0-9a-f]+(\.[0-9a-f]*)?|\.[0-9a-f]+)(p[+-]?\d+)?$/i, r0 = /^0o([0-7]+(\.[0-7]*)?|\.[0-7]+)(p[+-]?\d+)?$/i, ah = /^(\d+(\.\d*)?|\.\d+)(e[+-]?\d+)?$/i, Je = 1e7, pt = 7, i0 = 9007199254740991, o0 = gs.length - 1, Bc = ws.length - 1, W = { toStringTag: sh };
 W.absoluteValue = W.abs = function() {
   var t = new this.constructor(this);
   return t.s < 0 && (t.s = 1), ht(t);
@@ -9766,7 +9769,7 @@ W.comparedTo = W.cmp = function(t) {
 };
 W.cosine = W.cos = function() {
   var t, e, n = this, r = n.constructor;
-  return n.d ? n.d[0] ? (t = r.precision, e = r.rounding, r.precision = t + Math.max(n.e, n.sd()) + pt, r.rounding = 1, n = sy(r, dh(r, n)), r.precision = t, r.rounding = e, ht(In == 2 || In == 3 ? n.neg() : n, t, e, !0)) : new r(1) : new r(NaN);
+  return n.d ? n.d[0] ? (t = r.precision, e = r.rounding, r.precision = t + Math.max(n.e, n.sd()) + pt, r.rounding = 1, n = s0(r, dh(r, n)), r.precision = t, r.rounding = e, ht(In == 2 || In == 3 ? n.neg() : n, t, e, !0)) : new r(1) : new r(NaN);
 };
 W.cubeRoot = W.cbrt = function() {
   var t, e, n, r, i, o, a, c, f, l, p = this, h = p.constructor;
@@ -10002,7 +10005,7 @@ W.round = function() {
 };
 W.sine = W.sin = function() {
   var t, e, n = this, r = n.constructor;
-  return n.isFinite() ? n.isZero() ? new r(n) : (t = r.precision, e = r.rounding, r.precision = t + Math.max(n.e, n.sd()) + pt, r.rounding = 1, n = cy(r, dh(r, n)), r.precision = t, r.rounding = e, ht(In > 2 ? n.neg() : n, t, e, !0)) : new r(NaN);
+  return n.isFinite() ? n.isZero() ? new r(n) : (t = r.precision, e = r.rounding, r.precision = t + Math.max(n.e, n.sd()) + pt, r.rounding = 1, n = c0(r, dh(r, n)), r.precision = t, r.rounding = e, ht(In > 2 ? n.neg() : n, t, e, !0)) : new r(NaN);
 };
 W.squareRoot = W.sqrt = function() {
   var t, e, n, r, i, o, a = this, c = a.d, f = a.e, l = a.s, p = a.constructor;
@@ -10093,7 +10096,7 @@ W.toPower = W.pow = function(t) {
   if (!c.d || !t.d || !c.d[0] || !t.d[0]) return new f(ee(+c, l));
   if (c = new f(c), c.eq(1)) return c;
   if (r = f.precision, o = f.rounding, t.eq(1)) return ht(c, r, o);
-  if (e = Te(t.e / pt), e >= t.d.length - 1 && (n = l < 0 ? -l : l) <= iy)
+  if (e = Te(t.e / pt), e >= t.d.length - 1 && (n = l < 0 ? -l : l) <= i0)
     return i = uh(f, c, n, r), t.s < 0 ? new f(1).div(i) : ht(i, r, o);
   if (a = c.s, a < 0) {
     if (e < t.d.length - 1) return new f(NaN);
@@ -10149,7 +10152,7 @@ function Fo(t, e, n) {
   }
   return i.reverse();
 }
-function sy(t, e) {
+function s0(t, e) {
   var n, r, i;
   if (e.isZero()) return e;
   r = e.d.length, r < 32 ? (n = Math.ceil(r / 3), i = (1 / Ps(4, n)).toString()) : (n = 16, i = "2.3283064365386962890625e-10"), t.precision += n, e = ti(t, 1, e.times(i), new t(1));
@@ -10266,7 +10269,7 @@ function Ls(t, e) {
   return e;
 }
 function ys(t, e, n) {
-  if (e > oy)
+  if (e > o0)
     throw wt = !0, n && (t.precision = n), Error(ih);
   return ht(new t(gs), e, 1, !0);
 }
@@ -10371,24 +10374,24 @@ function Ho(t, e) {
     t.e = 0, t.d = [0];
   return t;
 }
-function ay(t, e) {
+function a0(t, e) {
   var n, r, i, o, a, c, f, l, p;
   if (e.indexOf("_") > -1) {
     if (e = e.replace(/(\d)_(?=\d)/g, "$1"), ah.test(e)) return Ho(t, e);
   } else if (e === "Infinity" || e === "NaN")
     return +e || (t.s = NaN), t.e = NaN, t.d = null, t;
-  if (ny.test(e))
+  if (n0.test(e))
     n = 16, e = e.toLowerCase();
-  else if (ey.test(e))
+  else if (e0.test(e))
     n = 2;
-  else if (ry.test(e))
+  else if (r0.test(e))
     n = 8;
   else
     throw Error(Qn + e);
   for (o = e.search(/p/i), o > 0 ? (f = +e.slice(o + 1), e = e.substring(2, o)) : e = e.slice(2), o = e.indexOf("."), a = o >= 0, r = t.constructor, a && (e = e.replace(".", ""), c = e.length, o = c - o, i = uh(r, new r(n), o, o * 2)), l = Fo(e, n, Je), p = l.length - 1, o = p; l[o] === 0; --o) l.pop();
   return o < 0 ? new r(t.s * 0) : (t.e = Ls(l, p), t.d = l, wt = !1, a && (t = $t(t, i, c * 4)), f && (t = t.times(Math.abs(f) < 54 ? ee(2, f) : Ks.pow(2, f))), wt = !0, t);
 }
-function cy(t, e) {
+function c0(t, e) {
   var n, r = e.d.length;
   if (r < 3)
     return e.isZero() ? e : ti(t, 2, e, e);
@@ -10462,45 +10465,45 @@ function yl(t, e) {
   if (t.length > e)
     return t.length = e, !0;
 }
-function uy(t) {
+function u0(t) {
   return new this(t).abs();
 }
-function fy(t) {
+function f0(t) {
   return new this(t).acos();
 }
-function ly(t) {
+function l0(t) {
   return new this(t).acosh();
 }
-function dy(t, e) {
+function d0(t, e) {
   return new this(t).plus(e);
 }
-function hy(t) {
+function h0(t) {
   return new this(t).asin();
 }
-function py(t) {
+function p0(t) {
   return new this(t).asinh();
 }
-function gy(t) {
+function g0(t) {
   return new this(t).atan();
 }
-function wy(t) {
+function w0(t) {
   return new this(t).atanh();
 }
-function yy(t, e) {
+function y0(t, e) {
   t = new this(t), e = new this(e);
   var n, r = this.precision, i = this.rounding, o = r + 4;
   return !t.s || !e.s ? n = new this(NaN) : !t.d && !e.d ? (n = un(this, o, 1).times(e.s > 0 ? 0.25 : 0.75), n.s = t.s) : !e.d || t.isZero() ? (n = e.s < 0 ? un(this, r, i) : new this(0), n.s = t.s) : !t.d || e.isZero() ? (n = un(this, o, 1).times(0.5), n.s = t.s) : e.s < 0 ? (this.precision = o, this.rounding = 1, n = this.atan($t(t, e, o, 1)), e = un(this, o, 1), this.precision = r, this.rounding = i, n = t.s < 0 ? n.minus(e) : n.plus(e)) : n = this.atan($t(t, e, o, 1)), n;
 }
-function my(t) {
+function m0(t) {
   return new this(t).cbrt();
 }
-function by(t) {
+function b0(t) {
   return ht(t = new this(t), t.e + 1, 2);
 }
-function vy(t, e, n) {
+function v0(t, e, n) {
   return new this(t).clamp(e, n);
 }
-function Ey(t) {
+function E0(t) {
   if (!t || typeof t != "object") throw Error(Os + "Object expected");
   var e, n, r, i = t.defaults === !0, o = [
     "precision",
@@ -10542,10 +10545,10 @@ function Ey(t) {
       throw Error(Qn + n + ": " + r);
   return this;
 }
-function xy(t) {
+function x0(t) {
   return new this(t).cos();
 }
-function Sy(t) {
+function S0(t) {
   return new this(t).cosh();
 }
 function hh(t) {
@@ -10574,25 +10577,25 @@ function hh(t) {
       return Ho(l, o.toString());
     }
     if (f === "string")
-      return (c = o.charCodeAt(0)) === 45 ? (o = o.slice(1), l.s = -1) : (c === 43 && (o = o.slice(1)), l.s = 1), ah.test(o) ? Ho(l, o) : ay(l, o);
+      return (c = o.charCodeAt(0)) === 45 ? (o = o.slice(1), l.s = -1) : (c === 43 && (o = o.slice(1)), l.s = 1), ah.test(o) ? Ho(l, o) : a0(l, o);
     if (f === "bigint")
       return o < 0 ? (o = -o, l.s = -1) : l.s = 1, Ho(l, o.toString());
     throw Error(Qn + o);
   }
-  if (i.prototype = W, i.ROUND_UP = 0, i.ROUND_DOWN = 1, i.ROUND_CEIL = 2, i.ROUND_FLOOR = 3, i.ROUND_HALF_UP = 4, i.ROUND_HALF_DOWN = 5, i.ROUND_HALF_EVEN = 6, i.ROUND_HALF_CEIL = 7, i.ROUND_HALF_FLOOR = 8, i.EUCLID = 9, i.config = i.set = Ey, i.clone = hh, i.isDecimal = ml, i.abs = uy, i.acos = fy, i.acosh = ly, i.add = dy, i.asin = hy, i.asinh = py, i.atan = gy, i.atanh = wy, i.atan2 = yy, i.cbrt = my, i.ceil = by, i.clamp = vy, i.cos = xy, i.cosh = Sy, i.div = Ay, i.exp = ky, i.floor = Ty, i.hypot = Iy, i.ln = By, i.log = _y, i.log10 = Cy, i.log2 = Ny, i.max = Uy, i.min = $y, i.mod = Ry, i.mul = Oy, i.pow = Ly, i.random = Py, i.round = Ky, i.sign = Dy, i.sin = My, i.sinh = qy, i.sqrt = Fy, i.sub = Hy, i.sum = Vy, i.tan = jy, i.tanh = zy, i.trunc = Gy, t === void 0 && (t = {}), t && t.defaults !== !0)
+  if (i.prototype = W, i.ROUND_UP = 0, i.ROUND_DOWN = 1, i.ROUND_CEIL = 2, i.ROUND_FLOOR = 3, i.ROUND_HALF_UP = 4, i.ROUND_HALF_DOWN = 5, i.ROUND_HALF_EVEN = 6, i.ROUND_HALF_CEIL = 7, i.ROUND_HALF_FLOOR = 8, i.EUCLID = 9, i.config = i.set = E0, i.clone = hh, i.isDecimal = ml, i.abs = u0, i.acos = f0, i.acosh = l0, i.add = d0, i.asin = h0, i.asinh = p0, i.atan = g0, i.atanh = w0, i.atan2 = y0, i.cbrt = m0, i.ceil = b0, i.clamp = v0, i.cos = x0, i.cosh = S0, i.div = A0, i.exp = k0, i.floor = T0, i.hypot = I0, i.ln = B0, i.log = _0, i.log10 = C0, i.log2 = N0, i.max = U0, i.min = $0, i.mod = R0, i.mul = O0, i.pow = L0, i.random = P0, i.round = K0, i.sign = D0, i.sin = M0, i.sinh = q0, i.sqrt = F0, i.sub = H0, i.sum = V0, i.tan = j0, i.tanh = z0, i.trunc = G0, t === void 0 && (t = {}), t && t.defaults !== !0)
     for (r = ["precision", "rounding", "toExpNeg", "toExpPos", "maxE", "minE", "modulo", "crypto"], e = 0; e < r.length; ) t.hasOwnProperty(n = r[e++]) || (t[n] = this[n]);
   return i.config(t), i;
 }
-function Ay(t, e) {
+function A0(t, e) {
   return new this(t).div(e);
 }
-function ky(t) {
+function k0(t) {
   return new this(t).exp();
 }
-function Ty(t) {
+function T0(t) {
   return ht(t = new this(t), t.e + 1, 3);
 }
-function Iy() {
+function I0() {
   var t, e, n = new this(0);
   for (wt = !1, t = 0; t < arguments.length; )
     if (e = new this(arguments[t++]), e.d)
@@ -10607,34 +10610,34 @@ function Iy() {
 function ml(t) {
   return t instanceof Ks || t && t.toStringTag === sh || !1;
 }
-function By(t) {
+function B0(t) {
   return new this(t).ln();
 }
-function _y(t, e) {
+function _0(t, e) {
   return new this(t).log(e);
 }
-function Ny(t) {
+function N0(t) {
   return new this(t).log(2);
 }
-function Cy(t) {
+function C0(t) {
   return new this(t).log(10);
 }
-function Uy() {
+function U0() {
   return fh(this, arguments, -1);
 }
-function $y() {
+function $0() {
   return fh(this, arguments, 1);
 }
-function Ry(t, e) {
+function R0(t, e) {
   return new this(t).mod(e);
 }
-function Oy(t, e) {
+function O0(t, e) {
   return new this(t).mul(e);
 }
-function Ly(t, e) {
+function L0(t, e) {
   return new this(t).pow(e);
 }
-function Py(t) {
+function P0(t) {
   var e, n, r, i, o = 0, a = new this(1), c = [];
   if (t === void 0 ? t = this.precision : Oe(t, 1, Jn), r = Math.ceil(t / pt), this.crypto)
     if (crypto.getRandomValues)
@@ -10657,36 +10660,36 @@ function Py(t) {
   }
   return a.e = n, a.d = c, a;
 }
-function Ky(t) {
+function K0(t) {
   return ht(t = new this(t), t.e + 1, this.rounding);
 }
-function Dy(t) {
+function D0(t) {
   return t = new this(t), t.d ? t.d[0] ? t.s : 0 * t.s : t.s || NaN;
 }
-function My(t) {
+function M0(t) {
   return new this(t).sin();
 }
-function qy(t) {
+function q0(t) {
   return new this(t).sinh();
 }
-function Fy(t) {
+function F0(t) {
   return new this(t).sqrt();
 }
-function Hy(t, e) {
+function H0(t, e) {
   return new this(t).sub(e);
 }
-function Vy() {
+function V0() {
   var t = 0, e = arguments, n = new this(e[t]);
   for (wt = !1; n.s && ++t < e.length; ) n = n.plus(e[t]);
   return wt = !0, ht(n, this.precision, this.rounding);
 }
-function jy(t) {
+function j0(t) {
   return new this(t).tan();
 }
-function zy(t) {
+function z0(t) {
   return new this(t).tanh();
 }
-function Gy(t) {
+function G0(t) {
   return ht(t = new this(t), t.e + 1, 1);
 }
 W[Symbol.for("nodejs.util.inspect.custom")] = W.toString;
@@ -10694,19 +10697,19 @@ W[Symbol.toStringTag] = "Decimal";
 var Ks = W.constructor = hh(Ic);
 gs = new Ks(gs);
 ws = new Ks(ws);
-const Wy = (t, e = !1) => {
+const W0 = (t, e = !1) => {
   const n = typeof t == "string" ? Math.floor(new Date(t).getTime() / 1e3) : t, r = Math.floor(Date.now() / 1e3), i = Math.floor(r - n);
   return i === 0 ? "just now" : i > 0 ? `${bl(i, e)} ago` : i < 0 ? `in ${bl(i, e)}` : "";
 }, bl = (t, e = !0) => {
   const n = Math.abs(t);
   return n > 86400 ? `${Math.floor(n / 86400)}${e ? " days" : "d"}` : n > 3600 ? `${Math.floor(n / 3600)}${e ? " hours" : "h"}` : n > 60 ? `${Math.floor(n / 60)}${e ? " minutes" : "m"}` : n > 0 ? `${n}${e ? " seconds" : "s"}` : "";
 };
-var Vo = { exports: {} }, Yy = Vo.exports, vl;
-function Zy() {
+var Vo = { exports: {} }, Y0 = Vo.exports, vl;
+function Z0() {
   return vl || (vl = 1, function(t, e) {
     (function(n, r) {
       t.exports = r();
-    })(Yy, function() {
+    })(Y0, function() {
       var n = function(s, u) {
         return (n = Object.setPrototypeOf || { __proto__: [] } instanceof Array && function(d, g) {
           d.__proto__ = g;
@@ -13712,8 +13715,8 @@ function Zy() {
     });
   }(Vo)), Vo.exports;
 }
-var Xy = Zy();
-const Nc = /* @__PURE__ */ kw(Xy), El = Symbol.for("Dexie"), ms = globalThis[El] || (globalThis[El] = Nc);
+var X0 = Z0();
+const Nc = /* @__PURE__ */ kw(X0), El = Symbol.for("Dexie"), ms = globalThis[El] || (globalThis[El] = Nc);
 if (Nc.semVer !== ms.semVer)
   throw new Error(`Two different versions of Dexie loaded in the same app: ${Nc.semVer} and ${ms.semVer}`);
 const {
@@ -13748,14 +13751,14 @@ const ph = {
   open: async () => {
     await dr.open();
   }
-}, Qy = new J0(ph);
-Qy.start().catch(console.error);
-function Jy(t, e) {
+}, Q0 = new Jy(ph);
+Q0.start().catch(console.error);
+function J0(t, e) {
   self.registration.showNotification(t, { body: e, icon: "/arkade-icon-220.png" });
 }
 function tm(t) {
-  const e = `Virtual coins expiring ${Wy(t)}`;
-  Jy(e, "Open wallet to renew virtual coins");
+  const e = `Virtual coins expiring ${W0(t)}`;
+  J0(e, "Open wallet to renew virtual coins");
 }
 function em(t) {
   return t ? t.reduce((e, n) => {
@@ -13767,7 +13770,7 @@ function em(t) {
 }
 async function nm() {
   const t = await ph.getSpendableVtxos(), e = em(t);
-  ty(e) && tm(e);
+  t0(e) && tm(e);
 }
 self.addEventListener("message", (t) => {
   let e;
