@@ -60,7 +60,7 @@ export const WalletContext = createContext<WalletContextProps>({
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { setNoteInfo } = useContext(FlowContext)
+  const { setNoteInfo, noteInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { notifyVtxosRollover, notifyTxSettled } = useContext(NotificationsContext)
 
@@ -151,6 +151,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     navigate(wallet?.initialized ? Pages.Unlock : isPWAInstalled() ? Pages.Init : Pages.Onboard)
     setWalletLoaded(wallet)
   }, [])
+
+  // if voucher present, go to redeem page
+  useEffect(() => {
+    if (!wallet.initialized) return
+    navigate(noteInfo.satoshis ? Pages.NotesRedeem : Pages.Wallet)
+  }, [wallet.initialized, noteInfo.satoshis])
 
   // auto settle vtxos if next roll over in less than 24 hours
   useEffect(() => {
