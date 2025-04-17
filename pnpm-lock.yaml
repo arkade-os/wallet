@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@arklabs/wallet-sdk':
-        specifier: 0.0.12
-        version: 0.0.12
+        specifier: 0.0.13
+        version: 0.0.13
       '@ionic/react':
         specifier: ^8.4.0
         version: 8.5.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -124,8 +124,8 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@arklabs/wallet-sdk@0.0.12':
-    resolution: {integrity: sha512-aMDH2GmycgHyDoFSkL1cOFZSGHbkQ/IyX/+bHWmpZIGTAURa+2k0TRWoP0BEAqE5INd2kKtPGcogZHD66+cZcg==}
+  '@arklabs/wallet-sdk@0.0.13':
+    resolution: {integrity: sha512-VGrVJZCRI1TDfvhwjNXGVL9rW2Y3B4zwx9hwGrCV2UAsHxQn66ZkOkmZAs/nSSgydoRUf/3BXZpaGfLapwlKpQ==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
 
   '@babel/code-frame@7.12.11':
@@ -2513,7 +2513,7 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.8
       '@jridgewell/trace-mapping': 0.3.25
 
-  '@arklabs/wallet-sdk@0.0.12':
+  '@arklabs/wallet-sdk@0.0.13':
     dependencies:
       '@noble/curves': 1.7.0
       '@noble/hashes': 1.6.1
