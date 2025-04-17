@@ -61,7 +61,6 @@ export default function App() {
     if (!svcWallet) navigate(Pages.Loading)
     else if (wallet.network === '') navigate(Pages.Onboard)
     else if (!initialized) navigate(Pages.Unlock)
-    else navigate(Pages.Wallet)
   }, [wallet, initialized, svcWallet, initInfo])
 
   if (!svcWallet) return <Loading text={loadingError || undefined} />
