@@ -99,7 +99,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const nextRollover = calcNextRollover(aspInfo.vtxoTreeExpiry, vtxos?.spendable)
       updateWallet({ ...wallet, nextRollover })
     }
-  }, [vtxos, svcWallet, wallet])
+  }, [vtxos, svcWallet])
 
   useEffect(() => {
     let pingInterval: NodeJS.Timeout
