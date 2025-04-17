@@ -6,7 +6,6 @@ import Padded from '../../components/Padded'
 import Error from '../../components/Error'
 import { ConfigContext } from '../../providers/config'
 import { AspInfo, getAspInfo } from '../../lib/asp'
-import { clearStorage } from '../../lib/storage'
 import { WalletContext } from '../../providers/wallet'
 import Header from './Header'
 import WarningBox from '../../components/Warning'
@@ -15,11 +14,11 @@ import FlexCol from '../../components/FlexCol'
 import Scanner from '../../components/Scanner'
 import { AspContext } from '../../providers/asp'
 import { consoleError } from '../../lib/logs'
-
+import Loading from '../../components/Loading'
 export default function Server() {
   const { aspInfo } = useContext(AspContext)
   const { config, updateConfig } = useContext(ConfigContext)
-  const { updateWallet, wallet, svcWallet } = useContext(WalletContext)
+  const { svcWallet, resetWallet } = useContext(WalletContext)
 
   const [aspUrl, setAspUrl] = useState('')
   const [error, setError] = useState('')
@@ -41,14 +40,14 @@ export default function Server() {
     })
   }, [aspUrl])
 
+  if (!svcWallet) return <Loading text='Loading...' />
+
   const handleConnect = async () => {
     setLoading(true)
     try {
       if (!info) return
-      await svcWallet.clear()
-      await clearStorage()
+      await resetWallet()
       updateConfig({ ...config, aspUrl: info.url })
-      updateWallet({ ...wallet, network: info.network, initialized: false })
       location.reload() // reload app or else weird things happen
     } catch (err) {
       consoleError(err)

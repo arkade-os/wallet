@@ -28,6 +28,7 @@ import { IframeContext } from './providers/iframe'
 import Loading from './components/Loading'
 import AppsIcon from './icons/Apps'
 import { WalletContext } from './providers/wallet'
+import { FlowContext } from './providers/flow'
 
 setupIonicReact()
 
@@ -36,8 +37,9 @@ export default function App() {
   const { configLoaded } = useContext(ConfigContext)
   const { iframeUrl } = useContext(IframeContext)
   const { navigate, screen, tab } = useContext(NavigationContext)
+  const { initInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
-  const { wallet } = useContext(WalletContext)
+  const { wallet, initialized, svcWallet } = useContext(WalletContext)
   const [loadingError, setLoadingError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -53,13 +55,16 @@ export default function App() {
   }, [aspInfo.unreachable])
 
   useEffect(() => {
-    if (!wallet.initialized) {
-      if (wallet.network === '') navigate(Pages.Onboard)
-      else navigate(Pages.Unlock)
-    } else {
-      navigate(Pages.Wallet)
-    }
-  }, [wallet.initialized])
+    // avoid redirect if the user is still setting up the wallet
+    if (initInfo.password || initInfo.privateKey) return
+
+    if (!svcWallet) navigate(Pages.Loading)
+    else if (wallet.network === '') navigate(Pages.Onboard)
+    else if (!initialized) navigate(Pages.Unlock)
+    else navigate(Pages.Wallet)
+  }, [wallet, initialized, svcWallet, initInfo])
+
+  if (!svcWallet) return <Loading text={loadingError || undefined} />
 
   const handleWallet = () => {
     navigate(Pages.Wallet)

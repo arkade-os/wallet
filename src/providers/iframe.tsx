@@ -30,7 +30,7 @@ export const IframeProvider = ({ children }: { children: ReactNode }) => {
     sendMessage(
       JSON.stringify({
         action: 'status',
-        status: !w.initialized ? 'uninitialized' : (await isLocked()) ? 'locked' : 'unlocked',
+        status: !w.network ? 'uninitialized' : (await isLocked()) ? 'locked' : 'unlocked',
       }),
     )
   }

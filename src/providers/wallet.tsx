@@ -17,7 +17,6 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 
 const defaultWallet: Wallet = {
-  initialized: false,
   network: '',
   nextRollover: 0,
 }
@@ -31,10 +30,11 @@ interface WalletContextProps {
   isLocked: () => Promise<boolean>
   wallet: Wallet
   walletLoaded: Wallet | undefined
-  svcWallet: ServiceWorkerWallet
+  svcWallet: ServiceWorkerWallet | undefined
   txs: Tx[]
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: number
+  initialized: boolean
 }
 
 export const WalletContext = createContext<WalletContextProps>({
@@ -45,11 +45,12 @@ export const WalletContext = createContext<WalletContextProps>({
   updateWallet: () => {},
   wallet: defaultWallet,
   walletLoaded: undefined,
-  svcWallet: new ServiceWorkerWallet(),
+  svcWallet: undefined,
   isLocked: () => Promise.resolve(true),
   balance: 0,
   txs: [],
   vtxos: { spendable: [], spent: [] },
+  initialized: false,
 })
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
@@ -60,12 +61,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const [walletLoaded, setWalletLoaded] = useState<Wallet>()
   const [wallet, setWallet] = useState(defaultWallet)
-  const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>(new ServiceWorkerWallet())
+  const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
 
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
   const [txs, setTxs] = useState<Tx[]>([])
   const [balance, setBalance] = useState(0)
-
+  const [initialized, setInitialized] = useState(false)
   const allVtxos = useLiveQuery(() => db.vtxos?.toArray())
 
   useEffect(() => {
@@ -84,7 +85,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!svcWallet) return
-    if (!wallet.initialized) return
 
     isLocked().then((locked) => {
       if (locked) return
@@ -101,29 +101,34 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [vtxos, svcWallet, wallet])
 
-  // ping service worker status every 5 seconds
-  // if the service worker is not responding or is not initialized:
-  // update the wallet status to redirect to Unlock page
   useEffect(() => {
-    if (!svcWallet || !wallet.initialized) return
-
-    const pingInterval = setInterval(async () => {
+    let pingInterval: NodeJS.Timeout
+    async function initSvcWorkerWallet() {
       try {
+        // connect to the service worker
+        const svcWallet = await ServiceWorkerWallet.create('/wallet-service-worker.mjs')
+        setSvcWallet(svcWallet)
+
+        // check if the service worker wallet is initialized
         const { walletInitialized } = await svcWallet.getStatus()
-        if (walletInitialized !== wallet.initialized) {
-          updateWallet({ ...wallet, initialized: walletInitialized })
-        }
+        setInitialized(walletInitialized)
+
+        // ping the service worker wallet status every 1 second
+        pingInterval = setInterval(async () => {
+          try {
+            const { walletInitialized } = await svcWallet.getStatus()
+            setInitialized(walletInitialized)
+          } catch (err) {
+            consoleError(err, 'Error pinging wallet status')
+          }
+        }, 1_000)
       } catch (err) {
-        updateWallet({ ...wallet, initialized: false })
-        consoleError(err, 'Error pinging wallet status')
+        consoleError(err, 'Error initializing service worker wallet')
       }
-    }, 1_000)
+    }
 
+    initSvcWorkerWallet()
     return () => clearInterval(pingInterval)
-  }, [svcWallet, wallet.initialized])
-
-  useEffect(() => {
-    ServiceWorkerWallet.create('/wallet-service-worker.mjs').then(setSvcWallet).catch(consoleError)
   }, [])
 
   useEffect(() => {
@@ -147,34 +152,41 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   // if voucher present, go to redeem page
   useEffect(() => {
-    if (!wallet.initialized) return
+    if (!initialized) return
     navigate(noteInfo.satoshis ? Pages.NotesRedeem : Pages.Wallet)
-  }, [wallet.initialized, noteInfo.satoshis])
+  }, [initialized, noteInfo.satoshis])
 
   const initWallet = async (privateKey: Uint8Array) => {
+    if (!svcWallet) throw new Error('Service worker not initialized')
     const arkServerUrl = aspInfo.url
     const esploraUrl = getRestApiExplorerURL(wallet.network) ?? ''
+    console.log('initWallet', aspInfo.network)
     await svcWallet.init({
       arkServerUrl,
       privateKey: hex.encode(privateKey),
       network: aspInfo.network as NetworkName,
       esploraUrl,
     })
-    updateWallet({ ...wallet, initialized: true, network: aspInfo.network })
+    updateWallet({ ...wallet, network: aspInfo.network })
+    setInitialized(true)
   }
 
   const lockWallet = async () => {
+    if (!svcWallet) throw new Error('Service worker not initialized')
     await svcWallet.clear()
-    updateWallet({ ...wallet, initialized: false })
+    setInitialized(false)
   }
 
   const resetWallet = async () => {
+    if (!svcWallet) throw new Error('Service worker not initialized')
     await svcWallet.clear()
+    setInitialized(false)
     await clearStorage()
     updateWallet(defaultWallet)
   }
 
   const settlePending = async () => {
+    if (!svcWallet) throw new Error('Service worker not initialized')
     await settleVtxos(svcWallet)
     notifyTxSettled()
   }
@@ -185,7 +197,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const isLocked = async () => {
-    if (!wallet.initialized) return true
+    if (!svcWallet) throw new Error('Service worker not initialized')
     try {
       const { walletInitialized } = await svcWallet.getStatus()
       return !walletInitialized
@@ -199,6 +211,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       value={{
         initWallet,
         isLocked,
+        initialized,
         resetWallet,
         settlePending,
         updateWallet,

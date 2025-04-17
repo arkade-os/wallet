@@ -40,6 +40,8 @@ export default function NotesRedeem() {
     navigate(Pages.NotesForm)
   }
 
+  if (!svcWallet) return <Loading text='Loading...' />
+
   const handleRedeem = async () => {
     setError('')
     setRedeeming(true)

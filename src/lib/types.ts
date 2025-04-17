@@ -80,7 +80,6 @@ export enum Unit {
 export type Vtxo = ExtendedVirtualCoin
 
 export type Wallet = {
-  initialized: boolean
   lockedByBiometrics?: boolean
   network: string
   nextRollover: number

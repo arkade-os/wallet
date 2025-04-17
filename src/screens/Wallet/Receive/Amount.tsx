@@ -53,6 +53,8 @@ export default function ReceiveAmount() {
       .catch(() => {})
   }, [])
 
+  if (!svcWallet) return <Loading text='Loading...' />
+
   useEffect(() => {
     getReceivingAddresses(svcWallet)
       .then(({ offchainAddr, boardingAddr }) => {

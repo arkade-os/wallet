@@ -18,6 +18,7 @@ import WaitingForRound from '../../components/WaitingForRound'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { settleVtxos } from '../../lib/asp'
+import Loading from '../../components/Loading'
 
 const Box = ({ children }: { children: ReactNode }) => {
   const style = {
@@ -77,6 +78,8 @@ export default function Vtxos() {
       setDuration(0)
     }
   }, [wallet.nextRollover])
+
+  if (!svcWallet) return <Loading text='Loading...' />
 
   const handleRollover = async () => {
     try {
