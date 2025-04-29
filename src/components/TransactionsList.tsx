@@ -1,6 +1,6 @@
 import { useContext } from 'react'
 import { WalletContext } from '../providers/wallet'
-import Text, { TextSecondary } from './Text'
+import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
 import { prettyAmount, prettyDate, prettyHide, prettyLongText, prettyNumber } from '../lib/format'
 import PendingIcon from '../icons/Pending'
@@ -120,6 +120,7 @@ export default function TransactionsList() {
 
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
+      <TextLabel>Transaction history</TextLabel>
       <div style={{ borderBottom: border }}>
         {txs.map((tx) => (
           <TransactionLine key={key(tx)} tx={tx} />
