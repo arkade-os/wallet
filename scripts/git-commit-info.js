@@ -7,26 +7,15 @@ let isDirty = false;
 let success = false;
 
 try {
-    if (process.env.GITHUB_SHA) {
-        commitHash = process.env.GITHUB_SHA.substring(0, 8);
-        // Check for uncommitted changes.
-        // In CI, this should ideally be clean unless prior steps modified files.
-        try {
-            execSync('git diff-index --quiet HEAD --');
-        } catch (e) {
-            isDirty = true; // Indicates uncommitted changes
-        }
-        success = true;
-    } else {
-        // Fallback for local development or other non-GitHub Action CI environments
-        commitHash = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim().substring(0, 8);
-        try {
-            execSync('git diff-index --quiet HEAD --');
-        } catch (e) {
-            isDirty = true;
-        }
-        success = true;
+    // Determine commit hash using git rev-parse HEAD
+    commitHash = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim().substring(0, 8);
+    // Check for uncommitted changes
+    try {
+        execSync('git diff-index --quiet HEAD --');
+    } catch (e) {
+        isDirty = true; // Indicates uncommitted changes
     }
+    success = true;
 } catch (error) {
     console.error('Failed to determine git commit information:', error.message);
     // success remains false, commitHash remains 'unknown'
