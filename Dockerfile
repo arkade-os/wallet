@@ -1,7 +1,7 @@
 FROM node:18-alpine AS builder
 
 # Install pnpm and required build dependencies
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ git
 RUN corepack enable && corepack prepare pnpm@8.15.4 --activate
 
 WORKDIR /app
@@ -19,13 +19,6 @@ COPY scripts ./scripts
 COPY public ./public
 COPY index.html vite.config.ts tsconfig.json .eslintrc* ./
 COPY .git ./.git
-
-# Create git commit file from current branch HEAD
-RUN if [ -d ".git" ]; then \
-      echo "export const gitCommit = '$(cat .git/HEAD | cut -d '/' -f 3- | xargs -I {} cat .git/refs/heads/{} | cut -c 1-8)';" > src/_gitCommit.ts; \
-    else \
-      echo "export const gitCommit = 'dev';" > src/_gitCommit.ts; \
-    fi
 
 # Build the app
 ENV NODE_ENV=production
