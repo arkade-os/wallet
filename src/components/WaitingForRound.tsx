@@ -4,7 +4,7 @@ import { getInfoLogLineMsg, getInfoLogsLength } from '../lib/logs'
 import { sleep } from '../lib/sleep'
 
 export default function WaitingForRound({ rollover, settle }: { rollover?: boolean; settle?: boolean }) {
-  const initial = settle ? 'Settling transactions' : rollover ? 'Renewing your virtual coins' : 'Payments to mainnet'
+  const initial = settle ? 'Settling transactions' : rollover ? 'Renewing your virtual coins' : 'Paying to mainnet'
   const message = initial + '. This may take a few moments.'
 
   const [logLength, setLogLength] = useState(getInfoLogsLength())
