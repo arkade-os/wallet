@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useState } from 'react'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../providers/navigation'
@@ -17,12 +17,18 @@ import SheetModal from '../../components/SheetModal'
 import FlexCol from '../../components/FlexCol'
 import SuccessIcon from '../../icons/Success'
 
+enum Method {
+  Password = 'password',
+  Biometrics = 'biometrics',
+}
+
 export default function InitPassword() {
   const { navigate } = useContext(NavigationContext)
   const { initInfo, setInitInfo } = useContext(FlowContext)
   const { updateWallet, wallet } = useContext(WalletContext)
 
   const [label, setLabel] = useState('')
+  const [method, setMethod] = useState<Method>(Method.Password)
   const [password, setPassword] = useState('')
   const [showSheet, setShowSheet] = useState(false)
 
@@ -36,10 +42,6 @@ export default function InitPassword() {
       .catch(consoleLog)
   }
 
-  useEffect(() => {
-    if (isBiometricsSupported()) registerUserBiometrics()
-  }, [isBiometricsSupported()])
-
   const handleCancel = () => navigate(Pages.Init)
 
   const handleContinue = () => {
@@ -47,14 +49,12 @@ export default function InitPassword() {
     setShowSheet(true)
   }
 
-  const usingBiometrics = isBiometricsSupported()
-
   return (
     <>
       <Header text='Define password' back={handleCancel} />
       <Content>
         <Padded>
-          {usingBiometrics ? (
+          {method === Method.Biometrics ? (
             <CenterScreen onClick={registerUserBiometrics}>
               <PasskeyIcon />
               <Text big centered>
@@ -70,10 +70,15 @@ export default function InitPassword() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        {usingBiometrics ? (
-          <Button onClick={registerUserBiometrics} label='Create passkey' />
+        {method === Method.Password ? (
+          <>
+            <Button onClick={handleContinue} label={label} disabled={!password} />
+            {isBiometricsSupported() ? (
+              <Button onClick={() => setMethod(Method.Biometrics)} label='Use biometrics' secondary />
+            ) : null}
+          </>
         ) : (
-          <Button onClick={handleContinue} label={label} disabled={!password} />
+          <Button onClick={() => setMethod(Method.Password)} label='Use password' secondary />
         )}
       </ButtonsOnBottom>
       <SheetModal isOpen={showSheet} onClose={() => setShowSheet(false)}>
@@ -83,7 +88,7 @@ export default function InitPassword() {
             <Text bold>Wallet created</Text>
             <Text small>Your wallet is ready for use!</Text>
             <Text color='dark50' small>
-              {usingBiometrics
+              {method === Method.Biometrics
                 ? 'Use your biometrics saved as a passkey for easy login.'
                 : "You'll need your password to login."}
             </Text>
