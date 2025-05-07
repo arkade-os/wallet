@@ -113,7 +113,7 @@ export default function SendDetails() {
         )}
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleContinue} label={buttonLabel} disabled={Boolean(error)} />
+        {sending ? null : <Button onClick={handleContinue} label={buttonLabel} disabled={Boolean(error)} />}
       </ButtonsOnBottom>
     </>
   )
