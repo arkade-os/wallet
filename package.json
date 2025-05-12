@@ -9,7 +9,6 @@
     "dexie-react-hooks": "^1.1.7",
     "@dotmind/react-use-pwa": "^1.0.4",
     "@ionic/react": "^8.5.6",
-    "@ionic/react-router": "^8.5.6",
     "@scure/base": "^1.2.5",
     "@scure/bip32": "^1.7.0",
     "@scure/bip39": "^1.6.0",

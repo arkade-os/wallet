@@ -6,7 +6,7 @@ const faucet = {
   signet: 'https://faucet.signet.arkade.sh',
   mutinynet: {
     main: 'https://faucet.mutinynet.arkade.sh',
-    test: 'https://faucet.mutinynet.arklabs.to',
+    test: 'https://faucet-staging.mutinynet.arkade.sh',
   },
 }
 
