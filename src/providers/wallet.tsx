@@ -28,6 +28,7 @@ interface WalletContextProps {
   settlePending: () => Promise<void>
   updateWallet: (w: Wallet) => void
   isLocked: () => Promise<boolean>
+  reloadWallet: () => Promise<void>
   wallet: Wallet
   walletLoaded: Wallet | undefined
   svcWallet: ServiceWorkerWallet | undefined
@@ -43,6 +44,7 @@ export const WalletContext = createContext<WalletContextProps>({
   resetWallet: () => Promise.resolve(),
   settlePending: () => Promise.resolve(),
   updateWallet: () => {},
+  reloadWallet: () => Promise.resolve(),
   wallet: defaultWallet,
   walletLoaded: undefined,
   svcWallet: undefined,
@@ -99,6 +101,24 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       updateWallet({ ...wallet, nextRollover })
     }
   }, [vtxos, svcWallet])
+
+  const reloadWallet = async () => {
+    if (!svcWallet) return
+    // update the txs history list
+    try {
+      const txs = await getTxHistory(svcWallet)
+      setTxs(txs)
+    } catch (err) {
+      consoleError(err, 'Error getting txs history')
+    }
+    // update the balance
+    try {
+      const balance = await getBalance(svcWallet)
+      setBalance(balance)
+    } catch (err) {
+      consoleError(err, 'Error getting balance')
+    }
+  }
 
   useEffect(() => {
     let pingInterval: NodeJS.Timeout
@@ -159,7 +179,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!svcWallet) throw new Error('Service worker not initialized')
     const arkServerUrl = aspInfo.url
     const esploraUrl = getRestApiExplorerURL(wallet.network) ?? ''
-    console.log('initWallet', aspInfo.network)
     await svcWallet.init({
       arkServerUrl,
       privateKey: hex.encode(privateKey),
@@ -220,6 +239,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         lockWallet,
         txs,
         balance,
+        reloadWallet,
         vtxos: vtxos ?? { spendable: [], spent: [] },
       }}
     >

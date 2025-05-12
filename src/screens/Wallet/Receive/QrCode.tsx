@@ -15,13 +15,14 @@ import { canBrowserShareData, shareData } from '../../../lib/share'
 import ExpandAddresses from '../../../components/ExpandAddresses'
 import FlexCol from '../../../components/FlexCol'
 import { AspContext } from '../../../providers/asp'
+import { ExtendedCoin } from '@arklabs/wallet-sdk'
 
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { vtxos } = useContext(WalletContext)
+  const { vtxos, svcWallet, reloadWallet } = useContext(WalletContext)
 
   const [sharing, setSharing] = useState(false)
   const isFirstMount = useRef(true)
@@ -44,6 +45,37 @@ export default function ReceiveQRCode() {
     notifyPaymentReceived(value)
     navigate(Pages.ReceiveSuccess)
   }, [vtxos])
+
+  useEffect(() => {
+    if (!svcWallet) return
+
+    async function getBoardingUtxos() {
+      return svcWallet!.getBoardingUtxos()
+    }
+
+    let currentUtxos: ExtendedCoin[] = []
+    getBoardingUtxos().then((utxos) => {
+      currentUtxos = utxos
+    })
+
+    const interval = setInterval(async () => {
+      const utxos = await getBoardingUtxos()
+      if (utxos.length < currentUtxos.length) {
+        currentUtxos = utxos
+      }
+      if (utxos.length > currentUtxos.length) {
+        const newUtxo = utxos.find((utxo) => !currentUtxos.includes(utxo))
+        if (newUtxo) {
+          currentUtxos = utxos
+          setRecvInfo({ ...recvInfo, satoshis: newUtxo.value })
+          await reloadWallet()
+          notifyPaymentReceived(newUtxo.value)
+          navigate(Pages.ReceiveSuccess)
+        }
+      }
+    }, 5_000)
+    return () => clearInterval(interval)
+  }, [svcWallet])
 
   const handleShare = () => {
     setSharing(true)
