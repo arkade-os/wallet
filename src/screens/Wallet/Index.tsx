@@ -64,8 +64,8 @@ export default function Wallet() {
             <Button icon={<SendIcon />} label='Send' onClick={handleSend} />
             <Button icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
           </FlexRow>
+          <TransactionsList />
         </FlexCol>
-        <TransactionsList />
       </Padded>
     </Content>
   )

@@ -48,10 +48,10 @@ export default function SendForm() {
   const [satoshis, setSatoshis] = useState(0)
   const [scan, setScan] = useState(false)
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
-  const [invalidArkAddress, setInvalidArkAddress] = useState(false)
 
   if (!svcWallet) return <Loading text='Loading...' />
 
+  // get receiving addresses
   useEffect(() => {
     const { recipient, satoshis } = sendInfo
     setRecipient(recipient ?? '')
@@ -59,6 +59,7 @@ export default function SendForm() {
     getReceivingAddresses(svcWallet).then(setReceivingAddresses)
   }, [])
 
+  // parse recipient data
   useEffect(() => {
     smartSetError('')
     if (!recipient) return
@@ -70,8 +71,6 @@ export default function SendForm() {
       return setState({ address, arkAddress, recipient, satoshis })
     }
     if (isArkAddress(lowerCaseData)) {
-      const { aspKey } = decodeArkAddress(lowerCaseData)
-      if (aspKey !== aspInfo.pubkey.slice(2)) return setError('Invalid Ark server pubkey')
       return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
     }
     if (isBTCAddress(lowerCaseData)) {
@@ -89,13 +88,31 @@ export default function SendForm() {
     setError('Invalid recipient address')
   }, [recipient])
 
+  // validate recipient addresses
   useEffect(() => {
-    if (sendInfo.address && !sendInfo.arkAddress && aspInfo.utxoMaxAmount === 0) {
+    if (!receivingAddresses) return setError('Unable to get receiving addresses')
+    const { boardingAddr, offchainAddr } = receivingAddresses
+    const { address, arkAddress } = sendInfo
+    // check server limits for onchain transactions
+    if (address && !arkAddress && aspInfo.utxoMaxAmount === 0) {
       return setError('Sending onchain not allowed')
     }
-    if (!sendInfo.address && sendInfo.arkAddress && aspInfo.vtxoMaxAmount === 0) {
+    // check server limits for offchain transactions
+    if (!address && arkAddress && aspInfo.vtxoMaxAmount === 0) {
       return setError('Sending offchain not allowed')
     }
+    // check if server key is valid
+    if (arkAddress && arkAddress.length > 0) {
+      const { aspKey } = decodeArkAddress(arkAddress)
+      const { aspKey: expectedAspKey } = decodeArkAddress(offchainAddr)
+      if (aspKey !== expectedAspKey) return setError('Invalid Ark server pubkey')
+    }
+    // check if is trying to self send
+    if (address === boardingAddr || arkAddress === offchainAddr) {
+      setError('Cannot send to yourself')
+      setTryingToSelfSend(true) // nudge user to rollover
+    }
+    // everything is ok, clean error
     setError('')
   }, [sendInfo.address, sendInfo.arkAddress])
 
@@ -124,17 +141,6 @@ export default function SendForm() {
   const setState = (info: SendInfo) => {
     setScan(false)
     setSendInfo(info)
-    if (!receivingAddresses) return
-    const { address, arkAddress } = info
-    const { boardingAddr, offchainAddr } = receivingAddresses
-    const selfSend = address === boardingAddr || arkAddress === offchainAddr
-    setError(selfSend ? 'Cannot send to yourself' : error)
-    setTryingToSelfSend(selfSend)
-    if (arkAddress && arkAddress.length > 0) {
-      const { aspKey: expectedAspKey } = decodeArkAddress(offchainAddr)
-      const { aspKey } = decodeArkAddress(arkAddress)
-      if (aspKey !== expectedAspKey) setInvalidArkAddress(true)
-    }
   }
 
   const gotoRollover = () => {
@@ -217,13 +223,6 @@ export default function SendForm() {
               <div style={{ width: '100%' }}>
                 <Text centered color='dark50' small>
                   Did you mean <a onClick={gotoRollover}>roll over your VTXOs</a>?
-                </Text>
-              </div>
-            ) : null}
-            {invalidArkAddress ? (
-              <div style={{ width: '100%' }}>
-                <Text centered color='red' small>
-                  Invalid Ark server public key
                 </Text>
               </div>
             ) : null}
