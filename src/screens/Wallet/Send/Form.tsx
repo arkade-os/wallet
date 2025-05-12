@@ -19,6 +19,7 @@ import FlexCol from '../../../components/FlexCol'
 import Keyboard from '../../../components/Keyboard'
 import Text from '../../../components/Text'
 import Scanner from '../../../components/Scanner'
+import Loading from '../../../components/Loading'
 import { consoleError } from '../../../lib/logs'
 import { Addresses, SettingsOptions } from '../../../lib/types'
 import { getReceivingAddresses } from '../../../lib/asp'
@@ -47,6 +48,9 @@ export default function SendForm() {
   const [satoshis, setSatoshis] = useState(0)
   const [scan, setScan] = useState(false)
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
+  const [invalidArkAddress, setInvalidArkAddress] = useState(false)
+
+  if (!svcWallet) return <Loading text='Loading...' />
 
   useEffect(() => {
     const { recipient, satoshis } = sendInfo
@@ -126,6 +130,11 @@ export default function SendForm() {
     const selfSend = address === boardingAddr || arkAddress === offchainAddr
     setError(selfSend ? 'Cannot send to yourself' : error)
     setTryingToSelfSend(selfSend)
+    if (arkAddress && arkAddress.length > 0) {
+      const { aspKey: expectedAspKey } = decodeArkAddress(offchainAddr)
+      const { aspKey } = decodeArkAddress(arkAddress)
+      if (aspKey !== expectedAspKey) setInvalidArkAddress(true)
+    }
   }
 
   const gotoRollover = () => {
@@ -208,6 +217,13 @@ export default function SendForm() {
               <div style={{ width: '100%' }}>
                 <Text centered color='dark50' small>
                   Did you mean <a onClick={gotoRollover}>roll over your VTXOs</a>?
+                </Text>
+              </div>
+            ) : null}
+            {invalidArkAddress ? (
+              <div style={{ width: '100%' }}>
+                <Text centered color='red' small>
+                  Invalid Ark server public key
                 </Text>
               </div>
             ) : null}
