@@ -34,7 +34,7 @@ interface WalletContextProps {
   txs: Tx[]
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: number
-  initialized: boolean
+  initialized?: boolean
 }
 
 export const WalletContext = createContext<WalletContextProps>({
@@ -50,7 +50,6 @@ export const WalletContext = createContext<WalletContextProps>({
   balance: 0,
   txs: [],
   vtxos: { spendable: [], spent: [] },
-  initialized: false,
 })
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
@@ -66,7 +65,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
   const [txs, setTxs] = useState<Tx[]>([])
   const [balance, setBalance] = useState(0)
-  const [initialized, setInitialized] = useState(false)
+  const [initialized, setInitialized] = useState<boolean | undefined>(undefined)
   const allVtxos = useLiveQuery(() => db.vtxos?.toArray())
 
   useEffect(() => {

@@ -60,7 +60,7 @@ export default function App() {
     // avoid redirect if the user is still setting up the wallet
     if (initInfo.password || initInfo.privateKey) return
 
-    if (!svcWallet) navigate(Pages.Loading)
+    if (!svcWallet || initialized === undefined) navigate(Pages.Loading)
     else if (wallet.network === '') navigate(isPwaInstalled ? Pages.Init : Pages.Onboard)
     else if (!initialized) navigate(Pages.Unlock)
   }, [wallet, initialized, svcWallet, initInfo])
