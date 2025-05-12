@@ -29,6 +29,7 @@ import Loading from './components/Loading'
 import AppsIcon from './icons/Apps'
 import { WalletContext } from './providers/wallet'
 import { FlowContext } from './providers/flow'
+import { usePwa } from '@dotmind/react-use-pwa'
 
 setupIonicReact()
 
@@ -41,6 +42,7 @@ export default function App() {
   const { setOption } = useContext(OptionsContext)
   const { wallet, initialized, svcWallet } = useContext(WalletContext)
   const [loadingError, setLoadingError] = useState<string | null>(null)
+  const { isInstalled: isPwaInstalled } = usePwa()
 
   useEffect(() => {
     if (!configLoaded) {
@@ -59,7 +61,7 @@ export default function App() {
     if (initInfo.password || initInfo.privateKey) return
 
     if (!svcWallet) navigate(Pages.Loading)
-    else if (wallet.network === '') navigate(Pages.Onboard)
+    else if (wallet.network === '') navigate(isPwaInstalled ? Pages.Init : Pages.Onboard)
     else if (!initialized) navigate(Pages.Unlock)
   }, [wallet, initialized, svcWallet, initInfo])
 

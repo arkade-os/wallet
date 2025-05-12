@@ -1,6 +1,5 @@
 import { ReactNode, useContext, useState } from 'react'
 import StepBars from '../../components/StepBars'
-import { canInstallPWA } from '../../lib/pwaDetection'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { OnboardImage1, OnboardImage2, OnboardImage3, OnboardImage4 } from '../../icons/Onboard'
 import Title from '../../components/Title'
@@ -15,12 +14,13 @@ import FlexRow from '../../components/FlexRow'
 import Shadow from '../../components/Shadow'
 import AddIcon from '../../icons/Add'
 import ShareIcon from '../../icons/Share'
+import { usePwa } from '@dotmind/react-use-pwa'
 
 export default function Onboard() {
   const { navigate } = useContext(NavigationContext)
   const [step, setStep] = useState(1)
-
-  const steps = canInstallPWA() ? 4 : 3
+  const { installPrompt, canInstall } = usePwa()
+  const steps = canInstall ? 4 : 3
 
   const handleContinue = () => setStep(step + 1)
 
@@ -40,11 +40,21 @@ export default function Onboard() {
       margin: '0 auto',
       maxHeight: '50%',
     }
-    return (
-      <div style={style}>
-        <Image />
-      </div>
-    )
+
+    if (step === 4) {
+      style.cursor = 'pointer'
+      return (
+        <div style={style} onClick={installPrompt}>
+          <Image />
+        </div>
+      )
+    } else {
+      return (
+        <div style={style}>
+          <Image />
+        </div>
+      )
+    }
   }
 
   const InfoContainer = (): ReactNode => {

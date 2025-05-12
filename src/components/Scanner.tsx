@@ -4,17 +4,8 @@ import Content from './Content'
 import Error from './Error'
 import Header from './Header'
 import Padded from './Padded'
-import { QRCanvas, frameLoop, frontalCamera } from '@paulmillr/qr/dom.js'
+import { QRCanvas, frameLoop, frontalCamera } from 'qr/dom.js'
 import { useRef, useEffect, useState } from 'react'
-
-const isCamAvailable = async (): Promise<boolean> => {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false
-  try {
-    await navigator.mediaDevices.getUserMedia({ video: true })
-    return true
-  } catch {}
-  return false
-}
 
 interface ScannerProps {
   close: () => void
@@ -48,18 +39,18 @@ export default function Scanner({ close, label, setData }: ScannerProps) {
             handleClose()
           }
         })
-      } catch {}
+      } catch (e) {
+        setError(true)
+      }
     }
 
-    isCamAvailable().then((available) => {
-      if (!available) setError(true)
-      else startCameraCapture()
-    })
+    startCameraCapture()
 
     return () => handleClose()
   }, [videoRef])
 
   const handleClose = () => {
+    if (!cancel && !error) return
     if (cancel) cancel()
     camera?.stop()
     close()

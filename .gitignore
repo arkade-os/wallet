@@ -33,3 +33,4 @@ yarn-error.log*
 
 .pnpm-store/
 .pnpm-debug.log
+.idea
