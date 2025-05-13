@@ -41,7 +41,7 @@ export default function App() {
   const { initInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
   const { wallet, initialized, svcWallet } = useContext(WalletContext)
-  const [loadingError, setLoadingError] = useState<string | null>(null)
+  const [loadingError, setLoadingError] = useState('')
   const { isInstalled: isPwaInstalled } = usePwa()
 
   // lock screen orientation to portrait
@@ -56,7 +56,7 @@ export default function App() {
 
   useEffect(() => {
     if (!configLoaded) {
-      setLoadingError(null)
+      setLoadingError('')
     }
   }, [configLoaded])
 
@@ -69,13 +69,12 @@ export default function App() {
   useEffect(() => {
     // avoid redirect if the user is still setting up the wallet
     if (initInfo.password || initInfo.privateKey) return
-
     if (!svcWallet || initialized === undefined) navigate(Pages.Loading)
     else if (wallet.network === '') navigate(isPwaInstalled ? Pages.Init : Pages.Onboard)
     else if (!initialized) navigate(Pages.Unlock)
   }, [wallet, initialized, svcWallet, initInfo])
 
-  if (!svcWallet) return <Loading text={loadingError || undefined} />
+  if (!svcWallet) return <Loading text={loadingError} />
 
   const handleWallet = () => {
     navigate(Pages.Wallet)
@@ -92,7 +91,7 @@ export default function App() {
 
   const page = configLoaded && (aspInfo.pubkey || aspInfo.unreachable) ? screen : Pages.Loading
 
-  const comp = page === Pages.Loading ? <Loading text={loadingError || undefined} /> : pageComponent(page)
+  const comp = page === Pages.Loading ? <Loading text={loadingError} /> : pageComponent(page)
 
   if (iframeUrl)
     return (
