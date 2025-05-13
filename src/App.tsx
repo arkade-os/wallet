@@ -62,7 +62,7 @@ export default function App() {
 
   useEffect(() => {
     if (aspInfo.unreachable) {
-      setLoadingError('Unable t connect to the server. Please check your internet connection and try again.')
+      setLoadingError('Unable to connect to the server. Please check your internet connection and try again.')
     }
   }, [aspInfo.unreachable])
 
