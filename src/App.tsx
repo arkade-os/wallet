@@ -44,6 +44,16 @@ export default function App() {
   const [loadingError, setLoadingError] = useState<string | null>(null)
   const { isInstalled: isPwaInstalled } = usePwa()
 
+  // lock screen orientation to portrait
+  // this is a workaround for the issue with the screen orientation API
+  // not being supported in some browsers
+  const orientation = window.screen.orientation as any
+  if (orientation && typeof orientation.lock === 'function') {
+    orientation.lock('portrait').catch((err: any) => {
+      console.log('Screen orientation lock failed:', err)
+    })
+  }
+
   useEffect(() => {
     if (!configLoaded) {
       setLoadingError(null)
