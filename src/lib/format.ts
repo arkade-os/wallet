@@ -10,9 +10,14 @@ export const toSatoshis = (num: number): Satoshis => {
 }
 
 export const prettyAgo = (timestamp: number | string, long = false): string => {
-  const unixts = typeof timestamp === 'string' ? Math.floor(new Date(timestamp).getTime() / 1000) : timestamp
+  const unixTimestamp =
+    typeof timestamp === 'string'
+      ? Math.floor(new Date(timestamp).getTime() / 1000)
+      : timestamp > 200_000_000_000
+      ? Math.floor(timestamp / 1000)
+      : timestamp
   const now = Math.floor(Date.now() / 1000)
-  const delta = Math.floor(now - unixts)
+  const delta = Math.floor(now - unixTimestamp)
   if (delta === 0) return 'just now'
   if (delta > 0) return `${prettyDelta(delta, long)} ago`
   if (delta < 0) return `in ${prettyDelta(delta, long)}`

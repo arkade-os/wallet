@@ -17,7 +17,7 @@ import Error from '../../components/Error'
 import WaitingForRound from '../../components/WaitingForRound'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
-import { settleVtxos } from '../../lib/asp'
+import { AspInfo, settleVtxos } from '../../lib/asp'
 import Loading from '../../components/Loading'
 
 const Box = ({ children }: { children: ReactNode }) => {
@@ -35,12 +35,13 @@ const Box = ({ children }: { children: ReactNode }) => {
   )
 }
 
-const VtxoLine = ({ hide, vtxo }: { hide: boolean; vtxo: Vtxo }) => {
+const VtxoLine = ({ aspInfo, hide, vtxo }: { aspInfo: AspInfo; hide: boolean; vtxo: Vtxo }) => {
   const amount = hide ? prettyHide(vtxo.value) : prettyNumber(vtxo.value)
+  const expiry = vtxo.virtualStatus.batchExpiry ?? vtxo.createdAt.getDate() + aspInfo.vtxoTreeExpiry * 1000
   return (
     <Box>
       <Text>{amount} SATS</Text>
-      <Text>{prettyAgo(vtxo.createdAt.getTime())}</Text>
+      <Text>{prettyAgo(expiry)}</Text>
     </Box>
   )
 }
@@ -115,7 +116,7 @@ export default function Vtxos() {
                     Your virtual coins with amount and expiration
                   </Text>
                   {vtxos.spendable?.map((v: Vtxo) => (
-                    <VtxoLine key={v.txid} hide={!config.showBalance} vtxo={v} />
+                    <VtxoLine key={v.txid} aspInfo={aspInfo} hide={!config.showBalance} vtxo={v} />
                   ))}
                 </FlexCol>
               ) : (
