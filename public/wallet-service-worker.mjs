@@ -10673,7 +10673,7 @@ var Rs = W.constructor = hh(kc);
 ds = new Rs(ds);
 hs = new Rs(hs);
 const Vy = (t, e = !1) => {
-  const n = typeof t == "string" ? Math.floor(new Date(t).getTime() / 1e3) : t, r = Math.floor(Date.now() / 1e3), i = Math.floor(r - n);
+  const n = typeof t == "string" ? Math.floor(new Date(t).getTime() / 1e3) : t > 2e11 ? Math.floor(t / 1e3) : t, r = Math.floor(Date.now() / 1e3), i = Math.floor(r - n);
   return i === 0 ? "just now" : i > 0 ? `${yl(i, e)} ago` : i < 0 ? `in ${yl(i, e)}` : "";
 }, yl = (t, e = !0) => {
   const n = Math.abs(t);
