@@ -49,9 +49,7 @@ export default function App() {
   // not being supported in some browsers
   const orientation = window.screen.orientation as any
   if (orientation && typeof orientation.lock === 'function') {
-    orientation.lock('portrait').catch((err: any) => {
-      console.log('Screen orientation lock failed:', err)
-    })
+    orientation.lock('portrait').catch(() => {})
   }
 
   useEffect(() => {
