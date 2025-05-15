@@ -1,15 +1,12 @@
-export default function LogoIcon({ big, small }: { big?: boolean; small?: boolean }) {
-  const height = big ? '144px' : small ? '34px' : '50px'
-  const width = big ? '141px' : small ? '33px' : '49px'
+export default function LogoIcon({ small }: { small?: boolean }) {
+  const height = small ? '35' : '50'
+  const width = small ? '35' : '50'
   return (
-    <svg width={width} height={height} viewBox='0 0 49 50' fill='none' xmlns='http://www.w3.org/2000/svg'>
-      <rect x='1' y='7' width='47' height='42' rx='3' fill='white' />
-      <rect x='1' y='7' width='47' height='42' rx='3' stroke='#391998' strokeWidth='2' />
-      <rect width='49' height='44' rx='4' fill='#391998' />
-      <path
-        d='M24.5 19.7036C25.0648 19.7185 25.5229 20.1715 25.5404 20.7391L25.7309 26.9268C25.7514 27.5909 26.0715 28.2101 26.6018 28.6111L30.0947 31.2523C30.2838 31.3953 30.5145 31.4727 30.7516 31.4727C32.8336 31.4727 34.2012 29.3002 33.2998 27.425L26.9066 14.1255C26.4565 13.1892 25.587 12.5273 24.5 12.5273C23.4668 12.5273 22.5435 13.1892 22.0934 14.1255L15.7002 27.425C14.7988 29.3002 16.1664 31.4727 18.2484 31.4727C18.4855 31.4727 18.7162 31.3953 18.9053 31.2523L22.3982 28.6111C22.9285 28.2101 23.2486 27.5909 23.2691 26.9268L23.4596 20.7391C23.4771 20.1715 23.9352 19.7185 24.5 19.7036Z'
-        fill='white'
-      />
+    <svg width={width} height={height} viewBox='0 0 35 35' fill='none' xmlns='http://www.w3.org/2000/svg'>
+      <path d='M0 8.75L8.75 0H26.25L35 8.75V17.5H26.25V8.75H8.75V17.5H2.45431e-07L0 8.75Z' fill='var(--logo-color)' />
+      <path d='M8.75 26.25V17.5H26.25V26.25H8.75Z' fill='var(--logo-color)' />
+      <path d='M8.75 26.25H2.45431e-07V35H8.75V26.25Z' fill='var(--logo-color)' />
+      <path d='M26.25 26.25V35H35V26.25H26.25Z' fill='var(--logo-color)' />
     </svg>
   )
 }

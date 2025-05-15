@@ -9,6 +9,7 @@
   --green: #60b18a;
   --greenbg: #054a19;
   --liz: #d5c6ff;
+  --logo-color: #391998;
   --magenta: #8563e4;
   --orange: #c3730a;
   --orangebg: #572d00;
@@ -38,6 +39,7 @@
   --ion-background-color: #101010;
   --ion-tabbar-background-color: #181818;
   --ion-backdrop-color: #000;
+  --logo-color: #fbfbfb;
 }
 
 ion-button {
