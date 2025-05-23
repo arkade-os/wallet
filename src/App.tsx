@@ -41,31 +41,38 @@ export default function App() {
   const { initInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
   const { wallet, initialized, svcWallet } = useContext(WalletContext)
-  const [loadingError, setLoadingError] = useState<string | null>(null)
+  const [loadingError, setLoadingError] = useState('')
   const { isInstalled: isPwaInstalled } = usePwa()
+
+  // lock screen orientation to portrait
+  // this is a workaround for the issue with the screen orientation API
+  // not being supported in some browsers
+  const orientation = window.screen.orientation as any
+  if (orientation && typeof orientation.lock === 'function') {
+    orientation.lock('portrait').catch(() => {})
+  }
 
   useEffect(() => {
     if (!configLoaded) {
-      setLoadingError(null)
+      setLoadingError('')
     }
   }, [configLoaded])
 
   useEffect(() => {
     if (aspInfo.unreachable) {
-      setLoadingError('Unable t connect to the server. Please check your internet connection and try again.')
+      setLoadingError('Unable to connect to the server. Please check your internet connection and try again.')
     }
   }, [aspInfo.unreachable])
 
   useEffect(() => {
     // avoid redirect if the user is still setting up the wallet
     if (initInfo.password || initInfo.privateKey) return
-
     if (!svcWallet || initialized === undefined) navigate(Pages.Loading)
     else if (wallet.network === '') navigate(isPwaInstalled ? Pages.Init : Pages.Onboard)
     else if (!initialized) navigate(Pages.Unlock)
   }, [wallet, initialized, svcWallet, initInfo])
 
-  if (!svcWallet) return <Loading text={loadingError || undefined} />
+  if (!svcWallet) return <Loading text={loadingError} />
 
   const handleWallet = () => {
     navigate(Pages.Wallet)
@@ -82,7 +89,7 @@ export default function App() {
 
   const page = configLoaded && (aspInfo.pubkey || aspInfo.unreachable) ? screen : Pages.Loading
 
-  const comp = page === Pages.Loading ? <Loading text={loadingError || undefined} /> : pageComponent(page)
+  const comp = page === Pages.Loading ? <Loading text={loadingError} /> : pageComponent(page)
 
   if (iframeUrl)
     return (
