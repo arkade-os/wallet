@@ -4,17 +4,19 @@ Arkade Wallet is a modern self-custodial **Bitcoin** wallet built as a Progressi
 
 ## Screenshots
 
-<div style="display: flex; flex-direction: row; justify-content: space-between; flex-wrap: wrap; gap: 20px;">
-  <div style="flex: 1; min-width: 200px; max-width: 50%;">
-    <h3>New Wallet Creation</h3>
-    <img src="./mockup/new-wallet.png" alt="New Wallet" style="width: 100%; max-width: 300px;">
-  </div>
-
-  <div style="flex: 1; min-width: 200px; max-width: 50%;">
-    <h3>Home Screen</h3>
-    <img src="./mockup/home-arkade-wallet.png" alt="Home Screen" style="width: 100%; max-width: 300px;">
-  </div>
-</div>
+<!-- Using a table for more consistent layout -->
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <h3>New Wallet Creation</h3>
+      <img src="./mockup/new-wallet.png" alt="New Wallet" width="250">
+    </td>
+    <td width="50%" align="center">
+      <h3>Home Screen</h3>
+      <img src="./mockup/home-arkade-wallet.png" alt="Home Screen" width="250">
+    </td>
+  </tr>
+</table>
 
 ## Getting Started
 
