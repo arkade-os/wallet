@@ -35,7 +35,7 @@ Install dependencies
 
 ## Development
 
-### `pnpm start`
+### `pnpm run start`
 
 Runs the app in the development mode.\
 Open [http://localhost:3002](http://localhost:3002) to view it in the browser.
