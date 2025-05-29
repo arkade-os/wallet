@@ -20,9 +20,9 @@ export default function QrCode({ value }: QrCodeProps) {
           style={{
             backgroundColor: 'white',
             borderRadius: '0.5rem',
-            padding: '1rem',
+            padding: '0.5rem',
             maxWidth: '100%',
-            width: '320px',
+            width: '300px',
           }}
         >
           <img src={qrGifDataUrl(value)} alt='QR Code' style={{ width: '100%' }} />

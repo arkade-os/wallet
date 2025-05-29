@@ -14,6 +14,7 @@ export interface NoteInfo {
 export interface RecvInfo {
   boardingAddr: string
   offchainAddr: string
+  invoice?: string
   satoshis: number
   txid?: string
 }
@@ -21,8 +22,10 @@ export interface RecvInfo {
 export type SendInfo = {
   address?: string
   arkAddress?: string
+  invoice?: string
   recipient?: string
   satoshis?: number
+  swapAddress?: string
   total?: number
   text?: string
   txid?: string

@@ -16,6 +16,8 @@ import { hex } from '@scure/base'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 
+import * as secp from '@noble/secp256k1'
+
 const defaultWallet: Wallet = {
   network: '',
   nextRollover: 0,
@@ -177,15 +179,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const initWallet = async (privateKey: Uint8Array) => {
     if (!svcWallet) throw new Error('Service worker not initialized')
+    const pubkey = hex.encode(secp.getPublicKey(privateKey))
+    const network = aspInfo.network as NetworkName
     const arkServerUrl = aspInfo.url
-    const esploraUrl = getRestApiExplorerURL(wallet.network) ?? ''
+    const esploraUrl = getRestApiExplorerURL(network) ?? ''
     await svcWallet.init({
       arkServerUrl,
-      privateKey: hex.encode(privateKey),
-      network: aspInfo.network as NetworkName,
       esploraUrl,
+      network,
+      privateKey: hex.encode(privateKey),
     })
-    updateWallet({ ...wallet, network: aspInfo.network })
+    updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
   }
 

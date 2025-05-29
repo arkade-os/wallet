@@ -5,6 +5,7 @@ export const testServer = 'https://staging.mutinynet.arkade.sh'
 export const mainServer = 'https://mutinynet.arkade.sh'
 
 export const defaultArkServer = () => {
+  if (import.meta.env.VITE_ARK_SERVER) return import.meta.env.VITE_ARK_SERVER
   for (const domain of testDomains) {
     if (window.location.hostname.includes(domain)) {
       return testServer
