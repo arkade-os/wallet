@@ -25,7 +25,7 @@ interface WalletContextProps {
   initWallet: (seed: Uint8Array) => Promise<void>
   lockWallet: () => Promise<void>
   resetWallet: () => Promise<void>
-  settlePending: () => Promise<void>
+  settlePreconfirmed: () => Promise<void>
   updateWallet: (w: Wallet) => void
   isLocked: () => Promise<boolean>
   reloadWallet: () => Promise<void>
@@ -42,7 +42,7 @@ export const WalletContext = createContext<WalletContextProps>({
   initWallet: () => Promise.resolve(),
   lockWallet: () => Promise.resolve(),
   resetWallet: () => Promise.resolve(),
-  settlePending: () => Promise.resolve(),
+  settlePreconfirmed: () => Promise.resolve(),
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
   wallet: defaultWallet,
@@ -203,7 +203,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     updateWallet(defaultWallet)
   }
 
-  const settlePending = async () => {
+  const settlePreconfirmed = async () => {
     if (!svcWallet) throw new Error('Service worker not initialized')
     await settleVtxos(svcWallet)
     notifyTxSettled()
@@ -231,7 +231,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         isLocked,
         initialized,
         resetWallet,
-        settlePending,
+        settlePreconfirmed,
         updateWallet,
         wallet,
         walletLoaded,
