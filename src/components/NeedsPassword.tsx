@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useState } from 'react'
 import Text from './Text'
 import Error from './Error'
 import Button from './Button'
@@ -25,10 +25,6 @@ export default function NeedsPassword({ error, onPassword }: NeedsPasswordProps)
   const handleBiometrics = () => {
     authenticateUser(wallet.passkeyId).then(onPassword).catch(consoleError)
   }
-
-  useEffect(() => {
-    if (wallet.lockedByBiometrics) handleBiometrics()
-  }, [wallet.lockedByBiometrics])
 
   const handleChange = (ev: any) => setPassword(ev.target.value)
   const handleClick = () => onPassword(password)
