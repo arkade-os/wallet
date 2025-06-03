@@ -14,12 +14,12 @@ import { consoleError } from '../../../lib/logs'
 import { canBrowserShareData, shareData } from '../../../lib/share'
 import ExpandAddresses from '../../../components/ExpandAddresses'
 import FlexCol from '../../../components/FlexCol'
-import { AspContext } from '../../../providers/asp'
+import { LimitsContext } from '../../../providers/limits'
 import { ExtendedCoin } from '@arklabs/wallet-sdk'
 
 export default function ReceiveQRCode() {
-  const { aspInfo } = useContext(AspContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
+  const { validLnSwap, validUtxoTx, validVtxoTx } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { vtxos, svcWallet, reloadWallet } = useContext(WalletContext)
@@ -27,17 +27,20 @@ export default function ReceiveQRCode() {
   const [sharing, setSharing] = useState(false)
   const isFirstMount = useRef(true)
 
-  const { boardingAddr, offchainAddr, satoshis } = recvInfo
-  const address = aspInfo.utxoMaxAmount === 0 ? '' : boardingAddr
-  const arkAddress = aspInfo.vtxoMaxAmount === 0 ? '' : offchainAddr
-  const bip21uri = bip21.encode(address, arkAddress, satoshis)
+  const { boardingAddr, offchainAddr, invoice, satoshis } = recvInfo
+  const address = validUtxoTx(satoshis) ? boardingAddr : ''
+  const arkAddress = validVtxoTx(satoshis) ? offchainAddr : ''
+  const lnInvoice = invoice && validLnSwap(satoshis) ? invoice : ''
+  const bip21uri = bip21.encode(address, arkAddress, lnInvoice, satoshis)
+
+  const [value, setValue] = useState(bip21uri)
 
   useEffect(() => {
     if (isFirstMount.current) {
       isFirstMount.current = false
       return
     }
-
+    // we just received a payment, and it's on the last index of the vtxos
     const lastVtxo = vtxos.spendable.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0]
     if (!lastVtxo) return
     const { value } = lastVtxo
@@ -93,8 +96,14 @@ export default function ReceiveQRCode() {
       <Content>
         <Padded>
           <FlexCol>
-            <QrCode value={bip21uri ?? ''} />
-            <ExpandAddresses bip21uri={bip21uri} boardingAddr={address} offchainAddr={arkAddress} />
+            <QrCode value={value} />
+            <ExpandAddresses
+              bip21uri={bip21uri}
+              boardingAddr={address}
+              offchainAddr={arkAddress}
+              invoice={lnInvoice}
+              onClick={setValue}
+            />
           </FlexCol>
         </Padded>
       </Content>

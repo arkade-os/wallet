@@ -1,3 +1,4 @@
+import { NetworkName } from '@arklabs/wallet-sdk/dist/types/networks'
 import type { ExtendedVirtualCoin } from '@arklabs/wallet-sdk'
 
 export type Addresses = {
@@ -70,6 +71,12 @@ export type Tx = {
   type: string
 }
 
+export enum TxType {
+  swap = 'swap',
+  utxo = 'utxo',
+  vtxo = 'vtxo',
+}
+
 export enum Unit {
   BTC = 'btc',
   EUR = 'eur',
@@ -81,7 +88,8 @@ export type Vtxo = ExtendedVirtualCoin
 
 export type Wallet = {
   lockedByBiometrics?: boolean
-  network: string
+  network?: NetworkName | ''
   nextRollover: number
   passkeyId?: string
+  pubkey?: string
 }

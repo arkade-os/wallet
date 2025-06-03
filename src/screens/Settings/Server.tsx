@@ -69,7 +69,6 @@ export default function Server() {
       <Content>
         <Padded>
           <FlexCol>
-            <Error error={Boolean(error)} text={error} />
             <InputUrl
               focus
               label='Server URL'
@@ -79,6 +78,7 @@ export default function Server() {
               placeholder={config.aspUrl}
               value={aspUrl}
             />
+            <Error error={Boolean(error)} text={error} />
             {info && !error ? <WarningBox green text='Server found' /> : null}
             <WarningBox text='Your wallet will be reset. Make sure you backup your wallet first.' />
           </FlexCol>

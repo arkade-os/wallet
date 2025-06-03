@@ -1,4 +1,5 @@
 import { ExtendedVirtualCoin, IWallet, ArkNote } from '@arklabs/wallet-sdk'
+import { NetworkName } from '@arklabs/wallet-sdk/dist/types/networks'
 import { consoleError, consoleLog } from './logs'
 import { Addresses, Satoshis, Tx } from './types'
 import { vtxosRepository } from './db'
@@ -8,7 +9,7 @@ export interface AspInfo {
   code?: number
   dust: number
   forfeitAddress: string
-  network: string
+  network?: NetworkName
   pubkey: string
   roundInterval: number
   unilateralExitDelay: number
@@ -31,7 +32,6 @@ export const emptyAspInfo: AspInfo = {
   boardingDescriptorTemplate: '',
   dust: 0,
   forfeitAddress: '',
-  network: '',
   pubkey: '',
   roundInterval: 0,
   unilateralExitDelay: 0,
@@ -109,6 +109,7 @@ export const getAspInfo = async (url: string): Promise<AspInfo> => {
           vtxoMinAmount,
           vtxoMaxAmount,
         } = info
+        console.log('ASP info:', info)
         resolve({
           boardingDescriptorTemplate,
           dust: Number(dust),
