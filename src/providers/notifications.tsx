@@ -77,7 +77,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   }
 
   const notifyTxSettled = () => {
-    const body = `All pending transactions were settled`
+    const body = `All preconfirmed transactions were settled`
     const title = 'Transactions settled'
     sendSystemNotification(title, body)
     sendNostrNotification(body)

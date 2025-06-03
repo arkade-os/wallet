@@ -26,7 +26,7 @@ export default function Transaction() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { settlePending, wallet } = useContext(WalletContext)
+  const { settlePreconfirmed, wallet } = useContext(WalletContext)
 
   const tx = txInfo
   const defaultButtonLabel = 'Settle Transaction'
@@ -66,10 +66,10 @@ export default function Transaction() {
     setError('')
     setSettling(true)
     try {
-      await settlePending()
+      await settlePreconfirmed()
       await sleep(2000) // give time to read last message
       setSettleSuccess(true)
-      if (tx) setTxInfo({ ...tx, pending: false, settled: true })
+      if (tx) setTxInfo({ ...tx, preconfirmed: false, settled: true })
     } catch (err) {
       setError(extractError(err))
     }
@@ -100,8 +100,8 @@ export default function Transaction() {
             <FlexCol>
               <Error error={Boolean(error)} text={error} />
               {tx.settled ? null : (
-                <Info color='orange' icon={<VtxosIcon />} title='Pending'>
-                  <Text wrap>Transaction pending. Funds will be non-reversible after settlement.</Text>
+                <Info color='orange' icon={<VtxosIcon />} title='Preconfirmed'>
+                  <Text wrap>Transaction preconfirmed. Funds will be non-reversible after settlement.</Text>
                   {canSettleOnMarketHour ? (
                     <TextSecondary>
                       Settlement during market hours offers lower fees.

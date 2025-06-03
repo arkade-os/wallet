@@ -1,4 +1,4 @@
-export default function PendingIcon() {
+export default function PreconfirmedIcon() {
   return (
     <svg width='40' height='41' viewBox='0 0 40 41' fill='none' xmlns='http://www.w3.org/2000/svg'>
       <rect y='0.5' width='40' height='40' rx='20' fill='var(--orange)' fillOpacity='0.1' />
