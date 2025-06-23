@@ -1,6 +1,6 @@
+import { IonContent } from '@ionic/react'
 import { ReactNode } from 'react'
 import Refresher from './Refresher'
-import { IonContent } from '@ionic/react'
 
 interface ContentProps {
   children: ReactNode
