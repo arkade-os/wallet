@@ -1,6 +1,6 @@
 import { HDKey } from '@scure/bip32'
 import { hex } from '@scure/base'
-import { IWallet } from '@arklabs/wallet-sdk'
+import { IWallet } from '@arkade-os/sdk'
 
 const DERIVATION_PATH = "m/44/1237/0'"
 

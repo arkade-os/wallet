@@ -1,4 +1,4 @@
-import { Worker } from '@arklabs/wallet-sdk'
+import { Worker } from '@arkade-os/sdk'
 import { vtxosRepository } from './lib/db'
 
 const worker = new Worker(vtxosRepository)
@@ -32,7 +32,7 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
 // 1. cache first: try to get the response from the cache first, then fetch from network
 // 2. network first: try to fetch from the network first, then get the response from the cache
 //
-// due to the fast development of the wallet-sdk, we should use network first for now
+// due to the fast development of the wallet sdk, we should use network first for now
 //
 // async function cacheFirst(request) {
 //   const cache = await caches.open(CACHE_NAME)

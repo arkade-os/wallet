@@ -15,7 +15,7 @@ import { canBrowserShareData, shareData } from '../../../lib/share'
 import ExpandAddresses from '../../../components/ExpandAddresses'
 import FlexCol from '../../../components/FlexCol'
 import { AspContext } from '../../../providers/asp'
-import { ExtendedCoin } from '@arklabs/wallet-sdk'
+import { ExtendedCoin } from '@arkade-os/sdk'
 
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)

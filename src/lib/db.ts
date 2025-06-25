@@ -1,4 +1,4 @@
-import { ExtendedVirtualCoin, VtxoRepository } from '@arklabs/wallet-sdk'
+import { ExtendedVirtualCoin, VtxoRepository } from '@arkade-os/sdk'
 import Dexie, { EntityTable } from 'dexie'
 
 export const db = new Dexie('arkade', { allowEmptyDB: true }) as Dexie & {

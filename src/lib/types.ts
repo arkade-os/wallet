@@ -1,4 +1,4 @@
-import type { ExtendedVirtualCoin } from '@arklabs/wallet-sdk'
+import type { ExtendedVirtualCoin } from '@arkade-os/sdk'
 
 export type Addresses = {
   boardingAddr: string

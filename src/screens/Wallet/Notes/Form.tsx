@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
-import { ArkNote } from '@arklabs/wallet-sdk'
+import { ArkNote } from '@arkade-os/sdk'
 import Error from '../../../components/Error'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext } from '../../../providers/flow'

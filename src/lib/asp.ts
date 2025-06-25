@@ -1,4 +1,4 @@
-import { ExtendedVirtualCoin, IWallet, ArkNote } from '@arklabs/wallet-sdk'
+import { ExtendedVirtualCoin, IWallet, ArkNote } from '@arkade-os/sdk'
 import { consoleError, consoleLog } from './logs'
 import { Addresses, Satoshis, Tx } from './types'
 import { vtxosRepository } from './db'
