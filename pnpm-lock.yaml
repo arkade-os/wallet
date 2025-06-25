@@ -8,9 +8,6 @@ dependencies:
   '@arkade-os/sdk':
     specifier: ^0.1.1
     version: 0.1.1
-  '@dotmind/react-use-pwa':
-    specifier: ^1.0.4
-    version: 1.0.4
   '@ionic/react':
     specifier: ^8.5.6
     version: 8.5.6(react-dom@18.3.1)(react@18.3.1)
@@ -325,10 +322,6 @@ packages:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.27.1
     dev: true
-
-  /@dotmind/react-use-pwa@1.0.4:
-    resolution: {integrity: sha512-qZauJLQu9hbdy6eAIm49YfI+8Dxty9tr8Zmv99M4rV37zwT7LVSdohXlGmFXXo19v5YV/Ig0Mnn5hRGPCxWDrA==}
-    dev: false
 
   /@esbuild/aix-ppc64@0.21.5:
     resolution: {integrity: sha512-1SDgH6ZSPTlggy1yI6+Dbkiz8xzpHJEVAlF/AM1tHPLsf5STom9rwtjE4hKAF20FfXXNTFqEYXyJNWh1GiZedQ==}

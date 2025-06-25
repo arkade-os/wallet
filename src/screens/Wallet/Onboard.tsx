@@ -17,47 +17,40 @@ import FlexRow from '../../components/FlexRow'
 import Shadow from '../../components/Shadow'
 import AddIcon from '../../icons/Add'
 import ShareIcon from '../../icons/Share'
-import { usePwa } from '@dotmind/react-use-pwa'
+import { pwaCanInstall } from '../../lib/pwa'
 
 export default function Onboard() {
   const { navigate } = useContext(NavigationContext)
   const [step, setStep] = useState(1)
-  const { installPrompt, canInstall } = usePwa()
-  const steps = canInstall ? 4 : 3
+
+  const steps = pwaCanInstall() ? 4 : 3
 
   const handleContinue = () => setStep(step + 1)
 
   const handleSkip = () => navigate(Pages.Init)
 
   const ImageContainer = () => {
-    const Image = () => {
-      if (step === 1) return <OnboardImage1 />
-      if (step === 2) return <OnboardImage2 />
-      if (step === 3) return <OnboardImage3 />
-      return <OnboardImage4 />
-    }
-    const style: any = {
-      alignItems: 'center',
-      display: 'flex',
-      justifyContent: 'center',
-      margin: '0 auto',
-      maxHeight: '50%',
-    }
-
-    if (step === 4) {
-      style.cursor = 'pointer'
-      return (
-        <div style={style} onClick={installPrompt}>
-          <Image />
-        </div>
-      )
-    } else {
-      return (
-        <div style={style}>
-          <Image />
-        </div>
-      )
-    }
+    return (
+      <div
+        style={{
+          alignItems: 'center',
+          display: 'flex',
+          justifyContent: 'center',
+          margin: '0 auto',
+          maxHeight: '50%',
+        }}
+      >
+        {step === 1 ? (
+          <OnboardImage1 />
+        ) : step === 2 ? (
+          <OnboardImage2 />
+        ) : step === 3 ? (
+          <OnboardImage3 />
+        ) : (
+          <OnboardImage4 />
+        )}
+      </div>
+    )
   }
 
   const InfoContainer = (): ReactNode => {
@@ -123,7 +116,7 @@ export default function Onboard() {
       <Content>
         <Padded>
           <FlexCol between>
-            {step < 4 ? <StepBars active={step} length={steps - 1} /> : <div />}
+            <StepBars active={step} length={steps} />
             <ImageContainer />
             <InfoContainer />
           </FlexCol>
