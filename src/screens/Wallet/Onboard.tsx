@@ -1,4 +1,4 @@
-import { ReactNode, useContext, useState } from 'react'
+import { ReactNode, useContext, useEffect, useState } from 'react'
 import StepBars from '../../components/StepBars'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { OnboardImage1 } from '../../icons/Onboard1'
@@ -18,39 +18,55 @@ import Shadow from '../../components/Shadow'
 import AddIcon from '../../icons/Add'
 import ShareIcon from '../../icons/Share'
 import { pwaCanInstall } from '../../lib/pwa'
+import { usePwa } from '@dotmind/react-use-pwa'
 
 export default function Onboard() {
   const { navigate } = useContext(NavigationContext)
+  const [installable, setInstallable] = useState(false)
   const [step, setStep] = useState(1)
 
+  const { installPrompt, canInstall, isInstalled } = usePwa()
+
   const steps = pwaCanInstall() ? 4 : 3
+
+  useEffect(() => {
+    console.log('isInstalled', isInstalled)
+    setInstallable(canInstall)
+  }, [canInstall, isInstalled])
 
   const handleContinue = () => setStep(step + 1)
 
   const handleSkip = () => navigate(Pages.Init)
 
   const ImageContainer = () => {
-    return (
-      <div
-        style={{
-          alignItems: 'center',
-          display: 'flex',
-          justifyContent: 'center',
-          margin: '0 auto',
-          maxHeight: '50%',
-        }}
-      >
-        {step === 1 ? (
-          <OnboardImage1 />
-        ) : step === 2 ? (
-          <OnboardImage2 />
-        ) : step === 3 ? (
-          <OnboardImage3 />
-        ) : (
-          <OnboardImage4 />
-        )}
-      </div>
-    )
+    const Image = () => {
+      if (step === 1) return <OnboardImage1 />
+      if (step === 2) return <OnboardImage2 />
+      if (step === 3) return <OnboardImage3 />
+      return <OnboardImage4 />
+    }
+    const style: any = {
+      alignItems: 'center',
+      display: 'flex',
+      justifyContent: 'center',
+      margin: '0 auto',
+      maxHeight: '50%',
+    }
+
+    if (step === 4 && installable) {
+      style.cursor = 'pointer'
+      return (
+        <div style={style} onClick={installPrompt}>
+          <Image />
+        </div>
+      )
+    } else {
+      return (
+        <div style={style}>
+          <Image />
+        </div>
+      )
+    }
   }
 
   const InfoContainer = (): ReactNode => {

@@ -5,6 +5,7 @@
   "homepage": ".",
   "dependencies": {
     "@arkade-os/sdk": "^0.1.1",
+    "@dotmind/react-use-pwa": "^1.0.4",
     "@ionic/react": "^8.5.6",
     "@scure/base": "^1.2.5",
     "@scure/bip32": "^1.7.0",
