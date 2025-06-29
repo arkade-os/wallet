@@ -21,11 +21,13 @@ import { IframeContext } from '../../../providers/iframe'
 import Minimal from '../../../components/Minimal'
 import Text from '../../../components/Text'
 import FlexRow from '../../../components/FlexRow'
+import { LimitsContext } from '../../../providers/limits'
 
 export default function SendDetails() {
   const { navigate } = useContext(NavigationContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { iframeUrl } = useContext(IframeContext)
+  const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { balance, svcWallet } = useContext(WalletContext)
 
   const [buttonLabel, setButtonLabel] = useState('')
@@ -33,16 +35,32 @@ export default function SendDetails() {
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
 
-  const { address, arkAddress, satoshis, text } = sendInfo
+  const { address, arkAddress, invoice, satoshis, swapAddress, text } = sendInfo
   const feeInSats = arkAddress ? defaultFee : 0
 
   useEffect(() => {
-    if (!address && !arkAddress) return setError('Missing address')
+    if (!address && !arkAddress && !invoice) return setError('Missing address')
     if (!satoshis) return setError('Missing amount')
     const total = satoshis + feeInSats
+    const destination =
+      arkAddress && vtxoTxsAllowed()
+        ? arkAddress
+        : address && utxoTxsAllowed()
+        ? address
+        : invoice && !lnSwapsAllowed()
+        ? invoice
+        : ''
+    const direction =
+      arkAddress && vtxoTxsAllowed()
+        ? 'Paying inside the Ark'
+        : address && utxoTxsAllowed()
+        ? 'Paying to mainnet'
+        : invoice && !lnSwapsAllowed()
+        ? 'Swapping to Lightning'
+        : ''
     setDetails({
-      address: arkAddress || address,
-      direction: arkAddress ? 'Paying inside Ark' : 'Paying to mainnet',
+      destination,
+      direction,
       fees: feeInSats,
       satoshis,
       total,
@@ -72,12 +90,15 @@ export default function SendDetails() {
     navigate(Pages.Wallet)
   }
 
-  const handleContinue = () => {
-    console.log('handleContinue', satoshis, arkAddress, address)
+  const handleContinue = async () => {
+    if (!svcWallet) return
     if (!satoshis) return
     setSending(true)
     if (arkAddress) {
       sendOffChain(svcWallet, satoshis, arkAddress).then(handleTxid).catch(handleError)
+    } else if (invoice) {
+      if (!swapAddress) return
+      sendOffChain(svcWallet, satoshis, swapAddress).then(handleTxid).catch(handleError)
     } else if (address) {
       collaborativeExit(svcWallet, satoshis, address).then(handleTxid).catch(handleError)
     }
@@ -99,7 +120,9 @@ export default function SendDetails() {
       <Header text='Sign transaction' back={() => navigate(Pages.SendForm)} />
       <Content>
         {sending ? (
-          arkAddress ? (
+          invoice ? (
+            <Loading text='Paying to Lightning' />
+          ) : arkAddress ? (
             <Loading text='Paying inside the Ark' />
           ) : (
             <WaitingForRound />

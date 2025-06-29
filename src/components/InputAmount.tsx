@@ -6,6 +6,7 @@ import { ConfigContext } from '../providers/config'
 import { prettyNumber } from '../lib/format'
 
 interface InputAmountProps {
+  disabled?: boolean
   focus?: boolean
   label?: string
   onChange: (arg0: any) => void
@@ -15,7 +16,16 @@ interface InputAmountProps {
   value?: number
 }
 
-export default function InputAmount({ focus, label, onChange, onEnter, onFocus, right, value }: InputAmountProps) {
+export default function InputAmount({
+  disabled,
+  focus,
+  label,
+  onChange,
+  onEnter,
+  onFocus,
+  right,
+  value,
+}: InputAmountProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
 
@@ -51,6 +61,7 @@ export default function InputAmount({ focus, label, onChange, onEnter, onFocus, 
     <>
       <InputContainer error={error} label={label} right={right}>
         <IonInput
+          disabled={disabled}
           onIonFocus={onFocus}
           onIonInput={handleInput}
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
