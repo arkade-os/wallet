@@ -25,14 +25,13 @@ export default function Onboard() {
   const [installable, setInstallable] = useState(false)
   const [step, setStep] = useState(1)
 
-  const { installPrompt, canInstall, isInstalled } = usePwa()
+  const { installPrompt, canInstall } = usePwa()
 
   const steps = pwaCanInstall() ? 4 : 3
 
   useEffect(() => {
-    console.log('isInstalled', isInstalled)
     setInstallable(canInstall)
-  }, [canInstall, isInstalled])
+  }, [canInstall])
 
   const handleContinue = () => setStep(step + 1)
 
