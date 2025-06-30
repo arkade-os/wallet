@@ -43,11 +43,13 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
 //   return response
 // }
 
-async function networkFirst(request: RequestInfo): Promise<Response> {
+async function networkFirst(request: Request): Promise<Response> {
   const cache = await caches.open(CACHE_NAME)
   try {
     const response = await fetch(request)
-    cache.put(request, response.clone())
+    if (request.method === 'GET') {
+      cache.put(request, response.clone())
+    }
     return response
   } catch (error) {
     const cachedResponse = await cache.match(request)
