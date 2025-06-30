@@ -6347,6 +6347,10 @@ class vf {
           f = w[w.length - 1];
         }
       } catch (i) {
+        if (Kh(i)) {
+          console.debug("Timeout error ignored");
+          continue;
+        }
         throw console.error("Address subscription error:", i), i;
       }
   }
@@ -6465,7 +6469,11 @@ function Ro(t) {
     createdAt: new Date(t.createdAt * 1e3)
   };
 }
-function Kh({ connectorInput: t, vtxoInput: e, vtxoAmount: n, connectorAmount: r, feeAmount: i, vtxoPkScript: a, connectorPkScript: c, serverPkScript: f, txLocktime: d }) {
+function Kh(t) {
+  const e = (n) => n instanceof Error && (n.name === "HeadersTimeoutError" || n.name === "BodyTimeoutError" || n.code === "UND_ERR_HEADERS_TIMEOUT" || n.code === "UND_ERR_BODY_TIMEOUT");
+  return e(t) || e(t.cause);
+}
+function Dh({ connectorInput: t, vtxoInput: e, vtxoAmount: n, connectorAmount: r, feeAmount: i, vtxoPkScript: a, connectorPkScript: c, serverPkScript: f, txLocktime: d }) {
   const p = new Lt({
     version: 2,
     lockTime: d
@@ -6518,7 +6526,7 @@ class Rt {
   vsize() {
     const e = (c) => c < 253 ? 1 : c < 65535 ? 3 : c < 4294967295 ? 5 : 9, n = e(this.inputCount), r = e(this.outputCount);
     let a = (Rt.BASE_TX_SIZE + n + this.inputSize + r + this.outputSize) * Rt.WITNESS_SCALE_FACTOR;
-    return this.hasWitness && (a += Rt.WITNESS_HEADER_SIZE + this.inputWitnessSize), Dh(a);
+    return this.hasWitness && (a += Rt.WITNESS_HEADER_SIZE + this.inputWitnessSize), $h(a);
   }
 }
 Rt.P2PKH_SCRIPT_SIG_SIZE = 108;
@@ -6529,16 +6537,16 @@ Rt.P2WKH_OUTPUT_SIZE = 22;
 Rt.BASE_TX_SIZE = 10;
 Rt.WITNESS_HEADER_SIZE = 2;
 Rt.WITNESS_SCALE_FACTOR = 4;
-const Dh = (t) => {
+const $h = (t) => {
   const e = BigInt(Math.ceil(t / Rt.WITNESS_SCALE_FACTOR));
   return {
     value: e,
     fee: (n) => n * e
   };
-}, $h = new Bt("invalid settlement transaction"), Fs = new Bt("invalid settlement transaction outputs"), xf = new Bt("empty tree"), Mh = new Bt("invalid root level"), xa = new Bt("invalid number of inputs"), Or = new Bt("wrong settlement txid"), Vs = new Bt("invalid amount"), Fh = new Bt("no leaves"), Vh = new Bt("node transaction empty"), Hh = new Bt("node txid empty"), qh = new Bt("node parent txid empty"), jh = new Bt("node txid different"), Xc = new Bt("parent txid input mismatch"), Gh = new Bt("leaf node has children"), Qc = new Bt("invalid taproot script"), zh = new Bt("invalid internal key");
+}, Mh = new Bt("invalid settlement transaction"), Fs = new Bt("invalid settlement transaction outputs"), xf = new Bt("empty tree"), Fh = new Bt("invalid root level"), xa = new Bt("invalid number of inputs"), Or = new Bt("wrong settlement txid"), Vs = new Bt("invalid amount"), Vh = new Bt("no leaves"), Hh = new Bt("node transaction empty"), qh = new Bt("node txid empty"), jh = new Bt("node parent txid empty"), Gh = new Bt("node txid different"), Xc = new Bt("parent txid input mismatch"), zh = new Bt("leaf node has children"), Qc = new Bt("invalid taproot script"), Wh = new Bt("invalid internal key");
 new Bt("invalid control block");
-const Wh = new Bt("invalid root transaction"), Yh = new Bt("invalid node transaction"), ws = 0, Jc = 1;
-function Zh(t, e) {
+const Yh = new Bt("invalid root transaction"), Zh = new Bt("invalid node transaction"), ws = 0, Jc = 1;
+function Xh(t, e) {
   e.validate();
   const n = e.root();
   if (!n)
@@ -6553,13 +6561,13 @@ function Zh(t, e) {
   if (!i.txid || et.encode(i.txid) !== c || i.index !== Jc)
     throw Or;
 }
-function Xh(t, e, n) {
+function Qh(t, e, n) {
   e.validate();
   let r;
   try {
     r = Lt.fromPSBT(ie.decode(t));
   } catch {
-    throw $h;
+    throw Mh;
   }
   if (r.outputsLength <= ws)
     throw Fs;
@@ -6570,13 +6578,13 @@ function Xh(t, e, n) {
   if (e.numberOfNodes() === 0)
     throw xf;
   if (e.levels[0].length !== 1)
-    throw Mh;
+    throw Fh;
   const f = e.levels[0][0];
   let d;
   try {
     d = Lt.fromPSBT(ie.decode(f.tx));
   } catch {
-    throw Wh;
+    throw Yh;
   }
   if (d.inputsLength !== 1)
     throw xa;
@@ -6594,26 +6602,26 @@ function Xh(t, e, n) {
   if (g >= a)
     throw Vs;
   if (e.leaves().length === 0)
-    throw Fh;
+    throw Vh;
   for (const b of e.levels)
     for (const _ of b)
-      Qh(e, _, n);
+      Jh(e, _, n);
 }
-function Qh(t, e, n) {
+function Jh(t, e, n) {
   if (!e.tx)
-    throw Vh;
-  if (!e.txid)
     throw Hh;
-  if (!e.parentTxid)
+  if (!e.txid)
     throw qh;
+  if (!e.parentTxid)
+    throw jh;
   let r;
   try {
     r = Lt.fromPSBT(ie.decode(e.tx));
   } catch {
-    throw Yh;
+    throw Zh;
   }
   if (et.encode(Ae(r.toBytes(!0)).reverse()) !== e.txid)
-    throw jh;
+    throw Gh;
   if (r.inputsLength !== 1)
     throw xa;
   const a = r.getInput(0);
@@ -6621,7 +6629,7 @@ function Qh(t, e, n) {
     throw Xc;
   const c = t.children(e.txid);
   if (e.leaf && c.length >= 1)
-    throw Gh;
+    throw zh;
   for (let f = 0; f < c.length; f++) {
     const d = c[f], p = Lt.fromPSBT(ie.decode(d.tx)), w = r.getOutput(f);
     if (!(w != null && w.script))
@@ -6633,7 +6641,7 @@ function Qh(t, e, n) {
       taprootTweak: n
     });
     if (et.encode(_) !== et.encode(g.slice(2)))
-      throw zh;
+      throw Wh;
     let D = 0n;
     for (let A = 0; A < p.outputsLength; A++) {
       const P = p.getOutput(A);
@@ -6643,25 +6651,25 @@ function Qh(t, e, n) {
       throw Vs;
   }
 }
-const Jh = 255;
+const tp = 255;
 new TextEncoder().encode("condition");
-const tp = new TextEncoder().encode("taptree");
-function ep(t, e, n) {
+const ep = new TextEncoder().encode("taptree");
+function np(t, e, n) {
   var r;
   e.updateInput(t, {
     unknown: [
       ...((r = e.getInput(t)) == null ? void 0 : r.unknown) ?? [],
       [
         {
-          type: Jh,
-          key: tp
+          type: tp,
+          key: ep
         },
-        rp(n)
+        op(n)
       ]
     ]
   });
 }
-function np(t, e) {
+function rp(t, e) {
   let n = 0n;
   for (const i of t) {
     const a = mf(Ea(i.tapLeafScript));
@@ -6685,7 +6693,7 @@ function np(t, e) {
         amount: BigInt(a.value)
       },
       tapLeafScript: [a.tapLeafScript]
-    }), ep(i, r, a.scripts.map(et.decode));
+    }), np(i, r, a.scripts.map(et.decode));
   for (const i of e)
     r.addOutput({
       amount: i.amount,
@@ -6693,7 +6701,7 @@ function np(t, e) {
     });
   return r;
 }
-function rp(t) {
+function op(t) {
   const e = [];
   e.push(tu(t.length));
   for (const a of t)
@@ -6718,9 +6726,9 @@ function tu(t) {
     return e[0] = 255, new DataView(e.buffer).setBigUint64(1, BigInt(t), !0), e;
   }
 }
-const op = 500000000n;
+const ip = 500000000n;
 function eu(t) {
-  return t >= op;
+  return t >= ip;
 }
 class Sa {
   constructor(e, n) {
@@ -6728,12 +6736,12 @@ class Sa {
   }
   encode() {
     const e = new Uint8Array(12);
-    return ip(e, this.id, 0), ap(e, this.value, 8), e;
+    return sp(e, this.id, 0), cp(e, this.value, 8), e;
   }
   static decode(e) {
     if (e.length !== 12)
       throw new Error(`invalid data length: expected 12 bytes, got ${e.length}`);
-    const n = sp(e, 0), r = cp(e, 8);
+    const n = ap(e, 0), r = up(e, 8);
     return new Sa(n, r);
   }
 }
@@ -6769,16 +6777,16 @@ class Xe {
   }
 }
 Xe.HRP = "arknote";
-function ip(t, e, n) {
+function sp(t, e, n) {
   new DataView(t.buffer, t.byteOffset + n, 8).setBigUint64(0, e, !1);
 }
-function sp(t, e) {
+function ap(t, e) {
   return new DataView(t.buffer, t.byteOffset + e, 8).getBigUint64(0, !1);
 }
-function ap(t, e, n) {
+function cp(t, e, n) {
   new DataView(t.buffer, t.byteOffset + n, 4).setUint32(0, e, !1);
 }
-function cp(t, e) {
+function up(t, e) {
   return new DataView(t.buffer, t.byteOffset + e, 4).getUint32(0, !1);
 }
 class Je {
@@ -7031,7 +7039,7 @@ class Je {
       amount: BigInt(c.changeAmount)
     });
     const p = this.offchainTapscript.encode();
-    let w = np(c.inputs.map((b) => ({
+    let w = rp(c.inputs.map((b) => ({
       ...b,
       tapLeafScript: f,
       scripts: p
@@ -7182,7 +7190,7 @@ class Je {
     const i = e.unsignedVtxoTree;
     if (!this.arkProvider)
       throw new Error("Ark provider not configured");
-    Xh(e.unsignedSettlementTx, i, n);
+    Qh(e.unsignedSettlementTx, i, n);
     const a = ie.decode(e.unsignedSettlementTx), f = Lt.fromPSBT(a).getOutput(0);
     if (!(f != null && f.amount))
       throw new Error("Shared output not found");
@@ -7218,7 +7226,7 @@ class Je {
         d = await this.identity.sign(d, L);
         continue;
       }
-      w || (Zh(e.roundTx, e.connectors), w = !0);
+      w || (Xh(e.roundTx, e.connectors), w = !0);
       const _ = gn.encode(g.tapLeafScript[0]), D = mf(Ea(g.tapLeafScript)), A = Rt.create().addKeySpendInput().addTapscriptInput(
         D.witnessSize(100),
         // TODO: handle conditional script
@@ -7238,7 +7246,7 @@ class Je {
           }
       if (!W || !W.amount || !W.script)
         throw new Error("Connector output not found");
-      let j = Kh({
+      let j = Dh({
         connectorInput: H,
         connectorAmount: W.amount,
         feeAmount: A,
@@ -7612,7 +7620,7 @@ class $t {
 $t.DB_NAME = "wallet-db";
 $t.STORE_NAME = "vtxos";
 $t.DB_VERSION = 1;
-class up {
+class fp {
   constructor(e = new $t(), n = () => {
   }) {
     this.vtxoRepository = e, this.messageCallback = n;
@@ -7979,12 +7987,12 @@ class up {
     }
   }
 }
-var Do = { exports: {} }, fp = Do.exports, nu;
-function lp() {
+var Do = { exports: {} }, lp = Do.exports, nu;
+function dp() {
   return nu || (nu = 1, function(t, e) {
     (function(n, r) {
       t.exports = r();
-    })(fp, function() {
+    })(lp, function() {
       var n = function(o, s) {
         return (n = Object.setPrototypeOf || { __proto__: [] } instanceof Array && function(u, l) {
           u.__proto__ = l;
@@ -10990,26 +10998,26 @@ function lp() {
     });
   }(Do)), Do.exports;
 }
-var dp = lp();
-const Hs = /* @__PURE__ */ Ud(dp), ru = Symbol.for("Dexie"), ii = globalThis[ru] || (globalThis[ru] = Hs);
+var hp = dp();
+const Hs = /* @__PURE__ */ Ud(hp), ru = Symbol.for("Dexie"), ii = globalThis[ru] || (globalThis[ru] = Hs);
 if (Hs.semVer !== ii.semVer)
   throw new Error(`Two different versions of Dexie loaded in the same app: ${Hs.semVer} and ${ii.semVer}`);
 const {
-  liveQuery: gp,
-  mergeRanges: wp,
-  rangesOverlap: mp,
-  RangeSet: bp,
-  cmp: vp,
-  Entity: Ep,
-  PropModification: xp,
-  replacePrefix: Sp,
-  add: kp,
-  remove: Tp
+  liveQuery: wp,
+  mergeRanges: mp,
+  rangesOverlap: bp,
+  RangeSet: vp,
+  cmp: Ep,
+  Entity: xp,
+  PropModification: Sp,
+  replacePrefix: kp,
+  add: Tp,
+  remove: Ap
 } = ii, Pn = new ii("arkade", { allowEmptyDB: !0 });
 Pn.version(1).stores({
   vtxos: "[txid+vout], virtualStatus.state, spentBy"
 });
-const hp = {
+const pp = {
   addOrUpdate: async (t) => {
     await Pn.vtxos.bulkPut(t);
   },
@@ -11026,8 +11034,8 @@ const hp = {
   open: async () => {
     await Pn.open();
   }
-}, pp = new up(hp);
-pp.start().catch(console.error);
+}, yp = new fp(pp);
+yp.start().catch(console.error);
 const ka = "arkade-cache-v1";
 self.addEventListener("install", (t) => {
   t.waitUntil(caches.open(ka)), self.skipWaiting();
@@ -11040,13 +11048,20 @@ self.addEventListener("activate", (t) => {
           return caches.delete(n);
       })
     ))
-  ), self.clients.claim();
+  ), self.clients.matchAll({
+    includeUncontrolled: !0,
+    type: "window"
+  }).then((e) => {
+    e.forEach((n) => {
+      n.postMessage({ type: "RELOAD_PAGE" });
+    });
+  }), self.clients.claim();
 });
-async function yp(t) {
+async function gp(t) {
   const e = await caches.open(ka);
   try {
     const n = await fetch(t);
-    return e.put(t, n.clone()), n;
+    return t.method === "GET" && e.put(t, n.clone()), n;
   } catch {
     const r = await e.match(t);
     if (!r) throw new Error("No cached response found");
@@ -11054,5 +11069,5 @@ async function yp(t) {
   }
 }
 self.addEventListener("fetch", (t) => {
-  t.respondWith(yp(t.request));
+  t.respondWith(gp(t.request));
 });
