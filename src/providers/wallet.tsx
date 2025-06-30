@@ -208,7 +208,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     await svcWallet.clear()
     setInitialized(false)
     await clearStorage()
-    updateWallet(defaultWallet)
   }
 
   const settlePreconfirmed = async () => {
