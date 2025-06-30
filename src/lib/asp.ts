@@ -63,12 +63,7 @@ const get = async (endpoint: string, url: string) => {
   return await response.json()
 }
 
-export const collaborativeExit = async (
-  wallet: IWallet | ServiceWorkerWallet | undefined,
-  amount: number,
-  address: string,
-): Promise<string> => {
-  if (!wallet) throw new Error('Wallet is not initialized')
+export const collaborativeExit = async (wallet: IWallet, amount: number, address: string): Promise<string> => {
   const vtxos = await getVtxos()
   const selectedVtxos = []
   let selectedAmount = 0
@@ -217,13 +212,8 @@ export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<voi
   })
 }
 
-export const sendOffChain = async (
-  wallet: IWallet | ServiceWorkerWallet | undefined,
-  sats: number,
-  address: string,
-): Promise<string> => {
+export const sendOffChain = async (wallet: IWallet, sats: number, address: string): Promise<string> => {
   const withZeroFees = true
-  if (!wallet) throw new Error('Wallet is not initialized')
   return wallet.sendBitcoin({ address, amount: sats }, withZeroFees)
 }
 
