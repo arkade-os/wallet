@@ -73,7 +73,6 @@ export default function SendDetails() {
   }
 
   const handleContinue = () => {
-    console.log('handleContinue', satoshis, arkAddress, address)
     if (!satoshis) return
     setSending(true)
     if (arkAddress) {

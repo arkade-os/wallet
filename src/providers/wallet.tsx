@@ -126,7 +126,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       try {
         navigator.serviceWorker.addEventListener('message', (event) => {
           if (event.data && event.data.type === 'RELOAD_PAGE') {
-            console.log('Service worker sent reload message')
             window.location.reload()
           }
         })
