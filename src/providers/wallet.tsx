@@ -124,6 +124,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     let pingInterval: NodeJS.Timeout
     async function initSvcWorkerWallet() {
       try {
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data && event.data.type === 'RELOAD_PAGE') {
+            console.log('Service worker sent reload message')
+            window.location.reload()
+          }
+        })
+
         // connect to the service worker
         const svcWallet = await ServiceWorkerWallet.create('/wallet-service-worker.mjs')
         setSvcWallet(svcWallet)
