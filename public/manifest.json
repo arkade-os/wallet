@@ -4,18 +4,14 @@
   "icons": [
     {
       "src": "favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "type": "image/x-icon",
+      "sizes": "64x64 32x32 24x24 16x16"
     },
     {
-      "src": "arkade-icon-192.svg",
+      "src": "arkade-icon.svg",
       "type": "image/svg+xml",
-      "sizes": "192x192"
-    },
-    {
-      "src": "arkade-icon-512.svg",
-      "type": "image/svg+xml",
-      "sizes": "512x512"
+      "sizes": "any",
+      "purpose": "any maskable"
     },
     {
       "src": "arkade-icon-192.png",
