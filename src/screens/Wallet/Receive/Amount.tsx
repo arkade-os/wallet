@@ -24,14 +24,13 @@ import BackToWalletButton from '../../../components/BackToWalletButton'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { LimitsContext } from '../../../providers/limits'
-import { reverseSwap } from '../../../lib/boltz'
 
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
-  const { amountIsAboveMaxLimit, amountIsBelowMinLimit, validLnSwap } = useContext(LimitsContext)
+  const { amountIsAboveMaxLimit, amountIsBelowMinLimit } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { balance, svcWallet } = useContext(WalletContext)
 
@@ -113,9 +112,6 @@ export default function ReceiveAmount() {
 
   const handleProceed = async () => {
     setRecvInfo({ ...recvInfo, satoshis })
-    // if boltz is available and amount is between limits, let's create a swap invoice
-    const invoice = validLnSwap(satoshis) ? await reverseSwap(satoshis) : ''
-    setRecvInfo({ ...recvInfo, invoice, satoshis })
     navigate(Pages.ReceiveQRCode)
   }
 

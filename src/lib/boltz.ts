@@ -1,7 +1,20 @@
-import { NetworkName } from '@arkade-os/sdk/dist/types/networks'
-import { Satoshis, Wallet } from './types'
 import * as bolt11 from './bolt11'
 import { consoleLog, consoleError } from './logs'
+import { NetworkName } from '@arkade-os/sdk/dist/types/networks'
+import { Wallet } from './types'
+import { base64, hex } from '@scure/base'
+import { sha256 } from '@noble/hashes/sha256'
+import { ripemd160 } from '@noble/hashes/ripemd160'
+import { randomBytes } from '@noble/hashes/utils'
+import {
+  addConditionWitness,
+  Identity,
+  ServiceWorkerWallet,
+  VHTLC,
+  createVirtualTx,
+  RestArkProvider,
+} from '@arkade-os/sdk'
+import { AspInfo } from './asp'
 
 // Boltz swap status types
 export type SwapStatus =
@@ -31,7 +44,7 @@ const activeConnections: Record<string, WebSocket> = {}
 // Store websocket connection promises to avoid duplicate connection attempts
 const connectionPromises: Record<string, Promise<WebSocket | null>> = {}
 
-type SwapSubmarineResponse = {
+type SwapSubmarineGetResponse = {
   ARK: {
     BTC: {
       hash: string
@@ -49,6 +62,32 @@ type SwapSubmarineResponse = {
   }
 }
 
+type SwapSubmarinePostResponse = {
+  id: string
+  address: string
+  expectedAmount: number
+  claimPublicKey: string
+  acceptZeroConf: boolean
+  timeoutBlockHeights: {
+    unilateralClaim: number
+    unilateralRefund: number
+    unilateralRefundWithoutReceiver: number
+  }
+}
+
+type SwapReversePostResponse = {
+  id: string
+  invoice: string
+  onchainAmount: number
+  lockupAddress: string
+  refundPublicKey: string
+  timeoutBlockHeights: {
+    unilateralClaim: number
+    unilateralRefund: number
+    unilateralRefundWithoutReceiver: number
+  }
+}
+
 export const getBoltzApiUrl = (network: NetworkName): string => {
   switch (network) {
     case 'bitcoin':
@@ -60,6 +99,13 @@ export const getBoltzApiUrl = (network: NetworkName): string => {
   }
 }
 
+const getBoltzWsUrl = (network: NetworkName) => {
+  const url = getBoltzApiUrl(network)
+    .replace(/^http(s)?:\/\//, 'ws$1://')
+    .replace('9069', '9004') // special regtest case
+  return `${url}/v2/ws`
+}
+
 export const getBoltzLimits = async (network: NetworkName): Promise<{ min: number; max: number }> => {
   const url = getBoltzApiUrl(network)
   if (!url) throw 'Invalid network for Boltz API'
@@ -68,7 +114,7 @@ export const getBoltzLimits = async (network: NetworkName): Promise<{ min: numbe
     const errorData = await response.json()
     throw errorData.error || 'Failed to fetch limits'
   }
-  const json: SwapSubmarineResponse = await response.json()
+  const json: SwapSubmarineGetResponse = await response.json()
   const { minimal, maximal } = json.ARK.BTC.limits
   return {
     min: minimal,
@@ -106,18 +152,272 @@ export const submarineSwap = async (
     throw errorData.error || 'Failed to process Lightning payment'
   }
 
-  const res = (await response.json()) as {
-    address: string
-    expectedAmount: number
-    id: string
-  }
-
-  return { address: res.address, amount: res.expectedAmount, id: res.id }
+  const { address, expectedAmount: amount, id } = (await response.json()) as SwapSubmarinePostResponse
+  return { address, amount, id }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const reverseSwap = async (sats: Satoshis): Promise<string> => {
-  return '' // TODO not implemented yet
+/**
+ * Makes a reverse swap using Boltz API
+ * @param invoiceAmount The amount in satoshis to swap
+ * @param wallet The user's wallet object
+ * @param svcWallet The service worker wallet object
+ * @param identity The user's identity object
+ * @param aspInfo The ASP information object
+ * @param onInvoiceCreated Callback to handle the created invoice
+ * @param onSwapCompleted Callback to handle the completed swap
+ * @throws Will throw an error if the network or identity is not available, or if the invoice creation fails
+ * @returns A promise that resolves when the swap is successfully initiated
+ */
+export const reverseSwap = async (
+  invoiceAmount: number,
+  wallet: Wallet,
+  svcWallet: ServiceWorkerWallet,
+  identity: Identity | undefined,
+  aspInfo: AspInfo,
+  onInvoiceCreated: (invoice: string) => void,
+  onSwapCompleted: (receivedAmount: number) => void,
+): Promise<void> => {
+  if (!wallet.network) throw 'Network not available for reverse swap'
+  if (!identity) throw 'Identity not available for reverse swap'
+
+  // get the public key to claim the VHTLC
+  const claimPublicKey = wallet.pubkey
+  if (!claimPublicKey) throw 'Failed to get public key'
+
+  // create random preimage and its hash
+  const preimage = randomBytes(32)
+  const preimageHash = hex.encode(sha256(preimage))
+  if (!preimageHash) throw 'Failed to get preimage hash'
+
+  // create reverse swap
+  const response = await fetch(`${getBoltzApiUrl(wallet.network)}/v2/swap/reverse`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'BTC',
+      to: 'ARK',
+      invoiceAmount,
+      claimPublicKey,
+      preimageHash,
+    }),
+  })
+
+  // check if the response is ok
+  if (!response.ok) {
+    const errorData = await response.json()
+    throw errorData.error || 'Failed to process Lightning payment'
+  }
+
+  // parse the response and check if the invoice was created
+  const swapInfo = (await response.json()) as SwapReversePostResponse
+  if (!swapInfo.invoice) throw new Error('Failed to create reverse swap invoice')
+
+  // callback to pass invoice to the UI
+  onInvoiceCreated(swapInfo.invoice)
+
+  // wait for invoice payment and claim the VHTLC
+  waitAndClaim(swapInfo, preimage, wallet, svcWallet, identity, aspInfo, onSwapCompleted)
+}
+
+/**
+ * Waits for the reverse swap invoice to be paid and claims the VHTLC
+ * This function establishes a WebSocket connection to Boltz server
+ * and listens for updates on the swap status.
+ * It handles various swap states such as creation, payment,
+ * transaction confirmation, and expiration.
+ * @param swapInfo The swap information object containing details about the reverse swap
+ * @param preimage The preimage used for the VHTLC claim
+ * @param wallet The user's wallet object
+ * @param svcWallet The service worker wallet object
+ * @param identity The user's identity object
+ * @param aspInfo The ASP information object
+ * @param onSwapCompleted Callback to handle the completed swap
+ * @throws Will throw an error if the wallet network is not available
+ * @returns A promise that resolves when the swap is successfully claimed
+ */
+const waitAndClaim = async (
+  swapInfo: SwapReversePostResponse,
+  preimage: Uint8Array,
+  wallet: Wallet,
+  svcWallet: ServiceWorkerWallet,
+  identity: Identity,
+  aspInfo: AspInfo,
+  onSwapCompleted: (amount: number) => void,
+) => {
+  if (!wallet.network) throw 'Network not available for reverse swap'
+
+  // Create a WebSocket and subscribe to updates for the created swap
+  const webSocket = new WebSocket(getBoltzWsUrl(wallet.network))
+
+  webSocket.onopen = () => {
+    webSocket.send(
+      JSON.stringify({
+        op: 'subscribe',
+        channel: 'swap.update',
+        args: [swapInfo.id],
+      }),
+    )
+  }
+
+  webSocket.onmessage = async (rawMsg) => {
+    const msg = JSON.parse(rawMsg.data)
+
+    if (msg.event !== 'update') return
+
+    if (msg.args[0].id !== swapInfo.id) return
+
+    if (msg.args[0].error) {
+      webSocket.close()
+      onSwapCompleted(0)
+      return
+    }
+
+    switch (msg.args[0].status) {
+      // "swap.created" means Boltz is waiting for the invoice to be paid
+      case 'swap.created': {
+        consoleLog('Waiting for invoice to be paid')
+        break
+      }
+
+      // Boltz's lockup transaction is found in the mempool (or already confirmed)
+      // which will only happen after the user paid the Lightning hold invoice
+      case 'transaction.mempool':
+      case 'transaction.confirmed': {
+        // TODO: save claim to be able to retry if something fails
+        consoleLog('Startin VHTLC claim process...')
+        const receivedAmount = await claimVHTLC(swapInfo, preimage, wallet, svcWallet, identity, aspInfo)
+        // removeClaim(claimInfo, wallet.network)
+        onSwapCompleted(receivedAmount)
+        break
+      }
+
+      case 'invoice.settled': {
+        consoleLog('Invoice was settled')
+        webSocket.close()
+        break
+      }
+
+      case 'invoice.expired':
+      case 'swap.expired':
+      case 'transaction.failed':
+      case 'transaction.refunded': {
+        consoleError('Expiration, fail or refund')
+        // removeClaim(claimInfo, wallet.network)
+        webSocket.close()
+        break
+      }
+    }
+  }
+}
+
+/**
+ * Claims the VHTLC using the provided swap information and preimage
+ * This function builds the VHTLC script, validates it,
+ * retrieves the spendable VTXOs,
+ * and creates a virtual transaction to claim the VHTLC.
+ * @param swapInfo The swap information object containing details about the reverse swap
+ * @param preimage The preimage used for the VHTLC claim
+ * @param wallet The user's wallet object
+ * @param svcWallet The service worker wallet object
+ * @param identity The user's identity object
+ * @param aspInfo The ASP information object
+ * @throws Will throw an error if the wallet public key is not available
+ * @return A promise that resolves to the amount claimed from the VHTLC
+ */
+const claimVHTLC = async (
+  swapInfo: SwapReversePostResponse,
+  preimage: Uint8Array,
+  wallet: Wallet,
+  svcWallet: ServiceWorkerWallet,
+  identity: Identity,
+  aspInfo: AspInfo,
+): Promise<number> => {
+  if (!wallet.pubkey) throw 'Pubkey not available for reverse swap'
+
+  // prepare variables for claiming the VHTLC
+  const amount = swapInfo.onchainAmount
+  const address = (await svcWallet.getAddress()).offchain
+  const myselfXOnlyPublicKey = hex.decode(wallet.pubkey).slice(1)
+  const senderXOnlyPublicKey = hex.decode(swapInfo.refundPublicKey).slice(1)
+  const serverXOnlyPublicKey = hex.decode(aspInfo.pubkey).slice(1)
+
+  if (!address) {
+    throw new Error('Failed to get offchain address from service worker wallet')
+  }
+
+  // build expected VHTLC script
+  const vhtlcScript = new VHTLC.Script({
+    preimageHash: ripemd160(sha256(preimage)),
+    sender: senderXOnlyPublicKey,
+    receiver: myselfXOnlyPublicKey,
+    server: serverXOnlyPublicKey,
+    refundLocktime: BigInt(80 * 600),
+    unilateralClaimDelay: {
+      type: 'blocks',
+      value: BigInt(swapInfo.timeoutBlockHeights.unilateralClaim),
+    },
+    unilateralRefundDelay: {
+      type: 'blocks',
+      value: BigInt(swapInfo.timeoutBlockHeights.unilateralRefund),
+    },
+    unilateralRefundWithoutReceiverDelay: {
+      type: 'blocks',
+      value: BigInt(swapInfo.timeoutBlockHeights.unilateralRefundWithoutReceiver),
+    },
+  })
+
+  // validate vhtlc script
+  const hrp = wallet.network === 'bitcoin' ? 'ark' : 'tark'
+  const vhtlcAddress = vhtlcScript.address(hrp, serverXOnlyPublicKey).encode()
+  if (vhtlcAddress !== swapInfo.lockupAddress) {
+    throw new Error('Boltz is trying to scam us')
+  }
+
+  // get spendable VTXOs from the lockup address
+  const arkProvider = new RestArkProvider(aspInfo.url)
+  const { spendableVtxos } = await arkProvider.getVirtualCoins(vhtlcAddress)
+  if (spendableVtxos.length === 0) {
+    throw new Error('No spendable virtual coins found')
+  }
+
+  // signing a VTHLC needs an extra witness element to be added to the PSBT input
+  // reveal the secret in the PSBT, thus the server can verify the claim script
+  // this witness must satisfy the preimageHash condition
+  const vhtlcIdentity = {
+    sign: async (tx: any, inputIndexes?: number[]) => {
+      const cpy = tx.clone()
+      addConditionWitness(0, cpy, [preimage])
+      return identity.sign(cpy, inputIndexes)
+    },
+    xOnlyPublicKey: identity.xOnlyPublicKey,
+    signerSession: identity.signerSession,
+  }
+
+  // create the virtual transaction to claim the VHTLC
+  const tx = createVirtualTx(
+    [
+      {
+        ...spendableVtxos[0],
+        tapLeafScript: vhtlcScript.claim(),
+        scripts: vhtlcScript.encode(),
+      },
+    ],
+    [
+      {
+        address,
+        amount: BigInt(amount),
+      },
+    ],
+  )
+
+  // sign and "broadcast" the virtual transaction
+  const signedTx = await vhtlcIdentity.sign(tx)
+  const txid = await arkProvider.submitVirtualTx(base64.encode(signedTx.toPSBT()))
+
+  console.log('Successfully claimed VHTLC! Transaction ID:', txid)
+  return amount
 }
 
 /**
@@ -138,15 +438,12 @@ export const preconnectBoltzWebSocket = async (network: NetworkName): Promise<We
   // Otherwise create a new connection
   connectionPromises[cacheKey] = new Promise((resolve) => {
     try {
-      const baseUrl = getBoltzApiUrl(network)
-      if (!baseUrl) {
+      const wsUrl = getBoltzWsUrl(network)
+      if (!wsUrl) {
         consoleLog('Invalid network for Boltz API preconnection')
         resolve(null)
         return
       }
-
-      // Convert HTTP URL to WebSocket URL
-      const wsUrl = baseUrl.replace(/^http(s)?:\/\//, 'ws$1://') + '/v2/ws'
 
       consoleLog(`Preconnecting to Boltz WebSocket at ${wsUrl}`)
       const ws = new WebSocket(wsUrl)
