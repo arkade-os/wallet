@@ -1,3 +1,4 @@
+import { NetworkName } from '@arkade-os/sdk/dist/types/networks'
 import { Wallet } from '../lib/types'
 
 type ExplorerURLs = {
@@ -5,10 +6,10 @@ type ExplorerURLs = {
   web: string
 }
 
-type Explorers = Record<string, ExplorerURLs>
+type Explorers = Record<NetworkName, ExplorerURLs>
 
 const explorers: Explorers = {
-  mainnet: {
+  bitcoin: {
     api: 'https://mempool.space/api',
     web: 'https://mempool.space',
   },
@@ -30,17 +31,17 @@ const explorers: Explorers = {
   },
 }
 
-export const getRestApiExplorerURL = (network: string): string => {
+export const getRestApiExplorerURL = (network: NetworkName): string => {
   return explorers[network]?.api ?? ''
 }
 
-export const getWebExplorerURL = (network: string): string => {
+export const getWebExplorerURL = (network: NetworkName): string => {
   return explorers[network]?.web ?? ''
 }
 
 export const getTxIdURL = (txid: string, wallet: Wallet) => {
   // stupid bug from mempool
-  const url = getWebExplorerURL(wallet.network)?.replace(
+  const url = getWebExplorerURL(wallet.network as NetworkName)?.replace(
     'https://liquid.network/liquidtestnet',
     'https://liquid.network/testnet',
   )
