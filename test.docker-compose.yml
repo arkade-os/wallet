@@ -167,7 +167,7 @@ services:
       context: .
       dockerfile: fulmine.Dockerfile
     environment:
-      - FULMINE_ARK_SERVER=arkd:7070
+      - FULMINE_ARK_SERVER=http://arkd:7070
       - FULMINE_ESPLORA_URL=http://chopsticks:3000
       - FULMINE_NO_MACAROONS=true
     ports:
