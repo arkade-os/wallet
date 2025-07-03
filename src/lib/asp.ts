@@ -109,7 +109,6 @@ export const getAspInfo = async (url: string): Promise<AspInfo> => {
           vtxoMinAmount,
           vtxoMaxAmount,
         } = info
-        console.log('ASP info:', info)
         resolve({
           boardingDescriptorTemplate,
           dust: Number(dust),
