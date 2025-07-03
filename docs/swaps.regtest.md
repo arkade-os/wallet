@@ -87,9 +87,9 @@ arkd wallet create --password password
 # Unlock the service
 arkd wallet unlock --password password
 # Get an address to deposit funds.
-# If it returns error, just wait few seconds and retry.
+# If it returns error, just wait a few seconds and retry.
 arkd wallet address
-# Faucet 1 BTC (better if you repeat few times)
+# Faucet 1 BTC (better if you repeat a few times)
 nigiri faucet <address>
 ```
 
