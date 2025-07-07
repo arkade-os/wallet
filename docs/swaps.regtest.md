@@ -93,7 +93,7 @@ arkd wallet address
 nigiri faucet <address>
 ```
 
-NOTE: _The docker services defined in `test.docker-compose.yml` make use of temporary volumes, therefore any restart will become a fresh new start:_ **DON'T DO THAT**.
+NOTE: _The docker services defined in `test.docker-compose.yml` make use of temporary volumes, therefore, any restart will become a fresh new start:_ **DON'T DO THAT**.
 
 ### Setup Fulmine used by Boltz
 
