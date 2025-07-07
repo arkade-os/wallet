@@ -41,12 +41,12 @@ export default function Details({ details }: { details?: DetailsProps }) {
 
   const table = []
 
-  if (address) table.push(['Address', address, <TypeIcon />])
+  if (address) table.push(['Address', address, <TypeIcon key='address-icon' />])
   if (arknote) table.push(['Arknote', arknote, <NotesIcon small />])
-  if (invoice) table.push(['Invoice', invoice, <TypeIcon />])
-  if (destination) table.push(['Destination', destination, <TypeIcon />])
+  if (invoice) table.push(['Invoice', invoice, <TypeIcon key='invoice-icon' />])
+  if (destination) table.push(['Destination', destination, <TypeIcon key='destination-icon' />])
   if (direction) table.push(['Direction', direction, <DirectionIcon />])
-  if (type) table.push(['Type', type, <TypeIcon />])
+  if (type) table.push(['Type', type, <TypeIcon key='type-icon' />])
   if (when) table.push(['When', when, <WhenIcon />])
   if (date) table.push(['Date', date, <DateIcon />])
   if (satoshis) table.push(['Amount', formatAmount(satoshis), <AmountIcon />])
