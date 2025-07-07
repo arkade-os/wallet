@@ -189,7 +189,7 @@ Check if you receive the payment on Arkade
 
 ### Troubleshooting
 
-- If you're on mac M-family, you have to build the boltz-backend docker image locally:
+- If you're on Mac M-family, you have to build the boltz-backend docker image locally:
 
 ```sh
 # Clone boltz-backend locally
