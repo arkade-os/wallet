@@ -19,5 +19,5 @@ export const isBTCAddress = (data: string): boolean => {
 }
 
 export const isLightningInvoice = (data: string): boolean => {
-  return data.startsWith('ln')
+  return /^ln(bc|tb|bcrt)[0-9a-z]+$/i.test(data)
 }
