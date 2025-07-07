@@ -65,8 +65,9 @@ export default function ReceiveAmount() {
         setRecvInfo({ boardingAddr, offchainAddr, satoshis: 0 })
       })
       .catch((err) => {
-        consoleError(err, 'error getting addresses')
-        setError(extractError(err))
+        const error = extractError(err)
+        consoleError(error, 'error getting addresses')
+        setError(error)
       })
   }, [])
 
