@@ -17,15 +17,15 @@ The purpose of this guide is to make you able to test Ark/LN submarine and rever
 
 NOTE: _For sake of simplicity, all stacks use the same Bitcoind instance._
 
-### Requirements
+## Requirements
 
 - [Docker](https://docs.docker.com/engine/install/)
 - [Nigiri](https://nigiri.vulpem.com/)
 - [jq](https://formulae.brew.sh/formula/jq)
 
-### Setup regtest environment
+## Setup regtest environment
 
-Start regtest enviroment with Bitcoin and LND:
+Start regtest environment with Bitcoin and LND:
 
 ```sh
 nigiri start --ln
@@ -93,9 +93,9 @@ arkd wallet address
 nigiri faucet <address>
 ```
 
-NOTE: _The docker services defined in `test.docker-compose.yml` make use of temporary volumes, therefore, any restart will become a fresh new start:_ **DON'T DO THAT**.
+NOTE: _The Docker services in `test.docker-compose.yml` use temporary volumes; restarting them wipes all state._ **AVOID RESTARTING.**
 
-### Setup Fulmine used by Boltz
+## Setup Fulmine used by Boltz
 
 Start Fulmine used by Boltz:
 
@@ -103,7 +103,7 @@ Start Fulmine used by Boltz:
 docker compose -f test.docker-compose.yml up -d boltz-fulmine
 ```
 
-On your browser, go to http://localhost:7003 and initialize and unlock Fulmine - the Arkd url will be filled by default with the right value.
+Open [http://localhost:7003](http://localhost:7003) in your browser and initialise/unlock Fulmine — the Arkd URL field is pre-filled.
 
 Go to the receive page, copy the bitcoin address (the second one) and send it some funds:
 
@@ -125,7 +125,7 @@ docker exec -i boltz-lnd bash -c \
 
 Copy the generated URL to the clipboard. On Fulmine's tab of your browser, go to Settings > Lightning, paste the URL and click the Connect button.
 
-### Start Boltz backend
+## Start Boltz backend
 
 Start Boltz backend with:
 
@@ -133,7 +133,7 @@ Start Boltz backend with:
 docker compose -f test.docker-compose.yml up -d boltz-postgres boltz
 ```
 
-### Start CORS proxy
+## Start CORS proxy
 
 Start CORS proxy with:
 
@@ -141,7 +141,7 @@ Start CORS proxy with:
 docker compose -f test.docker-compose.yml up -d cors
 ```
 
-### Setup Arkade used by end user
+## Setup Arkade used by end user
 
 Start Arkade:
 
@@ -149,7 +149,7 @@ Start Arkade:
 VITE_ARK_SERVER=localhost:7070 pnpm start
 ```
 
-Open a new tab on the browser, go to http://localhost:3002 and initialize and unlock the service.
+Open [http://localhost:3002](http://localhost:3002) in a new browser tab and initialise/unlock the service.
 
 Go then to the receive page, click Skip, copy the boarding address - the second one - and send it some funds:
 
@@ -161,7 +161,7 @@ On your browser, go back to homepage of Arkade, click on the pending tx and sett
 
 You're good to go to test submarine and reverse submarine swaps on Ark!
 
-### Test Submarine Swap (Ark => Lightning)
+## Test Submarine Swap (Ark => Lightning)
 
 Generate a 5000 sats Lightning invoice:
 
@@ -171,7 +171,7 @@ nigiri lnd addinvoice --amt 5000
 
 Copy the invoice (aka payment_request) and try to pay it on Arkade
 
-### Test Reverse Swap (Lightning => Ark)
+## Test Reverse Swap (Lightning => Ark)
 
 NOT IMPLEMENTED
 
@@ -187,7 +187,7 @@ lncli payinvoice <invoice>
 
 Check if you receive the payment on Arkade
 
-### Troubleshooting
+## Troubleshooting
 
 - If you're on Mac M-family, you have to build the boltz-backend docker image locally:
 
