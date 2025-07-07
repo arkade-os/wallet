@@ -8,6 +8,7 @@
   --dark05: rgba(var(--ion-color-dark-rgb), 0.05);
   --green: #60b18a;
   --greenbg: #054a19;
+  --grey: #747474;
   --liz: #d5c6ff;
   --logo-color: #391998;
   --magenta: #8563e4;
@@ -20,11 +21,11 @@
   --redbg: #68222b;
   --white: #fbfbfb;
   --yellow: #e2c542;
-  --grey: #747474;
   --yellowoutlier: #debb20;
   --ion-background-color: #fff;
   --ion-tabbar-background-color: #fafafa;
   --ion-backdrop-color: #fff;
+  --toggle-background: #fbfbfb;
 }
 
 .ion-palette-dark {
@@ -41,6 +42,7 @@
   --ion-tabbar-background-color: #181818;
   --ion-backdrop-color: #000;
   --logo-color: #fbfbfb;
+  --toggle-background: #ddd;
 }
 
 ion-button {
@@ -211,10 +213,11 @@ input.native-input:focus::placeholder {
 }
 
 ion-toggle {
-  padding: 12px;
+  margin: 12px;
+  border: 1px solid var(--black);
 
-  --track-background: #ddd;
-  --track-background-checked: #ddd;
+  --track-background: var(--toggle-background);
+  --track-background-checked: var(--toggle-background);
 
   --handle-background: var(--grey);
   --handle-background-checked: var(--purple);
