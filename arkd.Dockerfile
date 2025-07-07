@@ -15,7 +15,7 @@ RUN cd ark/client && CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go buil
 # Second image, running the arkd executable
 FROM alpine:3.20
 
-RUN apk update && apk upgrade
+RUN apk update && apk upgrade && rm -rf /var/cache/apk/*
 
 WORKDIR /app
 
