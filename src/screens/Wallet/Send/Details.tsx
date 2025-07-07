@@ -47,7 +47,7 @@ export default function SendDetails() {
         ? arkAddress
         : address && utxoTxsAllowed()
         ? address
-        : invoice && !lnSwapsAllowed()
+        : invoice && lnSwapsAllowed()
         ? invoice
         : ''
     const direction =
@@ -55,7 +55,7 @@ export default function SendDetails() {
         ? 'Paying inside the Ark'
         : address && utxoTxsAllowed()
         ? 'Paying to mainnet'
-        : invoice && !lnSwapsAllowed()
+        : invoice && lnSwapsAllowed()
         ? 'Swapping to Lightning'
         : ''
     setDetails({
