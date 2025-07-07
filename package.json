@@ -7,6 +7,7 @@
     "@arkade-os/sdk": "^0.1.4",
     "@dotmind/react-use-pwa": "^1.0.4",
     "@ionic/react": "^8.5.6",
+    "@noble/hashes": "^1.8.0",
     "@noble/secp256k1": "^2.2.3",
     "@scure/base": "^1.2.5",
     "@scure/bip32": "^1.7.0",
