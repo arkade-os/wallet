@@ -3,7 +3,7 @@ import { consoleLog, consoleError } from './logs'
 import { NetworkName } from '@arkade-os/sdk/dist/types/networks'
 import { Wallet } from './types'
 import { base64, hex } from '@scure/base'
-import { sha256 } from '@noble/hashes/sha256'
+import { sha256 } from '@noble/hashes/sha2'
 import { ripemd160 } from '@noble/hashes/ripemd160'
 import { randomBytes } from '@noble/hashes/utils'
 import {
