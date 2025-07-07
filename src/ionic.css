@@ -20,6 +20,7 @@
   --redbg: #68222b;
   --white: #fbfbfb;
   --yellow: #e2c542;
+  --grey: #747474;
   --yellowoutlier: #debb20;
   --ion-background-color: #fff;
   --ion-tabbar-background-color: #fafafa;
@@ -207,4 +208,31 @@ ion-select {
 
 input.native-input:focus::placeholder {
   color: transparent; /* Hide placeholder on focus */
+}
+
+ion-toggle {
+  padding: 12px;
+
+  --track-background: #ddd;
+  --track-background-checked: #ddd;
+
+  --handle-background: var(--grey);
+  --handle-background-checked: var(--purple);
+
+  --handle-width: 21px;
+  --handle-height: 21px;
+  --handle-max-height: auto;
+  --handle-spacing: 0;
+
+  --handle-border-radius: 0;
+  --handle-box-shadow: none;
+}
+
+ion-toggle::part(track) {
+  height: 21px;
+  width: 42px;
+  border-radius: 0;
+
+  /* Required for iOS handle to overflow the height of the track */
+  overflow: visible;
 }
