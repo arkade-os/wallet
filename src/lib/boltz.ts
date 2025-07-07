@@ -108,8 +108,8 @@ const getBoltzWsUrl = (network: NetworkName) => {
 
 export const getBoltzLimits = async (network: NetworkName): Promise<{ min: number; max: number }> => {
   const url = getBoltzApiUrl(network)
-  if (!url) throw 'Invalid network for Boltz API'
-  const response = await fetch(`${getBoltzApiUrl(network)}/v2/swap/submarine`)
+  if (!url) throw new Error('Invalid network for Boltz API')
+  const response = await fetch(`${url}/v2/swap/submarine`)
   if (!response.ok) {
     const errorData = await response.json()
     throw errorData.error || 'Failed to fetch limits'
