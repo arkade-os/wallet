@@ -109,7 +109,7 @@ export function LightningProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         consoleError(err, 'Error polling swap status')
       }
-    }, 5000) as unknown as number
+    }, 5000) as number
   }
 
   const startMonitoring = (swapId: string) => {
