@@ -114,7 +114,7 @@ nigiri faucet <address> 0.001
 
 On your browser, go back to homepage of Fulmine, click on the pending tx and settle - click on the action menu, three dots on the top-right.
 
-Lastly, connect Fulmine with Boltz's LND instance. For this you need an lndconnect URL that you can generate with:
+Lastly, connect Fulmine with Boltz's LND instance. For this, you need an lndconnect URL that you can generate with:
 
 ```sh
 docker exec -i boltz-lnd bash -c \
