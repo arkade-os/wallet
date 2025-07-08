@@ -8,6 +8,7 @@
   --dark05: rgba(var(--ion-color-dark-rgb), 0.05);
   --green: #60b18a;
   --greenbg: #054a19;
+  --grey: #747474;
   --liz: #d5c6ff;
   --logo-color: #391998;
   --magenta: #8563e4;
@@ -24,6 +25,7 @@
   --ion-background-color: #fff;
   --ion-tabbar-background-color: #fafafa;
   --ion-backdrop-color: #fff;
+  --toggle-background: #fbfbfb;
 }
 
 .ion-palette-dark {
@@ -40,6 +42,7 @@
   --ion-tabbar-background-color: #181818;
   --ion-backdrop-color: #000;
   --logo-color: #fbfbfb;
+  --toggle-background: #ddd;
 }
 
 ion-button {
@@ -207,4 +210,32 @@ ion-select {
 
 input.native-input:focus::placeholder {
   color: transparent; /* Hide placeholder on focus */
+}
+
+ion-toggle {
+  margin: 12px;
+  border: 1px solid var(--black);
+
+  --track-background: var(--toggle-background);
+  --track-background-checked: var(--toggle-background);
+
+  --handle-background: var(--grey);
+  --handle-background-checked: var(--purple);
+
+  --handle-width: 21px;
+  --handle-height: 21px;
+  --handle-max-height: auto;
+  --handle-spacing: 0;
+
+  --handle-border-radius: 0;
+  --handle-box-shadow: none;
+}
+
+ion-toggle::part(track) {
+  height: 21px;
+  width: 42px;
+  border-radius: 0;
+
+  /* Required for iOS handle to overflow the height of the track */
+  overflow: visible;
 }
