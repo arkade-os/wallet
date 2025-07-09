@@ -49,3 +49,19 @@ It correctly bundles React in production mode and optimizes the build for the be
 
 The build is minified and the filenames include the hashes.\
 Your app is ready to be deployed!
+
+### Build native apps with Capacitor
+
+Capacitor projects are initialized in this repository. After installing
+dependencies you can sync the native projects by running:
+
+```bash
+pnpm run sync
+```
+
+To open the Android or iOS projects use the following commands:
+
+```bash
+pnpm run android
+pnpm run ios
+```
