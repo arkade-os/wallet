@@ -286,7 +286,7 @@ const waitAndClaim = async (
       case 'transaction.mempool':
       case 'transaction.confirmed': {
         // TODO: save claim to be able to retry if something fails
-        consoleLog('Startin VHTLC claim process...')
+        consoleLog('Starting VHTLC claim process...')
         const receivedAmount = await claimVHTLC(swapInfo, preimage, wallet, svcWallet, identity, aspInfo)
         // removeClaim(claimInfo, wallet.network)
         onSwapCompleted(receivedAmount)
