@@ -5,6 +5,7 @@
   "homepage": ".",
   "dependencies": {
     "@arkade-os/sdk": "^0.1.4",
+    "@capacitor/core": "^7.4.1",
     "@dotmind/react-use-pwa": "^1.0.4",
     "@ionic/react": "^8.5.6",
     "@scure/base": "^1.2.5",
@@ -25,12 +26,15 @@
     "prepare": "husky install",
     "start": "pnpm git-info; pnpm build:worker; vite",
     "build": "pnpm git-info; pnpm build:worker; vite build",
+    "sync": "pnpm build && pnpm cap sync",
     "build:worker": "vite build -c vite.worker.config.ts",
     "test": "vitest",
     "lint": "eslint --ext .ts,.tsx src",
     "format": "prettier --write src",
     "format:check": "prettier --check src",
-    "git-info": "node scripts/git-commit-info.js"
+    "git-info": "node scripts/git-commit-info.js",
+    "android": "pnpm sync && pnpm cap open android",
+    "ios": "pnpm sync && pnpm cap open ios"
   },
   "eslintConfig": {
     "extends": [
@@ -50,6 +54,9 @@
     ]
   },
   "devDependencies": {
+    "@capacitor/android": "^7.4.1",
+    "@capacitor/cli": "^7.4.1",
+    "@capacitor/ios": "^7.4.1",
     "@types/node": "^22.15.12",
     "@types/qs": "^6.9.18",
     "@types/react": "^18.3.21",
@@ -66,6 +73,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^4.6.2",
     "husky": "^8.0.3",
+    "jsdom": "^26.1.0",
     "prettier": "^2.8.8",
     "vite": "^6.3.5",
     "vite-plugin-eslint": "^1.8.1",
