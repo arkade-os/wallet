@@ -523,8 +523,7 @@ export const monitorSwap = (
       consoleLog('Using preconnected WebSocket for swap monitoring')
       ws = preconnectedWs
     } else {
-      // Convert HTTP URL to WebSocket URL
-      const wsUrl = baseUrl.replace(/^http(s)?:\/\//, 'ws$1://') + '/v2/ws'
+      const wsUrl = getBoltzWsUrl(network)
 
       consoleLog(`Connecting to Boltz WebSocket at ${wsUrl} (attempt ${retryCount + 1})`)
       ws = new WebSocket(wsUrl)
