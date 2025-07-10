@@ -28,8 +28,8 @@ export default function ReceiveQRCode() {
   const isFirstMount = useRef(true)
 
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
-  const address = aspInfo.utxoMaxAmount === 0 ? '' : boardingAddr
-  const arkAddress = aspInfo.vtxoMaxAmount === 0 ? '' : offchainAddr
+  const address = Number(aspInfo.utxoMaxAmount) === 0 ? '' : boardingAddr
+  const arkAddress = Number(aspInfo.vtxoMaxAmount) === 0 ? '' : offchainAddr
   const bip21uri = bip21.encode(address, arkAddress, satoshis)
 
   useEffect(() => {

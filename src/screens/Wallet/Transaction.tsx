@@ -46,12 +46,12 @@ export default function Transaction() {
 
   useEffect(() => {
     if (!tx) return
-    const expiration = tx.createdAt + aspInfo.vtxoTreeExpiry
+    const expiration = tx.createdAt + Number(aspInfo.vtxoTreeExpiry)
     const bestMarketHour = calcBestMarketHour(expiration)
     if (bestMarketHour) {
       // setCanSettleOnMarketHour(true) TODO remove after
       setCanSettleOnMarketHour(false)
-      setStartTime(bestMarketHour.startTime)
+      setStartTime(Number(bestMarketHour.nextStartTime))
       setDuration(bestMarketHour.duration)
     } else {
       setCanSettleOnMarketHour(false)

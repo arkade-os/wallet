@@ -85,7 +85,7 @@ export default function App() {
     navigate(Pages.Settings)
   }
 
-  const page = configLoaded && (aspInfo.pubkey || aspInfo.unreachable) ? screen : Pages.Loading
+  const page = configLoaded && (aspInfo.signerPubkey || aspInfo.unreachable) ? screen : Pages.Loading
 
   const comp = page === Pages.Loading ? <Loading text={loadingError} /> : pageComponent(page)
 

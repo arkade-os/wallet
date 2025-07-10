@@ -37,8 +37,8 @@ export default function NotesForm() {
     if (isArkNote(note)) {
       try {
         setError('')
-        const decoded = ArkNote.fromString(note)
-        setNoteInfo({ note, satoshis: decoded.data.value })
+        const { value } = ArkNote.fromString(note)
+        setNoteInfo({ note, satoshis: value })
         if (showConfig) toggleShowConfig()
         return navigate(Pages.NotesRedeem)
       } catch (err) {

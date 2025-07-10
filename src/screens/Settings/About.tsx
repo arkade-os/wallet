@@ -24,7 +24,7 @@ export default function About() {
     ['Network', aspInfo.network],
     ['Round interval', `${aspInfo.roundInterval} secs`],
     ['VTXO tree expiry', prettyDelta(aspInfo.vtxoTreeExpiry, true)],
-    ['Server pubkey', aspInfo.pubkey],
+    ['Server pubkey', aspInfo.signerPubkey],
     ['Server URL', aspInfo.url],
     ['Unilateral exit delay', `${aspInfo.unilateralExitDelay} secs`],
     ['Git commit hash', gitCommit],
