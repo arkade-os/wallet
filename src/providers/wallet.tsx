@@ -11,7 +11,6 @@ import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { calcNextRollover } from '../lib/wallet'
 import { ArkNote, ServiceWorkerWallet, setupServiceWorker } from '@arkade-os/sdk'
-import { NetworkName } from '@arkade-os/sdk/dist/types/networks'
 import { hex } from '@scure/base'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
@@ -161,7 +160,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const note = arkNoteInUrl()
     if (!note) return
     try {
-      const { value } = ArkNote.fromString(note).data
+      const { value } = ArkNote.fromString(note)
       setNoteInfo({ note, satoshis: value })
       window.location.hash = ''
     } catch (err) {
@@ -189,7 +188,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     await svcWallet.init({
       arkServerUrl,
       privateKey: hex.encode(privateKey),
-      network: aspInfo.network as NetworkName,
       esploraUrl,
     })
     updateWallet({ ...wallet, network: aspInfo.network })

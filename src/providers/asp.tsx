@@ -1,14 +1,15 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
-import { AspInfo, emptyAspInfo, getAspInfo, MarketHour } from '../lib/asp'
+import { ArkInfo, MarketHour } from '@arkade-os/sdk'
+import { emptyAspInfo, getAspInfo } from '../lib/asp'
 import { ConfigContext } from './config'
 
 interface AspContextProps {
-  aspInfo: AspInfo
+  aspInfo: ArkInfo & { unreachable: boolean; url: string }
   amountIsBelowMinLimit: (sats: number) => boolean
   amountIsAboveMaxLimit: (sats: number) => boolean
-  calcBestMarketHour: (nextRollOver: number) => MarketHour | undefined
-  calcNextMarketHour: (nextRollOver: number) => MarketHour | undefined
-  setAspInfo: (info: AspInfo) => void
+  calcBestMarketHour: (nextRollOver: number) => (MarketHour & { duration: number }) | undefined
+  calcNextMarketHour: (nextRollOver: number) => (MarketHour & { duration: number }) | undefined
+  setAspInfo: (info: ArkInfo & { unreachable: boolean; url: string }) => void
 }
 
 export const AspContext = createContext<AspContextProps>({
@@ -27,10 +28,10 @@ export const AspProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!config.aspUrl || !configLoaded) return
-    getAspInfo(config.aspUrl).then(setAspInfo)
+    getAspInfo(config.aspUrl).then((info) => {
+      setAspInfo(info)
+    })
   }, [config.aspUrl, configLoaded])
-
-  const duration = aspInfo.marketHour.nextEndTime - aspInfo.marketHour.nextStartTime
 
   const amountIsAboveMaxLimit = (sats: number) => {
     return getMaxSatsAllowed() < 0 ? false : sats > getMaxSatsAllowed()
@@ -40,7 +41,8 @@ export const AspProvider = ({ children }: { children: ReactNode }) => {
     return getDustLimit() < 0 ? false : sats < getDustLimit()
   }
 
-  const calcBestMarketHour = (expiration: number): MarketHour | undefined => {
+  const calcBestMarketHour = (expiration: number): (MarketHour & { duration: number }) | undefined => {
+    if (!aspInfo.marketHour) return undefined
     let startTime = aspInfo.marketHour.nextStartTime
     if (startTime > expiration) return undefined
     const period = aspInfo.marketHour.period
@@ -48,25 +50,24 @@ export const AspProvider = ({ children }: { children: ReactNode }) => {
       startTime += period
     }
     return {
-      duration,
-      period,
-      startTime,
+      ...aspInfo.marketHour,
+      duration: Number(aspInfo.marketHour.nextEndTime - aspInfo.marketHour.nextStartTime),
     }
   }
 
-  const calcNextMarketHour = (expiration: number): MarketHour | undefined => {
+  const calcNextMarketHour = (expiration: number): (MarketHour & { duration: number }) | undefined => {
+    if (!aspInfo.marketHour) return undefined
     let startTime = aspInfo.marketHour.nextStartTime
     if (startTime > expiration) return undefined
     return {
-      duration,
-      period: aspInfo.marketHour.period,
-      startTime: aspInfo.marketHour.nextStartTime,
+      ...aspInfo.marketHour,
+      duration: Number(aspInfo.marketHour.nextEndTime - aspInfo.marketHour.nextStartTime),
     }
   }
 
   const getDustLimit = () => {
     const { utxoMinAmount, vtxoMinAmount } = aspInfo
-    return Math.max(utxoMinAmount, vtxoMinAmount)
+    return Math.max(Number(utxoMinAmount), Number(vtxoMinAmount))
   }
 
   //              VTXO max amount
@@ -78,10 +79,10 @@ export const AspProvider = ({ children }: { children: ReactNode }) => {
   //
   const getMaxSatsAllowed = (): number => {
     const { utxoMaxAmount, vtxoMaxAmount } = aspInfo
-    if (vtxoMaxAmount === -1) return utxoMaxAmount > 0 ? utxoMaxAmount : -1
-    if (vtxoMaxAmount === 0) return utxoMaxAmount
-    if (utxoMaxAmount <= 0) return vtxoMaxAmount
-    return Math.min(utxoMaxAmount, vtxoMaxAmount)
+    if (vtxoMaxAmount === BigInt(-1)) return utxoMaxAmount > BigInt(0) ? Number(utxoMaxAmount) : -1
+    if (vtxoMaxAmount === BigInt(0)) return Number(utxoMaxAmount)
+    if (utxoMaxAmount <= BigInt(0)) return Number(vtxoMaxAmount)
+    return Math.min(Number(utxoMaxAmount), Number(vtxoMaxAmount))
   }
 
   return (

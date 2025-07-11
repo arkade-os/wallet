@@ -78,8 +78,8 @@ export default function SendForm() {
     }
     if (isArkNote(lowerCaseData)) {
       try {
-        const anote = ArkNote.fromString(recipient)
-        setNoteInfo({ note: recipient, satoshis: anote.data.value })
+        const { value } = ArkNote.fromString(recipient)
+        setNoteInfo({ note: recipient, satoshis: value })
         return navigate(Pages.NotesRedeem)
       } catch (err) {
         consoleError(err, 'error parsing ark note')
@@ -94,11 +94,11 @@ export default function SendForm() {
     const { boardingAddr, offchainAddr } = receivingAddresses
     const { address, arkAddress } = sendInfo
     // check server limits for onchain transactions
-    if (address && !arkAddress && aspInfo.utxoMaxAmount === 0) {
+    if (address && !arkAddress && Number(aspInfo.utxoMaxAmount) === 0) {
       return setError('Sending onchain not allowed')
     }
     // check server limits for offchain transactions
-    if (!address && arkAddress && aspInfo.vtxoMaxAmount === 0) {
+    if (!address && arkAddress && Number(aspInfo.vtxoMaxAmount) === 0) {
       return setError('Sending offchain not allowed')
     }
     // check if server key is valid
