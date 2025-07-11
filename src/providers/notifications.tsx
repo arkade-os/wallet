@@ -28,7 +28,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   }
 
   const sendNostrNotification = async (content: string) => {
-    consoleLog('notImplemented: sendNostrNotification(', content, ')')
+    console.log('notImplemented: sendNostrNotification(', content, ')')
     // if (!wallet.privateKey) throw new Error('wallet is locked')
     // if (!config.nostr) return
     // if (!relay.current) return
