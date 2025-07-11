@@ -96,8 +96,6 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
 }
 
 export const getReceivingAddresses = async (wallet: IWallet): Promise<Addresses> => {
-  console.log(await wallet.getAddress())
-
   const [offchainAddr, boardingAddr] = await Promise.all([wallet.getAddress(), wallet.getBoardingAddress()])
   return {
     boardingAddr,
