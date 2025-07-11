@@ -17,8 +17,9 @@ import Error from '../../components/Error'
 import WaitingForRound from '../../components/WaitingForRound'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
-import { AspInfo, settleVtxos } from '../../lib/asp'
+import { settleVtxos } from '../../lib/asp'
 import Loading from '../../components/Loading'
+import { ArkInfo } from '@arkade-os/sdk'
 
 const Box = ({ children }: { children: ReactNode }) => {
   const style = {
@@ -35,9 +36,17 @@ const Box = ({ children }: { children: ReactNode }) => {
   )
 }
 
-const VtxoLine = ({ aspInfo, hide, vtxo }: { aspInfo: AspInfo; hide: boolean; vtxo: Vtxo }) => {
+const VtxoLine = ({
+  aspInfo,
+  hide,
+  vtxo,
+}: {
+  aspInfo: ArkInfo & { unreachable: boolean; url: string }
+  hide: boolean
+  vtxo: Vtxo
+}) => {
   const amount = hide ? prettyHide(vtxo.value) : prettyNumber(vtxo.value)
-  const expiry = vtxo.virtualStatus.batchExpiry ?? vtxo.createdAt.getDate() + aspInfo.vtxoTreeExpiry * 1000
+  const expiry = vtxo.virtualStatus.batchExpiry ?? vtxo.createdAt.getDate() + Number(aspInfo.vtxoTreeExpiry) * 1000
   return (
     <Box>
       <Text>{amount} SATS</Text>
@@ -72,7 +81,7 @@ export default function Vtxos() {
   useEffect(() => {
     const bestMarketHour = calcBestMarketHour(wallet.nextRollover)
     if (bestMarketHour) {
-      setStartTime(bestMarketHour.startTime)
+      setStartTime(Number(bestMarketHour.nextStartTime))
       setDuration(bestMarketHour.duration)
     } else {
       setStartTime(wallet.nextRollover)
@@ -134,8 +143,8 @@ export default function Vtxos() {
                   <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
                     <TextSecondary>First virtual coin expiration: {prettyAgo(wallet.nextRollover)}.</TextSecondary>
                     <TextSecondary>
-                      Your virtual coins have a lifetime of {prettyDelta(aspInfo.vtxoTreeExpiry)} and need renewal
-                      before expiration.
+                      Your virtual coins have a lifetime of {prettyDelta(Number(aspInfo.vtxoTreeExpiry))} and need
+                      renewal before expiration.
                     </TextSecondary>
                     <TextSecondary>Automatic renewal occurs for virtual coins expiring within 24 hours.</TextSecondary>
                     {startTime ? (

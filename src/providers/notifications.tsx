@@ -3,7 +3,6 @@ import { ConfigContext } from './config'
 import { sendNotification } from '../lib/notifications'
 import { prettyNumber } from '../lib/format'
 import { Relay } from 'nostr-tools'
-import { consoleLog } from '../lib/logs'
 
 interface NotificationsContextProps {
   notifyPaymentReceived: (s: number) => void
@@ -28,7 +27,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   }
 
   const sendNostrNotification = async (content: string) => {
-    consoleLog('notImplemented: sendNostrNotification(', content, ')')
+    console.log('notImplemented: sendNostrNotification(', content, ')')
     // if (!wallet.privateKey) throw new Error('wallet is locked')
     // if (!config.nostr) return
     // if (!relay.current) return

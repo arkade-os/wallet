@@ -24,6 +24,12 @@ export const vtxosRepository: VtxoRepository = {
       spent: all.filter((vtxo) => vtxo.spentBy !== undefined && vtxo.spentBy !== ''),
     }
   },
+  getSpentVtxos: async () => {
+    return db.vtxos.where('spentBy').notEqual('').toArray()
+  },
+  getSweptVtxos: async () => {
+    return db.vtxos.where('virtualStatus.state').equals('swept').toArray()
+  },
   close: async () => db.close(),
   open: async () => {
     await db.open()

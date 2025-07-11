@@ -10,8 +10,7 @@ import { arkNoteInUrl } from '../lib/arknote'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { calcNextRollover } from '../lib/wallet'
-import { ArkNote, Identity, InMemoryKey, ServiceWorkerWallet, setupServiceWorker } from '@arkade-os/sdk'
-import { NetworkName } from '@arkade-os/sdk/dist/types/networks'
+import { ArkNote, ServiceWorkerWallet, setupServiceWorker } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
@@ -160,7 +159,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const note = arkNoteInUrl()
     if (!note) return
     try {
-      const { value } = ArkNote.fromString(note).data
+      const { value } = ArkNote.fromString(note)
       setNoteInfo({ note, satoshis: value })
       window.location.hash = ''
     } catch (err) {
@@ -182,9 +181,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const esploraUrl = getRestApiExplorerURL(network) ?? ''
     await svcWallet.init({
       arkServerUrl,
-      esploraUrl,
-      network,
       privateKey: hex.encode(privateKey),
+      esploraUrl,
     })
     setIdentity(InMemoryKey.fromPrivateKey(privateKey))
     updateWallet({ ...wallet, network, pubkey })
