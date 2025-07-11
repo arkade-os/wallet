@@ -11,7 +11,7 @@ export const defaultArkServer = () => {
       if (window.location.hostname.includes('localhost')) {
         return devServer
       }
-      return mainServer
+      return testServer
     }
   }
   return mainServer
