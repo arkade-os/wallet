@@ -23,7 +23,7 @@ export default function About() {
     ['Forfeit address', aspInfo.forfeitAddress],
     ['Network', aspInfo.network],
     ['Round interval', `${aspInfo.roundInterval} secs`],
-    ['VTXO tree expiry', prettyDelta(aspInfo.vtxoTreeExpiry, true)],
+    ['VTXO tree expiry', prettyDelta(Number(aspInfo.vtxoTreeExpiry), true)],
     ['Server pubkey', aspInfo.signerPubkey],
     ['Server URL', aspInfo.url],
     ['Unilateral exit delay', `${aspInfo.unilateralExitDelay} secs`],
