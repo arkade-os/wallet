@@ -16,6 +16,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 
 import * as secp from '@noble/secp256k1'
+import { NetworkName } from '@arklabs/wallet-sdk/dist/types/networks'
 
 const defaultWallet: Wallet = {
   network: '',
@@ -36,7 +37,6 @@ interface WalletContextProps {
   txs: Tx[]
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: number
-  identity?: Identity
   initialized?: boolean
 }
 
@@ -70,7 +70,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [txs, setTxs] = useState<Tx[]>([])
   const [balance, setBalance] = useState(0)
   const [initialized, setInitialized] = useState<boolean>(false)
-  const [identity, setIdentity] = useState<Identity | undefined>(undefined)
   const allVtxos = useLiveQuery(() => db.vtxos?.toArray())
 
   useEffect(() => {
@@ -184,7 +183,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       privateKey: hex.encode(privateKey),
       esploraUrl,
     })
-    setIdentity(InMemoryKey.fromPrivateKey(privateKey))
     updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
   }
@@ -240,7 +238,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         balance,
         reloadWallet,
         vtxos: vtxos ?? { spendable: [], spent: [] },
-        identity,
       }}
     >
       {children}

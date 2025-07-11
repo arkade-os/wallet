@@ -7,14 +7,17 @@ import { sha256 } from '@noble/hashes/sha2'
 import { ripemd160 } from '@noble/hashes/legacy'
 import { randomBytes } from '@noble/hashes/utils'
 import {
-  addConditionWitness,
-  Identity,
   ServiceWorkerWallet,
   VHTLC,
-  createVirtualTx,
+  buildOffchainTx,
   RestArkProvider,
+  RestIndexerProvider,
+  CSVMultisigTapscript,
+  ArkAddress,
+  ConditionWitness,
+  setArkPsbtField,
 } from '@arkade-os/sdk'
-import { AspInfo } from './asp'
+import { AspInfo } from '../providers/asp'
 
 // Boltz swap status types
 export type SwapStatus =
@@ -161,24 +164,21 @@ export const submarineSwap = async (
  * @param invoiceAmount The amount in satoshis to swap
  * @param wallet The user's wallet object
  * @param svcWallet The service worker wallet object
- * @param identity The user's identity object
  * @param aspInfo The ASP information object
  * @param onInvoiceCreated Callback to handle the created invoice
  * @param onSwapCompleted Callback to handle the completed swap
- * @throws Will throw an error if the network or identity is not available, or if the invoice creation fails
+ * @throws Will throw an error if the network is not available, or if the invoice creation fails
  * @returns A promise that resolves when the swap is successfully initiated
  */
 export const reverseSwap = async (
   invoiceAmount: number,
   wallet: Wallet,
   svcWallet: ServiceWorkerWallet,
-  identity: Identity | undefined,
   aspInfo: AspInfo,
   onInvoiceCreated: (invoice: string) => void,
   onSwapCompleted: (receivedAmount: number) => void,
 ): Promise<void> => {
   if (!wallet.network) throw 'Network not available for reverse swap'
-  if (!identity) throw 'Identity not available for reverse swap'
 
   // get the public key to claim the VHTLC
   const claimPublicKey = wallet.pubkey
@@ -218,7 +218,7 @@ export const reverseSwap = async (
   onInvoiceCreated(swapInfo.invoice)
 
   // wait for invoice payment and claim the VHTLC
-  waitAndClaim(swapInfo, preimage, wallet, svcWallet, identity, aspInfo, onSwapCompleted)
+  waitAndClaim(swapInfo, preimage, wallet, svcWallet, aspInfo, onSwapCompleted)
 }
 
 /**
@@ -231,7 +231,6 @@ export const reverseSwap = async (
  * @param preimage The preimage used for the VHTLC claim
  * @param wallet The user's wallet object
  * @param svcWallet The service worker wallet object
- * @param identity The user's identity object
  * @param aspInfo The ASP information object
  * @param onSwapCompleted Callback to handle the completed swap
  * @throws Will throw an error if the wallet network is not available
@@ -242,7 +241,6 @@ const waitAndClaim = async (
   preimage: Uint8Array,
   wallet: Wallet,
   svcWallet: ServiceWorkerWallet,
-  identity: Identity,
   aspInfo: AspInfo,
   onSwapCompleted: (amount: number) => void,
 ) => {
@@ -287,7 +285,7 @@ const waitAndClaim = async (
       case 'transaction.confirmed': {
         // TODO: save claim to be able to retry if something fails
         consoleLog('Starting VHTLC claim process...')
-        const receivedAmount = await claimVHTLC(swapInfo, preimage, wallet, svcWallet, identity, aspInfo)
+        const receivedAmount = await claimVHTLC(swapInfo, preimage, wallet, svcWallet, aspInfo)
         // removeClaim(claimInfo, wallet.network)
         onSwapCompleted(receivedAmount)
         break
@@ -321,7 +319,6 @@ const waitAndClaim = async (
  * @param preimage The preimage used for the VHTLC claim
  * @param wallet The user's wallet object
  * @param svcWallet The service worker wallet object
- * @param identity The user's identity object
  * @param aspInfo The ASP information object
  * @throws Will throw an error if the wallet public key is not available
  * @return A promise that resolves to the amount claimed from the VHTLC
@@ -331,21 +328,22 @@ const claimVHTLC = async (
   preimage: Uint8Array,
   wallet: Wallet,
   svcWallet: ServiceWorkerWallet,
-  identity: Identity,
   aspInfo: AspInfo,
 ): Promise<number> => {
   if (!wallet.pubkey) throw 'Pubkey not available for reverse swap'
 
   // prepare variables for claiming the VHTLC
   const amount = swapInfo.onchainAmount
-  const address = (await svcWallet.getAddress()).offchain
-  const myselfXOnlyPublicKey = hex.decode(wallet.pubkey).slice(1)
-  const senderXOnlyPublicKey = hex.decode(swapInfo.refundPublicKey).slice(1)
-  const serverXOnlyPublicKey = hex.decode(aspInfo.pubkey).slice(1)
+  const address = await svcWallet.getAddress()
+  if (!address) throw 'Failed to get ark address from service worker wallet'
 
-  if (!address) {
-    throw new Error('Failed to get offchain address from service worker wallet')
-  }
+  const myselfPublicKey = hex.decode(wallet.pubkey)
+  const senderPublicKey = hex.decode(swapInfo.refundPublicKey)
+  const serverPublicKey = hex.decode(aspInfo.signerPubkey)
+
+  const myselfXOnlyPublicKey = myselfPublicKey.length === 33 ? myselfPublicKey.slice(1) : myselfPublicKey
+  const senderXOnlyPublicKey = senderPublicKey.length === 33 ? senderPublicKey.slice(1) : senderPublicKey
+  const serverXOnlyPublicKey = serverPublicKey.length === 33 ? serverPublicKey.slice(1) : serverPublicKey
 
   // build expected VHTLC script
   const vhtlcScript = new VHTLC.Script({
@@ -377,8 +375,12 @@ const claimVHTLC = async (
 
   // get spendable VTXOs from the lockup address
   const arkProvider = new RestArkProvider(aspInfo.url)
-  const { spendableVtxos } = await arkProvider.getVirtualCoins(vhtlcAddress)
-  if (spendableVtxos.length === 0) {
+  const indexerProvider = new RestIndexerProvider(aspInfo.url)
+  const spendableVtxos = await indexerProvider.getVtxos({
+    scripts: [hex.encode(vhtlcScript.pkScript)],
+    spendableOnly: true,
+  })
+  if (spendableVtxos.vtxos.length === 0) {
     throw new Error('No spendable virtual coins found')
   }
 
@@ -388,33 +390,46 @@ const claimVHTLC = async (
   const vhtlcIdentity = {
     sign: async (tx: any, inputIndexes?: number[]) => {
       const cpy = tx.clone()
-      addConditionWitness(0, cpy, [preimage])
-      return identity.sign(cpy, inputIndexes)
+      setArkPsbtField(cpy, 0, ConditionWitness, [preimage])
+      return svcWallet.sign(cpy, inputIndexes)
     },
-    xOnlyPublicKey: identity.xOnlyPublicKey,
-    signerSession: identity.signerSession,
+    xOnlyPublicKey: svcWallet.xOnlyPublicKey,
+    signerSession: svcWallet.signerSession,
   }
 
+  // Create the server unroll script for checkpoint transactions
+  const serverUnrollScript = CSVMultisigTapscript.encode({
+    pubkeys: [hex.decode(aspInfo.signerPubkey)],
+    timelock: {
+      type: aspInfo.unilateralExitDelay < 512 ? 'blocks' : 'seconds',
+      value: aspInfo.unilateralExitDelay,
+    },
+  })
+
   // create the virtual transaction to claim the VHTLC
-  const tx = createVirtualTx(
+  const { arkTx, checkpoints } = buildOffchainTx(
     [
       {
-        ...spendableVtxos[0],
-        tapLeafScript: vhtlcScript.claim(),
-        scripts: vhtlcScript.encode(),
+        ...spendableVtxos.vtxos[0],
+        tapLeafScript: vhtlcScript.refund(),
+        tapTree: vhtlcScript.encode(),
       },
     ],
     [
       {
-        address,
         amount: BigInt(amount),
+        script: ArkAddress.decode(address).pkScript,
       },
     ],
+    serverUnrollScript,
   )
 
   // sign and "broadcast" the virtual transaction
-  const signedTx = await vhtlcIdentity.sign(tx)
-  const txid = await arkProvider.submitVirtualTx(base64.encode(signedTx.toPSBT()))
+  const signedTx = await vhtlcIdentity.sign(arkTx)
+  const txid = await arkProvider.submitTx(
+    base64.encode(signedTx.toPSBT()),
+    checkpoints.map((c) => base64.encode(c.toPSBT())),
+  )
 
   console.log('Successfully claimed VHTLC! Transaction ID:', txid)
   return amount

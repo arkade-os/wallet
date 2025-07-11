@@ -40,7 +40,7 @@ export default function App() {
   const { navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
-  const { walletLoaded, initialized, svcWallet, identity, wallet } = useContext(WalletContext)
+  const { walletLoaded, initialized, svcWallet, wallet } = useContext(WalletContext)
   const [loadingError, setLoadingError] = useState('')
 
   // lock screen orientation to portrait
@@ -68,8 +68,7 @@ export default function App() {
     if (!walletLoaded) return navigate(Pages.Loading)
     if (!wallet.pubkey) return navigate(pwaIsInstalled() ? Pages.Init : Pages.Onboard)
     if (!initialized) return navigate(Pages.Unlock)
-    if (!identity) return navigate(Pages.Unlock)
-  }, [walletLoaded, initialized, svcWallet, initInfo, identity])
+  }, [walletLoaded, initialized, svcWallet, initInfo])
 
   if (!svcWallet) return <Loading text={loadingError} />
 

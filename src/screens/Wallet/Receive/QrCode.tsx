@@ -25,7 +25,7 @@ export default function ReceiveQRCode() {
   const { validLnSwap, validUtxoTx, validVtxoTx } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { vtxos, svcWallet, wallet, reloadWallet, identity } = useContext(WalletContext)
+  const { vtxos, svcWallet, wallet, reloadWallet } = useContext(WalletContext)
 
   const isFirstMount = useRef(true)
   const [sharing, setSharing] = useState(false)
@@ -59,7 +59,7 @@ export default function ReceiveQRCode() {
         navigate(Pages.ReceiveSuccess)
       }
 
-      reverseSwap(satoshis, wallet, svcWallet, identity, aspInfo, onInvoiceCreated, onSwapCompleted)
+      reverseSwap(satoshis, wallet, svcWallet, aspInfo, onInvoiceCreated, onSwapCompleted)
     }
   }, [satoshis])
 
