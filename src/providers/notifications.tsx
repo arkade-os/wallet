@@ -3,7 +3,6 @@ import { ConfigContext } from './config'
 import { sendNotification } from '../lib/notifications'
 import { prettyNumber } from '../lib/format'
 import { Relay } from 'nostr-tools'
-import { consoleLog } from '../lib/logs'
 
 interface NotificationsContextProps {
   notifyPaymentReceived: (s: number) => void
