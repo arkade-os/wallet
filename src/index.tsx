@@ -11,6 +11,8 @@ import { NotificationsProvider } from './providers/notifications'
 import { WalletProvider } from './providers/wallet'
 import { OptionsProvider } from './providers/options'
 import { IframeProvider } from './providers/iframe'
+import { LimitsProvider } from './providers/limits'
+import { LightningProvider } from './providers/lightning'
 import * as Sentry from '@sentry/react'
 
 Sentry.init({
@@ -32,7 +34,6 @@ const hasIframe = isValidUrl(possibleUrl)
 
 const AppWithProviders = () => {
   const baseApp = <App />
-
   return hasIframe ? <IframeProvider>{baseApp}</IframeProvider> : baseApp
 }
 
@@ -42,17 +43,21 @@ root.render(
   <NavigationProvider>
     <ConfigProvider>
       <AspProvider>
-        <NotificationsProvider>
-          <FiatProvider>
-            <FlowProvider>
-              <WalletProvider>
-                <OptionsProvider>
-                  <AppWithProviders />
-                </OptionsProvider>
-              </WalletProvider>
-            </FlowProvider>
-          </FiatProvider>
-        </NotificationsProvider>
+        <LimitsProvider>
+          <NotificationsProvider>
+            <FiatProvider>
+              <FlowProvider>
+                <WalletProvider>
+                  <OptionsProvider>
+                    <LightningProvider>
+                      <AppWithProviders />
+                    </LightningProvider>
+                  </OptionsProvider>
+                </WalletProvider>
+              </FlowProvider>
+            </FiatProvider>
+          </NotificationsProvider>
+        </LimitsProvider>
       </AspProvider>
     </ConfigProvider>
   </NavigationProvider>,
