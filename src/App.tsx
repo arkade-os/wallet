@@ -30,9 +30,6 @@ import AppsIcon from './icons/Apps'
 import { WalletContext } from './providers/wallet'
 import { FlowContext } from './providers/flow'
 import { pwaIsInstalled } from './lib/pwa'
-import Wallet from './screens/Wallet/Index'
-import Apps from './screens/Apps'
-import Settings from './screens/Settings/Index'
 
 setupIonicReact()
 
@@ -107,9 +104,9 @@ export default function App() {
           comp
         ) : (
           <IonTabs>
-            <IonTab tab={Tabs.Wallet}>{tab === Tabs.Wallet ? comp : <Wallet />}</IonTab>
-            <IonTab tab={Tabs.Apps}>{tab === Tabs.Apps ? comp : <Apps />}</IonTab>
-            <IonTab tab={Tabs.Settings}>{tab === Tabs.Settings ? comp : <Settings />}</IonTab>
+            <IonTab tab={Tabs.Wallet}>{tab === Tabs.Wallet ? comp : <></>}</IonTab>
+            <IonTab tab={Tabs.Apps}>{tab === Tabs.Apps ? comp : <></>}</IonTab>
+            <IonTab tab={Tabs.Settings}>{tab === Tabs.Settings ? comp : <></>}</IonTab>
             <IonTabBar slot='bottom'>
               <IonTabButton tab={Tabs.Wallet} selected={tab === Tabs.Wallet} onClick={handleWallet}>
                 <HomeIcon />
