@@ -85,13 +85,14 @@ type SwapReversePostResponse = {
   lockupAddress: string
   refundPublicKey: string
   timeoutBlockHeights: {
+    refund: number
     unilateralClaim: number
     unilateralRefund: number
     unilateralRefundWithoutReceiver: number
   }
 }
 
-export const getBoltzApiUrl = (network: NetworkName): string => {
+export const getBoltzApiUrl = (network: string): string => {
   switch (network) {
     case 'bitcoin':
       return 'https://boltz.arkade.sh'
@@ -102,14 +103,14 @@ export const getBoltzApiUrl = (network: NetworkName): string => {
   }
 }
 
-const getBoltzWsUrl = (network: NetworkName) => {
+const getBoltzWsUrl = (network: string) => {
   const url = getBoltzApiUrl(network)
     .replace(/^http(s)?:\/\//, 'ws$1://')
     .replace('9069', '9004') // special regtest case
   return `${url}/v2/ws`
 }
 
-export const getBoltzLimits = async (network: NetworkName): Promise<{ min: number; max: number }> => {
+export const getBoltzLimits = async (network: string): Promise<{ min: number; max: number }> => {
   const url = getBoltzApiUrl(network)
   if (!url) throw new Error('Invalid network for Boltz API')
   const response = await fetch(`${url}/v2/swap/submarine`)
@@ -179,6 +180,7 @@ export const reverseSwap = async (
   onSwapCompleted: (receivedAmount: number) => void,
 ): Promise<void> => {
   if (!wallet.network) throw 'Network not available for reverse swap'
+  if (!wallet.pubkey) throw 'Public key not available for reverse swap'
 
   // get the public key to claim the VHTLC
   const claimPublicKey = wallet.pubkey
@@ -213,6 +215,33 @@ export const reverseSwap = async (
   // parse the response and check if the invoice was created
   const swapInfo = (await response.json()) as SwapReversePostResponse
   if (!swapInfo.invoice) throw new Error('Failed to create reverse swap invoice')
+
+  // create expected VHTLC script
+  // const vhtlcScript = createVHTLCScript({
+  //   network: wallet.network,
+  //   preimage,
+  //   swapInfo,
+  //   receiverPubkey: wallet.pubkey,
+  //   senderPubkey: swapInfo.refundPublicKey,
+  //   serverPubkey: aspInfo.signerPubkey,
+  // })
+  //
+  // if (!vhtlcScript) {
+  //   for (let i = -4; i < 5; i++) {
+  //     const possibleRefundLocktime = Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000) + i
+  //     const vvv = createVHTLCScript({
+  //       network: wallet.network,
+  //       preimage,
+  //       swapInfo,
+  //       receiverPubkey: wallet.pubkey,
+  //       refundLocktime: possibleRefundLocktime,
+  //       senderPubkey: swapInfo.refundPublicKey,
+  //       serverPubkey: aspInfo.signerPubkey,
+  //     })
+  //     if (vvv) console.log('i =', i)
+  //   }
+  //   throw new Error('Failed to create VHTLC script for reverse swap')
+  // }
 
   // callback to pass invoice to the UI
   onInvoiceCreated(swapInfo.invoice)
@@ -330,6 +359,7 @@ const claimVHTLC = async (
   svcWallet: ServiceWorkerWallet,
   aspInfo: AspInfo,
 ): Promise<number> => {
+  if (!wallet.network) throw 'Network not available for reverse swap'
   if (!wallet.pubkey) throw 'Pubkey not available for reverse swap'
 
   // prepare variables for claiming the VHTLC
@@ -337,40 +367,17 @@ const claimVHTLC = async (
   const address = await svcWallet.getAddress()
   if (!address) throw 'Failed to get ark address from service worker wallet'
 
-  const myselfPublicKey = hex.decode(wallet.pubkey)
-  const senderPublicKey = hex.decode(swapInfo.refundPublicKey)
-  const serverPublicKey = hex.decode(aspInfo.signerPubkey)
-
-  const myselfXOnlyPublicKey = myselfPublicKey.length === 33 ? myselfPublicKey.slice(1) : myselfPublicKey
-  const senderXOnlyPublicKey = senderPublicKey.length === 33 ? senderPublicKey.slice(1) : senderPublicKey
-  const serverXOnlyPublicKey = serverPublicKey.length === 33 ? serverPublicKey.slice(1) : serverPublicKey
-
-  // build expected VHTLC script
-  const vhtlcScript = new VHTLC.Script({
-    preimageHash: ripemd160(sha256(preimage)),
-    sender: senderXOnlyPublicKey,
-    receiver: myselfXOnlyPublicKey,
-    server: serverXOnlyPublicKey,
-    refundLocktime: BigInt(80 * 600),
-    unilateralClaimDelay: {
-      type: 'blocks',
-      value: BigInt(swapInfo.timeoutBlockHeights.unilateralClaim),
-    },
-    unilateralRefundDelay: {
-      type: 'blocks',
-      value: BigInt(swapInfo.timeoutBlockHeights.unilateralRefund),
-    },
-    unilateralRefundWithoutReceiverDelay: {
-      type: 'blocks',
-      value: BigInt(swapInfo.timeoutBlockHeights.unilateralRefundWithoutReceiver),
-    },
+  const vhtlcScript = createVHTLCScript({
+    network: wallet.network,
+    preimage,
+    receiverPubkey: wallet.pubkey,
+    senderPubkey: swapInfo.refundPublicKey,
+    serverPubkey: aspInfo.signerPubkey,
+    swapInfo,
   })
 
-  // validate vhtlc script
-  const hrp = wallet.network === 'bitcoin' ? 'ark' : 'tark'
-  const vhtlcAddress = vhtlcScript.address(hrp, serverXOnlyPublicKey).encode()
-  if (vhtlcAddress !== swapInfo.lockupAddress) {
-    throw new Error('Boltz is trying to scam us')
+  if (!vhtlcScript) {
+    throw new Error('Failed to create VHTLC script for reverse swap')
   }
 
   // get spendable VTXOs from the lockup address
@@ -433,6 +440,105 @@ const claimVHTLC = async (
 
   console.log('Successfully claimed VHTLC! Transaction ID:', txid)
   return amount
+}
+
+interface createVHTLCScriptProps {
+  network: string
+  preimage: Uint8Array
+  swapInfo: SwapReversePostResponse
+  receiverPubkey: string
+  refundLocktime?: number
+  senderPubkey: string
+  serverPubkey: string
+}
+
+const createVHTLCScript = ({
+  network,
+  preimage,
+  receiverPubkey,
+  refundLocktime,
+  senderPubkey,
+  serverPubkey,
+  swapInfo,
+}: createVHTLCScriptProps): VHTLC.Script | undefined => {
+  // validate we are using a x-only receiver public key
+  let receiverXOnlyPublicKey = hex.decode(receiverPubkey)
+  if (receiverXOnlyPublicKey.length == 33) {
+    receiverXOnlyPublicKey = receiverXOnlyPublicKey.slice(1)
+  } else if (receiverXOnlyPublicKey.length !== 32) {
+    throw new Error(`Invalid receiver public key length: ${receiverXOnlyPublicKey.length}`)
+  }
+
+  // validate we are using a x-only sender public key
+  let senderXOnlyPublicKey = hex.decode(senderPubkey)
+  if (senderXOnlyPublicKey.length == 33) {
+    senderXOnlyPublicKey = senderXOnlyPublicKey.slice(1)
+  } else if (senderXOnlyPublicKey.length !== 32) {
+    throw new Error(`Invalid sender public key length: ${senderXOnlyPublicKey.length}`)
+  }
+
+  // validate we are using a x-only server public key
+  let serverXOnlyPublicKey = hex.decode(serverPubkey)
+  if (serverXOnlyPublicKey.length == 33) {
+    serverXOnlyPublicKey = serverXOnlyPublicKey.slice(1)
+  } else if (serverXOnlyPublicKey.length !== 32) {
+    throw new Error(`Invalid server public key length: ${serverXOnlyPublicKey.length}`)
+  }
+
+  const vhtlcScript = new VHTLC.Script({
+    preimageHash: ripemd160(sha256(preimage)),
+    sender: senderXOnlyPublicKey,
+    receiver: receiverXOnlyPublicKey,
+    server: serverXOnlyPublicKey,
+    refundLocktime: BigInt(refundLocktime ?? swapInfo.timeoutBlockHeights.refund),
+    unilateralClaimDelay: {
+      type: 'blocks',
+      value: BigInt(swapInfo.timeoutBlockHeights.unilateralClaim),
+    },
+    unilateralRefundDelay: {
+      type: 'blocks',
+      value: BigInt(swapInfo.timeoutBlockHeights.unilateralRefund),
+    },
+    unilateralRefundWithoutReceiverDelay: {
+      type: 'blocks',
+      value: BigInt(swapInfo.timeoutBlockHeights.unilateralRefundWithoutReceiver),
+    },
+  })
+
+  console.log('created VHTLC script:', {
+    preimageHash: hex.encode(ripemd160(sha256(preimage))),
+    sender: hex.encode(senderXOnlyPublicKey),
+    receiver: hex.encode(receiverXOnlyPublicKey),
+    server: hex.encode(serverXOnlyPublicKey),
+    refundLocktime: BigInt(refundLocktime ?? swapInfo.timeoutBlockHeights.refund),
+    unilateralClaimDelay: {
+      type: 'blocks',
+      value: BigInt(swapInfo.timeoutBlockHeights.unilateralClaim),
+    },
+    unilateralRefundDelay: {
+      type: 'blocks',
+      value: BigInt(swapInfo.timeoutBlockHeights.unilateralRefund),
+    },
+    unilateralRefundWithoutReceiverDelay: {
+      type: 'blocks',
+      value: BigInt(swapInfo.timeoutBlockHeights.unilateralRefundWithoutReceiver),
+    },
+  })
+
+  if (!vhtlcScript) {
+    throw new Error('Failed to create VHTLC script')
+  }
+
+  // validate vhtlc script
+  const hrp = network === 'bitcoin' ? 'ark' : 'tark'
+  const vhtlcAddress = vhtlcScript.address(hrp, serverXOnlyPublicKey).encode()
+  if (vhtlcAddress !== swapInfo.lockupAddress) {
+    console.log('Boltz is trying to scam us', vhtlcAddress, swapInfo.lockupAddress)
+    return undefined
+    // throw new Error('Boltz is trying to scam us')
+  }
+
+  return vhtlcScript
 }
 
 /**

@@ -146,7 +146,7 @@ docker compose -f test.docker-compose.yml up -d cors
 Start Arkade:
 
 ```sh
-VITE_ARK_SERVER=localhost:7070 pnpm start
+VITE_ARK_SERVER=http://localhost:7070 pnpm start
 ```
 
 Open [http://localhost:3002](http://localhost:3002) in a new browser tab and initialise/unlock the service.

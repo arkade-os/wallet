@@ -16,8 +16,8 @@ type LimitsContextProps = {
 }
 
 type LimitAmounts = {
-  min: Satoshis
-  max: Satoshis
+  min: bigint
+  max: bigint
 }
 
 type LimitTxTypes = Record<TxType, LimitAmounts>
@@ -37,9 +37,9 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
 
   const limits = useRef<LimitTxTypes>({
-    swap: { min: 1000, max: 4294967 },
-    utxo: { min: 0, max: -1 },
-    vtxo: { min: 0, max: -1 },
+    swap: { min: BigInt(1000), max: BigInt(4294967) },
+    utxo: { min: BigInt(0), max: BigInt(-1) },
+    vtxo: { min: BigInt(0), max: BigInt(-1) },
   })
 
   useEffect(() => {
@@ -57,38 +57,45 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
 
     getBoltzLimits(aspInfo.network)
       .then(({ min, max }) => {
-        limits.current.swap = { ...limits.current.swap, min, max }
+        limits.current.swap = { ...limits.current.swap, min: BigInt(min), max: BigInt(max) }
       })
       .catch(consoleError)
   }, [aspInfo.network])
 
   const validAmount = (sats: Satoshis, txtype: TxType): boolean => {
     if (!sats) return txtype !== TxType.swap
+    const bigSats = BigInt(sats)
     const { min, max } = limits.current[txtype]
-    return sats >= min && (max === -1 || sats <= max)
+    return bigSats >= min && (max === BigInt(-1) || bigSats <= max)
   }
 
   const validLnSwap = (sats: Satoshis): boolean => validAmount(sats, TxType.swap)
   const validUtxoTx = (sats: Satoshis): boolean => validAmount(sats, TxType.utxo)
   const validVtxoTx = (sats: Satoshis): boolean => validAmount(sats, TxType.vtxo)
 
-  // calculate absolute max sats available to send or receive
-  // it should be the mininum between utxo and vtxo max amounts,
-  // but we need to consider the special value -1 for 'no limits'
-  //
-  //              VTXO max amount
-  //              |  -1 |   0 | 666 |
-  //              +-----------------+
-  // UTXO      -1 |  -1 |  -1 | 666 |
-  // max        0 |  -1 |   0 | 666 |
-  // amount   444 | 444 | 444 | 444 |
-  //
-  const getMaxSatsAllowed = (): Satoshis => {
+  /**
+   * Calculates the maximum allowed amount based on UTXO and VTXO limits.
+   * Uses a decision matrix to determine the appropriate limit:
+   * - If VTXO max is -1 (unlimited), return UTXO max or -1
+   * - If VTXO max is 0, return UTXO max
+   * - If UTXO max is <= 0, return VTXO max
+   * - Otherwise, return the minimum of both limits
+   * @returns The maximum allowed amount in satoshis, or -1 for unlimited
+   *
+   *              VTXO max amount
+   *              |  -1 |   0 | 666 |
+   *              +-----------------+
+   * UTXO      -1 |  -1 |  -1 | 666 |
+   * max        0 |  -1 |   0 | 666 |
+   * amount   444 | 444 | 444 | 444 |
+   *
+   */
+  const getMaxSatsAllowed = (): bigint => {
     const { utxo, vtxo } = limits.current
-    if (vtxo.max === -1) return utxo.max > 0 ? utxo.max : -1
-    if (vtxo.max === 0) return utxo.max
-    if (utxo.max <= 0) return vtxo.max
-    return Math.min(utxo.max, vtxo.max)
+    if (vtxo.max === BigInt(-1)) return utxo.max > 0 ? utxo.max : BigInt(-1)
+    if (vtxo.max === BigInt(0)) return utxo.max
+    if (utxo.max <= BigInt(0)) return vtxo.max
+    return utxo.max < vtxo.max ? utxo.max : vtxo.max
   }
 
   // calculate absolute min sats available to send or receive
@@ -102,22 +109,32 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   // min        0 |  -1 |   0 |   0 |
   // amount   444 |  -1 |   0 | 333 |
   //
-  const getMinSatsAllowed = (): Satoshis => {
+  const getMinSatsAllowed = (): bigint => {
     const { utxo, vtxo } = limits.current
-    return Math.min(utxo.min, vtxo.min)
+    return utxo.min < vtxo.min ? utxo.min : vtxo.min
   }
 
-  const amountIsAboveMaxLimit = (sats: Satoshis) => {
-    return getMaxSatsAllowed() < 0 ? false : sats > getMaxSatsAllowed()
+  /**
+   * Checks if the given amount exceeds the maximum allowed limit.
+   * @param sats - The amount in satoshis to check
+   * @returns true if the amount is above the maximum limit, false otherwise
+   */
+  const amountIsAboveMaxLimit = (sats: Satoshis): boolean => {
+    return getMaxSatsAllowed() < 0 ? false : BigInt(sats) > getMaxSatsAllowed()
   }
 
+  /**
+   * Checks if the given amount is below the minimum dust limit.
+   * @param sats - The amount in satoshis to check
+   * @returns true if the amount is below the minimum limit, false otherwise
+   */
   const amountIsBelowMinLimit = (sats: Satoshis) => {
-    return getMinSatsAllowed() < 0 ? false : sats < getMinSatsAllowed()
+    return getMinSatsAllowed() < 0 ? false : BigInt(sats) < getMinSatsAllowed()
   }
 
-  const lnSwapsAllowed = () => limits.current.swap.max !== 0
-  const utxoTxsAllowed = () => limits.current.utxo.max !== 0
-  const vtxoTxsAllowed = () => limits.current.vtxo.max !== 0
+  const lnSwapsAllowed = () => limits.current.swap.max !== BigInt(0)
+  const utxoTxsAllowed = () => limits.current.utxo.max !== BigInt(0)
+  const vtxoTxsAllowed = () => limits.current.vtxo.max !== BigInt(0)
 
   return (
     <LimitsContext.Provider

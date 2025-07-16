@@ -5,7 +5,7 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext, SendInfo } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
-import { isArkAddress, isBTCAddress, decodeArkAddress } from '../../../lib/address'
+import { isArkAddress, isBTCAddress, decodeArkAddress, isLightningInvoice } from '../../../lib/address'
 import { AspContext } from '../../../providers/asp'
 import * as bip21 from '../../../lib/bip21'
 import { isArkNote } from '../../../lib/arknote'
@@ -28,15 +28,18 @@ import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { ArkNote } from '@arkade-os/sdk'
+import { getInvoiceSatoshis, submarineSwap } from '../../../lib/boltz'
+import { LimitsContext } from '../../../providers/limits'
 
 export default function SendForm() {
-  const { aspInfo, amountIsAboveMaxLimit, amountIsBelowMinLimit } = useContext(AspContext)
+  const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
+  const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
-  const { balance, svcWallet } = useContext(WalletContext)
+  const { balance, svcWallet, wallet } = useContext(WalletContext)
 
   const [amount, setAmount] = useState<number>()
   const [error, setError] = useState('')
@@ -65,13 +68,18 @@ export default function SendForm() {
     if (!recipient) return
     const lowerCaseData = recipient.toLowerCase()
     if (bip21.isBip21(lowerCaseData)) {
-      const { address, arkAddress, satoshis } = bip21.decode(lowerCaseData)
-      if (!address && !arkAddress) return setError('Unable to parse bip21')
+      const { address, arkAddress, invoice, satoshis } = bip21.decode(lowerCaseData)
+      if (!address && !arkAddress && !invoice) return setError('Unable to parse bip21')
       setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
-      return setState({ address, arkAddress, recipient, satoshis })
+      return setState({ address, arkAddress, invoice, recipient, satoshis })
     }
     if (isArkAddress(lowerCaseData)) {
       return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
+    }
+    if (isLightningInvoice(lowerCaseData)) {
+      const satoshis = getInvoiceSatoshis(lowerCaseData)
+      setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
+      return setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData })
     }
     if (isBTCAddress(lowerCaseData)) {
       return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
@@ -92,13 +100,13 @@ export default function SendForm() {
   useEffect(() => {
     if (!receivingAddresses) return setError('Unable to get receiving addresses')
     const { boardingAddr, offchainAddr } = receivingAddresses
-    const { address, arkAddress } = sendInfo
+    const { address, arkAddress, invoice } = sendInfo
     // check server limits for onchain transactions
-    if (address && !arkAddress && Number(aspInfo.utxoMaxAmount) === 0) {
+    if (address && !arkAddress && !invoice && !utxoTxsAllowed()) {
       return setError('Sending onchain not allowed')
     }
     // check server limits for offchain transactions
-    if (!address && arkAddress && Number(aspInfo.vtxoMaxAmount) === 0) {
+    if (!address && (arkAddress || invoice) && !vtxoTxsAllowed()) {
       return setError('Sending offchain not allowed')
     }
     // check if server key is valid
@@ -114,7 +122,7 @@ export default function SendForm() {
     }
     // everything is ok, clean error
     setError('')
-  }, [sendInfo.address, sendInfo.arkAddress])
+  }, [sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
 
   useEffect(() => {
     setSatoshis(useFiat ? fromFiat(amount) : amount ?? 0)
@@ -148,9 +156,19 @@ export default function SendForm() {
     navigate(Pages.Settings)
   }
 
-  const handleContinue = () => {
-    setState({ ...sendInfo, satoshis })
-    navigate(Pages.SendDetails)
+  const handleContinue = async () => {
+    try {
+      if (sendInfo.invoice) {
+        const { address, amount } = await submarineSwap(sendInfo.invoice, wallet)
+        setState({ ...sendInfo, satoshis: amount, swapAddress: address })
+      } else {
+        setState({ ...sendInfo, satoshis })
+      }
+      navigate(Pages.SendDetails)
+    } catch (error) {
+      consoleError(error, 'Swap failed')
+      setError('Swap failed: ' + error)
+    }
   }
 
   const handleEnter = () => {
@@ -177,10 +195,10 @@ export default function SendForm() {
     )
   }
 
-  const { address, arkAddress } = sendInfo
+  const { address, arkAddress, invoice } = sendInfo
 
   const disabled =
-    !((address || arkAddress) && satoshis && satoshis > 0) ||
+    !((address || arkAddress || invoice) && satoshis && satoshis > 0) ||
     aspInfo.unreachable ||
     tryingToSelfSend ||
     satoshis > balance ||
