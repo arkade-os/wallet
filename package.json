@@ -4,7 +4,7 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/sdk": "^0.2.0",
+    "@arkade-os/sdk": "file:../ts-sdk",
     "@dotmind/react-use-pwa": "^1.0.4",
     "@ionic/react": "^8.5.6",
     "@noble/hashes": "^1.8.0",
@@ -12,6 +12,7 @@
     "@scure/base": "^1.2.5",
     "@scure/bip32": "^1.7.0",
     "@scure/bip39": "^1.6.0",
+    "@scure/btc-signer": "^1.8.1",
     "@sentry/react": "^9.15.0",
     "decimal.js": "^10.5.0",
     "dexie": "^4.0.11",

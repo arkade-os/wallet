@@ -12,8 +12,8 @@ importers:
   .:
     dependencies:
       '@arkade-os/sdk':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: file:../ts-sdk
+        version: file:../ts-sdk
       '@dotmind/react-use-pwa':
         specifier: ^1.0.4
         version: 1.0.4
@@ -35,6 +35,9 @@ importers:
       '@scure/bip39':
         specifier: ^1.6.0
         version: 1.6.0
+      '@scure/btc-signer':
+        specifier: ^1.8.1
+        version: 1.8.1
       '@sentry/react':
         specifier: ^9.15.0
         version: 9.38.0(react@18.3.1)
@@ -133,8 +136,8 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@arkade-os/sdk@0.2.0':
-    resolution: {integrity: sha512-k7o2xZ3RSNhmjk72pN8mlq6coHN404X/W1Y20zRq0yVa/n3XiUQ02E3gMv8wU63XVlF4SD7HyMoKU2m4XKRJQQ==}
+  '@arkade-os/sdk@file:../ts-sdk':
+    resolution: {directory: ../ts-sdk, type: directory}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
 
   '@babel/code-frame@7.12.11':
@@ -2487,7 +2490,7 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.12
       '@jridgewell/trace-mapping': 0.3.29
 
-  '@arkade-os/sdk@0.2.0':
+  '@arkade-os/sdk@file:../ts-sdk':
     dependencies:
       '@noble/curves': 1.9.1
       '@noble/hashes': 1.8.0

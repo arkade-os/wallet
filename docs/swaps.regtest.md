@@ -171,21 +171,33 @@ nigiri lnd addinvoice --amt 5000
 
 Copy the invoice (aka payment_request) and try to pay it on Arkade
 
+After payment, your [transaction history](http://localhost:3002/) should have a new movement of -5.001 sats
+
+Boltz Fulmine's [transaction history](http://localhost:7003/) should have a new movement of +5.001 sats
+
+Your LND channel balance should be 55.000 sats
+
+```sh
+nigiri lnd channelbalance | jq .balance
+```
+
 ## Test Reverse Swap (Lightning => Ark)
 
-NOT IMPLEMENTED
-
-In Arkade go to Receive, define an amount in sats > 1000 and < 25.000.000, and click Continue
+In Arkade go to Receive, define an amount of 4.000 sats and click Continue
 
 Copy the Lightning invoice, the fourth one.
 
 Pay the invoice with LND:
 
 ```sh
-lncli payinvoice <invoice>
+nigiri lnd payinvoice <invoice>
 ```
 
 Check if you receive the payment on Arkade
+
+After payment, your [transaction history](http://localhost:3002/) should have a new movement of +3.999 sats
+
+Boltz Fulmine's [transaction history](http://localhost:7003/) should have a new movement of -3.999 sats
 
 ## Troubleshooting
 

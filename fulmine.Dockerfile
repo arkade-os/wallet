@@ -1,7 +1,7 @@
 # Build the web interface
 FROM node:22 AS web-builder
 
-RUN git clone https://github.com/ArkLabsHQ/fulmine.git /app
+RUN git clone https://github.com/ArkLabsHQ/fulmine.git /app && cd /app && git checkout testing
 WORKDIR /app/internal/interface/web
 RUN rm -rf .parcel-cache && yarn && yarn build
 
@@ -17,7 +17,7 @@ ARG SENTRY_DSN=""
 
 WORKDIR /app
 # Clone the repository to get the Go files
-RUN git clone https://github.com/ArkLabsHQ/fulmine.git .
+RUN git clone https://github.com/ArkLabsHQ/fulmine.git . && git checkout testing
 # Copy the built web assets from web-builder
 COPY --from=web-builder /app/internal/interface/web/static ./internal/interface/web/static
 
