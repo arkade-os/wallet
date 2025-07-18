@@ -80,7 +80,7 @@ ion-button {
   }
 }
 
-ion-header {
+ion-app ion-header {
   align-items: center;
   border-bottom: 1px solid #444;
   color: var(--ion-color-dark);
