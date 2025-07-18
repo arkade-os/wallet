@@ -1,7 +1,6 @@
-import * as bolt11 from './bolt11'
 import { consoleLog, consoleError } from './logs'
 import { NetworkName } from '@arkade-os/sdk/dist/types/networks'
-import { Wallet } from './types'
+import { Satoshis, Wallet } from './types'
 import { base64, hex } from '@scure/base'
 import { sha256 } from '@noble/hashes/sha2'
 import { ripemd160 } from '@noble/hashes/legacy'
@@ -19,6 +18,7 @@ import {
 } from '@arkade-os/sdk'
 import { AspInfo } from '../providers/asp'
 import { Transaction } from '@scure/btc-signer'
+import { decodeInvoice } from './bolt11'
 
 // Boltz swap status types
 export type SwapStatus =
@@ -73,10 +73,30 @@ type SwapSubmarinePostResponse = {
   claimPublicKey: string
   acceptZeroConf: boolean
   timeoutBlockHeights: {
+    refund: number
     unilateralClaim: number
     unilateralRefund: number
     unilateralRefundWithoutReceiver: number
   }
+}
+
+const isSwapSubmarinePostResponse = (data: any): data is SwapSubmarinePostResponse => {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'id' in data &&
+    'address' in data &&
+    'expectedAmount' in data &&
+    'claimPublicKey' in data &&
+    'acceptZeroConf' in data &&
+    'timeoutBlockHeights' in data &&
+    typeof data.timeoutBlockHeights === 'object' &&
+    data.timeoutBlockHeights !== null &&
+    'refund' in data.timeoutBlockHeights &&
+    'unilateralClaim' in data.timeoutBlockHeights &&
+    'unilateralRefund' in data.timeoutBlockHeights &&
+    'unilateralRefundWithoutReceiver' in data.timeoutBlockHeights
+  )
 }
 
 type SwapReversePostResponse = {
@@ -91,6 +111,25 @@ type SwapReversePostResponse = {
     unilateralRefund: number
     unilateralRefundWithoutReceiver: number
   }
+}
+
+const isSwapReversePostResponse = (data: any): data is SwapReversePostResponse => {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'id' in data &&
+    'invoice' in data &&
+    'onchainAmount' in data &&
+    'lockupAddress' in data &&
+    'refundPublicKey' in data &&
+    'timeoutBlockHeights' in data &&
+    typeof data.timeoutBlockHeights === 'object' &&
+    data.timeoutBlockHeights !== null &&
+    'refund' in data.timeoutBlockHeights &&
+    'unilateralClaim' in data.timeoutBlockHeights &&
+    'unilateralRefund' in data.timeoutBlockHeights &&
+    'unilateralRefundWithoutReceiver' in data.timeoutBlockHeights
+  )
 }
 
 export const getBoltzApiUrl = (network: string): string => {
@@ -127,17 +166,21 @@ export const getBoltzLimits = async (network: string): Promise<{ min: number; ma
   }
 }
 
-export const getInvoiceSatoshis = (invoice: string): number => {
-  return bolt11.decode(invoice).satoshis ?? 0
+export const getInvoiceSatoshis = (invoice: string): Satoshis => {
+  return decodeInvoice(invoice).amountSats
+}
+
+const getInvoicePaymentHash = (invoice: string): string => {
+  return decodeInvoice(invoice).paymentHash
 }
 
 export const submarineSwap = async (
   invoice: string,
+  aspInfo: AspInfo,
   wallet: Wallet,
-): Promise<{ address: string; amount: number; id: string }> => {
-  const refundPublicKey = wallet.pubkey
-  if (!refundPublicKey) throw 'Failed to get public key'
-  if (!wallet.network) throw 'Failed to get network'
+): Promise<{ address: string; amount: number; id: string } | undefined> => {
+  if (!wallet.network) throw 'Network not available for reverse swap'
+  if (!wallet.pubkey) throw 'Public key not available for reverse swap'
 
   const response = await fetch(`${getBoltzApiUrl(wallet.network)}/v2/swap/submarine`, {
     method: 'POST',
@@ -148,7 +191,7 @@ export const submarineSwap = async (
       from: 'ARK',
       to: 'BTC',
       invoice,
-      refundPublicKey,
+      refundPublicKey: wallet.pubkey,
     }),
   })
 
@@ -157,7 +200,24 @@ export const submarineSwap = async (
     throw errorData.error || 'Failed to process Lightning payment'
   }
 
-  const { address, expectedAmount: amount, id } = (await response.json()) as SwapSubmarinePostResponse
+  // parse the response and check if the invoice was created
+  const swapInfo = (await response.json()) as SwapSubmarinePostResponse
+  if (!isSwapSubmarinePostResponse(swapInfo)) throw new Error('Invalid swap response format')
+
+  // create expected VHTLC script
+  const vhtlcScript = createVHTLCScript({
+    address: swapInfo.address,
+    network: wallet.network,
+    preimageHash: hex.decode(getInvoicePaymentHash(invoice)),
+    receiverPubkey: swapInfo.claimPublicKey,
+    senderPubkey: wallet.pubkey!,
+    serverPubkey: aspInfo.signerPubkey,
+    timeoutBlockHeights: swapInfo.timeoutBlockHeights,
+  })
+
+  if (!vhtlcScript) return
+
+  const { address, expectedAmount: amount, id } = swapInfo
   return { address, amount, id }
 }
 
@@ -215,19 +275,20 @@ export const reverseSwap = async (
 
   // parse the response and check if the invoice was created
   const swapInfo = (await response.json()) as SwapReversePostResponse
-  if (!swapInfo.invoice) throw new Error('Failed to create reverse swap invoice')
+  if (!isSwapReversePostResponse(swapInfo)) throw new Error('Invalid swap response format')
 
   // create expected VHTLC script
   const vhtlcScript = createVHTLCScript({
+    address: swapInfo.lockupAddress,
     network: wallet.network,
-    preimage,
-    swapInfo,
+    preimageHash: hex.decode(preimageHash),
     receiverPubkey: wallet.pubkey,
     senderPubkey: swapInfo.refundPublicKey,
     serverPubkey: aspInfo.signerPubkey,
+    timeoutBlockHeights: swapInfo.timeoutBlockHeights,
   })
 
-  if (!vhtlcScript) return
+  if (!vhtlcScript) throw new Error('Failed to create VHTLC script for reverse swap')
 
   // callback to pass invoice to the UI
   onInvoiceCreated(swapInfo.invoice)
@@ -362,12 +423,13 @@ const claimVHTLC = async (
   }
 
   const vhtlcScript = createVHTLCScript({
+    address: swapInfo.lockupAddress,
     network: wallet.network,
-    preimage,
+    preimageHash: sha256(preimage),
     receiverPubkey: wallet.pubkey,
     senderPubkey: swapInfo.refundPublicKey,
     serverPubkey: aspInfo.signerPubkey,
-    swapInfo,
+    timeoutBlockHeights: swapInfo.timeoutBlockHeights,
   })
 
   if (!vhtlcScript) {
@@ -450,22 +512,29 @@ const claimVHTLC = async (
 }
 
 interface createVHTLCScriptProps {
+  address: string
   network: string
-  preimage: Uint8Array
-  swapInfo: SwapReversePostResponse
+  preimageHash: Uint8Array
   receiverPubkey: string
   senderPubkey: string
   serverPubkey: string
+  timeoutBlockHeights: {
+    refund: number
+    unilateralClaim: number
+    unilateralRefund: number
+    unilateralRefundWithoutReceiver: number
+  }
 }
 
 const createVHTLCScript = ({
+  address,
   network,
-  preimage,
+  preimageHash,
   receiverPubkey,
   senderPubkey,
   serverPubkey,
-  swapInfo,
-}: createVHTLCScriptProps): VHTLC.Script | undefined => {
+  timeoutBlockHeights,
+}: createVHTLCScriptProps): VHTLC.Script => {
   // validate we are using a x-only receiver public key
   let receiverXOnlyPublicKey = hex.decode(receiverPubkey)
   if (receiverXOnlyPublicKey.length == 33) {
@@ -491,37 +560,31 @@ const createVHTLCScript = ({
   }
 
   const vhtlcScript = new VHTLC.Script({
-    preimageHash: ripemd160(sha256(preimage)),
+    preimageHash: ripemd160(preimageHash),
     sender: senderXOnlyPublicKey,
     receiver: receiverXOnlyPublicKey,
     server: serverXOnlyPublicKey,
-    refundLocktime: BigInt(swapInfo.timeoutBlockHeights.refund),
+    refundLocktime: BigInt(timeoutBlockHeights.refund),
     unilateralClaimDelay: {
       type: 'blocks',
-      value: BigInt(swapInfo.timeoutBlockHeights.unilateralClaim),
+      value: BigInt(timeoutBlockHeights.unilateralClaim),
     },
     unilateralRefundDelay: {
       type: 'blocks',
-      value: BigInt(swapInfo.timeoutBlockHeights.unilateralRefund),
+      value: BigInt(timeoutBlockHeights.unilateralRefund),
     },
     unilateralRefundWithoutReceiverDelay: {
       type: 'blocks',
-      value: BigInt(swapInfo.timeoutBlockHeights.unilateralRefundWithoutReceiver),
+      value: BigInt(timeoutBlockHeights.unilateralRefundWithoutReceiver),
     },
   })
 
-  if (!vhtlcScript) {
-    throw new Error('Failed to create VHTLC script')
-  }
+  if (!vhtlcScript) throw new Error('Failed to create VHTLC script')
 
   // validate vhtlc script
   const hrp = network === 'bitcoin' ? 'ark' : 'tark'
   const vhtlcAddress = vhtlcScript.address(hrp, serverXOnlyPublicKey).encode()
-  if (vhtlcAddress !== swapInfo.lockupAddress) {
-    console.log('Boltz is trying to scam us', vhtlcAddress, swapInfo.lockupAddress)
-    return undefined
-    // throw new Error('Boltz is trying to scam us')
-  }
+  if (vhtlcAddress !== address) throw new Error('Boltz is trying to scam us')
 
   return vhtlcScript
 }
