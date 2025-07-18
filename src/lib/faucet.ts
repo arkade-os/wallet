@@ -1,23 +1,21 @@
-import { AspInfo } from './asp'
-import { testServer } from './constants'
+import { ArkInfo } from '@arkade-os/sdk'
+
+type AspInfo = ArkInfo & {
+  unreachable: boolean
+  url: string
+}
 
 const faucet = {
   regtest: 'http://localhost:9999',
   signet: 'https://faucet.signet.arkade.sh',
-  mutinynet: {
-    main: 'https://faucet.mutinynet.arkade.sh',
-    test: 'https://faucet-staging.mutinynet.arkade.sh',
-  },
+  mutinynet: 'https://faucet.mutinynet.arkade.sh',
 }
 
-export const getFaucetUrl = (aspInfo: AspInfo): string => {
-  const { network, url } = aspInfo
+const getFaucetUrl = (aspInfo: AspInfo): string => {
+  const { network } = aspInfo
   if (network === 'regtest') return faucet.regtest
   if (network === 'signet') return faucet.signet
-  if (network === 'mutinynet') {
-    if (url === testServer) return faucet.mutinynet.test
-    return faucet.mutinynet.main
-  }
+  if (network === 'mutinynet') return faucet.mutinynet
   return ''
 }
 

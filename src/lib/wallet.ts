@@ -14,10 +14,10 @@ export const getPrivateKeyFromSeed = (seed: Uint8Array): string => {
   return hex.encode(deriveKeyFromSeed(seed))
 }
 
-export const calcNextRollover = (vtxoTreeExpiry: number, vtxos: Awaited<ReturnType<IWallet['getVtxos']>>): number => {
+export const calcNextRollover = (vtxoTreeExpiry: bigint, vtxos: Awaited<ReturnType<IWallet['getVtxos']>>): number => {
   return vtxos
     ? vtxos.reduce((acc: number, cur) => {
-        const unixtimestamp = Math.floor(new Date(cur.createdAt).getTime() / 1000 + vtxoTreeExpiry)
+        const unixtimestamp = Math.floor(new Date(cur.createdAt).getTime() / 1000 + Number(vtxoTreeExpiry))
         return unixtimestamp < acc || acc === 0 ? unixtimestamp : acc
       }, 0)
     : 0

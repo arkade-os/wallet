@@ -1,3 +1,4 @@
+import { ArkInfo } from '@arkade-os/sdk'
 import { useContext, useEffect, useState } from 'react'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
@@ -5,7 +6,7 @@ import Content from '../../components/Content'
 import Padded from '../../components/Padded'
 import Error from '../../components/Error'
 import { ConfigContext } from '../../providers/config'
-import { AspInfo, getAspInfo } from '../../lib/asp'
+import { getAspInfo } from '../../lib/asp'
 import { WalletContext } from '../../providers/wallet'
 import Header from './Header'
 import WarningBox from '../../components/Warning'
@@ -15,6 +16,7 @@ import Scanner from '../../components/Scanner'
 import { AspContext } from '../../providers/asp'
 import { consoleError } from '../../lib/logs'
 import Loading from '../../components/Loading'
+
 export default function Server() {
   const { aspInfo } = useContext(AspContext)
   const { config, updateConfig } = useContext(ConfigContext)
@@ -22,7 +24,7 @@ export default function Server() {
 
   const [aspUrl, setAspUrl] = useState('')
   const [error, setError] = useState('')
-  const [info, setInfo] = useState<AspInfo>()
+  const [info, setInfo] = useState<ArkInfo & { unreachable: boolean; url: string }>()
   const [scan, setScan] = useState(false)
   const [loading, setLoading] = useState(false)
   useEffect(() => {
