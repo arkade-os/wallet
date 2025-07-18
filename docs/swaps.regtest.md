@@ -195,9 +195,9 @@ nigiri lnd payinvoice <invoice>
 
 Check if you receive the payment on Arkade
 
-After payment, your [transaction history](http://localhost:3002/) should have a new movement of +3.999 sats
+After payment, your [transaction history](http://localhost:3002/) should have a new movement of +3.984 sats
 
-Boltz Fulmine's [transaction history](http://localhost:7003/) should have a new movement of -3.999 sats
+Boltz Fulmine's [transaction history](http://localhost:7003/) should have a new movement of -3.984 sats
 
 ## Troubleshooting
 
