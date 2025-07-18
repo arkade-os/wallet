@@ -392,8 +392,10 @@ const claimVHTLC = async (
   const vhtlcIdentity = {
     sign: async (tx: any, inputIndexes?: number[]) => {
       const cpy = tx.clone()
-      setArkPsbtField(cpy, 0, ConditionWitness, [preimage])
-      return svcWallet.sign(cpy, inputIndexes)
+      let signedTx = await svcWallet.sign(cpy, inputIndexes)
+      signedTx = Transaction.fromPSBT(signedTx.toPSBT(), { allowUnknown: true })
+      setArkPsbtField(signedTx, 0, ConditionWitness, [preimage])
+      return signedTx
     },
     xOnlyPublicKey: svcWallet.xOnlyPublicKey,
     signerSession: svcWallet.signerSession,
