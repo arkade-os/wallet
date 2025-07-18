@@ -19,7 +19,6 @@ import {
 } from '@arkade-os/sdk'
 import { AspInfo } from '../providers/asp'
 import { Transaction } from '@scure/btc-signer'
-import { hash160 } from '@scure/btc-signer/utils'
 
 // Boltz swap status types
 export type SwapStatus =
@@ -415,7 +414,7 @@ const claimVHTLC = async (
     [
       {
         ...spendableVtxos.vtxos[0],
-        tapLeafScript: vhtlcScript.refund(),
+        tapLeafScript: vhtlcScript.claim(),
         tapTree: vhtlcScript.encode(),
       },
     ],
@@ -430,7 +429,6 @@ const claimVHTLC = async (
 
   // sign and "broadcast" the virtual transaction
   const signedArkTx = await vhtlcIdentity.sign(arkTx)
-  console.log('signedArkTx:', base64.encode(signedArkTx.toPSBT()))
   const { arkTxid, signedCheckpointTxs } = await arkProvider.submitTx(
     base64.encode(signedArkTx.toPSBT()),
     checkpoints.map((c) => base64.encode(c.toPSBT())),
@@ -492,36 +490,6 @@ const createVHTLCScript = ({
     throw new Error(`Invalid server public key length: ${serverXOnlyPublicKey.length}`)
   }
 
-  console.log('public keys for VHTLC script:', {
-    senderPubkey,
-    receiverPubkey,
-    serverPubkey,
-  })
-
-  console.log('creating VHTLC script', {
-    preimageHash: hex.encode(ripemd160(sha256(preimage))),
-    sender: hex.encode(senderXOnlyPublicKey),
-    receiver: hex.encode(receiverXOnlyPublicKey),
-    server: hex.encode(serverXOnlyPublicKey),
-    refundLocktime: BigInt(swapInfo.timeoutBlockHeights.refund),
-    unilateralClaimDelay: {
-      type: 'blocks',
-      value: BigInt(swapInfo.timeoutBlockHeights.unilateralClaim),
-    },
-    unilateralRefundDelay: {
-      type: 'blocks',
-      value: BigInt(swapInfo.timeoutBlockHeights.unilateralRefund),
-    },
-    unilateralRefundWithoutReceiverDelay: {
-      type: 'blocks',
-      value: BigInt(swapInfo.timeoutBlockHeights.unilateralRefundWithoutReceiver),
-    },
-  })
-
-  console.log('preimage plain:', hex.encode(preimage))
-  console.log('preimage hash160:', hex.encode(hash160(preimage)))
-  console.log('preimage ripemd160(sha256)):', hex.encode(ripemd160(sha256(preimage))))
-
   const vhtlcScript = new VHTLC.Script({
     preimageHash: ripemd160(sha256(preimage)),
     sender: senderXOnlyPublicKey,
@@ -549,7 +517,6 @@ const createVHTLCScript = ({
   // validate vhtlc script
   const hrp = network === 'bitcoin' ? 'ark' : 'tark'
   const vhtlcAddress = vhtlcScript.address(hrp, serverXOnlyPublicKey).encode()
-  console.log('VHTLC address:', vhtlcAddress)
   if (vhtlcAddress !== swapInfo.lockupAddress) {
     console.log('Boltz is trying to scam us', vhtlcAddress, swapInfo.lockupAddress)
     return undefined

@@ -173,7 +173,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }, [initialized, noteInfo.satoshis])
 
   const initWallet = async (privateKey: Uint8Array) => {
-    console.log('Initializing wallet with private key:', hex.encode(privateKey))
     if (!svcWallet) throw new Error('Service worker not initialized')
     const pubkey = hex.encode(secp.getPublicKey(privateKey))
     const network = aspInfo.network as NetworkName
