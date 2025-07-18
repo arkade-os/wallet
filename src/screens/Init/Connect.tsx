@@ -10,7 +10,7 @@ import Header from '../../components/Header'
 import { setPrivateKey } from '../../lib/privateKey'
 import { consoleError } from '../../lib/logs'
 export default function InitConnect() {
-  const { initInfo } = useContext(FlowContext)
+  const { initInfo, setInitInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { initWallet } = useContext(WalletContext)
 
@@ -20,7 +20,10 @@ export default function InitConnect() {
     if (!password || !privateKey) return
     setPrivateKey(privateKey, password)
       .then(() => initWallet(privateKey))
-      .then(() => navigate(Pages.Wallet))
+      .then(() => {
+        setInitInfo({ password: '', privateKey: undefined })
+        navigate(Pages.Wallet)
+      })
       .catch(consoleError)
   }, [])
 

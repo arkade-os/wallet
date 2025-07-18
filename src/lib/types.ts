@@ -84,4 +84,5 @@ export type Wallet = {
   network: string
   nextRollover: number
   passkeyId?: string
+  pubkey?: string
 }

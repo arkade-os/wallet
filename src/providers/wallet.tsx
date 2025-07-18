@@ -15,6 +15,9 @@ import { hex } from '@scure/base'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 
+import * as secp from '@noble/secp256k1'
+import { NetworkName } from '@arklabs/wallet-sdk/dist/types/networks'
+
 const defaultWallet: Wallet = {
   network: '',
   nextRollover: 0,
@@ -29,7 +32,7 @@ interface WalletContextProps {
   isLocked: () => Promise<boolean>
   reloadWallet: () => Promise<void>
   wallet: Wallet
-  walletLoaded: Wallet | undefined
+  walletLoaded: boolean
   svcWallet: ServiceWorkerWallet | undefined
   txs: Tx[]
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
@@ -45,7 +48,7 @@ export const WalletContext = createContext<WalletContextProps>({
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
   wallet: defaultWallet,
-  walletLoaded: undefined,
+  walletLoaded: false,
   svcWallet: undefined,
   isLocked: () => Promise.resolve(true),
   balance: 0,
@@ -59,14 +62,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { navigate } = useContext(NavigationContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
 
-  const [walletLoaded, setWalletLoaded] = useState<Wallet>()
+  const [walletLoaded, setWalletLoaded] = useState(false)
   const [wallet, setWallet] = useState(defaultWallet)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
 
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
   const [txs, setTxs] = useState<Tx[]>([])
   const [balance, setBalance] = useState(0)
-  const [initialized, setInitialized] = useState<boolean | undefined>(undefined)
+  const [initialized, setInitialized] = useState<boolean>(false)
   const allVtxos = useLiveQuery(() => db.vtxos?.toArray())
 
   useEffect(() => {
@@ -86,12 +89,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!svcWallet) return
 
+    // reload tx history and balance when there are new vtxos
     isLocked().then((locked) => {
-      if (locked) return
-      // update the txs history list
-      getTxHistory(svcWallet).then(setTxs).catch(consoleError)
-      // update the balance
-      getBalance(svcWallet).then(setBalance).catch(consoleError)
+      if (!locked) reloadWallet()
     })
 
     // update the next rollover date
@@ -104,25 +104,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const reloadWallet = async () => {
     if (!svcWallet) return
     // update the txs history list
-    try {
-      const txs = await getTxHistory(svcWallet)
-      setTxs(txs)
-    } catch (err) {
-      consoleError(err, 'Error getting txs history')
-    }
+    getTxHistory(svcWallet).then(setTxs).catch(consoleError)
     // update the balance
-    try {
-      const balance = await getBalance(svcWallet)
-      setBalance(balance)
-    } catch (err) {
-      consoleError(err, 'Error getting balance')
-    }
+    getBalance(svcWallet).then(setBalance).catch(consoleError)
   }
 
   useEffect(() => {
     let pingInterval: NodeJS.Timeout
     async function initSvcWorkerWallet() {
       try {
+        // read wallet from storage
+        const walletFromStorage = readWalletFromStorage()
+        if (walletFromStorage) setWallet(walletFromStorage)
+
+        // listen for messages from the service worker
         navigator.serviceWorker.addEventListener('message', (event) => {
           if (event.data && event.data.type === 'RELOAD_PAGE') {
             window.location.reload()
@@ -152,10 +147,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     // call async function to initialize the service worker wallet
-    initSvcWorkerWallet()
+    initSvcWorkerWallet().then(() => {
+      setWalletLoaded(true)
+    })
     return () => clearInterval(pingInterval)
   }, [])
 
+  // if ark note is present in the URL, decode it and set the note info
   useEffect(() => {
     const note = arkNoteInUrl()
     if (!note) return
@@ -168,13 +166,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [])
 
-  // load wallet from storage
-  useEffect(() => {
-    const walletFromStorage = readWalletFromStorage()
-    setWalletLoaded(walletFromStorage)
-    if (walletFromStorage) setWallet(walletFromStorage)
-  }, [])
-
   // if voucher present, go to redeem page
   useEffect(() => {
     if (!initialized) return
@@ -183,14 +174,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const initWallet = async (privateKey: Uint8Array) => {
     if (!svcWallet) throw new Error('Service worker not initialized')
+    const pubkey = hex.encode(secp.getPublicKey(privateKey))
+    const network = aspInfo.network as NetworkName
     const arkServerUrl = aspInfo.url
-    const esploraUrl = getRestApiExplorerURL(wallet.network) ?? ''
+    const esploraUrl = getRestApiExplorerURL(network) ?? ''
     await svcWallet.init({
       arkServerUrl,
       privateKey: hex.encode(privateKey),
       esploraUrl,
     })
-    updateWallet({ ...wallet, network: aspInfo.network })
+    updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
   }
 
