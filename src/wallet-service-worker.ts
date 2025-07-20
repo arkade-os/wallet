@@ -61,7 +61,6 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
 //   cache.put(request, response.clone())
 //   return response
 // }
-//
 // async function networkFirst(request: Request): Promise<Response> {
 //   const cache = await caches.open(CACHE_NAME)
 //   try {
