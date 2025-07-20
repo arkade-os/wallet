@@ -79,7 +79,7 @@ services:
       - '10010:10009'
   boltz:
     restart: unless-stopped
-    image: boltz/boltz:ark@sha256:068988a643db4058af7016222e22b88270d8a020e1552d2c9e1c644a9793851b
+    image: boltz/boltz:ark@sha256:76bb0cdd29bec717dd8ab5a007b1aa25033b4956b4eb7c157a992def4c01aa67
     ports:
       - '9000:9000'
       - '9001:9001'
