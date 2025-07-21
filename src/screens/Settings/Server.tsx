@@ -27,6 +27,7 @@ export default function Server() {
   const [info, setInfo] = useState<ArkInfo & { unreachable: boolean; url: string }>()
   const [scan, setScan] = useState(false)
   const [loading, setLoading] = useState(false)
+
   useEffect(() => {
     setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
   }, [aspInfo.unreachable])
