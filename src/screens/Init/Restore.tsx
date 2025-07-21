@@ -7,11 +7,11 @@ import Padded from '../../components/Padded'
 import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
 import { invalidPrivateKey, nsecToPrivateKey } from '../../lib/privateKey'
-import Textarea from '../../components/Textarea'
 import Header from '../../components/Header'
 import FlexCol from '../../components/FlexCol'
 import { extractError } from '../../lib/error'
 import { hex } from '@scure/base'
+import Input from '../../components/Input'
 
 export default function InitRestore() {
   const { navigate } = useContext(NavigationContext)
@@ -55,7 +55,7 @@ export default function InitRestore() {
       <Content>
         <Padded>
           <FlexCol>
-            <Textarea label='Private key' onChange={setSomeKey} value={someKey} />
+            <Input label='Private key' onChange={setSomeKey} />
             <Error error={Boolean(error)} text={error} />
           </FlexCol>
         </Padded>
