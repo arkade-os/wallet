@@ -46,6 +46,10 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     window?.matchMedia?.('(prefers-color-scheme: dark)').matches ? Themes.Dark : Themes.Light
 
   const updateConfig = (data: Config) => {
+    if (!data.aspUrl.startsWith('http://') && !data.aspUrl.startsWith('https://')) {
+      const protocol = data.aspUrl.startsWith('localhost') ? 'http://' : 'https://'
+      data.aspUrl = protocol + data.aspUrl
+    }
     setConfig(data)
     updateTheme(data)
     saveConfigToStorage(data)
