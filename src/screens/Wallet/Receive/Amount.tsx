@@ -20,7 +20,6 @@ import Success from '../../../components/Success'
 import { consoleError } from '../../../lib/logs'
 import { AspContext } from '../../../providers/asp'
 import { isMobileBrowser } from '../../../lib/browser'
-import BackToWalletButton from '../../../components/BackToWalletButton'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 
@@ -139,9 +138,6 @@ export default function ReceiveAmount() {
         <Content>
           <Success text={`${displayAmount} received from faucet successfully`} />
         </Content>
-        <ButtonsOnBottom>
-          <BackToWalletButton />
-        </ButtonsOnBottom>
       </>
     )
   }
