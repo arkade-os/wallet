@@ -26,6 +26,7 @@ export default function Server() {
   const [info, setInfo] = useState<AspInfo>()
   const [scan, setScan] = useState(false)
   const [loading, setLoading] = useState(false)
+
   useEffect(() => {
     setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
   }, [aspInfo.unreachable])

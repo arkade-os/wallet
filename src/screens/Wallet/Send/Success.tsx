@@ -1,11 +1,9 @@
 import { useContext, useEffect, useState, useCallback } from 'react'
-import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { FlowContext } from '../../../providers/flow'
 import { NotificationsContext } from '../../../providers/notifications'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import Success from '../../../components/Success'
-import BackToWalletButton from '../../../components/BackToWalletButton'
 import { prettyAmount } from '../../../lib/format'
 import { IframeContext } from '../../../providers/iframe'
 import { NavigationContext, Pages } from '../../../providers/navigation'
@@ -241,9 +239,6 @@ export default function SendSuccess() {
           <Success text={`Payment of ${displayAmount} sent successfully`} />
         )}
       </Content>
-      <ButtonsOnBottom>
-        <BackToWalletButton />
-      </ButtonsOnBottom>
     </>
   )
 }

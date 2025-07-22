@@ -191,9 +191,11 @@ export default function SendForm() {
     const amount = useFiat ? toFiat(balance) : balance
     const pretty = useFiat ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
     return (
-      <Text color='dark50' smaller>
-        {`${pretty} available`}
-      </Text>
+      <div onClick={() => setAmount(amount)} style={{ cursor: 'pointer' }}>
+        <Text color='dark50' smaller>
+          {`${pretty} available`}
+        </Text>
+      </div>
     )
   }
 
