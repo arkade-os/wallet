@@ -4,7 +4,7 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/sdk": "0.2.0",
+    "@arkade-os/sdk": "^0.2.1",
     "@dotmind/react-use-pwa": "^1.0.4",
     "@ionic/react": "^8.5.6",
     "@noble/secp256k1": "^2.3.0",
