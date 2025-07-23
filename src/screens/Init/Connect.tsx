@@ -9,6 +9,7 @@ import Loading from '../../components/Loading'
 import Header from '../../components/Header'
 import { setPrivateKey } from '../../lib/privateKey'
 import { consoleError } from '../../lib/logs'
+
 export default function InitConnect() {
   const { initInfo, setInitInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)

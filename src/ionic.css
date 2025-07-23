@@ -26,6 +26,9 @@
   --ion-tabbar-background-color: #fafafa;
   --ion-backdrop-color: #fff;
   --toggle-background: #fbfbfb;
+  --danger: #a51515;
+  --warning: #c3730a;
+  --success: #60b18a;
 }
 
 .ion-palette-dark {
@@ -43,6 +46,7 @@
   --ion-backdrop-color: #000;
   --logo-color: #fbfbfb;
   --toggle-background: #ddd;
+  --danger: #e04d4d;
 }
 
 ion-button {

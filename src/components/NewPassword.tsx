@@ -3,7 +3,7 @@ import InputPassword from './InputPassword'
 import FlexCol from './FlexCol'
 import Text from './Text'
 import CheckList from './CheckList'
-import StrengthBars, { calcStrength } from './Strength'
+import StrengthBars, { calcStrength, StrengthProgress } from './Strength'
 
 interface NewPasswordProps {
   setLabel: (label: string) => void
@@ -52,23 +52,24 @@ export default function NewPassword({ onNewPassword, setLabel }: NewPasswordProp
   ]
 
   return (
-    <FlexCol>
-      <InputPassword
-        focus={focus === 'password'}
-        label='Password'
-        onChange={handleChangePassword}
-        onEnter={handleEnter}
-        strength={strength}
-      />
-      <StrengthBars strength={strength} />
+    <FlexCol gap='1.5em'>
+      <FlexCol>
+        <InputPassword
+          focus={focus === 'password'}
+          label='Password'
+          onChange={handleChangePassword}
+          onEnter={handleEnter}
+          placeholder='Enter your password'
+        />
+        <StrengthProgress strength={strength} />
+        <CheckList data={passwordChecks} />
+      </FlexCol>
       <InputPassword
         focus={focus === 'confirm'}
         label='Confirm password'
         onChange={handleChangeConfirm}
         onEnter={handleEnter}
       />
-      <Text smaller>Set a strong password with:</Text>
-      <CheckList data={passwordChecks} />
     </FlexCol>
   )
 }
