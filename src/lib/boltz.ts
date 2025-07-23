@@ -1,4 +1,4 @@
-import { consoleLog, consoleError } from './logs'
+import { consoleLog } from './logs'
 import { NetworkName } from '@arkade-os/sdk/dist/types/networks'
 import { Satoshis, Wallet } from './types'
 import { base64, hex } from '@scure/base'
@@ -44,12 +44,6 @@ export type SwapStatus =
 // Callback for swap status updates
 export type SwapStatusCallback = (status: SwapStatus, error?: string) => void
 
-// Map to store active websocket connections
-const activeConnections: Record<string, WebSocket> = {}
-
-// Store websocket connection promises to avoid duplicate connection attempts
-const connectionPromises: Record<string, Promise<WebSocket | null>> = {}
-
 type SwapSubmarineGetResponse = {
   ARK: {
     BTC: {
@@ -68,7 +62,16 @@ type SwapSubmarineGetResponse = {
   }
 }
 
-type SwapSubmarinePostResponse = {
+// submarine swaps
+
+export type CreateSubmarineSwapRequest = {
+  to: 'BTC'
+  from: 'ARK'
+  invoice: string
+  refundPublicKey: string
+}
+
+type CreateSubmarineSwapResponse = {
   id: string
   address: string
   expectedAmount: number
@@ -82,7 +85,7 @@ type SwapSubmarinePostResponse = {
   }
 }
 
-const isSwapSubmarinePostResponse = (data: any): data is SwapSubmarinePostResponse => {
+const isCreateSubmarineSwapResponse = (data: any): data is CreateSubmarineSwapResponse => {
   return (
     typeof data === 'object' &&
     data !== null &&
@@ -101,7 +104,23 @@ const isSwapSubmarinePostResponse = (data: any): data is SwapSubmarinePostRespon
   )
 }
 
-type SwapReversePostResponse = {
+export interface PendingSubmarineSwap {
+  request: CreateSubmarineSwapRequest
+  response: CreateSubmarineSwapResponse
+  status: SwapStatus
+}
+
+// reverse swaps
+
+export type CreateReverseSwapRequest = {
+  to: 'ARK'
+  from: 'BTC'
+  claimPublicKey: string
+  invoiceAmount: number
+  preimageHash: string
+}
+
+type CreateReverseSwapResponse = {
   id: string
   invoice: string
   onchainAmount: number
@@ -115,7 +134,7 @@ type SwapReversePostResponse = {
   }
 }
 
-const isSwapReversePostResponse = (data: any): data is SwapReversePostResponse => {
+const isCreateReverseSwapResponse = (data: any): data is CreateReverseSwapResponse => {
   return (
     typeof data === 'object' &&
     data !== null &&
@@ -133,6 +152,15 @@ const isSwapReversePostResponse = (data: any): data is SwapReversePostResponse =
     'unilateralRefundWithoutReceiver' in data.timeoutBlockHeights
   )
 }
+
+export interface PendingReverseSwap {
+  preimage: string
+  request: CreateReverseSwapRequest
+  response: CreateReverseSwapResponse
+  status: SwapStatus
+}
+
+// urls
 
 export const getBoltzApiUrl = (network: string): string => {
   switch (network) {
@@ -161,6 +189,7 @@ export const getBoltzLimits = async (network: string): Promise<{ min: number; ma
     throw errorData.error || 'Failed to fetch limits'
   }
   const json: SwapSubmarineGetResponse = await response.json()
+  // TODO typeguard the response
   const { minimal, maximal } = json.ARK.BTC.limits
   return {
     min: minimal,
@@ -187,21 +216,23 @@ export const submarineSwap = async (
   invoice: string,
   aspInfo: AspInfo,
   wallet: Wallet,
-): Promise<{ address: string; amount: number; id: string }> => {
+): Promise<PendingSubmarineSwap> => {
   if (!wallet.network) throw new Error('Network not available for reverse swap')
   if (!wallet.pubkey) throw new Error('Public key not available for reverse swap')
+
+  const swapRequest: CreateSubmarineSwapRequest = {
+    to: 'BTC',
+    from: 'ARK',
+    invoice,
+    refundPublicKey: wallet.pubkey,
+  }
 
   const response = await fetch(`${getBoltzApiUrl(wallet.network)}/v2/swap/submarine`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      from: 'ARK',
-      to: 'BTC',
-      invoice,
-      refundPublicKey: wallet.pubkey,
-    }),
+    body: JSON.stringify(swapRequest),
   })
 
   if (!response.ok) {
@@ -210,8 +241,8 @@ export const submarineSwap = async (
   }
 
   // parse the response and check if the invoice was created
-  const swapInfo = (await response.json()) as SwapSubmarinePostResponse
-  if (!isSwapSubmarinePostResponse(swapInfo)) throw new Error('Invalid swap response format')
+  const swapInfo = (await response.json()) as CreateSubmarineSwapResponse
+  if (!isCreateSubmarineSwapResponse(swapInfo)) throw new Error('Invalid swap response format')
 
   // create expected VHTLC script
   const { vhtlcScript, vhtlcAddress } = createVHTLCScript({
@@ -226,120 +257,11 @@ export const submarineSwap = async (
   if (!vhtlcScript) throw new Error('Failed to create VHTLC script to validate submarine swap')
   if (vhtlcAddress !== swapInfo.address) throw new Error('Boltz is trying to scam us')
 
-  return { address: swapInfo.address, amount: swapInfo.expectedAmount, id: swapInfo.id }
-}
-
-export const refundVHTLC = async (
-  swapInfo: SwapSubmarinePostResponse,
-  invoice: string,
-  wallet: Wallet,
-  svcWallet: ServiceWorkerWallet,
-  aspInfo: AspInfo,
-): Promise<number> => {
-  if (!wallet.network) throw 'Network not available for reverse swap'
-  if (!wallet.pubkey) throw 'Pubkey not available for reverse swap'
-
-  // prepare variables for claiming the VHTLC
-  const amount = swapInfo.expectedAmount
-  const address = await svcWallet.getAddress()
-  if (!address) throw 'Failed to get ark address from service worker wallet'
-
-  // validate we are using a x-only server public key
-  let serverXOnlyPublicKey = hex.decode(aspInfo.signerPubkey)
-  if (serverXOnlyPublicKey.length == 33) {
-    serverXOnlyPublicKey = serverXOnlyPublicKey.slice(1)
-  } else if (serverXOnlyPublicKey.length !== 32) {
-    throw new Error(`Invalid server public key length: ${serverXOnlyPublicKey.length}`)
+  return {
+    request: swapRequest,
+    response: swapInfo,
+    status: 'swap.created',
   }
-
-  const { vhtlcScript, vhtlcAddress } = createVHTLCScript({
-    network: wallet.network,
-    preimageHash: hex.decode(getInvoicePaymentHash(invoice)),
-    receiverPubkey: swapInfo.claimPublicKey,
-    senderPubkey: wallet.pubkey!,
-    serverPubkey: aspInfo.signerPubkey,
-    timeoutBlockHeights: swapInfo.timeoutBlockHeights,
-  })
-
-  if (!vhtlcScript) throw new Error('Failed to create VHTLC script for reverse swap')
-  if (vhtlcAddress !== swapInfo.address) throw new Error('Boltz is trying to scam us')
-
-  // get spendable VTXOs from the lockup address
-  const arkProvider = new RestArkProvider(aspInfo.url)
-  const indexerProvider = new RestIndexerProvider(aspInfo.url)
-  const spendableVtxos = await indexerProvider.getVtxos({
-    scripts: [hex.encode(vhtlcScript.pkScript)],
-    spendableOnly: true,
-  })
-  if (spendableVtxos.vtxos.length === 0) {
-    throw new Error('No spendable virtual coins found')
-  }
-
-  // signing a VTHLC needs an extra witness element to be added to the PSBT input
-  // reveal the secret in the PSBT, thus the server can verify the claim script
-  // this witness must satisfy the preimageHash condition
-  const vhtlcIdentity = {
-    sign: async (tx: any, inputIndexes?: number[]) => {
-      const cpy = tx.clone()
-      let signedTx = await svcWallet.sign(cpy, inputIndexes)
-      return Transaction.fromPSBT(signedTx.toPSBT(), { allowUnknown: true })
-    },
-    xOnlyPublicKey: svcWallet.xOnlyPublicKey,
-    signerSession: svcWallet.signerSession,
-  }
-
-  // Create the server unroll script for checkpoint transactions
-  const serverUnrollScript = CSVMultisigTapscript.encode({
-    pubkeys: [serverXOnlyPublicKey],
-    timelock: {
-      type: aspInfo.unilateralExitDelay < 512 ? 'blocks' : 'seconds',
-      value: aspInfo.unilateralExitDelay,
-    },
-  })
-
-  // create the virtual transaction to claim the VHTLC
-  const { arkTx, checkpoints } = buildOffchainTx(
-    [
-      {
-        ...spendableVtxos.vtxos[0],
-        tapLeafScript: vhtlcScript.refund(),
-        tapTree: vhtlcScript.encode(),
-      },
-    ],
-    [
-      {
-        amount: BigInt(amount),
-        script: ArkAddress.decode(address).pkScript,
-      },
-    ],
-    serverUnrollScript,
-  )
-
-  // sign and submit the virtual transaction
-  const signedArkTx = await vhtlcIdentity.sign(arkTx)
-  const { arkTxid, finalArkTx, signedCheckpointTxs } = await arkProvider.submitTx(
-    base64.encode(signedArkTx.toPSBT()),
-    checkpoints.map((c) => base64.encode(c.toPSBT())),
-  )
-
-  // verify the server signed the transaction with correct key
-  if (!validFinalArkTx(finalArkTx, serverXOnlyPublicKey, vhtlcScript.leaves)) {
-    throw new Error('Invalid final Ark transaction')
-  }
-
-  const finalCheckpoints = await Promise.all(
-    signedCheckpointTxs.map(async (c) => {
-      const tx = Transaction.fromPSBT(base64.decode(c), {
-        allowUnknown: true,
-      })
-      const signedCheckpoint = await vhtlcIdentity.sign(tx, [0])
-      return base64.encode(signedCheckpoint.toPSBT())
-    }),
-  )
-  await arkProvider.finalizeTx(arkTxid, finalCheckpoints)
-
-  console.log('Successfully claimed VHTLC! Transaction ID:', arkTxid)
-  return amount
 }
 
 /**
@@ -356,11 +278,8 @@ export const refundVHTLC = async (
 export const reverseSwap = async (
   invoiceAmount: number,
   wallet: Wallet,
-  svcWallet: ServiceWorkerWallet,
   aspInfo: AspInfo,
-  onInvoiceCreated: (invoice: string) => void,
-  onSwapCompleted: (receivedAmount: number) => void,
-): Promise<void> => {
+): Promise<PendingReverseSwap> => {
   if (!wallet.network) throw 'Network not available for reverse swap'
   if (!wallet.pubkey) throw 'Public key not available for reverse swap'
 
@@ -373,19 +292,21 @@ export const reverseSwap = async (
   const preimageHash = hex.encode(sha256(preimage))
   if (!preimageHash) throw 'Failed to get preimage hash'
 
+  const swapRequest: CreateReverseSwapRequest = {
+    to: 'ARK',
+    from: 'BTC',
+    claimPublicKey,
+    invoiceAmount,
+    preimageHash,
+  }
+
   // create reverse swap
   const response = await fetch(`${getBoltzApiUrl(wallet.network)}/v2/swap/reverse`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      from: 'BTC',
-      to: 'ARK',
-      invoiceAmount,
-      claimPublicKey,
-      preimageHash,
-    }),
+    body: JSON.stringify(swapRequest),
   })
 
   // check if the response is ok
@@ -395,27 +316,78 @@ export const reverseSwap = async (
   }
 
   // parse the response and check if the invoice was created
-  const swapInfo = (await response.json()) as SwapReversePostResponse
-  if (!isSwapReversePostResponse(swapInfo)) throw new Error('Invalid swap response format')
+  const swapResponse = (await response.json()) as CreateReverseSwapResponse
+  if (!isCreateReverseSwapResponse(swapResponse)) throw new Error('Invalid swap response format')
 
   // create expected VHTLC script
   const { vhtlcScript, vhtlcAddress } = createVHTLCScript({
     network: wallet.network,
     preimageHash: hex.decode(preimageHash),
     receiverPubkey: wallet.pubkey,
-    senderPubkey: swapInfo.refundPublicKey,
+    senderPubkey: swapResponse.refundPublicKey,
     serverPubkey: aspInfo.signerPubkey,
-    timeoutBlockHeights: swapInfo.timeoutBlockHeights,
+    timeoutBlockHeights: swapResponse.timeoutBlockHeights,
   })
 
   if (!vhtlcScript) throw new Error('Failed to create VHTLC script for reverse swap')
-  if (vhtlcAddress !== swapInfo.lockupAddress) throw new Error('Boltz is trying to scam us')
+  if (vhtlcAddress !== swapResponse.lockupAddress) throw new Error('Boltz is trying to scam us')
 
-  // callback to pass invoice to the UI
-  onInvoiceCreated(swapInfo.invoice)
+  return {
+    preimage: hex.encode(preimage),
+    request: swapRequest,
+    response: swapResponse,
+    status: 'swap.created',
+  }
+}
 
-  // wait for invoice payment and claim the VHTLC
-  waitAndClaim(swapInfo, preimage, wallet, svcWallet, aspInfo, onSwapCompleted)
+/**
+ * Waits for the submarine swap invoice to be paid (i.e. VHTLC to be claimed).
+ * If something fails, refunds the VHTLC back to the user.
+ * This function listens for updates on the swap status.
+ * It handles various swap states such as creation, payment, confirmation, and expiration.
+ * @param swapInfo The swap information object containing details about the reverse swap
+ * @param invoice The invoice to be paid by the swap provider
+ * @param wallet The user's wallet object
+ * @param svcWallet The service worker wallet object
+ * @param aspInfo The ASP information object
+ * @throws Will throw an error if the wallet network is not available
+ * @returns A promise that resolves when the swap is successfully claimed
+ */
+export const waitForClaim = async (
+  swapInfo: CreateSubmarineSwapResponse,
+  invoice: string,
+  wallet: Wallet,
+  svcWallet: ServiceWorkerWallet,
+  aspInfo: AspInfo,
+): Promise<number> => {
+  return new Promise<number>((resolve, reject) => {
+    if (!wallet.network) {
+      const err = 'Network not available for submarine swap'
+      reject(err)
+      return
+    }
+
+    // https://api.docs.boltz.exchange/lifecycle.html#swap-states
+    const onStatusUpdate = async (status: SwapStatus) => {
+      switch (status) {
+        case 'swap.expired':
+        case 'invoice.failedToPay':
+        case 'transaction.lockupFailed':
+          consoleLog('Starting VHTLC refund process...')
+          await refundVHTLC(swapInfo, invoice, wallet, svcWallet, aspInfo)
+          resolve(0)
+          break
+        case 'transaction.claimed':
+          consoleLog('Transaction claimed')
+          resolve(swapInfo.expectedAmount)
+          break
+        default:
+          break
+      }
+    }
+
+    watchSwap(swapInfo.id, wallet.network, onStatusUpdate)
+  })
 }
 
 /**
@@ -433,78 +405,55 @@ export const reverseSwap = async (
  * @throws Will throw an error if the wallet network is not available
  * @returns A promise that resolves when the swap is successfully claimed
  */
-const waitAndClaim = async (
-  swapInfo: SwapReversePostResponse,
+export const waitAndClaim = async (
+  swapInfo: CreateReverseSwapResponse,
   preimage: Uint8Array,
   wallet: Wallet,
   svcWallet: ServiceWorkerWallet,
   aspInfo: AspInfo,
-  onSwapCompleted: (amount: number) => void,
 ) => {
-  if (!wallet.network) throw 'Network not available for reverse swap'
-
-  // Create a WebSocket and subscribe to updates for the created swap
-  const webSocket = new WebSocket(getBoltzWsUrl(wallet.network))
-
-  webSocket.onopen = () => {
-    webSocket.send(
-      JSON.stringify({
-        op: 'subscribe',
-        channel: 'swap.update',
-        args: [swapInfo.id],
-      }),
-    )
-  }
-
-  webSocket.onmessage = async (rawMsg) => {
-    const msg = JSON.parse(rawMsg.data)
-
-    if (msg.event !== 'update') return
-
-    if (msg.args[0].id !== swapInfo.id) return
-
-    if (msg.args[0].error) {
-      webSocket.close()
-      onSwapCompleted(0)
+  return new Promise<number>((resolve, reject) => {
+    if (!wallet.network) {
+      const err = 'Network not available for submarine swap'
+      reject(err)
       return
     }
 
-    switch (msg.args[0].status) {
-      // "swap.created" means Boltz is waiting for the invoice to be paid
-      case 'swap.created': {
-        consoleLog('Waiting for invoice to be paid')
-        break
-      }
-
-      // Boltz's lockup transaction is found in the mempool (or already confirmed)
-      // which will only happen after the user paid the Lightning hold invoice
-      case 'transaction.mempool':
-      case 'transaction.confirmed': {
-        // TODO: save claim to be able to retry if something fails
-        consoleLog('Starting VHTLC claim process...')
-        const receivedAmount = await claimVHTLC(swapInfo, preimage, wallet, svcWallet, aspInfo)
-        // removeClaim(claimInfo, wallet.network)
-        onSwapCompleted(receivedAmount)
-        break
-      }
-
-      case 'invoice.settled': {
-        consoleLog('Invoice was settled')
-        webSocket.close()
-        break
-      }
-
-      case 'invoice.expired':
-      case 'swap.expired':
-      case 'transaction.failed':
-      case 'transaction.refunded': {
-        consoleError('Expiration, fail or refund')
-        // removeClaim(claimInfo, wallet.network)
-        webSocket.close()
-        break
+    // https://api.docs.boltz.exchange/lifecycle.html#swap-states
+    const onStatusUpdate = (status: SwapStatus) => {
+      switch (status) {
+        case 'transaction.mempool':
+        case 'transaction.confirmed':
+          consoleLog('Starting VHTLC claim process...')
+          claimVHTLC(swapInfo, preimage, wallet, svcWallet, aspInfo)
+          break
+        case 'invoice.settled':
+          consoleLog('Invoice settled')
+          resolve(swapInfo.onchainAmount)
+          break
+        case 'invoice.expired':
+          consoleLog('Invoice expired')
+          reject('Invoice expired')
+          break
+        case 'swap.expired':
+          consoleLog('Swap expired')
+          reject('Swap expired')
+          break
+        case 'transaction.failed':
+          consoleLog('Transaction failed')
+          reject('Transaction failed')
+          break
+        case 'transaction.refunded':
+          consoleLog('Transaction refunded')
+          reject('Transaction refunded')
+          break
+        default:
+          break
       }
     }
-  }
+
+    watchSwap(swapInfo.id, wallet.network, onStatusUpdate)
+  })
 }
 
 /**
@@ -521,12 +470,12 @@ const waitAndClaim = async (
  * @return A promise that resolves to the amount claimed from the VHTLC
  */
 const claimVHTLC = async (
-  swapInfo: SwapReversePostResponse,
+  swapInfo: CreateReverseSwapResponse,
   preimage: Uint8Array,
   wallet: Wallet,
   svcWallet: ServiceWorkerWallet,
   aspInfo: AspInfo,
-): Promise<number> => {
+): Promise<void> => {
   if (!wallet.network) throw 'Network not available for reverse swap'
   if (!wallet.pubkey) throw 'Pubkey not available for reverse swap'
 
@@ -632,13 +581,130 @@ const claimVHTLC = async (
   await arkProvider.finalizeTx(arkTxid, finalCheckpoints)
 
   console.log('Successfully claimed VHTLC! Transaction ID:', arkTxid)
-  return amount
+}
+
+export const refundVHTLC = async (
+  swapInfo: CreateSubmarineSwapResponse,
+  invoice: string,
+  wallet: Wallet,
+  svcWallet: ServiceWorkerWallet,
+  aspInfo: AspInfo,
+): Promise<void> => {
+  if (!wallet.network) throw 'Network not available for reverse swap'
+  if (!wallet.pubkey) throw 'Pubkey not available for reverse swap'
+
+  // prepare variables for claiming the VHTLC
+  const amount = swapInfo.expectedAmount
+  const address = await svcWallet.getAddress()
+  if (!address) throw 'Failed to get ark address from service worker wallet'
+
+  // validate we are using a x-only server public key
+  let serverXOnlyPublicKey = hex.decode(aspInfo.signerPubkey)
+  if (serverXOnlyPublicKey.length == 33) {
+    serverXOnlyPublicKey = serverXOnlyPublicKey.slice(1)
+  } else if (serverXOnlyPublicKey.length !== 32) {
+    throw new Error(`Invalid server public key length: ${serverXOnlyPublicKey.length}`)
+  }
+
+  const { vhtlcScript, vhtlcAddress } = createVHTLCScript({
+    network: wallet.network,
+    preimageHash: hex.decode(getInvoicePaymentHash(invoice)),
+    receiverPubkey: swapInfo.claimPublicKey,
+    senderPubkey: wallet.pubkey!,
+    serverPubkey: aspInfo.signerPubkey,
+    timeoutBlockHeights: swapInfo.timeoutBlockHeights,
+  })
+
+  if (!vhtlcScript) throw new Error('Failed to create VHTLC script for reverse swap')
+  if (vhtlcAddress !== swapInfo.address) throw new Error('Boltz is trying to scam us')
+
+  // get spendable VTXOs from the lockup address
+  const arkProvider = new RestArkProvider(aspInfo.url)
+  const indexerProvider = new RestIndexerProvider(aspInfo.url)
+  const spendableVtxos = await indexerProvider.getVtxos({
+    scripts: [hex.encode(vhtlcScript.pkScript)],
+    spendableOnly: true,
+  })
+  if (spendableVtxos.vtxos.length === 0) {
+    throw new Error('No spendable virtual coins found')
+  }
+
+  // signing a VTHLC needs an extra witness element to be added to the PSBT input
+  // reveal the secret in the PSBT, thus the server can verify the claim script
+  // this witness must satisfy the preimageHash condition
+  const vhtlcIdentity = {
+    sign: async (tx: any, inputIndexes?: number[]) => {
+      const cpy = tx.clone()
+      let signedTx = await svcWallet.sign(cpy, inputIndexes)
+      return Transaction.fromPSBT(signedTx.toPSBT(), { allowUnknown: true })
+    },
+    xOnlyPublicKey: svcWallet.xOnlyPublicKey,
+    signerSession: svcWallet.signerSession,
+  }
+
+  // Create the server unroll script for checkpoint transactions
+  const serverUnrollScript = CSVMultisigTapscript.encode({
+    pubkeys: [serverXOnlyPublicKey],
+    timelock: {
+      type: aspInfo.unilateralExitDelay < 512 ? 'blocks' : 'seconds',
+      value: aspInfo.unilateralExitDelay,
+    },
+  })
+
+  // create the virtual transaction to claim the VHTLC
+  const { arkTx, checkpoints } = buildOffchainTx(
+    [
+      {
+        ...spendableVtxos.vtxos[0],
+        tapLeafScript: vhtlcScript.refund(),
+        tapTree: vhtlcScript.encode(),
+      },
+    ],
+    [
+      {
+        amount: BigInt(amount),
+        script: ArkAddress.decode(address).pkScript,
+      },
+    ],
+    serverUnrollScript,
+  )
+
+  // sign and submit the virtual transaction
+  const signedArkTx = await vhtlcIdentity.sign(arkTx)
+  const { arkTxid, finalArkTx, signedCheckpointTxs } = await arkProvider.submitTx(
+    base64.encode(signedArkTx.toPSBT()),
+    checkpoints.map((c) => base64.encode(c.toPSBT())),
+  )
+
+  // verify the server signed the transaction with correct key
+  if (!validFinalArkTx(finalArkTx, serverXOnlyPublicKey, vhtlcScript.leaves)) {
+    throw new Error('Invalid final Ark transaction')
+  }
+
+  const finalCheckpoints = await Promise.all(
+    signedCheckpointTxs.map(async (c) => {
+      const tx = Transaction.fromPSBT(base64.decode(c), {
+        allowUnknown: true,
+      })
+      const signedCheckpoint = await vhtlcIdentity.sign(tx, [0])
+      return base64.encode(signedCheckpoint.toPSBT())
+    }),
+  )
+  await arkProvider.finalizeTx(arkTxid, finalCheckpoints)
+
+  console.log('Successfully claimed VHTLC! Transaction ID:', arkTxid)
 }
 
 // validFinalArkTx checks that all inputs have a signature for the given pubkey
 // and the signature is correct for the given tapscript leaf
 // TODO: This is a simplified check, we should verify the actual signatures
-const validFinalArkTx = (finalArkTx: string, _pubkey: Uint8Array, _tapLeaves: TapLeafScript[]): boolean => {
+const validFinalArkTx = (finalArkTx: string, pubkey: Uint8Array, tapLeaves: TapLeafScript[]): boolean => {
+  console.log('Validating final Ark transaction:', {
+    finalArkTx,
+    pubkey: hex.encode(pubkey),
+    tapLeaves: JSON.stringify(tapLeaves),
+  })
+
   const tx = Transaction.fromPSBT(base64.decode(finalArkTx), {
     allowUnknown: true,
   })
@@ -730,356 +796,73 @@ const createVHTLCScript = ({
 }
 
 /**
- * Establish a WebSocket connection to Boltz server ahead of time
- * This allows us to warm up the connection before we need it
- * @param network The network name (bitcoin or regtest)
- * @returns Promise that resolves to the WebSocket or null if connection fails
+ * Waits for the reverse swap invoice to be paid and claims the VHTLC
+ * This function establishes a WebSocket connection to Boltz server
+ * and listens for updates on the swap status.
+ * It handles various swap states such as creation, payment,
+ * transaction confirmation, and expiration.
+ * @param swapInfo The swap information object containing details about the reverse swap
+ * @param preimage The preimage used for the VHTLC claim
+ * @param wallet The user's wallet object
+ * @param svcWallet The service worker wallet object
+ * @param aspInfo The ASP information object
+ * @param onSwapCompleted Callback to handle the completed swap
+ * @throws Will throw an error if the wallet network is not available
+ * @returns A promise that resolves when the swap is successfully claimed
  */
-export const preconnectBoltzWebSocket = async (network: NetworkName): Promise<WebSocket | null> => {
-  // Use a unique key for each network
-  const cacheKey = `preconnect-${network}`
-
-  // If we already have a connection promise, return it
-  if (cacheKey in connectionPromises) {
-    return connectionPromises[cacheKey]
-  }
-
-  // Otherwise create a new connection
-  connectionPromises[cacheKey] = new Promise((resolve) => {
-    try {
-      const wsUrl = getBoltzWsUrl(network)
-      if (!wsUrl) {
-        consoleLog('Invalid network for Boltz API preconnection')
-        resolve(null)
-        return
-      }
-
-      consoleLog(`Preconnecting to Boltz WebSocket at ${wsUrl}`)
-      const ws = new WebSocket(wsUrl)
-
-      // Set connection timeout
-      const connectionTimeout = setTimeout(() => {
-        if (ws.readyState !== WebSocket.OPEN) {
-          consoleLog('Preconnection WebSocket timed out')
-          resolve(null)
-          // Cleanup the failed connection attempt
-          delete connectionPromises[cacheKey]
-        }
-      }, 5000)
-
-      ws.onopen = () => {
-        clearTimeout(connectionTimeout)
-        consoleLog('Boltz WebSocket preconnection established')
-        resolve(ws)
-      }
-
-      ws.onerror = () => {
-        clearTimeout(connectionTimeout)
-        consoleLog('Boltz WebSocket preconnection failed')
-        resolve(null)
-        // Cleanup the failed connection attempt
-        delete connectionPromises[cacheKey]
-      }
-
-      ws.onclose = () => {
-        consoleLog('Boltz WebSocket preconnection closed')
-        // Cleanup on close so we can try again next time
-        delete connectionPromises[cacheKey]
-      }
-    } catch (err) {
-      consoleError(err, 'Failed to preconnect to Boltz WebSocket')
-      resolve(null)
-      // Cleanup the failed connection attempt
-      delete connectionPromises[cacheKey]
-    }
-  })
-
-  return connectionPromises[cacheKey]
-}
-
-/**
- * Monitors a Boltz swap via WebSocket using the proper subscription protocol
- * Uses silent error handling and reconnection to avoid showing errors to users
- * @param swapId The ID of the swap to monitor
- * @param network The network name
- * @param onStatusUpdate Callback function for status updates
- * @param retryCount Optional retry counter for internal use
- * @param preconnectedWs Optional preconnected WebSocket
- */
-export const monitorSwap = (
+const watchSwap = async (
   swapId: string,
   network: NetworkName,
-  onStatusUpdate: SwapStatusCallback,
-  retryCount: number = 0,
-  preconnectedWs?: WebSocket,
-): void => {
-  // Maximum immediate retries for initial connection
-  const MAX_IMMEDIATE_RETRIES = 3
-  // Stop any existing connection for this swap
-  stopMonitoring(swapId)
-
-  try {
-    const baseUrl = getBoltzApiUrl(network)
-    if (!baseUrl) {
-      // Silently handle error - just log it but don't update UI
-      consoleLog('Invalid network for Boltz API')
-      return
-    }
-
-    // Use preconnected WebSocket if available, otherwise create a new one
-    let ws: WebSocket | null = null
-    if (preconnectedWs && preconnectedWs.readyState === WebSocket.OPEN) {
-      consoleLog('Using preconnected WebSocket for swap monitoring')
-      ws = preconnectedWs
-    } else {
-      const wsUrl = getBoltzWsUrl(network)
-
-      consoleLog(`Connecting to Boltz WebSocket at ${wsUrl} (attempt ${retryCount + 1})`)
-      ws = new WebSocket(wsUrl)
-    }
-
-    // Set connection timeout to detect stalled connection attempts
-    const connectionTimeoutMs = 5000 // 5 seconds
-    const connectionTimeout = setTimeout(() => {
-      if (ws.readyState !== WebSocket.OPEN) {
-        consoleLog(`WebSocket connection timed out after ${connectionTimeoutMs}ms`)
-        ws.close()
-
-        // Try REST API fallback while retrying WebSocket
-        // IMPORTANT: We don't pass error to UI - silently handle connection issues
-        if (retryCount === 0) {
-          consoleLog('Attempting to fetch initial status via REST API')
-          fetchSwapStatus(swapId, network).then((status) => {
-            if (status) {
-              consoleLog(`Got initial status via REST API: ${status}`)
-              onStatusUpdate(status)
-            }
-          })
-        }
-
-        // Retry connection if under max retries
-        if (retryCount < MAX_IMMEDIATE_RETRIES) {
-          consoleLog(`Immediately retrying connection (${retryCount + 1}/${MAX_IMMEDIATE_RETRIES})`)
-          setTimeout(() => {
-            monitorSwap(swapId, network, onStatusUpdate, retryCount + 1)
-          }, 1000) // Wait 1 second before retry
-        }
-      }
-    }, connectionTimeoutMs)
-
-    // Reconnection variables
-    const MAX_RECONNECT_ATTEMPTS = 10 // Increased from 5 to 10 for more resilience
-    const RECONNECT_INTERVAL = 3000 // 3 seconds
-    let reconnectAttempts = 0
-
-    // Function to attempt reconnection - all errors silently handled
-    const attemptReconnect = () => {
-      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-        reconnectAttempts++
-        consoleLog(`Attempting to reconnect (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`)
-
-        // Clear existing connection
-        delete activeConnections[swapId]
-
-        // Try to reconnect after delay
-        setTimeout(() => {
-          monitorSwap(swapId, network, onStatusUpdate)
-        }, RECONNECT_INTERVAL)
-      } else {
-        consoleLog('Max reconnection attempts reached, falling back to REST API polling')
-        // Check status via REST API as last resort
-        fetchSwapStatus(swapId, network).then((status) => {
-          if (status) {
-            consoleLog(`Got status via REST API after WebSocket failed: ${status}`)
-            onStatusUpdate(status)
-          } else {
-            // Don't show error message to user - silently fall back to polling
-            consoleLog('Failed to get payment status after multiple attempts')
-          }
-        })
-      }
-    }
-
-    ws.onopen = () => {
-      // Clear the connection timeout since we're connected
-      clearTimeout(connectionTimeout)
-
-      consoleLog(`Boltz WebSocket connection established for swap ${swapId}`)
-
-      // After connection is established, subscribe to swap updates using proper protocol
-      const subscriptionMessage = JSON.stringify({
-        op: 'subscribe',
-        channel: 'swap.update',
-        args: [swapId],
-      })
-
-      ws.send(subscriptionMessage)
-      consoleLog(`Subscribed to updates for swap ${swapId}`)
-
-      // Also fetch initial status via REST API to ensure we have the most current state
-      // This helps if the WebSocket connected but we missed earlier messages
-      fetchSwapStatus(swapId, network).then((status) => {
-        if (status) {
-          consoleLog(`Got initial status via REST API after WebSocket connected: ${status}`)
-          onStatusUpdate(status)
-        }
-      })
-    }
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data)
-        consoleLog('Boltz WebSocket message received:', data)
-
-        // Handle subscription acknowledgment
-        if (data.event === 'subscribed' && data.channel === 'swap.update') {
-          consoleLog('Successfully subscribed to swap updates')
-          return
-        }
-
-        // Handle swap update events - support multiple possible message formats
-        if (
-          // Format: {channel: 'swap.update', data: {id: '...', status: '...'}}
-          (data.channel === 'swap.update' && data.data?.id && data.data?.status) ||
-          // Format: {event: 'swap.update', data: {id: '...', status: '...'}}
-          (data.event === 'swap.update' && data.data?.id && data.data?.status) ||
-          // Format: {id: '...', status: '...'}
-          (data.id && data.status)
-        ) {
-          // Extract id and status from the appropriate location in the data
-          const id = data.data?.id || data.id
-          const status = data.data?.status || data.status
-
-          // Only process updates for our swap ID
-          if (id === swapId) {
-            consoleLog(`Received status update for swap ${id}: ${status}`)
-            onStatusUpdate(status)
-          }
-        }
-        // If we get a message we don't understand but it might be related to our swap
-        else if (data.id === swapId || (data.data && data.data.id === swapId)) {
-          consoleLog('Received unrecognized message format for our swap:', data)
-
-          // Try to extract a status if possible
-          const status = data.status || data.data?.status || null
-          if (status) {
-            consoleLog(`Extracted status from unrecognized message: ${status}`)
-            onStatusUpdate(status)
-          }
-        }
-      } catch (err) {
-        consoleError(err, 'Error parsing Boltz WebSocket message')
-        // Don't pass error to UI - silently handle JSON parsing errors
-      }
-    }
-
-    ws.onerror = (err) => {
-      consoleError(err, 'Boltz WebSocket error')
-      // Don't show error to user - silently handle WebSocket errors
-      attemptReconnect()
-    }
-
-    ws.onclose = (event) => {
-      consoleLog(
-        `Boltz WebSocket connection closed. Code: ${event.code}, Reason: ${event.reason || 'No reason provided'}`,
-      )
-
-      // If this wasn't a normal closure, attempt to reconnect
-      if (event.code !== 1000) {
-        attemptReconnect()
-      }
-
-      delete activeConnections[swapId]
-    }
-
-    activeConnections[swapId] = ws
-  } catch (err) {
-    consoleError(err, 'Failed to connect to Boltz WebSocket')
-    // Don't show error to user - silently handle connection errors
-
-    // Attempt to connect again after a delay
-    if (retryCount < MAX_IMMEDIATE_RETRIES) {
-      setTimeout(() => {
-        monitorSwap(swapId, network, onStatusUpdate, retryCount + 1)
-      }, 1000)
-    }
+  onStatusUpdate: (status: SwapStatus) => void,
+): Promise<void> => {
+  // if you receive one of this statuses, we should close the websocket
+  const isFinalStatus = (status: SwapStatus): boolean => {
+    const finalStatuses: SwapStatus[] = [
+      'invoice.settled',
+      'invoice.expired',
+      'swap.expired',
+      'transaction.claimed',
+      'transaction.refunded',
+      'transaction.failed',
+      'transaction.lockupFailed',
+    ]
+    return finalStatuses.includes(status)
   }
-}
 
-/**
- * Stops monitoring a specific swap by properly unsubscribing and closing the WebSocket connection
- * @param swapId The ID of the swap to stop monitoring
- */
-export const stopMonitoring = (swapId: string): void => {
-  if (activeConnections[swapId]) {
-    const ws = activeConnections[swapId]
+  return new Promise((resolve, reject) => {
+    const webSocket = new WebSocket(getBoltzWsUrl(network))
 
-    // Only send unsubscribe message if the connection is still open
-    if (ws.readyState === WebSocket.OPEN) {
-      try {
-        // Send unsubscribe message before closing
-        const unsubscribeMessage = JSON.stringify({
-          op: 'unsubscribe',
+    // subscribe to the swap updates
+    webSocket.onopen = () => {
+      webSocket.send(
+        JSON.stringify({
+          op: 'subscribe',
           channel: 'swap.update',
           args: [swapId],
-        })
+        }),
+      )
+    }
 
-        ws.send(unsubscribeMessage)
-        consoleLog(`Unsubscribed from swap ${swapId} updates`)
+    webSocket.onmessage = async (rawMsg) => {
+      const msg = JSON.parse(rawMsg.data)
 
-        // Close the connection after a small delay to ensure the message is sent
-        setTimeout(() => {
-          ws.close()
-        }, 100)
-      } catch (err) {
-        consoleError(err, 'Error sending unsubscribe message')
-        // Close the connection anyway
-        ws.close()
+      // only handle updates for the specific swap ID
+      if (msg.event !== 'update' || msg.args[0].id !== swapId) return
+
+      // something went wrong, reject the promise
+      if (msg.args[0].error) {
+        webSocket.close()
+        reject(msg.args[0].error)
       }
-    } else {
-      // Just close if not in OPEN state
-      ws.close()
+
+      // update the status based on the message
+      const status = msg.args[0].status as SwapStatus
+      onStatusUpdate(status)
+
+      if (isFinalStatus(status)) {
+        webSocket.close()
+        resolve()
+      }
     }
-
-    delete activeConnections[swapId]
-  }
-}
-
-/**
- * Stops monitoring all swaps by properly unsubscribing and closing all WebSocket connections
- */
-export const stopAllMonitoring = (): void => {
-  Object.keys(activeConnections).forEach((swapId) => {
-    // Use the individual stopMonitoring function for consistent behavior
-    stopMonitoring(swapId)
   })
-}
-
-/**
- * Fetch swap status directly via REST API as a fallback mechanism
- * @param swapId The ID of the swap to check
- * @param network The network name
- * @returns Promise resolving to the swap status
- */
-export const fetchSwapStatus = async (swapId: string, network: NetworkName): Promise<SwapStatus> => {
-  try {
-    const baseUrl = getBoltzApiUrl(network)
-    if (!baseUrl) {
-      throw new Error('Invalid network for Boltz API')
-    }
-
-    const response = await fetch(`${baseUrl}/v2/swap/${swapId}`)
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.error || 'Failed to fetch swap status')
-    }
-
-    const data = await response.json()
-    consoleLog('Fetched swap status via REST API:', data)
-
-    return data.status || null
-  } catch (err) {
-    consoleError(err, 'Error fetching swap status via REST API')
-    return null
-  }
 }

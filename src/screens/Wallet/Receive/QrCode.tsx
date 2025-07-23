@@ -10,14 +10,15 @@ import { WalletContext } from '../../../providers/wallet'
 import { NotificationsContext } from '../../../providers/notifications'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
-import { consoleError } from '../../../lib/logs'
+import { consoleError, consoleLog } from '../../../lib/logs'
 import { canBrowserShareData, shareData } from '../../../lib/share'
 import ExpandAddresses from '../../../components/ExpandAddresses'
 import FlexCol from '../../../components/FlexCol'
 import { LimitsContext } from '../../../providers/limits'
 import { ExtendedCoin } from '@arkade-os/sdk'
-import { reverseSwap } from '../../../lib/boltz'
+import { reverseSwap, waitAndClaim } from '../../../lib/boltz'
 import { AspContext } from '../../../providers/asp'
+import { hex } from '@scure/base'
 
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
@@ -50,16 +51,18 @@ export default function ReceiveQRCode() {
   useEffect(() => {
     // if boltz is available and amount is between limits, let's create a swap invoice
     if (validLnSwap(satoshis) && wallet && svcWallet) {
-      const onInvoiceCreated = (invoice: string) => {
+      reverseSwap(satoshis, wallet, aspInfo).then((pendingSwap) => {
+        const preimage = hex.decode(pendingSwap.preimage)
+        const response = pendingSwap.response
+        const invoice = pendingSwap.response.invoice
         setRecvInfo({ ...recvInfo, invoice })
         setInvoice(invoice)
-      }
-      const onSwapCompleted = (amount: number) => {
-        setRecvInfo({ ...recvInfo, satoshis: amount })
-        navigate(Pages.ReceiveSuccess)
-      }
-
-      reverseSwap(satoshis, wallet, svcWallet, aspInfo, onInvoiceCreated, onSwapCompleted)
+        consoleLog('Reversewap invoice created:', invoice)
+        waitAndClaim(response, preimage, wallet, svcWallet, aspInfo).then(() => {
+          setRecvInfo({ ...recvInfo, satoshis: response.onchainAmount })
+          navigate(Pages.ReceiveSuccess)
+        })
+      })
     }
   }, [satoshis])
 

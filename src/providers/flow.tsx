@@ -1,5 +1,6 @@
 import { ReactNode, createContext, useState } from 'react'
 import { Tx } from '../lib/types'
+import { PendingSubmarineSwap } from '../lib/boltz'
 
 export interface InitInfo {
   password?: string
@@ -23,9 +24,9 @@ export type SendInfo = {
   address?: string
   arkAddress?: string
   invoice?: string
+  pendingSwap?: PendingSubmarineSwap
   recipient?: string
   satoshis?: number
-  swapAddress?: string
   swapId?: string
   total?: number
   text?: string

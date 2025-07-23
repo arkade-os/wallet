@@ -159,10 +159,10 @@ export default function SendForm() {
   const handleContinue = async () => {
     try {
       if (sendInfo.invoice) {
-        const swapInfo = await submarineSwap(sendInfo.invoice, aspInfo, wallet)
-        if (!swapInfo) return setError('Swap failed: Unable to create swap')
-        const { address, amount } = swapInfo
-        setState({ ...sendInfo, satoshis: amount, swapAddress: address })
+        const pendingSwap = await submarineSwap(sendInfo.invoice, aspInfo, wallet)
+        if (!pendingSwap) return setError('Swap failed: Unable to create submarine swap')
+        const { expectedAmount: satoshis } = pendingSwap.response
+        setState({ ...sendInfo, satoshis, pendingSwap })
       } else {
         setState({ ...sendInfo, satoshis })
       }
