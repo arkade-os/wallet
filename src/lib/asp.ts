@@ -1,9 +1,10 @@
-import { ExtendedVirtualCoin, IWallet, ArkNote, ArkInfo, RestArkProvider } from '@arkade-os/sdk'
+import { ExtendedVirtualCoin, IWallet, ArkNote, RestArkProvider } from '@arkade-os/sdk'
 import { consoleError, consoleLog } from './logs'
 import { Addresses, Satoshis, Tx } from './types'
+import { AspInfo } from '../providers/asp'
 import { vtxosRepository } from './db'
 
-export const emptyAspInfo: ArkInfo & { unreachable: boolean; url: string } = {
+export const emptyAspInfo: AspInfo = {
   signerPubkey: '',
   vtxoTreeExpiry: BigInt(0),
   unilateralExitDelay: BigInt(0),
@@ -41,7 +42,7 @@ export const collaborativeExit = async (wallet: IWallet, amount: number, address
   return wallet.settle({ inputs: selectedVtxos, outputs }, consoleLog)
 }
 
-export const getAspInfo = async (url: string): Promise<ArkInfo & { unreachable: boolean; url: string }> => {
+export const getAspInfo = async (url: string): Promise<AspInfo> => {
   let fullUrl = url
   if (url.startsWith('localhost') || url.startsWith('127.0.0.1')) fullUrl = 'http://' + url
   else if (!url.startsWith('http')) fullUrl = 'https://' + url

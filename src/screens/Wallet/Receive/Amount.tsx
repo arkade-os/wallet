@@ -22,12 +22,14 @@ import { AspContext } from '../../../providers/asp'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
+import { LimitsContext } from '../../../providers/limits'
 
 export default function ReceiveAmount() {
-  const { aspInfo, amountIsAboveMaxLimit, amountIsBelowMinLimit } = useContext(AspContext)
+  const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
+  const { amountIsAboveMaxLimit, amountIsBelowMinLimit } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { balance, svcWallet } = useContext(WalletContext)
 
@@ -62,8 +64,9 @@ export default function ReceiveAmount() {
         setRecvInfo({ boardingAddr, offchainAddr, satoshis: 0 })
       })
       .catch((err) => {
-        consoleError(err, 'error getting addresses')
-        setError(extractError(err))
+        const error = extractError(err)
+        consoleError(error, 'error getting addresses')
+        setError(error)
       })
   }, [])
 
@@ -76,7 +79,7 @@ export default function ReceiveAmount() {
       !satoshis
         ? defaultButtonLabel
         : amountIsBelowMinLimit(satoshis)
-        ? 'Amount below dust limit'
+        ? 'Amount below min limit'
         : amountIsAboveMaxLimit(satoshis)
         ? 'Amount above max limit'
         : 'Continue',

@@ -15,5 +15,9 @@ export const isArkAddress = (data: string): boolean => {
 }
 
 export const isBTCAddress = (data: string): boolean => {
-  return /^bc1/.test(data) || /^tb1/.test(data) || /^bcrt1/.test(data)
+  return data.startsWith('bc1') || data.startsWith('tb1') || data.startsWith('bcrt1')
+}
+
+export const isLightningInvoice = (data: string): boolean => {
+  return /^ln(bc|tb|bcrt)[0-9a-z]+$/i.test(data)
 }
