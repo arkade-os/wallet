@@ -30,7 +30,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { ArkNote } from '@arkade-os/sdk'
 
 export default function SendForm() {
-  const { aspInfo, amountIsAboveMaxLimit, amountIsBelowMinLimit } = useContext(AspContext)
+  const { aspInfo, amountIsAboveMaxLimit } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
@@ -125,8 +125,6 @@ export default function SendForm() {
     setLabel(
       satoshis > balance
         ? 'Insufficient funds'
-        : amountIsBelowMinLimit(satoshis)
-        ? 'Amount below dust limit'
         : amountIsAboveMaxLimit(satoshis)
         ? 'Amount above max limit'
         : 'Continue',
@@ -187,7 +185,6 @@ export default function SendForm() {
     tryingToSelfSend ||
     satoshis > balance ||
     amountIsAboveMaxLimit(satoshis) ||
-    amountIsBelowMinLimit(satoshis) ||
     Boolean(error)
 
   if (scan)
