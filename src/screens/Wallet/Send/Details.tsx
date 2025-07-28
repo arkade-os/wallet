@@ -105,13 +105,13 @@ export default function SendDetails() {
       if (!swapAddress) return setError('Swap address not available')
       sendOffChain(svcWallet, satoshis, swapAddress)
         .then((txid) => {
-          waitForClaim(response, invoice, wallet, svcWallet, aspInfo)
+          waitForClaim(pendingSwap, wallet.network)
             .then(() => handleTxid(txid)) // provider claimed the VHTLC
             .catch(({ isRefundable }) => {
               consoleError('Swap failed', 'Swap provider failed to claim VHTLC')
               if (isRefundable) {
                 consoleLog('Refunding VHTLC...')
-                refundVHTLC(response, invoice, wallet, svcWallet, aspInfo)
+                refundVHTLC(pendingSwap, wallet, svcWallet, aspInfo)
                   .then(() => {
                     consoleLog('VHTLC refunded')
                     setError('Swap failed: VHTLC refunded')

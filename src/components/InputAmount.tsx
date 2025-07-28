@@ -4,11 +4,14 @@ import { FiatContext } from '../providers/fiat'
 import InputContainer from './InputContainer'
 import { ConfigContext } from '../providers/config'
 import { prettyNumber } from '../lib/format'
+import { LimitsContext } from '../providers/limits'
 
 interface InputAmountProps {
   disabled?: boolean
   focus?: boolean
   label?: string
+  min?: number
+  max?: number
   onChange: (arg0: any) => void
   onEnter?: () => void
   onFocus?: () => void
@@ -20,6 +23,8 @@ export default function InputAmount({
   disabled,
   focus,
   label,
+  min,
+  max,
   onChange,
   onEnter,
   onFocus,
@@ -28,6 +33,7 @@ export default function InputAmount({
 }: InputAmountProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
+  const { minSwapAllowed, maxSwapAllowed } = useContext(LimitsContext)
 
   const [error, setError] = useState('')
   const [otherValue, setOtherValue] = useState('')
@@ -53,13 +59,18 @@ export default function InputAmount({
     onChange(value)
   }
 
+  const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0
+  const maximumSats = max ? Math.min(max, maxSwapAllowed()) : 0
+
   const leftLabel = useFiat ? config.fiat : 'SATS'
   const rightLabel = `${otherValue} ${useFiat ? 'SATS' : config.fiat}`
   const fontStyle = { color: 'var(--dark50)', fontSize: '13px' }
+  const bottomLeft = minimumSats ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}` : ''
+  const bottomRight = maximumSats ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'SAT' : 'SATS'}` : ''
 
   return (
     <>
-      <InputContainer error={error} label={label} right={right}>
+      <InputContainer error={error} label={label} right={right} bottomLeft={bottomLeft} bottomRight={bottomRight}>
         <IonInput
           disabled={disabled}
           onIonFocus={onFocus}

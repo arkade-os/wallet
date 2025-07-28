@@ -18,7 +18,6 @@ import { LimitsContext } from '../../../providers/limits'
 import { ExtendedCoin } from '@arkade-os/sdk'
 import { reverseSwap, waitAndClaim } from '../../../lib/boltz'
 import { AspContext } from '../../../providers/asp'
-import { hex } from '@scure/base'
 
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
@@ -52,14 +51,12 @@ export default function ReceiveQRCode() {
     // if boltz is available and amount is between limits, let's create a swap invoice
     if (validLnSwap(satoshis) && wallet && svcWallet) {
       reverseSwap(satoshis, wallet, aspInfo).then((pendingSwap) => {
-        const preimage = hex.decode(pendingSwap.preimage)
-        const response = pendingSwap.response
         const invoice = pendingSwap.response.invoice
         setRecvInfo({ ...recvInfo, invoice })
         setInvoice(invoice)
-        consoleLog('Reversewap invoice created:', invoice)
-        waitAndClaim(response, preimage, wallet, svcWallet, aspInfo).then(() => {
-          setRecvInfo({ ...recvInfo, satoshis: response.onchainAmount })
+        consoleLog('Reverse swap invoice created:', invoice)
+        waitAndClaim(pendingSwap, wallet, svcWallet, aspInfo).then(() => {
+          setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
           navigate(Pages.ReceiveSuccess)
         })
       })

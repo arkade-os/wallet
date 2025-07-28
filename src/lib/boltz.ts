@@ -354,39 +354,28 @@ export const reverseSwap = async (
  * @returns A promise that resolves when the swap is successfully claimed
  */
 export const waitForClaim = async (
-  swapInfo: CreateSubmarineSwapResponse,
-  invoice: string,
-  wallet: Wallet,
-  svcWallet: ServiceWorkerWallet,
-  aspInfo: AspInfo,
+  pendingSwap: PendingSubmarineSwap,
+  network: NetworkName | undefined | '',
 ): Promise<number> => {
+  if (!network) throw new Error('Network not available for submarine swap')
   return new Promise<number>((resolve, reject) => {
-    if (!wallet.network) {
-      const err = 'Network not available for submarine swap'
-      reject(err)
-      return
-    }
-
     // https://api.docs.boltz.exchange/lifecycle.html#swap-states
     const onStatusUpdate = async (status: SwapStatus) => {
       switch (status) {
         case 'swap.expired':
         case 'invoice.failedToPay':
         case 'transaction.lockupFailed':
-          consoleLog('Starting VHTLC refund process...')
-          await refundVHTLC(swapInfo, invoice, wallet, svcWallet, aspInfo)
-          resolve(0)
+          reject({ isRefundable: true })
           break
         case 'transaction.claimed':
-          consoleLog('Transaction claimed')
-          resolve(swapInfo.expectedAmount)
+          resolve(pendingSwap.response.expectedAmount)
           break
         default:
           break
       }
     }
 
-    watchSwap(swapInfo.id, wallet.network, onStatusUpdate)
+    watchSwap(pendingSwap.response.id, network, onStatusUpdate)
   })
 }
 
@@ -406,8 +395,7 @@ export const waitForClaim = async (
  * @returns A promise that resolves when the swap is successfully claimed
  */
 export const waitAndClaim = async (
-  swapInfo: CreateReverseSwapResponse,
-  preimage: Uint8Array,
+  pendingSwap: PendingReverseSwap,
   wallet: Wallet,
   svcWallet: ServiceWorkerWallet,
   aspInfo: AspInfo,
@@ -425,11 +413,11 @@ export const waitAndClaim = async (
         case 'transaction.mempool':
         case 'transaction.confirmed':
           consoleLog('Starting VHTLC claim process...')
-          claimVHTLC(swapInfo, preimage, wallet, svcWallet, aspInfo)
+          claimVHTLC(pendingSwap, wallet, svcWallet, aspInfo)
           break
         case 'invoice.settled':
           consoleLog('Invoice settled')
-          resolve(swapInfo.onchainAmount)
+          resolve(pendingSwap.response.onchainAmount)
           break
         case 'invoice.expired':
           consoleLog('Invoice expired')
@@ -452,7 +440,7 @@ export const waitAndClaim = async (
       }
     }
 
-    watchSwap(swapInfo.id, wallet.network, onStatusUpdate)
+    watchSwap(pendingSwap.response.id, wallet.network, onStatusUpdate)
   })
 }
 
@@ -470,8 +458,7 @@ export const waitAndClaim = async (
  * @return A promise that resolves to the amount claimed from the VHTLC
  */
 const claimVHTLC = async (
-  swapInfo: CreateReverseSwapResponse,
-  preimage: Uint8Array,
+  pendingSwap: PendingReverseSwap,
   wallet: Wallet,
   svcWallet: ServiceWorkerWallet,
   aspInfo: AspInfo,
@@ -480,7 +467,8 @@ const claimVHTLC = async (
   if (!wallet.pubkey) throw 'Pubkey not available for reverse swap'
 
   // prepare variables for claiming the VHTLC
-  const amount = swapInfo.onchainAmount
+  const preimage = hex.decode(pendingSwap.preimage)
+  const amount = pendingSwap.response.onchainAmount
   const address = await svcWallet.getAddress()
   if (!address) throw 'Failed to get ark address from service worker wallet'
 
@@ -496,13 +484,13 @@ const claimVHTLC = async (
     network: wallet.network,
     preimageHash: sha256(preimage),
     receiverPubkey: wallet.pubkey,
-    senderPubkey: swapInfo.refundPublicKey,
     serverPubkey: aspInfo.signerPubkey,
-    timeoutBlockHeights: swapInfo.timeoutBlockHeights,
+    senderPubkey: pendingSwap.response.refundPublicKey,
+    timeoutBlockHeights: pendingSwap.response.timeoutBlockHeights,
   })
 
   if (!vhtlcScript) throw new Error('Failed to create VHTLC script for reverse swap')
-  if (vhtlcAddress !== swapInfo.lockupAddress) throw new Error('Boltz is trying to scam us')
+  if (vhtlcAddress !== pendingSwap.response.lockupAddress) throw new Error('Boltz is trying to scam us')
 
   // get spendable VTXOs from the lockup address
   const arkProvider = new RestArkProvider(aspInfo.url)
@@ -584,8 +572,7 @@ const claimVHTLC = async (
 }
 
 export const refundVHTLC = async (
-  swapInfo: CreateSubmarineSwapResponse,
-  invoice: string,
+  pendingSwap: PendingSubmarineSwap,
   wallet: Wallet,
   svcWallet: ServiceWorkerWallet,
   aspInfo: AspInfo,
@@ -594,7 +581,7 @@ export const refundVHTLC = async (
   if (!wallet.pubkey) throw 'Pubkey not available for reverse swap'
 
   // prepare variables for claiming the VHTLC
-  const amount = swapInfo.expectedAmount
+  const amount = pendingSwap.response.expectedAmount
   const address = await svcWallet.getAddress()
   if (!address) throw 'Failed to get ark address from service worker wallet'
 
@@ -608,15 +595,15 @@ export const refundVHTLC = async (
 
   const { vhtlcScript, vhtlcAddress } = createVHTLCScript({
     network: wallet.network,
-    preimageHash: hex.decode(getInvoicePaymentHash(invoice)),
-    receiverPubkey: swapInfo.claimPublicKey,
+    preimageHash: hex.decode(getInvoicePaymentHash(pendingSwap.request.invoice)),
+    receiverPubkey: pendingSwap.response.claimPublicKey,
     senderPubkey: wallet.pubkey!,
     serverPubkey: aspInfo.signerPubkey,
-    timeoutBlockHeights: swapInfo.timeoutBlockHeights,
+    timeoutBlockHeights: pendingSwap.response.timeoutBlockHeights,
   })
 
   if (!vhtlcScript) throw new Error('Failed to create VHTLC script for reverse swap')
-  if (vhtlcAddress !== swapInfo.address) throw new Error('Boltz is trying to scam us')
+  if (vhtlcAddress !== pendingSwap.response.address) throw new Error('Boltz is trying to scam us')
 
   // get spendable VTXOs from the lockup address
   const arkProvider = new RestArkProvider(aspInfo.url)

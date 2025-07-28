@@ -13,6 +13,8 @@ type LimitsContextProps = {
   lnSwapsAllowed: () => boolean
   utxoTxsAllowed: () => boolean
   vtxoTxsAllowed: () => boolean
+  minSwapAllowed: () => number
+  maxSwapAllowed: () => number
 }
 
 type LimitAmounts = {
@@ -25,12 +27,14 @@ type LimitTxTypes = Record<TxType, LimitAmounts>
 export const LimitsContext = createContext<LimitsContextProps>({
   amountIsAboveMaxLimit: () => false,
   amountIsBelowMinLimit: () => false,
-  validLnSwap: () => false,
-  validUtxoTx: () => false,
-  validVtxoTx: () => false,
   lnSwapsAllowed: () => false,
   utxoTxsAllowed: () => false,
   vtxoTxsAllowed: () => false,
+  validLnSwap: () => false,
+  validUtxoTx: () => false,
+  validVtxoTx: () => false,
+  minSwapAllowed: () => 0,
+  maxSwapAllowed: () => 0,
 })
 
 export const LimitsProvider = ({ children }: { children: ReactNode }) => {
@@ -61,6 +65,9 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
       })
       .catch(consoleError)
   }, [aspInfo.network])
+
+  const minSwapAllowed = () => Number(limits.current.swap.min)
+  const maxSwapAllowed = () => Number(limits.current.swap.max)
 
   const validAmount = (sats: Satoshis, txtype: TxType): boolean => {
     if (!sats) return txtype !== TxType.swap
@@ -141,12 +148,14 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
       value={{
         amountIsAboveMaxLimit,
         amountIsBelowMinLimit,
-        validLnSwap,
-        validUtxoTx,
-        validVtxoTx,
+        minSwapAllowed,
+        maxSwapAllowed,
         lnSwapsAllowed,
         utxoTxsAllowed,
         vtxoTxsAllowed,
+        validLnSwap,
+        validUtxoTx,
+        validVtxoTx,
       }}
     >
       {children}

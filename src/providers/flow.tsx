@@ -24,6 +24,7 @@ export type SendInfo = {
   address?: string
   arkAddress?: string
   invoice?: string
+  lnUrl?: string
   pendingSwap?: PendingSubmarineSwap
   recipient?: string
   satoshis?: number
