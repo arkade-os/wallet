@@ -1,8 +1,9 @@
 import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
 import { Satoshis, TxType } from '../lib/types'
 import { AspContext } from './asp'
-import { getBoltzLimits } from '../lib/boltz'
 import { consoleError } from '../lib/logs'
+import { LightningSwap } from '../lib/lightning'
+import { WalletContext } from './wallet'
 
 type LimitsContextProps = {
   amountIsAboveMaxLimit: (sats: Satoshis) => boolean
@@ -39,6 +40,7 @@ export const LimitsContext = createContext<LimitsContextProps>({
 
 export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
+  const { svcWallet } = useContext(WalletContext)
 
   const limits = useRef<LimitTxTypes>({
     swap: { min: BigInt(1000), max: BigInt(4294967) },
@@ -47,7 +49,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   })
 
   useEffect(() => {
-    if (!aspInfo.network) return
+    if (!aspInfo.network || !svcWallet) return
 
     limits.current.utxo = {
       min: aspInfo.utxoMinAmount ?? aspInfo.dust ?? -1,
@@ -59,7 +61,9 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
       max: aspInfo.vtxoMaxAmount ?? -1,
     }
 
-    getBoltzLimits(aspInfo.network)
+    const swapProvider = new LightningSwap(aspInfo, svcWallet)
+    swapProvider
+      .getLimits()
       .then(({ min, max }) => {
         limits.current.swap = { ...limits.current.swap, min: BigInt(min), max: BigInt(max) }
       })

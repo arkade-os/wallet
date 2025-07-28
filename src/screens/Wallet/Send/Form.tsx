@@ -28,10 +28,11 @@ import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { ArkNote } from '@arkade-os/sdk'
-import { getInvoiceSatoshis, submarineSwap } from '../../../lib/boltz'
 import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, isValidLnUrl } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
+import { LightningSwap } from '../../../lib/lightning'
+// import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
@@ -41,7 +42,7 @@ export default function SendForm() {
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
-  const { balance, svcWallet, wallet } = useContext(WalletContext)
+  const { balance, svcWallet } = useContext(WalletContext)
 
   const [amount, setAmount] = useState<number>()
   const [proceed, setProceed] = useState(false)
@@ -82,7 +83,7 @@ export default function SendForm() {
         return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
       }
       if (isLightningInvoice(lowerCaseData)) {
-        const satoshis = getInvoiceSatoshis(lowerCaseData)
+        const satoshis = 69 // getInvoiceSatoshis(lowerCaseData)
         setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
         return setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData })
       }
@@ -201,7 +202,8 @@ export default function SendForm() {
 
   const makeSubmarineSwap = async (invoice: string) => {
     try {
-      const pendingSwap = await submarineSwap(invoice, aspInfo, wallet)
+      const provider = new LightningSwap(aspInfo, svcWallet)
+      const pendingSwap = await provider.createSubmarineSwap(invoice)
       if (!pendingSwap) return setError('Swap failed: Unable to create submarine swap')
       setSendInfo({ ...sendInfo, satoshis: pendingSwap.response.expectedAmount, pendingSwap })
     } catch (error) {
