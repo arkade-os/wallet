@@ -9,6 +9,16 @@ type LnUrlResponse = {
   minSendable: number
   maxSendable: number
   metadata: string
+  transferAmounts?: {
+    method: string
+    available: boolean
+  }[]
+}
+
+type ArkMethodResponse = {
+  expiryDate: string
+  address: string
+  hint: string
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -84,6 +94,17 @@ export const fetchInvoice = (lnurl: string, sats: number, note: string): Promise
       .then(checkResponse<LnUrlResponse>)
       .then((data) => checkLnUrlResponse(amount, data))
       .then((data) => fetchLnUrlInvoice(amount, note, data))
+      .then(resolve)
+      .catch(reject)
+  })
+}
+
+export const fetchArkAddress = (lnurl: string): Promise<ArkMethodResponse> => {
+  return new Promise<ArkMethodResponse>((resolve, reject) => {
+    console.log('Fetching Ark address for LNURL:', lnurl)
+    const url = getCallbackUrl(lnurl) + '?method=ark'
+    fetch(url)
+      .then(checkResponse<ArkMethodResponse>)
       .then(resolve)
       .catch(reject)
   })

@@ -30,7 +30,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { ArkNote } from '@arkade-os/sdk'
 import { getInvoiceSatoshis, submarineSwap } from '../../../lib/boltz'
 import { LimitsContext } from '../../../providers/limits'
-import { checkLnUrlConditions, fetchInvoice, isValidLnUrl } from '../../../lib/lnurl'
+import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 
 export default function SendForm() {
@@ -230,8 +230,22 @@ export default function SendForm() {
   const handleContinue = async () => {
     try {
       if (sendInfo.lnUrl) {
-        const invoice = await fetchInvoice(sendInfo.lnUrl, satoshis, '')
-        setState({ ...sendInfo, invoice })
+        // Check if Ark method is available
+        const conditions = await checkLnUrlConditions(sendInfo.lnUrl)
+        const arkMethod = conditions.transferAmounts?.find((method) => method.method === 'Ark' && method.available)
+
+        if (arkMethod) {
+          // Fetch Ark address instead of Lightning invoice
+          const arkResponse = await fetchArkAddress(sendInfo.lnUrl)
+          if (!isArkAddress(arkResponse.address)) {
+            throw 'Invalid Ark address received from LNURL'
+          }
+          setState({ ...sendInfo, arkAddress: arkResponse.address, invoice: undefined, satoshis })
+        } else {
+          // Fallback to Lightning invoice
+          const invoice = await fetchInvoice(sendInfo.lnUrl, satoshis, '')
+          setState({ ...sendInfo, invoice, arkAddress: undefined })
+        }
       } else {
         setState({ ...sendInfo, satoshis })
       }
