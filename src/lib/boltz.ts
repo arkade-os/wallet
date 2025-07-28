@@ -184,11 +184,26 @@ export const getBoltzLimits = async (network: string): Promise<{ min: number; ma
   const url = getBoltzApiUrl(network)
   if (!url) throw new Error('Invalid network for Boltz API')
   const response = await fetch(`${url}/v2/swap/submarine`)
+  const responseText = await response.text()
+
   if (!response.ok) {
-    const errorData = await response.json()
-    throw errorData.error || 'Failed to fetch limits'
+    let errorMessage = 'Failed to fetch limits'
+    try {
+      const errorData = JSON.parse(responseText)
+      errorMessage = errorData.error || errorMessage
+    } catch (e) {
+      errorMessage = responseText || `HTTP ${response.status}: ${response.statusText}`
+    }
+    throw new Error(errorMessage)
   }
-  const json: SwapSubmarineGetResponse = await response.json()
+
+  let json: SwapSubmarineGetResponse
+  try {
+    json = JSON.parse(responseText)
+  } catch (e) {
+    throw new Error('Invalid JSON response from Boltz API')
+  }
+
   // TODO typeguard the response
   const { minimal, maximal } = json.ARK.BTC.limits
   return {
@@ -235,13 +250,25 @@ export const submarineSwap = async (
     body: JSON.stringify(swapRequest),
   })
 
+  const responseText = await response.text()
+
   if (!response.ok) {
-    const errorData = await response.json()
-    throw errorData.error || 'Failed to process Lightning payment'
+    let errorMessage = 'Failed to process Lightning payment'
+    try {
+      const errorData = JSON.parse(responseText)
+      errorMessage = errorData.error || errorMessage
+    } catch (e) {
+      errorMessage = responseText || `HTTP ${response.status}: ${response.statusText}`
+    }
+    throw new Error(errorMessage)
   }
 
-  // parse the response and check if the invoice was created
-  const swapInfo = (await response.json()) as CreateSubmarineSwapResponse
+  let swapInfo: CreateSubmarineSwapResponse
+  try {
+    swapInfo = JSON.parse(responseText)
+  } catch (e) {
+    throw new Error('Invalid JSON response from Boltz API')
+  }
   if (!isCreateSubmarineSwapResponse(swapInfo)) throw new Error('Invalid swap response format')
 
   // create expected VHTLC script
@@ -309,14 +336,25 @@ export const reverseSwap = async (
     body: JSON.stringify(swapRequest),
   })
 
-  // check if the response is ok
+  const responseText = await response.text()
+
   if (!response.ok) {
-    const errorData = await response.json()
-    throw errorData.error || 'Failed to process Lightning payment'
+    let errorMessage = 'Failed to process Lightning payment'
+    try {
+      const errorData = JSON.parse(responseText)
+      errorMessage = errorData.error || errorMessage
+    } catch (e) {
+      errorMessage = responseText || `HTTP ${response.status}: ${response.statusText}`
+    }
+    throw new Error(errorMessage)
   }
 
-  // parse the response and check if the invoice was created
-  const swapResponse = (await response.json()) as CreateReverseSwapResponse
+  let swapResponse: CreateReverseSwapResponse
+  try {
+    swapResponse = JSON.parse(responseText)
+  } catch (e) {
+    throw new Error('Invalid JSON response from Boltz API')
+  }
   if (!isCreateReverseSwapResponse(swapResponse)) throw new Error('Invalid swap response format')
 
   // create expected VHTLC script

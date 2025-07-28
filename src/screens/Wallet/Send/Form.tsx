@@ -71,6 +71,21 @@ export default function SendForm() {
     smartSetError('')
     const parseRecipient = async () => {
       if (!recipient) return
+
+      // Parse URLs with lightning parameter
+      if (recipient.startsWith('http://') || recipient.startsWith('https://')) {
+        try {
+          const url = new URL(recipient)
+          const lightning = url.searchParams.get('lightning')
+          if (lightning) {
+            setRecipient(lightning)
+            return
+          }
+        } catch (e) {
+          // ignore invalid URL
+        }
+      }
+
       const lowerCaseData = recipient.toLowerCase()
       if (bip21.isBip21(lowerCaseData)) {
         const { address, arkAddress, invoice, satoshis } = bip21.decode(lowerCaseData)
@@ -106,7 +121,9 @@ export default function SendForm() {
           const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
           if (min > balance) return setError('Insufficient funds for LNURL')
           setState({ ...sendInfo, lnUrl: lowerCaseData })
-          return setLnUrlLimits({ min, max })
+          setLnUrlLimits({ min, max })
+          if (min === max) setAmount(useFiat ? toFiat(min) : min) // set fixed amount automatically
+          return
         } catch (error) {
           setError(extractError(error))
         }
