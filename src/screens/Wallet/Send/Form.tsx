@@ -32,6 +32,7 @@ import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, isValidLnUrl } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { LightningSwap } from '../../../lib/lightning'
+import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 // import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 
 export default function SendForm() {
@@ -83,7 +84,7 @@ export default function SendForm() {
         return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
       }
       if (isLightningInvoice(lowerCaseData)) {
-        const satoshis = 69 // getInvoiceSatoshis(lowerCaseData)
+        const satoshis = getInvoiceSatoshis(lowerCaseData)
         setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
         return setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData })
       }
