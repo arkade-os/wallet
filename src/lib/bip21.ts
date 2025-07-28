@@ -32,10 +32,15 @@ export const decode = (uri: string) => {
   return { address, arkAddress, destination, invoice, options, satoshis, scheme }
 }
 
-export const encode = (address: string, arkAddress: string, sats: number) => {
-  return `bitcoin:${address}` + `?ark=${arkAddress}` + `&amount=${prettyNumber(fromSatoshis(sats))}`
+export const encode = (address: string, arkAddress: string, invoice: string, sats: number) => {
+  return (
+    `bitcoin:${address}` +
+    `?ark=${arkAddress}` +
+    (invoice ? `&lightning=${invoice}` : '') +
+    `&amount=${prettyNumber(fromSatoshis(sats))}`
+  )
 }
 
 export const isBip21 = (data: string): boolean => {
-  return /^\w+:.+/.test(data) // TODO
+  return /^(bitcoin|lightning|liquidnetwork|liquidtestnet):([a-z0-9]{26,}).*$/.test(data.toLowerCase())
 }

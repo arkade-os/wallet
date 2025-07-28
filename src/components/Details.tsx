@@ -16,8 +16,10 @@ export interface DetailsProps {
   address?: string
   arknote?: string
   date?: string
+  destination?: string
   direction?: string
   fees?: number
+  invoice?: string
   satoshis?: number
   total?: number
   type?: string
@@ -30,7 +32,7 @@ export default function Details({ details }: { details?: DetailsProps }) {
 
   if (!details) return <></>
 
-  const { address, arknote, date, direction, fees, satoshis, type, total, when } = details
+  const { address, arknote, date, direction, destination, fees, invoice, satoshis, type, total, when } = details
 
   const formatAmount = (amount = 0) => {
     const prettyFunc = config.showBalance ? prettyAmount : prettyHide
@@ -39,15 +41,17 @@ export default function Details({ details }: { details?: DetailsProps }) {
 
   const table = []
 
-  if (address) table.push(['Address', address, <TypeIcon />])
-  if (arknote) table.push(['Arknote', arknote, <NotesIcon small />])
-  if (direction) table.push(['Direction', direction, <DirectionIcon />])
-  if (type) table.push(['Type', type, <TypeIcon />])
-  if (when) table.push(['When', when, <WhenIcon />])
-  if (date) table.push(['Date', date, <DateIcon />])
-  if (satoshis) table.push(['Amount', formatAmount(satoshis), <AmountIcon />])
-  if (fees === 0 || fees) table.push(['Network fees', formatAmount(fees), <FeesIcon />])
-  if (total) table.push(['Total', formatAmount(total), <TotalIcon />])
+  if (address) table.push(['Address', address, <TypeIcon key='address-icon' />])
+  if (arknote) table.push(['Arknote', arknote, <NotesIcon key='notes-icon' small />])
+  if (invoice) table.push(['Invoice', invoice, <TypeIcon key='invoice-icon' />])
+  if (destination) table.push(['Destination', destination, <TypeIcon key='destination-icon' />])
+  if (direction) table.push(['Direction', direction, <DirectionIcon key='direction-icon' />])
+  if (type) table.push(['Type', type, <TypeIcon key='type-icon' />])
+  if (when) table.push(['When', when, <WhenIcon key='when-icon' />])
+  if (date) table.push(['Date', date, <DateIcon key='date-icon' />])
+  if (satoshis) table.push(['Amount', formatAmount(satoshis), <AmountIcon key='amount-icon' />])
+  if (fees === 0 || fees) table.push(['Network fees', formatAmount(fees), <FeesIcon key='fees-icon' />])
+  if (total) table.push(['Total', formatAmount(total), <TotalIcon key='total-icon' />])
 
   return <Table data={table} />
 }

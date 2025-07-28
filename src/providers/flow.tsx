@@ -1,5 +1,6 @@
 import { ReactNode, createContext, useState } from 'react'
 import { Tx } from '../lib/types'
+import { PendingSubmarineSwap } from '../lib/boltz'
 
 export interface InitInfo {
   password?: string
@@ -14,6 +15,7 @@ export interface NoteInfo {
 export interface RecvInfo {
   boardingAddr: string
   offchainAddr: string
+  invoice?: string
   satoshis: number
   txid?: string
 }
@@ -21,8 +23,12 @@ export interface RecvInfo {
 export type SendInfo = {
   address?: string
   arkAddress?: string
+  invoice?: string
+  lnUrl?: string
+  pendingSwap?: PendingSubmarineSwap
   recipient?: string
   satoshis?: number
+  swapId?: string
   total?: number
   text?: string
   txid?: string

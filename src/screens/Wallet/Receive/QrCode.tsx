@@ -10,34 +10,65 @@ import { WalletContext } from '../../../providers/wallet'
 import { NotificationsContext } from '../../../providers/notifications'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
-import { consoleError } from '../../../lib/logs'
+import { consoleError, consoleLog } from '../../../lib/logs'
 import { canBrowserShareData, shareData } from '../../../lib/share'
 import ExpandAddresses from '../../../components/ExpandAddresses'
 import FlexCol from '../../../components/FlexCol'
-import { AspContext } from '../../../providers/asp'
+import { LimitsContext } from '../../../providers/limits'
 import { ExtendedCoin } from '@arkade-os/sdk'
+import { reverseSwap, waitAndClaim } from '../../../lib/boltz'
+import { AspContext } from '../../../providers/asp'
 
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
+  const { validLnSwap, validUtxoTx, validVtxoTx } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { vtxos, svcWallet, reloadWallet } = useContext(WalletContext)
+  const { vtxos, svcWallet, wallet, reloadWallet } = useContext(WalletContext)
 
-  const [sharing, setSharing] = useState(false)
   const isFirstMount = useRef(true)
+  const [sharing, setSharing] = useState(false)
 
+  // manage all possible receive methods
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
-  const address = Number(aspInfo.utxoMaxAmount) === 0 ? '' : boardingAddr
-  const arkAddress = Number(aspInfo.vtxoMaxAmount) === 0 ? '' : offchainAddr
-  const bip21uri = bip21.encode(address, arkAddress, satoshis)
+  const address = validUtxoTx(satoshis) ? boardingAddr : ''
+  const arkAddress = validVtxoTx(satoshis) ? offchainAddr : ''
+  const defaultBip21uri = bip21.encode(address, arkAddress, '', satoshis)
+
+  const [invoice, setInvoice] = useState('')
+  const [qrValue, setQrValue] = useState(defaultBip21uri)
+  const [bip21uri, setBip21uri] = useState(defaultBip21uri)
+
+  // set the QR code value to the bip21uri the first time
+  useEffect(() => {
+    const bip21uri = bip21.encode(address, arkAddress, invoice, satoshis)
+    setBip21uri(bip21uri)
+    setQrValue(bip21uri)
+  }, [invoice])
+
+  useEffect(() => {
+    // if boltz is available and amount is between limits, let's create a swap invoice
+    if (validLnSwap(satoshis) && wallet && svcWallet) {
+      reverseSwap(satoshis, wallet, aspInfo).then((pendingSwap) => {
+        const invoice = pendingSwap.response.invoice
+        setRecvInfo({ ...recvInfo, invoice })
+        setInvoice(invoice)
+        consoleLog('Reverse swap invoice created:', invoice)
+        waitAndClaim(pendingSwap, wallet, svcWallet, aspInfo).then(() => {
+          setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
+          navigate(Pages.ReceiveSuccess)
+        })
+      })
+    }
+  }, [satoshis])
 
   useEffect(() => {
     if (isFirstMount.current) {
       isFirstMount.current = false
       return
     }
-
+    // we just received a payment, and it's on the last index of the vtxos
     const lastVtxo = vtxos.spendable.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0]
     if (!lastVtxo) return
     const { value } = lastVtxo
@@ -49,17 +80,13 @@ export default function ReceiveQRCode() {
   useEffect(() => {
     if (!svcWallet) return
 
-    async function getBoardingUtxos() {
-      return svcWallet!.getBoardingUtxos()
-    }
-
     let currentUtxos: ExtendedCoin[] = []
-    getBoardingUtxos().then((utxos) => {
+    svcWallet!.getBoardingUtxos().then((utxos) => {
       currentUtxos = utxos
     })
 
     const interval = setInterval(async () => {
-      const utxos = await getBoardingUtxos()
+      const utxos = await svcWallet!.getBoardingUtxos()
       if (utxos.length < currentUtxos.length) {
         currentUtxos = utxos
       }
@@ -84,7 +111,7 @@ export default function ReceiveQRCode() {
       .finally(() => setSharing(false))
   }
 
-  const data = { title: 'Receive', text: bip21uri }
+  const data = { title: 'Receive', text: qrValue }
   const disabled = !canBrowserShareData(data) || sharing
 
   return (
@@ -93,8 +120,14 @@ export default function ReceiveQRCode() {
       <Content>
         <Padded>
           <FlexCol>
-            <QrCode value={bip21uri ?? ''} />
-            <ExpandAddresses bip21uri={bip21uri} boardingAddr={address} offchainAddr={arkAddress} />
+            <QrCode value={qrValue} />
+            <ExpandAddresses
+              bip21uri={bip21uri}
+              boardingAddr={address}
+              offchainAddr={arkAddress}
+              invoice={invoice}
+              onClick={setQrValue}
+            />
           </FlexCol>
         </Padded>
       </Content>

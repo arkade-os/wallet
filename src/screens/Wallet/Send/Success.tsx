@@ -18,6 +18,7 @@ export default function SendSuccess() {
   const { navigate } = useContext(NavigationContext)
   const { notifyPaymentSent } = useContext(NotificationsContext)
 
+  // Show payment sent notification
   useEffect(() => {
     if (sendInfo.total) notifyPaymentSent(sendInfo.total)
   }, [sendInfo.total])

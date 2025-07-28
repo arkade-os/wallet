@@ -5,7 +5,7 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext, SendInfo } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
-import { isArkAddress, isBTCAddress, decodeArkAddress } from '../../../lib/address'
+import { isArkAddress, isBTCAddress, decodeArkAddress, isLightningInvoice } from '../../../lib/address'
 import { AspContext } from '../../../providers/asp'
 import * as bip21 from '../../../lib/bip21'
 import { isArkNote } from '../../../lib/arknote'
@@ -28,20 +28,27 @@ import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { ArkNote } from '@arkade-os/sdk'
+import { getInvoiceSatoshis, submarineSwap } from '../../../lib/boltz'
+import { LimitsContext } from '../../../providers/limits'
+import { checkLnUrlConditions, fetchInvoice, isValidLnUrl } from '../../../lib/lnurl'
+import { extractError } from '../../../lib/error'
 
 export default function SendForm() {
-  const { aspInfo, amountIsAboveMaxLimit, amountIsBelowMinLimit } = useContext(AspContext)
+  const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
+  const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
-  const { balance, svcWallet } = useContext(WalletContext)
+  const { balance, svcWallet, wallet } = useContext(WalletContext)
 
   const [amount, setAmount] = useState<number>()
+  const [proceed, setProceed] = useState(false)
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
   const [label, setLabel] = useState('')
+  const [lnUrlLimits, setLnUrlLimits] = useState<{ min: number; max: number }>({ min: 0, max: 0 })
   const [keys, setKeys] = useState(false)
   const [recipient, setRecipient] = useState('')
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
@@ -62,43 +69,76 @@ export default function SendForm() {
   // parse recipient data
   useEffect(() => {
     smartSetError('')
-    if (!recipient) return
-    const lowerCaseData = recipient.toLowerCase()
-    if (bip21.isBip21(lowerCaseData)) {
-      const { address, arkAddress, satoshis } = bip21.decode(lowerCaseData)
-      if (!address && !arkAddress) return setError('Unable to parse bip21')
-      setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
-      return setState({ address, arkAddress, recipient, satoshis })
-    }
-    if (isArkAddress(lowerCaseData)) {
-      return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
-    }
-    if (isBTCAddress(lowerCaseData)) {
-      return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
-    }
-    if (isArkNote(lowerCaseData)) {
-      try {
-        const { value } = ArkNote.fromString(recipient)
-        setNoteInfo({ note: recipient, satoshis: value })
-        return navigate(Pages.NotesRedeem)
-      } catch (err) {
-        consoleError(err, 'error parsing ark note')
+    const parseRecipient = async () => {
+      if (!recipient) return
+      const lowerCaseData = recipient.toLowerCase()
+      if (bip21.isBip21(lowerCaseData)) {
+        const { address, arkAddress, invoice, satoshis } = bip21.decode(lowerCaseData)
+        if (!address && !arkAddress && !invoice) return setError('Unable to parse bip21')
+        setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
+        return setState({ address, arkAddress, invoice, recipient, satoshis })
       }
+      if (isArkAddress(lowerCaseData)) {
+        return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
+      }
+      if (isLightningInvoice(lowerCaseData)) {
+        const satoshis = getInvoiceSatoshis(lowerCaseData)
+        setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
+        return setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData })
+      }
+      if (isBTCAddress(lowerCaseData)) {
+        return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
+      }
+      if (isArkNote(lowerCaseData)) {
+        try {
+          const { value } = ArkNote.fromString(recipient)
+          setNoteInfo({ note: recipient, satoshis: value })
+          return navigate(Pages.NotesRedeem)
+        } catch (err) {
+          consoleError(err, 'error parsing ark note')
+        }
+      }
+      if (isValidLnUrl(lowerCaseData)) {
+        try {
+          const conditions = await checkLnUrlConditions(lowerCaseData)
+          if (!conditions) return setError('Unable to fetch LNURL conditions')
+          const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
+          const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
+          if (min > balance) return setError('Insufficient funds for LNURL')
+          setState({ ...sendInfo, lnUrl: lowerCaseData })
+          return setLnUrlLimits({ min, max })
+        } catch (error) {
+          setError(extractError(error))
+        }
+      }
+      setError('Invalid recipient address')
     }
-    setError('Invalid recipient address')
+    parseRecipient()
   }, [recipient])
+
+  useEffect(() => {
+    if (!sendInfo.lnUrl) return
+    if (sendInfo.lnUrl && sendInfo.invoice) return
+    checkLnUrlConditions(sendInfo.lnUrl).then((conditions) => {
+      if (!conditions) return setError('Unable to fetch LNURL conditions')
+      const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
+      const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
+      if (min > balance) return setError('Insufficient funds for LNURL')
+      return setLnUrlLimits({ min, max })
+    })
+  }, [sendInfo.lnUrl])
 
   // validate recipient addresses
   useEffect(() => {
     if (!receivingAddresses) return setError('Unable to get receiving addresses')
     const { boardingAddr, offchainAddr } = receivingAddresses
-    const { address, arkAddress } = sendInfo
+    const { address, arkAddress, invoice } = sendInfo
     // check server limits for onchain transactions
-    if (address && !arkAddress && Number(aspInfo.utxoMaxAmount) === 0) {
+    if (address && !arkAddress && !invoice && !utxoTxsAllowed()) {
       return setError('Sending onchain not allowed')
     }
     // check server limits for offchain transactions
-    if (!address && arkAddress && Number(aspInfo.vtxoMaxAmount) === 0) {
+    if (!address && (arkAddress || invoice) && !vtxoTxsAllowed()) {
       return setError('Sending offchain not allowed')
     }
     // check if server key is valid
@@ -114,7 +154,7 @@ export default function SendForm() {
     }
     // everything is ok, clean error
     setError('')
-  }, [sendInfo.address, sendInfo.arkAddress])
+  }, [sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
 
   useEffect(() => {
     setSatoshis(useFiat ? fromFiat(amount) : amount ?? 0)
@@ -125,6 +165,10 @@ export default function SendForm() {
     setLabel(
       satoshis > balance
         ? 'Insufficient funds'
+        : lnUrlLimits.min && satoshis < lnUrlLimits.min
+        ? 'Amount below LNURL min limit'
+        : lnUrlLimits.max && satoshis > lnUrlLimits.max
+        ? 'Amount above LNURL max limit'
         : amountIsBelowMinLimit(satoshis)
         ? 'Amount below dust limit'
         : amountIsAboveMaxLimit(satoshis)
@@ -138,6 +182,13 @@ export default function SendForm() {
     setLabel(aspInfo.unreachable ? 'Server unreachable' : 'Continue')
   }, [aspInfo.unreachable])
 
+  useEffect(() => {
+    if (!proceed) return
+    if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
+    if (sendInfo.invoice && !sendInfo.pendingSwap) makeSubmarineSwap(sendInfo.invoice)
+    else navigate(Pages.SendDetails)
+  }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
+
   const setState = (info: SendInfo) => {
     setScan(false)
     setSendInfo(info)
@@ -148,9 +199,30 @@ export default function SendForm() {
     navigate(Pages.Settings)
   }
 
-  const handleContinue = () => {
-    setState({ ...sendInfo, satoshis })
-    navigate(Pages.SendDetails)
+  const makeSubmarineSwap = async (invoice: string) => {
+    try {
+      const pendingSwap = await submarineSwap(invoice, aspInfo, wallet)
+      if (!pendingSwap) return setError('Swap failed: Unable to create submarine swap')
+      setSendInfo({ ...sendInfo, satoshis: pendingSwap.response.expectedAmount, pendingSwap })
+    } catch (error) {
+      consoleError(error, 'Swap failed')
+      setError('Swap failed: ' + extractError(error))
+    }
+  }
+
+  const handleContinue = async () => {
+    try {
+      if (sendInfo.lnUrl) {
+        const invoice = await fetchInvoice(sendInfo.lnUrl, satoshis, '')
+        setState({ ...sendInfo, invoice })
+      } else {
+        setState({ ...sendInfo, satoshis })
+      }
+      setProceed(true)
+    } catch (error) {
+      consoleError(extractError(error))
+      setError(extractError(error))
+    }
   }
 
   const handleEnter = () => {
@@ -179,15 +251,17 @@ export default function SendForm() {
     )
   }
 
-  const { address, arkAddress } = sendInfo
+  const { address, arkAddress, lnUrl, invoice } = sendInfo
 
   const disabled =
-    !((address || arkAddress) && satoshis && satoshis > 0) ||
-    aspInfo.unreachable ||
-    tryingToSelfSend ||
-    satoshis > balance ||
+    !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
+    (lnUrlLimits.max && satoshis > lnUrlLimits.max) ||
+    (lnUrlLimits.min && satoshis < lnUrlLimits.min) ||
     amountIsAboveMaxLimit(satoshis) ||
     amountIsBelowMinLimit(satoshis) ||
+    aspInfo.unreachable ||
+    satoshis > balance ||
+    tryingToSelfSend ||
     Boolean(error)
 
   if (scan)
@@ -215,6 +289,8 @@ export default function SendForm() {
             <InputAmount
               focus={focus === 'amount' && !isMobileBrowser}
               label='Amount'
+              min={lnUrlLimits.min}
+              max={lnUrlLimits.max}
               onChange={setAmount}
               onEnter={handleEnter}
               onFocus={handleFocus}
