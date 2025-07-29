@@ -129,6 +129,21 @@ export const sendOffChain = async (wallet: IWallet, sats: number, address: strin
   return wallet.sendBitcoin({ address, amount: sats })
 }
 
+export const sendOffchainWithRetry = async (wallet: IWallet, sats: number, address: string): Promise<string> => {
+  const retryAttempts = 5
+  let lastError = null
+  for (let i = 0; i < retryAttempts; i++) {
+    try {
+      return wallet.sendBitcoin({ address, amount: sats })
+    } catch (err) {
+      consoleError(err, 'error sending offchain')
+      lastError = err
+    }
+  }
+
+  throw lastError ?? new Error('Failed to send offchain')
+}
+
 export const sendOnChain = async (wallet: IWallet, sats: number, address: string): Promise<string> => {
   return wallet.sendBitcoin({ address, amount: sats })
 }
