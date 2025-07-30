@@ -15,6 +15,7 @@ interface InputAmountProps {
   onChange: (arg0: any) => void
   onEnter?: () => void
   onFocus?: () => void
+  readOnly?: boolean
   right?: JSX.Element
   value?: number
 }
@@ -28,6 +29,7 @@ export default function InputAmount({
   onChange,
   onEnter,
   onFocus,
+  readOnly,
   right,
   value,
 }: InputAmountProps) {
@@ -76,6 +78,7 @@ export default function InputAmount({
           onIonFocus={onFocus}
           onIonInput={handleInput}
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
+          readonly={readOnly}
           ref={input}
           type='number'
           value={value}
