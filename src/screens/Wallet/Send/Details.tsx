@@ -12,7 +12,7 @@ import { defaultFee } from '../../../lib/constants'
 import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { collaborativeExit, sendOffChain, sendOffchainWithRetry } from '../../../lib/asp'
+import { collaborativeExit, sendOffChain } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
 import Loading from '../../../components/Loading'
 import { consoleError, consoleLog } from '../../../lib/logs'
@@ -103,7 +103,7 @@ export default function SendDetails() {
       if (!response) return setError('Swap response not available')
       const swapAddress = pendingSwap?.response.address
       if (!swapAddress) return setError('Swap address not available')
-      sendOffchainWithRetry(svcWallet, satoshis, swapAddress)
+      sendOffChain(svcWallet, satoshis, swapAddress)
         .then((txid) => {
           waitForClaim(pendingSwap, wallet.network)
             .then(() => handleTxid(txid)) // provider claimed the VHTLC
