@@ -21,3 +21,12 @@ export const isBTCAddress = (data: string): boolean => {
 export const isLightningInvoice = (data: string): boolean => {
   return /^ln(bc|tb|bcrt)[0-9a-z]+$/i.test(data)
 }
+
+export const isURLWithLightningQueryString = (data: string): boolean => {
+  try {
+    const url = new URL(data)
+    return url.searchParams.has('lightning')
+  } catch (e) {
+    return false
+  }
+}

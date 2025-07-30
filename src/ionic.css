@@ -239,3 +239,8 @@ ion-toggle::part(track) {
   /* Required for iOS handle to overflow the height of the track */
   overflow: visible;
 }
+
+ion-input[readonly] {
+  --color: var(--dark50);
+  --highlight-color-focused: none;
+}
