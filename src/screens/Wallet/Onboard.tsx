@@ -143,7 +143,7 @@ export default function Onboard() {
         {step < steps ? (
           <Button onClick={handleContinue} label='Continue' />
         ) : (
-          <Button onClick={handleSkip} label='Skip for now' clear />
+          <Button onClick={handleSkip} label='Skip for now' secondary />
         )}
       </ButtonsOnBottom>
     </>
