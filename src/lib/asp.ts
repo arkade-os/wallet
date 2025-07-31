@@ -18,6 +18,12 @@ export const emptyAspInfo: AspInfo = {
   vtxoMinAmount: BigInt(1),
   vtxoMaxAmount: BigInt(-1), // -1 means no limit (default)
   boardingExitDelay: BigInt(0),
+  version: '',
+  utxoMinAmount: BigInt(333),
+  utxoMaxAmount: BigInt(-1), // -1 means no limit (default), 0 means boarding not allowed
+  vtxoMinAmount: BigInt(1),
+  vtxoMaxAmount: BigInt(-1), // -1 means no limit (default)
+  boardingExitDelay: BigInt(0),
   unreachable: false,
   url: '',
 }
@@ -72,9 +78,12 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
       const unix = Math.floor(date.getTime() / 1000)
       const { key, settled, type, amount } = tx
       const explorable = key.boardingTxid ? key.boardingTxid : key.commitmentTxid ? key.commitmentTxid : undefined
+      const explorable = key.boardingTxid ? key.boardingTxid : key.commitmentTxid ? key.commitmentTxid : undefined
       txs.push({
         amount: Math.abs(amount),
         boardingTxid: key.boardingTxid,
+        redeemTxid: key.arkTxid,
+        roundTxid: key.commitmentTxid,
         redeemTxid: key.arkTxid,
         roundTxid: key.commitmentTxid,
         createdAt: unix,
@@ -98,7 +107,10 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
 
 export const getReceivingAddresses = async (wallet: IWallet): Promise<Addresses> => {
   const [offchainAddr, boardingAddr] = await Promise.all([wallet.getAddress(), wallet.getBoardingAddress()])
+  const [offchainAddr, boardingAddr] = await Promise.all([wallet.getAddress(), wallet.getBoardingAddress()])
   return {
+    boardingAddr,
+    offchainAddr,
     boardingAddr,
     offchainAddr,
   }
@@ -116,16 +128,21 @@ async function getVtxos(): Promise<ExtendedVirtualCoin[]> {
 export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<void> => {
   const inputs = notes.map((note) => ArkNote.fromString(note))
   const amount = inputs.reduce((acc, curr) => acc + BigInt(curr.value), BigInt(0))
+  const inputs = notes.map((note) => ArkNote.fromString(note))
+  const amount = inputs.reduce((acc, curr) => acc + BigInt(curr.value), BigInt(0))
 
   const { offchainAddr } = await getReceivingAddresses(wallet)
 
   await wallet.settle({
     inputs,
     outputs: [{ address: offchainAddr, amount }],
+    inputs,
+    outputs: [{ address: offchainAddr, amount }],
   })
 }
 
 export const sendOffChain = async (wallet: IWallet, sats: number, address: string): Promise<string> => {
+  return wallet.sendBitcoin({ address, amount: sats })
   return wallet.sendBitcoin({ address, amount: sats })
 }
 

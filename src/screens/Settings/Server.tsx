@@ -1,3 +1,4 @@
+import { ArkInfo } from '@arkade-os/sdk'
 import { useContext, useEffect, useState } from 'react'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
@@ -23,7 +24,7 @@ export default function Server() {
 
   const [aspUrl, setAspUrl] = useState('')
   const [error, setError] = useState('')
-  const [info, setInfo] = useState<AspInfo>()
+  const [info, setInfo] = useState<ArkInfo & { unreachable: boolean; url: string }>()
   const [scan, setScan] = useState(false)
   const [loading, setLoading] = useState(false)
 

@@ -19,6 +19,7 @@ import { AspContext, AspInfo } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { settleVtxos } from '../../lib/asp'
 import Loading from '../../components/Loading'
+import { ArkInfo } from '@arkade-os/sdk'
 
 const Box = ({ children }: { children: ReactNode }) => {
   const style = {
@@ -35,7 +36,15 @@ const Box = ({ children }: { children: ReactNode }) => {
   )
 }
 
-const VtxoLine = ({ aspInfo, hide, vtxo }: { aspInfo: AspInfo; hide: boolean; vtxo: Vtxo }) => {
+const VtxoLine = ({
+  aspInfo,
+  hide,
+  vtxo,
+}: {
+  aspInfo: ArkInfo & { unreachable: boolean; url: string }
+  hide: boolean
+  vtxo: Vtxo
+}) => {
   const amount = hide ? prettyHide(vtxo.value) : prettyNumber(vtxo.value)
   const expiry = vtxo.virtualStatus.batchExpiry ?? vtxo.createdAt.getDate() + Number(aspInfo.vtxoTreeExpiry) * 1000
   return (

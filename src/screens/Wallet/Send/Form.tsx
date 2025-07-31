@@ -281,6 +281,11 @@ export default function SendForm() {
           {`${pretty} available`}
         </Text>
       </div>
+      <div onClick={() => setAmount(amount)} style={{ cursor: 'pointer' }}>
+        <Text color='dark50' smaller>
+          {`${pretty} available`}
+        </Text>
+      </div>
     )
   }
 
