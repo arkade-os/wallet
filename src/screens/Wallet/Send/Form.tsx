@@ -39,7 +39,6 @@ import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl } fro
 import { extractError } from '../../../lib/error'
 import { LightningSwap } from '../../../lib/lightning'
 import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
-// import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
@@ -276,11 +275,6 @@ export default function SendForm() {
     const amount = useFiat ? toFiat(balance) : balance
     const pretty = useFiat ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
     return (
-      <div onClick={() => setAmount(amount)} style={{ cursor: 'pointer' }}>
-        <Text color='dark50' smaller>
-          {`${pretty} available`}
-        </Text>
-      </div>
       <div onClick={() => setAmount(amount)} style={{ cursor: 'pointer' }}>
         <Text color='dark50' smaller>
           {`${pretty} available`}

@@ -110,7 +110,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   useEffect(() => {
-    let pingInterval: NodeJS.Timeout
+    let pingInterval: number
     async function initSvcWorkerWallet() {
       try {
         // read wallet from storage

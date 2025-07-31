@@ -13,7 +13,7 @@ import WarningBox from '../../components/Warning'
 import InputUrl from '../../components/InputUrl'
 import FlexCol from '../../components/FlexCol'
 import Scanner from '../../components/Scanner'
-import { AspContext, AspInfo } from '../../providers/asp'
+import { AspContext } from '../../providers/asp'
 import { consoleError } from '../../lib/logs'
 import Loading from '../../components/Loading'
 
