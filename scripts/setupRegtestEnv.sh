@@ -61,7 +61,7 @@ echo " ✔"
 sleep 5
 
 puts "send 50k sats to the other side to balance the channel"
-invoice=$(nigiri lnd addinvoice --amt 5000 | jq -r .payment_request)
+invoice=$(nigiri lnd addinvoice --amt 50000 | jq -r .payment_request)
 $lncli payinvoice --force $invoice
 
 puts "starting arkd"
