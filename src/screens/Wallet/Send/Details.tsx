@@ -103,17 +103,17 @@ export default function SendDetails() {
       if (!response) return setError('Swap response not available')
       const swapAddress = pendingSwap?.response.address
       if (!swapAddress) return setError('Swap address not available')
-      const provider = new LightningSwap(aspInfo, svcWallet)
+      const swapProvider = new LightningSwap(aspInfo, svcWallet)
       sendOffChain(svcWallet, satoshis, swapAddress)
         .then((txid) => {
-          provider
+          swapProvider
             .waitForSwapSettlement(pendingSwap)
             .then(() => handleTxid(txid)) // provider claimed the VHTLC
             .catch(({ isRefundable }) => {
               consoleError('Swap failed', 'Swap provider failed to claim VHTLC')
               if (isRefundable) {
                 consoleLog('Refunding VHTLC...')
-                provider
+                swapProvider
                   .refundVHTLC(pendingSwap)
                   .then(() => {
                     consoleLog('VHTLC refunded')

@@ -218,8 +218,8 @@ export default function SendForm() {
 
   const makeSubmarineSwap = async (invoice: string) => {
     try {
-      const provider = new LightningSwap(aspInfo, svcWallet)
-      const pendingSwap = await provider.createSubmarineSwap(invoice)
+      const swapProvider = new LightningSwap(aspInfo, svcWallet)
+      const pendingSwap = await swapProvider.createSubmarineSwap(invoice)
       if (!pendingSwap) return setError('Swap failed: Unable to create submarine swap')
       setSendInfo({ ...sendInfo, satoshis: pendingSwap.response.expectedAmount, pendingSwap })
     } catch (error) {
