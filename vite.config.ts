@@ -24,13 +24,4 @@ export default defineConfig({
   worker: {
     format: 'es',
   },
-  resolve: {
-    alias: {
-      // Ensure Vite resolves the local package correctly
-      '@arkade-os/boltz-swap': '/Users/bordalix/WIP/Vulpem/arkade-os/boltz-swap/dist',
-    },
-  },
-  optimizeDeps: {
-    include: ['@arkade-os/boltz-swap'], // Force Vite to pre-bundle the package
-  },
 })

@@ -68,7 +68,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
         limits.current.swap = { ...limits.current.swap, min: BigInt(min), max: BigInt(max) }
       })
       .catch(consoleError)
-  }, [aspInfo.network])
+  }, [aspInfo.network, svcWallet])
 
   const minSwapAllowed = () => Number(limits.current.swap.min)
   const maxSwapAllowed = () => Number(limits.current.swap.max)

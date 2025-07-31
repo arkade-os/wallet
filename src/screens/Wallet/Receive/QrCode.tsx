@@ -51,16 +51,26 @@ export default function ReceiveQRCode() {
     // if boltz is available and amount is between limits, let's create a swap invoice
     if (validLnSwap(satoshis) && wallet && svcWallet) {
       const swapProvider = new LightningSwap(aspInfo, svcWallet)
-      swapProvider.createReverseSwap(satoshis).then((pendingSwap) => {
-        const invoice = pendingSwap.response.invoice
-        setRecvInfo({ ...recvInfo, invoice })
-        setInvoice(invoice)
-        consoleLog('Reverse swap invoice created:', invoice)
-        swapProvider.waitAndClaim(pendingSwap).then(() => {
-          setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
-          navigate(Pages.ReceiveSuccess)
+      swapProvider
+        .createReverseSwap(satoshis)
+        .then((pendingSwap) => {
+          const invoice = pendingSwap.response.invoice
+          setRecvInfo({ ...recvInfo, invoice })
+          setInvoice(invoice)
+          consoleLog('Reverse swap invoice created:', invoice)
+          swapProvider
+            .waitAndClaim(pendingSwap)
+            .then(() => {
+              setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
+              navigate(Pages.ReceiveSuccess)
+            })
+            .catch((error) => {
+              consoleError('Error claiming reverse swap:', error)
+            })
         })
-      })
+        .catch((error) => {
+          consoleError('Error creating reverse swap:', error)
+        })
     }
   }, [satoshis])
 
