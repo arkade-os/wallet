@@ -12,8 +12,8 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: file:../boltz-swap/dist
-        version: dist@file:../boltz-swap/dist
+        specifier: ^0.1.0
+        version: 0.1.0
       '@arkade-os/sdk':
         specifier: ^0.2.1
         version: 0.2.1
@@ -141,6 +141,10 @@ packages:
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
+
+  '@arkade-os/boltz-swap@0.1.0':
+    resolution: {integrity: sha512-RdaVq+3gXRSTorSk7XRuXFIjGFJ/tJ714mgo4HKoLMSjuqw7RCPWcDf/+Iqa1RPHWdtGT9MtQtkiJou3ju4aqQ==}
+    engines: {node: '>=22'}
 
   '@arkade-os/sdk@0.2.1':
     resolution: {integrity: sha512-8Vt0F+BFW+E9q8Om4ZvAHP3Uzo7FKOHw7K0l9iK9RvGjk85/0LRn5NKeAuBJZxwmVZpBVdJ1eIC4YbpQNjAWaA==}
@@ -1216,9 +1220,6 @@ packages:
   dir-glob@3.0.1:
     resolution: {integrity: sha512-WkrWp9GR4KXfKGYzOLmTuGVi1UWFfws377n9cc55/tb6DuqyF6pcQ5AbiHEshaDpY9v6oaSr2XCDidGmMwdzIA==}
     engines: {node: '>=8'}
-
-  dist@file:../boltz-swap/dist:
-    resolution: {directory: ../boltz-swap/dist, type: directory}
 
   doctrine@2.1.0:
     resolution: {integrity: sha512-35mSku4ZXK0vfCuHEDAwt55dg2jNajHZ1odvF+8SSr82EsZY4QmXfuWso8oEd8zRhVObSN18aM0CjSdoBX7zIw==}
@@ -2508,6 +2509,13 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.12
       '@jridgewell/trace-mapping': 0.3.29
 
+  '@arkade-os/boltz-swap@0.1.0':
+    dependencies:
+      '@arkade-os/sdk': 0.2.1
+      '@noble/hashes': 1.8.0
+      '@scure/btc-signer': 1.8.1
+      light-bolt11-decoder: 3.2.0
+
   '@arkade-os/sdk@0.2.1':
     dependencies:
       '@noble/curves': 1.9.1
@@ -3518,8 +3526,6 @@ snapshots:
   dir-glob@3.0.1:
     dependencies:
       path-type: 4.0.0
-
-  dist@file:../boltz-swap/dist: {}
 
   doctrine@2.1.0:
     dependencies:
