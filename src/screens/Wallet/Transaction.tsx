@@ -25,7 +25,7 @@ import { LimitsContext } from '../../providers/limits'
 
 export default function Transaction() {
   const { navigate } = useContext(NavigationContext)
-  const { utxoTxsAllowed } = useContext(LimitsContext)
+  const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { settlePreconfirmed, wallet } = useContext(WalletContext)
@@ -78,7 +78,6 @@ export default function Transaction() {
     setSettling(false)
   }
 
-  console.log('utxoTxsAllowed', utxoTxsAllowed())
   if (!tx) return <></>
 
   const details: DetailsProps = {
@@ -94,7 +93,7 @@ export default function Transaction() {
 
   // if server defines that UTXO transactions are not allowed,
   // don't allow settlement since it is a UTXO transaction
-  if (!utxoTxsAllowed()) {
+  if (!utxoTxsAllowed() || !vtxoTxsAllowed()) {
     return (
       <>
         <Header text='Transaction' back={handleBack} />

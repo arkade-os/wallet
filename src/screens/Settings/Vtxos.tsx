@@ -19,6 +19,7 @@ import { AspContext, AspInfo } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { settleVtxos } from '../../lib/asp'
 import Loading from '../../components/Loading'
+import { LimitsContext } from '../../providers/limits'
 
 const Box = ({ children }: { children: ReactNode }) => {
   const style = {
@@ -49,6 +50,7 @@ const VtxoLine = ({ aspInfo, hide, vtxo }: { aspInfo: AspInfo; hide: boolean; vt
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
+  const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { vtxos, wallet, svcWallet } = useContext(WalletContext)
 
   const defaultLabel = 'Renew Virtual Coins'
@@ -154,17 +156,25 @@ export default function Vtxos() {
           </Padded>
         )}
       </Content>
-      <ButtonsOnBottom>
-        {vtxos.spendable.length > 0 ? <Button onClick={handleRollover} label={label} disabled={rollingover} /> : null}
-        {wallet.nextRollover ? <Button onClick={() => setReminderIsOpen(true)} label='Add reminder' secondary /> : null}
-      </ButtonsOnBottom>
-      <Reminder
-        callback={() => setReminderIsOpen(false)}
-        duration={duration}
-        isOpen={reminderIsOpen}
-        name='Virtual Coin Renewal'
-        startTime={wallet.nextRollover}
-      />
+      {utxoTxsAllowed() && vtxoTxsAllowed() ? (
+        <>
+          <ButtonsOnBottom>
+            {vtxos.spendable.length > 0 ? (
+              <Button onClick={handleRollover} label={label} disabled={rollingover} />
+            ) : null}
+            {wallet.nextRollover ? (
+              <Button onClick={() => setReminderIsOpen(true)} label='Add reminder' secondary />
+            ) : null}
+          </ButtonsOnBottom>
+          <Reminder
+            callback={() => setReminderIsOpen(false)}
+            duration={duration}
+            isOpen={reminderIsOpen}
+            name='Virtual Coin Renewal'
+            startTime={wallet.nextRollover}
+          />
+        </>
+      ) : null}
     </>
   )
 }
