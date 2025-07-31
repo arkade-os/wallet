@@ -50,11 +50,35 @@
   --danger: #e04d4d;
 }
 
+.my-ion-action-sheet div.action-sheet-group {
+  background-color: var(--ion-background-color);
+  border-top: var(--dark50) 1px solid;
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+  & .action-sheet-title {
+    font-size: 1rem;
+    font-weight: 700;
+    text-align: center;
+    & .action-sheet-sub-title {
+      font-size: 0.8rem;
+      font-weight: 400;
+    }
+  }
+  & button {
+    border-radius: 0.5rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+}
+
 ion-button {
   --border-radius: 0.5rem;
   --padding-top: 1rem;
   --padding-bottom: 1rem;
+  font-family: 'Geist Mono';
   font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: 0%;
   min-height: 56px;
   text-transform: uppercase;
   width: 100%;
@@ -146,52 +170,11 @@ ion-content::part(scroll) {
   scrollbar-width: none; /* Firefox */
 }
 
-ion-toast {
-  --background: var(--greenbg);
-  --border-radius: 0.5rem;
-  --color: var(--white);
-  --padding: 1rem;
-  --max-width: 260px;
-  text-align: center;
-}
-
-ion-toast::part(button) {
-  border-left: 1px solid var(--white);
-  color: var(--white);
-  font-size: 0.7rem;
-  text-transform: uppercase;
-}
-
-.toast-container {
-  text-align: center;
-}
-
 ion-action-sheet.my-ion-action-sheet {
   --backdrop-opacity: 0.6;
   --color: var(--ion-color-dark-rgb);
   --max-width: 100%;
   --width: 100%;
-}
-
-.my-ion-action-sheet div.action-sheet-group {
-  background-color: var(--ion-background-color);
-  border-top: var(--dark50) 1px solid;
-  border-top-left-radius: 1rem;
-  border-top-right-radius: 1rem;
-  & .action-sheet-title {
-    font-size: 1rem;
-    font-weight: 700;
-    text-align: center;
-    & .action-sheet-sub-title {
-      font-size: 0.8rem;
-      font-weight: 400;
-    }
-  }
-  & button {
-    border-radius: 0.5rem;
-    padding-top: 1rem;
-    padding-bottom: 1rem;
-  }
 }
 
 ion-modal::part(content) {
@@ -215,6 +198,26 @@ ion-select {
 
 input.native-input:focus::placeholder {
   color: transparent; /* Hide placeholder on focus */
+}
+
+ion-toast {
+  --background: var(--greenbg);
+  --border-radius: 0.5rem;
+  --color: var(--white);
+  --padding: 1rem;
+  --max-width: 260px;
+  text-align: center;
+}
+
+ion-toast::part(button) {
+  border-left: 1px solid var(--white);
+  color: var(--white);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.toast-container {
+  text-align: center;
 }
 
 ion-toggle {
