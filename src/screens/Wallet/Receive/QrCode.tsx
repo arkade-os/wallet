@@ -22,7 +22,7 @@ import { AspContext } from '../../../providers/asp'
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
-  const { validLnSwap, validUtxoTx, validVtxoTx } = useContext(LimitsContext)
+  const { validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { vtxos, svcWallet, wallet, reloadWallet } = useContext(WalletContext)
@@ -32,8 +32,8 @@ export default function ReceiveQRCode() {
 
   // manage all possible receive methods
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
-  const address = validUtxoTx(satoshis) ? boardingAddr : ''
-  const arkAddress = validVtxoTx(satoshis) ? offchainAddr : ''
+  const address = validUtxoTx(satoshis) && utxoTxsAllowed() ? boardingAddr : ''
+  const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
   const defaultBip21uri = bip21.encode(address, arkAddress, '', satoshis)
 
   const [invoice, setInvoice] = useState('')
