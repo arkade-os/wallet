@@ -14,6 +14,7 @@ interface TextProps {
   copy?: string
   smaller?: boolean
   small?: boolean
+  thin?: boolean
   tiny?: boolean
   wrap?: boolean
 }
@@ -29,6 +30,7 @@ export default function Text({
   copy,
   smaller,
   small,
+  thin,
   tiny,
   wrap,
 }: TextProps) {
@@ -40,7 +42,7 @@ export default function Text({
     color: color ? `var(--${color})` : undefined,
     cursor: copy ? 'pointer' : undefined,
     fontSize,
-    fontWeight: bold ? '600' : undefined,
+    fontWeight: thin ? '400' : bold ? '600' : undefined,
     lineHeight: tiny ? '1' : '1.5',
     overflow: wrap ? undefined : 'hidden',
     textAlign: centered ? 'center' : undefined,
