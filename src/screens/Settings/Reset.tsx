@@ -5,9 +5,11 @@ import { WalletContext } from '../../providers/wallet'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import Header from './Header'
-import Text from '../../components/Text'
+import Text, { TextSecondary } from '../../components/Text'
 import Checkbox from '../../components/Checkbox'
 import { consoleError } from '../../lib/logs'
+import { WalletAlternativeIcon } from '../../icons/Wallet'
+import CenterScreen from '../../components/CenterScreen'
 
 export default function Reset() {
   const { resetWallet } = useContext(WalletContext)
@@ -36,8 +38,11 @@ export default function Reset() {
       <Header text='Reset wallet' back />
       <Content>
         <Padded>
-          <Text big>Did you backup your wallet?</Text>
-          <Text color='dark80'>This operation cannot be undone.</Text>
+          <CenterScreen>
+            <WalletAlternativeIcon />
+            <Text>Did you backup your wallet?</Text>
+            <TextSecondary>This operation cannot be undone.</TextSecondary>
+          </CenterScreen>
         </Padded>
       </Content>
       <ButtonsOnBottom>

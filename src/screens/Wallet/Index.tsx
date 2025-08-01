@@ -17,13 +17,14 @@ import ReceiveIcon from '../../icons/Receive'
 import FlexRow from '../../components/FlexRow'
 import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
+import { EmptyList } from '../../components/Empty'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { iframeUrl } = useContext(IframeContext)
   const { navigate } = useContext(NavigationContext)
-  const { balance } = useContext(WalletContext)
+  const { balance, txs } = useContext(WalletContext)
 
   const [error, setError] = useState(false)
 
@@ -56,15 +57,21 @@ export default function Wallet() {
   return (
     <Content>
       <Padded>
-        <LogoIcon small />
-        <Balance amount={balance} />
-        <FlexCol>
-          <Error error={error} text='Ark server unreachable' />
-          <FlexRow>
-            <Button icon={<SendIcon />} label='Send' onClick={handleSend} />
-            <Button icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
-          </FlexRow>
-          <TransactionsList />
+        <FlexCol between>
+          <FlexCol gap='0'>
+            <LogoIcon small />
+            <Balance amount={balance} />
+            <Error error={error} text='Ark server unreachable' />
+            <FlexRow>
+              <Button icon={<SendIcon />} label='Send' onClick={handleSend} />
+              <Button icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
+            </FlexRow>
+          </FlexCol>
+          {txs?.length === 0 ? (
+            <EmptyList text='No transactions yet' secondaryText='Make a transaction to get started.' />
+          ) : (
+            <TransactionsList />
+          )}
         </FlexCol>
       </Padded>
     </Content>

@@ -19,7 +19,7 @@ import Reminder from '../../components/Reminder'
 import { settleVtxos } from '../../lib/asp'
 import Loading from '../../components/Loading'
 import { ArkInfo } from '@arkade-os/sdk'
-import Empty from '../../components/Empty'
+import { EmptyCoins } from '../../components/Empty'
 
 const Box = ({ children }: { children: ReactNode }) => {
   const style = {
@@ -115,10 +115,10 @@ export default function Vtxos() {
           <WaitingForRound rollover />
         ) : (
           <Padded>
-            <FlexCol>
+            <FlexCol between>
               <Error error={Boolean(error)} text={error} />
               {vtxos.spendable?.length === 0 ? (
-                <Empty text='No virtual coins available' />
+                <EmptyCoins />
               ) : showList ? (
                 <FlexCol gap='0.5rem'>
                   <Text capitalize color='dark50' smaller>

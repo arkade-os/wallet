@@ -10,3 +10,14 @@ export default function WalletIcon() {
     </svg>
   )
 }
+
+export function WalletAlternativeIcon() {
+  return (
+    <svg width='49' height='48' viewBox='0 0 49 48' fill='none' xmlns='http://www.w3.org/2000/svg'>
+      <path
+        d='M36.5 6H4.5V42H40.5V34H44.5V14H40.5V6H36.5ZM36.5 34V38H8.5V10H36.5V14H20.5V34H36.5ZM40.5 30H24.5V18H40.5V30ZM32.5 22H28.5V26H32.5V22Z'
+        fill='currentColor'
+      />
+    </svg>
+  )
+}
