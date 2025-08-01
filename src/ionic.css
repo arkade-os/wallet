@@ -230,8 +230,8 @@ ion-toggle {
   --handle-background: var(--grey);
   --handle-background-checked: var(--purple);
 
-  --handle-width: 21px;
-  --handle-height: 21px;
+  --handle-width: 15px;
+  --handle-height: 15px;
   --handle-max-height: auto;
   --handle-spacing: 0;
 
@@ -240,8 +240,8 @@ ion-toggle {
 }
 
 ion-toggle::part(track) {
-  height: 21px;
-  width: 42px;
+  height: 15px;
+  width: 30px;
   border-radius: 0;
 
   /* Required for iOS handle to overflow the height of the track */

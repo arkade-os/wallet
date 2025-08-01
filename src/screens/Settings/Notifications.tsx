@@ -27,24 +27,19 @@ export default function Notifications() {
     <>
       <Header text='Notifications' back />
       <Content>
-        <Toggle
-          checked={config.notifications}
-          label='Notifications'
-          onClick={handleChange}
-          text='Allow notifications'
-        />
         <Padded>
+          <Toggle checked={config.notifications} onClick={handleChange} text='Allow notifications' />
           <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
             {notificationApiSupport ? (
-              <>
-                <TextSecondary>Get notified when an update is available or a payment is received.</TextSecondary>
-                <TextSecondary>You'll need to grant permission if asked.</TextSecondary>
-              </>
+              <TextSecondary>
+                Get notified when an update is available or a payment is received. You'll need to grant permission if
+                asked.
+              </TextSecondary>
             ) : (
               <>
-                <TextSecondary>Your browser does not support the Notifications API.</TextSecondary>
                 <TextSecondary>
-                  If on iOS you'll need to 'Add to homescreen' and be running iOS 16.4 or higher.
+                  Your browser does not support the Notifications API. If on iOS you'll need to 'Add to homescreen' and
+                  be running iOS 16.4 or higher.
                 </TextSecondary>
               </>
             )}
