@@ -13,8 +13,7 @@ import { defaultFee } from '../lib/constants'
 import SelfSendIcon from '../icons/SelfSend'
 import { ConfigContext } from '../providers/config'
 import { FiatContext } from '../providers/fiat'
-import EmptyIcon from '../icons/Empty'
-import FlexCol from './FlexCol'
+import Empty from './Empty'
 
 const border = '1px solid var(--dark20)'
 
@@ -120,18 +119,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
 export default function TransactionsList() {
   const { txs } = useContext(WalletContext)
 
-  if (txs?.length === 0)
-    return (
-      <div style={{ paddingTop: '10rem', width: '100%' }}>
-        <FlexCol centered gap='1rem'>
-          <EmptyIcon />
-          <FlexCol centered gap='0.5rem'>
-            <Text>No transactions yet</Text>
-            <TextSecondary>Make a transaction to get started.</TextSecondary>
-          </FlexCol>
-        </FlexCol>
-      </div>
-    )
+  if (txs?.length === 0) return <Empty text='No transactions yet' secondaryText='Make a transaction to get started.' />
 
   const key = (tx: Tx) => `${tx.amount}${tx.createdAt}${tx.boardingTxid}${tx.roundTxid}${tx.redeemTxid}${tx.type}`
 
