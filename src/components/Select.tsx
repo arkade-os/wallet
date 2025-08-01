@@ -1,56 +1,25 @@
-import { IonSelect, IonSelectOption } from '@ionic/react'
-import ChevronDownIcon from '../icons/ChevronDown'
+import CheckedIcon from '../icons/Checked'
+import FlexRow from './FlexRow'
 import Text from './Text'
 
 interface SelectProps {
-  disabled?: boolean
-  header?: string
-  onSelect: (value: any) => void
+  onChange: (value: any) => void
   options: string[]
   selected: string
-  subHeader?: string
-  title?: string
 }
 
-export default function Select({ disabled, header, onSelect, options, selected, subHeader, title }: SelectProps) {
-  const onChange = (e: CustomEvent) => onSelect(e.detail.value)
-
-  const Label = ({ text }: { text: string }) => (
-    <div style={{ padding: '0.5rem 1rem' }}>
-      <Text capitalize color='dark50' smaller>
-        {text}
-      </Text>
-    </div>
-  )
-
+export default function Select({ onChange, options, selected }: SelectProps) {
   return (
-    <div style={{ position: 'relative', width: '100%' }}>
-      {title ? <Label text={title} /> : null}
-      <div
-        style={{
-          position: 'absolute',
-          right: '0.5rem',
-          top: title ? '3rem' : '.75rem',
-          zIndex: 100,
-        }}
-      >
-        <ChevronDownIcon />
-      </div>
-      <IonSelect
-        disabled={disabled}
-        interface='action-sheet'
-        interfaceOptions={{ header, subHeader }}
-        onIonChange={onChange}
-        placeholder={options[0]}
-        toggleIcon=''
-        value={selected}
-      >
-        {options.map((option) => (
-          <IonSelectOption key={option} value={option}>
-            {option}
-          </IonSelectOption>
-        ))}
-      </IonSelect>
-    </div>
+    <>
+      {options.map((option, index) => (
+        <div key={option} style={{ width: '100%' }}>
+          <FlexRow between key={option} onClick={() => onChange(option)} padding='0.5rem 0'>
+            <Text thin>{option}</Text>
+            {option === selected && <CheckedIcon small />}
+          </FlexRow>
+          {index < options.length - 1 && <hr style={{ backgroundColor: 'var(--dark20)', width: '100%' }} />}
+        </div>
+      ))}
+    </>
   )
 }

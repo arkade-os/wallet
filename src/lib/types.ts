@@ -34,6 +34,7 @@ export enum SettingsSections {
   Advanced = 'Advanced',
   General = 'General',
   Security = 'Security',
+  Config = 'Config',
 }
 
 export enum SettingsOptions {
@@ -51,6 +52,9 @@ export enum SettingsOptions {
   Reset = 'reset wallet',
   Server = 'server',
   Vtxos = 'coin control',
+  Theme = 'theme',
+  Fiat = 'fiat currency',
+  Display = 'display preferences',
 }
 
 export enum Themes {
