@@ -10,9 +10,11 @@ export default function Table({ data }: { data: any[][] }) {
         <FlexRow between key={`${title}${value}`}>
           <FlexRow color='dark50'>
             {icon}
-            <Text>{title}</Text>
+            <Text small thin>
+              {title}
+            </Text>
           </FlexRow>
-          <Text color='dark' copy={value}>
+          <Text color='dark' copy={value} small bold>
             {prettyLongText(value)}
           </Text>
         </FlexRow>
