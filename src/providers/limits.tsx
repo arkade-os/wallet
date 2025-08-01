@@ -50,24 +50,31 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!aspInfo.network || !svcWallet) return
+    let cancelled = false
 
     limits.current.utxo = {
-      min: aspInfo.utxoMinAmount ?? aspInfo.dust ?? -1,
-      max: aspInfo.utxoMaxAmount ?? -1,
+      min: BigInt(aspInfo.utxoMinAmount ?? aspInfo.dust ?? -1),
+      max: BigInt(aspInfo.utxoMaxAmount ?? -1),
     }
 
     limits.current.vtxo = {
-      min: aspInfo.vtxoMinAmount ?? aspInfo.dust ?? -1,
-      max: aspInfo.vtxoMaxAmount ?? -1,
+      min: BigInt(aspInfo.vtxoMinAmount ?? aspInfo.dust ?? -1),
+      max: BigInt(aspInfo.vtxoMaxAmount ?? -1),
     }
 
     const swapProvider = new LightningSwap(aspInfo, svcWallet)
     swapProvider
       .getLimits()
       .then(({ min, max }) => {
+        if (cancelled) return
         limits.current.swap = { ...limits.current.swap, min: BigInt(min), max: BigInt(max) }
       })
       .catch(consoleError)
+
+    // fix potential memory leak with async operation.
+    return () => {
+      cancelled = true
+    }
   }, [aspInfo.network, svcWallet])
 
   const minSwapAllowed = () => Number(limits.current.swap.min)
@@ -131,7 +138,8 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
    * @returns true if the amount is above the maximum limit, false otherwise
    */
   const amountIsAboveMaxLimit = (sats: Satoshis): boolean => {
-    return getMaxSatsAllowed() < 0 ? false : BigInt(sats) > getMaxSatsAllowed()
+    const maxAllowed = getMaxSatsAllowed()
+    return maxAllowed === BigInt(-1) ? false : BigInt(sats) > maxAllowed
   }
 
   /**

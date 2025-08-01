@@ -1,4 +1,5 @@
 #!/bin/bash
+set -Eeuo pipefail
 
 function puts {
   echo
@@ -17,7 +18,10 @@ puts "stopping nigiri"
 nigiri stop --delete
 
 puts "removing docker volumes"
-docker volume rm "$(docker volume ls -q)"
+vols="$(docker volume ls -q)"
+if [[ -n "$vols" ]]; then
+  docker volume rm $vols
+fi
 
 sleep 2
 
