@@ -202,7 +202,7 @@ export default function SendForm() {
   useEffect(() => {
     if (!proceed) return
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
-    if (sendInfo.invoice && !sendInfo.pendingSwap) makeSubmarineSwap(sendInfo.invoice)
+    if (!sendInfo.arkAddress && sendInfo.invoice && !sendInfo.pendingSwap) makeSubmarineSwap(sendInfo.invoice)
     else navigate(Pages.SendDetails)
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
 

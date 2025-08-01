@@ -30,6 +30,8 @@ export const isLightningInvoice = (data: string): boolean => {
 
 export const isURLWithLightningQueryString = (data: string): boolean => {
   try {
+    if (!data.startsWith('http://') && !data.startsWith('https://')) return false
+    // Check if the URL has a 'lightning' query parameter
     const url = new URL(data)
     return url.searchParams.has('lightning')
   } catch (e) {
