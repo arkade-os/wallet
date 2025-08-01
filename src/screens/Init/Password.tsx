@@ -13,9 +13,6 @@ import CenterScreen from '../../components/CenterScreen'
 import Text from '../../components/Text'
 import { consoleLog } from '../../lib/logs'
 import PasskeyIcon from '../../icons/Passkey'
-import SheetModal from '../../components/SheetModal'
-import FlexCol from '../../components/FlexCol'
-import SuccessIcon from '../../icons/Success'
 
 enum Method {
   Password = 'password',

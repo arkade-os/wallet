@@ -14,22 +14,22 @@ import '@ionic/react/css/display.css'
 
 import '@ionic/react/css/palettes/dark.class.css'
 
-import { useContext, useEffect, useState } from 'react'
 import { ConfigContext } from './providers/config'
-import { NavigationContext, pageComponent, Pages, Tabs } from './providers/navigation'
-
 import { IonApp, IonPage, IonTab, IonTabBar, IonTabButton, IonTabs, setupIonicReact } from '@ionic/react'
-import HomeIcon from './icons/Home'
-import SettingsIcon from './icons/Settings'
+import { NavigationContext, pageComponent, Pages, Tabs } from './providers/navigation'
+import { useContext, useEffect, useState } from 'react'
 import { OptionsContext } from './providers/options'
-import { AspContext } from './providers/asp'
-import { SettingsOptions } from './lib/types'
 import { IframeContext } from './providers/iframe'
-import Loading from './components/Loading'
-import AppsIcon from './icons/Apps'
 import { WalletContext } from './providers/wallet'
 import { FlowContext } from './providers/flow'
+import { SettingsOptions } from './lib/types'
+import { AspContext } from './providers/asp'
+import SettingsIcon from './icons/Settings'
+import Loading from './components/Loading'
 import { pwaIsInstalled } from './lib/pwa'
+import WalletIcon from './icons/Wallet'
+import AppsIcon from './icons/Apps'
+import FlexCol from './components/FlexCol'
 
 setupIonicReact()
 
@@ -109,16 +109,22 @@ export default function App() {
             <IonTab tab={Tabs.Settings}>{tab === Tabs.Settings ? comp : <></>}</IonTab>
             <IonTabBar slot='bottom'>
               <IonTabButton tab={Tabs.Wallet} selected={tab === Tabs.Wallet} onClick={handleWallet}>
-                <HomeIcon />
-                Home
+                <FlexCol centered gap='6px'>
+                  <WalletIcon />
+                  Wallet
+                </FlexCol>
               </IonTabButton>
               <IonTabButton tab={Tabs.Apps} selected={tab === Tabs.Apps} onClick={handleApps}>
-                <AppsIcon />
-                Apps
+                <FlexCol centered gap='6px'>
+                  <AppsIcon />
+                  Apps
+                </FlexCol>
               </IonTabButton>
               <IonTabButton tab={Tabs.Settings} selected={tab === Tabs.Settings} onClick={handleSettings}>
-                <SettingsIcon />
-                Settings
+                <FlexCol centered gap='6px'>
+                  <SettingsIcon />
+                  Settings
+                </FlexCol>
               </IonTabButton>
             </IonTabBar>
           </IonTabs>

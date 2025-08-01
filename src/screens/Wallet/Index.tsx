@@ -56,7 +56,7 @@ export default function Wallet() {
   return (
     <Content>
       <Padded>
-        <LogoIcon />
+        <LogoIcon small />
         <Balance amount={balance} />
         <FlexCol>
           <Error error={error} text='Ark server unreachable' />

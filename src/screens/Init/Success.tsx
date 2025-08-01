@@ -1,12 +1,10 @@
 import { useContext } from 'react'
 import Button from '../../components/Button'
-import ButtonsOnBottom from '../../components/ButtonsOnBottom'
-import Content from '../../components/Content'
-import Text from '../../components/Text'
 import Header from '../../components/Header'
-import FlexCol from '../../components/FlexCol'
-import { NavigationContext, Pages } from '../../providers/navigation'
+import Content from '../../components/Content'
 import Success from '../../components/Success'
+import ButtonsOnBottom from '../../components/ButtonsOnBottom'
+import { NavigationContext, Pages } from '../../providers/navigation'
 
 export default function InitSuccess() {
   const { navigate } = useContext(NavigationContext)

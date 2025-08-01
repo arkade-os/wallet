@@ -29,12 +29,18 @@ export default function Balance({ amount }: BalanceProps) {
         My balance
       </Text>
       <FlexRow>
-        <Text bigger>{satsBalance}</Text>
+        <Text bigger>{satsBalance.replace(' SATS', '')}</Text>
+        <div style={{ paddingTop: ' 0.75rem' }}>
+          <Text>SATS</Text>
+        </div>
         <div onClick={toggleShow} style={{ cursor: 'pointer' }}>
           <EyeIcon />
         </div>
       </FlexRow>
-      <Text color='dark80'>{fiatBalance}</Text>
+      <FlexRow>
+        <Text color='dark80'>{fiatBalance.replace(` ${config.fiat}`, '')}</Text>
+        <Text small>{config.fiat}</Text>
+      </FlexRow>
     </FlexCol>
   )
 }

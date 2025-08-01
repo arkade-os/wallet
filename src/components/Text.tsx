@@ -34,7 +34,7 @@ export default function Text({
   tiny,
   wrap,
 }: TextProps) {
-  const fontSize = tiny ? 12 : smaller ? 13 : small ? 14 : big ? 24 : bigger ? 28 : 16
+  const fontSize = tiny ? 12 : smaller ? 13 : small ? 14 : big ? 24 : bigger ? 32 : 16
 
   const className = capitalize ? 'first-letter' : ''
 
