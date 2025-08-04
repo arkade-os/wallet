@@ -57,7 +57,7 @@ export default function Wallet() {
   return (
     <Content>
       <Padded>
-        <FlexCol between>
+        <FlexCol>
           <FlexCol gap='0'>
             <LogoIcon small />
             <Balance amount={balance} />
@@ -68,7 +68,9 @@ export default function Wallet() {
             </FlexRow>
           </FlexCol>
           {txs?.length === 0 ? (
-            <EmptyList text='No transactions yet' secondaryText='Make a transaction to get started.' />
+            <div style={{ marginTop: '5rem', width: '100%' }}>
+              <EmptyList text='No transactions yet' secondaryText='Make a transaction to get started.' />
+            </div>
           ) : (
             <TransactionsList />
           )}
