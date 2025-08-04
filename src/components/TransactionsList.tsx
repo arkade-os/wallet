@@ -37,7 +37,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
         : ''
     const value = toFiat(tx.amount)
     const small = config.currencyDisplay === CurrencyDisplay.Both
-    const world = (config.showBalance ? prettyNumber(value, 2) : prettyHide(value)) + ' ' + config.fiat
+    const world = config.showBalance ? prettyAmount(value, config.fiat) : prettyHide(value, config.fiat)
     return (
       <Text color={color} small={small}>
         {world}

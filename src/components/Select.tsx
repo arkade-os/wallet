@@ -4,7 +4,7 @@ import FlexRow from './FlexRow'
 import Text from './Text'
 
 interface SelectProps {
-  onChange: (value: any) => void
+  onChange: (value: string) => void
   options: string[]
   selected: string
 }
