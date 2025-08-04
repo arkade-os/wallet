@@ -11,7 +11,7 @@ export default function Display() {
 
   return (
     <>
-      <Header text='Fiat' back />
+      <Header text='Display preferences' back />
       <Content>
         <Padded>
           <Select
