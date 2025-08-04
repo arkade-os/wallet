@@ -10,6 +10,7 @@ import Checkbox from '../../components/Checkbox'
 import { consoleError } from '../../lib/logs'
 import { WalletAlternativeIcon } from '../../icons/Wallet'
 import CenterScreen from '../../components/CenterScreen'
+import FlexCol from '../../components/FlexCol'
 
 export default function Reset() {
   const { resetWallet } = useContext(WalletContext)
@@ -46,8 +47,10 @@ export default function Reset() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Checkbox onChange={handleCheck} text='I have backed up my wallet' />
-        <Button disabled={disabled || loading} label='Reset wallet' onClick={handleReset} red loading={loading} />
+        <FlexCol gap='0.5rem'>
+          <Checkbox onChange={handleCheck} text='I have backed up my wallet' />
+          <Button disabled={disabled || loading} label='Reset wallet' onClick={handleReset} red loading={loading} />
+        </FlexCol>
       </ButtonsOnBottom>
     </>
   )

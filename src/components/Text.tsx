@@ -80,7 +80,7 @@ export function TextLabel({ children }: TextProps) {
 
 export function TextSecondary({ centered, children }: TextProps) {
   return (
-    <Text centered={centered} color='dark50' small wrap>
+    <Text centered={centered} color='dark50' small thin wrap>
       {children}
     </Text>
   )

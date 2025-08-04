@@ -115,7 +115,7 @@ export default function Vtxos() {
           <WaitingForRound rollover />
         ) : (
           <Padded>
-            <FlexCol between>
+            <FlexCol>
               <Error error={Boolean(error)} text={error} />
               {vtxos.spendable?.length === 0 ? (
                 <EmptyCoins />
