@@ -34,7 +34,7 @@ export default function InputPassword({ focus, label, onChange, onEnter, strengt
         ref={input}
         type='password'
       >
-        <IonInputPasswordToggle slot='end' />
+        <IonInputPasswordToggle color='dark' slot='end' />
       </IonInput>
     </InputContainer>
   )
