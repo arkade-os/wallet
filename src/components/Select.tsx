@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import CheckedIcon from '../icons/Checked'
 import FlexRow from './FlexRow'
 import Text from './Text'
@@ -9,6 +10,23 @@ interface SelectProps {
 }
 
 export default function Select({ onChange, options, selected }: SelectProps) {
+  useEffect(() => {
+    const handleKeyDown = (event: { key: string; keyCode: number }) => {
+      const selectedIndex = options.indexOf(selected)
+      if (event.key === 'ArrowUp' || event.keyCode === 38) {
+        if (selectedIndex > 0) onChange(options[selectedIndex - 1])
+      } else if (event.key === 'ArrowDown' || event.keyCode === 40) {
+        if (selectedIndex < options.length - 1) onChange(options[selectedIndex + 1])
+      }
+    }
+    // add event listener to the document
+    document.addEventListener('keydown', handleKeyDown)
+    // cleanup event listener on component unmount
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [selected])
+
   return (
     <>
       {options.map((option, index) => (
