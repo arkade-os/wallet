@@ -8,10 +8,11 @@ interface InputPasswordProps {
   label?: string
   onChange: (arg0: any) => void
   onEnter?: () => void
+  placeholder?: string
   strength?: number
 }
 
-export default function InputPassword({ focus, label, onChange, onEnter, strength }: InputPasswordProps) {
+export default function InputPassword({ focus, label, onChange, onEnter, strength, placeholder }: InputPasswordProps) {
   const right = strength ? <StrengthLabel strength={strength} /> : undefined
 
   const firstRun = useRef(true)
@@ -29,6 +30,7 @@ export default function InputPassword({ focus, label, onChange, onEnter, strengt
       <IonInput
         onIonInput={onChange}
         onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
+        placeholder={placeholder}
         ref={input}
         type='password'
       >

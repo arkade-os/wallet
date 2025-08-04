@@ -57,12 +57,16 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
       <ReceivedIcon />
     )
   const Kind = () => (
-    <Text>
+    <Text thin>
       {tx.type === 'sent' ? 'Sent' : 'Received'} {txid}
     </Text>
   )
   const Date = () => <TextSecondary>{prettyDate(tx.createdAt)}</TextSecondary>
-  const Sats = () => <Text color={tx.preconfirmed ? 'orange' : tx.type === 'received' ? 'green' : ''}>{amount}</Text>
+  const Sats = () => (
+    <Text color={tx.preconfirmed ? 'orange' : tx.type === 'received' ? 'green' : ''} thin>
+      {amount}
+    </Text>
+  )
 
   const handleClick = () => {
     setTxInfo(tx)
@@ -113,8 +117,6 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
 
 export default function TransactionsList() {
   const { txs } = useContext(WalletContext)
-
-  if (txs?.length === 0) return <></>
 
   const key = (tx: Tx) => `${tx.amount}${tx.createdAt}${tx.boardingTxid}${tx.roundTxid}${tx.redeemTxid}${tx.type}`
 
