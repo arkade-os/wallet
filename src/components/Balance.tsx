@@ -18,8 +18,8 @@ export default function Balance({ amount }: BalanceProps) {
 
   const fiatAmount = toFiat(amount)
 
-  const satsBalance = config.showBalance ? prettyNumber(amount) : prettyHide(amount)
-  const fiatBalance = config.showBalance ? prettyNumber(fiatAmount, 2) : prettyHide(fiatAmount, config.fiat)
+  const satsBalance = config.showBalance ? prettyNumber(amount) : prettyHide(amount, '')
+  const fiatBalance = config.showBalance ? prettyNumber(fiatAmount, 2) : prettyHide(fiatAmount, '')
 
   const toggleShow = () => updateConfig({ ...config, showBalance: !config.showBalance })
 
@@ -29,7 +29,7 @@ export default function Balance({ amount }: BalanceProps) {
         My balance
       </Text>
       <FlexRow>
-        <Text bigger>{satsBalance.replace(' SATS', '')}</Text>
+        <Text bigger>{satsBalance}</Text>
         <div style={{ paddingTop: ' 0.75rem' }}>
           <Text>SATS</Text>
         </div>
@@ -38,7 +38,7 @@ export default function Balance({ amount }: BalanceProps) {
         </div>
       </FlexRow>
       <FlexRow>
-        <Text color='dark80'>{fiatBalance.replace(` ${config.fiat}`, '')}</Text>
+        <Text color='dark80'>{fiatBalance}</Text>
         <Text small>{config.fiat}</Text>
       </FlexRow>
     </FlexCol>
