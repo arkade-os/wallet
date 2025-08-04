@@ -3,6 +3,7 @@
   --dark80: rgba(var(--ion-color-dark-rgb), 0.8);
   --dark70: rgba(var(--ion-color-dark-rgb), 0.7);
   --dark50: rgba(var(--ion-color-dark-rgb), 0.5);
+  --dark30: rgba(var(--ion-color-dark-rgb), 0.3);
   --dark20: rgba(var(--ion-color-dark-rgb), 0.2);
   --dark10: rgba(var(--ion-color-dark-rgb), 0.1);
   --dark05: rgba(var(--ion-color-dark-rgb), 0.05);
@@ -26,6 +27,11 @@
   --ion-tabbar-background-color: #fafafa;
   --ion-backdrop-color: #fff;
   --toggle-background: #fbfbfb;
+  --danger: #a51515;
+  --warning: #c3730a;
+  --success: #60b18a;
+  --ion-font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
+    'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
 .ion-palette-dark {
@@ -43,14 +49,37 @@
   --ion-backdrop-color: #000;
   --logo-color: #fbfbfb;
   --toggle-background: #ddd;
+  --danger: #e04d4d;
+}
+
+.my-ion-action-sheet div.action-sheet-group {
+  background-color: var(--ion-background-color);
+  border-top: var(--dark50) 1px solid;
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+  & .action-sheet-title {
+    font-size: 1rem;
+    font-weight: 700;
+    text-align: center;
+    & .action-sheet-sub-title {
+      font-size: 0.8rem;
+      font-weight: 400;
+    }
+  }
+  & button {
+    border-radius: 0.5rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
 }
 
 ion-button {
   --border-radius: 0.5rem;
-  --padding-top: 1rem;
-  --padding-bottom: 1rem;
+  font-family: 'Geist Mono';
   font-size: 0.875rem;
-  min-height: 56px;
+  font-weight: 400;
+  letter-spacing: 0%;
+  min-height: 40px;
   text-transform: uppercase;
   width: 100%;
   &.clear {
@@ -141,52 +170,11 @@ ion-content::part(scroll) {
   scrollbar-width: none; /* Firefox */
 }
 
-ion-toast {
-  --background: var(--greenbg);
-  --border-radius: 0.5rem;
-  --color: var(--white);
-  --padding: 1rem;
-  --max-width: 260px;
-  text-align: center;
-}
-
-ion-toast::part(button) {
-  border-left: 1px solid var(--white);
-  color: var(--white);
-  font-size: 0.7rem;
-  text-transform: uppercase;
-}
-
-.toast-container {
-  text-align: center;
-}
-
 ion-action-sheet.my-ion-action-sheet {
   --backdrop-opacity: 0.6;
   --color: var(--ion-color-dark-rgb);
   --max-width: 100%;
   --width: 100%;
-}
-
-.my-ion-action-sheet div.action-sheet-group {
-  background-color: var(--ion-background-color);
-  border-top: var(--dark50) 1px solid;
-  border-top-left-radius: 1rem;
-  border-top-right-radius: 1rem;
-  & .action-sheet-title {
-    font-size: 1rem;
-    font-weight: 700;
-    text-align: center;
-    & .action-sheet-sub-title {
-      font-size: 0.8rem;
-      font-weight: 400;
-    }
-  }
-  & button {
-    border-radius: 0.5rem;
-    padding-top: 1rem;
-    padding-bottom: 1rem;
-  }
 }
 
 ion-modal::part(content) {
@@ -212,6 +200,26 @@ input.native-input:focus::placeholder {
   color: transparent; /* Hide placeholder on focus */
 }
 
+ion-toast {
+  --background: var(--greenbg);
+  --border-radius: 0.5rem;
+  --color: var(--white);
+  --padding: 1rem;
+  --max-width: 260px;
+  text-align: center;
+}
+
+ion-toast::part(button) {
+  border-left: 1px solid var(--white);
+  color: var(--white);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.toast-container {
+  text-align: center;
+}
+
 ion-toggle {
   margin: 12px;
   border: 1px solid var(--black);
@@ -222,8 +230,8 @@ ion-toggle {
   --handle-background: var(--grey);
   --handle-background-checked: var(--purple);
 
-  --handle-width: 21px;
-  --handle-height: 21px;
+  --handle-width: 15px;
+  --handle-height: 15px;
   --handle-max-height: auto;
   --handle-spacing: 0;
 
@@ -232,8 +240,8 @@ ion-toggle {
 }
 
 ion-toggle::part(track) {
-  height: 21px;
-  width: 42px;
+  height: 15px;
+  width: 30px;
   border-radius: 0;
 
   /* Required for iOS handle to overflow the height of the track */

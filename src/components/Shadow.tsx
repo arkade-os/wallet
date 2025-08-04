@@ -1,6 +1,7 @@
 import { ReactNode } from 'react'
 
 interface ShadowProps {
+  border?: boolean
   children: ReactNode
   flex?: boolean
   inverted?: boolean
@@ -13,6 +14,7 @@ interface ShadowProps {
 }
 
 export default function Shadow({
+  border,
   children,
   flex,
   inverted,
@@ -32,7 +34,8 @@ export default function Shadow({
       ? 'var(--dark05)'
       : inverted
       ? 'var(--magenta)'
-      : 'var(--dark10)',
+      : 'var(--dark05)',
+    border: border ? '1px solid var(--dark10)' : undefined,
     borderRadius: squared ? undefined : '0.5rem',
     color: purple ? 'white' : '',
     cursor: onClick ? 'pointer' : undefined,

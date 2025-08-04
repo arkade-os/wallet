@@ -1,3 +1,4 @@
+import { PendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { ReactNode, createContext, useState } from 'react'
 import { Tx } from '../lib/types'
 import { PendingSubmarineSwap } from '../lib/boltz'
@@ -5,6 +6,7 @@ import { PendingSubmarineSwap } from '../lib/boltz'
 export interface InitInfo {
   password?: string
   privateKey?: Uint8Array
+  restoring?: boolean
 }
 
 export interface NoteInfo {

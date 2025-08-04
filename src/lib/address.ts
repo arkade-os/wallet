@@ -1,4 +1,5 @@
 import { bech32m, hex } from '@scure/base'
+import { decode } from 'light-bolt11-decoder'
 
 export const decodeArkAddress = (addr: string) => {
   const decoded = bech32m.decodeUnsafe(addr, 300)
@@ -19,11 +20,18 @@ export const isBTCAddress = (data: string): boolean => {
 }
 
 export const isLightningInvoice = (data: string): boolean => {
-  return /^ln(bc|tb|bcrt)[0-9a-z]+$/i.test(data)
+  try {
+    decode(data)
+    return true
+  } catch {
+    return false
+  }
 }
 
 export const isURLWithLightningQueryString = (data: string): boolean => {
   try {
+    if (!data.startsWith('http://') && !data.startsWith('https://')) return false
+    // Check if the URL has a 'lightning' query parameter
     const url = new URL(data)
     return url.searchParams.has('lightning')
   } catch (e) {

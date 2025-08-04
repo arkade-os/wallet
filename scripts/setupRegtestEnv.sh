@@ -1,4 +1,5 @@
 #!/bin/bash
+set -Eeuo pipefail
 
 function puts {
   echo
@@ -17,7 +18,10 @@ puts "stopping nigiri"
 nigiri stop --delete
 
 puts "removing docker volumes"
-docker volume rm $(docker volume ls -q)
+vols="$(docker volume ls -q)"
+if [[ -n "$vols" ]]; then
+  docker volume rm $vols
+fi
 
 sleep 2
 
@@ -42,7 +46,7 @@ nigiri faucet $address
 sleep 5
 
 puts "connecting lnd instances"
-hideOutput=$($lncli connect `nigiri lnd getinfo | jq -r .identity_pubkey`@lnd:9735)
+hideOutput=$($lncli connect "$(nigiri lnd getinfo | jq -r .identity_pubkey)"@lnd:9735)
 if [ $($lncli listpeers | jq .peers | jq length) -eq 1 ] && [ $(nigiri lnd listpeers | jq .peers | jq length) -eq 1 ]; then
   echo "lnd instances are now connected."
 else
@@ -52,7 +56,7 @@ fi
 
 puts "opening channel between lnd instances"
 # Open a channel with 100k sats
-hideOutput=$($lncli openchannel --node_key=`nigiri lnd getinfo | jq -r .identity_pubkey` --local_amt=100000)
+hideOutput=$($lncli openchannel --node_key="$(nigiri lnd getinfo | jq -r .identity_pubkey)" --local_amt=100000)
 echo " ✔"
 
 puts "make the channel mature by mining 10 blocks"

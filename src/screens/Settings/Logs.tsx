@@ -8,6 +8,7 @@ import FlexCol from '../../components/FlexCol'
 import FlexRow from '../../components/FlexRow'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
+import { EmptyList } from '../../components/Empty'
 
 function LogsTable({ logs }: { logs: LogLine[] }) {
   const color = (level: string): string => {
@@ -19,22 +20,22 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
 
   const numChars = (v: string) => Math.floor((36 - v.length) / 2)
 
+  if (logs.length === 0) {
+    return <EmptyList text='No logs available' secondaryText='Start using the app to generate logs.' />
+  }
+
   return (
     <div style={{ margin: '1rem' }}>
-      {logs.length === 0 ? (
-        <p>No activity logs available</p>
-      ) : (
-        <FlexCol gap='0.5rem'>
-          {[...logs].reverse().map(({ time, msg, level }) => (
-            <FlexRow between key={`${time}${msg}`}>
-              <Text color={color(level)}>{prettyAgo(time)}</Text>
-              <Text color='dark50' copy={msg}>
-                {prettyLongText(msg.replace('...', ''), numChars(prettyAgo(time)))}
-              </Text>
-            </FlexRow>
-          ))}
-        </FlexCol>
-      )}
+      <FlexCol gap='0.5rem'>
+        {[...logs].reverse().map(({ time, msg, level }) => (
+          <FlexRow between key={`${time}${msg}`}>
+            <Text color={color(level)}>{prettyAgo(time)}</Text>
+            <Text color='dark50' copy={msg}>
+              {prettyLongText(msg.replace('...', ''), numChars(prettyAgo(time)))}
+            </Text>
+          </FlexRow>
+        ))}
+      </FlexCol>
     </div>
   )
 }

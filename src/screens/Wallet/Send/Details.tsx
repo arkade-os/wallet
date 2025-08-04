@@ -22,8 +22,8 @@ import Minimal from '../../../components/Minimal'
 import Text from '../../../components/Text'
 import FlexRow from '../../../components/FlexRow'
 import { LimitsContext } from '../../../providers/limits'
-import { refundVHTLC, waitForClaim } from '../../../lib/boltz'
 import { AspContext } from '../../../providers/asp'
+import { LightningSwap } from '../../../lib/lightning'
 
 export default function SendDetails() {
   const { aspInfo } = useContext(AspContext)
@@ -31,7 +31,7 @@ export default function SendDetails() {
   const { iframeUrl } = useContext(IframeContext)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
-  const { balance, svcWallet, wallet } = useContext(WalletContext)
+  const { balance, svcWallet } = useContext(WalletContext)
 
   const [buttonLabel, setButtonLabel] = useState('')
   const [details, setDetails] = useState<DetailsProps>()
@@ -103,15 +103,18 @@ export default function SendDetails() {
       if (!response) return setError('Swap response not available')
       const swapAddress = pendingSwap?.response.address
       if (!swapAddress) return setError('Swap address not available')
+      const swapProvider = new LightningSwap(aspInfo, svcWallet)
       sendOffChain(svcWallet, satoshis, swapAddress)
         .then((txid) => {
-          waitForClaim(pendingSwap, wallet.network)
+          swapProvider
+            .waitForSwapSettlement(pendingSwap)
             .then(() => handleTxid(txid)) // provider claimed the VHTLC
             .catch(({ isRefundable }) => {
               consoleError('Swap failed', 'Swap provider failed to claim VHTLC')
               if (isRefundable) {
                 consoleLog('Refunding VHTLC...')
-                refundVHTLC(pendingSwap, wallet, svcWallet, aspInfo)
+                swapProvider
+                  .refundVHTLC(pendingSwap)
                   .then(() => {
                     consoleLog('VHTLC refunded')
                     setError('Swap failed: VHTLC refunded')

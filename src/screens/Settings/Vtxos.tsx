@@ -10,7 +10,6 @@ import Text, { TextSecondary } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
 import { Vtxo } from '../../lib/types'
 import FlexRow from '../../components/FlexRow'
-import WarningBox from '../../components/Warning'
 import { ConfigContext } from '../../providers/config'
 import { extractError } from '../../lib/error'
 import Error from '../../components/Error'
@@ -20,6 +19,7 @@ import Reminder from '../../components/Reminder'
 import { settleVtxos } from '../../lib/asp'
 import Loading from '../../components/Loading'
 import { LimitsContext } from '../../providers/limits'
+import { EmptyCoins } from '../../components/Empty'
 
 const Box = ({ children }: { children: ReactNode }) => {
   const style = {
@@ -111,7 +111,7 @@ export default function Vtxos() {
             <FlexCol>
               <Error error={Boolean(error)} text={error} />
               {vtxos.spendable?.length === 0 ? (
-                <WarningBox red text='No virtual coins available' />
+                <EmptyCoins />
               ) : showList ? (
                 <FlexCol gap='0.5rem'>
                   <Text capitalize color='dark50' smaller>

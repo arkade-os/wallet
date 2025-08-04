@@ -3,55 +3,42 @@ import { ConfigContext } from '../../providers/config'
 import Content from '../../components/Content'
 import Padded from '../../components/Padded'
 import Header from './Header'
-import { CurrencyDisplay, Fiats, Themes } from '../../lib/types'
-import Select from '../../components/Select'
+import Text from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
+import FlexRow from '../../components/FlexRow'
+import ArrowIcon from '../../icons/Arrow'
+import { SettingsOptions } from '../../lib/types'
+import { OptionsContext } from '../../providers/options'
 
 export default function General() {
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { config } = useContext(ConfigContext)
+  const { setOption } = useContext(OptionsContext)
 
-  const handleCurrencyDisplayChange = (currencyDisplay: CurrencyDisplay) => {
-    updateConfig({ ...config, currencyDisplay })
-  }
-
-  const handleFiatChange = (fiat: Fiats) => {
-    updateConfig({ ...config, fiat })
-  }
-
-  const handleThemeChange = (theme: Themes) => {
-    updateConfig({ ...config, theme })
-  }
+  const Row = ({ option, value }: { option: SettingsOptions; value: string }) => (
+    <FlexRow between padding='0.5rem 0' onClick={() => setOption(option)}>
+      <Text capitalize thin>
+        {option}
+      </Text>
+      <FlexRow end>
+        <Text small thin color='dark50'>
+          {value}
+        </Text>
+        <ArrowIcon />
+      </FlexRow>
+    </FlexRow>
+  )
 
   return (
     <>
       <Header text='General' back />
       <Content>
         <Padded>
-          <FlexCol gap='1rem'>
-            <Select
-              header='Choose theme'
-              subHeader='Dark theme is easier on the eyes'
-              onSelect={handleThemeChange}
-              options={[Themes.Dark, Themes.Light]}
-              selected={config.theme}
-              title='Theme'
-            />
-            <Select
-              header='Fiat currency'
-              subHeader='Choose how you want to see your fiat balance'
-              onSelect={handleFiatChange}
-              options={[Fiats.EUR, Fiats.USD]}
-              selected={config.fiat}
-              title='Fiat currency'
-            />
-            <Select
-              header='Display preferences'
-              subHeader='Choose how you want to see your balances'
-              onSelect={handleCurrencyDisplayChange}
-              options={[CurrencyDisplay.Both, CurrencyDisplay.Sats, CurrencyDisplay.Fiat]}
-              selected={config.currencyDisplay}
-              title='Display preferences'
-            />
+          <FlexCol gap='0'>
+            <Row option={SettingsOptions.Theme} value={config.theme} />
+            <hr style={{ backgroundColor: 'var(--dark20)', width: '100%' }} />
+            <Row option={SettingsOptions.Fiat} value={config.fiat} />
+            <hr style={{ backgroundColor: 'var(--dark20)', width: '100%' }} />
+            <Row option={SettingsOptions.Display} value={config.currencyDisplay} />
           </FlexCol>
         </Padded>
       </Content>

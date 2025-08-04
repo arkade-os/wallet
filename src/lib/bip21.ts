@@ -5,7 +5,6 @@ import qs from 'qs'
 import { fromSatoshis, prettyNumber, toSatoshis } from './format'
 
 export const decode = (uri: string) => {
-  if (!isBip21(uri)) throw new Error('Invalid BIP21 URI: ' + uri)
   let destination, options, query, satoshis
 
   const [scheme, rest] = uri.split(':')
@@ -27,7 +26,7 @@ export const decode = (uri: string) => {
 
   const arkAddress = /^ark/.test(scheme) ? destination : (options?.ark as string)
   const invoice = /^lightning/.test(scheme) ? destination : (options?.lightning as string)
-  const address = /^bitcoin/.test(scheme) ? destination : (options?.liquidnetwork as string)
+  const address = /^bitcoin/.test(scheme) ? destination : (options?.bitcoin as string)
 
   return { address, arkAddress, destination, invoice, options, satoshis, scheme }
 }
@@ -42,5 +41,10 @@ export const encode = (address: string, arkAddress: string, invoice: string, sat
 }
 
 export const isBip21 = (data: string): boolean => {
-  return /^(bitcoin|lightning|liquidnetwork|liquidtestnet):([a-z0-9]{26,}).*$/.test(data.toLowerCase())
+  try {
+    decode(data)
+    return true
+  } catch {
+    return false
+  }
 }

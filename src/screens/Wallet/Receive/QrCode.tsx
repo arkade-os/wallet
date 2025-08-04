@@ -16,8 +16,8 @@ import ExpandAddresses from '../../../components/ExpandAddresses'
 import FlexCol from '../../../components/FlexCol'
 import { LimitsContext } from '../../../providers/limits'
 import { ExtendedCoin } from '@arkade-os/sdk'
-import { reverseSwap, waitAndClaim } from '../../../lib/boltz'
 import { AspContext } from '../../../providers/asp'
+import { LightningSwap } from '../../../lib/lightning'
 
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
@@ -50,16 +50,27 @@ export default function ReceiveQRCode() {
   useEffect(() => {
     // if boltz is available and amount is between limits, let's create a swap invoice
     if (validLnSwap(satoshis) && wallet && svcWallet) {
-      reverseSwap(satoshis, wallet, aspInfo).then((pendingSwap) => {
-        const invoice = pendingSwap.response.invoice
-        setRecvInfo({ ...recvInfo, invoice })
-        setInvoice(invoice)
-        consoleLog('Reverse swap invoice created:', invoice)
-        waitAndClaim(pendingSwap, wallet, svcWallet, aspInfo).then(() => {
-          setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
-          navigate(Pages.ReceiveSuccess)
+      const swapProvider = new LightningSwap(aspInfo, svcWallet)
+      swapProvider
+        .createReverseSwap(satoshis)
+        .then((pendingSwap) => {
+          const invoice = pendingSwap.response.invoice
+          setRecvInfo({ ...recvInfo, invoice })
+          setInvoice(invoice)
+          consoleLog('Reverse swap invoice created:', invoice)
+          swapProvider
+            .waitAndClaim(pendingSwap)
+            .then(() => {
+              setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
+              navigate(Pages.ReceiveSuccess)
+            })
+            .catch((error) => {
+              consoleError('Error claiming reverse swap:', error)
+            })
         })
-      })
+        .catch((error) => {
+          consoleError('Error creating reverse swap:', error)
+        })
     }
   }, [satoshis])
 

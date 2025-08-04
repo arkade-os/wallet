@@ -1,8 +1,9 @@
 import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
 import { Satoshis, TxType } from '../lib/types'
 import { AspContext } from './asp'
-import { getBoltzLimits } from '../lib/boltz'
 import { consoleError } from '../lib/logs'
+import { LightningSwap } from '../lib/lightning'
+import { WalletContext } from './wallet'
 
 type LimitsContextProps = {
   amountIsAboveMaxLimit: (sats: Satoshis) => boolean
@@ -39,6 +40,7 @@ export const LimitsContext = createContext<LimitsContextProps>({
 
 export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
+  const { svcWallet } = useContext(WalletContext)
 
   const limits = useRef<LimitTxTypes>({
     swap: { min: BigInt(1000), max: BigInt(4294967) },
@@ -47,24 +49,33 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   })
 
   useEffect(() => {
-    if (!aspInfo.network) return
+    if (!aspInfo.network || !svcWallet) return
+    let cancelled = false
 
     limits.current.utxo = {
-      min: aspInfo.utxoMinAmount ?? aspInfo.dust ?? -1,
-      max: aspInfo.utxoMaxAmount ?? -1,
+      min: BigInt(aspInfo.utxoMinAmount ?? aspInfo.dust ?? -1),
+      max: BigInt(aspInfo.utxoMaxAmount ?? -1),
     }
 
     limits.current.vtxo = {
-      min: aspInfo.vtxoMinAmount ?? aspInfo.dust ?? -1,
-      max: aspInfo.vtxoMaxAmount ?? -1,
+      min: BigInt(aspInfo.vtxoMinAmount ?? aspInfo.dust ?? -1),
+      max: BigInt(aspInfo.vtxoMaxAmount ?? -1),
     }
 
-    getBoltzLimits(aspInfo.network)
+    const swapProvider = new LightningSwap(aspInfo, svcWallet)
+    swapProvider
+      .getLimits()
       .then(({ min, max }) => {
+        if (cancelled) return
         limits.current.swap = { ...limits.current.swap, min: BigInt(min), max: BigInt(max) }
       })
       .catch(consoleError)
-  }, [aspInfo.network])
+
+    // fix potential memory leak with async operation.
+    return () => {
+      cancelled = true
+    }
+  }, [aspInfo.network, svcWallet])
 
   const minSwapAllowed = () => Number(limits.current.swap.min)
   const maxSwapAllowed = () => Number(limits.current.swap.max)
@@ -127,7 +138,8 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
    * @returns true if the amount is above the maximum limit, false otherwise
    */
   const amountIsAboveMaxLimit = (sats: Satoshis): boolean => {
-    return getMaxSatsAllowed() < 0 ? false : BigInt(sats) > getMaxSatsAllowed()
+    const maxAllowed = getMaxSatsAllowed()
+    return maxAllowed === BigInt(-1) ? false : BigInt(sats) > maxAllowed
   }
 
   /**
