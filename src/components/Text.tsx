@@ -12,6 +12,7 @@ interface TextProps {
   children: ReactNode
   color?: string
   copy?: string
+  fullWidth?: boolean
   smaller?: boolean
   small?: boolean
   thin?: boolean
@@ -28,6 +29,7 @@ export default function Text({
   children,
   color,
   copy,
+  fullWidth,
   smaller,
   small,
   thin,
@@ -38,7 +40,7 @@ export default function Text({
 
   const className = capitalize ? 'first-letter' : ''
 
-  const style: any = {
+  const pStyle: any = {
     color: color ? `var(--${color})` : undefined,
     cursor: copy ? 'pointer' : undefined,
     fontSize,
@@ -51,6 +53,10 @@ export default function Text({
     wordBreak: 'break-word',
   }
 
+  const iStyle: any = {
+    width: fullWidth ? '100%' : undefined,
+  }
+
   const [present] = useIonToast()
 
   const handleClick = () => {
@@ -60,8 +66,8 @@ export default function Text({
   }
 
   return (
-    <IonText>
-      <p className={className} onClick={handleClick} style={style}>
+    <IonText style={iStyle}>
+      <p className={className} onClick={handleClick} style={pStyle}>
         {children}
       </p>
     </IonText>

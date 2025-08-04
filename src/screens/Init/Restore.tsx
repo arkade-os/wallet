@@ -60,7 +60,7 @@ export default function InitRestore() {
               <Input label='Private key' onChange={setSomeKey} />
               <Error error={Boolean(error)} text={error} />
             </FlexCol>
-            <Text color='dark70' thin small>
+            <Text centered color='dark70' fullWidth thin small>
               Your private key should start with the 'nsec' string. Do not share it with anyone.
             </Text>
           </FlexCol>
