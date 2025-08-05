@@ -16,13 +16,15 @@ export default function AlertBox({ text }: AlertProps) {
   }
 
   return (
-    <div style={style}>
-      <FlexRow gap='0.5rem'>
-        <PulsingCircle />
-        <Text bold color='white' wrap>
-          {text}
-        </Text>
-      </FlexRow>
+    <div style={{ padding: '2px', width: '100%' }}>
+      <div style={style}>
+        <FlexRow gap='0.5rem'>
+          <PulsingCircle />
+          <Text bold color='white' small wrap>
+            {text}
+          </Text>
+        </FlexRow>
+      </div>
     </div>
   )
 }
