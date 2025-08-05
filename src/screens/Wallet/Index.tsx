@@ -18,6 +18,8 @@ import FlexRow from '../../components/FlexRow'
 import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { EmptyList } from '../../components/Empty'
+import { getAlert } from '../../lib/alerts'
+import AlertBox from '../../components/AlertBox'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
@@ -26,11 +28,16 @@ export default function Wallet() {
   const { navigate } = useContext(NavigationContext)
   const { balance, txs } = useContext(WalletContext)
 
+  const [alert, setAlert] = useState<string | undefined>()
   const [error, setError] = useState(false)
 
   useEffect(() => {
     setError(aspInfo.unreachable)
   }, [aspInfo.unreachable])
+
+  useEffect(() => {
+    getAlert().then(setAlert)
+  }, [])
 
   const handleReceive = () => {
     setRecvInfo(emptyRecvInfo)
@@ -62,10 +69,11 @@ export default function Wallet() {
             <LogoIcon small />
             <Balance amount={balance} />
             <Error error={error} text='Ark server unreachable' />
-            <FlexRow>
+            <FlexRow padding='0 0 0.5rem 0'>
               <Button icon={<SendIcon />} label='Send' onClick={handleSend} />
               <Button icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
             </FlexRow>
+            {alert ? <AlertBox text={alert} /> : null}
           </FlexCol>
           {txs?.length === 0 ? (
             <div style={{ marginTop: '5rem', width: '100%' }}>
