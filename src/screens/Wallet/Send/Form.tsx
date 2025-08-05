@@ -97,6 +97,7 @@ export default function SendForm() {
       }
       if (isLightningInvoice(lowerCaseData)) {
         const satoshis = getInvoiceSatoshis(lowerCaseData)
+        if (!satoshis) return setError('Invoice must have amount defined')
         setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
         return setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData })
       }
