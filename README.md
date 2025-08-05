@@ -65,3 +65,61 @@ To open the Android or iOS projects use the following commands:
 pnpm run android
 pnpm run ios
 ```
+
+## Troubleshooting
+
+### iOS Setup Issues
+
+If you encounter errors when adding iOS support or running `pnpm run ios`, try the following solutions:
+
+#### Xcode Plugin Loading Errors
+
+If you see errors related to `IDESimulatorFoundation` or missing frameworks like `DVTDownloads.framework`, run:
+
+```bash
+xcodebuild -runFirstLaunch
+```
+
+This initializes Xcode and installs missing system frameworks.
+
+#### Pod Install Failures
+
+If the Capacitor iOS setup fails during pod installation:
+
+1. Navigate to the iOS project directory and run pod install manually:
+
+   ```bash
+   cd ios/App
+   pod install
+   ```
+
+2. Then sync the Capacitor project:
+
+   ```bash
+   pnpm run sync
+   ```
+
+#### General iOS Development Setup
+
+Make sure you have:
+
+- Xcode installed from the Mac App Store
+- Xcode Command Line Tools: `xcode-select --install`
+- CocoaPods installed: `sudo gem install cocoapods`
+
+#### Clean Build
+
+If you're still experiencing issues, try a clean build:
+
+```bash
+# Clean the build directory
+rm -rf dist
+
+# Clean iOS build artifacts
+rm -rf ios/App/App/public
+rm -rf ios/App/build
+
+# Reinstall dependencies and sync
+pnpm install
+pnpm run sync
+```
