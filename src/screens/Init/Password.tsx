@@ -13,9 +13,6 @@ import CenterScreen from '../../components/CenterScreen'
 import Text from '../../components/Text'
 import { consoleLog } from '../../lib/logs'
 import PasskeyIcon from '../../icons/Passkey'
-import SheetModal from '../../components/SheetModal'
-import FlexCol from '../../components/FlexCol'
-import SuccessIcon from '../../icons/Success'
 
 enum Method {
   Password = 'password',
@@ -30,14 +27,13 @@ export default function InitPassword() {
   const [label, setLabel] = useState('')
   const [method, setMethod] = useState<Method>(Method.Password)
   const [password, setPassword] = useState('')
-  const [showSheet, setShowSheet] = useState(false)
 
   const registerUserBiometrics = () => {
     registerUser()
       .then(({ password, passkeyId }) => {
         updateWallet({ ...wallet, lockedByBiometrics: true, passkeyId })
         setInitInfo({ ...initInfo, password })
-        setShowSheet(true)
+        navigate(Pages.InitSuccess)
       })
       .catch(consoleLog)
   }
@@ -46,12 +42,12 @@ export default function InitPassword() {
 
   const handleContinue = () => {
     setInitInfo({ ...initInfo, password })
-    setShowSheet(true)
+    navigate(Pages.InitSuccess)
   }
 
   return (
     <>
-      <Header text='Define password' back={handleCancel} />
+      <Header text='Create new wallet' back={handleCancel} />
       <Content>
         <Padded>
           {method === Method.Biometrics ? (
@@ -81,23 +77,6 @@ export default function InitPassword() {
           <Button onClick={() => setMethod(Method.Password)} label='Use password' secondary />
         )}
       </ButtonsOnBottom>
-      <SheetModal isOpen={showSheet} onClose={() => setShowSheet(false)}>
-        <FlexCol centered>
-          <SuccessIcon small />
-          <FlexCol gap='0.5rem' centered>
-            <Text bold>Wallet created</Text>
-            <Text small>Your wallet is ready for use!</Text>
-            <Text color='dark50' small>
-              {method === Method.Biometrics
-                ? 'Use your biometrics saved as a passkey for easy login.'
-                : "You'll need your password to login."}
-            </Text>
-          </FlexCol>
-          <div style={{ width: '100%' }}>
-            <Button onClick={() => navigate(Pages.InitConnect)} label='Continue' />
-          </div>
-        </FlexCol>
-      </SheetModal>
     </>
   )
 }

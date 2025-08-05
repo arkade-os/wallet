@@ -1,4 +1,4 @@
-import { isArkAddress, isBTCAddress } from '../lib/address'
+import { isArkAddress, isBTCAddress, isLightningInvoice, isURLWithLightningQueryString } from '../lib/address'
 import { isArkNote } from '../lib/arknote'
 import { isBip21 } from '../lib/bip21'
 import InputWithScanner from './InputWithScanner'
@@ -11,6 +11,7 @@ interface InputAddressProps {
   openScan: () => void
   placeholder?: string
   value?: string
+  validator?: (data: string) => boolean
 }
 
 export default function InputAddress({
@@ -21,12 +22,15 @@ export default function InputAddress({
   openScan,
   placeholder,
   value,
+  validator,
 }: InputAddressProps) {
   const isAddress = (data: string): boolean => {
     return (
       isBip21(data.toLowerCase()) ||
       isArkAddress(data.toLowerCase()) ||
       isBTCAddress(data.toLowerCase()) ||
+      isLightningInvoice(data.toLowerCase()) ||
+      isURLWithLightningQueryString(data.toLowerCase()) ||
       isArkNote(data) // easter egg :)
     )
   }
@@ -39,7 +43,7 @@ export default function InputAddress({
       onEnter={onEnter}
       openScan={openScan}
       placeholder={placeholder}
-      validator={isAddress}
+      validator={validator ?? isAddress}
       value={value}
     />
   )

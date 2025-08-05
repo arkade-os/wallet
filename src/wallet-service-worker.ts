@@ -61,23 +61,22 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
 //   cache.put(request, response.clone())
 //   return response
 // }
-
-async function networkFirst(request: Request): Promise<Response> {
-  const cache = await caches.open(CACHE_NAME)
-  try {
-    const response = await fetch(request)
-    if (request.method === 'GET') {
-      cache.put(request, response.clone())
-    }
-    return response
-  } catch (error) {
-    const cachedResponse = await cache.match(request)
-    if (!cachedResponse) throw new Error('No cached response found')
-    return cachedResponse
-  }
-}
+// async function networkFirst(request: Request): Promise<Response> {
+//   const cache = await caches.open(CACHE_NAME)
+//   try {
+//     const response = await fetch(request)
+//     if (request.method === 'GET') {
+//       cache.put(request, response.clone())
+//     }
+//     return response
+//   } catch (error) {
+//     const cachedResponse = await cache.match(request)
+//     if (!cachedResponse) throw new Error('No cached response found')
+//     return cachedResponse
+//   }
+// }
 
 // fetch event: use network first, then cache
-self.addEventListener('fetch', (event: FetchEvent) => {
-  event.respondWith(networkFirst(event.request))
-})
+// self.addEventListener('fetch', (event: FetchEvent) => {
+//   event.respondWith(networkFirst(event.request))
+// })

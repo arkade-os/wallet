@@ -11,6 +11,7 @@ import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
 import CenterScreen from '../../components/CenterScreen'
 import { consoleError } from '../../lib/logs'
+import LockIcon from '../../icons/Lock'
 
 export default function Lock() {
   const { navigate } = useContext(NavigationContext)
@@ -34,6 +35,7 @@ export default function Lock() {
         <Padded>
           <Error error={Boolean(error)} text={error} />
           <CenterScreen>
+            <LockIcon big />
             <Text centered>Lock your wallet</Text>
             <TextSecondary centered>After locking you'll need to re-enter your password to unlock.</TextSecondary>
           </CenterScreen>

@@ -73,14 +73,16 @@ export default function Onboard() {
       return (
         <FlexCol gap='0.5rem'>
           <Title text={title} />
-          <Text wrap>{text}</Text>
+          <Text color='dark80' thin wrap>
+            {text}
+          </Text>
         </FlexCol>
       )
     }
     if (step === 1) {
       return info({
         title: 'Greetings, Earthling! 👾',
-        text: "Your Bitcoin has entered a new dimension.Send, receive, and swap in Arkade's virtual environment. Space-time limits don't apply. Experience the future of Bitcoin today.",
+        text: "Your Bitcoin has entered a new dimension. Send, receive, and swap in Arkade's virtual environment. Space-time limits don't apply. Experience the future of Bitcoin today.",
       })
     }
     if (step === 2) {
@@ -141,7 +143,7 @@ export default function Onboard() {
         {step < steps ? (
           <Button onClick={handleContinue} label='Continue' />
         ) : (
-          <Button onClick={handleSkip} label='Skip for now' clear />
+          <Button onClick={handleSkip} label='Skip for now' secondary />
         )}
       </ButtonsOnBottom>
     </>

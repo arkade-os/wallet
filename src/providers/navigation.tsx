@@ -20,6 +20,7 @@ import Wallet from '../screens/Wallet/Index'
 import Settings from '../screens/Settings/Index'
 import Onboard from '../screens/Wallet/Onboard'
 import Apps from '../screens/Apps'
+import InitSuccess from '../screens/Init/Success'
 
 export enum Pages {
   Apps,
@@ -27,6 +28,7 @@ export enum Pages {
   InitRestore,
   InitPassword,
   InitConnect,
+  InitSuccess,
   Loading,
   NotesRedeem,
   NotesForm,
@@ -58,6 +60,7 @@ const pageTab = {
   [Pages.InitRestore]: Tabs.None,
   [Pages.InitPassword]: Tabs.None,
   [Pages.InitConnect]: Tabs.None,
+  [Pages.InitSuccess]: Tabs.None,
   [Pages.Loading]: Tabs.None,
   [Pages.NotesRedeem]: Tabs.Settings,
   [Pages.NotesForm]: Tabs.Settings,
@@ -88,6 +91,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <InitRestore />
     case Pages.InitPassword:
       return <InitPassword />
+    case Pages.InitSuccess:
+      return <InitSuccess />
     case Pages.Loading:
       return <Loading />
     case Pages.NotesRedeem:

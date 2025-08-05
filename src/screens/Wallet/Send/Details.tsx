@@ -15,17 +15,22 @@ import FlexCol from '../../../components/FlexCol'
 import { collaborativeExit, sendOffChain } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
 import Loading from '../../../components/Loading'
-import { consoleError } from '../../../lib/logs'
+import { consoleError, consoleLog } from '../../../lib/logs'
 import WaitingForRound from '../../../components/WaitingForRound'
 import { IframeContext } from '../../../providers/iframe'
 import Minimal from '../../../components/Minimal'
 import Text from '../../../components/Text'
 import FlexRow from '../../../components/FlexRow'
+import { LimitsContext } from '../../../providers/limits'
+import { AspContext } from '../../../providers/asp'
+import { LightningSwap } from '../../../lib/lightning'
 
 export default function SendDetails() {
-  const { navigate } = useContext(NavigationContext)
+  const { aspInfo } = useContext(AspContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { iframeUrl } = useContext(IframeContext)
+  const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
+  const { navigate } = useContext(NavigationContext)
   const { balance, svcWallet } = useContext(WalletContext)
 
   const [buttonLabel, setButtonLabel] = useState('')
@@ -33,16 +38,32 @@ export default function SendDetails() {
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
 
-  const { address, arkAddress, satoshis, text } = sendInfo
+  const { address, arkAddress, invoice, pendingSwap, satoshis, text } = sendInfo
   const feeInSats = arkAddress ? defaultFee : 0
 
   useEffect(() => {
-    if (!address && !arkAddress) return setError('Missing address')
+    if (!address && !arkAddress && !invoice) return setError('Missing address')
     if (!satoshis) return setError('Missing amount')
     const total = satoshis + feeInSats
+    const destination =
+      arkAddress && vtxoTxsAllowed()
+        ? arkAddress
+        : address && utxoTxsAllowed()
+        ? address
+        : invoice && lnSwapsAllowed()
+        ? invoice
+        : ''
+    const direction =
+      arkAddress && vtxoTxsAllowed()
+        ? 'Paying inside the Ark'
+        : address && utxoTxsAllowed()
+        ? 'Paying to mainnet'
+        : invoice && lnSwapsAllowed()
+        ? 'Swapping to Lightning'
+        : ''
     setDetails({
-      address: arkAddress || address,
-      direction: arkAddress ? 'Paying inside Ark' : 'Paying to mainnet',
+      destination,
+      direction,
       fees: feeInSats,
       satoshis,
       total,
@@ -72,11 +93,43 @@ export default function SendDetails() {
     navigate(Pages.Wallet)
   }
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!satoshis || !svcWallet) return
     setSending(true)
     if (arkAddress) {
       sendOffChain(svcWallet, satoshis, arkAddress).then(handleTxid).catch(handleError)
+    } else if (invoice) {
+      const response = pendingSwap?.response
+      if (!response) return setError('Swap response not available')
+      const swapAddress = pendingSwap?.response.address
+      if (!swapAddress) return setError('Swap address not available')
+      const swapProvider = new LightningSwap(aspInfo, svcWallet)
+      sendOffChain(svcWallet, satoshis, swapAddress)
+        .then((txid) => {
+          swapProvider
+            .waitForSwapSettlement(pendingSwap)
+            .then(() => handleTxid(txid)) // provider claimed the VHTLC
+            .catch(({ isRefundable }) => {
+              consoleError('Swap failed', 'Swap provider failed to claim VHTLC')
+              if (isRefundable) {
+                consoleLog('Refunding VHTLC...')
+                swapProvider
+                  .refundVHTLC(pendingSwap)
+                  .then(() => {
+                    consoleLog('VHTLC refunded')
+                    setError('Swap failed: VHTLC refunded')
+                  })
+                  .catch((refundError) => {
+                    consoleError(refundError, 'Swap failed: VHTLC refund failed')
+                    setError('Swap failed: VHTLC refund failed')
+                  })
+                  .finally(() => {
+                    setSending(false)
+                  })
+              }
+            })
+        })
+        .catch(handleError)
     } else if (address) {
       collaborativeExit(svcWallet, satoshis, address).then(handleTxid).catch(handleError)
     }
@@ -98,7 +151,9 @@ export default function SendDetails() {
       <Header text='Sign transaction' back={() => navigate(Pages.SendForm)} />
       <Content>
         {sending ? (
-          arkAddress ? (
+          invoice ? (
+            <Loading text='Paying to Lightning' />
+          ) : arkAddress ? (
             <Loading text='Paying inside the Ark' />
           ) : (
             <WaitingForRound />

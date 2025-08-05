@@ -12,8 +12,10 @@ interface TextProps {
   children: ReactNode
   color?: string
   copy?: string
+  fullWidth?: boolean
   smaller?: boolean
   small?: boolean
+  thin?: boolean
   tiny?: boolean
   wrap?: boolean
 }
@@ -27,26 +29,32 @@ export default function Text({
   children,
   color,
   copy,
+  fullWidth,
   smaller,
   small,
+  thin,
   tiny,
   wrap,
 }: TextProps) {
-  const fontSize = tiny ? 12 : smaller ? 13 : small ? 14 : big ? 24 : bigger ? 28 : 16
+  const fontSize = tiny ? 12 : smaller ? 13 : small ? 14 : big ? 24 : bigger ? 32 : 16
 
   const className = capitalize ? 'first-letter' : ''
 
-  const style: any = {
+  const pStyle: any = {
     color: color ? `var(--${color})` : undefined,
     cursor: copy ? 'pointer' : undefined,
     fontSize,
-    fontWeight: bold ? '600' : undefined,
+    fontWeight: thin ? '400' : bold ? '600' : undefined,
     lineHeight: tiny ? '1' : '1.5',
     overflow: wrap ? undefined : 'hidden',
     textAlign: centered ? 'center' : undefined,
     textOverflow: wrap ? undefined : 'ellipsis',
     whiteSpace: wrap ? undefined : 'nowrap',
     wordBreak: 'break-word',
+  }
+
+  const iStyle: any = {
+    width: fullWidth ? '100%' : undefined,
   }
 
   const [present] = useIonToast()
@@ -58,8 +66,8 @@ export default function Text({
   }
 
   return (
-    <IonText>
-      <p className={className} onClick={handleClick} style={style}>
+    <IonText style={iStyle}>
+      <p className={className} onClick={handleClick} style={pStyle}>
         {children}
       </p>
     </IonText>
@@ -78,7 +86,7 @@ export function TextLabel({ children }: TextProps) {
 
 export function TextSecondary({ centered, children }: TextProps) {
   return (
-    <Text centered={centered} color='dark50' small wrap>
+    <Text centered={centered} color='dark50' small thin wrap>
       {children}
     </Text>
   )

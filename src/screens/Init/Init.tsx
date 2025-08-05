@@ -34,7 +34,7 @@ export default function Init() {
     const mnemonic = generateMnemonic(wordlist)
     const seed = mnemonicToSeedSync(mnemonic)
     const privateKey = deriveKeyFromSeed(seed)
-    setInitInfo({ privateKey })
+    setInitInfo({ privateKey, restoring: false })
     navigate(Pages.InitPassword)
   }
 

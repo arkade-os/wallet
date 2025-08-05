@@ -56,7 +56,7 @@ export default function Nostr() {
     <>
       <Header text='Nostr' back />
       <Content>
-        <Toggle checked={config.nostr} label='Nostr' onClick={handleCheck} text='Allow Nostr' />
+        <Toggle checked={config.nostr} onClick={handleCheck} text='Allow Nostr' />
         <Padded>
           <FlexCol gap='2rem' margin='2rem 0 0 0'>
             <TextSecondary wrap>
