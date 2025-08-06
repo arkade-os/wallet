@@ -1,17 +1,18 @@
-import { useContext, useEffect, useState } from 'react'
-import Button from '../../components/Button'
-import ButtonsOnBottom from '../../components/ButtonsOnBottom'
-import Error from '../../components/Error'
+import { invalidPrivateKey, nsecToPrivateKey } from '../../lib/privateKey'
 import { NavigationContext, Pages } from '../../providers/navigation'
-import Padded from '../../components/Padded'
+import ButtonsOnBottom from '../../components/ButtonsOnBottom'
+import { useContext, useEffect, useState } from 'react'
 import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
-import { invalidPrivateKey, nsecToPrivateKey } from '../../lib/privateKey'
-import Header from '../../components/Header'
 import FlexCol from '../../components/FlexCol'
 import { extractError } from '../../lib/error'
-import { hex } from '@scure/base'
+import Button from '../../components/Button'
+import Header from '../../components/Header'
+import Padded from '../../components/Padded'
 import Input from '../../components/Input'
+import Error from '../../components/Error'
+import Text from '../../components/Text'
+import { hex } from '@scure/base'
 
 export default function InitRestore() {
   const { navigate } = useContext(NavigationContext)
@@ -43,7 +44,7 @@ export default function InitRestore() {
   const handleCancel = () => navigate(Pages.Init)
 
   const handleProceed = () => {
-    setInitInfo({ privateKey })
+    setInitInfo({ privateKey, restoring: true })
     navigate(Pages.InitPassword)
   }
 
@@ -54,9 +55,14 @@ export default function InitRestore() {
       <Header text='Restore wallet' back={handleCancel} />
       <Content>
         <Padded>
-          <FlexCol>
-            <Input label='Private key' onChange={setSomeKey} />
-            <Error error={Boolean(error)} text={error} />
+          <FlexCol between>
+            <FlexCol>
+              <Input label='Private key' onChange={setSomeKey} />
+              <Error error={Boolean(error)} text={error} />
+            </FlexCol>
+            <Text centered color='dark70' fullWidth thin small>
+              Your private key should start with the 'nsec' string. Do not share it with anyone.
+            </Text>
           </FlexCol>
         </Padded>
       </Content>

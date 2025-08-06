@@ -1,3 +1,3 @@
 export default function FujiMoneyIcon() {
-  return <img height='48px' width='48px' src='/fuji-money.png' />
+  return <img height='55' width='55' src='/fuji-money.png' />
 }

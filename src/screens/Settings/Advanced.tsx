@@ -5,12 +5,7 @@ import { SettingsSections } from '../../lib/types'
 import Menu from '../../components/Menu'
 
 export default function Advanced() {
-  const rows = [SettingsSections.Advanced].map((section) => {
-    return {
-      section,
-      options: options.filter((o) => o.section === section),
-    }
-  })
+  const rows = options.filter((o) => o.section === SettingsSections.Advanced)
 
   return (
     <>

@@ -10,16 +10,15 @@ import Text, { TextSecondary } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
 import { Vtxo } from '../../lib/types'
 import FlexRow from '../../components/FlexRow'
-import WarningBox from '../../components/Warning'
 import { ConfigContext } from '../../providers/config'
 import { extractError } from '../../lib/error'
 import Error from '../../components/Error'
 import WaitingForRound from '../../components/WaitingForRound'
-import { AspContext } from '../../providers/asp'
+import { AspContext, AspInfo } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { settleVtxos } from '../../lib/asp'
 import Loading from '../../components/Loading'
-import { ArkInfo } from '@arkade-os/sdk'
+import { EmptyCoins } from '../../components/Empty'
 
 const Box = ({ children }: { children: ReactNode }) => {
   const style = {
@@ -36,15 +35,7 @@ const Box = ({ children }: { children: ReactNode }) => {
   )
 }
 
-const VtxoLine = ({
-  aspInfo,
-  hide,
-  vtxo,
-}: {
-  aspInfo: ArkInfo & { unreachable: boolean; url: string }
-  hide: boolean
-  vtxo: Vtxo
-}) => {
+const VtxoLine = ({ aspInfo, hide, vtxo }: { aspInfo: AspInfo; hide: boolean; vtxo: Vtxo }) => {
   const amount = hide ? prettyHide(vtxo.value) : prettyNumber(vtxo.value)
   const expiry = vtxo.virtualStatus.batchExpiry ?? vtxo.createdAt.getDate() + Number(aspInfo.vtxoTreeExpiry) * 1000
   return (
@@ -118,7 +109,7 @@ export default function Vtxos() {
             <FlexCol>
               <Error error={Boolean(error)} text={error} />
               {vtxos.spendable?.length === 0 ? (
-                <WarningBox red text='No virtual coins available' />
+                <EmptyCoins />
               ) : showList ? (
                 <FlexCol gap='0.5rem'>
                   <Text capitalize color='dark50' smaller>

@@ -1,3 +1,4 @@
+import { NetworkName } from '@arkade-os/sdk/dist/types/networks'
 import type { ExtendedVirtualCoin } from '@arkade-os/sdk'
 
 export type Addresses = {
@@ -34,6 +35,7 @@ export enum SettingsSections {
   Advanced = 'Advanced',
   General = 'General',
   Security = 'Security',
+  Config = 'Config',
 }
 
 export enum SettingsOptions {
@@ -51,6 +53,9 @@ export enum SettingsOptions {
   Reset = 'reset wallet',
   Server = 'server',
   Vtxos = 'coin control',
+  Theme = 'theme',
+  Fiat = 'fiat currency',
+  Display = 'display preferences',
 }
 
 export enum Themes {
@@ -70,6 +75,12 @@ export type Tx = {
   type: string
 }
 
+export enum TxType {
+  swap = 'swap',
+  utxo = 'utxo',
+  vtxo = 'vtxo',
+}
+
 export enum Unit {
   BTC = 'btc',
   EUR = 'eur',
@@ -81,7 +92,7 @@ export type Vtxo = ExtendedVirtualCoin
 
 export type Wallet = {
   lockedByBiometrics?: boolean
-  network: string
+  network?: NetworkName | ''
   nextRollover: number
   passkeyId?: string
   pubkey?: string

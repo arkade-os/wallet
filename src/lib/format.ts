@@ -73,7 +73,7 @@ export const prettyHide = (value: string | number, suffix = 'SATS'): string => {
   return Array(length).fill('·').join('') + ' ' + suffix
 }
 
-export const prettyLongText = (str?: string, showChars = 12): string => {
+export const prettyLongText = (str?: string, showChars = 11): string => {
   if (!str) return ''
   if (str.length <= showChars * 2 + 4) return str
   const left = str.substring(0, showChars)

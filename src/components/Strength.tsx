@@ -1,11 +1,11 @@
-import { IonGrid, IonRow, IonCol } from '@ionic/react'
+import { IonGrid, IonRow, IonCol, IonProgressBar } from '@ionic/react'
 import Text from './Text'
 import FlexRow from './FlexRow'
 
 const getColor = (strength: number): string => {
-  if (strength <= 1) return 'red'
-  if (strength < 4) return 'orange'
-  return 'green'
+  if (strength <= 1) return 'danger'
+  if (strength < 4) return 'warning'
+  return 'success'
 }
 
 const getWord = (strength: number): string => {
@@ -58,4 +58,9 @@ export default function StrengthBars({ strength }: { strength: number }) {
       </IonRow>
     </IonGrid>
   )
+}
+
+export function StrengthProgress({ strength }: { strength: number }) {
+  const color = getColor(strength)
+  return <IonProgressBar value={strength * 0.25} color={color} style={{ height: '4px' }} />
 }

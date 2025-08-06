@@ -18,6 +18,7 @@ export default function SendSuccess() {
   const { navigate } = useContext(NavigationContext)
   const { notifyPaymentSent } = useContext(NotificationsContext)
 
+  // Show payment sent notification
   useEffect(() => {
     if (sendInfo.total) notifyPaymentSent(sendInfo.total)
   }, [sendInfo.total])
@@ -46,7 +47,7 @@ export default function SendSuccess() {
     <>
       <Header text='Success' />
       <Content>
-        <Success text={`Payment of ${displayAmount} sent successfully`} />
+        <Success headline='Transaction completed!' text={`Payment of ${displayAmount} sent successfully`} />
       </Content>
     </>
   )

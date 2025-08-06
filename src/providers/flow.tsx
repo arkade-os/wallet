@@ -1,9 +1,11 @@
+import { PendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { ReactNode, createContext, useState } from 'react'
 import { Tx } from '../lib/types'
 
 export interface InitInfo {
   password?: string
   privateKey?: Uint8Array
+  restoring?: boolean
 }
 
 export interface NoteInfo {
@@ -14,6 +16,7 @@ export interface NoteInfo {
 export interface RecvInfo {
   boardingAddr: string
   offchainAddr: string
+  invoice?: string
   satoshis: number
   txid?: string
 }
@@ -21,8 +24,12 @@ export interface RecvInfo {
 export type SendInfo = {
   address?: string
   arkAddress?: string
+  invoice?: string
+  lnUrl?: string
+  pendingSwap?: PendingSubmarineSwap
   recipient?: string
   satoshis?: number
+  swapId?: string
   total?: number
   text?: string
   txid?: string

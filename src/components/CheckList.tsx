@@ -1,5 +1,6 @@
 import CheckedIcon from '../icons/Checked'
 import UnheckedIcon from '../icons/Unchecked'
+import FlexCol from './FlexCol'
 import FlexRow from './FlexRow'
 import Text from './Text'
 
@@ -34,10 +35,11 @@ const Line = ({ row }: { row: CheckListData }) => (
 
 export default function CheckList({ data }: CheckListProps) {
   return (
-    <>
+    <FlexCol gap='0.5rem'>
+      <Text smaller>Set a strong password with:</Text>
       {data.map((row) => (
         <Line key={row.text} row={row} />
       ))}
-    </>
+    </FlexCol>
   )
 }

@@ -24,7 +24,7 @@ export default function ReceiveSuccess() {
     <>
       <Header text='Success' />
       <Content>
-        <Success text={`${displayAmount} received successfully`} />
+        <Success headline='Payment received!' text={`${displayAmount} received successfully`} />
       </Content>
     </>
   )

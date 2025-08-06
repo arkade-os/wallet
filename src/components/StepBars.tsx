@@ -5,9 +5,8 @@ export default function StepBars({ active, length }: { active: number; length: n
 
   const style = (col: number) => ({
     backgroundColor: col === active ? `currentColor` : 'var(--dark30)',
-    border: '1px solid var(--dark20)',
     borderRadius: '3px',
-    height: '0.5rem',
+    height: '0.25rem',
     width: '100%',
   })
 
