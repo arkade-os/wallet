@@ -42,10 +42,8 @@ export const getPrivateKey = async (password: string): Promise<Uint8Array> => {
 
 export const setPrivateKey = async (privateKey: Uint8Array, password: string): Promise<void> => {
   try {
-    console.log('Setting private key...', password)
     const encryptedPrivateKey = await encryptPrivateKey(privateKey, password)
     storeEncryptedPrivateKey(encryptedPrivateKey)
-    console.log('Private key set successfully')
   } catch (error) {
     console.error('Failed to encrypt and store private key:', error)
   }

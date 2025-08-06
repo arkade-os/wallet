@@ -87,7 +87,6 @@ export const checkLnUrlConditions = (lnurl: string): Promise<LnUrlResponse> => {
 
 export const fetchInvoice = (lnurl: string, sats: number, note: string): Promise<string> => {
   return new Promise<string>((resolve, reject) => {
-    console.log('Fetching invoice for LNURL:', lnurl, 'with amount:', sats, 'and note:', note)
     const url = getCallbackUrl(lnurl)
     const amount = Math.round(sats * 1000) // millisatoshis
     fetch(url)
@@ -101,7 +100,6 @@ export const fetchInvoice = (lnurl: string, sats: number, note: string): Promise
 
 export const fetchArkAddress = (lnurl: string): Promise<ArkMethodResponse> => {
   return new Promise<ArkMethodResponse>((resolve, reject) => {
-    console.log('Fetching Ark address for LNURL:', lnurl)
     const url = getCallbackUrl(lnurl) + '?method=ark'
     fetch(url)
       .then(checkResponse<ArkMethodResponse>)
