@@ -114,7 +114,7 @@ ion-app ion-header {
   border-bottom: 1px solid #444;
   color: var(--ion-color-dark);
   display: flex;
-  height: 4rem;
+  height: 3rem;
   & ion-grid {
     margin: auto;
   }
@@ -123,11 +123,47 @@ ion-app ion-header {
 .ion-page {
   max-width: 640px;
   margin: auto;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.ios .ion-page {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.ios ion-content {
+  --padding-top: 0;
+  --padding-bottom: 0;
+}
+
+.ios ion-header {
+  padding-top: env(safe-area-inset-top);
+}
+
+.ios .logo-container {
+  padding-top: 1rem;
+}
+
+.ios ion-tab-bar {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.ios ion-footer {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 ion-tab-bar {
   border-top: 1px solid var(--dark20);
   width: 100%;
+  margin-bottom: 0 !important;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  min-height: 3rem;
+  height: 3rem;
   & ion-tab-button {
     --color-selected: var(--ion-color-dark);
     background-color: var(--ion-tabbar-background-color);

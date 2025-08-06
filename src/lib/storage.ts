@@ -1,5 +1,6 @@
 import { Config, Wallet } from '../lib/types'
 import { vtxosRepository } from './db'
+import { stringifyWithBigInt, parseWithBigInt } from './json'
 
 // clear localStorage but persist config
 export async function clearStorage(): Promise<void> {
@@ -24,17 +25,17 @@ const setStorageItem = (key: string, value: string): void => {
 }
 
 export const saveConfigToStorage = (config: Config): void => {
-  setStorageItem('config', JSON.stringify(config))
+  setStorageItem('config', stringifyWithBigInt(config))
 }
 
 export const readConfigFromStorage = (): Config | undefined => {
-  return getStorageItem('config', undefined, (val) => JSON.parse(val))
+  return getStorageItem('config', undefined, (val) => parseWithBigInt(val))
 }
 
 export const saveWalletToStorage = (wallet: Wallet): void => {
-  setStorageItem('wallet', JSON.stringify(wallet))
+  setStorageItem('wallet', stringifyWithBigInt(wallet))
 }
 
 export const readWalletFromStorage = (): Wallet | undefined => {
-  return getStorageItem('wallet', undefined, (val) => JSON.parse(val))
+  return getStorageItem('wallet', undefined, (val) => parseWithBigInt(val))
 }

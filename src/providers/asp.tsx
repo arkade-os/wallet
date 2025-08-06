@@ -27,9 +27,13 @@ export const AspProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!config.aspUrl || !configLoaded) return
     getAspInfo(config.aspUrl)
-      .then(setAspInfo)
-      .catch(() => {
-        setAspInfo({ ...emptyAspInfo, unreachable: true })
+      .then((info) => {
+        setAspInfo(info)
+      })
+      .catch((error) => {
+        console.error('Failed to connect to arkade:', error?.message || error)
+        const errorInfo = { ...emptyAspInfo, unreachable: true, url: config.aspUrl }
+        setAspInfo(errorInfo)
       })
   }, [config.aspUrl, configLoaded])
 

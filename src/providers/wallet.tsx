@@ -10,13 +10,14 @@ import { arkNoteInUrl } from '../lib/arknote'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { calcNextRollover } from '../lib/wallet'
-import { ArkNote, ServiceWorkerWallet, setupServiceWorker } from '@arkade-os/sdk'
+import { ArkNote, ServiceWorkerWallet, setupServiceWorker, Wallet as ArkWallet, SingleKey } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
+import { isServiceWorkerAvailable } from '../lib/environment'
 
 import * as secp from '@noble/secp256k1'
-import { NetworkName } from '@arklabs/wallet-sdk/dist/types/networks'
+import { NetworkName } from '@arkade-os/sdk/dist/types/networks'
 
 const defaultWallet: Wallet = {
   network: '',
@@ -33,7 +34,7 @@ interface WalletContextProps {
   reloadWallet: () => Promise<void>
   wallet: Wallet
   walletLoaded: boolean
-  svcWallet: ServiceWorkerWallet | undefined
+  svcWallet: ServiceWorkerWallet | ArkWallet | undefined
   txs: Tx[]
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: number
@@ -64,7 +65,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const [walletLoaded, setWalletLoaded] = useState(false)
   const [wallet, setWallet] = useState(defaultWallet)
-  const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
+  const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet | ArkWallet>()
 
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
   const [txs, setTxs] = useState<Tx[]>([])
@@ -111,45 +112,66 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     let pingInterval: NodeJS.Timeout
-    async function initSvcWorkerWallet() {
+
+    async function initWalletBackend() {
       try {
         // read wallet from storage
         const walletFromStorage = readWalletFromStorage()
         if (walletFromStorage) setWallet(walletFromStorage)
 
-        // listen for messages from the service worker
-        navigator.serviceWorker.addEventListener('message', (event) => {
-          if (event.data && event.data.type === 'RELOAD_PAGE') {
-            window.location.reload()
-          }
-        })
+        if (isServiceWorkerAvailable()) {
+          // listen for messages from the service worker
+          navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'RELOAD_PAGE') {
+              window.location.reload()
+            }
+          })
 
-        // connect to the service worker
-        const serviceWorker = await setupServiceWorker('/wallet-service-worker.mjs')
-        const svcWallet = new ServiceWorkerWallet(serviceWorker)
-        setSvcWallet(svcWallet)
-
-        // check if the service worker wallet is initialized
-        const { walletInitialized } = await svcWallet.getStatus()
-        setInitialized(walletInitialized)
-
-        // ping the service worker wallet status every 1 second
-        pingInterval = setInterval(async () => {
           try {
+            // connect to the service worker
+            const serviceWorker = await setupServiceWorker('/wallet-service-worker.mjs')
+            
+            const svcWallet = new ServiceWorkerWallet(serviceWorker)
+            setSvcWallet(svcWallet)
+
+            // check if the service worker wallet is initialized
             const { walletInitialized } = await svcWallet.getStatus()
             setInitialized(walletInitialized)
-          } catch (err) {
-            consoleError(err, 'Error pinging wallet status')
+
+            // ping the service worker wallet status every 1 second
+            pingInterval = setInterval(async () => {
+              try {
+                const { walletInitialized } = await svcWallet.getStatus()
+                setInitialized(walletInitialized)
+              } catch (err) {
+                consoleError(err, 'Error pinging wallet status')
+              }
+            }, 1_000)
+          } catch (swError) {
+            console.error('Service worker setup failed:', swError)
+            throw swError // Re-throw to fall back to basic wallet
           }
-        }, 1_000)
+        } else {
+          // For Capacitor or environments without service worker support,
+          // we don't create a wallet instance here. It will be created in initWallet()
+          // when the user actually provides their private key
+          setSvcWallet(undefined)
+          setInitialized(false)
+        }
       } catch (err) {
-        consoleError(err, 'Error initializing service worker wallet')
+        console.error('Error initializing wallet backend:', err)
+        consoleError(err, 'Error initializing wallet backend')
+        // Fallback: no wallet instance, will be created in initWallet()
+        setSvcWallet(undefined)
+        setInitialized(false)
       }
     }
-    // call async function to initialize the service worker wallet
-    initSvcWorkerWallet().then(() => {
+    
+    // call async function to initialize the wallet backend
+    initWalletBackend().then(() => {
       setWalletLoaded(true)
     })
+    
     return () => clearInterval(pingInterval)
   }, [])
 
@@ -173,35 +195,87 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }, [initialized, noteInfo.satoshis])
 
   const initWallet = async (privateKey: Uint8Array) => {
-    if (!svcWallet) throw new Error('Service worker not initialized')
-    const pubkey = hex.encode(secp.getPublicKey(privateKey))
-    const network = aspInfo.network as NetworkName
-    const arkServerUrl = aspInfo.url
-    const esploraUrl = getRestApiExplorerURL(network) ?? ''
-    await svcWallet.init({
-      arkServerUrl,
-      privateKey: hex.encode(privateKey),
-      esploraUrl,
-    })
-    updateWallet({ ...wallet, network, pubkey })
+    if (!svcWallet) {
+      // No wallet instance exists yet (Capacitor or failed service worker init)
+      // Create a new SDK wallet instance
+      const identity = SingleKey.fromHex(hex.encode(privateKey))
+      const newWallet = await ArkWallet.create({
+        identity,
+        arkServerUrl: aspInfo.url,
+      })
+      setSvcWallet(newWallet)
+      const pubkey = hex.encode(secp.getPublicKey(privateKey))
+      const network = aspInfo.network as NetworkName
+      updateWallet({ ...wallet, network, pubkey })
+      setInitialized(true)
+      return
+    }
+    
+    if ('init' in svcWallet) {
+      // ServiceWorkerWallet
+      const pubkey = hex.encode(secp.getPublicKey(privateKey))
+      const network = aspInfo.network as NetworkName
+      const arkServerUrl = aspInfo.url
+      const esploraUrl = getRestApiExplorerURL(network) ?? ''
+      await svcWallet.init({
+        arkServerUrl,
+        privateKey: hex.encode(privateKey),
+        esploraUrl,
+      })
+      updateWallet({ ...wallet, network, pubkey })
+    } else {
+      // Basic Wallet - recreate with the proper key
+      const identity = SingleKey.fromHex(hex.encode(privateKey))
+      const newWallet = await ArkWallet.create({
+        identity,
+        arkServerUrl: aspInfo.url,
+      })
+      setSvcWallet(newWallet)
+      const pubkey = hex.encode(secp.getPublicKey(privateKey))
+      const network = aspInfo.network as NetworkName
+      updateWallet({ ...wallet, network, pubkey })
+    }
     setInitialized(true)
   }
 
   const lockWallet = async () => {
-    if (!svcWallet) throw new Error('Service worker not initialized')
-    await svcWallet.clear()
+    if (!svcWallet) {
+      // No wallet instance to lock
+      setInitialized(false)
+      return
+    }
+    
+    if ('clear' in svcWallet) {
+      // ServiceWorkerWallet
+      await svcWallet.clear()
+    } else {
+      // SDK Wallet - clear the instance
+      setSvcWallet(undefined)
+    }
     setInitialized(false)
   }
 
   const resetWallet = async () => {
-    if (!svcWallet) throw new Error('Service worker not initialized')
-    await svcWallet.clear()
+    if (!svcWallet) {
+      // No wallet instance to reset
+      setInitialized(false)
+      await clearStorage()
+      return
+    }
+    
+    if ('clear' in svcWallet) {
+      // ServiceWorkerWallet
+      await svcWallet.clear()
+    } else {
+      // SDK Wallet - clear the instance
+      setSvcWallet(undefined)
+    }
     setInitialized(false)
     await clearStorage()
   }
 
   const settlePreconfirmed = async () => {
-    if (!svcWallet) throw new Error('Service worker not initialized')
+    if (!svcWallet) throw new Error('Wallet not initialized')
     await settleVtxos(svcWallet)
     notifyTxSettled()
   }
@@ -212,12 +286,22 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const isLocked = async () => {
-    if (!svcWallet) throw new Error('Service worker not initialized')
-    try {
-      const { walletInitialized } = await svcWallet.getStatus()
-      return !walletInitialized
-    } catch {
+    if (!svcWallet) {
+      // No wallet instance means it's locked/uninitialized
       return true
+    }
+    
+    if ('getStatus' in svcWallet) {
+      // ServiceWorkerWallet
+      try {
+        const { walletInitialized } = await svcWallet.getStatus()
+        return !walletInitialized
+      } catch {
+        return true
+      }
+    } else {
+      // SDK Wallet - check if it's initialized based on our state
+      return !initialized
     }
   }
 

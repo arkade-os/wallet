@@ -65,12 +65,19 @@ export default function App() {
   useEffect(() => {
     // avoid redirect if the user is still setting up the wallet
     if (initInfo.password || initInfo.privateKey) return
-    if (!walletLoaded) return navigate(Pages.Loading)
-    if (!wallet.pubkey) return navigate(pwaIsInstalled() ? Pages.Init : Pages.Onboard)
-    if (!initialized) return navigate(Pages.Unlock)
+    if (!walletLoaded) {
+      return navigate(Pages.Loading)
+    }
+    if (!wallet.pubkey) {
+      return navigate(pwaIsInstalled() ? Pages.Init : Pages.Onboard)
+    }
+    if (!initialized) {
+      return navigate(Pages.Unlock)
+    }
   }, [walletLoaded, initialized, svcWallet, initInfo])
 
-  if (!svcWallet) return <Loading text={loadingError} />
+  // Show loading if wallet backend is not ready, or if there's an error
+  if (!walletLoaded) return <Loading text={loadingError} />
 
   const handleWallet = () => {
     navigate(Pages.Wallet)
