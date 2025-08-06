@@ -46,6 +46,7 @@ export const setPrivateKey = async (privateKey: Uint8Array, password: string): P
     storeEncryptedPrivateKey(encryptedPrivateKey)
   } catch (error) {
     console.error('Failed to encrypt and store private key:', error)
+    throw new Error('Failed to set private key')
   }
 }
 
