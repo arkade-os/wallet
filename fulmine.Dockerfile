@@ -1,7 +1,7 @@
 # Build the web interface
 FROM node:22 AS web-builder
 
-RUN git clone https://github.com/ArkLabsHQ/fulmine.git /app && cd /app && git checkout testing
+RUN git clone https://github.com/ArkLabsHQ/fulmine.git /app && cd /app
 WORKDIR /app/internal/interface/web
 RUN rm -rf .parcel-cache && yarn && yarn build
 

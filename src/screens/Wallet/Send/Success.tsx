@@ -47,7 +47,7 @@ export default function SendSuccess() {
     <>
       <Header text='Success' />
       <Content>
-        <Success text={`Payment of ${displayAmount} sent successfully`} />
+        <Success headline='Transaction completed!' text={`Payment of ${displayAmount} sent successfully`} />
       </Content>
     </>
   )

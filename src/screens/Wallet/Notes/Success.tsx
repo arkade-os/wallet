@@ -24,7 +24,7 @@ export default function NotesSuccess() {
     <>
       <Header text='Success' />
       <Content>
-        <Success text={`${displayAmount} redeemed successfully`} />
+        <Success headline='Note redeemed!' text={`${displayAmount} redeemed successfully`} />
       </Content>
     </>
   )
