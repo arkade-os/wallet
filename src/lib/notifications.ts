@@ -13,9 +13,11 @@ export const sendNotification = (title: string, body: string) => {
     new Notification(title, options)
   } catch {
     try {
-      navigator.serviceWorker.ready.then((registration) => {
-        registration.showNotification(title, options)
-      })
+      if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready.then((registration) => {
+          registration.showNotification(title, options)
+        })
+      }
     } catch {}
   }
 }

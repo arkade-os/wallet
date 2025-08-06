@@ -4,9 +4,10 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@capacitor/core": "^7.4.1",
     "@arkade-os/boltz-swap": "^0.1.1",
     "@arkade-os/sdk": "^0.2.1",
+    "@capacitor/core": "^7.4.1",
+    "@capacitor/preferences": "^7.0.2",
     "@dotmind/react-use-pwa": "^1.0.4",
     "@ionic/react": "^8.5.6",
     "@noble/hashes": "^1.8.0",
