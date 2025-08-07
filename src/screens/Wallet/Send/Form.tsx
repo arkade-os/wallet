@@ -140,20 +140,20 @@ export default function SendForm() {
   useEffect(() => {
     if (!sendInfo.lnUrl) return
     if (sendInfo.lnUrl && sendInfo.invoice) return
-    checkLnUrlConditions(sendInfo.lnUrl).then((conditions) => {
-      if (!conditions) return setError('Unable to fetch LNURL conditions')
-      const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
-      const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
-      return setLnUrlLimits({ min, max })
-    })
+    checkLnUrlConditions(sendInfo.lnUrl)
+      .then((conditions) => {
+        if (!conditions) return setError('Unable to fetch LNURL conditions')
+        const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
+        const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
+        return setLnUrlLimits({ min, max })
+      })
+      .catch(() => setError('Invalid address or LNURL'))
   }, [sendInfo.lnUrl])
 
   // check if user wants to send all funds
   useEffect(() => {
     if (sendInfo.lnUrl && sendInfo.satoshis === balance) handleSendAll()
   }, [sendInfo.lnUrl])
-
-  console.log('SendForm: sendInfo', sendInfo)
 
   // validate recipient addresses
   useEffect(() => {
@@ -279,7 +279,6 @@ export default function SendForm() {
 
   const handleSendAll = () => {
     const fees = sendInfo.lnUrl ? calcSwapFee(balance) : 0
-    console.log('SendForm: handleSendAll', { fees, balance, satoshis })
     setAmount(balance - fees)
   }
 
