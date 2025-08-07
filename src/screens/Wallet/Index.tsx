@@ -19,7 +19,7 @@ import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { EmptyList } from '../../components/Empty'
 import { getAlert } from '../../lib/alerts'
-import AlertBox from '../../components/AlertBox'
+import { InfoBox } from '../../components/AlertBox'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
@@ -73,7 +73,7 @@ export default function Wallet() {
               <Button icon={<SendIcon />} label='Send' onClick={handleSend} />
               <Button icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
             </FlexRow>
-            {alert ? <AlertBox text={alert} /> : null}
+            {alert ? <InfoBox text={alert} /> : null}
           </FlexCol>
           {txs?.length === 0 ? (
             <div style={{ marginTop: '5rem', width: '100%' }}>

@@ -18,7 +18,7 @@ import { LimitsContext } from '../../../providers/limits'
 import { ExtendedCoin } from '@arkade-os/sdk'
 import { AspContext } from '../../../providers/asp'
 import { LightningSwap } from '../../../lib/lightning'
-import Text from '../../../components/Text'
+import { WaitBox } from '../../../components/AlertBox'
 
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
@@ -132,7 +132,7 @@ export default function ReceiveQRCode() {
       <Content>
         <Padded>
           <FlexCol centered>
-            {invoice ? <Text small>For Lightning only: keep this page open all the time</Text> : null}
+            {invoice ? <WaitBox text="For Lightning only: don't close this page" /> : null}
             <QrCode value={qrValue} />
             <ExpandAddresses
               bip21uri={bip21uri}

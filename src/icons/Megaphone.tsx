@@ -1,14 +1,13 @@
-export default function MegaphoneIcon() {
-  return (
-    <div style={{ backgroundColor: 'var(--purple)', padding: '5px', borderRadius: '6px' }}>
-      <MegaphoneSVG />
-    </div>
-  )
+interface MegaphoneProps {
+  animated?: boolean
 }
 
-export function MegaphoneSVG() {
+export default function MegaphoneIcon({ animated }: MegaphoneProps) {
+  const style = {
+    animation: animated ? 'var(--animation-pulse)' : 'none',
+  }
   return (
-    <svg width='14' height='14' viewBox='0 0 14 14' fill='none' xmlns='http://www.w3.org/2000/svg'>
+    <svg width='14' height='14' viewBox='0 0 14 14' fill='none' style={style} xmlns='http://www.w3.org/2000/svg'>
       <path
         fillRule='evenodd'
         clipRule='evenodd'

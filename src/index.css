@@ -138,6 +138,12 @@ button.reminder-button.action-sheet-button {
   }
 }
 
+@keyframes pulse {
+  50% {
+    opacity: 0.21;
+  }
+}
+
 @font-face {
   font-family: 'Geist Mono';
   font-style: normal;
