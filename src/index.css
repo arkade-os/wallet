@@ -129,6 +129,11 @@ button.reminder-button.action-sheet-button {
   animation: spin 1s linear infinite;
 }
 
+video {
+  border-radius: 0.5rem;
+  margin: 0 auto;
+}
+
 @keyframes spin {
   0% {
     transform: rotate(0deg);
