@@ -18,12 +18,13 @@ import { LimitsContext } from '../../../providers/limits'
 import { ExtendedCoin } from '@arkade-os/sdk'
 import { AspContext } from '../../../providers/asp'
 import { LightningSwap } from '../../../lib/lightning'
-import Text from '../../../components/Text'
+import { WaitBox } from '../../../components/AlertBox'
+import Loading from '../../../components/Loading'
 
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
-  const { validLnSwap, validUtxoTx, validVtxoTx } = useContext(LimitsContext)
+  const { validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { vtxos, svcWallet, wallet, reloadWallet } = useContext(WalletContext)
@@ -33,19 +34,21 @@ export default function ReceiveQRCode() {
 
   // manage all possible receive methods
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
-  const address = validUtxoTx(satoshis) ? boardingAddr : ''
-  const arkAddress = validVtxoTx(satoshis) ? offchainAddr : ''
+  const address = validUtxoTx(satoshis) && utxoTxsAllowed() ? boardingAddr : ''
+  const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
   const defaultBip21uri = bip21.encode(address, arkAddress, '', satoshis)
 
   const [invoice, setInvoice] = useState('')
   const [qrValue, setQrValue] = useState(defaultBip21uri)
   const [bip21uri, setBip21uri] = useState(defaultBip21uri)
+  const [showQrCode, setShowQrCode] = useState(false)
 
   // set the QR code value to the bip21uri the first time
   useEffect(() => {
     const bip21uri = bip21.encode(address, arkAddress, invoice, satoshis)
     setBip21uri(bip21uri)
     setQrValue(bip21uri)
+    if (invoice) setShowQrCode(true)
   }, [invoice])
 
   useEffect(() => {
@@ -66,12 +69,16 @@ export default function ReceiveQRCode() {
               navigate(Pages.ReceiveSuccess)
             })
             .catch((error) => {
+              setShowQrCode(true)
               consoleError('Error claiming reverse swap:', error)
             })
         })
         .catch((error) => {
+          setShowQrCode(true)
           consoleError('Error creating reverse swap:', error)
         })
+    } else {
+      setShowQrCode(true)
     }
   }, [satoshis])
 
@@ -131,17 +138,21 @@ export default function ReceiveQRCode() {
       <Header text='Receive' back={() => navigate(Pages.ReceiveAmount)} />
       <Content>
         <Padded>
-          <FlexCol centered>
-            {invoice ? <Text small>For Lightning only: keep this page open all the time</Text> : null}
-            <QrCode value={qrValue} />
-            <ExpandAddresses
-              bip21uri={bip21uri}
-              boardingAddr={address}
-              offchainAddr={arkAddress}
-              invoice={invoice}
-              onClick={setQrValue}
-            />
-          </FlexCol>
+          {showQrCode ? (
+            <FlexCol centered>
+              {invoice ? <WaitBox text="For Lightning only: don't close this page" /> : null}
+              <QrCode value={qrValue} />
+              <ExpandAddresses
+                bip21uri={bip21uri}
+                boardingAddr={address}
+                offchainAddr={arkAddress}
+                invoice={invoice}
+                onClick={setQrValue}
+              />
+            </FlexCol>
+          ) : (
+            <Loading text='Generating QR code...' />
+          )}
         </Padded>
       </Content>
       <ButtonsOnBottom>

@@ -21,11 +21,13 @@ import VtxosIcon from '../../icons/Vtxos'
 import CheckMarkIcon from '../../icons/CheckMark'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
+import { LimitsContext } from '../../providers/limits'
 
 export default function Transaction() {
-  const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { txInfo, setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
+  const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
+  const { txInfo, setTxInfo } = useContext(FlowContext)
+  const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { settlePreconfirmed, wallet } = useContext(WalletContext)
 
   const tx = txInfo
@@ -88,6 +90,29 @@ export default function Transaction() {
   }
 
   const bestMarketHourStr = `${prettyDate(startTime)} (${prettyAgo(startTime, true)}) for ${prettyDelta(duration)}`
+
+  // if server defines that UTXO transactions are not allowed,
+  // don't allow settlement since it is a UTXO transaction
+  if (!utxoTxsAllowed() || !vtxoTxsAllowed()) {
+    return (
+      <>
+        <Header text='Transaction' back={handleBack} />
+        <Content>
+          <Padded>
+            <FlexCol>
+              <Error error={Boolean(error)} text={error} />
+              {tx.settled ? null : (
+                <Info color='orange' icon={<VtxosIcon />} title='Preconfirmed'>
+                  <Text wrap>Transaction preconfirmed. Funds will be non-reversible after settlement.</Text>
+                </Info>
+              )}
+              <Details details={details} />
+            </FlexCol>
+          </Padded>
+        </Content>
+      </>
+    )
+  }
 
   return (
     <>

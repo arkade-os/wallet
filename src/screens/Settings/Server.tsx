@@ -63,7 +63,7 @@ export default function Server() {
     handleConnect()
   }
 
-  if (scan) return <Scanner close={() => setScan(false)} label='Server URL' setData={setAspUrl} setError={setError} />
+  if (scan) return <Scanner close={() => setScan(false)} label='Server URL' onData={setAspUrl} onError={setError} />
 
   return (
     <>

@@ -50,7 +50,7 @@ export default function Nostr() {
   const showCopyButton = config.nostr && config.npub === npub && npub
   const showSaveButton = config.nostr && config.npub !== npub && !error
 
-  if (scan) return <Scanner close={() => setScan(false)} label='Nostr npub' setData={setNpub} setError={setError} />
+  if (scan) return <Scanner close={() => setScan(false)} label='Nostr npub' onData={setNpub} onError={setError} />
 
   return (
     <>

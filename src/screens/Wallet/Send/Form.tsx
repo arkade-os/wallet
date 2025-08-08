@@ -313,7 +313,7 @@ export default function SendForm() {
 
   if (scan)
     return (
-      <Scanner close={() => setScan(false)} label='Recipient address' setData={setRecipient} setError={smartSetError} />
+      <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
     )
 
   if (keys) return <Keyboard back={() => setKeys(false)} onChange={setAmount} value={amount} />

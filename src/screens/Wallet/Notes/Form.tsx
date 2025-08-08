@@ -53,7 +53,7 @@ export default function NotesForm() {
     navigate(Pages.Settings)
   }
 
-  if (scan) return <Scanner close={() => setScan(false)} label='Ark note' setData={setNote} setError={setError} />
+  if (scan) return <Scanner close={() => setScan(false)} label='Ark note' onData={setNote} onError={setError} />
 
   return (
     <>
