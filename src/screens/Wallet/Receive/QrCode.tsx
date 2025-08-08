@@ -69,10 +69,12 @@ export default function ReceiveQRCode() {
               navigate(Pages.ReceiveSuccess)
             })
             .catch((error) => {
+              setShowQrCode(true)
               consoleError('Error claiming reverse swap:', error)
             })
         })
         .catch((error) => {
+          setShowQrCode(true)
           consoleError('Error creating reverse swap:', error)
         })
     } else {
