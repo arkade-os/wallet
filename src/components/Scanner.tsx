@@ -1,3 +1,4 @@
+import BarcodeScanner from 'react-qr-barcode-scanner'
 import Button from './Button'
 import ButtonsOnBottom from './ButtonsOnBottom'
 import Content from './Content'
@@ -6,17 +7,34 @@ import Header from './Header'
 import Padded from './Padded'
 import { QRCanvas, frameLoop, frontalCamera } from 'qr/dom.js'
 import { useRef, useEffect, useState } from 'react'
+import { extractError } from '../lib/error'
 
 interface ScannerProps {
   close: () => void
   label: string
-  setData: (arg0: string) => void
-  setError: (arg0: string) => void
+  onData: (arg0: string) => void
+  onError: (arg0: string) => void
+  onSwitch?: () => void
 }
 
-export default function Scanner({ close, label, setData }: ScannerProps) {
-  const [error, setError] = useState(false)
+export default function Scanner({ close, label, onData, onError }: ScannerProps) {
+  const [currentImplementation, setCurrentImplementation] = useState<'mills' | 'react'>('react')
 
+  const handleSwitch = () => {
+    setCurrentImplementation(currentImplementation === 'mills' ? 'react' : 'mills')
+  }
+
+  console.log('currentImplementation', currentImplementation)
+
+  return currentImplementation === 'mills' ? (
+    <ScannerMills close={close} label={label} onData={onData} onError={onError} onSwitch={handleSwitch} />
+  ) : (
+    <ScannerReact close={close} label={label} onData={onData} onError={onError} onSwitch={handleSwitch} />
+  )
+}
+
+function ScannerMills({ close, label, onData, onError, onSwitch }: ScannerProps) {
+  const [error, setError] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
 
   let camera: any
@@ -31,15 +49,16 @@ export default function Scanner({ close, label, setData }: ScannerProps) {
         canvas = new QRCanvas()
         camera = await frontalCamera(videoRef.current)
         const devices = await camera.listDevices()
-        await camera.setDevice(devices[devices.length - 1].deviceId)
+        await camera.setDevice(devices[0].deviceId)
         cancel = frameLoop(() => {
           const res = camera.readFrame(canvas)
           if (res) {
-            setData(res)
+            onData(res)
             handleClose()
           }
         })
       } catch (e) {
+        onError(extractError(e))
         setError(true)
       }
     }
@@ -56,13 +75,63 @@ export default function Scanner({ close, label, setData }: ScannerProps) {
     close()
   }
 
+  const videoStyle: React.CSSProperties = {
+    border: '1px solid var(--purple)',
+    borderRadius: '0.5rem',
+    margin: '0 auto',
+  }
+
   return (
     <>
-      <Header text={label} back={handleClose} />
+      <Header auxFunc={onSwitch} auxText='M' text={label} back={handleClose} />
       <Content>
         <Padded>
           <Error error={error} text='Camera not available' />
-          <video style={{ borderRadius: '0.5rem', margin: '0 auto' }} ref={videoRef} />
+          <video style={videoStyle} ref={videoRef} />
+        </Padded>
+      </Content>
+      <ButtonsOnBottom>
+        <Button onClick={handleClose} label='Cancel' />
+      </ButtonsOnBottom>
+    </>
+  )
+}
+
+function ScannerReact({ label, close, onData, onError, onSwitch }: ScannerProps) {
+  const [stopStream, setStopStream] = useState(false)
+
+  const handleClose = () => {
+    setStopStream(true)
+    close()
+  }
+
+  const handleError = (error: any) => {
+    onError(error.message || 'An error occurred while scanning')
+    handleClose()
+  }
+
+  const handleUpdate = (err: any, result: any) => {
+    if (result) {
+      onData(result.getText())
+      handleClose()
+      onError('')
+    }
+  }
+
+  return (
+    <>
+      <Header auxFunc={onSwitch} auxText='R' text={label} back={handleClose} />
+      <Content>
+        <Padded>
+          <BarcodeScanner
+            delay={300}
+            width={500}
+            height={500}
+            onError={handleError}
+            onUpdate={handleUpdate}
+            stopStream={stopStream}
+            facingMode='environment'
+          />
         </Padded>
       </Content>
       <ButtonsOnBottom>
