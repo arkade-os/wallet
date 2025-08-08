@@ -24,8 +24,6 @@ export default function Scanner({ close, label, onData, onError }: ScannerProps)
     setCurrentImplementation(currentImplementation === 'mills' ? 'react' : 'mills')
   }
 
-  console.log('currentImplementation', currentImplementation)
-
   return currentImplementation === 'mills' ? (
     <ScannerMills close={close} label={label} onData={onData} onError={onError} onSwitch={handleSwitch} />
   ) : (
@@ -49,7 +47,7 @@ function ScannerMills({ close, label, onData, onError, onSwitch }: ScannerProps)
         canvas = new QRCanvas()
         camera = await frontalCamera(videoRef.current)
         const devices = await camera.listDevices()
-        await camera.setDevice(devices[0].deviceId)
+        await camera.setDevice(devices[devices.length - 1].deviceId)
         cancel = frameLoop(() => {
           const res = camera.readFrame(canvas)
           if (res) {
