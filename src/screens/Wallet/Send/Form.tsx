@@ -39,6 +39,7 @@ import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl } fro
 import { extractError } from '../../../lib/error'
 import { calcSwapFee, LightningSwap } from '../../../lib/lightning'
 import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
+import { isRiga } from '../../../lib/constants'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
@@ -176,8 +177,8 @@ export default function SendForm() {
     }
     // check if is trying to self send
     if (address === boardingAddr || arkAddress === offchainAddr) {
-      setError('Cannot send to yourself')
       setTryingToSelfSend(true) // nudge user to rollover
+      return setError('Cannot send to yourself')
     }
     // everything is ok, clean error
     setError('')
@@ -345,7 +346,7 @@ export default function SendForm() {
               right={<Available />}
               value={amount}
             />
-            {tryingToSelfSend ? (
+            {tryingToSelfSend && !isRiga ? (
               <div style={{ width: '100%' }}>
                 <Text centered color='dark50' small>
                   Did you mean <a onClick={gotoRollover}>roll over your VTXOs</a>?
