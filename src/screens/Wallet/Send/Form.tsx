@@ -37,14 +37,16 @@ import { ArkNote } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
-import { calcSwapFee, LightningSwap } from '../../../lib/lightning'
+import { calcSwapFee } from '../../../lib/lightning'
 import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
+import { LightningContext } from '../../../providers/lightning'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
+  const { createSwap } = useContext(LightningContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
@@ -212,7 +214,7 @@ export default function SendForm() {
   useEffect(() => {
     if (!proceed) return
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
-    if (!sendInfo.arkAddress && sendInfo.invoice && !sendInfo.pendingSwap) makeSubmarineSwap(sendInfo.invoice)
+    if (!sendInfo.arkAddress && sendInfo.invoice && !sendInfo.pendingSwap) createSwap(sendInfo.invoice)
     else navigate(Pages.SendDetails)
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
 
@@ -224,18 +226,6 @@ export default function SendForm() {
   const gotoRollover = () => {
     setOption(SettingsOptions.Vtxos)
     navigate(Pages.Settings)
-  }
-
-  const makeSubmarineSwap = async (invoice: string) => {
-    try {
-      const swapProvider = new LightningSwap(aspInfo, svcWallet)
-      const pendingSwap = await swapProvider.createSubmarineSwap(invoice)
-      if (!pendingSwap) return setError('Swap failed: Unable to create submarine swap')
-      setSendInfo({ ...sendInfo, satoshis: pendingSwap.response.expectedAmount, pendingSwap })
-    } catch (error) {
-      consoleError(error, 'Swap failed')
-      setError('Swap failed: ' + extractError(error))
-    }
   }
 
   const handleContinue = async () => {
