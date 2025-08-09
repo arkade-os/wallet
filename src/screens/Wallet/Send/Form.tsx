@@ -81,7 +81,7 @@ export default function SendForm() {
     const parseRecipient = async () => {
       if (!recipient) return
 
-      const lowerCaseData = recipient.toLowerCase()
+      const lowerCaseData = recipient.toLowerCase().replace(/^lightning:/, '')
 
       if (isURLWithLightningQueryString(recipient)) {
         const url = new URL(recipient)
