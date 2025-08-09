@@ -13,6 +13,7 @@ import CenterScreen from '../../components/CenterScreen'
 import Text from '../../components/Text'
 import { consoleLog } from '../../lib/logs'
 import PasskeyIcon from '../../icons/Passkey'
+import { defaultPassword } from '../../lib/constants'
 
 enum Method {
   Password = 'password',
@@ -41,7 +42,8 @@ export default function InitPassword() {
   const handleCancel = () => navigate(Pages.Init)
 
   const handleContinue = () => {
-    setInitInfo({ ...initInfo, password })
+    const pass = password ? password : defaultPassword
+    setInitInfo({ ...initInfo, password: pass })
     navigate(Pages.InitSuccess)
   }
 
@@ -68,7 +70,7 @@ export default function InitPassword() {
       <ButtonsOnBottom>
         {method === Method.Password ? (
           <>
-            <Button onClick={handleContinue} label={label} disabled={!password} />
+            <Button onClick={handleContinue} label={label} />
             {isBiometricsSupported() ? (
               <Button onClick={() => setMethod(Method.Biometrics)} label='Use biometrics' secondary />
             ) : null}
