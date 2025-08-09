@@ -27,7 +27,7 @@ export default function InitPassword() {
 
   const [label, setLabel] = useState('')
   const [method, setMethod] = useState<Method>(Method.Password)
-  const [password, setPassword] = useState<string | undefined>()
+  const [password, setPassword] = useState('')
 
   const registerUserBiometrics = () => {
     registerUser()
@@ -42,7 +42,7 @@ export default function InitPassword() {
   const handleCancel = () => navigate(Pages.Init)
 
   const handleContinue = () => {
-    const pass = password ?? defaultPassword
+    const pass = password ? password : defaultPassword
     setInitInfo({ ...initInfo, password: pass })
     navigate(Pages.InitSuccess)
   }
