@@ -39,7 +39,7 @@ export const collaborativeExit = async (wallet: IWallet, amount: number, address
     outputs.push({ address: offchainAddr, amount: BigInt(changeAmount) })
   }
 
-  return wallet.settle({ inputs: selectedVtxos, outputs }, consoleLog)
+  return wallet.settle({ inputs: selectedVtxos, outputs })
 }
 
 export const getAspInfo = async (url: string): Promise<AspInfo> => {
