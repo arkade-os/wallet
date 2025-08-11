@@ -26,7 +26,7 @@ export default function Paste({ data, onClick }: PasteProps) {
             </FlexRow>
           </IonCol>
           <IonCol size='5'>
-            <Text color='dark50' smaller>
+            <Text right color='dark50' smaller>
               {data}
             </Text>
           </IonCol>

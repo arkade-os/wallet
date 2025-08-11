@@ -13,6 +13,7 @@ interface TextProps {
   color?: string
   copy?: string
   fullWidth?: boolean
+  right?: boolean
   smaller?: boolean
   small?: boolean
   thin?: boolean
@@ -30,6 +31,7 @@ export default function Text({
   color,
   copy,
   fullWidth,
+  right,
   smaller,
   small,
   thin,
@@ -47,7 +49,7 @@ export default function Text({
     fontWeight: thin ? '400' : bold ? '600' : undefined,
     lineHeight: tiny ? '1' : '1.5',
     overflow: wrap ? undefined : 'hidden',
-    textAlign: centered ? 'center' : undefined,
+    textAlign: centered ? 'center' : right ? 'right' : undefined,
     textOverflow: wrap ? undefined : 'ellipsis',
     whiteSpace: wrap ? undefined : 'nowrap',
     wordBreak: 'break-word',

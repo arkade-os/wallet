@@ -37,7 +37,7 @@ puts "starting boltz lnd"
 docker compose -f test.docker-compose.yml up -d boltz-lnd
 lncli="docker exec -it boltz-lnd lncli --network=regtest"
 
-sleep 5
+sleep 10
 
 puts "funding boltz lnd"
 address=$($lncli newaddress p2wkh | jq -r .address | cut -c1-45)

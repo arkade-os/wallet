@@ -37,7 +37,7 @@ import { ArkNote } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
-import { LightningSwap } from '../../../lib/lightning'
+import { calcSwapFee, LightningSwap } from '../../../lib/lightning'
 import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 
 export default function SendForm() {
@@ -97,6 +97,7 @@ export default function SendForm() {
       }
       if (isLightningInvoice(lowerCaseData)) {
         const satoshis = getInvoiceSatoshis(lowerCaseData)
+        if (!satoshis) return setError('Invoice must have amount defined')
         setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
         return setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData })
       }
@@ -120,6 +121,7 @@ export default function SendForm() {
     parseRecipient()
   }, [recipient])
 
+  // check lnurl limits
   useEffect(() => {
     const { min, max } = lnUrlLimits
     if (!min || !max) return
@@ -134,15 +136,23 @@ export default function SendForm() {
     }
   }, [lnUrlLimits.min, lnUrlLimits.max])
 
+  // check lnurl conditions
   useEffect(() => {
     if (!sendInfo.lnUrl) return
     if (sendInfo.lnUrl && sendInfo.invoice) return
-    checkLnUrlConditions(sendInfo.lnUrl).then((conditions) => {
-      if (!conditions) return setError('Unable to fetch LNURL conditions')
-      const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
-      const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
-      return setLnUrlLimits({ min, max })
-    })
+    checkLnUrlConditions(sendInfo.lnUrl)
+      .then((conditions) => {
+        if (!conditions) return setError('Unable to fetch LNURL conditions')
+        const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
+        const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
+        return setLnUrlLimits({ min, max })
+      })
+      .catch(() => setError('Invalid address or LNURL'))
+  }, [sendInfo.lnUrl])
+
+  // check if user wants to send all funds
+  useEffect(() => {
+    if (sendInfo.lnUrl && sendInfo.satoshis === balance) handleSendAll()
   }, [sendInfo.lnUrl])
 
   // validate recipient addresses
@@ -267,6 +277,11 @@ export default function SendForm() {
     if (isMobileBrowser) setKeys(true)
   }
 
+  const handleSendAll = () => {
+    const fees = sendInfo.lnUrl ? calcSwapFee(balance) : 0
+    setAmount(balance - fees)
+  }
+
   const smartSetError = (str: string) => {
     setError(str === '' ? (aspInfo.unreachable ? 'Ark server unreachable' : '') : str)
   }
@@ -275,7 +290,7 @@ export default function SendForm() {
     const amount = useFiat ? toFiat(balance) : balance
     const pretty = useFiat ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
     return (
-      <div onClick={() => setAmount(amount)} style={{ cursor: 'pointer' }}>
+      <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
         <Text color='dark50' smaller>
           {`${pretty} available`}
         </Text>

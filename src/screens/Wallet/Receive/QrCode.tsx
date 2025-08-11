@@ -18,6 +18,8 @@ import { LimitsContext } from '../../../providers/limits'
 import { ExtendedCoin } from '@arkade-os/sdk'
 import { AspContext } from '../../../providers/asp'
 import { LightningSwap } from '../../../lib/lightning'
+import Text from '../../../components/Text'
+import Loading from '../../../components/Loading'
 
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
@@ -39,12 +41,14 @@ export default function ReceiveQRCode() {
   const [invoice, setInvoice] = useState('')
   const [qrValue, setQrValue] = useState(defaultBip21uri)
   const [bip21uri, setBip21uri] = useState(defaultBip21uri)
+  const [showQrCode, setShowQrCode] = useState(false)
 
   // set the QR code value to the bip21uri the first time
   useEffect(() => {
     const bip21uri = bip21.encode(address, arkAddress, invoice, satoshis)
     setBip21uri(bip21uri)
     setQrValue(bip21uri)
+    if (invoice) setShowQrCode(true)
   }, [invoice])
 
   useEffect(() => {
@@ -71,6 +75,8 @@ export default function ReceiveQRCode() {
         .catch((error) => {
           consoleError('Error creating reverse swap:', error)
         })
+    } else {
+      setShowQrCode(true)
     }
   }, [satoshis])
 
@@ -130,16 +136,21 @@ export default function ReceiveQRCode() {
       <Header text='Receive' back={() => navigate(Pages.ReceiveAmount)} />
       <Content>
         <Padded>
-          <FlexCol>
-            <QrCode value={qrValue} />
-            <ExpandAddresses
-              bip21uri={bip21uri}
-              boardingAddr={address}
-              offchainAddr={arkAddress}
-              invoice={invoice}
-              onClick={setQrValue}
-            />
-          </FlexCol>
+          {showQrCode ? (
+            <FlexCol centered>
+              {invoice ? <Text small>For Lightning only: keep this page open all the time</Text> : null}
+              <QrCode value={qrValue} />
+              <ExpandAddresses
+                bip21uri={bip21uri}
+                boardingAddr={address}
+                offchainAddr={arkAddress}
+                invoice={invoice}
+                onClick={setQrValue}
+              />
+            </FlexCol>
+          ) : (
+            <Loading text='Generating QR code...' />
+          )}
         </Padded>
       </Content>
       <ButtonsOnBottom>

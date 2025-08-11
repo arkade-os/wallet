@@ -42,19 +42,19 @@ root.render(
   <NavigationProvider>
     <ConfigProvider>
       <AspProvider>
-        <LimitsProvider>
-          <NotificationsProvider>
-            <FiatProvider>
-              <FlowProvider>
-                <WalletProvider>
+        <NotificationsProvider>
+          <FiatProvider>
+            <FlowProvider>
+              <WalletProvider>
+                <LimitsProvider>
                   <OptionsProvider>
                     <AppWithProviders />
                   </OptionsProvider>
-                </WalletProvider>
-              </FlowProvider>
-            </FiatProvider>
-          </NotificationsProvider>
-        </LimitsProvider>
+                </LimitsProvider>
+              </WalletProvider>
+            </FlowProvider>
+          </FiatProvider>
+        </NotificationsProvider>
       </AspProvider>
     </ConfigProvider>
   </NavigationProvider>,

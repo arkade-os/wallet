@@ -1,4 +1,10 @@
-import { isArkAddress, isBTCAddress, isLightningInvoice, isURLWithLightningQueryString } from '../lib/address'
+import {
+  isArkAddress,
+  isBTCAddress,
+  isEmailAddress,
+  isLightningInvoice,
+  isURLWithLightningQueryString,
+} from '../lib/address'
 import { isArkNote } from '../lib/arknote'
 import { isBip21 } from '../lib/bip21'
 import InputWithScanner from './InputWithScanner'
@@ -31,6 +37,7 @@ export default function InputAddress({
       isBTCAddress(data.toLowerCase()) ||
       isLightningInvoice(data.toLowerCase()) ||
       isURLWithLightningQueryString(data.toLowerCase()) ||
+      isEmailAddress(data) ||
       isArkNote(data) // easter egg :)
     )
   }

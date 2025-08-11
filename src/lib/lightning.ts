@@ -64,3 +64,7 @@ export class LightningSwap {
     return this.provider.refundVHTLC(pendingSwap)
   }
 }
+
+export const calcSwapFee = (satoshis: number): number => {
+  return Math.ceil(satoshis * 0.0001) // TODO: replace this
+}
