@@ -20,6 +20,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import { EmptyList } from '../../components/Empty'
 import { getAlert } from '../../lib/alerts'
 import { InfoBox } from '../../components/AlertBox'
+import { isRiga } from '../../lib/constants'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
@@ -71,7 +72,7 @@ export default function Wallet() {
             <Error error={error} text='Ark server unreachable' />
             <FlexRow padding='0 0 0.5rem 0'>
               <Button icon={<SendIcon />} label='Send' onClick={handleSend} />
-              <Button icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
+              <Button icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} disabled={isRiga} />
             </FlexRow>
             {alert ? <InfoBox text={alert} /> : null}
           </FlexCol>
