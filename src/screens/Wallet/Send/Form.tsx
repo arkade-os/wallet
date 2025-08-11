@@ -342,6 +342,7 @@ export default function SendForm() {
               onChange={setAmount}
               onEnter={handleEnter}
               onFocus={handleFocus}
+              onMax={handleSendAll}
               readOnly={amountIsReadOnly}
               right={<Available />}
               value={amount}
