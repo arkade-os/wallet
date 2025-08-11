@@ -12,8 +12,8 @@ import { WalletContext } from '../../providers/wallet'
 import CenterScreen from '../../components/CenterScreen'
 import Text from '../../components/Text'
 import { consoleLog } from '../../lib/logs'
-import PasskeyIcon from '../../icons/Passkey'
 import { defaultPassword } from '../../lib/constants'
+import LockIcon from '../../icons/Lock'
 
 enum Method {
   Password = 'password',
@@ -54,12 +54,12 @@ export default function InitPassword() {
         <Padded>
           {method === Method.Biometrics ? (
             <CenterScreen onClick={registerUserBiometrics}>
-              <PasskeyIcon />
+              <LockIcon big />
               <Text big centered>
                 Create passkey
               </Text>
               <Text centered color='dark50' small wrap>
-                This will allow you to log in easily through biometrics without a need to remember username or password.
+                This will allow you to log in easily through biometrics without a need to remember the password.
               </Text>
             </CenterScreen>
           ) : (
