@@ -34,7 +34,7 @@ export const NudgeProvider = ({ children }: { children: ReactNode }) => {
     if (!wallet || !balance) return
     noUserDefinedPassword().then((noPassword) => {
       if (noPassword && balance > minSatsToNudge) {
-        setNudge(<CreatePasswordWarning onClick={navigateToSettings} />)
+        setNudge(<CreatePasswordWarning onClick={navigateToSettings} onClose={close} />)
       }
     })
   }, [wallet, balance])
