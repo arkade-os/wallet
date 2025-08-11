@@ -21,12 +21,14 @@ import { EmptyList } from '../../components/Empty'
 import { getAlert } from '../../lib/alerts'
 import { InfoBox } from '../../components/AlertBox'
 import { isRiga } from '../../lib/constants'
+import { NudgeContext } from '../../providers/nudge'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { iframeUrl } = useContext(IframeContext)
   const { navigate } = useContext(NavigationContext)
+  const { nudge } = useContext(NudgeContext)
   const { balance, txs } = useContext(WalletContext)
 
   const [alert, setAlert] = useState<string | undefined>()
@@ -75,6 +77,7 @@ export default function Wallet() {
               <Button icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} disabled={isRiga} />
             </FlexRow>
             {alert ? <InfoBox text={alert} /> : null}
+            {nudge}
           </FlexCol>
           {txs?.length === 0 ? (
             <div style={{ marginTop: '5rem', width: '100%' }}>

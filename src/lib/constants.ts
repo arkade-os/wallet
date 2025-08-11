@@ -6,6 +6,7 @@ export const testServer = 'https://bitcoin-beta.arkade.sh'
 export const mainServer = 'https://bitcoin-beta.arkade.sh'
 export const isRiga = (import.meta.env.VITE_IS_RIGA as boolean) ?? false
 export const defaultPassword = 'noah'
+export const minSatsToNudge = 10_000
 
 export const defaultArkServer = () => {
   if (import.meta.env.VITE_ARK_SERVER) return import.meta.env.VITE_ARK_SERVER
