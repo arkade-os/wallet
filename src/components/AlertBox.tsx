@@ -41,8 +41,27 @@ function AlertBoxIcon({ children }: { children: React.ReactNode }) {
   return <div style={style}>{children}</div>
 }
 
-export function InfoBox({ text }: { text: string }) {
-  return <AlertBox icon={<MegaphoneIcon animated />} text={text} />
+export function InfoBox({ html }: { html: string }) {
+  const style = {
+    backgroundColor: 'var(--purple20)',
+    border: '1px solid var(--dark20)',
+    borderRadius: '0.5rem',
+    padding: '0.5rem',
+    color: 'white',
+    width: '100%',
+  }
+  return (
+    <div style={{ padding: '2px', width: '100%' }}>
+      <div style={style}>
+        <FlexRow gap='0.5rem'>
+          <AlertBoxIcon>
+            <MegaphoneIcon animated />
+          </AlertBoxIcon>
+          <div dangerouslySetInnerHTML={{ __html: html }} />
+        </FlexRow>
+      </div>
+    </div>
+  )
 }
 
 export function WaitBox({ text }: { text: string }) {
