@@ -89,6 +89,11 @@ export const options: Option[] = [
     option: SettingsOptions.Display,
     section: SettingsSections.Config,
   },
+  {
+    icon: <></>,
+    option: SettingsOptions.Password,
+    section: SettingsSections.Advanced,
+  },
 ]
 
 export interface SectionResponse {

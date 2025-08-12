@@ -49,7 +49,7 @@ export enum SettingsOptions {
   Notifications = 'notifications',
   Nostr = 'nostr',
   Notes = 'notes',
-  Password = 'password',
+  Password = 'change password',
   Reset = 'reset wallet',
   Server = 'server',
   Vtxos = 'coin control',

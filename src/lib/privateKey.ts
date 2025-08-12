@@ -1,4 +1,5 @@
 import { getPublicKey, nip19 } from 'nostr-tools'
+import { defaultPassword } from './constants'
 
 const STORAGE_KEY = 'encrypted_private_key'
 
@@ -46,8 +47,21 @@ export const setPrivateKey = async (privateKey: Uint8Array, password: string): P
     storeEncryptedPrivateKey(encryptedPrivateKey)
   } catch (error) {
     console.error('Failed to encrypt and store private key:', error)
-    throw new Error('Failed to encrypt and store private key')
+    throw new Error('Failed to set private key')
   }
+}
+
+export const isValidPassword = async (password: string): Promise<boolean> => {
+  try {
+    await getPrivateKey(password)
+    return true
+  } catch {
+    return false
+  }
+}
+
+export const noUserDefinedPassword = async (): Promise<boolean> => {
+  return await isValidPassword(defaultPassword)
 }
 
 const storeEncryptedPrivateKey = (encryptedPrivateKey: string): void => {
@@ -103,7 +117,7 @@ const encryptPrivateKey = async (privateKey: Uint8Array, password: string): Prom
       iv,
     },
     key,
-    privateKey,
+    privateKey as Uint8Array<ArrayBuffer>,
   )
 
   // Combine salt, IV, and encrypted data

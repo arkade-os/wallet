@@ -1,4 +1,5 @@
 export const getAlert = async (): Promise<string | undefined> => {
+  return
   try {
     const response = await fetch('https://raw.githubusercontent.com/arkade-os/wallet/riga/motd.html')
     const message = await response.text()

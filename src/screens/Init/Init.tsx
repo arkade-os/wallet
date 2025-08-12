@@ -16,6 +16,7 @@ import Minimal from '../../components/Minimal'
 import { deriveKeyFromSeed } from '../../lib/wallet'
 import SheetModal from '../../components/SheetModal'
 import WalletNewIcon from '../../icons/WalletNew'
+import { defaultPassword } from '../../lib/constants'
 
 export default function Init() {
   const { aspInfo } = useContext(AspContext)
@@ -34,8 +35,8 @@ export default function Init() {
     const mnemonic = generateMnemonic(wordlist)
     const seed = mnemonicToSeedSync(mnemonic)
     const privateKey = deriveKeyFromSeed(seed)
-    setInitInfo({ privateKey, restoring: false })
-    navigate(Pages.InitPassword)
+    setInitInfo({ privateKey, password: defaultPassword, restoring: false })
+    navigate(Pages.InitSuccess)
   }
 
   const handleOldWallet = () => navigate(Pages.InitRestore)

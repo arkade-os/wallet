@@ -2,6 +2,7 @@ import { invalidPrivateKey, nsecToPrivateKey } from '../../lib/privateKey'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { useContext, useEffect, useState } from 'react'
+import { defaultPassword } from '../../lib/constants'
 import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
 import FlexCol from '../../components/FlexCol'
@@ -44,8 +45,8 @@ export default function InitRestore() {
   const handleCancel = () => navigate(Pages.Init)
 
   const handleProceed = () => {
-    setInitInfo({ privateKey, restoring: true })
-    navigate(Pages.InitPassword)
+    setInitInfo({ privateKey, password: defaultPassword, restoring: true })
+    navigate(Pages.InitSuccess)
   }
 
   const disabled = Boolean(!privateKey || error)

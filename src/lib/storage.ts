@@ -4,9 +4,9 @@ import { vtxosRepository } from './db'
 // clear localStorage but persist config
 export async function clearStorage(): Promise<void> {
   const config = readConfigFromStorage()
-  localStorage.clear()
   await vtxosRepository.deleteAll()
   await vtxosRepository.close()
+  localStorage.clear()
   if (config) saveConfigToStorage(config)
 }
 

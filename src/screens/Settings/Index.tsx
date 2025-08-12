@@ -17,6 +17,7 @@ import General from './General'
 import Theme from './Theme'
 import Fiat from './Fiat'
 import Display from './Display'
+import Password from './Password'
 
 export default function Settings() {
   const { option } = useContext(OptionsContext)
@@ -39,6 +40,7 @@ export default function Settings() {
       {option === SettingsOptions.Theme && <Theme />}
       {option === SettingsOptions.Fiat && <Fiat />}
       {option === SettingsOptions.Display && <Display />}
+      {option === SettingsOptions.Password && <Password />}
     </>
   )
 }
