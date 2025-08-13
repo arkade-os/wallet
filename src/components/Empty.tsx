@@ -23,8 +23,12 @@ function EmptyTemplate({ icon, text, secondaryText }: EmptyProps) {
   )
 }
 
-export function EmptyList({ text, secondaryText }: EmptyProps) {
-  return <EmptyTemplate icon={<EmptyListIcon />} text={text} secondaryText={secondaryText} />
+export function EmptyTxList({ text, secondaryText }: EmptyProps) {
+  return <EmptyTemplate icon={<EmptyTxListIcon />} text={text} secondaryText={secondaryText} />
+}
+
+export function EmptySwapList({ text, secondaryText }: EmptyProps) {
+  return <EmptyTemplate icon={<EmptySwapListIcon />} text={text} secondaryText={secondaryText} />
 }
 
 export function EmptyCoins() {
@@ -40,7 +44,7 @@ export function EmptyCoins() {
 export function EmptyLogs() {
   return (
     <EmptyTemplate
-      icon={<EmptyListIcon />}
+      icon={<EmptyTxListIcon />}
       text='No logs available'
       secondaryText='Start using the app to generate logs.'
     />
@@ -62,11 +66,22 @@ function EmptyCoinsIcon() {
   )
 }
 
-function EmptyListIcon() {
+function EmptyTxListIcon() {
   return (
     <svg width='57' height='56' viewBox='0 0 57 56' fill='none' xmlns='http://www.w3.org/2000/svg'>
       <path
         d='M5.16797 25.667V11.667H19.168V25.667H5.16797ZM14.5013 21.0003V16.3337H9.83464V21.0003H14.5013ZM51.8346 11.667H23.8346V16.3337H51.8346V11.667ZM51.8346 21.0003H23.8346V25.667H51.8346V21.0003ZM23.8346 30.3337H51.8346V35.0003H23.8346V30.3337ZM51.8346 39.667H23.8346V44.3337H51.8346V39.667ZM5.16797 30.3337V44.3337H19.168V30.3337H5.16797ZM14.5013 35.0003V39.667H9.83464V35.0003H14.5013Z'
+        fill='var(--dark30)'
+      />
+    </svg>
+  )
+}
+
+function EmptySwapListIcon() {
+  return (
+    <svg width='57' height='56' viewBox='0 0 57 56' fill='none' xmlns='http://www.w3.org/2000/svg'>
+      <path
+        d='M9.83203 21V16.3333H37.832V11.6667H42.4987V16.3333H47.1654V21H42.4987V25.6667H37.832V21H9.83203ZM37.832 25.6667H33.1654V30.3333H37.832V25.6667ZM37.832 11.6667H33.1654V7H37.832V11.6667ZM47.1654 39.6667V35H19.1654V30.3333H23.832V25.6667H19.1654V30.3333H14.4987V35H9.83203V39.6667H14.4987V44.3333H19.1654V49H23.832V44.3333H19.1654V39.6667H47.1654Z'
         fill='var(--dark30)'
       />
     </svg>

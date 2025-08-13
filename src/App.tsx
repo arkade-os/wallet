@@ -96,7 +96,7 @@ export default function App() {
         <iframe src={iframeUrl} />
       </>
     )
-
+  console.log('page, comp, screen', { page, comp, screen })
   return (
     <IonApp>
       <IonPage>
