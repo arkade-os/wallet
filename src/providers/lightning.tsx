@@ -8,17 +8,19 @@ import { PendingReverseSwap, PendingSubmarineSwap, SwapError } from '@arkade-os/
 import { sendOffChain } from '../lib/asp'
 
 interface LightningContextProps {
-  createSwap: (invoice: string) => Promise<void | PendingSubmarineSwap>
   getLimits: () => Promise<void | { min: number; max: number }> // TODO: change to LimitsResponse from boltz-swap
+  createSwap: (invoice: string) => Promise<void | PendingSubmarineSwap>
   payInvoice: (invoice: string) => Promise<void>
   receiveSats: (amount: number) => Promise<void>
+  swapProvider: LightningSwap | null
 }
 
 export const LightningContext = createContext<LightningContextProps>({
-  createSwap: async () => {},
   getLimits: async () => {},
+  createSwap: async () => {},
   payInvoice: async () => {},
   receiveSats: async () => {},
+  swapProvider: null,
 })
 
 export const LightningProvider = ({ children }: { children: ReactNode }) => {
@@ -28,12 +30,13 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
 
   const [swapProvider, setSwapProvider] = useState<LightningSwap | null>(null)
 
+  // create swap provider on first run with svcWallet
   useEffect(() => {
-    if (!svcWallet) return
-    if (aspInfo.network === 'signet') return
+    if (!aspInfo.network || !svcWallet) return
+    if (aspInfo.network === 'signet') return // TODO: better handling
     const provider = new LightningSwap(aspInfo, svcWallet)
     setSwapProvider(provider)
-  }, [svcWallet])
+  }, [aspInfo, svcWallet])
 
   const someError = (error: any, message: string) => {
     consoleError(error, message)
@@ -110,7 +113,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <LightningContext.Provider value={{ createSwap, getLimits, payInvoice, receiveSats }}>
+    <LightningContext.Provider value={{ createSwap, getLimits, payInvoice, receiveSats, swapProvider }}>
       {children}
     </LightningContext.Provider>
   )
