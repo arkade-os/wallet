@@ -4,6 +4,7 @@ import { AspContext } from './asp'
 import { consoleError } from '../lib/logs'
 import { LightningSwap } from '../lib/lightning'
 import { WalletContext } from './wallet'
+import { LightningContext } from './lightning'
 
 type LimitsContextProps = {
   amountIsAboveMaxLimit: (sats: Satoshis) => boolean
@@ -41,6 +42,7 @@ export const LimitsContext = createContext<LimitsContextProps>({
 export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet } = useContext(WalletContext)
+  const { getLimits } = useContext(LightningContext)
 
   const limits = useRef<LimitTxTypes>({
     swap: { min: BigInt(1000), max: BigInt(4294967) },
@@ -62,12 +64,10 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
       max: BigInt(aspInfo.vtxoMaxAmount ?? -1),
     }
 
-    const swapProvider = new LightningSwap(aspInfo, svcWallet)
-    swapProvider
-      .getLimits()
-      .then(({ min, max }) => {
-        if (cancelled) return
-        limits.current.swap = { ...limits.current.swap, min: BigInt(min), max: BigInt(max) }
+    getLimits()
+      .then((res) => {
+        if (cancelled || !res) return
+        limits.current.swap = { ...limits.current.swap, min: BigInt(res.min), max: BigInt(res.max) }
       })
       .catch(consoleError)
 
