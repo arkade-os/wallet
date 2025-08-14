@@ -16,17 +16,16 @@ import ExpandAddresses from '../../../components/ExpandAddresses'
 import FlexCol from '../../../components/FlexCol'
 import { LimitsContext } from '../../../providers/limits'
 import { ExtendedCoin } from '@arkade-os/sdk'
-import { AspContext } from '../../../providers/asp'
-import { LightningSwap } from '../../../lib/lightning'
 import Loading from '../../../components/Loading'
+import { LightningContext } from '../../../providers/lightning'
 
 export default function ReceiveQRCode() {
-  const { aspInfo } = useContext(AspContext)
-  const { recvInfo, setRecvInfo } = useContext(FlowContext)
-  const { validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
+  const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
+  const { createReverseSwap, waitAndClaim } = useContext(LightningContext)
   const { vtxos, svcWallet, wallet, reloadWallet } = useContext(WalletContext)
+  const { validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
 
   const isFirstMount = useRef(true)
   const [sharing, setSharing] = useState(false)
@@ -53,16 +52,14 @@ export default function ReceiveQRCode() {
   useEffect(() => {
     // if boltz is available and amount is between limits, let's create a swap invoice
     if (validLnSwap(satoshis) && wallet && svcWallet) {
-      const swapProvider = new LightningSwap(aspInfo, svcWallet)
-      swapProvider
-        .createReverseSwap(satoshis)
+      createReverseSwap(satoshis)
         .then((pendingSwap) => {
+          if (!pendingSwap) throw new Error('Failed to create reverse swap')
           const invoice = pendingSwap.response.invoice
           setRecvInfo({ ...recvInfo, invoice })
           setInvoice(invoice)
           consoleLog('Reverse swap invoice created:', invoice)
-          swapProvider
-            .waitAndClaim(pendingSwap)
+          waitAndClaim(pendingSwap)
             .then(() => {
               setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
               navigate(Pages.ReceiveSuccess)
