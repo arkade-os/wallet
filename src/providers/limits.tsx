@@ -2,9 +2,9 @@ import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
 import { Satoshis, TxType } from '../lib/types'
 import { AspContext } from './asp'
 import { consoleError } from '../lib/logs'
-import { LightningSwap } from '../lib/lightning'
 import { WalletContext } from './wallet'
 import { isRiga } from '../lib/constants'
+import { LightningContext } from './lightning'
 
 type LimitsContextProps = {
   amountIsAboveMaxLimit: (sats: Satoshis) => boolean
@@ -42,9 +42,10 @@ export const LimitsContext = createContext<LimitsContextProps>({
 export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet } = useContext(WalletContext)
+  const { getLimits, swapProvider } = useContext(LightningContext)
 
   const limits = useRef<LimitTxTypes>({
-    swap: { min: BigInt(1000), max: BigInt(4294967) },
+    swap: { min: BigInt(0), max: BigInt(0) },
     utxo: { min: BigInt(0), max: BigInt(-1) },
     vtxo: { min: BigInt(0), max: BigInt(-1) },
   })
@@ -63,14 +64,14 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
       max: BigInt(aspInfo.vtxoMaxAmount ?? -1),
     }
 
-    const swapProvider = new LightningSwap(aspInfo, svcWallet)
-    swapProvider
-      .getLimits()
-      .then(({ min, max }) => {
-        if (cancelled) return
-        limits.current.swap = { ...limits.current.swap, min: BigInt(min), max: BigInt(max) }
-      })
-      .catch(consoleError)
+    if (swapProvider) {
+      getLimits()
+        .then((res) => {
+          if (cancelled || !res) return
+          limits.current.swap = { ...limits.current.swap, min: BigInt(res.min), max: BigInt(res.max) }
+        })
+        .catch(consoleError)
+    }
 
     // fix potential memory leak with async operation.
     return () => {
@@ -85,6 +86,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
     if (!sats) return txtype !== TxType.swap
     const bigSats = BigInt(sats)
     const { min, max } = limits.current[txtype]
+    console.log('limits.current[txtype]', limits.current[txtype], sats)
     return bigSats >= min && (max === BigInt(-1) || bigSats <= max)
   }
 

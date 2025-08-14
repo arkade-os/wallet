@@ -13,6 +13,7 @@ import { OptionsProvider } from './providers/options'
 import { IframeProvider } from './providers/iframe'
 import { LimitsProvider } from './providers/limits'
 import * as Sentry from '@sentry/react'
+import { LightningProvider } from './providers/lightning'
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
@@ -47,9 +48,11 @@ root.render(
             <FlowProvider>
               <WalletProvider>
                 <LimitsProvider>
-                  <OptionsProvider>
-                    <AppWithProviders />
-                  </OptionsProvider>
+                  <LightningProvider>
+                    <OptionsProvider>
+                      <AppWithProviders />
+                    </OptionsProvider>
+                  </LightningProvider>
                 </LimitsProvider>
               </WalletProvider>
             </FlowProvider>

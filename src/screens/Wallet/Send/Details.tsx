@@ -15,20 +15,19 @@ import FlexCol from '../../../components/FlexCol'
 import { collaborativeExit, sendOffChain } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
 import Loading from '../../../components/Loading'
-import { consoleError, consoleLog } from '../../../lib/logs'
+import { consoleError } from '../../../lib/logs'
 import WaitingForRound from '../../../components/WaitingForRound'
 import { IframeContext } from '../../../providers/iframe'
 import Minimal from '../../../components/Minimal'
 import Text from '../../../components/Text'
 import FlexRow from '../../../components/FlexRow'
 import { LimitsContext } from '../../../providers/limits'
-import { AspContext } from '../../../providers/asp'
-import { LightningSwap } from '../../../lib/lightning'
+import { LightningContext } from '../../../providers/lightning'
 
 export default function SendDetails() {
-  const { aspInfo } = useContext(AspContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { iframeUrl } = useContext(IframeContext)
+  const { payInvoice } = useContext(LightningContext)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { balance, svcWallet } = useContext(WalletContext)
@@ -103,33 +102,7 @@ export default function SendDetails() {
       if (!response) return setError('Swap response not available')
       const swapAddress = pendingSwap?.response.address
       if (!swapAddress) return setError('Swap address not available')
-      const swapProvider = new LightningSwap(aspInfo, svcWallet)
-      sendOffChain(svcWallet, satoshis, swapAddress)
-        .then((txid) => {
-          swapProvider
-            .waitForSwapSettlement(pendingSwap)
-            .then(() => handleTxid(txid)) // provider claimed the VHTLC
-            .catch(({ isRefundable }) => {
-              consoleError('Swap failed', 'Swap provider failed to claim VHTLC')
-              if (isRefundable) {
-                consoleLog('Refunding VHTLC...')
-                swapProvider
-                  .refundVHTLC(pendingSwap)
-                  .then(() => {
-                    consoleLog('VHTLC refunded')
-                    setError('Swap failed: VHTLC refunded')
-                  })
-                  .catch((refundError) => {
-                    consoleError(refundError, 'Swap failed: VHTLC refund failed')
-                    setError('Swap failed: VHTLC refund failed')
-                  })
-                  .finally(() => {
-                    setSending(false)
-                  })
-              }
-            })
-        })
-        .catch(handleError)
+      payInvoice(invoice)
     } else if (address) {
       collaborativeExit(svcWallet, satoshis, address).then(handleTxid).catch(handleError)
     }
