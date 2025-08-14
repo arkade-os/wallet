@@ -1,10 +1,17 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
-import { LightningSwap } from '../lib/lightning'
+import { LightningSwapProvider } from '../lib/lightning'
 import { consoleError } from '../lib/logs'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
-import { PendingReverseSwap, PendingSubmarineSwap, SwapError } from '@arkade-os/boltz-swap'
+import { Network, PendingReverseSwap, PendingSubmarineSwap, SwapError } from '@arkade-os/boltz-swap'
 import { sendOffChain } from '../lib/asp'
+
+const BASE_URLS: Record<Network, string> = {
+  bitcoin: 'https://boltz.arkade.sh',
+  mutinynet: 'https://boltz.mutinynet.arkade.sh',
+  testnet: 'https://boltz.testnet.arkade.sh',
+  regtest: 'http://localhost:9069',
+}
 
 interface LightningContextProps {
   createReverseSwap: (amount: number) => Promise<void | PendingReverseSwap>
@@ -12,7 +19,7 @@ interface LightningContextProps {
   getLimits: () => Promise<void | { min: number; max: number }> // TODO: change to LimitsResponse from boltz-swap
   payInvoice: (pendingSwap: PendingSubmarineSwap) => Promise<string>
   waitAndClaim: (pendingSwap: PendingReverseSwap) => Promise<void>
-  swapProvider: LightningSwap | null
+  swapProvider: LightningSwapProvider | null
 }
 
 export const LightningContext = createContext<LightningContextProps>({
@@ -28,13 +35,14 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet } = useContext(WalletContext)
 
-  const [swapProvider, setSwapProvider] = useState<LightningSwap | null>(null)
+  const [swapProvider, setSwapProvider] = useState<LightningSwapProvider | null>(null)
 
   // create swap provider on first run with svcWallet
   useEffect(() => {
     if (!aspInfo.network || !svcWallet) return
-    if (aspInfo.network === 'signet') return // TODO: better handling
-    const provider = new LightningSwap(aspInfo, svcWallet)
+    const baseUrl = BASE_URLS[aspInfo.network as Network]
+    if (!baseUrl) return // No boltz server for this network
+    const provider = new LightningSwapProvider(baseUrl, aspInfo, svcWallet)
     setSwapProvider(provider)
   }, [aspInfo, svcWallet])
 

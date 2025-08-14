@@ -10,13 +10,13 @@ import {
 import { RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
 import { AspInfo } from '../providers/asp'
 
-export class LightningSwap {
+export class LightningSwapProvider {
   private readonly provider: ArkadeLightning
   private readonly swapProvider: BoltzSwapProvider
 
-  constructor(aspInfo: AspInfo, wallet: Wallet) {
+  constructor(apiUrl: string, aspInfo: AspInfo, wallet: Wallet) {
     const arkProvider = new RestArkProvider(aspInfo.url)
-    const swapProvider = new BoltzSwapProvider({ network: aspInfo.network as Network })
+    const swapProvider = new BoltzSwapProvider({ apiUrl, network: aspInfo.network as Network })
     const indexerProvider = new RestIndexerProvider(aspInfo.url)
 
     this.swapProvider = swapProvider
