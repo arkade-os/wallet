@@ -23,6 +23,7 @@ import Text from '../../../components/Text'
 import FlexRow from '../../../components/FlexRow'
 import { LimitsContext } from '../../../providers/limits'
 import { LightningContext } from '../../../providers/lightning'
+import { calcSwapFee } from '../../../lib/lightning'
 
 export default function SendDetails() {
   const { sendInfo, setSendInfo } = useContext(FlowContext)
@@ -38,12 +39,10 @@ export default function SendDetails() {
   const [sending, setSending] = useState(false)
 
   const { address, arkAddress, invoice, pendingSwap, satoshis, text } = sendInfo
-  const feeInSats = arkAddress ? defaultFee : 0
 
   useEffect(() => {
     if (!address && !arkAddress && !invoice) return setError('Missing address')
     if (!satoshis) return setError('Missing amount')
-    const total = satoshis + feeInSats
     const destination =
       arkAddress && vtxoTxsAllowed()
         ? arkAddress
@@ -60,6 +59,8 @@ export default function SendDetails() {
         : invoice && lnSwapsAllowed()
         ? 'Swapping to Lightning'
         : ''
+    const feeInSats = destination === invoice ? calcSwapFee(satoshis) : defaultFee
+    const total = satoshis + feeInSats
     setDetails({
       destination,
       direction,
@@ -77,7 +78,7 @@ export default function SendDetails() {
 
   const handleTxid = (txid: string) => {
     if (!txid) return setError('Error sending transaction')
-    setSendInfo({ ...sendInfo, total: (satoshis ?? 0) + feeInSats, txid })
+    setSendInfo({ ...sendInfo, total: details?.total, txid })
     navigate(Pages.SendSuccess)
   }
 
