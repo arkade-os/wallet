@@ -74,7 +74,7 @@ export default function Wallet() {
               <Button icon={<SendIcon />} label='Send' onClick={handleSend} />
               <Button icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} disabled={isRiga} />
             </FlexRow>
-            {alert ? <InfoBox html={alert} /> : null}
+            {alert && isRiga ? <InfoBox html={alert} /> : null}
           </FlexCol>
           {txs?.length === 0 ? (
             <div style={{ marginTop: '5rem', width: '100%' }}>
