@@ -15,8 +15,8 @@ importers:
         specifier: ^0.1.2
         version: 0.1.2
       '@arkade-os/sdk':
-        specifier: ^0.2.2
-        version: 0.2.2
+        specifier: ^0.2.3
+        version: 0.2.3
       '@dotmind/react-use-pwa':
         specifier: ^1.0.4
         version: 1.0.4
@@ -149,8 +149,8 @@ packages:
     resolution: {integrity: sha512-4ISMwnncMg3QjXLiDfs5qwRsLgD6vxzMdHzXqXOT5YQJy8/rIzOmSdFFRlTa3lM/nJy9CRKc+lj8M7zv7rYTGg==}
     engines: {node: '>=22'}
 
-  '@arkade-os/sdk@0.2.2':
-    resolution: {integrity: sha512-nnliVdLmKI5PbdzBJ4ataGDsNBlSioCUbyFY4cfDknosibXKqx9TSHmpDqUQQNSJPW6vSEMwu1a/ZkylljVkdw==}
+  '@arkade-os/sdk@0.2.3':
+    resolution: {integrity: sha512-N2O39qu410wtGFzvddKBYuvXf5DGHzWYO/MdHbI4j502bkd2pFG24S3D8eiFpTJTvx2ji/jxMHL9MZIWkLYdWA==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
 
   '@babel/code-frame@7.12.11':
@@ -2537,13 +2537,13 @@ snapshots:
 
   '@arkade-os/boltz-swap@0.1.2':
     dependencies:
-      '@arkade-os/sdk': 0.2.2
+      '@arkade-os/sdk': 0.2.3
       '@noble/hashes': 1.8.0
       '@scure/base': 1.2.6
       '@scure/btc-signer': 1.8.1
       light-bolt11-decoder: 3.2.0
 
-  '@arkade-os/sdk@0.2.2':
+  '@arkade-os/sdk@0.2.3':
     dependencies:
       '@noble/curves': 1.9.1
       '@noble/hashes': 1.8.0
