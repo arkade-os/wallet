@@ -19,7 +19,7 @@ export default function Password() {
 
   const [authenticated, setAuthenticated] = useState(false)
   const [oldPassword, setOldPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
+  const [newPassword, setNewPassword] = useState<string | null>(null)
   const [successText, setSuccessText] = useState('')
   const [error, setError] = useState('')
   const [label, setLabel] = useState('')
@@ -38,11 +38,18 @@ export default function Password() {
     })
   }, [oldPassword])
 
-  const saveNewPassword = async (newPassword: string, biometrics: boolean) => {
-    if (!oldPassword || !newPassword || !authenticated) return
+  const saveNewPassword = async (newPassword: string | null, biometrics: boolean) => {
+    if (!oldPassword || newPassword === null || !authenticated) return
+    if (newPassword === '') newPassword = defaultPassword
     const privateKey = await getPrivateKey(oldPassword)
     setPrivateKey(privateKey, newPassword)
-    setSuccessText(`Password changed ${biometrics ? 'to biometrics' : ''}`)
+    setSuccessText(
+      biometrics
+        ? 'Password changed to biometrics'
+        : newPassword === defaultPassword
+        ? 'Password removed'
+        : 'Password changed',
+    )
   }
 
   const registerUserBiometrics = () => {
@@ -76,7 +83,7 @@ export default function Password() {
       </Content>
       {successText ? null : (
         <ButtonsOnBottom>
-          <Button onClick={handleContinue} label={label} disabled={!newPassword} />
+          <Button onClick={handleContinue} label={label} disabled={newPassword === null} />
           {wallet.lockedByBiometrics || !isBiometricsSupported() ? null : (
             <Button onClick={registerUserBiometrics} label='Use biometrics' secondary />
           )}

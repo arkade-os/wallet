@@ -6,7 +6,7 @@ import { calcStrength, StrengthProgress } from './Strength'
 
 interface NewPasswordProps {
   setLabel: (label: string) => void
-  onNewPassword: (password: string) => void
+  onNewPassword: (password: string | null) => void
 }
 
 export default function NewPassword({ onNewPassword, setLabel }: NewPasswordProps) {
@@ -16,7 +16,7 @@ export default function NewPassword({ onNewPassword, setLabel }: NewPasswordProp
   const [strength, setStrength] = useState(0)
 
   useEffect(() => {
-    onNewPassword(password === confirm ? password : '')
+    onNewPassword(password === confirm ? password : null)
     if (!password) return setLabel('No password, YOLO')
     if (password !== confirm) return setLabel('Passwords must match')
     setLabel('Save password')
@@ -58,7 +58,6 @@ export default function NewPassword({ onNewPassword, setLabel }: NewPasswordProp
           label='Password'
           onChange={handleChangePassword}
           onEnter={handleEnter}
-          placeholder='Enter your password'
         />
         <StrengthProgress strength={strength} />
         <CheckList data={passwordChecks} />
