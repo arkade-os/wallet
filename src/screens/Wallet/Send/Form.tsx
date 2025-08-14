@@ -47,7 +47,7 @@ export default function SendForm() {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
-  const { createSwap } = useContext(LightningContext)
+  const { createSubmarineSwap } = useContext(LightningContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
@@ -215,8 +215,13 @@ export default function SendForm() {
   useEffect(() => {
     if (!proceed) return
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
-    if (!sendInfo.arkAddress && sendInfo.invoice && !sendInfo.pendingSwap) createSwap(sendInfo.invoice)
-    else navigate(Pages.SendDetails)
+    if (!sendInfo.arkAddress && sendInfo.invoice && !sendInfo.pendingSwap) {
+      createSubmarineSwap(sendInfo.invoice)
+        .then((pendingSwap) => {
+          if (pendingSwap) setState({ ...sendInfo, pendingSwap })
+        })
+        .catch(handleError)
+    } else navigate(Pages.SendDetails)
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
 
   const setState = (info: SendInfo) => {
@@ -262,6 +267,11 @@ export default function SendForm() {
     if (!disabled) return handleContinue()
     if (!amount) return setFocus('amount')
     if (!recipient) return setFocus('recipient')
+  }
+
+  const handleError = (err: any) => {
+    consoleError(err, 'error sending payment')
+    setError(extractError(err))
   }
 
   const handleFocus = () => {
