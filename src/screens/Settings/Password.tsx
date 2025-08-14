@@ -5,13 +5,14 @@ import Button from '../../components/Button'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import Success from '../../components/Success'
+import { defaultPassword } from '../../lib/constants'
 import { WalletContext } from '../../providers/wallet'
 import NewPassword from '../../components/NewPassword'
 import { useContext, useEffect, useState } from 'react'
 import NeedsPassword from '../../components/NeedsPassword'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { isBiometricsSupported, registerUser } from '../../lib/biometrics'
-import { getPrivateKey, isValidPassword, setPrivateKey } from '../../lib/privateKey'
+import { getPrivateKey, isValidPassword, noUserDefinedPassword, setPrivateKey } from '../../lib/privateKey'
 
 export default function Password() {
   const { updateWallet, wallet } = useContext(WalletContext)
@@ -24,10 +25,16 @@ export default function Password() {
   const [label, setLabel] = useState('')
 
   useEffect(() => {
+    noUserDefinedPassword().then((noPassword) => {
+      if (noPassword) setOldPassword(defaultPassword)
+    })
+  }, [])
+
+  useEffect(() => {
     if (!oldPassword) return
-    isValidPassword(oldPassword).then((valid) => {
-      setError(valid ? '' : 'Invalid password')
-      setAuthenticated(valid)
+    isValidPassword(oldPassword).then((isValid) => {
+      setError(isValid ? '' : 'Invalid password')
+      setAuthenticated(isValid)
     })
   }, [oldPassword])
 
@@ -56,7 +63,7 @@ export default function Password() {
 
   return (
     <>
-      <Header text='Password' back />
+      <Header text='Change password' back />
       <Content>
         <Padded>
           <Error text={error} error={Boolean(error)} />

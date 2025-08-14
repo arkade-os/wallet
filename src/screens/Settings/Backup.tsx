@@ -13,6 +13,7 @@ import { getPrivateKey, privateKeyToNsec } from '../../lib/privateKey'
 import { consoleError } from '../../lib/logs'
 import NeedsPassword from '../../components/NeedsPassword'
 import Shadow from '../../components/Shadow'
+import { defaultPassword } from '../../lib/constants'
 
 export default function Backup() {
   const [present] = useIonToast()
@@ -22,14 +23,16 @@ export default function Backup() {
   const [password, setPassword] = useState('')
 
   useEffect(() => {
-    if (!password) return
-    getPrivateKey(password)
+    const pass = password ? password : defaultPassword
+    getPrivateKey(pass)
       .then((privateKey) => {
         setNsec(privateKeyToNsec(privateKey))
       })
       .catch((err) => {
-        consoleError(err, 'error unlocking wallet')
-        setError('Invalid password')
+        if (password) {
+          consoleError(err, 'error unlocking wallet')
+          setError('Invalid password')
+        }
       })
   }, [password])
 

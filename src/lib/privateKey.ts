@@ -1,4 +1,5 @@
 import { getPublicKey, nip19 } from 'nostr-tools'
+import { defaultPassword } from './constants'
 
 const STORAGE_KEY = 'encrypted_private_key'
 
@@ -59,6 +60,10 @@ export const isValidPassword = async (password: string): Promise<boolean> => {
   }
 }
 
+export const noUserDefinedPassword = async (): Promise<boolean> => {
+  return await isValidPassword(defaultPassword)
+}
+
 const storeEncryptedPrivateKey = (encryptedPrivateKey: string): void => {
   try {
     localStorage.setItem(STORAGE_KEY, encryptedPrivateKey)
@@ -112,7 +117,7 @@ const encryptPrivateKey = async (privateKey: Uint8Array, password: string): Prom
       iv,
     },
     key,
-    privateKey,
+    privateKey as Uint8Array<ArrayBuffer>,
   )
 
   // Combine salt, IV, and encrypted data
