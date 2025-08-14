@@ -86,7 +86,6 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
     if (!sats) return txtype !== TxType.swap
     const bigSats = BigInt(sats)
     const { min, max } = limits.current[txtype]
-    console.log('limits.current[txtype]', limits.current[txtype], sats)
     return bigSats >= min && (max === BigInt(-1) || bigSats <= max)
   }
 
