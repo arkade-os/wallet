@@ -47,13 +47,13 @@ root.render(
           <FiatProvider>
             <FlowProvider>
               <WalletProvider>
-                <LimitsProvider>
-                  <LightningProvider>
+                <LightningProvider>
+                  <LimitsProvider>
                     <OptionsProvider>
                       <AppWithProviders />
                     </OptionsProvider>
-                  </LightningProvider>
-                </LimitsProvider>
+                  </LimitsProvider>
+                </LightningProvider>
               </WalletProvider>
             </FlowProvider>
           </FiatProvider>

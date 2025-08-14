@@ -77,7 +77,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       cancelled = true
     }
-  }, [aspInfo.network, svcWallet])
+  }, [aspInfo.network, svcWallet, swapProvider])
 
   const minSwapAllowed = () => Number(limits.current.swap.min)
   const maxSwapAllowed = () => Number(limits.current.swap.max)
