@@ -44,7 +44,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   const { svcWallet } = useContext(WalletContext)
 
   const limits = useRef<LimitTxTypes>({
-    swap: { min: BigInt(1000), max: BigInt(4294967) },
+    swap: { min: BigInt(0), max: BigInt(-1) },
     utxo: { min: BigInt(0), max: BigInt(-1) },
     vtxo: { min: BigInt(0), max: BigInt(-1) },
   })
@@ -63,14 +63,17 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
       max: BigInt(aspInfo.vtxoMaxAmount ?? -1),
     }
 
-    const swapProvider = new LightningSwap(aspInfo, svcWallet)
-    swapProvider
-      .getLimits()
-      .then(({ min, max }) => {
-        if (cancelled) return
-        limits.current.swap = { ...limits.current.swap, min: BigInt(min), max: BigInt(max) }
-      })
-      .catch(consoleError)
+    if (aspInfo.network && aspInfo.network !== 'signet') {
+      // TODO: quick fix
+      const swapProvider = new LightningSwap(aspInfo, svcWallet)
+      swapProvider
+        .getLimits()
+        .then(({ min, max }) => {
+          if (cancelled) return
+          limits.current.swap = { ...limits.current.swap, min: BigInt(min), max: BigInt(max) }
+        })
+        .catch(consoleError)
+    }
 
     // fix potential memory leak with async operation.
     return () => {
