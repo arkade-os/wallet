@@ -30,7 +30,7 @@ export const prettyAmount = (amount: string | number, suffix?: string): string =
   if (sats > 100_000_000_000) return `${prettyNumber(fromSatoshis(sats), 0)} BTC`
   if (sats > 100_000_000) return `${prettyNumber(fromSatoshis(sats), 3)} BTC`
   if (sats > 1_000_000) return `${prettyNumber(sats / 1_000_000, 3)}M SATS`
-  return `${prettyNumber(sats)} SATS`
+  return `${prettyNumber(sats)} ${sats === 1 ? 'SAT' : 'SATS'}`
 }
 
 export const prettyDelta = (seconds: number, long = true): string => {
