@@ -1,4 +1,4 @@
-export default function CheckedIcon({ small, tiny }: { small?: boolean; tiny?: boolean }) {
+export default function CheckedIcon({ small }: { small?: boolean }) {
   const width = small ? '16' : '20'
   const height = small ? '16' : '21'
   return (
