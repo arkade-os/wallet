@@ -88,6 +88,9 @@ export default function InputAmount({
           <IonText slot='start' style={{ ...fontStyle, marginRight: '0.5rem' }}>
             {leftLabel}
           </IonText>
+          <IonText slot='end' style={{ ...fontStyle, marginLeft: '0.5rem' }}>
+            {rightLabel}
+          </IonText>
           {onMax ? (
             <IonText
               slot='end'
@@ -97,9 +100,6 @@ export default function InputAmount({
               Max
             </IonText>
           ) : null}
-          <IonText slot='end' style={{ ...fontStyle, marginLeft: '0.5rem' }}>
-            {rightLabel}
-          </IonText>
         </IonInput>
       </InputContainer>
     </>
