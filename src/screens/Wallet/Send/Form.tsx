@@ -47,7 +47,7 @@ export default function SendForm() {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
-  const { createSubmarineSwap } = useContext(LightningContext)
+  const { swapProvider, connected } = useContext(LightningContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
@@ -55,12 +55,13 @@ export default function SendForm() {
 
   const [amount, setAmount] = useState<number>()
   const [amountIsReadOnly, setAmountIsReadOnly] = useState(false)
-  const [proceed, setProceed] = useState(false)
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
   const [label, setLabel] = useState('')
   const [lnUrlLimits, setLnUrlLimits] = useState<{ min: number; max: number }>({ min: 0, max: 0 })
   const [keys, setKeys] = useState(false)
+  const [nudgeBoltz, setNudgeBoltz] = useState(false)
+  const [proceed, setProceed] = useState(false)
   const [recipient, setRecipient] = useState('')
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
   const [satoshis, setSatoshis] = useState(0)
@@ -81,10 +82,9 @@ export default function SendForm() {
   useEffect(() => {
     smartSetError('')
     const parseRecipient = async () => {
+      setNudgeBoltz(false)
       if (!recipient) return
-
       const lowerCaseData = recipient.toLowerCase().replace(/^lightning:/, '')
-
       if (isURLWithLightningQueryString(recipient)) {
         const url = new URL(recipient)
         return setRecipient(url.searchParams.get('lightning')!)
@@ -99,6 +99,10 @@ export default function SendForm() {
         return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
       }
       if (isLightningInvoice(lowerCaseData)) {
+        if (!connected) {
+          setError('Lightning swaps not enabled')
+          return setNudgeBoltz(true)
+        }
         const satoshis = getInvoiceSatoshis(lowerCaseData)
         if (!satoshis) return setError('Invoice must have amount defined')
         setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
@@ -216,7 +220,8 @@ export default function SendForm() {
     if (!proceed) return
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
     if (!sendInfo.arkAddress && sendInfo.invoice && !sendInfo.pendingSwap) {
-      createSubmarineSwap(sendInfo.invoice)
+      swapProvider
+        ?.createSubmarineSwap(sendInfo.invoice)
         .then((pendingSwap) => {
           if (pendingSwap) setState({ ...sendInfo, pendingSwap })
         })
@@ -227,6 +232,10 @@ export default function SendForm() {
   const setState = (info: SendInfo) => {
     setScan(false)
     setSendInfo(info)
+  }
+
+  const gotoBoltzApp = () => {
+    navigate(Pages.AppBoltzSettings)
   }
 
   const gotoRollover = () => {
@@ -351,6 +360,13 @@ export default function SendForm() {
               <div style={{ width: '100%' }}>
                 <Text centered color='dark50' small>
                   Did you mean <a onClick={gotoRollover}>roll over your VTXOs</a>?
+                </Text>
+              </div>
+            ) : null}
+            {nudgeBoltz && swapProvider?.getApiUrl() ? (
+              <div style={{ width: '100%' }}>
+                <Text centered color='dark50' small>
+                  Enable <a onClick={gotoBoltzApp}>Lightning swaps</a> to pay
                 </Text>
               </div>
             ) : null}

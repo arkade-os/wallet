@@ -52,7 +52,6 @@ function App({ desc, icon, link, name, live, page }: AppProps) {
   }
 
   const handleClick = () => {
-    console.log('App clicked', { name, page, link })
     if (typeof page !== 'undefined') return navigate(page)
     if (link) window.open(link, '_blank')
   }

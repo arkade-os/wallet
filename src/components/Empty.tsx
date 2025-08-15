@@ -24,7 +24,7 @@ function EmptyTemplate({ icon, text, secondaryText }: EmptyProps) {
 }
 
 export function EmptyTxList({ text, secondaryText }: EmptyProps) {
-  return <EmptyTemplate icon={<EmptyTxListIcon />} text={text} secondaryText={secondaryText} />
+  return <EmptyTemplate icon={<EmptyListIcon />} text={text} secondaryText={secondaryText} />
 }
 
 export function EmptySwapList({ text, secondaryText }: EmptyProps) {
@@ -44,7 +44,7 @@ export function EmptyCoins() {
 export function EmptyLogs() {
   return (
     <EmptyTemplate
-      icon={<EmptyTxListIcon />}
+      icon={<EmptyListIcon />}
       text='No logs available'
       secondaryText='Start using the app to generate logs.'
     />
@@ -66,7 +66,7 @@ function EmptyCoinsIcon() {
   )
 }
 
-function EmptyTxListIcon() {
+function EmptyListIcon() {
   return (
     <svg width='57' height='56' viewBox='0 0 57 56' fill='none' xmlns='http://www.w3.org/2000/svg'>
       <path

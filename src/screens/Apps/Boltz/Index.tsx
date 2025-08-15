@@ -8,12 +8,25 @@ import { NavigationContext, Pages } from '../../../providers/navigation'
 import Text, { TextLabel } from '../../../components/Text'
 import Shadow from '../../../components/Shadow'
 import FlexRow from '../../../components/FlexRow'
-import CheckedIcon from '../../../icons/Checked'
 import { EmptySwapList } from '../../../components/Empty'
-import CenterScreen from '../../../components/CenterScreen'
+import { LightningContext } from '../../../providers/lightning'
+import { GreenStatusIcon, RedStatusIcon } from '../../../icons/Status'
+import SwapsList from '../../../components/SwapsList'
 
 export default function AppBoltz() {
+  const { connected, swapProvider } = useContext(LightningContext)
   const { navigate } = useContext(NavigationContext)
+
+  const ConnectionStatus = () => (
+    <FlexRow end>
+      {connected ? <GreenStatusIcon small /> : <RedStatusIcon small />}
+      <Text color={connected ? 'green' : 'red'} small thin>
+        {connected ? 'Connected' : 'Disconnected'}
+      </Text>
+    </FlexRow>
+  )
+
+  const swapHistory = swapProvider?.getSwapHistory() ?? []
 
   return (
     <>
@@ -31,23 +44,20 @@ export default function AppBoltz() {
               <TextLabel>Connection status</TextLabel>
               <Shadow fat>
                 <FlexRow between>
-                  <Text>https://boltz.arkade.sh</Text>
-                  <FlexRow end>
-                    <CheckedIcon small />
-                    <Text color='green' small thin>
-                      Connected
-                    </Text>
-                  </FlexRow>
+                  <Text>{swapProvider?.getApiUrl()}</Text>
+                  <ConnectionStatus />
                 </FlexRow>
               </Shadow>
             </FlexCol>
+            {swapHistory.length > 0 ? (
+              <SwapsList />
+            ) : (
+              <EmptySwapList
+                text='No swaps yet'
+                secondaryText='Your swap history will appear here once you start swapping.'
+              />
+            )}
           </FlexCol>
-          <CenterScreen>
-            <EmptySwapList
-              text='No swaps yet'
-              secondaryText='Your swap history will appear here once you start swapping.'
-            />
-          </CenterScreen>
         </Padded>
       </Content>
     </>

@@ -6,13 +6,11 @@ import FlexCol from '../../../components/FlexCol'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import Toggle from '../../../components/Toggle'
 import Text from '../../../components/Text'
+import { LightningContext } from '../../../providers/lightning'
 
 export default function AppBoltz() {
+  const { connected, toggleConnection, swapProvider } = useContext(LightningContext)
   const { navigate } = useContext(NavigationContext)
-
-  const handleChange = () => {
-    // Handle toggle change
-  }
 
   return (
     <>
@@ -20,11 +18,16 @@ export default function AppBoltz() {
       <Content>
         <Padded>
           <FlexCol gap='2rem'>
-            <Toggle checked onClick={handleChange} text='Enable Boltz' subtext='Turn Boltz integration on or off' />
-            <FlexCol border gap='0.5rem'>
+            <Toggle
+              checked={connected}
+              onClick={toggleConnection}
+              text='Enable Boltz'
+              subtext='Turn Boltz integration on or off'
+            />
+            <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
               <Text thin>Boltz API URL</Text>
               <Text color='dark50' small thin>
-                https://boltz.arkade.sh
+                {swapProvider?.getApiUrl() ?? 'No server available'}
               </Text>
             </FlexCol>
           </FlexCol>

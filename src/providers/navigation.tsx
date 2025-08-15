@@ -23,10 +23,12 @@ import Apps from '../screens/Apps/Index'
 import AppBoltz from '../screens/Apps/Boltz/Index'
 import AppBoltzSettings from '../screens/Apps/Boltz/Settings'
 import InitSuccess from '../screens/Init/Success'
+import AppBoltzSwap from '../screens/Apps/Boltz/Swap'
 
 export enum Pages {
   AppBoltz,
   AppBoltzSettings,
+  AppBoltzSwap,
   Apps,
   Init,
   InitRestore,
@@ -61,6 +63,7 @@ export enum Tabs {
 const pageTab = {
   [Pages.AppBoltz]: Tabs.Apps,
   [Pages.AppBoltzSettings]: Tabs.Apps,
+  [Pages.AppBoltzSwap]: Tabs.Apps,
   [Pages.Apps]: Tabs.Apps,
   [Pages.Init]: Tabs.None,
   [Pages.InitRestore]: Tabs.None,
@@ -91,6 +94,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <AppBoltz />
     case Pages.AppBoltzSettings:
       return <AppBoltzSettings />
+    case Pages.AppBoltzSwap:
+      return <AppBoltzSwap />
     case Pages.Apps:
       return <Apps />
     case Pages.Init:
@@ -157,7 +162,6 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   const [tab, setTab] = useState(Tabs.None)
 
   const navigate = (p: Pages) => {
-    console.log('Navigating to page:', p)
     setScreen(p)
     setTab(pageTab[p])
   }

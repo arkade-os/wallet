@@ -4,6 +4,7 @@ import { defaultArkServer } from '../lib/constants'
 import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
 
 const defaultConfig: Config = {
+  apps: { boltz: { connected: true } },
   aspUrl: defaultArkServer(),
   currencyDisplay: CurrencyDisplay.Both,
   fiat: Fiats.USD,

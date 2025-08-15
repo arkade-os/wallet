@@ -23,7 +23,7 @@ export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { createReverseSwap, waitAndClaim } = useContext(LightningContext)
+  const { swapProvider } = useContext(LightningContext)
   const { vtxos, svcWallet, wallet, reloadWallet } = useContext(WalletContext)
   const { validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
 
@@ -52,14 +52,16 @@ export default function ReceiveQRCode() {
   useEffect(() => {
     // if boltz is available and amount is between limits, let's create a swap invoice
     if (validLnSwap(satoshis) && wallet && svcWallet) {
-      createReverseSwap(satoshis)
+      swapProvider
+        ?.createReverseSwap(satoshis)
         .then((pendingSwap) => {
           if (!pendingSwap) throw new Error('Failed to create reverse swap')
           const invoice = pendingSwap.response.invoice
           setRecvInfo({ ...recvInfo, invoice })
           setInvoice(invoice)
           consoleLog('Reverse swap invoice created:', invoice)
-          waitAndClaim(pendingSwap)
+          swapProvider
+            .waitAndClaim(pendingSwap)
             .then(() => {
               setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
               navigate(Pages.ReceiveSuccess)

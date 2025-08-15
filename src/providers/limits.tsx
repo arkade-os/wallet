@@ -42,7 +42,7 @@ export const LimitsContext = createContext<LimitsContextProps>({
 export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet } = useContext(WalletContext)
-  const { getLimits, swapProvider } = useContext(LightningContext)
+  const { swapProvider, connected } = useContext(LightningContext)
 
   const limits = useRef<LimitTxTypes>({
     swap: { min: BigInt(0), max: BigInt(0) },
@@ -50,9 +50,9 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
     vtxo: { min: BigInt(0), max: BigInt(-1) },
   })
 
+  // update limits when aspInfo or svcWallet changes
   useEffect(() => {
-    if (!aspInfo.network || !svcWallet) return
-    let cancelled = false
+    if (!aspInfo.network || !svcWallet || !swapProvider) return
 
     limits.current.utxo = {
       min: BigInt(aspInfo.utxoMinAmount ?? aspInfo.dust ?? -1),
@@ -63,21 +63,32 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
       min: BigInt(aspInfo.vtxoMinAmount ?? aspInfo.dust ?? -1),
       max: BigInt(aspInfo.vtxoMaxAmount ?? -1),
     }
+  }, [aspInfo.network, svcWallet])
 
-    if (swapProvider) {
-      getLimits()
+  // update limits when swapProvider or connected changes
+  useEffect(() => {
+    if (!swapProvider) return
+
+    if (connected) {
+      swapProvider
+        .getLimits()
         .then((res) => {
-          if (cancelled || !res) return
-          limits.current.swap = { ...limits.current.swap, min: BigInt(res.min), max: BigInt(res.max) }
+          if (!res) return
+          limits.current.swap = {
+            ...limits.current.swap,
+            min: BigInt(res.min),
+            max: BigInt(res.max),
+          }
         })
         .catch(consoleError)
+    } else {
+      limits.current.swap = {
+        ...limits.current.swap,
+        min: BigInt(0),
+        max: BigInt(0),
+      }
     }
-
-    // fix potential memory leak with async operation.
-    return () => {
-      cancelled = true
-    }
-  }, [aspInfo.network, svcWallet, swapProvider])
+  }, [swapProvider, connected])
 
   const minSwapAllowed = () => Number(limits.current.swap.min)
   const maxSwapAllowed = () => Number(limits.current.swap.max)

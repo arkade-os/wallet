@@ -28,7 +28,7 @@ import { calcSwapFee } from '../../../lib/lightning'
 export default function SendDetails() {
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { iframeUrl } = useContext(IframeContext)
-  const { payInvoice } = useContext(LightningContext)
+  const { swapProvider } = useContext(LightningContext)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { balance, svcWallet } = useContext(WalletContext)
@@ -103,7 +103,7 @@ export default function SendDetails() {
       if (!response) return setError('Swap response not available')
       const swapAddress = pendingSwap?.response.address
       if (!swapAddress) return setError('Swap address not available')
-      payInvoice(pendingSwap).then(handleTxid).catch(handleError)
+      swapProvider?.payInvoice(pendingSwap).then(handleTxid).catch(handleError)
     } else if (address) {
       collaborativeExit(svcWallet, satoshis, address).then(handleTxid).catch(handleError)
     }

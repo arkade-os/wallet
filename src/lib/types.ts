@@ -7,6 +7,11 @@ export type Addresses = {
 }
 
 export type Config = {
+  apps: {
+    boltz: {
+      connected: boolean
+    }
+  }
   aspUrl: string
   currencyDisplay: CurrencyDisplay
   fiat: Fiats
