@@ -220,12 +220,15 @@ export default function SendForm() {
     if (!proceed) return
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
     if (!sendInfo.arkAddress && sendInfo.invoice && !sendInfo.pendingSwap) {
-      swapProvider
-        ?.createSubmarineSwap(sendInfo.invoice)
-        .then((pendingSwap) => {
-          if (pendingSwap) setState({ ...sendInfo, pendingSwap })
-        })
-        .catch(handleError)
+      const promise = swapProvider?.createSubmarineSwap(sendInfo.invoice)
+      if (promise) {
+        promise
+          .then((pendingSwap) => {
+            if (!pendingSwap) return setError('Unable to create swap')
+            setState({ ...sendInfo, pendingSwap })
+          })
+          .catch(handleError)
+      }
     } else navigate(Pages.SendDetails)
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
 
