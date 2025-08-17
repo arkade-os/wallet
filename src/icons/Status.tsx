@@ -1,6 +1,6 @@
 export function GreenStatusIcon({ small }: { small?: boolean }) {
   const width = small ? '16' : '20'
-  const height = small ? '16' : '21'
+  const height = small ? '17' : '21'
   return (
     <svg width={width} height={height} viewBox='0 0 20 21' fill='none' xmlns='http://www.w3.org/2000/svg'>
       <rect y='0.5' width='20' height='20' rx='10' fill='var(--green)' />
