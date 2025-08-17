@@ -77,6 +77,24 @@ export default function App() {
     if (!initialized) return navigate(Pages.Unlock)
   }, [walletLoaded, initialized, svcWallet, initInfo])
 
+  // for some reason you need to manually set the active tab
+  // if you are coming from a page in a different tab
+  useEffect(() => {
+    switch (tab) {
+      case Tabs.Wallet:
+        walletRef.current?.setActive()
+        break
+      case Tabs.Apps:
+        appsRef.current?.setActive()
+        break
+      case Tabs.Settings:
+        settingsRef.current?.setActive()
+        break
+      default:
+        break
+    }
+  }, [tab])
+
   if (!svcWallet) return <Loading text={loadingError} />
 
   const handleWallet = () => {
@@ -103,24 +121,6 @@ export default function App() {
         <iframe src={iframeUrl} />
       </>
     )
-
-  // for some reason you need to manually set the active tab
-  // if you are coming from a page in a different tab
-  switch (tab) {
-    case Tabs.Wallet:
-      walletRef.current?.setActive()
-      break
-    case Tabs.Apps:
-      appsRef.current?.setActive()
-      break
-
-    case Tabs.Settings:
-      settingsRef.current?.setActive()
-      break
-
-    default:
-      break
-  }
 
   return (
     <IonApp>
