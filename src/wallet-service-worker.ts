@@ -84,6 +84,6 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (event.data && event.data.type === 'RELOAD_WALLET') {
     // reload the wallet when the service worker receives a message to reload
-    worker.reload().catch(console.error)
+    event.waitUntil(worker.reload().catch(console.error))
   }
 })

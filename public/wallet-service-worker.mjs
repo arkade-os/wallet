@@ -13313,5 +13313,5 @@ self.addEventListener("activate", (t) => {
   }), self.clients.claim();
 });
 self.addEventListener("message", (t) => {
-  t.data && t.data.type === "RELOAD_WALLET" && yd.reload().catch(console.error);
+  t.data && t.data.type === "RELOAD_WALLET" && t.waitUntil(yd.reload().catch(console.error));
 });
