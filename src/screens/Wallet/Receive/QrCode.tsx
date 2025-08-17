@@ -68,12 +68,12 @@ export default function ReceiveQRCode() {
             })
             .catch((error) => {
               setShowQrCode(true)
-              consoleError('Error claiming reverse swap:', error)
+              consoleError(error, 'Error claiming reverse swap:')
             })
         })
         .catch((error) => {
           setShowQrCode(true)
-          consoleError('Error creating reverse swap:', error)
+          consoleError(error, 'Error creating reverse swap:')
         })
     } else {
       setShowQrCode(true)
