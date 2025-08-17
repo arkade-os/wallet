@@ -4,6 +4,7 @@ import MegaphoneIcon from '../icons/Megaphone'
 import FlexCol from './FlexCol'
 import FlexRow from './FlexRow'
 import Text from './Text'
+import DOMPurify from 'dompurify'
 
 interface AlertBoxProps {
   children: React.ReactNode
@@ -27,16 +28,6 @@ function AlertBox({ children, icon, onClick, onDismiss }: AlertBoxProps) {
       backgroundColor: 'var(--purple)',
       borderRadius: '6px',
       padding: '5px',
-    },
-    close: {
-      padding: '2px',
-      borderRadius: '10px',
-      backgroundColor: 'var(--dark20)',
-      fontSize: '12px',
-      height: '20px',
-      width: '20px',
-      textAlign: 'center',
-      alignItems: 'center',
     },
   }
 
@@ -64,34 +55,11 @@ function AlertText({ children }: { children: React.ReactNode }) {
 }
 
 export function InfoBox({ html }: { html: string }) {
-  const style = {
-    backgroundColor: 'var(--purple20)',
-    border: '1px solid var(--dark20)',
-    borderRadius: '0.5rem',
-    padding: '0.5rem',
-    color: 'white',
-    width: '100%',
-  }
+  const sanitizedHtml = DOMPurify.sanitize(html)
   return (
-    <div style={{ padding: '2px', width: '100%' }}>
-      <div style={style}>
-        <FlexRow gap='0.5rem'>
-          <AlertBox icon={<MegaphoneIcon animated />}>
-            <div dangerouslySetInnerHTML={{ __html: html }} />
-          </AlertBox>
-        </FlexRow>
-      </div>
-    </div>
-  )
-}
-
-export function WaitBox({ text }: { text: string }) {
-  return (
-    <div style={{ width: '304px' }}>
-      <AlertBox icon={<LogoIconAnimated />}>
-        <AlertText>{text}</AlertText>
-      </AlertBox>
-    </div>
+    <AlertBox icon={<MegaphoneIcon animated />}>
+      <div dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
+    </AlertBox>
   )
 }
 
