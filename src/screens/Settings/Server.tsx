@@ -27,12 +27,18 @@ export default function Server() {
   const [scan, setScan] = useState(false)
   const [loading, setLoading] = useState(false)
 
+  const isValidUrl = (url: string) => {
+    if (url.startsWith('localhost') || url.startsWith('127.0.0.1')) return true
+    const urlPattern = /^(https?:\/\/)?([\w-]+(\.[\w-]+)+)([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?$/
+    return urlPattern.test(url)
+  }
+
   useEffect(() => {
     setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
   }, [aspInfo.unreachable])
 
   useEffect(() => {
-    if (!aspUrl) return
+    if (!aspUrl || !isValidUrl(aspUrl)) return
     // don't do anything if same server
     if (aspUrl === config.aspUrl) return setError('Same server')
     // test connection
