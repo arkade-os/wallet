@@ -76,6 +76,10 @@ export default function SendDetails() {
     }
   }, [sendInfo])
 
+  const handlePreimage = ({ txid }: { preimage: string; txid: string }) => {
+    handleTxid(txid)
+  }
+
   const handleTxid = (txid: string) => {
     if (!txid) return setError('Error sending transaction')
     setSendInfo({ ...sendInfo, total: details?.total, txid })
@@ -103,7 +107,7 @@ export default function SendDetails() {
       if (!response) return setError('Swap response not available')
       const swapAddress = pendingSwap?.response.address
       if (!swapAddress) return setError('Swap address not available')
-      swapProvider?.payInvoice(pendingSwap).then(handleTxid).catch(handleError)
+      swapProvider?.payInvoice(pendingSwap).then(handlePreimage).catch(handleError)
     } else if (address) {
       collaborativeExit(svcWallet, satoshis, address).then(handleTxid).catch(handleError)
     }

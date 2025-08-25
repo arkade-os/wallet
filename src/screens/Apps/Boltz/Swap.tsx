@@ -15,12 +15,13 @@ export default function AppBoltzSwap() {
 
   if (!swapInfo) return null
 
-  const kind = 'preimage' in swapInfo ? 'Reverse Swap' : 'Submarine Swap'
-  const direction = 'preimage' in swapInfo ? 'Lightning to Arkade' : 'Arkade to Lightning'
-  const total = 'preimage' in swapInfo ? swapInfo.request.invoiceAmount : swapInfo.response.expectedAmount
-  const amount =
-    'preimage' in swapInfo ? swapInfo.response.onchainAmount : decodeInvoice(swapInfo.request.invoice).amountSats
-  const invoice = 'preimage' in swapInfo ? swapInfo.response.invoice : swapInfo.request.invoice
+  const isReverse = swapInfo.type === 'reverse'
+
+  const kind = isReverse ? 'Reverse Swap' : 'Submarine Swap'
+  const total = isReverse ? swapInfo.request.invoiceAmount : swapInfo.response.expectedAmount
+  const amount = isReverse ? swapInfo.response.onchainAmount : decodeInvoice(swapInfo.request.invoice).amountSats
+  const invoice = isReverse ? swapInfo.response.invoice : swapInfo.request.invoice
+  const direction = isReverse ? 'Lightning to Arkade' : 'Arkade to Lightning'
 
   const data = [
     ['When', prettyAgo(swapInfo.createdAt)],
@@ -29,6 +30,7 @@ export default function AppBoltzSwap() {
     ['Direction', direction],
     ['Date', prettyDate(swapInfo.createdAt)],
     ['Invoice', invoice],
+    ['Preimage', swapInfo.preimage],
     ['Status', swapInfo.status],
     ['Amount', prettyAmount(amount)],
     ['Fees', prettyAmount(total - amount)],

@@ -51,11 +51,11 @@ const SwapLine = ({ swap }: { swap: PendingReverseSwap | PendingSubmarineSwap })
   const { setSwapInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
 
-  const sats = 'preimage' in swap ? swap.response.onchainAmount : swap.response.expectedAmount
-  const direction = 'preimage' in swap ? 'Lightning to Arkade' : 'Arkade to Lightning'
+  const sats = swap.type === 'reverse' ? swap.response.onchainAmount : swap.response.expectedAmount
+  const direction = swap.type === 'reverse' ? 'Lightning to Arkade' : 'Arkade to Lightning'
   const status = statusDict[swap.status] || 'pending'
   const color = colorDict[status]
-  const prefix = 'preimage' in swap ? '+' : '-'
+  const prefix = swap.type === 'reverse' ? '+' : '-'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(sats) : prettyHide(sats)}`
 
   const Icon = () => iconDict[status]

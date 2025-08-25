@@ -86,7 +86,7 @@ export class LightningSwapProvider {
 
   // send
 
-  payInvoice = async (pendingSwap: PendingSubmarineSwap): Promise<string> => {
+  payInvoice = async (pendingSwap: PendingSubmarineSwap): Promise<{ txid: string; preimage: string }> => {
     if (!pendingSwap) throw new Error('No pending swap found')
     if (!pendingSwap.response.address) throw new Error('No swap address found')
     if (!pendingSwap.response.expectedAmount) throw new Error('No swap amount found')
@@ -98,8 +98,8 @@ export class LightningSwapProvider {
     if (!txid) throw new Error('Failed to send offchain payment')
 
     try {
-      await this.waitForSwapSettlement(pendingSwap)
-      return txid // provider claimed the VHTLC
+      const { preimage } = await this.waitForSwapSettlement(pendingSwap)
+      return { txid, preimage }
     } catch (e) {
       const { isRefundable } = e as SwapError
       if (!isRefundable) throw this.someError(e, 'Swap failed: VHTLC not refundable')

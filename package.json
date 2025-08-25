@@ -4,7 +4,7 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/boltz-swap": "^0.1.3",
+    "@arkade-os/boltz-swap": "^0.1.4",
     "@arkade-os/sdk": "^0.2.3",
     "@dotmind/react-use-pwa": "^1.0.4",
     "@ionic/react": "^8.5.6",
