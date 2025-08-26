@@ -10,13 +10,12 @@ import { arkNoteInUrl } from '../lib/arknote'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { calcNextRollover } from '../lib/wallet'
-import { ArkNote, ServiceWorkerWallet, setupServiceWorker } from '@arkade-os/sdk'
+import { ArkNote, ServiceWorkerWallet, setupServiceWorker, NetworkName } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../lib/db'
 
 import * as secp from '@noble/secp256k1'
-import { NetworkName } from '@arklabs/wallet-sdk/dist/types/networks'
 
 const defaultWallet: Wallet = {
   network: '',
