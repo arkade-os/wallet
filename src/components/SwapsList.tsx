@@ -6,7 +6,7 @@ import { ConfigContext } from '../providers/config'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { LightningContext } from '../providers/lightning'
 import { NavigationContext, Pages } from '../providers/navigation'
-import { prettyAmount, prettyDate, prettyHide } from '../lib/format'
+import { prettyAgo, prettyAmount, prettyDate, prettyHide } from '../lib/format'
 import { SwapFailedIcon, SwapPendingIcon, SwapSuccessIcon } from '../icons/Swap'
 import { BoltzSwapStatus, PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
 
@@ -57,10 +57,11 @@ const SwapLine = ({ swap }: { swap: PendingReverseSwap | PendingSubmarineSwap })
   const color = colorDict[status]
   const prefix = swap.type === 'reverse' ? '+' : '-'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(sats) : prettyHide(sats)}`
+  const when = window.innerWidth < 400 ? prettyAgo(swap.createdAt) : prettyDate(swap.createdAt)
 
   const Icon = iconDict[status]
   const Kind = () => <Text thin>{direction}</Text>
-  const When = () => <TextSecondary>{prettyDate(swap.createdAt)}</TextSecondary>
+  const When = () => <TextSecondary>{when}</TextSecondary>
   const Sats = () => <Text color={color}>{amount}</Text>
   const Stat = () => <Text color={color}>{status}</Text>
 
