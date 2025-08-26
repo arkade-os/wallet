@@ -72,14 +72,14 @@ export default function Password() {
     <>
       <Header text='Change password' back />
       <Content>
-        <Padded>
-          <Error text={error} error={Boolean(error)} />
-          {successText ? (
-            <Success headline='Success' text={successText} />
-          ) : (
+        {successText ? (
+          <Success headline='Success' text={successText} />
+        ) : (
+          <Padded>
+            <Error text={error} error={Boolean(error)} />
             <NewPassword onNewPassword={setNewPassword} setLabel={setLabel} />
-          )}
-        </Padded>
+          </Padded>
+        )}
       </Content>
       {successText ? null : (
         <ButtonsOnBottom>
