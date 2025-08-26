@@ -1,5 +1,5 @@
 import { ExtendedVirtualCoin, IWallet, ArkNote, RestArkProvider } from '@arkade-os/sdk'
-import { consoleError } from './logs'
+import { consoleError, consoleLog } from './logs'
 import { Addresses, Satoshis, Tx } from './types'
 import { AspInfo } from '../providers/asp'
 import { vtxosRepository } from './db'
@@ -135,4 +135,5 @@ export const sendOnChain = async (wallet: IWallet, sats: number, address: string
 
 export const settleVtxos = async (wallet: IWallet): Promise<void> => {
   await wallet.settle(undefined, console.log)
+  consoleLog('Settled all vtxos')
 }
