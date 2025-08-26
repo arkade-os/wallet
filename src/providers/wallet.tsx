@@ -103,13 +103,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const reloadWallet = async () => {
     if (!svcWallet) return
-    if (navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'RELOAD_WALLET',
-      })
-    } else {
-      console.log('No active service worker found.')
-    }
     // update the txs history list
     getTxHistory(svcWallet).then(setTxs).catch(consoleError)
     // update the balance
