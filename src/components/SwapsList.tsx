@@ -14,7 +14,7 @@ const border = '1px solid var(--dark20)'
 
 type statusUI = 'Successful' | 'Pending' | 'Failed' | 'Refunded'
 
-const statusDict: Record<BoltzSwapStatus, statusUI> = {
+const statusDict = {
   'invoice.expired': 'Failed',
   'invoice.failedToPay': 'Failed',
   'invoice.paid': 'Successful',
@@ -30,7 +30,7 @@ const statusDict: Record<BoltzSwapStatus, statusUI> = {
   'transaction.lockupFailed': 'Failed',
   'transaction.mempool': 'Pending',
   'transaction.refunded': 'Refunded',
-}
+} satisfies Record<BoltzSwapStatus, statusUI>
 
 const colorDict: Record<statusUI, string> = {
   Failed: 'red',
