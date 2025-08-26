@@ -6,7 +6,6 @@ import {
   BoltzSwapProvider,
   PendingReverseSwap,
   PendingSubmarineSwap,
-  SwapError,
   StorageProvider,
 } from '@arkade-os/boltz-swap'
 import { RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
@@ -100,9 +99,9 @@ export class LightningSwapProvider {
     try {
       const { preimage } = await this.waitForSwapSettlement(pendingSwap)
       return { txid, preimage }
-    } catch (e) {
-      const { isRefundable } = e as SwapError
-      if (!isRefundable) throw this.someError(e, 'Swap failed: VHTLC not refundable')
+    } catch (e: unknown) {
+      const refundable = typeof (e as any)?.isRefundable === 'boolean' ? (e as any).isRefundable : false
+      if (!refundable) throw this.someError(e, 'Swap failed: VHTLC not refundable')
       try {
         await this.refundVHTLC(pendingSwap)
       } catch (e) {
