@@ -7,9 +7,11 @@ import { NavigationContext, Pages } from '../../../providers/navigation'
 import Table from '../../../components/Table'
 import { FlowContext } from '../../../providers/flow'
 import { decodeInvoice } from '../../../lib/bolt11'
-import { prettyAgo, prettyAmount, prettyDate } from '../../../lib/format'
+import { prettyAgo, prettyAmount, prettyDate, prettyHide } from '../../../lib/format'
+import { ConfigContext } from '../../../providers/config'
 
 export default function AppBoltzSwap() {
+  const { config } = useContext(ConfigContext)
   const { swapInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
 
@@ -23,6 +25,8 @@ export default function AppBoltzSwap() {
   const invoice = isReverse ? swapInfo.response.invoice : swapInfo.request.invoice
   const direction = isReverse ? 'Lightning to Arkade' : 'Arkade to Lightning'
 
+  const formatAmount = (amt: number) => (config.showBalance ? prettyAmount(amt) : prettyHide(amt))
+
   const data = [
     ['When', prettyAgo(swapInfo.createdAt)],
     ['Kind', kind],
@@ -32,9 +36,9 @@ export default function AppBoltzSwap() {
     ['Invoice', invoice],
     ['Preimage', swapInfo.preimage],
     ['Status', swapInfo.status],
-    ['Amount', prettyAmount(amount)],
-    ['Fees', prettyAmount(total - amount)],
-    ['Total', prettyAmount(total)],
+    ['Amount', formatAmount(amount)],
+    ['Fees', formatAmount(total - amount)],
+    ['Total', formatAmount(total)],
   ]
 
   return (
