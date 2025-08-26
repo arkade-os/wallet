@@ -58,7 +58,7 @@ const SwapLine = ({ swap }: { swap: PendingReverseSwap | PendingSubmarineSwap })
   const prefix = swap.type === 'reverse' ? '+' : '-'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(sats) : prettyHide(sats)}`
 
-  const Icon = () => iconDict[status]
+  const Icon = iconDict[status]
   const Kind = () => <Text thin>{direction}</Text>
   const When = () => <TextSecondary>{prettyDate(swap.createdAt)}</TextSecondary>
   const Sats = () => <Text color={color}>{amount}</Text>
@@ -78,7 +78,7 @@ const SwapLine = ({ swap }: { swap: PendingReverseSwap | PendingSubmarineSwap })
 
   const Left = () => (
     <FlexRow>
-      <Icon />
+      {Icon}
       <div>
         <Kind />
         <Sats />
