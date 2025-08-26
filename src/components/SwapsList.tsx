@@ -94,7 +94,15 @@ const SwapLine = ({ swap }: { swap: PendingReverseSwap | PendingSubmarineSwap })
   )
 
   return (
-    <div style={rowStyle} onClick={handleClick}>
+    <div
+      style={rowStyle}
+      role='button'
+      tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') handleClick()
+      }}
+    >
       <FlexRow>
         <Left />
         <Right />
