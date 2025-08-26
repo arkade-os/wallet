@@ -32,11 +32,11 @@ const statusDict: Record<BoltzSwapStatus, statusUI> = {
   'transaction.refunded': 'Refunded',
 }
 
-const colorDict: Record<statusUI, [string]> = {
-  Failed: ['red'],
-  Successful: ['green'],
-  Pending: ['yellow'],
-  Refunded: ['dark50'],
+const colorDict: Record<statusUI, string> = {
+  Failed: 'red',
+  Successful: 'green',
+  Pending: 'yellow',
+  Refunded: 'dark50',
 }
 
 const iconDict: Record<statusUI, React.JSX.Element> = {
@@ -53,16 +53,16 @@ const SwapLine = ({ swap }: { swap: PendingReverseSwap | PendingSubmarineSwap })
 
   const sats = swap.type === 'reverse' ? swap.response.onchainAmount : swap.response.expectedAmount
   const direction = swap.type === 'reverse' ? 'Lightning to Arkade' : 'Arkade to Lightning'
-  const status = statusDict[swap.status] || 'pending'
+  const status = statusDict[swap.status] || 'Pending'
   const color = colorDict[status]
   const prefix = swap.type === 'reverse' ? '+' : '-'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(sats) : prettyHide(sats)}`
 
   const Icon = () => iconDict[status]
   const Kind = () => <Text thin>{direction}</Text>
-  const Date = () => <TextSecondary>{prettyDate(swap.createdAt)}</TextSecondary>
-  const Sats = () => <Text color={color[0]}>{amount}</Text>
-  const Stat = () => <Text color={color[0]}>{status}</Text>
+  const When = () => <TextSecondary>{prettyDate(swap.createdAt)}</TextSecondary>
+  const Sats = () => <Text color={color}>{amount}</Text>
+  const Stat = () => <Text color={color}>{status}</Text>
 
   const handleClick = () => {
     setSwapInfo(swap)
@@ -89,7 +89,7 @@ const SwapLine = ({ swap }: { swap: PendingReverseSwap | PendingSubmarineSwap })
   const Right = () => (
     <FlexCol gap='0' end>
       <Stat />
-      <Date />
+      <When />
     </FlexCol>
   )
 
