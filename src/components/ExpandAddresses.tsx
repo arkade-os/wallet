@@ -39,7 +39,7 @@ export default function ExpandAddresses({
   }
 
   const handleExpand = () => {
-    if (!expand) handleCopy(bip21uri)
+    if (!expand && bip21uri) handleCopy(bip21uri)
     setExpand(!expand)
   }
 
