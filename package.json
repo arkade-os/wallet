@@ -25,8 +25,7 @@
     "qs": "^6.14.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-qr-barcode-scanner": "^2.1.8",
-    "typescript": "^5.8.3"
+    "react-qr-barcode-scanner": "^2.1.8"
   },
   "scripts": {
     "prepare": "husky install",
@@ -76,7 +75,8 @@
     "prettier": "^2.8.8",
     "vite": "^6.3.5",
     "vite-plugin-eslint": "^1.8.1",
-    "vitest": "^1.6.1"
+    "vitest": "^1.6.1",
+    "typescript": "^5.8.3"
   },
   "packageManager": "pnpm@10.13.1+sha512.37ebf1a5c7a30d5fabe0c5df44ee8da4c965ca0c5af3dbab28c3a1681b70a256218d05c81c9c0dcf767ef6b8551eb5b960042b9ed4300c59242336377e01cfad",
   "engines": {
