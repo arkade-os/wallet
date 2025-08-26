@@ -39,7 +39,7 @@ const colorDict: Record<statusUI, string> = {
   Refunded: 'dark50',
 }
 
-const iconDict: Record<statusUI, React.JSX.Element> = {
+const iconDict: Record<statusUI, JSX.Element> = {
   Failed: <SwapFailedIcon />,
   Successful: <SwapSuccessIcon />,
   Pending: <SwapPendingIcon />,
