@@ -39,10 +39,10 @@ export default function Password() {
     })
   }, [oldPassword])
 
-  const saveNewPassword = async (nextPassword: string | null, biometrics: boolean) => {
-    if (!oldPassword || nextPassword === null || !authenticated) return
+  const saveNewPassword = async (nextPassword: string | null, biometrics: boolean): Promise<boolean> => {
+    if (!oldPassword || nextPassword === null || !authenticated) return false
     const finalPassword = nextPassword === '' ? defaultPassword : nextPassword
-    const privateKey = await getPrivateKey(oldPassword) // per flow, this should succeed post-auth
+    const privateKey = await getPrivateKey(oldPassword)
     try {
       setSaving(true)
       await setPrivateKey(privateKey, finalPassword)
@@ -53,8 +53,11 @@ export default function Password() {
           ? 'Password removed'
           : 'Password changed',
       )
+      setError('')
+      return true
     } catch {
       setError('Failed to update password')
+      return false
     } finally {
       setSaving(false)
     }
@@ -70,8 +73,8 @@ export default function Password() {
   }
 
   const handleContinue = async () => {
-    await saveNewPassword(newPassword, false)
-    updateWallet({ ...wallet, lockedByBiometrics: false })
+    const ok = await saveNewPassword(newPassword, false)
+    if (ok) updateWallet({ ...wallet, lockedByBiometrics: false })
   }
 
   if (!authenticated && !successText) return <NeedsPassword error={error} onPassword={setOldPassword} />
