@@ -18,15 +18,17 @@ export default function About() {
     setError(aspInfo.unreachable)
   }, [aspInfo.unreachable])
 
+  console.log('aspInfo', aspInfo)
   const data = [
-    ['Dust', `${aspInfo.dust} SATS`],
+    ['Server URL', aspInfo.url],
+    ['Server pubkey', aspInfo.signerPubkey],
     ['Forfeit address', aspInfo.forfeitAddress],
     ['Network', aspInfo.network],
-    ['Round interval', `${aspInfo.roundInterval} secs`],
+    ['Dust', `${aspInfo.dust} SATS`],
+    ['Round interval', prettyDelta(Number(aspInfo.roundInterval), true)],
     ['VTXO tree expiry', prettyDelta(Number(aspInfo.vtxoTreeExpiry), true)],
-    ['Server pubkey', aspInfo.signerPubkey],
-    ['Server URL', aspInfo.url],
-    ['Unilateral exit delay', `${aspInfo.unilateralExitDelay} secs`],
+    ['Boarding exit delay', prettyDelta(Number(aspInfo.boardingExitDelay), true)],
+    ['Unilateral exit delay', prettyDelta(Number(aspInfo.unilateralExitDelay), true)],
     ['Git commit hash', gitCommit],
   ]
 
