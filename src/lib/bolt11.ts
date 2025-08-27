@@ -17,3 +17,12 @@ export const decodeInvoice = (invoice: string): DecodedInvoice => {
     paymentHash: decoded.sections.find((s) => s.name === 'payment_hash')?.value ?? '',
   }
 }
+
+export const isValidInvoice = (data: string): boolean => {
+  try {
+    decodeInvoice(data)
+    return true
+  } catch {
+    return false
+  }
+}
