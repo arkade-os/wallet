@@ -107,7 +107,13 @@ export default function SendDetails() {
       if (!response) return setError('Swap response not available')
       const swapAddress = pendingSwap?.response.address
       if (!swapAddress) return setError('Swap address not available')
-      swapProvider?.payInvoice(pendingSwap).then(handlePreimage).catch(handleError)
+      const promise = swapProvider?.payInvoice(pendingSwap)
+      if (!promise) {
+        setError('Lightning swaps not enabled')
+        setSending(false)
+        return
+      }
+      promise.then(handlePreimage).catch(handleError)
     } else if (address) {
       collaborativeExit(svcWallet, satoshis, address).then(handleTxid).catch(handleError)
     }
