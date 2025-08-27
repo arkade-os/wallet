@@ -62,8 +62,8 @@ export default function Password() {
   }
 
   const handleContinue = async () => {
-    updateWallet({ ...wallet, lockedByBiometrics: false })
     await saveNewPassword(newPassword, false)
+    updateWallet({ ...wallet, lockedByBiometrics: false })
   }
 
   if (!authenticated && !successText) return <NeedsPassword error={error} onPassword={setOldPassword} />
