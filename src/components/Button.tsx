@@ -9,12 +9,12 @@ interface ButtonProps {
   fancy?: boolean
   icon?: ReactElement
   label: string
+  loading?: boolean
   onClick: (event: any) => void
   red?: boolean
   secondary?: boolean
   short?: boolean
   small?: boolean
-  loading?: boolean
 }
 
 export default function Button({
@@ -23,12 +23,12 @@ export default function Button({
   fancy,
   icon,
   label,
+  loading,
   onClick,
   red,
   secondary,
   short,
   small,
-  loading,
 }: ButtonProps) {
   return (
     <IonButton
