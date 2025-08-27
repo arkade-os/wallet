@@ -87,15 +87,6 @@ export const prettyNumber = (num?: number, maximumFractionDigits = 8): string =>
   return new Intl.NumberFormat('en', { style: 'decimal', maximumFractionDigits }).format(num)
 }
 
-export const prettyUnixTimestamp = (num: number): string => {
-  if (!num) return ''
-  const date = new Date(num * 1000)
-  return new Intl.DateTimeFormat('en', {
-    dateStyle: 'full',
-    timeStyle: 'long',
-  }).format(date)
-}
-
 export const toUint8Array = (str: string): Uint8Array => {
   return new TextEncoder().encode(str)
 }
