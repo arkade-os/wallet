@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
 import Button from '../../../components/Button'
-import Error from '../../../components/Error'
+import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext, SendInfo } from '../../../providers/flow'
@@ -337,7 +337,7 @@ export default function SendForm() {
       <Content>
         <Padded>
           <FlexCol gap='2rem'>
-            <Error error={Boolean(error)} text={error} />
+            <ErrorMessage error={Boolean(error)} text={error} />
             <InputAddress
               focus={focus === 'recipient'}
               label='Recipient address'

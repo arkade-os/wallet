@@ -1,6 +1,6 @@
 import { useContext, useState } from 'react'
 import Text from './Text'
-import Error from './Error'
+import ErrorMessage from './Error'
 import Button from './Button'
 import Padded from './Padded'
 import Content from './Content'
@@ -41,7 +41,7 @@ export default function NeedsPassword({ error, onPassword }: NeedsPasswordProps)
           ) : (
             <FlexCol gap='1rem'>
               <InputPassword focus label='Insert password' onChange={handleChange} onEnter={handleClick} />
-              <Error text={error} error={Boolean(error)} />
+              <ErrorMessage text={error} error={Boolean(error)} />
             </FlexCol>
           )}
         </Padded>

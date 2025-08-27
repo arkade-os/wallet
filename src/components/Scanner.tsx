@@ -2,7 +2,7 @@ import BarcodeScanner from 'react-qr-barcode-scanner'
 import Button from './Button'
 import ButtonsOnBottom from './ButtonsOnBottom'
 import Content from './Content'
-import Error from './Error'
+import ErrorMessage from './Error'
 import Header from './Header'
 import Padded from './Padded'
 import { QRCanvas, frameLoop, frontalCamera } from 'qr/dom.js'
@@ -84,7 +84,7 @@ function ScannerMills({ close, label, onData, onError, onSwitch }: ScannerProps)
       <Header auxFunc={onSwitch} auxText='M' text={label} back={handleClose} />
       <Content>
         <Padded>
-          <Error error={error} text='Camera not available' />
+          <ErrorMessage error={error} text='Camera not available' />
           <video style={videoStyle} ref={videoRef} />
         </Padded>
       </Content>

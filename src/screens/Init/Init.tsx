@@ -5,7 +5,7 @@ import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { AspContext } from '../../providers/asp'
-import Error from '../../components/Error'
+import ErrorMessage from '../../components/Error'
 import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
 import CenterScreen from '../../components/CenterScreen'
@@ -58,7 +58,7 @@ export default function Init() {
           <FlexCol centered gap='0'>
             <Text bigger>Arkade Wallet</Text>
           </FlexCol>
-          <Error error={error} text='Ark server unreachable' />
+          <ErrorMessage error={error} text='Ark server unreachable' />
         </CenterScreen>
       </Content>
       <ButtonsOnBottom>

@@ -1,5 +1,5 @@
 import Header from './Header'
-import Error from '../../components/Error'
+import ErrorMessage from '../../components/Error'
 import { consoleLog } from '../../lib/logs'
 import Button from '../../components/Button'
 import Padded from '../../components/Padded'
@@ -76,7 +76,7 @@ export default function Password() {
           <Success headline='Success' text={successText} />
         ) : (
           <Padded>
-            <Error text={error} error={Boolean(error)} />
+            <ErrorMessage text={error} error={Boolean(error)} />
             <NewPassword onNewPassword={setNewPassword} setLabel={setLabel} />
           </Padded>
         )}

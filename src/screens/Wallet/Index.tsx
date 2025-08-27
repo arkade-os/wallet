@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
 import Balance from '../../components/Balance'
-import Error from '../../components/Error'
+import ErrorMessage from '../../components/Error'
 import TransactionsList from '../../components/TransactionsList'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
@@ -71,7 +71,7 @@ export default function Wallet() {
           <FlexCol gap='0'>
             <LogoIcon small />
             <Balance amount={balance} />
-            <Error error={error} text='Ark server unreachable' />
+            <ErrorMessage error={error} text='Ark server unreachable' />
             <FlexRow padding='0 0 0.5rem 0'>
               <Button icon={<SendIcon />} label='Send' onClick={handleSend} />
               <Button icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} disabled={isRiga} />

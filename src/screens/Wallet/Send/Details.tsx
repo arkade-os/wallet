@@ -5,7 +5,7 @@ import { emptySendInfo, FlowContext } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Details, { DetailsProps } from '../../../components/Details'
-import Error from '../../../components/Error'
+import ErrorMessage from '../../../components/Error'
 import { WalletContext } from '../../../providers/wallet'
 import Header from '../../../components/Header'
 import { defaultFee } from '../../../lib/constants'
@@ -139,7 +139,7 @@ export default function SendDetails() {
         ) : (
           <Padded>
             <FlexCol>
-              <Error error={Boolean(error)} text={error} />
+              <ErrorMessage error={Boolean(error)} text={error} />
               <Details details={details} />
             </FlexCol>
           </Padded>

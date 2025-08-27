@@ -4,7 +4,7 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
-import Error from '../../../components/Error'
+import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
 import Header from '../../../components/Header'
@@ -151,7 +151,7 @@ export default function ReceiveAmount() {
       <Content>
         <Padded>
           <FlexCol>
-            <Error error={Boolean(error)} text={error} />
+            <ErrorMessage error={Boolean(error)} text={error} />
             <InputAmount
               focus={!isMobileBrowser}
               label='Amount'

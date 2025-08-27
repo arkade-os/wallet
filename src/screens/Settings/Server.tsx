@@ -3,7 +3,7 @@ import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Content from '../../components/Content'
 import Padded from '../../components/Padded'
-import Error from '../../components/Error'
+import ErrorMessage from '../../components/Error'
 import { ConfigContext } from '../../providers/config'
 import { getAspInfo } from '../../lib/asp'
 import { WalletContext } from '../../providers/wallet'
@@ -86,7 +86,7 @@ export default function Server() {
               placeholder={config.aspUrl}
               value={aspUrl}
             />
-            <Error error={Boolean(error)} text={error} />
+            <ErrorMessage error={Boolean(error)} text={error} />
             {info && !error ? <WarningBox green text='Server found' /> : null}
             <WarningBox text='Your wallet will be reset. Make sure you backup your wallet first.' />
           </FlexCol>

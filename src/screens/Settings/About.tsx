@@ -7,7 +7,7 @@ import Content from '../../components/Content'
 import { gitCommit } from '../../_gitCommit'
 import { prettyDelta } from '../../lib/format'
 import FlexCol from '../../components/FlexCol'
-import Error from '../../components/Error'
+import ErrorMessage from '../../components/Error'
 
 export default function About() {
   const { aspInfo } = useContext(AspContext)
@@ -36,7 +36,7 @@ export default function About() {
       <Content>
         <Padded>
           <FlexCol>
-            <Error error={error} text='Ark server unreachable' />
+            <ErrorMessage error={error} text='Ark server unreachable' />
             <Table data={data} />
           </FlexCol>
         </Padded>

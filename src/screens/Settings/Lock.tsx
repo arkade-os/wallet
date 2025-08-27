@@ -6,7 +6,7 @@ import Padded from '../../components/Padded'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { extractError } from '../../lib/error'
 import Content from '../../components/Content'
-import Error from '../../components/Error'
+import ErrorMessage from '../../components/Error'
 import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
 import CenterScreen from '../../components/CenterScreen'
@@ -47,7 +47,7 @@ export default function Lock() {
       <Header text='Lock' back />
       <Content>
         <Padded>
-          <Error error={Boolean(error)} text={error} />
+          <ErrorMessage error={Boolean(error)} text={error} />
           <CenterScreen>
             <LockIcon big />
             <Text centered>{noPassword ? 'No password defined' : 'Lock your wallet'}</Text>

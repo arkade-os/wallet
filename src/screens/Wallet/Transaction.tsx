@@ -7,7 +7,7 @@ import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
 import { prettyAgo, prettyDate, prettyDelta } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
-import Error from '../../components/Error'
+import ErrorMessage from '../../components/Error'
 import { extractError } from '../../lib/error'
 import Header from '../../components/Header'
 import Content from '../../components/Content'
@@ -100,7 +100,7 @@ export default function Transaction() {
         <Content>
           <Padded>
             <FlexCol>
-              <Error error={Boolean(error)} text={error} />
+              <ErrorMessage error={Boolean(error)} text={error} />
               {tx.settled ? null : (
                 <Info color='orange' icon={<VtxosIcon />} title='Preconfirmed'>
                   <Text wrap>Transaction preconfirmed. Funds will be non-reversible after settlement.</Text>
@@ -123,7 +123,7 @@ export default function Transaction() {
         ) : (
           <Padded>
             <FlexCol>
-              <Error error={Boolean(error)} text={error} />
+              <ErrorMessage error={Boolean(error)} text={error} />
               {tx.settled ? null : (
                 <Info color='orange' icon={<VtxosIcon />} title='Preconfirmed'>
                   <Text wrap>Transaction preconfirmed. Funds will be non-reversible after settlement.</Text>

@@ -12,7 +12,7 @@ import { Vtxo } from '../../lib/types'
 import FlexRow from '../../components/FlexRow'
 import { ConfigContext } from '../../providers/config'
 import { extractError } from '../../lib/error'
-import Error from '../../components/Error'
+import ErrorMessage from '../../components/Error'
 import WaitingForRound from '../../components/WaitingForRound'
 import { AspContext, AspInfo } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
@@ -109,7 +109,7 @@ export default function Vtxos() {
         ) : (
           <Padded>
             <FlexCol>
-              <Error error={Boolean(error)} text={error} />
+              <ErrorMessage error={Boolean(error)} text={error} />
               {vtxos.spendable?.length === 0 ? (
                 <EmptyCoins />
               ) : showList ? (
@@ -124,7 +124,7 @@ export default function Vtxos() {
               ) : (
                 <>
                   <FlexCol gap='0.5rem' margin='0 0 1rem 0'>
-                    <Error error={Boolean(error)} text={error} />
+                    <ErrorMessage error={Boolean(error)} text={error} />
                     <Text capitalize color='dark50' smaller>
                       Next renewal
                     </Text>

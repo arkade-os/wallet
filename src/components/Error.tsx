@@ -7,7 +7,7 @@ interface ErrorProps {
   text: string
 }
 
-export default function Error({ error, text }: ErrorProps) {
+export default function ErrorMessage({ error, text }: ErrorProps) {
   if (!error) return null
   return (
     <Shadow red>
