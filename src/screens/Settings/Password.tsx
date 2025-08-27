@@ -23,6 +23,7 @@ export default function Password() {
   const [successText, setSuccessText] = useState('')
   const [error, setError] = useState('')
   const [label, setLabel] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     noUserDefinedPassword().then((noPassword) => {
@@ -38,18 +39,25 @@ export default function Password() {
     })
   }, [oldPassword])
 
-  const saveNewPassword = async (newPassword: string | null, biometrics: boolean) => {
-    if (!oldPassword || newPassword === null || !authenticated) return
-    if (newPassword === '') newPassword = defaultPassword
-    const privateKey = await getPrivateKey(oldPassword)
-    setPrivateKey(privateKey, newPassword)
-    setSuccessText(
-      biometrics
-        ? 'Password changed to biometrics'
-        : newPassword === defaultPassword
-        ? 'Password removed'
-        : 'Password changed',
-    )
+  const saveNewPassword = async (nextPassword: string | null, biometrics: boolean) => {
+    if (!oldPassword || nextPassword === null || !authenticated) return
+    const finalPassword = nextPassword === '' ? defaultPassword : nextPassword
+    const privateKey = await getPrivateKey(oldPassword) // per flow, this should succeed post-auth
+    try {
+      setSaving(true)
+      await setPrivateKey(privateKey, finalPassword)
+      setSuccessText(
+        biometrics
+          ? 'Password changed to biometrics'
+          : finalPassword === defaultPassword
+          ? 'Password removed'
+          : 'Password changed',
+      )
+    } catch {
+      setError('Failed to update password')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const registerUserBiometrics = () => {
@@ -83,7 +91,7 @@ export default function Password() {
       </Content>
       {successText ? null : (
         <ButtonsOnBottom>
-          <Button onClick={handleContinue} label={label} disabled={newPassword === null} />
+          <Button onClick={handleContinue} label={label} disabled={newPassword === null || saving} loading={saving} />
           {wallet.lockedByBiometrics || !isBiometricsSupported() ? null : (
             <Button onClick={registerUserBiometrics} label='Use biometrics' secondary />
           )}
