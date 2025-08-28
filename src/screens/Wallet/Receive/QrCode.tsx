@@ -5,7 +5,6 @@ import QrCode from '../../../components/QrCode'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import * as bip21 from '../../../lib/bip21'
 import { WalletContext } from '../../../providers/wallet'
 import { NotificationsContext } from '../../../providers/notifications'
 import Header from '../../../components/Header'
@@ -18,6 +17,7 @@ import { LimitsContext } from '../../../providers/limits'
 import { ExtendedCoin } from '@arkade-os/sdk'
 import Loading from '../../../components/Loading'
 import { LightningContext } from '../../../providers/lightning'
+import { encodeBip21 } from '../../../lib/bip21'
 
 export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
@@ -34,7 +34,7 @@ export default function ReceiveQRCode() {
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
   const address = validUtxoTx(satoshis) && utxoTxsAllowed() ? boardingAddr : ''
   const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
-  const defaultBip21uri = bip21.encode(address, arkAddress, '', satoshis)
+  const defaultBip21uri = encodeBip21(address, arkAddress, '', satoshis)
 
   const [invoice, setInvoice] = useState('')
   const [qrValue, setQrValue] = useState(defaultBip21uri)
@@ -43,7 +43,7 @@ export default function ReceiveQRCode() {
 
   // set the QR code value to the bip21uri the first time
   useEffect(() => {
-    const bip21uri = bip21.encode(address, arkAddress, invoice, satoshis)
+    const bip21uri = encodeBip21(address, arkAddress, invoice, satoshis)
     setBip21uri(bip21uri)
     setQrValue(bip21uri)
     if (invoice) setShowQrCode(true)

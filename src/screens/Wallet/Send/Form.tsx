@@ -13,7 +13,6 @@ import {
   isURLWithLightningQueryString,
 } from '../../../lib/address'
 import { AspContext } from '../../../providers/asp'
-import * as bip21 from '../../../lib/bip21'
 import { isArkNote } from '../../../lib/arknote'
 import InputAmount from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
@@ -41,6 +40,7 @@ import { calcSwapFee } from '../../../lib/lightning'
 import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 import { isRiga } from '../../../lib/constants'
 import { LightningContext } from '../../../providers/lightning'
+import { decodeBip21, isBip21 } from '../../../lib/bip21'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
@@ -89,8 +89,8 @@ export default function SendForm() {
         const url = new URL(recipient)
         return setRecipient(url.searchParams.get('lightning')!)
       }
-      if (bip21.isBip21(lowerCaseData)) {
-        const { address, arkAddress, invoice, satoshis } = bip21.decode(lowerCaseData)
+      if (isBip21(lowerCaseData)) {
+        const { address, arkAddress, invoice, satoshis } = decodeBip21(lowerCaseData)
         if (!address && !arkAddress && !invoice) return setError('Unable to parse bip21')
         setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
         return setState({ address, arkAddress, invoice, recipient, satoshis })
