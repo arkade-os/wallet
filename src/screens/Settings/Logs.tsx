@@ -8,7 +8,7 @@ import FlexCol from '../../components/FlexCol'
 import FlexRow from '../../components/FlexRow'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
-import { EmptyTxList } from '../../components/Empty'
+import { EmptyLogsList, EmptyTxList } from '../../components/Empty'
 
 function LogsTable({ logs }: { logs: LogLine[] }) {
   const color = (level: string): string => {
@@ -21,7 +21,7 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
   const numChars = (v: string) => Math.floor((36 - v.length) / 2)
 
   if (logs.length === 0) {
-    return <EmptyTxList text='No logs available' secondaryText='Start using the app to generate logs.' />
+    return <EmptyLogsList />
   }
 
   return (

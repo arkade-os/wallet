@@ -81,7 +81,7 @@ export default function Wallet() {
           </FlexCol>
           {txs?.length === 0 ? (
             <div style={{ marginTop: '5rem', width: '100%' }}>
-              <EmptyTxList text='No transactions yet' secondaryText='Make a transaction to get started.' />
+              <EmptyTxList />
             </div>
           ) : (
             <TransactionsList />

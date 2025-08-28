@@ -19,7 +19,7 @@ import Reminder from '../../components/Reminder'
 import { settleVtxos } from '../../lib/asp'
 import Loading from '../../components/Loading'
 import { LimitsContext } from '../../providers/limits'
-import { EmptyCoins } from '../../components/Empty'
+import { EmptyCoinsList } from '../../components/Empty'
 
 const Box = ({ children }: { children: ReactNode }) => {
   const style = {
@@ -111,7 +111,7 @@ export default function Vtxos() {
             <FlexCol>
               <ErrorMessage error={Boolean(error)} text={error} />
               {vtxos.spendable?.length === 0 ? (
-                <EmptyCoins />
+                <EmptyCoinsList />
               ) : showList ? (
                 <FlexCol gap='0.5rem'>
                   <Text capitalize color='dark50' smaller>

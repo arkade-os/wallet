@@ -23,15 +23,7 @@ function EmptyTemplate({ icon, text, secondaryText }: EmptyProps) {
   )
 }
 
-export function EmptyTxList({ text, secondaryText }: EmptyProps) {
-  return <EmptyTemplate icon={<EmptyListIcon />} text={text} secondaryText={secondaryText} />
-}
-
-export function EmptySwapList({ text, secondaryText }: EmptyProps) {
-  return <EmptyTemplate icon={<EmptySwapListIcon />} text={text} secondaryText={secondaryText} />
-}
-
-export function EmptyCoins() {
+export function EmptyCoinsList() {
   return (
     <EmptyTemplate
       icon={<EmptyCoinsIcon />}
@@ -41,12 +33,32 @@ export function EmptyCoins() {
   )
 }
 
-export function EmptyLogs() {
+export function EmptyLogsList() {
   return (
     <EmptyTemplate
       icon={<EmptyListIcon />}
       text='No logs available'
       secondaryText='Start using the app to generate logs.'
+    />
+  )
+}
+
+export function EmptySwapList() {
+  return (
+    <EmptyTemplate
+      icon={<EmptySwapListIcon />}
+      text='No swaps yet'
+      secondaryText='Your swap history will appear here once you start swapping.'
+    />
+  )
+}
+
+export function EmptyTxList() {
+  return (
+    <EmptyTemplate
+      icon={<EmptyListIcon />}
+      text='No transactions yet'
+      secondaryText='Make a transaction to get started.'
     />
   )
 }
