@@ -33,7 +33,7 @@ export async function registerUser(): Promise<{ password: string; passkeyId: str
       residentKey: 'required',
       requireResidentKey: true,
     },
-    challenge,
+    challenge: challenge as BufferSource,
     pubKeyCredParams: [
       {
         type: 'public-key',
@@ -50,7 +50,7 @@ export async function registerUser(): Promise<{ password: string; passkeyId: str
     },
     timeout: 60000,
     user: {
-      id: password,
+      id: password as BufferSource,
       name: 'Arkade wallet',
       displayName: 'Arkade wallet',
     },
@@ -76,11 +76,11 @@ export async function authenticateUser(passkeyId: string | undefined): Promise<s
   const options: PublicKeyCredentialRequestOptions = {
     allowCredentials: [
       {
-        id: hex.decode(passkeyId),
+        id: hex.decode(passkeyId) as BufferSource,
         type: 'public-key',
       },
     ],
-    challenge,
+    challenge: challenge as BufferSource,
     rpId: window.location.hostname,
     timeout: 60000,
   }
