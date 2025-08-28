@@ -3,7 +3,7 @@ import { isValidInvoice } from './bolt11'
 
 export const decodeArkAddress = (addr: string) => {
   const decoded = bech32m.decodeUnsafe(addr, 300)
-  if (!decoded) throw 'Invalid address'
+  if (!decoded) throw new Error('Invalid address')
   const buf = bech32m.fromWords(decoded.words)
   return {
     aspKey: hex.encode(buf.slice(0, 32)),
