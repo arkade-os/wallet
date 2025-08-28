@@ -49,7 +49,7 @@ const isValidBech32 = (data: string) => {
   try {
     bech32.decodeToBytes(data)
     return true
-  } catch (e) {
+  } catch {
     return false
   }
 }

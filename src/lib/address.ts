@@ -29,7 +29,7 @@ export const isURLWithLightningQueryString = (data: string): boolean => {
     // Check if the URL has a 'lightning' query parameter
     const url = new URL(data)
     return url.searchParams.has('lightning')
-  } catch (e) {
+  } catch {
     return false
   }
 }

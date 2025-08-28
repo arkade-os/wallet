@@ -14,7 +14,7 @@ export const getStorageItem = <T>(key: string, fallback: T, parser: (val: string
   try {
     const item = localStorage.getItem(key)
     return item !== null ? parser(item) : fallback
-  } catch (e) {
+  } catch {
     return fallback
   }
 }
