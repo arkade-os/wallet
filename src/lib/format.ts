@@ -14,8 +14,8 @@ export const prettyAgo = (timestamp: number | string, long = false): string => {
     typeof timestamp === 'string'
       ? Math.floor(new Date(timestamp).getTime() / 1000)
       : timestamp > 200_000_000_000
-      ? Math.floor(timestamp / 1000)
-      : timestamp
+        ? Math.floor(timestamp / 1000)
+        : timestamp
   const now = Math.floor(Date.now() / 1000)
   const delta = Math.floor(now - unixTimestamp)
   if (delta === 0) return 'just now'

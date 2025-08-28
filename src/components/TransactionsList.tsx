@@ -30,10 +30,10 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
       config.currencyDisplay === CurrencyDisplay.Both
         ? 'dark50'
         : tx.type === 'received'
-        ? 'green'
-        : tx.preconfirmed
-        ? 'orange'
-        : ''
+          ? 'green'
+          : tx.preconfirmed
+            ? 'orange'
+            : ''
     const value = toFiat(tx.amount)
     const small = config.currencyDisplay === CurrencyDisplay.Both
     const world = config.showBalance ? prettyAmount(value, config.fiat) : prettyHide(value, config.fiat)

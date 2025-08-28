@@ -47,18 +47,18 @@ export default function SendDetails() {
       arkAddress && vtxoTxsAllowed()
         ? arkAddress
         : address && utxoTxsAllowed()
-        ? address
-        : invoice && lnSwapsAllowed()
-        ? invoice
-        : ''
+          ? address
+          : invoice && lnSwapsAllowed()
+            ? invoice
+            : ''
     const direction =
       arkAddress && vtxoTxsAllowed()
         ? 'Paying inside the Ark'
         : address && utxoTxsAllowed()
-        ? 'Paying to mainnet'
-        : invoice && lnSwapsAllowed()
-        ? 'Swapping to Lightning'
-        : ''
+          ? 'Paying to mainnet'
+          : invoice && lnSwapsAllowed()
+            ? 'Swapping to Lightning'
+            : ''
     const feeInSats = destination === invoice ? calcSwapFee(satoshis) : defaultFee
     const total = satoshis + feeInSats
     setDetails({

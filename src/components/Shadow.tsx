@@ -31,12 +31,12 @@ export default function Shadow({
     backgroundColor: purple
       ? 'var(--purplebg)'
       : red
-      ? 'var(--red)'
-      : lighter
-      ? 'var(--dark05)'
-      : inverted
-      ? 'var(--magenta)'
-      : 'var(--dark05)',
+        ? 'var(--red)'
+        : lighter
+          ? 'var(--dark05)'
+          : inverted
+            ? 'var(--magenta)'
+            : 'var(--dark05)',
     border: border ? '1px solid var(--dark10)' : undefined,
     borderRadius: squared ? undefined : '0.5rem',
     color: purple ? 'white' : '',

@@ -71,7 +71,7 @@ export default function ReceiveAmount() {
   }, [])
 
   useEffect(() => {
-    setSatoshis(useFiat ? fromFiat(amount) : amount ?? 0)
+    setSatoshis(useFiat ? fromFiat(amount) : (amount ?? 0))
   }, [amount])
 
   useEffect(() => {
@@ -79,10 +79,10 @@ export default function ReceiveAmount() {
       !satoshis
         ? defaultButtonLabel
         : amountIsBelowMinLimit(satoshis)
-        ? 'Amount below min limit'
-        : amountIsAboveMaxLimit(satoshis)
-        ? 'Amount above max limit'
-        : 'Continue',
+          ? 'Amount below min limit'
+          : amountIsAboveMaxLimit(satoshis)
+            ? 'Amount above max limit'
+            : 'Continue',
     )
   }, [satoshis])
 

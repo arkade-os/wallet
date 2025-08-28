@@ -137,8 +137,8 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
       section === SettingsSections.Advanced
         ? SettingsOptions.Advanced
         : section === SettingsSections.Config
-        ? SettingsOptions.General
-        : SettingsOptions.Menu,
+          ? SettingsOptions.General
+          : SettingsOptions.Menu,
     )
   }
 

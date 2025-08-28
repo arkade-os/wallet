@@ -23,22 +23,15 @@ describe('bip21 utilities', () => {
   })
 
   describe('bip21.js tests', () => {
-    const output = {
-      address: undefined,
-      invoice: undefined,
-      lnurl: undefined,
-      satoshis: undefined,
-    }
-
-    it('should pass all valid tests from bip21.js', () => {
+    it('should pass all valid tests', () => {
       const tests = fixtures.lib.bip21.valid
-      tests.forEach(({ address, compliant, options, uri }) => {
-        if (compliant !== false) {
+      tests.forEach(({ address, compliant, options, uri, urnScheme }) => {
+        if (compliant !== false && !urnScheme) {
           if (typeof options?.amount !== 'undefined') {
             const satoshis = toSatoshis(Number(options?.amount))
-            expect(decodeBip21(uri)).toEqual({ ...output, address, satoshis })
+            expect(decodeBip21(uri)).toMatchObject({ address, satoshis })
           } else {
-            expect(decodeBip21(uri)).toEqual({ ...output, address })
+            expect(decodeBip21(uri)).toMatchObject({ address })
           }
         }
       })

@@ -50,8 +50,8 @@ export default function Password() {
         biometrics
           ? 'Password changed to biometrics'
           : finalPassword === defaultPassword
-          ? 'Password removed'
-          : 'Password changed',
+            ? 'Password removed'
+            : 'Password changed',
       )
       setError('')
       return true

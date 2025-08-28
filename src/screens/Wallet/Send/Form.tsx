@@ -191,7 +191,7 @@ export default function SendForm() {
   }, [sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
 
   useEffect(() => {
-    setSatoshis(useFiat ? fromFiat(amount) : amount ?? 0)
+    setSatoshis(useFiat ? fromFiat(amount) : (amount ?? 0))
   }, [amount])
 
   useEffect(() => {
@@ -200,14 +200,14 @@ export default function SendForm() {
       satoshis > balance
         ? 'Insufficient funds'
         : lnUrlLimits.min && satoshis < lnUrlLimits.min
-        ? 'Amount below LNURL min limit'
-        : lnUrlLimits.max && satoshis > lnUrlLimits.max
-        ? 'Amount above LNURL max limit'
-        : amountIsBelowMinLimit(satoshis)
-        ? 'Amount below dust limit'
-        : amountIsAboveMaxLimit(satoshis)
-        ? 'Amount above max limit'
-        : 'Continue',
+          ? 'Amount below LNURL min limit'
+          : lnUrlLimits.max && satoshis > lnUrlLimits.max
+            ? 'Amount above LNURL max limit'
+            : amountIsBelowMinLimit(satoshis)
+              ? 'Amount below dust limit'
+              : amountIsAboveMaxLimit(satoshis)
+                ? 'Amount above max limit'
+                : 'Continue',
     )
   }, [satoshis])
 

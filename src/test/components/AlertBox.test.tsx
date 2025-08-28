@@ -10,9 +10,7 @@ describe('AlertBox component', () => {
   })
 
   it('sanitizes html: strips scripts and event handlers', () => {
-    const { container } = render(
-      <InfoBox html={`<img src="x" onerror="alert(1)"><script>alert(2)</script>`} />
-    )
+    const { container } = render(<InfoBox html={`<img src="x" onerror="alert(1)"><script>alert(2)</script>`} />)
     // script nodes should be removed
     expect(container.querySelector('script')).toBeNull()
     // event handler attributes should be removed
