@@ -38,8 +38,8 @@ describe('format utilities', () => {
     })
 
     it('should format amounts in BTC for large values', () => {
-      expect(prettyAmount(100000000)).toBe('100M SATS')
       expect(prettyAmount(50000000)).toBe('50M SATS')
+      expect(prettyAmount(100000000)).toBe('1 BTC')
       expect(prettyAmount(150000000)).toBe('1.5 BTC')
     })
 
