@@ -8,7 +8,7 @@ import FlexCol from '../../components/FlexCol'
 import FlexRow from '../../components/FlexRow'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
-import { EmptyLogsList, EmptyTxList } from '../../components/Empty'
+import { EmptyLogsList } from '../../components/Empty'
 
 function LogsTable({ logs }: { logs: LogLine[] }) {
   const color = (level: string): string => {
