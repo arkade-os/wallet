@@ -34,6 +34,12 @@ export default function ReceiveQRCode() {
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
   const address = validUtxoTx(satoshis) && utxoTxsAllowed() ? boardingAddr : ''
   const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
+
+  // don't generate QR if no valid payment method is available
+  if (!address && !arkAddress && !validLnSwap(satoshis)) {
+    return <div>No valid payment methods available for this amount</div>
+  }
+
   const defaultBip21uri = encodeBip21(address, arkAddress, '', satoshis)
 
   const [invoice, setInvoice] = useState('')

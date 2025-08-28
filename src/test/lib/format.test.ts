@@ -80,9 +80,17 @@ describe('format utilities', () => {
 
   describe('prettyDate', () => {
     it('should format dates correctly', () => {
-      const timestamp = new Date('2023-12-25T10:30:00Z').getTime()
-      const result = prettyDate(Math.floor(timestamp / 1000))
-      expect(result).toBe('Dec 25, 2023, 10:30 AM')
+      const d = new Date('2023-12-25T10:30:00Z')
+      const tsSec = Math.floor(d.getTime() / 1000)
+      const result = prettyDate(tsSec)
+      const expected = new Intl.DateTimeFormat('en', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        minute: '2-digit',
+        hour: '2-digit',
+      }).format(d)
+      expect(result).toBe(expected)
     })
   })
 

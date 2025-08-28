@@ -1,6 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import CheckList from '../../components/CheckList'
 
 describe('CheckList component', () => {
@@ -26,38 +25,21 @@ describe('CheckList component', () => {
     expect(screen.getByText('contain at least 1 special character')).toBeInTheDocument()
   })
 
-  it('renders the checklist with the correct colors 1/5', () => {
-    render(<CheckList data={generateData('secret')} />)
-    expect(screen.getByText('8 characters minimum')).toHaveStyle('color: var(--dark70)')
-    expect(screen.getByText('contain at least 1 number')).toHaveStyle('color: var(--dark70)')
-    expect(screen.getByText('contain at least 1 special character')).toHaveStyle('color: var(--dark70)')
-  })
-
-  it('renders the checklist with the correct colors 2/5', () => {
-    render(<CheckList data={generateData('secretword')} />)
-    expect(screen.getByText('8 characters minimum')).toHaveStyle('color: var(--green)')
-    expect(screen.getByText('contain at least 1 number')).toHaveStyle('color: var(--dark70)')
-    expect(screen.getByText('contain at least 1 special character')).toHaveStyle('color: var(--dark70)')
-  })
-
-  it('renders the checklist with the correct colors 3/5', () => {
-    render(<CheckList data={generateData('secret1')} />)
-    expect(screen.getByText('8 characters minimum')).toHaveStyle('color: var(--dark70)')
-    expect(screen.getByText('contain at least 1 number')).toHaveStyle('color: var(--green)')
-    expect(screen.getByText('contain at least 1 special character')).toHaveStyle('color: var(--dark70)')
-  })
-
-  it('renders the checklist with the correct colors 4/5', () => {
-    render(<CheckList data={generateData('secret!')} />)
-    expect(screen.getByText('8 characters minimum')).toHaveStyle('color: var(--dark70)')
-    expect(screen.getByText('contain at least 1 number')).toHaveStyle('color: var(--dark70)')
-    expect(screen.getByText('contain at least 1 special character')).toHaveStyle('color: var(--green)')
-  })
-
-  it('renders the checklist with the correct colors 5/5', () => {
-    render(<CheckList data={generateData('secretword1!')} />)
-    expect(screen.getByText('8 characters minimum')).toHaveStyle('color: var(--green)')
-    expect(screen.getByText('contain at least 1 number')).toHaveStyle('color: var(--green)')
-    expect(screen.getByText('contain at least 1 special character')).toHaveStyle('color: var(--green)')
+  it.each([
+    ['secret', [false, false, false]],
+    ['secretword', [true, false, false]],
+    ['secret1', [false, true, false]],
+    ['secret!', [false, false, true]],
+    ['secretword1', [true, true, false]],
+    ['secretword!', [true, false, true]],
+    ['1234567!', [true, true, true]],
+    ['secretword1!', [true, true, true]],
+  ])('applies colors correctly for %s', (pwd, [lenOk, hasNum, hasSpec]) => {
+    render(<CheckList data={generateData(pwd)} />)
+    const GREEN = 'color: var(--green)'
+    const DARK = 'color: var(--dark70)'
+    expect(screen.getByText('8 characters minimum')).toHaveStyle(lenOk ? GREEN : DARK)
+    expect(screen.getByText('contain at least 1 number')).toHaveStyle(hasNum ? GREEN : DARK)
+    expect(screen.getByText('contain at least 1 special character')).toHaveStyle(hasSpec ? GREEN : DARK)
   })
 })
