@@ -1,4 +1,3 @@
-import BarcodeScanner from 'react-qr-barcode-scanner'
 import Button from './Button'
 import ButtonsOnBottom from './ButtonsOnBottom'
 import Content from './Content'
@@ -8,6 +7,7 @@ import Padded from './Padded'
 import { QRCanvas, frameLoop, frontalCamera } from 'qr/dom.js'
 import { useRef, useEffect, useState } from 'react'
 import { extractError } from '../lib/error'
+import { QrReader } from 'react-qr-reader'
 
 interface ScannerProps {
   close: () => void
@@ -96,44 +96,22 @@ function ScannerMills({ close, label, onData, onError, onSwitch }: ScannerProps)
 }
 
 function ScannerReact({ label, close, onData, onError, onSwitch }: ScannerProps) {
-  const [stopStream, setStopStream] = useState(false)
-
-  const handleClose = () => {
-    setStopStream(true)
-    close()
-  }
-
-  const handleError = (error: any) => {
-    onError(error.message || 'An error occurred while scanning')
-    handleClose()
-  }
-
-  const handleUpdate = (err: any, result: any) => {
-    if (result) {
-      onData(result.getText())
-      handleClose()
-      onError('')
-    }
-  }
-
   return (
     <>
-      <Header auxFunc={onSwitch} auxText='R' text={label} back={handleClose} />
+      <Header auxFunc={onSwitch} auxText='R' text={label} back={close} />
       <Content>
         <Padded>
-          <BarcodeScanner
-            delay={300}
-            width={500}
-            height={500}
-            onError={handleError}
-            onUpdate={handleUpdate}
-            stopStream={stopStream}
-            facingMode='environment'
+          <QrReader
+            onResult={(result, error) => {
+              if (result) onData(result.getText())
+              if (error) onError(error.message)
+            }}
+            constraints={{ facingMode: 'environment' }}
           />
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleClose} label='Cancel' />
+        <Button onClick={close} label='Cancel' />
       </ButtonsOnBottom>
     </>
   )
