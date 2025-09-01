@@ -29,9 +29,13 @@ describe('Transaction screen', () => {
 
   it('renders the preconfirmed transaction screen correctly', async () => {
     const subtext = 'Transaction preconfirmed. Funds will be non-reversible after settlement.'
+    const localFlowContextValue = {
+      ...mockFlowContextValue,
+      txInfo: { ...mockFlowContextValue.txInfo, settled: false },
+    }
     mockFlowContextValue.txInfo.settled = false
     render(
-      <FlowContext.Provider value={mockFlowContextValue}>
+      <FlowContext.Provider value={localFlowContextValue}>
         <LimitsContext.Provider value={mockLimitsContextValue}>
           <Transaction />
         </LimitsContext.Provider>
