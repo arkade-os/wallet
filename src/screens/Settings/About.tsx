@@ -18,7 +18,6 @@ export default function About() {
     setError(aspInfo.unreachable)
   }, [aspInfo.unreachable])
 
-  console.log('aspInfo', aspInfo)
   const data = [
     ['Server URL', aspInfo.url],
     ['Server pubkey', aspInfo.signerPubkey],
