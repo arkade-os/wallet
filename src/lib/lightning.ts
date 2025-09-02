@@ -9,6 +9,7 @@ import {
 } from '@arkade-os/boltz-swap'
 import { RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
 import { AspInfo } from '../providers/asp'
+import { BoltzUrl } from './constants'
 
 export class LightningSwap {
   private readonly provider: ArkadeLightning
@@ -16,7 +17,10 @@ export class LightningSwap {
 
   constructor(aspInfo: AspInfo, wallet: Wallet) {
     const arkProvider = new RestArkProvider(aspInfo.url)
-    const swapProvider = new BoltzSwapProvider({ network: aspInfo.network as Network })
+    const swapProvider = new BoltzSwapProvider({
+      network: aspInfo.network as Network,
+      apiUrl: BoltzUrl(),
+    })
     const indexerProvider = new RestIndexerProvider(aspInfo.url)
 
     this.swapProvider = swapProvider
