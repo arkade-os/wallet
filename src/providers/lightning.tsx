@@ -4,6 +4,7 @@ import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { Network, StorageProvider } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
+import { BoltzUrl } from '../lib/constants'
 
 const BASE_URLS: Record<Network, string> = {
   bitcoin: 'https://boltz.arkade.sh',
@@ -34,7 +35,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
   // create swap provider on first run with svcWallet
   useEffect(() => {
     if (!aspInfo.network || !svcWallet) return
-    const baseUrl = BASE_URLS[aspInfo.network as Network]
+    const baseUrl = BoltzUrl ?? BASE_URLS[aspInfo.network as Network]
     if (!baseUrl) return // No boltz server for this network
     StorageProvider.create().then((storageProvider) => {
       setSwapProvider(new LightningSwapProvider(baseUrl, aspInfo, svcWallet, storageProvider))
