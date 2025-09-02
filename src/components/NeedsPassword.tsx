@@ -22,10 +22,7 @@ export default function NeedsPassword({ error, onPassword }: NeedsPasswordProps)
   const { wallet } = useContext(WalletContext)
   const [password, setPassword] = useState('')
 
-  const handleBiometrics = () => {
-    authenticateUser(wallet.passkeyId).then(onPassword).catch(consoleError)
-  }
-
+  const handleBiometrics = () => authenticateUser(wallet.passkeyId).then(onPassword).catch(consoleError)
   const handleChange = (ev: any) => setPassword(ev.target.value)
   const handleClick = () => onPassword(password)
 
@@ -40,7 +37,13 @@ export default function NeedsPassword({ error, onPassword }: NeedsPasswordProps)
             </CenterScreen>
           ) : (
             <FlexCol gap='1rem'>
-              <InputPassword focus label='Insert password' onChange={handleChange} onEnter={handleClick} />
+              <InputPassword
+                focus
+                label='Insert password'
+                onChange={handleChange}
+                onEnter={handleClick}
+                placeholder='password'
+              />
               <ErrorMessage text={error} error={Boolean(error)} />
             </FlexCol>
           )}
