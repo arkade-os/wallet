@@ -1,17 +1,17 @@
 import { useContext, useState } from 'react'
 import Text from './Text'
-import Error from './Error'
+import ErrorMessage from './Error'
 import Button from './Button'
 import Padded from './Padded'
 import Content from './Content'
 import FlexCol from './FlexCol'
 import CenterScreen from './CenterScreen'
-import PasskeyIcon from '../icons/Passkey'
 import { consoleError } from '../lib/logs'
 import InputPassword from './InputPassword'
 import ButtonsOnBottom from './ButtonsOnBottom'
 import { WalletContext } from '../providers/wallet'
 import { authenticateUser } from '../lib/biometrics'
+import LockIcon from '../icons/Lock'
 
 interface NeedsPasswordProps {
   error: string
@@ -35,15 +35,13 @@ export default function NeedsPassword({ error, onPassword }: NeedsPasswordProps)
         <Padded>
           {wallet.lockedByBiometrics ? (
             <CenterScreen onClick={handleBiometrics}>
-              <PasskeyIcon />
-              <Text centered small wrap>
-                Unlock with your passkey
-              </Text>
+              <LockIcon big />
+              <Text centered>Unlock with your passkey</Text>
             </CenterScreen>
           ) : (
             <FlexCol gap='1rem'>
               <InputPassword focus label='Insert password' onChange={handleChange} onEnter={handleClick} />
-              <Error text={error} error={Boolean(error)} />
+              <ErrorMessage text={error} error={Boolean(error)} />
             </FlexCol>
           )}
         </Padded>

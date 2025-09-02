@@ -2,6 +2,7 @@ import { invalidPrivateKey, nsecToPrivateKey } from '../../lib/privateKey'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { useContext, useEffect, useState } from 'react'
+import { defaultPassword } from '../../lib/constants'
 import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
 import FlexCol from '../../components/FlexCol'
@@ -10,7 +11,7 @@ import Button from '../../components/Button'
 import Header from '../../components/Header'
 import Padded from '../../components/Padded'
 import Input from '../../components/Input'
-import Error from '../../components/Error'
+import ErrorMessage from '../../components/Error'
 import Text from '../../components/Text'
 import { hex } from '@scure/base'
 
@@ -44,8 +45,8 @@ export default function InitRestore() {
   const handleCancel = () => navigate(Pages.Init)
 
   const handleProceed = () => {
-    setInitInfo({ privateKey, restoring: true })
-    navigate(Pages.InitPassword)
+    setInitInfo({ privateKey, password: defaultPassword, restoring: true })
+    navigate(Pages.InitSuccess)
   }
 
   const disabled = Boolean(!privateKey || error)
@@ -58,7 +59,7 @@ export default function InitRestore() {
           <FlexCol between>
             <FlexCol>
               <Input label='Private key' onChange={setSomeKey} />
-              <Error error={Boolean(error)} text={error} />
+              <ErrorMessage error={Boolean(error)} text={error} />
             </FlexCol>
             <Text centered color='dark70' fullWidth thin small>
               Your private key should start with the 'nsec' string. Do not share it with anyone.
