@@ -19,7 +19,7 @@ export class LightningSwap {
     const arkProvider = new RestArkProvider(aspInfo.url)
     const swapProvider = new BoltzSwapProvider({
       network: aspInfo.network as Network,
-      apiUrl: BoltzUrl(),
+      apiUrl: BoltzUrl,
     })
     const indexerProvider = new RestIndexerProvider(aspInfo.url)
 
