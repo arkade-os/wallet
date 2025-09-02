@@ -20,4 +20,4 @@ export const defaultArkServer = () => {
 
 export const BoltzUrl = (): string | undefined => {
   return import.meta.env.VITE_BOLTZ_URL
-}
+export const BoltzUrl = import.meta.env.VITE_BOLTZ_URL
