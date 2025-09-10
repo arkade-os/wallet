@@ -23,12 +23,11 @@ import Text from '../../../components/Text'
 import FlexRow from '../../../components/FlexRow'
 import { LimitsContext } from '../../../providers/limits'
 import { LightningContext } from '../../../providers/lightning'
-import { calcSwapFee } from '../../../lib/lightning'
 
 export default function SendDetails() {
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { iframeUrl } = useContext(IframeContext)
-  const { swapProvider } = useContext(LightningContext)
+  const { calcSubmarineSwapFee, swapProvider } = useContext(LightningContext)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { balance, svcWallet } = useContext(WalletContext)
@@ -59,7 +58,7 @@ export default function SendDetails() {
           : invoice && lnSwapsAllowed()
             ? 'Swapping to Lightning'
             : ''
-    const feeInSats = destination === invoice ? calcSwapFee(satoshis) : defaultFee
+    const feeInSats = destination === invoice ? calcSubmarineSwapFee(satoshis) : defaultFee
     const total = satoshis + feeInSats
     setDetails({
       destination,

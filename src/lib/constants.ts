@@ -12,10 +12,7 @@ export const defaultArkServer = () => {
   if (import.meta.env.VITE_ARK_SERVER) return import.meta.env.VITE_ARK_SERVER
   for (const domain of testDomains) {
     if (window.location.hostname.includes(domain)) {
-      if (window.location.hostname.includes('localhost')) {
-        return devServer
-      }
-      return testServer
+      return window.location.hostname.includes('localhost') ? devServer : testServer
     }
   }
   return mainServer
