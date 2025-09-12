@@ -69,7 +69,6 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const calcSubmarineSwapFee = (satoshis: number): number => {
-    console.log('Calculating submarine swap fee for', satoshis, 'sats with fees:', fees)
     if (!satoshis || !fees) return 0
     const { percentage, minerFees } = fees.submarine
     return Math.ceil((satoshis * percentage) / 100 + minerFees)
