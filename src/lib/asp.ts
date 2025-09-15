@@ -1,8 +1,7 @@
-import { ExtendedVirtualCoin, IWallet, ArkNote, RestArkProvider } from '@arkade-os/sdk'
+import { IWallet, ArkNote, RestArkProvider } from '@arkade-os/sdk'
 import { consoleError, consoleLog } from './logs'
 import { Addresses, Satoshis, Tx } from './types'
 import { AspInfo } from '../providers/asp'
-import { vtxosRepository } from './db'
 
 export const emptyAspInfo: AspInfo = {
   signerPubkey: '',
@@ -23,7 +22,7 @@ export const emptyAspInfo: AspInfo = {
 }
 
 export const collaborativeExit = async (wallet: IWallet, amount: number, address: string): Promise<string> => {
-  const vtxos = await getVtxos()
+  const vtxos = await wallet.getVtxos()
   const selectedVtxos = []
   let selectedAmount = 0
   for (const vtxo of vtxos) {
@@ -66,6 +65,7 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
   const txs: Tx[] = []
   try {
     const res = await wallet.getTransactionHistory()
+    console.log('Transaction history:', res)
     if (!res) return []
     for (const tx of res) {
       const date = new Date(tx.createdAt)
@@ -101,15 +101,6 @@ export const getReceivingAddresses = async (wallet: IWallet): Promise<Addresses>
   return {
     boardingAddr,
     offchainAddr,
-  }
-}
-
-async function getVtxos(): Promise<ExtendedVirtualCoin[]> {
-  try {
-    return vtxosRepository.getSpendableVtxos()
-  } catch (err) {
-    consoleError(err, 'error getting vtxos from DB')
-    return []
   }
 }
 
