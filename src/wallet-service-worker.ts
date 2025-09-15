@@ -1,7 +1,6 @@
 import { Worker } from '@arkade-os/sdk'
-import { vtxosRepository } from './lib/db'
 
-const worker = new Worker(vtxosRepository)
+const worker = new Worker()
 worker.start().catch(console.error)
 
 const CACHE_NAME = 'arkade-cache-v1'
