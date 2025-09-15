@@ -26,36 +26,6 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     relay.current = await Relay.connect('wss://relay.primal.net')
   }
 
-  const sendNostrNotification = async (content: string) => {
-    console.log('notImplemented: sendNostrNotification(', content, ')')
-    // if (!wallet.privateKey) throw new Error('wallet is locked')
-    // if (!config.nostr) return
-    // if (!relay.current) return
-    // if (!relay.current.connected) await connectRelay()
-    // const pk = getPublicKey(wallet.privateKey)
-    // relay.current.subscribe(
-    //   [
-    //     {
-    //       kinds: [1],
-    //       authors: [pk],
-    //     },
-    //   ],
-    //   {
-    //     onevent(event: any) {
-    //       consoleLog('got event:', event)
-    //     },
-    //   },
-    // )
-    // const eventTemplate = {
-    //   kind: 1,
-    //   created_at: Math.floor(Date.now() / 1000),
-    //   tags: [],
-    //   content,
-    // }
-    // const signedEvent = finalizeEvent(eventTemplate, wallet.privateKey)
-    // await relay.current.publish(signedEvent)
-  }
-
   const sendSystemNotification = (title: string, body: string) => {
     if (!config.notifications) return
     sendNotification(title, body)
@@ -65,28 +35,24 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     const body = `You received ${prettyNumber(sats)} sats`
     const title = 'Payment received'
     sendSystemNotification(title, body)
-    sendNostrNotification(body)
   }
 
   const notifyPaymentSent = (sats: number) => {
     const body = `You sent ${prettyNumber(sats)} sats`
     const title = 'Payment sent'
     sendSystemNotification(title, body)
-    sendNostrNotification(body)
   }
 
   const notifyTxSettled = () => {
     const body = `All preconfirmed transactions were settled`
     const title = 'Transactions settled'
     sendSystemNotification(title, body)
-    sendNostrNotification(body)
   }
 
   const notifyVtxosRollover = () => {
     const body = 'All VTXOs were rolled over'
     const title = 'Vtxos rolled over'
     sendSystemNotification(title, body)
-    sendNostrNotification(body)
   }
 
   useEffect(() => {
