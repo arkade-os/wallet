@@ -95,8 +95,6 @@ export default function App() {
     }
   }, [tab])
 
-  if (!svcWallet) return <Loading text={loadingError} />
-
   const handleWallet = () => {
     navigate(Pages.Wallet)
   }
