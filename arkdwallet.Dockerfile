@@ -1,11 +1,11 @@
 # First stage: build the ark-wallet-daemon binary
-FROM golang:1.23.1 AS builder
+FROM golang:1.24.6 AS builder
 
 ARG VERSION
 ARG TARGETOS
 ARG TARGETARCH
 
-ARG BRANCH=v0.7.0
+ARG BRANCH=v0.7.1
 
 WORKDIR /app
 

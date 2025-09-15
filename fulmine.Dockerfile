@@ -6,7 +6,7 @@ WORKDIR /app/internal/interface/web
 RUN rm -rf .parcel-cache && yarn && yarn build
 
 # Build the Go application
-FROM golang:1.24.2 AS go-builder
+FROM golang:1.24.6 AS go-builder
 
 ARG VERSION=dev
 ARG COMMIT=none
@@ -17,7 +17,7 @@ ARG SENTRY_DSN=""
 
 WORKDIR /app
 # Clone the repository to get the Go files
-RUN git clone https://github.com/ArkLabsHQ/fulmine.git . && git checkout testing
+RUN git clone https://github.com/ArkLabsHQ/fulmine.git .
 # Copy the built web assets from web-builder
 COPY --from=web-builder /app/internal/interface/web/static ./internal/interface/web/static
 
