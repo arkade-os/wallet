@@ -65,7 +65,6 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
   const txs: Tx[] = []
   try {
     const res = await wallet.getTransactionHistory()
-    console.log('Transaction history:', res)
     if (!res) return []
     for (const tx of res) {
       const date = new Date(tx.createdAt)
