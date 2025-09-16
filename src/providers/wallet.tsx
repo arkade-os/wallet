@@ -68,9 +68,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [balance, setBalance] = useState(0)
   const [initialized, setInitialized] = useState<boolean>(false)
 
-  // update vtxos when there are new txs
+  // read wallet from storage
   useEffect(() => {
-    if (!txs || !svcWallet) return
+    const walletFromStorage = readWalletFromStorage()
+    if (walletFromStorage) setWallet(walletFromStorage)
+    setWalletLoaded(true)
+  }, [])
+
+  useEffect(() => {
+    if (svcWallet) reloadWallet().catch(consoleError)
+  }, [svcWallet])
+
+  // update vtxos when balance changes
+  useEffect(() => {
+    if (!svcWallet) return
     svcWallet
       .getVtxos()
       .then((vtxos) => {
@@ -83,7 +94,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         setVtxos({ spendable, spent })
       })
       .catch(consoleError)
-  }, [txs, svcWallet])
+  }, [balance, svcWallet])
 
   // update next rollover when vtxos change
   useEffect(() => {
@@ -92,13 +103,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       updateWallet({ ...wallet, nextRollover })
     }
   }, [vtxos])
-
-  useEffect(() => {
-    // read wallet from storage
-    const walletFromStorage = readWalletFromStorage()
-    if (walletFromStorage) setWallet(walletFromStorage)
-    setWalletLoaded(true)
-  }, [])
 
   // if ark note is present in the URL, decode it and set the note info
   useEffect(() => {
@@ -149,7 +153,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // listen for messages from the service worker
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data && event.data.type === 'VTXO_UPDATE') {
-          console.log('VTXO update received from service worker')
           // update the txs history list
           getTxHistory(svcWallet).then(setTxs).catch(consoleError)
           // update the balance
@@ -159,7 +162,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       // check if the service worker wallet is initialized
       const { walletInitialized } = await svcWallet.getStatus()
-      console.log('Service worker wallet initialized:', walletInitialized)
       setInitialized(walletInitialized)
 
       // ping the service worker wallet status every 1 second
