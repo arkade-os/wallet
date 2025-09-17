@@ -11,6 +11,49 @@ function warn {
   echo -e "\033[1;31m$1\033[0m"
 }
 
+# Function to wait for an endpoint to respond
+function wait_for_endpoint {
+  local ENDPOINT="$1"
+  local ATTEMPTS=10  # Total number of attempts
+  local INTERVAL=1  # Seconds between retries
+  
+  puts "Waiting for $ENDPOINT to respond with HTTP 200..."
+  
+  for ((i=1; i<=ATTEMPTS; i++)); do
+    HTTP_CODE=$(curl --silent --write-out "%{http_code}" --output /dev/null "$ENDPOINT")
+    if [ "$HTTP_CODE" -eq 200 ]; then
+      echo " ✔"
+      return 0
+    else
+      echo "Attempt $i/$ATTEMPTS failed, retrying in $INTERVAL second..."
+      sleep $INTERVAL
+    fi
+  done
+  
+  echo "Timed out waiting for $ENDPOINT after $((ATTEMPTS * INTERVAL)) seconds."
+  return 1
+}
+
+function wait_for_cmd {
+  local COMMAND="$1"
+  local ATTEMPTS=10  # Total number of attempts
+  local INTERVAL=1  # Seconds between retries
+  
+  for ((i=1; i<=ATTEMPTS; i++)); do
+    RETURN_CODE=$($COMMAND > /dev/null 2>&1; echo $?)
+    if [ "$RETURN_CODE" -eq 0 ]; then
+      echo " ✔"
+      return 0
+    else
+      echo "Attempt $i/$ATTEMPTS failed, retrying in $INTERVAL second..."
+      sleep $INTERVAL
+    fi
+  done
+  
+  echo "Timed out waiting for LND after $((ATTEMPTS * INTERVAL)) seconds."
+  return 1
+}
+
 puts "dropping existing docker containers"
 docker compose -f test.docker-compose.yml down
 
@@ -28,7 +71,8 @@ sleep 2
 puts "starting nigiri with LND"
 nigiri start --ln
 
-sleep 10
+puts "waiting for nigiri lnd to be ready"
+wait_for_cmd "nigiri lnd getinfo"
 
 puts "funding nigiri lnd"
 nigiri faucet lnd
@@ -37,7 +81,8 @@ puts "starting boltz lnd"
 docker compose -f test.docker-compose.yml up -d boltz-lnd
 lncli="docker exec -it boltz-lnd lncli --network=regtest"
 
-sleep 10
+puts "waiting for boltz lnd to be ready"
+wait_for_cmd "docker exec -it boltz-lnd lncli --network=regtest getinfo"
 
 puts "funding boltz lnd"
 address=$($lncli newaddress p2wkh | jq -r .address | cut -c1-45)
@@ -71,7 +116,9 @@ $lncli payinvoice --force $invoice
 puts "starting arkd"
 docker compose -f test.docker-compose.yml up -d arkd
 arkd="docker exec arkd arkd"
-sleep 5
+
+puts "waiting for arkd to be ready"
+wait_for_cmd "docker exec arkd arkd wallet status"
 
 puts "initializing arkd"
 $arkd wallet create --password password
