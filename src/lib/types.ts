@@ -7,6 +7,11 @@ export type Addresses = {
 }
 
 export type Config = {
+  apps: {
+    boltz: {
+      connected: boolean
+    }
+  }
   aspUrl: string
   currencyDisplay: CurrencyDisplay
   fiat: Fiats
@@ -49,7 +54,7 @@ export enum SettingsOptions {
   Notifications = 'notifications',
   Nostr = 'nostr',
   Notes = 'notes',
-  Password = 'password',
+  Password = 'change password',
   Reset = 'reset wallet',
   Server = 'server',
   Vtxos = 'coin control',

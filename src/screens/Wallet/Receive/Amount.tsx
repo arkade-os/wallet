@@ -4,7 +4,7 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
-import Error from '../../../components/Error'
+import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
 import Header from '../../../components/Header'
@@ -23,12 +23,15 @@ import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { LimitsContext } from '../../../providers/limits'
+import { LightningContext } from '../../../providers/lightning'
+import Text from '../../../components/Text'
 
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
+  const { calcReverseSwapFee } = useContext(LightningContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { balance, svcWallet } = useContext(WalletContext)
@@ -71,7 +74,7 @@ export default function ReceiveAmount() {
   }, [])
 
   useEffect(() => {
-    setSatoshis(useFiat ? fromFiat(amount) : amount ?? 0)
+    setSatoshis(useFiat ? fromFiat(amount) : (amount ?? 0))
   }, [amount])
 
   useEffect(() => {
@@ -79,10 +82,10 @@ export default function ReceiveAmount() {
       !satoshis
         ? defaultButtonLabel
         : amountIsBelowMinLimit(satoshis)
-        ? 'Amount below min limit'
-        : amountIsAboveMaxLimit(satoshis)
-        ? 'Amount above max limit'
-        : 'Continue',
+          ? 'Amount below min limit'
+          : amountIsAboveMaxLimit(satoshis)
+            ? 'Amount above max limit'
+            : 'Continue',
     )
   }, [satoshis])
 
@@ -151,7 +154,7 @@ export default function ReceiveAmount() {
       <Content>
         <Padded>
           <FlexCol>
-            <Error error={Boolean(error)} text={error} />
+            <ErrorMessage error={Boolean(error)} text={error} />
             <InputAmount
               focus={!isMobileBrowser}
               label='Amount'
@@ -160,6 +163,12 @@ export default function ReceiveAmount() {
               onFocus={handleFocus}
               value={amount}
             />
+            {amount ? (
+              <Text color='dark50' smaller>
+                In Lightning you'll receive: {amount} - {calcReverseSwapFee(satoshis)} ={' '}
+                {prettyAmount(amount - calcReverseSwapFee(satoshis))}
+              </Text>
+            ) : null}
           </FlexCol>
         </Padded>
       </Content>

@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 import Text from './Text'
-import Error from './Error'
+import ErrorMessage from './Error'
 import FlexRow from './FlexRow'
 import Shadow from './Shadow'
 import FlexCol from './FlexCol'
@@ -52,7 +52,7 @@ export default function InputContainer({
         </Shadow>
         {bottomLeft || bottomRight ? <BottomLabel /> : null}
       </FlexCol>
-      <Error error={Boolean(error)} text={error ?? ''} />
+      <ErrorMessage error={Boolean(error)} text={error ?? ''} />
     </FlexCol>
   )
 }
