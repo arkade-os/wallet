@@ -37,8 +37,8 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     if (!aspInfo.network || !svcWallet) return
     const baseUrl = BoltzUrl ?? BASE_URLS[aspInfo.network as Network]
     if (!baseUrl) return // No boltz server for this network
-      setSwapProvider(new LightningSwapProvider(baseUrl, aspInfo, svcWallet))
-      setConnected(config.apps.boltz.connected)
+    setSwapProvider(new LightningSwapProvider(baseUrl, aspInfo, svcWallet))
+    setConnected(config.apps.boltz.connected)
   }, [aspInfo, svcWallet, config.apps.boltz.connected])
 
   const connected = config.apps.boltz.connected

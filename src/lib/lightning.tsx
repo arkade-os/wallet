@@ -6,7 +6,7 @@ import {
   PendingReverseSwap,
   PendingSubmarineSwap,
 } from '@arkade-os/boltz-swap'
-import { RestArkProvider, RestIndexerProvider, Wallet, ServiceWorkerWallet} from '@arkade-os/sdk'
+import { RestArkProvider, RestIndexerProvider, Wallet, ServiceWorkerWallet } from '@arkade-os/sdk'
 import { AspInfo } from '../providers/asp'
 import { sendOffChain } from './asp'
 import { consoleError } from './logs'
