@@ -1,14 +1,12 @@
 import {
-  Wallet,
   Network,
   decodeInvoice,
   ArkadeLightning,
   BoltzSwapProvider,
   PendingReverseSwap,
   PendingSubmarineSwap,
-  StorageProvider,
 } from '@arkade-os/boltz-swap'
-import { RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
+import { RestArkProvider, RestIndexerProvider, Wallet, ServiceWorkerWallet} from '@arkade-os/sdk'
 import { AspInfo } from '../providers/asp'
 import { sendOffChain } from './asp'
 import { consoleError } from './logs'
@@ -16,9 +14,9 @@ import { consoleError } from './logs'
 export class LightningSwapProvider {
   private readonly apiUrl: string
   private readonly provider: ArkadeLightning
-  private readonly wallet: Wallet
+  private readonly wallet: Wallet | ServiceWorkerWallet
 
-  constructor(apiUrl: string, aspInfo: AspInfo, wallet: Wallet, storageProvider?: StorageProvider) {
+  constructor(apiUrl: string, aspInfo: AspInfo, wallet: Wallet | ServiceWorkerWallet) {
     const network = aspInfo.network as Network
     const arkProvider = new RestArkProvider(aspInfo.url)
     const swapProvider = new BoltzSwapProvider({ apiUrl, network })
@@ -26,7 +24,7 @@ export class LightningSwapProvider {
 
     this.apiUrl = apiUrl
     this.wallet = wallet
-    this.provider = new ArkadeLightning({ wallet, arkProvider, swapProvider, indexerProvider, storageProvider })
+    this.provider = new ArkadeLightning({ wallet, arkProvider, swapProvider, indexerProvider })
   }
 
   private someError = (error: any, message: string) => {
