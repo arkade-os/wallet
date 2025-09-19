@@ -127,7 +127,7 @@ services:
       - '10010:10009'
   boltz:
     restart: unless-stopped
-    image: boltz/boltz:ark@sha256:76bb0cdd29bec717dd8ab5a007b1aa25033b4956b4eb7c157a992def4c01aa67
+    image: boltz/boltz:ark-v8@sha256:dfb23888998d5fd74f56f9943fde82dd6d04bbbec1b009058b4be43a48ef4eaa
     ports:
       - '9000:9000'
       - '9001:9001'
@@ -230,13 +230,13 @@ services:
     volumes:
       - postgres_datadir:/var/lib/postgresql/data
   boltz-fulmine:
-    build:
-      context: .
-      dockerfile: fulmine.Dockerfile
+    image: ghcr.io/arklabshq/fulmine:v0.3.0-rc.0
     environment:
       - FULMINE_ARK_SERVER=http://arkd:7070
       - FULMINE_ESPLORA_URL=http://chopsticks:3000
       - FULMINE_NO_MACAROONS=true
+      - FULMINE_LOG_LEVEL=5
+      - FULMINE_DISABLE_TELEMETRY=true
     ports:
       - 7002:7000
       - 7003:7001
