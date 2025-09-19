@@ -10,7 +10,6 @@ vi.mock('../../../lib/pwa', () => ({
 }))
 
 describe('Unlock screen', () => {
-  const user = userEvent.setup()
   it('renders the unlock screen with the correct elements', async () => {
     render(
       <IonApp>
