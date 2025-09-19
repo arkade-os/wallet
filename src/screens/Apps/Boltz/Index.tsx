@@ -1,17 +1,16 @@
 import { useContext } from 'react'
+import Shadow from '../../../components/Shadow'
 import Padded from '../../../components/Padded'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { SettingsIconLight } from '../../../icons/Settings'
-import { NavigationContext, Pages } from '../../../providers/navigation'
-import Text, { TextLabel } from '../../../components/Text'
-import Shadow from '../../../components/Shadow'
 import FlexRow from '../../../components/FlexRow'
-import { EmptySwapList } from '../../../components/Empty'
+import SwapsList from '../../../components/SwapsList'
+import Text, { TextLabel } from '../../../components/Text'
+import { SettingsIconLight } from '../../../icons/Settings'
 import { LightningContext } from '../../../providers/lightning'
 import { GreenStatusIcon, RedStatusIcon } from '../../../icons/Status'
-import SwapsList from '../../../components/SwapsList'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 
 export default function AppBoltz() {
   const { connected, swapProvider } = useContext(LightningContext)
@@ -25,9 +24,6 @@ export default function AppBoltz() {
       </Text>
     </FlexRow>
   )
-
-  const swapHistory = swapProvider?.getSwapHistory() ?? []
-
   return (
     <>
       <Header
@@ -49,14 +45,7 @@ export default function AppBoltz() {
                 </FlexRow>
               </Shadow>
             </FlexCol>
-            {swapHistory.length > 0 ? (
-              <SwapsList />
-            ) : (
-              <EmptySwapList
-                text='No swaps yet'
-                secondaryText='Your swap history will appear here once you start swapping.'
-              />
-            )}
+            <SwapsList />
           </FlexCol>
         </Padded>
       </Content>

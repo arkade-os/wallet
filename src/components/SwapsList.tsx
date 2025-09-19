@@ -1,9 +1,10 @@
 import FlexRow from './FlexRow'
 import FlexCol from './FlexCol'
-import { useContext } from 'react'
+import { EmptySwapList } from './Empty'
 import { FlowContext } from '../providers/flow'
 import { ConfigContext } from '../providers/config'
 import Text, { TextLabel, TextSecondary } from './Text'
+import { useContext, useEffect, useState } from 'react'
 import { LightningContext } from '../providers/lightning'
 import { NavigationContext, Pages } from '../providers/navigation'
 import { prettyAgo, prettyAmount, prettyDate, prettyHide } from '../lib/format'
@@ -114,14 +115,20 @@ const SwapLine = ({ swap }: { swap: PendingReverseSwap | PendingSubmarineSwap })
 
 export default function SwapsList() {
   const { swapProvider } = useContext(LightningContext)
+  const [swapHistory, setSwapHistory] = useState<(PendingReverseSwap | PendingSubmarineSwap)[]>([])
 
-  const history = swapProvider?.getSwapHistory() ?? []
+  useEffect(() => {
+    if (!swapProvider) return
+    swapProvider.getSwapHistory().then(setSwapHistory)
+  }, [swapProvider])
+
+  if (swapHistory.length === 0) return <EmptySwapList />
 
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
       <TextLabel>Swap history</TextLabel>
       <div style={{ borderBottom: border }}>
-        {history.map((swap) => (
+        {swapHistory.map((swap) => (
           <SwapLine key={swap.response.id} swap={swap} />
         ))}
       </div>
