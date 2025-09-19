@@ -12,11 +12,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.2.0-alpha.1
-        version: 0.2.0-alpha.1
+        specifier: 0.2.0-alpha.2
+        version: 0.2.0-alpha.2
       '@arkade-os/sdk':
-        specifier: 0.3.0-alpha.1
-        version: 0.3.0-alpha.1
+        specifier: 0.3.0-alpha.2
+        version: 0.3.0-alpha.2
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -163,12 +163,12 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@arkade-os/boltz-swap@0.2.0-alpha.1':
-    resolution: {integrity: sha512-eRpR5j0ZLDgp3KVXuYzSaJF6yAY+4SDYX8cXoFFY9SqI4OEhyhfKGfyxyREgyP5jDS3iV7KYNKrFy31MtgfFsQ==}
+  '@arkade-os/boltz-swap@0.2.0-alpha.2':
+    resolution: {integrity: sha512-MVBtpTaemnZHhdoqLO9AinYJ3Dz135D09xJgCAr3QGbfXiIAyxi8VuGPUKQ9yrBLdWJAIRfQk6pxjtCFsUWTkw==}
     engines: {node: '>=22'}
 
-  '@arkade-os/sdk@0.3.0-alpha.1':
-    resolution: {integrity: sha512-uvN7ufhq/ps1x/kfz+qdZ8zTrVBGVqrIE2G6dUuY6YMju4IO3uTMKE2d8ndC+WPMx0gi/6StjVmtTUJjUbB0FQ==}
+  '@arkade-os/sdk@0.3.0-alpha.2':
+    resolution: {integrity: sha512-fVtFYlpzne3mAr8uPSpmMJVPF63MgWCvVi9aDVmQQXP+tmEgsJG5gkptNj2zF7NsZPJk9jtY6LG/LtSyORsapw==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
 
   '@asamuzakjp/css-color@3.2.0':
@@ -2509,15 +2509,15 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.13
       '@jridgewell/trace-mapping': 0.3.30
 
-  '@arkade-os/boltz-swap@0.2.0-alpha.1':
+  '@arkade-os/boltz-swap@0.2.0-alpha.2':
     dependencies:
-      '@arkade-os/sdk': 0.3.0-alpha.1
+      '@arkade-os/sdk': 0.3.0-alpha.2
       '@noble/hashes': 2.0.0
       '@scure/base': 2.0.0
       '@scure/btc-signer': 2.0.1
       light-bolt11-decoder: 3.2.0
 
-  '@arkade-os/sdk@0.3.0-alpha.1':
+  '@arkade-os/sdk@0.3.0-alpha.2':
     dependencies:
       '@noble/curves': 2.0.0
       '@noble/hashes': 2.0.0
