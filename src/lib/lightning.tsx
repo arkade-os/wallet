@@ -40,6 +40,11 @@ export class LightningSwapProvider {
     return this.apiUrl
   }
 
+  getFees = async () => {
+    if (!this.provider) throw new Error('Swap provider not available')
+    return this.provider.getFees()
+  }
+
   getLimits = async () => {
     if (!this.provider) throw new Error('Swap provider not available')
     return this.provider.getLimits()
@@ -123,8 +128,4 @@ export class LightningSwapProvider {
   refundVHTLC = async (pendingSwap: PendingSubmarineSwap) => {
     return this.provider.refundVHTLC(pendingSwap)
   }
-}
-
-export const calcSwapFee = (satoshis: number): number => {
-  return Math.ceil(satoshis * 0.0001) // TODO: replace this
 }

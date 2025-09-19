@@ -36,7 +36,6 @@ import { ArkNote } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
-import { calcSwapFee } from '../../../lib/lightning'
 import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 import { isRiga } from '../../../lib/constants'
 import { LightningContext } from '../../../providers/lightning'
@@ -47,7 +46,7 @@ export default function SendForm() {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
-  const { swapProvider, connected } = useContext(LightningContext)
+  const { swapProvider, connected, calcSubmarineSwapFee } = useContext(LightningContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
@@ -291,7 +290,7 @@ export default function SendForm() {
   }
 
   const handleSendAll = () => {
-    const fees = sendInfo.lnUrl ? calcSwapFee(balance) : 0
+    const fees = sendInfo.lnUrl ? calcSubmarineSwapFee(balance) : 0
     setAmount(balance - fees)
   }
 

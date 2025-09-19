@@ -2,7 +2,7 @@ import { ReactNode, createContext, useContext, useEffect, useState } from 'react
 import { LightningSwapProvider } from '../lib/lightning'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
-import { Network } from '@arkade-os/boltz-swap'
+import { FeesResponse, Network } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
 import { BoltzUrl } from '../lib/constants'
 
@@ -15,6 +15,8 @@ const BASE_URLS: Record<Network, string> = {
 
 interface LightningContextProps {
   connected: boolean
+  calcSubmarineSwapFee: (satoshis: number) => number
+  calcReverseSwapFee: (satoshis: number) => number
   swapProvider: LightningSwapProvider | null
   toggleConnection: () => void
 }
@@ -23,6 +25,8 @@ export const LightningContext = createContext<LightningContextProps>({
   connected: false,
   swapProvider: null,
   toggleConnection: () => {},
+  calcReverseSwapFee: () => 0,
+  calcSubmarineSwapFee: () => 0,
 })
 
 export const LightningProvider = ({ children }: { children: ReactNode }) => {
@@ -31,6 +35,9 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
   const { config, updateConfig } = useContext(ConfigContext)
 
   const [swapProvider, setSwapProvider] = useState<LightningSwapProvider | null>(null)
+  const [fees, setFees] = useState<FeesResponse | null>(null)
+
+  const connected = config.apps.boltz.connected
 
   // create swap provider on first run with svcWallet
   useEffect(() => {
@@ -41,7 +48,10 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     setConnected(config.apps.boltz.connected)
   }, [aspInfo, svcWallet, config.apps.boltz.connected])
 
-  const connected = config.apps.boltz.connected
+  useEffect(() => {
+    if (!swapProvider) return
+    swapProvider.getFees().then((fees) => setFees(fees))
+  }, [swapProvider])
 
   const setConnected = (value: boolean) => {
     updateConfig({
@@ -56,6 +66,18 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     })
   }
 
+  const calcSubmarineSwapFee = (satoshis: number): number => {
+    if (!satoshis || !fees) return 0
+    const { percentage, minerFees } = fees.submarine
+    return Math.ceil((satoshis * percentage) / 100 + minerFees)
+  }
+
+  const calcReverseSwapFee = (satoshis: number): number => {
+    if (!satoshis || !fees) return 0
+    const { percentage, minerFees } = fees.reverse
+    return Math.ceil((satoshis * percentage) / 100 + minerFees.claim + minerFees.lockup)
+  }
+
   const toggleConnection = () => setConnected(!connected)
 
   return (
@@ -64,6 +86,8 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
         connected,
         swapProvider,
         toggleConnection,
+        calcReverseSwapFee,
+        calcSubmarineSwapFee,
       }}
     >
       {children}
