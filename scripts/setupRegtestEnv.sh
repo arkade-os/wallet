@@ -66,13 +66,13 @@ if [[ -n "$vols" ]]; then
   docker volume rm $vols
 fi
 
-sleep 2
-
 puts "starting nigiri with LND"
 nigiri start --ln
 
 puts "waiting for nigiri lnd to be ready"
 wait_for_cmd "nigiri lnd getinfo"
+
+sleep 2
 
 puts "funding nigiri lnd"
 nigiri faucet lnd
