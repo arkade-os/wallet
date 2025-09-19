@@ -7,7 +7,7 @@ import { ConfigContext } from './config'
 import { BoltzUrl } from '../lib/constants'
 
 const BASE_URLS: Record<Network, string> = {
-  bitcoin: 'https://boltz.arkade.sh',
+  bitcoin: 'https://boltz-v8.arkade.sh',
   mutinynet: 'https://boltz.mutinynet.arkade.sh',
   testnet: 'https://boltz.testnet.arkade.sh',
   regtest: 'http://localhost:9069',
