@@ -134,9 +134,9 @@ export default function SendDetails() {
       <Header text='Sign transaction' back={() => navigate(Pages.SendForm)} />
       <Content>
         {sending ? (
-          invoice ? (
+          details?.destination === invoice ? (
             <Loading text='Paying to Lightning' />
-          ) : arkAddress ? (
+          ) : details?.destination === arkAddress ? (
             <Loading text='Paying inside the Ark' />
           ) : (
             <WaitingForRound />
