@@ -19,6 +19,7 @@ export const emptyAspInfo: AspInfo = {
   boardingExitDelay: BigInt(0),
   unreachable: false,
   url: '',
+  checkpointExitClosure: '',
 }
 
 export const collaborativeExit = async (wallet: IWallet, amount: number, address: string): Promise<string> => {

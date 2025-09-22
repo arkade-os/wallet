@@ -141,6 +141,7 @@ services:
         [ark]
         host = "boltz-fulmine"
         port = 7000
+        useLocktimeSeconds = false
 
         [api]
         host = "0.0.0.0"
@@ -200,7 +201,7 @@ services:
         maxSwapAmount = 4294967
         minSwapAmount = 50000
         maxZeroConfAmount = 100000
-        preferredWallet = "lnd"
+        preferredWallet = "core"
 
         [currencies.chain]
         host = "bitcoin"
