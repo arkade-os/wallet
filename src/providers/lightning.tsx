@@ -5,6 +5,7 @@ import { WalletContext } from './wallet'
 import { FeesResponse, Network } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
 import { BoltzUrl } from '../lib/constants'
+import { consoleError } from '../lib/logs'
 
 const BASE_URLS: Record<Network, string> = {
   bitcoin: 'https://boltz-v8.arkade.sh',
@@ -48,9 +49,14 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     setConnected(config.apps.boltz.connected)
   }, [aspInfo, svcWallet, config.apps.boltz.connected])
 
+  // fetch fees and refresh swaps status on provider change
   useEffect(() => {
     if (!swapProvider) return
-    swapProvider.getFees().then((fees) => setFees(fees))
+    swapProvider.getFees().then(setFees).catch(consoleError)
+    swapProvider
+      .refreshSwapsStatus()
+      .then(() => swapProvider.refundFailedSubmarineSwaps().catch(consoleError))
+      .catch(consoleError)
   }, [swapProvider])
 
   const setConnected = (value: boolean) => {

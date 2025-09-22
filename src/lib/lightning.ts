@@ -5,6 +5,7 @@ import {
   BoltzSwapProvider,
   PendingReverseSwap,
   PendingSubmarineSwap,
+  isSubmarineSwapRefundable,
 } from '@arkade-os/boltz-swap'
 import { RestArkProvider, RestIndexerProvider, Wallet, ServiceWorkerWallet } from '@arkade-os/sdk'
 import { AspInfo } from '../providers/asp'
@@ -53,6 +54,11 @@ export class LightningSwapProvider {
   getSwapHistory = () => {
     if (!this.provider) throw new Error('Swap provider not available')
     return this.provider.getSwapHistory()
+  }
+
+  refreshSwapsStatus = () => {
+    if (!this.provider) throw new Error('Swap provider not available')
+    return this.provider.refreshSwapsStatus()
   }
 
   // receive
@@ -127,5 +133,15 @@ export class LightningSwapProvider {
 
   refundVHTLC = async (pendingSwap: PendingSubmarineSwap) => {
     return this.provider.refundVHTLC(pendingSwap)
+  }
+
+  refundFailedSubmarineSwaps = async () => {
+    const swaps = await this.provider.getSwapHistory()
+    console.log('Existing swaps:', swaps)
+
+    for (const swap of swaps.filter(isSubmarineSwapRefundable)) {
+      console.log('Refunding failed submarine swap', swap)
+      // await swapProvider.refundVHTLC(swap)
+    }
   }
 }
