@@ -14,7 +14,7 @@ import { canBrowserShareData, shareData } from '../../../lib/share'
 import ExpandAddresses from '../../../components/ExpandAddresses'
 import FlexCol from '../../../components/FlexCol'
 import { LimitsContext } from '../../../providers/limits'
-import { ExtendedCoin } from '@arkade-os/sdk'
+import { Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import Loading from '../../../components/Loading'
 import { LightningContext } from '../../../providers/lightning'
 import { encodeBip21 } from '../../../lib/bip21'
@@ -24,7 +24,7 @@ export default function ReceiveQRCode() {
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { swapProvider } = useContext(LightningContext)
-  const { vtxos, svcWallet, wallet, reloadWallet } = useContext(WalletContext)
+  const { vtxos, svcWallet, wallet } = useContext(WalletContext)
   const { validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
 
   const isFirstMount = useRef(true)
@@ -103,28 +103,28 @@ export default function ReceiveQRCode() {
   useEffect(() => {
     if (!svcWallet) return
 
-    let currentUtxos: ExtendedCoin[] = []
-    svcWallet!.getBoardingUtxos().then((utxos) => {
-      currentUtxos = utxos
-    })
+    const listenForPayments = (event: MessageEvent) => {
+      let satoshis = 0
+      if (event.data && event.data.type === 'VTXO_UPDATE') {
+        const vtxos = JSON.parse(event.data.message) as ExtendedVirtualCoin[]
+        satoshis = vtxos.reduce((acc, v) => acc + v.value, 0)
+      }
+      if (event.data && event.data.type === 'UTXO_UPDATE') {
+        const coins = JSON.parse(event.data.message) as Coin[]
+        satoshis = coins.reduce((acc, v) => acc + v.value, 0)
+      }
+      if (satoshis) {
+        setRecvInfo({ ...recvInfo, satoshis })
+        notifyPaymentReceived(satoshis)
+        navigate(Pages.ReceiveSuccess)
+      }
+    }
 
-    const interval = setInterval(async () => {
-      const utxos = await svcWallet!.getBoardingUtxos()
-      if (utxos.length < currentUtxos.length) {
-        currentUtxos = utxos
-      }
-      if (utxos.length > currentUtxos.length) {
-        const newUtxo = utxos.find((utxo) => !currentUtxos.includes(utxo))
-        if (newUtxo) {
-          currentUtxos = utxos
-          setRecvInfo({ ...recvInfo, satoshis: newUtxo.value })
-          await reloadWallet()
-          notifyPaymentReceived(newUtxo.value)
-          navigate(Pages.ReceiveSuccess)
-        }
-      }
-    }, 5_000)
-    return () => clearInterval(interval)
+    navigator.serviceWorker.addEventListener('message', listenForPayments)
+
+    return () => {
+      navigator.serviceWorker.removeEventListener('message', listenForPayments)
+    }
   }, [svcWallet])
 
   const handleShare = () => {
