@@ -152,11 +152,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       // listen for messages from the service worker
       navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'VTXO_UPDATE') {
-          // update the txs history list
-          getTxHistory(svcWallet).then(setTxs).catch(consoleError)
-          // update the balance
-          getBalance(svcWallet).then(setBalance).catch(consoleError)
+        if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
+          setTimeout(() => {
+            getTxHistory(svcWallet).then(setTxs).catch(consoleError)
+            getBalance(svcWallet).then(setBalance).catch(consoleError)
+          }, 5000)
         }
       })
 
