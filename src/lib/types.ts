@@ -1,5 +1,4 @@
-import { NetworkName } from '@arkade-os/sdk/dist/types/networks'
-import type { ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { NetworkName, type ExtendedVirtualCoin } from '@arkade-os/sdk'
 
 export type Addresses = {
   boardingAddr: string
