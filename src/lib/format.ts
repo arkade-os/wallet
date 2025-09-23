@@ -19,7 +19,7 @@ export const prettyAgo = (timestamp: number | string, long = false): string => {
   const now = Math.floor(Date.now() / 1000)
   const delta = Math.floor(now - unixTimestamp)
   if (delta === 0) return 'just now'
-  if (delta > 0) return `${prettyDelta(delta, long)} ago`
+  if (delta > 1) return `${prettyDelta(delta, long)} ago`
   if (delta < 0) return `in ${prettyDelta(delta, long)}`
   return ''
 }
