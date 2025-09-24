@@ -66,6 +66,14 @@ if [[ -n "$vols" ]]; then
   docker volume rm $vols
 fi
 
+# if argument 'down' is provided, exit after cleanup
+if [ $# -eq 1 ]; then
+  if [ "$1" == "down" ]; then
+    puts "Exiting after cleanup"
+    exit 0
+  fi
+fi
+
 puts "starting nigiri with LND"
 nigiri start --ln
 
