@@ -188,8 +188,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       arkServerUrl,
       esploraUrl,
     })
+    await updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
-    updateWallet({ ...wallet, network, pubkey })
   }
 
   const lockWallet = async () => {
