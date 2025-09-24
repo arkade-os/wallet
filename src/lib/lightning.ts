@@ -137,11 +137,10 @@ export class LightningSwapProvider {
 
   refundFailedSubmarineSwaps = async () => {
     const swaps = await this.provider.getSwapHistory()
-    console.log('Existing swaps:', swaps)
 
     for (const swap of swaps.filter(isSubmarineSwapRefundable)) {
       console.log('Refunding failed submarine swap', swap)
-      // await swapProvider.refundVHTLC(swap)
+      await this.provider.refundVHTLC(swap)
     }
   }
 }
