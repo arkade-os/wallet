@@ -142,7 +142,7 @@ export default function ReceiveAmount() {
       <>
         <Header text='Success' />
         <Content>
-          <Success headline='Faucet completed!' text={`${displayAmount} received from faucet successfully`} />
+          <Success headline='Faucet completed!' text={`${displayAmount} received successfully`} />
         </Content>
       </>
     )
