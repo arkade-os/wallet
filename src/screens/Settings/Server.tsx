@@ -28,7 +28,8 @@ export default function Server() {
   const [loading, setLoading] = useState(false)
 
   const isValidUrl = (url: string) => {
-    if (url.startsWith('localhost') || url.startsWith('127.0.0.1')) return true
+    if (url.startsWith('localhost') || url.startsWith('http://localhost')) return true
+    if (url.startsWith('127.0.0.1') || url.startsWith('http://127.0.0.1')) return true
     const urlPattern = /^(https?:\/\/)?([\w-]+(\.[\w-]+)+)([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?$/
     return urlPattern.test(url)
   }
