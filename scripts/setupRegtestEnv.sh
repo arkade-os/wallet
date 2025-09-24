@@ -11,29 +11,6 @@ function warn {
   echo -e "\033[1;31m$1\033[0m"
 }
 
-# Function to wait for an endpoint to respond
-function wait_for_endpoint {
-  local ENDPOINT="$1"
-  local ATTEMPTS=10  # Total number of attempts
-  local INTERVAL=1  # Seconds between retries
-  
-  puts "Waiting for $ENDPOINT to respond with HTTP 200..."
-  
-  for ((i=1; i<=ATTEMPTS; i++)); do
-    HTTP_CODE=$(curl --silent --write-out "%{http_code}" --output /dev/null "$ENDPOINT")
-    if [ "$HTTP_CODE" -eq 200 ]; then
-      echo " ✔"
-      return 0
-    else
-      echo "Attempt $i/$ATTEMPTS failed, retrying in $INTERVAL second..."
-      sleep $INTERVAL
-    fi
-  done
-  
-  echo "Timed out waiting for $ENDPOINT after $((ATTEMPTS * INTERVAL)) seconds."
-  return 1
-}
-
 function wait_for_cmd {
   local COMMAND="$1"
   local ATTEMPTS=10  # Total number of attempts
