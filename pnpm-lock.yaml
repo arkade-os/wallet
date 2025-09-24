@@ -12,11 +12,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.2.0-alpha.5
-        version: 0.2.0-alpha.5
+        specifier: 0.2.0-alpha.6
+        version: 0.2.0-alpha.6
       '@arkade-os/sdk':
-        specifier: 0.3.0-alpha.5
-        version: 0.3.0-alpha.5
+        specifier: 0.3.0-alpha.6
+        version: 0.3.0-alpha.6
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -163,12 +163,16 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@arkade-os/boltz-swap@0.2.0-alpha.5':
-    resolution: {integrity: sha512-3OsHqyKp5/PKUmIFdG+KK0PyfGMd0mV0oDDDE1LHB2IqgFzog5XZPhezqllMK7V5UgCY1ZFuS+n/Ay0Pd5j5BQ==}
+  '@arkade-os/boltz-swap@0.2.0-alpha.6':
+    resolution: {integrity: sha512-FelkJfLaGd9UkZaLc0RGd4BVJjo5sfKolR/PfrlUnMpWn7nRbxS9XNRPyCdHy4kFQTaKscEYwqzfi2PlgQ9A0Q==}
     engines: {node: '>=22'}
 
   '@arkade-os/sdk@0.3.0-alpha.5':
     resolution: {integrity: sha512-iGwaPBJWpRNE/d8KGc1R9yT144/8WfNAJHetxs0EuRGsIFPiVTbJVpZaU7ltLRFbPT0GUwl//tSIRjmUHQGVwg==}
+    engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
+
+  '@arkade-os/sdk@0.3.0-alpha.6':
+    resolution: {integrity: sha512-nka2tqyaT9QvJ//yxOovVuZF6K9bfXbTl7c3Nc8UiillbViKjyMyErKPspCmacbZxVhqDKDH1jIBjC6A33G1jw==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
 
   '@asamuzakjp/css-color@3.2.0':
@@ -2509,7 +2513,7 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.13
       '@jridgewell/trace-mapping': 0.3.30
 
-  '@arkade-os/boltz-swap@0.2.0-alpha.5':
+  '@arkade-os/boltz-swap@0.2.0-alpha.6':
     dependencies:
       '@arkade-os/sdk': 0.3.0-alpha.5
       '@noble/hashes': 2.0.0
@@ -2518,6 +2522,15 @@ snapshots:
       light-bolt11-decoder: 3.2.0
 
   '@arkade-os/sdk@0.3.0-alpha.5':
+    dependencies:
+      '@noble/curves': 2.0.0
+      '@noble/hashes': 2.0.0
+      '@noble/secp256k1': 3.0.0
+      '@scure/base': 2.0.0
+      '@scure/btc-signer': 2.0.1
+      bip68: 1.0.4
+
+  '@arkade-os/sdk@0.3.0-alpha.6':
     dependencies:
       '@noble/curves': 2.0.0
       '@noble/hashes': 2.0.0
