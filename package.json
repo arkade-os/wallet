@@ -4,8 +4,8 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/boltz-swap": "0.2.0-alpha.6",
-    "@arkade-os/sdk": "0.3.0-alpha.6",
+    "@arkade-os/boltz-swap": "0.2.0-alpha.7",
+    "@arkade-os/sdk": "0.3.0-alpha.7",
     "@ionic/react": "^8.5.6",
     "@noble/hashes": "^1.8.0",
     "@noble/secp256k1": "^2.3.0",
