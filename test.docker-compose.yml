@@ -231,7 +231,7 @@ services:
     volumes:
       - postgres_datadir:/var/lib/postgresql/data
   boltz-fulmine:
-    image: ghcr.io/arklabshq/fulmine:v0.3.0-rc.0
+    image: ghcr.io/arklabshq/fulmine:v0.3.0-rc.1
     environment:
       - FULMINE_ARK_SERVER=http://arkd:7070
       - FULMINE_ESPLORA_URL=http://chopsticks:3000
