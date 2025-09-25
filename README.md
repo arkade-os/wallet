@@ -34,7 +34,7 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 
 ### Prerequisites
 
-- Node.js >=18
+- Node.js >=20
 - PNPM >=8
 
 ### Installation
