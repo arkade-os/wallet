@@ -124,7 +124,7 @@ docker compose -f test.docker-compose.yml up -d boltz-fulmine
 sleep 5
 
 puts "generating seed for Fulmine"
-seed=$(curl -X GET http://localhost:7003/api/v1/wallet/genseed | jq -r .hex)
+seed=$(curl -s -X GET http://localhost:7003/api/v1/wallet/genseed | jq -r .hex)
 echo $seed
 
 puts "creating Fulmine wallet with seed"
@@ -142,7 +142,7 @@ curl -X POST http://localhost:7003/api/v1/wallet/unlock \
 sleep 2
 
 puts "getting Fulmine address"
-address=$(curl -X GET http://localhost:7003/api/v1/address | jq -r '.address | split("?")[0] | split(":")[1]')
+address=$(curl -s -X GET http://localhost:7003/api/v1/address | jq -r '.address | split("?")[0] | split(":")[1]')
 echo $address
 
 puts "fauceting Fulmine address"
