@@ -1,4 +1,4 @@
-import CheckedIcon from '../icons/Checked'
+import { GreenStatusIcon } from '../icons/Status'
 import UnheckedIcon from '../icons/Unchecked'
 import FlexCol from './FlexCol'
 import FlexRow from './FlexRow'
@@ -17,7 +17,7 @@ const Line = ({ row }: { row: CheckListData }) => (
   <>
     {row.done ? (
       <FlexRow>
-        <CheckedIcon />
+        <GreenStatusIcon />
         <Text small color='green'>
           {row.text}
         </Text>

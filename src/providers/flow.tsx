@@ -1,4 +1,4 @@
-import { PendingSubmarineSwap } from '@arkade-os/boltz-swap'
+import { PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { ReactNode, createContext, useState } from 'react'
 import { Tx } from '../lib/types'
 
@@ -35,6 +35,8 @@ export type SendInfo = {
   txid?: string
 }
 
+export type SwapInfo = PendingSubmarineSwap | PendingReverseSwap | undefined
+
 export type TxInfo = Tx | undefined
 
 interface FlowContextProps {
@@ -42,11 +44,13 @@ interface FlowContextProps {
   noteInfo: NoteInfo
   recvInfo: RecvInfo
   sendInfo: SendInfo
+  swapInfo: SwapInfo
   txInfo: TxInfo
   setInitInfo: (arg0: InitInfo) => void
   setNoteInfo: (arg0: NoteInfo) => void
   setRecvInfo: (arg0: RecvInfo) => void
   setSendInfo: (arg0: SendInfo) => void
+  setSwapInfo: (arg0: SwapInfo) => void
   setTxInfo: (arg0: TxInfo) => void
 }
 
@@ -80,11 +84,13 @@ export const FlowContext = createContext<FlowContextProps>({
   noteInfo: emptyNoteInfo,
   recvInfo: emptyRecvInfo,
   sendInfo: emptySendInfo,
+  swapInfo: undefined,
   txInfo: undefined,
   setInitInfo: () => {},
   setNoteInfo: () => {},
   setRecvInfo: () => {},
   setSendInfo: () => {},
+  setSwapInfo: () => {},
   setTxInfo: () => {},
 })
 
@@ -93,6 +99,7 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
   const [noteInfo, setNoteInfo] = useState(emptyNoteInfo)
   const [recvInfo, setRecvInfo] = useState(emptyRecvInfo)
   const [sendInfo, setSendInfo] = useState(emptySendInfo)
+  const [swapInfo, setSwapInfo] = useState<SwapInfo>()
   const [txInfo, setTxInfo] = useState<TxInfo>()
 
   return (
@@ -102,11 +109,13 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
         noteInfo,
         recvInfo,
         sendInfo,
+        swapInfo,
         txInfo,
         setInitInfo,
         setNoteInfo,
         setRecvInfo,
         setSendInfo,
+        setSwapInfo,
         setTxInfo,
       }}
     >

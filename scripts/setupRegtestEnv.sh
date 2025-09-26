@@ -11,6 +11,26 @@ function warn {
   echo -e "\033[1;31m$1\033[0m"
 }
 
+function wait_for_cmd {
+  local COMMAND="$1"
+  local ATTEMPTS=10  # Total number of attempts
+  local INTERVAL=1  # Seconds between retries
+  
+  for ((i=1; i<=ATTEMPTS; i++)); do
+    RETURN_CODE=$($COMMAND > /dev/null 2>&1; echo $?)
+    if [ "$RETURN_CODE" -eq 0 ]; then
+      echo " ✔"
+      return 0
+    else
+      echo "Attempt $i/$ATTEMPTS failed, retrying in $INTERVAL second..."
+      sleep $INTERVAL
+    fi
+  done
+  
+  echo "Timed out waiting for LND after $((ATTEMPTS * INTERVAL)) seconds."
+  return 1
+}
+
 puts "dropping existing docker containers"
 docker compose -f test.docker-compose.yml down
 
@@ -23,25 +43,33 @@ if [[ -n "$vols" ]]; then
   docker volume rm $vols
 fi
 
-sleep 2
+# if argument 'down' is provided, exit after cleanup
+if [ $# -eq 1 ]; then
+  if [ "$1" == "down" ]; then
+    puts "Exiting after cleanup"
+    exit 0
+  fi
+fi
 
 puts "starting nigiri with LND"
 nigiri start --ln
 
-sleep 10
+puts "waiting for nigiri lnd to be ready"
+wait_for_cmd "nigiri lnd getinfo"
 
 puts "funding nigiri lnd"
 nigiri faucet lnd
 
 puts "starting boltz lnd"
 docker compose -f test.docker-compose.yml up -d boltz-lnd
-lncli="docker exec -it boltz-lnd lncli --network=regtest"
+lncli="docker exec boltz-lnd lncli --network=regtest"
 
-sleep 10
+puts "waiting for boltz lnd to be ready"
+wait_for_cmd "docker exec boltz-lnd lncli --network=regtest getinfo"
 
 puts "funding boltz lnd"
-address=$($lncli newaddress p2wkh | jq -r .address | cut -c1-45)
-nigiri faucet $address
+address=$($lncli newaddress p2wkh | jq -r .address)
+nigiri faucet "$address"
 
 sleep 5
 
@@ -71,7 +99,9 @@ $lncli payinvoice --force $invoice
 puts "starting arkd"
 docker compose -f test.docker-compose.yml up -d arkd
 arkd="docker exec arkd arkd"
-sleep 5
+
+puts "waiting for arkd to be ready"
+wait_for_cmd "docker exec arkd arkd wallet status"
 
 puts "initializing arkd"
 $arkd wallet create --password password
@@ -92,7 +122,7 @@ docker compose -f test.docker-compose.yml up -d boltz-fulmine
 sleep 5
 
 puts "generating seed for Fulmine"
-seed=$(curl -X GET http://localhost:7003/api/v1/wallet/genseed | jq -r .hex)
+seed=$(curl -s -X GET http://localhost:7003/api/v1/wallet/genseed | jq -r .hex)
 echo $seed
 
 puts "creating Fulmine wallet with seed"
@@ -110,7 +140,7 @@ curl -X POST http://localhost:7003/api/v1/wallet/unlock \
 sleep 2
 
 puts "getting Fulmine address"
-address=$(curl -X GET http://localhost:7003/api/v1/address | jq -r '.address | split("?")[0] | split(":")[1]')
+address=$(curl -s -X GET http://localhost:7003/api/v1/address | jq -r '.address | split("?")[0] | split(":")[1]')
 echo $address
 
 puts "fauceting Fulmine address"
@@ -122,10 +152,10 @@ puts "settling funds in Fulmine"
 curl -X GET http://localhost:7003/api/v1/settle
 
 puts "getting lnd url connect"
-docker exec -i boltz-lnd bash -c \
+docker exec boltz-lnd bash -c \
 'echo -n "lndconnect://boltz-lnd:10009?cert=$(grep -v CERTIFICATE /root/.lnd/tls.cert \
 | tr -d = | tr "/+" "_-")&macaroon=$(base64 /root/.lnd/data/chain/bitcoin/regtest/admin.macaroon \
-| tr -d = | tr "/+" "_-")"' | tr -d '\n' | pbcopy
+| tr -d = | tr "/+" "_-")"' | tr -d '\n' | { command -v pbcopy >/dev/null && pbcopy || cat; }
 
 echo
 echo check fulmine on http://localhost:7003
@@ -133,7 +163,7 @@ echo - the single transaction should be settled
 echo - connect lnd with the URL copied to clipboard
 echo
 
-read -n 1 -p "Press any key to continue..."
+if [ -t 1 ]; then read -n 1 -p "Press any key to continue..."; fi
 
 puts "starting boltz backend and postgres"
 docker compose -f test.docker-compose.yml up -d boltz-postgres boltz

@@ -12,7 +12,9 @@ import { WalletProvider } from './providers/wallet'
 import { OptionsProvider } from './providers/options'
 import { IframeProvider } from './providers/iframe'
 import { LimitsProvider } from './providers/limits'
+import { NudgeProvider } from './providers/nudge'
 import * as Sentry from '@sentry/react'
+import { LightningProvider } from './providers/lightning'
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
@@ -46,11 +48,15 @@ root.render(
           <FiatProvider>
             <FlowProvider>
               <WalletProvider>
-                <LimitsProvider>
-                  <OptionsProvider>
-                    <AppWithProviders />
-                  </OptionsProvider>
-                </LimitsProvider>
+                <LightningProvider>
+                  <LimitsProvider>
+                    <OptionsProvider>
+                      <NudgeProvider>
+                        <AppWithProviders />
+                      </NudgeProvider>
+                    </OptionsProvider>
+                  </LimitsProvider>
+                </LightningProvider>
               </WalletProvider>
             </FlowProvider>
           </FiatProvider>

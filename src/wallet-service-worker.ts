@@ -1,7 +1,6 @@
 import { Worker } from '@arkade-os/sdk'
-import { vtxosRepository } from './lib/db'
 
-const worker = new Worker(vtxosRepository)
+const worker = new Worker()
 worker.start().catch(console.error)
 
 const CACHE_NAME = 'arkade-cache-v1'
@@ -80,3 +79,10 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
 // self.addEventListener('fetch', (event: FetchEvent) => {
 //   event.respondWith(networkFirst(event.request))
 // })
+
+self.addEventListener('message', (event: ExtendableMessageEvent) => {
+  if (event.data && event.data.type === 'RELOAD_WALLET') {
+    // reload the wallet when the service worker receives a message to reload
+    event.waitUntil(worker.reload().catch(console.error))
+  }
+})

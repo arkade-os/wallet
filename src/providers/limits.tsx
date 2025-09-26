@@ -2,8 +2,9 @@ import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
 import { Satoshis, TxType } from '../lib/types'
 import { AspContext } from './asp'
 import { consoleError } from '../lib/logs'
-import { LightningSwap } from '../lib/lightning'
 import { WalletContext } from './wallet'
+import { isRiga } from '../lib/constants'
+import { LightningContext } from './lightning'
 
 type LimitsContextProps = {
   amountIsAboveMaxLimit: (sats: Satoshis) => boolean
@@ -41,16 +42,17 @@ export const LimitsContext = createContext<LimitsContextProps>({
 export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet } = useContext(WalletContext)
+  const { swapProvider, connected } = useContext(LightningContext)
 
   const limits = useRef<LimitTxTypes>({
-    swap: { min: BigInt(1000), max: BigInt(4294967) },
+    swap: { min: BigInt(0), max: BigInt(0) },
     utxo: { min: BigInt(0), max: BigInt(-1) },
     vtxo: { min: BigInt(0), max: BigInt(-1) },
   })
 
+  // update limits when aspInfo or svcWallet changes
   useEffect(() => {
-    if (!aspInfo.network || !svcWallet) return
-    let cancelled = false
+    if (!aspInfo.network || !svcWallet || !swapProvider) return
 
     limits.current.utxo = {
       min: BigInt(aspInfo.utxoMinAmount ?? aspInfo.dust ?? -1),
@@ -61,21 +63,32 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
       min: BigInt(aspInfo.vtxoMinAmount ?? aspInfo.dust ?? -1),
       max: BigInt(aspInfo.vtxoMaxAmount ?? -1),
     }
-
-    const swapProvider = new LightningSwap(aspInfo, svcWallet)
-    swapProvider
-      .getLimits()
-      .then(({ min, max }) => {
-        if (cancelled) return
-        limits.current.swap = { ...limits.current.swap, min: BigInt(min), max: BigInt(max) }
-      })
-      .catch(consoleError)
-
-    // fix potential memory leak with async operation.
-    return () => {
-      cancelled = true
-    }
   }, [aspInfo.network, svcWallet])
+
+  // update limits when swapProvider or connected changes
+  useEffect(() => {
+    if (!swapProvider) return
+
+    if (connected) {
+      swapProvider
+        .getLimits()
+        .then((res) => {
+          if (!res) return
+          limits.current.swap = {
+            ...limits.current.swap,
+            min: BigInt(res.min),
+            max: BigInt(res.max),
+          }
+        })
+        .catch(consoleError)
+    } else {
+      limits.current.swap = {
+        ...limits.current.swap,
+        min: BigInt(0),
+        max: BigInt(0),
+      }
+    }
+  }, [swapProvider, connected])
 
   const minSwapAllowed = () => Number(limits.current.swap.min)
   const maxSwapAllowed = () => Number(limits.current.swap.max)
@@ -152,7 +165,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const lnSwapsAllowed = () => limits.current.swap.max !== BigInt(0)
-  const utxoTxsAllowed = () => limits.current.utxo.max !== BigInt(0)
+  const utxoTxsAllowed = () => limits.current.utxo.max !== BigInt(0) && !isRiga
   const vtxoTxsAllowed = () => limits.current.vtxo.max !== BigInt(0)
 
   return (

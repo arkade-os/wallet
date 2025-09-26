@@ -1,8 +1,7 @@
-import { ExtendedVirtualCoin, IWallet, ArkNote, RestArkProvider } from '@arkade-os/sdk'
+import { IWallet, ArkNote, RestArkProvider } from '@arkade-os/sdk'
 import { consoleError, consoleLog } from './logs'
 import { Addresses, Satoshis, Tx } from './types'
 import { AspInfo } from '../providers/asp'
-import { vtxosRepository } from './db'
 
 export const emptyAspInfo: AspInfo = {
   signerPubkey: '',
@@ -20,26 +19,32 @@ export const emptyAspInfo: AspInfo = {
   boardingExitDelay: BigInt(0),
   unreachable: false,
   url: '',
+  checkpointExitClosure: '',
 }
 
 export const collaborativeExit = async (wallet: IWallet, amount: number, address: string): Promise<string> => {
-  const vtxos = await getVtxos()
+  const vtxos = await wallet.getVtxos()
   const selectedVtxos = []
   let selectedAmount = 0
+
   for (const vtxo of vtxos) {
     if (selectedAmount >= amount) break
     selectedVtxos.push(vtxo)
     selectedAmount += vtxo.value
   }
-  const changeAmount = selectedAmount - amount
+
+  if (selectedAmount < amount) throw new Error('Insufficient funds')
 
   const outputs = [{ address, amount: BigInt(amount) }]
+
+  const changeAmount = selectedAmount - amount
+
   if (changeAmount > 0) {
     const { offchainAddr } = await getReceivingAddresses(wallet)
     outputs.push({ address: offchainAddr, amount: BigInt(changeAmount) })
   }
 
-  return wallet.settle({ inputs: selectedVtxos, outputs }, consoleLog)
+  return wallet.settle({ inputs: selectedVtxos, outputs })
 }
 
 export const getAspInfo = async (url: string): Promise<AspInfo> => {
@@ -101,15 +106,6 @@ export const getReceivingAddresses = async (wallet: IWallet): Promise<Addresses>
   return {
     boardingAddr,
     offchainAddr,
-  }
-}
-
-async function getVtxos(): Promise<ExtendedVirtualCoin[]> {
-  try {
-    return vtxosRepository.getSpendableVtxos()
-  } catch (err) {
-    consoleError(err, 'error getting vtxos from DB')
-    return []
   }
 }
 

@@ -1,12 +1,9 @@
 import { Config, Wallet } from '../lib/types'
-import { vtxosRepository } from './db'
 
 // clear localStorage but persist config
 export async function clearStorage(): Promise<void> {
   const config = readConfigFromStorage()
   localStorage.clear()
-  await vtxosRepository.deleteAll()
-  await vtxosRepository.close()
   if (config) saveConfigToStorage(config)
 }
 
@@ -14,7 +11,7 @@ export const getStorageItem = <T>(key: string, fallback: T, parser: (val: string
   try {
     const item = localStorage.getItem(key)
     return item !== null ? parser(item) : fallback
-  } catch (e) {
+  } catch {
     return fallback
   }
 }

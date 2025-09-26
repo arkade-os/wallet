@@ -5,7 +5,7 @@ import { emptySendInfo, FlowContext } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Details, { DetailsProps } from '../../../components/Details'
-import Error from '../../../components/Error'
+import ErrorMessage from '../../../components/Error'
 import { WalletContext } from '../../../providers/wallet'
 import Header from '../../../components/Header'
 import { defaultFee } from '../../../lib/constants'
@@ -15,20 +15,19 @@ import FlexCol from '../../../components/FlexCol'
 import { collaborativeExit, sendOffChain } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
 import Loading from '../../../components/Loading'
-import { consoleError, consoleLog } from '../../../lib/logs'
+import { consoleError } from '../../../lib/logs'
 import WaitingForRound from '../../../components/WaitingForRound'
 import { IframeContext } from '../../../providers/iframe'
 import Minimal from '../../../components/Minimal'
 import Text from '../../../components/Text'
 import FlexRow from '../../../components/FlexRow'
 import { LimitsContext } from '../../../providers/limits'
-import { AspContext } from '../../../providers/asp'
-import { LightningSwap } from '../../../lib/lightning'
+import { LightningContext } from '../../../providers/lightning'
 
 export default function SendDetails() {
-  const { aspInfo } = useContext(AspContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { iframeUrl } = useContext(IframeContext)
+  const { calcSubmarineSwapFee, swapProvider } = useContext(LightningContext)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { balance, svcWallet } = useContext(WalletContext)
@@ -39,28 +38,28 @@ export default function SendDetails() {
   const [sending, setSending] = useState(false)
 
   const { address, arkAddress, invoice, pendingSwap, satoshis, text } = sendInfo
-  const feeInSats = arkAddress ? defaultFee : 0
 
   useEffect(() => {
     if (!address && !arkAddress && !invoice) return setError('Missing address')
     if (!satoshis) return setError('Missing amount')
-    const total = satoshis + feeInSats
     const destination =
       arkAddress && vtxoTxsAllowed()
         ? arkAddress
         : address && utxoTxsAllowed()
-        ? address
-        : invoice && lnSwapsAllowed()
-        ? invoice
-        : ''
+          ? address
+          : invoice && lnSwapsAllowed()
+            ? invoice
+            : ''
     const direction =
       arkAddress && vtxoTxsAllowed()
         ? 'Paying inside the Ark'
         : address && utxoTxsAllowed()
-        ? 'Paying to mainnet'
-        : invoice && lnSwapsAllowed()
-        ? 'Swapping to Lightning'
-        : ''
+          ? 'Paying to mainnet'
+          : invoice && lnSwapsAllowed()
+            ? 'Swapping to Lightning'
+            : ''
+    const feeInSats = destination === invoice ? calcSubmarineSwapFee(satoshis) : defaultFee
+    const total = satoshis + feeInSats
     setDetails({
       destination,
       direction,
@@ -76,9 +75,13 @@ export default function SendDetails() {
     }
   }, [sendInfo])
 
+  const handlePreimage = ({ txid }: { preimage: string; txid: string }) => {
+    handleTxid(txid)
+  }
+
   const handleTxid = (txid: string) => {
     if (!txid) return setError('Error sending transaction')
-    setSendInfo({ ...sendInfo, total: (satoshis ?? 0) + feeInSats, txid })
+    setSendInfo({ ...sendInfo, total: details?.total, txid })
     navigate(Pages.SendSuccess)
   }
 
@@ -103,33 +106,13 @@ export default function SendDetails() {
       if (!response) return setError('Swap response not available')
       const swapAddress = pendingSwap?.response.address
       if (!swapAddress) return setError('Swap address not available')
-      const swapProvider = new LightningSwap(aspInfo, svcWallet)
-      sendOffChain(svcWallet, satoshis, swapAddress)
-        .then((txid) => {
-          swapProvider
-            .waitForSwapSettlement(pendingSwap)
-            .then(() => handleTxid(txid)) // provider claimed the VHTLC
-            .catch(({ isRefundable }) => {
-              consoleError('Swap failed', 'Swap provider failed to claim VHTLC')
-              if (isRefundable) {
-                consoleLog('Refunding VHTLC...')
-                swapProvider
-                  .refundVHTLC(pendingSwap)
-                  .then(() => {
-                    consoleLog('VHTLC refunded')
-                    setError('Swap failed: VHTLC refunded')
-                  })
-                  .catch((refundError) => {
-                    consoleError(refundError, 'Swap failed: VHTLC refund failed')
-                    setError('Swap failed: VHTLC refund failed')
-                  })
-                  .finally(() => {
-                    setSending(false)
-                  })
-              }
-            })
-        })
-        .catch(handleError)
+      const promise = swapProvider?.payInvoice(pendingSwap)
+      if (!promise) {
+        setError('Lightning swaps not enabled')
+        setSending(false)
+        return
+      }
+      promise.then(handlePreimage).catch(handleError)
     } else if (address) {
       collaborativeExit(svcWallet, satoshis, address).then(handleTxid).catch(handleError)
     }
@@ -151,9 +134,9 @@ export default function SendDetails() {
       <Header text='Sign transaction' back={() => navigate(Pages.SendForm)} />
       <Content>
         {sending ? (
-          invoice ? (
+          details?.destination === invoice ? (
             <Loading text='Paying to Lightning' />
-          ) : arkAddress ? (
+          ) : details?.destination === arkAddress ? (
             <Loading text='Paying inside the Ark' />
           ) : (
             <WaitingForRound />
@@ -161,7 +144,7 @@ export default function SendDetails() {
         ) : (
           <Padded>
             <FlexCol>
-              <Error error={Boolean(error)} text={error} />
+              <ErrorMessage error={Boolean(error)} text={error} />
               <Details details={details} />
             </FlexCol>
           </Padded>

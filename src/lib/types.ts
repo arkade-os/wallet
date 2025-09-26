@@ -1,5 +1,4 @@
-import { NetworkName } from '@arkade-os/sdk/dist/types/networks'
-import type { ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { NetworkName, type ExtendedVirtualCoin } from '@arkade-os/sdk'
 
 export type Addresses = {
   boardingAddr: string
@@ -7,6 +6,11 @@ export type Addresses = {
 }
 
 export type Config = {
+  apps: {
+    boltz: {
+      connected: boolean
+    }
+  }
   aspUrl: string
   currencyDisplay: CurrencyDisplay
   fiat: Fiats
@@ -49,7 +53,7 @@ export enum SettingsOptions {
   Notifications = 'notifications',
   Nostr = 'nostr',
   Notes = 'notes',
-  Password = 'password',
+  Password = 'change password',
   Reset = 'reset wallet',
   Server = 'server',
   Vtxos = 'coin control',

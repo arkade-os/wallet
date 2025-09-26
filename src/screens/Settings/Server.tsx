@@ -3,7 +3,7 @@ import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Content from '../../components/Content'
 import Padded from '../../components/Padded'
-import Error from '../../components/Error'
+import ErrorMessage from '../../components/Error'
 import { ConfigContext } from '../../providers/config'
 import { getAspInfo } from '../../lib/asp'
 import { WalletContext } from '../../providers/wallet'
@@ -27,12 +27,19 @@ export default function Server() {
   const [scan, setScan] = useState(false)
   const [loading, setLoading] = useState(false)
 
+  const isValidUrl = (url: string) => {
+    if (url.startsWith('localhost') || url.startsWith('http://localhost')) return true
+    if (url.startsWith('127.0.0.1') || url.startsWith('http://127.0.0.1')) return true
+    const urlPattern = /^(https?:\/\/)?([\w-]+(\.[\w-]+)+)([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?$/
+    return urlPattern.test(url)
+  }
+
   useEffect(() => {
     setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
   }, [aspInfo.unreachable])
 
   useEffect(() => {
-    if (!aspUrl) return
+    if (!aspUrl || !isValidUrl(aspUrl)) return
     // don't do anything if same server
     if (aspUrl === config.aspUrl) return setError('Same server')
     // test connection
@@ -63,7 +70,7 @@ export default function Server() {
     handleConnect()
   }
 
-  if (scan) return <Scanner close={() => setScan(false)} label='Server URL' setData={setAspUrl} setError={setError} />
+  if (scan) return <Scanner close={() => setScan(false)} label='Server URL' onData={setAspUrl} onError={setError} />
 
   return (
     <>
@@ -80,7 +87,7 @@ export default function Server() {
               placeholder={config.aspUrl}
               value={aspUrl}
             />
-            <Error error={Boolean(error)} text={error} />
+            <ErrorMessage error={Boolean(error)} text={error} />
             {info && !error ? <WarningBox green text='Server found' /> : null}
             <WarningBox text='Your wallet will be reset. Make sure you backup your wallet first.' />
           </FlexCol>

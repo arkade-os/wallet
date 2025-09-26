@@ -5,7 +5,7 @@ import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { AspContext } from '../../providers/asp'
-import Error from '../../components/Error'
+import ErrorMessage from '../../components/Error'
 import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
 import CenterScreen from '../../components/CenterScreen'
@@ -16,6 +16,7 @@ import Minimal from '../../components/Minimal'
 import { deriveKeyFromSeed } from '../../lib/wallet'
 import SheetModal from '../../components/SheetModal'
 import WalletNewIcon from '../../icons/WalletNew'
+import { defaultPassword } from '../../lib/constants'
 
 export default function Init() {
   const { aspInfo } = useContext(AspContext)
@@ -34,8 +35,8 @@ export default function Init() {
     const mnemonic = generateMnemonic(wordlist)
     const seed = mnemonicToSeedSync(mnemonic)
     const privateKey = deriveKeyFromSeed(seed)
-    setInitInfo({ privateKey, restoring: false })
-    navigate(Pages.InitPassword)
+    setInitInfo({ privateKey, password: defaultPassword, restoring: false })
+    navigate(Pages.InitSuccess)
   }
 
   const handleOldWallet = () => navigate(Pages.InitRestore)
@@ -57,7 +58,7 @@ export default function Init() {
           <FlexCol centered gap='0'>
             <Text bigger>Arkade Wallet</Text>
           </FlexCol>
-          <Error error={error} text='Ark server unreachable' />
+          <ErrorMessage error={error} text='Ark server unreachable' />
         </CenterScreen>
       </Content>
       <ButtonsOnBottom>
