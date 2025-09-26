@@ -27,7 +27,7 @@ export default function InitPassword() {
 
   const [label, setLabel] = useState('')
   const [method, setMethod] = useState<Method>(Method.Password)
-  const [password, setPassword] = useState('')
+  const [password, setPassword] = useState<string | null>(null)
 
   const registerUserBiometrics = () => {
     registerUser()

@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
+import { ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react'
 import { clearStorage, readWalletFromStorage, saveWalletToStorage } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
@@ -10,7 +10,7 @@ import { arkNoteInUrl } from '../lib/arknote'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { calcNextRollover } from '../lib/wallet'
-import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey } from '@arkade-os/sdk'
+import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 
 import * as secp from '@noble/secp256k1'
@@ -55,18 +55,32 @@ export const WalletContext = createContext<WalletContextProps>({
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { setNoteInfo, noteInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
+  const { setNoteInfo, noteInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
 
-  const [walletLoaded, setWalletLoaded] = useState(false)
-  const [wallet, setWallet] = useState(defaultWallet)
-  const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
-
-  const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
   const [txs, setTxs] = useState<Tx[]>([])
   const [balance, setBalance] = useState(0)
+  const [wallet, setWallet] = useState(defaultWallet)
+  const [walletLoaded, setWalletLoaded] = useState(false)
   const [initialized, setInitialized] = useState<boolean>(false)
+  const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
+  const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
+
+  const listeningForServiceWorker = useRef(false)
+
+  // handle messages from the service worker
+  // we listen for UTXO/VTXO updates to refresh the tx history and balance
+  // we add a delay to give the indexer time to update its cache
+  const handleServiceWorkerMessages = (event: MessageEvent) => {
+    if (!svcWallet) return
+    if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
+      setTimeout(() => {
+        getTxHistory(svcWallet).then(setTxs).catch(consoleError)
+        getBalance(svcWallet).then(setBalance).catch(consoleError)
+      }, 5000)
+    }
+  }
 
   // read wallet from storage
   useEffect(() => {
@@ -85,8 +99,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     svcWallet
       .getVtxos()
       .then((vtxos) => {
-        const spendable = []
-        const spent = []
+        const spendable: ExtendedVirtualCoin[] = []
+        const spent: ExtendedVirtualCoin[] = []
         for (const vtxo of vtxos) {
           if (vtxo.spentBy && vtxo.spentBy.length > 0) spent.push(vtxo)
           else spendable.push(vtxo)
@@ -98,10 +112,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   // update next rollover when vtxos change
   useEffect(() => {
-    if (vtxos?.spendable && vtxos?.spendable.length > 0) {
-      const nextRollover = calcNextRollover(aspInfo.vtxoTreeExpiry, vtxos?.spendable)
-      updateWallet({ ...wallet, nextRollover })
-    }
+    if (!vtxos?.spendable?.length) return
+    const nextRollover = calcNextRollover(aspInfo.vtxoTreeExpiry, vtxos?.spendable)
+    updateWallet({ ...wallet, nextRollover })
   }, [vtxos])
 
   // if ark note is present in the URL, decode it and set the note info
@@ -151,14 +164,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setSvcWallet(svcWallet)
 
       // listen for messages from the service worker
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
-          setTimeout(() => {
-            getTxHistory(svcWallet).then(setTxs).catch(consoleError)
-            getBalance(svcWallet).then(setBalance).catch(consoleError)
-          }, 5000)
-        }
-      })
+      if (listeningForServiceWorker.current) {
+        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessages)
+        navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
+      } else {
+        navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
+        listeningForServiceWorker.current = true
+      }
 
       // check if the service worker wallet is initialized
       const { walletInitialized } = await svcWallet.getStatus()
@@ -188,7 +200,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       arkServerUrl,
       esploraUrl,
     })
-    await updateWallet({ ...wallet, network, pubkey })
+    updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
   }
 
@@ -211,13 +223,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     notifyTxSettled()
   }
 
-  const updateWallet = async (data: Wallet) => {
+  const updateWallet = (data: Wallet) => {
     setWallet({ ...data })
     saveWalletToStorage(data)
   }
 
   const isLocked = async () => {
-    if (!svcWallet) throw new Error('Service worker not initialized')
+    if (!svcWallet) return true
     try {
       const { walletInitialized } = await svcWallet.getStatus()
       return !walletInitialized

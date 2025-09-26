@@ -42,22 +42,18 @@ export class LightningSwapProvider {
   }
 
   getFees = async () => {
-    if (!this.provider) throw new Error('Swap provider not available')
     return this.provider.getFees()
   }
 
   getLimits = async () => {
-    if (!this.provider) throw new Error('Swap provider not available')
     return this.provider.getLimits()
   }
 
   getSwapHistory = () => {
-    if (!this.provider) throw new Error('Swap provider not available')
     return this.provider.getSwapHistory()
   }
 
   refreshSwapsStatus = () => {
-    if (!this.provider) throw new Error('Swap provider not available')
     return this.provider.refreshSwapsStatus()
   }
 
@@ -65,7 +61,6 @@ export class LightningSwapProvider {
 
   createReverseSwap = async (sats: number): Promise<PendingReverseSwap> => {
     if (!sats) throw new Error('Invalid amount')
-    if (!this.provider) throw new Error('Swap provider not available')
 
     const pendingSwap = await this.provider.createReverseSwap({
       amount: sats,
@@ -78,7 +73,6 @@ export class LightningSwapProvider {
 
   waitAndClaim = async (pendingSwap: PendingReverseSwap) => {
     if (!pendingSwap) throw new Error('Invalid pending swap')
-    if (!this.provider) throw new Error('Swap provider not available')
 
     try {
       await this.provider.waitAndClaim(pendingSwap)

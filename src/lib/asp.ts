@@ -26,14 +26,19 @@ export const collaborativeExit = async (wallet: IWallet, amount: number, address
   const vtxos = await wallet.getVtxos()
   const selectedVtxos = []
   let selectedAmount = 0
+
   for (const vtxo of vtxos) {
     if (selectedAmount >= amount) break
     selectedVtxos.push(vtxo)
     selectedAmount += vtxo.value
   }
-  const changeAmount = selectedAmount - amount
+
+  if (selectedAmount < amount) throw new Error('Insufficient funds')
 
   const outputs = [{ address, amount: BigInt(amount) }]
+
+  const changeAmount = selectedAmount - amount
+
   if (changeAmount > 0) {
     const { offchainAddr } = await getReceivingAddresses(wallet)
     outputs.push({ address: offchainAddr, amount: BigInt(changeAmount) })
@@ -125,6 +130,5 @@ export const sendOnChain = async (wallet: IWallet, sats: number, address: string
 }
 
 export const settleVtxos = async (wallet: IWallet): Promise<void> => {
-  await wallet.settle(undefined, console.log)
-  consoleLog('Settled all vtxos')
+  await wallet.settle(undefined, consoleLog)
 }

@@ -34,12 +34,7 @@ export default function ReceiveQRCode() {
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
   const address = validUtxoTx(satoshis) && utxoTxsAllowed() ? boardingAddr : ''
   const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
-
-  // don't generate QR if no valid payment method is available
-  if (!address && !arkAddress && !validLnSwap(satoshis)) {
-    return <div>No valid payment methods available for this amount</div>
-  }
-
+  const noPaymentMethods = !address && !arkAddress && !validLnSwap(satoshis)
   const defaultBip21uri = encodeBip21(address, arkAddress, '', satoshis)
 
   const [invoice, setInvoice] = useState('')
@@ -92,7 +87,7 @@ export default function ReceiveQRCode() {
       return
     }
     // we just received a payment, and it's on the last index of the vtxos
-    const lastVtxo = vtxos.spendable.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0]
+    const lastVtxo = [...vtxos.spendable].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0]
     if (!lastVtxo) return
     const { value } = lastVtxo
     setRecvInfo({ ...recvInfo, satoshis: value })
@@ -145,7 +140,9 @@ export default function ReceiveQRCode() {
       <Header text='Receive' back={() => navigate(Pages.ReceiveAmount)} />
       <Content>
         <Padded>
-          {showQrCode ? (
+          {noPaymentMethods ? (
+            <div>No valid payment methods available for this amount</div>
+          ) : showQrCode ? (
             <FlexCol centered>
               <QrCode value={qrValue} />
               <ExpandAddresses

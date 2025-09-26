@@ -57,21 +57,19 @@ nigiri start --ln
 puts "waiting for nigiri lnd to be ready"
 wait_for_cmd "nigiri lnd getinfo"
 
-sleep 2
-
 puts "funding nigiri lnd"
 nigiri faucet lnd
 
 puts "starting boltz lnd"
 docker compose -f test.docker-compose.yml up -d boltz-lnd
-lncli="docker exec -it boltz-lnd lncli --network=regtest"
+lncli="docker exec boltz-lnd lncli --network=regtest"
 
 puts "waiting for boltz lnd to be ready"
-wait_for_cmd "docker exec -it boltz-lnd lncli --network=regtest getinfo"
+wait_for_cmd "docker exec boltz-lnd lncli --network=regtest getinfo"
 
 puts "funding boltz lnd"
-address=$($lncli newaddress p2wkh | jq -r .address | cut -c1-45)
-nigiri faucet $address
+address=$($lncli newaddress p2wkh | jq -r .address)
+nigiri faucet "$address"
 
 sleep 5
 
@@ -154,10 +152,10 @@ puts "settling funds in Fulmine"
 curl -X GET http://localhost:7003/api/v1/settle
 
 puts "getting lnd url connect"
-docker exec -i boltz-lnd bash -c \
+docker exec boltz-lnd bash -c \
 'echo -n "lndconnect://boltz-lnd:10009?cert=$(grep -v CERTIFICATE /root/.lnd/tls.cert \
 | tr -d = | tr "/+" "_-")&macaroon=$(base64 /root/.lnd/data/chain/bitcoin/regtest/admin.macaroon \
-| tr -d = | tr "/+" "_-")"' | tr -d '\n' | pbcopy
+| tr -d = | tr "/+" "_-")"' | tr -d '\n' | { command -v pbcopy >/dev/null && pbcopy || cat; }
 
 echo
 echo check fulmine on http://localhost:7003
@@ -165,7 +163,7 @@ echo - the single transaction should be settled
 echo - connect lnd with the URL copied to clipboard
 echo
 
-read -n 1 -p "Press any key to continue..."
+if [ -t 1 ]; then read -n 1 -p "Press any key to continue..."; fi
 
 puts "starting boltz backend and postgres"
 docker compose -f test.docker-compose.yml up -d boltz-postgres boltz

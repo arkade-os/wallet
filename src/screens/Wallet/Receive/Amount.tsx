@@ -57,9 +57,8 @@ export default function ReceiveAmount() {
       .catch(() => {})
   }, [])
 
-  if (!svcWallet) return <Loading text='Loading...' />
-
   useEffect(() => {
+    if (!svcWallet) return
     getReceivingAddresses(svcWallet)
       .then(({ offchainAddr, boardingAddr }) => {
         if (!offchainAddr) throw 'Unable to get offchain address'
@@ -71,10 +70,11 @@ export default function ReceiveAmount() {
         consoleError(error, 'error getting addresses')
         setError(error)
       })
-  }, [])
+  }, [svcWallet])
 
   useEffect(() => {
-    setSatoshis(useFiat ? fromFiat(amount) : (amount ?? 0))
+    const v = amount ?? 0
+    setSatoshis(useFiat ? fromFiat(v) : v)
   }, [amount])
 
   useEffect(() => {
@@ -88,6 +88,8 @@ export default function ReceiveAmount() {
             : 'Continue',
     )
   }, [satoshis])
+
+  if (!svcWallet) return <Loading text='Loading...' />
 
   const handleChange = (amount: number) => {
     setAmount(amount)
@@ -165,8 +167,8 @@ export default function ReceiveAmount() {
             />
             {amount ? (
               <Text color='dark50' smaller>
-                In Lightning you'll receive: {amount} - {calcReverseSwapFee(satoshis)} ={' '}
-                {prettyAmount(amount - calcReverseSwapFee(satoshis))}
+                In Lightning you'll receive: {prettyAmount(satoshis)} - {calcReverseSwapFee(satoshis)} ={' '}
+                {prettyAmount(Math.max(0, satoshis - calcReverseSwapFee(satoshis)))}
               </Text>
             ) : null}
           </FlexCol>
