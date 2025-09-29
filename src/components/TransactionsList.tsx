@@ -24,6 +24,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
 
   const prefix = tx.type === 'sent' ? '-' : '+'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount) : prettyHide(tx.amount)}`
+  const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
 
   const Fiat = () => {
     const color =
@@ -56,7 +57,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
       <ReceivedIcon />
     )
   const Kind = () => <Text thin>{tx.type === 'sent' ? 'Sent' : 'Received'}</Text>
-  const Date = () => <TextSecondary>{prettyDate(tx.createdAt)}</TextSecondary>
+  const Date = () => <TextSecondary>{date}</TextSecondary>
   const Sats = () => (
     <Text color={tx.preconfirmed ? 'orange' : tx.type === 'received' ? 'green' : ''} thin>
       {amount}
