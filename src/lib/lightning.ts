@@ -60,7 +60,7 @@ export class LightningSwapProvider {
   // receive
 
   createReverseSwap = async (sats: number): Promise<PendingReverseSwap> => {
-    if (!sats) throw new Error('Invalid amount')
+    if (!Number.isFinite(sats) || sats <= 0) throw new Error('Invalid amount')
 
     const pendingSwap = await this.provider.createReverseSwap({
       amount: sats,
