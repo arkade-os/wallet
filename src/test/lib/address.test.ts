@@ -11,9 +11,10 @@ import fixtures from '../fixtures.json'
 
 describe('address utilities', () => {
   describe('decodeAddress', () => {
-    it('should decode a valid address', () => {
-      const { address, usrKey, aspKey } = fixtures.lib.address.ark
-      expect(decodeArkAddress(address)).toEqual({ usrKey, aspKey })
+    it('should decode valid addresses', () => {
+      fixtures.lib.address.ark.forEach(({ address, vtxoTaprootKey, serverPubKey }) => {
+        expect(decodeArkAddress(address)).toEqual({ vtxoTaprootKey, serverPubKey })
+      })
     })
 
     it('should throw an error for an invalid address', () => {
@@ -23,7 +24,7 @@ describe('address utilities', () => {
 
   describe('isArkAddress', () => {
     it('should return true for a valid address', () => {
-      expect(isArkAddress(fixtures.lib.address.ark.address)).toBe(true)
+      expect(isArkAddress(fixtures.lib.address.ark[0].address)).toBe(true)
     })
 
     it('should return false for an invalid address', () => {

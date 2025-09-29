@@ -5,8 +5,8 @@ import { ArkAddress } from '@arkade-os/sdk'
 export const decodeArkAddress = (addr: string) => {
   const decoded = ArkAddress.decode(addr)
   return {
-    aspKey: hex.encode(decoded.serverPubKey),
-    usrKey: hex.encode(decoded.pkScript),
+    serverPubKey: hex.encode(decoded.serverPubKey),
+    vtxoTaprootKey: hex.encode(decoded.vtxoTaprootKey),
   }
 }
 

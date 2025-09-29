@@ -176,9 +176,9 @@ export default function SendForm() {
     }
     // check if server key is valid
     if (arkAddress && arkAddress.length > 0) {
-      const { aspKey } = decodeArkAddress(arkAddress)
-      const { aspKey: expectedAspKey } = decodeArkAddress(offchainAddr)
-      if (aspKey !== expectedAspKey) return setError('Invalid Ark server pubkey')
+      const { serverPubKey } = decodeArkAddress(arkAddress)
+      const { serverPubKey: expectedServerPubKey } = decodeArkAddress(offchainAddr)
+      if (serverPubKey !== expectedServerPubKey) return setError('Invalid Ark server pubkey')
     }
     // check if is trying to self send
     if (address === boardingAddr || arkAddress === offchainAddr) {

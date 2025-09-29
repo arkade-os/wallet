@@ -1,11 +1,18 @@
 {
   "lib": {
     "address": {
-      "ark": {
-        "address": "tark1qplnj2gett9j483fchy6chaxn4y52c4g7n5djh9xua3ywdxw0ldatc3e9xcj9xpx0r5tmr0dgvu2f4s352muklg0tcxx0scnnkraajy9jgz4xl",
-        "aspKey": "007f3929195acb2a9e29c5c9ac5fa69d494562a8f4e8d95ca6e7624734ce7fdb",
-        "usrKey": "d5e23929b122982678e8bd8ded4338a4d611a2b7cb7d0f5e0c67c3139d87dec885"
-      },
+      "ark": [
+        {
+          "address": "tark1qplnj2gett9j483fchy6chaxn4y52c4g7n5djh9xua3ywdxw0ldatc3e9xcj9xpx0r5tmr0dgvu2f4s352muklg0tcxx0scnnkraajy9jgz4xl",
+          "serverPubKey": "7f3929195acb2a9e29c5c9ac5fa69d494562a8f4e8d95ca6e7624734ce7fdbd5",
+          "vtxoTaprootKey": "e23929b122982678e8bd8ded4338a4d611a2b7cb7d0f5e0c67c3139d87dec885"
+        },
+        {
+          "address": "tark1qqellv77udfmr20tun8dvju5vgudpf9vxe8jwhthrkn26fz96pawqfdy8nk05rsmrf8h94j26905e7n6sng8y059z8ykn2j5xcuw4xt846qj6x",
+          "serverPubKey": "33ffb3dee353b1a9ebe4ced64b946238d0a4ac364f275d771da6ad2445d07ae0",
+          "vtxoTaprootKey": "25a43cecfa0e1b1a4f72d64ad15f4cfa7a84d0723e8511c969aa543638ea9967"
+        }
+      ],
       "btc": {
         "address": "bcrt1pj7fdvrpdsn0cl6722tmcvwcw4yqpe46020g43nhgzl90qq4aqjrs33du9f"
       }
