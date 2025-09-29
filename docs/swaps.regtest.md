@@ -43,7 +43,7 @@ Start LND used by boltz:
 ```sh
 docker compose -f test.docker-compose.yml up -d boltz-lnd
 # Create an alias for lncli
-alias lncli="docker exec boltz-lnd lncli --network=regtest"
+alias lncli="docker exec -i boltz-lnd lncli --network=regtest"
 ```
 
 Fund LND wallet:
