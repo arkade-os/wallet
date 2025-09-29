@@ -96,6 +96,8 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
   // sort by date, if have same date, put 'received' txs first
   txs.sort((a, b) => {
     if (a.createdAt === b.createdAt) return a.type === 'sent' ? -1 : 1
+    if (b.createdAt === 0) return 1 // tx with no date go to the top
+    if (a.createdAt === 0) return -1 // tx with no date go to the top
     return a.createdAt > b.createdAt ? -1 : 1
   })
   return txs
