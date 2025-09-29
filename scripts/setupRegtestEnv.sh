@@ -74,6 +74,8 @@ nigiri start --ln
 puts "waiting for nigiri LND to be ready"
 wait_for_cmd "nigiri lnd getinfo"
 
+sleep 2
+
 puts "funding nigiri LND"
 nigiri faucet lnd 1
 
