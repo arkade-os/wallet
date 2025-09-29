@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
@@ -24,10 +24,9 @@ export default function ReceiveQRCode() {
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { swapProvider } = useContext(LightningContext)
-  const { vtxos, svcWallet, wallet } = useContext(WalletContext)
+  const { svcWallet, wallet } = useContext(WalletContext)
   const { validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
 
-  const isFirstMount = useRef(true)
   const [sharing, setSharing] = useState(false)
 
   // manage all possible receive methods
@@ -80,20 +79,6 @@ export default function ReceiveQRCode() {
       setShowQrCode(true)
     }
   }, [satoshis])
-
-  useEffect(() => {
-    if (isFirstMount.current) {
-      isFirstMount.current = false
-      return
-    }
-    // we just received a payment, and it's on the last index of the vtxos
-    const lastVtxo = [...vtxos.spendable].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0]
-    if (!lastVtxo) return
-    const { value } = lastVtxo
-    setRecvInfo({ ...recvInfo, satoshis: value })
-    notifyPaymentReceived(value)
-    navigate(Pages.ReceiveSuccess)
-  }, [vtxos])
 
   useEffect(() => {
     if (!svcWallet) return
