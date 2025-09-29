@@ -69,19 +69,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const listeningForServiceWorker = useRef(false)
 
-  // handle messages from the service worker
-  // we listen for UTXO/VTXO updates to refresh the tx history and balance
-  // we add a delay to give the indexer time to update its cache
-  const handleServiceWorkerMessages = (event: MessageEvent) => {
-    if (!svcWallet) return
-    if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
-      setTimeout(() => {
-        getTxHistory(svcWallet).then(setTxs).catch(consoleError)
-        getBalance(svcWallet).then(setBalance).catch(consoleError)
-      }, 5000)
-    }
-  }
-
   // read wallet from storage
   useEffect(() => {
     const walletFromStorage = readWalletFromStorage()
@@ -162,6 +149,21 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         esploraUrl,
       })
       setSvcWallet(svcWallet)
+
+      // handle messages from the service worker
+      // we listen for UTXO/VTXO updates to refresh the tx history and balance
+      const handleServiceWorkerMessages = (event: MessageEvent) => {
+        const reloadWallet = () => {
+          getTxHistory(svcWallet).then(setTxs).catch(consoleError)
+          getBalance(svcWallet).then(setBalance).catch(consoleError)
+        }
+        if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
+          console.log('Service worker message:', event.data) // --- IGNORE ---
+          reloadWallet()
+          // reload again after a delay to give the indexer time to update its cache
+          setTimeout(reloadWallet, 5000)
+        }
+      }
 
       // listen for messages from the service worker
       if (listeningForServiceWorker.current) {
