@@ -12,24 +12,6 @@ export default function AppEscrow() {
   const { navigate } = useContext(NavigationContext)
   const { svcWallet } = useContext(WalletContext)
 
-  const [isSignedIn, setIsSignedIn] = useState(false)
-
-  const performSignIn = async () => {
-    const password = prompt('Enter your password')
-    console.log('got the password!', password)
-
-    if (password) {
-      try {
-        console.log('sing igg!', password)
-
-        // await signin(password)
-      } catch (err) {
-        console.error(err)
-        alert('Invalid password')
-      }
-    }
-  }
-
   async function xOnlyPublicKey() {
     return svcWallet?.xOnlyPublicKey() ?? null
   }
