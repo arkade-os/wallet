@@ -28,11 +28,12 @@ export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { settlePreconfirmed, wallet } = useContext(WalletContext)
+  const { settlePreconfirmed, vtxos, wallet } = useContext(WalletContext)
 
   const tx = txInfo
   const defaultButtonLabel = 'Settle Transaction'
 
+  const [aboveDust, setAboveDust] = useState(false)
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
   const [canSettleOnMarketHour, setCanSettleOnMarketHour] = useState(false)
   const [duration, setDuration] = useState(0)
@@ -63,6 +64,12 @@ export default function Transaction() {
       setDuration(0)
     }
   }, [wallet.nextRollover])
+
+  useEffect(() => {
+    if (!vtxos?.spendable?.length) return
+    const totalAmount = vtxos.spendable.reduce((a, v) => a + v.value, 0) || 0
+    setAboveDust(totalAmount > aspInfo.dust)
+  }, [vtxos])
 
   const handleBack = () => navigate(Pages.Wallet)
 
@@ -95,7 +102,7 @@ export default function Transaction() {
 
   // if server defines that UTXO transactions are not allowed,
   // don't allow settlement since it is a UTXO transaction
-  if (!utxoTxsAllowed() || !vtxoTxsAllowed()) {
+  if (!utxoTxsAllowed() || !vtxoTxsAllowed() || !aboveDust || unconfirmedBoardingTx) {
     return (
       <>
         <Header text='Transaction' back={handleBack} />
@@ -130,11 +137,7 @@ export default function Transaction() {
           <Padded>
             <FlexCol>
               <ErrorMessage error={Boolean(error)} text={error} />
-              {tx.settled ? null : unconfirmedBoardingTx ? (
-                <Info color='orange' icon={<VtxosIcon />} title='Unconfirmed'>
-                  <Text wrap>Onchain transaction unconfirmed. Please wait for confirmation.</Text>
-                </Info>
-              ) : (
+              {tx.settled ? null : (
                 <Info color='orange' icon={<VtxosIcon />} title='Preconfirmed'>
                   <Text wrap>Transaction preconfirmed. Funds will be non-reversible after settlement.</Text>
                   {canSettleOnMarketHour ? (
@@ -156,7 +159,7 @@ export default function Transaction() {
           </Padded>
         )}
       </Content>
-      {tx.settled || unconfirmedBoardingTx ? null : (
+      {tx.settled ? null : (
         <ButtonsOnBottom>
           <Button onClick={handleSettle} label={buttonLabel} disabled={settling} />
           <Button onClick={() => setReminderIsOpen(true)} label='Add reminder' secondary />

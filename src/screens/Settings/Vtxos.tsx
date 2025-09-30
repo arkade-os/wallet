@@ -55,6 +55,7 @@ export default function Vtxos() {
 
   const defaultLabel = 'Renew Virtual Coins'
 
+  const [aboveDust, setAboveDust] = useState(false)
   const [error, setError] = useState('')
   const [label, setLabel] = useState(defaultLabel)
   const [rollingover, setRollingover] = useState(false)
@@ -81,6 +82,12 @@ export default function Vtxos() {
       setDuration(0)
     }
   }, [wallet.nextRollover])
+
+  useEffect(() => {
+    if (!vtxos?.spendable?.length) return
+    const totalAmount = vtxos.spendable.reduce((a, v) => a + v.value, 0) || 0
+    setAboveDust(totalAmount > aspInfo.dust)
+  }, [vtxos])
 
   if (!svcWallet) return <Loading text='Loading...' />
 
@@ -156,7 +163,7 @@ export default function Vtxos() {
           </Padded>
         )}
       </Content>
-      {utxoTxsAllowed() && vtxoTxsAllowed() ? (
+      {utxoTxsAllowed() && vtxoTxsAllowed() && aboveDust ? (
         <>
           <ButtonsOnBottom>
             {vtxos.spendable.length > 0 ? (
