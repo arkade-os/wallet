@@ -84,7 +84,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!svcWallet) return
     svcWallet
-      .getVtxos()
+      .getVtxos({ withRecoverable: true })
       .then((vtxos) => {
         const spendable: ExtendedVirtualCoin[] = []
         const spent: ExtendedVirtualCoin[] = []
@@ -158,7 +158,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           getBalance(svcWallet).then(setBalance).catch(consoleError)
         }
         if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
-          console.log('Service worker message:', event.data) // --- IGNORE ---
           reloadWallet()
           // reload again after a delay to give the indexer time to update its cache
           setTimeout(reloadWallet, 5000)
