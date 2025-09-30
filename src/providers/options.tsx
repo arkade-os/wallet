@@ -51,11 +51,6 @@ export const options: Option[] = [
     section: SettingsSections.Advanced,
   },
   {
-    icon: <LogsIcon />,
-    option: SettingsOptions.Sign,
-    section: SettingsSections.Advanced,
-  },
-  {
     icon: <NotesIcon />,
     option: SettingsOptions.Notes,
     section: SettingsSections.General,

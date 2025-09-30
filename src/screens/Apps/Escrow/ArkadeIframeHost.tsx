@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { base64 } from '@scure/base'
 import makeMessageHandler from './RpcHandler'
 import { bytesToHex } from '@noble/hashes/utils'
 
