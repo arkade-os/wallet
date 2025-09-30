@@ -1,25 +1,22 @@
-import { useContext, useState } from 'react'
-import Shadow from '../../../components/Shadow'
-import Padded from '../../../components/Padded'
+import { useContext, useMemo, useState } from 'react'
 import Header from '../../../components/Header'
-import Content from '../../../components/Content'
-import FlexCol from '../../../components/FlexCol'
-import FlexRow from '../../../components/FlexRow'
-import Text, { TextLabel } from '../../../components/Text'
-// import { SettingsIconLight } from '../../../icons/Settings'
-import { EscrowContext } from '../../../providers/escrow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import Button from '../../../components/Button'
+import { ArkadeIdentityHandlers, ArkadeIframeHost } from './ArkadeIframeHost'
+import { WalletContext } from '../../../providers/wallet'
+import { getPrivateKey } from '../../../lib/privateKey'
+import { schnorr } from '@noble/curves/secp256k1'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
 
 export default function AppEscrow() {
   // const { signin, signout, isSignedIn } = useContext(EscrowContext)
   const { navigate } = useContext(NavigationContext)
+  const { svcWallet } = useContext(WalletContext)
+
   const [isSignedIn, setIsSignedIn] = useState(false)
 
   const performSignIn = async () => {
     const password = prompt('Enter your password')
     console.log('got the password!', password)
-
 
     if (password) {
       try {
@@ -33,6 +30,38 @@ export default function AppEscrow() {
     }
   }
 
+  async function xOnlyPublicKey() {
+    return svcWallet?.xOnlyPublicKey() ?? null
+  }
+
+  async function sign(tx: unknown, inputIndexes?: number[]) {
+    throw new Error('Not implemented')
+  }
+  async function signerSession() {
+    throw new Error('Not implemented')
+  }
+  async function signin(hexToSign: string) {
+    const password = prompt('Password')
+    if (!password) throw new Error('Wrong password')
+    const privkey = await getPrivateKey(password)
+    const signatureBytes = schnorr.sign(hexToBytes(hexToSign), privkey)
+    return bytesToHex(signatureBytes)
+  }
+  async function signout() {
+    return { ok: true }
+  }
+
+  const handlers: ArkadeIdentityHandlers = useMemo(
+    () => ({
+      sign,
+      signerSession,
+      signin,
+      signout,
+      xOnlyPublicKey,
+    }),
+    [],
+  )
+
   return (
     <>
       <Header
@@ -41,17 +70,11 @@ export default function AppEscrow() {
         text='Escrow on Ark'
         back={() => navigate(Pages.Apps)}
       />
-      <Content>
-        <Padded>
-          <FlexCol gap='2rem'>
-            <h1>Escrow</h1>
-            <FlexRow gap='0'>
-                  <Text>{isSignedIn ? 'IN' : 'OUT'}</Text>
-            </FlexRow>
-            <FlexRow end><Button label="Sign in" onClick={performSignIn}/></FlexRow>
-          </FlexCol>
-        </Padded>
-      </Content>
+      <ArkadeIframeHost
+        src='http://localhost:3001/'
+        allowedChildOrigins={['http://localhost:3001']}
+        handlers={handlers}
+      />
     </>
   )
 }
