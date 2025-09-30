@@ -42,6 +42,8 @@ export default function Transaction() {
   const [settling, setSettling] = useState(false)
   const [startTime, setStartTime] = useState(0)
 
+  const unconfirmedBoardingTx = tx?.boardingTxid && !tx?.createdAt
+
   useEffect(() => {
     setButtonLabel(settling ? 'Settling...' : defaultButtonLabel)
   }, [settling])
@@ -82,8 +84,8 @@ export default function Transaction() {
 
   const details: DetailsProps = {
     direction: tx.type === 'sent' ? 'Sent' : 'Received',
-    when: prettyAgo(tx.createdAt),
-    date: prettyDate(tx.createdAt),
+    when: tx.createdAt ? prettyAgo(tx.createdAt) : unconfirmedBoardingTx ? 'Unconfirmed' : 'Unknown',
+    date: tx.createdAt ? prettyDate(tx.createdAt) : unconfirmedBoardingTx ? 'Unconfirmed' : 'Unknown',
     satoshis: tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
     fees: tx.type === 'sent' ? defaultFee : 0,
     total: tx.amount,
@@ -101,7 +103,11 @@ export default function Transaction() {
           <Padded>
             <FlexCol>
               <ErrorMessage error={Boolean(error)} text={error} />
-              {tx.settled ? null : (
+              {tx.settled ? null : unconfirmedBoardingTx ? (
+                <Info color='orange' icon={<VtxosIcon />} title='Unconfirmed'>
+                  <Text wrap>Onchain transaction unconfirmed. Please wait for confirmation.</Text>
+                </Info>
+              ) : (
                 <Info color='orange' icon={<VtxosIcon />} title='Preconfirmed'>
                   <Text wrap>Transaction preconfirmed. Funds will be non-reversible after settlement.</Text>
                 </Info>
@@ -124,7 +130,11 @@ export default function Transaction() {
           <Padded>
             <FlexCol>
               <ErrorMessage error={Boolean(error)} text={error} />
-              {tx.settled ? null : (
+              {tx.settled ? null : unconfirmedBoardingTx ? (
+                <Info color='orange' icon={<VtxosIcon />} title='Unconfirmed'>
+                  <Text wrap>Onchain transaction unconfirmed. Please wait for confirmation.</Text>
+                </Info>
+              ) : (
                 <Info color='orange' icon={<VtxosIcon />} title='Preconfirmed'>
                   <Text wrap>Transaction preconfirmed. Funds will be non-reversible after settlement.</Text>
                   {canSettleOnMarketHour ? (
@@ -146,7 +156,7 @@ export default function Transaction() {
           </Padded>
         )}
       </Content>
-      {tx.settled ? null : (
+      {tx.settled || unconfirmedBoardingTx ? null : (
         <ButtonsOnBottom>
           <Button onClick={handleSettle} label={buttonLabel} disabled={settling} />
           <Button onClick={() => setReminderIsOpen(true)} label='Add reminder' secondary />
