@@ -12,11 +12,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.2.0-alpha.7
-        version: 0.2.0-alpha.7
+        specifier: 0.2.0-alpha.8
+        version: 0.2.0-alpha.8
       '@arkade-os/sdk':
-        specifier: 0.3.0-alpha.7
-        version: 0.3.0-alpha.7
+        specifier: 0.3.0-alpha.8
+        version: 0.3.0-alpha.8
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -160,13 +160,13 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@arkade-os/boltz-swap@0.2.0-alpha.7':
-    resolution: {integrity: sha512-pTQWZv+s+6SqW1e0YLVg31A0kOYstgba6ZwI2DYNn/63ugRnF8SOFIyLPGWqZooFeFAePA7AZXu0gxMOjx5RuQ==}
+  '@arkade-os/boltz-swap@0.2.0-alpha.8':
+    resolution: {integrity: sha512-LQakb3KlLGbFhACnZE0X8ALNw/zGIk0vjpTEJmOPMSH3PU0wz4NFMuNhIXB+cNc7lHHzrXvKnYQQu7tnxk3j9g==}
     engines: {node: '>=22'}
 
-  '@arkade-os/sdk@0.3.0-alpha.7':
-    resolution: {integrity: sha512-pyjRr1N1D+avGPu+bA5s7jrpiqvuKZFMSA8TwlYbw/F07JR5SxoMC2gRCw1RrjjKKRT7VM9ZzlMC3W3k3UnCCQ==}
-    engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
+  '@arkade-os/sdk@0.3.0-alpha.8':
+    resolution: {integrity: sha512-FrR71u/IEYxpfrYkR0uXNpbixjxDx1iG/ZtmSg2kAR/Hrft0ABtiWfsUzAj01nM+IYOFfox7mKgAZhyMB2YysA==}
+    engines: {node: '>=20.0.0'}
 
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
@@ -2503,15 +2503,15 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.13
       '@jridgewell/trace-mapping': 0.3.30
 
-  '@arkade-os/boltz-swap@0.2.0-alpha.7':
+  '@arkade-os/boltz-swap@0.2.0-alpha.8':
     dependencies:
-      '@arkade-os/sdk': 0.3.0-alpha.7
+      '@arkade-os/sdk': 0.3.0-alpha.8
       '@noble/hashes': 2.0.0
       '@scure/base': 2.0.0
       '@scure/btc-signer': 2.0.1
       light-bolt11-decoder: 3.2.0
 
-  '@arkade-os/sdk@0.3.0-alpha.7':
+  '@arkade-os/sdk@0.3.0-alpha.8':
     dependencies:
       '@noble/curves': 2.0.0
       '@noble/hashes': 2.0.0
