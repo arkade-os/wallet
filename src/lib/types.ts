@@ -50,7 +50,6 @@ export enum SettingsOptions {
   General = 'general',
   Lock = 'lock wallet',
   Logs = 'logs',
-  Sign = 'sign',
   Notifications = 'notifications',
   Nostr = 'nostr',
   Notes = 'notes',
