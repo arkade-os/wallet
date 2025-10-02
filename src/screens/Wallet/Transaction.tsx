@@ -28,13 +28,14 @@ export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { settlePreconfirmed, vtxos, wallet } = useContext(WalletContext)
+  const { settlePreconfirmed, txs, wallet } = useContext(WalletContext)
 
   const tx = txInfo
-  const defaultButtonLabel = 'Settle Transaction'
+  const defaultButtonLabel = 'Settle transaction'
+  const unconfirmedBoardingTx = tx?.boardingTxid && !tx?.createdAt
 
-  const [aboveDust, setAboveDust] = useState(false)
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
+  const [canSettleNow, setCanSettleNow] = useState(false)
   const [canSettleOnMarketHour, setCanSettleOnMarketHour] = useState(false)
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState('')
@@ -42,8 +43,6 @@ export default function Transaction() {
   const [settleSuccess, setSettleSuccess] = useState(false)
   const [settling, setSettling] = useState(false)
   const [startTime, setStartTime] = useState(0)
-
-  const unconfirmedBoardingTx = tx?.boardingTxid && !tx?.createdAt
 
   useEffect(() => {
     setButtonLabel(settling ? 'Settling...' : defaultButtonLabel)
@@ -66,10 +65,14 @@ export default function Transaction() {
   }, [wallet.nextRollover])
 
   useEffect(() => {
-    if (!vtxos?.spendable?.length) return
-    const totalAmount = vtxos.spendable.reduce((a, v) => a + v.value, 0) || 0
-    setAboveDust(totalAmount > aspInfo.dust)
-  }, [vtxos])
+    if (!txs?.length) return
+    const totalAmount =
+      txs
+        .filter((tx) => tx.settled === false)
+        .filter((tx) => tx.boardingTxid || tx.preconfirmed)
+        .reduce((a, v) => a + v.amount, 0) || 0
+    setCanSettleNow(totalAmount > aspInfo.dust)
+  }, [txs])
 
   const handleBack = () => navigate(Pages.Wallet)
 
@@ -102,7 +105,7 @@ export default function Transaction() {
 
   // if server defines that UTXO transactions are not allowed,
   // don't allow settlement since it is a UTXO transaction
-  if (!utxoTxsAllowed() || !vtxoTxsAllowed() || !aboveDust || unconfirmedBoardingTx) {
+  if (!utxoTxsAllowed() || !vtxoTxsAllowed() || !canSettleNow || unconfirmedBoardingTx) {
     return (
       <>
         <Header text='Transaction' back={handleBack} />
