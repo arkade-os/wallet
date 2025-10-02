@@ -1,15 +1,43 @@
+import { emptyAspInfo } from '../../lib/asp'
 import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
+
+export const mockTxId = '547b9e710c0b57197ab27faa2192601defe2efb08a45ee8ada765a6829ba451b'
 
 export const mockTxInfo = {
   amount: 100000,
-  boardingTxid: '547b9e710c0b57197ab27faa2192601defe2efb08a45ee8ada765a6829ba451b',
+  boardingTxid: mockTxId,
   redeemTxid: '',
   roundTxid: '',
   createdAt: 1756749175,
-  explorable: '547b9e710c0b57197ab27faa2192601defe2efb08a45ee8ada765a6829ba451b',
+  explorable: mockTxId,
   preconfirmed: false,
   settled: true,
   type: 'received',
+}
+
+export const mockAspContextValue = {
+  aspInfo: emptyAspInfo,
+  calcBestMarketHour: () => undefined,
+  calcNextMarketHour: () => undefined,
+  setAspInfo: () => {},
+}
+
+export const mockWalletContextValue = {
+  initWallet: () => Promise.resolve(),
+  lockWallet: () => Promise.resolve(),
+  resetWallet: () => Promise.resolve(),
+  settlePreconfirmed: () => Promise.resolve(),
+  updateWallet: () => {},
+  reloadWallet: () => Promise.resolve(),
+  wallet: {
+    nextRollover: 0,
+  },
+  walletLoaded: false,
+  svcWallet: undefined,
+  isLocked: () => Promise.resolve(true),
+  balance: 0,
+  txs: [mockTxInfo],
+  vtxos: { spendable: [], spent: [] },
 }
 
 export const mockFlowContextValue = {
