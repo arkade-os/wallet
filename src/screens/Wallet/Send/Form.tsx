@@ -178,7 +178,7 @@ export default function SendForm() {
     if (arkAddress && arkAddress.length > 0) {
       const { serverPubKey } = decodeArkAddress(arkAddress)
       const { serverPubKey: expectedServerPubKey } = decodeArkAddress(offchainAddr)
-      if (serverPubKey !== expectedServerPubKey) return setError('Invalid Ark server pubkey')
+      if (serverPubKey === expectedServerPubKey) setSendInfo({ ...sendInfo, arkAddress: '' })
     }
     // check if is trying to self send
     if (address === boardingAddr || arkAddress === offchainAddr) {
