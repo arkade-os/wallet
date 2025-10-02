@@ -7,23 +7,29 @@ import {
   mockAspContextValue,
   mockFlowContextValue,
   mockLimitsContextValue,
+  mockNavigationContextValue,
   mockTxId,
   mockTxInfo,
   mockWalletContextValue,
 } from '../mocks'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
+import { NavigationContext } from '../../../providers/navigation'
 
 describe('Transaction screen', () => {
   it('renders the settled transaction screen correctly', async () => {
     render(
-      <AspContext.Provider value={mockAspContextValue}>
-        <FlowContext.Provider value={mockFlowContextValue}>
-          <LimitsContext.Provider value={mockLimitsContextValue}>
-            <Transaction />
-          </LimitsContext.Provider>
-        </FlowContext.Provider>
-      </AspContext.Provider>,
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={mockFlowContextValue}>
+            <WalletContext.Provider value={mockWalletContextValue}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
     )
     // left side of the table
     expect(screen.getByText('Network fees')).toBeInTheDocument()
@@ -54,15 +60,17 @@ describe('Transaction screen', () => {
     }
 
     render(
-      <AspContext.Provider value={mockAspContextValue}>
-        <FlowContext.Provider value={localFlowContextValue}>
-          <WalletContext.Provider value={localWalletContextValue}>
-            <LimitsContext.Provider value={mockLimitsContextValue}>
-              <Transaction />
-            </LimitsContext.Provider>
-          </WalletContext.Provider>
-        </FlowContext.Provider>
-      </AspContext.Provider>,
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={localFlowContextValue}>
+            <WalletContext.Provider value={localWalletContextValue}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
     )
     // top of the page
     expect(screen.getByText(title)).toBeInTheDocument()
@@ -88,20 +96,22 @@ describe('Transaction screen', () => {
     const subtext = 'Onchain transaction unconfirmed. Please wait for confirmation.'
 
     // unconfirmed boarding transaction
-    const txInfo = { ...mockTxInfo, boardingTxId: mockTxId, settled: false, createdAt: 0 }
+    const txInfo = { ...mockTxInfo, boardingTxid: mockTxId, settled: false, createdAt: 0, amount: 21000 }
     const localFlowContextValue = { ...mockFlowContextValue, txInfo }
     const localWalletContextValue = { ...mockWalletContextValue, txs: [txInfo] }
 
     render(
-      <AspContext.Provider value={mockAspContextValue}>
-        <FlowContext.Provider value={localFlowContextValue}>
-          <WalletContext.Provider value={localWalletContextValue}>
-            <LimitsContext.Provider value={mockLimitsContextValue}>
-              <Transaction />
-            </LimitsContext.Provider>
-          </WalletContext.Provider>
-        </FlowContext.Provider>
-      </AspContext.Provider>,
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={localFlowContextValue}>
+            <WalletContext.Provider value={localWalletContextValue}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
     )
     // top of the page
     expect(screen.getAllByText(title)).toHaveLength(3)
@@ -127,20 +137,22 @@ describe('Transaction screen', () => {
     const subtext = 'Transaction preconfirmed. Funds will be non-reversible after settlement.'
 
     // confirmed boarding transaction
-    const txInfo = { ...mockTxInfo, boardingTxId: mockTxId, settled: false }
+    const txInfo = { ...mockTxInfo, boardingTxid: mockTxId, settled: false }
     const localFlowContextValue = { ...mockFlowContextValue, txInfo }
     const localWalletContextValue = { ...mockWalletContextValue, txs: [txInfo] }
 
     render(
-      <AspContext.Provider value={mockAspContextValue}>
-        <FlowContext.Provider value={localFlowContextValue}>
-          <WalletContext.Provider value={localWalletContextValue}>
-            <LimitsContext.Provider value={mockLimitsContextValue}>
-              <Transaction />
-            </LimitsContext.Provider>
-          </WalletContext.Provider>
-        </FlowContext.Provider>
-      </AspContext.Provider>,
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={localFlowContextValue}>
+            <WalletContext.Provider value={localWalletContextValue}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
     )
     // top of the page
     expect(screen.getByText(title)).toBeInTheDocument()
@@ -166,20 +178,22 @@ describe('Transaction screen', () => {
     const subtext = 'Transaction preconfirmed. Funds will be non-reversible after settlement.'
 
     // preconfirmed ark transaction
-    const txInfo = { ...mockTxInfo, arkTxId: mockTxId, settled: false }
+    const txInfo = { ...mockTxInfo, arkTxid: mockTxId, settled: false }
     const localFlowContextValue = { ...mockFlowContextValue, txInfo }
     const localWalletContextValue = { ...mockWalletContextValue, txs: [txInfo] }
 
     render(
-      <AspContext.Provider value={mockAspContextValue}>
-        <FlowContext.Provider value={localFlowContextValue}>
-          <WalletContext.Provider value={localWalletContextValue}>
-            <LimitsContext.Provider value={mockLimitsContextValue}>
-              <Transaction />
-            </LimitsContext.Provider>
-          </WalletContext.Provider>
-        </FlowContext.Provider>
-      </AspContext.Provider>,
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={localFlowContextValue}>
+            <WalletContext.Provider value={localWalletContextValue}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
     )
     // top of the page
     expect(screen.getByText(title)).toBeInTheDocument()
@@ -207,22 +221,24 @@ describe('Transaction screen', () => {
     const dust = BigInt(333)
 
     // preconfirmed ark transaction
-    const txInfo = { ...mockTxInfo, amount, arkTxId: mockTxId, settled: false }
+    const txInfo = { ...mockTxInfo, amount, arkTxid: mockTxId, settled: false }
     const aspInfo = { ...mockAspContextValue.aspInfo, dust }
     const localFlowContextValue = { ...mockFlowContextValue, txInfo }
     const localWalletContextValue = { ...mockWalletContextValue, txs: [txInfo] }
     const localAspContextValue = { ...mockAspContextValue, aspInfo }
 
     render(
-      <AspContext.Provider value={localAspContextValue}>
-        <FlowContext.Provider value={localFlowContextValue}>
-          <WalletContext.Provider value={localWalletContextValue}>
-            <LimitsContext.Provider value={mockLimitsContextValue}>
-              <Transaction />
-            </LimitsContext.Provider>
-          </WalletContext.Provider>
-        </FlowContext.Provider>
-      </AspContext.Provider>,
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={localAspContextValue}>
+          <FlowContext.Provider value={localFlowContextValue}>
+            <WalletContext.Provider value={localWalletContextValue}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
     )
     // top of the page
     expect(screen.getByText(title)).toBeInTheDocument()

@@ -1,4 +1,5 @@
 import { emptyAspInfo } from '../../lib/asp'
+import { Pages, Tabs } from '../../providers/navigation'
 import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 
 export const mockTxId = '547b9e710c0b57197ab27faa2192601defe2efb08a45ee8ada765a6829ba451b'
@@ -20,6 +21,12 @@ export const mockAspContextValue = {
   calcBestMarketHour: () => undefined,
   calcNextMarketHour: () => undefined,
   setAspInfo: () => {},
+}
+
+export const mockNavigationContextValue = {
+  navigate: () => {},
+  screen: Pages.Init,
+  tab: Tabs.None,
 }
 
 export const mockWalletContextValue = {
