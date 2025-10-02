@@ -14,20 +14,54 @@ type RpcLoginResponse = {
 }
 
 type RpcXPublicKeyRequest = {
-  method: 'get-x-publick-key'
+  method: 'get-x-public-key'
 }
 type RpcXPublicKeyResponse = {
-  method: 'get-x-publick-key'
+  method: 'get-x-public-key'
   payload: {
     xOnlyPublicKey: string | null
+  }
+}
+
+type RpcArkWalletAddressRequest = {
+  method: 'get-ark-wallet-address'
+}
+type RpcArkWalletAddressResponse = {
+  method: 'get-ark-wallet-address'
+  payload: {
+    arkAddress: string | null
+  }
+}
+
+type RpcArkSignTransactionRequest = {
+  method: 'sign-transaction'
+  payload: {
+    // Base64
+    tx: string
+    // Base64
+    checkpoints: string[]
+  }
+}
+type RpcArkSignTransactionResponse = {
+  method: 'sign-transaction'
+  payload: {
+    // Base64
+    tx: string
+    // Base64
+    checkpoints: string[]
   }
 }
 
 type RpcRequest = {
   kind: 'ARKADE_RPC_REQUEST'
   id: string
-} & (RpcXPublicKeyRequest | RpcLoginRequest)
-type RpcResponse = { kind: 'ARKADE_RPC_RESPONSE'; id: string } & (RpcLoginResponse | RpcXPublicKeyResponse)
+} & (RpcXPublicKeyRequest | RpcLoginRequest | RpcArkWalletAddressRequest | RpcArkSignTransactionRequest)
+type RpcResponse = { kind: 'ARKADE_RPC_RESPONSE'; id: string } & (
+  | RpcLoginResponse
+  | RpcXPublicKeyResponse
+  | RpcArkWalletAddressResponse
+  | RpcArkSignTransactionResponse
+)
 
 type InboundMessage = RpcRequest | KeepAlive
 
@@ -36,6 +70,8 @@ type OutboundMessage = KeepAlive | RpcResponse
 type Props = {
   getXPublicKey: () => Promise<string | null>
   signLoginChallenge: (challenge: string) => Promise<string>
+  getArkWalletAddress: () => Promise<string>
+  signTransaction: (tx: string, checkpoints: string[]) => Promise<{ signedTx: string; signedCheckpoints: string[] }>
 }
 type Result = { tag: 'success'; result: OutboundMessage } | { tag: 'failure'; error: Error }
 export default function makeMessageHandler(props: Props) {
@@ -46,7 +82,7 @@ export default function makeMessageHandler(props: Props) {
       case 'ARKADE_RPC_REQUEST': {
         const { id, method } = message
         switch (method) {
-          case 'get-x-publick-key':
+          case 'get-x-public-key':
             const xOnlyPublicKey = await props.getXPublicKey()
             return {
               tag: 'success',
@@ -55,6 +91,17 @@ export default function makeMessageHandler(props: Props) {
                 id,
                 method,
                 payload: { xOnlyPublicKey },
+              },
+            }
+          case 'get-ark-wallet-address':
+            const arkAddress = await props.getArkWalletAddress()
+            return {
+              tag: 'success',
+              result: {
+                kind: 'ARKADE_RPC_RESPONSE',
+                id,
+                method,
+                payload: { arkAddress },
               },
             }
 
@@ -67,6 +114,24 @@ export default function makeMessageHandler(props: Props) {
               }
             } catch (cause) {
               return { tag: 'failure', error: new Error(`Failed to sign login challenge: ${cause}`) }
+            }
+          case 'sign-transaction':
+            try {
+              const { signedTx, signedCheckpoints } = await props.signTransaction(
+                message.payload.tx,
+                message.payload.checkpoints,
+              )
+              return {
+                tag: 'success',
+                result: {
+                  kind: 'ARKADE_RPC_RESPONSE',
+                  id,
+                  method,
+                  payload: { tx: signedTx, checkpoints: signedCheckpoints },
+                },
+              }
+            } catch (cause) {
+              return { tag: 'failure', error: new Error(`Failed to sign transaction: ${cause}`) }
             }
         }
       }
