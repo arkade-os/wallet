@@ -6,6 +6,7 @@ import { WalletContext } from '../../../providers/wallet'
 import { getPrivateKey } from '../../../lib/privateKey'
 import { schnorr } from '@noble/curves/secp256k1'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
+import { Transaction } from '@scure/btc-signer'
 
 export default function AppEscrow() {
   // const { signin, signout, isSignedIn } = useContext(EscrowContext)
@@ -16,8 +17,14 @@ export default function AppEscrow() {
     return svcWallet?.xOnlyPublicKey() ?? null
   }
 
-  async function sign(tx: unknown, inputIndexes?: number[]) {
-    throw new Error('Not implemented')
+  async function getArkWalletAddress() {
+    return svcWallet?.getAddress()
+  }
+
+  async function sign(tx: Transaction, inputIndexes?: number[]): Promise<Transaction> {
+    if (!svcWallet) throw new Error('Wallet not initialized')
+    const signed = await svcWallet.sign(tx, inputIndexes)
+    return signed
   }
   async function signerSession() {
     throw new Error('Not implemented')
@@ -40,6 +47,7 @@ export default function AppEscrow() {
       signin,
       signout,
       xOnlyPublicKey,
+      getArkWalletAddress,
     }),
     [],
   )
