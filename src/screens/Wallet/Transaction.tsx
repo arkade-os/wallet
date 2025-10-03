@@ -105,7 +105,7 @@ export default function Transaction() {
   // check of expired boarding tx
   const isBoarding = Boolean(tx.boardingTxid)
   const hasExpired = Date.now() / 1000 - tx.createdAt > Number(aspInfo.boardingExitDelay)
-  const expiredBoardingTx = isBoarding && !hasExpired
+  const expiredBoardingTx = isBoarding && hasExpired
 
   const details: DetailsProps = {
     direction: tx.type === 'sent' ? 'Sent' : 'Received',
