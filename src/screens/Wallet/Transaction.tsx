@@ -35,7 +35,7 @@ export default function Transaction() {
   const unconfirmedBoardingTx = tx?.boardingTxid && !tx?.createdAt
 
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
-  const [canSettleNow, setCanSettleNow] = useState(false)
+  const [amountAboveDust, setAmountAboveDust] = useState(false)
   const [canSettleOnMarketHour, setCanSettleOnMarketHour] = useState(false)
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState('')
@@ -71,7 +71,7 @@ export default function Transaction() {
         .filter((tx) => tx.settled === false)
         .filter((tx) => tx.boardingTxid || tx.preconfirmed)
         .reduce((a, v) => a + v.amount, 0) || 0
-    setCanSettleNow(totalAmount > aspInfo.dust)
+    setAmountAboveDust(totalAmount > aspInfo.dust)
   }, [txs])
 
   const handleBack = () => navigate(Pages.Wallet)
@@ -103,78 +103,71 @@ export default function Transaction() {
 
   const bestMarketHourStr = `${prettyDate(startTime)} (${prettyAgo(startTime, true)}) for ${prettyDelta(duration)}`
 
-  // if server defines that UTXO transactions are not allowed,
-  // don't allow settlement since it is a UTXO transaction
-  if (!utxoTxsAllowed() || !vtxoTxsAllowed() || !canSettleNow || unconfirmedBoardingTx) {
-    return (
-      <>
-        <Header text='Transaction' back={handleBack} />
-        <Content>
-          <Padded>
-            <FlexCol>
-              <ErrorMessage error={Boolean(error)} text={error} />
-              {tx.settled ? null : unconfirmedBoardingTx ? (
-                <Info color='orange' icon={<VtxosIcon />} title='Unconfirmed'>
-                  <Text wrap>Onchain transaction unconfirmed. Please wait for confirmation.</Text>
-                </Info>
-              ) : (
-                <Info color='orange' icon={<VtxosIcon />} title='Preconfirmed'>
-                  <Text wrap>Transaction preconfirmed. Funds will be non-reversible after settlement.</Text>
-                </Info>
-              )}
-              <Details details={details} />
-            </FlexCol>
-          </Padded>
-        </Content>
-      </>
-    )
-  }
-
-  return (
-    <>
-      <Header text='Transaction' back={handleBack} />
-      <Content>
-        {settling ? (
-          <WaitingForRound settle />
-        ) : (
-          <Padded>
-            <FlexCol>
-              <ErrorMessage error={Boolean(error)} text={error} />
-              {tx.settled ? null : (
-                <Info color='orange' icon={<VtxosIcon />} title='Preconfirmed'>
-                  <Text wrap>Transaction preconfirmed. Funds will be non-reversible after settlement.</Text>
-                  {canSettleOnMarketHour ? (
-                    <TextSecondary>
-                      Settlement during market hours offers lower fees.
-                      <br />
-                      Best market hour: {bestMarketHourStr}.
-                    </TextSecondary>
-                  ) : null}
-                </Info>
-              )}
-              {settleSuccess ? (
-                <Info color='green' icon={<CheckMarkIcon small />} title='Success'>
-                  <TextSecondary>Transaction settled successfully</TextSecondary>
-                </Info>
+  const Body = () => (
+    <Content>
+      <Padded>
+        <FlexCol>
+          <ErrorMessage error={Boolean(error)} text={error} />
+          {tx.settled ? null : unconfirmedBoardingTx ? (
+            <Info color='orange' icon={<VtxosIcon />} title='Unconfirmed'>
+              <Text wrap>Onchain transaction unconfirmed. Please wait for confirmation.</Text>
+            </Info>
+          ) : (
+            <Info color='orange' icon={<VtxosIcon />} title='Preconfirmed'>
+              <Text wrap>Transaction preconfirmed. Funds will be non-reversible after settlement.</Text>
+              {canSettleOnMarketHour ? (
+                <TextSecondary>
+                  Settlement during market hours offers lower fees.
+                  <br />
+                  Best market hour: {bestMarketHourStr}.
+                </TextSecondary>
               ) : null}
-              <Details details={details} />
-            </FlexCol>
-          </Padded>
-        )}
-      </Content>
-      {tx.settled ? null : (
+            </Info>
+          )}
+          {settleSuccess ? (
+            <Info color='green' icon={<CheckMarkIcon small />} title='Success'>
+              <TextSecondary>Transaction settled successfully</TextSecondary>
+            </Info>
+          ) : null}
+          <Details details={details} />
+        </FlexCol>
+      </Padded>
+    </Content>
+  )
+
+  // if server defines that UTXO transactions are not allowed,
+  // don't allow settlement since it is a UTXO transaction.
+  const showButtons =
+    utxoTxsAllowed() &&
+    vtxoTxsAllowed() &&
+    amountAboveDust &&
+    !unconfirmedBoardingTx &&
+    !tx.settled &&
+    !settling &&
+    !settleSuccess
+
+  const Buttons = () =>
+    showButtons ? (
+      <>
         <ButtonsOnBottom>
           <Button onClick={handleSettle} label={buttonLabel} disabled={settling} />
           <Button onClick={() => setReminderIsOpen(true)} label='Add reminder' secondary />
         </ButtonsOnBottom>
-      )}
-      <Reminder
-        isOpen={reminderIsOpen}
-        callback={() => setReminderIsOpen(false)}
-        duration={duration}
-        name='Settle transaction'
-        startTime={startTime}
-      />
+        <Reminder
+          isOpen={reminderIsOpen}
+          callback={() => setReminderIsOpen(false)}
+          duration={duration}
+          name='Settle transaction'
+          startTime={startTime}
+        />
+      </>
+    ) : null
+
+  return (
+    <>
+      <Header text='Transaction' back={handleBack} />
+      {settling ? <WaitingForRound settle /> : <Body />}
+      <Buttons />
     </>
   )
 }
