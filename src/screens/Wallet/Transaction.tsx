@@ -41,6 +41,7 @@ export default function Transaction() {
   const [error, setError] = useState('')
   const [reminderIsOpen, setReminderIsOpen] = useState(false)
   const [settleSuccess, setSettleSuccess] = useState(false)
+  const [resending, setResending] = useState(false)
   const [settling, setSettling] = useState(false)
   const [startTime, setStartTime] = useState(0)
 
@@ -76,6 +77,15 @@ export default function Transaction() {
 
   const handleBack = () => navigate(Pages.Wallet)
 
+  // TODO implement resend
+  //  - create new boarding tx
+  //  - update txInfo with new boarding txid
+  //  - show message that new boarding tx has been created
+  //  - if error, show error message
+  const handleResend = async () => {
+    setResending(true)
+  }
+
   const handleSettle = async () => {
     setError('')
     setSettling(true)
@@ -91,6 +101,11 @@ export default function Transaction() {
   }
 
   if (!tx) return <></>
+
+  // check of expired boarding tx
+  const isBoarding = Boolean(tx.boardingTxid)
+  const hasExpired = Date.now() / 1000 - tx.createdAt > Number(aspInfo.boardingExitDelay)
+  const expiredBoardingTx = isBoarding && !hasExpired
 
   const details: DetailsProps = {
     direction: tx.type === 'sent' ? 'Sent' : 'Received',
@@ -108,7 +123,11 @@ export default function Transaction() {
       <Padded>
         <FlexCol>
           <ErrorMessage error={Boolean(error)} text={error} />
-          {tx.settled ? null : unconfirmedBoardingTx ? (
+          {tx.settled ? null : expiredBoardingTx ? (
+            <Info color='red' icon={<VtxosIcon />} title='Expired'>
+              <Text wrap>Boarding transaction expired.</Text>
+            </Info>
+          ) : unconfirmedBoardingTx ? (
             <Info color='orange' icon={<VtxosIcon />} title='Unconfirmed'>
               <Text wrap>Onchain transaction unconfirmed. Please wait for confirmation.</Text>
             </Info>
@@ -137,17 +156,22 @@ export default function Transaction() {
 
   // if server defines that UTXO transactions are not allowed,
   // don't allow settlement since it is a UTXO transaction.
-  const showButtons =
+  const showSettleButtons =
     utxoTxsAllowed() &&
     vtxoTxsAllowed() &&
-    amountAboveDust &&
     !unconfirmedBoardingTx &&
+    !expiredBoardingTx &&
+    amountAboveDust &&
+    !settleSuccess &&
     !tx.settled &&
-    !settling &&
-    !settleSuccess
+    !settling
 
   const Buttons = () =>
-    showButtons ? (
+    expiredBoardingTx ? (
+      <ButtonsOnBottom>
+        <Button onClick={handleResend} label='Resend' disabled={resending || true} />
+      </ButtonsOnBottom>
+    ) : showSettleButtons ? (
       <>
         <ButtonsOnBottom>
           <Button onClick={handleSettle} label={buttonLabel} disabled={settling} />
