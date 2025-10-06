@@ -4,22 +4,29 @@ import { Addresses, Satoshis, Tx } from './types'
 import { AspInfo } from '../providers/asp'
 
 export const emptyAspInfo: AspInfo = {
-  signerPubkey: '',
-  vtxoTreeExpiry: BigInt(0),
-  unilateralExitDelay: BigInt(0),
-  roundInterval: BigInt(0),
-  network: '',
+  boardingExitDelay: BigInt(0),
+  checkpointTapscript: '',
+  deprecatedSigners: [],
+  digest: '',
   dust: BigInt(0),
   forfeitAddress: '',
-  version: '',
+  forfeitPubkey: '',
+  fees: {
+    intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
+    txFeeRate: '',
+  },
+  network: '',
+  roundInterval: BigInt(0),
+  signerPubkey: '',
+  unilateralExitDelay: BigInt(0),
   utxoMinAmount: BigInt(333),
   utxoMaxAmount: BigInt(-1), // -1 means no limit (default), 0 means boarding not allowed
+  version: '',
   vtxoMinAmount: BigInt(1),
   vtxoMaxAmount: BigInt(-1), // -1 means no limit (default)
-  boardingExitDelay: BigInt(0),
+  vtxoTreeExpiry: BigInt(0),
   unreachable: false,
   url: '',
-  checkpointExitClosure: '',
 }
 
 export const collaborativeExit = async (wallet: IWallet, amount: number, address: string): Promise<string> => {
