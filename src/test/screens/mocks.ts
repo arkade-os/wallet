@@ -1,6 +1,13 @@
 import { emptyAspInfo } from '../../lib/asp'
 import { Pages, Tabs } from '../../providers/navigation'
 import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
+import { AspInfo } from '../../providers/asp'
+
+const mockAspInfo: AspInfo = {
+  ...emptyAspInfo,
+  boardingExitDelay: BigInt(7775744),
+  checkpointTapscript: '',
+}
 
 export const mockTxId = '547b9e710c0b57197ab27faa2192601defe2efb08a45ee8ada765a6829ba451b'
 
@@ -9,7 +16,7 @@ export const mockTxInfo = {
   boardingTxid: mockTxId,
   redeemTxid: '',
   roundTxid: '',
-  createdAt: 1756749175,
+  createdAt: Math.floor(Date.now() / 1000) - 21, // 21 seconds ago
   explorable: mockTxId,
   preconfirmed: false,
   settled: true,
@@ -17,7 +24,7 @@ export const mockTxInfo = {
 }
 
 export const mockAspContextValue = {
-  aspInfo: emptyAspInfo,
+  aspInfo: mockAspInfo,
   calcBestMarketHour: () => undefined,
   calcNextMarketHour: () => undefined,
   setAspInfo: () => {},

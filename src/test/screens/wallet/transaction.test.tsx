@@ -218,18 +218,15 @@ describe('Transaction screen', () => {
     const title = 'Preconfirmed'
     const subtext = 'Transaction preconfirmed. Funds will be non-reversible after settlement.'
     const amount = 21
-    const dust = BigInt(333)
 
     // preconfirmed ark transaction
     const txInfo = { ...mockTxInfo, amount, arkTxid: mockTxId, settled: false }
-    const aspInfo = { ...mockAspContextValue.aspInfo, dust }
     const localFlowContextValue = { ...mockFlowContextValue, txInfo }
     const localWalletContextValue = { ...mockWalletContextValue, txs: [txInfo] }
-    const localAspContextValue = { ...mockAspContextValue, aspInfo }
 
     render(
       <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={localAspContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
           <FlowContext.Provider value={localFlowContextValue}>
             <WalletContext.Provider value={localWalletContextValue}>
               <LimitsContext.Provider value={mockLimitsContextValue}>
