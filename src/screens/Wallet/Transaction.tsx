@@ -32,7 +32,9 @@ export default function Transaction() {
 
   const tx = txInfo
   const defaultButtonLabel = 'Settle transaction'
-  const unconfirmedBoardingTx = tx?.boardingTxid && !tx?.createdAt
+  const boardingTx = Boolean(tx?.boardingTxid)
+  const confirmedBoardingTx = boardingTx && tx?.createdAt
+  const expiredBoardingTx = confirmedBoardingTx && Date.now() / 1000 - tx.createdAt > Number(aspInfo?.boardingExitDelay)
 
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
   const [amountAboveDust, setAmountAboveDust] = useState(false)
@@ -102,15 +104,10 @@ export default function Transaction() {
 
   if (!tx) return <></>
 
-  // check of expired boarding tx
-  const isBoarding = Boolean(tx.boardingTxid)
-  const hasExpired = Date.now() / 1000 - tx.createdAt > Number(aspInfo.boardingExitDelay)
-  const expiredBoardingTx = isBoarding && hasExpired
-
   const details: DetailsProps = {
     direction: tx.type === 'sent' ? 'Sent' : 'Received',
-    when: tx.createdAt ? prettyAgo(tx.createdAt) : unconfirmedBoardingTx ? 'Unconfirmed' : 'Unknown',
-    date: tx.createdAt ? prettyDate(tx.createdAt) : unconfirmedBoardingTx ? 'Unconfirmed' : 'Unknown',
+    when: tx.createdAt ? prettyAgo(tx.createdAt) : confirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
+    date: tx.createdAt ? prettyDate(tx.createdAt) : confirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
     satoshis: tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
     fees: tx.type === 'sent' ? defaultFee : 0,
     total: tx.amount,
@@ -127,7 +124,7 @@ export default function Transaction() {
             <Info color='red' icon={<VtxosIcon />} title='Expired'>
               <Text wrap>Boarding transaction expired.</Text>
             </Info>
-          ) : unconfirmedBoardingTx ? (
+          ) : !confirmedBoardingTx ? (
             <Info color='orange' icon={<VtxosIcon />} title='Unconfirmed'>
               <Text wrap>Onchain transaction unconfirmed. Please wait for confirmation.</Text>
             </Info>
@@ -159,7 +156,7 @@ export default function Transaction() {
   const showSettleButtons =
     utxoTxsAllowed() &&
     vtxoTxsAllowed() &&
-    !unconfirmedBoardingTx &&
+    confirmedBoardingTx &&
     !expiredBoardingTx &&
     amountAboveDust &&
     !settleSuccess &&
