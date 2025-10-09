@@ -12,11 +12,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.2.0-alpha.8
-        version: 0.2.0-alpha.8
+        specifier: 0.2.1-alpha.1
+        version: 0.2.1-alpha.1
       '@arkade-os/sdk':
-        specifier: 0.3.0-alpha.8
-        version: 0.3.0-alpha.8
+        specifier: 0.3.1-alpha.1
+        version: 0.3.1-alpha.1
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -157,12 +157,12 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@arkade-os/boltz-swap@0.2.0-alpha.8':
-    resolution: {integrity: sha512-LQakb3KlLGbFhACnZE0X8ALNw/zGIk0vjpTEJmOPMSH3PU0wz4NFMuNhIXB+cNc7lHHzrXvKnYQQu7tnxk3j9g==}
+  '@arkade-os/boltz-swap@0.2.1-alpha.1':
+    resolution: {integrity: sha512-S9Sg+QHrdyF7e8sNL/39mc3lWYr4Enz4HvzIoAQ8K+5gcPYUoOwgpuVagto9u8w/PFK6jozvi+1gsluNT3elsg==}
     engines: {node: '>=22'}
 
-  '@arkade-os/sdk@0.3.0-alpha.8':
-    resolution: {integrity: sha512-FrR71u/IEYxpfrYkR0uXNpbixjxDx1iG/ZtmSg2kAR/Hrft0ABtiWfsUzAj01nM+IYOFfox7mKgAZhyMB2YysA==}
+  '@arkade-os/sdk@0.3.1-alpha.1':
+    resolution: {integrity: sha512-hCbtpLReV47bpZrGOzBngkYkAdUYMYmyN/Wr2M5i3sS9+XdEsT8QRPuMkXZDyILOtRRdIRJ0Gyx/IZqQ2m0Zeg==}
     engines: {node: '>=20.0.0'}
 
   '@asamuzakjp/css-color@3.2.0':
@@ -2480,18 +2480,17 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.13
       '@jridgewell/trace-mapping': 0.3.30
 
-  '@arkade-os/boltz-swap@0.2.0-alpha.8':
+  '@arkade-os/boltz-swap@0.2.1-alpha.1':
     dependencies:
-      '@arkade-os/sdk': 0.3.0-alpha.8
+      '@arkade-os/sdk': 0.3.1-alpha.1
       '@noble/hashes': 2.0.0
       '@scure/base': 2.0.0
       '@scure/btc-signer': 2.0.1
       light-bolt11-decoder: 3.2.0
 
-  '@arkade-os/sdk@0.3.0-alpha.8':
+  '@arkade-os/sdk@0.3.1-alpha.1':
     dependencies:
       '@noble/curves': 2.0.0
-      '@noble/hashes': 2.0.0
       '@noble/secp256k1': 3.0.0
       '@scure/base': 2.0.0
       '@scure/btc-signer': 2.0.1
