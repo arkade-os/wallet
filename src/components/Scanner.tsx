@@ -1,59 +1,37 @@
-import Button from './Button'
-import ButtonsOnBottom from './ButtonsOnBottom'
-import Content from './Content'
-import Error from './Error'
 import Header from './Header'
 import Padded from './Padded'
-import { QRCanvas, frameLoop, frontalCamera } from 'qr/dom.js'
-import { useRef, useEffect, useState } from 'react'
+import Button from './Button'
+import Content from './Content'
+import { useState } from 'react'
+import ButtonsOnBottom from './ButtonsOnBottom'
+import BarcodeScanner from 'react-qr-barcode-scanner'
 
 interface ScannerProps {
-  close: () => void
   label: string
+  close: () => void
   setData: (arg0: string) => void
   setError: (arg0: string) => void
 }
 
-export default function Scanner({ close, label, setData }: ScannerProps) {
-  const [error, setError] = useState(false)
-
-  const videoRef = useRef<HTMLVideoElement>(null)
-
-  let camera: any
-  let canvas: QRCanvas
-  let cancel: () => void
-
-  useEffect(() => {
-    const startCameraCapture = async () => {
-      if (!videoRef.current) return
-      try {
-        if (canvas) canvas.clear()
-        canvas = new QRCanvas()
-        camera = await frontalCamera(videoRef.current)
-        const devices = await camera.listDevices()
-        await camera.setDevice(devices[devices.length - 1].deviceId)
-        cancel = frameLoop(() => {
-          const res = camera.readFrame(canvas)
-          if (res) {
-            setData(res)
-            handleClose()
-          }
-        })
-      } catch (e) {
-        setError(true)
-      }
-    }
-
-    startCameraCapture()
-
-    return () => handleClose()
-  }, [videoRef])
+export default function Scanner({ label, close, setData, setError }: ScannerProps) {
+  const [stopStream, setStopStream] = useState(false)
 
   const handleClose = () => {
-    if (!cancel && !error) return
-    if (cancel) cancel()
-    camera?.stop()
+    setStopStream(true)
     close()
+  }
+
+  const handleError = (error: any) => {
+    setError(error.message || 'An error occurred while scanning')
+    handleClose()
+  }
+
+  const handleUpdate = (err: any, result: any) => {
+    if (result) {
+      setData(result.getText())
+      handleClose()
+      setError('')
+    }
   }
 
   return (
@@ -61,8 +39,14 @@ export default function Scanner({ close, label, setData }: ScannerProps) {
       <Header text={label} back={handleClose} />
       <Content>
         <Padded>
-          <Error error={error} text='Camera not available' />
-          <video style={{ borderRadius: '0.5rem', margin: '0 auto' }} ref={videoRef} />
+          <BarcodeScanner
+            delay={300}
+            width={500}
+            height={500}
+            onError={handleError}
+            onUpdate={handleUpdate}
+            stopStream={stopStream}
+          />
         </Padded>
       </Content>
       <ButtonsOnBottom>
