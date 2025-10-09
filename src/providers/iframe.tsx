@@ -82,7 +82,7 @@ export const IframeProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   useEffect(() => {
-    if (walletLoaded) sendStatus(walletLoaded)
+    if (walletLoaded) sendStatus(wallet)
   }, [walletLoaded, wallet])
 
   return <IframeContext.Provider value={{ iframeUrl, sendMessage }}>{children}</IframeContext.Provider>

@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 import Text from './Text'
-import Error from './Error'
+import ErrorMessage from './Error'
 import FlexRow from './FlexRow'
 import Shadow from './Shadow'
 import FlexCol from './FlexCol'
@@ -11,15 +11,35 @@ interface InputContainerProps {
   error?: string
   label?: string
   right?: JSX.Element
+  bottomLeft?: string
+  bottomRight?: string
 }
 
-export default function InputContainer({ children, error, label, right }: InputContainerProps) {
+export default function InputContainer({
+  children,
+  error,
+  label,
+  right,
+  bottomLeft,
+  bottomRight,
+}: InputContainerProps) {
   const TopLabel = () => (
     <FlexRow between>
       <Text capitalize color='dark50' smaller>
         {label}
       </Text>
       <div>{right}</div>
+    </FlexRow>
+  )
+
+  const BottomLabel = () => (
+    <FlexRow between>
+      <Text capitalize color='dark50' smaller>
+        {bottomLeft}
+      </Text>
+      <Text capitalize color='dark50' smaller>
+        {bottomRight}
+      </Text>
     </FlexRow>
   )
 
@@ -30,8 +50,9 @@ export default function InputContainer({ children, error, label, right }: InputC
         <Shadow>
           <Padded>{children}</Padded>
         </Shadow>
+        {bottomLeft || bottomRight ? <BottomLabel /> : null}
       </FlexCol>
-      <Error error={Boolean(error)} text={error ?? ''} />
+      <ErrorMessage error={Boolean(error)} text={error ?? ''} />
     </FlexCol>
   )
 }

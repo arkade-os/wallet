@@ -1,80 +1,113 @@
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import * as bip21 from '../../../lib/bip21'
 import { WalletContext } from '../../../providers/wallet'
 import { NotificationsContext } from '../../../providers/notifications'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
-import { consoleError } from '../../../lib/logs'
+import { consoleError, consoleLog } from '../../../lib/logs'
 import { canBrowserShareData, shareData } from '../../../lib/share'
 import ExpandAddresses from '../../../components/ExpandAddresses'
 import FlexCol from '../../../components/FlexCol'
-import { AspContext } from '../../../providers/asp'
-import { ExtendedCoin } from '@arklabs/wallet-sdk'
+import { LimitsContext } from '../../../providers/limits'
+import { Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
+import Loading from '../../../components/Loading'
+import { LightningContext } from '../../../providers/lightning'
+import { encodeBip21 } from '../../../lib/bip21'
 
 export default function ReceiveQRCode() {
-  const { aspInfo } = useContext(AspContext)
-  const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
+  const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { vtxos, svcWallet, reloadWallet } = useContext(WalletContext)
+  const { swapProvider } = useContext(LightningContext)
+  const { svcWallet, wallet } = useContext(WalletContext)
+  const { validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
 
   const [sharing, setSharing] = useState(false)
-  const isFirstMount = useRef(true)
 
+  // manage all possible receive methods
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
-  const address = aspInfo.utxoMaxAmount === 0 ? '' : boardingAddr
-  const arkAddress = aspInfo.vtxoMaxAmount === 0 ? '' : offchainAddr
-  const bip21uri = bip21.encode(address, arkAddress, satoshis)
+  const address = validUtxoTx(satoshis) && utxoTxsAllowed() ? boardingAddr : ''
+  const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
+  const noPaymentMethods = !address && !arkAddress && !validLnSwap(satoshis)
+  const defaultBip21uri = encodeBip21(address, arkAddress, '', satoshis)
+
+  const [invoice, setInvoice] = useState('')
+  const [qrValue, setQrValue] = useState(defaultBip21uri)
+  const [bip21uri, setBip21uri] = useState(defaultBip21uri)
+  const [showQrCode, setShowQrCode] = useState(false)
+
+  // set the QR code value to the bip21uri the first time
+  useEffect(() => {
+    const bip21uri = encodeBip21(address, arkAddress, invoice, satoshis)
+    setBip21uri(bip21uri)
+    setQrValue(bip21uri)
+    if (invoice) setShowQrCode(true)
+  }, [invoice])
 
   useEffect(() => {
-    if (isFirstMount.current) {
-      isFirstMount.current = false
-      return
+    // if boltz is available and amount is between limits, let's create a swap invoice
+    if (validLnSwap(satoshis) && wallet && svcWallet) {
+      swapProvider
+        ?.createReverseSwap(satoshis)
+        .then((pendingSwap) => {
+          if (!pendingSwap) throw new Error('Failed to create reverse swap')
+          const invoice = pendingSwap.response.invoice
+          setRecvInfo({ ...recvInfo, invoice })
+          setInvoice(invoice)
+          consoleLog('Reverse swap invoice created:', invoice)
+          swapProvider
+            .waitAndClaim(pendingSwap)
+            .then(() => {
+              setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
+              navigate(Pages.ReceiveSuccess)
+            })
+            .catch((error) => {
+              setShowQrCode(true)
+              consoleError(error, 'Error claiming reverse swap:')
+            })
+        })
+        .catch((error) => {
+          setShowQrCode(true)
+          consoleError(error, 'Error creating reverse swap:')
+        })
+    } else {
+      setShowQrCode(true)
     }
-
-    const lastVtxo = vtxos.spendable.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0]
-    if (!lastVtxo) return
-    const { value } = lastVtxo
-    setRecvInfo({ ...recvInfo, satoshis: value })
-    notifyPaymentReceived(value)
-    navigate(Pages.ReceiveSuccess)
-  }, [vtxos])
+  }, [satoshis])
 
   useEffect(() => {
     if (!svcWallet) return
 
-    async function getBoardingUtxos() {
-      return svcWallet!.getBoardingUtxos()
+    const listenForPayments = (event: MessageEvent) => {
+      let satoshis = 0
+      if (event.data && event.data.type === 'VTXO_UPDATE') {
+        const funds = JSON.parse(event.data.message) as {
+          newVtxos: ExtendedVirtualCoin[]
+          spentVtxos: ExtendedVirtualCoin[]
+        }
+        satoshis = funds.newVtxos.reduce((acc, v) => acc + v.value, 0)
+      }
+      if (event.data && event.data.type === 'UTXO_UPDATE') {
+        const coins = JSON.parse(event.data.message) as Coin[]
+        satoshis = coins.reduce((acc, v) => acc + v.value, 0)
+      }
+      if (satoshis) {
+        setRecvInfo({ ...recvInfo, satoshis })
+        notifyPaymentReceived(satoshis)
+        navigate(Pages.ReceiveSuccess)
+      }
     }
 
-    let currentUtxos: ExtendedCoin[] = []
-    getBoardingUtxos().then((utxos) => {
-      currentUtxos = utxos
-    })
+    navigator.serviceWorker.addEventListener('message', listenForPayments)
 
-    const interval = setInterval(async () => {
-      const utxos = await getBoardingUtxos()
-      if (utxos.length < currentUtxos.length) {
-        currentUtxos = utxos
-      }
-      if (utxos.length > currentUtxos.length) {
-        const newUtxo = utxos.find((utxo) => !currentUtxos.includes(utxo))
-        if (newUtxo) {
-          currentUtxos = utxos
-          setRecvInfo({ ...recvInfo, satoshis: newUtxo.value })
-          await reloadWallet()
-          notifyPaymentReceived(newUtxo.value)
-          navigate(Pages.ReceiveSuccess)
-        }
-      }
-    }, 5_000)
-    return () => clearInterval(interval)
+    return () => {
+      navigator.serviceWorker.removeEventListener('message', listenForPayments)
+    }
   }, [svcWallet])
 
   const handleShare = () => {
@@ -84,7 +117,7 @@ export default function ReceiveQRCode() {
       .finally(() => setSharing(false))
   }
 
-  const data = { title: 'Receive', text: bip21uri }
+  const data = { title: 'Receive', text: qrValue }
   const disabled = !canBrowserShareData(data) || sharing
 
   return (
@@ -92,10 +125,22 @@ export default function ReceiveQRCode() {
       <Header text='Receive' back={() => navigate(Pages.ReceiveAmount)} />
       <Content>
         <Padded>
-          <FlexCol>
-            <QrCode value={bip21uri ?? ''} />
-            <ExpandAddresses bip21uri={bip21uri} boardingAddr={address} offchainAddr={arkAddress} />
-          </FlexCol>
+          {noPaymentMethods ? (
+            <div>No valid payment methods available for this amount</div>
+          ) : showQrCode ? (
+            <FlexCol centered>
+              <QrCode value={qrValue} />
+              <ExpandAddresses
+                bip21uri={bip21uri}
+                boardingAddr={address}
+                offchainAddr={arkAddress}
+                invoice={invoice}
+                onClick={setQrValue}
+              />
+            </FlexCol>
+          ) : (
+            <Loading text='Generating QR code...' />
+          )}
         </Padded>
       </Content>
       <ButtonsOnBottom>

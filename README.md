@@ -1,6 +1,7 @@
-# 👾 Wallet
+# 👾 Arkade Wallet
 
-Arkade Wallet is a modern self-custodial **Bitcoin** wallet built as a Progressive Web App (PWA). It includes native support for the ARK protocol, enabling users to interact seamlessly with [arkd](https://github.com/arkade-os/arkd) instances. The wallet allows users to handle Virtual Transaction Outputs (VTXOs), facilitating offchain Bitcoin transactions with instant pre-confirmations and delayed onchain settlement, all without giving up custody or requiring protocol changes to Bitcoin.
+Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitcoin wallet delivered as a lightweight Progressive Web App (installable on mobile or desktop in seconds, no app-store gatekeepers). Built around the open-source ARK protocol, it speaks natively to any [arkd](https://github.com/arkade-os/arkd) instance, letting you create, send, and receive Virtual Transaction Outputs (VTXOs) for instant, off-chain pre-confirmations and batched, fee-efficient on-chain settlement.
+
 
 ## Screenshots
 
@@ -16,11 +17,24 @@ Arkade Wallet is a modern self-custodial **Bitcoin** wallet built as a Progressi
   </tr>
 </table>
 
+
+
+
+## Environment Variables
+
+| Variable             | Description                                               | Example Value                        |
+|----------------------|-----------------------------------------------------------|--------------------------------------|
+| `VITE_ARK_SERVER`    | Override the default Arkade server URL                    | `VITE_ARK_SERVER=http://localhost:7070` |
+| `VITE_BOLTZ_URL`     | Override the default Boltz swap provider URL for Lightning| `VITE_BOLTZ_URL=https://your-boltz-provider-url.com` |
+| `VITE_SENTRY_DSN`    | Enable Sentry error tracking                              | `VITE_SENTRY_DSN=your-sentry-dsn`    |
+| `CI`                 | Set to `true` for Continuous Integration environments     | `CI=true`                            |
+| `GENERATE_SOURCEMAP` | Disable source map generation during build                | `GENERATE_SOURCEMAP=false`           |
+
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js >=18
+- Node.js >=20
 - PNPM >=8
 
 ### Installation

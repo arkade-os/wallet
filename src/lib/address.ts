@@ -1,19 +1,44 @@
-import { bech32m, hex } from '@scure/base'
+import { hex } from '@scure/base'
+import { isValidInvoice } from './bolt11'
+import { ArkAddress } from '@arkade-os/sdk'
 
 export const decodeArkAddress = (addr: string) => {
-  const decoded = bech32m.decodeUnsafe(addr, 300)
-  if (!decoded) throw 'Error'
-  const buf = bech32m.fromWords(decoded.words)
+  const decoded = ArkAddress.decode(addr)
   return {
-    aspKey: hex.encode(buf.slice(0, 32)),
-    usrKey: hex.encode(buf.slice(32)),
+    serverPubKey: hex.encode(decoded.serverPubKey),
+    vtxoTaprootKey: hex.encode(decoded.vtxoTaprootKey),
   }
 }
 
 export const isArkAddress = (data: string): boolean => {
-  return /^t*ark1/.test(data)
+  try {
+    decodeArkAddress(data) // will throw if not valid
+  } catch {
+    return false
+  }
+  return true
 }
 
 export const isBTCAddress = (data: string): boolean => {
-  return /^bc1/.test(data) || /^tb1/.test(data) || /^bcrt1/.test(data)
+  return data.startsWith('bc1') || data.startsWith('tb1') || data.startsWith('bcrt1')
+}
+
+export const isLightningInvoice = (data: string): boolean => {
+  return isValidInvoice(data)
+}
+
+export const isURLWithLightningQueryString = (data: string): boolean => {
+  try {
+    if (!data.startsWith('http://') && !data.startsWith('https://')) return false
+    // Check if the URL has a 'lightning' query parameter
+    const url = new URL(data)
+    return url.searchParams.has('lightning')
+  } catch {
+    return false
+  }
+}
+
+export const isEmailAddress = (data: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(data)
 }

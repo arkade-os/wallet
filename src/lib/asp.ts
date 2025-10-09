@@ -1,142 +1,71 @@
-import { ExtendedVirtualCoin, IWallet, ArkNote } from '@arklabs/wallet-sdk'
+import { IWallet, ArkNote, RestArkProvider } from '@arkade-os/sdk'
 import { consoleError, consoleLog } from './logs'
 import { Addresses, Satoshis, Tx } from './types'
-import { vtxosRepository } from './db'
-
-export interface AspInfo {
-  boardingDescriptorTemplate: string
-  code?: number
-  dust: number
-  forfeitAddress: string
-  network: string
-  pubkey: string
-  roundInterval: number
-  unilateralExitDelay: number
-  unreachable: boolean
-  url: string
-  vtxoTreeExpiry: number
-  marketHour: {
-    nextStartTime: number
-    nextEndTime: number
-    period: number
-    roundInterval: number
-  }
-  utxoMinAmount: number
-  utxoMaxAmount: number
-  vtxoMinAmount: number
-  vtxoMaxAmount: number
-}
+import { AspInfo } from '../providers/asp'
 
 export const emptyAspInfo: AspInfo = {
-  boardingDescriptorTemplate: '',
-  dust: 0,
+  boardingExitDelay: BigInt(0),
+  checkpointTapscript: '',
+  deprecatedSigners: [],
+  digest: '',
+  dust: BigInt(0),
   forfeitAddress: '',
+  forfeitPubkey: '',
+  fees: {
+    intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
+    txFeeRate: '',
+  },
   network: '',
-  pubkey: '',
-  roundInterval: 0,
-  unilateralExitDelay: 0,
+  roundInterval: BigInt(0),
+  signerPubkey: '',
+  unilateralExitDelay: BigInt(0),
+  utxoMinAmount: BigInt(333),
+  utxoMaxAmount: BigInt(-1), // -1 means no limit (default), 0 means boarding not allowed
+  version: '',
+  vtxoMinAmount: BigInt(1),
+  vtxoMaxAmount: BigInt(-1), // -1 means no limit (default)
+  vtxoTreeExpiry: BigInt(0),
   unreachable: false,
   url: '',
-  vtxoTreeExpiry: 0,
-  marketHour: {
-    nextStartTime: 0,
-    nextEndTime: 0,
-    period: 0,
-    roundInterval: 0,
-  },
-  utxoMinAmount: 333,
-  utxoMaxAmount: -1,
-  vtxoMinAmount: 333,
-  vtxoMaxAmount: -1,
-}
-
-export interface MarketHour {
-  startTime: number
-  duration: number
-  period: number
-}
-
-const headers = { 'Content-Type': 'application/json' }
-
-const get = async (endpoint: string, url: string) => {
-  const response = await fetch(url + endpoint, { headers })
-  return await response.json()
 }
 
 export const collaborativeExit = async (wallet: IWallet, amount: number, address: string): Promise<string> => {
-  const vtxos = await getVtxos()
+  const vtxos = await wallet.getVtxos()
   const selectedVtxos = []
   let selectedAmount = 0
+
   for (const vtxo of vtxos) {
     if (selectedAmount >= amount) break
     selectedVtxos.push(vtxo)
     selectedAmount += vtxo.value
   }
-  const changeAmount = selectedAmount - amount
+
+  if (selectedAmount < amount) throw new Error('Insufficient funds')
 
   const outputs = [{ address, amount: BigInt(amount) }]
+
+  const changeAmount = selectedAmount - amount
+
   if (changeAmount > 0) {
     const { offchainAddr } = await getReceivingAddresses(wallet)
     outputs.push({ address: offchainAddr, amount: BigInt(changeAmount) })
   }
 
-  return wallet.settle({ inputs: selectedVtxos, outputs }, consoleLog)
+  return wallet.settle({ inputs: selectedVtxos, outputs })
 }
 
 export const getAspInfo = async (url: string): Promise<AspInfo> => {
-  return new Promise((resolve) => {
-    let fullUrl = url
-    if (url.startsWith('localhost') || url.startsWith('127.0.0.1')) fullUrl = 'http://' + url
-    else if (!url.startsWith('http')) fullUrl = 'https://' + url
-    get('/v1/info', fullUrl)
-      .then((info: AspInfo) => {
-        if (info?.code === 5) {
-          consoleError('invalid response from server')
-          resolve({ ...emptyAspInfo, unreachable: true })
-        }
-        const {
-          boardingDescriptorTemplate,
-          dust,
-          forfeitAddress,
-          network,
-          pubkey,
-          roundInterval,
-          unilateralExitDelay,
-          vtxoTreeExpiry,
-          marketHour,
-          utxoMinAmount,
-          utxoMaxAmount,
-          vtxoMinAmount,
-          vtxoMaxAmount,
-        } = info
-        resolve({
-          boardingDescriptorTemplate,
-          dust: Number(dust),
-          forfeitAddress,
-          network,
-          pubkey,
-          roundInterval: Number(roundInterval),
-          unilateralExitDelay: Number(unilateralExitDelay),
-          unreachable: false,
-          url: fullUrl,
-          vtxoTreeExpiry: Number(vtxoTreeExpiry ?? '0'),
-          marketHour: {
-            nextStartTime: Number(marketHour.nextStartTime),
-            nextEndTime: Number(marketHour.nextEndTime),
-            period: Number(marketHour.period),
-            roundInterval: Number(marketHour.roundInterval),
-          },
-          utxoMinAmount: typeof utxoMinAmount === 'undefined' ? Number(dust) : Number(utxoMinAmount),
-          utxoMaxAmount: typeof utxoMaxAmount === 'undefined' ? -1 : Number(utxoMaxAmount),
-          vtxoMinAmount: typeof vtxoMinAmount === 'undefined' ? Number(dust) : Number(vtxoMinAmount),
-          vtxoMaxAmount: typeof vtxoMaxAmount === 'undefined' ? -1 : Number(vtxoMaxAmount),
-        })
-      })
-      .catch((err) => {
-        consoleError(err, 'error getting asp info')
-        resolve({ ...emptyAspInfo, unreachable: true })
-      })
-  })
+  let fullUrl = url
+  if (url.startsWith('localhost') || url.startsWith('127.0.0.1')) fullUrl = 'http://' + url
+  else if (!url.startsWith('http')) fullUrl = 'https://' + url
+  const provider = new RestArkProvider(fullUrl)
+  try {
+    const infos = await provider.getInfo()
+    return { ...infos, unreachable: false, url }
+  } catch (err) {
+    consoleError(err, 'error getting asp info')
+    return { ...emptyAspInfo, unreachable: true, url }
+  }
 }
 
 export const getBalance = async (wallet: IWallet): Promise<Satoshis> => {
@@ -154,15 +83,15 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
       const date = new Date(tx.createdAt)
       const unix = Math.floor(date.getTime() / 1000)
       const { key, settled, type, amount } = tx
-      const explorable = key.boardingTxid ? key.boardingTxid : key.roundTxid ? key.roundTxid : undefined
+      const explorable = key.boardingTxid ? key.boardingTxid : key.commitmentTxid ? key.commitmentTxid : undefined
       txs.push({
         amount: Math.abs(amount),
         boardingTxid: key.boardingTxid,
-        redeemTxid: key.redeemTxid,
-        roundTxid: key.roundTxid,
+        redeemTxid: key.arkTxid,
+        roundTxid: key.commitmentTxid,
         createdAt: unix,
         explorable,
-        pending: !settled,
+        preconfirmed: !settled,
         settled: type === 'SENT' ? true : settled, // show all sent tx as settled
         type: type.toLowerCase(),
       })
@@ -174,47 +103,35 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
   // sort by date, if have same date, put 'received' txs first
   txs.sort((a, b) => {
     if (a.createdAt === b.createdAt) return a.type === 'sent' ? -1 : 1
+    if (b.createdAt === 0) return 1 // tx with no date go to the top
+    if (a.createdAt === 0) return -1 // tx with no date go to the top
     return a.createdAt > b.createdAt ? -1 : 1
   })
   return txs
 }
 
 export const getReceivingAddresses = async (wallet: IWallet): Promise<Addresses> => {
-  const address = await wallet.getAddress()
+  const [offchainAddr, boardingAddr] = await Promise.all([wallet.getAddress(), wallet.getBoardingAddress()])
   return {
-    boardingAddr: address.boarding ?? '',
-    offchainAddr: address.offchain ?? '',
-  }
-}
-
-async function getVtxos(): Promise<ExtendedVirtualCoin[]> {
-  try {
-    return vtxosRepository.getSpendableVtxos()
-  } catch (err) {
-    consoleError(err, 'error getting vtxos from DB')
-    return []
+    boardingAddr,
+    offchainAddr,
   }
 }
 
 export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<void> => {
-  const totalNoteAmount = notes
-    .map((note) => {
-      const { value } = ArkNote.fromString(note).data
-      return value
-    })
-    .reduce((acc, curr) => acc + curr, 0)
+  const inputs = notes.map((note) => ArkNote.fromString(note))
+  const amount = inputs.reduce((acc, curr) => acc + BigInt(curr.value), BigInt(0))
 
   const { offchainAddr } = await getReceivingAddresses(wallet)
 
   await wallet.settle({
-    inputs: notes,
-    outputs: [{ address: offchainAddr, amount: BigInt(totalNoteAmount) }],
+    inputs,
+    outputs: [{ address: offchainAddr, amount }],
   })
 }
 
 export const sendOffChain = async (wallet: IWallet, sats: number, address: string): Promise<string> => {
-  const withZeroFees = true
-  return wallet.sendBitcoin({ address, amount: sats }, withZeroFees)
+  return wallet.sendBitcoin({ address, amount: sats })
 }
 
 export const sendOnChain = async (wallet: IWallet, sats: number, address: string): Promise<string> => {

@@ -3,11 +3,13 @@
   --dark80: rgba(var(--ion-color-dark-rgb), 0.8);
   --dark70: rgba(var(--ion-color-dark-rgb), 0.7);
   --dark50: rgba(var(--ion-color-dark-rgb), 0.5);
+  --dark30: rgba(var(--ion-color-dark-rgb), 0.3);
   --dark20: rgba(var(--ion-color-dark-rgb), 0.2);
   --dark10: rgba(var(--ion-color-dark-rgb), 0.1);
   --dark05: rgba(var(--ion-color-dark-rgb), 0.05);
   --green: #60b18a;
   --greenbg: #054a19;
+  --grey: #747474;
   --liz: #d5c6ff;
   --logo-color: #391998;
   --magenta: #8563e4;
@@ -16,6 +18,7 @@
   --purple: #391998;
   --purple20: #39199833;
   --purplebg: #391998;
+  --purpletext: #7043f4;
   --red: #a51515;
   --redbg: #68222b;
   --white: #fbfbfb;
@@ -24,6 +27,14 @@
   --ion-background-color: #fff;
   --ion-tabbar-background-color: #fafafa;
   --ion-backdrop-color: #fff;
+  --toggle-background: #fbfbfb;
+  --danger: #a51515;
+  --warning: #c3730a;
+  --success: #60b18a;
+  --ion-font-family:
+    'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans',
+    'Droid Sans', 'Helvetica Neue', sans-serif;
+  --animation-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 .ion-palette-dark {
@@ -40,14 +51,38 @@
   --ion-tabbar-background-color: #181818;
   --ion-backdrop-color: #000;
   --logo-color: #fbfbfb;
+  --toggle-background: #ddd;
+  --danger: #e04d4d;
+}
+
+.my-ion-action-sheet div.action-sheet-group {
+  background-color: var(--ion-background-color);
+  border-top: var(--dark50) 1px solid;
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+  & .action-sheet-title {
+    font-size: 1rem;
+    font-weight: 700;
+    text-align: center;
+    & .action-sheet-sub-title {
+      font-size: 0.8rem;
+      font-weight: 400;
+    }
+  }
+  & button {
+    border-radius: 0.5rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
 }
 
 ion-button {
   --border-radius: 0.5rem;
-  --padding-top: 1rem;
-  --padding-bottom: 1rem;
+  font-family: 'Geist Mono';
   font-size: 0.875rem;
-  min-height: 56px;
+  font-weight: 400;
+  letter-spacing: 0%;
+  min-height: 40px;
   text-transform: uppercase;
   width: 100%;
   &.clear {
@@ -77,7 +112,7 @@ ion-button {
   }
 }
 
-ion-header {
+ion-app ion-header {
   align-items: center;
   border-bottom: 1px solid #444;
   color: var(--ion-color-dark);
@@ -138,6 +173,36 @@ ion-content::part(scroll) {
   scrollbar-width: none; /* Firefox */
 }
 
+ion-action-sheet.my-ion-action-sheet {
+  --backdrop-opacity: 0.6;
+  --color: var(--ion-color-dark-rgb);
+  --max-width: 100%;
+  --width: 100%;
+}
+
+ion-modal::part(content) {
+  --background: var(--ion-background-color);
+  --border-radius: 1rem;
+  --height: auto;
+  --max-width: 100%;
+  --width: 100%;
+  position: absolute;
+  bottom: -1rem;
+}
+
+ion-select {
+  --background: var(--dark20);
+  --border-radius: 0.5rem;
+  width: 100%;
+  &::part(container) {
+    padding: 0 1rem;
+  }
+}
+
+input.native-input:focus::placeholder {
+  color: transparent; /* Hide placeholder on focus */
+}
+
 ion-toast {
   --background: var(--greenbg);
   --border-radius: 0.5rem;
@@ -158,49 +223,35 @@ ion-toast::part(button) {
   text-align: center;
 }
 
-ion-action-sheet.my-ion-action-sheet {
-  --backdrop-opacity: 0.6;
-  --color: var(--ion-color-dark-rgb);
-  --max-width: 100%;
-  --width: 100%;
+ion-toggle {
+  margin: 12px;
+  border: 1px solid var(--black);
+
+  --track-background: var(--toggle-background);
+  --track-background-checked: var(--toggle-background);
+
+  --handle-background: var(--grey);
+  --handle-background-checked: var(--purple);
+
+  --handle-width: 15px;
+  --handle-height: 15px;
+  --handle-max-height: auto;
+  --handle-spacing: 0;
+
+  --handle-border-radius: 0;
+  --handle-box-shadow: none;
 }
 
-.my-ion-action-sheet div.action-sheet-group {
-  background-color: var(--ion-background-color);
-  border-top: var(--dark50) 1px solid;
-  border-top-left-radius: 1rem;
-  border-top-right-radius: 1rem;
-  & .action-sheet-title {
-    font-size: 1rem;
-    font-weight: 700;
-    text-align: center;
-    & .action-sheet-sub-title {
-      font-size: 0.8rem;
-      font-weight: 400;
-    }
-  }
-  & button {
-    border-radius: 0.5rem;
-    padding-top: 1rem;
-    padding-bottom: 1rem;
-  }
+ion-toggle::part(track) {
+  height: 15px;
+  width: 30px;
+  border-radius: 0;
+
+  /* Required for iOS handle to overflow the height of the track */
+  overflow: visible;
 }
 
-ion-modal::part(content) {
-  --background: var(--ion-background-color);
-  --border-radius: 1rem;
-  --height: auto;
-  --max-width: 100%;
-  --width: 100%;
-  position: absolute;
-  bottom: -1rem;
-}
-
-ion-select {
-  --background: var(--dark20);
-  --border-radius: 0.5rem;
-  width: 100%;
-  &::part(container) {
-    padding: 0 1rem;
-  }
+ion-input[readonly] {
+  --color: var(--dark50);
+  --highlight-color-focused: none;
 }

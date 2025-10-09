@@ -1,4 +1,4 @@
-import type { ExtendedVirtualCoin } from '@arklabs/wallet-sdk'
+import { NetworkName, type ExtendedVirtualCoin } from '@arkade-os/sdk'
 
 export type Addresses = {
   boardingAddr: string
@@ -6,6 +6,11 @@ export type Addresses = {
 }
 
 export type Config = {
+  apps: {
+    boltz: {
+      connected: boolean
+    }
+  }
   aspUrl: string
   currencyDisplay: CurrencyDisplay
   fiat: Fiats
@@ -34,6 +39,7 @@ export enum SettingsSections {
   Advanced = 'Advanced',
   General = 'General',
   Security = 'Security',
+  Config = 'Config',
 }
 
 export enum SettingsOptions {
@@ -47,10 +53,13 @@ export enum SettingsOptions {
   Notifications = 'notifications',
   Nostr = 'nostr',
   Notes = 'notes',
-  Password = 'password',
+  Password = 'change password',
   Reset = 'reset wallet',
   Server = 'server',
   Vtxos = 'coin control',
+  Theme = 'theme',
+  Fiat = 'fiat currency',
+  Display = 'display preferences',
 }
 
 export enum Themes {
@@ -63,11 +72,17 @@ export type Tx = {
   boardingTxid: string
   createdAt: number
   explorable: string | undefined
-  pending: boolean
+  preconfirmed: boolean
   redeemTxid: string
   roundTxid: string
   settled: boolean
   type: string
+}
+
+export enum TxType {
+  swap = 'swap',
+  utxo = 'utxo',
+  vtxo = 'vtxo',
 }
 
 export enum Unit {
@@ -81,7 +96,8 @@ export type Vtxo = ExtendedVirtualCoin
 
 export type Wallet = {
   lockedByBiometrics?: boolean
-  network: string
+  network?: NetworkName | ''
   nextRollover: number
   passkeyId?: string
+  pubkey?: string
 }

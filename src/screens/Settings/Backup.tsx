@@ -4,16 +4,16 @@ import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
-import Textarea from '../../components/Textarea'
 import { copyToClipboard } from '../../lib/clipboard'
 import Header from './Header'
-import { TextSecondary } from '../../components/Text'
+import Text, { TextSecondary } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
 import { copiedToClipboard } from '../../lib/toast'
 import { getPrivateKey, privateKeyToNsec } from '../../lib/privateKey'
 import { consoleError } from '../../lib/logs'
-import { extractError } from '../../lib/error'
 import NeedsPassword from '../../components/NeedsPassword'
+import Shadow from '../../components/Shadow'
+import { defaultPassword } from '../../lib/constants'
 
 export default function Backup() {
   const [present] = useIonToast()
@@ -23,14 +23,16 @@ export default function Backup() {
   const [password, setPassword] = useState('')
 
   useEffect(() => {
-    if (!password) return
-    getPrivateKey(password)
+    const pass = password ? password : defaultPassword
+    getPrivateKey(pass)
       .then((privateKey) => {
         setNsec(privateKeyToNsec(privateKey))
       })
       .catch((err) => {
-        consoleError(err, 'error unlocking wallet')
-        setError(extractError(err))
+        if (password) {
+          consoleError(err, 'error unlocking wallet')
+          setError('Invalid password')
+        }
       })
   }, [password])
 
@@ -48,9 +50,18 @@ export default function Backup() {
           <Content>
             <Padded>
               <FlexCol>
-                <Textarea label='Private key' value={nsec} />
-              </FlexCol>
-              <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
+                <FlexCol gap='0.5rem'>
+                  <Text capitalize color='dark50' smaller>
+                    Private key
+                  </Text>
+                  <Shadow>
+                    <div style={{ padding: '10px' }}>
+                      <Text small wrap>
+                        {nsec}
+                      </Text>
+                    </div>
+                  </Shadow>
+                </FlexCol>
                 <TextSecondary>This is enough to restore your wallet.</TextSecondary>
               </FlexCol>
             </Padded>

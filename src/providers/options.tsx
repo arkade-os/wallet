@@ -74,6 +74,26 @@ export const options: Option[] = [
     option: SettingsOptions.Vtxos,
     section: SettingsSections.Advanced,
   },
+  {
+    icon: <></>,
+    option: SettingsOptions.Theme,
+    section: SettingsSections.Config,
+  },
+  {
+    icon: <></>,
+    option: SettingsOptions.Fiat,
+    section: SettingsSections.Config,
+  },
+  {
+    icon: <></>,
+    option: SettingsOptions.Display,
+    section: SettingsSections.Config,
+  },
+  {
+    icon: <></>,
+    option: SettingsOptions.Password,
+    section: SettingsSections.Advanced,
+  },
 ]
 
 export interface SectionResponse {
@@ -111,8 +131,16 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
     return options.find((o) => o.option === option)?.section || SettingsSections.General
   }
 
-  const goBack = () =>
-    setOption(optionSection(option) == SettingsSections.Advanced ? SettingsOptions.Advanced : SettingsOptions.Menu)
+  const goBack = () => {
+    const section = optionSection(option)
+    setOption(
+      section === SettingsSections.Advanced
+        ? SettingsOptions.Advanced
+        : section === SettingsSections.Config
+          ? SettingsOptions.General
+          : SettingsOptions.Menu,
+    )
+  }
 
   const validOptions = (): SectionResponse[] => {
     return allOptions

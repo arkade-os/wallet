@@ -2,8 +2,8 @@ import { useContext } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
-import { prettyAmount, prettyDate, prettyHide, prettyLongText, prettyNumber } from '../lib/format'
-import PendingIcon from '../icons/Pending'
+import { prettyAmount, prettyDate, prettyHide } from '../lib/format'
+import PreconfirmedIcon from '../icons/Preconfirmed'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
 import FlexRow from './FlexRow'
@@ -24,20 +24,20 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
 
   const prefix = tx.type === 'sent' ? '-' : '+'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount) : prettyHide(tx.amount)}`
-  const txid = tx.explorable ? `(${prettyLongText(tx.explorable, 3)})` : ''
+  const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
 
   const Fiat = () => {
     const color =
       config.currencyDisplay === CurrencyDisplay.Both
         ? 'dark50'
         : tx.type === 'received'
-        ? 'green'
-        : tx.pending
-        ? 'orange'
-        : ''
+          ? 'green'
+          : tx.preconfirmed
+            ? 'orange'
+            : ''
     const value = toFiat(tx.amount)
     const small = config.currencyDisplay === CurrencyDisplay.Both
-    const world = (config.showBalance ? prettyNumber(value, 2) : prettyHide(value)) + ' ' + config.fiat
+    const world = config.showBalance ? prettyAmount(value, config.fiat) : prettyHide(value, config.fiat)
     return (
       <Text color={color} small={small}>
         {world}
@@ -46,7 +46,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
   }
   const Icon = () =>
     !tx.settled ? (
-      <PendingIcon />
+      <PreconfirmedIcon />
     ) : tx.type === 'sent' ? (
       tx.amount === defaultFee ? (
         <SelfSendIcon />
@@ -56,13 +56,13 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
     ) : (
       <ReceivedIcon />
     )
-  const Kind = () => (
-    <Text>
-      {tx.type === 'sent' ? 'Sent' : 'Received'} {txid}
+  const Kind = () => <Text thin>{tx.type === 'sent' ? 'Sent' : 'Received'}</Text>
+  const Date = () => <TextSecondary>{date}</TextSecondary>
+  const Sats = () => (
+    <Text color={tx.preconfirmed ? 'orange' : tx.type === 'received' ? 'green' : ''} thin>
+      {amount}
     </Text>
   )
-  const Date = () => <TextSecondary>{prettyDate(tx.createdAt)}</TextSecondary>
-  const Sats = () => <Text color={tx.pending ? 'orange' : tx.type === 'received' ? 'green' : ''}>{amount}</Text>
 
   const handleClick = () => {
     setTxInfo(tx)
@@ -113,8 +113,6 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
 
 export default function TransactionsList() {
   const { txs } = useContext(WalletContext)
-
-  if (txs?.length === 0) return <></>
 
   const key = (tx: Tx) => `${tx.amount}${tx.createdAt}${tx.boardingTxid}${tx.roundTxid}${tx.redeemTxid}${tx.type}`
 

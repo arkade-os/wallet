@@ -8,7 +8,7 @@ export const requestPermission = async (): Promise<boolean> => {
 
 export const sendNotification = (title: string, body: string) => {
   if (!notificationApiSupport) return
-  const options = { body, icon: '/arkade-icon-220.png' }
+  const options = { body, icon: '/arkade-icon.svg' }
   try {
     new Notification(title, options)
   } catch {

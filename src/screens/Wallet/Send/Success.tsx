@@ -1,11 +1,9 @@
 import { useContext, useEffect } from 'react'
-import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { FlowContext } from '../../../providers/flow'
 import { NotificationsContext } from '../../../providers/notifications'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import Success from '../../../components/Success'
-import BackToWalletButton from '../../../components/BackToWalletButton'
 import { prettyAmount } from '../../../lib/format'
 import { IframeContext } from '../../../providers/iframe'
 import { NavigationContext, Pages } from '../../../providers/navigation'
@@ -20,6 +18,7 @@ export default function SendSuccess() {
   const { navigate } = useContext(NavigationContext)
   const { notifyPaymentSent } = useContext(NotificationsContext)
 
+  // Show payment sent notification
   useEffect(() => {
     if (sendInfo.total) notifyPaymentSent(sendInfo.total)
   }, [sendInfo.total])
@@ -42,17 +41,15 @@ export default function SendSuccess() {
     return <></>
   }
 
-  const displayAmount = useFiat ? prettyAmount(toFiat(sendInfo.total), config.fiat) : prettyAmount(sendInfo.total ?? 0)
+  const totalSats = sendInfo.total ?? 0
+  const displayAmount = useFiat ? prettyAmount(toFiat(totalSats), config.fiat) : prettyAmount(totalSats)
 
   return (
     <>
       <Header text='Success' />
       <Content>
-        <Success text={`Payment of ${displayAmount} sent successfully`} />
+        <Success headline='Payment sent!' text={`${displayAmount} sent successfully`} />
       </Content>
-      <ButtonsOnBottom>
-        <BackToWalletButton />
-      </ButtonsOnBottom>
     </>
   )
 }

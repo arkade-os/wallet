@@ -4,6 +4,7 @@ import { defaultArkServer } from '../lib/constants'
 import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
 
 const defaultConfig: Config = {
+  apps: { boltz: { connected: true } },
   aspUrl: defaultArkServer(),
   currencyDisplay: CurrencyDisplay.Both,
   fiat: Fiats.USD,
@@ -46,6 +47,10 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     window?.matchMedia?.('(prefers-color-scheme: dark)').matches ? Themes.Dark : Themes.Light
 
   const updateConfig = (data: Config) => {
+    if (!data.aspUrl.startsWith('http://') && !data.aspUrl.startsWith('https://')) {
+      const protocol = data.aspUrl.startsWith('localhost') ? 'http://' : 'https://'
+      data.aspUrl = protocol + data.aspUrl
+    }
     setConfig(data)
     updateTheme(data)
     saveConfigToStorage(data)
@@ -69,9 +74,9 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
       defaultConfig.aspUrl = 'http://localhost:7070'
       window.location.hash = ''
     }
-    const config = readConfigFromStorage() ?? { ...defaultConfig, theme: preferredTheme() }
-    if (!config.fiat) config.fiat = defaultConfig.fiat
-    if (!config.currencyDisplay) config.currencyDisplay = defaultConfig.currencyDisplay
+    let config = readConfigFromStorage() ?? { ...defaultConfig, theme: preferredTheme() }
+    // allow upgradability
+    config = { ...defaultConfig, ...config }
     updateConfig(config)
     setConfigLoaded(true)
   }, [configLoaded])

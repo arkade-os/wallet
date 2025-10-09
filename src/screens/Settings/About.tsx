@@ -7,7 +7,7 @@ import Content from '../../components/Content'
 import { gitCommit } from '../../_gitCommit'
 import { prettyDelta } from '../../lib/format'
 import FlexCol from '../../components/FlexCol'
-import Error from '../../components/Error'
+import ErrorMessage from '../../components/Error'
 
 export default function About() {
   const { aspInfo } = useContext(AspContext)
@@ -19,14 +19,15 @@ export default function About() {
   }, [aspInfo.unreachable])
 
   const data = [
-    ['Dust', `${aspInfo.dust} SATS`],
+    ['Server URL', aspInfo.url],
+    ['Server pubkey', aspInfo.signerPubkey],
     ['Forfeit address', aspInfo.forfeitAddress],
     ['Network', aspInfo.network],
-    ['Round interval', `${aspInfo.roundInterval} secs`],
-    ['VTXO tree expiry', prettyDelta(aspInfo.vtxoTreeExpiry, true)],
-    ['Server pubkey', aspInfo.pubkey],
-    ['Server URL', aspInfo.url],
-    ['Unilateral exit delay', `${aspInfo.unilateralExitDelay} secs`],
+    ['Dust', `${aspInfo.dust} SATS`],
+    ['Round interval', prettyDelta(Number(aspInfo.roundInterval), true)],
+    ['VTXO tree expiry', prettyDelta(Number(aspInfo.vtxoTreeExpiry), true)],
+    ['Boarding exit delay', prettyDelta(Number(aspInfo.boardingExitDelay), true)],
+    ['Unilateral exit delay', prettyDelta(Number(aspInfo.unilateralExitDelay), true)],
     ['Git commit hash', gitCommit],
   ]
 
@@ -36,7 +37,7 @@ export default function About() {
       <Content>
         <Padded>
           <FlexCol>
-            <Error error={error} text='Ark server unreachable' />
+            <ErrorMessage error={error} text='Ark server unreachable' />
             <Table data={data} />
           </FlexCol>
         </Padded>

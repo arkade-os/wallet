@@ -11,7 +11,10 @@ import { NotificationsProvider } from './providers/notifications'
 import { WalletProvider } from './providers/wallet'
 import { OptionsProvider } from './providers/options'
 import { IframeProvider } from './providers/iframe'
+import { LimitsProvider } from './providers/limits'
+import { NudgeProvider } from './providers/nudge'
 import * as Sentry from '@sentry/react'
+import { LightningProvider } from './providers/lightning'
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
@@ -32,7 +35,6 @@ const hasIframe = isValidUrl(possibleUrl)
 
 const AppWithProviders = () => {
   const baseApp = <App />
-
   return hasIframe ? <IframeProvider>{baseApp}</IframeProvider> : baseApp
 }
 
@@ -46,9 +48,15 @@ root.render(
           <FiatProvider>
             <FlowProvider>
               <WalletProvider>
-                <OptionsProvider>
-                  <AppWithProviders />
-                </OptionsProvider>
+                <LightningProvider>
+                  <LimitsProvider>
+                    <OptionsProvider>
+                      <NudgeProvider>
+                        <AppWithProviders />
+                      </NudgeProvider>
+                    </OptionsProvider>
+                  </LimitsProvider>
+                </LightningProvider>
               </WalletProvider>
             </FlowProvider>
           </FiatProvider>

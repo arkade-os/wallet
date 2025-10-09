@@ -1,41 +1,81 @@
 // https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki
 // bitcoin:<address>[?amount=<amount>][?label=<label>][?message=<message>]
 
-import qs from 'qs'
 import { fromSatoshis, prettyNumber, toSatoshis } from './format'
+import { isArkAddress } from './address'
 
-export const decode = (uri: string) => {
-  if (!isBip21(uri)) throw new Error('Invalid BIP21 URI: ' + uri)
-  let destination, options, query, satoshis
-
-  const [scheme, rest] = uri.split(':')
-  if (rest.indexOf('?') !== -1) {
-    const split = rest.split('?')
-    destination = split[0]
-    query = split[1]
-  } else {
-    destination = rest
-  }
-
-  if (query) options = qs.parse(query)
-
-  if (options?.amount) {
-    satoshis = toSatoshis(Number(options.amount))
-    if (!isFinite(satoshis)) throw new Error('Invalid amount')
-    if (satoshis < 0) throw new Error('Invalid amount')
-  }
-
-  const arkAddress = /^ark/.test(scheme) ? destination : (options?.ark as string)
-  const invoice = /^lightning/.test(scheme) ? destination : (options?.lightning as string)
-  const address = /^bitcoin/.test(scheme) ? destination : (options?.liquidnetwork as string)
-
-  return { address, arkAddress, destination, invoice, options, satoshis, scheme }
+export interface Bip21Decoded {
+  address?: string
+  arkAddress?: string
+  satoshis?: number
+  invoice?: string
+  lnurl?: string
 }
 
-export const encode = (address: string, arkAddress: string, sats: number) => {
-  return `bitcoin:${address}` + `?ark=${arkAddress}` + `&amount=${prettyNumber(fromSatoshis(sats))}`
+/** decode a bip21 uri */
+export const decodeBip21 = (uri: string): Bip21Decoded => {
+  const result: Bip21Decoded = {
+    address: undefined,
+    satoshis: undefined,
+    invoice: undefined,
+    lnurl: undefined,
+  }
+
+  // use lowercase for consistency
+  const bip21Url = uri.trim()
+
+  if (!bip21Url.toLowerCase().startsWith('bitcoin:')) {
+    throw new Error('Invalid BIP21 URI')
+  }
+
+  // remove 'bitcoin:' prefix
+  const urlWithoutPrefix = bip21Url.slice(8)
+
+  // split address and query parameters
+  const [address, queryString] = urlWithoutPrefix.split('?')
+
+  result.address = address
+
+  if (queryString) {
+    const params = new URLSearchParams(queryString)
+
+    if (params.has('ark')) {
+      const arkAddress = params.get('ark') ?? ''
+      if (isArkAddress(arkAddress)) result.arkAddress = arkAddress
+    }
+
+    if (params.has('amount')) {
+      const amount = parseFloat(params.get('amount')!)
+      if (isNaN(amount) || amount < 0 || !isFinite(amount)) throw new Error('Invalid amount')
+      result.satoshis = toSatoshis(amount)
+    }
+
+    if (params.has('lightning')) {
+      if (params.get('lightning')?.startsWith('lnurl')) {
+        result.lnurl = params.get('lightning')!
+      } else if (params.get('lightning')?.startsWith('ln')) {
+        result.invoice = params.get('lightning')!
+      }
+    }
+  }
+
+  return result
+}
+
+export const encodeBip21 = (address: string, arkAddress: string, invoice: string, sats: number) => {
+  return (
+    `bitcoin:${address}` +
+    `?ark=${arkAddress}` +
+    (invoice ? `&lightning=${invoice}` : '') +
+    `&amount=${prettyNumber(fromSatoshis(sats))}`
+  )
 }
 
 export const isBip21 = (data: string): boolean => {
-  return /^\w+:.+/.test(data) // TODO
+  try {
+    decodeBip21(data)
+    return true
+  } catch {
+    return false
+  }
 }

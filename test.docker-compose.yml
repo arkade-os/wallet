@@ -1,0 +1,268 @@
+services:
+  pgnbxplorer:
+    restart: unless-stopped
+    image: postgres:16
+    container_name: pgnbxplorer
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    volumes:
+      - type: tmpfs
+        target: /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d nbxplorer -h 127.0.0.1 -p 5432']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  nbxplorer:
+    restart: unless-stopped
+    container_name: nbxplorer
+    ports:
+      - 32838:32838
+    image: nicolasdorier/nbxplorer:2.5.30
+    environment:
+      - NBXPLORER_NETWORK=regtest
+      - NBXPLORER_CHAINS=btc
+      - NBXPLORER_BTCRPCURL=http://bitcoin:18443
+      - NBXPLORER_BTCNODEENDPOINT=bitcoin:18444
+      - NBXPLORER_BTCRPCUSER=admin1
+      - NBXPLORER_BTCRPCPASSWORD=123
+      - NBXPLORER_VERBOSE=1
+      - NBXPLORER_BIND=0.0.0.0:32838
+      - NBXPLORER_TRIMEVENTS=10000
+      - NBXPLORER_SIGNALFILESDIR=/datadir
+      - NBXPLORER_POSTGRES=User ID=postgres;Host=pgnbxplorer;Port=5432;Application Name=nbxplorer;MaxPoolSize=20;Database=nbxplorer
+      - NBXPLORER_EXPOSERPC=1
+      - NBXPLORER_NOAUTH=1
+    volumes:
+      - type: tmpfs
+        target: /datadir
+    depends_on:
+      pgnbxplorer:
+        condition: service_healthy
+
+  arkd-wallet:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: arkdwallet.Dockerfile
+    container_name: arkd-wallet
+    depends_on:
+      - nbxplorer
+    ports:
+      - '6060:6060'
+    environment:
+      - ARKD_WALLET_LOG_LEVEL=5
+      - ARKD_WALLET_NBXPLORER_URL=http://nbxplorer:32838
+      - ARKD_WALLET_DATADIR=./data/regtest
+      - ARKD_WALLET_NETWORK=regtest
+      - ARKD_WALLET_SIGNER_KEY=afcd3fa10f82a05fddc9574fdb13b3991b568e89cc39a72ba4401df8abef35f0
+    volumes:
+      - type: tmpfs
+        target: /app/data
+  arkd:
+    build:
+      context: .
+      dockerfile: arkd.Dockerfile
+    container_name: arkd
+    restart: unless-stopped
+    depends_on:
+      - arkd-wallet
+    ports:
+      - '7070:7070'
+    environment:
+      - ARKD_LOG_LEVEL=6
+      - ARKD_NO_MACAROONS=true
+      - ARKD_VTXO_TREE_EXPIRY=20
+      - ARKD_SCHEDULER_TYPE=block
+      - ARKD_UNILATERAL_EXIT_DELAY=512
+      - ARKD_BOARDING_EXIT_DELAY=1024
+      - ARKD_DATADIR=./data/regtest
+      - ARKD_WALLET_ADDR=arkd-wallet:6060
+      - ARKD_ESPLORA_URL=http://chopsticks:3000
+      - ARKD_VTXO_MIN_AMOUNT=1
+      - ARKD_LIVE_STORE_TYPE=inmemory
+      - ARKD_EVENT_DB_TYPE=badger
+      - ARKD_DB_TYPE=sqlite
+      - ARKD_ROUND_INTERVAL=10
+    volumes:
+      - type: tmpfs
+        target: /app/data
+
+  boltz-lnd:
+    image: lightninglabs/lnd:v0.19.1-beta
+    restart: unless-stopped
+    container_name: boltz-lnd
+    command:
+      - '--bitcoin.regtest'
+      - '--bitcoin.node=bitcoind'
+      - '--maxpendingchannels=10'
+      - '--rpclisten=0.0.0.0:10009'
+      - '--bitcoind.rpchost=bitcoin:18443'
+      - '--bitcoind.rpcuser=admin1'
+      - '--bitcoind.rpcpass=123'
+      - '--bitcoind.zmqpubrawblock=tcp://bitcoin:28332'
+      - '--bitcoind.zmqpubrawtx=tcp://bitcoin:28333'
+      - '--db.bolt.auto-compact'
+      - '--db.prune-revocation'
+      - '--alias=Ark Labs'
+      - '--tlsextradomain=boltz-lnd'
+      - '--protocol.option-scid-alias'
+      - '--protocol.wumbo-channels'
+      - '--accept-keysend'
+      - '--minchansize=25000'
+      - '--noseedbackup'
+      - '--gc-canceled-invoices-on-startup'
+      - '--coin-selection-strategy=random'
+      - '--protocol.custom-message=513'
+      - '--protocol.custom-nodeann=39'
+      - '--protocol.custom-init=39'
+      - '--no-rest-tls'
+      - '--restcors=*'
+    volumes:
+      - lnd_datadir:/root/.lnd
+    ports:
+      - '9736:9735'
+      - '10010:10009'
+  boltz:
+    restart: unless-stopped
+    image: boltz/boltz:ark-v8@sha256:dfb23888998d5fd74f56f9943fde82dd6d04bbbec1b009058b4be43a48ef4eaa
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+      - '9004:9004'
+    expose:
+      - '9001'
+    environment:
+      BOLTZ_CONFIG: |
+        loglevel = "debug"
+        network = "regtest"
+        [ark]
+        host = "boltz-fulmine"
+        port = 7000
+        useLocktimeSeconds = false
+
+        [api]
+        host = "0.0.0.0"
+        port = 9001
+        cors = "*"
+
+        [grpc]
+        host = "0.0.0.0"
+        port = 9000
+
+        [sidecar]
+        [sidecar.grpc]
+        host = "0.0.0.0"
+        port = 9003
+
+        [sidecar.ws]
+        host = "0.0.0.0"
+        port = 9004
+
+        [sidecar.api]
+        host = "0.0.0.0"
+        port = 9005
+
+        [postgres]
+        host = "boltz-postgres"
+        port = 5432
+        database = "boltz"
+        username = "postgres"
+        password = "postgres"
+
+        [swap]
+        deferredClaimSymbols = [ "BTC" ]
+
+        [[pairs]]
+        base = "ARK"
+        quote = "BTC"
+        rate = 1
+        fee = 0.4
+        swapInFee = 0.01
+        invoiceExpiry = 361
+        maxSwapAmount = 4294967
+        minSwapAmount = 1000
+
+        [pairs.timeoutDelta]
+        reverse = 1440
+        chain=1440
+        swapMinimal = 1440
+        swapMaximal = 2880
+        swapTaproot = 10080
+
+        [[currencies]]
+        symbol = "BTC"
+        network = "bitcoinRegtest"
+        minWalletBalance = 10000000
+        minLocalBalance = 10000000
+        minRemoteBalance = 10000000
+        maxSwapAmount = 4294967
+        minSwapAmount = 50000
+        maxZeroConfAmount = 100000
+        preferredWallet = "core"
+
+        [currencies.chain]
+        host = "bitcoin"
+        port = 18443
+        user = "admin1"
+        password = "123"
+
+        [currencies.lnd]
+        host = "boltz-lnd"
+        port = 10009
+        certpath = "/home/boltz/.lnd/tls.cert"
+        macaroonpath = "/home/boltz/.lnd/data/chain/bitcoin/regtest/admin.macaroon"
+    volumes:
+      - boltz_datadir:/home/boltz/.boltz
+      - lnd_datadir:/home/boltz/.lnd
+    entrypoint: sh -c 'echo "$$BOLTZ_CONFIG" > /home/boltz/.boltz/boltz.config && boltzd --datadir /home/boltz/.boltz --configpath /home/boltz/.boltz/boltz.config'
+  boltz-postgres:
+    image: postgres:15.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: boltz
+      POSTGRES_HOST_AUTH_METHOD: trust
+    expose:
+      - '5432'
+    volumes:
+      - postgres_datadir:/var/lib/postgresql/data
+  boltz-fulmine:
+    image: ghcr.io/arklabshq/fulmine:v0.3.0-rc.1
+    environment:
+      - FULMINE_ARK_SERVER=http://arkd:7070
+      - FULMINE_ESPLORA_URL=http://chopsticks:3000
+      - FULMINE_NO_MACAROONS=true
+      - FULMINE_LOG_LEVEL=5
+      - FULMINE_DISABLE_TELEMETRY=true
+    ports:
+      - 7002:7000
+      - 7003:7001
+    volumes:
+      - bitcoin_fulmine_data:/app/data
+    restart: unless-stopped
+  cors:
+    build:
+      context: .
+      dockerfile: cors.Dockerfile
+    container_name: cors
+    ports:
+      - '9069:9069'
+
+volumes:
+  postgres_datadir:
+    name: postgres_datadir
+  boltz_datadir:
+    name: boltz_datadir
+  bitcoin_fulmine_data:
+    name: bitcoin_fulmine_data
+  lnd_datadir:
+    name: lnd_datadir
+
+networks:
+  default:
+    name: nigiri
+    external: true

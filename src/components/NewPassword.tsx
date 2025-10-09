@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
 import InputPassword from './InputPassword'
 import FlexCol from './FlexCol'
-import Text from './Text'
 import CheckList from './CheckList'
-import StrengthBars, { calcStrength } from './Strength'
+import { calcStrength, StrengthProgress } from './Strength'
 
 interface NewPasswordProps {
   setLabel: (label: string) => void
-  onNewPassword: (password: string) => void
+  onNewPassword: (password: string | null) => void
 }
 
 export default function NewPassword({ onNewPassword, setLabel }: NewPasswordProps) {
@@ -17,8 +16,8 @@ export default function NewPassword({ onNewPassword, setLabel }: NewPasswordProp
   const [strength, setStrength] = useState(0)
 
   useEffect(() => {
-    onNewPassword(password === confirm ? password : '')
-    if (!password) return setLabel("Can't be empty")
+    onNewPassword(password === confirm ? password : null)
+    if (!password) return setLabel('No password, YOLO')
     if (password !== confirm) return setLabel('Passwords must match')
     setLabel('Save password')
   }, [password, confirm])
@@ -52,23 +51,23 @@ export default function NewPassword({ onNewPassword, setLabel }: NewPasswordProp
   ]
 
   return (
-    <FlexCol>
-      <InputPassword
-        focus={focus === 'password'}
-        label='Password'
-        onChange={handleChangePassword}
-        onEnter={handleEnter}
-        strength={strength}
-      />
-      <StrengthBars strength={strength} />
+    <FlexCol gap='1.5em'>
+      <FlexCol>
+        <InputPassword
+          focus={focus === 'password'}
+          label='Password'
+          onChange={handleChangePassword}
+          onEnter={handleEnter}
+        />
+        <StrengthProgress strength={strength} />
+        <CheckList data={passwordChecks} />
+      </FlexCol>
       <InputPassword
         focus={focus === 'confirm'}
         label='Confirm password'
         onChange={handleChangeConfirm}
         onEnter={handleEnter}
       />
-      <Text smaller>Set a strong password with:</Text>
-      <CheckList data={passwordChecks} />
     </FlexCol>
   )
 }

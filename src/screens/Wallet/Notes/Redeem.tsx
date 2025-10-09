@@ -2,7 +2,7 @@ import { useContext, useEffect, useState } from 'react'
 import { FlowContext } from '../../../providers/flow'
 import Content from '../../../components/Content'
 import Padded from '../../../components/Padded'
-import Error from '../../../components/Error'
+import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Button from '../../../components/Button'
 import { NavigationContext, Pages } from '../../../providers/navigation'
@@ -69,7 +69,7 @@ export default function NotesRedeem() {
         ) : (
           <Padded>
             <FlexCol gap='2rem'>
-              <Error error={Boolean(error)} text={error} />
+              <ErrorMessage error={Boolean(error)} text={error} />
               <Details details={details} />
             </FlexCol>
           </Padded>

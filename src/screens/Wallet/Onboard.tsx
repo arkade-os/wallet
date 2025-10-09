@@ -17,13 +17,14 @@ import FlexRow from '../../components/FlexRow'
 import Shadow from '../../components/Shadow'
 import AddIcon from '../../icons/Add'
 import ShareIcon from '../../icons/Share'
-import { usePwa } from '@dotmind/react-use-pwa'
+import { pwaCanInstall } from '../../lib/pwa'
 
 export default function Onboard() {
   const { navigate } = useContext(NavigationContext)
+
   const [step, setStep] = useState(1)
-  const { installPrompt, canInstall } = usePwa()
-  const steps = canInstall ? 4 : 3
+
+  const steps = pwaCanInstall() ? 4 : 3
 
   const handleContinue = () => setStep(step + 1)
 
@@ -43,21 +44,11 @@ export default function Onboard() {
       margin: '0 auto',
       maxHeight: '50%',
     }
-
-    if (step === 4) {
-      style.cursor = 'pointer'
-      return (
-        <div style={style} onClick={installPrompt}>
-          <Image />
-        </div>
-      )
-    } else {
-      return (
-        <div style={style}>
-          <Image />
-        </div>
-      )
-    }
+    return (
+      <div style={style}>
+        <Image />
+      </div>
+    )
   }
 
   const InfoContainer = (): ReactNode => {
@@ -65,14 +56,16 @@ export default function Onboard() {
       return (
         <FlexCol gap='0.5rem'>
           <Title text={title} />
-          <Text wrap>{text}</Text>
+          <Text color='dark80' thin wrap>
+            {text}
+          </Text>
         </FlexCol>
       )
     }
     if (step === 1) {
       return info({
         title: 'Greetings, Earthling! 👾',
-        text: "Your Bitcoin has entered a new dimension.Send, receive, and swap in Arkade's virtual environment. Space-time limits don't apply. Experience the future of Bitcoin today.",
+        text: "Your Bitcoin has entered a new dimension. Send, receive, and swap in Arkade's virtual environment. Space-time limits don't apply. Experience the future of Bitcoin today.",
       })
     }
     if (step === 2) {
@@ -123,7 +116,7 @@ export default function Onboard() {
       <Content>
         <Padded>
           <FlexCol between>
-            {step < 4 ? <StepBars active={step} length={steps - 1} /> : <div />}
+            <StepBars active={step} length={steps} />
             <ImageContainer />
             <InfoContainer />
           </FlexCol>
@@ -133,7 +126,7 @@ export default function Onboard() {
         {step < steps ? (
           <Button onClick={handleContinue} label='Continue' />
         ) : (
-          <Button onClick={handleSkip} label='Skip for now' clear />
+          <Button onClick={handleSkip} label='Skip for now' secondary />
         )}
       </ButtonsOnBottom>
     </>

@@ -7,12 +7,12 @@ interface ErrorProps {
   text: string
 }
 
-export default function Error({ error, text }: ErrorProps) {
+export default function ErrorMessage({ error, text }: ErrorProps) {
   if (!error) return null
   return (
     <Shadow red>
       <Padded>
-        <Text bold centered color='white' small>
+        <Text bold centered color='white' small wrap>
           {text}
         </Text>
       </Padded>
