@@ -32,7 +32,7 @@ export default function ReceiveAmount() {
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { calcReverseSwapFee } = useContext(LightningContext)
-  const { amountIsAboveMaxLimit } = useContext(LimitsContext)
+  const { amountIsAboveMaxLimit, validLnSwap } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { balance, svcWallet } = useContext(WalletContext)
 
@@ -121,6 +121,7 @@ export default function ReceiveAmount() {
   }
 
   const showFaucetButton = balance === 0 && faucetAvailable
+  const showLightningFees = amount && validLnSwap(amount)
   const disabled = !satoshis ? false : satoshis < 1 || amountIsAboveMaxLimit(satoshis)
 
   if (showKeys) {
@@ -165,7 +166,7 @@ export default function ReceiveAmount() {
               onFocus={handleFocus}
               value={amount}
             />
-            {amount ? (
+            {showLightningFees ? (
               <Text color='dark50' smaller>
                 In Lightning you'll receive: {prettyAmount(satoshis)} - {calcReverseSwapFee(satoshis)} ={' '}
                 {prettyAmount(Math.max(0, satoshis - calcReverseSwapFee(satoshis)))}
