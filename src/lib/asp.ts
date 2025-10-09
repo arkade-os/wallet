@@ -3,6 +3,11 @@ import { consoleError, consoleLog } from './logs'
 import { Addresses, Satoshis, Tx } from './types'
 import { AspInfo } from '../providers/asp'
 
+const emptyFees = {
+  intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
+  txFeeRate: '',
+}
+
 export const emptyAspInfo: AspInfo = {
   boardingExitDelay: BigInt(0),
   checkpointTapscript: '',
@@ -11,20 +16,24 @@ export const emptyAspInfo: AspInfo = {
   dust: BigInt(0),
   forfeitAddress: '',
   forfeitPubkey: '',
-  fees: {
-    intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
-    txFeeRate: '',
-  },
+  fees: emptyFees,
   network: '',
-  roundInterval: BigInt(0),
+  scheduledSession: {
+    nextStartTime: BigInt(0),
+    nextEndTime: BigInt(0),
+    duration: BigInt(0),
+    period: BigInt(0),
+    fees: emptyFees,
+  },
+  serviceStatus: {},
+  sessionDuration: BigInt(0),
   signerPubkey: '',
   unilateralExitDelay: BigInt(0),
-  utxoMinAmount: BigInt(333),
   utxoMaxAmount: BigInt(-1), // -1 means no limit (default), 0 means boarding not allowed
+  utxoMinAmount: BigInt(333),
   version: '',
-  vtxoMinAmount: BigInt(1),
   vtxoMaxAmount: BigInt(-1), // -1 means no limit (default)
-  vtxoTreeExpiry: BigInt(0),
+  vtxoMinAmount: BigInt(1),
   unreachable: false,
   url: '',
 }

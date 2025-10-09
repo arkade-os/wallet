@@ -10,7 +10,7 @@ import { arkNoteInUrl } from '../lib/arknote'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { calcNextRollover } from '../lib/wallet'
-import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey, ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 
 import * as secp from '@noble/secp256k1'
@@ -86,8 +86,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     svcWallet
       .getVtxos({ withRecoverable: true })
       .then((vtxos) => {
-        const spendable: ExtendedVirtualCoin[] = []
-        const spent: ExtendedVirtualCoin[] = []
+        const spendable: Vtxo[] = []
+        const spent: Vtxo[] = []
         for (const vtxo of vtxos) {
           if (vtxo.spentBy && vtxo.spentBy.length > 0) spent.push(vtxo)
           else spendable.push(vtxo)
@@ -100,7 +100,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // update next rollover when vtxos change
   useEffect(() => {
     if (!vtxos?.spendable?.length) return
-    const nextRollover = calcNextRollover(aspInfo.vtxoTreeExpiry, vtxos?.spendable)
+    const nextRollover = calcNextRollover(vtxos.spendable)
     updateWallet({ ...wallet, nextRollover })
   }, [vtxos])
 

@@ -5,8 +5,9 @@ import { AspInfo } from '../../providers/asp'
 
 const mockAspInfo: AspInfo = {
   ...emptyAspInfo,
-  boardingExitDelay: BigInt(7775744),
+  boardingExitDelay: BigInt(1024),
   checkpointTapscript: '',
+  dust: BigInt(333),
 }
 
 export const mockTxId = '547b9e710c0b57197ab27faa2192601defe2efb08a45ee8ada765a6829ba451b'
