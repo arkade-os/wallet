@@ -14,38 +14,12 @@ import { ConfigContext } from '../../providers/config'
 import { extractError } from '../../lib/error'
 import ErrorMessage from '../../components/Error'
 import WaitingForRound from '../../components/WaitingForRound'
-import { AspContext, AspInfo } from '../../providers/asp'
+import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { settleVtxos } from '../../lib/asp'
 import Loading from '../../components/Loading'
 import { LimitsContext } from '../../providers/limits'
 import { EmptyCoinsList } from '../../components/Empty'
-
-const Box = ({ children }: { children: ReactNode }) => {
-  const style = {
-    backgroundColor: 'var(--dark10)',
-    border: '1px solid var(--dark20)',
-    borderRadius: '0.25rem',
-    padding: '0.5rem',
-    width: '100%',
-  }
-  return (
-    <div style={style}>
-      <FlexRow between>{children}</FlexRow>
-    </div>
-  )
-}
-
-const VtxoLine = ({ aspInfo, hide, vtxo }: { aspInfo: AspInfo; hide: boolean; vtxo: Vtxo }) => {
-  const amount = hide ? prettyHide(vtxo.value) : prettyNumber(vtxo.value)
-  const expiry = vtxo.virtualStatus.batchExpiry ?? vtxo.createdAt.getDate() + Number(aspInfo.vtxoTreeExpiry) * 1000
-  return (
-    <Box>
-      <Text>{amount} SATS</Text>
-      <Text>{prettyAgo(expiry)}</Text>
-    </Box>
-  )
-}
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -76,7 +50,7 @@ export default function Vtxos() {
     const bestMarketHour = calcBestMarketHour(wallet.nextRollover)
     if (bestMarketHour) {
       setStartTime(Number(bestMarketHour.nextStartTime))
-      setDuration(bestMarketHour.duration)
+      setDuration(Number(bestMarketHour.duration))
     } else {
       setStartTime(wallet.nextRollover)
       setDuration(0)
@@ -102,6 +76,31 @@ export default function Vtxos() {
     }
   }
 
+  const Box = ({ children }: { children: ReactNode }) => {
+    const style = {
+      backgroundColor: 'var(--dark10)',
+      border: '1px solid var(--dark20)',
+      borderRadius: '0.25rem',
+      padding: '0.5rem',
+      width: '100%',
+    }
+    return (
+      <div style={style}>
+        <FlexRow between>{children}</FlexRow>
+      </div>
+    )
+  }
+
+  const VtxoLine = ({ vtxo }: { vtxo: Vtxo }) => {
+    const amount = config.showBalance ? prettyNumber(vtxo.value) : prettyHide(vtxo.value)
+    return (
+      <Box>
+        <Text>{amount} SATS</Text>
+        <Text>{prettyAgo(vtxo.virtualStatus?.batchExpiry ?? 0)}</Text>
+      </Box>
+    )
+  }
+
   return (
     <>
       <Header
@@ -125,7 +124,7 @@ export default function Vtxos() {
                     Your virtual coins with amount and expiration
                   </Text>
                   {vtxos.spendable?.map((v: Vtxo) => (
-                    <VtxoLine key={v.txid} aspInfo={aspInfo} hide={!config.showBalance} vtxo={v} />
+                    <VtxoLine key={v.txid} vtxo={v} />
                   ))}
                 </FlexCol>
               ) : (
@@ -142,10 +141,6 @@ export default function Vtxos() {
                   </FlexCol>
                   <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
                     <TextSecondary>First virtual coin expiration: {prettyAgo(wallet.nextRollover)}.</TextSecondary>
-                    <TextSecondary>
-                      Your virtual coins have a lifetime of {prettyDelta(Number(aspInfo.vtxoTreeExpiry))} and need
-                      renewal before expiration.
-                    </TextSecondary>
                     <TextSecondary>Automatic renewal occurs for virtual coins expiring within 24 hours.</TextSecondary>
                     {startTime ? (
                       <>

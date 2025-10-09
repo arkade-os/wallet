@@ -1,5 +1,5 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
-import { ArkInfo, MarketHour } from '@arkade-os/sdk'
+import { ArkInfo, ScheduledSession } from '@arkade-os/sdk'
 import { emptyAspInfo, getAspInfo } from '../lib/asp'
 import { ConfigContext } from './config'
 
@@ -7,8 +7,8 @@ export type AspInfo = ArkInfo & { unreachable: boolean; url: string }
 
 interface AspContextProps {
   aspInfo: AspInfo
-  calcBestMarketHour: (nextRollOver: number) => (MarketHour & { duration: number }) | undefined
-  calcNextMarketHour: (nextRollOver: number) => (MarketHour & { duration: number }) | undefined
+  calcBestMarketHour: (nextRollOver: number) => ScheduledSession | undefined
+  calcNextMarketHour: (nextRollOver: number) => ScheduledSession | undefined
   setAspInfo: (info: AspInfo) => void
 }
 
@@ -39,18 +39,19 @@ export const AspProvider = ({ children }: { children: ReactNode }) => {
    * @param expiration - The expiration timestamp to check against
    * @returns The best market hour with duration, or undefined if none found
    */
-  const calcBestMarketHour = (expiration: number): (MarketHour & { duration: number }) | undefined => {
-    if (!aspInfo.marketHour) return undefined
-    let startTime = aspInfo.marketHour.nextStartTime
+  const calcBestMarketHour = (expiration: number): ScheduledSession | undefined => {
+    if (!aspInfo.scheduledSession) return undefined
+    let startTime = aspInfo.scheduledSession.nextStartTime
     if (startTime > expiration) return undefined
-    const period = aspInfo.marketHour.period
+    const period = aspInfo.scheduledSession.period
     if (period <= 0) return undefined
     while (startTime + period < expiration) {
       startTime += period
     }
     return {
-      ...aspInfo.marketHour,
-      duration: Number(aspInfo.marketHour.nextEndTime - aspInfo.marketHour.nextStartTime),
+      ...aspInfo.scheduledSession,
+      nextStartTime: startTime,
+      nextEndTime: startTime + aspInfo.scheduledSession.duration,
     }
   }
 
@@ -59,13 +60,14 @@ export const AspProvider = ({ children }: { children: ReactNode }) => {
    * @param expiration - The expiration timestamp to check against
    * @returns The next market hour with duration, or undefined if it starts after expiration
    */
-  const calcNextMarketHour = (expiration: number): (MarketHour & { duration: number }) | undefined => {
-    if (!aspInfo.marketHour) return undefined
-    let startTime = aspInfo.marketHour.nextStartTime
+  const calcNextMarketHour = (expiration: number): ScheduledSession | undefined => {
+    if (!aspInfo.scheduledSession) return undefined
+    let startTime = aspInfo.scheduledSession.nextStartTime
     if (startTime > expiration) return undefined
     return {
-      ...aspInfo.marketHour,
-      duration: Number(aspInfo.marketHour.nextEndTime - aspInfo.marketHour.nextStartTime),
+      ...aspInfo.scheduledSession,
+      nextStartTime: startTime,
+      nextEndTime: startTime + aspInfo.scheduledSession.duration,
     }
   }
 

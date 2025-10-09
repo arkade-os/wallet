@@ -1,6 +1,6 @@
 import { HDKey } from '@scure/bip32'
 import { hex } from '@scure/base'
-import { IWallet } from '@arkade-os/sdk'
+import { Vtxo } from './types'
 
 const DERIVATION_PATH = "m/44/1237/0'"
 
@@ -14,10 +14,11 @@ export const getPrivateKeyFromSeed = (seed: Uint8Array): string => {
   return hex.encode(deriveKeyFromSeed(seed))
 }
 
-export const calcNextRollover = (vtxoTreeExpiry: bigint, vtxos: Awaited<ReturnType<IWallet['getVtxos']>>): number => {
-  return vtxos
+export const calcNextRollover = (vtxos: Vtxo[]): number => {
+  return vtxos.length
     ? vtxos.reduce((acc: number, cur) => {
-        const unixtimestamp = Math.floor(new Date(cur.createdAt).getTime() / 1000 + Number(vtxoTreeExpiry))
+        if (!cur.virtualStatus.batchExpiry) return acc
+        const unixtimestamp = Math.floor(cur.virtualStatus.batchExpiry / 1000)
         return unixtimestamp < acc || acc === 0 ? unixtimestamp : acc
       }, 0)
     : 0

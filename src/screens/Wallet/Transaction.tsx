@@ -33,8 +33,9 @@ export default function Transaction() {
   const tx = txInfo
   const defaultButtonLabel = 'Settle transaction'
   const boardingTx = Boolean(tx?.boardingTxid)
-  const confirmedBoardingTx = boardingTx && tx?.createdAt
-  const expiredBoardingTx = confirmedBoardingTx && Date.now() / 1000 - tx.createdAt > Number(aspInfo?.boardingExitDelay)
+  const unconfirmedBoardingTx = boardingTx && !tx?.createdAt
+  const expiredBoardingTx =
+    tx?.createdAt && !unconfirmedBoardingTx && Date.now() / 1000 - tx?.createdAt > Number(aspInfo?.boardingExitDelay)
 
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
   const [amountAboveDust, setAmountAboveDust] = useState(false)
@@ -53,13 +54,12 @@ export default function Transaction() {
 
   useEffect(() => {
     if (!tx) return
-    const expiration = tx.createdAt + Number(aspInfo.vtxoTreeExpiry)
-    const bestMarketHour = calcBestMarketHour(expiration)
+    const bestMarketHour = calcBestMarketHour(wallet.nextRollover)
     if (bestMarketHour) {
       // setCanSettleOnMarketHour(true) TODO remove after
       setCanSettleOnMarketHour(false)
       setStartTime(Number(bestMarketHour.nextStartTime))
-      setDuration(bestMarketHour.duration)
+      setDuration(Number(bestMarketHour.duration))
     } else {
       setCanSettleOnMarketHour(false)
       setStartTime(wallet.nextRollover)
@@ -106,8 +106,8 @@ export default function Transaction() {
 
   const details: DetailsProps = {
     direction: tx.type === 'sent' ? 'Sent' : 'Received',
-    when: tx.createdAt ? prettyAgo(tx.createdAt) : confirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
-    date: tx.createdAt ? prettyDate(tx.createdAt) : confirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
+    when: tx.createdAt ? prettyAgo(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
+    date: tx.createdAt ? prettyDate(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
     satoshis: tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
     fees: tx.type === 'sent' ? defaultFee : 0,
     total: tx.amount,
@@ -124,7 +124,7 @@ export default function Transaction() {
             <Info color='red' icon={<VtxosIcon />} title='Expired'>
               <Text wrap>Boarding transaction expired.</Text>
             </Info>
-          ) : !confirmedBoardingTx ? (
+          ) : unconfirmedBoardingTx ? (
             <Info color='orange' icon={<VtxosIcon />} title='Unconfirmed'>
               <Text wrap>Onchain transaction unconfirmed. Please wait for confirmation.</Text>
             </Info>
@@ -156,7 +156,7 @@ export default function Transaction() {
   const showSettleButtons =
     utxoTxsAllowed() &&
     vtxoTxsAllowed() &&
-    confirmedBoardingTx &&
+    !unconfirmedBoardingTx &&
     !expiredBoardingTx &&
     amountAboveDust &&
     !settleSuccess &&
