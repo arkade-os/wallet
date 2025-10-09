@@ -47,7 +47,7 @@ export default function SendForm() {
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { swapProvider, connected, calcSubmarineSwapFee } = useContext(LightningContext)
-  const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
+  const { amountIsAboveMaxLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
   const { balance, svcWallet } = useContext(WalletContext)
@@ -202,8 +202,8 @@ export default function SendForm() {
           ? 'Amount below LNURL min limit'
           : lnUrlLimits.max && satoshis > lnUrlLimits.max
             ? 'Amount above LNURL max limit'
-            : amountIsBelowMinLimit(satoshis)
-              ? 'Amount below dust limit'
+            : satoshis < 1
+              ? 'Amount below 1 satoshi'
               : amountIsAboveMaxLimit(satoshis)
                 ? 'Amount above max limit'
                 : 'Continue',
@@ -317,7 +317,7 @@ export default function SendForm() {
     (lnUrlLimits.max && satoshis > lnUrlLimits.max) ||
     (lnUrlLimits.min && satoshis < lnUrlLimits.min) ||
     amountIsAboveMaxLimit(satoshis) ||
-    amountIsBelowMinLimit(satoshis) ||
+    satoshis < 1 ||
     aspInfo.unreachable ||
     satoshis > balance ||
     tryingToSelfSend ||

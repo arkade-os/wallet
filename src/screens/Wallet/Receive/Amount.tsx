@@ -32,7 +32,7 @@ export default function ReceiveAmount() {
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { calcReverseSwapFee } = useContext(LightningContext)
-  const { amountIsAboveMaxLimit, amountIsBelowMinLimit } = useContext(LimitsContext)
+  const { amountIsAboveMaxLimit } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { balance, svcWallet } = useContext(WalletContext)
 
@@ -81,8 +81,8 @@ export default function ReceiveAmount() {
     setButtonLabel(
       !satoshis
         ? defaultButtonLabel
-        : amountIsBelowMinLimit(satoshis)
-          ? 'Amount below min limit'
+        : satoshis < 1
+          ? 'Amount below 1 satoshi'
           : amountIsAboveMaxLimit(satoshis)
             ? 'Amount above max limit'
             : 'Continue',
@@ -121,7 +121,7 @@ export default function ReceiveAmount() {
   }
 
   const showFaucetButton = balance === 0 && faucetAvailable
-  const disabled = !satoshis ? false : amountIsBelowMinLimit(satoshis) || amountIsAboveMaxLimit(satoshis)
+  const disabled = !satoshis ? false : satoshis < 1 || amountIsAboveMaxLimit(satoshis)
 
   if (showKeys) {
     return <Keyboard back={() => setShowKeys(false)} hideBalance onChange={handleChange} value={amount} />
