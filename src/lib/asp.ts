@@ -1,45 +1,57 @@
-import { ExtendedVirtualCoin, IWallet, ArkNote, RestArkProvider } from '@arkade-os/sdk'
+import { IWallet, ArkNote, RestArkProvider } from '@arkade-os/sdk'
 import { consoleError, consoleLog } from './logs'
 import { Addresses, Satoshis, Tx } from './types'
 import { AspInfo } from '../providers/asp'
-import { vtxosRepository } from './db'
 
 export const emptyAspInfo: AspInfo = {
-  signerPubkey: '',
-  vtxoTreeExpiry: BigInt(0),
-  unilateralExitDelay: BigInt(0),
-  roundInterval: BigInt(0),
-  network: '',
+  boardingExitDelay: BigInt(0),
+  checkpointTapscript: '',
+  deprecatedSigners: [],
+  digest: '',
   dust: BigInt(0),
   forfeitAddress: '',
-  version: '',
+  forfeitPubkey: '',
+  fees: {
+    intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
+    txFeeRate: '',
+  },
+  network: '',
+  roundInterval: BigInt(0),
+  signerPubkey: '',
+  unilateralExitDelay: BigInt(0),
   utxoMinAmount: BigInt(333),
   utxoMaxAmount: BigInt(-1), // -1 means no limit (default), 0 means boarding not allowed
+  version: '',
   vtxoMinAmount: BigInt(1),
   vtxoMaxAmount: BigInt(-1), // -1 means no limit (default)
-  boardingExitDelay: BigInt(0),
+  vtxoTreeExpiry: BigInt(0),
   unreachable: false,
   url: '',
 }
 
 export const collaborativeExit = async (wallet: IWallet, amount: number, address: string): Promise<string> => {
-  const vtxos = await getVtxos()
+  const vtxos = await wallet.getVtxos()
   const selectedVtxos = []
   let selectedAmount = 0
+
   for (const vtxo of vtxos) {
     if (selectedAmount >= amount) break
     selectedVtxos.push(vtxo)
     selectedAmount += vtxo.value
   }
-  const changeAmount = selectedAmount - amount
+
+  if (selectedAmount < amount) throw new Error('Insufficient funds')
 
   const outputs = [{ address, amount: BigInt(amount) }]
+
+  const changeAmount = selectedAmount - amount
+
   if (changeAmount > 0) {
     const { offchainAddr } = await getReceivingAddresses(wallet)
     outputs.push({ address: offchainAddr, amount: BigInt(changeAmount) })
   }
 
-  return wallet.settle({ inputs: selectedVtxos, outputs }, consoleLog)
+  return wallet.settle({ inputs: selectedVtxos, outputs })
 }
 
 export const getAspInfo = async (url: string): Promise<AspInfo> => {
@@ -91,6 +103,8 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
   // sort by date, if have same date, put 'received' txs first
   txs.sort((a, b) => {
     if (a.createdAt === b.createdAt) return a.type === 'sent' ? -1 : 1
+    if (b.createdAt === 0) return 1 // tx with no date go to the top
+    if (a.createdAt === 0) return -1 // tx with no date go to the top
     return a.createdAt > b.createdAt ? -1 : 1
   })
   return txs
@@ -101,15 +115,6 @@ export const getReceivingAddresses = async (wallet: IWallet): Promise<Addresses>
   return {
     boardingAddr,
     offchainAddr,
-  }
-}
-
-async function getVtxos(): Promise<ExtendedVirtualCoin[]> {
-  try {
-    return vtxosRepository.getSpendableVtxos()
-  } catch (err) {
-    consoleError(err, 'error getting vtxos from DB')
-    return []
   }
 }
 

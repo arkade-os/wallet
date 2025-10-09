@@ -39,7 +39,7 @@ export default function ExpandAddresses({
   }
 
   const handleExpand = () => {
-    if (!expand) handleCopy(bip21uri)
+    if (!expand && bip21uri) handleCopy(bip21uri)
     setExpand(!expand)
   }
 
@@ -47,7 +47,7 @@ export default function ExpandAddresses({
     <FlexRow between onClick={() => onClick(value)}>
       <FlexCol gap='0'>
         <TextSecondary>{title}</TextSecondary>
-        <Text>{prettyLongText(value, 13)}</Text>
+        <Text>{prettyLongText(value, 12)}</Text>
       </FlexCol>
       <Shadow flex onClick={() => handleCopy(value)}>
         {copied === value ? <CheckMarkIcon /> : <CopyIcon />}

@@ -15,6 +15,7 @@ interface InputAmountProps {
   onChange: (arg0: any) => void
   onEnter?: () => void
   onFocus?: () => void
+  onMax?: () => void
   readOnly?: boolean
   right?: JSX.Element
   value?: number
@@ -29,6 +30,7 @@ export default function InputAmount({
   onChange,
   onEnter,
   onFocus,
+  onMax,
   readOnly,
   right,
   value,
@@ -89,6 +91,18 @@ export default function InputAmount({
           <IonText slot='end' style={{ ...fontStyle, marginLeft: '0.5rem' }}>
             {rightLabel}
           </IonText>
+          {onMax && !disabled && !readOnly ? (
+            <IonText
+              slot='end'
+              style={{ ...fontStyle, marginLeft: '0.5rem', color: 'var(--purpletext)', cursor: 'pointer' }}
+              onClick={onMax}
+              role='button'
+              tabIndex={0}
+              aria-label='Set maximum amount'
+            >
+              Max
+            </IonText>
+          ) : null}
         </IonInput>
       </InputContainer>
     </>

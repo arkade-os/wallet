@@ -1,18 +1,22 @@
-import { bech32m, hex } from '@scure/base'
-import { decode } from 'light-bolt11-decoder'
+import { hex } from '@scure/base'
+import { isValidInvoice } from './bolt11'
+import { ArkAddress } from '@arkade-os/sdk'
 
 export const decodeArkAddress = (addr: string) => {
-  const decoded = bech32m.decodeUnsafe(addr, 300)
-  if (!decoded) throw 'Error'
-  const buf = bech32m.fromWords(decoded.words)
+  const decoded = ArkAddress.decode(addr)
   return {
-    aspKey: hex.encode(buf.slice(0, 32)),
-    usrKey: hex.encode(buf.slice(32)),
+    serverPubKey: hex.encode(decoded.serverPubKey),
+    vtxoTaprootKey: hex.encode(decoded.vtxoTaprootKey),
   }
 }
 
 export const isArkAddress = (data: string): boolean => {
-  return /^t*ark1/.test(data)
+  try {
+    decodeArkAddress(data) // will throw if not valid
+  } catch {
+    return false
+  }
+  return true
 }
 
 export const isBTCAddress = (data: string): boolean => {
@@ -20,12 +24,7 @@ export const isBTCAddress = (data: string): boolean => {
 }
 
 export const isLightningInvoice = (data: string): boolean => {
-  try {
-    decode(data)
-    return true
-  } catch {
-    return false
-  }
+  return isValidInvoice(data)
 }
 
 export const isURLWithLightningQueryString = (data: string): boolean => {
@@ -34,7 +33,7 @@ export const isURLWithLightningQueryString = (data: string): boolean => {
     // Check if the URL has a 'lightning' query parameter
     const url = new URL(data)
     return url.searchParams.has('lightning')
-  } catch (e) {
+  } catch {
     return false
   }
 }

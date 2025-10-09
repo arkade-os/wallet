@@ -41,13 +41,14 @@ export default function SendSuccess() {
     return <></>
   }
 
-  const displayAmount = useFiat ? prettyAmount(toFiat(sendInfo.total), config.fiat) : prettyAmount(sendInfo.total ?? 0)
+  const totalSats = sendInfo.total ?? 0
+  const displayAmount = useFiat ? prettyAmount(toFiat(totalSats), config.fiat) : prettyAmount(totalSats)
 
   return (
     <>
       <Header text='Success' />
       <Content>
-        <Success headline='Transaction completed!' text={`Payment of ${displayAmount} sent successfully`} />
+        <Success headline='Payment sent!' text={`${displayAmount} sent successfully`} />
       </Content>
     </>
   )

@@ -1,0 +1,200 @@
+{
+  "lib": {
+    "address": {
+      "ark": [
+        {
+          "address": "tark1qplnj2gett9j483fchy6chaxn4y52c4g7n5djh9xua3ywdxw0ldatc3e9xcj9xpx0r5tmr0dgvu2f4s352muklg0tcxx0scnnkraajy9jgz4xl",
+          "serverPubKey": "7f3929195acb2a9e29c5c9ac5fa69d494562a8f4e8d95ca6e7624734ce7fdbd5",
+          "vtxoTaprootKey": "e23929b122982678e8bd8ded4338a4d611a2b7cb7d0f5e0c67c3139d87dec885"
+        },
+        {
+          "address": "tark1qqellv77udfmr20tun8dvju5vgudpf9vxe8jwhthrkn26fz96pawqfdy8nk05rsmrf8h94j26905e7n6sng8y059z8ykn2j5xcuw4xt846qj6x",
+          "serverPubKey": "33ffb3dee353b1a9ebe4ced64b946238d0a4ac364f275d771da6ad2445d07ae0",
+          "vtxoTaprootKey": "25a43cecfa0e1b1a4f72d64ad15f4cfa7a84d0723e8511c969aa543638ea9967"
+        }
+      ],
+      "btc": {
+        "address": "bcrt1pj7fdvrpdsn0cl6722tmcvwcw4yqpe46020g43nhgzl90qq4aqjrs33du9f"
+      }
+    },
+    "arknote": "arknoted5e23929b122982678e8bd8ded4338a4d611a2b7cb7d0f5e0c67c3139d87dec885",
+    "bip21": {
+      "valid": [
+        {
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "uri": "bitcoin:1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH"
+        },
+        {
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "uri": "bitcoin:1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH?",
+          "compliant": false
+        },
+        {
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "uri": "bitcoin://1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "compliant": false
+        },
+        {
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "uri": "bitcoin:1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH?label=Luke-Jr",
+          "options": {
+            "label": "Luke-Jr"
+          }
+        },
+        {
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "uri": "bitcoin:1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH?amount=0",
+          "options": {
+            "amount": 0
+          }
+        },
+        {
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "uri": "bitcoin://1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH?amount=0",
+          "compliant": false,
+          "options": {
+            "amount": 0
+          }
+        },
+        {
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "uri": "bitCOIN:1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH?amount=1",
+          "options": {
+            "amount": 1
+          }
+        },
+        {
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "uri": "BITcoin:1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH?amount=1.00",
+          "options": {
+            "amount": "1.00"
+          }
+        },
+        {
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "uri": "bitcoin:1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH?amount=20.3&label=Luke-Jr",
+          "options": {
+            "amount": 20.3,
+            "label": "Luke-Jr"
+          }
+        },
+        {
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "uri": "bitcoin:1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH?amount=50&label=Luke-Jr&message=Donation%20for%20project%20xyz",
+          "options": {
+            "amount": 50,
+            "label": "Luke-Jr",
+            "message": "Donation for project xyz"
+          }
+        },
+        {
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "uri": "BitCoin:1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH?amount=1&custom=foobar",
+          "options": {
+            "amount": 1,
+            "custom": "foobar"
+          }
+        },
+        {
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "uri": "BITCOIN:1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH?amount=0.200000&r=https%3A%2F%2Fbitpay.com%2Fi%2Fxxxxxxxxxxxxxxxxxxxxxx",
+          "options": {
+            "amount": "0.200000",
+            "r": "https://bitpay.com/i/xxxxxxxxxxxxxxxxxxxxxx"
+          }
+        },
+        {
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "uri": "bitcoin://1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH?amount=0.200000&r=https%3A%2F%2Fbitpay.com%2Fi%2Fxxxxxxxxxxxxxxxxxxxxxx",
+          "compliant": false,
+          "options": {
+            "amount": "0.200000",
+            "r": "https://bitpay.com/i/xxxxxxxxxxxxxxxxxxxxxx"
+          }
+        },
+        {
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "uri": "other:1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "urnScheme": "other"
+        }
+      ],
+      "invalid": [
+        {
+          "exception": "Invalid BIP21 URI",
+          "uri": "satoshi:1BgGZ9tcN4rm9KBzDn7KprQz87SZ26XXXX"
+        },
+        {
+          "exception": "Invalid amount",
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "uri": "bitcoin:1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH?amount=-1",
+          "options": {
+            "amount": -1
+          }
+        },
+        {
+          "exception": "Invalid amount",
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "options": {
+            "amount": "-1"
+          }
+        },
+        {
+          "exception": "Invalid amount",
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "uri": "bitcoin:1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH?amount=-1.00",
+          "options": {
+            "amount": -1
+          }
+        },
+        {
+          "exception": "Invalid amount",
+          "address": "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH",
+          "uri": "bitcoin:1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH?amount=two",
+          "options": {
+            "amount": "two"
+          }
+        },
+        {
+          "exception": "Invalid amount",
+          "uri": "bitcoin:1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH?amount=NaN"
+        },
+        {
+          "exception": "Invalid amount",
+          "uri": "bitcoin:1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH?amount=Infinity"
+        }
+      ],
+
+      "bip21": "bitcoin:bcrt1pj7fdvrpdsn0cl6722tmcvwcw4yqpe46020g43nhgzl90qq4aqjrs33du9f?ark=tark1qplnj2gett9j483fchy6chaxn4y52c4g7n5djh9xua3ywdxw0ldatc3e9xcj9xpx0r5tmr0dgvu2f4s352muklg0tcxx0scnnkraajy9jgz4xl&lightning=lnbcrt21u1p5tqtaypp56yzglgfgwsm5pd49996jqvtmpf8fqdk7cq2znnjw5c2j5t8ua38qdql2djkuepqw3hjqs2jfvsxzerywfjhxuccqz95xqztfsp586s5vpsdxt05rm7hr6ycwq5ffmnx2gngv820seugky6j6z2wxqwq9qxpqysgqepuxr82pvlp8lgj7nqu8yp2f5q32323jxddx9qgtjhfhsyzvftgkwx8qv4772fzz46pwyw5ex3u7lf7na8a8403ur3gyeu22gv29rpspefzz2y&amount=0.000021",
+      "address": "bcrt1pj7fdvrpdsn0cl6722tmcvwcw4yqpe46020g43nhgzl90qq4aqjrs33du9f",
+      "arkAddress": "tark1qplnj2gett9j483fchy6chaxn4y52c4g7n5djh9xua3ywdxw0ldatc3e9xcj9xpx0r5tmr0dgvu2f4s352muklg0tcxx0scnnkraajy9jgz4xl",
+      "invoice": "lnbcrt21u1p5tqtaypp56yzglgfgwsm5pd49996jqvtmpf8fqdk7cq2znnjw5c2j5t8ua38qdql2djkuepqw3hjqs2jfvsxzerywfjhxuccqz95xqztfsp586s5vpsdxt05rm7hr6ycwq5ffmnx2gngv820seugky6j6z2wxqwq9qxpqysgqepuxr82pvlp8lgj7nqu8yp2f5q32323jxddx9qgtjhfhsyzvftgkwx8qv4772fzz46pwyw5ex3u7lf7na8a8403ur3gyeu22gv29rpspefzz2y",
+      "satoshis": 2100
+    },
+    "bolt11": {
+      "amountSats": 2100,
+      "note": "The quick brown fox jumps over the lazy dog",
+      "paymentHash": "da9fa986cf48f56ad387495f8e840ea9ed10889bf82f67c8a7b10d5d8a27886c",
+      "invoice": "lnbc21u1pnk8larsp526g88ejh9ac0es9j6juxwenzdzvs6hcrphna5pp3jefpukmtk3hqpp5m206npk0fr6k45u8f90capqw48k3pzymlqhk0j98kyx4mz383pkqdz9235x2gr3w45kx6eqvfex7amwypnx77pqdf6k6urnyphhvetjyp6xsefqd3sh57fqv3hkwxqyp2xqcqz95rzjqv9ruzr6quwpsuwmyshlvenk0xm7djrtt8ugt2ja6cx3dkqtccdgvzzxeyqq28qqqqqqqqqqqqqqq9gq2y9qyysgqvu5k5w9q0xe62envhds058r9h8v5uak09hn3uzlw39sqkcuwh34j44gc53j6x6sg0u6yf6l0durxqqekytupxpf66zc7rc9cpav72ssqpcgv3p"
+    },
+    "lnurl": [
+      {
+        "lnUrlOrAddress": "lnurl1dp68gurn8ghj7urp0yh8xarpva5kueewvaskcmme9e5k7tewwajkcmpdddhx7amw9akxuatjd3cz7ar9wd6xjmn8h9qlv7",
+        "callback": "https://pay.staging.galoy.io/.well-known/lnurlp/testing"
+      },
+      {
+        "lnUrlOrAddress": "testing@pay.staging.galoy.io",
+        "callback": "https://pay.staging.galoy.io/.well-known/lnurlp/testing"
+      }
+    ],
+    "privatekey": {
+      "secret": {
+        "nsec": "nsec13374vlgh58p4sw9nrdc72rmf40x62qgvk6jac8rekwm872p0esesxqx6t5",
+        "hex": "8c7d567d17a1c35838b31b71e50f69abcda5010cb6a5dc1c79b3b67f282fcc33"
+      },
+      "public": {
+        "npub": "npub1lvnwe70kgqpta7jctmugtrfy8gk9ntc787449833a09356w4f0us7w9wej",
+        "hex": "fb26ecf9f64002befa585ef8858d243a2c59af1e3fab529e31ebcb1a69d54bf9"
+      }
+    }
+  }
+}

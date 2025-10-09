@@ -12,7 +12,8 @@ import { WalletContext } from '../../providers/wallet'
 import CenterScreen from '../../components/CenterScreen'
 import Text from '../../components/Text'
 import { consoleLog } from '../../lib/logs'
-import PasskeyIcon from '../../icons/Passkey'
+import { defaultPassword } from '../../lib/constants'
+import LockIcon from '../../icons/Lock'
 
 enum Method {
   Password = 'password',
@@ -26,7 +27,7 @@ export default function InitPassword() {
 
   const [label, setLabel] = useState('')
   const [method, setMethod] = useState<Method>(Method.Password)
-  const [password, setPassword] = useState('')
+  const [password, setPassword] = useState<string | null>(null)
 
   const registerUserBiometrics = () => {
     registerUser()
@@ -41,7 +42,8 @@ export default function InitPassword() {
   const handleCancel = () => navigate(Pages.Init)
 
   const handleContinue = () => {
-    setInitInfo({ ...initInfo, password })
+    const pass = password ? password : defaultPassword
+    setInitInfo({ ...initInfo, password: pass })
     navigate(Pages.InitSuccess)
   }
 
@@ -52,12 +54,12 @@ export default function InitPassword() {
         <Padded>
           {method === Method.Biometrics ? (
             <CenterScreen onClick={registerUserBiometrics}>
-              <PasskeyIcon />
+              <LockIcon big />
               <Text big centered>
                 Create passkey
               </Text>
               <Text centered color='dark50' small wrap>
-                This will allow you to log in easily through biometrics without a need to remember username or password.
+                This will allow you to log in easily through biometrics without a need to remember the password.
               </Text>
             </CenterScreen>
           ) : (
@@ -68,7 +70,7 @@ export default function InitPassword() {
       <ButtonsOnBottom>
         {method === Method.Password ? (
           <>
-            <Button onClick={handleContinue} label={label} disabled={!password} />
+            <Button onClick={handleContinue} label={label} />
             {isBiometricsSupported() ? (
               <Button onClick={() => setMethod(Method.Biometrics)} label='Use biometrics' secondary />
             ) : null}

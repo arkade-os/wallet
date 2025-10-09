@@ -4,7 +4,7 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
-import Error from '../../../components/Error'
+import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
 import Header from '../../../components/Header'
@@ -23,12 +23,15 @@ import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { LimitsContext } from '../../../providers/limits'
+import { LightningContext } from '../../../providers/lightning'
+import Text from '../../../components/Text'
 
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
+  const { calcReverseSwapFee } = useContext(LightningContext)
   const { amountIsAboveMaxLimit } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { balance, svcWallet } = useContext(WalletContext)
@@ -54,9 +57,8 @@ export default function ReceiveAmount() {
       .catch(() => {})
   }, [])
 
-  if (!svcWallet) return <Loading text='Loading...' />
-
   useEffect(() => {
+    if (!svcWallet) return
     getReceivingAddresses(svcWallet)
       .then(({ offchainAddr, boardingAddr }) => {
         if (!offchainAddr) throw 'Unable to get offchain address'
@@ -68,10 +70,11 @@ export default function ReceiveAmount() {
         consoleError(error, 'error getting addresses')
         setError(error)
       })
-  }, [])
+  }, [svcWallet])
 
   useEffect(() => {
-    setSatoshis(useFiat ? fromFiat(amount) : amount ?? 0)
+    const v = amount ?? 0
+    setSatoshis(useFiat ? fromFiat(v) : v)
   }, [amount])
 
   useEffect(() => {
@@ -79,12 +82,14 @@ export default function ReceiveAmount() {
       !satoshis
         ? defaultButtonLabel
         : satoshis < 1
-        ? 'Amount below 1 satoshi'
-        : amountIsAboveMaxLimit(satoshis)
-        ? 'Amount above max limit'
-        : 'Continue',
+          ? 'Amount below 1 satoshi'
+          : amountIsAboveMaxLimit(satoshis)
+            ? 'Amount above max limit'
+            : 'Continue',
     )
   }, [satoshis])
+
+  if (!svcWallet) return <Loading text='Loading...' />
 
   const handleChange = (amount: number) => {
     setAmount(amount)
@@ -139,7 +144,7 @@ export default function ReceiveAmount() {
       <>
         <Header text='Success' />
         <Content>
-          <Success headline='Faucet completed!' text={`${displayAmount} received from faucet successfully`} />
+          <Success headline='Faucet completed!' text={`${displayAmount} received successfully`} />
         </Content>
       </>
     )
@@ -151,7 +156,7 @@ export default function ReceiveAmount() {
       <Content>
         <Padded>
           <FlexCol>
-            <Error error={Boolean(error)} text={error} />
+            <ErrorMessage error={Boolean(error)} text={error} />
             <InputAmount
               focus={!isMobileBrowser}
               label='Amount'
@@ -160,6 +165,12 @@ export default function ReceiveAmount() {
               onFocus={handleFocus}
               value={amount}
             />
+            {amount ? (
+              <Text color='dark50' smaller>
+                In Lightning you'll receive: {prettyAmount(satoshis)} - {calcReverseSwapFee(satoshis)} ={' '}
+                {prettyAmount(Math.max(0, satoshis - calcReverseSwapFee(satoshis)))}
+              </Text>
+            ) : null}
           </FlexCol>
         </Padded>
       </Content>

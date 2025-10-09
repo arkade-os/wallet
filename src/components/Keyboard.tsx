@@ -7,7 +7,7 @@ import { FiatContext } from '../providers/fiat'
 import { prettyAmount } from '../lib/format'
 import { WalletContext } from '../providers/wallet'
 import { defaultFee } from '../lib/constants'
-import Error from './Error'
+import ErrorMessage from './Error'
 import Button from './Button'
 import ButtonsOnBottom from './ButtonsOnBottom'
 import { ConfigContext } from '../providers/config'
@@ -82,7 +82,7 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
       <Header auxFunc={auxFunc} auxText={auxText} back={back} text='Amount' />
       <Content>
         <FlexCol centered gap='0.5rem'>
-          <Error error={Boolean(error)} text={error} />
+          <ErrorMessage error={Boolean(error)} text={error} />
           <Text big centered>
             {primaryAmount}
           </Text>

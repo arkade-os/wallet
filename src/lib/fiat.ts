@@ -5,13 +5,6 @@ export interface FiatPrices {
   usd: number
 }
 
-export interface OracleResponse {
-  pricefeed: FiatPrices
-  timestamp: number
-  publickey: string
-  signature: string
-}
-
 export const getPriceFeed = async (): Promise<FiatPrices | undefined> => {
   try {
     const resp = await fetch('https://blockchain.info/ticker')

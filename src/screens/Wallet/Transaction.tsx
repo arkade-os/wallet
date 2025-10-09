@@ -7,7 +7,7 @@ import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
 import { prettyAgo, prettyDate, prettyDelta } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
-import Error from '../../components/Error'
+import ErrorMessage from '../../components/Error'
 import { extractError } from '../../lib/error'
 import Header from '../../components/Header'
 import Content from '../../components/Content'
@@ -21,22 +21,29 @@ import VtxosIcon from '../../icons/Vtxos'
 import CheckMarkIcon from '../../icons/CheckMark'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
+import { LimitsContext } from '../../providers/limits'
 
 export default function Transaction() {
-  const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { txInfo, setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { settlePreconfirmed, wallet } = useContext(WalletContext)
+  const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
+  const { txInfo, setTxInfo } = useContext(FlowContext)
+  const { aspInfo, calcBestMarketHour } = useContext(AspContext)
+  const { settlePreconfirmed, txs, wallet } = useContext(WalletContext)
 
   const tx = txInfo
-  const defaultButtonLabel = 'Settle Transaction'
+  const defaultButtonLabel = 'Settle transaction'
+  const boardingTx = Boolean(tx?.boardingTxid)
+  const confirmedBoardingTx = boardingTx && tx?.createdAt
+  const expiredBoardingTx = confirmedBoardingTx && Date.now() / 1000 - tx.createdAt > Number(aspInfo?.boardingExitDelay)
 
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
+  const [amountAboveDust, setAmountAboveDust] = useState(false)
   const [canSettleOnMarketHour, setCanSettleOnMarketHour] = useState(false)
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState('')
   const [reminderIsOpen, setReminderIsOpen] = useState(false)
   const [settleSuccess, setSettleSuccess] = useState(false)
+  const [resending, setResending] = useState(false)
   const [settling, setSettling] = useState(false)
   const [startTime, setStartTime] = useState(0)
 
@@ -60,7 +67,26 @@ export default function Transaction() {
     }
   }, [wallet.nextRollover])
 
+  useEffect(() => {
+    if (!txs?.length) return
+    const totalAmount =
+      txs
+        .filter((tx) => tx.settled === false)
+        .filter((tx) => tx.boardingTxid || tx.preconfirmed)
+        .reduce((a, v) => a + v.amount, 0) || 0
+    setAmountAboveDust(totalAmount > aspInfo.dust)
+  }, [txs])
+
   const handleBack = () => navigate(Pages.Wallet)
+
+  // TODO implement resend
+  //  - create new boarding tx
+  //  - update txInfo with new boarding txid
+  //  - show message that new boarding tx has been created
+  //  - if error, show error message
+  const handleResend = async () => {
+    setResending(true)
+  }
 
   const handleSettle = async () => {
     setError('')
@@ -80,8 +106,8 @@ export default function Transaction() {
 
   const details: DetailsProps = {
     direction: tx.type === 'sent' ? 'Sent' : 'Received',
-    when: prettyAgo(tx.createdAt),
-    date: prettyDate(tx.createdAt),
+    when: tx.createdAt ? prettyAgo(tx.createdAt) : confirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
+    date: tx.createdAt ? prettyDate(tx.createdAt) : confirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
     satoshis: tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
     fees: tx.type === 'sent' ? defaultFee : 0,
     total: tx.amount,
@@ -89,51 +115,80 @@ export default function Transaction() {
 
   const bestMarketHourStr = `${prettyDate(startTime)} (${prettyAgo(startTime, true)}) for ${prettyDelta(duration)}`
 
-  return (
-    <>
-      <Header text='Transaction' back={handleBack} />
-      <Content>
-        {settling ? (
-          <WaitingForRound settle />
-        ) : (
-          <Padded>
-            <FlexCol>
-              <Error error={Boolean(error)} text={error} />
-              {tx.settled ? null : (
-                <Info color='orange' icon={<VtxosIcon />} title='Preconfirmed'>
-                  <Text wrap>Transaction preconfirmed. Funds will be non-reversible after settlement.</Text>
-                  {canSettleOnMarketHour ? (
-                    <TextSecondary>
-                      Settlement during market hours offers lower fees.
-                      <br />
-                      Best market hour: {bestMarketHourStr}.
-                    </TextSecondary>
-                  ) : null}
-                </Info>
-              )}
-              {settleSuccess ? (
-                <Info color='green' icon={<CheckMarkIcon small />} title='Success'>
-                  <TextSecondary>Transaction settled successfully</TextSecondary>
-                </Info>
+  const Body = () => (
+    <Content>
+      <Padded>
+        <FlexCol>
+          <ErrorMessage error={Boolean(error)} text={error} />
+          {tx.settled ? null : expiredBoardingTx ? (
+            <Info color='red' icon={<VtxosIcon />} title='Expired'>
+              <Text wrap>Boarding transaction expired.</Text>
+            </Info>
+          ) : !confirmedBoardingTx ? (
+            <Info color='orange' icon={<VtxosIcon />} title='Unconfirmed'>
+              <Text wrap>Onchain transaction unconfirmed. Please wait for confirmation.</Text>
+            </Info>
+          ) : (
+            <Info color='orange' icon={<VtxosIcon />} title='Preconfirmed'>
+              <Text wrap>Transaction preconfirmed. Funds will be non-reversible after settlement.</Text>
+              {canSettleOnMarketHour ? (
+                <TextSecondary>
+                  Settlement during market hours offers lower fees.
+                  <br />
+                  Best market hour: {bestMarketHourStr}.
+                </TextSecondary>
               ) : null}
-              <Details details={details} />
-            </FlexCol>
-          </Padded>
-        )}
-      </Content>
-      {tx.settled ? null : (
+            </Info>
+          )}
+          {settleSuccess ? (
+            <Info color='green' icon={<CheckMarkIcon small />} title='Success'>
+              <TextSecondary>Transaction settled successfully</TextSecondary>
+            </Info>
+          ) : null}
+          <Details details={details} />
+        </FlexCol>
+      </Padded>
+    </Content>
+  )
+
+  // if server defines that UTXO transactions are not allowed,
+  // don't allow settlement since it is a UTXO transaction.
+  const showSettleButtons =
+    utxoTxsAllowed() &&
+    vtxoTxsAllowed() &&
+    confirmedBoardingTx &&
+    !expiredBoardingTx &&
+    amountAboveDust &&
+    !settleSuccess &&
+    !tx.settled &&
+    !settling
+
+  const Buttons = () =>
+    expiredBoardingTx ? (
+      <ButtonsOnBottom>
+        <Button onClick={handleResend} label='Resend' disabled={resending || true} />
+      </ButtonsOnBottom>
+    ) : showSettleButtons ? (
+      <>
         <ButtonsOnBottom>
           <Button onClick={handleSettle} label={buttonLabel} disabled={settling} />
           <Button onClick={() => setReminderIsOpen(true)} label='Add reminder' secondary />
         </ButtonsOnBottom>
-      )}
-      <Reminder
-        isOpen={reminderIsOpen}
-        callback={() => setReminderIsOpen(false)}
-        duration={duration}
-        name='Settle transaction'
-        startTime={startTime}
-      />
+        <Reminder
+          isOpen={reminderIsOpen}
+          callback={() => setReminderIsOpen(false)}
+          duration={duration}
+          name='Settle transaction'
+          startTime={startTime}
+        />
+      </>
+    ) : null
+
+  return (
+    <>
+      <Header text='Transaction' back={handleBack} />
+      {settling ? <WaitingForRound settle /> : <Body />}
+      <Buttons />
     </>
   )
 }

@@ -43,7 +43,7 @@ Start LND used by boltz:
 ```sh
 docker compose -f test.docker-compose.yml up -d boltz-lnd
 # Create an alias for lncli
-alias lncli="docker exec -it boltz-lnd lncli --network=regtest"
+alias lncli="docker exec -i boltz-lnd lncli --network=regtest"
 ```
 
 Fund LND wallet:
@@ -117,7 +117,7 @@ On your browser, go back to homepage of Fulmine, click on the pending tx and set
 Lastly, connect Fulmine with Boltz's LND instance. For this, you need an lndconnect URL that you can generate with:
 
 ```sh
-docker exec -i boltz-lnd bash -c \
+docker exec boltz-lnd bash -c \
   'echo -n "lndconnect://boltz-lnd:10009?cert=$(grep -v CERTIFICATE /root/.lnd/tls.cert \
      | tr -d = | tr "/+" "_-")&macaroon=$(base64 /root/.lnd/data/chain/bitcoin/regtest/admin.macaroon \
      | tr -d = | tr "/+" "_-")"' | tr -d '\n'

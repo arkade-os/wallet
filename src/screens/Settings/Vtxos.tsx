@@ -12,13 +12,14 @@ import { Vtxo } from '../../lib/types'
 import FlexRow from '../../components/FlexRow'
 import { ConfigContext } from '../../providers/config'
 import { extractError } from '../../lib/error'
-import Error from '../../components/Error'
+import ErrorMessage from '../../components/Error'
 import WaitingForRound from '../../components/WaitingForRound'
 import { AspContext, AspInfo } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { settleVtxos } from '../../lib/asp'
 import Loading from '../../components/Loading'
-import { EmptyCoins } from '../../components/Empty'
+import { LimitsContext } from '../../providers/limits'
+import { EmptyCoinsList } from '../../components/Empty'
 
 const Box = ({ children }: { children: ReactNode }) => {
   const style = {
@@ -49,10 +50,12 @@ const VtxoLine = ({ aspInfo, hide, vtxo }: { aspInfo: AspInfo; hide: boolean; vt
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
+  const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { vtxos, wallet, svcWallet } = useContext(WalletContext)
 
   const defaultLabel = 'Renew Virtual Coins'
 
+  const [aboveDust, setAboveDust] = useState(false)
   const [error, setError] = useState('')
   const [label, setLabel] = useState(defaultLabel)
   const [rollingover, setRollingover] = useState(false)
@@ -79,6 +82,12 @@ export default function Vtxos() {
       setDuration(0)
     }
   }, [wallet.nextRollover])
+
+  useEffect(() => {
+    if (!vtxos?.spendable?.length) return
+    const totalAmount = vtxos.spendable.reduce((a, v) => a + v.value, 0) || 0
+    setAboveDust(totalAmount > aspInfo.dust)
+  }, [vtxos])
 
   if (!svcWallet) return <Loading text='Loading...' />
 
@@ -107,9 +116,9 @@ export default function Vtxos() {
         ) : (
           <Padded>
             <FlexCol>
-              <Error error={Boolean(error)} text={error} />
+              <ErrorMessage error={Boolean(error)} text={error} />
               {vtxos.spendable?.length === 0 ? (
-                <EmptyCoins />
+                <EmptyCoinsList />
               ) : showList ? (
                 <FlexCol gap='0.5rem'>
                   <Text capitalize color='dark50' smaller>
@@ -122,7 +131,7 @@ export default function Vtxos() {
               ) : (
                 <>
                   <FlexCol gap='0.5rem' margin='0 0 1rem 0'>
-                    <Error error={Boolean(error)} text={error} />
+                    <ErrorMessage error={Boolean(error)} text={error} />
                     <Text capitalize color='dark50' smaller>
                       Next renewal
                     </Text>
@@ -154,17 +163,25 @@ export default function Vtxos() {
           </Padded>
         )}
       </Content>
-      <ButtonsOnBottom>
-        {vtxos.spendable.length > 0 ? <Button onClick={handleRollover} label={label} disabled={rollingover} /> : null}
-        {wallet.nextRollover ? <Button onClick={() => setReminderIsOpen(true)} label='Add reminder' secondary /> : null}
-      </ButtonsOnBottom>
-      <Reminder
-        callback={() => setReminderIsOpen(false)}
-        duration={duration}
-        isOpen={reminderIsOpen}
-        name='Virtual Coin Renewal'
-        startTime={wallet.nextRollover}
-      />
+      {utxoTxsAllowed() && vtxoTxsAllowed() && aboveDust ? (
+        <>
+          <ButtonsOnBottom>
+            {vtxos.spendable.length > 0 ? (
+              <Button onClick={handleRollover} label={label} disabled={rollingover} />
+            ) : null}
+            {wallet.nextRollover ? (
+              <Button onClick={() => setReminderIsOpen(true)} label='Add reminder' secondary />
+            ) : null}
+          </ButtonsOnBottom>
+          <Reminder
+            callback={() => setReminderIsOpen(false)}
+            duration={duration}
+            isOpen={reminderIsOpen}
+            name='Virtual Coin Renewal'
+            startTime={wallet.nextRollover}
+          />
+        </>
+      ) : null}
     </>
   )
 }

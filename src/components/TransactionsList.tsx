@@ -2,7 +2,7 @@ import { useContext } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
-import { prettyAmount, prettyDate, prettyHide, prettyLongText } from '../lib/format'
+import { prettyAmount, prettyDate, prettyHide } from '../lib/format'
 import PreconfirmedIcon from '../icons/Preconfirmed'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
@@ -24,17 +24,17 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
 
   const prefix = tx.type === 'sent' ? '-' : '+'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount) : prettyHide(tx.amount)}`
-  const txid = tx.explorable ? `(${prettyLongText(tx.explorable, 3)})` : ''
+  const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
 
   const Fiat = () => {
     const color =
       config.currencyDisplay === CurrencyDisplay.Both
         ? 'dark50'
         : tx.type === 'received'
-        ? 'green'
-        : tx.preconfirmed
-        ? 'orange'
-        : ''
+          ? 'green'
+          : tx.preconfirmed
+            ? 'orange'
+            : ''
     const value = toFiat(tx.amount)
     const small = config.currencyDisplay === CurrencyDisplay.Both
     const world = config.showBalance ? prettyAmount(value, config.fiat) : prettyHide(value, config.fiat)
@@ -56,12 +56,8 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
     ) : (
       <ReceivedIcon />
     )
-  const Kind = () => (
-    <Text thin>
-      {tx.type === 'sent' ? 'Sent' : 'Received'} {txid}
-    </Text>
-  )
-  const Date = () => <TextSecondary>{prettyDate(tx.createdAt)}</TextSecondary>
+  const Kind = () => <Text thin>{tx.type === 'sent' ? 'Sent' : 'Received'}</Text>
+  const Date = () => <TextSecondary>{date}</TextSecondary>
   const Sats = () => (
     <Text color={tx.preconfirmed ? 'orange' : tx.type === 'received' ? 'green' : ''} thin>
       {amount}

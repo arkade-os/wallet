@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
 import { ArkNote } from '@arkade-os/sdk'
-import Error from '../../../components/Error'
+import ErrorMessage from '../../../components/Error'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
@@ -53,7 +53,7 @@ export default function NotesForm() {
     navigate(Pages.Settings)
   }
 
-  if (scan) return <Scanner close={() => setScan(false)} label='Ark note' setData={setNote} setError={setError} />
+  if (scan) return <Scanner close={() => setScan(false)} label='Ark note' onData={setNote} onError={setError} />
 
   return (
     <>
@@ -61,7 +61,7 @@ export default function NotesForm() {
       <Content>
         <Padded>
           <FlexCol gap='2rem'>
-            <Error error={Boolean(error)} text={error} />
+            <ErrorMessage error={Boolean(error)} text={error} />
             <InputNote label='Ark note' onChange={setNote} openScan={() => setScan(true)} value={note} />
           </FlexCol>
         </Padded>

@@ -89,6 +89,11 @@ export const options: Option[] = [
     option: SettingsOptions.Display,
     section: SettingsSections.Config,
   },
+  {
+    icon: <></>,
+    option: SettingsOptions.Password,
+    section: SettingsSections.Advanced,
+  },
 ]
 
 export interface SectionResponse {
@@ -132,8 +137,8 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
       section === SettingsSections.Advanced
         ? SettingsOptions.Advanced
         : section === SettingsSections.Config
-        ? SettingsOptions.General
-        : SettingsOptions.Menu,
+          ? SettingsOptions.General
+          : SettingsOptions.Menu,
     )
   }
 

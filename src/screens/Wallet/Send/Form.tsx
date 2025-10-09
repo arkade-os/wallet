@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
 import Button from '../../../components/Button'
-import Error from '../../../components/Error'
+import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext, SendInfo } from '../../../providers/flow'
@@ -13,7 +13,6 @@ import {
   isURLWithLightningQueryString,
 } from '../../../lib/address'
 import { AspContext } from '../../../providers/asp'
-import * as bip21 from '../../../lib/bip21'
 import { isArkNote } from '../../../lib/arknote'
 import InputAmount from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
@@ -37,14 +36,17 @@ import { ArkNote } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
-import { calcSwapFee, LightningSwap } from '../../../lib/lightning'
 import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
+import { isRiga } from '../../../lib/constants'
+import { LightningContext } from '../../../providers/lightning'
+import { decodeBip21, isBip21 } from '../../../lib/bip21'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
+  const { swapProvider, connected, calcSubmarineSwapFee } = useContext(LightningContext)
   const { amountIsAboveMaxLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
@@ -52,12 +54,13 @@ export default function SendForm() {
 
   const [amount, setAmount] = useState<number>()
   const [amountIsReadOnly, setAmountIsReadOnly] = useState(false)
-  const [proceed, setProceed] = useState(false)
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
   const [label, setLabel] = useState('')
   const [lnUrlLimits, setLnUrlLimits] = useState<{ min: number; max: number }>({ min: 0, max: 0 })
   const [keys, setKeys] = useState(false)
+  const [nudgeBoltz, setNudgeBoltz] = useState(false)
+  const [proceed, setProceed] = useState(false)
   const [recipient, setRecipient] = useState('')
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
   const [satoshis, setSatoshis] = useState(0)
@@ -78,16 +81,15 @@ export default function SendForm() {
   useEffect(() => {
     smartSetError('')
     const parseRecipient = async () => {
+      setNudgeBoltz(false)
       if (!recipient) return
-
-      const lowerCaseData = recipient.toLowerCase()
-
+      const lowerCaseData = recipient.toLowerCase().replace(/^lightning:/, '')
       if (isURLWithLightningQueryString(recipient)) {
         const url = new URL(recipient)
         return setRecipient(url.searchParams.get('lightning')!)
       }
-      if (bip21.isBip21(lowerCaseData)) {
-        const { address, arkAddress, invoice, satoshis } = bip21.decode(lowerCaseData)
+      if (isBip21(lowerCaseData)) {
+        const { address, arkAddress, invoice, satoshis } = decodeBip21(lowerCaseData)
         if (!address && !arkAddress && !invoice) return setError('Unable to parse bip21')
         setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
         return setState({ address, arkAddress, invoice, recipient, satoshis })
@@ -96,6 +98,10 @@ export default function SendForm() {
         return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
       }
       if (isLightningInvoice(lowerCaseData)) {
+        if (!connected) {
+          setError('Lightning swaps not enabled')
+          return setNudgeBoltz(true)
+        }
         const satoshis = getInvoiceSatoshis(lowerCaseData)
         if (!satoshis) return setError('Invoice must have amount defined')
         setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
@@ -140,20 +146,20 @@ export default function SendForm() {
   useEffect(() => {
     if (!sendInfo.lnUrl) return
     if (sendInfo.lnUrl && sendInfo.invoice) return
-    checkLnUrlConditions(sendInfo.lnUrl).then((conditions) => {
-      if (!conditions) return setError('Unable to fetch LNURL conditions')
-      const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
-      const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
-      return setLnUrlLimits({ min, max })
-    })
+    checkLnUrlConditions(sendInfo.lnUrl)
+      .then((conditions) => {
+        if (!conditions) return setError('Unable to fetch LNURL conditions')
+        const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
+        const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
+        return setLnUrlLimits({ min, max })
+      })
+      .catch(() => setError('Invalid address or LNURL'))
   }, [sendInfo.lnUrl])
 
   // check if user wants to send all funds
   useEffect(() => {
     if (sendInfo.lnUrl && sendInfo.satoshis === balance) handleSendAll()
   }, [sendInfo.lnUrl])
-
-  console.log('SendForm: sendInfo', sendInfo)
 
   // validate recipient addresses
   useEffect(() => {
@@ -170,21 +176,21 @@ export default function SendForm() {
     }
     // check if server key is valid
     if (arkAddress && arkAddress.length > 0) {
-      const { aspKey } = decodeArkAddress(arkAddress)
-      const { aspKey: expectedAspKey } = decodeArkAddress(offchainAddr)
-      if (aspKey !== expectedAspKey) return setError('Invalid Ark server pubkey')
+      const { serverPubKey } = decodeArkAddress(arkAddress)
+      const { serverPubKey: expectedServerPubKey } = decodeArkAddress(offchainAddr)
+      if (serverPubKey !== expectedServerPubKey) setSendInfo({ ...sendInfo, arkAddress: '' })
     }
     // check if is trying to self send
     if (address === boardingAddr || arkAddress === offchainAddr) {
-      setError('Cannot send to yourself')
       setTryingToSelfSend(true) // nudge user to rollover
+      return setError('Cannot send to yourself')
     }
     // everything is ok, clean error
     setError('')
   }, [sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
 
   useEffect(() => {
-    setSatoshis(useFiat ? fromFiat(amount) : amount ?? 0)
+    setSatoshis(useFiat ? fromFiat(amount) : (amount ?? 0))
   }, [amount])
 
   useEffect(() => {
@@ -193,14 +199,14 @@ export default function SendForm() {
       satoshis > balance
         ? 'Insufficient funds'
         : lnUrlLimits.min && satoshis < lnUrlLimits.min
-        ? 'Amount below LNURL min limit'
-        : lnUrlLimits.max && satoshis > lnUrlLimits.max
-        ? 'Amount above LNURL max limit'
-        : satoshis < 1
-        ? 'Amount below 1 satoshi'
-        : amountIsAboveMaxLimit(satoshis)
-        ? 'Amount above max limit'
-        : 'Continue',
+          ? 'Amount below LNURL min limit'
+          : lnUrlLimits.max && satoshis > lnUrlLimits.max
+            ? 'Amount above LNURL max limit'
+            : satoshis < 1
+              ? 'Amount below 1 satoshi'
+              : amountIsAboveMaxLimit(satoshis)
+                ? 'Amount above max limit'
+                : 'Continue',
     )
   }, [satoshis])
 
@@ -212,8 +218,17 @@ export default function SendForm() {
   useEffect(() => {
     if (!proceed) return
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
-    if (!sendInfo.arkAddress && sendInfo.invoice && !sendInfo.pendingSwap) makeSubmarineSwap(sendInfo.invoice)
-    else navigate(Pages.SendDetails)
+    if (!sendInfo.arkAddress && sendInfo.invoice && !sendInfo.pendingSwap) {
+      const promise = swapProvider?.createSubmarineSwap(sendInfo.invoice)
+      if (promise) {
+        promise
+          .then((pendingSwap) => {
+            if (!pendingSwap) return setError('Unable to create swap')
+            setState({ ...sendInfo, pendingSwap })
+          })
+          .catch(handleError)
+      }
+    } else navigate(Pages.SendDetails)
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
 
   const setState = (info: SendInfo) => {
@@ -221,21 +236,13 @@ export default function SendForm() {
     setSendInfo(info)
   }
 
+  const gotoBoltzApp = () => {
+    navigate(Pages.AppBoltzSettings)
+  }
+
   const gotoRollover = () => {
     setOption(SettingsOptions.Vtxos)
     navigate(Pages.Settings)
-  }
-
-  const makeSubmarineSwap = async (invoice: string) => {
-    try {
-      const swapProvider = new LightningSwap(aspInfo, svcWallet)
-      const pendingSwap = await swapProvider.createSubmarineSwap(invoice)
-      if (!pendingSwap) return setError('Swap failed: Unable to create submarine swap')
-      setSendInfo({ ...sendInfo, satoshis: pendingSwap.response.expectedAmount, pendingSwap })
-    } catch (error) {
-      consoleError(error, 'Swap failed')
-      setError('Swap failed: ' + extractError(error))
-    }
   }
 
   const handleContinue = async () => {
@@ -273,13 +280,17 @@ export default function SendForm() {
     if (!recipient) return setFocus('recipient')
   }
 
+  const handleError = (err: any) => {
+    consoleError(err, 'error sending payment')
+    setError(extractError(err))
+  }
+
   const handleFocus = () => {
     if (isMobileBrowser) setKeys(true)
   }
 
   const handleSendAll = () => {
-    const fees = sendInfo.lnUrl ? calcSwapFee(balance) : 0
-    console.log('SendForm: handleSendAll', { fees, balance, satoshis })
+    const fees = sendInfo.lnUrl ? calcSubmarineSwapFee(balance) : 0
     setAmount(balance - fees)
   }
 
@@ -314,7 +325,7 @@ export default function SendForm() {
 
   if (scan)
     return (
-      <Scanner close={() => setScan(false)} label='Recipient address' setData={setRecipient} setError={smartSetError} />
+      <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
     )
 
   if (keys) return <Keyboard back={() => setKeys(false)} onChange={setAmount} value={amount} />
@@ -325,7 +336,7 @@ export default function SendForm() {
       <Content>
         <Padded>
           <FlexCol gap='2rem'>
-            <Error error={Boolean(error)} text={error} />
+            <ErrorMessage error={Boolean(error)} text={error} />
             <InputAddress
               focus={focus === 'recipient'}
               label='Recipient address'
@@ -342,14 +353,22 @@ export default function SendForm() {
               onChange={setAmount}
               onEnter={handleEnter}
               onFocus={handleFocus}
+              onMax={handleSendAll}
               readOnly={amountIsReadOnly}
               right={<Available />}
               value={amount}
             />
-            {tryingToSelfSend ? (
+            {tryingToSelfSend && !isRiga ? (
               <div style={{ width: '100%' }}>
                 <Text centered color='dark50' small>
                   Did you mean <a onClick={gotoRollover}>roll over your VTXOs</a>?
+                </Text>
+              </div>
+            ) : null}
+            {nudgeBoltz && swapProvider?.getApiUrl() ? (
+              <div style={{ width: '100%' }}>
+                <Text centered color='dark50' small>
+                  Enable <a onClick={gotoBoltzApp}>Lightning swaps</a> to pay
                 </Text>
               </div>
             ) : null}

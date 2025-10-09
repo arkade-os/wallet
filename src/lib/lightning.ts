@@ -1,47 +1,85 @@
 import {
-  Wallet,
   Network,
   decodeInvoice,
   ArkadeLightning,
   BoltzSwapProvider,
   PendingReverseSwap,
   PendingSubmarineSwap,
+  isSubmarineSwapRefundable,
 } from '@arkade-os/boltz-swap'
-import { RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
+import { RestArkProvider, RestIndexerProvider, Wallet, ServiceWorkerWallet } from '@arkade-os/sdk'
 import { AspInfo } from '../providers/asp'
+import { sendOffChain } from './asp'
+import { consoleError } from './logs'
 
-export class LightningSwap {
+export class LightningSwapProvider {
+  private readonly apiUrl: string
   private readonly provider: ArkadeLightning
-  private readonly swapProvider: BoltzSwapProvider
+  private readonly wallet: Wallet | ServiceWorkerWallet
 
-  constructor(aspInfo: AspInfo, wallet: Wallet) {
+  constructor(apiUrl: string, aspInfo: AspInfo, wallet: Wallet | ServiceWorkerWallet) {
+    const network = aspInfo.network as Network
     const arkProvider = new RestArkProvider(aspInfo.url)
-    const swapProvider = new BoltzSwapProvider({ network: aspInfo.network as Network })
+    const swapProvider = new BoltzSwapProvider({ apiUrl, network })
     const indexerProvider = new RestIndexerProvider(aspInfo.url)
 
-    this.swapProvider = swapProvider
+    this.apiUrl = apiUrl
+    this.wallet = wallet
     this.provider = new ArkadeLightning({ wallet, arkProvider, swapProvider, indexerProvider })
+  }
+
+  private someError = (error: any, message: string) => {
+    consoleError(error, message)
+    return new Error(message)
   }
 
   decodeInvoice = (invoice: string) => {
     return decodeInvoice(invoice)
   }
 
+  getApiUrl = () => {
+    return this.apiUrl
+  }
+
+  getFees = async () => {
+    return this.provider.getFees()
+  }
+
   getLimits = async () => {
-    return this.swapProvider.getLimits()
+    return this.provider.getLimits()
+  }
+
+  getSwapHistory = () => {
+    return this.provider.getSwapHistory()
+  }
+
+  refreshSwapsStatus = () => {
+    return this.provider.refreshSwapsStatus()
   }
 
   // receive
 
-  createReverseSwap = async (sats: number) => {
-    return this.provider.createReverseSwap({
+  createReverseSwap = async (sats: number): Promise<PendingReverseSwap> => {
+    if (!Number.isFinite(sats) || sats <= 0) throw new Error('Invalid amount')
+
+    const pendingSwap = await this.provider.createReverseSwap({
       amount: sats,
       description: 'Lightning Invoice',
     })
+    if (!pendingSwap) throw new Error('Failed to create reverse swap')
+
+    return pendingSwap
   }
 
   waitAndClaim = async (pendingSwap: PendingReverseSwap) => {
-    return this.provider.waitAndClaim(pendingSwap)
+    if (!pendingSwap) throw new Error('Invalid pending swap')
+
+    try {
+      await this.provider.waitAndClaim(pendingSwap)
+      return
+    } catch (e) {
+      throw this.someError(e, 'Error claiming VHTLC')
+    }
   }
 
   claimVHTLC = async (pendingSwap: PendingReverseSwap) => {
@@ -50,10 +88,37 @@ export class LightningSwap {
 
   // send
 
-  createSubmarineSwap = async (invoice: string) => {
-    return this.provider.createSubmarineSwap({
-      invoice,
-    })
+  payInvoice = async (pendingSwap: PendingSubmarineSwap): Promise<{ txid: string; preimage: string }> => {
+    if (!pendingSwap) throw new Error('No pending swap found')
+    if (!pendingSwap.response.address) throw new Error('No swap address found')
+    if (!pendingSwap.response.expectedAmount) throw new Error('No swap amount found')
+
+    const satoshis = pendingSwap.response.expectedAmount
+    const swapAddress = pendingSwap.response.address
+
+    const txid = await sendOffChain(this.wallet, satoshis, swapAddress)
+    if (!txid) throw new Error('Failed to send offchain payment')
+
+    try {
+      const { preimage } = await this.waitForSwapSettlement(pendingSwap)
+      return { txid, preimage }
+    } catch (e: unknown) {
+      const refundable = typeof (e as any)?.isRefundable === 'boolean' ? (e as any).isRefundable : false
+      if (!refundable) throw this.someError(e, 'Swap failed: VHTLC not refundable')
+      try {
+        await this.refundVHTLC(pendingSwap)
+      } catch (e) {
+        throw this.someError(e, 'Swap failed: VHTLC refund failed')
+      }
+      throw new Error('Swap failed: VHTLC refunded')
+    }
+  }
+
+  createSubmarineSwap = async (invoice: string): Promise<PendingSubmarineSwap> => {
+    if (!invoice) throw new Error('Invalid invoice')
+    const pendingSwap = await this.provider.createSubmarineSwap({ invoice })
+    if (!pendingSwap) throw new Error('Failed to create swap')
+    return pendingSwap
   }
 
   waitForSwapSettlement = async (pendingSwap: PendingSubmarineSwap) => {
@@ -63,8 +128,18 @@ export class LightningSwap {
   refundVHTLC = async (pendingSwap: PendingSubmarineSwap) => {
     return this.provider.refundVHTLC(pendingSwap)
   }
-}
 
-export const calcSwapFee = (satoshis: number): number => {
-  return Math.ceil(satoshis * 0.0001) // TODO: replace this
+  refundFailedSubmarineSwaps = async () => {
+    const swaps = await this.provider.getSwapHistory()
+
+    for (const swap of swaps.filter(isSubmarineSwapRefundable)) {
+      console.log('Refunding failed submarine swap', swap)
+      try {
+        await this.refundVHTLC(swap)
+        console.log('Successfully refunded swap:', swap.response.id)
+      } catch (e) {
+        consoleError(e, `Failed to refund swap ${swap.response.id}`)
+      }
+    }
+  }
 }

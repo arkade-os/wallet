@@ -17,7 +17,7 @@ import '@ionic/react/css/palettes/dark.class.css'
 import { ConfigContext } from './providers/config'
 import { IonApp, IonPage, IonTab, IonTabBar, IonTabButton, IonTabs, setupIonicReact } from '@ionic/react'
 import { NavigationContext, pageComponent, Pages, Tabs } from './providers/navigation'
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { OptionsContext } from './providers/options'
 import { IframeContext } from './providers/iframe'
 import { WalletContext } from './providers/wallet'
@@ -41,7 +41,13 @@ export default function App() {
   const { initInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
   const { walletLoaded, initialized, svcWallet, wallet } = useContext(WalletContext)
+
   const [loadingError, setLoadingError] = useState('')
+
+  // refs for the tabs to be able to programmatically activate them
+  const appsRef = useRef<HTMLIonTabElement>(null)
+  const walletRef = useRef<HTMLIonTabElement>(null)
+  const settingsRef = useRef<HTMLIonTabElement>(null)
 
   // lock screen orientation to portrait
   // this is a workaround for the issue with the screen orientation API
@@ -50,6 +56,7 @@ export default function App() {
   if (orientation && typeof orientation.lock === 'function') {
     orientation.lock('portrait').catch(() => {})
   }
+
   useEffect(() => {
     if (!configLoaded) {
       setLoadingError('')
@@ -70,7 +77,23 @@ export default function App() {
     if (!initialized) return navigate(Pages.Unlock)
   }, [walletLoaded, initialized, svcWallet, initInfo])
 
-  if (!svcWallet) return <Loading text={loadingError} />
+  // for some reason you need to manually set the active tab
+  // if you are coming from a page in a different tab
+  useEffect(() => {
+    switch (tab) {
+      case Tabs.Wallet:
+        walletRef.current?.setActive()
+        break
+      case Tabs.Apps:
+        appsRef.current?.setActive()
+        break
+      case Tabs.Settings:
+        settingsRef.current?.setActive()
+        break
+      default:
+        break
+    }
+  }, [tab])
 
   const handleWallet = () => {
     navigate(Pages.Wallet)
@@ -104,9 +127,15 @@ export default function App() {
           comp
         ) : (
           <IonTabs>
-            <IonTab tab={Tabs.Wallet}>{tab === Tabs.Wallet ? comp : <></>}</IonTab>
-            <IonTab tab={Tabs.Apps}>{tab === Tabs.Apps ? comp : <></>}</IonTab>
-            <IonTab tab={Tabs.Settings}>{tab === Tabs.Settings ? comp : <></>}</IonTab>
+            <IonTab ref={walletRef} tab={Tabs.Wallet}>
+              {tab === Tabs.Wallet ? comp : <></>}
+            </IonTab>
+            <IonTab ref={appsRef} tab={Tabs.Apps}>
+              {tab === Tabs.Apps ? comp : <></>}
+            </IonTab>
+            <IonTab ref={settingsRef} tab={Tabs.Settings}>
+              {tab === Tabs.Settings ? comp : <></>}
+            </IonTab>
             <IonTabBar slot='bottom'>
               <IonTabButton tab={Tabs.Wallet} selected={tab === Tabs.Wallet} onClick={handleWallet}>
                 <FlexCol centered gap='6px'>

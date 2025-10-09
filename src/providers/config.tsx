@@ -4,6 +4,7 @@ import { defaultArkServer } from '../lib/constants'
 import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
 
 const defaultConfig: Config = {
+  apps: { boltz: { connected: true } },
   aspUrl: defaultArkServer(),
   currencyDisplay: CurrencyDisplay.Both,
   fiat: Fiats.USD,
@@ -73,9 +74,9 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
       defaultConfig.aspUrl = 'http://localhost:7070'
       window.location.hash = ''
     }
-    const config = readConfigFromStorage() ?? { ...defaultConfig, theme: preferredTheme() }
-    if (!config.fiat) config.fiat = defaultConfig.fiat
-    if (!config.currencyDisplay) config.currencyDisplay = defaultConfig.currencyDisplay
+    let config = readConfigFromStorage() ?? { ...defaultConfig, theme: preferredTheme() }
+    // allow upgradability
+    config = { ...defaultConfig, ...config }
     updateConfig(config)
     setConfigLoaded(true)
   }, [configLoaded])

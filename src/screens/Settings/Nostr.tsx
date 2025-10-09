@@ -6,7 +6,7 @@ import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import { copyToClipboard } from '../../lib/clipboard'
 import { invalidNpub } from '../../lib/privateKey'
-import Error from '../../components/Error'
+import ErrorMessage from '../../components/Error'
 import Header from './Header'
 import Toggle from '../../components/Toggle'
 import { TextSecondary } from '../../components/Text'
@@ -50,7 +50,7 @@ export default function Nostr() {
   const showCopyButton = config.nostr && config.npub === npub && npub
   const showSaveButton = config.nostr && config.npub !== npub && !error
 
-  if (scan) return <Scanner close={() => setScan(false)} label='Nostr npub' setData={setNpub} setError={setError} />
+  if (scan) return <Scanner close={() => setScan(false)} label='Nostr npub' onData={setNpub} onError={setError} />
 
   return (
     <>
@@ -72,7 +72,7 @@ export default function Nostr() {
                   openScan={() => setScan(true)}
                   value={npub}
                 />
-                <Error error={Boolean(error)} text={error} />
+                <ErrorMessage error={Boolean(error)} text={error} />
               </FlexCol>
             ) : null}
           </FlexCol>
