@@ -125,10 +125,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const reloadWallet = async () => {
     if (!svcWallet) return
-    // update the txs history list
-    getTxHistory(svcWallet).then(setTxs).catch(consoleError)
-    // update the balance
-    getBalance(svcWallet).then(setBalance).catch(consoleError)
+    try {
+      const [txHistory, balance] = await Promise.all([getTxHistory(svcWallet), getBalance(svcWallet)])
+      setTxs(txHistory)
+      setBalance(balance)
+    } catch (err) {
+      consoleError(err, 'Error reloading wallet')
+      return
+    }
   }
 
   const initSvcWorkerWallet = async ({

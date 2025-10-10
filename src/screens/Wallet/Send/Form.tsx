@@ -290,7 +290,7 @@ export default function SendForm() {
   }
 
   const handleSendAll = () => {
-    const fees = sendInfo.lnUrl ? calcSubmarineSwapFee(balance) : 0
+    const fees = sendInfo.lnUrl ? (calcSubmarineSwapFee(balance) ?? 0) : 0
     setAmount(balance - fees)
   }
 

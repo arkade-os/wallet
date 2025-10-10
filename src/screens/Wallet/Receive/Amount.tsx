@@ -121,7 +121,7 @@ export default function ReceiveAmount() {
   }
 
   const showFaucetButton = balance === 0 && faucetAvailable
-  const showLightningFees = amount && validLnSwap(amount)
+  const showLightningFees = amount && validLnSwap(satoshis)
   const disabled = !satoshis ? false : satoshis < 1 || amountIsAboveMaxLimit(satoshis)
 
   if (showKeys) {

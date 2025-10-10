@@ -93,10 +93,11 @@ export default function Vtxos() {
 
   const VtxoLine = ({ vtxo }: { vtxo: Vtxo }) => {
     const amount = config.showBalance ? prettyNumber(vtxo.value) : prettyHide(vtxo.value)
+    const expiry = vtxo.virtualStatus?.batchExpiry ? prettyAgo(vtxo.virtualStatus.batchExpiry) : 'Unknown'
     return (
       <Box>
         <Text>{amount} SATS</Text>
-        <Text>{prettyAgo(vtxo.virtualStatus?.batchExpiry ?? 0)}</Text>
+        <Text>{expiry}</Text>
       </Box>
     )
   }
@@ -130,7 +131,6 @@ export default function Vtxos() {
               ) : (
                 <>
                   <FlexCol gap='0.5rem' margin='0 0 1rem 0'>
-                    <ErrorMessage error={Boolean(error)} text={error} />
                     <Text capitalize color='dark50' smaller>
                       Next renewal
                     </Text>
