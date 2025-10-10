@@ -10,6 +10,7 @@ import FujiMoneyIcon from '../../icons/FujiMoney'
 import { IonText } from '@ionic/react'
 import BoltzIcon from '../../icons/Boltz'
 import { NavigationContext, Pages } from '../../providers/navigation'
+import EscrowIcon from '../../icons/Escrow'
 import LendasatIcon from './Lendasat/LendasatIcon'
 import LendaswapIcon from './Lendaswap/LendaswapIcon'
 
@@ -114,6 +115,7 @@ export default function Apps() {
               page={Pages.AppLendaswap}
               live
             />
+            <App name='Escrow' icon={<EscrowIcon />} desc='Escrow system on Ark' link='' page={Pages.AppEscrow} live />
             <App name='Fuji Money' icon={<FujiMoneyIcon />} desc='Synthetic Assets on the Bitcoin network' />
           </FlexCol>
         </Padded>
