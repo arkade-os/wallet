@@ -7,11 +7,15 @@ import { getPrivateKey } from '../../../lib/privateKey'
 import { schnorr } from '@noble/curves/secp256k1'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
 import { Transaction } from '@scure/btc-signer'
+import { emptySendInfo, FlowContext } from '../../../providers/flow'
+import { IframeContext } from '../../../providers/iframe'
 
 export default function AppEscrow() {
-  // const { signin, signout, isSignedIn } = useContext(EscrowContext)
-  const { navigate } = useContext(NavigationContext)
+  const { navigate, screen, tab } = useContext(NavigationContext)
+  const { iframeUrl } = useContext(IframeContext)
+
   const { svcWallet } = useContext(WalletContext)
+  const { setRecvInfo, setSendInfo } = useContext(FlowContext)
 
   async function xOnlyPublicKey() {
     return svcWallet?.xOnlyPublicKey() ?? null
@@ -39,6 +43,18 @@ export default function AppEscrow() {
   async function signout() {
     return { ok: true }
   }
+  async function fundAddress(address: string, amount: number) {
+    setSendInfo({ arkAddress: address, satoshis: amount, text: 'Funding escrow address' })
+    navigate(Pages.SendDetails)
+    const walletTab = document.querySelector('ion-tab[tab="wallet"]')
+    if (walletTab) {
+      walletTab.className = walletTab.className
+        .split(' ')
+        .filter((c) => c !== 'tab-hidden')
+        .join(' ')
+    }
+    return Promise.resolve()
+  }
 
   const handlers: ArkadeIdentityHandlers = useMemo(
     () => ({
@@ -48,6 +64,7 @@ export default function AppEscrow() {
       signout,
       xOnlyPublicKey,
       getArkWalletAddress,
+      fundAddress,
     }),
     [],
   )
@@ -58,7 +75,7 @@ export default function AppEscrow() {
         // auxFunc={() => navigate(Pages.AppBoltzSettings)}
         // auxIcon={<SettingsIconLight />}
         text='Escrow on Ark'
-        back={() => navigate(Pages.Apps)}
+        back={() => navigate(Pages.SendDetails)}
       />
       <ArkadeIframeHost
         src='http://localhost:3001/'
