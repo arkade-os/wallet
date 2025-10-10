@@ -1,4 +1,4 @@
-import { useContext, useMemo, useState } from 'react'
+import { useContext, useMemo } from 'react'
 import Header from '../../../components/Header'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { ArkadeIdentityHandlers, ArkadeIframeHost } from './ArkadeIframeHost'
@@ -7,18 +7,16 @@ import { getPrivateKey } from '../../../lib/privateKey'
 import { schnorr } from '@noble/curves/secp256k1'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
 import { Transaction } from '@scure/btc-signer'
-import { emptySendInfo, FlowContext } from '../../../providers/flow'
-import { IframeContext } from '../../../providers/iframe'
+import { FlowContext } from '../../../providers/flow'
 
 export default function AppEscrow() {
-  const { navigate, screen, tab } = useContext(NavigationContext)
-  const { iframeUrl } = useContext(IframeContext)
+  const { navigate } = useContext(NavigationContext)
 
-  const { svcWallet } = useContext(WalletContext)
-  const { setRecvInfo, setSendInfo } = useContext(FlowContext)
+  const { svcWallet, wallet } = useContext(WalletContext)
+  const { setSendInfo } = useContext(FlowContext)
 
   async function xOnlyPublicKey() {
-    return svcWallet?.xOnlyPublicKey() ?? null
+    return wallet.pubkey ?? null
   }
 
   async function getArkWalletAddress() {
@@ -46,13 +44,13 @@ export default function AppEscrow() {
   async function fundAddress(address: string, amount: number) {
     setSendInfo({ arkAddress: address, satoshis: amount, text: 'Funding escrow address' })
     navigate(Pages.SendDetails)
-    const walletTab = document.querySelector('ion-tab[tab="wallet"]')
-    if (walletTab) {
-      walletTab.className = walletTab.className
-        .split(' ')
-        .filter((c) => c !== 'tab-hidden')
-        .join(' ')
-    }
+    // const walletTab = document.querySelector('ion-tab[tab="wallet"]')
+    // if (walletTab) {
+    //   walletTab.className = walletTab.className
+    //     .split(' ')
+    //     .filter((c) => c !== 'tab-hidden')
+    //     .join(' ')
+    // }
     return Promise.resolve()
   }
 
@@ -71,12 +69,7 @@ export default function AppEscrow() {
 
   return (
     <>
-      <Header
-        // auxFunc={() => navigate(Pages.AppBoltzSettings)}
-        // auxIcon={<SettingsIconLight />}
-        text='Escrow on Ark'
-        back={() => navigate(Pages.SendDetails)}
-      />
+      <Header text='Escrow on Ark' back={() => navigate(Pages.Apps)} />
       <ArkadeIframeHost
         src='http://localhost:3001/'
         allowedChildOrigins={['http://localhost:3001']}
