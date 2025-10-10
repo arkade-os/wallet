@@ -11,7 +11,7 @@ export default defineConfig({
     outDir: 'public',
     emptyOutDir: false,
     rollupOptions: {
-      external: ['fs', 'expo/fetch'],
+      external: ['fs'],
     },
   },
   worker: {
