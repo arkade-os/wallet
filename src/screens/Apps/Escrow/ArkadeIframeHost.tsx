@@ -47,6 +47,7 @@ export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, ha
         },
         fundAddress: async (address, amount) => {
           const result = await handlers.fundAddress(address, amount)
+          console.log(`[wallet] fundAddress result:`, result)
           return {
             address,
             requestedAmount: amount,
