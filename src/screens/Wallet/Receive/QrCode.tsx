@@ -86,14 +86,11 @@ export default function ReceiveQRCode() {
     const listenForPayments = (event: MessageEvent) => {
       let satoshis = 0
       if (event.data && event.data.type === 'VTXO_UPDATE') {
-        const funds = JSON.parse(event.data.message) as {
-          newVtxos: ExtendedVirtualCoin[]
-          spentVtxos: ExtendedVirtualCoin[]
-        }
-        satoshis = funds.newVtxos.reduce((acc, v) => acc + v.value, 0)
+        const newVtxos = event.data.newVtxos as ExtendedVirtualCoin[]
+        satoshis = newVtxos.reduce((acc, v) => acc + v.value, 0)
       }
       if (event.data && event.data.type === 'UTXO_UPDATE') {
-        const coins = JSON.parse(event.data.message) as Coin[]
+        const coins = event.data.coins as Coin[]
         satoshis = coins.reduce((acc, v) => acc + v.value, 0)
       }
       if (satoshis) {
