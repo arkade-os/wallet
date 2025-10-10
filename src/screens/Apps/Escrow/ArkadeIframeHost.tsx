@@ -10,7 +10,8 @@ export type ArkadeIdentityHandlers = {
   signerSession: () => Promise<unknown>
   signin: (challenge: string) => Promise<string>
   signout: () => Promise<unknown>
-  getArkWalletAddress: () => Promise<string>
+  getArkWalletAddress: () => Promise<string | undefined>
+  fundAddress: (address: string, amount: number) => Promise<unknown>
 }
 
 type Props = {
@@ -42,6 +43,14 @@ export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, ha
           return {
             signedTx: base64.encode(signedTx.toPSBT()),
             signedCheckpoints,
+          }
+        },
+        fundAddress: async (address, amount) => {
+          const result = await handlers.fundAddress(address, amount)
+          return {
+            address,
+            requestedAmount: amount,
+            fundedAmount: amount,
           }
         },
       }),
