@@ -20,6 +20,7 @@ import { settleVtxos } from '../../lib/asp'
 import Loading from '../../components/Loading'
 import { LimitsContext } from '../../providers/limits'
 import { EmptyCoinsList } from '../../components/Empty'
+import WarningBox from '../../components/Warning'
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -30,13 +31,14 @@ export default function Vtxos() {
   const defaultLabel = 'Renew Virtual Coins'
 
   const [aboveDust, setAboveDust] = useState(false)
+  const [duration, setDuration] = useState(0)
   const [error, setError] = useState('')
   const [label, setLabel] = useState(defaultLabel)
   const [rollingover, setRollingover] = useState(false)
   const [reminderIsOpen, setReminderIsOpen] = useState(false)
   const [showList, setShowList] = useState(false)
   const [startTime, setStartTime] = useState(0)
-  const [duration, setDuration] = useState(0)
+  const [success, setSuccess] = useState(false)
 
   useEffect(() => {
     setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
@@ -65,11 +67,17 @@ export default function Vtxos() {
 
   if (!svcWallet) return <Loading text='Loading...' />
 
+  const showSuccess = () => {
+    setSuccess(true)
+    setTimeout(() => setSuccess(false), 5000)
+  }
+
   const handleRollover = async () => {
     try {
       setRollingover(true)
       await settleVtxos(svcWallet)
       setRollingover(false)
+      showSuccess()
     } catch (err) {
       setError(extractError(err))
       setRollingover(false)
@@ -117,6 +125,7 @@ export default function Vtxos() {
           <Padded>
             <FlexCol>
               <ErrorMessage error={Boolean(error)} text={error} />
+              {success ? <WarningBox green text='Coins renewed successfully' /> : null}
               {vtxos.spendable?.length === 0 ? (
                 <EmptyCoinsList />
               ) : showList ? (
