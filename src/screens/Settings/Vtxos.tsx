@@ -65,11 +65,6 @@ export default function Vtxos() {
     setAboveDust(totalAmount > aspInfo.dust)
   }, [vtxos])
 
-  if (!svcWallet) return <Loading text='Loading...' />
-
-  // Replace the old showSuccess function with a cleaner version:
-  const showSuccess = () => setSuccess(true)
-
   // Automatically reset `success` after 5s, with cleanup on unmount or re-run
   useEffect(() => {
     if (!success) return
@@ -77,12 +72,14 @@ export default function Vtxos() {
     return () => clearTimeout(timeoutId)
   }, [success])
 
+  if (!svcWallet) return <Loading text='Loading...' />
+
   const handleRollover = async () => {
     try {
       setRollingover(true)
       await settleVtxos(svcWallet)
       setRollingover(false)
-      showSuccess()
+      setSuccess(true)
     } catch (err) {
       setError(extractError(err))
       setRollingover(false)
