@@ -37,7 +37,6 @@ import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
-import { isRiga } from '../../../lib/constants'
 import { LightningContext } from '../../../providers/lightning'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 
@@ -358,7 +357,7 @@ export default function SendForm() {
               right={<Available />}
               value={amount}
             />
-            {tryingToSelfSend && !isRiga ? (
+            {tryingToSelfSend ? (
               <div style={{ width: '100%' }}>
                 <Text centered color='dark50' small>
                   Did you mean <a onClick={gotoRollover}>roll over your VTXOs</a>?
