@@ -15,10 +15,15 @@ import { LimitsProvider } from './providers/limits'
 import { NudgeProvider } from './providers/nudge'
 import * as Sentry from '@sentry/react'
 import { LightningProvider } from './providers/lightning'
+import { shouldInitializeSentry } from './lib/sentry'
 
-Sentry.init({
-  dsn: import.meta.env.VITE_SENTRY_DSN,
-})
+// Initialize Sentry only in production and when DSN is provided
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN
+if (shouldInitializeSentry(sentryDsn)) {
+  Sentry.init({
+    dsn: sentryDsn,
+  })
+}
 
 const isValidUrl = (url: string) => {
   try {
