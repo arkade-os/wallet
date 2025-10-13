@@ -7,6 +7,7 @@
     "@arkade-os/boltz-swap": "0.2.1",
     "@arkade-os/sdk": "0.3.2",
     "@ionic/react": "^8.5.6",
+    "@lendasat/lendasat-wallet-bridge": "^0.0.3",
     "@noble/secp256k1": "3.0.0",
     "@scure/base": "2.0.0",
     "@scure/bip32": "2.0.0",
@@ -17,13 +18,13 @@
     "dexie": "^4.0.11",
     "dexie-react-hooks": "^1.1.7",
     "dompurify": "^3.2.6",
-    "wallet-bridge": "file://Users/bonomat/src/github/lendasat/lendasat/web/packages/wallet-bridge",
     "light-bolt11-decoder": "^3.2.0",
     "nostr-tools": "^2.12.0",
     "qr": "^0.4.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-qr-reader": "3.0.0-beta-1"
+    "react-qr-reader": "3.0.0-beta-1",
+    "wallet-bridge": "^0.1.70"
   },
   "scripts": {
     "prepare": "husky install",
