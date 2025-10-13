@@ -19,7 +19,6 @@ import { IonApp, IonPage, IonTab, IonTabBar, IonTabButton, IonTabs, setupIonicRe
 import { NavigationContext, pageComponent, Pages, Tabs } from './providers/navigation'
 import { useContext, useEffect, useRef, useState } from 'react'
 import { OptionsContext } from './providers/options'
-import { IframeContext } from './providers/iframe'
 import { WalletContext } from './providers/wallet'
 import { FlowContext } from './providers/flow'
 import { SettingsOptions } from './lib/types'
@@ -36,7 +35,6 @@ setupIonicReact()
 export default function App() {
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
-  const { iframeUrl } = useContext(IframeContext)
   const { navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
@@ -111,14 +109,6 @@ export default function App() {
   const page = configLoaded && (aspInfo.signerPubkey || aspInfo.unreachable) ? screen : Pages.Loading
 
   const comp = page === Pages.Loading ? <Loading text={loadingError} /> : pageComponent(page)
-
-  if (iframeUrl)
-    return (
-      <>
-        {comp}
-        <iframe src={iframeUrl} />
-      </>
-    )
 
   return (
     <IonApp>

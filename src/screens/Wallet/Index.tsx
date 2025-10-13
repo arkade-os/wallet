@@ -7,9 +7,6 @@ import { AspContext } from '../../providers/asp'
 import LogoIcon from '../../icons/Logo'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
-import { IframeContext } from '../../providers/iframe'
-import Minimal from '../../components/Minimal'
-import Text from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
 import Button from '../../components/Button'
 import SendIcon from '../../icons/Send'
@@ -23,7 +20,6 @@ import { EmptyTxList } from '../../components/Empty'
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
-  const { iframeUrl } = useContext(IframeContext)
   const { navigate } = useContext(NavigationContext)
   const { nudge } = useContext(NudgeContext)
   const { balance, txs } = useContext(WalletContext)
@@ -43,18 +39,6 @@ export default function Wallet() {
     setSendInfo(emptySendInfo)
     navigate(Pages.SendForm)
   }
-
-  if (iframeUrl)
-    return (
-      <Minimal>
-        <FlexCol gap='0'>
-          <Text capitalize color='dark50' tiny>
-            Balance
-          </Text>
-          <Text small>{balance} SATS</Text>
-        </FlexCol>
-      </Minimal>
-    )
 
   return (
     <Content>

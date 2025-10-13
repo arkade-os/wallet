@@ -11,8 +11,6 @@ import Content from '../../components/Content'
 import CenterScreen from '../../components/CenterScreen'
 import Text from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
-import { IframeContext } from '../../providers/iframe'
-import Minimal from '../../components/Minimal'
 import { deriveKeyFromSeed } from '../../lib/wallet'
 import SheetModal from '../../components/SheetModal'
 import WalletNewIcon from '../../icons/WalletNew'
@@ -21,7 +19,6 @@ import { defaultPassword } from '../../lib/constants'
 export default function Init() {
   const { aspInfo } = useContext(AspContext)
   const { setInitInfo } = useContext(FlowContext)
-  const { iframeUrl } = useContext(IframeContext)
   const { navigate } = useContext(NavigationContext)
 
   const [error, setError] = useState(false)
@@ -40,15 +37,6 @@ export default function Init() {
   }
 
   const handleOldWallet = () => navigate(Pages.InitRestore)
-
-  if (iframeUrl)
-    return (
-      <Minimal>
-        <FlexCol gap='0'>
-          <Text small>Initialize your wallet and then reload this page</Text>
-        </FlexCol>
-      </Minimal>
-    )
 
   return (
     <>
