@@ -59,7 +59,6 @@ export default function ReceiveQRCode() {
           const invoice = pendingSwap.response.invoice
           setRecvInfo({ ...recvInfo, invoice })
           setInvoice(invoice)
-          consoleLog('Reverse swap invoice created:', invoice)
           swapProvider
             .waitAndClaim(pendingSwap)
             .then(() => {
