@@ -67,10 +67,15 @@ export default function Vtxos() {
 
   if (!svcWallet) return <Loading text='Loading...' />
 
-  const showSuccess = () => {
-    setSuccess(true)
-    setTimeout(() => setSuccess(false), 5000)
-  }
+  // Replace the old showSuccess function with a cleaner version:
+  const showSuccess = () => setSuccess(true)
+
+  // Automatically reset `success` after 5s, with cleanup on unmount or re-run
+  useEffect(() => {
+    if (!success) return
+    const timeoutId = setTimeout(() => setSuccess(false), 5000)
+    return () => clearTimeout(timeoutId)
+  }, [success])
 
   const handleRollover = async () => {
     try {
