@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from 'react'
 import Button from '../../../components/Button'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import { emptySendInfo, FlowContext } from '../../../providers/flow'
+import { FlowContext } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Details, { DetailsProps } from '../../../components/Details'
@@ -17,16 +17,11 @@ import { extractError } from '../../../lib/error'
 import Loading from '../../../components/Loading'
 import { consoleError } from '../../../lib/logs'
 import WaitingForRound from '../../../components/WaitingForRound'
-import { IframeContext } from '../../../providers/iframe'
-import Minimal from '../../../components/Minimal'
-import Text from '../../../components/Text'
-import FlexRow from '../../../components/FlexRow'
 import { LimitsContext } from '../../../providers/limits'
 import { LightningContext } from '../../../providers/lightning'
 
 export default function SendDetails() {
   const { sendInfo, setSendInfo } = useContext(FlowContext)
-  const { iframeUrl } = useContext(IframeContext)
   const { calcSubmarineSwapFee, swapProvider } = useContext(LightningContext)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
@@ -37,7 +32,7 @@ export default function SendDetails() {
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
 
-  const { address, arkAddress, invoice, pendingSwap, satoshis, text } = sendInfo
+  const { address, arkAddress, invoice, pendingSwap, satoshis } = sendInfo
 
   useEffect(() => {
     if (!address && !arkAddress && !invoice) return setError('Missing address')
@@ -91,11 +86,6 @@ export default function SendDetails() {
     setSending(false)
   }
 
-  const handleCancel = () => {
-    setSendInfo(emptySendInfo)
-    navigate(Pages.Wallet)
-  }
-
   const handleContinue = async () => {
     if (!satoshis || !svcWallet) return
     setSending(true)
@@ -117,17 +107,6 @@ export default function SendDetails() {
       collaborativeExit(svcWallet, satoshis, address).then(handleTxid).catch(handleError)
     }
   }
-
-  if (iframeUrl)
-    return (
-      <Minimal>
-        <Text small>{text ?? `Pay ${satoshis}`}</Text>
-        <FlexRow gap='0.1rem' end>
-          <Button onClick={handleCancel} label='X' secondary small />
-          <Button onClick={handleContinue} label='Ok' disabled={Boolean(error)} small />
-        </FlexRow>
-      </Minimal>
-    )
 
   return (
     <>

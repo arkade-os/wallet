@@ -10,7 +10,6 @@ import { NavigationProvider } from './providers/navigation'
 import { NotificationsProvider } from './providers/notifications'
 import { WalletProvider } from './providers/wallet'
 import { OptionsProvider } from './providers/options'
-import { IframeProvider } from './providers/iframe'
 import { LimitsProvider } from './providers/limits'
 import { NudgeProvider } from './providers/nudge'
 import * as Sentry from '@sentry/react'
@@ -23,24 +22,6 @@ if (shouldInitializeSentry(sentryDsn)) {
   Sentry.init({
     dsn: sentryDsn,
   })
-}
-
-const isValidUrl = (url: string) => {
-  try {
-    new URL(url)
-    return true
-  } catch {
-    return false
-  }
-}
-
-const hash = window.location.hash
-const possibleUrl = hash.startsWith('#') ? hash.slice(1) : hash
-const hasIframe = isValidUrl(possibleUrl)
-
-const AppWithProviders = () => {
-  const baseApp = <App />
-  return hasIframe ? <IframeProvider>{baseApp}</IframeProvider> : baseApp
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
@@ -57,7 +38,7 @@ root.render(
                   <LimitsProvider>
                     <OptionsProvider>
                       <NudgeProvider>
-                        <AppWithProviders />
+                        <App />
                       </NudgeProvider>
                     </OptionsProvider>
                   </LimitsProvider>

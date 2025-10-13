@@ -3,7 +3,6 @@ import { Satoshis, TxType } from '../lib/types'
 import { AspContext } from './asp'
 import { consoleError } from '../lib/logs'
 import { WalletContext } from './wallet'
-import { isRiga } from '../lib/constants'
 import { LightningContext } from './lightning'
 
 type LimitsContextProps = {
@@ -165,7 +164,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const lnSwapsAllowed = () => limits.current.swap.max !== BigInt(0)
-  const utxoTxsAllowed = () => limits.current.utxo.max !== BigInt(0) && !isRiga
+  const utxoTxsAllowed = () => limits.current.utxo.max !== BigInt(0)
   const vtxoTxsAllowed = () => limits.current.vtxo.max !== BigInt(0)
 
   return (
