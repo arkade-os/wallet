@@ -12,6 +12,7 @@ import FujiMoneyIcon from '../../icons/FujiMoney'
 import { IonText } from '@ionic/react'
 import BoltzIcon from '../../icons/Boltz'
 import { NavigationContext, Pages } from '../../providers/navigation'
+import LendasatIcon from './Lendasat/LendasatIcon'
 
 const Tag = ({ kind }: { kind: 'new' | 'coming soon' }) => {
   const style = {
@@ -94,6 +95,15 @@ export default function Apps() {
               desc='Swap Bitcoin instantly between Arkade and the Lightning Network.'
               link='https://boltz.exchange/'
               page={Pages.AppBoltz}
+              live
+            />
+
+            <App
+              name='Lendasat'
+              icon={<LendasatIcon />}
+              desc='Borrow against your sats.'
+              link='https://lendasat.com'
+              page={Pages.AppLendasat}
               live
             />
             <App name='Ark Invaders' icon={<InvadersIcon />} desc='The classic arcade game' />
