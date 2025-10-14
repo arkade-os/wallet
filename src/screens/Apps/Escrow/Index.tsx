@@ -12,7 +12,7 @@ import { FlowContext } from '../../../providers/flow'
 export default function AppEscrow() {
   const { navigate } = useContext(NavigationContext)
 
-  const { svcWallet, wallet } = useContext(WalletContext)
+  const { svcWallet } = useContext(WalletContext)
   const { setSendInfo } = useContext(FlowContext)
 
   async function getXOnlyPublicKey() {

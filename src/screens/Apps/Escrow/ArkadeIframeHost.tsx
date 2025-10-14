@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import makeMessageHandler from './RpcHandler'
-import { bytesToHex } from '@noble/hashes/utils'
 import { Transaction } from '@scure/btc-signer'
 import { base64 } from '@scure/base'
-import { Point } from '@noble/secp256k1'
 
 export type ArkadeIdentityHandlers = {
   getXOnlyPublicKey: () => Promise<Uint8Array | null>
