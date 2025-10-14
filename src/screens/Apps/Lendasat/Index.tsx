@@ -10,10 +10,13 @@ import { AddressType, type LoanAsset, WalletProvider } from '@lendasat/lendasat-
 import { LimitsContext } from '../../../providers/limits'
 import { FlowContext } from '../../../providers/flow'
 import { getPrivateKey } from '../../../lib/privateKey'
+import { secp256k1 } from '@noble/curves/secp256k1.js'
+import { sha256 } from '@noble/hashes/sha2.js'
+import * as utils from '@noble/hashes/utils.js'
 import * as secp from '@noble/secp256k1'
-import { sha256} from '@noble/hashes/sha2.js';
-import * as utils from '@noble/hashes/utils.js';
+
 const { bytesToHex } = utils;
+
 
 
 export default function AppLendasat() {
@@ -82,7 +85,14 @@ export default function AppLendasat() {
           if (!wallet.pubkey) {
             throw new Error('No public key available')
           }
-          return wallet.pubkey
+
+          // TODO: it would be nice if we could either cache the password or the private key for the time being to not having to enter the password again.
+          const password = prompt('Password')
+          if (password == null) throw new Error('Password required for signing')
+          const privkey = await getPrivateKey(password)
+          const publicKeyBytes = secp.getPublicKey(privkey)
+
+          return bytesToHex(publicKeyBytes)
         },
         onGetDerivationPath: () => {
           console.log(`Called on get derivation path`)
@@ -122,7 +132,6 @@ export default function AppLendasat() {
           }
 
           // Get the private key from storage
-          // TODO: this doesn't seem to work
           const password = prompt('Password')
           if (password == null) throw new Error('Password required for signing')
           const privkey = await getPrivateKey(password)
@@ -131,10 +140,9 @@ export default function AppLendasat() {
           const messageHash = sha256(new TextEncoder().encode(message))
 
           // Sign with ECDSA (DER Format)
-          const signature = secp.sign(messageHash, privkey, { format: 'der' })
+          const signature = secp256k1.sign(messageHash, privkey, { format: 'der', prehash: false })
 
-          // Return signature as hex string
-          return bytesToHex(signature);
+          return bytesToHex(signature)
         },
       },
       ['http://localhost:5173'],
