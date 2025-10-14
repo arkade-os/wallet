@@ -15,8 +15,8 @@ export default function AppEscrow() {
   const { svcWallet, wallet } = useContext(WalletContext)
   const { setSendInfo } = useContext(FlowContext)
 
-  async function xOnlyPublicKey() {
-    return wallet.pubkey ?? null
+  async function getXOnlyPublicKey() {
+    return svcWallet?.identity.xOnlyPublicKey()
   }
 
   async function getArkWalletAddress() {
@@ -25,7 +25,7 @@ export default function AppEscrow() {
 
   async function sign(tx: Transaction, inputIndexes?: number[]): Promise<Transaction> {
     if (!svcWallet) throw new Error('Wallet not initialized')
-    const signed = await svcWallet.sign(tx, inputIndexes)
+    const signed = await svcWallet.identity.sign(tx, inputIndexes)
     return signed
   }
   async function signerSession() {
@@ -60,7 +60,7 @@ export default function AppEscrow() {
       signerSession,
       signin,
       signout,
-      xOnlyPublicKey,
+      getXOnlyPublicKey,
       getArkWalletAddress,
       fundAddress,
     }),
