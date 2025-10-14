@@ -81,12 +81,18 @@ export default function App() {
     switch (tab) {
       case Tabs.Wallet:
         walletRef.current?.setActive()
+        appsRef.current?.classList.add('tab-hidden')
+        settingsRef.current?.classList.add('tab-hidden')
         break
       case Tabs.Apps:
         appsRef.current?.setActive()
+        walletRef.current?.classList.add('tab-hidden')
+        settingsRef.current?.classList.add('tab-hidden')
         break
       case Tabs.Settings:
         settingsRef.current?.setActive()
+        walletRef.current?.classList.add('tab-hidden')
+        appsRef.current?.classList.add('tab-hidden')
         break
       default:
         break
