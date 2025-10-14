@@ -26,7 +26,7 @@ export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { vtxos, wallet, svcWallet } = useContext(WalletContext)
+  const { reloadWallet, vtxos, wallet, svcWallet } = useContext(WalletContext)
 
   const defaultLabel = 'Renew Virtual Coins'
 
@@ -78,6 +78,7 @@ export default function Vtxos() {
     try {
       setRollingover(true)
       await settleVtxos(svcWallet)
+      await reloadWallet()
       setRollingover(false)
       setSuccess(true)
     } catch (err) {
@@ -127,7 +128,6 @@ export default function Vtxos() {
           <Padded>
             <FlexCol>
               <ErrorMessage error={Boolean(error)} text={error} />
-              {success ? <WarningBox green text='Coins renewed successfully' /> : null}
               {vtxos.spendable?.length === 0 ? (
                 <EmptyCoinsList />
               ) : showList ? (
@@ -138,6 +138,7 @@ export default function Vtxos() {
                   {vtxos.spendable?.map((v: Vtxo) => (
                     <VtxoLine key={v.txid} vtxo={v} />
                   ))}
+                  {success ? <WarningBox green text='Coins renewed successfully' /> : null}
                 </FlexCol>
               ) : (
                 <>
@@ -149,6 +150,7 @@ export default function Vtxos() {
                       <Text>{prettyDate(wallet.nextRollover)}</Text>
                       <Text>{prettyAgo(wallet.nextRollover)}</Text>
                     </Box>
+                    {success ? <WarningBox green text='Coins renewed successfully' /> : null}
                   </FlexCol>
                   <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
                     <TextSecondary>First virtual coin expiration: {prettyAgo(wallet.nextRollover)}.</TextSecondary>

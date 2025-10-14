@@ -1,6 +1,6 @@
 import { IWallet, ArkNote, RestArkProvider } from '@arkade-os/sdk'
 import { consoleError, consoleLog } from './logs'
-import { Addresses, Satoshis, Tx } from './types'
+import { Addresses, Satoshis, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
 
 const emptyFees = {
@@ -117,6 +117,17 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
     return a.createdAt > b.createdAt ? -1 : 1
   })
   return txs
+}
+
+export const getVtxos = async (wallet: IWallet): Promise<{ spendable: Vtxo[]; spent: Vtxo[] }> => {
+  const vtxos = await wallet.getVtxos({ withRecoverable: true })
+  const spendable: Vtxo[] = []
+  const spent: Vtxo[] = []
+  for (const vtxo of vtxos) {
+    if (vtxo.spentBy && vtxo.spentBy.length > 0) spent.push(vtxo)
+    else spendable.push(vtxo)
+  }
+  return { spendable, spent }
 }
 
 export const getReceivingAddresses = async (wallet: IWallet): Promise<Addresses> => {

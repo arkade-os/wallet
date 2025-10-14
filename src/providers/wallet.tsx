@@ -2,7 +2,7 @@ import { ReactNode, createContext, useContext, useEffect, useRef, useState } fro
 import { clearStorage, readWalletFromStorage, saveWalletToStorage } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
-import { getBalance, getTxHistory, settleVtxos } from '../lib/asp'
+import { getBalance, getTxHistory, getVtxos, settleVtxos } from '../lib/asp'
 import { AspContext } from './asp'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
@@ -12,7 +12,6 @@ import { Tx, Vtxo, Wallet } from '../lib/types'
 import { calcNextRollover } from '../lib/wallet'
 import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
-
 import * as secp from '@noble/secp256k1'
 
 const defaultWallet: Wallet = {
@@ -27,7 +26,7 @@ interface WalletContextProps {
   settlePreconfirmed: () => Promise<void>
   updateWallet: (w: Wallet) => void
   isLocked: () => Promise<boolean>
-  reloadWallet: () => Promise<void>
+  reloadWallet: (svcWallet?: ServiceWorkerWallet) => Promise<void>
   wallet: Wallet
   walletLoaded: boolean
   svcWallet: ServiceWorkerWallet | undefined
@@ -76,26 +75,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setWalletLoaded(true)
   }, [])
 
+  // reload wallet as soon as we have a service worker wallet available
   useEffect(() => {
     if (svcWallet) reloadWallet().catch(consoleError)
   }, [svcWallet])
-
-  // update vtxos when balance changes
-  useEffect(() => {
-    if (!svcWallet) return
-    svcWallet
-      .getVtxos({ withRecoverable: true })
-      .then((vtxos) => {
-        const spendable: Vtxo[] = []
-        const spent: Vtxo[] = []
-        for (const vtxo of vtxos) {
-          if (vtxo.spentBy && vtxo.spentBy.length > 0) spent.push(vtxo)
-          else spendable.push(vtxo)
-        }
-        setVtxos({ spendable, spent })
-      })
-      .catch(consoleError)
-  }, [balance, svcWallet])
 
   // update next rollover when vtxos change
   useEffect(() => {
@@ -123,10 +106,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     navigate(noteInfo.satoshis ? Pages.NotesRedeem : Pages.Wallet)
   }, [initialized, noteInfo.satoshis])
 
-  const reloadWallet = async () => {
-    if (!svcWallet) return
+  const reloadWallet = async (swWallet = svcWallet) => {
+    if (!swWallet) return
     try {
-      const [txHistory, balance] = await Promise.all([getTxHistory(svcWallet), getBalance(svcWallet)])
+      const [txHistory, balance, vtxos] = await Promise.all([
+        getTxHistory(swWallet),
+        getBalance(swWallet),
+        getVtxos(swWallet),
+      ])
+      setVtxos(vtxos)
       setTxs(txHistory)
       setBalance(balance)
     } catch (err) {
@@ -157,14 +145,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // handle messages from the service worker
       // we listen for UTXO/VTXO updates to refresh the tx history and balance
       const handleServiceWorkerMessages = (event: MessageEvent) => {
-        const reloadWallet = () => {
-          getTxHistory(svcWallet).then(setTxs).catch(consoleError)
-          getBalance(svcWallet).then(setBalance).catch(consoleError)
-        }
         if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
-          reloadWallet()
+          reloadWallet(svcWallet)
           // reload again after a delay to give the indexer time to update its cache
-          setTimeout(reloadWallet, 5000)
+          setTimeout(() => reloadWallet(svcWallet), 5000)
         }
       }
 
