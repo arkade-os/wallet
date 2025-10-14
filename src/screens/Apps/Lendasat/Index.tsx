@@ -9,13 +9,18 @@ import { WalletContext } from '../../../providers/wallet'
 import { AddressType, type LoanAsset, WalletProvider } from '@lendasat/lendasat-wallet-bridge'
 import { LimitsContext } from '../../../providers/limits'
 import { FlowContext } from '../../../providers/flow'
-import { getPrivateKey } from '../../../lib/privateKey'
-import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import * as utils from '@noble/hashes/utils.js'
 import * as secp from '@noble/secp256k1'
+import { secp256k1 } from '@noble/curves/secp256k1.js'
+import { hmac } from '@noble/hashes/hmac.js'
 
 const { bytesToHex } = utils
+
+// Set up SHA256 for @noble/secp256k1
+secp.hashes.sha256 = sha256
+secp.hashes.hmacSha256 = (key, msg) => hmac(sha256, key, msg)
+
 
 export default function AppLendasat() {
   const { navigate } = useContext(NavigationContext)
@@ -79,17 +84,12 @@ export default function AppLendasat() {
           }
         },
         onGetPublicKey: async () => {
-          if (!wallet.pubkey) {
-            throw new Error('No public key available')
+          if (!svcWallet) {
+            throw new Error('Wallet not initialized')
           }
 
-          // TODO: it would be nice if we could either cache the password or the private key for the time being to not having to enter the password again.
-          const password = prompt('Password')
-          if (password == null) throw new Error('Password required for signing')
-          const privkey = await getPrivateKey(password)
-          const publicKeyBytes = secp.getPublicKey(privkey)
-
-          return bytesToHex(publicKeyBytes)
+          const pk = await svcWallet.identity.compressedPublicKey()
+          return bytesToHex(pk)
         },
         onGetDerivationPath: () => {
           console.log(`Called on get derivation path`)
@@ -128,18 +128,16 @@ export default function AppLendasat() {
             throw new Error('Wallet not initialized')
           }
 
-          // Get the private key from storage
-          const password = prompt('Password')
-          if (password == null) throw new Error('Password required for signing')
-          const privkey = await getPrivateKey(password)
-
           // Hash the message with SHA256
           const messageHash = sha256(new TextEncoder().encode(message))
 
-          // Sign with ECDSA (DER Format)
-          const signature = secp256k1.sign(messageHash, privkey, { format: 'der', prehash: false })
+          // Get signature in compact format (64 bytes: r + s)
+          const signatureBytes = await svcWallet.identity.signMessage(messageHash, 'ecdsa')
 
-          return bytesToHex(signature)
+          // Convert compact signature to DER format using @noble/curves/secp256k1
+          // The Signature class from @noble/curves supports DER encoding
+          const sig = secp256k1.Signature.fromBytes(signatureBytes);
+          return sig.toHex('der')
         },
       },
       ['http://localhost:5173'],
