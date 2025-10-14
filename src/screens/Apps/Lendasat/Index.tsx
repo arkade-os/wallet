@@ -6,18 +6,22 @@ import FlexCol from '../../../components/FlexCol'
 import { SettingsIconLight } from '../../../icons/Settings'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
-import { WalletProvider, AddressType, type LoanAsset } from '@lendasat/lendasat-wallet-bridge'
+import { AddressType, type LoanAsset, WalletProvider } from '@lendasat/lendasat-wallet-bridge'
 import { LimitsContext } from '../../../providers/limits'
 import { FlowContext } from '../../../providers/flow'
-import Dexie from 'dexie'
-import Promise = Dexie.Promise
+import { getPrivateKey } from '../../../lib/privateKey'
+import * as secp from '@noble/secp256k1'
+import { sha256} from '@noble/hashes/sha2.js';
+import * as utils from '@noble/hashes/utils.js';
+const { bytesToHex } = utils;
+
 
 export default function AppLendasat() {
   const { navigate } = useContext(NavigationContext)
   const { wallet, svcWallet } = useContext(WalletContext)
-  const { validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
+  const { validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
 
-  const { recvInfo, setRecvInfo } = useContext(FlowContext)
+  const { recvInfo, } = useContext(FlowContext)
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
   const address = validUtxoTx(satoshis) && utxoTxsAllowed() ? boardingAddr : ''
   const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
@@ -29,58 +33,112 @@ export default function AppLendasat() {
 
     const provider = new WalletProvider(
       {
-        onSendToAddress(address: string, amount: number, asset: 'bitcoin' | LoanAsset): string | Promise<string> {
-          throw new Error('not implemented yet');
+
+        capabilities: {
+          bitcoin: {
+            signPsbt: true,
+            sendBitcoin: true,
+          },
+          loanAssets: {
+            supportedAssets: [],
+            canReceive: false, // Not implemented
+            canSend: false, // Not yet implemented
+          },
+          nostr: {
+            hasNpub: false, // Not available in this integration
+          },
+          ark: {
+            canSend: true,
+            canReceive: true,
+          },
         },
-        onGetPublicKey: () => {
-          console.log(`Called on get pk`);
-          if (!wallet.pubkey) {
-            throw new Error('No public key available');
+        async onSendToAddress(address: string, amount: number, asset: 'bitcoin' | LoanAsset): Promise<string> {
+          switch (asset) {
+            case 'bitcoin':
+              const txId = await svcWallet?.sendBitcoin({ amount: amount, address: address })
+              if (txId) {
+                return txId
+              } else {
+                throw new Error('Unable to send bitcoin')
+              }
+            case 'UsdcPol':
+            case 'UsdtPol':
+            case 'UsdcEth':
+            case 'UsdtEth':
+            case 'UsdcStrk':
+            case 'UsdtStrk':
+            case 'UsdcSol':
+            case 'UsdtSol':
+            case 'UsdtLiquid':
+              throw new Error('Unable to send non btc assets')
+            case 'Usd':
+            case 'Eur':
+            case 'Chf':
+            case 'Mxn':
+              throw new Error('Unable to send fiat')
           }
-          return wallet.pubkey;
+        },
+        onGetPublicKey: async () => {
+          if (!wallet.pubkey) {
+            throw new Error('No public key available')
+          }
+          return wallet.pubkey
         },
         onGetDerivationPath: () => {
-          console.log(`Called on get derivation path`);
+          console.log(`Called on get derivation path`)
           // this is just a dummy one as arkade wallet uses a single key
-          return "m/84'/0'/0'/0/0";
+          return "m/84'/0'/0'/0/0"
         },
         onGetAddress: async (addressType: AddressType, asset?: LoanAsset) => {
-          console.log(
-            `Called on get address: type=${addressType}, asset=${asset}`,
-          );
+          console.log(`Called on get address: type=${addressType}, asset=${asset}`)
 
           switch (addressType) {
             case AddressType.ARK:
-              return arkAddress;
+              return arkAddress
 
             case AddressType.BITCOIN:
-              throw address;
+              throw address
 
             case AddressType.LOAN_ASSET:
-              throw new Error(`Unsupported address type: ${addressType}`);
+              throw new Error(`Unsupported address type: ${addressType}`)
 
             default:
-              throw new Error(`Unknown address type: ${addressType}`);
+              throw new Error(`Unknown address type: ${addressType}`)
           }
         },
         onGetNpub: () => {
-          console.log(`Called on get npub`);
+          console.log(`Called on get npub`)
           // Optional - returning null for now
-          throw new Error(`NPubs are not supported`);
+          throw new Error(`NPubs are not supported`)
         },
         onSignPsbt: (psbt: string) => {
-          console.log(`Called sign psbt ${psbt}`);
+          console.log(`Called sign psbt ${psbt}`)
           // TODO: Implement PSBT signing
-          return null as any;
+          return null as any
         },
-        onGetApiKey: () => {
-          console.log(`Called on get API key`);
-          // TODO: Implement API key retrieval
-          return 'lndst_sk_dee619e34a7e_NI2TUiMmYF9TcBavaFhUW0rZ63QOIsoldG1w0YdFMpR';
-        }
+        async onSignMessage(message: string): Promise<string> {
+          if (!svcWallet) {
+            throw new Error('Wallet not initialized');
+          }
+
+          // Get the private key from storage
+          // TODO: this doesn't seem to work
+          const password = prompt('Password')
+          if (password == null) throw new Error('Password required for signing')
+          const privkey = await getPrivateKey(password)
+
+          // Hash the message with SHA256
+          const messageHash = sha256(new TextEncoder().encode(message))
+
+          // Sign with ECDSA (DER Format)
+          const signature = secp.sign(messageHash, privkey, { format: 'der' })
+
+          // Return signature as hex string
+          return bytesToHex(signature);
+        },
       },
       ['http://localhost:5173'],
-    );
+    )
 
     provider.listen(iframeRef.current);
 
