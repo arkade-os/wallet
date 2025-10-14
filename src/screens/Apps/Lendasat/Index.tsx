@@ -15,28 +15,25 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import * as utils from '@noble/hashes/utils.js'
 import * as secp from '@noble/secp256k1'
 
-const { bytesToHex } = utils;
-
-
+const { bytesToHex } = utils
 
 export default function AppLendasat() {
   const { navigate } = useContext(NavigationContext)
   const { wallet, svcWallet } = useContext(WalletContext)
   const { validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
 
-  const { recvInfo, } = useContext(FlowContext)
+  const { recvInfo } = useContext(FlowContext)
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
   const address = validUtxoTx(satoshis) && utxoTxsAllowed() ? boardingAddr : ''
   const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
 
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
-    if (!iframeRef.current) return;
+    if (!iframeRef.current) return
 
     const provider = new WalletProvider(
       {
-
         capabilities: {
           bitcoin: {
             signPsbt: true,
@@ -128,7 +125,7 @@ export default function AppLendasat() {
         },
         async onSignMessage(message: string): Promise<string> {
           if (!svcWallet) {
-            throw new Error('Wallet not initialized');
+            throw new Error('Wallet not initialized')
           }
 
           // Get the private key from storage
@@ -148,12 +145,12 @@ export default function AppLendasat() {
       ['http://localhost:5173'],
     )
 
-    provider.listen(iframeRef.current);
+    provider.listen(iframeRef.current)
 
     return () => {
-      provider.destroy();
-    };
-  }, [wallet.pubkey, svcWallet]);
+      provider.destroy()
+    }
+  }, [wallet.pubkey, svcWallet])
 
   return (
     <>
@@ -168,10 +165,10 @@ export default function AppLendasat() {
           <FlexCol gap='2rem' between>
             <iframe
               ref={iframeRef}
-              src="http://localhost:5173"
-              title="Lendasat"
-              className="lendasat-iframe"
-              allow="clipboard-write; clipboard-read"
+              src='http://localhost:5173'
+              title='Lendasat'
+              className='lendasat-iframe'
+              allow='clipboard-write; clipboard-read'
               style={{ height: '100%' }}
             />
           </FlexCol>

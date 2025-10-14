@@ -53,7 +53,6 @@ export enum Pages {
   Unlock,
   Vtxos,
   Wallet,
-
 }
 
 export enum Tabs {
