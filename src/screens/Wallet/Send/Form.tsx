@@ -187,6 +187,7 @@ export default function SendForm() {
     if (!address && (arkAddress || invoice) && !vtxoTxsAllowed()) {
       return setError('Sending offchain not allowed')
     }
+    console.log('validate recipient addresses', { address, arkAddress, invoice })
     // check if server key is valid
     if (arkAddress && arkAddress.length > 0) {
       const { serverPubKey } = decodeArkAddress(arkAddress)

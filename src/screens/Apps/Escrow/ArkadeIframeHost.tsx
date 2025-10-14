@@ -3,9 +3,10 @@ import makeMessageHandler from './RpcHandler'
 import { bytesToHex } from '@noble/hashes/utils'
 import { Transaction } from '@scure/btc-signer'
 import { base64 } from '@scure/base'
+import { Point } from '@noble/secp256k1'
 
 export type ArkadeIdentityHandlers = {
-  xOnlyPublicKey: () => Promise<Uint8Array | null>
+  getXOnlyPublicKey: () => Promise<Uint8Array | null>
   sign(tx: Transaction, inputIndexes?: number[]): Promise<Transaction>
   signerSession: () => Promise<unknown>
   signin: (challenge: string) => Promise<string>
@@ -27,7 +28,7 @@ export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, ha
   const handleMessage = useMemo(
     () =>
       makeMessageHandler({
-        getXPublicKey: () => handlers.xOnlyPublicKey().then((_) => (_ ? bytesToHex(_) : null)),
+        getXOnlyPublicKey: () => handlers.getXOnlyPublicKey(),
         signLoginChallenge: (challenge: string) => handlers.signin(challenge),
         getArkWalletAddress: () => handlers.getArkWalletAddress(),
         signTransaction: async (base64Tx: string, base64Checkpoints: string[]) => {

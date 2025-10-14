@@ -1,3 +1,5 @@
+import { bytesToHex } from '@noble/hashes/utils'
+
 type KeepAlive = { kind: 'ARKADE_KEEP_ALIVE'; timestamp: number }
 
 type RpcLoginRequest = {
@@ -95,7 +97,7 @@ type InboundMessage = RpcRequest | KeepAlive
 type OutboundMessage = KeepAlive | RpcResponse
 
 type Props = {
-  getXPublicKey: () => Promise<string | null>
+  getXOnlyPublicKey: () => Promise<Uint8Array | null>
   signLoginChallenge: (challenge: string) => Promise<string>
   getArkWalletAddress: () => Promise<string | undefined>
   signTransaction: (tx: string, checkpoints: string[]) => Promise<{ signedTx: string; signedCheckpoints: string[] }>
@@ -114,7 +116,7 @@ export default function makeMessageHandler(props: Props) {
         const { id, method } = message
         switch (method) {
           case 'get-x-public-key':
-            const xOnlyPublicKey = await props.getXPublicKey()
+            const xOnlyPublicKey = await props.getXOnlyPublicKey().then((k) => (k ? bytesToHex(k) : null))
             return {
               tag: 'success',
               result: {
