@@ -13,8 +13,9 @@ import * as secp from '@noble/secp256k1'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { hmac } from '@noble/hashes/hmac.js'
 import { getReceivingAddresses } from '../../../lib/asp'
+import { Transaction } from '@scure/btc-signer'
 
-const { bytesToHex } = utils
+const { bytesToHex, hexToBytes } = utils
 
 // Set up SHA256 for @noble/secp256k1
 secp.hashes.sha256 = sha256
@@ -125,10 +126,17 @@ export default function AppLendasat() {
           // Optional - returning null for now
           throw new Error(`NPubs are not supported`)
         },
-        onSignPsbt: (psbt: string) => {
-          console.log(`Called sign psbt ${psbt}`)
-          // TODO: Implement PSBT signing
-          return null as any
+        onSignPsbt: async (psbt: string) => {
+          if (!svcWallet) {
+            throw Error('Wallet not initialized')
+          }
+          const psbtBytes = hexToBytes(psbt)
+          const tx = Transaction.fromPSBT(psbtBytes)
+          const signedTx = await svcWallet.identity.sign(tx,[0])
+          signedTx.finalize();
+          const signedTxBytes = signedTx.extract()
+
+          return bytesToHex(signedTxBytes)
         },
         async onSignMessage(message: string): Promise<string> {
           if (!svcWallet) {
