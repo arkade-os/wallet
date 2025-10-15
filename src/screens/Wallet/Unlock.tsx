@@ -6,6 +6,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import NeedsPassword from '../../components/NeedsPassword'
 import Header from '../../components/Header'
 import { defaultPassword } from '../../lib/constants'
+import Loading from '../../components/Loading'
 
 export default function Unlock() {
   const { initWallet } = useContext(WalletContext)
@@ -13,6 +14,7 @@ export default function Unlock() {
 
   const [error, setError] = useState('')
   const [password, setPassword] = useState('')
+  const [tried, setTried] = useState(false)
 
   useEffect(() => {
     const pass = password ? password : defaultPassword
@@ -20,6 +22,7 @@ export default function Unlock() {
       .then(initWallet)
       .then(() => navigate(Pages.Wallet))
       .catch((err) => {
+        setTried(true)
         if (password) {
           consoleError(err, 'error unlocking wallet')
           setError('Invalid password')
@@ -27,10 +30,12 @@ export default function Unlock() {
       })
   }, [password])
 
-  return (
+  return tried ? (
     <>
       <Header text='Unlock' />
       <NeedsPassword error={error} onPassword={setPassword} />
     </>
+  ) : (
+    <Loading />
   )
 }
