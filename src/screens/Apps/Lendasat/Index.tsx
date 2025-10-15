@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import Padded from '../../../components/Padded'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
@@ -7,13 +7,12 @@ import { SettingsIconLight } from '../../../icons/Settings'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { AddressType, type LoanAsset, WalletProvider } from '@lendasat/lendasat-wallet-bridge'
-import { LimitsContext } from '../../../providers/limits'
-import { FlowContext } from '../../../providers/flow'
 import { sha256 } from '@noble/hashes/sha2.js'
 import * as utils from '@noble/hashes/utils.js'
 import * as secp from '@noble/secp256k1'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { hmac } from '@noble/hashes/hmac.js'
+import { getReceivingAddresses } from '../../../lib/asp'
 
 const { bytesToHex } = utils
 
@@ -21,41 +20,49 @@ const { bytesToHex } = utils
 secp.hashes.sha256 = sha256
 secp.hashes.hmacSha256 = (key, msg) => hmac(sha256, key, msg)
 
-
 export default function AppLendasat() {
   const { navigate } = useContext(NavigationContext)
   const { wallet, svcWallet } = useContext(WalletContext)
-  const { validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
+  const [arkAddress, setArkAddress] = useState<string | null>(null)
+  const [boardingAddress, setBoardingAddress] = useState<string | null>(null)
 
-  const { recvInfo } = useContext(FlowContext)
-  const { boardingAddr, offchainAddr, satoshis } = recvInfo
-  const address = validUtxoTx(satoshis) && utxoTxsAllowed() ? boardingAddr : ''
-  const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
+  useEffect(() => {
+    const loadAddress = async () => {
+      if (svcWallet) {
+        const addresses = await getReceivingAddresses(svcWallet)
+        setArkAddress(addresses.offchainAddr)
+        setBoardingAddress(addresses.boardingAddr)
+      }
+    }
+    loadAddress()
+  }, [svcWallet])
 
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
-    if (!iframeRef.current) return
+    if (!iframeRef.current || !arkAddress || !boardingAddress) return
 
     const provider = new WalletProvider(
       {
-        capabilities: {
-          bitcoin: {
-            signPsbt: true,
-            sendBitcoin: true,
-          },
-          loanAssets: {
-            supportedAssets: [],
-            canReceive: false, // Not implemented
-            canSend: false, // Not yet implemented
-          },
-          nostr: {
-            hasNpub: false, // Not available in this integration
-          },
-          ark: {
-            canSend: true,
-            canReceive: true,
-          },
+        capabilities: () => {
+          return {
+            bitcoin: {
+              signPsbt: true,
+              sendBitcoin: true,
+            },
+            loanAssets: {
+              supportedAssets: [],
+              canReceive: false,
+              canSend: false,
+            },
+            nostr: {
+              hasNpub: false,
+            },
+            ark: {
+              canSend: true,
+              canReceive: true,
+            },
+          }
         },
         async onSendToAddress(address: string, amount: number, asset: 'bitcoin' | LoanAsset): Promise<string> {
           switch (asset) {
@@ -104,7 +111,7 @@ export default function AppLendasat() {
               return arkAddress
 
             case AddressType.BITCOIN:
-              throw address
+              return boardingAddress
 
             case AddressType.LOAN_ASSET:
               throw new Error(`Unsupported address type: ${addressType}`)
@@ -136,7 +143,7 @@ export default function AppLendasat() {
 
           // Convert compact signature to DER format using @noble/curves/secp256k1
           // The Signature class from @noble/curves supports DER encoding
-          const sig = secp256k1.Signature.fromBytes(signatureBytes);
+          const sig = secp256k1.Signature.fromBytes(signatureBytes)
           return sig.toHex('der')
         },
       },
@@ -148,7 +155,7 @@ export default function AppLendasat() {
     return () => {
       provider.destroy()
     }
-  }, [wallet.pubkey, svcWallet])
+  }, [wallet.pubkey, svcWallet, arkAddress])
 
   return (
     <>
