@@ -154,7 +154,7 @@ export default function AppLendasat() {
           return sig.toHex('der')
         },
       },
-      ['http://localhost:5173'],
+      [import.meta.env.VITE_LENDASAT_IFRAME_URL || 'https://iframe.lendasat.com'],
     )
 
     provider.listen(iframeRef.current)
