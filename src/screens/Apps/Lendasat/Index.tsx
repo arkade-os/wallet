@@ -133,7 +133,6 @@ export default function AppLendasat() {
           const psbtBytes = hexToBytes(psbt)
           const tx = Transaction.fromPSBT(psbtBytes)
           const signedTx = await svcWallet.identity.sign(tx,[0])
-          signedTx.finalize();
           const signedTxBytes = signedTx.extract()
 
           return bytesToHex(signedTxBytes)
