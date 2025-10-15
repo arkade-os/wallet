@@ -109,14 +109,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const reloadWallet = async (swWallet = svcWallet) => {
     if (!swWallet) return
     try {
-      const [txHistory, balance, vtxos] = await Promise.all([
-        getTxHistory(swWallet),
-        getBalance(swWallet),
-        getVtxos(swWallet),
-      ])
-      setVtxos(vtxos)
-      setTxs(txHistory)
+      const vtxos = await getVtxos(swWallet)
+      const txs = await getTxHistory(swWallet)
+      const balance = await getBalance(swWallet)
       setBalance(balance)
+      setVtxos(vtxos)
+      setTxs(txs)
     } catch (err) {
       consoleError(err, 'Error reloading wallet')
       return
