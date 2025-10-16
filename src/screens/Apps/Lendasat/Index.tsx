@@ -177,7 +177,7 @@ export default function AppLendasat() {
           <FlexCol gap='2rem' between>
             <iframe
               ref={iframeRef}
-              src='http://localhost:5173'
+              src={import.meta.env.VITE_LENDASAT_IFRAME_URL || 'https://iframe.lendasat.com'}
               title='Lendasat'
               className='lendasat-iframe'
               allow='clipboard-write; clipboard-read'
