@@ -1,7 +1,7 @@
 import { IWallet, ArkNote, RestArkProvider } from '@arkade-os/sdk'
-import { consoleError, consoleLog } from './logs'
 import { Addresses, Satoshis, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
+import { consoleError } from './logs'
 
 const emptyFees = {
   intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
@@ -159,5 +159,5 @@ export const sendOnChain = async (wallet: IWallet, sats: number, address: string
 }
 
 export const settleVtxos = async (wallet: IWallet): Promise<void> => {
-  await wallet.settle(undefined, consoleLog)
+  await wallet.settle(undefined, console.log)
 }

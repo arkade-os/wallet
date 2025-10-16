@@ -10,7 +10,7 @@ import { arkNoteInUrl } from '../lib/arknote'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { calcNextRollover } from '../lib/wallet'
-import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey } from '@arkade-os/sdk'
+import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey, VtxoManager } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 
@@ -172,6 +172,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           consoleError(err, 'Error pinging wallet status')
         }
       }, 1_000)
+
+      const manager = new VtxoManager(svcWallet)
+      manager.renewVtxos().catch(() => {})
     } catch (err) {
       consoleError(err, 'Error initializing service worker wallet')
     }
