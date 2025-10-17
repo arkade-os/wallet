@@ -100,7 +100,7 @@ type Props = {
   getXOnlyPublicKey: () => Promise<Uint8Array | null>
   signLoginChallenge: (challenge: string) => Promise<string>
   getArkWalletAddress: () => Promise<string | undefined>
-  signTransaction: (tx: string, checkpoints: string[]) => Promise<{ signedTx: string; signedCheckpoints: string[] }>
+  signArkTransaction: (tx: string, checkpoints: string[]) => Promise<{ signedTx: string; signedCheckpoints: string[] }>
   fundAddress: (
     address: string,
     amount: number,
@@ -150,7 +150,7 @@ export default function makeMessageHandler(props: Props) {
             }
           case 'sign-transaction':
             try {
-              const { signedTx, signedCheckpoints } = await props.signTransaction(
+              const { signedTx, signedCheckpoints } = await props.signArkTransaction(
                 message.payload.tx,
                 message.payload.checkpoints,
               )
