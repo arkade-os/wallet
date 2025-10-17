@@ -45,7 +45,6 @@ export const getPrivateKey = async (password: string): Promise<Uint8Array> => {
 
 export const setPrivateKey = async (privateKey: Uint8Array, password: string): Promise<void> => {
   try {
-    console.log('privateKey', privateKey)
     const encryptedPrivateKey = await encryptPrivateKey(privateKey, password)
     storeEncryptedPrivateKey(encryptedPrivateKey)
   } catch (error) {
