@@ -1,4 +1,4 @@
-import { useContext, useMemo } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
 import { hashes } from '@noble/secp256k1'
 import { sha256 } from '@noble/hashes/sha2.js'
@@ -9,15 +9,33 @@ import { NavigationContext, Pages } from '../../../providers/navigation'
 import { ArkadeIdentityHandlers, ArkadeIframeHost } from './ArkadeIframeHost'
 import { WalletContext } from '../../../providers/wallet'
 import { FlowContext } from '../../../providers/flow'
+import { Network } from '@arkade-os/boltz-swap'
+import { AspContext } from '../../../providers/asp'
 
 // Needed to sign the message, perhaps to be lifted up int App structure?
 hashes.sha256 = sha256
 
+const BASE_URLS: Record<Network, string> = {
+  bitcoin: import.meta.env.VITE_ARK_ESCROW_URL ?? 'NOT_AVAILABLE',
+  mutinynet: 'NOT_AVAILABLE',
+  signet: 'NOT_AVAILABLE',
+  regtest: 'http://localhost:3001',
+}
+
 export default function AppEscrow() {
   const { navigate } = useContext(NavigationContext)
-
   const { svcWallet } = useContext(WalletContext)
   const { setSendInfo } = useContext(FlowContext)
+  const { aspInfo } = useContext(AspContext)
+
+  const [escrowAppUrl, setEscrowAppUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!aspInfo.network || !svcWallet) return
+    const baseUrl = BASE_URLS[aspInfo.network as Network]
+    if (!baseUrl) return // No boltz server for this network
+    setEscrowAppUrl(baseUrl)
+  }, [aspInfo])
 
   async function getXOnlyPublicKey() {
     const xpubkey = await svcWallet?.identity.xOnlyPublicKey()
@@ -64,11 +82,13 @@ export default function AppEscrow() {
   return (
     <>
       <Header text='Escrow on Ark' back={() => navigate(Pages.Apps)} />
-      <ArkadeIframeHost
-        src='http://localhost:3001/'
-        allowedChildOrigins={['http://localhost:3001']}
-        handlers={handlers}
-      />
+      {escrowAppUrl !== null && (
+        <ArkadeIframeHost
+          src={escrowAppUrl ?? ''}
+          allowedChildOrigins={['http://localhost:3001']}
+          handlers={handlers}
+        />
+      )}
     </>
   )
 }
