@@ -1,13 +1,17 @@
 import { useContext, useMemo } from 'react'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
+import { hashes } from '@noble/secp256k1'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { Transaction } from '@scure/btc-signer'
+
 import Header from '../../../components/Header'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { ArkadeIdentityHandlers, ArkadeIframeHost } from './ArkadeIframeHost'
 import { WalletContext } from '../../../providers/wallet'
-import { getPrivateKey } from '../../../lib/privateKey'
-import { schnorr } from '@noble/curves/secp256k1'
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils'
-import { Transaction } from '@scure/btc-signer'
 import { FlowContext } from '../../../providers/flow'
+
+// Needed to sign the message, perhaps to be lifted up int App structure?
+hashes.sha256 = sha256
 
 export default function AppEscrow() {
   const { navigate } = useContext(NavigationContext)
@@ -16,7 +20,8 @@ export default function AppEscrow() {
   const { setSendInfo } = useContext(FlowContext)
 
   async function getXOnlyPublicKey() {
-    return svcWallet?.identity.xOnlyPublicKey()
+    const xpubkey = await svcWallet?.identity.xOnlyPublicKey()
+    return xpubkey ?? null
   }
 
   async function getArkWalletAddress() {
@@ -25,17 +30,14 @@ export default function AppEscrow() {
 
   async function sign(tx: Transaction, inputIndexes?: number[]): Promise<Transaction> {
     if (!svcWallet) throw new Error('Wallet not initialized')
-    const signed = await svcWallet.identity.sign(tx, inputIndexes)
-    return signed
+    return svcWallet.identity.sign(tx, inputIndexes)
   }
   async function signerSession() {
     throw new Error('Not implemented')
   }
   async function signin(hexToSign: string) {
-    const password = prompt('Password')
-    if (!password) throw new Error('Wrong password')
-    const privkey = await getPrivateKey(password)
-    const signatureBytes = schnorr.sign(hexToBytes(hexToSign), privkey)
+    if (!svcWallet) throw new Error('Wallet not initialized')
+    const signatureBytes = await svcWallet.identity.signMessage(hexToBytes(hexToSign), 'schnorr')
     return bytesToHex(signatureBytes)
   }
   async function signout() {
@@ -44,14 +46,6 @@ export default function AppEscrow() {
   async function fundAddress(address: string, amount: number) {
     setSendInfo({ arkAddress: address, satoshis: amount, text: 'Funding escrow address' })
     navigate(Pages.SendDetails)
-    // const walletTab = document.querySelector('ion-tab[tab="wallet"]')
-    // if (walletTab) {
-    //   walletTab.className = walletTab.className
-    //     .split(' ')
-    //     .filter((c) => c !== 'tab-hidden')
-    //     .join(' ')
-    // }
-    return Promise.resolve()
   }
 
   const handlers: ArkadeIdentityHandlers = useMemo(

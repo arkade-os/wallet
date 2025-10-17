@@ -97,10 +97,10 @@ export default function Apps() {
               page={Pages.AppBoltz}
               live
             />
+            <App name='Escrow' icon={<EscrowIcon />} desc='Escrow system on Ark' link='' page={Pages.AppEscrow} live />
             <App name='Ark Invaders' icon={<InvadersIcon />} desc='The classic arcade game' />
             <App name='Coinflip' icon={<CoinflipIcon />} desc='Head or Tails? Place your bet!' />
             <App name='Fuji Money' icon={<FujiMoneyIcon />} desc='Synthetic Assets on the Bitcoin network' />
-            <App name='Escrow' icon={<EscrowIcon />} desc='Escrow system on Ark' link='' page={Pages.AppEscrow} live />
           </FlexCol>
         </Padded>
       </Content>

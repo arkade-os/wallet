@@ -29,13 +29,13 @@ export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, ha
         getXOnlyPublicKey: () => handlers.getXOnlyPublicKey(),
         signLoginChallenge: (challenge: string) => handlers.signin(challenge),
         getArkWalletAddress: () => handlers.getArkWalletAddress(),
-        signTransaction: async (base64Tx: string, base64Checkpoints: string[]) => {
-          const tx = Transaction.fromPSBT(base64.decode(base64Tx))
+        signArkTransaction: async (base64Tx: string, base64Checkpoints: string[]) => {
+          const tx = Transaction.fromPSBT(base64.decode(base64Tx), { allowUnknown: true })
           const checkpoints = base64Checkpoints.map((_) => base64.decode(_))
           const signedTx = await handlers.sign(tx)
           const signedCheckpoints = await Promise.all(
             checkpoints.map(async (cp) => {
-              const signed = await handlers.sign(Transaction.fromPSBT(cp), [0])
+              const signed = await handlers.sign(Transaction.fromPSBT(cp, { allowUnknown: true }), [0])
               return base64.encode(signed.toPSBT())
             }),
           )
@@ -45,8 +45,7 @@ export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, ha
           }
         },
         fundAddress: async (address, amount) => {
-          const result = await handlers.fundAddress(address, amount)
-          console.log(`[wallet] fundAddress result:`, result)
+          await handlers.fundAddress(address, amount)
           return {
             address,
             requestedAmount: amount,
@@ -59,7 +58,6 @@ export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, ha
 
   const poll = useCallback(() => {
     if (iframeRef.current?.contentWindow) {
-      // console.log(`[wallet] sending keep alive to ${src}...`)
       iframeRef.current.contentWindow.postMessage({ kind: 'ARKADE_KEEP_ALIVE', timestamp: Date.now() }, src)
       setTimeout(() => poll(), 5000)
     }
@@ -68,7 +66,7 @@ export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, ha
   useEffect(() => {
     const onMessage = async (event: MessageEvent) => {
       if (!allowed.has(event.origin)) {
-        console.warn(`[wallet]: ignoring message from ${event.origin}`)
+        console.error(`[wallet]: ignoring message from ${event.origin}`)
         return
       }
       const msg = event.data
@@ -83,12 +81,13 @@ export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, ha
           console.error(result.error)
         } else {
           if (!isAlive) {
-            console.log(`[wallet] setting isAlive to true`)
             setIsAlive(true)
           }
-          if (iframeRef.current?.contentWindow && result.result.kind !== 'ARKADE_KEEP_ALIVE') {
+          if (
+            iframeRef.current?.contentWindow &&
             // we don't answer to keep alive messages because we send every 5s
-            console.log(`[wallet] sending result ${result.result.kind} to ${event.origin}`)
+            result.result.kind !== 'ARKADE_KEEP_ALIVE'
+          ) {
             iframeRef.current.contentWindow.postMessage(result.result, event.origin)
           }
         }
