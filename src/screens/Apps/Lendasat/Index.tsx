@@ -12,8 +12,9 @@ import * as utils from '@noble/hashes/utils.js'
 import * as secp from '@noble/secp256k1'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { hmac } from '@noble/hashes/hmac.js'
-import { getReceivingAddresses } from '../../../lib/asp'
+import { collaborativeExit, getReceivingAddresses } from '../../../lib/asp'
 import { Transaction } from '@scure/btc-signer'
+import { isArkAddress, isBTCAddress } from '../../../lib/address'
 
 const { bytesToHex, hexToBytes } = utils
 
@@ -66,13 +67,23 @@ export default function AppLendasat() {
           }
         },
         async onSendToAddress(address: string, amount: number, asset: 'bitcoin' | LoanAsset): Promise<string> {
+          if (!svcWallet) {
+            throw Error('Wallet not initialized')
+          }
+
           switch (asset) {
             case 'bitcoin':
-              const txId = await svcWallet?.sendBitcoin({ amount: amount, address: address })
-              if (txId) {
-                return txId
+              if (isArkAddress(address)) {
+                const txId = await svcWallet?.sendBitcoin({ amount: amount, address: address })
+                if (txId) {
+                  return txId
+                } else {
+                  throw new Error('Unable to send bitcoin')
+                }
+              } else if (isBTCAddress(address)) {
+                return await collaborativeExit(svcWallet, amount, address)
               } else {
-                throw new Error('Unable to send bitcoin')
+                throw Error(`Unsupported address ${address}`)
               }
             case 'UsdcPol':
             case 'UsdtPol':
@@ -131,9 +142,9 @@ export default function AppLendasat() {
             throw Error('Wallet not initialized')
           }
           const psbtBytes = hexToBytes(psbt)
-          const tx = Transaction.fromPSBT(psbtBytes)
-          const signedTx = await svcWallet.identity.sign(tx,[0])
-          const signedTxBytes = signedTx.extract()
+          const tx = Transaction.fromPSBT(psbtBytes, { allowUnknown: true })
+          const signedTx = await svcWallet.identity.sign(tx)
+          const signedTxBytes = signedTx.toPSBT()
 
           return bytesToHex(signedTxBytes)
         },

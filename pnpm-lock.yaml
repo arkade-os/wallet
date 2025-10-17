@@ -21,8 +21,8 @@ importers:
         specifier: ^8.5.6
         version: 8.7.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@lendasat/lendasat-wallet-bridge':
-        specifier: ^0.0.87
-        version: 0.0.87
+        specifier: ^0.0.89
+        version: 0.0.89
       '@noble/curves':
         specifier: ^2.0.1
         version: 2.0.1
@@ -557,8 +557,8 @@ packages:
   '@ledgerhq/connect-kit-loader@1.1.8':
     resolution: {integrity: sha512-mDJsOucVW8m3Lk2fdQst+P74SgiKebvq1iBk4sXLbADQOwhL9bWGaArvO+tW7jPJZwEfSPWBdHcHoYi11XAwZw==}
 
-  '@lendasat/lendasat-wallet-bridge@0.0.87':
-    resolution: {integrity: sha512-ofMXUzng5auZIHeftuFyTTtF6yf6k6quibtbuNomHlk9Uxni8SUe+4GQc9S0okLyiSD3WB/1OsU4LhdkDVJGdg==}
+  '@lendasat/lendasat-wallet-bridge@0.0.89':
+    resolution: {integrity: sha512-lWVw5akBWnlvPLVqtQHNKhz5e7t73VsOVqBaS2n5UvMuS4WIBY1jviCKlj70+5NDmnzw9XlO4LuS7vJaKPLyFg==}
 
   '@lingui/conf@4.14.1':
     resolution: {integrity: sha512-LE/1RrVoMebQK+u4y6VQJdSwjOsMu4go/VR8m1eH0THn8vfkuLOYlPTIAHTWcoO+Ogi15p5TqHPfJcgVBy/NpA==}
@@ -4171,7 +4171,7 @@ snapshots:
 
   '@ledgerhq/connect-kit-loader@1.1.8': {}
 
-  '@lendasat/lendasat-wallet-bridge@0.0.87': {}
+  '@lendasat/lendasat-wallet-bridge@0.0.89': {}
 
   '@lingui/conf@4.14.1(typescript@5.8.3)':
     dependencies:
