@@ -13,7 +13,7 @@ import * as secp from '@noble/secp256k1'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { hmac } from '@noble/hashes/hmac.js'
 import { collaborativeExit, getReceivingAddresses } from '../../../lib/asp'
-import { Transaction } from '@scure/btc-signer'
+import { Transaction } from '@arkade-os/sdk'
 import { isArkAddress, isBTCAddress } from '../../../lib/address'
 
 const { bytesToHex, hexToBytes } = utils
@@ -142,7 +142,7 @@ export default function AppLendasat() {
             throw Error('Wallet not initialized')
           }
           const psbtBytes = hexToBytes(psbt)
-          const tx = Transaction.fromPSBT(psbtBytes, { allowUnknown: true })
+          const tx = Transaction.fromPSBT(psbtBytes)
           const signedTx = await svcWallet.identity.sign(tx)
           const signedTxBytes = signedTx.toPSBT()
 
