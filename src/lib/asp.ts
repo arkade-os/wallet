@@ -185,5 +185,5 @@ export const settleVtxos = async (wallet: IWallet): Promise<void> => {
 
 export const renewCoins = async (wallet: IWallet): Promise<void> => {
   const inputs = await getInputsToSettle(wallet)
-  if (inputs.length > 0) settleVtxos(wallet)
+  if (inputs.length > 0) await settleVtxos(wallet)
 }
