@@ -1,4 +1,4 @@
-import { IWallet, ArkNote, RestArkProvider } from '@arkade-os/sdk'
+import { IWallet, ArkNote, RestArkProvider, ServiceWorkerWallet } from '@arkade-os/sdk'
 import { Addresses, Satoshis, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
 import { consoleError } from './logs'
@@ -83,10 +83,11 @@ export const getBalance = async (wallet: IWallet): Promise<Satoshis> => {
   return total
 }
 
-export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
+export const getTxHistory = async (wallet: ServiceWorkerWallet): Promise<Tx[]> => {
   const txs: Tx[] = []
   try {
-    const res = await wallet.getTransactionHistory()
+    const address = await wallet.getAddress()
+    const res = await wallet.walletRepository.getTransactionHistory(address)
     if (!res) return []
     for (const tx of res) {
       const date = new Date(tx.createdAt)
@@ -119,12 +120,15 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
   return txs
 }
 
-export const getVtxos = async (wallet: IWallet): Promise<{ spendable: Vtxo[]; spent: Vtxo[] }> => {
-  const vtxos = await wallet.getVtxos({ withRecoverable: true })
+export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable: Vtxo[]; spent: Vtxo[] }> => {
+  const address = await wallet.getAddress()
+  const vtxos = await wallet.walletRepository.getVtxos(address)
   const spendable: Vtxo[] = []
   const spent: Vtxo[] = []
   for (const vtxo of vtxos) {
-    if (vtxo.spentBy && vtxo.spentBy.length > 0) spent.push(vtxo)
+    const isSpentOffchain = vtxo.spentBy && vtxo.spentBy.length > 0
+    const isSettled = vtxo.settledBy && vtxo.settledBy.length > 0
+    if (isSpentOffchain || isSettled) spent.push(vtxo)
     else spendable.push(vtxo)
   }
   return { spendable, spent }
