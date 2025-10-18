@@ -2,7 +2,7 @@ import { ReactNode, createContext, useContext, useEffect, useRef, useState } fro
 import { clearStorage, readWalletFromStorage, saveWalletToStorage } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
-import { getBalance, getTxHistory, getVtxos, settleVtxos } from '../lib/asp'
+import { getBalance, getTxHistory, getVtxos, renewCoins, settleVtxos } from '../lib/asp'
 import { AspContext } from './asp'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
@@ -10,7 +10,7 @@ import { arkNoteInUrl } from '../lib/arknote'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { calcNextRollover } from '../lib/wallet'
-import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey, VtxoManager } from '@arkade-os/sdk'
+import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 
@@ -173,9 +173,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }, 1_000)
 
-      // start vtxo manager to auto renew vtxos
-      const manager = new VtxoManager(svcWallet, { enabled: true })
-      manager.renewVtxos().catch(() => {})
+      // renew expiring coins on startup
+      renewCoins(svcWallet).catch(() => {})
     } catch (err) {
       consoleError(err, 'Error initializing service worker wallet')
     }

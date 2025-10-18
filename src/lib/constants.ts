@@ -6,6 +6,7 @@ export const testServer = 'https://bitcoin-beta-v8.arkade.sh'
 export const mainServer = 'https://bitcoin-beta-v8.arkade.sh'
 export const defaultPassword = 'noah'
 export const minSatsToNudge = 10_000
+export const maxPercentage = import.meta.env.VITE_MAX_PERCENTAGE ?? 10
 
 export const defaultArkServer = () => {
   if (import.meta.env.VITE_ARK_SERVER) return import.meta.env.VITE_ARK_SERVER
