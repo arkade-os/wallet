@@ -114,9 +114,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const balance = await getBalance(swWallet)
       setBalance(balance)
       setVtxos(vtxos)
-      console.log('SET TXS', txs)
-      console.log('SET VTXOS', vtxos)
-      console.log('SET BALANCE', balance)
       setTxs(txs)
     } catch (err) {
       consoleError(err, 'Error reloading wallet')
