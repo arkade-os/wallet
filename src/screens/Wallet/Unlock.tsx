@@ -23,6 +23,7 @@ export default function Unlock() {
       .then(() => navigate(Pages.Wallet))
       .catch((err) => {
         setTried(true)
+        console.log('error unlocking wallet', err)
         if (password) {
           consoleError(err, 'error unlocking wallet')
           setError('Invalid password')

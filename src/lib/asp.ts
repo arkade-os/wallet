@@ -1,7 +1,9 @@
-import { IWallet, ArkNote, RestArkProvider } from '@arkade-os/sdk'
+import { IWallet, ArkNote, RestArkProvider, ExtendedCoin } from '@arkade-os/sdk'
 import { Addresses, Satoshis, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
 import { consoleError } from './logs'
+import { getConfirmedAndNotExpiredUtxos } from './utxo'
+import { getExpiringAndRecoverableVtxos } from './vtxo'
 
 const emptyFees = {
   intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
@@ -158,6 +160,30 @@ export const sendOnChain = async (wallet: IWallet, sats: number, address: string
   return wallet.sendBitcoin({ address, amount: sats })
 }
 
+export const getInputsToSettle = async (wallet: IWallet): Promise<ExtendedCoin[]> => {
+  const vtxos = await getExpiringAndRecoverableVtxos(wallet)
+  const boardingUtxos = await getConfirmedAndNotExpiredUtxos(wallet)
+  return [...boardingUtxos, ...vtxos]
+}
+
 export const settleVtxos = async (wallet: IWallet): Promise<void> => {
-  await wallet.settle(undefined, console.log)
+  const inputs = await getInputsToSettle(wallet)
+
+  if (inputs.length === 0) throw new Error('No UTXOs or VTXOs eligible to settle')
+
+  const amount = inputs.reduce((sum, input) => sum + input.value, 0)
+
+  const outputs = [
+    {
+      address: await wallet.getAddress(),
+      amount: BigInt(amount),
+    },
+  ]
+
+  await wallet.settle({ inputs, outputs }, console.log)
+}
+
+export const renewCoins = async (wallet: IWallet): Promise<void> => {
+  const inputs = await getInputsToSettle(wallet)
+  if (inputs.length > 0) settleVtxos(wallet)
 }

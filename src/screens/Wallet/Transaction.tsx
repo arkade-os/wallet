@@ -22,13 +22,14 @@ import CheckMarkIcon from '../../icons/CheckMark'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { LimitsContext } from '../../providers/limits'
+import { getInputsToSettle } from '../../lib/asp'
 
 export default function Transaction() {
   const { navigate } = useContext(NavigationContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { settlePreconfirmed, txs, wallet } = useContext(WalletContext)
+  const { settlePreconfirmed, vtxos, wallet, svcWallet } = useContext(WalletContext)
 
   const tx = txInfo
   const defaultButtonLabel = 'Settle transaction'
@@ -42,6 +43,7 @@ export default function Transaction() {
   const [canSettleOnMarketHour, setCanSettleOnMarketHour] = useState(false)
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState('')
+  const [hasInputsToSettle, setHasInputsToSettle] = useState(false)
   const [reminderIsOpen, setReminderIsOpen] = useState(false)
   const [settleSuccess, setSettleSuccess] = useState(false)
   const [resending, setResending] = useState(false)
@@ -68,14 +70,13 @@ export default function Transaction() {
   }, [wallet.nextRollover])
 
   useEffect(() => {
-    if (!txs?.length) return
-    const totalAmount =
-      txs
-        .filter((tx) => tx.settled === false)
-        .filter((tx) => tx.boardingTxid || tx.preconfirmed)
-        .reduce((a, v) => a + v.amount, 0) || 0
-    setAmountAboveDust(totalAmount > aspInfo.dust)
-  }, [txs])
+    if (!svcWallet) return
+    getInputsToSettle(svcWallet).then((inputs) => {
+      setHasInputsToSettle(inputs.length > 0)
+      const totalAmount = inputs.reduce((a, v) => a + v.value, 0) || 0
+      setAmountAboveDust(totalAmount > aspInfo.dust)
+    })
+  }, [vtxos, svcWallet])
 
   const handleBack = () => navigate(Pages.Wallet)
 
@@ -158,6 +159,7 @@ export default function Transaction() {
     vtxoTxsAllowed() &&
     !unconfirmedBoardingTx &&
     !expiredBoardingTx &&
+    hasInputsToSettle &&
     amountAboveDust &&
     !settleSuccess &&
     !tx.settled &&

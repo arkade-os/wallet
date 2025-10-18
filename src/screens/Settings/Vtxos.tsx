@@ -16,7 +16,7 @@ import ErrorMessage from '../../components/Error'
 import WaitingForRound from '../../components/WaitingForRound'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
-import { settleVtxos } from '../../lib/asp'
+import { getInputsToSettle, settleVtxos } from '../../lib/asp'
 import Loading from '../../components/Loading'
 import { LimitsContext } from '../../providers/limits'
 import { EmptyCoinsList } from '../../components/Empty'
@@ -33,6 +33,7 @@ export default function Vtxos() {
   const [aboveDust, setAboveDust] = useState(false)
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState('')
+  const [hasInputsToSettle, setHasInputsToSettle] = useState(false)
   const [label, setLabel] = useState(defaultLabel)
   const [rollingover, setRollingover] = useState(false)
   const [reminderIsOpen, setReminderIsOpen] = useState(false)
@@ -45,8 +46,8 @@ export default function Vtxos() {
   }, [aspInfo.unreachable])
 
   useEffect(() => {
-    setLabel(rollingover ? 'Renewing...' : defaultLabel)
-  }, [rollingover])
+    setLabel(rollingover ? 'Renewing...' : !aboveDust ? 'Below dust limit' : defaultLabel)
+  }, [rollingover, aboveDust])
 
   useEffect(() => {
     const bestMarketHour = calcBestMarketHour(wallet.nextRollover)
@@ -60,10 +61,13 @@ export default function Vtxos() {
   }, [wallet.nextRollover])
 
   useEffect(() => {
-    if (!vtxos?.spendable?.length) return
-    const totalAmount = vtxos.spendable.reduce((a, v) => a + v.value, 0) || 0
-    setAboveDust(totalAmount > aspInfo.dust)
-  }, [vtxos])
+    if (!svcWallet) return
+    getInputsToSettle(svcWallet).then((inputs) => {
+      setHasInputsToSettle(inputs.length > 0)
+      const totalAmount = inputs.reduce((a, v) => a + v.value, 0) || 0
+      setAboveDust(totalAmount > aspInfo.dust)
+    })
+  }, [vtxos, svcWallet])
 
   // Automatically reset `success` after 5s, with cleanup on unmount or re-run
   useEffect(() => {
@@ -171,11 +175,11 @@ export default function Vtxos() {
           </Padded>
         )}
       </Content>
-      {utxoTxsAllowed() && vtxoTxsAllowed() && aboveDust ? (
+      {utxoTxsAllowed() && vtxoTxsAllowed() ? (
         <>
           <ButtonsOnBottom>
-            {vtxos.spendable.length > 0 ? (
-              <Button onClick={handleRollover} label={label} disabled={rollingover} />
+            {hasInputsToSettle ? (
+              <Button onClick={handleRollover} label={label} disabled={rollingover || !aboveDust} />
             ) : null}
             {wallet.nextRollover ? (
               <Button onClick={() => setReminderIsOpen(true)} label='Add reminder' secondary />
