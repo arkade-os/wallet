@@ -25,8 +25,7 @@
     "qr": "^0.4.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-qr-reader": "3.0.0-beta-1",
-    "wallet-bridge": "^0.1.70"
+    "react-qr-reader": "3.0.0-beta-1"
   },
   "scripts": {
     "prepare": "husky install",
