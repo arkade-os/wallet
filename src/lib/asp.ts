@@ -83,11 +83,10 @@ export const getBalance = async (wallet: IWallet): Promise<Satoshis> => {
   return total
 }
 
-export const getTxHistory = async (wallet: ServiceWorkerWallet): Promise<Tx[]> => {
+export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
   const txs: Tx[] = []
   try {
-    const address = await wallet.getAddress()
-    const res = await wallet.walletRepository.getTransactionHistory(address)
+    const res = await wallet.getTransactionHistory()
     if (!res) return []
     for (const tx of res) {
       const date = new Date(tx.createdAt)
