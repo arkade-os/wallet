@@ -197,11 +197,11 @@ interface TelegramBiometricManager {
 interface TelegramPopupParams {
   title?: string
   message: string
-  buttons?: Array<{
+  buttons?: {
     id?: string
     type?: 'default' | 'ok' | 'close' | 'cancel' | 'destructive'
     text?: string
-  }>
+  }[]
 }
 
 interface TelegramScanQrPopupParams {
