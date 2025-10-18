@@ -120,9 +120,11 @@ export default function AppLendasat() {
 
           switch (addressType) {
             case AddressType.ARK:
+              if (!arkAddress) throw new Error('Ark address not yet loaded')
               return arkAddress
 
             case AddressType.BITCOIN:
+              if (!boardingAddress) throw new Error('Boarding address not yet loaded')
               return boardingAddress
 
             case AddressType.LOAN_ASSET:
@@ -173,7 +175,7 @@ export default function AppLendasat() {
     return () => {
       provider.destroy()
     }
-  }, [wallet.pubkey, svcWallet, arkAddress])
+  }, [wallet.pubkey, svcWallet, arkAddress, boardingAddress])
 
   return (
     <>
