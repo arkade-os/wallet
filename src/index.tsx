@@ -12,6 +12,8 @@ import { WalletProvider } from './providers/wallet'
 import { OptionsProvider } from './providers/options'
 import { LimitsProvider } from './providers/limits'
 import { NudgeProvider } from './providers/nudge'
+import { IframeProvider } from './providers/iframe'
+import { TelegramProvider } from './providers/telegram'
 import * as Sentry from '@sentry/react'
 import { LightningProvider } from './providers/lightning'
 import { shouldInitializeSentry } from './lib/sentry'
@@ -24,31 +26,52 @@ if (shouldInitializeSentry(sentryDsn)) {
   })
 }
 
+const isValidUrl = (url: string) => {
+  try {
+    new URL(url)
+    return true
+  } catch {
+    return false
+  }
+}
+
+const hash = window.location.hash
+const possibleUrl = hash.startsWith('#') ? hash.slice(1) : hash
+const hasIframe = isValidUrl(possibleUrl)
+
+const AppWithProviders = () => {
+  const baseApp = <App />
+
+  return hasIframe ? <IframeProvider>{baseApp}</IframeProvider> : baseApp
+}
+
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 root.render(
   // <React.StrictMode>
-  <NavigationProvider>
-    <ConfigProvider>
-      <AspProvider>
-        <NotificationsProvider>
-          <FiatProvider>
-            <FlowProvider>
-              <WalletProvider>
-                <LightningProvider>
-                  <LimitsProvider>
-                    <OptionsProvider>
-                      <NudgeProvider>
-                        <App />
-                      </NudgeProvider>
-                    </OptionsProvider>
-                  </LimitsProvider>
-                </LightningProvider>
-              </WalletProvider>
-            </FlowProvider>
-          </FiatProvider>
-        </NotificationsProvider>
-      </AspProvider>
-    </ConfigProvider>
-  </NavigationProvider>,
+  <TelegramProvider>
+    <NavigationProvider>
+      <ConfigProvider>
+        <AspProvider>
+          <NotificationsProvider>
+            <FiatProvider>
+              <FlowProvider>
+                <WalletProvider>
+                  <LightningProvider>
+                    <LimitsProvider>
+                      <OptionsProvider>
+                        <NudgeProvider>
+                          <AppWithProviders />
+                        </NudgeProvider>
+                      </OptionsProvider>
+                    </LimitsProvider>
+                  </LightningProvider>
+                </WalletProvider>
+              </FlowProvider>
+            </FiatProvider>
+          </NotificationsProvider>
+        </AspProvider>
+      </ConfigProvider>
+    </NavigationProvider>
+  </TelegramProvider>,
   // </React.StrictMode>,
 )
