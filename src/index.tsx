@@ -28,8 +28,9 @@ if (shouldInitializeSentry(sentryDsn)) {
 
 const isValidUrl = (url: string) => {
   try {
-    new URL(url)
-    return true
+    const urlObj = new URL(url)
+    // Only allow http and https protocols to prevent javascript: and data: URIs
+    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:'
   } catch {
     return false
   }

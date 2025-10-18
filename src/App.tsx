@@ -97,7 +97,11 @@ export default function App() {
     return (
       <>
         {comp}
-        <iframe src={iframeUrl} />
+        <iframe
+          src={iframeUrl}
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          title="External App"
+        />
       </>
     )
 
