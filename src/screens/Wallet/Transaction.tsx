@@ -70,13 +70,14 @@ export default function Transaction() {
   }, [wallet.nextRollover])
 
   useEffect(() => {
+    if (!aspInfo) return
     if (!svcWallet) return
     getInputsToSettle(svcWallet).then((inputs) => {
       setHasInputsToSettle(inputs.length > 0)
       const totalAmount = inputs.reduce((a, v) => a + v.value, 0) || 0
       setAmountAboveDust(totalAmount > aspInfo.dust)
     })
-  }, [vtxos, svcWallet])
+  }, [aspInfo, vtxos, svcWallet])
 
   const handleBack = () => navigate(Pages.Wallet)
 

@@ -61,13 +61,14 @@ export default function Vtxos() {
   }, [wallet.nextRollover])
 
   useEffect(() => {
+    if (!aspInfo) return
     if (!svcWallet) return
     getInputsToSettle(svcWallet).then((inputs) => {
       setHasInputsToSettle(inputs.length > 0)
       const totalAmount = inputs.reduce((a, v) => a + v.value, 0) || 0
       setAboveDust(totalAmount > aspInfo.dust)
     })
-  }, [vtxos, svcWallet])
+  }, [aspInfo, vtxos, svcWallet])
 
   // Automatically reset `success` after 5s, with cleanup on unmount or re-run
   useEffect(() => {
