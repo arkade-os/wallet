@@ -14,6 +14,8 @@ import '@ionic/react/css/display.css'
 
 import '@ionic/react/css/palettes/dark.class.css'
 
+import './App.css'
+
 import { useContext, useEffect, useState } from 'react'
 import { ConfigContext } from './providers/config'
 import { NavigationContext, pageComponent, Pages, Tabs } from './providers/navigation'
