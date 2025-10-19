@@ -65,13 +65,7 @@ type RpcFundAddressRequest = {
 }
 type RpcFundAddressResponse = {
   method: 'fund-address'
-  payload: {
-    // Ark address
-    address: string
-    // SAT
-    requestedAmount: number
-    fundedAmount: number
-  }
+  payload: {}
 }
 
 type RpcRequest = {
@@ -115,7 +109,7 @@ export default function makeMessageHandler(props: Props) {
       case 'ARKADE_RPC_REQUEST': {
         const { id, method } = message
         switch (method) {
-          case 'get-x-public-key':
+          case 'get-x-public-key': {
             const xOnlyPublicKey = await props.getXOnlyPublicKey().then((k) => (k ? bytesToHex(k) : null))
             return {
               tag: 'success',
@@ -126,7 +120,8 @@ export default function makeMessageHandler(props: Props) {
                 payload: { xOnlyPublicKey },
               },
             }
-          case 'get-ark-wallet-address':
+          }
+          case 'get-ark-wallet-address': {
             const arkAddress = (await props.getArkWalletAddress()) ?? null
             return {
               tag: 'success',
@@ -137,8 +132,9 @@ export default function makeMessageHandler(props: Props) {
                 payload: { arkAddress },
               },
             }
+          }
 
-          case 'sign-login-challenge':
+          case 'sign-login-challenge': {
             try {
               const signedChallenge = await props.signLoginChallenge(message.payload.challenge)
               return {
@@ -148,7 +144,9 @@ export default function makeMessageHandler(props: Props) {
             } catch (cause) {
               return { tag: 'failure', error: new Error(`Failed to sign login challenge: ${cause}`) }
             }
-          case 'sign-transaction':
+          }
+
+          case 'sign-transaction': {
             try {
               const { signedTx, signedCheckpoints } = await props.signArkTransaction(
                 message.payload.tx,
@@ -166,18 +164,18 @@ export default function makeMessageHandler(props: Props) {
             } catch (cause) {
               return { tag: 'failure', error: new Error(`Failed to sign transaction: ${cause}`) }
             }
-          case 'fund-address':
-            const { address, requestedAmount, fundedAmount } = await props.fundAddress(
-              message.payload.address,
-              message.payload.amount,
-            )
+          }
+
+          case 'fund-address': {
+            await props.fundAddress(message.payload.address, message.payload.amount)
             return {
               tag: 'success',
-              result: { kind: 'ARKADE_RPC_RESPONSE', id, method, payload: { address, requestedAmount, fundedAmount } },
+              result: { kind: 'ARKADE_RPC_RESPONSE', id, method, payload: {} },
             }
+          }
         }
       }
     }
-    return { tag: 'failure', error: new Error('Unknown message') }
+    return { tag: 'failure', error: new Error('Unknown message kind') }
   }
 }
