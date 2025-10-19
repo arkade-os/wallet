@@ -10,7 +10,7 @@ export type ArkadeIdentityHandlers = {
   signin: (challenge: string) => Promise<string>
   signout: () => Promise<unknown>
   getArkWalletAddress: () => Promise<string | undefined>
-  fundAddress: (address: string, amount: number) => Promise<unknown>
+  fundAddress: (address: string, amount: number) => Promise<void>
 }
 
 type Props = {
@@ -21,8 +21,10 @@ type Props = {
 
 export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, handlers }) => {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
+  const childOrigin = useMemo(() => new URL(src).origin, [src])
   const allowed = useMemo(() => new Set(allowedChildOrigins), [allowedChildOrigins])
   const [isAlive, setIsAlive] = useState(false)
+
   const handleMessage = useMemo(
     () =>
       makeMessageHandler({
@@ -58,15 +60,19 @@ export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, ha
 
   const poll = useCallback(() => {
     if (iframeRef.current?.contentWindow) {
-      iframeRef.current.contentWindow.postMessage({ kind: 'ARKADE_KEEP_ALIVE', timestamp: Date.now() }, src)
+      iframeRef.current.contentWindow.postMessage({ kind: 'ARKADE_KEEP_ALIVE', timestamp: Date.now() }, childOrigin)
       setTimeout(() => poll(), 5000)
     }
-  }, [isAlive, iframeRef])
+  }, [isAlive, iframeRef, childOrigin])
 
   useEffect(() => {
     const onMessage = async (event: MessageEvent) => {
-      if (!allowed.has(event.origin)) {
+      if (!allowedChildOrigins.some((_) => _.startsWith(event.origin))) {
         console.error(`[wallet]: ignoring message from ${event.origin}`)
+        return
+      }
+      if (event.source !== iframeRef.current?.contentWindow) {
+        // Ignore messages not coming from our iframe
         return
       }
       const msg = event.data
@@ -102,11 +108,13 @@ export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, ha
     return () => {
       window.removeEventListener('message', onMessage)
     }
-  }, [allowed, handlers, isAlive])
+  }, [handlers, isAlive, allowedChildOrigins])
 
   useEffect(() => {
-    poll()
-  }, [])
+    iframeRef.current?.addEventListener('load', () => {
+      poll()
+    })
+  }, [iframeRef.current, poll])
 
   return (
     <iframe
