@@ -5,9 +5,10 @@ import { WalletContext } from './wallet'
 import { FeesResponse, Network } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
 import { consoleError } from '../lib/logs'
+import { getConfig } from '../lib/runtime-config'
 
 const BASE_URLS: Record<Network, string> = {
-  bitcoin: import.meta.env.VITE_BOLTZ_URL ?? 'https://boltz-v8.arkade.sh',
+  bitcoin: getConfig('BOLTZ_URL', 'VITE_BOLTZ_URL', 'https://boltz-v8.arkade.sh') as string,
   mutinynet: 'https://api.boltz.mutinynet.arkade.sh',
   signet: 'https://boltz.signet.arkade.sh',
   regtest: 'http://localhost:9069',
