@@ -16,6 +16,8 @@ import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { NudgeContext } from '../../providers/nudge'
 import { EmptyTxList } from '../../components/Empty'
+import { getAlert } from '../../lib/alerts'
+import { InfoBox } from '../../components/AlertBox'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
@@ -24,11 +26,16 @@ export default function Wallet() {
   const { nudge } = useContext(NudgeContext)
   const { balance, txs } = useContext(WalletContext)
 
+  const [alert, setAlert] = useState<string | undefined>()
   const [error, setError] = useState(false)
 
   useEffect(() => {
     setError(aspInfo.unreachable)
   }, [aspInfo.unreachable])
+
+  useEffect(() => {
+    getAlert().then(setAlert)
+  }, [])
 
   const handleReceive = () => {
     setRecvInfo(emptyRecvInfo)
@@ -46,6 +53,11 @@ export default function Wallet() {
         <FlexCol>
           <FlexCol gap='0'>
             <LogoIcon small />
+            {alert ? (
+              <FlexRow padding='2rem 0 0 0'>
+                <InfoBox html={alert} />
+              </FlexRow>
+            ) : null}
             <Balance amount={balance} />
             <ErrorMessage error={error} text='Ark server unreachable' />
             <FlexRow padding='0 0 0.5rem 0'>

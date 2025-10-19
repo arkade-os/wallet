@@ -58,7 +58,9 @@ export function InfoBox({ html }: { html: string }) {
   const sanitizedHtml = DOMPurify.sanitize(html)
   return (
     <AlertBox icon={<MegaphoneIcon animated />}>
-      <div dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
+      <Text color='black' bold smaller wrap>
+        <div dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
+      </Text>
     </AlertBox>
   )
 }
