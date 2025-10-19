@@ -15,11 +15,11 @@ import { AspContext } from '../../../providers/asp'
 // Needed to sign the message, perhaps to be lifted up int App structure?
 hashes.sha256 = sha256
 
-const BASE_URLS: Record<Network, string> = {
+const BASE_URLS: Record<Network, string | null> = {
   bitcoin: import.meta.env.VITE_ARK_ESCROW_URL ?? 'NOT_AVAILABLE',
-  mutinynet: 'NOT_AVAILABLE',
-  signet: 'NOT_AVAILABLE',
-  regtest: 'http://localhost:3001',
+  mutinynet: 'https://api.escrow.mutinynet.arkade.sh/client/',
+  signet: null,
+  regtest: 'localhost:3002/client',
 }
 
 export default function AppEscrow() {
@@ -33,7 +33,7 @@ export default function AppEscrow() {
   useEffect(() => {
     if (!aspInfo.network || !svcWallet) return
     const baseUrl = BASE_URLS[aspInfo.network as Network]
-    if (!baseUrl) return // No boltz server for this network
+    if (!baseUrl) return // No escrow app for this network
     setEscrowAppUrl(baseUrl)
   }, [aspInfo])
 
@@ -61,8 +61,16 @@ export default function AppEscrow() {
   async function signout() {
     return { ok: true }
   }
-  async function fundAddress(address: string, amount: number) {
-    setSendInfo({ arkAddress: address, satoshis: amount, text: 'Funding escrow address' })
+  async function fundAddress(address: string, amount: number): Promise<void> {
+    setSendInfo({
+      arkAddress: address,
+      satoshis: amount,
+      text: 'Funding escrow address',
+      address: undefined,
+      invoice: undefined,
+      lnUrl: undefined,
+      pendingSwap: undefined,
+    })
     navigate(Pages.SendDetails)
   }
 
@@ -83,11 +91,7 @@ export default function AppEscrow() {
     <>
       <Header text='Escrow on Ark' back={() => navigate(Pages.Apps)} />
       {escrowAppUrl !== null && (
-        <ArkadeIframeHost
-          src={escrowAppUrl ?? ''}
-          allowedChildOrigins={['http://localhost:3001']}
-          handlers={handlers}
-        />
+        <ArkadeIframeHost src={escrowAppUrl} allowedChildOrigins={[new URL(escrowAppUrl).origin]} handlers={handlers} />
       )}
     </>
   )
