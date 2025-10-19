@@ -41,7 +41,7 @@ jobs:
         id: tags
         run: |
           TAGS="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
             TAG_NAME=${GITHUB_REF#refs/tags/}
             TAGS="$TAGS,${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAG_NAME"
           fi

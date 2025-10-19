@@ -21,6 +21,9 @@ RUN pnpm build
 # Production stage
 FROM nginx:alpine
 
+# Install jq for safe JSON generation in entrypoint
+RUN apk add --no-cache jq
+
 # Copy built files
 COPY --from=builder /app/dist /usr/share/nginx/html
 

@@ -33,10 +33,10 @@ docs
 mockup
 
 # Docker
-Dockerfile
-*.Dockerfile
+arkd.Dockerfile
+arkdwallet.Dockerfile
+cors.Dockerfile
 docker-compose*.yml
-.dockerignore
 
 # Misc
 .DS_Store
