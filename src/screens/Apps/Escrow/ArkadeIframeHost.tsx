@@ -22,7 +22,6 @@ type Props = {
 export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, handlers }) => {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const childOrigin = useMemo(() => new URL(src).origin, [src])
-  const allowed = useMemo(() => new Set(allowedChildOrigins), [allowedChildOrigins])
   const [isAlive, setIsAlive] = useState(false)
 
   const handleMessage = useMemo(
