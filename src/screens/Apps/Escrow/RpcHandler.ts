@@ -95,10 +95,7 @@ type Props = {
   signLoginChallenge: (challenge: string) => Promise<string>
   getArkWalletAddress: () => Promise<string | undefined>
   signArkTransaction: (tx: string, checkpoints: string[]) => Promise<{ signedTx: string; signedCheckpoints: string[] }>
-  fundAddress: (
-    address: string,
-    amount: number,
-  ) => Promise<{ address: string; requestedAmount: number; fundedAmount: number }>
+  fundAddress: (address: string, amount: number) => Promise<void>
 }
 type Result = { tag: 'success'; result: OutboundMessage } | { tag: 'failure'; error: Error }
 export default function makeMessageHandler(props: Props) {

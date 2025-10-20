@@ -16,10 +16,10 @@ import { AspContext } from '../../../providers/asp'
 hashes.sha256 = sha256
 
 const BASE_URLS: Record<Network, string | null> = {
-  bitcoin: import.meta.env.VITE_ARK_ESCROW_URL ?? 'NOT_AVAILABLE',
+  bitcoin: import.meta.env.VITE_ARK_ESCROW_URL ?? null,
   mutinynet: 'https://api.escrow.mutinynet.arkade.sh/client/',
   signet: null,
-  regtest: 'localhost:3002/client',
+  regtest: 'http://localhost:3002/client',
 }
 
 export default function AppEscrow() {
@@ -84,7 +84,7 @@ export default function AppEscrow() {
       getArkWalletAddress,
       fundAddress,
     }),
-    [],
+    [svcWallet, navigate, setSendInfo],
   )
 
   return (
