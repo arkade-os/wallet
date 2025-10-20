@@ -15,10 +15,11 @@ import { NudgeProvider } from './providers/nudge'
 import * as Sentry from '@sentry/react'
 import { LightningProvider } from './providers/lightning'
 import { shouldInitializeSentry } from './lib/sentry'
+import { getConfig } from './lib/runtime-config'
 
-// Initialize Sentry only in production and when DSN is provided
-const sentryDsn = import.meta.env.VITE_SENTRY_DSN
-if (shouldInitializeSentry(sentryDsn)) {
+// Initialize Sentry with runtime config or build-time env var
+const sentryDsn = getConfig('SENTRY_DSN', 'VITE_SENTRY_DSN')
+if (sentryDsn && shouldInitializeSentry(sentryDsn)) {
   Sentry.init({
     dsn: sentryDsn,
     sendDefaultPii: false,
