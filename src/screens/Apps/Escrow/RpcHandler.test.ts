@@ -160,7 +160,7 @@ describe('makeMessageHandler', () => {
   })
 
   it('handles fund-address', async () => {
-    ;(props.fundAddress as any).mockResolvedValue({ address: 'ark1qq', requestedAmount: 1, fundedAmount: 1 })
+    ;(props.fundAddress as any).mockResolvedValue(undefined)
     const handler = makeMessageHandler(props)
     const res = await handler({
       kind: 'ARKADE_RPC_REQUEST',
