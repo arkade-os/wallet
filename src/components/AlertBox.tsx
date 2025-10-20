@@ -56,11 +56,15 @@ function AlertText({ children }: { children: React.ReactNode }) {
 
 export function InfoBox({ html }: { html: string }) {
   const sanitizedHtml = DOMPurify.sanitize(html)
+  const style = {
+    color: 'var(--black)',
+    fontSize: '13px',
+    fontWeight: 600,
+    lineHeight: 1.5,
+  }
   return (
     <AlertBox icon={<MegaphoneIcon animated />}>
-      <Text color='black' bold smaller wrap>
-        <div dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
-      </Text>
+      <div dangerouslySetInnerHTML={{ __html: sanitizedHtml }} style={style} />
     </AlertBox>
   )
 }
