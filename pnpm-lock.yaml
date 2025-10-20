@@ -15,8 +15,8 @@ importers:
         specifier: 0.2.1-alpha.7
         version: 0.2.1-alpha.7
       '@arkade-os/sdk':
-        specifier: 0.3.1
-        version: 0.3.1
+        specifier: 0.3.2
+        version: 0.3.2
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -161,12 +161,12 @@ packages:
     resolution: {integrity: sha512-pmCGmRfrAF70Q5Ic/vLb9oyX4gDP5Eos9/3lz4mcjwgVI8D2v0kAwv86eeM05UokiZRjqPx/0avZWdXYSLOz3Q==}
     engines: {node: '>=22'}
 
-  '@arkade-os/sdk@0.3.1':
-    resolution: {integrity: sha512-4N16Fs3YbZTaBQqn7saMF59JhE1vMJfPyot9xflrkivEUnoAcasmeoxCMrPBT6AZjSUhH+aWj1PaOFIQsyPKWA==}
-    engines: {node: '>=20.0.0'}
-
   '@arkade-os/sdk@0.3.1-alpha.6':
     resolution: {integrity: sha512-lojrA2y4WUTLy929bdu7UER7g0b2uzfLCb3Nc44smkjmxCVFvQpf4HbBlnmKsy2ze8yJkbBagS05FZV7+b4dXg==}
+    engines: {node: '>=20.0.0'}
+
+  '@arkade-os/sdk@0.3.2':
+    resolution: {integrity: sha512-Jc2PXZwnayzklY2pp3o/Qli6tGrHL2RygQakUgfjGlySCkvdLRIoGrN5yIUbBEJAkbFOyAhIFUa46HLrFJOwLQ==}
     engines: {node: '>=20.0.0'}
 
   '@asamuzakjp/css-color@3.2.0':
@@ -2492,7 +2492,7 @@ snapshots:
       '@scure/btc-signer': 2.0.1
       light-bolt11-decoder: 3.2.0
 
-  '@arkade-os/sdk@0.3.1':
+  '@arkade-os/sdk@0.3.1-alpha.6':
     dependencies:
       '@noble/curves': 2.0.0
       '@noble/secp256k1': 3.0.0
@@ -2500,7 +2500,7 @@ snapshots:
       '@scure/btc-signer': 2.0.1
       bip68: 1.0.4
 
-  '@arkade-os/sdk@0.3.1-alpha.6':
+  '@arkade-os/sdk@0.3.2':
     dependencies:
       '@noble/curves': 2.0.0
       '@noble/secp256k1': 3.0.0
