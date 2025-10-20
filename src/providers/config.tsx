@@ -20,6 +20,7 @@ interface ConfigContextProps {
   config: Config
   configLoaded: boolean
   resetConfig: () => void
+  setConfig: (c: Config) => void
   showConfig: boolean
   toggleShowConfig: () => void
   updateConfig: (c: Config) => void
@@ -30,6 +31,7 @@ export const ConfigContext = createContext<ConfigContextProps>({
   config: defaultConfig,
   configLoaded: false,
   resetConfig: () => {},
+  setConfig: () => {},
   showConfig: false,
   toggleShowConfig: () => {},
   updateConfig: () => {},
@@ -85,7 +87,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <ConfigContext.Provider
-      value={{ config, configLoaded, resetConfig, showConfig, toggleShowConfig, updateConfig, useFiat }}
+      value={{ config, configLoaded, resetConfig, setConfig, showConfig, toggleShowConfig, updateConfig, useFiat }}
     >
       {children}
     </ConfigContext.Provider>
