@@ -45,14 +45,7 @@ export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, ha
             signedCheckpoints,
           }
         },
-        fundAddress: async (address, amount) => {
-          await handlers.fundAddress(address, amount)
-          return {
-            address,
-            requestedAmount: amount,
-            fundedAmount: amount,
-          }
-        },
+        fundAddress: (address, amount) => handlers.fundAddress(address, amount),
       }),
     [handlers],
   )
