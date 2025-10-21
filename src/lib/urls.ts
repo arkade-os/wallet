@@ -1,5 +1,6 @@
 import { Network } from '@arkade-os/boltz-swap'
 
+// Default urls to be provided
 const DEFAULT_ARK_SERVER_URLS: Partial<Record<Network, string>> = {}
 
 const DEFAULT_BOLTZ_SERVER_URLS: Partial<Record<Network, string>> = {
@@ -8,127 +9,152 @@ const DEFAULT_BOLTZ_SERVER_URLS: Partial<Record<Network, string>> = {
   regtest: 'http://localhost:9069',
 }
 
+// Default urls to be provided
 const DEFAULT_ESPLORA_SERVER_URLS: Partial<Record<Network, string>> = {}
 
+// Default urls to be provided
 const DEFAULT_INDEXER_SERVER_URLS: Partial<Record<Network, string>> = {}
 
 export function getArkUrl(network: Network): string {
-  const defaultUrl = DEFAULT_ARK_SERVER_URLS[network]
+  let arkUrl = DEFAULT_ARK_SERVER_URLS[network]
   if (network === 'bitcoin') {
-    return importArkBitcoinUrl() ?? defaultUrl
+    arkUrl = importArkBitcoinUrl()
   }
   if (network === 'mutinynet') {
-    return importArkMutinyUrl() ?? defaultUrl
+    arkUrl = importArkMutinyUrl()
   }
   if (network === 'regtest') {
-    return importArkRegTestUrl() ?? defaultUrl
+    arkUrl = importArkRegTestUrl()
   }
-  return importArkSigNetUrl() ?? defaultUrl
+  if (network === 'signet') {
+    arkUrl = importArkSigNetUrl()
+  }
+  if (!arkUrl) {
+    throw new Error(`No url found for ark on ${network} network`)
+  }
+  return arkUrl
 }
 
 export function getBoltzUrl(network: Network): string {
-  const defaultUrl = DEFAULT_BOLTZ_SERVER_URLS[network]
-
+  let boltztUrl = DEFAULT_BOLTZ_SERVER_URLS[network]
   if (network === 'bitcoin') {
-    return importBoltzBitcoinUrl() ?? defaultUrl
+    boltztUrl = importBoltzBitcoinUrl()
   }
   if (network === 'mutinynet') {
-    return importBoltzMutinyUrl() ?? defaultUrl
+    boltztUrl = importBoltzMutinyUrl()
   }
   if (network === 'regtest') {
-    return importBoltzRegTestUrl() ?? defaultUrl
+    boltztUrl = importBoltzRegTestUrl()
   }
-  return importBoltzSigNetUrl() ?? defaultUrl
+  if (network === 'signet') {
+    boltztUrl = importBoltzSigNetUrl()
+  }
+  if (!boltztUrl) {
+    throw new Error(`No url found for boltz on ${network} network`)
+  }
+  return boltztUrl
 }
 
 export function getEsploraUrl(network: Network): string {
-  const defaultUrl = DEFAULT_ESPLORA_SERVER_URLS[network]
+  let esploraUrl = DEFAULT_ESPLORA_SERVER_URLS[network]
   if (network === 'bitcoin') {
-    return importEsploraBitcoinUrl() ?? defaultUrl
+    esploraUrl = importEsploraBitcoinUrl()
   }
   if (network === 'mutinynet') {
-    return importEsploraMutinyUrl() ?? defaultUrl
+    esploraUrl = importEsploraMutinyUrl()
   }
   if (network === 'regtest') {
-    return importEsploraRegTestUrl() ?? defaultUrl
+    esploraUrl = importEsploraRegTestUrl()
   }
-  return importEsploraSigNetUrl() ?? defaultUrl
+  if (network === 'signet') {
+    esploraUrl = importEsploraSigNetUrl()
+  }
+  if (!esploraUrl) {
+    throw new Error(`No url found for esplora on ${network} network`)
+  }
+  return esploraUrl
 }
 
 export function getIndexerUrl(network: Network): string {
-  const defaultUrl = DEFAULT_INDEXER_SERVER_URLS[network]
+  let indexerUrl = DEFAULT_INDEXER_SERVER_URLS[network]
   if (network === 'bitcoin') {
-    return importIndexerBitcoinUrl() ?? defaultUrl
+    indexerUrl = importIndexerBitcoinUrl()
   }
   if (network === 'mutinynet') {
-    return importIndexerMutinyUrl() ?? defaultUrl
+    indexerUrl = importIndexerMutinyUrl()
   }
   if (network === 'regtest') {
-    return importIndexerRegTestUrl() ?? defaultUrl
+    indexerUrl = importIndexerRegTestUrl()
   }
-  return importIndexerSigNetUrl() ?? defaultUrl
+  if (network === 'signet') {
+    indexerUrl = importIndexerSigNetUrl()
+  }
+  if (!indexerUrl) {
+    throw new Error(`No url found for indexer on ${network} network`)
+  }
+  return indexerUrl
 }
 
-function importArkBitcoinUrl(): string {
-  return import.meta.env.VITE_ARK_SERVER_URL_BITCOIN ?? ''
+function importArkBitcoinUrl(): string | undefined {
+  return import.meta.env.VITE_ARK_SERVER_URL_BITCOIN
 }
 
-function importArkMutinyUrl(): string {
-  return import.meta.env.VITE_ARK_SERVER_URL_MUTINYNET ?? ''
+function importArkMutinyUrl(): string | undefined {
+  return import.meta.env.VITE_ARK_SERVER_URL_MUTINYNET
 }
 
-function importArkSigNetUrl(): string {
-  return import.meta.env.VITE_ARK_SERVER_URL_SIGNET ?? ''
+function importArkSigNetUrl(): string | undefined {
+  return import.meta.env.VITE_ARK_SERVER_URL_SIGNET
 }
 
-function importArkRegTestUrl(): string {
-  return import.meta.env.VITE_ARK_SERVER_URL_REGTEST ?? ''
+function importArkRegTestUrl(): string | undefined {
+  return import.meta.env.VITE_ARK_SERVER_URL_REGTEST
 }
 
-function importBoltzBitcoinUrl(): string {
-  return import.meta.env.VITE_BOLTZ_URL_BITCOIN ?? ''
+function importBoltzBitcoinUrl(): string | undefined {
+  return import.meta.env.VITE_BOLTZ_URL_BITCOIN
 }
 
-function importBoltzMutinyUrl(): string {
-  return import.meta.env.VITE_BOLTZ_URL_MUTINYNET ?? ''
+function importBoltzMutinyUrl(): string | undefined {
+  return import.meta.env.VITE_BOLTZ_URL_MUTINYNET
 }
 
-function importBoltzSigNetUrl(): string {
-  return import.meta.env.VITE_BOLTZ_URL_SIGNET ?? ''
+function importBoltzSigNetUrl(): string | undefined {
+  return import.meta.env.VITE_BOLTZ_URL_SIGNET
 }
 
-function importBoltzRegTestUrl(): string {
-  return import.meta.env.VITE_BOLTZ_URL_REGTEST ?? ''
+function importBoltzRegTestUrl(): string | undefined {
+  return import.meta.env.VITE_BOLTZ_URL_REGTEST
 }
 
-function importEsploraBitcoinUrl(): string {
-  return import.meta.env.VITE_ESPLORA_URL_BITCOIN ?? ''
+function importEsploraBitcoinUrl(): string | undefined {
+  return import.meta.env.VITE_ESPLORA_URL_BITCOIN
 }
 
-function importEsploraMutinyUrl(): string {
-  return import.meta.env.VITE_ESPLORA_URL_MUTINYNET ?? ''
+function importEsploraMutinyUrl(): string | undefined {
+  return import.meta.env.VITE_ESPLORA_URL_MUTINYNET
 }
 
-function importEsploraSigNetUrl(): string {
-  return import.meta.env.VITE_ESPLORA_URL_SIGNET ?? ''
+function importEsploraSigNetUrl(): string | undefined {
+  return import.meta.env.VITE_ESPLORA_URL_SIGNET
 }
 
-function importEsploraRegTestUrl(): string {
-  return import.meta.env.VITE_ESPLORA_URL_REGTEST ?? ''
+function importEsploraRegTestUrl(): string | undefined {
+  return import.meta.env.VITE_ESPLORA_URL_REGTEST
 }
 
-function importIndexerBitcoinUrl(): string {
-  return import.meta.env.VITE_ESPLORA_URL_BITCOIN ?? ''
+function importIndexerBitcoinUrl(): string | undefined {
+  return import.meta.env.VITE_INDEXER_URL_BITCOIN
 }
 
-function importIndexerMutinyUrl(): string {
-  return import.meta.env.VITE_ESPLORA_URL_MUTINYNET ?? ''
+function importIndexerMutinyUrl(): string | undefined {
+  return import.meta.env.VITE_INDEXER_URL_MUTINYNET
 }
 
-function importIndexerSigNetUrl(): string {
-  return import.meta.env.VITE_ESPLORA_URL_SIGNET ?? ''
+function importIndexerSigNetUrl(): string | undefined {
+  return import.meta.env.VITE_INDEXER_URL_SIGNET
 }
 
-function importIndexerRegTestUrl(): string {
-  return import.meta.env.VITE_ESPLORA_URL_REGTEST ?? ''
+function importIndexerRegTestUrl(): string | undefined {
+  return import.meta.env.VITE_INDEXER_URL_REGTEST
 }
