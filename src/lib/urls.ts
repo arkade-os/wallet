@@ -36,23 +36,23 @@ export function getArkUrl(network: Network): string {
 }
 
 export function getBoltzUrl(network: Network): string {
-  let boltztUrl = DEFAULT_BOLTZ_SERVER_URLS[network]
+  let boltzUrl = DEFAULT_BOLTZ_SERVER_URLS[network]
   if (network === 'bitcoin') {
-    boltztUrl = importBoltzBitcoinUrl() || boltztUrl
+    boltzUrl = importBoltzBitcoinUrl() || boltzUrl
   }
   if (network === 'mutinynet') {
-    boltztUrl = importBoltzMutinyUrl() || boltztUrl
+    boltzUrl = importBoltzMutinyUrl() || boltzUrl
   }
   if (network === 'regtest') {
-    boltztUrl = importBoltzRegTestUrl() || boltztUrl
+    boltzUrl = importBoltzRegTestUrl() || boltzUrl
   }
   if (network === 'signet') {
-    boltztUrl = importBoltzSigNetUrl() || boltztUrl
+    boltzUrl = importBoltzSigNetUrl() || boltzUrl
   }
-  if (!boltztUrl) {
+  if (!boltzUrl) {
     throw new Error(`No url found for boltz on ${network} network`)
   }
-  return boltztUrl
+  return boltzUrl
 }
 
 export function getEsploraUrl(network: Network): string {
