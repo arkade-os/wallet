@@ -18,16 +18,16 @@ const DEFAULT_INDEXER_SERVER_URLS: Partial<Record<Network, string>> = {}
 export function getArkUrl(network: Network): string {
   let arkUrl = DEFAULT_ARK_SERVER_URLS[network]
   if (network === 'bitcoin') {
-    arkUrl = importArkBitcoinUrl()
+    arkUrl = importArkBitcoinUrl() || arkUrl
   }
   if (network === 'mutinynet') {
-    arkUrl = importArkMutinyUrl()
+    arkUrl = importArkMutinyUrl() || arkUrl
   }
   if (network === 'regtest') {
-    arkUrl = importArkRegTestUrl()
+    arkUrl = importArkRegTestUrl() || arkUrl
   }
   if (network === 'signet') {
-    arkUrl = importArkSigNetUrl()
+    arkUrl = importArkSigNetUrl() || arkUrl
   }
   if (!arkUrl) {
     throw new Error(`No url found for ark on ${network} network`)
@@ -38,16 +38,16 @@ export function getArkUrl(network: Network): string {
 export function getBoltzUrl(network: Network): string {
   let boltztUrl = DEFAULT_BOLTZ_SERVER_URLS[network]
   if (network === 'bitcoin') {
-    boltztUrl = importBoltzBitcoinUrl()
+    boltztUrl = importBoltzBitcoinUrl() || boltztUrl
   }
   if (network === 'mutinynet') {
-    boltztUrl = importBoltzMutinyUrl()
+    boltztUrl = importBoltzMutinyUrl() || boltztUrl
   }
   if (network === 'regtest') {
-    boltztUrl = importBoltzRegTestUrl()
+    boltztUrl = importBoltzRegTestUrl() || boltztUrl
   }
   if (network === 'signet') {
-    boltztUrl = importBoltzSigNetUrl()
+    boltztUrl = importBoltzSigNetUrl() || boltztUrl
   }
   if (!boltztUrl) {
     throw new Error(`No url found for boltz on ${network} network`)
@@ -58,16 +58,16 @@ export function getBoltzUrl(network: Network): string {
 export function getEsploraUrl(network: Network): string {
   let esploraUrl = DEFAULT_ESPLORA_SERVER_URLS[network]
   if (network === 'bitcoin') {
-    esploraUrl = importEsploraBitcoinUrl()
+    esploraUrl = importEsploraBitcoinUrl() || esploraUrl
   }
   if (network === 'mutinynet') {
-    esploraUrl = importEsploraMutinyUrl()
+    esploraUrl = importEsploraMutinyUrl() || esploraUrl
   }
   if (network === 'regtest') {
-    esploraUrl = importEsploraRegTestUrl()
+    esploraUrl = importEsploraRegTestUrl() || esploraUrl
   }
   if (network === 'signet') {
-    esploraUrl = importEsploraSigNetUrl()
+    esploraUrl = importEsploraSigNetUrl() || esploraUrl
   }
   if (!esploraUrl) {
     throw new Error(`No url found for esplora on ${network} network`)
@@ -78,16 +78,16 @@ export function getEsploraUrl(network: Network): string {
 export function getIndexerUrl(network: Network): string {
   let indexerUrl = DEFAULT_INDEXER_SERVER_URLS[network]
   if (network === 'bitcoin') {
-    indexerUrl = importIndexerBitcoinUrl()
+    indexerUrl = importIndexerBitcoinUrl() || indexerUrl
   }
   if (network === 'mutinynet') {
-    indexerUrl = importIndexerMutinyUrl()
+    indexerUrl = importIndexerMutinyUrl() || indexerUrl
   }
   if (network === 'regtest') {
-    indexerUrl = importIndexerRegTestUrl()
+    indexerUrl = importIndexerRegTestUrl() || indexerUrl
   }
   if (network === 'signet') {
-    indexerUrl = importIndexerSigNetUrl()
+    indexerUrl = importIndexerSigNetUrl() || indexerUrl
   }
   if (!indexerUrl) {
     throw new Error(`No url found for indexer on ${network} network`)
