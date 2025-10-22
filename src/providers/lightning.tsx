@@ -7,7 +7,7 @@ import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
 
 const BASE_URLS: Record<Network, string> = {
-  bitcoin: import.meta.env.VITE_BOLTZ_URL ?? 'https://boltz-v8.arkade.sh',
+  bitcoin: import.meta.env.VITE_BOLTZ_URL ?? 'https://api.boltz.mutinynet.arkade.sh',
   mutinynet: 'https://api.boltz.mutinynet.arkade.sh',
   signet: 'https://boltz.signet.arkade.sh',
   regtest: 'http://localhost:9069',
