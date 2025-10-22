@@ -11,6 +11,7 @@ import TypeIcon from '../icons/Type'
 import WhenIcon from '../icons/When'
 import NotesIcon from '../icons/Notes'
 import Table from './Table'
+import StatusIcon from '../icons/Status'
 
 export interface DetailsProps {
   address?: string
@@ -21,6 +22,7 @@ export interface DetailsProps {
   fees?: number
   invoice?: string
   satoshis?: number
+  status?: string
   total?: number
   type?: string
   when?: string
@@ -32,7 +34,7 @@ export default function Details({ details }: { details?: DetailsProps }) {
 
   if (!details) return <></>
 
-  const { address, arknote, date, direction, destination, fees, invoice, satoshis, type, total, when } = details
+  const { address, arknote, date, direction, destination, fees, invoice, satoshis, status, type, total, when } = details
 
   const formatAmount = (amount = 0) => {
     const prettyFunc = config.showBalance ? prettyAmount : prettyHide
@@ -47,6 +49,7 @@ export default function Details({ details }: { details?: DetailsProps }) {
   if (destination) table.push(['Destination', destination, <TypeIcon key='destination-icon' />])
   if (direction) table.push(['Direction', direction, <DirectionIcon key='direction-icon' />])
   if (type) table.push(['Type', type, <TypeIcon key='type-icon' />])
+  if (status) table.push(['Status', status, <StatusIcon key='status-icon' />])
   if (when) table.push(['When', when, <WhenIcon key='when-icon' />])
   if (date) table.push(['Date', date, <DateIcon key='date-icon' />])
   if (satoshis) table.push(['Amount', formatAmount(satoshis), <AmountIcon key='amount-icon' />])
