@@ -114,6 +114,7 @@ export default function Transaction() {
           ? 'Settled'
           : 'Preconfirmed',
     type: boardingTx ? 'Boarding' : 'Offchain',
+    txid: tx.boardingTxid || '',
     satoshis: tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
     fees: tx.type === 'sent' ? defaultFee : 0,
     total: tx.amount,
