@@ -64,10 +64,15 @@ export default function AppBoltzSwap() {
     if (!swapProvider) return
     try {
       setCooking(true)
-      if (isReverse && isClaimable) await swapProvider.claimVHTLC(swapInfo)
-      if (!isReverse && isRefundable) await swapProvider.refundVHTLC(swapInfo)
+      if (isReverse && isClaimable) {
+        await swapProvider.claimVHTLC(swapInfo)
+        setSuccess(true)
+      }
+      if (!isReverse && isRefundable) {
+        await swapProvider.refundVHTLC(swapInfo)
+        setSuccess(true)
+      }
       await swapProvider.refreshSwapsStatus()
-      setSuccess(true)
     } catch (error) {
       setError(extractError(error))
       consoleError(error, 'Error processing swap')
