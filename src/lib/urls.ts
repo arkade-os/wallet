@@ -18,7 +18,10 @@ const DEFAULT_ESPLORA_SERVER_URLS: Partial<Record<Network, string>> = {}
 // TODO: Default urls to be provided
 const DEFAULT_INDEXER_SERVER_URLS: Partial<Record<Network, string>> = {}
 
-const ENV_URLS_IMPORTERS = {
+type EnvUrlImporters = { [S in Service]: { [N in Network]: () => string | undefined } }
+type StorageUrlImporters = { [S in Service]: () => string | undefined }
+
+const ENV_URL_IMPORTERS: EnvUrlImporters = {
   ark: {
     bitcoin: importArkBitcoinUrl,
     mutinynet: importArkMutinyUrl,
@@ -43,14 +46,14 @@ const ENV_URLS_IMPORTERS = {
     regtest: importIndexerRegTestUrl,
     signet: importIndexerSigNetUrl,
   },
-}
+} as const
 
-const STORAGE_URLS_IMPORTERS = {
+const STORAGE_URL_IMPORTERS: StorageUrlImporters = {
   ark: importArkUrlFromStorage,
   boltz: importBoltzUrlFromStorage,
   esplora: importEsploraUrlFromStorage,
   indexer: importIndexerUrlFromStorage,
-}
+} as const
 
 export function getArkUrl(network: Network): string {
   return resolveUrl(network, 'ark', DEFAULT_ARK_SERVER_URLS)
@@ -69,13 +72,22 @@ export function getIndexerUrl(network: Network): string {
 }
 
 function resolveUrl(network: Network, service: Service, defaults: Partial<Record<Network, string>>): string {
-  const envImporter = ENV_URLS_IMPORTERS[service][network]
-  const storageImporter = STORAGE_URLS_IMPORTERS[service]
-  let url = storageImporter() || envImporter() || defaults[network]
+  const envImporter = ENV_URL_IMPORTERS[service][network]
+  const storageImporter = STORAGE_URL_IMPORTERS[service]
+  let url = envImporter() || legacyImporter(service) || storageImporter() || defaults[network]
   if (!url) {
     throw new Error(`No url found for ${service} on ${network} network`)
   }
   return url
+}
+
+function legacyImporter(service: Service): string | undefined {
+  switch (service) {
+    case 'ark':
+      return import.meta.env.VITE_ARK_SERVER
+    case 'boltz':
+      return import.meta.env.VITE_BOLTZ_URL
+  }
 }
 
 function importArkUrlFromStorage(): string | undefined {
