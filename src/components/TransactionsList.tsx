@@ -24,14 +24,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
   const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
 
   const Fiat = () => {
-    const color =
-      config.currencyDisplay === CurrencyDisplay.Both
-        ? 'dark50'
-        : tx.type === 'received'
-          ? 'green'
-          : tx.preconfirmed
-            ? 'orange'
-            : ''
+    const color = config.currencyDisplay === CurrencyDisplay.Both ? 'dark50' : tx.type === 'received' ? 'green' : ''
     const value = toFiat(tx.amount)
     const small = config.currencyDisplay === CurrencyDisplay.Both
     const world = config.showBalance ? prettyAmount(value, config.fiat) : prettyHide(value, config.fiat)
