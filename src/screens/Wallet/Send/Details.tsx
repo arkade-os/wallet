@@ -48,10 +48,10 @@ export default function SendDetails() {
     const direction =
       arkAddress && vtxoTxsAllowed()
         ? 'Paying inside the Ark'
-        : address && utxoTxsAllowed()
-          ? 'Paying to mainnet'
-          : invoice && lnSwapsAllowed()
-            ? 'Swapping to Lightning'
+        : invoice && pendingSwap && lnSwapsAllowed()
+          ? 'Swapping to Lightning'
+          : address && utxoTxsAllowed()
+            ? 'Paying to mainnet'
             : ''
     const feeInSats = destination === invoice ? calcSubmarineSwapFee(satoshis) : defaultFee
     const total = satoshis + feeInSats
