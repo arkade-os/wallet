@@ -12,6 +12,9 @@ export type Config = {
     }
   }
   aspUrl: string
+  boltzUrl: string
+  esploraUrl: string
+  indexerUrl: string
   currencyDisplay: CurrencyDisplay
   fiat: Fiats
   nostr: boolean
