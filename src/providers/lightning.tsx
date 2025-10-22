@@ -59,7 +59,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
         const swaps = await swapProvider.getSwapHistory()
         for (const swap of swaps.filter(isPendingReverseSwap)) {
           // TODO: change with isReverseClaimableStatus from boltz-swap lib when available
-          if (['transaction.mempool'].includes(swap.status)) {
+          if (['transaction.mempool', 'transaction.confirmed'].includes(swap.status)) {
             consoleLog('auto-claiming reverse swap:', swap.id)
             swapProvider.claimVHTLC(swap).catch(consoleError)
           }
