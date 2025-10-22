@@ -2,7 +2,7 @@ import { ReactNode, createContext, useContext, useEffect, useState } from 'react
 import { LightningSwapProvider } from '../lib/lightning'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
-import { FeesResponse, isPendingReverseSwap, Network } from '@arkade-os/boltz-swap'
+import { FeesResponse, isPendingReverseSwap, isReverseClaimableStatus, Network } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
 
@@ -59,7 +59,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
         const swaps = await swapProvider.getSwapHistory()
         for (const swap of swaps.filter(isPendingReverseSwap)) {
           // TODO: change with isReverseClaimableStatus from boltz-swap lib when available
-          if (['transaction.mempool', 'transaction.confirmed'].includes(swap.status)) {
+          if (isReverseClaimableStatus(swap.status)) {
             consoleLog('auto-claiming reverse swap:', swap.id)
             await swapProvider.claimVHTLC(swap).catch(consoleError)
           }

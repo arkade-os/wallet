@@ -4,7 +4,7 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/boltz-swap": "0.2.1",
+    "@arkade-os/boltz-swap": "0.2.6",
     "@arkade-os/sdk": "0.3.3",
     "@ionic/react": "^8.5.6",
     "@lendasat/lendasat-wallet-bridge": "^0.0.89",
