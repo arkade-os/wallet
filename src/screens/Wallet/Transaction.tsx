@@ -32,11 +32,12 @@ export default function Transaction() {
   const { settlePreconfirmed, vtxos, wallet, svcWallet } = useContext(WalletContext)
 
   const tx = txInfo
-  const defaultButtonLabel = 'Settle transaction'
   const boardingTx = Boolean(tx?.boardingTxid)
+  const defaultButtonLabel = boardingTx ? 'Complete boarding' : 'Settle transaction'
+  const boardingExitDelay = Number(aspInfo?.boardingExitDelay || 0)
   const unconfirmedBoardingTx = boardingTx && !tx?.createdAt
   const expiredBoardingTx =
-    boardingTx && tx?.createdAt && Date.now() / 1000 - tx?.createdAt > Number(aspInfo?.boardingExitDelay)
+    !tx?.settled && boardingTx && tx?.createdAt && Date.now() / 1000 - tx?.createdAt > boardingExitDelay
 
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
   const [amountAboveDust, setAmountAboveDust] = useState(false)
@@ -110,9 +111,11 @@ export default function Transaction() {
       ? 'Expired'
       : unconfirmedBoardingTx
         ? 'Unconfirmed'
-        : tx.settled
-          ? 'Settled'
-          : 'Preconfirmed',
+        : boardingTx && tx.preconfirmed
+          ? 'Pending boarding'
+          : tx.settled
+            ? 'Settled'
+            : 'Preconfirmed',
     type: boardingTx ? 'Boarding' : 'Offchain',
     txid: tx.boardingTxid || '',
     satoshis: tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
@@ -132,6 +135,10 @@ export default function Transaction() {
           ) : unconfirmedBoardingTx ? (
             <Info color='orange' icon={<VtxosIcon />} title='Unconfirmed'>
               <Text wrap>Onchain transaction unconfirmed. Please wait for confirmation.</Text>
+            </Info>
+          ) : tx.preconfirmed && tx.boardingTxid ? (
+            <Info color='orange' icon={<VtxosIcon />} title='Pending boarding'>
+              <Text wrap>Onboard transaction confirmed on-chain.</Text>
             </Info>
           ) : null}
           {settleSuccess ? (

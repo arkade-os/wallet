@@ -21,8 +21,9 @@ import Loading from '../../components/Loading'
 import { LimitsContext } from '../../providers/limits'
 import { EmptyCoinsList } from '../../components/Empty'
 import WarningBox from '../../components/Warning'
-import { ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { ExtendedCoin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import { consoleError } from '../../lib/logs'
+import { IonCol, IonGrid, IonRow } from '@ionic/react'
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -33,6 +34,7 @@ export default function Vtxos() {
   const defaultLabel = 'Renew Virtual Coins'
 
   const [aboveDust, setAboveDust] = useState(false)
+  const [allUtxos, setAllUtxos] = useState<ExtendedCoin[]>([])
   const [allVtxos, setAllVtxos] = useState<ExtendedVirtualCoin[]>([])
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState('')
@@ -71,6 +73,7 @@ export default function Vtxos() {
       const totalAmount = inputs.reduce((a, v) => a + v.value, 0) || 0
       setAboveDust(totalAmount > aspInfo.dust)
     })
+    // get all VTXOs including recoverable ones
     svcWallet
       .getVtxos({
         withRecoverable: true,
@@ -78,6 +81,8 @@ export default function Vtxos() {
       })
       .then(setAllVtxos)
       .catch(consoleError)
+    // get all UTXOs
+    svcWallet.getBoardingUtxos().then(setAllUtxos).catch(consoleError)
   }, [aspInfo, vtxos, svcWallet])
 
   // Automatically reset `success` after 5s, with cleanup on unmount or re-run
@@ -119,15 +124,80 @@ export default function Vtxos() {
     )
   }
 
+  const Tags = {
+    settled: (
+      <Text color='green' smaller>
+        settled
+      </Text>
+    ),
+    subdust: (
+      <Text color='orange' smaller>
+        subdust
+      </Text>
+    ),
+    swept: (
+      <Text color='orange' smaller>
+        swept
+      </Text>
+    ),
+    unconfirmed: (
+      <Text color='orange' smaller>
+        unconfirmed
+      </Text>
+    ),
+  }
+
+  const CoinLine = ({ amount, tags, expiry }: { amount: string; tags: React.ReactNode; expiry: string }) => {
+    const style = {
+      backgroundColor: 'var(--dark10)',
+      border: '1px solid var(--dark20)',
+      borderRadius: '0.25rem',
+      padding: '0',
+      width: '100%',
+    }
+    return (
+      <div style={style}>
+        <FlexRow between>
+          <IonGrid>
+            <IonRow class='ion-align-items-end'>
+              <IonCol size='4'>
+                <Text>{amount}</Text>
+              </IonCol>
+              <IonCol size='4'>{tags}</IonCol>
+              <IonCol size='4'>
+                <Text right>{expiry}</Text>
+              </IonCol>
+            </IonRow>
+          </IonGrid>
+        </FlexRow>
+      </div>
+    )
+  }
+
   const VtxoLine = ({ vtxo }: { vtxo: Vtxo }) => {
     const amount = config.showBalance ? prettyNumber(vtxo.value) : prettyHide(vtxo.value)
     const expiry = vtxo.virtualStatus?.batchExpiry ? prettyAgo(vtxo.virtualStatus.batchExpiry) : 'Unknown'
-    return (
-      <Box>
-        <Text>{amount} SATS</Text>
-        <Text>{expiry}</Text>
-      </Box>
+    const tags = (
+      <FlexRow centered>
+        {vtxo.value < aspInfo.dust ? Tags.subdust : null}
+        {vtxo.virtualStatus?.state === 'swept' ? Tags.swept : null}
+        {vtxo.virtualStatus?.state === 'settled' ? Tags.settled : null}
+      </FlexRow>
     )
+    return <CoinLine amount={`${amount} SATS`} tags={tags} expiry={expiry} />
+  }
+
+  const UtxoLine = ({ utxo }: { utxo: ExtendedCoin }) => {
+    const expiration = Number(aspInfo.boardingExitDelay)
+    const amount = config.showBalance ? prettyNumber(utxo.value) : prettyHide(utxo.value)
+    const expiry = utxo.status.block_time ? prettyAgo(utxo.status.block_time + expiration) : ''
+    const tags = (
+      <FlexRow centered>
+        {!utxo.status.block_time ? Tags.unconfirmed : null}
+        {utxo.value < aspInfo.dust ? Tags.subdust : null}
+      </FlexRow>
+    )
+    return <CoinLine amount={`${amount} SATS`} tags={tags} expiry={expiry} />
   }
 
   return (
@@ -145,17 +215,31 @@ export default function Vtxos() {
           <Padded>
             <FlexCol>
               <ErrorMessage error={Boolean(error)} text={error} />
-              {listableVtxos.length === 0 ? (
+              {listableVtxos.length + allUtxos.length === 0 ? (
                 <EmptyCoinsList />
               ) : showList ? (
-                <FlexCol gap='0.5rem'>
-                  <Text capitalize color='dark50' smaller>
-                    Your virtual coins with amount and expiration
-                  </Text>
-                  {listableVtxos.map((v: ExtendedVirtualCoin) => (
-                    <VtxoLine key={v.txid} vtxo={v} />
-                  ))}
+                <FlexCol gap='2rem'>
                   {success ? <WarningBox green text='Coins renewed successfully' /> : null}
+                  {listableVtxos.length > 0 ? (
+                    <FlexCol gap='0.5rem'>
+                      <Text capitalize color='dark50' smaller>
+                        Your virtual coins with amount and expiration
+                      </Text>
+                      {listableVtxos.map((v: ExtendedVirtualCoin) => (
+                        <VtxoLine key={v.txid} vtxo={v} />
+                      ))}
+                    </FlexCol>
+                  ) : null}
+                  {allUtxos.length > 0 ? (
+                    <FlexCol gap='0.5rem'>
+                      <Text capitalize color='dark50' smaller>
+                        Your boarding utxos with amount and expiration
+                      </Text>
+                      {allUtxos.map((u: ExtendedCoin) => (
+                        <UtxoLine key={u.txid} utxo={u} />
+                      ))}
+                    </FlexCol>
+                  ) : null}
                 </FlexCol>
               ) : (
                 <>
