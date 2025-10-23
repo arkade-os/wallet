@@ -21,7 +21,25 @@ export default function AppLendaswap() {
     const provider = new WalletProvider(
       {
         capabilities: () => {
-          throw new Error('Not implemented for Lendaswap')
+          return {
+            bitcoin: {
+              signPsbt: false,
+              sendBitcoin: false,
+            },
+            loanAssets: {
+              supportedAssets: [],
+              canReceive: false,
+              canSend: false,
+            },
+            nostr: {
+              hasNpub: false,
+            },
+            ark: {
+              canSend: true,
+              canReceive: true,
+            },
+          }
+
         },
         async onSendToAddress(address: string, amount: number, asset: 'bitcoin' | LoanAsset): Promise<string> {
           if (!svcWallet) {
@@ -58,24 +76,6 @@ export default function AppLendaswap() {
             case 'Mxn':
               throw new Error('Not implemented for Lendaswap')
           }
-        },
-        onGetPublicKey: async () => {
-          throw new Error('Not implemented for Lendaswap')
-        },
-        onGetDerivationPath: () => {
-          throw new Error('Not implemented for Lendaswap')
-        },
-        onGetAddress: async () => {
-          throw new Error('Not implemented for Lendaswap')
-        },
-        onGetNpub: () => {
-          throw new Error('Not implemented for Lendaswap')
-        },
-        onSignPsbt: async () => {
-          throw new Error('Not implemented for Lendaswap')
-        },
-        async onSignMessage(): Promise<string> {
-          throw new Error('Not implemented for Lendaswap')
         },
       },
       [import.meta.env.VITE_LENDASWAP_IFRAME_URL || 'https://swap.lendasat.com'],
