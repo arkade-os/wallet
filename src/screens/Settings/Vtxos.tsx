@@ -21,6 +21,8 @@ import Loading from '../../components/Loading'
 import { LimitsContext } from '../../providers/limits'
 import { EmptyCoinsList } from '../../components/Empty'
 import WarningBox from '../../components/Warning'
+import { ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { consoleError } from '../../lib/logs'
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -31,6 +33,7 @@ export default function Vtxos() {
   const defaultLabel = 'Renew Virtual Coins'
 
   const [aboveDust, setAboveDust] = useState(false)
+  const [allVtxos, setAllVtxos] = useState<ExtendedVirtualCoin[]>([])
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState('')
   const [hasInputsToSettle, setHasInputsToSettle] = useState(false)
@@ -68,6 +71,13 @@ export default function Vtxos() {
       const totalAmount = inputs.reduce((a, v) => a + v.value, 0) || 0
       setAboveDust(totalAmount > aspInfo.dust)
     })
+    svcWallet
+      .getVtxos({
+        withRecoverable: true,
+        withUnrolled: false,
+      })
+      .then(setAllVtxos)
+      .catch(consoleError)
   }, [aspInfo, vtxos, svcWallet])
 
   // Automatically reset `success` after 5s, with cleanup on unmount or re-run
@@ -78,6 +88,8 @@ export default function Vtxos() {
   }, [success])
 
   if (!svcWallet) return <Loading text='Loading...' />
+
+  const listableVtxos = allVtxos.filter((vtxo) => vtxo.isSpent === false)
 
   const handleRollover = async () => {
     try {
@@ -133,14 +145,14 @@ export default function Vtxos() {
           <Padded>
             <FlexCol>
               <ErrorMessage error={Boolean(error)} text={error} />
-              {vtxos.spendable?.length === 0 ? (
+              {listableVtxos.length === 0 ? (
                 <EmptyCoinsList />
               ) : showList ? (
                 <FlexCol gap='0.5rem'>
                   <Text capitalize color='dark50' smaller>
                     Your virtual coins with amount and expiration
                   </Text>
-                  {vtxos.spendable?.map((v: Vtxo) => (
+                  {listableVtxos.map((v: ExtendedVirtualCoin) => (
                     <VtxoLine key={v.txid} vtxo={v} />
                   ))}
                   {success ? <WarningBox green text='Coins renewed successfully' /> : null}
