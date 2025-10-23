@@ -177,7 +177,13 @@ export default function SendForm() {
     if (arkAddress && arkAddress.length > 0) {
       const { serverPubKey } = decodeArkAddress(arkAddress)
       const { serverPubKey: expectedServerPubKey } = decodeArkAddress(offchainAddr)
-      if (serverPubKey !== expectedServerPubKey) setSendInfo({ ...sendInfo, arkAddress: '' })
+      if (serverPubKey !== expectedServerPubKey) {
+        // if there's no other way to pay, show error
+        if (!address && !invoice) return setError('Ark server key mismatch')
+        // remove ark address from possibilities to send and continue
+        // we will try to pay to lightning or mainnet instead
+        setSendInfo({ ...sendInfo, arkAddress: '' })
+      }
     }
     // check if is trying to self send
     if (address === boardingAddr || arkAddress === offchainAddr) {
