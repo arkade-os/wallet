@@ -100,7 +100,7 @@ export default function Apps() {
             />
 
             <App
-              name='Lendasat'
+              name='LendaSat'
               icon={<LendasatIcon />}
               desc='Borrow against your sats.'
               link='https://lendasat.com'
@@ -109,7 +109,7 @@ export default function Apps() {
             />
 
             <App
-              name='Lendaswap'
+              name='LendaSwap'
               icon={<LendaswapIcon />}
               desc='Swap Bitcoin to USDC instantly.'
               link='https://swap.lendasat.com'
