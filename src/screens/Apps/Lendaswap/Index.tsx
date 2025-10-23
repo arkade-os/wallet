@@ -39,7 +39,6 @@ export default function AppLendaswap() {
               canReceive: true,
             },
           }
-
         },
         async onSendToAddress(address: string, amount: number, asset: 'bitcoin' | LoanAsset): Promise<string> {
           if (!svcWallet) {
