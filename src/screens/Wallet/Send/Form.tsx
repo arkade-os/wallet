@@ -53,6 +53,7 @@ export default function SendForm() {
 
   const [amount, setAmount] = useState<number>()
   const [amountIsReadOnly, setAmountIsReadOnly] = useState(false)
+  const [availableBalance, setAvailableBalance] = useState<number>(0)
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
   const [label, setLabel] = useState('')
@@ -74,6 +75,7 @@ export default function SendForm() {
     setRecipient(recipient ?? '')
     setAmount(satoshis ? satoshis : undefined)
     getReceivingAddresses(svcWallet).then(setReceivingAddresses)
+    svcWallet.getBalance().then((bal) => setAvailableBalance(bal.available))
   }, [])
 
   // parse recipient data
@@ -295,8 +297,8 @@ export default function SendForm() {
   }
 
   const handleSendAll = () => {
-    const fees = sendInfo.lnUrl ? (calcSubmarineSwapFee(balance) ?? 0) : 0
-    setAmount(balance - fees)
+    const fees = sendInfo.lnUrl ? (calcSubmarineSwapFee(availableBalance) ?? 0) : 0
+    setAmount(availableBalance - fees)
   }
 
   const smartSetError = (str: string) => {
@@ -304,7 +306,7 @@ export default function SendForm() {
   }
 
   const Available = () => {
-    const amount = useFiat ? toFiat(balance) : balance
+    const amount = useFiat ? toFiat(availableBalance) : availableBalance
     const pretty = useFiat ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>

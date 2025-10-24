@@ -174,7 +174,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }, 1_000)
 
       // renew expiring coins on startup
-      renewCoins(svcWallet).catch(() => {})
+      renewCoins(svcWallet, aspInfo.dust).catch(() => {})
     } catch (err) {
       consoleError(err, 'Error initializing service worker wallet')
     }
@@ -209,7 +209,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const settlePreconfirmed = async () => {
     if (!svcWallet) throw new Error('Service worker not initialized')
-    await settleVtxos(svcWallet)
+    await settleVtxos(svcWallet, aspInfo.dust)
     notifyTxSettled()
   }
 
