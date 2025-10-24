@@ -75,8 +75,12 @@ export default function SendForm() {
     setRecipient(recipient ?? '')
     setAmount(satoshis ? satoshis : undefined)
     getReceivingAddresses(svcWallet).then(setReceivingAddresses)
-    svcWallet.getBalance().then((bal) => setAvailableBalance(bal.available))
   }, [])
+
+  useEffect(() => {
+    if (!svcWallet) return
+    svcWallet.getBalance().then((bal) => setAvailableBalance(bal.available))
+  }, [balance])
 
   // parse recipient data
   useEffect(() => {
