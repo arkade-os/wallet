@@ -67,10 +67,9 @@ export default function SendForm() {
   const [scan, setScan] = useState(false)
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
 
-  if (!svcWallet) return <Loading text='Loading...' />
-
   // get receiving addresses
   useEffect(() => {
+    if (!svcWallet) return
     const { recipient, satoshis } = sendInfo
     setRecipient(recipient ?? '')
     setAmount(satoshis ? satoshis : undefined)
@@ -241,6 +240,8 @@ export default function SendForm() {
       }
     } else navigate(Pages.SendDetails)
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
+
+  if (!svcWallet) return <Loading text='Loading...' />
 
   const setState = (info: SendInfo) => {
     setScan(false)
