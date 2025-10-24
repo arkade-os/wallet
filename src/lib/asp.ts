@@ -168,12 +168,14 @@ export const getInputsToSettle = async (wallet: IWallet): Promise<ExtendedCoin[]
   return [...boardingUtxos, ...vtxos]
 }
 
-export const settleVtxos = async (wallet: IWallet): Promise<void> => {
+export const settleVtxos = async (wallet: IWallet, dustAmount: bigint): Promise<void> => {
   const inputs = await getInputsToSettle(wallet)
 
   if (inputs.length === 0) throw new Error('No UTXOs or VTXOs eligible to settle')
 
   const amount = inputs.reduce((sum, input) => sum + input.value, 0)
+
+  if (amount < Number(dustAmount)) throw new Error('Total amount is below dust threshold')
 
   const outputs = [
     {
@@ -185,7 +187,7 @@ export const settleVtxos = async (wallet: IWallet): Promise<void> => {
   await wallet.settle({ inputs, outputs }, console.log)
 }
 
-export const renewCoins = async (wallet: IWallet): Promise<void> => {
+export const renewCoins = async (wallet: IWallet, dustAmount: bigint): Promise<void> => {
   const inputs = await getInputsToSettle(wallet)
-  if (inputs.length > 0) await settleVtxos(wallet)
+  if (inputs.length > 0) await settleVtxos(wallet, dustAmount)
 }
