@@ -29,6 +29,8 @@ import { pwaIsInstalled } from './lib/pwa'
 import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
 import FlexCol from './components/FlexCol'
+import { detectJSCapabilities, getRestrictedEnvironmentMessage } from './lib/jsCapabilities'
+import { isIOS } from './lib/browser'
 
 setupIonicReact()
 
@@ -41,6 +43,7 @@ export default function App() {
   const { walletLoaded, initialized, svcWallet, wallet } = useContext(WalletContext)
 
   const [loadingError, setLoadingError] = useState('')
+  const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
 
   // refs for the tabs to be able to programmatically activate them
   const appsRef = useRef<HTMLIonTabElement>(null)
@@ -54,6 +57,23 @@ export default function App() {
   if (orientation && typeof orientation.lock === 'function') {
     orientation.lock('portrait').catch(() => {})
   }
+
+  // Check JavaScript capabilities on mount
+  useEffect(() => {
+    detectJSCapabilities()
+      .then((result) => {
+        if (!result.isSupported) {
+          // Use specific error message or fallback to iOS/generic message
+          const errorMsg = result.errorMessage || getRestrictedEnvironmentMessage(isIOS())
+          setLoadingError(errorMsg)
+        }
+        setJsCapabilitiesChecked(true)
+      })
+      .catch(() => {
+        setLoadingError(getRestrictedEnvironmentMessage(isIOS()))
+        setJsCapabilitiesChecked(true)
+      })
+  }, [])
 
   useEffect(() => {
     if (!configLoaded) {
@@ -115,7 +135,7 @@ export default function App() {
     navigate(Pages.Settings)
   }
 
-  const page = configLoaded && (aspInfo.signerPubkey || aspInfo.unreachable) ? screen : Pages.Loading
+  const page = jsCapabilitiesChecked && configLoaded && (aspInfo.signerPubkey || aspInfo.unreachable) ? screen : Pages.Loading
 
   const comp = page === Pages.Loading ? <Loading text={loadingError} /> : pageComponent(page)
 
