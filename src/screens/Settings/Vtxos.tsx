@@ -159,7 +159,7 @@ export default function Vtxos() {
       <div style={style}>
         <FlexRow between>
           <IonGrid>
-            <IonRow class='ion-align-items-end'>
+            <IonRow className='ion-align-items-end'>
               <IonCol size='4'>
                 <Text>{amount}</Text>
               </IonCol>
