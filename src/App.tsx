@@ -135,7 +135,8 @@ export default function App() {
     navigate(Pages.Settings)
   }
 
-  const page = jsCapabilitiesChecked && configLoaded && (aspInfo.signerPubkey || aspInfo.unreachable) ? screen : Pages.Loading
+  const page =
+    jsCapabilitiesChecked && configLoaded && (aspInfo.signerPubkey || aspInfo.unreachable) ? screen : Pages.Loading
 
   const comp = page === Pages.Loading ? <Loading text={loadingError} /> : pageComponent(page)
 

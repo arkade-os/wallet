@@ -31,7 +31,8 @@ export const detectJSCapabilities = async (): Promise<JSCapabilityCheck> => {
     if (!('serviceWorker' in navigator)) {
       return {
         isSupported: false,
-        errorMessage: 'Service Workers are not supported in this environment. The wallet requires Service Workers to function.',
+        errorMessage:
+          'Service Workers are not supported in this environment. The wallet requires Service Workers to function.',
       }
     }
 
@@ -47,7 +48,8 @@ export const detectJSCapabilities = async (): Promise<JSCapabilityCheck> => {
     if (!window.crypto || !window.crypto.subtle) {
       return {
         isSupported: false,
-        errorMessage: 'Web Crypto API is not supported in this environment. The wallet requires cryptographic capabilities.',
+        errorMessage:
+          'Web Crypto API is not supported in this environment. The wallet requires cryptographic capabilities.',
       }
     }
 
@@ -76,29 +78,30 @@ export const detectJSCapabilities = async (): Promise<JSCapabilityCheck> => {
 const testCryptoPerformance = async (): Promise<JSCapabilityCheck> => {
   try {
     const startTime = performance.now()
-    
+
     // Perform a simple but representative crypto operation
     // This tests if the environment can handle the crypto libraries we use
     const data = new Uint8Array(32)
     window.crypto.getRandomValues(data)
-    
+
     // Test SHA-256 hashing (used extensively in Bitcoin/crypto operations)
     const encoder = new TextEncoder()
     const testData = encoder.encode('test-crypto-performance-check')
     await window.crypto.subtle.digest('SHA-256', testData)
-    
+
     const endTime = performance.now()
     const duration = endTime - startTime
-    
+
     // If basic crypto operations take more than 1 second, something is seriously wrong
     // (likely JIT is disabled or environment is severely restricted)
     if (duration > 1000) {
       return {
         isSupported: false,
-        errorMessage: 'JavaScript performance is severely degraded. Please enable JIT compilation in your browser settings.',
+        errorMessage:
+          'JavaScript performance is severely degraded. Please enable JIT compilation in your browser settings.',
       }
     }
-    
+
     return {
       isSupported: true,
     }
