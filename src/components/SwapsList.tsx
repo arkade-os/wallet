@@ -118,8 +118,12 @@ export default function SwapsList() {
   const [swapHistory, setSwapHistory] = useState<(PendingReverseSwap | PendingSubmarineSwap)[]>([])
 
   useEffect(() => {
-    if (!swapProvider) return
-    swapProvider.getSwapHistory().then(setSwapHistory)
+    const choresOnInit = async () => {
+      if (!swapProvider) return
+      await swapProvider.refreshSwapsStatus()
+      setSwapHistory(await swapProvider.getSwapHistory())
+    }
+    choresOnInit()
   }, [swapProvider])
 
   if (swapHistory.length === 0) return <EmptySwapList />
