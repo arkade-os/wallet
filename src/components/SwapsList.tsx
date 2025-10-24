@@ -10,6 +10,7 @@ import { NavigationContext, Pages } from '../providers/navigation'
 import { prettyAgo, prettyAmount, prettyDate, prettyHide } from '../lib/format'
 import { SwapFailedIcon, SwapPendingIcon, SwapSuccessIcon } from '../icons/Swap'
 import { BoltzSwapStatus, PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
+import { consoleError } from '../lib/logs'
 
 const border = '1px solid var(--dark20)'
 
@@ -120,8 +121,12 @@ export default function SwapsList() {
   useEffect(() => {
     const choresOnInit = async () => {
       if (!swapProvider) return
-      await swapProvider.refreshSwapsStatus()
-      setSwapHistory(await swapProvider.getSwapHistory())
+      try {
+        await swapProvider.refreshSwapsStatus()
+        setSwapHistory(await swapProvider.getSwapHistory())
+      } catch (err) {
+        consoleError(err, 'Error fetching swap history:')
+      }
     }
     choresOnInit()
   }, [swapProvider])
