@@ -33,9 +33,9 @@ describe('address utilities', () => {
   })
 
   describe('isBtcAddress', () => {
-    it('should return true for a valid address', () => {
-      expect(isBTCAddress(fixtures.lib.address.btc.address)).toBe(true)
-    })
+    for (const test of fixtures.lib.address.btc) {
+      expect(isBTCAddress(test)).toBe(true)
+    }
 
     it('should return false for an invalid address', () => {
       expect(isBTCAddress('invalidAddress')).toBe(false)
