@@ -16,7 +16,7 @@ export default function ButtonsOnBottom({ bordered, children }: ButtonsOnBottomP
   return (
     <>
       {bordered ? <hr style={borderStyle} /> : null}
-      <IonFooter class='ion-padding ion-no-border'>
+      <IonFooter className='ion-padding ion-no-border'>
         <FlexCol gap='0' strech>
           {children}
         </FlexCol>
