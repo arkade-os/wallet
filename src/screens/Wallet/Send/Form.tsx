@@ -206,7 +206,7 @@ export default function SendForm() {
   useEffect(() => {
     setState({ ...sendInfo, satoshis })
     setLabel(
-      satoshis > balance
+      satoshis > availableBalance
         ? 'Insufficient funds'
         : lnUrlLimits.min && satoshis < lnUrlLimits.min
           ? 'Amount below LNURL min limit'
@@ -331,7 +331,7 @@ export default function SendForm() {
     amountIsAboveMaxLimit(satoshis) ||
     satoshis < 1 ||
     aspInfo.unreachable ||
-    satoshis > balance ||
+    satoshis > availableBalance ||
     tryingToSelfSend ||
     Boolean(error)
 
