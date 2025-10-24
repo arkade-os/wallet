@@ -42,7 +42,7 @@ function ScannerQr({ close, label, onData, onError, onSwitch }: ScannerProps) {
   const [hasCamera, setHasCamera] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement>(null)
-  let qrScanner: QrScanner | undefined
+  const qrScanner = useRef<QrScanner | null>(null)
 
   useEffect(() => {
     QrScanner.hasCamera().then(setHasCamera)
@@ -51,29 +51,30 @@ function ScannerQr({ close, label, onData, onError, onSwitch }: ScannerProps) {
   useEffect(() => {
     if (!hasCamera) return
     if (!videoRef.current) return
-    if (qrScanner === undefined) {
-      qrScanner = new QrScanner(
+    if (!qrScanner.current) {
+      qrScanner.current = new QrScanner(
         videoRef.current,
         (result) => {
           onData(result.data)
           handleClose()
         },
         {
-          maxScansPerSecond: 1000,
+          maxScansPerSecond: 100,
           highlightScanRegion: true,
           onDecodeError: () => {},
         },
       )
     }
-    qrScanner.start().catch((err) => {
+    qrScanner.current.start().catch((err) => {
       onError(extractError(err))
       setError(true)
     })
+    return () => stopScan()
   }, [hasCamera])
 
   const stopScan = () => {
-    qrScanner?.destroy()
-    qrScanner = undefined
+    qrScanner.current?.destroy()
+    qrScanner.current = null
   }
 
   const handleClose = () => {
