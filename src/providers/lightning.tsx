@@ -2,9 +2,9 @@ import { ReactNode, createContext, useContext, useEffect, useState } from 'react
 import { LightningSwapProvider } from '../lib/lightning'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
-import { FeesResponse, Network } from '@arkade-os/boltz-swap'
+import { FeesResponse, isPendingReverseSwap, isReverseClaimableStatus, Network } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
-import { consoleError } from '../lib/logs'
+import { consoleError, consoleLog } from '../lib/logs'
 
 const BASE_URLS: Record<Network, string> = {
   bitcoin: import.meta.env.VITE_BOLTZ_URL ?? 'https://api.ark.boltz.exchange',
@@ -51,11 +51,23 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
   // fetch fees and refresh swaps status on provider change
   useEffect(() => {
     if (!swapProvider) return
-    swapProvider.getFees().then(setFees).catch(consoleError)
-    swapProvider
-      .refreshSwapsStatus()
-      .then(() => swapProvider.refundFailedSubmarineSwaps().catch(consoleError))
-      .catch(consoleError)
+    const choresOnInit = async () => {
+      try {
+        setFees(await swapProvider.getFees())
+        await swapProvider.refreshSwapsStatus()
+        await swapProvider.refundFailedSubmarineSwaps()
+        const swaps = await swapProvider.getSwapHistory()
+        for (const swap of swaps.filter(isPendingReverseSwap)) {
+          if (isReverseClaimableStatus(swap.status)) {
+            consoleLog('auto-claiming reverse swap:', swap.id)
+            await swapProvider.claimVHTLC(swap).catch(consoleError)
+          }
+        }
+      } catch (error) {
+        consoleError(error)
+      }
+    }
+    choresOnInit()
   }, [swapProvider])
 
   const setConnected = (value: boolean) => {

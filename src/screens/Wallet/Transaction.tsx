@@ -5,7 +5,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
-import { prettyAgo, prettyDate, prettyDelta } from '../../lib/format'
+import { prettyAgo, prettyDate } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
 import ErrorMessage from '../../components/Error'
 import { extractError } from '../../lib/error'
@@ -32,15 +32,15 @@ export default function Transaction() {
   const { settlePreconfirmed, vtxos, wallet, svcWallet } = useContext(WalletContext)
 
   const tx = txInfo
-  const defaultButtonLabel = 'Settle transaction'
   const boardingTx = Boolean(tx?.boardingTxid)
+  const defaultButtonLabel = boardingTx ? 'Complete boarding' : 'Settle transaction'
+  const boardingExitDelay = Number(aspInfo?.boardingExitDelay || 0)
   const unconfirmedBoardingTx = boardingTx && !tx?.createdAt
   const expiredBoardingTx =
-    tx?.createdAt && !unconfirmedBoardingTx && Date.now() / 1000 - tx?.createdAt > Number(aspInfo?.boardingExitDelay)
+    !tx?.settled && boardingTx && tx?.createdAt && Date.now() / 1000 - tx?.createdAt > boardingExitDelay
 
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
   const [amountAboveDust, setAmountAboveDust] = useState(false)
-  const [canSettleOnMarketHour, setCanSettleOnMarketHour] = useState(false)
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState('')
   const [hasInputsToSettle, setHasInputsToSettle] = useState(false)
@@ -58,12 +58,9 @@ export default function Transaction() {
     if (!tx) return
     const bestMarketHour = calcBestMarketHour(wallet.nextRollover)
     if (bestMarketHour) {
-      // setCanSettleOnMarketHour(true) TODO remove after
-      setCanSettleOnMarketHour(false)
       setStartTime(Number(bestMarketHour.nextStartTime))
       setDuration(Number(bestMarketHour.duration))
     } else {
-      setCanSettleOnMarketHour(false)
       setStartTime(wallet.nextRollover)
       setDuration(0)
     }
@@ -110,19 +107,28 @@ export default function Transaction() {
     direction: tx.type === 'sent' ? 'Sent' : 'Received',
     when: tx.createdAt ? prettyAgo(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
     date: tx.createdAt ? prettyDate(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
+    status: expiredBoardingTx
+      ? 'Expired'
+      : unconfirmedBoardingTx
+        ? 'Unconfirmed'
+        : boardingTx && tx.preconfirmed
+          ? 'Pending boarding'
+          : tx.settled
+            ? 'Settled'
+            : 'Preconfirmed',
+    type: boardingTx ? 'Boarding' : 'Offchain',
+    txid: tx.boardingTxid || '',
     satoshis: tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
     fees: tx.type === 'sent' ? defaultFee : 0,
     total: tx.amount,
   }
-
-  const bestMarketHourStr = `${prettyDate(startTime)} (${prettyAgo(startTime, true)}) for ${prettyDelta(duration)}`
 
   const Body = () => (
     <Content>
       <Padded>
         <FlexCol>
           <ErrorMessage error={Boolean(error)} text={error} />
-          {tx.settled ? null : expiredBoardingTx ? (
+          {expiredBoardingTx ? (
             <Info color='red' icon={<VtxosIcon />} title='Expired'>
               <Text wrap>Boarding transaction expired.</Text>
             </Info>
@@ -130,18 +136,11 @@ export default function Transaction() {
             <Info color='orange' icon={<VtxosIcon />} title='Unconfirmed'>
               <Text wrap>Onchain transaction unconfirmed. Please wait for confirmation.</Text>
             </Info>
-          ) : (
-            <Info color='orange' icon={<VtxosIcon />} title='Preconfirmed'>
-              <Text wrap>Transaction preconfirmed. Funds will be non-reversible after settlement.</Text>
-              {canSettleOnMarketHour ? (
-                <TextSecondary>
-                  Settlement during market hours offers lower fees.
-                  <br />
-                  Best market hour: {bestMarketHourStr}.
-                </TextSecondary>
-              ) : null}
+          ) : tx.preconfirmed && tx.boardingTxid ? (
+            <Info color='orange' icon={<VtxosIcon />} title='Pending boarding'>
+              <Text wrap>Onboard transaction confirmed on-chain.</Text>
             </Info>
-          )}
+          ) : null}
           {settleSuccess ? (
             <Info color='green' icon={<CheckMarkIcon small />} title='Success'>
               <TextSecondary>Transaction settled successfully</TextSecondary>

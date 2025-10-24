@@ -42,7 +42,7 @@ export default function Header({ auxFunc, auxText, back, text, auxIcon }: Header
             <p>&nbsp;</p>
           )}
         </div>
-        <IonTitle class='ion-text-center'>{text}</IonTitle>
+        <IonTitle className='ion-text-center'>{text}</IonTitle>
         <div style={style} onClick={auxFunc}>
           {auxText ? SideButton(auxText) : auxIcon ? auxIcon : <p>&nbsp;</p>}
         </div>
