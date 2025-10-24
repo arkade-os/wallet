@@ -179,9 +179,13 @@ export default function Vtxos() {
     const expiry = vtxo.virtualStatus?.batchExpiry ? prettyAgo(vtxo.virtualStatus.batchExpiry) : 'Unknown'
     const tags = (
       <FlexRow centered>
-        {vtxo.value < aspInfo.dust ? Tags.subdust : null}
-        {vtxo.virtualStatus?.state === 'swept' ? Tags.swept : null}
-        {vtxo.virtualStatus?.state === 'settled' ? Tags.settled : null}
+        {vtxo.value < aspInfo.dust
+          ? Tags.subdust
+          : vtxo.virtualStatus?.state === 'swept'
+            ? Tags.swept
+            : vtxo.virtualStatus?.state === 'settled'
+              ? Tags.settled
+              : null}
       </FlexRow>
     )
     return <CoinLine amount={`${amount} SATS`} tags={tags} expiry={expiry} />
@@ -193,8 +197,7 @@ export default function Vtxos() {
     const expiry = utxo.status.block_time ? prettyAgo(utxo.status.block_time + expiration) : ''
     const tags = (
       <FlexRow centered>
-        {!utxo.status.block_time ? Tags.unconfirmed : null}
-        {utxo.value < aspInfo.dust ? Tags.subdust : null}
+        {!utxo.status.block_time ? Tags.unconfirmed : utxo.value < aspInfo.dust ? Tags.subdust : null}
       </FlexRow>
     )
     return <CoinLine amount={`${amount} SATS`} tags={tags} expiry={expiry} />
