@@ -9,6 +9,8 @@ import { WalletProvider, type LoanAsset } from '@lendasat/lendasat-wallet-bridge
 import { collaborativeExit } from '../../../lib/asp'
 import { isArkAddress, isBTCAddress } from '../../../lib/address'
 
+const IFRAME_URL = import.meta.env.VITE_LENDASWAP_IFRAME_URL || 'https://swap.lendasat.com'
+
 export default function AppLendaswap() {
   const { navigate } = useContext(NavigationContext)
   const { svcWallet } = useContext(WalletContext)
@@ -45,10 +47,14 @@ export default function AppLendaswap() {
             throw Error('Wallet not initialized')
           }
 
+          if (!Number.isFinite(amount) || !Number.isInteger(amount) || amount <= 0) {
+            throw new Error('Invalid amount')
+          }
+
           switch (asset) {
             case 'bitcoin':
               if (isArkAddress(address)) {
-                const txId = await svcWallet?.sendBitcoin({ amount: amount, address: address })
+                const txId = await svcWallet?.sendBitcoin({ amount, address })
                 if (txId) {
                   return txId
                 } else {
@@ -77,7 +83,7 @@ export default function AppLendaswap() {
           }
         },
       },
-      [import.meta.env.VITE_LENDASWAP_IFRAME_URL || 'https://swap.lendasat.com'],
+      [IFRAME_URL],
     )
 
     provider.listen(iframeRef.current)
@@ -95,7 +101,7 @@ export default function AppLendaswap() {
           <FlexCol gap='2rem' between>
             <iframe
               ref={iframeRef}
-              src={import.meta.env.VITE_LENDASWAP_IFRAME_URL || 'https://swap.lendasat.com'}
+              src={IFRAME_URL}
               title='Lendaswap'
               className='lendaswap-iframe'
               allow='clipboard-write; clipboard-read'
