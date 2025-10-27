@@ -21,8 +21,8 @@ importers:
         specifier: ^8.5.6
         version: 8.7.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@lendasat/lendasat-wallet-bridge':
-        specifier: ^0.0.89
-        version: 0.0.89
+        specifier: ^0.0.90
+        version: 0.0.90
       '@noble/curves':
         specifier: ^2.0.1
         version: 2.0.1
@@ -514,8 +514,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.30':
     resolution: {integrity: sha512-GQ7Nw5G2lTu/BtHTKfXhKHok2WGetd4XYcVKGx00SjAk8GMwgJM3zr6zORiPGuOE+/vkc90KtTosSSvaCjKb2Q==}
 
-  '@lendasat/lendasat-wallet-bridge@0.0.89':
-    resolution: {integrity: sha512-lWVw5akBWnlvPLVqtQHNKhz5e7t73VsOVqBaS2n5UvMuS4WIBY1jviCKlj70+5NDmnzw9XlO4LuS7vJaKPLyFg==}
+  '@lendasat/lendasat-wallet-bridge@0.0.90':
+    resolution: {integrity: sha512-VfgM5vUx81vVWlggtOReUkaC8VVOFVavIMixQM0G/ZI0L/nMi10fmkIBvXOVI4Jmsu9A5z6wHSUrERxD3a/Juw==}
 
   '@noble/ciphers@0.5.3':
     resolution: {integrity: sha512-B0+6IIHiqEs3BPMT0hcRmHvEj2QHOLu+uwt+tqDDeVd0oyVzh7BPrDcPjRnV1PV/5LaknXJJQvOuRGR0zQJz+w==}
@@ -2799,7 +2799,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@lendasat/lendasat-wallet-bridge@0.0.89': {}
+  '@lendasat/lendasat-wallet-bridge@0.0.90': {}
 
   '@noble/ciphers@0.5.3': {}
 
