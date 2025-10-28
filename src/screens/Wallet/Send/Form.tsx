@@ -358,6 +358,7 @@ export default function SendForm() {
               value={recipient}
             />
             <InputAmount
+              name='send-amount'
               focus={focus === 'amount' && !isMobileBrowser}
               label='Amount'
               min={lnUrlLimits.min}

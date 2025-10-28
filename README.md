@@ -64,3 +64,30 @@ It correctly bundles React in production mode and optimizes the build for the be
 
 The build is minified and the filenames include the hashes.\
 Your app is ready to be deployed!
+
+### `pnpm run regtest`
+
+Starts the regtest environment and setup arkd instance. Requires Docker to be installed and [Nigiri](https://nigiri.vulpem.com/) to be running.
+
+### e2e tests
+
+> note: e2e tests require a regtest environment to be running.
+> `pnpm run regtest` to start and setup the regtest environment.
+
+Run the tests with:
+
+```bash
+pnpm run test:e2e
+```
+
+Run the tests in interactive mode with:
+
+```bash
+pnpm run test:e2e --ui
+```
+
+Access the playwright code generator tool with:
+
+```bash
+pnpm run test:codegen
+```
