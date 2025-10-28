@@ -19,6 +19,7 @@ import ErrorMessage from '../../../components/Error'
 import { TextSecondary } from '../../../components/Text'
 import CheckMarkIcon from '../../../icons/CheckMark'
 import Info from '../../../components/Info'
+import Loading from '../../../components/Loading'
 
 export default function AppBoltzSwap() {
   const { config } = useContext(ConfigContext)
@@ -86,15 +87,19 @@ export default function AppBoltzSwap() {
       <Header text='Swap' back={() => navigate(Pages.AppBoltz)} />
       <Content>
         <Padded>
-          <FlexCol gap='2rem'>
-            <ErrorMessage error={Boolean(error)} text={error} />
-            {success ? (
-              <Info color='green' icon={<CheckMarkIcon small />} title='Success'>
-                <TextSecondary>Swap {isRefundable ? 'refunded' : 'completed'}</TextSecondary>
-              </Info>
-            ) : null}
-            <Table data={data} />
-          </FlexCol>
+          {processing ? (
+            <Loading text='Processing swap...' />
+          ) : (
+            <FlexCol gap='2rem'>
+              <ErrorMessage error={Boolean(error)} text={error} />
+              {success ? (
+                <Info color='green' icon={<CheckMarkIcon small />} title='Success'>
+                  <TextSecondary>Swap {isRefundable ? 'refunded' : 'completed'}</TextSecondary>
+                </Info>
+              ) : null}
+              <Table data={data} />
+            </FlexCol>
+          )}
         </Padded>
       </Content>
       {!success && (isRefundable || isClaimable) ? (
