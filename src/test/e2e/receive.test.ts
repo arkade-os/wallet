@@ -33,7 +33,7 @@ test('should receive onchain funds', async ({ page }) => {
 })
 
 test('should receive offchain funds', async ({ page }) => {
-  await page.goto('http://localhost:3002/')
+  await page.goto('/')
   await page.getByText('Continue').click()
   await page.getByText('Continue').click()
   await page.getByText('Continue').click()
