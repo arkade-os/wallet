@@ -17,6 +17,11 @@ jobs:
       run: npm install -g pnpm && pnpm install
     - name: Install Playwright Browsers
       run: pnpm exec playwright install --with-deps
+    - name: Run Nigiri
+      uses: vulpemventures/nigiri-github-action@v1
+      with:
+        use_liquid: false
+        use_ln: false
     - name: Setup regtest environment
       run: pnpm regtest
     - name: Run Playwright tests
