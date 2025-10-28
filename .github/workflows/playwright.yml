@@ -26,6 +26,8 @@ jobs:
       run: pnpm regtest
     - name: Run Playwright tests
       run: pnpm exec playwright test
+      env:
+        CI: true
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
       with:
