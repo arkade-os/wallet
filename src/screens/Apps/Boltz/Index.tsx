@@ -24,6 +24,7 @@ export default function AppBoltz() {
       </Text>
     </FlexRow>
   )
+
   return (
     <>
       <Header
