@@ -25,7 +25,7 @@ jobs:
     - name: Setup regtest environment
       run: pnpm regtest
     - name: Run Playwright tests
-      run: pnpm exec playwright test
+      run: sleep 5 && pnpm exec playwright test
       env:
         CI: true
     - uses: actions/upload-artifact@v4
