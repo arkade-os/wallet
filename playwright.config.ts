@@ -19,7 +19,6 @@ export default defineConfig({
   webServer: {
     command: 'pnpm start',
     port: 3002,
-    reuseExistingServer: !process.env.CI,
   },
   projects: [
     {
