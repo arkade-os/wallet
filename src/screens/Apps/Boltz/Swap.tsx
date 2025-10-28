@@ -27,7 +27,7 @@ export default function AppBoltzSwap() {
   const { navigate } = useContext(NavigationContext)
 
   const [error, setError] = useState<string>('')
-  const [cooking, setCooking] = useState<boolean>(false)
+  const [processing, setProcessing] = useState<boolean>(false)
   const [success, setSuccess] = useState<boolean>(false)
 
   if (!swapInfo) return null
@@ -63,7 +63,7 @@ export default function AppBoltzSwap() {
   const buttonHandler = async () => {
     if (!swapProvider) return
     try {
-      setCooking(true)
+      setProcessing(true)
       if (isReverse && isClaimable) {
         await swapProvider.claimVHTLC(swapInfo)
         setSuccess(true)
@@ -77,16 +77,9 @@ export default function AppBoltzSwap() {
       setError(extractError(error))
       consoleError(error, 'Error processing swap')
     } finally {
-      setCooking(false)
+      setProcessing(false)
     }
   }
-
-  const Buttons = () =>
-    !success && (isRefundable || isClaimable) ? (
-      <ButtonsOnBottom>
-        <Button onClick={buttonHandler} label={buttonLabel} disabled={cooking} />
-      </ButtonsOnBottom>
-    ) : null
 
   return (
     <>
@@ -104,7 +97,11 @@ export default function AppBoltzSwap() {
           </FlexCol>
         </Padded>
       </Content>
-      <Buttons />
+      {!success && (isRefundable || isClaimable) ? (
+        <ButtonsOnBottom>
+          <Button onClick={buttonHandler} label={buttonLabel} disabled={processing} />
+        </ButtonsOnBottom>
+      ) : null}
     </>
   )
 }
