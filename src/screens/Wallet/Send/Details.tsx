@@ -54,12 +54,14 @@ export default function SendDetails() {
             ? 'Paying to mainnet'
             : ''
     const feeInSats = destination === invoice ? calcSubmarineSwapFee(satoshis) : defaultFee
+    const swapId = pendingSwap?.id ?? ''
     const total = satoshis + feeInSats
     setDetails({
       destination,
       direction,
       fees: feeInSats,
       satoshis,
+      swapId,
       total,
     })
     if (balance < total) {
