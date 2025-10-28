@@ -53,6 +53,7 @@ export default function SendForm() {
 
   const [amount, setAmount] = useState<number>()
   const [amountIsReadOnly, setAmountIsReadOnly] = useState(false)
+  const [availableBalance, setAvailableBalance] = useState<number>(0)
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
   const [label, setLabel] = useState('')
@@ -66,15 +67,19 @@ export default function SendForm() {
   const [scan, setScan] = useState(false)
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
 
-  if (!svcWallet) return <Loading text='Loading...' />
-
   // get receiving addresses
   useEffect(() => {
+    if (!svcWallet) return
     const { recipient, satoshis } = sendInfo
     setRecipient(recipient ?? '')
     setAmount(satoshis ? satoshis : undefined)
     getReceivingAddresses(svcWallet).then(setReceivingAddresses)
   }, [])
+
+  useEffect(() => {
+    if (!svcWallet) return
+    svcWallet.getBalance().then((bal) => setAvailableBalance(bal.available))
+  }, [balance])
 
   // parse recipient data
   useEffect(() => {
@@ -201,7 +206,7 @@ export default function SendForm() {
   useEffect(() => {
     setState({ ...sendInfo, satoshis })
     setLabel(
-      satoshis > balance
+      satoshis > availableBalance
         ? 'Insufficient funds'
         : lnUrlLimits.min && satoshis < lnUrlLimits.min
           ? 'Amount below LNURL min limit'
@@ -235,6 +240,8 @@ export default function SendForm() {
       }
     } else navigate(Pages.SendDetails)
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
+
+  if (!svcWallet) return <Loading text='Loading...' />
 
   const setState = (info: SendInfo) => {
     setScan(false)
@@ -295,8 +302,8 @@ export default function SendForm() {
   }
 
   const handleSendAll = () => {
-    const fees = sendInfo.lnUrl ? (calcSubmarineSwapFee(balance) ?? 0) : 0
-    setAmount(balance - fees)
+    const fees = sendInfo.lnUrl ? (calcSubmarineSwapFee(availableBalance) ?? 0) : 0
+    setAmount(availableBalance - fees)
   }
 
   const smartSetError = (str: string) => {
@@ -304,7 +311,7 @@ export default function SendForm() {
   }
 
   const Available = () => {
-    const amount = useFiat ? toFiat(balance) : balance
+    const amount = useFiat ? toFiat(availableBalance) : availableBalance
     const pretty = useFiat ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
@@ -324,7 +331,7 @@ export default function SendForm() {
     amountIsAboveMaxLimit(satoshis) ||
     satoshis < 1 ||
     aspInfo.unreachable ||
-    satoshis > balance ||
+    satoshis > availableBalance ||
     tryingToSelfSend ||
     Boolean(error)
 

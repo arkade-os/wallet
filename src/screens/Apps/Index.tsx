@@ -13,6 +13,7 @@ import { IonText } from '@ionic/react'
 import BoltzIcon from '../../icons/Boltz'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import LendasatIcon from './Lendasat/LendasatIcon'
+import LendaswapIcon from './Lendaswap/LendaswapIcon'
 
 const Tag = ({ kind }: { kind: 'new' | 'coming soon' }) => {
   const style = {
@@ -99,11 +100,20 @@ export default function Apps() {
             />
 
             <App
-              name='Lendasat'
+              name='LendaSat'
               icon={<LendasatIcon />}
               desc='Borrow against your sats.'
               link='https://lendasat.com'
               page={Pages.AppLendasat}
+              live
+            />
+
+            <App
+              name='LendaSwap'
+              icon={<LendaswapIcon />}
+              desc='Swap Bitcoin to USDC instantly.'
+              link='https://swap.lendasat.com'
+              page={Pages.AppLendaswap}
               live
             />
             <App name='Ark Invaders' icon={<InvadersIcon />} desc='The classic arcade game' />
