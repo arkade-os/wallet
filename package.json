@@ -35,6 +35,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:codegen": "playwright codegen localhost:3002",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
     "format": "prettier --write src",
     "format:check": "prettier --check src",
     "git-info": "node scripts/git-commit-info.js",
