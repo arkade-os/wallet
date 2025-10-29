@@ -25,6 +25,6 @@ jobs:
     - name: Setup regtest environment
       run: pnpm regtest
     - name: Run Playwright tests
-      run: sleep 5 && pnpm exec playwright test
+      run: sleep 5 && xvfb-run npx playwright test
       env:
         CI: true
