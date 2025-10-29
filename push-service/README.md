@@ -123,6 +123,49 @@ VITE_PUSH_SERVICE_URL=https://arkade-push-service.your-account.workers.dev
 VITE_VAPID_PUBLIC_KEY=<your-vapid-public-key>
 ```
 
+## Local Development & Testing
+
+**Want to test locally without deploying?** See **[LOCAL_TESTING.md](./LOCAL_TESTING.md)** for comprehensive local testing guides.
+
+### Quick Local Setup (No Cloudflare Account Needed!)
+
+```bash
+cd push-service
+npm install
+
+# Create local database
+wrangler d1 execute arkade-push --local --file=./src/db/schema.sql
+
+# Generate VAPID keys
+npm run generate-vapid
+
+# Create .dev.vars with the keys
+cat > .dev.vars << EOF
+VAPID_PUBLIC_KEY=<paste-public-key>
+VAPID_PRIVATE_KEY=<paste-private-key>
+VAPID_SUBJECT=mailto:test@localhost
+API_KEY=test-api-key-12345
+EOF
+
+# Start local dev server
+npm run dev
+```
+
+The service will be available at `http://localhost:8787`
+
+**Test it:**
+```bash
+curl http://localhost:8787/health
+```
+
+**See [LOCAL_TESTING.md](./LOCAL_TESTING.md) for:**
+- Complete local testing guide
+- Mock server alternatives
+- End-to-end testing with real push notifications
+- Docker-based testing
+- Troubleshooting tips
+- Testing checklist
+
 ## API Endpoints
 
 ### `GET /health`

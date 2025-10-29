@@ -105,6 +105,48 @@ User's Browser          Push Service          arkd Server
     │  Open Wallet          │                     │
 ```
 
+## Local Testing (No Deployment Required)
+
+**Want to test locally first?** You can run the entire system locally without deploying to Cloudflare!
+
+See **[push-service/LOCAL_TESTING.md](push-service/LOCAL_TESTING.md)** for comprehensive guides covering:
+- Local development with `wrangler dev` (no Cloudflare account needed)
+- Mock server alternatives (pure Node.js)
+- End-to-end testing with real push notifications
+- Docker-based testing
+- Troubleshooting tips
+
+**Quick Local Start:**
+
+```bash
+cd push-service
+npm install
+
+# Create local database
+wrangler d1 execute arkade-push --local --file=./src/db/schema.sql
+
+# Generate VAPID keys
+npm run generate-vapid
+
+# Create .dev.vars with the keys (copy from generate-vapid output)
+echo "VAPID_PUBLIC_KEY=<key>" > .dev.vars
+echo "VAPID_PRIVATE_KEY=<key>" >> .dev.vars
+echo "VAPID_SUBJECT=mailto:test@localhost" >> .dev.vars
+echo "API_KEY=test-key-123" >> .dev.vars
+
+# Start local server
+npm run dev  # Available at http://localhost:8787
+
+# Test it
+curl http://localhost:8787/health
+```
+
+Then configure wallet `.env`:
+```env
+VITE_PUSH_SERVICE_URL=http://localhost:8787
+VITE_VAPID_PUBLIC_KEY=<your-vapid-public-key>
+```
+
 ## Deployment Steps
 
 ### Step 1: Deploy Push Service
