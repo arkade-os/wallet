@@ -185,8 +185,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           // exponential backoff: wait 1s, 2s, 4s for each retry
           const delay = Math.pow(2, retryCount) * 1000
           consoleError(
-            new Error(`Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`),
-            'Service worker activation retry'
+            new Error(
+              `Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,
+            ),
+            'Service worker activation retry',
           )
           await new Promise((resolve) => setTimeout(resolve, delay))
           return initSvcWorkerWallet({
@@ -199,7 +201,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         } else {
           consoleError(
             new Error('Service worker activation timed out after maximum retries'),
-            'Service worker activation failed'
+            'Service worker activation failed',
           )
           return
         }
