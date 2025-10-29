@@ -59,11 +59,7 @@ function getVapidPublicKey(): string {
  * Check if push notifications are supported
  */
 export const isPushSupported = (): boolean => {
-  return (
-    'serviceWorker' in navigator &&
-    'PushManager' in window &&
-    'Notification' in window
-  )
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
 }
 
 /**
@@ -85,9 +81,7 @@ export const getPushSubscription = async (): Promise<PushSubscription | null> =>
 /**
  * Subscribe to push notifications
  */
-export const subscribeToPushNotifications = async (
-  walletAddress: string
-): Promise<boolean> => {
+export const subscribeToPushNotifications = async (walletAddress: string): Promise<boolean> => {
   if (!isPushSupported()) {
     console.error('Push notifications not supported')
     return false
@@ -133,9 +127,7 @@ export const subscribeToPushNotifications = async (
 /**
  * Unsubscribe from push notifications
  */
-export const unsubscribeFromPushNotifications = async (
-  walletAddress: string
-): Promise<boolean> => {
+export const unsubscribeFromPushNotifications = async (walletAddress: string): Promise<boolean> => {
   if (!isPushSupported()) {
     return false
   }

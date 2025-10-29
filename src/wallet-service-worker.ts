@@ -115,9 +115,7 @@ self.addEventListener('push', (event: PushEvent) => {
     notificationOptions.actions = actions
   }
 
-  event.waitUntil(
-    self.registration.showNotification(title || 'Arkade Wallet', notificationOptions)
-  )
+  event.waitUntil(self.registration.showNotification(title || 'Arkade Wallet', notificationOptions))
 })
 
 // Notification click event: handle when user clicks notification
@@ -127,9 +125,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   // Handle action clicks
   if (event.action) {
     if (event.action === 'view') {
-      event.waitUntil(
-        self.clients.openWindow('/wallet')
-      )
+      event.waitUntil(self.clients.openWindow('/wallet'))
     }
   } else {
     // Default action: open wallet
@@ -145,7 +141,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
         if (self.clients.openWindow) {
           return self.clients.openWindow('/wallet')
         }
-      })
+      }),
     )
   }
 })

@@ -95,9 +95,7 @@ export default function Notifications() {
                   Lightning payments are received.
                 </TextSecondary>
                 {pushSubscribed && (
-                  <TextSecondary style={{ color: 'var(--success)' }}>
-                    ✓ Push notifications are active
-                  </TextSecondary>
+                  <TextSecondary style={{ color: 'var(--success)' }}>✓ Push notifications are active</TextSecondary>
                 )}
               </FlexCol>
             </>
