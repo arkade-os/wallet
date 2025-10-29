@@ -1,0 +1,19 @@
+name = "arkade-push-service"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+node_compat = true
+
+[vars]
+ENVIRONMENT = "development"
+ALLOWED_ORIGINS = "*"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "arkade-push"
+database_id = "your-database-id-here"
+
+[env.production]
+vars = { ENVIRONMENT = "production", ALLOWED_ORIGINS = "https://wallet.arkade.money,https://arkade.money" }
+
+[env.development]
+vars = { ENVIRONMENT = "development", ALLOWED_ORIGINS = "*" }
