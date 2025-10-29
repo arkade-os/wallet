@@ -26,7 +26,19 @@
     <script defer data-domain="arkade.money" src="https://plausible.io/js/script.js"></script>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>
+      <div style="display: flex; align-items: center; justify-content: center; height: 100vh; padding: 2rem; text-align: center; font-family: system-ui, -apple-system, sans-serif;">
+        <div>
+          <h1 style="font-size: 1.5rem; margin-bottom: 1rem;">JavaScript Required</h1>
+          <p style="font-size: 1rem; line-height: 1.5; color: #666;">
+            This app requires JavaScript to run. Please enable JavaScript in your browser settings.
+          </p>
+          <p style="font-size: 0.9rem; line-height: 1.5; color: #666; margin-top: 1rem;">
+            If you're on iOS, you may also need to enable JIT (Just-In-Time) compilation in Settings → Safari → Advanced.
+          </p>
+        </div>
+      </div>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/index.tsx"></script>
   </body>
