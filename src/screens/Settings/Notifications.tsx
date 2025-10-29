@@ -9,7 +9,6 @@ import Content from '../../components/Content'
 import { TextSecondary } from '../../components/Text'
 import Toggle from '../../components/Toggle'
 import FlexCol from '../../components/FlexCol'
-import Button from '../../components/Button'
 
 export default function Notifications() {
   const { config, updateConfig } = useContext(ConfigContext)
@@ -79,7 +78,7 @@ export default function Notifications() {
           </FlexCol>
 
           {/* Push Notifications Section */}
-          {pushSupported && config.notifications && (
+          {pushSupported && config.notifications ? (
             <>
               <FlexCol gap='0.5rem' margin='2rem 0 1rem 0'>
                 <Toggle
@@ -94,12 +93,12 @@ export default function Notifications() {
                   Push notifications allow you to receive alerts even when the wallet is closed. You'll be notified when
                   Lightning payments are received.
                 </TextSecondary>
-                {pushSubscribed && (
+                {pushSubscribed ? (
                   <TextSecondary style={{ color: 'var(--success)' }}>✓ Push notifications are active</TextSecondary>
-                )}
+                ) : null}
               </FlexCol>
             </>
-          )}
+          ) : null}
         </Padded>
       </Content>
     </>
