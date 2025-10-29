@@ -62,7 +62,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
       min: BigInt(aspInfo.vtxoMinAmount ?? aspInfo.dust ?? -1),
       max: BigInt(aspInfo.vtxoMaxAmount ?? -1),
     }
-  }, [aspInfo.network, svcWallet])
+  }, [aspInfo.network, svcWallet, swapProvider])
 
   // update limits when swapProvider or connected changes
   useEffect(() => {
