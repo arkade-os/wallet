@@ -37,7 +37,7 @@ export const NotificationsContext = createContext<NotificationsContextProps>({
 export const NotificationsProvider = ({ children }: { children: ReactNode }) => {
   const { config } = useContext(ConfigContext)
   const relay = useRef<Relay>()
-  const [pushSupported] = useState<boolean>(isPushSupported())
+  const pushSupported = isPushSupported()
   const [pushSubscribed, setPushSubscribed] = useState<boolean>(false)
 
   const connectRelay = async (): Promise<void> => {
