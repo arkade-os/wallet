@@ -74,6 +74,9 @@ Starts the regtest environment and setup arkd instance. Requires Docker to be in
 > note: e2e tests require a regtest environment to be running.
 > `pnpm run regtest` to start and setup the regtest environment.
 
+> note: e2e tests use playwright for ui testing, you may need to run
+> `pnpm exec playwright install` once to download new browsers.
+
 Run the tests with:
 
 ```bash
