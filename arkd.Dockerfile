@@ -1,28 +1,28 @@
 # First image used to build the sources
-FROM golang:1.24.6 AS builder
+FROM golang:1.25.3 AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
-ARG VERSION=v8
-ARG BRANCH=v8
+ARG VERSION
+
+ARG BRANCH=master
 
 WORKDIR /app
 
-RUN git clone https://github.com/arkade-os/arkd.git && \
-    cd arkd && git checkout ${BRANCH}
+RUN git clone https://github.com/arkade-os/arkd.git && cd arkd && git checkout ${BRANCH}
 
 RUN mkdir -p bin && cd arkd && \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -ldflags="-X 'main.Version=${VERSION}'" -o /app/bin/arkd ./cmd/arkd
 
-RUN mkdir -p bin && cd arkd/pkg/ark-cli && \
+RUN cd arkd/pkg/ark-cli && \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -ldflags="-X 'main.Version=${VERSION}'" -o /app/bin/ark main.go
 
 # Second image, running the arkd executable
-FROM alpine:3.20
+FROM alpine:3.22
 
-RUN apk update && apk upgrade && rm -rf /var/cache/apk/*
+RUN apk update && apk upgrade
 
 WORKDIR /app
 
