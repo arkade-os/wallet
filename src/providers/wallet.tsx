@@ -125,10 +125,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     arkServerUrl,
     esploraUrl,
     privateKey,
+    retryCount = 0,
+    maxRetries = 5,
   }: {
     arkServerUrl: string
     esploraUrl: string
     privateKey: string
+    retryCount?: number
+    maxRetries?: number
   }) => {
     try {
       // create service worker wallet
@@ -176,7 +180,32 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // renew expiring coins on startup
       renewCoins(svcWallet, aspInfo.dust).catch(() => {})
     } catch (err) {
-      consoleError(err, 'Error initializing service worker wallet')
+      if (err instanceof Error && err.message.includes('Service worker activation timed out')) {
+        if (retryCount < maxRetries) {
+          // exponential backoff: wait 1s, 2s, 4s for each retry
+          const delay = Math.pow(2, retryCount) * 1000
+          consoleError(
+            new Error(`Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`),
+            'Service worker activation retry'
+          )
+          await new Promise((resolve) => setTimeout(resolve, delay))
+          return initSvcWorkerWallet({
+            arkServerUrl,
+            esploraUrl,
+            privateKey,
+            retryCount: retryCount + 1,
+            maxRetries,
+          })
+        } else {
+          consoleError(
+            new Error('Service worker activation timed out after maximum retries'),
+            'Service worker activation failed'
+          )
+          return
+        }
+      }
+      // re-throw other errors
+      throw err
     }
   }
 
