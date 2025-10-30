@@ -20,6 +20,8 @@ import { TextSecondary } from '../../../components/Text'
 import CheckMarkIcon from '../../../icons/CheckMark'
 import Info from '../../../components/Info'
 import Loading from '../../../components/Loading'
+import FlexRow from '../../../components/FlexRow'
+import { InfoIconDark } from '../../../icons/Info'
 
 export default function AppBoltzSwap() {
   const { config } = useContext(ConfigContext)
@@ -40,6 +42,7 @@ export default function AppBoltzSwap() {
   const amount = isReverse ? swapInfo.response.onchainAmount : decodeInvoice(swapInfo.request.invoice).amountSats
   const invoice = isReverse ? swapInfo.response.invoice : swapInfo.request.invoice
   const direction = isReverse ? 'Lightning to Arkade' : 'Arkade to Lightning'
+  const refunded = !isReverse && swapInfo.refunded
 
   const formatAmount = (amt: number) => (config.showBalance ? prettyAmount(amt) : prettyHide(amt))
 
@@ -50,7 +53,7 @@ export default function AppBoltzSwap() {
     ['Direction', direction],
     ['Date', prettyDate(swapInfo.createdAt)],
     ['Invoice', invoice],
-    ['Preimage', swapInfo.preimage],
+    ['Preimage', swapInfo.preimage || 'N/A'],
     ['Status', swapInfo.status],
     ['Amount', formatAmount(amount)],
     ['Fees', formatAmount(total - amount)],
@@ -96,6 +99,11 @@ export default function AppBoltzSwap() {
                 <Info color='green' icon={<CheckMarkIcon small />} title='Success'>
                   <TextSecondary>Swap {isRefundable ? 'refunded' : 'completed'}</TextSecondary>
                 </Info>
+              ) : refunded ? (
+                <FlexRow alignItems='flex-start'>
+                  <InfoIconDark color='green' />
+                  <TextSecondary>Swap refunded</TextSecondary>
+                </FlexRow>
               ) : null}
               <Table data={data} />
             </FlexCol>
