@@ -10,7 +10,7 @@ ALLOWED_ORIGINS = "*"
 [[d1_databases]]
 binding = "DB"
 database_name = "arkade-push"
-database_id = "your-database-id-here"
+database_id = "8313e776-c92a-4a36-b346-bd0b7bde32ce"
 
 [env.production]
 vars = { ENVIRONMENT = "production", ALLOWED_ORIGINS = "https://wallet.arkade.money,https://arkade.money" }
