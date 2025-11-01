@@ -45,7 +45,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   // Try @scure/base first (expects no padding for base64url)
   try {
     return base64url.decode(normalized)
-  } catch (e) {
+  } catch {
     // Fallback: Manual conversion if @scure/base fails
     // Replace base64url chars with base64, then decode
     const base64 = normalized.replace(/-/g, '+').replace(/_/g, '/')

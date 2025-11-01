@@ -29,7 +29,7 @@ export default function Notifications() {
   }
 
   const handlePushToggle = async () => {
-    if (!pushSupported || !svcWallet) return
+    if (!pushSupported || !svcWallet || isPushLoading) return
 
     setIsPushLoading(true)
     try {
