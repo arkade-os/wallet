@@ -81,11 +81,7 @@ export default function Notifications() {
           {pushSupported && config.notifications && svcWallet ? (
             <>
               <FlexCol gap='0.5rem' margin='2rem 0 1rem 0'>
-                <Toggle
-                  checked={pushSubscribed}
-                  onClick={handlePushToggle}
-                  text='Enable Push Notifications'
-                />
+                <Toggle checked={pushSubscribed} onClick={handlePushToggle} text='Enable Push Notifications' />
               </FlexCol>
               <FlexCol gap='0.5rem' margin='0 0 1rem 0'>
                 <TextSecondary>
