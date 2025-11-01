@@ -112,7 +112,7 @@ self.addEventListener('push', (event: PushEvent) => {
     tag: tag || 'arkade-notification',
     data: payload || {},
     vibrate: [200, 100, 200],
-    requireInteraction: false,
+    requireInteraction: true, // Force notification to show even when tab is focused
   }
 
   // Add actions if provided
@@ -121,7 +121,16 @@ self.addEventListener('push', (event: PushEvent) => {
   }
 
   console.log('[SW] Showing notification:', title, notificationOptions)
-  event.waitUntil(self.registration.showNotification(title || 'Arkade Wallet', notificationOptions))
+  event.waitUntil(
+    self.registration
+      .showNotification(title || 'Arkade Wallet', notificationOptions)
+      .then(() => {
+        console.log('[SW] ✅ Notification displayed successfully')
+      })
+      .catch((error) => {
+        console.error('[SW] ❌ Failed to show notification:', error)
+      }),
+  )
 })
 
 // Notification click event: handle when user clicks notification

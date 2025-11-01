@@ -11168,9 +11168,16 @@ self.addEventListener("push", (e) => {
     tag: i || "arkade-notification",
     data: c || {},
     vibrate: [200, 100, 200],
-    requireInteraction: !1
+    requireInteraction: !0
+    // Force notification to show even when tab is focused
   };
-  a && Array.isArray(a) && (u.actions = a), console.log("[SW] Showing notification:", n, u), e.waitUntil(self.registration.showNotification(n || "Arkade Wallet", u));
+  a && Array.isArray(a) && (u.actions = a), console.log("[SW] Showing notification:", n, u), e.waitUntil(
+    self.registration.showNotification(n || "Arkade Wallet", u).then(() => {
+      console.log("[SW] ✅ Notification displayed successfully");
+    }).catch((f) => {
+      console.error("[SW] ❌ Failed to show notification:", f);
+    })
+  );
 });
 self.addEventListener("notificationclick", (e) => {
   e.notification.close(), e.action ? e.action === "view" && e.waitUntil(self.clients.openWindow("/wallet")) : e.waitUntil(
