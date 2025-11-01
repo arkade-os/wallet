@@ -8,7 +8,7 @@ ENVIRONMENT = "development"
 ALLOWED_ORIGINS = "*"
 
 [env.production]
-vars = { ENVIRONMENT = "production", ALLOWED_ORIGINS = "https://arkade.money,https://*.pages.dev, https://*.workers.dev" }
+vars = { ENVIRONMENT = "production", ALLOWED_ORIGINS = "https://arkade.money,https://*.pages.dev,https://*.workers.dev" }
 
 [[env.production.d1_databases]]
 binding = "DB"
