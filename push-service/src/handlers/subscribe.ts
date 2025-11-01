@@ -5,9 +5,12 @@ import { createSubscription, getSubscriptionByEndpoint } from '../db/queries';
  * Validate wallet address format
  */
 function isValidWalletAddress(address: string): boolean {
-  // Basic validation - adjust based on actual wallet address format
-  // For ARK addresses, they typically start with specific prefixes
-  return typeof address === 'string' && address.length > 10 && address.length < 100;
+  // Basic validation for ARK addresses
+  // ARK addresses can be quite long (100+ characters) and start with 'ark1' or 'tark1'
+  return (
+    typeof address === 'string' &&
+    (address.startsWith('ark1') || address.startsWith('tark1'))
+  );
 }
 
 /**
