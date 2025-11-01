@@ -105,17 +105,13 @@ self.addEventListener('push', (event: PushEvent) => {
 
   const { title, body, icon, badge, tag, data: payload, actions } = data
 
-  const notificationOptions: any = {
+  const notificationOptions: NotificationOptions = {
     body: body || '',
+    icon: icon || '/icon-192.png',
+    badge: badge || '/badge-72.png',
     tag: tag || 'arkade-notification',
     data: payload || {},
-    vibrate: [200, 100, 200],
     requireInteraction: true, // Force notification to show even when tab is focused
-  }
-
-  // Add actions if provided
-  if (actions && Array.isArray(actions)) {
-    notificationOptions.actions = actions
   }
 
   console.log('[SW] Showing notification:', title, notificationOptions)

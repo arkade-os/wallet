@@ -11163,13 +11163,14 @@ self.addEventListener("push", (e) => {
   }
   const { title: n, body: r, icon: o, badge: s, tag: i, data: c, actions: a } = t, u = {
     body: r || "",
+    icon: o || "/icon-192.png",
+    badge: s || "/badge-72.png",
     tag: i || "arkade-notification",
     data: c || {},
-    vibrate: [200, 100, 200],
     requireInteraction: !0
     // Force notification to show even when tab is focused
   };
-  a && Array.isArray(a) && (u.actions = a), console.log("[SW] Showing notification:", n, u), e.waitUntil(
+  console.log("[SW] Showing notification:", n, u), e.waitUntil(
     self.registration.showNotification(n || "Arkade Wallet", u).then(() => {
       console.log("[SW] ✅ Notification displayed successfully");
     }).catch((f) => {
