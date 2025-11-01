@@ -105,10 +105,8 @@ self.addEventListener('push', (event: PushEvent) => {
 
   const { title, body, icon, badge, tag, data: payload, actions } = data
 
-  const notificationOptions: NotificationOptions = {
+  const notificationOptions: any = {
     body: body || '',
-    icon: icon || '/icon-192.png',
-    badge: badge || '/badge-72.png',
     tag: tag || 'arkade-notification',
     data: payload || {},
     vibrate: [200, 100, 200],

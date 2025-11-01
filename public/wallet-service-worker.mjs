@@ -11163,8 +11163,6 @@ self.addEventListener("push", (e) => {
   }
   const { title: n, body: r, icon: o, badge: s, tag: i, data: c, actions: a } = t, u = {
     body: r || "",
-    icon: o || "/icon-192.png",
-    badge: s || "/badge-72.png",
     tag: i || "arkade-notification",
     data: c || {},
     vibrate: [200, 100, 200],
