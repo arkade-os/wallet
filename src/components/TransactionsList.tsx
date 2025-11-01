@@ -43,7 +43,13 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
     )
   }
   const Icon = () =>
-    tx.type === 'sent' ? <SentIcon /> : tx.preconfirmed && tx.boardingTxid ? <PreconfirmedIcon /> : <ReceivedIcon />
+    tx.type === 'sent' ? (
+      <SentIcon />
+    ) : tx.preconfirmed && tx.boardingTxid ? (
+      <PreconfirmedIcon />
+    ) : (
+      <ReceivedIcon dotted={tx.preconfirmed} />
+    )
   const Kind = () => <Text thin>{tx.type === 'sent' ? 'Sent' : 'Received'}</Text>
   const Date = () => <TextSecondary>{date}</TextSecondary>
   const Sats = () => (
