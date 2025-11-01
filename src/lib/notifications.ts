@@ -35,10 +35,30 @@ export const sendTestNotification = () => {
 }
 
 /**
- * URL-safe base64 to Uint8Array conversion using @scure/base
+ * URL-safe base64 to Uint8Array conversion
+ * Converts VAPID public key from base64url string to Uint8Array
  */
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  return base64url.decode(base64String)
+  // Normalize the base64url string by removing any whitespace
+  const normalized = base64String.trim()
+
+  // Try @scure/base first (expects no padding for base64url)
+  try {
+    return base64url.decode(normalized)
+  } catch (e) {
+    // Fallback: Manual conversion if @scure/base fails
+    // Replace base64url chars with base64, then decode
+    const base64 = normalized.replace(/-/g, '+').replace(/_/g, '/')
+    // Add padding
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
+    // Convert to bytes
+    const raw = atob(padded)
+    const bytes = new Uint8Array(raw.length)
+    for (let i = 0; i < raw.length; i++) {
+      bytes[i] = raw.charCodeAt(i)
+    }
+    return bytes
+  }
 }
 
 /**
@@ -94,16 +114,40 @@ export const subscribeToPushNotifications = async (walletAddress: string): Promi
   }
 
   try {
+    console.log('Push subscription: waiting for service worker...')
     const registration = await navigator.serviceWorker.ready
+    console.log('Push subscription: service worker ready')
+
+    // Convert VAPID key
+    console.log('Push subscription: converting VAPID key...')
+    const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey)
+    console.log('Push subscription: VAPID key converted, length:', applicationServerKey.length)
+
+    // Check for existing subscription first
+    console.log('Push subscription: checking for existing subscription...')
+    const existingSubscription = await registration.pushManager.getSubscription()
+    if (existingSubscription) {
+      console.log('Push subscription: found existing subscription, unsubscribing first...')
+      await existingSubscription.unsubscribe()
+      console.log('Push subscription: unsubscribed from old subscription')
+    }
 
     // Subscribe to push manager
+    console.log('Push subscription: subscribing to push manager...')
+    console.log('Push subscription: options:', {
+      userVisibleOnly: true,
+      applicationServerKeyLength: applicationServerKey.length,
+    })
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      applicationServerKey,
     })
+    console.log('Push subscription: browser subscription successful')
+    console.log('Push subscription: endpoint:', subscription.endpoint)
 
     // Send subscription to push service
     const pushServiceUrl = getPushServiceUrl()
+    console.log('Push subscription: sending to push service:', pushServiceUrl)
     const response = await fetch(`${pushServiceUrl}/subscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -114,12 +158,20 @@ export const subscribeToPushNotifications = async (walletAddress: string): Promi
     })
 
     if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Push service error response:', errorText)
       throw new Error(`Failed to register subscription: ${response.statusText}`)
     }
 
+    console.log('Push subscription: successfully registered with push service')
     return true
   } catch (error) {
     console.error('Failed to subscribe to push notifications:', error)
+    if (error instanceof Error) {
+      console.error('Error name:', error.name)
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+    }
     return false
   }
 }

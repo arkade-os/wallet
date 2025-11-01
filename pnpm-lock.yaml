@@ -105,6 +105,9 @@ importers:
       '@typescript-eslint/parser':
         specifier: ^8.41.0
         version: 8.41.0(eslint@8.57.1)(typescript@5.8.3)
+      '@vitejs/plugin-basic-ssl':
+        specifier: ^2.1.0
+        version: 2.1.0(vite@7.1.3(@types/node@24.1.0)(jiti@1.21.7))
       '@vitejs/plugin-react':
         specifier: ^5.0.2
         version: 5.0.2(vite@7.1.3(@types/node@24.1.0)(jiti@1.21.7))
@@ -932,6 +935,12 @@ packages:
 
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
+
+  '@vitejs/plugin-basic-ssl@2.1.0':
+    resolution: {integrity: sha512-dOxxrhgyDIEUADhb/8OlV9JIqYLgos03YorAueTIeOUskLJSEsfwCByjbu98ctXitUN3znXKp0bYD/WHSudCeA==}
+    engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
+    peerDependencies:
+      vite: ^6.0.0 || ^7.0.0
 
   '@vitejs/plugin-react@5.0.2':
     resolution: {integrity: sha512-tmyFgixPZCx2+e6VO9TNITWcCQl8+Nl/E8YbAyPVv85QCc7/A3JrdfG2A8gIzvVhWuzMOVrFW1aReaNxrI6tbw==}
@@ -3224,6 +3233,10 @@ snapshots:
       eslint-visitor-keys: 4.2.1
 
   '@ungap/structured-clone@1.3.0': {}
+
+  '@vitejs/plugin-basic-ssl@2.1.0(vite@7.1.3(@types/node@24.1.0)(jiti@1.21.7))':
+    dependencies:
+      vite: 7.1.3(@types/node@24.1.0)(jiti@1.21.7)
 
   '@vitejs/plugin-react@5.0.2(vite@7.1.3(@types/node@24.1.0)(jiti@1.21.7))':
     dependencies:

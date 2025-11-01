@@ -10,14 +10,14 @@ Wrangler provides a local development environment that simulates Cloudflare Work
 
 ```bash
 cd push-service
-npm install
+pnpm install
 ```
 
 ### Step 1: Create Local D1 Database
 
 ```bash
 # Create local D1 database (stored in .wrangler/state/)
-wrangler d1 execute arkade-push --local --file=./src/db/schema.sql
+wrangler d1 execute arkade-push --local --file src/db/schema.sql
 ```
 
 This creates a local SQLite database in `.wrangler/state/v3/d1/`.
@@ -28,7 +28,7 @@ Create `.dev.vars` file in `push-service/` directory:
 
 ```bash
 # Generate VAPID keys first
-npm run generate-vapid
+pnpm run generate-vapid
 ```
 
 Copy the output and create `.dev.vars`:
@@ -104,7 +104,7 @@ Expected response:
 ```bash
 curl -X POST http://localhost:8787/notify \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer test-api-key-12345" \
+  -H "Authorization: Bearer change-me-to-a-secure-api-key" \
   -d '{
     "walletAddress": "ark1qtest123",
     "notification": {
@@ -640,6 +640,60 @@ watch -n 2 'curl -s http://localhost:8787/health | jq'
 
 ---
 
+## Troubleshooting
+
+### AbortError: Registration failed - push service error
+
+This error occurs when the browser's push messaging service (FCM for Chrome, Mozilla Push for Firefox) rejects the subscription.
+
+**Common Causes:**
+
+1. **Network/Firewall Issues**
+   - The browser can't reach its push service (FCM, Mozilla Push, etc.)
+   - Corporate firewall or VPN blocking push services
+   - Test: `fetch('https://fcm.googleapis.com/fcm/send', { method: 'HEAD' })`
+
+2. **Browser-Specific Issues**
+   - Chrome: Requires internet connection to FCM even for local testing
+   - Firefox: More lenient, may work offline
+   - Try a different browser (Firefox recommended for local testing)
+
+3. **VAPID Key Issues**
+   - Regenerate keys: `pnpm run generate-vapid`
+   - Ensure `.env` in wallet matches `.dev.vars` in push-service
+   - Keys must be exactly 65 bytes when decoded
+
+4. **Existing Subscriptions**
+   - Clear old subscriptions in browser console:
+   ```javascript
+   navigator.serviceWorker.ready.then(reg =>
+     reg.pushManager.getSubscription().then(sub => sub?.unsubscribe())
+   )
+   ```
+
+5. **Browser Permissions**
+   - Reset site permissions in browser settings
+   - Clear site data and reload
+
+**Recommended Solution for Local Testing:**
+
+Use **Firefox** for local development - it's more permissive with localhost push notifications and doesn't require constant internet connectivity to its push service.
+
+### No notifications received
+
+1. **Check subscription exists:**
+   ```bash
+   pnpm wrangler d1 execute arkade-push --local --command "SELECT * FROM subscriptions"
+   ```
+
+2. **Check push service logs** when sending notification
+
+3. **Verify wallet address** matches exactly in both subscription and notify request
+
+4. **Check browser console** for service worker errors
+
+---
+
 ## Resources
 
 - [Wrangler Docs](https://developers.cloudflare.com/workers/wrangler/)
@@ -647,3 +701,4 @@ watch -n 2 'curl -s http://localhost:8787/health | jq'
 - [D1 Local Development](https://developers.cloudflare.com/d1/platform/local-development/)
 - [Web Push Testing Tools](https://web-push-codelab.glitch.me/)
 - [Service Worker Debugging](https://developer.chrome.com/docs/workbox/troubleshooting-and-logging/)
+- [Push API Browser Support](https://caniuse.com/push-api)

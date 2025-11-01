@@ -34,3 +34,6 @@ yarn-error.log*
 .pnpm-store/
 .pnpm-debug.log
 .idea
+
+# local database files for development
+/db/

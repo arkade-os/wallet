@@ -13,7 +13,7 @@ import FlexCol from '../../components/FlexCol'
 export default function Notifications() {
   const { config, updateConfig } = useContext(ConfigContext)
   const { pushSupported, pushSubscribed, subscribeToPush, unsubscribeFromPush } = useContext(NotificationsContext)
-  const { wallet } = useContext(WalletContext)
+  const { svcWallet } = useContext(WalletContext)
   const [isPushLoading, setIsPushLoading] = useState(false)
 
   const handleChange = () => {
@@ -29,12 +29,12 @@ export default function Notifications() {
   }
 
   const handlePushToggle = async () => {
-    if (!pushSupported || !wallet) return
+    if (!pushSupported || !svcWallet) return
 
     setIsPushLoading(true)
     try {
-      // Get wallet address - using the receive address as identifier
-      const walletAddress = wallet.getReceiveAddress()
+      // Get wallet address - using the Ark address as identifier
+      const walletAddress = await svcWallet.getAddress()
 
       if (pushSubscribed) {
         await unsubscribeFromPush(walletAddress)
@@ -78,14 +78,13 @@ export default function Notifications() {
           </FlexCol>
 
           {/* Push Notifications Section */}
-          {pushSupported && config.notifications ? (
+          {pushSupported && config.notifications && svcWallet ? (
             <>
               <FlexCol gap='0.5rem' margin='2rem 0 1rem 0'>
                 <Toggle
                   checked={pushSubscribed}
                   onClick={handlePushToggle}
                   text='Enable Push Notifications'
-                  disabled={isPushLoading || !wallet}
                 />
               </FlexCol>
               <FlexCol gap='0.5rem' margin='0 0 1rem 0'>
@@ -93,9 +92,7 @@ export default function Notifications() {
                   Push notifications allow you to receive alerts even when the wallet is closed. You'll be notified when
                   Lightning payments are received.
                 </TextSecondary>
-                {pushSubscribed ? (
-                  <TextSecondary style={{ color: 'var(--success)' }}>✓ Push notifications are active</TextSecondary>
-                ) : null}
+                {pushSubscribed ? <TextSecondary>✓ Push notifications are active</TextSecondary> : null}
               </FlexCol>
             </>
           ) : null}
