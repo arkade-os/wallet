@@ -1,4 +1,4 @@
-import * as webpush from 'web-push';
+import { buildPushPayload } from '@block65/webcrypto-web-push';
 import { NotificationPayload, Subscription, Env } from '../types';
 import { updateLastNotified, logNotification, deleteSubscriptionById } from '../db/queries';
 
@@ -11,30 +11,73 @@ export async function sendPushNotification(
   payload: NotificationPayload
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Set VAPID details
-    webpush.setVapidDetails(
-      env.VAPID_SUBJECT,
-      env.VAPID_PUBLIC_KEY,
-      env.VAPID_PRIVATE_KEY
-    );
-
     // Construct the push subscription object
     const pushSubscription = {
       endpoint: subscription.endpoint,
+      expirationTime: null,
       keys: {
         p256dh: subscription.p256dh,
         auth: subscription.auth,
       },
     };
 
-    // Send the notification
-    await webpush.sendNotification(
-      pushSubscription,
-      JSON.stringify(payload),
+    // Build the push payload with VAPID authentication
+    const pushPayload = await buildPushPayload(
       {
-        TTL: 3600, // 1 hour
+        data: JSON.stringify(payload),
+        options: {
+          ttl: 3600, // 1 hour
+          urgency: 'normal',
+        },
+      },
+      pushSubscription,
+      {
+        subject: env.VAPID_SUBJECT,
+        publicKey: env.VAPID_PUBLIC_KEY,
+        privateKey: env.VAPID_PRIVATE_KEY,
       }
     );
+
+    // Send the notification using fetch
+    const response = await fetch(subscription.endpoint, {
+      method: 'POST',
+      headers: pushPayload.headers,
+      body: pushPayload.body,
+    });
+
+    let errorMessage: string | undefined;
+    let shouldDelete = false;
+
+    // Check response status
+    if (!response.ok) {
+      errorMessage = `Push service returned ${response.status}: ${response.statusText}`;
+
+      // Check if subscription is expired or invalid
+      if (response.status === 404 || response.status === 410) {
+        errorMessage = 'Subscription expired or invalid';
+        shouldDelete = true;
+      }
+    }
+
+    if (errorMessage) {
+      // Log failure
+      await logNotification(
+        env.DB,
+        subscription.wallet_address,
+        subscription.id,
+        payload.title,
+        payload.body || null,
+        shouldDelete ? 'expired' : 'failed',
+        errorMessage
+      );
+
+      // Delete expired subscriptions
+      if (shouldDelete) {
+        await deleteSubscriptionById(env.DB, subscription.id);
+      }
+
+      return { success: false, error: errorMessage };
+    }
 
     // Update last notified timestamp
     await updateLastNotified(env.DB, subscription.id);
@@ -52,14 +95,7 @@ export async function sendPushNotification(
 
     return { success: true };
   } catch (error: any) {
-    let errorMessage = error.message || 'Unknown error';
-    let shouldDelete = false;
-
-    // Check if subscription is expired or invalid
-    if (error.statusCode === 404 || error.statusCode === 410) {
-      errorMessage = 'Subscription expired or invalid';
-      shouldDelete = true;
-    }
+    const errorMessage = error.message || 'Unknown error';
 
     // Log failure
     await logNotification(
@@ -68,14 +104,9 @@ export async function sendPushNotification(
       subscription.id,
       payload.title,
       payload.body || null,
-      shouldDelete ? 'expired' : 'failed',
+      'failed',
       errorMessage
     );
-
-    // Delete expired subscriptions
-    if (shouldDelete) {
-      await deleteSubscriptionById(env.DB, subscription.id);
-    }
 
     return { success: false, error: errorMessage };
   }
