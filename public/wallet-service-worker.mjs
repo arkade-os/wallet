@@ -11153,11 +11153,13 @@ self.addEventListener("message", (e) => {
   e.data && e.data.type === "RELOAD_WALLET" && e.waitUntil(Wu.reload().catch(console.error));
 });
 self.addEventListener("push", (e) => {
+  console.log("[SW] Push event received:", e);
   let t = {};
   try {
-    t = e.data?.json() || {};
+    const f = e.data?.text();
+    console.log("[SW] Raw push data:", f), t = e.data?.json() || {}, console.log("[SW] Parsed push data:", t);
   } catch (f) {
-    console.error("Failed to parse push notification data:", f), t = { title: "New Notification", body: e.data?.text() || "" };
+    console.error("[SW] Failed to parse push notification data:", f), t = { title: "New Notification", body: e.data?.text() || "" };
   }
   const { title: n, body: r, icon: o, badge: s, tag: i, data: c, actions: a } = t, u = {
     body: r || "",
@@ -11168,7 +11170,7 @@ self.addEventListener("push", (e) => {
     vibrate: [200, 100, 200],
     requireInteraction: !1
   };
-  a && Array.isArray(a) && (u.actions = a), e.waitUntil(self.registration.showNotification(n || "Arkade Wallet", u));
+  a && Array.isArray(a) && (u.actions = a), console.log("[SW] Showing notification:", n, u), e.waitUntil(self.registration.showNotification(n || "Arkade Wallet", u));
 });
 self.addEventListener("notificationclick", (e) => {
   e.notification.close(), e.action ? e.action === "view" && e.waitUntil(self.clients.openWindow("/wallet")) : e.waitUntil(

@@ -7,13 +7,18 @@ compatibility_flags = ["nodejs_compat"]
 ENVIRONMENT = "development"
 ALLOWED_ORIGINS = "*"
 
-[[d1_databases]]
+[env.production]
+vars = { ENVIRONMENT = "production", ALLOWED_ORIGINS = "https://arkade.money,https://*.pages.dev" }
+
+[[env.production.d1_databases]]
 binding = "DB"
 database_name = "arkade-push"
 database_id = "8313e776-c92a-4a36-b346-bd0b7bde32ce"
 
-[env.production]
-vars = { ENVIRONMENT = "production", ALLOWED_ORIGINS = "https://wallet.arkade.money,https://arkade.money" }
-
 [env.development]
 vars = { ENVIRONMENT = "development", ALLOWED_ORIGINS = "*" }
+
+[[env.development.d1_databases]]
+binding = "DB"
+database_name = "arkade-push"
+database_id = "8313e776-c92a-4a36-b346-bd0b7bde32ce"

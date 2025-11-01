@@ -89,12 +89,17 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
 
 // Push notification event: display notification when received
 self.addEventListener('push', (event: PushEvent) => {
+  console.log('[SW] Push event received:', event)
+
   let data: any = {}
 
   try {
+    const rawData = event.data?.text()
+    console.log('[SW] Raw push data:', rawData)
     data = event.data?.json() || {}
+    console.log('[SW] Parsed push data:', data)
   } catch (error) {
-    console.error('Failed to parse push notification data:', error)
+    console.error('[SW] Failed to parse push notification data:', error)
     data = { title: 'New Notification', body: event.data?.text() || '' }
   }
 
@@ -115,6 +120,7 @@ self.addEventListener('push', (event: PushEvent) => {
     notificationOptions.actions = actions
   }
 
+  console.log('[SW] Showing notification:', title, notificationOptions)
   event.waitUntil(self.registration.showNotification(title || 'Arkade Wallet', notificationOptions))
 })
 
