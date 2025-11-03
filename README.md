@@ -2,7 +2,6 @@
 
 Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitcoin wallet delivered as a lightweight Progressive Web App (installable on mobile or desktop in seconds, no app-store gatekeepers). Built around the open-source ARK protocol, it speaks natively to any [arkd](https://github.com/arkade-os/arkd) instance, letting you create, send, and receive Virtual Transaction Outputs (VTXOs) for instant, off-chain pre-confirmations and batched, fee-efficient on-chain settlement.
 
-
 ## Screenshots
 
 <!-- Using a table for more consistent layout -->
@@ -17,20 +16,21 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
   </tr>
 </table>
 
-
-
-
 ## Environment Variables
 
-| Variable                    | Description                                                                                      | Example Value                                        |
-|-----------------------------|--------------------------------------------------------------------------------------------------|------------------------------------------------------|
-| `VITE_ARK_SERVER`           | Override the default Arkade server URL                                                           | `VITE_ARK_SERVER=http://localhost:7070`              |
-| `VITE_BOLTZ_URL`            | Override the default Boltz swap provider URL for Lightning                                       | `VITE_BOLTZ_URL=https://your-boltz-provider-url.com` |
-| `VITE_SENTRY_DSN`           | Enable Sentry error tracking                              (only in production, not on localhost) | `VITE_SENTRY_DSN=your-sentry-dsn`                    |
-| `CI`                        | Set to `true` for Continuous Integration environments                                            | `CI=true`                                            |
-| `GENERATE_SOURCEMAP`        | Disable source map generation during build                                                       | `GENERATE_SOURCEMAP=false`                           |
-| `VITE_LENDASAT_IFRAME_URL`  | Overwrite the default LendaSat URL                                                               | `VITE_LENDASAT_IFRAME_URL=http://localhost:5173`     |
-| `VITE_LENDASWAP_IFRAME_URL` | Overwrite the default LendaSwap URL                                                              | `VITE_LENDASWAP_IFRAME_URL=http://localhost:5174`    |
+| Variable                    | Description                                                         | Example Value                                     |
+| --------------------------- | ------------------------------------------------------------------- | ------------------------------------------------- |
+| `VITE_ARK_SERVER`           | Override the default Arkade server URL                              | `VITE_ARK_SERVER=http://localhost:7070`           |
+| `VITE_BOLTZ_URL`            | Override the default Boltz swap provider URL for Lightning          | `VITE_BOLTZ_URL=https://boltz-provider-url.com`   |
+| `VITE_SENTRY_DSN`           | Enable Sentry error tracking (only in production, not on localhost) | `VITE_SENTRY_DSN=your-sentry-dsn`                 |
+| `CI`                        | Set to `true` for Continuous Integration environments               | `CI=true`                                         |
+| `GENERATE_SOURCEMAP`        | Disable source map generation during build                          | `GENERATE_SOURCEMAP=false`                        |
+| `VITE_LENDASAT_IFRAME_URL`  | Overwrite the default LendaSat URL                                  | `VITE_LENDASAT_IFRAME_URL=http://localhost:5173`  |
+| `VITE_LENDASWAP_IFRAME_URL` | Overwrite the default LendaSwap URL                                 | `VITE_LENDASWAP_IFRAME_URL=http://localhost:5174` |
+| `VITE_UTXO_MAX_AMOUNT`.     | Overwrite the server's utxoMaxAmount                                | `VITE_UTXO_MAX_AMOUNT=-1`                         |
+| `VITE_UTXO_MIN_AMOUNT`.     | Overwrite the server's utxoMinAmount                                | `VITE_UTXO_MIN_AMOUNT=330`                        |
+| `VITE_VTXO_MAX_AMOUNT`.     | Overwrite the server's vtxoMaxAmount                                | `VITE_VTXO_MAX_AMOUNT=-1`                         |
+| `VITE_VTXO_MIN_AMOUNT`.     | Overwrite the server's vtxoMinAmount                                | `VITE_VTXO_MIN_AMOUNT=330`                        |
 
 ## Getting Started
 
@@ -43,9 +43,9 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 
 Install dependencies
 
-   ```bash
-   pnpm install
-   ```
+```bash
+pnpm install
+```
 
 ## Development
 
