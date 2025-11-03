@@ -1,4 +1,4 @@
-import { bytesToHex } from '@noble/hashes/utils'
+import { bytesToHex } from '@noble/hashes/utils.js'
 
 type KeepAlive = { kind: 'ARKADE_KEEP_ALIVE'; timestamp: number }
 
