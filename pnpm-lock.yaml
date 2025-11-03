@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.2.6
-        version: 0.2.6
+        specifier: 0.2.7
+        version: 0.2.7
       '@arkade-os/sdk':
         specifier: 0.3.4
         version: 0.3.4
@@ -160,12 +160,12 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@arkade-os/boltz-swap@0.2.6':
-    resolution: {integrity: sha512-lqDZpngGHm1JaJm9e1D0XMmCKyGrnn2dKhod2rFpkFlrYmlaATy6NM2clL5G8EWTlW8knMCLyKmqR3U/HZMxBg==}
+  '@arkade-os/boltz-swap@0.2.7':
+    resolution: {integrity: sha512-EwimxPeOpFtY4rnvdcOLTtkKXVkeX9odeTNavENm6qNH+7NgMnGA/rjnl1gcFPS0srlmS6er6dCsM2aIMi2cKQ==}
     engines: {node: '>=22'}
 
-  '@arkade-os/sdk@0.3.3':
-    resolution: {integrity: sha512-WUvUF+3HR5Emc+wY88DvYifXYVQTqedzUy8bCYF/7/bHLlz+YoCxtrse0sPjKyDMJ/mq5+aNghQxynpi6YXkiA==}
+  '@arkade-os/sdk@0.3.4':
+    resolution: {integrity: sha512-44/TM/+C37VMBdSKqVEWBFup8KRzYIfTrrxL5+jc4z23pBL1GXhMM24mHwfNRCpTtFEM0Lgkc1C7zuC9d0Uxag==}
     engines: {node: '>=20.0.0'}
 
   '@arkade-os/sdk@0.3.4':
@@ -2528,15 +2528,15 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.13
       '@jridgewell/trace-mapping': 0.3.30
 
-  '@arkade-os/boltz-swap@0.2.6':
+  '@arkade-os/boltz-swap@0.2.7':
     dependencies:
-      '@arkade-os/sdk': 0.3.3
+      '@arkade-os/sdk': 0.3.4
       '@noble/hashes': 2.0.0
       '@scure/base': 2.0.0
       '@scure/btc-signer': 2.0.1
       light-bolt11-decoder: 3.2.0
 
-  '@arkade-os/sdk@0.3.3':
+  '@arkade-os/sdk@0.3.4':
     dependencies:
       '@noble/curves': 2.0.0
       '@noble/secp256k1': 3.0.0
