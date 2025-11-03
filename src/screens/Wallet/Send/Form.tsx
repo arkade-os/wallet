@@ -111,8 +111,8 @@ export default function SendForm() {
         setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
         return setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData })
       }
-      if (isBTCAddress(lowerCaseData)) {
-        return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
+      if (isBTCAddress(recipient)) {
+        return setState({ ...sendInfo, address: recipient, arkAddress: '' })
       }
       if (isArkNote(lowerCaseData)) {
         try {
@@ -358,6 +358,7 @@ export default function SendForm() {
               value={recipient}
             />
             <InputAmount
+              name='send-amount'
               focus={focus === 'amount' && !isMobileBrowser}
               label='Amount'
               min={lnUrlLimits.min}

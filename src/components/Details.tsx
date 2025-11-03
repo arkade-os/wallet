@@ -13,6 +13,7 @@ import NotesIcon from '../icons/Notes'
 import Table from './Table'
 import StatusIcon from '../icons/Status'
 import ArrowIcon from '../icons/Arrow'
+import InfoIcon from '../icons/Info'
 
 export interface DetailsProps {
   address?: string
@@ -25,6 +26,7 @@ export interface DetailsProps {
   invoice?: string
   satoshis?: number
   status?: string
+  swapId?: string
   total?: number
   txid?: string
   type?: string
@@ -48,6 +50,7 @@ export default function Details({ details }: { details?: DetailsProps }) {
     invoice,
     satoshis,
     status,
+    swapId,
     txid,
     type,
     total,
@@ -64,6 +67,7 @@ export default function Details({ details }: { details?: DetailsProps }) {
   if (address) table.push(['Address', address, <TypeIcon key='address-icon' />])
   if (arknote) table.push(['Arknote', arknote, <NotesIcon key='notes-icon' small />])
   if (invoice) table.push(['Invoice', invoice, <TypeIcon key='invoice-icon' />])
+  if (swapId) table.push(['Swap ID', swapId, <InfoIcon key='swap-id-icon' />])
   if (destination) table.push(['Destination', destination, <TypeIcon key='destination-icon' />])
   if (txid) table.push(['Transaction ID', txid, <ArrowIcon key='txid-icon' />])
   if (direction) table.push(['Direction', direction, <DirectionIcon key='direction-icon' />])

@@ -10,6 +10,7 @@ import { NavigationContext, Pages } from '../providers/navigation'
 import { prettyAgo, prettyAmount, prettyDate, prettyHide } from '../lib/format'
 import { SwapFailedIcon, SwapPendingIcon, SwapSuccessIcon } from '../icons/Swap'
 import { BoltzSwapStatus, PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
+import { consoleError } from '../lib/logs'
 
 const border = '1px solid var(--dark20)'
 
@@ -59,12 +60,13 @@ const SwapLine = ({ swap }: { swap: PendingReverseSwap | PendingSubmarineSwap })
   const prefix = swap.type === 'reverse' ? '+' : '-'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(sats) : prettyHide(sats)}`
   const when = window.innerWidth < 400 ? prettyAgo(swap.createdAt) : prettyDate(swap.createdAt)
+  const refunded = swap.type === 'submarine' && swap.refunded
 
   const Icon = iconDict[status]
   const Kind = () => <Text thin>{direction}</Text>
   const When = () => <TextSecondary>{when}</TextSecondary>
   const Sats = () => <Text color={color}>{amount}</Text>
-  const Stat = () => <Text color={color}>{status}</Text>
+  const Stat = () => <Text color={color}>{refunded ? 'Refunded' : status}</Text>
 
   const handleClick = () => {
     setSwapInfo(swap)
@@ -118,8 +120,16 @@ export default function SwapsList() {
   const [swapHistory, setSwapHistory] = useState<(PendingReverseSwap | PendingSubmarineSwap)[]>([])
 
   useEffect(() => {
-    if (!swapProvider) return
-    swapProvider.getSwapHistory().then(setSwapHistory)
+    const choresOnInit = async () => {
+      if (!swapProvider) return
+      try {
+        await swapProvider.refreshSwapsStatus()
+        setSwapHistory(await swapProvider.getSwapHistory())
+      } catch (err) {
+        consoleError(err, 'Error fetching swap history:')
+      }
+    }
+    choresOnInit()
   }, [swapProvider])
 
   if (swapHistory.length === 0) return <EmptySwapList />

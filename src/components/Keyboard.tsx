@@ -95,7 +95,7 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
           <IonRow style={rowStyle} key={row[0]}>
             {row.map((key) => (
               <IonCol size='4' key={key} onClick={() => handleKeyPress(key)}>
-                <p>{key === 'x' ? <>&larr;</> : key}</p>
+                <p data-testid={`keyboard-${key}`}>{key === 'x' ? <>&larr;</> : key}</p>
               </IonCol>
             ))}
           </IonRow>

@@ -6,8 +6,6 @@ import Header from '../../components/Header'
 import FlexCol from '../../components/FlexCol'
 import Text from '../../components/Text'
 import Shadow from '../../components/Shadow'
-import InvadersIcon from '../../icons/Invaders'
-import CoinflipIcon from '../../icons/Coinflip'
 import FujiMoneyIcon from '../../icons/FujiMoney'
 import { IonText } from '@ionic/react'
 import BoltzIcon from '../../icons/Boltz'
@@ -116,8 +114,6 @@ export default function Apps() {
               page={Pages.AppLendaswap}
               live
             />
-            <App name='Ark Invaders' icon={<InvadersIcon />} desc='The classic arcade game' />
-            <App name='Coinflip' icon={<CoinflipIcon />} desc='Head or Tails? Place your bet!' />
             <App name='Fuji Money' icon={<FujiMoneyIcon />} desc='Synthetic Assets on the Bitcoin network' />
           </FlexCol>
         </Padded>
