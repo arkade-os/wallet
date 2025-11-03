@@ -54,13 +54,13 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
     if (!aspInfo.network || !svcWallet || !swapProvider) return
 
     limits.current.utxo = {
-      min: BigInt(aspInfo.utxoMinAmount ?? aspInfo.dust ?? -1),
-      max: BigInt(aspInfo.utxoMaxAmount ?? -1),
+      min: BigInt(import.meta.env.VITE_UTXO_MIN_AMOUNT ?? aspInfo.utxoMinAmount ?? aspInfo.dust ?? -1),
+      max: BigInt(import.meta.env.VITE_UTXO_MAX_AMOUNT ?? aspInfo.utxoMaxAmount ?? -1),
     }
 
     limits.current.vtxo = {
-      min: BigInt(aspInfo.vtxoMinAmount ?? aspInfo.dust ?? -1),
-      max: BigInt(aspInfo.vtxoMaxAmount ?? -1),
+      min: BigInt(import.meta.env.VITE_VTXO_MIN_AMOUNT ?? aspInfo.vtxoMinAmount ?? aspInfo.dust ?? -1),
+      max: BigInt(import.meta.env.VITE_VTXO_MAX_AMOUNT ?? aspInfo.vtxoMaxAmount ?? -1),
     }
   }, [aspInfo.network, svcWallet, swapProvider])
 
