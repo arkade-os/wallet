@@ -22,6 +22,7 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 | --------------------------- | ------------------------------------------------------------------- | ------------------------------------------------- |
 | `VITE_ARK_SERVER`           | Override the default Arkade server URL                              | `VITE_ARK_SERVER=http://localhost:7070`           |
 | `VITE_BOLTZ_URL`            | Override the default Boltz swap provider URL for Lightning          | `VITE_BOLTZ_URL=https://boltz-provider-url.com`   |
+| `VITE_PSA_MESSAGE`          | Manage message to show in wallet index page                         | `VITE_PSA_MESSAGE=@arkade_os on TG for support`   |
 | `VITE_SENTRY_DSN`           | Enable Sentry error tracking (only in production, not on localhost) | `VITE_SENTRY_DSN=your-sentry-dsn`                 |
 | `CI`                        | Set to `true` for Continuous Integration environments               | `CI=true`                                         |
 | `GENERATE_SOURCEMAP`        | Disable source map generation during build                          | `GENERATE_SOURCEMAP=false`                        |
