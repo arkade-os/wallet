@@ -14,10 +14,9 @@ export type Config = {
   aspUrl: string
   currencyDisplay: CurrencyDisplay
   fiat: Fiats
-  lastBackup: number
-  nostr: boolean
+  nostrBackup: boolean
   notifications: boolean
-  npub: string
+  pubkey: string
   showBalance: boolean
   theme: Themes
   unit: Unit
@@ -52,7 +51,6 @@ export enum SettingsOptions {
   Lock = 'lock wallet',
   Logs = 'logs',
   Notifications = 'notifications',
-  Nostr = 'nostr',
   Notes = 'notes',
   Password = 'change password',
   Reset = 'reset wallet',

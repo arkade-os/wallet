@@ -2,16 +2,16 @@ import { ReactNode, createContext, useEffect, useState } from 'react'
 import { clearStorage, readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
 import { defaultArkServer } from '../lib/constants'
 import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
+import { handleNostrBackup } from '../lib/backup'
 
 const defaultConfig: Config = {
   apps: { boltz: { connected: true } },
   aspUrl: defaultArkServer(),
   currencyDisplay: CurrencyDisplay.Both,
   fiat: Fiats.USD,
-  lastBackup: 0,
-  nostr: false,
+  nostrBackup: false,
   notifications: false,
-  npub: '',
+  pubkey: '',
   showBalance: true,
   theme: Themes.Dark,
   unit: Unit.BTC,
@@ -24,7 +24,7 @@ interface ConfigContextProps {
   setConfig: (c: Config) => void
   showConfig: boolean
   toggleShowConfig: () => void
-  updateConfig: (c: Config) => void
+  updateConfig: (config: Config, backup: boolean) => void
   useFiat: boolean
 }
 
@@ -49,14 +49,16 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
   const preferredTheme = () =>
     window?.matchMedia?.('(prefers-color-scheme: dark)').matches ? Themes.Dark : Themes.Light
 
-  const updateConfig = (data: Config) => {
-    if (!data.aspUrl.startsWith('http://') && !data.aspUrl.startsWith('https://')) {
-      const protocol = data.aspUrl.startsWith('localhost') ? 'http://' : 'https://'
-      data.aspUrl = protocol + data.aspUrl
+  const updateConfig = (config: Config, backup: boolean) => {
+    // add protocol to aspUrl if missing
+    if (!config.aspUrl.startsWith('http://') && !config.aspUrl.startsWith('https://')) {
+      const protocol = config.aspUrl.startsWith('localhost') ? 'http://' : 'https://'
+      config.aspUrl = protocol + config.aspUrl
     }
-    setConfig(data)
-    updateTheme(data)
-    saveConfigToStorage(data)
+    setConfig(config)
+    updateTheme(config)
+    saveConfigToStorage(config)
+    if (config.nostrBackup && backup) handleNostrBackup(config)
   }
 
   const updateTheme = ({ theme }: Config) => {
@@ -68,7 +70,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
 
   const resetConfig = async () => {
     await clearStorage()
-    updateConfig(defaultConfig)
+    updateConfig(defaultConfig, false)
   }
 
   useEffect(() => {
@@ -80,7 +82,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     let config = readConfigFromStorage() ?? { ...defaultConfig, theme: preferredTheme() }
     // allow upgradability
     config = { ...defaultConfig, ...config }
-    updateConfig(config)
+    updateConfig(config, false)
     setConfigLoaded(true)
   }, [configLoaded])
 

@@ -15,7 +15,7 @@ export default function Theme() {
       <Content>
         <Padded>
           <Select
-            onChange={(theme: string) => updateConfig({ ...config, theme: theme as Themes })}
+            onChange={(theme: string) => updateConfig({ ...config, theme: theme as Themes }, true)}
             options={[Themes.Dark, Themes.Light]}
             selected={config.theme}
           />

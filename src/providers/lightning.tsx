@@ -44,9 +44,9 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     if (!aspInfo.network || !svcWallet) return
     const baseUrl = BASE_URLS[aspInfo.network as Network]
     if (!baseUrl) return // No boltz server for this network
-    setSwapProvider(new LightningSwapProvider(baseUrl, aspInfo, svcWallet))
-    setConnected(config.apps.boltz.connected)
-  }, [aspInfo, svcWallet, config.apps.boltz.connected])
+    setSwapProvider(new LightningSwapProvider(baseUrl, aspInfo, svcWallet, config))
+    setConnected(config.apps.boltz.connected, false)
+  }, [aspInfo, svcWallet, config.apps.boltz.connected, config.nostrBackup])
 
   // fetch fees and refresh swaps status on provider change
   useEffect(() => {
@@ -70,17 +70,20 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     choresOnInit()
   }, [swapProvider])
 
-  const setConnected = (value: boolean) => {
-    updateConfig({
-      ...config,
-      apps: {
-        ...config.apps,
-        boltz: {
-          ...config.apps.boltz,
-          connected: value,
+  const setConnected = (value: boolean, backup: boolean) => {
+    updateConfig(
+      {
+        ...config,
+        apps: {
+          ...config.apps,
+          boltz: {
+            ...config.apps.boltz,
+            connected: value,
+          },
         },
       },
-    })
+      backup,
+    )
   }
 
   const calcSubmarineSwapFee = (satoshis: number): number => {
@@ -95,7 +98,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     return Math.ceil((satoshis * percentage) / 100 + minerFees.claim + minerFees.lockup)
   }
 
-  const toggleConnection = () => setConnected(!connected)
+  const toggleConnection = () => setConnected(!connected, true)
 
   return (
     <LightningContext.Provider

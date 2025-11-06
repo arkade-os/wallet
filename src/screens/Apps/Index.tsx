@@ -91,7 +91,7 @@ export default function Apps() {
             <App
               name='Boltz'
               icon={<BoltzIcon />}
-              desc='Swap Bitcoin instantly between Arkade and the Lightning Network.'
+              desc='Swap instantly between Arkade and Lightning'
               link='https://boltz.exchange/'
               page={Pages.AppBoltz}
               live
@@ -100,7 +100,7 @@ export default function Apps() {
             <App
               name='LendaSat'
               icon={<LendasatIcon />}
-              desc='Borrow against your sats.'
+              desc='Borrow against your sats'
               link='https://lendasat.com'
               page={Pages.AppLendasat}
               live
@@ -109,7 +109,7 @@ export default function Apps() {
             <App
               name='LendaSwap'
               icon={<LendaswapIcon />}
-              desc='Swap Bitcoin to USDC instantly.'
+              desc='Swap Bitcoin to USDC instantly'
               link='https://swap.lendasat.com'
               page={Pages.AppLendaswap}
               live
