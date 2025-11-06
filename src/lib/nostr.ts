@@ -2,6 +2,7 @@ import { finalizeEvent, generateSecretKey, getPublicKey, nip44, SimplePool, Unsi
 import { EncryptedDirectMessage } from 'nostr-tools/kinds'
 import { Config } from './types'
 import { PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
+import { consoleError } from './logs'
 
 export const nostrAppName = 'arkade_backup'
 
@@ -107,10 +108,15 @@ export class NostrStorage {
               const bDate = b.created_at
               return bDate - aDate
             })
-            const { content, pubkey } = events[0] // newest event
-            const decrypted = self.decryptData(content, pubkey)
-            if (!decrypted) return resolve(null)
-            resolve(JSON.parse(decrypted) as NostrStorageData)
+            try {
+              const { content, pubkey } = events[0] // newest event
+              const decrypted = self.decryptData(content, pubkey)
+              if (!decrypted) return resolve(null)
+              resolve(JSON.parse(decrypted) as NostrStorageData)
+            } catch (error) {
+              consoleError(error, 'Failed to decrypt/parse backup data')
+              resolve(null)
+            }
           },
         },
       )
