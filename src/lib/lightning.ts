@@ -33,7 +33,12 @@ export class LightningSwapProvider {
   }
 
   private backup = async () => {
-    if (this.config.nostrBackup) await handleNostrBackup(this.config)
+    if (!this.config.nostrBackup) return
+    try {
+      await handleNostrBackup(this.config)
+    } catch (error) {
+      consoleError(error, 'Failed to sync Nostr backup')
+    }
   }
 
   private someError = (error: any, message: string) => {
