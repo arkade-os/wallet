@@ -200,7 +200,7 @@ export default function SendForm() {
   }, [sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
 
   useEffect(() => {
-    setSatoshis(useFiat ? fromFiat(amount) : (amount ?? 0))
+    setSatoshis(Math.floor(useFiat ? fromFiat(amount) : (amount ?? 0)))
   }, [amount])
 
   useEffect(() => {
