@@ -3,6 +3,7 @@ import { clearStorage, readConfigFromStorage, saveConfigToStorage } from '../lib
 import { defaultArkServer } from '../lib/constants'
 import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
 import { handleNostrBackup } from '../lib/backup'
+import { consoleError } from '../lib/logs'
 
 const defaultConfig: Config = {
   apps: { boltz: { connected: true } },
@@ -58,7 +59,11 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     setConfig(config)
     updateTheme(config)
     saveConfigToStorage(config)
-    if (config.nostrBackup && backup) handleNostrBackup(config)
+    if (config.nostrBackup && backup) {
+      handleNostrBackup(config).catch((error) => {
+        consoleError(error, 'Backup failed')
+      })
+    }
   }
 
   const updateTheme = ({ theme }: Config) => {
