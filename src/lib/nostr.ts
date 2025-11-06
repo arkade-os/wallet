@@ -87,40 +87,49 @@ export class NostrStorage {
 
     if (!this.seckey) throw new Error('Secret key is required for loading data')
 
-    return new Promise((resolve) => {
-      const sub = pool.subscribeMany(
-        this.relays,
-        { kinds: [4], '#p': [this.pubkey], '#t': [app] },
-        {
-          onevent(event: Event) {
-            events.push(event)
+    return Promise.race([
+      new Promise<NostrStorageData | null>((resolve) => {
+        const sub = pool.subscribeMany(
+          this.relays,
+          { kinds: [4], '#p': [this.pubkey], '#t': [app] },
+          {
+            onevent(event: Event) {
+              events.push(event)
+            },
+            oneose() {
+              sub.close()
+              pool.close(self.relays)
+              if (events.length === 0) {
+                resolve(null)
+                return
+              }
+              // sort newest first
+              events.sort((a, b) => {
+                const aDate = a.created_at
+                const bDate = b.created_at
+                return bDate - aDate
+              })
+              try {
+                const { content, pubkey } = events[0] // newest event
+                const decrypted = self.decryptData(content, pubkey)
+                if (!decrypted) return resolve(null)
+                resolve(JSON.parse(decrypted) as NostrStorageData)
+              } catch (error) {
+                consoleError(error, 'Failed to decrypt/parse backup data')
+                resolve(null)
+              }
+            },
           },
-          oneose() {
-            sub.close()
-            pool.close(self.relays)
-            if (events.length === 0) {
-              resolve(null)
-              return
-            }
-            // sort newest first
-            events.sort((a, b) => {
-              const aDate = a.created_at
-              const bDate = b.created_at
-              return bDate - aDate
-            })
-            try {
-              const { content, pubkey } = events[0] // newest event
-              const decrypted = self.decryptData(content, pubkey)
-              if (!decrypted) return resolve(null)
-              resolve(JSON.parse(decrypted) as NostrStorageData)
-            } catch (error) {
-              consoleError(error, 'Failed to decrypt/parse backup data')
-              resolve(null)
-            }
-          },
-        },
-      )
-    })
+        )
+      }),
+      new Promise<NostrStorageData | null>((resolve) => {
+        setTimeout(() => {
+          pool.close(self.relays)
+          consoleError(new Error('Load timeout'), 'Failed to load backup data')
+          resolve(null)
+        }, 10000)
+      }),
+    ])
   }
 
   /**
