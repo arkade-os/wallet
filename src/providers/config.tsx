@@ -8,6 +8,7 @@ const defaultConfig: Config = {
   aspUrl: defaultArkServer(),
   currencyDisplay: CurrencyDisplay.Both,
   fiat: Fiats.USD,
+  lastBackup: 0,
   nostr: false,
   notifications: false,
   npub: '',

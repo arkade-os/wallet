@@ -14,8 +14,16 @@ import Input from '../../components/Input'
 import ErrorMessage from '../../components/Error'
 import Text from '../../components/Text'
 import { hex } from '@scure/base'
+import { NostrStorage } from '../../lib/nostr'
+import { consoleError } from '../../lib/logs'
+import { ContractRepositoryImpl } from '@arkade-os/sdk'
+import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
+import { ConfigContext } from '../../providers/config'
+import { Config } from '../../lib/types'
+import { PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
 
 export default function InitRestore() {
+  const { updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
   const { setInitInfo } = useContext(FlowContext)
 
@@ -46,6 +54,33 @@ export default function InitRestore() {
 
   const handleProceed = () => {
     setInitInfo({ privateKey, password: defaultPassword, restoring: true })
+    const nostrStorage = new NostrStorage({ secKey: privateKey! })
+    nostrStorage
+      .load('arkade_boltz_swaps')
+      .then(async (data) => {
+        if (!data) return null
+        console.log('data loaded from nostr:', data, JSON.parse(data))
+        const storage = new IndexedDBStorageAdapter('arkade-service-worker')
+        const contractRepo = new ContractRepositoryImpl(storage)
+        const { config, reverseSwaps, submarineSwaps } = JSON.parse(data) as {
+          config: Config
+          reverseSwaps: PendingReverseSwap[]
+          submarineSwaps: PendingSubmarineSwap[]
+        }
+        // restore config and swaps
+        updateConfig(config)
+        for (const swap of reverseSwaps) {
+          await contractRepo.saveToContractCollection('reverseSwaps', swap, 'id')
+        }
+        for (const swap of submarineSwaps) {
+          await contractRepo.saveToContractCollection('submarineSwaps', swap, 'id')
+        }
+      })
+      .catch((err) => {
+        console.log('rrrrrrrr', err)
+        consoleError(err, 'Error loading boltz swaps from nostr')
+        return null
+      })
     navigate(Pages.InitSuccess)
   }
 

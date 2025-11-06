@@ -14,6 +14,7 @@ export type Config = {
   aspUrl: string
   currencyDisplay: CurrencyDisplay
   fiat: Fiats
+  lastBackup: number
   nostr: boolean
   notifications: boolean
   npub: string

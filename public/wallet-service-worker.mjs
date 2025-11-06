@@ -1070,8 +1070,8 @@ function Bf(e, t = {}) {
         throw new Error("bad point: is not on curve, sqrt error" + H);
       }
       f();
-      const B = r.isOdd(T);
-      return (E & 1) === 1 !== B && (T = r.neg(T)), { x: I, y: T };
+      const O = r.isOdd(T);
+      return (E & 1) === 1 !== O && (T = r.neg(T)), { x: I, y: T };
     } else if (p === m && E === 4) {
       const I = r.BYTES, k = r.fromBytes(A.subarray(0, I)), T = r.fromBytes(A.subarray(I, I * 2));
       if (!y(k, T))
@@ -1094,7 +1094,7 @@ function Bf(e, t = {}) {
   const S = r.mul(r.pow(s.a, Qn), If), v = r.mul(r.sqr(s.b), BigInt(27));
   if (r.is0(r.add(S, v)))
     throw new Error("bad curve params: a or b");
-  function O(_, b, m = !1) {
+  function B(_, b, m = !1) {
     if (!r.isValid(b) || m && r.is0(b))
       throw new Error(`bad point coordinate ${_}`);
     return b;
@@ -1153,7 +1153,7 @@ function Bf(e, t = {}) {
     Z;
     /** Does NOT validate if the point is valid. Use `.assertValidity()`. */
     constructor(b, m, p) {
-      this.X = O("x", b), this.Y = O("y", m, !0), this.Z = O("z", p), Object.freeze(this);
+      this.X = B("x", b), this.Y = B("y", m, !0), this.Z = B("z", p), Object.freeze(this);
     }
     static CURVE() {
       return s;
@@ -1203,8 +1203,8 @@ function Bf(e, t = {}) {
     /** Compare one point to another. */
     equals(b) {
       L(b);
-      const { X: m, Y: p, Z: E } = this, { X: A, Y: I, Z: k } = b, T = r.eql(r.mul(m, k), r.mul(A, E)), B = r.eql(r.mul(p, k), r.mul(I, E));
-      return T && B;
+      const { X: m, Y: p, Z: E } = this, { X: A, Y: I, Z: k } = b, T = r.eql(r.mul(m, k), r.mul(A, E)), O = r.eql(r.mul(p, k), r.mul(I, E));
+      return T && O;
     }
     /** Flips point to one corresponding to (x, -y) in Affine coordinates. */
     negate() {
@@ -1216,8 +1216,8 @@ function Bf(e, t = {}) {
     // Cost: 8M + 3S + 3*a + 2*b3 + 15add.
     double() {
       const { a: b, b: m } = s, p = r.mul(m, Qn), { X: E, Y: A, Z: I } = this;
-      let k = r.ZERO, T = r.ZERO, B = r.ZERO, R = r.mul(E, E), F = r.mul(A, A), H = r.mul(I, I), C = r.mul(E, A);
-      return C = r.add(C, C), B = r.mul(E, I), B = r.add(B, B), k = r.mul(b, B), T = r.mul(p, H), T = r.add(k, T), k = r.sub(F, T), T = r.add(F, T), T = r.mul(k, T), k = r.mul(C, k), B = r.mul(p, B), H = r.mul(b, H), C = r.sub(R, H), C = r.mul(b, C), C = r.add(C, B), B = r.add(R, R), R = r.add(B, R), R = r.add(R, H), R = r.mul(R, C), T = r.add(T, R), H = r.mul(A, I), H = r.add(H, H), R = r.mul(H, C), k = r.sub(k, R), B = r.mul(H, F), B = r.add(B, B), B = r.add(B, B), new N(k, T, B);
+      let k = r.ZERO, T = r.ZERO, O = r.ZERO, R = r.mul(E, E), F = r.mul(A, A), H = r.mul(I, I), C = r.mul(E, A);
+      return C = r.add(C, C), O = r.mul(E, I), O = r.add(O, O), k = r.mul(b, O), T = r.mul(p, H), T = r.add(k, T), k = r.sub(F, T), T = r.add(F, T), T = r.mul(k, T), k = r.mul(C, k), O = r.mul(p, O), H = r.mul(b, H), C = r.sub(R, H), C = r.mul(b, C), C = r.add(C, O), O = r.add(R, R), R = r.add(O, R), R = r.add(R, H), R = r.mul(R, C), T = r.add(T, R), H = r.mul(A, I), H = r.add(H, H), R = r.mul(H, C), k = r.sub(k, R), O = r.mul(H, F), O = r.add(O, O), O = r.add(O, O), new N(k, T, O);
     }
     // Renes-Costello-Batina exception-free addition formula.
     // There is 30% faster Jacobian formula, but it is not complete.
@@ -1226,12 +1226,12 @@ function Bf(e, t = {}) {
     add(b) {
       L(b);
       const { X: m, Y: p, Z: E } = this, { X: A, Y: I, Z: k } = b;
-      let T = r.ZERO, B = r.ZERO, R = r.ZERO;
+      let T = r.ZERO, O = r.ZERO, R = r.ZERO;
       const F = s.a, H = r.mul(s.b, Qn);
       let C = r.mul(m, A), D = r.mul(p, I), q = r.mul(E, k), st = r.add(m, p), M = r.add(A, I);
       st = r.mul(st, M), M = r.add(C, D), st = r.sub(st, M), M = r.add(m, E);
       let Y = r.add(A, k);
-      return M = r.mul(M, Y), Y = r.add(C, q), M = r.sub(M, Y), Y = r.add(p, E), T = r.add(I, k), Y = r.mul(Y, T), T = r.add(D, q), Y = r.sub(Y, T), R = r.mul(F, M), T = r.mul(H, q), R = r.add(T, R), T = r.sub(D, R), R = r.add(D, R), B = r.mul(T, R), D = r.add(C, C), D = r.add(D, C), q = r.mul(F, q), M = r.mul(H, M), D = r.add(D, q), q = r.sub(C, q), q = r.mul(F, q), M = r.add(M, q), C = r.mul(D, M), B = r.add(B, C), C = r.mul(Y, M), T = r.mul(st, T), T = r.sub(T, C), C = r.mul(st, D), R = r.mul(Y, R), R = r.add(R, C), new N(T, B, R);
+      return M = r.mul(M, Y), Y = r.add(C, q), M = r.sub(M, Y), Y = r.add(p, E), T = r.add(I, k), Y = r.mul(Y, T), T = r.add(D, q), Y = r.sub(Y, T), R = r.mul(F, M), T = r.mul(H, q), R = r.add(T, R), T = r.sub(D, R), R = r.add(D, R), O = r.mul(T, R), D = r.add(C, C), D = r.add(D, C), q = r.mul(F, q), M = r.mul(H, M), D = r.add(D, q), q = r.sub(C, q), q = r.mul(F, q), M = r.add(M, q), C = r.mul(D, M), O = r.add(O, C), C = r.mul(Y, M), T = r.mul(st, T), T = r.sub(T, C), C = r.mul(st, D), R = r.mul(Y, R), R = r.add(R, C), new N(T, O, R);
     }
     subtract(b) {
       return this.add(b.negate());
@@ -1255,7 +1255,7 @@ function Bf(e, t = {}) {
       let p, E;
       const A = (I) => gt.cached(this, I, (k) => gi(N, k));
       if (m) {
-        const { k1neg: I, k1: k, k2neg: T, k2: B } = $(b), { p: R, f: F } = A(k), { p: H, f: C } = A(B);
+        const { k1neg: I, k1: k, k2neg: T, k2: O } = $(b), { p: R, f: F } = A(k), { p: H, f: C } = A(O);
         E = F.add(C), p = Z(m.beta, R, H, I, T);
       } else {
         const { p: I, f: k } = A(b);
@@ -1279,8 +1279,8 @@ function Bf(e, t = {}) {
       if (gt.hasCache(this))
         return this.multiply(b);
       if (m) {
-        const { k1neg: E, k1: A, k2neg: I, k2: k } = $(b), { p1: T, p2: B } = vf(N, p, A, k);
-        return Z(m.beta, T, B, E, I);
+        const { k1neg: E, k1: A, k2neg: I, k2: k } = $(b), { p1: T, p2: O } = vf(N, p, A, k);
+        return Z(m.beta, T, O, E, I);
       } else
         return gt.unsafe(p, b);
     }
@@ -1405,7 +1405,7 @@ function Uf(e, t, n = {}) {
     if (g)
       throw new Error('"recovered" sig type is not supported for cofactor >2 curves');
   }
-  function O(m, p) {
+  function B(m, p) {
     Vo(p);
     const E = h.signature, A = p === "compact" ? E : p === "recovered" ? E + 1 : void 0;
     return z(m, A);
@@ -1423,11 +1423,11 @@ function Uf(e, t, n = {}) {
       Object.freeze(this);
     }
     static fromBytes(p, E = w.format) {
-      O(p, E);
+      B(p, E);
       let A;
       if (E === "der") {
-        const { r: B, s: R } = me.toSig(z(p));
-        return new L(B, R);
+        const { r: O, s: R } = me.toSig(z(p));
+        return new L(O, R);
       }
       E === "recovered" && (A = p[0], E = "compact", p = p.subarray(1));
       const I = h.signature / 2, k = p.subarray(0, I), T = p.subarray(I, I * 2);
@@ -1449,7 +1449,7 @@ function Uf(e, t, n = {}) {
       const { r: E, s: A } = this, I = this.assertRecovery(), k = I === 2 || I === 3 ? E + c : E;
       if (!s.isValid(k))
         throw new Error("invalid recovery id: sig.r+curve.n != R.x");
-      const T = s.toBytes(k), B = e.fromBytes(Kt(ta((I & 1) === 0), T)), R = i.inv(k), F = W(z(p, void 0, "msgHash")), H = i.create(-F * R), C = i.create(A * R), D = e.BASE.multiplyUnsafe(H).add(B.multiplyUnsafe(C));
+      const T = s.toBytes(k), O = e.fromBytes(Kt(ta((I & 1) === 0), T)), R = i.inv(k), F = W(z(p, void 0, "msgHash")), H = i.create(-F * R), C = i.create(A * R), D = e.BASE.multiplyUnsafe(H).add(O.multiplyUnsafe(C));
       if (D.is0())
         throw new Error("invalid recovery: point at infinify");
       return D.assertValidity(), D;
@@ -1485,10 +1485,10 @@ function Uf(e, t, n = {}) {
   function Pt(m, p, E) {
     const { lowS: A, prehash: I, extraEntropy: k } = Eo(E, w);
     m = N(m, I);
-    const T = W(m), B = i.fromBytes(p);
-    if (!i.isValidNot0(B))
+    const T = W(m), O = i.fromBytes(p);
+    if (!i.isValidNot0(O))
       throw new Error("invalid private key");
-    const R = [Z(B), Z(T)];
+    const R = [Z(O), Z(T)];
     if (k != null && k !== !1) {
       const D = k === !0 ? r(h.secretKey) : k;
       R.push(z(D, void 0, "extraEntropy"));
@@ -1501,7 +1501,7 @@ function Uf(e, t, n = {}) {
       const st = i.inv(q), M = e.BASE.multiply(q).toAffine(), Y = i.create(M.x);
       if (Y === se)
         return;
-      const ee = i.create(st * i.create(H + Y * B));
+      const ee = i.create(st * i.create(H + Y * O));
       if (ee === se)
         return;
       let En = (M.x === Y ? 0 : 2) | Number(M.y & Xe), xn = ee;
@@ -1516,15 +1516,15 @@ function Uf(e, t, n = {}) {
   function _(m, p, E, A = {}) {
     const { lowS: I, prehash: k, format: T } = Eo(A, w);
     if (E = z(E, void 0, "publicKey"), p = N(p, k), !vs(m)) {
-      const B = m instanceof L ? ", use sig.toBytes()" : "";
-      throw new Error("verify expects Uint8Array signature" + B);
+      const O = m instanceof L ? ", use sig.toBytes()" : "";
+      throw new Error("verify expects Uint8Array signature" + O);
     }
-    O(m, T);
+    B(m, T);
     try {
-      const B = L.fromBytes(m, T), R = e.fromBytes(E);
-      if (I && B.hasHighS())
+      const O = L.fromBytes(m, T), R = e.fromBytes(E);
+      if (I && O.hasHighS())
         return !1;
-      const { r: F, s: H } = B, C = W(p), D = i.inv(H), q = i.create(C * D), st = i.create(F * D), M = e.BASE.multiplyUnsafe(q).add(R.multiplyUnsafe(st));
+      const { r: F, s: H } = O, C = W(p), D = i.inv(H), q = i.create(C * D), st = i.create(F * D), M = e.BASE.multiplyUnsafe(q).add(R.multiplyUnsafe(st));
       return M.is0() ? !1 : i.create(M.x) === F;
     } catch {
       return !1;
@@ -1565,7 +1565,7 @@ const Jr = {
   ]
 }, Rf = /* @__PURE__ */ BigInt(0), Do = /* @__PURE__ */ BigInt(2);
 function Nf(e) {
-  const t = Jr.p, n = BigInt(3), r = BigInt(6), o = BigInt(11), s = BigInt(22), i = BigInt(23), c = BigInt(44), a = BigInt(88), u = e * e * e % t, f = u * u * e % t, d = Rt(f, n, t) * f % t, l = Rt(d, n, t) * f % t, h = Rt(l, Do, t) * u % t, w = Rt(h, o, t) * h % t, g = Rt(w, s, t) * w % t, y = Rt(g, c, t) * g % t, S = Rt(y, a, t) * y % t, v = Rt(S, c, t) * g % t, O = Rt(v, n, t) * f % t, L = Rt(O, i, t) * w % t, $ = Rt(L, r, t) * u % t, W = Rt($, Do, t);
+  const t = Jr.p, n = BigInt(3), r = BigInt(6), o = BigInt(11), s = BigInt(22), i = BigInt(23), c = BigInt(44), a = BigInt(88), u = e * e * e % t, f = u * u * e % t, d = Rt(f, n, t) * f % t, l = Rt(d, n, t) * f % t, h = Rt(l, Do, t) * u % t, w = Rt(h, o, t) * h % t, g = Rt(w, s, t) * w % t, y = Rt(g, c, t) * g % t, S = Rt(y, a, t) * y % t, v = Rt(S, c, t) * g % t, B = Rt(v, n, t) * f % t, L = Rt(B, i, t) * w % t, $ = Rt(L, r, t) * u % t, W = Rt($, Do, t);
   if (!vr.eql(vr.sqr(W), e))
     throw new Error("Cannot find square root");
   return W;
@@ -1714,9 +1714,9 @@ class Mf extends $c {
       Jn[h] = t.getUint32(n, !0);
     let r = this.h0 | 0, o = r, s = this.h1 | 0, i = s, c = this.h2 | 0, a = c, u = this.h3 | 0, f = u, d = this.h4 | 0, l = d;
     for (let h = 0; h < 5; h++) {
-      const w = 4 - h, g = Vf[h], y = Df[h], S = ca[h], v = aa[h], O = Pf[h], L = Hf[h];
+      const w = 4 - h, g = Vf[h], y = Df[h], S = ca[h], v = aa[h], B = Pf[h], L = Hf[h];
       for (let $ = 0; $ < 16; $++) {
-        const W = Zn(r + Si(h, s, c, u) + Jn[S[$]] + g, O[$]) + d | 0;
+        const W = Zn(r + Si(h, s, c, u) + Jn[S[$]] + g, B[$]) + d | 0;
         r = d, d = u, u = Zn(c, 10) | 0, c = s, s = W;
       }
       for (let $ = 0; $ < 16; $++) {
@@ -2017,9 +2017,9 @@ function ha(e) {
     const y = w.slice(0, g), S = w.slice(g + 1);
     if (S.length < 6)
       throw new Error("Data must be at least 6 characters long");
-    const v = Wo.decode(S).slice(0, -6), O = ki(y, v, t);
-    if (!S.endsWith(O))
-      throw new Error(`Invalid checksum in ${d}: expected "${O}"`);
+    const v = Wo.decode(S).slice(0, -6), B = ki(y, v, t);
+    if (!S.endsWith(B))
+      throw new Error(`Invalid checksum in ${d}: expected "${B}"`);
     return { prefix: y, words: v };
   }
   const a = Ti(c);
@@ -3559,9 +3559,9 @@ function Xo(e, t, n, r, o) {
             w[y] = [S, v];
             return;
           }
-          const O = U.encode(f.encode(w[y][1])), L = U.encode(f.encode(v));
-          if (O !== L)
-            throw new Error(`keyMap(${c}): same key=${y} oldVal=${O} newVal=${L}`);
+          const B = U.encode(f.encode(w[y][1])), L = U.encode(f.encode(v));
+          if (B !== L)
+            throw new Error(`keyMap(${c}): same key=${y} oldVal=${B} newVal=${L}`);
         };
         for (const [y, S] of l) {
           const v = U.encode(u.encode(y));
@@ -4549,17 +4549,17 @@ let ue = class wr {
       const f = this.inputs.map(gr), d = f.map((y) => y.script), l = f.map((y) => y.amount);
       let h = !1, w = Hs(t), g = s.tapMerkleRoot || ot;
       if (s.tapInternalKey) {
-        const { pubKey: y, privKey: S } = Jd(t, w, s.tapInternalKey, g), [v, O] = jo(s.tapInternalKey, g);
+        const { pubKey: y, privKey: S } = Jd(t, w, s.tapInternalKey, g), [v] = jo(s.tapInternalKey, g);
         if (ct(v, y)) {
-          const L = this.preimageWitnessV1(n, d, c, l), $ = Ee(Ui(L, S, o), c !== j.DEFAULT ? new Uint8Array([c]) : ot);
-          this.updateInput(n, { tapKeySig: $ }, !0), h = !0;
+          const B = this.preimageWitnessV1(n, d, c, l), L = Ee(Ui(B, S, o), c !== j.DEFAULT ? new Uint8Array([c]) : ot);
+          this.updateInput(n, { tapKeySig: L }, !0), h = !0;
         }
       }
       if (s.tapLeafScript) {
         s.tapScriptSig = s.tapScriptSig || [];
         for (const [y, S] of s.tapLeafScript) {
-          const v = S.subarray(0, -1), O = K.decode(v), L = S[S.length - 1], $ = On(v, L);
-          if (O.findIndex((N) => nt(N) && ct(N, w)) === -1)
+          const v = S.subarray(0, -1), B = K.decode(v), L = S[S.length - 1], $ = On(v, L);
+          if (B.findIndex((N) => nt(N) && ct(N, w)) === -1)
             continue;
           const x = this.preimageWitnessV1(n, d, c, l, void 0, v, L), Z = Ee(Ui(x, t, o), c !== j.DEFAULT ? new Uint8Array([c]) : ot);
           this.updateInput(n, { tapScriptSig: [[{ pubKey: w, leafHash: $ }, Z]] }, !0), h = !0;
@@ -4623,32 +4623,32 @@ let ue = class wr {
           let y = [];
           if (h.type === "tr_ms") {
             const S = h.m, v = h.pubkeys;
-            let O = 0;
+            let B = 0;
             for (const L of v) {
               const $ = g.findIndex((W) => ct(W[0].pubKey, L));
-              if (O === S || $ === -1) {
+              if (B === S || $ === -1) {
                 y.push(ot);
                 continue;
               }
-              y.push(g[$][1]), O++;
+              y.push(g[$][1]), B++;
             }
-            if (O !== S)
+            if (B !== S)
               continue;
           } else if (h.type === "tr_ns") {
             for (const S of h.pubkeys) {
-              const v = g.findIndex((O) => ct(O[0].pubKey, S));
+              const v = g.findIndex((B) => ct(B[0].pubKey, S));
               v !== -1 && y.push(g[v][1]);
             }
             if (y.length !== h.pubkeys.length)
               continue;
           } else if (h.type === "unknown" && this.opts.allowUnknownInputs) {
             const S = K.decode(d);
-            if (y = g.map(([{ pubKey: v }, O]) => {
+            if (y = g.map(([{ pubKey: v }, B]) => {
               const L = S.findIndex(($) => nt($) && ct($, v));
               if (L === -1)
                 throw new Error("finalize/taproot: cannot find position of pubkey in script");
-              return { signature: O, pos: L };
-            }).sort((v, O) => v.pos - O.pos).map((v) => v.signature), !y.length)
+              return { signature: B, pos: L };
+            }).sort((v, B) => v.pos - B.pos).map((v) => v.signature), !y.length)
               continue;
           } else {
             const S = this.opts.customScripts;
@@ -4656,7 +4656,7 @@ let ue = class wr {
               for (const v of S) {
                 if (!v.finalizeTaproot)
                   continue;
-                const O = K.decode(d), L = v.encode(O);
+                const B = K.decode(d), L = v.encode(B);
                 if (L === void 0)
                   continue;
                 const $ = v.finalizeTaproot(d, L, g);
@@ -4935,7 +4935,7 @@ class ol {
     const g = He(w), y = g.toBytes(!0);
     if (!Ln(y, d))
       throw new Error("Public key does not match nonceGen argument");
-    const S = this.getSessionKeyAggCoeff(g), v = An(o, 1n), O = G.mul(v, G.mul(s, w)), L = G.add(l, G.add(G.mul(i, h), G.mul(a, G.mul(S, O)))), $ = G.toBytes(L);
+    const S = this.getSessionKeyAggCoeff(g), v = An(o, 1n), B = G.mul(v, G.mul(s, w)), L = G.add(l, G.add(G.mul(i, h), G.mul(a, G.mul(S, B)))), $ = G.toBytes(L);
     if (!r) {
       const W = Je.encode({
         R1: He(u),
@@ -5367,8 +5367,8 @@ class Et {
     const h = P(u * 3n);
     let w = P(n * s), g = P(r * i), y = P(o * c), S = P(n + r), v = P(s + i);
     S = P(S * v), v = P(w + g), S = P(S - v), v = P(n + o);
-    let O = P(s + c);
-    return v = P(v * O), O = P(w + y), v = P(v - O), O = P(r + o), f = P(i + c), O = P(O * f), f = P(g + y), O = P(O - f), l = P(a * v), f = P(h * y), l = P(f + l), f = P(g - l), l = P(g + l), d = P(f * l), g = P(w + w), g = P(g + w), y = P(a * y), v = P(h * v), g = P(g + y), y = P(w - y), y = P(a * y), v = P(v + y), w = P(g * v), d = P(d + w), w = P(O * v), f = P(S * f), f = P(f - w), w = P(S * g), l = P(O * l), l = P(l + w), new Et(f, d, l);
+    let B = P(s + c);
+    return v = P(v * B), B = P(w + y), v = P(v - B), B = P(r + o), f = P(i + c), B = P(B * f), f = P(g + y), B = P(B - f), l = P(a * v), f = P(h * y), l = P(f + l), f = P(g - l), l = P(g + l), d = P(f * l), g = P(w + w), g = P(g + w), y = P(a * y), v = P(h * v), g = P(g + y), y = P(w - y), y = P(a * y), v = P(v + y), w = P(g * v), d = P(d + w), w = P(B * v), f = P(S * f), f = P(f - w), w = P(S * g), l = P(B * l), l = P(l + w), new Et(f, d, l);
   }
   subtract(t) {
     return this.add(Io(t).negate());
@@ -5505,11 +5505,11 @@ const ru = (e) => {
     const y = Xa(g, Be), S = Ue.multiply(g).toAffine(), v = ie(S.x);
     if (v === 0n)
       return;
-    const O = ie(y * ie(l + v * u));
-    if (O === 0n)
+    const B = ie(y * ie(l + v * u));
+    if (B === 0n)
       return;
-    let L = (S.x === v ? 0 : 2) | Number(S.y & 1n), $ = O;
-    return o && nu(O) && ($ = ie(-O), L ^= 1), new Hr(v, $, L).toBytes(n.format);
+    let L = (S.x === v ? 0 : 2) | Number(S.y & 1n), $ = B;
+    return o && nu(B) && ($ = ie(-B), L ^= 1), new Hr(v, $, L).toBytes(n.format);
   });
 }, Hl = (e) => {
   const t = {};
@@ -6428,8 +6428,8 @@ function mh(e, t = {}) {
         throw new Error("bad point: is not on curve, sqrt error" + H);
       }
       f();
-      const B = r.isOdd(T);
-      return (E & 1) === 1 !== B && (T = r.neg(T)), { x: I, y: T };
+      const O = r.isOdd(T);
+      return (E & 1) === 1 !== O && (T = r.neg(T)), { x: I, y: T };
     } else if (p === m && E === 4) {
       const I = r.BYTES, k = r.fromBytes(A.subarray(0, I)), T = r.fromBytes(A.subarray(I, I * 2));
       if (!y(k, T))
@@ -6452,7 +6452,7 @@ function mh(e, t = {}) {
   const S = r.mul(r.pow(s.a, or), yh), v = r.mul(r.sqr(s.b), BigInt(27));
   if (r.is0(r.add(S, v)))
     throw new Error("bad curve params: a or b");
-  function O(_, b, m = !1) {
+  function B(_, b, m = !1) {
     if (!r.isValid(b) || m && r.is0(b))
       throw new Error(`bad point coordinate ${_}`);
     return b;
@@ -6511,7 +6511,7 @@ function mh(e, t = {}) {
     Z;
     /** Does NOT validate if the point is valid. Use `.assertValidity()`. */
     constructor(b, m, p) {
-      this.X = O("x", b), this.Y = O("y", m, !0), this.Z = O("z", p), Object.freeze(this);
+      this.X = B("x", b), this.Y = B("y", m, !0), this.Z = B("z", p), Object.freeze(this);
     }
     static CURVE() {
       return s;
@@ -6561,8 +6561,8 @@ function mh(e, t = {}) {
     /** Compare one point to another. */
     equals(b) {
       L(b);
-      const { X: m, Y: p, Z: E } = this, { X: A, Y: I, Z: k } = b, T = r.eql(r.mul(m, k), r.mul(A, E)), B = r.eql(r.mul(p, k), r.mul(I, E));
-      return T && B;
+      const { X: m, Y: p, Z: E } = this, { X: A, Y: I, Z: k } = b, T = r.eql(r.mul(m, k), r.mul(A, E)), O = r.eql(r.mul(p, k), r.mul(I, E));
+      return T && O;
     }
     /** Flips point to one corresponding to (x, -y) in Affine coordinates. */
     negate() {
@@ -6574,8 +6574,8 @@ function mh(e, t = {}) {
     // Cost: 8M + 3S + 3*a + 2*b3 + 15add.
     double() {
       const { a: b, b: m } = s, p = r.mul(m, or), { X: E, Y: A, Z: I } = this;
-      let k = r.ZERO, T = r.ZERO, B = r.ZERO, R = r.mul(E, E), F = r.mul(A, A), H = r.mul(I, I), C = r.mul(E, A);
-      return C = r.add(C, C), B = r.mul(E, I), B = r.add(B, B), k = r.mul(b, B), T = r.mul(p, H), T = r.add(k, T), k = r.sub(F, T), T = r.add(F, T), T = r.mul(k, T), k = r.mul(C, k), B = r.mul(p, B), H = r.mul(b, H), C = r.sub(R, H), C = r.mul(b, C), C = r.add(C, B), B = r.add(R, R), R = r.add(B, R), R = r.add(R, H), R = r.mul(R, C), T = r.add(T, R), H = r.mul(A, I), H = r.add(H, H), R = r.mul(H, C), k = r.sub(k, R), B = r.mul(H, F), B = r.add(B, B), B = r.add(B, B), new N(k, T, B);
+      let k = r.ZERO, T = r.ZERO, O = r.ZERO, R = r.mul(E, E), F = r.mul(A, A), H = r.mul(I, I), C = r.mul(E, A);
+      return C = r.add(C, C), O = r.mul(E, I), O = r.add(O, O), k = r.mul(b, O), T = r.mul(p, H), T = r.add(k, T), k = r.sub(F, T), T = r.add(F, T), T = r.mul(k, T), k = r.mul(C, k), O = r.mul(p, O), H = r.mul(b, H), C = r.sub(R, H), C = r.mul(b, C), C = r.add(C, O), O = r.add(R, R), R = r.add(O, R), R = r.add(R, H), R = r.mul(R, C), T = r.add(T, R), H = r.mul(A, I), H = r.add(H, H), R = r.mul(H, C), k = r.sub(k, R), O = r.mul(H, F), O = r.add(O, O), O = r.add(O, O), new N(k, T, O);
     }
     // Renes-Costello-Batina exception-free addition formula.
     // There is 30% faster Jacobian formula, but it is not complete.
@@ -6584,12 +6584,12 @@ function mh(e, t = {}) {
     add(b) {
       L(b);
       const { X: m, Y: p, Z: E } = this, { X: A, Y: I, Z: k } = b;
-      let T = r.ZERO, B = r.ZERO, R = r.ZERO;
+      let T = r.ZERO, O = r.ZERO, R = r.ZERO;
       const F = s.a, H = r.mul(s.b, or);
       let C = r.mul(m, A), D = r.mul(p, I), q = r.mul(E, k), st = r.add(m, p), M = r.add(A, I);
       st = r.mul(st, M), M = r.add(C, D), st = r.sub(st, M), M = r.add(m, E);
       let Y = r.add(A, k);
-      return M = r.mul(M, Y), Y = r.add(C, q), M = r.sub(M, Y), Y = r.add(p, E), T = r.add(I, k), Y = r.mul(Y, T), T = r.add(D, q), Y = r.sub(Y, T), R = r.mul(F, M), T = r.mul(H, q), R = r.add(T, R), T = r.sub(D, R), R = r.add(D, R), B = r.mul(T, R), D = r.add(C, C), D = r.add(D, C), q = r.mul(F, q), M = r.mul(H, M), D = r.add(D, q), q = r.sub(C, q), q = r.mul(F, q), M = r.add(M, q), C = r.mul(D, M), B = r.add(B, C), C = r.mul(Y, M), T = r.mul(st, T), T = r.sub(T, C), C = r.mul(st, D), R = r.mul(Y, R), R = r.add(R, C), new N(T, B, R);
+      return M = r.mul(M, Y), Y = r.add(C, q), M = r.sub(M, Y), Y = r.add(p, E), T = r.add(I, k), Y = r.mul(Y, T), T = r.add(D, q), Y = r.sub(Y, T), R = r.mul(F, M), T = r.mul(H, q), R = r.add(T, R), T = r.sub(D, R), R = r.add(D, R), O = r.mul(T, R), D = r.add(C, C), D = r.add(D, C), q = r.mul(F, q), M = r.mul(H, M), D = r.add(D, q), q = r.sub(C, q), q = r.mul(F, q), M = r.add(M, q), C = r.mul(D, M), O = r.add(O, C), C = r.mul(Y, M), T = r.mul(st, T), T = r.sub(T, C), C = r.mul(st, D), R = r.mul(Y, R), R = r.add(R, C), new N(T, O, R);
     }
     subtract(b) {
       return this.add(b.negate());
@@ -6613,7 +6613,7 @@ function mh(e, t = {}) {
       let p, E;
       const A = (I) => gt.cached(this, I, (k) => cc(N, k));
       if (m) {
-        const { k1neg: I, k1: k, k2neg: T, k2: B } = $(b), { p: R, f: F } = A(k), { p: H, f: C } = A(B);
+        const { k1neg: I, k1: k, k2neg: T, k2: O } = $(b), { p: R, f: F } = A(k), { p: H, f: C } = A(O);
         E = F.add(C), p = Z(m.beta, R, H, I, T);
       } else {
         const { p: I, f: k } = A(b);
@@ -6637,8 +6637,8 @@ function mh(e, t = {}) {
       if (gt.hasCache(this))
         return this.multiply(b);
       if (m) {
-        const { k1neg: E, k1: A, k2neg: I, k2: k } = $(b), { p1: T, p2: B } = hh(N, p, A, k);
-        return Z(m.beta, T, B, E, I);
+        const { k1neg: E, k1: A, k2neg: I, k2: k } = $(b), { p1: T, p2: O } = hh(N, p, A, k);
+        return Z(m.beta, T, O, E, I);
       } else
         return gt.unsafe(p, b);
     }
@@ -6763,7 +6763,7 @@ function Eh(e, t, n = {}) {
     if (g)
       throw new Error('"recovered" sig type is not supported for cofactor >2 curves');
   }
-  function O(m, p) {
+  function B(m, p) {
     fs(p);
     const E = h.signature, A = p === "compact" ? E : p === "recovered" ? E + 1 : void 0;
     return et(m, A);
@@ -6781,11 +6781,11 @@ function Eh(e, t, n = {}) {
       Object.freeze(this);
     }
     static fromBytes(p, E = w.format) {
-      O(p, E);
+      B(p, E);
       let A;
       if (E === "der") {
-        const { r: B, s: R } = be.toSig(et(p));
-        return new L(B, R);
+        const { r: O, s: R } = be.toSig(et(p));
+        return new L(O, R);
       }
       E === "recovered" && (A = p[0], E = "compact", p = p.subarray(1));
       const I = h.signature / 2, k = p.subarray(0, I), T = p.subarray(I, I * 2);
@@ -6807,7 +6807,7 @@ function Eh(e, t, n = {}) {
       const { r: E, s: A } = this, I = this.assertRecovery(), k = I === 2 || I === 3 ? E + c : E;
       if (!s.isValid(k))
         throw new Error("invalid recovery id: sig.r+curve.n != R.x");
-      const T = s.toBytes(k), B = e.fromBytes(Xt(Pu((I & 1) === 0), T)), R = i.inv(k), F = W(et(p, void 0, "msgHash")), H = i.create(-F * R), C = i.create(A * R), D = e.BASE.multiplyUnsafe(H).add(B.multiplyUnsafe(C));
+      const T = s.toBytes(k), O = e.fromBytes(Xt(Pu((I & 1) === 0), T)), R = i.inv(k), F = W(et(p, void 0, "msgHash")), H = i.create(-F * R), C = i.create(A * R), D = e.BASE.multiplyUnsafe(H).add(O.multiplyUnsafe(C));
       if (D.is0())
         throw new Error("invalid recovery: point at infinify");
       return D.assertValidity(), D;
@@ -6843,10 +6843,10 @@ function Eh(e, t, n = {}) {
   function Pt(m, p, E) {
     const { lowS: A, prehash: I, extraEntropy: k } = $o(E, w);
     m = N(m, I);
-    const T = W(m), B = i.fromBytes(p);
-    if (!i.isValidNot0(B))
+    const T = W(m), O = i.fromBytes(p);
+    if (!i.isValidNot0(O))
       throw new Error("invalid private key");
-    const R = [Z(B), Z(T)];
+    const R = [Z(O), Z(T)];
     if (k != null && k !== !1) {
       const D = k === !0 ? r(h.secretKey) : k;
       R.push(et(D, void 0, "extraEntropy"));
@@ -6859,7 +6859,7 @@ function Eh(e, t, n = {}) {
       const st = i.inv(q), M = e.BASE.multiply(q).toAffine(), Y = i.create(M.x);
       if (Y === ce)
         return;
-      const ee = i.create(st * i.create(H + Y * B));
+      const ee = i.create(st * i.create(H + Y * O));
       if (ee === ce)
         return;
       let En = (M.x === Y ? 0 : 2) | Number(M.y & tn), xn = ee;
@@ -6874,15 +6874,15 @@ function Eh(e, t, n = {}) {
   function _(m, p, E, A = {}) {
     const { lowS: I, prehash: k, format: T } = $o(A, w);
     if (E = et(E, void 0, "publicKey"), p = N(p, k), !js(m)) {
-      const B = m instanceof L ? ", use sig.toBytes()" : "";
-      throw new Error("verify expects Uint8Array signature" + B);
+      const O = m instanceof L ? ", use sig.toBytes()" : "";
+      throw new Error("verify expects Uint8Array signature" + O);
     }
-    O(m, T);
+    B(m, T);
     try {
-      const B = L.fromBytes(m, T), R = e.fromBytes(E);
-      if (I && B.hasHighS())
+      const O = L.fromBytes(m, T), R = e.fromBytes(E);
+      if (I && O.hasHighS())
         return !1;
-      const { r: F, s: H } = B, C = W(p), D = i.inv(H), q = i.create(C * D), st = i.create(F * D), M = e.BASE.multiplyUnsafe(q).add(R.multiplyUnsafe(st));
+      const { r: F, s: H } = O, C = W(p), D = i.inv(H), q = i.create(C * D), st = i.create(F * D), M = e.BASE.multiplyUnsafe(q).add(R.multiplyUnsafe(st));
       return M.is0() ? !1 : i.create(M.x) === F;
     } catch {
       return !1;
@@ -6923,7 +6923,7 @@ const po = {
   ]
 }, Sh = /* @__PURE__ */ BigInt(0), ds = /* @__PURE__ */ BigInt(2);
 function vh(e) {
-  const t = po.p, n = BigInt(3), r = BigInt(6), o = BigInt(11), s = BigInt(22), i = BigInt(23), c = BigInt(44), a = BigInt(88), u = e * e * e % t, f = u * u * e % t, d = Nt(f, n, t) * f % t, l = Nt(d, n, t) * f % t, h = Nt(l, ds, t) * u % t, w = Nt(h, o, t) * h % t, g = Nt(w, s, t) * w % t, y = Nt(g, c, t) * g % t, S = Nt(y, a, t) * y % t, v = Nt(S, c, t) * g % t, O = Nt(v, n, t) * f % t, L = Nt(O, i, t) * w % t, $ = Nt(L, r, t) * u % t, W = Nt($, ds, t);
+  const t = po.p, n = BigInt(3), r = BigInt(6), o = BigInt(11), s = BigInt(22), i = BigInt(23), c = BigInt(44), a = BigInt(88), u = e * e * e % t, f = u * u * e % t, d = Nt(f, n, t) * f % t, l = Nt(d, n, t) * f % t, h = Nt(l, ds, t) * u % t, w = Nt(h, o, t) * h % t, g = Nt(w, s, t) * w % t, y = Nt(g, c, t) * g % t, S = Nt(y, a, t) * y % t, v = Nt(S, c, t) * g % t, B = Nt(v, n, t) * f % t, L = Nt(B, i, t) * w % t, $ = Nt(L, r, t) * u % t, W = Nt($, ds, t);
   if (!Kr.eql(Kr.sqr(W), e))
     throw new Error("Cannot find square root");
   return W;
@@ -7819,7 +7819,7 @@ var mc;
       }).script, v = Ut.encode({
         timelock: d,
         pubkeys: [s, i]
-      }).script, O = Ut.encode({
+      }).script, B = Ut.encode({
         timelock: l,
         pubkeys: [s]
       }).script;
@@ -7829,8 +7829,8 @@ var mc;
         y,
         S,
         v,
-        O
-      ]), this.options = o, this.claimScript = U.encode(w), this.refundScript = U.encode(g), this.refundWithoutReceiverScript = U.encode(y), this.unilateralClaimScript = U.encode(S), this.unilateralRefundScript = U.encode(v), this.unilateralRefundWithoutReceiverScript = U.encode(O);
+        B
+      ]), this.options = o, this.claimScript = U.encode(w), this.refundScript = U.encode(g), this.refundWithoutReceiverScript = U.encode(y), this.unilateralClaimScript = U.encode(S), this.unilateralRefundScript = U.encode(v), this.unilateralRefundWithoutReceiverScript = U.encode(B);
     }
     claim() {
       return this.findLeaf(this.claimScript);
@@ -9233,10 +9233,10 @@ var Ht;
     return typeof x == "object" && Array.isArray(x.sweptBy) && x.sweptBy.every(f);
   }
   e.isSweptCommitmentTxResponse = v;
-  function O(x) {
+  function B(x) {
     return typeof x == "object" && Array.isArray(x.sweptBy) && x.sweptBy.every(f);
   }
-  e.isBatchSweepTransactionsResponse = O;
+  e.isBatchSweepTransactionsResponse = B;
   function L(x) {
     return typeof x == "object" && Array.isArray(x.txs) && x.txs.every((Z) => typeof Z == "string") && (!x.page || h(x.page));
   }
@@ -9651,7 +9651,7 @@ class wn {
     } catch {
       throw new Error("Invalid checkpointTapscript from server");
     }
-    const v = U.decode(c.forfeitPubkey).slice(1), O = Me(a).decode(c.forfeitAddress), L = ut.encode(O), $ = t.storage || new Ip(), W = new xs($), x = new Up($);
+    const v = U.decode(c.forfeitPubkey).slice(1), B = Me(a).decode(c.forfeitAddress), L = ut.encode(B), $ = t.storage || new Ip(), W = new xs($), x = new Up($);
     return new wn(t.identity, a, c.network, f, r, i, h, y, g, S, L, v, c.dust, W, x, t.renewalConfig);
   }
   get arkAddress() {
@@ -9810,9 +9810,9 @@ class wn {
     if (!t) {
       let l = 0;
       const w = Ut.decode(U.decode(this.boardingTapscript.exitScript)).params.timelock, g = (await this.getBoardingUtxos()).filter((v) => !up(v, w));
-      l += g.reduce((v, O) => v + O.value, 0);
+      l += g.reduce((v, B) => v + B.value, 0);
       const y = await this.getVtxos({ withRecoverable: !0 });
-      l += y.reduce((v, O) => v + O.value, 0);
+      l += y.reduce((v, B) => v + B.value, 0);
       const S = [...g, ...y];
       if (S.length === 0)
         throw new Error("No inputs found");
@@ -9856,7 +9856,7 @@ class wn {
       ], w = this.arkProvider.getEventStream(d.signal, h);
       let g, y;
       const S = [], v = [];
-      let O, L;
+      let B, L;
       for await (const $ of w)
         switch (n && n($), $.type) {
           // the settlement failed
@@ -9881,11 +9881,11 @@ class wn {
           case J.TreeSignature:
             if (l !== J.TreeNonces || !s)
               continue;
-            if (!O)
+            if (!B)
               throw new Error("Vtxo graph not set, something went wrong");
             if ($.batchIndex === 0) {
               const x = U.decode($.signature);
-              O.update($.txid, (Z) => {
+              B.update($.txid, (Z) => {
                 Z.updateInput(0, {
                   tapKeySig: x
                 });
@@ -9904,7 +9904,7 @@ class wn {
                 throw new Error("Sweep tap tree root not set");
               if (S.length === 0)
                 throw new Error("unsigned vtxo graph not received");
-              O = Es.create(S), await this.handleSettlementSigningEvent($, y, i, O);
+              B = Es.create(S), await this.handleSettlementSigningEvent($, y, i, B);
             }
             l = $.type;
             break;
@@ -10034,17 +10034,17 @@ class wn {
     let c = ue.fromPSBT(kt.decode(t.commitmentTx)), a = !1, u = 0;
     const f = o?.leaves() || [];
     for (const d of n) {
-      const l = i.find((O) => O.txid === d.txid && O.vout === d.vout);
+      const l = i.find((B) => B.txid === d.txid && B.vout === d.vout);
       if (!l) {
-        for (let O = 0; O < c.inputsLength; O++) {
-          const L = c.getInput(O);
+        for (let B = 0; B < c.inputsLength; B++) {
+          const L = c.getInput(B);
           if (!L.txid || L.index === void 0)
             throw new Error("The server returned incomplete data. No settlement input found in the PSBT");
           if (U.encode(L.txid) === d.txid && L.index === d.vout) {
-            c.updateInput(O, {
+            c.updateInput(B, {
               tapLeafScript: [d.forfeitTapLeafScript]
             }), c = await this.identity.sign(c, [
-              O
+              B
             ]), a = !0;
             break;
           }
@@ -10299,10 +10299,10 @@ var V;
     };
   }
   e.sendBitcoinSuccess = v;
-  function O(p) {
+  function B(p) {
     return p.type === "TRANSACTION_HISTORY" && p.success === !0;
   }
-  e.isTransactionHistory = O;
+  e.isTransactionHistory = B;
   function L(p, E) {
     return {
       type: "TRANSACTION_HISTORY",
@@ -11054,20 +11054,20 @@ var Ic;
       const v = Mp({ height: S.blockHeight, time: S.blockTime }, c, y);
       if (!v)
         throw new Error(`no available exit path found for vtxo ${y.txid}:${y.vout}`);
-      const O = _t.decode(y.tapTree).findLeaf(U.encode(v.script));
-      if (!O)
+      const B = _t.decode(y.tapTree).findLeaf(U.encode(v.script));
+      if (!B)
         throw new Error(`spending leaf not found for vtxo ${y.txid}:${y.vout}`);
       f += BigInt(y.value), u.push({
         txid: y.txid,
         index: y.vout,
-        tapLeafScript: [O],
+        tapLeafScript: [B],
         sequence: 4294967294,
         witnessUtxo: {
           amount: BigInt(y.value),
           script: _t.decode(y.tapTree).pkScript
         },
         sighashType: Ke.DEFAULT
-      }), d.addTapscriptInput(64, O[1].length, Zt.encode(O[0]).length);
+      }), d.addTapscriptInput(64, B[1].length, Zt.encode(B[0]).length);
     }
     const l = new Ie({ version: 2 });
     for (const y of u)
