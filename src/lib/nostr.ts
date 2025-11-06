@@ -6,7 +6,7 @@ import { consoleError } from './logs'
 
 export const nostrAppName = 'arkade_backup'
 
-const defaultRelays = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://nostr.vulpem.com']
+const defaultRelays = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://nostr.arkade.sh']
 
 export type NostrStorageData = {
   config: Config
