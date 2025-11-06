@@ -19,6 +19,13 @@ export class NostrStorage {
   private pubkey: string
   private relays: string[]
 
+  /**
+   * Initialize NostrStorage with either a secret key or public key
+   * @param options.seckey - Optional secret key (Uint8Array). If provided, pubkey is derived.
+   * @param options.pubkey - Optional public key (hex string, with or without '0x' prefix). Required if seckey not provided.
+   * @param options.relays - Optional array of relay URLs. Defaults to hardcoded relay list.
+   * @throws Error if neither seckey nor pubkey is provided, or if pubkey format is invalid
+   */
   constructor(options: { seckey?: Uint8Array; pubkey?: string; relays?: string[] }) {
     this.relays = options.relays || defaultRelays
     if (options.seckey) {
