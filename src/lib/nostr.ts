@@ -5,7 +5,7 @@ import { PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
 
 export const nostrAppName = 'arkade_backup'
 
-const defaultRelays = ['wss://relay.damus.io', 'wss://relay.primal.net', 'https://nostr.vulpem.com']
+const defaultRelays = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://nostr.vulpem.com']
 
 export type NostrStorageData = {
   config: Config
