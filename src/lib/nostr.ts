@@ -96,6 +96,7 @@ export class NostrStorage {
           },
           oneose() {
             sub.close()
+            pool.close(self.relays)
             if (events.length === 0) {
               resolve(null)
               return
