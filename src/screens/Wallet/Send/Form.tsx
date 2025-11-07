@@ -199,10 +199,12 @@ export default function SendForm() {
     setError('')
   }, [sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
 
+  // set satoshis from amount
   useEffect(() => {
     setSatoshis(Math.floor(useFiat ? fromFiat(amount) : (amount ?? 0)))
   }, [amount])
 
+  // manage button label and errors
   useEffect(() => {
     setState({ ...sendInfo, satoshis })
     setLabel(
@@ -222,11 +224,13 @@ export default function SendForm() {
     )
   }, [satoshis])
 
+  // manage server unreachable error
   useEffect(() => {
     setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
     setLabel(aspInfo.unreachable ? 'Server unreachable' : 'Continue')
   }, [aspInfo.unreachable])
 
+  // proceed to next step
   useEffect(() => {
     if (!proceed) return
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
@@ -305,7 +309,9 @@ export default function SendForm() {
 
   const handleSendAll = () => {
     const fees = sendInfo.lnUrl ? (calcSubmarineSwapFee(availableBalance) ?? 0) : 0
-    setAmount(availableBalance - fees)
+    const amountInSats = availableBalance - fees
+    const amount = useFiat ? toFiat(amountInSats) : amountInSats
+    setAmount(amount)
   }
 
   const smartSetError = (str: string) => {
