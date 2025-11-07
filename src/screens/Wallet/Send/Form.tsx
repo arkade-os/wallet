@@ -227,8 +227,13 @@ export default function SendForm() {
 
   // manage server unreachable error
   useEffect(() => {
-    setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
-    setLabel(aspInfo.unreachable ? 'Server unreachable' : 'Continue')
+    const errTxt = 'Ark server unreachable'
+    if (!aspInfo.unreachable) {
+      setError((prev) => (prev === errTxt ? '' : prev))
+      return
+    }
+    setError(errTxt)
+    setLabel('Server unreachable')
   }, [aspInfo.unreachable])
 
   // proceed to next step
