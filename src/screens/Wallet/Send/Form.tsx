@@ -201,7 +201,8 @@ export default function SendForm() {
 
   // set satoshis from amount
   useEffect(() => {
-    setSatoshis(Math.floor(useFiat ? fromFiat(amount) : (amount ?? 0)))
+    const numericAmount = amount ?? 0
+    setSatoshis(Math.floor(useFiat ? fromFiat(numericAmount) : numericAmount))
   }, [amount])
 
   // manage button label and errors
