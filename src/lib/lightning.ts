@@ -11,21 +11,34 @@ import { RestArkProvider, RestIndexerProvider, Wallet, ServiceWorkerWallet } fro
 import { AspInfo } from '../providers/asp'
 import { sendOffChain } from './asp'
 import { consoleError } from './logs'
+import { Config } from './types'
+import { handleNostrBackup } from './backup'
 
 export class LightningSwapProvider {
   private readonly apiUrl: string
+  private readonly config: Config
   private readonly provider: ArkadeLightning
   private readonly wallet: Wallet | ServiceWorkerWallet
 
-  constructor(apiUrl: string, aspInfo: AspInfo, wallet: Wallet | ServiceWorkerWallet) {
+  constructor(apiUrl: string, aspInfo: AspInfo, wallet: Wallet | ServiceWorkerWallet, config: Config) {
     const network = aspInfo.network as Network
     const arkProvider = new RestArkProvider(aspInfo.url)
     const swapProvider = new BoltzSwapProvider({ apiUrl, network })
     const indexerProvider = new RestIndexerProvider(aspInfo.url)
 
     this.apiUrl = apiUrl
+    this.config = config
     this.wallet = wallet
     this.provider = new ArkadeLightning({ wallet, arkProvider, swapProvider, indexerProvider })
+  }
+
+  private backup = async () => {
+    if (!this.config.nostrBackup) return
+    try {
+      await handleNostrBackup(this.config)
+    } catch (error) {
+      consoleError(error, 'Failed to sync Nostr backup')
+    }
   }
 
   private someError = (error: any, message: string) => {
@@ -68,22 +81,25 @@ export class LightningSwapProvider {
     })
     if (!pendingSwap) throw new Error('Failed to create reverse swap')
 
+    console.log('Created reverse swap:', pendingSwap.id)
+    await this.backup()
+
     return pendingSwap
   }
 
   waitAndClaim = async (pendingSwap: PendingReverseSwap) => {
     if (!pendingSwap) throw new Error('Invalid pending swap')
-
     try {
-      await this.provider.waitAndClaim(pendingSwap)
-      return
+      return await this.provider.waitAndClaim(pendingSwap)
     } catch (e) {
       throw this.someError(e, 'Error claiming VHTLC')
     }
   }
 
   claimVHTLC = async (pendingSwap: PendingReverseSwap) => {
-    return this.provider.claimVHTLC(pendingSwap)
+    await this.provider.claimVHTLC(pendingSwap)
+    console.log('Claimed reverse swap:', pendingSwap.id)
+    await this.backup()
   }
 
   // send
@@ -118,15 +134,23 @@ export class LightningSwapProvider {
     if (!invoice) throw new Error('Invalid invoice')
     const pendingSwap = await this.provider.createSubmarineSwap({ invoice })
     if (!pendingSwap) throw new Error('Failed to create swap')
+    console.log('Created submarine swap:', pendingSwap.response.id)
+    await this.backup()
     return pendingSwap
   }
 
-  waitForSwapSettlement = async (pendingSwap: PendingSubmarineSwap) => {
-    return this.provider.waitForSwapSettlement(pendingSwap)
+  waitForSwapSettlement = async (
+    pendingSwap: PendingSubmarineSwap,
+  ): Promise<{
+    preimage: string
+  }> => {
+    return await this.provider.waitForSwapSettlement(pendingSwap)
   }
 
   refundVHTLC = async (pendingSwap: PendingSubmarineSwap) => {
-    return this.provider.refundVHTLC(pendingSwap)
+    await this.provider.refundVHTLC(pendingSwap)
+    console.log('Refunded submarine swap:', pendingSwap.response.id)
+    await this.backup()
   }
 
   refundFailedSubmarineSwaps = async () => {

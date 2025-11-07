@@ -15,11 +15,11 @@ export default function Notifications() {
     if (!notificationApiSupport) return
     if (!config.notifications) {
       requestPermission().then((notifications) => {
-        updateConfig({ ...config, notifications })
+        updateConfig({ ...config, notifications }, true)
         if (notifications) sendTestNotification()
       })
     } else {
-      updateConfig({ ...config, notifications: false })
+      updateConfig({ ...config, notifications: false }, true)
     }
   }
 

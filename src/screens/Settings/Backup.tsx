@@ -1,5 +1,5 @@
 import { useIonToast } from '@ionic/react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
@@ -14,8 +14,12 @@ import { consoleError } from '../../lib/logs'
 import NeedsPassword from '../../components/NeedsPassword'
 import Shadow from '../../components/Shadow'
 import { defaultPassword } from '../../lib/constants'
+import { ConfigContext } from '../../providers/config'
+import Toggle from '../../components/Toggle'
 
 export default function Backup() {
+  const { config, updateConfig } = useContext(ConfigContext)
+
   const [present] = useIonToast()
 
   const [nsec, setNsec] = useState('')
@@ -42,6 +46,10 @@ export default function Backup() {
     present(copiedToClipboard)
   }
 
+  const toggleNostrBackup = () => {
+    updateConfig({ ...config, nostrBackup: !config.nostrBackup }, true)
+  }
+
   return (
     <>
       <Header text='Backup' back />
@@ -49,11 +57,9 @@ export default function Backup() {
         <>
           <Content>
             <Padded>
-              <FlexCol>
-                <FlexCol gap='0.5rem'>
-                  <Text capitalize color='dark50' smaller>
-                    Private key
-                  </Text>
+              <FlexCol gap='2rem'>
+                <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
+                  <Text thin>Private key</Text>
                   <Shadow>
                     <div style={{ padding: '10px' }}>
                       <Text small wrap>
@@ -61,13 +67,19 @@ export default function Backup() {
                       </Text>
                     </div>
                   </Shadow>
+                  <TextSecondary>This is enough to restore your wallet.</TextSecondary>
                 </FlexCol>
-                <TextSecondary>This is enough to restore your wallet.</TextSecondary>
+                <Toggle
+                  checked={config.nostrBackup}
+                  onClick={toggleNostrBackup}
+                  text='Enable Nostr backups'
+                  subtext='Turn Nostr backups on or off'
+                />
               </FlexCol>
             </Padded>
           </Content>
           <ButtonsOnBottom>
-            <Button onClick={handleCopy} label='Copy to clipboard' />
+            <Button onClick={handleCopy} label='Copy nsec to clipboard' />
           </ButtonsOnBottom>
         </>
       ) : (

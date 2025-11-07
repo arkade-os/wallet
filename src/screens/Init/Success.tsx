@@ -6,15 +6,19 @@ import Success from '../../components/Success'
 import { FlowContext } from '../../providers/flow'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../providers/navigation'
+import { ConfigContext } from '../../providers/config'
 
 export default function InitSuccess() {
+  const { config } = useContext(ConfigContext)
   const { initInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
 
   const headline = initInfo.restoring ? 'Wallet restored successfully!' : 'Your new wallet is live!'
 
   const text = initInfo.restoring
-    ? 'Your wallet has been successfully restored and is now ready to use.'
+    ? config.lastBackup
+      ? 'Your wallet, settings and swaps have been successfully restored.'
+      : 'Your wallet has been successfully restored and is now ready to use.'
     : 'Your wallet has been successfully created and is now ready to use.'
 
   return (

@@ -22,7 +22,7 @@ export default function InitConnect() {
     setPrivateKey(privateKey, password)
       .then(() => initWallet(privateKey))
       .then(() => {
-        setInitInfo({ password: '', privateKey: undefined })
+        setInitInfo({ ...initInfo, password: '', privateKey: undefined })
         navigate(Pages.Wallet)
       })
       .catch(consoleError)

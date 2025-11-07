@@ -15,7 +15,7 @@ export default function Fiat() {
       <Content>
         <Padded>
           <Select
-            onChange={(fiat) => updateConfig({ ...config, fiat })}
+            onChange={(fiat) => updateConfig({ ...config, fiat: fiat as Fiats }, true)}
             options={[Fiats.EUR, Fiats.USD]}
             selected={config.fiat}
           />

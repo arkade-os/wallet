@@ -13,6 +13,7 @@ import { calcNextRollover } from '../lib/wallet'
 import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
+import { ConfigContext } from './config'
 
 const defaultWallet: Wallet = {
   network: '',
@@ -54,6 +55,7 @@ export const WalletContext = createContext<WalletContextProps>({
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
+  const { config, updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
   const { setNoteInfo, noteInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
@@ -216,6 +218,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const network = aspInfo.network as NetworkName
     const esploraUrl = getRestApiExplorerURL(network) ?? ''
     const pubkey = hex.encode(secp.getPublicKey(privateKey))
+    updateConfig({ ...config, pubkey }, false)
     await initSvcWorkerWallet({
       privateKey: hex.encode(privateKey),
       arkServerUrl,

@@ -2,20 +2,24 @@ import { invalidPrivateKey, nsecToPrivateKey } from '../../lib/privateKey'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { useContext, useEffect, useState } from 'react'
+import { ConfigContext } from '../../providers/config'
+import { handleNostrRestore } from '../../lib/backup'
 import { defaultPassword } from '../../lib/constants'
 import { FlowContext } from '../../providers/flow'
+import ErrorMessage from '../../components/Error'
 import Content from '../../components/Content'
 import FlexCol from '../../components/FlexCol'
 import { extractError } from '../../lib/error'
+import { consoleError } from '../../lib/logs'
 import Button from '../../components/Button'
 import Header from '../../components/Header'
 import Padded from '../../components/Padded'
 import Input from '../../components/Input'
-import ErrorMessage from '../../components/Error'
 import Text from '../../components/Text'
 import { hex } from '@scure/base'
 
 export default function InitRestore() {
+  const { updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
   const { setInitInfo } = useContext(FlowContext)
 
@@ -46,7 +50,9 @@ export default function InitRestore() {
 
   const handleProceed = () => {
     setInitInfo({ privateKey, password: defaultPassword, restoring: true })
-    navigate(Pages.InitSuccess)
+    handleNostrRestore(privateKey!, updateConfig)
+      .then(() => navigate(Pages.InitSuccess))
+      .catch((err) => consoleError(err, 'Error restoring from nostr'))
   }
 
   const disabled = Boolean(!privateKey || error)

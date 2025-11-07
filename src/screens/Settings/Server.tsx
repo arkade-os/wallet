@@ -56,7 +56,7 @@ export default function Server() {
     try {
       if (!info) return
       await resetWallet()
-      updateConfig({ ...config, aspUrl: info.url })
+      updateConfig({ ...config, aspUrl: info.url }, true)
       location.reload() // reload app or else weird things happen
     } catch (err) {
       consoleError(err)

@@ -27,7 +27,7 @@ export default function Balance({ amount }: BalanceProps) {
   const mainUnit = config.currencyDisplay === CurrencyDisplay.Fiat ? config.fiat : 'SATS'
   const showBoth = config.currencyDisplay === CurrencyDisplay.Both
 
-  const toggleShow = () => updateConfig({ ...config, showBalance: !config.showBalance })
+  const toggleShow = () => updateConfig({ ...config, showBalance: !config.showBalance }, false)
 
   return (
     <FlexCol gap='0' margin='3rem 0 2rem 0'>

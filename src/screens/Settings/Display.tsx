@@ -15,7 +15,9 @@ export default function Display() {
       <Content>
         <Padded>
           <Select
-            onChange={(currencyDisplay) => updateConfig({ ...config, currencyDisplay })}
+            onChange={(currencyDisplay) =>
+              updateConfig({ ...config, currencyDisplay: currencyDisplay as CurrencyDisplay }, true)
+            }
             options={[CurrencyDisplay.Both, CurrencyDisplay.Sats, CurrencyDisplay.Fiat]}
             selected={config.currencyDisplay}
           />
