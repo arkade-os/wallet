@@ -72,6 +72,39 @@ export const collaborativeExit = async (wallet: IWallet, amount: number, address
   return wallet.settle({ inputs: selectedVtxos, outputs })
 }
 
+export const collaborativeExitWithFees = async (
+  wallet: IWallet,
+  inputAmount: number,
+  outputAmount: number,
+  address: string,
+): Promise<string> => {
+  const vtxos = await wallet.getVtxos()
+  const selectedVtxos = []
+  let selectedAmount = 0
+
+  // sort vtxos by batch expiry ascending
+  const vtxosSorted = vtxos.sort((a, b) => (a.virtualStatus.batchExpiry ?? 0) - (b.virtualStatus.batchExpiry ?? 0))
+
+  for (const vtxo of vtxosSorted) {
+    if (selectedAmount >= inputAmount) break
+    selectedVtxos.push(vtxo)
+    selectedAmount += vtxo.value
+  }
+
+  if (selectedAmount < inputAmount) throw new Error('Insufficient funds')
+
+  const outputs = [{ address, amount: BigInt(outputAmount) }]
+
+  const changeAmount = selectedAmount - inputAmount
+
+  if (changeAmount > 0) {
+    const { offchainAddr } = await getReceivingAddresses(wallet)
+    outputs.push({ address: offchainAddr, amount: BigInt(changeAmount) })
+  }
+
+  return wallet.settle({ inputs: selectedVtxos, outputs })
+}
+
 export const getAspInfo = async (url: string): Promise<AspInfo> => {
   let fullUrl = url
   if (url.startsWith('localhost') || url.startsWith('127.0.0.1')) fullUrl = 'http://' + url

@@ -6,7 +6,7 @@ interface FeesContextProps {
   calcOffchainInputFee: (vtxo: Vtxo) => number
   calcOffchainOutputFee: (vtxo: Vtxo) => number
   calcOnchainInputFee: (vtxo: Vtxo) => number
-  calcOnchainOutputFee: (vtxo: Vtxo) => number
+  calcOnchainOutputFee: () => number
 }
 
 export const FeesContext = createContext<FeesContextProps>({
@@ -21,42 +21,34 @@ export const FeesProvider = ({ children }: { children: ReactNode }) => {
 
   /**
    * Calculates the offchain input fee for a given vtxo.
-   * @param vtxo
    * @returns
    */
-  const calcOffchainInputFee = (vtxo: Vtxo): number => {
-    if (!aspInfo.fees || !aspInfo.fees.intentFee.offchainInput) return 0
-    return Number(aspInfo.fees.intentFee.offchainInput) * vtxo.value // TODO
+  const calcOffchainInputFee = (): number => {
+    return Number(aspInfo.fees?.intentFee?.offchainInput ?? 0) // TODO
   }
 
   /**
    * Calculates the offchain output fee for a given vtxo.
-   * @param vtxo
    * @returns
    */
-  const calcOffchainOutputFee = (vtxo: Vtxo): number => {
-    if (!aspInfo.fees?.intentFee?.offchainOutput) return 0
-    return Number(aspInfo.fees.intentFee.offchainOutput) * vtxo.value // TODO
+  const calcOffchainOutputFee = (): number => {
+    return Number(aspInfo.fees?.intentFee?.offchainOutput ?? 0) // TODO
   }
 
   /**
    * Calculates the onchain input fee for a given vtxo.
-   * @param vtxo
    * @returns
    */
-  const calcOnchainInputFee = (vtxo: Vtxo): number => {
-    if (!aspInfo.fees || !aspInfo.fees.intentFee.onchainInput) return 0
-    return Number(aspInfo.fees.intentFee.onchainInput) * vtxo.value // TODO
+  const calcOnchainInputFee = (): number => {
+    return Number(aspInfo.fees?.intentFee?.onchainInput ?? 0) // TODO
   }
 
   /**
    * Calculates the onchain output fee for a given vtxo.
-   * @param _vtxo
    * @returns
    */
   const calcOnchainOutputFee = (): number => {
-    if (!aspInfo.fees?.intentFee?.onchainOutput) return 0
-    return Number(aspInfo.fees.intentFee.onchainOutput) // TODO
+    return Number(aspInfo.fees?.intentFee?.onchainOutput ?? 21) // TODO
   }
 
   return (

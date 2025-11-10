@@ -12,15 +12,17 @@ import { defaultFee } from '../../../lib/constants'
 import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { collaborativeExit, sendOffChain } from '../../../lib/asp'
+import { collaborativeExitWithFees, sendOffChain } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
 import Loading from '../../../components/Loading'
 import { consoleError } from '../../../lib/logs'
 import WaitingForRound from '../../../components/WaitingForRound'
 import { LimitsContext } from '../../../providers/limits'
 import { LightningContext } from '../../../providers/lightning'
+import { FeesContext } from '../../../providers/fees'
 
 export default function SendDetails() {
+  const { calcOnchainOutputFee } = useContext(FeesContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { calcSubmarineSwapFee, swapProvider } = useContext(LightningContext)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
@@ -40,20 +42,25 @@ export default function SendDetails() {
     const destination =
       arkAddress && vtxoTxsAllowed()
         ? arkAddress
-        : address && utxoTxsAllowed()
-          ? address
-          : invoice && lnSwapsAllowed()
-            ? invoice
+        : invoice && pendingSwap && lnSwapsAllowed()
+          ? invoice
+          : address && utxoTxsAllowed()
+            ? address
             : ''
     const direction =
-      arkAddress && vtxoTxsAllowed()
+      destination === arkAddress
         ? 'Paying inside the Ark'
-        : invoice && pendingSwap && lnSwapsAllowed()
+        : destination === invoice
           ? 'Swapping to Lightning'
-          : address && utxoTxsAllowed()
+          : destination === address
             ? 'Paying to mainnet'
             : ''
-    const feeInSats = destination === invoice ? calcSubmarineSwapFee(satoshis) : defaultFee
+    const feeInSats =
+      destination === invoice
+        ? calcSubmarineSwapFee(satoshis)
+        : destination === address
+          ? calcOnchainOutputFee()
+          : defaultFee
     const swapId = pendingSwap?.id
     const total = satoshis + feeInSats
     setDetails({
@@ -89,10 +96,10 @@ export default function SendDetails() {
   }
 
   const handleContinue = async () => {
-    if (!satoshis || !svcWallet) return
+    if (!details?.total || !details.satoshis || !svcWallet) return
     setSending(true)
     if (arkAddress) {
-      sendOffChain(svcWallet, satoshis, arkAddress).then(handleTxid).catch(handleError)
+      sendOffChain(svcWallet, details.total, arkAddress).then(handleTxid).catch(handleError)
     } else if (invoice) {
       const response = pendingSwap?.response
       if (!response) return setError('Swap response not available')
@@ -106,7 +113,7 @@ export default function SendDetails() {
       }
       promise.then(handlePreimage).catch(handleError)
     } else if (address) {
-      collaborativeExit(svcWallet, satoshis, address).then(handleTxid).catch(handleError)
+      collaborativeExitWithFees(svcWallet, details.total, details.satoshis, address).then(handleTxid).catch(handleError)
     }
   }
 
