@@ -18,6 +18,7 @@ import { Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import Loading from '../../../components/Loading'
 import { LightningContext } from '../../../providers/lightning'
 import { encodeBip21 } from '../../../lib/bip21'
+import { InfoLine } from '../../../components/Info'
 
 export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
@@ -125,7 +126,9 @@ export default function ReceiveQRCode() {
             <div>No valid payment methods available for this amount</div>
           ) : showQrCode ? (
             <FlexCol centered>
-              {invoice ? <p>for Lightning you must keep this tab open all the time</p> : null}
+              {invoice ? (
+                <InfoLine centered color='orange' text='For Lightning you must keep this tab open all the time' />
+              ) : null}
               <QrCode value={qrValue} />
               <ExpandAddresses
                 bip21uri={bip21uri}

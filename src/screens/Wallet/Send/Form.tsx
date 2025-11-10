@@ -39,10 +39,13 @@ import { extractError } from '../../../lib/error'
 import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 import { LightningContext } from '../../../providers/lightning'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
+import { FeesContext } from '../../../providers/fees'
+import { InfoLine } from '../../../components/Info'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
+  const { calcOnchainOutputFee } = useContext(FeesContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { swapProvider, connected, calcSubmarineSwapFee } = useContext(LightningContext)
@@ -54,6 +57,7 @@ export default function SendForm() {
   const [amount, setAmount] = useState<number>()
   const [amountIsReadOnly, setAmountIsReadOnly] = useState(false)
   const [availableBalance, setAvailableBalance] = useState<number>(0)
+  const [deductFromAmount, setDeductFromAmount] = useState(false)
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
   const [label, setLabel] = useState('')
@@ -76,6 +80,7 @@ export default function SendForm() {
     getReceivingAddresses(svcWallet).then(setReceivingAddresses)
   }, [])
 
+  // update available balance
   useEffect(() => {
     if (!svcWallet) return
     svcWallet.getBalance().then((bal) => setAvailableBalance(bal.available))
@@ -243,6 +248,11 @@ export default function SendForm() {
     } else navigate(Pages.SendDetails)
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
 
+  useEffect(() => {
+    if (!sendInfo.address || sendInfo.arkAddress || sendInfo.invoice) return
+    setDeductFromAmount(satoshis + calcOnchainOutputFee() > availableBalance)
+  }, [availableBalance, satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
+
   if (!svcWallet) return <Loading text='Loading...' />
 
   const setState = (info: SendInfo) => {
@@ -278,6 +288,9 @@ export default function SendForm() {
           const invoice = await fetchInvoice(sendInfo.lnUrl, satoshis, '')
           setState({ ...sendInfo, invoice, arkAddress: undefined })
         }
+      } else if (deductFromAmount) {
+        const excess = availableBalance - satoshis - calcOnchainOutputFee()
+        setState({ ...sendInfo, satoshis: satoshis + excess })
       } else {
         setState({ ...sendInfo, satoshis })
       }
@@ -374,6 +387,7 @@ export default function SendForm() {
               right={<Available />}
               value={amount}
             />
+            {deductFromAmount ? <InfoLine color='orange' text='Fees will be deducted from the amount sent' /> : null}
             {tryingToSelfSend ? (
               <div style={{ width: '100%' }}>
                 <Text centered color='dark50' small>
