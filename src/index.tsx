@@ -15,6 +15,7 @@ import { NudgeProvider } from './providers/nudge'
 import * as Sentry from '@sentry/react'
 import { LightningProvider } from './providers/lightning'
 import { shouldInitializeSentry } from './lib/sentry'
+import { FeesProvider } from './providers/fees'
 
 // Initialize Sentry only in production and when DSN is provided
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN
@@ -38,11 +39,13 @@ root.render(
               <WalletProvider>
                 <LightningProvider>
                   <LimitsProvider>
-                    <OptionsProvider>
-                      <NudgeProvider>
-                        <App />
-                      </NudgeProvider>
-                    </OptionsProvider>
+                    <FeesProvider>
+                      <OptionsProvider>
+                        <NudgeProvider>
+                          <App />
+                        </NudgeProvider>
+                      </OptionsProvider>
+                    </FeesProvider>
                   </LimitsProvider>
                 </LightningProvider>
               </WalletProvider>
