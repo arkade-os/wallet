@@ -48,7 +48,7 @@ export const FeesProvider = ({ children }: { children: ReactNode }) => {
    * @returns
    */
   const calcOnchainOutputFee = (): number => {
-    return Number(aspInfo.fees?.intentFee?.onchainOutput ?? 21) // TODO
+    return Number(aspInfo.fees?.intentFee?.onchainOutput ?? 0) // TODO
   }
 
   return (
