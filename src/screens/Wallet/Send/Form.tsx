@@ -167,7 +167,7 @@ export default function SendForm() {
 
   // validate recipient addresses
   useEffect(() => {
-    if (!receivingAddresses) return setError('Unable to get receiving addresses')
+    if (!receivingAddresses) return
     const { boardingAddr, offchainAddr } = receivingAddresses
     const { address, arkAddress, invoice } = sendInfo
     // check server limits for onchain transactions
@@ -197,7 +197,7 @@ export default function SendForm() {
     }
     // everything is ok, clean error
     setError('')
-  }, [sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
+  }, [receivingAddresses, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
 
   // set satoshis from amount
   useEffect(() => {
