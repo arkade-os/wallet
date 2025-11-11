@@ -61,7 +61,20 @@ function ScannerQr({ close, label, onData, onError, onSwitch }: ScannerProps) {
         {
           maxScansPerSecond: 100,
           highlightScanRegion: true,
+          highlightCodeOutline: true,
           onDecodeError: () => {},
+          calculateScanRegion: (v) => {
+            const smallestDimension = Math.min(v.videoWidth, v.videoHeight)
+            // Make scan region smaller to match better small qr codes
+            const scanRegionSize = Math.round((1 / 4) * smallestDimension)
+            let region: QrScanner.ScanRegion = {
+              x: Math.round((v.videoWidth - scanRegionSize) / 2),
+              y: Math.round((v.videoHeight - scanRegionSize) / 2),
+              width: scanRegionSize,
+              height: scanRegionSize,
+            }
+            return region
+          },
         },
       )
     }
