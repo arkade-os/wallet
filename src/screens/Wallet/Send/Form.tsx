@@ -289,8 +289,13 @@ export default function SendForm() {
           setState({ ...sendInfo, invoice, arkAddress: undefined })
         }
       } else if (deductFromAmount) {
-        const excess = availableBalance - satoshis - calcOnchainOutputFee()
-        setState({ ...sendInfo, satoshis: satoshis + excess })
+        const fee = calcOnchainOutputFee()
+        const spendable = availableBalance - fee
+        if (spendable <= 0) {
+          setError('Insufficient funds to cover fees')
+          return
+        }
+        setState({ ...sendInfo, satoshis: Math.min(satoshis, spendable) })
       } else {
         setState({ ...sendInfo, satoshis })
       }
