@@ -7,17 +7,22 @@ import FlexCol from '../../components/FlexCol'
 import Text from '../../components/Text'
 import Shadow from '../../components/Shadow'
 import FujiMoneyIcon from '../../icons/FujiMoney'
-import { IonText } from '@ionic/react'
 import BoltzIcon from '../../icons/Boltz'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import LendasatIcon from './Lendasat/LendasatIcon'
 import LendaswapIcon from './Lendaswap/LendaswapIcon'
 
+const Bullet = () => (
+  <svg width='6' height='6' viewBox='0 0 6 6' fill='none' xmlns='http://www.w3.org/2000/svg'>
+    <circle cx='3' cy='3' r='3' fill='white' />
+  </svg>
+)
+
 const Tag = ({ kind }: { kind: 'new' | 'coming soon' }) => {
   const style = {
     borderRadius: '4px',
-    background: kind === 'coming soon' ? 'rgba(96, 177, 138, 0.10)' : 'rgba(163, 137, 241, 0.10)',
-    color: kind === 'coming soon' ? 'var(--green)' : '#A389F1',
+    background: kind === 'coming soon' ? 'rgba(96, 177, 138, 0.10)' : 'rgba(57, 25, 152, 1)',
+    color: kind === 'coming soon' ? 'var(--green)' : 'var(--white)',
     fontFamily: 'Geist Mono',
     fontSize: '12px',
     fontStyle: 'normal',
@@ -29,9 +34,12 @@ const Tag = ({ kind }: { kind: 'new' | 'coming soon' }) => {
     textTransform: 'uppercase' as const,
   }
   return (
-    <IonText>
-      <p style={style}>{kind.replace(' ', '\u00A0')}</p>
-    </IonText>
+    <div style={style}>
+      <FlexRow centered gap='0.25rem'>
+        {kind === 'new' ? <Bullet /> : ''}
+        <p>{kind.replace(' ', '\u00A0')}</p>
+      </FlexRow>
+    </div>
   )
 }
 
@@ -49,6 +57,7 @@ function App({ desc, icon, link, name, live, page }: AppProps) {
 
   const style = {
     cursor: page || link ? 'pointer' : 'default',
+    padding: '0.5rem',
   }
 
   const handleClick = () => {
@@ -57,7 +66,7 @@ function App({ desc, icon, link, name, live, page }: AppProps) {
   }
 
   return (
-    <Shadow border>
+    <Shadow border borderPurple={live}>
       <div style={style} onClick={handleClick}>
         <FlexCol gap='0.75rem'>
           <FlexRow between>
