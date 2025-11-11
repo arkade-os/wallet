@@ -32,6 +32,26 @@ export const mockAspContextValue = {
   setAspInfo: () => {},
 }
 
+export const mockConfigContextValue = {
+  config: { fiat: 'USD' },
+  useFiat: false,
+}
+
+export const mockFiatContextValue = {
+  fromFiat: (amount: number) => amount,
+  toFiat: (amount: number) => amount,
+}
+
+export const mockLightningContextValue = {
+  swapProvider: undefined,
+  connected: false,
+  calcSubmarineSwapFee: () => 0,
+}
+
+export const mockOptionsContextValue = {
+  setOption: () => {},
+}
+
 export const mockNavigationContextValue = {
   navigate: () => {},
   screen: Pages.Init,
