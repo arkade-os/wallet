@@ -67,6 +67,15 @@ export default function SendForm() {
   const [scan, setScan] = useState(false)
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
 
+  const smartSetError = (str: string) => {
+    setError(str === '' ? (aspInfo.unreachable ? 'Ark server unreachable' : '') : str)
+  }
+
+  const setState = (info: SendInfo) => {
+    setScan(false)
+    setSendInfo(info)
+  }
+
   // get receiving addresses
   useEffect(() => {
     if (!svcWallet) return
@@ -245,11 +254,6 @@ export default function SendForm() {
 
   if (!svcWallet) return <Loading text='Loading...' />
 
-  const setState = (info: SendInfo) => {
-    setScan(false)
-    setSendInfo(info)
-  }
-
   const gotoBoltzApp = () => {
     navigate(Pages.AppBoltzSettings)
   }
@@ -306,10 +310,6 @@ export default function SendForm() {
   const handleSendAll = () => {
     const fees = sendInfo.lnUrl ? (calcSubmarineSwapFee(availableBalance) ?? 0) : 0
     setAmount(availableBalance - fees)
-  }
-
-  const smartSetError = (str: string) => {
-    setError(str === '' ? (aspInfo.unreachable ? 'Ark server unreachable' : '') : str)
   }
 
   const Available = () => {
