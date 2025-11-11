@@ -24,6 +24,7 @@ import WarningBox from '../../components/Warning'
 import { ExtendedCoin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import { consoleError } from '../../lib/logs'
 import { IonCol, IonGrid, IonRow } from '@ionic/react'
+import { maxPercentage } from '../../lib/constants'
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -38,6 +39,7 @@ export default function Vtxos() {
   const [allVtxos, setAllVtxos] = useState<ExtendedVirtualCoin[]>([])
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState('')
+  const [expiryThreshold, setExpiryThreshold] = useState(0)
   const [hasInputsToSettle, setHasInputsToSettle] = useState(false)
   const [label, setLabel] = useState(defaultLabel)
   const [rollingover, setRollingover] = useState(false)
@@ -46,14 +48,17 @@ export default function Vtxos() {
   const [startTime, setStartTime] = useState(0)
   const [success, setSuccess] = useState(false)
 
+  // Update error state if aspInfo.unreachable changes
   useEffect(() => {
     setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
   }, [aspInfo.unreachable])
 
+  // Update label based on rolling over state and dust status
   useEffect(() => {
     setLabel(rollingover ? 'Renewing...' : !aboveDust ? 'Below dust limit' : defaultLabel)
   }, [rollingover, aboveDust])
 
+  // Calculate best market hour when wallet.nextRollover changes
   useEffect(() => {
     const bestMarketHour = calcBestMarketHour(wallet.nextRollover)
     if (bestMarketHour) {
@@ -65,6 +70,7 @@ export default function Vtxos() {
     }
   }, [wallet.nextRollover])
 
+  // Fetch inputs to settle, all VTXOs, and all UTXOs
   useEffect(() => {
     if (!aspInfo) return
     if (!svcWallet) return
@@ -91,6 +97,21 @@ export default function Vtxos() {
     const timeoutId = setTimeout(() => setSuccess(false), 5000)
     return () => clearTimeout(timeoutId)
   }, [success])
+
+  // Calculate expiry threshold based on VTXO lifetimes
+  useEffect(() => {
+    if (!vtxos) return
+    const allVtxos = [...(vtxos ? vtxos.spent : []), ...(vtxos ? vtxos.spendable : [])]
+    const vtxo = allVtxos.find((v) => v.virtualStatus.state === 'settled')
+    if (!vtxo) return
+    const batchExpiry = vtxo.virtualStatus?.batchExpiry
+    const createdAt = vtxo.createdAt
+    if (!batchExpiry || !createdAt) return
+    const lifetime = batchExpiry - createdAt.getTime()
+    if (lifetime <= 0) return
+    const threshold = Math.floor((lifetime * (maxPercentage / 100)) / 1000)
+    setExpiryThreshold(threshold)
+  }, [vtxos])
 
   if (!svcWallet) return <Loading text='Loading...' />
 
@@ -258,8 +279,10 @@ export default function Vtxos() {
                   </FlexCol>
                   <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
                     <TextSecondary>First virtual coin expiration: {prettyAgo(wallet.nextRollover)}.</TextSecondary>
-                    <TextSecondary>Automatic renewal occurs for virtual coins expiring within 24 hours.</TextSecondary>
-                    {startTime ? (
+                    <TextSecondary>
+                      Automatic renewal occurs for virtual coins expiring within {prettyDelta(expiryThreshold)}.
+                    </TextSecondary>
+                    {startTime && duration ? (
                       <>
                         <TextSecondary>Settlement during market hours offers lower fees.</TextSecondary>
                         <TextSecondary>
