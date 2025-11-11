@@ -15,7 +15,7 @@ import Keyboard from '../../../components/Keyboard'
 import { WalletContext } from '../../../providers/wallet'
 import { callFaucet, pingFaucet } from '../../../lib/faucet'
 import Loading from '../../../components/Loading'
-import { prettyAmount } from '../../../lib/format'
+import { prettyAmount, prettyNumber } from '../../../lib/format'
 import Success from '../../../components/Success'
 import { consoleError } from '../../../lib/logs'
 import { AspContext } from '../../../providers/asp'
@@ -24,7 +24,7 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { LimitsContext } from '../../../providers/limits'
 import { LightningContext } from '../../../providers/lightning'
-import Text from '../../../components/Text'
+import { InfoLine } from '../../../components/Info'
 
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
@@ -124,6 +124,9 @@ export default function ReceiveAmount() {
 
   const showFaucetButton = balance === 0 && faucetAvailable
   const showLightningFees = amount && validLnSwap(satoshis)
+  const reverseSwapFee = calcReverseSwapFee(satoshis)
+  const lightningFeeText = `In Lightning you'll receive: ${prettyNumber(satoshis)} - ${reverseSwapFee} = ${prettyAmount(Math.max(0, satoshis - reverseSwapFee))}`
+
   const disabled = !satoshis
     ? false
     : satoshis < 1 || amountIsAboveMaxLimit(satoshis) || amountIsBelowMinLimit(satoshis)
@@ -170,12 +173,7 @@ export default function ReceiveAmount() {
               onFocus={handleFocus}
               value={amount}
             />
-            {showLightningFees ? (
-              <Text color='dark50' smaller>
-                In Lightning you'll receive: {prettyAmount(satoshis)} - {calcReverseSwapFee(satoshis)} ={' '}
-                {prettyAmount(Math.max(0, satoshis - calcReverseSwapFee(satoshis)))}
-              </Text>
-            ) : null}
+            {showLightningFees ? <InfoLine text={lightningFeeText} /> : null}
           </FlexCol>
         </Padded>
       </Content>
