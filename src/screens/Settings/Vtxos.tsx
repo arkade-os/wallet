@@ -100,12 +100,15 @@ export default function Vtxos() {
 
   // Calculate expiry threshold based on VTXO lifetimes
   useEffect(() => {
+    if (!vtxos) return
     const allVtxos = [...(vtxos ? vtxos.spent : []), ...(vtxos ? vtxos.spendable : [])]
     const vtxo = allVtxos.find((v) => v.virtualStatus.state === 'settled')
     if (!vtxo) return
-    const batchExpiry = vtxo.virtualStatus?.batchExpiry || 0
-    const createdAt = vtxo.createdAt || 0
+    const batchExpiry = vtxo.virtualStatus?.batchExpiry
+    const createdAt = vtxo.createdAt
+    if (!batchExpiry || !createdAt) return
     const lifetime = batchExpiry - createdAt.getTime()
+    if (lifetime <= 0) return
     const threshold = Math.floor((lifetime * (maxPercentage / 100)) / 1000)
     setExpiryThreshold(threshold)
   }, [vtxos])
