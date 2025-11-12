@@ -42,7 +42,7 @@ export default function AppBoltzSwap() {
   const amount = isReverse ? swapInfo.response.onchainAmount : decodeInvoice(swapInfo.request.invoice).amountSats
   const invoice = isReverse ? swapInfo.response.invoice : swapInfo.request.invoice
   const direction = isReverse ? 'Lightning to Arkade' : 'Arkade to Lightning'
-  const refunded = !isReverse && swapInfo.refunded
+  const refunded = !isReverse && !swapInfo.refundable
 
   const formatAmount = (amt: number) => (config.showBalance ? prettyAmount(amt) : prettyHide(amt))
 
