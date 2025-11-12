@@ -61,7 +61,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     saveConfigToStorage(config)
     if (config.nostrBackup && backup) {
       handleNostrBackup(config).catch((error) => {
-        consoleError(error, 'Backup failed')
+        consoleError(error, 'Backup to Nostr failed')
       })
     }
   }
