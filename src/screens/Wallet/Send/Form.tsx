@@ -53,7 +53,7 @@ export default function SendForm() {
 
   const [amount, setAmount] = useState<number>()
   const [amountIsReadOnly, setAmountIsReadOnly] = useState(false)
-  const [availableBalance, setAvailableBalance] = useState<number>(0)
+  const [availableBalance, setAvailableBalance] = useState(0)
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
   const [label, setLabel] = useState('')
