@@ -13,6 +13,7 @@ import { sendOffChain } from './asp'
 import { consoleError } from './logs'
 import { Config } from './types'
 import { handleNostrBackup } from './backup'
+import * as Sentry from '@sentry/react'
 
 export class LightningSwapProvider {
   private readonly apiUrl: string
@@ -159,8 +160,9 @@ export class LightningSwapProvider {
     for (const swap of swaps.filter(isSubmarineSwapRefundable)) {
       try {
         await this.refundVHTLC(swap)
-      } catch (e) {
-        consoleError(e, `Failed to refund swap ${swap.response.id}`)
+      } catch (error) {
+        Sentry.logger.info(`Failed to refund swap ${swap.response.id}`, { error, swap })
+        consoleError(error, `Failed to refund swap ${swap.response.id}`)
       }
     }
   }
