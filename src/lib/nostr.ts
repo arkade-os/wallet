@@ -91,6 +91,7 @@ export class NostrStorage {
     const self = this
     const events: Event[] = []
     const pool = new SimplePool()
+    let timeoutHandler: NodeJS.Timeout
 
     if (!this.seckey) throw new Error('Secret key is required for loading data')
 
@@ -105,7 +106,8 @@ export class NostrStorage {
             },
             oneose() {
               sub.close()
-              pool.close(self.relays)
+              // pool.close(self.relays)
+              if (timeoutHandler) clearTimeout(timeoutHandler)
               if (events.length === 0) {
                 resolve(null)
                 return
@@ -130,7 +132,7 @@ export class NostrStorage {
         )
       }),
       new Promise<NostrStorageData | null>((resolve) => {
-        setTimeout(() => {
+        timeoutHandler = setTimeout(() => {
           pool.close(self.relays)
           consoleError(new Error('Load timeout'), 'Failed to load backup data')
           resolve(null)
