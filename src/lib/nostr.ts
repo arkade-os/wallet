@@ -91,7 +91,7 @@ export class NostrStorage {
     const self = this
     const events: Event[] = []
     const pool = new SimplePool()
-    let timeoutHandler: NodeJS.Timeout
+    let timeoutHandler: ReturnType<typeof setTimeout>
 
     if (!this.seckey) throw new Error('Secret key is required for loading data')
 
