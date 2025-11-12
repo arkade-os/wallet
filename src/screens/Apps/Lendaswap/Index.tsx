@@ -1,12 +1,12 @@
-import { useContext, useEffect, useRef } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import Padded from '../../../components/Padded'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
-import { WalletProvider, type LoanAsset } from '@lendasat/lendasat-wallet-bridge'
-import { collaborativeExit } from '../../../lib/asp'
+import { WalletProvider, type LoanAsset, AddressType } from '@lendasat/lendasat-wallet-bridge'
+import { collaborativeExit, getReceivingAddresses } from '../../../lib/asp'
 import { isArkAddress, isBTCAddress } from '../../../lib/address'
 
 const IFRAME_URL = import.meta.env.VITE_LENDASWAP_IFRAME_URL || 'https://swap.lendasat.com'
@@ -14,8 +14,23 @@ const IFRAME_URL = import.meta.env.VITE_LENDASWAP_IFRAME_URL || 'https://swap.le
 export default function AppLendaswap() {
   const { navigate } = useContext(NavigationContext)
   const { svcWallet } = useContext(WalletContext)
+  const [arkAddress, setArkAddress] = useState<string | null>(null)
 
   const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  useEffect(() => {
+    const loadAddress = async () => {
+      if (svcWallet) {
+        try {
+          const addresses = await getReceivingAddresses(svcWallet)
+          setArkAddress(addresses.offchainAddr)
+        } catch (error) {
+          console.error('Failed to load Ark address:', error)
+        }
+      }
+    }
+    loadAddress()
+  }, [svcWallet])
 
   useEffect(() => {
     if (!iframeRef.current) return
@@ -40,6 +55,16 @@ export default function AppLendaswap() {
               canSend: true,
               canReceive: true,
             },
+          }
+        },
+        async onGetAddress(addressType: AddressType): Promise<string> {
+          switch (addressType) {
+            case AddressType.BITCOIN:
+            case AddressType.LOAN_ASSET:
+              throw Error('Address type not supported')
+            case AddressType.ARK:
+              if (!arkAddress) throw new Error('Ark address not yet loaded')
+              return arkAddress
           }
         },
         async onSendToAddress(address: string, amount: number, asset: 'bitcoin' | LoanAsset): Promise<string> {
@@ -91,7 +116,7 @@ export default function AppLendaswap() {
     return () => {
       provider.destroy()
     }
-  }, [svcWallet])
+  }, [svcWallet, arkAddress])
 
   return (
     <>
