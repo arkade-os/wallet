@@ -106,7 +106,6 @@ export class NostrStorage {
             },
             oneose() {
               sub.close()
-              // pool.close(self.relays)
               if (timeoutHandler) clearTimeout(timeoutHandler)
               if (events.length === 0) {
                 resolve(null)
