@@ -39,6 +39,7 @@ export default function Vtxos() {
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState('')
   const [hasInputsToSettle, setHasInputsToSettle] = useState(false)
+  const [hideUtxos, setHideUtxos] = useState(false)
   const [label, setLabel] = useState(defaultLabel)
   const [rollingover, setRollingover] = useState(false)
   const [reminderIsOpen, setReminderIsOpen] = useState(false)
@@ -56,7 +57,7 @@ export default function Vtxos() {
   // Update label based on rolling over state and dust status
   useEffect(() => {
     const actions =
-      hasVtxosToSettle && hasBoardingUtxosToSettle
+      hasVtxosToSettle && hasBoardingUtxosToSettle && !hideUtxos
         ? ['Settle', 'Settling...']
         : hasVtxosToSettle
           ? ['Renew', 'Renewing...']
@@ -103,10 +104,11 @@ export default function Vtxos() {
     })
   }, [allUtxos, allVtxos, aspInfo, svcWallet])
 
-  // Automatically reset `success` after 10s, with cleanup on unmount or re-run
+  // Automatically reset `success` after 5s, with cleanup on unmount or re-run
   useEffect(() => {
     if (!success) return
-    const timeoutId = setTimeout(() => setSuccess(false), 10_000)
+    setHideUtxos(true)
+    const timeoutId = setTimeout(() => setSuccess(false), 5_000)
     return () => clearTimeout(timeoutId)
   }, [success])
 
@@ -258,7 +260,7 @@ export default function Vtxos() {
                       ))}
                     </FlexCol>
                   ) : null}
-                  {!success && allUtxos.length > 0 ? (
+                  {!hideUtxos && allUtxos.length > 0 ? (
                     <FlexCol gap='0.5rem'>
                       <Text capitalize color='dark50' smaller>
                         Your boarding utxos with amount and expiration
@@ -308,7 +310,7 @@ export default function Vtxos() {
       {utxoTxsAllowed() && vtxoTxsAllowed() ? (
         <>
           <ButtonsOnBottom>
-            {hasInputsToSettle ? (
+            {hasInputsToSettle && !hideUtxos ? (
               <Button onClick={handleRollover} label={label} disabled={rollingover || !aboveDust} />
             ) : null}
             {wallet.nextRollover ? (
