@@ -8808,8 +8808,7 @@ function up(e, t) {
   return BigInt(Math.floor(e.status.block_time)) + t.value <= n;
 }
 const fp = {
-  thresholdMs: 1440 * 60 * 1e3
-  // 24 hours
+  thresholdPercentage: 10
 };
 class at {
   constructor(t, n, r = at.DefaultHRP) {
