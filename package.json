@@ -43,9 +43,9 @@
     "git-info": "node scripts/git-commit-info.js",
     "regtest": "pnpm regtest:down && pnpm regtest:build && pnpm regtest:up && pnpm regtest:setup",
     "regtest:build": "docker compose -f test.docker-compose.yml build",
-    "regtest:up": "docker compose -f test.docker-compose.yml up -d",
+    "regtest:up": "docker compose -f test.docker-compose.yml up arkd arkd-wallet nbxplorer pgnbxplorer -d",
     "regtest:down": "docker compose -f test.docker-compose.yml down -v",
-    "regtest:setup": "node src/test/setup-arkd.js"
+    "regtest:setup": "node src/test/setup.mjs"
   },
   "eslintConfig": {
     "extends": [
