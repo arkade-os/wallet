@@ -51,8 +51,8 @@ export default function Wallet() {
             <Balance amount={balance} />
             <ErrorMessage error={error} text='Ark server unreachable' />
             <FlexRow padding='0 0 0.5rem 0'>
-              <Button icon={<SendIcon />} label='Send' onClick={handleSend} />
-              <Button icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
+              <Button main icon={<SendIcon />} label='Send' onClick={handleSend} />
+              <Button main icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
             </FlexRow>
             {nudge ? nudge : psaMessage ? <InfoBox html={psaMessage} /> : null}
           </FlexCol>
