@@ -86,7 +86,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   // calculate thresholdMs and next rollover
   useEffect(() => {
-    if (!initialized || !vtxos || !svcWallet) return
+    if (!aspInfo || !initialized || !vtxos || !svcWallet) return
     const allVtxos = [...vtxos.spendable, ...vtxos.spent]
     calcBatchLifetimeMs(aspInfo, allVtxos).then((batchLifetimeMs) => {
       const thresholdMs = Math.floor((batchLifetimeMs * maxPercentage) / 100)
@@ -94,7 +94,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         updateWallet({ ...wallet, nextRollover, thresholdMs })
       })
     })
-  }, [initialized, vtxos, svcWallet])
+  }, [initialized, vtxos, svcWallet, aspInfo])
 
   // if ark note is present in the URL, decode it and set the note info
   useEffect(() => {
