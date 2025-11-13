@@ -92,8 +92,9 @@ export class LightningSwapProvider {
     if (!pendingSwap) throw new Error('Invalid pending swap')
     try {
       return await this.provider.waitAndClaim(pendingSwap)
-    } catch (e) {
-      throw this.someError(e, 'Error claiming VHTLC')
+    } catch (error) {
+      Sentry.logger.info(`Failed to claim swap ${pendingSwap.response.id}`, { error, swap: pendingSwap })
+      throw this.someError(error, 'Error claiming VHTLC')
     }
   }
 
@@ -124,8 +125,9 @@ export class LightningSwapProvider {
       if (!refundable) throw this.someError(e, 'Swap failed: VHTLC not refundable')
       try {
         await this.refundVHTLC(pendingSwap)
-      } catch (e) {
-        throw this.someError(e, 'Swap failed: VHTLC refund failed')
+      } catch (error) {
+        Sentry.logger.info(`Failed to refund swap ${pendingSwap.response.id}`, { error, swap: pendingSwap })
+        throw this.someError(error, 'Swap failed: VHTLC refund failed')
       }
       throw new Error('Swap failed: VHTLC refunded')
     }
@@ -156,7 +158,6 @@ export class LightningSwapProvider {
 
   refundFailedSubmarineSwaps = async () => {
     const swaps = await this.provider.getSwapHistory()
-
     for (const swap of swaps.filter(isSubmarineSwapRefundable)) {
       try {
         await this.refundVHTLC(swap)
