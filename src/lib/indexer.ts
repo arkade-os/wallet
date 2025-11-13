@@ -24,7 +24,7 @@ export class Indexer {
     if (tx) return tx.when
 
     const commitmentTx = await this.provider.getCommitmentTx(txid)
-    if (!commitmentTx?.startedAt) return null
+    if (!commitmentTx?.endedAt) return null
     const when = Number(commitmentTx.endedAt)
 
     await this.contractRepo.saveToContractCollection(
