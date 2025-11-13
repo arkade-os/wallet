@@ -21,10 +21,9 @@ import Loading from '../../components/Loading'
 import { LimitsContext } from '../../providers/limits'
 import { EmptyCoinsList } from '../../components/Empty'
 import WarningBox from '../../components/Warning'
-import { ExtendedCoin, ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { ExtendedCoin, ExtendedVirtualCoin, isVtxoExpiringSoon } from '@arkade-os/sdk'
 import { consoleError } from '../../lib/logs'
 import { IonCol, IonGrid, IonRow } from '@ionic/react'
-import { maxPercentage } from '../../lib/constants'
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -39,7 +38,6 @@ export default function Vtxos() {
   const [allVtxos, setAllVtxos] = useState<ExtendedVirtualCoin[]>([])
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState('')
-  const [expiryThreshold, setExpiryThreshold] = useState(0)
   const [hasInputsToSettle, setHasInputsToSettle] = useState(false)
   const [label, setLabel] = useState(defaultLabel)
   const [rollingover, setRollingover] = useState(false)
@@ -47,6 +45,8 @@ export default function Vtxos() {
   const [showList, setShowList] = useState(false)
   const [startTime, setStartTime] = useState(0)
   const [success, setSuccess] = useState(false)
+  const [hasVtxosToSettle, setHasVtxosToSettle] = useState(false)
+  const [hasBoardingUtxosToSettle, setHasBoardingUtxosToSettle] = useState(false)
 
   // Update error state if aspInfo.unreachable changes
   useEffect(() => {
@@ -55,8 +55,14 @@ export default function Vtxos() {
 
   // Update label based on rolling over state and dust status
   useEffect(() => {
-    setLabel(rollingover ? 'Renewing...' : !aboveDust ? 'Below dust limit' : defaultLabel)
-  }, [rollingover, aboveDust])
+    const actions =
+      hasVtxosToSettle && hasBoardingUtxosToSettle
+        ? ['Settle', 'Settling...']
+        : hasVtxosToSettle
+          ? ['Renew', 'Renewing...']
+          : ['Complete boarding', 'Completing boarding...']
+    setLabel(rollingover ? actions[1] : !aboveDust ? 'Below dust limit' : actions[0])
+  }, [rollingover, aboveDust, hasVtxosToSettle, hasBoardingUtxosToSettle])
 
   // Calculate best market hour when wallet.nextRollover changes
   useEffect(() => {
@@ -70,15 +76,9 @@ export default function Vtxos() {
     }
   }, [wallet.nextRollover])
 
-  // Fetch inputs to settle, all VTXOs, and all UTXOs
+  // Fetch all VTXOs and all UTXOs
   useEffect(() => {
-    if (!aspInfo) return
-    if (!svcWallet) return
-    getInputsToSettle(svcWallet).then((inputs) => {
-      setHasInputsToSettle(inputs.length > 0)
-      const totalAmount = inputs.reduce((a, v) => a + v.value, 0) || 0
-      setAboveDust(totalAmount > aspInfo.dust)
-    })
+    if (!aspInfo || !svcWallet) return
     // get all VTXOs including recoverable ones
     svcWallet
       .getVtxos({
@@ -89,29 +89,26 @@ export default function Vtxos() {
       .catch(consoleError)
     // get all UTXOs
     svcWallet.getBoardingUtxos().then(setAllUtxos).catch(consoleError)
-  }, [aspInfo, vtxos, svcWallet])
+  }, [aspInfo, vtxos, svcWallet, wallet.thresholdMs])
 
-  // Automatically reset `success` after 5s, with cleanup on unmount or re-run
+  // Fetch inputs to settle
+  useEffect(() => {
+    if (!aspInfo || !svcWallet) return
+    getInputsToSettle(svcWallet, wallet.thresholdMs).then(({ boardingUtxos, inputs, vtxos }) => {
+      setHasBoardingUtxosToSettle(boardingUtxos.length > 0)
+      setHasInputsToSettle(inputs.length > 0)
+      setHasVtxosToSettle(vtxos.length > 0)
+      const amount = inputs.reduce((a, v) => a + v.value, 0) || 0
+      setAboveDust(amount > aspInfo.dust)
+    })
+  }, [allUtxos, allVtxos])
+
+  // Automatically reset `success` after 10s, with cleanup on unmount or re-run
   useEffect(() => {
     if (!success) return
-    const timeoutId = setTimeout(() => setSuccess(false), 5000)
+    const timeoutId = setTimeout(() => setSuccess(false), 10_000)
     return () => clearTimeout(timeoutId)
   }, [success])
-
-  // Calculate expiry threshold based on VTXO lifetimes
-  useEffect(() => {
-    if (!vtxos) return
-    const allVtxos = [...(vtxos ? vtxos.spent : []), ...(vtxos ? vtxos.spendable : [])]
-    const vtxo = allVtxos.find((v) => v.virtualStatus.state === 'settled')
-    if (!vtxo) return
-    const batchExpiry = vtxo.virtualStatus?.batchExpiry
-    const createdAt = vtxo.createdAt
-    if (!batchExpiry || !createdAt) return
-    const lifetime = batchExpiry - createdAt.getTime()
-    if (lifetime <= 0) return
-    const threshold = Math.floor((lifetime * (maxPercentage / 100)) / 1000)
-    setExpiryThreshold(threshold)
-  }, [vtxos])
 
   if (!svcWallet) return <Loading text='Loading...' />
 
@@ -120,7 +117,7 @@ export default function Vtxos() {
   const handleRollover = async () => {
     try {
       setRollingover(true)
-      await settleVtxos(svcWallet, aspInfo.dust)
+      await settleVtxos(svcWallet, aspInfo.dust, wallet.thresholdMs)
       await reloadWallet()
       setRollingover(false)
       setSuccess(true)
@@ -135,7 +132,7 @@ export default function Vtxos() {
       backgroundColor: 'var(--dark10)',
       border: '1px solid var(--dark20)',
       borderRadius: '0.25rem',
-      padding: '0.5rem',
+      padding: '10px',
       width: '100%',
     }
     return (
@@ -164,6 +161,11 @@ export default function Vtxos() {
     unconfirmed: (
       <Text color='orange' smaller>
         unconfirmed
+      </Text>
+    ),
+    expiring: (
+      <Text color='red' smaller>
+        expiring soon
       </Text>
     ),
   }
@@ -204,9 +206,11 @@ export default function Vtxos() {
           ? Tags.subdust
           : vtxo.virtualStatus?.state === 'swept'
             ? Tags.swept
-            : vtxo.virtualStatus?.state === 'settled'
-              ? Tags.settled
-              : null}
+            : wallet.thresholdMs && isVtxoExpiringSoon(vtxo, wallet.thresholdMs)
+              ? Tags.expiring
+              : vtxo.virtualStatus?.state === 'settled'
+                ? Tags.settled
+                : null}
       </FlexRow>
     )
     return <CoinLine amount={`${amount} SATS`} tags={tags} expiry={expiry} />
@@ -254,7 +258,7 @@ export default function Vtxos() {
                       ))}
                     </FlexCol>
                   ) : null}
-                  {allUtxos.length > 0 ? (
+                  {!success && allUtxos.length > 0 ? (
                     <FlexCol gap='0.5rem'>
                       <Text capitalize color='dark50' smaller>
                         Your boarding utxos with amount and expiration
@@ -279,9 +283,12 @@ export default function Vtxos() {
                   </FlexCol>
                   <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
                     <TextSecondary>First virtual coin expiration: {prettyAgo(wallet.nextRollover)}.</TextSecondary>
-                    <TextSecondary>
-                      Automatic renewal occurs for virtual coins expiring within {prettyDelta(expiryThreshold)}.
-                    </TextSecondary>
+                    {wallet.thresholdMs ? (
+                      <TextSecondary>
+                        Automatic renewal occurs for virtual coins expiring within{' '}
+                        {prettyDelta(Math.floor(wallet.thresholdMs / 1_000))}.
+                      </TextSecondary>
+                    ) : null}
                     {startTime && duration ? (
                       <>
                         <TextSecondary>Settlement during market hours offers lower fees.</TextSecondary>
