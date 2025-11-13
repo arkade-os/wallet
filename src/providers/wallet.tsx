@@ -7,6 +7,7 @@ import { AspContext } from './asp'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
+import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { calcNextRollover } from '../lib/wallet'
@@ -57,7 +58,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
-  const { setNoteInfo, noteInfo } = useContext(FlowContext)
+  const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
 
   const [txs, setTxs] = useState<Tx[]>([])
@@ -91,22 +92,45 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   // if ark note is present in the URL, decode it and set the note info
   useEffect(() => {
-    const note = arkNoteInUrl()
-    if (!note) return
-    try {
-      const { value } = ArkNote.fromString(note)
-      setNoteInfo({ note, satoshis: value })
-      window.location.hash = ''
-    } catch (err) {
-      consoleError(err, 'error decoding ark note ')
+    const dlInfo = deepLinkInUrl()
+    if (dlInfo) {
+      setDeepLinkInfo(dlInfo)
     }
+    const note = arkNoteInUrl()
+    if (note) {
+      try {
+        const { value } = ArkNote.fromString(note)
+        setNoteInfo({ note, satoshis: value })
+      } catch (err) {
+        consoleError(err, 'error decoding ark note ')
+      }
+    }
+    window.location.hash = ''
   }, [])
 
-  // if voucher present, go to redeem page
   useEffect(() => {
+    // Precedence is given to NoteInfo, but they are mutually exclusive because depend on window.location.hash
     if (!initialized) return
-    navigate(noteInfo.satoshis ? Pages.NotesRedeem : Pages.Wallet)
-  }, [initialized, noteInfo.satoshis])
+    if (noteInfo.satoshis) {
+      // if voucher present, go to redeem page
+      navigate(Pages.NotesRedeem)
+      return
+    }
+    // if app url is present, navigate to it
+    switch (deepLinkInfo?.appId) {
+      case 'boltz':
+        navigate(Pages.AppBoltz)
+        break
+      case 'lendasat':
+        navigate(Pages.AppLendasat)
+        break
+      case 'lendaswap':
+        navigate(Pages.AppLendaswap)
+        break
+      default:
+        navigate(Pages.Wallet)
+    }
+  }, [initialized, noteInfo.satoshis, deepLinkInfo])
 
   const reloadWallet = async (swWallet = svcWallet) => {
     if (!swWallet) return

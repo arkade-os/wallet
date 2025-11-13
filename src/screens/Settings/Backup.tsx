@@ -8,7 +8,7 @@ import { copyToClipboard } from '../../lib/clipboard'
 import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
-import { copiedToClipboard } from '../../lib/toast'
+import { backupToNostr, copiedToClipboard } from '../../lib/toast'
 import { getPrivateKey, privateKeyToNsec } from '../../lib/privateKey'
 import { consoleError } from '../../lib/logs'
 import NeedsPassword from '../../components/NeedsPassword'
@@ -48,6 +48,7 @@ export default function Backup() {
 
   const toggleNostrBackup = () => {
     updateConfig({ ...config, nostrBackup: !config.nostrBackup }, true)
+    present(backupToNostr)
   }
 
   return (

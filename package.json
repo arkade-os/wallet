@@ -4,8 +4,8 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/boltz-swap": "0.2.7",
-    "@arkade-os/sdk": "0.3.4",
+    "@arkade-os/boltz-swap": "0.2.8",
+    "@arkade-os/sdk": "0.3.5",
     "@ionic/react": "^8.5.6",
     "@lendasat/lendasat-wallet-bridge": "^0.0.90",
     "@noble/curves": "^2.0.1",
@@ -20,7 +20,7 @@
     "dompurify": "^3.2.6",
     "light-bolt11-decoder": "^3.2.0",
     "nostr-tools": "^2.12.0",
-    "qr": "^0.4.2",
+    "qr": "^0.5.2",
     "qr-scanner": "^1.4.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
