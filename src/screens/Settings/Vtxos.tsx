@@ -101,7 +101,7 @@ export default function Vtxos() {
       const amount = inputs.reduce((a, v) => a + v.value, 0) || 0
       setAboveDust(amount > aspInfo.dust)
     })
-  }, [allUtxos, allVtxos])
+  }, [allUtxos, allVtxos, aspInfo, svcWallet])
 
   // Automatically reset `success` after 10s, with cleanup on unmount or re-run
   useEffect(() => {
