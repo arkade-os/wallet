@@ -12,8 +12,8 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import LendasatIcon from './Lendasat/LendasatIcon'
 import LendaswapIcon from './Lendaswap/LendaswapIcon'
 
-const Bullet = () => (
-  <svg width='6' height='6' viewBox='0 0 6 6' fill='none' xmlns='http://www.w3.org/2000/svg'>
+const Middot = () => (
+  <svg width='6' height='6' viewBox='0 0 6 6' fill='none' xmlns='http://www.w3.org/2000/svg' aria-hidden='true'>
     <circle cx='3' cy='3' r='3' fill='white' />
   </svg>
 )
@@ -36,7 +36,7 @@ const Tag = ({ kind }: { kind: 'new' | 'coming soon' }) => {
   return (
     <div style={style}>
       <FlexRow centered gap='0.25rem'>
-        {kind === 'new' ? <Bullet /> : ''}
+        {kind === 'new' ? <Middot /> : ''}
         <p>{kind.replace(' ', '\u00A0')}</p>
       </FlexRow>
     </div>
