@@ -94,6 +94,7 @@ export enum Unit {
 export type Vtxo = ExtendedVirtualCoin
 
 export type Wallet = {
+  thresholdMs?: number
   lockedByBiometrics?: boolean
   network?: NetworkName | ''
   nextRollover: number
