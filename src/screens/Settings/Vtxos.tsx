@@ -56,14 +56,18 @@ export default function Vtxos() {
 
   // Update label based on rolling over state and dust status
   useEffect(() => {
-    const actions =
-      hasVtxosToSettle && hasBoardingUtxosToSettle && !hideUtxos
-        ? ['Settle', 'Settling...']
-        : hasVtxosToSettle
-          ? ['Renew', 'Renewing...']
-          : ['Complete boarding', 'Completing boarding...']
-    setLabel(rollingover ? actions[1] : !aboveDust ? 'Below dust limit' : actions[0])
-  }, [rollingover, aboveDust, hasVtxosToSettle, hasBoardingUtxosToSettle])
+    setLabel(
+      !aboveDust
+        ? 'Below dust limit'
+        : hasVtxosToSettle && hasBoardingUtxosToSettle && !hideUtxos
+          ? 'Complete boarding & renew'
+          : hasVtxosToSettle
+            ? 'Renew'
+            : hasBoardingUtxosToSettle && !hideUtxos
+              ? 'Complete boarding'
+              : '',
+    )
+  }, [rollingover, aboveDust, hasVtxosToSettle, hasBoardingUtxosToSettle, hideUtxos])
 
   // Calculate best market hour when wallet.nextRollover changes
   useEffect(() => {
