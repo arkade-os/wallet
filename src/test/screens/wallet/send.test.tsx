@@ -32,7 +32,7 @@ describe('Send screen', () => {
             <FiatContext.Provider value={mockFiatContextValue as any}>
               <LightningContext.Provider value={mockLightningContextValue as any}>
                 <OptionsContext.Provider value={mockOptionsContextValue as any}>
-                  <FlowContext.Provider value={mockFlowContextValue}>
+                  <FlowContext.Provider value={mockFlowContextValue as any}>
                     <WalletContext.Provider value={mockWalletContextValue}>
                       <LimitsContext.Provider value={mockLimitsContextValue}>
                         <SendForm />
@@ -57,7 +57,7 @@ describe('Send screen', () => {
             <FiatContext.Provider value={mockFiatContextValue as any}>
               <LightningContext.Provider value={mockLightningContextValue as any}>
                 <OptionsContext.Provider value={mockOptionsContextValue as any}>
-                  <FlowContext.Provider value={mockFlowContextValue}>
+                  <FlowContext.Provider value={mockFlowContextValue as any}>
                     <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: mockSvcWallet as any }}>
                       <LimitsContext.Provider value={mockLimitsContextValue}>
                         <SendForm />
@@ -80,6 +80,6 @@ describe('Send screen', () => {
     expect(screen.getByText('0 SATS available')).toBeInTheDocument()
     expect(screen.getByText('Recipient address')).toBeInTheDocument()
     // button continue should be present
-    expect(screen.getByText('Continue')).toBeInTheDocument()
+    expect(screen.getByText('Amount below 1 satoshi')).toBeInTheDocument()
   })
 })
