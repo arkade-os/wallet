@@ -1,4 +1,6 @@
-import { bech32, utf8 } from '@scure/base'
+import { Identity } from '@arkade-os/sdk'
+import { secp256k1 } from '@noble/curves/secp256k1.js'
+import { bech32, hex, utf8 } from '@scure/base'
 
 const emailRegex =
   /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
@@ -27,6 +29,7 @@ type LnUrlCallbackResponse = {
 }
 
 const checkResponse = <T = any>(response: Response): Promise<T> => {
+  console.log('response', response)
   if (!response.ok) return Promise.reject(response)
   return response.json()
 }
@@ -73,6 +76,50 @@ export const getCallbackUrl = (lnurl: string): string => {
   // LNURL
   const { bytes } = bech32.decodeToBytes(lnurl)
   return utf8.encode(bytes)
+}
+
+export const parseLoginLnUrl = (lnurl: string): { k1?: string; url: string } => {
+  const { bytes } = bech32.decodeToBytes(lnurl)
+  const url = utf8.encode(bytes)
+  const queryParams = new URLSearchParams(url.split('?')[1])
+  const tag = queryParams.get('tag')
+  if (tag === 'login') {
+    return { k1: queryParams.get('k1')!, url }
+  }
+
+  return { url }
+}
+
+export const loginLnUrl = async (lnurl: string, k1: string, identity: Identity): Promise<Response> => {
+  const k1bytes = hex.decode(k1)
+  const sig = await identity.signMessage(k1bytes, 'ecdsa')
+  const key = await identity.compressedPublicKey()
+  const url = new URL(lnurl)
+
+  const derSigEncoding = secp256k1.Signature.fromBytes(sig).toHex('der')
+  url.searchParams.delete('tag')
+  url.searchParams.set('sig', derSigEncoding)
+  url.searchParams.set('key', hex.encode(key))
+
+  const targetUrl = url.toString()
+
+  // if current page is localhost, use cors proxy
+  if (window.location.hostname === 'localhost') {
+    const corsProxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+    return fetch(corsProxyUrl, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    })
+  }
+
+  return fetch(targetUrl, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+  })
 }
 
 export const checkLnUrlConditions = (lnurl: string): Promise<LnUrlResponse> => {
