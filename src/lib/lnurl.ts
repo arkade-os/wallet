@@ -29,7 +29,6 @@ type LnUrlCallbackResponse = {
 }
 
 const checkResponse = <T = any>(response: Response): Promise<T> => {
-  console.log('response', response)
   if (!response.ok) return Promise.reject(response)
   return response.json()
 }
