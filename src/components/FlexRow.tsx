@@ -9,6 +9,7 @@ interface FlexRowProps {
   color?: string
   end?: boolean
   gap?: string
+  main?: boolean
   onClick?: () => void
   padding?: string
 }
@@ -22,6 +23,7 @@ export default function FlexRow({
   color,
   end,
   gap,
+  main,
   onClick,
   padding,
 }: FlexRowProps) {
@@ -34,6 +36,7 @@ export default function FlexRow({
     display: 'flex',
     gap: gap ?? '.5rem',
     justifyContent,
+    minHeight: main ? '20px' : undefined,
     padding,
     width: end ? undefined : '100%',
   }

@@ -10,6 +10,7 @@ interface ButtonProps {
   icon?: ReactElement
   label: string
   loading?: boolean
+  main?: boolean
   onClick: (event: any) => void
   red?: boolean
   secondary?: boolean
@@ -24,6 +25,7 @@ export default function Button({
   icon,
   label,
   loading,
+  main,
   onClick,
   red,
   secondary,
@@ -52,7 +54,7 @@ export default function Button({
           <ArrowIcon />
         </FlexRow>
       ) : (
-        <FlexRow centered>
+        <FlexRow main={main} centered>
           {icon}
           {label}
         </FlexRow>

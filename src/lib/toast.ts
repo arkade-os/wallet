@@ -21,3 +21,8 @@ export const newVersionAvailable: ToastOptions = {
   duration: 0,
   message: 'New version available',
 }
+
+export const backupToNostr: ToastOptions = {
+  ...defaultToastOptions,
+  message: 'Nostr backup updated',
+}

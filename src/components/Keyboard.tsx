@@ -23,14 +23,20 @@ interface KeyboardProps {
 export default function Keyboard({ back, hideBalance, onChange, value }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
-  const { balance } = useContext(WalletContext)
+  const { balance, svcWallet } = useContext(WalletContext)
 
   const [amount, setAmount] = useState(0)
+  const [availableBalance, setAvailableBalance] = useState(0)
   const [error, setError] = useState('')
 
   useEffect(() => {
     setAmount(value ?? 0)
   }, [value])
+
+  useEffect(() => {
+    if (!svcWallet) return
+    svcWallet.getBalance().then((bal) => setAvailableBalance(bal.available))
+  }, [balance])
 
   const handleKeyPress = (k: string) => {
     if (k === 'x' && !amount) return
@@ -40,8 +46,8 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
   }
 
   const handleMaxPress = () => {
-    if (balance < defaultFee) return setError('Total balance is below fee')
-    setAmount(balance - defaultFee)
+    if (availableBalance < defaultFee) return setError('Total balance is below fee')
+    setAmount(availableBalance - defaultFee)
   }
 
   const handleSave = () => {
@@ -51,7 +57,7 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
 
   const primaryAmount = useFiat ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
   const secondaryAmount = useFiat ? prettyAmount(fromFiat(amount)) : prettyAmount(toFiat(amount), config.fiat)
-  const balanceAmount = useFiat ? prettyAmount(balance, config.fiat) : prettyAmount(balance)
+  const balanceAmount = useFiat ? prettyAmount(availableBalance, config.fiat) : prettyAmount(availableBalance)
 
   const disabled = !amount || Number.isNaN(amount)
 
@@ -95,7 +101,7 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
           <IonRow style={rowStyle} key={row[0]}>
             {row.map((key) => (
               <IonCol size='4' key={key} onClick={() => handleKeyPress(key)}>
-                <p>{key === 'x' ? <>&larr;</> : key}</p>
+                <p data-testid={`keyboard-${key}`}>{key === 'x' ? <>&larr;</> : key}</p>
               </IonCol>
             ))}
           </IonRow>

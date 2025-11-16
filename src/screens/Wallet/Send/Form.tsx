@@ -46,14 +46,14 @@ export default function SendForm() {
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { swapProvider, connected, calcSubmarineSwapFee } = useContext(LightningContext)
-  const { amountIsAboveMaxLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
+  const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
   const { balance, svcWallet } = useContext(WalletContext)
 
   const [amount, setAmount] = useState<number>()
   const [amountIsReadOnly, setAmountIsReadOnly] = useState(false)
-  const [availableBalance, setAvailableBalance] = useState<number>(0)
+  const [availableBalance, setAvailableBalance] = useState(0)
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
   const [label, setLabel] = useState('')
@@ -66,6 +66,15 @@ export default function SendForm() {
   const [satoshis, setSatoshis] = useState(0)
   const [scan, setScan] = useState(false)
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
+
+  const smartSetError = (str: string) => {
+    setError(str === '' ? (aspInfo.unreachable ? 'Ark server unreachable' : '') : str)
+  }
+
+  const setState = (info: SendInfo) => {
+    setScan(false)
+    setSendInfo(info)
+  }
 
   // get receiving addresses
   useEffect(() => {
@@ -111,8 +120,8 @@ export default function SendForm() {
         setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
         return setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData })
       }
-      if (isBTCAddress(lowerCaseData)) {
-        return setState({ ...sendInfo, address: lowerCaseData, arkAddress: '' })
+      if (isBTCAddress(recipient)) {
+        return setState({ ...sendInfo, address: recipient, arkAddress: '' })
       }
       if (isArkNote(lowerCaseData)) {
         try {
@@ -167,7 +176,7 @@ export default function SendForm() {
 
   // validate recipient addresses
   useEffect(() => {
-    if (!receivingAddresses) return setError('Unable to get receiving addresses')
+    if (!receivingAddresses) return
     const { boardingAddr, offchainAddr } = receivingAddresses
     const { address, arkAddress, invoice } = sendInfo
     // check server limits for onchain transactions
@@ -197,12 +206,15 @@ export default function SendForm() {
     }
     // everything is ok, clean error
     setError('')
-  }, [sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
+  }, [receivingAddresses, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
 
+  // set satoshis from amount
   useEffect(() => {
-    setSatoshis(useFiat ? fromFiat(amount) : (amount ?? 0))
+    const numericAmount = amount ?? 0
+    setSatoshis(Math.floor(useFiat ? fromFiat(numericAmount) : numericAmount))
   }, [amount])
 
+  // manage button label and errors
   useEffect(() => {
     setState({ ...sendInfo, satoshis })
     setLabel(
@@ -216,15 +228,24 @@ export default function SendForm() {
               ? 'Amount below 1 satoshi'
               : amountIsAboveMaxLimit(satoshis)
                 ? 'Amount above max limit'
-                : 'Continue',
+                : amountIsBelowMinLimit(satoshis)
+                  ? 'Amount below min limit'
+                  : 'Continue',
     )
   }, [satoshis])
 
+  // manage server unreachable error
   useEffect(() => {
-    setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
-    setLabel(aspInfo.unreachable ? 'Server unreachable' : 'Continue')
+    const errTxt = 'Ark server unreachable'
+    if (!aspInfo.unreachable) {
+      setError((prev) => (prev === errTxt ? '' : prev))
+      return
+    }
+    setError(errTxt)
+    setLabel('Server unreachable')
   }, [aspInfo.unreachable])
 
+  // proceed to next step
   useEffect(() => {
     if (!proceed) return
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
@@ -242,11 +263,6 @@ export default function SendForm() {
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
 
   if (!svcWallet) return <Loading text='Loading...' />
-
-  const setState = (info: SendInfo) => {
-    setScan(false)
-    setSendInfo(info)
-  }
 
   const gotoBoltzApp = () => {
     navigate(Pages.AppBoltzSettings)
@@ -303,11 +319,9 @@ export default function SendForm() {
 
   const handleSendAll = () => {
     const fees = sendInfo.lnUrl ? (calcSubmarineSwapFee(availableBalance) ?? 0) : 0
-    setAmount(availableBalance - fees)
-  }
-
-  const smartSetError = (str: string) => {
-    setError(str === '' ? (aspInfo.unreachable ? 'Ark server unreachable' : '') : str)
+    const amountInSats = availableBalance - fees
+    const amount = useFiat ? toFiat(amountInSats) : amountInSats
+    setAmount(amount)
   }
 
   const Available = () => {
@@ -329,6 +343,7 @@ export default function SendForm() {
     (lnUrlLimits.max && satoshis > lnUrlLimits.max) ||
     (lnUrlLimits.min && satoshis < lnUrlLimits.min) ||
     amountIsAboveMaxLimit(satoshis) ||
+    amountIsBelowMinLimit(satoshis) ||
     satoshis < 1 ||
     aspInfo.unreachable ||
     satoshis > availableBalance ||
@@ -358,6 +373,7 @@ export default function SendForm() {
               value={recipient}
             />
             <InputAmount
+              name='send-amount'
               focus={focus === 'amount' && !isMobileBrowser}
               label='Amount'
               min={lnUrlLimits.min}

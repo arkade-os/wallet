@@ -6,20 +6,23 @@ import Header from '../../components/Header'
 import FlexCol from '../../components/FlexCol'
 import Text from '../../components/Text'
 import Shadow from '../../components/Shadow'
-import InvadersIcon from '../../icons/Invaders'
-import CoinflipIcon from '../../icons/Coinflip'
 import FujiMoneyIcon from '../../icons/FujiMoney'
-import { IonText } from '@ionic/react'
 import BoltzIcon from '../../icons/Boltz'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import LendasatIcon from './Lendasat/LendasatIcon'
 import LendaswapIcon from './Lendaswap/LendaswapIcon'
 
+const Middot = () => (
+  <svg width='6' height='6' viewBox='0 0 6 6' fill='none' xmlns='http://www.w3.org/2000/svg' aria-hidden='true'>
+    <circle cx='3' cy='3' r='3' fill='white' />
+  </svg>
+)
+
 const Tag = ({ kind }: { kind: 'new' | 'coming soon' }) => {
   const style = {
     borderRadius: '4px',
-    background: kind === 'coming soon' ? 'rgba(96, 177, 138, 0.10)' : 'rgba(163, 137, 241, 0.10)',
-    color: kind === 'coming soon' ? 'var(--green)' : '#A389F1',
+    background: kind === 'coming soon' ? 'rgba(96, 177, 138, 0.10)' : 'rgba(57, 25, 152, 1)',
+    color: kind === 'coming soon' ? 'var(--green)' : 'var(--white)',
     fontFamily: 'Geist Mono',
     fontSize: '12px',
     fontStyle: 'normal',
@@ -31,9 +34,12 @@ const Tag = ({ kind }: { kind: 'new' | 'coming soon' }) => {
     textTransform: 'uppercase' as const,
   }
   return (
-    <IonText>
-      <p style={style}>{kind.replace(' ', '\u00A0')}</p>
-    </IonText>
+    <div style={style}>
+      <FlexRow centered gap='0.25rem'>
+        {kind === 'new' ? <Middot /> : ''}
+        <p>{kind.replace(' ', '\u00A0')}</p>
+      </FlexRow>
+    </div>
   )
 }
 
@@ -51,6 +57,7 @@ function App({ desc, icon, link, name, live, page }: AppProps) {
 
   const style = {
     cursor: page || link ? 'pointer' : 'default',
+    padding: '0.5rem',
   }
 
   const handleClick = () => {
@@ -59,7 +66,7 @@ function App({ desc, icon, link, name, live, page }: AppProps) {
   }
 
   return (
-    <Shadow border>
+    <Shadow border borderPurple={live}>
       <div style={style} onClick={handleClick}>
         <FlexCol gap='0.75rem'>
           <FlexRow between>
@@ -93,7 +100,7 @@ export default function Apps() {
             <App
               name='Boltz'
               icon={<BoltzIcon />}
-              desc='Swap Bitcoin instantly between Arkade and the Lightning Network.'
+              desc='Swap instantly between Arkade and Lightning'
               link='https://boltz.exchange/'
               page={Pages.AppBoltz}
               live
@@ -102,7 +109,7 @@ export default function Apps() {
             <App
               name='LendaSat'
               icon={<LendasatIcon />}
-              desc='Borrow against your sats.'
+              desc='Borrow against your sats'
               link='https://lendasat.com'
               page={Pages.AppLendasat}
               live
@@ -111,13 +118,11 @@ export default function Apps() {
             <App
               name='LendaSwap'
               icon={<LendaswapIcon />}
-              desc='Swap Bitcoin to USDC instantly.'
+              desc='Swap Bitcoin to USDC instantly'
               link='https://swap.lendasat.com'
               page={Pages.AppLendaswap}
               live
             />
-            <App name='Ark Invaders' icon={<InvadersIcon />} desc='The classic arcade game' />
-            <App name='Coinflip' icon={<CoinflipIcon />} desc='Head or Tails? Place your bet!' />
             <App name='Fuji Money' icon={<FujiMoneyIcon />} desc='Synthetic Assets on the Bitcoin network' />
           </FlexCol>
         </Padded>
