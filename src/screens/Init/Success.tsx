@@ -16,7 +16,7 @@ export default function InitSuccess() {
   const headline = initInfo.restoring ? 'Wallet restored successfully!' : 'Your new wallet is live!'
 
   const text = initInfo.restoring
-    ? config.lastBackup
+    ? config.nostrBackup
       ? 'Your wallet, settings and swaps have been successfully restored.'
       : 'Your wallet has been successfully restored and is now ready to use.'
     : 'Your wallet has been successfully created and is now ready to use.'
