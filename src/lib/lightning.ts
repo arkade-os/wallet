@@ -6,13 +6,15 @@ import {
   PendingReverseSwap,
   PendingSubmarineSwap,
   isSubmarineSwapRefundable,
+  isPendingSubmarineSwap,
+  isPendingReverseSwap,
 } from '@arkade-os/boltz-swap'
 import { RestArkProvider, RestIndexerProvider, Wallet, ServiceWorkerWallet } from '@arkade-os/sdk'
 import { AspInfo } from '../providers/asp'
 import { sendOffChain } from './asp'
 import { consoleError } from './logs'
 import { Config } from './types'
-import { handleNostrBackup } from './backup'
+import { BackupProvider } from './backup'
 import * as Sentry from '@sentry/react'
 
 export class LightningSwapProvider {
@@ -20,12 +22,14 @@ export class LightningSwapProvider {
   private readonly config: Config
   private readonly provider: ArkadeLightning
   private readonly wallet: Wallet | ServiceWorkerWallet
+  private readonly backupProvider: BackupProvider
 
   constructor(apiUrl: string, aspInfo: AspInfo, wallet: Wallet | ServiceWorkerWallet, config: Config) {
     const network = aspInfo.network as Network
     const arkProvider = new RestArkProvider(aspInfo.url)
     const swapProvider = new BoltzSwapProvider({ apiUrl, network })
     const indexerProvider = new RestIndexerProvider(aspInfo.url)
+    this.backupProvider = new BackupProvider({ pubkey: config.pubkey })
 
     this.apiUrl = apiUrl
     this.config = config
@@ -33,12 +37,22 @@ export class LightningSwapProvider {
     this.provider = new ArkadeLightning({ wallet, arkProvider, swapProvider, indexerProvider })
   }
 
-  private backup = async () => {
+  private backup = async (swap: PendingReverseSwap | PendingSubmarineSwap) => {
     if (!this.config.nostrBackup) return
     try {
-      await handleNostrBackup(this.config)
+      if (isPendingSubmarineSwap(swap)) {
+        const pendingSwaps = await this.provider.getPendingSubmarineSwaps()
+        const existingSwap = pendingSwaps.find((s) => s.id === swap.id)
+        if (existingSwap) swap = existingSwap
+        await this.backupProvider.backupSubmarineSwap(swap)
+      } else if (isPendingReverseSwap(swap)) {
+        const pendingSwaps = await this.provider.getPendingReverseSwaps()
+        const existingSwap = pendingSwaps.find((s) => s.id === swap.id)
+        if (existingSwap) swap = existingSwap
+        await this.backupProvider.backupReverseSwap(swap)
+      }
     } catch (error) {
-      consoleError(error, 'Failed to sync Nostr backup')
+      consoleError(error, 'Failed to backup swap to Nostr')
     }
   }
 
@@ -83,7 +97,7 @@ export class LightningSwapProvider {
     if (!pendingSwap) throw new Error('Failed to create reverse swap')
 
     console.log('Created reverse swap:', pendingSwap.id)
-    await this.backup()
+    await this.backup(pendingSwap)
 
     return pendingSwap
   }
@@ -101,7 +115,7 @@ export class LightningSwapProvider {
   claimVHTLC = async (pendingSwap: PendingReverseSwap) => {
     await this.provider.claimVHTLC(pendingSwap)
     console.log('Claimed reverse swap:', pendingSwap.id)
-    await this.backup()
+    await this.backup(pendingSwap)
   }
 
   // send
@@ -138,7 +152,7 @@ export class LightningSwapProvider {
     const pendingSwap = await this.provider.createSubmarineSwap({ invoice })
     if (!pendingSwap) throw new Error('Failed to create swap')
     console.log('Created submarine swap:', pendingSwap.response.id)
-    await this.backup()
+    await this.backup(pendingSwap)
     return pendingSwap
   }
 
@@ -153,7 +167,7 @@ export class LightningSwapProvider {
   refundVHTLC = async (pendingSwap: PendingSubmarineSwap) => {
     await this.provider.refundVHTLC(pendingSwap)
     console.log('Refunded submarine swap:', pendingSwap.response.id)
-    await this.backup()
+    await this.backup(pendingSwap)
   }
 
   refundFailedSubmarineSwaps = async () => {

@@ -16,6 +16,8 @@ import Shadow from '../../components/Shadow'
 import { defaultPassword } from '../../lib/constants'
 import { ConfigContext } from '../../providers/config'
 import Toggle from '../../components/Toggle'
+import { BackupProvider } from '../../lib/backup'
+import ErrorMessage from '../../components/Error'
 
 export default function Backup() {
   const { config, updateConfig } = useContext(ConfigContext)
@@ -46,8 +48,18 @@ export default function Backup() {
     present(copiedToClipboard)
   }
 
-  const toggleNostrBackup = () => {
-    updateConfig({ ...config, nostrBackup: !config.nostrBackup }, true)
+  const toggleNostrBackup = async () => {
+    const newConfig = { ...config, nostrBackup: !config.nostrBackup }
+    if (newConfig.nostrBackup) {
+      const backupProvider = new BackupProvider({ pubkey: config.pubkey })
+      await backupProvider.fullBackup(newConfig).catch((error) => {
+        consoleError(error, 'Backup to Nostr failed')
+        setError('Backup to Nostr failed')
+        return
+      })
+    } else {
+      updateConfig(newConfig, true)
+    }
     present(backupToNostr)
   }
 
@@ -59,6 +71,7 @@ export default function Backup() {
           <Content>
             <Padded>
               <FlexCol gap='2rem'>
+                <ErrorMessage error={Boolean(error)} text={error} />
                 <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
                   <Text thin>Private key</Text>
                   <Shadow>

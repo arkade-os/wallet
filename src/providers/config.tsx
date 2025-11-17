@@ -2,7 +2,7 @@ import { ReactNode, createContext, useEffect, useState } from 'react'
 import { clearStorage, readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
 import { defaultArkServer } from '../lib/constants'
 import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
-import { handleNostrBackup } from '../lib/backup'
+import { BackupProvider } from '../lib/backup'
 import { consoleError } from '../lib/logs'
 
 const defaultConfig: Config = {
@@ -50,7 +50,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
   const preferredTheme = () =>
     window?.matchMedia?.('(prefers-color-scheme: dark)').matches ? Themes.Dark : Themes.Light
 
-  const updateConfig = (config: Config, backup: boolean) => {
+  const updateConfig = async (config: Config, backup: boolean) => {
     // add protocol to aspUrl if missing
     if (!config.aspUrl.startsWith('http://') && !config.aspUrl.startsWith('https://')) {
       const protocol = config.aspUrl.startsWith('localhost') ? 'http://' : 'https://'
@@ -59,8 +59,9 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     setConfig(config)
     updateTheme(config)
     saveConfigToStorage(config)
-    if (config.nostrBackup && backup) {
-      handleNostrBackup(config).catch((error) => {
+    if (backup) {
+      const backupProvider = new BackupProvider({ pubkey: config.pubkey })
+      await backupProvider.backupConfig(config).catch((error) => {
         consoleError(error, 'Backup to Nostr failed')
       })
     }
