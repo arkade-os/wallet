@@ -9,6 +9,8 @@ import Button from '../../components/Button'
 import { getChatwootConfig, useChatwoot } from '../../lib/chatwoot'
 import { WalletContext } from '../../providers/wallet'
 import { ConfigContext } from '../../providers/config'
+import { AspContext } from '../../providers/asp'
+import { LightningContext } from '../../providers/lightning'
 import SupportIcon from '../../icons/Support'
 import Info from '../../components/Info'
 import { getReceivingAddresses } from '../../lib/asp'
@@ -19,6 +21,8 @@ import { NetworkName } from '@arkade-os/sdk'
 export default function Support() {
   const { wallet, svcWallet } = useContext(WalletContext)
   const { config } = useContext(ConfigContext)
+  const { aspInfo } = useContext(AspContext)
+  const { swapProvider } = useContext(LightningContext)
   const [present] = useIonToast()
   const [addresses, setAddresses] = useState<Addresses>()
   const chatwootConfig = getChatwootConfig()
@@ -51,17 +55,40 @@ export default function Support() {
       // Get explorer URL for the network
       const explorerUrl = wallet.network ? getWebExplorerURL(wallet.network as NetworkName) : ''
 
-      // Set custom attributes including addresses for explorer searches
+      // Get app URLs
+      const lendasatUrl = import.meta.env.VITE_LENDASAT_IFRAME_URL || 'not configured'
+      const lendaswapUrl = import.meta.env.VITE_LENDASWAP_IFRAME_URL || 'not configured'
+      const boltzUrl = swapProvider?.getApiUrl() || 'not configured'
+
+      // Set custom attributes including addresses and service URLs
       chatwoot.setCustomAttributes({
+        // Wallet information
         wallet_pubkey: wallet.pubkey,
         network: wallet.network || 'unknown',
         app_version: import.meta.env.VITE_APP_VERSION || 'unknown',
+        // Addresses
         ark_address: addresses.offchainAddr || 'not available',
         btc_boarding_address: addresses.boardingAddr || 'not available',
+        // Service URLs
+        location_origin: window.location.origin,
+        ark_server_url: aspInfo.url || config.aspUrl || 'not available',
+        indexer_url: aspInfo.url || config.aspUrl || 'not available',
         explorer_url: explorerUrl || 'not available',
+        boltz_url: boltzUrl,
+        lendasat_url: lendasatUrl,
+        lendaswap_url: lendaswapUrl,
       })
     }
-  }, [chatwoot.isLoaded, wallet.pubkey, wallet.network, chatwootConfig, addresses])
+  }, [
+    chatwoot.isLoaded,
+    wallet.pubkey,
+    wallet.network,
+    chatwootConfig,
+    addresses,
+    aspInfo.url,
+    config.aspUrl,
+    swapProvider,
+  ])
 
   const handleOpenChat = () => {
     if (!chatwootConfig) {
