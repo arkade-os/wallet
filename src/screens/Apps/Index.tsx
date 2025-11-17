@@ -12,6 +12,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import EscrowIcon from '../../icons/Escrow'
 import LendasatIcon from './Lendasat/LendasatIcon'
 import LendaswapIcon from './Lendaswap/LendaswapIcon'
+import { FlowContext } from '../../providers/flow'
 
 const Middot = () => (
   <svg width='6' height='6' viewBox='0 0 6 6' fill='none' xmlns='http://www.w3.org/2000/svg' aria-hidden='true'>
@@ -92,6 +93,9 @@ function App({ desc, icon, link, name, live, page }: AppProps) {
 }
 
 export default function Apps() {
+  const { deepLinkInfo } = useContext(FlowContext)
+  const isEscrowEnabled = deepLinkInfo?.appId === 'escrow'
+
   return (
     <>
       <Header text='Apps' />
@@ -124,7 +128,16 @@ export default function Apps() {
               page={Pages.AppLendaswap}
               live
             />
-            <App name='Escrow' icon={<EscrowIcon />} desc='Escrow system on Ark' link='' page={Pages.AppEscrow} live />
+            {isEscrowEnabled ? (
+              <App
+                name='Escrow'
+                icon={<EscrowIcon />}
+                desc='Escrow system on Ark'
+                link=''
+                page={Pages.AppEscrow}
+                live
+              />
+            ) : null}
             <App name='Fuji Money' icon={<FujiMoneyIcon />} desc='Synthetic Assets on the Bitcoin network' />
           </FlexCol>
         </Padded>

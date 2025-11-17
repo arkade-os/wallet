@@ -26,14 +26,14 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 | `VITE_CHATWOOT_BASE_URL`    | ChatWoot server base URL for customer support integration           | `VITE_CHATWOOT_BASE_URL=https://app.chatwoot.com` |
 | `VITE_PSA_MESSAGE`          | Manage message to show in wallet index page                         | `VITE_PSA_MESSAGE=@arkade_os on TG for support`   |
 | `VITE_SENTRY_DSN`           | Enable Sentry error tracking (only in production, not on localhost) | `VITE_SENTRY_DSN=your-sentry-dsn`                 |
-| `CI`                        | Set to `true` for Continuous Integration environments               | `CI=true`                                         |
-| `GENERATE_SOURCEMAP`        | Disable source map generation during build                          | `GENERATE_SOURCEMAP=false`                        |
-| `VITE_LENDASAT_IFRAME_URL`  | Overwrite the default LendaSat URL                                  | `VITE_LENDASAT_IFRAME_URL=http://localhost:5173`  |
-| `VITE_LENDASWAP_IFRAME_URL` | Overwrite the default LendaSwap URL                                 | `VITE_LENDASWAP_IFRAME_URL=http://localhost:5174` |
-| `VITE_UTXO_MAX_AMOUNT`.     | Overwrite the server's utxoMaxAmount                                | `VITE_UTXO_MAX_AMOUNT=-1`                         |
-| `VITE_UTXO_MIN_AMOUNT`.     | Overwrite the server's utxoMinAmount                                | `VITE_UTXO_MIN_AMOUNT=330`                        |
-| `VITE_VTXO_MAX_AMOUNT`.     | Overwrite the server's vtxoMaxAmount                                | `VITE_VTXO_MAX_AMOUNT=-1`                         |
-| `VITE_VTXO_MIN_AMOUNT`.     | Overwrite the server's vtxoMinAmount                                | `VITE_VTXO_MIN_AMOUNT=330`                        |
+| `CI`                        | Set to `true` for Continuous Integration environments           | `CI=true`                                         |
+| `GENERATE_SOURCEMAP`        | Disable source map generation during build                      | `GENERATE_SOURCEMAP=false`                        |
+| `VITE_LENDASAT_IFRAME_URL`  | Overwrite the default LendaSat URL                              | `VITE_LENDASAT_IFRAME_URL=http://localhost:5173`  |
+| `VITE_LENDASWAP_IFRAME_URL` | Overwrite the default LendaSwap URL                             | `VITE_LENDASWAP_IFRAME_URL=http://localhost:5174` |
+| `VITE_UTXO_MAX_AMOUNT`.     | Overwrite the server's utxoMaxAmount                            | `VITE_UTXO_MAX_AMOUNT=-1`                         |
+| `VITE_UTXO_MIN_AMOUNT`.     | Overwrite the server's utxoMinAmount                            | `VITE_UTXO_MIN_AMOUNT=330`                        |
+| `VITE_VTXO_MAX_AMOUNT`.     | Overwrite the server's vtxoMaxAmount                            | `VITE_VTXO_MAX_AMOUNT=-1`                         |
+| `VITE_VTXO_MIN_AMOUNT`.     | Overwrite the server's vtxoMinAmount                            | `VITE_VTXO_MIN_AMOUNT=330`                        |
 | `VITE_ARK_ESCROW_URL` | Override the default Ark Escrow app URL for Ark Escrow              | `VITE_ARK_ESCROW_URL=https://your-ark-escrow-app-url.com` |
 
 ## Getting Started
