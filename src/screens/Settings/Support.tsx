@@ -1,4 +1,4 @@
-import { useContext, useEffect } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { useIonToast } from '@ionic/react'
 import Header from './Header'
 import Content from '../../components/Content'
@@ -11,11 +11,16 @@ import { WalletContext } from '../../providers/wallet'
 import { ConfigContext } from '../../providers/config'
 import SupportIcon from '../../icons/Support'
 import Info from '../../components/Info'
+import { getReceivingAddresses } from '../../lib/asp'
+import { Addresses } from '../../lib/types'
+import { getWebExplorerURL } from '../../lib/explorers'
+import { NetworkName } from '@arkade-os/sdk'
 
 export default function Support() {
-  const { wallet } = useContext(WalletContext)
+  const { wallet, svcWallet } = useContext(WalletContext)
   const { config } = useContext(ConfigContext)
   const [present] = useIonToast()
+  const [addresses, setAddresses] = useState<Addresses>()
   const chatwootConfig = getChatwootConfig()
 
   const chatwoot = useChatwoot(chatwootConfig, {
@@ -25,23 +30,38 @@ export default function Support() {
     darkMode: config.theme.toLowerCase() as 'light' | 'auto',
   })
 
+  // Fetch wallet addresses
+  useEffect(() => {
+    if (svcWallet) {
+      getReceivingAddresses(svcWallet)
+        .then(setAddresses)
+        .catch((err) => console.error('Failed to get addresses:', err))
+    }
+  }, [svcWallet])
+
   // Set user information when Chatwoot is loaded
   useEffect(() => {
-    if (chatwoot.isLoaded && wallet.pubkey && chatwootConfig) {
+    if (chatwoot.isLoaded && wallet.pubkey && chatwootConfig && addresses) {
       // Set user identifier (using wallet pubkey)
       const userIdentifier = wallet.pubkey.substring(0, 16)
       chatwoot.setUser(userIdentifier, {
         name: `User ${userIdentifier}`,
       })
 
-      // Set custom attributes
+      // Get explorer URL for the network
+      const explorerUrl = wallet.network ? getWebExplorerURL(wallet.network as NetworkName) : ''
+
+      // Set custom attributes including addresses for explorer searches
       chatwoot.setCustomAttributes({
         wallet_pubkey: wallet.pubkey,
         network: wallet.network || 'unknown',
         app_version: import.meta.env.VITE_APP_VERSION || 'unknown',
+        ark_address: addresses.offchainAddr || 'not available',
+        btc_boarding_address: addresses.boardingAddr || 'not available',
+        explorer_url: explorerUrl || 'not available',
       })
     }
-  }, [chatwoot.isLoaded, wallet.pubkey, wallet.network, chatwootConfig])
+  }, [chatwoot.isLoaded, wallet.pubkey, wallet.network, chatwootConfig, addresses])
 
   const handleOpenChat = () => {
     if (!chatwootConfig) {
