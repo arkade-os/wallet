@@ -7,6 +7,7 @@ import NotesIcon from '../icons/Notes'
 import VtxosIcon from '../icons/Vtxos'
 import ServerIcon from '../icons/Server'
 import LogsIcon from '../icons/Logs'
+import SupportIcon from '../icons/Support'
 import { SettingsOptions, SettingsSections } from '../lib/types'
 import CogIcon from '../icons/Cog'
 import LockIcon from '../icons/Lock'
@@ -68,6 +69,11 @@ export const options: Option[] = [
     icon: <ServerIcon />,
     option: SettingsOptions.Server,
     section: SettingsSections.Advanced,
+  },
+  {
+    icon: <SupportIcon />,
+    option: SettingsOptions.Support,
+    section: SettingsSections.General,
   },
   {
     icon: <VtxosIcon />,
