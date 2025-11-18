@@ -50,6 +50,7 @@ export default function Backup() {
 
   const toggleNostrBackup = async () => {
     const newConfig = { ...config, nostrBackup: !config.nostrBackup }
+    updateConfig(newConfig, !newConfig.nostrBackup)
     if (newConfig.nostrBackup) {
       const backupProvider = new BackupProvider({ pubkey: config.pubkey })
       await backupProvider.fullBackup(newConfig).catch((error) => {
@@ -57,8 +58,6 @@ export default function Backup() {
         setError('Backup to Nostr failed')
         return
       })
-    } else {
-      updateConfig(newConfig, true)
     }
     present(backupToNostr)
   }
