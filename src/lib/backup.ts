@@ -138,7 +138,13 @@ export class BackupProvider {
     for (const event of sorted) {
       if (!event.content) continue
 
-      const data = JSON.parse(event.content) as NostrStorageData
+      let data: NostrStorageData | null = null
+      try {
+        data = JSON.parse(event.content) as NostrStorageData
+      } catch (err) {
+        console.error('Failed to parse Nostr backup event', err)
+        continue
+      }
       if (!data) continue
 
       if (data.config) loaded.config = data.config
