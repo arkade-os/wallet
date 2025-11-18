@@ -4,6 +4,7 @@ import { ContractRepositoryImpl } from '@arkade-os/sdk'
 import { getPublicKey } from 'nostr-tools/pure'
 import { NostrStorage } from './nostr'
 import { Config } from './types'
+import { consoleError } from './logs'
 
 const storage = new IndexedDBStorageAdapter('arkade-service-worker')
 const contractRepo = new ContractRepositoryImpl(storage)
@@ -142,7 +143,7 @@ export class BackupProvider {
       try {
         data = JSON.parse(event.content) as NostrStorageData
       } catch (err) {
-        console.error('Failed to parse Nostr backup event', err)
+        consoleError(err, 'Failed to parse Nostr backup event')
         continue
       }
       if (!data) continue
