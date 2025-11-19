@@ -55,7 +55,7 @@ export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, ha
   const poll = useCallback(() => {
     if (iframeRef.current?.contentWindow) {
       iframeRef.current.contentWindow.postMessage({ kind: 'ARKADE_KEEP_ALIVE', timestamp: Date.now() }, childOrigin)
-      setTimeout(() => poll(), 5000)
+      setTimeout(() => poll(), isAlive ? 5000 : 2000)
     }
   }, [isAlive, iframeRef, childOrigin])
 
