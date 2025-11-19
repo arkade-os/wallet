@@ -56,6 +56,8 @@ export default function App() {
   }
 
   useEffect(() => {
+    console.log('Chatwoot token present?', Boolean(import.meta.env.VITE_CHATWOOT_WEBSITE_TOKEN))
+    console.log('Chatwoot base url present?', Boolean(import.meta.env.VITE_CHATWOOT_BASE_URL))
     if (aspInfo.unreachable) {
       setLoadingError('Unable to connect to the server. Please check your internet connection and try again.')
     }
