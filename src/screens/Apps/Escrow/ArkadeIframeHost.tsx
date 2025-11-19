@@ -10,6 +10,7 @@ export type ArkadeIdentityHandlers = {
   signin: (challenge: string) => Promise<string>
   signout: () => Promise<unknown>
   getArkWalletAddress: () => Promise<string | undefined>
+  getArkWalletBalance: () => Promise<{ available: number } | undefined>
   fundAddress: (address: string, amount: number) => Promise<void>
 }
 
@@ -27,9 +28,10 @@ export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, ha
   const handleMessage = useMemo(
     () =>
       makeMessageHandler({
-        getXOnlyPublicKey: () => handlers.getXOnlyPublicKey(),
-        signLoginChallenge: (challenge: string) => handlers.signin(challenge),
-        getArkWalletAddress: () => handlers.getArkWalletAddress(),
+        getXOnlyPublicKey: handlers.getXOnlyPublicKey,
+        signLoginChallenge: handlers.signin,
+        getArkWalletAddress: handlers.getArkWalletAddress,
+        getArkWalletBalance: handlers.getArkWalletBalance,
         signArkTransaction: async (base64Tx: string, base64Checkpoints: string[]) => {
           const tx = Transaction.fromPSBT(base64.decode(base64Tx), { allowUnknown: true })
           const checkpoints = base64Checkpoints.map((_) => base64.decode(_))
@@ -45,7 +47,7 @@ export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, ha
             signedCheckpoints,
           }
         },
-        fundAddress: (address, amount) => handlers.fundAddress(address, amount),
+        fundAddress: handlers.fundAddress,
       }),
     [handlers],
   )

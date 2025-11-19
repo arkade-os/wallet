@@ -35,6 +35,16 @@ type RpcArkWalletAddressResponse = {
   }
 }
 
+type RpcArkWalletBalanceRequest = {
+  method: 'get-ark-wallet-balance'
+}
+type RpcArkWalletBalanceResponse = {
+  method: 'get-ark-wallet-balance'
+  payload: {
+    available: number | null
+  }
+}
+
 type RpcArkSignTransactionRequest = {
   method: 'sign-transaction'
   payload: {
@@ -75,6 +85,7 @@ type RpcRequest = {
   | RpcXPublicKeyRequest
   | RpcLoginRequest
   | RpcArkWalletAddressRequest
+  | RpcArkWalletBalanceRequest
   | RpcArkSignTransactionRequest
   | RpcFundAddressRequest
 )
@@ -82,6 +93,7 @@ type RpcResponse = { kind: 'ARKADE_RPC_RESPONSE'; id: string } & (
   | RpcLoginResponse
   | RpcXPublicKeyResponse
   | RpcArkWalletAddressResponse
+  | RpcArkWalletBalanceResponse
   | RpcArkSignTransactionResponse
   | RpcFundAddressResponse
 )
@@ -94,6 +106,7 @@ type Props = {
   getXOnlyPublicKey: () => Promise<Uint8Array | null>
   signLoginChallenge: (challenge: string) => Promise<string>
   getArkWalletAddress: () => Promise<string | undefined>
+  getArkWalletBalance: () => Promise<{ available: number } | undefined>
   signArkTransaction: (tx: string, checkpoints: string[]) => Promise<{ signedTx: string; signedCheckpoints: string[] }>
   fundAddress: (address: string, amount: number) => Promise<void>
 }
@@ -127,6 +140,19 @@ export default function makeMessageHandler(props: Props) {
                 id,
                 method,
                 payload: { arkAddress },
+              },
+            }
+          }
+
+          case 'get-ark-wallet-balance': {
+            const balance = await props.getArkWalletBalance()
+            return {
+              tag: 'success',
+              result: {
+                kind: 'ARKADE_RPC_RESPONSE',
+                id,
+                method,
+                payload: { available: balance?.available ?? null },
               },
             }
           }
