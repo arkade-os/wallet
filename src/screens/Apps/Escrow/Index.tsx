@@ -37,7 +37,7 @@ export default function AppEscrow() {
     const baseUrl = BASE_URLS[aspInfo.network as Network]
     if (!baseUrl) return // No escrow app for this network
     setEscrowAppUrl(baseUrl)
-  }, [aspInfo])
+  }, [aspInfo, svcWallet])
 
   async function getXOnlyPublicKey() {
     const xpubkey = await svcWallet?.identity.xOnlyPublicKey()
@@ -86,14 +86,18 @@ export default function AppEscrow() {
     navigate(Pages.SendDetails)
   }
 
-  const handlers = makeMessageHandler({
-    getXOnlyPublicKey,
-    signLoginChallenge,
-    getArkWalletAddress,
-    getArkWalletBalance,
-    signArkTransaction,
-    fundAddress,
-  })
+  const handlers = useMemo(
+    () =>
+      makeMessageHandler({
+        getXOnlyPublicKey,
+        signLoginChallenge,
+        getArkWalletAddress,
+        getArkWalletBalance,
+        signArkTransaction,
+        fundAddress,
+      }),
+    [svcWallet, navigate, setSendInfo],
+  )
 
   const allowedOrigins = Object.values(BASE_URLS)
     .filter((_) => _ !== null)

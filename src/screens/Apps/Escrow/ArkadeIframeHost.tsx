@@ -68,7 +68,7 @@ export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, me
     iframeRef.current?.addEventListener('load', () => {
       poll()
     })
-  }, [iframeRef.current, poll])
+  }, [poll])
 
   return (
     <iframe
