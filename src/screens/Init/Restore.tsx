@@ -73,7 +73,7 @@ export default function InitRestore() {
         <Padded>
           <FlexCol between>
             <FlexCol>
-              <Input label='Private key' onChange={setSomeKey} />
+              <Input name='private-key' label='Private key' onChange={setSomeKey} />
               <ErrorMessage error={Boolean(error)} text={error} />
             </FlexCol>
             <Text centered color='dark70' fullWidth thin small>

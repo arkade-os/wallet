@@ -3,8 +3,8 @@ import { EncryptedDirectMessage } from 'nostr-tools/kinds'
 import { consoleError } from './logs'
 
 const nostrAppName = 'arkade_backup'
-
 const defaultRelays = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://nostr.arkade.sh']
+const relays = import.meta.env.VITE_NOSTR_RELAY_URL ? [import.meta.env.VITE_NOSTR_RELAY_URL] : defaultRelays
 
 export class NostrStorage {
   private seckey: Uint8Array | null
@@ -21,7 +21,7 @@ export class NostrStorage {
    */
   constructor(options: { seckey?: Uint8Array; pubkey?: string; relays?: string[] }) {
     this.pool = new SimplePool()
-    this.relays = options.relays || defaultRelays
+    this.relays = options.relays || relays
     if (options.seckey) {
       this.pubkey = getPublicKey(options.seckey)
       this.seckey = options.seckey
