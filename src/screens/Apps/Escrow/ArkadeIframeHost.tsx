@@ -1,56 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import makeMessageHandler from './RpcHandler'
-import { Transaction } from '@scure/btc-signer'
-import { base64 } from '@scure/base'
-
-export type ArkadeIdentityHandlers = {
-  getXOnlyPublicKey: () => Promise<Uint8Array | null>
-  sign(tx: Transaction, inputIndexes?: number[]): Promise<Transaction>
-  signerSession: () => Promise<unknown>
-  signin: (challenge: string) => Promise<string>
-  signout: () => Promise<unknown>
-  getArkWalletAddress: () => Promise<string | undefined>
-  getArkWalletBalance: () => Promise<{ available: number } | undefined>
-  fundAddress: (address: string, amount: number) => Promise<void>
-}
+import { MessageHandler } from './RpcHandler'
 
 type Props = {
   src: string
   allowedChildOrigins: string[]
-  handlers: ArkadeIdentityHandlers
+  messageHandler: MessageHandler
 }
 
-export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, handlers }) => {
+export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, messageHandler }) => {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const childOrigin = useMemo(() => new URL(src).origin, [src])
   const [isAlive, setIsAlive] = useState(false)
-
-  const handleMessage = useMemo(
-    () =>
-      makeMessageHandler({
-        getXOnlyPublicKey: handlers.getXOnlyPublicKey,
-        signLoginChallenge: handlers.signin,
-        getArkWalletAddress: handlers.getArkWalletAddress,
-        getArkWalletBalance: handlers.getArkWalletBalance,
-        signArkTransaction: async (base64Tx: string, base64Checkpoints: string[]) => {
-          const tx = Transaction.fromPSBT(base64.decode(base64Tx), { allowUnknown: true })
-          const checkpoints = base64Checkpoints.map((_) => base64.decode(_))
-          const signedTx = await handlers.sign(tx)
-          const signedCheckpoints = await Promise.all(
-            checkpoints.map(async (cp) => {
-              const signed = await handlers.sign(Transaction.fromPSBT(cp, { allowUnknown: true }), [0])
-              return base64.encode(signed.toPSBT())
-            }),
-          )
-          return {
-            signedTx: base64.encode(signedTx.toPSBT()),
-            signedCheckpoints,
-          }
-        },
-        fundAddress: handlers.fundAddress,
-      }),
-    [handlers],
-  )
 
   const poll = useCallback(() => {
     if (iframeRef.current?.contentWindow) {
@@ -76,7 +36,7 @@ export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, ha
       }
 
       try {
-        const result = await handleMessage(msg)
+        const result = await messageHandler(msg)
         if (result.tag === 'failure') {
           console.error(result.error)
         } else {
@@ -102,7 +62,7 @@ export const ArkadeIframeHost: React.FC<Props> = ({ src, allowedChildOrigins, ha
     return () => {
       window.removeEventListener('message', onMessage)
     }
-  }, [handlers, isAlive, allowedChildOrigins])
+  }, [messageHandler, isAlive, allowedChildOrigins])
 
   useEffect(() => {
     iframeRef.current?.addEventListener('load', () => {

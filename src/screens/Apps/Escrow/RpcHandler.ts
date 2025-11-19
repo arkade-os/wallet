@@ -102,6 +102,8 @@ type InboundMessage = RpcRequest | KeepAlive
 
 type OutboundMessage = KeepAlive | RpcResponse
 
+export type MessageHandler = (message: InboundMessage) => Promise<Result>
+
 type Props = {
   getXOnlyPublicKey: () => Promise<Uint8Array | null>
   signLoginChallenge: (challenge: string) => Promise<string>
@@ -111,7 +113,7 @@ type Props = {
   fundAddress: (address: string, amount: number) => Promise<void>
 }
 type Result = { tag: 'success'; result: OutboundMessage } | { tag: 'failure'; error: Error }
-export default function makeMessageHandler(props: Props) {
+export default function makeMessageHandler(props: Props): MessageHandler {
   return async function messageHandler(message: InboundMessage): Promise<Result> {
     switch (message.kind) {
       case 'ARKADE_KEEP_ALIVE':
