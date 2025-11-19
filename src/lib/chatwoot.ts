@@ -1,3 +1,5 @@
+import { consoleError } from './logs'
+
 export interface ChatwootSDK {
   setUser: (identifier: string, user: { name?: string; email?: string; avatar_url?: string }) => void
   setCustomAttributes: (attributes: Record<string, string | number | boolean>) => void
@@ -63,18 +65,24 @@ export const injectAndRunChatwootScript = (vars: ChatwootVars) => {
     g.defer = true
     g.async = true
     if (!s.parentNode) {
-      console.error('Cannot inject Chatwoot script: parent node not found')
+      consoleError('Cannot inject Chatwoot script: parent node not found')
       return
     }
     s.parentNode.insertBefore(g, s)
     g.onload = () => {
+      const period = 100 // in ms
+      let elapsedTime = 0
       const checkSDK = setInterval(() => {
+        elapsedTime += period
         if (window.chatwootSDK) {
           clearInterval(checkSDK)
           window.chatwootSDK.run(vars)
         }
         // Timeout after 5 seconds
-        setTimeout(() => clearInterval(checkSDK), 5000)
+        if (elapsedTime >= 5000) {
+          clearInterval(checkSDK)
+          consoleError('Chatwoot SDK failed to load within 5 seconds')
+        }
       }, 100)
     }
   })(document, 'script')
