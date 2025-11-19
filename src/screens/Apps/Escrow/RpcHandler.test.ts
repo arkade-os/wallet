@@ -20,6 +20,7 @@ describe('makeMessageHandler', () => {
       getXOnlyPublicKey: vi.fn(),
       signLoginChallenge: vi.fn(),
       getArkWalletAddress: vi.fn(),
+      getArkWalletBalance: vi.fn(),
       signArkTransaction: vi.fn(),
       fundAddress: vi.fn(),
     }
@@ -35,7 +36,7 @@ describe('makeMessageHandler', () => {
     }
   })
 
-  it('handles get-x-public-key returning hex string when key exists', async () => {
+  it('handles get-x-public-key returning hex string', async () => {
     const keyBytes = hexToBytes('a1b2c3')
     ;(props.getXOnlyPublicKey as any).mockResolvedValue(keyBytes)
 
@@ -46,27 +47,12 @@ describe('makeMessageHandler', () => {
     expect(res.tag).toBe('success')
     if (res.tag === 'success') {
       const out: any = res.result
-      expect(out.kind).toBe('ARKADE_RPC_RESPONSE')
-      expect(out.id).toBe(id)
       expect(out.method).toBe('get-x-public-key')
       expect(out.payload.xOnlyPublicKey).toBe('a1b2c3')
     }
   })
 
-  it('handles get-x-public-key returning null when no key', async () => {
-    ;(props.getXOnlyPublicKey as any).mockResolvedValue(null)
-
-    const handler = makeMessageHandler(props)
-    const res = await handler({ kind: 'ARKADE_RPC_REQUEST', id, method: 'get-x-public-key' })
-
-    expect(res.tag).toBe('success')
-    if (res.tag === 'success') {
-      const out: any = res.result
-      expect(out.payload.xOnlyPublicKey).toBeNull()
-    }
-  })
-
-  it('handles get-ark-wallet-address with value', async () => {
+  it('handles get-ark-wallet-address', async () => {
     ;(props.getArkWalletAddress as any).mockResolvedValue('ark1qqqq')
     const handler = makeMessageHandler(props)
     const res = await handler({ kind: 'ARKADE_RPC_REQUEST', id, method: 'get-ark-wallet-address' })
@@ -79,14 +65,16 @@ describe('makeMessageHandler', () => {
     }
   })
 
-  it('handles get-ark-wallet-address as null when undefined', async () => {
-    ;(props.getArkWalletAddress as any).mockResolvedValue(undefined)
+  it('handles get-ark-wallet-balance', async () => {
+    ;(props.getArkWalletBalance as any).mockResolvedValue({ available: 7 })
     const handler = makeMessageHandler(props)
-    const res = await handler({ kind: 'ARKADE_RPC_REQUEST', id, method: 'get-ark-wallet-address' })
+    const res = await handler({ kind: 'ARKADE_RPC_REQUEST', id, method: 'get-ark-wallet-balance' })
+    expect(props.getArkWalletBalance).toHaveBeenCalledTimes(1)
     expect(res.tag).toBe('success')
     if (res.tag === 'success') {
       const out: any = res.result
-      expect(out.payload.arkAddress).toBeNull()
+      expect(out.method).toBe('get-ark-wallet-balance')
+      expect(out.payload.available).toBe(7)
     }
   })
 

@@ -138,6 +138,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       case 'lendaswap':
         navigate(Pages.AppLendaswap)
         break
+      case 'escrow':
+        navigate(Pages.AppEscrow)
+        break
       default:
         navigate(Pages.Wallet)
     }

@@ -46,6 +46,10 @@ export default function AppEscrow() {
     return svcWallet?.getAddress()
   }
 
+  async function getArkWalletBalance() {
+    return svcWallet?.getBalance()
+  }
+
   async function sign(tx: Transaction, inputIndexes?: number[]): Promise<Transaction> {
     if (!svcWallet) throw new Error('Wallet not initialized')
     return svcWallet.identity.sign(tx, inputIndexes)
@@ -82,16 +86,21 @@ export default function AppEscrow() {
       signout,
       getXOnlyPublicKey,
       getArkWalletAddress,
+      getArkWalletBalance,
       fundAddress,
     }),
     [svcWallet, navigate, setSendInfo],
   )
 
+  const allowedOrigins = Object.values(BASE_URLS)
+    .filter((_) => _ !== null)
+    .map((url) => new URL(url).origin)
+
   return (
     <>
       <Header text='Escrow on Ark' back={() => navigate(Pages.Apps)} />
       {escrowAppUrl !== null && (
-        <ArkadeIframeHost src={escrowAppUrl} allowedChildOrigins={[new URL(escrowAppUrl).origin]} handlers={handlers} />
+        <ArkadeIframeHost src={escrowAppUrl} allowedChildOrigins={allowedOrigins} handlers={handlers} />
       )}
     </>
   )
