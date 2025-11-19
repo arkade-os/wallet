@@ -62,7 +62,11 @@ export const injectAndRunChatwootScript = (vars: ChatwootVars) => {
     g.src = `${vars.baseUrl}/packs/js/sdk.js`
     g.defer = true
     g.async = true
-    s.parentNode!.insertBefore(g, s)
+    if (!s.parentNode) {
+      console.error('Cannot inject Chatwoot script: parent node not found')
+      return
+    }
+    s.parentNode.insertBefore(g, s)
     g.onload = () => {
       const checkSDK = setInterval(() => {
         if (window.chatwootSDK) {
