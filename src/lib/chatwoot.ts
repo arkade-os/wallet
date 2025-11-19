@@ -30,6 +30,11 @@ export const getChatwootVars = (): ChatwootVars => {
   }
 }
 
+export const hasChatwootVars = (): boolean => {
+  const { websiteToken, baseUrl } = getChatwootVars()
+  return Boolean(websiteToken && baseUrl)
+}
+
 export interface ChatwootSettings {
   hideMessageBubble: boolean
   position: 'left' | 'right'

@@ -15,6 +15,8 @@ import { getWebExplorerURL } from '../../lib/explorers'
 import { NetworkName } from '@arkade-os/sdk'
 import ChatwootWidget from '../../components/ChatWoot'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
+import ErrorMessage from '../../components/Error'
+import { hasChatwootVars } from '../../lib/chatwoot'
 
 export default function Support() {
   const { aspInfo } = useContext(AspContext)
@@ -22,6 +24,7 @@ export default function Support() {
   const { swapProvider } = useContext(LightningContext)
   const { wallet, svcWallet } = useContext(WalletContext)
 
+  const [error, setError] = useState('')
   const [addresses, setAddresses] = useState<Addresses>()
   const [supportChatLoaded, setSupportChatLoaded] = useState(false)
 
@@ -34,17 +37,29 @@ export default function Support() {
     }
   }, [svcWallet])
 
-  // Wait for Chatwoot to load
+  // Wait for Chatwoot to load, show error after 5 seconds if not loaded
   useEffect(() => {
-    const event = 'chatwoot:ready'
+    if (!hasChatwootVars()) {
+      setError('Support chat is not configured')
+      return
+    }
+
+    const loadTimeout = setTimeout(() => {
+      if (!supportChatLoaded) setError('Failed to load support chat')
+    }, 5_000)
+
     const eventHandler = () => {
+      clearTimeout(loadTimeout)
       setSupportChatLoaded(true)
       window.$chatwoot?.toggleBubbleVisibility('hide')
     }
+
+    const event = 'chatwoot:ready'
     window.addEventListener(event, eventHandler)
     return () => window.removeEventListener(event, eventHandler)
   }, [])
 
+  // Set Chatwoot user and custom attributes when addresses are available
   useEffect(() => {
     if (!addresses || !supportChatLoaded || !window.$chatwoot || !wallet.pubkey) return
 
@@ -86,6 +101,7 @@ export default function Support() {
       <Content>
         <Padded>
           <FlexCol gap='1rem'>
+            <ErrorMessage error={Boolean(error)} text={error} />
             <Section
               title='Customer support'
               text='Get help with your wallet, report bugs, or ask questions. Our support team is here to assist you.'
@@ -107,7 +123,13 @@ export default function Support() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button label='Open Support Chat' onClick={handleOpenChat} />
+        {error ? null : (
+          <Button
+            onClick={handleOpenChat}
+            disabled={!supportChatLoaded}
+            label={supportChatLoaded ? 'Open Support Chat' : 'Loading...'}
+          />
+        )}
       </ButtonsOnBottom>
     </>
   )
