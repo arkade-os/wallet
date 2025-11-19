@@ -249,6 +249,14 @@ services:
     container_name: cors
     ports:
       - '9069:9069'
+  nak:
+    build:
+      context: .
+      dockerfile: nak.Dockerfile
+    container_name: nak
+    ports:
+      - '10547:10547'
+    command: ['nak', 'serve', '--hostname', '0.0.0.0', '--port', '10547']
 
 volumes:
   postgres_datadir:
