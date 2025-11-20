@@ -1,17 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 
-// Helper function to clear the amount on keyboard
-async function clearAmount(page: Page) {
-  const backspaceBtn = page.getByTestId('keyboard-x')
-  // Click backspace multiple times to ensure amount is cleared
-  for (let i = 0; i < 10; i++) {
-    await backspaceBtn.click()
-  }
-}
-
-test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, isMobile }) => {
-  test.skip(!isMobile, 'This test is only for mobile')
-
+// Helper function to setup wallet and navigate to keyboard
+async function setupWalletAndOpenKeyboard(page: Page) {
   await page.goto('/')
   await page.getByText('Continue').click()
   await page.getByText('Continue').click()
@@ -19,12 +9,23 @@ test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, is
   await page.getByText('Skip for now').click()
   await page.getByText('+ Create wallet').click()
   await page.getByText('Go to wallet').click()
-
-  // Navigate to receive page to access the keyboard
   await page.getByText('Receive').click()
-
-  // Wait for the keyboard to appear (mobile only)
   await page.waitForSelector('text=Save', { state: 'visible' })
+}
+
+// Helper function to clear the amount on keyboard
+async function clearAmount(page: Page, maxClicks = 10) {
+  const backspaceBtn = page.getByTestId('keyboard-x')
+  // Click backspace multiple times to ensure amount is cleared
+  for (let i = 0; i < maxClicks; i++) {
+    await backspaceBtn.click()
+  }
+}
+
+test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'This test is only for mobile')
+
+  await setupWalletAndOpenKeyboard(page)
 
   // Verify keyboard is visible
   await expect(page.getByText('Amount')).toBeVisible()
@@ -86,19 +87,7 @@ test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, is
 test('should prevent decimal input in SATS mode', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'This test is only for mobile')
 
-  await page.goto('/')
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Skip for now').click()
-  await page.getByText('+ Create wallet').click()
-  await page.getByText('Go to wallet').click()
-
-  // Navigate to receive page
-  await page.getByText('Receive').click()
-
-  // Wait for the keyboard
-  await page.waitForSelector('text=Save', { state: 'visible' })
+  await setupWalletAndOpenKeyboard(page)
 
   // Enter a number in SATS mode
   await page.getByTestId('keyboard-5').click()
@@ -116,19 +105,7 @@ test('should prevent decimal input in SATS mode', async ({ page, isMobile }) => 
 test('should limit FIAT decimals to 2 places', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'This test is only for mobile')
 
-  await page.goto('/')
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Skip for now').click()
-  await page.getByText('+ Create wallet').click()
-  await page.getByText('Go to wallet').click()
-
-  // Navigate to receive page
-  await page.getByText('Receive').click()
-
-  // Wait for the keyboard
-  await page.waitForSelector('text=Save', { state: 'visible' })
+  await setupWalletAndOpenKeyboard(page)
 
   // Toggle to FIAT mode
   const swapButton = page.locator('[aria-label="Toggle currency"]')
