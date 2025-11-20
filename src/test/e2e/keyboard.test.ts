@@ -1,4 +1,13 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
+
+// Helper function to clear the amount on keyboard
+async function clearAmount(page: Page) {
+  const backspaceBtn = page.getByTestId('keyboard-x')
+  // Click backspace multiple times to ensure amount is cleared
+  for (let i = 0; i < 10; i++) {
+    await backspaceBtn.click()
+  }
+}
 
 test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'This test is only for mobile')
@@ -49,11 +58,8 @@ test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, is
   // Test decimal input in FIAT mode
   await swapButton.click() // Switch to FIAT
 
-  // Clear the amount by pressing backspace
-  const backspaceBtn = page.getByTestId('keyboard-x')
-  await backspaceBtn.click()
-  await backspaceBtn.click()
-  await backspaceBtn.click()
+  // Clear the amount
+  await clearAmount(page)
 
   // Enter a FIAT amount with decimals (e.g., 1.50)
   await page.getByTestId('keyboard-1').click()
@@ -129,10 +135,7 @@ test('should limit FIAT decimals to 2 places', async ({ page, isMobile }) => {
   await swapButton.click()
 
   // Clear any existing amount
-  const backspaceBtn = page.getByTestId('keyboard-x')
-  await backspaceBtn.click()
-  await backspaceBtn.click()
-  await backspaceBtn.click()
+  await clearAmount(page)
 
   // Enter 1.99 (valid)
   await page.getByTestId('keyboard-1').click()
