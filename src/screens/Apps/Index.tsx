@@ -69,7 +69,7 @@ function App({ desc, icon, link, name, live, page }: AppProps) {
 
   return (
     <Shadow border borderPurple={live}>
-      <div style={style} onClick={handleClick}>
+      <div data-testid={`app-${name}`} style={style} onClick={handleClick}>
         <FlexCol gap='0.75rem'>
           <FlexRow between>
             {icon}
