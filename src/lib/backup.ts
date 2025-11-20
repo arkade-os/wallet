@@ -101,10 +101,10 @@ export class BackupProvider {
    * Restore data from Nostr
    * @param updateConfig func to update Config
    */
-  restore = async (updateConfig: (config: Config, backup: boolean) => void) => {
+  restore = async (updateConfig: (config: Config) => void) => {
     const data = (await this.loadData()) as NostrStorageData
 
-    if (data?.config) updateConfig(data.config, false)
+    if (data?.config) updateConfig(data.config)
 
     for (const swap of data?.reverseSwaps ?? []) {
       console.log('restoring reverse swap:', swap.id)

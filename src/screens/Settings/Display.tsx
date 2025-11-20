@@ -7,7 +7,13 @@ import { ConfigContext } from '../../providers/config'
 import Header from './Header'
 
 export default function Display() {
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { backupConfig, config, updateConfig } = useContext(ConfigContext)
+
+  const handleChange = async (currencyDisplay: string) => {
+    const newConfig = { ...config, currencyDisplay: currencyDisplay as CurrencyDisplay }
+    if (config.nostrBackup) await backupConfig(newConfig)
+    updateConfig(newConfig)
+  }
 
   return (
     <>
@@ -15,9 +21,7 @@ export default function Display() {
       <Content>
         <Padded>
           <Select
-            onChange={(currencyDisplay) =>
-              updateConfig({ ...config, currencyDisplay: currencyDisplay as CurrencyDisplay }, true)
-            }
+            onChange={handleChange}
             options={[CurrencyDisplay.Both, CurrencyDisplay.Sats, CurrencyDisplay.Fiat]}
             selected={config.currencyDisplay}
           />

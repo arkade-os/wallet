@@ -18,7 +18,7 @@ import Loading from '../../components/Loading'
 
 export default function Server() {
   const { aspInfo } = useContext(AspContext)
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { backupConfig, config, updateConfig } = useContext(ConfigContext)
   const { svcWallet, resetWallet } = useContext(WalletContext)
 
   const [aspUrl, setAspUrl] = useState('')
@@ -56,7 +56,9 @@ export default function Server() {
     try {
       if (!info) return
       await resetWallet()
-      updateConfig({ ...config, aspUrl: info.url }, true)
+      const newConfig = { ...config, aspUrl: info.url }
+      if (config.nostrBackup) await backupConfig(newConfig)
+      updateConfig(newConfig)
       location.reload() // reload app or else weird things happen
     } catch (err) {
       consoleError(err)

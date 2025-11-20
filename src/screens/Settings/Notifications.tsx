@@ -9,17 +9,21 @@ import Toggle from '../../components/Toggle'
 import FlexCol from '../../components/FlexCol'
 
 export default function Notifications() {
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { backupConfig, config, updateConfig } = useContext(ConfigContext)
 
-  const handleChange = () => {
+  const handleChange = async () => {
     if (!notificationApiSupport) return
     if (!config.notifications) {
-      requestPermission().then((notifications) => {
-        updateConfig({ ...config, notifications }, true)
+      requestPermission().then(async (notifications) => {
+        const newConfig = { ...config, notifications }
+        if (config.nostrBackup) await backupConfig(newConfig)
         if (notifications) sendTestNotification()
+        updateConfig(newConfig)
       })
     } else {
-      updateConfig({ ...config, notifications: false }, true)
+      const newConfig = { ...config, notifications: false }
+      if (config.nostrBackup) await backupConfig(newConfig)
+      updateConfig(newConfig)
     }
   }
 

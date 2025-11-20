@@ -20,7 +20,7 @@ import { BackupProvider } from '../../lib/backup'
 import ErrorMessage from '../../components/Error'
 
 export default function Backup() {
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { backupConfig, config, updateConfig } = useContext(ConfigContext)
 
   const [present] = useIonToast()
 
@@ -50,7 +50,7 @@ export default function Backup() {
 
   const toggleNostrBackup = async () => {
     const newConfig = { ...config, nostrBackup: !config.nostrBackup }
-    updateConfig(newConfig, !newConfig.nostrBackup)
+    updateConfig(newConfig)
     if (newConfig.nostrBackup) {
       const backupProvider = new BackupProvider({ pubkey: config.pubkey })
       await backupProvider.fullBackup(newConfig).catch((error) => {
@@ -58,6 +58,8 @@ export default function Backup() {
         setError('Backup to Nostr failed')
         return
       })
+    } else {
+      backupConfig(newConfig)
     }
     present(backupToNostr)
   }
