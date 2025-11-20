@@ -24,7 +24,7 @@ export default function Menu({ rows, styled }: MenuProps) {
     cursor: 'pointer',
     display: 'flex',
     justifyContent: 'space-between',
-    padding: '1rem',
+    padding: '0.8rem 1rem',
     width: '100%',
   })
 
