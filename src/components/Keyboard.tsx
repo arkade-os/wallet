@@ -48,7 +48,7 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
   const handleKeyPress = (k: string) => {
     if (k === 'x' && !amount) return
     const text = amount.toString()
-    
+
     // Handle decimal point
     if (k === '.') {
       const maxDecimals = getMaxDecimals()
@@ -58,14 +58,14 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
       setAmount(Number(res))
       return
     }
-    
+
     // Handle backspace
     if (k === 'x') {
       const res = text.slice(0, -1)
       setAmount(Number(res))
       return
     }
-    
+
     // Handle number input with decimal validation
     const newText = text + k
     const parts = newText.split('.')
@@ -74,7 +74,7 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
       const maxDecimals = getMaxDecimals()
       if (decimalPlaces > maxDecimals) return // Exceeded max decimals
     }
-    
+
     setAmount(Number(newText))
   }
 
@@ -108,15 +108,11 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
   }
 
   // Display amounts based on input mode
-  const primaryAmount = inputMode === 'fiat' 
-    ? prettyAmount(amount, config.fiat)
-    : prettyAmount(amount)
-  const secondaryAmount = inputMode === 'fiat'
-    ? prettyAmount(fromFiat(amount))
-    : prettyAmount(toFiat(amount), config.fiat)
-  const balanceAmount = inputMode === 'fiat'
-    ? prettyAmount(toFiat(availableBalance), config.fiat)
-    : prettyAmount(availableBalance)
+  const primaryAmount = inputMode === 'fiat' ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
+  const secondaryAmount =
+    inputMode === 'fiat' ? prettyAmount(fromFiat(amount)) : prettyAmount(toFiat(amount), config.fiat)
+  const balanceAmount =
+    inputMode === 'fiat' ? prettyAmount(toFiat(availableBalance), config.fiat) : prettyAmount(availableBalance)
 
   const disabled = !amount || Number.isNaN(amount)
 
