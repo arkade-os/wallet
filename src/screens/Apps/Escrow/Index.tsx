@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { hashes } from '@noble/secp256k1'
 import { sha256 } from '@noble/hashes/sha2.js'
