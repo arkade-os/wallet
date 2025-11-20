@@ -31,7 +31,7 @@ export default function Select({ onChange, options, selected }: SelectProps) {
     <>
       {options.map((option, index) => (
         <div key={option} style={{ width: '100%' }}>
-          <FlexRow between key={option} onClick={() => onChange(option)} padding='0.5rem 0'>
+          <FlexRow between key={option} onClick={() => onChange(option)} padding='0.8rem 0'>
             <Text thin>{option}</Text>
             {option === selected && <GreenStatusIcon small />}
           </FlexRow>
