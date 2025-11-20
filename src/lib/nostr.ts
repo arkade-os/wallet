@@ -129,23 +129,13 @@ export class NostrStorage {
 
   /**
    *
-   * @param data message to decrypt
-   * @param pubkey the public key of the sender
-   * @returns decrypted message
-   */
-  private decryptData(payload: string, pubkey: string): string {
-    if (!this.seckey) throw new Error('Secret key is required for decryption')
-    const key = nip44.getConversationKey(this.seckey, pubkey)
-    return nip44.decrypt(payload, key)
-  }
-
-  /**
-   *
    * @param event event to decrypt
    * @returns string encrypted in the event
    */
   private decryptEvent(event: Event): string {
+    if (!this.seckey) throw new Error('Secret key is required for decryption')
     const { content, pubkey } = event
-    return this.decryptData(content, pubkey)
+    const key = nip44.getConversationKey(this.seckey, pubkey)
+    return nip44.decrypt(content, key)
   }
 }
