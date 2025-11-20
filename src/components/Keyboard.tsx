@@ -12,6 +12,8 @@ import Button from './Button'
 import ButtonsOnBottom from './ButtonsOnBottom'
 import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
+import SwapIcon from '../icons/Swap'
+import Shadow from './Shadow'
 
 interface KeyboardProps {
   back: () => void
@@ -21,13 +23,14 @@ interface KeyboardProps {
 }
 
 export default function Keyboard({ back, hideBalance, onChange, value }: KeyboardProps) {
-  const { config, useFiat } = useContext(ConfigContext)
+  const { config } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { balance, svcWallet } = useContext(WalletContext)
 
   const [amount, setAmount] = useState(0)
   const [availableBalance, setAvailableBalance] = useState(0)
   const [error, setError] = useState('')
+  const [inputMode, setInputMode] = useState<'sats' | 'fiat'>('sats')
 
   useEffect(() => {
     setAmount(value ?? 0)
@@ -38,26 +41,82 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
     svcWallet.getBalance().then((bal) => setAvailableBalance(bal.available))
   }, [balance])
 
+  const getMaxDecimals = () => {
+    return inputMode === 'fiat' ? 2 : 0
+  }
+
   const handleKeyPress = (k: string) => {
     if (k === 'x' && !amount) return
     const text = amount.toString()
-    const res = k === 'x' ? text.slice(0, -1) : text + k
-    setAmount(Number(res))
+    
+    // Handle decimal point
+    if (k === '.') {
+      const maxDecimals = getMaxDecimals()
+      if (maxDecimals === 0) return // No decimals for sats
+      if (text.includes('.')) return // Already has decimal point
+      const res = text + k
+      setAmount(Number(res))
+      return
+    }
+    
+    // Handle backspace
+    if (k === 'x') {
+      const res = text.slice(0, -1)
+      setAmount(Number(res))
+      return
+    }
+    
+    // Handle number input with decimal validation
+    const newText = text + k
+    const parts = newText.split('.')
+    if (parts.length > 1) {
+      const decimalPlaces = parts[1].length
+      const maxDecimals = getMaxDecimals()
+      if (decimalPlaces > maxDecimals) return // Exceeded max decimals
+    }
+    
+    setAmount(Number(newText))
   }
 
   const handleMaxPress = () => {
     if (availableBalance < defaultFee) return setError('Total balance is below fee')
-    setAmount(availableBalance - defaultFee)
+    const maxSats = availableBalance - defaultFee
+    const maxAmount = inputMode === 'fiat' ? toFiat(maxSats) : maxSats
+    setAmount(maxAmount)
+  }
+
+  const handleToggleCurrency = () => {
+    // Convert current amount to other currency
+    if (inputMode === 'sats') {
+      // Convert from sats to fiat
+      const fiatAmount = toFiat(amount)
+      setAmount(fiatAmount)
+      setInputMode('fiat')
+    } else {
+      // Convert from fiat to sats
+      const satsAmount = fromFiat(amount)
+      setAmount(satsAmount)
+      setInputMode('sats')
+    }
   }
 
   const handleSave = () => {
-    onChange(amount)
+    // Always save in sats
+    const satsAmount = inputMode === 'fiat' ? fromFiat(amount) : amount
+    onChange(satsAmount)
     back()
   }
 
-  const primaryAmount = useFiat ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
-  const secondaryAmount = useFiat ? prettyAmount(fromFiat(amount)) : prettyAmount(toFiat(amount), config.fiat)
-  const balanceAmount = useFiat ? prettyAmount(availableBalance, config.fiat) : prettyAmount(availableBalance)
+  // Display amounts based on input mode
+  const primaryAmount = inputMode === 'fiat' 
+    ? prettyAmount(amount, config.fiat)
+    : prettyAmount(amount)
+  const secondaryAmount = inputMode === 'fiat'
+    ? prettyAmount(fromFiat(amount))
+    : prettyAmount(toFiat(amount), config.fiat)
+  const balanceAmount = inputMode === 'fiat'
+    ? prettyAmount(toFiat(availableBalance), config.fiat)
+    : prettyAmount(availableBalance)
 
   const disabled = !amount || Number.isNaN(amount)
 
@@ -80,12 +139,24 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
     ['.', '0', 'x'],
   ]
 
-  const auxFunc = hideBalance ? undefined : handleMaxPress
-  const auxText = hideBalance ? undefined : 'Max'
+  const headerRight = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div style={{ cursor: 'pointer' }} onClick={handleToggleCurrency}>
+        <SwapIcon />
+      </div>
+      {!hideBalance && (
+        <Shadow onClick={handleMaxPress}>
+          <Text color='dark80' centered tiny wrap>
+            Max
+          </Text>
+        </Shadow>
+      )}
+    </div>
+  )
 
   return (
     <>
-      <Header auxFunc={auxFunc} auxText={auxText} back={back} text='Amount' />
+      <Header auxIcon={headerRight} back={back} text='Amount' />
       <Content>
         <FlexCol centered gap='0.5rem'>
           <ErrorMessage error={Boolean(error)} text={error} />
