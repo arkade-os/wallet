@@ -15,7 +15,7 @@ export default function General() {
   const { setOption } = useContext(OptionsContext)
 
   const Row = ({ option, value }: { option: SettingsOptions; value: string }) => (
-    <FlexRow between padding='0.5rem 0' onClick={() => setOption(option)}>
+    <FlexRow between padding='0.8rem 0' onClick={() => setOption(option)}>
       <Text capitalize thin>
         {option}
       </Text>
