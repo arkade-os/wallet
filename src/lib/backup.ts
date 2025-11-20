@@ -28,12 +28,12 @@ export const handleNostrRestore = async (
   if (!data) return null
   const { config, reverseSwaps, submarineSwaps } = data
   // restore config and swaps
-  updateConfig(config, false)
-  for (const swap of reverseSwaps) {
+  if (config) updateConfig(config, false)
+  for (const swap of reverseSwaps ?? []) {
     console.log('restoring reverse swap:', swap.id)
     await contractRepo.saveToContractCollection('reverseSwaps', swap, 'id')
   }
-  for (const swap of submarineSwaps) {
+  for (const swap of submarineSwaps ?? []) {
     console.log('restoring submarine swap:', swap.id)
     await contractRepo.saveToContractCollection('submarineSwaps', swap, 'id')
   }
