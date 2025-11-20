@@ -18,7 +18,7 @@ import makeMessageHandler from './RpcHandler'
 hashes.sha256 = sha256
 
 const BASE_URLS: Record<Network, string | null> = {
-  bitcoin: import.meta.env.VITE_ARK_ESCROW_URL ?? null,
+  bitcoin: import.meta.env.VITE_ARK_ESCROW_URL ?? 'https://escrow.arkade.sh/client/',
   mutinynet: 'https://api.escrow.mutinynet.arkade.sh/client/',
   signet: null,
   regtest: 'http://localhost:3002/client',

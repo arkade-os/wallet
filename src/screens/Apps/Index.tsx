@@ -94,7 +94,7 @@ function App({ desc, icon, link, name, live, page }: AppProps) {
 
 export default function Apps() {
   const { deepLinkInfo } = useContext(FlowContext)
-  const isEscrowEnabled = deepLinkInfo?.appId === 'escrow'
+  const isEscrowEnabled = true // deepLinkInfo?.appId === 'escrow'
 
   return (
     <>
