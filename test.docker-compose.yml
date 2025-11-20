@@ -41,10 +41,9 @@ services:
     depends_on:
       pgnbxplorer:
         condition: service_healthy
-
   arkd-wallet:
     restart: unless-stopped
-    image: ghcr.io/arkade-os/arkd-wallet:v0.8.6
+    image: ghcr.io/arkade-os/arkd-wallet:v0.8.7
     container_name: arkd-wallet
     depends_on:
       - nbxplorer
@@ -60,7 +59,7 @@ services:
       - type: tmpfs
         target: /app/data
   arkd:
-    image: ghcr.io/arkade-os/arkd:v0.8.6
+    image: ghcr.io/arkade-os/arkd:v0.8.7
     container_name: arkd
     restart: unless-stopped
     depends_on:
@@ -120,6 +119,7 @@ services:
       - '9736:9735'
       - '10010:10009'
   boltz:
+    container_name: boltz
     restart: unless-stopped
     image: boltz/boltz:ark
     ports:
@@ -135,7 +135,11 @@ services:
         [ark]
         host = "boltz-fulmine"
         port = 7000
-        useLocktimeSeconds = false
+        useLocktimeSeconds = true
+        [ark.unilateralDelays]
+        claim = 444 # 3d.2h in blocks
+        refund = 444 # 3d.2h in blocks
+        refundWithoutReceiver = 720 # 5d in blocks
 
         [api]
         host = "0.0.0.0"
@@ -225,7 +229,8 @@ services:
     volumes:
       - postgres_datadir:/var/lib/postgresql/data
   boltz-fulmine:
-    image: ghcr.io/arklabshq/fulmine:v0.3.4
+    image: ghcr.io/arklabshq/fulmine:v0.3.7
+    container_name: boltz-fulmine
     environment:
       - FULMINE_ARK_SERVER=http://arkd:7070
       - FULMINE_ESPLORA_URL=http://chopsticks:3000
@@ -243,6 +248,8 @@ services:
       context: .
       dockerfile: cors.Dockerfile
     container_name: cors
+    depends_on:
+      - boltz
     ports:
       - '9069:9069'
   nak:

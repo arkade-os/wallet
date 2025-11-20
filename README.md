@@ -68,7 +68,8 @@ Your app is ready to be deployed!
 
 ### `pnpm run regtest`
 
-Starts the regtest environment and sets up the arkd instance. Requires Docker to be installed and [Nigiri](https://nigiri.vulpem.com/) to be running.
+Starts the regtest environment and sets up the arkd instance.\
+Requires Docker to be installed and [Nigiri](https://nigiri.vulpem.com/) to be running.
 
 ### e2e tests
 
