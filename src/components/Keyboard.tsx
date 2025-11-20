@@ -62,7 +62,7 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
     // Handle backspace
     if (k === 'x') {
       const res = text.slice(0, -1)
-      setAmount(Number(res))
+      setAmount(res === '' ? 0 : Number(res))
       return
     }
 
@@ -90,12 +90,14 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
     if (inputMode === 'sats') {
       // Convert from sats to fiat
       const fiatAmount = toFiat(amount)
-      setAmount(fiatAmount)
+      // Round to 2 decimal places to avoid precision issues
+      const roundedFiatAmount = Math.round(fiatAmount * 100) / 100
+      setAmount(roundedFiatAmount)
       setInputMode('fiat')
     } else {
-      // Convert from fiat to sats
+      // Convert from fiat to sats (always results in whole numbers)
       const satsAmount = fromFiat(amount)
-      setAmount(satsAmount)
+      setAmount(Math.floor(satsAmount))
       setInputMode('sats')
     }
   }
@@ -137,7 +139,14 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
 
   const headerRight = (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-      <div style={{ cursor: 'pointer' }} onClick={handleToggleCurrency}>
+      <div
+        style={{ cursor: 'pointer' }}
+        onClick={handleToggleCurrency}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleToggleCurrency()}
+        role='button'
+        tabIndex={0}
+        aria-label='Toggle currency'
+      >
         <SwapIcon />
       </div>
       {!hideBalance && (
