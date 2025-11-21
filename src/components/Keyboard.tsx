@@ -133,7 +133,13 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
 
   return (
     <>
-      <Header auxFunc={handleToggleCurrency} auxIcon={<SwapIcon />} back={back} text='Amount' />
+      <Header
+        auxAriaLabel='Toggle currency'
+        auxFunc={handleToggleCurrency}
+        auxIcon={<SwapIcon />}
+        back={back}
+        text='Amount'
+      />
       <Content>
         <FlexCol centered gap='0.5rem'>
           <ErrorMessage error={Boolean(error)} text={error} />
