@@ -1,22 +1,10 @@
 export default function SwapIcon() {
   return (
-    <svg width='20' height='21' viewBox='0 0 20 21' fill='none' xmlns='http://www.w3.org/2000/svg'>
+    <svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'>
       <path
-        d='M11.875 2.375L16.25 6.75L11.875 11.125'
-        stroke='white'
-        strokeWidth='1.5'
-        strokeLinecap='round'
-        strokeLinejoin='round'
+        fill='currentColor'
+        d='M8 13V5.825L5.425 8.4L4 7l5-5l5 5l-1.425 1.4L10 5.825V13H8Zm7 9l-5-5l1.425-1.4L14 18.175V11h2v7.175l2.575-2.575L20 17l-5 5Z'
       />
-      <path d='M15.5809 6.75H3.75' stroke='white' strokeWidth='1.5' strokeLinecap='round' strokeLinejoin='round' />
-      <path
-        d='M8.125 18.625L3.75 14.25L8.125 9.875'
-        stroke='white'
-        strokeWidth='1.5'
-        strokeLinecap='round'
-        strokeLinejoin='round'
-      />
-      <path d='M4.45312 14.25H16.25' stroke='white' strokeWidth='1.5' strokeLinecap='round' strokeLinejoin='round' />
     </svg>
   )
 }
