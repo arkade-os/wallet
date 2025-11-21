@@ -249,7 +249,10 @@ export default function SendForm() {
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
 
   useEffect(() => {
-    if (!sendInfo.address || sendInfo.arkAddress || sendInfo.invoice) return
+    if (!sendInfo.address || sendInfo.arkAddress || sendInfo.invoice) {
+      setDeductFromAmount(false)
+      return
+    }
     setDeductFromAmount(satoshis + calcOnchainOutputFee() > availableBalance)
   }, [availableBalance, satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
 
