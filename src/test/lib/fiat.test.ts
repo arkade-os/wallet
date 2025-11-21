@@ -11,10 +11,12 @@ describe('fiat utilities', () => {
     const expected = {
       eur: 100,
       usd: 200,
+      chf: 150,
     }
     const mockResponse = {
       EUR: { last: expected.eur },
       USD: { last: expected.usd },
+      CHF: { last: expected.chf },
     }
     fetchMocker.mockResponseOnce(JSON.stringify(mockResponse))
     const result = await getPriceFeed()
