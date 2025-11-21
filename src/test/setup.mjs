@@ -297,11 +297,26 @@ async function setupBoltz() {
   }
 }
 
+async function setupNostr() {
+  try {
+    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('  Setting up Nostr')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
+    console.log('Starting nostr relay on ws://localhost:10547...')
+    await execCommand('docker compose -f test.docker-compose.yml up -d nak', true)
+    console.log('  ✔ Container started')
+  } catch (error) {
+    console.error('\n✗ Error setting up Nostr:', error)
+    throw error
+  }
+}
+
 // Run setup
 async function setup() {
   try {
     await setupArkServer()
     await setupBoltz()
+    await setupNostr()
     console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('  ✓ regtest setup completed successfully')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')

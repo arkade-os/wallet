@@ -12,6 +12,7 @@ import InputWithScanner from './InputWithScanner'
 interface InputAddressProps {
   focus?: boolean
   label?: string
+  name?: string
   onChange: (arg0: any) => void
   onEnter?: () => void
   openScan: () => void
@@ -23,6 +24,7 @@ interface InputAddressProps {
 export default function InputAddress({
   focus,
   label,
+  name,
   onChange,
   onEnter,
   openScan,
@@ -46,6 +48,7 @@ export default function InputAddress({
     <InputWithScanner
       focus={focus}
       label={label}
+      name={name}
       onChange={onChange}
       onEnter={onEnter}
       openScan={openScan}

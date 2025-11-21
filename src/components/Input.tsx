@@ -5,11 +5,12 @@ import { IonInput } from '@ionic/react'
 interface InputProps {
   focus?: boolean
   label?: string
+  name?: string
   onChange: (arg0: any) => void
   onEnter?: () => void
 }
 
-export default function Input({ focus, label, onChange, onEnter }: InputProps) {
+export default function Input({ focus, label, name, onChange, onEnter }: InputProps) {
   const firstRun = useRef(true)
   const input = useRef<HTMLIonInputElement>(null)
 
@@ -28,6 +29,7 @@ export default function Input({ focus, label, onChange, onEnter }: InputProps) {
   return (
     <InputContainer label={label}>
       <IonInput
+        name={name}
         onIonInput={handleInput}
         onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
         ref={input}

@@ -3,13 +3,14 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { useContext, useEffect, useState } from 'react'
 import { ConfigContext } from '../../providers/config'
-import { handleNostrRestore } from '../../lib/backup'
+import { BackupProvider } from '../../lib/backup'
 import { defaultPassword } from '../../lib/constants'
 import { FlowContext } from '../../providers/flow'
 import ErrorMessage from '../../components/Error'
 import Content from '../../components/Content'
 import FlexCol from '../../components/FlexCol'
 import { extractError } from '../../lib/error'
+import Loading from '../../components/Loading'
 import { consoleError } from '../../lib/logs'
 import Button from '../../components/Button'
 import Header from '../../components/Header'
@@ -28,6 +29,7 @@ export default function InitRestore() {
   const [error, setError] = useState('')
   const [label, setLabel] = useState(buttonLabel)
   const [privateKey, setPrivateKey] = useState<Uint8Array>()
+  const [restoring, setRestoring] = useState(false)
   const [someKey, setSomeKey] = useState<string>()
 
   useEffect(() => {
@@ -50,12 +52,19 @@ export default function InitRestore() {
 
   const handleProceed = () => {
     setInitInfo({ privateKey, password: defaultPassword, restoring: true })
-    handleNostrRestore(privateKey!, updateConfig)
-      .then(() => navigate(Pages.InitSuccess))
+    setRestoring(true)
+    new BackupProvider({ seckey: privateKey! })
+      .restore(updateConfig)
       .catch((err) => consoleError(err, 'Error restoring from nostr'))
+      .finally(() => {
+        setRestoring(false)
+        navigate(Pages.InitSuccess)
+      })
   }
 
   const disabled = Boolean(!privateKey || error)
+
+  if (restoring) return <Loading text='Restoring wallet...' />
 
   return (
     <>
@@ -64,7 +73,7 @@ export default function InitRestore() {
         <Padded>
           <FlexCol between>
             <FlexCol>
-              <Input label='Private key' onChange={setSomeKey} />
+              <Input name='private-key' label='Private key' onChange={setSomeKey} />
               <ErrorMessage error={Boolean(error)} text={error} />
             </FlexCol>
             <Text centered color='dark70' fullWidth thin small>
