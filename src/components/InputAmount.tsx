@@ -94,19 +94,19 @@ export default function InputAmount({
           <IonText slot='end' style={{ ...fontStyle, marginLeft: '0.5rem' }}>
             {rightLabel}
           </IonText>
-          {onMax && !disabled && !readOnly ? (
-            <IonText
-              slot='end'
-              style={{ ...fontStyle, marginLeft: '0.5rem', color: 'var(--purpletext)', cursor: 'pointer' }}
-              onClick={onMax}
-              role='button'
-              tabIndex={0}
-              aria-label='Set maximum amount'
-            >
-              Max
-            </IonText>
-          ) : null}
         </IonInput>
+        {onMax && !disabled && !readOnly ? (
+          <IonText
+            slot='end'
+            style={{ ...fontStyle, marginLeft: '0.5rem', color: 'var(--purpletext)', cursor: 'pointer' }}
+            onClick={onMax}
+            role='button'
+            tabIndex={0}
+            aria-label='Set maximum amount'
+          >
+            Max
+          </IonText>
+        ) : null}
       </InputContainer>
     </>
   )
