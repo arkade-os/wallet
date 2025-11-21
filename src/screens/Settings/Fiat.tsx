@@ -20,7 +20,7 @@ export default function Fiat() {
       <Header text='Fiat' back />
       <Content>
         <Padded>
-          <Select onChange={handleChange} options={[Fiats.EUR, Fiats.USD]} selected={config.fiat} />
+          <Select onChange={handleChange} options={[Fiats.EUR, Fiats.USD, Fiats.CHF]} selected={config.fiat} />
         </Padded>
       </Content>
     </>

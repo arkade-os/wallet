@@ -31,6 +31,7 @@ export enum CurrencyDisplay {
 export enum Fiats {
   EUR = 'EUR',
   USD = 'USD',
+  CHF = 'CHF',
 }
 
 export type Satoshis = number
@@ -89,6 +90,7 @@ export enum Unit {
   BTC = 'btc',
   EUR = 'eur',
   USD = 'usd',
+  CHF = 'chf',
   SAT = 'sat',
 }
 
