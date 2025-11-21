@@ -7,6 +7,7 @@ import About from './About'
 import Vtxos from './Vtxos'
 import NotesForm from '../Wallet/Notes/Form'
 import Server from './Server'
+import Support from './Support'
 import { OptionsContext } from '../../providers/options'
 import SettingsMenu from './Menu'
 import Logs from './Logs'
@@ -34,6 +35,7 @@ export default function Settings() {
       {option === SettingsOptions.Notifications && <Notifications />}
       {option === SettingsOptions.Reset && <Reset />}
       {option === SettingsOptions.Server && <Server />}
+      {option === SettingsOptions.Support && <Support />}
       {option === SettingsOptions.Vtxos && <Vtxos />}
       {option === SettingsOptions.Theme && <Theme />}
       {option === SettingsOptions.Fiat && <Fiat />}

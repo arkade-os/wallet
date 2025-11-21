@@ -95,6 +95,11 @@ ion-button {
     --border-color: var(--purple);
     --color: white;
   }
+  &.outline {
+    --background: none;
+    --border-color: var(--dark50);
+    --color: var(--dark50);
+  }
   &.red {
     --background: var(--red);
     --border-color: var(--red);

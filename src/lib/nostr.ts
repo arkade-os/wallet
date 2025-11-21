@@ -1,23 +1,16 @@
 import { finalizeEvent, generateSecretKey, getPublicKey, nip44, SimplePool, UnsignedEvent, Event } from 'nostr-tools'
 import { EncryptedDirectMessage } from 'nostr-tools/kinds'
-import { Config } from './types'
-import { PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { consoleError } from './logs'
 
-export const nostrAppName = 'arkade_backup'
-
+const nostrAppName = 'arkade_backup'
 const defaultRelays = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://nostr.arkade.sh']
-
-export type NostrStorageData = {
-  config: Config
-  reverseSwaps: PendingReverseSwap[]
-  submarineSwaps: PendingSubmarineSwap[]
-}
+const relays = import.meta.env.VITE_NOSTR_RELAY_URL ? [import.meta.env.VITE_NOSTR_RELAY_URL] : defaultRelays
 
 export class NostrStorage {
   private seckey: Uint8Array | null
   private pubkey: string
   private relays: string[]
+  private pool: SimplePool
 
   /**
    * Initialize NostrStorage with either a secret key or public key
@@ -27,7 +20,8 @@ export class NostrStorage {
    * @throws Error if neither seckey nor pubkey is provided, or if pubkey format is invalid
    */
   constructor(options: { seckey?: Uint8Array; pubkey?: string; relays?: string[] }) {
-    this.relays = options.relays || defaultRelays
+    this.pool = new SimplePool()
+    this.relays = options.relays || relays
     if (options.seckey) {
       this.pubkey = getPublicKey(options.seckey)
       this.seckey = options.seckey
@@ -47,10 +41,9 @@ export class NostrStorage {
 
   /**
    * Save a message to Nostr encrypted with nip44
-   * @param payload payload to save
+   * @param payload data to save
    */
-  async save(app: string, payload: NostrStorageData): Promise<void> {
-    const pool = new SimplePool()
+  async save(payload: string): Promise<void> {
     const sk = generateSecretKey()
     const pk = getPublicKey(sk)
 
@@ -58,10 +51,10 @@ export class NostrStorage {
       kind: EncryptedDirectMessage,
       tags: [
         ['p', this.pubkey],
-        ['t', app],
+        ['t', nostrAppName],
       ],
       created_at: Math.floor(Date.now() / 1000),
-      content: this.encryptData(JSON.stringify(payload), sk),
+      content: this.encryptData(payload, sk),
       pubkey: pk,
     }
 
@@ -69,7 +62,7 @@ export class NostrStorage {
 
     try {
       await Promise.race([
-        pool.publish(this.relays, signedEvent),
+        this.pool.publish(this.relays, signedEvent),
         new Promise((_, reject) => {
           setTimeout(() => reject(new Error('Publish timeout')), 10000)
         }),
@@ -78,8 +71,6 @@ export class NostrStorage {
     } catch (error) {
       console.error('Failed to publish to Nostr:', error)
       throw error
-    } finally {
-      pool.close(this.relays)
     }
   }
 
@@ -87,53 +78,39 @@ export class NostrStorage {
    * Load last message from Nostr
    * @returns the decrypted message
    */
-  async load(app: string): Promise<NostrStorageData | null> {
+  async load(): Promise<Event[]> {
     const self = this
     const events: Event[] = []
-    const pool = new SimplePool()
+    let timeoutHandler: ReturnType<typeof setTimeout>
 
     if (!this.seckey) throw new Error('Secret key is required for loading data')
 
     return Promise.race([
-      new Promise<NostrStorageData | null>((resolve) => {
-        const sub = pool.subscribeMany(
+      new Promise<Event[]>((resolve) => {
+        const sub = this.pool.subscribeMany(
           this.relays,
-          { kinds: [4], '#p': [this.pubkey], '#t': [app] },
+          { kinds: [4], '#p': [this.pubkey], '#t': [nostrAppName] },
           {
             onevent(event: Event) {
-              events.push(event)
+              try {
+                const content = self.decryptEvent(event)
+                events.push({ ...event, content })
+              } catch (error) {
+                consoleError(error, 'Failed to decrypt event')
+              }
             },
             oneose() {
               sub.close()
-              pool.close(self.relays)
-              if (events.length === 0) {
-                resolve(null)
-                return
-              }
-              // sort newest first
-              events.sort((a, b) => {
-                const aDate = a.created_at
-                const bDate = b.created_at
-                return bDate - aDate
-              })
-              try {
-                const { content, pubkey } = events[0] // newest event
-                const decrypted = self.decryptData(content, pubkey)
-                if (!decrypted) return resolve(null)
-                resolve(JSON.parse(decrypted) as NostrStorageData)
-              } catch (error) {
-                consoleError(error, 'Failed to decrypt/parse backup data')
-                resolve(null)
-              }
+              if (timeoutHandler) clearTimeout(timeoutHandler)
+              resolve(events)
             },
           },
         )
       }),
-      new Promise<NostrStorageData | null>((resolve) => {
-        setTimeout(() => {
-          pool.close(self.relays)
+      new Promise<Event[]>((resolve) => {
+        timeoutHandler = setTimeout(() => {
           consoleError(new Error('Load timeout'), 'Failed to load backup data')
-          resolve(null)
+          resolve([])
         }, 10000)
       }),
     ])
@@ -152,13 +129,13 @@ export class NostrStorage {
 
   /**
    *
-   * @param data message to decrypt
-   * @param pubkey the public key of the sender
-   * @returns decrypted message
+   * @param event event to decrypt
+   * @returns string encrypted in the event
    */
-  private decryptData(payload: string, pubkey: string): string {
+  private decryptEvent(event: Event): string {
     if (!this.seckey) throw new Error('Secret key is required for decryption')
+    const { content, pubkey } = event
     const key = nip44.getConversationKey(this.seckey, pubkey)
-    return nip44.decrypt(payload, key)
+    return nip44.decrypt(content, key)
   }
 }

@@ -55,6 +55,7 @@ export enum SettingsOptions {
   Password = 'change password',
   Reset = 'reset wallet',
   Server = 'server',
+  Support = 'support',
   Vtxos = 'coin control',
   Theme = 'theme',
   Fiat = 'fiat currency',
@@ -94,6 +95,7 @@ export enum Unit {
 export type Vtxo = ExtendedVirtualCoin
 
 export type Wallet = {
+  thresholdMs?: number
   lockedByBiometrics?: boolean
   network?: NetworkName | ''
   nextRollover: number

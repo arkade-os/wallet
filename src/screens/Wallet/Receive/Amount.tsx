@@ -166,6 +166,7 @@ export default function ReceiveAmount() {
           <FlexCol>
             <ErrorMessage error={Boolean(error)} text={error} />
             <InputAmount
+              name='receive-amount'
               focus={!isMobileBrowser}
               label='Amount'
               onChange={handleChange}

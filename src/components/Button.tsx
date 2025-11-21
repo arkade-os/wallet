@@ -10,10 +10,11 @@ interface ButtonProps {
   icon?: ReactElement
   label: string
   loading?: boolean
+  main?: boolean
   onClick: (event: any) => void
+  outline?: boolean
   red?: boolean
   secondary?: boolean
-  short?: boolean
   small?: boolean
 }
 
@@ -24,18 +25,18 @@ export default function Button({
   icon,
   label,
   loading,
+  main,
   onClick,
+  outline,
   red,
   secondary,
-  short,
   small,
 }: ButtonProps) {
   return (
     <IonButton
-      className={red ? 'red' : secondary ? 'secondary' : clear ? 'clear' : 'dark'}
+      className={red ? 'red' : secondary ? 'secondary' : clear ? 'clear' : outline ? 'outline' : 'dark'}
       disabled={disabled}
-      expand={short ? undefined : 'block'}
-      fill={clear ? 'clear' : 'solid'}
+      fill={clear ? 'clear' : outline ? 'outline' : 'solid'}
       onClick={onClick}
       size={small ? 'small' : 'default'}
     >
@@ -52,7 +53,7 @@ export default function Button({
           <ArrowIcon />
         </FlexRow>
       ) : (
-        <FlexRow centered>
+        <FlexRow main={main} centered>
           {icon}
           {label}
         </FlexRow>

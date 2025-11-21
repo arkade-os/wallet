@@ -2,7 +2,7 @@ import { ReactNode, createContext, useEffect, useState } from 'react'
 import { clearStorage, readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
 import { defaultArkServer } from '../lib/constants'
 import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
-import { handleNostrBackup } from '../lib/backup'
+import { BackupProvider } from '../lib/backup'
 import { consoleError } from '../lib/logs'
 
 const defaultConfig: Config = {
@@ -19,17 +19,19 @@ const defaultConfig: Config = {
 }
 
 interface ConfigContextProps {
+  backupConfig: (c: Config) => Promise<void>
   config: Config
   configLoaded: boolean
   resetConfig: () => void
   setConfig: (c: Config) => void
   showConfig: boolean
   toggleShowConfig: () => void
-  updateConfig: (config: Config, backup: boolean) => void
+  updateConfig: (c: Config) => void
   useFiat: boolean
 }
 
 export const ConfigContext = createContext<ConfigContextProps>({
+  backupConfig: async () => {},
   config: defaultConfig,
   configLoaded: false,
   resetConfig: () => {},
@@ -45,12 +47,19 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
   const [configLoaded, setConfigLoaded] = useState(false)
   const [showConfig, setShowConfig] = useState(false)
 
+  const backupConfig = async (config: Config) => {
+    const backupProvider = new BackupProvider({ pubkey: config.pubkey })
+    await backupProvider.backupConfig(config).catch((error) => {
+      consoleError(error, 'Backup to Nostr failed')
+    })
+  }
+
   const toggleShowConfig = () => setShowConfig(!showConfig)
 
   const preferredTheme = () =>
     window?.matchMedia?.('(prefers-color-scheme: dark)').matches ? Themes.Dark : Themes.Light
 
-  const updateConfig = (config: Config, backup: boolean) => {
+  const updateConfig = async (config: Config) => {
     // add protocol to aspUrl if missing
     if (!config.aspUrl.startsWith('http://') && !config.aspUrl.startsWith('https://')) {
       const protocol = config.aspUrl.startsWith('localhost') ? 'http://' : 'https://'
@@ -59,11 +68,6 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     setConfig(config)
     updateTheme(config)
     saveConfigToStorage(config)
-    if (config.nostrBackup && backup) {
-      handleNostrBackup(config).catch((error) => {
-        consoleError(error, 'Backup failed')
-      })
-    }
   }
 
   const updateTheme = ({ theme }: Config) => {
@@ -75,7 +79,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
 
   const resetConfig = async () => {
     await clearStorage()
-    updateConfig(defaultConfig, false)
+    updateConfig(defaultConfig)
   }
 
   useEffect(() => {
@@ -87,7 +91,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     let config = readConfigFromStorage() ?? { ...defaultConfig, theme: preferredTheme() }
     // allow upgradability
     config = { ...defaultConfig, ...config }
-    updateConfig(config, false)
+    updateConfig(config)
     setConfigLoaded(true)
   }, [configLoaded])
 
@@ -95,7 +99,17 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <ConfigContext.Provider
-      value={{ config, configLoaded, resetConfig, setConfig, showConfig, toggleShowConfig, updateConfig, useFiat }}
+      value={{
+        backupConfig,
+        config,
+        configLoaded,
+        resetConfig,
+        setConfig,
+        showConfig,
+        toggleShowConfig,
+        updateConfig,
+        useFiat,
+      }}
     >
       {children}
     </ConfigContext.Provider>

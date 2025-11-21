@@ -82,9 +82,9 @@ export const prettyLongText = (str?: string, showChars = 11): string => {
   return `${left}...${right}`
 }
 
-export const prettyNumber = (num?: number, maximumFractionDigits = 8): string => {
+export const prettyNumber = (num?: number, maximumFractionDigits = 8, useGrouping = true): string => {
   if (!num) return '0'
-  return new Intl.NumberFormat('en', { style: 'decimal', maximumFractionDigits }).format(num)
+  return new Intl.NumberFormat('en', { style: 'decimal', maximumFractionDigits, useGrouping }).format(num)
 }
 
 export const toUint8Array = (str: string): Uint8Array => {

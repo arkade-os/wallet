@@ -1,4 +1,11 @@
-import { IWallet, ArkNote, RestArkProvider, ExtendedCoin, ServiceWorkerWallet } from '@arkade-os/sdk'
+import {
+  IWallet,
+  ArkNote,
+  RestArkProvider,
+  ExtendedCoin,
+  ServiceWorkerWallet,
+  ExtendedVirtualCoin,
+} from '@arkade-os/sdk'
 import { Addresses, Satoshis, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
 import { consoleError } from './logs'
@@ -6,7 +13,7 @@ import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import { getExpiringAndRecoverableVtxos } from './vtxo'
 
 const emptyFees = {
-  intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
+  intentFee: { offchainInput: '', offchainOutput: '', onchainInput: BigInt(0), onchainOutput: BigInt(0) },
   txFeeRate: '',
 }
 
@@ -195,14 +202,17 @@ export const sendOnChain = async (wallet: IWallet, sats: number, address: string
   return wallet.sendBitcoin({ address, amount: sats })
 }
 
-export const getInputsToSettle = async (wallet: IWallet): Promise<ExtendedCoin[]> => {
-  const vtxos = await getExpiringAndRecoverableVtxos(wallet)
+export const getInputsToSettle = async (
+  wallet: IWallet,
+  thresholdMs?: number,
+): Promise<{ inputs: ExtendedCoin[]; vtxos: ExtendedVirtualCoin[]; boardingUtxos: ExtendedCoin[] }> => {
+  const vtxos = thresholdMs ? await getExpiringAndRecoverableVtxos(wallet, thresholdMs) : []
   const boardingUtxos = await getConfirmedAndNotExpiredUtxos(wallet)
-  return [...boardingUtxos, ...vtxos]
+  return { inputs: [...boardingUtxos, ...vtxos], vtxos, boardingUtxos }
 }
 
-export const settleVtxos = async (wallet: IWallet, dustAmount: bigint): Promise<void> => {
-  const inputs = await getInputsToSettle(wallet)
+export const settleVtxos = async (wallet: IWallet, dustAmount: bigint, thresholdMs?: number): Promise<void> => {
+  const { inputs } = await getInputsToSettle(wallet, thresholdMs)
 
   if (inputs.length === 0) throw new Error('No UTXOs or VTXOs eligible to settle')
 
@@ -220,7 +230,7 @@ export const settleVtxos = async (wallet: IWallet, dustAmount: bigint): Promise<
   await wallet.settle({ inputs, outputs }, console.log)
 }
 
-export const renewCoins = async (wallet: IWallet, dustAmount: bigint): Promise<void> => {
-  const inputs = await getInputsToSettle(wallet)
-  if (inputs.length > 0) await settleVtxos(wallet, dustAmount)
+export const renewCoins = async (wallet: IWallet, dustAmount: bigint, thresholdMs?: number): Promise<void> => {
+  const { inputs } = await getInputsToSettle(wallet, thresholdMs)
+  if (inputs.length > 0) await settleVtxos(wallet, dustAmount, thresholdMs)
 }

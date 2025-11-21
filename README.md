@@ -22,6 +22,8 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 | --------------------------- | ------------------------------------------------------------------- | ------------------------------------------------- |
 | `VITE_ARK_SERVER`           | Override the default Arkade server URL                              | `VITE_ARK_SERVER=http://localhost:7070`           |
 | `VITE_BOLTZ_URL`            | Override the default Boltz swap provider URL for Lightning          | `VITE_BOLTZ_URL=https://boltz-provider-url.com`   |
+| `VITE_CHATWOOT_WEBSITE_TOKEN` | ChatWoot website token for customer support integration           | `VITE_CHATWOOT_WEBSITE_TOKEN=your-token`          |
+| `VITE_CHATWOOT_BASE_URL`    | ChatWoot server base URL for customer support integration           | `VITE_CHATWOOT_BASE_URL=https://app.chatwoot.com` |
 | `VITE_PSA_MESSAGE`          | Manage message to show in wallet index page                         | `VITE_PSA_MESSAGE=@arkade_os on TG for support`   |
 | `VITE_SENTRY_DSN`           | Enable Sentry error tracking (only in production, not on localhost) | `VITE_SENTRY_DSN=your-sentry-dsn`                 |
 | `CI`                        | Set to `true` for Continuous Integration environments               | `CI=true`                                         |
@@ -68,7 +70,8 @@ Your app is ready to be deployed!
 
 ### `pnpm run regtest`
 
-Starts the regtest environment and sets up the arkd instance. Requires Docker to be installed and [Nigiri](https://nigiri.vulpem.com/) to be running.
+Starts the regtest environment and sets up the arkd instance.\
+Requires Docker to be installed and [Nigiri](https://nigiri.vulpem.com/) to be running.
 
 ### e2e tests
 

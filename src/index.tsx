@@ -23,6 +23,7 @@ if (shouldInitializeSentry(sentryDsn)) {
   Sentry.init({
     dsn: sentryDsn,
     sendDefaultPii: false,
+    enableLogs: true,
   })
 }
 
