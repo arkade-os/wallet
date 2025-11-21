@@ -9,6 +9,7 @@ interface InputWithScannerProps {
   error?: string
   focus?: boolean
   label?: string
+  name?: string
   onChange: (arg0: any) => void
   onEnter?: () => void
   openScan: () => void
@@ -21,6 +22,7 @@ export default function InputWithScanner({
   error,
   focus,
   label,
+  name,
   onChange,
   onEnter,
   openScan,
@@ -46,6 +48,7 @@ export default function InputWithScanner({
     <FlexCol gap='0.5rem'>
       <InputContainer label={label} error={error}>
         <IonInput
+          name={name}
           onIonInput={handleInput}
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
           placeholder={placeholder}

@@ -32,7 +32,7 @@ export const LightningContext = createContext<LightningContextProps>({
 export const LightningProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet } = useContext(WalletContext)
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { backupConfig, config, updateConfig } = useContext(ConfigContext)
 
   const [swapProvider, setSwapProvider] = useState<LightningSwapProvider | null>(null)
   const [fees, setFees] = useState<FeesResponse | null>(null)
@@ -71,19 +71,10 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
   }, [swapProvider])
 
   const setConnected = (value: boolean, backup: boolean) => {
-    updateConfig(
-      {
-        ...config,
-        apps: {
-          ...config.apps,
-          boltz: {
-            ...config.apps.boltz,
-            connected: value,
-          },
-        },
-      },
-      backup,
-    )
+    const newConfig = { ...config }
+    newConfig.apps.boltz.connected = value
+    updateConfig(newConfig)
+    if (backup) backupConfig(newConfig)
   }
 
   const calcSubmarineSwapFee = (satoshis: number): number => {

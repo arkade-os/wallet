@@ -256,7 +256,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const network = aspInfo.network as NetworkName
     const esploraUrl = getRestApiExplorerURL(network) ?? ''
     const pubkey = hex.encode(secp.getPublicKey(privateKey))
-    updateConfig({ ...config, pubkey }, false)
+    updateConfig({ ...config, pubkey })
     await initSvcWorkerWallet({
       privateKey: hex.encode(privateKey),
       arkServerUrl,

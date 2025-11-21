@@ -365,6 +365,7 @@ export default function SendForm() {
           <FlexCol gap='2rem'>
             <ErrorMessage error={Boolean(error)} text={error} />
             <InputAddress
+              name='send-address'
               focus={focus === 'recipient'}
               label='Recipient address'
               onChange={setRecipient}
