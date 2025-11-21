@@ -11,7 +11,7 @@ describe('fiat utilities', () => {
     const expected = {
       eur: 100,
       usd: 200,
-      chf: 150,
+      chf: 93,
     }
     const mockResponse = {
       EUR: { last: expected.eur },
