@@ -86,3 +86,71 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     event.waitUntil(worker.reload().catch(console.error))
   }
 })
+
+// Push notification event: display notification when received
+self.addEventListener('push', (event: PushEvent) => {
+  console.log('[SW] Push event received:', event)
+
+  let data: any = {}
+
+  try {
+    const rawData = event.data?.text()
+    console.log('[SW] Raw push data:', rawData)
+    data = event.data?.json() || {}
+    console.log('[SW] Parsed push data:', data)
+  } catch (error) {
+    console.error('[SW] Failed to parse push notification data:', error)
+    data = { title: 'New Notification', body: event.data?.text() || '' }
+  }
+
+  const { title, body, icon, badge, tag, data: payload, actions } = data
+
+  const notificationOptions: NotificationOptions = {
+    body: body || '',
+    icon: icon || '/icon-192.png',
+    badge: badge || '/badge-72.png',
+    tag: tag || 'arkade-notification',
+    data: payload || {},
+    requireInteraction: true, // Force notification to show even when tab is focused
+  }
+
+  console.log('[SW] Showing notification:', title, notificationOptions)
+  event.waitUntil(
+    self.registration
+      .showNotification(title || 'Arkade Wallet', notificationOptions)
+      .then(() => {
+        console.log('[SW] ✅ Notification displayed successfully')
+      })
+      .catch((error) => {
+        console.error('[SW] ❌ Failed to show notification:', error)
+      }),
+  )
+})
+
+// Notification click event: handle when user clicks notification
+self.addEventListener('notificationclick', (event: NotificationEvent) => {
+  event.notification.close()
+
+  // Handle action clicks
+  if (event.action) {
+    if (event.action === 'view') {
+      event.waitUntil(self.clients.openWindow('/wallet'))
+    }
+  } else {
+    // Default action: open wallet
+    event.waitUntil(
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        // If a window is already open, focus it
+        for (const client of clientList) {
+          if (client.url.includes('/wallet') && 'focus' in client) {
+            return client.focus()
+          }
+        }
+        // Otherwise, open a new window
+        if (self.clients.openWindow) {
+          return self.clients.openWindow('/wallet')
+        }
+      }),
+    )
+  }
+})

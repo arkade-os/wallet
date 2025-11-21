@@ -35,6 +35,9 @@ yarn-error.log*
 .pnpm-debug.log
 .idea
 
+# local database files for development
+/db/
+
 # Playwright
 node_modules/
 /test-results/

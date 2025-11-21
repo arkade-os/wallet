@@ -1,0 +1,24 @@
+name = "arkade-push-service"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "development"
+ALLOWED_ORIGINS = "*"
+
+[env.production]
+vars = { ENVIRONMENT = "production", ALLOWED_ORIGINS = "https://arkade.money,https://*.pages.dev,https://*.workers.dev" }
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "arkade-push"
+database_id = "8313e776-c92a-4a36-b346-bd0b7bde32ce"
+
+[env.development]
+vars = { ENVIRONMENT = "development", ALLOWED_ORIGINS = "*" }
+
+[[env.development.d1_databases]]
+binding = "DB"
+database_name = "arkade-push"
+database_id = "8313e776-c92a-4a36-b346-bd0b7bde32ce"
