@@ -76,12 +76,11 @@ export const collaborativeExit = async (wallet: IWallet, amount: number, address
     await captureSettleError(error, wallet, 'collaborativeExit', {
       amount,
       address,
-      selectedVtxosCount: selectedVtxos.length,
       selectedAmount,
       changeAmount,
       selectedVtxos: serializeForSentry(selectedVtxos),
     })
-    throw error // This will never be reached, but satisfies TypeScript
+    throw error
   }
 }
 
@@ -122,12 +121,11 @@ export const collaborativeExitWithFees = async (
       inputAmount,
       outputAmount,
       address,
-      selectedVtxosCount: selectedVtxos.length,
       selectedAmount,
       changeAmount,
       selectedVtxos: serializeForSentry(selectedVtxos),
     })
-    throw error // This will never be reached, but satisfies TypeScript
+    throw error
   }
 }
 
@@ -222,11 +220,11 @@ export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<voi
   } catch (error) {
     await captureSettleError(error, wallet, 'redeemNotes', {
       notesCount: notes.length,
-      inputsCount: inputs.length,
       amount: amount.toString(),
       offchainAddr,
       inputs: serializeForSentry(inputs),
     })
+    throw error
   }
 }
 
@@ -267,12 +265,12 @@ export const settleVtxos = async (wallet: IWallet, dustAmount: bigint, threshold
     await wallet.settle({ inputs, outputs }, console.log)
   } catch (error) {
     await captureSettleError(error, wallet, 'settleVtxos', {
-      inputsCount: inputs.length,
       amount: amount.toString(),
       dustAmount: dustAmount.toString(),
       thresholdMs,
       inputs: serializeForSentry(inputs),
     })
+    throw error
   }
 }
 
