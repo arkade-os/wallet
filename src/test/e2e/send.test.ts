@@ -37,11 +37,13 @@ test('should send offchain funds', async ({ page, isMobile }) => {
 
   // send page
   await page
-    .getByLabel('', { exact: true })
+    .locator('ion-input[name="send-address"] input')
     .fill(
       'tark1qr340xg400jtxat9hdd0ungyu6s05zjtdf85uj9smyzxshf98ndah6u2nredqtn0cr4p4zqz53gsmhju4l9t7x47kzleesa9dprx7e56xhzlen',
     )
+
   await page.locator('ion-input[name="send-amount"] input').fill('2000')
+
   // if on mobile, fill the amount with the keyboard
   if (isMobile) {
     await page.waitForSelector('text=Save', { state: 'visible' })
@@ -52,6 +54,7 @@ test('should send offchain funds', async ({ page, isMobile }) => {
     await btn0.click()
     await page.getByText('Save').click()
   }
+  await page.waitForSelector('text=Continue', { state: 'visible' })
   await page.getByText('Continue').click()
   await page.getByText('Tap to Sign').click()
   await page.waitForSelector('text=Payment sent!')
