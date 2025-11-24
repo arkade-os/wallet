@@ -127,7 +127,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
     .nth(2)
     .click()
   await expect(page.getByText('Lightning invoice')).toBeVisible()
-  await page.locator('svg').nth(5).click() // copy invoice to clipboard
+  await page.locator('svg').nth(6).click() // copy invoice to clipboard
   const receiveInvoice = await readClipboard(page)
   expect(receiveInvoice).toBeDefined()
   expect(receiveInvoice).toBeTruthy()
