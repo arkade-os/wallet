@@ -369,7 +369,8 @@ export default function SendForm() {
     aspInfo.unreachable ||
     satoshis > availableBalance ||
     tryingToSelfSend ||
-    Boolean(error)
+    Boolean(error) ||
+    proceed
 
   if (scan)
     return (
