@@ -55,7 +55,7 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
     .nth(2)
     .click()
   await expect(page.getByText('Lightning invoice')).toBeVisible()
-  await page.locator('svg').nth(5).click() // copy invoice to clipboard
+  await page.locator('svg').nth(6).click() // copy invoice to clipboard
   const invoice = await readClipboard(page)
   expect(invoice).toBeDefined()
   expect(invoice).toBeTruthy()
