@@ -287,6 +287,12 @@ export default function SendForm() {
     navigate(Pages.Settings)
   }
 
+  const handleError = (err: any) => {
+    consoleError(err, 'error sending payment')
+    setError(extractError(err))
+    setProcessing(false)
+  }
+
   const handleContinue = async () => {
     setProcessing(true)
     try {
@@ -299,7 +305,8 @@ export default function SendForm() {
           // Fetch Ark address instead of Lightning invoice
           const arkResponse = await fetchArkAddress(sendInfo.lnUrl)
           if (!isArkAddress(arkResponse.address)) {
-            throw 'Invalid Ark address received from LNURL'
+            handleError('Invalid Ark address received from LNURL')
+            return
           }
           setState({ ...sendInfo, arkAddress: arkResponse.address, invoice: undefined, satoshis })
         } else {
@@ -311,7 +318,7 @@ export default function SendForm() {
         const fee = calcOnchainOutputFee()
         const spendable = availableBalance - fee
         if (spendable <= 0) {
-          setError('Insufficient funds to cover fees')
+          handleError('Insufficient funds to cover fees')
           return
         }
         setState({ ...sendInfo, satoshis: Math.min(satoshis, spendable) })
@@ -320,9 +327,7 @@ export default function SendForm() {
       }
       setProceed(true)
     } catch (error) {
-      consoleError(extractError(error))
-      setError(extractError(error))
-      setProcessing(false)
+      handleError(error)
     }
   }
 
@@ -330,11 +335,6 @@ export default function SendForm() {
     if (!disabled) return handleContinue()
     if (!amount) return setFocus('amount')
     if (!recipient) return setFocus('recipient')
-  }
-
-  const handleError = (err: any) => {
-    consoleError(err, 'error sending payment')
-    setError(extractError(err))
   }
 
   const handleFocus = () => {
