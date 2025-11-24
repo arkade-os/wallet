@@ -65,6 +65,7 @@ export default function SendForm() {
   const [keys, setKeys] = useState(false)
   const [nudgeBoltz, setNudgeBoltz] = useState(false)
   const [proceed, setProceed] = useState(false)
+  const [processing, setProcessing] = useState(false)
   const [recipient, setRecipient] = useState('')
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
   const [satoshis, setSatoshis] = useState(0)
@@ -287,6 +288,7 @@ export default function SendForm() {
   }
 
   const handleContinue = async () => {
+    setProcessing(true)
     try {
       if (sendInfo.lnUrl) {
         // Check if Ark method is available
@@ -320,6 +322,7 @@ export default function SendForm() {
     } catch (error) {
       consoleError(extractError(error))
       setError(extractError(error))
+      setProcessing(false)
     }
   }
 
@@ -365,12 +368,12 @@ export default function SendForm() {
     (lnUrlLimits.min && satoshis < lnUrlLimits.min) ||
     amountIsAboveMaxLimit(satoshis) ||
     amountIsBelowMinLimit(satoshis) ||
-    satoshis < 1 ||
-    aspInfo.unreachable ||
     satoshis > availableBalance ||
+    aspInfo.unreachable ||
     tryingToSelfSend ||
     Boolean(error) ||
-    proceed
+    satoshis < 1 ||
+    processing
 
   if (scan)
     return (
