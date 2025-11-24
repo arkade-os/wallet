@@ -32,7 +32,12 @@ export default function Notifications() {
       <Header text='Notifications' back />
       <Content>
         <Padded>
-          <Toggle checked={config.notifications} onClick={handleChange} text='Allow notifications' />
+          <Toggle
+            checked={config.notifications}
+            onClick={handleChange}
+            text='Allow notifications'
+            testId='toggle-notifications'
+          />
           <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
             {notificationApiSupport ? (
               <TextSecondary>

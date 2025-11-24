@@ -3,12 +3,14 @@ import { Pages, Tabs } from '../../providers/navigation'
 import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { AspInfo } from '../../providers/asp'
 import { SingleKey } from '@arkade-os/sdk'
+import { CurrencyDisplay, Fiats, Themes } from '../../lib/types'
 
 const mockAspInfo: AspInfo = {
   ...emptyAspInfo,
   boardingExitDelay: BigInt(1024),
   checkpointTapscript: '',
   dust: BigInt(333),
+  network: 'regtest',
 }
 
 export const mockTxId = '547b9e710c0b57197ab27faa2192601defe2efb08a45ee8ada765a6829ba451b'
@@ -33,7 +35,13 @@ export const mockAspContextValue = {
 }
 
 export const mockConfigContextValue = {
-  config: { fiat: 'USD' },
+  config: {
+    currencyDisplay: CurrencyDisplay.Both,
+    fiat: Fiats.EUR,
+    nostrBackup: true,
+    notifications: true,
+    theme: Themes.Dark,
+  },
   useFiat: false,
 }
 
