@@ -11,6 +11,7 @@ import { AspInfo } from '../providers/asp'
 import { consoleError } from './logs'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import { getExpiringAndRecoverableVtxos } from './vtxo'
+import * as Sentry from '@sentry/react'
 
 const emptyFees = {
   intentFee: { offchainInput: '', offchainOutput: '', onchainInput: BigInt(0), onchainOutput: BigInt(0) },
@@ -69,7 +70,18 @@ export const collaborativeExit = async (wallet: IWallet, amount: number, address
     outputs.push({ address: offchainAddr, amount: BigInt(changeAmount) })
   }
 
-  return wallet.settle({ inputs: selectedVtxos, outputs })
+  try {
+    return await wallet.settle({ inputs: selectedVtxos, outputs })
+  } catch (error) {
+    await captureSettleError(error, wallet, 'collaborativeExit', {
+      amount,
+      address,
+      selectedAmount,
+      changeAmount,
+      selectedVtxos: serializeForSentry(selectedVtxos),
+    })
+    throw error
+  }
 }
 
 export const collaborativeExitWithFees = async (
@@ -102,7 +114,19 @@ export const collaborativeExitWithFees = async (
     outputs.push({ address: offchainAddr, amount: BigInt(changeAmount) })
   }
 
-  return wallet.settle({ inputs: selectedVtxos, outputs })
+  try {
+    return await wallet.settle({ inputs: selectedVtxos, outputs })
+  } catch (error) {
+    await captureSettleError(error, wallet, 'collaborativeExitWithFees', {
+      inputAmount,
+      outputAmount,
+      address,
+      selectedAmount,
+      changeAmount,
+      selectedVtxos: serializeForSentry(selectedVtxos),
+    })
+    throw error
+  }
 }
 
 export const getAspInfo = async (url: string): Promise<AspInfo> => {
@@ -188,10 +212,20 @@ export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<voi
 
   const { offchainAddr } = await getReceivingAddresses(wallet)
 
-  await wallet.settle({
-    inputs,
-    outputs: [{ address: offchainAddr, amount }],
-  })
+  try {
+    await wallet.settle({
+      inputs,
+      outputs: [{ address: offchainAddr, amount }],
+    })
+  } catch (error) {
+    await captureSettleError(error, wallet, 'redeemNotes', {
+      notesCount: notes.length,
+      amount: amount.toString(),
+      offchainAddr,
+      inputs: serializeForSentry(inputs),
+    })
+    throw error
+  }
 }
 
 export const sendOffChain = async (wallet: IWallet, sats: number, address: string): Promise<string> => {
@@ -227,10 +261,43 @@ export const settleVtxos = async (wallet: IWallet, dustAmount: bigint, threshold
     },
   ]
 
-  await wallet.settle({ inputs, outputs }, console.log)
+  try {
+    await wallet.settle({ inputs, outputs }, console.log)
+  } catch (error) {
+    await captureSettleError(error, wallet, 'settleVtxos', {
+      amount: amount.toString(),
+      dustAmount: dustAmount.toString(),
+      thresholdMs,
+      inputs: serializeForSentry(inputs),
+    })
+    throw error
+  }
 }
 
 export const renewCoins = async (wallet: IWallet, dustAmount: bigint, thresholdMs?: number): Promise<void> => {
   const { inputs } = await getInputsToSettle(wallet, thresholdMs)
   if (inputs.length > 0) await settleVtxos(wallet, dustAmount, thresholdMs)
+}
+
+const serializeForSentry = (value: any): string => {
+  return JSON.stringify(value, (key, val) => (typeof val === 'bigint' ? val.toString() : val))
+}
+
+const captureSettleError = async (
+  error: unknown,
+  wallet: IWallet,
+  functionName: string,
+  baseContext: Record<string, any>,
+): Promise<void> => {
+  const settleContext: Record<string, any> = { ...baseContext }
+  try {
+    settleContext.walletAddress = await wallet.getAddress()
+  } catch {
+    // Ignore if getAddress fails
+  }
+  Sentry.captureException(error, {
+    tags: { function: functionName },
+    contexts: { settle: settleContext },
+  })
+  throw error
 }
