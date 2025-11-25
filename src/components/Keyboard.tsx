@@ -93,13 +93,12 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
       setTextValue(amountInSats ? prettyNumber(toFiat(amountInSats), 2, false) : '')
       setInputMode('fiat')
     } else {
-      setTextValue(amountInSats ? prettyNumber(amountInSats, 0) : '')
+      setTextValue(amountInSats ? prettyNumber(amountInSats, 0, false) : '')
       setInputMode('sats')
     }
   }
 
   const handleSave = () => {
-    console.log('saving', textValue, amountInSats)
     onChange(
       useFiat && inputMode === 'sats'
         ? prettyNumber(toFiat(amountInSats), 2, false)

@@ -18,7 +18,7 @@ import InputAmount from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
-import { prettyAmount } from '../../../lib/format'
+import { prettyAmount, prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import Keyboard from '../../../components/Keyboard'
@@ -68,8 +68,8 @@ export default function SendForm() {
   const [processing, setProcessing] = useState(false)
   const [recipient, setRecipient] = useState('')
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
-  const [satoshis, setSatoshis] = useState(0)
   const [scan, setScan] = useState(false)
+  const [textValue, setTextValue] = useState('')
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
 
   const smartSetError = (str: string) => {
@@ -84,16 +84,31 @@ export default function SendForm() {
   // get receiving addresses
   useEffect(() => {
     if (!svcWallet) return
+    getReceivingAddresses(svcWallet)
+      .then(({ boardingAddr, offchainAddr }) => {
+        if (!boardingAddr || !offchainAddr) {
+          throw new Error('unable to get receiving addresses')
+        }
+        setReceivingAddresses({ boardingAddr, offchainAddr })
+      })
+      .catch(smartSetError)
+  }, [])
+
+  // update form with existing send info
+  useEffect(() => {
     const { recipient, satoshis } = sendInfo
     setRecipient(recipient ?? '')
-    setAmount(satoshis ? satoshis : undefined)
-    getReceivingAddresses(svcWallet).then(setReceivingAddresses)
+    if (!satoshis) return
+    setTextValue(useFiat ? prettyNumber(fromFiat(satoshis)) : prettyNumber(satoshis, 0, false))
   }, [])
 
   // update available balance
   useEffect(() => {
     if (!svcWallet) return
-    svcWallet.getBalance().then((bal) => setAvailableBalance(bal.available))
+    svcWallet
+      .getBalance()
+      .then((bal) => setAvailableBalance(bal.available))
+      .catch(smartSetError)
   }, [balance])
 
   // parse recipient data
@@ -110,7 +125,6 @@ export default function SendForm() {
       if (isBip21(lowerCaseData)) {
         const { address, arkAddress, invoice, satoshis } = decodeBip21(lowerCaseData)
         if (!address && !arkAddress && !invoice) return setError('Unable to parse bip21')
-        setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
         return setState({ address, arkAddress, invoice, recipient, satoshis })
       }
       if (isArkAddress(lowerCaseData)) {
@@ -123,8 +137,9 @@ export default function SendForm() {
         }
         const satoshis = getInvoiceSatoshis(lowerCaseData)
         if (!satoshis) return setError('Invoice must have amount defined')
-        setAmount(useFiat ? toFiat(satoshis) : satoshis ? satoshis : undefined)
-        return setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData })
+        setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData, satoshis })
+        setTextValue(useFiat ? prettyNumber(toFiat(satoshis), 2, false) : prettyNumber(satoshis, 0, false))
+        return
       }
       if (isBTCAddress(recipient)) {
         return setState({ ...sendInfo, address: recipient, arkAddress: '' })
@@ -148,6 +163,7 @@ export default function SendForm() {
 
   // check lnurl limits
   useEffect(() => {
+    const { satoshis } = sendInfo
     const { min, max } = lnUrlLimits
     if (!min || !max) return
     if (min > balance) return setError('Insufficient funds for LNURL')
@@ -214,15 +230,18 @@ export default function SendForm() {
     setError('')
   }, [receivingAddresses, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
 
-  // set satoshis from amount
+  // set text value from satoshis
   useEffect(() => {
-    const numericAmount = amount ?? 0
-    setSatoshis(Math.floor(useFiat ? fromFiat(numericAmount) : numericAmount))
-  }, [amount])
+    if (!sendInfo.satoshis) return
+    const sats = sendInfo.satoshis
+    const value = useFiat ? toFiat(sats) : sats
+    const maximumFractionDigits = useFiat ? 2 : 0
+    setTextValue(prettyNumber(value, maximumFractionDigits, false))
+  }, [sendInfo.satoshis])
 
   // manage button label and errors
   useEffect(() => {
-    setState({ ...sendInfo, satoshis })
+    const satoshis = sendInfo.satoshis ?? 0
     setLabel(
       satoshis > availableBalance
         ? 'Insufficient funds'
@@ -230,15 +249,15 @@ export default function SendForm() {
           ? 'Amount below LNURL min limit'
           : lnUrlLimits.max && satoshis > lnUrlLimits.max
             ? 'Amount above LNURL max limit'
-            : satoshis < 1
+            : satoshis && satoshis < 1
               ? 'Amount below 1 satoshi'
               : amountIsAboveMaxLimit(satoshis)
                 ? 'Amount above max limit'
-                : amountIsBelowMinLimit(satoshis)
+                : satoshis && amountIsBelowMinLimit(satoshis)
                   ? 'Amount below min limit'
                   : 'Continue',
     )
-  }, [satoshis])
+  }, [sendInfo.satoshis])
 
   // manage server unreachable error
   useEffect(() => {
@@ -268,13 +287,15 @@ export default function SendForm() {
     } else navigate(Pages.SendDetails)
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
 
+  // deal with fees deduction from amount
   useEffect(() => {
     if (!sendInfo.address || sendInfo.arkAddress || sendInfo.invoice) {
       setDeductFromAmount(false)
       return
     }
+    const satoshis = sendInfo.satoshis ?? 0
     setDeductFromAmount(satoshis + calcOnchainOutputFee() > availableBalance)
-  }, [availableBalance, satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
+  }, [availableBalance, sendInfo.satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
 
   if (!svcWallet) return <Loading text='Loading...' />
 
@@ -293,6 +314,21 @@ export default function SendForm() {
     setProcessing(false)
   }
 
+  const handleAmountChange = (value: string) => {
+    setTextValue(value)
+    if (!value) {
+      setState({ ...sendInfo, satoshis: 0 })
+      return
+    }
+    const sats = useFiat ? fromFiat(Number(value)) : Number(value)
+    setState({ ...sendInfo, satoshis: sats })
+  }
+
+  const handleRecipientChange = (recipient: string) => {
+    setState({ ...sendInfo, recipient })
+    setRecipient(recipient)
+  }
+
   const handleContinue = async () => {
     setProcessing(true)
     try {
@@ -308,10 +344,10 @@ export default function SendForm() {
             handleError('Invalid Ark address received from LNURL')
             return
           }
-          setState({ ...sendInfo, arkAddress: arkResponse.address, invoice: undefined, satoshis })
+          setState({ ...sendInfo, arkAddress: arkResponse.address, invoice: undefined })
         } else {
           // Fallback to Lightning invoice
-          const invoice = await fetchInvoice(sendInfo.lnUrl, satoshis, '')
+          const invoice = await fetchInvoice(sendInfo.lnUrl, sendInfo.satoshis ?? 0, '')
           setState({ ...sendInfo, invoice, arkAddress: undefined })
         }
       } else if (deductFromAmount) {
@@ -321,9 +357,9 @@ export default function SendForm() {
           handleError('Insufficient funds to cover fees')
           return
         }
-        setState({ ...sendInfo, satoshis: Math.min(satoshis, spendable) })
+        setState({ ...sendInfo, satoshis: Math.min(sendInfo.satoshis ?? 0, spendable) })
       } else {
-        setState({ ...sendInfo, satoshis })
+        setState({ ...sendInfo, satoshis: sendInfo.satoshis ?? 0 })
       }
       setProceed(true)
     } catch (error) {
@@ -339,12 +375,6 @@ export default function SendForm() {
 
   const handleFocus = () => {
     if (isMobileBrowser) setKeys(true)
-  }
-
-  const handleKeyboard = (textValue: string) => {
-    const value = Number(textValue.replaceAll(',', ''))
-    if (Number.isNaN(value)) return
-    setAmount(value)
   }
 
   const handleSendAll = () => {
@@ -366,7 +396,7 @@ export default function SendForm() {
     )
   }
 
-  const { address, arkAddress, lnUrl, invoice } = sendInfo
+  const { address, arkAddress, lnUrl, invoice, satoshis } = sendInfo
 
   const disabled =
     !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
@@ -386,7 +416,7 @@ export default function SendForm() {
       <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
     )
 
-  if (keys) return <Keyboard back={() => setKeys(false)} onChange={handleKeyboard} value={amount} />
+  if (keys) return <Keyboard back={() => setKeys(false)} onChange={handleAmountChange} value={amount} />
 
   return (
     <>
@@ -399,7 +429,7 @@ export default function SendForm() {
               name='send-address'
               focus={focus === 'recipient'}
               label='Recipient address'
-              onChange={setRecipient}
+              onChange={handleRecipientChange}
               onEnter={handleEnter}
               openScan={() => setScan(true)}
               value={recipient}
@@ -410,13 +440,13 @@ export default function SendForm() {
               label='Amount'
               min={lnUrlLimits.min}
               max={lnUrlLimits.max}
-              onChange={setAmount}
+              onChange={handleAmountChange}
               onEnter={handleEnter}
               onFocus={handleFocus}
               onMax={handleSendAll}
               readOnly={amountIsReadOnly}
               right={<Available />}
-              value={amount}
+              value={textValue ? Number(textValue) : undefined}
             />
             {deductFromAmount ? <InfoLine color='orange' text='Fees will be deducted from the amount sent' /> : null}
             {tryingToSelfSend ? (
