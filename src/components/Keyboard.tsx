@@ -17,7 +17,7 @@ import SwapIcon from '../icons/Swap'
 interface KeyboardProps {
   back: () => void
   hideBalance?: boolean
-  onChange: (arg0: number) => void
+  onChange: (arg0: string) => void
   value: number | undefined
 }
 
@@ -99,7 +99,14 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
   }
 
   const handleSave = () => {
-    onChange(amountInSats)
+    console.log('saving', textValue, amountInSats)
+    onChange(
+      useFiat && inputMode === 'sats'
+        ? prettyNumber(toFiat(amountInSats), 2, false)
+        : !useFiat && inputMode === 'fiat'
+          ? prettyNumber(amountInSats, 0, false)
+          : textValue,
+    )
     back()
   }
 

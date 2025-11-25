@@ -126,9 +126,7 @@ export default function ReceiveQRCode() {
             <div>No valid payment methods available for this amount</div>
           ) : showQrCode ? (
             <FlexCol centered>
-              {invoice ? (
-                <InfoLine centered color='orange' text='For Lightning you must keep this tab open all the time' />
-              ) : null}
+              {invoice ? <InfoLine centered color='orange' text='Keep tab open to receive Lightning' /> : null}
               <QrCode value={qrValue} />
               <ExpandAddresses
                 bip21uri={bip21uri}

@@ -341,6 +341,12 @@ export default function SendForm() {
     if (isMobileBrowser) setKeys(true)
   }
 
+  const handleKeyboard = (textValue: string) => {
+    const value = Number(textValue.replaceAll(',', ''))
+    if (Number.isNaN(value)) return
+    setAmount(value)
+  }
+
   const handleSendAll = () => {
     const fees = sendInfo.lnUrl ? (calcSubmarineSwapFee(availableBalance) ?? 0) : 0
     const amountInSats = availableBalance - fees
@@ -380,7 +386,7 @@ export default function SendForm() {
       <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
     )
 
-  if (keys) return <Keyboard back={() => setKeys(false)} onChange={setAmount} value={amount} />
+  if (keys) return <Keyboard back={() => setKeys(false)} onChange={handleKeyboard} value={amount} />
 
   return (
     <>

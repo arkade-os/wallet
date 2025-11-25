@@ -15,7 +15,7 @@ import Keyboard from '../../../components/Keyboard'
 import { WalletContext } from '../../../providers/wallet'
 import { callFaucet, pingFaucet } from '../../../lib/faucet'
 import Loading from '../../../components/Loading'
-import { prettyAmount, prettyNumber } from '../../../lib/format'
+import { prettyAmount } from '../../../lib/format'
 import Success from '../../../components/Success'
 import { consoleError } from '../../../lib/logs'
 import { AspContext } from '../../../providers/asp'
@@ -93,8 +93,8 @@ export default function ReceiveAmount() {
 
   if (!svcWallet) return <Loading text='Loading...' />
 
-  const handleChange = (amount: number) => {
-    setAmount(amount)
+  const handleChange = (textValue: string) => {
+    setAmount(Number(textValue))
     setButtonLabel(amount ? 'Continue' : defaultButtonLabel)
   }
 
@@ -125,7 +125,7 @@ export default function ReceiveAmount() {
   const showFaucetButton = balance === 0 && faucetAvailable
   const showLightningFees = amount && validLnSwap(satoshis)
   const reverseSwapFee = calcReverseSwapFee(satoshis)
-  const lightningFeeText = `In Lightning you'll receive: ${prettyNumber(satoshis)} - ${reverseSwapFee} = ${prettyAmount(Math.max(0, satoshis - reverseSwapFee))}`
+  const lightningFeeText = `Lightning fees: ${prettyAmount(reverseSwapFee)}`
 
   const disabled = !satoshis
     ? false
@@ -174,7 +174,7 @@ export default function ReceiveAmount() {
               onFocus={handleFocus}
               value={amount}
             />
-            {showLightningFees ? <InfoLine text={lightningFeeText} /> : null}
+            {showLightningFees ? <InfoLine color='orange' text={lightningFeeText} /> : null}
           </FlexCol>
         </Padded>
       </Content>
