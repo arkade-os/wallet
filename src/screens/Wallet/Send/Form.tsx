@@ -138,7 +138,8 @@ export default function SendForm() {
         const satoshis = getInvoiceSatoshis(lowerCaseData)
         if (!satoshis) return setError('Invoice must have amount defined')
         setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData, satoshis })
-        setTextValue(useFiat ? prettyNumber(toFiat(satoshis), 2, false) : prettyNumber(satoshis, 0, false))
+        setAmountIsReadOnly(true)
+        setAmount(satoshis)
         return
       }
       if (isBTCAddress(recipient)) {
@@ -314,14 +315,10 @@ export default function SendForm() {
     setProcessing(false)
   }
 
-  const handleAmountChange = (value: string) => {
-    setTextValue(value)
-    if (!value) {
-      setState({ ...sendInfo, satoshis: 0 })
-      return
-    }
-    const sats = useFiat ? fromFiat(Number(value)) : Number(value)
+  const handleAmountChange = (sats: number) => {
+    setTextValue(useFiat ? prettyNumber(toFiat(sats), 2, false) : prettyNumber(sats, 0, false))
     setState({ ...sendInfo, satoshis: sats })
+    setAmount(sats)
   }
 
   const handleRecipientChange = (recipient: string) => {
@@ -368,7 +365,7 @@ export default function SendForm() {
   }
 
   const handleEnter = () => {
-    if (!disabled) return handleContinue()
+    if (!buttonDisabled) return handleContinue()
     if (!amount) return setFocus('amount')
     if (!recipient) return setFocus('recipient')
   }
@@ -380,8 +377,11 @@ export default function SendForm() {
   const handleSendAll = () => {
     const fees = sendInfo.lnUrl ? (calcSubmarineSwapFee(availableBalance) ?? 0) : 0
     const amountInSats = availableBalance - fees
-    const amount = useFiat ? toFiat(amountInSats) : amountInSats
-    setAmount(amount)
+    const maximumFractionDigits = useFiat ? 2 : 0
+    const value = useFiat ? toFiat(amountInSats) : amountInSats
+    setTextValue(prettyNumber(value, maximumFractionDigits, false))
+    setState({ ...sendInfo, satoshis: amountInSats })
+    setAmount(amountInSats)
   }
 
   const Available = () => {
@@ -398,7 +398,7 @@ export default function SendForm() {
 
   const { address, arkAddress, lnUrl, invoice, satoshis } = sendInfo
 
-  const disabled =
+  const buttonDisabled =
     !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
     (lnUrlLimits.max && satoshis > lnUrlLimits.max) ||
     (lnUrlLimits.min && satoshis < lnUrlLimits.min) ||
@@ -416,7 +416,8 @@ export default function SendForm() {
       <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
     )
 
-  if (keys) return <Keyboard back={() => setKeys(false)} onChange={handleAmountChange} value={amount} />
+  if (keys && !amountIsReadOnly)
+    return <Keyboard back={() => setKeys(false)} onSats={handleAmountChange} value={amount} />
 
   return (
     <>
@@ -440,12 +441,13 @@ export default function SendForm() {
               label='Amount'
               min={lnUrlLimits.min}
               max={lnUrlLimits.max}
-              onChange={handleAmountChange}
+              onSats={handleAmountChange}
               onEnter={handleEnter}
               onFocus={handleFocus}
               onMax={handleSendAll}
               readOnly={amountIsReadOnly}
               right={<Available />}
+              sats={amount}
               value={textValue ? Number(textValue) : undefined}
             />
             {deductFromAmount ? <InfoLine color='orange' text='Fees will be deducted from the amount sent' /> : null}
@@ -467,7 +469,7 @@ export default function SendForm() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleContinue} label={label} disabled={disabled} />
+        <Button onClick={handleContinue} label={label} disabled={buttonDisabled} />
       </ButtonsOnBottom>
     </>
   )
