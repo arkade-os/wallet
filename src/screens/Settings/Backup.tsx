@@ -89,6 +89,7 @@ export default function Backup() {
                   onClick={toggleNostrBackup}
                   text='Enable Nostr backups'
                   subtext='Turn Nostr backups on or off'
+                  testId='toggle-backup'
                 />
               </FlexCol>
             </Padded>
