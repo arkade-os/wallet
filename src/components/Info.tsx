@@ -1,7 +1,7 @@
 import FlexRow from './FlexRow'
 import InfoIcon, { InfoIconDark } from '../icons/Info'
 import FlexCol from './FlexCol'
-import Text, { TextSecondary } from './Text'
+import Text from './Text'
 import { ReactElement, ReactNode } from 'react'
 
 interface InfoProps {
@@ -31,10 +31,12 @@ export default function Info({ children, color, icon, title }: InfoProps) {
 
 export function InfoLine({ centered, color, text }: { centered?: boolean; color?: string; text: string }) {
   return (
-    <FlexCol margin='0 0 2rem 0'>
+    <FlexCol margin='0 0 1rem 0'>
       <FlexRow centered={centered}>
         <InfoIcon color={color ?? 'dark50'} />
-        <TextSecondary>{text}</TextSecondary>
+        <Text color='dark50' small wrap>
+          {text}
+        </Text>
       </FlexRow>
     </FlexCol>
   )

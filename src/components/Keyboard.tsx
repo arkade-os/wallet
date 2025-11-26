@@ -17,11 +17,11 @@ import SwapIcon from '../icons/Swap'
 interface KeyboardProps {
   back: () => void
   hideBalance?: boolean
-  onChange: (arg0: number) => void
+  onSats: (sats: number) => void
   value: number | undefined
 }
 
-export default function Keyboard({ back, hideBalance, onChange, value }: KeyboardProps) {
+export default function Keyboard({ back, hideBalance, onSats, value }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { balance, svcWallet } = useContext(WalletContext)
@@ -93,13 +93,14 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
       setTextValue(amountInSats ? prettyNumber(toFiat(amountInSats), 2, false) : '')
       setInputMode('fiat')
     } else {
-      setTextValue(amountInSats ? prettyNumber(amountInSats, 0) : '')
+      setTextValue(amountInSats ? prettyNumber(amountInSats, 0, false) : '')
       setInputMode('sats')
     }
   }
 
   const handleSave = () => {
-    onChange(amountInSats)
+    console.log('Keyboard - saving amountInSats:', amountInSats)
+    onSats(amountInSats)
     back()
   }
 
