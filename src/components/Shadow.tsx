@@ -38,7 +38,7 @@ export default function Shadow({
           ? 'var(--dark05)'
           : inverted
             ? 'var(--magenta)'
-            : 'var(--dark05)',
+            : 'var(--dark10)',
     border: border ? `1px solid var(--${borderPurple ? 'purple' : 'dark10'})` : undefined,
     borderRadius: squared ? undefined : '0.5rem',
     color: purple ? 'white' : '',
