@@ -23,7 +23,7 @@ export const detectJSCapabilities = async (): Promise<JSCapabilityCheck> => {
     if (!window.Worker) {
       return {
         isSupported: false,
-        errorMessage: 'Web Workers are not supported in this environment. The wallet requires Web Workers to function.',
+        errorMessage: 'Web Workers are required but not supported in this environment',
       }
     }
 
@@ -31,8 +31,7 @@ export const detectJSCapabilities = async (): Promise<JSCapabilityCheck> => {
     if (!('serviceWorker' in navigator)) {
       return {
         isSupported: false,
-        errorMessage:
-          'Service Workers are not supported in this environment. The wallet requires Service Workers to function.',
+        errorMessage: 'Service Workers are required but not supported in this environment',
       }
     }
 
@@ -40,7 +39,7 @@ export const detectJSCapabilities = async (): Promise<JSCapabilityCheck> => {
     if (!window.indexedDB) {
       return {
         isSupported: false,
-        errorMessage: 'IndexedDB is not supported in this environment. The wallet requires IndexedDB for storage.',
+        errorMessage: 'IndexedDB is required but not supported in this environment',
       }
     }
 
@@ -48,8 +47,7 @@ export const detectJSCapabilities = async (): Promise<JSCapabilityCheck> => {
     if (!window.crypto || !window.crypto.subtle) {
       return {
         isSupported: false,
-        errorMessage:
-          'Web Crypto API is not supported in this environment. The wallet requires cryptographic capabilities.',
+        errorMessage: 'Web Crypto API is required but not supported in this environment',
       }
     }
 
