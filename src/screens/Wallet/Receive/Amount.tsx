@@ -29,7 +29,7 @@ import { InfoLine } from '../../../components/Info'
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
-  const { fromFiat, toFiat } = useContext(FiatContext)
+  const { toFiat } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { calcReverseSwapFee } = useContext(LightningContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, validLnSwap } = useContext(LimitsContext)
@@ -38,7 +38,6 @@ export default function ReceiveAmount() {
 
   const defaultButtonLabel = 'Skip'
 
-  const [amount, setAmount] = useState<number>()
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
   const [error, setError] = useState('')
   const [fauceting, setFauceting] = useState(false)
@@ -46,6 +45,7 @@ export default function ReceiveAmount() {
   const [faucetAvailable, setFaucetAvailable] = useState(false)
   const [satoshis, setSatoshis] = useState(0)
   const [showKeys, setShowKeys] = useState(false)
+  const [textValue, setTextValue] = useState('')
 
   useEffect(() => {
     setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
@@ -73,11 +73,6 @@ export default function ReceiveAmount() {
   }, [svcWallet])
 
   useEffect(() => {
-    const v = amount ?? 0
-    setSatoshis(useFiat ? fromFiat(v) : v)
-  }, [amount])
-
-  useEffect(() => {
     setButtonLabel(
       !satoshis
         ? defaultButtonLabel
@@ -93,14 +88,17 @@ export default function ReceiveAmount() {
 
   if (!svcWallet) return <Loading text='Loading...' />
 
-  const handleChange = (amount: number) => {
-    setAmount(amount)
-    setButtonLabel(amount ? 'Continue' : defaultButtonLabel)
+  const handleChange = (sats: number) => {
+    setSatoshis(sats)
+    const value = useFiat ? toFiat(sats) : sats
+    const maximumFractionDigits = useFiat ? 2 : 0
+    setTextValue(prettyNumber(value, maximumFractionDigits, false))
+    setButtonLabel(sats ? 'Continue' : defaultButtonLabel)
   }
 
   const handleFaucet = async () => {
     try {
-      if (!amount) throw 'Invalid amount'
+      if (!satoshis) throw 'Invalid amount'
       setFauceting(true)
       const ok = await callFaucet(recvInfo.offchainAddr, satoshis, aspInfo)
       if (!ok) throw 'Faucet failed'
@@ -123,16 +121,16 @@ export default function ReceiveAmount() {
   }
 
   const showFaucetButton = balance === 0 && faucetAvailable
-  const showLightningFees = amount && validLnSwap(satoshis)
+  const showLightningFees = satoshis && validLnSwap(satoshis)
   const reverseSwapFee = calcReverseSwapFee(satoshis)
-  const lightningFeeText = `In Lightning you'll receive: ${prettyNumber(satoshis)} - ${reverseSwapFee} = ${prettyAmount(Math.max(0, satoshis - reverseSwapFee))}`
+  const lightningFeeText = `Lightning fees: ${prettyAmount(reverseSwapFee)}`
 
   const disabled = !satoshis
     ? false
     : satoshis < 1 || amountIsAboveMaxLimit(satoshis) || amountIsBelowMinLimit(satoshis)
 
   if (showKeys) {
-    return <Keyboard back={() => setShowKeys(false)} hideBalance onChange={handleChange} value={amount} />
+    return <Keyboard back={() => setShowKeys(false)} hideBalance onSats={handleChange} value={satoshis} />
   }
 
   if (fauceting) {
@@ -147,7 +145,7 @@ export default function ReceiveAmount() {
   }
 
   if (faucetSuccess) {
-    const displayAmount = useFiat ? prettyAmount(toFiat(amount), config.fiat) : prettyAmount(amount ?? 0)
+    const displayAmount = useFiat ? prettyAmount(toFiat(satoshis), config.fiat) : prettyAmount(satoshis ?? 0)
     return (
       <>
         <Header text='Success' />
@@ -169,18 +167,19 @@ export default function ReceiveAmount() {
               name='receive-amount'
               focus={!isMobileBrowser}
               label='Amount'
-              onChange={handleChange}
+              onSats={handleChange}
               onEnter={handleProceed}
               onFocus={handleFocus}
-              value={amount}
+              value={textValue ? Number(textValue) : undefined}
+              sats={satoshis}
             />
-            {showLightningFees ? <InfoLine text={lightningFeeText} /> : null}
+            {showLightningFees ? <InfoLine color='orange' text={lightningFeeText} /> : null}
           </FlexCol>
         </Padded>
       </Content>
       <ButtonsOnBottom>
         <Button label={buttonLabel} onClick={handleProceed} disabled={disabled} />
-        {showFaucetButton ? <Button disabled={!amount} label='Faucet' onClick={handleFaucet} secondary /> : null}
+        {showFaucetButton ? <Button disabled={!satoshis} label='Faucet' onClick={handleFaucet} secondary /> : null}
       </ButtonsOnBottom>
     </>
   )
