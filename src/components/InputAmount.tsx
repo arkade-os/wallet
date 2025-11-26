@@ -12,6 +12,7 @@ interface InputAmountProps {
   label?: string
   min?: number
   max?: number
+  name?: string
   onChange: (arg0: any) => void
   onEnter?: () => void
   onFocus?: () => void
@@ -27,6 +28,7 @@ export default function InputAmount({
   label,
   min,
   max,
+  name,
   onChange,
   onEnter,
   onFocus,
@@ -77,6 +79,7 @@ export default function InputAmount({
       <InputContainer error={error} label={label} right={right} bottomLeft={bottomLeft} bottomRight={bottomRight}>
         <IonInput
           disabled={disabled}
+          name={name}
           onIonFocus={onFocus}
           onIonInput={handleInput}
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
@@ -91,19 +94,19 @@ export default function InputAmount({
           <IonText slot='end' style={{ ...fontStyle, marginLeft: '0.5rem' }}>
             {rightLabel}
           </IonText>
-          {onMax && !disabled && !readOnly ? (
-            <IonText
-              slot='end'
-              style={{ ...fontStyle, marginLeft: '0.5rem', color: 'var(--purpletext)', cursor: 'pointer' }}
-              onClick={onMax}
-              role='button'
-              tabIndex={0}
-              aria-label='Set maximum amount'
-            >
-              Max
-            </IonText>
-          ) : null}
         </IonInput>
+        {onMax && !disabled && !readOnly ? (
+          <IonText
+            slot='end'
+            style={{ ...fontStyle, marginLeft: '0.5rem', color: 'var(--purpletext)', cursor: 'pointer' }}
+            onClick={onMax}
+            role='button'
+            tabIndex={0}
+            aria-label='Set maximum amount'
+          >
+            Max
+          </IonText>
+        ) : null}
       </InputContainer>
     </>
   )

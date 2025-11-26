@@ -6,6 +6,7 @@ import FlexRow from './FlexRow'
 import React from 'react'
 
 interface HeaderProps {
+  auxAriaLabel?: string
   auxFunc?: () => void
   auxText?: string
   auxIcon?: JSX.Element
@@ -13,7 +14,7 @@ interface HeaderProps {
   text: string
 }
 
-export default function Header({ auxFunc, auxText, back, text, auxIcon }: HeaderProps) {
+export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, auxIcon }: HeaderProps) {
   const SideButton = (text: string, onClick = () => {}) => (
     <Shadow onClick={onClick}>
       <Text color='dark80' centered tiny wrap>
@@ -35,15 +36,15 @@ export default function Header({ auxFunc, auxText, back, text, auxIcon }: Header
       <FlexRow between>
         <div style={{ minWidth: '4rem' }}>
           {back ? (
-            <div onClick={back} style={{ cursor: 'pointer', marginLeft: '0.5rem' }}>
+            <div onClick={back} style={{ cursor: 'pointer', marginLeft: '0.5rem' }} aria-label='Go back'>
               <BackIcon />
             </div>
           ) : (
             <p>&nbsp;</p>
           )}
         </div>
-        <IonTitle class='ion-text-center'>{text}</IonTitle>
-        <div style={style} onClick={auxFunc}>
+        <IonTitle className='ion-text-center'>{text}</IonTitle>
+        <div style={style} onClick={auxFunc} aria-label={auxAriaLabel}>
           {auxText ? SideButton(auxText) : auxIcon ? auxIcon : <p>&nbsp;</p>}
         </div>
       </FlexRow>

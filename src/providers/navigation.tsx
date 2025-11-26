@@ -25,12 +25,15 @@ import AppBoltzSettings from '../screens/Apps/Boltz/Settings'
 import InitSuccess from '../screens/Init/Success'
 import AppBoltzSwap from '../screens/Apps/Boltz/Swap'
 import AppLendasat from '../screens/Apps/Lendasat/Index'
+import AppLendaswap from '../screens/Apps/Lendaswap/Index'
+import ServerDown from '../screens/Wallet/ServerDown'
 
 export enum Pages {
   AppBoltz,
   AppBoltzSettings,
   AppBoltzSwap,
   AppLendasat,
+  AppLendaswap,
   Apps,
   Init,
   InitRestore,
@@ -48,6 +51,7 @@ export enum Pages {
   SendForm,
   SendDetails,
   SendSuccess,
+  ServerDown,
   Settings,
   Transaction,
   Unlock,
@@ -67,6 +71,7 @@ const pageTab = {
   [Pages.AppBoltzSettings]: Tabs.Apps,
   [Pages.AppBoltzSwap]: Tabs.Apps,
   [Pages.AppLendasat]: Tabs.Apps,
+  [Pages.AppLendaswap]: Tabs.Apps,
   [Pages.Apps]: Tabs.Apps,
   [Pages.Init]: Tabs.None,
   [Pages.InitRestore]: Tabs.None,
@@ -84,6 +89,7 @@ const pageTab = {
   [Pages.SendForm]: Tabs.Wallet,
   [Pages.SendDetails]: Tabs.Wallet,
   [Pages.SendSuccess]: Tabs.Wallet,
+  [Pages.ServerDown]: Tabs.None,
   [Pages.Settings]: Tabs.Settings,
   [Pages.Transaction]: Tabs.Wallet,
   [Pages.Unlock]: Tabs.None,
@@ -101,6 +107,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <AppBoltzSwap />
     case Pages.AppLendasat:
       return <AppLendasat />
+    case Pages.AppLendaswap:
+      return <AppLendaswap />
     case Pages.Apps:
       return <Apps />
     case Pages.Init:
@@ -135,6 +143,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <SendDetails />
     case Pages.SendSuccess:
       return <SendSuccess />
+    case Pages.ServerDown:
+      return <ServerDown />
     case Pages.Settings:
       return <Settings />
     case Pages.Transaction:

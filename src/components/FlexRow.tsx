@@ -9,8 +9,10 @@ interface FlexRowProps {
   color?: string
   end?: boolean
   gap?: string
+  main?: boolean
   onClick?: () => void
   padding?: string
+  testId?: string
 }
 
 export default function FlexRow({
@@ -22,8 +24,10 @@ export default function FlexRow({
   color,
   end,
   gap,
+  main,
   onClick,
   padding,
+  testId,
 }: FlexRowProps) {
   const justifyContent = between ? 'space-between' : centered ? 'center' : end ? 'end' : 'start'
   const style = {
@@ -34,11 +38,12 @@ export default function FlexRow({
     display: 'flex',
     gap: gap ?? '.5rem',
     justifyContent,
+    minHeight: main ? '20px' : undefined,
     padding,
     width: end ? undefined : '100%',
   }
   return (
-    <div style={style} onClick={onClick}>
+    <div data-testid={testId} style={style} onClick={onClick}>
       {children}
     </div>
   )

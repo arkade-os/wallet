@@ -41,12 +41,9 @@ services:
     depends_on:
       pgnbxplorer:
         condition: service_healthy
-
   arkd-wallet:
     restart: unless-stopped
-    build:
-      context: .
-      dockerfile: arkdwallet.Dockerfile
+    image: ghcr.io/arkade-os/arkd-wallet:v0.8.7
     container_name: arkd-wallet
     depends_on:
       - nbxplorer
@@ -62,9 +59,7 @@ services:
       - type: tmpfs
         target: /app/data
   arkd:
-    build:
-      context: .
-      dockerfile: arkd.Dockerfile
+    image: ghcr.io/arkade-os/arkd:v0.8.7
     container_name: arkd
     restart: unless-stopped
     depends_on:
@@ -74,7 +69,6 @@ services:
     environment:
       - ARKD_LOG_LEVEL=6
       - ARKD_NO_MACAROONS=true
-      - ARKD_VTXO_TREE_EXPIRY=512
       - ARKD_UNILATERAL_EXIT_DELAY=512
       - ARKD_BOARDING_EXIT_DELAY=1024
       - ARKD_DATADIR=./data/regtest
@@ -125,8 +119,9 @@ services:
       - '9736:9735'
       - '10010:10009'
   boltz:
+    container_name: boltz
     restart: unless-stopped
-    image: boltz/boltz:ark-v8@sha256:dfb23888998d5fd74f56f9943fde82dd6d04bbbec1b009058b4be43a48ef4eaa
+    image: boltz/boltz:ark
     ports:
       - '9000:9000'
       - '9001:9001'
@@ -140,7 +135,11 @@ services:
         [ark]
         host = "boltz-fulmine"
         port = 7000
-        useLocktimeSeconds = false
+        useLocktimeSeconds = true
+        [ark.unilateralDelays]
+        claim = 444 # 3d.2h in blocks
+        refund = 444 # 3d.2h in blocks
+        refundWithoutReceiver = 720 # 5d in blocks
 
         [api]
         host = "0.0.0.0"
@@ -230,7 +229,8 @@ services:
     volumes:
       - postgres_datadir:/var/lib/postgresql/data
   boltz-fulmine:
-    image: ghcr.io/arklabshq/fulmine:v0.3.0-rc.1
+    image: ghcr.io/arklabshq/fulmine:v0.3.7
+    container_name: boltz-fulmine
     environment:
       - FULMINE_ARK_SERVER=http://arkd:7070
       - FULMINE_ESPLORA_URL=http://chopsticks:3000
@@ -248,8 +248,18 @@ services:
       context: .
       dockerfile: cors.Dockerfile
     container_name: cors
+    depends_on:
+      - boltz
     ports:
       - '9069:9069'
+  nak:
+    build:
+      context: .
+      dockerfile: nak.Dockerfile
+    container_name: nak
+    ports:
+      - '10547:10547'
+    command: ['nak', 'serve', '--hostname', '0.0.0.0', '--port', '10547']
 
 volumes:
   postgres_datadir:

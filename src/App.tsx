@@ -40,7 +40,7 @@ export default function App() {
   const { navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
-  const { walletLoaded, initialized, svcWallet, wallet } = useContext(WalletContext)
+  const { walletLoaded, initialized, wallet } = useContext(WalletContext)
 
   const [loadingError, setLoadingError] = useState('')
   const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
@@ -76,24 +76,19 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!configLoaded) {
-      setLoadingError('')
-    }
-  }, [configLoaded])
-
-  useEffect(() => {
     if (aspInfo.unreachable) {
       setLoadingError('Unable to connect to the server. Please check your internet connection and try again.')
     }
   }, [aspInfo.unreachable])
 
   useEffect(() => {
+    if (aspInfo.unreachable) return navigate(Pages.ServerDown)
     // avoid redirect if the user is still setting up the wallet
     if (initInfo.password || initInfo.privateKey) return
     if (!walletLoaded) return navigate(Pages.Loading)
     if (!wallet.pubkey) return navigate(pwaIsInstalled() ? Pages.Init : Pages.Onboard)
     if (!initialized) return navigate(Pages.Unlock)
-  }, [walletLoaded, initialized, svcWallet, initInfo])
+  }, [walletLoaded, initialized, initInfo, aspInfo.unreachable])
 
   // for some reason you need to manually set the active tab
   // if you are coming from a page in a different tab

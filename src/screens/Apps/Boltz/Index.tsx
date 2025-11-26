@@ -24,18 +24,18 @@ export default function AppBoltz() {
       </Text>
     </FlexRow>
   )
+
   return (
     <>
       <Header
         auxFunc={() => navigate(Pages.AppBoltzSettings)}
         auxIcon={<SettingsIconLight />}
-        text=''
+        text='Boltz'
         back={() => navigate(Pages.Apps)}
       />
       <Content>
         <Padded>
           <FlexCol gap='2rem'>
-            <h1>Boltz</h1>
             <FlexCol gap='0'>
               <TextLabel>Connection status</TextLabel>
               <Shadow fat>

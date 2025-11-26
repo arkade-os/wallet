@@ -1,0 +1,30 @@
+name: Playwright Tests
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: lts/*
+    - name: Install dependencies
+      run: npm install -g pnpm && pnpm install
+    - name: Install Playwright Browsers
+      run: pnpm exec playwright install --with-deps
+    - name: Run Nigiri
+      uses: vulpemventures/nigiri-github-action@v1
+      with:
+        use_liquid: false
+        use_ln: true
+    - name: Setup regtest environment
+      run: pnpm regtest
+    - name: Run Playwright tests
+      run: sleep 5 && xvfb-run npx playwright test
+      env:
+        CI: true

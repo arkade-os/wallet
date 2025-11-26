@@ -9,7 +9,7 @@ export default function QrCode({ value }: QrCodeProps) {
   // encode value to a gif
   const qrGifDataUrl = (text: string) => {
     const gifBytes = encodeQR(text, 'gif', { scale: 7 })
-    const blob = new Blob([gifBytes], { type: 'image/gif' })
+    const blob = new Blob([new Uint8Array(gifBytes)], { type: 'image/gif' })
     return URL.createObjectURL(blob)
   }
 

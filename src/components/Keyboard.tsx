@@ -4,7 +4,7 @@ import Content from './Content'
 import { useContext, useEffect, useState } from 'react'
 import Text, { TextSecondary } from './Text'
 import { FiatContext } from '../providers/fiat'
-import { prettyAmount } from '../lib/format'
+import { prettyAmount, prettyNumber } from '../lib/format'
 import { WalletContext } from '../providers/wallet'
 import { defaultFee } from '../lib/constants'
 import ErrorMessage from './Error'
@@ -12,6 +12,7 @@ import Button from './Button'
 import ButtonsOnBottom from './ButtonsOnBottom'
 import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
+import SwapIcon from '../icons/Swap'
 
 interface KeyboardProps {
   back: () => void
@@ -23,37 +24,93 @@ interface KeyboardProps {
 export default function Keyboard({ back, hideBalance, onChange, value }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
-  const { balance } = useContext(WalletContext)
+  const { balance, svcWallet } = useContext(WalletContext)
 
-  const [amount, setAmount] = useState(0)
+  const [amountInSats, setAmountInSats] = useState(0)
+  const [available, setAvailable] = useState(0)
   const [error, setError] = useState('')
+  const [inputMode, setInputMode] = useState<'sats' | 'fiat'>(useFiat ? 'fiat' : 'sats')
+  const [textValue, setTextValue] = useState('')
 
   useEffect(() => {
-    setAmount(value ?? 0)
+    if (!value) return setTextValue('')
+    const amount = inputMode === 'fiat' ? toFiat(value) : value
+    setTextValue(prettyNumber(amount, getMaxDecimals()))
   }, [value])
 
+  useEffect(() => {
+    if (!svcWallet) return
+    svcWallet.getBalance().then((bal) => setAvailable(bal.available))
+  }, [balance])
+
+  useEffect(() => {
+    const value = Number(textValue.replaceAll(',', ''))
+    if (Number.isNaN(value)) return
+    setAmountInSats(inputMode === 'fiat' ? fromFiat(value) : value)
+  }, [textValue])
+
+  const getMaxDecimals = () => {
+    return inputMode === 'fiat' ? 2 : 0
+  }
+
   const handleKeyPress = (k: string) => {
-    if (k === 'x' && !amount) return
-    const text = amount.toString()
-    const res = k === 'x' ? text.slice(0, -1) : text + k
-    setAmount(Number(res))
+    // Handle decimal point
+    if (k === '.') {
+      const maxDecimals = getMaxDecimals()
+      if (maxDecimals === 0) return // No decimals for sats
+      if (textValue.includes('.')) return // Already has decimal point
+      return setTextValue((prev) => (prev === '' ? '0.' : prev + '.'))
+    }
+
+    // Handle backspace
+    if (k === 'x') {
+      if (textValue.length === 0) return // nothing to delete
+      return setTextValue(textValue.slice(0, -1))
+    }
+
+    // Handle number input with decimal validation
+    const newText = textValue + k
+    const parts = newText.split('.')
+    if (parts.length > 1) {
+      const decimalPlaces = parts[1].length
+      const maxDecimals = getMaxDecimals()
+      if (decimalPlaces > maxDecimals) return // Exceeded max decimals
+    }
+
+    setTextValue(newText)
   }
 
   const handleMaxPress = () => {
-    if (balance < defaultFee) return setError('Total balance is below fee')
-    setAmount(balance - defaultFee)
+    if (available < defaultFee) return setError('Total balance is below fee')
+    const maxSats = available - defaultFee
+    const maxTextValue = inputMode === 'fiat' ? toFiat(maxSats) : maxSats
+    setTextValue(prettyNumber(maxTextValue, getMaxDecimals(), false))
+  }
+
+  const handleToggleCurrency = () => {
+    if (inputMode === 'sats') {
+      // Convert from sats to fiat and round to 2 decimal places
+      setTextValue(amountInSats ? prettyNumber(toFiat(amountInSats), 2, false) : '')
+      setInputMode('fiat')
+    } else {
+      setTextValue(amountInSats ? prettyNumber(amountInSats, 0) : '')
+      setInputMode('sats')
+    }
   }
 
   const handleSave = () => {
-    onChange(amount)
+    onChange(amountInSats)
     back()
   }
 
-  const primaryAmount = useFiat ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
-  const secondaryAmount = useFiat ? prettyAmount(fromFiat(amount)) : prettyAmount(toFiat(amount), config.fiat)
-  const balanceAmount = useFiat ? prettyAmount(balance, config.fiat) : prettyAmount(balance)
+  // Display amounts based on input mode
+  const amount = {
+    primary: `${textValue || '0'} ${inputMode === 'fiat' ? config.fiat : 'SATS'}`,
+    secondary: inputMode === 'fiat' ? prettyAmount(amountInSats) : prettyAmount(toFiat(amountInSats), config.fiat),
+    balance: inputMode === 'fiat' ? prettyAmount(toFiat(available), config.fiat) : prettyAmount(available),
+  }
 
-  const disabled = !amount || Number.isNaN(amount)
+  const disabled = !amountInSats || Number.isNaN(amountInSats)
 
   const gridStyle = {
     borderTop: '1px solid var(--dark50)',
@@ -74,20 +131,27 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
     ['.', '0', 'x'],
   ]
 
-  const auxFunc = hideBalance ? undefined : handleMaxPress
-  const auxText = hideBalance ? undefined : 'Max'
-
   return (
     <>
-      <Header auxFunc={auxFunc} auxText={auxText} back={back} text='Amount' />
+      <Header
+        auxAriaLabel='Toggle currency'
+        auxFunc={handleToggleCurrency}
+        auxIcon={<SwapIcon />}
+        back={back}
+        text='Amount'
+      />
       <Content>
         <FlexCol centered gap='0.5rem'>
           <ErrorMessage error={Boolean(error)} text={error} />
           <Text big centered>
-            {primaryAmount}
+            {amount.primary}
           </Text>
-          <TextSecondary centered>{secondaryAmount}</TextSecondary>
-          {hideBalance ? null : <TextSecondary centered>{balanceAmount} available</TextSecondary>}
+          <TextSecondary centered>{amount.secondary}</TextSecondary>
+          {hideBalance ? null : (
+            <div onClick={handleMaxPress}>
+              <TextSecondary centered>{amount.balance}</TextSecondary>
+            </div>
+          )}
         </FlexCol>
       </Content>
       <IonGrid style={gridStyle}>
@@ -95,7 +159,7 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
           <IonRow style={rowStyle} key={row[0]}>
             {row.map((key) => (
               <IonCol size='4' key={key} onClick={() => handleKeyPress(key)}>
-                <p>{key === 'x' ? <>&larr;</> : key}</p>
+                <p data-testid={`keyboard-${key}`}>{key === 'x' ? <>&larr;</> : key}</p>
               </IonCol>
             ))}
           </IonRow>
