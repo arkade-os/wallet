@@ -18,6 +18,7 @@ import { ConfigContext } from './providers/config'
 import { IonApp, IonPage, IonTab, IonTabBar, IonTabButton, IonTabs, setupIonicReact } from '@ionic/react'
 import { NavigationContext, pageComponent, Pages, Tabs } from './providers/navigation'
 import { useContext, useEffect, useRef, useState } from 'react'
+import { detectJSCapabilities } from './lib/jsCapabilities'
 import { OptionsContext } from './providers/options'
 import { WalletContext } from './providers/wallet'
 import { FlowContext } from './providers/flow'
@@ -26,9 +27,9 @@ import { AspContext } from './providers/asp'
 import SettingsIcon from './icons/Settings'
 import Loading from './components/Loading'
 import { pwaIsInstalled } from './lib/pwa'
+import FlexCol from './components/FlexCol'
 import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
-import FlexCol from './components/FlexCol'
 
 setupIonicReact()
 
@@ -40,7 +41,8 @@ export default function App() {
   const { setOption } = useContext(OptionsContext)
   const { walletLoaded, initialized, wallet } = useContext(WalletContext)
 
-  const [loadingError, setLoadingError] = useState('')
+  const [isCapable, setIsCapable] = useState(false)
+  const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
 
   // refs for the tabs to be able to programmatically activate them
   const appsRef = useRef<HTMLIonTabElement>(null)
@@ -55,20 +57,23 @@ export default function App() {
     orientation.lock('portrait').catch(() => {})
   }
 
+  // Check JavaScript capabilities on mount
   useEffect(() => {
-    if (aspInfo.unreachable) {
-      setLoadingError('Unable to connect to the server. Please check your internet connection and try again.')
-    }
-  }, [aspInfo.unreachable])
+    detectJSCapabilities()
+      .then((res) => setIsCapable(res.isSupported))
+      .catch(() => setIsCapable(false))
+      .finally(() => setJsCapabilitiesChecked(true))
+  }, [])
 
   useEffect(() => {
-    if (aspInfo.unreachable) return navigate(Pages.ServerDown)
+    if (aspInfo.unreachable) return navigate(Pages.Unavailable)
+    if (jsCapabilitiesChecked && !isCapable) return navigate(Pages.Unavailable)
     // avoid redirect if the user is still setting up the wallet
     if (initInfo.password || initInfo.privateKey) return
     if (!walletLoaded) return navigate(Pages.Loading)
     if (!wallet.pubkey) return navigate(pwaIsInstalled() ? Pages.Init : Pages.Onboard)
     if (!initialized) return navigate(Pages.Unlock)
-  }, [walletLoaded, initialized, initInfo, aspInfo.unreachable])
+  }, [walletLoaded, initialized, initInfo, aspInfo.unreachable, jsCapabilitiesChecked, isCapable])
 
   // for some reason you need to manually set the active tab
   // if you are coming from a page in a different tab
@@ -110,9 +115,10 @@ export default function App() {
     navigate(Pages.Settings)
   }
 
-  const page = configLoaded && (aspInfo.signerPubkey || aspInfo.unreachable) ? screen : Pages.Loading
+  const page =
+    jsCapabilitiesChecked && configLoaded && (aspInfo.signerPubkey || aspInfo.unreachable) ? screen : Pages.Loading
 
-  const comp = page === Pages.Loading ? <Loading text={loadingError} /> : pageComponent(page)
+  const comp = page === Pages.Loading ? <Loading /> : pageComponent(page)
 
   return (
     <IonApp>
