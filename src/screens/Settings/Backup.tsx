@@ -23,6 +23,7 @@ import CenterScreen from '../../components/CenterScreen'
 import DontIcon from '../../icons/Dont'
 import XIcon from '../../icons/X'
 import WarningBox from '../../components/Warning'
+import Modal from '../../components/Modal'
 
 export default function Backup() {
   const { backupConfig, config, updateConfig } = useContext(ConfigContext)
@@ -120,14 +121,18 @@ export default function Backup() {
   return (
     <>
       <Header text='Backup' back />
-      <Content>
-        {dialog ? (
-          nsec ? (
+      {dialog ? (
+        nsec ? (
+          <Modal>
             <Dialog />
-          ) : (
-            <NeedsPassword onPassword={setPassword} error={error} />
-          )
+          </Modal>
         ) : (
+          <Modal>
+            <NeedsPassword onPassword={setPassword} error={error} />
+          </Modal>
+        )
+      ) : (
+        <Content>
           <Padded>
             <FlexCol gap='2rem'>
               <ErrorMessage error={Boolean(error)} text={error} />
@@ -158,8 +163,8 @@ export default function Backup() {
               />
             </FlexCol>
           </Padded>
-        )}
-      </Content>
+        </Content>
+      )}
     </>
   )
 }
