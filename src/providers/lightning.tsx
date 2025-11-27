@@ -5,13 +5,7 @@ import { WalletContext } from './wallet'
 import { FeesResponse, isPendingReverseSwap, isReverseClaimableStatus, Network } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
-
-const BASE_URLS: Record<Network, string> = {
-  bitcoin: import.meta.env.VITE_BOLTZ_URL ?? 'https://api.ark.boltz.exchange',
-  mutinynet: 'https://api.boltz.mutinynet.arkade.sh',
-  signet: 'https://boltz.signet.arkade.sh',
-  regtest: 'http://localhost:9069',
-}
+import { getBoltzUrl } from '../lib/urls'
 
 interface LightningContextProps {
   connected: boolean
@@ -42,7 +36,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
   // create swap provider on first run with svcWallet
   useEffect(() => {
     if (!aspInfo.network || !svcWallet) return
-    const baseUrl = BASE_URLS[aspInfo.network as Network]
+    const baseUrl = getBoltzUrl(aspInfo.network as Network)
     if (!baseUrl) return // No boltz server for this network
     setSwapProvider(new LightningSwapProvider(baseUrl, aspInfo, svcWallet, config))
     setConnected(config.apps.boltz.connected, false)
