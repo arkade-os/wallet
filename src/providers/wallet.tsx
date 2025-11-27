@@ -7,12 +7,15 @@ import { AspContext } from './asp'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
+import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
-import { calcNextRollover } from '../lib/wallet'
+import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
+import { ConfigContext } from './config'
+import { maxPercentage } from '../lib/constants'
 
 const defaultWallet: Wallet = {
   network: '',
@@ -24,7 +27,7 @@ interface WalletContextProps {
   lockWallet: () => Promise<void>
   resetWallet: () => Promise<void>
   settlePreconfirmed: () => Promise<void>
-  updateWallet: (w: Wallet) => void
+  updateWallet: (w: Wallet | ((prev: Wallet) => Wallet)) => void
   isLocked: () => Promise<boolean>
   reloadWallet: (svcWallet?: ServiceWorkerWallet) => Promise<void>
   wallet: Wallet
@@ -54,8 +57,9 @@ export const WalletContext = createContext<WalletContextProps>({
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
+  const { config, updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
-  const { setNoteInfo, noteInfo } = useContext(FlowContext)
+  const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
 
   const [txs, setTxs] = useState<Tx[]>([])
@@ -80,31 +84,64 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (svcWallet) reloadWallet().catch(consoleError)
   }, [svcWallet])
 
-  // update next rollover when vtxos change
+  // calculate thresholdMs and next rollover
   useEffect(() => {
-    if (!vtxos?.spendable?.length) return
-    const nextRollover = calcNextRollover(vtxos.spendable)
-    updateWallet({ ...wallet, nextRollover })
-  }, [vtxos])
+    if (!initialized || !vtxos || !svcWallet) return
+    const computeThresholds = async () => {
+      try {
+        const allVtxos = [...vtxos.spendable, ...vtxos.spent]
+        const batchLifetimeMs = await calcBatchLifetimeMs(aspInfo, allVtxos)
+        const thresholdMs = Math.floor((batchLifetimeMs * maxPercentage) / 100)
+        const nextRollover = await calcNextRollover(vtxos.spendable, svcWallet, aspInfo)
+        updateWallet((prev) => ({ ...prev, nextRollover, thresholdMs }))
+      } catch (err) {
+        consoleError(err, 'Error computing rollover thresholds')
+      }
+    }
+    computeThresholds()
+  }, [initialized, vtxos, svcWallet, aspInfo])
 
   // if ark note is present in the URL, decode it and set the note info
   useEffect(() => {
-    const note = arkNoteInUrl()
-    if (!note) return
-    try {
-      const { value } = ArkNote.fromString(note)
-      setNoteInfo({ note, satoshis: value })
-      window.location.hash = ''
-    } catch (err) {
-      consoleError(err, 'error decoding ark note ')
+    const dlInfo = deepLinkInUrl()
+    if (dlInfo) {
+      setDeepLinkInfo(dlInfo)
     }
+    const note = arkNoteInUrl()
+    if (note) {
+      try {
+        const { value } = ArkNote.fromString(note)
+        setNoteInfo({ note, satoshis: value })
+      } catch (err) {
+        consoleError(err, 'error decoding ark note ')
+      }
+    }
+    window.location.hash = ''
   }, [])
 
-  // if voucher present, go to redeem page
   useEffect(() => {
+    // Precedence is given to NoteInfo, but they are mutually exclusive because depend on window.location.hash
     if (!initialized) return
-    navigate(noteInfo.satoshis ? Pages.NotesRedeem : Pages.Wallet)
-  }, [initialized, noteInfo.satoshis])
+    if (noteInfo.satoshis) {
+      // if voucher present, go to redeem page
+      navigate(Pages.NotesRedeem)
+      return
+    }
+    // if app url is present, navigate to it
+    switch (deepLinkInfo?.appId) {
+      case 'boltz':
+        navigate(Pages.AppBoltz)
+        break
+      case 'lendasat':
+        navigate(Pages.AppLendasat)
+        break
+      case 'lendaswap':
+        navigate(Pages.AppLendaswap)
+        break
+      default:
+        navigate(Pages.Wallet)
+    }
+  }, [initialized, noteInfo.satoshis, deepLinkInfo])
 
   const reloadWallet = async (swWallet = svcWallet) => {
     if (!swWallet) return
@@ -125,10 +162,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     arkServerUrl,
     esploraUrl,
     privateKey,
+    retryCount = 0,
+    maxRetries = 5,
   }: {
     arkServerUrl: string
     esploraUrl: string
     privateKey: string
+    retryCount?: number
+    maxRetries?: number
   }) => {
     try {
       // create service worker wallet
@@ -174,9 +215,36 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }, 1_000)
 
       // renew expiring coins on startup
-      renewCoins(svcWallet).catch(() => {})
+      renewCoins(svcWallet, aspInfo.dust, wallet.thresholdMs).catch(() => {})
     } catch (err) {
-      consoleError(err, 'Error initializing service worker wallet')
+      if (err instanceof Error && err.message.includes('Service worker activation timed out')) {
+        if (retryCount < maxRetries) {
+          // exponential backoff: wait 1s, 2s, 4s for each retry
+          const delay = Math.pow(2, retryCount) * 1000
+          consoleError(
+            new Error(
+              `Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,
+            ),
+            'Service worker activation retry',
+          )
+          await new Promise((resolve) => setTimeout(resolve, delay))
+          return initSvcWorkerWallet({
+            arkServerUrl,
+            esploraUrl,
+            privateKey,
+            retryCount: retryCount + 1,
+            maxRetries,
+          })
+        } else {
+          consoleError(
+            new Error('Service worker activation timed out after maximum retries'),
+            'Service worker activation failed',
+          )
+          return
+        }
+      }
+      // re-throw other errors
+      throw err
     }
   }
 
@@ -185,6 +253,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const network = aspInfo.network as NetworkName
     const esploraUrl = getRestApiExplorerURL(network) ?? ''
     const pubkey = hex.encode(secp.getPublicKey(privateKey))
+    updateConfig({ ...config, pubkey })
     await initSvcWorkerWallet({
       privateKey: hex.encode(privateKey),
       arkServerUrl,
@@ -209,13 +278,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const settlePreconfirmed = async () => {
     if (!svcWallet) throw new Error('Service worker not initialized')
-    await settleVtxos(svcWallet)
+    await settleVtxos(svcWallet, aspInfo.dust, wallet.thresholdMs)
     notifyTxSettled()
   }
 
-  const updateWallet = (data: Wallet) => {
-    setWallet({ ...data })
-    saveWalletToStorage(data)
+  const updateWallet = (data: Wallet | ((prev: Wallet) => Wallet)) => {
+    setWallet((prev) => {
+      const next = typeof data === 'function' ? (data as (prev: Wallet) => Wallet)(prev) : data
+      saveWalletToStorage(next)
+      return { ...next }
+    })
   }
 
   const isLocked = async () => {

@@ -2,7 +2,7 @@ import { ReactNode, createContext, useContext, useEffect, useState } from 'react
 import { LightningSwapProvider } from '../lib/lightning'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
-import { FeesResponse, Network } from '@arkade-os/boltz-swap'
+import { FeesResponse, isPendingReverseSwap, isReverseClaimableStatus, Network } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
 import { consoleError } from '../lib/logs'
 import { getBoltzUrl } from '../lib/urls'
@@ -26,7 +26,7 @@ export const LightningContext = createContext<LightningContextProps>({
 export const LightningProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet } = useContext(WalletContext)
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { backupConfig, config, updateConfig } = useContext(ConfigContext)
 
   const [swapProvider, setSwapProvider] = useState<LightningSwapProvider | null>(null)
   const [fees, setFees] = useState<FeesResponse | null>(null)
@@ -38,31 +38,37 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     if (!aspInfo.network || !svcWallet) return
     const baseUrl = getBoltzUrl(aspInfo.network as Network)
     if (!baseUrl) return // No boltz server for this network
-    setSwapProvider(new LightningSwapProvider(baseUrl, aspInfo, svcWallet))
-    setConnected(config.apps.boltz.connected)
-  }, [aspInfo, svcWallet, config.apps.boltz.connected])
+    setSwapProvider(new LightningSwapProvider(baseUrl, aspInfo, svcWallet, config))
+    setConnected(config.apps.boltz.connected, false)
+  }, [aspInfo, svcWallet, config.apps.boltz.connected, config.nostrBackup])
 
   // fetch fees and refresh swaps status on provider change
   useEffect(() => {
     if (!swapProvider) return
-    swapProvider.getFees().then(setFees).catch(consoleError)
-    swapProvider
-      .refreshSwapsStatus()
-      .then(() => swapProvider.refundFailedSubmarineSwaps().catch(consoleError))
-      .catch(consoleError)
+    const choresOnInit = async () => {
+      try {
+        setFees(await swapProvider.getFees())
+        await swapProvider.refreshSwapsStatus()
+        await swapProvider.refundFailedSubmarineSwaps()
+        const swaps = await swapProvider.getSwapHistory()
+        for (const swap of swaps.filter(isPendingReverseSwap)) {
+          if (isReverseClaimableStatus(swap.status)) {
+            consoleLog('auto-claiming reverse swap:', swap.id)
+            await swapProvider.claimVHTLC(swap).catch(consoleError)
+          }
+        }
+      } catch (error) {
+        consoleError(error)
+      }
+    }
+    choresOnInit()
   }, [swapProvider])
 
-  const setConnected = (value: boolean) => {
-    updateConfig({
-      ...config,
-      apps: {
-        ...config.apps,
-        boltz: {
-          ...config.apps.boltz,
-          connected: value,
-        },
-      },
-    })
+  const setConnected = (value: boolean, backup: boolean) => {
+    const newConfig = { ...config }
+    newConfig.apps.boltz.connected = value
+    updateConfig(newConfig)
+    if (backup) backupConfig(newConfig)
   }
 
   const calcSubmarineSwapFee = (satoshis: number): number => {
@@ -77,7 +83,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     return Math.ceil((satoshis * percentage) / 100 + minerFees.claim + minerFees.lockup)
   }
 
-  const toggleConnection = () => setConnected(!connected)
+  const toggleConnection = () => setConnected(!connected, true)
 
   return (
     <LightningContext.Provider

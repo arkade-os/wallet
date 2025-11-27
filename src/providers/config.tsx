@@ -2,6 +2,8 @@ import { ReactNode, createContext, useEffect, useState } from 'react'
 import { clearStorage, readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
 import { defaultArkServer } from '../lib/constants'
 import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
+import { BackupProvider } from '../lib/backup'
+import { consoleError } from '../lib/logs'
 
 const defaultConfig: Config = {
   apps: { boltz: { connected: true } },
@@ -11,15 +13,16 @@ const defaultConfig: Config = {
   indexerUrl: '', // TODO: Provide default url for Indexer
   currencyDisplay: CurrencyDisplay.Both,
   fiat: Fiats.USD,
-  nostr: false,
+  nostrBackup: false,
   notifications: false,
-  npub: '',
+  pubkey: '',
   showBalance: true,
   theme: Themes.Dark,
   unit: Unit.BTC,
 }
 
 interface ConfigContextProps {
+  backupConfig: (c: Config) => Promise<void>
   config: Config
   configLoaded: boolean
   resetConfig: () => void
@@ -31,6 +34,7 @@ interface ConfigContextProps {
 }
 
 export const ConfigContext = createContext<ConfigContextProps>({
+  backupConfig: async () => {},
   config: defaultConfig,
   configLoaded: false,
   resetConfig: () => {},
@@ -46,19 +50,27 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
   const [configLoaded, setConfigLoaded] = useState(false)
   const [showConfig, setShowConfig] = useState(false)
 
+  const backupConfig = async (config: Config) => {
+    const backupProvider = new BackupProvider({ pubkey: config.pubkey })
+    await backupProvider.backupConfig(config).catch((error) => {
+      consoleError(error, 'Backup to Nostr failed')
+    })
+  }
+
   const toggleShowConfig = () => setShowConfig(!showConfig)
 
   const preferredTheme = () =>
     window?.matchMedia?.('(prefers-color-scheme: dark)').matches ? Themes.Dark : Themes.Light
 
-  const updateConfig = (data: Config) => {
-    if (!data.aspUrl.startsWith('http://') && !data.aspUrl.startsWith('https://')) {
-      const protocol = data.aspUrl.startsWith('localhost') ? 'http://' : 'https://'
-      data.aspUrl = protocol + data.aspUrl
+  const updateConfig = async (config: Config) => {
+    // add protocol to aspUrl if missing
+    if (!config.aspUrl.startsWith('http://') && !config.aspUrl.startsWith('https://')) {
+      const protocol = config.aspUrl.startsWith('localhost') ? 'http://' : 'https://'
+      config.aspUrl = protocol + config.aspUrl
     }
-    setConfig(data)
-    updateTheme(data)
-    saveConfigToStorage(data)
+    setConfig(config)
+    updateTheme(config)
+    saveConfigToStorage(config)
   }
 
   const updateTheme = ({ theme }: Config) => {
@@ -90,7 +102,17 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <ConfigContext.Provider
-      value={{ config, configLoaded, resetConfig, setConfig, showConfig, toggleShowConfig, updateConfig, useFiat }}
+      value={{
+        backupConfig,
+        config,
+        configLoaded,
+        resetConfig,
+        setConfig,
+        showConfig,
+        toggleShowConfig,
+        updateConfig,
+        useFiat,
+      }}
     >
       {children}
     </ConfigContext.Provider>

@@ -4,10 +4,10 @@ import Notifications from './Notifications'
 import Backup from './Backup'
 import Reset from './Reset'
 import About from './About'
-import Nostr from './Nostr'
 import Vtxos from './Vtxos'
 import NotesForm from '../Wallet/Notes/Form'
 import Server from './Server'
+import Support from './Support'
 import { OptionsContext } from '../../providers/options'
 import SettingsMenu from './Menu'
 import Logs from './Logs'
@@ -31,11 +31,11 @@ export default function Settings() {
       {option === SettingsOptions.General && <General />}
       {option === SettingsOptions.Lock && <Lock />}
       {option === SettingsOptions.Logs && <Logs />}
-      {option === SettingsOptions.Nostr && <Nostr />}
       {option === SettingsOptions.Notes && <NotesForm />}
       {option === SettingsOptions.Notifications && <Notifications />}
       {option === SettingsOptions.Reset && <Reset />}
       {option === SettingsOptions.Server && <Server />}
+      {option === SettingsOptions.Support && <Support />}
       {option === SettingsOptions.Vtxos && <Vtxos />}
       {option === SettingsOptions.Theme && <Theme />}
       {option === SettingsOptions.Fiat && <Fiat />}

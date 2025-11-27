@@ -1,11 +1,10 @@
-import { ExtendedVirtualCoin, IWallet, VtxoManager } from '@arkade-os/sdk'
-import { maxPercentage } from './constants'
+import { ExtendedVirtualCoin, IWallet, ServiceWorkerWallet, VtxoManager } from '@arkade-os/sdk'
 import { getVtxos } from './asp'
 
 // this should never happen, but just in case
 const getOrphanVtxos = async (wallet: IWallet): Promise<ExtendedVirtualCoin[]> => {
   const now = Date.now()
-  const { spendable } = await getVtxos(wallet)
+  const { spendable } = await getVtxos(wallet as ServiceWorkerWallet)
   const orphanVtxos = spendable.filter((vtxo) => {
     if (!vtxo.virtualStatus.batchExpiry) return false
     const unspent = vtxo.isSpent === false
@@ -16,7 +15,10 @@ const getOrphanVtxos = async (wallet: IWallet): Promise<ExtendedVirtualCoin[]> =
   return orphanVtxos
 }
 
-export const getExpiringAndRecoverableVtxos = async (wallet: IWallet): Promise<ExtendedVirtualCoin[]> => {
-  const manager = new VtxoManager(wallet, { thresholdPercentage: maxPercentage })
+export const getExpiringAndRecoverableVtxos = async (
+  wallet: IWallet,
+  thresholdMs: number,
+): Promise<ExtendedVirtualCoin[]> => {
+  const manager = new VtxoManager(wallet, { thresholdMs })
   return [...(await manager.getExpiringVtxos()), ...(await getOrphanVtxos(wallet))]
 }

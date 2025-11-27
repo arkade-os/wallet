@@ -1,4 +1,4 @@
-import { useContext } from 'react'
+import { useContext, useState } from 'react'
 import Padded from '../../../components/Padded'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
@@ -9,21 +9,41 @@ import { FlowContext } from '../../../providers/flow'
 import { decodeInvoice } from '../../../lib/bolt11'
 import { prettyAgo, prettyAmount, prettyDate, prettyHide } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
+import { isSubmarineSwapRefundable, isReverseClaimableStatus } from '@arkade-os/boltz-swap'
+import Button from '../../../components/Button'
+import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
+import { LightningContext } from '../../../providers/lightning'
+import { consoleError } from '../../../lib/logs'
+import { extractError } from '../../../lib/error'
+import ErrorMessage from '../../../components/Error'
+import { TextSecondary } from '../../../components/Text'
+import CheckMarkIcon from '../../../icons/CheckMark'
+import Info from '../../../components/Info'
+import Loading from '../../../components/Loading'
+import FlexRow from '../../../components/FlexRow'
+import { InfoIconDark } from '../../../icons/Info'
 
 export default function AppBoltzSwap() {
   const { config } = useContext(ConfigContext)
   const { swapInfo } = useContext(FlowContext)
+  const { swapProvider } = useContext(LightningContext)
   const { navigate } = useContext(NavigationContext)
+
+  const [error, setError] = useState<string>('')
+  const [processing, setProcessing] = useState<boolean>(false)
+  const [success, setSuccess] = useState<boolean>(false)
 
   if (!swapInfo) return null
 
   const isReverse = swapInfo.type === 'reverse'
 
+  const refunded = !isReverse && swapInfo.refunded
   const kind = isReverse ? 'Reverse Swap' : 'Submarine Swap'
-  const total = isReverse ? swapInfo.request.invoiceAmount : swapInfo.response.expectedAmount
-  const amount = isReverse ? swapInfo.response.onchainAmount : decodeInvoice(swapInfo.request.invoice).amountSats
-  const invoice = isReverse ? swapInfo.response.invoice : swapInfo.request.invoice
   const direction = isReverse ? 'Lightning to Arkade' : 'Arkade to Lightning'
+  const invoice = isReverse ? swapInfo.response.invoice : swapInfo.request.invoice
+  const address = isReverse ? swapInfo.response.lockupAddress : swapInfo.response.address
+  const total = isReverse ? swapInfo.request.invoiceAmount : swapInfo.response.expectedAmount
+  const amount = isReverse ? swapInfo.response.onchainAmount : decodeInvoice(invoice).amountSats
 
   const formatAmount = (amt: number) => (config.showBalance ? prettyAmount(amt) : prettyHide(amt))
 
@@ -31,26 +51,73 @@ export default function AppBoltzSwap() {
     ['When', prettyAgo(swapInfo.createdAt)],
     ['Kind', kind],
     ['Swap ID', swapInfo.response.id],
+    ['Description', decodeInvoice(invoice).note || 'N/A'],
     ['Direction', direction],
     ['Date', prettyDate(swapInfo.createdAt)],
     ['Invoice', invoice],
-    ['Preimage', swapInfo.preimage],
+    ['Preimage', swapInfo.preimage || 'N/A'],
+    ['Address', address || 'N/A'],
     ['Status', swapInfo.status],
     ['Amount', formatAmount(amount)],
     ['Fees', formatAmount(total - amount)],
     ['Total', formatAmount(total)],
   ]
 
+  const isRefundable = isSubmarineSwapRefundable(swapInfo)
+  const isClaimable = isReverseClaimableStatus(swapInfo.status)
+  const buttonLabel = isClaimable ? 'Complete swap' : 'Refund swap'
+
+  const buttonHandler = async () => {
+    if (!swapProvider) return
+    try {
+      setProcessing(true)
+      if (isReverse && isClaimable) {
+        await swapProvider.claimVHTLC(swapInfo)
+        setSuccess(true)
+      }
+      if (!isReverse && isRefundable) {
+        await swapProvider.refundVHTLC(swapInfo)
+        setSuccess(true)
+      }
+      await swapProvider.refreshSwapsStatus()
+    } catch (error) {
+      setError(extractError(error))
+      consoleError(error, 'Error processing swap')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   return (
     <>
       <Header text='Swap' back={() => navigate(Pages.AppBoltz)} />
       <Content>
         <Padded>
-          <FlexCol gap='2rem'>
-            <Table data={data} />
-          </FlexCol>
+          {processing ? (
+            <Loading text='Processing swap...' />
+          ) : (
+            <FlexCol gap='2rem'>
+              <ErrorMessage error={Boolean(error)} text={error} />
+              {success ? (
+                <Info color='green' icon={<CheckMarkIcon small />} title='Success'>
+                  <TextSecondary>Swap {isRefundable ? 'refunded' : 'completed'}</TextSecondary>
+                </Info>
+              ) : refunded ? (
+                <FlexRow alignItems='flex-start'>
+                  <InfoIconDark color='green' />
+                  <TextSecondary>Swap refunded</TextSecondary>
+                </FlexRow>
+              ) : null}
+              <Table data={data} />
+            </FlexCol>
+          )}
         </Padded>
       </Content>
+      {!success && (isRefundable || isClaimable) ? (
+        <ButtonsOnBottom>
+          <Button onClick={buttonHandler} label={buttonLabel} disabled={processing} />
+        </ButtonsOnBottom>
+      ) : null}
     </>
   )
 }

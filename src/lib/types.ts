@@ -17,9 +17,9 @@ export type Config = {
   indexerUrl: string
   currencyDisplay: CurrencyDisplay
   fiat: Fiats
-  nostr: boolean
+  nostrBackup: boolean
   notifications: boolean
-  npub: string
+  pubkey: string
   showBalance: boolean
   theme: Themes
   unit: Unit
@@ -34,6 +34,7 @@ export enum CurrencyDisplay {
 export enum Fiats {
   EUR = 'EUR',
   USD = 'USD',
+  CHF = 'CHF',
 }
 
 export type Satoshis = number
@@ -54,11 +55,11 @@ export enum SettingsOptions {
   Lock = 'lock wallet',
   Logs = 'logs',
   Notifications = 'notifications',
-  Nostr = 'nostr',
   Notes = 'notes',
   Password = 'change password',
   Reset = 'reset wallet',
   Server = 'server',
+  Support = 'support',
   Vtxos = 'coin control',
   Theme = 'theme',
   Fiat = 'fiat currency',
@@ -92,12 +93,14 @@ export enum Unit {
   BTC = 'btc',
   EUR = 'eur',
   USD = 'usd',
+  CHF = 'chf',
   SAT = 'sat',
 }
 
 export type Vtxo = ExtendedVirtualCoin
 
 export type Wallet = {
+  thresholdMs?: number
   lockedByBiometrics?: boolean
   network?: NetworkName | ''
   nextRollover: number

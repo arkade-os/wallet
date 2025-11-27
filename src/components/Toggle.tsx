@@ -8,14 +8,15 @@ interface ToggleProps {
   onClick: () => void
   text: string
   subtext?: string
+  testId?: string
 }
 
-export default function Toggle({ checked, onClick, text, subtext }: ToggleProps) {
+export default function Toggle({ checked, onClick, text, subtext, testId }: ToggleProps) {
   return (
     <FlexCol border gap='0' padding='0 0 1rem 0'>
       <FlexRow between onClick={onClick}>
         <Text thin>{text}</Text>
-        <IonToggle checked={checked} />
+        <IonToggle checked={checked} data-testid={testId} />
       </FlexRow>
       {subtext ? (
         <Text color='dark50' small thin>

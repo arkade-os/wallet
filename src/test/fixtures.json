@@ -13,9 +13,14 @@
           "vtxoTaprootKey": "25a43cecfa0e1b1a4f72d64ad15f4cfa7a84d0723e8511c969aa543638ea9967"
         }
       ],
-      "btc": {
-        "address": "bcrt1pj7fdvrpdsn0cl6722tmcvwcw4yqpe46020g43nhgzl90qq4aqjrs33du9f"
-      }
+      "btc": [
+        "1CRNXy3pZWfTNZf2KLP2NHGyzYzHGwbZ8S",
+        "1NVHwFgk36YJoMP4ra1h1rxgzQuMgL5Xd3",
+        "3Beer3irc1vgs76ENA4coqsEQpGZeM5CTd",
+        "3PBJroBBazrgtX5VyfgHSVKd8wC5FRdJzG",
+        "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+        "bcrt1pj7fdvrpdsn0cl6722tmcvwcw4yqpe46020g43nhgzl90qq4aqjrs33du9f"
+      ]
     },
     "arknote": "arknoted5e23929b122982678e8bd8ded4338a4d611a2b7cb7d0f5e0c67c3139d87dec885",
     "bip21": {

@@ -2,11 +2,12 @@ export const arknoteHRP = 'arknote'
 export const defaultFee = 0
 export const testDomains = ['dev.arkade.money', 'next.arkade.money', 'pages.dev', 'localhost']
 export const devServer = 'http://localhost:7070'
-export const testServer = 'https://bitcoin-beta-v8.arkade.sh'
-export const mainServer = 'https://bitcoin-beta-v8.arkade.sh'
+export const testServer = 'https://arkade.computer'
+export const mainServer = 'https://arkade.computer'
 export const defaultPassword = 'noah'
 export const minSatsToNudge = 100_000
 export const maxPercentage = import.meta.env.VITE_MAX_PERCENTAGE ?? 10
+export const psaMessage = import.meta.env.VITE_PSA_MESSAGE ?? ''
 
 export const defaultArkServer = () => {
   if (import.meta.env.VITE_ARK_SERVER) return import.meta.env.VITE_ARK_SERVER

@@ -3,16 +3,14 @@ import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
 import { prettyAmount, prettyDate, prettyHide } from '../lib/format'
-import PreconfirmedIcon from '../icons/Preconfirmed'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
 import FlexRow from './FlexRow'
 import { FlowContext } from '../providers/flow'
 import { NavigationContext, Pages } from '../providers/navigation'
-import { defaultFee } from '../lib/constants'
-import SelfSendIcon from '../icons/SelfSend'
 import { ConfigContext } from '../providers/config'
 import { FiatContext } from '../providers/fiat'
+import PreconfirmedIcon from '../icons/Preconfirmed'
 
 const border = '1px solid var(--dark20)'
 
@@ -32,7 +30,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
         ? 'dark50'
         : tx.type === 'received'
           ? 'green'
-          : tx.preconfirmed
+          : tx.boardingTxid && tx.preconfirmed
             ? 'orange'
             : ''
     const value = toFiat(tx.amount)
@@ -45,21 +43,17 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
     )
   }
   const Icon = () =>
-    !tx.settled ? (
+    tx.type === 'sent' ? (
+      <SentIcon />
+    ) : tx.preconfirmed && tx.boardingTxid ? (
       <PreconfirmedIcon />
-    ) : tx.type === 'sent' ? (
-      tx.amount === defaultFee ? (
-        <SelfSendIcon />
-      ) : (
-        <SentIcon />
-      )
     ) : (
-      <ReceivedIcon />
+      <ReceivedIcon dotted={tx.preconfirmed} />
     )
   const Kind = () => <Text thin>{tx.type === 'sent' ? 'Sent' : 'Received'}</Text>
   const Date = () => <TextSecondary>{date}</TextSecondary>
   const Sats = () => (
-    <Text color={tx.preconfirmed ? 'orange' : tx.type === 'received' ? 'green' : ''} thin>
+    <Text color={tx.type === 'received' ? (tx.preconfirmed && tx.boardingTxid ? 'orange' : 'green') : ''} thin>
       {amount}
     </Text>
   )

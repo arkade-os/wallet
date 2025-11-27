@@ -12,13 +12,15 @@ interface InputAmountProps {
   label?: string
   min?: number
   max?: number
-  onChange: (arg0: any) => void
+  name?: string
   onEnter?: () => void
   onFocus?: () => void
   onMax?: () => void
+  onSats: (sats: number) => void
   readOnly?: boolean
   right?: JSX.Element
   value?: number
+  sats?: number
 }
 
 export default function InputAmount({
@@ -27,13 +29,15 @@ export default function InputAmount({
   label,
   min,
   max,
-  onChange,
+  name,
   onEnter,
   onFocus,
   onMax,
+  onSats,
   readOnly,
   right,
   value,
+  sats,
 }: InputAmountProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
@@ -53,14 +57,15 @@ export default function InputAmount({
   })
 
   useEffect(() => {
-    setOtherValue(useFiat ? prettyNumber(fromFiat(value)) : prettyNumber(toFiat(value), 2))
-    setError(value ? (value < 0 ? 'Invalid amount' : '') : '')
-  }, [value])
+    console.log('InputAmount - sats changed:', sats)
+    setOtherValue(useFiat ? prettyNumber(sats) : prettyNumber(toFiat(sats), 2))
+    setError(sats ? (sats < 0 ? 'Invalid amount' : '') : '')
+  }, [sats])
 
   const handleInput = (ev: Event) => {
     const value = Number((ev.target as HTMLInputElement).value)
     if (Number.isNaN(value)) return
-    onChange(value)
+    onSats(useFiat ? fromFiat(value) : value)
   }
 
   const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0
@@ -77,6 +82,7 @@ export default function InputAmount({
       <InputContainer error={error} label={label} right={right} bottomLeft={bottomLeft} bottomRight={bottomRight}>
         <IonInput
           disabled={disabled}
+          name={name}
           onIonFocus={onFocus}
           onIonInput={handleInput}
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
@@ -91,19 +97,19 @@ export default function InputAmount({
           <IonText slot='end' style={{ ...fontStyle, marginLeft: '0.5rem' }}>
             {rightLabel}
           </IonText>
-          {onMax && !disabled && !readOnly ? (
-            <IonText
-              slot='end'
-              style={{ ...fontStyle, marginLeft: '0.5rem', color: 'var(--purpletext)', cursor: 'pointer' }}
-              onClick={onMax}
-              role='button'
-              tabIndex={0}
-              aria-label='Set maximum amount'
-            >
-              Max
-            </IonText>
-          ) : null}
         </IonInput>
+        {onMax && !disabled && !readOnly ? (
+          <IonText
+            slot='end'
+            style={{ ...fontStyle, marginLeft: '0.5rem', color: 'var(--purpletext)', cursor: 'pointer' }}
+            onClick={onMax}
+            role='button'
+            tabIndex={0}
+            aria-label='Set maximum amount'
+          >
+            Max
+          </IonText>
+        ) : null}
       </InputContainer>
     </>
   )
