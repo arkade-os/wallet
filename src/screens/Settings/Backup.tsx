@@ -24,8 +24,12 @@ import WarningBox from '../../components/Warning'
 import Modal from '../../components/Modal'
 import InputFake from '../../components/InputFake'
 import OkIcon from '../../icons/Ok'
+import { WalletContext } from '../../providers/wallet'
+import { authenticateUser } from '../../lib/biometrics'
+import FingerprintIcon from '../../icons/Fingerprint'
 
 export default function Backup() {
+  const { wallet } = useContext(WalletContext)
   const { backupConfig, config, updateConfig } = useContext(ConfigContext)
 
   const [present] = useIonToast()
@@ -58,10 +62,13 @@ export default function Backup() {
 
   const showPrivateKey = async () => {
     if (!nsec) {
-      const privateKey = await verifyPassword(input.current?.value as string)
+      const password = wallet.lockedByBiometrics
+        ? await authenticateUser(wallet.passkeyId).catch(setError)
+        : (input.current?.value as string)
+      if (!password) return
+      const privateKey = await verifyPassword(password)
       setError(privateKey ? '' : 'Invalid password')
-      if (!privateKey) return
-      setNsec(privateKey)
+      setNsec(privateKey ?? '')
     }
     setShowNsec(true)
     setDialog(false)
@@ -93,16 +100,23 @@ export default function Backup() {
         <Text big bold>
           Private key
         </Text>
-        <TextSecondary wrap>
+        <TextSecondary centered wrap>
           Your Private Key is the key used to back up your wallet. Keep it secret and secure at all times.
         </TextSecondary>
       </FlexCol>
       {!nsec ? (
-        <FlexCol gap='0.5rem'>
-          <TextSecondary>Enter your password</TextSecondary>
-          <IonInput ref={input} type='password' />
-          <ErrorMessage error={Boolean(error)} text={error} />
-        </FlexCol>
+        wallet.lockedByBiometrics ? (
+          <FlexCol centered gap='0.5rem'>
+            <FingerprintIcon />
+            <Text centered>Unlock with your passkey</Text>
+          </FlexCol>
+        ) : (
+          <FlexCol gap='0.5rem'>
+            <TextSecondary>Enter your password</TextSecondary>
+            <IonInput ref={input} type='password' />
+            <ErrorMessage error={Boolean(error)} text={error} />
+          </FlexCol>
+        )
       ) : null}
       <FlexCol gap='0.25rem'>
         <FlexRow>
