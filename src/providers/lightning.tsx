@@ -4,7 +4,7 @@ import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { FeesResponse, isPendingReverseSwap, isReverseClaimableStatus, Network } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
-import { consoleError } from '../lib/logs'
+import { consoleError, consoleLog } from '../lib/logs'
 import { getBoltzUrl } from '../lib/urls'
 
 interface LightningContextProps {

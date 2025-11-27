@@ -7,6 +7,7 @@ type Service = 'ark' | 'boltz' | 'esplora' | 'indexer'
 const DEFAULT_ARK_SERVER_URLS: Partial<Record<Network, string>> = {}
 
 const DEFAULT_BOLTZ_SERVER_URLS: Partial<Record<Network, string>> = {
+  bitcoin: 'https://api.ark.boltz.exchange',
   mutinynet: 'https://api.boltz.mutinynet.arkade.sh',
   signet: 'https://boltz.signet.arkade.sh',
   regtest: 'http://localhost:9069',
@@ -27,24 +28,28 @@ const ENV_URL_IMPORTERS: EnvUrlImporters = {
     mutinynet: importArkMutinyUrl,
     regtest: importArkRegTestUrl,
     signet: importArkSigNetUrl,
+    testnet: importArkTestnetUrl,
   },
   boltz: {
     bitcoin: importBoltzBitcoinUrl,
     mutinynet: importBoltzMutinyUrl,
     regtest: importBoltzRegTestUrl,
     signet: importBoltzSigNetUrl,
+    testnet: importBoltzTestnetUrl,
   },
   esplora: {
     bitcoin: importEsploraBitcoinUrl,
     mutinynet: importEsploraMutinyUrl,
     regtest: importEsploraRegTestUrl,
     signet: importEsploraSigNetUrl,
+    testnet: importEsploraTestnetUrl,
   },
   indexer: {
     bitcoin: importIndexerBitcoinUrl,
     mutinynet: importIndexerMutinyUrl,
     regtest: importIndexerRegTestUrl,
     signet: importIndexerSigNetUrl,
+    testnet: importIndexerTestnetUrl,
   },
 } as const
 
@@ -126,6 +131,10 @@ function importArkRegTestUrl(): string | undefined {
   return import.meta.env.VITE_ARK_SERVER_URL_REGTEST
 }
 
+function importArkTestnetUrl(): string | undefined {
+  return import.meta.env.VITE_ARK_SERVER_URL_TESTNET
+}
+
 function importBoltzBitcoinUrl(): string | undefined {
   return import.meta.env.VITE_BOLTZ_URL_BITCOIN
 }
@@ -140,6 +149,10 @@ function importBoltzSigNetUrl(): string | undefined {
 
 function importBoltzRegTestUrl(): string | undefined {
   return import.meta.env.VITE_BOLTZ_URL_REGTEST
+}
+
+function importBoltzTestnetUrl(): string | undefined {
+  return import.meta.env.VITE_BOLTZ_URL_TESTNET
 }
 
 function importEsploraBitcoinUrl(): string | undefined {
@@ -158,6 +171,10 @@ function importEsploraRegTestUrl(): string | undefined {
   return import.meta.env.VITE_ESPLORA_URL_REGTEST
 }
 
+function importEsploraTestnetUrl(): string | undefined {
+  return import.meta.env.VITE_ESPLORA_URL_TESTNET
+}
+
 function importIndexerBitcoinUrl(): string | undefined {
   return import.meta.env.VITE_INDEXER_URL_BITCOIN
 }
@@ -172,4 +189,8 @@ function importIndexerSigNetUrl(): string | undefined {
 
 function importIndexerRegTestUrl(): string | undefined {
   return import.meta.env.VITE_INDEXER_URL_REGTEST
+}
+
+function importIndexerTestnetUrl(): string | undefined {
+  return import.meta.env.VITE_INDEXER_URL_TESTNET
 }
