@@ -29,6 +29,7 @@ import { pwaIsInstalled } from './lib/pwa'
 import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
 import FlexCol from './components/FlexCol'
+import { NudgeContext } from './providers/nudge'
 
 setupIonicReact()
 
@@ -37,6 +38,7 @@ export default function App() {
   const { configLoaded } = useContext(ConfigContext)
   const { navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
+  const { nudges } = useContext(NudgeContext)
   const { setOption } = useContext(OptionsContext)
   const { walletLoaded, initialized, wallet } = useContext(WalletContext)
 
@@ -133,19 +135,19 @@ export default function App() {
             <IonTabBar slot='bottom'>
               <IonTabButton tab={Tabs.Wallet} selected={tab === Tabs.Wallet} onClick={handleWallet}>
                 <FlexCol centered gap='6px'>
-                  <WalletIcon />
+                  <WalletIcon nudge={nudges[Tabs.Wallet]?.length > 0} />
                   Wallet
                 </FlexCol>
               </IonTabButton>
               <IonTabButton tab={Tabs.Apps} selected={tab === Tabs.Apps} onClick={handleApps}>
                 <FlexCol centered gap='6px'>
-                  <AppsIcon />
+                  <AppsIcon nudge={nudges[Tabs.Apps]?.length > 0} />
                   Apps
                 </FlexCol>
               </IonTabButton>
               <IonTabButton tab={Tabs.Settings} selected={tab === Tabs.Settings} onClick={handleSettings}>
                 <FlexCol centered gap='6px'>
-                  <SettingsIcon />
+                  <SettingsIcon nudge={nudges[Tabs.Settings]?.length > 0} />
                   Settings
                 </FlexCol>
               </IonTabButton>

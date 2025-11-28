@@ -1,10 +1,12 @@
-import { useContext } from 'react'
-import ArrowIcon from '../icons/Arrow'
-import { Option, OptionsContext } from '../providers/options'
 import Text from './Text'
 import FlexRow from './FlexRow'
-import { SettingsOptions } from '../lib/types'
 import FlexCol from './FlexCol'
+import { useContext } from 'react'
+import ArrowIcon from '../icons/Arrow'
+import RedDotIcon from '../icons/RedDot'
+import { SettingsOptions } from '../lib/types'
+import { NudgeContext } from '../providers/nudge'
+import { Option, OptionsContext } from '../providers/options'
 
 interface MenuProps {
   rows: Option[]
@@ -13,6 +15,7 @@ interface MenuProps {
 
 export default function Menu({ rows, styled }: MenuProps) {
   const { setOption } = useContext(OptionsContext)
+  const { nudges } = useContext(NudgeContext)
 
   const bgColor = styled ? 'var(--dark10)' : 'transparent'
 
@@ -36,6 +39,7 @@ export default function Menu({ rows, styled }: MenuProps) {
             <FlexRow>
               {styled ? icon : null}
               <Text capitalize>{option}</Text>
+              {nudges[option]?.length > 0 ? <RedDotIcon /> : null}
             </FlexRow>
             <ArrowIcon />
           </div>
