@@ -31,7 +31,7 @@ test('should save config to nostr', async ({ page }) => {
 
   // enable nostr backups
   await page.getByText('Settings').click()
-  await page.getByText('Backup and privacy').click()
+  await page.getByText('backup', { exact: true }).click()
   await page.getByText('Enable Nostr backups').click()
 
   // change fiat currency to euro
@@ -48,7 +48,7 @@ test('should save config to nostr', async ({ page }) => {
 
   // disable nostr backups
   await page.getByText('Settings').click()
-  await page.getByText('Backup and privacy').click()
+  await page.getByText('backup', { exact: true }).click()
   await page.getByText('Enable Nostr backups').click()
 
   // change fiat currency to usd
@@ -64,8 +64,10 @@ test('should save config to nostr', async ({ page }) => {
 
   // get nsec
   await page.getByText('Settings').click()
-  await page.getByText('Backup and privacy').click()
-  const nsec = await page.locator('p').nth(2).innerText()
+  await page.getByText('backup', { exact: true }).click()
+  await page.getByText('View private key').click()
+  await page.getByText('Confirm').click()
+  const nsec = await page.locator('p').nth(3).innerText()
   expect(nsec.startsWith('nsec1')).toBe(true)
 
   // reset wallet
@@ -183,12 +185,12 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
 
   // enable nostr backups
   await page.getByText('Settings').click()
-  await page.getByText('Backup and privacy').click()
+  await page.getByText('backup', { exact: true }).click()
   await page.getByText('Enable Nostr backups').click()
 
   // get nsec
   await page.getByText('Settings').click()
-  await page.getByText('Backup and privacy').click()
+  await page.getByText('backup', { exact: true }).click()
   const nsec = await page.locator('p').nth(2).innerText()
   expect(nsec.startsWith('nsec1')).toBe(true)
 

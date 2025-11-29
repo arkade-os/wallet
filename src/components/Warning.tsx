@@ -1,5 +1,5 @@
 import ForbidIcon from '../icons/Forbid'
-import InfoIcon, { InfoIconDark } from '../icons/Info'
+import { InfoIconDark } from '../icons/Info'
 import FlexRow from './FlexRow'
 import Text from './Text'
 
