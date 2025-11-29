@@ -39,6 +39,7 @@ export default function Button({
       fill={clear ? 'clear' : outline ? 'outline' : 'solid'}
       onClick={onClick}
       size={small ? 'small' : 'default'}
+      style={{ margin: '4px 0' }}
     >
       {loading ? (
         <FlexRow centered>
