@@ -30,40 +30,40 @@ test('should save config to nostr', async ({ page }) => {
   await page.getByText('Go to wallet').click()
 
   // enable nostr backups
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('backup', { exact: true }).click()
   await page.getByText('Enable Nostr backups').click()
 
   // change fiat currency to euro
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('general', { exact: true }).click()
   await expect(page.getByText('USD')).toBeVisible()
   await page.getByText('Fiat currency').click()
   await page.getByText('EUR').click()
 
   // verify fiat currency is euro
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('general', { exact: true }).click()
   await expect(page.getByText('EUR')).toBeVisible()
 
   // disable nostr backups
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('backup', { exact: true }).click()
   await page.getByText('Enable Nostr backups').click()
 
   // change fiat currency to usd
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('general', { exact: true }).click()
   await page.getByText('Fiat currency').click()
   await page.getByText('USD').click()
 
   // verify fiat currency is usd
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('general', { exact: true }).click()
   await expect(page.getByText('USD')).toBeVisible()
 
   // get nsec
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('backup', { exact: true }).click()
   await page.getByText('View private key').click()
   await page.getByText('Confirm').click()
@@ -71,7 +71,7 @@ test('should save config to nostr', async ({ page }) => {
   expect(nsec.startsWith('nsec1')).toBe(true)
 
   // reset wallet
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('Reset wallet').click()
   await page.getByText('I have backed up my wallet').click()
   await page.getByRole('contentinfo').getByText('Reset wallet').click()
@@ -90,7 +90,7 @@ test('should save config to nostr', async ({ page }) => {
   await page.getByText('Go to wallet').click()
 
   // verify fiat currency is euro
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('general', { exact: true }).click()
   await expect(page.getByText('EUR')).toBeVisible()
 })
@@ -184,12 +184,12 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await expect(page.getByText('- 1,001 SATS')).toBeVisible()
 
   // enable nostr backups
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('backup', { exact: true }).click()
   await page.getByText('Enable Nostr backups').click()
 
   // get nsec
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('backup', { exact: true }).click()
   await page.getByText('View private key').click()
   await page.getByText('Confirm').click()
@@ -197,7 +197,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   expect(nsec.startsWith('nsec1')).toBe(true)
 
   // reset wallet
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('Reset wallet').click()
   await page.getByText('I have backed up my wallet').click()
   await page.getByRole('contentinfo').getByText('Reset wallet').click()
