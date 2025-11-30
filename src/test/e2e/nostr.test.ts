@@ -106,7 +106,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await page.getByText('Go to wallet').click()
 
   // receive page
-  await page.getByText('Wallet').click()
+  await page.getByTestId('tab-wallet').click()
   await page.getByText('Receive').click()
   await page.locator('ion-input[name="receive-amount"] input').click()
   if (isMobile) {
@@ -143,13 +143,13 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await expect(page.getByText('SATS received successfully')).toBeVisible()
 
   // should be visible in Boltz app
-  await page.getByText('Apps').click()
+  await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-Boltz').click()
   await expect(page.getByRole('button', { name: 'Lightning to Arkade + 1,992' })).toBeVisible()
 
   // transaction should be visible on main page
-  await page.getByText('Wallet').click()
+  await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('+ 1,992 SATS')).toBeVisible()
 
   // generate lightning invoice to pay
@@ -171,16 +171,16 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await page.getByText('Tap to Sign').click()
   await page.waitForSelector('text=Payment sent!')
   await expect(page.getByText('SATS sent successfully')).toBeVisible()
-  await page.getByText('Wallet').click()
+  await page.getByTestId('tab-wallet').click()
 
   // should be visible in Boltz app
-  await page.getByText('Apps').click()
+  await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-Boltz').click()
   await expect(page.getByRole('button', { name: 'Arkade to Lightning - 1,001' })).toBeVisible()
 
   // transaction should be visible on main page
-  await page.getByText('Wallet').click()
+  await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('- 1,001 SATS')).toBeVisible()
 
   // enable nostr backups
@@ -216,7 +216,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await page.getByText('Go to wallet').click()
 
   // should be visible in Boltz app
-  await page.getByText('Apps').click()
+  await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-Boltz').click()
   await expect(page.getByRole('button', { name: 'Arkade to Lightning - 1,001' })).toBeVisible()
