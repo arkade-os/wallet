@@ -19,7 +19,7 @@ const Middot = () => (
 )
 
 const Tag = ({ kind }: { kind: 'new' | 'coming soon' }) => {
-  const style = {
+  const style: React.CSSProperties = {
     borderRadius: '4px',
     background: kind === 'coming soon' ? 'rgba(96, 177, 138, 0.10)' : 'rgba(57, 25, 152, 1)',
     color: kind === 'coming soon' ? 'var(--green)' : 'var(--white)',
@@ -55,7 +55,7 @@ interface AppProps {
 function App({ desc, icon, link, name, live, page }: AppProps) {
   const { navigate } = useContext(NavigationContext)
 
-  const style = {
+  const style: React.CSSProperties = {
     cursor: page || link ? 'pointer' : 'default',
     padding: '0.5rem',
   }

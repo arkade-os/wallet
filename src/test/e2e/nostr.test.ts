@@ -67,7 +67,7 @@ test('should save config to nostr', async ({ page }) => {
   await page.getByText('backup', { exact: true }).click()
   await page.getByText('View private key').click()
   await page.getByText('Confirm').click()
-  const nsec = await page.locator('p').nth(3).innerText()
+  const nsec = await page.getByTestId('private-key').innerText()
   expect(nsec.startsWith('nsec1')).toBe(true)
 
   // reset wallet
@@ -191,7 +191,9 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   // get nsec
   await page.getByText('Settings').click()
   await page.getByText('backup', { exact: true }).click()
-  const nsec = await page.locator('p').nth(2).innerText()
+  await page.getByText('View private key').click()
+  await page.getByText('Confirm').click()
+  const nsec = await page.getByTestId('private-key').innerText()
   expect(nsec.startsWith('nsec1')).toBe(true)
 
   // reset wallet

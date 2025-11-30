@@ -156,7 +156,7 @@ export default function Backup() {
               <TextSecondary>For your eyes only, do not share.</TextSecondary>
               <Shadow lighter>
                 <FlexCol gap='10px'>
-                  <InputFake text={showNsec ? nsec : '*******'} />
+                  <InputFake testId='private-key' text={showNsec ? nsec : '*******'} />
                   {showNsec ? (
                     <Button onClick={handleCopy} label='Copy to clipboard' />
                   ) : (

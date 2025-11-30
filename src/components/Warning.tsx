@@ -14,7 +14,7 @@ export default function WarningBox({ green, red, text }: WarningProps) {
   const borderColor = red ? 'var(--red)' : green ? 'var(--green)' : 'var(--orange)'
   const Icon = () => (red ? <ForbidIcon /> : <InfoIconDark />)
 
-  const style = {
+  const style: React.CSSProperties = {
     backgroundColor,
     borderRadius: '0.5rem',
     color: 'var(--orange)',

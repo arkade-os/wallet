@@ -1,7 +1,7 @@
 import { TextSecondary } from './Text'
 
-export default function InputFake({ text }: { text: string }) {
-  const style = {
+export default function InputFake({ text, testId }: { text: string; testId: string }) {
+  const style: React.CSSProperties = {
     backgroundColor: 'var(--dark10)',
     borderRadius: '0.5rem',
     color: 'var(--dark50)',
@@ -13,7 +13,7 @@ export default function InputFake({ text }: { text: string }) {
   }
 
   return (
-    <div style={style}>
+    <div style={style} data-testid={testId}>
       <TextSecondary wrap>{text}</TextSecondary>
     </div>
   )
