@@ -7,7 +7,7 @@ export const mainServer = 'https://arkade.computer'
 export const defaultPassword = 'noah'
 export const minSatsToNudge = 10_000
 export const maxPercentage = import.meta.env.VITE_MAX_PERCENTAGE ?? 10
-export const psaMessage = import.meta.env.VITE_PSA_MESSAGE ?? 'Go to Settings > Support for help and bug reports'
+export const psaMessage = import.meta.env.VITE_PSA_MESSAGE ?? ''
 
 export const defaultArkServer = () => {
   if (import.meta.env.VITE_ARK_SERVER) return import.meta.env.VITE_ARK_SERVER
