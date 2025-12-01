@@ -80,6 +80,6 @@ describe('Send screen', () => {
     expect(screen.getByText('0 SATS available')).toBeInTheDocument()
     expect(screen.getByText('Recipient address')).toBeInTheDocument()
     // button continue should be present
-    expect(screen.getByText('Amount below 1 satoshi')).toBeInTheDocument()
+    expect(screen.getByText('Continue')).toBeInTheDocument()
   })
 })

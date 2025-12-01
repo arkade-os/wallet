@@ -89,13 +89,18 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // calculate thresholdMs and next rollover
   useEffect(() => {
     if (!initialized || !vtxos || !svcWallet) return
-    const allVtxos = [...vtxos.spendable, ...vtxos.spent]
-    calcBatchLifetimeMs(aspInfo, allVtxos).then((batchLifetimeMs) => {
-      const thresholdMs = Math.floor((batchLifetimeMs * maxPercentage) / 100)
-      calcNextRollover(vtxos.spendable, svcWallet, aspInfo).then((nextRollover) => {
+    const computeThresholds = async () => {
+      try {
+        const allVtxos = await svcWallet.getVtxos({ withRecoverable: true })
+        const batchLifetimeMs = await calcBatchLifetimeMs(aspInfo, allVtxos)
+        const thresholdMs = Math.floor((batchLifetimeMs * maxPercentage) / 100)
+        const nextRollover = await calcNextRollover(vtxos.spendable, svcWallet, aspInfo)
         updateWallet((prev) => ({ ...prev, nextRollover, thresholdMs }))
-      })
-    })
+      } catch (err) {
+        consoleError(err, 'error calculating wallet thresholds')
+      }
+    }
+    computeThresholds()
   }, [initialized, vtxos, svcWallet, aspInfo])
 
   // check balance for nudges
