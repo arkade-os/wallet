@@ -1,20 +1,23 @@
 import { ReactNode, createContext, useState } from 'react'
 import { Pages, Tabs } from './navigation'
 import { SettingsOptions } from '../lib/types'
+import { minSatsToNudge } from '../lib/constants'
 
 export type Nudge = {
   options: SettingsOptions[]
   pages: Pages[]
   tabs: Tabs[]
-  text: string
+  texts: string[]
 }
 
 export const NudgeContext = createContext<{
   nudges: Record<string, Nudge[]>
+  addNudge: (nudge: Nudge) => void
   addPasswordNudge: () => void
   removeNudge: (nudge: Nudge) => void
 }>({
   nudges: {},
+  addNudge: () => null,
   addPasswordNudge: () => null,
   removeNudge: () => null,
 })
@@ -44,7 +47,7 @@ export const NudgeProvider = ({ children }: { children: ReactNode }) => {
   const addPasswordNudge = () => {
     const passwordNudge: Nudge = {
       options: [SettingsOptions.Advanced, SettingsOptions.Password],
-      text: 'Set a password for your wallet.',
+      texts: [`Your wallet has more than ${minSatsToNudge} sats.`, `You should set a password for your wallet.`],
       pages: [Pages.Settings],
       tabs: [Tabs.Settings],
     }
@@ -58,5 +61,9 @@ export const NudgeProvider = ({ children }: { children: ReactNode }) => {
     setRepo(filtered)
   }
 
-  return <NudgeContext.Provider value={{ addPasswordNudge, nudges, removeNudge }}>{children}</NudgeContext.Provider>
+  return (
+    <NudgeContext.Provider value={{ addNudge, addPasswordNudge, nudges, removeNudge }}>
+      {children}
+    </NudgeContext.Provider>
+  )
 }

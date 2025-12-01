@@ -10,8 +10,10 @@ export default function NudgeComponent({ nudge }: { nudge: Nudge }) {
   return (
     <div style={{ marginBottom: '1rem' }}>
       <AlertBox icon={<RedDotIconAnimated />} onDismiss={() => removeNudge(nudge)}>
-        <FlexCol>
-          <AlertText>{nudge.text}</AlertText>
+        <FlexCol gap='0'>
+          {nudge.texts.map((text) => (
+            <AlertText key={text}>{text}</AlertText>
+          ))}
         </FlexCol>
       </AlertBox>
     </div>
