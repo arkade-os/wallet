@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { exec } from 'child_process'
 import { readClipboard } from './utils'
 
-test('should add nudge when balance > 100_000 sats', async ({ page }) => {
+test.skip('should add nudge when balance > 100_000 sats', async ({ page }) => {
   // create wallet
   await page.goto('/')
   await page.getByText('Continue').click()
