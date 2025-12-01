@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { exec } from 'child_process'
 import { readClipboard } from './utils'
 
-test.skip('should add nudge when balance > 100_000 sats', async ({ page }) => {
+test('should add nudge when balance > 100_000 sats', async ({ page }) => {
   // create wallet
   await page.goto('/')
   await page.getByText('Continue').click()
@@ -15,12 +15,9 @@ test.skip('should add nudge when balance > 100_000 sats', async ({ page }) => {
   // get boarding address
   await page.getByText('Receive').click()
   await page.getByText('Skip').click()
-  await page
-    .locator('div')
-    .filter({ hasText: /^Copy address$/ })
-    .nth(5)
-    .click()
-  await page.getByRole('img').nth(4).click()
+  await page.waitForSelector('text=Copy address')
+  await page.getByText('Copy address').click()
+  await page.getByTestId('address-line-btc').locator('svg').first().click()
   await page.waitForTimeout(500)
   const boardingAddress = await readClipboard(page)
   expect(boardingAddress).toBeDefined()
@@ -32,10 +29,15 @@ test.skip('should add nudge when balance > 100_000 sats', async ({ page }) => {
   await expect(page.getByText('Payment received!')).toBeVisible()
   await expect(page.getByText('SATS received successfully')).toBeVisible()
 
-  // settle transaction
-  await page.getByText('Wallet').click()
-  await page.getByTestId('transactions-list').locator('div').first().click()
-  await page.getByText('Complete boarding').click()
-  await expect(page.getByText('Success')).toBeVisible()
-  await expect(page.getByText('Transaction settled successfully')).toBeVisible()
+  // check if settings icon shows nudge badge
+  await page.getByTestId('tab-settings').click()
+  await expect(page.getByTestId('settings-nudge-badge')).toBeVisible()
+
+  // check nudge
+  await page.getByTestId('tab-settings').click()
+  await expect(page.getByTestId('red-dot-icon')).toBeVisible()
+  await page.getByText('Advanced').click()
+  await expect(page.getByTestId('red-dot-icon')).toBeVisible()
+  await page.getByText('Change password').click()
+  await expect(page.getByText('You should set a password for your wallet.')).toBeVisible()
 })

@@ -3,7 +3,15 @@ export default function RedDotIcon() {
     marginLeft: '-0.5rem',
   }
   return (
-    <svg width='1rem' height='1rem' viewBox='0 0 21 21' fill='none' style={style} xmlns='http://www.w3.org/2000/svg'>
+    <svg
+      fill='none'
+      width='1rem'
+      height='1rem'
+      style={style}
+      viewBox='0 0 21 21'
+      data-testid='red-dot-icon'
+      xmlns='http://www.w3.org/2000/svg'
+    >
       <circle cx='10' cy='10' r='3' fill='var(--red)' />
     </svg>
   )
