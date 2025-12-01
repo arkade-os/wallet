@@ -30,46 +30,48 @@ test('should save config to nostr', async ({ page }) => {
   await page.getByText('Go to wallet').click()
 
   // enable nostr backups
-  await page.getByText('Settings').click()
-  await page.getByText('Backup and privacy').click()
+  await page.getByTestId('tab-settings').click()
+  await page.getByText('backup', { exact: true }).click()
   await page.getByText('Enable Nostr backups').click()
 
   // change fiat currency to euro
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('general', { exact: true }).click()
   await expect(page.getByText('USD')).toBeVisible()
   await page.getByText('Fiat currency').click()
   await page.getByText('EUR').click()
 
   // verify fiat currency is euro
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('general', { exact: true }).click()
   await expect(page.getByText('EUR')).toBeVisible()
 
   // disable nostr backups
-  await page.getByText('Settings').click()
-  await page.getByText('Backup and privacy').click()
+  await page.getByTestId('tab-settings').click()
+  await page.getByText('backup', { exact: true }).click()
   await page.getByText('Enable Nostr backups').click()
 
   // change fiat currency to usd
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('general', { exact: true }).click()
   await page.getByText('Fiat currency').click()
   await page.getByText('USD').click()
 
   // verify fiat currency is usd
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('general', { exact: true }).click()
   await expect(page.getByText('USD')).toBeVisible()
 
   // get nsec
-  await page.getByText('Settings').click()
-  await page.getByText('Backup and privacy').click()
-  const nsec = await page.locator('p').nth(2).innerText()
+  await page.getByTestId('tab-settings').click()
+  await page.getByText('backup', { exact: true }).click()
+  await page.getByText('View private key').click()
+  await page.getByText('Confirm').click()
+  const nsec = await page.getByTestId('private-key').innerText()
   expect(nsec.startsWith('nsec1')).toBe(true)
 
   // reset wallet
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('Reset wallet').click()
   await page.getByText('I have backed up my wallet').click()
   await page.getByRole('contentinfo').getByText('Reset wallet').click()
@@ -88,7 +90,7 @@ test('should save config to nostr', async ({ page }) => {
   await page.getByText('Go to wallet').click()
 
   // verify fiat currency is euro
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('general', { exact: true }).click()
   await expect(page.getByText('EUR')).toBeVisible()
 })
@@ -104,7 +106,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await page.getByText('Go to wallet').click()
 
   // receive page
-  await page.getByText('Wallet').click()
+  await page.getByTestId('tab-wallet').click()
   await page.getByText('Receive').click()
   await page.locator('ion-input[name="receive-amount"] input').click()
   if (isMobile) {
@@ -141,13 +143,13 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await expect(page.getByText('SATS received successfully')).toBeVisible()
 
   // should be visible in Boltz app
-  await page.getByText('Apps').click()
+  await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-Boltz').click()
   await expect(page.getByRole('button', { name: 'Lightning to Arkade + 1,992' })).toBeVisible()
 
   // transaction should be visible on main page
-  await page.getByText('Wallet').click()
+  await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('+ 1,992 SATS')).toBeVisible()
 
   // generate lightning invoice to pay
@@ -169,31 +171,33 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await page.getByText('Tap to Sign').click()
   await page.waitForSelector('text=Payment sent!')
   await expect(page.getByText('SATS sent successfully')).toBeVisible()
-  await page.getByText('Wallet').click()
+  await page.getByTestId('tab-wallet').click()
 
   // should be visible in Boltz app
-  await page.getByText('Apps').click()
+  await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-Boltz').click()
   await expect(page.getByRole('button', { name: 'Arkade to Lightning - 1,001' })).toBeVisible()
 
   // transaction should be visible on main page
-  await page.getByText('Wallet').click()
+  await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('- 1,001 SATS')).toBeVisible()
 
   // enable nostr backups
-  await page.getByText('Settings').click()
-  await page.getByText('Backup and privacy').click()
+  await page.getByTestId('tab-settings').click()
+  await page.getByText('backup', { exact: true }).click()
   await page.getByText('Enable Nostr backups').click()
 
   // get nsec
-  await page.getByText('Settings').click()
-  await page.getByText('Backup and privacy').click()
-  const nsec = await page.locator('p').nth(2).innerText()
+  await page.getByTestId('tab-settings').click()
+  await page.getByText('backup', { exact: true }).click()
+  await page.getByText('View private key').click()
+  await page.getByText('Confirm').click()
+  const nsec = await page.getByTestId('private-key').innerText()
   expect(nsec.startsWith('nsec1')).toBe(true)
 
   // reset wallet
-  await page.getByText('Settings').click()
+  await page.getByTestId('tab-settings').click()
   await page.getByText('Reset wallet').click()
   await page.getByText('I have backed up my wallet').click()
   await page.getByRole('contentinfo').getByText('Reset wallet').click()
@@ -212,7 +216,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await page.getByText('Go to wallet').click()
 
   // should be visible in Boltz app
-  await page.getByText('Apps').click()
+  await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-Boltz').click()
   await expect(page.getByRole('button', { name: 'Arkade to Lightning - 1,001' })).toBeVisible()

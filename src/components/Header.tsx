@@ -40,12 +40,12 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
               <BackIcon />
             </div>
           ) : (
-            <p>&nbsp;</p>
+            '\u00A0'
           )}
         </div>
         <IonTitle className='ion-text-center'>{text}</IonTitle>
         <div style={style} onClick={auxFunc} aria-label={auxAriaLabel}>
-          {auxText ? SideButton(auxText) : auxIcon ? auxIcon : <p>&nbsp;</p>}
+          {auxText ? SideButton(auxText) : auxIcon ? auxIcon : '\u00A0'}
         </div>
       </FlexRow>
     </IonHeader>

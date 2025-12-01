@@ -1,5 +1,5 @@
 export default function Bullet({ number }: { number: number }) {
-  const style = {
+  const style: React.CSSProperties = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',

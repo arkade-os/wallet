@@ -3,7 +3,7 @@ interface MegaphoneProps {
 }
 
 export default function MegaphoneIcon({ animated }: MegaphoneProps) {
-  const style = {
+  const style: React.CSSProperties = {
     animation: animated ? 'var(--animation-pulse)' : 'none',
   }
   return (
