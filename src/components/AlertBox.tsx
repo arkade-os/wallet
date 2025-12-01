@@ -56,7 +56,7 @@ function AlertText({ children }: { children: React.ReactNode }) {
 
 export function InfoBox({ html }: { html: string }) {
   const sanitizedHtml = DOMPurify.sanitize(html)
-  const style = {
+  const style: React.CSSProperties = {
     color: 'var(--black)',
     fontSize: '13px',
     fontWeight: 600,

@@ -13,7 +13,7 @@ test('should be connected to Boltz app', async ({ page }) => {
   await page.getByText('Skip for now').click()
   await page.getByText('+ Create wallet').click()
   await page.getByText('Go to wallet').click()
-  await page.getByText('Apps').click()
+  await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-Boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
@@ -67,14 +67,14 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   // wait for payment received
   await page.waitForSelector('text=Payment received!')
   await expect(page.getByText('SATS received successfully')).toBeVisible()
-  await page.getByText('Wallet').click()
+  await page.getByTestId('tab-wallet').click()
 
   // main page
   await expect(page.getByText('1,992', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 1,992 SATS')).toBeVisible()
 
   // should be visible in Boltz app
-  await page.getByText('Apps').click()
+  await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-Boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
@@ -109,7 +109,7 @@ test('should send funds to Lightning', async ({ page }) => {
   exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
   await page.waitForSelector('text=Payment received!')
   await expect(page.getByText('SATS received successfully')).toBeVisible()
-  await page.getByText('Wallet').click()
+  await page.getByTestId('tab-wallet').click()
 
   // main page
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
@@ -134,10 +134,10 @@ test('should send funds to Lightning', async ({ page }) => {
   await page.getByText('Tap to Sign').click()
   await page.waitForSelector('text=Payment sent!')
   await expect(page.getByText('SATS sent successfully')).toBeVisible()
-  await page.getByText('Wallet').click()
+  await page.getByTestId('tab-wallet').click()
 
   // should be visible in Boltz app
-  await page.getByText('Apps').click()
+  await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-Boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
@@ -172,7 +172,7 @@ test('should refund failing swap', async ({ page }) => {
   exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
   await page.waitForSelector('text=Payment received!')
   await expect(page.getByText('SATS received successfully')).toBeVisible()
-  await page.getByText('Wallet').click()
+  await page.getByTestId('tab-wallet').click()
 
   // main page
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
@@ -201,10 +201,10 @@ test('should refund failing swap', async ({ page }) => {
   await page.getByText('Continue').click()
   await page.getByText('Tap to Sign').click()
   await page.waitForSelector('text=Swap failed: VHTLC refunded')
-  await page.getByText('Wallet').click()
+  await page.getByTestId('tab-wallet').click()
 
   // should be visible in Boltz app
-  await page.getByText('Apps').click()
+  await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-Boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()

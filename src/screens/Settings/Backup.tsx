@@ -1,7 +1,6 @@
-import { useIonToast } from '@ionic/react'
-import { useState, useEffect, useContext } from 'react'
+import { IonInput, useIonToast } from '@ionic/react'
+import { useState, useEffect, useContext, useRef } from 'react'
 import Button from '../../components/Button'
-import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import { copyToClipboard } from '../../lib/clipboard'
@@ -11,41 +10,72 @@ import FlexCol from '../../components/FlexCol'
 import { backupToNostr, copiedToClipboard } from '../../lib/toast'
 import { getPrivateKey, privateKeyToNsec } from '../../lib/privateKey'
 import { consoleError } from '../../lib/logs'
-import NeedsPassword from '../../components/NeedsPassword'
 import Shadow from '../../components/Shadow'
 import { defaultPassword } from '../../lib/constants'
 import { ConfigContext } from '../../providers/config'
 import Toggle from '../../components/Toggle'
 import { BackupProvider } from '../../lib/backup'
 import ErrorMessage from '../../components/Error'
+import SafeIcon from '../../icons/Safe'
+import FlexRow from '../../components/FlexRow'
+import DontIcon from '../../icons/Dont'
+import XIcon from '../../icons/X'
+import WarningBox from '../../components/Warning'
+import Modal from '../../components/Modal'
+import InputFake from '../../components/InputFake'
+import OkIcon from '../../icons/Ok'
+import { WalletContext } from '../../providers/wallet'
+import { authenticateUser } from '../../lib/biometrics'
+import FingerprintIcon from '../../icons/Fingerprint'
 
 export default function Backup() {
+  const { wallet } = useContext(WalletContext)
   const { backupConfig, config, updateConfig } = useContext(ConfigContext)
 
   const [present] = useIonToast()
 
   const [nsec, setNsec] = useState('')
   const [error, setError] = useState('')
-  const [password, setPassword] = useState('')
+  const [dialog, setDialog] = useState(false)
+  const [showNsec, setShowNsec] = useState(false)
+
+  const input = useRef<HTMLIonInputElement>(null)
 
   useEffect(() => {
-    const pass = password ? password : defaultPassword
-    getPrivateKey(pass)
-      .then((privateKey) => {
-        setNsec(privateKeyToNsec(privateKey))
-      })
-      .catch((err) => {
-        if (password) {
-          consoleError(err, 'error unlocking wallet')
-          setError('Invalid password')
-        }
-      })
-  }, [password])
+    verifyPassword(defaultPassword).then(setNsec)
+  }, [])
+
+  const verifyPassword = async (password: string): Promise<string> => {
+    try {
+      const privateKey = await getPrivateKey(password)
+      return privateKeyToNsec(privateKey)
+    } catch {
+      return ''
+    }
+  }
 
   const handleCopy = async () => {
     if (!nsec) return
     await copyToClipboard(nsec)
     present(copiedToClipboard)
+  }
+
+  const showPrivateKey = async () => {
+    if (!nsec) {
+      const password = wallet.lockedByBiometrics
+        ? await authenticateUser(wallet.passkeyId).catch(setError)
+        : (input.current?.value as string)
+      if (!password) return
+      const privateKey = await verifyPassword(password)
+      setError(privateKey ? '' : 'Invalid password')
+      setNsec(privateKey ?? '')
+    }
+    setShowNsec(true)
+    setDialog(false)
+  }
+
+  const toggleDialog = () => {
+    setDialog(!dialog)
   }
 
   const toggleNostrBackup = async () => {
@@ -64,43 +94,94 @@ export default function Backup() {
     present(backupToNostr)
   }
 
+  const Dialog = () => (
+    <FlexCol gap='1.5rem'>
+      <FlexCol centered gap='0.5rem'>
+        <Text big bold>
+          Private key
+        </Text>
+        <TextSecondary centered wrap>
+          Your Private Key is the key used to back up your wallet. Keep it secret and secure at all times.
+        </TextSecondary>
+      </FlexCol>
+      {!nsec ? (
+        wallet.lockedByBiometrics ? (
+          <FlexCol centered gap='0.5rem'>
+            <FingerprintIcon />
+            <Text centered>Unlock with your passkey</Text>
+          </FlexCol>
+        ) : (
+          <FlexCol gap='0.5rem'>
+            <TextSecondary>Enter your password</TextSecondary>
+            <IonInput ref={input} type='password' />
+            <ErrorMessage error={Boolean(error)} text={error} />
+          </FlexCol>
+        )
+      ) : null}
+      <FlexCol gap='0.25rem'>
+        <FlexRow>
+          <SafeIcon />
+          <TextSecondary>Keep your private key safe</TextSecondary>
+        </FlexRow>
+        <FlexRow>
+          <DontIcon />
+          <TextSecondary>Don't share it with anyone</TextSecondary>
+        </FlexRow>
+        <FlexRow>
+          <XIcon />
+          <TextSecondary>If you lose it you can't recover it</TextSecondary>
+        </FlexRow>
+      </FlexCol>
+      <FlexRow>
+        <Button onClick={toggleDialog} label='Cancel' secondary />
+        <Button onClick={showPrivateKey} label='Confirm' />
+      </FlexRow>
+    </FlexCol>
+  )
+
   return (
     <>
       <Header text='Backup' back />
-      {nsec ? (
-        <>
-          <Content>
-            <Padded>
-              <FlexCol gap='2rem'>
-                <ErrorMessage error={Boolean(error)} text={error} />
-                <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
-                  <Text thin>Private key</Text>
-                  <Shadow>
-                    <div style={{ padding: '10px' }}>
-                      <Text small wrap>
-                        {nsec}
-                      </Text>
-                    </div>
-                  </Shadow>
-                  <TextSecondary>This is enough to restore your wallet.</TextSecondary>
+      {dialog ? (
+        <Modal>
+          <Dialog />
+        </Modal>
+      ) : null}
+      <Content>
+        <Padded>
+          <FlexCol gap='2rem'>
+            <ErrorMessage error={Boolean(error)} text={error} />
+            <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
+              <Text thin>Private key</Text>
+              <TextSecondary>For your eyes only, do not share.</TextSecondary>
+              <Shadow lighter>
+                <FlexCol gap='10px'>
+                  <InputFake testId='private-key' text={showNsec ? nsec : '*******'} />
+                  {showNsec ? (
+                    <Button onClick={handleCopy} label='Copy to clipboard' />
+                  ) : (
+                    <Button onClick={toggleDialog} label='View private key' />
+                  )}
+                  <FlexRow>
+                    <OkIcon />
+                    <Text small>This is enough to restore your wallet.</Text>
+                  </FlexRow>
                 </FlexCol>
-                <Toggle
-                  checked={config.nostrBackup}
-                  onClick={toggleNostrBackup}
-                  text='Enable Nostr backups'
-                  subtext='Turn Nostr backups on or off'
-                  testId='toggle-backup'
-                />
-              </FlexCol>
-            </Padded>
-          </Content>
-          <ButtonsOnBottom>
-            <Button onClick={handleCopy} label='Copy nsec to clipboard' />
-          </ButtonsOnBottom>
-        </>
-      ) : (
-        <NeedsPassword onPassword={setPassword} error={error} />
-      )}
+              </Shadow>
+              {showNsec ? (
+                <WarningBox text="Your Private Key can be used to access everything in your wallet. Don't share it with anyone." />
+              ) : null}
+            </FlexCol>
+            <Toggle
+              checked={config.nostrBackup}
+              onClick={toggleNostrBackup}
+              text='Enable Nostr backups'
+              subtext='Turn Nostr backups on or off'
+              testId='toggle-backup'
+            />
+          </FlexCol>
+        </Padded>
+      </Content>
     </>
   )
 }

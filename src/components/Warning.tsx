@@ -1,5 +1,5 @@
 import ForbidIcon from '../icons/Forbid'
-import InfoIcon from '../icons/Info'
+import { InfoIconDark } from '../icons/Info'
 import FlexRow from './FlexRow'
 import Text from './Text'
 
@@ -12,20 +12,19 @@ interface WarningProps {
 export default function WarningBox({ green, red, text }: WarningProps) {
   const backgroundColor = red ? 'var(--redbg)' : green ? 'var(--greenbg)' : 'var(--orangebg)'
   const borderColor = red ? 'var(--red)' : green ? 'var(--green)' : 'var(--orange)'
-  const Icon = () => (red ? <ForbidIcon /> : <InfoIcon />)
+  const Icon = () => (red ? <ForbidIcon /> : <InfoIconDark />)
 
-  const style = {
+  const style: React.CSSProperties = {
     backgroundColor,
-    border: `1px solid ${borderColor}`,
     borderRadius: '0.5rem',
-    color: 'white',
-    padding: '1rem',
+    color: 'var(--orange)',
+    padding: '0.75rem 1rem',
     width: '100%',
   }
 
   return (
     <div style={style}>
-      <FlexRow gap='1rem'>
+      <FlexRow alignItems='flex-start' gap='1rem'>
         <div style={{ color: borderColor }}>
           <Icon />
         </div>
