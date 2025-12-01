@@ -39,9 +39,12 @@ export const NudgeProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const addNudge = (nudge: Nudge) => {
-    if (repo.find((n) => flat(n) === flat(nudge))) return // already exists
-    updateNudges([...repo, nudge])
-    setRepo([...repo, nudge])
+    setRepo((prev) => {
+      if (prev.find((n) => flat(n) === flat(nudge))) return prev // already exists
+      const next = [...prev, nudge]
+      updateNudges(next)
+      return next
+    })
   }
 
   const addPasswordNudge = () => {
@@ -55,10 +58,12 @@ export const NudgeProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const removeNudge = (nudge: Nudge) => {
-    if (!repo.find((n) => flat(n) === flat(nudge))) return // not found
-    const filtered = repo.filter((n) => flat(n) !== flat(nudge))
-    updateNudges(filtered)
-    setRepo(filtered)
+    setRepo((prev) => {
+      if (!prev.find((n) => flat(n) === flat(nudge))) return prev // not found
+      const filtered = prev.filter((n) => flat(n) !== flat(nudge))
+      updateNudges(filtered)
+      return filtered
+    })
   }
 
   return (
