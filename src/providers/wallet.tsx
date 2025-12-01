@@ -89,7 +89,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!initialized || !vtxos || !svcWallet) return
     const computeThresholds = async () => {
       try {
-        const allVtxos = [...vtxos.spendable, ...vtxos.spent]
+        const allVtxos = await svcWallet.getVtxos({ withRecoverable: true })
         const batchLifetimeMs = await calcBatchLifetimeMs(aspInfo, allVtxos)
         const thresholdMs = Math.floor((batchLifetimeMs * maxPercentage) / 100)
         const nextRollover = await calcNextRollover(vtxos.spendable, svcWallet, aspInfo)
