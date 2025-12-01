@@ -57,7 +57,6 @@ export default function InputAmount({
   })
 
   useEffect(() => {
-    console.log('InputAmount - sats changed:', sats)
     setOtherValue(useFiat ? prettyNumber(sats) : prettyNumber(toFiat(sats), 2))
     setError(sats ? (sats < 0 ? 'Invalid amount' : '') : '')
   }, [sats])
