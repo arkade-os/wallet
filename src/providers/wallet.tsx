@@ -89,33 +89,21 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // calculate thresholdMs and next rollover
   useEffect(() => {
     if (!initialized || !vtxos || !svcWallet) return
-    const computeThresholds = async () => {
-      try {
-        const allVtxos = [...vtxos.spendable, ...vtxos.spent]
-        const batchLifetimeMs = await calcBatchLifetimeMs(aspInfo, allVtxos)
-        const thresholdMs = Math.floor((batchLifetimeMs * maxPercentage) / 100)
-        const nextRollover = await calcNextRollover(vtxos.spendable, svcWallet, aspInfo)
+    const allVtxos = [...vtxos.spendable, ...vtxos.spent]
+    calcBatchLifetimeMs(aspInfo, allVtxos).then((batchLifetimeMs) => {
+      const thresholdMs = Math.floor((batchLifetimeMs * maxPercentage) / 100)
+      calcNextRollover(vtxos.spendable, svcWallet, aspInfo).then((nextRollover) => {
         updateWallet((prev) => ({ ...prev, nextRollover, thresholdMs }))
-      } catch (err) {
-        consoleError(err, 'Error computing rollover thresholds')
-      }
-    }
-    const checkBalanceWithoutPassword = async () => {
-      try {
-        const balance = await svcWallet.getBalance()
-        if (balance.total >= minSatsToNudge) addPasswordNudge()
-      } catch {}
-    }
-    computeThresholds()
-    checkBalanceWithoutPassword()
+      })
+    })
   }, [initialized, vtxos, svcWallet, aspInfo])
 
+  // check balance for nudges
   useEffect(() => {
     if (!initialized || !vtxos || !svcWallet) return
     svcWallet
       .getBalance()
       .then((balance) => {
-        console.log('Checking balance for nudges:', balance)
         if (balance.total >= minSatsToNudge) addPasswordNudge()
       })
       .catch(() => {})
