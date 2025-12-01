@@ -34,6 +34,7 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 | `VITE_UTXO_MIN_AMOUNT`.     | Overwrite the server's utxoMinAmount                                | `VITE_UTXO_MIN_AMOUNT=330`                        |
 | `VITE_VTXO_MAX_AMOUNT`.     | Overwrite the server's vtxoMaxAmount                                | `VITE_VTXO_MAX_AMOUNT=-1`                         |
 | `VITE_VTXO_MIN_AMOUNT`.     | Overwrite the server's vtxoMinAmount                                | `VITE_VTXO_MIN_AMOUNT=330`                        |
+| `VITE_ARK_ESCROW_URL` | Override the default Ark Escrow app URL for Ark Escrow              | `VITE_ARK_ESCROW_URL=https://your-ark-escrow-app-url.com` |
 
 ## Getting Started
 
