@@ -34,16 +34,18 @@ export default function Menu({ rows, styled }: MenuProps) {
   return (
     <FlexCol gap='0'>
       {rows.map(({ icon, option }) => (
-        <FlexRow key={option} between>
-          <div onClick={() => setOption(option)} style={rowStyle(option)}>
+        <div key={option} onClick={() => setOption(option)} style={rowStyle(option)}>
+          <FlexRow between>
             <FlexRow>
               {styled ? icon : null}
               <Text capitalize>{option}</Text>
-              {nudges[option]?.length > 0 ? <RedDotIcon /> : null}
             </FlexRow>
-            <ArrowIcon />
-          </div>
-        </FlexRow>
+            <FlexRow end>
+              {nudges[option]?.length > 0 ? <RedDotIcon /> : null}
+              <ArrowIcon />
+            </FlexRow>
+          </FlexRow>
+        </div>
       ))}
     </FlexCol>
   )
