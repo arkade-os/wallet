@@ -134,7 +134,7 @@ export default function Vtxos() {
   }
 
   const Box = ({ children }: { children: ReactNode }) => {
-    const style = {
+    const style: React.CSSProperties = {
       backgroundColor: 'var(--dark10)',
       border: '1px solid var(--dark20)',
       borderRadius: '0.25rem',
@@ -177,7 +177,7 @@ export default function Vtxos() {
   }
 
   const CoinLine = ({ amount, tags, expiry }: { amount: string; tags: React.ReactNode; expiry: string }) => {
-    const style = {
+    const style: React.CSSProperties = {
       backgroundColor: 'var(--dark10)',
       border: '1px solid var(--dark20)',
       borderRadius: '0.25rem',

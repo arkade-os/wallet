@@ -7,7 +7,7 @@ interface CheckboxProps {
 }
 
 export default function Checkbox({ onChange, text }: CheckboxProps) {
-  const style = {
+  const style: React.CSSProperties = {
     border: '1px solid var(--dark50)',
     borderRadius: '0.5rem',
     margin: '0 2px',

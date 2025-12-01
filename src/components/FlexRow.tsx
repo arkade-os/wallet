@@ -30,7 +30,7 @@ export default function FlexRow({
   testId,
 }: FlexRowProps) {
   const justifyContent = between ? 'space-between' : centered ? 'center' : end ? 'end' : 'start'
-  const style = {
+  const style: React.CSSProperties = {
     alignItems: alignItems ?? 'center',
     borderBottom: border ? '1px solid var(--dark20)' : undefined,
     color: color ? `var(--${color})` : 'inherit',

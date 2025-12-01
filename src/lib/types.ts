@@ -47,7 +47,7 @@ export enum SettingsOptions {
   Menu = 'menu',
   About = 'about',
   Advanced = 'advanced',
-  Backup = 'backup and privacy',
+  Backup = 'backup',
   General = 'general',
   Lock = 'lock wallet',
   Logs = 'logs',

@@ -134,19 +134,19 @@ export default function App() {
             </IonTab>
             <IonTabBar slot='bottom'>
               <IonTabButton tab={Tabs.Wallet} selected={tab === Tabs.Wallet} onClick={handleWallet}>
-                <FlexCol centered gap='6px'>
+                <FlexCol centered gap='6px' testId='tab-wallet'>
                   <WalletIcon nudge={nudges[Tabs.Wallet]?.length > 0} />
                   Wallet
                 </FlexCol>
               </IonTabButton>
               <IonTabButton tab={Tabs.Apps} selected={tab === Tabs.Apps} onClick={handleApps}>
-                <FlexCol centered gap='6px'>
+                <FlexCol centered gap='6px' testId='tab-apps'>
                   <AppsIcon nudge={nudges[Tabs.Apps]?.length > 0} />
                   Apps
                 </FlexCol>
               </IonTabButton>
               <IonTabButton tab={Tabs.Settings} selected={tab === Tabs.Settings} onClick={handleSettings}>
-                <FlexCol centered gap='6px'>
+                <FlexCol centered gap='6px' testId='tab-settings'>
                   <SettingsIcon nudge={nudges[Tabs.Settings]?.length > 0} />
                   Settings
                 </FlexCol>

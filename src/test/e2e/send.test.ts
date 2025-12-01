@@ -28,7 +28,7 @@ test('should send offchain funds', async ({ page, isMobile }) => {
   exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
   await page.waitForSelector('text=Payment received!')
   await expect(page.getByText('SATS received successfully')).toBeVisible()
-  await page.getByText('Wallet').click()
+  await page.getByTestId('tab-wallet').click()
 
   // main page
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
@@ -59,7 +59,7 @@ test('should send offchain funds', async ({ page, isMobile }) => {
   await page.getByText('Tap to Sign').click()
   await page.waitForSelector('text=Payment sent!')
   await expect(page.getByText('SATS sent successfully')).toBeVisible()
-  await page.getByText('Wallet').click()
+  await page.getByTestId('tab-wallet').click()
 
   // main page
   await expect(page.getByText('3,000SATS')).toBeVisible()

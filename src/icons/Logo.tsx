@@ -12,7 +12,7 @@ export default function LogoIcon({ small }: { small?: boolean }) {
 }
 
 export function LogoIconAnimated() {
-  const style = {
+  const style: React.CSSProperties = {
     animation: 'var(--animation-pulse)',
   }
   return (
