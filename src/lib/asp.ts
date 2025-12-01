@@ -186,7 +186,7 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
 }
 
 export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable: Vtxo[]; spent: Vtxo[] }> => {
-  const vtxos = await wallet.getVtxos()
+  const vtxos = await wallet.getVtxos({ withRecoverable: true })
   const spendable: Vtxo[] = []
   const spent: Vtxo[] = []
   for (const vtxo of vtxos) {
