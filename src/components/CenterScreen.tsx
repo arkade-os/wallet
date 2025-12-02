@@ -16,7 +16,7 @@ export default function CenterScreen({ children, gap, onClick }: CenterScreenPro
     height: '100%',
     justifyContent: 'center',
     margin: 'auto',
-    maxWidth: '16rem',
+    maxWidth: '18rem',
     paddingBottom: '5rem',
   }
 

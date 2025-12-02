@@ -10,6 +10,7 @@ interface FlexColProps {
   margin?: string
   padding?: string
   strech?: boolean
+  testId?: string
 }
 
 export default function FlexCol({
@@ -22,6 +23,7 @@ export default function FlexCol({
   margin,
   padding,
   strech,
+  testId,
 }: FlexColProps) {
   const style: any = {
     alignItems: centered ? 'center' : end ? 'end' : strech ? 'strech' : 'start',
@@ -36,5 +38,9 @@ export default function FlexCol({
     width: '100%',
   }
 
-  return <div style={style}>{children}</div>
+  return (
+    <div data-testid={testId ?? ''} style={style}>
+      {children}
+    </div>
+  )
 }

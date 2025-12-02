@@ -13,13 +13,14 @@ interface InputAmountProps {
   min?: number
   max?: number
   name?: string
-  onChange: (arg0: any) => void
   onEnter?: () => void
   onFocus?: () => void
   onMax?: () => void
+  onSats: (sats: number) => void
   readOnly?: boolean
   right?: JSX.Element
   value?: number
+  sats?: number
 }
 
 export default function InputAmount({
@@ -29,13 +30,14 @@ export default function InputAmount({
   min,
   max,
   name,
-  onChange,
   onEnter,
   onFocus,
   onMax,
+  onSats,
   readOnly,
   right,
   value,
+  sats,
 }: InputAmountProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
@@ -55,14 +57,14 @@ export default function InputAmount({
   })
 
   useEffect(() => {
-    setOtherValue(useFiat ? prettyNumber(fromFiat(value)) : prettyNumber(toFiat(value), 2))
-    setError(value ? (value < 0 ? 'Invalid amount' : '') : '')
-  }, [value])
+    setOtherValue(useFiat ? prettyNumber(sats) : prettyNumber(toFiat(sats), 2))
+    setError(sats ? (sats < 0 ? 'Invalid amount' : '') : '')
+  }, [sats])
 
   const handleInput = (ev: Event) => {
     const value = Number((ev.target as HTMLInputElement).value)
     if (Number.isNaN(value)) return
-    onChange(value)
+    onSats(useFiat ? fromFiat(value) : value)
   }
 
   const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0

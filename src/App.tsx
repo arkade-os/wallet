@@ -138,19 +138,19 @@ export default function App() {
             </IonTab>
             <IonTabBar slot='bottom'>
               <IonTabButton tab={Tabs.Wallet} selected={tab === Tabs.Wallet} onClick={handleWallet}>
-                <FlexCol centered gap='6px'>
+                <FlexCol centered gap='6px' testId='tab-wallet'>
                   <WalletIcon />
                   Wallet
                 </FlexCol>
               </IonTabButton>
               <IonTabButton tab={Tabs.Apps} selected={tab === Tabs.Apps} onClick={handleApps}>
-                <FlexCol centered gap='6px'>
+                <FlexCol centered gap='6px' testId='tab-apps'>
                   <AppsIcon />
                   Apps
                 </FlexCol>
               </IonTabButton>
               <IonTabButton tab={Tabs.Settings} selected={tab === Tabs.Settings} onClick={handleSettings}>
-                <FlexCol centered gap='6px'>
+                <FlexCol centered gap='6px' testId='tab-settings'>
                   <SettingsIcon />
                   Settings
                 </FlexCol>
