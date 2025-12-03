@@ -1,10 +1,12 @@
 :root {
   --black: #040404;
+  --cream: #391998;
   --dark80: rgba(var(--ion-color-dark-rgb), 0.8);
   --dark70: rgba(var(--ion-color-dark-rgb), 0.7);
   --dark50: rgba(var(--ion-color-dark-rgb), 0.5);
   --dark30: rgba(var(--ion-color-dark-rgb), 0.3);
   --dark20: rgba(var(--ion-color-dark-rgb), 0.2);
+  --dark15: rgba(var(--ion-color-dark-rgb), 0.15);
   --dark10: rgba(var(--ion-color-dark-rgb), 0.1);
   --dark05: rgba(var(--ion-color-dark-rgb), 0.05);
   --green: #60b18a;
@@ -39,6 +41,7 @@
 
 .ion-palette-dark {
   --black: #fbfbfb;
+  --cream: #d9d9d9;
   --greenbg: #092d13;
   --orange: #e69b39;
   --orangebg: #2e1800;
