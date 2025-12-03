@@ -110,7 +110,7 @@ type Props = {
   getArkWalletAddress: () => Promise<string | undefined>
   getArkWalletBalance: () => Promise<{ available: number } | undefined>
   signArkTransaction: (tx: string, checkpoints: string[]) => Promise<{ signedTx: string; signedCheckpoints: string[] }>
-  fundAddress: (address: string, amount: number) => Promise<void>
+  fundAddress: (address: string, amount: number) => Promise<string>
 }
 type Result = { tag: 'success'; result: OutboundMessage } | { tag: 'failure'; error: Error }
 export default function makeMessageHandler(props: Props): MessageHandler {
@@ -192,10 +192,17 @@ export default function makeMessageHandler(props: Props): MessageHandler {
           }
 
           case 'fund-address': {
-            await props.fundAddress(message.payload.address, message.payload.amount)
-            return {
-              tag: 'success',
-              result: { kind: 'ARKADE_RPC_RESPONSE', id, method, payload: {} },
+            try {
+              const txid = await props.fundAddress(message.payload.address, message.payload.amount)
+              return {
+                tag: 'success',
+                result: { kind: 'ARKADE_RPC_RESPONSE', id, method, payload: { txid } },
+              }
+            } catch (cause) {
+              return {
+                tag: 'failure',
+                error: new Error('Failed to fund', { cause }),
+              }
             }
           }
         }
