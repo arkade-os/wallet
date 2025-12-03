@@ -108,19 +108,6 @@ button.reminder-button.action-sheet-button {
   color: #f7fafc;
 }
 
-.show-on-dark-theme {
-  display: none;
-}
-
-.ion-palette-dark {
-  & .show-on-light-theme {
-    display: none;
-  }
-  & .show-on-dark-theme {
-    display: block;
-  }
-}
-
 .spinner {
   width: 20px;
   height: 20px;
