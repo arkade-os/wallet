@@ -113,7 +113,7 @@ export default function TransactionsList() {
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
       <TextLabel>Transaction history</TextLabel>
-      <div style={{ borderBottom: border }}>
+      <div data-testid='transactions-list' style={{ borderBottom: border }}>
         {txs.map((tx) => (
           <TransactionLine key={key(tx)} tx={tx} />
         ))}

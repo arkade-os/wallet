@@ -5,6 +5,9 @@ import Button from '../../components/Button'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import Success from '../../components/Success'
+import { SettingsOptions } from '../../lib/types'
+import NudgeComponent from '../../components/Nudge'
+import { NudgeContext } from '../../providers/nudge'
 import { defaultPassword } from '../../lib/constants'
 import { WalletContext } from '../../providers/wallet'
 import NewPassword from '../../components/NewPassword'
@@ -15,6 +18,7 @@ import { isBiometricsSupported, registerUser } from '../../lib/biometrics'
 import { getPrivateKey, isValidPassword, noUserDefinedPassword, setPrivateKey } from '../../lib/privateKey'
 
 export default function Password() {
+  const { nudges } = useContext(NudgeContext)
   const { updateWallet, wallet } = useContext(WalletContext)
 
   const [authenticated, setAuthenticated] = useState(false)
@@ -79,6 +83,8 @@ export default function Password() {
 
   if (!authenticated && !successText) return <NeedsPassword error={error} onPassword={setOldPassword} />
 
+  const nudge = nudges[SettingsOptions.Password]?.[0]
+
   return (
     <>
       <Header text='Change password' back />
@@ -87,6 +93,7 @@ export default function Password() {
           <Success headline='Success' text={successText} />
         ) : (
           <Padded>
+            {nudge ? <NudgeComponent nudge={nudge} /> : null}
             <ErrorMessage text={error} error={Boolean(error)} />
             <NewPassword onNewPassword={setNewPassword} setLabel={setLabel} />
           </Padded>

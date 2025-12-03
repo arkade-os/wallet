@@ -43,8 +43,8 @@ export default function ExpandAddresses({
     setExpand(!expand)
   }
 
-  const ExpandLine = ({ title, value }: { title: string; value: string }) => (
-    <FlexRow between onClick={() => onClick(value)}>
+  const ExpandLine = ({ testId, title, value }: { testId?: string; title: string; value: string }) => (
+    <FlexRow between onClick={() => onClick(value)} testId={`address-line-${testId}`}>
       <FlexCol gap='0'>
         <TextSecondary>{title}</TextSecondary>
         <Text>{prettyLongText(value, 12)}</Text>
@@ -66,10 +66,10 @@ export default function ExpandAddresses({
       {expand ? (
         <div style={{ padding: '1rem 0 0 0.5rem', width: '100%' }}>
           <FlexCol gap='0.21rem'>
-            {bip21uri ? <ExpandLine title='BIP21' value={bip21uri} /> : null}
-            {boardingAddr ? <ExpandLine title='BTC address' value={boardingAddr} /> : null}
-            {offchainAddr ? <ExpandLine title='Ark address' value={offchainAddr} /> : null}
-            {invoice ? <ExpandLine title='Lightning invoice' value={invoice} /> : null}
+            {bip21uri ? <ExpandLine testId='bip21' title='BIP21' value={bip21uri} /> : null}
+            {boardingAddr ? <ExpandLine testId='btc' title='BTC address' value={boardingAddr} /> : null}
+            {offchainAddr ? <ExpandLine testId='ark' title='Ark address' value={offchainAddr} /> : null}
+            {invoice ? <ExpandLine testId='lightning' title='Lightning invoice' value={invoice} /> : null}
           </FlexCol>
         </div>
       ) : null}
