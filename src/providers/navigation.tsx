@@ -27,7 +27,7 @@ import AppBoltzSwap from '../screens/Apps/Boltz/Swap'
 import Escrow from '../screens/Apps/Escrow/Index'
 import AppLendasat from '../screens/Apps/Lendasat/Index'
 import AppLendaswap from '../screens/Apps/Lendaswap/Index'
-import ServerDown from '../screens/Wallet/ServerDown'
+import Unavailable from '../screens/Wallet/Unavailable'
 
 export enum Pages {
   AppBoltz,
@@ -53,9 +53,9 @@ export enum Pages {
   SendForm,
   SendDetails,
   SendSuccess,
-  ServerDown,
   Settings,
   Transaction,
+  Unavailable,
   Unlock,
   Vtxos,
   Wallet,
@@ -92,9 +92,9 @@ const pageTab = {
   [Pages.SendForm]: Tabs.Wallet,
   [Pages.SendDetails]: Tabs.Wallet,
   [Pages.SendSuccess]: Tabs.Wallet,
-  [Pages.ServerDown]: Tabs.None,
   [Pages.Settings]: Tabs.Settings,
   [Pages.Transaction]: Tabs.Wallet,
+  [Pages.Unavailable]: Tabs.None,
   [Pages.Unlock]: Tabs.None,
   [Pages.Vtxos]: Tabs.Settings,
   [Pages.Wallet]: Tabs.Wallet,
@@ -148,12 +148,12 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <SendDetails />
     case Pages.SendSuccess:
       return <SendSuccess />
-    case Pages.ServerDown:
-      return <ServerDown />
     case Pages.Settings:
       return <Settings />
     case Pages.Transaction:
       return <Transaction />
+    case Pages.Unavailable:
+      return <Unavailable />
     case Pages.Unlock:
       return <Unlock />
     case Pages.Vtxos:
