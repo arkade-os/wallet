@@ -21,16 +21,17 @@ interface EscrowContextProps {
 export const EscrowContext = createContext<EscrowContextProps>({
   signout: () => {},
   signin: () => {},
-  isSignedIn: false
+  isSignedIn: false,
 })
 
 export const EscrowProvider = async ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet } = useContext(WalletContext)
   const { config, updateConfig } = useContext(ConfigContext)
-  const [escrowClient, setEscrowClient] = useState<EscrowClient>(new EscrowClient(BASE_URLS[aspInfo.network], aspInfo, svcWallet!))
-  const [ isSignedIn, setIsSignedIn ] = useState(false)
-
+  const [escrowClient, setEscrowClient] = useState<EscrowClient>(
+    new EscrowClient(BASE_URLS[aspInfo.network], aspInfo, svcWallet!),
+  )
+  const [isSignedIn, setIsSignedIn] = useState(false)
 
   const signin = async (password: string) => {
     const priv = await getPrivateKey(password)
@@ -49,7 +50,7 @@ export const EscrowProvider = async ({ children }: { children: ReactNode }) => {
       value={{
         signin,
         signout,
-        isSignedIn
+        isSignedIn,
       }}
     >
       {children}

@@ -48,73 +48,74 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
 
 type PendingTransaction = {
   vtxo: {
-    txid: string;
-    vout: number;
-    value: number;
-  };
-  arkTx:  Uint8Array; // The Ark transaction as PSBT (array for storage, Uint8Array for processing)
-  checkpoints: Uint8Array[]; // Checkpoint transactions as PSBTs (arrays for storage, Uint8Arrays for processing)
+    txid: string
+    vout: number
+    value: number
+  }
+  arkTx: Uint8Array // The Ark transaction as PSBT (array for storage, Uint8Array for processing)
+  checkpoints: Uint8Array[] // Checkpoint transactions as PSBTs (arrays for storage, Uint8Arrays for processing)
 }
 
 function toPendingTransaction(input: string): PendingTransaction {
-  const {vtxo, arkTx, checkpoints} = JSON.parse(input);
+  const { vtxo, arkTx, checkpoints } = JSON.parse(input)
   return {
     vtxo,
     arkTx: new Uint8Array(arkTx),
-    checkpoints: checkpoints.map(c => new Uint8Array(c)),
-  };
+    checkpoints: checkpoints.map((c) => new Uint8Array(c)),
+  }
 }
 
 export default function Sign() {
   const { svcWallet } = useContext(WalletContext)
-  const pubkey=svcWallet?.xOnlyPublicKey()
+  const pubkey = svcWallet?.xOnlyPublicKey()
 
-  const [hashToSign, setHashToSign] = useState<string|undefined>()
-  const [transactionToSign, setTransactionToSign] = useState<PendingTransaction|undefined>()
-  const [signatureHex, setSignatureHex] = useState<string|undefined>()
+  const [hashToSign, setHashToSign] = useState<string | undefined>()
+  const [transactionToSign, setTransactionToSign] = useState<PendingTransaction | undefined>()
+  const [signatureHex, setSignatureHex] = useState<string | undefined>()
 
   const signChallenge = async () => {
     if (!hashToSign) return
     const password = prompt('Password')
     if (!password) return
     const privkey = await getPrivateKey(password)
-    const signatureBytes = schnorr.sign(
-      hexToBytes(hashToSign),
-      privkey,
-    );
-    setSignatureHex(bytesToHex(signatureBytes));
+    const signatureBytes = schnorr.sign(hexToBytes(hashToSign), privkey)
+    setSignatureHex(bytesToHex(signatureBytes))
   }
 
   return (
     <>
       <Header back text='Sign' />
       <Content>
-          <FlexCol gap='0.5rem'>
-            <FlexRow between>
-              <Text>Public key</Text>
-              <Text>{pubkey ? prettyLongText( hex.encode(pubkey), 12) : '-'}</Text>
-              <Button label="copy" onClick={() => navigator.clipboard.writeText(pubkey ? hex.encode(pubkey) : '')} />
-            </FlexRow>
-            <FlexRow between>
-              <Text>Hash to sign</Text>
-              <Input onChange={d => setHashToSign(d as string)}/>
-            </FlexRow>
-            <FlexRow between>
-              <Button label='Sign challenge' onClick={signChallenge}/>
-            </FlexRow>
-            <FlexRow between>
-              <Text>Signature Hex</Text>
-              <Text>{signatureHex}</Text>
-            </FlexRow>
-          </FlexCol>
+        <FlexCol gap='0.5rem'>
+          <FlexRow between>
+            <Text>Public key</Text>
+            <Text>{pubkey ? prettyLongText(hex.encode(pubkey), 12) : '-'}</Text>
+            <Button label='copy' onClick={() => navigator.clipboard.writeText(pubkey ? hex.encode(pubkey) : '')} />
+          </FlexRow>
+          <FlexRow between>
+            <Text>Hash to sign</Text>
+            <Input onChange={(d) => setHashToSign(d as string)} />
+          </FlexRow>
+          <FlexRow between>
+            <Button label='Sign challenge' onClick={signChallenge} />
+          </FlexRow>
+          <FlexRow between>
+            <Text>Signature Hex</Text>
+            <Text>{signatureHex}</Text>
+          </FlexRow>
+        </FlexCol>
         <FlexRow between>
           <Text>Transaction to sign</Text>
-          <Input onChange={d => {
-            const tx = toPendingTransaction(d as string)
-            setTransactionToSign(tx)
-          }}/> </FlexRow>
+          <Input
+            onChange={(d) => {
+              const tx = toPendingTransaction(d as string)
+              setTransactionToSign(tx)
+            }}
+          />{' '}
+        </FlexRow>
       </Content>
-      <ButtonsOnBottom><Text>Sign</Text>
+      <ButtonsOnBottom>
+        <Text>Sign</Text>
       </ButtonsOnBottom>
     </>
   )
