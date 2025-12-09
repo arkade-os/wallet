@@ -19,9 +19,10 @@ hashes.sha256 = sha256
 
 const BASE_URLS: Record<Network, string | null> = {
   bitcoin: import.meta.env.VITE_ARK_ESCROW_URL ?? 'https://escrow.arkade.sh/client/',
-  mutinynet: 'https://api.escrow.mutinynet.arkade.sh/client/',
+  mutinynet: import.meta.env.VITE_ARK_ESCROW_URL ?? 'https://api.escrow.mutinynet.arkade.sh/client/',
   signet: null,
-  regtest: 'http://localhost:3002/client',
+  regtest: import.meta.env.VITE_ARK_ESCROW_URL ?? 'http://localhost:3002/client',
+  testnet: null,
 }
 
 export default function AppEscrow() {
