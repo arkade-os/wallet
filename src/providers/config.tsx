@@ -8,6 +8,9 @@ import { consoleError } from '../lib/logs'
 const defaultConfig: Config = {
   apps: { boltz: { connected: true } },
   aspUrl: defaultArkServer(),
+  boltzUrl: '', // TODO: Provide default url for Boltz
+  esploraUrl: '', // TODO: Provide default url for Esplora
+  indexerUrl: '', // TODO: Provide default url for Indexer
   currencyDisplay: CurrencyDisplay.Both,
   fiat: Fiats.USD,
   nostrBackup: false,
