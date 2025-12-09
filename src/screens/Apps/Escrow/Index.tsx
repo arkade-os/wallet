@@ -74,17 +74,10 @@ export default function AppEscrow() {
     const signatureBytes = await svcWallet.identity.signMessage(hexToBytes(hexToSign), 'schnorr')
     return bytesToHex(signatureBytes)
   }
-  async function fundAddress(address: string, amount: number): Promise<void> {
-    setSendInfo({
-      arkAddress: address,
-      satoshis: amount,
-      text: 'Funding escrow address',
-      address: undefined,
-      invoice: undefined,
-      lnUrl: undefined,
-      pendingSwap: undefined,
-    })
-    navigate(Pages.SendDetails)
+  async function fundAddress(address: string, amount: number): Promise<string> {
+    if (!svcWallet) throw new Error('Wallet not initialized')
+    const txid = await svcWallet.sendBitcoin({ address, amount })
+    return txid
   }
 
   const handlers = useMemo(
