@@ -11,14 +11,13 @@ interface WarningProps {
 
 export default function WarningBox({ green, red, text }: WarningProps) {
   const backgroundColor = red ? 'var(--redbg)' : green ? 'var(--greenbg)' : 'var(--orangebg)'
-  const textColor = red ? 'white' : green ? 'white' : 'var(--dark)'
-  const borderColor = red ? 'var(--red)' : green ? 'var(--green)' : 'var(--orange)'
   const Icon = () => (red ? <ForbidIcon /> : <InfoIconDark />)
+  const color = red || green ? 'white' : 'var(--orange)'
 
   const style: React.CSSProperties = {
     backgroundColor,
     borderRadius: '0.5rem',
-    color: 'var(--orange)',
+    color,
     padding: '0.75rem 1rem',
     width: '100%',
   }
@@ -26,10 +25,10 @@ export default function WarningBox({ green, red, text }: WarningProps) {
   return (
     <div style={style}>
       <FlexRow alignItems='flex-start' gap='1rem'>
-        <div style={{ color: borderColor }}>
+        <div style={{ color }}>
           <Icon />
         </div>
-        <Text small wrap color={textColor}>
+        <Text small wrap>
           {text}
         </Text>
       </FlexRow>
