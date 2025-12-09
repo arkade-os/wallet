@@ -11,6 +11,7 @@ interface WarningProps {
 
 export default function WarningBox({ green, red, text }: WarningProps) {
   const backgroundColor = red ? 'var(--redbg)' : green ? 'var(--greenbg)' : 'var(--orangebg)'
+  const textColor = red ? 'white' : green ? 'white' : 'var(--dark)'
   const borderColor = red ? 'var(--red)' : green ? 'var(--green)' : 'var(--orange)'
   const Icon = () => (red ? <ForbidIcon /> : <InfoIconDark />)
 
@@ -28,7 +29,7 @@ export default function WarningBox({ green, red, text }: WarningProps) {
         <div style={{ color: borderColor }}>
           <Icon />
         </div>
-        <Text small wrap>
+        <Text small wrap color={textColor}>
           {text}
         </Text>
       </FlexRow>
