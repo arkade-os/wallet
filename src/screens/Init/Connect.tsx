@@ -15,9 +15,12 @@ export default function InitConnect() {
   const { navigate } = useContext(NavigationContext)
   const { initWallet } = useContext(WalletContext)
 
-  const { password, privateKey } = initInfo
+  const { password, privateKey, publicKey } = initInfo
 
   useEffect(() => {
+    if (publicKey) {
+      // TODO:  readonly wallet
+    }
     if (!password || !privateKey) return
     setPrivateKey(privateKey, password)
       .then(() => initWallet(privateKey))
