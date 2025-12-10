@@ -41,7 +41,7 @@ export const LimitsContext = createContext<LimitsContextProps>({
 export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet } = useContext(WalletContext)
-  const { swapProvider, connected } = useContext(LightningContext)
+  const { arkadeLightning, connected } = useContext(LightningContext)
 
   const limits = useRef<LimitTxTypes>({
     swap: { min: BigInt(0), max: BigInt(0) },
@@ -51,7 +51,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
 
   // update limits when aspInfo or svcWallet changes
   useEffect(() => {
-    if (!aspInfo.network || !svcWallet || !swapProvider) return
+    if (!aspInfo.network || !svcWallet || !arkadeLightning) return
 
     limits.current.utxo = {
       min: BigInt(import.meta.env.VITE_UTXO_MIN_AMOUNT || aspInfo.utxoMinAmount || aspInfo.dust || -1),
@@ -62,14 +62,14 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
       min: BigInt(import.meta.env.VITE_VTXO_MIN_AMOUNT || aspInfo.vtxoMinAmount || aspInfo.dust || -1),
       max: BigInt(import.meta.env.VITE_VTXO_MAX_AMOUNT || aspInfo.vtxoMaxAmount || -1),
     }
-  }, [aspInfo.network, svcWallet, swapProvider])
+  }, [aspInfo.network, svcWallet, arkadeLightning])
 
-  // update limits when swapProvider or connected changes
+  // update limits when arkadeLightning or connected changes
   useEffect(() => {
-    if (!swapProvider) return
+    if (!arkadeLightning) return
 
     if (connected) {
-      swapProvider
+      arkadeLightning
         .getLimits()
         .then((res) => {
           if (!res) return
@@ -87,7 +87,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
         max: BigInt(0),
       }
     }
-  }, [swapProvider, connected])
+  }, [arkadeLightning, connected])
 
   const minSwapAllowed = () => Number(limits.current.swap.min)
   const maxSwapAllowed = () => Number(limits.current.swap.max)

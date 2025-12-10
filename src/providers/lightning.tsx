@@ -1,10 +1,19 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
-import { LightningSwapProvider } from '../lib/lightning'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
-import { FeesResponse, isPendingReverseSwap, isReverseClaimableStatus, Network } from '@arkade-os/boltz-swap'
+import {
+  ArkadeLightning,
+  BoltzSwapProvider,
+  FeesResponse,
+  Network,
+  PendingReverseSwap,
+  PendingSubmarineSwap, setLogger,
+  SwapManager,
+} from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
+import { RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
+import { sendOffChain } from '../lib/asp'
 
 const BASE_URLS: Record<Network, string> = {
   bitcoin: import.meta.env.VITE_BOLTZ_URL ?? 'https://api.ark.boltz.exchange',
@@ -17,58 +26,94 @@ interface LightningContextProps {
   connected: boolean
   calcSubmarineSwapFee: (satoshis: number) => number
   calcReverseSwapFee: (satoshis: number) => number
-  swapProvider: LightningSwapProvider | null
+  arkadeLightning: ArkadeLightning | null
+  swapManager: SwapManager | null
   toggleConnection: () => void
+  // Helper methods that delegate to arkadeLightning
+  createSubmarineSwap: (invoice: string) => Promise<PendingSubmarineSwap | null>
+  createReverseSwap: (sats: number) => Promise<PendingReverseSwap | null>
+  claimVHTLC: (swap: PendingReverseSwap) => Promise<void>
+  refundVHTLC: (swap: PendingSubmarineSwap) => Promise<void>
+  payInvoice: (swap: PendingSubmarineSwap) => Promise<{ txid: string; preimage: string }>
+  getSwapHistory: () => Promise<(PendingReverseSwap | PendingSubmarineSwap)[]>
+  getFees: () => Promise<FeesResponse | null>
+  getApiUrl: () => string | null
 }
 
 export const LightningContext = createContext<LightningContextProps>({
   connected: false,
-  swapProvider: null,
+  arkadeLightning: null,
+  swapManager: null,
   toggleConnection: () => {},
   calcReverseSwapFee: () => 0,
   calcSubmarineSwapFee: () => 0,
+  createSubmarineSwap: async () => null,
+  createReverseSwap: async () => null,
+  claimVHTLC: async () => {},
+  refundVHTLC: async () => {},
+  payInvoice: async () => {
+    throw new Error('Lightning not initialized')
+  },
+  getSwapHistory: async () => [],
+  getFees: async () => null,
+  getApiUrl: () => null,
 })
 
 export const LightningProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet } = useContext(WalletContext)
-  const { backupConfig, config, updateConfig } = useContext(ConfigContext)
+  const { config, updateConfig, backupConfig } = useContext(ConfigContext)
 
-  const [swapProvider, setSwapProvider] = useState<LightningSwapProvider | null>(null)
+  const [arkadeLightning, setArkadeLightning] = useState<ArkadeLightning | null>(null)
   const [fees, setFees] = useState<FeesResponse | null>(null)
+  const [apiUrl, setApiUrl] = useState<string | null>(null)
 
   const connected = config.apps.boltz.connected
 
-  // create swap provider on first run with svcWallet
+  // create ArkadeLightning with SwapManager on first run with svcWallet
   useEffect(() => {
     if (!aspInfo.network || !svcWallet) return
+
     const baseUrl = BASE_URLS[aspInfo.network as Network]
     if (!baseUrl) return // No boltz server for this network
-    setSwapProvider(new LightningSwapProvider(baseUrl, aspInfo, svcWallet, config))
-    setConnected(config.apps.boltz.connected, false)
-  }, [aspInfo, svcWallet, config.apps.boltz.connected, config.nostrBackup])
 
-  // fetch fees and refresh swaps status on provider change
-  useEffect(() => {
-    if (!swapProvider) return
-    const choresOnInit = async () => {
-      try {
-        setFees(await swapProvider.getFees())
-        await swapProvider.refreshSwapsStatus()
-        await swapProvider.refundFailedSubmarineSwaps()
-        const swaps = await swapProvider.getSwapHistory()
-        for (const swap of swaps.filter(isPendingReverseSwap)) {
-          if (isReverseClaimableStatus(swap.status)) {
-            consoleLog('auto-claiming reverse swap:', swap.id)
-            await swapProvider.claimVHTLC(swap).catch(consoleError)
-          }
-        }
-      } catch (error) {
-        consoleError(error)
-      }
+    setApiUrl(baseUrl)
+
+    const network = aspInfo.network as Network
+    const arkProvider = new RestArkProvider(aspInfo.url)
+    const swapProvider = new BoltzSwapProvider({ apiUrl: baseUrl, network })
+    const indexerProvider = new RestIndexerProvider(aspInfo.url)
+
+    const instance = new ArkadeLightning({
+      wallet: svcWallet,
+      arkProvider,
+      swapProvider,
+      indexerProvider,
+      // Enable SwapManager with auto-start when boltz is connected
+      swapManager: config.apps.boltz.connected,
+    })
+    setLogger({
+      log: (...args: unknown[]) => consoleLog(...args ),
+      error: (...args: unknown[]) => consoleError(...args ),
+      warn: (...args: unknown[]) => consoleWarn(...args),
+    })
+    setArkadeLightning(instance)
+
+    // Cleanup on unmount
+    return () => {
+      instance.dispose().catch(consoleError)
     }
-    choresOnInit()
-  }, [swapProvider])
+  }, [aspInfo, svcWallet, config.apps.boltz.connected])
+
+  // fetch fees when arkadeLightning is ready
+  useEffect(() => {
+    if (!arkadeLightning) return
+
+    arkadeLightning
+      .getFees()
+      .then(setFees)
+      .catch((err) => consoleError(err, 'Failed to fetch fees'))
+  }, [arkadeLightning])
 
   const setConnected = (value: boolean, backup: boolean) => {
     const newConfig = { ...config }
@@ -91,14 +136,86 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
 
   const toggleConnection = () => setConnected(!connected, true)
 
+  // Helper methods that delegate to arkadeLightning
+  const createSubmarineSwap = async (invoice: string): Promise<PendingSubmarineSwap | null> => {
+    if (!arkadeLightning) return null
+    return arkadeLightning.createSubmarineSwap({ invoice })
+  }
+
+  const createReverseSwap = async (sats: number): Promise<PendingReverseSwap | null> => {
+    if (!arkadeLightning) return null
+    return arkadeLightning.createReverseSwap({ amount: sats, description: 'Lightning Invoice' })
+  }
+
+  const claimVHTLC = async (swap: PendingReverseSwap): Promise<void> => {
+    if (!arkadeLightning) return
+    await arkadeLightning.claimVHTLC(swap)
+  }
+
+  const refundVHTLC = async (swap: PendingSubmarineSwap): Promise<void> => {
+    if (!arkadeLightning) return
+    await arkadeLightning.refundVHTLC(swap)
+  }
+
+  const payInvoice = async (pendingSwap: PendingSubmarineSwap): Promise<{ txid: string; preimage: string }> => {
+    if (!arkadeLightning || !svcWallet) throw new Error('Lightning not initialized')
+    if (!pendingSwap) throw new Error('No pending swap found')
+    if (!pendingSwap.response.address) throw new Error('No swap address found')
+    if (!pendingSwap.response.expectedAmount) throw new Error('No swap amount found')
+
+    const satoshis = pendingSwap.response.expectedAmount
+    const swapAddress = pendingSwap.response.address
+
+    const txid = await sendOffChain(svcWallet, satoshis, swapAddress)
+    if (!txid) throw new Error('Failed to send offchain payment')
+
+    try {
+      const { preimage } = await arkadeLightning.waitForSwapSettlement(pendingSwap)
+      return { txid, preimage }
+    } catch (e: unknown) {
+      const refundable = typeof (e as any)?.isRefundable === 'boolean' ? (e as any).isRefundable : false
+      if (!refundable) throw new Error('Swap failed: VHTLC not refundable')
+      try {
+        await arkadeLightning.refundVHTLC(pendingSwap)
+      } catch (error) {
+        consoleError(error, `Failed to refund swap ${pendingSwap.response.id}`)
+        throw new Error('Swap failed: VHTLC refund failed')
+      }
+      throw new Error('Swap failed: VHTLC refunded')
+    }
+  }
+
+  const getSwapHistory = async (): Promise<(PendingReverseSwap | PendingSubmarineSwap)[]> => {
+    if (!arkadeLightning) return []
+    return arkadeLightning.getSwapHistory()
+  }
+
+  const getFees = async (): Promise<FeesResponse | null> => {
+    if (!arkadeLightning) return null
+    return arkadeLightning.getFees()
+  }
+
+  const getApiUrl = (): string | null => apiUrl
+
+  const swapManager = arkadeLightning?.getSwapManager() ?? null
+
   return (
     <LightningContext.Provider
       value={{
         connected,
-        swapProvider,
+        arkadeLightning,
+        swapManager,
         toggleConnection,
         calcReverseSwapFee,
         calcSubmarineSwapFee,
+        createSubmarineSwap,
+        createReverseSwap,
+        claimVHTLC,
+        refundVHTLC,
+        payInvoice,
+        getSwapHistory,
+        getFees,
+        getApiUrl,
       }}
     >
       {children}

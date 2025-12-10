@@ -8,8 +8,8 @@ import Toggle from '../../../components/Toggle'
 import Text from '../../../components/Text'
 import { LightningContext } from '../../../providers/lightning'
 
-export default function AppBoltz() {
-  const { connected, toggleConnection, swapProvider } = useContext(LightningContext)
+export default function AppBoltzSettings() {
+  const { connected, toggleConnection, getApiUrl } = useContext(LightningContext)
   const { navigate } = useContext(NavigationContext)
 
   return (
@@ -27,7 +27,7 @@ export default function AppBoltz() {
             <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
               <Text thin>Boltz API URL</Text>
               <Text color='dark50' small thin>
-                {swapProvider?.getApiUrl() ?? 'No server available'}
+                {getApiUrl() ?? 'No server available'}
               </Text>
             </FlexCol>
           </FlexCol>
