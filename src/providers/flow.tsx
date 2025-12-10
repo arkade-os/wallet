@@ -1,10 +1,13 @@
 import { PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { ReactNode, createContext, useState } from 'react'
 import { Tx } from '../lib/types'
+import { ArkAddress } from '@arkade-os/sdk'
 
 export interface InitInfo {
   password?: string
   privateKey?: Uint8Array
+  // For readonly Wallet
+  publicKey?: Uint8Array
   restoring?: boolean
 }
 
