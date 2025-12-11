@@ -58,7 +58,13 @@ describe('Send screen', () => {
               <LightningContext.Provider value={mockLightningContextValue as any}>
                 <OptionsContext.Provider value={mockOptionsContextValue as any}>
                   <FlowContext.Provider value={mockFlowContextValue as any}>
-                    <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: mockSvcWallet as any }}>
+                    <WalletContext.Provider
+                      value={{
+                        ...mockWalletContextValue,
+                        svcWallet: mockSvcWallet as any,
+                        svcReadonlyWallet: mockSvcWallet as any,
+                      }}
+                    >
                       <LimitsContext.Provider value={mockLimitsContextValue}>
                         <SendForm />
                       </LimitsContext.Provider>

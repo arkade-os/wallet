@@ -22,7 +22,7 @@ export default function Support() {
   const { aspInfo } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
   const { swapProvider } = useContext(LightningContext)
-  const { wallet, svcWallet } = useContext(WalletContext)
+  const { wallet, svcReadonlyWallet } = useContext(WalletContext)
 
   const [error, setError] = useState('')
   const [addresses, setAddresses] = useState<Addresses>()
@@ -30,12 +30,12 @@ export default function Support() {
 
   // Fetch wallet addresses
   useEffect(() => {
-    if (svcWallet) {
-      getReceivingAddresses(svcWallet)
+    if (svcReadonlyWallet) {
+      getReceivingAddresses(svcReadonlyWallet)
         .then(setAddresses)
         .catch((err) => console.error('Failed to get addresses:', err))
     }
-  }, [svcWallet])
+  }, [svcReadonlyWallet])
 
   // Wait for Chatwoot to load, show error after 5 seconds if not loaded
   useEffect(() => {

@@ -78,6 +78,7 @@ export const mockWalletContextValue = {
   },
   walletLoaded: false,
   svcWallet: undefined,
+  svcReadonlyWallet: undefined,
   isLocked: () => Promise.resolve(true),
   balance: 0,
   txs: [mockTxInfo],

@@ -25,7 +25,7 @@ export default function ReceiveQRCode() {
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { swapProvider } = useContext(LightningContext)
-  const { svcWallet, wallet } = useContext(WalletContext)
+  const { svcReadonlyWallet, wallet } = useContext(WalletContext)
   const { validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
 
   const [sharing, setSharing] = useState(false)
@@ -52,7 +52,7 @@ export default function ReceiveQRCode() {
 
   useEffect(() => {
     // if boltz is available and amount is between limits, let's create a swap invoice
-    if (validLnSwap(satoshis) && wallet && svcWallet) {
+    if (validLnSwap(satoshis) && wallet && svcReadonlyWallet) {
       swapProvider
         ?.createReverseSwap(satoshis)
         .then((pendingSwap) => {
@@ -81,7 +81,7 @@ export default function ReceiveQRCode() {
   }, [satoshis])
 
   useEffect(() => {
-    if (!svcWallet) return
+    if (!svcReadonlyWallet) return
 
     const listenForPayments = (event: MessageEvent) => {
       let satoshis = 0
@@ -105,7 +105,7 @@ export default function ReceiveQRCode() {
     return () => {
       navigator.serviceWorker.removeEventListener('message', listenForPayments)
     }
-  }, [svcWallet])
+  }, [svcReadonlyWallet])
 
   const handleShare = () => {
     setSharing(true)

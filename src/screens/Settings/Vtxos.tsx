@@ -29,7 +29,7 @@ export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { reloadWallet, vtxos, wallet, svcWallet } = useContext(WalletContext)
+  const { reloadWallet, vtxos, wallet, svcReadonlyWallet, svcWallet } = useContext(WalletContext)
 
   const defaultLabel = 'Renew Virtual Coins'
 
@@ -83,9 +83,9 @@ export default function Vtxos() {
 
   // Fetch all VTXOs and all UTXOs
   useEffect(() => {
-    if (!aspInfo || !svcWallet) return
+    if (!aspInfo || !svcReadonlyWallet) return
     // get all VTXOs including recoverable ones
-    svcWallet
+    svcReadonlyWallet
       .getVtxos({
         withRecoverable: true,
         withUnrolled: false,
@@ -93,8 +93,8 @@ export default function Vtxos() {
       .then(setAllVtxos)
       .catch(consoleError)
     // get all UTXOs
-    svcWallet.getBoardingUtxos().then(setAllUtxos).catch(consoleError)
-  }, [aspInfo, vtxos, svcWallet, wallet.thresholdMs])
+    svcReadonlyWallet.getBoardingUtxos().then(setAllUtxos).catch(consoleError)
+  }, [aspInfo, vtxos, svcReadonlyWallet, wallet.thresholdMs])
 
   // Fetch inputs to settle
   useEffect(() => {

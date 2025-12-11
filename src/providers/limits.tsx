@@ -40,7 +40,7 @@ export const LimitsContext = createContext<LimitsContextProps>({
 
 export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { svcWallet } = useContext(WalletContext)
+  const { svcReadonlyWallet } = useContext(WalletContext)
   const { swapProvider, connected } = useContext(LightningContext)
 
   const limits = useRef<LimitTxTypes>({
@@ -51,7 +51,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
 
   // update limits when aspInfo or svcWallet changes
   useEffect(() => {
-    if (!aspInfo.network || !svcWallet || !swapProvider) return
+    if (!aspInfo.network || !svcReadonlyWallet || !swapProvider) return
 
     limits.current.utxo = {
       min: BigInt(import.meta.env.VITE_UTXO_MIN_AMOUNT || aspInfo.utxoMinAmount || aspInfo.dust || -1),
@@ -62,7 +62,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
       min: BigInt(import.meta.env.VITE_VTXO_MIN_AMOUNT || aspInfo.vtxoMinAmount || aspInfo.dust || -1),
       max: BigInt(import.meta.env.VITE_VTXO_MAX_AMOUNT || aspInfo.vtxoMaxAmount || -1),
     }
-  }, [aspInfo.network, svcWallet, swapProvider])
+  }, [aspInfo.network, svcReadonlyWallet, swapProvider])
 
   // update limits when swapProvider or connected changes
   useEffect(() => {

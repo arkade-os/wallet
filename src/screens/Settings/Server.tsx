@@ -19,7 +19,7 @@ import Loading from '../../components/Loading'
 export default function Server() {
   const { aspInfo } = useContext(AspContext)
   const { backupConfig, config, updateConfig } = useContext(ConfigContext)
-  const { svcWallet, resetWallet } = useContext(WalletContext)
+  const { svcReadonlyWallet, resetWallet } = useContext(WalletContext)
 
   const [aspUrl, setAspUrl] = useState('')
   const [error, setError] = useState('')
@@ -49,7 +49,7 @@ export default function Server() {
     })
   }, [aspUrl])
 
-  if (!svcWallet) return <Loading text='Loading...' />
+  if (!svcReadonlyWallet) return <Loading text='Loading...' />
 
   const handleConnect = async () => {
     setLoading(true)
