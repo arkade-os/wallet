@@ -1,17 +1,8 @@
-import {
-  IWallet,
-  ArkNote,
-  RestArkProvider,
-  ExtendedCoin,
-  ServiceWorkerWallet,
-  ServiceWorkerReadonlyWallet,
-  ExtendedVirtualCoin,
-  IReadonlyWallet,
-} from '@arkade-os/sdk'
+import { IWallet, ArkNote, RestArkProvider, ExtendedCoin, ExtendedVirtualCoin, IReadonlyWallet } from '@arkade-os/sdk'
 import { Addresses, Satoshis, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
 import { consoleError } from './logs'
-import { getConfirmedAndNotExpiredUtxos } from './utxo'
+import { fitlerConfirmedAndNotExpiredUtxos } from './utxo'
 import { getExpiringAndRecoverableVtxos } from './vtxo'
 import * as Sentry from '@sentry/react'
 
@@ -75,7 +66,8 @@ export const collaborativeExit = async (wallet: IWallet, amount: number, address
   try {
     return await wallet.settle({ inputs: selectedVtxos, outputs })
   } catch (error) {
-    await captureSettleError(error, wallet, 'collaborativeExit', {
+    const address = await wallet.getAddress()
+    await captureSettleError(error, address, 'collaborativeExit', {
       amount,
       address,
       selectedAmount,
@@ -119,7 +111,8 @@ export const collaborativeExitWithFees = async (
   try {
     return await wallet.settle({ inputs: selectedVtxos, outputs })
   } catch (error) {
-    await captureSettleError(error, wallet, 'collaborativeExitWithFees', {
+    const address = await wallet.getAddress()
+    await captureSettleError(error, address, 'collaborativeExitWithFees', {
       inputAmount,
       outputAmount,
       address,
@@ -220,7 +213,8 @@ export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<voi
       outputs: [{ address: offchainAddr, amount }],
     })
   } catch (error) {
-    await captureSettleError(error, wallet, 'redeemNotes', {
+    const address = await wallet.getAddress()
+    await captureSettleError(error, address, 'redeemNotes', {
       notesCount: notes.length,
       amount: amount.toString(),
       offchainAddr,
@@ -243,7 +237,7 @@ export const getInputsToSettle = async (
   thresholdMs?: number,
 ): Promise<{ inputs: ExtendedCoin[]; vtxos: ExtendedVirtualCoin[]; boardingUtxos: ExtendedCoin[] }> => {
   const vtxos = thresholdMs ? await getExpiringAndRecoverableVtxos(wallet, thresholdMs) : []
-  const boardingUtxos = await getConfirmedAndNotExpiredUtxos(wallet)
+  const boardingUtxos = await wallet.getBoardingUtxos().then(fitlerConfirmedAndNotExpiredUtxos)
   return { inputs: [...boardingUtxos, ...vtxos], vtxos, boardingUtxos }
 }
 
@@ -256,9 +250,10 @@ export const settleVtxos = async (wallet: IWallet, dustAmount: bigint, threshold
 
   if (amount < Number(dustAmount)) throw new Error('Total amount is below dust threshold')
 
+  const address = await wallet.getAddress()
   const outputs = [
     {
-      address: await wallet.getAddress(),
+      address,
       amount: BigInt(amount),
     },
   ]
@@ -266,7 +261,7 @@ export const settleVtxos = async (wallet: IWallet, dustAmount: bigint, threshold
   try {
     await wallet.settle({ inputs, outputs }, console.log)
   } catch (error) {
-    await captureSettleError(error, wallet, 'settleVtxos', {
+    await captureSettleError(error, address, 'settleVtxos', {
       amount: amount.toString(),
       dustAmount: dustAmount.toString(),
       thresholdMs,
@@ -285,15 +280,15 @@ const serializeForSentry = (value: any): string => {
   return JSON.stringify(value, (key, val) => (typeof val === 'bigint' ? val.toString() : val))
 }
 
-const captureSettleError = async (
+const captureSettleError = (
   error: unknown,
-  wallet: IWallet,
+  walletAddress: string,
   functionName: string,
   baseContext: Record<string, any>,
 ): Promise<void> => {
   const settleContext: Record<string, any> = { ...baseContext }
   try {
-    settleContext.walletAddress = await wallet.getAddress()
+    settleContext.walletAddress = walletAddress
   } catch {
     // Ignore if getAddress fails
   }

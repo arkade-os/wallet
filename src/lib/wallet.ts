@@ -3,8 +3,8 @@ import { hex } from '@scure/base'
 import { Vtxo } from './types'
 import { Indexer } from './indexer'
 import { AspInfo } from '../providers/asp'
-import { getConfirmedAndNotExpiredUtxos } from './utxo'
-import { IReadonlyWallet, IWallet } from '@arkade-os/sdk'
+import { fitlerConfirmedAndNotExpiredUtxos } from './utxo'
+import { IReadonlyWallet } from '@arkade-os/sdk'
 
 const DERIVATION_PATH = "m/44/1237/0'"
 
@@ -20,7 +20,7 @@ export const getPrivateKeyFromSeed = (seed: Uint8Array): string => {
 
 export const calcNextRollover = async (vtxos: Vtxo[], wallet: IReadonlyWallet, aspInfo: AspInfo): Promise<number> => {
   if (vtxos.length === 0) {
-    const utxos = await getConfirmedAndNotExpiredUtxos(wallet)
+    const utxos = await wallet.getBoardingUtxos().then(fitlerConfirmedAndNotExpiredUtxos)
     if (utxos.length === 0) return 0
     const minBlockTime = Math.min(...utxos.map((u) => u.status.block_time || 0))
     if (minBlockTime === 0) return 0
