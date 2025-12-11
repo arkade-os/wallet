@@ -8,14 +8,25 @@ import {
   isSubmarineSwapRefundable,
   isPendingSubmarineSwap,
   isPendingReverseSwap,
+  FeesResponse,
 } from '@arkade-os/boltz-swap'
-import { RestArkProvider, RestIndexerProvider, Wallet, ServiceWorkerWallet } from '@arkade-os/sdk'
+import {
+  RestArkProvider,
+  RestIndexerProvider,
+  Wallet,
+  ServiceWorkerWallet,
+  ContractRepositoryImpl,
+} from '@arkade-os/sdk'
 import { AspInfo } from '../providers/asp'
 import { sendOffChain } from './asp'
 import { consoleError } from './logs'
 import { Config } from './types'
 import { BackupProvider } from './backup'
 import * as Sentry from '@sentry/react'
+import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
+
+const storage = new IndexedDBStorageAdapter('arkade-service-worker')
+const contractRepo = new ContractRepositoryImpl(storage)
 
 export class LightningSwapProvider {
   private readonly apiUrl: string
@@ -178,6 +189,24 @@ export class LightningSwapProvider {
       } catch (error) {
         Sentry.logger.info(`Failed to refund swap ${swap.response.id}`, { error, swap })
         consoleError(error, `Failed to refund swap ${swap.response.id}`)
+      }
+    }
+  }
+
+  restoreSwaps = async (fees?: FeesResponse) => {
+    const history = await this.provider.getSwapHistory()
+    const restore = await this.provider.restoreSwaps(fees)
+    const histIds = new Set(history.map((s) => s.response.id))
+
+    for (const swap of restore.reverseSwaps) {
+      if (!histIds.has(swap.id)) {
+        await contractRepo.saveToContractCollection('reverseSwaps', swap, 'id')
+      }
+    }
+
+    for (const swap of restore.submarineSwaps) {
+      if (!histIds.has(swap.id)) {
+        await contractRepo.saveToContractCollection('submarineSwaps', swap, 'id')
       }
     }
   }

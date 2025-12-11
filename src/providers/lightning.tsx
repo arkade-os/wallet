@@ -7,6 +7,7 @@ import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
 
 const BASE_URLS: Record<Network, string> = {
+  testnet: '',
   bitcoin: import.meta.env.VITE_BOLTZ_URL ?? 'https://api.ark.boltz.exchange',
   mutinynet: 'https://api.boltz.mutinynet.arkade.sh',
   signet: 'https://boltz.signet.arkade.sh',
@@ -44,7 +45,8 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     if (!aspInfo.network || !svcWallet) return
     const baseUrl = BASE_URLS[aspInfo.network as Network]
     if (!baseUrl) return // No boltz server for this network
-    setSwapProvider(new LightningSwapProvider(baseUrl, aspInfo, svcWallet, config))
+    const provider = new LightningSwapProvider(baseUrl, aspInfo, svcWallet, config)
+    setSwapProvider(provider)
     setConnected(config.apps.boltz.connected, false)
   }, [aspInfo, svcWallet, config.apps.boltz.connected, config.nostrBackup])
 
@@ -53,7 +55,8 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     if (!swapProvider) return
     const choresOnInit = async () => {
       try {
-        setFees(await swapProvider.getFees())
+        const fees = await swapProvider.getFees()
+        await swapProvider.restoreSwaps(fees)
         await swapProvider.refreshSwapsStatus()
         await swapProvider.refundFailedSubmarineSwaps()
         const swaps = await swapProvider.getSwapHistory()
@@ -63,6 +66,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
             await swapProvider.claimVHTLC(swap).catch(consoleError)
           }
         }
+        setFees(fees)
       } catch (error) {
         consoleError(error)
       }
