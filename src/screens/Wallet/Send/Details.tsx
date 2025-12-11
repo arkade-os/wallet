@@ -24,7 +24,7 @@ import { FeesContext } from '../../../providers/fees'
 export default function SendDetails() {
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
-  const { calcSubmarineSwapFee, swapProvider } = useContext(LightningContext)
+  const { calcSubmarineSwapFee, payInvoice } = useContext(LightningContext)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { balance, svcWallet } = useContext(WalletContext)
@@ -105,13 +105,7 @@ export default function SendDetails() {
       if (!response) return setError('Swap response not available')
       const swapAddress = pendingSwap?.response.address
       if (!swapAddress) return setError('Swap address not available')
-      const promise = swapProvider?.payInvoice(pendingSwap)
-      if (!promise) {
-        setError('Lightning swaps not enabled')
-        setSending(false)
-        return
-      }
-      promise.then(handlePreimage).catch(handleError)
+      payInvoice(pendingSwap).then(handlePreimage).catch(handleError)
     } else if (address) {
       collaborativeExitWithFees(svcWallet, details.total, details.satoshis, address).then(handleTxid).catch(handleError)
     }

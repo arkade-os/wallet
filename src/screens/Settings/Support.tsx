@@ -21,7 +21,7 @@ import { hasChatwootVars } from '../../lib/chatwoot'
 export default function Support() {
   const { aspInfo } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
-  const { swapProvider } = useContext(LightningContext)
+  const { getApiUrl } = useContext(LightningContext)
   const { wallet, svcWallet } = useContext(WalletContext)
 
   const [error, setError] = useState('')
@@ -73,7 +73,7 @@ export default function Support() {
       network: wallet.network || 'not available',
       location_origin: window.location.origin,
       ark_address: addresses.offchainAddr || 'not available',
-      boltz_url: swapProvider?.getApiUrl() || 'not available',
+      boltz_url: getApiUrl() || 'not available',
       indexer_url: aspInfo.url || config.aspUrl || 'not available',
       btc_boarding_address: addresses.boardingAddr || 'not available',
       ark_server_url: aspInfo.url || config.aspUrl || 'not available',

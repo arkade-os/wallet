@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import Padded from '../../../components/Padded'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
@@ -25,13 +25,24 @@ import { InfoIconDark } from '../../../icons/Info'
 
 export default function AppBoltzSwap() {
   const { config } = useContext(ConfigContext)
-  const { swapInfo } = useContext(FlowContext)
-  const { swapProvider } = useContext(LightningContext)
+  const { swapInfo, setSwapInfo } = useContext(FlowContext)
+  const { claimVHTLC, refundVHTLC, swapManager } = useContext(LightningContext)
   const { navigate } = useContext(NavigationContext)
 
   const [error, setError] = useState<string>('')
   const [processing, setProcessing] = useState<boolean>(false)
   const [success, setSuccess] = useState<boolean>(false)
+
+  // Subscribe to real-time updates for this swap
+  useEffect(() => {
+    if (!swapManager || !swapInfo) return
+
+    const unsubscribe = swapManager.subscribeToSwapUpdates(swapInfo.id, (updatedSwap) => {
+      setSwapInfo(updatedSwap)
+    })
+
+    return unsubscribe
+  }, [swapManager, swapInfo?.id])
 
   if (!swapInfo) return null
 
@@ -68,18 +79,17 @@ export default function AppBoltzSwap() {
   const buttonLabel = isClaimable ? 'Complete swap' : 'Refund swap'
 
   const buttonHandler = async () => {
-    if (!swapProvider) return
     try {
       setProcessing(true)
       if (isReverse && isClaimable) {
-        await swapProvider.claimVHTLC(swapInfo)
+        await claimVHTLC(swapInfo)
         setSuccess(true)
       }
       if (!isReverse && isRefundable) {
-        await swapProvider.refundVHTLC(swapInfo)
+        await refundVHTLC(swapInfo)
         setSuccess(true)
       }
-      await swapProvider.refreshSwapsStatus()
+      // No need to manually refresh - SwapManager handles status updates
     } catch (error) {
       setError(extractError(error))
       consoleError(error, 'Error processing swap')

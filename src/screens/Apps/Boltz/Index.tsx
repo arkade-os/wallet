@@ -13,7 +13,7 @@ import { GreenStatusIcon, RedStatusIcon } from '../../../icons/Status'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 
 export default function AppBoltz() {
-  const { connected, swapProvider } = useContext(LightningContext)
+  const { connected, getApiUrl } = useContext(LightningContext)
   const { navigate } = useContext(NavigationContext)
 
   const ConnectionStatus = () => (
@@ -40,7 +40,7 @@ export default function AppBoltz() {
               <TextLabel>Connection status</TextLabel>
               <Shadow fat>
                 <FlexRow between>
-                  <Text>{swapProvider?.getApiUrl()}</Text>
+                  <Text>{getApiUrl()}</Text>
                   <ConnectionStatus />
                 </FlexRow>
               </Shadow>
