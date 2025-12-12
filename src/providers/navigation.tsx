@@ -176,7 +176,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   const [screen, setScreen] = useState(Pages.Init)
   const [tab, setTab] = useState(Tabs.None)
 
-  const navigationHistory = useRef<Pages[]>([])
+  const navigationHistory = useRef<Pages[]>([Pages.Init])
 
   const push = (page: Pages) => {
     if (history) history.pushState({}, '', '')
@@ -192,7 +192,11 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   }
 
   useEffect(() => {
-    if (window) window.addEventListener('popstate', pop)
+    const handlePopState = () => pop()
+    if (typeof window !== 'undefined') {
+      window.addEventListener('popstate', handlePopState)
+      return () => window.removeEventListener('popstate', handlePopState)
+    }
   }, [])
 
   const navigate = (page: Pages) => {
