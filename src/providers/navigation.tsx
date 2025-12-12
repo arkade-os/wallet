@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useState } from 'react'
+import { ReactNode, createContext, useEffect, useRef, useState } from 'react'
 import Init from '../screens/Init/Init'
 import InitConnect from '../screens/Init/Connect'
 import InitRestore from '../screens/Init/Restore'
@@ -176,9 +176,29 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   const [screen, setScreen] = useState(Pages.Init)
   const [tab, setTab] = useState(Tabs.None)
 
-  const navigate = (p: Pages) => {
-    setScreen(p)
-    setTab(pageTab[p])
+  const navigationHistory = useRef<Pages[]>([])
+
+  const push = (page: Pages) => {
+    if (history) history.pushState({}, '', '')
+    navigationHistory.current.push(page)
+  }
+
+  const pop = () => {
+    navigationHistory.current.pop()
+    const length = navigationHistory.current.length
+    const page = length > 0 ? navigationHistory.current[length - 1] : Pages.Init
+    setTab(pageTab[page])
+    setScreen(page)
+  }
+
+  useEffect(() => {
+    if (window) window.addEventListener('popstate', pop)
+  }, [])
+
+  const navigate = (page: Pages) => {
+    push(page)
+    setScreen(page)
+    setTab(pageTab[page])
   }
 
   return <NavigationContext.Provider value={{ navigate, screen, tab }}>{children}</NavigationContext.Provider>
