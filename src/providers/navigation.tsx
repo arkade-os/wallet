@@ -176,30 +176,52 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   const [screen, setScreen] = useState(Pages.Init)
   const [tab, setTab] = useState(Tabs.None)
 
-  const navigationHistory = useRef<Pages[]>([Pages.Init])
+  const navigationHistory = useRef<Pages[]>([])
+
+  const addEntryToBrowserHistory = () => {
+    if (typeof window !== 'undefined' && 'history' in window) {
+      history.pushState({}, '', '')
+    }
+  }
 
   const push = (page: Pages) => {
-    if (history) history.pushState({}, '', '')
+    addEntryToBrowserHistory()
     navigationHistory.current.push(page)
   }
 
   const pop = useCallback(() => {
     const length = navigationHistory.current.length
-    if (length <= 1) return // no place to go back to
 
-    // prevent going back to InitConnect
-    if (length >= 2 && navigationHistory.current[length - 2] === Pages.InitConnect) return
+    // prevent popping when there's no history left
+    if (length < 2) {
+      // when popstate fires, the browser has already navigated back
+      // add a new entry to keep internal and browser history in sync
+      addEntryToBrowserHistory()
+      return
+    }
 
-    // go back to previous page
-    const page = navigationHistory.current[length - 2]
+    const previousPage = navigationHistory.current[length - 2]
+
+    // prevent going back to InitConnect or to a loading screen
+    if ([Pages.InitConnect, Pages.Loading].includes(previousPage)) {
+      // when popstate fires, the browser has already navigated back
+      // add a new entry to keep internal and browser history in sync
+      addEntryToBrowserHistory()
+      return
+    }
+
+    // pop current page
     navigationHistory.current.pop()
-    setTab(pageTab[page])
-    setScreen(page)
+
+    // update UI to show previous page
+    setTab(pageTab[previousPage])
+    setScreen(previousPage)
   }, []) // setTab and setScreen are stable
 
   useEffect(() => {
     const handlePopState = () => pop()
     if (typeof window !== 'undefined') {
+      addEntryToBrowserHistory()
       window.addEventListener('popstate', handlePopState)
       return () => window.removeEventListener('popstate', handlePopState)
     }
