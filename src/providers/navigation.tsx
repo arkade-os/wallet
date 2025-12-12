@@ -24,6 +24,7 @@ import AppBoltz from '../screens/Apps/Boltz/Index'
 import AppBoltzSettings from '../screens/Apps/Boltz/Settings'
 import InitSuccess from '../screens/Init/Success'
 import AppBoltzSwap from '../screens/Apps/Boltz/Swap'
+import Escrow from '../screens/Apps/Escrow/Index'
 import AppLendasat from '../screens/Apps/Lendasat/Index'
 import AppLendaswap from '../screens/Apps/Lendaswap/Index'
 import Unavailable from '../screens/Wallet/Unavailable'
@@ -32,6 +33,7 @@ export enum Pages {
   AppBoltz,
   AppBoltzSettings,
   AppBoltzSwap,
+  AppEscrow,
   AppLendasat,
   AppLendaswap,
   Apps,
@@ -70,6 +72,7 @@ const pageTab = {
   [Pages.AppBoltz]: Tabs.Apps,
   [Pages.AppBoltzSettings]: Tabs.Apps,
   [Pages.AppBoltzSwap]: Tabs.Apps,
+  [Pages.AppEscrow]: Tabs.Apps,
   [Pages.AppLendasat]: Tabs.Apps,
   [Pages.AppLendaswap]: Tabs.Apps,
   [Pages.Apps]: Tabs.Apps,
@@ -105,6 +108,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <AppBoltzSettings />
     case Pages.AppBoltzSwap:
       return <AppBoltzSwap />
+    case Pages.AppEscrow:
+      return <Escrow />
     case Pages.AppLendasat:
       return <AppLendasat />
     case Pages.AppLendaswap:
