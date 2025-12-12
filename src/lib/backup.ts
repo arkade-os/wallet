@@ -107,12 +107,10 @@ export class BackupProvider {
     if (data?.config) updateConfig(data.config)
 
     for (const swap of data?.reverseSwaps ?? []) {
-      console.log('restoring reverse swap:', swap.id)
       await contractRepo.saveToContractCollection('reverseSwaps', swap, 'id')
     }
 
     for (const swap of data?.submarineSwaps ?? []) {
-      console.log('restoring submarine swap:', swap.id)
       await contractRepo.saveToContractCollection('submarineSwaps', swap, 'id')
     }
   }
