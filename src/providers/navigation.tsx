@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useEffect, useRef, useState } from 'react'
+import { ReactNode, createContext, useCallback, useEffect, useRef, useState } from 'react'
 import Init from '../screens/Init/Init'
 import InitConnect from '../screens/Init/Connect'
 import InitRestore from '../screens/Init/Restore'
@@ -183,13 +183,19 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     navigationHistory.current.push(page)
   }
 
-  const pop = () => {
-    navigationHistory.current.pop()
+  const pop = useCallback(() => {
     const length = navigationHistory.current.length
-    const page = length > 0 ? navigationHistory.current[length - 1] : Pages.Init
+    if (length <= 1) return // no place to go back to
+
+    // prevent going back to InitConnect
+    if (length >= 2 && navigationHistory.current[length - 2] === Pages.InitConnect) return
+
+    // go back to previous page
+    const page = navigationHistory.current[length - 2]
+    navigationHistory.current.pop()
     setTab(pageTab[page])
     setScreen(page)
-  }
+  }, []) // setTab and setScreen are stable
 
   useEffect(() => {
     const handlePopState = () => pop()
@@ -197,7 +203,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
       window.addEventListener('popstate', handlePopState)
       return () => window.removeEventListener('popstate', handlePopState)
     }
-  }, [])
+  }, [pop])
 
   const navigate = (page: Pages) => {
     push(page)
