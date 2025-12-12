@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useState } from 'react'
+import { ReactNode, createContext, useCallback, useEffect, useRef, useState } from 'react'
 import Init from '../screens/Init/Init'
 import InitConnect from '../screens/Init/Connect'
 import InitRestore from '../screens/Init/Restore'
@@ -176,9 +176,61 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   const [screen, setScreen] = useState(Pages.Init)
   const [tab, setTab] = useState(Tabs.None)
 
-  const navigate = (p: Pages) => {
-    setScreen(p)
-    setTab(pageTab[p])
+  const navigationHistory = useRef<Pages[]>([])
+
+  const addEntryToBrowserHistory = () => {
+    if (typeof window !== 'undefined' && 'history' in window) {
+      history.pushState({}, '', '')
+    }
+  }
+
+  const push = (page: Pages) => {
+    addEntryToBrowserHistory()
+    navigationHistory.current.push(page)
+  }
+
+  const pop = useCallback(() => {
+    const length = navigationHistory.current.length
+
+    // prevent popping when there's no history left
+    if (length < 2) {
+      // when popstate fires, the browser has already navigated back
+      // add a new entry to keep internal and browser history in sync
+      addEntryToBrowserHistory()
+      return
+    }
+
+    const previousPage = navigationHistory.current[length - 2]
+
+    // prevent going back to InitConnect or to a loading screen
+    if ([Pages.InitConnect, Pages.Loading].includes(previousPage)) {
+      // when popstate fires, the browser has already navigated back
+      // add a new entry to keep internal and browser history in sync
+      addEntryToBrowserHistory()
+      return
+    }
+
+    // pop current page
+    navigationHistory.current.pop()
+
+    // update UI to show previous page
+    setTab(pageTab[previousPage])
+    setScreen(previousPage)
+  }, []) // setTab and setScreen are stable
+
+  useEffect(() => {
+    const handlePopState = () => pop()
+    if (typeof window !== 'undefined') {
+      addEntryToBrowserHistory()
+      window.addEventListener('popstate', handlePopState)
+      return () => window.removeEventListener('popstate', handlePopState)
+    }
+  }, [pop])
+
+  const navigate = (page: Pages) => {
+    push(page)
+    setScreen(page)
+    setTab(pageTab[page])
   }
 
   return <NavigationContext.Provider value={{ navigate, screen, tab }}>{children}</NavigationContext.Provider>
