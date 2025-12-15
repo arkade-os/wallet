@@ -34,7 +34,7 @@ export class LightningSwapProvider {
     this.apiUrl = apiUrl
     this.config = config
     this.wallet = wallet
-    this.provider = new ArkadeLightning({ wallet, arkProvider, swapProvider, indexerProvider, swapManager: true })
+    this.provider = new ArkadeLightning({ wallet, arkProvider, swapProvider, indexerProvider })
   }
 
   private backup = async (swap: PendingReverseSwap | PendingSubmarineSwap) => {
