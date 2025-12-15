@@ -7,7 +7,8 @@ import {
   FeesResponse,
   Network,
   PendingReverseSwap,
-  PendingSubmarineSwap, setLogger,
+  PendingSubmarineSwap,
+  setLogger,
   SwapManager,
 } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
@@ -15,12 +16,12 @@ import { consoleError, consoleLog } from '../lib/logs'
 import { RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
 import { sendOffChain } from '../lib/asp'
 
-const BASE_URLS: Record<Network, string| null> = {
+const BASE_URLS: Record<Network, string | null> = {
   bitcoin: import.meta.env.VITE_BOLTZ_URL ?? 'https://api.ark.boltz.exchange',
   mutinynet: 'https://api.boltz.mutinynet.arkade.sh',
   signet: 'https://boltz.signet.arkade.sh',
   regtest: 'http://localhost:9069',
-  testnet: null
+  testnet: null,
 }
 
 interface LightningContextProps {
@@ -94,7 +95,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
       swapManager: config.apps.boltz.connected,
     })
     setLogger({
-      log: (...args: unknown[]) => consoleLog(...args ),
+      log: (...args: unknown[]) => consoleLog(...args),
       error: (...args: unknown[]) => consoleError(args[0], args.slice(1).join(' ')),
       warn: (...args: unknown[]) => consoleLog(...args),
     })
