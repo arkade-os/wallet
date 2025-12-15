@@ -15,11 +15,12 @@ import { consoleError, consoleLog } from '../lib/logs'
 import { RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
 import { sendOffChain } from '../lib/asp'
 
-const BASE_URLS: Record<Network, string> = {
+const BASE_URLS: Record<Network, string| null> = {
   bitcoin: import.meta.env.VITE_BOLTZ_URL ?? 'https://api.ark.boltz.exchange',
   mutinynet: 'https://api.boltz.mutinynet.arkade.sh',
   signet: 'https://boltz.signet.arkade.sh',
   regtest: 'http://localhost:9069',
+  testnet: null
 }
 
 interface LightningContextProps {
@@ -94,8 +95,8 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     })
     setLogger({
       log: (...args: unknown[]) => consoleLog(...args ),
-      error: (...args: unknown[]) => consoleError(...args ),
-      warn: (...args: unknown[]) => consoleWarn(...args),
+      error: (...args: unknown[]) => consoleError(args[0], args.slice(1).join(' ')),
+      warn: (...args: unknown[]) => consoleLog(...args),
     })
     setArkadeLightning(instance)
 
