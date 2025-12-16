@@ -25,7 +25,7 @@ export default function Wallet() {
   const { announcement } = useContext(AnnouncementContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { balance, txs } = useContext(WalletContext)
+  const { balance, txs, svcWallet } = useContext(WalletContext)
   const { nudge } = useContext(NudgeContext)
 
   const [error, setError] = useState(false)
@@ -55,7 +55,7 @@ export default function Wallet() {
               <Balance amount={balance} />
               <ErrorMessage error={error} text='Ark server unreachable' />
               <FlexRow padding='0 0 0.5rem 0'>
-                <Button main icon={<SendIcon />} label='Send' onClick={handleSend} />
+                <Button main icon={<SendIcon />} disabled={!svcWallet?.writer} label='Send' onClick={handleSend} />
                 <Button main icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
               </FlexRow>
               {nudge ? nudge : psaMessage ? <InfoBox html={psaMessage} /> : null}

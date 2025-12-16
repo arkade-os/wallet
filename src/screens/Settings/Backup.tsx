@@ -169,27 +169,29 @@ export default function Backup() {
         <Padded>
           <FlexCol gap='2rem'>
             <ErrorMessage error={Boolean(error)} text={error} />
-            <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
-              <Text thin>Private key</Text>
-              <TextSecondary>For your eyes only, do not share.</TextSecondary>
-              <Shadow lighter>
-                <FlexCol gap='10px'>
-                  <InputFake testId='private-key' text={showNsec ? nsec : '*******'} />
-                  {showNsec ? (
-                    <Button onClick={handleNsecCopy} label='Copy to clipboard' />
-                  ) : (
-                    <Button onClick={toggleDialog} label='View private key' />
-                  )}
-                  <FlexRow>
-                    <OkIcon />
-                    <Text small>This is enough to restore your wallet.</Text>
-                  </FlexRow>
-                </FlexCol>
-              </Shadow>
-              {showNsec ? (
-                <WarningBox text="Your Private Key can be used to access everything in your wallet. Don't share it with anyone." />
-              ) : null}
-            </FlexCol>
+            {!wallet.isReadonly ? (
+              <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
+                <Text thin>Private key</Text>
+                <TextSecondary>For your eyes only, do not share.</TextSecondary>
+                <Shadow lighter>
+                  <FlexCol gap='10px'>
+                    <InputFake testId='private-key' text={showNsec ? nsec : '*******'} />
+                    {showNsec ? (
+                      <Button onClick={handleNsecCopy} label='Copy to clipboard' />
+                    ) : (
+                      <Button onClick={toggleDialog} label='View private key' />
+                    )}
+                    <FlexRow>
+                      <OkIcon />
+                      <Text small>This is enough to restore your wallet.</Text>
+                    </FlexRow>
+                  </FlexCol>
+                </Shadow>
+                {showNsec ? (
+                  <WarningBox text="Your Private Key can be used to access everything in your wallet. Don't share it with anyone." />
+                ) : null}
+              </FlexCol>
+            ) : null}
             <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
               <Text thin>Public key</Text>
               <Shadow lighter>

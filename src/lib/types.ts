@@ -107,4 +107,5 @@ export type Wallet = {
   nextRollover: number
   passkeyId?: string
   pubkey?: string
+  isReadonly?: boolean
 }
