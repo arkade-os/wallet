@@ -85,7 +85,7 @@ export default function Vtxos() {
   useEffect(() => {
     if (!aspInfo || !svcWallet) return
     // get all VTXOs including recoverable ones
-    svcWallet
+    svcWallet.reader
       .getVtxos({
         withRecoverable: true,
         withUnrolled: false,
@@ -93,13 +93,13 @@ export default function Vtxos() {
       .then(setAllVtxos)
       .catch(consoleError)
     // get all UTXOs
-    svcWallet.getBoardingUtxos().then(setAllUtxos).catch(consoleError)
+    svcWallet.reader.getBoardingUtxos().then(setAllUtxos).catch(consoleError)
   }, [aspInfo, vtxos, svcWallet, wallet.thresholdMs])
 
   // Fetch inputs to settle
   useEffect(() => {
-    if (!aspInfo || !svcWallet) return
-    getInputsToSettle(svcWallet, wallet.thresholdMs).then(({ boardingUtxos, inputs, vtxos }) => {
+    if (!aspInfo || !svcWallet?.writer) return
+    getInputsToSettle(svcWallet.writer, wallet.thresholdMs).then(({ boardingUtxos, inputs, vtxos }) => {
       setHasBoardingUtxosToSettle(boardingUtxos.length > 0)
       setHasInputsToSettle(inputs.length > 0)
       setHasVtxosToSettle(vtxos.length > 0)
@@ -116,14 +116,14 @@ export default function Vtxos() {
     return () => clearTimeout(timeoutId)
   }, [success])
 
-  if (!svcWallet) return <Loading text='Loading...' />
+  if (!svcWallet?.writer) return <Loading text='Loading...' />
 
   const listableVtxos = allVtxos.filter((vtxo) => vtxo.isSpent === false)
 
   const handleRollover = async () => {
     try {
       setRollingover(true)
-      await settleVtxos(svcWallet, aspInfo.dust, wallet.thresholdMs)
+      await settleVtxos(svcWallet.writer!, aspInfo.dust, wallet.thresholdMs)
       await reloadWallet()
       setRollingover(false)
       setSuccess(true)
