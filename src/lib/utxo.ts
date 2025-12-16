@@ -1,7 +1,14 @@
-import { CSVMultisigTapscript, ExtendedCoin, hasBoardingTxExpired, TapLeafScript, IWallet } from '@arkade-os/sdk'
+import {
+  ExtendedCoin,
+  hasBoardingTxExpired,
+  TapLeafScript,
+  IWallet,
+  CSVMultisigTapscript,
+  VtxoScript,
+} from '@arkade-os/sdk'
 
 const isExpiredUtxo = (utxo: ExtendedCoin) => {
-  const leaf = utxo.intentTapLeafScript as TapLeafScript
+  const leaf = VtxoScript.decode(utxo.tapTree).leaves[1] as TapLeafScript
   const script = leaf[1].subarray(0, leaf[1].length - 1) // remove the version byte
   const exitScript = CSVMultisigTapscript.decode(script)
   const boardingTimelock = exitScript.params.timelock

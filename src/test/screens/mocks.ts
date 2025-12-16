@@ -51,9 +51,22 @@ export const mockFiatContextValue = {
 }
 
 export const mockLightningContextValue = {
-  swapProvider: undefined,
+  arkadeLightning: null,
+  swapManager: null,
   connected: false,
   calcSubmarineSwapFee: () => 0,
+  calcReverseSwapFee: () => 0,
+  createSubmarineSwap: async () => null,
+  createReverseSwap: async () => null,
+  claimVHTLC: async () => {},
+  refundVHTLC: async () => {},
+  payInvoice: async () => {
+    throw new Error('Lightning not initialized')
+  },
+  getSwapHistory: async () => [],
+  getFees: async () => null,
+  getApiUrl: () => null,
+  toggleConnection: () => {},
 }
 
 export const mockOptionsContextValue = {
