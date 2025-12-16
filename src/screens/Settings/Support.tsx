@@ -31,7 +31,7 @@ export default function Support() {
   // Fetch wallet addresses
   useEffect(() => {
     if (svcWallet) {
-      getReceivingAddresses(svcWallet)
+      getReceivingAddresses(svcWallet.reader)
         .then(setAddresses)
         .catch((err) => console.error('Failed to get addresses:', err))
     }

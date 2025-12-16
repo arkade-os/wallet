@@ -84,7 +84,7 @@ export default function SendForm() {
   // get receiving addresses
   useEffect(() => {
     if (!svcWallet) return
-    getReceivingAddresses(svcWallet)
+    getReceivingAddresses(svcWallet.reader)
       .then(({ boardingAddr, offchainAddr }) => {
         if (!boardingAddr || !offchainAddr) {
           throw new Error('unable to get receiving addresses')
@@ -105,7 +105,7 @@ export default function SendForm() {
   // update available balance
   useEffect(() => {
     if (!svcWallet) return
-    svcWallet
+    svcWallet.reader
       .getBalance()
       .then((bal) => setAvailableBalance(bal.available))
       .catch(smartSetError)
