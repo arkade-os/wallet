@@ -18,7 +18,7 @@ import Padded from '../../components/Padded'
 import Input from '../../components/Input'
 import Text from '../../components/Text'
 import { hex } from '@scure/base'
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
+import { hexToBytes } from '@noble/hashes/utils.js'
 
 type Props = { readonly?: boolean }
 export default function InitRestore({ readonly }: Props) {
