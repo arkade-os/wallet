@@ -18,17 +18,17 @@ import { NudgeContext } from '../../providers/nudge'
 import { EmptyTxList } from '../../components/Empty'
 import { InfoBox } from '../../components/AlertBox'
 import { psaMessage } from '../../lib/constants'
-import { BoltzAnnouncement } from '../../components/Annoucement'
+import { AnnouncementContext } from '../../providers/annoucements'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
+  const { announcement } = useContext(AnnouncementContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { nudge } = useContext(NudgeContext)
   const { balance, txs } = useContext(WalletContext)
+  const { nudge } = useContext(NudgeContext)
 
   const [error, setError] = useState(false)
-  const [announce, setAnnounce] = useState(true)
 
   useEffect(() => {
     setError(aspInfo.unreachable)
@@ -46,7 +46,7 @@ export default function Wallet() {
 
   return (
     <>
-      {announce ? <BoltzAnnouncement close={() => setAnnounce(false)} /> : null}
+      {announcement}
       <Content>
         <Padded>
           <FlexCol>

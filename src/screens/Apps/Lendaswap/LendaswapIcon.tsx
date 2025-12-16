@@ -1,6 +1,7 @@
-export default function LendaswapIcon() {
+export default function LendaswapIcon({ big }: { big?: boolean }) {
+  const size = big ? 78 : 55
   return (
-    <svg width='55' height='55' viewBox='0 0 512 512' fill='none' xmlns='http://www.w3.org/2000/svg'>
+    <svg width={size} height={size} viewBox='0 0 512 512' fill='none' xmlns='http://www.w3.org/2000/svg'>
       <circle cx='256.001' cy='256.001' r='233.684' stroke='var(--black)' strokeWidth='36.2105' />
       <path d='M280.285 169.922L288.002 128.373' stroke='var(--black)' strokeWidth='19.7225' />
       <path d='M227.926 389.922L235.669 348.381' stroke='var(--black)' strokeWidth='19.7225' />

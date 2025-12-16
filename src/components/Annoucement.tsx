@@ -3,12 +3,23 @@ import Button from './Button'
 import FlexCol from './FlexCol'
 import FlexRow from './FlexRow'
 import OkIcon from '../icons/Ok'
+import { useContext } from 'react'
+import { SettingsOptions, Themes } from '../lib/types'
 import BoltzIcon from '../icons/Boltz'
 import Text, { TextSecondary } from './Text'
+import { ConfigContext } from '../providers/config'
+import LendasatIcon from '../screens/Apps/Lendasat/LendasatIcon'
+import LendaSwapIcon from '../screens/Apps/Lendaswap/LendaswapIcon'
+import { NavigationContext, Pages } from '../providers/navigation'
+import NostrIcon from '../icons/Nostr'
+import { OptionsContext } from '../providers/options'
 
-const PrettyIcon = ({ color, icon }: { color: string; icon: React.ReactNode }) => {
+// icon with pretty gradient background
+const PrettyIcon = ({ color, icon }: { color?: string; icon: React.ReactNode }) => {
+  const { config } = useContext(ConfigContext)
+  const _color = color ?? (config.theme === Themes.Dark ? '#ffffff' : '#000000')
   const circle = 'circle at 50% -70%'
-  const gradient = [color + 'dd 0%', color + '77 30%', color + '00 60%']
+  const gradient = [_color + 'dd 0%', _color + '00 70%']
   return (
     <div
       style={{
@@ -37,7 +48,7 @@ const Tag = ({ text }: { text: string }) => (
       borderRadius: '1000px',
       display: 'inline-block',
       padding: '0.25rem 0.75rem',
-      color: 'var(--ion-text-color)',
+      color: 'var(--white)',
       backgroundColor: 'var(--purple)',
     }}
   >
@@ -57,16 +68,48 @@ const BulletPoint = ({ point }: { point: string[] }) => (
   </FlexRow>
 )
 
+const BulletList = ({ points }: { points: string[][] }) =>
+  points ? (
+    <FlexCol gap='0.5rem'>
+      {points.map((point) => (
+        <BulletPoint key={point[0]} point={point} />
+      ))}
+    </FlexCol>
+  ) : null
+
 interface AnnouncementProps {
-  color: string
+  page?: Pages
   title: string
+  color?: string
   message: string
   close: () => void
   icon: React.ReactNode
+  option?: SettingsOptions
   bulletPoints: string[][]
 }
 
-export default function Announcement({ color, title, message, close, icon, bulletPoints }: AnnouncementProps) {
+export default function Announcement({
+  page,
+  color,
+  title,
+  message,
+  close,
+  icon,
+  option,
+  bulletPoints,
+}: AnnouncementProps) {
+  const { navigate } = useContext(NavigationContext)
+  const { setOption } = useContext(OptionsContext)
+
+  const handleTryIt = () => {
+    if (page) navigate(page)
+    else if (option) {
+      setOption(option)
+      navigate(Pages.Settings)
+    }
+    close()
+  }
+
   return (
     <Modal>
       <FlexCol gap='1.5rem'>
@@ -81,10 +124,10 @@ export default function Announcement({ color, title, message, close, icon, bulle
         </FlexCol>
         <FlexCol gap='0.75rem'>
           <TextSecondary>What you can do:</TextSecondary>
-          {bulletPoints ? bulletPoints.map((point) => <BulletPoint key={point[0]} point={point} />) : null}
+          <BulletList points={bulletPoints} />
         </FlexCol>
         <FlexCol gap='0.25rem'>
-          <Button onClick={() => {}} label={`Try ${title}`} />
+          <Button onClick={handleTryIt} label={`Try ${title}`} />
           <Button onClick={close} label='Maybe later' secondary />
         </FlexCol>
       </FlexCol>
@@ -96,10 +139,62 @@ export function BoltzAnnouncement({ close }: { close: () => void }) {
   return (
     <Announcement
       close={close}
-      color='#ffe96d'
-      icon={<BoltzIcon big />}
       title='Boltz'
+      color='#ffe96d'
+      page={Pages.AppBoltz}
+      icon={<BoltzIcon big />}
       message='Lightning that works.'
+      bulletPoints={[
+        ['Explore Satellite Data Easily', 'View your historical satellite movement and stats right from your wallet.'],
+        ['Track and Discover', 'Follow how your node interacts with others in the network over time.'],
+        ['Visualized Data at a Glance', 'Access clean visualizations to understand trends in your Lightning activity.'],
+      ]}
+    />
+  )
+}
+
+export function LendaSatAnnouncement({ close }: { close: () => void }) {
+  return (
+    <Announcement
+      close={close}
+      title='LendaSat'
+      page={Pages.AppLendasat}
+      icon={<LendasatIcon big />}
+      message='Borrow against your sats.'
+      bulletPoints={[
+        ['Explore Satellite Data Easily', 'View your historical satellite movement and stats right from your wallet.'],
+        ['Track and Discover', 'Follow how your node interacts with others in the network over time.'],
+        ['Visualized Data at a Glance', 'Access clean visualizations to understand trends in your Lightning activity.'],
+      ]}
+    />
+  )
+}
+
+export function LendaSwapAnnouncement({ close }: { close: () => void }) {
+  return (
+    <Announcement
+      close={close}
+      title='LendaSwap'
+      page={Pages.AppLendaswap}
+      icon={<LendaSwapIcon big />}
+      message='Swap Bitcoin to USDC instantly'
+      bulletPoints={[
+        ['Explore Satellite Data Easily', 'View your historical satellite movement and stats right from your wallet.'],
+        ['Track and Discover', 'Follow how your node interacts with others in the network over time.'],
+        ['Visualized Data at a Glance', 'Access clean visualizations to understand trends in your Lightning activity.'],
+      ]}
+    />
+  )
+}
+
+export function NostrBackupsAnnouncement({ close }: { close: () => void }) {
+  return (
+    <Announcement
+      close={close}
+      title='Nostr Backups'
+      option={SettingsOptions.Backup}
+      icon={<NostrIcon big />}
+      message='Backup your wallet to Nostr.'
       bulletPoints={[
         ['Explore Satellite Data Easily', 'View your historical satellite movement and stats right from your wallet.'],
         ['Track and Discover', 'Follow how your node interacts with others in the network over time.'],
