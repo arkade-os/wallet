@@ -18,7 +18,7 @@ import Padded from '../../components/Padded'
 import Input from '../../components/Input'
 import Text from '../../components/Text'
 import { hex } from '@scure/base'
-import { ArkAddress } from '@arkade-os/sdk'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 
 type Props = { readonly?: boolean }
 export default function InitRestore({ readonly }: Props) {
@@ -41,13 +41,13 @@ export default function InitRestore({ readonly }: Props) {
     if (readonly) {
       let pubkey: Uint8Array | undefined = undefined
       try {
-        const arkAddress = ArkAddress.decode(someKey)
-        pubkey = arkAddress.pkScript
+        if (someKey.length !== 66) throw new Error('Compressed public key must be 33 bytes')
+        pubkey = hexToBytes(someKey)
         setError('')
         setLabel(buttonLabel)
       } catch (e) {
-        consoleError(e, `Error validating ark address ${someKey}`)
-        setLabel('Unable to validate address format')
+        consoleError(e, `Error validating public key ${someKey}`)
+        setLabel('Unable to validate public key format')
         setError(extractError(e))
       }
       setPublicKey(pubkey)
@@ -71,10 +71,7 @@ export default function InitRestore({ readonly }: Props) {
 
   const handleProceed = () => {
     if (readonly) {
-      // tark1qra883hysahlkt0ujcwhv0x2n278849c3m7t3a08l7fdc40f4f2n65pzca77269jv9pzkc8ywdqstxfez4gd767y2pmqffhvma75f8xq9szgcu
-      // nsec19wjhpzqktar0c3vfehzwjkths2wcw3uehpck3xqf8klq2w9s2lzqv00k42
       setInitInfo({ publicKey, restoring: true })
-      console.log('restoring from ark address')
       navigate(Pages.InitSuccess)
     } else {
       setInitInfo({ privateKey, password: defaultPassword, restoring: true })
@@ -101,11 +98,11 @@ export default function InitRestore({ readonly }: Props) {
           <Padded>
             <FlexCol between>
               <FlexCol>
-                <Input name='ark-address' label='ARK Address' onChange={setSomeKey} />
+                <Input name='ark-address' label='Public Key (compressed)' onChange={setSomeKey} />
                 <ErrorMessage error={Boolean(error)} text={error} />
               </FlexCol>
               <Text centered color='dark70' fullWidth thin small>
-                Your ARK address should start with the 'ark' string. Do not share it with anyone.
+                Use your compressed public key to restore a wallet that you can only read from.
               </Text>
             </FlexCol>
           </Padded>
