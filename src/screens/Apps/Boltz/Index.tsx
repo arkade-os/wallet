@@ -40,7 +40,7 @@ export default function AppBoltz() {
               <TextLabel>Connection status</TextLabel>
               <Shadow fat>
                 <FlexRow between>
-                  <Text>{getApiUrl()}</Text>
+                  <Text>{getApiUrl() ?? 'No server available'}</Text>
                   <ConnectionStatus />
                 </FlexRow>
               </Shadow>
