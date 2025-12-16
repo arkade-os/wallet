@@ -11,11 +11,19 @@ import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
-import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey, ReadonlySingleKey } from '@arkade-os/sdk'
+import {
+  ArkNote,
+  ServiceWorkerWallet,
+  NetworkName,
+  SingleKey,
+  ReadonlySingleKey,
+  ServiceWorkerReadonlyWallet,
+} from '@arkade-os/sdk'
 import { hex } from '@scure/base'
-import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
 import { maxPercentage } from '../lib/constants'
+import * as secp from '@noble/secp256k1'
+import { hexToBytes } from '@noble/hashes/utils.js'
 
 const defaultWallet: Wallet = {
   network: '',
@@ -71,6 +79,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [initialized, setInitialized] = useState<boolean>(false)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
+
+  const [isReadonlyWallet, setIsReadonlyWallet] = useState(false)
 
   const listeningForServiceWorker = useRef(false)
 
@@ -178,91 +188,86 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!privateKey && !publicKey) {
       throw new Error('No private key or public key provided')
     }
-    if (publicKey) {
-      const svcWallet = await ServiceWorkerWallet.setup({
-        serviceWorkerPath: '/wallet-service-worker.mjs',
-        identity: ReadonlySingleKey.fromHex(privateKey),
-        arkServerUrl,
-        esploraUrl,
-      })
-      setSvcWallet(svcWallet)
+    const initSvcWallet = {
+      serviceWorkerPath: '/wallet-service-worker.mjs',
+      arkServerUrl,
+      esploraUrl,
     }
-    if (privateKey) {
-      try {
-        // create service worker wallet
-        const svcWallet = await ServiceWorkerWallet.setup({
-          serviceWorkerPath: '/wallet-service-worker.mjs',
-          identity: SingleKey.fromHex(privateKey),
-          arkServerUrl,
-          esploraUrl,
-        })
-        setSvcWallet(svcWallet)
+    try {
+      // create service worker wallet
+      // TODO: fix this shit
+      const svcWallet = publicKey
+        ? ((await ServiceWorkerReadonlyWallet.setup({
+            ...initSvcWallet,
+            identity: ReadonlySingleKey.fromPublicKey(hexToBytes(publicKey)),
+          })) as unknown as ServiceWorkerWallet)
+        : await ServiceWorkerWallet.setup({ ...initSvcWallet, identity: SingleKey.fromHex(privateKey!) })
+      setSvcWallet(svcWallet)
 
-        // handle messages from the service worker
-        // we listen for UTXO/VTXO updates to refresh the tx history and balance
-        const handleServiceWorkerMessages = (event: MessageEvent) => {
-          if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
-            reloadWallet(svcWallet)
-            // reload again after a delay to give the indexer time to update its cache
-            setTimeout(() => reloadWallet(svcWallet), 5000)
-          }
+      // handle messages from the service worker
+      // we listen for UTXO/VTXO updates to refresh the tx history and balance
+      const handleServiceWorkerMessages = (event: MessageEvent) => {
+        if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
+          reloadWallet(svcWallet)
+          // reload again after a delay to give the indexer time to update its cache
+          setTimeout(() => reloadWallet(svcWallet), 5000)
         }
-
-        // listen for messages from the service worker
-        if (listeningForServiceWorker.current) {
-          navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessages)
-          navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
-        } else {
-          navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
-          listeningForServiceWorker.current = true
-        }
-
-        // check if the service worker wallet is initialized
-        const { walletInitialized } = await svcWallet.getStatus()
-        setInitialized(walletInitialized)
-
-        // ping the service worker wallet status every 1 second
-        setInterval(async () => {
-          try {
-            const { walletInitialized } = await svcWallet.getStatus()
-            setInitialized(walletInitialized)
-          } catch (err) {
-            consoleError(err, 'Error pinging wallet status')
-          }
-        }, 1_000)
-
-        // renew expiring coins on startup
-        renewCoins(svcWallet, aspInfo.dust, wallet.thresholdMs).catch(() => {})
-      } catch (err) {
-        if (err instanceof Error && err.message.includes('Service worker activation timed out')) {
-          if (retryCount < maxRetries) {
-            // exponential backoff: wait 1s, 2s, 4s for each retry
-            const delay = Math.pow(2, retryCount) * 1000
-            consoleError(
-              new Error(
-                `Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,
-              ),
-              'Service worker activation retry',
-            )
-            await new Promise((resolve) => setTimeout(resolve, delay))
-            return initSvcWorkerWallet({
-              arkServerUrl,
-              esploraUrl,
-              privateKey,
-              retryCount: retryCount + 1,
-              maxRetries,
-            })
-          } else {
-            consoleError(
-              new Error('Service worker activation timed out after maximum retries'),
-              'Service worker activation failed',
-            )
-            return
-          }
-        }
-        // re-throw other errors
-        throw err
       }
+
+      // listen for messages from the service worker
+      if (listeningForServiceWorker.current) {
+        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessages)
+        navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
+      } else {
+        navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
+        listeningForServiceWorker.current = true
+      }
+
+      // check if the service worker wallet is initialized
+      const { walletInitialized } = await svcWallet.getStatus()
+      setInitialized(walletInitialized)
+
+      // ping the service worker wallet status every 1 second
+      setInterval(async () => {
+        try {
+          const { walletInitialized } = await svcWallet.getStatus()
+          setInitialized(walletInitialized)
+        } catch (err) {
+          consoleError(err, 'Error pinging wallet status')
+        }
+      }, 1_000)
+
+      // renew expiring coins on startup
+      renewCoins(svcWallet, aspInfo.dust, wallet.thresholdMs).catch(() => {})
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('Service worker activation timed out')) {
+        if (retryCount < maxRetries) {
+          // exponential backoff: wait 1s, 2s, 4s for each retry
+          const delay = Math.pow(2, retryCount) * 1000
+          consoleError(
+            new Error(
+              `Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,
+            ),
+            'Service worker activation retry',
+          )
+          await new Promise((resolve) => setTimeout(resolve, delay))
+          return initSvcWorkerWallet({
+            arkServerUrl,
+            esploraUrl,
+            privateKey,
+            retryCount: retryCount + 1,
+            maxRetries,
+          })
+        } else {
+          consoleError(
+            new Error('Service worker activation timed out after maximum retries'),
+            'Service worker activation failed',
+          )
+          return
+        }
+      }
+      // re-throw other errors
+      throw err
     }
   }
 
@@ -277,15 +282,25 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       arkServerUrl,
       esploraUrl,
     })
+    setIsReadonlyWallet(false)
     updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
   }
 
   const initReadonlyWallet = async (publicKey: Uint8Array) => {
+    const pubkey = hex.encode(publicKey)
     const arkServerUrl = aspInfo.url
     const network = aspInfo.network as NetworkName
     const esploraUrl = getRestApiExplorerURL(network) ?? ''
-    updateConfig({ ...config, pubkey: hex.encode(publicKey) })
+    updateConfig({ ...config, pubkey })
+    await initSvcWorkerWallet({
+      publicKey: pubkey,
+      arkServerUrl,
+      esploraUrl,
+    })
+    setIsReadonlyWallet(true)
+    updateWallet({ ...wallet, network, pubkey })
+    setInitialized(true)
   }
 
   const lockWallet = async () => {
