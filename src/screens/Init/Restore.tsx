@@ -73,7 +73,8 @@ export default function InitRestore({ readonly }: Props) {
     if (readonly) {
       // tark1qra883hysahlkt0ujcwhv0x2n278849c3m7t3a08l7fdc40f4f2n65pzca77269jv9pzkc8ywdqstxfez4gd767y2pmqffhvma75f8xq9szgcu
       // nsec19wjhpzqktar0c3vfehzwjkths2wcw3uehpck3xqf8klq2w9s2lzqv00k42
-      setInitInfo({ publicKey })
+      setInitInfo({ publicKey, restoring: true })
+      console.log('restoring from ark address')
       navigate(Pages.InitSuccess)
     } else {
       setInitInfo({ privateKey, password: defaultPassword, restoring: true })

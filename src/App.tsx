@@ -80,7 +80,7 @@ export default function App() {
     if (aspInfo.unreachable) return navigate(Pages.Unavailable)
     if (jsCapabilitiesChecked && !isCapable) return navigate(Pages.Unavailable)
     // avoid redirect if the user is still setting up the wallet
-    if (initInfo.password || initInfo.privateKey) return
+    if (initInfo.password || initInfo.privateKey || initInfo.publicKey) return
     if (!walletLoaded) return navigate(Pages.Loading)
     if (!wallet.pubkey) return navigate(pwaIsInstalled() ? Pages.Init : Pages.Onboard)
     if (!initialized) return navigate(Pages.Unlock)
