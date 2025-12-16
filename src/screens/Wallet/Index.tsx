@@ -18,6 +18,7 @@ import { NudgeContext } from '../../providers/nudge'
 import { EmptyTxList } from '../../components/Empty'
 import { InfoBox } from '../../components/AlertBox'
 import { psaMessage } from '../../lib/constants'
+import { BoltzAnnouncement } from '../../components/Annoucement'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
@@ -27,6 +28,7 @@ export default function Wallet() {
   const { balance, txs } = useContext(WalletContext)
 
   const [error, setError] = useState(false)
+  const [announce, setAnnounce] = useState(true)
 
   useEffect(() => {
     setError(aspInfo.unreachable)
@@ -43,28 +45,31 @@ export default function Wallet() {
   }
 
   return (
-    <Content>
-      <Padded>
-        <FlexCol>
-          <FlexCol gap='0'>
-            <LogoIcon small />
-            <Balance amount={balance} />
-            <ErrorMessage error={error} text='Ark server unreachable' />
-            <FlexRow padding='0 0 0.5rem 0'>
-              <Button main icon={<SendIcon />} label='Send' onClick={handleSend} />
-              <Button main icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
-            </FlexRow>
-            {nudge ? nudge : psaMessage ? <InfoBox html={psaMessage} /> : null}
+    <>
+      {announce ? <BoltzAnnouncement close={() => setAnnounce(false)} /> : null}
+      <Content>
+        <Padded>
+          <FlexCol>
+            <FlexCol gap='0'>
+              <LogoIcon small />
+              <Balance amount={balance} />
+              <ErrorMessage error={error} text='Ark server unreachable' />
+              <FlexRow padding='0 0 0.5rem 0'>
+                <Button main icon={<SendIcon />} label='Send' onClick={handleSend} />
+                <Button main icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
+              </FlexRow>
+              {nudge ? nudge : psaMessage ? <InfoBox html={psaMessage} /> : null}
+            </FlexCol>
+            {txs?.length === 0 ? (
+              <div style={{ marginTop: '5rem', width: '100%' }}>
+                <EmptyTxList />
+              </div>
+            ) : (
+              <TransactionsList />
+            )}
           </FlexCol>
-          {txs?.length === 0 ? (
-            <div style={{ marginTop: '5rem', width: '100%' }}>
-              <EmptyTxList />
-            </div>
-          ) : (
-            <TransactionsList />
-          )}
-        </FlexCol>
-      </Padded>
-    </Content>
+        </Padded>
+      </Content>
+    </>
   )
 }
