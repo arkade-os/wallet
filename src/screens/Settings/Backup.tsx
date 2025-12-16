@@ -36,6 +36,7 @@ export default function Backup() {
   const [present] = useIonToast()
 
   const [nsec, setNsec] = useState('')
+  const [pubkey, setPubkey] = useState('')
   const [error, setError] = useState('')
   const [dialog, setDialog] = useState(false)
   const [showNsec, setShowNsec] = useState(false)
@@ -46,6 +47,12 @@ export default function Backup() {
     verifyPassword(defaultPassword).then(setNsec)
   }, [])
 
+  useEffect(() => {
+    if (wallet.pubkey) {
+      setPubkey(wallet.pubkey)
+    }
+  }, [wallet.pubkey])
+
   const verifyPassword = async (password: string): Promise<string> => {
     try {
       const privateKey = await getPrivateKey(password)
@@ -55,9 +62,15 @@ export default function Backup() {
     }
   }
 
-  const handleCopy = async () => {
+  const handleNsecCopy = async () => {
     if (!nsec) return
     await copyToClipboard(nsec)
+    present(copiedToClipboard)
+  }
+
+  const handlePubkeyCopy = async () => {
+    if (!pubkey) return
+    await copyToClipboard(pubkey)
     present(copiedToClipboard)
   }
 
@@ -163,7 +176,7 @@ export default function Backup() {
                 <FlexCol gap='10px'>
                   <InputFake testId='private-key' text={showNsec ? nsec : '*******'} />
                   {showNsec ? (
-                    <Button onClick={handleCopy} label='Copy to clipboard' />
+                    <Button onClick={handleNsecCopy} label='Copy to clipboard' />
                   ) : (
                     <Button onClick={toggleDialog} label='View private key' />
                   )}
@@ -176,6 +189,19 @@ export default function Backup() {
               {showNsec ? (
                 <WarningBox text="Your Private Key can be used to access everything in your wallet. Don't share it with anyone." />
               ) : null}
+            </FlexCol>
+            <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
+              <Text thin>Public key</Text>
+              <Shadow lighter>
+                <FlexCol gap='10px'>
+                  <InputFake testId='public-key' text={pubkey} />
+                  <Button onClick={handlePubkeyCopy} label='Copy to clipboard' />
+                  <FlexRow>
+                    <OkIcon />
+                    <Text small>This is enough to restore your wallet in read-only mode.</Text>
+                  </FlexRow>
+                </FlexCol>
+              </Shadow>
             </FlexCol>
             <Toggle
               checked={config.nostrBackup}

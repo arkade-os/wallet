@@ -15,7 +15,7 @@ export default function InitConnect() {
   const { initInfo, setInitInfo } = useContext(FlowContext)
   const { arkadeLightning, restoreSwaps } = useContext(LightningContext)
   const { navigate } = useContext(NavigationContext)
-  const { initWallet } = useContext(WalletContext)
+  const { initWallet, initReadonlyWallet } = useContext(WalletContext)
 
   const [initialized, setInitialized] = useState(false)
 
@@ -23,7 +23,13 @@ export default function InitConnect() {
 
   useEffect(() => {
     if (publicKey) {
-      // TODO:  readonly wallet
+      initReadonlyWallet(publicKey)
+        .then(() => {
+          setInitInfo({ ...initInfo, publicKey: undefined })
+          navigate(Pages.Wallet)
+        })
+        .catch(consoleError)
+      return
     }
     if (!password || !privateKey) return
     setPrivateKey(privateKey, password)
