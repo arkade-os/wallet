@@ -28,6 +28,7 @@ import { hexToBytes } from '@noble/hashes/utils.js'
 const defaultWallet: Wallet = {
   network: '',
   nextRollover: 0,
+  isReadonly: true,
 }
 
 type SvcWallet = { reader: ServiceWorkerReadonlyWallet; writer?: ServiceWorkerWallet }
@@ -292,7 +293,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       arkServerUrl,
       esploraUrl,
     })
-    updateWallet({ ...wallet, network, pubkey })
+    updateWallet({ ...wallet, network, pubkey, isReadonly: false })
     setInitialized(true)
   }
 
@@ -307,7 +308,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       arkServerUrl,
       esploraUrl,
     })
-    updateWallet({ ...wallet, network, pubkey })
+    updateWallet({ ...wallet, network, pubkey, isReadonly: true })
     setInitialized(true)
   }
 
