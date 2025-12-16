@@ -116,21 +116,42 @@ const SwapLine = ({ swap }: { swap: PendingReverseSwap | PendingSubmarineSwap })
 }
 
 export default function SwapsList() {
-  const { swapProvider } = useContext(LightningContext)
+  const { arkadeLightning, swapManager, getSwapHistory } = useContext(LightningContext)
   const [swapHistory, setSwapHistory] = useState<(PendingReverseSwap | PendingSubmarineSwap)[]>([])
 
+  // Load initial swap history
   useEffect(() => {
-    const choresOnInit = async () => {
-      if (!swapProvider) return
+    const loadHistory = async () => {
+      if (!arkadeLightning) return
       try {
-        await swapProvider.refreshSwapsStatus()
-        setSwapHistory(await swapProvider.getSwapHistory())
+        const history = await getSwapHistory()
+        setSwapHistory(history)
       } catch (err) {
         consoleError(err, 'Error fetching swap history:')
       }
     }
-    choresOnInit()
-  }, [swapProvider])
+    loadHistory()
+  }, [arkadeLightning])
+
+  // Subscribe to swap updates from SwapManager for real-time updates
+  useEffect(() => {
+    if (!swapManager) return
+
+    const unsubscribe = swapManager.onSwapUpdate((swap) => {
+      setSwapHistory((prev) => {
+        const existingIndex = prev.findIndex((s) => s.id === swap.id)
+        if (existingIndex >= 0) {
+          const updated = [...prev]
+          updated[existingIndex] = swap
+          return updated
+        }
+        // New swap, add to beginning
+        return [swap, ...prev]
+      })
+    })
+
+    return unsubscribe
+  }, [swapManager])
 
   if (swapHistory.length === 0) return <EmptySwapList />
 
