@@ -7,8 +7,13 @@ import NeedsPassword from '../../components/NeedsPassword'
 import Header from '../../components/Header'
 import { defaultPassword } from '../../lib/constants'
 import Loading from '../../components/Loading'
-import { readWalletFromStorage } from '../../lib/storage'
+import { clearStorage, readWalletFromStorage } from '../../lib/storage'
 import { hexToBytes } from '@noble/hashes/utils.js'
+import WarningBox from '../../components/Warning'
+import Content from '../../components/Content'
+import Padded from '../../components/Padded'
+import CenterScreen from '../../components/CenterScreen'
+import Button from '../../components/Button'
 
 export default function Unlock() {
   const { initWallet, initReadonlyWallet } = useContext(WalletContext)
@@ -16,7 +21,7 @@ export default function Unlock() {
 
   const [error, setError] = useState('')
   const [password, setPassword] = useState('')
-  const [tried, setTried] = useState(false)
+  const [stage, setStage] = useState<'inital' | 'failed-publickey' | 'failed-privatekey'>('inital')
 
   useEffect(() => {
     const pass = password ? password : defaultPassword
@@ -25,16 +30,15 @@ export default function Unlock() {
       initReadonlyWallet(hexToBytes(walletFromStorage.pubkey))
         .then(() => navigate(Pages.Wallet))
         .catch((err) => {
-          setTried(true)
           consoleError(err, 'error initializing readonly:wq wallet')
-          setError('There was an error loading your readonly wallet')
+          setStage('failed-publickey')
         })
     } else {
       getPrivateKey(pass)
         .then(initWallet)
         .then(() => navigate(Pages.Wallet))
         .catch((err) => {
-          setTried(true)
+          setStage('failed-privatekey')
           if (password) {
             consoleError(err, 'error unlocking wallet')
             setError('Invalid password')
@@ -43,12 +47,33 @@ export default function Unlock() {
     }
   }, [password])
 
-  return tried ? (
-    <>
-      <Header text='Unlock' />
-      <NeedsPassword error={error} onPassword={setPassword} />
-    </>
-  ) : (
-    <Loading />
-  )
+  const handleReset = () => {
+    clearStorage().then(() => window.location.reload())
+  }
+
+  switch (stage) {
+    case 'inital':
+      return <Loading />
+    case 'failed-privatekey':
+      return (
+        <>
+          <Header text='Unlock' />
+          <NeedsPassword error={error} onPassword={setPassword} />
+        </>
+      )
+    case 'failed-publickey':
+      return (
+        <>
+          <Header text='Unlock' />
+          <Content>
+            <Padded>
+              <CenterScreen>
+                <WarningBox red text='There was an error loading your readonly wallet.' />
+                <Button label='Reset wallet' onClick={handleReset} />
+              </CenterScreen>
+            </Padded>
+          </Content>
+        </>
+      )
+  }
 }

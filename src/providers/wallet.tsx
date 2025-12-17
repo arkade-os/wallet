@@ -237,7 +237,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // ping the service worker wallet status every 1 second
       setInterval(async () => {
         try {
-          if (svcWallet) {
+          if (newSvcWallet) {
             const { walletInitialized } = await newSvcWallet.reader.getStatus()
             setInitialized(walletInitialized)
           }
