@@ -71,8 +71,9 @@ const BulletPoint = ({ point }: { point: string[] }) => (
 const BulletList = ({ points }: { points: string[][] }) =>
   points ? (
     <FlexCol gap='0.5rem'>
-      {points.map((point) => (
-        <BulletPoint key={point[0]} point={point} />
+      {points.map((point, index) => (
+        // eslint-disable-next-line react/no-array-index-key
+        <BulletPoint key={`${point[0]}-${index}`} point={point} />
       ))}
     </FlexCol>
   ) : null
