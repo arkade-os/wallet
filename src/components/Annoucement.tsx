@@ -145,9 +145,9 @@ export function BoltzAnnouncement({ close }: { close: () => void }) {
       icon={<BoltzIcon big />}
       message='Lightning that works.'
       bulletPoints={[
-        ['Explore Satellite Data Easily', 'View your historical satellite movement and stats right from your wallet.'],
-        ['Track and Discover', 'Follow how your node interacts with others in the network over time.'],
-        ['Visualized Data at a Glance', 'Access clean visualizations to understand trends in your Lightning activity.'],
+        ['Bridge', 'Swap between different Bitcoin layers while staying in full control.'],
+        ['Fast', 'Boltz utilizes Layer 2 scaling technologies like the Lightning Network.'],
+        ['Safe', 'Swaps on Boltz are atomic, cryptography ensures that users are always in control of their money.'],
       ]}
     />
   )
@@ -162,9 +162,18 @@ export function LendaSatAnnouncement({ close }: { close: () => void }) {
       icon={<LendasatIcon big />}
       message='Borrow against your sats.'
       bulletPoints={[
-        ['Explore Satellite Data Easily', 'View your historical satellite movement and stats right from your wallet.'],
-        ['Track and Discover', 'Follow how your node interacts with others in the network over time.'],
-        ['Visualized Data at a Glance', 'Access clean visualizations to understand trends in your Lightning activity.'],
+        [
+          'Choose a loan',
+          'Pick your preferred loan terms from a list of offers or post your own loan request. We will find you the right match.',
+        ],
+        [
+          'Lock your Bitcoin',
+          'Lock Bitcoin worth more than your loan amount as collateral. Your Bitcoin stays safe while you get the cash you need.',
+        ],
+        [
+          'Receive the funds',
+          'Get your loan instantly via your preferred method: bank transfer, stablecoins (USDT/USDC), or VISA card.',
+        ],
       ]}
     />
   )
@@ -177,11 +186,14 @@ export function LendaSwapAnnouncement({ close }: { close: () => void }) {
       title='LendaSwap'
       page={Pages.AppLendaswap}
       icon={<LendaSwapIcon big />}
-      message='Swap Bitcoin to USDC instantly'
+      message='Swap Bitcoin to USDC.'
       bulletPoints={[
-        ['Explore Satellite Data Easily', 'View your historical satellite movement and stats right from your wallet.'],
-        ['Track and Discover', 'Follow how your node interacts with others in the network over time.'],
-        ['Visualized Data at a Glance', 'Access clean visualizations to understand trends in your Lightning activity.'],
+        ['Swap to stablecoins', 'Swap native $BTC for $USDT or $USDC on Ethereum and Polygon.'],
+        [
+          'Trustless Atomic Swaps',
+          'When a swap is started, both parties lock their funds in smart contracts. The swap either completes fully or both parties get refunded.',
+        ],
+        ['Self-custodial', 'LendaSwap is fully self-custodial. Your keys, your coins.'],
       ]}
     />
   )
@@ -194,11 +206,11 @@ export function NostrBackupsAnnouncement({ close }: { close: () => void }) {
       title='Nostr Backups'
       option={SettingsOptions.Backup}
       icon={<NostrIcon big />}
-      message='Backup your wallet to Nostr.'
+      message='Backup to Nostr.'
       bulletPoints={[
-        ['Explore Satellite Data Easily', 'View your historical satellite movement and stats right from your wallet.'],
-        ['Track and Discover', 'Follow how your node interacts with others in the network over time.'],
-        ['Visualized Data at a Glance', 'Access clean visualizations to understand trends in your Lightning activity.'],
+        ['Backup settings', 'Have your Arkade wallet settings safely backed up on Nostr.'],
+        ['Boltz swaps', 'Easily restore your Boltz swap history if you switch devices.'],
+        ['Secure', 'All backups are encrypted and stored securely on the Nostr network.'],
       ]}
     />
   )
