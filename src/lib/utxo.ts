@@ -1,10 +1,4 @@
-import {
-  ExtendedCoin,
-  hasBoardingTxExpired,
-  VtxoScript,
-  IReadonlyWallet,
-  RelativeTimelock,
-} from '@arkade-os/sdk'
+import { ExtendedCoin, hasBoardingTxExpired, VtxoScript, IReadonlyWallet, RelativeTimelock } from '@arkade-os/sdk'
 
 const isExpiredUtxo = (utxo: ExtendedCoin) => {
   const vtxoScript = VtxoScript.decode(utxo.tapTree)
