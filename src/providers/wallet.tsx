@@ -231,14 +231,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // check if the service worker wallet is initialized
-      const { walletInitialized } = (await svcWallet?.reader.getStatus()) ?? { walletInitialized: false }
+      const { walletInitialized } = await newSvcWallet.reader.getStatus()
       setInitialized(walletInitialized)
 
       // ping the service worker wallet status every 1 second
       setInterval(async () => {
         try {
           if (svcWallet) {
-            const { walletInitialized } = await svcWallet.reader.getStatus()
+            const { walletInitialized } = await newSvcWallet.reader.getStatus()
             setInitialized(walletInitialized)
           }
         } catch (err) {
@@ -246,9 +246,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }, 1_000)
 
-      if (svcWallet?.writer) {
+      if (newSvcWallet?.writer) {
         // renew expiring coins on startup
-        renewCoins(svcWallet.writer, aspInfo.dust, wallet.thresholdMs).catch(() => {})
+        renewCoins(newSvcWallet.writer, aspInfo.dust, wallet.thresholdMs).catch(() => {})
       }
     } catch (err) {
       if (err instanceof Error && err.message.includes('Service worker activation timed out')) {
