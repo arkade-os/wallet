@@ -127,7 +127,6 @@ export default function Vtxos() {
       await settleVtxos(svcWallet.writer!, aspInfo.dust, wallet.thresholdMs)
       await reloadWallet()
       setRollingover(false)
-      console.log('Vtxos successfully renewed')
       setSuccess(true)
     } catch (err) {
       setError(extractError(err))
