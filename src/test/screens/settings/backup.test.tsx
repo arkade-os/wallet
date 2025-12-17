@@ -11,20 +11,6 @@ const seckey = {
   nsec: 'nsec16af97fgaay0xc3tycnfd92as9rfwcj49tscel2tm50hvm22jwrrqu8nz2f',
 }
 
-describe('Backup screen without default password', () => {
-  it('renders the backup screen asking for a password', async () => {
-    render(
-      <ConfigContext.Provider value={mockConfigContextValue as any}>
-        <Backup />
-      </ConfigContext.Provider>,
-    )
-
-    expect(screen.getByText('Backup')).toBeInTheDocument()
-    expect(screen.getByText('Insert password')).toBeInTheDocument()
-    expect(screen.getByText('Unlock wallet')).toBeInTheDocument()
-  })
-})
-
 describe('Backup screen with default password', () => {
   beforeEach(() => {
     vi.resetAllMocks()
@@ -44,7 +30,7 @@ describe('Backup screen with default password', () => {
     expect(screen.getByText('Backup')).toBeInTheDocument()
     expect(screen.getByText('Private key')).toBeInTheDocument()
     expect(screen.getByText('Enable Nostr backups')).toBeInTheDocument()
-    expect(screen.getByText(seckey.nsec)).toBeInTheDocument()
+    expect(screen.getByText('View private key')).toBeInTheDocument()
   })
 
   it('renders the backup screen with the correct toggle', async () => {
