@@ -99,7 +99,7 @@ const pageTab = {
   [Pages.Wallet]: Tabs.Wallet,
 }
 
-export const pageComponent = (page: Pages): JSX.Element => {
+export const pageComponent = (page: Pages, ctx: { readonly: boolean }): JSX.Element => {
   switch (page) {
     case Pages.AppBoltz:
       return <AppBoltz />
@@ -112,7 +112,7 @@ export const pageComponent = (page: Pages): JSX.Element => {
     case Pages.AppLendaswap:
       return <AppLendaswap />
     case Pages.Apps:
-      return <Apps />
+      return <Apps readonly={ctx.readonly} />
     case Pages.Init:
       return <Init />
     case Pages.InitConnect:
