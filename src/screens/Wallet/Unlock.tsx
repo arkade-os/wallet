@@ -21,7 +21,7 @@ export default function Unlock() {
 
   const [error, setError] = useState('')
   const [password, setPassword] = useState('')
-  const [stage, setStage] = useState<'inital' | 'failed-publickey' | 'failed-privatekey'>('inital')
+  const [stage, setStage] = useState<'initial' | 'failed-publickey' | 'failed-privatekey'>('initial')
 
   useEffect(() => {
     const pass = password ? password : defaultPassword
@@ -30,7 +30,7 @@ export default function Unlock() {
       initReadonlyWallet(hexToBytes(walletFromStorage.pubkey))
         .then(() => navigate(Pages.Wallet))
         .catch((err) => {
-          consoleError(err, 'error initializing readonly:wq wallet')
+          consoleError(err, 'error initializing readonly wallet')
           setStage('failed-publickey')
         })
     } else {
@@ -52,7 +52,7 @@ export default function Unlock() {
   }
 
   switch (stage) {
-    case 'inital':
+    case 'initial':
       return <Loading />
     case 'failed-privatekey':
       return (
