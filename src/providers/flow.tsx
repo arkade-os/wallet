@@ -66,6 +66,7 @@ interface FlowContextProps {
 export const emptyInitInfo: InitInfo = {
   password: undefined,
   privateKey: undefined,
+  publicKey: undefined,
 }
 
 export const emptyNoteInfo: NoteInfo = {
