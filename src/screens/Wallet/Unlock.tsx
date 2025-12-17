@@ -7,9 +7,11 @@ import NeedsPassword from '../../components/NeedsPassword'
 import Header from '../../components/Header'
 import { defaultPassword } from '../../lib/constants'
 import Loading from '../../components/Loading'
+import { readWalletFromStorage } from '../../lib/storage'
+import { hexToBytes } from '@noble/hashes/utils.js'
 
 export default function Unlock() {
-  const { initWallet } = useContext(WalletContext)
+  const { initWallet, initReadonlyWallet } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
 
   const [error, setError] = useState('')
@@ -18,16 +20,27 @@ export default function Unlock() {
 
   useEffect(() => {
     const pass = password ? password : defaultPassword
-    getPrivateKey(pass)
-      .then(initWallet)
-      .then(() => navigate(Pages.Wallet))
-      .catch((err) => {
-        setTried(true)
-        if (password) {
-          consoleError(err, 'error unlocking wallet')
-          setError('Invalid password')
-        }
-      })
+    const walletFromStorage = readWalletFromStorage()
+    if (walletFromStorage?.isReadonly && walletFromStorage.pubkey) {
+      initReadonlyWallet(hexToBytes(walletFromStorage.pubkey))
+        .then(() => navigate(Pages.Wallet))
+        .catch((err) => {
+          setTried(true)
+          consoleError(err, 'error initializing readonly wallet')
+          setError('There was an error loading your readonly wallet')
+        })
+    } else {
+      getPrivateKey(pass)
+        .then(initWallet)
+        .then(() => navigate(Pages.Wallet))
+        .catch((err) => {
+          setTried(true)
+          if (password) {
+            consoleError(err, 'error unlocking wallet')
+            setError('Invalid password')
+          }
+        })
+    }
   }, [password])
 
   return tried ? (

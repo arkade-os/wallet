@@ -72,6 +72,7 @@ export default function InitRestore({ readonly }: Props) {
   const handleProceed = () => {
     if (readonly) {
       setInitInfo({ publicKey, restoring: true })
+      // BackupProvider.restore required a private key
       navigate(Pages.InitSuccess)
     } else {
       setInitInfo({ privateKey, password: defaultPassword, restoring: true })
