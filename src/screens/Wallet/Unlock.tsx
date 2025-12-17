@@ -26,7 +26,7 @@ export default function Unlock() {
         .then(() => navigate(Pages.Wallet))
         .catch((err) => {
           setTried(true)
-          consoleError(err, 'error initializing readonly wallet')
+          consoleError(err, 'error initializing readonly:wq wallet')
           setError('There was an error loading your readonly wallet')
         })
     } else {
