@@ -11,6 +11,7 @@ import BoltzIcon from '../../icons/Boltz'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import LendasatIcon from './Lendasat/LendasatIcon'
 import LendaswapIcon from './Lendaswap/LendaswapIcon'
+import WarningBox from '../../components/Warning'
 
 const Middot = () => (
   <svg width='6' height='6' viewBox='0 0 6 6' fill='none' xmlns='http://www.w3.org/2000/svg' aria-hidden='true'>
@@ -90,41 +91,46 @@ function App({ desc, icon, link, name, live, page }: AppProps) {
   )
 }
 
-export default function Apps() {
+type Props = { readonly?: boolean }
+export default function Apps({ readonly }: Props) {
   return (
     <>
       <Header text='Apps' />
       <Content>
         <Padded>
-          <FlexCol>
-            <App
-              name='Boltz'
-              icon={<BoltzIcon />}
-              desc='Swap instantly between Arkade and Lightning'
-              link='https://boltz.exchange/'
-              page={Pages.AppBoltz}
-              live
-            />
+          {readonly ? (
+            <WarningBox text='Apps are not available in readonly mode' />
+          ) : (
+            <FlexCol>
+              <App
+                name='Boltz'
+                icon={<BoltzIcon />}
+                desc='Swap instantly between Arkade and Lightning'
+                link='https://boltz.exchange/'
+                page={Pages.AppBoltz}
+                live
+              />
 
-            <App
-              name='LendaSat'
-              icon={<LendasatIcon />}
-              desc='Borrow against your sats'
-              link='https://lendasat.com'
-              page={Pages.AppLendasat}
-              live
-            />
+              <App
+                name='LendaSat'
+                icon={<LendasatIcon />}
+                desc='Borrow against your sats'
+                link='https://lendasat.com'
+                page={Pages.AppLendasat}
+                live
+              />
 
-            <App
-              name='LendaSwap'
-              icon={<LendaswapIcon />}
-              desc='Swap Bitcoin to USDC instantly'
-              link='https://swap.lendasat.com'
-              page={Pages.AppLendaswap}
-              live
-            />
-            <App name='Fuji Money' icon={<FujiMoneyIcon />} desc='Synthetic Assets on the Bitcoin network' />
-          </FlexCol>
+              <App
+                name='LendaSwap'
+                icon={<LendaswapIcon />}
+                desc='Swap Bitcoin to USDC instantly'
+                link='https://swap.lendasat.com'
+                page={Pages.AppLendaswap}
+                live
+              />
+              <App name='Fuji Money' icon={<FujiMoneyIcon />} desc='Synthetic Assets on the Bitcoin network' />
+            </FlexCol>
+          )}
         </Padded>
       </Content>
     </>
