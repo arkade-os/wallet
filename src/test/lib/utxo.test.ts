@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 let exitPaths = [{ params: { timelock: { value: 42 } } }]
 
@@ -22,6 +22,10 @@ const mkUtxo = ({ confirmed, expired, tapTree }: { confirmed: boolean; expired: 
   }) as any
 
 describe('getConfirmedAndNotExpiredUtxos', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   it('returns only utxos that are confirmed and not expired', async () => {
     const confirmedNotExpired = mkUtxo({
       confirmed: true,
