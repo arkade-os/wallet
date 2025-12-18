@@ -129,7 +129,7 @@ export default function App() {
   const page =
     jsCapabilitiesChecked && configLoaded && (aspInfo.signerPubkey || aspInfo.unreachable) ? screen : Pages.Loading
 
-  const comp = page === Pages.Loading ? <Loading /> : pageComponent(page, { readonly: wallet.isReadonly })
+  const comp = page === Pages.Loading ? <Loading /> : pageComponent(page, { readonly: Boolean(wallet.isReadonly) })
 
   return (
     <IonApp>
@@ -141,9 +141,11 @@ export default function App() {
             <IonTab ref={walletRef} tab={Tabs.Wallet}>
               {tab === Tabs.Wallet ? comp : <></>}
             </IonTab>
-            <IonTab ref={appsRef} tab={Tabs.Apps}>
-              {tab === Tabs.Apps ? comp : <></>}
-            </IonTab>
+            {!wallet.isReadonly ? (
+              <IonTab ref={appsRef} tab={Tabs.Apps}>
+                {tab === Tabs.Apps ? comp : <></>}
+              </IonTab>
+            ) : null}
             <IonTab ref={settingsRef} tab={Tabs.Settings}>
               {tab === Tabs.Settings ? comp : <></>}
             </IonTab>
