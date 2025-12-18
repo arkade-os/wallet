@@ -25,10 +25,11 @@ export default function Wallet() {
   const { announcement } = useContext(AnnouncementContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { balance, txs, svcWallet } = useContext(WalletContext)
+  const { balance, txs, svcWallet, wallet } = useContext(WalletContext)
   const { nudge } = useContext(NudgeContext)
 
   const [error, setError] = useState(false)
+  const isReadonly = !!wallet?.isReadonly
 
   useEffect(() => {
     setError(aspInfo.unreachable)
@@ -55,7 +56,9 @@ export default function Wallet() {
               <Balance amount={balance} />
               <ErrorMessage error={error} text='Ark server unreachable' />
               <FlexRow padding='0 0 0.5rem 0'>
-                <Button main icon={<SendIcon />} disabled={!svcWallet?.writer} label='Send' onClick={handleSend} />
+                {isReadonly ? (
+                  <Button main icon={<SendIcon />} disabled={!svcWallet?.writer} label='Send' onClick={handleSend} />
+                ) : null}
                 <Button main icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
               </FlexRow>
               {nudge ? nudge : psaMessage ? <InfoBox html={psaMessage} /> : null}
