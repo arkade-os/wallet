@@ -49,7 +49,7 @@ export default function Backup() {
 
   useEffect(() => {
     if (wallet.pubkey) {
-      setPubkey(wallet.pubkey)
+      setPubkey(nip19.npubEncode(wallet.pubkey))
     }
   }, [wallet.pubkey])
 
