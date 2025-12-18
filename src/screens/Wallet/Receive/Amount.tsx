@@ -59,7 +59,7 @@ export default function ReceiveAmount() {
 
   useEffect(() => {
     if (!svcWallet) return
-    getReceivingAddresses(svcWallet)
+    getReceivingAddresses(svcWallet.reader)
       .then(({ offchainAddr, boardingAddr }) => {
         if (!offchainAddr) throw 'Unable to get offchain address'
         if (!boardingAddr) throw 'Unable to get boarding address'

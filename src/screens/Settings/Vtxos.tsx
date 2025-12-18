@@ -85,7 +85,7 @@ export default function Vtxos() {
   useEffect(() => {
     if (!aspInfo || !svcWallet) return
     // get all VTXOs including recoverable ones
-    svcWallet
+    svcWallet.reader
       .getVtxos({
         withRecoverable: true,
         withUnrolled: false,
@@ -93,13 +93,13 @@ export default function Vtxos() {
       .then(setAllVtxos)
       .catch(consoleError)
     // get all UTXOs
-    svcWallet.getBoardingUtxos().then(setAllUtxos).catch(consoleError)
+    svcWallet.reader.getBoardingUtxos().then(setAllUtxos).catch(consoleError)
   }, [aspInfo, vtxos, svcWallet, wallet.thresholdMs])
 
   // Fetch inputs to settle
   useEffect(() => {
-    if (!aspInfo || !svcWallet) return
-    getInputsToSettle(svcWallet, wallet.thresholdMs).then(({ boardingUtxos, inputs, vtxos }) => {
+    if (!aspInfo || !svcWallet?.writer) return
+    getInputsToSettle(svcWallet.writer, wallet.thresholdMs).then(({ boardingUtxos, inputs, vtxos }) => {
       setHasBoardingUtxosToSettle(boardingUtxos.length > 0)
       setHasInputsToSettle(inputs.length > 0)
       setHasVtxosToSettle(vtxos.length > 0)
@@ -121,9 +121,10 @@ export default function Vtxos() {
   const listableVtxos = allVtxos.filter((vtxo) => vtxo.isSpent === false)
 
   const handleRollover = async () => {
+    if (!svcWallet?.writer) return
     try {
       setRollingover(true)
-      await settleVtxos(svcWallet, aspInfo.dust, wallet.thresholdMs)
+      await settleVtxos(svcWallet.writer!, aspInfo.dust, wallet.thresholdMs)
       await reloadWallet()
       setRollingover(false)
       setSuccess(true)
@@ -285,11 +286,15 @@ export default function Vtxos() {
                       <Text>{prettyDate(wallet.nextRollover)}</Text>
                       <Text>{prettyAgo(wallet.nextRollover)}</Text>
                     </Box>
-                    {success ? <WarningBox green text='Coins renewed successfully' /> : null}
+                    {svcWallet.writer ? (
+                      <WarningBox green text='Coins renewed successfully' />
+                    ) : (
+                      <WarningBox text='This is a readonly wallet' />
+                    )}
                   </FlexCol>
                   <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
                     <TextSecondary>First virtual coin expiration: {prettyAgo(wallet.nextRollover)}.</TextSecondary>
-                    {wallet.thresholdMs ? (
+                    {svcWallet.writer && wallet.thresholdMs ? (
                       <TextSecondary>
                         Automatic renewal occurs for virtual coins expiring within{' '}
                         {prettyDelta(Math.floor(wallet.thresholdMs / 1_000))}.

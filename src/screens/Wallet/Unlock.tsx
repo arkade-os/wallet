@@ -7,35 +7,73 @@ import NeedsPassword from '../../components/NeedsPassword'
 import Header from '../../components/Header'
 import { defaultPassword } from '../../lib/constants'
 import Loading from '../../components/Loading'
+import { clearStorage, readWalletFromStorage } from '../../lib/storage'
+import { hexToBytes } from '@noble/hashes/utils.js'
+import WarningBox from '../../components/Warning'
+import Content from '../../components/Content'
+import Padded from '../../components/Padded'
+import CenterScreen from '../../components/CenterScreen'
+import Button from '../../components/Button'
 
 export default function Unlock() {
-  const { initWallet } = useContext(WalletContext)
+  const { initWallet, initReadonlyWallet } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
 
   const [error, setError] = useState('')
   const [password, setPassword] = useState('')
-  const [tried, setTried] = useState(false)
+  const [stage, setStage] = useState<'initial' | 'failed-publickey' | 'failed-privatekey'>('initial')
 
   useEffect(() => {
     const pass = password ? password : defaultPassword
-    getPrivateKey(pass)
-      .then(initWallet)
-      .then(() => navigate(Pages.Wallet))
-      .catch((err) => {
-        setTried(true)
-        if (password) {
-          consoleError(err, 'error unlocking wallet')
-          setError('Invalid password')
-        }
-      })
+    const walletFromStorage = readWalletFromStorage()
+    if (walletFromStorage?.isReadonly && walletFromStorage.pubkey) {
+      initReadonlyWallet(hexToBytes(walletFromStorage.pubkey))
+        .then(() => navigate(Pages.Wallet))
+        .catch((err) => {
+          consoleError(err, 'error initializing readonly wallet')
+          setStage('failed-publickey')
+        })
+    } else {
+      getPrivateKey(pass)
+        .then(initWallet)
+        .then(() => navigate(Pages.Wallet))
+        .catch((err) => {
+          setStage('failed-privatekey')
+          if (password) {
+            consoleError(err, 'error unlocking wallet')
+            setError('Invalid password')
+          }
+        })
+    }
   }, [password])
 
-  return tried ? (
-    <>
-      <Header text='Unlock' />
-      <NeedsPassword error={error} onPassword={setPassword} />
-    </>
-  ) : (
-    <Loading />
-  )
+  const handleReset = () => {
+    clearStorage().then(() => window.location.reload())
+  }
+
+  switch (stage) {
+    case 'initial':
+      return <Loading />
+    case 'failed-privatekey':
+      return (
+        <>
+          <Header text='Unlock' />
+          <NeedsPassword error={error} onPassword={setPassword} />
+        </>
+      )
+    case 'failed-publickey':
+      return (
+        <>
+          <Header text='Unlock' />
+          <Content>
+            <Padded>
+              <CenterScreen>
+                <WarningBox red text='There was an error loading your readonly wallet.' />
+                <Button label='Reset wallet' onClick={handleReset} />
+              </CenterScreen>
+            </Padded>
+          </Content>
+        </>
+      )
+  }
 }

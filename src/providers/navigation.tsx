@@ -37,6 +37,7 @@ export enum Pages {
   Apps,
   Init,
   InitRestore,
+  InitRestoreReadonly,
   InitPassword,
   InitConnect,
   InitSuccess,
@@ -75,6 +76,7 @@ const pageTab = {
   [Pages.Apps]: Tabs.Apps,
   [Pages.Init]: Tabs.None,
   [Pages.InitRestore]: Tabs.None,
+  [Pages.InitRestoreReadonly]: Tabs.None,
   [Pages.InitPassword]: Tabs.None,
   [Pages.InitConnect]: Tabs.None,
   [Pages.InitSuccess]: Tabs.None,
@@ -97,7 +99,7 @@ const pageTab = {
   [Pages.Wallet]: Tabs.Wallet,
 }
 
-export const pageComponent = (page: Pages): JSX.Element => {
+export const pageComponent = (page: Pages, ctx: { readonly: boolean }): JSX.Element => {
   switch (page) {
     case Pages.AppBoltz:
       return <AppBoltz />
@@ -110,13 +112,15 @@ export const pageComponent = (page: Pages): JSX.Element => {
     case Pages.AppLendaswap:
       return <AppLendaswap />
     case Pages.Apps:
-      return <Apps />
+      return <Apps readonly={ctx.readonly} />
     case Pages.Init:
       return <Init />
     case Pages.InitConnect:
       return <InitConnect />
     case Pages.InitRestore:
       return <InitRestore />
+    case Pages.InitRestoreReadonly:
+      return <InitRestore readonly />
     case Pages.InitPassword:
       return <InitPassword />
     case Pages.InitSuccess:

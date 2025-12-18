@@ -13,11 +13,20 @@ import { consoleError } from '../../lib/logs'
 export default function InitConnect() {
   const { initInfo, setInitInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { initWallet } = useContext(WalletContext)
+  const { initWallet, initReadonlyWallet } = useContext(WalletContext)
 
-  const { password, privateKey } = initInfo
+  const { password, privateKey, publicKey } = initInfo
 
   useEffect(() => {
+    if (publicKey) {
+      initReadonlyWallet(publicKey)
+        .then(() => {
+          setInitInfo({ ...initInfo, publicKey: undefined })
+          navigate(Pages.Wallet)
+        })
+        .catch(consoleError)
+      return
+    }
     if (!password || !privateKey) return
     setPrivateKey(privateKey, password)
       .then(() => initWallet(privateKey))
