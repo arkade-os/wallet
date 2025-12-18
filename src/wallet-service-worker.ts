@@ -1,6 +1,10 @@
-import { Worker } from '@arkade-os/sdk'
+import { WalletUpdater } from '@arkade-os/sdk'
+import { GenericSW } from './poc-ws/GenericSW'
 
-const worker = new Worker()
+const worker = new GenericSW({
+  updaters: [new WalletUpdater()],
+  debug: true,
+})
 worker.start().catch(console.error)
 
 const CACHE_NAME = 'arkade-cache-v1'
@@ -80,9 +84,9 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
 //   event.respondWith(networkFirst(event.request))
 // })
 
-self.addEventListener('message', (event: ExtendableMessageEvent) => {
-  if (event.data && event.data.type === 'RELOAD_WALLET') {
-    // reload the wallet when the service worker receives a message to reload
-    event.waitUntil(worker.reload().catch(console.error))
-  }
-})
+// self.addEventListener('message', (event: ExtendableMessageEvent) => {
+//   if (event.data && event.data.type === 'RELOAD_WALLET') {
+//     // reload the wallet when the service worker receives a message to reload
+//     event.waitUntil(worker.reload().catch(console.error))
+//   }
+// })
