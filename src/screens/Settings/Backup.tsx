@@ -27,6 +27,7 @@ import OkIcon from '../../icons/Ok'
 import { WalletContext } from '../../providers/wallet'
 import { authenticateUser } from '../../lib/biometrics'
 import FingerprintIcon from '../../icons/Fingerprint'
+import { nip19 } from 'nostr-tools'
 
 export default function Backup() {
   const { wallet } = useContext(WalletContext)
@@ -48,7 +49,7 @@ export default function Backup() {
 
   useEffect(() => {
     if (wallet.pubkey) {
-      setPubkey(wallet.pubkey)
+      setPubkey(nip19.npubEncode(wallet.pubkey))
     }
   }, [wallet.pubkey])
 

@@ -19,6 +19,7 @@ import Input from '../../components/Input'
 import Text from '../../components/Text'
 import { hex } from '@scure/base'
 import { hexToBytes } from '@noble/hashes/utils.js'
+import { nip19 } from 'nostr-tools'
 
 type Props = { readonly?: boolean }
 export default function InitRestore({ readonly }: Props) {
@@ -41,8 +42,9 @@ export default function InitRestore({ readonly }: Props) {
     if (readonly) {
       let pubkey: Uint8Array | undefined = undefined
       try {
-        if (someKey.length !== 66) throw new Error('Compressed public key must be 33 bytes')
-        pubkey = hexToBytes(someKey)
+        const decodedPubkey = nip19.decode(someKey)
+        if (decodedPubkey.type !== 'npub') throw new Error('It must be a valid npub key')
+        pubkey = hexToBytes(decodedPubkey.data)
         setError('')
         setLabel(buttonLabel)
       } catch (e) {
@@ -99,11 +101,11 @@ export default function InitRestore({ readonly }: Props) {
           <Padded>
             <FlexCol between>
               <FlexCol>
-                <Input name='ark-address' label='Public Key (compressed)' onChange={setSomeKey} />
+                <Input name='ark-address' label='Public Key (npub)' onChange={setSomeKey} />
                 <ErrorMessage error={Boolean(error)} text={error} />
               </FlexCol>
               <Text centered color='dark70' fullWidth thin small>
-                Use your compressed public key to restore a wallet that you can only read from.
+                Your public key should start with the 'npub' string.
               </Text>
             </FlexCol>
           </Padded>
