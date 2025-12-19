@@ -5,7 +5,7 @@ import {
   LendaSatAnnouncement,
   LendaSwapAnnouncement,
   NostrBackupsAnnouncement,
-} from '../components/Annoucement'
+} from '../components/Announcement'
 
 const announcements = [
   { id: 'boltz', component: BoltzAnnouncement },
