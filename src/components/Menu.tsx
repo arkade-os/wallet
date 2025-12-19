@@ -28,18 +28,24 @@ export default function Menu({ rows, styled }: MenuProps) {
     width: '100%',
   })
 
+  const handleKeyDown = (e: React.KeyboardEvent, option: SettingsOptions) => {
+    if (e.key === 'Enter') setOption(option)
+  }
+
   return (
     <FlexCol gap='0'>
       {rows.map(({ icon, option }) => (
-        <FlexRow key={option} between>
-          <div onClick={() => setOption(option)} style={rowStyle(option)}>
-            <FlexRow>
-              {styled ? icon : null}
-              <Text capitalize>{option}</Text>
-            </FlexRow>
-            <ArrowIcon />
-          </div>
-        </FlexRow>
+        <div key={option} tabIndex={0} className='focusable' onKeyDown={(e) => handleKeyDown(e, option)}>
+          <FlexRow between>
+            <div onClick={() => setOption(option)} style={rowStyle(option)}>
+              <FlexRow>
+                {styled ? icon : null}
+                <Text capitalize>{option}</Text>
+              </FlexRow>
+              <ArrowIcon />
+            </div>
+          </FlexRow>
+        </div>
       ))}
     </FlexCol>
   )

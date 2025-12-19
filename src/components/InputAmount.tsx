@@ -46,15 +46,12 @@ export default function InputAmount({
   const [error, setError] = useState('')
   const [otherValue, setOtherValue] = useState('')
 
-  const firstRun = useRef(true)
   const input = useRef<HTMLIonInputElement>(null)
 
+  // focus input when focus prop changes
   useEffect(() => {
-    if (focus && firstRun.current) {
-      firstRun.current = false
-      input.current?.setFocus()
-    }
-  })
+    if (focus && input.current) input.current.setFocus()
+  }, [focus, input.current])
 
   useEffect(() => {
     setOtherValue(useFiat ? prettyNumber(sats) : prettyNumber(toFiat(sats), 2))

@@ -65,6 +65,15 @@ export default function App() {
       .finally(() => setJsCapabilitiesChecked(true))
   }, [])
 
+  // Global escape key to go back to wallet
+  useEffect(() => {
+    const handleGlobalDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') navigate(Pages.Wallet)
+    }
+    window.addEventListener('keydown', handleGlobalDown)
+    return () => window.removeEventListener('keydown', handleGlobalDown)
+  }, [])
+
   useEffect(() => {
     if (aspInfo.unreachable) return navigate(Pages.Unavailable)
     if (jsCapabilitiesChecked && !isCapable) return navigate(Pages.Unavailable)
@@ -137,20 +146,35 @@ export default function App() {
               {tab === Tabs.Settings ? comp : <></>}
             </IonTab>
             <IonTabBar slot='bottom'>
-              <IonTabButton tab={Tabs.Wallet} selected={tab === Tabs.Wallet} onClick={handleWallet}>
-                <FlexCol centered gap='6px' testId='tab-wallet'>
+              <IonTabButton
+                tab={Tabs.Wallet}
+                onClick={handleWallet}
+                onPointerDown={handleWallet}
+                selected={tab === Tabs.Wallet}
+              >
+                <FlexCol centered gap='6px' testId='tab-wallet' tabIndex={0}>
                   <WalletIcon />
                   Wallet
                 </FlexCol>
               </IonTabButton>
-              <IonTabButton tab={Tabs.Apps} selected={tab === Tabs.Apps} onClick={handleApps}>
-                <FlexCol centered gap='6px' testId='tab-apps'>
+              <IonTabButton
+                tab={Tabs.Apps}
+                onClick={handleApps}
+                onPointerDown={handleApps}
+                selected={tab === Tabs.Apps}
+              >
+                <FlexCol centered gap='6px' testId='tab-apps' tabIndex={0}>
                   <AppsIcon />
                   Apps
                 </FlexCol>
               </IonTabButton>
-              <IonTabButton tab={Tabs.Settings} selected={tab === Tabs.Settings} onClick={handleSettings}>
-                <FlexCol centered gap='6px' testId='tab-settings'>
+              <IonTabButton
+                tab={Tabs.Settings}
+                onClick={handleSettings}
+                onPointerDown={handleSettings}
+                selected={tab === Tabs.Settings}
+              >
+                <FlexCol centered gap='6px' testId='tab-settings' tabIndex={0}>
                   <SettingsIcon />
                   Settings
                 </FlexCol>

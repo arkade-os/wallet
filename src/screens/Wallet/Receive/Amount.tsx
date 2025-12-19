@@ -116,6 +116,7 @@ export default function ReceiveAmount() {
   }
 
   const handleProceed = async () => {
+    if (!satoshis) return
     setRecvInfo({ ...recvInfo, satoshis })
     navigate(Pages.ReceiveQRCode)
   }

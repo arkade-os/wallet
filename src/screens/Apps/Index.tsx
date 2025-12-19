@@ -56,8 +56,7 @@ function App({ desc, icon, link, name, live, page }: AppProps) {
   const { navigate } = useContext(NavigationContext)
 
   const style: React.CSSProperties = {
-    cursor: page || link ? 'pointer' : 'default',
-    padding: '0.5rem',
+    borderRadius: '0.5rem',
   }
 
   const handleClick = () => {
@@ -65,10 +64,21 @@ function App({ desc, icon, link, name, live, page }: AppProps) {
     if (link) window.open(link, '_blank')
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleClick()
+  }
+
   return (
-    <Shadow border borderPurple={live}>
-      <div data-testid={`app-${name}`} style={style} onClick={handleClick}>
-        <FlexCol gap='0.75rem'>
+    <div
+      tabIndex={0}
+      style={style}
+      className='focusable'
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      data-testid={`app-${name}`}
+    >
+      <Shadow border borderPurple={live}>
+        <FlexCol gap='0.75rem' padding='0.5rem'>
           <FlexRow between>
             {icon}
             <FlexCol gap='0.25rem'>
@@ -85,8 +95,8 @@ function App({ desc, icon, link, name, live, page }: AppProps) {
             {desc}
           </Text>
         </FlexCol>
-      </div>
-    </Shadow>
+      </Shadow>
+    </div>
   )
 }
 

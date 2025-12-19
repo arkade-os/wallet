@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Text, { TextSecondary } from './Text'
 import { prettyLongText } from '../lib/format'
 import ChevronDownIcon from '../icons/ChevronDown'
@@ -30,7 +30,30 @@ export default function ExpandAddresses({
   const [copied, setCopied] = useState('')
   const [expand, setExpand] = useState(false)
 
+  const bip21ref = useRef<HTMLDivElement>(null)
+
   const [present] = useIonToast()
+
+  useEffect(() => {
+    const handleArrowDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowDown') {
+        console.log('down', expand)
+        if (!expand) {
+          setExpand(true)
+          bip21ref.current?.focus()
+        }
+      }
+      if (event.key === 'ArrowUp') {
+        console.log('up', expand)
+        if (expand) {
+          setExpand(false)
+        }
+      }
+      console.log(event.key)
+    }
+    window.addEventListener('keydown', handleArrowDown)
+    return () => window.removeEventListener('keydown', handleArrowDown)
+  }, [expand])
 
   const handleCopy = async (value: string) => {
     await copyToClipboard(value)
@@ -44,21 +67,23 @@ export default function ExpandAddresses({
   }
 
   const ExpandLine = ({ title, value }: { title: string; value: string }) => (
-    <FlexRow between onClick={() => onClick(value)}>
-      <FlexCol gap='0'>
-        <TextSecondary>{title}</TextSecondary>
-        <Text>{prettyLongText(value, 12)}</Text>
-      </FlexCol>
-      <Shadow flex onClick={() => handleCopy(value)}>
-        {copied === value ? <CheckMarkIcon /> : <CopyIcon />}
-      </Shadow>
-    </FlexRow>
+    <div className='focusable' onKeyDown={() => handleCopy(value)} tabIndex={0}>
+      <FlexRow between onClick={() => onClick(value)}>
+        <FlexCol gap='0'>
+          <TextSecondary>{title}</TextSecondary>
+          <Text>{prettyLongText(value, 12)}</Text>
+        </FlexCol>
+        <Shadow flex onClick={() => handleCopy(value)}>
+          {copied === value ? <CheckMarkIcon /> : <CopyIcon />}
+        </Shadow>
+      </FlexRow>
+    </div>
   )
 
   return (
     <div style={{ margin: '0 auto', maxWidth: '100%', width: '300px' }}>
       <Shadow>
-        <FlexRow between onClick={handleExpand}>
+        <FlexRow between onClick={handleExpand} tabIndex={0}>
           <Text>Copy address</Text>
           {expand ? <ChevronUpIcon /> : <ChevronDownIcon />}
         </FlexRow>

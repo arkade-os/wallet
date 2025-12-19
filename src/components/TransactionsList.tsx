@@ -42,6 +42,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
       </Text>
     )
   }
+
   const Icon = () =>
     tx.type === 'sent' ? (
       <SentIcon />
@@ -50,8 +51,11 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
     ) : (
       <ReceivedIcon dotted={tx.preconfirmed} />
     )
+
   const Kind = () => <Text thin>{tx.type === 'sent' ? 'Sent' : 'Received'}</Text>
+
   const Date = () => <TextSecondary>{date}</TextSecondary>
+
   const Sats = () => (
     <Text color={tx.type === 'received' ? (tx.preconfirmed && tx.boardingTxid ? 'orange' : 'green') : ''} thin>
       {amount}
@@ -61,6 +65,10 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
   const handleClick = () => {
     setTxInfo(tx)
     navigate(Pages.Transaction)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleClick()
   }
 
   const rowStyle = {
@@ -96,7 +104,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
   )
 
   return (
-    <div style={rowStyle} onClick={handleClick}>
+    <div className='focusable' style={rowStyle} onClick={handleClick} onKeyDown={handleKeyDown} tabIndex={0}>
       <FlexRow>
         <Left />
         <Right />

@@ -231,6 +231,8 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     push(page)
     setScreen(page)
     setTab(pageTab[page])
+    const c = document.querySelector('[role="main"]') as HTMLElement | null
+    if (c) c.focus()
   }
 
   return <NavigationContext.Provider value={{ navigate, screen, tab }}>{children}</NavigationContext.Provider>

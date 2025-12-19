@@ -12,6 +12,7 @@ interface FlexRowProps {
   main?: boolean
   onClick?: () => void
   padding?: string
+  tabIndex?: number
   testId?: string
 }
 
@@ -27,6 +28,7 @@ export default function FlexRow({
   main,
   onClick,
   padding,
+  tabIndex,
   testId,
 }: FlexRowProps) {
   const justifyContent = between ? 'space-between' : centered ? 'center' : end ? 'end' : 'start'
@@ -43,7 +45,7 @@ export default function FlexRow({
     width: end ? undefined : '100%',
   }
   return (
-    <div data-testid={testId} style={style} onClick={onClick}>
+    <div data-testid={testId} style={style} onClick={onClick} tabIndex={tabIndex}>
       {children}
     </div>
   )

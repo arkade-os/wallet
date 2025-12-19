@@ -27,6 +27,7 @@
   --yellow: #e2c542;
   --yellowoutlier: #debb20;
   --ion-background-color: #fff;
+  --ion-background-focused: var(--purple20);
   --ion-tabbar-background-color: #fafafa;
   --ion-backdrop-color: #fff;
   --toggle-background: #fbfbfb;
@@ -51,6 +52,7 @@
   --yellow: #ffdd46;
   --yellowoutlier: #ffdd46;
   --ion-background-color: #101010;
+  --ion-background-focused: var(--dark10);
   --ion-tabbar-background-color: #181818;
   --ion-backdrop-color: #101010;
   --logo-color: #fbfbfb;
@@ -141,6 +143,7 @@ ion-tab-bar {
   width: 100%;
   & ion-tab-button {
     --color-selected: var(--ion-color-dark);
+    --background-focused: var(--ion-background-focused);
     background-color: var(--ion-tabbar-background-color);
     max-width: none;
     &:hover,
