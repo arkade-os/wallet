@@ -4,15 +4,15 @@ import FlexCol from './FlexCol'
 import FlexRow from './FlexRow'
 import OkIcon from '../icons/Ok'
 import { useContext } from 'react'
-import { SettingsOptions, Themes } from '../lib/types'
+import NostrIcon from '../icons/Nostr'
 import BoltzIcon from '../icons/Boltz'
 import Text, { TextSecondary } from './Text'
 import { ConfigContext } from '../providers/config'
+import { OptionsContext } from '../providers/options'
+import { SettingsOptions, Themes } from '../lib/types'
 import LendasatIcon from '../screens/Apps/Lendasat/LendasatIcon'
 import LendaSwapIcon from '../screens/Apps/Lendaswap/LendaswapIcon'
 import { NavigationContext, Pages } from '../providers/navigation'
-import NostrIcon from '../icons/Nostr'
-import { OptionsContext } from '../providers/options'
 
 // icon with pretty gradient background
 const PrettyIcon = ({ color, icon }: { color?: string; icon: React.ReactNode }) => {

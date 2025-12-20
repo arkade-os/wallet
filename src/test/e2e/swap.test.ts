@@ -13,6 +13,7 @@ test('should be connected to Boltz app', async ({ page }) => {
   await page.getByText('Skip for now').click()
   await page.getByText('+ Create wallet').click()
   await page.getByText('Go to wallet').click()
+  await page.getByText('Maybe later').click()
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-Boltz').click()
@@ -31,6 +32,7 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   await page.getByText('Skip for now').click()
   await page.getByText('+ Create wallet').click()
   await page.getByText('Go to wallet').click()
+  await page.getByText('Maybe later').click()
 
   // receive page
   await page.getByText('Receive').click()
@@ -91,6 +93,7 @@ test('should send funds to Lightning', async ({ page }) => {
   await page.getByText('Skip for now').click()
   await page.getByText('+ Create wallet').click()
   await page.getByText('Go to wallet').click()
+  await page.getByText('Maybe later').click()
 
   // receive page
   await page.getByText('Receive').click()
@@ -154,6 +157,7 @@ test('should refund failing swap', async ({ page }) => {
   await page.getByText('Skip for now').click()
   await page.getByText('+ Create wallet').click()
   await page.getByText('Go to wallet').click()
+  await page.getByText('Maybe later').click()
 
   // receive page
   await page.getByText('Receive').click()

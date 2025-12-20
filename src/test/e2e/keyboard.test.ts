@@ -9,6 +9,7 @@ async function setupWalletAndOpenKeyboard(page: Page) {
   await page.getByText('Skip for now').click()
   await page.getByText('+ Create wallet').click()
   await page.getByText('Go to wallet').click()
+  await page.getByText('Maybe later').click()
   await page.getByText('Receive').click()
   await page.locator('ion-input[name="receive-amount"] input').click()
   await page.waitForSelector('text=Save', { state: 'visible' })
