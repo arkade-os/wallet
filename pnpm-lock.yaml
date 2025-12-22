@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.2.13
-        version: 0.2.13
+        specifier: file:../boltz-swap
+        version: file:../boltz-swap
       '@arkade-os/sdk':
-        specifier: 0.3.9
-        version: 0.3.9
+        specifier: file:../ts-sdk
+        version: file:../ts-sdk
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -159,12 +159,16 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@0.2.13':
-    resolution: {integrity: sha512-+sEAOxPxcCGubgNeAolyxKUptSBH5YKgFxaBn7LwZS3/4Mhycw38qutFDNE5v3ZkgVN9Imf+CYu5S9xIfGCmbg==}
+  '@arkade-os/boltz-swap@file:../boltz-swap':
+    resolution: {directory: ../boltz-swap, type: directory}
     engines: {node: '>=22'}
 
   '@arkade-os/sdk@0.3.9':
     resolution: {integrity: sha512-n9yQrhrgcZh4xxgJAyr11RiOjCGkil3WLqEBuSu6o1dNX9utyscvRduXgr6E+qmyi8If1wxKI91Ks0PRGnf+2A==}
+    engines: {node: '>=20.0.0'}
+
+  '@arkade-os/sdk@file:../ts-sdk':
+    resolution: {directory: ../ts-sdk, type: directory}
     engines: {node: '>=20.0.0'}
 
   '@asamuzakjp/css-color@3.2.0':
@@ -2514,15 +2518,24 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@0.2.13':
+  '@arkade-os/boltz-swap@file:../boltz-swap':
     dependencies:
       '@arkade-os/sdk': 0.3.9
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
       '@scure/btc-signer': 2.0.1
+      bip68: 1.0.4
       light-bolt11-decoder: 3.2.0
 
   '@arkade-os/sdk@0.3.9':
+    dependencies:
+      '@noble/curves': 2.0.0
+      '@noble/secp256k1': 3.0.0
+      '@scure/base': 2.0.0
+      '@scure/btc-signer': 2.0.1
+      bip68: 1.0.4
+
+  '@arkade-os/sdk@file:../ts-sdk':
     dependencies:
       '@noble/curves': 2.0.0
       '@noble/secp256k1': 3.0.0

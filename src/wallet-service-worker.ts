@@ -1,9 +1,9 @@
-import { WalletUpdater } from '@arkade-os/sdk'
-import { GenericSW } from './poc-ws/GenericSW'
+import { ArkSW, WalletUpdater } from '@arkade-os/sdk'
+import { SwapUpdater } from '@arkade-os/boltz-swap'
 
-const worker = new GenericSW({
-  updaters: [new WalletUpdater()],
-  debug: true,
+const worker = new ArkSW({
+  updaters: [new WalletUpdater(), new SwapUpdater({ pollInterval: 30000 })],
+  debug: false,
 })
 worker.start().catch(console.error)
 

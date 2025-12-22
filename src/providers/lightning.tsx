@@ -13,7 +13,7 @@ import {
 } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
-import { RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
+import { ArkSW, RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
 import { sendOffChain } from '../lib/asp'
 
 const BASE_URLS: Record<Network, string | null> = {
@@ -87,12 +87,18 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     const indexerProvider = new RestIndexerProvider(aspInfo.url)
 
     const instance = new ArkadeLightning({
+      serviceWorker: ArkSW.getServiceWorker(),
       wallet: svcWallet,
       arkProvider,
       swapProvider,
       indexerProvider,
       // Enable SwapManager with auto-start when boltz is connected
-      swapManager: config.apps.boltz.connected,
+      swapManager: config.apps.boltz.connected
+        ? {
+            network,
+            apiUrl: baseUrl,
+          }
+        : false,
     })
     setLogger({
       log: (...args: unknown[]) => consoleLog(...args),

@@ -11,7 +11,7 @@ import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
-import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey } from '@arkade-os/sdk'
+import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey, ArkSW } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
@@ -172,12 +172,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     maxRetries?: number
   }) => {
     try {
+      const arkSwerviceWorker = await ArkSW.setup('/wallet-service-worker.mjs')
       // create service worker wallet
-      const svcWallet = await ServiceWorkerWallet.setup({
-        serviceWorkerPath: '/wallet-service-worker.mjs',
+      const svcWallet = await ServiceWorkerWallet.create({
         identity: SingleKey.fromHex(privateKey),
         arkServerUrl,
         esploraUrl,
+        serviceWorker: arkSwerviceWorker,
       })
       setSvcWallet(svcWallet)
 
