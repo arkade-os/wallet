@@ -30,7 +30,7 @@ export const AnnouncementProvider = ({ children }: { children: ReactNode }) => {
   const seen = useRef(false)
 
   useEffect(() => {
-    if (!config.pubkey || seen.current) return
+    if (!config || !config.pubkey || seen.current) return
     const announcedIds = announcements.map((a) => a.id)
     for (const id of announcedIds) {
       if (!config.announcementsSeen.includes(id)) {
