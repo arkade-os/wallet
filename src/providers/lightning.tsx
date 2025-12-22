@@ -13,8 +13,9 @@ import {
 } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
-import { RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
+import { ContractRepositoryImpl, RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
 import { sendOffChain } from '../lib/asp'
+import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 
 const BASE_URLS: Record<Network, string | null> = {
   bitcoin: import.meta.env.VITE_BOLTZ_URL ?? 'https://api.ark.boltz.exchange',
@@ -110,11 +111,56 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
   // fetch fees when arkadeLightning is ready
   useEffect(() => {
     if (!arkadeLightning) return
-
     arkadeLightning
       .getFees()
       .then(setFees)
       .catch((err) => consoleError(err, 'Failed to fetch fees'))
+  }, [arkadeLightning])
+
+  // restore swaps when arkadeLightning is ready
+  useEffect(() => {
+    if (!arkadeLightning) return
+
+    const restoreSwaps = async (): Promise<number> => {
+      // Counter for restored swaps
+      let counter = 0
+
+      // Restore swaps from Boltz endpoint
+      const { reverseSwaps, submarineSwaps } = await arkadeLightning.restoreSwaps()
+      if (reverseSwaps.length === 0 && submarineSwaps.length === 0) return 0
+
+      // Get existing swap history to avoid duplicates
+      const history = await arkadeLightning.getSwapHistory()
+      const historyIds = new Set(history.map((s) => s.response.id))
+
+      // Save new swaps to IndexedDB
+      const storage = new IndexedDBStorageAdapter('arkade-service-worker')
+      const contractRepo = new ContractRepositoryImpl(storage)
+
+      for (const swap of reverseSwaps) {
+        if (!historyIds.has(swap.id)) {
+          await contractRepo.saveToContractCollection('reverseSwaps', swap, 'id')
+          counter++
+        }
+      }
+
+      for (const swap of submarineSwaps) {
+        if (!historyIds.has(swap.id)) {
+          await contractRepo.saveToContractCollection('submarineSwaps', swap, 'id')
+          counter++
+        }
+      }
+
+      return counter
+    }
+
+    restoreSwaps()
+      .then((num) => {
+        if (num) consoleLog(`Swaps restored: ${num}`)
+      })
+      .catch((err) => {
+        consoleError(err, 'Failed to restore swaps')
+      })
   }, [arkadeLightning])
 
   const setConnected = (value: boolean, backup: boolean) => {
