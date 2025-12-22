@@ -1,6 +1,7 @@
-export default function BoltzIcon() {
+export default function BoltzIcon({ big = false }: { big?: boolean }) {
+  const size = big ? 78 : 55
   return (
-    <svg xmlns='http://www.w3.org/2000/svg' width='55' height='55' viewBox='0 0 78 78' version='1.1'>
+    <svg xmlns='http://www.w3.org/2000/svg' width={size} height={size} viewBox='0 0 78 78' version='1.1'>
       <defs>
         <linearGradient x1='50%' y1='0%' x2='50%' y2='100%' id='linearGradient-1'>
           <stop stopColor='#FFE96D' offset='0%' />

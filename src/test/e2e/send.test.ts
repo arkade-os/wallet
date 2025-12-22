@@ -10,6 +10,7 @@ test('should send offchain funds', async ({ page, isMobile }) => {
   await page.getByText('Skip for now').click()
   await page.getByText('+ Create wallet').click()
   await page.getByText('Go to wallet').click()
+  await page.getByText('Maybe later').click()
 
   // receive page
   await page.getByText('Receive').click()

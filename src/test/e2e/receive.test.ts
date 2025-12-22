@@ -10,6 +10,7 @@ test('should receive onchain funds', async ({ page }) => {
   await page.getByText('Skip for now').click()
   await page.getByText('+ Create wallet').click()
   await page.getByText('Go to wallet').click()
+  await page.getByText('Maybe later').click()
   await page.getByText('Receive').click()
   await page.getByText('Skip').click()
   await page
@@ -40,6 +41,7 @@ test('should receive offchain funds', async ({ page }) => {
   await page.getByText('Skip for now').click()
   await page.getByText('+ Create wallet').click()
   await page.getByText('Go to wallet').click()
+  await page.getByText('Maybe later').click()
   await page.getByText('Receive').click()
   await page.getByText('Skip').click()
   await page
