@@ -117,7 +117,6 @@ test('should send funds to Lightning', async ({ page }) => {
   // main page
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
-  await page.getByText('Send').click()
 
   const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
   const output = stdout.trim()
@@ -132,6 +131,7 @@ test('should send funds to Lightning', async ({ page }) => {
 
   // go to send page
   await page.getByText('Send').click()
+  await page.waitForTimeout(1000)
   await page.getByLabel('', { exact: true }).fill(invoice)
   await page.getByText('Continue').click()
   await page.getByText('Tap to Sign').click()
@@ -181,7 +181,6 @@ test('should refund failing swap', async ({ page }) => {
   // main page
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
-  await page.getByText('Send').click()
 
   const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
   const output = stdout.trim()
@@ -201,6 +200,7 @@ test('should refund failing swap', async ({ page }) => {
 
   // try to send funds to Lightning
   await page.getByText('Send').click()
+  await page.waitForTimeout(1000)
   await page.getByLabel('', { exact: true }).fill(invoice)
   await page.getByText('Continue').click()
   await page.getByText('Tap to Sign').click()
