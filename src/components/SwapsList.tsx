@@ -4,7 +4,7 @@ import { EmptySwapList } from './Empty'
 import { FlowContext } from '../providers/flow'
 import { ConfigContext } from '../providers/config'
 import Text, { TextLabel, TextSecondary } from './Text'
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { LightningContext } from '../providers/lightning'
 import { NavigationContext, Pages } from '../providers/navigation'
 import { prettyAgo, prettyAmount, prettyDate, prettyHide } from '../lib/format'
@@ -48,7 +48,15 @@ const iconDict: Record<statusUI, JSX.Element> = {
   Refunded: <SwapFailedIcon />,
 }
 
-const SwapLine = ({ swap }: { swap: PendingReverseSwap | PendingSubmarineSwap }) => {
+const SwapLine = ({
+  swap,
+  focusable,
+  unfocus,
+}: {
+  swap: PendingReverseSwap | PendingSubmarineSwap
+  focusable: boolean
+  unfocus: () => void
+}) => {
   const { config } = useContext(ConfigContext)
   const { setSwapInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
@@ -61,6 +69,7 @@ const SwapLine = ({ swap }: { swap: PendingReverseSwap | PendingSubmarineSwap })
   const when = window.innerWidth < 400 ? prettyAgo(swap.createdAt) : prettyDate(swap.createdAt)
   const refunded = swap.type === 'submarine' && swap.refunded
   const color = refunded ? colorDict['Refunded'] : colorDict[status]
+  const tabindex = focusable ? 0 : -1
 
   const Icon = iconDict[status]
   const Kind = () => <Text thin>{direction}</Text>
@@ -97,15 +106,19 @@ const SwapLine = ({ swap }: { swap: PendingReverseSwap | PendingSubmarineSwap })
     </FlexCol>
   )
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleClick()
+    if (e.key === 'Escape') unfocus()
+  }
+
   return (
     <div
+      className='focusable'
       style={rowStyle}
       role='button'
-      tabIndex={0}
+      tabIndex={tabindex}
       onClick={handleClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') handleClick()
-      }}
+      onKeyDown={handleKeyDown}
     >
       <FlexRow>
         <Left />
@@ -117,7 +130,11 @@ const SwapLine = ({ swap }: { swap: PendingReverseSwap | PendingSubmarineSwap })
 
 export default function SwapsList() {
   const { arkadeLightning, swapManager, getSwapHistory } = useContext(LightningContext)
+
+  const [focusable, setFocusable] = useState(false)
   const [swapHistory, setSwapHistory] = useState<(PendingReverseSwap | PendingSubmarineSwap)[]>([])
+
+  const ref = useRef<HTMLDivElement>(null)
 
   // Load initial swap history
   useEffect(() => {
@@ -153,14 +170,27 @@ export default function SwapsList() {
     return unsubscribe
   }, [swapManager])
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'Space') {
+      setFocusable(true)
+    }
+  }
+
+  const handleUnfocus = () => {
+    setFocusable(false)
+    ref.current?.focus()
+  }
+
   if (swapHistory.length === 0) return <EmptySwapList />
 
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
-      <TextLabel>Swap history</TextLabel>
+      <div className='focusable' tabIndex={0} onKeyDown={handleKeyDown} ref={ref}>
+        <TextLabel>Swap history</TextLabel>
+      </div>
       <div style={{ borderBottom: border }}>
         {swapHistory.map((swap) => (
-          <SwapLine key={swap.response.id} swap={swap} />
+          <SwapLine key={swap.response.id} focusable={focusable} swap={swap} unfocus={handleUnfocus} />
         ))}
       </div>
     </div>

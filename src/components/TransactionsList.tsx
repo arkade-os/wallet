@@ -1,4 +1,4 @@
-import { useContext } from 'react'
+import { useContext, useRef, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
@@ -14,7 +14,7 @@ import PreconfirmedIcon from '../icons/Preconfirmed'
 
 const border = '1px solid var(--dark20)'
 
-const TransactionLine = ({ tx }: { tx: Tx }) => {
+const TransactionLine = ({ focusable, tx, unfocus }: { focusable?: boolean; tx: Tx; unfocus: () => void }) => {
   const { config } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
   const { setTxInfo } = useContext(FlowContext)
@@ -23,6 +23,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
   const prefix = tx.type === 'sent' ? '-' : '+'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount) : prettyHide(tx.amount)}`
   const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
+  const tabindex = focusable ? 0 : -1
 
   const Fiat = () => {
     const color =
@@ -69,6 +70,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleClick()
+    if (e.key === 'Escape') unfocus()
   }
 
   const rowStyle = {
@@ -104,7 +106,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
   )
 
   return (
-    <div className='focusable' style={rowStyle} onClick={handleClick} onKeyDown={handleKeyDown} tabIndex={0}>
+    <div className='focusable' style={rowStyle} onClick={handleClick} onKeyDown={handleKeyDown} tabIndex={tabindex}>
       <FlexRow>
         <Left />
         <Right />
@@ -116,14 +118,31 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
 export default function TransactionsList() {
   const { txs } = useContext(WalletContext)
 
+  const [focusable, setFocusable] = useState(false)
+
+  const ref = useRef<HTMLDivElement>(null)
+
   const key = (tx: Tx) => `${tx.amount}${tx.createdAt}${tx.boardingTxid}${tx.roundTxid}${tx.redeemTxid}${tx.type}`
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'Space') {
+      setFocusable(true)
+    }
+  }
+
+  const handleUnfocus = () => {
+    setFocusable(false)
+    ref.current?.focus()
+  }
 
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
-      <TextLabel>Transaction history</TextLabel>
+      <div className='focusable' ref={ref} tabIndex={0} onKeyDown={handleKeyDown}>
+        <TextLabel>Transaction history</TextLabel>
+      </div>
       <div style={{ borderBottom: border }}>
         {txs.map((tx) => (
-          <TransactionLine key={key(tx)} tx={tx} />
+          <TransactionLine key={key(tx)} focusable={focusable} tx={tx} unfocus={handleUnfocus} />
         ))}
       </div>
     </div>

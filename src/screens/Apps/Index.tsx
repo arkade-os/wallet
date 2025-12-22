@@ -1,4 +1,4 @@
-import { ReactElement, useContext } from 'react'
+import { ReactElement, useContext, useEffect, useRef } from 'react'
 import Content from '../../components/Content'
 import FlexRow from '../../components/FlexRow'
 import Padded from '../../components/Padded'
@@ -50,9 +50,10 @@ interface AppProps {
   live?: boolean
   link?: string
   page?: Pages
+  first?: React.RefObject<HTMLDivElement>
 }
 
-function App({ desc, icon, link, name, live, page }: AppProps) {
+function App({ desc, icon, link, name, live, page, first }: AppProps) {
   const { navigate } = useContext(NavigationContext)
 
   const style: React.CSSProperties = {
@@ -70,12 +71,13 @@ function App({ desc, icon, link, name, live, page }: AppProps) {
 
   return (
     <div
-      tabIndex={0}
       style={style}
       className='focusable'
       onClick={handleClick}
+      tabIndex={live ? 0 : -1}
       onKeyDown={handleKeyDown}
       data-testid={`app-${name}`}
+      ref={first}
     >
       <Shadow border borderPurple={live}>
         <FlexCol gap='0.75rem' padding='0.5rem'>
@@ -101,6 +103,12 @@ function App({ desc, icon, link, name, live, page }: AppProps) {
 }
 
 export default function Apps() {
+  const firstApp = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    firstApp.current?.focus()
+  }, [])
+
   return (
     <>
       <Header text='Apps' />
@@ -113,6 +121,7 @@ export default function Apps() {
               desc='Swap instantly between Arkade and Lightning'
               link='https://boltz.exchange/'
               page={Pages.AppBoltz}
+              first={firstApp}
               live
             />
 
