@@ -1,8 +1,11 @@
 # build stage
 FROM golang:1.25.5-alpine AS builder
 
+# install git
+RUN apk add --no-cache git
+
 # Install nak
-RUN go install github.com/fiatjaf/nak@latest
+RUN go install github.com/fiatjaf/nak@0.17.2
 
 # runtime stage
 FROM alpine:latest
