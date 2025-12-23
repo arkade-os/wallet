@@ -5,6 +5,7 @@ import InputContainer from './InputContainer'
 import { ConfigContext } from '../providers/config'
 import { prettyNumber } from '../lib/format'
 import { LimitsContext } from '../providers/limits'
+import Focusable from './Focusable'
 
 interface InputAmountProps {
   disabled?: boolean
@@ -51,7 +52,7 @@ export default function InputAmount({
   // focus input when focus prop changes
   useEffect(() => {
     if (focus && input.current) input.current.setFocus()
-  }, [focus, input.current])
+  }, [focus])
 
   useEffect(() => {
     setOtherValue(useFiat ? prettyNumber(sats) : prettyNumber(toFiat(sats), 2))
@@ -95,16 +96,17 @@ export default function InputAmount({
           </IonText>
         </IonInput>
         {onMax && !disabled && !readOnly ? (
-          <IonText
-            slot='end'
-            style={{ ...fontStyle, marginLeft: '0.5rem', color: 'var(--purpletext)', cursor: 'pointer' }}
-            onClick={onMax}
-            role='button'
-            tabIndex={0}
-            aria-label='Set maximum amount'
-          >
-            Max
-          </IonText>
+          <Focusable onKeyDown={onMax}>
+            <IonText
+              slot='end'
+              role='button'
+              onClick={onMax}
+              aria-label='Set maximum amount'
+              style={{ ...fontStyle, marginLeft: '0.5rem', color: 'var(--purpletext)', cursor: 'pointer' }}
+            >
+              Max
+            </IonText>
+          </Focusable>
         ) : null}
       </InputContainer>
     </>

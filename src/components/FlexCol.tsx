@@ -10,7 +10,6 @@ interface FlexColProps {
   margin?: string
   padding?: string
   strech?: boolean
-  tabIndex?: number
   testId?: string
 }
 
@@ -24,7 +23,6 @@ export default function FlexCol({
   margin,
   padding,
   strech,
-  tabIndex,
   testId,
 }: FlexColProps) {
   const style: any = {
@@ -41,7 +39,7 @@ export default function FlexCol({
   }
 
   return (
-    <div data-testid={testId ?? ''} style={style} tabIndex={tabIndex}>
+    <div data-testid={testId ?? ''} style={style}>
       {children}
     </div>
   )

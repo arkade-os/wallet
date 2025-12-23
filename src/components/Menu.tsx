@@ -5,6 +5,7 @@ import Text from './Text'
 import FlexRow from './FlexRow'
 import { SettingsOptions } from '../lib/types'
 import FlexCol from './FlexCol'
+import Focusable from './Focusable'
 
 interface MenuProps {
   rows: Option[]
@@ -28,14 +29,10 @@ export default function Menu({ rows, styled }: MenuProps) {
     width: '100%',
   })
 
-  const handleKeyDown = (e: React.KeyboardEvent, option: SettingsOptions) => {
-    if (e.key === 'Enter') setOption(option)
-  }
-
   return (
     <FlexCol gap='0'>
       {rows.map(({ icon, option }) => (
-        <div key={option} tabIndex={0} className='focusable' onKeyDown={(e) => handleKeyDown(e, option)}>
+        <Focusable key={option} onKeyDown={() => setOption(option)}>
           <FlexRow between>
             <div onClick={() => setOption(option)} style={rowStyle(option)}>
               <FlexRow>
@@ -45,7 +42,7 @@ export default function Menu({ rows, styled }: MenuProps) {
               <ArrowIcon />
             </div>
           </FlexRow>
-        </div>
+        </Focusable>
       ))}
     </FlexCol>
   )

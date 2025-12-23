@@ -142,6 +142,8 @@ ion-tab-bar {
   border-top: 1px solid var(--dark20);
   width: 100%;
   & ion-tab-button {
+    --padding-end: 0;
+    --padding-start: 0;
     --color-selected: var(--ion-color-dark);
     --background-focused: var(--ion-background-focused);
     background-color: var(--ion-tabbar-background-color);

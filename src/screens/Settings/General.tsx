@@ -9,17 +9,14 @@ import FlexRow from '../../components/FlexRow'
 import ArrowIcon from '../../icons/Arrow'
 import { SettingsOptions } from '../../lib/types'
 import { OptionsContext } from '../../providers/options'
+import Focusable from '../../components/Focusable'
 
 export default function General() {
   const { config } = useContext(ConfigContext)
   const { setOption } = useContext(OptionsContext)
 
-  const handleKeyDown = (e: React.KeyboardEvent, option: SettingsOptions) => {
-    if (e.key === 'Enter') setOption(option)
-  }
-
   const Row = ({ option, value }: { option: SettingsOptions; value: string }) => (
-    <div className='focusable' tabIndex={0} onKeyDown={(e) => handleKeyDown(e, option)}>
+    <Focusable onKeyDown={() => setOption(option)}>
       <FlexRow between padding='0.8rem 0' onClick={() => setOption(option)}>
         <Text capitalize thin>
           {option}
@@ -31,7 +28,7 @@ export default function General() {
           <ArrowIcon />
         </FlexRow>
       </FlexRow>
-    </div>
+    </Focusable>
   )
 
   return (

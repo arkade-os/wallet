@@ -4,6 +4,7 @@ import Shadow from './Shadow'
 import Text from './Text'
 import FlexRow from './FlexRow'
 import React from 'react'
+import Focusable from './Focusable'
 
 interface HeaderProps {
   auxAriaLabel?: string
@@ -34,11 +35,13 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
   return (
     <IonHeader style={{ boxShadow: 'none' }}>
       <FlexRow between>
-        <div style={{ minWidth: '4rem' }}>
+        <div style={{ minWidth: '4rem', marginLeft: '0.5rem' }}>
           {back ? (
-            <div onClick={back} style={{ cursor: 'pointer', marginLeft: '0.5rem' }} aria-label='Go back'>
-              <BackIcon />
-            </div>
+            <Focusable onKeyDown={back} fit>
+              <div onClick={back} style={{ cursor: 'pointer' }} aria-label='Go back'>
+                <BackIcon />
+              </div>
+            </Focusable>
           ) : (
             '\u00A0'
           )}

@@ -116,7 +116,6 @@ export default function ReceiveAmount() {
   }
 
   const handleProceed = async () => {
-    if (!satoshis) return
     setRecvInfo({ ...recvInfo, satoshis })
     navigate(Pages.ReceiveQRCode)
   }
@@ -169,7 +168,6 @@ export default function ReceiveAmount() {
               focus={!isMobileBrowser}
               label='Amount'
               onSats={handleChange}
-              onEnter={handleProceed}
               onFocus={handleFocus}
               value={textValue ? Number(textValue) : undefined}
               sats={satoshis}

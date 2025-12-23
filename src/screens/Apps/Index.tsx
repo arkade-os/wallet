@@ -1,4 +1,4 @@
-import { ReactElement, useContext, useEffect, useRef } from 'react'
+import { ReactElement, useContext } from 'react'
 import Content from '../../components/Content'
 import FlexRow from '../../components/FlexRow'
 import Padded from '../../components/Padded'
@@ -11,6 +11,7 @@ import BoltzIcon from '../../icons/Boltz'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import LendasatIcon from './Lendasat/LendasatIcon'
 import LendaswapIcon from './Lendaswap/LendaswapIcon'
+import Focusable from '../../components/Focusable'
 
 const Middot = () => (
   <svg width='6' height='6' viewBox='0 0 6 6' fill='none' xmlns='http://www.w3.org/2000/svg' aria-hidden='true'>
@@ -50,35 +51,18 @@ interface AppProps {
   live?: boolean
   link?: string
   page?: Pages
-  first?: React.RefObject<HTMLDivElement>
 }
 
-function App({ desc, icon, link, name, live, page, first }: AppProps) {
+function App({ desc, icon, link, name, live, page }: AppProps) {
   const { navigate } = useContext(NavigationContext)
-
-  const style: React.CSSProperties = {
-    borderRadius: '0.5rem',
-  }
 
   const handleClick = () => {
     if (typeof page !== 'undefined') return navigate(page)
     if (link) window.open(link, '_blank')
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleClick()
-  }
-
   return (
-    <div
-      style={style}
-      className='focusable'
-      onClick={handleClick}
-      tabIndex={live ? 0 : -1}
-      onKeyDown={handleKeyDown}
-      data-testid={`app-${name}`}
-      ref={first}
-    >
+    <Focusable onKeyDown={handleClick}>
       <Shadow border borderPurple={live}>
         <FlexCol gap='0.75rem' padding='0.5rem'>
           <FlexRow between>
@@ -98,17 +82,11 @@ function App({ desc, icon, link, name, live, page, first }: AppProps) {
           </Text>
         </FlexCol>
       </Shadow>
-    </div>
+    </Focusable>
   )
 }
 
 export default function Apps() {
-  const firstApp = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    firstApp.current?.focus()
-  }, [])
-
   return (
     <>
       <Header text='Apps' />
@@ -121,7 +99,6 @@ export default function Apps() {
               desc='Swap instantly between Arkade and Lightning'
               link='https://boltz.exchange/'
               page={Pages.AppBoltz}
-              first={firstApp}
               live
             />
 

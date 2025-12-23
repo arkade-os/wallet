@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Text, { TextSecondary } from './Text'
 import { prettyLongText } from '../lib/format'
 import ChevronDownIcon from '../icons/ChevronDown'
@@ -11,6 +11,7 @@ import { copyToClipboard } from '../lib/clipboard'
 import CheckMarkIcon from '../icons/CheckMark'
 import { useIonToast } from '@ionic/react'
 import { copiedToClipboard } from '../lib/toast'
+import Focusable from './Focusable'
 
 interface ExpandAddressesProps {
   bip21uri: string
@@ -30,26 +31,16 @@ export default function ExpandAddresses({
   const [copied, setCopied] = useState('')
   const [expand, setExpand] = useState(false)
 
-  const bip21ref = useRef<HTMLDivElement>(null)
-
   const [present] = useIonToast()
 
   useEffect(() => {
     const handleArrowDown = (event: KeyboardEvent) => {
       if (event.key === 'ArrowDown') {
-        console.log('down', expand)
-        if (!expand) {
-          setExpand(true)
-          bip21ref.current?.focus()
-        }
+        if (!expand) setExpand(true)
       }
       if (event.key === 'ArrowUp') {
-        console.log('up', expand)
-        if (expand) {
-          setExpand(false)
-        }
+        if (expand) setExpand(false)
       }
-      console.log(event.key)
     }
     window.addEventListener('keydown', handleArrowDown)
     return () => window.removeEventListener('keydown', handleArrowDown)
@@ -67,7 +58,7 @@ export default function ExpandAddresses({
   }
 
   const ExpandLine = ({ title, value }: { title: string; value: string }) => (
-    <div className='focusable' onKeyDown={() => handleCopy(value)} tabIndex={0}>
+    <Focusable onKeyDown={() => handleCopy(value)}>
       <FlexRow between onClick={() => onClick(value)}>
         <FlexCol gap='0'>
           <TextSecondary>{title}</TextSecondary>
@@ -77,17 +68,19 @@ export default function ExpandAddresses({
           {copied === value ? <CheckMarkIcon /> : <CopyIcon />}
         </Shadow>
       </FlexRow>
-    </div>
+    </Focusable>
   )
 
   return (
     <div style={{ margin: '0 auto', maxWidth: '100%', width: '300px' }}>
-      <Shadow>
-        <FlexRow between onClick={handleExpand} tabIndex={0}>
-          <Text>Copy address</Text>
-          {expand ? <ChevronUpIcon /> : <ChevronDownIcon />}
-        </FlexRow>
-      </Shadow>
+      <Focusable onKeyDown={handleExpand}>
+        <Shadow>
+          <FlexRow between onClick={handleExpand}>
+            <Text>Copy address</Text>
+            {expand ? <ChevronUpIcon /> : <ChevronDownIcon />}
+          </FlexRow>
+        </Shadow>
+      </Focusable>
       {expand ? (
         <div style={{ padding: '1rem 0 0 0.5rem', width: '100%' }}>
           <FlexCol gap='0.21rem'>

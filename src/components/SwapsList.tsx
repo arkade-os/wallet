@@ -4,13 +4,14 @@ import { EmptySwapList } from './Empty'
 import { FlowContext } from '../providers/flow'
 import { ConfigContext } from '../providers/config'
 import Text, { TextLabel, TextSecondary } from './Text'
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { LightningContext } from '../providers/lightning'
 import { NavigationContext, Pages } from '../providers/navigation'
 import { prettyAgo, prettyAmount, prettyDate, prettyHide } from '../lib/format'
 import { SwapFailedIcon, SwapPendingIcon, SwapSuccessIcon } from '../icons/Swap'
 import { BoltzSwapStatus, PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { consoleError } from '../lib/logs'
+import Focusable from './Focusable'
 
 const border = '1px solid var(--dark20)'
 
@@ -48,15 +49,7 @@ const iconDict: Record<statusUI, JSX.Element> = {
   Refunded: <SwapFailedIcon />,
 }
 
-const SwapLine = ({
-  swap,
-  focusable,
-  unfocus,
-}: {
-  swap: PendingReverseSwap | PendingSubmarineSwap
-  focusable: boolean
-  unfocus: () => void
-}) => {
+const SwapLine = ({ swap, focusable }: { swap: PendingReverseSwap | PendingSubmarineSwap; focusable: boolean }) => {
   const { config } = useContext(ConfigContext)
   const { setSwapInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
@@ -69,7 +62,6 @@ const SwapLine = ({
   const when = window.innerWidth < 400 ? prettyAgo(swap.createdAt) : prettyDate(swap.createdAt)
   const refunded = swap.type === 'submarine' && swap.refunded
   const color = refunded ? colorDict['Refunded'] : colorDict[status]
-  const tabindex = focusable ? 0 : -1
 
   const Icon = iconDict[status]
   const Kind = () => <Text thin>{direction}</Text>
@@ -89,42 +81,30 @@ const SwapLine = ({
     padding: '0.5rem 1rem',
   }
 
-  const Left = () => (
-    <FlexRow>
-      {Icon}
-      <div>
-        <Kind />
-        <Sats />
-      </div>
-    </FlexRow>
-  )
-
-  const Right = () => (
-    <FlexCol gap='0' end>
-      <Stat />
-      <When />
-    </FlexCol>
-  )
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleClick()
-    if (e.key === 'Escape') unfocus()
-  }
-
-  return (
-    <div
-      className='focusable'
-      style={rowStyle}
-      role='button'
-      tabIndex={tabindex}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-    >
+  const Line = () => (
+    <div style={rowStyle} role='button' onClick={handleClick}>
       <FlexRow>
-        <Left />
-        <Right />
+        <FlexRow>
+          {Icon}
+          <div>
+            <Kind />
+            <Sats />
+          </div>
+        </FlexRow>
+        <FlexCol gap='0' end>
+          <Stat />
+          <When />
+        </FlexCol>
       </FlexRow>
     </div>
+  )
+
+  return focusable ? (
+    <Focusable onKeyDown={handleClick}>
+      <Line />
+    </Focusable>
+  ) : (
+    <Line />
   )
 }
 
@@ -133,8 +113,6 @@ export default function SwapsList() {
 
   const [focusable, setFocusable] = useState(false)
   const [swapHistory, setSwapHistory] = useState<(PendingReverseSwap | PendingSubmarineSwap)[]>([])
-
-  const ref = useRef<HTMLDivElement>(null)
 
   // Load initial swap history
   useEffect(() => {
@@ -170,27 +148,16 @@ export default function SwapsList() {
     return unsubscribe
   }, [swapManager])
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'Space') {
-      setFocusable(true)
-    }
-  }
-
-  const handleUnfocus = () => {
-    setFocusable(false)
-    ref.current?.focus()
-  }
-
   if (swapHistory.length === 0) return <EmptySwapList />
 
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
-      <div className='focusable' tabIndex={0} onKeyDown={handleKeyDown} ref={ref}>
+      <Focusable onKeyDown={() => setFocusable(true)}>
         <TextLabel>Swap history</TextLabel>
-      </div>
+      </Focusable>
       <div style={{ borderBottom: border }}>
         {swapHistory.map((swap) => (
-          <SwapLine key={swap.response.id} focusable={focusable} swap={swap} unfocus={handleUnfocus} />
+          <SwapLine key={swap.response.id} focusable={focusable} swap={swap} />
         ))}
       </div>
     </div>
