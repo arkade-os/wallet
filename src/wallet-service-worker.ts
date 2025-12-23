@@ -2,8 +2,9 @@ import { ArkSW, WalletUpdater } from '@arkade-os/sdk'
 import { SwapUpdater } from '@arkade-os/boltz-swap'
 
 const worker = new ArkSW({
-  updaters: [new WalletUpdater(), new SwapUpdater({ pollInterval: 30000 })],
+  updaters: [new WalletUpdater(), new SwapUpdater({ pollInterval: 30_000 })],
   debug: false,
+  tickIntervalMs: 2000,
 })
 worker.start().catch(console.error)
 
