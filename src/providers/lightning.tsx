@@ -220,14 +220,14 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     const contractRepo = new ContractRepositoryImpl(storage)
 
     for (const swap of reverseSwaps) {
-      if (!historyIds.has(swap.id)) {
+      if (!historyIds.has(swap.response.id)) {
         await contractRepo.saveToContractCollection('reverseSwaps', swap, 'id')
         counter++
       }
     }
 
     for (const swap of submarineSwaps) {
-      if (!historyIds.has(swap.id)) {
+      if (!historyIds.has(swap.response.id)) {
         await contractRepo.saveToContractCollection('submarineSwaps', swap, 'id')
         counter++
       }

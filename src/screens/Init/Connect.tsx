@@ -31,7 +31,7 @@ export default function InitConnect() {
 
   useEffect(() => {
     if (!initialized) return
-    if (!initInfo.restoring) handleProceed()
+    if (!initInfo.restoring) return handleProceed()
     if (!arkadeLightning) return
     restoreSwaps()
       .then((count) => count && consoleLog(`Restored ${count} swaps from network`))
