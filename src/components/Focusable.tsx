@@ -1,23 +1,28 @@
 interface FocusableProps {
   children: React.ReactNode
-  onKeyDown?: () => void
+  onEscape?: () => void
+  onEnter?: () => void
   ariaLabel?: string
   fit?: boolean
   role?: string
 }
 
-export default function Focusable({ ariaLabel, role, children, fit, onKeyDown }: FocusableProps) {
+export default function Focusable({ ariaLabel, role, children, fit, onEnter, onEscape }: FocusableProps) {
   const style: React.CSSProperties = {
     borderRadius: fit ? '0.5rem' : undefined,
     width: fit ? 'fit-content' : '100%',
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!onKeyDown) return
-    if (['Enter', ' '].includes(e.key)) {
+    if (onEnter && ['Enter', ' '].includes(e.key)) {
       e.stopPropagation()
       e.preventDefault()
-      onKeyDown()
+      onEnter()
+    }
+    if (onEscape && e.key === 'Escape') {
+      e.stopPropagation()
+      e.preventDefault()
+      onEscape()
     }
   }
 

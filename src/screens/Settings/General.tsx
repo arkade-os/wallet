@@ -16,7 +16,7 @@ export default function General() {
   const { setOption } = useContext(OptionsContext)
 
   const Row = ({ option, value }: { option: SettingsOptions; value: string }) => (
-    <Focusable onKeyDown={() => setOption(option)}>
+    <Focusable onEnter={() => setOption(option)}>
       <FlexRow between padding='0.8rem 0' onClick={() => setOption(option)}>
         <Text capitalize thin>
           {option}

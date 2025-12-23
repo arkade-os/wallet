@@ -37,7 +37,7 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
       <FlexRow between>
         <div style={{ minWidth: '4rem', marginLeft: '0.5rem' }}>
           {back ? (
-            <Focusable onKeyDown={back} fit>
+            <Focusable onEnter={back} fit>
               <div onClick={back} style={{ cursor: 'pointer' }} aria-label='Go back'>
                 <BackIcon />
               </div>

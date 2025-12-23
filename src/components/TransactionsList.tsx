@@ -15,7 +15,7 @@ import Focusable from './Focusable'
 
 const border = '1px solid var(--dark20)'
 
-const TransactionLine = ({ focusable, tx }: { focusable?: boolean; tx: Tx }) => {
+const TransactionLine = ({ focusable, tx, unfocus }: { focusable?: boolean; tx: Tx; unfocus: () => void }) => {
   const { config } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
   const { setTxInfo } = useContext(FlowContext)
@@ -110,7 +110,7 @@ const TransactionLine = ({ focusable, tx }: { focusable?: boolean; tx: Tx }) => 
   )
 
   return focusable ? (
-    <Focusable onKeyDown={handleClick}>
+    <Focusable onEnter={handleClick} onEscape={unfocus}>
       <Line />
     </Focusable>
   ) : (
@@ -125,14 +125,16 @@ export default function TransactionsList() {
 
   const key = (tx: Tx) => `${tx.amount}${tx.createdAt}${tx.boardingTxid}${tx.roundTxid}${tx.redeemTxid}${tx.type}`
 
+  const unfocus = () => setFocusable(false)
+
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
-      <Focusable onKeyDown={() => setFocusable(true)}>
+      <Focusable onEnter={() => setFocusable(true)}>
         <TextLabel>Transaction history</TextLabel>
       </Focusable>
       <div style={{ borderBottom: border }}>
         {txs.map((tx) => (
-          <TransactionLine key={key(tx)} focusable={focusable} tx={tx} />
+          <TransactionLine key={key(tx)} focusable={focusable} tx={tx} unfocus={unfocus} />
         ))}
       </div>
     </div>

@@ -32,7 +32,7 @@ export default function Menu({ rows, styled }: MenuProps) {
   return (
     <FlexCol gap='0'>
       {rows.map(({ icon, option }) => (
-        <Focusable key={option} onKeyDown={() => setOption(option)}>
+        <Focusable onEnter={() => setOption(option)} key={option}>
           <FlexRow between>
             <div onClick={() => setOption(option)} style={rowStyle(option)}>
               <FlexRow>

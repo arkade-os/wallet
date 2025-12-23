@@ -62,7 +62,7 @@ function App({ desc, icon, link, name, live, page }: AppProps) {
   }
 
   return (
-    <Focusable onKeyDown={handleClick}>
+    <Focusable onEnter={handleClick}>
       <Shadow border borderPurple={live}>
         <FlexCol gap='0.75rem' padding='0.5rem'>
           <FlexRow between>

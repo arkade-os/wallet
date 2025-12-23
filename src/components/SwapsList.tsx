@@ -9,9 +9,10 @@ import { LightningContext } from '../providers/lightning'
 import { NavigationContext, Pages } from '../providers/navigation'
 import { prettyAgo, prettyAmount, prettyDate, prettyHide } from '../lib/format'
 import { SwapFailedIcon, SwapPendingIcon, SwapSuccessIcon } from '../icons/Swap'
-import { BoltzSwapStatus, PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
+import { BoltzSwapStatus } from '@arkade-os/boltz-swap'
 import { consoleError } from '../lib/logs'
 import Focusable from './Focusable'
+import { PendingSwap } from '../lib/types'
 
 const border = '1px solid var(--dark20)'
 
@@ -49,7 +50,7 @@ const iconDict: Record<statusUI, JSX.Element> = {
   Refunded: <SwapFailedIcon />,
 }
 
-const SwapLine = ({ swap, focusable }: { swap: PendingReverseSwap | PendingSubmarineSwap; focusable: boolean }) => {
+const SwapLine = ({ swap, focusable, unfocus }: { swap: PendingSwap; focusable: boolean; unfocus: () => void }) => {
   const { config } = useContext(ConfigContext)
   const { setSwapInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
@@ -100,7 +101,7 @@ const SwapLine = ({ swap, focusable }: { swap: PendingReverseSwap | PendingSubma
   )
 
   return focusable ? (
-    <Focusable onKeyDown={handleClick}>
+    <Focusable onEnter={handleClick} onEscape={unfocus}>
       <Line />
     </Focusable>
   ) : (
@@ -112,7 +113,7 @@ export default function SwapsList() {
   const { arkadeLightning, swapManager, getSwapHistory } = useContext(LightningContext)
 
   const [focusable, setFocusable] = useState(false)
-  const [swapHistory, setSwapHistory] = useState<(PendingReverseSwap | PendingSubmarineSwap)[]>([])
+  const [swapHistory, setSwapHistory] = useState<PendingSwap[]>([])
 
   // Load initial swap history
   useEffect(() => {
@@ -131,7 +132,6 @@ export default function SwapsList() {
   // Subscribe to swap updates from SwapManager for real-time updates
   useEffect(() => {
     if (!swapManager) return
-
     const unsubscribe = swapManager.onSwapUpdate((swap) => {
       setSwapHistory((prev) => {
         const existingIndex = prev.findIndex((s) => s.id === swap.id)
@@ -144,20 +144,21 @@ export default function SwapsList() {
         return [swap, ...prev]
       })
     })
-
     return unsubscribe
   }, [swapManager])
+
+  const unfocus = () => setFocusable(false)
 
   if (swapHistory.length === 0) return <EmptySwapList />
 
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
-      <Focusable onKeyDown={() => setFocusable(true)}>
+      <Focusable onEnter={() => setFocusable(true)}>
         <TextLabel>Swap history</TextLabel>
       </Focusable>
       <div style={{ borderBottom: border }}>
         {swapHistory.map((swap) => (
-          <SwapLine key={swap.response.id} focusable={focusable} swap={swap} />
+          <SwapLine key={swap.response.id} focusable={focusable} swap={swap} unfocus={unfocus} />
         ))}
       </div>
     </div>
