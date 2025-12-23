@@ -109,8 +109,10 @@ const TransactionLine = ({ focusable, tx, unfocus }: { focusable?: boolean; tx: 
     </div>
   )
 
+  const ariaLabel = `Transaction ${tx.type} of amount ${amount} on date ${date}. Press Enter to view details.`
+
   return focusable ? (
-    <Focusable onEnter={handleClick} onEscape={unfocus}>
+    <Focusable onEnter={handleClick} onEscape={unfocus} ariaLabel={ariaLabel}>
       <Line />
     </Focusable>
   ) : (
@@ -127,9 +129,11 @@ export default function TransactionsList() {
 
   const unfocus = () => setFocusable(false)
 
+  const ariaLabel = 'Pressing Enter enables keyboard navigation of the transaction list'
+
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
-      <Focusable onEnter={() => setFocusable(true)}>
+      <Focusable onEnter={() => setFocusable(true)} ariaLabel={ariaLabel}>
         <TextLabel>Transaction history</TextLabel>
       </Focusable>
       <div style={{ borderBottom: border }}>

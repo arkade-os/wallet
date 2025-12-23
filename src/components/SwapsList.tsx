@@ -83,7 +83,7 @@ const SwapLine = ({ swap, focusable, unfocus }: { swap: PendingSwap; focusable: 
   }
 
   const Line = () => (
-    <div style={rowStyle} role='button' onClick={handleClick}>
+    <div style={rowStyle} onClick={handleClick}>
       <FlexRow>
         <FlexRow>
           {Icon}
@@ -100,8 +100,10 @@ const SwapLine = ({ swap, focusable, unfocus }: { swap: PendingSwap; focusable: 
     </div>
   )
 
+  const ariaLabel = `Swap ${direction} of amount ${amount} with status ${refunded ? 'Refunded' : status}. Press Enter to view details.`
+
   return focusable ? (
-    <Focusable onEnter={handleClick} onEscape={unfocus}>
+    <Focusable onEnter={handleClick} onEscape={unfocus} ariaLabel={ariaLabel}>
       <Line />
     </Focusable>
   ) : (
@@ -151,9 +153,11 @@ export default function SwapsList() {
 
   if (swapHistory.length === 0) return <EmptySwapList />
 
+  const ariaLabel = 'Pressing Enter enables keyboard navigation of the swap list'
+
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
-      <Focusable onEnter={() => setFocusable(true)}>
+      <Focusable onEnter={() => setFocusable(true)} ariaLabel={ariaLabel}>
         <TextLabel>Swap history</TextLabel>
       </Focusable>
       <div style={{ borderBottom: border }}>
