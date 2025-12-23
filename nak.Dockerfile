@@ -1,8 +1,11 @@
 # build stage
 FROM golang:1.25.5-alpine AS builder
 
+# Install build dependencies for CGO (required by nak's lmdb dependency)
+RUN apk add --no-cache gcc musl-dev
+
 # Install nak
-RUN go install github.com/fiatjaf/nak@0.17.2
+RUN go install github.com/fiatjaf/nak@latest
 
 # runtime stage
 FROM alpine:latest
