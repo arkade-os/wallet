@@ -62,14 +62,14 @@ export default function ExpandAddresses({
     onClick(value)
   }
 
-  const ExpandLine = ({ title, value }: { title: string; value: string }) => (
+  const ExpandLine = ({ testId, title, value }: { testId: string; title: string; value: string }) => (
     <Focusable onEnter={() => handleKeyDown(value)}>
       <FlexRow between onClick={() => onClick(value)}>
         <FlexCol gap='0'>
           <TextSecondary>{title}</TextSecondary>
           <Text>{prettyLongText(value, 12)}</Text>
         </FlexCol>
-        <Shadow flex onClick={() => handleCopy(value)}>
+        <Shadow flex onClick={() => handleCopy(value)} testId={testId + '-address-copy'}>
           {copied === value ? <CheckMarkIcon /> : <CopyIcon />}
         </Shadow>
       </FlexRow>
@@ -89,10 +89,10 @@ export default function ExpandAddresses({
       {expand ? (
         <div style={{ padding: '1rem 0 0 0.5rem', width: '100%' }}>
           <FlexCol gap='0.21rem'>
-            {bip21uri ? <ExpandLine title='BIP21' value={bip21uri} /> : null}
-            {boardingAddr ? <ExpandLine title='BTC address' value={boardingAddr} /> : null}
-            {offchainAddr ? <ExpandLine title='Ark address' value={offchainAddr} /> : null}
-            {invoice ? <ExpandLine title='Lightning invoice' value={invoice} /> : null}
+            {bip21uri ? <ExpandLine testId='bip21' title='BIP21' value={bip21uri} /> : null}
+            {boardingAddr ? <ExpandLine testId='btc' title='BTC address' value={boardingAddr} /> : null}
+            {offchainAddr ? <ExpandLine testId='ark' title='Ark address' value={offchainAddr} /> : null}
+            {invoice ? <ExpandLine testId='invoice' title='Lightning invoice' value={invoice} /> : null}
           </FlexCol>
         </div>
       ) : null}

@@ -49,13 +49,9 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   await page.getByText('Continue').click()
 
   // copy invoice
-  await page
-    .locator('div')
-    .filter({ hasText: /^Copy address$/ })
-    .nth(2)
-    .click()
+  await page.getByText('Copy address').click()
   await expect(page.getByText('Lightning invoice')).toBeVisible()
-  await page.locator('svg').nth(6).click() // copy invoice to clipboard
+  await page.getByTestId('invoice-address-copy').click() // copy invoice to clipboard
   const invoice = await readClipboard(page)
   expect(invoice).toBeDefined()
   expect(invoice).toBeTruthy()
@@ -95,16 +91,14 @@ test('should send funds to Lightning', async ({ page }) => {
   // receive page
   await page.getByText('Receive').click()
   await page.getByText('Skip').click()
-  await page
-    .locator('div')
-    .filter({ hasText: /^Copy address$/ })
-    .nth(5)
-    .click()
-  await page.getByRole('img').nth(5).click()
+  await page.getByText('Copy address').click()
+  await expect(page.getByText('Ark address')).toBeVisible()
+  await page.getByTestId('ark-address-copy').click() // copy to clipboard
   await page.waitForTimeout(500)
   const arkAddress = await readClipboard(page)
   expect(arkAddress).toBeDefined()
   expect(arkAddress).toBeTruthy()
+
   // faucet
   exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
   await page.waitForSelector('text=Payment received!')
@@ -158,12 +152,9 @@ test('should refund failing swap', async ({ page }) => {
   // receive page
   await page.getByText('Receive').click()
   await page.getByText('Skip').click()
-  await page
-    .locator('div')
-    .filter({ hasText: /^Copy address$/ })
-    .nth(5)
-    .click()
-  await page.getByRole('img').nth(5).click()
+  await page.getByText('Copy address').click()
+  await expect(page.getByText('Ark address')).toBeVisible()
+  await page.getByTestId('ark-address-copy').click() // copy to clipboard
   await page.waitForTimeout(500)
   const arkAddress = await readClipboard(page)
   expect(arkAddress).toBeDefined()
