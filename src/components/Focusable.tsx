@@ -1,13 +1,20 @@
-interface FocusableProps {
-  children: React.ReactNode
+import { ReactNode } from 'react'
+
+export default function Focusable({
+  ariaLabel,
+  children,
+  onEscape,
+  onEnter,
+  role,
+  fit,
+}: {
+  ariaLabel?: string
+  children: ReactNode
   onEscape?: () => void
   onEnter?: () => void
-  ariaLabel?: string
-  fit?: boolean
   role?: string
-}
-
-export default function Focusable({ ariaLabel, role, children, fit, onEnter, onEscape }: FocusableProps) {
+  fit?: boolean
+}) {
   const style: React.CSSProperties = {
     borderRadius: fit ? '0.5rem' : undefined,
     width: fit ? 'fit-content' : '100%',

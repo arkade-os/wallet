@@ -15,7 +15,7 @@ test('should be connected to Boltz app', async ({ page }) => {
   await page.getByText('Go to wallet').click()
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-Boltz').click()
+  await page.getByTestId('app-boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Connection status')).toBeVisible()
   await expect(page.getByText('http://localhost:')).toBeVisible()
@@ -76,7 +76,7 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-Boltz').click()
+  await page.getByTestId('app-boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Successful')).toBeVisible()
   await expect(page.getByText('+ 1,992')).toBeVisible()
@@ -139,7 +139,7 @@ test('should send funds to Lightning', async ({ page }) => {
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-Boltz').click()
+  await page.getByTestId('app-boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Successful')).toBeVisible()
   await expect(page.getByText('- 1,001')).toBeVisible()
@@ -206,7 +206,7 @@ test('should refund failing swap', async ({ page }) => {
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-Boltz').click()
+  await page.getByTestId('app-boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Refunded')).toBeVisible()
   await expect(page.getByText('- 1,001')).toBeVisible()

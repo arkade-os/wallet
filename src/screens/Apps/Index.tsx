@@ -61,10 +61,12 @@ function App({ desc, icon, link, name, live, page }: AppProps) {
     if (link) window.open(link, '_blank')
   }
 
+  const testId = `app-${name.toLowerCase().replace(/\s+/g, '-')}`
+
   return (
     <Focusable onEnter={handleClick}>
-      <Shadow border borderPurple={live}>
-        <FlexCol gap='0.75rem' padding='0.5rem'>
+      <Shadow border borderPurple={live} onClick={handleClick}>
+        <FlexCol gap='0.75rem' padding='0.5rem' testId={testId}>
           <FlexRow between>
             {icon}
             <FlexCol gap='0.25rem'>
