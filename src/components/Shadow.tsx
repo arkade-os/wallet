@@ -13,6 +13,7 @@ interface ShadowProps {
   red?: boolean
   slim?: boolean
   squared?: boolean
+  testId?: string
 }
 
 export default function Shadow({
@@ -28,6 +29,7 @@ export default function Shadow({
   red,
   slim,
   squared,
+  testId,
 }: ShadowProps) {
   const style: React.CSSProperties = {
     backgroundColor: purple
@@ -48,7 +50,7 @@ export default function Shadow({
   }
 
   return (
-    <div style={style} onClick={onClick}>
+    <div data-testid={testId} onClick={onClick} style={style}>
       {children}
     </div>
   )

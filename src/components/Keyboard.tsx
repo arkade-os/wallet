@@ -99,7 +99,6 @@ export default function Keyboard({ back, hideBalance, onSats, value }: KeyboardP
   }
 
   const handleSave = () => {
-    console.log('Keyboard - saving amountInSats:', amountInSats)
     onSats(amountInSats)
     back()
   }

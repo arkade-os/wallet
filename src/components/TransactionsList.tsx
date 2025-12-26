@@ -1,4 +1,4 @@
-import { useContext } from 'react'
+import { useContext, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
@@ -11,10 +11,11 @@ import { NavigationContext, Pages } from '../providers/navigation'
 import { ConfigContext } from '../providers/config'
 import { FiatContext } from '../providers/fiat'
 import PreconfirmedIcon from '../icons/Preconfirmed'
+import Focusable from './Focusable'
 
 const border = '1px solid var(--dark20)'
 
-const TransactionLine = ({ tx }: { tx: Tx }) => {
+const TransactionLine = ({ focusable, tx, unfocus }: { focusable?: boolean; tx: Tx; unfocus: () => void }) => {
   const { config } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
   const { setTxInfo } = useContext(FlowContext)
@@ -42,6 +43,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
       </Text>
     )
   }
+
   const Icon = () =>
     tx.type === 'sent' ? (
       <SentIcon />
@@ -50,8 +52,11 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
     ) : (
       <ReceivedIcon dotted={tx.preconfirmed} />
     )
+
   const Kind = () => <Text thin>{tx.type === 'sent' ? 'Sent' : 'Received'}</Text>
-  const Date = () => <TextSecondary>{date}</TextSecondary>
+
+  const When = () => <TextSecondary>{date}</TextSecondary>
+
   const Sats = () => (
     <Text color={tx.type === 'received' ? (tx.preconfirmed && tx.boardingTxid ? 'orange' : 'green') : ''} thin>
       {amount}
@@ -75,7 +80,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
       <Icon />
       <div>
         <Kind />
-        <Date />
+        <When />
       </div>
     </FlexRow>
   )
@@ -95,7 +100,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
     </div>
   )
 
-  return (
+  const Line = () => (
     <div style={rowStyle} onClick={handleClick}>
       <FlexRow>
         <Left />
@@ -103,19 +108,37 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
       </FlexRow>
     </div>
   )
+
+  const ariaLabel = `Transaction ${tx.type} of amount ${amount} on date ${date}. Press Enter to view details.`
+
+  return focusable ? (
+    <Focusable onEnter={handleClick} onEscape={unfocus} ariaLabel={ariaLabel}>
+      <Line />
+    </Focusable>
+  ) : (
+    <Line />
+  )
 }
 
 export default function TransactionsList() {
   const { txs } = useContext(WalletContext)
 
+  const [focusable, setFocusable] = useState(false)
+
   const key = (tx: Tx) => `${tx.amount}${tx.createdAt}${tx.boardingTxid}${tx.roundTxid}${tx.redeemTxid}${tx.type}`
+
+  const unfocus = () => setFocusable(false)
+
+  const ariaLabel = 'Pressing Enter enables keyboard navigation of the transaction list'
 
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
-      <TextLabel>Transaction history</TextLabel>
+      <Focusable onEnter={() => setFocusable(true)} ariaLabel={ariaLabel}>
+        <TextLabel>Transaction history</TextLabel>
+      </Focusable>
       <div style={{ borderBottom: border }}>
         {txs.map((tx) => (
-          <TransactionLine key={key(tx)} tx={tx} />
+          <TransactionLine key={key(tx)} focusable={focusable} tx={tx} unfocus={unfocus} />
         ))}
       </div>
     </div>

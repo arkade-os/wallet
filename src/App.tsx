@@ -30,6 +30,7 @@ import { pwaIsInstalled } from './lib/pwa'
 import FlexCol from './components/FlexCol'
 import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
+import Focusable from './components/Focusable'
 
 setupIonicReact()
 
@@ -64,6 +65,16 @@ export default function App() {
       .catch(() => setIsCapable(false))
       .finally(() => setJsCapabilitiesChecked(true))
   }, [])
+
+  // Global escape key to go back to wallet
+  useEffect(() => {
+    if (!navigate) return
+    const handleGlobalDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') navigate(Pages.Wallet)
+    }
+    window.addEventListener('keydown', handleGlobalDown)
+    return () => window.removeEventListener('keydown', handleGlobalDown)
+  }, [navigate])
 
   useEffect(() => {
     if (aspInfo.unreachable) return navigate(Pages.Unavailable)
@@ -137,23 +148,29 @@ export default function App() {
               {tab === Tabs.Settings ? comp : <></>}
             </IonTab>
             <IonTabBar slot='bottom'>
-              <IonTabButton tab={Tabs.Wallet} selected={tab === Tabs.Wallet} onClick={handleWallet}>
-                <FlexCol centered gap='6px' testId='tab-wallet'>
-                  <WalletIcon />
-                  Wallet
-                </FlexCol>
+              <IonTabButton tab={Tabs.Wallet} onClick={handleWallet} selected={tab === Tabs.Wallet}>
+                <Focusable>
+                  <FlexCol centered gap='6px' padding='5px' testId='tab-wallet'>
+                    <WalletIcon />
+                    Wallet
+                  </FlexCol>
+                </Focusable>
               </IonTabButton>
-              <IonTabButton tab={Tabs.Apps} selected={tab === Tabs.Apps} onClick={handleApps}>
-                <FlexCol centered gap='6px' testId='tab-apps'>
-                  <AppsIcon />
-                  Apps
-                </FlexCol>
+              <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps}>
+                <Focusable>
+                  <FlexCol centered gap='6px' padding='5px' testId='tab-apps'>
+                    <AppsIcon />
+                    Apps
+                  </FlexCol>
+                </Focusable>
               </IonTabButton>
-              <IonTabButton tab={Tabs.Settings} selected={tab === Tabs.Settings} onClick={handleSettings}>
-                <FlexCol centered gap='6px' testId='tab-settings'>
-                  <SettingsIcon />
-                  Settings
-                </FlexCol>
+              <IonTabButton tab={Tabs.Settings} onClick={handleSettings} selected={tab === Tabs.Settings}>
+                <Focusable>
+                  <FlexCol centered gap='6px' padding='5px' testId='tab-settings'>
+                    <SettingsIcon />
+                    Settings
+                  </FlexCol>
+                </Focusable>
               </IonTabButton>
             </IonTabBar>
           </IonTabs>

@@ -11,6 +11,7 @@ import BoltzIcon from '../../icons/Boltz'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import LendasatIcon from './Lendasat/LendasatIcon'
 import LendaswapIcon from './Lendaswap/LendaswapIcon'
+import Focusable from '../../components/Focusable'
 
 const Middot = () => (
   <svg width='6' height='6' viewBox='0 0 6 6' fill='none' xmlns='http://www.w3.org/2000/svg' aria-hidden='true'>
@@ -55,20 +56,17 @@ interface AppProps {
 function App({ desc, icon, link, name, live, page }: AppProps) {
   const { navigate } = useContext(NavigationContext)
 
-  const style: React.CSSProperties = {
-    cursor: page || link ? 'pointer' : 'default',
-    padding: '0.5rem',
-  }
-
   const handleClick = () => {
     if (typeof page !== 'undefined') return navigate(page)
     if (link) window.open(link, '_blank')
   }
 
+  const testId = `app-${name.toLowerCase().replace(/\s+/g, '-')}`
+
   return (
-    <Shadow border borderPurple={live}>
-      <div data-testid={`app-${name}`} style={style} onClick={handleClick}>
-        <FlexCol gap='0.75rem'>
+    <Focusable onEnter={handleClick}>
+      <Shadow border borderPurple={live} onClick={handleClick}>
+        <FlexCol gap='0.75rem' padding='0.5rem' testId={testId}>
           <FlexRow between>
             {icon}
             <FlexCol gap='0.25rem'>
@@ -85,8 +83,8 @@ function App({ desc, icon, link, name, live, page }: AppProps) {
             {desc}
           </Text>
         </FlexCol>
-      </div>
-    </Shadow>
+      </Shadow>
+    </Focusable>
   )
 }
 

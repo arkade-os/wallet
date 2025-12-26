@@ -9,23 +9,26 @@ import FlexRow from '../../components/FlexRow'
 import ArrowIcon from '../../icons/Arrow'
 import { SettingsOptions } from '../../lib/types'
 import { OptionsContext } from '../../providers/options'
+import Focusable from '../../components/Focusable'
 
 export default function General() {
   const { config } = useContext(ConfigContext)
   const { setOption } = useContext(OptionsContext)
 
   const Row = ({ option, value }: { option: SettingsOptions; value: string }) => (
-    <FlexRow between padding='0.8rem 0' onClick={() => setOption(option)}>
-      <Text capitalize thin>
-        {option}
-      </Text>
-      <FlexRow end>
-        <Text small thin color='dark50'>
-          {value}
+    <Focusable onEnter={() => setOption(option)}>
+      <FlexRow between padding='0.8rem 0' onClick={() => setOption(option)}>
+        <Text capitalize thin>
+          {option}
         </Text>
-        <ArrowIcon />
+        <FlexRow end>
+          <Text small thin color='dark50'>
+            {value}
+          </Text>
+          <ArrowIcon />
+        </FlexRow>
       </FlexRow>
-    </FlexRow>
+    </Focusable>
   )
 
   return (
