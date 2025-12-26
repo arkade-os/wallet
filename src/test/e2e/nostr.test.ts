@@ -88,6 +88,7 @@ test('should save config to nostr', async ({ page }) => {
   await page.getByText('Continue').click()
   await expect(page.getByText('Wallet restored successfully!')).toBeVisible()
   await page.getByText('Go to wallet').click()
+  await page.waitForTimeout(1000)
 
   // verify fiat currency is euro
   await page.getByTestId('tab-settings').click()
