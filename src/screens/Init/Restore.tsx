@@ -16,13 +16,13 @@ import Button from '../../components/Button'
 import Header from '../../components/Header'
 import Padded from '../../components/Padded'
 import Input from '../../components/Input'
-import Text from '../../components/Text'
+import Text, { TextSecondary } from '../../components/Text'
 import { hex } from '@scure/base'
 import { hexToBytes } from '@noble/hashes/utils.js'
 import { nip19 } from 'nostr-tools'
+import WarningBox from '../../components/Warning'
 
-type Props = { readonly?: boolean }
-export default function InitRestore({ readonly }: Props) {
+export default function InitRestore() {
   const { updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
   const { setInitInfo } = useContext(FlowContext)
@@ -39,7 +39,7 @@ export default function InitRestore({ readonly }: Props) {
   useEffect(() => {
     if (!someKey) return
 
-    if (readonly) {
+    if (someKey.startsWith('npub')) {
       let pubkey: Uint8Array | undefined = undefined
       try {
         const decodedPubkey = nip19.decode(someKey)
@@ -53,30 +53,33 @@ export default function InitRestore({ readonly }: Props) {
         setError(extractError(e))
       }
       setPublicKey(pubkey)
-    } else {
-      let privateKey = undefined
-      try {
-        if (someKey?.match(/^nsec/)) privateKey = nsecToPrivateKey(someKey)
-        else privateKey = hex.decode(someKey)
-        const invalid = invalidPrivateKey(privateKey)
-        setLabel(invalid ? 'Unable to validate private key format' : buttonLabel)
-        setError(invalid)
-      } catch (err) {
-        setLabel('Unable to validate key format')
-        setError(extractError(err))
-      }
-      setPrivateKey(privateKey)
+      setPrivateKey(undefined)
+      return
     }
+
+    // assume it's a private key
+    let privateKey = undefined
+    try {
+      if (someKey?.match(/^nsec/)) privateKey = nsecToPrivateKey(someKey)
+      else privateKey = hex.decode(someKey)
+      const invalid = invalidPrivateKey(privateKey)
+      setLabel(invalid ? 'Unable to validate private key format' : buttonLabel)
+      setError(invalid)
+    } catch (err) {
+      setLabel('Unable to validate key format')
+      setError(extractError(err))
+    }
+    setPrivateKey(privateKey)
+    setPublicKey(undefined)
   }, [someKey])
 
   const handleCancel = () => navigate(Pages.Init)
 
   const handleProceed = () => {
-    if (readonly) {
+    if (publicKey) {
       setInitInfo({ publicKey, restoring: true })
-      // BackupProvider.restore required a private key
       navigate(Pages.InitSuccess)
-    } else {
+    } else if (privateKey) {
       setInitInfo({ privateKey, password: defaultPassword, restoring: true })
       setRestoring(true)
       new BackupProvider({ seckey: privateKey! })
@@ -89,33 +92,9 @@ export default function InitRestore({ readonly }: Props) {
     }
   }
 
-  const disabled = Boolean((readonly ? !publicKey : !privateKey) || error)
+  const disabled = Boolean((!publicKey && !privateKey) || error)
 
   if (restoring) return <Loading text='Restoring wallet...' />
-
-  if (readonly)
-    return (
-      <>
-        <Header text='Restore readonly wallet' back={handleCancel} />
-        <Content>
-          <Padded>
-            <FlexCol between>
-              <FlexCol>
-                <Input name='ark-address' label='Public Key (npub)' onChange={setSomeKey} />
-                <ErrorMessage error={Boolean(error)} text={error} />
-              </FlexCol>
-              <Text centered color='dark70' fullWidth thin small>
-                Your public key should start with the 'npub' string.
-              </Text>
-            </FlexCol>
-          </Padded>
-        </Content>
-        <ButtonsOnBottom>
-          <Button onClick={handleProceed} label={label} disabled={disabled} />
-          <Button onClick={handleCancel} label='Cancel' secondary />
-        </ButtonsOnBottom>
-      </>
-    )
 
   return (
     <>
@@ -124,10 +103,13 @@ export default function InitRestore({ readonly }: Props) {
         <Padded>
           <FlexCol between>
             <FlexCol>
-              <Input name='private-key' label='Private key' onChange={setSomeKey} />
+              <Input name='private-key' label='Public (npub) or Private key (nsec)' onChange={setSomeKey} />
               <ErrorMessage error={Boolean(error)} text={error} />
+              {publicKey ? (
+                <WarningBox text='The wallet will be restored in readonly mode. This means you can view your balance and receive funds, but you cannot send.' />
+              ) : null}
             </FlexCol>
-            <Text centered color='dark70' fullWidth thin small>
+            <Text color='dark70' fullWidth thin small wrap>
               Your private key should start with the 'nsec' string. Do not share it with anyone.
             </Text>
           </FlexCol>

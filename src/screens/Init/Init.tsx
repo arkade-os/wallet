@@ -37,7 +37,6 @@ export default function Init() {
   }
 
   const handleOldWallet = () => navigate(Pages.InitRestore)
-  const handleOldReadonlyWallet = () => navigate(Pages.InitRestoreReadonly)
 
   return (
     <>
@@ -58,13 +57,6 @@ export default function Init() {
         <FlexCol gap='1rem'>
           <Text>Other login options</Text>
           <Button fancy disabled={error} onClick={handleOldWallet} label='Restore wallet' secondary />
-          <Button
-            fancy
-            disabled={error}
-            onClick={handleOldReadonlyWallet}
-            label='Restore wallet (readonly)'
-            secondary
-          />
         </FlexCol>
       </SheetModal>
     </>
