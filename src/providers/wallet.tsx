@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react'
+import { ReactNode, createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { clearStorage, readWalletFromStorage, saveWalletToStorage } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
@@ -41,7 +41,7 @@ interface WalletContextProps {
   settlePreconfirmed: () => Promise<void>
   updateWallet: (w: Wallet | ((prev: Wallet) => Wallet)) => void
   isLocked: () => Promise<boolean>
-  reloadWallet: (svcWallet?: SvcWallet) => Promise<void>
+  reloadWallet: () => Promise<void>
   wallet: Wallet
   walletLoaded: boolean
   svcWallet: SvcWallet | undefined
@@ -75,13 +75,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
 
-  const [txs, setTxs] = useState<Tx[]>([])
-  const [balance, setBalance] = useState(0)
+  const [atomixStates, setAtomixStates] = useState<{
+    txs: Tx[]
+    vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
+    balance: number
+  }>({ txs: [], vtxos: { spendable: [], spent: [] }, balance: 0 })
   const [wallet, setWallet] = useState(defaultWallet)
   const [walletLoaded, setWalletLoaded] = useState(false)
   const [initialized, setInitialized] = useState<boolean>(false)
   const [svcWallet, setSvcWallet] = useState<SvcWallet>()
-  const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
 
   const listeningForServiceWorker = useRef(false)
 
@@ -94,25 +96,63 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   // reload wallet as soon as we have a service worker wallet available
   useEffect(() => {
-    if (svcWallet) reloadWallet().catch(consoleError)
+    if (!svcWallet) {
+      if (listeningForServiceWorker.current) {
+        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessages)
+      }
+      return
+    }
+
+    reloadWallet().catch(consoleError)
+
+    // ping the service worker wallet status every 1 second
+    const statusPollingTimer = setInterval(async () => {
+      try {
+        if (svcWallet) {
+          const { walletInitialized } = await svcWallet.reader.getStatus()
+          setInitialized(walletInitialized)
+        }
+      } catch (err) {
+        consoleError(err, 'Error pinging wallet status')
+      }
+    }, 1_000)
+
+    if (svcWallet?.writer) {
+      // renew expiring coins on startup
+      renewCoins(svcWallet.writer, aspInfo.dust, wallet.thresholdMs).catch(() => {})
+    }
+
+    // listen for messages from the service worker
+    if (listeningForServiceWorker.current) {
+      navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessages)
+      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
+    } else {
+      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
+      listeningForServiceWorker.current = true
+    }
+
+    return () => {
+      clearInterval(statusPollingTimer)
+      navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessages)
+    }
   }, [svcWallet])
 
   // calculate thresholdMs and next rollover
   useEffect(() => {
-    if (!initialized || !vtxos || !svcWallet) return
+    if (!initialized || !atomixStates.vtxos || !svcWallet) return
     const computeThresholds = async () => {
       try {
         const allVtxos = await svcWallet.reader.getVtxos({ withRecoverable: true })
         const batchLifetimeMs = await calcBatchLifetimeMs(aspInfo, allVtxos)
         const thresholdMs = Math.floor((batchLifetimeMs * maxPercentage) / 100)
-        const nextRollover = await calcNextRollover(vtxos.spendable, svcWallet.reader, aspInfo)
+        const nextRollover = await calcNextRollover(atomixStates.vtxos.spendable, svcWallet.reader, aspInfo)
         updateWallet((prev) => ({ ...prev, nextRollover, thresholdMs }))
       } catch (err) {
         consoleError(err, 'Error computing rollover thresholds')
       }
     }
     computeThresholds()
-  }, [initialized, vtxos, svcWallet, aspInfo])
+  }, [initialized, atomixStates.vtxos, svcWallet, aspInfo])
 
   // if ark note is present in the URL, decode it and set the note info
   useEffect(() => {
@@ -156,18 +196,32 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [initialized, noteInfo.satoshis, deepLinkInfo])
 
-  const reloadWallet = async (swWallet = svcWallet) => {
-    if (!swWallet) return
+  const reloadWallet = useCallback(async () => {
+    if (!svcWallet) return
     try {
-      const vtxos = await getVtxos(swWallet.reader)
-      const txs = await getTxHistory(swWallet.reader)
-      const balance = await getBalance(swWallet.reader)
-      setBalance(balance)
-      setVtxos(vtxos)
-      setTxs(txs)
+      const [txs, vtxos, balance] = await Promise.all([
+        getTxHistory(svcWallet.reader),
+        getVtxos(svcWallet.reader),
+        getBalance(svcWallet.reader),
+      ])
+      setAtomixStates({ txs, vtxos, balance })
     } catch (err) {
       consoleError(err, 'Error reloading wallet')
       return
+    }
+  }, [svcWallet])
+
+  // handle messages from the service worker
+  // we listen for UTXO/VTXO updates to refresh the tx history and balance
+  const handleServiceWorkerMessages = (event: MessageEvent) => {
+    if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
+      if (!svcWallet) {
+        console.warn('svcWallet not defined, not reloading wallet')
+        return
+      }
+      reloadWallet()
+      // reload again after a delay to give the indexer time to update its cache
+      setTimeout(() => reloadWallet(), 5000)
     }
   }
 
@@ -211,45 +265,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
       setSvcWallet(newSvcWallet)
 
-      // handle messages from the service worker
-      // we listen for UTXO/VTXO updates to refresh the tx history and balance
-      const handleServiceWorkerMessages = (event: MessageEvent) => {
-        if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
-          reloadWallet(svcWallet)
-          // reload again after a delay to give the indexer time to update its cache
-          setTimeout(() => reloadWallet(svcWallet), 5000)
-        }
-      }
-
-      // listen for messages from the service worker
-      if (listeningForServiceWorker.current) {
-        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessages)
-        navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
-      } else {
-        navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
-        listeningForServiceWorker.current = true
-      }
-
       // check if the service worker wallet is initialized
       const { walletInitialized } = await newSvcWallet.reader.getStatus()
       setInitialized(walletInitialized)
-
-      // ping the service worker wallet status every 1 second
-      setInterval(async () => {
-        try {
-          if (newSvcWallet) {
-            const { walletInitialized } = await newSvcWallet.reader.getStatus()
-            setInitialized(walletInitialized)
-          }
-        } catch (err) {
-          consoleError(err, 'Error pinging wallet status')
-        }
-      }, 1_000)
-
-      if (newSvcWallet?.writer) {
-        // renew expiring coins on startup
-        renewCoins(newSvcWallet.writer, aspInfo.dust, wallet.thresholdMs).catch(() => {})
-      }
     } catch (err) {
       if (err instanceof Error && err.message.includes('Service worker activation timed out')) {
         if (retryCount < maxRetries) {
@@ -363,10 +381,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         walletLoaded,
         svcWallet,
         lockWallet,
-        txs,
-        balance,
+        txs: atomixStates.txs,
+        balance: atomixStates.balance,
         reloadWallet,
-        vtxos: vtxos ?? { spendable: [], spent: [] },
+        vtxos: atomixStates.vtxos,
       }}
     >
       {children}
