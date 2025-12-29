@@ -24,7 +24,7 @@ export default function Wallet() {
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { nudge } = useContext(NudgeContext)
-  const { balance, txs, svcWallet, wallet } = useContext(WalletContext)
+  const { balance, txs, wallet } = useContext(WalletContext)
 
   const [error, setError] = useState(false)
   const isReadonly = !!wallet?.isReadonly
