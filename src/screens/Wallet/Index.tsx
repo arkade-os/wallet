@@ -56,7 +56,7 @@ export default function Wallet() {
               <Balance amount={balance} />
               <ErrorMessage error={error} text='Ark server unreachable' />
               <FlexRow padding='0 0 0.5rem 0'>
-                {isReadonly ? (
+                {!isReadonly ? (
                   <Button main icon={<SendIcon />} disabled={!svcWallet?.writer} label='Send' onClick={handleSend} />
                 ) : null}
                 <Button main icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />

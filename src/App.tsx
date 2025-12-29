@@ -141,11 +141,9 @@ export default function App() {
             <IonTab ref={walletRef} tab={Tabs.Wallet}>
               {tab === Tabs.Wallet ? comp : <></>}
             </IonTab>
-            {!wallet.isReadonly ? (
-              <IonTab ref={appsRef} tab={Tabs.Apps}>
-                {tab === Tabs.Apps ? comp : <></>}
-              </IonTab>
-            ) : null}
+            <IonTab ref={appsRef} tab={Tabs.Apps}>
+              {tab === Tabs.Apps ? comp : <></>}
+            </IonTab>
             <IonTab ref={settingsRef} tab={Tabs.Settings}>
               {tab === Tabs.Settings ? comp : <></>}
             </IonTab>
@@ -158,14 +156,16 @@ export default function App() {
                   </FlexCol>
                 </Focusable>
               </IonTabButton>
-              <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps}>
-                <Focusable>
-                  <FlexCol centered gap='6px' padding='5px' testId='tab-apps'>
-                    <AppsIcon />
-                    Apps
-                  </FlexCol>
-                </Focusable>
-              </IonTabButton>
+              {!wallet.isReadonly ? (
+                <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps}>
+                  <Focusable>
+                    <FlexCol centered gap='6px' padding='5px' testId='tab-apps'>
+                      <AppsIcon />
+                      Apps
+                    </FlexCol>
+                  </Focusable>
+                </IonTabButton>
+                ) : null}
               <IonTabButton tab={Tabs.Settings} onClick={handleSettings} selected={tab === Tabs.Settings}>
                 <Focusable>
                   <FlexCol centered gap='6px' padding='5px' testId='tab-settings'>
