@@ -67,7 +67,6 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   // wait for payment received
   await page.waitForSelector('text=Payment received!')
   await expect(page.getByText('SATS received successfully')).toBeVisible()
-  await page.getByTestId('tab-wallet').click()
 
   /**
    * 3. submarine swap
@@ -87,6 +86,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   await page.waitForTimeout(1000)
 
   // go to send page and pay invoice
+  await page.getByTestId('tab-wallet').click()
   await page.getByText('Send').click()
   await page.getByLabel('', { exact: true }).fill(paymentRequest)
   await page.getByText('Continue').click()
@@ -130,6 +130,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   await page.getByText('Continue').click()
   await expect(page.getByText('Wallet restored successfully!')).toBeVisible()
   await page.getByText('Go to wallet').click()
+  await page.waitForTimeout(1000)
 
   /**
    * 7. verify swap history
@@ -138,7 +139,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   // go to Boltz app
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-Boltz').click()
+  await page.getByTestId('app-boltz').click()
   await page.waitForTimeout(1000)
 
   // verify both swaps are present

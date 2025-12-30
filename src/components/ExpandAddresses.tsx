@@ -79,7 +79,7 @@ export default function ExpandAddresses({
   return (
     <div style={{ margin: '0 auto', maxWidth: '100%', width: '300px' }}>
       <Focusable onEnter={handleExpand}>
-        <Shadow>
+        <Shadow testId='expand-addresses'>
           <FlexRow between onClick={handleExpand}>
             <Text>Copy address</Text>
             {expand ? <ChevronUpIcon /> : <ChevronDownIcon />}
