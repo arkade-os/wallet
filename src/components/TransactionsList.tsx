@@ -15,11 +15,9 @@ import Focusable from './Focusable'
 
 const border = '1px solid var(--dark20)'
 
-const TransactionLine = ({ focusable, tx, unfocus }: { focusable?: boolean; tx: Tx; unfocus: () => void }) => {
+const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   const { config } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
-  const { setTxInfo } = useContext(FlowContext)
-  const { navigate } = useContext(NavigationContext)
 
   const prefix = tx.type === 'sent' ? '-' : '+'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount) : prettyHide(tx.amount)}`
@@ -63,11 +61,6 @@ const TransactionLine = ({ focusable, tx, unfocus }: { focusable?: boolean; tx: 
     </Text>
   )
 
-  const handleClick = () => {
-    setTxInfo(tx)
-    navigate(Pages.Transaction)
-  }
-
   const rowStyle = {
     alignItems: 'center',
     borderTop: border,
@@ -100,47 +93,66 @@ const TransactionLine = ({ focusable, tx, unfocus }: { focusable?: boolean; tx: 
     </div>
   )
 
-  const Line = () => (
-    <div style={rowStyle} onClick={handleClick}>
+  return (
+    <div style={rowStyle} onClick={onClick}>
       <FlexRow>
         <Left />
         <Right />
       </FlexRow>
     </div>
   )
-
-  const ariaLabel = `Transaction ${tx.type} of amount ${amount} on date ${date}. Press Enter to view details.`
-
-  return focusable ? (
-    <Focusable onEnter={handleClick} onEscape={unfocus} ariaLabel={ariaLabel}>
-      <Line />
-    </Focusable>
-  ) : (
-    <Line />
-  )
 }
 
 export default function TransactionsList() {
+  const { setTxInfo } = useContext(FlowContext)
+  const { navigate } = useContext(NavigationContext)
   const { txs } = useContext(WalletContext)
 
-  const [focusable, setFocusable] = useState(false)
+  const [focused, setFocused] = useState(false)
 
   const key = (tx: Tx) => `${tx.amount}${tx.createdAt}${tx.boardingTxid}${tx.roundTxid}${tx.redeemTxid}${tx.type}`
 
-  const unfocus = () => setFocusable(false)
+  const focusOnFirstRow = () => {
+    setFocused(true)
+    const first = document.getElementById(key(txs[0])) as HTMLElement
+    if (first) first.focus()
+  }
 
-  const ariaLabel = 'Pressing Enter enables keyboard navigation of the transaction list'
+  const focusOnOuterShell = () => {
+    setFocused(false)
+    const outer = document.getElementById('outer') as HTMLElement
+    if (outer) outer.focus()
+  }
+
+  const ariaLabel = (tx?: Tx) => {
+    if (!tx) return 'Pressing Enter enables keyboard navigation of the transaction list'
+    return `Transaction ${tx.type} of amount ${tx.amount}. Press Escape to exit keyboard navigation.`
+  }
+
+  const handleClick = (tx: Tx) => {
+    setTxInfo(tx)
+    navigate(Pages.Transaction)
+  }
 
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
-      <Focusable onEnter={() => setFocusable(true)} ariaLabel={ariaLabel}>
-        <TextLabel>Transaction history</TextLabel>
+      <TextLabel>Transaction history</TextLabel>
+      <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
+        <div style={{ borderBottom: border }}>
+          {txs.map((tx) => (
+            <Focusable
+              id={key(tx)}
+              key={key(tx)}
+              inactive={!focused}
+              onEnter={() => handleClick(tx)}
+              onEscape={focusOnOuterShell}
+              ariaLabel={ariaLabel(tx)}
+            >
+              <TransactionLine onClick={() => handleClick(tx)} tx={tx} />
+            </Focusable>
+          ))}
+        </div>
       </Focusable>
-      <div style={{ borderBottom: border }}>
-        {txs.map((tx) => (
-          <TransactionLine key={key(tx)} focusable={focusable} tx={tx} unfocus={unfocus} />
-        ))}
-      </div>
     </div>
   )
 }

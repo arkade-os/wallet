@@ -50,10 +50,8 @@ const iconDict: Record<statusUI, JSX.Element> = {
   Refunded: <SwapFailedIcon />,
 }
 
-const SwapLine = ({ swap, focusable, unfocus }: { swap: PendingSwap; focusable: boolean; unfocus: () => void }) => {
+const SwapLine = ({ onClick, swap }: { onClick: () => void; swap: PendingSwap }) => {
   const { config } = useContext(ConfigContext)
-  const { setSwapInfo } = useContext(FlowContext)
-  const { navigate } = useContext(NavigationContext)
 
   const sats = swap.type === 'reverse' ? swap.response.onchainAmount : swap.response.expectedAmount
   const direction = swap.type === 'reverse' ? 'Lightning to Arkade' : 'Arkade to Lightning'
@@ -70,11 +68,6 @@ const SwapLine = ({ swap, focusable, unfocus }: { swap: PendingSwap; focusable: 
   const Sats = () => <Text color={color}>{amount}</Text>
   const Stat = () => <Text color={color}>{refunded ? 'Refunded' : status}</Text>
 
-  const handleClick = () => {
-    setSwapInfo(swap)
-    navigate(Pages.AppBoltzSwap)
-  }
-
   const rowStyle = {
     alignItems: 'center',
     borderTop: border,
@@ -82,8 +75,8 @@ const SwapLine = ({ swap, focusable, unfocus }: { swap: PendingSwap; focusable: 
     padding: '0.5rem 1rem',
   }
 
-  const Line = () => (
-    <div style={rowStyle} onClick={handleClick}>
+  return (
+    <div style={rowStyle} onClick={onClick}>
       <FlexRow>
         <FlexRow>
           {Icon}
@@ -99,22 +92,14 @@ const SwapLine = ({ swap, focusable, unfocus }: { swap: PendingSwap; focusable: 
       </FlexRow>
     </div>
   )
-
-  const ariaLabel = `Swap ${direction} of amount ${amount} with status ${refunded ? 'Refunded' : status}. Press Enter to view details.`
-
-  return focusable ? (
-    <Focusable onEnter={handleClick} onEscape={unfocus} ariaLabel={ariaLabel}>
-      <Line />
-    </Focusable>
-  ) : (
-    <Line />
-  )
 }
 
 export default function SwapsList() {
+  const { setSwapInfo } = useContext(FlowContext)
+  const { navigate } = useContext(NavigationContext)
   const { arkadeLightning, swapManager, getSwapHistory } = useContext(LightningContext)
 
-  const [focusable, setFocusable] = useState(false)
+  const [focused, setFocused] = useState(false)
   const [swapHistory, setSwapHistory] = useState<PendingSwap[]>([])
 
   // Load initial swap history
@@ -149,22 +134,49 @@ export default function SwapsList() {
     return unsubscribe
   }, [swapManager])
 
-  const unfocus = () => setFocusable(false)
-
   if (swapHistory.length === 0) return <EmptySwapList />
 
-  const ariaLabel = 'Pressing Enter enables keyboard navigation of the swap list'
+  const focusOnFirstRow = () => {
+    setFocused(true)
+    const first = document.getElementById(swapHistory[0].response.id) as HTMLElement
+    if (first) first.focus()
+  }
+
+  const focusOnOuterShell = () => {
+    setFocused(false)
+    const outer = document.getElementById('outer') as HTMLElement
+    if (outer) outer.focus()
+  }
+
+  const ariaLabel = (swap?: PendingSwap) => {
+    if (!swap) return 'Pressing Enter enables keyboard navigation of the swap list'
+    return `Transaction ${swap.type} with status ${swap.status}. Press Escape to exit keyboard navigation.`
+  }
+
+  const handleClick = (swap: PendingSwap) => {
+    setSwapInfo(swap)
+    navigate(Pages.AppBoltzSwap)
+  }
 
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
-      <Focusable onEnter={() => setFocusable(true)} ariaLabel={ariaLabel}>
-        <TextLabel>Swap history</TextLabel>
+      <TextLabel>Swap history</TextLabel>
+      <Focusable id='outer' inactive={focused} onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
+        <div style={{ borderBottom: border }}>
+          {swapHistory.map((swap) => (
+            <Focusable
+              id={swap.response.id}
+              inactive={!focused}
+              key={swap.response.id}
+              ariaLabel={ariaLabel(swap)}
+              onEscape={focusOnOuterShell}
+              onEnter={() => handleClick(swap)}
+            >
+              <SwapLine onClick={() => handleClick(swap)} swap={swap} />
+            </Focusable>
+          ))}
+        </div>
       </Focusable>
-      <div style={{ borderBottom: border }}>
-        {swapHistory.map((swap) => (
-          <SwapLine key={swap.response.id} focusable={focusable} swap={swap} unfocus={unfocus} />
-        ))}
-      </div>
     </div>
   )
 }

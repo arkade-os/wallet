@@ -9,8 +9,16 @@ import FlexRow from '../../components/FlexRow'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { EmptyLogsList } from '../../components/Empty'
+import Focusable from '../../components/Focusable'
+import { useIonToast } from '@ionic/react'
+import { copyToClipboard } from '../../lib/clipboard'
+import { copiedToClipboard } from '../../lib/toast'
 
 function LogsTable({ logs }: { logs: LogLine[] }) {
+  const [focused, setFocused] = useState(false)
+
+  const [present] = useIonToast()
+
   const color = (level: string): string => {
     if (level === 'info') return ''
     if (level === 'warn') return 'orange'
@@ -24,19 +32,54 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
     return <EmptyLogsList />
   }
 
+  const key = ({ time, msg, level }: LogLine) => `${time}${msg}${level}`
+
+  const copy = (value: string) => {
+    copyToClipboard(value)
+    present(copiedToClipboard)
+  }
+
+  const focusOnFirstRow = () => {
+    setFocused(true)
+    const first = document.getElementById(key([...logs].reverse()[0])) as HTMLElement
+    if (first) first.focus()
+  }
+
+  const focusOnOuterShell = () => {
+    setFocused(false)
+    const outer = document.getElementById('outer') as HTMLElement
+    if (outer) outer.focus()
+  }
+
+  const ariaLabel = (l?: LogLine) => {
+    if (!l) return 'Pressing Enter enables keyboard navigation of the logs'
+    return `Log at ${prettyAgo(l.time)} with message ${l.msg}. Press Escape to exit keyboard navigation.`
+  }
+
   return (
-    <div style={{ margin: '1rem' }}>
-      <FlexCol gap='0.5rem'>
-        {[...logs].reverse().map(({ time, msg, level }) => (
-          <FlexRow between key={`${time}${msg}`}>
-            <Text color={color(level)}>{prettyAgo(time)}</Text>
-            <Text color='dark50' copy={msg}>
-              {prettyLongText(msg.replace('...', ''), numChars(prettyAgo(time)))}
-            </Text>
-          </FlexRow>
-        ))}
-      </FlexCol>
-    </div>
+    <Focusable id='outer' inactive={focused} onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
+      <div style={{ margin: '1rem' }}>
+        <FlexCol gap='0.5rem'>
+          {[...logs].reverse().map(({ time, msg, level }) => (
+            <Focusable
+              inactive={!focused}
+              onEnter={() => copy(msg)}
+              onEscape={focusOnOuterShell}
+              id={key({ time, msg, level })}
+              key={key({ time, msg, level })}
+              ariaLabel={ariaLabel({ time, msg, level })}
+            >
+              <FlexRow between>
+                <Text color={color(level)}>{prettyAgo(time)}</Text>
+                <Text color='dark50' copy={msg}>
+                  {prettyLongText(msg.replace('...', ''), numChars(prettyAgo(time)))}
+                </Text>
+              </FlexRow>
+            </Focusable>
+          ))}
+        </FlexCol>
+      </div>
+    </Focusable>
   )
 }
 

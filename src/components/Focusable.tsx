@@ -3,20 +3,26 @@ import { ReactNode } from 'react'
 export default function Focusable({
   ariaLabel,
   children,
+  inactive,
   onEscape,
   onEnter,
+  round,
   role,
   fit,
+  id,
 }: {
   ariaLabel?: string
   children: ReactNode
+  inactive?: boolean
   onEscape?: () => void
   onEnter?: () => void
+  round?: boolean
   role?: string
   fit?: boolean
+  id?: string
 }) {
   const style: React.CSSProperties = {
-    borderRadius: fit ? '0.5rem' : undefined,
+    borderRadius: round ? '0.5rem' : undefined,
     width: fit ? 'fit-content' : '100%',
   }
 
@@ -35,11 +41,12 @@ export default function Focusable({
 
   return (
     <div
-      tabIndex={0}
+      id={id}
       style={style}
       className='focusable'
       role={role ?? 'button'}
       onKeyDown={handleKeyDown}
+      tabIndex={inactive ? -1 : 0}
       aria-label={ariaLabel ?? 'Focusable element'}
     >
       {children}

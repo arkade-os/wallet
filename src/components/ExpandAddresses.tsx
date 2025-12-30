@@ -57,13 +57,13 @@ export default function ExpandAddresses({
     setExpand(!expand)
   }
 
-  const handleKeyDown = (value: string) => {
+  const onEnter = (value: string) => {
     handleCopy(value)
     onClick(value)
   }
 
   const ExpandLine = ({ testId, title, value }: { testId: string; title: string; value: string }) => (
-    <Focusable onEnter={() => handleKeyDown(value)}>
+    <Focusable onEnter={() => onEnter(value)}>
       <FlexRow between onClick={() => onClick(value)}>
         <FlexCol gap='0'>
           <TextSecondary>{title}</TextSecondary>

@@ -17,7 +17,7 @@ export default function Toggle({ checked, onClick, text, subtext, testId }: Togg
     <FlexCol border gap='0' padding='0 0 1rem 0'>
       <FlexRow between onClick={onClick}>
         <Text thin>{text}</Text>
-        <Focusable onEnter={onClick} fit>
+        <Focusable onEnter={onClick} fit round>
           <IonToggle checked={checked} data-testid={testId} />
         </Focusable>
       </FlexRow>
