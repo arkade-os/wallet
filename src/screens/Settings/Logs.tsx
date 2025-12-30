@@ -41,7 +41,9 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
 
   const focusOnFirstRow = () => {
     setFocused(true)
-    const first = document.getElementById(key([...logs].reverse()[0])) as HTMLElement
+    if (logs.length === 0) return
+    const id = key([...logs].reverse()[0])
+    const first = document.getElementById(id) as HTMLElement
     if (first) first.focus()
   }
 

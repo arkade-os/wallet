@@ -138,7 +138,9 @@ export default function SwapsList() {
 
   const focusOnFirstRow = () => {
     setFocused(true)
-    const first = document.getElementById(swapHistory[0].response.id) as HTMLElement
+    if (swapHistory.length === 0) return
+    const id = key(swapHistory[0])
+    const first = document.getElementById(id) as HTMLElement
     if (first) first.focus()
   }
 
@@ -158,6 +160,8 @@ export default function SwapsList() {
     navigate(Pages.AppBoltzSwap)
   }
 
+  const key = (swap: PendingSwap) => swap.response.id
+
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
       <TextLabel>Swap history</TextLabel>
@@ -165,9 +169,9 @@ export default function SwapsList() {
         <div style={{ borderBottom: border }}>
           {swapHistory.map((swap) => (
             <Focusable
-              id={swap.response.id}
+              id={key(swap)}
+              key={key(swap)}
               inactive={!focused}
-              key={swap.response.id}
               ariaLabel={ariaLabel(swap)}
               onEscape={focusOnOuterShell}
               onEnter={() => handleClick(swap)}

@@ -20,8 +20,9 @@ export default function Table({ data }: { data: any[][] }) {
 
   const focusOnFirstRow = () => {
     setFocused(true)
-    const title = data[0][0]
-    const first = document.getElementById(title) as HTMLElement
+    if (data.length === 0) return
+    const id = data[0][0]
+    const first = document.getElementById(id) as HTMLElement
     if (first) first.focus()
   }
 

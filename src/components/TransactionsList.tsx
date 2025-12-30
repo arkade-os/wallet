@@ -114,7 +114,9 @@ export default function TransactionsList() {
 
   const focusOnFirstRow = () => {
     setFocused(true)
-    const first = document.getElementById(key(txs[0])) as HTMLElement
+    if (txs.length === 0) return
+    const id = key(txs[0])
+    const first = document.getElementById(id) as HTMLElement
     if (first) first.focus()
   }
 
