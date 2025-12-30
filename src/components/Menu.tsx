@@ -5,6 +5,7 @@ import Text from './Text'
 import FlexRow from './FlexRow'
 import { SettingsOptions } from '../lib/types'
 import FlexCol from './FlexCol'
+import Focusable from './Focusable'
 
 interface MenuProps {
   rows: Option[]
@@ -31,15 +32,17 @@ export default function Menu({ rows, styled }: MenuProps) {
   return (
     <FlexCol gap='0'>
       {rows.map(({ icon, option }) => (
-        <FlexRow key={option} between>
-          <div onClick={() => setOption(option)} style={rowStyle(option)}>
-            <FlexRow>
-              {styled ? icon : null}
-              <Text capitalize>{option}</Text>
-            </FlexRow>
-            <ArrowIcon />
-          </div>
-        </FlexRow>
+        <Focusable onEnter={() => setOption(option)} key={option}>
+          <FlexRow between>
+            <div onClick={() => setOption(option)} style={rowStyle(option)}>
+              <FlexRow>
+                {styled ? icon : null}
+                <Text capitalize>{option}</Text>
+              </FlexRow>
+              <ArrowIcon />
+            </div>
+          </FlexRow>
+        </Focusable>
       ))}
     </FlexCol>
   )
