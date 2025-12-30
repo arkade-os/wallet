@@ -96,7 +96,7 @@ export default function InputAmount({
           </IonText>
         </IonInput>
         {onMax && !disabled && !readOnly ? (
-          <Focusable onEnter={onMax}>
+          <Focusable onEnter={onMax} fit>
             <IonText
               slot='end'
               role='button'
