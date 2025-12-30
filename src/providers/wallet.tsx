@@ -30,7 +30,6 @@ const WALLET_SERVICE_WORKER_PATH = '/wallet-service-worker.mjs'
 const defaultWallet: Wallet = {
   network: '',
   nextRollover: 0,
-  isReadonly: true,
 }
 
 type SvcWallet = { reader: ServiceWorkerReadonlyWallet; writer?: ServiceWorkerWallet }
@@ -318,7 +317,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       esploraUrl,
     })
     updateWallet({ ...wallet, network, pubkey, isReadonly: false })
-    // setInitialized(true)
   }
 
   const initReadonlyWallet = async (publicKey: Uint8Array) => {
@@ -333,7 +331,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       esploraUrl,
     })
     updateWallet({ ...wallet, network, pubkey, isReadonly: true })
-    // setInitialized(true)
   }
 
   const lockWallet = async () => {
