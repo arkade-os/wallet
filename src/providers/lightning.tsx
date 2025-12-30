@@ -209,7 +209,16 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     let counter = 0
 
     // Restore swaps from Boltz endpoint
-    const { reverseSwaps, submarineSwaps } = await arkadeLightning.restoreSwaps()
+    let reverseSwaps: PendingReverseSwap[] = []
+    let submarineSwaps: PendingSubmarineSwap[] = []
+    try {
+      const result = await arkadeLightning.restoreSwaps()
+      reverseSwaps = result.reverseSwaps
+      submarineSwaps = result.submarineSwaps
+    } catch (err) {
+      consoleError(err, 'Error restoring swaps from Boltz:')
+      return 0
+    }
     if (reverseSwaps.length === 0 && submarineSwaps.length === 0) return 0
 
     // Get existing swap history to avoid duplicates
@@ -222,15 +231,23 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
 
     for (const swap of reverseSwaps) {
       if (!historyIds.has(swap.response.id)) {
-        await contractRepo.saveToContractCollection('reverseSwaps', swap, 'id')
-        counter++
+        try {
+          await contractRepo.saveToContractCollection('reverseSwaps', swap, 'id')
+          counter++
+        } catch (err) {
+          consoleError(err, `Failed to save reverse swap ${swap.response.id}`)
+        }
       }
     }
 
     for (const swap of submarineSwaps) {
       if (!historyIds.has(swap.response.id)) {
-        await contractRepo.saveToContractCollection('submarineSwaps', swap, 'id')
-        counter++
+        try {
+          await contractRepo.saveToContractCollection('submarineSwaps', swap, 'id')
+          counter++
+        } catch (err) {
+          consoleError(err, `Failed to save submarine swap ${swap.response.id}`)
+        }
       }
     }
 
