@@ -13,28 +13,27 @@ import { consoleError } from '../../lib/logs'
 export default function InitConnect() {
   const { initInfo, setInitInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { initWallet, initReadonlyWallet, svcWallet, reloadWallet, initialized } = useContext(WalletContext)
+  const { initWallet, initReadonlyWallet } = useContext(WalletContext)
 
   const { password, privateKey, publicKey } = initInfo
 
   useEffect(() => {
-    if (svcWallet && initialized) {
-      reloadWallet().then(() => navigate(Pages.Wallet))
-    }
-  }, [svcWallet, initialized])
-
-  useEffect(() => {
     if (publicKey) {
-      console.log('init readonly wallet with public key', publicKey)
       initReadonlyWallet(publicKey)
-        .then(() => setInitInfo({ ...initInfo, publicKey: undefined }))
+        .then(() => {
+          setInitInfo({ ...initInfo, publicKey: undefined })
+          navigate(Pages.Wallet)
+        })
         .catch(consoleError)
       return
     }
     if (!password || !privateKey) return
     setPrivateKey(privateKey, password)
       .then(() => initWallet(privateKey))
-      .then(() => setInitInfo({ ...initInfo, password: '', privateKey: undefined }))
+      .then(() => {
+        setInitInfo({ ...initInfo, password: '', privateKey: undefined })
+        navigate(Pages.Wallet)
+      })
       .catch(consoleError)
   }, [])
 

@@ -129,7 +129,7 @@ export default function App() {
   const page =
     jsCapabilitiesChecked && configLoaded && (aspInfo.signerPubkey || aspInfo.unreachable) ? screen : Pages.Loading
 
-  const comp = page === Pages.Loading ? <Loading /> : pageComponent(page, { readonly: Boolean(wallet.isReadonly) })
+  const comp = page === Pages.Loading ? <Loading /> : pageComponent(page)
 
   return (
     <IonApp>

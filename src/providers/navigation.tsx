@@ -97,7 +97,7 @@ const pageTab = {
   [Pages.Wallet]: Tabs.Wallet,
 }
 
-export const pageComponent = (page: Pages, ctx: { readonly: boolean }): JSX.Element => {
+export const pageComponent = (page: Pages): JSX.Element => {
   switch (page) {
     case Pages.AppBoltz:
       return <AppBoltz />
@@ -110,7 +110,7 @@ export const pageComponent = (page: Pages, ctx: { readonly: boolean }): JSX.Elem
     case Pages.AppLendaswap:
       return <AppLendaswap />
     case Pages.Apps:
-      return <Apps readonly={ctx.readonly} />
+      return <Apps />
     case Pages.Init:
       return <Init />
     case Pages.InitConnect:
@@ -228,9 +228,6 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   }, [pop])
 
   const navigate = (page: Pages) => {
-    if (Pages[page] === 'Wallet') {
-      console.log(`Navigating to ${Pages[page]}`)
-    }
     push(page)
     setScreen(page)
     setTab(pageTab[page])
