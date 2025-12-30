@@ -13,8 +13,9 @@ import {
 } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
-import { RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
+import { ContractRepositoryImpl, RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
 import { sendOffChain } from '../lib/asp'
+import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { PendingSwap } from '../lib/types'
 
 const BASE_URLS: Record<Network, string | null> = {
@@ -41,6 +42,7 @@ interface LightningContextProps {
   getSwapHistory: () => Promise<PendingSwap[]>
   getFees: () => Promise<FeesResponse | null>
   getApiUrl: () => string | null
+  restoreSwaps: () => Promise<number>
 }
 
 export const LightningContext = createContext<LightningContextProps>({
@@ -60,6 +62,7 @@ export const LightningContext = createContext<LightningContextProps>({
   getSwapHistory: async () => [],
   getFees: async () => null,
   getApiUrl: () => null,
+  restoreSwaps: async () => 0,
 })
 
 export const LightningProvider = ({ children }: { children: ReactNode }) => {
@@ -111,7 +114,6 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
   // fetch fees when arkadeLightning is ready
   useEffect(() => {
     if (!arkadeLightning) return
-
     arkadeLightning
       .getFees()
       .then(setFees)
@@ -200,6 +202,58 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
 
   const getApiUrl = (): string | null => apiUrl
 
+  const restoreSwaps = async (): Promise<number> => {
+    if (!arkadeLightning) return 0
+
+    // Counter for restored swaps
+    let counter = 0
+
+    // Restore swaps from Boltz endpoint
+    let reverseSwaps: PendingReverseSwap[] = []
+    let submarineSwaps: PendingSubmarineSwap[] = []
+    try {
+      const result = await arkadeLightning.restoreSwaps()
+      reverseSwaps = result.reverseSwaps
+      submarineSwaps = result.submarineSwaps
+    } catch (err) {
+      consoleError(err, 'Error restoring swaps from Boltz:')
+      return 0
+    }
+    if (reverseSwaps.length === 0 && submarineSwaps.length === 0) return 0
+
+    // Get existing swap history to avoid duplicates
+    const history = await arkadeLightning.getSwapHistory()
+    const historyIds = new Set(history.map((s) => s.response.id))
+
+    // Save new swaps to IndexedDB
+    const storage = new IndexedDBStorageAdapter('arkade-service-worker')
+    const contractRepo = new ContractRepositoryImpl(storage)
+
+    for (const swap of reverseSwaps) {
+      if (!historyIds.has(swap.response.id)) {
+        try {
+          await contractRepo.saveToContractCollection('reverseSwaps', swap, 'id')
+          counter++
+        } catch (err) {
+          consoleError(err, `Failed to save reverse swap ${swap.response.id}`)
+        }
+      }
+    }
+
+    for (const swap of submarineSwaps) {
+      if (!historyIds.has(swap.response.id)) {
+        try {
+          await contractRepo.saveToContractCollection('submarineSwaps', swap, 'id')
+          counter++
+        } catch (err) {
+          consoleError(err, `Failed to save submarine swap ${swap.response.id}`)
+        }
+      }
+    }
+
+    return counter
+  }
+
   const swapManager = arkadeLightning?.getSwapManager() ?? null
 
   return (
@@ -219,6 +273,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
         getSwapHistory,
         getFees,
         getApiUrl,
+        restoreSwaps,
       }}
     >
       {children}

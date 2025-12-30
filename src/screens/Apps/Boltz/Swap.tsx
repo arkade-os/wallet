@@ -51,10 +51,11 @@ export default function AppBoltzSwap() {
   const refunded = !isReverse && swapInfo.refunded
   const kind = isReverse ? 'Reverse Swap' : 'Submarine Swap'
   const direction = isReverse ? 'Lightning to Arkade' : 'Arkade to Lightning'
-  const invoice = isReverse ? swapInfo.response.invoice : swapInfo.request.invoice
   const address = isReverse ? swapInfo.response.lockupAddress : swapInfo.response.address
   const total = isReverse ? swapInfo.request.invoiceAmount : swapInfo.response.expectedAmount
-  const amount = isReverse ? swapInfo.response.onchainAmount : decodeInvoice(invoice).amountSats
+  const invoice = isReverse ? swapInfo.response.invoice : swapInfo.request.invoice
+  const decodedInvoice = invoice ? decodeInvoice(invoice) : { amountSats: total, note: '' }
+  const amount = isReverse ? swapInfo.response.onchainAmount : decodedInvoice.amountSats
 
   const formatAmount = (amt: number) => (config.showBalance ? prettyAmount(amt) : prettyHide(amt))
 
@@ -62,12 +63,12 @@ export default function AppBoltzSwap() {
     ['When', prettyAgo(swapInfo.createdAt)],
     ['Kind', kind],
     ['Swap ID', swapInfo.response.id],
-    ['Description', decodeInvoice(invoice).note || 'N/A'],
+    ['Description', decodedInvoice.note],
     ['Direction', direction],
     ['Date', prettyDate(swapInfo.createdAt)],
     ['Invoice', invoice],
-    ['Preimage', swapInfo.preimage || 'N/A'],
-    ['Address', address || 'N/A'],
+    ['Preimage', swapInfo.preimage],
+    ['Address', address],
     ['Status', swapInfo.status],
     ['Amount', formatAmount(amount)],
     ['Fees', formatAmount(total - amount)],
