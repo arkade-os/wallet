@@ -13,9 +13,11 @@ import Content from '../../components/Content'
 import Padded from '../../components/Padded'
 import CenterScreen from '../../components/CenterScreen'
 import Button from '../../components/Button'
+import { NavigationContext, Pages } from '../../providers/navigation'
 
 export default function Unlock() {
   const { initWallet, initReadonlyWallet } = useContext(WalletContext)
+  const { navigate } = useContext(NavigationContext)
 
   const [error, setError] = useState('')
   const [password, setPassword] = useState('')
@@ -25,13 +27,16 @@ export default function Unlock() {
     const pass = password ? password : defaultPassword
     const walletFromStorage = readWalletFromStorage()
     if (walletFromStorage?.isReadonly && walletFromStorage.pubkey) {
-      initReadonlyWallet(hexToBytes(walletFromStorage.pubkey)).catch((err) => {
-        consoleError(err, 'error initializing readonly wallet')
-        setStage('failed-publickey')
-      })
+      initReadonlyWallet(hexToBytes(walletFromStorage.pubkey))
+        .then(() => navigate(Pages.Wallet))
+        .catch((err) => {
+          consoleError(err, 'error initializing readonly wallet')
+          setStage('failed-publickey')
+        })
     } else {
       getPrivateKey(pass)
         .then(initWallet)
+        .then(() => navigate(Pages.Wallet))
         .catch((err) => {
           setStage('failed-privatekey')
           if (password) {
