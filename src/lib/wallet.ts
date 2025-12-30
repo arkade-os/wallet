@@ -4,7 +4,7 @@ import { Vtxo } from './types'
 import { Indexer } from './indexer'
 import { AspInfo } from '../providers/asp'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
-import { IWallet } from '@arkade-os/sdk'
+import { IReadonlyWallet } from '@arkade-os/sdk'
 
 const DERIVATION_PATH = "m/44/1237/0'"
 
@@ -18,7 +18,7 @@ export const getPrivateKeyFromSeed = (seed: Uint8Array): string => {
   return hex.encode(deriveKeyFromSeed(seed))
 }
 
-export const calcNextRollover = async (vtxos: Vtxo[], wallet: IWallet, aspInfo: AspInfo): Promise<number> => {
+export const calcNextRollover = async (vtxos: Vtxo[], wallet: IReadonlyWallet, aspInfo: AspInfo): Promise<number> => {
   if (vtxos.length === 0) {
     const utxos = await getConfirmedAndNotExpiredUtxos(wallet)
     if (utxos.length === 0) return 0

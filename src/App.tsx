@@ -80,7 +80,7 @@ export default function App() {
     if (aspInfo.unreachable) return navigate(Pages.Unavailable)
     if (jsCapabilitiesChecked && !isCapable) return navigate(Pages.Unavailable)
     // avoid redirect if the user is still setting up the wallet
-    if (initInfo.password || initInfo.privateKey) return
+    if (initInfo.password || initInfo.privateKey || initInfo.publicKey) return
     if (!walletLoaded) return navigate(Pages.Loading)
     if (!wallet.pubkey) return navigate(pwaIsInstalled() ? Pages.Init : Pages.Onboard)
     if (!initialized) return navigate(Pages.Unlock)
@@ -156,14 +156,16 @@ export default function App() {
                   </FlexCol>
                 </Focusable>
               </IonTabButton>
-              <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps}>
-                <Focusable>
-                  <FlexCol centered gap='6px' padding='5px' testId='tab-apps'>
-                    <AppsIcon />
-                    Apps
-                  </FlexCol>
-                </Focusable>
-              </IonTabButton>
+              {!wallet.isReadonly ? (
+                <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps}>
+                  <Focusable>
+                    <FlexCol centered gap='6px' padding='5px' testId='tab-apps'>
+                      <AppsIcon />
+                      Apps
+                    </FlexCol>
+                  </Focusable>
+                </IonTabButton>
+              ) : null}
               <IonTabButton tab={Tabs.Settings} onClick={handleSettings} selected={tab === Tabs.Settings}>
                 <Focusable>
                   <FlexCol centered gap='6px' padding='5px' testId='tab-settings'>

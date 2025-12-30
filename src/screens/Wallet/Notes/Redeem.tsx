@@ -40,13 +40,13 @@ export default function NotesRedeem() {
     navigate(Pages.NotesForm)
   }
 
-  if (!svcWallet) return <Loading text='Loading...' />
+  if (!svcWallet?.writer) return <Loading text='Loading...' />
 
   const handleRedeem = async () => {
     setError('')
     setRedeeming(true)
     try {
-      await redeemNotes(svcWallet, [noteInfo.note])
+      await redeemNotes(svcWallet.writer!, [noteInfo.note])
       navigate(Pages.NotesSuccess)
     } catch (err) {
       consoleError(err, 'error redeeming note')

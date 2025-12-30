@@ -40,7 +40,7 @@ export default function Keyboard({ back, hideBalance, onSats, value }: KeyboardP
 
   useEffect(() => {
     if (!svcWallet) return
-    svcWallet.getBalance().then((bal) => setAvailable(bal.available))
+    svcWallet.reader.getBalance().then((bal) => setAvailable(bal.available))
   }, [balance])
 
   useEffect(() => {

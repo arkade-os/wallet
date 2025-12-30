@@ -6,7 +6,7 @@ export default function Refresher() {
   const { reloadWallet, svcWallet } = useContext(WalletContext)
 
   const handleRefresh = async (event: { detail: { complete(): void } }) => {
-    await svcWallet?.reload()
+    await svcWallet?.reader.reload()
     await reloadWallet()
     event.detail.complete()
   }

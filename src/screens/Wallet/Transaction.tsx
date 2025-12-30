@@ -23,6 +23,7 @@ import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { LimitsContext } from '../../providers/limits'
 import { getInputsToSettle } from '../../lib/asp'
+import ReadonlyWallet from '../../components/ReadonlyWallet'
 
 export default function Transaction() {
   const { navigate } = useContext(NavigationContext)
@@ -67,8 +68,8 @@ export default function Transaction() {
   }, [wallet.nextRollover])
 
   useEffect(() => {
-    if (!aspInfo || !svcWallet) return
-    getInputsToSettle(svcWallet, wallet.thresholdMs).then(({ inputs }) => {
+    if (!aspInfo || !svcWallet?.writer) return
+    getInputsToSettle(svcWallet.writer, wallet.thresholdMs).then(({ inputs }) => {
       setHasInputsToSettle(inputs.length > 0)
       const totalAmount = inputs.reduce((a, v) => a + v.value, 0) || 0
       setAmountAboveDust(totalAmount > aspInfo.dust)
@@ -125,6 +126,7 @@ export default function Transaction() {
   const Body = () => (
     <Content>
       <Padded>
+        {wallet.isReadonly ? <ReadonlyWallet /> : null}
         <FlexCol>
           <ErrorMessage error={Boolean(error)} text={error} />
           {expiredBoardingTx ? (

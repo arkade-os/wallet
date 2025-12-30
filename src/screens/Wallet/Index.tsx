@@ -18,15 +18,17 @@ import { NudgeContext } from '../../providers/nudge'
 import { EmptyTxList } from '../../components/Empty'
 import { InfoBox } from '../../components/AlertBox'
 import { psaMessage } from '../../lib/constants'
+import ReadonlyWallet from '../../components/ReadonlyWallet'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { nudge } = useContext(NudgeContext)
-  const { balance, txs } = useContext(WalletContext)
+  const { balance, txs, wallet } = useContext(WalletContext)
 
   const [error, setError] = useState(false)
+  const isReadonly = !!wallet?.isReadonly
 
   useEffect(() => {
     setError(aspInfo.unreachable)
@@ -50,8 +52,9 @@ export default function Wallet() {
             <LogoIcon small />
             <Balance amount={balance} />
             <ErrorMessage error={error} text='Ark server unreachable' />
+            {!!isReadonly && <ReadonlyWallet />}
             <FlexRow padding='0 0 0.5rem 0'>
-              <Button main icon={<SendIcon />} label='Send' onClick={handleSend} />
+              {!isReadonly ? <Button main icon={<SendIcon />} label='Send' onClick={handleSend} /> : null}
               <Button main icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
             </FlexRow>
             {nudge ? nudge : psaMessage ? <InfoBox html={psaMessage} /> : null}

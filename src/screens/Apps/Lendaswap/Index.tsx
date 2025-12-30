@@ -22,7 +22,7 @@ export default function AppLendaswap() {
     const loadAddress = async () => {
       if (svcWallet) {
         try {
-          const addresses = await getReceivingAddresses(svcWallet)
+          const addresses = await getReceivingAddresses(svcWallet.reader)
           setArkAddress(addresses.offchainAddr)
         } catch (error) {
           console.error('Failed to load Ark address:', error)
@@ -68,7 +68,7 @@ export default function AppLendaswap() {
           }
         },
         async onSendToAddress(address: string, amount: number, asset: 'bitcoin' | LoanAsset): Promise<string> {
-          if (!svcWallet) {
+          if (!svcWallet?.writer) {
             throw Error('Wallet not initialized')
           }
 
@@ -79,14 +79,14 @@ export default function AppLendaswap() {
           switch (asset) {
             case 'bitcoin':
               if (isArkAddress(address)) {
-                const txId = await svcWallet?.sendBitcoin({ amount, address })
+                const txId = await svcWallet.writer.sendBitcoin({ amount, address })
                 if (txId) {
                   return txId
                 } else {
                   throw new Error('Unable to send bitcoin')
                 }
               } else if (isBTCAddress(address)) {
-                return await collaborativeExit(svcWallet, amount, address)
+                return await collaborativeExit(svcWallet.writer, amount, address)
               } else {
                 throw Error(`Unsupported address ${address}`)
               }
