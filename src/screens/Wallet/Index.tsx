@@ -19,6 +19,7 @@ import { EmptyTxList } from '../../components/Empty'
 import { InfoBox } from '../../components/AlertBox'
 import { psaMessage } from '../../lib/constants'
 import { AnnouncementContext } from '../../providers/announcements'
+import ReadonlyWallet from '../../components/ReadonlyWallet'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
@@ -55,10 +56,9 @@ export default function Wallet() {
               <LogoIcon small />
               <Balance amount={balance} />
               <ErrorMessage error={error} text='Ark server unreachable' />
+              {!!isReadonly && <ReadonlyWallet />}
               <FlexRow padding='0 0 0.5rem 0'>
-                {!isReadonly ? (
-                  <Button main icon={<SendIcon />} disabled={!svcWallet?.writer} label='Send' onClick={handleSend} />
-                ) : null}
+                {!isReadonly ? <Button main icon={<SendIcon />} label='Send' onClick={handleSend} /> : null}
                 <Button main icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
               </FlexRow>
               {nudge ? nudge : psaMessage ? <InfoBox html={psaMessage} /> : null}

@@ -24,6 +24,7 @@ import WarningBox from '../../components/Warning'
 import { ExtendedCoin, ExtendedVirtualCoin, isVtxoExpiringSoon } from '@arkade-os/sdk'
 import { consoleError } from '../../lib/logs'
 import { IonCol, IonGrid, IonRow } from '@ionic/react'
+import ReadonlyWallet from '../../components/ReadonlyWallet'
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -244,6 +245,8 @@ export default function Vtxos() {
         text={showList ? 'Virtual Coins' : 'Next Renewal'}
       />
       <Content>
+        {!!wallet.isReadonly && <ReadonlyWallet />}
+
         {rollingover ? (
           <WaitingForRound rollover />
         ) : (
@@ -286,11 +289,7 @@ export default function Vtxos() {
                       <Text>{prettyDate(wallet.nextRollover)}</Text>
                       <Text>{prettyAgo(wallet.nextRollover)}</Text>
                     </Box>
-                    {svcWallet.writer ? (
-                      <WarningBox green text='Coins renewed successfully' />
-                    ) : (
-                      <WarningBox text='This is a readonly wallet' />
-                    )}
+                    <WarningBox green text='Coins renewed successfully' />
                   </FlexCol>
                   <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
                     <TextSecondary>First virtual coin expiration: {prettyAgo(wallet.nextRollover)}.</TextSecondary>
