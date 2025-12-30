@@ -165,7 +165,7 @@ export default function App() {
                     </FlexCol>
                   </Focusable>
                 </IonTabButton>
-                ) : null}
+              ) : null}
               <IonTabButton tab={Tabs.Settings} onClick={handleSettings} selected={tab === Tabs.Settings}>
                 <Focusable>
                   <FlexCol centered gap='6px' padding='5px' testId='tab-settings'>
