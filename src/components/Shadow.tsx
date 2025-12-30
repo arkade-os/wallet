@@ -50,7 +50,7 @@ export default function Shadow({
   }
 
   return (
-    <div style={style} onClick={onClick} data-testid={testId}>
+    <div data-testid={testId} onClick={onClick} style={style}>
       {children}
     </div>
   )

@@ -1,4 +1,4 @@
-import { useContext } from 'react'
+import { useContext, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
@@ -11,14 +11,13 @@ import { NavigationContext, Pages } from '../providers/navigation'
 import { ConfigContext } from '../providers/config'
 import { FiatContext } from '../providers/fiat'
 import PreconfirmedIcon from '../icons/Preconfirmed'
+import Focusable from './Focusable'
 
 const border = '1px solid var(--dark20)'
 
-const TransactionLine = ({ tx }: { tx: Tx }) => {
+const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   const { config } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
-  const { setTxInfo } = useContext(FlowContext)
-  const { navigate } = useContext(NavigationContext)
 
   const prefix = tx.type === 'sent' ? '-' : '+'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount) : prettyHide(tx.amount)}`
@@ -42,6 +41,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
       </Text>
     )
   }
+
   const Icon = () =>
     tx.type === 'sent' ? (
       <SentIcon />
@@ -50,18 +50,16 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
     ) : (
       <ReceivedIcon dotted={tx.preconfirmed} />
     )
+
   const Kind = () => <Text thin>{tx.type === 'sent' ? 'Sent' : 'Received'}</Text>
-  const Date = () => <TextSecondary>{date}</TextSecondary>
+
+  const When = () => <TextSecondary>{date}</TextSecondary>
+
   const Sats = () => (
     <Text color={tx.type === 'received' ? (tx.preconfirmed && tx.boardingTxid ? 'orange' : 'green') : ''} thin>
       {amount}
     </Text>
   )
-
-  const handleClick = () => {
-    setTxInfo(tx)
-    navigate(Pages.Transaction)
-  }
 
   const rowStyle = {
     alignItems: 'center',
@@ -75,7 +73,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
       <Icon />
       <div>
         <Kind />
-        <Date />
+        <When />
       </div>
     </FlexRow>
   )
@@ -96,7 +94,7 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
   )
 
   return (
-    <div style={rowStyle} onClick={handleClick}>
+    <div style={rowStyle} onClick={onClick}>
       <FlexRow>
         <Left />
         <Right />
@@ -106,18 +104,57 @@ const TransactionLine = ({ tx }: { tx: Tx }) => {
 }
 
 export default function TransactionsList() {
+  const { setTxInfo } = useContext(FlowContext)
+  const { navigate } = useContext(NavigationContext)
   const { txs } = useContext(WalletContext)
 
+  const [focused, setFocused] = useState(false)
+
   const key = (tx: Tx) => `${tx.amount}${tx.createdAt}${tx.boardingTxid}${tx.roundTxid}${tx.redeemTxid}${tx.type}`
+
+  const focusOnFirstRow = () => {
+    setFocused(true)
+    if (txs.length === 0) return
+    const id = key(txs[0])
+    const first = document.getElementById(id) as HTMLElement
+    if (first) first.focus()
+  }
+
+  const focusOnOuterShell = () => {
+    setFocused(false)
+    const outer = document.getElementById('outer') as HTMLElement
+    if (outer) outer.focus()
+  }
+
+  const ariaLabel = (tx?: Tx) => {
+    if (!tx) return 'Pressing Enter enables keyboard navigation of the transaction list'
+    return `Transaction ${tx.type} of amount ${tx.amount}. Press Escape to exit keyboard navigation.`
+  }
+
+  const handleClick = (tx: Tx) => {
+    setTxInfo(tx)
+    navigate(Pages.Transaction)
+  }
 
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
       <TextLabel>Transaction history</TextLabel>
-      <div style={{ borderBottom: border }}>
-        {txs.map((tx) => (
-          <TransactionLine key={key(tx)} tx={tx} />
-        ))}
-      </div>
+      <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
+        <div style={{ borderBottom: border }}>
+          {txs.map((tx) => (
+            <Focusable
+              id={key(tx)}
+              key={key(tx)}
+              inactive={!focused}
+              onEnter={() => handleClick(tx)}
+              onEscape={focusOnOuterShell}
+              ariaLabel={ariaLabel(tx)}
+            >
+              <TransactionLine onClick={() => handleClick(tx)} tx={tx} />
+            </Focusable>
+          ))}
+        </div>
+      </Focusable>
     </div>
   )
 }

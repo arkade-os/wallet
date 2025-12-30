@@ -16,6 +16,7 @@ import { consoleError, consoleLog } from '../lib/logs'
 import { ContractRepositoryImpl, RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
 import { sendOffChain } from '../lib/asp'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
+import { PendingSwap } from '../lib/types'
 
 const BASE_URLS: Record<Network, string | null> = {
   bitcoin: import.meta.env.VITE_BOLTZ_URL ?? 'https://api.ark.boltz.exchange',
@@ -38,7 +39,7 @@ interface LightningContextProps {
   claimVHTLC: (swap: PendingReverseSwap) => Promise<void>
   refundVHTLC: (swap: PendingSubmarineSwap) => Promise<void>
   payInvoice: (swap: PendingSubmarineSwap) => Promise<{ txid: string; preimage: string }>
-  getSwapHistory: () => Promise<(PendingReverseSwap | PendingSubmarineSwap)[]>
+  getSwapHistory: () => Promise<PendingSwap[]>
   getFees: () => Promise<FeesResponse | null>
   getApiUrl: () => string | null
   restoreSwaps: () => Promise<number>
@@ -189,7 +190,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const getSwapHistory = async (): Promise<(PendingReverseSwap | PendingSubmarineSwap)[]> => {
+  const getSwapHistory = async (): Promise<PendingSwap[]> => {
     if (!arkadeLightning) return []
     return arkadeLightning.getSwapHistory()
   }

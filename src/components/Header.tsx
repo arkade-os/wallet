@@ -4,6 +4,7 @@ import Shadow from './Shadow'
 import Text from './Text'
 import FlexRow from './FlexRow'
 import React from 'react'
+import Focusable from './Focusable'
 
 interface HeaderProps {
   auxAriaLabel?: string
@@ -15,8 +16,8 @@ interface HeaderProps {
 }
 
 export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, auxIcon }: HeaderProps) {
-  const SideButton = (text: string, onClick = () => {}) => (
-    <Shadow onClick={onClick}>
+  const SideButton = (text: string) => (
+    <Shadow>
       <Text color='dark80' centered tiny wrap>
         {text}
       </Text>
@@ -34,18 +35,26 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
   return (
     <IonHeader style={{ boxShadow: 'none' }}>
       <FlexRow between>
-        <div style={{ minWidth: '4rem' }}>
+        <div style={{ minWidth: '4rem', marginLeft: '0.5rem' }}>
           {back ? (
-            <div onClick={back} style={{ cursor: 'pointer', marginLeft: '0.5rem' }} aria-label='Go back'>
-              <BackIcon />
-            </div>
+            <Focusable onEnter={back} fit round>
+              <div onClick={back} style={{ cursor: 'pointer' }} aria-label='Go back'>
+                <BackIcon />
+              </div>
+            </Focusable>
           ) : (
             '\u00A0'
           )}
         </div>
         <IonTitle className='ion-text-center'>{text}</IonTitle>
         <div style={style} onClick={auxFunc} aria-label={auxAriaLabel}>
-          {auxText ? SideButton(auxText) : auxIcon ? auxIcon : '\u00A0'}
+          {auxText || auxIcon ? (
+            <Focusable onEnter={auxFunc} fit round>
+              {auxText ? SideButton(auxText) : <div style={{ padding: '0.5rem' }}>{auxIcon}</div>}
+            </Focusable>
+          ) : (
+            '\u00A0'
+          )}
         </div>
       </FlexRow>
     </IonHeader>
