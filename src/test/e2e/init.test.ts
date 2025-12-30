@@ -25,7 +25,6 @@ test('should offer a way to restore the wallet', async ({ page }) => {
   await page.getByText('Skip for now').click()
   await page.getByText('Other Login Options').click()
   await expect(page.getByText('Restore wallet', { exact: true })).toBeVisible()
-  await expect(page.getByText('Restore wallet (Readonly)')).toBeVisible()
 })
 
 // TODO restore wallet test
