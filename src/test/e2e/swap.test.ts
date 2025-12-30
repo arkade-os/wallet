@@ -16,7 +16,7 @@ test('should be connected to Boltz app', async ({ page }) => {
   await page.getByText('Maybe later').click()
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-Boltz').click()
+  await page.getByTestId('app-boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Connection status')).toBeVisible()
   await expect(page.getByText('http://localhost:')).toBeVisible()
@@ -51,13 +51,9 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   await page.getByText('Continue').click()
 
   // copy invoice
-  await page
-    .locator('div')
-    .filter({ hasText: /^Copy address$/ })
-    .nth(2)
-    .click()
+  await page.getByText('Copy address').click()
   await expect(page.getByText('Lightning invoice')).toBeVisible()
-  await page.locator('svg').nth(6).click() // copy invoice to clipboard
+  await page.getByTestId('invoice-address-copy').click() // copy invoice to clipboard
   const invoice = await readClipboard(page)
   expect(invoice).toBeDefined()
   expect(invoice).toBeTruthy()
@@ -78,7 +74,7 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-Boltz').click()
+  await page.getByTestId('app-boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Successful')).toBeVisible()
   await expect(page.getByText('+ 1,992')).toBeVisible()
@@ -98,16 +94,14 @@ test('should send funds to Lightning', async ({ page }) => {
   // receive page
   await page.getByText('Receive').click()
   await page.getByText('Skip').click()
-  await page
-    .locator('div')
-    .filter({ hasText: /^Copy address$/ })
-    .nth(5)
-    .click()
-  await page.getByRole('img').nth(5).click()
+  await page.getByText('Copy address').click()
+  await expect(page.getByText('Ark address')).toBeVisible()
+  await page.getByTestId('ark-address-copy').click() // copy to clipboard
   await page.waitForTimeout(500)
   const arkAddress = await readClipboard(page)
   expect(arkAddress).toBeDefined()
   expect(arkAddress).toBeTruthy()
+
   // faucet
   exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
   await page.waitForSelector('text=Payment received!')
@@ -142,7 +136,7 @@ test('should send funds to Lightning', async ({ page }) => {
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-Boltz').click()
+  await page.getByTestId('app-boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Successful')).toBeVisible()
   await expect(page.getByText('- 1,001')).toBeVisible()
@@ -162,12 +156,9 @@ test('should refund failing swap', async ({ page }) => {
   // receive page
   await page.getByText('Receive').click()
   await page.getByText('Skip').click()
-  await page
-    .locator('div')
-    .filter({ hasText: /^Copy address$/ })
-    .nth(5)
-    .click()
-  await page.getByRole('img').nth(5).click()
+  await page.getByText('Copy address').click()
+  await expect(page.getByText('Ark address')).toBeVisible()
+  await page.getByTestId('ark-address-copy').click() // copy to clipboard
   await page.waitForTimeout(500)
   const arkAddress = await readClipboard(page)
   expect(arkAddress).toBeDefined()
@@ -210,7 +201,7 @@ test('should refund failing swap', async ({ page }) => {
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-Boltz').click()
+  await page.getByTestId('app-boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Refunded')).toBeVisible()
   await expect(page.getByText('- 1,001')).toBeVisible()

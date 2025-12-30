@@ -363,8 +363,8 @@ export default function SendForm() {
 
   const handleEnter = () => {
     if (!buttonDisabled) return handleContinue()
-    if (!amount) return setFocus('amount')
-    if (!recipient) return setFocus('recipient')
+    if (!amount && focus === 'recipient') setFocus('amount')
+    if (!recipient && focus === 'amount') setFocus('recipient')
   }
 
   const handleFocus = () => {
