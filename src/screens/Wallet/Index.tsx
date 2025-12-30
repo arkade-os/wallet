@@ -18,7 +18,7 @@ import { NudgeContext } from '../../providers/nudge'
 import { EmptyTxList } from '../../components/Empty'
 import { InfoBox } from '../../components/AlertBox'
 import { psaMessage } from '../../lib/constants'
-import { AnnouncementContext } from '../../providers/annoucements'
+import { AnnouncementContext } from '../../providers/announcements'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)

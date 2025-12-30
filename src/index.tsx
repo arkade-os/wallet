@@ -16,7 +16,7 @@ import * as Sentry from '@sentry/react'
 import { LightningProvider } from './providers/lightning'
 import { shouldInitializeSentry } from './lib/sentry'
 import { FeesProvider } from './providers/fees'
-import { AnnouncementProvider } from './providers/annoucements'
+import { AnnouncementProvider } from './providers/announcements'
 
 // Initialize Sentry only in production and when DSN is provided
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN
