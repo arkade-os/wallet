@@ -220,12 +220,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const reloadWallet = useCallback(async () => {
     if (!svcWallet) return
     try {
-      await svcWallet.reader.reload()
-      const [txs, vtxos, balance] = await Promise.all([
-        getTxHistory(svcWallet.reader),
-        getVtxos(svcWallet.reader),
-        getBalance(svcWallet.reader),
-      ])
+      // running them in parallel can get stale data
+      const txs = await getTxHistory(svcWallet.reader)
+      const vtxos = await getVtxos(svcWallet.reader)
+      const balance = await getBalance(svcWallet.reader)
       setWalletStates({ txs, vtxos, balance })
     } catch (err) {
       consoleError(err, 'Error reloading wallet')
@@ -258,9 +256,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       return
     }
     if (initialized) {
-      reloadWallet()
+      // there is a race condition where we may update the UI before some transactions are available
+      setTimeout(() => reloadWallet(), 250)
     }
-    // setTimeout(() => reloadWallet().catch(consoleError), 1000)
     // ping the service worker wallet status every 1 second
     const statusPollingTimer = setInterval(async () => {
       try {

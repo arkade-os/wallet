@@ -23,6 +23,7 @@ import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { LimitsContext } from '../../providers/limits'
 import { getInputsToSettle } from '../../lib/asp'
+import ReadonlyWallet from '../../components/ReadonlyWallet'
 
 export default function Transaction() {
   const { navigate } = useContext(NavigationContext)
@@ -125,6 +126,7 @@ export default function Transaction() {
   const Body = () => (
     <Content>
       <Padded>
+        {wallet.isReadonly ? <ReadonlyWallet /> : null}
         <FlexCol>
           <ErrorMessage error={Boolean(error)} text={error} />
           {expiredBoardingTx ? (
