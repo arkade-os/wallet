@@ -40,28 +40,30 @@ export default function Table({ data }: { data: any[][] }) {
   return (
     <Focusable id='outer' inactive={focused} onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
       <FlexCol gap='0.5rem'>
-        {data.map(([title, value, icon]) => (
-          <Focusable
-            id={title}
-            key={title}
-            inactive={!focused}
-            onEnter={() => copy(value)}
-            onEscape={focusOnOuterShell}
-            ariaLabel={ariaLabel(title, value)}
-          >
-            <FlexRow between>
-              <FlexRow color='dark50'>
-                {icon}
-                <Text small thin>
-                  {title}
+        {data.map(([title, value, icon]) =>
+          !value ? null : (
+            <Focusable
+              id={title}
+              key={title}
+              inactive={!focused}
+              onEnter={() => copy(value)}
+              onEscape={focusOnOuterShell}
+              ariaLabel={ariaLabel(title, value)}
+            >
+              <FlexRow between>
+                <FlexRow color='dark50'>
+                  {icon}
+                  <Text small thin>
+                    {title}
+                  </Text>
+                </FlexRow>
+                <Text color='dark' copy={value} small bold>
+                  {prettyLongText(value)}
                 </Text>
               </FlexRow>
-              <Text color='dark' copy={value} small bold>
-                {prettyLongText(value)}
-              </Text>
-            </FlexRow>
-          </Focusable>
-        ))}
+            </Focusable>
+          ),
+        )}
       </FlexCol>
     </Focusable>
   )
