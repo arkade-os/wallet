@@ -30,9 +30,11 @@ export default function InitConnect() {
 
   useEffect(() => {
     if (publicKey) {
-      console.log('init readonly wallet with public key', publicKey)
       initReadonlyWallet(publicKey)
-        .then(() => setInitInfo({ ...initInfo, publicKey: undefined }))
+        .then(() => {
+          setInitInfo({ ...initInfo, publicKey: undefined })
+          navigate(Pages.Wallet)
+        })
         .catch(consoleError)
       return
     }
