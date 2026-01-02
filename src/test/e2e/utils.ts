@@ -73,7 +73,7 @@ async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = f
       await page.getByTestId('keyboard-0').click()
       await page.getByText('Save').click()
     } else {
-      await page.locator('ion-input[name="receive-amount"] input').fill('2000')
+      await page.locator('ion-input[name="receive-amount"] input').fill(sats.toString())
     }
     await page.getByText('Continue').click()
   } else {
