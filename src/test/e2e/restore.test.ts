@@ -32,6 +32,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   await page.getByText('Skip for now').click()
   await page.getByText('+ Create wallet').click()
   await page.getByText('Go to wallet').click()
+  await page.getByText('Maybe later').click()
 
   /**
    * 2. reverse swap
@@ -130,6 +131,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   await page.getByText('Continue').click()
   await expect(page.getByText('Wallet restored successfully!')).toBeVisible()
   await page.getByText('Go to wallet').click()
+  await page.getByText('Maybe later').click()
   await page.waitForTimeout(1000)
 
   /**
