@@ -6,6 +6,7 @@ import { BackupProvider } from '../lib/backup'
 import { consoleError } from '../lib/logs'
 
 const defaultConfig: Config = {
+  announcementsSeen: [],
   apps: { boltz: { connected: true } },
   aspUrl: defaultArkServer(),
   currencyDisplay: CurrencyDisplay.Both,

@@ -8,7 +8,10 @@ import { copyToClipboard } from '../lib/clipboard'
 import { useIonToast } from '@ionic/react'
 import { copiedToClipboard } from '../lib/toast'
 
-export default function Table({ data }: { data: any[][] }) {
+export type TableLine = [string, string | undefined, JSX.Element?]
+export type TableData = TableLine[]
+
+export default function Table({ data }: { data: TableData }) {
   const [focused, setFocused] = useState(false)
 
   const [present] = useIonToast()
@@ -41,7 +44,7 @@ export default function Table({ data }: { data: any[][] }) {
     <Focusable id='outer' inactive={focused} onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
       <FlexCol gap='0.5rem'>
         {data.map(([title, value, icon]) =>
-          !value ? null : (
+          value == '' || value === undefined || value === null ? null : (
             <Focusable
               id={title}
               key={title}
