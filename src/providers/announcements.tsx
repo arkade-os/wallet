@@ -8,10 +8,10 @@ import {
 } from '../components/Announcement'
 
 const announcements = [
-  { id: 'boltz', component: BoltzAnnouncement },
-  { id: 'lendasat', component: LendaSatAnnouncement },
-  { id: 'lendaswap', component: LendaSwapAnnouncement },
+  { id: 'boltz', component: BoltzAnnouncement, inactive: true },
   { id: 'nostr backups', component: NostrBackupsAnnouncement },
+  { id: 'lendaswap', component: LendaSwapAnnouncement },
+  { id: 'lendasat', component: LendaSatAnnouncement },
 ]
 
 interface AnnouncementContextProps {
@@ -31,8 +31,8 @@ export const AnnouncementProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!config || !config.pubkey || seen.current) return
-    const announcedIds = announcements.map((a) => a.id)
-    for (const id of announcedIds) {
+    const announcementsIds = announcements.filter((a) => !a.inactive).map((a) => a.id)
+    for (const id of announcementsIds) {
       if (!config.announcementsSeen.includes(id)) {
         const announcementComp = announcements.find((a) => a.id === id)
         if (announcementComp) {
