@@ -17,7 +17,8 @@ import { NavigationContext, Pages } from '../providers/navigation'
 // icon with pretty gradient background
 const PrettyIcon = ({ color, icon }: { color?: string; icon: React.ReactNode }) => {
   const { config } = useContext(ConfigContext)
-  const _color = color ?? (config.theme === Themes.Dark ? '#ffffff' : '#000000')
+  const defaultColor = config.theme === Themes.Dark ? '#ffffff' : '#000000'
+  const _color = color?.startsWith('#') ? color : defaultColor
   const circle = 'circle at 50% -70%'
   const gradient = [_color + 'dd 0%', _color + '00 70%']
   return (
@@ -62,8 +63,8 @@ const BulletPoint = ({ point }: { point: string[] }) => (
       <OkIcon />
     </div>
     <FlexCol gap='0'>
-      <Text>{point[0]}</Text>
-      <TextSecondary>{point[1]}</TextSecondary>
+      <Text>{point[0] ?? ''}</Text>
+      {point[1] ? <TextSecondary>{point[1]}</TextSecondary> : null}
     </FlexCol>
   </FlexRow>
 )

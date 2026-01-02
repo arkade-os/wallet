@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { readClipboard } from './utils'
+import { createWallet, getNsec, pay, receiveLightning, resetWallet, restoreWallet } from './utils'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 
@@ -18,17 +18,8 @@ const execAsync = promisify(exec)
 // 9. Restore wallet with nsec key
 // 10. Verify setting is euro (proving it was restored from nostr)
 test('should save config to nostr', async ({ page }) => {
-  // start
-  await page.goto('/')
-
-  // create new wallet
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Skip for now').click()
-  await page.getByText('+ Create wallet').click()
-  await page.getByText('Go to wallet').click()
-  await page.getByText('Maybe later').click()
+  // create wallet
+  await createWallet(page)
 
   // enable nostr backups
   await page.getByTestId('tab-settings').click()
@@ -46,7 +37,7 @@ test('should save config to nostr', async ({ page }) => {
   // verify fiat currency is euro
   await page.getByTestId('tab-settings').click()
   await page.getByText('general', { exact: true }).click()
-  await expect(page.getByText('EUR')).toBeVisible()
+  await expect(page.getByText('EUR')).toBeVisible({ timeout: 2000 })
 
   // disable nostr backups
   await page.getByTestId('tab-settings').click()
@@ -65,33 +56,14 @@ test('should save config to nostr', async ({ page }) => {
   await expect(page.getByText('USD')).toBeVisible()
 
   // get nsec
-  await page.getByTestId('tab-settings').click()
-  await page.getByText('backup', { exact: true }).click()
-  await page.getByText('View private key').click()
-  await page.getByText('Confirm').click()
-  const nsec = await page.getByTestId('private-key').innerText()
+  const nsec = await getNsec(page)
   expect(nsec.startsWith('nsec1')).toBe(true)
 
   // reset wallet
-  await page.getByTestId('tab-settings').click()
-  await page.getByText('Reset wallet').click()
-  await page.getByText('I have backed up my wallet').click()
-  await page.getByRole('contentinfo').getByText('Reset wallet').click()
-  await page.waitForTimeout(1000)
+  await resetWallet(page)
 
   // restore wallet
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Skip for now').click()
-  await page.getByText('Other login options').click()
-  await page.getByText('Restore wallet').click()
-  await page.locator('ion-input[name="private-key"] input').fill(nsec)
-  await page.getByText('Continue').click()
-  await expect(page.getByText('Wallet restored successfully!')).toBeVisible()
-  await page.getByText('Go to wallet').click()
-  await page.getByText('Maybe later').click()
-  await page.waitForTimeout(1000)
+  await restoreWallet(page, nsec)
 
   // verify fiat currency is euro
   await page.getByTestId('tab-settings').click()
@@ -101,37 +73,10 @@ test('should save config to nostr', async ({ page }) => {
 
 test('should save swaps to nostr', async ({ page, isMobile }) => {
   // create wallet
-  await page.goto('/')
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Skip for now').click()
-  await page.getByText('+ Create wallet').click()
-  await page.getByText('Go to wallet').click()
-  await page.getByText('Maybe later').click()
-
-  // receive page
-  await page.getByTestId('tab-wallet').click()
-  await page.getByText('Receive').click()
-  await page.locator('ion-input[name="receive-amount"] input').click()
-  if (isMobile) {
-    await page.waitForSelector('text=Save', { state: 'visible' })
-    await page.getByTestId('keyboard-2').click()
-    const btn0 = page.getByTestId('keyboard-0')
-    await btn0.click()
-    await btn0.click()
-    await btn0.click()
-    await page.getByText('Save').click()
-  } else {
-    await page.locator('ion-input[name="receive-amount"] input').fill('2000')
-  }
-  await page.getByText('Continue').click()
+  await createWallet(page)
 
   // copy invoice
-  await page.getByText('Copy address').click()
-  await expect(page.getByText('Lightning invoice')).toBeVisible()
-  await page.getByTestId('invoice-address-copy').click() // copy invoice to clipboard
-  const receiveInvoice = await readClipboard(page)
+  const receiveInvoice = await receiveLightning(page, isMobile, 2000)
   expect(receiveInvoice).toBeDefined()
   expect(receiveInvoice).toBeTruthy()
   expect(receiveInvoice).toContain('lnbcrt')
@@ -160,19 +105,13 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   expect(output).toBeTruthy()
   const outputJSON = JSON.parse(output)
   expect('payment_request' in outputJSON).toBeTruthy()
-  const invoice = outputJSON.payment_request
-  expect(invoice).toBeDefined()
-  expect(invoice).toBeTruthy()
-  expect(invoice).toContain('lnbcrt')
+  const sendInvoice = outputJSON.payment_request
+  expect(sendInvoice).toBeDefined()
+  expect(sendInvoice).toBeTruthy()
+  expect(sendInvoice).toContain('lnbcrt')
 
   // pay invoice
-  await page.getByText('Send').click()
-  await page.getByLabel('', { exact: true }).fill(invoice)
-  await page.getByText('Continue').click()
-  await page.getByText('Tap to Sign').click()
-  await page.waitForSelector('text=Payment sent!')
-  await expect(page.getByText('SATS sent successfully')).toBeVisible()
-  await page.getByTestId('tab-wallet').click()
+  await pay(page, sendInvoice, isMobile)
 
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
@@ -190,32 +129,14 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await page.getByText('Enable Nostr backups').click()
 
   // get nsec
-  await page.getByTestId('tab-settings').click()
-  await page.getByText('backup', { exact: true }).click()
-  await page.getByText('View private key').click()
-  await page.getByText('Confirm').click()
-  const nsec = await page.getByTestId('private-key').innerText()
+  const nsec = await getNsec(page)
   expect(nsec.startsWith('nsec1')).toBe(true)
 
   // reset wallet
-  await page.getByTestId('tab-settings').click()
-  await page.getByText('Reset wallet').click()
-  await page.getByText('I have backed up my wallet').click()
-  await page.getByRole('contentinfo').getByText('Reset wallet').click()
-  await page.waitForTimeout(1000)
+  await resetWallet(page)
 
   // restore wallet
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Skip for now').click()
-  await page.getByText('Other login options').click()
-  await page.getByText('Restore wallet').click()
-  await page.locator('ion-input[name="private-key"] input').fill(nsec)
-  await page.getByText('Continue').click()
-  await expect(page.getByText('Wallet restored successfully!')).toBeVisible()
-  await page.getByText('Go to wallet').click()
-  await page.getByText('Maybe later').click()
+  await restoreWallet(page, nsec)
 
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()

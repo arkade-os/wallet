@@ -7,7 +7,13 @@ import {
   NostrBackupsAnnouncement,
 } from '../components/Announcement'
 
-const announcements = [
+interface AnnouncementItem {
+  id: string
+  component: React.FC<{ close: () => void }>
+  inactive?: boolean
+}
+
+const announcements: AnnouncementItem[] = [
   { id: 'boltz', component: BoltzAnnouncement, inactive: true },
   { id: 'nostr backups', component: NostrBackupsAnnouncement },
   { id: 'lendaswap', component: LendaSwapAnnouncement },
@@ -33,7 +39,7 @@ export const AnnouncementProvider = ({ children }: { children: ReactNode }) => {
     if (!config || !config.pubkey || seen.current) return
     const announcementsIds = announcements.filter((a) => !a.inactive).map((a) => a.id)
     for (const id of announcementsIds) {
-      if (!config.announcementsSeen.includes(id)) {
+      if (!config.announcementsSeen?.includes(id)) {
         const announcementComp = announcements.find((a) => a.id === id)
         if (announcementComp) {
           const handleClose = (id: string) => {
@@ -42,12 +48,13 @@ export const AnnouncementProvider = ({ children }: { children: ReactNode }) => {
             setAnnouncement(null)
             seen.current = true
           }
-          setAnnouncement(announcementComp.component({ close: () => handleClose(id) }))
+          const Component = announcementComp.component
+          setAnnouncement(<Component close={() => handleClose(id)} />)
           return
         }
       }
     }
-  }, [config])
+  }, [config, updateConfig])
 
   return <AnnouncementContext.Provider value={{ announcement }}>{children}</AnnouncementContext.Provider>
 }
