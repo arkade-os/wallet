@@ -158,6 +158,18 @@ ion-tab-bar {
     }
     & .focusable:focus {
       background-color: transparent;
+      outline: none;
+    }
+    & .focusable:focus-visible {
+      background-color: transparent;
+      outline: 2px solid var(--purple);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      & .focusable:focus-visible {
+        transition: outline-offset 0.15s ease;
+      }
     }
   }
   & svg {
