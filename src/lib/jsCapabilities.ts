@@ -35,13 +35,9 @@ export const detectJSCapabilities = async (): Promise<JSCapabilityCheck> => {
       }
     }
 
-    // Check for IndexedDB support (required for wallet storage)
-    if (!window.indexedDB) {
-      return {
-        isSupported: false,
-        errorMessage: 'IndexedDB is required but not supported in this environment',
-      }
-    }
+    // Check for IndexedDB support (optional - will fall back to localStorage if unavailable)
+    // In Safari Lockdown mode, IndexedDB is disabled, but localStorage works fine
+    // The storage factory will handle the fallback automatically
 
     // Check for crypto.subtle support (required for cryptographic operations)
     if (!window.crypto || !window.crypto.subtle) {

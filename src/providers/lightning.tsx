@@ -15,7 +15,6 @@ import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
 import { ContractRepositoryImpl, RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
 import { sendOffChain } from '../lib/asp'
-import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { PendingSwap } from '../lib/types'
 
 const BASE_URLS: Record<Network, string | null> = {
@@ -225,9 +224,9 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     const history = await arkadeLightning.getSwapHistory()
     const historyIds = new Set(history.map((s) => s.response.id))
 
-    // Save new swaps to IndexedDB
-    const storage = new IndexedDBStorageAdapter('arkade-service-worker')
-    const contractRepo = new ContractRepositoryImpl(storage)
+    // Save new swaps to storage (IndexedDB or localStorage fallback)
+    const storage = await import('../lib/storageFactory').then((m) => m.createStorageAdapter('arkade-service-worker'))
+    const contractRepo = new ContractRepositoryImpl(storage as any)
 
     for (const swap of reverseSwaps) {
       if (!historyIds.has(swap.response.id)) {

@@ -5,9 +5,20 @@ import { getPublicKey } from 'nostr-tools/pure'
 import { NostrStorage } from './nostr'
 import { Config } from './types'
 import { consoleError } from './logs'
+import { createStorageAdapter } from './storageFactory'
+import { LocalStorageAdapter } from './localStorageAdapter'
 
-const storage = new IndexedDBStorageAdapter('arkade-service-worker')
-const contractRepo = new ContractRepositoryImpl(storage)
+let contractRepoPromise: Promise<ContractRepositoryImpl> | null = null
+
+async function getContractRepo(): Promise<ContractRepositoryImpl> {
+  if (!contractRepoPromise) {
+    contractRepoPromise = (async () => {
+      const storage = await createStorageAdapter('arkade-service-worker')
+      return new ContractRepositoryImpl(storage as IndexedDBStorageAdapter | LocalStorageAdapter)
+    })()
+  }
+  return contractRepoPromise
+}
 
 type NostrStorageData = {
   config?: Config
@@ -74,6 +85,7 @@ export class BackupProvider {
    * @param config
    */
   fullBackup = async (config: Config) => {
+    const contractRepo = await getContractRepo()
     const data: NostrStorageData = {
       config,
       reverseSwaps: (await contractRepo.getContractCollection('reverseSwaps')) as PendingReverseSwap[],
@@ -102,6 +114,7 @@ export class BackupProvider {
    * @param updateConfig func to update Config
    */
   restore = async (updateConfig: (config: Config) => void) => {
+    const contractRepo = await getContractRepo()
     const data = (await this.loadData()) as NostrStorageData
 
     if (data?.config) updateConfig(data.config)
