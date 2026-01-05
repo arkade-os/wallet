@@ -3,7 +3,6 @@ import Padded from '../../../components/Padded'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { SettingsIconLight } from '../../../icons/Settings'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { AddressType, type LoanAsset, WalletProvider } from '@lendasat/lendasat-wallet-bridge'
@@ -179,12 +178,7 @@ export default function AppLendasat() {
 
   return (
     <>
-      <Header
-        auxFunc={() => navigate(Pages.AppLendasat)}
-        auxIcon={<SettingsIconLight />}
-        text='Lendasat'
-        back={() => navigate(Pages.Apps)}
-      />
+      <Header text='Lendasat' back={() => navigate(Pages.Apps)} />
       <Content>
         <Padded>
           <FlexCol gap='2rem' between>
