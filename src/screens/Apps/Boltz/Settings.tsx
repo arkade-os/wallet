@@ -7,6 +7,8 @@ import { NavigationContext, Pages } from '../../../providers/navigation'
 import Toggle from '../../../components/Toggle'
 import Text from '../../../components/Text'
 import { LightningContext } from '../../../providers/lightning'
+import { consoleError } from '../../../lib/logs'
+import { extractError } from '../../../lib/error'
 
 export default function AppBoltzSettings() {
   const { connected, getApiUrl, restoreSwaps, toggleConnection } = useContext(LightningContext)
@@ -16,16 +18,20 @@ export default function AppBoltzSettings() {
   const [results, setResults] = useState('')
 
   useEffect(() => {
-    if (counter === 5) {
-      restoreSwaps().then((numSwapsRestored) => {
+    if (counter !== 5) return
+    restoreSwaps()
+      .then((numSwapsRestored) => {
         setResults(
           numSwapsRestored === 0
             ? 'Unable to find swaps available to restore'
             : `Successfully restored ${numSwapsRestored} swaps`,
         )
       })
-    }
-  }, [counter])
+      .catch((error) => {
+        consoleError(error, 'Error restoring swaps')
+        setResults(`Error restoring swaps: ${extractError(error)}`)
+      })
+  }, [counter, restoreSwaps])
 
   return (
     <>
