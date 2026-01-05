@@ -13,7 +13,7 @@ export async function createWallet(page: Page): Promise<void> {
   await page.getByText('Maybe later').click()
 }
 
-export async function pay(page: Page, address: string, isMobile: boolean, sats = 0): Promise<void> {
+export async function pay(page: Page, address: string, isMobile = false, sats = 0): Promise<void> {
   // go to send page
   await page.getByTestId('tab-wallet').click()
   await page.getByText('Send').click()

@@ -1,7 +1,7 @@
 import test, { expect } from '@playwright/test'
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import { createWallet, receiveLightning, receiveOffchain, waitForPaymentReceived } from './utils'
+import { createWallet, pay, receiveLightning, receiveOffchain, waitForPaymentReceived } from './utils'
 
 const execAsync = promisify(exec)
 
@@ -76,15 +76,8 @@ test('should send funds to Lightning', async ({ page }) => {
   expect(invoice).toBeTruthy()
   expect(invoice).toContain('lnbcrt')
 
-  // go to send page
-  await page.getByText('Send').click()
-  await page.getByLabel('', { exact: true }).waitFor({ state: 'visible' })
-  await page.getByLabel('', { exact: true }).fill(invoice)
-  await page.getByText('Continue').click()
-  await page.getByText('Tap to Sign').click()
-  await page.waitForSelector('text=Payment sent!')
-  await expect(page.getByText('SATS sent successfully')).toBeVisible()
-  await page.getByTestId('tab-wallet').click()
+  // pay invoice
+  await pay(page, invoice)
 
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
@@ -131,7 +124,7 @@ test('should refund failing swap', async ({ page }) => {
 
   // try to send funds to Lightning
   await page.getByText('Send').click()
-  await page.getByLabel('', { exact: true }).fill(invoice)
+  await page.locator('ion-input[name="send-address"] input').fill(invoice)
   await page.getByText('Continue').click()
   await page.getByText('Tap to Sign').click()
   await page.waitForSelector('text=Swap failed: VHTLC refunded')
