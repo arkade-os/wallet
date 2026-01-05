@@ -43,7 +43,7 @@ services:
         condition: service_healthy
   arkd-wallet:
     restart: unless-stopped
-    image: ghcr.io/arkade-os/arkd-wallet:v0.8.10
+    image: ghcr.io/arkade-os/arkd-wallet:v0.8.11
     container_name: arkd-wallet
     depends_on:
       - nbxplorer
@@ -59,7 +59,7 @@ services:
       - type: tmpfs
         target: /app/data
   arkd:
-    image: ghcr.io/arkade-os/arkd:v0.8.10
+    image: ghcr.io/arkade-os/arkd:v0.8.11
     container_name: arkd
     restart: unless-stopped
     depends_on:
@@ -229,7 +229,7 @@ services:
     volumes:
       - postgres_datadir:/var/lib/postgresql/data
   boltz-fulmine:
-    image: ghcr.io/arklabshq/fulmine:v0.3.7
+    image: ghcr.io/arklabshq/fulmine:v0.3.10
     container_name: boltz-fulmine
     environment:
       - FULMINE_ARK_SERVER=http://arkd:7070

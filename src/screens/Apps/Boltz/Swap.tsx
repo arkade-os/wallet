@@ -4,7 +4,7 @@ import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import Table from '../../../components/Table'
+import Table, { TableData } from '../../../components/Table'
 import { FlowContext } from '../../../providers/flow'
 import { decodeInvoice } from '../../../lib/bolt11'
 import { prettyAgo, prettyAmount, prettyDate, prettyHide } from '../../../lib/format'
@@ -59,7 +59,7 @@ export default function AppBoltzSwap() {
 
   const formatAmount = (amt: number) => (config.showBalance ? prettyAmount(amt) : prettyHide(amt))
 
-  const data = [
+  const data: TableData = [
     ['When', prettyAgo(swapInfo.createdAt)],
     ['Kind', kind],
     ['Swap ID', swapInfo.response.id],

@@ -1,6 +1,7 @@
-export default function LendasatIcon() {
+export default function LendasatIcon({ big }: { big?: boolean }) {
+  const size = big ? 78 : 55
   return (
-    <svg width='55' height='55' viewBox='0 0 608 608' fill='none' xmlns='http://www.w3.org/2000/svg'>
+    <svg width={size} height={size} viewBox='0 0 608 608' fill='none' xmlns='http://www.w3.org/2000/svg'>
       <circle cx='304' cy='304' r='277.5' stroke='var(--black)' strokeWidth='43' />
       <path d='M327.008 156.039L340.05 85.8164' stroke='var(--black)' strokeWidth='33.3333' />
       <path d='M238.508 527.863L251.595 457.654' stroke='var(--black)' strokeWidth='33.3333' />

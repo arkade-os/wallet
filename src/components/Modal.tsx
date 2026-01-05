@@ -30,7 +30,7 @@ export default function Modal({ children }: { children: React.ReactNode }) {
     padding: '1rem',
     maxWidth: 'min(22rem, 90%)',
     borderRadius: '0.5rem',
-    border: '1px solid rgba(251, 251, 251, 0.10)',
+    border: '1px solid var(--dark10)',
     backgroundColor: 'var(--ion-background-color)',
     pointerEvents: 'auto' as 'auto', // Enable clicks on the modal content
   }
