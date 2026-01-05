@@ -23,15 +23,9 @@ export async function pay(page: Page, address: string, isMobile: boolean, sats =
 
   // fill amount
   if (sats) {
-    await page.locator('ion-input[name="send-amount"] input').click()
     if (isMobile) {
       await page.locator('ion-input[name="send-amount"] input').click()
-      await page.waitForSelector('text=Save', { state: 'visible' })
-      const digits = sats.toString().split('')
-      for (const digit of digits) {
-        await page.getByTestId(`keyboard-${digit}`).click()
-      }
-      await page.getByText('Save').click()
+      await handleKeyboardInput(page, sats)
     } else {
       await page.locator('ion-input[name="send-amount"] input').fill(sats.toString())
     }
@@ -52,12 +46,7 @@ async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = f
   if (sats) {
     if (isMobile) {
       await page.locator('ion-input[name="receive-amount"] input').click()
-      await page.waitForSelector('text=Save', { state: 'visible' })
-      const digits = sats.toString().split('')
-      for (const digit of digits) {
-        await page.getByTestId(`keyboard-${digit}`).click()
-      }
-      await page.getByText('Save').click()
+      await handleKeyboardInput(page, sats)
     } else {
       await page.locator('ion-input[name="receive-amount"] input').fill(sats.toString())
     }
@@ -125,17 +114,24 @@ export function readClipboard(page: Page): Promise<string> {
     if (!navigator.clipboard || !navigator.clipboard.readText) {
       throw new Error('Clipboard API not available')
     }
-
     const clipboardText = await Promise.race([
       navigator.clipboard.readText(),
       new Promise<string>((_, reject) => setTimeout(() => reject(new Error('Clipboard read timeout')), 5000)),
     ])
-
     return clipboardText
   })
 }
 
 export async function waitForPaymentReceived(page: Page): Promise<void> {
   await page.waitForSelector('text=Payment received!')
-  await page.waitForTimeout(1000)
+  await page.waitForTimeout(1000) // time to update balances
+}
+
+async function handleKeyboardInput(page: Page, sats: number): Promise<void> {
+  await page.waitForSelector('text=Save', { state: 'visible' })
+  const digits = sats.toString().split('')
+  for (const digit of digits) {
+    await page.getByTestId(`keyboard-${digit}`).click()
+  }
+  await page.getByText('Save').click()
 }

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { exec } from 'child_process'
-import { createWallet, pay, receiveOffchain } from './utils'
+import { createWallet, pay, receiveOffchain, waitForPaymentReceived } from './utils'
 
 test('should send offchain funds', async ({ page, isMobile }) => {
   // create wallet
@@ -13,8 +13,7 @@ test('should send offchain funds', async ({ page, isMobile }) => {
 
   // faucet
   exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
-  await page.waitForSelector('text=Payment received!')
-  await expect(page.getByText('SATS received successfully')).toBeVisible()
+  await waitForPaymentReceived(page)
 
   // main page
   await page.getByTestId('tab-wallet').click()

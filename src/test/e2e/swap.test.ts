@@ -31,8 +31,7 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   exec(`docker exec lnd lncli --network=regtest payinvoice ${invoice} --force`)
 
   // wait for payment received
-  await page.waitForSelector('text=Payment received!')
-  await expect(page.getByText('SATS received successfully')).toBeVisible()
+  await waitForPaymentReceived(page)
   await page.getByTestId('tab-wallet').click()
 
   // main page
@@ -59,11 +58,10 @@ test('should send funds to Lightning', async ({ page }) => {
 
   // faucet
   exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
-  await page.waitForSelector('text=Payment received!')
-  await expect(page.getByText('SATS received successfully')).toBeVisible()
-  await page.getByTestId('tab-wallet').click()
+  await waitForPaymentReceived(page)
 
   // main page
+  await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
 
