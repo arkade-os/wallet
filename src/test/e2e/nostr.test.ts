@@ -104,6 +104,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   expect(sendInvoice).toContain('lnbcrt')
 
   // pay invoice
+  await page.waitForTimeout(1000)
   await pay(page, sendInvoice, isMobile)
 
   // should be visible in Boltz app

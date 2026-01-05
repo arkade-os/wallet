@@ -56,10 +56,10 @@ async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = f
     if (isMobile) {
       await page.locator('ion-input[name="receive-amount"] input').click()
       await page.waitForSelector('text=Save', { state: 'visible' })
-      await page.getByTestId('keyboard-2').click()
-      await page.getByTestId('keyboard-0').click()
-      await page.getByTestId('keyboard-0').click()
-      await page.getByTestId('keyboard-0').click()
+      const digits = sats.toString().split('')
+      for (const digit of digits) {
+        await page.getByTestId(`keyboard-${digit}`).click()
+      }
       await page.getByText('Save').click()
     } else {
       await page.locator('ion-input[name="receive-amount"] input').fill(sats.toString())
@@ -105,10 +105,9 @@ async function resetWallet(page: Page): Promise<void> {
 
 async function restoreWallet(page: Page, nsec: string): Promise<void> {
   // when running tests in succession, it seems the servers need a bit of time to reset
-  await page.waitForTimeout(2100)
+  // await page.waitForTimeout(2100)
 
   // restore wallet
-  await page.goto('/')
   await page.getByText('Continue').click()
   await page.getByText('Continue').click()
   await page.getByText('Continue').click()
