@@ -1,6 +1,6 @@
 import { promisify } from 'util'
 import { exec } from 'child_process'
-import { createWallet, getNsec, pay, receiveLightning, resetWallet, restoreWallet } from './utils'
+import { createWallet, pay, receiveLightning, resetAndRestoreWallet } from './utils'
 import { test, expect } from '@playwright/test'
 
 const execAsync = promisify(exec)
@@ -63,15 +63,8 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
    * restore wallet
    */
 
-  // get nsec
-  const nsec = await getNsec(page)
-  expect(nsec.startsWith('nsec1')).toBe(true)
-
-  // reset wallet
-  await resetWallet(page)
-
   // restore wallet with nsec
-  await restoreWallet(page, nsec)
+  await resetAndRestoreWallet(page)
 
   /**
    * verify swap history

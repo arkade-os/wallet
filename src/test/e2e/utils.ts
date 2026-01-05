@@ -1,6 +1,10 @@
 import type { Page } from '@playwright/test'
 
 export async function createWallet(page: Page): Promise<void> {
+  // when running tests in succession, it seems the servers need a bit of time to reset
+  await page.waitForTimeout(2100)
+
+  // create wallet
   await page.goto('/')
   await page.getByText('Continue').click()
   await page.getByText('Continue').click()
@@ -11,21 +15,6 @@ export async function createWallet(page: Page): Promise<void> {
   await page.getByText('Go to wallet').click()
   await page.waitForSelector('text=Maybe later', { state: 'visible' })
   await page.getByText('Maybe later').click()
-}
-
-export async function restoreWallet(page: Page, nsec: string): Promise<void> {
-  await page.goto('/')
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Skip for now').click()
-  await page.getByText('Other login options').click()
-  await page.getByText('Restore wallet').click()
-  await page.locator('ion-input[name="private-key"] input').fill(nsec)
-  await page.getByText('Continue').click()
-  await page.getByText('Go to wallet').click()
-  await page.getByText('Maybe later').click()
-  await page.waitForTimeout(2100)
 }
 
 export async function pay(page: Page, address: string, isMobile: boolean, sats = 0): Promise<void> {
@@ -64,8 +53,8 @@ async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = f
 
   // fill amount to receive if provided
   if (sats) {
-    await page.locator('ion-input[name="receive-amount"] input').click()
     if (isMobile) {
+      await page.locator('ion-input[name="receive-amount"] input').click()
       await page.waitForSelector('text=Save', { state: 'visible' })
       await page.getByTestId('keyboard-2').click()
       await page.getByTestId('keyboard-0').click()
@@ -98,7 +87,7 @@ export async function receiveLightning(page: Page, isMobile: boolean, sats: numb
   return receive(page, 'invoice', isMobile, sats)
 }
 
-export async function getNsec(page: Page): Promise<string> {
+async function getNsec(page: Page): Promise<string> {
   await page.getByTestId('tab-settings').click()
   await page.getByText('backup', { exact: true }).click()
   await page.getByText('View private key').click()
@@ -107,11 +96,38 @@ export async function getNsec(page: Page): Promise<string> {
   return nsec
 }
 
-export async function resetWallet(page: Page): Promise<void> {
+async function resetWallet(page: Page): Promise<void> {
   await page.getByTestId('tab-settings').click()
   await page.getByText('Reset wallet').click()
   await page.getByText('I have backed up my wallet').click()
   await page.getByRole('contentinfo').getByText('Reset wallet').click()
+}
+
+async function restoreWallet(page: Page, nsec: string): Promise<void> {
+  // when running tests in succession, it seems the servers need a bit of time to reset
+  await page.waitForTimeout(2100)
+
+  // restore wallet
+  await page.goto('/')
+  await page.getByText('Continue').click()
+  await page.getByText('Continue').click()
+  await page.getByText('Continue').click()
+  await page.getByText('Skip for now').click()
+  await page.getByText('Other login options').click()
+  await page.getByText('Restore wallet').click()
+  await page.locator('ion-input[name="private-key"] input').fill(nsec)
+  await page.getByText('Continue').click()
+  await page.getByText('Go to wallet').click()
+  await page.getByText('Maybe later').click()
+
+  // wait for wallet to be restored
+  await page.waitForTimeout(2100)
+}
+
+export async function resetAndRestoreWallet(page: Page): Promise<void> {
+  const nsec = await getNsec(page)
+  await resetWallet(page)
+  await restoreWallet(page, nsec)
 }
 
 export function readClipboard(page: Page): Promise<string> {

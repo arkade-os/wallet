@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { createWallet, getNsec, pay, receiveLightning, resetWallet, restoreWallet } from './utils'
+import { createWallet, pay, receiveLightning, resetAndRestoreWallet } from './utils'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 
@@ -55,15 +55,8 @@ test('should save config to nostr', async ({ page }) => {
   await page.getByText('general', { exact: true }).click()
   await expect(page.getByText('USD')).toBeVisible()
 
-  // get nsec
-  const nsec = await getNsec(page)
-  expect(nsec.startsWith('nsec1')).toBe(true)
-
-  // reset wallet
-  await resetWallet(page)
-
   // restore wallet
-  await restoreWallet(page, nsec)
+  await resetAndRestoreWallet(page)
 
   // verify fiat currency is euro
   await page.getByTestId('tab-settings').click()
@@ -128,15 +121,8 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await page.getByText('backup', { exact: true }).click()
   await page.getByText('Enable Nostr backups').click()
 
-  // get nsec
-  const nsec = await getNsec(page)
-  expect(nsec.startsWith('nsec1')).toBe(true)
-
-  // reset wallet
-  await resetWallet(page)
-
   // restore wallet
-  await restoreWallet(page, nsec)
+  await resetAndRestoreWallet(page)
 
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
