@@ -1,4 +1,4 @@
-import { IonInput, useIonToast } from '@ionic/react'
+import { useIonToast } from '@ionic/react'
 import { useState, useEffect, useContext, useRef } from 'react'
 import Button from '../../components/Button'
 import Padded from '../../components/Padded'
@@ -27,6 +27,7 @@ import OkIcon from '../../icons/Ok'
 import { WalletContext } from '../../providers/wallet'
 import { authenticateUser } from '../../lib/biometrics'
 import FingerprintIcon from '../../icons/Fingerprint'
+import InputPassword from '../../components/InputPassword'
 
 export default function Backup() {
   const { wallet } = useContext(WalletContext)
@@ -39,7 +40,7 @@ export default function Backup() {
   const [dialog, setDialog] = useState(false)
   const [showNsec, setShowNsec] = useState(false)
 
-  const input = useRef<HTMLIonInputElement>(null)
+  const enteredPassword = useRef('')
 
   useEffect(() => {
     verifyPassword(defaultPassword).then(setNsec)
@@ -60,11 +61,15 @@ export default function Backup() {
     present(copiedToClipboard)
   }
 
+  const onChangePassword = (e: any) => {
+    enteredPassword.current = e.target.value
+  }
+
   const showPrivateKey = async () => {
     if (!nsec) {
       const password = wallet.lockedByBiometrics
         ? await authenticateUser(wallet.passkeyId).catch(setError)
-        : (input.current?.value as string)
+        : enteredPassword.current
       if (!password) return
       const privateKey = await verifyPassword(password)
       setError(privateKey ? '' : 'Invalid password')
@@ -113,7 +118,7 @@ export default function Backup() {
         ) : (
           <FlexCol gap='0.5rem'>
             <TextSecondary>Enter your password</TextSecondary>
-            <IonInput ref={input} type='password' />
+            <InputPassword onChange={onChangePassword} />
             <ErrorMessage error={Boolean(error)} text={error} />
           </FlexCol>
         )
