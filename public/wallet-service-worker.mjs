@@ -8159,8 +8159,14 @@ class Zu {
       fees: {
         intentFee: {
           ...r.fees?.intentFee,
-          onchainInput: BigInt(r.fees?.intentFee?.onchainInput ?? 0),
-          onchainOutput: BigInt(r.fees?.intentFee?.onchainOutput ?? 0)
+          onchainInput: BigInt(
+            // split(".")[0] to remove the decimal part
+            (r.fees?.intentFee?.onchainInput ?? "0").split(".")[0] ?? 0
+          ),
+          onchainOutput: BigInt(
+            // split(".")[0] to remove the decimal part
+            (r.fees?.intentFee?.onchainOutput ?? "0").split(".")[0] ?? 0
+          )
         },
         txFeeRate: r?.fees?.txFeeRate ?? ""
       },
@@ -10023,7 +10029,20 @@ class xn extends Fe {
       throw new Error("Invalid Ark address " + t.address);
     const n = await this.getVirtualCoins({
       withRecoverable: !1
-    }), r = Dp(n, t.amount), o = this.offchainTapscript.forfeit();
+    });
+    let r;
+    if (t.selectedVtxos) {
+      const g = t.selectedVtxos.map((y) => y.value).reduce((y, S) => y + S, 0);
+      if (g < t.amount)
+        throw new Error("Selected VTXOs do not cover specified amount");
+      const w = g - t.amount;
+      r = {
+        inputs: t.selectedVtxos,
+        changeAmount: BigInt(w)
+      };
+    } else
+      r = Dp(n, t.amount);
+    const o = this.offchainTapscript.forfeit();
     if (!o)
       throw new Error("Selected leaf not found");
     const i = wn.decode(t.address), c = [
