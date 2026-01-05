@@ -12,8 +12,8 @@ importers:
         specifier: 0.2.14
         version: 0.2.14
       '@arkade-os/sdk':
-        specifier: 0.3.9
-        version: 0.3.9
+        specifier: 0.3.10
+        version: 0.3.10
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -162,6 +162,10 @@ packages:
   '@arkade-os/boltz-swap@0.2.14':
     resolution: {integrity: sha512-CiPPxVt7WBJzgrliBAbxmAx53nZ1LtZESViDdzLLp9W6t0PzySEerqlZjBQL8GTAiLvr9rb/EEbKDq2GlEWKVQ==}
     engines: {node: '>=22'}
+
+  '@arkade-os/sdk@0.3.10':
+    resolution: {integrity: sha512-3O/ftt5h9equtbMuzBmWEbw2M8AeDrokoLSMQDvoQF4Lz9y8A0azZyVZjLZJlvNhQFL2ZVH+Y8urSI8YoHpJWg==}
+    engines: {node: '>=20.0.0'}
 
   '@arkade-os/sdk@0.3.9':
     resolution: {integrity: sha512-n9yQrhrgcZh4xxgJAyr11RiOjCGkil3WLqEBuSu6o1dNX9utyscvRduXgr6E+qmyi8If1wxKI91Ks0PRGnf+2A==}
@@ -2522,6 +2526,14 @@ snapshots:
       '@scure/btc-signer': 2.0.1
       bip68: 1.0.4
       light-bolt11-decoder: 3.2.0
+
+  '@arkade-os/sdk@0.3.10':
+    dependencies:
+      '@noble/curves': 2.0.0
+      '@noble/secp256k1': 3.0.0
+      '@scure/base': 2.0.0
+      '@scure/btc-signer': 2.0.1
+      bip68: 1.0.4
 
   '@arkade-os/sdk@0.3.9':
     dependencies:
