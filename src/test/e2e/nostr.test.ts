@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { createWallet, pay, receiveLightning, resetAndRestoreWallet } from './utils'
+import { createWallet, pay, receiveLightning, resetAndRestoreWallet, waitForPaymentReceived } from './utils'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 
@@ -78,8 +78,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   exec(`docker exec lnd lncli --network=regtest payinvoice ${receiveInvoice} --force`)
 
   // wait for payment received
-  await page.waitForSelector('text=Payment received!')
-  await expect(page.getByText('SATS received successfully')).toBeVisible()
+  await waitForPaymentReceived(page)
 
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
@@ -104,7 +103,6 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   expect(sendInvoice).toContain('lnbcrt')
 
   // pay invoice
-  await page.waitForTimeout(1000)
   await pay(page, sendInvoice, isMobile)
 
   // should be visible in Boltz app

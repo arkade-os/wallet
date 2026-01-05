@@ -1,6 +1,6 @@
 import { promisify } from 'util'
 import { exec } from 'child_process'
-import { createWallet, pay, receiveLightning, resetAndRestoreWallet } from './utils'
+import { createWallet, pay, receiveLightning, resetAndRestoreWallet, waitForPaymentReceived } from './utils'
 import { test, expect } from '@playwright/test'
 
 const execAsync = promisify(exec)
@@ -36,8 +36,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   exec(`docker exec lnd lncli --network=regtest payinvoice ${invoice} --force`)
 
   // wait for payment received
-  await page.waitForSelector('text=Payment received!')
-  await expect(page.getByText('SATS received successfully')).toBeVisible()
+  await waitForPaymentReceived(page)
 
   /**
    * submarine swap
@@ -54,7 +53,6 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   expect(paymentRequest).toBeDefined()
   expect(paymentRequest).toBeTruthy()
   expect(paymentRequest).toContain('lnbcrt')
-  await page.waitForTimeout(1000)
 
   // go to send page and pay invoice
   await pay(page, paymentRequest, isMobile)
@@ -74,7 +72,6 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
-  await page.waitForTimeout(1000)
 
   // verify both swaps are present
   await expect(page.getByText('Boltz')).toBeVisible()

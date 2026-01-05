@@ -1,10 +1,6 @@
 import type { Page } from '@playwright/test'
 
 export async function createWallet(page: Page): Promise<void> {
-  // when running tests in succession, it seems the servers need a bit of time to reset
-  await page.waitForTimeout(2100)
-
-  // create wallet
   await page.goto('/')
   await page.getByText('Continue').click()
   await page.getByText('Continue').click()
@@ -29,12 +25,7 @@ export async function pay(page: Page, address: string, isMobile: boolean, sats =
   if (sats) {
     await page.locator('ion-input[name="send-amount"] input').click()
     if (isMobile) {
-      await page.waitForSelector('text=Save', { state: 'visible' })
-      const digits = sats.toString().split('')
-      for (const digit of digits) {
-        await page.getByTestId(`keyboard-${digit}`).click()
-      }
-      await page.getByText('Save').click()
+      await handleMobileKeyboard(page, sats)
     } else {
       await page.locator('ion-input[name="send-amount"] input').fill(sats.toString())
     }
@@ -54,13 +45,7 @@ async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = f
   // fill amount to receive if provided
   if (sats) {
     if (isMobile) {
-      await page.locator('ion-input[name="receive-amount"] input').click()
-      await page.waitForSelector('text=Save', { state: 'visible' })
-      const digits = sats.toString().split('')
-      for (const digit of digits) {
-        await page.getByTestId(`keyboard-${digit}`).click()
-      }
-      await page.getByText('Save').click()
+      await handleMobileKeyboard(page, sats)
     } else {
       await page.locator('ion-input[name="receive-amount"] input').fill(sats.toString())
     }
@@ -104,10 +89,6 @@ async function resetWallet(page: Page): Promise<void> {
 }
 
 async function restoreWallet(page: Page, nsec: string): Promise<void> {
-  // when running tests in succession, it seems the servers need a bit of time to reset
-  // await page.waitForTimeout(2100)
-
-  // restore wallet
   await page.getByText('Continue').click()
   await page.getByText('Continue').click()
   await page.getByText('Continue').click()
@@ -118,15 +99,13 @@ async function restoreWallet(page: Page, nsec: string): Promise<void> {
   await page.getByText('Continue').click()
   await page.getByText('Go to wallet').click()
   await page.getByText('Maybe later').click()
-
-  // wait for wallet to be restored
-  await page.waitForTimeout(2100)
 }
 
 export async function resetAndRestoreWallet(page: Page): Promise<void> {
   const nsec = await getNsec(page)
   await resetWallet(page)
   await restoreWallet(page, nsec)
+  await page.waitForTimeout(1000)
 }
 
 export function readClipboard(page: Page): Promise<string> {
@@ -142,4 +121,19 @@ export function readClipboard(page: Page): Promise<string> {
 
     return clipboardText
   })
+}
+
+export async function waitForPaymentReceived(page: Page): Promise<void> {
+  await page.waitForSelector('text=Payment received!')
+  await page.waitForTimeout(1000)
+}
+
+async function handleMobileKeyboard(page: Page, sats: number): Promise<void> {
+  await page.locator('ion-input[name="receive-amount"] input').click()
+  await page.waitForSelector('text=Save', { state: 'visible' })
+  const digits = sats.toString().split('')
+  for (const digit of digits) {
+    await page.getByTestId(`keyboard-${digit}`).click()
+  }
+  await page.getByText('Save').click()
 }

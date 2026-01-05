@@ -1,7 +1,7 @@
 import test, { expect } from '@playwright/test'
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import { createWallet, receiveLightning, receiveOffchain } from './utils'
+import { createWallet, receiveLightning, receiveOffchain, waitForPaymentReceived } from './utils'
 
 const execAsync = promisify(exec)
 
@@ -108,11 +108,10 @@ test('should refund failing swap', async ({ page }) => {
 
   // faucet
   exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
-  await page.waitForSelector('text=Payment received!')
-  await expect(page.getByText('SATS received successfully')).toBeVisible()
-  await page.getByTestId('tab-wallet').click()
+  await waitForPaymentReceived(page)
 
   // main page
+  await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
 
@@ -134,7 +133,6 @@ test('should refund failing swap', async ({ page }) => {
 
   // try to send funds to Lightning
   await page.getByText('Send').click()
-  await page.waitForTimeout(1000)
   await page.getByLabel('', { exact: true }).fill(invoice)
   await page.getByText('Continue').click()
   await page.getByText('Tap to Sign').click()
