@@ -26,7 +26,7 @@ export default function NudgeComponent({ nudge }: { nudge: Nudge }) {
         <FlexRow between>
           <FlexCol gap='0'>
             {nudge.texts.map((text) => (
-              <Text bold smaller wrap>
+              <Text key={text} bold smaller wrap>
                 {text}
               </Text>
             ))}

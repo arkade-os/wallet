@@ -112,7 +112,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         if (balance.total >= minSatsToNudge) addNudge(passwordNudge)
       })
       .catch(() => {})
-  }, [initialized, vtxos, svcWallet, aspInfo])
+  }, [initialized, vtxos, svcWallet])
 
   // if ark note is present in the URL, decode it and set the note info
   useEffect(() => {
