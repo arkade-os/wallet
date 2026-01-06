@@ -2,6 +2,7 @@ import Text from './Text'
 import FlexRow from './FlexRow'
 import FlexCol from './FlexCol'
 import { useContext } from 'react'
+import Focusable from './Focusable'
 import ArrowIcon from '../icons/Arrow'
 import RedDotIcon from '../icons/RedDot'
 import { SettingsOptions } from '../lib/types'
@@ -15,7 +16,7 @@ interface MenuProps {
 
 export default function Menu({ rows, styled }: MenuProps) {
   const { setOption } = useContext(OptionsContext)
-  const { nudges } = useContext(NudgeContext)
+  const { optionHasNudge } = useContext(NudgeContext)
 
   const bgColor = styled ? 'var(--dark10)' : 'transparent'
 
@@ -34,18 +35,20 @@ export default function Menu({ rows, styled }: MenuProps) {
   return (
     <FlexCol gap='0'>
       {rows.map(({ icon, option }) => (
-        <div key={option} onClick={() => setOption(option)} style={rowStyle(option)}>
-          <FlexRow between>
-            <FlexRow>
-              {styled ? icon : null}
-              <Text capitalize>{option}</Text>
+        <Focusable onEnter={() => setOption(option)} key={option}>
+          <div key={option} onClick={() => setOption(option)} style={rowStyle(option)}>
+            <FlexRow between>
+              <FlexRow>
+                {styled ? icon : null}
+                <Text capitalize>{option}</Text>
+              </FlexRow>
+              <FlexRow end>
+                {optionHasNudge(option) ? <RedDotIcon /> : null}
+                <ArrowIcon />
+              </FlexRow>
             </FlexRow>
-            <FlexRow end>
-              {nudges[option]?.length > 0 ? <RedDotIcon /> : null}
-              <ArrowIcon />
-            </FlexRow>
-          </FlexRow>
-        </div>
+          </div>
+        </Focusable>
       ))}
     </FlexCol>
   )

@@ -10,7 +10,7 @@ import DirectionIcon from '../icons/Direction'
 import TypeIcon from '../icons/Type'
 import WhenIcon from '../icons/When'
 import NotesIcon from '../icons/Notes'
-import Table from './Table'
+import Table, { TableData } from './Table'
 import StatusIcon from '../icons/Status'
 import ArrowIcon from '../icons/Arrow'
 import InfoIcon from '../icons/Info'
@@ -57,28 +57,29 @@ export default function Details({ details }: { details?: DetailsProps }) {
     when,
   } = details
 
-  const formatAmount = (amount = 0) => {
+  const formatAmount = (amount?: number) => {
+    if (amount === undefined) return ''
     const prettyFunc = config.showBalance ? prettyAmount : prettyHide
     return useFiat ? prettyFunc(toFiat(amount), config.fiat) : prettyFunc(amount)
   }
 
-  const table = []
+  const data: TableData = [
+    ['Address', address, <TypeIcon key='address-icon' />],
+    ['Arknote', arknote, <NotesIcon key='notes-icon' small />],
+    ['Invoice', invoice, <TypeIcon key='invoice-icon' />],
+    ['Swap ID', swapId, <InfoIcon key='swap-id-icon' />],
+    ['Destination', destination, <TypeIcon key='destination-icon' />],
+    ['Transaction ID', txid, <ArrowIcon key='txid-icon' />],
+    ['Direction', direction, <DirectionIcon key='direction-icon' />],
+    ['Type', type, <TypeIcon key='type-icon' />],
+    ['Status', status, <StatusIcon key='status-icon' />],
+    ['When', when, <WhenIcon key='when-icon' />],
+    ['Date', date, <DateIcon key='date-icon' />],
+    ['Expiry', expiry, <DateIcon key='expiry-icon' />],
+    ['Amount', formatAmount(satoshis), <AmountIcon key='amount-icon' />],
+    ['Network fees', formatAmount(fees), <FeesIcon key='fees-icon' />],
+    ['Total', formatAmount(total), <TotalIcon key='total-icon' />],
+  ]
 
-  if (address) table.push(['Address', address, <TypeIcon key='address-icon' />])
-  if (arknote) table.push(['Arknote', arknote, <NotesIcon key='notes-icon' small />])
-  if (invoice) table.push(['Invoice', invoice, <TypeIcon key='invoice-icon' />])
-  if (swapId) table.push(['Swap ID', swapId, <InfoIcon key='swap-id-icon' />])
-  if (destination) table.push(['Destination', destination, <TypeIcon key='destination-icon' />])
-  if (txid) table.push(['Transaction ID', txid, <ArrowIcon key='txid-icon' />])
-  if (direction) table.push(['Direction', direction, <DirectionIcon key='direction-icon' />])
-  if (type) table.push(['Type', type, <TypeIcon key='type-icon' />])
-  if (status) table.push(['Status', status, <StatusIcon key='status-icon' />])
-  if (when) table.push(['When', when, <WhenIcon key='when-icon' />])
-  if (date) table.push(['Date', date, <DateIcon key='date-icon' />])
-  if (expiry) table.push(['Expiry', expiry, <DateIcon key='expiry-icon' />])
-  if (satoshis) table.push(['Amount', formatAmount(satoshis), <AmountIcon key='amount-icon' />])
-  if (fees === 0 || fees) table.push(['Network fees', formatAmount(fees), <FeesIcon key='fees-icon' />])
-  if (total) table.push(['Total', formatAmount(total), <TotalIcon key='total-icon' />])
-
-  return <Table data={table} />
+  return <Table data={data} />
 }

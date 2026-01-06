@@ -1,21 +1,16 @@
 import test, { expect } from '@playwright/test'
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import { readClipboard } from './utils'
+import { createWallet, pay, receiveLightning, receiveOffchain, waitForPaymentReceived } from './utils'
 
 const execAsync = promisify(exec)
 
 test('should be connected to Boltz app', async ({ page }) => {
-  await page.goto('/')
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Skip for now').click()
-  await page.getByText('+ Create wallet').click()
-  await page.getByText('Go to wallet').click()
+  await createWallet(page)
+
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-Boltz').click()
+  await page.getByTestId('app-boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Connection status')).toBeVisible()
   await expect(page.getByText('http://localhost:')).toBeVisible()
@@ -24,39 +19,10 @@ test('should be connected to Boltz app', async ({ page }) => {
 })
 
 test('should receive funds from Lightning', async ({ page, isMobile }) => {
-  await page.goto('/')
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Skip for now').click()
-  await page.getByText('+ Create wallet').click()
-  await page.getByText('Go to wallet').click()
+  await createWallet(page)
 
-  // receive page
-  await page.getByText('Receive').click()
-  await page.locator('ion-input[name="receive-amount"] input').click()
-  if (isMobile) {
-    await page.waitForSelector('text=Save', { state: 'visible' })
-    await page.getByTestId('keyboard-2').click()
-    const btn0 = page.getByTestId('keyboard-0')
-    await btn0.click()
-    await btn0.click()
-    await btn0.click()
-    await page.getByText('Save').click()
-  } else {
-    await page.locator('ion-input[name="receive-amount"] input').fill('2000')
-  }
-  await page.getByText('Continue').click()
-
-  // copy invoice
-  await page
-    .locator('div')
-    .filter({ hasText: /^Copy address$/ })
-    .nth(2)
-    .click()
-  await expect(page.getByText('Lightning invoice')).toBeVisible()
-  await page.locator('svg').nth(6).click() // copy invoice to clipboard
-  const invoice = await readClipboard(page)
+  // get invoice
+  const invoice = await receiveLightning(page, isMobile, 2000)
   expect(invoice).toBeDefined()
   expect(invoice).toBeTruthy()
   expect(invoice).toContain('lnbcrt')
@@ -65,8 +31,7 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   exec(`docker exec lnd lncli --network=regtest payinvoice ${invoice} --force`)
 
   // wait for payment received
-  await page.waitForSelector('text=Payment received!')
-  await expect(page.getByText('SATS received successfully')).toBeVisible()
+  await waitForPaymentReceived(page)
   await page.getByTestId('tab-wallet').click()
 
   // main page
@@ -76,7 +41,7 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-Boltz').click()
+  await page.getByTestId('app-boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Successful')).toBeVisible()
   await expect(page.getByText('+ 1,992')).toBeVisible()
@@ -84,37 +49,21 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
 })
 
 test('should send funds to Lightning', async ({ page }) => {
-  await page.goto('/')
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Skip for now').click()
-  await page.getByText('+ Create wallet').click()
-  await page.getByText('Go to wallet').click()
+  await createWallet(page)
 
-  // receive page
-  await page.getByText('Receive').click()
-  await page.getByText('Skip').click()
-  await page
-    .locator('div')
-    .filter({ hasText: /^Copy address$/ })
-    .nth(5)
-    .click()
-  await page.getByRole('img').nth(5).click()
-  await page.waitForTimeout(500)
-  const arkAddress = await readClipboard(page)
+  // get offchain address
+  const arkAddress = await receiveOffchain(page)
   expect(arkAddress).toBeDefined()
   expect(arkAddress).toBeTruthy()
+
   // faucet
   exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
-  await page.waitForSelector('text=Payment received!')
-  await expect(page.getByText('SATS received successfully')).toBeVisible()
-  await page.getByTestId('tab-wallet').click()
+  await waitForPaymentReceived(page)
 
   // main page
+  await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
-  await page.getByText('Send').click()
 
   const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
   const output = stdout.trim()
@@ -127,19 +76,13 @@ test('should send funds to Lightning', async ({ page }) => {
   expect(invoice).toBeTruthy()
   expect(invoice).toContain('lnbcrt')
 
-  // go to send page
-  await page.getByText('Send').click()
-  await page.getByLabel('', { exact: true }).fill(invoice)
-  await page.getByText('Continue').click()
-  await page.getByText('Tap to Sign').click()
-  await page.waitForSelector('text=Payment sent!')
-  await expect(page.getByText('SATS sent successfully')).toBeVisible()
-  await page.getByTestId('tab-wallet').click()
+  // pay invoice
+  await pay(page, invoice)
 
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-Boltz').click()
+  await page.getByTestId('app-boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Successful')).toBeVisible()
   await expect(page.getByText('- 1,001')).toBeVisible()
@@ -147,37 +90,21 @@ test('should send funds to Lightning', async ({ page }) => {
 })
 
 test('should refund failing swap', async ({ page }) => {
-  await page.goto('/')
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Skip for now').click()
-  await page.getByText('+ Create wallet').click()
-  await page.getByText('Go to wallet').click()
+  await createWallet(page)
 
-  // receive page
-  await page.getByText('Receive').click()
-  await page.getByText('Skip').click()
-  await page
-    .locator('div')
-    .filter({ hasText: /^Copy address$/ })
-    .nth(5)
-    .click()
-  await page.getByRole('img').nth(5).click()
-  await page.waitForTimeout(500)
-  const arkAddress = await readClipboard(page)
+  // get offchain address
+  const arkAddress = await receiveOffchain(page)
   expect(arkAddress).toBeDefined()
   expect(arkAddress).toBeTruthy()
+
   // faucet
   exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
-  await page.waitForSelector('text=Payment received!')
-  await expect(page.getByText('SATS received successfully')).toBeVisible()
-  await page.getByTestId('tab-wallet').click()
+  await waitForPaymentReceived(page)
 
   // main page
+  await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
-  await page.getByText('Send').click()
 
   const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
   const output = stdout.trim()
@@ -197,7 +124,7 @@ test('should refund failing swap', async ({ page }) => {
 
   // try to send funds to Lightning
   await page.getByText('Send').click()
-  await page.getByLabel('', { exact: true }).fill(invoice)
+  await page.locator('ion-input[name="send-address"] input').fill(invoice)
   await page.getByText('Continue').click()
   await page.getByText('Tap to Sign').click()
   await page.waitForSelector('text=Swap failed: VHTLC refunded')
@@ -206,7 +133,7 @@ test('should refund failing swap', async ({ page }) => {
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-Boltz').click()
+  await page.getByTestId('app-boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Refunded')).toBeVisible()
   await expect(page.getByText('- 1,001')).toBeVisible()

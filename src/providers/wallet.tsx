@@ -15,7 +15,7 @@ import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey } from '@arkade-os
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
-import { maxPercentage, minSatsToNudge } from '../lib/constants'
+import { maxPercentage, minSatsToNudge, passwordNudge } from '../lib/constants'
 import { NudgeContext } from './nudge'
 
 const defaultWallet: Wallet = {
@@ -62,7 +62,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { navigate } = useContext(NavigationContext)
   const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
-  const { addPasswordNudge } = useContext(NudgeContext)
+  const { addNudge } = useContext(NudgeContext)
 
   const [txs, setTxs] = useState<Tx[]>([])
   const [balance, setBalance] = useState(0)
@@ -109,7 +109,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     svcWallet
       .getBalance()
       .then((balance) => {
-        if (balance.total >= minSatsToNudge) addPasswordNudge()
+        if (balance.total >= minSatsToNudge) addNudge(passwordNudge)
       })
       .catch(() => {})
   }, [initialized, vtxos, svcWallet, aspInfo])

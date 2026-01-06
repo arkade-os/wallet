@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from 'react'
 import { AspContext } from '../../providers/asp'
 import Header from './Header'
-import Table from '../../components/Table'
+import Table, { TableData } from '../../components/Table'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import { gitCommit } from '../../_gitCommit'
@@ -18,7 +18,7 @@ export default function About() {
     setError(aspInfo.unreachable)
   }, [aspInfo.unreachable])
 
-  const data = [
+  const data: TableData = [
     ['Server URL', aspInfo.url],
     ['Server pubkey', aspInfo.signerPubkey],
     ['Forfeit address', aspInfo.forfeitAddress],

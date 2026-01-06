@@ -1,11 +1,18 @@
-import { CSVMultisigTapscript, ExtendedCoin, hasBoardingTxExpired, TapLeafScript, IWallet } from '@arkade-os/sdk'
+import { ExtendedCoin, hasBoardingTxExpired, IWallet, VtxoScript, RelativeTimelock } from '@arkade-os/sdk'
 
 const isExpiredUtxo = (utxo: ExtendedCoin) => {
-  const leaf = utxo.intentTapLeafScript as TapLeafScript
-  const script = leaf[1].subarray(0, leaf[1].length - 1) // remove the version byte
-  const exitScript = CSVMultisigTapscript.decode(script)
-  const boardingTimelock = exitScript.params.timelock
-  return hasBoardingTxExpired(utxo, boardingTimelock)
+  const vtxoScript = VtxoScript.decode(utxo.tapTree)
+  const exitPaths = vtxoScript.exitPaths()
+  let earliestTimelock: RelativeTimelock | undefined = undefined
+  for (const path of exitPaths) {
+    earliestTimelock = earliestTimelock
+      ? path.params.timelock.value < earliestTimelock.value
+        ? path.params.timelock
+        : earliestTimelock
+      : path.params.timelock
+  }
+
+  return earliestTimelock ? hasBoardingTxExpired(utxo, earliestTimelock) : false
 }
 
 export const getConfirmedAndNotExpiredUtxos = async (wallet: IWallet) => {

@@ -11,6 +11,11 @@ const mockAspInfo: AspInfo = {
   checkpointTapscript: '',
   dust: BigInt(333),
   network: 'regtest',
+  url: 'http://asp.local',
+  signerPubkey: 'mock_signer_pubkey',
+  forfeitAddress: 'mock_forfeit_address',
+  sessionDuration: BigInt(1024 * 60 * 17), // 17 minutes
+  unilateralExitDelay: BigInt(2048),
 }
 
 export const mockTxId = '547b9e710c0b57197ab27faa2192601defe2efb08a45ee8ada765a6829ba451b'
@@ -51,9 +56,22 @@ export const mockFiatContextValue = {
 }
 
 export const mockLightningContextValue = {
-  swapProvider: undefined,
+  arkadeLightning: null,
+  swapManager: null,
   connected: false,
   calcSubmarineSwapFee: () => 0,
+  calcReverseSwapFee: () => 0,
+  createSubmarineSwap: async () => null,
+  createReverseSwap: async () => null,
+  claimVHTLC: async () => {},
+  refundVHTLC: async () => {},
+  payInvoice: async () => {
+    throw new Error('Lightning not initialized')
+  },
+  getSwapHistory: async () => [],
+  getFees: async () => null,
+  getApiUrl: () => null,
+  toggleConnection: () => {},
 }
 
 export const mockOptionsContextValue = {

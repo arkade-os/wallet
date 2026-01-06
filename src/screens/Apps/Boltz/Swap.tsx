@@ -1,10 +1,10 @@
-import { useContext, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import Padded from '../../../components/Padded'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import Table from '../../../components/Table'
+import Table, { TableData } from '../../../components/Table'
 import { FlowContext } from '../../../providers/flow'
 import { decodeInvoice } from '../../../lib/bolt11'
 import { prettyAgo, prettyAmount, prettyDate, prettyHide } from '../../../lib/format'
@@ -25,13 +25,24 @@ import { InfoIconDark } from '../../../icons/Info'
 
 export default function AppBoltzSwap() {
   const { config } = useContext(ConfigContext)
-  const { swapInfo } = useContext(FlowContext)
-  const { swapProvider } = useContext(LightningContext)
+  const { swapInfo, setSwapInfo } = useContext(FlowContext)
+  const { claimVHTLC, refundVHTLC, swapManager } = useContext(LightningContext)
   const { navigate } = useContext(NavigationContext)
 
   const [error, setError] = useState<string>('')
   const [processing, setProcessing] = useState<boolean>(false)
   const [success, setSuccess] = useState<boolean>(false)
+
+  // Subscribe to real-time updates for this swap
+  useEffect(() => {
+    if (!swapManager || !swapInfo) return
+
+    const unsubscribe = swapManager.subscribeToSwapUpdates(swapInfo.id, (updatedSwap) => {
+      setSwapInfo(updatedSwap)
+    })
+
+    return unsubscribe
+  }, [swapManager, swapInfo?.id])
 
   if (!swapInfo) return null
 
@@ -40,23 +51,24 @@ export default function AppBoltzSwap() {
   const refunded = !isReverse && swapInfo.refunded
   const kind = isReverse ? 'Reverse Swap' : 'Submarine Swap'
   const direction = isReverse ? 'Lightning to Arkade' : 'Arkade to Lightning'
-  const invoice = isReverse ? swapInfo.response.invoice : swapInfo.request.invoice
   const address = isReverse ? swapInfo.response.lockupAddress : swapInfo.response.address
   const total = isReverse ? swapInfo.request.invoiceAmount : swapInfo.response.expectedAmount
-  const amount = isReverse ? swapInfo.response.onchainAmount : decodeInvoice(invoice).amountSats
+  const invoice = isReverse ? swapInfo.response.invoice : swapInfo.request.invoice
+  const decodedInvoice = invoice ? decodeInvoice(invoice) : { amountSats: total, note: '' }
+  const amount = isReverse ? swapInfo.response.onchainAmount : decodedInvoice.amountSats
 
   const formatAmount = (amt: number) => (config.showBalance ? prettyAmount(amt) : prettyHide(amt))
 
-  const data = [
+  const data: TableData = [
     ['When', prettyAgo(swapInfo.createdAt)],
     ['Kind', kind],
     ['Swap ID', swapInfo.response.id],
-    ['Description', decodeInvoice(invoice).note || 'N/A'],
+    ['Description', decodedInvoice.note],
     ['Direction', direction],
     ['Date', prettyDate(swapInfo.createdAt)],
     ['Invoice', invoice],
-    ['Preimage', swapInfo.preimage || 'N/A'],
-    ['Address', address || 'N/A'],
+    ['Preimage', swapInfo.preimage],
+    ['Address', address],
     ['Status', swapInfo.status],
     ['Amount', formatAmount(amount)],
     ['Fees', formatAmount(total - amount)],
@@ -68,18 +80,17 @@ export default function AppBoltzSwap() {
   const buttonLabel = isClaimable ? 'Complete swap' : 'Refund swap'
 
   const buttonHandler = async () => {
-    if (!swapProvider) return
     try {
       setProcessing(true)
       if (isReverse && isClaimable) {
-        await swapProvider.claimVHTLC(swapInfo)
+        await claimVHTLC(swapInfo)
         setSuccess(true)
       }
       if (!isReverse && isRefundable) {
-        await swapProvider.refundVHTLC(swapInfo)
+        await refundVHTLC(swapInfo)
         setSuccess(true)
       }
-      await swapProvider.refreshSwapsStatus()
+      // No need to manually refresh - SwapManager handles status updates
     } catch (error) {
       setError(extractError(error))
       consoleError(error, 'Error processing swap')

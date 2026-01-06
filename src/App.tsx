@@ -18,18 +18,20 @@ import { ConfigContext } from './providers/config'
 import { IonApp, IonPage, IonTab, IonTabBar, IonTabButton, IonTabs, setupIonicReact } from '@ionic/react'
 import { NavigationContext, pageComponent, Pages, Tabs } from './providers/navigation'
 import { useContext, useEffect, useRef, useState } from 'react'
+import { detectJSCapabilities } from './lib/jsCapabilities'
 import { OptionsContext } from './providers/options'
 import { WalletContext } from './providers/wallet'
+import { NudgeContext } from './providers/nudge'
+import Focusable from './components/Focusable'
 import { FlowContext } from './providers/flow'
 import { SettingsOptions } from './lib/types'
 import { AspContext } from './providers/asp'
 import SettingsIcon from './icons/Settings'
 import Loading from './components/Loading'
 import { pwaIsInstalled } from './lib/pwa'
+import FlexCol from './components/FlexCol'
 import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
-import FlexCol from './components/FlexCol'
-import { NudgeContext } from './providers/nudge'
 
 setupIonicReact()
 
@@ -38,11 +40,12 @@ export default function App() {
   const { configLoaded } = useContext(ConfigContext)
   const { navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
-  const { nudges } = useContext(NudgeContext)
   const { setOption } = useContext(OptionsContext)
+  const { tabHasNudge } = useContext(NudgeContext)
   const { walletLoaded, initialized, wallet } = useContext(WalletContext)
 
-  const [loadingError, setLoadingError] = useState('')
+  const [isCapable, setIsCapable] = useState(false)
+  const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
 
   // refs for the tabs to be able to programmatically activate them
   const appsRef = useRef<HTMLIonTabElement>(null)
@@ -57,20 +60,33 @@ export default function App() {
     orientation.lock('portrait').catch(() => {})
   }
 
+  // Check JavaScript capabilities on mount
   useEffect(() => {
-    if (aspInfo.unreachable) {
-      setLoadingError('Unable to connect to the server. Please check your internet connection and try again.')
+    detectJSCapabilities()
+      .then((res) => setIsCapable(res.isSupported))
+      .catch(() => setIsCapable(false))
+      .finally(() => setJsCapabilitiesChecked(true))
+  }, [])
+
+  // Global escape key to go back to wallet
+  useEffect(() => {
+    if (!navigate) return
+    const handleGlobalDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') navigate(Pages.Wallet)
     }
-  }, [aspInfo.unreachable])
+    window.addEventListener('keydown', handleGlobalDown)
+    return () => window.removeEventListener('keydown', handleGlobalDown)
+  }, [navigate])
 
   useEffect(() => {
-    if (aspInfo.unreachable) return navigate(Pages.ServerDown)
+    if (aspInfo.unreachable) return navigate(Pages.Unavailable)
+    if (jsCapabilitiesChecked && !isCapable) return navigate(Pages.Unavailable)
     // avoid redirect if the user is still setting up the wallet
     if (initInfo.password || initInfo.privateKey) return
     if (!walletLoaded) return navigate(Pages.Loading)
     if (!wallet.pubkey) return navigate(pwaIsInstalled() ? Pages.Init : Pages.Onboard)
     if (!initialized) return navigate(Pages.Unlock)
-  }, [walletLoaded, initialized, initInfo, aspInfo.unreachable])
+  }, [walletLoaded, initialized, initInfo, aspInfo.unreachable, jsCapabilitiesChecked, isCapable])
 
   // for some reason you need to manually set the active tab
   // if you are coming from a page in a different tab
@@ -112,9 +128,10 @@ export default function App() {
     navigate(Pages.Settings)
   }
 
-  const page = configLoaded && (aspInfo.signerPubkey || aspInfo.unreachable) ? screen : Pages.Loading
+  const page =
+    jsCapabilitiesChecked && configLoaded && (aspInfo.signerPubkey || aspInfo.unreachable) ? screen : Pages.Loading
 
-  const comp = page === Pages.Loading ? <Loading text={loadingError} /> : pageComponent(page)
+  const comp = page === Pages.Loading ? <Loading /> : pageComponent(page)
 
   return (
     <IonApp>
@@ -133,23 +150,29 @@ export default function App() {
               {tab === Tabs.Settings ? comp : <></>}
             </IonTab>
             <IonTabBar slot='bottom'>
-              <IonTabButton tab={Tabs.Wallet} selected={tab === Tabs.Wallet} onClick={handleWallet}>
-                <FlexCol centered gap='6px' testId='tab-wallet'>
-                  <WalletIcon nudge={nudges[Tabs.Wallet]?.length > 0} />
-                  Wallet
-                </FlexCol>
+              <IonTabButton tab={Tabs.Wallet} onClick={handleWallet} selected={tab === Tabs.Wallet}>
+                <Focusable>
+                  <FlexCol centered gap='6px' padding='5px' testId='tab-wallet'>
+                    <WalletIcon nudge={!!tabHasNudge(Tabs.Wallet)} />
+                    Wallet
+                  </FlexCol>
+                </Focusable>
               </IonTabButton>
-              <IonTabButton tab={Tabs.Apps} selected={tab === Tabs.Apps} onClick={handleApps}>
-                <FlexCol centered gap='6px' testId='tab-apps'>
-                  <AppsIcon nudge={nudges[Tabs.Apps]?.length > 0} />
-                  Apps
-                </FlexCol>
+              <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps}>
+                <Focusable>
+                  <FlexCol centered gap='6px' padding='5px' testId='tab-apps'>
+                    <AppsIcon nudge={!!tabHasNudge(Tabs.Apps)} />
+                    Apps
+                  </FlexCol>
+                </Focusable>
               </IonTabButton>
-              <IonTabButton tab={Tabs.Settings} selected={tab === Tabs.Settings} onClick={handleSettings}>
-                <FlexCol centered gap='6px' testId='tab-settings'>
-                  <SettingsIcon nudge={nudges[Tabs.Settings]?.length > 0} />
-                  Settings
-                </FlexCol>
+              <IonTabButton tab={Tabs.Settings} onClick={handleSettings} selected={tab === Tabs.Settings}>
+                <Focusable>
+                  <FlexCol centered gap='6px' padding='5px' testId='tab-settings'>
+                    <SettingsIcon nudge={!!tabHasNudge(Tabs.Settings)} />
+                    Settings
+                  </FlexCol>
+                </Focusable>
               </IonTabButton>
             </IonTabBar>
           </IonTabs>

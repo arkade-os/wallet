@@ -39,7 +39,7 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 
 ### Prerequisites
 
-- Node.js >=20
+- Node.js v20.19+ or v22.12+ (Required by Vite 7)
 - PNPM >=8
 
 ### Installation
@@ -71,7 +71,16 @@ Your app is ready to be deployed!
 ### `pnpm run regtest`
 
 Starts the regtest environment and sets up the arkd instance.\
-Requires Docker to be installed and [Nigiri](https://nigiri.vulpem.com/) to be running.
+Requires Docker to be installed and [Nigiri](https://nigiri.vulpem.com/) to be running with `--ln` flag.
+
+### Funding your local wallet
+To interact with Ark features, you need Regtest coins.
+1. Copy your address from the wallet's **Receive** screen (ensure it starts with bcrt1 for Regtest).
+2. Run the Nigiri faucet command: 
+```bash
+nigiri faucet <bcrt-address>
+```
+
 
 ### e2e tests
 
@@ -98,3 +107,9 @@ Access the playwright code generator tool with:
 ```bash
 pnpm run test:codegen
 ```
+
+## Troubleshooting
+### `address already in use` (Port 5000) on macOS
+macOS AirPlay Receiver uses port 5000 by default, which conflicts with Nigiri.
+- **Fix:** Go to `System Settings > General > AirDrop & Handoff` and disable **AirPlay Receiver**.
+

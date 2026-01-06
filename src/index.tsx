@@ -16,6 +16,7 @@ import * as Sentry from '@sentry/react'
 import { LightningProvider } from './providers/lightning'
 import { shouldInitializeSentry } from './lib/sentry'
 import { FeesProvider } from './providers/fees'
+import { AnnouncementProvider } from './providers/announcements'
 
 // Initialize Sentry only in production and when DSN is provided
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN
@@ -30,8 +31,8 @@ if (shouldInitializeSentry(sentryDsn)) {
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 root.render(
   // <React.StrictMode>
-  <NudgeProvider>
-    <NavigationProvider>
+  <NavigationProvider>
+    <NudgeProvider>
       <ConfigProvider>
         <AspProvider>
           <NotificationsProvider>
@@ -42,7 +43,9 @@ root.render(
                     <LimitsProvider>
                       <FeesProvider>
                         <OptionsProvider>
-                          <App />
+                          <AnnouncementProvider>
+                            <App />
+                          </AnnouncementProvider>
                         </OptionsProvider>
                       </FeesProvider>
                     </LimitsProvider>
@@ -53,7 +56,7 @@ root.render(
           </NotificationsProvider>
         </AspProvider>
       </ConfigProvider>
-    </NavigationProvider>
-  </NudgeProvider>,
+    </NudgeProvider>
+  </NavigationProvider>,
   // </React.StrictMode>,
 )

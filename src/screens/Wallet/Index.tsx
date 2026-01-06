@@ -17,9 +17,11 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import { EmptyTxList } from '../../components/Empty'
 import { InfoBox } from '../../components/AlertBox'
 import { psaMessage } from '../../lib/constants'
+import { AnnouncementContext } from '../../providers/announcements'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
+  const { announcement } = useContext(AnnouncementContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { balance, txs } = useContext(WalletContext)
@@ -41,28 +43,31 @@ export default function Wallet() {
   }
 
   return (
-    <Content>
-      <Padded>
-        <FlexCol>
-          <FlexCol gap='0'>
-            <LogoIcon small />
-            <Balance amount={balance} />
-            <ErrorMessage error={error} text='Ark server unreachable' />
-            <FlexRow padding='0 0 0.5rem 0'>
-              <Button main icon={<SendIcon />} label='Send' onClick={handleSend} />
-              <Button main icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
-            </FlexRow>
-            {psaMessage ? <InfoBox html={psaMessage} /> : null}
+    <>
+      {announcement}
+      <Content>
+        <Padded>
+          <FlexCol>
+            <FlexCol gap='0'>
+              <LogoIcon small />
+              <Balance amount={balance} />
+              <ErrorMessage error={error} text='Ark server unreachable' />
+              <FlexRow padding='0 0 0.5rem 0'>
+                <Button main icon={<SendIcon />} label='Send' onClick={handleSend} />
+                <Button main icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
+              </FlexRow>
+              {psaMessage ? <InfoBox html={psaMessage} /> : null}
+            </FlexCol>
+            {txs?.length === 0 ? (
+              <div style={{ marginTop: '5rem', width: '100%' }}>
+                <EmptyTxList />
+              </div>
+            ) : (
+              <TransactionsList />
+            )}
           </FlexCol>
-          {txs?.length === 0 ? (
-            <div style={{ marginTop: '5rem', width: '100%' }}>
-              <EmptyTxList />
-            </div>
-          ) : (
-            <TransactionsList />
-          )}
-        </FlexCol>
-      </Padded>
-    </Content>
+        </Padded>
+      </Content>
+    </>
   )
 }

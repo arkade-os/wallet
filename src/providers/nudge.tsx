@@ -1,73 +1,49 @@
 import { ReactNode, createContext, useState } from 'react'
-import { Pages, Tabs } from './navigation'
 import { SettingsOptions } from '../lib/types'
-import { minSatsToNudge } from '../lib/constants'
+import { Pages, Tabs } from './navigation'
 
 export type Nudge = {
-  options: SettingsOptions[]
-  pages: Pages[]
   tabs: Tabs[]
+  pages: Pages[]
   texts: string[]
+  options: SettingsOptions[]
 }
 
 export const NudgeContext = createContext<{
-  nudges: Record<string, Nudge[]>
   addNudge: (nudge: Nudge) => void
-  addPasswordNudge: () => void
   removeNudge: (nudge: Nudge) => void
+  tabHasNudge: (tab: Tabs) => Nudge | undefined
+  pageHasNudge: (page: Pages) => Nudge | undefined
+  optionHasNudge: (option: SettingsOptions) => Nudge | undefined
 }>({
-  nudges: {},
-  addNudge: () => null,
-  addPasswordNudge: () => null,
-  removeNudge: () => null,
+  addNudge: () => {},
+  removeNudge: () => {},
+  tabHasNudge: () => undefined,
+  pageHasNudge: () => undefined,
+  optionHasNudge: () => undefined,
 })
 
 export const NudgeProvider = ({ children }: { children: ReactNode }) => {
-  const [repo, setRepo] = useState<Nudge[]>([])
-  const [nudges, setNudges] = useState<Record<string, Nudge[]>>({})
+  const [nudges, setNudges] = useState<Nudge[]>([])
 
   const flat = (nudge: Nudge) => JSON.stringify(nudge)
 
-  const updateNudges = (repo: Nudge[]) => {
-    const map: Record<string, Nudge[]> = {}
-    repo.forEach((nudge) => {
-      nudge.options.forEach((option) => (map[option] = [...(map[option] || []), nudge]))
-      nudge.pages.forEach((page) => (map[page] = [...(map[page] || []), nudge]))
-      nudge.tabs.forEach((tab) => (map[tab] = [...(map[tab] || []), nudge]))
-    })
-    setNudges(map)
-  }
-
   const addNudge = (nudge: Nudge) => {
-    setRepo((prev) => {
-      if (prev.find((n) => flat(n) === flat(nudge))) return prev // already exists
-      const next = [...prev, nudge]
-      updateNudges(next)
-      return next
-    })
-  }
-
-  const addPasswordNudge = () => {
-    const passwordNudge: Nudge = {
-      options: [SettingsOptions.Advanced, SettingsOptions.Password],
-      texts: [`Your wallet has more than ${minSatsToNudge} sats.`, `You should set a password for your wallet.`],
-      pages: [Pages.Settings],
-      tabs: [Tabs.Settings],
-    }
-    addNudge(passwordNudge)
+    setNudges((prev) => [...prev.filter((n) => flat(n) !== flat(nudge)), nudge])
   }
 
   const removeNudge = (nudge: Nudge) => {
-    setRepo((prev) => {
-      if (!prev.find((n) => flat(n) === flat(nudge))) return prev // not found
-      const filtered = prev.filter((n) => flat(n) !== flat(nudge))
-      updateNudges(filtered)
-      return filtered
-    })
+    setNudges((prev) => prev.filter((n) => flat(n) !== flat(nudge)))
   }
 
+  const tabHasNudge = (tab: Tabs) => nudges.find((n) => n.tabs.includes(tab))
+
+  const pageHasNudge = (page: Pages) => nudges.find((n) => n.pages.includes(page))
+
+  const optionHasNudge = (option: SettingsOptions) => nudges.find((n) => n.options.includes(option))
+
   return (
-    <NudgeContext.Provider value={{ addNudge, addPasswordNudge, nudges, removeNudge }}>
+    <NudgeContext.Provider value={{ addNudge, removeNudge, tabHasNudge, pageHasNudge, optionHasNudge }}>
       {children}
     </NudgeContext.Provider>
   )

@@ -1,10 +1,12 @@
 :root {
   --black: #040404;
+  --cream: #391998;
   --dark80: rgba(var(--ion-color-dark-rgb), 0.8);
   --dark70: rgba(var(--ion-color-dark-rgb), 0.7);
   --dark50: rgba(var(--ion-color-dark-rgb), 0.5);
   --dark30: rgba(var(--ion-color-dark-rgb), 0.3);
   --dark20: rgba(var(--ion-color-dark-rgb), 0.2);
+  --dark15: rgba(var(--ion-color-dark-rgb), 0.15);
   --dark10: rgba(var(--ion-color-dark-rgb), 0.1);
   --dark05: rgba(var(--ion-color-dark-rgb), 0.05);
   --green: #60b18a;
@@ -13,6 +15,7 @@
   --liz: #d5c6ff;
   --logo-color: #391998;
   --magenta: #8563e4;
+  --nudgebg: #d46600;
   --orange: #ff8e24;
   --orangebg: #ff8e2418;
   --purple: #391998;
@@ -25,6 +28,7 @@
   --yellow: #e2c542;
   --yellowoutlier: #debb20;
   --ion-background-color: #fff;
+  --ion-background-focused: var(--purple20);
   --ion-tabbar-background-color: #fafafa;
   --ion-backdrop-color: #fff;
   --toggle-background: #fbfbfb;
@@ -39,6 +43,7 @@
 
 .ion-palette-dark {
   --black: #fbfbfb;
+  --cream: #d9d9d9;
   --greenbg: #092d13;
   --orange: #e69b39;
   --orangebg: #2e1800;
@@ -48,8 +53,9 @@
   --yellow: #ffdd46;
   --yellowoutlier: #ffdd46;
   --ion-background-color: #101010;
+  --ion-background-focused: var(--dark10);
   --ion-tabbar-background-color: #181818;
-  --ion-backdrop-color: #000;
+  --ion-backdrop-color: #101010;
   --logo-color: #fbfbfb;
   --toggle-background: #ddd;
   --danger: #e04d4d;
@@ -137,7 +143,10 @@ ion-tab-bar {
   border-top: 1px solid var(--dark20);
   width: 100%;
   & ion-tab-button {
+    --padding-end: 0;
+    --padding-start: 0;
     --color-selected: var(--ion-color-dark);
+    --background-focused: var(--ion-background-focused);
     background-color: var(--ion-tabbar-background-color);
     max-width: none;
     &:hover,

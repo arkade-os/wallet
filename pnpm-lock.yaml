@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.2.10
-        version: 0.2.10
+        specifier: 0.2.15
+        version: 0.2.15
       '@arkade-os/sdk':
-        specifier: 0.3.8
-        version: 0.3.8
+        specifier: 0.3.10
+        version: 0.3.10
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -102,6 +102,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^5.0.2
         version: 5.1.0(vite@7.1.12(@types/node@24.10.0))
+      cross-env:
+        specifier: ^10.1.0
+        version: 10.1.0
       eslint:
         specifier: ^8.57.1
         version: 8.57.1
@@ -156,16 +159,16 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@0.2.10':
-    resolution: {integrity: sha512-lNIc9mzYn8Fiqq8aDoE5Au3nFaXVSjquojbhOHYHlqgIxzUJe/caf5Fiz4dWzjr1rliAjOu9ofwG3xvnn6Mcag==}
+  '@arkade-os/boltz-swap@0.2.15':
+    resolution: {integrity: sha512-F3sraS7fDUP3I4Rbv3vlnUeukPUUKiSUGShm2RMQ93fqx7rfE3fi8mtN9PQJ22bK6RueGGOlcMUgPEJKkZu2KA==}
     engines: {node: '>=22'}
 
-  '@arkade-os/sdk@0.3.7':
-    resolution: {integrity: sha512-uXRf3uXc+YKZA0nnPe/gM6QKGTB4xlQn+EHPU3PliCp7fWTDYnPX/QzWszNY5Y71/FWMebrUgHFyDk6XnlQOrw==}
+  '@arkade-os/sdk@0.3.10':
+    resolution: {integrity: sha512-3O/ftt5h9equtbMuzBmWEbw2M8AeDrokoLSMQDvoQF4Lz9y8A0azZyVZjLZJlvNhQFL2ZVH+Y8urSI8YoHpJWg==}
     engines: {node: '>=20.0.0'}
 
-  '@arkade-os/sdk@0.3.8':
-    resolution: {integrity: sha512-Y/HTeXadzHg21SSK/3TSY0HrSRgmUeGH946lLmWpMneoaDO3oaXhTkrVCf34M6FMS6w8pAZYyCn/5+hdmWC88g==}
+  '@arkade-os/sdk@0.3.9':
+    resolution: {integrity: sha512-n9yQrhrgcZh4xxgJAyr11RiOjCGkil3WLqEBuSu6o1dNX9utyscvRduXgr6E+qmyi8If1wxKI91Ks0PRGnf+2A==}
     engines: {node: '>=20.0.0'}
 
   '@asamuzakjp/css-color@3.2.0':
@@ -285,6 +288,9 @@ packages:
   '@csstools/css-tokenizer@3.0.4':
     resolution: {integrity: sha512-Vd/9EVDiu6PPJt9yAh6roZP6El1xHrdvIVGjyBsHR0RYwNHgL7FJPyIIW4fANJNG6FtyZfvlRPpFI4ZM/lubvw==}
     engines: {node: '>=18'}
+
+  '@epic-web/invariant@1.0.0':
+    resolution: {integrity: sha512-lrTPqgvfFQtR/eY/qkIzp98OGdNJu0m5ji3q/nJI8v3SXkRKEnWiOxMmbvcSoAIzv/cGiuvRy57k4suKQSAdwA==}
 
   '@esbuild/aix-ppc64@0.25.12':
     resolution: {integrity: sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA==}
@@ -1138,6 +1144,11 @@ packages:
 
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
+
+  cross-env@10.1.0:
+    resolution: {integrity: sha512-GsYosgnACZTADcmEyJctkJIoqAhHjttw7RsFrVoJNXbsWWqaq6Ym+7kZjq6mS45O0jij6vtiReppKQEtqWy6Dw==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -2507,15 +2518,16 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@0.2.10':
+  '@arkade-os/boltz-swap@0.2.15':
     dependencies:
-      '@arkade-os/sdk': 0.3.7
+      '@arkade-os/sdk': 0.3.9
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
       '@scure/btc-signer': 2.0.1
+      bip68: 1.0.4
       light-bolt11-decoder: 3.2.0
 
-  '@arkade-os/sdk@0.3.7':
+  '@arkade-os/sdk@0.3.10':
     dependencies:
       '@noble/curves': 2.0.0
       '@noble/secp256k1': 3.0.0
@@ -2523,7 +2535,7 @@ snapshots:
       '@scure/btc-signer': 2.0.1
       bip68: 1.0.4
 
-  '@arkade-os/sdk@0.3.8':
+  '@arkade-os/sdk@0.3.9':
     dependencies:
       '@noble/curves': 2.0.0
       '@noble/secp256k1': 3.0.0
@@ -2672,6 +2684,8 @@ snapshots:
       '@csstools/css-tokenizer': 3.0.4
 
   '@csstools/css-tokenizer@3.0.4': {}
+
+  '@epic-web/invariant@1.0.0': {}
 
   '@esbuild/aix-ppc64@0.25.12':
     optional: true
@@ -3496,6 +3510,11 @@ snapshots:
   concat-map@0.0.1: {}
 
   convert-source-map@2.0.0: {}
+
+  cross-env@10.1.0:
+    dependencies:
+      '@epic-web/invariant': 1.0.0
+      cross-spawn: 7.0.6
 
   cross-spawn@7.0.6:
     dependencies:

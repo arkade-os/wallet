@@ -48,7 +48,7 @@ export default function SendForm() {
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
-  const { swapProvider, connected, calcSubmarineSwapFee } = useContext(LightningContext)
+  const { createSubmarineSwap, connected, calcSubmarineSwapFee, getApiUrl } = useContext(LightningContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
@@ -276,15 +276,12 @@ export default function SendForm() {
     if (!proceed) return
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
     if (!sendInfo.arkAddress && sendInfo.invoice && !sendInfo.pendingSwap) {
-      const promise = swapProvider?.createSubmarineSwap(sendInfo.invoice)
-      if (promise) {
-        promise
-          .then((pendingSwap) => {
-            if (!pendingSwap) return setError('Unable to create swap')
-            setState({ ...sendInfo, pendingSwap })
-          })
-          .catch(handleError)
-      }
+      createSubmarineSwap(sendInfo.invoice)
+        .then((pendingSwap) => {
+          if (!pendingSwap) return setError('Unable to create swap')
+          setState({ ...sendInfo, pendingSwap })
+        })
+        .catch(handleError)
     } else navigate(Pages.SendDetails)
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
 
@@ -366,8 +363,8 @@ export default function SendForm() {
 
   const handleEnter = () => {
     if (!buttonDisabled) return handleContinue()
-    if (!amount) return setFocus('amount')
-    if (!recipient) return setFocus('recipient')
+    if (!amount && focus === 'recipient') setFocus('amount')
+    if (!recipient && focus === 'amount') setFocus('recipient')
   }
 
   const handleFocus = () => {
@@ -458,7 +455,7 @@ export default function SendForm() {
                 </Text>
               </div>
             ) : null}
-            {nudgeBoltz && swapProvider?.getApiUrl() ? (
+            {nudgeBoltz && getApiUrl() ? (
               <div style={{ width: '100%' }}>
                 <Text centered color='dark50' small>
                   Enable <a onClick={gotoBoltzApp}>Lightning swaps</a> to pay

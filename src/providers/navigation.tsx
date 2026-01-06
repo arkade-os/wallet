@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useState } from 'react'
+import { ReactNode, createContext, useCallback, useEffect, useRef, useState } from 'react'
 import Init from '../screens/Init/Init'
 import InitConnect from '../screens/Init/Connect'
 import InitRestore from '../screens/Init/Restore'
@@ -26,37 +26,37 @@ import InitSuccess from '../screens/Init/Success'
 import AppBoltzSwap from '../screens/Apps/Boltz/Swap'
 import AppLendasat from '../screens/Apps/Lendasat/Index'
 import AppLendaswap from '../screens/Apps/Lendaswap/Index'
-import ServerDown from '../screens/Wallet/ServerDown'
+import Unavailable from '../screens/Wallet/Unavailable'
 
 export enum Pages {
-  AppBoltz,
-  AppBoltzSettings,
-  AppBoltzSwap,
-  AppLendasat,
-  AppLendaswap,
-  Apps,
-  Init,
-  InitRestore,
-  InitPassword,
-  InitConnect,
-  InitSuccess,
-  Loading,
-  NotesRedeem,
-  NotesForm,
-  NotesSuccess,
-  Onboard,
-  ReceiveAmount,
-  ReceiveQRCode,
-  ReceiveSuccess,
-  SendForm,
-  SendDetails,
-  SendSuccess,
-  ServerDown,
-  Settings,
-  Transaction,
-  Unlock,
-  Vtxos,
-  Wallet,
+  AppBoltz = 'app-boltz',
+  AppBoltzSettings = 'app-boltz-settings',
+  AppBoltzSwap = 'app-boltz-swap',
+  AppLendasat = 'app-lendasat',
+  AppLendaswap = 'app-lendaswap',
+  Apps = 'apps',
+  Init = 'init',
+  InitRestore = 'init-restore',
+  InitPassword = 'init-password',
+  InitConnect = 'init-connect',
+  InitSuccess = 'init-success',
+  Loading = 'loading',
+  NotesRedeem = 'notes-redeem',
+  NotesForm = 'notes-form',
+  NotesSuccess = 'notes-success',
+  Onboard = 'onboard',
+  ReceiveAmount = 'receive-amount',
+  ReceiveQRCode = 'receive-qr-code',
+  ReceiveSuccess = 'receive-success',
+  SendForm = 'send-form',
+  SendDetails = 'send-details',
+  SendSuccess = 'send-success',
+  Settings = 'settings',
+  Transaction = 'transaction',
+  Unavailable = 'unavailable',
+  Unlock = 'unlock',
+  Vtxos = 'vtxos',
+  Wallet = 'wallet',
 }
 
 export enum Tabs {
@@ -89,9 +89,9 @@ const pageTab = {
   [Pages.SendForm]: Tabs.Wallet,
   [Pages.SendDetails]: Tabs.Wallet,
   [Pages.SendSuccess]: Tabs.Wallet,
-  [Pages.ServerDown]: Tabs.None,
   [Pages.Settings]: Tabs.Settings,
   [Pages.Transaction]: Tabs.Wallet,
+  [Pages.Unavailable]: Tabs.None,
   [Pages.Unlock]: Tabs.None,
   [Pages.Vtxos]: Tabs.Settings,
   [Pages.Wallet]: Tabs.Wallet,
@@ -143,12 +143,12 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <SendDetails />
     case Pages.SendSuccess:
       return <SendSuccess />
-    case Pages.ServerDown:
-      return <ServerDown />
     case Pages.Settings:
       return <Settings />
     case Pages.Transaction:
       return <Transaction />
+    case Pages.Unavailable:
+      return <Unavailable />
     case Pages.Unlock:
       return <Unlock />
     case Pages.Vtxos:
@@ -176,9 +176,61 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   const [screen, setScreen] = useState(Pages.Init)
   const [tab, setTab] = useState(Tabs.None)
 
-  const navigate = (p: Pages) => {
-    setScreen(p)
-    setTab(pageTab[p])
+  const navigationHistory = useRef<Pages[]>([])
+
+  const addEntryToBrowserHistory = () => {
+    if (typeof window !== 'undefined' && 'history' in window) {
+      history.pushState({}, '', '')
+    }
+  }
+
+  const push = (page: Pages) => {
+    addEntryToBrowserHistory()
+    navigationHistory.current.push(page)
+  }
+
+  const pop = useCallback(() => {
+    const length = navigationHistory.current.length
+
+    // prevent popping when there's no history left
+    if (length < 2) {
+      // when popstate fires, the browser has already navigated back
+      // add a new entry to keep internal and browser history in sync
+      addEntryToBrowserHistory()
+      return
+    }
+
+    const previousPage = navigationHistory.current[length - 2]
+
+    // prevent going back to InitConnect or to a loading screen
+    if ([Pages.InitConnect, Pages.Loading].includes(previousPage)) {
+      // when popstate fires, the browser has already navigated back
+      // add a new entry to keep internal and browser history in sync
+      addEntryToBrowserHistory()
+      return
+    }
+
+    // pop current page
+    navigationHistory.current.pop()
+
+    // update UI to show previous page
+    setTab(pageTab[previousPage])
+    setScreen(previousPage)
+  }, []) // setTab and setScreen are stable
+
+  useEffect(() => {
+    const handlePopState = () => pop()
+    if (typeof window !== 'undefined') {
+      addEntryToBrowserHistory()
+      window.addEventListener('popstate', handlePopState)
+      return () => window.removeEventListener('popstate', handlePopState)
+    }
+  }, [pop])
+
+  const navigate = (page: Pages) => {
+    push(page)
+    setScreen(page)
+    setTab(pageTab[page])
   }
 
   return <NavigationContext.Provider value={{ navigate, screen, tab }}>{children}</NavigationContext.Provider>

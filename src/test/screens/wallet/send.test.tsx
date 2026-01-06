@@ -79,7 +79,6 @@ describe('Send screen', () => {
     expect(screen.getByText('Amount')).toBeInTheDocument()
     expect(screen.getByText('0 SATS available')).toBeInTheDocument()
     expect(screen.getByText('Recipient address')).toBeInTheDocument()
-    // button continue should be present
     expect(screen.getByText('Continue')).toBeInTheDocument()
   })
 })

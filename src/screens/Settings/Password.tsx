@@ -18,7 +18,7 @@ import { isBiometricsSupported, registerUser } from '../../lib/biometrics'
 import { getPrivateKey, isValidPassword, noUserDefinedPassword, setPrivateKey } from '../../lib/privateKey'
 
 export default function Password() {
-  const { nudges } = useContext(NudgeContext)
+  const { optionHasNudge } = useContext(NudgeContext)
   const { updateWallet, wallet } = useContext(WalletContext)
 
   const [authenticated, setAuthenticated] = useState(false)
@@ -83,7 +83,7 @@ export default function Password() {
 
   if (!authenticated && !successText) return <NeedsPassword error={error} onPassword={setOldPassword} />
 
-  const nudge = nudges[SettingsOptions.Password]?.[0]
+  const nudge = optionHasNudge(SettingsOptions.Password)
 
   return (
     <>
