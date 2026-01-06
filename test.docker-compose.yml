@@ -235,7 +235,7 @@ services:
       - FULMINE_ARK_SERVER=http://arkd:7070
       - FULMINE_ESPLORA_URL=http://chopsticks:3000
       - FULMINE_NO_MACAROONS=true
-      - FULMINE_LOG_LEVEL=5
+      - FULMINE_LOG_LEVEL=6
       - FULMINE_DISABLE_TELEMETRY=true
     ports:
       - 7002:7000
