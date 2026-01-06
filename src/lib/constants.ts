@@ -1,7 +1,3 @@
-import { Pages, Tabs } from '../providers/navigation'
-import { Nudge } from '../providers/nudge'
-import { SettingsOptions } from './types'
-
 export const arknoteHRP = 'arknote'
 export const defaultFee = 0
 export const testDomains = ['dev.arkade.money', 'next.arkade.money', 'pages.dev', 'localhost']
@@ -21,11 +17,4 @@ export const defaultArkServer = () => {
     }
   }
   return mainServer
-}
-
-export const passwordNudge: Nudge = {
-  options: [SettingsOptions.Advanced, SettingsOptions.Password],
-  texts: [`Your wallet has more than ${minSatsToNudge} sats.`, `You should set a password for your wallet.`],
-  pages: [Pages.Settings],
-  tabs: [Tabs.Settings],
 }

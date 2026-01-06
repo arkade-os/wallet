@@ -15,12 +15,14 @@ export const NudgeContext = createContext<{
   tabHasNudge: (tab: Tabs) => Nudge | undefined
   pageHasNudge: (page: Pages) => Nudge | undefined
   optionHasNudge: (option: SettingsOptions) => Nudge | undefined
+  addPasswordNudge: () => void
 }>({
   addNudge: () => {},
   removeNudge: () => {},
   tabHasNudge: () => undefined,
   pageHasNudge: () => undefined,
   optionHasNudge: () => undefined,
+  addPasswordNudge: () => {},
 })
 
 export const NudgeProvider = ({ children }: { children: ReactNode }) => {
@@ -42,8 +44,19 @@ export const NudgeProvider = ({ children }: { children: ReactNode }) => {
 
   const optionHasNudge = (option: SettingsOptions) => nudges.find((n) => n.options.includes(option))
 
+  const addPasswordNudge = () => {
+    addNudge({
+      options: [SettingsOptions.Advanced, SettingsOptions.Password],
+      texts: [`Your wallet has more than 100,000 sats.`, `You should set a password for your wallet.`],
+      pages: [Pages.Settings],
+      tabs: [Tabs.Settings],
+    })
+  }
+
   return (
-    <NudgeContext.Provider value={{ addNudge, removeNudge, tabHasNudge, pageHasNudge, optionHasNudge }}>
+    <NudgeContext.Provider
+      value={{ addPasswordNudge, addNudge, removeNudge, tabHasNudge, pageHasNudge, optionHasNudge }}
+    >
       {children}
     </NudgeContext.Provider>
   )
