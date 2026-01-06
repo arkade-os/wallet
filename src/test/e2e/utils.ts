@@ -13,6 +13,17 @@ export async function createWallet(page: Page): Promise<void> {
   await page.getByText('Maybe later').click()
 }
 
+export async function createWalletWithPassword(page: Page, password: string): Promise<void> {
+  await createWallet(page)
+  await page.getByTestId('tab-settings').click()
+  await page.getByText('Advanced').click()
+  await page.getByText('Change password').click()
+  await page.locator('div[data-testid="new-password"] input').fill(password)
+  await page.locator('div[data-testid="confirm-password"] input').fill(password)
+  await page.getByText('Save password').click()
+  await page.getByTestId('tab-wallet').click()
+}
+
 export async function pay(page: Page, address: string, isMobile = false, sats = 0): Promise<void> {
   // go to send page
   await page.getByTestId('tab-wallet').click()

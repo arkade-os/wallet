@@ -29,14 +29,14 @@ export const AnnouncementContext = createContext<AnnouncementContextProps>({
 })
 
 export const AnnouncementProvider = ({ children }: { children: ReactNode }) => {
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { config, configLoaded, updateConfig } = useContext(ConfigContext)
 
   const [announcement, setAnnouncement] = useState<React.ReactNode | null>(null)
 
   const seen = useRef(false)
 
   useEffect(() => {
-    if (!config || !config.pubkey || seen.current) return
+    if (!config || !configLoaded || !config.pubkey || seen.current) return
     const announcementsIds = announcements.filter((a) => !a.inactive).map((a) => a.id)
     for (const id of announcementsIds) {
       if (!config.announcementsSeen?.includes(id)) {
@@ -54,7 +54,7 @@ export const AnnouncementProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     }
-  }, [config, updateConfig])
+  }, [config, configLoaded, updateConfig])
 
   return <AnnouncementContext.Provider value={{ announcement }}>{children}</AnnouncementContext.Provider>
 }

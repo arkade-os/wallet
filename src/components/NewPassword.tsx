@@ -52,7 +52,7 @@ export default function NewPassword({ onNewPassword, setLabel }: NewPasswordProp
 
   return (
     <FlexCol gap='1.5em'>
-      <FlexCol>
+      <FlexCol testId='new-password'>
         <InputPassword
           focus={focus === 'password'}
           label='Password'
@@ -62,12 +62,14 @@ export default function NewPassword({ onNewPassword, setLabel }: NewPasswordProp
         <StrengthProgress strength={strength} />
         <CheckList data={passwordChecks} />
       </FlexCol>
-      <InputPassword
-        focus={focus === 'confirm'}
-        label='Confirm password'
-        onChange={handleChangeConfirm}
-        onEnter={handleEnter}
-      />
+      <FlexCol testId='confirm-password'>
+        <InputPassword
+          focus={focus === 'confirm'}
+          label='Confirm password'
+          onChange={handleChangeConfirm}
+          onEnter={handleEnter}
+        />
+      </FlexCol>
     </FlexCol>
   )
 }
