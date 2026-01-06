@@ -116,7 +116,7 @@ export default function Backup() {
             <Text centered>Unlock with your passkey</Text>
           </FlexCol>
         ) : (
-          <FlexCol gap='0.5rem'>
+          <FlexCol gap='0.5rem' testId='backup-password-input'>
             <TextSecondary>Enter your password</TextSecondary>
             <InputPassword onChange={onChangePassword} />
             <ErrorMessage error={Boolean(error)} text={error} />

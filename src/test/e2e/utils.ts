@@ -18,8 +18,8 @@ export async function createWalletWithPassword(page: Page, password: string): Pr
   await page.getByTestId('tab-settings').click()
   await page.getByText('Advanced').click()
   await page.getByText('Change password').click()
-  await page.locator('input[name="ion-input-1"]').fill(password)
-  await page.locator('input[name="ion-input-2"]').fill(password)
+  await page.locator('div[data-testid="new-password"] input').fill(password)
+  await page.locator('div[data-testid="confirm-password"] input').fill(password)
   await page.getByText('Save password').click()
   await page.getByTestId('tab-wallet').click()
 }
