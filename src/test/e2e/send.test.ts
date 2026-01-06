@@ -48,7 +48,6 @@ test('should send to onchain address', async ({ page, isMobile }) => {
 
   // faucet
   exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
-  // set fees
   await waitForPaymentReceived(page)
 
   // main page
