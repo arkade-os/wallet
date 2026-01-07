@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.2.15
-        version: 0.2.15
+        specifier: 0.2.16
+        version: 0.2.16
       '@arkade-os/sdk':
         specifier: 0.3.10
         version: 0.3.10
@@ -159,16 +159,12 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@0.2.15':
-    resolution: {integrity: sha512-F3sraS7fDUP3I4Rbv3vlnUeukPUUKiSUGShm2RMQ93fqx7rfE3fi8mtN9PQJ22bK6RueGGOlcMUgPEJKkZu2KA==}
+  '@arkade-os/boltz-swap@0.2.16':
+    resolution: {integrity: sha512-42vIGlDCvJry1UOifi8jKxfcD3jBjf5Ldfwjs+bz5jfjUZGflCBS2cqZxujtB3vlbANTNUIwP9qI0maE2cFV2A==}
     engines: {node: '>=22'}
 
   '@arkade-os/sdk@0.3.10':
     resolution: {integrity: sha512-3O/ftt5h9equtbMuzBmWEbw2M8AeDrokoLSMQDvoQF4Lz9y8A0azZyVZjLZJlvNhQFL2ZVH+Y8urSI8YoHpJWg==}
-    engines: {node: '>=20.0.0'}
-
-  '@arkade-os/sdk@0.3.9':
-    resolution: {integrity: sha512-n9yQrhrgcZh4xxgJAyr11RiOjCGkil3WLqEBuSu6o1dNX9utyscvRduXgr6E+qmyi8If1wxKI91Ks0PRGnf+2A==}
     engines: {node: '>=20.0.0'}
 
   '@asamuzakjp/css-color@3.2.0':
@@ -2518,9 +2514,9 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@0.2.15':
+  '@arkade-os/boltz-swap@0.2.16':
     dependencies:
-      '@arkade-os/sdk': 0.3.9
+      '@arkade-os/sdk': 0.3.10
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
       '@scure/btc-signer': 2.0.1
@@ -2528,14 +2524,6 @@ snapshots:
       light-bolt11-decoder: 3.2.0
 
   '@arkade-os/sdk@0.3.10':
-    dependencies:
-      '@noble/curves': 2.0.0
-      '@noble/secp256k1': 3.0.0
-      '@scure/base': 2.0.0
-      '@scure/btc-signer': 2.0.1
-      bip68: 1.0.4
-
-  '@arkade-os/sdk@0.3.9':
     dependencies:
       '@noble/curves': 2.0.0
       '@noble/secp256k1': 3.0.0
