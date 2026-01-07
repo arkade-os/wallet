@@ -21,19 +21,21 @@ export default function NudgeComponent({ nudge }: { nudge: Nudge }) {
   }
 
   return (
-    <Focusable onEnter={handleClose} round>
-      <div style={style}>
-        <FlexRow between>
-          <FlexCol gap='0'>
-            {nudge.texts.map((text) => (
-              <Text key={text} bold smaller wrap>
-                {text}
-              </Text>
-            ))}
-          </FlexCol>
-          <CloseIconMini onClick={handleClose} />
-        </FlexRow>
-      </div>
-    </Focusable>
+    <div style={{ marginBottom: '1rem' }}>
+      <Focusable onEnter={handleClose} round>
+        <div style={style}>
+          <FlexRow between>
+            <FlexCol gap='0'>
+              {nudge.texts.map((text) => (
+                <Text key={text} bold smaller wrap>
+                  {text}
+                </Text>
+              ))}
+            </FlexCol>
+            <CloseIconMini onClick={handleClose} />
+          </FlexRow>
+        </div>
+      </Focusable>
+    </div>
   )
 }
