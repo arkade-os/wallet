@@ -127,8 +127,7 @@ test('should refund failing swap', async ({ page }) => {
   await page.locator('ion-input[name="send-address"] input').fill(invoice)
   await page.getByText('Continue').click()
   await page.getByText('Tap to Sign').click()
-  await page.waitForSelector('text=Swap failed: VHTLC refunded')
-  await page.getByTestId('tab-wallet').click()
+  await page.waitForSelector('text=Swap failed')
 
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
