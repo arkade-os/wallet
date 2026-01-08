@@ -135,7 +135,6 @@ export function readClipboard(page: Page): Promise<string> {
 
 export async function waitForPaymentReceived(page: Page): Promise<void> {
   await page.waitForSelector('text=Payment received!')
-  await page.waitForTimeout(1000) // time to update balances
 }
 
 async function handleKeyboardInput(page: Page, sats: number): Promise<void> {
