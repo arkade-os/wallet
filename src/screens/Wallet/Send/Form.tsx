@@ -258,7 +258,7 @@ export default function SendForm() {
                   ? 'Amount below min limit'
                   : 'Continue',
     )
-  }, [sendInfo.satoshis])
+  }, [sendInfo.satoshis, availableBalance])
 
   // manage server unreachable error
   useEffect(() => {
