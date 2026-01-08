@@ -29,6 +29,7 @@ export interface RecvInfo {
 export type SendInfo = {
   address?: string
   arkAddress?: string
+  bolt12Offer?: string
   invoice?: string
   lnUrl?: string
   pendingSwap?: PendingSubmarineSwap

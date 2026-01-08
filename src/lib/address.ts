@@ -1,5 +1,6 @@
 import { hex } from '@scure/base'
 import { isValidInvoice } from './bolt11'
+import { isBolt12Offer } from './bolt12'
 import { ArkAddress } from '@arkade-os/sdk'
 
 export const decodeArkAddress = (addr: string) => {
@@ -27,6 +28,10 @@ export const isBTCAddress = (data: string): boolean => {
 
 export const isLightningInvoice = (data: string): boolean => {
   return isValidInvoice(data)
+}
+
+export const isBolt12LightningOffer = (data: string): boolean => {
+  return isBolt12Offer(data)
 }
 
 export const isURLWithLightningQueryString = (data: string): boolean => {

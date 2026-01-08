@@ -10,6 +10,7 @@ import {
   isBTCAddress,
   decodeArkAddress,
   isLightningInvoice,
+  isBolt12LightningOffer,
   isURLWithLightningQueryString,
 } from '../../../lib/address'
 import { AspContext } from '../../../providers/asp'
@@ -35,6 +36,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { ArkNote } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl } from '../../../lib/lnurl'
+import { fetchBolt12Invoice } from '../../../lib/bolt12'
 import { extractError } from '../../../lib/error'
 import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 import { LightningContext } from '../../../providers/lightning'
@@ -140,6 +142,15 @@ export default function SendForm() {
         setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData, satoshis })
         setAmountIsReadOnly(true)
         setAmount(satoshis)
+        return
+      }
+      if (isBolt12LightningOffer(lowerCaseData)) {
+        if (!connected) {
+          setError('Lightning swaps not enabled')
+          return setNudgeBoltz(true)
+        }
+        // BOLT12 offers may or may not have a fixed amount
+        setState({ ...sendInfo, address: '', arkAddress: '', bolt12Offer: lowerCaseData })
         return
       }
       if (isBTCAddress(recipient)) {
@@ -287,13 +298,20 @@ export default function SendForm() {
 
   // deal with fees deduction from amount
   useEffect(() => {
-    if (!sendInfo.address || sendInfo.arkAddress || sendInfo.invoice) {
+    if (!sendInfo.address || sendInfo.arkAddress || sendInfo.invoice || sendInfo.bolt12Offer) {
       setDeductFromAmount(false)
       return
     }
     const satoshis = sendInfo.satoshis ?? 0
     setDeductFromAmount(satoshis + calcOnchainOutputFee() > availableBalance)
-  }, [availableBalance, sendInfo.satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
+  }, [
+    availableBalance,
+    sendInfo.satoshis,
+    sendInfo.address,
+    sendInfo.arkAddress,
+    sendInfo.invoice,
+    sendInfo.bolt12Offer,
+  ])
 
   if (!svcWallet) return <Loading text='Loading...' />
 
@@ -344,6 +362,20 @@ export default function SendForm() {
           const invoice = await fetchInvoice(sendInfo.lnUrl, sendInfo.satoshis ?? 0, '')
           setState({ ...sendInfo, invoice, arkAddress: undefined })
         }
+      } else if (sendInfo.bolt12Offer) {
+        // Fetch BOLT12 invoice from offer via Boltz API
+        const apiUrl = getApiUrl()
+        if (!apiUrl) {
+          handleError('Boltz API not available')
+          return
+        }
+        const invoice = await fetchBolt12Invoice(sendInfo.bolt12Offer, sendInfo.satoshis, apiUrl)
+        const satoshis = getInvoiceSatoshis(invoice)
+        if (!satoshis) {
+          handleError('Invalid invoice received from BOLT12 offer')
+          return
+        }
+        setState({ ...sendInfo, invoice, arkAddress: undefined, satoshis })
       } else if (deductFromAmount) {
         const fee = calcOnchainOutputFee()
         const spendable = availableBalance - fee
@@ -372,7 +404,7 @@ export default function SendForm() {
   }
 
   const handleSendAll = () => {
-    const fees = sendInfo.lnUrl ? (calcSubmarineSwapFee(availableBalance) ?? 0) : 0
+    const fees = sendInfo.lnUrl || sendInfo.bolt12Offer ? (calcSubmarineSwapFee(availableBalance) ?? 0) : 0
     const amountInSats = availableBalance - fees
     const maximumFractionDigits = useFiat ? 2 : 0
     const value = useFiat ? toFiat(amountInSats) : amountInSats
@@ -393,10 +425,10 @@ export default function SendForm() {
     )
   }
 
-  const { address, arkAddress, lnUrl, invoice, satoshis } = sendInfo
+  const { address, arkAddress, bolt12Offer, lnUrl, invoice, satoshis } = sendInfo
 
   const buttonDisabled =
-    !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
+    !((address || arkAddress || bolt12Offer || lnUrl || invoice) && satoshis && satoshis > 0) ||
     (lnUrlLimits.max && satoshis > lnUrlLimits.max) ||
     (lnUrlLimits.min && satoshis < lnUrlLimits.min) ||
     amountIsAboveMaxLimit(satoshis) ||
