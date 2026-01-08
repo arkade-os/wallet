@@ -178,15 +178,8 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
       const { preimage } = await arkadeLightning.waitForSwapSettlement(pendingSwap)
       return { txid, preimage }
     } catch (e: unknown) {
-      const refundable = typeof (e as any)?.isRefundable === 'boolean' ? (e as any).isRefundable : false
-      if (!refundable) throw new Error('Swap failed: VHTLC not refundable')
-      try {
-        await arkadeLightning.refundVHTLC(pendingSwap)
-      } catch (error) {
-        consoleError(error, `Failed to refund swap ${pendingSwap.response.id}`)
-        throw new Error('Swap failed: VHTLC refund failed')
-      }
-      throw new Error('Swap failed: VHTLC refunded')
+      consoleError(e, 'Swap failed')
+      throw new Error('Swap failed')
     }
   }
 
