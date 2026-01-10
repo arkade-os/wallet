@@ -61,5 +61,5 @@ test('should hide Send button, Apps tab, and designated Setting options', async 
 
   await page.getByText('Advanced').click()
   await expect(page.getByText('This wallet is read-only.')).toBeVisible()
-  await expect(page.getByText('Change passowrd')).not.toBeVisible()
+  await expect(page.getByText('Change password')).not.toBeVisible()
 })

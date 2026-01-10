@@ -289,7 +289,7 @@ export default function Vtxos() {
                       <Text>{prettyDate(wallet.nextRollover)}</Text>
                       <Text>{prettyAgo(wallet.nextRollover)}</Text>
                     </Box>
-                    {!wallet.isReadonly ? <WarningBox green text='Coins renewed successfully' /> : null}
+                    {!wallet.isReadonly && success ? <WarningBox green text='Coins renewed successfully' /> : null}
                   </FlexCol>
                   <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
                     <TextSecondary>First virtual coin expiration: {prettyAgo(wallet.nextRollover)}.</TextSecondary>

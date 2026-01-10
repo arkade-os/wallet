@@ -80,14 +80,13 @@ export default function Password() {
     if (ok) updateWallet({ ...wallet, lockedByBiometrics: false })
   }
 
-  if (wallet.isReadonly) return <ReadonlyWallet />
-
   if (!authenticated && !successText) return <NeedsPassword error={error} onPassword={setOldPassword} />
 
   return (
     <>
       <Header text='Change password' back />
       <Content>
+        {wallet.isReadonly ? <ReadonlyWallet /> : null}
         {successText ? (
           <Success headline='Success' text={successText} />
         ) : (
@@ -99,7 +98,12 @@ export default function Password() {
       </Content>
       {successText ? null : (
         <ButtonsOnBottom>
-          <Button onClick={handleContinue} label={label} disabled={newPassword === null || saving} loading={saving} />
+          <Button
+            onClick={handleContinue}
+            label={label}
+            disabled={wallet.isReadonly || newPassword === null || saving}
+            loading={saving}
+          />
           {wallet.lockedByBiometrics || !isBiometricsSupported() ? null : (
             <Button onClick={registerUserBiometrics} label='Use biometrics' secondary />
           )}

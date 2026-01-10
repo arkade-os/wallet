@@ -11,14 +11,14 @@ import ReadonlyWallet from '../../components/ReadonlyWallet'
 
 export default function SettingsMenu() {
   const { wallet } = useContext(WalletContext)
-  const excludeInReaonlyMode = wallet.isReadonly ? optionsUsingPrivKey : new Set()
+  const excludeInReadonlyMode = wallet.isReadonly ? optionsUsingPrivKey : new Set()
 
   // get rows for General and Security sections
   const generalRows = options.filter(
-    (o) => o.section === SettingsSections.General && !excludeInReaonlyMode.has(o.option),
+    (o) => o.section === SettingsSections.General && !excludeInReadonlyMode.has(o.option),
   )
   const securityRows = options.filter(
-    (o) => o.section === SettingsSections.Security && !excludeInReaonlyMode.has(o.option),
+    (o) => o.section === SettingsSections.Security && !excludeInReadonlyMode.has(o.option),
   )
 
   return (

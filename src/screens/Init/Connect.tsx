@@ -22,12 +22,6 @@ export default function InitConnect() {
   const { password, privateKey, publicKey } = initInfo
 
   useEffect(() => {
-    if (svcWallet && initialized) {
-      reloadWallet().then(() => navigate(Pages.Wallet))
-    }
-  }, [svcWallet, initialized])
-
-  useEffect(() => {
     if (publicKey) {
       initReadonlyWallet(publicKey)
         .then(() => setInitialized(true))
@@ -44,12 +38,13 @@ export default function InitConnect() {
   useEffect(() => {
     if (!initialized) return
     if (!initInfo.restoring) return handleProceed()
-    if (!arkadeLightning) return
+    if (!arkadeLightning || !svcWallet) return
+    reloadWallet() // side-effect to refresh transaction history
     restoreSwaps()
       .then((count) => count && consoleLog(`Restored ${count} swaps from network`))
       .catch((err) => consoleError(err, 'Error restoring swaps:'))
       .finally(handleProceed)
-  }, [arkadeLightning, initialized, initInfo.restoring])
+  }, [svcWallet, arkadeLightning, initialized, initInfo.restoring])
 
   const handleCancel = () => navigate(Pages.Init)
 

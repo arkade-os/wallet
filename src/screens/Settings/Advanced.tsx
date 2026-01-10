@@ -9,8 +9,8 @@ import ReadonlyWallet from '../../components/ReadonlyWallet'
 
 export default function Advanced() {
   const { wallet } = useContext(WalletContext)
-  const excludeInReaonlyMode = wallet.isReadonly ? optionsUsingPrivKey : new Set()
-  const rows = options.filter((o) => o.section === SettingsSections.Advanced && !excludeInReaonlyMode.has(o.option))
+  const excludeInReadonlyMode = wallet.isReadonly ? optionsUsingPrivKey : new Set()
+  const rows = options.filter((o) => o.section === SettingsSections.Advanced && !excludeInReadonlyMode.has(o.option))
 
   return (
     <>

@@ -49,7 +49,7 @@ test('should be able to get nsec with password', async ({ page }) => {
   expect(nsec).toMatch(/^nsec1[0-9a-zA-Z]+$/)
 })
 
-test('should be able to get nspub without password', async ({ page }) => {
+test('should be able to get npub without password', async ({ page }) => {
   // Create wallet
   await createWallet(page)
 
@@ -64,5 +64,5 @@ test('should be able to get nspub without password', async ({ page }) => {
   const pubkey = await page.getByTestId('public-key').textContent()
   expect(pubkey).toMatch(/^npub1[0-9a-zA-Z]+$/)
 
-  await expect(page.getByText('copy to clipboard')).toBeVisible()
+  await expect(page.getByText('Copy to clipboard')).toBeVisible()
 })

@@ -110,7 +110,8 @@ export default function InitRestore() {
               ) : null}
             </FlexCol>
             <Text color='dark70' fullWidth thin small wrap>
-              Your private key should start with the 'nsec' string. Do not share it with anyone.
+              Your private key should start with the 'nsec' string. Do not share it with anyone. Your public key should
+              start with the 'npub' string and it will restore the wallet in read-only mode.
             </Text>
           </FlexCol>
         </Padded>
