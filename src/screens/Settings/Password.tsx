@@ -1,6 +1,6 @@
 import Header from './Header'
 import ErrorMessage from '../../components/Error'
-import { consoleLog } from '../../lib/logs'
+import { consoleError, consoleLog } from '../../lib/logs'
 import Button from '../../components/Button'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
@@ -13,6 +13,7 @@ import NeedsPassword from '../../components/NeedsPassword'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { isBiometricsSupported, registerUser } from '../../lib/biometrics'
 import { getPrivateKey, isValidPassword, noUserDefinedPassword, setPrivateKey } from '../../lib/privateKey'
+import ReadonlyWallet from '../../components/ReadonlyWallet'
 
 export default function Password() {
   const { updateWallet, wallet } = useContext(WalletContext)
@@ -26,9 +27,11 @@ export default function Password() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    noUserDefinedPassword().then((noPassword) => {
-      if (noPassword) setOldPassword(defaultPassword)
-    })
+    noUserDefinedPassword()
+      .then((noPassword) => {
+        if (noPassword) setOldPassword(defaultPassword)
+      })
+      .catch(consoleError)
   }, [])
 
   useEffect(() => {
@@ -76,6 +79,8 @@ export default function Password() {
     const ok = await saveNewPassword(newPassword, false)
     if (ok) updateWallet({ ...wallet, lockedByBiometrics: false })
   }
+
+  if (wallet.isReadonly) return <ReadonlyWallet />
 
   if (!authenticated && !successText) return <NeedsPassword error={error} onPassword={setOldPassword} />
 

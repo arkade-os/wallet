@@ -102,6 +102,8 @@ export const options: Option[] = [
   },
 ]
 
+export const optionsUsingPrivKey = new Set([SettingsOptions.Password, SettingsOptions.Notes, SettingsOptions.Lock])
+
 export interface SectionResponse {
   section: SettingsSections
   options: Option[]

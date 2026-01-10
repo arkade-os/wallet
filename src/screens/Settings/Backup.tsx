@@ -28,6 +28,7 @@ import { WalletContext } from '../../providers/wallet'
 import { authenticateUser } from '../../lib/biometrics'
 import FingerprintIcon from '../../icons/Fingerprint'
 import InputPassword from '../../components/InputPassword'
+import { nip19 } from 'nostr-tools'
 
 export default function Backup() {
   const { wallet } = useContext(WalletContext)

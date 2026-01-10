@@ -15,6 +15,7 @@ import { consoleError } from '../../../lib/logs'
 import { WalletContext } from '../../../providers/wallet'
 import Details, { DetailsProps } from '../../../components/Details'
 import { AspContext } from '../../../providers/asp'
+import ReadonlyWallet from '../../../components/ReadonlyWallet'
 
 export default function NotesRedeem() {
   const { aspInfo } = useContext(AspContext)
@@ -40,7 +41,7 @@ export default function NotesRedeem() {
     navigate(Pages.NotesForm)
   }
 
-  if (!svcWallet?.writer) return <Loading text='Loading...' />
+  if (!svcWallet?.writer) return <ReadonlyWallet />
 
   const handleRedeem = async () => {
     setError('')

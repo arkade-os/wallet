@@ -26,7 +26,7 @@ export default function Wallet() {
   const { announcement } = useContext(AnnouncementContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { balance, txs, svcWallet, wallet } = useContext(WalletContext)
+  const { balance, txs, wallet } = useContext(WalletContext)
   const { nudge } = useContext(NudgeContext)
 
   const [error, setError] = useState(false)

@@ -122,7 +122,7 @@ export default function Vtxos() {
   const listableVtxos = allVtxos.filter((vtxo) => vtxo.isSpent === false)
 
   const handleRollover = async () => {
-    if (!svcWallet?.writer) return
+    if (!wallet.isReadonly) return
     try {
       setRollingover(true)
       await settleVtxos(svcWallet.writer!, aspInfo.dust, wallet.thresholdMs)
@@ -289,7 +289,7 @@ export default function Vtxos() {
                       <Text>{prettyDate(wallet.nextRollover)}</Text>
                       <Text>{prettyAgo(wallet.nextRollover)}</Text>
                     </Box>
-                    <WarningBox green text='Coins renewed successfully' />
+                    {!wallet.isReadonly ? <WarningBox green text='Coins renewed successfully' /> : null}
                   </FlexCol>
                   <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
                     <TextSecondary>First virtual coin expiration: {prettyAgo(wallet.nextRollover)}.</TextSecondary>
@@ -315,7 +315,8 @@ export default function Vtxos() {
           </Padded>
         )}
       </Content>
-      {utxoTxsAllowed() && vtxoTxsAllowed() ? (
+
+      {!wallet.isReadonly && utxoTxsAllowed() && vtxoTxsAllowed() ? (
         <>
           <ButtonsOnBottom>
             {hasInputsToSettle && !hideUtxos ? (
