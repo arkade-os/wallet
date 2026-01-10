@@ -51,7 +51,7 @@ export async function pay(page: Page, address: string, isMobile = false, sats = 
 async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = false, sats = 0): Promise<string> {
   // go to receive page
   await page.getByTestId('tab-wallet').click()
-  await page.getByText('Receive').click()
+  await page.getByText('Receive', { exact: true }).click()
 
   // fill amount to receive if provided
   if (sats) {
@@ -93,6 +93,13 @@ async function getNsec(page: Page): Promise<string> {
   return nsec
 }
 
+async function getNpub(page: Page): Promise<string> {
+  await page.getByTestId('tab-settings').click()
+  await page.getByText('backup', { exact: true }).click()
+  await page.getByText('Copy to clipboard').click()
+  return await readClipboard(page)
+}
+
 async function resetWallet(page: Page): Promise<void> {
   await page.getByTestId('tab-settings').click()
   await page.getByText('Reset wallet').click()
@@ -100,14 +107,19 @@ async function resetWallet(page: Page): Promise<void> {
   await page.getByRole('contentinfo').getByText('Reset wallet').click()
 }
 
-async function restoreWallet(page: Page, nsec: string): Promise<void> {
+async function restoreWallet(page: Page, { nsec, npub }: { nsec?: string; npub?: string }): Promise<void> {
+  const key = nsec ?? npub
+  if (!key) {
+    throw new Error('No nsec or npub provided')
+  }
+  await page.goto('/')
   await page.getByText('Continue').click()
   await page.getByText('Continue').click()
   await page.getByText('Continue').click()
   await page.getByText('Skip for now').click()
   await page.getByText('Other login options').click()
   await page.getByText('Restore wallet').click()
-  await page.locator('ion-input[name="private-key"] input').fill(nsec)
+  await page.locator('ion-input[name="private-or-public-key"] input').fill(key)
   await page.getByText('Continue').click()
   await page.getByText('Go to wallet').click()
   await page.getByText('Maybe later').click()
@@ -116,7 +128,16 @@ async function restoreWallet(page: Page, nsec: string): Promise<void> {
 export async function resetAndRestoreWallet(page: Page): Promise<void> {
   const nsec = await getNsec(page)
   await resetWallet(page)
-  await restoreWallet(page, nsec)
+  await page.waitForTimeout(500)
+  await restoreWallet(page, { nsec })
+  await page.waitForTimeout(1000)
+}
+
+export async function resetAndRestoreReadonlyWallet(page: Page): Promise<void> {
+  const npub = await getNpub(page)
+  await resetWallet(page)
+  await page.waitForTimeout(500)
+  await restoreWallet(page, { npub })
   await page.waitForTimeout(1000)
 }
 

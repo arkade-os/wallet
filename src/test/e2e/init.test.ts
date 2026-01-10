@@ -26,5 +26,3 @@ test('should offer a way to restore the wallet', async ({ page }) => {
   await page.getByText('Other Login Options').click()
   await expect(page.getByText('Restore wallet', { exact: true })).toBeVisible()
 })
-
-// TODO restore wallet test

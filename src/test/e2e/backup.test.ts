@@ -8,7 +8,7 @@ test('should be able to get nsec without password', async ({ page }) => {
   // Go to Settings > Backup
   await page.getByTestId('tab-settings').click()
   await page.getByText('Backup').click()
-  await expect(page.getByText('This is enough to restore your wallet')).toBeVisible()
+  await expect(page.getByText('This is enough to restore your wallet.', { exact: true })).toBeVisible()
 
   // Verify password input is not shown
   const obfuscated = await page.getByTestId('private-key').textContent()
@@ -31,7 +31,7 @@ test('should be able to get nsec with password', async ({ page }) => {
   // Go to Settings > Backup
   await page.getByTestId('tab-settings').click()
   await page.getByText('Backup').click()
-  await expect(page.getByText('This is enough to restore your wallet')).toBeVisible()
+  await expect(page.getByText('This is enough to restore your wallet.')).toBeVisible()
 
   // Verify password input is not shown
   const obfuscated = await page.getByTestId('private-key').textContent()
@@ -47,4 +47,22 @@ test('should be able to get nsec with password', async ({ page }) => {
   // Verify nsec is shown
   const nsec = await page.getByTestId('private-key').textContent()
   expect(nsec).toMatch(/^nsec1[0-9a-zA-Z]+$/)
+})
+
+test('should be able to get nspub without password', async ({ page }) => {
+  // Create wallet
+  await createWallet(page)
+
+  // Go to Settings > Backup
+  await page.getByTestId('tab-settings').click()
+  await page.getByText('Backup').click()
+  await expect(
+    page.getByText('This is enough to restore your wallet in read-only mode.', { exact: true }),
+  ).toBeVisible()
+
+  // Verify public key is shown
+  const pubkey = await page.getByTestId('public-key').textContent()
+  expect(pubkey).toMatch(/^npub1[0-9a-zA-Z]+$/)
+
+  await expect(page.getByText('copy to clipboard')).toBeVisible()
 })

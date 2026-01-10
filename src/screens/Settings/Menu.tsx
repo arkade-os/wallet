@@ -26,7 +26,11 @@ export default function SettingsMenu() {
       <Header text='Settings' />
       <Content>
         <FlexCol gap='1.25rem'>
-          {wallet.isReadonly ? <ReadonlyWallet /> : null}
+          {wallet.isReadonly ? (
+            <div style={{ padding: '0 1rem 1rem 1rem' }}>
+              <ReadonlyWallet />
+            </div>
+          ) : null}
           <FlexCol gap='0'>
             <TextLabel>General</TextLabel>
             <Menu rows={generalRows} styled />

@@ -103,7 +103,7 @@ export default function InitRestore() {
         <Padded>
           <FlexCol between>
             <FlexCol>
-              <Input name='private-key' label='Public (npub) or Private key (nsec)' onChange={setSomeKey} />
+              <Input name='private-or-public-key' label='Public (npub) or Private key (nsec)' onChange={setSomeKey} />
               <ErrorMessage error={Boolean(error)} text={error} />
               {publicKey ? (
                 <WarningBox text='The wallet will be restored in readonly mode. This means you can view your balance and receive funds, but you cannot send.' />

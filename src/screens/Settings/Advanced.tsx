@@ -5,6 +5,7 @@ import { SettingsSections } from '../../lib/types'
 import Menu from '../../components/Menu'
 import { WalletContext } from '../../providers/wallet'
 import { useContext } from 'react'
+import ReadonlyWallet from '../../components/ReadonlyWallet'
 
 export default function Advanced() {
   const { wallet } = useContext(WalletContext)
@@ -15,6 +16,11 @@ export default function Advanced() {
     <>
       <Header text='Advanced' back />
       <Content>
+        {wallet.isReadonly ? (
+          <div style={{ padding: '0 1rem 1rem 1rem' }}>
+            <ReadonlyWallet />
+          </div>
+        ) : null}
         <Menu rows={rows} />
       </Content>
     </>
