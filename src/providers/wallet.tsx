@@ -213,7 +213,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         navigate(Pages.AppLendaswap)
         break
       default:
-        navigate(Pages.Wallet)
+      // this is a no-op to not interfere with Connect operations
     }
   }, [initialized, noteInfo.satoshis, deepLinkInfo])
 

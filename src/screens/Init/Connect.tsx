@@ -15,7 +15,7 @@ export default function InitConnect() {
   const { initInfo, setInitInfo } = useContext(FlowContext)
   const { arkadeLightning, restoreSwaps } = useContext(LightningContext)
   const { navigate } = useContext(NavigationContext)
-  const { initWallet, initReadonlyWallet, svcWallet, reloadWallet } = useContext(WalletContext)
+  const { initWallet, initReadonlyWallet, wallet } = useContext(WalletContext)
 
   const [initialized, setInitialized] = useState(false)
 
@@ -37,14 +37,13 @@ export default function InitConnect() {
 
   useEffect(() => {
     if (!initialized) return
-    if (!initInfo.restoring) return handleProceed()
-    if (!arkadeLightning || !svcWallet) return
-    reloadWallet() // side-effect to refresh transaction history
+    if (!initInfo.restoring || wallet.isReadonly) return handleProceed()
+    if (!arkadeLightning) return
     restoreSwaps()
       .then((count) => count && consoleLog(`Restored ${count} swaps from network`))
       .catch((err) => consoleError(err, 'Error restoring swaps:'))
       .finally(handleProceed)
-  }, [svcWallet, arkadeLightning, initialized, initInfo.restoring])
+  }, [arkadeLightning, initialized, initInfo.restoring, wallet.isReadonly])
 
   const handleCancel = () => navigate(Pages.Init)
 
