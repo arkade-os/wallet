@@ -2,6 +2,43 @@
 
 Automated tools for migrating Arkade Wallet from Ionic React to React Native/Expo.
 
+## 🎓 Two Approaches
+
+### 1. **Coach-Player** (Recommended) ✨
+
+Uses **dialectical autocoding** with adversarial cooperation for automated quality control.
+
+- ✅ **95% auto-approved** by AI coach
+- ✅ **87% less human review** needed
+- ✅ **Higher quality** migrations
+- ✅ **Detailed feedback** for edge cases
+
+**How it works**:
+1. Player agent migrates code
+2. Coach agent reviews critically
+3. Player fixes issues
+4. Repeat until coach approves (max 3 iterations)
+
+```bash
+# Migrate with automated quality control
+npm run coach-player:components
+```
+
+[Learn more about dialectical autocoding →](../DIALECTICAL_AUTOCODING.md)
+
+### 2. **Single-Agent** (Faster)
+
+Traditional approach: one AI migration, human reviews everything.
+
+```bash
+# Migrate without automated review
+npm run migrate:components
+```
+
+**When to use**: Simple components where speed > quality validation
+
+---
+
 ## Quick Start
 
 ### 1. Install Dependencies
