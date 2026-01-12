@@ -12,7 +12,9 @@
     "coach-player": "tsx coach-player-migrate.ts",
     "coach-player:components": "tsx coach-player-migrate.ts \"../src/components/**/*.tsx\"",
     "coach-player:screens": "tsx coach-player-migrate.ts \"../src/screens/**/*.tsx\"",
-    "coach-player:all": "tsx coach-player-migrate.ts \"../src/**/*.tsx\""
+    "coach-player:all": "tsx coach-player-migrate.ts \"../src/**/*.tsx\"",
+    "autonomous": "tsx autonomous-migrate.ts --full",
+    "autonomous:resume": "tsx autonomous-migrate.ts --resume"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
