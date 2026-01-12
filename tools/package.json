@@ -1,0 +1,22 @@
+{
+  "name": "arkade-migration-tools",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Tools for migrating Arkade Wallet from Ionic React to React Native",
+  "scripts": {
+    "migrate": "tsx migrate-component.ts",
+    "migrate:components": "tsx migrate-component.ts \"../src/components/**/*.tsx\"",
+    "migrate:screens": "tsx migrate-component.ts \"../src/screens/**/*.tsx\"",
+    "migrate:all": "tsx migrate-component.ts --all"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "glob": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.3"
+  }
+}
