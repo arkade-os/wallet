@@ -96,6 +96,7 @@ export const mockWalletContextValue = {
   },
   walletLoaded: false,
   svcWallet: undefined,
+  walletInstance: undefined,
   isLocked: () => Promise.resolve(true),
   balance: 0,
   txs: [mockTxInfo],
@@ -109,12 +110,14 @@ export const mockFlowContextValue = {
   noteInfo: emptyNoteInfo,
   recvInfo: emptyRecvInfo,
   sendInfo: emptySendInfo,
+  deepLinkInfo: undefined,
   setInitInfo: () => {},
   setNoteInfo: () => {},
   setRecvInfo: () => {},
   setSendInfo: () => {},
   setSwapInfo: () => {},
   setTxInfo: () => {},
+  setDeepLinkInfo: () => {},
 }
 
 export const mockLimitsContextValue = {

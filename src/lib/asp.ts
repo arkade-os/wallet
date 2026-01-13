@@ -3,7 +3,6 @@ import {
   ArkNote,
   RestArkProvider,
   ExtendedCoin,
-  ServiceWorkerWallet,
   ExtendedVirtualCoin,
 } from '@arkade-os/sdk'
 import { Addresses, Satoshis, Tx, Vtxo } from './types'
@@ -185,7 +184,7 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
   return txs
 }
 
-export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable: Vtxo[]; spent: Vtxo[] }> => {
+export const getVtxos = async (wallet: IWallet): Promise<{ spendable: Vtxo[]; spent: Vtxo[] }> => {
   const vtxos = await wallet.getVtxos()
   const spendable: Vtxo[] = []
   const spent: Vtxo[] = []
