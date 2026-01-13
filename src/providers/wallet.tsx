@@ -312,10 +312,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       statusIntervalRef.current = null
     }
 
-    // Only ServiceWorkerWallet has these methods
+    // Clear wallet-specific storage
     if (isServiceWorkerWallet(walletInstance)) {
+      // ServiceWorkerWallet has clear() and contractRepository methods
       await walletInstance.wallet.clear()
       await walletInstance.wallet.contractRepository.clearContractData()
+    } else {
+      // Standard wallet uses SQLiteStorageAdapter - access it via the wallet's storage property
+      const actualWallet = walletInstance.wallet as any
+      if (actualWallet.storage && typeof actualWallet.storage.clear === 'function') {
+        await actualWallet.storage.clear()
+      }
     }
 
     setWalletInstance(undefined)
