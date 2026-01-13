@@ -107,7 +107,9 @@ export default function SendDetails() {
       if (!swapAddress) return setError('Swap address not available')
       payInvoice(pendingSwap).then(handlePreimage).catch(handleError)
     } else if (address) {
-      collaborativeExitWithFees(walletInstance.wallet, details.total, details.satoshis, address).then(handleTxid).catch(handleError)
+      collaborativeExitWithFees(walletInstance.wallet, details.total, details.satoshis, address)
+        .then(handleTxid)
+        .catch(handleError)
     }
   }
 
