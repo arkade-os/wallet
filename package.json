@@ -6,7 +6,7 @@
   "dependencies": {
     "@arkade-os/boltz-swap": "0.2.16",
     "@arkade-os/sdk": "0.3.10",
-    "@capacitor-community/sqlite": "^6.0.2",
+    "@capacitor-community/sqlite": "^7.0.3",
     "@capacitor/android": "^6.2.1",
     "@capacitor/core": "^6.2.1",
     "@capacitor/haptics": "^6.0.3",

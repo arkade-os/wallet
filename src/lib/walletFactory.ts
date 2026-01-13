@@ -1,4 +1,4 @@
-import { Wallet, ServiceWorkerWallet, SingleKey, NetworkName } from '@arkade-os/sdk'
+import { Wallet, ServiceWorkerWallet, SingleKey } from '@arkade-os/sdk'
 import { isNativePlatform } from './platform'
 import { SQLiteStorageAdapter } from './storage/SQLiteStorageAdapter'
 import { consoleError } from './logs'
@@ -10,7 +10,6 @@ export interface WalletConfig {
   privateKey: string
   arkServerUrl: string
   esploraUrl: string
-  network: NetworkName
 }
 
 /**

@@ -75,12 +75,23 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
 
   const listeningForServiceWorker = useRef(false)
+  const statusIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // read wallet from storage
   useEffect(() => {
     const walletFromStorage = readWalletFromStorage()
     if (walletFromStorage) setWallet(walletFromStorage)
     setWalletLoaded(true)
+  }, [])
+
+  // cleanup interval on component unmount
+  useEffect(() => {
+    return () => {
+      if (statusIntervalRef.current) {
+        clearInterval(statusIntervalRef.current)
+        statusIntervalRef.current = null
+      }
+    }
   }, [])
 
   // reload wallet as soon as we have a wallet instance available
@@ -229,8 +240,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         const { walletInitialized } = await instance.wallet.getStatus()
         setInitialized(walletInitialized)
 
+        // Clear any existing interval before creating a new one
+        if (statusIntervalRef.current) {
+          clearInterval(statusIntervalRef.current)
+        }
+
         // ping the service worker wallet status every 1 second
-        setInterval(async () => {
+        statusIntervalRef.current = setInterval(async () => {
           try {
             const { walletInitialized } = await instance.wallet.getStatus()
             setInitialized(walletInitialized)
@@ -269,6 +285,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const lockWallet = async () => {
     if (!walletInstance) throw new Error('Wallet not initialized')
 
+    // Clear the status polling interval
+    if (statusIntervalRef.current) {
+      clearInterval(statusIntervalRef.current)
+      statusIntervalRef.current = null
+    }
+
     // Only ServiceWorkerWallet has a clear() method
     if (isServiceWorkerWallet(walletInstance)) {
       await walletInstance.wallet.clear()
@@ -283,6 +305,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const resetWallet = async () => {
     if (!walletInstance) throw new Error('Wallet not initialized')
     await clearStorage()
+
+    // Clear the status polling interval
+    if (statusIntervalRef.current) {
+      clearInterval(statusIntervalRef.current)
+      statusIntervalRef.current = null
+    }
 
     // Only ServiceWorkerWallet has these methods
     if (isServiceWorkerWallet(walletInstance)) {
