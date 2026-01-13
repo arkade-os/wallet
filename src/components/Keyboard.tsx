@@ -24,7 +24,7 @@ interface KeyboardProps {
 export default function Keyboard({ back, hideBalance, onSats, value }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
-  const { balance, svcWallet } = useContext(WalletContext)
+  const { balance, walletInstance } = useContext(WalletContext)
 
   const [amountInSats, setAmountInSats] = useState(0)
   const [available, setAvailable] = useState(0)
@@ -39,8 +39,8 @@ export default function Keyboard({ back, hideBalance, onSats, value }: KeyboardP
   }, [value])
 
   useEffect(() => {
-    if (!svcWallet) return
-    svcWallet.getBalance().then((bal) => setAvailable(bal.available))
+    if (!walletInstance) return
+    walletInstance.wallet.getBalance().then((bal) => setAvailable(bal.available))
   }, [balance])
 
   useEffect(() => {

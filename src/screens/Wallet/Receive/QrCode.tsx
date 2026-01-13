@@ -25,7 +25,7 @@ export default function ReceiveQRCode() {
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { arkadeLightning, createReverseSwap } = useContext(LightningContext)
-  const { svcWallet, wallet } = useContext(WalletContext)
+  const { walletInstance, wallet } = useContext(WalletContext)
   const { validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
 
   const [sharing, setSharing] = useState(false)
@@ -52,7 +52,7 @@ export default function ReceiveQRCode() {
 
   useEffect(() => {
     // if boltz is available and amount is between limits, let's create a swap invoice
-    if (validLnSwap(satoshis) && wallet && svcWallet && arkadeLightning) {
+    if (validLnSwap(satoshis) && wallet && walletInstance && arkadeLightning) {
       createReverseSwap(satoshis)
         .then((pendingSwap) => {
           if (!pendingSwap) throw new Error('Failed to create reverse swap')
@@ -81,7 +81,8 @@ export default function ReceiveQRCode() {
   }, [satoshis, arkadeLightning])
 
   useEffect(() => {
-    if (!svcWallet) return
+    // Only listen for service worker messages on web platform (not native)
+    if (!walletInstance || walletInstance.type !== 'service-worker') return
 
     const listenForPayments = (event: MessageEvent) => {
       let satoshis = 0
@@ -105,7 +106,7 @@ export default function ReceiveQRCode() {
     return () => {
       navigator.serviceWorker.removeEventListener('message', listenForPayments)
     }
-  }, [svcWallet])
+  }, [walletInstance])
 
   const handleShare = () => {
     setSharing(true)

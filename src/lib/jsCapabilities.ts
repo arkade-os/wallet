@@ -1,3 +1,5 @@
+import { isNativePlatform } from './platform'
+
 /**
  * Detects if JavaScript and required capabilities are available in the current environment.
  * This is particularly important for restricted browsers (like iOS PWAs with JIT disabled)
@@ -14,32 +16,40 @@ export interface JSCapabilityCheck {
  * This includes checking for:
  * - Basic JavaScript execution (implicitly tested by running this code)
  * - Cryptographic operations performance
- * - Web Workers support (used by the wallet service worker)
- * - IndexedDB support (used for storage)
+ * - Web Workers support (used by the wallet service worker in web mode)
+ * - IndexedDB support (used for storage in web mode)
+ *
+ * Note: Service Workers and Web Workers are not required in native Capacitor apps
  */
 export const detectJSCapabilities = async (): Promise<JSCapabilityCheck> => {
   try {
-    // Check for Web Workers support (required for the wallet service worker)
-    if (!window.Worker) {
-      return {
-        isSupported: false,
-        errorMessage: 'Web Workers are required but not supported in this environment',
-      }
-    }
+    const isNative = isNativePlatform()
 
-    // Check for Service Worker support
-    if (!('serviceWorker' in navigator)) {
-      return {
-        isSupported: false,
-        errorMessage: 'Service Workers are required but not supported in this environment',
+    // In web mode, check for Web Workers and Service Workers
+    // In native mode, these are not needed as we use standard Wallet instead of ServiceWorkerWallet
+    if (!isNative) {
+      // Check for Web Workers support (required for the wallet service worker)
+      if (!window.Worker) {
+        return {
+          isSupported: false,
+          errorMessage: 'Web Workers are required but not supported in this environment',
+        }
       }
-    }
 
-    // Check for IndexedDB support (required for wallet storage)
-    if (!window.indexedDB) {
-      return {
-        isSupported: false,
-        errorMessage: 'IndexedDB is required but not supported in this environment',
+      // Check for Service Worker support
+      if (!('serviceWorker' in navigator)) {
+        return {
+          isSupported: false,
+          errorMessage: 'Service Workers are required but not supported in this environment',
+        }
+      }
+
+      // Check for IndexedDB support (required for wallet storage in web mode)
+      if (!window.indexedDB) {
+        return {
+          isSupported: false,
+          errorMessage: 'IndexedDB is required but not supported in this environment',
+        }
       }
     }
 

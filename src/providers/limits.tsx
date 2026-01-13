@@ -40,7 +40,7 @@ export const LimitsContext = createContext<LimitsContextProps>({
 
 export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { svcWallet } = useContext(WalletContext)
+  const { walletInstance } = useContext(WalletContext)
   const { arkadeLightning, connected } = useContext(LightningContext)
 
   const limits = useRef<LimitTxTypes>({
@@ -49,9 +49,9 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
     vtxo: { min: BigInt(0), max: BigInt(-1) },
   })
 
-  // update limits when aspInfo or svcWallet changes
+  // update limits when aspInfo or walletInstance changes
   useEffect(() => {
-    if (!aspInfo.network || !svcWallet || !arkadeLightning) return
+    if (!aspInfo.network || !walletInstance || !arkadeLightning) return
 
     limits.current.utxo = {
       min: BigInt(import.meta.env.VITE_UTXO_MIN_AMOUNT || aspInfo.utxoMinAmount || aspInfo.dust || -1),
@@ -62,7 +62,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
       min: BigInt(import.meta.env.VITE_VTXO_MIN_AMOUNT || aspInfo.vtxoMinAmount || aspInfo.dust || -1),
       max: BigInt(import.meta.env.VITE_VTXO_MAX_AMOUNT || aspInfo.vtxoMaxAmount || -1),
     }
-  }, [aspInfo.network, svcWallet, arkadeLightning])
+  }, [aspInfo.network, walletInstance, arkadeLightning])
 
   // update limits when arkadeLightning or connected changes
   useEffect(() => {

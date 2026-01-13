@@ -42,6 +42,17 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 - Node.js v20.19+ or v22.12+ (Required by Vite 7)
 - PNPM >=8
 
+#### Mobile Development Prerequisites
+
+For iOS:
+- macOS with Xcode 14+ installed
+- iOS Simulator or physical iOS device
+
+For Android:
+- Android Studio with Android SDK
+- Java Development Kit (JDK) 17+
+- Android emulator or physical Android device
+
 ### Installation
 
 Install dependencies
@@ -52,7 +63,9 @@ pnpm install
 
 ## Development
 
-### `pnpm run start`
+### Web Development
+
+#### `pnpm run start`
 
 Runs the app in the development mode.\
 Open [http://localhost:3002](http://localhost:3002) to view it in the browser.
@@ -60,13 +73,122 @@ Open [http://localhost:3002](http://localhost:3002) to view it in the browser.
 The page will reload if you make edits.\
 You will also see any lint errors in the console.
 
-### `pnpm run build`
+#### `pnpm run build`
 
 Builds the app for production to the `dist` folder.\
 It correctly bundles React in production mode and optimizes the build for the best performance.
 
 The build is minified and the filenames include the hashes.\
 Your app is ready to be deployed!
+
+### Mobile Development with Capacitor
+
+The wallet uses Capacitor to provide native mobile functionality on iOS and Android platforms.
+
+#### Persistent Storage with SQLite
+
+Native mobile apps (iOS and Android) use SQLite for persistent storage of wallet data through the `@capacitor-community/sqlite` plugin. This provides:
+
+- **Persistent storage** of VTXOs, UTXOs, and transaction history
+- **Better performance** compared to in-memory storage
+- **Indexed queries** for fast data lookups
+- **Automatic schema creation** and migrations
+
+The SQLite database is stored in the following locations:
+
+- **iOS**: `Library/CapacitorDatabase/arkade-wallet.db`
+- **Android**: App's private database directory
+
+For web platforms, the wallet uses IndexedDB storage via ServiceWorkers.
+
+**Note**: The SQLite plugin is automatically configured in [capacitor.config.ts](capacitor.config.ts) and requires no additional setup after running `pnpm install` and syncing the native platforms.
+
+#### Building for Mobile
+
+First, build the web assets and sync them to native platforms:
+
+```bash
+pnpm run build:mobile
+```
+
+This command builds the web app and syncs the assets to both iOS and Android projects.
+
+##### First-time iOS Setup
+
+If you're setting up the iOS platform for the first time (or after removing the `ios` directory), you'll need to apply these manual fixes:
+
+1. **Add NSAllowsArbitraryLoads to Info.plist** (`ios/App/App/Info.plist`):
+
+   ```xml
+   <key>NSAppTransportSecurity</key>
+   <dict>
+       <key>NSAllowsArbitraryLoads</key>
+       <true/>
+   </dict>
+   ```
+
+   Add this before the closing `</dict></plist>` tags.
+
+2. **Fix AppDelegate.swift** (`ios/App/App/AppDelegate.swift`):
+
+   Replace the `ApplicationDelegateProxy` calls with `return true`:
+
+   ```swift
+   func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+       return true
+   }
+
+   func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
+       return true
+   }
+   ```
+
+#### Syncing Native Projects
+
+After making changes to the web app or Capacitor configuration, sync the projects:
+
+```bash
+# Sync both iOS and Android
+pnpm run cap:sync
+
+# Sync iOS only
+pnpm run cap:sync:ios
+
+# Sync Android only
+pnpm run cap:sync:android
+```
+
+#### Opening Native IDEs
+
+To open the native projects in their respective IDEs for debugging or building:
+
+```bash
+# Open iOS project in Xcode
+pnpm run cap:open:ios
+
+# Open Android project in Android Studio
+pnpm run cap:open:android
+```
+
+#### Running on Devices/Simulators
+
+Run the app directly on connected devices or simulators:
+
+```bash
+# Run on iOS device/simulator
+pnpm run cap:run:ios
+
+# Run on Android device/emulator
+pnpm run cap:run:android
+```
+
+#### Mobile Testing Workflow
+
+1. Make changes to the web app code
+2. Test in the browser with `pnpm run start`
+3. Build and sync to native platforms with `pnpm run build:mobile`
+4. Open the native IDE or run directly on device
+5. Test native features (haptics, status bar, etc.)
 
 ### `pnpm run regtest`
 

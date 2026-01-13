@@ -20,7 +20,7 @@ export default function NotesRedeem() {
   const { aspInfo } = useContext(AspContext)
   const { noteInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { svcWallet } = useContext(WalletContext)
+  const { walletInstance } = useContext(WalletContext)
 
   const defaultButtonLabel = 'Redeem Note'
 
@@ -40,13 +40,13 @@ export default function NotesRedeem() {
     navigate(Pages.NotesForm)
   }
 
-  if (!svcWallet) return <Loading text='Loading...' />
+  if (!walletInstance) return <Loading text='Loading...' />
 
   const handleRedeem = async () => {
     setError('')
     setRedeeming(true)
     try {
-      await redeemNotes(svcWallet, [noteInfo.note])
+      await redeemNotes(walletInstance.wallet, [noteInfo.note])
       navigate(Pages.NotesSuccess)
     } catch (err) {
       consoleError(err, 'error redeeming note')
