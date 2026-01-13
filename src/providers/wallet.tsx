@@ -203,6 +203,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       // Handle service worker messages (only for ServiceWorkerWallet)
       if (isServiceWorkerWallet(instance)) {
+        // TODO: Fix event listener memory leak (pre-existing issue)
+        // The handleServiceWorkerMessages function is recreated on each initWalletInstance call,
+        // causing removeEventListener to fail (different function reference).
+        // Solution: Use a useRef to store a stable function reference, or move this to a useEffect
+        // with proper cleanup. This is a pre-existing bug that should be addressed in a separate PR.
         const handleServiceWorkerMessages = (event: MessageEvent) => {
           if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
             reloadWallet(instance)
