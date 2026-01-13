@@ -1,6 +1,7 @@
 import { Wallet, ServiceWorkerWallet, SingleKey } from '@arkade-os/sdk'
 import { isNativePlatform } from './platform'
 import { consoleError } from './logs'
+import { SQLiteStorageAdapter } from './storage/SQLiteStorageAdapter'
 
 /**
  * Configuration for wallet initialization
@@ -49,17 +50,20 @@ export const createWallet = async (config: WalletConfig, retryConfig: RetryConfi
 }
 
 /**
- * Creates a standard Wallet for native platforms using in-memory storage (SDK default)
+ * Creates a standard Wallet for native platforms using SQLite storage for persistence
  */
 const createStandardWallet = async (config: WalletConfig): Promise<WalletInstance> => {
   try {
     const identity = SingleKey.fromHex(config.privateKey)
 
+    // Use SQLite storage for native platforms to persist wallet data
+    const storage = new SQLiteStorageAdapter('arkade-wallet')
+
     const wallet = await Wallet.create({
       identity,
       arkServerUrl: config.arkServerUrl,
       esploraUrl: config.esploraUrl,
-      // No storage specified - SDK will use default in-memory storage
+      storage,
     })
 
     return {

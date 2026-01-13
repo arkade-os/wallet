@@ -1,5 +1,6 @@
 import { CapacitorSQLite, SQLiteDBConnection, SQLiteConnection } from '@capacitor-community/sqlite'
 import { Capacitor } from '@capacitor/core'
+import { StorageAdapter } from '@arkade-os/sdk'
 
 /**
  * SQLite-based storage adapter for native Capacitor apps
@@ -18,7 +19,7 @@ import { Capacitor } from '@capacitor/core'
  * - Android: SQLite database using Android's SQLite API
  * - Web: Falls back to IndexedDB via sql.js (via jeep-sqlite)
  */
-export class SQLiteStorageAdapter {
+export class SQLiteStorageAdapter implements StorageAdapter {
   private dbName: string
   private db: SQLiteDBConnection | null = null
   private sqlite: SQLiteConnection

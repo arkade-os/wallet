@@ -85,6 +85,24 @@ Your app is ready to be deployed!
 
 The wallet uses Capacitor to provide native mobile functionality on iOS and Android platforms.
 
+#### Persistent Storage with SQLite
+
+Native mobile apps (iOS and Android) use SQLite for persistent storage of wallet data through the `@capacitor-community/sqlite` plugin. This provides:
+
+- **Persistent storage** of VTXOs, UTXOs, and transaction history
+- **Better performance** compared to in-memory storage
+- **Indexed queries** for fast data lookups
+- **Automatic schema creation** and migrations
+
+The SQLite database is stored in the following locations:
+
+- **iOS**: `Library/CapacitorDatabase/arkade-wallet.db`
+- **Android**: App's private database directory
+
+For web platforms, the wallet uses IndexedDB storage via ServiceWorkers.
+
+**Note**: The SQLite plugin is automatically configured in [capacitor.config.ts](capacitor.config.ts) and requires no additional setup after running `pnpm install` and syncing the native platforms.
+
 #### Building for Mobile
 
 First, build the web assets and sync them to native platforms:
