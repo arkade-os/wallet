@@ -38,10 +38,7 @@ export type WalletInstance =
  * @param retryConfig - Optional retry configuration (only used for ServiceWorker)
  * @returns Promise<WalletInstance> - Discriminated union of wallet types
  */
-export const createWallet = async (
-  config: WalletConfig,
-  retryConfig: RetryConfig = {},
-): Promise<WalletInstance> => {
+export const createWallet = async (config: WalletConfig, retryConfig: RetryConfig = {}): Promise<WalletInstance> => {
   const isNative = isNativePlatform()
 
   if (isNative) {
@@ -137,8 +134,6 @@ export const isServiceWorkerWallet = (
 /**
  * Type guard to check if wallet is standard Wallet
  */
-export const isStandardWallet = (
-  instance: WalletInstance,
-): instance is { type: 'standard'; wallet: Wallet } => {
+export const isStandardWallet = (instance: WalletInstance): instance is { type: 'standard'; wallet: Wallet } => {
   return instance.type === 'standard'
 }

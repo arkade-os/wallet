@@ -17,7 +17,6 @@ import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
 import { maxPercentage } from '../lib/constants'
 import { createWallet, WalletInstance, isServiceWorkerWallet } from '../lib/walletFactory'
-import { isNativePlatform } from '../lib/platform'
 
 const defaultWallet: Wallet = {
   network: '',
