@@ -42,6 +42,18 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 - Node.js v20.19+ or v22.12+ (Required by Vite 7)
 - PNPM >=8
 
+#### Mobile Development Prerequisites
+
+For iOS:
+- macOS with Xcode 14+ installed
+- CocoaPods (`sudo gem install cocoapods`)
+- iOS Simulator or physical iOS device
+
+For Android:
+- Android Studio with Android SDK
+- Java Development Kit (JDK) 17+
+- Android emulator or physical Android device
+
 ### Installation
 
 Install dependencies
@@ -52,7 +64,9 @@ pnpm install
 
 ## Development
 
-### `pnpm run start`
+### Web Development
+
+#### `pnpm run start`
 
 Runs the app in the development mode.\
 Open [http://localhost:3002](http://localhost:3002) to view it in the browser.
@@ -60,13 +74,74 @@ Open [http://localhost:3002](http://localhost:3002) to view it in the browser.
 The page will reload if you make edits.\
 You will also see any lint errors in the console.
 
-### `pnpm run build`
+#### `pnpm run build`
 
 Builds the app for production to the `dist` folder.\
 It correctly bundles React in production mode and optimizes the build for the best performance.
 
 The build is minified and the filenames include the hashes.\
 Your app is ready to be deployed!
+
+### Mobile Development with Capacitor
+
+The wallet uses Capacitor to provide native mobile functionality on iOS and Android platforms.
+
+#### Building for Mobile
+
+First, build the web assets and sync them to native platforms:
+
+```bash
+pnpm run build:mobile
+```
+
+This command builds the web app and syncs the assets to both iOS and Android projects.
+
+#### Syncing Native Projects
+
+After making changes to the web app or Capacitor configuration, sync the projects:
+
+```bash
+# Sync both iOS and Android
+pnpm run cap:sync
+
+# Sync iOS only
+pnpm run cap:sync:ios
+
+# Sync Android only
+pnpm run cap:sync:android
+```
+
+#### Opening Native IDEs
+
+To open the native projects in their respective IDEs for debugging or building:
+
+```bash
+# Open iOS project in Xcode
+pnpm run cap:open:ios
+
+# Open Android project in Android Studio
+pnpm run cap:open:android
+```
+
+#### Running on Devices/Simulators
+
+Run the app directly on connected devices or simulators:
+
+```bash
+# Run on iOS device/simulator
+pnpm run cap:run:ios
+
+# Run on Android device/emulator
+pnpm run cap:run:android
+```
+
+#### Mobile Testing Workflow
+
+1. Make changes to the web app code
+2. Test in the browser with `pnpm run start`
+3. Build and sync to native platforms with `pnpm run build:mobile`
+4. Open the native IDE or run directly on device
+5. Test native features (SQLite storage, haptics, splash screen, status bar, etc.)
 
 ### `pnpm run regtest`
 
