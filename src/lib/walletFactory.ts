@@ -1,6 +1,6 @@
 import { Wallet, ServiceWorkerWallet, SingleKey, NetworkName } from '@arkade-os/sdk'
 import { isNativePlatform } from './platform'
-import { CapacitorStorageAdapter } from './storage/CapacitorStorageAdapter'
+import { SQLiteStorageAdapter } from './storage/SQLiteStorageAdapter'
 import { consoleError } from './logs'
 
 /**
@@ -31,7 +31,7 @@ export type WalletInstance =
 /**
  * Creates the appropriate wallet type based on the platform
  *
- * - In native Capacitor apps: Uses standard Wallet with CapacitorStorageAdapter
+ * - In native Capacitor apps: Uses standard Wallet with SQLite storage for production-grade performance
  * - In web/PWA: Uses ServiceWorkerWallet for better performance and security
  *
  * @param config - Wallet configuration
@@ -51,11 +51,11 @@ export const createWallet = async (config: WalletConfig, retryConfig: RetryConfi
 }
 
 /**
- * Creates a standard Wallet for native platforms
+ * Creates a standard Wallet for native platforms using SQLite storage
  */
 const createStandardWallet = async (config: WalletConfig): Promise<WalletInstance> => {
   try {
-    const storage = new CapacitorStorageAdapter('arkade-wallet')
+    const storage = new SQLiteStorageAdapter('arkade-wallet')
     const identity = SingleKey.fromHex(config.privateKey)
 
     const wallet = await Wallet.create({
