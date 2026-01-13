@@ -34,7 +34,7 @@ export default function ReceiveAmount() {
   const { calcReverseSwapFee } = useContext(LightningContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, validLnSwap } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
-  const { balance, svcWallet } = useContext(WalletContext)
+  const { balance, walletInstance } = useContext(WalletContext)
 
   const defaultButtonLabel = 'Skip'
 
@@ -58,8 +58,8 @@ export default function ReceiveAmount() {
   }, [])
 
   useEffect(() => {
-    if (!svcWallet) return
-    getReceivingAddresses(svcWallet)
+    if (!walletInstance) return
+    getReceivingAddresses(walletInstance.wallet)
       .then(({ offchainAddr, boardingAddr }) => {
         if (!offchainAddr) throw 'Unable to get offchain address'
         if (!boardingAddr) throw 'Unable to get boarding address'
@@ -70,7 +70,7 @@ export default function ReceiveAmount() {
         consoleError(error, 'error getting addresses')
         setError(error)
       })
-  }, [svcWallet])
+  }, [walletInstance])
 
   useEffect(() => {
     setButtonLabel(
@@ -86,7 +86,7 @@ export default function ReceiveAmount() {
     )
   }, [satoshis])
 
-  if (!svcWallet) return <Loading text='Loading...' />
+  if (!walletInstance) return <Loading text='Loading...' />
 
   const handleChange = (sats: number) => {
     setSatoshis(sats)

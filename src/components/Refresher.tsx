@@ -3,10 +3,13 @@ import { WalletContext } from '../providers/wallet'
 import { useContext } from 'react'
 
 export default function Refresher() {
-  const { reloadWallet, svcWallet } = useContext(WalletContext)
+  const { reloadWallet, walletInstance } = useContext(WalletContext)
 
   const handleRefresh = async (event: { detail: { complete(): void } }) => {
-    await svcWallet?.reload()
+    // Only ServiceWorkerWallet has a reload() method
+    if (walletInstance?.type === 'service-worker') {
+      await walletInstance.wallet.reload()
+    }
     await reloadWallet()
     event.detail.complete()
   }

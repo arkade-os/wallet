@@ -46,7 +46,6 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 
 For iOS:
 - macOS with Xcode 14+ installed
-- CocoaPods (`sudo gem install cocoapods`)
 - iOS Simulator or physical iOS device
 
 For Android:
@@ -96,6 +95,36 @@ pnpm run build:mobile
 
 This command builds the web app and syncs the assets to both iOS and Android projects.
 
+##### First-time iOS Setup
+
+If you're setting up the iOS platform for the first time (or after removing the `ios` directory), you'll need to apply these manual fixes:
+
+1. **Add NSAllowsArbitraryLoads to Info.plist** (`ios/App/App/Info.plist`):
+
+   ```xml
+   <key>NSAppTransportSecurity</key>
+   <dict>
+       <key>NSAllowsArbitraryLoads</key>
+       <true/>
+   </dict>
+   ```
+
+   Add this before the closing `</dict></plist>` tags.
+
+2. **Fix AppDelegate.swift** (`ios/App/App/AppDelegate.swift`):
+
+   Replace the `ApplicationDelegateProxy` calls with `return true`:
+
+   ```swift
+   func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+       return true
+   }
+
+   func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
+       return true
+   }
+   ```
+
 #### Syncing Native Projects
 
 After making changes to the web app or Capacitor configuration, sync the projects:
@@ -141,7 +170,7 @@ pnpm run cap:run:android
 2. Test in the browser with `pnpm run start`
 3. Build and sync to native platforms with `pnpm run build:mobile`
 4. Open the native IDE or run directly on device
-5. Test native features (SQLite storage, haptics, splash screen, status bar, etc.)
+5. Test native features (haptics, status bar, etc.)
 
 ### `pnpm run regtest`
 

@@ -29,7 +29,7 @@ export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { settlePreconfirmed, vtxos, wallet, svcWallet } = useContext(WalletContext)
+  const { settlePreconfirmed, vtxos, wallet, walletInstance } = useContext(WalletContext)
 
   const tx = txInfo
   const boardingTx = Boolean(tx?.boardingTxid)
@@ -67,13 +67,13 @@ export default function Transaction() {
   }, [wallet.nextRollover])
 
   useEffect(() => {
-    if (!aspInfo || !svcWallet) return
-    getInputsToSettle(svcWallet, wallet.thresholdMs).then(({ inputs }) => {
+    if (!aspInfo || !walletInstance) return
+    getInputsToSettle(walletInstance.wallet, wallet.thresholdMs).then(({ inputs }) => {
       setHasInputsToSettle(inputs.length > 0)
       const totalAmount = inputs.reduce((a, v) => a + v.value, 0) || 0
       setAmountAboveDust(totalAmount > aspInfo.dust)
     })
-  }, [aspInfo, vtxos, svcWallet, wallet.thresholdMs])
+  }, [aspInfo, vtxos, walletInstance, wallet.thresholdMs])
 
   const handleBack = () => navigate(Pages.Wallet)
 

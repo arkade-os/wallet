@@ -52,7 +52,7 @@ export default function SendForm() {
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
-  const { balance, svcWallet } = useContext(WalletContext)
+  const { balance, walletInstance } = useContext(WalletContext)
 
   const [amount, setAmount] = useState<number>()
   const [amountIsReadOnly, setAmountIsReadOnly] = useState(false)
@@ -83,8 +83,8 @@ export default function SendForm() {
 
   // get receiving addresses
   useEffect(() => {
-    if (!svcWallet) return
-    getReceivingAddresses(svcWallet)
+    if (!walletInstance) return
+    getReceivingAddresses(walletInstance.wallet)
       .then(({ boardingAddr, offchainAddr }) => {
         if (!boardingAddr || !offchainAddr) {
           throw new Error('unable to get receiving addresses')
@@ -104,8 +104,8 @@ export default function SendForm() {
 
   // update available balance
   useEffect(() => {
-    if (!svcWallet) return
-    svcWallet
+    if (!walletInstance) return
+    walletInstance.wallet
       .getBalance()
       .then((bal) => setAvailableBalance(bal.available))
       .catch(smartSetError)
@@ -295,7 +295,7 @@ export default function SendForm() {
     setDeductFromAmount(satoshis + calcOnchainOutputFee() > availableBalance)
   }, [availableBalance, sendInfo.satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
 
-  if (!svcWallet) return <Loading text='Loading...' />
+  if (!walletInstance) return <Loading text='Loading...' />
 
   const gotoBoltzApp = () => {
     navigate(Pages.AppBoltzSettings)

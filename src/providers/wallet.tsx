@@ -317,13 +317,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // ServiceWorkerWallet has clear() and contractRepository methods
       await walletInstance.wallet.clear()
       await walletInstance.wallet.contractRepository.clearContractData()
-    } else {
-      // Standard wallet uses SQLiteStorageAdapter - access it via the wallet's storage property
-      const actualWallet = walletInstance.wallet as any
-      if (actualWallet.storage && typeof actualWallet.storage.clear === 'function') {
-        await actualWallet.storage.clear()
-      }
     }
+    // Standard wallet uses in-memory storage - no persistent storage to clear
 
     setWalletInstance(undefined)
     setSvcWallet(undefined)

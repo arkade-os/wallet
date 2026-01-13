@@ -67,7 +67,7 @@ export const LightningContext = createContext<LightningContextProps>({
 
 export const LightningProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { svcWallet } = useContext(WalletContext)
+  const { walletInstance } = useContext(WalletContext)
   const { config, updateConfig, backupConfig } = useContext(ConfigContext)
 
   const [arkadeLightning, setArkadeLightning] = useState<ArkadeLightning | null>(null)
@@ -78,7 +78,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
 
   // create ArkadeLightning with SwapManager on first run with svcWallet
   useEffect(() => {
-    if (!aspInfo.network || !svcWallet) return
+    if (!aspInfo.network || !walletInstance) return
 
     const baseUrl = BASE_URLS[aspInfo.network as Network]
     if (!baseUrl) return // No boltz server for this network
@@ -91,7 +91,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     const indexerProvider = new RestIndexerProvider(aspInfo.url)
 
     const instance = new ArkadeLightning({
-      wallet: svcWallet,
+      wallet: walletInstance.wallet,
       arkProvider,
       swapProvider,
       indexerProvider,
@@ -109,7 +109,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       instance.dispose().catch(consoleError)
     }
-  }, [aspInfo, svcWallet, config.apps.boltz.connected])
+  }, [aspInfo, walletInstance, config.apps.boltz.connected])
 
   // fetch fees when arkadeLightning is ready
   useEffect(() => {
@@ -163,7 +163,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const payInvoice = async (pendingSwap: PendingSubmarineSwap): Promise<{ txid: string; preimage: string }> => {
-    if (!arkadeLightning || !svcWallet) throw new Error('Lightning not initialized')
+    if (!arkadeLightning || !walletInstance) throw new Error('Lightning not initialized')
     if (!pendingSwap) throw new Error('No pending swap found')
     if (!pendingSwap.response.address) throw new Error('No swap address found')
     if (!pendingSwap.response.expectedAmount) throw new Error('No swap amount found')
@@ -171,7 +171,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     const satoshis = pendingSwap.response.expectedAmount
     const swapAddress = pendingSwap.response.address
 
-    const txid = await sendOffChain(svcWallet, satoshis, swapAddress)
+    const txid = await sendOffChain(walletInstance.wallet, satoshis, swapAddress)
     if (!txid) throw new Error('Failed to send offchain payment')
 
     try {
