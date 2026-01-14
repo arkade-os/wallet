@@ -12,8 +12,8 @@ importers:
         specifier: 0.2.16
         version: 0.2.16
       '@arkade-os/sdk':
-        specifier: 0.3.10
-        version: 0.3.10
+        specifier: github:arkade-os/ts-sdk#fix-transaction-history
+        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/5954c2d5d90f0369486a909a30060dde1f36b4b9
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -165,6 +165,11 @@ packages:
 
   '@arkade-os/sdk@0.3.10':
     resolution: {integrity: sha512-3O/ftt5h9equtbMuzBmWEbw2M8AeDrokoLSMQDvoQF4Lz9y8A0azZyVZjLZJlvNhQFL2ZVH+Y8urSI8YoHpJWg==}
+    engines: {node: '>=20.0.0'}
+
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/5954c2d5d90f0369486a909a30060dde1f36b4b9':
+    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/5954c2d5d90f0369486a909a30060dde1f36b4b9}
+    version: 0.3.10
     engines: {node: '>=20.0.0'}
 
   '@asamuzakjp/css-color@3.2.0':
@@ -515,6 +520,10 @@ packages:
 
   '@lendasat/lendasat-wallet-bridge@0.0.90':
     resolution: {integrity: sha512-VfgM5vUx81vVWlggtOReUkaC8VVOFVavIMixQM0G/ZI0L/nMi10fmkIBvXOVI4Jmsu9A5z6wHSUrERxD3a/Juw==}
+
+  '@marcbachmann/cel-js@7.0.0':
+    resolution: {integrity: sha512-sbtR8pvTAsDPiyigebwLyqweLnocmBS9MG5tTnVUL2PZ9Hc2Dj2e4tnvTcZ1s463Og9NKD59TaPvTK9CEZQhiQ==}
+    engines: {node: '>=20.19.0'}
 
   '@noble/ciphers@0.5.3':
     resolution: {integrity: sha512-B0+6IIHiqEs3BPMT0hcRmHvEj2QHOLu+uwt+tqDDeVd0oyVzh7BPrDcPjRnV1PV/5LaknXJJQvOuRGR0zQJz+w==}
@@ -2531,6 +2540,15 @@ snapshots:
       '@scure/btc-signer': 2.0.1
       bip68: 1.0.4
 
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/5954c2d5d90f0369486a909a30060dde1f36b4b9':
+    dependencies:
+      '@marcbachmann/cel-js': 7.0.0
+      '@noble/curves': 2.0.0
+      '@noble/secp256k1': 3.0.0
+      '@scure/base': 2.0.0
+      '@scure/btc-signer': 2.0.1
+      bip68: 1.0.4
+
   '@asamuzakjp/css-color@3.2.0':
     dependencies:
       '@csstools/css-calc': 2.1.4(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)
@@ -2832,6 +2850,8 @@ snapshots:
       '@jridgewell/sourcemap-codec': 1.5.5
 
   '@lendasat/lendasat-wallet-bridge@0.0.90': {}
+
+  '@marcbachmann/cel-js@7.0.0': {}
 
   '@noble/ciphers@0.5.3': {}
 
