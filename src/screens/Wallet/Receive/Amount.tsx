@@ -25,6 +25,9 @@ import { FiatContext } from '../../../providers/fiat'
 import { LimitsContext } from '../../../providers/limits'
 import { LightningContext } from '../../../providers/lightning'
 import { InfoLine } from '../../../components/Info'
+import Scanner from '../../../components/Scanner'
+import { fetchWithdraw, isLnUrl } from '../../../lib/lnurl'
+import InputLnUrlWithdraw from '../../../components/InputLnUrlWithdraw'
 
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
@@ -43,9 +46,22 @@ export default function ReceiveAmount() {
   const [fauceting, setFauceting] = useState(false)
   const [faucetSuccess, setFaucetSuccess] = useState(false)
   const [faucetAvailable, setFaucetAvailable] = useState(false)
+  const [lnUrl, setLnUrl] = useState('')
+  const [lnUrlWithdrawLimits, setLnUrlWithdrawLimits] = useState<{ max: number; min: number }>()
   const [satoshis, setSatoshis] = useState(0)
+  const [scan, setScan] = useState(false)
   const [showKeys, setShowKeys] = useState(false)
   const [textValue, setTextValue] = useState('')
+
+  const aboveMaxLimit = (sats: number) => {
+    const aboveLnUrlWithdrawMax = lnUrlWithdrawLimits ? sats > lnUrlWithdrawLimits.max : false
+    return amountIsAboveMaxLimit(sats) || aboveLnUrlWithdrawMax
+  }
+
+  const belowMinLimit = (sats: number) => {
+    const belowLnUrlWithdrawMin = lnUrlWithdrawLimits ? sats < lnUrlWithdrawLimits.min : false
+    return amountIsBelowMinLimit(sats) || belowLnUrlWithdrawMin
+  }
 
   useEffect(() => {
     setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
@@ -78,13 +94,31 @@ export default function ReceiveAmount() {
         ? defaultButtonLabel
         : satoshis < 1
           ? 'Amount below 1 satoshi'
-          : amountIsAboveMaxLimit(satoshis)
+          : aboveMaxLimit(satoshis)
             ? 'Amount above max limit'
-            : amountIsBelowMinLimit(satoshis)
+            : belowMinLimit(satoshis)
               ? 'Amount below min limit'
               : 'Continue',
     )
   }, [satoshis])
+
+  useEffect(() => {
+    if (!lnUrl) return
+    if (!isLnUrl(lnUrl)) return setError('Invalid LNURL-Withdraw')
+    fetchWithdraw(lnUrl)
+      .then((res) => {
+        const max = Math.floor(res.maxWithdrawable / 1000) // convert msats to sats
+        const min = Math.ceil(res.minWithdrawable / 1000) // convert msats to sats
+        setLnUrlWithdrawLimits({ max, min })
+        setSatoshis(max) // prefill amount
+        setError('')
+      })
+      .catch((err) => {
+        const error = extractError(err)
+        consoleError(error, 'error fetching LNURL-Withdraw')
+        setError(error)
+      })
+  }, [lnUrl])
 
   if (!svcWallet) return <Loading text='Loading...' />
 
@@ -156,13 +190,23 @@ export default function ReceiveAmount() {
     )
   }
 
+  if (scan) {
+    return <Scanner close={() => setScan(false)} label='LNURL Withdraw' onData={setLnUrl} onError={setError} />
+  }
+
   return (
     <>
       <Header text='Receive' back={() => navigate(Pages.Wallet)} />
       <Content>
         <Padded>
-          <FlexCol>
+          <FlexCol gap='2rem'>
             <ErrorMessage error={Boolean(error)} text={error} />
+            <InputLnUrlWithdraw
+              label='LNURL-Withdraw'
+              onChange={setLnUrl}
+              openScan={() => setScan(true)}
+              value={lnUrl}
+            />
             <InputAmount
               name='receive-amount'
               focus={!isMobileBrowser}

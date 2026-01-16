@@ -15,6 +15,16 @@ type LnUrlResponse = {
   }[]
 }
 
+type LnUrlWithdrawResponse = {
+  balanceCheck: string
+  callback: string
+  defaultDescription: string // wallet uses this to prefill memo
+  k1: 'k1'
+  maxWithdrawable: number // wallet uses this to prefill amount. it is in msats
+  minWithdrawable: number
+  tag: 'withdrawRequest'
+}
+
 type ArkMethodResponse = {
   expiryDate: string
   address: string
@@ -54,7 +64,7 @@ const isValidBech32 = (data: string) => {
   }
 }
 
-const isLnUrl = (data: string) => {
+export const isLnUrl = (data: string) => {
   return data.toLowerCase().startsWith('lnurl') && isValidBech32(data)
 }
 
@@ -103,6 +113,16 @@ export const fetchArkAddress = (lnurl: string): Promise<ArkMethodResponse> => {
     const url = getCallbackUrl(lnurl) + '?method=ark'
     fetch(url)
       .then(checkResponse<ArkMethodResponse>)
+      .then(resolve)
+      .catch(reject)
+  })
+}
+
+export const fetchWithdraw = (lnurl: string): Promise<LnUrlWithdrawResponse> => {
+  return new Promise<LnUrlWithdrawResponse>((resolve, reject) => {
+    const url = getCallbackUrl(lnurl)
+    fetch(url)
+      .then(checkResponse<LnUrlWithdrawResponse>)
       .then(resolve)
       .catch(reject)
   })
