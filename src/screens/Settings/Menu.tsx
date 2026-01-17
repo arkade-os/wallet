@@ -1,21 +1,36 @@
 import Header from './Header'
-import { options } from '../../providers/options'
+import { options, optionsUsingPrivKey } from '../../providers/options'
 import Content from '../../components/Content'
 import { SettingsSections } from '../../lib/types'
 import Menu from '../../components/Menu'
 import { TextLabel } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
+import { useContext } from 'react'
+import { WalletContext } from '../../providers/wallet'
+import ReadonlyWallet from '../../components/ReadonlyWallet'
 
 export default function SettingsMenu() {
+  const { wallet } = useContext(WalletContext)
+  const excludeInReadonlyMode = wallet.isReadonly ? optionsUsingPrivKey : new Set()
+
   // get rows for General and Security sections
-  const generalRows = options.filter((o) => o.section === SettingsSections.General)
-  const securityRows = options.filter((o) => o.section === SettingsSections.Security)
+  const generalRows = options.filter(
+    (o) => o.section === SettingsSections.General && !excludeInReadonlyMode.has(o.option),
+  )
+  const securityRows = options.filter(
+    (o) => o.section === SettingsSections.Security && !excludeInReadonlyMode.has(o.option),
+  )
 
   return (
     <>
       <Header text='Settings' />
       <Content>
         <FlexCol gap='1.25rem'>
+          {wallet.isReadonly ? (
+            <div style={{ padding: '0 1rem 1rem 1rem' }}>
+              <ReadonlyWallet />
+            </div>
+          ) : null}
           <FlexCol gap='0'>
             <TextLabel>General</TextLabel>
             <Menu rows={generalRows} styled />

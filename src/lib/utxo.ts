@@ -1,4 +1,4 @@
-import { ExtendedCoin, hasBoardingTxExpired, IWallet, VtxoScript, RelativeTimelock } from '@arkade-os/sdk'
+import { ExtendedCoin, hasBoardingTxExpired, VtxoScript, IReadonlyWallet, RelativeTimelock } from '@arkade-os/sdk'
 
 const isExpiredUtxo = (utxo: ExtendedCoin) => {
   const vtxoScript = VtxoScript.decode(utxo.tapTree)
@@ -15,7 +15,7 @@ const isExpiredUtxo = (utxo: ExtendedCoin) => {
   return earliestTimelock ? hasBoardingTxExpired(utxo, earliestTimelock) : false
 }
 
-export const getConfirmedAndNotExpiredUtxos = async (wallet: IWallet) => {
+export const getConfirmedAndNotExpiredUtxos = async (wallet: IReadonlyWallet) => {
   return (await wallet.getBoardingUtxos())
     .filter((utxo) => utxo.status.confirmed)
     .filter((utxo) => !isExpiredUtxo(utxo))

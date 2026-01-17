@@ -86,6 +86,7 @@ export const mockNavigationContextValue = {
 
 export const mockWalletContextValue = {
   initWallet: () => Promise.resolve(),
+  initReadonlyWallet: () => Promise.resolve(),
   lockWallet: () => Promise.resolve(),
   resetWallet: () => Promise.resolve(),
   settlePreconfirmed: () => Promise.resolve(),

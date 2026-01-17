@@ -96,10 +96,10 @@ export default function SendDetails() {
   }
 
   const handleContinue = async () => {
-    if (!details?.total || !details.satoshis || !svcWallet) return
+    if (!details?.total || !details.satoshis || !svcWallet?.writer) return
     setSending(true)
     if (arkAddress) {
-      sendOffChain(svcWallet, details.total, arkAddress).then(handleTxid).catch(handleError)
+      sendOffChain(svcWallet.writer, details.total, arkAddress).then(handleTxid).catch(handleError)
     } else if (invoice) {
       const response = pendingSwap?.response
       if (!response) return setError('Swap response not available')
@@ -107,7 +107,9 @@ export default function SendDetails() {
       if (!swapAddress) return setError('Swap address not available')
       payInvoice(pendingSwap).then(handlePreimage).catch(handleError)
     } else if (address) {
-      collaborativeExitWithFees(svcWallet, details.total, details.satoshis, address).then(handleTxid).catch(handleError)
+      collaborativeExitWithFees(svcWallet.writer, details.total, details.satoshis, address)
+        .then(handleTxid)
+        .catch(handleError)
     }
   }
 

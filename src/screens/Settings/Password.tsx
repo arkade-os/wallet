@@ -1,6 +1,6 @@
 import Header from './Header'
 import ErrorMessage from '../../components/Error'
-import { consoleLog } from '../../lib/logs'
+import { consoleError, consoleLog } from '../../lib/logs'
 import Button from '../../components/Button'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
@@ -13,6 +13,7 @@ import NeedsPassword from '../../components/NeedsPassword'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { isBiometricsSupported, registerUser } from '../../lib/biometrics'
 import { getPrivateKey, isValidPassword, noUserDefinedPassword, setPrivateKey } from '../../lib/privateKey'
+import ReadonlyWallet from '../../components/ReadonlyWallet'
 
 export default function Password() {
   const { updateWallet, wallet } = useContext(WalletContext)
@@ -26,9 +27,11 @@ export default function Password() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    noUserDefinedPassword().then((noPassword) => {
-      if (noPassword) setOldPassword(defaultPassword)
-    })
+    noUserDefinedPassword()
+      .then((noPassword) => {
+        if (noPassword) setOldPassword(defaultPassword)
+      })
+      .catch(consoleError)
   }, [])
 
   useEffect(() => {
@@ -83,6 +86,7 @@ export default function Password() {
     <>
       <Header text='Change password' back />
       <Content>
+        {wallet.isReadonly ? <ReadonlyWallet /> : null}
         {successText ? (
           <Success headline='Success' text={successText} />
         ) : (
@@ -94,7 +98,12 @@ export default function Password() {
       </Content>
       {successText ? null : (
         <ButtonsOnBottom>
-          <Button onClick={handleContinue} label={label} disabled={newPassword === null || saving} loading={saving} />
+          <Button
+            onClick={handleContinue}
+            label={label}
+            disabled={wallet.isReadonly || newPassword === null || saving}
+            loading={saving}
+          />
           {wallet.lockedByBiometrics || !isBiometricsSupported() ? null : (
             <Button onClick={registerUserBiometrics} label='Use biometrics' secondary />
           )}

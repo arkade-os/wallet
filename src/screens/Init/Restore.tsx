@@ -18,6 +18,9 @@ import Padded from '../../components/Padded'
 import Input from '../../components/Input'
 import Text from '../../components/Text'
 import { hex } from '@scure/base'
+import { hexToBytes } from '@noble/hashes/utils.js'
+import { nip19 } from 'nostr-tools'
+import WarningBox from '../../components/Warning'
 
 export default function InitRestore() {
   const { updateConfig } = useContext(ConfigContext)
@@ -29,11 +32,32 @@ export default function InitRestore() {
   const [error, setError] = useState('')
   const [label, setLabel] = useState(buttonLabel)
   const [privateKey, setPrivateKey] = useState<Uint8Array>()
+  const [publicKey, setPublicKey] = useState<Uint8Array>()
   const [restoring, setRestoring] = useState(false)
   const [someKey, setSomeKey] = useState<string>()
 
   useEffect(() => {
     if (!someKey) return
+
+    if (someKey.startsWith('npub')) {
+      let pubkey: Uint8Array | undefined = undefined
+      try {
+        const decodedPubkey = nip19.decode(someKey)
+        if (decodedPubkey.type !== 'npub') throw new Error('It must be a valid npub key')
+        pubkey = hexToBytes(decodedPubkey.data)
+        setError('')
+        setLabel(buttonLabel)
+      } catch (e) {
+        consoleError(e, `Error validating public key ${someKey}`)
+        setLabel('Unable to validate public key format')
+        setError(extractError(e))
+      }
+      setPublicKey(pubkey)
+      setPrivateKey(undefined)
+      return
+    }
+
+    // assume it's a private key
     let privateKey = undefined
     try {
       if (someKey?.match(/^nsec/)) privateKey = nsecToPrivateKey(someKey)
@@ -46,23 +70,29 @@ export default function InitRestore() {
       setError(extractError(err))
     }
     setPrivateKey(privateKey)
+    setPublicKey(undefined)
   }, [someKey])
 
   const handleCancel = () => navigate(Pages.Init)
 
   const handleProceed = () => {
-    setInitInfo({ privateKey, password: defaultPassword, restoring: true })
-    setRestoring(true)
-    new BackupProvider({ seckey: privateKey! })
-      .restore(updateConfig)
-      .catch((err) => consoleError(err, 'Error restoring from nostr'))
-      .finally(() => {
-        setRestoring(false)
-        navigate(Pages.InitSuccess)
-      })
+    if (publicKey) {
+      setInitInfo({ publicKey, restoring: true })
+      navigate(Pages.InitSuccess)
+    } else if (privateKey) {
+      setInitInfo({ privateKey, password: defaultPassword, restoring: true })
+      setRestoring(true)
+      new BackupProvider({ seckey: privateKey! })
+        .restore(updateConfig)
+        .catch((err) => consoleError(err, 'Error restoring from nostr'))
+        .finally(() => {
+          setRestoring(false)
+          navigate(Pages.InitSuccess)
+        })
+    }
   }
 
-  const disabled = Boolean(!privateKey || error)
+  const disabled = Boolean((!publicKey && !privateKey) || error)
 
   if (restoring) return <Loading text='Restoring wallet...' />
 
@@ -73,11 +103,15 @@ export default function InitRestore() {
         <Padded>
           <FlexCol between>
             <FlexCol>
-              <Input name='private-key' label='Private key' onChange={setSomeKey} />
+              <Input name='private-or-public-key' label='Public (npub) or Private key (nsec)' onChange={setSomeKey} />
               <ErrorMessage error={Boolean(error)} text={error} />
+              {publicKey ? (
+                <WarningBox text='The wallet will be restored in readonly mode. This means you can view your balance and receive funds, but you cannot send.' />
+              ) : null}
             </FlexCol>
-            <Text centered color='dark70' fullWidth thin small>
-              Your private key should start with the 'nsec' string. Do not share it with anyone.
+            <Text color='dark70' fullWidth thin small wrap>
+              Your private key should start with the 'nsec' string. Do not share it with anyone. Your public key should
+              start with the 'npub' string and it will restore the wallet in read-only mode.
             </Text>
           </FlexCol>
         </Padded>

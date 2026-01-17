@@ -5,6 +5,8 @@ import { Tx } from '../lib/types'
 export interface InitInfo {
   password?: string
   privateKey?: Uint8Array
+  // For readonly Wallet
+  publicKey?: Uint8Array
   restoring?: boolean
 }
 
@@ -64,6 +66,7 @@ interface FlowContextProps {
 export const emptyInitInfo: InitInfo = {
   password: undefined,
   privateKey: undefined,
+  publicKey: undefined,
 }
 
 export const emptyNoteInfo: NoteInfo = {

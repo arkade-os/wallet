@@ -30,7 +30,7 @@ export default function AppLendasat() {
   useEffect(() => {
     const loadAddress = async () => {
       if (svcWallet) {
-        const addresses = await getReceivingAddresses(svcWallet)
+        const addresses = await getReceivingAddresses(svcWallet.reader)
         setArkAddress(addresses.offchainAddr)
         setBoardingAddress(addresses.boardingAddr)
       }
@@ -66,21 +66,21 @@ export default function AppLendasat() {
           }
         },
         async onSendToAddress(address: string, amount: number, asset: 'bitcoin' | LoanAsset): Promise<string> {
-          if (!svcWallet) {
+          if (!svcWallet?.writer) {
             throw Error('Wallet not initialized')
           }
 
           switch (asset) {
             case 'bitcoin':
               if (isArkAddress(address)) {
-                const txId = await svcWallet?.sendBitcoin({ amount: amount, address: address })
+                const txId = await svcWallet.writer.sendBitcoin({ amount: amount, address: address })
                 if (txId) {
                   return txId
                 } else {
                   throw new Error('Unable to send bitcoin')
                 }
               } else if (isBTCAddress(address)) {
-                return await collaborativeExit(svcWallet, amount, address)
+                return await collaborativeExit(svcWallet.writer, amount, address)
               } else {
                 throw Error(`Unsupported address ${address}`)
               }
@@ -106,7 +106,7 @@ export default function AppLendasat() {
             throw new Error('Wallet not initialized')
           }
 
-          const pk = await svcWallet.identity.compressedPublicKey()
+          const pk = await svcWallet.reader.identity.compressedPublicKey()
           return bytesToHex(pk)
         },
         onGetDerivationPath: () => {
@@ -139,18 +139,18 @@ export default function AppLendasat() {
           throw new Error(`NPubs are not supported`)
         },
         onSignPsbt: async (psbt: string) => {
-          if (!svcWallet) {
+          if (!svcWallet?.writer) {
             throw Error('Wallet not initialized')
           }
           const psbtBytes = hexToBytes(psbt)
           const tx = Transaction.fromPSBT(psbtBytes)
-          const signedTx = await svcWallet.identity.sign(tx)
+          const signedTx = await svcWallet.writer.identity.sign(tx)
           const signedTxBytes = signedTx.toPSBT()
 
           return bytesToHex(signedTxBytes)
         },
         async onSignMessage(message: string): Promise<string> {
-          if (!svcWallet) {
+          if (!svcWallet?.writer) {
             throw new Error('Wallet not initialized')
           }
 
@@ -158,7 +158,7 @@ export default function AppLendasat() {
           const messageHash = sha256(new TextEncoder().encode(message))
 
           // Get signature in compact format (64 bytes: r + s)
-          const signatureBytes = await svcWallet.identity.signMessage(messageHash, 'ecdsa')
+          const signatureBytes = await svcWallet.writer.identity.signMessage(messageHash, 'ecdsa')
 
           // Convert compact signature to DER format using @noble/curves/secp256k1
           // The Signature class from @noble/curves supports DER encoding

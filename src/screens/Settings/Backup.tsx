@@ -28,6 +28,7 @@ import { WalletContext } from '../../providers/wallet'
 import { authenticateUser } from '../../lib/biometrics'
 import FingerprintIcon from '../../icons/Fingerprint'
 import InputPassword from '../../components/InputPassword'
+import { nip19 } from 'nostr-tools'
 
 export default function Backup() {
   const { wallet } = useContext(WalletContext)
@@ -36,6 +37,7 @@ export default function Backup() {
   const [present] = useIonToast()
 
   const [nsec, setNsec] = useState('')
+  const [pubkey, setPubkey] = useState('')
   const [error, setError] = useState('')
   const [dialog, setDialog] = useState(false)
   const [showNsec, setShowNsec] = useState(false)
@@ -46,6 +48,12 @@ export default function Backup() {
     verifyPassword(defaultPassword).then(setNsec)
   }, [])
 
+  useEffect(() => {
+    if (wallet.pubkey) {
+      setPubkey(nip19.npubEncode(wallet.pubkey))
+    }
+  }, [wallet.pubkey])
+
   const verifyPassword = async (password: string): Promise<string> => {
     try {
       const privateKey = await getPrivateKey(password)
@@ -55,9 +63,15 @@ export default function Backup() {
     }
   }
 
-  const handleCopy = async () => {
+  const handleNsecCopy = async () => {
     if (!nsec) return
     await copyToClipboard(nsec)
+    present(copiedToClipboard)
+  }
+
+  const handlePubkeyCopy = async () => {
+    if (!pubkey) return
+    await copyToClipboard(pubkey)
     present(copiedToClipboard)
   }
 
@@ -156,26 +170,41 @@ export default function Backup() {
         <Padded>
           <FlexCol gap='2rem'>
             <ErrorMessage error={Boolean(error)} text={error} />
+            {!wallet.isReadonly ? (
+              <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
+                <Text thin>Private key</Text>
+                <TextSecondary>For your eyes only, do not share.</TextSecondary>
+                <Shadow lighter>
+                  <FlexCol gap='10px'>
+                    <InputFake testId='private-key' text={showNsec ? nsec : '*******'} />
+                    {showNsec ? (
+                      <Button onClick={handleNsecCopy} label='Copy to clipboard' />
+                    ) : (
+                      <Button onClick={toggleDialog} label='View private key' />
+                    )}
+                    <FlexRow>
+                      <OkIcon />
+                      <Text small>This is enough to restore your wallet.</Text>
+                    </FlexRow>
+                  </FlexCol>
+                </Shadow>
+                {showNsec ? (
+                  <WarningBox text="Your Private Key can be used to access everything in your wallet. Don't share it with anyone." />
+                ) : null}
+              </FlexCol>
+            ) : null}
             <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
-              <Text thin>Private key</Text>
-              <TextSecondary>For your eyes only, do not share.</TextSecondary>
+              <Text thin>Public key</Text>
               <Shadow lighter>
                 <FlexCol gap='10px'>
-                  <InputFake testId='private-key' text={showNsec ? nsec : '*******'} />
-                  {showNsec ? (
-                    <Button onClick={handleCopy} label='Copy to clipboard' />
-                  ) : (
-                    <Button onClick={toggleDialog} label='View private key' />
-                  )}
+                  <InputFake testId='public-key' text={pubkey} />
+                  <Button onClick={handlePubkeyCopy} label='Copy to clipboard' />
                   <FlexRow>
                     <OkIcon />
-                    <Text small>This is enough to restore your wallet.</Text>
+                    <Text small>This is enough to restore your wallet in read-only mode.</Text>
                   </FlexRow>
                 </FlexCol>
               </Shadow>
-              {showNsec ? (
-                <WarningBox text="Your Private Key can be used to access everything in your wallet. Don't share it with anyone." />
-              ) : null}
             </FlexCol>
             <Toggle
               checked={config.nostrBackup}

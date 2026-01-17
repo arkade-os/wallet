@@ -15,12 +15,13 @@ import { consoleError } from '../../../lib/logs'
 import { WalletContext } from '../../../providers/wallet'
 import Details, { DetailsProps } from '../../../components/Details'
 import { AspContext } from '../../../providers/asp'
+import ReadonlyWallet from '../../../components/ReadonlyWallet'
 
 export default function NotesRedeem() {
   const { aspInfo } = useContext(AspContext)
   const { noteInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { svcWallet } = useContext(WalletContext)
+  const { svcWallet, wallet } = useContext(WalletContext)
 
   const defaultButtonLabel = 'Redeem Note'
 
@@ -40,13 +41,11 @@ export default function NotesRedeem() {
     navigate(Pages.NotesForm)
   }
 
-  if (!svcWallet) return <Loading text='Loading...' />
-
   const handleRedeem = async () => {
     setError('')
     setRedeeming(true)
     try {
-      await redeemNotes(svcWallet, [noteInfo.note])
+      await redeemNotes(svcWallet?.writer!, [noteInfo.note])
       navigate(Pages.NotesSuccess)
     } catch (err) {
       consoleError(err, 'error redeeming note')
@@ -64,6 +63,7 @@ export default function NotesRedeem() {
     <>
       <Header text='Redeem Note' back={handleBack} />
       <Content>
+        {!svcWallet?.writer ? <ReadonlyWallet /> : null}
         {redeeming ? (
           <Loading text='Processing. This may take a few moments.' />
         ) : (
@@ -76,7 +76,7 @@ export default function NotesRedeem() {
         )}
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleRedeem} label={buttonLabel} disabled={redeeming} />
+        <Button onClick={handleRedeem} label={buttonLabel} disabled={redeeming || wallet.isReadonly} />
       </ButtonsOnBottom>
     </>
   )

@@ -15,13 +15,19 @@ export default function InitConnect() {
   const { initInfo, setInitInfo } = useContext(FlowContext)
   const { arkadeLightning, restoreSwaps } = useContext(LightningContext)
   const { navigate } = useContext(NavigationContext)
-  const { initWallet } = useContext(WalletContext)
+  const { initWallet, initReadonlyWallet, wallet } = useContext(WalletContext)
 
   const [initialized, setInitialized] = useState(false)
 
-  const { password, privateKey } = initInfo
+  const { password, privateKey, publicKey } = initInfo
 
   useEffect(() => {
+    if (publicKey) {
+      initReadonlyWallet(publicKey)
+        .then(() => setInitialized(true))
+        .catch(consoleError)
+      return
+    }
     if (!password || !privateKey) return
     setPrivateKey(privateKey, password)
       .then(() => initWallet(privateKey))
@@ -31,13 +37,13 @@ export default function InitConnect() {
 
   useEffect(() => {
     if (!initialized) return
-    if (!initInfo.restoring) return handleProceed()
+    if (!initInfo.restoring || wallet.isReadonly) return handleProceed()
     if (!arkadeLightning) return
     restoreSwaps()
       .then((count) => count && consoleLog(`Restored ${count} swaps from network`))
       .catch((err) => consoleError(err, 'Error restoring swaps:'))
       .finally(handleProceed)
-  }, [arkadeLightning, initialized, initInfo.restoring])
+  }, [arkadeLightning, initialized, initInfo.restoring, wallet.isReadonly])
 
   const handleCancel = () => navigate(Pages.Init)
 

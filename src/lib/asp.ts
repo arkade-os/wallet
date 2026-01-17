@@ -1,11 +1,4 @@
-import {
-  IWallet,
-  ArkNote,
-  RestArkProvider,
-  ExtendedCoin,
-  ServiceWorkerWallet,
-  ExtendedVirtualCoin,
-} from '@arkade-os/sdk'
+import { IWallet, ArkNote, RestArkProvider, ExtendedCoin, ExtendedVirtualCoin, IReadonlyWallet } from '@arkade-os/sdk'
 import { Addresses, Satoshis, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
 import { consoleError } from './logs'
@@ -143,13 +136,13 @@ export const getAspInfo = async (url: string): Promise<AspInfo> => {
   }
 }
 
-export const getBalance = async (wallet: IWallet): Promise<Satoshis> => {
+export const getBalance = async (wallet: IReadonlyWallet): Promise<Satoshis> => {
   const balance = await wallet.getBalance()
   const { total } = balance
   return total
 }
 
-export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
+export const getTxHistory = async (wallet: IReadonlyWallet): Promise<Tx[]> => {
   const txs: Tx[] = []
   try {
     const res = await wallet.getTransactionHistory()
@@ -185,7 +178,7 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
   return txs
 }
 
-export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable: Vtxo[]; spent: Vtxo[] }> => {
+export const getVtxos = async (wallet: IReadonlyWallet): Promise<{ spendable: Vtxo[]; spent: Vtxo[] }> => {
   const vtxos = await wallet.getVtxos()
   const spendable: Vtxo[] = []
   const spent: Vtxo[] = []
@@ -198,7 +191,7 @@ export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable
   return { spendable, spent }
 }
 
-export const getReceivingAddresses = async (wallet: IWallet): Promise<Addresses> => {
+export const getReceivingAddresses = async (wallet: IReadonlyWallet): Promise<Addresses> => {
   const [offchainAddr, boardingAddr] = await Promise.all([wallet.getAddress(), wallet.getBoardingAddress()])
   return {
     boardingAddr,
@@ -285,7 +278,7 @@ const serializeForSentry = (value: any): string => {
 
 const captureSettleError = async (
   error: unknown,
-  wallet: IWallet,
+  wallet: IReadonlyWallet,
   functionName: string,
   baseContext: Record<string, any>,
 ): Promise<void> => {

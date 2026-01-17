@@ -16,3 +16,13 @@ test('should create a new wallet', async ({ page }) => {
   await expect(page.getByText('Apps')).toBeVisible()
   await expect(page.getByText('Settings')).toBeVisible()
 })
+
+test('should offer a way to restore the wallet', async ({ page }) => {
+  await page.goto('/')
+  await page.getByText('Continue').click()
+  await page.getByText('Continue').click()
+  await page.getByText('Continue').click()
+  await page.getByText('Skip for now').click()
+  await page.getByText('Other Login Options').click()
+  await expect(page.getByText('Restore wallet', { exact: true })).toBeVisible()
+})
