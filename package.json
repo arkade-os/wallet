@@ -47,7 +47,8 @@
     "regtest:build": "docker compose -f test.docker-compose.yml build",
     "regtest:up": "docker compose -f test.docker-compose.yml up arkd arkd-wallet nbxplorer pgnbxplorer -d",
     "regtest:down": "docker compose -f test.docker-compose.yml down -v",
-    "regtest:setup": "node src/test/setup.mjs"
+    "regtest:setup": "node src/test/setup.mjs",
+    "unilateral-exit": "tsx scripts/unilateral-exit.ts"
   },
   "eslintConfig": {
     "extends": [
@@ -90,6 +91,7 @@
     "husky": "^8.0.3",
     "jsdom": "^26.1.0",
     "prettier": "^3.6.2",
+    "tsx": "^4.19.2",
     "typescript": "^5.8.3",
     "vite": "^7.1.3",
     "vite-plugin-eslint": "^1.8.1",

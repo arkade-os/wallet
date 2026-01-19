@@ -76,11 +76,113 @@ Requires Docker to be installed and [Nigiri](https://nigiri.vulpem.com/) to be r
 ### Funding your local wallet
 To interact with Ark features, you need Regtest coins.
 1. Copy your address from the wallet's **Receive** screen (ensure it starts with bcrt1 for Regtest).
-2. Run the Nigiri faucet command: 
+2. Run the Nigiri faucet command:
 ```bash
 nigiri faucet <bcrt-address>
 ```
 
+## CLI Tools
+
+### Unilateral Exit CLI
+
+A command-line tool to perform unilateral exit from the ARK protocol using a nsec private key. This allows you to withdraw your funds from the Ark protocol back to the Bitcoin blockchain without requiring cooperation from the Ark server.
+
+#### Prerequisites
+
+- Node.js v20.19+ or v22.12+
+- PNPM >=8
+- A funded onchain wallet (for P2A transaction fees)
+
+#### Usage
+
+```bash
+pnpm unilateral-exit --nsec <nsec> --address <btc-address> [options]
+```
+
+#### Options
+
+| Option | Description | Required | Default |
+|--------|-------------|----------|---------|
+| `--nsec <nsec>` | Nostr secret key (nsec format) | Yes | - |
+| `--address <address>` | Bitcoin address to receive funds | Yes | - |
+| `--ark-server <url>` | ARK server URL | No | `https://mutinynet.arkade.sh` |
+| `--esplora <url>` | Esplora API URL | No | `https://mutinynet.com/api` |
+| `--network <network>` | Bitcoin network (mainnet, testnet, regtest) | No | `testnet` |
+| `--vtxo <txid:vout>` | Specific VTXO to exit (exits all if not specified) | No | - |
+| `--help, -h` | Show help message | No | - |
+
+#### Environment Variables
+
+You can also configure the CLI using environment variables:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `ARK_SERVER` | ARK server URL | `ARK_SERVER=https://mutinynet.arkade.sh` |
+| `ESPLORA_URL` | Esplora API URL | `ESPLORA_URL=https://mutinynet.com/api` |
+| `NETWORK` | Bitcoin network | `NETWORK=testnet` |
+
+#### Examples
+
+**Exit all VTXOs:**
+```bash
+pnpm unilateral-exit \
+  --nsec nsec1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \
+  --address tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx
+```
+
+**Exit a specific VTXO:**
+```bash
+pnpm unilateral-exit \
+  --nsec nsec1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \
+  --address tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx \
+  --vtxo abc123def456789...:0
+```
+
+**Using environment variables:**
+```bash
+export ARK_SERVER=https://mutinynet.arkade.sh
+export NETWORK=testnet
+pnpm unilateral-exit \
+  --nsec nsec1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \
+  --address tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx
+```
+
+#### How It Works
+
+The unilateral exit process involves two main steps:
+
+1. **Unrolling**: Broadcasting the transaction chain from off-chain back to on-chain
+   - Traverses the VTXO transaction chain from root to leaf
+   - Broadcasts each transaction that isn't already on-chain
+   - Waits for confirmations between steps
+   - Uses P2A (Pay-to-Anchor) transactions to pay for fees
+
+2. **Completing the Exit**: Spending the unrolled VTXOs after the timelock expires
+   - Can only be executed after VTXOs are fully unrolled
+   - Must wait for the unilateral exit timelock to expire
+   - Sends funds to the specified Bitcoin address
+
+#### Important Notes
+
+- **Onchain Funds Required**: Your wallet needs sufficient on-chain funds to pay for P2A transaction fees during the unroll process
+- **Timelock Delay**: After unrolling, you must wait for the unilateral exit timelock to expire before funds can be claimed
+- **Storage**: Wallet data is stored in `~/.arkade-cli/` directory
+- **Multiple VTXOs**: The CLI will process all VTXOs by default, or a specific one if `--vtxo` is provided
+- **Retry**: If the timelock hasn't expired, you can run the same command again later to complete the exit
+
+#### Troubleshooting
+
+**Error: "Timelock has not expired yet"**
+- The VTXO is unrolled but you need to wait for the timelock period to expire
+- Run the same command again after the timelock period
+
+**Error: "No VTXOs found"**
+- Your wallet doesn't have any VTXOs to exit
+- Verify you're using the correct nsec and ARK server
+
+**Error: "Insufficient funds for P2A fees"**
+- Your onchain wallet needs funds to pay for transaction fees
+- Send some satoshis to your onchain address (shown in the CLI output)
 
 ### e2e tests
 
