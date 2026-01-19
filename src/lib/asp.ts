@@ -5,6 +5,7 @@ import {
   ExtendedCoin,
   ServiceWorkerWallet,
   ExtendedVirtualCoin,
+  FeeInfo,
 } from '@arkade-os/sdk'
 import { Addresses, Satoshis, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
@@ -13,8 +14,8 @@ import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import { getExpiringAndRecoverableVtxos } from './vtxo'
 import * as Sentry from '@sentry/react'
 
-const emptyFees = {
-  intentFee: { offchainInput: '', offchainOutput: '', onchainInput: BigInt(0), onchainOutput: BigInt(0) },
+const emptyFees: FeeInfo = {
+  intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
   txFeeRate: '',
 }
 
