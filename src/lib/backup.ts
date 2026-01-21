@@ -1,13 +1,9 @@
 import { PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
-import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
-import { ContractRepositoryImpl } from '@arkade-os/sdk'
 import { getPublicKey } from 'nostr-tools/pure'
 import { NostrStorage } from './nostr'
 import { Config } from './types'
 import { consoleError } from './logs'
-
-const storage = new IndexedDBStorageAdapter('arkade-service-worker')
-const contractRepo = new ContractRepositoryImpl(storage)
+import { ContractRepository } from '../../../ts-sdk/src/repositories'
 
 type NostrStorageData = {
   config?: Config
@@ -25,7 +21,10 @@ export class BackupProvider {
    * @param options.pubkey - Optional public key (hex string). Required if seckey not provided.
    * @throws Error if neither seckey nor pubkey is provided, or if pubkey format is invalid
    */
-  constructor(options: { pubkey?: string; seckey?: Uint8Array }) {
+  constructor(
+    options: { pubkey?: string; seckey?: Uint8Array },
+    private readonly contractRepository: ContractRepository,
+  ) {
     if (options.seckey) {
       this.pubkey = getPublicKey(options.seckey)
       this.seckey = options.seckey
@@ -76,8 +75,8 @@ export class BackupProvider {
   fullBackup = async (config: Config) => {
     const data: NostrStorageData = {
       config,
-      reverseSwaps: (await contractRepo.getContractCollection('reverseSwaps')) as PendingReverseSwap[],
-      submarineSwaps: (await contractRepo.getContractCollection('submarineSwaps')) as PendingSubmarineSwap[],
+      reverseSwaps: (await this.contractRepository.getContractCollection('reverseSwaps')) as PendingReverseSwap[],
+      submarineSwaps: (await this.contractRepository.getContractCollection('submarineSwaps')) as PendingSubmarineSwap[],
     }
 
     const dataSize = JSON.stringify(data).length
@@ -107,11 +106,11 @@ export class BackupProvider {
     if (data?.config) updateConfig(data.config)
 
     for (const swap of data?.reverseSwaps ?? []) {
-      await contractRepo.saveToContractCollection('reverseSwaps', swap, 'id')
+      await this.contractRepository.saveToContractCollection('reverseSwaps', swap, 'id')
     }
 
     for (const swap of data?.submarineSwaps ?? []) {
-      await contractRepo.saveToContractCollection('submarineSwaps', swap, 'id')
+      await this.contractRepository.saveToContractCollection('submarineSwaps', swap, 'id')
     }
   }
 
