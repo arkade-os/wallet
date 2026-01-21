@@ -13,7 +13,7 @@ import {
 } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
-import { ContractRepositoryImpl, RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
+import { RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
 import { sendOffChain } from '../lib/asp'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { PendingSwap } from '../lib/types'
@@ -219,8 +219,9 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     const historyIds = new Set(history.map((s) => s.response.id))
 
     // Save new swaps to IndexedDB
-    const storage = new IndexedDBStorageAdapter('arkade-service-worker')
-    const contractRepo = new ContractRepositoryImpl(storage)
+    // const storage = new IndexedDBStorageAdapter('arkade-service-worker')
+    const contractRepo = svcWallet?.contractRepository
+    if (!contractRepo) throw new Error('Wallet contract repository not available')
 
     for (const swap of reverseSwaps) {
       if (!historyIds.has(swap.response.id)) {
