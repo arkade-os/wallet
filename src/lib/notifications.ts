@@ -13,8 +13,12 @@ export const sendNotification = (title: string, body: string) => {
     new Notification(title, options)
   } catch {
     try {
-      navigator.serviceWorker.ready.then((registration) => {
-        registration.showNotification(title, options)
+      Notification.requestPermission().then((result) => {
+        if (result === 'granted') {
+          navigator.serviceWorker.ready.then((registration) => {
+            registration.showNotification(title, options)
+          })
+        }
       })
     } catch {}
   }
