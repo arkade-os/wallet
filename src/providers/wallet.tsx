@@ -164,12 +164,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     privateKey,
     retryCount = 0,
     maxRetries = 5,
+    delegatorUrl = 'https://delegator.mutinynet.arkade.sh/',
   }: {
     arkServerUrl: string
     esploraUrl: string
     privateKey: string
     retryCount?: number
     maxRetries?: number
+    delegatorUrl?: string
   }) => {
     try {
       // create service worker wallet
@@ -178,6 +180,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         identity: SingleKey.fromHex(privateKey),
         arkServerUrl,
         esploraUrl,
+        delegatorUrl,
       })
       setSvcWallet(svcWallet)
 

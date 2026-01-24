@@ -12,8 +12,8 @@ importers:
         specifier: 0.2.18
         version: 0.2.18
       '@arkade-os/sdk':
-        specifier: 0.3.12
-        version: 0.3.12
+        specifier: github:louisinger/wallet-sdk#delegator
+        version: https://codeload.github.com/louisinger/wallet-sdk/tar.gz/2c95ee1a0edb13bc447cbc7e592ccea145acf9c1
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -165,6 +165,11 @@ packages:
 
   '@arkade-os/sdk@0.3.12':
     resolution: {integrity: sha512-/zE8XiDo6yOCaspMcO3Gua/gLGYmYLRFbqaD1ORkaGI7hH/Gq+m0tkIwArVlwtK50loHK4jvS8clovcaV9CARg==}
+    engines: {node: '>=20.0.0'}
+
+  '@arkade-os/sdk@https://codeload.github.com/louisinger/wallet-sdk/tar.gz/2c95ee1a0edb13bc447cbc7e592ccea145acf9c1':
+    resolution: {tarball: https://codeload.github.com/louisinger/wallet-sdk/tar.gz/2c95ee1a0edb13bc447cbc7e592ccea145acf9c1}
+    version: 0.3.11
     engines: {node: '>=20.0.0'}
 
   '@asamuzakjp/css-color@3.2.0':
@@ -2528,6 +2533,15 @@ snapshots:
       light-bolt11-decoder: 3.2.0
 
   '@arkade-os/sdk@0.3.12':
+    dependencies:
+      '@marcbachmann/cel-js': 7.0.0
+      '@noble/curves': 2.0.0
+      '@noble/secp256k1': 3.0.0
+      '@scure/base': 2.0.0
+      '@scure/btc-signer': 2.0.1
+      bip68: 1.0.4
+
+  '@arkade-os/sdk@https://codeload.github.com/louisinger/wallet-sdk/tar.gz/2c95ee1a0edb13bc447cbc7e592ccea145acf9c1':
     dependencies:
       '@marcbachmann/cel-js': 7.0.0
       '@noble/curves': 2.0.0
