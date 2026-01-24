@@ -186,7 +186,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     privateKey,
     retryCount = 0,
     maxRetries = 5,
-    delegatorUrl = 'https://delegator.mutinynet.arkade.sh/',
+    delegatorUrl = 'https://delegator.mutinynet.arkade.sh',
   }: {
     arkServerUrl: string
     esploraUrl: string
