@@ -13937,34 +13937,47 @@ class yw {
     this.url = t;
   }
   async delegate(t, n) {
-    const r = `${this.url}/api/v1/delegate`, i = await fetch(r, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        intent: {
-          proof: t.proof,
-          message: oe.encodeMessage(t.message)
+    const r = `${this.url}/api/v1/delegate`;
+    try {
+      const i = await fetch(r, {
+        method: "POST",
+        mode: "cors",
+        headers: {
+          "Content-Type": "application/json"
         },
-        forfeits: n
-      })
-    });
-    if (!i.ok) {
-      const s = await i.text();
-      throw new Error(`Failed to delegate: ${s}`);
+        body: JSON.stringify({
+          intent: {
+            proof: t.proof,
+            message: oe.encodeMessage(t.message)
+          },
+          forfeits: n
+        })
+      });
+      if (!i.ok) {
+        const s = await i.text();
+        throw new Error(`Failed to delegate: ${s}`);
+      }
+    } catch (i) {
+      throw i instanceof TypeError && i.message.includes("fetch") ? new Error(`CORS error: The delegator server at ${this.url} does not allow requests from this origin. Please ensure the server has CORS headers configured.`) : i;
     }
   }
   async getDelegateInfo() {
-    const t = `${this.url}/api/v1/delegate/info`, n = await fetch(t);
-    if (!n.ok) {
-      const i = await n.text();
-      throw new Error(`Failed to get delegate info: ${i}`);
+    const t = `${this.url}/api/v1/delegate/info`;
+    try {
+      const n = await fetch(t, {
+        mode: "cors"
+      });
+      if (!n.ok) {
+        const i = await n.text();
+        throw new Error(`Failed to get delegate info: ${i}`);
+      }
+      const r = await n.json();
+      if (!ww(r))
+        throw new Error("Invalid delegate info");
+      return r;
+    } catch (n) {
+      throw n instanceof TypeError && n.message.includes("fetch") ? new Error(`CORS error: The delegator server at ${this.url} does not allow requests from this origin. Please ensure the server has CORS headers configured.`) : n;
     }
-    const r = await n.json();
-    if (!ww(r))
-      throw new Error("Invalid delegate info");
-    return r;
   }
 }
 function ww(e) {
