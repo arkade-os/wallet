@@ -247,6 +247,7 @@ export const getInputsToSettle = async (
 }
 
 export const settleVtxos = async (wallet: IWallet, dustAmount: bigint, thresholdMs?: number): Promise<void> => {
+  return // TODO: temporary disable, settlement are done by the delegator service
   const { inputs } = await getInputsToSettle(wallet, thresholdMs)
 
   if (inputs.length === 0) throw new Error('No UTXOs or VTXOs eligible to settle')
