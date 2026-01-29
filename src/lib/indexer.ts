@@ -2,6 +2,8 @@ import { RestIndexerProvider } from '@arkade-os/sdk'
 import { AspInfo } from '../providers/asp'
 import { WalletRepository } from '../../../ts-sdk/src/repositories'
 
+const STORAGE_KEY = 'commitmentTxs'
+
 export class Indexer {
   readonly provider: RestIndexerProvider
 
@@ -13,15 +15,25 @@ export class Indexer {
   }
 
   getAndUpdateCommitmentTxCreatedAt = async (txid: string): Promise<number | null> => {
-    const [tx] = await this.walletRepository.getCommitmentTxs(txid)
-    if (tx) return tx.createdAt
-
+    const createdAt = this.getCommitmentTxIds(txid)
+    if (createdAt) return createdAt
     const commitmentTx = await this.provider.getCommitmentTx(txid)
     if (!commitmentTx?.endedAt) return null
-    const createdAt = Number(commitmentTx.endedAt)
+    const newCreatedAt = Number(commitmentTx.endedAt)
+    this.setCommitmentTxIds(txid, newCreatedAt)
+    return newCreatedAt
+  }
 
-    await this.walletRepository.saveCommitmentTxs({ txid, createdAt })
+  private getCommitmentTxIds(txid: string): number | null {
+    const blob = localStorage.getItem(STORAGE_KEY)
+    const map = blob ? JSON.parse(blob) : {}
+    return map[txid] ?? null
+  }
 
-    return createdAt
+  private setCommitmentTxIds(txid: string, createdAt: number) {
+    const blob = localStorage.getItem(STORAGE_KEY)
+    const map = blob ? JSON.parse(blob) : {}
+    map[txid] = createdAt
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(map))
   }
 }
