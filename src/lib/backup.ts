@@ -75,8 +75,9 @@ export class BackupProvider {
   fullBackup = async (config: Config) => {
     const data: NostrStorageData = {
       config,
-      reverseSwaps: (await this.contractRepository.getContractCollection('reverseSwaps')) as PendingReverseSwap[],
-      submarineSwaps: (await this.contractRepository.getContractCollection('submarineSwaps')) as PendingSubmarineSwap[],
+      // TODO: backup as contracts
+      // reverseSwaps: (await this.contractRepository.getContractCollection('reverseSwaps')) as PendingReverseSwap[],
+      // submarineSwaps: (await this.contractRepository.getContractCollection('submarineSwaps')) as PendingSubmarineSwap[],
     }
 
     const dataSize = JSON.stringify(data).length
@@ -105,13 +106,15 @@ export class BackupProvider {
 
     if (data?.config) updateConfig(data.config)
 
-    for (const swap of data?.reverseSwaps ?? []) {
-      await this.contractRepository.saveToContractCollection('reverseSwaps', swap, 'id')
-    }
-
-    for (const swap of data?.submarineSwaps ?? []) {
-      await this.contractRepository.saveToContractCollection('submarineSwaps', swap, 'id')
-    }
+    // TODO: restore as contracts
+    //
+    // for (const swap of data?.reverseSwaps ?? []) {
+    //   await this.contractRepository.saveToContractCollection('reverseSwaps', swap, 'id')
+    // }
+    //
+    // for (const swap of data?.submarineSwaps ?? []) {
+    //   await this.contractRepository.saveToContractCollection('submarineSwaps', swap, 'id')
+    // }
   }
 
   /**

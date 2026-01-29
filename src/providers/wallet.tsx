@@ -17,7 +17,6 @@ import {
   NetworkName,
   SingleKey,
   migrateWalletRepository,
-  migrateContractRepository,
   IndexedDBWalletRepository,
   IndexedDBContractRepository,
 } from '@arkade-os/sdk'
@@ -27,7 +26,6 @@ import { ConfigContext } from './config'
 import { maxPercentage } from '../lib/constants'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { Indexer } from '../lib/indexer'
-import { DEFAULT_DB_NAME } from '../../../ts-sdk/src/wallet/serviceWorker/utils'
 
 const defaultWallet: Wallet = {
   network: '',
@@ -203,7 +201,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
         const address = await svcWallet.getAddress()
         await migrateWalletRepository(oldStorage, svcWallet.walletRepository, [address])
-        await migrateContractRepository(oldStorage, svcWallet.contractRepository)
       } catch (err) {
         consoleError(err, 'Error migrating wallet repository')
       }
@@ -304,7 +301,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!svcWallet) throw new Error('Service worker not initialized')
     await clearStorage()
     await svcWallet.clear()
-    await svcWallet.contractRepository.clearContractData()
+    await svcWallet.contractRepository.clear()
   }
 
   const settlePreconfirmed = async () => {
