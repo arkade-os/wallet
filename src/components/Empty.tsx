@@ -1,4 +1,5 @@
 import { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import CenterScreen from './CenterScreen'
 import FlexCol from './FlexCol'
 import Text, { TextSecondary } from './Text'
@@ -24,41 +25,45 @@ function EmptyTemplate({ icon, text, secondaryText }: EmptyProps) {
 }
 
 export function EmptyCoinsList() {
+  const { t } = useTranslation()
   return (
     <EmptyTemplate
       icon={<EmptyCoinsIcon />}
-      text='No virtual coins available'
-      secondaryText='Generate or import coins to continue'
+      text={t('noVirtualCoinsAvailable')}
+      secondaryText={t('generateOrImportCoins')}
     />
   )
 }
 
 export function EmptyLogsList() {
+  const { t } = useTranslation()
   return (
     <EmptyTemplate
       icon={<EmptyListIcon />}
-      text='No logs available'
-      secondaryText='Start using the app to generate logs.'
+      text={t('noLogsAvailable')}
+      secondaryText={t('startUsingAppToGenerateLogs')}
     />
   )
 }
 
 export function EmptySwapList() {
+  const { t } = useTranslation()
   return (
     <EmptyTemplate
       icon={<EmptySwapListIcon />}
-      text='No swaps yet'
-      secondaryText='Your swap history will appear here once you start swapping.'
+      text={t('noSwapsYet')}
+      secondaryText={t('yourSwapHistoryWillAppear')}
     />
   )
 }
 
 export function EmptyTxList() {
+  const { t } = useTranslation()
   return (
     <EmptyTemplate
       icon={<EmptyListIcon />}
-      text='No transactions yet'
-      secondaryText='Make a transaction to get started.'
+      text={t('noTransactionsYet')}
+      secondaryText={t('makeTransactionToGetStarted')}
     />
   )
 }

@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { generateMnemonic, mnemonicToSeedSync } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import Button from '../../components/Button'
@@ -17,6 +18,7 @@ import WalletNewIcon from '../../icons/WalletNew'
 import { defaultPassword } from '../../lib/constants'
 
 export default function Init() {
+  const { t } = useTranslation()
   const { aspInfo } = useContext(AspContext)
   const { setInitInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
@@ -44,19 +46,19 @@ export default function Init() {
         <CenterScreen>
           <WalletNewIcon />
           <FlexCol centered gap='0'>
-            <Text bigger>Arkade Wallet</Text>
+            <Text bigger>{t('arkadeWallet')}</Text>
           </FlexCol>
-          <ErrorMessage error={error} text='Ark server unreachable' />
+          <ErrorMessage error={error} text={t('arkServerUnreachable')} />
         </CenterScreen>
       </Content>
       <ButtonsOnBottom>
-        <Button disabled={error} onClick={handleNewWallet} label='+ Create wallet' />
-        <Button disabled={error} onClick={() => setShowOptions(true)} label='Other login options' clear />
+        <Button disabled={error} onClick={handleNewWallet} label={t('createWallet')} />
+        <Button disabled={error} onClick={() => setShowOptions(true)} label={t('otherLoginOptions')} clear />
       </ButtonsOnBottom>
       <SheetModal isOpen={showOptions} onClose={() => setShowOptions(false)}>
         <FlexCol gap='1rem'>
-          <Text>Other login options</Text>
-          <Button fancy disabled={error} onClick={handleOldWallet} label='Restore wallet' secondary />
+          <Text>{t('otherLoginOptions')}</Text>
+          <Button fancy disabled={error} onClick={handleOldWallet} label={t('restoreWallet')} secondary />
         </FlexCol>
       </SheetModal>
     </>

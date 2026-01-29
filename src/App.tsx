@@ -18,6 +18,7 @@ import { ConfigContext } from './providers/config'
 import { IonApp, IonPage, IonTab, IonTabBar, IonTabButton, IonTabs, setupIonicReact } from '@ionic/react'
 import { NavigationContext, pageComponent, Pages, Tabs } from './providers/navigation'
 import { useContext, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { detectJSCapabilities } from './lib/jsCapabilities'
 import { OptionsContext } from './providers/options'
 import { WalletContext } from './providers/wallet'
@@ -35,6 +36,7 @@ import Focusable from './components/Focusable'
 setupIonicReact()
 
 export default function App() {
+  const { t } = useTranslation()
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
   const { navigate, screen, tab } = useContext(NavigationContext)
@@ -152,7 +154,7 @@ export default function App() {
                 <Focusable>
                   <FlexCol centered gap='6px' padding='5px' testId='tab-wallet'>
                     <WalletIcon />
-                    Wallet
+                    {t('wallet')}
                   </FlexCol>
                 </Focusable>
               </IonTabButton>
@@ -160,7 +162,7 @@ export default function App() {
                 <Focusable>
                   <FlexCol centered gap='6px' padding='5px' testId='tab-apps'>
                     <AppsIcon />
-                    Apps
+                    {t('apps')}
                   </FlexCol>
                 </Focusable>
               </IonTabButton>
@@ -168,7 +170,7 @@ export default function App() {
                 <Focusable>
                   <FlexCol centered gap='6px' padding='5px' testId='tab-settings'>
                     <SettingsIcon />
-                    Settings
+                    {t('settings')}
                   </FlexCol>
                 </Focusable>
               </IonTabButton>

@@ -82,6 +82,11 @@ export const options: Option[] = [
   },
   {
     icon: <></>,
+    option: SettingsOptions.Language,
+    section: SettingsSections.Config,
+  },
+  {
+    icon: <></>,
     option: SettingsOptions.Theme,
     section: SettingsSections.Config,
   },

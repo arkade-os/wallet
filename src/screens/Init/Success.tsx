@@ -1,4 +1,5 @@
 import { useContext } from 'react'
+import { useTranslation } from 'react-i18next'
 import Button from '../../components/Button'
 import Header from '../../components/Header'
 import Content from '../../components/Content'
@@ -9,26 +10,27 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import { ConfigContext } from '../../providers/config'
 
 export default function InitSuccess() {
+  const { t } = useTranslation()
   const { config } = useContext(ConfigContext)
   const { initInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
 
-  const headline = initInfo.restoring ? 'Wallet restored successfully!' : 'Your new wallet is live!'
+  const headline = initInfo.restoring ? t('walletRestoredSuccessfully') : t('yourNewWalletIsLive')
 
   const text = initInfo.restoring
     ? config.nostrBackup
-      ? 'Your wallet, settings and swaps have been successfully restored.'
-      : 'Your wallet has been successfully restored and is now ready to use.'
-    : 'Your wallet has been successfully created and is now ready to use.'
+      ? t('walletRestoredWithNostrBackup')
+      : t('walletRestoredReady')
+    : t('walletCreatedReady')
 
   return (
     <>
-      <Header text='Create new wallet' />
+      <Header text={t('createNewWallet')} />
       <Content>
         <Success headline={headline} text={text} />
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={() => navigate(Pages.InitConnect)} label='Go to wallet' />
+        <Button onClick={() => navigate(Pages.InitConnect)} label={t('goToWallet')} />
       </ButtonsOnBottom>
     </>
   )

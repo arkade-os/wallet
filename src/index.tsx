@@ -1,6 +1,7 @@
 import ReactDOM from 'react-dom/client'
 import './index.css'
 import './ionic.css'
+import './i18n'
 import App from './App'
 import { AspProvider } from './providers/asp'
 import { ConfigProvider } from './providers/config'

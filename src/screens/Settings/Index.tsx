@@ -14,6 +14,7 @@ import Logs from './Logs'
 import { SettingsOptions } from '../../lib/types'
 import Advanced from './Advanced'
 import General from './General'
+import Language from './Language'
 import Theme from './Theme'
 import Fiat from './Fiat'
 import Display from './Display'
@@ -29,6 +30,7 @@ export default function Settings() {
       {option === SettingsOptions.Advanced && <Advanced />}
       {option === SettingsOptions.Backup && <Backup />}
       {option === SettingsOptions.General && <General />}
+      {option === SettingsOptions.Language && <Language />}
       {option === SettingsOptions.Lock && <Lock />}
       {option === SettingsOptions.Logs && <Logs />}
       {option === SettingsOptions.Notes && <NotesForm />}

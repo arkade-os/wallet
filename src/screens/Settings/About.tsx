@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { AspContext } from '../../providers/asp'
 import Header from './Header'
 import Table, { TableData } from '../../components/Table'
@@ -10,6 +11,7 @@ import FlexCol from '../../components/FlexCol'
 import ErrorMessage from '../../components/Error'
 
 export default function About() {
+  const { t } = useTranslation()
   const { aspInfo } = useContext(AspContext)
 
   const [error, setError] = useState(false)
@@ -19,24 +21,24 @@ export default function About() {
   }, [aspInfo.unreachable])
 
   const data: TableData = [
-    ['Server URL', aspInfo.url],
-    ['Server pubkey', aspInfo.signerPubkey],
-    ['Forfeit address', aspInfo.forfeitAddress],
-    ['Network', aspInfo.network],
-    ['Dust', `${aspInfo.dust} SATS`],
-    ['Session duration', prettyDelta(Number(aspInfo.sessionDuration), true)],
-    ['Boarding exit delay', prettyDelta(Number(aspInfo.boardingExitDelay), true)],
-    ['Unilateral exit delay', prettyDelta(Number(aspInfo.unilateralExitDelay), true)],
-    ['Git commit hash', gitCommit],
+    [t('serverUrl'), aspInfo.url],
+    [t('serverPubkey'), aspInfo.signerPubkey],
+    [t('forfeitAddress'), aspInfo.forfeitAddress],
+    [t('network'), aspInfo.network],
+    [t('dust'), `${aspInfo.dust} SATS`],
+    [t('sessionDuration'), prettyDelta(Number(aspInfo.sessionDuration), true)],
+    [t('boardingExitDelay'), prettyDelta(Number(aspInfo.boardingExitDelay), true)],
+    [t('unilateralExitDelay'), prettyDelta(Number(aspInfo.unilateralExitDelay), true)],
+    [t('gitCommitHash'), gitCommit],
   ]
 
   return (
     <>
-      <Header text='About' back />
+      <Header text={t('about')} back />
       <Content>
         <Padded>
           <FlexCol>
-            <ErrorMessage error={error} text='Ark server unreachable' />
+            <ErrorMessage error={error} text={t('arkServerUnreachable')} />
             <Table data={data} />
           </FlexCol>
         </Padded>
