@@ -12,6 +12,7 @@ export type LogLine = {
 }
 
 const itemName = 'logs'
+const MAX_LOGS = 200 // around 250 bytes per log * 200 = 50KB at most
 
 export const getLogs = (): LogLine[] => {
   const logs = localStorage.getItem(itemName)
@@ -29,6 +30,12 @@ const addLog = (level: LogLevel, args: string[]) => {
     msg: args.join(' '),
     time: new Date().toString(),
   })
+
+  // Remove oldest logs if we exceed the limit
+  if (logs.length > MAX_LOGS) {
+    logs.splice(0, logs.length - MAX_LOGS)
+  }
+
   localStorage.setItem(itemName, JSON.stringify(logs))
 }
 
