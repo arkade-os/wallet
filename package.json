@@ -4,8 +4,8 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/boltz-swap": "github:arkade-os/boltz-swap#next",
-    "@arkade-os/sdk": "github:arkade-os/ts-sdk#next",
+    "@arkade-os/boltz-swap": "file:../boltz-swap",
+    "@arkade-os/sdk": "file:../ts-sdk",
     "@ionic/react": "^8.5.6",
     "@lendasat/lendasat-wallet-bridge": "^0.0.90",
     "@noble/curves": "^2.0.1",

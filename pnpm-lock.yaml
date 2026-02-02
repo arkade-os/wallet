@@ -167,8 +167,8 @@ packages:
     resolution: {directory: ../ts-sdk, type: directory}
     engines: {node: '>=20.0.0'}
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/3c3a1c43d888fd2b6b4e8fbebdc7bd70e65191d9':
-    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/3c3a1c43d888fd2b6b4e8fbebdc7bd70e65191d9}
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/ba9ed065a3505d2ac68c45f3872155a6f93c4056':
+    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/ba9ed065a3505d2ac68c45f3872155a6f93c4056}
     version: 0.3.12
     engines: {node: '>=20.0.0'}
 
@@ -2525,7 +2525,7 @@ snapshots:
 
   '@arkade-os/boltz-swap@file:../boltz-swap':
     dependencies:
-      '@arkade-os/sdk': https://codeload.github.com/arkade-os/ts-sdk/tar.gz/3c3a1c43d888fd2b6b4e8fbebdc7bd70e65191d9
+      '@arkade-os/sdk': https://codeload.github.com/arkade-os/ts-sdk/tar.gz/ba9ed065a3505d2ac68c45f3872155a6f93c4056
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
       '@scure/btc-signer': 2.0.1
@@ -2541,7 +2541,7 @@ snapshots:
       '@scure/btc-signer': 2.0.1
       bip68: 1.0.4
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/3c3a1c43d888fd2b6b4e8fbebdc7bd70e65191d9':
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/ba9ed065a3505d2ac68c45f3872155a6f93c4056':
     dependencies:
       '@marcbachmann/cel-js': 7.0.0
       '@noble/curves': 2.0.0
