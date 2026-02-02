@@ -228,7 +228,6 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   }, [pop])
 
   const navigate = (page: Pages) => {
-    console.log(`Navigating to ${Pages[page]}`)
     push(page)
     setScreen(page)
     setTab(pageTab[page])
