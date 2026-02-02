@@ -26,6 +26,8 @@ import { ConfigContext } from './config'
 import { maxPercentage } from '../lib/constants'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { Indexer } from '../lib/indexer'
+import { migrateToSwapRepository } from '../../../boltz-swap/src/repositories/migrationFromContracts'
+import { IndexedDbSwapRepository } from '../../../boltz-swap/src/repositories/IndexedDb/swap-repository'
 
 const defaultWallet: Wallet = {
   network: '',
@@ -199,8 +201,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // Migration!
       try {
         const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
-        const address = await svcWallet.getAddress()
-        await migrateWalletRepository(oldStorage, svcWallet.walletRepository, [address])
+        const arkAddress = await svcWallet.getAddress()
+        const boardingAddress = await svcWallet.getBoardingAddress()
+        await migrateWalletRepository(oldStorage, svcWallet.walletRepository, {
+          offchain: [arkAddress],
+          onchain: [boardingAddress],
+        })
+        await migrateToSwapRepository(oldStorage, new IndexedDbSwapRepository())
       } catch (err) {
         consoleError(err, 'Error migrating wallet repository')
       }
