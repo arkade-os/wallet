@@ -4,7 +4,6 @@ import { Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import { IWallet } from '@arkade-os/sdk'
-import { ContractRepository } from '../../../ts-sdk/src/repositories'
 import { Indexer } from './indexer'
 
 const DERIVATION_PATH = "m/44/1237/0'"

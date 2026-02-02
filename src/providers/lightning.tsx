@@ -15,7 +15,6 @@ import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
 import { RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
 import { sendOffChain } from '../lib/asp'
-import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { PendingSwap } from '../lib/types'
 
 const BASE_URLS: Record<Network, string | null> = {
