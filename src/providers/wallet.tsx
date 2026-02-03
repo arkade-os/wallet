@@ -15,7 +15,8 @@ import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey } from '@arkade-os
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
-import { maxPercentage } from '../lib/constants'
+import { maxPercentage, minSatsToNudge } from '../lib/constants'
+import { NudgeContext } from './nudge'
 
 const defaultWallet: Wallet = {
   network: '',
@@ -61,6 +62,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { navigate } = useContext(NavigationContext)
   const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
+  const { addPasswordNudge } = useContext(NudgeContext)
 
   const [txs, setTxs] = useState<Tx[]>([])
   const [balance, setBalance] = useState(0)
@@ -95,11 +97,22 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         const nextRollover = await calcNextRollover(vtxos.spendable, svcWallet, aspInfo)
         updateWallet((prev) => ({ ...prev, nextRollover, thresholdMs }))
       } catch (err) {
-        consoleError(err, 'Error computing rollover thresholds')
+        consoleError(err, 'error calculating wallet thresholds')
       }
     }
     computeThresholds()
   }, [initialized, vtxos, svcWallet, aspInfo])
+
+  // check balance for nudges
+  useEffect(() => {
+    if (!initialized || !vtxos || !svcWallet) return
+    svcWallet
+      .getBalance()
+      .then((balance) => {
+        if (balance.total >= minSatsToNudge) addPasswordNudge()
+      })
+      .catch(() => {})
+  }, [initialized, vtxos, svcWallet])
 
   // if ark note is present in the URL, decode it and set the note info
   useEffect(() => {

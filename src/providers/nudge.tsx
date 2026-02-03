@@ -1,50 +1,63 @@
-import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
-import { WalletContext } from './wallet'
-import { CreatePasswordWarning } from '../components/AlertBox'
-import { noUserDefinedPassword } from '../lib/privateKey'
-import { minSatsToNudge } from '../lib/constants'
-import { NavigationContext, Pages } from './navigation'
-import { OptionsContext } from './options'
+import { ReactNode, createContext, useState } from 'react'
 import { SettingsOptions } from '../lib/types'
+import { Pages, Tabs } from './navigation'
 
-type NudgeContextProps = {
-  nudge: ReactNode
+export type Nudge = {
+  tabs: Tabs[]
+  pages: Pages[]
+  texts: string[]
+  options: SettingsOptions[]
 }
 
-export const NudgeContext = createContext<NudgeContextProps>({
-  nudge: null,
+export const NudgeContext = createContext<{
+  addNudge: (nudge: Nudge) => void
+  removeNudge: (nudge: Nudge) => void
+  tabHasNudge: (tab: Tabs) => Nudge | undefined
+  pageHasNudge: (page: Pages) => Nudge | undefined
+  optionHasNudge: (option: SettingsOptions) => Nudge | undefined
+  addPasswordNudge: () => void
+}>({
+  addNudge: () => {},
+  removeNudge: () => {},
+  tabHasNudge: () => undefined,
+  pageHasNudge: () => undefined,
+  optionHasNudge: () => undefined,
+  addPasswordNudge: () => {},
 })
 
 export const NudgeProvider = ({ children }: { children: ReactNode }) => {
-  const { balance, wallet } = useContext(WalletContext)
-  const { setOption } = useContext(OptionsContext)
-  const { navigate } = useContext(NavigationContext)
+  const [nudges, setNudges] = useState<Nudge[]>([])
 
-  const [dismissed, setDismissed] = useState(false)
-  const [nudge, setNudge] = useState<ReactNode>(null)
+  const flat = (nudge: Nudge) => JSON.stringify(nudge)
 
-  // navigate to pages settings / advanced / change password
-  const navigateToSettings = () => {
-    setOption(SettingsOptions.Password)
-    navigate(Pages.Settings)
-    dismissNudge()
+  const addNudge = (nudge: Nudge) => {
+    setNudges((prev) => [...prev.filter((n) => flat(n) !== flat(nudge)), nudge])
   }
 
-  // close nudge
-  const dismissNudge = () => {
-    setDismissed(true)
-    setNudge(null)
+  const removeNudge = (nudge: Nudge) => {
+    setNudges((prev) => prev.filter((n) => flat(n) !== flat(nudge)))
   }
 
-  // nudge user when balance changes unless user already dismissed it
-  useEffect(() => {
-    if (!wallet || !balance || dismissed) return
-    noUserDefinedPassword().then((noPassword) => {
-      if (noPassword && balance > minSatsToNudge) {
-        setNudge(<CreatePasswordWarning onClick={navigateToSettings} onDismiss={dismissNudge} />)
-      }
+  const tabHasNudge = (tab: Tabs) => nudges.find((n) => n.tabs.includes(tab))
+
+  const pageHasNudge = (page: Pages) => nudges.find((n) => n.pages.includes(page))
+
+  const optionHasNudge = (option: SettingsOptions) => nudges.find((n) => n.options.includes(option))
+
+  const addPasswordNudge = () => {
+    addNudge({
+      options: [SettingsOptions.Advanced, SettingsOptions.Password],
+      texts: [`Your wallet has more than 100,000 sats.`, `You should set a password for your wallet.`],
+      pages: [Pages.Settings],
+      tabs: [Tabs.Settings],
     })
-  }, [wallet, balance, dismissed])
+  }
 
-  return <NudgeContext.Provider value={{ nudge }}>{children}</NudgeContext.Provider>
+  return (
+    <NudgeContext.Provider
+      value={{ addPasswordNudge, addNudge, removeNudge, tabHasNudge, pageHasNudge, optionHasNudge }}
+    >
+      {children}
+    </NudgeContext.Provider>
+  )
 }
