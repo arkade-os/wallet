@@ -1,8 +1,10 @@
-import { IndexedDBWalletRepository, IndexedDBContractRepository, Worker } from '@arkade-os/sdk'
+import { IndexedDBWalletRepository, IndexedDBContractRepository, Worker, WalletUpdater } from '@arkade-os/sdk'
 
+const walletUpdater = new WalletUpdater(new IndexedDBWalletRepository(), new IndexedDBContractRepository())
 const worker = new Worker({
-  walletRepository: new IndexedDBWalletRepository(),
-  contractRepository: new IndexedDBContractRepository(),
+  updaters: [walletUpdater],
+  tickIntervalMs: 5000,
+  debug: true,
 })
 worker.start().catch(console.error)
 

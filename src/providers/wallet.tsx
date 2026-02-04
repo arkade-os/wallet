@@ -13,12 +13,13 @@ import { Tx, Vtxo, Wallet } from '../lib/types'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import {
   ArkNote,
-  ServiceWorkerWallet,
   NetworkName,
   SingleKey,
   migrateWalletRepository,
   IndexedDBWalletRepository,
   IndexedDBContractRepository,
+  WalletRuntimeFactory,
+  SwWalletRuntime,
 } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
@@ -41,10 +42,10 @@ interface WalletContextProps {
   settlePreconfirmed: () => Promise<void>
   updateWallet: (w: Wallet | ((prev: Wallet) => Wallet)) => void
   isLocked: () => Promise<boolean>
-  reloadWallet: (svcWallet?: ServiceWorkerWallet) => Promise<void>
+  reloadWallet: (svcWallet?: SwWalletRuntime) => Promise<void>
   wallet: Wallet
   walletLoaded: boolean
-  svcWallet: ServiceWorkerWallet | undefined
+  svcWallet: SwWalletRuntime | undefined
   txs: Tx[]
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: number
@@ -79,7 +80,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [wallet, setWallet] = useState(defaultWallet)
   const [walletLoaded, setWalletLoaded] = useState(false)
   const [initialized, setInitialized] = useState<boolean>(false)
-  const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
+  const [svcWallet, setSvcWallet] = useState<SwWalletRuntime>()
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
 
   const listeningForServiceWorker = useRef(false)
@@ -188,15 +189,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const walletRepository = new IndexedDBWalletRepository()
       const contractRepository = new IndexedDBContractRepository()
       await walletRepository.getWalletState()
-      console.log('****** init service worker wallet ***')
-      const svcWallet = await ServiceWorkerWallet.setup({
+      const svcWallet = await WalletRuntimeFactory.setupServiceWorker({
         serviceWorkerPath: '/wallet-service-worker.mjs',
         identity: SingleKey.fromHex(privateKey),
         arkServerUrl,
         esploraUrl,
         storage: { walletRepository, contractRepository },
       })
-      console.log('****** service worker wallet initialized ***')
 
       // Migration!
       try {
