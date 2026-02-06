@@ -2,14 +2,15 @@ import { ReactNode, createContext, useContext, useEffect, useState } from 'react
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import {
-  ArkadeLightning,
   BoltzSwapProvider,
   FeesResponse,
+  IndexedDbSwapRepository,
   Network,
   PendingReverseSwap,
   PendingSubmarineSwap,
   setLogger,
   SwapManager,
+  SwArkadeLightningRuntime,
 } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
@@ -29,7 +30,7 @@ interface LightningContextProps {
   connected: boolean
   calcSubmarineSwapFee: (satoshis: number) => number
   calcReverseSwapFee: (satoshis: number) => number
-  arkadeLightning: ArkadeLightning | null
+  arkadeLightning: SwArkadeLightningRuntime | null
   swapManager: SwapManager | null
   toggleConnection: () => void
   // Helper methods that delegate to arkadeLightning
@@ -69,7 +70,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
   const { svcWallet } = useContext(WalletContext)
   const { config, updateConfig, backupConfig } = useContext(ConfigContext)
 
-  const [arkadeLightning, setArkadeLightning] = useState<ArkadeLightning | null>(null)
+  const [arkadeLightning, setArkadeLightning] = useState<SwArkadeLightningRuntime | null>(null)
   const [fees, setFees] = useState<FeesResponse | null>(null)
   const [apiUrl, setApiUrl] = useState<string | null>(null)
 
@@ -89,14 +90,18 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     const swapProvider = new BoltzSwapProvider({ apiUrl: baseUrl, network })
     const indexerProvider = new RestIndexerProvider(aspInfo.url)
 
-    const instance = new ArkadeLightning({
-      wallet: svcWallet,
-      arkProvider,
-      swapProvider,
-      indexerProvider,
-      // Enable SwapManager with auto-start when boltz is connected
-      swapManager: config.apps.boltz.connected,
+    const instance = SwArkadeLightningRuntime.create({
+      serviceWorker: svcWallet.serviceWorker,
+      swapRepository: new IndexedDbSwapRepository(),
     })
+    // const instance = new ArkadeLightning({
+    //   wallet: svcWallet,
+    //   arkProvider,
+    //   swapProvider,
+    //   indexerProvider,
+    //   // Enable SwapManager with auto-start when boltz is connected
+    //   swapManager: config.apps.boltz.connected,
+    // })
     setLogger({
       log: (...args: unknown[]) => consoleLog(...args),
       error: (...args: unknown[]) => consoleError(args[0], args.slice(1).join(' ')),
@@ -225,7 +230,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     for (const swap of reverseSwaps) {
       if (!historyIds.has(swap.response.id)) {
         try {
-          await contractRepo.saveToContractCollection('reverseSwaps', swap, 'id')
+          await arkadeLightning.swapRepository.saveSwap(swap)
           counter++
         } catch (err) {
           consoleError(err, `Failed to save reverse swap ${swap.response.id}`)
@@ -236,7 +241,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     for (const swap of submarineSwaps) {
       if (!historyIds.has(swap.response.id)) {
         try {
-          await contractRepo.saveToContractCollection('submarineSwaps', swap, 'id')
+          await arkadeLightning.swapRepository.saveSwap(swap)
           counter++
         } catch (err) {
           consoleError(err, `Failed to save submarine swap ${swap.response.id}`)

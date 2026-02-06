@@ -1,8 +1,26 @@
-import { IndexedDBWalletRepository, IndexedDBContractRepository, Worker, WalletUpdater } from '@arkade-os/sdk'
+import {
+  ArkadeLightningMessageHandler,
+  IndexedDbSwapRepository,
+  SwapMessageHandler,
+  SwSwapManagerRuntime,
+} from '@arkade-os/boltz-swap'
+import {
+  IndexedDBWalletRepository,
+  IndexedDBContractRepository,
+  MessageBus,
+  WalletMessageHandler,
+} from '@arkade-os/sdk'
 
-const walletUpdater = new WalletUpdater(new IndexedDBWalletRepository(), new IndexedDBContractRepository())
-const worker = new Worker({
-  updaters: [walletUpdater],
+const walletRepository = new IndexedDBWalletRepository()
+const contractRepository = new IndexedDBContractRepository()
+const swapRepository = new IndexedDbSwapRepository()
+
+const worker = new MessageBus(walletRepository, contractRepository, {
+  messageHandlers: [
+    new WalletMessageHandler(),
+    new ArkadeLightningMessageHandler(swapRepository),
+    new SwapMessageHandler({}),
+  ],
   tickIntervalMs: 5000,
   debug: true,
 })
