@@ -1,5 +1,4 @@
-import { IndexedDBWalletRepository, Worker } from '@arkade-os/sdk'
-import { IndexedDBContractRepository } from '../../ts-sdk'
+import { IndexedDBWalletRepository, IndexedDBContractRepository, Worker } from '@arkade-os/sdk'
 
 const worker = new Worker({
   walletRepository: new IndexedDBWalletRepository(),
