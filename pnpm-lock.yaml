@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.2.18
-        version: 0.2.18
+        specifier: arkade-os/boltz-swap#next
+        version: https://codeload.github.com/arkade-os/boltz-swap/tar.gz/7905a4b4087a5ace1ef678ec1d5b9398af2b7cb1
       '@arkade-os/sdk':
-        specifier: 0.3.12
-        version: 0.3.12
+        specifier: arkade-os/ts-sdk#next
+        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/3c3a1c43d888fd2b6b4e8fbebdc7bd70e65191d9
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -159,12 +159,14 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@0.2.18':
-    resolution: {integrity: sha512-AVkGjaqzo4zyPNXb2+zVzyX1fdRLjBm7CSPWhJ5UPp1/p/TZcmHkn27jmbQNZ0LpV2uLgOlnTaNWKLNReeTnMw==}
+  '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/7905a4b4087a5ace1ef678ec1d5b9398af2b7cb1':
+    resolution: {tarball: https://codeload.github.com/arkade-os/boltz-swap/tar.gz/7905a4b4087a5ace1ef678ec1d5b9398af2b7cb1}
+    version: 0.2.18
     engines: {node: '>=22'}
 
-  '@arkade-os/sdk@0.3.12':
-    resolution: {integrity: sha512-/zE8XiDo6yOCaspMcO3Gua/gLGYmYLRFbqaD1ORkaGI7hH/Gq+m0tkIwArVlwtK50loHK4jvS8clovcaV9CARg==}
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/3c3a1c43d888fd2b6b4e8fbebdc7bd70e65191d9':
+    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/3c3a1c43d888fd2b6b4e8fbebdc7bd70e65191d9}
+    version: 0.3.12
     engines: {node: '>=20.0.0'}
 
   '@asamuzakjp/css-color@3.2.0':
@@ -2518,16 +2520,16 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@0.2.18':
+  '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/7905a4b4087a5ace1ef678ec1d5b9398af2b7cb1':
     dependencies:
-      '@arkade-os/sdk': 0.3.12
+      '@arkade-os/sdk': https://codeload.github.com/arkade-os/ts-sdk/tar.gz/3c3a1c43d888fd2b6b4e8fbebdc7bd70e65191d9
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
       '@scure/btc-signer': 2.0.1
       bip68: 1.0.4
       light-bolt11-decoder: 3.2.0
 
-  '@arkade-os/sdk@0.3.12':
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/3c3a1c43d888fd2b6b4e8fbebdc7bd70e65191d9':
     dependencies:
       '@marcbachmann/cel-js': 7.0.0
       '@noble/curves': 2.0.0
