@@ -18,8 +18,7 @@ import {
   migrateWalletRepository,
   IndexedDBWalletRepository,
   IndexedDBContractRepository,
-  WalletRuntimeFactory,
-  SwWalletRuntime,
+  ServiceWorkerWallet,
 } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
@@ -27,8 +26,7 @@ import { ConfigContext } from './config'
 import { maxPercentage } from '../lib/constants'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { Indexer } from '../lib/indexer'
-import { migrateToSwapRepository } from '../../../boltz-swap/src/repositories/migrationFromContracts'
-import { IndexedDbSwapRepository } from '../../../boltz-swap/src/repositories/IndexedDb/swap-repository'
+import { IndexedDbSwapRepository, migrateToSwapRepository } from '@arkade-os/boltz-swap'
 
 const defaultWallet: Wallet = {
   network: '',
@@ -42,10 +40,10 @@ interface WalletContextProps {
   settlePreconfirmed: () => Promise<void>
   updateWallet: (w: Wallet | ((prev: Wallet) => Wallet)) => void
   isLocked: () => Promise<boolean>
-  reloadWallet: (svcWallet?: SwWalletRuntime) => Promise<void>
+  reloadWallet: (svcWallet?: ServiceWorkerWallet) => Promise<void>
   wallet: Wallet
   walletLoaded: boolean
-  svcWallet: SwWalletRuntime | undefined
+  svcWallet: ServiceWorkerWallet | undefined
   txs: Tx[]
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: number
@@ -80,7 +78,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [wallet, setWallet] = useState(defaultWallet)
   const [walletLoaded, setWalletLoaded] = useState(false)
   const [initialized, setInitialized] = useState<boolean>(false)
-  const [svcWallet, setSvcWallet] = useState<SwWalletRuntime>()
+  const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
 
   const listeningForServiceWorker = useRef(false)
@@ -189,7 +187,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const walletRepository = new IndexedDBWalletRepository()
       const contractRepository = new IndexedDBContractRepository()
       await walletRepository.getWalletState()
-      const svcWallet = await WalletRuntimeFactory.setupServiceWorker({
+      console.log('-- setup --')
+      const svcWallet = await ServiceWorkerWallet.setup({
         serviceWorkerPath: '/wallet-service-worker.mjs',
         identity: SingleKey.fromHex(privateKey),
         arkServerUrl,
@@ -199,14 +198,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       // Migration!
       try {
+        console.log('--- migration begins')
         const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
         const arkAddress = await svcWallet.getAddress()
         const boardingAddress = await svcWallet.getBoardingAddress()
-        await migrateWalletRepository(oldStorage, svcWallet.walletRepository, {
-          offchain: [arkAddress],
-          onchain: [boardingAddress],
-        })
+        await migrateWalletRepository(oldStorage, svcWallet.walletRepository, [arkAddress, boardingAddress])
         await migrateToSwapRepository(oldStorage, new IndexedDbSwapRepository())
+        console.log('--- migration ends')
       } catch (err) {
         consoleError(err, 'Error migrating wallet repository')
       }
