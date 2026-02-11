@@ -21,6 +21,8 @@ import { useContext, useEffect, useRef, useState } from 'react'
 import { detectJSCapabilities } from './lib/jsCapabilities'
 import { OptionsContext } from './providers/options'
 import { WalletContext } from './providers/wallet'
+import { NudgeContext } from './providers/nudge'
+import Focusable from './components/Focusable'
 import { FlowContext } from './providers/flow'
 import { SettingsOptions } from './lib/types'
 import { AspContext } from './providers/asp'
@@ -30,7 +32,6 @@ import { pwaIsInstalled } from './lib/pwa'
 import FlexCol from './components/FlexCol'
 import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
-import Focusable from './components/Focusable'
 
 setupIonicReact()
 
@@ -40,6 +41,7 @@ export default function App() {
   const { navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
+  const { tabHasNudge } = useContext(NudgeContext)
   const { walletLoaded, initialized, wallet } = useContext(WalletContext)
 
   const [isCapable, setIsCapable] = useState(false)
@@ -151,7 +153,7 @@ export default function App() {
               <IonTabButton tab={Tabs.Wallet} onClick={handleWallet} selected={tab === Tabs.Wallet}>
                 <Focusable>
                   <FlexCol centered gap='6px' padding='5px' testId='tab-wallet'>
-                    <WalletIcon />
+                    <WalletIcon nudge={!!tabHasNudge(Tabs.Wallet)} />
                     Wallet
                   </FlexCol>
                 </Focusable>
@@ -159,7 +161,7 @@ export default function App() {
               <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps}>
                 <Focusable>
                   <FlexCol centered gap='6px' padding='5px' testId='tab-apps'>
-                    <AppsIcon />
+                    <AppsIcon nudge={!!tabHasNudge(Tabs.Apps)} />
                     Apps
                   </FlexCol>
                 </Focusable>
@@ -167,7 +169,7 @@ export default function App() {
               <IonTabButton tab={Tabs.Settings} onClick={handleSettings} selected={tab === Tabs.Settings}>
                 <Focusable>
                   <FlexCol centered gap='6px' padding='5px' testId='tab-settings'>
-                    <SettingsIcon />
+                    <SettingsIcon nudge={!!tabHasNudge(Tabs.Settings)} />
                     Settings
                   </FlexCol>
                 </Focusable>
