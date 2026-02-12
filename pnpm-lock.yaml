@@ -13,7 +13,7 @@ importers:
         version: 0.2.19
       '@arkade-os/sdk':
         specifier: github:louisinger/wallet-sdk#delegator
-        version: https://codeload.github.com/louisinger/wallet-sdk/tar.gz/0200be6dc278ac55c76895e8393ee4d2117403db
+        version: https://codeload.github.com/louisinger/wallet-sdk/tar.gz/0d41b19b2d8f579acb5a0f973ff0c97d912a207b
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -167,8 +167,8 @@ packages:
     resolution: {integrity: sha512-/zE8XiDo6yOCaspMcO3Gua/gLGYmYLRFbqaD1ORkaGI7hH/Gq+m0tkIwArVlwtK50loHK4jvS8clovcaV9CARg==}
     engines: {node: '>=20.0.0'}
 
-  '@arkade-os/sdk@https://codeload.github.com/louisinger/wallet-sdk/tar.gz/0200be6dc278ac55c76895e8393ee4d2117403db':
-    resolution: {tarball: https://codeload.github.com/louisinger/wallet-sdk/tar.gz/0200be6dc278ac55c76895e8393ee4d2117403db}
+  '@arkade-os/sdk@https://codeload.github.com/louisinger/wallet-sdk/tar.gz/0d41b19b2d8f579acb5a0f973ff0c97d912a207b':
+    resolution: {tarball: https://codeload.github.com/louisinger/wallet-sdk/tar.gz/0d41b19b2d8f579acb5a0f973ff0c97d912a207b}
     version: 0.3.13
     engines: {node: '>=20.0.0'}
 
@@ -2546,7 +2546,7 @@ snapshots:
       '@scure/btc-signer': 2.0.1
       bip68: 1.0.4
 
-  '@arkade-os/sdk@https://codeload.github.com/louisinger/wallet-sdk/tar.gz/0200be6dc278ac55c76895e8393ee4d2117403db':
+  '@arkade-os/sdk@https://codeload.github.com/louisinger/wallet-sdk/tar.gz/0d41b19b2d8f579acb5a0f973ff0c97d912a207b':
     dependencies:
       '@marcbachmann/cel-js': 7.3.1
       '@noble/curves': 2.0.0
