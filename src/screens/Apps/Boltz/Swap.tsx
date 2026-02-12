@@ -37,11 +37,16 @@ export default function AppBoltzSwap() {
   useEffect(() => {
     if (!swapManager || !swapInfo) return
 
-    const unsubscribe = swapManager.subscribeToSwapUpdates(swapInfo.id, (updatedSwap) => {
-      setSwapInfo(updatedSwap)
-    })
+    let unsub: (() => void) | null = null
+    ;(async () => {
+      unsub = await swapManager.subscribeToSwapUpdates(swapInfo.id, (updatedSwap) => {
+        setSwapInfo(updatedSwap)
+      })
+    })()
 
-    return unsubscribe
+    return () => {
+      unsub?.()
+    }
   }, [swapManager, swapInfo?.id])
 
   if (!swapInfo) return null

@@ -119,19 +119,26 @@ export default function SwapsList() {
   // Subscribe to swap updates from SwapManager for real-time updates
   useEffect(() => {
     if (!swapManager) return
-    const unsubscribe = swapManager.onSwapUpdate((swap) => {
-      setSwapHistory((prev) => {
-        const existingIndex = prev.findIndex((s) => s.id === swap.id)
-        if (existingIndex >= 0) {
-          const updated = [...prev]
-          updated[existingIndex] = swap
-          return updated
-        }
-        // New swap, add to beginning
-        return [swap, ...prev]
+
+    let unsub: (() => void) | null = null
+    ;(async () => {
+      unsub = await swapManager.onSwapUpdate((swap) => {
+        setSwapHistory((prev) => {
+          const existingIndex = prev.findIndex((s) => s.id === swap.id)
+          if (existingIndex >= 0) {
+            const updated = [...prev]
+            updated[existingIndex] = swap
+            return updated
+          }
+          // New swap, add to beginning
+          return [swap, ...prev]
+        })
       })
-    })
-    return unsubscribe
+    })()
+
+    return () => {
+      unsub?.()
+    }
   }, [swapManager])
 
   if (swapHistory.length === 0) return <EmptySwapList />

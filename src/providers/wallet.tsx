@@ -202,7 +202,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
         const arkAddress = await svcWallet.getAddress()
         const boardingAddress = await svcWallet.getBoardingAddress()
-        await migrateWalletRepository(oldStorage, svcWallet.walletRepository, [arkAddress, boardingAddress])
+        await migrateWalletRepository(oldStorage, svcWallet.walletRepository, {
+          offchain: [arkAddress],
+          onchain: [boardingAddress],
+        })
         await migrateToSwapRepository(oldStorage, new IndexedDbSwapRepository())
         console.log('--- migration ends')
       } catch (err) {

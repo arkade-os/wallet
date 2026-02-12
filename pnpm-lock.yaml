@@ -166,11 +166,17 @@ packages:
   '@arkade-os/sdk@file:../ts-sdk':
     resolution: {directory: ../ts-sdk, type: directory}
     engines: {node: '>=20.0.0'}
-
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/ba9ed065a3505d2ac68c45f3872155a6f93c4056':
-    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/ba9ed065a3505d2ac68c45f3872155a6f93c4056}
-    version: 0.3.12
-    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      expo: '>=52.0.0'
+      expo-sqlite: ~15.1.4
+      indexeddbshim: '>=16.0.0'
+    peerDependenciesMeta:
+      expo:
+        optional: true
+      expo-sqlite:
+        optional: true
+      indexeddbshim:
+        optional: true
 
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
@@ -521,9 +527,10 @@ packages:
   '@lendasat/lendasat-wallet-bridge@0.0.90':
     resolution: {integrity: sha512-VfgM5vUx81vVWlggtOReUkaC8VVOFVavIMixQM0G/ZI0L/nMi10fmkIBvXOVI4Jmsu9A5z6wHSUrERxD3a/Juw==}
 
-  '@marcbachmann/cel-js@7.0.0':
-    resolution: {integrity: sha512-sbtR8pvTAsDPiyigebwLyqweLnocmBS9MG5tTnVUL2PZ9Hc2Dj2e4tnvTcZ1s463Og9NKD59TaPvTK9CEZQhiQ==}
+  '@marcbachmann/cel-js@7.3.1':
+    resolution: {integrity: sha512-P6o26TvjStT8V8+8EF+yq9Pp7ZFV00bpiUMbssr76XbIZGxaB+NNWeBp6WNxOrR9gp0JPzvJueCKHpOs5LE9PQ==}
     engines: {node: '>=20.19.0'}
+    hasBin: true
 
   '@noble/ciphers@0.5.3':
     resolution: {integrity: sha512-B0+6IIHiqEs3BPMT0hcRmHvEj2QHOLu+uwt+tqDDeVd0oyVzh7BPrDcPjRnV1PV/5LaknXJJQvOuRGR0zQJz+w==}
@@ -2525,7 +2532,7 @@ snapshots:
 
   '@arkade-os/boltz-swap@file:../boltz-swap':
     dependencies:
-      '@arkade-os/sdk': https://codeload.github.com/arkade-os/ts-sdk/tar.gz/ba9ed065a3505d2ac68c45f3872155a6f93c4056
+      '@arkade-os/sdk': link:../ts-sdk
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
       '@scure/btc-signer': 2.0.1
@@ -2534,16 +2541,7 @@ snapshots:
 
   '@arkade-os/sdk@file:../ts-sdk':
     dependencies:
-      '@marcbachmann/cel-js': 7.0.0
-      '@noble/curves': 2.0.0
-      '@noble/secp256k1': 3.0.0
-      '@scure/base': 2.0.0
-      '@scure/btc-signer': 2.0.1
-      bip68: 1.0.4
-
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/ba9ed065a3505d2ac68c45f3872155a6f93c4056':
-    dependencies:
-      '@marcbachmann/cel-js': 7.0.0
+      '@marcbachmann/cel-js': 7.3.1
       '@noble/curves': 2.0.0
       '@noble/secp256k1': 3.0.0
       '@scure/base': 2.0.0
@@ -2852,7 +2850,7 @@ snapshots:
 
   '@lendasat/lendasat-wallet-bridge@0.0.90': {}
 
-  '@marcbachmann/cel-js@7.0.0': {}
+  '@marcbachmann/cel-js@7.3.1': {}
 
   '@noble/ciphers@0.5.3': {}
 
