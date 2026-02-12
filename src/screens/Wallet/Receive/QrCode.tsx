@@ -62,7 +62,7 @@ export default function ReceiveQRCode() {
           // Use waitAndClaim which delegates to SwapManager if enabled
           arkadeLightning
             .waitAndClaim(pendingSwap)
-            .then(() => {
+            .then((a: { txid: string }) => {
               setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
               navigate(Pages.ReceiveSuccess)
             })

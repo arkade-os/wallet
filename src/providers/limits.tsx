@@ -79,7 +79,10 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
             max: BigInt(res.max),
           }
         })
-        .catch(consoleError)
+        .catch((e) => {
+          //
+          consoleError(e)
+        })
     } else {
       limits.current.swap = {
         ...limits.current.swap,
