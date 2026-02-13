@@ -13,7 +13,6 @@ const swapRepository = new IndexedDbSwapRepository()
 const worker = new MessageBus(walletRepository, contractRepository, {
   messageHandlers: [new WalletMessageHandler(), new ArkadeLightningMessageHandler(swapRepository)],
   tickIntervalMs: 5000,
-  debug: true,
 })
 worker.start().catch(console.error)
 

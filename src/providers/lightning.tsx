@@ -87,6 +87,9 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     const network = aspInfo.network as Network
     const swapProvider = new BoltzSwapProvider({ apiUrl: baseUrl, network })
 
+    let disposeArkadeLightning: (() => Promise<void>) | null = null
+    let cancelled = false
+
     ServiceWorkerArkadeLightning.create({
       serviceWorker: svcWallet.serviceWorker,
       swapRepository: new IndexedDbSwapRepository(),
@@ -95,7 +98,14 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
       arkServerUrl: aspInfo.url,
       swapManager: config.apps.boltz.connected,
     })
-      .then((instance) => setArkadeLightning(instance))
+      .then((instance) => {
+        if (cancelled) {
+          instance.dispose().catch(consoleError)
+        } else {
+          disposeArkadeLightning = () => instance.dispose().catch(consoleError)
+          setArkadeLightning(instance)
+        }
+      })
       .catch(console.error)
     setLogger({
       log: (...args: unknown[]) => consoleLog(...args),
@@ -105,7 +115,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
 
     // Cleanup on unmount
     return () => {
-      if (arkadeLightning) arkadeLightning.dispose().catch(consoleError)
+      if (disposeArkadeLightning) disposeArkadeLightning().catch(consoleError)
     }
   }, [aspInfo, svcWallet, config.apps.boltz.connected])
 

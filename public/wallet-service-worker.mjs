@@ -51793,8 +51793,7 @@ var DR = class {
 };
 const LR = new Bp(), FR = new bp(), VR = new Pp(), WR = new qI(LR, FR, {
   messageHandlers: [new eR(), new MR(VR)],
-  tickIntervalMs: 5e3,
-  debug: !0
+  tickIntervalMs: 5e3
 });
 WR.start().catch(console.error);
 const _p = "arkade-cache-v1";

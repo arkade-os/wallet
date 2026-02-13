@@ -38,15 +38,21 @@ export default function AppBoltzSwap() {
     if (!swapManager || !swapInfo) return
 
     let unsub: (() => void) | null = null
+    let cancelled = false
     swapManager
       .subscribeToSwapUpdates(swapInfo.id, (updatedSwap) => {
         setSwapInfo(updatedSwap)
       })
       .then((unsubscribe) => {
-        unsub = unsubscribe
+        if (cancelled) {
+          unsubscribe()
+        } else {
+          unsub = unsubscribe
+        }
       })
 
     return () => {
+      cancelled = true
       unsub?.()
     }
   }, [swapManager, swapInfo?.id])
