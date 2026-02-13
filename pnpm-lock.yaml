@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: git+https://github.com/arkade-os/boltz-swap.git#next
-        version: https://codeload.github.com/arkade-os/boltz-swap/tar.gz/fd281abb0ba42594f794f92a9b3f2d804ab7bded
+        specifier: github:arkade-os/boltz-swap#next
+        version: https://codeload.github.com/arkade-os/boltz-swap/tar.gz/9fa9db9d13af30b92e82870401acd7045180bca6
       '@arkade-os/sdk':
         specifier: git+https://github.com/arkade-os/ts-sdk.git#next
         version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/8c2f4ba7fff84376dfd827ea059da8d46c0fcc0d
@@ -159,8 +159,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/fd281abb0ba42594f794f92a9b3f2d804ab7bded':
-    resolution: {tarball: https://codeload.github.com/arkade-os/boltz-swap/tar.gz/fd281abb0ba42594f794f92a9b3f2d804ab7bded}
+  '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/9fa9db9d13af30b92e82870401acd7045180bca6':
+    resolution: {tarball: https://codeload.github.com/arkade-os/boltz-swap/tar.gz/9fa9db9d13af30b92e82870401acd7045180bca6}
     version: 0.2.20
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
 
@@ -2510,7 +2510,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/fd281abb0ba42594f794f92a9b3f2d804ab7bded':
+  '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/9fa9db9d13af30b92e82870401acd7045180bca6':
     dependencies:
       '@arkade-os/sdk': https://codeload.github.com/arkade-os/ts-sdk/tar.gz/8c2f4ba7fff84376dfd827ea059da8d46c0fcc0d
       '@noble/hashes': 2.0.1

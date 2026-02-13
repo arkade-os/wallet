@@ -1,9 +1,8 @@
-import { PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
+import { PendingReverseSwap, PendingSubmarineSwap, SwapRepository } from '@arkade-os/boltz-swap'
 import { getPublicKey } from 'nostr-tools/pure'
 import { NostrStorage } from './nostr'
 import { Config } from './types'
 import { consoleError } from './logs'
-import { ContractRepository } from '../../../ts-sdk/src/repositories'
 
 type NostrStorageData = {
   config?: Config
@@ -23,7 +22,7 @@ export class BackupProvider {
    */
   constructor(
     options: { pubkey?: string; seckey?: Uint8Array },
-    private readonly contractRepository: ContractRepository,
+    private readonly swapRepository: SwapRepository,
   ) {
     if (options.seckey) {
       this.pubkey = getPublicKey(options.seckey)
@@ -106,15 +105,15 @@ export class BackupProvider {
 
     if (data?.config) updateConfig(data.config)
 
-    // TODO: restore as contracts
-    //
-    // for (const swap of data?.reverseSwaps ?? []) {
-    //   await this.contractRepository.saveToContractCollection('reverseSwaps', swap, 'id')
-    // }
-    //
-    // for (const swap of data?.submarineSwaps ?? []) {
-    //   await this.contractRepository.saveToContractCollection('submarineSwaps', swap, 'id')
-    // }
+    // TODO: restore as contracts via ad-hoc utils in boltz-swap
+
+    for (const swap of data?.reverseSwaps ?? []) {
+      await this.swapRepository.saveSwap(swap)
+    }
+
+    for (const swap of data?.submarineSwaps ?? []) {
+      await this.swapRepository.saveSwap(swap)
+    }
   }
 
   /**

@@ -121,8 +121,8 @@ export default function SwapsList() {
     if (!swapManager) return
 
     let unsub: (() => void) | null = null
-    ;(async () => {
-      unsub = await swapManager.onSwapUpdate((swap) => {
+    swapManager
+      .onSwapUpdate((swap) => {
         setSwapHistory((prev) => {
           const existingIndex = prev.findIndex((s) => s.id === swap.id)
           if (existingIndex >= 0) {
@@ -134,7 +134,9 @@ export default function SwapsList() {
           return [swap, ...prev]
         })
       })
-    })()
+      .then((unsubscribe) => {
+        unsub = unsubscribe
+      })
 
     return () => {
       unsub?.()

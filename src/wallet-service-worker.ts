@@ -1,4 +1,4 @@
-import { ArkadeLightningMessageHandler, IndexedDbSwapRepository, SwapMessageHandler } from '@arkade-os/boltz-swap'
+import { ArkadeLightningMessageHandler, IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
 import {
   IndexedDBWalletRepository,
   IndexedDBContractRepository,
@@ -11,11 +11,7 @@ const contractRepository = new IndexedDBContractRepository()
 const swapRepository = new IndexedDbSwapRepository()
 
 const worker = new MessageBus(walletRepository, contractRepository, {
-  messageHandlers: [
-    new WalletMessageHandler(),
-    new ArkadeLightningMessageHandler(swapRepository),
-    // new SwapMessageHandler({}),
-  ],
+  messageHandlers: [new WalletMessageHandler(), new ArkadeLightningMessageHandler(swapRepository)],
   tickIntervalMs: 5000,
   debug: true,
 })
