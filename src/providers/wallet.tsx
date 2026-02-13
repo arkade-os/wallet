@@ -187,7 +187,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const walletRepository = new IndexedDBWalletRepository()
       const contractRepository = new IndexedDBContractRepository()
       await walletRepository.getWalletState()
-      console.log('-- setup --')
       const svcWallet = await ServiceWorkerWallet.setup({
         serviceWorkerPath: '/wallet-service-worker.mjs',
         identity: SingleKey.fromHex(privateKey),
@@ -198,7 +197,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       // Migration!
       try {
-        console.log('--- migration begins')
         const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
         const arkAddress = await svcWallet.getAddress()
         const boardingAddress = await svcWallet.getBoardingAddress()
@@ -207,7 +205,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           onchain: [boardingAddress],
         })
         await migrateToSwapRepository(oldStorage, new IndexedDbSwapRepository())
-        console.log('--- migration ends')
       } catch (err) {
         consoleError(err, 'Error migrating wallet repository')
       }
@@ -282,7 +279,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const initWallet = async (privateKey: Uint8Array) => {
-    console.log('*** init wallet ***')
     const arkServerUrl = aspInfo.url
     const network = aspInfo.network as NetworkName
     const esploraUrl = getRestApiExplorerURL(network) ?? ''
@@ -293,7 +289,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       arkServerUrl,
       esploraUrl,
     })
-    console.log('*** wallet initialized ***')
     updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
   }

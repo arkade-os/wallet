@@ -14,7 +14,6 @@ import {
 } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
-import { RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
 import { sendOffChain } from '../lib/asp'
 import { PendingSwap } from '../lib/types'
 
@@ -86,9 +85,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     setApiUrl(baseUrl)
 
     const network = aspInfo.network as Network
-    const arkProvider = new RestArkProvider(aspInfo.url)
     const swapProvider = new BoltzSwapProvider({ apiUrl: baseUrl, network })
-    const indexerProvider = new RestIndexerProvider(aspInfo.url)
 
     ServiceWorkerArkadeLightning.create({
       serviceWorker: svcWallet.serviceWorker,
@@ -100,14 +97,6 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
     })
       .then((instance) => setArkadeLightning(instance))
       .catch(console.error)
-    // const instance = new ArkadeLightning({
-    //   wallet: svcWallet,
-    //   arkProvider,
-    //   swapProvider,
-    //   indexerProvider,
-    //   // Enable SwapManager with auto-start when boltz is connected
-    //   swapManager: config.apps.boltz.connected,
-    // })
     setLogger({
       log: (...args: unknown[]) => consoleLog(...args),
       error: (...args: unknown[]) => consoleError(args[0], args.slice(1).join(' ')),

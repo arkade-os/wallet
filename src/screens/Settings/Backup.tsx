@@ -28,6 +28,7 @@ import { WalletContext } from '../../providers/wallet'
 import { authenticateUser } from '../../lib/biometrics'
 import FingerprintIcon from '../../icons/Fingerprint'
 import InputPassword from '../../components/InputPassword'
+import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
 
 export default function Backup() {
   const { wallet } = useContext(WalletContext)
@@ -87,7 +88,7 @@ export default function Backup() {
     const newConfig = { ...config, nostrBackup: !config.nostrBackup }
     updateConfig(newConfig)
     if (newConfig.nostrBackup) {
-      const backupProvider = new BackupProvider({ pubkey: config.pubkey })
+      const backupProvider = new BackupProvider({ pubkey: config.pubkey }, new IndexedDbSwapRepository())
       await backupProvider.fullBackup(newConfig).catch((error) => {
         consoleError(error, 'Backup to Nostr failed')
         setError('Backup to Nostr failed')

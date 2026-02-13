@@ -51792,11 +51792,7 @@ var DR = class {
   }
 };
 const LR = new Bp(), FR = new bp(), VR = new Pp(), WR = new qI(LR, FR, {
-  messageHandlers: [
-    new eR(),
-    new MR(VR)
-    // new SwapMessageHandler({}),
-  ],
+  messageHandlers: [new eR(), new MR(VR)],
   tickIntervalMs: 5e3,
   debug: !0
 });
