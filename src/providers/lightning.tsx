@@ -115,6 +115,7 @@ export const LightningProvider = ({ children }: { children: ReactNode }) => {
 
     // Cleanup on unmount
     return () => {
+      cancelled = true
       if (disposeArkadeLightning) disposeArkadeLightning().catch(consoleError)
     }
   }, [aspInfo, svcWallet, config.apps.boltz.connected])
