@@ -121,6 +121,7 @@ export default function SwapsList() {
     if (!swapManager) return
 
     let unsub: (() => void) | null = null
+    let cancelled = false
     swapManager
       .onSwapUpdate((swap) => {
         setSwapHistory((prev) => {
@@ -135,10 +136,15 @@ export default function SwapsList() {
         })
       })
       .then((unsubscribe) => {
-        unsub = unsubscribe
+        if (cancelled) {
+          unsubscribe()
+        } else {
+          unsub = unsubscribe
+        }
       })
 
     return () => {
+      cancelled = true
       unsub?.()
     }
   }, [swapManager])

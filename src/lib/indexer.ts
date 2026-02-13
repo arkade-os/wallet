@@ -1,16 +1,12 @@
 import { RestIndexerProvider } from '@arkade-os/sdk'
 import { AspInfo } from '../providers/asp'
-import { WalletRepository } from '../../../ts-sdk/src/repositories'
 
 const STORAGE_KEY = 'commitmentTxs'
 
 export class Indexer {
   readonly provider: RestIndexerProvider
 
-  constructor(
-    aspInfo: AspInfo,
-    private readonly walletRepository: WalletRepository,
-  ) {
+  constructor(aspInfo: AspInfo) {
     this.provider = new RestIndexerProvider(aspInfo.url)
   }
 
