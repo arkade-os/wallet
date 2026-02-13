@@ -36,9 +36,26 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
 
+    # temporary workaround for using `next` branches -
+    # TODO: remove it once `next` branches are merged into `master`
     - name: Install dependencies
-      run: pnpm install
-    
+      run: pnpm install --ignore-scripts
+
+    - name: Build @arkade-os/sdk
+      run: |
+        cd node_modules/@arkade-os/sdk
+        pnpm install
+        pnpm run build
+        cd ../..
+
+    - name: Build @arkade-os/boltz-swap
+      run: |
+        cd node_modules/@arkade-os/boltz-swap
+        pnpm install
+        pnpm run build
+        cd ../..
+    # end workaround
+
     - name: Run formatter
       run: pnpm format:check
 
@@ -46,4 +63,4 @@ jobs:
       run: pnpm lint
 
     - name: Run build
-      run: pnpm build 
+      run: pnpm build
