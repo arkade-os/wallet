@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: file:../boltz-swap
-        version: file:../boltz-swap
+        specifier: git+https://github.com/arkade-os/boltz-swap.git#next
+        version: https://codeload.github.com/arkade-os/boltz-swap/tar.gz/4fac7e4b95245d2bd22ab28d923f46d5b8583b43
       '@arkade-os/sdk':
-        specifier: file:../ts-sdk
-        version: file:../ts-sdk
+        specifier: git+https://github.com/arkade-os/boltz-swap.git#next
+        version: '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/4fac7e4b95245d2bd22ab28d923f46d5b8583b43'
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -159,13 +159,15 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@file:../boltz-swap':
-    resolution: {directory: ../boltz-swap, type: directory}
-    engines: {node: '>=22'}
+  '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/4fac7e4b95245d2bd22ab28d923f46d5b8583b43':
+    resolution: {tarball: https://codeload.github.com/arkade-os/boltz-swap/tar.gz/4fac7e4b95245d2bd22ab28d923f46d5b8583b43}
+    version: 0.2.20
+    engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
 
-  '@arkade-os/sdk@file:../ts-sdk':
-    resolution: {directory: ../ts-sdk, type: directory}
-    engines: {node: '>=20.0.0'}
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/1943c28197c76892f788daa11238cafb1d4e3da0':
+    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/1943c28197c76892f788daa11238cafb1d4e3da0}
+    version: 0.3.13
+    engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
     peerDependencies:
       expo: '>=52.0.0'
       expo-sqlite: ~15.1.4
@@ -2530,16 +2532,20 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@file:../boltz-swap':
+  '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/4fac7e4b95245d2bd22ab28d923f46d5b8583b43':
     dependencies:
-      '@arkade-os/sdk': link:../ts-sdk
+      '@arkade-os/sdk': https://codeload.github.com/arkade-os/ts-sdk/tar.gz/1943c28197c76892f788daa11238cafb1d4e3da0
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
       '@scure/btc-signer': 2.0.1
       bip68: 1.0.4
       light-bolt11-decoder: 3.2.0
+    transitivePeerDependencies:
+      - expo
+      - expo-sqlite
+      - indexeddbshim
 
-  '@arkade-os/sdk@file:../ts-sdk':
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/1943c28197c76892f788daa11238cafb1d4e3da0':
     dependencies:
       '@marcbachmann/cel-js': 7.3.1
       '@noble/curves': 2.0.0
