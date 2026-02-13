@@ -23,7 +23,6 @@ export default function Unlock() {
       .then(initWallet)
       .then(() => setUnlocked(true))
       .catch((err) => {
-        console.log(`Error unlocking wallet: ${err.message}`)
         setTried(true)
         if (password) {
           consoleError(err, 'error unlocking wallet')
