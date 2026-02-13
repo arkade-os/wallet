@@ -18,6 +18,7 @@ import Padded from '../../components/Padded'
 import Input from '../../components/Input'
 import Text from '../../components/Text'
 import { hex } from '@scure/base'
+import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
 
 export default function InitRestore() {
   const { updateConfig } = useContext(ConfigContext)
@@ -53,7 +54,7 @@ export default function InitRestore() {
   const handleProceed = () => {
     setInitInfo({ privateKey, password: defaultPassword, restoring: true })
     setRestoring(true)
-    new BackupProvider({ seckey: privateKey! })
+    new BackupProvider({ seckey: privateKey! }, new IndexedDbSwapRepository())
       .restore(updateConfig)
       .catch((err) => consoleError(err, 'Error restoring from nostr'))
       .finally(() => {

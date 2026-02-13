@@ -4,8 +4,8 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/boltz-swap": "arkade-os/boltz-swap#next",
-    "@arkade-os/sdk": "arkade-os/ts-sdk#next",
+    "@arkade-os/boltz-swap": "github:arkade-os/boltz-swap#next",
+    "@arkade-os/sdk": "git+https://github.com/arkade-os/ts-sdk.git#next",
     "@ionic/react": "^8.5.6",
     "@lendasat/lendasat-wallet-bridge": "^0.0.90",
     "@noble/curves": "^2.0.1",
@@ -100,5 +100,13 @@
   "engines": {
     "node": ">=20.19.0 || >=22.12.0",
     "pnpm": ">=8"
+  },
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "esbuild"
+    ],
+    "onlyBuiltDependencies": [
+      "@arkade-os/sdk"
+    ]
   }
 }
