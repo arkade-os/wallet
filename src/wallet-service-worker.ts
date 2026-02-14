@@ -1,6 +1,9 @@
-import { Worker } from '@arkade-os/sdk'
+import { IndexedDBWalletRepository, IndexedDBContractRepository, Worker } from '@arkade-os/sdk'
 
-const worker = new Worker()
+const worker = new Worker({
+  walletRepository: new IndexedDBWalletRepository(),
+  contractRepository: new IndexedDBContractRepository(),
+})
 worker.start().catch(console.error)
 
 const CACHE_NAME = 'arkade-cache-v1'
@@ -79,10 +82,3 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
 // self.addEventListener('fetch', (event: FetchEvent) => {
 //   event.respondWith(networkFirst(event.request))
 // })
-
-self.addEventListener('message', (event: ExtendableMessageEvent) => {
-  if (event.data && event.data.type === 'RELOAD_WALLET') {
-    // reload the wallet when the service worker receives a message to reload
-    event.waitUntil(worker.reload().catch(console.error))
-  }
-})
