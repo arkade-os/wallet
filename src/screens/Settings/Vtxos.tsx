@@ -205,6 +205,10 @@ export default function Vtxos() {
 
   const VtxoLine = ({ vtxo }: { vtxo: Vtxo }) => {
     const amount = config.showBalance ? prettyNumber(vtxo.value) : prettyHide(vtxo.value)
+    const vtxoAssets = (vtxo as any).assets as { assetId: string; amount: string }[] | undefined
+    const assetText = vtxoAssets?.length
+      ? vtxoAssets.map((a) => `+ ${a.amount} ${a.assetId.slice(0, 8)}...`).join(', ')
+      : ''
     const expiry = vtxo.virtualStatus?.batchExpiry ? prettyAgo(vtxo.virtualStatus.batchExpiry) : 'Unknown'
     const tags = (
       <FlexRow centered>
@@ -219,7 +223,7 @@ export default function Vtxos() {
                 : null}
       </FlexRow>
     )
-    return <CoinLine amount={`${amount} SATS`} tags={tags} expiry={expiry} />
+    return <CoinLine amount={`${amount} SATS${assetText ? ' ' + assetText : ''}`} tags={tags} expiry={expiry} />
   }
 
   const UtxoLine = ({ utxo }: { utxo: ExtendedCoin }) => {

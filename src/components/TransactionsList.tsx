@@ -61,6 +61,19 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
     </Text>
   )
 
+  const AssetInfo = () => {
+    if (!tx.assets?.length) return null
+    return (
+      <>
+        {tx.assets.map((a) => (
+          <Text key={a.assetId} color='dark50' smaller>
+            {a.amount} {a.assetId.slice(0, 8)}...
+          </Text>
+        ))}
+      </>
+    )
+  }
+
   const rowStyle = {
     alignItems: 'center',
     borderTop: border,
@@ -90,6 +103,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
           <Fiat />
         </>
       )}
+      <AssetInfo />
     </div>
   )
 
