@@ -49,7 +49,7 @@ export default function AppAssetReissue() {
     setError('')
 
     try {
-      await (svcWallet as any).assetManager.reissue({ assetId, amount: parsedAmount })
+      await svcWallet.assetManager.reissue({ assetId, amount: parsedAmount })
       await reloadWallet()
       navigate(Pages.AppAssetDetail)
     } catch (err) {

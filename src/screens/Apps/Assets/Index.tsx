@@ -49,7 +49,7 @@ export default function AppAssets() {
 
         if (!meta) {
           try {
-            meta = await (svcWallet as any).assetManager?.getAssetDetails(assetId)
+            meta = await svcWallet.assetManager.getAssetDetails(assetId)
             if (meta) assetMetadataCache.set(assetId, meta)
           } catch (err) {
             consoleError(err, `error fetching metadata for ${assetId}`)

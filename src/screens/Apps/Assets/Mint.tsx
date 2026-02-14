@@ -14,6 +14,7 @@ import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
+import type { AssetMetadata, IssuanceParams } from '@arkade-os/sdk'
 
 export default function AppAssetMint() {
   const { navigate } = useContext(NavigationContext)
@@ -52,16 +53,16 @@ export default function AppAssetMint() {
     setError('')
 
     try {
-      const metadata: Record<string, any> = {}
+      const metadata: AssetMetadata = {}
       if (name) metadata.name = name
       if (ticker) metadata.ticker = ticker
       if (decimals) metadata.decimals = parseInt(decimals)
       if (iconUrl) metadata.icon = iconUrl
 
-      const params: any = { amount: parsedAmount, metadata }
+      const params: IssuanceParams = { amount: parsedAmount, metadata }
       if (withControl) params.controlAssetId = ''
 
-      const result = await (svcWallet as any).assetManager.issue(params)
+      const result = await svcWallet.assetManager.issue(params)
       const newAssetId = result.assetId
 
       // Auto-import

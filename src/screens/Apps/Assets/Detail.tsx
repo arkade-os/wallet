@@ -14,6 +14,7 @@ import { FlowContext, emptyRecvInfo, emptySendInfo } from '../../../providers/fl
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { copyToClipboard } from '../../../lib/clipboard'
+import type { AssetDetails } from '@arkade-os/sdk'
 
 export default function AppAssetDetail() {
   const { navigate } = useContext(NavigationContext)
@@ -22,7 +23,7 @@ export default function AppAssetDetail() {
   const { assetBalances, svcWallet, assetMetadataCache } = useContext(WalletContext)
 
   const [loading, setLoading] = useState(true)
-  const [details, setDetails] = useState<any>(null)
+  const [details, setDetails] = useState<AssetDetails | null>(null)
 
   const assetId = assetInfo.assetId ?? ''
   const balance = assetBalances.find((a) => a.assetId === assetId)?.amount ?? 0
@@ -34,7 +35,7 @@ export default function AppAssetDetail() {
       let cached = assetMetadataCache.get(assetId)
       if (!cached) {
         try {
-          cached = await (svcWallet as any).assetManager?.getAssetDetails(assetId)
+          cached = await svcWallet.assetManager.getAssetDetails(assetId)
           if (cached) assetMetadataCache.set(assetId, cached)
         } catch (err) {
           consoleError(err, 'error loading asset details')

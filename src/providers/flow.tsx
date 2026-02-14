@@ -1,5 +1,6 @@
 import { PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { ReactNode, createContext, useState } from 'react'
+import type { AssetDetails } from '@arkade-os/sdk'
 import { AssetBalance, Tx } from '../lib/types'
 
 export interface InitInfo {
@@ -20,7 +21,7 @@ export interface DeepLinkInfo {
 
 export interface AssetInfo {
   assetId?: string
-  details?: any
+  details?: AssetDetails
 }
 
 export interface RecvInfo {

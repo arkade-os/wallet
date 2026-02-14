@@ -146,8 +146,7 @@ export const getAspInfo = async (url: string): Promise<AspInfo> => {
 
 export const getBalance = async (wallet: IWallet): Promise<{ total: Satoshis; assets: AssetBalance[] }> => {
   const balance = await wallet.getBalance()
-  const { total } = balance
-  const assets: AssetBalance[] = (balance as any).assets ?? []
+  const { total, assets } = balance
   return { total, assets }
 }
 

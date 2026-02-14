@@ -54,7 +54,7 @@ export default function AppAssetBurn() {
     setError('')
 
     try {
-      await (svcWallet as any).assetManager.burn({ assetId, amount: parsedAmount })
+      await svcWallet.assetManager.burn({ assetId, amount: parsedAmount })
       await reloadWallet()
       navigate(Pages.AppAssetDetail)
     } catch (err) {

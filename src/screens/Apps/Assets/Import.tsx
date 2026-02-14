@@ -40,7 +40,7 @@ export default function AppAssetImport() {
     setError('')
 
     try {
-      const details = await (svcWallet as any).assetManager?.getAssetDetails(assetId)
+      const details = await svcWallet.assetManager.getAssetDetails(assetId)
       if (!details) throw new Error('Asset not found')
 
       assetMetadataCache.set(assetId, details)

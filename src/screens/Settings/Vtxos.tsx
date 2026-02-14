@@ -205,7 +205,7 @@ export default function Vtxos() {
 
   const VtxoLine = ({ vtxo }: { vtxo: Vtxo }) => {
     const amount = config.showBalance ? prettyNumber(vtxo.value) : prettyHide(vtxo.value)
-    const vtxoAssets = (vtxo as any).assets as { assetId: string; amount: string }[] | undefined
+    const vtxoAssets = vtxo.assets
     const assetText = vtxoAssets?.length
       ? vtxoAssets.map((a) => `+ ${a.amount} ${a.assetId.slice(0, 8)}...`).join(', ')
       : ''
