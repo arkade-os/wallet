@@ -7,7 +7,7 @@ import {
   ExtendedVirtualCoin,
   FeeInfo,
 } from '@arkade-os/sdk'
-import { Addresses, Satoshis, Tx, Vtxo } from './types'
+import { Addresses, AssetBalance, Satoshis, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
 import { consoleError } from './logs'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
@@ -144,10 +144,11 @@ export const getAspInfo = async (url: string): Promise<AspInfo> => {
   }
 }
 
-export const getBalance = async (wallet: IWallet): Promise<Satoshis> => {
+export const getBalance = async (wallet: IWallet): Promise<{ total: Satoshis; assets: AssetBalance[] }> => {
   const balance = await wallet.getBalance()
   const { total } = balance
-  return total
+  const assets: AssetBalance[] = (balance as any).assets ?? []
+  return { total, assets }
 }
 
 export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {

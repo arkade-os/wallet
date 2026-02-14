@@ -9,7 +9,7 @@ import { FlowContext } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
-import { Tx, Vtxo, Wallet } from '../lib/types'
+import { AssetBalance, Tx, Vtxo, Wallet } from '../lib/types'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
@@ -36,6 +36,8 @@ interface WalletContextProps {
   txs: Tx[]
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: number
+  assetBalances: AssetBalance[]
+  assetMetadataCache: Map<string, any>
   initialized?: boolean
 }
 
@@ -51,6 +53,8 @@ export const WalletContext = createContext<WalletContextProps>({
   svcWallet: undefined,
   isLocked: () => Promise.resolve(true),
   balance: 0,
+  assetBalances: [],
+  assetMetadataCache: new Map(),
   txs: [],
   vtxos: { spendable: [], spent: [] },
 })
@@ -69,8 +73,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [initialized, setInitialized] = useState<boolean>(false)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
+  const [assetBalances, setAssetBalances] = useState<AssetBalance[]>([])
 
   const listeningForServiceWorker = useRef(false)
+  const assetMetadataCache = useRef<Map<string, any>>(new Map())
 
   // read wallet from storage
   useEffect(() => {
@@ -148,8 +154,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     try {
       const vtxos = await getVtxos(swWallet)
       const txs = await getTxHistory(swWallet)
-      const balance = await getBalance(swWallet)
-      setBalance(balance)
+      const { total, assets } = await getBalance(swWallet)
+      setBalance(total)
+      setAssetBalances(assets)
       setVtxos(vtxos)
       setTxs(txs)
     } catch (err) {
@@ -315,6 +322,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         lockWallet,
         txs,
         balance,
+        assetBalances,
+        assetMetadataCache: assetMetadataCache.current,
         reloadWallet,
         vtxos: vtxos ?? { spendable: [], spent: [] },
       }}
