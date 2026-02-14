@@ -31,6 +31,7 @@ export default function ReceiveAmount() {
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
+  const isAssetReceive = Boolean(recvInfo.assetId)
   const { calcReverseSwapFee } = useContext(LightningContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, validLnSwap } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
@@ -120,8 +121,8 @@ export default function ReceiveAmount() {
     navigate(Pages.ReceiveQRCode)
   }
 
-  const showFaucetButton = balance === 0 && faucetAvailable
-  const showLightningFees = satoshis && validLnSwap(satoshis)
+  const showFaucetButton = balance === 0 && faucetAvailable && !isAssetReceive
+  const showLightningFees = satoshis && validLnSwap(satoshis) && !isAssetReceive
   const reverseSwapFee = calcReverseSwapFee(satoshis)
   const lightningFeeText = `Lightning fees: ${prettyAmount(reverseSwapFee)}`
 
@@ -158,7 +159,7 @@ export default function ReceiveAmount() {
 
   return (
     <>
-      <Header text='Receive' back={() => navigate(Pages.Wallet)} />
+      <Header text={isAssetReceive ? 'Receive Asset' : 'Receive'} back={() => navigate(Pages.Wallet)} />
       <Content>
         <Padded>
           <FlexCol>

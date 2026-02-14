@@ -17,7 +17,7 @@ import { LimitsContext } from '../../../providers/limits'
 import { Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import Loading from '../../../components/Loading'
 import { LightningContext } from '../../../providers/lightning'
-import { encodeBip21 } from '../../../lib/bip21'
+import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
 
 export default function ReceiveQRCode() {
@@ -30,12 +30,16 @@ export default function ReceiveQRCode() {
 
   const [sharing, setSharing] = useState(false)
 
+  const isAssetReceive = Boolean(recvInfo.assetId)
+
   // manage all possible receive methods
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
   const address = validUtxoTx(satoshis) && utxoTxsAllowed() ? boardingAddr : ''
   const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
   const noPaymentMethods = !address && !arkAddress && !validLnSwap(satoshis)
-  const defaultBip21uri = encodeBip21(address, arkAddress, '', satoshis)
+  const defaultBip21uri = isAssetReceive
+    ? encodeBip21Asset(offchainAddr, recvInfo.assetId!, satoshis)
+    : encodeBip21(address, arkAddress, '', satoshis)
 
   const [invoice, setInvoice] = useState('')
   const [qrValue, setQrValue] = useState(defaultBip21uri)
@@ -44,15 +48,17 @@ export default function ReceiveQRCode() {
 
   // set the QR code value to the bip21uri the first time
   useEffect(() => {
-    const bip21uri = encodeBip21(address, arkAddress, invoice, satoshis)
+    const bip21uri = isAssetReceive
+      ? encodeBip21Asset(offchainAddr, recvInfo.assetId!, satoshis)
+      : encodeBip21(address, arkAddress, invoice, satoshis)
     setBip21uri(bip21uri)
     setQrValue(bip21uri)
-    if (invoice) setShowQrCode(true)
+    if (invoice || isAssetReceive) setShowQrCode(true)
   }, [invoice])
 
   useEffect(() => {
     // if boltz is available and amount is between limits, let's create a swap invoice
-    if (validLnSwap(satoshis) && wallet && svcWallet && arkadeLightning) {
+    if (!isAssetReceive && validLnSwap(satoshis) && wallet && svcWallet && arkadeLightning) {
       createReverseSwap(satoshis)
         .then((pendingSwap) => {
           if (!pendingSwap) throw new Error('Failed to create reverse swap')
