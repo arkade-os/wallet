@@ -1,6 +1,6 @@
 import { PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { ReactNode, createContext, useState } from 'react'
-import { Tx } from '../lib/types'
+import { AssetBalance, Tx } from '../lib/types'
 
 export interface InitInfo {
   password?: string
@@ -18,16 +18,23 @@ export interface DeepLinkInfo {
   query?: string
 }
 
+export interface AssetInfo {
+  assetId?: string
+  details?: any
+}
+
 export interface RecvInfo {
   boardingAddr: string
   offchainAddr: string
   invoice?: string
   satoshis: number
   txid?: string
+  assetId?: string
 }
 
 export type SendInfo = {
   address?: string
+  assets?: AssetBalance[]
   arkAddress?: string
   invoice?: string
   lnUrl?: string
@@ -59,6 +66,8 @@ interface FlowContextProps {
   setSendInfo: (arg0: SendInfo) => void
   setSwapInfo: (arg0: SwapInfo) => void
   setTxInfo: (arg0: TxInfo) => void
+  assetInfo: AssetInfo
+  setAssetInfo: (arg0: AssetInfo) => void
 }
 
 export const emptyInitInfo: InitInfo = {
@@ -76,6 +85,8 @@ export const emptyRecvInfo: RecvInfo = {
   offchainAddr: '',
   satoshis: 0,
 }
+
+export const emptyAssetInfo: AssetInfo = {}
 
 export const emptySendInfo: SendInfo = {
   address: '',
@@ -101,6 +112,8 @@ export const FlowContext = createContext<FlowContextProps>({
   setSendInfo: () => {},
   setSwapInfo: () => {},
   setTxInfo: () => {},
+  assetInfo: emptyAssetInfo,
+  setAssetInfo: () => {},
 })
 
 export const FlowProvider = ({ children }: { children: ReactNode }) => {
@@ -111,6 +124,7 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
   const [sendInfo, setSendInfo] = useState(emptySendInfo)
   const [swapInfo, setSwapInfo] = useState<SwapInfo>()
   const [txInfo, setTxInfo] = useState<TxInfo>()
+  const [assetInfo, setAssetInfo] = useState<AssetInfo>(emptyAssetInfo)
 
   return (
     <FlowContext.Provider
@@ -129,6 +143,8 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
         setSendInfo,
         setSwapInfo,
         setTxInfo,
+        assetInfo,
+        setAssetInfo,
       }}
     >
       {children}
