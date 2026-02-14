@@ -48,6 +48,7 @@ export default function SendForm() {
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
+  const isAssetSend = Boolean(sendInfo.assets?.length)
   const { createSubmarineSwap, connected, calcSubmarineSwapFee, getApiUrl } = useContext(LightningContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
@@ -123,14 +124,18 @@ export default function SendForm() {
         return setRecipient(url.searchParams.get('lightning')!)
       }
       if (isBip21(lowerCaseData)) {
-        const { address, arkAddress, invoice, satoshis } = decodeBip21(lowerCaseData)
+        const { address, arkAddress, invoice, satoshis, assetId } = decodeBip21(lowerCaseData)
         if (!address && !arkAddress && !invoice) return setError('Unable to parse bip21')
-        return setState({ address, arkAddress, invoice, recipient, satoshis })
+        const assets = assetId ? [{ assetId, amount: satoshis ?? 0 }] : sendInfo.assets
+        return setState({ address, arkAddress, invoice, recipient, satoshis, assets })
       }
       if (isArkAddress(lowerCaseData)) {
         return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
       }
       if (isLightningInvoice(lowerCaseData)) {
+        if (isAssetSend) {
+          return setError('Assets can only be sent to Ark addresses')
+        }
         if (!connected) {
           setError('Lightning swaps not enabled')
           return setNudgeBoltz(true)
@@ -143,6 +148,9 @@ export default function SendForm() {
         return
       }
       if (isBTCAddress(recipient)) {
+        if (isAssetSend) {
+          return setError('Assets can only be sent to Ark addresses')
+        }
         return setState({ ...sendInfo, address: recipient, arkAddress: '' })
       }
       if (isArkNote(lowerCaseData)) {

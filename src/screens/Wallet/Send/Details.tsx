@@ -24,6 +24,7 @@ import { FeesContext } from '../../../providers/fees'
 export default function SendDetails() {
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
+  const isAssetSend = Boolean(sendInfo.assets?.length)
   const { calcSubmarineSwapFee, payInvoice } = useContext(LightningContext)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
@@ -98,7 +99,11 @@ export default function SendDetails() {
   const handleContinue = async () => {
     if (!details?.total || !details.satoshis || !svcWallet) return
     setSending(true)
-    if (arkAddress) {
+    if (isAssetSend && arkAddress) {
+      // Asset send via wallet.send()
+      const recipients = [{ address: arkAddress, amount: details.satoshis, assets: sendInfo.assets }]
+      ;(svcWallet as any).send(...recipients).then(handleTxid).catch(handleError)
+    } else if (arkAddress) {
       sendOffChain(svcWallet, details.total, arkAddress).then(handleTxid).catch(handleError)
     } else if (invoice) {
       const response = pendingSwap?.response
