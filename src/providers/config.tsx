@@ -11,6 +11,7 @@ const defaultConfig: Config = {
   aspUrl: defaultArkServer(),
   currencyDisplay: CurrencyDisplay.Both,
   fiat: Fiats.USD,
+  importedAssets: [],
   nostrBackup: false,
   notifications: false,
   pubkey: '',

@@ -6,6 +6,11 @@ export type Addresses = {
   offchainAddr: string
 }
 
+export type AssetBalance = {
+  assetId: string
+  amount: number
+}
+
 export type Config = {
   announcementsSeen: string[]
   apps: {
@@ -16,6 +21,7 @@ export type Config = {
   aspUrl: string
   currencyDisplay: CurrencyDisplay
   fiat: Fiats
+  importedAssets: string[]
   nostrBackup: boolean
   notifications: boolean
   pubkey: string
@@ -74,6 +80,7 @@ export enum Themes {
 
 export type Tx = {
   amount: number
+  assets?: AssetBalance[]
   boardingTxid: string
   createdAt: number
   explorable: string | undefined
