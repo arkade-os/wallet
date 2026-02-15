@@ -160,7 +160,7 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
       const unix = Math.floor(date.getTime() / 1000)
       const { key, settled, type, amount } = tx
       const explorable = key.boardingTxid ? key.boardingTxid : key.commitmentTxid ? key.commitmentTxid : undefined
-      const assets = (tx as any).assets?.map((a: any) => ({ assetId: a.assetId, amount: a.amount }))
+      const assets = tx.assets?.map((a) => ({ assetId: a.assetId, amount: a.amount }))
       txs.push({
         amount: Math.abs(amount),
         assets,
