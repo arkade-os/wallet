@@ -55,7 +55,7 @@ export const mockFiatContextValue = {
   toFiat: (amount: number) => amount,
 }
 
-export const mockLightningContextValue = {
+export const mockSwapsContextValue = {
   arkadeLightning: null,
   swapManager: null,
   connected: false,
@@ -120,12 +120,16 @@ export const mockFlowContextValue = {
 export const mockLimitsContextValue = {
   amountIsAboveMaxLimit: () => false,
   amountIsBelowMinLimit: () => false,
+  validArkToBtc: () => true,
+  validBtcToArk: () => true,
   lnSwapsAllowed: () => true,
   utxoTxsAllowed: () => true,
   vtxoTxsAllowed: () => true,
   validLnSwap: () => true,
   validUtxoTx: () => true,
   validVtxoTx: () => true,
+  arkToBtcAllowed: () => true,
+  btcToArkAllowed: () => true,
   minSwapAllowed: () => 0,
   maxSwapAllowed: () => 0,
 }

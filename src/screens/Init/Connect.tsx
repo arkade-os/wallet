@@ -9,11 +9,11 @@ import Loading from '../../components/Loading'
 import Header from '../../components/Header'
 import { setPrivateKey } from '../../lib/privateKey'
 import { consoleError, consoleLog } from '../../lib/logs'
-import { LightningContext } from '../../providers/lightning'
+import { SwapsContext } from '../../providers/swaps'
 
 export default function InitConnect() {
   const { initInfo, setInitInfo } = useContext(FlowContext)
-  const { arkadeLightning, restoreSwaps } = useContext(LightningContext)
+  const { arkadeLightning, restoreSwaps } = useContext(SwapsContext)
   const { navigate } = useContext(NavigationContext)
   const { initWallet } = useContext(WalletContext)
 

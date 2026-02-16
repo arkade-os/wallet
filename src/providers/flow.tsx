@@ -1,4 +1,4 @@
-import { PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
+import { PendingSwap } from '@arkade-os/boltz-swap'
 import { ReactNode, createContext, useState } from 'react'
 import { Tx } from '../lib/types'
 
@@ -21,6 +21,7 @@ export interface DeepLinkInfo {
 export interface RecvInfo {
   boardingAddr: string
   offchainAddr: string
+  onchainAddr?: string
   invoice?: string
   satoshis: number
   txid?: string
@@ -31,7 +32,7 @@ export type SendInfo = {
   arkAddress?: string
   invoice?: string
   lnUrl?: string
-  pendingSwap?: PendingSubmarineSwap
+  pendingSwap?: PendingSwap
   recipient?: string
   satoshis?: number
   swapId?: string
@@ -40,7 +41,7 @@ export type SendInfo = {
   txid?: string
 }
 
-export type SwapInfo = PendingSubmarineSwap | PendingReverseSwap | undefined
+export type SwapInfo = PendingSwap | undefined
 
 export type TxInfo = Tx | undefined
 

@@ -23,16 +23,17 @@ import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { LimitsContext } from '../../../providers/limits'
-import { LightningContext } from '../../../providers/lightning'
+import { SwapsContext } from '../../../providers/swaps'
 import { InfoLine } from '../../../components/Info'
+import FlexRow from '../../../components/FlexRow'
 
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
-  const { calcReverseSwapFee } = useContext(LightningContext)
-  const { amountIsAboveMaxLimit, amountIsBelowMinLimit, validLnSwap } = useContext(LimitsContext)
+  const { calcBtcToArkSwapFee, calcReverseSwapFee } = useContext(SwapsContext)
+  const { amountIsAboveMaxLimit, amountIsBelowMinLimit, validBtcToArk, validLnSwap } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { balance, svcWallet } = useContext(WalletContext)
 
@@ -121,9 +122,14 @@ export default function ReceiveAmount() {
   }
 
   const showFaucetButton = balance === 0 && faucetAvailable
-  const showLightningFees = satoshis && validLnSwap(satoshis)
+
   const reverseSwapFee = calcReverseSwapFee(satoshis)
+  const showLightningFees = satoshis && validLnSwap(satoshis)
   const lightningFeeText = `Lightning fees: ${prettyAmount(reverseSwapFee)}`
+
+  const chainSwapFee = calcBtcToArkSwapFee(satoshis)
+  const showChainSwapFees = satoshis && validBtcToArk(satoshis)
+  const chainSwapFeeText = `Chain swap fees: ${prettyAmount(chainSwapFee)}`
 
   const disabled = !satoshis
     ? false
@@ -172,7 +178,10 @@ export default function ReceiveAmount() {
               value={textValue ? Number(textValue) : undefined}
               sats={satoshis}
             />
-            {showLightningFees ? <InfoLine color='orange' text={lightningFeeText} /> : null}
+            <FlexRow between>
+              <div>{showLightningFees ? <InfoLine color='orange' text={lightningFeeText} /> : null}</div>
+              <div>{showChainSwapFees ? <InfoLine color='orange' text={chainSwapFeeText} /> : null}</div>
+            </FlexRow>
           </FlexCol>
         </Padded>
       </Content>

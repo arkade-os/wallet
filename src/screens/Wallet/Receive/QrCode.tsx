@@ -16,69 +16,111 @@ import FlexCol from '../../../components/FlexCol'
 import { LimitsContext } from '../../../providers/limits'
 import { Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import Loading from '../../../components/Loading'
-import { LightningContext } from '../../../providers/lightning'
+import { SwapsContext } from '../../../providers/swaps'
 import { encodeBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
+import { PendingChainSwap, PendingReverseSwap } from '@arkade-os/boltz-swap'
 
 export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { arkadeLightning, createReverseSwap } = useContext(LightningContext)
-  const { svcWallet, wallet } = useContext(WalletContext)
-  const { validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
+  const { arkadeChainSwap, arkadeLightning, createBtcToArkSwap, createReverseSwap } = useContext(SwapsContext)
+  const { svcWallet } = useContext(WalletContext)
+  const { validBtcToArk, validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } =
+    useContext(LimitsContext)
 
   const [sharing, setSharing] = useState(false)
 
   // manage all possible receive methods
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
-  const address = validUtxoTx(satoshis) && utxoTxsAllowed() ? boardingAddr : ''
-  const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
-  const noPaymentMethods = !address && !arkAddress && !validLnSwap(satoshis)
-  const defaultBip21uri = encodeBip21(address, arkAddress, '', satoshis)
 
+  const [noPaymentMethods, setNoPaymentMethods] = useState(false)
+  const [arkAddress, setArkAddress] = useState(offchainAddr)
+  const [btcAddress, setBtcAddress] = useState(boardingAddr)
+  const [showQrCode, setShowQrCode] = useState(!satoshis)
+  const [swapAddress, setSwapAddress] = useState('')
+  const [qrCodeValue, setQrCodeValue] = useState('')
+  const [bip21Uri, setBip21Uri] = useState('')
   const [invoice, setInvoice] = useState('')
-  const [qrValue, setQrValue] = useState(defaultBip21uri)
-  const [bip21uri, setBip21uri] = useState(defaultBip21uri)
-  const [showQrCode, setShowQrCode] = useState(false)
 
-  // set the QR code value to the bip21uri the first time
-  useEffect(() => {
-    const bip21uri = encodeBip21(address, arkAddress, invoice, satoshis)
-    setBip21uri(bip21uri)
-    setQrValue(bip21uri)
-    if (invoice) setShowQrCode(true)
-  }, [invoice])
+  const createBtcAddress = () => {
+    return new Promise((resolve, reject) => {
+      if (!validBtcToArk(satoshis)) return reject()
+      createBtcToArkSwap(satoshis)
+        .then((result) => {
+          if (!result) throw new Error('Failed to create chain swap')
+          resolve(result.pendingSwap)
+        })
+        .catch((error) => {
+          consoleError(error, 'Error creating chain swap')
+          reject(error)
+        })
+    })
+  }
 
-  useEffect(() => {
-    // if boltz is available and amount is between limits, let's create a swap invoice
-    if (validLnSwap(satoshis) && wallet && svcWallet && arkadeLightning) {
+  const createLightningInvoice = () => {
+    return new Promise((resolve, reject) => {
+      if (!validLnSwap(satoshis)) return reject()
       createReverseSwap(satoshis)
         .then((pendingSwap) => {
           if (!pendingSwap) throw new Error('Failed to create reverse swap')
-          const invoice = pendingSwap.response.invoice
-          setRecvInfo({ ...recvInfo, invoice })
-          setInvoice(invoice)
-          // Use waitAndClaim which delegates to SwapManager if enabled
-          arkadeLightning
-            .waitAndClaim(pendingSwap)
-            .then(() => {
-              setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
-              navigate(Pages.ReceiveSuccess)
-            })
-            .catch((error) => {
-              setShowQrCode(true)
-              consoleError(error, 'Error claiming reverse swap:')
-            })
+          resolve(pendingSwap)
         })
         .catch((error) => {
-          setShowQrCode(true)
           consoleError(error, 'Error creating reverse swap:')
+          reject(error)
         })
-    } else {
+    })
+  }
+
+  useEffect(() => {
+    if (!satoshis || !svcWallet || !arkadeChainSwap || !arkadeLightning) return
+    Promise.allSettled([createBtcAddress(), createLightningInvoice()]).then(([btc, lightning]) => {
+      if (btc.status === 'fulfilled') {
+        const pendingSwap = btc.value as PendingChainSwap
+        const btcAddr = pendingSwap.response.lockupDetails.lockupAddress
+        setSwapAddress(btcAddr)
+        arkadeChainSwap
+          .waitAndClaimArk(pendingSwap)
+          .then(() => {
+            setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.claimDetails.amount })
+            navigate(Pages.ReceiveSuccess)
+          })
+          .catch((error) => {
+            consoleError(error, 'Error claiming chain swap:')
+          })
+      }
+      if (lightning.status === 'fulfilled') {
+        const pendingSwap = lightning.value as PendingReverseSwap
+        const invoice = pendingSwap.response.invoice
+        setInvoice(invoice)
+        arkadeLightning
+          .waitAndClaim(pendingSwap)
+          .then(() => {
+            setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
+            navigate(Pages.ReceiveSuccess)
+          })
+          .catch((error) => {
+            consoleError(error, 'Error claiming reverse swap:')
+          })
+      }
       setShowQrCode(true)
-    }
-  }, [satoshis, arkadeLightning])
+    })
+  }, [satoshis, svcWallet, arkadeChainSwap, arkadeLightning])
+
+  //
+  useEffect(() => {
+    if (!showQrCode) return
+    const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
+    const btcAddress = validUtxoTx(satoshis) && utxoTxsAllowed() ? swapAddress || boardingAddr : ''
+    const bip21uri = encodeBip21(btcAddress, arkAddress, invoice, satoshis)
+    setNoPaymentMethods(!arkAddress && !btcAddress && !invoice)
+    setArkAddress(arkAddress)
+    setBtcAddress(btcAddress)
+    setQrCodeValue(bip21uri)
+    setBip21Uri(bip21uri)
+  }, [showQrCode])
 
   useEffect(() => {
     if (!svcWallet) return
@@ -114,7 +156,7 @@ export default function ReceiveQRCode() {
       .finally(() => setSharing(false))
   }
 
-  const data = { title: 'Receive', text: qrValue }
+  const data = { title: 'Receive', text: qrCodeValue }
   const disabled = !canBrowserShareData(data) || sharing
 
   return (
@@ -124,16 +166,16 @@ export default function ReceiveQRCode() {
         <Padded>
           {noPaymentMethods ? (
             <div>No valid payment methods available for this amount</div>
-          ) : showQrCode ? (
+          ) : qrCodeValue ? (
             <FlexCol centered>
               {invoice ? <InfoLine centered color='orange' text='Keep tab open to receive Lightning' /> : null}
-              <QrCode value={qrValue} />
+              <QrCode value={qrCodeValue} />
               <ExpandAddresses
-                bip21uri={bip21uri}
-                boardingAddr={address}
+                bip21uri={bip21Uri}
+                boardingAddr={btcAddress}
                 offchainAddr={arkAddress}
-                invoice={invoice}
-                onClick={setQrValue}
+                invoice={invoice || ''}
+                onClick={setQrCodeValue}
               />
             </FlexCol>
           ) : (
