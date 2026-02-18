@@ -17,6 +17,8 @@ import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
 import { maxPercentage } from '../lib/constants'
 
+const delegatorUrl = import.meta.env.VITE_DELEGATOR_URL ?? 'https://delegator.mutinynet.arkade.sh'
+
 const defaultWallet: Wallet = {
   network: '',
   nextRollover: 0,
@@ -164,12 +166,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     privateKey,
     retryCount = 0,
     maxRetries = 5,
+    delegatorUrl,
   }: {
     arkServerUrl: string
     esploraUrl: string
     privateKey: string
     retryCount?: number
     maxRetries?: number
+    delegatorUrl: string
   }) => {
     try {
       // create service worker wallet
@@ -178,6 +182,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         identity: SingleKey.fromHex(privateKey),
         arkServerUrl,
         esploraUrl,
+        delegatorUrl,
       })
       setSvcWallet(svcWallet)
 
@@ -234,6 +239,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
             privateKey,
             retryCount: retryCount + 1,
             maxRetries,
+            delegatorUrl,
           })
         } else {
           consoleError(
@@ -258,6 +264,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       privateKey: hex.encode(privateKey),
       arkServerUrl,
       esploraUrl,
+      delegatorUrl,
     })
     updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
