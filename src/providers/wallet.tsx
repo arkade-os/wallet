@@ -30,6 +30,8 @@ import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { Indexer } from '../lib/indexer'
 import { IndexedDbSwapRepository, migrateToSwapRepository } from '@arkade-os/boltz-swap'
 
+const delegatorUrl = import.meta.env.VITE_DELEGATOR_URL ?? 'https://delegator.mutinynet.arkade.sh'
+
 const defaultWallet: Wallet = {
   network: '',
   nextRollover: 0,
@@ -186,14 +188,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     privateKey,
     retryCount = 0,
     maxRetries = 5,
-    delegatorUrl = 'https://delegator.mutinynet.arkade.sh',
+    delegatorUrl,
   }: {
     arkServerUrl: string
     esploraUrl: string
     privateKey: string
     retryCount?: number
     maxRetries?: number
-    delegatorUrl?: string
+    delegatorUrl: string
   }) => {
     try {
       // create service worker wallet
@@ -292,6 +294,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
             privateKey,
             retryCount: retryCount + 1,
             maxRetries,
+            delegatorUrl,
           })
         } else {
           consoleError(
@@ -316,6 +319,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       privateKey: hex.encode(privateKey),
       arkServerUrl,
       esploraUrl,
+      delegatorUrl,
     })
     updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
