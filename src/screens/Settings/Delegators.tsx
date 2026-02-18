@@ -220,7 +220,11 @@ export default function Delegators() {
 
   // test connection to delegator when url changes
   useEffect(() => {
-    if (!delegatorUrl || !isValidUrl(delegatorUrl)) return setError('')
+    if (!delegatorUrl || !isValidUrl(delegatorUrl)) {
+      setError('')
+      setActive(false)
+      return
+    }
     testConnection(delegatorUrl, aspInfo.signerPubkey)
       .then(() => {
         setError('')
@@ -230,7 +234,7 @@ export default function Delegators() {
         setError(err.message)
         setActive(false)
       })
-  }, [delegatorUrl])
+  }, [delegatorUrl, aspInfo.signerPubkey])
 
   // initialize form with current delegator config
   useEffect(() => {
@@ -264,6 +268,7 @@ export default function Delegators() {
     const delegator = useDefault ? null : defaultDelegator()
     updateConfig({ ...config, delegator })
     setUseDefault(!useDefault)
+    setActive(false)
   }
 
   // update delegator config
