@@ -141,7 +141,7 @@ function DelegateCard({ active = true }: { active?: boolean }) {
     : 'No upcoming renewal'
 
   return (
-    <Shadow lighter fat>
+    <Shadow lighter fat testId='delegate-card'>
       <FlexCol gap='0.5rem'>
         <FlexRow between>
           <Text>{delegate.name}</Text>
