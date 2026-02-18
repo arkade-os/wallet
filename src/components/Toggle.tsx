@@ -6,25 +6,19 @@ import Focusable from './Focusable'
 
 interface ToggleProps {
   checked: boolean
-  disabled?: boolean
   onClick: () => void
   subtext?: string
   text: string
   testId?: string
 }
 
-export default function Toggle({ checked, disabled, onClick, subtext, text, testId }: ToggleProps) {
-  const handleClick = () => {
-    if (!disabled) {
-      onClick()
-    }
-  }
+export default function Toggle({ checked, onClick, subtext, text, testId }: ToggleProps) {
   return (
     <FlexCol gap='0' padding='0 0 1rem 0'>
-      <FlexRow between onClick={handleClick}>
+      <FlexRow between onClick={onClick}>
         <Text thin>{text}</Text>
-        <Focusable onEnter={handleClick} fit round>
-          <IonToggle checked={checked} data-testid={testId} disabled={disabled} />
+        <Focusable onEnter={onClick} fit round>
+          <IonToggle checked={checked} data-testid={testId} />
         </Focusable>
       </FlexRow>
       {subtext ? (

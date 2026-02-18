@@ -15,7 +15,7 @@ export type Config = {
   }
   aspUrl: string
   currencyDisplay: CurrencyDisplay
-  delegator?: Delegator | null
+  delegate: boolean
   fiat: Fiats
   nostrBackup: boolean
   notifications: boolean
@@ -31,7 +31,7 @@ export enum CurrencyDisplay {
   Sats = 'Sats only',
 }
 
-export type Delegator = {
+export type Delegate = {
   name: string
   url: string
 }
@@ -71,7 +71,7 @@ export enum SettingsOptions {
   Theme = 'theme',
   Fiat = 'fiat currency',
   Display = 'display preferences',
-  Delegators = 'delegators',
+  Delegates = 'delegates',
 }
 
 export enum Themes {

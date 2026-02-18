@@ -18,7 +18,7 @@ import Theme from './Theme'
 import Fiat from './Fiat'
 import Display from './Display'
 import Password from './Password'
-import Delegators from './Delegators'
+import Delegates from './Delegates'
 
 export default function Settings() {
   const { option } = useContext(OptionsContext)
@@ -29,7 +29,7 @@ export default function Settings() {
       {option === SettingsOptions.About && <About />}
       {option === SettingsOptions.Advanced && <Advanced />}
       {option === SettingsOptions.Backup && <Backup />}
-      {option === SettingsOptions.Delegators && <Delegators />}
+      {option === SettingsOptions.Delegates && <Delegates />}
       {option === SettingsOptions.Display && <Display />}
       {option === SettingsOptions.Fiat && <Fiat />}
       {option === SettingsOptions.General && <General />}

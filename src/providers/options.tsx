@@ -77,7 +77,7 @@ export const options: Option[] = [
   },
   {
     icon: <></>,
-    option: SettingsOptions.Delegators,
+    option: SettingsOptions.Delegates,
     section: SettingsSections.Advanced,
   },
   {

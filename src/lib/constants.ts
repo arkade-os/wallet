@@ -1,4 +1,4 @@
-import { Delegator } from './types'
+import { Delegate } from './types'
 
 export const arknoteHRP = 'arknote'
 export const defaultFee = 0
@@ -21,11 +21,11 @@ export const defaultArkServer = () => {
   return mainServer
 }
 
-export const defaultDelegator = (): Delegator => {
+export const defaultDelegate = (): Delegate => {
   const devServer = 'http://localhost:7004'
-  const mainServer = 'https://delegator.arkade.computer'
+  const mainServer = 'https://delegate.arkade.computer'
   const getDefaultUrl = () => {
-    if (import.meta.env.VITE_DELEGATOR_URL) return import.meta.env.VITE_DELEGATOR_URL
+    if (import.meta.env.VITE_DELEGATE_URL) return import.meta.env.VITE_DELEGATE_URL
     for (const domain of testDomains) {
       if (window.location.hostname.includes(domain)) {
         return window.location.hostname.includes('localhost') ? devServer : mainServer
