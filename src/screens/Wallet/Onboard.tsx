@@ -85,7 +85,7 @@ export default function Onboard() {
         <FlexCol gap='0.5rem'>
           <Title text='Install Arkade on Home' />
           <Text wrap>Adding Arkade to Home enable push notifications and better user experience.</Text>
-          <Shadow purple>
+          <Shadow darkPurple>
             <FlexCol gap='1rem'>
               <FlexRow>
                 <Bullet number={1} />

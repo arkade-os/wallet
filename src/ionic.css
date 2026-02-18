@@ -245,8 +245,8 @@ ion-toggle {
   --handle-background: var(--grey);
   --handle-background-checked: var(--purple);
 
-  --handle-width: 15px;
-  --handle-height: 15px;
+  --handle-width: 14px;
+  --handle-height: 14px;
   --handle-max-height: auto;
   --handle-spacing: 0;
 

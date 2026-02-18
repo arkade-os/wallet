@@ -163,3 +163,11 @@ button.reminder-button.action-sheet-button {
     background-color: var(--ion-background-focused);
   }
 }
+
+.dashed-hr {
+  height: 0;
+  width: 100%;
+  border: none;
+  background: none;
+  border-top: 1px dashed var(--dark10);
+}

@@ -18,6 +18,7 @@ import Theme from './Theme'
 import Fiat from './Fiat'
 import Display from './Display'
 import Password from './Password'
+import Delegators from './Delegators'
 
 export default function Settings() {
   const { option } = useContext(OptionsContext)
@@ -28,19 +29,20 @@ export default function Settings() {
       {option === SettingsOptions.About && <About />}
       {option === SettingsOptions.Advanced && <Advanced />}
       {option === SettingsOptions.Backup && <Backup />}
+      {option === SettingsOptions.Delegators && <Delegators />}
+      {option === SettingsOptions.Display && <Display />}
+      {option === SettingsOptions.Fiat && <Fiat />}
       {option === SettingsOptions.General && <General />}
       {option === SettingsOptions.Lock && <Lock />}
       {option === SettingsOptions.Logs && <Logs />}
       {option === SettingsOptions.Notes && <NotesForm />}
       {option === SettingsOptions.Notifications && <Notifications />}
+      {option === SettingsOptions.Password && <Password />}
       {option === SettingsOptions.Reset && <Reset />}
       {option === SettingsOptions.Server && <Server />}
       {option === SettingsOptions.Support && <Support />}
       {option === SettingsOptions.Vtxos && <Vtxos />}
       {option === SettingsOptions.Theme && <Theme />}
-      {option === SettingsOptions.Fiat && <Fiat />}
-      {option === SettingsOptions.Display && <Display />}
-      {option === SettingsOptions.Password && <Password />}
     </>
   )
 }
