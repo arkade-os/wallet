@@ -8,10 +8,9 @@ interface InputProps {
   name?: string
   onChange: (arg0: any) => void
   onEnter?: () => void
-  value?: string
 }
 
-export default function Input({ focus, label, name, onChange, onEnter, value }: InputProps) {
+export default function Input({ focus, label, name, onChange, onEnter }: InputProps) {
   const firstRun = useRef(true)
   const input = useRef<HTMLIonInputElement>(null)
 
@@ -35,7 +34,6 @@ export default function Input({ focus, label, name, onChange, onEnter, value }: 
         onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
         ref={input}
         type='text'
-        value={value}
       />
     </InputContainer>
   )

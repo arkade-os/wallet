@@ -4,7 +4,7 @@ interface InputUrlProps {
   focus?: boolean
   label?: string
   onChange: (arg0: any) => void
-  onEnter?: () => void
+  onEnter: () => void
   openScan: () => void
   placeholder?: string
   value?: string
