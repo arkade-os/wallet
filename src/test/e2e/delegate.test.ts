@@ -13,7 +13,7 @@ test('should toggle delegates', async ({ page }) => {
   await expect(toggle).toHaveAttribute('checked', 'true')
   await expect(page.getByTestId('delegate-card')).toBeVisible()
 
-  toggle.click()
+  await toggle.click()
 
   await expect(toggle).toBeVisible()
   await expect(toggle).toHaveAttribute('checked', 'false')

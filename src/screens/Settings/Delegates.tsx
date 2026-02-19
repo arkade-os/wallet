@@ -23,11 +23,12 @@ import { decodeArkAddress, isArkAddress } from '../../lib/address'
 const formatUrl = (host: string, path: string): string => {
   host = host.replace(/\/+$/, '')
   path = path.replace(/^\/+/, '')
-  const prefix = host.startsWith('http')
-    ? ''
-    : host.startsWith('localhost') || host.startsWith('127.0.0.1')
-      ? 'http://'
-      : 'https://'
+  const prefix =
+    host.startsWith('http://') || host.startsWith('https://')
+      ? ''
+      : host.startsWith('localhost') || host.startsWith('127.0.0.1')
+        ? 'http://'
+        : 'https://'
   return `${prefix}${host}/${path}`
 }
 
@@ -198,7 +199,7 @@ export default function Delegates() {
   const handleToggle = () => updateConfig({ ...config, delegate: !config.delegate })
 
   // text to show on warning box
-  const warningText = "Delegates can only renew your VTXO's, they cannot spend your funds or control your wallet"
+  const warningText = 'Delegates can only renew your VTXOs, they cannot spend your funds or control your wallet'
 
   return (
     <>
