@@ -7,14 +7,14 @@ import Focusable from './Focusable'
 interface ToggleProps {
   checked: boolean
   onClick: () => void
-  text: string
   subtext?: string
+  text: string
   testId?: string
 }
 
-export default function Toggle({ checked, onClick, text, subtext, testId }: ToggleProps) {
+export default function Toggle({ checked, onClick, subtext, text, testId }: ToggleProps) {
   return (
-    <FlexCol border gap='0' padding='0 0 1rem 0'>
+    <FlexCol gap='0' padding='0 0 1rem 0'>
       <FlexRow between onClick={onClick}>
         <Text thin>{text}</Text>
         <Focusable onEnter={onClick} fit round>

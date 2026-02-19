@@ -42,6 +42,7 @@ export const mockAspContextValue = {
 export const mockConfigContextValue = {
   config: {
     currencyDisplay: CurrencyDisplay.Both,
+    delegate: false,
     fiat: Fiats.EUR,
     nostrBackup: true,
     notifications: true,
