@@ -23,7 +23,6 @@ export default function AppAssetReissue() {
   const [error, setError] = useState('')
   const [processing, setProcessing] = useState(false)
 
-  const assetId = assetInfo.assetId ?? ''
   const name = assetInfo.details?.metadata?.name ?? 'Asset'
   const ticker = assetInfo.details?.metadata?.ticker ?? ''
 
