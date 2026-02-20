@@ -5,6 +5,7 @@ import FlexRow from '../../../components/FlexRow'
 import Header from '../../../components/Header'
 import Padded from '../../../components/Padded'
 import Text from '../../../components/Text'
+import AssetAvatar from '../../../components/AssetAvatar'
 import Shadow from '../../../components/Shadow'
 import Button from '../../../components/Button'
 import Loading from '../../../components/Loading'
@@ -96,23 +97,7 @@ export default function AppAssets() {
                 <Shadow key={asset.assetId} border onClick={() => handleAssetClick(asset.assetId)}>
                   <FlexRow between padding='0.75rem'>
                     <FlexRow>
-                      {asset.icon ? (
-                        <img src={asset.icon} alt='' width={32} height={32} style={{ borderRadius: '50%' }} />
-                      ) : (
-                        <div
-                          style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            background: 'var(--dark20)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Text smaller>{asset.ticker?.[0] ?? 'A'}</Text>
-                        </div>
-                      )}
+                      <AssetAvatar icon={asset.icon} ticker={asset.ticker} size={32} />
                       <FlexCol gap='0'>
                         <Text bold>{asset.name ?? truncateId(asset.assetId)}</Text>
                         {asset.ticker ? (

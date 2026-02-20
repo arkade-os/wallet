@@ -8,10 +8,12 @@ import FlexRow from '../../../components/FlexRow'
 import Padded from '../../../components/Padded'
 import Shadow from '../../../components/Shadow'
 import Text, { TextSecondary } from '../../../components/Text'
+import AssetAvatar from '../../../components/AssetAvatar'
 import SuccessIcon from '../../../icons/Success'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
+import { formatAssetAmount } from '../../../lib/format'
 
 export default function AppAssetMintSuccess() {
   const { navigate } = useContext(NavigationContext)
@@ -23,7 +25,8 @@ export default function AppAssetMintSuccess() {
   const meta = details?.metadata
   const name = meta?.name ?? 'Unknown Asset'
   const ticker = meta?.ticker ?? ''
-  const supply = details?.supply ?? 'Unknown'
+  const decimals = meta?.decimals ?? 8
+  const supply = details?.supply
   const icon = meta?.icon
 
   const handleViewAsset = () => {
@@ -44,23 +47,7 @@ export default function AppAssetMintSuccess() {
             <Shadow border>
               <FlexRow between padding='0.75rem'>
                 <FlexRow>
-                  {icon ? (
-                    <img src={icon} alt='' width={32} height={32} style={{ borderRadius: '50%' }} />
-                  ) : (
-                    <div
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50%',
-                        background: 'var(--dark20)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Text smaller>{ticker?.[0] ?? name?.[0] ?? 'A'}</Text>
-                    </div>
-                  )}
+                  <AssetAvatar icon={icon} ticker={ticker} name={name} size={32} />
                   <FlexCol gap='0'>
                     <Text bold>{name}</Text>
                     {ticker ? (
@@ -70,7 +57,7 @@ export default function AppAssetMintSuccess() {
                     ) : null}
                   </FlexCol>
                 </FlexRow>
-                <Text>{String(supply)}</Text>
+                <Text>{typeof supply === 'number' ? formatAssetAmount(supply, decimals) : 'Unknown'}</Text>
               </FlexRow>
             </Shadow>
 

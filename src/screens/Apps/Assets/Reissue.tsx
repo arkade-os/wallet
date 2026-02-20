@@ -14,6 +14,7 @@ import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 import { Decimal } from 'decimal.js'
+import { assetInputStyle } from '../../../lib/styles'
 
 export default function AppAssetReissue() {
   const { navigate } = useContext(NavigationContext)
@@ -27,16 +28,6 @@ export default function AppAssetReissue() {
   const name = assetInfo.details?.metadata?.name ?? 'Asset'
   const ticker = assetInfo.details?.metadata?.ticker ?? ''
   const decimals = assetInfo.details?.metadata?.decimals ?? 8
-
-  const inputStyle: React.CSSProperties = {
-    background: 'var(--dark10)',
-    border: '1px solid var(--dark20)',
-    borderRadius: '0.25rem',
-    color: 'var(--white)',
-    fontSize: '16px',
-    padding: '0.75rem',
-    width: '100%',
-  }
 
   const handleReissue = async () => {
     if (!svcWallet) return
@@ -86,7 +77,7 @@ export default function AppAssetReissue() {
                 Additional Amount
               </Text>
               <input
-                style={inputStyle}
+                style={assetInputStyle}
                 type='number'
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}

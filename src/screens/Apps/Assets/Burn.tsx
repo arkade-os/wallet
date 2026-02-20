@@ -15,6 +15,7 @@ import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 import { Decimal } from 'decimal.js'
 import { formatAssetAmount } from '../../../lib/format'
+import { assetInputStyle } from '../../../lib/styles'
 
 export default function AppAssetBurn() {
   const { navigate } = useContext(NavigationContext)
@@ -30,16 +31,6 @@ export default function AppAssetBurn() {
   const ticker = assetInfo.details?.metadata?.ticker ?? ''
   const decimals = assetInfo.details?.metadata?.decimals ?? 8
   const balance = assetBalances.find((a) => a.assetId === assetId)?.amount ?? 0
-
-  const inputStyle: React.CSSProperties = {
-    background: 'var(--dark10)',
-    border: '1px solid var(--dark20)',
-    borderRadius: '0.25rem',
-    color: 'var(--white)',
-    fontSize: '16px',
-    padding: '0.75rem',
-    width: '100%',
-  }
 
   const handleBurn = async () => {
     if (!svcWallet) return
@@ -87,11 +78,11 @@ export default function AppAssetBurn() {
                 Amount to Burn
               </Text>
               <input
-                style={inputStyle}
+                style={assetInputStyle}
                 type='number'
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder={String(balance)}
+                placeholder={formatAssetAmount(balance, decimals)}
               />
             </FlexCol>
           </FlexCol>

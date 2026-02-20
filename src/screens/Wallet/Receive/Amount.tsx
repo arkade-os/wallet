@@ -79,9 +79,9 @@ export default function ReceiveAmount() {
         ? defaultButtonLabel
         : satoshis < 1
           ? 'Amount below 1 satoshi'
-          : amountIsAboveMaxLimit(satoshis)
+          : !isAssetReceive && amountIsAboveMaxLimit(satoshis)
             ? 'Amount above max limit'
-            : amountIsBelowMinLimit(satoshis)
+            : !isAssetReceive && amountIsBelowMinLimit(satoshis)
               ? 'Amount below min limit'
               : 'Continue',
     )
@@ -128,7 +128,7 @@ export default function ReceiveAmount() {
 
   const disabled = !satoshis
     ? false
-    : satoshis < 1 || amountIsAboveMaxLimit(satoshis) || amountIsBelowMinLimit(satoshis)
+    : satoshis < 1 || (!isAssetReceive && (amountIsAboveMaxLimit(satoshis) || amountIsBelowMinLimit(satoshis)))
 
   if (showKeys) {
     return <Keyboard back={() => setShowKeys(false)} hideBalance onSats={handleChange} value={satoshis} />

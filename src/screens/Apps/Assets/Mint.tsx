@@ -10,6 +10,7 @@ import Loading from '../../../components/Loading'
 import Padded from '../../../components/Padded'
 import Shadow from '../../../components/Shadow'
 import Text from '../../../components/Text'
+import AssetAvatar from '../../../components/AssetAvatar'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FlowContext } from '../../../providers/flow'
@@ -18,6 +19,7 @@ import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 import { Decimal } from 'decimal.js'
 import type { IssuanceParams, KnownMetadata } from '@arkade-os/sdk'
+import { assetInputStyle } from '../../../lib/styles'
 
 interface KnownAssetOption {
   assetId: string
@@ -44,16 +46,6 @@ export default function AppAssetMint() {
   const [controlAssetId, setControlAssetId] = useState('')
   const [showControlDropdown, setShowControlDropdown] = useState(false)
   const [knownAssets, setKnownAssets] = useState<KnownAssetOption[]>([])
-
-  const inputStyle: React.CSSProperties = {
-    background: 'var(--dark10)',
-    border: '1px solid var(--dark20)',
-    borderRadius: '0.25rem',
-    color: 'var(--white)',
-    fontSize: '16px',
-    padding: '0.75rem',
-    width: '100%',
-  }
 
   useEffect(() => {
     const load = async () => {
@@ -138,30 +130,12 @@ export default function AppAssetMint() {
             <Shadow border>
               <FlexRow between padding='0.75rem'>
                 <FlexRow>
-                  {iconUrl && !iconError ? (
-                    <img
-                      src={iconUrl}
-                      alt=''
-                      width={32}
-                      height={32}
-                      style={{ borderRadius: '50%' }}
-                      onError={() => setIconError(true)}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50%',
-                        background: 'var(--dark20)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Text smaller>{ticker?.[0] ?? 'A'}</Text>
-                    </div>
-                  )}
+                  <AssetAvatar
+                    icon={iconUrl && !iconError ? iconUrl : undefined}
+                    ticker={ticker}
+                    size={32}
+                    onError={() => setIconError(true)}
+                  />
                   <FlexCol gap='0'>
                     <Text bold>{name || 'Asset Name'}</Text>
                     <Text color='dark50' smaller>
@@ -178,7 +152,7 @@ export default function AppAssetMint() {
                 Amount *
               </Text>
               <input
-                style={inputStyle}
+                style={assetInputStyle}
                 type='number'
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
@@ -190,7 +164,12 @@ export default function AppAssetMint() {
               <Text smaller color='dark50'>
                 Name
               </Text>
-              <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder='My Token' />
+              <input
+                style={assetInputStyle}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder='My Token'
+              />
             </FlexCol>
 
             <FlexCol gap='0.25rem'>
@@ -198,7 +177,7 @@ export default function AppAssetMint() {
                 Ticker
               </Text>
               <input
-                style={inputStyle}
+                style={assetInputStyle}
                 value={ticker}
                 onChange={(e) => setTicker(e.target.value.slice(0, 5))}
                 placeholder='TKN'
@@ -210,7 +189,7 @@ export default function AppAssetMint() {
                 Decimals
               </Text>
               <input
-                style={inputStyle}
+                style={assetInputStyle}
                 type='number'
                 value={decimals}
                 onChange={(e) => setDecimals(e.target.value)}
@@ -226,23 +205,7 @@ export default function AppAssetMint() {
                 <FlexRow between padding='0.5rem'>
                   {selectedControl ? (
                     <FlexRow>
-                      {selectedControl.icon ? (
-                        <img src={selectedControl.icon} alt='' width={24} height={24} style={{ borderRadius: '50%' }} />
-                      ) : (
-                        <div
-                          style={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: '50%',
-                            background: 'var(--dark20)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Text smaller>{selectedControl.ticker?.[0] ?? 'A'}</Text>
-                        </div>
-                      )}
+                      <AssetAvatar icon={selectedControl.icon} ticker={selectedControl.ticker} size={24} />
                       <Text>
                         {selectedControl.name} {selectedControl.ticker ? `(${selectedControl.ticker})` : ''}
                       </Text>
@@ -279,23 +242,7 @@ export default function AppAssetMint() {
                         }}
                       >
                         <FlexRow padding='0.5rem'>
-                          {asset.icon ? (
-                            <img src={asset.icon} alt='' width={24} height={24} style={{ borderRadius: '50%' }} />
-                          ) : (
-                            <div
-                              style={{
-                                width: 24,
-                                height: 24,
-                                borderRadius: '50%',
-                                background: 'var(--dark20)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <Text smaller>{asset.ticker?.[0] ?? 'A'}</Text>
-                            </div>
-                          )}
+                          <AssetAvatar icon={asset.icon} ticker={asset.ticker} size={24} />
                           <Text>
                             {asset.name} {asset.ticker ? `(${asset.ticker})` : ''}
                           </Text>
@@ -306,7 +253,7 @@ export default function AppAssetMint() {
                 </div>
               ) : null}
               <input
-                style={inputStyle}
+                style={assetInputStyle}
                 value={controlAssetId}
                 onChange={(e) => setControlAssetId(e.target.value)}
                 placeholder='Or paste asset ID...'
@@ -318,7 +265,7 @@ export default function AppAssetMint() {
                 Icon URL
               </Text>
               <input
-                style={inputStyle}
+                style={assetInputStyle}
                 value={iconUrl}
                 onChange={(e) => {
                   setIconUrl(e.target.value)

@@ -11,7 +11,7 @@ import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { AssetBalance, Tx, Vtxo, Wallet } from '../lib/types'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
-import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey } from '@arkade-os/sdk'
+import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey, AssetDetails } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
@@ -37,7 +37,7 @@ interface WalletContextProps {
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: number
   assetBalances: AssetBalance[]
-  assetMetadataCache: Map<string, any>
+  assetMetadataCache: Map<string, AssetDetails>
   initialized?: boolean
 }
 
@@ -76,7 +76,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [assetBalances, setAssetBalances] = useState<AssetBalance[]>([])
 
   const listeningForServiceWorker = useRef(false)
-  const assetMetadataCache = useRef<Map<string, any>>(new Map())
+  const assetMetadataCache = useRef<Map<string, AssetDetails>>(new Map())
 
   // read wallet from storage
   useEffect(() => {

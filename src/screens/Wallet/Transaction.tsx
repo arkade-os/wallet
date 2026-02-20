@@ -17,6 +17,7 @@ import FlexRow from '../../components/FlexRow'
 import WaitingForRound from '../../components/WaitingForRound'
 import { sleep } from '../../lib/sleep'
 import Text, { TextSecondary } from '../../components/Text'
+import AssetAvatar from '../../components/AssetAvatar'
 import Details, { DetailsProps } from '../../components/Details'
 import VtxosIcon from '../../icons/Vtxos'
 import CheckMarkIcon from '../../icons/CheckMark'
@@ -159,23 +160,7 @@ export default function Transaction() {
                 const label = ticker ?? name ?? `${a.assetId.slice(0, 8)}...`
                 return (
                   <FlexRow key={a.assetId} gap='0.5rem'>
-                    {icon ? (
-                      <img src={icon} alt='' width={32} height={32} style={{ borderRadius: '50%' }} />
-                    ) : (
-                      <div
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: '50%',
-                          background: 'var(--dark20)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Text smaller>{ticker?.[0] ?? '?'}</Text>
-                      </div>
-                    )}
+                    <AssetAvatar icon={icon} ticker={ticker} size={32} />
                     <FlexCol gap='0'>
                       <Text color={color}>
                         {prefix}

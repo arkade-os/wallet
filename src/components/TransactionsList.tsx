@@ -3,6 +3,7 @@ import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
 import { formatAssetAmount, prettyAmount, prettyDate, prettyHide } from '../lib/format'
+import AssetAvatar from './AssetAvatar'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
 import FlexRow from './FlexRow'
@@ -74,23 +75,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
           const decimals = meta?.decimals ?? 8
           return (
             <FlexRow key={a.assetId} gap='0.25rem' end>
-              {icon ? (
-                <img src={icon} alt='' width={16} height={16} style={{ borderRadius: '50%' }} />
-              ) : (
-                <div
-                  style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: '50%',
-                    background: 'var(--dark20)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Text tiny>{ticker?.[0] ?? '?'}</Text>
-                </div>
-              )}
+              <AssetAvatar icon={icon} ticker={ticker} size={16} />
               <Text color={color} smaller>
                 {formatAssetAmount(a.amount, decimals)} {ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}
               </Text>

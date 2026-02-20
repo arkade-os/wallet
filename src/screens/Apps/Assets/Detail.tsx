@@ -9,6 +9,7 @@ import Loading from '../../../components/Loading'
 import Padded from '../../../components/Padded'
 import Shadow from '../../../components/Shadow'
 import Text, { TextSecondary } from '../../../components/Text'
+import AssetAvatar from '../../../components/AssetAvatar'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FlowContext, emptyRecvInfo, emptySendInfo } from '../../../providers/flow'
@@ -43,8 +44,8 @@ export default function AppAssetDetail() {
         }
       }
 
-      setDetails(cached)
-      setAssetInfo({ ...assetInfo, details: cached })
+      setDetails(cached ?? null)
+      setAssetInfo({ assetId, details: cached })
       setLoading(false)
     }
     load()
@@ -56,7 +57,7 @@ export default function AppAssetDetail() {
   const name = meta?.name ?? 'Unknown Asset'
   const ticker = meta?.ticker ?? ''
   const decimals = meta?.decimals ?? 8
-  const supply = details?.supply ?? 'Unknown'
+  const supply = details?.supply
   const controlAssetId = details?.controlAssetId
   const truncateId = (id: string) => `${id.slice(0, 12)}...${id.slice(-12)}`
 
@@ -98,23 +99,7 @@ export default function AppAssetDetail() {
       <Content>
         <Padded>
           <FlexCol gap='1rem' centered>
-            {meta?.icon ? (
-              <img src={meta.icon} alt='' width={64} height={64} style={{ borderRadius: '50%' }} />
-            ) : (
-              <div
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: '50%',
-                  background: 'var(--dark20)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text big>{ticker?.[0] ?? name?.[0] ?? 'A'}</Text>
-              </div>
-            )}
+            <AssetAvatar icon={meta?.icon} ticker={ticker} name={name} size={64} />
 
             <FlexCol gap='0.25rem' centered>
               <Text bigger bold centered>
@@ -134,7 +119,7 @@ export default function AppAssetDetail() {
               <FlexCol gap='0.5rem' padding='0.75rem'>
                 <FlexRow between>
                   <TextSecondary>Supply</TextSecondary>
-                  <Text bold>{supply}</Text>
+                  <Text bold>{typeof supply === 'number' ? formatAssetAmount(supply, decimals) : 'Unknown'}</Text>
                 </FlexRow>
                 <FlexRow between>
                   <TextSecondary>Decimals</TextSecondary>

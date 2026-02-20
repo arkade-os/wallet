@@ -4,7 +4,7 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import { WalletContext } from '../../providers/wallet'
-import { prettyAgo, prettyDate, prettyDelta, prettyHide, prettyNumber } from '../../lib/format'
+import { formatAssetAmount, prettyAgo, prettyDate, prettyDelta, prettyHide, prettyNumber } from '../../lib/format'
 import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
@@ -29,7 +29,7 @@ export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { reloadWallet, vtxos, wallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, reloadWallet, vtxos, wallet, svcWallet } = useContext(WalletContext)
 
   const defaultLabel = 'Renew Virtual Coins'
 
@@ -207,7 +207,14 @@ export default function Vtxos() {
     const amount = config.showBalance ? prettyNumber(vtxo.value) : prettyHide(vtxo.value)
     const vtxoAssets = vtxo.assets
     const assetText = vtxoAssets?.length
-      ? vtxoAssets.map((a) => `+ ${a.amount} ${a.assetId.slice(0, 8)}...`).join(', ')
+      ? vtxoAssets
+          .map((a) => {
+            const meta = assetMetadataCache.get(a.assetId)?.metadata
+            const decimals = meta?.decimals ?? 8
+            const label = meta?.ticker ?? `${a.assetId.slice(0, 8)}...`
+            return `+ ${formatAssetAmount(a.amount, decimals)} ${label}`
+          })
+          .join(', ')
       : ''
     const expiry = vtxo.virtualStatus?.batchExpiry ? prettyAgo(vtxo.virtualStatus.batchExpiry) : 'Unknown'
     const tags = (
