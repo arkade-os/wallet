@@ -22,7 +22,7 @@ export default function ReceiveSuccess() {
   const { toFiat } = useContext(FiatContext)
   const { recvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { assetMetadataCache, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, setCacheEntry, svcWallet } = useContext(WalletContext)
 
   const isAssetReceive = Boolean(recvInfo.assetId)
   const assetId = recvInfo.assetId ?? ''
@@ -43,7 +43,7 @@ export default function ReceiveSuccess() {
       .getAssetDetails(assetId)
       .then((details) => {
         if (details) {
-          assetMetadataCache.set(assetId, details)
+          setCacheEntry(assetId, details)
           setAssetDetails(details)
         }
       })

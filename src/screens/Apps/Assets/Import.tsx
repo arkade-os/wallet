@@ -20,7 +20,7 @@ export default function AppAssetImport() {
   const { navigate } = useContext(NavigationContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
-  const { svcWallet, assetMetadataCache } = useContext(WalletContext)
+  const { svcWallet, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
 
   const [assetId, setAssetId] = useState('')
   const [error, setError] = useState('')
@@ -43,7 +43,7 @@ export default function AppAssetImport() {
       const details = await svcWallet.assetManager.getAssetDetails(assetId)
       if (!details) throw new Error('Asset not found')
 
-      assetMetadataCache.set(assetId, details)
+      setCacheEntry(assetId, details)
 
       // Add to imported assets if not already there
       if (!config.importedAssets.includes(assetId)) {
