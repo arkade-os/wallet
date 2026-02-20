@@ -22,7 +22,7 @@ export default function AppAssetDetail() {
   const { navigate } = useContext(NavigationContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { assetInfo, setAssetInfo, setRecvInfo, setSendInfo } = useContext(FlowContext)
-  const { assetBalances, svcWallet, assetMetadataCache } = useContext(WalletContext)
+  const { assetBalances, svcWallet, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
 
   const [loading, setLoading] = useState(true)
   const [details, setDetails] = useState<AssetDetails | null>(null)
@@ -38,7 +38,7 @@ export default function AppAssetDetail() {
       if (!cached) {
         try {
           cached = await svcWallet.assetManager.getAssetDetails(assetId)
-          if (cached) assetMetadataCache.set(assetId, cached)
+          if (cached) setCacheEntry(assetId, cached)
         } catch (err) {
           consoleError(err, 'error loading asset details')
         }
@@ -129,6 +129,15 @@ export default function AppAssetDetail() {
                   <FlexRow between>
                     <TextSecondary>Ticker</TextSecondary>
                     <Text bold>{ticker}</Text>
+                  </FlexRow>
+                ) : null}
+                {controlAssetId ? (
+                  <FlexRow between>
+                    <TextSecondary>Control Asset</TextSecondary>
+                    <Text bold copy={controlAssetId}>
+                      {assetMetadataCache.get(controlAssetId)?.metadata?.name ??
+                        `${controlAssetId.slice(0, 8)}...${controlAssetId.slice(-8)}`}
+                    </Text>
                   </FlexRow>
                 ) : null}
               </FlexCol>

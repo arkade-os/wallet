@@ -28,7 +28,7 @@ interface AssetListItem {
 
 export default function AppAssets() {
   const { navigate } = useContext(NavigationContext)
-  const { assetBalances, svcWallet, assetMetadataCache } = useContext(WalletContext)
+  const { assetBalances, svcWallet, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
   const { config } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
 
@@ -52,7 +52,7 @@ export default function AppAssets() {
         if (!meta) {
           try {
             meta = await svcWallet.assetManager.getAssetDetails(assetId)
-            if (meta) assetMetadataCache.set(assetId, meta)
+            if (meta) setCacheEntry(assetId, meta)
           } catch (err) {
             consoleError(err, `error fetching metadata for ${assetId}`)
           }

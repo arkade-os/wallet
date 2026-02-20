@@ -32,7 +32,7 @@ export default function AppAssetMint() {
   const { navigate } = useContext(NavigationContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
-  const { svcWallet, assetBalances, assetMetadataCache } = useContext(WalletContext)
+  const { svcWallet, assetBalances, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
 
   const [amount, setAmount] = useState('')
   const [name, setName] = useState('')
@@ -56,7 +56,7 @@ export default function AppAssetMint() {
         if (!meta) {
           try {
             meta = await svcWallet.assetManager.getAssetDetails(ab.assetId)
-            if (meta) assetMetadataCache.set(ab.assetId, meta)
+            if (meta) setCacheEntry(ab.assetId, meta)
           } catch {
             // skip assets we can't fetch metadata for
           }
@@ -104,7 +104,7 @@ export default function AppAssetMint() {
       }
 
       const assetDetails = { assetId: newAssetId, supply: rawAmount, metadata }
-      assetMetadataCache.set(newAssetId, assetDetails)
+      setCacheEntry(newAssetId, assetDetails)
       setAssetInfo({ assetId: newAssetId, details: assetDetails })
       navigate(Pages.AppAssetMintSuccess)
     } catch (err) {

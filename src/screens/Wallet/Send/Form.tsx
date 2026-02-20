@@ -67,7 +67,7 @@ export default function SendForm() {
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
-  const { assetBalances, assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
+  const { assetBalances, assetMetadataCache, balance, setCacheEntry, svcWallet } = useContext(WalletContext)
 
   const [amount, setAmount] = useState<number>()
   const [amountIsReadOnly, setAmountIsReadOnly] = useState(false)
@@ -133,7 +133,7 @@ export default function SendForm() {
         if (!meta) {
           try {
             meta = await svcWallet.assetManager.getAssetDetails(ab.assetId)
-            if (meta) assetMetadataCache.set(ab.assetId, meta)
+            if (meta) setCacheEntry(ab.assetId, meta)
           } catch (err) {
             consoleError(err, `error fetching metadata for ${ab.assetId}`)
           }
