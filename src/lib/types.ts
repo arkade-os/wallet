@@ -68,6 +68,7 @@ export enum SettingsOptions {
 }
 
 export enum Themes {
+  Auto = 'Auto',
   Dark = 'Dark',
   Light = 'Light',
 }
