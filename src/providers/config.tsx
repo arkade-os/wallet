@@ -15,7 +15,7 @@ const defaultConfig: Config = {
   notifications: false,
   pubkey: '',
   showBalance: true,
-  theme: Themes.Dark,
+  theme: Themes.Auto,
   unit: Unit.BTC,
 }
 
@@ -23,6 +23,7 @@ interface ConfigContextProps {
   backupConfig: (c: Config) => Promise<void>
   config: Config
   configLoaded: boolean
+  effectiveTheme: Themes.Dark | Themes.Light
   resetConfig: () => void
   setConfig: (c: Config) => void
   showConfig: boolean
@@ -35,6 +36,7 @@ export const ConfigContext = createContext<ConfigContextProps>({
   backupConfig: async () => {},
   config: defaultConfig,
   configLoaded: false,
+  effectiveTheme: Themes.Dark,
   resetConfig: () => {},
   setConfig: () => {},
   showConfig: false,
@@ -43,10 +45,20 @@ export const ConfigContext = createContext<ConfigContextProps>({
   useFiat: false,
 })
 
+const resolveTheme = (theme: Themes): Themes.Dark | Themes.Light => {
+  if (theme === Themes.Auto) {
+    return window?.matchMedia?.('(prefers-color-scheme: dark)').matches ? Themes.Dark : Themes.Light
+  }
+  return theme as Themes.Dark | Themes.Light
+}
+
 export const ConfigProvider = ({ children }: { children: ReactNode }) => {
   const [config, setConfig] = useState<Config>(defaultConfig)
   const [configLoaded, setConfigLoaded] = useState(false)
   const [showConfig, setShowConfig] = useState(false)
+  const [effectiveTheme, setEffectiveTheme] = useState<Themes.Dark | Themes.Light>(
+    () => resolveTheme(defaultConfig.theme),
+  )
 
   const backupConfig = async (config: Config) => {
     const backupProvider = new BackupProvider({ pubkey: config.pubkey })
@@ -57,8 +69,14 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
 
   const toggleShowConfig = () => setShowConfig(!showConfig)
 
-  const preferredTheme = () =>
-    window?.matchMedia?.('(prefers-color-scheme: dark)').matches ? Themes.Dark : Themes.Light
+  const applyTheme = (theme: Themes) => {
+    const resolved = resolveTheme(theme)
+    setEffectiveTheme(resolved)
+    const darkPalette = 'ion-palette-dark'
+    const root = document.documentElement
+    if (resolved === Themes.Dark) root.classList.add(darkPalette)
+    else root.classList.remove(darkPalette)
+  }
 
   const updateConfig = async (config: Config) => {
     // add protocol to aspUrl if missing
@@ -67,15 +85,8 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
       config.aspUrl = protocol + config.aspUrl
     }
     setConfig(config)
-    updateTheme(config)
+    applyTheme(config.theme)
     saveConfigToStorage(config)
-  }
-
-  const updateTheme = ({ theme }: Config) => {
-    const darkPalette = 'ion-palette-dark'
-    const root = document.documentElement
-    if (theme === Themes.Dark) root.classList.add(darkPalette)
-    else root.classList.remove(darkPalette)
   }
 
   const resetConfig = async () => {
@@ -89,12 +100,23 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
       defaultConfig.aspUrl = 'http://localhost:7070'
       window.location.hash = ''
     }
-    let config = readConfigFromStorage() ?? { ...defaultConfig, theme: preferredTheme() }
+    let config = readConfigFromStorage() ?? { ...defaultConfig }
     // allow upgradability
     config = { ...defaultConfig, ...config }
+    // env var is authoritative — override cached localStorage value
+    if (import.meta.env.VITE_ARK_SERVER) config.aspUrl = import.meta.env.VITE_ARK_SERVER
     updateConfig(config)
     setConfigLoaded(true)
   }, [configLoaded])
+
+  // listen for system theme changes when Auto is selected
+  useEffect(() => {
+    if (config.theme !== Themes.Auto) return
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const handler = () => applyTheme(Themes.Auto)
+    mediaQuery.addEventListener('change', handler)
+    return () => mediaQuery.removeEventListener('change', handler)
+  }, [config.theme])
 
   const useFiat = config.currencyDisplay === CurrencyDisplay.Fiat
 
@@ -104,6 +126,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
         backupConfig,
         config,
         configLoaded,
+        effectiveTheme,
         resetConfig,
         setConfig,
         showConfig,

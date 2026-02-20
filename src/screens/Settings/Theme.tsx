@@ -7,7 +7,7 @@ import { ConfigContext } from '../../providers/config'
 import Header from './Header'
 
 export default function Theme() {
-  const { backupConfig, config, updateConfig } = useContext(ConfigContext)
+  const { backupConfig, config, effectiveTheme, updateConfig } = useContext(ConfigContext)
 
   const handleChange = async (theme: string) => {
     const newConfig = { ...config, theme: theme as Themes }
@@ -15,12 +15,17 @@ export default function Theme() {
     updateConfig(newConfig)
   }
 
+  const options = [Themes.Auto, Themes.Dark, Themes.Light]
+  const labels = options.map((option) =>
+    option === Themes.Auto ? `Auto (${effectiveTheme})` : option,
+  )
+
   return (
     <>
       <Header text='Theme' back />
       <Content>
         <Padded>
-          <Select onChange={handleChange} options={[Themes.Dark, Themes.Light]} selected={config.theme} />
+          <Select labels={labels} onChange={handleChange} options={options} selected={config.theme} />
         </Padded>
       </Content>
     </>
