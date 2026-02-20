@@ -74,10 +74,20 @@ export default function AppAssetBurn() {
         <Padded>
           <FlexCol gap='1rem'>
             <ErrorMessage error={Boolean(error)} text={error} />
-            <Text color='dark50'>Current balance: {balance} {ticker}</Text>
+            <Text color='dark50'>
+              Current balance: {balance} {ticker}
+            </Text>
             <FlexCol gap='0.25rem'>
-              <Text smaller color='dark50'>Amount to Burn</Text>
-              <input style={inputStyle} type='number' value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={String(balance)} />
+              <Text smaller color='dark50'>
+                Amount to Burn
+              </Text>
+              <input
+                style={inputStyle}
+                type='number'
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder={String(balance)}
+              />
             </FlexCol>
           </FlexCol>
         </Padded>

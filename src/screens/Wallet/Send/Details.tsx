@@ -102,7 +102,10 @@ export default function SendDetails() {
     if (isAssetSend && arkAddress) {
       // Asset send via wallet.send()
       const recipients = [{ address: arkAddress, amount: details.satoshis, assets: sendInfo.assets }]
-      svcWallet.send(...recipients).then(handleTxid).catch(handleError)
+      svcWallet
+        .send(...recipients)
+        .then(handleTxid)
+        .catch(handleError)
     } else if (arkAddress) {
       sendOffChain(svcWallet, details.total, arkAddress).then(handleTxid).catch(handleError)
     } else if (invoice) {

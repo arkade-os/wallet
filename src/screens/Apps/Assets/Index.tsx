@@ -98,17 +98,27 @@ export default function AppAssets() {
                       {asset.icon ? (
                         <img src={asset.icon} alt='' width={32} height={32} style={{ borderRadius: '50%' }} />
                       ) : (
-                        <div style={{
-                          width: 32, height: 32, borderRadius: '50%',
-                          background: 'var(--dark20)', display: 'flex',
-                          alignItems: 'center', justifyContent: 'center',
-                        }}>
+                        <div
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            background: 'var(--dark20)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
                           <Text smaller>{asset.ticker?.[0] ?? 'A'}</Text>
                         </div>
                       )}
                       <FlexCol gap='0'>
                         <Text bold>{asset.name ?? truncateId(asset.assetId)}</Text>
-                        {asset.ticker ? <Text color='dark50' smaller>{asset.ticker}</Text> : null}
+                        {asset.ticker ? (
+                          <Text color='dark50' smaller>
+                            {asset.ticker}
+                          </Text>
+                        ) : null}
                       </FlexCol>
                     </FlexRow>
                     <Text>{asset.balance}</Text>

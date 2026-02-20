@@ -106,13 +106,17 @@ export default function AppAssetDetail() {
             ) : null}
 
             <FlexCol gap='0.25rem'>
-              <Text bold>{balance} {ticker}</Text>
+              <Text bold>
+                {balance} {ticker}
+              </Text>
               <TextSecondary>Balance</TextSecondary>
             </FlexCol>
 
             <FlexCol gap='0.25rem'>
               <div onClick={handleCopyId} style={{ cursor: 'pointer' }}>
-                <Text color='dark50' smaller>{truncateId(assetId)}</Text>
+                <Text color='dark50' smaller>
+                  {truncateId(assetId)}
+                </Text>
               </div>
               <TextSecondary>Asset ID (tap to copy)</TextSecondary>
             </FlexCol>

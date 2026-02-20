@@ -91,31 +91,66 @@ export default function AppAssetMint() {
             <ErrorMessage error={Boolean(error)} text={error} />
 
             <FlexCol gap='0.25rem'>
-              <Text smaller color='dark50'>Amount *</Text>
-              <input style={inputStyle} type='number' value={amount} onChange={(e) => setAmount(e.target.value)} placeholder='1000' />
+              <Text smaller color='dark50'>
+                Amount *
+              </Text>
+              <input
+                style={inputStyle}
+                type='number'
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder='1000'
+              />
             </FlexCol>
 
             <FlexCol gap='0.25rem'>
-              <Text smaller color='dark50'>Name</Text>
+              <Text smaller color='dark50'>
+                Name
+              </Text>
               <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder='My Token' />
             </FlexCol>
 
             <FlexCol gap='0.25rem'>
-              <Text smaller color='dark50'>Ticker</Text>
-              <input style={inputStyle} value={ticker} onChange={(e) => setTicker(e.target.value.slice(0, 5))} placeholder='TKN' />
+              <Text smaller color='dark50'>
+                Ticker
+              </Text>
+              <input
+                style={inputStyle}
+                value={ticker}
+                onChange={(e) => setTicker(e.target.value.slice(0, 5))}
+                placeholder='TKN'
+              />
             </FlexCol>
 
             <FlexCol gap='0.25rem'>
-              <Text smaller color='dark50'>Decimals</Text>
-              <input style={inputStyle} type='number' value={decimals} onChange={(e) => setDecimals(e.target.value)} placeholder='8' />
+              <Text smaller color='dark50'>
+                Decimals
+              </Text>
+              <input
+                style={inputStyle}
+                type='number'
+                value={decimals}
+                onChange={(e) => setDecimals(e.target.value)}
+                placeholder='8'
+              />
             </FlexCol>
 
             <FlexCol gap='0.25rem'>
-              <Text smaller color='dark50'>Icon URL</Text>
-              <input style={inputStyle} value={iconUrl} onChange={(e) => setIconUrl(e.target.value)} placeholder='https://...' />
+              <Text smaller color='dark50'>
+                Icon URL
+              </Text>
+              <input
+                style={inputStyle}
+                value={iconUrl}
+                onChange={(e) => setIconUrl(e.target.value)}
+                placeholder='https://...'
+              />
             </FlexCol>
 
-            <div onClick={() => setWithControl(!withControl)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div
+              onClick={() => setWithControl(!withControl)}
+              style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
               <input type='checkbox' checked={withControl} readOnly />
               <Text smaller>Create control asset (allows future reissuance)</Text>
             </div>

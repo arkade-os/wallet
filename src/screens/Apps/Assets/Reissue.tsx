@@ -69,10 +69,21 @@ export default function AppAssetReissue() {
         <Padded>
           <FlexCol gap='1rem'>
             <ErrorMessage error={Boolean(error)} text={error} />
-            <Text color='dark50'>Mint additional supply of {name}{ticker ? ` (${ticker})` : ''}</Text>
+            <Text color='dark50'>
+              Mint additional supply of {name}
+              {ticker ? ` (${ticker})` : ''}
+            </Text>
             <FlexCol gap='0.25rem'>
-              <Text smaller color='dark50'>Additional Amount</Text>
-              <input style={inputStyle} type='number' value={amount} onChange={(e) => setAmount(e.target.value)} placeholder='1000' />
+              <Text smaller color='dark50'>
+                Additional Amount
+              </Text>
+              <input
+                style={inputStyle}
+                type='number'
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder='1000'
+              />
             </FlexCol>
           </FlexCol>
         </Padded>

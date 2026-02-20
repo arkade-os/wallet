@@ -4,9 +4,7 @@ import { decodeBip21, encodeBip21Asset } from '../bip21'
 describe('encodeBip21Asset', () => {
   it('encodes asset BIP21 URI with ark address and asset ID', () => {
     const uri = encodeBip21Asset('ark1abc123', 'aabbccdd'.repeat(8) + '0000', 100)
-    expect(uri).toBe(
-      `bitcoin:?ark=ark1abc123&assetid=${'aabbccdd'.repeat(8)}0000&amount=100`,
-    )
+    expect(uri).toBe(`bitcoin:?ark=ark1abc123&assetid=${'aabbccdd'.repeat(8)}0000&amount=100`)
   })
 })
 
