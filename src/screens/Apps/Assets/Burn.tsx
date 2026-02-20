@@ -43,7 +43,9 @@ export default function AppAssetBurn() {
 
   const handleBurn = async () => {
     if (!svcWallet) return
-    const parsedAmount = Decimal.mul(parseFloat(amount) || 0, Math.pow(10, decimals)).floor().toNumber()
+    const parsedAmount = Decimal.mul(parseFloat(amount) || 0, Math.pow(10, decimals))
+      .floor()
+      .toNumber()
     if (!parsedAmount || parsedAmount <= 0) {
       setError('Amount must be a positive number')
       return

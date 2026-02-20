@@ -45,7 +45,9 @@ export default function AppAssetReissue() {
       setError('Asset ID is required')
       return
     }
-    const parsedAmount = Decimal.mul(parseFloat(amount) || 0, Math.pow(10, decimals)).floor().toNumber()
+    const parsedAmount = Decimal.mul(parseFloat(amount) || 0, Math.pow(10, decimals))
+      .floor()
+      .toNumber()
     if (!parsedAmount || parsedAmount <= 0) {
       setError('Amount must be a positive number')
       return
