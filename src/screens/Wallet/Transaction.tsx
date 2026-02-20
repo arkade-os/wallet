@@ -5,7 +5,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
-import { prettyAgo, prettyDate } from '../../lib/format'
+import { formatAssetAmount, prettyAgo, prettyDate } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
 import ErrorMessage from '../../components/Error'
 import { extractError } from '../../lib/error'
@@ -153,6 +153,7 @@ export default function Transaction() {
                 const ticker = meta?.ticker
                 const name = meta?.name
                 const icon = meta?.icon
+                const decimals = meta?.decimals ?? 8
                 const color = tx.type === 'received' ? 'green' : ''
                 const prefix = tx.type === 'received' ? '+ ' : '- '
                 const label = ticker ?? name ?? `${a.assetId.slice(0, 8)}...`
@@ -178,7 +179,7 @@ export default function Transaction() {
                     <FlexCol gap='0'>
                       <Text color={color}>
                         {prefix}
-                        {a.amount} {label}
+                        {formatAssetAmount(a.amount, decimals)} {label}
                       </Text>
                       {name && ticker ? <TextSecondary>{name}</TextSecondary> : null}
                     </FlexCol>

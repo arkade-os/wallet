@@ -9,7 +9,7 @@ import ErrorMessage from '../../../components/Error'
 import { WalletContext } from '../../../providers/wallet'
 import Header from '../../../components/Header'
 import { defaultFee } from '../../../lib/constants'
-import { prettyNumber } from '../../../lib/format'
+import { formatAssetAmount, prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { collaborativeExitWithFees, sendOffChain } from '../../../lib/asp'
@@ -165,7 +165,7 @@ export default function SendDetails() {
                     {assetName} ({assetTicker})
                   </Text>
                   <Text bold>
-                    {assetAmountValue} {assetTicker}
+                    {formatAssetAmount(assetAmountValue, assetMeta?.metadata?.decimals ?? 8)} {assetTicker}
                   </Text>
                 </FlexCol>
               ) : null}

@@ -14,6 +14,7 @@ import { ConfigContext } from '../../../providers/config'
 import { FlowContext, emptyRecvInfo, emptySendInfo } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
+import { formatAssetAmount } from '../../../lib/format'
 import type { AssetDetails } from '@arkade-os/sdk'
 
 export default function AppAssetDetail() {
@@ -117,7 +118,7 @@ export default function AppAssetDetail() {
 
             <FlexCol gap='0.25rem' centered>
               <Text bigger bold centered>
-                {balance} {ticker}
+                {formatAssetAmount(balance, decimals)} {ticker}
               </Text>
               <TextSecondary centered>{name}</TextSecondary>
             </FlexCol>

@@ -10,7 +10,7 @@ import Padded from '../../../components/Padded'
 import Shadow from '../../../components/Shadow'
 import Text from '../../../components/Text'
 import SuccessIcon from '../../../icons/Success'
-import { prettyAmount } from '../../../lib/format'
+import { formatAssetAmount, prettyAmount } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
@@ -29,6 +29,7 @@ export default function SendSuccess() {
   const assetTicker = assetMeta?.metadata?.ticker ?? ''
   const assetIcon = assetMeta?.metadata?.icon
   const assetAmountValue = sendInfo.assets?.[0]?.amount ?? 0
+  const assetDecimals = assetMeta?.metadata?.decimals ?? 8
 
   // Show payment sent notification
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function SendSuccess() {
 
   const totalSats = sendInfo.total ?? 0
   const displayAmount = isAssetSend
-    ? `${assetAmountValue} ${assetTicker}`
+    ? `${formatAssetAmount(assetAmountValue, assetDecimals)} ${assetTicker}`
     : useFiat
       ? prettyAmount(toFiat(totalSats), config.fiat)
       : prettyAmount(totalSats)
@@ -83,7 +84,7 @@ export default function SendSuccess() {
                       ) : null}
                     </FlexCol>
                   </FlexRow>
-                  <Text>{assetAmountValue}</Text>
+                  <Text>{formatAssetAmount(assetAmountValue, assetDecimals)}</Text>
                 </FlexRow>
               </Shadow>
 

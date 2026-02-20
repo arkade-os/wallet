@@ -2,7 +2,7 @@ import { useContext, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
-import { prettyAmount, prettyDate, prettyHide } from '../lib/format'
+import { formatAssetAmount, prettyAmount, prettyDate, prettyHide } from '../lib/format'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
 import FlexRow from './FlexRow'
@@ -71,6 +71,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
           const meta = assetMetadataCache.get(a.assetId)?.metadata
           const ticker = meta?.ticker
           const icon = meta?.icon
+          const decimals = meta?.decimals ?? 8
           return (
             <FlexRow key={a.assetId} gap='0.25rem' end>
               {icon ? (
@@ -91,7 +92,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
                 </div>
               )}
               <Text color={color} smaller>
-                {a.amount} {ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}
+                {formatAssetAmount(a.amount, decimals)} {ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}
               </Text>
             </FlexRow>
           )

@@ -13,6 +13,8 @@ import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
+import { Decimal } from 'decimal.js'
+import { formatAssetAmount } from '../../../lib/format'
 
 export default function AppAssetBurn() {
   const { navigate } = useContext(NavigationContext)
@@ -26,6 +28,7 @@ export default function AppAssetBurn() {
   const assetId = assetInfo.assetId ?? ''
   const name = assetInfo.details?.metadata?.name ?? 'Asset'
   const ticker = assetInfo.details?.metadata?.ticker ?? ''
+  const decimals = assetInfo.details?.metadata?.decimals ?? 8
   const balance = assetBalances.find((a) => a.assetId === assetId)?.amount ?? 0
 
   const inputStyle: React.CSSProperties = {
@@ -40,13 +43,13 @@ export default function AppAssetBurn() {
 
   const handleBurn = async () => {
     if (!svcWallet) return
-    const parsedAmount = parseInt(amount)
+    const parsedAmount = Decimal.mul(parseFloat(amount) || 0, Math.pow(10, decimals)).floor().toNumber()
     if (!parsedAmount || parsedAmount <= 0) {
       setError('Amount must be a positive number')
       return
     }
     if (parsedAmount > balance) {
-      setError(`Cannot burn more than your balance (${balance})`)
+      setError(`Cannot burn more than your balance (${formatAssetAmount(balance, decimals)} ${ticker})`)
       return
     }
 
@@ -75,7 +78,7 @@ export default function AppAssetBurn() {
           <FlexCol gap='1rem'>
             <ErrorMessage error={Boolean(error)} text={error} />
             <Text color='dark50'>
-              Current balance: {balance} {ticker}
+              Current balance: {formatAssetAmount(balance, decimals)} {ticker}
             </Text>
             <FlexCol gap='0.25rem'>
               <Text smaller color='dark50'>

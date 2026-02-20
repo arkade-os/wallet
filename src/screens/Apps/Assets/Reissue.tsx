@@ -13,6 +13,7 @@ import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
+import { Decimal } from 'decimal.js'
 
 export default function AppAssetReissue() {
   const { navigate } = useContext(NavigationContext)
@@ -25,6 +26,7 @@ export default function AppAssetReissue() {
 
   const name = assetInfo.details?.metadata?.name ?? 'Asset'
   const ticker = assetInfo.details?.metadata?.ticker ?? ''
+  const decimals = assetInfo.details?.metadata?.decimals ?? 8
 
   const inputStyle: React.CSSProperties = {
     background: 'var(--dark10)',
@@ -43,7 +45,7 @@ export default function AppAssetReissue() {
       setError('Asset ID is required')
       return
     }
-    const parsedAmount = parseInt(amount)
+    const parsedAmount = Decimal.mul(parseFloat(amount) || 0, Math.pow(10, decimals)).floor().toNumber()
     if (!parsedAmount || parsedAmount <= 0) {
       setError('Amount must be a positive number')
       return

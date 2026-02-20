@@ -21,7 +21,8 @@ import { IonInput, IonText } from '@ionic/react'
 import Focusable from '../../../components/Focusable'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
-import { prettyAmount, prettyNumber } from '../../../lib/format'
+import { formatAssetAmount, prettyAmount, prettyNumber } from '../../../lib/format'
+import { Decimal } from 'decimal.js'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -389,9 +390,10 @@ export default function SendForm() {
 
   const handleAssetAmountChange = (value: string) => {
     setAssetAmount(value)
-    const parsed = parseInt(value) || 0
+    const parsed = parseFloat(value) || 0
     if (selectedAsset) {
-      setState({ ...sendInfo, assets: [{ assetId: selectedAsset.assetId, amount: parsed }], satoshis: 0 })
+      const rawAmount = Decimal.mul(parsed, Math.pow(10, selectedAsset.decimals)).floor().toNumber()
+      setState({ ...sendInfo, assets: [{ assetId: selectedAsset.assetId, amount: rawAmount }], satoshis: 0 })
     }
   }
 
@@ -464,7 +466,8 @@ export default function SendForm() {
 
   const handleSendAll = () => {
     if (isAssetSend && selectedAsset) {
-      setAssetAmount(String(selectedAsset.balance))
+      const humanBalance = Decimal.div(selectedAsset.balance, Math.pow(10, selectedAsset.decimals)).toNumber()
+      setAssetAmount(String(humanBalance))
       setState({
         ...sendInfo,
         assets: [{ assetId: selectedAsset.assetId, amount: selectedAsset.balance }],
@@ -486,7 +489,7 @@ export default function SendForm() {
       return (
         <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
           <Text color='dark50' smaller>
-            {`${selectedAsset.balance} ${selectedAsset.ticker} available`}
+            {`${formatAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`}
           </Text>
         </div>
       )
@@ -648,7 +651,7 @@ export default function SendForm() {
                                 </Text>
                               </FlexRow>
                               <Text color='dark50' smaller>
-                                {asset.balance} {asset.ticker}
+                                {formatAssetAmount(asset.balance, asset.decimals)} {asset.ticker}
                               </Text>
                             </FlexRow>
                           </Shadow>

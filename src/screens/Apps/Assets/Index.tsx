@@ -14,6 +14,7 @@ import { WalletContext } from '../../../providers/wallet'
 import { ConfigContext } from '../../../providers/config'
 import { FlowContext } from '../../../providers/flow'
 import { consoleError } from '../../../lib/logs'
+import { formatAssetAmount } from '../../../lib/format'
 
 interface AssetListItem {
   assetId: string
@@ -121,7 +122,7 @@ export default function AppAssets() {
                         ) : null}
                       </FlexCol>
                     </FlexRow>
-                    <Text>{asset.balance}</Text>
+                    <Text>{formatAssetAmount(asset.balance, asset.decimals ?? 8)}</Text>
                   </FlexRow>
                 </Shadow>
               ))
