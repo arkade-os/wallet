@@ -165,17 +165,17 @@ button.reminder-button.action-sheet-button {
 }
 
 /* Theme transition ripple */
-::view-transition-old(root),
-::view-transition-new(root) {
+::view-transition-old(theme-ripple),
+::view-transition-new(theme-ripple) {
   animation: none;
   mix-blend-mode: normal;
 }
 
-::view-transition-old(root) {
+::view-transition-old(theme-ripple) {
   z-index: 1;
 }
 
-::view-transition-new(root) {
+::view-transition-new(theme-ripple) {
   z-index: 9999;
   animation: ripple-reveal 400ms ease-out;
 }
@@ -190,8 +190,8 @@ button.reminder-button.action-sheet-button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
+  ::view-transition-old(theme-ripple),
+  ::view-transition-new(theme-ripple) {
     animation: none !important;
   }
 }

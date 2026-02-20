@@ -49,7 +49,7 @@ export const ConfigContext = createContext<ConfigContextProps>({
 
 export const resolveTheme = (theme: Themes): Themes.Dark | Themes.Light => {
   if (theme === Themes.Auto) {
-    return window?.matchMedia?.('(prefers-color-scheme: dark)').matches ? Themes.Dark : Themes.Light
+    return window?.matchMedia?.('(prefers-color-scheme: dark)')?.matches ? Themes.Dark : Themes.Light
   }
   return theme as Themes.Dark | Themes.Light
 }
@@ -58,12 +58,10 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
   const [config, setConfig] = useState<Config>(defaultConfig)
   const [configLoaded, setConfigLoaded] = useState(false)
   const [showConfig, setShowConfig] = useState(false)
-  const [effectiveTheme, setEffectiveTheme] = useState<Themes.Dark | Themes.Light>(
-    () => resolveTheme(defaultConfig.theme),
+  const [effectiveTheme, setEffectiveTheme] = useState<Themes.Dark | Themes.Light>(() =>
+    resolveTheme(defaultConfig.theme),
   )
-  const [systemTheme, setSystemTheme] = useState<Themes.Dark | Themes.Light>(
-    () => resolveTheme(Themes.Auto),
-  )
+  const [systemTheme, setSystemTheme] = useState<Themes.Dark | Themes.Light>(() => resolveTheme(Themes.Auto))
 
   const backupConfig = async (config: Config) => {
     const backupProvider = new BackupProvider({ pubkey: config.pubkey })
