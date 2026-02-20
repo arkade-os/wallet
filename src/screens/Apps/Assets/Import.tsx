@@ -20,7 +20,7 @@ export default function AppAssetImport() {
   const { navigate } = useContext(NavigationContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
-  const { svcWallet, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
+  const { svcWallet, setCacheEntry } = useContext(WalletContext)
 
   const [assetId, setAssetId] = useState('')
   const [error, setError] = useState('')
