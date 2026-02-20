@@ -7,7 +7,7 @@ import { ConfigContext, resolveTheme } from '../../providers/config'
 import Header from './Header'
 
 export default function Theme() {
-  const { backupConfig, config, effectiveTheme, updateConfig } = useContext(ConfigContext)
+  const { backupConfig, config, effectiveTheme, systemTheme, updateConfig } = useContext(ConfigContext)
   const clickCoords = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
 
   const handleChange = async (theme: string) => {
@@ -35,7 +35,7 @@ export default function Theme() {
 
   const options = [Themes.Auto, Themes.Dark, Themes.Light]
   const labels = options.map((option) =>
-    option === Themes.Auto ? `Auto (${effectiveTheme})` : option,
+    option === Themes.Auto ? `Auto (${systemTheme})` : option,
   )
 
   return (

@@ -27,6 +27,7 @@ interface ConfigContextProps {
   resetConfig: () => void
   setConfig: (c: Config) => void
   showConfig: boolean
+  systemTheme: Themes.Dark | Themes.Light
   toggleShowConfig: () => void
   updateConfig: (c: Config) => void
   useFiat: boolean
@@ -40,6 +41,7 @@ export const ConfigContext = createContext<ConfigContextProps>({
   resetConfig: () => {},
   setConfig: () => {},
   showConfig: false,
+  systemTheme: Themes.Dark,
   toggleShowConfig: () => {},
   updateConfig: () => {},
   useFiat: false,
@@ -58,6 +60,9 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
   const [showConfig, setShowConfig] = useState(false)
   const [effectiveTheme, setEffectiveTheme] = useState<Themes.Dark | Themes.Light>(
     () => resolveTheme(defaultConfig.theme),
+  )
+  const [systemTheme, setSystemTheme] = useState<Themes.Dark | Themes.Light>(
+    () => resolveTheme(Themes.Auto),
   )
 
   const backupConfig = async (config: Config) => {
@@ -109,11 +114,13 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     setConfigLoaded(true)
   }, [configLoaded])
 
-  // listen for system theme changes when Auto is selected
+  // always track system theme; apply it when Auto is selected
   useEffect(() => {
-    if (config.theme !== Themes.Auto) return
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    const handler = () => applyTheme(Themes.Auto)
+    const handler = () => {
+      setSystemTheme(resolveTheme(Themes.Auto))
+      if (config.theme === Themes.Auto) applyTheme(Themes.Auto)
+    }
     mediaQuery.addEventListener('change', handler)
     return () => mediaQuery.removeEventListener('change', handler)
   }, [config.theme])
@@ -130,6 +137,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
         resetConfig,
         setConfig,
         showConfig,
+        systemTheme,
         toggleShowConfig,
         updateConfig,
         useFiat,
