@@ -14,7 +14,7 @@ import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
-import type { AssetMetadata, IssuanceParams } from '@arkade-os/sdk'
+import type { IssuanceParams, KnownMetadata } from '@arkade-os/sdk'
 
 export default function AppAssetMint() {
   const { navigate } = useContext(NavigationContext)
@@ -27,7 +27,6 @@ export default function AppAssetMint() {
   const [ticker, setTicker] = useState('')
   const [decimals, setDecimals] = useState('8')
   const [iconUrl, setIconUrl] = useState('')
-  const [withControl, setWithControl] = useState(false)
   const [error, setError] = useState('')
   const [minting, setMinting] = useState(false)
 
@@ -53,19 +52,17 @@ export default function AppAssetMint() {
     setError('')
 
     try {
-      const metadata: AssetMetadata = {}
+      const metadata: KnownMetadata = {}
       if (name) metadata.name = name
       if (ticker) metadata.ticker = ticker
-      if (decimals) metadata.decimals = parseInt(decimals)
+      if (decimals != '' && decimals != null && decimals != undefined) metadata.decimals = parseInt(decimals)
       if (iconUrl) metadata.icon = iconUrl
 
       const params: IssuanceParams = { amount: parsedAmount, metadata }
-      if (withControl) params.controlAssetId = ''
 
       const result = await svcWallet.assetManager.issue(params)
       const newAssetId = result.assetId
 
-      // Auto-import
       if (!config.importedAssets.includes(newAssetId)) {
         updateConfig({ ...config, importedAssets: [...config.importedAssets, newAssetId] })
       }
@@ -146,14 +143,6 @@ export default function AppAssetMint() {
                 placeholder='https://...'
               />
             </FlexCol>
-
-            <div
-              onClick={() => setWithControl(!withControl)}
-              style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-            >
-              <input type='checkbox' checked={withControl} readOnly />
-              <Text smaller>Create control asset (allows future reissuance)</Text>
-            </div>
           </FlexCol>
         </Padded>
       </Content>

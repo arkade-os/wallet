@@ -39,6 +39,11 @@ export default function AppAssetReissue() {
 
   const handleReissue = async () => {
     if (!svcWallet) return
+    const assetId = assetInfo.assetId?.trim()
+    if (!assetId) {
+      setError('Asset ID is required')
+      return
+    }
     const parsedAmount = parseInt(amount)
     if (!parsedAmount || parsedAmount <= 0) {
       setError('Amount must be a positive number')

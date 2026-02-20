@@ -124,9 +124,9 @@ export default function SendForm() {
         return setRecipient(url.searchParams.get('lightning')!)
       }
       if (isBip21(lowerCaseData)) {
-        const { address, arkAddress, invoice, satoshis, assetId } = decodeBip21(lowerCaseData)
+        const { address, arkAddress, invoice, satoshis, assetId, assetAmount } = decodeBip21(lowerCaseData)
         if (!address && !arkAddress && !invoice) return setError('Unable to parse bip21')
-        const assets = assetId ? [{ assetId, amount: satoshis ?? 0 }] : sendInfo.assets
+        const assets = assetId ? [{ assetId, amount: assetAmount ?? 0 }] : sendInfo.assets
         return setState({ address, arkAddress, invoice, recipient, satoshis, assets })
       }
       if (isArkAddress(lowerCaseData)) {

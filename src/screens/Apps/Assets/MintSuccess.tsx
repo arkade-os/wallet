@@ -19,7 +19,10 @@ export default function AppAssetMintSuccess() {
     <>
       <Header text='Asset Created' />
       <Content>
-        <Success headline='Asset minted!' text={`Asset ID: ${assetInfo.assetId?.slice(0, 16)}...`} />
+        <Success
+          headline='Asset minted!'
+          text={assetInfo.assetId ? `Asset ID: ${assetInfo.assetId.slice(0, 16)}...` : 'Asset ID: unknown'}
+        />
       </Content>
       <ButtonsOnBottom>
         <Button label='View Asset' onClick={handleViewAsset} />

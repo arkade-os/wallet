@@ -36,7 +36,7 @@ export default function ReceiveQRCode() {
   const { boardingAddr, offchainAddr, satoshis } = recvInfo
   const address = validUtxoTx(satoshis) && utxoTxsAllowed() ? boardingAddr : ''
   const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
-  const noPaymentMethods = !address && !arkAddress && !validLnSwap(satoshis)
+  const noPaymentMethods = isAssetReceive ? false : !address && !arkAddress && !validLnSwap(satoshis)
   const defaultBip21uri = isAssetReceive
     ? encodeBip21Asset(offchainAddr, recvInfo.assetId!, satoshis)
     : encodeBip21(address, arkAddress, '', satoshis)
