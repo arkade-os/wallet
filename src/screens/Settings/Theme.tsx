@@ -1,18 +1,36 @@
-import { useContext } from 'react'
+import { useContext, useRef } from 'react'
 import { Themes } from '../../lib/types'
 import Select from '../../components/Select'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
-import { ConfigContext } from '../../providers/config'
+import { ConfigContext, resolveTheme } from '../../providers/config'
 import Header from './Header'
 
 export default function Theme() {
   const { backupConfig, config, effectiveTheme, updateConfig } = useContext(ConfigContext)
+  const clickCoords = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
 
   const handleChange = async (theme: string) => {
     const newConfig = { ...config, theme: theme as Themes }
     if (config.nostrBackup) await backupConfig(newConfig)
-    updateConfig(newConfig)
+
+    const newEffective = resolveTheme(newConfig.theme)
+    const shouldAnimate =
+      newEffective !== effectiveTheme &&
+      typeof document.startViewTransition === 'function' &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    if (shouldAnimate) {
+      const { x, y } = clickCoords.current
+      const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y))
+      const root = document.documentElement
+      root.style.setProperty('--ripple-x', `${x}px`)
+      root.style.setProperty('--ripple-y', `${y}px`)
+      root.style.setProperty('--ripple-radius', `${radius}px`)
+      document.startViewTransition(() => updateConfig(newConfig))
+    } else {
+      updateConfig(newConfig)
+    }
   }
 
   const options = [Themes.Auto, Themes.Dark, Themes.Light]
@@ -25,7 +43,9 @@ export default function Theme() {
       <Header text='Theme' back />
       <Content>
         <Padded>
-          <Select labels={labels} onChange={handleChange} options={options} selected={config.theme} />
+          <div onClickCapture={(e) => { clickCoords.current = { x: e.clientX, y: e.clientY } }}>
+            <Select labels={labels} onChange={handleChange} options={options} selected={config.theme} />
+          </div>
         </Padded>
       </Content>
     </>

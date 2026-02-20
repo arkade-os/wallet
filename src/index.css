@@ -163,3 +163,35 @@ button.reminder-button.action-sheet-button {
     background-color: var(--ion-background-focused);
   }
 }
+
+/* Theme transition ripple */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 9999;
+  animation: ripple-reveal 400ms ease-out;
+}
+
+@keyframes ripple-reveal {
+  from {
+    clip-path: circle(0px at var(--ripple-x) var(--ripple-y));
+  }
+  to {
+    clip-path: circle(var(--ripple-radius) at var(--ripple-x) var(--ripple-y));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}

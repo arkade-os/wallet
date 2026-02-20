@@ -45,7 +45,7 @@ export const ConfigContext = createContext<ConfigContextProps>({
   useFiat: false,
 })
 
-const resolveTheme = (theme: Themes): Themes.Dark | Themes.Light => {
+export const resolveTheme = (theme: Themes): Themes.Dark | Themes.Light => {
   if (theme === Themes.Auto) {
     return window?.matchMedia?.('(prefers-color-scheme: dark)').matches ? Themes.Dark : Themes.Light
   }
