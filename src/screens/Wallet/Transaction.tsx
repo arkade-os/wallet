@@ -13,6 +13,7 @@ import Header from '../../components/Header'
 import Content from '../../components/Content'
 import Info from '../../components/Info'
 import FlexCol from '../../components/FlexCol'
+import FlexRow from '../../components/FlexRow'
 import WaitingForRound from '../../components/WaitingForRound'
 import { sleep } from '../../lib/sleep'
 import Text, { TextSecondary } from '../../components/Text'
@@ -29,7 +30,7 @@ export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { settlePreconfirmed, vtxos, wallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, settlePreconfirmed, vtxos, wallet, svcWallet } = useContext(WalletContext)
 
   const tx = txInfo
   const boardingTx = Boolean(tx?.boardingTxid)
@@ -144,6 +145,47 @@ export default function Transaction() {
             <Info color='green' icon={<CheckMarkIcon small />} title='Success'>
               <TextSecondary>Transaction settled successfully</TextSecondary>
             </Info>
+          ) : null}
+          {tx.assets?.length ? (
+            <FlexCol gap='0.5rem'>
+              {tx.assets.map((a) => {
+                const meta = assetMetadataCache.get(a.assetId)?.metadata
+                const ticker = meta?.ticker
+                const name = meta?.name
+                const icon = meta?.icon
+                const color = tx.type === 'received' ? 'green' : ''
+                const prefix = tx.type === 'received' ? '+ ' : '- '
+                const label = ticker ?? name ?? `${a.assetId.slice(0, 8)}...`
+                return (
+                  <FlexRow key={a.assetId} gap='0.5rem'>
+                    {icon ? (
+                      <img src={icon} alt='' width={32} height={32} style={{ borderRadius: '50%' }} />
+                    ) : (
+                      <div
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          background: 'var(--dark20)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Text smaller>{ticker?.[0] ?? '?'}</Text>
+                      </div>
+                    )}
+                    <FlexCol gap='0'>
+                      <Text color={color}>
+                        {prefix}
+                        {a.amount} {label}
+                      </Text>
+                      {name && ticker ? <TextSecondary>{name}</TextSecondary> : null}
+                    </FlexCol>
+                  </FlexRow>
+                )
+              })}
+            </FlexCol>
           ) : null}
           <Details details={details} />
         </FlexCol>

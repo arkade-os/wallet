@@ -155,6 +155,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const vtxos = await getVtxos(swWallet)
       const txs = await getTxHistory(swWallet)
       const { total, assets } = await getBalance(swWallet)
+      // prefetch asset metadata before triggering re-renders
+      for (const ab of assets) {
+        if (assetMetadataCache.current.has(ab.assetId)) continue
+        try {
+          const meta = await swWallet.assetManager.getAssetDetails(ab.assetId)
+          if (meta) assetMetadataCache.current.set(ab.assetId, meta)
+        } catch (err) {
+          consoleError(err, `error prefetching metadata for ${ab.assetId}`)
+        }
+      }
       setBalance(total)
       setAssetBalances(assets)
       setVtxos(vtxos)

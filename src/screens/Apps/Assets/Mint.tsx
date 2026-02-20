@@ -4,9 +4,11 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Content from '../../../components/Content'
 import ErrorMessage from '../../../components/Error'
 import FlexCol from '../../../components/FlexCol'
+import FlexRow from '../../../components/FlexRow'
 import Header from '../../../components/Header'
 import Loading from '../../../components/Loading'
 import Padded from '../../../components/Padded'
+import Shadow from '../../../components/Shadow'
 import Text from '../../../components/Text'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
@@ -20,7 +22,7 @@ export default function AppAssetMint() {
   const { navigate } = useContext(NavigationContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
-  const { svcWallet } = useContext(WalletContext)
+  const { svcWallet, assetMetadataCache } = useContext(WalletContext)
 
   const [amount, setAmount] = useState('')
   const [name, setName] = useState('')
@@ -29,6 +31,7 @@ export default function AppAssetMint() {
   const [iconUrl, setIconUrl] = useState('')
   const [error, setError] = useState('')
   const [minting, setMinting] = useState(false)
+  const [iconError, setIconError] = useState(false)
 
   const inputStyle: React.CSSProperties = {
     background: 'var(--dark10)',
@@ -67,7 +70,9 @@ export default function AppAssetMint() {
         updateConfig({ ...config, importedAssets: [...config.importedAssets, newAssetId] })
       }
 
-      setAssetInfo({ assetId: newAssetId })
+      const assetDetails = { assetId: newAssetId, supply: parsedAmount, metadata }
+      assetMetadataCache.set(newAssetId, assetDetails)
+      setAssetInfo({ assetId: newAssetId, details: assetDetails })
       navigate(Pages.AppAssetMintSuccess)
     } catch (err) {
       consoleError(err, 'error minting asset')
@@ -86,6 +91,44 @@ export default function AppAssetMint() {
         <Padded>
           <FlexCol gap='1rem'>
             <ErrorMessage error={Boolean(error)} text={error} />
+
+            <Shadow border>
+              <FlexRow between padding='0.75rem'>
+                <FlexRow>
+                  {iconUrl && !iconError ? (
+                    <img
+                      src={iconUrl}
+                      alt=''
+                      width={32}
+                      height={32}
+                      style={{ borderRadius: '50%' }}
+                      onError={() => setIconError(true)}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        background: 'var(--dark20)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text smaller>{ticker?.[0] ?? 'A'}</Text>
+                    </div>
+                  )}
+                  <FlexCol gap='0'>
+                    <Text bold>{name || 'Asset Name'}</Text>
+                    <Text color='dark50' smaller>
+                      {ticker || 'TKN'}
+                    </Text>
+                  </FlexCol>
+                </FlexRow>
+                <Text>{amount || '0'}</Text>
+              </FlexRow>
+            </Shadow>
 
             <FlexCol gap='0.25rem'>
               <Text smaller color='dark50'>
@@ -139,7 +182,10 @@ export default function AppAssetMint() {
               <input
                 style={inputStyle}
                 value={iconUrl}
-                onChange={(e) => setIconUrl(e.target.value)}
+                onChange={(e) => {
+                  setIconUrl(e.target.value)
+                  setIconError(false)
+                }}
                 placeholder='https://...'
               />
             </FlexCol>

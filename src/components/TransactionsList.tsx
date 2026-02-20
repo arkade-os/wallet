@@ -18,6 +18,7 @@ const border = '1px solid var(--dark20)'
 const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   const { config } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
+  const { assetMetadataCache } = useContext(WalletContext)
 
   const prefix = tx.type === 'sent' ? '-' : '+'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount) : prettyHide(tx.amount)}`
@@ -63,13 +64,38 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
 
   const AssetInfo = () => {
     if (!tx.assets?.length) return null
+    const color = tx.type === 'received' ? 'green' : ''
     return (
       <>
-        {tx.assets.map((a) => (
-          <Text key={a.assetId} color='dark50' smaller>
-            {a.amount} {a.assetId.slice(0, 8)}...
-          </Text>
-        ))}
+        {tx.assets.map((a) => {
+          const meta = assetMetadataCache.get(a.assetId)?.metadata
+          const ticker = meta?.ticker
+          const icon = meta?.icon
+          return (
+            <FlexRow key={a.assetId} gap='0.25rem' end>
+              {icon ? (
+                <img src={icon} alt='' width={16} height={16} style={{ borderRadius: '50%' }} />
+              ) : (
+                <div
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    background: 'var(--dark20)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text tiny>{ticker?.[0] ?? '?'}</Text>
+                </div>
+              )}
+              <Text color={color} smaller>
+                {a.amount} {ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}
+              </Text>
+            </FlexRow>
+          )
+        })}
       </>
     )
   }

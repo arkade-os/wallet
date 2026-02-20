@@ -7,13 +7,13 @@ import FlexRow from '../../../components/FlexRow'
 import Header from '../../../components/Header'
 import Loading from '../../../components/Loading'
 import Padded from '../../../components/Padded'
+import Shadow from '../../../components/Shadow'
 import Text, { TextSecondary } from '../../../components/Text'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FlowContext, emptyRecvInfo, emptySendInfo } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
-import { copyToClipboard } from '../../../lib/clipboard'
 import type { AssetDetails } from '@arkade-os/sdk'
 
 export default function AppAssetDetail() {
@@ -67,10 +67,6 @@ export default function AppAssetDetail() {
   const isImported = config.importedAssets.includes(assetId)
   const canRemove = isImported && balance === 0
 
-  const handleCopyId = () => {
-    copyToClipboard(assetId)
-  }
-
   const handleSend = () => {
     setSendInfo({ ...emptySendInfo, assets: [{ assetId, amount: 0 }] })
     navigate(Pages.SendForm)
@@ -100,43 +96,57 @@ export default function AppAssetDetail() {
       <Header text={name} back={() => navigate(Pages.AppAssets)} />
       <Content>
         <Padded>
-          <FlexCol gap='1rem'>
+          <FlexCol gap='1rem' centered>
             {meta?.icon ? (
-              <img src={meta.icon} alt='' width={64} height={64} style={{ borderRadius: '50%', alignSelf: 'center' }} />
-            ) : null}
+              <img src={meta.icon} alt='' width={64} height={64} style={{ borderRadius: '50%' }} />
+            ) : (
+              <div
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: '50%',
+                  background: 'var(--dark20)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text big>{ticker?.[0] ?? name?.[0] ?? 'A'}</Text>
+              </div>
+            )}
 
-            <FlexCol gap='0.25rem'>
-              <Text bold>
+            <FlexCol gap='0.25rem' centered>
+              <Text bigger bold centered>
                 {balance} {ticker}
               </Text>
-              <TextSecondary>Balance</TextSecondary>
+              <TextSecondary centered>{name}</TextSecondary>
             </FlexCol>
 
-            <FlexCol gap='0.25rem'>
-              <div onClick={handleCopyId} style={{ cursor: 'pointer' }}>
-                <Text color='dark50' smaller>
-                  {truncateId(assetId)}
-                </Text>
-              </div>
-              <TextSecondary>Asset ID (tap to copy)</TextSecondary>
+            <FlexCol gap='0.25rem' centered>
+              <Text copy={assetId} color='dark50' smaller centered>
+                {truncateId(assetId)}
+              </Text>
+              <TextSecondary centered>Asset ID (tap to copy)</TextSecondary>
             </FlexCol>
 
-            <FlexRow between>
-              <TextSecondary>Supply</TextSecondary>
-              <Text>{supply}</Text>
-            </FlexRow>
-
-            <FlexRow between>
-              <TextSecondary>Decimals</TextSecondary>
-              <Text>{decimals}</Text>
-            </FlexRow>
-
-            {ticker ? (
-              <FlexRow between>
-                <TextSecondary>Ticker</TextSecondary>
-                <Text>{ticker}</Text>
-              </FlexRow>
-            ) : null}
+            <Shadow lighter>
+              <FlexCol gap='0.5rem' padding='0.75rem'>
+                <FlexRow between>
+                  <TextSecondary>Supply</TextSecondary>
+                  <Text bold>{supply}</Text>
+                </FlexRow>
+                <FlexRow between>
+                  <TextSecondary>Decimals</TextSecondary>
+                  <Text bold>{decimals}</Text>
+                </FlexRow>
+                {ticker ? (
+                  <FlexRow between>
+                    <TextSecondary>Ticker</TextSecondary>
+                    <Text bold>{ticker}</Text>
+                  </FlexRow>
+                ) : null}
+              </FlexCol>
+            </Shadow>
           </FlexCol>
         </Padded>
       </Content>
