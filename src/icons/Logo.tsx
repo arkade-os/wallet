@@ -148,7 +148,7 @@ export default function LogoIcon({ small }: { small?: boolean }) {
       role='button'
       tabIndex={0}
       onKeyDown={() => {}}
-      style={{ cursor: 'pointer', width: size, height: size }}
+      style={{ cursor: 'pointer', width: size, height: size, padding: 8, margin: -8 }}
     >
       <svg width={size} height={size} viewBox='0 0 35 35' fill='none' xmlns='http://www.w3.org/2000/svg'>
         {/* Original SVG paths — visible when settled, fading in during revert */}
