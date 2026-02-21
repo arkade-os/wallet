@@ -181,10 +181,25 @@ export default function SendForm() {
         return setRecipient(url.searchParams.get('lightning')!)
       }
       if (isBip21(lowerCaseData)) {
-        const { address, arkAddress, invoice, satoshis, assetId, assetAmount } = decodeBip21(lowerCaseData)
+        const { address, arkAddress, invoice, satoshis, assetId, assetAmount } = decodeBip21(recipient.trim())
         if (!address && !arkAddress && !invoice) return setError('Unable to parse bip21')
-        const assets = assetId ? [{ assetId, amount: assetAmount ?? 0 }] : sendInfo.assets
-        return setState({ address, arkAddress, invoice, recipient, satoshis, assets })
+        if (assetId) {
+          const found = assetOptions.find((a) => a.assetId === assetId)
+          if (found) setSelectedAsset(found)
+          const decimals = found?.decimals ?? 8
+          const rawAmount =
+            assetAmount != null ? Decimal.mul(assetAmount, Math.pow(10, decimals)).floor().toNumber() : 0
+          if (assetAmount != null) setAssetAmount(String(assetAmount))
+          return setState({
+            address,
+            arkAddress,
+            invoice,
+            recipient,
+            satoshis: 0,
+            assets: [{ assetId, amount: rawAmount }],
+          })
+        }
+        return setState({ address, arkAddress, invoice, recipient, satoshis, assets: sendInfo.assets })
       }
       if (isArkAddress(lowerCaseData)) {
         return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })

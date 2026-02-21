@@ -79,7 +79,7 @@ export default function AppLendaswap() {
           switch (asset) {
             case 'bitcoin':
               if (isArkAddress(address)) {
-                const txId = await svcWallet?.sendBitcoin({ amount, address })
+                const txId = await svcWallet?.send({ amount, address })
                 if (txId) {
                   return txId
                 } else {

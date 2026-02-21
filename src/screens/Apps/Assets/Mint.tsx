@@ -103,7 +103,12 @@ export default function AppAssetMint() {
         updateConfig({ ...config, importedAssets: [...config.importedAssets, newAssetId] })
       }
 
-      const assetDetails = { assetId: newAssetId, supply: rawAmount, metadata }
+      const assetDetails = {
+        assetId: newAssetId,
+        supply: rawAmount,
+        metadata,
+        controlAssetId: controlAssetId || undefined,
+      }
       setCacheEntry(newAssetId, assetDetails)
       setAssetInfo({ assetId: newAssetId, details: assetDetails })
       navigate(Pages.AppAssetMintSuccess)
@@ -129,7 +134,7 @@ export default function AppAssetMint() {
 
             <Shadow border>
               <FlexRow between padding='0.75rem'>
-                <FlexRow>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
                   <AssetAvatar
                     icon={iconUrl && !iconError ? iconUrl : undefined}
                     ticker={ticker}
@@ -142,7 +147,7 @@ export default function AppAssetMint() {
                       {ticker || 'TKN'}
                     </Text>
                   </FlexCol>
-                </FlexRow>
+                </div>
                 <Text>{amount || '0'}</Text>
               </FlexRow>
             </Shadow>

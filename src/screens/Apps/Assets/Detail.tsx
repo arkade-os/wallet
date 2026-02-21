@@ -25,31 +25,38 @@ export default function AppAssetDetail() {
   const { assetBalances, svcWallet, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
 
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [details, setDetails] = useState<AssetDetails | null>(null)
 
   const assetId = assetInfo.assetId ?? ''
   const balance = assetBalances.find((a) => a.assetId === assetId)?.amount ?? 0
 
-  useEffect(() => {
-    const load = async () => {
-      if (!svcWallet || !assetId) return
+  const fetchDetails = async (forceRefresh = false) => {
+    if (!svcWallet || !assetId) return
 
-      let cached = assetMetadataCache.get(assetId)
-      if (!cached) {
-        try {
-          cached = await svcWallet.assetManager.getAssetDetails(assetId)
-          if (cached) setCacheEntry(assetId, cached)
-        } catch (err) {
-          consoleError(err, 'error loading asset details')
-        }
+    let cached: AssetDetails | undefined = forceRefresh ? undefined : assetMetadataCache.get(assetId)
+    if (!cached) {
+      try {
+        cached = await svcWallet.assetManager.getAssetDetails(assetId)
+        if (cached) setCacheEntry(assetId, cached)
+      } catch (err) {
+        consoleError(err, 'error loading asset details')
       }
-
-      setDetails(cached ?? null)
-      setAssetInfo({ assetId, details: cached })
-      setLoading(false)
     }
-    load()
+
+    setDetails(cached ?? null)
+    setAssetInfo({ assetId, details: cached })
+  }
+
+  useEffect(() => {
+    fetchDetails().then(() => setLoading(false))
   }, [svcWallet, assetId])
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await fetchDetails(true)
+    setRefreshing(false)
+  }
 
   if (loading) return <Loading text='Loading asset...' />
 
@@ -112,11 +119,31 @@ export default function AppAssetDetail() {
               <Text copy={assetId} color='dark50' smaller centered>
                 {truncateId(assetId)}
               </Text>
-              <TextSecondary centered>Asset ID (tap to copy)</TextSecondary>
+              <FlexRow gap='0.25rem' centered>
+                <TextSecondary centered>Asset ID (tap to copy)</TextSecondary>
+                <span
+                  onClick={handleRefresh}
+                  style={{
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    color: 'var(--dark50)',
+                    opacity: refreshing ? 0.5 : 1,
+                    transition: 'opacity 0.2s',
+                  }}
+                >
+                  {refreshing ? '...' : '\u21BB'}
+                </span>
+              </FlexRow>
             </FlexCol>
 
             <Shadow lighter>
               <FlexCol gap='0.5rem' padding='0.75rem'>
+                {name !== 'Unknown Asset' ? (
+                  <FlexRow between>
+                    <TextSecondary>Name</TextSecondary>
+                    <Text bold>{name}</Text>
+                  </FlexRow>
+                ) : null}
                 <FlexRow between>
                   <TextSecondary>Supply</TextSecondary>
                   <Text bold>{typeof supply === 'number' ? formatAssetAmount(supply, decimals) : 'Unknown'}</Text>
@@ -134,10 +161,21 @@ export default function AppAssetDetail() {
                 {controlAssetId ? (
                   <FlexRow between>
                     <TextSecondary>Control Asset</TextSecondary>
-                    <Text bold copy={controlAssetId}>
-                      {assetMetadataCache.get(controlAssetId)?.metadata?.name ??
-                        `${controlAssetId.slice(0, 8)}...${controlAssetId.slice(-8)}`}
-                    </Text>
+                    <FlexRow gap='0.25rem' end>
+                      {(() => {
+                        const ctrl = assetMetadataCache.get(controlAssetId)?.metadata
+                        const ctrlName = ctrl?.name ?? `${controlAssetId.slice(0, 8)}...${controlAssetId.slice(-8)}`
+                        const label = ctrl?.ticker ? `${ctrlName} (${ctrl.ticker})` : ctrlName
+                        return (
+                          <>
+                            <AssetAvatar icon={ctrl?.icon} ticker={ctrl?.ticker} size={20} />
+                            <Text bold copy={controlAssetId}>
+                              {label}
+                            </Text>
+                          </>
+                        )
+                      })()}
+                    </FlexRow>
                   </FlexRow>
                 ) : null}
               </FlexCol>
@@ -150,8 +188,10 @@ export default function AppAssetDetail() {
           <Button label='Send' onClick={handleSend} disabled={balance === 0} />
           <Button label='Receive' onClick={handleReceive} />
         </FlexRow>
-        {holdsControlAsset ? <Button label='Reissue' onClick={handleReissue} secondary /> : null}
-        {balance > 0 ? <Button label='Burn' onClick={handleBurn} secondary /> : null}
+        <FlexRow gap='0.5rem'>
+          <Button label='Reissue' onClick={handleReissue} secondary disabled={!holdsControlAsset} />
+          {balance > 0 ? <Button label='Burn' onClick={handleBurn} secondary /> : null}
+        </FlexRow>
         {canRemove ? <Button label='Remove' onClick={handleRemove} secondary /> : null}
       </ButtonsOnBottom>
     </>

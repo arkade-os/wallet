@@ -231,12 +231,8 @@ export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<voi
   }
 }
 
-export const sendOffChain = async (wallet: IWallet, sats: number, address: string): Promise<string> => {
-  return wallet.sendBitcoin({ address, amount: sats })
-}
-
-export const sendOnChain = async (wallet: IWallet, sats: number, address: string): Promise<string> => {
-  return wallet.sendBitcoin({ address, amount: sats })
+export const sendOffChain = async (wallet: IWallet, amount: number, address: string): Promise<string> => {
+  return wallet.send({ address, amount })
 }
 
 export const getInputsToSettle = async (
