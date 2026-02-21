@@ -2,7 +2,8 @@ import { useContext, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
-import { prettyAmount, prettyDate, prettyHide } from '../lib/format'
+import { formatAssetAmount, prettyAmount, prettyDate, prettyHide } from '../lib/format'
+import AssetAvatar from './AssetAvatar'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
 import FlexRow from './FlexRow'
@@ -18,6 +19,7 @@ const border = '1px solid var(--dark20)'
 const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   const { config } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
+  const { assetMetadataCache } = useContext(WalletContext)
 
   const prefix = tx.type === 'sent' ? '-' : '+'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount) : prettyHide(tx.amount)}`
@@ -61,6 +63,29 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
     </Text>
   )
 
+  const AssetInfo = () => {
+    if (!tx.assets?.length) return null
+    const color = tx.type === 'received' ? 'green' : ''
+    return (
+      <>
+        {tx.assets.map((a) => {
+          const meta = assetMetadataCache.get(a.assetId)?.metadata
+          const ticker = meta?.ticker
+          const icon = meta?.icon
+          const decimals = meta?.decimals ?? 8
+          return (
+            <FlexRow key={a.assetId} gap='0.25rem' end>
+              <AssetAvatar icon={icon} ticker={ticker} size={16} />
+              <Text color={color} smaller>
+                {formatAssetAmount(a.amount, decimals)} {ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}
+              </Text>
+            </FlexRow>
+          )
+        })}
+      </>
+    )
+  }
+
   const rowStyle = {
     alignItems: 'center',
     borderTop: border,
@@ -90,6 +115,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
           <Fiat />
         </>
       )}
+      <AssetInfo />
     </div>
   )
 

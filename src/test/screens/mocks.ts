@@ -43,10 +43,13 @@ export const mockConfigContextValue = {
   config: {
     currencyDisplay: CurrencyDisplay.Both,
     fiat: Fiats.EUR,
+    importedAssets: [],
     nostrBackup: true,
     notifications: true,
+    showBalance: true,
     theme: Themes.Dark,
   },
+  updateConfig: () => {},
   useFiat: false,
 }
 
@@ -98,6 +101,9 @@ export const mockWalletContextValue = {
   svcWallet: undefined,
   isLocked: () => Promise.resolve(true),
   balance: 0,
+  assetBalances: [],
+  assetMetadataCache: new Map(),
+  setCacheEntry: () => {},
   txs: [mockTxInfo],
   vtxos: { spendable: [], spent: [] },
 }
@@ -115,6 +121,10 @@ export const mockFlowContextValue = {
   setSendInfo: () => {},
   setSwapInfo: () => {},
   setTxInfo: () => {},
+  assetInfo: { assetId: undefined, details: undefined },
+  setAssetInfo: () => {},
+  deepLinkInfo: undefined,
+  setDeepLinkInfo: () => {},
 }
 
 export const mockLimitsContextValue = {

@@ -1,5 +1,12 @@
 import { ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react'
-import { clearStorage, readWalletFromStorage, saveWalletToStorage } from '../lib/storage'
+import {
+  clearStorage,
+  readWalletFromStorage,
+  saveWalletToStorage,
+  saveAssetMetadataToStorage,
+  readAssetMetadataFromStorage,
+  CachedAssetDetails,
+} from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
 import { getBalance, getTxHistory, getVtxos, renewCoins, settleVtxos } from '../lib/asp'
@@ -9,13 +16,15 @@ import { FlowContext } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
-import { Tx, Vtxo, Wallet } from '../lib/types'
+import { AssetBalance, Tx, Vtxo, Wallet } from '../lib/types'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
-import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey } from '@arkade-os/sdk'
+import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey, AssetDetails } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
 import { maxPercentage } from '../lib/constants'
+
+const ASSET_METADATA_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
 const defaultWallet: Wallet = {
   network: '',
@@ -36,6 +45,9 @@ interface WalletContextProps {
   txs: Tx[]
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: number
+  assetBalances: AssetBalance[]
+  assetMetadataCache: Map<string, AssetDetails>
+  setCacheEntry: (assetId: string, details: AssetDetails) => void
   initialized?: boolean
 }
 
@@ -51,6 +63,9 @@ export const WalletContext = createContext<WalletContextProps>({
   svcWallet: undefined,
   isLocked: () => Promise.resolve(true),
   balance: 0,
+  assetBalances: [],
+  assetMetadataCache: new Map(),
+  setCacheEntry: () => {},
   txs: [],
   vtxos: { spendable: [], spent: [] },
 })
@@ -69,8 +84,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [initialized, setInitialized] = useState<boolean>(false)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
+  const [assetBalances, setAssetBalances] = useState<AssetBalance[]>([])
 
   const listeningForServiceWorker = useRef(false)
+  const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
+
+  const setCacheEntry = (assetId: string, details: AssetDetails) => {
+    const entry: CachedAssetDetails = { ...details, cachedAt: Date.now() }
+    assetMetadataCache.current.set(assetId, entry)
+    saveAssetMetadataToStorage(assetMetadataCache.current)
+  }
 
   // read wallet from storage
   useEffect(() => {
@@ -148,8 +171,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     try {
       const vtxos = await getVtxos(swWallet)
       const txs = await getTxHistory(swWallet)
-      const balance = await getBalance(swWallet)
-      setBalance(balance)
+      const { total, assets } = await getBalance(swWallet)
+      // prefetch asset metadata before triggering re-renders
+      for (const ab of assets) {
+        const cached = assetMetadataCache.current.get(ab.assetId)
+        if (cached && Date.now() - cached.cachedAt < ASSET_METADATA_TTL_MS) continue
+        try {
+          const meta = await swWallet.assetManager.getAssetDetails(ab.assetId)
+          if (meta) setCacheEntry(ab.assetId, meta)
+        } catch (err) {
+          consoleError(err, `error prefetching metadata for ${ab.assetId}`)
+        }
+      }
+      setBalance(total)
+      setAssetBalances(assets)
       setVtxos(vtxos)
       setTxs(txs)
     } catch (err) {
@@ -315,6 +350,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         lockWallet,
         txs,
         balance,
+        assetBalances,
+        assetMetadataCache: assetMetadataCache.current,
+        setCacheEntry,
         reloadWallet,
         vtxos: vtxos ?? { spendable: [], spent: [] },
       }}

@@ -1,4 +1,41 @@
 import type { Page } from '@playwright/test'
+import { exec } from 'child_process'
+
+interface MintAssetOptions {
+  amount: number
+  name: string
+  ticker: string
+  decimals?: number
+}
+
+export async function navigateToAssets(page: Page): Promise<void> {
+  await page.getByTestId('tab-apps').click()
+  await page.getByTestId('app-assets').click()
+  await page.waitForSelector('text=Assets', { state: 'visible' })
+}
+
+export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<void> {
+  await navigateToAssets(page)
+  await page.getByText('Mint', { exact: true }).click()
+  await page.waitForSelector('text=Mint Asset', { state: 'visible' })
+
+  // fill amount
+  await page.locator('input[placeholder="1000"]').fill(opts.amount.toString())
+  // fill name
+  await page.locator('input[placeholder="My Token"]').fill(opts.name)
+  // fill ticker
+  await page.locator('input[placeholder="TKN"]').fill(opts.ticker)
+  // fill decimals if provided
+  if (opts.decimals !== undefined) {
+    const decimalsInput = page.locator('input[placeholder="8"]')
+    await decimalsInput.clear()
+    await decimalsInput.fill(opts.decimals.toString())
+  }
+
+  // submit
+  await page.getByText('Mint', { exact: true }).click()
+  await page.waitForSelector('text=Asset minted!', { state: 'visible', timeout: 30000 })
+}
 
 export async function createWallet(page: Page): Promise<void> {
   await page.goto('/')
@@ -111,6 +148,13 @@ async function restoreWallet(page: Page, nsec: string): Promise<void> {
   await page.getByText('Continue').click()
   await page.getByText('Go to wallet').click()
   await page.getByText('Maybe later').click()
+}
+
+export async function fundWallet(page: Page, amount: number = 5000): Promise<void> {
+  const arkAddress = await receiveOffchain(page)
+  exec(`docker exec -t arkd ark send --to ${arkAddress} --amount ${amount} --password secret`)
+  await waitForPaymentReceived(page)
+  await page.getByTestId('tab-wallet').click()
 }
 
 export async function resetAndRestoreWallet(page: Page): Promise<void> {

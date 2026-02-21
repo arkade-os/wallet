@@ -5,7 +5,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
-import { prettyAgo, prettyDate } from '../../lib/format'
+import { formatAssetAmount, prettyAgo, prettyDate } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
 import ErrorMessage from '../../components/Error'
 import { extractError } from '../../lib/error'
@@ -13,9 +13,11 @@ import Header from '../../components/Header'
 import Content from '../../components/Content'
 import Info from '../../components/Info'
 import FlexCol from '../../components/FlexCol'
+import FlexRow from '../../components/FlexRow'
 import WaitingForRound from '../../components/WaitingForRound'
 import { sleep } from '../../lib/sleep'
 import Text, { TextSecondary } from '../../components/Text'
+import AssetAvatar from '../../components/AssetAvatar'
 import Details, { DetailsProps } from '../../components/Details'
 import VtxosIcon from '../../icons/Vtxos'
 import CheckMarkIcon from '../../icons/CheckMark'
@@ -29,7 +31,7 @@ export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { settlePreconfirmed, vtxos, wallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, settlePreconfirmed, vtxos, wallet, svcWallet } = useContext(WalletContext)
 
   const tx = txInfo
   const boardingTx = Boolean(tx?.boardingTxid)
@@ -144,6 +146,32 @@ export default function Transaction() {
             <Info color='green' icon={<CheckMarkIcon small />} title='Success'>
               <TextSecondary>Transaction settled successfully</TextSecondary>
             </Info>
+          ) : null}
+          {tx.assets?.length ? (
+            <FlexCol gap='0.5rem'>
+              {tx.assets.map((a) => {
+                const meta = assetMetadataCache.get(a.assetId)?.metadata
+                const ticker = meta?.ticker
+                const name = meta?.name
+                const icon = meta?.icon
+                const decimals = meta?.decimals ?? 8
+                const color = tx.type === 'received' ? 'green' : ''
+                const prefix = tx.type === 'received' ? '+ ' : '- '
+                const label = ticker ?? name ?? `${a.assetId.slice(0, 8)}...`
+                return (
+                  <FlexRow key={a.assetId} gap='0.5rem'>
+                    <AssetAvatar icon={icon} ticker={ticker} size={32} />
+                    <FlexCol gap='0'>
+                      <Text color={color}>
+                        {prefix}
+                        {formatAssetAmount(a.amount, decimals)} {label}
+                      </Text>
+                      {name && ticker ? <TextSecondary>{name}</TextSecondary> : null}
+                    </FlexCol>
+                  </FlexRow>
+                )
+              })}
+            </FlexCol>
           ) : null}
           <Details details={details} />
         </FlexCol>

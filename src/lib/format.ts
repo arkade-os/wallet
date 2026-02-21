@@ -87,6 +87,11 @@ export const prettyNumber = (num?: number, maximumFractionDigits = 8, useGroupin
   return new Intl.NumberFormat('en', { style: 'decimal', maximumFractionDigits, useGrouping }).format(num)
 }
 
+export const formatAssetAmount = (amount: number, decimals: number): string => {
+  if (decimals === 0) return prettyNumber(amount, 0)
+  return prettyNumber(Decimal.div(amount, Math.pow(10, decimals)).toNumber(), decimals)
+}
+
 export const toUint8Array = (str: string): Uint8Array => {
   return new TextEncoder().encode(str)
 }

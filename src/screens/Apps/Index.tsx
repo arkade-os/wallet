@@ -7,6 +7,7 @@ import FlexCol from '../../components/FlexCol'
 import Text from '../../components/Text'
 import Shadow from '../../components/Shadow'
 import FujiMoneyIcon from '../../icons/FujiMoney'
+import AssetsIcon from '../../icons/Assets'
 import BoltzIcon from '../../icons/Boltz'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import LendasatIcon from './Lendasat/LendasatIcon'
@@ -95,6 +96,14 @@ export default function Apps() {
       <Content>
         <Padded>
           <FlexCol>
+            <App
+              name='Assets'
+              icon={<AssetsIcon />}
+              desc='Issue, manage, send, and receive assets on Arkade'
+              page={Pages.AppAssets}
+              live
+            />
+
             <App
               name='Boltz'
               icon={<BoltzIcon />}

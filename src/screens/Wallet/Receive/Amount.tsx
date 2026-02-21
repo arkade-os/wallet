@@ -31,6 +31,7 @@ export default function ReceiveAmount() {
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
+  const isAssetReceive = Boolean(recvInfo.assetId)
   const { calcReverseSwapFee } = useContext(LightningContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, validLnSwap } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
@@ -78,9 +79,9 @@ export default function ReceiveAmount() {
         ? defaultButtonLabel
         : satoshis < 1
           ? 'Amount below 1 satoshi'
-          : amountIsAboveMaxLimit(satoshis)
+          : !isAssetReceive && amountIsAboveMaxLimit(satoshis)
             ? 'Amount above max limit'
-            : amountIsBelowMinLimit(satoshis)
+            : !isAssetReceive && amountIsBelowMinLimit(satoshis)
               ? 'Amount below min limit'
               : 'Continue',
     )
@@ -120,14 +121,14 @@ export default function ReceiveAmount() {
     navigate(Pages.ReceiveQRCode)
   }
 
-  const showFaucetButton = balance === 0 && faucetAvailable
-  const showLightningFees = satoshis && validLnSwap(satoshis)
+  const showFaucetButton = balance === 0 && faucetAvailable && !isAssetReceive
+  const showLightningFees = satoshis && validLnSwap(satoshis) && !isAssetReceive
   const reverseSwapFee = calcReverseSwapFee(satoshis)
   const lightningFeeText = `Lightning fees: ${prettyAmount(reverseSwapFee)}`
 
   const disabled = !satoshis
     ? false
-    : satoshis < 1 || amountIsAboveMaxLimit(satoshis) || amountIsBelowMinLimit(satoshis)
+    : satoshis < 1 || (!isAssetReceive && (amountIsAboveMaxLimit(satoshis) || amountIsBelowMinLimit(satoshis)))
 
   if (showKeys) {
     return <Keyboard back={() => setShowKeys(false)} hideBalance onSats={handleChange} value={satoshis} />
@@ -158,7 +159,7 @@ export default function ReceiveAmount() {
 
   return (
     <>
-      <Header text='Receive' back={() => navigate(Pages.Wallet)} />
+      <Header text={isAssetReceive ? 'Receive Asset' : 'Receive'} back={() => navigate(Pages.Wallet)} />
       <Content>
         <Padded>
           <FlexCol>

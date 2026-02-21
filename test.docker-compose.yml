@@ -43,7 +43,7 @@ services:
         condition: service_healthy
   arkd-wallet:
     restart: unless-stopped
-    image: ghcr.io/arkade-os/arkd-wallet:v0.8.11
+    image: ghcr.io/arkade-os/arkd-wallet:v0.9.0-rc.1
     container_name: arkd-wallet
     depends_on:
       - nbxplorer
@@ -59,7 +59,7 @@ services:
       - type: tmpfs
         target: /app/data
   arkd:
-    image: ghcr.io/arkade-os/arkd:v0.8.11
+    image: ghcr.io/arkade-os/arkd:v0.9.0-rc.1
     container_name: arkd
     restart: unless-stopped
     depends_on:

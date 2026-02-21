@@ -1,10 +1,13 @@
+import { AssetDetails } from '@arkade-os/sdk'
 import { Config, Wallet } from '../lib/types'
 
 // clear localStorage but persist config
 export async function clearStorage(): Promise<void> {
   const config = readConfigFromStorage()
+  const assetMeta = readAssetMetadataFromStorage()
   localStorage.clear()
   if (config) saveConfigToStorage(config)
+  if (assetMeta) saveAssetMetadataToStorage(assetMeta)
 }
 
 export const getStorageItem = <T>(key: string, fallback: T, parser: (val: string) => T): T => {
@@ -34,4 +37,21 @@ export const saveWalletToStorage = (wallet: Wallet): void => {
 
 export const readWalletFromStorage = (): Wallet | undefined => {
   return getStorageItem('wallet', undefined, (val) => JSON.parse(val))
+}
+
+export type CachedAssetDetails = AssetDetails & { cachedAt: number }
+
+export const saveAssetMetadataToStorage = (cache: Map<string, CachedAssetDetails>): void => {
+  const obj: Record<string, CachedAssetDetails> = {}
+  cache.forEach((v, k) => {
+    obj[k] = v
+  })
+  setStorageItem('assetMetadataCache', JSON.stringify(obj))
+}
+
+export const readAssetMetadataFromStorage = (): Map<string, CachedAssetDetails> | undefined => {
+  return getStorageItem('assetMetadataCache', undefined, (val) => {
+    const obj = JSON.parse(val) as Record<string, CachedAssetDetails>
+    return new Map(Object.entries(obj))
+  })
 }
