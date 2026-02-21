@@ -58,7 +58,7 @@ export default function ReceiveQRCode() {
 
   useEffect(() => {
     // if boltz is available and amount is between limits, let's create a swap invoice
-    if (!isAssetReceive && validLnSwap(satoshis) && wallet && svcWallet && arkadeLightning) {
+    if (!isAssetReceive && satoshis > 0 && wallet && svcWallet && arkadeLightning) {
       createReverseSwap(satoshis)
         .then((pendingSwap) => {
           if (!pendingSwap) throw new Error('Failed to create reverse swap')

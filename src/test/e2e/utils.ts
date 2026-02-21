@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test'
+import { exec } from 'child_process'
 
 interface MintAssetOptions {
   amount: number
@@ -15,7 +16,7 @@ export async function navigateToAssets(page: Page): Promise<void> {
 
 export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<void> {
   await navigateToAssets(page)
-  await page.getByText('Mint').click()
+  await page.getByText('Mint', { exact: true }).click()
   await page.waitForSelector('text=Mint Asset', { state: 'visible' })
 
   // fill amount
@@ -147,6 +148,13 @@ async function restoreWallet(page: Page, nsec: string): Promise<void> {
   await page.getByText('Continue').click()
   await page.getByText('Go to wallet').click()
   await page.getByText('Maybe later').click()
+}
+
+export async function fundWallet(page: Page, amount: number = 5000): Promise<void> {
+  const arkAddress = await receiveOffchain(page)
+  exec(`docker exec -t arkd ark send --to ${arkAddress} --amount ${amount} --password secret`)
+  await waitForPaymentReceived(page)
+  await page.getByTestId('tab-wallet').click()
 }
 
 export async function resetAndRestoreWallet(page: Page): Promise<void> {
