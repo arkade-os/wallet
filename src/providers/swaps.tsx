@@ -54,7 +54,6 @@ interface SwapsContextProps {
   claimVHTLC: (swap: PendingReverseSwap) => Promise<void>
   refundVHTLC: (swap: PendingSubmarineSwap) => Promise<void>
   payInvoice: (swap: PendingSubmarineSwap) => Promise<{ txid: string; preimage: string }>
-  getFees: () => Promise<FeesResponse | null>
   // Other helper methods
   getSwapHistory: () => Promise<PendingSwap[]>
   restoreSwaps: () => Promise<number>
@@ -87,7 +86,6 @@ export const SwapsContext = createContext<SwapsContextProps>({
     throw new Error('Lightning not initialized')
   },
   getSwapHistory: async () => [],
-  getFees: async () => null,
   getApiUrl: () => null,
   restoreSwaps: async () => 0,
 })
@@ -298,13 +296,10 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const getSwapHistory = async (): Promise<PendingSwap[]> => {
-    if (!arkadeLightning) return []
-    return arkadeLightning.getSwapHistory()
-  }
-
-  const getFees = async (): Promise<FeesResponse | null> => {
-    if (!arkadeLightning) return null
-    return arkadeLightning.getFees()
+    const getLightningHistory = arkadeLightning ? arkadeLightning.getSwapHistory() : Promise.resolve([])
+    const getChainHistory = arkadeChainSwap ? arkadeChainSwap.getSwapHistory() : Promise.resolve([])
+    const [lightningHistory, chainHistory] = await Promise.all([getLightningHistory, getChainHistory])
+    return [...lightningHistory, ...chainHistory].sort((a, b) => b.createdAt - a.createdAt)
   }
 
   const getApiUrl = (): string | null => apiUrl
@@ -361,7 +356,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     return counter
   }
 
-  const swapManager = arkadeLightning?.getSwapManager() ?? null
+  const swapManager = arkadeLightning?.getSwapManager() ?? arkadeChainSwap?.getSwapManager() ?? null
 
   return (
     <SwapsContext.Provider
@@ -387,7 +382,6 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         payBtc,
         payInvoice,
         getSwapHistory,
-        getFees,
         getApiUrl,
         restoreSwaps,
       }}

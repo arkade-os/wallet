@@ -69,7 +69,6 @@ export const mockSwapsContextValue = {
     throw new Error('Lightning not initialized')
   },
   getSwapHistory: async () => [],
-  getFees: async () => null,
   getApiUrl: () => null,
   toggleConnection: () => {},
 }
