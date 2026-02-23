@@ -14,6 +14,7 @@ import '@ionic/react/css/display.css'
 
 import '@ionic/react/css/palettes/dark.class.css'
 
+import { AnimatePresence } from 'framer-motion'
 import { ConfigContext } from './providers/config'
 import { IonApp, IonPage, IonTab, IonTabBar, IonTabButton, IonTabs, setupIonicReact } from '@ionic/react'
 import { NavigationContext, pageComponent, Pages, Tabs } from './providers/navigation'
@@ -24,6 +25,7 @@ import { WalletContext } from './providers/wallet'
 import { FlowContext } from './providers/flow'
 import { SettingsOptions } from './lib/types'
 import { AspContext } from './providers/asp'
+import PageTransition from './components/PageTransition'
 import SettingsIcon from './icons/Settings'
 import Loading from './components/Loading'
 import { pwaIsInstalled } from './lib/pwa'
@@ -37,7 +39,7 @@ setupIonicReact()
 export default function App() {
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
-  const { navigate, screen, tab } = useContext(NavigationContext)
+  const { direction, navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
   const { walletLoaded, initialized, wallet } = useContext(WalletContext)
@@ -139,13 +141,31 @@ export default function App() {
         ) : (
           <IonTabs>
             <IonTab ref={walletRef} tab={Tabs.Wallet}>
-              {tab === Tabs.Wallet ? comp : <></>}
+              <AnimatePresence mode='popLayout' initial={false}>
+                {tab === Tabs.Wallet && (
+                  <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                    {comp}
+                  </PageTransition>
+                )}
+              </AnimatePresence>
             </IonTab>
             <IonTab ref={appsRef} tab={Tabs.Apps}>
-              {tab === Tabs.Apps ? comp : <></>}
+              <AnimatePresence mode='popLayout' initial={false}>
+                {tab === Tabs.Apps && (
+                  <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                    {comp}
+                  </PageTransition>
+                )}
+              </AnimatePresence>
             </IonTab>
             <IonTab ref={settingsRef} tab={Tabs.Settings}>
-              {tab === Tabs.Settings ? comp : <></>}
+              <AnimatePresence mode='popLayout' initial={false}>
+                {tab === Tabs.Settings && (
+                  <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                    {comp}
+                  </PageTransition>
+                )}
+              </AnimatePresence>
             </IonTab>
             <IonTabBar slot='bottom'>
               <IonTabButton tab={Tabs.Wallet} onClick={handleWallet} selected={tab === Tabs.Wallet}>

@@ -203,3 +203,10 @@ button.reminder-button.action-sheet-button {
     animation: none !important;
   }
 }
+
+/* Page transition container for animated sub-page navigation */
+.page-transition-container {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
