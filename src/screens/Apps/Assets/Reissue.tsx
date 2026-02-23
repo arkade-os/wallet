@@ -19,7 +19,7 @@ import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 import { Decimal } from 'decimal.js'
 import { formatAssetAmount } from '../../../lib/format'
-import { assetInputStyle } from '../../../lib/styles'
+import Input from '../../../components/Input'
 
 export default function AppAssetReissue() {
   const { navigate } = useContext(NavigationContext)
@@ -120,18 +120,7 @@ export default function AppAssetReissue() {
               </FlexRow>
             </Shadow>
 
-            <FlexCol gap='0.25rem'>
-              <Text smaller color='dark50'>
-                Additional Amount
-              </Text>
-              <input
-                style={assetInputStyle}
-                type='number'
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder='1000'
-              />
-            </FlexCol>
+            <Input label='Additional Amount' type='number' value={amount} onChange={setAmount} placeholder='1000' />
           </FlexCol>
         </Padded>
       </Content>

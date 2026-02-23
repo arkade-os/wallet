@@ -19,7 +19,7 @@ import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 import { Decimal } from 'decimal.js'
 import { formatAssetAmount } from '../../../lib/format'
-import { assetInputStyle } from '../../../lib/styles'
+import Input from '../../../components/Input'
 
 export default function AppAssetBurn() {
   const { navigate } = useContext(NavigationContext)
@@ -122,23 +122,18 @@ export default function AppAssetBurn() {
               </FlexRow>
             </Shadow>
 
-            <FlexCol gap='0.25rem'>
-              <FlexRow between>
-                <Text smaller color='dark50'>
-                  Amount to Burn
-                </Text>
+            <Input
+              label='Amount to Burn'
+              right={
                 <span onClick={handleMax} style={{ color: 'var(--purpletext)', fontSize: 13, cursor: 'pointer' }}>
                   Max
                 </span>
-              </FlexRow>
-              <input
-                style={assetInputStyle}
-                type='number'
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder={formatAssetAmount(balance, decimals)}
-              />
-            </FlexCol>
+              }
+              type='number'
+              value={amount}
+              onChange={setAmount}
+              placeholder={formatAssetAmount(balance, decimals)}
+            />
           </FlexCol>
         </Padded>
       </Content>

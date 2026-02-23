@@ -19,7 +19,7 @@ import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 import { Decimal } from 'decimal.js'
 import type { IssuanceParams, KnownMetadata } from '@arkade-os/sdk'
-import { assetInputStyle } from '../../../lib/styles'
+import Input from '../../../components/Input'
 
 interface KnownAssetOption {
   assetId: string
@@ -81,8 +81,8 @@ export default function AppAssetMint() {
       return
     }
     const parsedDecimals = decimals !== '' ? parseInt(decimals) : 0
-    if (!Number.isInteger(parsedDecimals) || parsedDecimals < 0) {
-      setError('Decimals must be a non-negative integer')
+    if (!Number.isInteger(parsedDecimals) || parsedDecimals < 0 || parsedDecimals > 8) {
+      setError('Decimals must be an integer between 0 and 8')
       return
     }
 
@@ -126,6 +126,24 @@ export default function AppAssetMint() {
 
   const selectedControl = knownAssets.find((a) => a.assetId === controlAssetId) ?? null
 
+  const parsedUnits = parseFloat(amount)
+  const parsedDecimals = decimals !== '' ? parseInt(decimals) : NaN
+  const disabledReason = !name
+    ? 'Enter a name'
+    : name.length > 40
+      ? 'Name must be 40 characters or less'
+      : !ticker
+        ? 'Enter a ticker'
+        : ticker.length > 8
+          ? 'Ticker must be 8 characters or less'
+          : !amount
+            ? 'Enter an amount'
+            : isNaN(parsedUnits) || parsedUnits <= 0
+              ? 'Amount must be a positive number'
+              : isNaN(parsedDecimals) || parsedDecimals < 0 || parsedDecimals > 8
+                ? 'Decimals must be 0–8'
+                : ''
+
   if (minting) return <Loading text='Minting asset...' />
 
   return (
@@ -156,57 +174,62 @@ export default function AppAssetMint() {
               </FlexRow>
             </Shadow>
 
-            <FlexCol gap='0.25rem'>
-              <Text smaller color='dark50'>
-                Amount *
-              </Text>
-              <input
-                style={assetInputStyle}
-                type='number'
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder='1000'
-              />
-            </FlexCol>
+            <FlexRow gap='0.5rem' alignItems='flex-end'>
+              <div style={{ flex: 1 }}>
+                <Input
+                  label='Name *'
+                  value={name}
+                  onChange={(v: string) => setName(v.slice(0, 40))}
+                  placeholder='My Token'
+                  maxLength={40}
+                />
+              </div>
+              <div style={{ minWidth: '6rem' }}>
+                <Input
+                  label='Ticker *'
+                  value={ticker}
+                  onChange={(v: string) => setTicker(v.slice(0, 8))}
+                  placeholder='TKN'
+                  maxLength={8}
+                />
+              </div>
+            </FlexRow>
 
-            <FlexCol gap='0.25rem'>
-              <Text smaller color='dark50'>
-                Name
-              </Text>
-              <input
-                style={assetInputStyle}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder='My Token'
-              />
-            </FlexCol>
+            <FlexRow gap='0.5rem' alignItems='flex-end'>
+              <div style={{ flex: 1 }}>
+                <Input label='Amount *' type='number' value={amount} onChange={setAmount} placeholder='1000' />
+              </div>
+              <div style={{ minWidth: '6rem' }}>
+                <Input
+                  label='Decimals'
+                  type='number'
+                  min='0'
+                  max='8'
+                  step='1'
+                  value={decimals}
+                  onChange={(v: string) => {
+                    if (v === '') {
+                      setDecimals('')
+                      return
+                    }
+                    const n = parseInt(v)
+                    if (!isNaN(n) && n >= 0 && n <= 8) setDecimals(String(n))
+                  }}
+                  placeholder='8'
+                />
+              </div>
+            </FlexRow>
 
-            <FlexCol gap='0.25rem'>
-              <Text smaller color='dark50'>
-                Ticker
-              </Text>
-              <input
-                style={assetInputStyle}
-                value={ticker}
-                onChange={(e) => setTicker(e.target.value.slice(0, 5))}
-                placeholder='TKN'
-              />
-            </FlexCol>
-
-            <FlexCol gap='0.25rem'>
-              <Text smaller color='dark50'>
-                Decimals
-              </Text>
-              <input
-                style={assetInputStyle}
-                type='number'
-                min='0'
-                step='1'
-                value={decimals}
-                onChange={(e) => setDecimals(e.target.value)}
-                placeholder='8'
-              />
-            </FlexCol>
+            <Input
+              label='Icon URL'
+              type='url'
+              value={iconUrl}
+              onChange={(v: string) => {
+                setIconUrl(v)
+                setIconError(false)
+              }}
+              placeholder='https://...'
+            />
 
             <FlexCol gap='0.25rem'>
               <Text smaller color='dark50'>
@@ -263,33 +286,18 @@ export default function AppAssetMint() {
                   </FlexCol>
                 </div>
               ) : null}
-              <input
-                style={assetInputStyle}
-                value={controlAssetId}
-                onChange={(e) => setControlAssetId(e.target.value)}
-                placeholder='Or paste asset ID...'
-              />
-            </FlexCol>
-
-            <FlexCol gap='0.25rem'>
-              <Text smaller color='dark50'>
-                Icon URL
-              </Text>
-              <input
-                style={assetInputStyle}
-                value={iconUrl}
-                onChange={(e) => {
-                  setIconUrl(e.target.value)
-                  setIconError(false)
-                }}
-                placeholder='https://...'
-              />
+              <Input value={controlAssetId} onChange={setControlAssetId} placeholder='Or paste asset ID...' />
             </FlexCol>
           </FlexCol>
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button label='Mint' onClick={handleMint} disabled={!amount} />
+        {disabledReason ? (
+          <Text centered smaller color='dark50'>
+            {disabledReason}
+          </Text>
+        ) : null}
+        <Button label='Mint' onClick={handleMint} disabled={Boolean(disabledReason)} />
       </ButtonsOnBottom>
     </>
   )

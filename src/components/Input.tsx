@@ -5,12 +5,34 @@ import { IonInput } from '@ionic/react'
 interface InputProps {
   focus?: boolean
   label?: string
+  max?: string
+  maxLength?: number
+  min?: string
   name?: string
   onChange: (arg0: any) => void
   onEnter?: () => void
+  placeholder?: string
+  right?: JSX.Element
+  step?: string
+  type?: 'text' | 'number' | 'url'
+  value?: string
 }
 
-export default function Input({ focus, label, name, onChange, onEnter }: InputProps) {
+export default function Input({
+  focus,
+  label,
+  max,
+  maxLength,
+  min,
+  name,
+  onChange,
+  onEnter,
+  placeholder,
+  right,
+  step,
+  type = 'text',
+  value,
+}: InputProps) {
   const firstRun = useRef(true)
   const input = useRef<HTMLIonInputElement>(null)
 
@@ -22,18 +44,24 @@ export default function Input({ focus, label, name, onChange, onEnter }: InputPr
   })
 
   const handleInput = (ev: Event) => {
-    const value = (ev.target as HTMLInputElement).value
-    onChange(value)
+    const v = (ev.target as HTMLInputElement).value
+    onChange(v)
   }
 
   return (
-    <InputContainer label={label}>
+    <InputContainer label={label} right={right}>
       <IonInput
+        max={max}
+        maxlength={maxLength}
+        min={min}
         name={name}
         onIonInput={handleInput}
         onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
+        placeholder={placeholder}
         ref={input}
-        type='text'
+        step={step}
+        type={type}
+        value={value}
       />
     </InputContainer>
   )
