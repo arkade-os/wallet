@@ -39,11 +39,16 @@ function getIosHapticLabel(): HTMLLabelElement | null {
 }
 
 function isIos(): boolean {
-  return /iPhone|iPad|iPod/.test(navigator.userAgent)
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent
+  const isAppleMobile = /iPhone|iPad|iPod/.test(ua)
+  const isIpadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
+  return isAppleMobile || isIpadOS
 }
 
 function triggerHaptic(durationMs: number): void {
   if (!enabled) return
+  if (typeof navigator === 'undefined') return
   if (isIos()) {
     const label = getIosHapticLabel()
     if (label) label.click()

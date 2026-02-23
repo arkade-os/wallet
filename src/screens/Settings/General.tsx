@@ -19,6 +19,7 @@ export default function General() {
 
   const Row = ({ option, value }: { option: SettingsOptions; value: string }) => (
     <Focusable
+      ariaLabel={`${option} settings`}
       onEnter={() => {
         hapticSubtle()
         setOption(option)
