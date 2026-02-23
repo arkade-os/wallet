@@ -12,8 +12,8 @@ export default defineConfig({
       exclude: ['src/test/**/*.ts', 'src/test/**/*.tsx'],
       cache: false,
     }),
-    basicSsl(),
-  ],
+    process.env.HTTPS === 'true' && basicSsl(),
+  ].filter(Boolean),
   server: {
     port: 3002,
     host: true,
