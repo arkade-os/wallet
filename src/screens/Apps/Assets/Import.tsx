@@ -5,16 +5,15 @@ import Content from '../../../components/Content'
 import ErrorMessage from '../../../components/Error'
 import FlexCol from '../../../components/FlexCol'
 import Header from '../../../components/Header'
-import InputAddress from '../../../components/InputAddress'
 import Loading from '../../../components/Loading'
 import Padded from '../../../components/Padded'
-import Scanner from '../../../components/Scanner'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
+import InputWithScanner from '../../../components/InputWithScanner'
 
 export default function AppAssetImport() {
   const { navigate } = useContext(NavigationContext)
@@ -25,9 +24,6 @@ export default function AppAssetImport() {
   const [assetId, setAssetId] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [scan, setScan] = useState(false)
-
-  const isValidAssetId = (id: string) => /^[0-9a-fA-F]{68}$/.test(id)
 
   const handleImport = async () => {
     if (!svcWallet) return
@@ -60,10 +56,6 @@ export default function AppAssetImport() {
     }
   }
 
-  if (scan) {
-    return <Scanner close={() => setScan(false)} label='Asset ID' onData={setAssetId} onError={setError} />
-  }
-
   if (loading) return <Loading text='Fetching asset details...' />
 
   return (
@@ -73,13 +65,12 @@ export default function AppAssetImport() {
         <Padded>
           <FlexCol>
             <ErrorMessage error={Boolean(error)} text={error} />
-            <InputAddress
+            <InputWithScanner
               name='asset-id'
               focus
               label='Asset ID'
               onChange={setAssetId}
               onEnter={handleImport}
-              openScan={() => setScan(true)}
               value={assetId}
             />
           </FlexCol>
@@ -90,4 +81,8 @@ export default function AppAssetImport() {
       </ButtonsOnBottom>
     </>
   )
+}
+
+function isValidAssetId(id: string) {
+  return /^[0-9a-fA-F]{68}$/.test(id)
 }
