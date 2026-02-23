@@ -2,6 +2,7 @@ import { IonText, useIonToast } from '@ionic/react'
 import { ReactNode } from 'react'
 import { copyToClipboard } from '../lib/clipboard'
 import { copiedToClipboard } from '../lib/toast'
+import { hapticSubtle } from '../lib/haptics'
 
 interface TextProps {
   big?: boolean
@@ -65,6 +66,7 @@ export default function Text({
 
   const handleClick = () => {
     if (!copy) return
+    hapticSubtle()
     copyToClipboard(copy)
     present(copiedToClipboard)
   }

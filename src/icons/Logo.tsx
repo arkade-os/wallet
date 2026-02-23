@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { hapticLight } from '../lib/haptics'
 
 // 8x8 grid on 35x35 viewBox — each cell is 4.375px
 const GRID = 8
@@ -94,6 +95,7 @@ export default function LogoIcon({ small }: { small?: boolean }) {
   }, [])
 
   const handleClick = useCallback(() => {
+    hapticLight()
     if (revertRef.current) clearTimeout(revertRef.current)
     if (settleRef.current) clearTimeout(settleRef.current)
 
