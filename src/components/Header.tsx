@@ -49,7 +49,7 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
         </div>
         <IonTitle
           className='ion-text-center'
-          style={heading ? { fontFamily: 'var(--heading-font)', letterSpacing: '-0.5px' } : undefined}
+          style={heading ? { fontFamily: 'var(--heading-font)', letterSpacing: '-0.5px', fontWeight: '500' } : undefined}
         >
           {text}
         </IonTitle>

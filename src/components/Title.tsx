@@ -1,9 +1,11 @@
+import type { CSSProperties } from 'react'
+
 interface TitleProps {
   text: string
 }
 
 export default function Title({ text }: TitleProps) {
-  const style: React.CSSProperties = {
+  const style: CSSProperties = {
     margin: '0',
     fontFamily: 'var(--heading-font)',
     fontSize: '24px',
