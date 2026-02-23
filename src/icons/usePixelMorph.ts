@@ -15,9 +15,11 @@ export function usePixelMorph(): UsePixelMorphResult {
   const [reverting, setReverting] = useState(false)
   const revertRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const settleRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const mountedRef = useRef(true)
 
   useEffect(() => {
     return () => {
+      mountedRef.current = false
       if (revertRef.current) clearTimeout(revertRef.current)
       if (settleRef.current) clearTimeout(settleRef.current)
     }
@@ -37,19 +39,11 @@ export function usePixelMorph(): UsePixelMorphResult {
     if (revertRef.current) clearTimeout(revertRef.current)
     if (settleRef.current) clearTimeout(settleRef.current)
 
-    if (reverting) {
-      setReverting(false)
+    if (reverting || settled) {
+      if (reverting) setReverting(false)
       setSettled(false)
       requestAnimationFrame(() => {
-        setShapeIdx(1)
-        revertRef.current = setTimeout(startRevert, REVERT_DELAY)
-      })
-      return
-    }
-
-    if (settled) {
-      setSettled(false)
-      requestAnimationFrame(() => {
+        if (!mountedRef.current) return
         setShapeIdx(1)
         revertRef.current = setTimeout(startRevert, REVERT_DELAY)
       })

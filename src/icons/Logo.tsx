@@ -23,7 +23,12 @@ export default function LogoIcon({ small }: { small?: boolean }) {
       onClick={advance}
       role='button'
       tabIndex={0}
-      onKeyDown={() => {}}
+      onKeyDown={(e) => {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault()
+          advance()
+        }
+      }}
       style={{ cursor: 'pointer', width: size, height: size }}
     >
       <svg width={size} height={size} viewBox='0 0 35 35' fill='none' xmlns='http://www.w3.org/2000/svg'>
