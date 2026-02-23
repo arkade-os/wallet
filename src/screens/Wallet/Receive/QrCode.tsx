@@ -47,8 +47,11 @@ export default function ReceiveQRCode() {
 
   // set the QR code value to the bip21uri the first time
   useEffect(() => {
-    setBip21uri(bip21uri)
-    setQrValue(bip21uri)
+    const uri = isAssetReceive
+      ? encodeBip21Asset(offchainAddr, assetId, satoshis)
+      : encodeBip21(address, arkAddress, invoice, satoshis)
+    setBip21uri(uri)
+    setQrValue(uri)
     if (invoice || isAssetReceive) setShowQrCode(true)
   }, [invoice])
 
