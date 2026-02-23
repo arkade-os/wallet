@@ -35,7 +35,7 @@ export default function Balance({ amount }: BalanceProps) {
         My balance
       </Text>
       <FlexRow>
-        <Text bigger heading bold>
+        <Text bigger heading medium>
           {mainBalance}
         </Text>
         <div style={{ paddingTop: ' 0.75rem' }}>

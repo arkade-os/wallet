@@ -48,7 +48,7 @@ function AlertBox({ children, icon, onClick, onDismiss }: AlertBoxProps) {
 
 function AlertText({ children }: { children: React.ReactNode }) {
   return (
-    <Text color='black' bold smaller wrap heading>
+    <Text color='black' medium smaller wrap heading>
       {children}
     </Text>
   )

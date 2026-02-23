@@ -120,7 +120,7 @@ export default function Announcement({
         </FlexCol>
         <FlexCol centered gap='0.5rem'>
           <Tag text={title} />
-          <Text big bold centered wrap heading>
+          <Text big medium centered wrap heading>
             {message}
           </Text>
         </FlexCol>

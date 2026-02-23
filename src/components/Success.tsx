@@ -12,7 +12,7 @@ export default function Success({ headline, text }: SuccessProps) {
     <CenterScreen>
       <SuccessIcon />
       {headline ? (
-        <Text centered big bold heading>
+        <Text centered big medium heading>
           {headline}
         </Text>
       ) : null}

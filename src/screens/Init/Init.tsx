@@ -44,7 +44,7 @@ export default function Init() {
         <CenterScreen>
           <WalletNewIcon />
           <FlexCol centered gap='0'>
-            <Text bigger heading bold>
+            <Text bigger heading medium>
               Arkade Wallet
             </Text>
           </FlexCol>
