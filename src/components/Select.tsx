@@ -37,7 +37,10 @@ export default function Select({ labels, onChange, options, selected }: SelectPr
             between
             testId={`select-option-${index}`}
             key={option}
-            onClick={() => { hapticSubtle(); onChange(option) }}
+            onClick={() => {
+              hapticSubtle()
+              onChange(option)
+            }}
             padding='0.8rem 0'
           >
             <Text thin>{labels?.[index] ?? option}</Text>

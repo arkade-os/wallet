@@ -18,8 +18,20 @@ export default function General() {
   const { setOption } = useContext(OptionsContext)
 
   const Row = ({ option, value }: { option: SettingsOptions; value: string }) => (
-    <Focusable onEnter={() => { hapticSubtle(); setOption(option) }}>
-      <FlexRow between padding='0.8rem 0' onClick={() => { hapticSubtle(); setOption(option) }}>
+    <Focusable
+      onEnter={() => {
+        hapticSubtle()
+        setOption(option)
+      }}
+    >
+      <FlexRow
+        between
+        padding='0.8rem 0'
+        onClick={() => {
+          hapticSubtle()
+          setOption(option)
+        }}
+      >
         <Text capitalize thin>
           {option}
         </Text>
@@ -39,7 +51,10 @@ export default function General() {
       <Content>
         <Padded>
           <FlexCol gap='0'>
-            <Row option={SettingsOptions.Theme} value={config.theme === Themes.Auto ? `Auto (${systemTheme})` : config.theme} />
+            <Row
+              option={SettingsOptions.Theme}
+              value={config.theme === Themes.Auto ? `Auto (${systemTheme})` : config.theme}
+            />
             <hr style={{ backgroundColor: 'var(--dark20)', width: '100%' }} />
             <Row option={SettingsOptions.Fiat} value={config.fiat} />
             <hr style={{ backgroundColor: 'var(--dark20)', width: '100%' }} />

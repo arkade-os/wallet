@@ -33,9 +33,21 @@ export default function Menu({ rows, styled }: MenuProps) {
   return (
     <FlexCol gap='0'>
       {rows.map(({ icon, option }) => (
-        <Focusable onEnter={() => { hapticSubtle(); setOption(option) }} key={option}>
+        <Focusable
+          onEnter={() => {
+            hapticSubtle()
+            setOption(option)
+          }}
+          key={option}
+        >
           <FlexRow between>
-            <div onClick={() => { hapticSubtle(); setOption(option) }} style={rowStyle(option)}>
+            <div
+              onClick={() => {
+                hapticSubtle()
+                setOption(option)
+              }}
+              style={rowStyle(option)}
+            >
               <FlexRow>
                 {styled ? icon : null}
                 <Text capitalize>{option}</Text>

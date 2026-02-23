@@ -17,7 +17,12 @@ interface HeaderProps {
 }
 
 export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, auxIcon }: HeaderProps) {
-  const handleBack = back ? () => { hapticLight(); if (typeof back === 'function') back() } : undefined
+  const handleBack = back
+    ? () => {
+        hapticLight()
+        if (typeof back === 'function') back()
+      }
+    : undefined
   const SideButton = (text: string) => (
     <Shadow>
       <Text color='dark80' centered tiny wrap>
