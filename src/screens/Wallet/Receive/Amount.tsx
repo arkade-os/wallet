@@ -31,11 +31,16 @@ export default function ReceiveAmount() {
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
-  const isAssetReceive = Boolean(recvInfo.assetId)
   const { calcReverseSwapFee } = useContext(LightningContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, validLnSwap } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
-  const { balance, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
+
+  const assetId = recvInfo.assetId ?? ''
+  const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
+  const assetLabel =
+    assetMeta?.metadata?.ticker ?? assetMeta?.metadata?.name ?? (assetId ? `${assetId.slice(0, 8)}...` : '')
+  const isAssetReceive = recvInfo.assetId && recvInfo.assetId !== ''
 
   const defaultButtonLabel = 'Skip'
 
@@ -64,7 +69,7 @@ export default function ReceiveAmount() {
       .then(({ offchainAddr, boardingAddr }) => {
         if (!offchainAddr) throw 'Unable to get offchain address'
         if (!boardingAddr) throw 'Unable to get boarding address'
-        setRecvInfo({ boardingAddr, offchainAddr, satoshis: 0 })
+        setRecvInfo({ ...recvInfo, boardingAddr, offchainAddr, satoshis: 0 })
       })
       .catch((err) => {
         const error = extractError(err)
@@ -173,6 +178,7 @@ export default function ReceiveAmount() {
               value={textValue ? Number(textValue) : undefined}
               sats={satoshis}
             />
+            {isAssetReceive ? <InfoLine text={`Asset: ${assetLabel}`} /> : null}
             {showLightningFees ? <InfoLine color='orange' text={lightningFeeText} /> : null}
           </FlexCol>
         </Padded>
