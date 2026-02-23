@@ -3,6 +3,13 @@ interface TitleProps {
 }
 
 export default function Title({ text }: TitleProps) {
-  const style: React.CSSProperties = { margin: '0' }
+  const style: React.CSSProperties = {
+    margin: '0',
+    fontFamily: 'var(--heading-font)',
+    fontSize: '24px',
+    fontWeight: 700,
+    letterSpacing: '-0.5px',
+    lineHeight: '1.2',
+  }
   return <h1 style={style}>{text}</h1>
 }

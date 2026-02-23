@@ -102,7 +102,7 @@ export default function Backup() {
   const Dialog = () => (
     <FlexCol gap='1.5rem'>
       <FlexCol centered gap='0.5rem'>
-        <Text big bold>
+        <Text big bold heading>
           Private key
         </Text>
         <TextSecondary centered wrap>

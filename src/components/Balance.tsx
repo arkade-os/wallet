@@ -35,9 +35,11 @@ export default function Balance({ amount }: BalanceProps) {
         My balance
       </Text>
       <FlexRow>
-        <Text bigger>{mainBalance}</Text>
+        <Text bigger heading bold>
+          {mainBalance}
+        </Text>
         <div style={{ paddingTop: ' 0.75rem' }}>
-          <Text>{mainUnit}</Text>
+          <Text heading>{mainUnit}</Text>
         </div>
         <div onClick={toggleShow} style={{ cursor: 'pointer' }}>
           <EyeIcon />
