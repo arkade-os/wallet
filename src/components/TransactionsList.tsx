@@ -77,7 +77,9 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
             <FlexRow key={a.assetId} gap='0.25rem' end>
               <AssetAvatar icon={icon} ticker={ticker} size={16} />
               <Text color={color} smaller>
-                {formatAssetAmount(a.amount, decimals)} {ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}
+                {config.showBalance
+                  ? `${formatAssetAmount(a.amount, decimals)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
+                  : prettyHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}
               </Text>
             </FlexRow>
           )

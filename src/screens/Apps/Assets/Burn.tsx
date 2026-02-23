@@ -31,12 +31,11 @@ export default function AppAssetBurn() {
   const [processing, setProcessing] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
-  const assetId = assetInfo.assetId ?? ''
-  const name = assetInfo.details?.metadata?.name ?? 'Asset'
-  const ticker = assetInfo.details?.metadata?.ticker ?? ''
-  const icon = assetInfo.details?.metadata?.icon
-  const decimals = assetInfo.details?.metadata?.decimals ?? 8
-  const balance = assetBalances.find((a) => a.assetId === assetId)?.amount ?? 0
+  const name = assetInfo.metadata?.name ?? 'Unknown'
+  const ticker = assetInfo.metadata?.ticker ?? assetInfo.assetId.slice(0, 8)
+  const icon = assetInfo.metadata?.icon
+  const decimals = assetInfo.metadata?.decimals ?? 8
+  const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? 0
 
   const handleMax = () => setAmount(formatAssetAmount(balance, decimals))
 
@@ -67,7 +66,7 @@ export default function AppAssetBurn() {
     setError('')
 
     try {
-      await svcWallet.assetManager.burn({ assetId, amount: parsedAmount })
+      await svcWallet.assetManager.burn({ assetId: assetInfo.assetId, amount: parsedAmount })
       await reloadWallet()
       navigate(Pages.AppAssetDetail)
     } catch (err) {

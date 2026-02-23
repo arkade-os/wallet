@@ -1,4 +1,5 @@
 import { ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react'
+import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey, AssetDetails, WalletBalance } from '@arkade-os/sdk'
 import {
   clearStorage,
   readWalletFromStorage,
@@ -16,9 +17,8 @@ import { FlowContext } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
-import { AssetBalance, Tx, Vtxo, Wallet } from '../lib/types'
+import { Tx, Vtxo, Wallet } from '../lib/types'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
-import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey, AssetDetails } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
@@ -44,8 +44,8 @@ interface WalletContextProps {
   svcWallet: ServiceWorkerWallet | undefined
   txs: Tx[]
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
-  balance: number
-  assetBalances: AssetBalance[]
+  balance: WalletBalance['total']
+  assetBalances: WalletBalance['assets']
   assetMetadataCache: Map<string, AssetDetails>
   setCacheEntry: (assetId: string, details: AssetDetails) => void
   initialized?: boolean
@@ -78,13 +78,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { notifyTxSettled } = useContext(NotificationsContext)
 
   const [txs, setTxs] = useState<Tx[]>([])
-  const [balance, setBalance] = useState(0)
+  const [balance, setBalance] = useState<WalletBalance['total']>(0)
   const [wallet, setWallet] = useState(defaultWallet)
   const [walletLoaded, setWalletLoaded] = useState(false)
   const [initialized, setInitialized] = useState<boolean>(false)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
-  const [assetBalances, setAssetBalances] = useState<AssetBalance[]>([])
+  const [assetBalances, setAssetBalances] = useState<WalletBalance['assets']>([])
 
   const listeningForServiceWorker = useRef(false)
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())

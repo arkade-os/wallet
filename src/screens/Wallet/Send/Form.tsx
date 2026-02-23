@@ -184,11 +184,29 @@ export default function SendForm() {
         const { address, arkAddress, invoice, satoshis, assetId, assetAmount } = decodeBip21(recipient.trim())
         if (!address && !arkAddress && !invoice) return setError('Unable to parse bip21')
         if (assetId) {
-          const found = assetOptions.find((a) => a.assetId === assetId)
-          if (found) setSelectedAsset(found)
-          const decimals = found?.decimals ?? 8
+          let found = assetOptions.find((a) => a.assetId === assetId)
+          if (!found) {
+            let meta = assetMetadataCache.get(assetId)
+            if (!meta && svcWallet) {
+              try {
+                meta = await svcWallet.assetManager.getAssetDetails(assetId)
+                if (meta) setCacheEntry(assetId, meta)
+              } catch (err) {
+                consoleError(err, `error fetching metadata for ${assetId}`)
+              }
+            }
+            found = {
+              assetId,
+              balance: 0,
+              name: meta?.metadata?.name ?? `${assetId.slice(0, 8)}...`,
+              ticker: meta?.metadata?.ticker ?? '',
+              icon: meta?.metadata?.icon,
+              decimals: meta?.metadata?.decimals ?? 8,
+            }
+          }
+          setSelectedAsset(found)
           const rawAmount =
-            assetAmount != null ? Decimal.mul(assetAmount, Math.pow(10, decimals)).floor().toNumber() : 0
+            assetAmount != null ? Decimal.mul(assetAmount, Math.pow(10, found.decimals)).floor().toNumber() : 0
           if (assetAmount != null) setAssetAmount(String(assetAmount))
           return setState({
             address,
@@ -417,7 +435,7 @@ export default function SendForm() {
     setSelectedAsset(asset)
     if (asset) {
       setAssetAmount('')
-      setState({ ...sendInfo, assets: [{ assetId: asset.assetId, amount: 0 }], satoshis: 0 })
+      setState({ ...sendInfo, address: '', assets: [{ assetId: asset.assetId, amount: 0 }], satoshis: 0 })
       setAmount(undefined)
       setTextValue('')
     } else {
@@ -525,7 +543,7 @@ export default function SendForm() {
   const assetAmt = sendInfo.assets?.[0]?.amount ?? 0
 
   const buttonDisabled = isAssetSend
-    ? !((address || arkAddress) && assetAmt > 0) ||
+    ? !(arkAddress && assetAmt > 0) ||
       (selectedAsset ? assetAmt > selectedAsset.balance : true) ||
       aspInfo.unreachable ||
       tryingToSelfSend ||

@@ -121,7 +121,7 @@ export const mockFlowContextValue = {
   setSendInfo: () => {},
   setSwapInfo: () => {},
   setTxInfo: () => {},
-  assetInfo: { assetId: undefined, details: undefined },
+  assetInfo: { assetId: undefined, supply: 0 },
   setAssetInfo: () => {},
   deepLinkInfo: undefined,
   setDeepLinkInfo: () => {},

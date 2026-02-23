@@ -31,15 +31,14 @@ export default function AppAssetReissue() {
   const [processing, setProcessing] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
-  const assetId = assetInfo.assetId ?? ''
-  const name = assetInfo.details?.metadata?.name ?? 'Asset'
-  const ticker = assetInfo.details?.metadata?.ticker ?? ''
-  const icon = assetInfo.details?.metadata?.icon
-  const decimals = assetInfo.details?.metadata?.decimals ?? 8
-  const balance = assetBalances.find((a) => a.assetId === assetId)?.amount ?? 0
+  const name = assetInfo.metadata?.name ?? 'Unknown'
+  const ticker = assetInfo.metadata?.ticker ?? ''
+  const icon = assetInfo.metadata?.icon
+  const decimals = assetInfo.metadata?.decimals ?? 8
+  const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? 0
 
   const handleReissueRequest = () => {
-    if (!assetId) {
+    if (!assetInfo.assetId) {
       setError('Asset ID is required')
       return
     }
@@ -65,7 +64,7 @@ export default function AppAssetReissue() {
     setError('')
 
     try {
-      await svcWallet.assetManager.reissue({ assetId, amount: parsedAmount })
+      await svcWallet.assetManager.reissue({ assetId: assetInfo.assetId, amount: parsedAmount })
       await reloadWallet()
       navigate(Pages.AppAssetDetail)
     } catch (err) {

@@ -50,7 +50,7 @@ export default function AppAssetImport() {
         updateConfig({ ...config, importedAssets: [...config.importedAssets, assetId] })
       }
 
-      setAssetInfo({ assetId, details })
+      setAssetInfo(details)
       navigate(Pages.AppAssetDetail)
     } catch (err) {
       consoleError(err, 'error importing asset')

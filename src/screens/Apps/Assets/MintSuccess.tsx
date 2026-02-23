@@ -20,14 +20,12 @@ export default function AppAssetMintSuccess() {
   const { assetInfo } = useContext(FlowContext)
   const { assetMetadataCache } = useContext(WalletContext)
 
-  const assetId = assetInfo.assetId ?? ''
-  const details = assetInfo.details ?? assetMetadataCache.get(assetId)
-  const meta = details?.metadata
-  const name = meta?.name ?? 'Unknown Asset'
-  const ticker = meta?.ticker ?? ''
-  const decimals = meta?.decimals ?? 8
-  const supply = details?.supply
-  const icon = meta?.icon
+  const fromCache = assetMetadataCache.get(assetInfo.assetId)
+  const details = fromCache ?? assetInfo
+  const name = details.metadata?.name ?? 'Unknown'
+  const ticker = details.metadata?.ticker ?? ''
+  const decimals = details.metadata?.decimals ?? 8
+  const icon = details.metadata?.icon
 
   const handleViewAsset = () => {
     navigate(Pages.AppAssetDetail)
@@ -57,13 +55,15 @@ export default function AppAssetMintSuccess() {
                     ) : null}
                   </FlexCol>
                 </FlexRow>
-                <Text>{typeof supply === 'number' ? formatAssetAmount(supply, decimals) : 'Unknown'}</Text>
+                <Text>
+                  {typeof details.supply === 'number' ? formatAssetAmount(details.supply, decimals) : 'Unknown'}
+                </Text>
               </FlexRow>
             </Shadow>
 
             <FlexCol gap='0.25rem' centered>
-              <Text copy={assetId} color='dark50' smaller>
-                {assetId.slice(0, 12)}...{assetId.slice(-12)}
+              <Text copy={assetInfo.assetId} color='dark50' smaller>
+                {assetInfo.assetId.slice(0, 12)}...{assetInfo.assetId.slice(-12)}
               </Text>
               <TextSecondary centered>Asset ID (tap to copy)</TextSecondary>
             </FlexCol>

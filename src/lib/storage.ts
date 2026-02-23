@@ -39,6 +39,7 @@ export const readWalletFromStorage = (): Wallet | undefined => {
   return getStorageItem('wallet', undefined, (val) => JSON.parse(val))
 }
 
+// local storage caches the asset details for 24 hours
 export type CachedAssetDetails = AssetDetails & { cachedAt: number }
 
 export const saveAssetMetadataToStorage = (cache: Map<string, CachedAssetDetails>): void => {

@@ -9,8 +9,6 @@ interface AssetAvatarProps {
 }
 
 export default function AssetAvatar({ icon, ticker, name, size, onError }: AssetAvatarProps) {
-  const letter = ticker?.[0] ?? name?.[0] ?? 'A'
-
   if (icon) {
     return <img src={icon} alt='' width={size} height={size} style={{ borderRadius: '50%' }} onError={onError} />
   }
@@ -28,7 +26,7 @@ export default function AssetAvatar({ icon, ticker, name, size, onError }: Asset
       }}
     >
       <Text tiny={size <= 16} smaller={size > 16 && size <= 32} big={size > 32}>
-        {letter}
+        {ticker?.[0] ?? name?.[0] ?? 'A'}
       </Text>
     </div>
   )

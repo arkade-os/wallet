@@ -26,31 +26,29 @@ export default function AppAssetDetail() {
 
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [details, setDetails] = useState<AssetDetails | null>(null)
 
-  const assetId = assetInfo.assetId ?? ''
-  const balance = assetBalances.find((a) => a.assetId === assetId)?.amount ?? 0
+  const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? 0
 
   const fetchDetails = async (forceRefresh = false) => {
-    if (!svcWallet || !assetId) return
+    if (!svcWallet || !assetInfo.assetId) return
 
-    let cached: AssetDetails | undefined = forceRefresh ? undefined : assetMetadataCache.get(assetId)
+    let cached: AssetDetails | undefined = forceRefresh ? undefined : assetMetadataCache.get(assetInfo.assetId)
     if (!cached) {
       try {
-        cached = await svcWallet.assetManager.getAssetDetails(assetId)
-        if (cached) setCacheEntry(assetId, cached)
+        cached = await svcWallet.assetManager.getAssetDetails(assetInfo.assetId)
+        if (cached) setCacheEntry(assetInfo.assetId, cached)
       } catch (err) {
         consoleError(err, 'error loading asset details')
       }
     }
 
-    setDetails(cached ?? null)
-    setAssetInfo({ assetId, details: cached })
+    if (!cached) return
+    setAssetInfo(cached)
   }
 
   useEffect(() => {
     fetchDetails().then(() => setLoading(false))
-  }, [svcWallet, assetId])
+  }, [svcWallet, assetInfo.assetId])
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -60,12 +58,12 @@ export default function AppAssetDetail() {
 
   if (loading) return <Loading text='Loading asset...' />
 
-  const meta = details?.metadata
+  const meta = assetInfo.metadata
   const name = meta?.name ?? 'Unknown Asset'
   const ticker = meta?.ticker ?? ''
   const decimals = meta?.decimals ?? 8
-  const supply = details?.supply
-  const controlAssetId = details?.controlAssetId
+  const supply = assetInfo.supply
+  const controlAssetId = assetInfo.controlAssetId
   const truncateId = (id: string) => `${id.slice(0, 12)}...${id.slice(-12)}`
 
   // Check if user holds control asset
@@ -73,16 +71,16 @@ export default function AppAssetDetail() {
     ? assetBalances.some((a) => a.assetId === controlAssetId && a.amount > 0)
     : false
 
-  const isImported = config.importedAssets.includes(assetId)
+  const isImported = config.importedAssets.includes(assetInfo.assetId)
   const canRemove = isImported && balance === 0
 
   const handleSend = () => {
-    setSendInfo({ ...emptySendInfo, assets: [{ assetId, amount: 0 }] })
+    setSendInfo({ ...emptySendInfo, assets: [{ assetId: assetInfo.assetId, amount: 0 }] })
     navigate(Pages.SendForm)
   }
 
   const handleReceive = () => {
-    setRecvInfo({ ...emptyRecvInfo, assetId })
+    setRecvInfo({ ...emptyRecvInfo, assetId: assetInfo.assetId })
     navigate(Pages.ReceiveAmount)
   }
 
@@ -95,7 +93,7 @@ export default function AppAssetDetail() {
   }
 
   const handleRemove = () => {
-    const updated = config.importedAssets.filter((id) => id !== assetId)
+    const updated = config.importedAssets.filter((id) => id !== assetInfo.assetId)
     updateConfig({ ...config, importedAssets: updated })
     navigate(Pages.AppAssets)
   }
@@ -116,8 +114,8 @@ export default function AppAssetDetail() {
             </FlexCol>
 
             <FlexCol gap='0.25rem' centered>
-              <Text copy={assetId} color='dark50' smaller centered>
-                {truncateId(assetId)}
+              <Text copy={assetInfo.assetId} color='dark50' smaller centered>
+                {truncateId(assetInfo.assetId)}
               </Text>
               <FlexRow gap='0.25rem' centered>
                 <TextSecondary centered>Asset ID (tap to copy)</TextSecondary>

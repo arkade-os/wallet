@@ -37,36 +37,38 @@ export default function AppAssets() {
 
   useEffect(() => {
     const loadAssets = async () => {
-      if (!svcWallet) return
+      if (!svcWallet) {
+        setLoading(false)
+        return
+      }
 
-      // Merge auto-discovered + imported asset IDs
       const allIds = new Set<string>()
       for (const ab of assetBalances) allIds.add(ab.assetId)
       for (const id of config.importedAssets) allIds.add(id)
 
-      const items: AssetListItem[] = []
-      for (const assetId of allIds) {
-        const bal = assetBalances.find((a) => a.assetId === assetId)
-        let meta = assetMetadataCache.get(assetId)
-
-        if (!meta) {
-          try {
-            meta = await svcWallet.assetManager.getAssetDetails(assetId)
-            if (meta) setCacheEntry(assetId, meta)
-          } catch (err) {
-            consoleError(err, `error fetching metadata for ${assetId}`)
-          }
+      const missingIds = [...allIds].filter((id) => !assetMetadataCache.get(id))
+      const results = await Promise.allSettled(missingIds.map((id) => svcWallet.assetManager.getAssetDetails(id)))
+      for (let i = 0; i < missingIds.length; i++) {
+        const r = results[i]
+        if (r.status === 'fulfilled' && r.value) {
+          setCacheEntry(missingIds[i], r.value)
+        } else if (r.status === 'rejected') {
+          consoleError(r.reason, `error fetching metadata for ${missingIds[i]}`)
         }
+      }
 
-        items.push({
+      const items: AssetListItem[] = [...allIds].map((assetId) => {
+        const bal = assetBalances.find((a) => a.assetId === assetId)
+        const meta = assetMetadataCache.get(assetId)
+        return {
           assetId,
           balance: bal?.amount ?? 0,
           name: meta?.metadata?.name,
           ticker: meta?.metadata?.ticker,
           icon: meta?.metadata?.icon,
           decimals: meta?.metadata?.decimals ?? 8,
-        })
-      }
+        }
+      })
 
       setAssets(items)
       setLoading(false)
@@ -76,7 +78,7 @@ export default function AppAssets() {
   }, [svcWallet, assetBalances, config.importedAssets])
 
   const handleAssetClick = (assetId: string) => {
-    setAssetInfo({ assetId })
+    setAssetInfo({ assetId, supply: 0 })
     navigate(Pages.AppAssetDetail)
   }
 

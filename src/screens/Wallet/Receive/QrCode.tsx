@@ -30,15 +30,14 @@ export default function ReceiveQRCode() {
 
   const [sharing, setSharing] = useState(false)
 
-  const isAssetReceive = Boolean(recvInfo.assetId)
-
   // manage all possible receive methods
-  const { boardingAddr, offchainAddr, satoshis } = recvInfo
+  const { boardingAddr, offchainAddr, satoshis, assetId } = recvInfo
+  const isAssetReceive = assetId && assetId !== ''
   const address = validUtxoTx(satoshis) && utxoTxsAllowed() ? boardingAddr : ''
   const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
   const noPaymentMethods = isAssetReceive ? false : !address && !arkAddress && !validLnSwap(satoshis)
   const defaultBip21uri = isAssetReceive
-    ? encodeBip21Asset(offchainAddr, recvInfo.assetId!, satoshis)
+    ? encodeBip21Asset(offchainAddr, assetId, satoshis)
     : encodeBip21(address, arkAddress, '', satoshis)
 
   const [invoice, setInvoice] = useState('')
@@ -48,9 +47,6 @@ export default function ReceiveQRCode() {
 
   // set the QR code value to the bip21uri the first time
   useEffect(() => {
-    const bip21uri = isAssetReceive
-      ? encodeBip21Asset(offchainAddr, recvInfo.assetId!, satoshis)
-      : encodeBip21(address, arkAddress, invoice, satoshis)
     setBip21uri(bip21uri)
     setQrValue(bip21uri)
     if (invoice || isAssetReceive) setShowQrCode(true)

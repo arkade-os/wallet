@@ -1,7 +1,7 @@
 import { PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { ReactNode, createContext, useState } from 'react'
-import type { AssetDetails } from '@arkade-os/sdk'
-import { AssetBalance, Tx } from '../lib/types'
+import type { Asset, AssetDetails } from '@arkade-os/sdk'
+import { Tx } from '../lib/types'
 
 export interface InitInfo {
   password?: string
@@ -19,11 +19,6 @@ export interface DeepLinkInfo {
   query?: string
 }
 
-export interface AssetInfo {
-  assetId?: string
-  details?: AssetDetails
-}
-
 export interface RecvInfo {
   boardingAddr: string
   offchainAddr: string
@@ -35,7 +30,7 @@ export interface RecvInfo {
 
 export type SendInfo = {
   address?: string
-  assets?: AssetBalance[]
+  assets?: Asset[]
   arkAddress?: string
   invoice?: string
   lnUrl?: string
@@ -67,8 +62,8 @@ interface FlowContextProps {
   setSendInfo: (arg0: SendInfo) => void
   setSwapInfo: (arg0: SwapInfo) => void
   setTxInfo: (arg0: TxInfo) => void
-  assetInfo: AssetInfo
-  setAssetInfo: (arg0: AssetInfo) => void
+  assetInfo: AssetDetails
+  setAssetInfo: (arg0: AssetDetails) => void
 }
 
 export const emptyInitInfo: InitInfo = {
@@ -87,7 +82,7 @@ export const emptyRecvInfo: RecvInfo = {
   satoshis: 0,
 }
 
-export const emptyAssetInfo: AssetInfo = {}
+export const emptyAssetInfo: AssetDetails = { assetId: '', supply: 0 }
 
 export const emptySendInfo: SendInfo = {
   address: '',
@@ -125,7 +120,7 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
   const [sendInfo, setSendInfo] = useState(emptySendInfo)
   const [swapInfo, setSwapInfo] = useState<SwapInfo>()
   const [txInfo, setTxInfo] = useState<TxInfo>()
-  const [assetInfo, setAssetInfo] = useState<AssetInfo>(emptyAssetInfo)
+  const [assetInfo, setAssetInfo] = useState<AssetDetails>(emptyAssetInfo)
 
   return (
     <FlowContext.Provider

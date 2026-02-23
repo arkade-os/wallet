@@ -80,6 +80,11 @@ export default function AppAssetMint() {
       setError('Amount must be a positive number')
       return
     }
+    const parsedDecimals = decimals !== '' ? parseInt(decimals) : 0
+    if (!Number.isInteger(parsedDecimals) || parsedDecimals < 0) {
+      setError('Decimals must be a non-negative integer')
+      return
+    }
 
     setMinting(true)
     setError('')
@@ -88,8 +93,7 @@ export default function AppAssetMint() {
       const metadata: KnownMetadata = {}
       if (name) metadata.name = name
       if (ticker) metadata.ticker = ticker
-      const parsedDecimals = decimals !== '' ? parseInt(decimals) : 0
-      if (!isNaN(parsedDecimals)) metadata.decimals = parsedDecimals
+      metadata.decimals = parsedDecimals
       if (iconUrl) metadata.icon = iconUrl
 
       const rawAmount = Decimal.mul(parsedUnits, Math.pow(10, parsedDecimals)).floor().toNumber()
@@ -110,7 +114,7 @@ export default function AppAssetMint() {
         controlAssetId: controlAssetId || undefined,
       }
       setCacheEntry(newAssetId, assetDetails)
-      setAssetInfo({ assetId: newAssetId, details: assetDetails })
+      setAssetInfo(assetDetails)
       navigate(Pages.AppAssetMintSuccess)
     } catch (err) {
       consoleError(err, 'error minting asset')
@@ -196,6 +200,8 @@ export default function AppAssetMint() {
               <input
                 style={assetInputStyle}
                 type='number'
+                min='0'
+                step='1'
                 value={decimals}
                 onChange={(e) => setDecimals(e.target.value)}
                 placeholder='8'

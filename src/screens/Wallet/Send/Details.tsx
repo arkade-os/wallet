@@ -120,6 +120,10 @@ export default function SendDetails() {
   const handleContinue = async () => {
     if (!details || !svcWallet) return
     if (!isAssetSend && (!details.total || !details.satoshis)) return
+    if (isAssetSend && !arkAddress) {
+      setError('Assets can only be sent to Ark addresses')
+      return
+    }
     setSending(true)
     if (isAssetSend && arkAddress) {
       // Asset send via wallet.send()

@@ -1,14 +1,9 @@
 import { PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
-import { NetworkName, type ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { Asset, NetworkName, type ExtendedVirtualCoin } from '@arkade-os/sdk'
 
 export type Addresses = {
   boardingAddr: string
   offchainAddr: string
-}
-
-export type AssetBalance = {
-  assetId: string
-  amount: number
 }
 
 export type Config = {
@@ -80,7 +75,7 @@ export enum Themes {
 
 export type Tx = {
   amount: number
-  assets?: AssetBalance[]
+  assets?: Asset[]
   boardingTxid: string
   createdAt: number
   explorable: string | undefined

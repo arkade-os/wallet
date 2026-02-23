@@ -5,6 +5,7 @@ import FlexRow from '../../../components/FlexRow'
 import Padded from '../../../components/Padded'
 import Shadow from '../../../components/Shadow'
 import Text from '../../../components/Text'
+import AssetAvatar from '../../../components/AssetAvatar'
 import SuccessIcon from '../../../icons/Success'
 import Success from '../../../components/Success'
 import { NotificationsContext } from '../../../providers/notifications'
@@ -72,23 +73,7 @@ export default function ReceiveSuccess() {
               <Shadow border>
                 <FlexRow between padding='0.75rem'>
                   <FlexRow>
-                    {assetIcon ? (
-                      <img src={assetIcon} alt='' width={32} height={32} style={{ borderRadius: '50%' }} />
-                    ) : (
-                      <div
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: '50%',
-                          background: 'var(--dark20)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Text smaller>{assetTicker?.[0] ?? assetName?.[0] ?? 'A'}</Text>
-                      </div>
-                    )}
+                    <AssetAvatar icon={assetIcon} ticker={assetTicker} name={assetName} size={32} />
                     <FlexCol gap='0'>
                       <Text bold>{assetName}</Text>
                       {assetTicker ? (
