@@ -1,4 +1,5 @@
 import InputWithScanner from './InputWithScanner'
+import { isValidAssetId } from '../lib/assets'
 
 interface InputAssetIdProps {
   focus?: boolean
@@ -11,7 +12,6 @@ interface InputAssetIdProps {
 }
 
 export default function InputAssetId({ focus, label, name, onChange, onEnter, openScan, value }: InputAssetIdProps) {
-  const is34BytesHex = (str: string) => /^[0-9a-fA-F]{68}$/.test(str)
   return (
     <InputWithScanner
       focus={focus}
@@ -20,7 +20,7 @@ export default function InputAssetId({ focus, label, name, onChange, onEnter, op
       onChange={onChange}
       onEnter={onEnter}
       openScan={openScan}
-      validator={is34BytesHex}
+      validator={isValidAssetId}
       value={value}
     />
   )

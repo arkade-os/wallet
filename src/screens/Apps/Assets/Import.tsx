@@ -15,6 +15,7 @@ import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 import InputAssetId from '../../../components/InputAssetId'
 import Scanner from '../../../components/Scanner'
+import { isValidAssetId } from '../../../lib/assets'
 
 export default function AppAssetImport() {
   const { navigate } = useContext(NavigationContext)
@@ -86,8 +87,4 @@ export default function AppAssetImport() {
       </ButtonsOnBottom>
     </>
   )
-}
-
-function isValidAssetId(id: string) {
-  return /^[0-9a-fA-F]{68}$/.test(id)
 }
