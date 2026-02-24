@@ -38,8 +38,6 @@ export default function ReceiveAmount() {
 
   const assetId = recvInfo.assetId ?? ''
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
-  const assetLabel =
-    assetMeta?.metadata?.ticker ?? assetMeta?.metadata?.name ?? (assetId ? `${assetId.slice(0, 8)}...` : '')
   const isAssetReceive = recvInfo.assetId && recvInfo.assetId !== ''
 
   const defaultButtonLabel = 'Skip'
@@ -96,8 +94,8 @@ export default function ReceiveAmount() {
 
   const handleChange = (sats: number) => {
     setSatoshis(sats)
-    const value = useFiat ? toFiat(sats) : sats
-    const maximumFractionDigits = useFiat ? 2 : 0
+    const value = useFiat && !assetMeta ? toFiat(sats) : sats
+    const maximumFractionDigits = assetMeta?.metadata?.decimals ? assetMeta?.metadata?.decimals : useFiat ? 2 : 0
     setTextValue(prettyNumber(value, maximumFractionDigits, false))
     setButtonLabel(sats ? 'Continue' : defaultButtonLabel)
   }
@@ -177,8 +175,8 @@ export default function ReceiveAmount() {
               onFocus={handleFocus}
               value={textValue ? Number(textValue) : undefined}
               sats={satoshis}
+              asset={assetMeta}
             />
-            {isAssetReceive ? <InfoLine text={`Asset: ${assetLabel}`} /> : null}
             {showLightningFees ? <InfoLine color='orange' text={lightningFeeText} /> : null}
           </FlexCol>
         </Padded>
