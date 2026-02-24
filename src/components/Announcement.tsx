@@ -114,25 +114,30 @@ export default function Announcement({
 
   return (
     <Modal>
-      <FlexCol gap='1.5rem'>
-        <FlexCol centered>
-          <PrettyIcon color={color} icon={icon} />
-        </FlexCol>
-        <FlexCol centered gap='0.5rem'>
-          <Tag text={title} />
-          <Text big bold centered wrap>
-            {message}
-          </Text>
-        </FlexCol>
-        <FlexCol gap='0.75rem'>
-          <TextSecondary>What you can do:</TextSecondary>
-          <BulletList points={bulletPoints} />
-        </FlexCol>
-        <FlexCol gap='0.25rem'>
+      <div style={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        {/* Note: the negative margin on the container is to offset the padding, so that the scroll area extends to the edges of the modal */}
+        <div style={{ overflowY: 'auto', flex: '1 1 auto', minHeight: 0, margin: '-1rem', padding: '1rem 1rem 0 1rem' }}>
+          <FlexCol gap='1.5rem'>
+            <FlexCol centered>
+              <PrettyIcon color={color} icon={icon} />
+            </FlexCol>
+            <FlexCol centered gap='0.5rem'>
+              <Tag text={title} />
+              <Text big bold centered wrap>
+                {message}
+              </Text>
+            </FlexCol>
+            <FlexCol gap='0.75rem'>
+              <TextSecondary>What you can do:</TextSecondary>
+              <BulletList points={bulletPoints} />
+            </FlexCol>
+          </FlexCol>
+        </div>
+        <FlexCol gap='0.25rem' style={{ flex: '0 0 auto' }}>
           <Button onClick={handleTryIt} label={`Try ${title}`} />
           <Button onClick={close} label='Maybe later' secondary />
         </FlexCol>
-      </FlexCol>
+      </div>
     </Modal>
   )
 }
