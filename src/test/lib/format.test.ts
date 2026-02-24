@@ -10,6 +10,7 @@ import {
   prettyLongText,
   prettyNumber,
   isIssuance,
+  isBurn,
 } from '../../lib/format'
 
 describe('format utilities', () => {
@@ -165,7 +166,7 @@ describe('format utilities', () => {
   })
 
   describe('isIssuance', () => {
-    it('should return true for sent tx with amount 0 and assets', () => {
+    it('should return true for sent tx with amount 0 and positive assets', () => {
       expect(isIssuance({ type: 'sent', amount: 0, assets: [{ assetId: 'abc', amount: 100 }] })).toBe(true)
     })
 
@@ -180,6 +181,33 @@ describe('format utilities', () => {
     it('should return false for sent tx with amount 0 but no assets', () => {
       expect(isIssuance({ type: 'sent', amount: 0 })).toBe(false)
       expect(isIssuance({ type: 'sent', amount: 0, assets: [] })).toBe(false)
+    })
+
+    it('should return false for burn tx (negative asset amount)', () => {
+      expect(isIssuance({ type: 'sent', amount: 0, assets: [{ assetId: 'abc', amount: -100 }] })).toBe(false)
+    })
+  })
+
+  describe('isBurn', () => {
+    it('should return true for sent tx with amount 0 and negative assets', () => {
+      expect(isBurn({ type: 'sent', amount: 0, assets: [{ assetId: 'abc', amount: -100 }] })).toBe(true)
+    })
+
+    it('should return false for sent tx with non-zero amount', () => {
+      expect(isBurn({ type: 'sent', amount: 1000, assets: [{ assetId: 'abc', amount: -100 }] })).toBe(false)
+    })
+
+    it('should return false for received tx', () => {
+      expect(isBurn({ type: 'received', amount: 0, assets: [{ assetId: 'abc', amount: -100 }] })).toBe(false)
+    })
+
+    it('should return false for sent tx with amount 0 but no assets', () => {
+      expect(isBurn({ type: 'sent', amount: 0 })).toBe(false)
+      expect(isBurn({ type: 'sent', amount: 0, assets: [] })).toBe(false)
+    })
+
+    it('should return false for issuance tx (positive asset amount)', () => {
+      expect(isBurn({ type: 'sent', amount: 0, assets: [{ assetId: 'abc', amount: 100 }] })).toBe(false)
     })
   })
 })

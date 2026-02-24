@@ -5,7 +5,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
-import { formatAssetAmount, isIssuance, prettyAgo, prettyDate } from '../../lib/format'
+import { formatAssetAmount, isBurn, isIssuance, prettyAgo, prettyDate } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
 import ErrorMessage from '../../components/Error'
 import { extractError } from '../../lib/error'
@@ -35,6 +35,7 @@ export default function Transaction() {
 
   const tx = txInfo
   const issuanceTx = tx ? isIssuance(tx) : false
+  const burnTx = tx ? isBurn(tx) : false
   const boardingTx = Boolean(tx?.boardingTxid)
   const defaultButtonLabel = boardingTx ? 'Complete boarding' : 'Settle transaction'
   const boardingExitDelay = Number(aspInfo?.boardingExitDelay || 0)
@@ -106,7 +107,7 @@ export default function Transaction() {
   if (!tx) return <></>
 
   const details: DetailsProps = {
-    direction: issuanceTx ? 'Issuance' : tx.type === 'sent' ? 'Sent' : 'Received',
+    direction: issuanceTx ? 'Issuance' : burnTx ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received',
     when: tx.createdAt ? prettyAgo(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
     date: tx.createdAt ? prettyDate(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
     status: expiredBoardingTx
@@ -157,14 +158,12 @@ export default function Transaction() {
                 const icon = meta?.icon
                 const decimals = meta?.decimals ?? 8
                 const color = tx.type === 'received' || issuanceTx ? 'green' : ''
-                const prefix = tx.type === 'received' || issuanceTx ? '+ ' : '- '
                 const label = ticker ?? name ?? `${a.assetId.slice(0, 8)}...`
                 return (
                   <FlexRow key={a.assetId} gap='0.5rem'>
                     <AssetAvatar icon={icon} ticker={ticker} size={32} />
                     <FlexCol gap='0'>
                       <Text color={color}>
-                        {prefix}
                         {formatAssetAmount(a.amount, decimals)} {label}
                       </Text>
                       {name && ticker ? <TextSecondary>{name}</TextSecondary> : null}

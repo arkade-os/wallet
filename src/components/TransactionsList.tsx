@@ -2,7 +2,7 @@ import { useContext, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
-import { formatAssetAmount, isIssuance, prettyAmount, prettyDate, prettyHide } from '../lib/format'
+import { formatAssetAmount, isBurn, isIssuance, prettyAmount, prettyDate, prettyHide } from '../lib/format'
 import AssetAvatar from './AssetAvatar'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
@@ -25,9 +25,10 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount) : prettyHide(tx.amount)}`
   const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
   const issuance = isIssuance(tx)
+  const burn = isBurn(tx)
 
   const Fiat = () => {
-    if (issuance) return null
+    if (issuance || burn) return null
     const color =
       config.currencyDisplay === CurrencyDisplay.Both
         ? 'dark50'
@@ -49,6 +50,8 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   const Icon = () =>
     issuance ? (
       <ReceivedIcon />
+    ) : burn ? (
+      <SentIcon />
     ) : tx.type === 'sent' ? (
       <SentIcon />
     ) : tx.preconfirmed && tx.boardingTxid ? (
@@ -57,7 +60,9 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
       <ReceivedIcon dotted={tx.preconfirmed} />
     )
 
-  const Kind = () => <Text thin>{issuance ? 'Issuance' : tx.type === 'sent' ? 'Sent' : 'Received'}</Text>
+  const Kind = () => (
+    <Text thin>{issuance ? 'Issuance' : burn ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received'}</Text>
+  )
 
   const When = () => <TextSecondary>{date}</TextSecondary>
 
@@ -66,6 +71,8 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
       <Text color='green' thin>
         Issuance
       </Text>
+    ) : burn ? (
+      <Text thin>Burn</Text>
     ) : (
       <Text color={tx.type === 'received' ? (tx.preconfirmed && tx.boardingTxid ? 'orange' : 'green') : ''} thin>
         {amount}
@@ -84,12 +91,12 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
           const decimals = meta?.decimals ?? 8
           return (
             <FlexRow key={a.assetId} gap='0.25rem' end>
-              <AssetAvatar icon={icon} ticker={ticker} size={16} />
               <Text color={color} smaller>
                 {config.showBalance
                   ? `${formatAssetAmount(a.amount, decimals)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
                   : prettyHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}
               </Text>
+              <AssetAvatar icon={icon} ticker={ticker} size={16} />
             </FlexRow>
           )
         })}

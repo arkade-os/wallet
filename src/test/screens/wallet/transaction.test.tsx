@@ -249,8 +249,32 @@ describe('Transaction screen', () => {
     // Should show "Issuance" instead of "Sent"
     expect(screen.getByText('Issuance')).toBeInTheDocument()
     expect(screen.queryByText('Sent')).not.toBeInTheDocument()
+  })
 
-    // Asset amount should be positive (with "+ " prefix)
-    expect(screen.getByText(/\+/)).toBeInTheDocument()
+  it('renders burn transaction with correct direction', async () => {
+    const mockBurnTxInfo = {
+      ...mockIssuanceTxInfo,
+      assets: [{ assetId: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd', amount: -5000 }],
+    }
+    const localFlowContextValue = { ...mockFlowContextValue, txInfo: mockBurnTxInfo }
+    const localWalletContextValue = { ...mockWalletContextValue, txs: [mockBurnTxInfo] }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={localFlowContextValue}>
+            <WalletContext.Provider value={localWalletContextValue}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    // Should show "Burn" instead of "Sent"
+    expect(screen.getByText('Burn')).toBeInTheDocument()
+    expect(screen.queryByText('Sent')).not.toBeInTheDocument()
   })
 })
