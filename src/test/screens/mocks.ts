@@ -48,6 +48,8 @@ export const mockConfigContextValue = {
     notifications: true,
     theme: Themes.Dark,
   },
+  effectiveTheme: Themes.Dark,
+  systemTheme: Themes.Dark,
   useFiat: false,
 }
 
