@@ -32,7 +32,7 @@ import { Addresses, SettingsOptions } from '../../../lib/types'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
-import { keyboardOverlay } from '../../../lib/animations'
+import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { ArkNote } from '@arkade-os/sdk'
@@ -412,15 +412,6 @@ export default function SendForm() {
     satoshis < 1 ||
     processing
 
-  const overlayStyle = {
-    position: 'absolute' as const,
-    inset: 0,
-    zIndex: 10,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    background: 'var(--ion-background-color)',
-  }
-
   return (
     <>
       <Header text='Send' back />
@@ -477,7 +468,7 @@ export default function SendForm() {
         {keys && !amountIsReadOnly ? (
           <motion.div
             key='keyboard'
-            variants={prefersReduced ? undefined : keyboardOverlay}
+            variants={prefersReduced ? undefined : overlaySlideUp}
             initial={prefersReduced ? false : 'initial'}
             animate={prefersReduced ? undefined : 'animate'}
             exit={prefersReduced ? undefined : 'exit'}
@@ -491,7 +482,7 @@ export default function SendForm() {
         {scan ? (
           <motion.div
             key='scanner'
-            variants={prefersReduced ? undefined : keyboardOverlay}
+            variants={prefersReduced ? undefined : overlaySlideUp}
             initial={prefersReduced ? false : 'initial'}
             animate={prefersReduced ? undefined : 'animate'}
             exit={prefersReduced ? undefined : 'exit'}

@@ -47,8 +47,18 @@ export const pageTransitionVariants: Variants = {
   },
 }
 
-// Keyboard/scanner overlay — slides up from bottom
-export const keyboardOverlay: Variants = {
+// Fullscreen overlay style (keyboard, scanner, etc.)
+export const overlayStyle = {
+  position: 'absolute' as const,
+  inset: 0,
+  zIndex: 10,
+  display: 'flex',
+  flexDirection: 'column' as const,
+  background: 'var(--ion-background-color)',
+}
+
+// Overlay slide-up animation — used for keyboard, scanner, etc.
+export const overlaySlideUp: Variants = {
   initial: { y: '100%' },
   animate: {
     y: '0%',

@@ -22,7 +22,7 @@ import Success from '../../../components/Success'
 import { consoleError } from '../../../lib/logs'
 import { AspContext } from '../../../providers/asp'
 import { isMobileBrowser } from '../../../lib/browser'
-import { keyboardOverlay } from '../../../lib/animations'
+import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { LimitsContext } from '../../../providers/limits'
@@ -184,18 +184,11 @@ export default function ReceiveAmount() {
         {showKeys ? (
           <motion.div
             key='keyboard'
-            variants={prefersReduced ? undefined : keyboardOverlay}
+            variants={prefersReduced ? undefined : overlaySlideUp}
             initial={prefersReduced ? false : 'initial'}
             animate={prefersReduced ? undefined : 'animate'}
             exit={prefersReduced ? undefined : 'exit'}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              zIndex: 10,
-              display: 'flex',
-              flexDirection: 'column',
-              background: 'var(--ion-background-color)',
-            }}
+            style={overlayStyle}
           >
             <Keyboard back={() => setShowKeys(false)} hideBalance onSats={handleChange} value={satoshis} />
           </motion.div>
