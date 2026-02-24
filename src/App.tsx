@@ -42,7 +42,7 @@ function AnimatedTabIcon({ children, animating }: { children: React.ReactNode; a
     if (!animating || !ref.current) return
     const el = ref.current
     el.classList.remove(animClass)
-    void el.offsetWidth
+    void el.offsetWidth // Force reflow so removing + re-adding the class triggers the animation
     el.classList.add(animClass)
     const handleEnd = () => el.classList.remove(animClass)
     el.addEventListener('animationend', handleEnd)
