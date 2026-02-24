@@ -16,8 +16,8 @@ import { NavigationContext, Pages } from '../providers/navigation'
 
 // icon with pretty gradient background
 const PrettyIcon = ({ color, icon }: { color?: string; icon: React.ReactNode }) => {
-  const { config } = useContext(ConfigContext)
-  const defaultColor = config.theme === Themes.Dark ? '#ffffff' : '#000000'
+  const { effectiveTheme } = useContext(ConfigContext)
+  const defaultColor = effectiveTheme === Themes.Dark ? '#ffffff' : '#000000'
   const _color = color?.startsWith('#') ? color : defaultColor
   const circle = 'circle at 50% -70%'
   const gradient = [_color + 'dd 0%', _color + '00 70%']
@@ -120,7 +120,7 @@ export default function Announcement({
         </FlexCol>
         <FlexCol centered gap='0.5rem'>
           <Tag text={title} />
-          <Text big bold centered wrap>
+          <Text big medium centered wrap heading>
             {message}
           </Text>
         </FlexCol>
