@@ -1,133 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-
-// 8x8 grid on 35x35 viewBox — each cell is 4.375px
-const GRID = 8
-const CELL = 35 / GRID
-const GAP = 0.3
-const REVERT_DELAY = 3000
-const MORPH_MS = 350
-const SCALE_CLOSED = CELL / (CELL - GAP) // ≈1.074 — closes the gap exactly
-
-type Pixel = { x: number; y: number }
-
-function parseShape(str: string): Pixel[] {
-  const pixels: Pixel[] = []
-  str
-    .trim()
-    .split('\n')
-    .forEach((line, row) => {
-      line
-        .trim()
-        .split('')
-        .forEach((ch, col) => {
-          if (ch === 'X') pixels.push({ x: col, y: row })
-        })
-    })
-  return pixels.sort((a, b) => a.y - b.y || a.x - b.x)
-}
-
-// Pixel positions approximating the Arkade logo shape.
-// These are only used as morph anchor points — the actual logo
-// is always rendered with its original SVG paths.
-const SHAPES = [
-  parseShape(`
-    ..XXXX..
-    .XXXXXX.
-    XX....XX
-    XX....XX
-    ..XXXX..
-    ..XXXX..
-    XX....XX
-    XX....XX
-  `),
-  // Space invader
-  parseShape(`
-    ..X..X..
-    ...XX...
-    ..XXXX..
-    .XX..XX.
-    XXXXXXXX
-    X.XXXX.X
-    X.X..X.X
-    .X.XX.X.
-  `),
-  // Heart
-  parseShape(`
-    .XX..XX.
-    XXXXXXXX
-    XXXXXXXX
-    .XXXXXX.
-    ..XXXX..
-    ...XX...
-    ...XX...
-    ........
-  `),
-]
-
-type Slot = { x: number; y: number; id: string }
-const SLOT_SHAPES: Slot[][] = SHAPES.map((shape) => shape.map((p, i) => ({ x: p.x, y: p.y, id: `s${i}` })))
+import { usePixelMorph } from './usePixelMorph'
+import { CELL, GAP, MORPH_MS, SCALE_CLOSED } from './pixel-shapes'
 
 export default function LogoIcon({ small }: { small?: boolean }) {
-  const [shapeIdx, setShapeIdx] = useState(0)
-  const [settled, setSettled] = useState(true)
-  const [reverting, setReverting] = useState(false)
-  const revertRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const settleRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { settled, reverting, advance, slots } = usePixelMorph()
   const size = small ? 35 : 50
-  const slots = SLOT_SHAPES[shapeIdx]
-
-  useEffect(() => {
-    return () => {
-      if (revertRef.current) clearTimeout(revertRef.current)
-      if (settleRef.current) clearTimeout(settleRef.current)
-    }
-  }, [])
-
-  const startRevert = useCallback(() => {
-    if (settleRef.current) clearTimeout(settleRef.current)
-    setReverting(true)
-    setShapeIdx(0)
-    settleRef.current = setTimeout(() => {
-      setSettled(true)
-      setReverting(false)
-    }, MORPH_MS + 50)
-  }, [])
-
-  const handleClick = useCallback(() => {
-    if (revertRef.current) clearTimeout(revertRef.current)
-    if (settleRef.current) clearTimeout(settleRef.current)
-
-    if (reverting) {
-      // Tapped during revert — cancel and go to invader
-      setReverting(false)
-      setSettled(false)
-      requestAnimationFrame(() => {
-        setShapeIdx(1)
-        revertRef.current = setTimeout(startRevert, REVERT_DELAY)
-      })
-      return
-    }
-
-    if (settled) {
-      // Leaving the original logo: show pixels at logo positions,
-      // then on the next frame morph to the target shape
-      setSettled(false)
-      requestAnimationFrame(() => {
-        setShapeIdx(1)
-        revertRef.current = setTimeout(startRevert, REVERT_DELAY)
-      })
-      return
-    }
-
-    // Currently showing pixel shapes — advance
-    const next = (shapeIdx + 1) % SHAPES.length
-    if (next === 0) {
-      startRevert()
-    } else {
-      setShapeIdx(next)
-      revertRef.current = setTimeout(startRevert, REVERT_DELAY)
-    }
-  }, [settled, reverting, shapeIdx, startRevert])
 
   // Paths: visible when settled or reverting (fading in during revert)
   const pathsOpacity = settled || reverting ? 1 : 0
@@ -144,10 +20,15 @@ export default function LogoIcon({ small }: { small?: boolean }) {
 
   return (
     <div
-      onClick={handleClick}
+      onClick={advance}
       role='button'
       tabIndex={0}
-      onKeyDown={() => {}}
+      onKeyDown={(e) => {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault()
+          advance()
+        }
+      }}
       style={{ cursor: 'pointer', width: size, height: size }}
     >
       <svg width={size} height={size} viewBox='0 0 35 35' fill='none' xmlns='http://www.w3.org/2000/svg'>
