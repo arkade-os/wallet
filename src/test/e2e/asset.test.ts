@@ -132,7 +132,7 @@ test('should mint asset with new control asset', async ({ page }) => {
 
   // success screen shows main asset
   await expect(page.getByText('MyCoin')).toBeVisible()
-  await expect(page.getByText('MYC')).toBeVisible()
+  await expect(page.getByText('MYC', { exact: true })).toBeVisible()
 
   // view asset detail
   await page.getByText('View Asset').click()
