@@ -235,58 +235,62 @@ export default function AppAssetMint() {
               <Text smaller color='dark50'>
                 Control Asset (optional)
               </Text>
-              <Shadow border onClick={() => setShowControlDropdown(!showControlDropdown)}>
-                <FlexRow between padding='0.5rem'>
-                  {selectedControl ? (
-                    <FlexRow>
-                      <AssetAvatar icon={selectedControl.icon} ticker={selectedControl.ticker} size={24} />
-                      <Text>
-                        {selectedControl.name} {selectedControl.ticker ? `(${selectedControl.ticker})` : ''}
-                      </Text>
-                    </FlexRow>
-                  ) : (
-                    <Text color='dark50'>Select from wallet...</Text>
-                  )}
-                  <Text color='dark50' smaller>
-                    {showControlDropdown ? '▲' : '▼'}
-                  </Text>
-                </FlexRow>
-              </Shadow>
-              {showControlDropdown && knownAssets.length > 0 ? (
-                <div style={{ maxHeight: '30vh', overflowY: 'auto', width: '100%' }}>
-                  <FlexCol gap='0.25rem'>
-                    {controlAssetId ? (
-                      <Shadow
-                        onClick={() => {
-                          setControlAssetId('')
-                          setShowControlDropdown(false)
-                        }}
-                      >
-                        <FlexRow padding='0.5rem'>
-                          <Text color='dark50'>None</Text>
-                        </FlexRow>
-                      </Shadow>
-                    ) : null}
-                    {knownAssets.map((asset) => (
-                      <Shadow
-                        key={asset.assetId}
-                        onClick={() => {
-                          setControlAssetId(asset.assetId)
-                          setShowControlDropdown(false)
-                        }}
-                      >
-                        <FlexRow padding='0.5rem'>
-                          <AssetAvatar icon={asset.icon} ticker={asset.ticker} size={24} />
+              {knownAssets.length > 0 ? (
+                <>
+                  <Shadow border onClick={() => setShowControlDropdown(!showControlDropdown)}>
+                    <FlexRow between padding='0.5rem'>
+                      {selectedControl ? (
+                        <FlexRow>
+                          <AssetAvatar icon={selectedControl.icon} ticker={selectedControl.ticker} size={24} />
                           <Text>
-                            {asset.name} {asset.ticker ? `(${asset.ticker})` : ''}
+                            {selectedControl.name} {selectedControl.ticker ? `(${selectedControl.ticker})` : ''}
                           </Text>
                         </FlexRow>
-                      </Shadow>
-                    ))}
-                  </FlexCol>
-                </div>
+                      ) : (
+                        <Text color='dark50'>Select from wallet...</Text>
+                      )}
+                      <Text color='dark50' smaller>
+                        {showControlDropdown ? '▲' : '▼'}
+                      </Text>
+                    </FlexRow>
+                  </Shadow>
+                  {showControlDropdown ? (
+                    <div style={{ maxHeight: '30vh', overflowY: 'auto', width: '100%' }}>
+                      <FlexCol gap='0.25rem'>
+                        {controlAssetId ? (
+                          <Shadow
+                            onClick={() => {
+                              setControlAssetId('')
+                              setShowControlDropdown(false)
+                            }}
+                          >
+                            <FlexRow padding='0.5rem'>
+                              <Text color='dark50'>None</Text>
+                            </FlexRow>
+                          </Shadow>
+                        ) : null}
+                        {knownAssets.map((asset) => (
+                          <Shadow
+                            key={asset.assetId}
+                            onClick={() => {
+                              setControlAssetId(asset.assetId)
+                              setShowControlDropdown(false)
+                            }}
+                          >
+                            <FlexRow padding='0.5rem'>
+                              <AssetAvatar icon={asset.icon} ticker={asset.ticker} size={24} />
+                              <Text>
+                                {asset.name} {asset.ticker ? `(${asset.ticker})` : ''}
+                              </Text>
+                            </FlexRow>
+                          </Shadow>
+                        ))}
+                      </FlexCol>
+                    </div>
+                  ) : null}
+                </>
               ) : null}
-              <Input value={controlAssetId} onChange={setControlAssetId} placeholder='Or paste asset ID...' />
+              <Input value={controlAssetId} onChange={setControlAssetId} placeholder='Paste asset ID...' />
             </FlexCol>
           </FlexCol>
         </Padded>
