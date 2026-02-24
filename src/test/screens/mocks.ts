@@ -32,6 +32,19 @@ export const mockTxInfo = {
   type: 'received',
 }
 
+export const mockIssuanceTxInfo = {
+  amount: 0,
+  assets: [{ assetId: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd', amount: 10000 }],
+  boardingTxid: '',
+  redeemTxid: mockTxId,
+  roundTxid: '',
+  createdAt: Math.floor(Date.now() / 1000) - 60,
+  explorable: mockTxId,
+  preconfirmed: false,
+  settled: true,
+  type: 'sent',
+}
+
 export const mockAspContextValue = {
   aspInfo: mockAspInfo,
   calcBestMarketHour: () => undefined,

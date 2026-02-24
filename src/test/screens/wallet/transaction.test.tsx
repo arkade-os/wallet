@@ -6,6 +6,7 @@ import { LimitsContext } from '../../../providers/limits'
 import {
   mockAspContextValue,
   mockFlowContextValue,
+  mockIssuanceTxInfo,
   mockLimitsContextValue,
   mockNavigationContextValue,
   mockTxId,
@@ -225,5 +226,31 @@ describe('Transaction screen', () => {
     // buttons should not be present
     expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
     expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
+  })
+
+  it('renders issuance transaction with correct direction and amounts', async () => {
+    const localFlowContextValue = { ...mockFlowContextValue, txInfo: mockIssuanceTxInfo }
+    const localWalletContextValue = { ...mockWalletContextValue, txs: [mockIssuanceTxInfo] }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={localFlowContextValue}>
+            <WalletContext.Provider value={localWalletContextValue}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    // Should show "Issuance" instead of "Sent"
+    expect(screen.getByText('Issuance')).toBeInTheDocument()
+    expect(screen.queryByText('Sent')).not.toBeInTheDocument()
+
+    // Asset amount should be positive (with "+ " prefix)
+    expect(screen.getByText(/\+/)).toBeInTheDocument()
   })
 })
