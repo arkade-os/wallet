@@ -115,8 +115,10 @@ export default function Announcement({
   return (
     <Modal>
       <div style={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        {/* Note: the negative margin on the container is to offset the padding, so that the scroll area extends to the edges of the modal */}
-        <div style={{ overflowY: 'auto', flex: '1 1 auto', minHeight: 0, margin: '-1rem', padding: '1rem 1rem 0 1rem' }}>
+        {/* Note: the negative margin on the container is to offset the negative margin top of PrettyIcon class.*/}
+        <div
+          style={{ overflowY: 'auto', flex: '1 1 auto', minHeight: 0, margin: '-1rem', padding: '1rem 1rem 0 1rem' }}
+        >
           <FlexCol gap='1.5rem'>
             <FlexCol centered>
               <PrettyIcon color={color} icon={icon} />
