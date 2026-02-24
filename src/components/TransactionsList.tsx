@@ -144,7 +144,9 @@ export default function TransactionsList({ ItemWrapper }: TransactionsListProps)
 
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
-      <Wrap><TextLabel>Transaction history</TextLabel></Wrap>
+      <Wrap>
+        <TextLabel>Transaction history</TextLabel>
+      </Wrap>
       <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
         <div style={{ borderBottom: border }}>
           {txs.map((tx) => {

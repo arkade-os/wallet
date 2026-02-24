@@ -11,7 +11,6 @@ import { isArkAddress, isBTCAddress } from '../../../lib/address'
 const IFRAME_URL = import.meta.env.VITE_LENDASWAP_IFRAME_URL || 'https://swap.lendasat.com'
 
 export default function AppLendaswap() {
-
   const { svcWallet } = useContext(WalletContext)
   const [arkAddress, setArkAddress] = useState<string | null>(null)
 

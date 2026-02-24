@@ -27,7 +27,6 @@ export default function AppBoltzSwap() {
   const { swapInfo, setSwapInfo } = useContext(FlowContext)
   const { claimVHTLC, refundVHTLC, swapManager } = useContext(LightningContext)
 
-
   const [error, setError] = useState<string>('')
   const [processing, setProcessing] = useState<boolean>(false)
   const [success, setSuccess] = useState<boolean>(false)

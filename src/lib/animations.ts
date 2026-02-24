@@ -26,23 +26,23 @@ export const pageTransitionVariants: Variants = {
   animate: (direction: string) => ({
     x: '0%',
     opacity: 1,
-    transition: direction === 'none'
-      ? { duration: 0 }
-      : { duration: PAGE_TRANSITION_DURATION, ease: EASE_OUT_QUINT },
+    transition: direction === 'none' ? { duration: 0 } : { duration: PAGE_TRANSITION_DURATION, ease: EASE_OUT_QUINT },
   }),
   exit: (direction: string) => {
-    if (direction === 'forward') return {
-      x: `-${SLIDE_OFFSET}`,
-      opacity: 0,
-      pointerEvents: 'none' as const,
-      transition: { duration: PAGE_TRANSITION_EXIT_DURATION, ease: EASE_OUT_QUINT },
-    }
-    if (direction === 'back') return {
-      x: SLIDE_OFFSET,
-      opacity: 0,
-      pointerEvents: 'none' as const,
-      transition: { duration: PAGE_TRANSITION_EXIT_DURATION, ease: EASE_OUT_QUINT },
-    }
+    if (direction === 'forward')
+      return {
+        x: `-${SLIDE_OFFSET}`,
+        opacity: 0,
+        pointerEvents: 'none' as const,
+        transition: { duration: PAGE_TRANSITION_EXIT_DURATION, ease: EASE_OUT_QUINT },
+      }
+    if (direction === 'back')
+      return {
+        x: SLIDE_OFFSET,
+        opacity: 0,
+        pointerEvents: 'none' as const,
+        transition: { duration: PAGE_TRANSITION_EXIT_DURATION, ease: EASE_OUT_QUINT },
+      }
     return { opacity: 0, pointerEvents: 'none' as const, transition: { duration: 0 } }
   },
 }

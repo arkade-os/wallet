@@ -473,15 +473,34 @@ export default function SendForm() {
       </ButtonsOnBottom>
       <AnimatePresence>
         {keys && !amountIsReadOnly ? (
-          <motion.div key='keyboard' variants={keyboardOverlay} initial='initial' animate='animate' exit='exit' style={overlayStyle}>
+          <motion.div
+            key='keyboard'
+            variants={keyboardOverlay}
+            initial='initial'
+            animate='animate'
+            exit='exit'
+            style={overlayStyle}
+          >
             <Keyboard back={() => setKeys(false)} onSats={handleAmountChange} value={amount} />
           </motion.div>
         ) : null}
       </AnimatePresence>
       <AnimatePresence>
         {scan ? (
-          <motion.div key='scanner' variants={keyboardOverlay} initial='initial' animate='animate' exit='exit' style={overlayStyle}>
-            <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
+          <motion.div
+            key='scanner'
+            variants={keyboardOverlay}
+            initial='initial'
+            animate='animate'
+            exit='exit'
+            style={overlayStyle}
+          >
+            <Scanner
+              close={() => setScan(false)}
+              label='Recipient address'
+              onData={setRecipient}
+              onError={smartSetError}
+            />
           </motion.div>
         ) : null}
       </AnimatePresence>

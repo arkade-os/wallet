@@ -24,7 +24,6 @@ import { LimitsContext } from '../../providers/limits'
 import { getInputsToSettle } from '../../lib/asp'
 
 export default function Transaction() {
-
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -73,8 +72,6 @@ export default function Transaction() {
       setAmountAboveDust(totalAmount > aspInfo.dust)
     })
   }, [aspInfo, vtxos, svcWallet, wallet.thresholdMs])
-
-
 
   // TODO implement resend
   //  - create new boarding tx

@@ -12,7 +12,6 @@ import { extractError } from '../../../lib/error'
 export default function AppBoltzSettings() {
   const { connected, getApiUrl, restoreSwaps, toggleConnection } = useContext(LightningContext)
 
-
   const [counter, setCounter] = useState(0)
   const [results, setResults] = useState('')
 

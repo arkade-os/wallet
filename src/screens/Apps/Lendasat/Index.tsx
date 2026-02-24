@@ -21,7 +21,6 @@ secp.hashes.sha256 = sha256
 secp.hashes.hmacSha256 = (key, msg) => hmac(sha256, key, msg)
 
 export default function AppLendasat() {
-
   const { wallet, svcWallet } = useContext(WalletContext)
   const [arkAddress, setArkAddress] = useState<string | null>(null)
   const [boardingAddress, setBoardingAddress] = useState<string | null>(null)
