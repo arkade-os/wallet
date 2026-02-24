@@ -1,4 +1,4 @@
-import { ReactNode, useContext, useEffect, useRef, useState } from 'react'
+import { ReactNode, useContext, useEffect, useState } from 'react'
 import Balance from '../../components/Balance'
 import ErrorMessage from '../../components/Error'
 import TransactionsList from '../../components/TransactionsList'
@@ -32,12 +32,7 @@ export default function Wallet() {
   const { nudge } = useContext(NudgeContext)
 
   const [error, setError] = useState(false)
-  const hasPlayedLoadIn = useRef(false)
-  const shouldStagger = isInitialLoad && !hasPlayedLoadIn.current
-
-  useEffect(() => {
-    if (isInitialLoad) hasPlayedLoadIn.current = true
-  }, [isInitialLoad])
+  const shouldStagger = isInitialLoad
 
   useEffect(() => {
     setError(aspInfo.unreachable)
@@ -81,15 +76,15 @@ export default function Wallet() {
                 </Item>
                 <Item>{nudge ? nudge : psaMessage ? <InfoBox html={psaMessage} /> : null}</Item>
               </FlexCol>
-              <Item>
-                {txs?.length === 0 ? (
+              {txs?.length === 0 ? (
+                <Item>
                   <div style={{ marginTop: '5rem', width: '100%' }}>
                     <EmptyTxList />
                   </div>
-                ) : (
-                  <TransactionsList />
-                )}
-              </Item>
+                </Item>
+              ) : (
+                <TransactionsList ItemWrapper={shouldStagger ? WalletStaggerChild : undefined} />
+              )}
             </FlexCol>
           </Container>
         </Padded>

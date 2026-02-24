@@ -3,7 +3,6 @@ import Padded from '../../../components/Padded'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { AddressType, type LoanAsset, WalletProvider } from '@lendasat/lendasat-wallet-bridge'
 import { sha256 } from '@noble/hashes/sha2.js'
@@ -22,7 +21,7 @@ secp.hashes.sha256 = sha256
 secp.hashes.hmacSha256 = (key, msg) => hmac(sha256, key, msg)
 
 export default function AppLendasat() {
-  const { navigate } = useContext(NavigationContext)
+
   const { wallet, svcWallet } = useContext(WalletContext)
   const [arkAddress, setArkAddress] = useState<string | null>(null)
   const [boardingAddress, setBoardingAddress] = useState<string | null>(null)
@@ -178,7 +177,7 @@ export default function AppLendasat() {
 
   return (
     <>
-      <Header text='Lendasat' back={() => navigate(Pages.Apps)} />
+      <Header text='Lendasat' back />
       <Content>
         <Padded>
           <FlexCol gap='2rem' between>

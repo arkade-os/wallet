@@ -68,7 +68,7 @@ export default function InitRestore() {
 
   return (
     <>
-      <Header text='Restore wallet' back={handleCancel} />
+      <Header text='Restore wallet' back />
       <Content>
         <Padded>
           <FlexCol between>

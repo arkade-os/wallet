@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
@@ -20,6 +21,7 @@ import Success from '../../../components/Success'
 import { consoleError } from '../../../lib/logs'
 import { AspContext } from '../../../providers/asp'
 import { isMobileBrowser } from '../../../lib/browser'
+import { keyboardOverlay } from '../../../lib/animations'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { LimitsContext } from '../../../providers/limits'
@@ -129,10 +131,6 @@ export default function ReceiveAmount() {
     ? false
     : satoshis < 1 || amountIsAboveMaxLimit(satoshis) || amountIsBelowMinLimit(satoshis)
 
-  if (showKeys) {
-    return <Keyboard back={() => setShowKeys(false)} hideBalance onSats={handleChange} value={satoshis} />
-  }
-
   if (fauceting) {
     return (
       <>
@@ -158,7 +156,7 @@ export default function ReceiveAmount() {
 
   return (
     <>
-      <Header text='Receive' back={() => navigate(Pages.Wallet)} />
+      <Header text='Receive' back />
       <Content>
         <Padded>
           <FlexCol>
@@ -180,6 +178,27 @@ export default function ReceiveAmount() {
         <Button label={buttonLabel} onClick={handleProceed} disabled={disabled} />
         {showFaucetButton ? <Button disabled={!satoshis} label='Faucet' onClick={handleFaucet} secondary /> : null}
       </ButtonsOnBottom>
+      <AnimatePresence>
+        {showKeys ? (
+          <motion.div
+            key='keyboard'
+            variants={keyboardOverlay}
+            initial='initial'
+            animate='animate'
+            exit='exit'
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 10,
+              display: 'flex',
+              flexDirection: 'column',
+              background: 'var(--ion-background-color)',
+            }}
+          >
+            <Keyboard back={() => setShowKeys(false)} hideBalance onSats={handleChange} value={satoshis} />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </>
   )
 }

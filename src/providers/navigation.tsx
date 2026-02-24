@@ -167,6 +167,7 @@ export const pageComponent = (page: Pages): JSX.Element => {
 
 interface NavigationContextProps {
   direction: NavigationDirection
+  goBack: () => void
   isInitialLoad: boolean
   navigate: (arg0: Pages) => void
   screen: Pages
@@ -175,6 +176,7 @@ interface NavigationContextProps {
 
 export const NavigationContext = createContext<NavigationContextProps>({
   direction: 'none',
+  goBack: () => {},
   isInitialLoad: false,
   navigate: () => {},
   screen: Pages.Init,
@@ -189,7 +191,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   const navigationHistory = useRef<Pages[]>([])
   const previousPage = useRef<Pages>(Pages.Init)
 
-  const isInitialLoad = previousPage.current === Pages.Loading && screen === Pages.Wallet
+  const isInitialLoad = pageTab[previousPage.current] === Tabs.None && screen === Pages.Wallet
 
   const addEntryToBrowserHistory = () => {
     if (typeof window !== 'undefined' && 'history' in window) {
@@ -242,6 +244,10 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [pop])
 
+  const goBack = useCallback(() => {
+    history.back()
+  }, [])
+
   const navigate = (page: Pages) => {
     const nextTab = pageTab[page]
     const isTabSwitch = nextTab !== tab && ROOT_PAGES.has(page) && ROOT_PAGES.has(screen)
@@ -254,7 +260,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <NavigationContext.Provider value={{ direction, isInitialLoad, navigate, screen, tab }}>
+    <NavigationContext.Provider value={{ direction, goBack, isInitialLoad, navigate, screen, tab }}>
       {children}
     </NavigationContext.Provider>
   )

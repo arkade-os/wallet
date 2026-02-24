@@ -33,6 +33,7 @@ import FlexCol from './components/FlexCol'
 import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
 import Focusable from './components/Focusable'
+import { useReducedMotion } from './hooks/useReducedMotion'
 
 setupIonicReact()
 
@@ -128,6 +129,9 @@ export default function App() {
     navigate(Pages.Settings)
   }
 
+  const prefersReduced = useReducedMotion()
+  const effectiveDirection = prefersReduced ? 'none' : direction
+
   const page =
     jsCapabilitiesChecked && configLoaded && (aspInfo.signerPubkey || aspInfo.unreachable) ? screen : Pages.Loading
 
@@ -141,31 +145,37 @@ export default function App() {
         ) : (
           <IonTabs>
             <IonTab ref={walletRef} tab={Tabs.Wallet}>
-              <AnimatePresence mode='popLayout' initial={false}>
-                {tab === Tabs.Wallet && (
-                  <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                    {comp}
-                  </PageTransition>
-                )}
-              </AnimatePresence>
+              <div className='page-transition-container'>
+                <AnimatePresence mode='sync' initial={false} custom={effectiveDirection}>
+                  {tab === Tabs.Wallet && (
+                    <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                      {comp}
+                    </PageTransition>
+                  )}
+                </AnimatePresence>
+              </div>
             </IonTab>
             <IonTab ref={appsRef} tab={Tabs.Apps}>
-              <AnimatePresence mode='popLayout' initial={false}>
-                {tab === Tabs.Apps && (
-                  <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                    {comp}
-                  </PageTransition>
-                )}
-              </AnimatePresence>
+              <div className='page-transition-container'>
+                <AnimatePresence mode='sync' initial={false} custom={effectiveDirection}>
+                  {tab === Tabs.Apps && (
+                    <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                      {comp}
+                    </PageTransition>
+                  )}
+                </AnimatePresence>
+              </div>
             </IonTab>
             <IonTab ref={settingsRef} tab={Tabs.Settings}>
-              <AnimatePresence mode='popLayout' initial={false}>
-                {tab === Tabs.Settings && (
-                  <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                    {comp}
-                  </PageTransition>
-                )}
-              </AnimatePresence>
+              <div className='page-transition-container'>
+                <AnimatePresence mode='sync' initial={false} custom={effectiveDirection}>
+                  {tab === Tabs.Settings && (
+                    <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                      {comp}
+                    </PageTransition>
+                  )}
+                </AnimatePresence>
+              </div>
             </IonTab>
             <IonTabBar slot='bottom'>
               <IonTabButton tab={Tabs.Wallet} onClick={handleWallet} selected={tab === Tabs.Wallet}>

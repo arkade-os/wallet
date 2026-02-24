@@ -39,8 +39,6 @@ export default function InitPassword() {
       .catch(consoleLog)
   }
 
-  const handleCancel = () => navigate(Pages.Init)
-
   const handleContinue = () => {
     const pass = password ? password : defaultPassword
     setInitInfo({ ...initInfo, password: pass })
@@ -49,7 +47,7 @@ export default function InitPassword() {
 
   return (
     <>
-      <Header text='Create new wallet' back={handleCancel} />
+      <Header text='Create new wallet' back />
       <Content>
         <Padded>
           {method === Method.Biometrics ? (

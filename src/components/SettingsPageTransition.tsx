@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { ReactNode } from 'react'
 import { SettingsDirection } from '../providers/options'
-import { pageSlideForward, pageSlideBack, noAnimation } from '../lib/animations'
+import { pageTransitionVariants } from '../lib/animations'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 
 interface SettingsPageTransitionProps {
@@ -12,19 +12,22 @@ interface SettingsPageTransitionProps {
 
 export default function SettingsPageTransition({ children, direction, optionKey }: SettingsPageTransitionProps) {
   const prefersReduced = useReducedMotion()
-
-  const variants = prefersReduced ? noAnimation : direction === 'forward' ? pageSlideForward : pageSlideBack
+  const effectiveDirection = prefersReduced ? 'none' : direction
 
   return (
-    <AnimatePresence mode='popLayout' initial={false}>
+    <AnimatePresence mode='sync' initial={false} custom={effectiveDirection}>
       <motion.div
         key={optionKey}
+        custom={effectiveDirection}
+        variants={pageTransitionVariants}
         initial='initial'
         animate='animate'
         exit='exit'
-        variants={variants}
         style={{
-          height: '100%',
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          flexDirection: 'column',
           willChange: 'transform, opacity',
         }}
       >

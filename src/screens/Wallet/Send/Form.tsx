@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
@@ -30,6 +31,7 @@ import { Addresses, SettingsOptions } from '../../../lib/types'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
+import { keyboardOverlay } from '../../../lib/animations'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { ArkNote } from '@arkade-os/sdk'
@@ -408,17 +410,18 @@ export default function SendForm() {
     satoshis < 1 ||
     processing
 
-  if (scan)
-    return (
-      <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
-    )
-
-  if (keys && !amountIsReadOnly)
-    return <Keyboard back={() => setKeys(false)} onSats={handleAmountChange} value={amount} />
+  const overlayStyle = {
+    position: 'absolute' as const,
+    inset: 0,
+    zIndex: 10,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    background: 'var(--ion-background-color)',
+  }
 
   return (
     <>
-      <Header text='Send' back={() => navigate(Pages.Wallet)} />
+      <Header text='Send' back />
       <Content>
         <Padded>
           <FlexCol gap='2rem'>
@@ -468,6 +471,20 @@ export default function SendForm() {
       <ButtonsOnBottom>
         <Button onClick={handleContinue} label={label} disabled={buttonDisabled} />
       </ButtonsOnBottom>
+      <AnimatePresence>
+        {keys && !amountIsReadOnly ? (
+          <motion.div key='keyboard' variants={keyboardOverlay} initial='initial' animate='animate' exit='exit' style={overlayStyle}>
+            <Keyboard back={() => setKeys(false)} onSats={handleAmountChange} value={amount} />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+      <AnimatePresence>
+        {scan ? (
+          <motion.div key='scanner' variants={keyboardOverlay} initial='initial' animate='animate' exit='exit' style={overlayStyle}>
+            <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </>
   )
 }

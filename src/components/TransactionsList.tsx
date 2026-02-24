@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react'
+import { ReactNode, useContext, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
@@ -103,7 +103,11 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   )
 }
 
-export default function TransactionsList() {
+interface TransactionsListProps {
+  ItemWrapper?: React.ComponentType<{ children: ReactNode }>
+}
+
+export default function TransactionsList({ ItemWrapper }: TransactionsListProps) {
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { txs } = useContext(WalletContext)
@@ -136,23 +140,29 @@ export default function TransactionsList() {
     navigate(Pages.Transaction)
   }
 
+  const Wrap = ItemWrapper ?? (({ children }: { children: ReactNode }) => <>{children}</>)
+
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
-      <TextLabel>Transaction history</TextLabel>
+      <Wrap><TextLabel>Transaction history</TextLabel></Wrap>
       <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
         <div style={{ borderBottom: border }}>
-          {txs.map((tx) => (
-            <Focusable
-              id={key(tx)}
-              key={key(tx)}
-              inactive={!focused}
-              onEnter={() => handleClick(tx)}
-              onEscape={focusOnOuterShell}
-              ariaLabel={ariaLabel(tx)}
-            >
-              <TransactionLine onClick={() => handleClick(tx)} tx={tx} />
-            </Focusable>
-          ))}
+          {txs.map((tx) => {
+            const k = key(tx)
+            const focusable = (
+              <Focusable
+                id={k}
+                key={k}
+                inactive={!focused}
+                onEnter={() => handleClick(tx)}
+                onEscape={focusOnOuterShell}
+                ariaLabel={ariaLabel(tx)}
+              >
+                <TransactionLine onClick={() => handleClick(tx)} tx={tx} />
+              </Focusable>
+            )
+            return ItemWrapper ? <ItemWrapper key={k}>{focusable}</ItemWrapper> : focusable
+          })}
         </div>
       </Focusable>
     </div>

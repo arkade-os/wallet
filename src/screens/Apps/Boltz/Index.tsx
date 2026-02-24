@@ -31,7 +31,7 @@ export default function AppBoltz() {
         auxFunc={() => navigate(Pages.AppBoltzSettings)}
         auxIcon={<SettingsIconLight />}
         text='Boltz'
-        back={() => navigate(Pages.Apps)}
+        back
       />
       <Content>
         <Padded>

@@ -14,30 +14,48 @@ export const STAGGER_DURATION = 0.4
 // Slide distance (% of container)
 const SLIDE_OFFSET = '20%'
 
-export const pageSlideForward: Variants = {
-  initial: { x: SLIDE_OFFSET, opacity: 0 },
-  animate: {
-    x: 0,
-    opacity: 1,
-    transition: { duration: PAGE_TRANSITION_DURATION, ease: EASE_OUT_QUINT },
+// Dynamic page transition variants — direction is passed via Framer Motion's `custom` prop.
+// AnimatePresence's `custom` overrides the child's `custom` for exiting elements,
+// ensuring exit animations always use the CURRENT direction, not the stale one from mount time.
+export const pageTransitionVariants: Variants = {
+  initial: (direction: string) => {
+    if (direction === 'forward') return { x: SLIDE_OFFSET, opacity: 0 }
+    if (direction === 'back') return { x: `-${SLIDE_OFFSET}`, opacity: 0 }
+    return { opacity: 1 }
   },
-  exit: {
-    x: `-${SLIDE_OFFSET}`,
-    opacity: 0,
-    transition: { duration: PAGE_TRANSITION_EXIT_DURATION, ease: EASE_OUT_QUINT },
+  animate: (direction: string) => ({
+    x: '0%',
+    opacity: 1,
+    transition: direction === 'none'
+      ? { duration: 0 }
+      : { duration: PAGE_TRANSITION_DURATION, ease: EASE_OUT_QUINT },
+  }),
+  exit: (direction: string) => {
+    if (direction === 'forward') return {
+      x: `-${SLIDE_OFFSET}`,
+      opacity: 0,
+      pointerEvents: 'none' as const,
+      transition: { duration: PAGE_TRANSITION_EXIT_DURATION, ease: EASE_OUT_QUINT },
+    }
+    if (direction === 'back') return {
+      x: SLIDE_OFFSET,
+      opacity: 0,
+      pointerEvents: 'none' as const,
+      transition: { duration: PAGE_TRANSITION_EXIT_DURATION, ease: EASE_OUT_QUINT },
+    }
+    return { opacity: 0, pointerEvents: 'none' as const, transition: { duration: 0 } }
   },
 }
 
-export const pageSlideBack: Variants = {
-  initial: { x: `-${SLIDE_OFFSET}`, opacity: 0 },
+// Keyboard/scanner overlay — slides up from bottom
+export const keyboardOverlay: Variants = {
+  initial: { y: '100%' },
   animate: {
-    x: 0,
-    opacity: 1,
+    y: '0%',
     transition: { duration: PAGE_TRANSITION_DURATION, ease: EASE_OUT_QUINT },
   },
   exit: {
-    x: SLIDE_OFFSET,
-    opacity: 0,
+    y: '100%',
     transition: { duration: PAGE_TRANSITION_EXIT_DURATION, ease: EASE_OUT_QUINT },
   },
 }
@@ -50,24 +68,11 @@ export const walletLoadInContainer: Variants = {
 }
 
 export const walletLoadInChild: Variants = {
-  initial: { y: 12, opacity: 0 },
+  initial: { y: -16, x: -2, opacity: 0 },
   animate: {
     y: 0,
+    x: 0,
     opacity: 1,
     transition: { duration: STAGGER_DURATION, ease: EASE_OUT_QUINT },
   },
-}
-
-export const loadingExitVariants: Variants = {
-  animate: { opacity: 1 },
-  exit: {
-    opacity: 0,
-    transition: { duration: PAGE_TRANSITION_EXIT_DURATION, ease: EASE_OUT_QUINT },
-  },
-}
-
-export const noAnimation: Variants = {
-  initial: { opacity: 1 },
-  animate: { opacity: 1 },
-  exit: { opacity: 0, transition: { duration: 0 } },
 }
