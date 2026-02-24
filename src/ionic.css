@@ -135,7 +135,7 @@ ion-button {
   &.outline {
     --background: none;
     --border-color: var(--dark50);
-    --btn-shadow-color: rgba(0, 0, 0, 0.10);
+    --btn-shadow-color: rgba(0, 0, 0, 0.1);
     --color: var(--dark50);
   }
   &.red {
@@ -147,7 +147,7 @@ ion-button {
   &.secondary {
     --background: var(--dark20);
     --border-color: var(--black);
-    --btn-shadow-color: rgba(0, 0, 0, 0.10);
+    --btn-shadow-color: rgba(0, 0, 0, 0.1);
     --color: var(--black);
   }
   &[size='small'] {
