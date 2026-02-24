@@ -5,7 +5,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
-import { formatAssetAmount, prettyAgo, prettyDate } from '../../lib/format'
+import { formatAssetAmount, isIssuance, prettyAgo, prettyDate } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
 import ErrorMessage from '../../components/Error'
 import { extractError } from '../../lib/error'
@@ -34,6 +34,7 @@ export default function Transaction() {
   const { assetMetadataCache, settlePreconfirmed, vtxos, wallet, svcWallet } = useContext(WalletContext)
 
   const tx = txInfo
+  const issuanceTx = tx ? isIssuance(tx) : false
   const boardingTx = Boolean(tx?.boardingTxid)
   const defaultButtonLabel = boardingTx ? 'Complete boarding' : 'Settle transaction'
   const boardingExitDelay = Number(aspInfo?.boardingExitDelay || 0)
@@ -105,7 +106,7 @@ export default function Transaction() {
   if (!tx) return <></>
 
   const details: DetailsProps = {
-    direction: tx.type === 'sent' ? 'Sent' : 'Received',
+    direction: issuanceTx ? 'Issuance' : tx.type === 'sent' ? 'Sent' : 'Received',
     when: tx.createdAt ? prettyAgo(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
     date: tx.createdAt ? prettyDate(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
     status: expiredBoardingTx
@@ -118,7 +119,7 @@ export default function Transaction() {
             ? 'Settled'
             : 'Preconfirmed',
     type: boardingTx ? 'Boarding' : 'Offchain',
-    txid: tx.boardingTxid || '',
+    txid: tx.boardingTxid || tx.redeemTxid || '',
     satoshis: tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
     fees: tx.type === 'sent' ? defaultFee : 0,
     total: tx.amount,
@@ -155,8 +156,8 @@ export default function Transaction() {
                 const name = meta?.name
                 const icon = meta?.icon
                 const decimals = meta?.decimals ?? 8
-                const color = tx.type === 'received' ? 'green' : ''
-                const prefix = tx.type === 'received' ? '+ ' : '- '
+                const color = tx.type === 'received' || issuanceTx ? 'green' : ''
+                const prefix = tx.type === 'received' || issuanceTx ? '+ ' : '- '
                 const label = ticker ?? name ?? `${a.assetId.slice(0, 8)}...`
                 return (
                   <FlexRow key={a.assetId} gap='0.5rem'>
