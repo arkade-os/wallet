@@ -67,13 +67,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   const When = () => <TextSecondary>{date}</TextSecondary>
 
   const Sats = () =>
-    issuance ? (
-      <Text color='green' thin>
-        Issuance
-      </Text>
-    ) : burn ? (
-      <Text thin>Burn</Text>
-    ) : (
+    issuance || burn ? null : (
       <Text color={tx.type === 'received' ? (tx.preconfirmed && tx.boardingTxid ? 'orange' : 'green') : ''} thin>
         {amount}
       </Text>

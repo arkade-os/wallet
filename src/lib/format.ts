@@ -1,4 +1,4 @@
-import { Satoshis } from './types'
+import { Satoshis, Tx } from './types'
 import { Decimal } from 'decimal.js'
 
 export const fromSatoshis = (num: Satoshis): number => {
@@ -92,13 +92,11 @@ export const formatAssetAmount = (amount: number, decimals: number): string => {
   return prettyNumber(Decimal.div(amount, Math.pow(10, decimals)).toNumber(), decimals)
 }
 
-type TxLike = { type: string; amount: number; assets?: { assetId: string; amount: number }[] }
-
-export const isIssuance = (tx: TxLike): boolean => {
+export const isIssuance = (tx: Tx): boolean => {
   return tx.type === 'sent' && tx.amount === 0 && (tx.assets ?? []).some((a) => a.amount > 0)
 }
 
-export const isBurn = (tx: TxLike): boolean => {
+export const isBurn = (tx: Tx): boolean => {
   return tx.type === 'sent' && tx.amount === 0 && (tx.assets ?? []).some((a) => a.amount < 0)
 }
 
