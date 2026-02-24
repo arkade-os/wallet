@@ -92,6 +92,14 @@ export const formatAssetAmount = (amount: number, decimals: number): string => {
   return prettyNumber(Decimal.div(amount, Math.pow(10, decimals)).toNumber(), decimals)
 }
 
+export const isIssuance = (tx: {
+  type: string
+  amount: number
+  assets?: { assetId: string; amount: number }[]
+}): boolean => {
+  return tx.type === 'sent' && tx.amount === 0 && (tx.assets?.length ?? 0) > 0
+}
+
 export const toUint8Array = (str: string): Uint8Array => {
   return new TextEncoder().encode(str)
 }

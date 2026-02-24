@@ -9,6 +9,7 @@ import {
   prettyDelta,
   prettyLongText,
   prettyNumber,
+  isIssuance,
 } from '../../lib/format'
 
 describe('format utilities', () => {
@@ -160,6 +161,25 @@ describe('format utilities', () => {
       expect(prettyNumber(0.12345678, 7)).toBe('0.1234568')
       expect(prettyNumber(0.12345678, 3)).toBe('0.123')
       expect(prettyNumber(0.12345678, 1)).toBe('0.1')
+    })
+  })
+
+  describe('isIssuance', () => {
+    it('should return true for sent tx with amount 0 and assets', () => {
+      expect(isIssuance({ type: 'sent', amount: 0, assets: [{ assetId: 'abc', amount: 100 }] })).toBe(true)
+    })
+
+    it('should return false for sent tx with non-zero amount', () => {
+      expect(isIssuance({ type: 'sent', amount: 1000, assets: [{ assetId: 'abc', amount: 100 }] })).toBe(false)
+    })
+
+    it('should return false for received tx with amount 0 and assets', () => {
+      expect(isIssuance({ type: 'received', amount: 0, assets: [{ assetId: 'abc', amount: 100 }] })).toBe(false)
+    })
+
+    it('should return false for sent tx with amount 0 but no assets', () => {
+      expect(isIssuance({ type: 'sent', amount: 0 })).toBe(false)
+      expect(isIssuance({ type: 'sent', amount: 0, assets: [] })).toBe(false)
     })
   })
 })
