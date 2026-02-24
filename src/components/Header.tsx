@@ -13,10 +13,11 @@ interface HeaderProps {
   auxText?: string
   auxIcon?: JSX.Element
   back?: () => void
+  heading?: boolean
   text: string
 }
 
-export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, auxIcon }: HeaderProps) {
+export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, auxIcon, heading = true }: HeaderProps) {
   const handleBack = back
     ? () => {
         hapticLight()
@@ -53,7 +54,14 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
             '\u00A0'
           )}
         </div>
-        <IonTitle className='ion-text-center'>{text}</IonTitle>
+        <IonTitle
+          className='ion-text-center'
+          style={
+            heading ? { fontFamily: 'var(--heading-font)', letterSpacing: '-0.5px', fontWeight: '500' } : undefined
+          }
+        >
+          {text}
+        </IonTitle>
         <div style={style} onClick={auxFunc} aria-label={auxAriaLabel}>
           {auxText || auxIcon ? (
             <Focusable onEnter={auxFunc} fit round>

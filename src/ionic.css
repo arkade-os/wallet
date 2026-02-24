@@ -37,6 +37,7 @@
   --ion-font-family:
     'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans',
     'Droid Sans', 'Helvetica Neue', sans-serif;
+  --heading-font: 'TT Firs Neue', 'Geist', sans-serif;
   --animation-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
@@ -85,11 +86,10 @@ ion-button {
   --border-radius: 0.5rem;
   --ripple-color: transparent;
   --ion-color-activated: transparent;
-  --ion-color-focused: transparent;
   --box-shadow: none;
   --btn-shadow-color: rgba(0, 0, 0, 0.25);
   border-radius: 0.5rem;
-  font-family: 'Geist Mono';
+  font-family: 'Geist Mono', monospace;
   font-size: 0.875rem;
   font-weight: 400;
   letter-spacing: 0%;
@@ -104,8 +104,9 @@ ion-button {
   &::part(native) {
     box-shadow: none !important;
   }
-  &::part(native):focus {
-    outline: none;
+  &::part(native):focus-visible {
+    outline: 2px solid var(--ion-color-dark);
+    outline-offset: 2px;
   }
   &::part(native)::after {
     display: none !important;
@@ -119,6 +120,7 @@ ion-button {
     --border-color: none;
     --color: var(--black);
     box-shadow: none;
+
     &.pressed {
       transform: scale(0.97);
       box-shadow: none;
