@@ -13,7 +13,8 @@ import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
-import InputWithScanner from '../../../components/InputWithScanner'
+import InputAssetId from '../../../components/InputAssetId'
+import Scanner from '../../../components/Scanner'
 
 export default function AppAssetImport() {
   const { navigate } = useContext(NavigationContext)
@@ -24,6 +25,7 @@ export default function AppAssetImport() {
   const [assetId, setAssetId] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [scan, setScan] = useState(false)
 
   const handleImport = async () => {
     if (!svcWallet) return
@@ -58,6 +60,8 @@ export default function AppAssetImport() {
 
   if (loading) return <Loading text='Fetching asset details...' />
 
+  if (scan) return <Scanner close={() => setScan(false)} label='Ark note' onData={setAssetId} onError={setError} />
+
   return (
     <>
       <Header text='Import Asset' back={() => navigate(Pages.AppAssets)} />
@@ -65,12 +69,13 @@ export default function AppAssetImport() {
         <Padded>
           <FlexCol>
             <ErrorMessage error={Boolean(error)} text={error} />
-            <InputWithScanner
+            <InputAssetId
               name='asset-id'
               focus
               label='Asset ID'
               onChange={setAssetId}
               onEnter={handleImport}
+              openScan={() => setScan(true)}
               value={assetId}
             />
           </FlexCol>
