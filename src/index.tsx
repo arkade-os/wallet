@@ -32,31 +32,31 @@ const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 root.render(
   // <React.StrictMode>
   <NavigationProvider>
-    <ConfigProvider>
-      <AspProvider>
-        <NotificationsProvider>
-          <FiatProvider>
-            <FlowProvider>
-              <WalletProvider>
-                <LightningProvider>
-                  <LimitsProvider>
-                    <FeesProvider>
-                      <OptionsProvider>
-                        <NudgeProvider>
+    <NudgeProvider>
+      <ConfigProvider>
+        <AspProvider>
+          <NotificationsProvider>
+            <FiatProvider>
+              <FlowProvider>
+                <WalletProvider>
+                  <LightningProvider>
+                    <LimitsProvider>
+                      <FeesProvider>
+                        <OptionsProvider>
                           <AnnouncementProvider>
                             <App />
                           </AnnouncementProvider>
-                        </NudgeProvider>
-                      </OptionsProvider>
-                    </FeesProvider>
-                  </LimitsProvider>
-                </LightningProvider>
-              </WalletProvider>
-            </FlowProvider>
-          </FiatProvider>
-        </NotificationsProvider>
-      </AspProvider>
-    </ConfigProvider>
+                        </OptionsProvider>
+                      </FeesProvider>
+                    </LimitsProvider>
+                  </LightningProvider>
+                </WalletProvider>
+              </FlowProvider>
+            </FiatProvider>
+          </NotificationsProvider>
+        </AspProvider>
+      </ConfigProvider>
+    </NudgeProvider>
   </NavigationProvider>,
   // </React.StrictMode>,
 )
