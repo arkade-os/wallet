@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
@@ -45,6 +46,7 @@ import { FeesContext } from '../../../providers/fees'
 import { InfoLine } from '../../../components/Info'
 
 export default function SendForm() {
+  const prefersReduced = useReducedMotion()
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
@@ -475,10 +477,10 @@ export default function SendForm() {
         {keys && !amountIsReadOnly ? (
           <motion.div
             key='keyboard'
-            variants={keyboardOverlay}
-            initial='initial'
-            animate='animate'
-            exit='exit'
+            variants={prefersReduced ? undefined : keyboardOverlay}
+            initial={prefersReduced ? false : 'initial'}
+            animate={prefersReduced ? undefined : 'animate'}
+            exit={prefersReduced ? undefined : 'exit'}
             style={overlayStyle}
           >
             <Keyboard back={() => setKeys(false)} onSats={handleAmountChange} value={amount} />
@@ -489,10 +491,10 @@ export default function SendForm() {
         {scan ? (
           <motion.div
             key='scanner'
-            variants={keyboardOverlay}
-            initial='initial'
-            animate='animate'
-            exit='exit'
+            variants={prefersReduced ? undefined : keyboardOverlay}
+            initial={prefersReduced ? false : 'initial'}
+            animate={prefersReduced ? undefined : 'animate'}
+            exit={prefersReduced ? undefined : 'exit'}
             style={overlayStyle}
           >
             <Scanner

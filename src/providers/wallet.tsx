@@ -275,6 +275,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!svcWallet) throw new Error('Service worker not initialized')
     await svcWallet.clear()
     setInitialized(false)
+    setDataReady(false)
+    hasLoadedOnce.current = false
   }
 
   const resetWallet = async () => {
@@ -282,6 +284,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     await clearStorage()
     await svcWallet.clear()
     await svcWallet.contractRepository.clearContractData()
+    setDataReady(false)
+    hasLoadedOnce.current = false
   }
 
   const settlePreconfirmed = async () => {

@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
@@ -29,6 +30,7 @@ import { LightningContext } from '../../../providers/lightning'
 import { InfoLine } from '../../../components/Info'
 
 export default function ReceiveAmount() {
+  const prefersReduced = useReducedMotion()
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
@@ -182,10 +184,10 @@ export default function ReceiveAmount() {
         {showKeys ? (
           <motion.div
             key='keyboard'
-            variants={keyboardOverlay}
-            initial='initial'
-            animate='animate'
-            exit='exit'
+            variants={prefersReduced ? undefined : keyboardOverlay}
+            initial={prefersReduced ? false : 'initial'}
+            animate={prefersReduced ? undefined : 'animate'}
+            exit={prefersReduced ? undefined : 'exit'}
             style={{
               position: 'absolute',
               inset: 0,

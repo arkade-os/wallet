@@ -1,4 +1,4 @@
-import { ReactNode, useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import Balance from '../../components/Balance'
 import ErrorMessage from '../../components/Error'
 import TransactionsList from '../../components/TransactionsList'
@@ -20,8 +20,6 @@ import { InfoBox } from '../../components/AlertBox'
 import { psaMessage } from '../../lib/constants'
 import { AnnouncementContext } from '../../providers/announcements'
 import { WalletStaggerContainer, WalletStaggerChild } from '../../components/WalletLoadIn'
-
-const Passthrough = ({ children }: { children: ReactNode }) => <>{children}</>
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
@@ -48,45 +46,44 @@ export default function Wallet() {
     navigate(Pages.SendForm)
   }
 
-  const Container = shouldStagger ? WalletStaggerContainer : Passthrough
-  const Item = shouldStagger ? WalletStaggerChild : Passthrough
-
   return (
     <>
       {announcement}
       <Content>
         <Padded>
-          <Container>
+          <WalletStaggerContainer animate={shouldStagger}>
             <FlexCol>
               <FlexCol gap='0'>
-                <Item>
+                <WalletStaggerChild animate={shouldStagger}>
                   <LogoIcon small />
-                </Item>
-                <Item>
+                </WalletStaggerChild>
+                <WalletStaggerChild animate={shouldStagger}>
                   <Balance amount={balance} />
-                </Item>
-                <Item>
+                </WalletStaggerChild>
+                <WalletStaggerChild animate={shouldStagger}>
                   <ErrorMessage error={error} text='Ark server unreachable' />
-                </Item>
-                <Item>
+                </WalletStaggerChild>
+                <WalletStaggerChild animate={shouldStagger}>
                   <FlexRow padding='0 0 0.5rem 0'>
                     <Button main icon={<SendIcon />} label='Send' onClick={handleSend} />
                     <Button main icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
                   </FlexRow>
-                </Item>
-                <Item>{nudge ? nudge : psaMessage ? <InfoBox html={psaMessage} /> : null}</Item>
+                </WalletStaggerChild>
+                <WalletStaggerChild animate={shouldStagger}>
+                  {nudge ? nudge : psaMessage ? <InfoBox html={psaMessage} /> : null}
+                </WalletStaggerChild>
               </FlexCol>
               {txs?.length === 0 ? (
-                <Item>
+                <WalletStaggerChild animate={shouldStagger}>
                   <div style={{ marginTop: '5rem', width: '100%' }}>
                     <EmptyTxList />
                   </div>
-                </Item>
+                </WalletStaggerChild>
               ) : (
                 <TransactionsList ItemWrapper={shouldStagger ? WalletStaggerChild : undefined} />
               )}
             </FlexCol>
-          </Container>
+          </WalletStaggerContainer>
         </Padded>
       </Content>
     </>
