@@ -12,7 +12,7 @@ interface InputWithScannerProps {
   name?: string
   onChange: (arg0: any) => void
   onEnter?: () => void
-  openScan?: () => void
+  openScan: () => void
   placeholder?: string
   validator?: (arg0: string) => boolean
   value?: string
@@ -53,13 +53,11 @@ export default function InputWithScanner({
           placeholder={placeholder}
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
         >
-          {openScan ? (
-            <IonText slot='end' style={{ color: 'var(--dark80)', cursor: 'pointer' }}>
-              <div onClick={openScan}>
-                <ScanIcon />
-              </div>
-            </IonText>
-          ) : null}
+          <IonText slot='end' style={{ color: 'var(--dark80)', cursor: 'pointer' }}>
+            <div onClick={openScan}>
+              <ScanIcon />
+            </div>
+          </IonText>
         </IonInput>
       </InputContainer>
       <Clipboard onPaste={onChange} validator={validator} />
