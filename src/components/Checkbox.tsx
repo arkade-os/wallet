@@ -1,5 +1,6 @@
 import { IonCheckbox } from '@ionic/react'
 import FlexRow from './FlexRow'
+import { hapticLight } from '../lib/haptics'
 
 interface CheckboxProps {
   onChange: () => void
@@ -7,6 +8,10 @@ interface CheckboxProps {
 }
 
 export default function Checkbox({ onChange, text }: CheckboxProps) {
+  const handleChange = () => {
+    hapticLight()
+    onChange()
+  }
   const style: React.CSSProperties = {
     border: '1px solid var(--dark50)',
     borderRadius: '0.5rem',
@@ -17,7 +22,7 @@ export default function Checkbox({ onChange, text }: CheckboxProps) {
   return (
     <div style={style}>
       <FlexRow>
-        <IonCheckbox labelPlacement='end' onIonChange={onChange}>
+        <IonCheckbox labelPlacement='end' onIonChange={handleChange}>
           {text}
         </IonCheckbox>
       </FlexRow>

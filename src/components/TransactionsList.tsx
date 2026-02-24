@@ -12,6 +12,7 @@ import { ConfigContext } from '../providers/config'
 import { FiatContext } from '../providers/fiat'
 import PreconfirmedIcon from '../icons/Preconfirmed'
 import Focusable from './Focusable'
+import { hapticSubtle } from '../lib/haptics'
 
 const border = '1px solid var(--dark20)'
 
@@ -132,6 +133,7 @@ export default function TransactionsList() {
   }
 
   const handleClick = (tx: Tx) => {
+    hapticSubtle()
     setTxInfo(tx)
     navigate(Pages.Transaction)
   }
