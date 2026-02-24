@@ -55,7 +55,7 @@ export default function InitPassword() {
           {method === Method.Biometrics ? (
             <CenterScreen onClick={registerUserBiometrics}>
               <LockIcon big />
-              <Text big centered>
+              <Text big centered heading>
                 Create passkey
               </Text>
               <Text centered color='dark50' small wrap>

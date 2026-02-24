@@ -41,7 +41,12 @@ export default function General() {
               option={SettingsOptions.Theme}
               value={config.theme === Themes.Auto ? `Auto (${systemTheme})` : config.theme}
             />
-            <hr style={{ backgroundColor: 'var(--dark20)', width: '100%' }} />
+            <hr
+              style={{
+                backgroundColor: 'var(--dark20)',
+                width: '100%',
+              }}
+            />
             <Row option={SettingsOptions.Fiat} value={config.fiat} />
             <hr style={{ backgroundColor: 'var(--dark20)', width: '100%' }} />
             <Row option={SettingsOptions.Display} value={config.currencyDisplay} />
