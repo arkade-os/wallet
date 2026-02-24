@@ -2,7 +2,7 @@ import { useContext, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
-import { formatAssetAmount, prettyAmount, prettyDate, prettyHide } from '../lib/format'
+import { formatAssetAmount, isIssuance, prettyAmount, prettyDate, prettyHide } from '../lib/format'
 import AssetAvatar from './AssetAvatar'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
@@ -24,8 +24,10 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   const prefix = tx.type === 'sent' ? '-' : '+'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount) : prettyHide(tx.amount)}`
   const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
+  const issuance = isIssuance(tx)
 
   const Fiat = () => {
+    if (issuance) return null
     const color =
       config.currencyDisplay === CurrencyDisplay.Both
         ? 'dark50'
@@ -45,7 +47,9 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   }
 
   const Icon = () =>
-    tx.type === 'sent' ? (
+    issuance ? (
+      <ReceivedIcon />
+    ) : tx.type === 'sent' ? (
       <SentIcon />
     ) : tx.preconfirmed && tx.boardingTxid ? (
       <PreconfirmedIcon />
@@ -53,19 +57,24 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
       <ReceivedIcon dotted={tx.preconfirmed} />
     )
 
-  const Kind = () => <Text thin>{tx.type === 'sent' ? 'Sent' : 'Received'}</Text>
+  const Kind = () => <Text thin>{issuance ? 'Issuance' : tx.type === 'sent' ? 'Sent' : 'Received'}</Text>
 
   const When = () => <TextSecondary>{date}</TextSecondary>
 
-  const Sats = () => (
-    <Text color={tx.type === 'received' ? (tx.preconfirmed && tx.boardingTxid ? 'orange' : 'green') : ''} thin>
-      {amount}
-    </Text>
-  )
+  const Sats = () =>
+    issuance ? (
+      <Text color='green' thin>
+        Issuance
+      </Text>
+    ) : (
+      <Text color={tx.type === 'received' ? (tx.preconfirmed && tx.boardingTxid ? 'orange' : 'green') : ''} thin>
+        {amount}
+      </Text>
+    )
 
   const AssetInfo = () => {
     if (!tx.assets?.length) return null
-    const color = tx.type === 'received' ? 'green' : ''
+    const color = tx.type === 'received' || issuance ? 'green' : ''
     return (
       <>
         {tx.assets.map((a) => {
