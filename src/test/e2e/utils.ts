@@ -6,6 +6,9 @@ interface MintAssetOptions {
   name: string
   ticker: string
   decimals?: number
+  controlMode?: 'mint-new' | 'existing'
+  ctrlAmount?: number
+  ctrlDecimals?: number
 }
 
 export async function navigateToAssets(page: Page): Promise<void> {
@@ -30,6 +33,23 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
     const decimalsInput = page.locator('input[placeholder="8"]')
     await decimalsInput.clear()
     await decimalsInput.fill(opts.decimals.toString())
+  }
+
+  // select control mode if specified
+  if (opts.controlMode === 'mint-new') {
+    await page.getByText('New').click()
+    if (opts.ctrlAmount !== undefined) {
+      const ctrlAmountInput = page.locator('input[placeholder="1"]')
+      await ctrlAmountInput.clear()
+      await ctrlAmountInput.fill(opts.ctrlAmount.toString())
+    }
+    if (opts.ctrlDecimals !== undefined) {
+      const ctrlDecInput = page.locator('input[placeholder="0"]')
+      await ctrlDecInput.clear()
+      await ctrlDecInput.fill(opts.ctrlDecimals.toString())
+    }
+  } else if (opts.controlMode === 'existing') {
+    await page.getByText('Existing').click()
   }
 
   // submit

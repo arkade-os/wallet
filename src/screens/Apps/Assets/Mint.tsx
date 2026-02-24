@@ -11,6 +11,7 @@ import Padded from '../../../components/Padded'
 import Shadow from '../../../components/Shadow'
 import Text from '../../../components/Text'
 import AssetAvatar from '../../../components/AssetAvatar'
+import SegmentedControl from '../../../components/SegmentedControl'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FlowContext } from '../../../providers/flow'
@@ -46,6 +47,10 @@ export default function AppAssetMint() {
   const [controlAssetId, setControlAssetId] = useState('')
   const [showControlDropdown, setShowControlDropdown] = useState(false)
   const [knownAssets, setKnownAssets] = useState<KnownAssetOption[]>([])
+  const [controlMode, setControlMode] = useState<'None' | 'Existing' | 'New'>('None')
+  const [ctrlAmount, setCtrlAmount] = useState('1')
+  const [ctrlDecimals, setCtrlDecimals] = useState('0')
+  const [mintingText, setMintingText] = useState('Minting asset...')
 
   useEffect(() => {
     const load = async () => {
@@ -97,21 +102,51 @@ export default function AppAssetMint() {
       if (iconUrl) metadata.icon = iconUrl
 
       const rawAmount = Decimal.mul(parsedUnits, Math.pow(10, parsedDecimals)).floor().toNumber()
+
+      let resolvedControlAssetId = controlMode === 'Existing' ? controlAssetId : ''
+
+      if (controlMode === 'New') {
+        setMintingText('Minting control asset...')
+        const parsedCtrlDecimals = ctrlDecimals !== '' ? parseInt(ctrlDecimals) : 0
+        const ctrlMeta: KnownMetadata = { decimals: parsedCtrlDecimals }
+        if (name) ctrlMeta.name = `ctrl-${name}`
+        if (ticker) ctrlMeta.ticker = `ctrl-${ticker}`
+        const ctrlRawAmount = Decimal.mul(parseFloat(ctrlAmount), Math.pow(10, parsedCtrlDecimals)).floor().toNumber()
+
+        const ctrlResult = await svcWallet.assetManager.issue({
+          amount: ctrlRawAmount,
+          metadata: ctrlMeta,
+        })
+        resolvedControlAssetId = ctrlResult.assetId
+
+        setCacheEntry(ctrlResult.assetId, {
+          assetId: ctrlResult.assetId,
+          supply: ctrlRawAmount,
+          metadata: ctrlMeta,
+        })
+      }
+
+      setMintingText('Minting asset...')
       const params: IssuanceParams = { amount: rawAmount, metadata }
-      if (controlAssetId) params.controlAssetId = controlAssetId
+      if (resolvedControlAssetId) params.controlAssetId = resolvedControlAssetId
 
       const result = await svcWallet.assetManager.issue(params)
       const newAssetId = result.assetId
 
-      if (!config.importedAssets.includes(newAssetId)) {
-        updateConfig({ ...config, importedAssets: [...config.importedAssets, newAssetId] })
+      const importedAssets = [...config.importedAssets]
+      if (resolvedControlAssetId && !importedAssets.includes(resolvedControlAssetId)) {
+        importedAssets.push(resolvedControlAssetId)
       }
+      if (!importedAssets.includes(newAssetId)) {
+        importedAssets.push(newAssetId)
+      }
+      updateConfig({ ...config, importedAssets })
 
       const assetDetails = {
         assetId: newAssetId,
         supply: rawAmount,
         metadata,
-        controlAssetId: controlAssetId || undefined,
+        controlAssetId: resolvedControlAssetId || undefined,
       }
       setCacheEntry(newAssetId, assetDetails)
       setAssetInfo(assetDetails)
@@ -142,9 +177,19 @@ export default function AppAssetMint() {
               ? 'Amount must be a positive number'
               : isNaN(parsedDecimals) || parsedDecimals < 0 || parsedDecimals > 8
                 ? 'Decimals must be 0–8'
-                : ''
+                : controlMode === 'New' && !ctrlAmount
+                  ? 'Enter control asset amount'
+                  : controlMode === 'New' && (isNaN(parseFloat(ctrlAmount)) || parseFloat(ctrlAmount) <= 0)
+                    ? 'Control amount must be positive'
+                    : controlMode === 'New' &&
+                        (ctrlDecimals === '' ||
+                          isNaN(parseInt(ctrlDecimals)) ||
+                          parseInt(ctrlDecimals) < 0 ||
+                          parseInt(ctrlDecimals) > 8)
+                      ? 'Control decimals must be 0–8'
+                      : ''
 
-  if (minting) return <Loading text='Minting asset...' />
+  if (minting) return <Loading text={mintingText} />
 
   return (
     <>
@@ -231,66 +276,119 @@ export default function AppAssetMint() {
               placeholder='https://...'
             />
 
-            <FlexCol gap='0.25rem'>
+            <FlexCol gap='0.5rem'>
               <Text smaller color='dark50'>
-                Control Asset (optional)
+                Control Asset
               </Text>
-              {knownAssets.length > 0 ? (
-                <>
-                  <Shadow border onClick={() => setShowControlDropdown(!showControlDropdown)}>
-                    <FlexRow between padding='0.5rem'>
-                      {selectedControl ? (
-                        <FlexRow>
-                          <AssetAvatar icon={selectedControl.icon} ticker={selectedControl.ticker} size={24} />
-                          <Text>
-                            {selectedControl.name} {selectedControl.ticker ? `(${selectedControl.ticker})` : ''}
+              <SegmentedControl
+                options={['None', 'Existing', 'New']}
+                selected={controlMode}
+                onChange={(v) => {
+                  setControlMode(v as 'None' | 'Existing' | 'New')
+                  if (v === 'None') setControlAssetId('')
+                }}
+              />
+
+              {controlMode === 'Existing' ? (
+                <FlexCol gap='0.25rem'>
+                  {knownAssets.length > 0 ? (
+                    <>
+                      <Shadow border onClick={() => setShowControlDropdown(!showControlDropdown)}>
+                        <FlexRow between padding='0.625rem 0.5rem'>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', minWidth: 0, flex: 1 }}>
+                            {selectedControl ? (
+                              <>
+                                <AssetAvatar icon={selectedControl.icon} ticker={selectedControl.ticker} size={24} />
+                                <Text>
+                                  {selectedControl.name} {selectedControl.ticker ? `(${selectedControl.ticker})` : ''}
+                                </Text>
+                              </>
+                            ) : (
+                              <Text color='dark50'>Select from wallet...</Text>
+                            )}
+                          </div>
+                          <Text color='dark50' smaller>
+                            {showControlDropdown ? '▲' : '▼'}
                           </Text>
                         </FlexRow>
-                      ) : (
-                        <Text color='dark50'>Select from wallet...</Text>
-                      )}
-                      <Text color='dark50' smaller>
-                        {showControlDropdown ? '▲' : '▼'}
-                      </Text>
-                    </FlexRow>
-                  </Shadow>
-                  {showControlDropdown ? (
-                    <div style={{ maxHeight: '30vh', overflowY: 'auto', width: '100%' }}>
-                      <FlexCol gap='0.25rem'>
-                        {controlAssetId ? (
-                          <Shadow
-                            onClick={() => {
-                              setControlAssetId('')
-                              setShowControlDropdown(false)
-                            }}
-                          >
-                            <FlexRow padding='0.5rem'>
-                              <Text color='dark50'>None</Text>
-                            </FlexRow>
-                          </Shadow>
-                        ) : null}
-                        {knownAssets.map((asset) => (
-                          <Shadow
-                            key={asset.assetId}
-                            onClick={() => {
-                              setControlAssetId(asset.assetId)
-                              setShowControlDropdown(false)
-                            }}
-                          >
-                            <FlexRow padding='0.5rem'>
-                              <AssetAvatar icon={asset.icon} ticker={asset.ticker} size={24} />
-                              <Text>
-                                {asset.name} {asset.ticker ? `(${asset.ticker})` : ''}
-                              </Text>
-                            </FlexRow>
-                          </Shadow>
-                        ))}
-                      </FlexCol>
-                    </div>
+                      </Shadow>
+                      {showControlDropdown ? (
+                        <div style={{ maxHeight: '30vh', overflowY: 'auto', width: '100%' }}>
+                          <FlexCol gap='0.25rem'>
+                            {controlAssetId ? (
+                              <Shadow
+                                onClick={() => {
+                                  setControlAssetId('')
+                                  setShowControlDropdown(false)
+                                }}
+                              >
+                                <FlexRow padding='0.625rem 0.5rem'>
+                                  <Text color='dark50'>None</Text>
+                                </FlexRow>
+                              </Shadow>
+                            ) : null}
+                            {knownAssets.map((asset) => (
+                              <Shadow
+                                key={asset.assetId}
+                                onClick={() => {
+                                  setControlAssetId(asset.assetId)
+                                  setShowControlDropdown(false)
+                                }}
+                              >
+                                <FlexRow padding='0.625rem 0.5rem'>
+                                  <AssetAvatar icon={asset.icon} ticker={asset.ticker} size={24} />
+                                  <Text>
+                                    {asset.name} {asset.ticker ? `(${asset.ticker})` : ''}
+                                  </Text>
+                                </FlexRow>
+                              </Shadow>
+                            ))}
+                          </FlexCol>
+                        </div>
+                      ) : null}
+                    </>
                   ) : null}
-                </>
+                  <Input value={controlAssetId} onChange={setControlAssetId} placeholder='Paste asset ID...' />
+                </FlexCol>
               ) : null}
-              <Input value={controlAssetId} onChange={setControlAssetId} placeholder='Paste asset ID...' />
+
+              {controlMode === 'New' ? (
+                <FlexCol gap='0.5rem'>
+                  <Text smaller color='dark50'>
+                    {name ? `ctrl-${name}` : 'ctrl-...'} {ticker ? `(ctrl-${ticker})` : ''}
+                  </Text>
+                  <FlexRow gap='0.5rem' alignItems='flex-end'>
+                    <div style={{ flex: 1 }}>
+                      <Input
+                        label='Control Amount'
+                        type='number'
+                        value={ctrlAmount}
+                        onChange={setCtrlAmount}
+                        placeholder='1'
+                      />
+                    </div>
+                    <div style={{ minWidth: '6rem' }}>
+                      <Input
+                        label='Decimals'
+                        type='number'
+                        min='0'
+                        max='8'
+                        step='1'
+                        value={ctrlDecimals}
+                        onChange={(v: string) => {
+                          if (v === '') {
+                            setCtrlDecimals('')
+                            return
+                          }
+                          const n = parseInt(v)
+                          if (!isNaN(n) && n >= 0 && n <= 8) setCtrlDecimals(String(n))
+                        }}
+                        placeholder='0'
+                      />
+                    </div>
+                  </FlexRow>
+                </FlexCol>
+              ) : null}
             </FlexCol>
           </FlexCol>
         </Padded>

@@ -87,6 +87,7 @@ test('should reissue an asset with control token', async ({ page }) => {
   await decimalsInput.fill('0')
 
   // select control asset from dropdown
+  await page.getByText('Existing').click()
   await page.getByText('Select from wallet...').click()
   await page.getByText('CtrlToken (CTL)').click()
 
@@ -113,4 +114,33 @@ test('should reissue an asset with control token', async ({ page }) => {
   // back on detail page with increased balance
   await page.waitForSelector('text=ReissueCoin', { state: 'visible' })
   await expect(page.getByText('700 RSI')).toBeVisible()
+})
+
+test('should mint asset with new control asset', async ({ page }) => {
+  await createWallet(page)
+  await fundWallet(page, 10000)
+
+  await mintAsset(page, {
+    amount: 500,
+    name: 'MyCoin',
+    ticker: 'MYC',
+    decimals: 0,
+    controlMode: 'mint-new',
+    ctrlAmount: 1,
+    ctrlDecimals: 0,
+  })
+
+  // success screen shows main asset
+  await expect(page.getByText('MyCoin')).toBeVisible()
+  await expect(page.getByText('MYC')).toBeVisible()
+
+  // view asset detail
+  await page.getByText('View Asset').click()
+  await expect(page.getByText('500 MYC')).toBeVisible()
+
+  // control asset should be displayed
+  await expect(page.getByText('ctrl-MyCoin')).toBeVisible()
+
+  // reissue should be possible (we hold the control asset)
+  await expect(page.getByText('Reissue', { exact: true })).toBeEnabled()
 })
