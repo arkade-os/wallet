@@ -88,6 +88,7 @@ ion-button {
   --ion-color-activated: transparent;
   --box-shadow: none;
   --btn-shadow-color: rgba(0, 0, 0, 0.25);
+
   border-radius: 0.5rem;
   font-family: 'Geist Mono', monospace;
   font-size: 0.875rem;
@@ -119,6 +120,7 @@ ion-button {
     --background: none;
     --border-color: none;
     --color: var(--black);
+
     box-shadow: none;
 
     &.pressed {

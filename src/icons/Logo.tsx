@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { usePixelMorph } from './usePixelMorph'
 import { CELL, GAP, MORPH_MS, SCALE_CLOSED } from './pixel-shapes'
 import { hapticLight } from '../lib/haptics'
@@ -5,10 +6,10 @@ import { hapticLight } from '../lib/haptics'
 export default function LogoIcon({ small }: { small?: boolean }) {
   const { settled, reverting, advance, slots } = usePixelMorph()
   const size = small ? 35 : 50
-  const handleClick = () => {
+  const handleClick = useCallback(() => {
     hapticLight()
     advance()
-  }
+  }, [advance])
 
   // Paths: visible when settled or reverting (fading in during revert)
   const pathsOpacity = settled || reverting ? 1 : 0
