@@ -79,10 +79,10 @@ test('should reissue an asset with control token', async ({ page }) => {
   // mint asset with control token
   await page.getByText('Mint', { exact: true }).click()
   await page.waitForSelector('text=Mint Asset', { state: 'visible' })
-  await page.locator('input[placeholder="1000"]').fill('500')
-  await page.locator('input[placeholder="My Token"]').fill('ReissueCoin')
-  await page.locator('input[placeholder="TKN"]').fill('RSI')
-  const decimalsInput = page.locator('input[placeholder="8"]')
+  await page.getByTestId('asset-amount').fill('500')
+  await page.getByTestId('asset-name').fill('ReissueCoin')
+  await page.getByTestId('asset-ticker').fill('RSI')
+  const decimalsInput = page.getByTestId('asset-decimals')
   await decimalsInput.clear()
   await decimalsInput.fill('0')
 
@@ -104,7 +104,7 @@ test('should reissue an asset with control token', async ({ page }) => {
   await page.waitForSelector('text=Additional Amount', { state: 'visible' })
 
   // fill amount and submit
-  await page.locator('input[type="number"]').fill('200')
+  await page.getByTestId('asset-amount').fill('200')
   await page.getByText('Reissue', { exact: true }).click()
 
   // confirm modal

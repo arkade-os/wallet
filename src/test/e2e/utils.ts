@@ -23,14 +23,14 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
   await page.waitForSelector('text=Mint Asset', { state: 'visible' })
 
   // fill amount
-  await page.locator('input[placeholder="1000"]').fill(opts.amount.toString())
+  await page.getByTestId('asset-amount').fill(opts.amount.toString())
   // fill name
-  await page.locator('input[placeholder="My Token"]').fill(opts.name)
+  await page.getByTestId('asset-name').fill(opts.name)
   // fill ticker
-  await page.locator('input[placeholder="TKN"]').fill(opts.ticker)
+  await page.getByTestId('asset-ticker').fill(opts.ticker)
   // fill decimals if provided
   if (opts.decimals !== undefined) {
-    const decimalsInput = page.locator('input[placeholder="8"]')
+    const decimalsInput = page.getByTestId('asset-decimals')
     await decimalsInput.clear()
     await decimalsInput.fill(opts.decimals.toString())
   }
@@ -39,12 +39,12 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
   if (opts.controlMode === 'mint-new') {
     await page.getByText('New').click()
     if (opts.ctrlAmount !== undefined) {
-      const ctrlAmountInput = page.locator('input[placeholder="1"]')
+      const ctrlAmountInput = page.getByTestId('control-asset-amount')
       await ctrlAmountInput.clear()
       await ctrlAmountInput.fill(opts.ctrlAmount.toString())
     }
     if (opts.ctrlDecimals !== undefined) {
-      const ctrlDecInput = page.locator('input[placeholder="0"]')
+      const ctrlDecInput = page.getByTestId('control-asset-decimals')
       await ctrlDecInput.clear()
       await ctrlDecInput.fill(opts.ctrlDecimals.toString())
     }

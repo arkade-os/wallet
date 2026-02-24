@@ -227,6 +227,7 @@ export default function AppAssetMint() {
                   onChange={(v: string) => setName(v.slice(0, 40))}
                   placeholder='My Token'
                   maxLength={40}
+                  testId='asset-name'
                 />
               </div>
               <div style={{ minWidth: '6rem' }}>
@@ -236,13 +237,21 @@ export default function AppAssetMint() {
                   onChange={(v: string) => setTicker(v.slice(0, 8))}
                   placeholder='TKN'
                   maxLength={8}
+                  testId='asset-ticker'
                 />
               </div>
             </FlexRow>
 
             <FlexRow gap='0.5rem' alignItems='flex-end'>
               <div style={{ flex: 1 }}>
-                <Input label='Amount *' type='number' value={amount} onChange={setAmount} placeholder='1000' />
+                <Input
+                  label='Amount *'
+                  type='number'
+                  value={amount}
+                  onChange={setAmount}
+                  placeholder='1000'
+                  testId='asset-amount'
+                />
               </div>
               <div style={{ minWidth: '6rem' }}>
                 <Input
@@ -261,6 +270,7 @@ export default function AppAssetMint() {
                     if (!isNaN(n) && n >= 0 && n <= 8) setDecimals(String(n))
                   }}
                   placeholder='8'
+                  testId='asset-decimals'
                 />
               </div>
             </FlexRow>
@@ -274,6 +284,7 @@ export default function AppAssetMint() {
                 setIconError(false)
               }}
               placeholder='https://...'
+              testId='asset-icon-url'
             />
 
             <FlexCol gap='0.5rem'>
@@ -348,7 +359,12 @@ export default function AppAssetMint() {
                       ) : null}
                     </>
                   ) : null}
-                  <Input value={controlAssetId} onChange={setControlAssetId} placeholder='Paste asset ID...' />
+                  <Input
+                    value={controlAssetId}
+                    onChange={setControlAssetId}
+                    placeholder='Paste asset ID...'
+                    testId='control-asset-id'
+                  />
                 </FlexCol>
               ) : null}
 
@@ -365,6 +381,7 @@ export default function AppAssetMint() {
                         value={ctrlAmount}
                         onChange={setCtrlAmount}
                         placeholder='1'
+                        testId='control-asset-amount'
                       />
                     </div>
                     <div style={{ minWidth: '6rem' }}>
@@ -384,6 +401,7 @@ export default function AppAssetMint() {
                           if (!isNaN(n) && n >= 0 && n <= 8) setCtrlDecimals(String(n))
                         }}
                         placeholder='0'
+                        testId='control-asset-decimals'
                       />
                     </div>
                   </FlexRow>

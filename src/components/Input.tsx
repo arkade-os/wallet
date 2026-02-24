@@ -14,6 +14,7 @@ interface InputProps {
   placeholder?: string
   right?: JSX.Element
   step?: string
+  testId?: string
   type?: 'text' | 'number' | 'url'
   value?: string
 }
@@ -30,6 +31,7 @@ export default function Input({
   placeholder,
   right,
   step,
+  testId,
   type = 'text',
   value,
 }: InputProps) {
@@ -62,6 +64,7 @@ export default function Input({
         step={step}
         type={type}
         value={value}
+        data-testid={testId}
       />
     </InputContainer>
   )
