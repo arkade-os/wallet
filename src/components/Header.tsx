@@ -6,6 +6,7 @@ import Shadow from './Shadow'
 import Text from './Text'
 import FlexRow from './FlexRow'
 import Focusable from './Focusable'
+import { hapticLight } from '../lib/haptics'
 
 interface HeaderProps {
   auxAriaLabel?: string
@@ -20,7 +21,13 @@ interface HeaderProps {
 export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, auxIcon, heading = true }: HeaderProps) {
   const { goBack } = useContext(NavigationContext)
 
-  const handleBack = typeof back === 'function' ? back : back ? goBack : undefined
+  const backFunc = typeof back === 'function' ? back : back ? goBack : undefined
+  const handleBack = backFunc
+    ? () => {
+        hapticLight()
+        backFunc()
+      }
+    : undefined
 
   const SideButton = (text: string) => (
     <Shadow>
@@ -42,7 +49,7 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
     <IonHeader style={{ boxShadow: 'none' }}>
       <FlexRow between>
         <div style={{ minWidth: '4rem', marginLeft: '0.5rem' }}>
-          {handleBack ? (
+          {backFunc ? (
             <Focusable onEnter={handleBack} fit round>
               <div onClick={handleBack} style={{ cursor: 'pointer' }} aria-label='Go back'>
                 <BackIcon />

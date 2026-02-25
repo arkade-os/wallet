@@ -1,7 +1,8 @@
 import { IonButton } from '@ionic/react'
-import { ReactElement } from 'react'
+import { ReactElement, useCallback, useState } from 'react'
 import FlexRow from './FlexRow'
 import ArrowIcon from '../icons/Arrow'
+import { hapticTap } from '../lib/haptics'
 
 interface ButtonProps {
   clear?: boolean
@@ -32,12 +33,40 @@ export default function Button({
   secondary,
   small,
 }: ButtonProps) {
+  const [pressed, setPressed] = useState(false)
+
+  const variant = red ? 'red' : secondary ? 'secondary' : clear ? 'clear' : outline ? 'outline' : 'dark'
+  const className = `${variant}${pressed ? ' pressed' : ''}`
+
+  const handlePressStart = useCallback(() => {
+    if (disabled || loading) return
+    setPressed(true)
+  }, [disabled, loading])
+
+  const handlePressEnd = useCallback(() => {
+    setPressed(false)
+  }, [])
+
+  const handleClick = useCallback(
+    (event: any) => {
+      hapticTap()
+      onClick(event)
+    },
+    [onClick],
+  )
+
   return (
     <IonButton
-      className={red ? 'red' : secondary ? 'secondary' : clear ? 'clear' : outline ? 'outline' : 'dark'}
+      className={className}
       disabled={disabled}
       fill={clear ? 'clear' : outline ? 'outline' : 'solid'}
-      onClick={onClick}
+      onClick={handleClick}
+      onMouseDown={handlePressStart}
+      onMouseUp={handlePressEnd}
+      onMouseLeave={handlePressEnd}
+      onTouchStart={handlePressStart}
+      onTouchEnd={handlePressEnd}
+      onTouchCancel={handlePressEnd}
       size={small ? 'small' : 'default'}
       style={{ margin: '4px 0' }}
     >
