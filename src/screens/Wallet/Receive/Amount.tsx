@@ -169,6 +169,7 @@ export default function ReceiveAmount() {
               label='Amount'
               onSats={handleChange}
               onFocus={handleFocus}
+              readOnly={isMobileBrowser}
               value={textValue ? Number(textValue) : undefined}
               sats={satoshis}
             />

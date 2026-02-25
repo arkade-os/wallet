@@ -439,7 +439,7 @@ export default function SendForm() {
               onEnter={handleEnter}
               onFocus={handleFocus}
               onMax={handleSendAll}
-              readOnly={amountIsReadOnly}
+              readOnly={amountIsReadOnly || isMobileBrowser}
               right={<Available />}
               sats={amount}
               value={textValue ? Number(textValue) : undefined}

@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { ReactNode, useContext, useEffect, useMemo, useState } from 'react'
 import Balance from '../../components/Balance'
 import ErrorMessage from '../../components/Error'
 import TransactionsList from '../../components/TransactionsList'
@@ -31,6 +31,14 @@ export default function Wallet() {
 
   const [error, setError] = useState(false)
   const shouldStagger = isInitialLoad
+
+  const StaggerItem = useMemo(
+    () =>
+      function StaggerItemWrapper({ children }: { children: ReactNode }) {
+        return <WalletStaggerChild animate={shouldStagger}>{children}</WalletStaggerChild>
+      },
+    [shouldStagger],
+  )
 
   useEffect(() => {
     setError(aspInfo.unreachable)
@@ -80,7 +88,7 @@ export default function Wallet() {
                   </div>
                 </WalletStaggerChild>
               ) : (
-                <TransactionsList ItemWrapper={shouldStagger ? WalletStaggerChild : undefined} />
+                <TransactionsList ItemWrapper={StaggerItem} />
               )}
             </FlexCol>
           </WalletStaggerContainer>

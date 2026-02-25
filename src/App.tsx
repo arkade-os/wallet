@@ -25,8 +25,8 @@ import { WalletContext } from './providers/wallet'
 import { FlowContext } from './providers/flow'
 import { SettingsOptions } from './lib/types'
 import { AspContext } from './providers/asp'
-import PageTransition from './components/PageTransition'
 import { hapticLight } from './lib/haptics'
+import PageTransition from './components/PageTransition'
 import SettingsIcon from './icons/Settings'
 import Loading from './components/Loading'
 import { pwaIsInstalled } from './lib/pwa'
@@ -177,7 +177,13 @@ export default function App() {
     <IonApp>
       <IonPage>
         {tab === Tabs.None ? (
-          comp
+          <div className='page-transition-container'>
+            <AnimatePresence mode='sync' initial={false} custom={effectiveDirection}>
+              <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                {comp}
+              </PageTransition>
+            </AnimatePresence>
+          </div>
         ) : (
           <IonTabs>
             <IonTab ref={walletRef} tab={Tabs.Wallet}>

@@ -86,3 +86,23 @@ export const walletLoadInChild: Variants = {
     transition: { duration: STAGGER_DURATION, ease: EASE_OUT_QUINT },
   },
 }
+
+// Onboarding stagger — fade up, slightly more pronounced for first-time experience
+export const ONBOARD_STAGGER_DELAY = 0.08
+
+export const onboardStaggerContainer: Variants = {
+  initial: { opacity: 0 },
+  animate: {
+    opacity: 1,
+    transition: { staggerChildren: ONBOARD_STAGGER_DELAY, duration: STAGGER_DURATION, ease: EASE_OUT_QUINT },
+  },
+}
+
+export const onboardStaggerChild: Variants = {
+  initial: { y: 16, opacity: 0 },
+  animate: {
+    y: 0,
+    opacity: 1,
+    transition: { duration: STAGGER_DURATION, ease: EASE_OUT_QUINT },
+  },
+}

@@ -104,6 +104,8 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   )
 }
 
+const PassthroughWrapper = ({ children }: { children: ReactNode }) => <>{children}</>
+
 interface TransactionsListProps {
   ItemWrapper?: React.ComponentType<{ children: ReactNode }>
 }
@@ -115,12 +117,12 @@ export default function TransactionsList({ ItemWrapper }: TransactionsListProps)
 
   const [focused, setFocused] = useState(false)
 
-  const key = (tx: Tx) => `${tx.amount}${tx.createdAt}${tx.boardingTxid}${tx.roundTxid}${tx.redeemTxid}${tx.type}`
+  const key = (tx: Tx, index: number) => tx.roundTxid ?? tx.redeemTxid ?? tx.boardingTxid ?? `tx-${index}`
 
   const focusOnFirstRow = () => {
     setFocused(true)
     if (txs.length === 0) return
-    const id = key(txs[0])
+    const id = key(txs[0], 0)
     const first = document.getElementById(id) as HTMLElement
     if (first) first.focus()
   }
@@ -142,7 +144,7 @@ export default function TransactionsList({ ItemWrapper }: TransactionsListProps)
     navigate(Pages.Transaction)
   }
 
-  const Wrap = ItemWrapper ?? (({ children }: { children: ReactNode }) => <>{children}</>)
+  const Wrap = ItemWrapper ?? PassthroughWrapper
 
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
@@ -151,8 +153,8 @@ export default function TransactionsList({ ItemWrapper }: TransactionsListProps)
       </Wrap>
       <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
         <div style={{ borderBottom: border }}>
-          {txs.map((tx) => {
-            const k = key(tx)
+          {txs.map((tx, index) => {
+            const k = key(tx, index)
             const focusable = (
               <Focusable
                 id={k}

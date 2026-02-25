@@ -204,19 +204,7 @@ button.reminder-button.action-sheet-button {
   }
 }
 
-/* Page transition container for animated sub-page navigation */
-.page-transition-container {
-  position: relative;
-  height: 100%;
-  overflow: hidden;
-  contain: layout style paint;
-}
-
-/* Prevent visual overflow during page transitions */
-.tabs-inner {
-  overflow: hidden;
-}
-
+<<<<<<< HEAD
 /* Tab icon animation wrapper */
 .tab-icon-animated {
   display: inline-flex;
@@ -246,4 +234,17 @@ button.reminder-button.action-sheet-button {
   [class*='tab-anim-'] {
     animation: none !important;
   }
+}
+
+/* Page transition container for animated sub-page navigation */
+.page-transition-container {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  contain: layout style paint;
+}
+
+/* Prevent visual overflow during page transitions */
+.tabs-inner {
+  overflow: hidden;
 }

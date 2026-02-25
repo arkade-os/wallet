@@ -16,8 +16,8 @@ export default defineConfig({
   ].filter(Boolean),
   server: {
     port: 3002,
-    allowedHosts: ['.trycloudflare.com'],
     host: true,
+    allowedHosts: ['.trycloudflare.com'],
   },
   build: {
     emptyOutDir: true,
