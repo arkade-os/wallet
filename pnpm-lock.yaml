@@ -13,7 +13,7 @@ importers:
         version: 0.2.19
       '@arkade-os/sdk':
         specifier: github:arkade-os/ts-sdk
-        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/d31e45d23a1e239fab447ff3bbc86f9af245e7b5
+        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/ab505b0b83304216c7c52a908151a7550ebf791b
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -167,8 +167,8 @@ packages:
     resolution: {integrity: sha512-/zE8XiDo6yOCaspMcO3Gua/gLGYmYLRFbqaD1ORkaGI7hH/Gq+m0tkIwArVlwtK50loHK4jvS8clovcaV9CARg==}
     engines: {node: '>=20.0.0'}
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/d31e45d23a1e239fab447ff3bbc86f9af245e7b5':
-    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/d31e45d23a1e239fab447ff3bbc86f9af245e7b5}
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/ab505b0b83304216c7c52a908151a7550ebf791b':
+    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/ab505b0b83304216c7c52a908151a7550ebf791b}
     version: 0.3.13
     engines: {node: '>=20.0.0'}
 
@@ -2558,7 +2558,7 @@ snapshots:
       '@scure/btc-signer': 2.0.1
       bip68: 1.0.4
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/d31e45d23a1e239fab447ff3bbc86f9af245e7b5':
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/ab505b0b83304216c7c52a908151a7550ebf791b':
     dependencies:
       '@kukks/bitcoin-descriptors': 3.1.0
       '@marcbachmann/cel-js': 7.3.1
