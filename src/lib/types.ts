@@ -17,6 +17,7 @@ export type Config = {
   currencyDisplay: CurrencyDisplay
   fiat: Fiats
   importedAssets: string[]
+  haptics: boolean
   nostrBackup: boolean
   notifications: boolean
   pubkey: string

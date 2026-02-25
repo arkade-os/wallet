@@ -4,6 +4,7 @@ import { defaultArkServer } from '../lib/constants'
 import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
 import { BackupProvider } from '../lib/backup'
 import { consoleError } from '../lib/logs'
+import { setHapticsEnabled } from '../lib/haptics'
 
 const defaultConfig: Config = {
   announcementsSeen: [],
@@ -12,6 +13,7 @@ const defaultConfig: Config = {
   currencyDisplay: CurrencyDisplay.Both,
   fiat: Fiats.USD,
   importedAssets: [],
+  haptics: true,
   nostrBackup: false,
   notifications: false,
   pubkey: '',
@@ -90,6 +92,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     }
     setConfig(config)
     applyTheme(config.theme)
+    setHapticsEnabled(config.haptics)
     saveConfigToStorage(config)
   }
 

@@ -46,3 +46,9 @@ node_modules/
 
 # plans
 docs/plans/
+# Claude Code
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+claude.md
+HANDOVER*.md
