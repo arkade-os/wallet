@@ -35,9 +35,10 @@ import Focusable from './components/Focusable'
 
 setupIonicReact()
 
+const animClass = 'tab-anim-pop'
+
 function AnimatedTabIcon({ children, animating }: { children: React.ReactNode; animating: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
-  const animClass = 'tab-anim-pop'
 
   useEffect(() => {
     if (!animating || !ref.current) return
