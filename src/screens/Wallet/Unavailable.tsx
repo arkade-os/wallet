@@ -29,7 +29,9 @@ export default function Unavailable() {
   return (
     <CenterScreen>
       <WalletNewIcon />
-      <Text bigger>Arkade Wallet</Text>
+      <Text bigger heading medium>
+        Arkade Wallet
+      </Text>
       <ErrorMessage error text={error} />
     </CenterScreen>
   )

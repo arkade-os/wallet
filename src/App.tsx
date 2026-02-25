@@ -24,6 +24,7 @@ import { WalletContext } from './providers/wallet'
 import { FlowContext } from './providers/flow'
 import { SettingsOptions } from './lib/types'
 import { AspContext } from './providers/asp'
+import { hapticLight } from './lib/haptics'
 import SettingsIcon from './icons/Settings'
 import Loading from './components/Loading'
 import { pwaIsInstalled } from './lib/pwa'
@@ -114,14 +115,17 @@ export default function App() {
   }, [tab])
 
   const handleWallet = () => {
+    hapticLight()
     navigate(Pages.Wallet)
   }
 
   const handleApps = () => {
+    hapticLight()
     navigate(Pages.Apps)
   }
 
   const handleSettings = () => {
+    hapticLight()
     setOption(SettingsOptions.Menu)
     navigate(Pages.Settings)
   }
