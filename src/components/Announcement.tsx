@@ -117,7 +117,7 @@ export default function Announcement({
       <div style={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         {/* Note: the negative margin on the container is to offset the negative margin top of PrettyIcon class.*/}
         <div
-          style={{ overflowY: 'auto', flex: '1 1 auto', minHeight: 0, margin: '-1rem', padding: '1rem 1rem 0 1rem' }}
+          style={{ overflowY: 'auto', flex: '1 1 auto', minHeight: 0, marginTop: '-1rem', padding: '1rem 1rem 0 1rem' }}
         >
           <FlexCol gap='1.5rem'>
             <FlexCol centered>
@@ -135,7 +135,7 @@ export default function Announcement({
             </FlexCol>
           </FlexCol>
         </div>
-        <FlexCol gap='0.25rem' style={{ flex: '0 0 auto' }}>
+        <FlexCol gap='0.25rem'>
           <Button onClick={handleTryIt} label={`Try ${title}`} />
           <Button onClick={close} label='Maybe later' secondary />
         </FlexCol>
