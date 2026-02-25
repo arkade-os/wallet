@@ -120,7 +120,14 @@ export default function AppAssetReissue() {
               </FlexRow>
             </Shadow>
 
-            <Input label='Additional Amount' type='number' value={amount} onChange={setAmount} placeholder='1000' />
+            <Input
+              label='Additional Amount'
+              type='number'
+              value={amount}
+              onChange={setAmount}
+              placeholder='1000'
+              testId='asset-amount'
+            />
           </FlexCol>
         </Padded>
       </Content>
