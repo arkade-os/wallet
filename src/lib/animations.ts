@@ -91,10 +91,9 @@ export const walletLoadInChild: Variants = {
 export const ONBOARD_STAGGER_DELAY = 0.08
 
 export const onboardStaggerContainer: Variants = {
-  initial: { opacity: 0 },
+  initial: {},
   animate: {
-    opacity: 1,
-    transition: { staggerChildren: ONBOARD_STAGGER_DELAY, duration: STAGGER_DURATION, ease: EASE_OUT_QUINT },
+    transition: { staggerChildren: ONBOARD_STAGGER_DELAY },
   },
 }
 

@@ -13,7 +13,7 @@ export function OnboardStaggerContainer({ children, centered }: OnboardStaggerCo
   const [started, setStarted] = useState(false)
 
   useEffect(() => {
-    if (!prefersReduced) setStarted(true)
+    setStarted(!prefersReduced)
   }, [prefersReduced])
 
   if (prefersReduced) return <>{children}</>

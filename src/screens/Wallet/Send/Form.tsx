@@ -426,7 +426,7 @@ export default function SendForm() {
               label='Recipient address'
               onChange={handleRecipientChange}
               onEnter={handleEnter}
-              openScan={() => setScan(true)}
+              openScan={() => { setKeys(false); setScan(true) }}
               value={recipient}
             />
             <InputAmount
