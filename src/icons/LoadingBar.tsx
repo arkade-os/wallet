@@ -47,7 +47,7 @@ export default function LoadingBar() {
         const shadowEl = shadowsRef.current[i]
         if (!bodyEl) continue
         const v = easedSine(t, 3.0, i * 0.45)
-        const fill = 0.30 + 0.70 * v
+        const fill = 0.3 + 0.7 * v
         const h = BODY_H * fill
         const y = BODY_Y + (BODY_H - h)
         bodyEl.setAttribute('height', String(h))
@@ -72,12 +72,33 @@ export default function LoadingBar() {
       <rect x='19.0334' y='46.0942' width='198.724' height='4.22818' fill={FRAME} />
       {/* Corner pieces */}
       <rect width='4.22818' height='4.22818' transform='matrix(1 0 0 -1 218.181 19.4565)' fill={FRAME} />
-      <rect x='19.0334' y='19.4565' width='4.22818' height='4.22818' transform='rotate(180 19.0334 19.4565)' fill={FRAME} />
+      <rect
+        x='19.0334'
+        y='19.4565'
+        width='4.22818'
+        height='4.22818'
+        transform='rotate(180 19.0334 19.4565)'
+        fill={FRAME}
+      />
       <rect width='4.22818' height='4.22818' transform='matrix(1 0 0 -1 218.181 46.5171)' fill={FRAME} />
-      <rect x='19.0334' y='46.5171' width='4.22818' height='4.22818' transform='rotate(180 19.0334 46.5171)' fill={FRAME} />
+      <rect
+        x='19.0334'
+        y='46.5171'
+        width='4.22818'
+        height='4.22818'
+        transform='rotate(180 19.0334 46.5171)'
+        fill={FRAME}
+      />
       {/* Side walls */}
       <rect width='4.22818' height='23.255' transform='matrix(1 0 0 -1 221.986 42.2886)' fill={FRAME} />
-      <rect x='15.228' y='42.2886' width='4.22818' height='23.255' transform='rotate(180 15.228 42.2886)' fill={FRAME} />
+      <rect
+        x='15.228'
+        y='42.2886'
+        width='4.22818'
+        height='23.255'
+        transform='rotate(180 15.228 42.2886)'
+        fill={FRAME}
+      />
       {/* Dividers */}
       <rect x='46.0938' y='15.2285' width='4.22818' height='30.8657' fill={FRAME} />
       <rect x='81.1875' y='15.2285' width='4.22818' height='30.8657' fill={FRAME} />
@@ -88,7 +109,9 @@ export default function LoadingBar() {
       {SEGMENTS.map((seg, idx) => (
         <g key={seg.id}>
           <rect
-            ref={(el) => { rectsRef.current[idx] = el }}
+            ref={(el) => {
+              rectsRef.current[idx] = el
+            }}
             x={seg.body.x}
             y={BODY_Y}
             width={seg.body.w}
@@ -96,7 +119,9 @@ export default function LoadingBar() {
             fill={FILLED_BODY}
           />
           <rect
-            ref={(el) => { shadowsRef.current[idx] = el }}
+            ref={(el) => {
+              shadowsRef.current[idx] = el
+            }}
             x={seg.shadow.x}
             y={SHADOW_Y}
             width={seg.shadow.w}
