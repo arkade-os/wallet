@@ -1,9 +1,15 @@
+import { useCallback } from 'react'
 import { usePixelMorph } from './usePixelMorph'
 import { CELL, GAP, MORPH_MS, SCALE_CLOSED } from './pixel-shapes'
+import { hapticLight } from '../lib/haptics'
 
 export default function LogoIcon({ small }: { small?: boolean }) {
   const { settled, reverting, advance, slots } = usePixelMorph()
   const size = small ? 35 : 50
+  const handleClick = useCallback(() => {
+    hapticLight()
+    advance()
+  }, [advance])
 
   // Paths: visible when settled or reverting (fading in during revert)
   const pathsOpacity = settled || reverting ? 1 : 0
@@ -20,16 +26,16 @@ export default function LogoIcon({ small }: { small?: boolean }) {
 
   return (
     <div
-      onClick={advance}
+      onClick={handleClick}
       role='button'
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === ' ' || e.key === 'Enter') {
           e.preventDefault()
-          advance()
+          handleClick()
         }
       }}
-      style={{ cursor: 'pointer', width: size, height: size }}
+      style={{ cursor: 'pointer', width: size, height: size, padding: 18, margin: -18, boxSizing: 'content-box' }}
     >
       <svg width={size} height={size} viewBox='0 0 35 35' fill='none' xmlns='http://www.w3.org/2000/svg'>
         {/* Original SVG paths — visible when settled, fading in during revert */}

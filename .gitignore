@@ -44,4 +44,9 @@ node_modules/
 /playwright/.auth/
 /dev-dist/
 
+# Claude Code
 .claude/
+CLAUDE.md
+CLAUDE.local.md
+claude.md
+HANDOVER*.md

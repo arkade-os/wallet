@@ -17,13 +17,14 @@ import '@ionic/react/css/palettes/dark.class.css'
 import { ConfigContext } from './providers/config'
 import { IonApp, IonPage, IonTab, IonTabBar, IonTabButton, IonTabs, setupIonicReact } from '@ionic/react'
 import { NavigationContext, pageComponent, Pages, Tabs } from './providers/navigation'
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { detectJSCapabilities } from './lib/jsCapabilities'
 import { OptionsContext } from './providers/options'
 import { WalletContext } from './providers/wallet'
 import { FlowContext } from './providers/flow'
 import { SettingsOptions } from './lib/types'
 import { AspContext } from './providers/asp'
+import { hapticLight } from './lib/haptics'
 import SettingsIcon from './icons/Settings'
 import Loading from './components/Loading'
 import { pwaIsInstalled } from './lib/pwa'
@@ -33,6 +34,29 @@ import AppsIcon from './icons/Apps'
 import Focusable from './components/Focusable'
 
 setupIonicReact()
+
+const animClass = 'tab-anim-pop'
+
+function AnimatedTabIcon({ children, animating }: { children: React.ReactNode; animating: boolean }) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!animating || !ref.current) return
+    const el = ref.current
+    el.classList.remove(animClass)
+    void el.offsetWidth // Force reflow so removing + re-adding the class triggers the animation
+    el.classList.add(animClass)
+    const handleEnd = () => el.classList.remove(animClass)
+    el.addEventListener('animationend', handleEnd)
+    return () => el.removeEventListener('animationend', handleEnd)
+  }, [animating])
+
+  return (
+    <div ref={ref} className='tab-icon-animated'>
+      {children}
+    </div>
+  )
+}
 
 export default function App() {
   const { aspInfo } = useContext(AspContext)
@@ -44,6 +68,7 @@ export default function App() {
 
   const [isCapable, setIsCapable] = useState(false)
   const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
+  const [animatingTab, setAnimatingTab] = useState<string | null>(null)
 
   // refs for the tabs to be able to programmatically activate them
   const appsRef = useRef<HTMLIonTabElement>(null)
@@ -113,15 +138,26 @@ export default function App() {
     }
   }, [tab])
 
+  const triggerTabAnim = useCallback((tabName: string) => {
+    setAnimatingTab(null)
+    requestAnimationFrame(() => setAnimatingTab(tabName))
+  }, [])
+
   const handleWallet = () => {
+    triggerTabAnim('wallet')
+    hapticLight()
     navigate(Pages.Wallet)
   }
 
   const handleApps = () => {
+    triggerTabAnim('apps')
+    hapticLight()
     navigate(Pages.Apps)
   }
 
   const handleSettings = () => {
+    triggerTabAnim('settings')
+    hapticLight()
     setOption(SettingsOptions.Menu)
     navigate(Pages.Settings)
   }
@@ -151,7 +187,9 @@ export default function App() {
               <IonTabButton tab={Tabs.Wallet} onClick={handleWallet} selected={tab === Tabs.Wallet}>
                 <Focusable>
                   <FlexCol centered gap='6px' padding='5px' testId='tab-wallet'>
-                    <WalletIcon />
+                    <AnimatedTabIcon animating={animatingTab === 'wallet'}>
+                      <WalletIcon />
+                    </AnimatedTabIcon>
                     Wallet
                   </FlexCol>
                 </Focusable>
@@ -159,7 +197,9 @@ export default function App() {
               <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps}>
                 <Focusable>
                   <FlexCol centered gap='6px' padding='5px' testId='tab-apps'>
-                    <AppsIcon />
+                    <AnimatedTabIcon animating={animatingTab === 'apps'}>
+                      <AppsIcon />
+                    </AnimatedTabIcon>
                     Apps
                   </FlexCol>
                 </Focusable>
@@ -167,7 +207,9 @@ export default function App() {
               <IonTabButton tab={Tabs.Settings} onClick={handleSettings} selected={tab === Tabs.Settings}>
                 <Focusable>
                   <FlexCol centered gap='6px' padding='5px' testId='tab-settings'>
-                    <SettingsIcon />
+                    <AnimatedTabIcon animating={animatingTab === 'settings'}>
+                      <SettingsIcon />
+                    </AnimatedTabIcon>
                     Settings
                   </FlexCol>
                 </Focusable>
