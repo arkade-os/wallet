@@ -114,25 +114,32 @@ export default function Announcement({
 
   return (
     <Modal>
-      <FlexCol gap='1.5rem'>
-        <FlexCol centered>
-          <PrettyIcon color={color} icon={icon} />
-        </FlexCol>
-        <FlexCol centered gap='0.5rem'>
-          <Tag text={title} />
-          <Text big medium centered wrap heading>
-            {message}
-          </Text>
-        </FlexCol>
-        <FlexCol gap='0.75rem'>
-          <TextSecondary>What you can do:</TextSecondary>
-          <BulletList points={bulletPoints} />
-        </FlexCol>
+      <div style={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        {/* Note: the negative margin on the container is to offset the negative margin top of PrettyIcon class.*/}
+        <div
+          style={{ overflowY: 'auto', flex: '1 1 auto', minHeight: 0, marginTop: '-1rem', padding: '1rem 1rem 0 1rem' }}
+        >
+          <FlexCol gap='1.5rem'>
+            <FlexCol centered>
+              <PrettyIcon color={color} icon={icon} />
+            </FlexCol>
+            <FlexCol centered gap='0.5rem'>
+              <Tag text={title} />
+              <Text big medium centered wrap heading>
+                {message}
+              </Text>
+            </FlexCol>
+            <FlexCol gap='0.75rem'>
+              <TextSecondary>What you can do:</TextSecondary>
+              <BulletList points={bulletPoints} />
+            </FlexCol>
+          </FlexCol>
+        </div>
         <FlexCol gap='0.25rem'>
           <Button onClick={handleTryIt} label={`Try ${title}`} />
           <Button onClick={close} label='Maybe later' secondary />
         </FlexCol>
-      </FlexCol>
+      </div>
     </Modal>
   )
 }
