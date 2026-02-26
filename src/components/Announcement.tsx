@@ -24,10 +24,10 @@ const PrettyIcon = ({ color, icon }: { color?: string; icon: React.ReactNode }) 
   return (
     <div
       style={{
-        width: '100%',
+        width: 'calc(100% + 2rem)',
         display: 'flex',
         height: '100px',
-        marginTop: '-1rem',
+        margin: '-1rem -1rem 0 -1rem',
         alignItems: 'center',
         justifyContent: 'center',
         background: `radial-gradient(${circle}, ${gradient.join(', ')})`,
