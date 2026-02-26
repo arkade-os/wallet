@@ -35,10 +35,9 @@ import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
 import Focusable from './components/Focusable'
 import { useReducedMotion } from './hooks/useReducedMotion'
+import { EASE_SPRING, DUR_STANDARD } from './lib/animations'
 
 setupIonicReact()
-
-import { EASE_SPRING, DUR_STANDARD } from './lib/animations'
 
 function AnimatedTabIcon({
   children,
@@ -54,10 +53,11 @@ function AnimatedTabIcon({
 
   useEffect(() => {
     if (!animating || !ref.current || reduced) return
-    ref.current.animate(
+    const anim = ref.current.animate(
       [{ transform: 'scale(1)' }, { transform: 'scale(1.18)', offset: 0.4 }, { transform: 'scale(1)' }],
-      { duration: DUR_STANDARD, easing: EASE_SPRING, fill: 'forwards' },
+      { duration: DUR_STANDARD, easing: EASE_SPRING },
     )
+    return () => anim.cancel()
   }, [animating, animKey, reduced])
 
   return (

@@ -207,7 +207,6 @@ button.reminder-button.action-sheet-button {
 /* Tab icon animation wrapper — WAAPI handles the actual animation in App.tsx */
 .tab-icon-animated {
   display: inline-flex;
-  will-change: transform;
 }
 
 /* Page transition container for animated sub-page navigation */

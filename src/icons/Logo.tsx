@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
 import { usePixelMorph } from './usePixelMorph'
 import { CELL, GAP, MORPH_MS, SCALE_CLOSED } from './pixel-shapes'
 import { hapticLight } from '../lib/haptics'
@@ -23,7 +23,7 @@ export default function LogoIcon({ small }: { small?: boolean }) {
     ? `transform ${MORPH_MS}ms ${EASE_SPRING}, opacity ${DUR_STANDARD}ms ${EASE_REVEAL}`
     : `transform ${MORPH_MS}ms ${EASE_SPRING}`
 
-  const pixelOrigin = useMemo(() => `${(CELL - GAP) / 2}px ${(CELL - GAP) / 2}px`, [])
+  const pixelOrigin = `${(CELL - GAP) / 2}px ${(CELL - GAP) / 2}px`
 
   return (
     <div
