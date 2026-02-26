@@ -1,6 +1,5 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, createWallet, receiveOffchain, receiveOnchain, waitForPaymentReceived } from './utils'
 import { exec } from 'child_process'
-import { createWallet, receiveOffchain, receiveOnchain, waitForPaymentReceived } from './utils'
 
 test('should receive onchain funds', async ({ page }) => {
   // create wallet

@@ -1,5 +1,4 @@
-import { test, expect } from '@playwright/test'
-import { createWallet, navigateToAssets, mintAsset, fundWallet } from './utils'
+import { test, expect, createWallet, navigateToAssets, mintAsset, fundWallet } from './utils'
 
 test('should navigate to assets and see empty state', async ({ page }) => {
   await createWallet(page)

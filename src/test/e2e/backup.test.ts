@@ -1,5 +1,4 @@
-import { test, expect } from '@playwright/test'
-import { createWallet, createWalletWithPassword } from './utils'
+import { test, expect, createWallet, createWalletWithPassword } from './utils'
 
 test('should be able to get nsec without password', async ({ page }) => {
   // Create wallet

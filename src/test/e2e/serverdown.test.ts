@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './utils'
 
 test('should show server unreachable', async ({ page }) => {
   await page.goto('/')

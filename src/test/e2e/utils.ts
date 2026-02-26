@@ -1,5 +1,14 @@
-import type { Page } from '@playwright/test'
+import { test as base, type Page } from '@playwright/test'
 import { exec } from 'child_process'
+
+export const test = base.extend({
+  page: async ({ page }, use) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await use(page)
+  },
+})
+
+export { expect } from '@playwright/test'
 
 interface MintAssetOptions {
   amount: number
