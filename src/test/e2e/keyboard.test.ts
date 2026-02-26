@@ -25,7 +25,7 @@ test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, is
   await setupWalletAndOpenKeyboard(page)
 
   // verify keyboard is visible
-  await expect(page.getByText('Amount')).toBeVisible()
+  await expect(page.getByRole('paragraph').filter({ hasText: 'Amount' })).toBeVisible()
   await expect(page.getByTestId('keyboard-1')).toBeVisible()
 
   // initially should be in SATS mode - enter 100 sats
