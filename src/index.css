@@ -48,6 +48,7 @@ html,
 body,
 #root {
   height: 100%;
+  background-color: var(--ion-background-color, #fff);
 }
 body {
   margin: 0;

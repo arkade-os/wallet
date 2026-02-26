@@ -81,6 +81,9 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     const root = document.documentElement
     if (resolved === Themes.Dark) root.classList.add(darkPalette)
     else root.classList.remove(darkPalette)
+
+    const themeColor = resolved === Themes.Dark ? '#101010' : '#fff'
+    document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute('content', themeColor)
   }
 
   const updateConfig = async (config: Config) => {
