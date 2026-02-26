@@ -35,7 +35,7 @@ export function OnboardStaggerChild({ children }: { children: ReactNode }) {
   if (prefersReduced) return <>{children}</>
 
   return (
-    <motion.div variants={onboardStaggerChild} style={{ willChange: 'transform, opacity' }}>
+    <motion.div variants={onboardStaggerChild}>
       {children}
     </motion.div>
   )

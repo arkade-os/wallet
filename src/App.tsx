@@ -38,21 +38,27 @@ import { useReducedMotion } from './hooks/useReducedMotion'
 
 setupIonicReact()
 
-const animClass = 'tab-anim-pop'
+import { EASE_SPRING, DUR_STANDARD } from './lib/animations'
 
-function AnimatedTabIcon({ children, animating }: { children: React.ReactNode; animating: boolean }) {
+function AnimatedTabIcon({
+  children,
+  animating,
+  animKey,
+}: {
+  children: React.ReactNode
+  animating: boolean
+  animKey: number
+}) {
   const ref = useRef<HTMLDivElement>(null)
+  const reduced = useReducedMotion()
 
   useEffect(() => {
-    if (!animating || !ref.current) return
-    const el = ref.current
-    el.classList.remove(animClass)
-    void el.offsetWidth // Force reflow so removing + re-adding the class triggers the animation
-    el.classList.add(animClass)
-    const handleEnd = () => el.classList.remove(animClass)
-    el.addEventListener('animationend', handleEnd)
-    return () => el.removeEventListener('animationend', handleEnd)
-  }, [animating])
+    if (!animating || !ref.current || reduced) return
+    ref.current.animate(
+      [{ transform: 'scale(1)' }, { transform: 'scale(1.18)', offset: 0.4 }, { transform: 'scale(1)' }],
+      { duration: DUR_STANDARD, easing: EASE_SPRING, fill: 'forwards' },
+    )
+  }, [animating, animKey, reduced])
 
   return (
     <div ref={ref} className='tab-icon-animated'>
@@ -72,6 +78,7 @@ export default function App() {
   const [isCapable, setIsCapable] = useState(false)
   const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
   const [animatingTab, setAnimatingTab] = useState<string | null>(null)
+  const animKeyRef = useRef(0)
 
   // refs for the tabs to be able to programmatically activate them
   const appsRef = useRef<HTMLIonTabElement>(null)
@@ -142,8 +149,8 @@ export default function App() {
   }, [tab])
 
   const triggerTabAnim = useCallback((tabName: string) => {
-    setAnimatingTab(null)
-    requestAnimationFrame(() => setAnimatingTab(tabName))
+    animKeyRef.current++
+    setAnimatingTab(tabName)
   }, [])
 
   const handleWallet = () => {
@@ -223,7 +230,7 @@ export default function App() {
               <IonTabButton tab={Tabs.Wallet} onClick={handleWallet} selected={tab === Tabs.Wallet}>
                 <Focusable>
                   <FlexCol centered gap='6px' padding='5px' testId='tab-wallet'>
-                    <AnimatedTabIcon animating={animatingTab === 'wallet'}>
+                    <AnimatedTabIcon animating={animatingTab === 'wallet'} animKey={animKeyRef.current}>
                       <WalletIcon />
                     </AnimatedTabIcon>
                     Wallet
@@ -233,7 +240,7 @@ export default function App() {
               <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps}>
                 <Focusable>
                   <FlexCol centered gap='6px' padding='5px' testId='tab-apps'>
-                    <AnimatedTabIcon animating={animatingTab === 'apps'}>
+                    <AnimatedTabIcon animating={animatingTab === 'apps'} animKey={animKeyRef.current}>
                       <AppsIcon />
                     </AnimatedTabIcon>
                     Apps
@@ -243,7 +250,7 @@ export default function App() {
               <IonTabButton tab={Tabs.Settings} onClick={handleSettings} selected={tab === Tabs.Settings}>
                 <Focusable>
                   <FlexCol centered gap='6px' padding='5px' testId='tab-settings'>
-                    <AnimatedTabIcon animating={animatingTab === 'settings'}>
+                    <AnimatedTabIcon animating={animatingTab === 'settings'} animKey={animKeyRef.current}>
                       <SettingsIcon />
                     </AnimatedTabIcon>
                     Settings

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { ReactNode } from 'react'
+import { ReactNode, useState } from 'react'
 import { NavigationDirection } from '../providers/navigation'
 import { pageTransitionVariants } from '../lib/animations'
 import { useReducedMotion } from '../hooks/useReducedMotion'
@@ -13,6 +13,7 @@ interface PageTransitionProps {
 export default function PageTransition({ children, direction, pageKey }: PageTransitionProps) {
   const prefersReduced = useReducedMotion()
   const effectiveDirection = prefersReduced ? 'none' : direction
+  const [animating, setAnimating] = useState(true)
 
   return (
     <motion.div
@@ -22,12 +23,14 @@ export default function PageTransition({ children, direction, pageKey }: PageTra
       initial='initial'
       animate='animate'
       exit='exit'
+      onAnimationComplete={() => setAnimating(false)}
       style={{
         position: 'absolute',
         inset: 0,
         display: 'flex',
         flexDirection: 'column',
-        willChange: 'transform, opacity',
+        willChange: animating ? 'transform, opacity' : 'auto',
+        contain: 'content',
       }}
     >
       {children}

@@ -28,7 +28,7 @@ export function WalletStaggerChild({ children, animate = true }: { children: Rea
   if (skip) return <div style={{ width: '100%' }}>{children}</div>
 
   return (
-    <motion.div variants={walletLoadInChild} style={{ width: '100%', willChange: 'transform, opacity' }}>
+    <motion.div variants={walletLoadInChild} style={{ width: '100%' }}>
       {children}
     </motion.div>
   )

@@ -1,7 +1,8 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { usePixelMorph } from './usePixelMorph'
 import { CELL, GAP, MORPH_MS, SCALE_CLOSED } from './pixel-shapes'
 import { hapticLight } from '../lib/haptics'
+import { EASE_SPRING, EASE_REVEAL, DUR_STANDARD } from '../lib/animations'
 
 export default function LogoIcon({ small }: { small?: boolean }) {
   const { settled, reverting, advance, slots } = usePixelMorph()
@@ -13,16 +14,16 @@ export default function LogoIcon({ small }: { small?: boolean }) {
 
   // Paths: visible when settled or reverting (fading in during revert)
   const pathsOpacity = settled || reverting ? 1 : 0
-  const pathsTransition = reverting ? 'opacity 250ms ease-out' : 'none'
+  const pathsTransition = reverting ? `opacity ${DUR_STANDARD}ms ${EASE_REVEAL}` : 'none'
 
   // Pixels: visible when active, fading out + scaling up during revert
   const pixelScale = reverting ? SCALE_CLOSED : 1
   const pixelOpacity = settled ? 0 : reverting ? 0 : 1
   const pixelTransition = reverting
-    ? `transform ${MORPH_MS}ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 250ms ease-out`
-    : `transform ${MORPH_MS}ms cubic-bezier(0.34, 1.56, 0.64, 1)`
+    ? `transform ${MORPH_MS}ms ${EASE_SPRING}, opacity ${DUR_STANDARD}ms ${EASE_REVEAL}`
+    : `transform ${MORPH_MS}ms ${EASE_SPRING}`
 
-  const pixelOrigin = `${(CELL - GAP) / 2}px ${(CELL - GAP) / 2}px`
+  const pixelOrigin = useMemo(() => `${(CELL - GAP) / 2}px ${(CELL - GAP) / 2}px`, [])
 
   return (
     <div
