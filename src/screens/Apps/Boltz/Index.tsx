@@ -17,12 +17,7 @@ export default function AppBoltz() {
   const { navigate } = useContext(NavigationContext)
 
   const ConnectionStatus = () => (
-    <FlexRow end>
-      {connected ? <GreenStatusIcon small /> : <RedStatusIcon small />}
-      <Text color={connected ? 'green' : 'red'} small thin>
-        {connected ? 'Connected' : 'Disconnected'}
-      </Text>
-    </FlexRow>
+    <FlexRow end>{connected ? <GreenStatusIcon small /> : <RedStatusIcon small />}</FlexRow>
   )
 
   return (
