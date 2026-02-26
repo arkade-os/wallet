@@ -1,13 +1,5 @@
+import { Database } from 'lucide-react'
+
 export default function ServerIcon() {
-  return (
-    <svg width='20' height='20' viewBox='0 0 20 20' fill='none' xmlns='http://www.w3.org/2000/svg'>
-      <path
-        d='M3.33398 5.83333V14.1667C3.33398 16.0083 6.31898 17.5 10.0007 17.5C13.6823 17.5 16.6673 16.0083 16.6673 14.1667V5.83333M3.33398 5.83333C3.33398 7.675 6.31898 9.16667 10.0007 9.16667C13.6823 9.16667 16.6673 7.675 16.6673 5.83333M3.33398 5.83333C3.33398 3.99167 6.31898 2.5 10.0007 2.5C13.6823 2.5 16.6673 3.99167 16.6673 5.83333M16.6673 10C16.6673 11.8417 13.6823 13.3333 10.0007 13.3333C6.31898 13.3333 3.33398 11.8417 3.33398 10'
-        stroke='currentColor'
-        strokeWidth='1.3'
-        strokeLinecap='round'
-        strokeLinejoin='round'
-      />
-    </svg>
-  )
+  return <Database size={20} strokeWidth={1.75} />
 }

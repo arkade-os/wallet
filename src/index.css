@@ -234,3 +234,11 @@ button.reminder-button.action-sheet-button {
     animation: none !important;
   }
 }
+
+/* Tab label styling */
+.tab-label {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
