@@ -8,6 +8,7 @@ import { setHapticsEnabled } from '../lib/haptics'
 
 const defaultConfig: Config = {
   announcementsSeen: [],
+  bannersDismissed: [],
   apps: { boltz: { connected: true } },
   aspUrl: defaultArkServer(),
   currencyDisplay: CurrencyDisplay.Both,

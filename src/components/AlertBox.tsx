@@ -1,4 +1,5 @@
 import React from 'react'
+import { X } from 'lucide-react'
 import { LogoIconAnimated } from '../icons/Logo'
 import MegaphoneIcon from '../icons/Megaphone'
 import FlexCol from './FlexCol'
@@ -13,7 +14,7 @@ interface AlertBoxProps {
   onDismiss?: () => void
 }
 
-function AlertBox({ children, icon, onClick, onDismiss }: AlertBoxProps) {
+export default function AlertBox({ children, icon, onClick, onDismiss }: AlertBoxProps) {
   const style: Record<string, React.CSSProperties> = {
     alert: {
       backgroundColor: 'var(--purple20)',
@@ -81,11 +82,23 @@ export function CreatePasswordWarning({ onClick, onDismiss }: { onClick: () => v
 
 function CloseIcon({ onClick }: { onClick: () => void }) {
   return (
-    <svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 512 512' onClick={onClick}>
-      <path
-        fill='currentColor'
-        d='M256 48C141.31 48 48 141.31 48 256s93.31 208 208 208s208-93.31 208-208S370.69 48 256 48Zm75.31 260.69a16 16 0 1 1-22.62 22.62L256 278.63l-52.69 52.68a16 16 0 0 1-22.62-22.62L233.37 256l-52.68-52.69a16 16 0 0 1 22.62-22.62L256 233.37l52.69-52.68a16 16 0 0 1 22.62 22.62L278.63 256Z'
-      />
-    </svg>
+    <div
+      role='button'
+      aria-label='Dismiss'
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: '44px',
+        minHeight: '44px',
+        margin: '-0.5rem -0.25rem -0.5rem 0',
+        cursor: 'pointer',
+        flexShrink: 0,
+        touchAction: 'manipulation',
+      }}
+    >
+      <X size={18} color='var(--black)' />
+    </div>
   )
 }

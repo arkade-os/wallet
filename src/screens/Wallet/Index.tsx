@@ -1,10 +1,12 @@
 import { useContext, useEffect, useState } from 'react'
 import Balance from '../../components/Balance'
+import DismissibleBanner from '../../components/DismissibleBanner'
 import ErrorMessage from '../../components/Error'
 import TransactionsList from '../../components/TransactionsList'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
 import LogoIcon from '../../icons/Logo'
+import MegaphoneIcon from '../../icons/Megaphone'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import FlexCol from '../../components/FlexCol'
@@ -15,9 +17,11 @@ import FlexRow from '../../components/FlexRow'
 import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { NudgeContext } from '../../providers/nudge'
+import { OptionsContext } from '../../providers/options'
 import { EmptyTxList } from '../../components/Empty'
 import { InfoBox } from '../../components/AlertBox'
 import { psaMessage } from '../../lib/constants'
+import { SettingsOptions } from '../../lib/types'
 import { AnnouncementContext } from '../../providers/announcements'
 
 export default function Wallet() {
@@ -27,6 +31,7 @@ export default function Wallet() {
   const { navigate } = useContext(NavigationContext)
   const { balance, txs } = useContext(WalletContext)
   const { nudge } = useContext(NudgeContext)
+  const { setOption } = useContext(OptionsContext)
 
   const [error, setError] = useState(false)
 
@@ -58,7 +63,24 @@ export default function Wallet() {
                 <Button main icon={<SendIcon />} label='Send' onClick={handleSend} />
                 <Button main icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
               </FlexRow>
-              {nudge ? nudge : psaMessage ? <InfoBox html={psaMessage} /> : null}
+              {nudge ? (
+                nudge
+              ) : psaMessage ? (
+                <InfoBox html={psaMessage} />
+              ) : (
+                <DismissibleBanner
+                  id='support-banner'
+                  icon={<MegaphoneIcon animated />}
+                  onClick={() => {
+                    setOption(SettingsOptions.Support)
+                    navigate(Pages.Settings)
+                  }}
+                >
+                  <div style={{ color: 'var(--black)', fontSize: '13px', fontWeight: 600, lineHeight: 1.5 }}>
+                    Go to Settings &gt; Support for help and bug reports
+                  </div>
+                </DismissibleBanner>
+              )}
             </FlexCol>
             {txs?.length === 0 ? (
               <div style={{ marginTop: '5rem', width: '100%' }}>
