@@ -1,4 +1,3 @@
-/*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 function ao(e) {
   return e instanceof Uint8Array || ArrayBuffer.isView(e) && e.constructor.name === "Uint8Array";
 }
@@ -303,7 +302,6 @@ const xt = /* @__PURE__ */ Gc(
   () => new Cf(),
   /* @__PURE__ */ $f(1)
 );
-/*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 const co = /* @__PURE__ */ BigInt(0), Ss = /* @__PURE__ */ BigInt(1);
 function Yr(e, t = "") {
   if (typeof e != "boolean") {
@@ -432,7 +430,6 @@ function ra(e) {
     return t.set(n, s), s;
   };
 }
-/*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 const kt = /* @__PURE__ */ BigInt(0), St = /* @__PURE__ */ BigInt(1), Xe = /* @__PURE__ */ BigInt(2), tu = /* @__PURE__ */ BigInt(3), eu = /* @__PURE__ */ BigInt(4), nu = /* @__PURE__ */ BigInt(5), Hf = /* @__PURE__ */ BigInt(7), ru = /* @__PURE__ */ BigInt(8), Ff = /* @__PURE__ */ BigInt(9), iu = /* @__PURE__ */ BigInt(16);
 function jt(e, t) {
   const n = e % t;
@@ -703,7 +700,6 @@ function lu(e, t, n = !1) {
   const o = n ? Xc(e) : xe(e), a = jt(o, t - St) + St;
   return n ? Qc(a, i) : pr(a, i);
 }
-/*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 const Sn = /* @__PURE__ */ BigInt(0), Qe = /* @__PURE__ */ BigInt(1);
 function Zr(e, t) {
   const n = t.negate();
@@ -909,7 +905,6 @@ let pu = class {
 };
 const gu = (e, t, n) => new pu(e, t).update(n).digest();
 gu.create = (e, t) => new pu(e, t);
-/*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 const la = (e, t) => (e + (e >= 0 ? t : -t) / yu) / t;
 function td(e, t, n) {
   const [[r, i], [s, o]] = t, a = la(o * e, n), c = la(-i * e, n);
@@ -1548,7 +1543,6 @@ function sd(e, t, n = {}) {
     hash: t
   });
 }
-/*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 const $i = {
   p: BigInt("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f"),
   n: BigInt("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"),
@@ -1734,7 +1728,6 @@ class yd extends qc {
   }
 }
 const wd = /* @__PURE__ */ Gc(() => new yd());
-/*! scure-base - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 function vn(e) {
   return e instanceof Uint8Array || ArrayBuffer.isView(e) && e.constructor.name === "Uint8Array";
 }
@@ -4996,7 +4989,6 @@ function Lh(e) {
 function Ch(e) {
   return Rh(e);
 }
-/*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 function Uo(e) {
   return e instanceof Uint8Array || ArrayBuffer.isView(e) && e.constructor.name === "Uint8Array";
 }
@@ -5104,7 +5096,6 @@ function Vi(e = 32) {
 const Vh = (e) => ({
   oid: Uint8Array.from([6, 9, 96, 134, 72, 1, 101, 3, 4, 2, e])
 });
-/*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 const Lo = /* @__PURE__ */ BigInt(0), Ks = /* @__PURE__ */ BigInt(1);
 function li(e, t = "") {
   if (typeof e != "boolean") {
@@ -5225,7 +5216,6 @@ function Ha(e) {
     return t.set(n, s), s;
   };
 }
-/*! noble-secp256k1 - MIT License (c) 2019 Paul Miller (paulmillr.com) */
 const cl = {
   p: 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2fn,
   n: 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n,
@@ -5790,7 +5780,6 @@ const qs = /* @__PURE__ */ Dh(
   () => new $p(),
   /* @__PURE__ */ Vh(1)
 );
-/*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 const Ot = /* @__PURE__ */ BigInt(0), vt = /* @__PURE__ */ BigInt(1), en = /* @__PURE__ */ BigInt(2), _l = /* @__PURE__ */ BigInt(3), Dl = /* @__PURE__ */ BigInt(4), Vl = /* @__PURE__ */ BigInt(5), Np = /* @__PURE__ */ BigInt(7), Ml = /* @__PURE__ */ BigInt(8), Rp = /* @__PURE__ */ BigInt(9), Hl = /* @__PURE__ */ BigInt(16);
 function Wt(e, t) {
   const n = e % t;
@@ -6061,7 +6050,6 @@ function Gl(e, t, n = !1) {
   const o = n ? ol(e) : Vn(e), a = Wt(o, t - vt) + vt;
   return n ? al(a, i) : Co(a, i);
 }
-/*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 const Nn = /* @__PURE__ */ BigInt(0), nn = /* @__PURE__ */ BigInt(1);
 function gi(e, t) {
   const n = t.negate();
@@ -6267,7 +6255,6 @@ class Xl {
 }
 const Ql = (e, t, n) => new Xl(e, t).update(n).digest();
 Ql.create = (e, t) => new Xl(e, t);
-/*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 const nc = (e, t) => (e + (e >= 0 ? t : -t) / Jl) / t;
 function zp(e, t, n) {
   const [[r, i], [s, o]] = t, a = nc(o * e, n), c = nc(-i * e, n);
@@ -6906,7 +6893,6 @@ function Yp(e, t, n = {}) {
     hash: t
   });
 }
-/*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 const zi = {
   p: BigInt("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f"),
   n: BigInt("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"),
@@ -9767,7 +9753,7 @@ class oe {
   get [Symbol.toStringTag]() {
     return "optional";
   }
-  [Symbol.for("nodejs.util.inspect.custom")]() {
+  [/* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom")]() {
     return this.#t === void 0 ? "Optional { none }" : `Optional { value: ${JSON.stringify(this.#t)} }`;
   }
 }
@@ -9868,7 +9854,7 @@ class Ze {
   get [Symbol.toStringTag]() {
     return `value = ${this.#t}`;
   }
-  [Symbol.for("nodejs.util.inspect.custom")]() {
+  [/* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom")]() {
     return `UnsignedInteger { value: ${this.#t} }`;
   }
 }
@@ -9943,7 +9929,7 @@ class _e {
   get [Symbol.toStringTag]() {
     return "google.protobuf.Duration";
   }
-  [Symbol.for("nodejs.util.inspect.custom")]() {
+  [/* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom")]() {
     return `google.protobuf.Duration { seconds: ${this.#t}, nanos: ${this.#e} }`;
   }
 }
