@@ -45,7 +45,14 @@ export default function AppAssetMintSuccess() {
             <Shadow border>
               <FlexRow between padding='0.75rem'>
                 <FlexRow>
-                  <AssetAvatar icon={icon} ticker={ticker} name={name} size={32} />
+                  <AssetAvatar
+                    icon={icon}
+                    ticker={ticker}
+                    name={name}
+                    size={32}
+                    assetId={assetInfo.assetId}
+                    clickable
+                  />
                   <FlexCol gap='0'>
                     <Text bold>{name}</Text>
                     {ticker ? (

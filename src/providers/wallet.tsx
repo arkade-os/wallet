@@ -23,6 +23,7 @@ import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
 import { maxPercentage } from '../lib/constants'
+import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 
 const ASSET_METADATA_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
@@ -46,8 +47,9 @@ interface WalletContextProps {
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: WalletBalance['total']
   assetBalances: WalletBalance['assets']
-  assetMetadataCache: Map<string, AssetDetails>
+  assetMetadataCache: Map<string, CachedAssetDetails>
   setCacheEntry: (assetId: string, details: AssetDetails) => void
+  iconApprovalManager: AssetIconApprovalManager
   initialized?: boolean
 }
 
@@ -66,6 +68,7 @@ export const WalletContext = createContext<WalletContextProps>({
   assetBalances: [],
   assetMetadataCache: new Map(),
   setCacheEntry: () => {},
+  iconApprovalManager: new AssetIconApprovalManager(),
   txs: [],
   vtxos: { spendable: [], spent: [] },
 })
@@ -88,9 +91,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const listeningForServiceWorker = useRef(false)
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
+  const iconApprovalManager = useRef(new AssetIconApprovalManager()).current
+  const verifiedAssetsFetched = useRef(false)
 
   const setCacheEntry = (assetId: string, details: AssetDetails) => {
-    const entry: CachedAssetDetails = { ...details, cachedAt: Date.now() }
+    const hasIcon = !!details.metadata?.icon
+    const moderated =
+      hasIcon && !iconApprovalManager.isApproved(assetId)
+        ? { ...details, metadata: { ...details.metadata, icon: undefined } }
+        : details
+    const entry: CachedAssetDetails = { ...moderated, cachedAt: Date.now(), hasIcon }
     assetMetadataCache.current.set(assetId, entry)
     saveAssetMetadataToStorage(assetMetadataCache.current)
   }
@@ -123,6 +133,27 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
     computeThresholds()
   }, [initialized, vtxos, svcWallet, aspInfo])
+
+  // fetch verified assets list once on startup
+  useEffect(() => {
+    const verifiedUrl = import.meta.env.VITE_VERIFIED_ASSETS_URL
+    if (!verifiedUrl || verifiedAssetsFetched.current) return
+    if (!initialized) return
+    verifiedAssetsFetched.current = true
+
+    fetch(verifiedUrl)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json()
+      })
+      .then((data) => {
+        if (!Array.isArray(data) || !data.every((id) => typeof id === 'string')) {
+          throw new Error('Invalid verified assets response')
+        }
+        iconApprovalManager.setVerifiedAssets(data)
+      })
+      .catch((err) => consoleError(err, 'Failed to fetch verified assets'))
+  }, [initialized])
 
   // if ark note is present in the URL, decode it and set the note info
   useEffect(() => {
@@ -353,6 +384,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         assetBalances,
         assetMetadataCache: assetMetadataCache.current,
         setCacheEntry,
+        iconApprovalManager,
         reloadWallet,
         vtxos: vtxos ?? { spendable: [], spent: [] },
       }}

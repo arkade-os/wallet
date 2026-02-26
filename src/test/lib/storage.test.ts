@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { saveAssetMetadataToStorage, readAssetMetadataFromStorage, CachedAssetDetails } from '../../lib/storage'
+import {
+  saveAssetMetadataToStorage,
+  readAssetMetadataFromStorage,
+  CachedAssetDetails,
+  clearStorage,
+} from '../../lib/storage'
 
 describe('asset metadata storage', () => {
   beforeEach(() => {
@@ -52,5 +57,22 @@ describe('asset metadata storage', () => {
     expect(loaded!.size).toBe(1)
     expect(loaded!.has('a')).toBe(false)
     expect(loaded!.get('b')?.metadata?.name).toBe('Second')
+  })
+})
+
+describe('clearStorage preserves approvedAssetIcons', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('should preserve approvedAssetIcons across clearStorage', async () => {
+    localStorage.setItem('approvedAssetIcons', JSON.stringify(['asset1', 'asset2']))
+    localStorage.setItem('someOtherKey', 'value')
+
+    await clearStorage()
+
+    const approved = localStorage.getItem('approvedAssetIcons')
+    expect(approved).toBe(JSON.stringify(['asset1', 'asset2']))
+    expect(localStorage.getItem('someOtherKey')).toBeNull()
   })
 })

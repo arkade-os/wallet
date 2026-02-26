@@ -161,7 +161,7 @@ export default function Transaction() {
                 const label = ticker ?? name ?? `${a.assetId.slice(0, 8)}...`
                 return (
                   <FlexRow key={a.assetId} gap='0.5rem'>
-                    <AssetAvatar icon={icon} ticker={ticker} size={32} />
+                    <AssetAvatar icon={icon} ticker={ticker} size={32} assetId={a.assetId} clickable />
                     <FlexCol gap='0'>
                       <Text color={color}>
                         {formatAssetAmount(a.amount, decimals)} {label}

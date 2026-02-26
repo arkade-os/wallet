@@ -91,7 +91,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
                   ? `${formatAssetAmount(a.amount, decimals)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
                   : prettyHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}
               </Text>
-              <AssetAvatar icon={icon} ticker={ticker} size={16} />
+              <AssetAvatar icon={icon} ticker={ticker} size={16} assetId={a.assetId} clickable />
             </FlexRow>
           )
         })}

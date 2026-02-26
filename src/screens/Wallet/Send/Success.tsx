@@ -59,7 +59,14 @@ export default function SendSuccess() {
               <Shadow border>
                 <FlexRow between padding='0.75rem'>
                   <FlexRow>
-                    <AssetAvatar icon={assetIcon} ticker={assetTicker} name={assetName} size={32} />
+                    <AssetAvatar
+                      icon={assetIcon}
+                      ticker={assetTicker}
+                      name={assetName}
+                      size={32}
+                      assetId={assetId}
+                      clickable
+                    />
                     <FlexCol gap='0'>
                       <Text bold>{assetName}</Text>
                       {assetTicker ? (

@@ -17,15 +17,17 @@ import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { formatAssetAmount } from '../../../lib/format'
 import type { AssetDetails } from '@arkade-os/sdk'
-
 export default function AppAssetDetail() {
   const { navigate } = useContext(NavigationContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { assetInfo, setAssetInfo, setRecvInfo, setSendInfo } = useContext(FlowContext)
-  const { assetBalances, svcWallet, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
+  const { assetBalances, svcWallet, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
 
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+
+  const cachedEntry = assetMetadataCache.get(assetInfo.assetId)
+  const hasIcon = cachedEntry?.hasIcon ?? false
 
   const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? 0
 
@@ -35,8 +37,11 @@ export default function AppAssetDetail() {
     let cached: AssetDetails | undefined = forceRefresh ? undefined : assetMetadataCache.get(assetInfo.assetId)
     if (!cached) {
       try {
-        cached = await svcWallet.assetManager.getAssetDetails(assetInfo.assetId)
-        if (cached) setCacheEntry(assetInfo.assetId, cached)
+        const fetched = await svcWallet.assetManager.getAssetDetails(assetInfo.assetId)
+        if (fetched) {
+          setCacheEntry(assetInfo.assetId, fetched)
+          cached = assetMetadataCache.get(assetInfo.assetId)
+        }
       } catch (err) {
         consoleError(err, 'error loading asset details')
       }
@@ -166,7 +171,13 @@ export default function AppAssetDetail() {
                         const label = ctrl?.ticker ? `${ctrlName} (${ctrl.ticker})` : ctrlName
                         return (
                           <>
-                            <AssetAvatar icon={ctrl?.icon} ticker={ctrl?.ticker} size={20} />
+                            <AssetAvatar
+                              icon={ctrl?.icon}
+                              ticker={ctrl?.ticker}
+                              size={20}
+                              assetId={controlAssetId}
+                              clickable
+                            />
                             <Text bold copy={controlAssetId}>
                               {label}
                             </Text>
@@ -178,6 +189,20 @@ export default function AppAssetDetail() {
                 ) : null}
               </FlexCol>
             </Shadow>
+            {hasIcon && !iconApprovalManager.isVerified(assetInfo.assetId) ? (
+              <Button
+                label={iconApprovalManager.isApproved(assetInfo.assetId) ? 'Hide icon' : 'Show icon'}
+                onClick={async () => {
+                  if (iconApprovalManager.isApproved(assetInfo.assetId)) {
+                    iconApprovalManager.revoke(assetInfo.assetId)
+                  } else {
+                    iconApprovalManager.approve(assetInfo.assetId)
+                  }
+                  await fetchDetails(true)
+                }}
+                secondary
+              />
+            ) : null}
           </FlexCol>
         </Padded>
       </Content>

@@ -99,7 +99,13 @@ export default function AppAssets() {
                 <Shadow key={asset.assetId} border onClick={() => handleAssetClick(asset.assetId)}>
                   <FlexRow between padding='0.75rem'>
                     <FlexRow>
-                      <AssetAvatar icon={asset.icon} ticker={asset.ticker} size={32} />
+                      <AssetAvatar
+                        icon={asset.icon}
+                        ticker={asset.ticker}
+                        size={32}
+                        assetId={asset.assetId}
+                        clickable
+                      />
                       <FlexCol gap='0'>
                         <Text bold>{asset.name ?? truncateId(asset.assetId)}</Text>
                         {asset.ticker ? (

@@ -33,7 +33,7 @@ export default function AppAssetMint() {
   const { navigate } = useContext(NavigationContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
-  const { svcWallet, assetBalances, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
+  const { svcWallet, assetBalances, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
 
   const [amount, setAmount] = useState('')
   const [name, setName] = useState('')
@@ -118,6 +118,7 @@ export default function AppAssetMint() {
           metadata: ctrlMeta,
         })
         resolvedControlAssetId = ctrlResult.assetId
+        iconApprovalManager.approve(resolvedControlAssetId)
 
         setCacheEntry(ctrlResult.assetId, {
           assetId: ctrlResult.assetId,
@@ -132,6 +133,7 @@ export default function AppAssetMint() {
 
       const result = await svcWallet.assetManager.issue(params)
       const newAssetId = result.assetId
+      iconApprovalManager.approve(newAssetId)
 
       const importedAssets = [...config.importedAssets]
       if (resolvedControlAssetId && !importedAssets.includes(resolvedControlAssetId)) {
