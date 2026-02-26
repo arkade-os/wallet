@@ -19,7 +19,9 @@
           document.querySelector('meta[name="theme-color"]').setAttribute('content', '#101010')
           document.documentElement.classList.add('ion-palette-dark')
         }
-      } catch(e) {}
+      } catch (e) {
+        if (location.hostname === 'localhost') console.warn('Theme bootstrap failed', e)
+      }
     </script>
     <meta name="description" content="Your Bitcoin, supercharged. Send payments, swap assets, and lend without giving up your keys." />
     <meta property="og:url" content="https://arkade.money" />
