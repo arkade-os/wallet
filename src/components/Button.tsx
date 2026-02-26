@@ -75,16 +75,18 @@ export default function Button({
         <FlexRow between>
           <FlexRow>
             {icon}
-            {label}
+            <Label label={label} />
           </FlexRow>
           <ArrowIcon />
         </FlexRow>
       ) : (
         <FlexRow main={main} centered>
           {icon}
-          {label}
+          <Label label={label} />
         </FlexRow>
       )}
     </IonButton>
   )
 }
+
+const Label = ({ label }: { label: string }) => <p style={{ lineHeight: '20px' }}>{label}</p>
