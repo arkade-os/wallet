@@ -15,6 +15,7 @@ import { deriveKeyFromSeed } from '../../lib/wallet'
 import SheetModal from '../../components/SheetModal'
 import WalletNewIcon from '../../icons/WalletNew'
 import { defaultPassword } from '../../lib/constants'
+import { OnboardStaggerContainer, OnboardStaggerChild } from '../../components/OnboardLoadIn'
 
 export default function Init() {
   const { aspInfo } = useContext(AspContext)
@@ -42,13 +43,21 @@ export default function Init() {
     <>
       <Content>
         <CenterScreen>
-          <WalletNewIcon />
-          <FlexCol centered gap='0'>
-            <Text bigger heading medium>
-              Arkade Wallet
-            </Text>
-          </FlexCol>
-          <ErrorMessage error={error} text='Ark server unreachable' />
+          <OnboardStaggerContainer centered>
+            <OnboardStaggerChild>
+              <WalletNewIcon />
+            </OnboardStaggerChild>
+            <OnboardStaggerChild>
+              <FlexCol centered gap='0'>
+                <Text bigger heading medium>
+                  Arkade Wallet
+                </Text>
+              </FlexCol>
+            </OnboardStaggerChild>
+            <OnboardStaggerChild>
+              <ErrorMessage error={error} text='Ark server unreachable' />
+            </OnboardStaggerChild>
+          </OnboardStaggerContainer>
         </CenterScreen>
       </Content>
       <ButtonsOnBottom>

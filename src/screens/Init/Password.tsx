@@ -14,6 +14,7 @@ import Text from '../../components/Text'
 import { consoleLog } from '../../lib/logs'
 import { defaultPassword } from '../../lib/constants'
 import LockIcon from '../../icons/Lock'
+import { OnboardStaggerContainer, OnboardStaggerChild } from '../../components/OnboardLoadIn'
 
 enum Method {
   Password = 'password',
@@ -39,8 +40,6 @@ export default function InitPassword() {
       .catch(consoleLog)
   }
 
-  const handleCancel = () => navigate(Pages.Init)
-
   const handleContinue = () => {
     const pass = password ? password : defaultPassword
     setInitInfo({ ...initInfo, password: pass })
@@ -49,21 +48,33 @@ export default function InitPassword() {
 
   return (
     <>
-      <Header text='Create new wallet' back={handleCancel} />
+      <Header text='Create new wallet' back />
       <Content>
         <Padded>
           {method === Method.Biometrics ? (
             <CenterScreen onClick={registerUserBiometrics}>
-              <LockIcon big />
-              <Text big centered heading>
-                Create passkey
-              </Text>
-              <Text centered color='dark50' small wrap>
-                This will allow you to log in easily through biometrics without a need to remember the password.
-              </Text>
+              <OnboardStaggerContainer centered>
+                <OnboardStaggerChild>
+                  <LockIcon big />
+                </OnboardStaggerChild>
+                <OnboardStaggerChild>
+                  <Text big centered heading>
+                    Create passkey
+                  </Text>
+                </OnboardStaggerChild>
+                <OnboardStaggerChild>
+                  <Text centered color='dark50' small wrap>
+                    This will allow you to log in easily through biometrics without a need to remember the password.
+                  </Text>
+                </OnboardStaggerChild>
+              </OnboardStaggerContainer>
             </CenterScreen>
           ) : (
-            <NewPassword onNewPassword={setPassword} setLabel={setLabel} />
+            <OnboardStaggerContainer>
+              <OnboardStaggerChild>
+                <NewPassword onNewPassword={setPassword} setLabel={setLabel} />
+              </OnboardStaggerChild>
+            </OnboardStaggerContainer>
           )}
         </Padded>
       </Content>

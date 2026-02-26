@@ -17,6 +17,7 @@ export default defineConfig({
   server: {
     port: 3002,
     host: true,
+    allowedHosts: ['.trycloudflare.com'],
   },
   build: {
     emptyOutDir: true,

@@ -3,7 +3,6 @@ import Padded from '../../../components/Padded'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { NavigationContext, Pages } from '../../../providers/navigation'
 import Toggle from '../../../components/Toggle'
 import Text from '../../../components/Text'
 import { LightningContext } from '../../../providers/lightning'
@@ -12,7 +11,6 @@ import { extractError } from '../../../lib/error'
 
 export default function AppBoltzSettings() {
   const { connected, getApiUrl, restoreSwaps, toggleConnection } = useContext(LightningContext)
-  const { navigate } = useContext(NavigationContext)
 
   const [counter, setCounter] = useState(0)
   const [results, setResults] = useState('')
@@ -35,7 +33,7 @@ export default function AppBoltzSettings() {
 
   return (
     <>
-      <Header text='Boltz settings' back={() => navigate(Pages.AppBoltz)} />
+      <Header text='Boltz settings' back />
       <Content>
         <Padded>
           <FlexCol gap='2rem'>

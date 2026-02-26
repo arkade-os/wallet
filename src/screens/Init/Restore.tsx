@@ -19,6 +19,7 @@ import Input from '../../components/Input'
 import Text from '../../components/Text'
 import { hex } from '@scure/base'
 import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
+import { OnboardStaggerContainer, OnboardStaggerChild } from '../../components/OnboardLoadIn'
 
 export default function InitRestore() {
   const { updateConfig } = useContext(ConfigContext)
@@ -69,18 +70,22 @@ export default function InitRestore() {
 
   return (
     <>
-      <Header text='Restore wallet' back={handleCancel} />
+      <Header text='Restore wallet' back />
       <Content>
         <Padded>
-          <FlexCol between>
-            <FlexCol>
-              <Input name='private-key' label='Private key' onChange={setSomeKey} />
-              <ErrorMessage error={Boolean(error)} text={error} />
-            </FlexCol>
-            <Text centered color='dark70' fullWidth thin small>
-              Your private key should start with the 'nsec' string. Do not share it with anyone.
-            </Text>
-          </FlexCol>
+          <OnboardStaggerContainer>
+            <OnboardStaggerChild>
+              <FlexCol between>
+                <FlexCol>
+                  <Input name='private-key' label='Private key' onChange={setSomeKey} />
+                  <ErrorMessage error={Boolean(error)} text={error} />
+                </FlexCol>
+                <Text centered color='dark70' fullWidth thin small>
+                  Your private key should start with the 'nsec' string. Do not share it with anyone.
+                </Text>
+              </FlexCol>
+            </OnboardStaggerChild>
+          </OnboardStaggerContainer>
         </Padded>
       </Content>
       <ButtonsOnBottom>
