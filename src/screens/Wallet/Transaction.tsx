@@ -1,7 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
-import { NavigationContext, Pages } from '../../providers/navigation'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
@@ -27,7 +26,6 @@ import { LimitsContext } from '../../providers/limits'
 import { getInputsToSettle } from '../../lib/asp'
 
 export default function Transaction() {
-  const { navigate } = useContext(NavigationContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -78,8 +76,6 @@ export default function Transaction() {
       setAmountAboveDust(totalAmount > aspInfo.dust)
     })
   }, [aspInfo, vtxos, svcWallet, wallet.thresholdMs])
-
-  const handleBack = () => navigate(Pages.Wallet)
 
   // TODO implement resend
   //  - create new boarding tx
@@ -215,7 +211,7 @@ export default function Transaction() {
 
   return (
     <>
-      <Header text='Transaction' back={handleBack} />
+      <Header text='Transaction' back />
       {settling ? <WaitingForRound settle /> : <Body />}
       <Buttons />
     </>

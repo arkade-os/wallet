@@ -3,7 +3,6 @@ import Padded from '../../../components/Padded'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { WalletProvider, type LoanAsset, AddressType } from '@lendasat/lendasat-wallet-bridge'
 import { collaborativeExit, getReceivingAddresses } from '../../../lib/asp'
@@ -12,7 +11,6 @@ import { isArkAddress, isBTCAddress } from '../../../lib/address'
 const IFRAME_URL = import.meta.env.VITE_LENDASWAP_IFRAME_URL || 'https://swap.lendasat.com'
 
 export default function AppLendaswap() {
-  const { navigate } = useContext(NavigationContext)
   const { svcWallet } = useContext(WalletContext)
   const [arkAddress, setArkAddress] = useState<string | null>(null)
 
@@ -120,7 +118,7 @@ export default function AppLendaswap() {
 
   return (
     <>
-      <Header text='Lendaswap' back={() => navigate(Pages.Apps)} />
+      <Header text='Lendaswap' back />
       <Content>
         <Padded>
           <FlexCol gap='2rem' between>
