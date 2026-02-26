@@ -1,6 +1,4 @@
 import { useContext, useEffect, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
@@ -22,7 +20,6 @@ import Success from '../../../components/Success'
 import { consoleError } from '../../../lib/logs'
 import { AspContext } from '../../../providers/asp'
 import { isMobileBrowser } from '../../../lib/browser'
-import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { LimitsContext } from '../../../providers/limits'
@@ -30,7 +27,6 @@ import { LightningContext } from '../../../providers/lightning'
 import { InfoLine } from '../../../components/Info'
 
 export default function ReceiveAmount() {
-  const prefersReduced = useReducedMotion()
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
@@ -133,6 +129,10 @@ export default function ReceiveAmount() {
     ? false
     : satoshis < 1 || amountIsAboveMaxLimit(satoshis) || amountIsBelowMinLimit(satoshis)
 
+  if (showKeys) {
+    return <Keyboard back={() => setShowKeys(false)} hideBalance onSats={handleChange} value={satoshis} />
+  }
+
   if (fauceting) {
     return (
       <>
@@ -181,20 +181,6 @@ export default function ReceiveAmount() {
         <Button label={buttonLabel} onClick={handleProceed} disabled={disabled} />
         {showFaucetButton ? <Button disabled={!satoshis} label='Faucet' onClick={handleFaucet} secondary /> : null}
       </ButtonsOnBottom>
-      <AnimatePresence>
-        {showKeys ? (
-          <motion.div
-            key='keyboard'
-            variants={prefersReduced ? undefined : overlaySlideUp}
-            initial={prefersReduced ? false : 'initial'}
-            animate={prefersReduced ? undefined : 'animate'}
-            exit={prefersReduced ? undefined : 'exit'}
-            style={overlayStyle}
-          >
-            <Keyboard back={() => setShowKeys(false)} hideBalance onSats={handleChange} value={satoshis} />
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
     </>
   )
 }
