@@ -27,12 +27,7 @@ export default function AppBoltz() {
 
   return (
     <>
-      <Header
-        auxFunc={() => navigate(Pages.AppBoltzSettings)}
-        auxIcon={<SettingsIconLight />}
-        text='Boltz'
-        back={() => navigate(Pages.Apps)}
-      />
+      <Header auxFunc={() => navigate(Pages.AppBoltzSettings)} auxIcon={<SettingsIconLight />} text='Boltz' back />
       <Content>
         <Padded>
           <FlexCol gap='2rem'>

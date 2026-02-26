@@ -119,7 +119,7 @@ export default function ReceiveQRCode() {
 
   return (
     <>
-      <Header text='Receive' back={() => navigate(Pages.ReceiveAmount)} />
+      <Header text='Receive' back />
       <Content>
         <Padded>
           {noPaymentMethods ? (
