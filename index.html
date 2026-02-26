@@ -7,7 +7,20 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#fff" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <script>
+      // Set theme-color before first paint to avoid white flash in status bar
+      try {
+        var c = JSON.parse(localStorage.getItem('config') || '{}')
+        var t = c.theme
+        var dark = t === 'dark' || (t !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        if (dark) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#101010')
+          document.documentElement.classList.add('ion-palette-dark')
+        }
+      } catch(e) {}
+    </script>
     <meta name="description" content="Your Bitcoin, supercharged. Send payments, swap assets, and lend without giving up your keys." />
     <meta property="og:url" content="https://arkade.money" />
     <meta property="og:type" content="website" />
