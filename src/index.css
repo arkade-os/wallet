@@ -243,15 +243,10 @@ button.reminder-button.action-sheet-button {
   }
 }
 
-/* Page transition container for animated sub-page navigation */
-.page-transition-container {
-  position: relative;
-  height: 100%;
-  overflow: hidden;
-  contain: layout style paint;
-}
-
-/* Prevent visual overflow during page transitions */
-.tabs-inner {
-  overflow: hidden;
+/* Tab label styling */
+.tab-label {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.01em;
 }

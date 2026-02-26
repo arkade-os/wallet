@@ -28,7 +28,7 @@
   --yellowoutlier: #debb20;
   --ion-background-color: #fff;
   --ion-background-focused: var(--purple20);
-  --ion-tabbar-background-color: #fafafa;
+  --ion-tabbar-background-color: transparent;
   --ion-backdrop-color: #fff;
   --toggle-background: #fbfbfb;
   --danger: #a51515;
@@ -39,6 +39,15 @@
     'Droid Sans', 'Helvetica Neue', sans-serif;
   --heading-font: 'TT Firs Neue', 'Geist', sans-serif;
   --animation-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --border-hairline: 1px;
+}
+
+/* Hairline border - 0.5px on retina displays */
+@media only screen and (min-device-pixel-ratio: 2),
+  only screen and (min-resolution: 192dpi) {
+  :root {
+    --border-hairline: 0.5px;
+  }
 }
 
 .ion-palette-dark {
@@ -54,7 +63,7 @@
   --yellowoutlier: #ffdd46;
   --ion-background-color: #101010;
   --ion-background-focused: var(--dark10);
-  --ion-tabbar-background-color: #181818;
+  --ion-tabbar-background-color: transparent;
   --ion-backdrop-color: #101010;
   --logo-color: #fbfbfb;
   --toggle-background: #ddd;
@@ -170,13 +179,40 @@ ion-button {
 
 ion-app ion-header {
   align-items: center;
-  border-bottom: 1px solid #444;
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: none;
   color: var(--ion-color-dark);
   display: flex;
   height: 4rem;
+  z-index: 10;
   & ion-grid {
     margin: auto;
   }
+}
+
+.ion-palette-dark ion-app ion-header {
+  background: rgba(16, 16, 16, 0.78);
+}
+
+/* Status bar area blur */
+ion-app::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  z-index: 100;
+  pointer-events: none;
+}
+
+.ion-palette-dark ion-app::before {
+  background: rgba(16, 16, 16, 0.78);
 }
 
 .ion-page {
@@ -185,11 +221,20 @@ ion-app ion-header {
 }
 
 ion-tab-bar {
-  border-top: 1px solid var(--dark20);
+  --background: transparent;
+  --border: none;
+  border: none;
+  height: 49px;
+  contain: layout style;
   width: 100%;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   & ion-tab-button {
     --color-selected: var(--ion-color-dark);
+    --background: transparent;
     max-width: none;
+    min-height: 44px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
     &:hover,
     &:hover svg,
     &.tab-selected,
@@ -203,6 +248,107 @@ ion-tab-bar {
   & svg {
     color: var(--dark50);
   }
+}
+
+/* Navbar variant: hairline border */
+ion-tab-bar.navbar-variant-border {
+  border-top: var(--border-hairline) solid var(--dark10);
+}
+
+/* Navbar variant: frosted blur */
+ion-tab-bar.navbar-variant-blur {
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+.ion-palette-dark ion-tab-bar.navbar-variant-blur {
+  background: rgba(16, 16, 16, 0.78);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ion-app ion-header,
+  ion-app::before,
+  ion-tab-bar.navbar-variant-blur {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Navbar variant: floating pill */
+ion-tab-bar.navbar-variant-pill {
+  opacity: 0;
+  height: 0;
+  min-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border: none;
+  padding: 0;
+}
+
+.navbar-pill {
+  position: fixed;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 999px;
+  padding: 4px 8px;
+  box-shadow:
+    0 2px 20px rgba(0, 0, 0, 0.08),
+    0 0 0 var(--border-hairline) rgba(0, 0, 0, 0.06);
+  z-index: 50;
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+.ion-palette-dark .navbar-pill {
+  background: rgba(30, 30, 30, 0.88);
+  box-shadow:
+    0 2px 20px rgba(0, 0, 0, 0.3),
+    0 0 0 var(--border-hairline) rgba(255, 255, 255, 0.08);
+}
+
+.navbar-pill button {
+  background: none;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  color: var(--dark50);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: 999px;
+  transition: color 150ms ease;
+}
+
+.navbar-pill button.active {
+  color: var(--ion-color-dark);
+}
+
+.navbar-pill-settings {
+  position: fixed;
+  top: env(safe-area-inset-top, 0px);
+  right: 0;
+  z-index: 50;
+  height: 4rem;
+  display: flex;
+  align-items: center;
+  padding-right: 1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ion-color-dark);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 44px;
+  min-width: 44px;
 }
 
 ion-checkbox {
