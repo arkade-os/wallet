@@ -82,8 +82,8 @@ export function CreatePasswordWarning({ onClick, onDismiss }: { onClick: () => v
 
 function CloseIcon({ onClick }: { onClick: () => void }) {
   return (
-    <div
-      role='button'
+    <button
+      type='button'
       aria-label='Dismiss'
       onClick={onClick}
       style={{
@@ -96,9 +96,12 @@ function CloseIcon({ onClick }: { onClick: () => void }) {
         cursor: 'pointer',
         flexShrink: 0,
         touchAction: 'manipulation',
+        background: 'transparent',
+        border: 0,
+        padding: 0,
       }}
     >
-      <X size={18} color='var(--black)' />
-    </div>
+      <X size={18} color='var(--black)' aria-hidden='true' />
+    </button>
   )
 }
