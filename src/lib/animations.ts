@@ -1,18 +1,30 @@
 import { Variants } from 'framer-motion'
 
-// Easing: Emil Kowalski's ease-out quint
-export const EASE_OUT_QUINT = [0.23, 1, 0.32, 1]
+// Easing: Emil Kowalski's ease-out quint (Framer Motion tuple format)
+export const EASE_OUT_QUINT: [number, number, number, number] = [0.23, 1, 0.32, 1]
 
-// Page transition timing
-export const PAGE_TRANSITION_DURATION = 0.3
-export const PAGE_TRANSITION_EXIT_DURATION = 0.24 // 20% faster exit
+// CSS-side easing curves (string format for WAAPI / inline styles)
+export const EASE_INTERACTIVE = 'cubic-bezier(0.165, 0.84, 0.44, 1)'
+export const EASE_SPRING = 'cubic-bezier(0.34, 1.56, 0.64, 1)'
+export const EASE_LOOP = 'cubic-bezier(0.4, 0, 0.6, 1)'
+export const EASE_REVEAL = 'ease-out'
+
+// Duration tokens (ms — for WAAPI / inline styles)
+export const DUR_MICRO = 100
+export const DUR_STANDARD = 250
+export const DUR_MORPH = 350
+export const DUR_REVEAL = 400
+
+// Page transition timing — tuned for WebView performance (shorter = less time for jank)
+export const PAGE_TRANSITION_DURATION = 0.2
+export const PAGE_TRANSITION_EXIT_DURATION = 0.15
 
 // Stagger timing for wallet load-in
 export const STAGGER_DELAY = 0.06
-export const STAGGER_DURATION = 0.4
+export const STAGGER_DURATION = 0.35
 
-// Slide distance (% of container)
-const SLIDE_OFFSET = '20%'
+// Slide distance (% of container) — smaller = less compositing area per frame
+const SLIDE_OFFSET = '12%'
 
 // Dynamic page transition variants — direction is passed via Framer Motion's `custom` prop.
 // AnimatePresence's `custom` overrides the child's `custom` for exiting elements,
