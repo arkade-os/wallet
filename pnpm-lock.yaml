@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: arkade-os/boltz-swap#next
-        version: https://codeload.github.com/arkade-os/boltz-swap/tar.gz/7905a4b4087a5ace1ef678ec1d5b9398af2b7cb1
+        specifier: github:arkade-os/boltz-swap#next
+        version: https://codeload.github.com/arkade-os/boltz-swap/tar.gz/89eced97215a65a4c791bc14769b38e6acb30f02
       '@arkade-os/sdk':
-        specifier: arkade-os/ts-sdk#next
-        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/3c3a1c43d888fd2b6b4e8fbebdc7bd70e65191d9
+        specifier: github:arkade-os/ts-sdk#next
+        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/b91a006a672d75613e58b292d035d4b23e3fb7b9
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -50,6 +50,9 @@ importers:
       dompurify:
         specifier: ^3.2.6
         version: 3.3.0
+      framer-motion:
+        specifier: ^12.34.3
+        version: 12.34.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       light-bolt11-decoder:
         specifier: ^3.2.0
         version: 3.2.0
@@ -99,6 +102,9 @@ importers:
       '@typescript-eslint/parser':
         specifier: ^8.41.0
         version: 8.46.2(eslint@8.57.1)(typescript@5.9.3)
+      '@vitejs/plugin-basic-ssl':
+        specifier: ^2.1.4
+        version: 2.1.4(vite@7.1.12(@types/node@24.10.0))
       '@vitejs/plugin-react':
         specifier: ^5.0.2
         version: 5.1.0(vite@7.1.12(@types/node@24.10.0))
@@ -147,6 +153,9 @@ importers:
       vite-plugin-eslint:
         specifier: ^1.8.1
         version: 1.8.1(eslint@8.57.1)(vite@7.1.12(@types/node@24.10.0))
+      vite-plugin-mkcert:
+        specifier: ^1.17.9
+        version: 1.17.9(vite@7.1.12(@types/node@24.10.0))
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/node@24.10.0)(jsdom@26.1.0)
@@ -159,15 +168,35 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/7905a4b4087a5ace1ef678ec1d5b9398af2b7cb1':
-    resolution: {tarball: https://codeload.github.com/arkade-os/boltz-swap/tar.gz/7905a4b4087a5ace1ef678ec1d5b9398af2b7cb1}
-    version: 0.2.18
-    engines: {node: '>=22'}
+  '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/89eced97215a65a4c791bc14769b38e6acb30f02':
+    resolution: {tarball: https://codeload.github.com/arkade-os/boltz-swap/tar.gz/89eced97215a65a4c791bc14769b38e6acb30f02}
+    version: 0.2.20
+    engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/3c3a1c43d888fd2b6b4e8fbebdc7bd70e65191d9':
-    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/3c3a1c43d888fd2b6b4e8fbebdc7bd70e65191d9}
-    version: 0.3.12
-    engines: {node: '>=20.0.0'}
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/b91a006a672d75613e58b292d035d4b23e3fb7b9':
+    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/b91a006a672d75613e58b292d035d4b23e3fb7b9}
+    version: 0.3.13
+    engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
+    peerDependencies:
+      '@react-native-async-storage/async-storage': '>=1.0.0'
+      expo: '>=54.0.0'
+      expo-background-task: ~1.0.10
+      expo-sqlite: ~16.0.10
+      expo-task-manager: ~14.0.9
+      indexeddbshim: '>=16.0.0'
+    peerDependenciesMeta:
+      '@react-native-async-storage/async-storage':
+        optional: true
+      expo:
+        optional: true
+      expo-background-task:
+        optional: true
+      expo-sqlite:
+        optional: true
+      expo-task-manager:
+        optional: true
+      indexeddbshim:
+        optional: true
 
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
@@ -258,6 +287,9 @@ packages:
   '@babel/types@7.28.5':
     resolution: {integrity: sha512-qQ5m48eI/MFLQ5PxQj4PFaprjyCTLI37ElWMmNs0K8Lk3dVeOdNpB3ks8jc7yM5CDmVC73eMVk/trk3fgmrUpA==}
     engines: {node: '>=6.9.0'}
+
+  '@bitcoinerlab/miniscript@1.4.3':
+    resolution: {integrity: sha512-gf7WK4dKJJJl+IgLGmkTOxXQLiCje9c9y4wTLC+cyt0tBDTiSXgsG0X8FFaXf4d+34b8B5p/EJGvRd7mEYB6mQ==}
 
   '@csstools/color-helpers@5.1.0':
     resolution: {integrity: sha512-S11EXWJyy0Mz5SYvRmY8nJYTFFd1LCNV+7cXyAgQtOOuzb4EsgfqDufL+9esx72/eLhsRdGZwaldu/h+E4t4BA==}
@@ -515,12 +547,16 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
+  '@kukks/bitcoin-descriptors@3.1.0':
+    resolution: {integrity: sha512-7HOCZjufw3DIIDebx7/ZOeol6khkWoccM6vzee6t5bXOJoj/6ISdssEDhjxDgy88in/I39pKz+kzFukxK5eqVw==}
+
   '@lendasat/lendasat-wallet-bridge@0.0.90':
     resolution: {integrity: sha512-VfgM5vUx81vVWlggtOReUkaC8VVOFVavIMixQM0G/ZI0L/nMi10fmkIBvXOVI4Jmsu9A5z6wHSUrERxD3a/Juw==}
 
-  '@marcbachmann/cel-js@7.0.0':
-    resolution: {integrity: sha512-sbtR8pvTAsDPiyigebwLyqweLnocmBS9MG5tTnVUL2PZ9Hc2Dj2e4tnvTcZ1s463Og9NKD59TaPvTK9CEZQhiQ==}
+  '@marcbachmann/cel-js@7.3.1':
+    resolution: {integrity: sha512-P6o26TvjStT8V8+8EF+yq9Pp7ZFV00bpiUMbssr76XbIZGxaB+NNWeBp6WNxOrR9gp0JPzvJueCKHpOs5LE9PQ==}
     engines: {node: '>=20.19.0'}
+    hasBin: true
 
   '@noble/ciphers@0.5.3':
     resolution: {integrity: sha512-B0+6IIHiqEs3BPMT0hcRmHvEj2QHOLu+uwt+tqDDeVd0oyVzh7BPrDcPjRnV1PV/5LaknXJJQvOuRGR0zQJz+w==}
@@ -751,11 +787,17 @@ packages:
   '@scure/bip32@2.0.0':
     resolution: {integrity: sha512-V24pyBWzKQqhB0CrV3Xz7JZr/cC2Nhp9LuIr9gOHkAKxSGwYqTIs8u0AkZgKA7HFqRiyoNg/PymiXOExm+3KlQ==}
 
+  '@scure/bip32@2.0.1':
+    resolution: {integrity: sha512-4Md1NI5BzoVP+bhyJaY3K6yMesEFzNS1sE/cP+9nuvE7p/b0kx9XbpDHHFl8dHtufcbdHRUUQdRqLIPHN/s7yA==}
+
   '@scure/bip39@1.2.1':
     resolution: {integrity: sha512-Z3/Fsz1yr904dduJD0NpiyRHhRYHdcnyh73FZWiV+/qhWi83wNJ3NWolYqCEN+ZWsUz2TWwajJggcRE9r1zUYg==}
 
   '@scure/bip39@2.0.0':
     resolution: {integrity: sha512-F2Tza4KyTSFO/13JymY6a6UHfSLzx0YGbkQGz7wjGx2BYJLyG/qXELKnFFsDfeIK+WfV2v2+5XOQftvL4d8RBA==}
+
+  '@scure/bip39@2.0.1':
+    resolution: {integrity: sha512-PsxdFj/d2AcJcZDX1FXN3dDgitDDTmwf78rKZq1a6c1P1Nan1X/Sxc7667zU3U+AN60g7SxxP0YCVw2H/hBycg==}
 
   '@scure/btc-signer@2.0.1':
     resolution: {integrity: sha512-vk5a/16BbSFZkhh1JIJ0+4H9nceZVo5WzKvJGGWiPp3sQOExeW+L53z3dI6u0adTPoE8ZbL+XEb6hEGzVZSvvQ==}
@@ -944,6 +986,12 @@ packages:
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
 
+  '@vitejs/plugin-basic-ssl@2.1.4':
+    resolution: {integrity: sha512-HXciTXN/sDBYWgeAD4V4s0DN0g72x5mlxQhHxtYu3Tt8BLa6MzcJZUyDVFCdtjNs3bfENVHVzOsmooTVuNgAAw==}
+    engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
+    peerDependencies:
+      vite: ^6.0.0 || ^7.0.0
+
   '@vitejs/plugin-react@5.1.0':
     resolution: {integrity: sha512-4LuWrg7EKWgQaMJfnN+wcmbAW+VSsCmqGohftWjuct47bv8uE4n/nPpq4XjJPsxgq00GGG5J8dvBczp8uxScew==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -1061,6 +1109,9 @@ packages:
     resolution: {integrity: sha512-hsU18Ae8CDTR6Kgu9DYf0EbCr/a5iGL0rytQDobUcdpYOKokk8LEjVphnXkDkgpi0wYVsqrXuP0bZxJaTqdgoA==}
     engines: {node: '>= 0.4'}
 
+  asynckit@0.4.0:
+    resolution: {integrity: sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==}
+
   available-typed-arrays@1.0.7:
     resolution: {integrity: sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ==}
     engines: {node: '>= 0.4'}
@@ -1068,6 +1119,9 @@ packages:
   axe-core@4.11.0:
     resolution: {integrity: sha512-ilYanEU8vxxBexpJd8cWM4ElSQq4QctCLKih0TSfjIfCQTeyH/6zVrmIJfLPrKTKJRbiG+cfnZbQIjAlJmF1jQ==}
     engines: {node: '>=4'}
+
+  axios@1.13.5:
+    resolution: {integrity: sha512-cz4ur7Vb0xS4/KUN0tPWe44eqxrIu31me+fbang3ijiNscE129POzipJJA6zniq2C/Z6sJCjMimjS8Lc/GAs8Q==}
 
   axobject-query@4.1.0:
     resolution: {integrity: sha512-qIj0G9wZbMGNLjLmg1PT6v2mE9AH2zlnADJD/2tC6E00hgmhUOfEB6greHPAfLRSufHqROIUTkw6E+M3lH0PTQ==}
@@ -1140,6 +1194,10 @@ packages:
 
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
+
+  combined-stream@1.0.8:
+    resolution: {integrity: sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg==}
+    engines: {node: '>= 0.8'}
 
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
@@ -1219,6 +1277,10 @@ packages:
   define-properties@1.2.1:
     resolution: {integrity: sha512-8QmQKqEASLd5nx0U1B1okLElbUuuttJ/AnYmRXbbbGDWh6uS208EjD4Xqq/I9wK7u0v6O08XhTWnt5XtEbR6Dg==}
     engines: {node: '>= 0.4'}
+
+  delayed-stream@1.0.0:
+    resolution: {integrity: sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ==}
+    engines: {node: '>=0.4.0'}
 
   dequal@2.0.3:
     resolution: {integrity: sha512-0je+qPKHEMohvfRTCEo3CrPG6cAzAYgmzKyxRiYSSDkS6eGJdyVJm7WaYA5ECaAD9wLB2T4EEeymA5aFVcYXCA==}
@@ -1470,9 +1532,36 @@ packages:
   flatted@3.3.3:
     resolution: {integrity: sha512-GX+ysw4PBCz0PzosHDepZGANEuFCMLrnRTiEy9McGjmkCQYwRq4A/X786G/fjM/+OjsWSU1ZrY5qyARZmO/uwg==}
 
+  follow-redirects@1.15.11:
+    resolution: {integrity: sha512-deG2P0JfjrTxl50XGCDyfI97ZGVCxIpfKYmfyrQ54n5FO/0gfIES8C/Psl6kWVDolizcaaxZJnTS0QSMxvnsBQ==}
+    engines: {node: '>=4.0'}
+    peerDependencies:
+      debug: '*'
+    peerDependenciesMeta:
+      debug:
+        optional: true
+
   for-each@0.3.5:
     resolution: {integrity: sha512-dKx12eRCVIzqCxFGplyFKJMPvLEWgmNtUrpTiJIR5u97zEhRG8ySrtboPHZXx7daLxQVrl643cTzbab2tkQjxg==}
     engines: {node: '>= 0.4'}
+
+  form-data@4.0.5:
+    resolution: {integrity: sha512-8RipRLol37bNs2bhoV67fiTEvdTrbMUYcFTiy3+wuuOnUog2QBHCZWXDRijWQfAkhBj2Uf5UnVaiWwA5vdd82w==}
+    engines: {node: '>= 6'}
+
+  framer-motion@12.34.3:
+    resolution: {integrity: sha512-v81ecyZKYO/DfpTwHivqkxSUBzvceOpoI+wLfgCgoUIKxlFKEXdg0oR9imxwXumT4SFy8vRk9xzJ5l3/Du/55Q==}
+    peerDependencies:
+      '@emotion/is-prop-valid': '*'
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@emotion/is-prop-valid':
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
 
   fs.realpath@1.0.0:
     resolution: {integrity: sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==}
@@ -1856,6 +1945,14 @@ packages:
     resolution: {integrity: sha512-PXwfBhYu0hBCPw8Dn0E+WDYb7af3dSLVWKi3HGv84IdF4TyFoC0ysxFd0Goxw7nSv4T/PzEJQxsYsEiFCKo2BA==}
     engines: {node: '>=8.6'}
 
+  mime-db@1.52.0:
+    resolution: {integrity: sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg==}
+    engines: {node: '>= 0.6'}
+
+  mime-types@2.1.35:
+    resolution: {integrity: sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw==}
+    engines: {node: '>= 0.6'}
+
   min-indent@1.0.1:
     resolution: {integrity: sha512-I9jwMn07Sy/IwOj3zVkVik2JTvgpaykDZEigL6Rx6N9LbMywwUSMtxET+7lVoDLLd3O3IXwJwvuuns8UB/HeAg==}
     engines: {node: '>=4'}
@@ -1869,6 +1966,12 @@ packages:
 
   minimist@1.2.8:
     resolution: {integrity: sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==}
+
+  motion-dom@12.34.3:
+    resolution: {integrity: sha512-sYgFe+pR9aIM7o4fhs2aXtOI+oqlUd33N9Yoxcgo1Fv7M20sRkHtCmzE/VRNIcq7uNJ+qio+Xubt1FXH3pQ+eQ==}
+
+  motion-utils@12.29.2:
+    resolution: {integrity: sha512-G3kc34H2cX2gI63RqU+cZq+zWRRPSsNIOjpdl9TN4AQwC4sgwYPl/Q/Obf/d53nOm569T0fYK+tcoSV50BWx8A==}
 
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
@@ -2026,6 +2129,9 @@ packages:
 
   prop-types@15.8.1:
     resolution: {integrity: sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg==}
+
+  proxy-from-env@1.1.0:
+    resolution: {integrity: sha512-D+zkORCbA9f1tdWRK0RaCR3GPv50cMxcrz4X8k5LTSUD1Dkw47mKJEZQNunItRTkWwgtaUSo1RVFRIG9ZXiFYg==}
 
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
@@ -2363,6 +2469,12 @@ packages:
       eslint: '>=7'
       vite: '>=2'
 
+  vite-plugin-mkcert@1.17.9:
+    resolution: {integrity: sha512-SwI7yqp2Cq4r2XItarnHRCj2uzHPqevbxFNMLpyN+LDXd5w1vmZeM4l5X/wCZoP4mjPQYN+9+4kmE6e3nPO5fg==}
+    engines: {node: '>=v16.7.0'}
+    peerDependencies:
+      vite: '>=3'
+
   vite@7.1.12:
     resolution: {integrity: sha512-ZWyE8YXEXqJrrSLvYgrRP7p62OziLW7xI5HYGWFzOvupfAlrLvURSzv/FyGyy0eidogEM3ujU+kUG1zuHgb6Ug==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -2520,21 +2632,32 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/7905a4b4087a5ace1ef678ec1d5b9398af2b7cb1':
+  '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/89eced97215a65a4c791bc14769b38e6acb30f02':
     dependencies:
-      '@arkade-os/sdk': https://codeload.github.com/arkade-os/ts-sdk/tar.gz/3c3a1c43d888fd2b6b4e8fbebdc7bd70e65191d9
+      '@arkade-os/sdk': https://codeload.github.com/arkade-os/ts-sdk/tar.gz/b91a006a672d75613e58b292d035d4b23e3fb7b9
+      '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
       '@scure/btc-signer': 2.0.1
       bip68: 1.0.4
       light-bolt11-decoder: 3.2.0
+    transitivePeerDependencies:
+      - '@react-native-async-storage/async-storage'
+      - expo
+      - expo-background-task
+      - expo-sqlite
+      - expo-task-manager
+      - indexeddbshim
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/3c3a1c43d888fd2b6b4e8fbebdc7bd70e65191d9':
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/b91a006a672d75613e58b292d035d4b23e3fb7b9':
     dependencies:
-      '@marcbachmann/cel-js': 7.0.0
+      '@kukks/bitcoin-descriptors': 3.1.0
+      '@marcbachmann/cel-js': 7.3.1
       '@noble/curves': 2.0.0
       '@noble/secp256k1': 3.0.0
       '@scure/base': 2.0.0
+      '@scure/bip32': 2.0.0
+      '@scure/bip39': 2.0.1
       '@scure/btc-signer': 2.0.1
       bip68: 1.0.4
 
@@ -2659,6 +2782,10 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@bitcoinerlab/miniscript@1.4.3':
+    dependencies:
+      bip68: 1.0.4
 
   '@csstools/color-helpers@5.1.0': {}
 
@@ -2838,9 +2965,18 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  '@kukks/bitcoin-descriptors@3.1.0':
+    dependencies:
+      '@bitcoinerlab/miniscript': 1.4.3
+      '@noble/curves': 2.0.1
+      '@noble/hashes': 2.0.1
+      '@scure/base': 2.0.0
+      '@scure/bip32': 2.0.1
+      '@scure/btc-signer': 2.0.1
+
   '@lendasat/lendasat-wallet-bridge@0.0.90': {}
 
-  '@marcbachmann/cel-js@7.0.0': {}
+  '@marcbachmann/cel-js@7.3.1': {}
 
   '@noble/ciphers@0.5.3': {}
 
@@ -3003,6 +3139,12 @@ snapshots:
       '@noble/hashes': 2.0.0
       '@scure/base': 2.0.0
 
+  '@scure/bip32@2.0.1':
+    dependencies:
+      '@noble/curves': 2.0.1
+      '@noble/hashes': 2.0.1
+      '@scure/base': 2.0.0
+
   '@scure/bip39@1.2.1':
     dependencies:
       '@noble/hashes': 1.3.2
@@ -3011,6 +3153,11 @@ snapshots:
   '@scure/bip39@2.0.0':
     dependencies:
       '@noble/hashes': 2.0.0
+      '@scure/base': 2.0.0
+
+  '@scure/bip39@2.0.1':
+    dependencies:
+      '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
 
   '@scure/btc-signer@2.0.1':
@@ -3267,6 +3414,10 @@ snapshots:
 
   '@ungap/structured-clone@1.3.0': {}
 
+  '@vitejs/plugin-basic-ssl@2.1.4(vite@7.1.12(@types/node@24.10.0))':
+    dependencies:
+      vite: 7.1.12(@types/node@24.10.0)
+
   '@vitejs/plugin-react@5.1.0(vite@7.1.12(@types/node@24.10.0))':
     dependencies:
       '@babel/core': 7.28.5
@@ -3425,11 +3576,21 @@ snapshots:
 
   async-function@1.0.0: {}
 
+  asynckit@0.4.0: {}
+
   available-typed-arrays@1.0.7:
     dependencies:
       possible-typed-array-names: 1.1.0
 
   axe-core@4.11.0: {}
+
+  axios@1.13.5(debug@4.4.3):
+    dependencies:
+      follow-redirects: 1.15.11(debug@4.4.3)
+      form-data: 4.0.5
+      proxy-from-env: 1.1.0
+    transitivePeerDependencies:
+      - debug
 
   axobject-query@4.1.0: {}
 
@@ -3503,6 +3664,10 @@ snapshots:
       color-name: 1.1.4
 
   color-name@1.1.4: {}
+
+  combined-stream@1.0.8:
+    dependencies:
+      delayed-stream: 1.0.0
 
   concat-map@0.0.1: {}
 
@@ -3578,6 +3743,8 @@ snapshots:
       define-data-property: 1.1.4
       has-property-descriptors: 1.0.2
       object-keys: 1.1.1
+
+  delayed-stream@1.0.0: {}
 
   dequal@2.0.3: {}
 
@@ -3974,9 +4141,30 @@ snapshots:
 
   flatted@3.3.3: {}
 
+  follow-redirects@1.15.11(debug@4.4.3):
+    optionalDependencies:
+      debug: 4.4.3
+
   for-each@0.3.5:
     dependencies:
       is-callable: 1.2.7
+
+  form-data@4.0.5:
+    dependencies:
+      asynckit: 0.4.0
+      combined-stream: 1.0.8
+      es-set-tostringtag: 2.1.0
+      hasown: 2.0.2
+      mime-types: 2.1.35
+
+  framer-motion@12.34.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      motion-dom: 12.34.3
+      motion-utils: 12.29.2
+      tslib: 2.8.1
+    optionalDependencies:
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
   fs.realpath@1.0.0: {}
 
@@ -4376,6 +4564,12 @@ snapshots:
       braces: 3.0.3
       picomatch: 2.3.1
 
+  mime-db@1.52.0: {}
+
+  mime-types@2.1.35:
+    dependencies:
+      mime-db: 1.52.0
+
   min-indent@1.0.1: {}
 
   minimatch@3.1.2:
@@ -4387,6 +4581,12 @@ snapshots:
       brace-expansion: 2.0.2
 
   minimist@1.2.8: {}
+
+  motion-dom@12.34.3:
+    dependencies:
+      motion-utils: 12.29.2
+
+  motion-utils@12.29.2: {}
 
   ms@2.1.3: {}
 
@@ -4542,6 +4742,8 @@ snapshots:
       loose-envify: 1.4.0
       object-assign: 4.1.1
       react-is: 16.13.1
+
+  proxy-from-env@1.1.0: {}
 
   punycode@2.3.1: {}
 
@@ -4968,6 +5170,15 @@ snapshots:
       eslint: 8.57.1
       rollup: 2.79.2
       vite: 7.1.12(@types/node@24.10.0)
+
+  vite-plugin-mkcert@1.17.9(vite@7.1.12(@types/node@24.10.0)):
+    dependencies:
+      axios: 1.13.5(debug@4.4.3)
+      debug: 4.4.3
+      picocolors: 1.1.1
+      vite: 7.1.12(@types/node@24.10.0)
+    transitivePeerDependencies:
+      - supports-color
 
   vite@7.1.12(@types/node@24.10.0):
     dependencies:

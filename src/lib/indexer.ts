@@ -1,38 +1,35 @@
-import { ContractRepositoryImpl, RestIndexerProvider } from '@arkade-os/sdk'
+import { RestIndexerProvider } from '@arkade-os/sdk'
 import { AspInfo } from '../providers/asp'
-import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 
-interface CommitmentTxRecord {
-  txid: string
-  when: number // milliseconds since epoch
-}
+const STORAGE_KEY = 'commitmentTxs'
 
 export class Indexer {
-  contractRepo: ContractRepositoryImpl
   readonly provider: RestIndexerProvider
-  readonly contractCollection = 'commitmentTxs'
 
   constructor(aspInfo: AspInfo) {
     this.provider = new RestIndexerProvider(aspInfo.url)
-    const storage = new IndexedDBStorageAdapter('arkade-service-worker')
-    this.contractRepo = new ContractRepositoryImpl(storage)
   }
 
-  getCommitmentTxCreatedAt = async (txid: string): Promise<number | null> => {
-    const records = (await this.contractRepo.getContractCollection(this.contractCollection)) as CommitmentTxRecord[]
-    const tx = records.find((r) => r.txid === txid)
-    if (tx) return tx.when
-
+  getAndUpdateCommitmentTxCreatedAt = async (txid: string): Promise<number | null> => {
+    const createdAt = this.getCommitmentTxIds(txid)
+    if (createdAt) return createdAt
     const commitmentTx = await this.provider.getCommitmentTx(txid)
     if (!commitmentTx?.endedAt) return null
-    const when = Number(commitmentTx.endedAt)
+    const newCreatedAt = Number(commitmentTx.endedAt)
+    this.setCommitmentTxIds(txid, newCreatedAt)
+    return newCreatedAt
+  }
 
-    await this.contractRepo.saveToContractCollection(
-      this.contractCollection,
-      { txid, when },
-      'txid', // key field
-    )
+  private getCommitmentTxIds(txid: string): number | null {
+    const blob = localStorage.getItem(STORAGE_KEY)
+    const map = blob ? JSON.parse(blob) : {}
+    return map[txid] ?? null
+  }
 
-    return when
+  private setCommitmentTxIds(txid: string, createdAt: number) {
+    const blob = localStorage.getItem(STORAGE_KEY)
+    const map = blob ? JSON.parse(blob) : {}
+    map[txid] = createdAt
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(map))
   }
 }

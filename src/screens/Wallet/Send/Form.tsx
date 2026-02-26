@@ -1,4 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
@@ -30,6 +32,7 @@ import { Addresses, SettingsOptions } from '../../../lib/types'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
+import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { ArkNote } from '@arkade-os/sdk'
@@ -43,6 +46,7 @@ import { FeesContext } from '../../../providers/fees'
 import { InfoLine } from '../../../components/Info'
 
 export default function SendForm() {
+  const prefersReduced = useReducedMotion()
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
@@ -187,6 +191,7 @@ export default function SendForm() {
         if (!conditions) return setError('Unable to fetch LNURL conditions')
         const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
         const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
+        if (min === max) setSendInfo({ ...sendInfo, satoshis: min }) // set amount automatically
         return setLnUrlLimits({ min, max })
       })
       .catch(() => setError('Invalid address or LNURL'))
@@ -408,17 +413,9 @@ export default function SendForm() {
     satoshis < 1 ||
     processing
 
-  if (scan)
-    return (
-      <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
-    )
-
-  if (keys && !amountIsReadOnly)
-    return <Keyboard back={() => setKeys(false)} onSats={handleAmountChange} value={amount} />
-
   return (
     <>
-      <Header text='Send' back={() => navigate(Pages.Wallet)} />
+      <Header text='Send' back />
       <Content>
         <Padded>
           <FlexCol gap='2rem'>
@@ -429,7 +426,10 @@ export default function SendForm() {
               label='Recipient address'
               onChange={handleRecipientChange}
               onEnter={handleEnter}
-              openScan={() => setScan(true)}
+              openScan={() => {
+                setKeys(false)
+                setScan(true)
+              }}
               value={recipient}
             />
             <InputAmount
@@ -442,7 +442,7 @@ export default function SendForm() {
               onEnter={handleEnter}
               onFocus={handleFocus}
               onMax={handleSendAll}
-              readOnly={amountIsReadOnly}
+              readOnly={amountIsReadOnly || isMobileBrowser}
               right={<Available />}
               sats={amount}
               value={textValue ? Number(textValue) : undefined}
@@ -468,6 +468,39 @@ export default function SendForm() {
       <ButtonsOnBottom>
         <Button onClick={handleContinue} label={label} disabled={buttonDisabled} />
       </ButtonsOnBottom>
+      <AnimatePresence>
+        {keys && !amountIsReadOnly ? (
+          <motion.div
+            key='keyboard'
+            variants={prefersReduced ? undefined : overlaySlideUp}
+            initial={prefersReduced ? false : 'initial'}
+            animate={prefersReduced ? undefined : 'animate'}
+            exit={prefersReduced ? undefined : 'exit'}
+            style={overlayStyle}
+          >
+            <Keyboard back={() => setKeys(false)} onSats={handleAmountChange} value={amount} />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+      <AnimatePresence>
+        {scan ? (
+          <motion.div
+            key='scanner'
+            variants={prefersReduced ? undefined : overlaySlideUp}
+            initial={prefersReduced ? false : 'initial'}
+            animate={prefersReduced ? undefined : 'animate'}
+            exit={prefersReduced ? undefined : 'exit'}
+            style={overlayStyle}
+          >
+            <Scanner
+              close={() => setScan(false)}
+              label='Recipient address'
+              onData={setRecipient}
+              onError={smartSetError}
+            />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </>
   )
 }
