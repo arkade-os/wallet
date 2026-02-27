@@ -156,6 +156,10 @@ export default function ReceiveAmount() {
     )
   }
 
+  if (showKeys) {
+    return <Keyboard back={() => setShowKeys(false)} hideBalance onSats={handleChange} value={satoshis} />
+  }
+
   return (
     <>
       <Header text='Receive' back />
