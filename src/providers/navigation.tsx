@@ -232,6 +232,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
 
     // prevent going back to InitConnect or to a loading screen
     if ([Pages.InitConnect, Pages.Loading].includes(prevPage)) {
+      stack.pop()
       history.pushState({}, '', '')
       return
     }

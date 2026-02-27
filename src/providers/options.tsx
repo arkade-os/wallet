@@ -159,7 +159,7 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
   const internalGoBack = useCallback((fromButton: boolean) => {
     setDirection(fromButton ? 'back' : 'none')
     const target = getParentOption(optionRef.current)
-    historyDepth.current--
+    if (historyDepth.current > 0) historyDepth.current--
     optionRef.current = target
     setOption(target)
   }, [])
