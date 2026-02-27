@@ -129,6 +129,10 @@ export default function ReceiveAmount() {
     ? false
     : satoshis < 1 || amountIsAboveMaxLimit(satoshis) || amountIsBelowMinLimit(satoshis)
 
+  if (showKeys) {
+    return <Keyboard back={() => setShowKeys(false)} hideBalance onSats={handleChange} value={satoshis} />
+  }
+
   if (fauceting) {
     return (
       <>
