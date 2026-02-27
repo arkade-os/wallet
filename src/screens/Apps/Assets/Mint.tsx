@@ -49,7 +49,6 @@ export default function AppAssetMint() {
   const [knownAssets, setKnownAssets] = useState<KnownAssetOption[]>([])
   const [controlMode, setControlMode] = useState<'None' | 'Existing' | 'New'>('None')
   const [ctrlAmount, setCtrlAmount] = useState('1')
-  const [ctrlDecimals, setCtrlDecimals] = useState('0')
   const [mintingText, setMintingText] = useState('Minting asset...')
 
   useEffect(() => {
@@ -107,11 +106,10 @@ export default function AppAssetMint() {
 
       if (controlMode === 'New') {
         setMintingText('Minting control asset...')
-        const parsedCtrlDecimals = ctrlDecimals !== '' ? parseInt(ctrlDecimals) : 0
-        const ctrlMeta: KnownMetadata = { decimals: parsedCtrlDecimals }
+        const ctrlMeta: KnownMetadata = { decimals: 0 }
         if (name) ctrlMeta.name = `ctrl-${name}`
         if (ticker) ctrlMeta.ticker = `ctrl-${ticker}`
-        const ctrlRawAmount = Decimal.mul(parseFloat(ctrlAmount), Math.pow(10, parsedCtrlDecimals)).floor().toNumber()
+        const ctrlRawAmount = Decimal.mul(parseFloat(ctrlAmount), Math.pow(10, 0)).floor().toNumber()
 
         const ctrlResult = await svcWallet.assetManager.issue({
           amount: ctrlRawAmount,
