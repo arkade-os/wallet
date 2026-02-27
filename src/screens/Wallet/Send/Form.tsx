@@ -415,12 +415,7 @@ export default function SendForm() {
 
   if (scan) {
     return (
-      <Scanner
-        close={() => setScan(false)}
-        label='Recipient address'
-        onData={setRecipient}
-        onError={smartSetError}
-      />
+      <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
     )
   }
 
