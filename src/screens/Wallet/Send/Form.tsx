@@ -498,6 +498,9 @@ export default function SendForm() {
     if (isMobileBrowser) setKeys(true)
   }
 
+  const DUST_AMOUNT = 330
+  const hasAssets = assetBalances.length > 0
+
   const handleSendAll = () => {
     if (isAssetSend && selectedAsset) {
       const humanBalance = Decimal.div(selectedAsset.balance, Math.pow(10, selectedAsset.decimals)).toNumber()
@@ -510,13 +513,16 @@ export default function SendForm() {
       return
     }
     const fees = sendInfo.lnUrl ? (calcSubmarineSwapFee(availableBalance) ?? 0) : 0
-    const amountInSats = availableBalance - fees
+    const reserve = hasAssets ? DUST_AMOUNT : 0
+    const amountInSats = Math.max(0, availableBalance - fees - reserve)
     const maximumFractionDigits = useFiat ? 2 : 0
     const value = useFiat ? toFiat(amountInSats) : amountInSats
     setTextValue(prettyNumber(value, maximumFractionDigits, false))
     setState({ ...sendInfo, satoshis: amountInSats })
     setAmount(amountInSats)
   }
+
+  const reserveApplied = !isAssetSend && hasAssets && sendInfo.satoshis === availableBalance - DUST_AMOUNT
 
   const Available = () => {
     if (isAssetSend && selectedAsset) {
@@ -535,6 +541,11 @@ export default function SendForm() {
         <Text color='dark50' smaller>
           {`${pretty} available`}
         </Text>
+        {reserveApplied ? (
+          <Text color='dark50' smaller>
+            {`${DUST_AMOUNT} sats reserved to keep your assets safe`}
+          </Text>
+        ) : null}
       </div>
     )
   }
