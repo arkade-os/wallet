@@ -1,6 +1,4 @@
 import { useContext, useEffect, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
@@ -38,7 +36,6 @@ import { Addresses, SettingsOptions } from '../../../lib/types'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
-import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { ArkNote } from '@arkade-os/sdk'
@@ -61,7 +58,6 @@ interface AssetOption {
 }
 
 export default function SendForm() {
-  const prefersReduced = useReducedMotion()
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
@@ -596,6 +592,16 @@ export default function SendForm() {
     </div>
   )
 
+  if (keys && !amountIsReadOnly) {
+    return <Keyboard back={() => setKeys(false)} onSats={handleAmountChange} value={amount} />
+  }
+
+  if (scan) {
+    return (
+      <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
+    )
+  }
+
   return (
     <>
       <Header text='Send' back />
@@ -765,39 +771,6 @@ export default function SendForm() {
       <ButtonsOnBottom>
         <Button onClick={handleContinue} label={label} disabled={buttonDisabled} />
       </ButtonsOnBottom>
-      <AnimatePresence>
-        {keys && !amountIsReadOnly ? (
-          <motion.div
-            key='keyboard'
-            variants={prefersReduced ? undefined : overlaySlideUp}
-            initial={prefersReduced ? false : 'initial'}
-            animate={prefersReduced ? undefined : 'animate'}
-            exit={prefersReduced ? undefined : 'exit'}
-            style={overlayStyle}
-          >
-            <Keyboard back={() => setKeys(false)} onSats={handleAmountChange} value={amount} />
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-      <AnimatePresence>
-        {scan ? (
-          <motion.div
-            key='scanner'
-            variants={prefersReduced ? undefined : overlaySlideUp}
-            initial={prefersReduced ? false : 'initial'}
-            animate={prefersReduced ? undefined : 'animate'}
-            exit={prefersReduced ? undefined : 'exit'}
-            style={overlayStyle}
-          >
-            <Scanner
-              close={() => setScan(false)}
-              label='Recipient address'
-              onData={setRecipient}
-              onError={smartSetError}
-            />
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
     </>
   )
 }

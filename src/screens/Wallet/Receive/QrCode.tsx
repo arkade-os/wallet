@@ -40,7 +40,7 @@ export default function ReceiveQRCode() {
     ? encodeBip21Asset(offchainAddr, assetId, satoshis)
     : encodeBip21(address, arkAddress, '', satoshis)
 
-  const [invoice, setInvoice] = useState('')
+  const [invoice, setInvoice] = useState(recvInfo.invoice ?? '')
   const [qrValue, setQrValue] = useState(defaultBip21uri)
   const [bip21uri, setBip21uri] = useState(defaultBip21uri)
   const [showQrCode, setShowQrCode] = useState(false)
@@ -57,7 +57,10 @@ export default function ReceiveQRCode() {
 
   useEffect(() => {
     // if boltz is available and amount is between limits, let's create a swap invoice
-    if (!isAssetReceive && satoshis > 0 && wallet && svcWallet && arkadeLightning) {
+    if (isAssetReceive) return
+    if (invoice) return setShowQrCode(true)
+
+    if (validLnSwap(satoshis) && wallet && svcWallet && arkadeLightning) {
       createReverseSwap(satoshis)
         .then((pendingSwap) => {
           if (!pendingSwap) throw new Error('Failed to create reverse swap')
@@ -83,7 +86,7 @@ export default function ReceiveQRCode() {
     } else {
       setShowQrCode(true)
     }
-  }, [satoshis, arkadeLightning])
+  }, [satoshis, arkadeLightning, invoice])
 
   useEffect(() => {
     if (!svcWallet) return

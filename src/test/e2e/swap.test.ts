@@ -13,7 +13,7 @@ test('should be connected to Boltz app', async ({ page }) => {
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Connection status')).toBeVisible()
   await expect(page.getByText('http://localhost:')).toBeVisible()
-  await expect(page.getByText('Connected')).toBeVisible()
+  await expect(page.getByTestId('green-status-icon')).toBeVisible()
   await expect(page.getByText('No swaps yet')).toBeVisible()
 })
 
