@@ -88,10 +88,18 @@ export default function InputAmount({
           type='number'
           value={value}
         >
-          <IonText slot='start' style={{ ...fontStyle, marginRight: '0.5rem' }} className={!useFiat ? 'bitcoin-symbol' : ''}>
+          <IonText
+            slot='start'
+            style={{ ...fontStyle, marginRight: '0.5rem' }}
+            className={!useFiat ? 'bitcoin-symbol' : ''}
+          >
             {leftLabel}
           </IonText>
-          <IonText slot='end' style={{ ...fontStyle, marginLeft: '0.5rem' }} className={useFiat ? 'bitcoin-symbol' : ''}>
+          <IonText
+            slot='end'
+            style={{ ...fontStyle, marginLeft: '0.5rem' }}
+            className={useFiat ? 'bitcoin-symbol' : ''}
+          >
             {rightLabel}
           </IonText>
         </IonInput>
