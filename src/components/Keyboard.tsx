@@ -143,9 +143,11 @@ export default function Keyboard({ back, hideBalance, onSats, value }: KeyboardP
       <Content>
         <FlexCol centered gap='0.5rem'>
           <ErrorMessage error={Boolean(error)} text={error} />
-          <Text big centered heading>
-            {amount.primary}
-          </Text>
+          <div data-testid='keyboard-display'>
+            <Text big centered heading>
+              {amount.primary}
+            </Text>
+          </div>
           <TextSecondary centered>{amount.secondary}</TextSecondary>
           {hideBalance ? null : (
             <div onClick={handleMaxPress}>
