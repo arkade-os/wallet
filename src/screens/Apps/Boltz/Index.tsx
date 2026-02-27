@@ -17,22 +17,12 @@ export default function AppBoltz() {
   const { navigate } = useContext(NavigationContext)
 
   const ConnectionStatus = () => (
-    <FlexRow end>
-      {connected ? <GreenStatusIcon small /> : <RedStatusIcon small />}
-      <Text color={connected ? 'green' : 'red'} small thin>
-        {connected ? 'Connected' : 'Disconnected'}
-      </Text>
-    </FlexRow>
+    <FlexRow end>{connected ? <GreenStatusIcon small /> : <RedStatusIcon small />}</FlexRow>
   )
 
   return (
     <>
-      <Header
-        auxFunc={() => navigate(Pages.AppBoltzSettings)}
-        auxIcon={<SettingsIconLight />}
-        text='Boltz'
-        back={() => navigate(Pages.Apps)}
-      />
+      <Header auxFunc={() => navigate(Pages.AppBoltzSettings)} auxIcon={<SettingsIconLight />} text='Boltz' back />
       <Content>
         <Padded>
           <FlexCol gap='2rem'>

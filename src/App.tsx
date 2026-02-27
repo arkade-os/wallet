@@ -14,10 +14,11 @@ import '@ionic/react/css/display.css'
 
 import '@ionic/react/css/palettes/dark.class.css'
 
+import { AnimatePresence } from 'framer-motion'
 import { ConfigContext } from './providers/config'
 import { IonApp, IonPage, IonTab, IonTabBar, IonTabButton, IonTabs, setupIonicReact } from '@ionic/react'
-import { NavigationContext, pageComponent, Pages, Tabs } from './providers/navigation'
-import { useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { NavigationContext, pageComponent, Pages, Tabs, type NavigationDirection } from './providers/navigation'
+import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { detectJSCapabilities } from './lib/jsCapabilities'
 import { OptionsContext } from './providers/options'
 import { WalletContext } from './providers/wallet'
@@ -25,6 +26,7 @@ import { FlowContext } from './providers/flow'
 import { SettingsOptions } from './lib/types'
 import { AspContext } from './providers/asp'
 import { hapticLight } from './lib/haptics'
+import PageTransition from './components/PageTransition'
 import SettingsIcon from './icons/Settings'
 import Loading from './components/Loading'
 import { pwaIsInstalled } from './lib/pwa'
@@ -32,8 +34,26 @@ import FlexCol from './components/FlexCol'
 import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
 import Focusable from './components/Focusable'
+import { useReducedMotion } from './hooks/useReducedMotion'
 
 setupIonicReact()
+
+function PageAnimWrapper({
+  children,
+  animated,
+  direction,
+}: {
+  children: ReactNode
+  animated: boolean
+  direction: NavigationDirection | 'none'
+}) {
+  if (!animated) return <>{children}</>
+  return (
+    <AnimatePresence mode='sync' initial={false} custom={direction}>
+      {children}
+    </AnimatePresence>
+  )
+}
 
 const animClass = 'tab-anim-pop'
 
@@ -61,7 +81,7 @@ function AnimatedTabIcon({ children, animating }: { children: React.ReactNode; a
 export default function App() {
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
-  const { navigate, screen, tab } = useContext(NavigationContext)
+  const { direction, navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
   const { walletLoaded, initialized, wallet } = useContext(WalletContext)
@@ -162,6 +182,9 @@ export default function App() {
     navigate(Pages.Settings)
   }
 
+  const prefersReduced = useReducedMotion()
+  const effectiveDirection = prefersReduced ? 'none' : direction
+
   const page =
     jsCapabilitiesChecked && configLoaded && (aspInfo.signerPubkey || aspInfo.unreachable) ? screen : Pages.Loading
 
@@ -171,17 +194,47 @@ export default function App() {
     <IonApp>
       <IonPage>
         {tab === Tabs.None ? (
-          comp
+          <div className='page-transition-container'>
+            <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
+              <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                {comp}
+              </PageTransition>
+            </PageAnimWrapper>
+          </div>
         ) : (
           <IonTabs>
             <IonTab ref={walletRef} tab={Tabs.Wallet}>
-              {tab === Tabs.Wallet ? comp : <></>}
+              <div className='page-transition-container'>
+                <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
+                  {tab === Tabs.Wallet && (
+                    <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                      {comp}
+                    </PageTransition>
+                  )}
+                </PageAnimWrapper>
+              </div>
             </IonTab>
             <IonTab ref={appsRef} tab={Tabs.Apps}>
-              {tab === Tabs.Apps ? comp : <></>}
+              <div className='page-transition-container'>
+                <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
+                  {tab === Tabs.Apps && (
+                    <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                      {comp}
+                    </PageTransition>
+                  )}
+                </PageAnimWrapper>
+              </div>
             </IonTab>
             <IonTab ref={settingsRef} tab={Tabs.Settings}>
-              {tab === Tabs.Settings ? comp : <></>}
+              <div className='page-transition-container'>
+                <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
+                  {tab === Tabs.Settings && (
+                    <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                      {comp}
+                    </PageTransition>
+                  )}
+                </PageAnimWrapper>
+              </div>
             </IonTab>
             <IonTabBar slot='bottom'>
               <IonTabButton tab={Tabs.Wallet} onClick={handleWallet} selected={tab === Tabs.Wallet}>

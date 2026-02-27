@@ -1,4 +1,5 @@
 import { ReactNode, useContext, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import StepBars from '../../components/StepBars'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { OnboardImage1 } from '../../icons/Onboard1'
@@ -18,9 +19,13 @@ import Shadow from '../../components/Shadow'
 import AddIcon from '../../icons/Add'
 import ShareIcon from '../../icons/Share'
 import { pwaCanInstall } from '../../lib/pwa'
+import { OnboardStaggerChild } from '../../components/OnboardLoadIn'
+import { useReducedMotion } from '../../hooks/useReducedMotion'
+import { EASE_OUT_QUINT, onboardStaggerContainer } from '../../lib/animations'
 
 export default function Onboard() {
   const { navigate } = useContext(NavigationContext)
+  const prefersReduced = useReducedMotion()
 
   const [step, setStep] = useState(1)
 
@@ -30,25 +35,20 @@ export default function Onboard() {
 
   const handleSkip = () => navigate(Pages.Init)
 
-  const ImageContainer = () => {
-    const Image = () => {
-      if (step === 1) return <OnboardImage1 />
-      if (step === 2) return <OnboardImage2 />
-      if (step === 3) return <OnboardImage3 />
-      return <OnboardImage4 />
-    }
-    const style: any = {
-      alignItems: 'center',
-      display: 'flex',
-      justifyContent: 'center',
-      margin: '0 auto',
-      maxHeight: '50%',
-    }
-    return (
-      <div style={style}>
-        <Image />
-      </div>
-    )
+  const Image = () => {
+    if (step === 1) return <OnboardImage1 />
+    if (step === 2) return <OnboardImage2 />
+    if (step === 3) return <OnboardImage3 />
+    return <OnboardImage4 />
+  }
+
+  const imageStyle: any = {
+    alignItems: 'center',
+    display: 'flex',
+    justifyContent: 'center',
+    margin: '0 auto',
+    maxHeight: '40vh',
+    maxWidth: '70%',
   }
 
   const InfoContainer = (): ReactNode => {
@@ -116,9 +116,46 @@ export default function Onboard() {
       <Content>
         <Padded>
           <FlexCol between>
-            <StepBars active={step} length={steps} />
-            <ImageContainer />
-            <InfoContainer />
+            <AnimatePresence mode='wait'>
+              <motion.div
+                key={step}
+                variants={prefersReduced ? undefined : onboardStaggerContainer}
+                initial={prefersReduced ? false : 'initial'}
+                animate={prefersReduced ? undefined : 'animate'}
+                exit={
+                  prefersReduced
+                    ? undefined
+                    : {
+                        opacity: 0,
+                        transition: {
+                          duration: 0.15,
+                          ease: [EASE_OUT_QUINT[0], EASE_OUT_QUINT[1], EASE_OUT_QUINT[2], EASE_OUT_QUINT[3]],
+                        },
+                      }
+                }
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '2rem',
+                  flex: 1,
+                }}
+              >
+                <OnboardStaggerChild>
+                  <StepBars active={step} length={steps} />
+                </OnboardStaggerChild>
+                <OnboardStaggerChild>
+                  <div style={imageStyle}>
+                    <Image />
+                  </div>
+                </OnboardStaggerChild>
+                <OnboardStaggerChild>
+                  <InfoContainer />
+                </OnboardStaggerChild>
+              </motion.div>
+            </AnimatePresence>
           </FlexCol>
         </Padded>
       </Content>

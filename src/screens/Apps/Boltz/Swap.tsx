@@ -3,7 +3,6 @@ import Padded from '../../../components/Padded'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { NavigationContext, Pages } from '../../../providers/navigation'
 import Table, { TableData } from '../../../components/Table'
 import { FlowContext } from '../../../providers/flow'
 import { decodeInvoice } from '../../../lib/bolt11'
@@ -27,7 +26,6 @@ export default function AppBoltzSwap() {
   const { config } = useContext(ConfigContext)
   const { swapInfo, setSwapInfo } = useContext(FlowContext)
   const { claimVHTLC, refundVHTLC, swapManager } = useContext(LightningContext)
-  const { navigate } = useContext(NavigationContext)
 
   const [error, setError] = useState<string>('')
   const [processing, setProcessing] = useState<boolean>(false)
@@ -101,7 +99,7 @@ export default function AppBoltzSwap() {
 
   return (
     <>
-      <Header text='Swap' back={() => navigate(Pages.AppBoltz)} />
+      <Header text='Swap' back />
       <Content>
         <Padded>
           {processing ? (
