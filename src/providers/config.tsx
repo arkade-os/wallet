@@ -84,7 +84,9 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     else root.classList.remove(darkPalette)
   }
 
-  const updateConfig = async (config: Config) => {
+  const updateConfig = async (incoming: Config) => {
+    // merge with defaults so newly added fields are always present
+    const config = { ...defaultConfig, ...incoming }
     // add protocol to aspUrl if missing
     if (!config.aspUrl.startsWith('http://') && !config.aspUrl.startsWith('https://')) {
       const protocol = config.aspUrl.startsWith('localhost') ? 'http://' : 'https://'
@@ -108,8 +110,6 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
       window.location.hash = ''
     }
     let config = readConfigFromStorage() ?? { ...defaultConfig }
-    // allow upgradability
-    config = { ...defaultConfig, ...config }
     // env var is authoritative — override cached localStorage value
     if (import.meta.env.VITE_ARK_SERVER) config.aspUrl = import.meta.env.VITE_ARK_SERVER
     updateConfig(config)
