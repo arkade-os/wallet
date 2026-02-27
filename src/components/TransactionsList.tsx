@@ -21,7 +21,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   const { toFiat } = useContext(FiatContext)
 
   const prefix = tx.type === 'sent' ? '-' : '+'
-  const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount) : prettyHide(tx.amount)}`
+  const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount, config) : prettyHide(tx.amount, config)}`
   const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
 
   const Fiat = () => {
@@ -35,7 +35,9 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
             : ''
     const value = toFiat(tx.amount)
     const small = config.currencyDisplay === CurrencyDisplay.Both
-    const world = config.showBalance ? prettyAmount(value, config.fiat) : prettyHide(value, config.fiat)
+    const world = config.showBalance
+      ? prettyAmount(value, undefined, config.fiat)
+      : prettyHide(value, undefined, config.fiat)
     return (
       <Text color={color} small={small}>
         {world}

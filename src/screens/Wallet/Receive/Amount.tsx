@@ -127,7 +127,7 @@ export default function ReceiveAmount() {
   const showFaucetButton = balance === 0 && faucetAvailable
   const showLightningFees = satoshis && validLnSwap(satoshis)
   const reverseSwapFee = calcReverseSwapFee(satoshis)
-  const lightningFeeText = `Lightning fees: ${prettyAmount(reverseSwapFee)}`
+  const lightningFeeText = `Lightning fees: ${prettyAmount(reverseSwapFee, config)}`
 
   const disabled = !satoshis
     ? false
@@ -145,7 +145,9 @@ export default function ReceiveAmount() {
   }
 
   if (faucetSuccess) {
-    const displayAmount = useFiat ? prettyAmount(toFiat(satoshis), config.fiat) : prettyAmount(satoshis ?? 0)
+    const displayAmount = useFiat
+      ? prettyAmount(toFiat(satoshis), undefined, config.fiat)
+      : prettyAmount(satoshis ?? 0, config)
     return (
       <>
         <Header text='Success' />

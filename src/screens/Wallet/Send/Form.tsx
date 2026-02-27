@@ -388,7 +388,7 @@ export default function SendForm() {
 
   const Available = () => {
     const amount = useFiat ? toFiat(availableBalance) : availableBalance
-    const pretty = useFiat ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
+    const pretty = useFiat ? prettyAmount(amount, undefined, config.fiat) : prettyAmount(amount, config)
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
         <Text color='dark50' smaller>

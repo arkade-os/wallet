@@ -18,7 +18,9 @@ export default function NotesSuccess() {
     notifyPaymentReceived(noteInfo.satoshis)
   }, [])
 
-  const displayAmount = useFiat ? prettyAmount(toFiat(noteInfo.satoshis), config.fiat) : prettyAmount(noteInfo.satoshis)
+  const displayAmount = useFiat
+    ? prettyAmount(toFiat(noteInfo.satoshis), undefined, config.fiat)
+    : prettyAmount(noteInfo.satoshis, config)
 
   return (
     <>

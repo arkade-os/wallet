@@ -15,6 +15,8 @@ export type Config = {
   }
   aspUrl: string
   currencyDisplay: CurrencyDisplay
+  denominationFormat: DenominationFormat
+  displayMode: DisplayMode
   fiat: Fiats
   haptics: boolean
   nostrBackup: boolean
@@ -29,6 +31,16 @@ export enum CurrencyDisplay {
   Both = 'Show both',
   Fiat = 'Fiat only',
   Bitcoin = 'Bitcoin only',
+}
+
+export enum DenominationFormat {
+  Bip177 = 'bip177',
+  Sats = 'sats',
+}
+
+export enum DisplayMode {
+  BTC = 'btc',
+  Base = 'base',
 }
 
 export enum Fiats {
