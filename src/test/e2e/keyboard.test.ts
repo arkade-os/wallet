@@ -1,5 +1,5 @@
-import { test, expect, type Page } from '@playwright/test'
-import { createWallet } from './utils'
+import { test, expect, createWallet } from './utils'
+import type { Page } from '@playwright/test'
 
 // helper function to setup wallet and navigate to keyboard
 async function setupWalletAndOpenKeyboard(page: Page) {

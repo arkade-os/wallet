@@ -14,10 +14,10 @@ import { canBrowserShareData, shareData } from '../../../lib/share'
 import ExpandAddresses from '../../../components/ExpandAddresses'
 import FlexCol from '../../../components/FlexCol'
 import { LimitsContext } from '../../../providers/limits'
-import { Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import Loading from '../../../components/Loading'
 import { LightningContext } from '../../../providers/lightning'
-import { encodeBip21 } from '../../../lib/bip21'
+import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
 
 export default function ReceiveQRCode() {
@@ -31,11 +31,14 @@ export default function ReceiveQRCode() {
   const [sharing, setSharing] = useState(false)
 
   // manage all possible receive methods
-  const { boardingAddr, offchainAddr, satoshis } = recvInfo
+  const { boardingAddr, offchainAddr, satoshis, assetId } = recvInfo
+  const isAssetReceive = assetId && assetId !== ''
   const address = validUtxoTx(satoshis) && utxoTxsAllowed() ? boardingAddr : ''
   const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
-  const noPaymentMethods = !address && !arkAddress && !validLnSwap(satoshis)
-  const defaultBip21uri = encodeBip21(address, arkAddress, '', satoshis)
+  const noPaymentMethods = isAssetReceive ? false : !address && !arkAddress && !validLnSwap(satoshis)
+  const defaultBip21uri = isAssetReceive
+    ? encodeBip21Asset(offchainAddr, assetId, satoshis)
+    : encodeBip21(address, arkAddress, '', satoshis)
 
   const [invoice, setInvoice] = useState(recvInfo.invoice ?? '')
   const [qrValue, setQrValue] = useState(defaultBip21uri)
@@ -44,18 +47,18 @@ export default function ReceiveQRCode() {
 
   // set the QR code value to the bip21uri the first time
   useEffect(() => {
-    const bip21uri = encodeBip21(address, arkAddress, invoice, satoshis)
-    setBip21uri(bip21uri)
-    setQrValue(bip21uri)
-    if (invoice) setShowQrCode(true)
+    const uri = isAssetReceive
+      ? encodeBip21Asset(offchainAddr, assetId, satoshis)
+      : encodeBip21(address, arkAddress, invoice, satoshis)
+    setBip21uri(uri)
+    setQrValue(uri)
+    if (invoice || isAssetReceive) setShowQrCode(true)
   }, [invoice])
 
   useEffect(() => {
     // if boltz is available and amount is between limits, let's create a swap invoice
-    if (invoice) {
-      setShowQrCode(true)
-      return
-    }
+    if (isAssetReceive) return
+    if (invoice) return setShowQrCode(true)
 
     if (validLnSwap(satoshis) && wallet && svcWallet && arkadeLightning) {
       createReverseSwap(satoshis)
@@ -90,17 +93,35 @@ export default function ReceiveQRCode() {
 
     const listenForPayments = (event: MessageEvent) => {
       let satoshis = 0
+      let receivedAssets: Asset[] = []
+
       if (event.data && event.data.type === 'VTXO_UPDATE') {
         const newVtxos = event.data.newVtxos as ExtendedVirtualCoin[]
         satoshis = newVtxos.reduce((acc, v) => acc + v.value, 0)
+        for (const v of newVtxos) {
+          receivedAssets.push(...(v.assets ?? []))
+        }
       }
+
+      // reduce received assets to unique asset ids (sum amounts if same asset id)
+      receivedAssets = receivedAssets.reduce((acc, v) => {
+        const existing = acc.find((a) => a.assetId === v.assetId)
+        if (existing) {
+          existing.amount += v.amount
+        } else {
+          acc.push(v)
+        }
+        return acc
+      }, [] as Asset[])
+
       if (event.data && event.data.type === 'UTXO_UPDATE') {
         const coins = event.data.coins as Coin[]
         satoshis = coins.reduce((acc, v) => acc + v.value, 0)
       }
-      if (satoshis) {
-        setRecvInfo({ ...recvInfo, satoshis })
-        notifyPaymentReceived(satoshis)
+
+      if (satoshis || receivedAssets.length > 0) {
+        setRecvInfo({ ...recvInfo, satoshis, receivedAssets })
+        if (!isAssetReceive) notifyPaymentReceived(satoshis)
         navigate(Pages.ReceiveSuccess)
       }
     }

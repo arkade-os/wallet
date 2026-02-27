@@ -1,4 +1,4 @@
-import { Satoshis } from './types'
+import { Satoshis, Tx } from './types'
 import { Decimal } from 'decimal.js'
 
 export const fromSatoshis = (num: Satoshis): number => {
@@ -85,6 +85,19 @@ export const prettyLongText = (str?: string, showChars = 11): string => {
 export const prettyNumber = (num?: number, maximumFractionDigits = 8, useGrouping = true): string => {
   if (!num) return '0'
   return new Intl.NumberFormat('en', { style: 'decimal', maximumFractionDigits, useGrouping }).format(num)
+}
+
+export const formatAssetAmount = (amount: number, decimals: number): string => {
+  if (decimals === 0) return prettyNumber(amount, 0)
+  return prettyNumber(Decimal.div(amount, Math.pow(10, decimals)).toNumber(), decimals)
+}
+
+export const isIssuance = (tx: Tx): boolean => {
+  return tx.type === 'sent' && tx.amount === 0 && (tx.assets ?? []).some((a) => a.amount > 0)
+}
+
+export const isBurn = (tx: Tx): boolean => {
+  return tx.type === 'sent' && tx.amount === 0 && (tx.assets ?? []).some((a) => a.amount < 0)
 }
 
 export const toUint8Array = (str: string): Uint8Array => {

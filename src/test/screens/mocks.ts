@@ -32,6 +32,19 @@ export const mockTxInfo = {
   type: 'received',
 }
 
+export const mockIssuanceTxInfo = {
+  amount: 0,
+  assets: [{ assetId: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd', amount: 10000 }],
+  boardingTxid: '',
+  redeemTxid: mockTxId,
+  roundTxid: '',
+  createdAt: Math.floor(Date.now() / 1000) - 60,
+  explorable: mockTxId,
+  preconfirmed: false,
+  settled: true,
+  type: 'sent',
+}
+
 export const mockAspContextValue = {
   aspInfo: mockAspInfo,
   calcBestMarketHour: () => undefined,
@@ -43,10 +56,13 @@ export const mockConfigContextValue = {
   config: {
     currencyDisplay: CurrencyDisplay.Both,
     fiat: Fiats.EUR,
+    importedAssets: [],
     nostrBackup: true,
     notifications: true,
+    showBalance: true,
     theme: Themes.Dark,
   },
+  updateConfig: () => {},
   effectiveTheme: Themes.Dark,
   systemTheme: Themes.Dark,
   useFiat: false,
@@ -100,6 +116,9 @@ export const mockWalletContextValue = {
   svcWallet: undefined,
   isLocked: () => Promise.resolve(true),
   balance: 0,
+  assetBalances: [],
+  assetMetadataCache: new Map(),
+  setCacheEntry: () => {},
   txs: [mockTxInfo],
   vtxos: { spendable: [], spent: [] },
 }
@@ -117,6 +136,10 @@ export const mockFlowContextValue = {
   setSendInfo: () => {},
   setSwapInfo: () => {},
   setTxInfo: () => {},
+  assetInfo: { assetId: undefined, supply: 0 },
+  setAssetInfo: () => {},
+  deepLinkInfo: undefined,
+  setDeepLinkInfo: () => {},
 }
 
 export const mockLimitsContextValue = {

@@ -6,7 +6,7 @@ import Header from '../../components/Header'
 import FlexCol from '../../components/FlexCol'
 import Text from '../../components/Text'
 import Shadow from '../../components/Shadow'
-import FujiMoneyIcon from '../../icons/FujiMoney'
+import AssetsIcon from '../../icons/Assets'
 import BoltzIcon from '../../icons/Boltz'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import LendasatIcon from './Lendasat/LendasatIcon'
@@ -98,6 +98,15 @@ export default function Apps() {
         <Padded>
           <FlexCol>
             <App
+              name='Assets'
+              icon={<AssetsIcon />}
+              desc='Issue, manage, send, and receive assets on Arkade'
+              link='https://github.com/ArkLabsHQ/arkade-assets'
+              page={Pages.AppAssets}
+              live
+            />
+
+            <App
               name='Boltz'
               icon={<BoltzIcon />}
               desc='Swap instantly between Arkade and Lightning'
@@ -123,7 +132,6 @@ export default function Apps() {
               page={Pages.AppLendaswap}
               live
             />
-            <App name='Fuji Money' icon={<FujiMoneyIcon />} desc='Synthetic Assets on the Bitcoin network' />
           </FlexCol>
         </Padded>
       </Content>

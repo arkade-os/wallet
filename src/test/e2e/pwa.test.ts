@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './utils'
 
 test('should serve PWA manifest', async ({ page }) => {
   await page.goto('/')

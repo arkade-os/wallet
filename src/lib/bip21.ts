@@ -8,8 +8,11 @@ export interface Bip21Decoded {
   address?: string
   arkAddress?: string
   satoshis?: number
+  /** Raw amount in asset units when assetId is present (not converted to satoshis) */
+  assetAmount?: number
   invoice?: string
   lnurl?: string
+  assetId?: string
 }
 
 /** decode a bip21 uri */
@@ -44,10 +47,18 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
       if (isArkAddress(arkAddress)) result.arkAddress = arkAddress
     }
 
+    if (params.has('assetid')) {
+      result.assetId = params.get('assetid')!
+    }
+
     if (params.has('amount')) {
       const amount = parseFloat(params.get('amount')!)
       if (isNaN(amount) || amount < 0 || !isFinite(amount)) throw new Error('Invalid amount')
-      result.satoshis = toSatoshis(amount)
+      if (result.assetId != null) {
+        result.assetAmount = amount
+      } else {
+        result.satoshis = toSatoshis(amount)
+      }
     }
 
     if (params.has('lightning')) {
@@ -69,6 +80,10 @@ export const encodeBip21 = (address: string, arkAddress: string, invoice: string
     (invoice ? `&lightning=${invoice}` : '') +
     `&amount=${prettyNumber(fromSatoshis(sats))}`
   )
+}
+
+export const encodeBip21Asset = (arkAddress: string, assetId: string, amount: number) => {
+  return `bitcoin:?ark=${arkAddress}&assetid=${assetId}&amount=${amount}`
 }
 
 export const isBip21 = (data: string): boolean => {

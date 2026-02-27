@@ -9,7 +9,7 @@ import ErrorMessage from '../../../components/Error'
 import { WalletContext } from '../../../providers/wallet'
 import Header from '../../../components/Header'
 import { defaultFee } from '../../../lib/constants'
-import { prettyNumber } from '../../../lib/format'
+import { formatAssetAmount, prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { collaborativeExitWithFees, sendOffChain } from '../../../lib/asp'
@@ -20,14 +20,22 @@ import WaitingForRound from '../../../components/WaitingForRound'
 import { LimitsContext } from '../../../providers/limits'
 import { LightningContext } from '../../../providers/lightning'
 import { FeesContext } from '../../../providers/fees'
+import Text from '../../../components/Text'
 
 export default function SendDetails() {
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
+  const isAssetSend = Boolean(sendInfo.assets?.length)
   const { calcSubmarineSwapFee, payInvoice } = useContext(LightningContext)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
-  const { balance, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
+
+  const assetId = sendInfo.assets?.[0]?.assetId
+  const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
+  const assetTicker = assetMeta?.metadata?.ticker ?? ''
+  const assetName = assetMeta?.metadata?.name ?? 'Asset'
+  const assetAmountValue = sendInfo.assets?.[0]?.amount ?? 0
 
   const [buttonLabel, setButtonLabel] = useState('')
   const [details, setDetails] = useState<DetailsProps>()
@@ -38,6 +46,20 @@ export default function SendDetails() {
 
   useEffect(() => {
     if (!address && !arkAddress && !invoice) return setError('Missing address')
+    if (isAssetSend) {
+      if (!assetAmountValue) return setError('Missing asset amount')
+      const destination = arkAddress ?? ''
+      const feeInSats = defaultFee
+      setDetails({
+        destination,
+        direction: 'Paying inside the Ark',
+        fees: feeInSats,
+        satoshis: 0,
+        total: feeInSats,
+      })
+      setButtonLabel('Tap to Sign')
+      return
+    }
     if (!satoshis) return setError('Missing amount')
     const destination =
       arkAddress && vtxoTxsAllowed()
@@ -96,10 +118,22 @@ export default function SendDetails() {
   }
 
   const handleContinue = async () => {
-    if (!details?.total || !details.satoshis || !svcWallet) return
+    if (!details || !svcWallet) return
+    if (!isAssetSend && (!details.total || !details.satoshis)) return
+    if (isAssetSend && !arkAddress) {
+      setError('Assets can only be sent to Ark addresses')
+      return
+    }
     setSending(true)
-    if (arkAddress) {
-      sendOffChain(svcWallet, details.total, arkAddress).then(handleTxid).catch(handleError)
+    if (isAssetSend && arkAddress) {
+      // Asset send via wallet.send()
+      const recipients = [{ address: arkAddress, amount: details.satoshis, assets: sendInfo.assets }]
+      svcWallet
+        .send(...recipients)
+        .then(handleTxid)
+        .catch(handleError)
+    } else if (arkAddress) {
+      sendOffChain(svcWallet, details.total!, arkAddress).then(handleTxid).catch(handleError)
     } else if (invoice) {
       const response = pendingSwap?.response
       if (!response) return setError('Swap response not available')
@@ -107,7 +141,9 @@ export default function SendDetails() {
       if (!swapAddress) return setError('Swap address not available')
       payInvoice(pendingSwap).then(handlePreimage).catch(handleError)
     } else if (address) {
-      collaborativeExitWithFees(svcWallet, details.total, details.satoshis, address).then(handleTxid).catch(handleError)
+      collaborativeExitWithFees(svcWallet, details.total!, details.satoshis!, address)
+        .then(handleTxid)
+        .catch(handleError)
     }
   }
 
@@ -127,6 +163,16 @@ export default function SendDetails() {
           <Padded>
             <FlexCol>
               <ErrorMessage error={Boolean(error)} text={error} />
+              {isAssetSend ? (
+                <FlexCol gap='0.5rem'>
+                  <Text color='dark50' smaller>
+                    {assetName} ({assetTicker})
+                  </Text>
+                  <Text bold>
+                    {formatAssetAmount(assetAmountValue, assetMeta?.metadata?.decimals ?? 8)} {assetTicker}
+                  </Text>
+                </FlexCol>
+              ) : null}
               <Details details={details} />
             </FlexCol>
           </Padded>

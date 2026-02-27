@@ -26,6 +26,13 @@ import InitSuccess from '../screens/Init/Success'
 import AppBoltzSwap from '../screens/Apps/Boltz/Swap'
 import AppLendasat from '../screens/Apps/Lendasat/Index'
 import AppLendaswap from '../screens/Apps/Lendaswap/Index'
+import AppAssets from '../screens/Apps/Assets/Index'
+import AppAssetDetail from '../screens/Apps/Assets/Detail'
+import AppAssetImport from '../screens/Apps/Assets/Import'
+import AppAssetMint from '../screens/Apps/Assets/Mint'
+import AppAssetMintSuccess from '../screens/Apps/Assets/MintSuccess'
+import AppAssetReissue from '../screens/Apps/Assets/Reissue'
+import AppAssetBurn from '../screens/Apps/Assets/Burn'
 import Unavailable from '../screens/Wallet/Unavailable'
 
 export type NavigationDirection = 'forward' | 'back' | 'none'
@@ -36,6 +43,13 @@ export enum Pages {
   AppBoltzSwap,
   AppLendasat,
   AppLendaswap,
+  AppAssets,
+  AppAssetDetail,
+  AppAssetImport,
+  AppAssetMint,
+  AppAssetMintSuccess,
+  AppAssetReissue,
+  AppAssetBurn,
   Apps,
   Init,
   InitRestore,
@@ -74,6 +88,13 @@ const pageTab = {
   [Pages.AppBoltzSwap]: Tabs.Apps,
   [Pages.AppLendasat]: Tabs.Apps,
   [Pages.AppLendaswap]: Tabs.Apps,
+  [Pages.AppAssets]: Tabs.Apps,
+  [Pages.AppAssetDetail]: Tabs.Apps,
+  [Pages.AppAssetImport]: Tabs.Apps,
+  [Pages.AppAssetMint]: Tabs.Apps,
+  [Pages.AppAssetMintSuccess]: Tabs.Apps,
+  [Pages.AppAssetReissue]: Tabs.Apps,
+  [Pages.AppAssetBurn]: Tabs.Apps,
   [Pages.Apps]: Tabs.Apps,
   [Pages.Init]: Tabs.None,
   [Pages.InitRestore]: Tabs.None,
@@ -114,6 +135,20 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <AppLendasat />
     case Pages.AppLendaswap:
       return <AppLendaswap />
+    case Pages.AppAssets:
+      return <AppAssets />
+    case Pages.AppAssetDetail:
+      return <AppAssetDetail />
+    case Pages.AppAssetImport:
+      return <AppAssetImport />
+    case Pages.AppAssetMint:
+      return <AppAssetMint />
+    case Pages.AppAssetMintSuccess:
+      return <AppAssetMintSuccess />
+    case Pages.AppAssetReissue:
+      return <AppAssetReissue />
+    case Pages.AppAssetBurn:
+      return <AppAssetBurn />
     case Pages.Apps:
       return <Apps />
     case Pages.Init:

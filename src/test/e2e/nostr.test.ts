@@ -1,5 +1,12 @@
-import { test, expect } from '@playwright/test'
-import { createWallet, pay, receiveLightning, resetAndRestoreWallet, waitForPaymentReceived } from './utils'
+import {
+  test,
+  expect,
+  createWallet,
+  pay,
+  receiveLightning,
+  resetAndRestoreWallet,
+  waitForPaymentReceived,
+} from './utils'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 

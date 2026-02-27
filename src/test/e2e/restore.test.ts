@@ -1,7 +1,14 @@
 import { promisify } from 'util'
 import { exec } from 'child_process'
-import { createWallet, pay, receiveLightning, resetAndRestoreWallet, waitForPaymentReceived } from './utils'
-import { test, expect } from '@playwright/test'
+import {
+  test,
+  expect,
+  createWallet,
+  pay,
+  receiveLightning,
+  resetAndRestoreWallet,
+  waitForPaymentReceived,
+} from './utils'
 
 const execAsync = promisify(exec)
 

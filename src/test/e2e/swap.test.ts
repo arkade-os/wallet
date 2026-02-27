@@ -1,7 +1,6 @@
-import test, { expect } from '@playwright/test'
+import { test, expect, createWallet, pay, receiveLightning, receiveOffchain, waitForPaymentReceived } from './utils'
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import { createWallet, pay, receiveLightning, receiveOffchain, waitForPaymentReceived } from './utils'
 
 const execAsync = promisify(exec)
 

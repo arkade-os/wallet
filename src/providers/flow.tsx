@@ -1,5 +1,6 @@
 import { PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { ReactNode, createContext, useState } from 'react'
+import type { Asset, AssetDetails } from '@arkade-os/sdk'
 import { Tx } from '../lib/types'
 
 export interface InitInfo {
@@ -24,10 +25,14 @@ export interface RecvInfo {
   invoice?: string
   satoshis: number
   txid?: string
+  assetId?: string
+  assetAmount?: number
+  receivedAssets?: Asset[]
 }
 
 export type SendInfo = {
   address?: string
+  assets?: Asset[]
   arkAddress?: string
   invoice?: string
   lnUrl?: string
@@ -59,6 +64,8 @@ interface FlowContextProps {
   setSendInfo: (arg0: SendInfo) => void
   setSwapInfo: (arg0: SwapInfo) => void
   setTxInfo: (arg0: TxInfo) => void
+  assetInfo: AssetDetails
+  setAssetInfo: (arg0: AssetDetails) => void
 }
 
 export const emptyInitInfo: InitInfo = {
@@ -76,6 +83,8 @@ export const emptyRecvInfo: RecvInfo = {
   offchainAddr: '',
   satoshis: 0,
 }
+
+export const emptyAssetInfo: AssetDetails = { assetId: '', supply: 0 }
 
 export const emptySendInfo: SendInfo = {
   address: '',
@@ -101,6 +110,8 @@ export const FlowContext = createContext<FlowContextProps>({
   setSendInfo: () => {},
   setSwapInfo: () => {},
   setTxInfo: () => {},
+  assetInfo: emptyAssetInfo,
+  setAssetInfo: () => {},
 })
 
 export const FlowProvider = ({ children }: { children: ReactNode }) => {
@@ -111,6 +122,7 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
   const [sendInfo, setSendInfo] = useState(emptySendInfo)
   const [swapInfo, setSwapInfo] = useState<SwapInfo>()
   const [txInfo, setTxInfo] = useState<TxInfo>()
+  const [assetInfo, setAssetInfo] = useState<AssetDetails>(emptyAssetInfo)
 
   return (
     <FlowContext.Provider
@@ -129,6 +141,8 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
         setSendInfo,
         setSwapInfo,
         setTxInfo,
+        assetInfo,
+        setAssetInfo,
       }}
     >
       {children}
