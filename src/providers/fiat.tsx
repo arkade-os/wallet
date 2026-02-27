@@ -49,7 +49,7 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true)
     const pf = await getPriceFeed()
     if (pf) fiatPrices.current = pf
-    else setConfig({ ...config, currencyDisplay: CurrencyDisplay.Sats }) // hide fiat if fetch fails
+    else setConfig({ ...config, currencyDisplay: CurrencyDisplay.Bitcoin }) // hide fiat if fetch fails
     setLoading(false)
   }
 

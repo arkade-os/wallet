@@ -22,7 +22,7 @@ export default function Display() {
         <Padded>
           <Select
             onChange={handleChange}
-            options={[CurrencyDisplay.Both, CurrencyDisplay.Sats, CurrencyDisplay.Fiat]}
+            options={[CurrencyDisplay.Both, CurrencyDisplay.Bitcoin, CurrencyDisplay.Fiat]}
             selected={config.currencyDisplay}
           />
         </Padded>

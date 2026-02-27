@@ -77,7 +77,7 @@ export default function ReceiveAmount() {
       !satoshis
         ? defaultButtonLabel
         : satoshis < 1
-          ? 'Amount below 1 satoshi'
+          ? 'Amount below ₿1'
           : amountIsAboveMaxLimit(satoshis)
             ? 'Amount above max limit'
             : amountIsBelowMinLimit(satoshis)

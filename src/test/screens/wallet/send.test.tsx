@@ -77,7 +77,7 @@ describe('Send screen', () => {
     expect(screen.getByText('Max')).toBeInTheDocument()
     expect(screen.getByText('Send')).toBeInTheDocument()
     expect(screen.getByText('Amount')).toBeInTheDocument()
-    expect(screen.getByText('0 SATS available')).toBeInTheDocument()
+    expect(screen.getByText('₿0 available')).toBeInTheDocument()
     expect(screen.getByText('Recipient address')).toBeInTheDocument()
     expect(screen.getByText('Continue')).toBeInTheDocument()
   })

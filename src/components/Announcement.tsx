@@ -169,7 +169,7 @@ export function LendaSatAnnouncement({ close }: { close: () => void }) {
       title='LendaSat'
       page={Pages.AppLendasat}
       icon={<LendasatIcon big />}
-      message='Borrow against your sats.'
+      message='Borrow against your bitcoin.'
       bulletPoints={[
         [
           'Choose a loan',

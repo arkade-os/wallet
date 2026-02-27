@@ -105,7 +105,7 @@ export default function Keyboard({ back, hideBalance, onSats, value }: KeyboardP
 
   // Display amounts based on input mode
   const amount = {
-    primary: `${textValue || '0'} ${inputMode === 'fiat' ? config.fiat : 'SATS'}`,
+    primary: inputMode === 'fiat' ? `${textValue || '0'} ${config.fiat}` : `₿${textValue || '0'}`,
     secondary: inputMode === 'fiat' ? prettyAmount(amountInSats) : prettyAmount(toFiat(amountInSats), config.fiat),
     balance: inputMode === 'fiat' ? prettyAmount(toFiat(available), config.fiat) : prettyAmount(available),
   }
@@ -143,7 +143,7 @@ export default function Keyboard({ back, hideBalance, onSats, value }: KeyboardP
       <Content>
         <FlexCol centered gap='0.5rem'>
           <ErrorMessage error={Boolean(error)} text={error} />
-          <Text big centered heading>
+          <Text big centered heading className={inputMode !== 'fiat' ? 'bitcoin-symbol' : ''}>
             {amount.primary}
           </Text>
           <TextSecondary centered>{amount.secondary}</TextSecondary>

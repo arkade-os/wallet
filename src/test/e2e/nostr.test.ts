@@ -84,11 +84,11 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
-  await expect(page.getByText('+ 1,992 SATS', { exact: true })).toBeVisible()
+  await expect(page.getByText('+ ₿1,992', { exact: true })).toBeVisible()
 
   // transaction should be visible on main page
   await page.getByTestId('tab-wallet').click()
-  await expect(page.getByText('+ 1,992 SATS')).toBeVisible()
+  await expect(page.getByText('+ ₿1,992')).toBeVisible()
 
   // generate lightning invoice to pay
   const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
@@ -109,11 +109,11 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
-  await expect(page.getByText('- 1,001 SATS', { exact: true })).toBeVisible()
+  await expect(page.getByText('- ₿1,001', { exact: true })).toBeVisible()
 
   // transaction should be visible on main page
   await page.getByTestId('tab-wallet').click()
-  await expect(page.getByText('- 1,001 SATS')).toBeVisible()
+  await expect(page.getByText('- ₿1,001')).toBeVisible()
 
   // enable nostr backups
   await page.getByTestId('tab-settings').click()
@@ -127,6 +127,6 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
-  await expect(page.getByText('- 1,001 SATS', { exact: true })).toBeVisible()
-  await expect(page.getByText('+ 1,992 SATS', { exact: true })).toBeVisible()
+  await expect(page.getByText('- ₿1,001', { exact: true })).toBeVisible()
+  await expect(page.getByText('+ ₿1,992', { exact: true })).toBeVisible()
 })

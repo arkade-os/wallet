@@ -18,14 +18,15 @@ export default function Balance({ amount }: BalanceProps) {
 
   const fiatAmount = toFiat(amount)
 
-  const satsBalance = config.showBalance ? prettyNumber(amount) : prettyHide(amount, '')
-  const fiatBalance = config.showBalance ? prettyNumber(fiatAmount, 2) : prettyHide(fiatAmount, '')
-
-  const otherBalance = config.currencyDisplay === CurrencyDisplay.Fiat ? satsBalance : fiatBalance
-  const mainBalance = config.currencyDisplay === CurrencyDisplay.Fiat ? fiatBalance : satsBalance
-  const otherUnit = config.currencyDisplay === CurrencyDisplay.Fiat ? 'SATS' : config.fiat
-  const mainUnit = config.currencyDisplay === CurrencyDisplay.Fiat ? config.fiat : 'SATS'
+  const isBitcoinMain = config.currencyDisplay !== CurrencyDisplay.Fiat
+  const isFiatMain = config.currencyDisplay === CurrencyDisplay.Fiat
   const showBoth = config.currencyDisplay === CurrencyDisplay.Both
+
+  const satsDisplay = config.showBalance ? `₿${prettyNumber(amount)}` : `₿${prettyHide(amount)}`
+  const fiatDisplay = config.showBalance ? prettyNumber(fiatAmount, 2) : prettyHide(fiatAmount)
+
+  const mainBalance = isFiatMain ? fiatDisplay : satsDisplay
+  const otherBalance = isFiatMain ? satsDisplay : fiatDisplay
 
   const toggleShow = () => updateConfig({ ...config, showBalance: !config.showBalance })
 
@@ -35,20 +36,36 @@ export default function Balance({ amount }: BalanceProps) {
         My balance
       </Text>
       <FlexRow>
-        <Text bigger heading medium>
-          {mainBalance}
-        </Text>
-        <div style={{ paddingTop: ' 0.75rem' }}>
-          <Text heading>{mainUnit}</Text>
-        </div>
+        {isBitcoinMain ? (
+          <Text bigger heading medium className='bitcoin-symbol'>
+            {mainBalance}
+          </Text>
+        ) : (
+          <>
+            <Text bigger heading medium>
+              {mainBalance}
+            </Text>
+            <div style={{ paddingTop: ' 0.75rem' }}>
+              <Text heading>{config.fiat}</Text>
+            </div>
+          </>
+        )}
         <div onClick={toggleShow} style={{ cursor: 'pointer' }}>
           <EyeIcon />
         </div>
       </FlexRow>
       {showBoth ? (
         <FlexRow>
-          <Text color='dark80'>{otherBalance}</Text>
-          <Text small>{otherUnit}</Text>
+          {isBitcoinMain ? (
+            <>
+              <Text color='dark80'>{otherBalance}</Text>
+              <Text small>{config.fiat}</Text>
+            </>
+          ) : (
+            <Text color='dark80' className='bitcoin-symbol'>
+              {otherBalance}
+            </Text>
+          )}
         </FlexRow>
       ) : null}
     </FlexCol>

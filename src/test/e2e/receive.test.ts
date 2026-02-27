@@ -32,5 +32,5 @@ test('should receive offchain funds', async ({ page }) => {
 
   // wait for payment received
   await waitForPaymentReceived(page)
-  await expect(page.getByText('SATS received successfully')).toBeVisible()
+  await expect(page.getByText('received successfully')).toBeVisible()
 })

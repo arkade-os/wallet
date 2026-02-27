@@ -252,7 +252,7 @@ export default function SendForm() {
           : lnUrlLimits.max && satoshis > lnUrlLimits.max
             ? 'Amount above LNURL max limit'
             : satoshis && satoshis < 1
-              ? 'Amount below 1 satoshi'
+              ? 'Amount below ₿1'
               : amountIsAboveMaxLimit(satoshis)
                 ? 'Amount above max limit'
                 : satoshis && amountIsBelowMinLimit(satoshis)

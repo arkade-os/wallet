@@ -36,7 +36,7 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
 
   // main page
   await expect(page.getByText('1,992', { exact: true })).toBeVisible()
-  await expect(page.getByText('+ 1,992 SATS')).toBeVisible()
+  await expect(page.getByText('+ ₿1,992')).toBeVisible()
 
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
@@ -63,7 +63,7 @@ test('should send funds to Lightning', async ({ page }) => {
   // main page
   await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
-  await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
+  await expect(page.getByText('+ ₿5,000')).toBeVisible()
 
   const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
   const output = stdout.trim()
@@ -104,7 +104,7 @@ test('should refund failing swap', async ({ page }) => {
   // main page
   await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
-  await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
+  await expect(page.getByText('+ ₿5,000')).toBeVisible()
 
   const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
   const output = stdout.trim()
