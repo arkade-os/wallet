@@ -25,9 +25,9 @@ import { FlowContext } from './providers/flow'
 import { SettingsOptions } from './lib/types'
 import { AspContext } from './providers/asp'
 import { hapticLight } from './lib/haptics'
-import NavbarVariantSwitcher, { NavbarVariantContext } from './components/NavbarVariantSwitcher'
-import SettingsIcon from './icons/Settings'
+import SettingsIcon, { SettingsIconLight, CloseIcon } from './icons/Settings'
 import Loading from './components/Loading'
+import PillNavbar from './components/PillNavbar'
 import { pwaIsInstalled } from './lib/pwa'
 import FlexCol from './components/FlexCol'
 import WalletIcon from './icons/Wallet'
@@ -67,7 +67,6 @@ export default function App() {
   const { setOption } = useContext(OptionsContext)
   const { walletLoaded, initialized, wallet } = useContext(WalletContext)
 
-  const { variant } = useContext(NavbarVariantContext)
   const [isCapable, setIsCapable] = useState(false)
   const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
   const [animatingTab, setAnimatingTab] = useState<string | null>(null)
@@ -164,6 +163,11 @@ export default function App() {
     navigate(Pages.Settings)
   }
 
+  const handleCloseSettings = () => {
+    hapticLight()
+    navigate(Pages.Wallet)
+  }
+
   const page =
     jsCapabilitiesChecked && configLoaded && (aspInfo.signerPubkey || aspInfo.unreachable) ? screen : Pages.Loading
 
@@ -175,6 +179,23 @@ export default function App() {
         {tab === Tabs.None ? (
           comp
         ) : (
+          <>
+          <button
+            className='header-settings-btn'
+            onClick={tab === Tabs.Settings ? handleCloseSettings : handleSettings}
+            aria-label={tab === Tabs.Settings ? 'Close settings' : 'Settings'}
+          >
+            <span className={`header-icon-morph ${tab === Tabs.Settings ? 'header-icon-morph--close' : ''}`}>
+              <span className='header-icon-gear'><SettingsIconLight /></span>
+              <span className='header-icon-x'><CloseIcon /></span>
+            </span>
+          </button>
+          {tab !== Tabs.Settings && (
+            <>
+              <div className='pill-navbar-fade' />
+              <PillNavbar activeTab={tab} onWalletClick={handleWallet} onAppsClick={handleApps} />
+            </>
+          )}
           <IonTabs>
             <IonTab ref={walletRef} tab={Tabs.Wallet}>
               {tab === Tabs.Wallet ? comp : <></>}
@@ -185,60 +206,41 @@ export default function App() {
             <IonTab ref={settingsRef} tab={Tabs.Settings}>
               {tab === Tabs.Settings ? comp : <></>}
             </IonTab>
-            <IonTabBar slot='bottom' className={`navbar-variant-${variant}`}>
+            <IonTabBar slot='bottom'>
               <IonTabButton tab={Tabs.Wallet} onClick={handleWallet} selected={tab === Tabs.Wallet}>
                 <Focusable>
-                  <FlexCol centered gap='4px' padding='8px 5px 2px 5px' testId='tab-wallet'>
+                  <FlexCol centered gap='6px' padding='5px' testId='tab-wallet'>
                     <AnimatedTabIcon animating={animatingTab === 'wallet'}>
                       <WalletIcon />
                     </AnimatedTabIcon>
-                    <span className='tab-label'>Wallet</span>
+                    Wallet
                   </FlexCol>
                 </Focusable>
               </IonTabButton>
               <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps}>
                 <Focusable>
-                  <FlexCol centered gap='4px' padding='8px 5px 2px 5px' testId='tab-apps'>
+                  <FlexCol centered gap='6px' padding='5px' testId='tab-apps'>
                     <AnimatedTabIcon animating={animatingTab === 'apps'}>
                       <AppsIcon />
                     </AnimatedTabIcon>
-                    <span className='tab-label'>Apps</span>
+                    Apps
                   </FlexCol>
                 </Focusable>
               </IonTabButton>
               <IonTabButton tab={Tabs.Settings} onClick={handleSettings} selected={tab === Tabs.Settings}>
                 <Focusable>
-                  <FlexCol centered gap='4px' padding='8px 5px 2px 5px' testId='tab-settings'>
+                  <FlexCol centered gap='6px' padding='5px' testId='tab-settings'>
                     <AnimatedTabIcon animating={animatingTab === 'settings'}>
                       <SettingsIcon />
                     </AnimatedTabIcon>
-                    <span className='tab-label'>Settings</span>
+                    Settings
                   </FlexCol>
                 </Focusable>
               </IonTabButton>
             </IonTabBar>
           </IonTabs>
-        )}
-        {variant === 'pill' && tab !== Tabs.None && (
-          <>
-            <div className='navbar-pill'>
-              <button className={tab === Tabs.Wallet ? 'active' : ''} onClick={handleWallet}>
-                <AnimatedTabIcon animating={animatingTab === 'wallet'}>
-                  <WalletIcon />
-                </AnimatedTabIcon>
-              </button>
-              <button className={tab === Tabs.Apps ? 'active' : ''} onClick={handleApps}>
-                <AnimatedTabIcon animating={animatingTab === 'apps'}>
-                  <AppsIcon />
-                </AnimatedTabIcon>
-              </button>
-            </div>
-            <button className='navbar-pill-settings' onClick={handleSettings}>
-              <SettingsIcon />
-            </button>
           </>
         )}
-        <NavbarVariantSwitcher />
       </IonPage>
     </IonApp>
   )

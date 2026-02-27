@@ -204,6 +204,170 @@ button.reminder-button.action-sheet-button {
   }
 }
 
+/* ============================================================
+   Pill navbar
+   ============================================================ */
+
+.pill-navbar {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background-color: var(--ion-background-color);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 1px 3px -1px rgba(0, 0, 0, 0.12),
+    0 8px 20px -4px rgba(0, 0, 0, 0.14);
+  z-index: 80;
+}
+
+.ion-palette-dark .pill-navbar {
+  background-color: #1C1C1E;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 1px 3px -1px rgba(0, 0, 0, 0.4),
+    0 8px 24px -4px rgba(0, 0, 0, 0.6);
+}
+
+.pill-nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 72px;
+  min-height: 44px;
+  padding: 6px 20px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--dark50);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 150ms ease-out, background-color 150ms ease-out;
+}
+
+.pill-nav-btn--active {
+  color: var(--ion-color-dark);
+  background-color: var(--dark05);
+}
+
+.pill-nav-icon {
+  display: inline-flex;
+}
+
+.pill-nav-icon svg,
+.header-icon-morph svg {
+  shape-rendering: geometricPrecision;
+}
+
+.pill-icon-pop {
+  animation: tab-pop 250ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.pill-nav-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+/* Content gradient fade above pill — eased gradient per design skills */
+.pill-navbar-fade {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 160px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(var(--fade-rgb), 0.02) 25%,
+    rgba(var(--fade-rgb), 0.08) 40%,
+    rgba(var(--fade-rgb), 0.2) 55%,
+    rgba(var(--fade-rgb), 0.42) 65%,
+    rgba(var(--fade-rgb), 0.68) 78%,
+    rgba(var(--fade-rgb), 0.92) 90%,
+    var(--ion-background-color) 100%
+  );
+  pointer-events: none;
+  z-index: 79;
+}
+
+/* ============================================================
+   Header settings / close button with morph
+   ============================================================ */
+
+.header-settings-btn {
+  position: absolute;
+  top: 0;
+  right: 1rem;
+  padding-top: env(safe-area-inset-top, 0px);
+  height: calc(env(safe-area-inset-top, 0px) + 4rem);
+  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+  border: none;
+  border-radius: 12px;
+  background: none;
+  color: var(--dark70);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 150ms ease;
+}
+
+.header-settings-btn:active {
+  background-color: var(--dark05);
+}
+
+.header-icon-morph {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+}
+
+.header-icon-gear,
+.header-icon-x {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 250ms ease-out, opacity 250ms ease-out;
+}
+
+.header-icon-gear {
+  opacity: 1;
+  transform: rotate(0deg);
+}
+
+.header-icon-x {
+  opacity: 0;
+  transform: rotate(-90deg);
+}
+
+.header-icon-morph--close .header-icon-gear {
+  opacity: 0;
+  transform: rotate(90deg);
+}
+
+.header-icon-morph--close .header-icon-x {
+  opacity: 1;
+  transform: rotate(0deg);
+}
+
 /* Tab icon animation wrapper */
 .tab-icon-animated {
   display: inline-flex;
@@ -233,12 +397,17 @@ button.reminder-button.action-sheet-button {
   [class*='tab-anim-'] {
     animation: none !important;
   }
-}
-
-/* Tab label styling */
-.tab-label {
-  font-size: 10px;
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: 0.01em;
+  .pill-icon-pop {
+    animation: none !important;
+  }
+  .pill-nav-btn {
+    transition: none;
+  }
+  .header-settings-btn {
+    transition: none;
+  }
+  .header-icon-gear,
+  .header-icon-x {
+    transition: none;
+  }
 }
