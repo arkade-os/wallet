@@ -10,8 +10,11 @@ export async function createWallet(page: Page): Promise<void> {
   await page.waitForSelector('text=Your new wallet is live!', { state: 'visible' })
   await page.getByText('Go to wallet').click()
   const maybeLater = page.getByRole('button', { name: 'Maybe later' })
-  await maybeLater.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
-  if (await maybeLater.isVisible()) await maybeLater.click({ force: true })
+  await maybeLater.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
+  if (await maybeLater.isVisible()) {
+    await maybeLater.click({ force: true })
+    await maybeLater.waitFor({ state: 'hidden' }).catch(() => {})
+  }
 }
 
 export async function createWalletWithPassword(page: Page, password: string): Promise<void> {
