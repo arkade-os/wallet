@@ -17,6 +17,7 @@ export type Config = {
   currencyDisplay: CurrencyDisplay
   delegate: boolean
   fiat: Fiats
+  haptics: boolean
   nostrBackup: boolean
   notifications: boolean
   pubkey: string
@@ -59,6 +60,7 @@ export enum SettingsOptions {
   Advanced = 'advanced',
   Backup = 'backup',
   General = 'general',
+  Haptics = 'haptics feedback',
   Lock = 'lock wallet',
   Logs = 'logs',
   Notifications = 'notifications',

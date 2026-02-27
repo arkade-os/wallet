@@ -36,6 +36,7 @@ interface WalletContextProps {
   txs: Tx[]
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: number
+  dataReady: boolean
   initialized?: boolean
 }
 
@@ -51,6 +52,7 @@ export const WalletContext = createContext<WalletContextProps>({
   svcWallet: undefined,
   isLocked: () => Promise.resolve(true),
   balance: 0,
+  dataReady: false,
   txs: [],
   vtxos: { spendable: [], spent: [] },
 })
@@ -68,8 +70,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [walletLoaded, setWalletLoaded] = useState(false)
   const [initialized, setInitialized] = useState<boolean>(false)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
+  const [dataReady, setDataReady] = useState(false)
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
 
+  const hasLoadedOnce = useRef(false)
   const listeningForServiceWorker = useRef(false)
 
   // read wallet from storage
@@ -121,7 +125,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     // Precedence is given to NoteInfo, but they are mutually exclusive because depend on window.location.hash
-    if (!initialized) return
+    if (!initialized || !dataReady) return
     if (noteInfo.satoshis) {
       // if voucher present, go to redeem page
       navigate(Pages.NotesRedeem)
@@ -141,7 +145,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       default:
         navigate(Pages.Wallet)
     }
-  }, [initialized, noteInfo.satoshis, deepLinkInfo])
+  }, [initialized, dataReady, noteInfo.satoshis, deepLinkInfo])
 
   const reloadWallet = async (swWallet = svcWallet) => {
     if (!swWallet) return
@@ -152,6 +156,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setBalance(balance)
       setVtxos(vtxos)
       setTxs(txs)
+      if (!hasLoadedOnce.current) {
+        hasLoadedOnce.current = true
+        setDataReady(true)
+      }
     } catch (err) {
       consoleError(err, 'Error reloading wallet')
       return
@@ -267,6 +275,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!svcWallet) throw new Error('Service worker not initialized')
     await svcWallet.clear()
     setInitialized(false)
+    setDataReady(false)
+    hasLoadedOnce.current = false
   }
 
   const resetWallet = async () => {
@@ -274,6 +284,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     await clearStorage()
     await svcWallet.clear()
     await svcWallet.contractRepository.clearContractData()
+    setDataReady(false)
+    hasLoadedOnce.current = false
   }
 
   const settlePreconfirmed = async () => {
@@ -315,6 +327,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         lockWallet,
         txs,
         balance,
+        dataReady,
         reloadWallet,
         vtxos: vtxos ?? { spendable: [], spent: [] },
       }}

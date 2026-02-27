@@ -50,18 +50,7 @@ const SHAPES_RAW: Pixel[][] = [
     X.X..X.X
     .X.XX.X.
   `),
-  // 2: Bitcoin
-  parseShape(`
-    ...XX...
-    .XXXXXX.
-    .XX..XXX
-    .XXXXXX.
-    .XX..XXX
-    .XXXXXX.
-    ...XX...
-    ........
-  `),
-  // 3: Heart
+  // 2: Heart
   parseShape(`
     .XX..XX.
     XXXXXXXX
@@ -69,6 +58,17 @@ const SHAPES_RAW: Pixel[][] = [
     .XXXXXX.
     ..XXXX..
     ...XX...
+    ...XX...
+    ........
+  `),
+  // 3: Bitcoin
+  parseShape(`
+    ...XX...
+    .XXXXXX.
+    .XX..XXX
+    .XXXXXX.
+    .XX..XXX
+    .XXXXXX.
     ...XX...
     ........
   `),

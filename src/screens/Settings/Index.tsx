@@ -19,30 +19,60 @@ import Fiat from './Fiat'
 import Display from './Display'
 import Password from './Password'
 import Delegates from './Delegates'
+import SettingsPageTransition from '../../components/SettingsPageTransition'
+import Haptics from './Haptics'
+
+function settingsContent(option: SettingsOptions): JSX.Element {
+  switch (option) {
+    case SettingsOptions.Menu:
+      return <SettingsMenu />
+    case SettingsOptions.About:
+      return <About />
+    case SettingsOptions.Advanced:
+      return <Advanced />
+    case SettingsOptions.Backup:
+      return <Backup />
+    case SettingsOptions.Delegates:
+      return <Delegates />
+    case SettingsOptions.General:
+      return <General />
+    case SettingsOptions.Lock:
+      return <Lock />
+    case SettingsOptions.Logs:
+      return <Logs />
+    case SettingsOptions.Notes:
+      return <NotesForm />
+    case SettingsOptions.Notifications:
+      return <Notifications />
+    case SettingsOptions.Reset:
+      return <Reset />
+    case SettingsOptions.Server:
+      return <Server />
+    case SettingsOptions.Support:
+      return <Support />
+    case SettingsOptions.Vtxos:
+      return <Vtxos />
+    case SettingsOptions.Theme:
+      return <Theme />
+    case SettingsOptions.Fiat:
+      return <Fiat />
+    case SettingsOptions.Display:
+      return <Display />
+    case SettingsOptions.Password:
+      return <Password />
+    case SettingsOptions.Haptics:
+      return <Haptics />
+    default:
+      return <></>
+  }
+}
 
 export default function Settings() {
-  const { option } = useContext(OptionsContext)
+  const { option, direction } = useContext(OptionsContext)
 
   return (
-    <>
-      {option === SettingsOptions.Menu && <SettingsMenu />}
-      {option === SettingsOptions.About && <About />}
-      {option === SettingsOptions.Advanced && <Advanced />}
-      {option === SettingsOptions.Backup && <Backup />}
-      {option === SettingsOptions.Delegates && <Delegates />}
-      {option === SettingsOptions.Display && <Display />}
-      {option === SettingsOptions.Fiat && <Fiat />}
-      {option === SettingsOptions.General && <General />}
-      {option === SettingsOptions.Lock && <Lock />}
-      {option === SettingsOptions.Logs && <Logs />}
-      {option === SettingsOptions.Notes && <NotesForm />}
-      {option === SettingsOptions.Notifications && <Notifications />}
-      {option === SettingsOptions.Password && <Password />}
-      {option === SettingsOptions.Reset && <Reset />}
-      {option === SettingsOptions.Server && <Server />}
-      {option === SettingsOptions.Support && <Support />}
-      {option === SettingsOptions.Vtxos && <Vtxos />}
-      {option === SettingsOptions.Theme && <Theme />}
-    </>
+    <SettingsPageTransition direction={direction} optionKey={String(option)}>
+      {settingsContent(option)}
+    </SettingsPageTransition>
   )
 }
