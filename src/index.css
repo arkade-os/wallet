@@ -172,6 +172,14 @@ button.reminder-button.action-sheet-button {
   }
 }
 
+.dashed-hr {
+  height: 0;
+  width: 100%;
+  border: none;
+  background: none;
+  border-top: 1px dashed var(--dark10);
+}
+
 /* Theme transition ripple */
 ::view-transition-old(theme-ripple),
 ::view-transition-new(theme-ripple) {

@@ -8,8 +8,8 @@ import { hapticLight } from '../lib/haptics'
 interface ToggleProps {
   checked: boolean
   onClick: () => void
-  text: string
   subtext?: string
+  text: string
   testId?: string
 }
 

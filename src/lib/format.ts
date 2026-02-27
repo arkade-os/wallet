@@ -10,6 +10,7 @@ export const toSatoshis = (num: number): Satoshis => {
 }
 
 export const prettyAgo = (timestamp: number | string, long = false): string => {
+  if (!timestamp) return ''
   const now = Math.floor(Date.now() / 1000)
   const unixTimestamp =
     typeof timestamp === 'string'

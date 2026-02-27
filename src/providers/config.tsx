@@ -11,6 +11,7 @@ const defaultConfig: Config = {
   apps: { boltz: { connected: true } },
   aspUrl: defaultArkServer(),
   currencyDisplay: CurrencyDisplay.Both,
+  delegate: true,
   fiat: Fiats.USD,
   haptics: true,
   nostrBackup: false,
