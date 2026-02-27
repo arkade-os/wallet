@@ -251,7 +251,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   }, [handlePopState])
 
   const goBack = useCallback(() => {
-    if (backStack.current.length > 0) {
+    if (backStack.current.length > 0 || subNavHandler.canGoBack()) {
       isButtonBack.current = true
       history.back()
     }
