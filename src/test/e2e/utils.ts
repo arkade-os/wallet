@@ -17,7 +17,6 @@ interface MintAssetOptions {
   decimals?: number
   controlMode?: 'mint-new' | 'existing'
   ctrlAmount?: number
-  ctrlDecimals?: number
 }
 
 export async function navigateToAssets(page: Page): Promise<void> {
@@ -51,11 +50,6 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
       const ctrlAmountInput = page.getByTestId('control-asset-amount').locator('input:not(.cloned-input)')
       await ctrlAmountInput.clear()
       await ctrlAmountInput.fill(opts.ctrlAmount.toString())
-    }
-    if (opts.ctrlDecimals !== undefined) {
-      const ctrlDecInput = page.getByTestId('control-asset-decimals').locator('input:not(.cloned-input)')
-      await ctrlDecInput.clear()
-      await ctrlDecInput.fill(opts.ctrlDecimals.toString())
     }
   } else if (opts.controlMode === 'existing') {
     await page.getByText('Existing').click()

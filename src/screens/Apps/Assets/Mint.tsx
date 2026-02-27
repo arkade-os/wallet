@@ -38,7 +38,7 @@ export default function AppAssetMint() {
   const [amount, setAmount] = useState('')
   const [name, setName] = useState('')
   const [ticker, setTicker] = useState('')
-  const [decimals, setDecimals] = useState('8')
+  const [decimals, setDecimals] = useState('0')
   const [iconUrl, setIconUrl] = useState('')
   const [error, setError] = useState('')
   const [minting, setMinting] = useState(false)
@@ -183,13 +183,7 @@ export default function AppAssetMint() {
                   ? 'Enter control asset amount'
                   : controlMode === 'New' && (isNaN(parseFloat(ctrlAmount)) || parseFloat(ctrlAmount) <= 0)
                     ? 'Control amount must be positive'
-                    : controlMode === 'New' &&
-                        (ctrlDecimals === '' ||
-                          isNaN(parseInt(ctrlDecimals)) ||
-                          parseInt(ctrlDecimals) < 0 ||
-                          parseInt(ctrlDecimals) > 8)
-                      ? 'Control decimals must be 0–8'
-                      : ''
+                    : ''
 
   if (minting) return <Loading text={mintingText} />
 
@@ -271,7 +265,7 @@ export default function AppAssetMint() {
                     const n = parseInt(v)
                     if (!isNaN(n) && n >= 0 && n <= 8) setDecimals(String(n))
                   }}
-                  placeholder='8'
+                  placeholder='0'
                   testId='asset-decimals'
                 />
               </div>
@@ -375,38 +369,14 @@ export default function AppAssetMint() {
                   <Text smaller color='dark50'>
                     {name ? `ctrl-${name}` : 'ctrl-...'} {ticker ? `(ctrl-${ticker})` : ''}
                   </Text>
-                  <FlexRow gap='0.5rem' alignItems='flex-end'>
-                    <div style={{ flex: 1 }}>
-                      <Input
-                        label='Control Amount'
-                        type='number'
-                        value={ctrlAmount}
-                        onChange={setCtrlAmount}
-                        placeholder='1'
-                        testId='control-asset-amount'
-                      />
-                    </div>
-                    <div style={{ minWidth: '6rem' }}>
-                      <Input
-                        label='Decimals'
-                        type='number'
-                        min='0'
-                        max='8'
-                        step='1'
-                        value={ctrlDecimals}
-                        onChange={(v: string) => {
-                          if (v === '') {
-                            setCtrlDecimals('')
-                            return
-                          }
-                          const n = parseInt(v)
-                          if (!isNaN(n) && n >= 0 && n <= 8) setCtrlDecimals(String(n))
-                        }}
-                        placeholder='0'
-                        testId='control-asset-decimals'
-                      />
-                    </div>
-                  </FlexRow>
+                  <Input
+                    label='Control Amount'
+                    type='number'
+                    value={ctrlAmount}
+                    onChange={setCtrlAmount}
+                    placeholder='1'
+                    testId='control-asset-amount'
+                  />
                 </FlexCol>
               ) : null}
             </FlexCol>

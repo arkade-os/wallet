@@ -126,7 +126,6 @@ test('should mint asset with new control asset', async ({ page }) => {
     decimals: 0,
     controlMode: 'mint-new',
     ctrlAmount: 1,
-    ctrlDecimals: 0,
   })
 
   // success screen shows main asset
