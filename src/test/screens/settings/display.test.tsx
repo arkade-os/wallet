@@ -15,7 +15,7 @@ describe('Display screen', () => {
     expect(screen.getByTestId('select-option-0')).toBeInTheDocument()
     expect(screen.getByTestId('select-option-0').querySelector('p')?.textContent).toBe('Show both')
     expect(screen.getByTestId('select-option-1')).toBeInTheDocument()
-    expect(screen.getByTestId('select-option-1').querySelector('p')?.textContent).toBe('Sats only')
+    expect(screen.getByTestId('select-option-1').querySelector('p')?.textContent).toBe('Bitcoin only')
     expect(screen.getByTestId('select-option-2')).toBeInTheDocument()
     expect(screen.getByTestId('select-option-2').querySelector('p')?.textContent).toBe('Fiat only')
   })

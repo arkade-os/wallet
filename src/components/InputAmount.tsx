@@ -68,11 +68,11 @@ export default function InputAmount({
   const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0
   const maximumSats = max ? Math.min(max, maxSwapAllowed()) : 0
 
-  const leftLabel = useFiat ? config.fiat : 'SATS'
-  const rightLabel = `${otherValue} ${useFiat ? 'SATS' : config.fiat}`
+  const leftLabel = useFiat ? config.fiat : '₿'
+  const rightLabel = useFiat ? `₿${otherValue}` : `${otherValue} ${config.fiat}`
   const fontStyle = { color: 'var(--dark50)', fontSize: '13px' }
-  const bottomLeft = minimumSats ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}` : ''
-  const bottomRight = maximumSats ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'SAT' : 'SATS'}` : ''
+  const bottomLeft = minimumSats ? `Min: ₿${prettyNumber(minimumSats)}` : ''
+  const bottomRight = maximumSats ? `Max: ₿${prettyNumber(maximumSats)}` : ''
 
   return (
     <>
@@ -88,10 +88,10 @@ export default function InputAmount({
           type='number'
           value={value}
         >
-          <IonText slot='start' style={{ ...fontStyle, marginRight: '0.5rem' }}>
+          <IonText slot='start' style={{ ...fontStyle, marginRight: '0.5rem' }} className={!useFiat ? 'bitcoin-symbol' : ''}>
             {leftLabel}
           </IonText>
-          <IonText slot='end' style={{ ...fontStyle, marginLeft: '0.5rem' }}>
+          <IonText slot='end' style={{ ...fontStyle, marginLeft: '0.5rem' }} className={useFiat ? 'bitcoin-symbol' : ''}>
             {rightLabel}
           </IonText>
         </IonInput>

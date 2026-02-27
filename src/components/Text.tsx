@@ -11,6 +11,7 @@ interface TextProps {
   capitalize?: boolean
   centered?: boolean
   children: ReactNode
+  className?: string
   color?: string
   copy?: string
   fullWidth?: boolean
@@ -32,6 +33,7 @@ export default function Text({
   capitalize,
   centered,
   children,
+  className: extraClassName,
   color,
   copy,
   fullWidth,
@@ -47,7 +49,7 @@ export default function Text({
 }: TextProps) {
   const fontSize = tiny ? 12 : smaller ? 13 : small ? 14 : big ? 24 : bigger ? 32 : large ? 18 : 16
 
-  const className = capitalize ? 'first-letter' : ''
+  const className = [capitalize ? 'first-letter' : '', extraClassName].filter(Boolean).join(' ')
 
   const pStyle: any = {
     color: color ? `var(--${color})` : undefined,

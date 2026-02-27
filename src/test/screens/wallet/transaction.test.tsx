@@ -41,7 +41,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('When')).toBeInTheDocument()
     // right side of the table
     expect(await screen.findByText('Received')).toBeInTheDocument()
-    expect(await screen.findByText('0 SATS')).toBeInTheDocument()
+    expect(await screen.findByText('₿0')).toBeInTheDocument()
   })
 
   it('renders the preconfirmed transaction screen correctly', async () => {
@@ -79,7 +79,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('When')).toBeInTheDocument()
     // right side of the table
     expect(screen.getByText('Received')).toBeInTheDocument()
-    expect(screen.getByText('0 SATS')).toBeInTheDocument()
+    expect(screen.getByText('₿0')).toBeInTheDocument()
     // buttons
     expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
     expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
@@ -114,7 +114,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('When')).toBeInTheDocument()
     // right side of the table
     expect(screen.getByText('Received')).toBeInTheDocument()
-    expect(screen.getByText('0 SATS')).toBeInTheDocument()
+    expect(screen.getByText('₿0')).toBeInTheDocument()
     // buttons should not be present
     expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
     expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
@@ -149,7 +149,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('When')).toBeInTheDocument()
     // right side of the table
     expect(screen.getByText('Received')).toBeInTheDocument()
-    expect(screen.getByText('0 SATS')).toBeInTheDocument()
+    expect(screen.getByText('₿0')).toBeInTheDocument()
     // buttons should be present
     expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
     expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
@@ -184,7 +184,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('When')).toBeInTheDocument()
     // right side of the table
     // expect(screen.getByText('Received')).toBeInTheDocument()
-    expect(screen.getByText('0 SATS')).toBeInTheDocument()
+    expect(screen.getByText('₿0')).toBeInTheDocument()
     // buttons should be present
     expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
     expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
@@ -221,7 +221,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('When')).toBeInTheDocument()
     // right side of the table
     expect(screen.getByText('Received')).toBeInTheDocument()
-    expect(screen.getByText('0 SATS')).toBeInTheDocument()
+    expect(screen.getByText('₿0')).toBeInTheDocument()
     // buttons should not be present
     expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
     expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()

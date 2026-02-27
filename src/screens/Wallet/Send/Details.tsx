@@ -73,7 +73,7 @@ export default function SendDetails() {
     })
     if (balance < total) {
       setButtonLabel('Insufficient funds')
-      setError(`Insufficient funds, you just have ${prettyNumber(balance)} sats`)
+      setError(`Insufficient funds, you only have ₿${prettyNumber(balance)}`)
     } else {
       setButtonLabel('Tap to Sign')
     }

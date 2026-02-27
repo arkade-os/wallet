@@ -23,7 +23,7 @@ export default function About() {
     ['Server pubkey', aspInfo.signerPubkey],
     ['Forfeit address', aspInfo.forfeitAddress],
     ['Network', aspInfo.network],
-    ['Dust', `${aspInfo.dust} SATS`],
+    ['Dust', `₿${aspInfo.dust}`],
     ['Session duration', prettyDelta(Number(aspInfo.sessionDuration), true)],
     ['Boarding exit delay', prettyDelta(Number(aspInfo.boardingExitDelay), true)],
     ['Unilateral exit delay', prettyDelta(Number(aspInfo.unilateralExitDelay), true)],

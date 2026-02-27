@@ -31,16 +31,16 @@ describe('format utilities', () => {
   })
 
   describe('prettyAmount', () => {
-    it('should format small amounts correctly', () => {
-      expect(prettyAmount(0)).toBe('0 SATS')
-      expect(prettyAmount(100)).toBe('100 SATS')
-      expect(prettyAmount(999)).toBe('999 SATS')
+    it('should format amounts with ₿ prefix', () => {
+      expect(prettyAmount(0)).toBe('₿0')
+      expect(prettyAmount(100)).toBe('₿100')
+      expect(prettyAmount(999)).toBe('₿999')
     })
 
-    it('should format amounts in BTC for large values', () => {
-      expect(prettyAmount(50000000)).toBe('50M SATS')
-      expect(prettyAmount(100000000)).toBe('1 BTC')
-      expect(prettyAmount(150000000)).toBe('1.5 BTC')
+    it('should format large amounts as integers with ₿ prefix', () => {
+      expect(prettyAmount(50000000)).toBe('₿50,000,000')
+      expect(prettyAmount(100000000)).toBe('₿100,000,000')
+      expect(prettyAmount(150000000)).toBe('₿150,000,000')
     })
 
     it('should handle fiat currency formatting', () => {
@@ -115,8 +115,12 @@ describe('format utilities', () => {
   describe('prettyHide', () => {
     it('should return masked value', () => {
       expect(prettyHide(0)).toBe('')
-      expect(prettyHide(12345)).toBe('·········· SATS')
-      expect(prettyHide(999999999)).toBe('·················· SATS')
+      expect(prettyHide(12345)).toBe('··········')
+      expect(prettyHide(999999999)).toBe('··················')
+    })
+
+    it('should append fiat suffix when provided', () => {
+      expect(prettyHide(12345, 'USD')).toBe('·········· USD')
     })
   })
 

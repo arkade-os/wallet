@@ -1,3 +1,9 @@
+/* BIP-177: System sans-serif for ₿ symbol rendering.
+   Geist's unicode-range ends at U+20AC (€); ₿ is U+20BF. */
+.bitcoin-symbol {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
 /* from tailwindcss/base */
 blockquote,
 dl,

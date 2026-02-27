@@ -32,13 +32,13 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   }
 
   const notifyPaymentReceived = (sats: number) => {
-    const body = `You received ${prettyNumber(sats)} sats`
+    const body = `You received ₿${prettyNumber(sats)}`
     const title = 'Payment received'
     sendSystemNotification(title, body)
   }
 
   const notifyPaymentSent = (sats: number) => {
-    const body = `You sent ${prettyNumber(sats)} sats`
+    const body = `You sent ₿${prettyNumber(sats)}`
     const title = 'Payment sent'
     sendSystemNotification(title, body)
   }

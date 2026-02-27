@@ -18,7 +18,7 @@ async function clearAmount(page: Page, maxClicks = 10) {
   }
 }
 
-test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, isMobile }) => {
+test('should toggle between bitcoin and fiat on mobile keyboard', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'This test is only for mobile')
 
   // setup wallet and open keyboard
@@ -28,14 +28,14 @@ test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, is
   await expect(page.getByText('Amount')).toBeVisible()
   await expect(page.getByTestId('keyboard-1')).toBeVisible()
 
-  // initially should be in SATS mode - enter 100 sats
+  // initially should be in bitcoin mode - enter 100
   await page.getByTestId('keyboard-1').click()
   const btn0 = page.getByTestId('keyboard-0')
   await btn0.click()
   await btn0.click()
 
-  // verify SATS amount is displayed
-  await expect(page.getByText('100 SATS')).toBeVisible()
+  // verify bitcoin amount is displayed
+  await expect(page.getByText('₿100')).toBeVisible()
 
   // find and click the swap icon to toggle to FIAT
   // the swap icon is in the header area
@@ -47,11 +47,11 @@ test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, is
   // the exact USD amount will depend on the exchange rate, but we can verify the format
   await expect(page.locator('text=/[0-9.]+\\s+(USD|EUR)/')).toBeVisible()
 
-  // click swap again to go back to SATS
+  // click swap again to go back to bitcoin
   await swapButton.click()
 
-  // should show SATS again
-  await expect(page.getByText(/SATS/)).toBeVisible()
+  // should show ₿ again
+  await expect(page.getByText(/₿/)).toBeVisible()
 
   // test decimal input in FIAT mode
   await swapButton.click() // Switch to FIAT
@@ -68,11 +68,11 @@ test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, is
   // verify decimal amount is displayed in FIAT
   await expect(page.locator('text=/1\\.50\\s+(USD|EUR)/')).toBeVisible()
 
-  // switch back to SATS to verify conversion
+  // switch back to bitcoin to verify conversion
   await swapButton.click()
 
-  // should show the converted SATS value
-  await expect(page.getByText(/SATS/)).toBeVisible()
+  // should show the converted bitcoin value
+  await expect(page.getByText(/₿/)).toBeVisible()
 
   // save the amount
   await page.getByText('Save').click()
@@ -81,23 +81,23 @@ test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, is
   await expect(page.getByText('Continue')).toBeVisible()
 })
 
-test('should prevent decimal input in SATS mode', async ({ page, isMobile }) => {
+test('should prevent decimal input in bitcoin mode', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'This test is only for mobile')
 
   // setup wallet and open keyboard
   await setupWalletAndOpenKeyboard(page)
 
-  // enter a number in SATS mode
+  // enter a number in bitcoin mode
   await page.getByTestId('keyboard-5').click()
 
-  // try to enter a decimal point - should be ignored in SATS mode
+  // try to enter a decimal point - should be ignored in bitcoin mode
   await page.getByTestId('keyboard-.').click()
 
   // try to enter another number
   await page.getByTestId('keyboard-0').click()
 
-  // should show 50 SATS (decimal point ignored)
-  await expect(page.getByText('50 SATS')).toBeVisible()
+  // should show ₿50 (decimal point ignored)
+  await expect(page.getByText('₿50')).toBeVisible()
 })
 
 test('should limit FIAT decimals to 2 places', async ({ page, isMobile }) => {

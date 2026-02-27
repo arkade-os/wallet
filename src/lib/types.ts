@@ -28,7 +28,7 @@ export type Config = {
 export enum CurrencyDisplay {
   Both = 'Show both',
   Fiat = 'Fiat only',
-  Sats = 'Sats only',
+  Bitcoin = 'Bitcoin only',
 }
 
 export enum Fiats {

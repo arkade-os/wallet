@@ -83,7 +83,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
     <div style={{ textAlign: 'right' }}>
       {config.currencyDisplay === CurrencyDisplay.Fiat ? (
         <Fiat />
-      ) : config.currencyDisplay === CurrencyDisplay.Sats ? (
+      ) : config.currencyDisplay === CurrencyDisplay.Bitcoin ? (
         <Sats />
       ) : (
         <>

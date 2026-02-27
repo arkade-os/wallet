@@ -15,7 +15,7 @@ describe('About screen', () => {
     expect(screen.getByText('About')).toBeInTheDocument()
     expect(screen.getByText('Network')).toBeInTheDocument()
     expect(screen.getByText('regtest')).toBeInTheDocument()
-    expect(screen.getByText('333 SATS')).toBeInTheDocument()
+    expect(screen.getByText('₿333')).toBeInTheDocument()
     expect(screen.getByText('Server URL')).toBeInTheDocument()
     expect(screen.getByText('17 minutes')).toBeInTheDocument()
     expect(screen.getByText('Server pubkey')).toBeInTheDocument()
