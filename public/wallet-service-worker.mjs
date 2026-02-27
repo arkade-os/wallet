@@ -52683,6 +52683,7 @@ var Fd = class {
   constructor(c = TP) {
     this.dbName = c;
   }
+  version = 1;
   db = null;
   async getDB() {
     return this.db ? this.db : (this.db = await Y6(this.dbName, bP, BP), this.db);
