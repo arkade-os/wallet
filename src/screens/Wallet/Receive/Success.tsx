@@ -76,6 +76,12 @@ export default function ReceiveSuccess() {
                 Payment received!
               </Text>
 
+              {recvInfo.assetAmount ? (
+                <Text centered big bold>
+                  {formatAssetAmount(recvInfo.assetAmount, meta?.decimals ?? 0)} {assetTicker}
+                </Text>
+              ) : null}
+
               <Shadow border>
                 <FlexRow between padding='0.75rem'>
                   <FlexRow>
@@ -96,11 +102,9 @@ export default function ReceiveSuccess() {
                       ) : null}
                     </FlexCol>
                   </FlexRow>
-                  {recvInfo.assetAmount ? (
-                    <Text bold>
-                      {formatAssetAmount(recvInfo.assetAmount, meta?.decimals ?? 0)} {assetTicker}
-                    </Text>
-                  ) : null}
+                  <Text color='dark50' smaller>
+                    {displayAmount}
+                  </Text>
                 </FlexRow>
               </Shadow>
 
