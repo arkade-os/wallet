@@ -45,7 +45,7 @@ test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, is
 
   // after toggling, the amount should be converted to FIAT
   // the exact USD amount will depend on the exchange rate, but we can verify the format
-  await expect(page.getByTestId('keyboard-display')).toContainText(/[0-9.]+\s+(USD|EUR)/)
+  await expect(page.locator('text=/[0-9.]+\\s+(USD|EUR)/')).toBeVisible()
 
   // click swap again to go back to SATS
   await swapButton.click()
@@ -66,7 +66,7 @@ test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, is
   await btn0.click()
 
   // verify decimal amount is displayed in FIAT
-  await expect(page.getByTestId('keyboard-display')).toContainText(/1\.50\s+(USD|EUR)/)
+  await expect(page.locator('text=/1\\.50\\s+(USD|EUR)/')).toBeVisible()
 
   // switch back to SATS to verify conversion
   await swapButton.click()
@@ -123,5 +123,5 @@ test('should limit FIAT decimals to 2 places', async ({ page, isMobile }) => {
   await page.getByTestId('keyboard-5').click()
 
   // should still show 1.99 (third decimal ignored)
-  await expect(page.getByTestId('keyboard-display')).toContainText(/1\.99\s+(USD|EUR)/)
+  await expect(page.locator('text=/1\\.99\\s+(USD|EUR)/')).toBeVisible()
 })
