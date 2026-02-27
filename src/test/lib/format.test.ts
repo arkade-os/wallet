@@ -10,6 +10,7 @@ import {
   prettyLongText,
   prettyNumber,
 } from '../../lib/format'
+import { DenominationFormat, DisplayMode } from '../../lib/types'
 
 describe('format utilities', () => {
   describe('fromSatoshis', () => {
@@ -31,21 +32,49 @@ describe('format utilities', () => {
   })
 
   describe('prettyAmount', () => {
-    it('should format amounts with ₿ prefix', () => {
+    const bip177Config = { denominationFormat: DenominationFormat.Bip177, displayMode: DisplayMode.Base }
+    const satsConfig = { denominationFormat: DenominationFormat.Sats, displayMode: DisplayMode.Base }
+    const btcConfig = { denominationFormat: DenominationFormat.Bip177, displayMode: DisplayMode.BTC }
+
+    it('should format amounts with ₿ prefix in BIP-177 mode (default)', () => {
       expect(prettyAmount(0)).toBe('₿0')
       expect(prettyAmount(100)).toBe('₿100')
       expect(prettyAmount(999)).toBe('₿999')
+      expect(prettyAmount(0, bip177Config)).toBe('₿0')
+      expect(prettyAmount(100, bip177Config)).toBe('₿100')
+      expect(prettyAmount(999, bip177Config)).toBe('₿999')
     })
 
-    it('should format large amounts as integers with ₿ prefix', () => {
-      expect(prettyAmount(50000000)).toBe('₿50,000,000')
-      expect(prettyAmount(100000000)).toBe('₿100,000,000')
-      expect(prettyAmount(150000000)).toBe('₿150,000,000')
+    it('should format large amounts as integers with ₿ prefix in BIP-177 mode', () => {
+      expect(prettyAmount(50000000, bip177Config)).toBe('₿50,000,000')
+      expect(prettyAmount(100000000, bip177Config)).toBe('₿100,000,000')
+      expect(prettyAmount(150000000, bip177Config)).toBe('₿150,000,000')
     })
 
-    it('should handle fiat currency formatting', () => {
-      expect(prettyAmount(2500, 'USD')).toBe('2,500 USD')
-      expect(prettyAmount(12345, 'EUR')).toBe('12,345 EUR')
+    it('should format amounts with SATS suffix in SATS mode', () => {
+      expect(prettyAmount(0, satsConfig)).toBe('0 SATS')
+      expect(prettyAmount(100, satsConfig)).toBe('100 SATS')
+      expect(prettyAmount(999, satsConfig)).toBe('999 SATS')
+      expect(prettyAmount(50000, satsConfig)).toBe('50,000 SATS')
+    })
+
+    it('should format large amounts with abbreviations in SATS mode', () => {
+      expect(prettyAmount(1000000, satsConfig)).toBe('1M SATS')
+      expect(prettyAmount(5500000, satsConfig)).toBe('5.5M SATS')
+      expect(prettyAmount(100000000, satsConfig)).toBe('1 BTC')
+      expect(prettyAmount(150000000, satsConfig)).toBe('1 BTC')
+    })
+
+    it('should format amounts as BTC decimals in BTC mode', () => {
+      expect(prettyAmount(0, btcConfig)).toBe('0 BTC')
+      expect(prettyAmount(100, btcConfig)).toBe('0.000001 BTC')
+      expect(prettyAmount(100000000, btcConfig)).toBe('1 BTC')
+      expect(prettyAmount(150000000, btcConfig)).toBe('1.5 BTC')
+    })
+
+    it('should handle fiat currency formatting with suffix', () => {
+      expect(prettyAmount(2500, undefined, 'USD')).toBe('2,500 USD')
+      expect(prettyAmount(12345, undefined, 'EUR')).toBe('12,345 EUR')
     })
   })
 
@@ -113,14 +142,30 @@ describe('format utilities', () => {
   })
 
   describe('prettyHide', () => {
-    it('should return masked value', () => {
+    const bip177Config = { denominationFormat: DenominationFormat.Bip177, displayMode: DisplayMode.Base }
+    const satsConfig = { denominationFormat: DenominationFormat.Sats, displayMode: DisplayMode.Base }
+    const btcConfig = { denominationFormat: DenominationFormat.Bip177, displayMode: DisplayMode.BTC }
+
+    it('should return masked value with BIP-177 prefix (default)', () => {
       expect(prettyHide(0)).toBe('')
-      expect(prettyHide(12345)).toBe('··········')
-      expect(prettyHide(999999999)).toBe('··················')
+      expect(prettyHide(12345)).toBe('₿··········')
+      expect(prettyHide(999999999)).toBe('₿··················')
+      expect(prettyHide(12345, bip177Config)).toBe('₿··········')
+    })
+
+    it('should return masked value with SATS suffix', () => {
+      expect(prettyHide(12345, satsConfig)).toBe('·········· SATS')
+      expect(prettyHide(999999999, satsConfig)).toBe('·················· SATS')
+    })
+
+    it('should return masked value with BTC suffix in BTC mode', () => {
+      expect(prettyHide(12345, btcConfig)).toBe('·········· BTC')
+      expect(prettyHide(999999999, btcConfig)).toBe('·················· BTC')
     })
 
     it('should append fiat suffix when provided', () => {
-      expect(prettyHide(12345, 'USD')).toBe('·········· USD')
+      expect(prettyHide(12345, undefined, 'USD')).toBe('·········· USD')
+      expect(prettyHide(999999999, undefined, 'EUR')).toBe('·················· EUR')
     })
   })
 

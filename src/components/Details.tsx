@@ -59,8 +59,11 @@ export default function Details({ details }: { details?: DetailsProps }) {
 
   const formatAmount = (amount?: number) => {
     if (amount === undefined) return ''
-    const prettyFunc = config.showBalance ? prettyAmount : prettyHide
-    return useFiat ? prettyFunc(toFiat(amount), config.fiat) : prettyFunc(amount)
+    if (config.showBalance) {
+      return useFiat ? prettyAmount(toFiat(amount), undefined, config.fiat) : prettyAmount(amount, config)
+    } else {
+      return useFiat ? prettyHide(toFiat(amount), undefined, config.fiat) : prettyHide(amount, config)
+    }
   }
 
   const data: TableData = [

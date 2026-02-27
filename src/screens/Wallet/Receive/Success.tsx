@@ -18,7 +18,9 @@ export default function ReceiveSuccess() {
     notifyPaymentReceived(recvInfo.satoshis)
   }, [])
 
-  const displayAmount = useFiat ? prettyAmount(toFiat(recvInfo.satoshis), config.fiat) : prettyAmount(recvInfo.satoshis)
+  const displayAmount = useFiat
+    ? prettyAmount(toFiat(recvInfo.satoshis), undefined, config.fiat)
+    : prettyAmount(recvInfo.satoshis, config)
 
   return (
     <>

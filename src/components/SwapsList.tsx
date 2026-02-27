@@ -57,7 +57,7 @@ const SwapLine = ({ onClick, swap }: { onClick: () => void; swap: PendingSwap })
   const direction = swap.type === 'reverse' ? 'Lightning to Arkade' : 'Arkade to Lightning'
   const status: statusUI = statusDict[swap.status] || 'Pending'
   const prefix = swap.type === 'reverse' ? '+' : '-'
-  const amount = `${prefix} ${config.showBalance ? prettyAmount(sats) : prettyHide(sats)}`
+  const amount = `${prefix} ${config.showBalance ? prettyAmount(sats, config) : prettyHide(sats, config)}`
   const when = window.innerWidth < 400 ? prettyAgo(swap.createdAt) : prettyDate(swap.createdAt)
   const refunded = swap.type === 'submarine' && swap.refunded
   const color = refunded ? colorDict['Refunded'] : colorDict[status]

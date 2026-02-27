@@ -1,4 +1,4 @@
-import { Satoshis } from './types'
+import { Config, DenominationFormat, DisplayMode, Satoshis } from './types'
 import { Decimal } from 'decimal.js'
 
 export const fromSatoshis = (num: Satoshis): number => {
@@ -24,10 +24,45 @@ export const prettyAgo = (timestamp: number | string, long = false): string => {
   return ''
 }
 
-export const prettyAmount = (amount: string | number, suffix?: string): string => {
+export const prettyAmount = (
+  amount: string | number,
+  config?: Partial<Pick<Config, 'denominationFormat' | 'displayMode'>>,
+  suffix?: string,
+): string => {
   const sats = typeof amount === 'string' ? Number(amount) : amount
+
+  // If explicit suffix is provided (e.g., for fiat), use it
   if (suffix) return `${prettyNumber(sats, 2)} ${suffix}`
-  return `₿${prettyNumber(sats, 0)}`
+
+  // Determine format based on config
+  const denominationFormat = config?.denominationFormat ?? DenominationFormat.Bip177
+  const displayMode = config?.displayMode ?? DisplayMode.Base
+
+  // BTC decimal format
+  if (displayMode === DisplayMode.BTC) {
+    const btc = fromSatoshis(sats)
+    return `${prettyNumber(btc, 8)} BTC`
+  }
+
+  // Base format - either BIP-177 or SATS based on denominationFormat
+  if (denominationFormat === DenominationFormat.Bip177) {
+    // BIP-177 format: ₿10,000
+    return `₿${prettyNumber(sats, 0)}`
+  } else {
+    // SATS format with smart abbreviations
+    if (sats >= 100_000_000) {
+      // >= 1 BTC, show as BTC
+      const btc = fromSatoshis(sats)
+      return `${prettyNumber(btc, 0)} BTC`
+    } else if (sats >= 1_000_000) {
+      // >= 1M sats, show as "X.XXM SATS"
+      const millions = Decimal.div(sats, 1_000_000).toNumber()
+      return `${prettyNumber(millions, 2)}M SATS`
+    } else {
+      // < 1M sats, show as "X,XXX SATS"
+      return `${prettyNumber(sats, 0)} SATS`
+    }
+  }
 }
 
 export const prettyDelta = (seconds: number, long = true): string => {
@@ -63,12 +98,36 @@ export const prettyDate = (num: number): string => {
   }).format(date)
 }
 
-export const prettyHide = (value: string | number, suffix = ''): string => {
+export const prettyHide = (
+  value: string | number,
+  config?: Partial<Pick<Config, 'denominationFormat' | 'displayMode'>>,
+  suffix = '',
+): string => {
   if (!value) return ''
   const str = typeof value === 'string' ? value : value.toString()
   const length = str.length * 2 > 6 ? str.length * 2 : 6
   const dots = Array(length).fill('·').join('')
-  return suffix ? `${dots} ${suffix}` : dots
+
+  // If explicit suffix is provided (e.g., for fiat), use it
+  if (suffix) return `${dots} ${suffix}`
+
+  // Determine format based on config
+  const denominationFormat = config?.denominationFormat ?? DenominationFormat.Bip177
+  const displayMode = config?.displayMode ?? DisplayMode.Base
+
+  // BTC decimal format
+  if (displayMode === DisplayMode.BTC) {
+    return `${dots} BTC`
+  }
+
+  // Base format - either BIP-177 or SATS based on denominationFormat
+  if (denominationFormat === DenominationFormat.Bip177) {
+    // BIP-177 format: ₿··········
+    return `₿${dots}`
+  } else {
+    // SATS format: ·········· SATS
+    return `${dots} SATS`
+  }
 }
 
 export const prettyLongText = (str?: string, showChars = 11): string => {

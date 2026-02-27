@@ -55,7 +55,7 @@ export default function AppBoltzSwap() {
   const decodedInvoice = invoice ? decodeInvoice(invoice) : { amountSats: total, note: '' }
   const amount = isReverse ? swapInfo.response.onchainAmount : decodedInvoice.amountSats
 
-  const formatAmount = (amt: number) => (config.showBalance ? prettyAmount(amt) : prettyHide(amt))
+  const formatAmount = (amt: number) => (config.showBalance ? prettyAmount(amt, config) : prettyHide(amt, config))
 
   const data: TableData = [
     ['When', prettyAgo(swapInfo.createdAt)],

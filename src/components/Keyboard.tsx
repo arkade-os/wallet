@@ -106,8 +106,12 @@ export default function Keyboard({ back, hideBalance, onSats, value }: KeyboardP
   // Display amounts based on input mode
   const amount = {
     primary: inputMode === 'fiat' ? `${textValue || '0'} ${config.fiat}` : `₿${textValue || '0'}`,
-    secondary: inputMode === 'fiat' ? prettyAmount(amountInSats) : prettyAmount(toFiat(amountInSats), config.fiat),
-    balance: inputMode === 'fiat' ? prettyAmount(toFiat(available), config.fiat) : prettyAmount(available),
+    secondary:
+      inputMode === 'fiat'
+        ? prettyAmount(amountInSats, config)
+        : prettyAmount(toFiat(amountInSats), undefined, config.fiat),
+    balance:
+      inputMode === 'fiat' ? prettyAmount(toFiat(available), undefined, config.fiat) : prettyAmount(available, config),
   }
 
   const disabled = !amountInSats || Number.isNaN(amountInSats)

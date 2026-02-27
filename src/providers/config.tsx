@@ -1,7 +1,7 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
 import { clearStorage, readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
 import { defaultArkServer } from '../lib/constants'
-import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
+import { Config, CurrencyDisplay, DenominationFormat, DisplayMode, Fiats, Themes, Unit } from '../lib/types'
 import { BackupProvider } from '../lib/backup'
 import { consoleError } from '../lib/logs'
 import { setHapticsEnabled } from '../lib/haptics'
@@ -11,6 +11,8 @@ const defaultConfig: Config = {
   apps: { boltz: { connected: true } },
   aspUrl: defaultArkServer(),
   currencyDisplay: CurrencyDisplay.Both,
+  denominationFormat: DenominationFormat.Bip177,
+  displayMode: DisplayMode.Base,
   fiat: Fiats.USD,
   haptics: true,
   nostrBackup: false,

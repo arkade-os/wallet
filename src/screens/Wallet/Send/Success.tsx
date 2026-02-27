@@ -20,7 +20,9 @@ export default function SendSuccess() {
   }, [sendInfo.total])
 
   const totalSats = sendInfo.total ?? 0
-  const displayAmount = useFiat ? prettyAmount(toFiat(totalSats), config.fiat) : prettyAmount(totalSats)
+  const displayAmount = useFiat
+    ? prettyAmount(toFiat(totalSats), undefined, config.fiat)
+    : prettyAmount(totalSats, config)
 
   return (
     <>
