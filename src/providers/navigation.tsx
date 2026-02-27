@@ -102,6 +102,21 @@ const pageTab = {
 // Root pages of each tab — tab switches between these get no animation
 const ROOT_PAGES = new Set([Pages.Wallet, Pages.Apps, Pages.Settings])
 
+// Coordination point for sub-navigation (e.g., Settings options)
+// Sub-navigation providers register here so the main popstate handler can delegate
+// Shared flag: set by goBack() before calling history.back(), read by popstate handler
+// Lets us distinguish back-button presses (animate) from swipe gestures (no animation)
+export const isButtonBack = { current: false }
+
+// Coordination point for sub-navigation (e.g., Settings options)
+export const subNavHandler = {
+  canGoBack: () => false as boolean,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  goBack: (_fromButton: boolean) => {},
+  getDepth: () => 0,
+  reset: () => {},
+}
+
 export const pageComponent = (page: Pages): JSX.Element => {
   switch (page) {
     case Pages.AppBoltz:
@@ -188,75 +203,88 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   const [tab, setTab] = useState(Tabs.None)
   const [direction, setDirection] = useState<NavigationDirection>('none')
 
-  const navigationHistory = useRef<Pages[]>([])
+  const screenRef = useRef(Pages.Init)
+  const backStack = useRef<Pages[]>([])
   const previousPage = useRef<Pages>(Pages.Init)
+  const skipNextPopstate = useRef(false)
 
   const isInitialLoad = pageTab[previousPage.current] === Tabs.None && screen === Pages.Wallet
 
-  const addEntryToBrowserHistory = () => {
-    if (typeof window !== 'undefined' && 'history' in window) {
-      history.pushState({}, '', '')
-    }
-  }
+  const handlePopState = useCallback(() => {
+    const fromButton = isButtonBack.current
+    isButtonBack.current = false
 
-  const push = (page: Pages) => {
-    addEntryToBrowserHistory()
-    navigationHistory.current.push(page)
-  }
-
-  const pop = useCallback(() => {
-    const length = navigationHistory.current.length
-
-    // prevent popping when there's no history left
-    if (length < 2) {
-      // when popstate fires, the browser has already navigated back
-      // add a new entry to keep internal and browser history in sync
-      addEntryToBrowserHistory()
+    if (skipNextPopstate.current) {
+      skipNextPopstate.current = false
       return
     }
 
-    const prevPage = navigationHistory.current[length - 2]
+    // delegate to sub-navigation (e.g., Settings options) if it can handle this
+    if (subNavHandler.canGoBack()) {
+      subNavHandler.goBack(fromButton)
+      return
+    }
+
+    const stack = backStack.current
+    if (stack.length === 0) return
+
+    const prevPage = stack[stack.length - 1]
 
     // prevent going back to InitConnect or to a loading screen
     if ([Pages.InitConnect, Pages.Loading].includes(prevPage)) {
-      // when popstate fires, the browser has already navigated back
-      // add a new entry to keep internal and browser history in sync
-      addEntryToBrowserHistory()
+      history.pushState({}, '', '')
       return
     }
 
-    // pop current page
-    navigationHistory.current.pop()
-
-    // update UI to show previous page
-    previousPage.current = screen
-    setDirection('back')
+    stack.pop()
+    previousPage.current = screenRef.current
+    setDirection(fromButton ? 'back' : 'none')
     setTab(pageTab[prevPage])
+    screenRef.current = prevPage
     setScreen(prevPage)
-  }, [screen])
+  }, [])
 
   useEffect(() => {
-    const handlePopState = () => pop()
-    if (typeof window !== 'undefined') {
-      addEntryToBrowserHistory()
-      window.addEventListener('popstate', handlePopState)
-      return () => window.removeEventListener('popstate', handlePopState)
-    }
-  }, [pop])
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [handlePopState])
 
   const goBack = useCallback(() => {
-    history.back()
+    if (backStack.current.length > 0) {
+      isButtonBack.current = true
+      history.back()
+    }
   }, [])
 
   const navigate = (page: Pages) => {
-    const nextTab = pageTab[page]
-    const isTabSwitch = nextTab !== tab && ROOT_PAGES.has(page) && ROOT_PAGES.has(screen)
+    const isRootNavigation = ROOT_PAGES.has(page)
 
-    previousPage.current = screen
-    push(page)
-    setDirection(isTabSwitch ? 'none' : 'forward')
+    previousPage.current = screenRef.current
+
+    if (isRootNavigation) {
+      // tab switch or return to root: clear back stack + sub-nav + remove browser history entries
+      const mainEntries = backStack.current.length
+      const subEntries = subNavHandler.getDepth()
+      const entriesToRemove = mainEntries + subEntries
+      backStack.current = []
+      if (subEntries > 0) subNavHandler.reset()
+      if (entriesToRemove > 0) {
+        skipNextPopstate.current = true
+        history.go(-entriesToRemove)
+      }
+      const isSameTab = pageTab[page] === pageTab[screenRef.current]
+      const isFromRoot = ROOT_PAGES.has(screenRef.current)
+      setDirection(isFromRoot || !isSameTab ? 'none' : 'back')
+    } else {
+      // forward navigation: push to back stack AND browser history
+      backStack.current.push(screenRef.current)
+      history.pushState({}, '', '')
+      setDirection('forward')
+    }
+
+    screenRef.current = page
     setScreen(page)
-    setTab(nextTab)
+    setTab(pageTab[page])
   }
 
   return (

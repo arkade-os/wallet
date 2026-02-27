@@ -1,4 +1,4 @@
-import { ReactElement, ReactNode, createContext, useCallback, useState } from 'react'
+import { ReactElement, ReactNode, createContext, useCallback, useEffect, useRef, useState } from 'react'
 import BackupIcon from '../icons/Backup'
 import InfoIcon from '../icons/Info'
 import NotificationIcon from '../icons/Notification'
@@ -9,6 +9,7 @@ import ServerIcon from '../icons/Server'
 import LogsIcon from '../icons/Logs'
 import SupportIcon from '../icons/Support'
 import { SettingsOptions, SettingsSections } from '../lib/types'
+import { isButtonBack, subNavHandler } from './navigation'
 import CogIcon from '../icons/Cog'
 import LockIcon from '../icons/Lock'
 import PuzzleIcon from '../icons/Puzzle'
@@ -114,7 +115,7 @@ const allOptions: SectionResponse[] = [SettingsSections.General, SettingsSection
   }
 })
 
-export type SettingsDirection = 'forward' | 'back'
+export type SettingsDirection = 'forward' | 'back' | 'none'
 
 interface OptionsContextProps {
   direction: SettingsDirection
@@ -138,29 +139,71 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
   const [option, setOption] = useState(SettingsOptions.Menu)
   const [direction, setDirection] = useState<SettingsDirection>('forward')
 
+  const optionRef = useRef(SettingsOptions.Menu)
+  const historyDepth = useRef(0)
+
   const optionSection = (opt: SettingsOptions): SettingsSections => {
     return options.find((o) => o.option === opt)?.section || SettingsSections.General
   }
 
-  const navigateToOption = useCallback(
-    (o: SettingsOptions) => {
-      setDirection('forward')
-      setOption(o)
-    },
-    [setOption],
-  )
+  const getParentOption = (current: SettingsOptions): SettingsOptions => {
+    const section = optionSection(current)
+    return section === SettingsSections.Advanced
+      ? SettingsOptions.Advanced
+      : section === SettingsSections.Config
+        ? SettingsOptions.General
+        : SettingsOptions.Menu
+  }
 
+  // Internal goBack — called by popstate handler via subNavHandler, does NOT touch browser history
+  const internalGoBack = useCallback((fromButton: boolean) => {
+    setDirection(fromButton ? 'back' : 'none')
+    const target = getParentOption(optionRef.current)
+    historyDepth.current--
+    optionRef.current = target
+    setOption(target)
+  }, [])
+
+  const navigateToOption = useCallback((o: SettingsOptions) => {
+    if (o === SettingsOptions.Menu) {
+      // Reset to menu — don't push history (caller handles history cleanup)
+      optionRef.current = SettingsOptions.Menu
+      setDirection('back')
+      setOption(SettingsOptions.Menu)
+      return
+    }
+    setDirection('forward')
+    history.pushState({}, '', '')
+    historyDepth.current++
+    optionRef.current = o
+    setOption(o)
+  }, [])
+
+  // Public goBack — called by back button in Settings header
   const goBack = useCallback(() => {
-    setDirection('back')
-    setOption((current) => {
-      const section = optionSection(current)
-      return section === SettingsSections.Advanced
-        ? SettingsOptions.Advanced
-        : section === SettingsSections.Config
-          ? SettingsOptions.General
-          : SettingsOptions.Menu
-    })
-  }, [setOption])
+    if (optionRef.current !== SettingsOptions.Menu) {
+      isButtonBack.current = true
+      history.back() // triggers popstate → NavigationProvider delegates to internalGoBack
+    }
+  }, [])
+
+  // Register with sub-nav handler so NavigationProvider can coordinate
+  useEffect(() => {
+    subNavHandler.canGoBack = () => optionRef.current !== SettingsOptions.Menu
+    subNavHandler.goBack = (fromButton: boolean) => internalGoBack(fromButton)
+    subNavHandler.getDepth = () => historyDepth.current
+    subNavHandler.reset = () => {
+      historyDepth.current = 0
+      optionRef.current = SettingsOptions.Menu
+      setOption(SettingsOptions.Menu)
+    }
+    return () => {
+      subNavHandler.canGoBack = () => false
+      subNavHandler.goBack = () => {}
+      subNavHandler.getDepth = () => 0
+      subNavHandler.reset = () => {}
+    }
+  }, [internalGoBack])
 
   const validOptions = (): SectionResponse[] => {
     return allOptions
