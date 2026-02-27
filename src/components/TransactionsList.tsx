@@ -117,7 +117,7 @@ export default function TransactionsList({ ItemWrapper }: TransactionsListProps)
 
   const [focused, setFocused] = useState(false)
 
-  const key = (tx: Tx, index: number) => tx.roundTxid ?? tx.redeemTxid ?? tx.boardingTxid ?? `tx-${index}`
+  const key = (tx: Tx, index: number) => tx.roundTxid || tx.redeemTxid || tx.boardingTxid || `tx-${index}`
 
   const focusOnFirstRow = () => {
     setFocused(true)
