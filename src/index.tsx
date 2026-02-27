@@ -17,7 +17,6 @@ import { SwapsProvider } from './providers/swaps'
 import { shouldInitializeSentry } from './lib/sentry'
 import { FeesProvider } from './providers/fees'
 import { AnnouncementProvider } from './providers/announcements'
-import { NavbarVariantProvider } from './components/NavbarVariantSwitcher'
 
 // Initialize Sentry only in production and when DSN is provided
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN
@@ -46,9 +45,7 @@ root.render(
                       <OptionsProvider>
                         <NudgeProvider>
                           <AnnouncementProvider>
-                            <NavbarVariantProvider>
-                              <App />
-                            </NavbarVariantProvider>
+                            <App />
                           </AnnouncementProvider>
                         </NudgeProvider>
                       </OptionsProvider>
