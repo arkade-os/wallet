@@ -38,7 +38,7 @@ import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { ArkNote } from '@arkade-os/sdk'
+import { ArkNote, AssetDetails } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
@@ -129,7 +129,8 @@ export default function SendForm() {
       if (!svcWallet) return
       const options: AssetOption[] = []
       for (const ab of assetBalances) {
-        let meta = assetMetadataCache.get(ab.assetId)
+        let cachedMeta = assetMetadataCache.get(ab.assetId)
+        let meta: AssetDetails | undefined = cachedMeta
         if (!meta) {
           try {
             meta = await svcWallet.assetManager.getAssetDetails(ab.assetId)
@@ -186,7 +187,8 @@ export default function SendForm() {
         if (assetId) {
           let found = assetOptions.find((a) => a.assetId === assetId)
           if (!found) {
-            let meta = assetMetadataCache.get(assetId)
+            let cachedMeta = assetMetadataCache.get(assetId)
+            let meta: AssetDetails | undefined = cachedMeta
             if (!meta && svcWallet) {
               try {
                 meta = await svcWallet.assetManager.getAssetDetails(assetId)

@@ -27,6 +27,7 @@ export interface RecvInfo {
   txid?: string
   assetId?: string
   assetAmount?: number
+  receivedAssets?: Asset[]
 }
 
 export type SendInfo = {

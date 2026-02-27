@@ -14,7 +14,7 @@ import { canBrowserShareData, shareData } from '../../../lib/share'
 import ExpandAddresses from '../../../components/ExpandAddresses'
 import FlexCol from '../../../components/FlexCol'
 import { LimitsContext } from '../../../providers/limits'
-import { Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import Loading from '../../../components/Loading'
 import { LightningContext } from '../../../providers/lightning'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
@@ -93,23 +93,34 @@ export default function ReceiveQRCode() {
 
     const listenForPayments = (event: MessageEvent) => {
       let satoshis = 0
-      let receivedAssetAmount = 0
+      let receivedAssets: Asset[] = []
+
       if (event.data && event.data.type === 'VTXO_UPDATE') {
         const newVtxos = event.data.newVtxos as ExtendedVirtualCoin[]
         satoshis = newVtxos.reduce((acc, v) => acc + v.value, 0)
-        if (isAssetReceive) {
-          for (const v of newVtxos) {
-            const match = v.assets?.find((a) => a.assetId === assetId)
-            if (match) receivedAssetAmount += match.amount
-          }
+        for (const v of newVtxos) {
+          receivedAssets.push(...(v.assets ?? []))
         }
       }
+
+      // reduce received assets to unique asset ids (sum amounts if same asset id)
+      receivedAssets = receivedAssets.reduce((acc, v) => {
+        const existing = acc.find((a) => a.assetId === v.assetId)
+        if (existing) {
+          existing.amount += v.amount
+        } else {
+          acc.push(v)
+        }
+        return acc
+      }, [] as Asset[])
+
       if (event.data && event.data.type === 'UTXO_UPDATE') {
         const coins = event.data.coins as Coin[]
         satoshis = coins.reduce((acc, v) => acc + v.value, 0)
       }
-      if (satoshis) {
-        setRecvInfo({ ...recvInfo, satoshis, assetAmount: receivedAssetAmount || undefined })
+
+      if (satoshis || receivedAssets.length > 0) {
+        setRecvInfo({ ...recvInfo, satoshis, receivedAssets })
         if (!isAssetReceive) notifyPaymentReceived(satoshis)
         navigate(Pages.ReceiveSuccess)
       }

@@ -25,42 +25,51 @@ export default function ReceiveSuccess() {
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetMetadataCache, setCacheEntry, svcWallet } = useContext(WalletContext)
 
-  const isAssetReceive = Boolean(recvInfo.assetId)
-  const assetId = recvInfo.assetId ?? ''
+  const receivedAssets = recvInfo.receivedAssets ?? []
+  const isAssetReceive = receivedAssets.length > 0
 
-  const [assetDetails, setAssetDetails] = useState<AssetDetails | undefined>(
-    assetId ? assetMetadataCache.get(assetId) : undefined,
-  )
+  const [assetDetails, setAssetDetails] = useState<Map<string, AssetDetails>>(() => {
+    const entries: [string, AssetDetails][] = []
+    for (const a of receivedAssets) {
+      const cached = assetMetadataCache.get(a.assetId)
+      if (cached) entries.push([a.assetId, cached])
+    }
+    return new Map(entries)
+  })
 
+  // Fetch and cache asset metadata if not already cached
+  useEffect(() => {
+    if (!receivedAssets.length || !svcWallet || assetDetails.size === receivedAssets.length) return
+
+    for (const a of receivedAssets) {
+      if (assetDetails.has(a.assetId)) continue
+      svcWallet.assetManager
+        .getAssetDetails(a.assetId)
+        .then((details) => {
+          if (details) {
+            setCacheEntry(a.assetId, details)
+            setAssetDetails((prev) => new Map([...prev, [a.assetId, details]]))
+          }
+        })
+        .catch((err) => consoleError(err, 'error fetching asset details'))
+    }
+  }, [receivedAssets, svcWallet])
+
+  // Notify once all metadata is loaded (or immediately for non-asset receives)
   useEffect(() => {
     if (isAssetReceive) {
-      if (!recvInfo.assetAmount || !meta) return
-      const label = `${formatAssetAmount(recvInfo.assetAmount, meta.decimals ?? 0)} ${meta.ticker ?? meta.name ?? 'assets'}`
-      notifyPaymentReceived(recvInfo.satoshis, label)
+      if (assetDetails.size < receivedAssets.length) return
+      const labels = receivedAssets.map((a) => {
+        const meta = assetDetails.get(a.assetId)?.metadata
+        const amount = formatAssetAmount(a.amount, meta?.decimals ?? 0)
+        const ticker = meta?.ticker ?? meta?.name ?? 'assets'
+        return `${amount} ${ticker}`
+      })
+      notifyPaymentReceived(recvInfo.satoshis, labels.join(', '))
     } else {
       notifyPaymentReceived(recvInfo.satoshis)
     }
   }, [assetDetails])
-
-  // Fetch and cache asset metadata if not already cached
-  useEffect(() => {
-    if (!assetId || !svcWallet || assetDetails) return
-
-    svcWallet.assetManager
-      .getAssetDetails(assetId)
-      .then((details) => {
-        if (details) {
-          setCacheEntry(assetId, details)
-          setAssetDetails(details)
-        }
-      })
-      .catch((err) => consoleError(err, 'error fetching asset details'))
-  }, [assetId, svcWallet])
-
-  const meta = assetDetails?.metadata
-  const assetName = meta?.name ?? 'Unknown Asset'
-  const assetTicker = meta?.ticker ?? ''
-  const assetIcon = meta?.icon
 
   const displayAmount = useFiat ? prettyAmount(toFiat(recvInfo.satoshis), config.fiat) : prettyAmount(recvInfo.satoshis)
 
@@ -76,40 +85,34 @@ export default function ReceiveSuccess() {
                 Payment received!
               </Text>
 
-              {recvInfo.assetAmount ? (
-                <Text centered big bold>
-                  {formatAssetAmount(recvInfo.assetAmount, meta?.decimals ?? 0)} {assetTicker}
-                </Text>
-              ) : null}
+              {receivedAssets.map((a) => {
+                const meta = assetDetails.get(a.assetId)?.metadata
+                const name = meta?.name ?? 'Unknown Asset'
+                const ticker = meta?.ticker ?? ''
+                const icon = meta?.icon
 
-              <Shadow border>
-                <FlexRow between padding='0.75rem'>
-                  <FlexRow>
-                    <AssetAvatar
-                      icon={assetIcon}
-                      ticker={assetTicker}
-                      name={assetName}
-                      size={32}
-                      assetId={assetId}
-                      clickable
-                    />
-                    <FlexCol gap='0'>
-                      <Text bold>{assetName}</Text>
-                      {assetTicker ? (
-                        <Text color='dark50' smaller>
-                          {assetTicker}
-                        </Text>
-                      ) : null}
-                    </FlexCol>
-                  </FlexRow>
-                  <Text color='dark50' smaller>
-                    {displayAmount}
-                  </Text>
-                </FlexRow>
-              </Shadow>
+                return (
+                  <Shadow border key={a.assetId}>
+                    <FlexRow between padding='0.75rem'>
+                      <FlexRow>
+                        <AssetAvatar icon={icon} ticker={ticker} name={name} size={32} assetId={a.assetId} clickable />
+                        <FlexCol gap='0'>
+                          <Text bold>{name}</Text>
+                          {ticker ? (
+                            <Text color='dark50' smaller>
+                              {ticker}
+                            </Text>
+                          ) : null}
+                        </FlexCol>
+                      </FlexRow>
+                      <Text bold>{formatAssetAmount(a.amount, meta?.decimals ?? 0)}</Text>
+                    </FlexRow>
+                  </Shadow>
+                )
+              })}
 
               <Text centered color='dark70' thin small wrap>
-                Asset received successfully
+                {displayAmount}
               </Text>
             </FlexCol>
           </Padded>
