@@ -48100,7 +48100,7 @@ async function Z6(c) {
 const Pd = "arkade-service-worker";
 class Nd {
   constructor(a = Pd) {
-    this.dbName = a, this.db = null;
+    this.dbName = a, this.version = 1, this.db = null;
   }
   async clear() {
     try {
@@ -48203,7 +48203,7 @@ function LC(c) {
 }
 class Od {
   constructor(a = Pd) {
-    this.dbName = a, this.db = null;
+    this.dbName = a, this.version = 1, this.db = null;
   }
   async clear() {
     try {

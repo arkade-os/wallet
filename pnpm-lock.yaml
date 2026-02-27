@@ -13,7 +13,7 @@ importers:
         version: https://codeload.github.com/arkade-os/boltz-swap/tar.gz/89eced97215a65a4c791bc14769b38e6acb30f02
       '@arkade-os/sdk':
         specifier: github:arkade-os/ts-sdk#next
-        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/b91a006a672d75613e58b292d035d4b23e3fb7b9
+        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/b157ac349e24421a8b752d24b3a4da7c341e02e1
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -173,8 +173,8 @@ packages:
     version: 0.2.20
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/b91a006a672d75613e58b292d035d4b23e3fb7b9':
-    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/b91a006a672d75613e58b292d035d4b23e3fb7b9}
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/b157ac349e24421a8b752d24b3a4da7c341e02e1':
+    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/b157ac349e24421a8b752d24b3a4da7c341e02e1}
     version: 0.3.13
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
     peerDependencies:
@@ -2634,7 +2634,7 @@ snapshots:
 
   '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/89eced97215a65a4c791bc14769b38e6acb30f02':
     dependencies:
-      '@arkade-os/sdk': https://codeload.github.com/arkade-os/ts-sdk/tar.gz/b91a006a672d75613e58b292d035d4b23e3fb7b9
+      '@arkade-os/sdk': https://codeload.github.com/arkade-os/ts-sdk/tar.gz/b157ac349e24421a8b752d24b3a4da7c341e02e1
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
@@ -2649,7 +2649,7 @@ snapshots:
       - expo-task-manager
       - indexeddbshim
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/b91a006a672d75613e58b292d035d4b23e3fb7b9':
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/b157ac349e24421a8b752d24b3a4da7c341e02e1':
     dependencies:
       '@kukks/bitcoin-descriptors': 3.1.0
       '@marcbachmann/cel-js': 7.3.1
