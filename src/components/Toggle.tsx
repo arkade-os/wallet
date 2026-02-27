@@ -20,7 +20,7 @@ export default function Toggle({ checked, onClick, text, subtext, testId }: Togg
   }
 
   return (
-    <FlexCol border gap='0' padding='0 0 1rem 0'>
+    <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
       <FlexRow between onClick={handleClick}>
         <Text thin>{text}</Text>
         <Focusable onEnter={handleClick} fit round>
@@ -28,7 +28,7 @@ export default function Toggle({ checked, onClick, text, subtext, testId }: Togg
         </Focusable>
       </FlexRow>
       {subtext ? (
-        <Text color='dark50' small thin>
+        <Text color='dark50' small thin wrap>
           {subtext}
         </Text>
       ) : null}
