@@ -177,6 +177,7 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
   const navigateToOption = useCallback((o: SettingsOptions) => {
     if (o === SettingsOptions.Menu) {
       // Reset to menu — don't push history (caller handles history cleanup)
+      historyDepth.current = 0
       optionRef.current = SettingsOptions.Menu
       setDirection('back')
       setOption(SettingsOptions.Menu)
