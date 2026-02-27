@@ -26,6 +26,7 @@ export interface RecvInfo {
   satoshis: number
   txid?: string
   assetId?: string
+  assetAmount?: number
 }
 
 export type SendInfo = {

@@ -11,7 +11,7 @@ import Success from '../../../components/Success'
 import { NotificationsContext } from '../../../providers/notifications'
 import { FlowContext } from '../../../providers/flow'
 import Header from '../../../components/Header'
-import { prettyAmount } from '../../../lib/format'
+import { formatAssetAmount, prettyAmount } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
@@ -33,8 +33,14 @@ export default function ReceiveSuccess() {
   )
 
   useEffect(() => {
-    notifyPaymentReceived(recvInfo.satoshis)
-  }, [])
+    if (isAssetReceive) {
+      if (!recvInfo.assetAmount || !meta) return
+      const label = `${formatAssetAmount(recvInfo.assetAmount, meta.decimals ?? 0)} ${meta.ticker ?? meta.name ?? 'assets'}`
+      notifyPaymentReceived(recvInfo.satoshis, label)
+    } else {
+      notifyPaymentReceived(recvInfo.satoshis)
+    }
+  }, [assetDetails])
 
   // Fetch and cache asset metadata if not already cached
   useEffect(() => {
@@ -90,6 +96,11 @@ export default function ReceiveSuccess() {
                       ) : null}
                     </FlexCol>
                   </FlexRow>
+                  {recvInfo.assetAmount ? (
+                    <Text bold>
+                      {formatAssetAmount(recvInfo.assetAmount, meta?.decimals ?? 0)} {assetTicker}
+                    </Text>
+                  ) : null}
                 </FlexRow>
               </Shadow>
 
