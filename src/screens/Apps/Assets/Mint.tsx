@@ -214,7 +214,7 @@ export default function AppAssetMint() {
             </Shadow>
 
             <FlexRow gap='0.5rem' alignItems='flex-end'>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <Input
                   label='Name *'
                   value={name}
@@ -224,7 +224,7 @@ export default function AppAssetMint() {
                   testId='asset-name'
                 />
               </div>
-              <div style={{ minWidth: '6rem' }}>
+              <div style={{ width: '6rem', flexShrink: 0 }}>
                 <Input
                   label='Ticker *'
                   value={ticker}
