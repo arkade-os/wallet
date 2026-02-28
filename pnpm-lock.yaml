@@ -12,8 +12,8 @@ importers:
         specifier: 0.2.19
         version: 0.2.19
       '@arkade-os/sdk':
-        specifier: 0.3.12
-        version: 0.3.12
+        specifier: github:louisinger/wallet-sdk#delegator
+        version: https://codeload.github.com/louisinger/wallet-sdk/tar.gz/0d41b19b2d8f579acb5a0f973ff0c97d912a207b
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -174,6 +174,11 @@ packages:
 
   '@arkade-os/sdk@0.3.12':
     resolution: {integrity: sha512-/zE8XiDo6yOCaspMcO3Gua/gLGYmYLRFbqaD1ORkaGI7hH/Gq+m0tkIwArVlwtK50loHK4jvS8clovcaV9CARg==}
+    engines: {node: '>=20.0.0'}
+
+  '@arkade-os/sdk@https://codeload.github.com/louisinger/wallet-sdk/tar.gz/0d41b19b2d8f579acb5a0f973ff0c97d912a207b':
+    resolution: {tarball: https://codeload.github.com/louisinger/wallet-sdk/tar.gz/0d41b19b2d8f579acb5a0f973ff0c97d912a207b}
+    version: 0.3.13
     engines: {node: '>=20.0.0'}
 
   '@asamuzakjp/css-color@3.2.0':
@@ -528,6 +533,11 @@ packages:
   '@marcbachmann/cel-js@7.0.0':
     resolution: {integrity: sha512-sbtR8pvTAsDPiyigebwLyqweLnocmBS9MG5tTnVUL2PZ9Hc2Dj2e4tnvTcZ1s463Og9NKD59TaPvTK9CEZQhiQ==}
     engines: {node: '>=20.19.0'}
+
+  '@marcbachmann/cel-js@7.3.1':
+    resolution: {integrity: sha512-P6o26TvjStT8V8+8EF+yq9Pp7ZFV00bpiUMbssr76XbIZGxaB+NNWeBp6WNxOrR9gp0JPzvJueCKHpOs5LE9PQ==}
+    engines: {node: '>=20.19.0'}
+    hasBin: true
 
   '@noble/ciphers@0.5.3':
     resolution: {integrity: sha512-B0+6IIHiqEs3BPMT0hcRmHvEj2QHOLu+uwt+tqDDeVd0oyVzh7BPrDcPjRnV1PV/5LaknXJJQvOuRGR0zQJz+w==}
@@ -2615,6 +2625,15 @@ snapshots:
       '@scure/btc-signer': 2.0.1
       bip68: 1.0.4
 
+  '@arkade-os/sdk@https://codeload.github.com/louisinger/wallet-sdk/tar.gz/0d41b19b2d8f579acb5a0f973ff0c97d912a207b':
+    dependencies:
+      '@marcbachmann/cel-js': 7.3.1
+      '@noble/curves': 2.0.0
+      '@noble/secp256k1': 3.0.0
+      '@scure/base': 2.0.0
+      '@scure/btc-signer': 2.0.1
+      bip68: 1.0.4
+
   '@asamuzakjp/css-color@3.2.0':
     dependencies:
       '@csstools/css-calc': 2.1.4(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)
@@ -2918,6 +2937,8 @@ snapshots:
   '@lendasat/lendasat-wallet-bridge@0.0.90': {}
 
   '@marcbachmann/cel-js@7.0.0': {}
+
+  '@marcbachmann/cel-js@7.3.1': {}
 
   '@noble/ciphers@0.5.3': {}
 
