@@ -1,4 +1,4 @@
-import { ReactNode, useContext, useState } from 'react'
+import { useContext, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
@@ -104,13 +104,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   )
 }
 
-const PassthroughWrapper = ({ children }: { children: ReactNode }) => <>{children}</>
-
-interface TransactionsListProps {
-  ItemWrapper?: React.ComponentType<{ children: ReactNode }>
-}
-
-export default function TransactionsList({ ItemWrapper }: TransactionsListProps) {
+export default function TransactionsList() {
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { txs } = useContext(WalletContext)
@@ -144,18 +138,14 @@ export default function TransactionsList({ ItemWrapper }: TransactionsListProps)
     navigate(Pages.Transaction)
   }
 
-  const Wrap = ItemWrapper ?? PassthroughWrapper
-
   return (
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
-      <Wrap>
-        <TextLabel>Transaction history</TextLabel>
-      </Wrap>
+      <TextLabel>Transaction history</TextLabel>
       <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
         <div style={{ borderBottom: border }}>
           {txs.map((tx, index) => {
             const k = key(tx, index)
-            const focusable = (
+            return (
               <Focusable
                 id={k}
                 key={k}
@@ -167,7 +157,6 @@ export default function TransactionsList({ ItemWrapper }: TransactionsListProps)
                 <TransactionLine onClick={() => handleClick(tx)} tx={tx} />
               </Focusable>
             )
-            return ItemWrapper ? <ItemWrapper key={k}>{focusable}</ItemWrapper> : focusable
           })}
         </div>
       </Focusable>
