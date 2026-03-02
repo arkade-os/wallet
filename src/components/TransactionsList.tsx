@@ -1,4 +1,5 @@
-import { useContext, useState } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { useContext, useRef, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
@@ -110,6 +111,15 @@ export default function TransactionsList() {
   const { txs } = useContext(WalletContext)
 
   const [focused, setFocused] = useState(false)
+  const parentRef = useRef<HTMLDivElement>(null)
+
+  const virtualizer = useVirtualizer({
+    count: txs.length,
+    getScrollElement: () => parentRef.current,
+    // Estimated height of one TransactionLine row (icon 24px + 2×line-height + 2×8px padding)
+    estimateSize: () => 61,
+    overscan: 5,
+  })
 
   const key = (tx: Tx, index: number) => tx.roundTxid || tx.redeemTxid || tx.boardingTxid || `tx-${index}`
 
@@ -142,22 +152,44 @@ export default function TransactionsList() {
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
       <TextLabel>Transaction history</TextLabel>
       <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
-        <div style={{ borderBottom: border }}>
-          {txs.map((tx, index) => {
-            const k = key(tx, index)
-            return (
-              <Focusable
-                id={k}
-                key={k}
-                inactive={!focused}
-                onEnter={() => handleClick(tx)}
-                onEscape={focusOnOuterShell}
-                ariaLabel={ariaLabel(tx)}
-              >
-                <TransactionLine onClick={() => handleClick(tx)} tx={tx} />
-              </Focusable>
-            )
-          })}
+        <div
+          ref={parentRef}
+          style={{
+            borderBottom: border,
+            height: 'calc(100dvh - 380px)',
+            minHeight: '200px',
+            overflowY: 'auto',
+          }}
+        >
+          <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
+            {virtualizer.getVirtualItems().map((virtualItem) => {
+              const tx = txs[virtualItem.index]
+              const k = key(tx, virtualItem.index)
+              return (
+                <div
+                  key={k}
+                  data-testid='tx-row'
+                  style={{
+                    left: 0,
+                    position: 'absolute',
+                    top: 0,
+                    transform: `translateY(${virtualItem.start}px)`,
+                    width: '100%',
+                  }}
+                >
+                  <Focusable
+                    id={k}
+                    inactive={!focused}
+                    onEnter={() => handleClick(tx)}
+                    onEscape={focusOnOuterShell}
+                    ariaLabel={ariaLabel(tx)}
+                  >
+                    <TransactionLine onClick={() => handleClick(tx)} tx={tx} />
+                  </Focusable>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </Focusable>
     </div>

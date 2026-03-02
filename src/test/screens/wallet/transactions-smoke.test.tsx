@@ -15,9 +15,13 @@ import {
 } from '../mocks'
 import type { Tx } from '../../../lib/types'
 
-// Performance threshold: rendering should complete within this many ms.
-// The TransactionsList renders all transactions at once with no windowing —
-// if this threshold is exceeded the test fails and pinpoints the bottleneck.
+// jsdom reports all element dimensions as 0, so the virtualizer only renders
+// the leading overscan batch (≤ overscan items).  We allow a small ceiling to
+// stay robust against changes to the overscan constant.
+const MAX_DOM_ROWS = 20
+
+// Upper bound on initial render time.  With virtualisation the render cost is
+// O(overscan) not O(n), so even 5 000 txs should initialise in well under this.
 const RENDER_THRESHOLD_MS = 500
 
 function generateTxs(count: number): Tx[] {
@@ -50,10 +54,26 @@ function renderWithTxs(txs: Tx[]) {
   )
 }
 
-// Smoke test: renders the wallet transaction list with progressively more
-// transactions to surface the unvirtualised list performance regression
-// reported when a wallet has several thousand transactions.
+// Smoke test: verifies that TransactionsList is virtualised — only a small,
+// bounded number of DOM rows are mounted regardless of how many transactions
+// exist in the wallet.
 describe('TransactionsList smoke test — large transaction history', () => {
+  it('mounts a constant number of DOM rows regardless of total tx count (virtualisation check)', () => {
+    const { container: c100 } = renderWithTxs(generateTxs(100))
+    const { container: c5000 } = renderWithTxs(generateTxs(5000))
+
+    const rows100 = c100.querySelectorAll('[data-testid="tx-row"]').length
+    const rows5000 = c5000.querySelectorAll('[data-testid="tx-row"]').length
+
+    process.stdout.write(`[smoke] DOM rows: 100 txs → ${rows100}, 5000 txs → ${rows5000}\n`)
+
+    // Both should be well below the total count — virtualisation is working.
+    expect(rows100, `Expected ≤ ${MAX_DOM_ROWS} DOM rows for 100 txs, got ${rows100}`).toBeLessThanOrEqual(MAX_DOM_ROWS)
+    expect(rows5000, `Expected ≤ ${MAX_DOM_ROWS} DOM rows for 5000 txs, got ${rows5000}`).toBeLessThanOrEqual(
+      MAX_DOM_ROWS,
+    )
+  })
+
   const cases: number[] = [100, 500, 1000, 3000, 5000]
 
   for (const count of cases) {
@@ -66,13 +86,12 @@ describe('TransactionsList smoke test — large transaction history', () => {
 
       unmount()
 
-      // Log timing unconditionally so CI output always shows the numbers even
-      // when the assertion passes.
+      // Log timing unconditionally so CI output always shows the numbers.
       process.stdout.write(`[smoke] ${count} txs → ${duration.toFixed(1)}ms\n`)
 
       expect(
         duration,
-        `Rendering ${count} txs took ${duration.toFixed(0)}ms — exceeds ${RENDER_THRESHOLD_MS}ms threshold. The list has no virtualisation; consider windowing (e.g. react-virtual) to fix this.`,
+        `Rendering ${count} txs took ${duration.toFixed(0)}ms — exceeds ${RENDER_THRESHOLD_MS}ms threshold.`,
       ).toBeLessThan(RENDER_THRESHOLD_MS)
     })
   }
