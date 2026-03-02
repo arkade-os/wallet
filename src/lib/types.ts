@@ -10,7 +10,7 @@ export type Config = {
   announcementsSeen: string[]
   apps: {
     assets: {
-      connected: boolean
+      enabled: boolean
     }
     boltz: {
       connected: boolean

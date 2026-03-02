@@ -95,7 +95,7 @@ export default function AppAssets() {
       <Header text='Assets' back={() => navigate(Pages.Apps)} auxFunc={goToSettings} auxIcon={<SettingsIconLight />} />
       <Content>
         <Padded>
-          {config.apps.assets.connected ? (
+          {config.apps.assets.enabled ? (
             <FlexCol gap='0.5rem'>
               {assets.length === 0 ? (
                 <EmptyAssetsList />
@@ -136,7 +136,7 @@ export default function AppAssets() {
           )}
         </Padded>
       </Content>
-      {config.apps.assets.connected ? (
+      {config.apps.assets.enabled ? (
         <ButtonsOnBottom>
           <Button label='Import' onClick={() => navigate(Pages.AppAssetImport)} />
           <Button label='Mint' onClick={() => navigate(Pages.AppAssetMint)} secondary />
