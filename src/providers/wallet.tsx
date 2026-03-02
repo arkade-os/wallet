@@ -16,6 +16,8 @@ import {
   NetworkName,
   SingleKey,
   migrateWalletRepository,
+  getMigrationStatus,
+  rollbackMigration,
   IndexedDBWalletRepository,
   IndexedDBContractRepository,
   ServiceWorkerWallet,
@@ -206,13 +208,23 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // Migration!
       try {
         const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
-        const arkAddress = await svcWallet.getAddress()
-        const boardingAddress = await svcWallet.getBoardingAddress()
-        await migrateWalletRepository(oldStorage, svcWallet.walletRepository, {
-          offchain: [arkAddress],
-          onchain: [boardingAddress],
-        })
-        await migrateToSwapRepository(oldStorage, new IndexedDbSwapRepository())
+        const walletStatus = await getMigrationStatus('wallet', oldStorage)
+        if (walletStatus !== 'not-needed') {
+          if (walletStatus === 'pending' || walletStatus === 'in-progress') {
+            const arkAddress = await svcWallet.getAddress()
+            const boardingAddress = await svcWallet.getBoardingAddress()
+            try {
+              await migrateWalletRepository(oldStorage, svcWallet.walletRepository, {
+                offchain: [arkAddress],
+                onchain: [boardingAddress],
+              })
+            } catch (err) {
+              await rollbackMigration('wallet', oldStorage)
+              throw err
+            }
+          }
+          await migrateToSwapRepository(oldStorage, new IndexedDbSwapRepository())
+        }
       } catch (err) {
         consoleError(err, 'Error migrating wallet repository')
       }
