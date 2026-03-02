@@ -16,7 +16,7 @@ import Button from '../../components/Button'
 import Header from '../../components/Header'
 import Padded from '../../components/Padded'
 import Input from '../../components/Input'
-import Text from '../../components/Text'
+import { TextSecondary } from '../../components/Text'
 import { hex } from '@scure/base'
 import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
 import { OnboardStaggerContainer, OnboardStaggerChild } from '../../components/OnboardLoadIn'
@@ -80,9 +80,9 @@ export default function InitRestore() {
                   <Input name='private-key' label='Private key' onChange={setSomeKey} />
                   <ErrorMessage error={Boolean(error)} text={error} />
                 </FlexCol>
-                <Text centered color='dark70' fullWidth thin small>
+                <TextSecondary wrap>
                   Your private key should start with the 'nsec' string. Do not share it with anyone.
-                </Text>
+                </TextSecondary>
               </FlexCol>
             </OnboardStaggerChild>
           </OnboardStaggerContainer>

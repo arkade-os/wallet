@@ -16,7 +16,6 @@ interface ButtonProps {
   outline?: boolean
   red?: boolean
   secondary?: boolean
-  small?: boolean
 }
 
 export default function Button({
@@ -31,7 +30,6 @@ export default function Button({
   outline,
   red,
   secondary,
-  small,
 }: ButtonProps) {
   const [pressed, setPressed] = useState(false)
 
@@ -67,7 +65,6 @@ export default function Button({
       onTouchStart={handlePressStart}
       onTouchEnd={handlePressEnd}
       onTouchCancel={handlePressEnd}
-      size={small ? 'small' : 'default'}
       style={{ margin: '4px 0' }}
     >
       {loading ? (
@@ -78,16 +75,18 @@ export default function Button({
         <FlexRow between>
           <FlexRow>
             {icon}
-            {label}
+            <Label label={label} />
           </FlexRow>
           <ArrowIcon />
         </FlexRow>
       ) : (
         <FlexRow main={main} centered>
           {icon}
-          {label}
+          <Label label={label} />
         </FlexRow>
       )}
     </IonButton>
   )
 }
+
+const Label = ({ label }: { label: string }) => <p style={{ lineHeight: '20px' }}>{label}</p>

@@ -7,7 +7,6 @@ import { FlowContext } from '../../providers/flow'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { ConfigContext } from '../../providers/config'
-import { OnboardStaggerContainer, OnboardStaggerChild } from '../../components/OnboardLoadIn'
 
 export default function InitSuccess() {
   const { config } = useContext(ConfigContext)
@@ -26,11 +25,7 @@ export default function InitSuccess() {
     <>
       <Header text='Create new wallet' />
       <Content>
-        <OnboardStaggerContainer>
-          <OnboardStaggerChild>
-            <Success headline={headline} text={text} />
-          </OnboardStaggerChild>
-        </OnboardStaggerContainer>
+        <Success headline={headline} text={text} />
       </Content>
       <ButtonsOnBottom>
         <Button onClick={() => navigate(Pages.InitConnect)} label='Go to wallet' />

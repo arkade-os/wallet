@@ -122,8 +122,26 @@ export default function Onboard() {
                 variants={prefersReduced ? undefined : onboardStaggerContainer}
                 initial={prefersReduced ? false : 'initial'}
                 animate={prefersReduced ? undefined : 'animate'}
-                exit={prefersReduced ? undefined : { opacity: 0, transition: { duration: 0.15, ease: EASE_OUT_QUINT } }}
-                style={{ width: '100%', display: 'flex', flexDirection: 'column', flex: 1 }}
+                exit={
+                  prefersReduced
+                    ? undefined
+                    : {
+                        opacity: 0,
+                        transition: {
+                          duration: 0.15,
+                          ease: [EASE_OUT_QUINT[0], EASE_OUT_QUINT[1], EASE_OUT_QUINT[2], EASE_OUT_QUINT[3]],
+                        },
+                      }
+                }
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '2rem',
+                  flex: 1,
+                }}
               >
                 <OnboardStaggerChild>
                   <StepBars active={step} length={steps} />

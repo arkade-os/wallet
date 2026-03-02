@@ -13,7 +13,6 @@ interface TextProps {
   children: ReactNode
   color?: string
   copy?: string
-  fullWidth?: boolean
   heading?: boolean
   large?: boolean
   medium?: boolean
@@ -34,7 +33,6 @@ export default function Text({
   children,
   color,
   copy,
-  fullWidth,
   heading,
   large,
   medium,
@@ -64,10 +62,6 @@ export default function Text({
     wordBreak: 'break-word',
   }
 
-  const iStyle: any = {
-    width: fullWidth ? '100%' : undefined,
-  }
-
   const [present] = useIonToast()
 
   const handleClick = () => {
@@ -78,7 +72,7 @@ export default function Text({
   }
 
   return (
-    <IonText style={iStyle}>
+    <IonText>
       <p className={className} onClick={handleClick} style={pStyle}>
         {children}
       </p>

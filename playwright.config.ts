@@ -15,6 +15,7 @@ export default defineConfig({
     permissions: ['clipboard-read', 'clipboard-write'],
     actionTimeout: 30000,
     navigationTimeout: 30000,
+    contextOptions: { reducedMotion: 'reduce' },
   },
   webServer: {
     command: 'VITE_NOSTR_RELAY_URL=ws://localhost:10547 pnpm start',

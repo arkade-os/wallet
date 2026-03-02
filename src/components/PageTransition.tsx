@@ -10,25 +10,30 @@ interface PageTransitionProps {
   pageKey: string
 }
 
+const style = {
+  position: 'absolute' as const,
+  inset: 0,
+  display: 'flex',
+  flexDirection: 'column' as const,
+  willChange: 'transform, opacity',
+}
+
 export default function PageTransition({ children, direction, pageKey }: PageTransitionProps) {
   const prefersReduced = useReducedMotion()
-  const effectiveDirection = prefersReduced ? 'none' : direction
+
+  if (prefersReduced) {
+    return <div style={style}>{children}</div>
+  }
 
   return (
     <motion.div
       key={pageKey}
-      custom={effectiveDirection}
+      custom={direction}
       variants={pageTransitionVariants}
       initial='initial'
       animate='animate'
       exit='exit'
-      style={{
-        position: 'absolute',
-        inset: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        willChange: 'transform, opacity',
-      }}
+      style={style}
     >
       {children}
     </motion.div>
