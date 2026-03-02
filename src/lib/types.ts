@@ -9,6 +9,9 @@ export type Addresses = {
 export type Config = {
   announcementsSeen: string[]
   apps: {
+    assets: {
+      connected: boolean
+    }
     boltz: {
       connected: boolean
     }

@@ -125,6 +125,7 @@ export default function SendForm() {
 
   // build asset options from balances + metadata
   useEffect(() => {
+    if (!config.apps.assets.connected) return
     const loadOptions = async () => {
       if (!svcWallet) return
       const options: AssetOption[] = []
@@ -151,7 +152,7 @@ export default function SendForm() {
       setAssetOptions(options)
     }
     loadOptions()
-  }, [svcWallet, assetBalances])
+  }, [svcWallet, assetBalances, config.apps.assets.connected])
 
   // initialize selected asset from pre-set sendInfo.assets (e.g. from Asset Detail page)
   useEffect(() => {

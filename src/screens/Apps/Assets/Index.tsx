@@ -16,6 +16,8 @@ import { ConfigContext } from '../../../providers/config'
 import { FlowContext } from '../../../providers/flow'
 import { consoleError } from '../../../lib/logs'
 import { formatAssetAmount } from '../../../lib/format'
+import { SettingsIconLight } from '../../../icons/Settings'
+import { EmptyAssetsList } from '../../../components/Empty'
 
 interface AssetListItem {
   assetId: string
@@ -86,47 +88,60 @@ export default function AppAssets() {
 
   if (loading) return <Loading text='Loading assets...' />
 
+  const goToSettings = () => navigate(Pages.AppAssetsSettings)
+
   return (
     <>
-      <Header text='Assets' back={() => navigate(Pages.Apps)} />
+      <Header text='Assets' back={() => navigate(Pages.Apps)} auxFunc={goToSettings} auxIcon={<SettingsIconLight />} />
       <Content>
         <Padded>
-          <FlexCol gap='0.5rem'>
-            {assets.length === 0 ? (
-              <Text color='dark50'>No assets yet. Import or mint one to get started.</Text>
-            ) : (
-              assets.map((asset) => (
-                <Shadow key={asset.assetId} border onClick={() => handleAssetClick(asset.assetId)}>
-                  <FlexRow between padding='0.75rem'>
-                    <FlexRow>
-                      <AssetAvatar
-                        icon={asset.icon}
-                        ticker={asset.ticker}
-                        size={32}
-                        assetId={asset.assetId}
-                        clickable
-                      />
-                      <FlexCol gap='0'>
-                        <Text bold>{asset.name ?? truncateId(asset.assetId)}</Text>
-                        {asset.ticker ? (
-                          <Text color='dark50' smaller>
-                            {asset.ticker}
-                          </Text>
-                        ) : null}
-                      </FlexCol>
+          {config.apps.assets.connected ? (
+            <FlexCol gap='0.5rem'>
+              {assets.length === 0 ? (
+                <EmptyAssetsList />
+              ) : (
+                assets.map((asset) => (
+                  <Shadow key={asset.assetId} border onClick={() => handleAssetClick(asset.assetId)}>
+                    <FlexRow between padding='0.75rem'>
+                      <FlexRow>
+                        <AssetAvatar
+                          icon={asset.icon}
+                          ticker={asset.ticker}
+                          size={32}
+                          assetId={asset.assetId}
+                          clickable
+                        />
+                        <FlexCol gap='0'>
+                          <Text bold>{asset.name ?? truncateId(asset.assetId)}</Text>
+                          {asset.ticker ? (
+                            <Text color='dark50' smaller>
+                              {asset.ticker}
+                            </Text>
+                          ) : null}
+                        </FlexCol>
+                      </FlexRow>
+                      <Text>{formatAssetAmount(asset.balance, asset.decimals ?? 8)}</Text>
                     </FlexRow>
-                    <Text>{formatAssetAmount(asset.balance, asset.decimals ?? 8)}</Text>
-                  </FlexRow>
-                </Shadow>
-              ))
-            )}
-          </FlexCol>
+                  </Shadow>
+                ))
+              )}
+            </FlexCol>
+          ) : (
+            <FlexCol gap='0.5rem'>
+              <Text color='dark50'>Assets integration is disabled.</Text>
+              <Text color='dark50'>
+                <a onClick={goToSettings}>Enable it</a> to view your assets.
+              </Text>
+            </FlexCol>
+          )}
         </Padded>
       </Content>
-      <ButtonsOnBottom>
-        <Button label='Import' onClick={() => navigate(Pages.AppAssetImport)} />
-        <Button label='Mint' onClick={() => navigate(Pages.AppAssetMint)} secondary />
-      </ButtonsOnBottom>
+      {config.apps.assets.connected ? (
+        <ButtonsOnBottom>
+          <Button label='Import' onClick={() => navigate(Pages.AppAssetImport)} />
+          <Button label='Mint' onClick={() => navigate(Pages.AppAssetMint)} secondary />
+        </ButtonsOnBottom>
+      ) : null}
     </>
   )
 }
