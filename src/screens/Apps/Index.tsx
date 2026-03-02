@@ -100,7 +100,7 @@ export default function Apps() {
             <App
               name='Assets'
               icon={<AssetsIcon />}
-              desc='Issue, manage, send, and receive assets on Arkade'
+              desc='Issue, send, and receive assets on Arkade'
               link='https://github.com/ArkLabsHQ/arkade-assets'
               page={Pages.AppAssets}
               live

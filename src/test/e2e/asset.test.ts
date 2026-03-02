@@ -1,11 +1,23 @@
-import { test, expect, createWallet, navigateToAssets, mintAsset, fundWallet } from './utils'
+import { test, expect, createWallet, navigateToAssets, mintAsset, fundWallet, enableAssets } from './utils'
 
-test('should navigate to assets and see empty state', async ({ page }) => {
+test('should navigate to assets and see disabled state', async ({ page }) => {
   await createWallet(page)
   await navigateToAssets(page)
 
   // assert empty state
-  await expect(page.getByText('No assets yet. Import or mint one to get started.')).toBeVisible()
+  await expect(page.getByText('is disabled')).toBeVisible()
+  await expect(page.getByText('Import', { exact: true })).not.toBeVisible()
+  await expect(page.getByText('Mint', { exact: true })).not.toBeVisible()
+})
+
+test('should navigate to assets enabled and see empty state', async ({ page }) => {
+  await createWallet(page)
+  await enableAssets(page)
+  await navigateToAssets(page)
+
+  // assert empty state
+  await expect(page.getByText('No assets yet')).toBeVisible()
+  await expect(page.getByText('Import or mint one to get started')).toBeVisible()
   await expect(page.getByText('Import', { exact: true })).toBeVisible()
   await expect(page.getByText('Mint', { exact: true })).toBeVisible()
 })
@@ -13,6 +25,7 @@ test('should navigate to assets and see empty state', async ({ page }) => {
 test('should mint an asset and see it in list', async ({ page }) => {
   await createWallet(page)
   await fundWallet(page)
+  await enableAssets(page)
   await mintAsset(page, { amount: 1000, name: 'TestCoin', ticker: 'TST', decimals: 0 })
 
   // assert success screen
@@ -27,6 +40,7 @@ test('should mint an asset and see it in list', async ({ page }) => {
 test('should view asset detail after minting', async ({ page }) => {
   await createWallet(page)
   await fundWallet(page)
+  await enableAssets(page)
   await mintAsset(page, { amount: 1000, name: 'TestCoin', ticker: 'TST', decimals: 0 })
 
   // view asset detail from success screen
@@ -44,6 +58,7 @@ test('should view asset detail after minting', async ({ page }) => {
 test('should burn part of an asset', async ({ page }) => {
   await createWallet(page)
   await fundWallet(page)
+  await enableAssets(page)
   await mintAsset(page, { amount: 1000, name: 'BurnCoin', ticker: 'BRN', decimals: 0 })
 
   // go to asset detail
@@ -118,6 +133,7 @@ test('should reissue an asset with control token', async ({ page }) => {
 test('should mint asset with new control asset', async ({ page }) => {
   await createWallet(page)
   await fundWallet(page, 10000)
+  await enableAssets(page)
 
   await mintAsset(page, {
     amount: 500,

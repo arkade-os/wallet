@@ -25,6 +25,13 @@ export async function navigateToAssets(page: Page): Promise<void> {
   await page.waitForSelector('text=Assets', { state: 'visible' })
 }
 
+export async function enableAssets(page: Page): Promise<void> {
+  await navigateToAssets(page)
+  await page.getByTestId('settings-icon-light').click()
+  await page.waitForSelector('text=Assets settings', { state: 'visible' })
+  await page.getByTestId('assets-toggle').click()
+}
+
 export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<void> {
   await navigateToAssets(page)
   await page.getByText('Mint', { exact: true }).click()

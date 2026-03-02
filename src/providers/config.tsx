@@ -8,7 +8,7 @@ import { setHapticsEnabled } from '../lib/haptics'
 
 const defaultConfig: Config = {
   announcementsSeen: [],
-  apps: { boltz: { connected: true } },
+  apps: { assets: { enabled: false }, boltz: { connected: true } },
   aspUrl: defaultArkServer(),
   currencyDisplay: CurrencyDisplay.Both,
   fiat: Fiats.USD,
@@ -110,8 +110,9 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
       window.location.hash = ''
     }
     let config = readConfigFromStorage() ?? { ...defaultConfig }
-    // env var is authoritative — override cached localStorage value
-    if (import.meta.env.VITE_ARK_SERVER) config.aspUrl = import.meta.env.VITE_ARK_SERVER
+    // merge with defaults to ensure all fields are present
+    config = { ...defaultConfig, ...config }
+    config.apps = { ...defaultConfig.apps, ...config.apps }
     updateConfig(config)
     setConfigLoaded(true)
   }, [configLoaded])
