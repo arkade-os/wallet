@@ -111,6 +111,7 @@ export default function TransactionsList() {
   const { txs } = useContext(WalletContext)
 
   const [focused, setFocused] = useState(false)
+  const [focusedIndex, setFocusedIndex] = useState(0)
   const parentRef = useRef<HTMLDivElement>(null)
 
   const virtualizer = useVirtualizer({
@@ -123,12 +124,34 @@ export default function TransactionsList() {
 
   const key = (tx: Tx, index: number) => tx.roundTxid || tx.redeemTxid || tx.boardingTxid || `tx-${index}`
 
+  const focusRow = (index: number) => {
+    virtualizer.scrollToIndex(index)
+    requestAnimationFrame(() => {
+      const el = document.getElementById(key(txs[index], index)) as HTMLElement
+      if (el) el.focus()
+    })
+  }
+
   const focusOnFirstRow = () => {
     setFocused(true)
     if (txs.length === 0) return
-    const id = key(txs[0], 0)
-    const first = document.getElementById(id) as HTMLElement
-    if (first) first.focus()
+    setFocusedIndex(0)
+    focusRow(0)
+  }
+
+  const handleListKeyDown = (e: React.KeyboardEvent) => {
+    if (!focused) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const next = Math.min(focusedIndex + 1, txs.length - 1)
+      setFocusedIndex(next)
+      focusRow(next)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const next = Math.max(focusedIndex - 1, 0)
+      setFocusedIndex(next)
+      focusRow(next)
+    }
   }
 
   const focusOnOuterShell = () => {
@@ -154,6 +177,7 @@ export default function TransactionsList() {
       <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
         <div
           ref={parentRef}
+          onKeyDown={handleListKeyDown}
           style={{
             borderBottom: border,
             height: 'calc(100dvh - 380px)',
