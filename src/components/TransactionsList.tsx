@@ -125,6 +125,7 @@ export default function TransactionsList() {
   const key = (tx: Tx, index: number) => tx.roundTxid || tx.redeemTxid || tx.boardingTxid || `tx-${index}`
 
   const focusRow = (index: number) => {
+    if (index < 0 || index >= txs.length) return
     virtualizer.scrollToIndex(index)
     requestAnimationFrame(() => {
       const el = document.getElementById(key(txs[index], index)) as HTMLElement
@@ -133,8 +134,8 @@ export default function TransactionsList() {
   }
 
   const focusOnFirstRow = () => {
-    setFocused(true)
     if (txs.length === 0) return
+    setFocused(true)
     setFocusedIndex(0)
     focusRow(0)
   }
