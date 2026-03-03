@@ -88,6 +88,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const hasLoadedOnce = useRef(false)
   const listeningForServiceWorker = useRef(false)
+  const statusPingInterval = useRef<ReturnType<typeof setInterval>>()
 
   // read wallet from storage
   useEffect(() => {
@@ -255,7 +256,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setInitialized(walletInitialized)
 
       // ping the service worker wallet status every 1 second
-      setInterval(async () => {
+      if (statusPingInterval.current) clearInterval(statusPingInterval.current)
+      statusPingInterval.current = setInterval(async () => {
         try {
           const { walletInitialized } = await svcWallet.getStatus()
           setInitialized(walletInitialized)
@@ -267,7 +269,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // renew expiring coins on startup
       renewCoins(svcWallet, aspInfo.dust, wallet.thresholdMs).catch(() => {})
     } catch (err) {
-      if (err instanceof Error && err.message.includes('Service worker activation timed out')) {
+      if (
+        err instanceof Error &&
+        (err.message.includes('Service worker activation timed out') || err.message.includes('MessageBus timed out'))
+      ) {
         if (retryCount < maxRetries) {
           // exponential backoff: wait 1s, 2s, 4s for each retry
           const delay = Math.pow(2, retryCount) * 1000
