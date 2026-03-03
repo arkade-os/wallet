@@ -18,14 +18,13 @@ import { Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import Loading from '../../../components/Loading'
 import { SwapsContext } from '../../../providers/swaps'
 import { encodeBip21 } from '../../../lib/bip21'
-import { InfoLine } from '../../../components/Info'
 import { PendingChainSwap, PendingReverseSwap } from '@arkade-os/boltz-swap'
 
 export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { arkadeChainSwap, arkadeLightning, createBtcToArkSwap, createReverseSwap } = useContext(SwapsContext)
+  const { arkadeSwaps, createBtcToArkSwap, createReverseSwap } = useContext(SwapsContext)
   const { svcWallet } = useContext(WalletContext)
   const { validBtcToArk, validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } =
     useContext(LimitsContext)
@@ -75,13 +74,13 @@ export default function ReceiveQRCode() {
   }
 
   useEffect(() => {
-    if (!satoshis || !svcWallet || !arkadeChainSwap || !arkadeLightning) return
+    if (!satoshis || !svcWallet || !arkadeSwaps) return
     Promise.allSettled([createBtcAddress(), createLightningInvoice()]).then(([btc, lightning]) => {
       if (btc.status === 'fulfilled') {
         const pendingSwap = btc.value as PendingChainSwap
         const btcAddr = pendingSwap.response.lockupDetails.lockupAddress
         setSwapAddress(btcAddr)
-        arkadeChainSwap
+        arkadeSwaps
           .waitAndClaimArk(pendingSwap)
           .then(() => {
             setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.claimDetails.amount })
@@ -95,7 +94,7 @@ export default function ReceiveQRCode() {
         const pendingSwap = lightning.value as PendingReverseSwap
         const invoice = pendingSwap.response.invoice
         setInvoice(invoice)
-        arkadeLightning
+        arkadeSwaps
           .waitAndClaim(pendingSwap)
           .then(() => {
             setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
@@ -107,7 +106,7 @@ export default function ReceiveQRCode() {
       }
       setShowQrCode(true)
     })
-  }, [satoshis, svcWallet, arkadeChainSwap, arkadeLightning])
+  }, [satoshis, svcWallet, arkadeSwaps])
 
   //
   useEffect(() => {
@@ -168,7 +167,6 @@ export default function ReceiveQRCode() {
             <div>No valid payment methods available for this amount</div>
           ) : qrCodeValue ? (
             <FlexCol centered>
-              {invoice ? <InfoLine centered color='orange' text='Keep tab open to receive Lightning' /> : null}
               <QrCode value={qrCodeValue} />
               <ExpandAddresses
                 bip21uri={bip21Uri}

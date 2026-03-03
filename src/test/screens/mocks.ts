@@ -58,7 +58,7 @@ export const mockFiatContextValue = {
 }
 
 export const mockSwapsContextValue = {
-  arkadeLightning: null,
+  arkadeSwaps: null,
   swapManager: null,
   connected: false,
   calcSubmarineSwapFee: () => 0,

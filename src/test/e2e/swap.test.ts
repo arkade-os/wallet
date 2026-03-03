@@ -2,6 +2,7 @@ import test, { expect } from '@playwright/test'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { createWallet, pay, receiveLightning, receiveOffchain, waitForPaymentReceived } from './utils'
+import { faucetOffchain } from './fundedWallet'
 
 const execAsync = promisify(exec)
 
@@ -57,7 +58,7 @@ test('should send funds to Lightning', async ({ page }) => {
   expect(arkAddress).toBeTruthy()
 
   // faucet
-  exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
+  await faucetOffchain(arkAddress, 5000)
   await waitForPaymentReceived(page)
 
   // main page
@@ -98,7 +99,7 @@ test('should refund failing swap', async ({ page }) => {
   expect(arkAddress).toBeTruthy()
 
   // faucet
-  exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
+  await faucetOffchain(arkAddress, 5000)
   await waitForPaymentReceived(page)
 
   // main page

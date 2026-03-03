@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { exec } from 'child_process'
 import { createWallet, pay, receiveOffchain, waitForPaymentReceived } from './utils'
+import { faucetOffchain } from './fundedWallet'
 
 test('should send to ark address', async ({ page, isMobile }) => {
   // create wallet
@@ -12,7 +13,7 @@ test('should send to ark address', async ({ page, isMobile }) => {
   expect(arkAddress).toBeTruthy()
 
   // faucet
-  exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
+  await faucetOffchain(arkAddress, 5000)
   await waitForPaymentReceived(page)
 
   // main page
@@ -47,7 +48,7 @@ test('should send to onchain address', async ({ page, isMobile }) => {
   expect(arkAddress).toBeTruthy()
 
   // faucet
-  exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
+  await faucetOffchain(arkAddress, 5000)
   await waitForPaymentReceived(page)
 
   // main page

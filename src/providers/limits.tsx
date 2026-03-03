@@ -57,7 +57,7 @@ export const LimitsContext = createContext<LimitsContextProps>({
 export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet } = useContext(WalletContext)
-  const { arkadeChainSwap, arkadeLightning, connected } = useContext(SwapsContext)
+  const { arkadeSwaps, connected } = useContext(SwapsContext)
 
   const limits = useRef<LimitTxTypes>({
     arkToBtc: { min: BigInt(0), max: BigInt(0) },
@@ -82,58 +82,15 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [aspInfo.network, svcWallet, connected])
 
-  // update limits when arkadeLightning or connected changes
+  // update limits when arkadeSwaps or connected changes
   useEffect(() => {
-    if (!arkadeLightning) return
-    if (connected) {
-      arkadeLightning
-        .getLimits()
-        .then((res) => {
-          if (!res) return
-          limits.current.swap = {
-            ...limits.current.swap,
-            min: BigInt(res.min),
-            max: BigInt(res.max),
-          }
-        })
-        .catch(consoleError)
-    } else {
+    if (!arkadeSwaps) return
+    if (!connected) {
       limits.current.swap = {
         ...limits.current.swap,
         min: BigInt(0),
         max: BigInt(0),
       }
-    }
-  }, [arkadeLightning, connected])
-
-  // update limits when arkadeChainSwap or connected changes
-  useEffect(() => {
-    if (!arkadeChainSwap) return
-
-    if (connected) {
-      arkadeChainSwap
-        .getLimits('ARK', 'BTC')
-        .then((res) => {
-          if (!res) return
-          limits.current.arkToBtc = {
-            ...limits.current.arkToBtc,
-            min: BigInt(res.min),
-            max: BigInt(res.max),
-          }
-        })
-        .catch(consoleError)
-      arkadeChainSwap
-        .getLimits('BTC', 'ARK')
-        .then((res) => {
-          if (!res) return
-          limits.current.btcToArk = {
-            ...limits.current.btcToArk,
-            min: BigInt(res.min),
-            max: BigInt(res.max),
-          }
-        })
-        .catch(consoleError)
-    } else {
       limits.current.arkToBtc = {
         ...limits.current.arkToBtc,
         min: BigInt(0),
@@ -144,8 +101,42 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
         min: BigInt(0),
         max: BigInt(0),
       }
+    } else {
+      arkadeSwaps
+        .getLimits()
+        .then((res) => {
+          if (!res) return
+          limits.current.swap = {
+            ...limits.current.swap,
+            min: BigInt(res.min),
+            max: BigInt(res.max),
+          }
+        })
+        .catch(consoleError)
+      arkadeSwaps
+        .getLimits('ARK', 'BTC')
+        .then((res) => {
+          if (!res) return
+          limits.current.arkToBtc = {
+            ...limits.current.arkToBtc,
+            min: BigInt(res.min),
+            max: BigInt(res.max),
+          }
+        })
+        .catch(consoleError)
+      arkadeSwaps
+        .getLimits('BTC', 'ARK')
+        .then((res) => {
+          if (!res) return
+          limits.current.btcToArk = {
+            ...limits.current.btcToArk,
+            min: BigInt(res.min),
+            max: BigInt(res.max),
+          }
+        })
+        .catch(consoleError)
     }
-  }, [arkadeChainSwap, connected])
+  }, [arkadeSwaps, connected])
 
   const minSwapAllowed = () => Number(limits.current.swap.min)
   const maxSwapAllowed = () => Number(limits.current.swap.max)
