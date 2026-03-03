@@ -2,8 +2,6 @@ import { ReactNode, createContext, useContext, useEffect, useState } from 'react
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import {
-  ArkadeChainSwap,
-  ArkadeLightning,
   ArkToBtcResponse,
   BoltzSwapProvider,
   BtcToArkResponse,
@@ -22,7 +20,6 @@ import {
 import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
 import { sendOffChain } from '../lib/asp'
-import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 
 const BASE_URLS: Record<Network, string | null> = {
   bitcoin: import.meta.env.VITE_BOLTZ_URL ?? 'https://api.ark.boltz.exchange',
@@ -38,7 +35,6 @@ interface SwapsContextProps {
   calcBtcToArkSwapFee: (satoshis: number) => number
   calcReverseSwapFee: (satoshis: number) => number
   calcSubmarineSwapFee: (satoshis: number) => number
-  arkadeChainSwap: ArkadeChainSwap | null
   arkadeLightning: ServiceWorkerArkadeLightning | null
   swapManager: SwapManagerClient | null
   toggleConnection: () => void
@@ -63,7 +59,6 @@ interface SwapsContextProps {
 
 export const SwapsContext = createContext<SwapsContextProps>({
   connected: false,
-  arkadeChainSwap: null,
   arkadeLightning: null,
   swapManager: null,
   toggleConnection: () => {},
@@ -96,7 +91,6 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const { svcWallet } = useContext(WalletContext)
   const { config, updateConfig, backupConfig } = useContext(ConfigContext)
 
-  const [arkadeChainSwap, setArkadeChainSwap] = useState<ArkadeChainSwap | null>(null)
   const [arkToBtcFees, setArkToBtcFees] = useState<ChainFeesResponse | null>(null)
   const [btcToArkFees, setBtcToArkFees] = useState<ChainFeesResponse | null>(null)
   const [arkadeLightning, setArkadeLightning] = useState<ServiceWorkerArkadeLightning | null>(null)
