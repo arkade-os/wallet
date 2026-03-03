@@ -1,10 +1,10 @@
 import { HDKey } from '@scure/bip32'
 import { hex } from '@scure/base'
 import { Vtxo } from './types'
-import { Indexer } from './indexer'
 import { AspInfo } from '../providers/asp'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import { IWallet } from '@arkade-os/sdk'
+import { Indexer } from './indexer'
 
 const DERIVATION_PATH = "m/44/1237/0'"
 
@@ -34,12 +34,11 @@ export const calcNextRollover = async (vtxos: Vtxo[], wallet: IWallet, aspInfo: 
   }, 0)
 }
 
-export const calcBatchLifetimeMs = async (aspInfo: AspInfo, vtxos: Vtxo[]): Promise<number> => {
+export const calcBatchLifetimeMs = async (vtxos: Vtxo[], indexer: Indexer): Promise<number> => {
   const sampleVtxo = vtxos.find((vtxo) => vtxo.virtualStatus.batchExpiry && vtxo.virtualStatus.commitmentTxIds)
   if (!sampleVtxo || !sampleVtxo.virtualStatus.batchExpiry || !sampleVtxo.virtualStatus.commitmentTxIds?.[0]) return 0
 
-  const indexer = new Indexer(aspInfo)
-  const batchStart = await indexer.getCommitmentTxCreatedAt(sampleVtxo.virtualStatus.commitmentTxIds[0])
+  const batchStart = await indexer.getAndUpdateCommitmentTxCreatedAt(sampleVtxo.virtualStatus.commitmentTxIds[0])
   if (!batchStart) return 0
   const batchStartMs = batchStart * 1000
 

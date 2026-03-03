@@ -1,6 +1,19 @@
-import { Worker } from '@arkade-os/sdk'
+import { ArkadeLightningMessageHandler, IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
+import {
+  IndexedDBWalletRepository,
+  IndexedDBContractRepository,
+  MessageBus,
+  WalletMessageHandler,
+} from '@arkade-os/sdk'
 
-const worker = new Worker()
+const walletRepository = new IndexedDBWalletRepository()
+const contractRepository = new IndexedDBContractRepository()
+const swapRepository = new IndexedDbSwapRepository()
+
+const worker = new MessageBus(walletRepository, contractRepository, {
+  messageHandlers: [new WalletMessageHandler(), new ArkadeLightningMessageHandler(swapRepository)],
+  tickIntervalMs: 5000,
+})
 worker.start().catch(console.error)
 
 const CACHE_NAME = 'arkade-cache-v1'
@@ -79,10 +92,3 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
 // self.addEventListener('fetch', (event: FetchEvent) => {
 //   event.respondWith(networkFirst(event.request))
 // })
-
-self.addEventListener('message', (event: ExtendableMessageEvent) => {
-  if (event.data && event.data.type === 'RELOAD_WALLET') {
-    // reload the wallet when the service worker receives a message to reload
-    event.waitUntil(worker.reload().catch(console.error))
-  }
-})

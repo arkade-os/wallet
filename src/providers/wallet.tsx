@@ -11,11 +11,24 @@ import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
-import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey } from '@arkade-os/sdk'
+import {
+  ArkNote,
+  NetworkName,
+  SingleKey,
+  migrateWalletRepository,
+  getMigrationStatus,
+  rollbackMigration,
+  IndexedDBWalletRepository,
+  IndexedDBContractRepository,
+  ServiceWorkerWallet,
+} from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
 import { maxPercentage } from '../lib/constants'
+import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
+import { Indexer } from '../lib/indexer'
+import { IndexedDbSwapRepository, migrateToSwapRepository } from '@arkade-os/boltz-swap'
 
 const defaultWallet: Wallet = {
   network: '',
@@ -94,7 +107,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const computeThresholds = async () => {
       try {
         const allVtxos = await svcWallet.getVtxos({ withRecoverable: true })
-        const batchLifetimeMs = await calcBatchLifetimeMs(aspInfo, allVtxos)
+        const batchLifetimeMs = await calcBatchLifetimeMs(allVtxos, new Indexer(aspInfo, svcWallet.walletRepository))
         const thresholdMs = Math.floor((batchLifetimeMs * maxPercentage) / 100)
         const nextRollover = await calcNextRollover(vtxos.spendable, svcWallet, aspInfo)
         updateWallet((prev) => ({ ...prev, nextRollover, thresholdMs }))
@@ -181,12 +194,41 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }) => {
     try {
       // create service worker wallet
+      const walletRepository = new IndexedDBWalletRepository()
+      const contractRepository = new IndexedDBContractRepository()
+      await walletRepository.getWalletState()
       const svcWallet = await ServiceWorkerWallet.setup({
         serviceWorkerPath: '/wallet-service-worker.mjs',
         identity: SingleKey.fromHex(privateKey),
         arkServerUrl,
         esploraUrl,
+        storage: { walletRepository, contractRepository },
       })
+
+      // Migration!
+      try {
+        const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
+        const walletStatus = await getMigrationStatus('wallet', oldStorage)
+        if (walletStatus !== 'not-needed') {
+          if (walletStatus === 'pending' || walletStatus === 'in-progress') {
+            const arkAddress = await svcWallet.getAddress()
+            const boardingAddress = await svcWallet.getBoardingAddress()
+            try {
+              await migrateWalletRepository(oldStorage, svcWallet.walletRepository, {
+                offchain: [arkAddress],
+                onchain: [boardingAddress],
+              })
+            } catch (err) {
+              await rollbackMigration('wallet', oldStorage)
+              throw err
+            }
+          }
+          await migrateToSwapRepository(oldStorage, new IndexedDbSwapRepository())
+        }
+      } catch (err) {
+        consoleError(err, 'Error migrating wallet repository')
+      }
+
       setSvcWallet(svcWallet)
 
       // handle messages from the service worker
@@ -283,7 +325,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!svcWallet) throw new Error('Service worker not initialized')
     await clearStorage()
     await svcWallet.clear()
-    await svcWallet.contractRepository.clearContractData()
+    await svcWallet.contractRepository.clear()
     setDataReady(false)
     hasLoadedOnce.current = false
   }
