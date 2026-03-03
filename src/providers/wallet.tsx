@@ -220,6 +220,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
       setBalance(total)
       setAssetBalances(assets)
+      if (assets.length > 0 && !config.apps.assets.enabled) {
+        updateConfig({ ...config, apps: { ...config.apps, assets: { enabled: true } } })
+      }
       setVtxos(vtxos)
       setTxs(txs)
       if (!hasLoadedOnce.current) {

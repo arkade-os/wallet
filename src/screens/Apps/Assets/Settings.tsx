@@ -5,14 +5,16 @@ import Toggle from '../../../components/Toggle'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { ConfigContext } from '../../../providers/config'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 
 export default function AppAssetsSettings() {
-  const { config, setConfig } = useContext(ConfigContext)
+  const { config, updateConfig } = useContext(ConfigContext)
+  const { navigate } = useContext(NavigationContext)
 
   const toggleConnection = () => {
-    const newConfig = JSON.parse(JSON.stringify(config))
-    newConfig.apps.assets.enabled = !config.apps.assets.enabled
-    setConfig(newConfig)
+    const enabling = !config.apps.assets.enabled
+    updateConfig({ ...config, apps: { ...config.apps, assets: { enabled: enabling } } })
+    if (enabling) navigate(Pages.AppAssets)
   }
 
   return (

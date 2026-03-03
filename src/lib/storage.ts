@@ -1,16 +1,15 @@
 import { AssetDetails } from '@arkade-os/sdk'
 import { Config, Wallet } from '../lib/types'
-import { APPROVED_ICONS_KEY } from './assetIconApproval'
 
-// clear localStorage but persist config
+// clear localStorage but persist config (with asset data reset)
 export async function clearStorage(): Promise<void> {
   const config = readConfigFromStorage()
-  const assetMeta = readAssetMetadataFromStorage()
-  const approvedIcons = localStorage.getItem(APPROVED_ICONS_KEY)
   localStorage.clear()
-  if (config) saveConfigToStorage(config)
-  if (assetMeta) saveAssetMetadataToStorage(assetMeta)
-  if (approvedIcons) localStorage.setItem(APPROVED_ICONS_KEY, approvedIcons)
+  if (config) {
+    config.importedAssets = []
+    config.apps.assets.enabled = false
+    saveConfigToStorage(config)
+  }
 }
 
 export const getStorageItem = <T>(key: string, fallback: T, parser: (val: string) => T): T => {
