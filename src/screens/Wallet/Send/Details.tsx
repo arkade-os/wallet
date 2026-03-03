@@ -124,7 +124,7 @@ export default function SendDetails() {
 
   return (
     <>
-      <Header text='Sign transaction' back={() => navigate(Pages.SendForm)} />
+      <Header text='Sign transaction' back />
       <Content>
         {sending ? (
           details?.destination === invoice ? (

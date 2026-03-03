@@ -2,6 +2,7 @@ import { IonText, useIonToast } from '@ionic/react'
 import { ReactNode } from 'react'
 import { copyToClipboard } from '../lib/clipboard'
 import { copiedToClipboard } from '../lib/toast'
+import { hapticSubtle } from '../lib/haptics'
 
 interface TextProps {
   big?: boolean
@@ -12,8 +13,9 @@ interface TextProps {
   children: ReactNode
   color?: string
   copy?: string
-  fullWidth?: boolean
+  heading?: boolean
   large?: boolean
+  medium?: boolean
   right?: boolean
   smaller?: boolean
   small?: boolean
@@ -31,8 +33,9 @@ export default function Text({
   children,
   color,
   copy,
-  fullWidth,
+  heading,
   large,
+  medium,
   right,
   smaller,
   small,
@@ -47,9 +50,11 @@ export default function Text({
   const pStyle: any = {
     color: color ? `var(--${color})` : undefined,
     cursor: copy ? 'pointer' : undefined,
+    fontFamily: heading ? 'var(--heading-font)' : undefined,
     fontSize,
-    fontWeight: thin ? '400' : bold ? '600' : undefined,
-    lineHeight: tiny ? '1' : '1.5',
+    fontWeight: thin ? '400' : medium ? '500' : bold ? (heading ? '700' : '600') : undefined,
+    letterSpacing: heading ? '-0.5px' : undefined,
+    lineHeight: heading ? (bigger || big ? '1.2' : large ? '1.4' : '1.5') : tiny ? '1' : '1.5',
     overflow: wrap ? undefined : 'hidden',
     textAlign: centered ? 'center' : right ? 'right' : undefined,
     textOverflow: wrap ? undefined : 'ellipsis',
@@ -57,20 +62,17 @@ export default function Text({
     wordBreak: 'break-word',
   }
 
-  const iStyle: any = {
-    width: fullWidth ? '100%' : undefined,
-  }
-
   const [present] = useIonToast()
 
   const handleClick = () => {
     if (!copy) return
+    hapticSubtle()
     copyToClipboard(copy)
     present(copiedToClipboard)
   }
 
   return (
-    <IonText style={iStyle}>
+    <IonText>
       <p className={className} onClick={handleClick} style={pStyle}>
         {children}
       </p>

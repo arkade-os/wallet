@@ -162,9 +162,13 @@ export default function ReceiveAmount() {
     )
   }
 
+  if (showKeys) {
+    return <Keyboard back={() => setShowKeys(false)} hideBalance onSats={handleChange} value={satoshis} />
+  }
+
   return (
     <>
-      <Header text='Receive' back={() => navigate(Pages.Wallet)} />
+      <Header text='Receive' back />
       <Content>
         <Padded>
           <FlexCol>
@@ -175,6 +179,7 @@ export default function ReceiveAmount() {
               label='Amount'
               onSats={handleChange}
               onFocus={handleFocus}
+              readOnly={isMobileBrowser}
               value={textValue ? Number(textValue) : undefined}
               sats={satoshis}
             />

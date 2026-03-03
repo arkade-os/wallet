@@ -15,7 +15,7 @@ function EmptyTemplate({ icon, text, secondaryText }: EmptyProps) {
       <FlexCol centered gap='1rem'>
         {icon}
         <FlexCol centered gap='0.5rem'>
-          <Text>{text}</Text>
+          <Text heading>{text}</Text>
           <TextSecondary>{secondaryText}</TextSecondary>
         </FlexCol>
       </FlexCol>

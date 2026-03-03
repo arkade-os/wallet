@@ -12,6 +12,7 @@ import { ConfigContext } from '../providers/config'
 import { FiatContext } from '../providers/fiat'
 import PreconfirmedIcon from '../icons/Preconfirmed'
 import Focusable from './Focusable'
+import { hapticSubtle } from '../lib/haptics'
 
 const border = '1px solid var(--dark20)'
 
@@ -110,12 +111,12 @@ export default function TransactionsList() {
 
   const [focused, setFocused] = useState(false)
 
-  const key = (tx: Tx) => `${tx.amount}${tx.createdAt}${tx.boardingTxid}${tx.roundTxid}${tx.redeemTxid}${tx.type}`
+  const key = (tx: Tx, index: number) => tx.roundTxid || tx.redeemTxid || tx.boardingTxid || `tx-${index}`
 
   const focusOnFirstRow = () => {
     setFocused(true)
     if (txs.length === 0) return
-    const id = key(txs[0])
+    const id = key(txs[0], 0)
     const first = document.getElementById(id) as HTMLElement
     if (first) first.focus()
   }
@@ -132,6 +133,7 @@ export default function TransactionsList() {
   }
 
   const handleClick = (tx: Tx) => {
+    hapticSubtle()
     setTxInfo(tx)
     navigate(Pages.Transaction)
   }
@@ -141,18 +143,21 @@ export default function TransactionsList() {
       <TextLabel>Transaction history</TextLabel>
       <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
         <div style={{ borderBottom: border }}>
-          {txs.map((tx) => (
-            <Focusable
-              id={key(tx)}
-              key={key(tx)}
-              inactive={!focused}
-              onEnter={() => handleClick(tx)}
-              onEscape={focusOnOuterShell}
-              ariaLabel={ariaLabel(tx)}
-            >
-              <TransactionLine onClick={() => handleClick(tx)} tx={tx} />
-            </Focusable>
-          ))}
+          {txs.map((tx, index) => {
+            const k = key(tx, index)
+            return (
+              <Focusable
+                id={k}
+                key={k}
+                inactive={!focused}
+                onEnter={() => handleClick(tx)}
+                onEscape={focusOnOuterShell}
+                ariaLabel={ariaLabel(tx)}
+              >
+                <TransactionLine onClick={() => handleClick(tx)} tx={tx} />
+              </Focusable>
+            )
+          })}
         </div>
       </Focusable>
     </div>

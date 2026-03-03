@@ -12,6 +12,7 @@ import CheckMarkIcon from '../icons/CheckMark'
 import { useIonToast } from '@ionic/react'
 import { copiedToClipboard } from '../lib/toast'
 import Focusable from './Focusable'
+import { hapticSubtle } from '../lib/haptics'
 
 interface ExpandAddressesProps {
   bip21uri: string
@@ -47,13 +48,18 @@ export default function ExpandAddresses({
   }, [expand])
 
   const handleCopy = async (value: string) => {
+    hapticSubtle()
     await copyToClipboard(value)
     present(copiedToClipboard)
     setCopied(value)
   }
 
   const handleExpand = () => {
-    if (!expand && bip21uri) handleCopy(bip21uri)
+    if (!expand && bip21uri) {
+      handleCopy(bip21uri)
+    } else {
+      hapticSubtle()
+    }
     setExpand(!expand)
   }
 

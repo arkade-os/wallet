@@ -7,6 +7,7 @@ import Focusable from './Focusable'
 import { copyToClipboard } from '../lib/clipboard'
 import { useIonToast } from '@ionic/react'
 import { copiedToClipboard } from '../lib/toast'
+import { hapticSubtle } from '../lib/haptics'
 
 export type TableLine = [string, string | undefined, JSX.Element?]
 export type TableData = TableLine[]
@@ -17,6 +18,7 @@ export default function Table({ data }: { data: TableData }) {
   const [present] = useIonToast()
 
   const copy = (value: string) => {
+    hapticSubtle()
     copyToClipboard(value)
     present(copiedToClipboard)
   }

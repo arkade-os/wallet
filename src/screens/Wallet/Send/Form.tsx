@@ -188,6 +188,7 @@ export default function SendForm() {
         if (!conditions) return setError('Unable to fetch LNURL conditions')
         const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
         const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
+        if (min === max) setSendInfo({ ...sendInfo, satoshis: min }) // set amount automatically
         return setLnUrlLimits({ min, max })
       })
       .catch(() => setError('Invalid address or LNURL'))
@@ -417,17 +418,19 @@ export default function SendForm() {
     satoshis < 1 ||
     processing
 
-  if (scan)
+  if (keys && !amountIsReadOnly) {
+    return <Keyboard back={() => setKeys(false)} onSats={handleAmountChange} value={amount} />
+  }
+
+  if (scan) {
     return (
       <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
     )
-
-  if (keys && !amountIsReadOnly)
-    return <Keyboard back={() => setKeys(false)} onSats={handleAmountChange} value={amount} />
+  }
 
   return (
     <>
-      <Header text='Send' back={() => navigate(Pages.Wallet)} />
+      <Header text='Send' back />
       <Content>
         <Padded>
           <FlexCol gap='2rem'>
@@ -438,7 +441,10 @@ export default function SendForm() {
               label='Recipient address'
               onChange={handleRecipientChange}
               onEnter={handleEnter}
-              openScan={() => setScan(true)}
+              openScan={() => {
+                setKeys(false)
+                setScan(true)
+              }}
               value={recipient}
             />
             <InputAmount
@@ -451,7 +457,7 @@ export default function SendForm() {
               onEnter={handleEnter}
               onFocus={handleFocus}
               onMax={handleSendAll}
-              readOnly={amountIsReadOnly}
+              readOnly={amountIsReadOnly || isMobileBrowser}
               right={<Available />}
               sats={amount}
               value={textValue ? Number(textValue) : undefined}

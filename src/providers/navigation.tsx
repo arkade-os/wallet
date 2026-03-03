@@ -28,6 +28,8 @@ import AppLendasat from '../screens/Apps/Lendasat/Index'
 import AppLendaswap from '../screens/Apps/Lendaswap/Index'
 import Unavailable from '../screens/Wallet/Unavailable'
 
+export type NavigationDirection = 'forward' | 'back' | 'none'
+
 export enum Pages {
   AppBoltz,
   AppBoltzSettings,
@@ -97,6 +99,9 @@ const pageTab = {
   [Pages.Wallet]: Tabs.Wallet,
 }
 
+// Root pages of each tab — tab switches between these get no animation
+const ROOT_PAGES = new Set([Pages.Wallet, Pages.Apps, Pages.Settings])
+
 export const pageComponent = (page: Pages): JSX.Element => {
   switch (page) {
     case Pages.AppBoltz:
@@ -161,12 +166,18 @@ export const pageComponent = (page: Pages): JSX.Element => {
 }
 
 interface NavigationContextProps {
+  direction: NavigationDirection
+  goBack: () => void
+  isInitialLoad: boolean
   navigate: (arg0: Pages) => void
   screen: Pages
   tab: Tabs
 }
 
 export const NavigationContext = createContext<NavigationContextProps>({
+  direction: 'none',
+  goBack: () => {},
+  isInitialLoad: false,
   navigate: () => {},
   screen: Pages.Init,
   tab: Tabs.None,
@@ -175,8 +186,12 @@ export const NavigationContext = createContext<NavigationContextProps>({
 export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   const [screen, setScreen] = useState(Pages.Init)
   const [tab, setTab] = useState(Tabs.None)
+  const [direction, setDirection] = useState<NavigationDirection>('none')
 
   const navigationHistory = useRef<Pages[]>([])
+  const previousPage = useRef<Pages>(Pages.Init)
+
+  const isInitialLoad = pageTab[previousPage.current] === Tabs.None && screen === Pages.Wallet
 
   const addEntryToBrowserHistory = () => {
     if (typeof window !== 'undefined' && 'history' in window) {
@@ -200,10 +215,10 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
       return
     }
 
-    const previousPage = navigationHistory.current[length - 2]
+    const prevPage = navigationHistory.current[length - 2]
 
     // prevent going back to InitConnect or to a loading screen
-    if ([Pages.InitConnect, Pages.Loading].includes(previousPage)) {
+    if ([Pages.InitConnect, Pages.Loading].includes(prevPage)) {
       // when popstate fires, the browser has already navigated back
       // add a new entry to keep internal and browser history in sync
       addEntryToBrowserHistory()
@@ -214,9 +229,11 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     navigationHistory.current.pop()
 
     // update UI to show previous page
-    setTab(pageTab[previousPage])
-    setScreen(previousPage)
-  }, []) // setTab and setScreen are stable
+    previousPage.current = screen
+    setDirection('back')
+    setTab(pageTab[prevPage])
+    setScreen(prevPage)
+  }, [screen])
 
   useEffect(() => {
     const handlePopState = () => pop()
@@ -227,11 +244,24 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [pop])
 
+  const goBack = useCallback(() => {
+    history.back()
+  }, [])
+
   const navigate = (page: Pages) => {
+    const nextTab = pageTab[page]
+    const isTabSwitch = nextTab !== tab && ROOT_PAGES.has(page) && ROOT_PAGES.has(screen)
+
+    previousPage.current = screen
     push(page)
+    setDirection(isTabSwitch ? 'none' : 'forward')
     setScreen(page)
-    setTab(pageTab[page])
+    setTab(nextTab)
   }
 
-  return <NavigationContext.Provider value={{ navigate, screen, tab }}>{children}</NavigationContext.Provider>
+  return (
+    <NavigationContext.Provider value={{ direction, goBack, isInitialLoad, navigate, screen, tab }}>
+      {children}
+    </NavigationContext.Provider>
+  )
 }

@@ -16,8 +16,9 @@ import Button from '../../components/Button'
 import Header from '../../components/Header'
 import Padded from '../../components/Padded'
 import Input from '../../components/Input'
-import Text from '../../components/Text'
+import { TextSecondary } from '../../components/Text'
 import { hex } from '@scure/base'
+import { OnboardStaggerContainer, OnboardStaggerChild } from '../../components/OnboardLoadIn'
 
 export default function InitRestore() {
   const { updateConfig } = useContext(ConfigContext)
@@ -68,18 +69,22 @@ export default function InitRestore() {
 
   return (
     <>
-      <Header text='Restore wallet' back={handleCancel} />
+      <Header text='Restore wallet' back />
       <Content>
         <Padded>
-          <FlexCol between>
-            <FlexCol>
-              <Input name='private-key' label='Private key' onChange={setSomeKey} />
-              <ErrorMessage error={Boolean(error)} text={error} />
-            </FlexCol>
-            <Text centered color='dark70' fullWidth thin small>
-              Your private key should start with the 'nsec' string. Do not share it with anyone.
-            </Text>
-          </FlexCol>
+          <OnboardStaggerContainer>
+            <OnboardStaggerChild>
+              <FlexCol between>
+                <FlexCol>
+                  <Input name='private-key' label='Private key' onChange={setSomeKey} />
+                  <ErrorMessage error={Boolean(error)} text={error} />
+                </FlexCol>
+                <TextSecondary wrap>
+                  Your private key should start with the 'nsec' string. Do not share it with anyone.
+                </TextSecondary>
+              </FlexCol>
+            </OnboardStaggerChild>
+          </OnboardStaggerContainer>
         </Padded>
       </Content>
       <ButtonsOnBottom>
