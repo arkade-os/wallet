@@ -225,6 +225,7 @@ export default function Delegates() {
                 text='Use default Arkade delegate'
                 subtext="Use Arkade's default delegate to manage renewals"
               />
+              <TextSecondary>Changes take effect after locking and unlocking your wallet.</TextSecondary>
               <WarningBox text={warningText} />
               <DelegateCard active={active} />
             </FlexCol>

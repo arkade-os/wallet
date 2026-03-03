@@ -247,7 +247,6 @@ export const getInputsToSettle = async (
 }
 
 export const settleVtxos = async (wallet: IWallet, dustAmount: bigint, thresholdMs?: number): Promise<void> => {
-  return // TODO: temporary disable, settlement are done by the delegator service
   const { inputs } = await getInputsToSettle(wallet, thresholdMs)
 
   if (inputs.length === 0) throw new Error('No UTXOs or VTXOs eligible to settle')
@@ -279,6 +278,17 @@ export const settleVtxos = async (wallet: IWallet, dustAmount: bigint, threshold
 export const renewCoins = async (wallet: IWallet, dustAmount: bigint, thresholdMs?: number): Promise<void> => {
   const { inputs } = await getInputsToSettle(wallet, thresholdMs)
   if (inputs.length > 0) await settleVtxos(wallet, dustAmount, thresholdMs)
+}
+
+export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> => {
+  const vtxos = await wallet.getVtxos()
+  if (vtxos.length === 0) return
+  const destination = await wallet.getAddress()
+  const outpoints = vtxos.map((v) => ({ txid: v.txid, vout: v.vout }))
+  const result = await wallet.delegate(outpoints, destination)
+  if (result.failed.length > 0) {
+    console.warn('Delegation partial failure:', result.failed)
+  }
 }
 
 const serializeForSentry = (value: any): string => {

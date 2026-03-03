@@ -2,7 +2,7 @@ import { ReactNode, createContext, useContext, useEffect, useRef, useState } fro
 import { clearStorage, readWalletFromStorage, saveWalletToStorage } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
-import { getBalance, getTxHistory, getVtxos, renewCoins, settleVtxos } from '../lib/asp'
+import { delegateVtxos, getBalance, getTxHistory, getVtxos, renewCoins, settleVtxos } from '../lib/asp'
 import { AspContext } from './asp'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
@@ -25,12 +25,10 @@ import {
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
-import { maxPercentage } from '../lib/constants'
+import { defaultDelegate, maxPercentage } from '../lib/constants'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { Indexer } from '../lib/indexer'
 import { IndexedDbSwapRepository, migrateToSwapRepository } from '@arkade-os/boltz-swap'
-
-const delegatorUrl = import.meta.env.VITE_DELEGATOR_URL ?? 'https://delegator.mutinynet.arkade.sh'
 
 const defaultWallet: Wallet = {
   network: '',
@@ -195,7 +193,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     privateKey: string
     retryCount?: number
     maxRetries?: number
-    delegatorUrl: string
+    delegatorUrl?: string
   }) => {
     try {
       // create service worker wallet
@@ -271,8 +269,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }, 1_000)
 
-      // renew expiring coins on startup
-      renewCoins(svcWallet, aspInfo.dust, wallet.thresholdMs).catch(() => {})
+      // delegate or renew expiring coins on startup
+      if (config.delegate) {
+        delegateVtxos(svcWallet).catch(() => {})
+      } else {
+        renewCoins(svcWallet, aspInfo.dust, wallet.thresholdMs).catch(() => {})
+      }
     } catch (err) {
       if (
         err instanceof Error &&
@@ -315,6 +317,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const esploraUrl = getRestApiExplorerURL(network) ?? ''
     const pubkey = hex.encode(secp.getPublicKey(privateKey))
     updateConfig({ ...config, pubkey })
+    const delegatorUrl = config.delegate ? defaultDelegate().url : undefined
     await initSvcWorkerWallet({
       privateKey: hex.encode(privateKey),
       arkServerUrl,
