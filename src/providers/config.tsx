@@ -5,6 +5,7 @@ import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
 import { BackupProvider } from '../lib/backup'
 import { consoleError } from '../lib/logs'
 import { setHapticsEnabled } from '../lib/haptics'
+import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
 
 const defaultConfig: Config = {
   announcementsSeen: [],
@@ -67,7 +68,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
   const [systemTheme, setSystemTheme] = useState<Themes.Dark | Themes.Light>(() => resolveTheme(Themes.Auto))
 
   const backupConfig = async (config: Config) => {
-    const backupProvider = new BackupProvider({ pubkey: config.pubkey })
+    const backupProvider = new BackupProvider({ pubkey: config.pubkey }, new IndexedDbSwapRepository())
     await backupProvider.backupConfig(config).catch((error) => {
       consoleError(error, 'Backup to Nostr failed')
     })
