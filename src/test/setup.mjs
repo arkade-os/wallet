@@ -291,7 +291,15 @@ async function setupBoltz() {
 
     console.log('\nFunding Boltz core wallet for chain swaps...')
     const bitcoinCli = 'docker exec bitcoin bitcoin-cli -regtest -rpcuser=admin1 -rpcpassword=123'
-    const boltzAddress = execSync(`${bitcoinCli} -rpcwallet=core getnewaddress "" bech32`, { encoding: 'utf8' }).trim()
+    try {
+      execSync(`${bitcoinCli} createwallet core`, { stdio: 'pipe' })
+      console.log('  ✔ Created core wallet')
+    } catch {
+      console.log('  Core wallet already exists')
+    }
+    const boltzAddress = execSync(`${bitcoinCli} -rpcwallet=core getnewaddress "" bech32`, {
+      encoding: 'utf8',
+    }).trim()
     console.log(`  Address: ${boltzAddress}`)
     await faucet(boltzAddress, 1)
 
