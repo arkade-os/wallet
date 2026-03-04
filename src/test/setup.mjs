@@ -286,6 +286,18 @@ async function setupBoltz() {
     await execCommand('docker compose -f test.docker-compose.yml up -d boltz-postgres boltz', true)
     console.log('  ✔ Containers started')
 
+    console.log('\nWaiting for Boltz to be ready...')
+    await waitForCmd('curl -s http://localhost:9001/version')
+
+    console.log('\nFunding Boltz core wallet for chain swaps...')
+    const bitcoinCli = 'docker exec bitcoin bitcoin-cli -regtest -rpcuser=admin1 -rpcpassword=123'
+    const boltzAddress = execSync(
+      `${bitcoinCli} -rpcwallet=core getnewaddress "" bech32`,
+      { encoding: 'utf8' },
+    ).trim()
+    console.log(`  Address: ${boltzAddress}`)
+    await faucet(boltzAddress, 1)
+
     console.log('\nStarting CORS proxy...')
     await execCommand('docker compose -f test.docker-compose.yml up -d cors', true)
     console.log('  ✔ Container started')
