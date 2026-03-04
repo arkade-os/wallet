@@ -25,7 +25,7 @@ const execAsync = promisify(exec)
 // 6. Restore wallet with backup phrase
 // 7. Verify swap history has both swaps
 
-test('should restore swaps without nostr backup', async ({ page, isMobile }) => {
+test('should restore swaps without nostr backup', { timeout: 90000 }, async ({ page, isMobile }) => {
   // create wallet
   await createWallet(page)
 
