@@ -10,6 +10,13 @@ const walletRepository = new IndexedDBWalletRepository()
 const contractRepository = new IndexedDBContractRepository()
 const swapRepository = new IndexedDbSwapRepository()
 
+// Allow the page to force activation of a newly installed worker.
+self.addEventListener('message', (event: ExtendableMessageEvent) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
+})
+
 const worker = new MessageBus(walletRepository, contractRepository, {
   messageHandlers: [new WalletMessageHandler(), new ArkadeLightningMessageHandler(swapRepository)],
   tickIntervalMs: 5000,
@@ -43,19 +50,6 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
       )
     }),
   )
-  // some weird stuff happens if we don't reload the page when
-  // the service worker is activated, so we force a reload
-  // by sending a message to all clients to reload the page
-  self.clients
-    .matchAll({
-      includeUncontrolled: true,
-      type: 'window',
-    })
-    .then((clients) => {
-      clients.forEach((client) => {
-        client.postMessage({ type: 'RELOAD_PAGE' })
-      })
-    })
   self.clients.claim() // take control of clients immediately
 })
 
