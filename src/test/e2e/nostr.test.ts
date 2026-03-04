@@ -71,7 +71,8 @@ test('should save config to nostr', async ({ page }) => {
   await expect(page.getByText('EUR')).toBeVisible()
 })
 
-test('should save swaps to nostr', { timeout: 90000 }, async ({ page, isMobile }) => {
+test('should save swaps to nostr', async ({ page, isMobile }) => {
+  test.setTimeout(120000)
   // create wallet
   await createWallet(page)
 

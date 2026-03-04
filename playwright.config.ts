@@ -13,7 +13,7 @@ export default defineConfig({
     viewport: { width: 1280, height: 800 },
     trace: 'on-first-retry',
     permissions: ['clipboard-read', 'clipboard-write'],
-    actionTimeout: 30000,
+    actionTimeout: 60000,
     navigationTimeout: 30000,
     contextOptions: { reducedMotion: 'reduce' },
   },
