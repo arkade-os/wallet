@@ -320,6 +320,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const lockWallet = async () => {
     if (!svcWallet) throw new Error('Service worker not initialized')
+    if (statusPingInterval.current) clearInterval(statusPingInterval.current)
+    statusPingInterval.current = undefined
     await svcWallet.clear()
     setInitialized(false)
     setDataReady(false)
