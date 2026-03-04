@@ -208,7 +208,7 @@ services:
         user = "admin1"
         password = "123"
 
-        [[currencies.lnds]]
+        [currencies.lnd]
         host = "boltz-lnd"
         port = 10009
         certpath = "/home/boltz/.lnd/tls.cert"
