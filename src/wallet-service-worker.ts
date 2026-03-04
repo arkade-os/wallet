@@ -13,7 +13,7 @@ const swapRepository = new IndexedDbSwapRepository()
 // Allow the page to force activation of a newly installed worker.
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (event.data?.type === 'SKIP_WAITING') {
-    self.skipWaiting()
+    event.waitUntil(self.skipWaiting())
   }
 })
 

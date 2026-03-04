@@ -55554,7 +55554,7 @@ var hN = (c) => {
 };
 const gN = new Wd(), yN = new Vd(), mN = new Yd();
 self.addEventListener("message", (c) => {
-  c.data?.type === "SKIP_WAITING" && self.skipWaiting();
+  c.data?.type === "SKIP_WAITING" && c.waitUntil(self.skipWaiting());
 });
 const vN = new JR(gN, yN, {
   messageHandlers: [new tP(), new wN(mN)],
