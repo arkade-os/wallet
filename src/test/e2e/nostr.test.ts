@@ -96,7 +96,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
 
   // transaction should be visible on main page
   await page.getByTestId('tab-wallet').click()
-  await expect(page.getByText('+ 1,992 SATS')).toBeVisible()
+  await expect(page.getByText('1,992', { exact: true })).toBeVisible()
 
   // generate lightning invoice to pay
   const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
