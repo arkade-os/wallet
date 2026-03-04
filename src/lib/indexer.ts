@@ -22,7 +22,15 @@ export class Indexer {
 
   private getCommitmentTxIds(txid: string): number | null {
     const blob = localStorage.getItem(STORAGE_KEY)
-    const map = blob ? JSON.parse(blob) : {}
+    if (!blob) return null
+    let map: Record<string, number>
+    try {
+      map = JSON.parse(blob)
+    } catch {
+      console.error('Failed to parse commitmentTxs from localStorage, resetting')
+      localStorage.removeItem(STORAGE_KEY)
+      return null
+    }
     return map[txid] ?? null
   }
 
