@@ -76,6 +76,11 @@ export const options: Option[] = [
     section: SettingsSections.General,
   },
   {
+    icon: <></>,
+    option: SettingsOptions.Delegates,
+    section: SettingsSections.Advanced,
+  },
+  {
     icon: <VtxosIcon />,
     option: SettingsOptions.Vtxos,
     section: SettingsSections.Advanced,
@@ -93,6 +98,11 @@ export const options: Option[] = [
   {
     icon: <></>,
     option: SettingsOptions.Display,
+    section: SettingsSections.Config,
+  },
+  {
+    icon: <></>,
+    option: SettingsOptions.Haptics,
     section: SettingsSections.Config,
   },
   {

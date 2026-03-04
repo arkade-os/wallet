@@ -96,10 +96,14 @@ export default function ReceiveQRCode() {
       let receivedAssets: Asset[] = []
 
       if (event.data && event.data.type === 'VTXO_UPDATE') {
-        const newVtxos = event.data.newVtxos as ExtendedVirtualCoin[]
-        satoshis = newVtxos.reduce((acc, v) => acc + v.value, 0)
-        for (const v of newVtxos) {
-          receivedAssets.push(...(v.assets ?? []))
+        const newVtxos = event.data.payload?.newVtxos
+        if (Array.isArray(newVtxos)) {
+          satoshis = (newVtxos as ExtendedVirtualCoin[]).reduce((acc, v) => acc + v.value, 0)
+          for (const v of newVtxos as ExtendedVirtualCoin[]) {
+            receivedAssets.push(...(v.assets ?? []))
+          }
+        } else {
+          consoleError('VTXO_UPDATE message has unexpected payload shape:', event.data.payload)
         }
       }
 
@@ -115,8 +119,12 @@ export default function ReceiveQRCode() {
       }, [] as Asset[])
 
       if (event.data && event.data.type === 'UTXO_UPDATE') {
-        const coins = event.data.coins as Coin[]
-        satoshis = coins.reduce((acc, v) => acc + v.value, 0)
+        const coins = event.data.payload?.coins
+        if (Array.isArray(coins)) {
+          satoshis = (coins as Coin[]).reduce((acc, v) => acc + v.value, 0)
+        } else {
+          consoleError('UTXO_UPDATE message has unexpected payload shape:', event.data.payload)
+        }
       }
 
       if (satoshis || receivedAssets.length > 0) {

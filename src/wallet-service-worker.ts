@@ -1,6 +1,26 @@
-import { Worker } from '@arkade-os/sdk'
+import { ArkadeLightningMessageHandler, IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
+import {
+  IndexedDBWalletRepository,
+  IndexedDBContractRepository,
+  MessageBus,
+  WalletMessageHandler,
+} from '@arkade-os/sdk'
 
-const worker = new Worker()
+const walletRepository = new IndexedDBWalletRepository()
+const contractRepository = new IndexedDBContractRepository()
+const swapRepository = new IndexedDbSwapRepository()
+
+// Allow the page to force activation of a newly installed worker.
+self.addEventListener('message', (event: ExtendableMessageEvent) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    event.waitUntil(self.skipWaiting())
+  }
+})
+
+const worker = new MessageBus(walletRepository, contractRepository, {
+  messageHandlers: [new WalletMessageHandler(), new ArkadeLightningMessageHandler(swapRepository)],
+  tickIntervalMs: 5000,
+})
 worker.start().catch(console.error)
 
 const CACHE_NAME = 'arkade-cache-v1'
@@ -30,19 +50,6 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
       )
     }),
   )
-  // some weird stuff happens if we don't reload the page when
-  // the service worker is activated, so we force a reload
-  // by sending a message to all clients to reload the page
-  self.clients
-    .matchAll({
-      includeUncontrolled: true,
-      type: 'window',
-    })
-    .then((clients) => {
-      clients.forEach((client) => {
-        client.postMessage({ type: 'RELOAD_PAGE' })
-      })
-    })
   self.clients.claim() // take control of clients immediately
 })
 
@@ -79,10 +86,3 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
 // self.addEventListener('fetch', (event: FetchEvent) => {
 //   event.respondWith(networkFirst(event.request))
 // })
-
-self.addEventListener('message', (event: ExtendableMessageEvent) => {
-  if (event.data && event.data.type === 'RELOAD_WALLET') {
-    // reload the wallet when the service worker receives a message to reload
-    event.waitUntil(worker.reload().catch(console.error))
-  }
-})

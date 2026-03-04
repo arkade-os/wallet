@@ -10,11 +10,10 @@ import ArrowIcon from '../../icons/Arrow'
 import { SettingsOptions, Themes } from '../../lib/types'
 import { OptionsContext } from '../../providers/options'
 import Focusable from '../../components/Focusable'
-import Toggle from '../../components/Toggle'
 import { hapticSubtle } from '../../lib/haptics'
 
 export default function General() {
-  const { config, systemTheme, updateConfig } = useContext(ConfigContext)
+  const { config, systemTheme } = useContext(ConfigContext)
   const { setOption } = useContext(OptionsContext)
 
   const Row = ({ option, value }: { option: SettingsOptions; value: string }) => (
@@ -66,12 +65,7 @@ export default function General() {
             <hr style={{ backgroundColor: 'var(--dark20)', width: '100%' }} />
             <Row option={SettingsOptions.Display} value={config.currencyDisplay} />
             <hr style={{ backgroundColor: 'var(--dark20)', width: '100%' }} />
-            <Toggle
-              checked={config.haptics}
-              onClick={() => updateConfig({ ...config, haptics: !config.haptics })}
-              text='Haptic feedback'
-              subtext='Vibration on button taps and interactions'
-            />
+            <Row option={SettingsOptions.Haptics} value={config.haptics ? 'On' : 'Off'} />
           </FlexCol>
         </Padded>
       </Content>

@@ -18,7 +18,9 @@ import Theme from './Theme'
 import Fiat from './Fiat'
 import Display from './Display'
 import Password from './Password'
+import Delegates from './Delegates'
 import SettingsPageTransition from '../../components/SettingsPageTransition'
+import Haptics from './Haptics'
 
 function settingsContent(option: SettingsOptions): JSX.Element {
   switch (option) {
@@ -30,6 +32,8 @@ function settingsContent(option: SettingsOptions): JSX.Element {
       return <Advanced />
     case SettingsOptions.Backup:
       return <Backup />
+    case SettingsOptions.Delegates:
+      return <Delegates />
     case SettingsOptions.General:
       return <General />
     case SettingsOptions.Lock:
@@ -56,6 +60,8 @@ function settingsContent(option: SettingsOptions): JSX.Element {
       return <Display />
     case SettingsOptions.Password:
       return <Password />
+    case SettingsOptions.Haptics:
+      return <Haptics />
     default:
       return <></>
   }

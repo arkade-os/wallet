@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.2.19
-        version: 0.2.19
+        specifier: 0.3.0-next.2
+        version: 0.3.0-next.2
       '@arkade-os/sdk':
-        specifier: github:arkade-os/ts-sdk
-        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/ab505b0b83304216c7c52a908151a7550ebf791b
+        specifier: 0.4.0-next.5
+        version: 0.4.0-next.5
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -168,18 +168,51 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@0.2.19':
-    resolution: {integrity: sha512-oEgAUye/yrt/EylT7jQ+lXT7of0IUpJe8NxoNHE48/llHtlkWsI65AsHr1xbElO8oCn3zM41l/eHRZBe5z2GMg==}
-    engines: {node: '>=22'}
+  '@arkade-os/boltz-swap@0.3.0-next.2':
+    resolution: {integrity: sha512-Apepy3M1n5igDQ+xthk8CteJoOT9TpR8GnKvcEuRhcIaVSpjEZ88KZYCt9JGrJDYjuLwvkcl1Is/zT9V6drXUQ==}
+    engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
 
-  '@arkade-os/sdk@0.3.12':
-    resolution: {integrity: sha512-/zE8XiDo6yOCaspMcO3Gua/gLGYmYLRFbqaD1ORkaGI7hH/Gq+m0tkIwArVlwtK50loHK4jvS8clovcaV9CARg==}
-    engines: {node: '>=20.0.0'}
+  '@arkade-os/sdk@0.4.0-next.4':
+    resolution: {integrity: sha512-Eb2lNl4zPBjP8RLAigfWFbLOCMOLoaqz4t4x9+es/tlysGGKjQUukAOvseM+0tttYU6ExPItg5yMub+vXszK2A==}
+    engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
+    peerDependencies:
+      '@react-native-async-storage/async-storage': '>=1.0.0'
+      expo: '>=54.0.0'
+      expo-background-task: ~1.0.10
+      expo-sqlite: ~16.0.10
+      expo-task-manager: ~14.0.9
+    peerDependenciesMeta:
+      '@react-native-async-storage/async-storage':
+        optional: true
+      expo:
+        optional: true
+      expo-background-task:
+        optional: true
+      expo-sqlite:
+        optional: true
+      expo-task-manager:
+        optional: true
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/ab505b0b83304216c7c52a908151a7550ebf791b':
-    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/ab505b0b83304216c7c52a908151a7550ebf791b}
-    version: 0.3.13
-    engines: {node: '>=20.0.0'}
+  '@arkade-os/sdk@0.4.0-next.5':
+    resolution: {integrity: sha512-TnckDfhlAeUpYicUtw+4wLSvdG1QmXDDTIOIdV22U3jomI0mA6fw3crBlzzdUflIRvB8seZc0kEU2Cr476zAuA==}
+    engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
+    peerDependencies:
+      '@react-native-async-storage/async-storage': '>=1.0.0'
+      expo: '>=54.0.0'
+      expo-background-task: ~1.0.10
+      expo-sqlite: ~16.0.10
+      expo-task-manager: ~14.0.9
+    peerDependenciesMeta:
+      '@react-native-async-storage/async-storage':
+        optional: true
+      expo:
+        optional: true
+      expo-background-task:
+        optional: true
+      expo-sqlite:
+        optional: true
+      expo-task-manager:
+        optional: true
 
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
@@ -535,10 +568,6 @@ packages:
 
   '@lendasat/lendasat-wallet-bridge@0.0.90':
     resolution: {integrity: sha512-VfgM5vUx81vVWlggtOReUkaC8VVOFVavIMixQM0G/ZI0L/nMi10fmkIBvXOVI4Jmsu9A5z6wHSUrERxD3a/Juw==}
-
-  '@marcbachmann/cel-js@7.0.0':
-    resolution: {integrity: sha512-sbtR8pvTAsDPiyigebwLyqweLnocmBS9MG5tTnVUL2PZ9Hc2Dj2e4tnvTcZ1s463Og9NKD59TaPvTK9CEZQhiQ==}
-    engines: {node: '>=20.19.0'}
 
   '@marcbachmann/cel-js@7.3.1':
     resolution: {integrity: sha512-P6o26TvjStT8V8+8EF+yq9Pp7ZFV00bpiUMbssr76XbIZGxaB+NNWeBp6WNxOrR9gp0JPzvJueCKHpOs5LE9PQ==}
@@ -2619,25 +2648,35 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@0.2.19':
+  '@arkade-os/boltz-swap@0.3.0-next.2':
     dependencies:
-      '@arkade-os/sdk': 0.3.12
+      '@arkade-os/sdk': 0.4.0-next.4
+      '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
       '@scure/btc-signer': 2.0.1
       bip68: 1.0.4
       light-bolt11-decoder: 3.2.0
+    transitivePeerDependencies:
+      - '@react-native-async-storage/async-storage'
+      - expo
+      - expo-background-task
+      - expo-sqlite
+      - expo-task-manager
 
-  '@arkade-os/sdk@0.3.12':
+  '@arkade-os/sdk@0.4.0-next.4':
     dependencies:
-      '@marcbachmann/cel-js': 7.0.0
+      '@kukks/bitcoin-descriptors': 3.1.0
+      '@marcbachmann/cel-js': 7.3.1
       '@noble/curves': 2.0.0
       '@noble/secp256k1': 3.0.0
       '@scure/base': 2.0.0
+      '@scure/bip32': 2.0.0
+      '@scure/bip39': 2.0.1
       '@scure/btc-signer': 2.0.1
       bip68: 1.0.4
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/ab505b0b83304216c7c52a908151a7550ebf791b':
+  '@arkade-os/sdk@0.4.0-next.5':
     dependencies:
       '@kukks/bitcoin-descriptors': 3.1.0
       '@marcbachmann/cel-js': 7.3.1
@@ -2963,8 +3002,6 @@ snapshots:
       '@scure/btc-signer': 2.0.1
 
   '@lendasat/lendasat-wallet-bridge@0.0.90': {}
-
-  '@marcbachmann/cel-js@7.0.0': {}
 
   '@marcbachmann/cel-js@7.3.1': {}
 

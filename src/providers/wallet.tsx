@@ -1,5 +1,17 @@
 import { ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react'
-import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey, AssetDetails, WalletBalance } from '@arkade-os/sdk'
+import {
+  ArkNote,
+  ServiceWorkerWallet,
+  NetworkName,
+  SingleKey,
+  AssetDetails,
+  WalletBalance,
+  migrateWalletRepository,
+  getMigrationStatus,
+  rollbackMigration,
+  IndexedDBWalletRepository,
+  IndexedDBContractRepository,
+} from '@arkade-os/sdk'
 import {
   clearStorage,
   readWalletFromStorage,
@@ -24,6 +36,9 @@ import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
 import { maxPercentage } from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
+import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
+import { Indexer } from '../lib/indexer'
+import { IndexedDbSwapRepository, migrateToSwapRepository } from '@arkade-os/boltz-swap'
 
 const ASSET_METADATA_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
@@ -97,6 +112,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
   const iconApprovalManager = useRef(new AssetIconApprovalManager()).current
   const verifiedAssetsFetched = useRef(false)
+  const statusPingInterval = useRef<ReturnType<typeof setInterval>>()
 
   const setCacheEntry = (assetId: string, details: AssetDetails) => {
     const hasIcon = !!details.metadata?.icon
@@ -127,7 +143,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const computeThresholds = async () => {
       try {
         const allVtxos = await svcWallet.getVtxos({ withRecoverable: true })
-        const batchLifetimeMs = await calcBatchLifetimeMs(aspInfo, allVtxos)
+        const batchLifetimeMs = await calcBatchLifetimeMs(allVtxos, new Indexer(aspInfo))
         const thresholdMs = Math.floor((batchLifetimeMs * maxPercentage) / 100)
         const nextRollover = await calcNextRollover(vtxos.spendable, svcWallet, aspInfo)
         updateWallet((prev) => ({ ...prev, nextRollover, thresholdMs }))
@@ -250,12 +266,41 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }) => {
     try {
       // create service worker wallet
+      const walletRepository = new IndexedDBWalletRepository()
+      const contractRepository = new IndexedDBContractRepository()
+      await walletRepository.getWalletState()
       const svcWallet = await ServiceWorkerWallet.setup({
         serviceWorkerPath: '/wallet-service-worker.mjs',
         identity: SingleKey.fromHex(privateKey),
         arkServerUrl,
         esploraUrl,
+        storage: { walletRepository, contractRepository },
       })
+
+      // Migration!
+      try {
+        const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
+        const walletStatus = await getMigrationStatus('wallet', oldStorage)
+        if (walletStatus !== 'not-needed') {
+          if (walletStatus === 'pending' || walletStatus === 'in-progress') {
+            const arkAddress = await svcWallet.getAddress()
+            const boardingAddress = await svcWallet.getBoardingAddress()
+            try {
+              await migrateWalletRepository(oldStorage, svcWallet.walletRepository, {
+                offchain: [arkAddress],
+                onchain: [boardingAddress],
+              })
+            } catch (err) {
+              await rollbackMigration('wallet', oldStorage)
+              throw err
+            }
+          }
+          await migrateToSwapRepository(oldStorage, new IndexedDbSwapRepository())
+        }
+      } catch (err) {
+        consoleError(err, 'Error migrating wallet repository')
+      }
+
       setSvcWallet(svcWallet)
 
       // handle messages from the service worker
@@ -282,7 +327,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setInitialized(walletInitialized)
 
       // ping the service worker wallet status every 1 second
-      setInterval(async () => {
+      if (statusPingInterval.current) clearInterval(statusPingInterval.current)
+      statusPingInterval.current = setInterval(async () => {
         try {
           const { walletInitialized } = await svcWallet.getStatus()
           setInitialized(walletInitialized)
@@ -294,7 +340,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // renew expiring coins on startup
       renewCoins(svcWallet, aspInfo.dust, wallet.thresholdMs).catch(() => {})
     } catch (err) {
-      if (err instanceof Error && err.message.includes('Service worker activation timed out')) {
+      if (
+        err instanceof Error &&
+        (err.message.includes('Service worker activation timed out') || err.message.includes('MessageBus timed out'))
+      ) {
         if (retryCount < maxRetries) {
           // exponential backoff: wait 1s, 2s, 4s for each retry
           const delay = Math.pow(2, retryCount) * 1000
@@ -342,6 +391,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const lockWallet = async () => {
     if (!svcWallet) throw new Error('Service worker not initialized')
+    if (statusPingInterval.current) clearInterval(statusPingInterval.current)
+    statusPingInterval.current = undefined
     await svcWallet.clear()
     setInitialized(false)
     setDataReady(false)
@@ -352,7 +403,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!svcWallet) throw new Error('Service worker not initialized')
     await clearStorage()
     await svcWallet.clear()
-    await svcWallet.contractRepository.clearContractData()
+    await svcWallet.contractRepository.clear()
     setDataReady(false)
     hasLoadedOnce.current = false
   }
