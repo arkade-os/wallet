@@ -122,6 +122,7 @@ services:
     container_name: boltz
     restart: unless-stopped
     image: boltz/boltz:ark
+    pull_policy: always
     ports:
       - '9000:9000'
       - '9001:9001'
@@ -207,7 +208,7 @@ services:
         user = "admin1"
         password = "123"
 
-        [currencies.lnd]
+        [[currencies.lnds]]
         host = "boltz-lnd"
         port = 10009
         certpath = "/home/boltz/.lnd/tls.cert"

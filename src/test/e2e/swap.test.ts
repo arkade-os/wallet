@@ -1,6 +1,16 @@
-import { test, expect, createWallet, pay, receiveLightning, receiveOffchain, waitForPaymentReceived } from './utils'
+import {
+  test,
+  expect,
+  createWallet,
+  pay,
+  receiveLightning,
+  receiveOffchain,
+  receiveOnchain,
+  waitForPaymentReceived,
+} from './utils'
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import { faucetOffchain } from './fundedWallet'
 
 const execAsync = promisify(exec)
 
@@ -56,7 +66,7 @@ test('should send funds to Lightning', async ({ page }) => {
   expect(arkAddress).toBeTruthy()
 
   // faucet
-  exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
+  await faucetOffchain(arkAddress, 5000)
   await waitForPaymentReceived(page)
 
   // main page
@@ -97,7 +107,7 @@ test('should refund failing swap', async ({ page }) => {
   expect(arkAddress).toBeTruthy()
 
   // faucet
-  exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
+  await faucetOffchain(arkAddress, 5000)
   await waitForPaymentReceived(page)
 
   // main page
@@ -136,4 +146,58 @@ test('should refund failing swap', async ({ page }) => {
   await expect(page.getByText('Refunded')).toBeVisible()
   await expect(page.getByText('- 1,001')).toBeVisible()
   await expect(page.getByText('Arkade to Lightning')).toBeVisible()
+})
+
+test('should receive bitcoin funds from swap', async ({ page, isMobile }) => {
+  test.setTimeout(120000)
+  // create wallet
+  await createWallet(page)
+
+  // get onchain address
+  const chainAddress = await receiveOnchain(page, isMobile, 10000)
+  expect(chainAddress).toBeDefined()
+  expect(chainAddress).toBeTruthy()
+
+  // faucet
+  exec(`nigiri faucet ${chainAddress} 0.0001`)
+
+  // wait for payment received
+  await waitForPaymentReceived(page)
+})
+
+test('should send funds to onchain address via swap', async ({ page, isMobile }) => {
+  // set fees
+  exec('docker exec -t arkd arkd fees intent --onchain-output "200.0"')
+
+  // create wallet
+  await createWallet(page)
+
+  // get offchain address
+  const arkAddress = await receiveOffchain(page)
+  expect(arkAddress).toBeDefined()
+  expect(arkAddress).toBeTruthy()
+
+  // faucet
+  await faucetOffchain(arkAddress, 5000)
+  await waitForPaymentReceived(page)
+
+  // main page
+  await page.getByTestId('tab-wallet').click()
+  await expect(page.getByText('5,000', { exact: true })).toBeVisible()
+  await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
+
+  // send page
+  const someOnchainAddress = 'bcrt1pxxxth5z4yn8nylc6nzz6w3vkumwdllaky5sls7an8e044u2qlnes2vvy6y'
+  await pay(page, someOnchainAddress, isMobile, 2000)
+  await page.waitForSelector('text=SATS sent successfully', { timeout: 10000 })
+  await expect(page.getByText('SATS sent successfully')).toBeVisible()
+
+  // main page
+  await page.getByTestId('tab-wallet').click()
+  await expect(page.getByText('5,000 SATS')).toBeVisible()
+  await expect(page.getByText('- 2,275 SATS')).toBeVisible()
+  await expect(page.getByText('Sent')).toBeVisible()
+
+  // clear fees
+  exec('docker exec -t arkd arkd fees clear')
 })

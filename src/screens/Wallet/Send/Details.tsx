@@ -18,17 +18,18 @@ import Loading from '../../../components/Loading'
 import { consoleError } from '../../../lib/logs'
 import WaitingForRound from '../../../components/WaitingForRound'
 import { LimitsContext } from '../../../providers/limits'
-import { LightningContext } from '../../../providers/lightning'
+import { SwapsContext } from '../../../providers/swaps'
 import { FeesContext } from '../../../providers/fees'
 import Text from '../../../components/Text'
+import { isPendingChainSwap, isPendingSubmarineSwap } from '@arkade-os/boltz-swap'
 
 export default function SendDetails() {
+  const { navigate } = useContext(NavigationContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const isAssetSend = Boolean(sendInfo.assets?.length)
-  const { calcSubmarineSwapFee, payInvoice } = useContext(LightningContext)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { navigate } = useContext(NavigationContext)
+  const { calcArkToBtcSwapFee, calcSubmarineSwapFee, payInvoice, payBtc } = useContext(SwapsContext)
   const { assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
 
   const assetId = sendInfo.assets?.[0]?.assetId
@@ -74,15 +75,19 @@ export default function SendDetails() {
         ? 'Paying inside the Ark'
         : destination === invoice
           ? 'Swapping to Lightning'
-          : destination === address
-            ? 'Paying to mainnet'
-            : ''
+          : pendingSwap?.type === 'chain'
+            ? 'Swapping to mainnet'
+            : destination === address
+              ? 'Paying to mainnet'
+              : ''
     const feeInSats =
       destination === invoice
         ? calcSubmarineSwapFee(satoshis)
-        : destination === address
-          ? calcOnchainOutputFee()
-          : defaultFee
+        : pendingSwap?.type === 'chain'
+          ? calcArkToBtcSwapFee(satoshis)
+          : destination === address
+            ? calcOnchainOutputFee()
+            : defaultFee
     const swapId = pendingSwap?.id
     const total = satoshis + feeInSats
     setDetails({
@@ -133,17 +138,21 @@ export default function SendDetails() {
         .then(handleTxid)
         .catch(handleError)
     } else if (arkAddress) {
-      sendOffChain(svcWallet, details.total!, arkAddress).then(handleTxid).catch(handleError)
-    } else if (invoice) {
-      const response = pendingSwap?.response
-      if (!response) return setError('Swap response not available')
-      const swapAddress = pendingSwap?.response.address
+      sendOffChain(svcWallet, details.total, arkAddress).then(handleTxid).catch(handleError)
+    } else if (invoice && pendingSwap && isPendingSubmarineSwap(pendingSwap)) {
+      const swapAddress = pendingSwap.response.address
       if (!swapAddress) return setError('Swap address not available')
       payInvoice(pendingSwap).then(handlePreimage).catch(handleError)
     } else if (address) {
-      collaborativeExitWithFees(svcWallet, details.total!, details.satoshis!, address)
-        .then(handleTxid)
-        .catch(handleError)
+      if (pendingSwap && isPendingChainSwap(pendingSwap)) {
+        payBtc(pendingSwap)
+          .then(({ txid }) => handleTxid(txid))
+          .catch(handleError)
+      } else {
+        collaborativeExitWithFees(svcWallet, details.total, details.satoshis, address)
+          .then(handleTxid)
+          .catch(handleError)
+      }
     }
   }
 
