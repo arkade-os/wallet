@@ -10,5 +10,10 @@ export default function Padded({ children }: PaddedProps) {
     padding: '0 1rem',
     width: '100%',
   }
-  return <div style={style}>{children}</div>
+  return (
+    <div style={style}>
+      {children}
+      <div style={{ height: '100px' }} />
+    </div>
+  )
 }

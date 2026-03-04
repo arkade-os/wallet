@@ -20,6 +20,7 @@ export default function ButtonsOnBottom({ bordered, children }: ButtonsOnBottomP
         <FlexCol gap='0' strech>
           {children}
         </FlexCol>
+        <div style={{ height: '120px' }} />
       </IonFooter>
     </>
   )

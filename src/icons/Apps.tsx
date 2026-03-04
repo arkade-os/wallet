@@ -1,12 +1,26 @@
-export default function AppsIcon() {
+export default function AppsIcon({ active }: { active?: boolean }) {
+  if (active) {
+    return (
+      <svg width='24' height='24' viewBox='0 0 24 24' fill='currentColor'>
+        <path d='M12.378 1.602a.75.75 0 0 0-.756 0L3 6.632l9 5.25 9-5.25-8.622-5.03Z' />
+        <path d='M21.75 7.93l-9 5.25v9l8.628-5.032a.75.75 0 0 0 .372-.648V7.93Z' />
+        <path d='M11.25 22.18v-9l-9-5.25v8.57a.75.75 0 0 0 .372.648l8.628 5.033Z' />
+      </svg>
+    )
+  }
+
   return (
-    <svg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
-      <path
-        fillRule='evenodd'
-        clipRule='evenodd'
-        d='M11.0195 2.40431C11.6283 2.06184 12.3717 2.06184 12.9805 2.40431L19.9805 6.34181C19.9871 6.34552 19.9937 6.34926 20.0002 6.35304L12.0006 10.8529L4.00016 6.35281C4.00658 6.34911 4.01301 6.34545 4.01948 6.34181L11.0195 2.40431ZM3 8.08492C3 8.0849 3 8.08493 3 8.08492L3 15.9153C3 16.6378 3.38972 17.3042 4.01948 17.6584L11.0006 21.5853V12.5851L3 8.08492ZM13.0006 21.5846L19.9805 17.6584C20.6103 17.3042 21 16.6378 21 15.9153V8.08536L13.0006 12.5851V21.5846Z'
-        fill='currentColor'
-      />
+    <svg
+      width='24'
+      height='24'
+      viewBox='0 0 24 24'
+      fill='none'
+      stroke='currentColor'
+      strokeWidth='1.5'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+    >
+      <path d='m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9' />
     </svg>
   )
 }
