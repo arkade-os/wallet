@@ -210,6 +210,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       })
 
       // Migration!
+      console.log('Migration begins')
       try {
         const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
         const walletStatus = await getMigrationStatus('wallet', oldStorage)
@@ -232,6 +233,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       } catch (err) {
         consoleError(err, 'Error migrating wallet repository')
       }
+      console.log('Migration ended')
 
       setSvcWallet(svcWallet)
 
@@ -253,10 +255,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
         listeningForServiceWorker.current = true
       }
+      console.log('Service worker activated')
 
       // check if the service worker wallet is initialized
       const { walletInitialized } = await svcWallet.getStatus()
       setInitialized(walletInitialized)
+      console.log('Service worker initialized')
 
       // ping the service worker wallet status every 1 second
       if (statusPingInterval.current) clearInterval(statusPingInterval.current)
@@ -269,44 +273,44 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }, 1_000)
 
+      console.log(`do we have delegate? ${config.delegate}`)
       // delegate or renew expiring coins on startup
       if (config.delegate) {
-        delegateVtxos(svcWallet).catch(() => {})
+        console.log('delegate')
+        delegateVtxos(svcWallet).catch((e) => {
+          console.error('Error delegating coins', e)
+        })
       } else {
+        console.log('renew')
         renewCoins(svcWallet, aspInfo.dust, wallet.thresholdMs).catch(() => {})
       }
     } catch (err) {
-      if (
+      const isTimeoutError =
         err instanceof Error &&
         (err.message.includes('Service worker activation timed out') || err.message.includes('MessageBus timed out'))
-      ) {
-        if (retryCount < maxRetries) {
-          // exponential backoff: wait 1s, 2s, 4s for each retry
-          const delay = Math.pow(2, retryCount) * 1000
-          consoleError(
-            new Error(
-              `Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,
-            ),
-            'Service worker activation retry',
-          )
-          await new Promise((resolve) => setTimeout(resolve, delay))
-          return initSvcWorkerWallet({
-            arkServerUrl,
-            esploraUrl,
-            privateKey,
-            retryCount: retryCount + 1,
-            maxRetries,
-            delegatorUrl,
-          })
-        } else {
-          consoleError(
-            new Error('Service worker activation timed out after maximum retries'),
-            'Service worker activation failed',
-          )
-          return
-        }
+
+      if (isTimeoutError && retryCount < maxRetries) {
+        // exponential backoff: wait 1s, 2s, 4s for each retry
+        const delay = Math.pow(2, retryCount) * 1000
+        consoleError(
+          new Error(
+            `Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,
+          ),
+          'Service worker activation retry',
+        )
+        await new Promise((resolve) => setTimeout(resolve, delay))
+        return initSvcWorkerWallet({
+          arkServerUrl,
+          esploraUrl,
+          privateKey,
+          retryCount: retryCount + 1,
+          maxRetries,
+          delegatorUrl,
+        })
       }
-      // re-throw other errors
+
+      // If we are here, either retries are exhausted or it's a different error.
+      // Surface the failure so the unlock flow cannot proceed silently without an initialized wallet.
       throw err
     }
   }
