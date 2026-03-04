@@ -1,5 +1,5 @@
 import { test, expect, createWallet, pay, receiveOffchain, waitForPaymentReceived } from './utils'
-import { exec, execSync } from 'child_process'
+import { execSync } from 'child_process'
 import { faucetOffchain } from './fundedWallet'
 
 test('should send to ark address', async ({ page, isMobile }) => {
