@@ -37,7 +37,7 @@ import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
-import { LightningContext } from '../../../providers/lightning'
+import { SwapsContext } from '../../../providers/swaps'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { FeesContext } from '../../../providers/fees'
 import { InfoLine } from '../../../components/Info'
@@ -48,7 +48,8 @@ export default function SendForm() {
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
-  const { createSubmarineSwap, connected, calcSubmarineSwapFee, getApiUrl } = useContext(LightningContext)
+  const { calcSubmarineSwapFee, createArkToBtcSwap, createSubmarineSwap, connected, getApiUrl } =
+    useContext(SwapsContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
@@ -276,14 +277,22 @@ export default function SendForm() {
   useEffect(() => {
     if (!proceed) return
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
-    if (!sendInfo.arkAddress && sendInfo.invoice && !sendInfo.pendingSwap) {
+    if (sendInfo.arkAddress || sendInfo.pendingSwap) return navigate(Pages.SendDetails)
+    if (sendInfo.invoice) {
       createSubmarineSwap(sendInfo.invoice)
         .then((pendingSwap) => {
           if (!pendingSwap) return setError('Unable to create swap')
           setState({ ...sendInfo, pendingSwap })
         })
         .catch(handleError)
-    } else navigate(Pages.SendDetails)
+    } else if (satoshis && sendInfo.address) {
+      createArkToBtcSwap(sendInfo.address, satoshis)
+        .then((result) => {
+          if (!result) return setError('Unable to create swap')
+          setState({ ...sendInfo, pendingSwap: result.pendingSwap })
+        })
+        .catch(handleError)
+    }
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
 
   // deal with fees deduction from amount

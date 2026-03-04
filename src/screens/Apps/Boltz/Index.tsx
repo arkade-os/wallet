@@ -8,12 +8,12 @@ import FlexRow from '../../../components/FlexRow'
 import SwapsList from '../../../components/SwapsList'
 import Text, { TextLabel } from '../../../components/Text'
 import { SettingsIconLight } from '../../../icons/Settings'
-import { LightningContext } from '../../../providers/lightning'
+import { SwapsContext } from '../../../providers/swaps'
 import { GreenStatusIcon, RedStatusIcon } from '../../../icons/Status'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 
 export default function AppBoltz() {
-  const { connected, getApiUrl } = useContext(LightningContext)
+  const { connected, getApiUrl } = useContext(SwapsContext)
   const { navigate } = useContext(NavigationContext)
 
   const ConnectionStatus = () => (

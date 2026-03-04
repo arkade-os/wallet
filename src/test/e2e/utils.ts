@@ -76,8 +76,8 @@ async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = f
   return await readClipboard(page)
 }
 
-export async function receiveOnchain(page: Page): Promise<string> {
-  return receive(page, 'btc')
+export async function receiveOnchain(page: Page, isMobile = false, sats = 0): Promise<string> {
+  return receive(page, 'btc', isMobile, sats)
 }
 
 export async function receiveOffchain(page: Page): Promise<string> {

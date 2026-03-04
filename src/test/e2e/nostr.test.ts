@@ -88,6 +88,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
 
   // transaction should be visible on main page
   await page.getByTestId('tab-wallet').click()
+  await page.waitForSelector('text=Received', { timeout: 10000 })
   await expect(page.getByText('+ 1,992 SATS')).toBeVisible()
 
   // generate lightning invoice to pay

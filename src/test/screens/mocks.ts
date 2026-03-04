@@ -58,8 +58,8 @@ export const mockFiatContextValue = {
   toFiat: (amount: number) => amount,
 }
 
-export const mockLightningContextValue = {
-  arkadeLightning: null,
+export const mockSwapsContextValue = {
+  arkadeSwaps: null,
   swapManager: null,
   connected: false,
   calcSubmarineSwapFee: () => 0,
@@ -72,7 +72,6 @@ export const mockLightningContextValue = {
     throw new Error('Lightning not initialized')
   },
   getSwapHistory: async () => [],
-  getFees: async () => null,
   getApiUrl: () => null,
   toggleConnection: () => {},
 }
@@ -123,12 +122,16 @@ export const mockFlowContextValue = {
 export const mockLimitsContextValue = {
   amountIsAboveMaxLimit: () => false,
   amountIsBelowMinLimit: () => false,
+  validArkToBtc: () => true,
+  validBtcToArk: () => true,
   lnSwapsAllowed: () => true,
   utxoTxsAllowed: () => true,
   vtxoTxsAllowed: () => true,
   validLnSwap: () => true,
   validUtxoTx: () => true,
   validVtxoTx: () => true,
+  arkToBtcAllowed: () => true,
+  btcToArkAllowed: () => true,
   minSwapAllowed: () => 0,
   maxSwapAllowed: () => 0,
 }

@@ -1,4 +1,3 @@
-import { PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { NetworkName, type ExtendedVirtualCoin } from '@arkade-os/sdk'
 
 export type Addresses = {
@@ -42,8 +41,6 @@ export enum Fiats {
   USD = 'USD',
   CHF = 'CHF',
 }
-
-export type PendingSwap = PendingReverseSwap | PendingSubmarineSwap
 
 export type Satoshis = number
 
@@ -92,12 +89,6 @@ export type Tx = {
   roundTxid: string
   settled: boolean
   type: string
-}
-
-export enum TxType {
-  swap = 'swap',
-  utxo = 'utxo',
-  vtxo = 'vtxo',
 }
 
 export enum Unit {

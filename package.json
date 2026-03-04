@@ -4,8 +4,8 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/boltz-swap": "0.3.0-next.2",
-    "@arkade-os/sdk": "0.4.0-next.4",
+    "@arkade-os/boltz-swap": "0.3.0-next.5",
+    "@arkade-os/sdk": "0.4.0-next.6",
     "@ionic/react": "^8.5.6",
     "@lendasat/lendasat-wallet-bridge": "^0.0.90",
     "@noble/curves": "^2.0.1",
@@ -88,6 +88,7 @@
     "eslint-plugin-prettier": "^5.5.4",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
+    "eventsource": "^4.1.0",
     "globals": "^16.3.0",
     "husky": "^8.0.3",
     "jsdom": "^26.1.0",
