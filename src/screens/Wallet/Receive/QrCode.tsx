@@ -91,12 +91,20 @@ export default function ReceiveQRCode() {
     const listenForPayments = (event: MessageEvent) => {
       let satoshis = 0
       if (event.data && event.data.type === 'VTXO_UPDATE') {
-        const newVtxos = event.data.payload.newVtxos as ExtendedVirtualCoin[]
-        satoshis = newVtxos.reduce((acc, v) => acc + v.value, 0)
+        const newVtxos = event.data.payload?.newVtxos
+        if (Array.isArray(newVtxos)) {
+          satoshis = (newVtxos as ExtendedVirtualCoin[]).reduce((acc, v) => acc + v.value, 0)
+        } else {
+          consoleError('VTXO_UPDATE message has unexpected payload shape:', event.data.payload)
+        }
       }
       if (event.data && event.data.type === 'UTXO_UPDATE') {
-        const coins = event.data.payload.coins as Coin[]
-        satoshis = coins.reduce((acc, v) => acc + v.value, 0)
+        const coins = event.data.payload?.coins
+        if (Array.isArray(coins)) {
+          satoshis = (coins as Coin[]).reduce((acc, v) => acc + v.value, 0)
+        } else {
+          consoleError('UTXO_UPDATE message has unexpected payload shape:', event.data.payload)
+        }
       }
       if (satoshis) {
         setRecvInfo({ ...recvInfo, satoshis })
