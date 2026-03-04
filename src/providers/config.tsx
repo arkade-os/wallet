@@ -109,8 +109,8 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
       window.location.hash = ''
     }
     let config = readConfigFromStorage() ?? { ...defaultConfig }
-    // allow upgradability
-    config = { ...defaultConfig, ...config, delegate: true }
+    // allow upgradability while keeping user preference (delegate defaults true but respects stored false)
+    config = { ...defaultConfig, ...config }
     // env var is authoritative — override cached localStorage value
     if (import.meta.env.VITE_ARK_SERVER) config.aspUrl = import.meta.env.VITE_ARK_SERVER
     updateConfig(config)
