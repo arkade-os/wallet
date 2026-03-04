@@ -43,6 +43,7 @@ interface WalletContextProps {
   updateWallet: (w: Wallet | ((prev: Wallet) => Wallet)) => void
   isLocked: () => Promise<boolean>
   reloadWallet: (svcWallet?: ServiceWorkerWallet) => Promise<void>
+  restartWallet: (delegateEnabled?: boolean) => Promise<void>
   wallet: Wallet
   walletLoaded: boolean
   svcWallet: ServiceWorkerWallet | undefined
@@ -60,6 +61,7 @@ export const WalletContext = createContext<WalletContextProps>({
   settlePreconfirmed: () => Promise.resolve(),
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
+  restartWallet: () => Promise.resolve(),
   wallet: defaultWallet,
   walletLoaded: false,
   svcWallet: undefined,
@@ -210,7 +212,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       })
 
       // Migration!
-      console.log('Migration begins')
       try {
         const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
         const walletStatus = await getMigrationStatus('wallet', oldStorage)
@@ -233,7 +234,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       } catch (err) {
         consoleError(err, 'Error migrating wallet repository')
       }
-      console.log('Migration ended')
 
       setSvcWallet(svcWallet)
 
@@ -255,12 +255,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
         listeningForServiceWorker.current = true
       }
-      console.log('Service worker activated')
 
       // check if the service worker wallet is initialized
       const { walletInitialized } = await svcWallet.getStatus()
       setInitialized(walletInitialized)
-      console.log('Service worker initialized')
 
       // ping the service worker wallet status every 1 second
       if (statusPingInterval.current) clearInterval(statusPingInterval.current)
@@ -273,15 +271,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }, 1_000)
 
-      console.log(`do we have delegate? ${config.delegate}`)
       // delegate or renew expiring coins on startup
       if (config.delegate) {
-        console.log('delegate')
         delegateVtxos(svcWallet).catch((e) => {
           console.error('Error delegating coins', e)
         })
       } else {
-        console.log('renew')
         renewCoins(svcWallet, aspInfo.dust, wallet.thresholdMs).catch(() => {})
       }
     } catch (err) {
@@ -330,6 +325,27 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     })
     updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
+  }
+
+  /**
+   * Reinitialize the service-worker wallet in-place so runtime config changes
+   * (e.g., delegate on/off) take effect without forcing a lock/unlock cycle.
+   * Keeps local tx/balance state; just rebuilds the SW wallet with the current
+   * delegatorUrl flag.
+   */
+  const restartWallet = async (delegateEnabled = config.delegate) => {
+    if (!svcWallet) return
+    const privateKey = 'toHex' in svcWallet.identity ? (svcWallet.identity as any).toHex() : undefined
+    if (!privateKey) throw new Error('Unable to reinitialize wallet without private key')
+    const arkServerUrl = aspInfo.url
+    const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
+    const delegatorUrl = delegateEnabled ? defaultDelegate().url : undefined
+    await initSvcWorkerWallet({
+      privateKey,
+      arkServerUrl,
+      esploraUrl,
+      delegatorUrl,
+    })
   }
 
   const lockWallet = async () => {
@@ -388,6 +404,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         walletLoaded,
         svcWallet,
         lockWallet,
+        restartWallet,
         txs,
         balance,
         dataReady,
