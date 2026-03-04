@@ -53428,10 +53428,14 @@ var Zd = (c, a) => c.findIndex((h) => D0(a, h)), qd = (c) => {
   bech32: "bcrt",
   pubKeyHash: 111,
   scriptHash: 196
+}, nN = {
+  bech32: "tb",
+  pubKeyHash: 111,
+  scriptHash: 196
 }, w8 = (c) => ({
   version: c.version,
   output: q.decode(c.output)
-}), nN = (c) => {
+}), sN = (c) => {
   const a = [...c].sort((k, d) => d.probability - k.probability), h = (k) => {
     if (k.length === 1) return k[0].value;
     if (k.length === 2) return [k[0].value, k[1].value];
@@ -53447,7 +53451,7 @@ var Zd = (c, a) => c.findIndex((h) => D0(a, h)), qd = (c) => {
   return {
     claimLeaf: h,
     refundLeaf: k,
-    tree: nN([
+    tree: sN([
       { probability: 51, value: h },
       { probability: 49, value: k }
     ])
@@ -53473,7 +53477,7 @@ var Zd = (c, a) => c.findIndex((h) => D0(a, h)), qd = (c) => {
   return c.xonlyTweakAdd(
     mi.utils.taggedHash("TapTweak", c.aggPubkey, h)
   );
-}, sN = (c) => {
+}, oN = (c) => {
   if (c.length === 32) return c;
   if (c.length === 33) {
     if (c[0] !== 2 && c[0] !== 3)
@@ -53485,15 +53489,15 @@ var Zd = (c, a) => c.findIndex((h) => D0(a, h)), qd = (c) => {
   throw new Error(
     `Invalid public key length: expected 32 or 33 bytes, got ${c.length}`
   );
-}, oN = (c) => qe.encode(["OP_1", sN(c)]), fN = (c, a) => {
-  const h = oN(c);
+}, fN = (c) => qe.encode(["OP_1", oN(c)]), aN = (c, a) => {
+  const h = fN(c);
   for (let k = 0; k < a.outputsLength; k++) {
     const d = a.getOutput(k);
     if (d.script !== void 0 && d.amount !== void 0 && D0(h, d.script))
       return { ...d, vout: k };
   }
   throw new Error("Swap output not found in transaction");
-}, aN = new Uint8Array(64), cN = (c, a, h) => {
+}, cN = new Uint8Array(64), uN = (c, a, h) => {
   if (h < BigInt(0) || h >= c.amount)
     throw new Error("fee exceeds utxo amount");
   const k = new lt({ version: 2 });
@@ -53506,9 +53510,9 @@ var Zd = (c, a) => c.findIndex((h) => D0(a, h)), qd = (c) => {
     sequence: 4294967293
     // RBF enabled
   }), k.updateInput(0, {
-    finalScriptWitness: [aN]
+    finalScriptWitness: [cN]
   }), k;
-}, uN = (c, a) => {
+}, lN = (c, a) => {
   const h = a(BigInt(1));
   return a(
     BigInt(Math.ceil((h.vsize + h.inputsLength) * c))
@@ -53543,7 +53547,7 @@ function Kn(c) {
   }
   return 0;
 }
-function lN(c, a) {
+function hN(c, a) {
   if (!c) return 0;
   const { percentage: h, minerFees: k } = a.reverse, d = k.lockup + k.claim;
   return h >= 100 || h < 0 || d >= c ? 0 : Math.ceil((c - d) / (1 - h / 100));
@@ -53566,7 +53570,7 @@ function m8(c, a) {
     }
   };
 }
-function hN(c, a, h, k, d, g, y, E = 0) {
+function kN(c, a, h, k, d, g, y, E = 0) {
   const S = new TextEncoder().encode(c), b = V0(S), I = q.encode(b);
   let P;
   return {
@@ -53638,7 +53642,7 @@ function hN(c, a, h, k, d, g, y, E = 0) {
         throw new Error(
           `BatchFinalizationEvent: expected connector tree has ${M.length} leaves, expected at least ${E + 1}`
         );
-      const W = kN(
+      const W = AN(
         a,
         y,
         M[E]
@@ -53649,7 +53653,7 @@ function hN(c, a, h, k, d, g, y, E = 0) {
     }
   };
 }
-function kN(c, a, h) {
+function AN(c, a, h) {
   const k = h.id, d = h.getOutput(0);
   if (!d)
     throw new Error("connector output not found");
@@ -53683,7 +53687,7 @@ function kN(c, a, h) {
     E
   );
 }
-var AN = (c) => {
+var pN = (c) => {
   const {
     network: a,
     preimageHash: h,
@@ -53725,7 +53729,7 @@ var AN = (c) => {
     throw new Error("Failed to create VHTLC script");
   const O = a === "bitcoin" ? "ark" : "tark", $ = P.address(O, b).encode();
   return { vhtlcScript: P, vhtlcAddress: $ };
-}, pN = async (c, a, h, k, {
+}, dN = async (c, a, h, k, {
   forfeitPubkey: d,
   forfeitAddress: g,
   network: y
@@ -53763,7 +53767,7 @@ var AN = (c) => {
     y in Cf ? Cf[y] : Cf.bitcoin
   ).decode(g);
   try {
-    const me = hN(
+    const me = kN(
       ke,
       h,
       c,
@@ -53804,7 +53808,7 @@ var AN = (c) => {
     h0.encode(P.toPSBT()),
     I.map((W) => h0.encode(W.toPSBT()))
   );
-  if (!dN($, h, a.leaves))
+  if (!wN($, h, a.leaves))
     throw new Error("Invalid final Ark transaction");
   const M = await Promise.all(
     N.map(async (W) => {
@@ -53860,7 +53864,7 @@ var AN = (c) => {
   await h.finalizeTx(Ae, [
     h0.encode(H.toPSBT())
   ]);
-}, dN = (c, a, h) => {
+}, wN = (c, a, h) => {
   const k = lt.fromPSBT(h0.decode(c), {
     allowUnknown: !0
   });
@@ -53869,7 +53873,7 @@ var AN = (c) => {
   for (let g = 0; g < k.inputsLength; g++)
     d.push(k.getInput(g));
   return d.every((g) => g.witnessUtxo);
-}, wN = class {
+}, gN = class {
   wallet;
   arkProvider;
   swapProvider;
@@ -54500,7 +54504,7 @@ var AN = (c) => {
       throw new Error("BTC transaction hex is required");
     const h = lt.fromRaw(
       q.decode(a.transaction.hex)
-    ), d = (await this.arkProvider.getInfo()).network === "bitcoin" ? Tt : iN, g = g8(
+    ), k = await this.arkProvider.getInfo(), d = k.network === "bitcoin" ? Tt : k.network === "mutinynet" ? nN : iN, g = g8(
       c.response.claimDetails.swapTree
     ), y = y8(
       d8(q.decode(c.ephemeralKey), [
@@ -54508,11 +54512,11 @@ var AN = (c) => {
         F0.getPublicKey(q.decode(c.ephemeralKey))
       ]),
       g.tree
-    ), E = fN(y.aggPubkey, h), S = BigInt(
+    ), E = aN(y.aggPubkey, h), S = BigInt(
       c.request.serverLockAmount ? c.request.serverLockAmount - c.amount : 0
-    ), b = uN(
+    ), b = lN(
       c.feeSatsPerByte,
-      (N) => cN(
+      (N) => uN(
         {
           script: E.script,
           amount: E.amount,
@@ -54984,7 +54988,7 @@ var AN = (c) => {
    * @returns The commitment transaction ID.
    */
   async joinBatch(c, a, h, k, d = !0) {
-    return pN(
+    return dN(
       this.arkProvider,
       c,
       a,
@@ -54998,7 +55002,7 @@ var AN = (c) => {
    * Works for submarine, reverse, and chain swaps.
    */
   createVHTLCScript(c) {
-    return AN(c);
+    return pN(c);
   }
   async getFees(c, a) {
     return c && a ? this.swapProvider.getChainFees(c, a) : this.swapProvider.getFees();
@@ -55131,7 +55135,7 @@ var AN = (c) => {
           id: E,
           createdAt: S,
           request: {
-            invoiceAmount: lN(I, h),
+            invoiceAmount: hN(I, h),
             claimPublicKey: a,
             preimageHash: O
           },
@@ -55221,11 +55225,11 @@ var AN = (c) => {
   enrichSubmarineSwapInvoice(c, a) {
     return QP(c, a);
   }
-}, gN = "ARKADE_LIGHTNING_UPDATER", yN = class tw {
+}, yN = "ARKADE_LIGHTNING_UPDATER", mN = class tw {
   constructor(a) {
     this.swapRepository = a;
   }
-  static messageTag = gN;
+  static messageTag = yN;
   messageTag = tw.messageTag;
   arkProvider;
   indexerProvider;
@@ -55597,7 +55601,7 @@ var AN = (c) => {
       apiUrl: a.swapProvider.baseUrl,
       network: a.network
     });
-    const k = new wN({
+    const k = new gN({
       wallet: this.wallet,
       arkProvider: this.arkProvider,
       swapProvider: this.swapProvider,
@@ -55645,15 +55649,15 @@ var AN = (c) => {
     }));
   }
 };
-const mN = new Wd(), vN = new Vd(), EN = new Yd();
+const vN = new Wd(), EN = new Vd(), SN = new Yd();
 self.addEventListener("message", (c) => {
   c.data?.type === "SKIP_WAITING" && c.waitUntil(self.skipWaiting());
 });
-const SN = new tP(mN, vN, {
-  messageHandlers: [new iP(), new yN(EN)],
+const xN = new tP(vN, EN, {
+  messageHandlers: [new iP(), new mN(SN)],
   tickIntervalMs: 5e3
 });
-SN.start().catch(console.error);
+xN.start().catch(console.error);
 const rw = "arkade-cache-v1";
 self.addEventListener("install", (c) => {
   c.waitUntil(caches.open(rw)), self.skipWaiting();
