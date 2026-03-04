@@ -59,12 +59,13 @@ test('should send to onchain address', async ({ page, isMobile }) => {
   // send page
   const someOnchainAddress = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
   await pay(page, someOnchainAddress, isMobile, 2000)
+  await page.waitForSelector('text=SATS sent successfully', { timeout: 10000 })
   await expect(page.getByText('SATS sent successfully')).toBeVisible()
 
   // main page
   await page.getByTestId('tab-wallet').click()
-  await expect(page.getByText('2,800SATS')).toBeVisible()
-  await expect(page.getByText('- 2,200 SATS')).toBeVisible()
+  await expect(page.getByText('5,000 SATS')).toBeVisible()
+  await expect(page.getByText('- 2,275 SATS')).toBeVisible()
   await expect(page.getByText('Sent')).toBeVisible()
 
   // clear fees

@@ -38,6 +38,11 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   // wait for payment received
   await waitForPaymentReceived(page)
 
+  // transaction should be visible on main page
+  await page.getByTestId('tab-wallet').click()
+  await page.waitForSelector('text=Received', { timeout: 10000 })
+  await expect(page.getByText('+ 1,992 SATS')).toBeVisible()
+
   /**
    * submarine swap
    */

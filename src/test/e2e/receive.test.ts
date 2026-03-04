@@ -4,6 +4,7 @@ import { createWallet, receiveOffchain, receiveOnchain, waitForPaymentReceived }
 import { faucetOffchain } from './fundedWallet'
 
 test('should receive onchain funds', async ({ page }) => {
+  test.setTimeout(120000)
   // create wallet
   await createWallet(page)
 

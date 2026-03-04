@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: file:../boltz-swap
-        version: file:../boltz-swap
+        specifier: 0.3.0-next.5
+        version: 0.3.0-next.5
       '@arkade-os/sdk':
-        specifier: file:../ts-sdk
-        version: file:../ts-sdk
+        specifier: 0.4.0-next.6
+        version: 0.4.0-next.6
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -171,33 +171,12 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@file:../boltz-swap':
-    resolution: {directory: ../boltz-swap, type: directory}
+  '@arkade-os/boltz-swap@0.3.0-next.5':
+    resolution: {integrity: sha512-+Z+RaGEoMKIzdUN09iCjprKsoI3zq1Z6RQdDSV5NjC6h+Yg0yhkHJwac+iUbQy6bQqyYIvjox9UI+Os6aGtVxQ==}
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
 
-  '@arkade-os/sdk@0.4.0-next.2':
-    resolution: {integrity: sha512-Rc+IqN7C0yMZlc2XAj8jW35ypnQ2PEx+RNiMbdT/j9Npoqw8egKZBi3wVhwzLJhvfSEUsy5dr8fB1s9Wq5bTmw==}
-    engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
-    peerDependencies:
-      '@react-native-async-storage/async-storage': '>=1.0.0'
-      expo: '>=54.0.0'
-      expo-background-task: ~1.0.10
-      expo-sqlite: ~16.0.10
-      expo-task-manager: ~14.0.9
-    peerDependenciesMeta:
-      '@react-native-async-storage/async-storage':
-        optional: true
-      expo:
-        optional: true
-      expo-background-task:
-        optional: true
-      expo-sqlite:
-        optional: true
-      expo-task-manager:
-        optional: true
-
-  '@arkade-os/sdk@file:../ts-sdk':
-    resolution: {directory: ../ts-sdk, type: directory}
+  '@arkade-os/sdk@0.4.0-next.6':
+    resolution: {integrity: sha512-wJ0oG2U0qpj0KG1IHvHwmrPcnmB3xWut4nk23rU3+FF67dKZsDOp26wstOfL8MmHk0oBCOc1ojIvGMTur6kn5g==}
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -2659,9 +2638,9 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@file:../boltz-swap':
+  '@arkade-os/boltz-swap@0.3.0-next.5':
     dependencies:
-      '@arkade-os/sdk': 0.4.0-next.2
+      '@arkade-os/sdk': 0.4.0-next.6
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
@@ -2675,19 +2654,7 @@ snapshots:
       - expo-sqlite
       - expo-task-manager
 
-  '@arkade-os/sdk@0.4.0-next.2':
-    dependencies:
-      '@kukks/bitcoin-descriptors': 3.1.0
-      '@marcbachmann/cel-js': 7.3.1
-      '@noble/curves': 2.0.0
-      '@noble/secp256k1': 3.0.0
-      '@scure/base': 2.0.0
-      '@scure/bip32': 2.0.0
-      '@scure/bip39': 2.0.1
-      '@scure/btc-signer': 2.0.1
-      bip68: 1.0.4
-
-  '@arkade-os/sdk@file:../ts-sdk':
+  '@arkade-os/sdk@0.4.0-next.6':
     dependencies:
       '@kukks/bitcoin-descriptors': 3.1.0
       '@marcbachmann/cel-js': 7.3.1
