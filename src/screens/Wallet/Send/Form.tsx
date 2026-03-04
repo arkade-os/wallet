@@ -394,10 +394,10 @@ export default function SendForm() {
     } else if (satoshis && sendInfo.address) {
       createArkToBtcSwap(sendInfo.address, satoshis)
         .then((result) => {
-          if (!result) return setError('Unable to create swap')
+          if (!result) return navigate(Pages.SendDetails)
           setState({ ...sendInfo, pendingSwap: result.pendingSwap })
         })
-        .catch(handleError)
+        .catch(() => navigate(Pages.SendDetails))
     }
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
 
