@@ -85,6 +85,7 @@ test('should burn part of an asset', async ({ page }) => {
 test('should reissue an asset with control token', async ({ page }) => {
   await createWallet(page)
   await fundWallet(page, 10000)
+  await enableAssets(page)
 
   // mint control token
   await mintAsset(page, { amount: 100, name: 'CtrlToken', ticker: 'CTL', decimals: 0 })
