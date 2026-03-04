@@ -282,28 +282,9 @@ async function setupBoltz() {
     await execCommand('curl -s -X GET http://localhost:7003/api/v1/settle', true)
     console.log('  ✔ Funds settled')
 
-    console.log('\nFunding Boltz core wallet for chain swaps...')
-    const bitcoinCli = 'docker exec bitcoin bitcoin-cli -regtest -rpcuser=admin1 -rpcpassword=123'
-    try {
-      execSync(`${bitcoinCli} createwallet core`, { stdio: 'pipe' })
-      console.log('  ✔ Created core wallet')
-    } catch {
-      console.log('  Core wallet already exists')
-    }
-    const boltzAddress = execSync(`${bitcoinCli} -rpcwallet=core getnewaddress "" bech32`, {
-      encoding: 'utf8',
-    }).trim()
-    console.log(`  Address: ${boltzAddress}`)
-    await faucet(boltzAddress, 1)
-    await execCommand('nigiri rpc --generate 1', true)
-    console.log('  ✔ Funds confirmed and matured')
-
     console.log('\nStarting Boltz backend and PostgreSQL...')
     await execCommand('docker compose -f test.docker-compose.yml up -d boltz-postgres boltz', true)
     console.log('  ✔ Containers started')
-
-    console.log('\nWaiting for Boltz to be ready...')
-    await waitForCmd('curl -s http://localhost:9001/version')
 
     console.log('\nStarting CORS proxy...')
     await execCommand('docker compose -f test.docker-compose.yml up -d cors', true)
