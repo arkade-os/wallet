@@ -56,7 +56,10 @@ export default function InitRestore() {
     setInitInfo({ privateKey, password: defaultPassword, restoring: true })
     setRestoring(true)
     new BackupProvider({ seckey: privateKey! }, new IndexedDbSwapRepository())
-      .restore(updateConfig)
+      .restore((conf) =>
+        // we enforce delegates on restore
+        updateConfig({ ...conf, delegate: true }),
+      )
       .catch((err) => consoleError(err, 'Error restoring from nostr'))
       .finally(() => {
         setRestoring(false)
