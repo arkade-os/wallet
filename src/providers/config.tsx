@@ -112,7 +112,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
       window.location.hash = ''
     }
     let config = readConfigFromStorage() ?? { ...defaultConfig }
-    // merge with defaults to ensure all fields are present
+    // allow upgradability while keeping user preference (delegate defaults true but respects stored false)
     config = { ...defaultConfig, ...config }
     config.apps = { ...defaultConfig.apps, ...config.apps }
     updateConfig(config)

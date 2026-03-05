@@ -3,6 +3,7 @@ import { getPublicKey } from 'nostr-tools/pure'
 import { NostrStorage } from './nostr'
 import { Config } from './types'
 import { consoleError } from './logs'
+import { toXOnlyHex } from './keys'
 
 type NostrStorageData = {
   config?: Config
@@ -29,8 +30,7 @@ export class BackupProvider {
       this.seckey = options.seckey
       this.nostrStorage = new NostrStorage({ seckey: this.seckey })
     } else if (options.pubkey) {
-      this.pubkey = options.pubkey
-      if (this.pubkey.length === 66) this.pubkey = options.pubkey.slice(2)
+      this.pubkey = toXOnlyHex(options.pubkey)
       if (this.pubkey.length !== 64) throw new Error('Invalid pubkey length')
       this.nostrStorage = new NostrStorage({ pubkey: this.pubkey })
       this.seckey = null

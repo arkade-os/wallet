@@ -11,13 +11,14 @@ import FlexRow from '../../components/FlexRow'
 import { AspContext } from '../../providers/asp'
 import WarningBox from '../../components/Warning'
 import { SettingsOptions } from '../../lib/types'
-import { WalletContext } from '../../providers/wallet'
 import { ConfigContext } from '../../providers/config'
-import { defaultDelegate } from '../../lib/constants'
+import { WalletContext } from '../../providers/wallet'
+import { getDelegateUrlForNetwork } from '../../lib/constants'
 import { useContext, useEffect, useState } from 'react'
 import { OptionsContext } from '../../providers/options'
 import Text, { TextSecondary } from '../../components/Text'
 import { decodeArkAddress, isArkAddress } from '../../lib/address'
+import { NetworkName } from '@arkade-os/sdk'
 
 // format the URL to ensure it has the correct protocol and no trailing slashes
 const formatUrl = (host: string, path: string): string => {
@@ -132,10 +133,11 @@ function DelegateCard({ active = true }: { active?: boolean }) {
   const { config } = useContext(ConfigContext)
   const { wallet } = useContext(WalletContext)
   const { setOption } = useContext(OptionsContext)
+  const { aspInfo } = useContext(AspContext)
 
   if (!config.delegate) return null
 
-  const delegate = defaultDelegate()
+  const delegate = getDelegateUrlForNetwork(aspInfo.network as NetworkName)
 
   const nextRolloverText = wallet.nextRollover
     ? `next renewal ${prettyAgo(wallet.nextRollover)}`
@@ -172,11 +174,12 @@ export default function Delegates() {
   const { aspInfo } = useContext(AspContext)
   const { goBack } = useContext(OptionsContext)
   const { config, updateConfig } = useContext(ConfigContext)
+  const network = aspInfo.network as NetworkName
 
   const [active, setActive] = useState(false)
   const [learnMore, setLearnMore] = useState(false)
 
-  const delegate = defaultDelegate()
+  const delegate = getDelegateUrlForNetwork(network)
 
   // test connection to delegate when url changes
   useEffect(() => {
@@ -196,7 +199,12 @@ export default function Delegates() {
   }
 
   // toggle delegate
-  const handleToggle = () => updateConfig({ ...config, delegate: !config.delegate })
+  const handleToggle = async () => {
+    const nextDelegate = !config.delegate
+    await updateConfig({ ...config, delegate: nextDelegate })
+    // Full page reload ensures service worker and wallet are re-instantiated with the new delegator setting.
+    window.location.reload()
+  }
 
   // text to show on warning box
   const warningText = 'Delegates can only renew your VTXOs, they cannot spend your funds or control your wallet'
@@ -225,6 +233,7 @@ export default function Delegates() {
                 text='Use default Arkade delegate'
                 subtext="Use Arkade's default delegate to manage renewals"
               />
+              <TextSecondary>The wallet will reload to apply the change.</TextSecondary>
               <WarningBox text={warningText} />
               <DelegateCard active={active} />
             </FlexCol>

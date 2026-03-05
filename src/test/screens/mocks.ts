@@ -109,6 +109,7 @@ export const mockWalletContextValue = {
   settlePreconfirmed: () => Promise.resolve(),
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
+  restartWallet: () => Promise.resolve(),
   wallet: {
     nextRollover: 0,
   },
