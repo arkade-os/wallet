@@ -52,6 +52,22 @@ export const ConfigContext = createContext<ConfigContextProps>({
   useFiat: false,
 })
 
+const updateDefaultConfig = (config: Config) => {
+  // Ad-hoc merge keeps defaults immutable and documents per-field semantics.
+  // Arrays are replaced (not concatenated) and nested objects are rebuilt so we don't
+  // leak references between sessions when the stored config is partial.
+  return {
+    ...defaultConfig,
+    ...config,
+    announcementsSeen: [...(config.announcementsSeen ?? defaultConfig.announcementsSeen)],
+    importedAssets: [...(config.importedAssets ?? defaultConfig.importedAssets)],
+    apps: {
+      assets: { enabled: config.apps?.assets?.enabled ?? defaultConfig.apps.assets.enabled },
+      boltz: { connected: config.apps?.boltz?.connected ?? defaultConfig.apps.boltz.connected },
+    },
+  }
+}
+
 export const resolveTheme = (theme: Themes): Themes.Dark | Themes.Light => {
   if (theme === Themes.Auto) {
     return window?.matchMedia?.('(prefers-color-scheme: dark)')?.matches ? Themes.Dark : Themes.Light
@@ -88,7 +104,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
 
   const updateConfig = async (incoming: Config) => {
     // merge with defaults so newly added fields are always present
-    const config = { ...defaultConfig, ...incoming }
+    const config = updateDefaultConfig(incoming)
     // add protocol to aspUrl if missing
     if (!config.aspUrl.startsWith('http://') && !config.aspUrl.startsWith('https://')) {
       const protocol = config.aspUrl.startsWith('localhost') ? 'http://' : 'https://'
@@ -113,8 +129,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     }
     let config = readConfigFromStorage() ?? { ...defaultConfig }
     // merge with defaults to ensure all fields are present
-    config = { ...defaultConfig, ...config }
-    config.apps = { ...defaultConfig.apps, ...config.apps }
+    config = updateDefaultConfig(config)
     updateConfig(config)
     setConfigLoaded(true)
   }, [configLoaded])
