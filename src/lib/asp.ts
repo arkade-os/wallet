@@ -7,6 +7,7 @@ import {
   ExtendedVirtualCoin,
   FeeInfo,
   WalletBalance,
+  DelegateContractHandler,
 } from '@arkade-os/sdk'
 import { Addresses, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
@@ -14,6 +15,8 @@ import { consoleError } from './logs'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import { getExpiringAndRecoverableVtxos } from './vtxo'
 import * as Sentry from '@sentry/react'
+import { hex } from '@scure/base'
+import { toXOnlyHex } from './keys'
 
 const emptyFees: FeeInfo = {
   intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
@@ -275,6 +278,35 @@ export const settleVtxos = async (wallet: IWallet, dustAmount: bigint, threshold
 export const renewCoins = async (wallet: IWallet, dustAmount: bigint, thresholdMs?: number): Promise<void> => {
   const { inputs } = await getInputsToSettle(wallet, thresholdMs)
   if (inputs.length > 0) await settleVtxos(wallet, dustAmount, thresholdMs)
+}
+
+export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> => {
+  const cm = await wallet.getContractManager()
+  const contractWithVtxos = await cm.getContractsWithVtxos({ type: 'delegate' })
+  const dm = await wallet.getDelegatorManager()
+
+  if (!dm) {
+    throw new Error('Delegator manager not found')
+  }
+
+  const delegateInfo = await dm.getDelegateInfo()
+  const vtxosToDelegate = contractWithVtxos
+    .filter(({ contract, vtxos }) => {
+      if (vtxos.length === 0) return false
+      const contractParams = DelegateContractHandler.deserializeParams(contract.params)
+      const contractDelegatePubKey = hex.encode(contractParams.delegatePubKey) // x-only (32 bytes)
+      const delegateInfoPubKey = toXOnlyHex(delegateInfo.pubkey)
+      return contractDelegatePubKey === delegateInfoPubKey
+    })
+    .flatMap((_) => _.vtxos)
+
+  if (vtxosToDelegate.length === 0) return
+  const destination = await wallet.getAddress()
+  const result = await dm.delegate(vtxosToDelegate, destination)
+  if (result.failed.length > 0) {
+    // eslint-disable-next-line no-console
+    console.warn('Delegation partial failure:', result.failed)
+  }
 }
 
 const serializeForSentry = (value: any): string => {

@@ -115,6 +115,8 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     // merge with defaults to ensure all fields are present
     config = { ...defaultConfig, ...config }
     config.apps = { ...defaultConfig.apps, ...config.apps }
+    // env var is authoritative — override cached localStorage value
+    if (import.meta.env.VITE_ARK_SERVER) config.aspUrl = import.meta.env.VITE_ARK_SERVER
     updateConfig(config)
     setConfigLoaded(true)
   }, [configLoaded])

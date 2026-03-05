@@ -121,7 +121,7 @@ services:
   boltz:
     container_name: boltz
     restart: unless-stopped
-    image: boltz/boltz:ark
+    image: boltz/boltz:latest
     pull_policy: always
     ports:
       - '9000:9000'

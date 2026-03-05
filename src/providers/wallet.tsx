@@ -22,7 +22,7 @@ import {
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
-import { getBalance, getTxHistory, getVtxos, renewCoins, settleVtxos } from '../lib/asp'
+import { delegateVtxos, getBalance, getTxHistory, getVtxos, renewCoins, settleVtxos } from '../lib/asp'
 import { AspContext } from './asp'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
@@ -34,7 +34,7 @@ import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
-import { maxPercentage } from '../lib/constants'
+import { defaultDelegate, maxPercentage } from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { Indexer } from '../lib/indexer'
@@ -55,6 +55,7 @@ interface WalletContextProps {
   updateWallet: (w: Wallet | ((prev: Wallet) => Wallet)) => void
   isLocked: () => Promise<boolean>
   reloadWallet: (svcWallet?: ServiceWorkerWallet) => Promise<void>
+  restartWallet: (delegateEnabled?: boolean) => Promise<void>
   wallet: Wallet
   walletLoaded: boolean
   svcWallet: ServiceWorkerWallet | undefined
@@ -76,6 +77,7 @@ export const WalletContext = createContext<WalletContextProps>({
   settlePreconfirmed: () => Promise.resolve(),
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
+  restartWallet: () => Promise.resolve(),
   wallet: defaultWallet,
   walletLoaded: false,
   svcWallet: undefined,
@@ -257,12 +259,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     privateKey,
     retryCount = 0,
     maxRetries = 5,
+    delegatorUrl,
   }: {
     arkServerUrl: string
     esploraUrl: string
     privateKey: string
     retryCount?: number
     maxRetries?: number
+    delegatorUrl?: string
   }) => {
     try {
       // create service worker wallet
@@ -274,6 +278,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         identity: SingleKey.fromHex(privateKey),
         arkServerUrl,
         esploraUrl,
+        delegatorUrl,
         storage: { walletRepository, contractRepository },
       })
 
@@ -337,39 +342,41 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }, 1_000)
 
-      // renew expiring coins on startup
-      renewCoins(svcWallet, aspInfo.dust, wallet.thresholdMs).catch(() => {})
+      // delegate or renew expiring coins on startup
+      if (config.delegate) {
+        delegateVtxos(svcWallet).catch((e) => {
+          console.error('Error delegating coins', e)
+        })
+      } else {
+        renewCoins(svcWallet, aspInfo.dust, wallet.thresholdMs).catch(() => {})
+      }
     } catch (err) {
-      if (
+      const isTimeoutError =
         err instanceof Error &&
         (err.message.includes('Service worker activation timed out') || err.message.includes('MessageBus timed out'))
-      ) {
-        if (retryCount < maxRetries) {
-          // exponential backoff: wait 1s, 2s, 4s for each retry
-          const delay = Math.pow(2, retryCount) * 1000
-          consoleError(
-            new Error(
-              `Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,
-            ),
-            'Service worker activation retry',
-          )
-          await new Promise((resolve) => setTimeout(resolve, delay))
-          return initSvcWorkerWallet({
-            arkServerUrl,
-            esploraUrl,
-            privateKey,
-            retryCount: retryCount + 1,
-            maxRetries,
-          })
-        } else {
-          consoleError(
-            new Error('Service worker activation timed out after maximum retries'),
-            'Service worker activation failed',
-          )
-          return
-        }
+
+      if (isTimeoutError && retryCount < maxRetries) {
+        // exponential backoff: wait 1s, 2s, 4s for each retry
+        const delay = Math.pow(2, retryCount) * 1000
+        consoleError(
+          new Error(
+            `Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,
+          ),
+          'Service worker activation retry',
+        )
+        await new Promise((resolve) => setTimeout(resolve, delay))
+        return initSvcWorkerWallet({
+          arkServerUrl,
+          esploraUrl,
+          privateKey,
+          retryCount: retryCount + 1,
+          maxRetries,
+          delegatorUrl,
+        })
       }
-      // re-throw other errors
+
+      // If we are here, either retries are exhausted or it's a different error.
+      // Surface the failure so the unlock flow cannot proceed silently without an initialized wallet.
       throw err
     }
   }
@@ -380,13 +387,39 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const esploraUrl = getRestApiExplorerURL(network) ?? ''
     const pubkey = hex.encode(secp.getPublicKey(privateKey))
     updateConfig({ ...config, pubkey })
+    const delegatorUrl = config.delegate ? defaultDelegate().url : undefined
     await initSvcWorkerWallet({
       privateKey: hex.encode(privateKey),
       arkServerUrl,
       esploraUrl,
+      delegatorUrl,
     })
     updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
+  }
+
+  /**
+   * Reinitialize the service-worker wallet in-place so runtime config changes
+   * (e.g., delegate on/off) take effect without forcing a lock/unlock cycle.
+   * Keeps local tx/balance state; just rebuilds the SW wallet with the current
+   * delegatorUrl flag.
+   */
+  const restartWallet = async (delegateEnabled = config.delegate) => {
+    if (!svcWallet) return
+    type HasToHex = { toHex: () => string }
+    const identity = svcWallet.identity
+    const privateKey =
+      typeof (identity as Partial<HasToHex>).toHex === 'function' ? (identity as HasToHex).toHex() : undefined
+    if (!privateKey) throw new Error('Unable to reinitialize wallet without private key')
+    const arkServerUrl = aspInfo.url
+    const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
+    const delegatorUrl = delegateEnabled ? defaultDelegate().url : undefined
+    await initSvcWorkerWallet({
+      privateKey,
+      arkServerUrl,
+      esploraUrl,
+      delegatorUrl,
+    })
   }
 
   const lockWallet = async () => {
@@ -445,6 +478,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         walletLoaded,
         svcWallet,
         lockWallet,
+        restartWallet,
         txs,
         balance,
         assetBalances,

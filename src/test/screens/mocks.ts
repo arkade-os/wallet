@@ -4,6 +4,7 @@ import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../.
 import { AspInfo } from '../../providers/asp'
 import { SingleKey } from '@arkade-os/sdk'
 import { CurrencyDisplay, Fiats, Themes } from '../../lib/types'
+import { AssetIconApprovalManager } from '../../lib/assetIconApproval'
 
 const mockAspInfo: AspInfo = {
   ...emptyAspInfo,
@@ -97,6 +98,9 @@ export const mockOptionsContextValue = {
 }
 
 export const mockNavigationContextValue = {
+  direction: 'none' as const,
+  goBack: () => {},
+  isInitialLoad: false,
   navigate: () => {},
   screen: Pages.Init,
   tab: Tabs.None,
@@ -109,6 +113,7 @@ export const mockWalletContextValue = {
   settlePreconfirmed: () => Promise.resolve(),
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
+  restartWallet: () => Promise.resolve(),
   wallet: {
     nextRollover: 0,
   },
@@ -121,6 +126,8 @@ export const mockWalletContextValue = {
   setCacheEntry: () => {},
   txs: [mockTxInfo],
   vtxos: { spendable: [], spent: [] },
+  iconApprovalManager: new AssetIconApprovalManager(),
+  dataReady: false,
 }
 
 export const mockFlowContextValue = {
@@ -136,7 +143,7 @@ export const mockFlowContextValue = {
   setSendInfo: () => {},
   setSwapInfo: () => {},
   setTxInfo: () => {},
-  assetInfo: { assetId: undefined, supply: 0 },
+  assetInfo: { assetId: '', supply: 0 },
   setAssetInfo: () => {},
   deepLinkInfo: undefined,
   setDeepLinkInfo: () => {},
