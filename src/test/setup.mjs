@@ -254,7 +254,7 @@ async function setupBoltz() {
 
     console.log('\nCreating Fulmine wallet...')
     await execCommand(
-      `curl -s -X POST http://localhost:7001/api/v1/wallet/create -H "Content-Type: application/json" -d '{"private_key": "5b9902c1098cc0f4c7e91066ef3227e292d994a50ebc33961ac6daa656fd242e", "password": "password", "server_url": "http://arkd:7070"}'`,
+      `curl -s -X POST http://localhost:7003/api/v1/wallet/create -H "Content-Type: application/json" -d '{"private_key": "5b9902c1098cc0f4c7e91066ef3227e292d994a50ebc33961ac6daa656fd242e", "password": "password", "server_url": "http://arkd:7070"}'`,
       true,
     )
     console.log('  ✔ Wallet created')
@@ -263,7 +263,7 @@ async function setupBoltz() {
 
     console.log('\nUnlocking Fulmine wallet...')
     await execCommand(
-      `curl -s -X POST http://localhost:7001/api/v1/wallet/unlock -H "Content-Type: application/json" -d '{"password": "password"}'`,
+      `curl -s -X POST http://localhost:7003/api/v1/wallet/unlock -H "Content-Type: application/json" -d '{"password": "password"}'`,
       true,
     )
     console.log('  ✔ Wallet unlocked')
@@ -271,7 +271,7 @@ async function setupBoltz() {
     await sleep(2000)
 
     console.log('\nGetting Fulmine address...')
-    const fulmineAddressResponse = execSync('curl -s -X GET http://localhost:7001/api/v1/address', { encoding: 'utf8' })
+    const fulmineAddressResponse = execSync('curl -s -X GET http://localhost:7003/api/v1/address', { encoding: 'utf8' })
     const fulmineAddress = JSON.parse(fulmineAddressResponse).address.split('?')[0].split(':')[1]
     console.log(`  Address: ${fulmineAddress}`)
 
@@ -279,7 +279,7 @@ async function setupBoltz() {
     await faucet(fulmineAddress, 1)
 
     console.log('\nSettling funds in Fulmine...')
-    await execCommand('curl -s -X GET http://localhost:7001/api/v1/settle', true)
+    await execCommand('curl -s -X GET http://localhost:7003/api/v1/settle', true)
     console.log('  ✔ Funds settled')
 
     console.log('\nStarting Boltz backend and PostgreSQL...')
