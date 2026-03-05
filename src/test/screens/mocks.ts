@@ -55,6 +55,14 @@ export const mockAspContextValue = {
 
 export const mockConfigContextValue = {
   config: {
+    apps: {
+      assets: {
+        enabled: true,
+      },
+      boltz: {
+        connected: true,
+      },
+    },
     currencyDisplay: CurrencyDisplay.Both,
     delegate: false,
     fiat: Fiats.EUR,
