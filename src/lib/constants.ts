@@ -23,7 +23,7 @@ export const defaultArkServer = () => {
 }
 
 const DELEGATE_URL: Record<Network, string | null> = {
-  bitcoin: 'https://delegate.arkade.computer',
+  bitcoin: 'https://delegate.arkade.money',
   mutinynet: `https://delegator.mutinynet.arkade.sh`,
   signet: null,
   regtest: 'http://localhost:7002',
