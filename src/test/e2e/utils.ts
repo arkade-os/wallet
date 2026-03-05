@@ -115,7 +115,7 @@ async function restoreWallet(page: Page, nsec: string): Promise<void> {
   await page.getByText('Continue').click()
   await page.getByText('Go to wallet').click()
   const maybeLater = page.getByRole('button', { name: 'Maybe later' })
-  await maybeLater.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
+  await maybeLater.waitFor({ state: 'visible', timeout: 1500 }).catch(() => {})
   if (await maybeLater.isVisible()) {
     await maybeLater.click({ force: true })
     await maybeLater.waitFor({ state: 'hidden' }).catch(() => {})
