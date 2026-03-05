@@ -11,9 +11,11 @@ import { consoleError } from '../../lib/logs'
 import { WalletAlternativeIcon } from '../../icons/Wallet'
 import CenterScreen from '../../components/CenterScreen'
 import FlexCol from '../../components/FlexCol'
+import { SwapsContext } from '../../providers/swaps'
 
 export default function Reset() {
   const { resetWallet } = useContext(WalletContext)
+  const { arkadeSwaps } = useContext(SwapsContext)
 
   const [disabled, setDisabled] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -32,6 +34,10 @@ export default function Reset() {
         consoleError(err)
         setLoading(false)
       })
+    // remove all data from swap repository
+    if (arkadeSwaps) {
+      arkadeSwaps?.swapRepository?.clear().catch((err) => consoleError(err))
+    }
   }
 
   return (
