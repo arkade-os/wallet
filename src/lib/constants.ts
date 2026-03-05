@@ -25,7 +25,7 @@ export const defaultDelegate = (): Delegate => {
   const devServer = 'http://localhost:7004'
   const mainServer = 'https://delegate.arkade.computer'
   const getDefaultUrl = () => {
-    if (import.meta.env.VITE_DELEGATE_URL) return import.meta.env.VITE_DELEGATE_URL
+    if (import.meta.env.VITE_DELEGATOR_URL) return import.meta.env.VITE_DELEGATOR_URL
     for (const domain of testDomains) {
       if (window.location.hostname.includes(domain)) {
         return window.location.hostname.includes('localhost') ? devServer : mainServer
