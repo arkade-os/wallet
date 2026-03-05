@@ -12,7 +12,7 @@ const defaultConfig: Config = {
   apps: { assets: { enabled: false }, boltz: { connected: true } },
   aspUrl: defaultArkServer(),
   currencyDisplay: CurrencyDisplay.Both,
-  delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
+  delegate: true,
   fiat: Fiats.USD,
   importedAssets: [],
   haptics: true,
