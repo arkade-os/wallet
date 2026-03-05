@@ -33,7 +33,6 @@ export const defaultDelegate = (): Delegate => {
     }
     return mainServer
   }
-  console.log('Default delegate URL:', getDefaultUrl())
   return {
     name: 'Arkade Default',
     url: getDefaultUrl(),
