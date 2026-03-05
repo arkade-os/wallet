@@ -1,25 +1,25 @@
 /*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) */
-function F9(c) {
+function L9(c) {
   return c instanceof Uint8Array || ArrayBuffer.isView(c) && c.constructor.name === "Uint8Array";
 }
-function t2(c, a = "") {
+function e2(c, a = "") {
   if (!Number.isSafeInteger(c) || c < 0) {
     const h = a && `"${a}" `;
     throw new Error(`${h}expected integer >= 0, got ${c}`);
   }
 }
 function p0(c, a, h = "") {
-  const k = F9(c), d = c?.length, g = a !== void 0;
+  const k = L9(c), d = c?.length, g = a !== void 0;
   if (!k || g && d !== a) {
     const y = h && `"${h}" `, E = g ? ` of length ${a}` : "", S = k ? `length=${d}` : `type=${typeof c}`;
     throw new Error(y + "expected Uint8Array" + E + ", got " + S);
   }
   return c;
 }
-function S8(c) {
+function E8(c) {
   if (typeof c != "function" || typeof c.create != "function")
     throw new Error("Hash must wrapped by utils.createHasher");
-  t2(c.outputLen), t2(c.blockLen);
+  e2(c.outputLen), e2(c.blockLen);
 }
 function Df(c, a = !0) {
   if (c.destroyed)
@@ -33,22 +33,22 @@ function ZS(c, a) {
   if (c.length < h)
     throw new Error('"digestInto() output" expected to be of length >=' + h);
 }
-function r2(...c) {
+function t2(...c) {
   for (let a = 0; a < c.length; a++)
     c[a].fill(0);
 }
 function Ps(c) {
   return new DataView(c.buffer, c.byteOffset, c.byteLength);
 }
-function Di(c, a) {
+function _i(c, a) {
   return c << 32 - a | c >>> a;
 }
 function G1(c, a) {
   return c << a | c >>> 32 - a >>> 0;
 }
-const x8 = /* @ts-ignore */ typeof Uint8Array.from([]).toHex == "function" && typeof Uint8Array.fromHex == "function", qS = /* @__PURE__ */ Array.from({ length: 256 }, (c, a) => a.toString(16).padStart(2, "0"));
+const S8 = /* @ts-ignore */ typeof Uint8Array.from([]).toHex == "function" && typeof Uint8Array.fromHex == "function", qS = /* @__PURE__ */ Array.from({ length: 256 }, (c, a) => a.toString(16).padStart(2, "0"));
 function Ea(c) {
-  if (p0(c), x8)
+  if (p0(c), S8)
     return c.toHex();
   let a = "";
   for (let h = 0; h < c.length; h++)
@@ -56,7 +56,7 @@ function Ea(c) {
   return a;
 }
 const on = { _0: 48, _9: 57, A: 65, F: 70, a: 97, f: 102 };
-function qh(c) {
+function Zh(c) {
   if (c >= on._0 && c <= on._9)
     return c - on._0;
   if (c >= on.A && c <= on.F)
@@ -67,14 +67,14 @@ function qh(c) {
 function $f(c) {
   if (typeof c != "string")
     throw new Error("hex string expected, got " + typeof c);
-  if (x8)
+  if (S8)
     return Uint8Array.fromHex(c);
   const a = c.length, h = a / 2;
   if (a % 2)
     throw new Error("hex string expected, got unpadded hex of length " + a);
   const k = new Uint8Array(h);
   for (let d = 0, g = 0; d < h; d++, g += 2) {
-    const y = qh(c.charCodeAt(g)), E = qh(c.charCodeAt(g + 1));
+    const y = Zh(c.charCodeAt(g)), E = Zh(c.charCodeAt(g + 1));
     if (y === void 0 || E === void 0) {
       const S = c[g] + c[g + 1];
       throw new Error('hex string expected, got non-hex character "' + S + '" at index ' + g);
@@ -96,7 +96,7 @@ function Zt(...c) {
   }
   return h;
 }
-function V9(c, a = {}) {
+function F9(c, a = {}) {
   const h = (d, g) => c(g).update(d).digest(), k = c(void 0);
   return h.outputLen = k.outputLen, h.blockLen = k.blockLen, h.create = (d) => c(d), Object.assign(h, a), Object.freeze(h);
 }
@@ -106,7 +106,7 @@ function V2(c = 32) {
     throw new Error("crypto.getRandomValues must be defined");
   return a.getRandomValues(new Uint8Array(c));
 }
-const T8 = (c) => ({
+const x8 = (c) => ({
   oid: Uint8Array.from([6, 9, 96, 134, 72, 1, 101, 3, 4, 2, c])
 });
 function JS(c, a, h) {
@@ -115,7 +115,7 @@ function JS(c, a, h) {
 function ex(c, a, h) {
   return c & a ^ c & h ^ a & h;
 }
-let W9 = class {
+let V9 = class {
   blockLen;
   outputLen;
   padOffset;
@@ -149,7 +149,7 @@ let W9 = class {
     Df(this), ZS(a, this), this.finished = !0;
     const { buffer: h, view: k, blockLen: d, isLE: g } = this;
     let { pos: y } = this;
-    h[y++] = 128, r2(this.buffer.subarray(y)), this.padOffset > d - y && (this.process(k, 0), y = 0);
+    h[y++] = 128, t2(this.buffer.subarray(y)), this.padOffset > d - y && (this.process(k, 0), y = 0);
     for (let P = y; P < d; P++)
       h[P] = 0;
     k.setBigUint64(d - 8, BigInt(this.length * 8), g), this.process(k, 0);
@@ -177,7 +177,7 @@ let W9 = class {
     return this._cloneInto();
   }
 };
-const $n = /* @__PURE__ */ Uint32Array.from([
+const Dn = /* @__PURE__ */ Uint32Array.from([
   1779033703,
   3144134277,
   1013904242,
@@ -203,9 +203,9 @@ const $n = /* @__PURE__ */ Uint32Array.from([
   4215389547,
   1541459225,
   327033209
-]), z1 = /* @__PURE__ */ BigInt(2 ** 32 - 1), Jh = /* @__PURE__ */ BigInt(32);
+]), z1 = /* @__PURE__ */ BigInt(2 ** 32 - 1), qh = /* @__PURE__ */ BigInt(32);
 function tx(c, a = !1) {
-  return a ? { h: Number(c & z1), l: Number(c >> Jh & z1) } : { h: Number(c >> Jh & z1) | 0, l: Number(c & z1) | 0 };
+  return a ? { h: Number(c & z1), l: Number(c >> qh & z1) } : { h: Number(c >> qh & z1) | 0, l: Number(c & z1) | 0 };
 }
 function rx(c, a = !1) {
   const h = c.length;
@@ -216,7 +216,7 @@ function rx(c, a = !1) {
   }
   return [k, d];
 }
-const e5 = (c, a, h) => c >>> h, t5 = (c, a, h) => c << 32 - h | a >>> h, ds = (c, a, h) => c >>> h | a << 32 - h, ws = (c, a, h) => c << 32 - h | a >>> h, j1 = (c, a, h) => c << 64 - h | a >>> h - 32, X1 = (c, a, h) => c >>> h - 32 | a << 64 - h;
+const Jh = (c, a, h) => c >>> h, e5 = (c, a, h) => c << 32 - h | a >>> h, ds = (c, a, h) => c >>> h | a << 32 - h, ws = (c, a, h) => c << 32 - h | a >>> h, j1 = (c, a, h) => c << 64 - h | a >>> h - 32, X1 = (c, a, h) => c >>> h - 32 | a << 64 - h;
 function fn(c, a, h, k) {
   const d = (a >>> 0) + (k >>> 0);
   return { h: c + h + (d / 2 ** 32 | 0) | 0, l: d | 0 };
@@ -286,8 +286,8 @@ const ix = (c, a, h) => (c >>> 0) + (a >>> 0) + (h >>> 0), nx = (c, a, h, k) => 
   2756734187,
   3204031479,
   3329325298
-]), Mn = /* @__PURE__ */ new Uint32Array(64);
-let ux = class extends W9 {
+]), $n = /* @__PURE__ */ new Uint32Array(64);
+let ux = class extends V9 {
   constructor(a) {
     super(64, a, 8, !1);
   }
@@ -301,40 +301,40 @@ let ux = class extends W9 {
   }
   process(a, h) {
     for (let P = 0; P < 16; P++, h += 4)
-      Mn[P] = a.getUint32(h, !1);
+      $n[P] = a.getUint32(h, !1);
     for (let P = 16; P < 64; P++) {
-      const O = Mn[P - 15], $ = Mn[P - 2], N = Di(O, 7) ^ Di(O, 18) ^ O >>> 3, M = Di($, 17) ^ Di($, 19) ^ $ >>> 10;
-      Mn[P] = M + Mn[P - 7] + N + Mn[P - 16] | 0;
+      const O = $n[P - 15], $ = $n[P - 2], N = _i(O, 7) ^ _i(O, 18) ^ O >>> 3, M = _i($, 17) ^ _i($, 19) ^ $ >>> 10;
+      $n[P] = M + $n[P - 7] + N + $n[P - 16] | 0;
     }
     let { A: k, B: d, C: g, D: y, E, F: S, G: b, H: I } = this;
     for (let P = 0; P < 64; P++) {
-      const O = Di(E, 6) ^ Di(E, 11) ^ Di(E, 25), $ = I + O + JS(E, S, b) + cx[P] + Mn[P] | 0, M = (Di(k, 2) ^ Di(k, 13) ^ Di(k, 22)) + ex(k, d, g) | 0;
+      const O = _i(E, 6) ^ _i(E, 11) ^ _i(E, 25), $ = I + O + JS(E, S, b) + cx[P] + $n[P] | 0, M = (_i(k, 2) ^ _i(k, 13) ^ _i(k, 22)) + ex(k, d, g) | 0;
       I = b, b = S, S = E, E = y + $ | 0, y = g, g = d, d = k, k = $ + M | 0;
     }
     k = k + this.A | 0, d = d + this.B | 0, g = g + this.C | 0, y = y + this.D | 0, E = E + this.E | 0, S = S + this.F | 0, b = b + this.G | 0, I = I + this.H | 0, this.set(k, d, g, y, E, S, b, I);
   }
   roundClean() {
-    r2(Mn);
+    t2($n);
   }
   destroy() {
-    this.set(0, 0, 0, 0, 0, 0, 0, 0), r2(this.buffer);
+    this.set(0, 0, 0, 0, 0, 0, 0, 0), t2(this.buffer);
   }
 }, lx = class extends ux {
   // We cannot use array here since array allows indexing by variable
   // which means optimizer/compiler cannot use registers.
-  A = $n[0] | 0;
-  B = $n[1] | 0;
-  C = $n[2] | 0;
-  D = $n[3] | 0;
-  E = $n[4] | 0;
-  F = $n[5] | 0;
-  G = $n[6] | 0;
-  H = $n[7] | 0;
+  A = Dn[0] | 0;
+  B = Dn[1] | 0;
+  C = Dn[2] | 0;
+  D = Dn[3] | 0;
+  E = Dn[4] | 0;
+  F = Dn[5] | 0;
+  G = Dn[6] | 0;
+  H = Dn[7] | 0;
   constructor() {
     super(32);
   }
 };
-const b8 = rx([
+const T8 = rx([
   "0x428a2f98d728ae22",
   "0x7137449123ef65cd",
   "0xb5c0fbcfec4d3b2f",
@@ -415,8 +415,8 @@ const b8 = rx([
   "0x597f299cfc657e2a",
   "0x5fcb6fab3ad6faec",
   "0x6c44198c4a475817"
-].map((c) => BigInt(c))), hx = b8[0], kx = b8[1], Ln = /* @__PURE__ */ new Uint32Array(80), Fn = /* @__PURE__ */ new Uint32Array(80);
-class Ax extends W9 {
+].map((c) => BigInt(c))), hx = T8[0], kx = T8[1], Mn = /* @__PURE__ */ new Uint32Array(80), Ln = /* @__PURE__ */ new Uint32Array(80);
+class Ax extends V9 {
   constructor(a) {
     super(128, a, 16, !1);
   }
@@ -431,14 +431,14 @@ class Ax extends W9 {
   }
   process(a, h) {
     for (let we = 0; we < 16; we++, h += 4)
-      Ln[we] = a.getUint32(h), Fn[we] = a.getUint32(h += 4);
+      Mn[we] = a.getUint32(h), Ln[we] = a.getUint32(h += 4);
     for (let we = 16; we < 80; we++) {
-      const me = Ln[we - 15] | 0, fe = Fn[we - 15] | 0, Ae = ds(me, fe, 1) ^ ds(me, fe, 8) ^ e5(me, fe, 7), j = ws(me, fe, 1) ^ ws(me, fe, 8) ^ t5(me, fe, 7), ie = Ln[we - 2] | 0, Q = Fn[we - 2] | 0, he = ds(ie, Q, 19) ^ j1(ie, Q, 61) ^ e5(ie, Q, 6), re = ws(ie, Q, 19) ^ X1(ie, Q, 61) ^ t5(ie, Q, 6), G = sx(j, re, Fn[we - 7], Fn[we - 16]), H = ox(G, Ae, he, Ln[we - 7], Ln[we - 16]);
-      Ln[we] = H | 0, Fn[we] = G | 0;
+      const me = Mn[we - 15] | 0, fe = Ln[we - 15] | 0, Ae = ds(me, fe, 1) ^ ds(me, fe, 8) ^ Jh(me, fe, 7), j = ws(me, fe, 1) ^ ws(me, fe, 8) ^ e5(me, fe, 7), ie = Mn[we - 2] | 0, Q = Ln[we - 2] | 0, he = ds(ie, Q, 19) ^ j1(ie, Q, 61) ^ Jh(ie, Q, 6), re = ws(ie, Q, 19) ^ X1(ie, Q, 61) ^ e5(ie, Q, 6), G = sx(j, re, Ln[we - 7], Ln[we - 16]), H = ox(G, Ae, he, Mn[we - 7], Mn[we - 16]);
+      Mn[we] = H | 0, Ln[we] = G | 0;
     }
     let { Ah: k, Al: d, Bh: g, Bl: y, Ch: E, Cl: S, Dh: b, Dl: I, Eh: P, El: O, Fh: $, Fl: N, Gh: M, Gl: W, Hh: Z, Hl: ke } = this;
     for (let we = 0; we < 80; we++) {
-      const me = ds(P, O, 14) ^ ds(P, O, 18) ^ j1(P, O, 41), fe = ws(P, O, 14) ^ ws(P, O, 18) ^ X1(P, O, 41), Ae = P & $ ^ ~P & M, j = O & N ^ ~O & W, ie = fx(ke, fe, j, kx[we], Fn[we]), Q = ax(ie, Z, me, Ae, hx[we], Ln[we]), he = ie | 0, re = ds(k, d, 28) ^ j1(k, d, 34) ^ j1(k, d, 39), G = ws(k, d, 28) ^ X1(k, d, 34) ^ X1(k, d, 39), H = k & g ^ k & E ^ g & E, Y = d & y ^ d & S ^ y & S;
+      const me = ds(P, O, 14) ^ ds(P, O, 18) ^ j1(P, O, 41), fe = ws(P, O, 14) ^ ws(P, O, 18) ^ X1(P, O, 41), Ae = P & $ ^ ~P & M, j = O & N ^ ~O & W, ie = fx(ke, fe, j, kx[we], Ln[we]), Q = ax(ie, Z, me, Ae, hx[we], Mn[we]), he = ie | 0, re = ds(k, d, 28) ^ j1(k, d, 34) ^ j1(k, d, 39), G = ws(k, d, 28) ^ X1(k, d, 34) ^ X1(k, d, 39), H = k & g ^ k & E ^ g & E, Y = d & y ^ d & S ^ y & S;
       Z = M | 0, ke = W | 0, M = $ | 0, W = N | 0, $ = P | 0, N = O | 0, { h: P, l: O } = fn(b | 0, I | 0, Q | 0, he | 0), b = E | 0, I = S | 0, E = g | 0, S = y | 0, g = k | 0, y = d | 0;
       const X = ix(he, G, Y);
       k = nx(X, Q, re, H), d = X | 0;
@@ -446,10 +446,10 @@ class Ax extends W9 {
     ({ h: k, l: d } = fn(this.Ah | 0, this.Al | 0, k | 0, d | 0)), { h: g, l: y } = fn(this.Bh | 0, this.Bl | 0, g | 0, y | 0), { h: E, l: S } = fn(this.Ch | 0, this.Cl | 0, E | 0, S | 0), { h: b, l: I } = fn(this.Dh | 0, this.Dl | 0, b | 0, I | 0), { h: P, l: O } = fn(this.Eh | 0, this.El | 0, P | 0, O | 0), { h: $, l: N } = fn(this.Fh | 0, this.Fl | 0, $ | 0, N | 0), { h: M, l: W } = fn(this.Gh | 0, this.Gl | 0, M | 0, W | 0), { h: Z, l: ke } = fn(this.Hh | 0, this.Hl | 0, Z | 0, ke | 0), this.set(k, d, g, y, E, S, b, I, P, O, $, N, M, W, Z, ke);
   }
   roundClean() {
-    r2(Ln, Fn);
+    t2(Mn, Ln);
   }
   destroy() {
-    r2(this.buffer), this.set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    t2(this.buffer), this.set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
   }
 }
 class px extends Ax {
@@ -473,15 +473,15 @@ class px extends Ax {
     super(64);
   }
 }
-const V0 = /* @__PURE__ */ V9(
+const V0 = /* @__PURE__ */ F9(
   () => new lx(),
-  /* @__PURE__ */ T8(1)
-), r5 = /* @__PURE__ */ V9(
+  /* @__PURE__ */ x8(1)
+), t5 = /* @__PURE__ */ F9(
   () => new px(),
-  /* @__PURE__ */ T8(3)
+  /* @__PURE__ */ x8(3)
 );
 /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
-const H9 = /* @__PURE__ */ BigInt(0), Ju = /* @__PURE__ */ BigInt(1);
+const W9 = /* @__PURE__ */ BigInt(0), Ju = /* @__PURE__ */ BigInt(1);
 function Mf(c, a = "") {
   if (typeof c != "boolean") {
     const h = a && `"${a}" `;
@@ -489,37 +489,37 @@ function Mf(c, a = "") {
   }
   return c;
 }
-function B8(c) {
+function b8(c) {
   if (typeof c == "bigint") {
     if (!mf(c))
       throw new Error("positive bigint expected, got " + c);
   } else
-    t2(c);
+    e2(c);
   return c;
 }
 function Y1(c) {
-  const a = B8(c).toString(16);
+  const a = b8(c).toString(16);
   return a.length & 1 ? "0" + a : a;
 }
-function I8(c) {
+function B8(c) {
   if (typeof c != "string")
     throw new Error("hex string expected, got " + typeof c);
-  return c === "" ? H9 : BigInt("0x" + c);
+  return c === "" ? W9 : BigInt("0x" + c);
 }
-function Sn(c) {
-  return I8(Ea(c));
+function En(c) {
+  return B8(Ea(c));
 }
-function C8(c) {
-  return I8(Ea(dx(p0(c)).reverse()));
+function I8(c) {
+  return B8(Ea(dx(p0(c)).reverse()));
 }
 function eo(c, a) {
-  t2(a), c = B8(c);
+  e2(a), c = b8(c);
   const h = $f(c.toString(16).padStart(a * 2, "0"));
   if (h.length !== a)
     throw new Error("number too large");
   return h;
 }
-function R8(c, a) {
+function C8(c, a) {
   return eo(c, a).reverse();
 }
 function Vo(c, a) {
@@ -541,23 +541,23 @@ function wx(c) {
     return k;
   });
 }
-const mf = (c) => typeof c == "bigint" && H9 <= c;
+const mf = (c) => typeof c == "bigint" && W9 <= c;
 function gx(c, a, h) {
   return mf(c) && mf(a) && mf(h) && a <= c && c < h;
 }
-function P8(c, a, h, k) {
+function R8(c, a, h, k) {
   if (!gx(a, h, k))
     throw new Error("expected valid " + c + ": " + h + " <= n < " + k + ", got " + a);
 }
 function yx(c) {
   let a;
-  for (a = 0; c > H9; c >>= Ju, a += 1)
+  for (a = 0; c > W9; c >>= Ju, a += 1)
     ;
   return a;
 }
-const K9 = (c) => (Ju << BigInt(c)) - Ju;
+const H9 = (c) => (Ju << BigInt(c)) - Ju;
 function mx(c, a, h) {
-  if (t2(c, "hashLen"), t2(a, "qByteLen"), typeof h != "function")
+  if (e2(c, "hashLen"), e2(a, "qByteLen"), typeof h != "function")
     throw new Error("hmacFn must be a function");
   const k = (W) => new Uint8Array(W), d = Uint8Array.of(), g = Uint8Array.of(0), y = Uint8Array.of(1), E = 1e3;
   let S = k(c), b = k(c), I = 0;
@@ -585,7 +585,7 @@ function mx(c, a, h) {
     return P(), ke;
   };
 }
-function Q9(c, a = {}, h = {}) {
+function K9(c, a = {}, h = {}) {
   if (!c || typeof c != "object")
     throw new Error("expected valid options object");
   function k(g, y, E) {
@@ -599,7 +599,7 @@ function Q9(c, a = {}, h = {}) {
   const d = (g, y) => Object.entries(g).forEach(([E, S]) => k(E, S, y));
   d(a, !1), d(h, !0);
 }
-function i5(c) {
+function r5(c) {
   const a = /* @__PURE__ */ new WeakMap();
   return (h, ...k) => {
     const d = a.get(h);
@@ -610,7 +610,7 @@ function i5(c) {
   };
 }
 /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
-const mr = /* @__PURE__ */ BigInt(0), sr = /* @__PURE__ */ BigInt(1), R2 = /* @__PURE__ */ BigInt(2), N8 = /* @__PURE__ */ BigInt(3), O8 = /* @__PURE__ */ BigInt(4), U8 = /* @__PURE__ */ BigInt(5), vx = /* @__PURE__ */ BigInt(7), _8 = /* @__PURE__ */ BigInt(8), Ex = /* @__PURE__ */ BigInt(9), D8 = /* @__PURE__ */ BigInt(16);
+const mr = /* @__PURE__ */ BigInt(0), sr = /* @__PURE__ */ BigInt(1), C2 = /* @__PURE__ */ BigInt(2), P8 = /* @__PURE__ */ BigInt(3), N8 = /* @__PURE__ */ BigInt(4), O8 = /* @__PURE__ */ BigInt(5), vx = /* @__PURE__ */ BigInt(7), U8 = /* @__PURE__ */ BigInt(8), Ex = /* @__PURE__ */ BigInt(9), _8 = /* @__PURE__ */ BigInt(16);
 function hi(c, a) {
   const h = c % a;
   return h >= mr ? h : a + h;
@@ -621,7 +621,7 @@ function jr(c, a, h) {
     k *= k, k %= h;
   return k;
 }
-function n5(c, a) {
+function i5(c, a) {
   if (c === mr)
     throw new Error("invert: expected non-zero number");
   if (a <= mr)
@@ -635,47 +635,47 @@ function n5(c, a) {
     throw new Error("invert: does not exist");
   return hi(d, a);
 }
-function G9(c, a, h) {
+function Q9(c, a, h) {
   if (!c.eql(c.sqr(a), h))
     throw new Error("Cannot find square root");
 }
-function $8(c, a) {
-  const h = (c.ORDER + sr) / O8, k = c.pow(a, h);
-  return G9(c, k, a), k;
+function D8(c, a) {
+  const h = (c.ORDER + sr) / N8, k = c.pow(a, h);
+  return Q9(c, k, a), k;
 }
 function Sx(c, a) {
-  const h = (c.ORDER - U8) / _8, k = c.mul(a, R2), d = c.pow(k, h), g = c.mul(a, d), y = c.mul(c.mul(g, R2), d), E = c.mul(g, c.sub(y, c.ONE));
-  return G9(c, E, a), E;
+  const h = (c.ORDER - O8) / U8, k = c.mul(a, C2), d = c.pow(k, h), g = c.mul(a, d), y = c.mul(c.mul(g, C2), d), E = c.mul(g, c.sub(y, c.ONE));
+  return Q9(c, E, a), E;
 }
 function xx(c) {
-  const a = Sa(c), h = M8(c), k = h(a, a.neg(a.ONE)), d = h(a, k), g = h(a, a.neg(k)), y = (c + vx) / D8;
+  const a = Sa(c), h = $8(c), k = h(a, a.neg(a.ONE)), d = h(a, k), g = h(a, a.neg(k)), y = (c + vx) / _8;
   return (E, S) => {
     let b = E.pow(S, y), I = E.mul(b, k);
     const P = E.mul(b, d), O = E.mul(b, g), $ = E.eql(E.sqr(I), S), N = E.eql(E.sqr(P), S);
     b = E.cmov(b, I, $), I = E.cmov(O, P, N);
     const M = E.eql(E.sqr(I), S), W = E.cmov(b, I, M);
-    return G9(E, W, S), W;
+    return Q9(E, W, S), W;
   };
 }
-function M8(c) {
-  if (c < N8)
+function $8(c) {
+  if (c < P8)
     throw new Error("sqrt is not defined for small field");
   let a = c - sr, h = 0;
-  for (; a % R2 === mr; )
-    a /= R2, h++;
-  let k = R2;
+  for (; a % C2 === mr; )
+    a /= C2, h++;
+  let k = C2;
   const d = Sa(c);
-  for (; s5(d, k) === 1; )
+  for (; n5(d, k) === 1; )
     if (k++ > 1e3)
       throw new Error("Cannot find square root: probably non-prime P");
   if (h === 1)
-    return $8;
+    return D8;
   let g = d.pow(k, a);
-  const y = (a + sr) / R2;
+  const y = (a + sr) / C2;
   return function(S, b) {
     if (S.is0(b))
       return b;
-    if (s5(S, b) !== 1)
+    if (n5(S, b) !== 1)
       throw new Error("Cannot find square root");
     let I = h, P = S.mul(S.ONE, g), O = S.pow(b, a), $ = S.pow(b, y);
     for (; !S.eql(O, S.ONE); ) {
@@ -692,7 +692,7 @@ function M8(c) {
   };
 }
 function Tx(c) {
-  return c % O8 === N8 ? $8 : c % _8 === U8 ? Sx : c % D8 === Ex ? xx(c) : M8(c);
+  return c % N8 === P8 ? D8 : c % U8 === O8 ? Sx : c % _8 === Ex ? xx(c) : $8(c);
 }
 const bx = [
   "create",
@@ -719,7 +719,7 @@ function Bx(c) {
     BYTES: "number",
     BITS: "number"
   }, h = bx.reduce((k, d) => (k[d] = "function", k), a);
-  return Q9(c, h), c;
+  return K9(c, h), c;
 }
 function Ix(c, a, h) {
   if (h < mr)
@@ -733,18 +733,18 @@ function Ix(c, a, h) {
     h & sr && (k = c.mul(k, d)), d = c.sqr(d), h >>= sr;
   return k;
 }
-function L8(c, a, h = !1) {
+function M8(c, a, h = !1) {
   const k = new Array(a.length).fill(h ? c.ZERO : void 0), d = a.reduce((y, E, S) => c.is0(E) ? y : (k[S] = y, c.mul(y, E)), c.ONE), g = c.inv(d);
   return a.reduceRight((y, E, S) => c.is0(E) ? y : (k[S] = c.mul(y, k[S]), c.mul(y, E)), g), k;
 }
-function s5(c, a) {
-  const h = (c.ORDER - sr) / R2, k = c.pow(a, h), d = c.eql(k, c.ONE), g = c.eql(k, c.ZERO), y = c.eql(k, c.neg(c.ONE));
+function n5(c, a) {
+  const h = (c.ORDER - sr) / C2, k = c.pow(a, h), d = c.eql(k, c.ONE), g = c.eql(k, c.ZERO), y = c.eql(k, c.neg(c.ONE));
   if (!d && !g && !y)
     throw new Error("invalid Legendre symbol result");
   return d ? 1 : g ? 0 : -1;
 }
 function Cx(c, a) {
-  a !== void 0 && t2(a);
+  a !== void 0 && e2(a);
   const h = a !== void 0 ? a : c.toString(2).length, k = Math.ceil(h / 8);
   return { nBitLength: h, nByteLength: k };
 }
@@ -809,7 +809,7 @@ let Rx = class {
     return Ix(this, a, h);
   }
   div(a, h) {
-    return hi(a * n5(h, this.ORDER), this.ORDER);
+    return hi(a * i5(h, this.ORDER), this.ORDER);
   }
   // Same as above, but doesn't normalize
   sqrN(a) {
@@ -825,13 +825,13 @@ let Rx = class {
     return a * h;
   }
   inv(a) {
-    return n5(a, this.ORDER);
+    return i5(a, this.ORDER);
   }
   sqrt(a) {
     return this._sqrt || (this._sqrt = Tx(this.ORDER)), this._sqrt(this, a);
   }
   toBytes(a) {
-    return this.isLE ? R8(a, this.BYTES) : eo(a, this.BYTES);
+    return this.isLE ? C8(a, this.BYTES) : eo(a, this.BYTES);
   }
   fromBytes(a, h = !1) {
     p0(a);
@@ -844,14 +844,14 @@ let Rx = class {
     }
     if (a.length !== d)
       throw new Error("Field.fromBytes: expected " + d + " bytes, got " + a.length);
-    let S = g ? C8(a) : Sn(a);
+    let S = g ? I8(a) : En(a);
     if (E && (S = hi(S, y)), !h && !this.isValid(S))
       throw new Error("invalid field element: outside of range 0..ORDER");
     return S;
   }
   // TODO: we don't need it here, move out to separate fn
   invertBatch(a) {
-    return L8(this, a);
+    return M8(this, a);
   }
   // We can't move this out because Fp6, Fp12 implement it
   // and it's unclear what to return in there.
@@ -862,55 +862,55 @@ let Rx = class {
 function Sa(c, a = {}) {
   return new Rx(c, a);
 }
-function F8(c) {
+function L8(c) {
   if (typeof c != "bigint")
     throw new Error("field order must be bigint");
   const a = c.toString(2).length;
   return Math.ceil(a / 8);
 }
-function V8(c) {
-  const a = F8(c);
+function F8(c) {
+  const a = L8(c);
   return a + Math.ceil(a / 2);
 }
-function W8(c, a, h = !1) {
+function V8(c, a, h = !1) {
   p0(c);
-  const k = c.length, d = F8(a), g = V8(a);
+  const k = c.length, d = L8(a), g = F8(a);
   if (k < 16 || k < g || k > 1024)
     throw new Error("expected " + g + "-1024 bytes of input, got " + k);
-  const y = h ? C8(c) : Sn(c), E = hi(y, a - sr) + sr;
-  return h ? R8(E, d) : eo(E, d);
+  const y = h ? I8(c) : En(c), E = hi(y, a - sr) + sr;
+  return h ? C8(E, d) : eo(E, d);
 }
 /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
-const Vs = /* @__PURE__ */ BigInt(0), P2 = /* @__PURE__ */ BigInt(1);
+const Vs = /* @__PURE__ */ BigInt(0), R2 = /* @__PURE__ */ BigInt(1);
 function Lf(c, a) {
   const h = a.negate();
   return c ? h : a;
 }
-function o5(c, a) {
-  const h = L8(c.Fp, a.map((k) => k.Z));
+function s5(c, a) {
+  const h = M8(c.Fp, a.map((k) => k.Z));
   return a.map((k, d) => c.fromAffine(k.toAffine(h[d])));
 }
-function H8(c, a) {
+function W8(c, a) {
   if (!Number.isSafeInteger(c) || c <= 0 || c > a)
     throw new Error("invalid window size, expected [1.." + a + "], got W=" + c);
 }
 function cu(c, a) {
-  H8(c, a);
-  const h = Math.ceil(a / c) + 1, k = 2 ** (c - 1), d = 2 ** c, g = K9(c), y = BigInt(c);
+  W8(c, a);
+  const h = Math.ceil(a / c) + 1, k = 2 ** (c - 1), d = 2 ** c, g = H9(c), y = BigInt(c);
   return { windows: h, windowSize: k, mask: g, maxNumber: d, shiftBy: y };
 }
-function f5(c, a, h) {
+function o5(c, a, h) {
   const { windowSize: k, mask: d, maxNumber: g, shiftBy: y } = h;
   let E = Number(c & d), S = c >> y;
-  E > k && (E -= g, S += P2);
+  E > k && (E -= g, S += R2);
   const b = a * k, I = b + Math.abs(E) - 1, P = E === 0, O = E < 0, $ = a % 2 !== 0;
   return { nextN: S, offset: I, isZero: P, isNeg: O, isNegF: $, offsetF: b };
 }
-const uu = /* @__PURE__ */ new WeakMap(), K8 = /* @__PURE__ */ new WeakMap();
+const uu = /* @__PURE__ */ new WeakMap(), H8 = /* @__PURE__ */ new WeakMap();
 function lu(c) {
-  return K8.get(c) || 1;
+  return H8.get(c) || 1;
 }
-function a5(c) {
+function f5(c) {
   if (c !== Vs)
     throw new Error("invalid wNAF");
 }
@@ -927,7 +927,7 @@ let Px = class {
   _unsafeLadder(a, h, k = this.ZERO) {
     let d = a;
     for (; h > Vs; )
-      h & P2 && (k = k.add(d)), d = d.double(), h >>= P2;
+      h & R2 && (k = k.add(d)), d = d.double(), h >>= R2;
     return k;
   }
   /**
@@ -965,10 +965,10 @@ let Px = class {
     let d = this.ZERO, g = this.BASE;
     const y = cu(a, this.bits);
     for (let E = 0; E < y.windows; E++) {
-      const { nextN: S, offset: b, isZero: I, isNeg: P, isNegF: O, offsetF: $ } = f5(k, E, y);
+      const { nextN: S, offset: b, isZero: I, isNeg: P, isNegF: O, offsetF: $ } = o5(k, E, y);
       k = S, I ? g = g.add(Lf(O, h[$])) : d = d.add(Lf(P, h[b]));
     }
-    return a5(k), { p: d, f: g };
+    return f5(k), { p: d, f: g };
   }
   /**
    * Implements ec unsafe (non const-time) multiplication using precomputed tables and w-ary non-adjacent form.
@@ -978,13 +978,13 @@ let Px = class {
   wNAFUnsafe(a, h, k, d = this.ZERO) {
     const g = cu(a, this.bits);
     for (let y = 0; y < g.windows && k !== Vs; y++) {
-      const { nextN: E, offset: S, isZero: b, isNeg: I } = f5(k, y, g);
+      const { nextN: E, offset: S, isZero: b, isNeg: I } = o5(k, y, g);
       if (k = E, !b) {
         const P = h[S];
         d = d.add(I ? P.negate() : P);
       }
     }
-    return a5(k), d;
+    return f5(k), d;
   }
   getPrecomputes(a, h, k) {
     let d = uu.get(h);
@@ -1002,7 +1002,7 @@ let Px = class {
   // using windowed method. This specifies window size and
   // stores precomputed values. Usually only base point would be precomputed.
   createCache(a, h) {
-    H8(h, this.bits), K8.set(a, h), uu.delete(a);
+    W8(h, this.bits), H8.set(a, h), uu.delete(a);
   }
   hasCache(a) {
     return lu(a) !== 1;
@@ -1011,10 +1011,10 @@ let Px = class {
 function Nx(c, a, h, k) {
   let d = a, g = c.ZERO, y = c.ZERO;
   for (; h > Vs || k > Vs; )
-    h & P2 && (g = g.add(d)), k & P2 && (y = y.add(d)), d = d.double(), h >>= P2, k >>= P2;
+    h & R2 && (g = g.add(d)), k & R2 && (y = y.add(d)), d = d.double(), h >>= R2, k >>= R2;
   return { p1: g, p2: y };
 }
-function c5(c, a, h) {
+function a5(c, a, h) {
   if (a) {
     if (a.ORDER !== c)
       throw new Error("Field.ORDER must match order: Fp == p, Fn == n");
@@ -1030,19 +1030,19 @@ function Ox(c, a, h = {}, k) {
     if (!(typeof b == "bigint" && b > Vs))
       throw new Error(`CURVE.${S} must be positive bigint`);
   }
-  const d = c5(a.p, h.Fp, k), g = c5(a.n, h.Fn, k), E = ["Gx", "Gy", "a", "b"];
+  const d = a5(a.p, h.Fp, k), g = a5(a.n, h.Fn, k), E = ["Gx", "Gy", "a", "b"];
   for (const S of E)
     if (!d.isValid(a[S]))
       throw new Error(`CURVE.${S} must be valid field element of CURVE.Fp`);
   return a = Object.freeze(Object.assign({}, a)), { CURVE: a, Fp: d, Fn: g };
 }
-function Q8(c, a) {
+function K8(c, a) {
   return function(k) {
     const d = c(k);
     return { secretKey: d, publicKey: a(d) };
   };
 }
-let G8 = class {
+let Q8 = class {
   oHash;
   iHash;
   blockLen;
@@ -1050,7 +1050,7 @@ let G8 = class {
   finished = !1;
   destroyed = !1;
   constructor(a, h) {
-    if (S8(a), p0(h, void 0, "key"), this.iHash = a.create(), typeof this.iHash.update != "function")
+    if (E8(a), p0(h, void 0, "key"), this.iHash = a.create(), typeof this.iHash.update != "function")
       throw new Error("Expected instance of class which extends utils.Hash");
     this.blockLen = this.iHash.blockLen, this.outputLen = this.iHash.outputLen;
     const k = this.blockLen, d = new Uint8Array(k);
@@ -1060,7 +1060,7 @@ let G8 = class {
     this.iHash.update(d), this.oHash = a.create();
     for (let g = 0; g < d.length; g++)
       d[g] ^= 106;
-    this.oHash.update(d), r2(d);
+    this.oHash.update(d), t2(d);
   }
   update(a) {
     return Df(this), this.iHash.update(a), this;
@@ -1084,17 +1084,17 @@ let G8 = class {
     this.destroyed = !0, this.oHash.destroy(), this.iHash.destroy();
   }
 };
-const Ff = (c, a, h) => new G8(c, a).update(h).digest();
-Ff.create = (c, a) => new G8(c, a);
+const Ff = (c, a, h) => new Q8(c, a).update(h).digest();
+Ff.create = (c, a) => new Q8(c, a);
 /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
-const u5 = (c, a) => (c + (c >= 0 ? a : -a) / z8) / a;
+const c5 = (c, a) => (c + (c >= 0 ? a : -a) / G8) / a;
 function Ux(c, a, h) {
-  const [[k, d], [g, y]] = a, E = u5(y * c, h), S = u5(-d * c, h);
+  const [[k, d], [g, y]] = a, E = c5(y * c, h), S = c5(-d * c, h);
   let b = c - E * k - S * g, I = -E * d - S * y;
-  const P = b < pn, O = I < pn;
+  const P = b < An, O = I < An;
   P && (b = -b), O && (I = -I);
-  const $ = K9(Math.ceil(yx(h) / 2)) + Ns;
-  if (b < pn || b >= $ || I < pn || I >= $)
+  const $ = H9(Math.ceil(yx(h) / 2)) + Ns;
+  if (b < An || b >= $ || I < An || I >= $)
     throw new Error("splitScalar (endomorphism): failed, k=" + c);
   return { k1neg: P, k1: b, k2neg: O, k2: I };
 }
@@ -1114,13 +1114,13 @@ let _x = class extends Error {
     super(a);
   }
 };
-const Qn = {
+const Kn = {
   // asn.1 DER encoding utils
   Err: _x,
   // Basic building block is TLV (Tag-Length-Value)
   _tlv: {
     encode: (c, a) => {
-      const { Err: h } = Qn;
+      const { Err: h } = Kn;
       if (c < 0 || c > 256)
         throw new h("tlv.encode: wrong tag");
       if (a.length & 1)
@@ -1133,7 +1133,7 @@ const Qn = {
     },
     // v - value, l - left bytes (unparsed)
     decode(c, a) {
-      const { Err: h } = Qn;
+      const { Err: h } = Kn;
       let k = 0;
       if (c < 0 || c > 256)
         throw new h("tlv.encode: wrong tag");
@@ -1171,8 +1171,8 @@ const Qn = {
   // - if next byte doesn't have a flag, leading zero is not allowed (minimal encoding)
   _int: {
     encode(c) {
-      const { Err: a } = Qn;
-      if (c < pn)
+      const { Err: a } = Kn;
+      if (c < An)
         throw new a("integer: negative integers are not allowed");
       let h = Y1(c);
       if (Number.parseInt(h[0], 16) & 8 && (h = "00" + h), h.length & 1)
@@ -1180,16 +1180,16 @@ const Qn = {
       return h;
     },
     decode(c) {
-      const { Err: a } = Qn;
+      const { Err: a } = Kn;
       if (c[0] & 128)
         throw new a("invalid signature integer: negative");
       if (c[0] === 0 && !(c[1] & 128))
         throw new a("invalid signature integer: unnecessary leading zero");
-      return Sn(c);
+      return En(c);
     }
   },
   toSig(c) {
-    const { Err: a, _int: h, _tlv: k } = Qn, d = p0(c, void 0, "signature"), { v: g, l: y } = k.decode(48, d);
+    const { Err: a, _int: h, _tlv: k } = Kn, d = p0(c, void 0, "signature"), { v: g, l: y } = k.decode(48, d);
     if (y.length)
       throw new a("invalid signature: left bytes after parsing");
     const { v: E, l: S } = k.decode(2, g), { v: b, l: I } = k.decode(2, S);
@@ -1198,15 +1198,15 @@ const Qn = {
     return { r: h.decode(E), s: h.decode(b) };
   },
   hexFromSig(c) {
-    const { _tlv: a, _int: h } = Qn, k = a.encode(2, h.encode(c.r)), d = a.encode(2, h.encode(c.s)), g = k + d;
+    const { _tlv: a, _int: h } = Kn, k = a.encode(2, h.encode(c.r)), d = a.encode(2, h.encode(c.s)), g = k + d;
     return a.encode(48, g);
   }
-}, pn = BigInt(0), Ns = BigInt(1), z8 = BigInt(2), Z1 = BigInt(3), Dx = BigInt(4);
+}, An = BigInt(0), Ns = BigInt(1), G8 = BigInt(2), Z1 = BigInt(3), Dx = BigInt(4);
 function $x(c, a = {}) {
   const h = Ox("weierstrass", c, a), { Fp: k, Fn: d } = h;
   let g = h.CURVE;
   const { h: y, n: E } = g;
-  Q9(a, {}, {
+  K9(a, {}, {
     allowInfinityPoint: "boolean",
     clearCofactor: "function",
     isTorsionFree: "function",
@@ -1217,7 +1217,7 @@ function $x(c, a = {}) {
   const { endo: S } = a;
   if (S && (!k.is0(g.a) || typeof S.beta != "bigint" || !Array.isArray(S.basises)))
     throw new Error('invalid endo: expected "beta": bigint and "basises": array');
-  const b = X8(k, d);
+  const b = j8(k, d);
   function I() {
     if (!k.isOdd)
       throw new Error("compression is not supported: Field does not have .isOdd()");
@@ -1227,7 +1227,7 @@ function $x(c, a = {}) {
     if (Mf(Y, "isCompressed"), Y) {
       I();
       const Ee = !k.isOdd(te);
-      return Zt(j8(Ee), ae);
+      return Zt(z8(Ee), ae);
     } else
       return Zt(Uint8Array.of(4), ae, k.toBytes(te));
   }
@@ -1285,7 +1285,7 @@ function $x(c, a = {}) {
       throw new Error("no endo");
     return Ux(G, S.basises, d.ORDER);
   }
-  const Ae = i5((G, H) => {
+  const Ae = r5((G, H) => {
     const { X: Y, Y: X, Z: te } = G;
     if (k.eql(te, k.ONE))
       return { x: Y, y: X };
@@ -1297,7 +1297,7 @@ function $x(c, a = {}) {
     if (!k.eql(Se, k.ONE))
       throw new Error("invZ was invalid");
     return { x: Ee, y: be };
-  }), j = i5((G) => {
+  }), j = r5((G) => {
     if (G.is0()) {
       if (a.allowInfinityPoint && !k.is0(G.Y))
         return;
@@ -1430,7 +1430,7 @@ function $x(c, a = {}) {
       if (!d.isValidNot0(H))
         throw new Error("invalid scalar: out of range");
       let X, te;
-      const ae = (Ee) => re.cached(this, Ee, (be) => o5(Q, be));
+      const ae = (Ee) => re.cached(this, Ee, (be) => s5(Q, be));
       if (Y) {
         const { k1neg: Ee, k1: be, k2neg: Se, k2: de } = fe(H), { p: Ce, f: Pe } = ae(be), { p: _e, f: Ie } = ae(de);
         te = Pe.add(Ie), X = ie(Y.beta, Ce, _e, Ee, Se);
@@ -1438,7 +1438,7 @@ function $x(c, a = {}) {
         const { p: Ee, f: be } = ae(H);
         X = Ee, te = be;
       }
-      return o5(Q, [X, te])[0];
+      return s5(Q, [X, te])[0];
     }
     /**
      * Non-constant-time multiplication. Uses double-and-add algorithm.
@@ -1449,7 +1449,7 @@ function $x(c, a = {}) {
       const { endo: Y } = a, X = this;
       if (!d.isValid(H))
         throw new Error("invalid scalar: out of range");
-      if (H === pn || X.is0())
+      if (H === An || X.is0())
         return Q.ZERO;
       if (H === Ns)
         return X;
@@ -1496,10 +1496,10 @@ function $x(c, a = {}) {
   const he = d.BITS, re = new Px(Q, a.endo ? Math.ceil(he / 2) : he);
   return Q.BASE.precompute(8), Q;
 }
-function j8(c) {
+function z8(c) {
   return Uint8Array.of(c ? 2 : 3);
 }
-function X8(c, a) {
+function j8(c, a) {
   return {
     secretKey: a.BYTES,
     publicKey: 1 + c.BYTES,
@@ -1509,7 +1509,7 @@ function X8(c, a) {
   };
 }
 function Mx(c, a = {}) {
-  const { Fn: h } = c, k = a.randomBytes || V2, d = Object.assign(X8(c.Fp, h), { seed: V8(h.ORDER) });
+  const { Fn: h } = c, k = a.randomBytes || V2, d = Object.assign(j8(c.Fp, h), { seed: F8(h.ORDER) });
   function g($) {
     try {
       const N = h.fromBytes($);
@@ -1528,14 +1528,14 @@ function Mx(c, a = {}) {
     }
   }
   function E($ = k(d.seed)) {
-    return W8(p0($, d.seed, "seed"), h.ORDER);
+    return V8(p0($, d.seed, "seed"), h.ORDER);
   }
   function S($, N = !0) {
     return c.BASE.multiply(h.fromBytes($)).toBytes(N);
   }
   function b($) {
     const { secretKey: N, publicKey: M, publicKeyUncompressed: W } = d;
-    if (!F9($) || "_lengths" in h && h._lengths || N === M)
+    if (!L9($) || "_lengths" in h && h._lengths || N === M)
       return;
     const Z = p0($, void 0, "key").length;
     return Z === M || Z === W;
@@ -1552,11 +1552,11 @@ function Mx(c, a = {}) {
     isValidSecretKey: g,
     isValidPublicKey: y,
     randomSecretKey: E
-  }, O = Q8(E, S);
+  }, O = K8(E, S);
   return Object.freeze({ getPublicKey: S, getSharedSecret: I, keygen: O, Point: c, utils: P, lengths: d });
 }
 function Lx(c, a, h = {}) {
-  S8(a), Q9(h, {}, {
+  E8(a), K9(h, {}, {
     hmac: "function",
     lowS: "boolean",
     randomBytes: "function",
@@ -1568,7 +1568,7 @@ function Lx(c, a, h = {}) {
     lowS: typeof h.lowS == "boolean" ? h.lowS : !0,
     format: "compact",
     extraEntropy: !1
-  }, M = E * z8 < g.ORDER;
+  }, M = E * G8 < g.ORDER;
   function W(Y) {
     const X = E >> Ns;
     return Y > X;
@@ -1603,7 +1603,7 @@ function Lx(c, a, h = {}) {
       we(X, te);
       let ae;
       if (te === "der") {
-        const { r: de, s: Ce } = Qn.toSig(p0(X));
+        const { r: de, s: Ce } = Kn.toSig(p0(X));
         return new me(de, Ce);
       }
       te === "recovered" && (ae = X[0], te = "compact", X = X.subarray(1));
@@ -1626,7 +1626,7 @@ function Lx(c, a, h = {}) {
       const { r: te, s: ae } = this, Ee = this.assertRecovery(), be = Ee === 2 || Ee === 3 ? te + E : te;
       if (!g.isValid(be))
         throw new Error("invalid recovery id: sig.r+curve.n != R.x");
-      const Se = g.toBytes(be), de = c.fromBytes(Zt(j8((Ee & 1) === 0), Se)), Ce = y.inv(be), Pe = Ae(p0(X, void 0, "msgHash")), _e = y.create(-Pe * Ce), Ie = y.create(ae * Ce), Le = c.BASE.multiplyUnsafe(_e).add(de.multiplyUnsafe(Ie));
+      const Se = g.toBytes(be), de = c.fromBytes(Zt(z8((Ee & 1) === 0), Se)), Ce = y.inv(be), Pe = Ae(p0(X, void 0, "msgHash")), _e = y.create(-Pe * Ce), Ie = y.create(ae * Ce), Le = c.BASE.multiplyUnsafe(_e).add(de.multiplyUnsafe(Ie));
       if (Le.is0())
         throw new Error("invalid recovery: point at infinify");
       return Le.assertValidity(), Le;
@@ -1637,7 +1637,7 @@ function Lx(c, a, h = {}) {
     }
     toBytes(X = N.format) {
       if (e9(X), X === "der")
-        return $f(Qn.hexFromSig(this));
+        return $f(Kn.hexFromSig(this));
       const { r: te, s: ae } = this, Ee = y.toBytes(te), be = y.toBytes(ae);
       return X === "recovered" ? (ke(), Zt(Uint8Array.of(this.assertRecovery()), Ee, be)) : Zt(Ee, be);
     }
@@ -1648,13 +1648,13 @@ function Lx(c, a, h = {}) {
   const fe = h.bits2int || function(X) {
     if (X.length > 8192)
       throw new Error("input is too large");
-    const te = Sn(X), ae = X.length * 8 - S;
+    const te = En(X), ae = X.length * 8 - S;
     return ae > 0 ? te >> BigInt(ae) : te;
   }, Ae = h.bits2int_modN || function(X) {
     return y.create(fe(X));
-  }, j = K9(S);
+  }, j = H9(S);
   function ie(Y) {
-    return P8("num < 2^" + S, Y, pn, j), y.toBytes(Y);
+    return R8("num < 2^" + S, Y, An, j), y.toBytes(Y);
   }
   function Q(Y, X) {
     return p0(Y, void 0, "message"), X ? p0(a(Y), void 0, "prehashed message") : Y;
@@ -1676,13 +1676,13 @@ function Lx(c, a, h = {}) {
       if (!y.isValidNot0(Ye))
         return;
       const ze = y.inv(Ye), Xe = c.BASE.multiply(Ye).toAffine(), i0 = y.create(Xe.x);
-      if (i0 === pn)
+      if (i0 === An)
         return;
       const at = y.create(ze * y.create(_e + i0 * de));
-      if (at === pn)
+      if (at === An)
         return;
-      let Si = (Xe.x === i0 ? 0 : 2) | Number(Xe.y & Ns), xn = at;
-      return ae && W(at) && (xn = y.neg(at), Si ^= 1), new me(i0, xn, M ? void 0 : Si);
+      let Ei = (Xe.x === i0 ? 0 : 2) | Number(Xe.y & Ns), Sn = at;
+      return ae && W(at) && (Sn = y.neg(at), Ei ^= 1), new me(i0, Sn, M ? void 0 : Ei);
     }
     return { seed: Pe, k2sig: Ie };
   }
@@ -1692,7 +1692,7 @@ function Lx(c, a, h = {}) {
   }
   function G(Y, X, te, ae = {}) {
     const { lowS: Ee, prehash: be, format: Se } = hu(ae, N);
-    if (te = p0(te, void 0, "publicKey"), X = Q(X, be), !F9(Y)) {
+    if (te = p0(te, void 0, "publicKey"), X = Q(X, be), !L9(Y)) {
       const de = Y instanceof me ? ", use sig.toBytes()" : "";
       throw new Error("verify expects Uint8Array signature" + de);
     }
@@ -1750,71 +1750,71 @@ function Wx(c) {
 const Vf = Sa(xa.p, { sqrt: Wx }), j2 = /* @__PURE__ */ $x(xa, {
   Fp: Vf,
   endo: Fx
-}), F0 = /* @__PURE__ */ Lx(j2, V0), l5 = {};
+}), F0 = /* @__PURE__ */ Lx(j2, V0), u5 = {};
 function Wf(c, ...a) {
-  let h = l5[c];
+  let h = u5[c];
   if (h === void 0) {
     const k = V0(wx(c));
-    h = Zt(k, k), l5[c] = h;
+    h = Zt(k, k), u5[c] = h;
   }
   return V0(Zt(h, ...a));
 }
-const z9 = (c) => c.toBytes(!0).slice(1), j9 = (c) => c % t9 === Vx;
+const G9 = (c) => c.toBytes(!0).slice(1), z9 = (c) => c % t9 === Vx;
 function r9(c) {
   const { Fn: a, BASE: h } = j2, k = a.fromBytes(c), d = h.multiply(k);
-  return { scalar: j9(d.y) ? k : a.neg(k), bytes: z9(d) };
+  return { scalar: z9(d.y) ? k : a.neg(k), bytes: G9(d) };
 }
-function Y8(c) {
+function X8(c) {
   const a = Vf;
   if (!a.isValidNot0(c))
     throw new Error("invalid x: Fail if x ≥ p");
   const h = a.create(c * c), k = a.create(h * c + BigInt(7));
   let d = a.sqrt(k);
-  j9(d) || (d = a.neg(d));
+  z9(d) || (d = a.neg(d));
   const g = j2.fromAffine({ x: c, y: d });
   return g.assertValidity(), g;
 }
-const No = Sn;
-function Z8(...c) {
+const No = En;
+function Y8(...c) {
   return j2.Fn.create(No(Wf("BIP0340/challenge", ...c)));
 }
-function h5(c) {
+function l5(c) {
   return r9(c).bytes;
 }
 function Hx(c, a, h = V2(32)) {
-  const { Fn: k } = j2, d = p0(c, void 0, "message"), { bytes: g, scalar: y } = r9(a), E = p0(h, 32, "auxRand"), S = k.toBytes(y ^ No(Wf("BIP0340/aux", E))), b = Wf("BIP0340/nonce", S, g, d), { bytes: I, scalar: P } = r9(b), O = Z8(I, g, d), $ = new Uint8Array(64);
-  if ($.set(I, 0), $.set(k.toBytes(k.create(P + O * y)), 32), !q8($, d, g))
+  const { Fn: k } = j2, d = p0(c, void 0, "message"), { bytes: g, scalar: y } = r9(a), E = p0(h, 32, "auxRand"), S = k.toBytes(y ^ No(Wf("BIP0340/aux", E))), b = Wf("BIP0340/nonce", S, g, d), { bytes: I, scalar: P } = r9(b), O = Y8(I, g, d), $ = new Uint8Array(64);
+  if ($.set(I, 0), $.set(k.toBytes(k.create(P + O * y)), 32), !Z8($, d, g))
     throw new Error("sign: Invalid signature produced");
   return $;
 }
-function q8(c, a, h) {
+function Z8(c, a, h) {
   const { Fp: k, Fn: d, BASE: g } = j2, y = p0(c, 64, "signature"), E = p0(a, void 0, "message"), S = p0(h, 32, "publicKey");
   try {
-    const b = Y8(No(S)), I = No(y.subarray(0, 32));
+    const b = X8(No(S)), I = No(y.subarray(0, 32));
     if (!k.isValidNot0(I))
       return !1;
     const P = No(y.subarray(32, 64));
     if (!d.isValidNot0(P))
       return !1;
-    const O = Z8(d.toBytes(I), z9(b), E), $ = g.multiplyUnsafe(P).add(b.multiplyUnsafe(d.neg(O))), { x: N, y: M } = $.toAffine();
-    return !($.is0() || !j9(M) || N !== I);
+    const O = Y8(d.toBytes(I), G9(b), E), $ = g.multiplyUnsafe(P).add(b.multiplyUnsafe(d.neg(O))), { x: N, y: M } = $.toAffine();
+    return !($.is0() || !z9(M) || N !== I);
   } catch {
     return !1;
   }
 }
-const mi = /* @__PURE__ */ (() => {
-  const h = (k = V2(48)) => W8(k, xa.n);
+const yi = /* @__PURE__ */ (() => {
+  const h = (k = V2(48)) => V8(k, xa.n);
   return {
-    keygen: Q8(h, h5),
-    getPublicKey: h5,
+    keygen: K8(h, l5),
+    getPublicKey: l5,
     sign: Hx,
-    verify: q8,
+    verify: Z8,
     Point: j2,
     utils: {
       randomSecretKey: h,
       taggedHash: Wf,
-      lift_x: Y8,
-      pointToBytes: z9
+      lift_x: X8,
+      pointToBytes: G9
     },
     lengths: {
       secretKey: 32,
@@ -1841,19 +1841,19 @@ const mi = /* @__PURE__ */ (() => {
   14,
   11,
   8
-]), J8 = Uint8Array.from(new Array(16).fill(0).map((c, a) => a)), Qx = J8.map((c) => (9 * c + 5) % 16), eA = /* @__PURE__ */ (() => {
-  const h = [[J8], [Qx]];
+]), q8 = Uint8Array.from(new Array(16).fill(0).map((c, a) => a)), Qx = q8.map((c) => (9 * c + 5) % 16), J8 = /* @__PURE__ */ (() => {
+  const h = [[q8], [Qx]];
   for (let k = 0; k < 4; k++)
     for (let d of h)
       d.push(d[k].map((g) => Kx[g]));
   return h;
-})(), tA = eA[0], rA = eA[1], iA = /* @__PURE__ */ [
+})(), eA = J8[0], tA = J8[1], rA = /* @__PURE__ */ [
   [11, 14, 15, 12, 5, 8, 7, 9, 11, 13, 14, 15, 6, 7, 9, 8],
   [12, 13, 11, 15, 6, 9, 9, 7, 12, 15, 11, 13, 7, 8, 7, 7],
   [13, 15, 14, 11, 7, 7, 6, 8, 13, 14, 13, 12, 5, 5, 6, 9],
   [14, 11, 12, 14, 8, 6, 5, 5, 15, 12, 15, 14, 9, 9, 8, 6],
   [15, 12, 13, 13, 9, 5, 8, 6, 14, 11, 12, 11, 8, 6, 5, 5]
-].map((c) => Uint8Array.from(c)), Gx = /* @__PURE__ */ tA.map((c, a) => c.map((h) => iA[a][h])), zx = /* @__PURE__ */ rA.map((c, a) => c.map((h) => iA[a][h])), jx = /* @__PURE__ */ Uint32Array.from([
+].map((c) => Uint8Array.from(c)), Gx = /* @__PURE__ */ eA.map((c, a) => c.map((h) => rA[a][h])), zx = /* @__PURE__ */ tA.map((c, a) => c.map((h) => rA[a][h])), jx = /* @__PURE__ */ Uint32Array.from([
   0,
   1518500249,
   1859775393,
@@ -1866,11 +1866,11 @@ const mi = /* @__PURE__ */ (() => {
   2053994217,
   0
 ]);
-function k5(c, a, h, k) {
+function h5(c, a, h, k) {
   return c === 0 ? a ^ h ^ k : c === 1 ? a & h | ~a & k : c === 2 ? (a | ~h) ^ k : c === 3 ? a & k | h & ~k : a ^ (h | ~k);
 }
 const q1 = /* @__PURE__ */ new Uint32Array(16);
-class Yx extends W9 {
+class Yx extends V9 {
   h0 = 1732584193;
   h1 = -271733879;
   h2 = -1732584194;
@@ -1891,43 +1891,43 @@ class Yx extends W9 {
       q1[$] = a.getUint32(h, !0);
     let k = this.h0 | 0, d = k, g = this.h1 | 0, y = g, E = this.h2 | 0, S = E, b = this.h3 | 0, I = b, P = this.h4 | 0, O = P;
     for (let $ = 0; $ < 5; $++) {
-      const N = 4 - $, M = jx[$], W = Xx[$], Z = tA[$], ke = rA[$], we = Gx[$], me = zx[$];
+      const N = 4 - $, M = jx[$], W = Xx[$], Z = eA[$], ke = tA[$], we = Gx[$], me = zx[$];
       for (let fe = 0; fe < 16; fe++) {
-        const Ae = G1(k + k5($, g, E, b) + q1[Z[fe]] + M, we[fe]) + P | 0;
+        const Ae = G1(k + h5($, g, E, b) + q1[Z[fe]] + M, we[fe]) + P | 0;
         k = P, P = b, b = G1(E, 10) | 0, E = g, g = Ae;
       }
       for (let fe = 0; fe < 16; fe++) {
-        const Ae = G1(d + k5(N, y, S, I) + q1[ke[fe]] + W, me[fe]) + O | 0;
+        const Ae = G1(d + h5(N, y, S, I) + q1[ke[fe]] + W, me[fe]) + O | 0;
         d = O, O = I, I = G1(S, 10) | 0, S = y, y = Ae;
       }
     }
     this.set(this.h1 + E + I | 0, this.h2 + b + O | 0, this.h3 + P + d | 0, this.h4 + k + y | 0, this.h0 + g + S | 0);
   }
   roundClean() {
-    r2(q1);
+    t2(q1);
   }
   destroy() {
-    this.destroyed = !0, r2(this.buffer), this.set(0, 0, 0, 0, 0);
+    this.destroyed = !0, t2(this.buffer), this.set(0, 0, 0, 0, 0);
   }
 }
-const X9 = /* @__PURE__ */ V9(() => new Yx());
+const j9 = /* @__PURE__ */ F9(() => new Yx());
 /*! scure-base - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 function Ws(c) {
   return c instanceof Uint8Array || ArrayBuffer.isView(c) && c.constructor.name === "Uint8Array";
 }
-function nA(c) {
+function iA(c) {
   if (!Ws(c))
     throw new Error("Uint8Array expected");
 }
-function sA(c, a) {
+function nA(c, a) {
   return Array.isArray(a) ? a.length === 0 ? !0 : c ? a.every((h) => typeof h == "string") : a.every((h) => Number.isSafeInteger(h)) : !1;
 }
-function Y9(c) {
+function X9(c) {
   if (typeof c != "function")
     throw new Error("function expected");
   return !0;
 }
-function i2(c, a) {
+function r2(c, a) {
   if (typeof a != "string")
     throw new Error(`${c}: string expected`);
   return !0;
@@ -1941,11 +1941,11 @@ function Hf(c) {
     throw new Error("array expected");
 }
 function Kf(c, a) {
-  if (!sA(!0, a))
+  if (!nA(!0, a))
     throw new Error(`${c}: array of strings expected`);
 }
-function Z9(c, a) {
-  if (!sA(!1, a))
+function Y9(c, a) {
+  if (!nA(!1, a))
     throw new Error(`${c}: array of numbers expected`);
 }
 // @__NO_SIDE_EFFECTS__
@@ -1965,7 +1965,7 @@ function Ta(c) {
       return a[g];
     })),
     decode: (d) => (Hf(d), d.map((g) => {
-      i2("alphabet.decode", g);
+      r2("alphabet.decode", g);
       const y = k.get(g);
       if (y === void 0)
         throw new Error(`Unknown letter: "${g}". Allowed: ${c}`);
@@ -1975,14 +1975,14 @@ function Ta(c) {
 }
 // @__NO_SIDE_EFFECTS__
 function ba(c = "") {
-  return i2("join", c), {
+  return r2("join", c), {
     encode: (a) => (Kf("join.decode", a), a.join(c)),
-    decode: (a) => (i2("join.decode", a), a.split(c))
+    decode: (a) => (r2("join.decode", a), a.split(c))
   };
 }
 // @__NO_SIDE_EFFECTS__
 function Zx(c, a = "=") {
-  return to(c), i2("padding", a), {
+  return to(c), r2("padding", a), {
     encode(h) {
       for (Kf("padding.encode", h); h.length * c % 8; )
         h.push(a);
@@ -2002,9 +2002,9 @@ function Zx(c, a = "=") {
 }
 // @__NO_SIDE_EFFECTS__
 function qx(c) {
-  return Y9(c), { encode: (a) => a, decode: (a) => c(a) };
+  return X9(c), { encode: (a) => a, decode: (a) => c(a) };
 }
-function A5(c, a, h) {
+function k5(c, a, h) {
   if (a < 2)
     throw new Error(`convertRadix: invalid from=${a}, base cannot be less than 2`);
   if (h < 2)
@@ -2039,7 +2039,7 @@ function A5(c, a, h) {
     d.push(0);
   return d.reverse();
 }
-const oA = (c, a) => a === 0 ? c : oA(a, c % a), Qf = /* @__NO_SIDE_EFFECTS__ */ (c, a) => c + (a - oA(c, a)), vf = /* @__PURE__ */ (() => {
+const sA = (c, a) => a === 0 ? c : sA(a, c % a), Qf = /* @__NO_SIDE_EFFECTS__ */ (c, a) => c + (a - sA(c, a)), vf = /* @__PURE__ */ (() => {
   let c = [];
   for (let a = 0; a < 40; a++)
     c.push(2 ** a);
@@ -2080,13 +2080,13 @@ function Jx(c) {
     encode: (h) => {
       if (!Ws(h))
         throw new Error("radix.encode input should be Uint8Array");
-      return A5(Array.from(h), a, c);
+      return k5(Array.from(h), a, c);
     },
-    decode: (h) => (Z9("radix.decode", h), Uint8Array.from(A5(h, c, a)))
+    decode: (h) => (Y9("radix.decode", h), Uint8Array.from(k5(h, c, a)))
   };
 }
 // @__NO_SIDE_EFFECTS__
-function q9(c, a = !1) {
+function Z9(c, a = !1) {
   if (to(c), c <= 0 || c > 32)
     throw new Error("radix2: bits should be in (0..32]");
   if (/* @__PURE__ */ Qf(8, c) > 32 || /* @__PURE__ */ Qf(c, 8) > 32)
@@ -2097,11 +2097,11 @@ function q9(c, a = !1) {
         throw new Error("radix2.encode input should be Uint8Array");
       return i9(Array.from(h), 8, c, !a);
     },
-    decode: (h) => (Z9("radix2.decode", h), Uint8Array.from(i9(h, c, 8, a)))
+    decode: (h) => (Y9("radix2.decode", h), Uint8Array.from(i9(h, c, 8, a)))
   };
 }
-function p5(c) {
-  return Y9(c), function(...a) {
+function A5(c) {
+  return X9(c), function(...a) {
     try {
       return c.apply(null, a);
     } catch {
@@ -2109,7 +2109,7 @@ function p5(c) {
   };
 }
 function eT(c, a) {
-  return to(c), Y9(a), {
+  return to(c), X9(a), {
     encode(h) {
       if (!Ws(h))
         throw new Error("checksum.encode: input should be Uint8Array");
@@ -2128,27 +2128,27 @@ function eT(c, a) {
   };
 }
 const tT = typeof Uint8Array.from([]).toBase64 == "function" && typeof Uint8Array.fromBase64 == "function", rT = (c, a) => {
-  i2("base64", c);
+  r2("base64", c);
   const h = /^[A-Za-z0-9=+/]+$/, k = "base64";
   if (c.length > 0 && !h.test(c))
     throw new Error("invalid base64");
   return Uint8Array.fromBase64(c, { alphabet: k, lastChunkHandling: "strict" });
 }, h0 = tT ? {
   encode(c) {
-    return nA(c), c.toBase64();
+    return iA(c), c.toBase64();
   },
   decode(c) {
     return rT(c);
   }
-} : /* @__PURE__ */ qo(/* @__PURE__ */ q9(6), /* @__PURE__ */ Ta("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"), /* @__PURE__ */ Zx(6), /* @__PURE__ */ ba("")), iT = /* @__NO_SIDE_EFFECTS__ */ (c) => /* @__PURE__ */ qo(/* @__PURE__ */ Jx(58), /* @__PURE__ */ Ta(c), /* @__PURE__ */ ba("")), n9 = /* @__PURE__ */ iT("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"), J9 = (c) => /* @__PURE__ */ qo(eT(4, (a) => c(c(a))), n9), nT = J9, s9 = /* @__PURE__ */ qo(/* @__PURE__ */ Ta("qpzry9x8gf2tvdw0s3jn54khce6mua7l"), /* @__PURE__ */ ba("")), d5 = [996825010, 642813549, 513874426, 1027748829, 705979059];
+} : /* @__PURE__ */ qo(/* @__PURE__ */ Z9(6), /* @__PURE__ */ Ta("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"), /* @__PURE__ */ Zx(6), /* @__PURE__ */ ba("")), iT = /* @__NO_SIDE_EFFECTS__ */ (c) => /* @__PURE__ */ qo(/* @__PURE__ */ Jx(58), /* @__PURE__ */ Ta(c), /* @__PURE__ */ ba("")), n9 = /* @__PURE__ */ iT("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"), q9 = (c) => /* @__PURE__ */ qo(eT(4, (a) => c(c(a))), n9), nT = q9, s9 = /* @__PURE__ */ qo(/* @__PURE__ */ Ta("qpzry9x8gf2tvdw0s3jn54khce6mua7l"), /* @__PURE__ */ ba("")), p5 = [996825010, 642813549, 513874426, 1027748829, 705979059];
 function yo(c) {
   const a = c >> 25;
   let h = (c & 33554431) << 5;
-  for (let k = 0; k < d5.length; k++)
-    (a >> k & 1) === 1 && (h ^= d5[k]);
+  for (let k = 0; k < p5.length; k++)
+    (a >> k & 1) === 1 && (h ^= p5[k]);
   return h;
 }
-function w5(c, a, h = 1) {
+function d5(c, a, h = 1) {
   const k = c.length;
   let d = 1;
   for (let g = 0; g < k; g++) {
@@ -2167,21 +2167,21 @@ function w5(c, a, h = 1) {
   return d ^= h, s9.encode(i9([d % vf[30]], 30, 5, !1));
 }
 // @__NO_SIDE_EFFECTS__
-function fA(c) {
-  const a = c === "bech32" ? 1 : 734539939, h = /* @__PURE__ */ q9(5), k = h.decode, d = h.encode, g = p5(k);
+function oA(c) {
+  const a = c === "bech32" ? 1 : 734539939, h = /* @__PURE__ */ Z9(5), k = h.decode, d = h.encode, g = A5(k);
   function y(P, O, $ = 90) {
-    i2("bech32.encode prefix", P), Ws(O) && (O = Array.from(O)), Z9("bech32.encode", O);
+    r2("bech32.encode prefix", P), Ws(O) && (O = Array.from(O)), Y9("bech32.encode", O);
     const N = P.length;
     if (N === 0)
       throw new TypeError(`Invalid prefix length ${N}`);
     const M = N + 7 + O.length;
     if ($ !== !1 && M > $)
       throw new TypeError(`Length ${M} exceeds limit ${$}`);
-    const W = P.toLowerCase(), Z = w5(W, O, a);
+    const W = P.toLowerCase(), Z = d5(W, O, a);
     return `${W}1${s9.encode(O)}${Z}`;
   }
   function E(P, O = 90) {
-    i2("bech32.decode input", P);
+    r2("bech32.decode input", P);
     const $ = P.length;
     if ($ < 8 || O !== !1 && $ > O)
       throw new TypeError(`invalid string length: ${$} (${P}). Expected (8..${O})`);
@@ -2194,12 +2194,12 @@ function fA(c) {
     const W = N.slice(0, M), Z = N.slice(M + 1);
     if (Z.length < 6)
       throw new Error("Data must be at least 6 characters long");
-    const ke = s9.decode(Z).slice(0, -6), we = w5(W, ke, a);
+    const ke = s9.decode(Z).slice(0, -6), we = d5(W, ke, a);
     if (!Z.endsWith(we))
       throw new Error(`Invalid checksum in ${P}: expected "${we}"`);
     return { prefix: W, words: ke };
   }
-  const S = p5(E);
+  const S = A5(E);
   function b(P) {
     const { prefix: O, words: $ } = E(P, !1);
     return { prefix: O, words: $, bytes: k($) };
@@ -2218,21 +2218,21 @@ function fA(c) {
     toWords: d
   };
 }
-const o9 = /* @__PURE__ */ fA("bech32"), Ts = /* @__PURE__ */ fA("bech32m"), sT = {
+const o9 = /* @__PURE__ */ oA("bech32"), Ts = /* @__PURE__ */ oA("bech32m"), sT = {
   encode: (c) => new TextDecoder().decode(c),
   decode: (c) => new TextEncoder().encode(c)
 }, oT = typeof Uint8Array.from([]).toHex == "function" && typeof Uint8Array.fromHex == "function", fT = {
   encode(c) {
-    return nA(c), c.toHex();
+    return iA(c), c.toHex();
   },
   decode(c) {
-    return i2("hex", c), Uint8Array.fromHex(c);
+    return r2("hex", c), Uint8Array.fromHex(c);
   }
-}, q = oT ? fT : /* @__PURE__ */ qo(/* @__PURE__ */ q9(4), /* @__PURE__ */ Ta("0123456789abcdef"), /* @__PURE__ */ ba(""), /* @__PURE__ */ qx((c) => {
+}, q = oT ? fT : /* @__PURE__ */ qo(/* @__PURE__ */ Z9(4), /* @__PURE__ */ Ta("0123456789abcdef"), /* @__PURE__ */ ba(""), /* @__PURE__ */ qx((c) => {
   if (typeof c != "string" || c.length % 2 !== 0)
     throw new TypeError(`hex.decode: expected string, got ${typeof c} with length ${c.length}`);
   return c.toLowerCase();
-})), H0 = /* @__PURE__ */ Uint8Array.of(), aA = /* @__PURE__ */ Uint8Array.of(0);
+})), H0 = /* @__PURE__ */ Uint8Array.of(), fA = /* @__PURE__ */ Uint8Array.of(0);
 function Hs(c, a) {
   if (c.length !== a.length)
     return !1;
@@ -2259,33 +2259,33 @@ function aT(...c) {
   }
   return h;
 }
-const cA = (c) => new DataView(c.buffer, c.byteOffset, c.byteLength);
+const aA = (c) => new DataView(c.buffer, c.byteOffset, c.byteLength);
 function Jo(c) {
   return Object.prototype.toString.call(c) === "[object Object]";
 }
 function Yi(c) {
   return Number.isSafeInteger(c);
 }
-const e6 = {
+const J9 = {
   equalBytes: Hs,
   isBytes: ei,
   concatBytes: aT
-}, uA = (c) => {
-  if (c !== null && typeof c != "string" && !gi(c) && !ei(c) && !Yi(c))
+}, cA = (c) => {
+  if (c !== null && typeof c != "string" && !wi(c) && !ei(c) && !Yi(c))
     throw new Error(`lengthCoder: expected null | number | Uint8Array | CoderType, got ${c} (${typeof c})`);
   return {
     encodeStream(a, h) {
       if (c === null)
         return;
-      if (gi(c))
+      if (wi(c))
         return c.encodeStream(a, h);
       let k;
-      if (typeof c == "number" ? k = c : typeof c == "string" && (k = mn.resolve(a.stack, c)), typeof k == "bigint" && (k = Number(k)), k === void 0 || k !== h)
+      if (typeof c == "number" ? k = c : typeof c == "string" && (k = yn.resolve(a.stack, c)), typeof k == "bigint" && (k = Number(k)), k === void 0 || k !== h)
         throw a.err(`Wrong length: ${k} len=${c} exp=${h} (${typeof h})`);
     },
     decodeStream(a) {
       let h;
-      if (gi(c) ? h = Number(c.decodeStream(a)) : typeof c == "number" ? h = c : typeof c == "string" && (h = mn.resolve(a.stack, c)), typeof h == "bigint" && (h = Number(h)), typeof h != "number")
+      if (wi(c) ? h = Number(c.decodeStream(a)) : typeof c == "number" ? h = c : typeof c == "string" && (h = yn.resolve(a.stack, c)), typeof h == "bigint" && (h = Number(h)), typeof h != "number")
         throw a.err(`Wrong length: ${h}`);
       return h;
     }
@@ -2347,7 +2347,7 @@ const e6 = {
         return !1;
     return !(b !== void 0 && E !== b && !Ot.set(c, b, g << y - S % y, d));
   }
-}, mn = {
+}, yn = {
   /**
    * Internal method for handling stack of paths (debug, errors, dynamic fields via path)
    * This is looks ugly (callback), but allows us to force stack cleaning by construction (.pop always after function).
@@ -2369,7 +2369,7 @@ const e6 = {
     return a.join("/");
   },
   err: (c, a, h) => {
-    const k = new Error(`${c}(${mn.path(a)}): ${typeof h == "string" ? h : h.message}`);
+    const k = new Error(`${c}(${yn.path(a)}): ${typeof h == "string" ? h : h.message}`);
     return h instanceof Error && h.stack && (k.stack = h.stack), k;
   },
   resolve: (c, a) => {
@@ -2386,7 +2386,7 @@ const e6 = {
     return g;
   }
 };
-class t6 {
+class e6 {
   pos = 0;
   data;
   opts;
@@ -2399,7 +2399,7 @@ class t6 {
   // bitset
   view;
   constructor(a, h = {}, k = [], d = void 0, g = 0) {
-    this.data = a, this.opts = h, this.stack = k, this.parent = d, this.parentOffset = g, this.view = cA(a);
+    this.data = a, this.opts = h, this.stack = k, this.parent = d, this.parentOffset = g, this.view = aA(a);
   }
   /** Internal method for pointers. */
   _enablePointers() {
@@ -2419,7 +2419,7 @@ class t6 {
     return k;
   }
   pushObj(a, h) {
-    return mn.pushObj(this.stack, a, h);
+    return yn.pushObj(this.stack, a, h);
   }
   readView(a, h) {
     if (!Number.isFinite(a))
@@ -2453,12 +2453,12 @@ class t6 {
   }
   // User methods
   err(a) {
-    return mn.err("Reader", this.stack, a);
+    return yn.err("Reader", this.stack, a);
   }
   offsetReader(a) {
     if (a > this.data.length)
       throw this.err("offsetReader: Unexpected end of buffer");
-    return new t6(this.absBytes(a), this.opts, this.stack, this, a);
+    return new e6(this.absBytes(a), this.opts, this.stack, this, a);
   }
   bytes(a, h = !1) {
     if (this.bitPos)
@@ -2528,10 +2528,10 @@ class cT {
   view;
   finished = !1;
   constructor(a = []) {
-    this.stack = a, this.view = cA(this.viewBuf);
+    this.stack = a, this.view = aA(this.viewBuf);
   }
   pushObj(a, h) {
-    return mn.pushObj(this.stack, a, h);
+    return yn.pushObj(this.stack, a, h);
   }
   writeView(a, h) {
     if (this.finished)
@@ -2544,7 +2544,7 @@ class cT {
   err(a) {
     if (this.finished)
       throw this.err("buffer: finished");
-    return mn.err("Reader", this.stack, a);
+    return yn.err("Reader", this.stack, a);
   }
   bytes(a) {
     if (this.finished)
@@ -2602,7 +2602,7 @@ function uT(c, a, h) {
   } else if (0n > c || c >= 2n ** a)
     throw new Error(`value out of unsigned bounds. Expected 0 <= ${c} < ${2n ** a}`);
 }
-function lA(c) {
+function uA(c) {
   return {
     // NOTE: we cannot export validate here, since it is likely mistake.
     encodeStream: c.encodeStream,
@@ -2613,17 +2613,17 @@ function lA(c) {
       return c.encodeStream(h, a), h.finish();
     },
     decode: (a, h = {}) => {
-      const k = new t6(a, h), d = c.decodeStream(k);
+      const k = new e6(a, h), d = c.decodeStream(k);
       return k.finish(), d;
     }
   };
 }
 function Sr(c, a) {
-  if (!gi(c))
+  if (!wi(c))
     throw new Error(`validate: invalid inner value ${c}`);
   if (typeof a != "function")
     throw new Error("validate: fn should be function");
-  return lA({
+  return uA({
     size: c.size,
     encodeStream: (h, k) => {
       let d;
@@ -2645,10 +2645,10 @@ function Sr(c, a) {
   });
 }
 const xr = (c) => {
-  const a = lA(c);
+  const a = uA(c);
   return c.validate ? Sr(a, c.validate) : a;
 }, Ba = (c) => Jo(c) && typeof c.decode == "function" && typeof c.encode == "function";
-function gi(c) {
+function wi(c) {
   return Jo(c) && Ba(c) && typeof c.encodeStream == "function" && typeof c.decodeStream == "function" && (c.size === void 0 || Yi(c.size));
 }
 function lT() {
@@ -2765,11 +2765,11 @@ function pT(c) {
     }
   };
 }
-const hA = (c) => {
+const lA = (c) => {
   if (!Ba(c))
     throw new Error("BaseCoder expected");
   return { encode: c.decode, decode: c.encode };
-}, e1 = { dict: lT, numberBigint: hT, tsEnum: kT, decimal: AT, match: pT, reverse: hA }, r6 = (c, a = !1, h = !1, k = !0) => {
+}, e1 = { dict: lT, numberBigint: hT, tsEnum: kT, decimal: AT, match: pT, reverse: lA }, t6 = (c, a = !1, h = !1, k = !0) => {
   if (!Yi(c))
     throw new Error(`bigint/size: wrong value ${c}`);
   if (typeof a != "boolean")
@@ -2808,7 +2808,7 @@ const hA = (c) => {
       return uT(y, 8n * d, !!h), y;
     }
   });
-}, kA = /* @__PURE__ */ r6(32, !1), Ef = /* @__PURE__ */ r6(8, !0), dT = /* @__PURE__ */ r6(8, !0, !0), wT = (c, a) => xr({
+}, hA = /* @__PURE__ */ t6(32, !1), Ef = /* @__PURE__ */ t6(8, !0), dT = /* @__PURE__ */ t6(8, !0, !0), wT = (c, a) => xr({
   size: c,
   encodeStream: (h, k) => h.writeView(c, (d) => a.write(d, k)),
   decodeStream: (h) => h.readView(c, a.read),
@@ -2843,16 +2843,16 @@ const hA = (c) => {
 }), bs = /* @__PURE__ */ t1(4, !0, {
   read: (c, a) => c.getInt32(a, !0),
   write: (c, a) => c.setInt32(0, a, !0)
-}), g5 = /* @__PURE__ */ t1(2, !1, {
+}), w5 = /* @__PURE__ */ t1(2, !1, {
   read: (c, a) => c.getUint16(a, !0),
   write: (c, a) => c.setUint16(0, a, !0)
-}), Yn = /* @__PURE__ */ t1(1, !1, {
+}), Xn = /* @__PURE__ */ t1(1, !1, {
   read: (c, a) => c.getUint8(a),
   write: (c, a) => c.setUint8(0, a)
 }), nt = (c, a = !1) => {
   if (typeof a != "boolean")
     throw new Error(`bytes/le: expected boolean, got ${typeof a}`);
-  const h = uA(c), k = ei(c);
+  const h = cA(c), k = ei(c);
   return xr({
     size: typeof c == "number" ? c : void 0,
     encodeStream: (d, g) => {
@@ -2877,20 +2877,20 @@ const hA = (c) => {
   });
 };
 function yT(c, a) {
-  if (!gi(a))
+  if (!wi(a))
     throw new Error(`prefix: invalid inner value ${a}`);
-  return vn(nt(c), hA(a));
+  return mn(nt(c), lA(a));
 }
-const i6 = (c, a = !1) => Sr(vn(nt(c, a), sT), (h) => {
+const r6 = (c, a = !1) => Sr(mn(nt(c, a), sT), (h) => {
   if (typeof h != "string")
     throw new Error(`expected string, got ${typeof h}`);
   return h;
 }), mT = (c, a = { isLE: !1, with0x: !1 }) => {
-  let h = vn(nt(c, a.isLE), q);
+  let h = mn(nt(c, a.isLE), q);
   const k = a.with0x;
   if (typeof k != "boolean")
     throw new Error(`hex/with0x: expected boolean, got ${typeof k}`);
-  return k && (h = vn(h, {
+  return k && (h = mn(h, {
     encode: (d) => `0x${d}`,
     decode: (d) => {
       if (!d.startsWith("0x"))
@@ -2899,8 +2899,8 @@ const i6 = (c, a = !1) => Sr(vn(nt(c, a), sT), (h) => {
     }
   })), h;
 };
-function vn(c, a) {
-  if (!gi(c))
+function mn(c, a) {
+  if (!wi(c))
     throw new Error(`apply: invalid inner value ${c}`);
   if (!Ba(a))
     throw new Error(`apply: invalid base value ${c}`);
@@ -2947,21 +2947,21 @@ const vT = (c, a = !1) => {
   });
 };
 function ET(c, a, h) {
-  if (!gi(a))
+  if (!wi(a))
     throw new Error(`flagged: invalid inner value ${a}`);
   return xr({
     encodeStream: (k, d) => {
-      mn.resolve(k.stack, c) && a.encodeStream(k, d);
+      yn.resolve(k.stack, c) && a.encodeStream(k, d);
     },
     decodeStream: (k) => {
       let d = !1;
-      if (d = !!mn.resolve(k.stack, c), d)
+      if (d = !!yn.resolve(k.stack, c), d)
         return a.decodeStream(k);
     }
   });
 }
-function n6(c, a, h = !0) {
-  if (!gi(c))
+function i6(c, a, h = !0) {
+  if (!wi(c))
     throw new Error(`magic: invalid inner value ${c}`);
   if (typeof h != "boolean")
     throw new Error(`magic: expected boolean, got ${typeof h}`);
@@ -2980,7 +2980,7 @@ function n6(c, a, h = !0) {
     }
   });
 }
-function AA(c) {
+function kA(c) {
   let a = 0;
   for (const h of c) {
     if (h.size === void 0)
@@ -2995,10 +2995,10 @@ function Dt(c) {
   if (!Jo(c))
     throw new Error(`struct: expected plain object, got ${c}`);
   for (const a in c)
-    if (!gi(c[a]))
+    if (!wi(c[a]))
       throw new Error(`struct: field ${a} is not CoderType`);
   return xr({
-    size: AA(Object.values(c)),
+    size: kA(Object.values(c)),
     encodeStream: (a, h) => {
       a.pushObj(h, (k) => {
         for (const d in c)
@@ -3023,10 +3023,10 @@ function ST(c) {
   if (!Array.isArray(c))
     throw new Error(`Packed.Tuple: got ${typeof c} instead of array`);
   for (let a = 0; a < c.length; a++)
-    if (!gi(c[a]))
+    if (!wi(c[a]))
       throw new Error(`tuple: field ${a} is not CoderType`);
   return xr({
-    size: AA(c),
+    size: kA(c),
     encodeStream: (a, h) => {
       if (!Array.isArray(h))
         throw a.err(`tuple: invalid value ${h}`);
@@ -3052,9 +3052,9 @@ function ST(c) {
   });
 }
 function Er(c, a) {
-  if (!gi(a))
+  if (!wi(a))
     throw new Error(`array: invalid inner value ${a}`);
-  const h = uA(typeof c == "string" ? `../${c}` : c);
+  const h = cA(typeof c == "string" ? `../${c}` : c);
   return xr({
     size: typeof c == "number" && a.size ? c * a.size : void 0,
     encodeStream: (k, d) => {
@@ -3103,19 +3103,19 @@ function Er(c, a) {
     }
   });
 }
-const ro = F0.Point, y5 = ro.Fn, pA = ro.Fn.ORDER, r1 = (c) => c % 2n === 0n, $0 = e6.isBytes, Xt = e6.concatBytes, D0 = e6.equalBytes, f2 = (c) => X9(V0(c)), un = (...c) => V0(V0(Xt(...c))), Gf = mi.utils.randomSecretKey, i1 = mi.getPublicKey, s6 = F0.getPublicKey, m5 = (c) => c.r < pA / 2n;
+const ro = F0.Point, g5 = ro.Fn, AA = ro.Fn.ORDER, r1 = (c) => c % 2n === 0n, $0 = J9.isBytes, Xt = J9.concatBytes, D0 = J9.equalBytes, o2 = (c) => j9(V0(c)), un = (...c) => V0(V0(Xt(...c))), Gf = yi.utils.randomSecretKey, i1 = yi.getPublicKey, n6 = F0.getPublicKey, y5 = (c) => c.r < AA / 2n;
 function xT(c, a, h = !1) {
   let k = F0.Signature.fromBytes(F0.sign(c, a, { prehash: !1 }));
-  if (h && !m5(k)) {
+  if (h && !y5(k)) {
     const d = new Uint8Array(32);
     let g = 0;
-    for (; !m5(k); )
+    for (; !y5(k); )
       if (d.set(K0.encode(g++)), k = F0.Signature.fromBytes(F0.sign(c, a, { prehash: !1, extraEntropy: d })), g > 4294967295)
         throw new Error("lowR counter overflow: report the error");
   }
   return k.toBytes("der");
 }
-const v5 = mi.sign, o6 = mi.utils.taggedHash, Ft = {
+const m5 = yi.sign, s6 = yi.utils.taggedHash, Ft = {
   ecdsa: 0,
   schnorr: 1
 };
@@ -3128,22 +3128,22 @@ function W2(c, a) {
   } else if (a === Ft.schnorr) {
     if (h !== 32)
       throw new Error("Expected 32-byte Schnorr key");
-    return mi.utils.lift_x(Sn(c)), c;
+    return yi.utils.lift_x(En(c)), c;
   } else
     throw new Error("Unknown key type");
 }
-function dA(c, a) {
-  const k = mi.utils.taggedHash("TapTweak", c, a), d = Sn(k);
-  if (d >= pA)
+function pA(c, a) {
+  const k = yi.utils.taggedHash("TapTweak", c, a), d = En(k);
+  if (d >= AA)
     throw new Error("tweak higher than curve order");
   return d;
 }
 function TT(c, a = Uint8Array.of()) {
-  const h = mi.utils, k = Sn(c), d = ro.BASE.multiply(k), g = r1(d.y) ? k : y5.neg(k), y = h.pointToBytes(d), E = dA(y, a);
-  return eo(y5.add(g, E), 32);
+  const h = yi.utils, k = En(c), d = ro.BASE.multiply(k), g = r1(d.y) ? k : g5.neg(k), y = h.pointToBytes(d), E = pA(y, a);
+  return eo(g5.add(g, E), 32);
 }
 function zf(c, a) {
-  const h = mi.utils, k = dA(c, a), g = h.lift_x(Sn(c)).add(ro.BASE.multiply(k)), y = r1(g.y) ? 0 : 1;
+  const h = yi.utils, k = pA(c, a), g = h.lift_x(En(c)).add(ro.BASE.multiply(k)), y = r1(g.y) ? 0 : 1;
   return [h.pointToBytes(g), y];
 }
 const n1 = V0(ro.BASE.toBytes(!1)), Tt = {
@@ -3166,7 +3166,7 @@ function Rr(c, a) {
       return Math.sign(c[k] - a[k]);
   return Math.sign(c.length - a.length);
 }
-function wA(c) {
+function dA(c) {
   const a = {};
   for (const h in c) {
     if (a[c[h]] !== void 0)
@@ -3298,7 +3298,7 @@ const bT = 520, pt = {
   CHECKSIGADD: 186,
   // Invalid
   INVALID: 255
-}, BT = wA(pt);
+}, BT = dA(pt);
 function Ia(c = 6, a = !1) {
   return xr({
     encodeStream: (h, k) => {
@@ -3358,7 +3358,7 @@ const qe = xr({
       if (typeof h == "number" && (h = Ia().encode(BigInt(h))), !$0(h))
         throw new Error(`Wrong Script OP=${h} (${typeof h})`);
       const k = h.length;
-      k < pt.PUSHDATA1 ? c.byte(k) : k <= 255 ? (c.byte(pt.PUSHDATA1), c.byte(k)) : k <= 65535 ? (c.byte(pt.PUSHDATA2), c.bytes(g5.encode(k))) : (c.byte(pt.PUSHDATA4), c.bytes(K0.encode(k))), c.bytes(h);
+      k < pt.PUSHDATA1 ? c.byte(k) : k <= 255 ? (c.byte(pt.PUSHDATA1), c.byte(k)) : k <= 65535 ? (c.byte(pt.PUSHDATA2), c.bytes(w5.encode(k))) : (c.byte(pt.PUSHDATA4), c.bytes(K0.encode(k))), c.bytes(h);
     }
   },
   decodeStream: (c) => {
@@ -3370,9 +3370,9 @@ const qe = xr({
         if (h < pt.PUSHDATA1)
           k = h;
         else if (h === pt.PUSHDATA1)
-          k = Yn.decodeStream(c);
+          k = Xn.decodeStream(c);
         else if (h === pt.PUSHDATA2)
-          k = g5.decodeStream(c);
+          k = w5.decodeStream(c);
         else if (h === pt.PUSHDATA4)
           k = K0.decodeStream(c);
         else
@@ -3391,7 +3391,7 @@ const qe = xr({
     }
     return a;
   }
-}), E5 = {
+}), v5 = {
   253: [253, 2, 253n, 65535n],
   254: [254, 4, 65536n, 4294967295n],
   255: [255, 8, 4294967296n, 18446744073709551615n]
@@ -3399,7 +3399,7 @@ const qe = xr({
   encodeStream: (c, a) => {
     if (typeof a == "number" && (a = BigInt(a)), 0n <= a && a <= 252n)
       return c.byte(Number(a));
-    for (const [h, k, d, g] of Object.values(E5))
+    for (const [h, k, d, g] of Object.values(v5))
       if (!(d > a || a > g)) {
         c.byte(h);
         for (let y = 0; y < k; y++)
@@ -3412,7 +3412,7 @@ const qe = xr({
     const a = c.byte();
     if (a <= 252)
       return BigInt(a);
-    const [h, k, d] = E5[a];
+    const [h, k, d] = v5[a];
     let g = 0n;
     for (let y = 0; y < k; y++)
       g |= BigInt(c.byte()) << 8n * BigInt(y);
@@ -3420,7 +3420,7 @@ const qe = xr({
       throw c.err(`Wrong CompactSize(${8 * k})`);
     return g;
   }
-}), Yt = vn(s1, e1.numberBigint), wr = nt(s1), En = Er(Yt, wr), jf = (c) => Er(s1, c), gA = Dt({
+}), Yt = mn(s1, e1.numberBigint), wr = nt(s1), vn = Er(Yt, wr), jf = (c) => Er(s1, c), wA = Dt({
   txid: nt(32, !0),
   // hash(prev_tx),
   index: K0,
@@ -3429,12 +3429,12 @@ const qe = xr({
   // btc merges input and output script, executes it. If ok = tx passes
   sequence: K0
   // ?
-}), N2 = Dt({ amount: Ef, script: wr }), CT = Dt({
+}), P2 = Dt({ amount: Ef, script: wr }), CT = Dt({
   version: bs,
   segwitFlag: vT(new Uint8Array([0, 1])),
-  inputs: jf(gA),
-  outputs: jf(N2),
-  witnesses: ET("segwitFlag", Er("inputs/length", En)),
+  inputs: jf(wA),
+  outputs: jf(P2),
+  witnesses: ET("segwitFlag", Er("inputs/length", vn)),
   // < 500000000	Block number at which this transaction is unlocked
   // >= 500000000	UNIX timestamp at which this transaction is unlocked
   // Handled as part of PSBTv2
@@ -3445,23 +3445,23 @@ function RT(c) {
     throw new Error("Segwit flag with empty witnesses array");
   return c;
 }
-const Zn = Sr(CT, RT), Bs = Dt({
+const Yn = Sr(CT, RT), Bs = Dt({
   version: bs,
-  inputs: jf(gA),
-  outputs: jf(N2),
+  inputs: jf(wA),
+  outputs: jf(P2),
   lockTime: K0
-}), a9 = Sr(nt(null), (c) => W2(c, Ft.ecdsa)), Xf = Sr(nt(32), (c) => W2(c, Ft.schnorr)), S5 = Sr(nt(null), (c) => {
+}), a9 = Sr(nt(null), (c) => W2(c, Ft.ecdsa)), Xf = Sr(nt(32), (c) => W2(c, Ft.schnorr)), E5 = Sr(nt(null), (c) => {
   if (c.length !== 64 && c.length !== 65)
     throw new Error("Schnorr signature should be 64 or 65 bytes long");
   return c;
 }), Ca = Dt({
   fingerprint: gT,
   path: Er(null, K0)
-}), yA = Dt({
+}), gA = Dt({
   hashes: Er(Yt, nt(32)),
   der: Ca
 }), PT = nt(78), NT = Dt({ pubKey: Xf, leafHash: nt(32) }), OT = Dt({
-  version: Yn,
+  version: Xn,
   // With parity :(
   internalKey: nt(32),
   merklePath: Er(null, nt(32))
@@ -3470,44 +3470,44 @@ const Zn = Sr(CT, RT), Bs = Dt({
     throw new Error("TaprootControlBlock: merklePath should be of length 0..128 (inclusive)");
   return c;
 }), UT = Er(null, Dt({
-  depth: Yn,
-  version: Yn,
+  depth: Xn,
+  version: Xn,
   script: wr
-})), vt = nt(null), x5 = nt(20), mo = nt(32), f6 = {
+})), vt = nt(null), S5 = nt(20), mo = nt(32), o6 = {
   unsignedTx: [0, !1, Bs, [0], [0], !1],
   xpub: [1, PT, Ca, [], [0, 2], !1],
   txVersion: [2, !1, K0, [2], [2], !1],
   fallbackLocktime: [3, !1, K0, [], [2], !1],
   inputCount: [4, !1, Yt, [2], [2], !1],
   outputCount: [5, !1, Yt, [2], [2], !1],
-  txModifiable: [6, !1, Yn, [], [2], !1],
+  txModifiable: [6, !1, Xn, [], [2], !1],
   // TODO: bitfield
   version: [251, !1, K0, [], [0, 2], !1],
   proprietary: [252, vt, vt, [], [0, 2], !1]
 }, Ra = {
-  nonWitnessUtxo: [0, !1, Zn, [], [0, 2], !1],
-  witnessUtxo: [1, !1, N2, [], [0, 2], !1],
+  nonWitnessUtxo: [0, !1, Yn, [], [0, 2], !1],
+  witnessUtxo: [1, !1, P2, [], [0, 2], !1],
   partialSig: [2, a9, vt, [], [0, 2], !1],
   sighashType: [3, !1, K0, [], [0, 2], !1],
   redeemScript: [4, !1, vt, [], [0, 2], !1],
   witnessScript: [5, !1, vt, [], [0, 2], !1],
   bip32Derivation: [6, a9, Ca, [], [0, 2], !1],
   finalScriptSig: [7, !1, vt, [], [0, 2], !1],
-  finalScriptWitness: [8, !1, En, [], [0, 2], !1],
+  finalScriptWitness: [8, !1, vn, [], [0, 2], !1],
   porCommitment: [9, !1, vt, [], [0, 2], !1],
-  ripemd160: [10, x5, vt, [], [0, 2], !1],
+  ripemd160: [10, S5, vt, [], [0, 2], !1],
   sha256: [11, mo, vt, [], [0, 2], !1],
-  hash160: [12, x5, vt, [], [0, 2], !1],
+  hash160: [12, S5, vt, [], [0, 2], !1],
   hash256: [13, mo, vt, [], [0, 2], !1],
   txid: [14, !1, mo, [2], [2], !0],
   index: [15, !1, K0, [2], [2], !0],
   sequence: [16, !1, K0, [], [2], !0],
   requiredTimeLocktime: [17, !1, K0, [], [2], !1],
   requiredHeightLocktime: [18, !1, K0, [], [2], !1],
-  tapKeySig: [19, !1, S5, [], [0, 2], !1],
-  tapScriptSig: [20, NT, S5, [], [0, 2], !1],
+  tapKeySig: [19, !1, E5, [], [0, 2], !1],
+  tapScriptSig: [20, NT, E5, [], [0, 2], !1],
   tapLeafScript: [21, ti, vt, [], [0, 2], !1],
-  tapBip32Derivation: [22, mo, yA, [], [0, 2], !1],
+  tapBip32Derivation: [22, mo, gA, [], [0, 2], !1],
   tapInternalKey: [23, !1, Xf, [], [0, 2], !1],
   tapMerkleRoot: [24, !1, mo, [], [0, 2], !1],
   proprietary: [252, vt, vt, [], [0, 2], !1]
@@ -3534,9 +3534,9 @@ const Zn = Sr(CT, RT), Bs = Dt({
   script: [4, !1, vt, [2], [2], !0],
   tapInternalKey: [5, !1, Xf, [], [0, 2], !1],
   tapTree: [6, !1, UT, [], [0, 2], !1],
-  tapBip32Derivation: [7, Xf, yA, [], [0, 2], !1],
+  tapBip32Derivation: [7, Xf, gA, [], [0, 2], !1],
   proprietary: [252, vt, vt, [], [0, 2], !1]
-}, $T = [], T5 = Er(aA, Dt({
+}, $T = [], x5 = Er(fA, Dt({
   //  <key> := <keylen> <keytype> <keydata> WHERE keylen = len(keytype)+len(keydata)
   key: yT(Yt, Dt({ type: Yt, key: nt(null) })),
   //  <value> := <valuelen> <valuedata>
@@ -3547,7 +3547,7 @@ function c9(c) {
   return { type: a, kc: h, vc: k, reqInc: d, allowInc: g, silentIgnore: y };
 }
 Dt({ type: Yt, key: nt(null) });
-function a6(c) {
+function f6(c) {
   const a = {};
   for (const h in c) {
     const [k, d, g] = c[h];
@@ -3578,10 +3578,10 @@ function a6(c) {
         for (const [g, y] of k.unknown)
           d.push({ key: g, value: y });
       }
-      T5.encodeStream(h, d);
+      x5.encodeStream(h, d);
     },
     decodeStream: (h) => {
-      const k = T5.decodeStream(h), d = {}, g = {};
+      const k = x5.decodeStream(h), d = {}, g = {};
       for (const y of k) {
         let E = "unknown", S = y.key.key, b = y.value;
         if (a[y.key.type]) {
@@ -3604,7 +3604,7 @@ function a6(c) {
     }
   });
 }
-const c6 = Sr(a6(Ra), (c) => {
+const a6 = Sr(f6(Ra), (c) => {
   if (c.finalScriptWitness && !c.finalScriptWitness.length)
     throw new Error("validateInput: empty finalScriptWitness");
   if (c.partialSig && !c.partialSig.length)
@@ -3627,12 +3627,12 @@ const c6 = Sr(a6(Ra), (c) => {
         throw new Error("validateInput: tapLeafScript version has parity bit!");
     }
   return c;
-}), u6 = Sr(a6(Wo), (c) => {
+}), c6 = Sr(f6(Wo), (c) => {
   if (c.bip32Derivation)
     for (const [a] of c.bip32Derivation)
       W2(a, Ft.ecdsa);
   return c;
-}), mA = Sr(a6(f6), (c) => {
+}), yA = Sr(f6(o6), (c) => {
   if ((c.version || 0) === 0) {
     if (!c.unsignedTx)
       throw new Error("PSBTv0: missing unsignedTx");
@@ -3642,18 +3642,18 @@ const c6 = Sr(a6(Ra), (c) => {
   }
   return c;
 }), MT = Dt({
-  magic: n6(i6(new Uint8Array([255])), "psbt"),
-  global: mA,
-  inputs: Er("global/unsignedTx/inputs/length", c6),
-  outputs: Er(null, u6)
+  magic: i6(r6(new Uint8Array([255])), "psbt"),
+  global: yA,
+  inputs: Er("global/unsignedTx/inputs/length", a6),
+  outputs: Er(null, c6)
 }), LT = Dt({
-  magic: n6(i6(new Uint8Array([255])), "psbt"),
-  global: mA,
-  inputs: Er("global/inputCount", c6),
-  outputs: Er("global/outputCount", u6)
+  magic: i6(r6(new Uint8Array([255])), "psbt"),
+  global: yA,
+  inputs: Er("global/inputCount", a6),
+  outputs: Er("global/outputCount", c6)
 }), FT = Dt({
-  magic: n6(i6(new Uint8Array([255])), "psbt"),
-  items: Er(null, vn(Er(aA, ST([mT(Yt), nt(s1)])), e1.dict()))
+  magic: i6(r6(new Uint8Array([255])), "psbt"),
+  items: Er(null, mn(Er(fA, ST([mT(Yt), nt(s1)])), e1.dict()))
 });
 function ku(c, a, h) {
   for (const k in h) {
@@ -3669,7 +3669,7 @@ function ku(c, a, h) {
       throw new Error(`PSBTv${c}: missing required field ${k}`);
   }
 }
-function b5(c, a, h) {
+function T5(c, a, h) {
   const k = {};
   for (const d in h) {
     const g = d;
@@ -3687,9 +3687,9 @@ function b5(c, a, h) {
   }
   return k;
 }
-function vA(c) {
+function mA(c) {
   const a = c && c.global && c.global.version || 0;
-  ku(a, f6, c.global);
+  ku(a, o6, c.global);
   for (const y of c.inputs)
     ku(a, Ra, y);
   for (const y of c.outputs)
@@ -3767,7 +3767,7 @@ function u9(c, a, h, k, d) {
     }
   return g;
 }
-const B5 = Sr(MT, vA), I5 = Sr(LT, vA), VT = {
+const b5 = Sr(MT, mA), B5 = Sr(LT, mA), VT = {
   encode(c) {
     if (!(c.length !== 2 || c[0] !== 1 || !$0(c[1]) || q.encode(c[1]) !== "4e73"))
       return { type: "p2a", script: qe.encode(c) };
@@ -3777,7 +3777,7 @@ const B5 = Sr(MT, vA), I5 = Sr(LT, vA), VT = {
       return [1, q.decode("4e73")];
   }
 };
-function dn(c, a) {
+function pn(c, a) {
   try {
     return W2(c, a), !0;
   } catch {
@@ -3786,7 +3786,7 @@ function dn(c, a) {
 }
 const WT = {
   encode(c) {
-    if (!(c.length !== 2 || !$0(c[0]) || !dn(c[0], Ft.ecdsa) || c[1] !== "CHECKSIG"))
+    if (!(c.length !== 2 || !$0(c[0]) || !pn(c[0], Ft.ecdsa) || c[1] !== "CHECKSIG"))
       return { type: "pk", pubkey: c[0] };
   },
   decode: (c) => c.type === "pk" ? [c.pubkey, "CHECKSIG"] : void 0
@@ -3911,28 +3911,28 @@ const WT = {
   XT,
   YT,
   ZT
-], JT = vn(qe, e1.match(qT)), a0 = Sr(JT, (c) => {
-  if (c.type === "pk" && !dn(c.pubkey, Ft.ecdsa))
+], JT = mn(qe, e1.match(qT)), a0 = Sr(JT, (c) => {
+  if (c.type === "pk" && !pn(c.pubkey, Ft.ecdsa))
     throw new Error("OutScript/pk: wrong key");
   if ((c.type === "pkh" || c.type === "sh" || c.type === "wpkh") && (!$0(c.hash) || c.hash.length !== 20))
     throw new Error(`OutScript/${c.type}: wrong hash`);
   if (c.type === "wsh" && (!$0(c.hash) || c.hash.length !== 32))
     throw new Error("OutScript/wsh: wrong hash");
-  if (c.type === "tr" && (!$0(c.pubkey) || !dn(c.pubkey, Ft.schnorr)))
+  if (c.type === "tr" && (!$0(c.pubkey) || !pn(c.pubkey, Ft.schnorr)))
     throw new Error("OutScript/tr: wrong taproot public key");
   if ((c.type === "ms" || c.type === "tr_ns" || c.type === "tr_ms") && !Array.isArray(c.pubkeys))
     throw new Error("OutScript/multisig: wrong pubkeys array");
   if (c.type === "ms") {
     const a = c.pubkeys.length;
     for (const h of c.pubkeys)
-      if (!dn(h, Ft.ecdsa))
+      if (!pn(h, Ft.ecdsa))
         throw new Error("OutScript/multisig: wrong pubkey");
     if (c.m <= 0 || a > 16 || c.m > a)
       throw new Error("OutScript/multisig: invalid params");
   }
   if (c.type === "tr_ns" || c.type === "tr_ms") {
     for (const a of c.pubkeys)
-      if (!dn(a, Ft.schnorr))
+      if (!pn(a, Ft.schnorr))
         throw new Error(`OutScript/${c.type}: wrong pubkey`);
   }
   if (c.type === "tr_ms") {
@@ -3942,7 +3942,7 @@ const WT = {
   }
   return c;
 });
-function C5(c, a) {
+function I5(c, a) {
   if (!D0(c.hash, V0(a)))
     throw new Error("checkScript: wsh wrong witnessScript hash");
   const h = a0.decode(a);
@@ -3957,7 +3957,7 @@ function o1(c, a, h) {
     if (k.type === "tr_ns" || k.type === "tr_ms" || k.type === "ms" || k.type == "pk")
       throw new Error(`checkScript: non-wrapped ${k.type}`);
     if (k.type === "sh" && a) {
-      if (!D0(k.hash, f2(a)))
+      if (!D0(k.hash, o2(a)))
         throw new Error("checkScript: sh wrong redeemScript hash");
       const d = a0.decode(a);
       if (d.type === "tr" || d.type === "tr_ns" || d.type === "tr_ms")
@@ -3965,14 +3965,14 @@ function o1(c, a, h) {
       if (d.type === "sh")
         throw new Error("checkScript: P2SH cannot be wrapped in P2SH");
     }
-    k.type === "wsh" && h && C5(k, h);
+    k.type === "wsh" && h && I5(k, h);
   }
   if (a) {
     const k = a0.decode(a);
-    k.type === "wsh" && h && C5(k, h);
+    k.type === "wsh" && h && I5(k, h);
   }
 }
-function l6(c) {
+function u6(c) {
   const a = {};
   for (const h of c) {
     const k = q.encode(h);
@@ -3981,14 +3981,14 @@ function l6(c) {
     a[k] = !0;
   }
 }
-const EA = (c, a = Tt) => {
-  if (!dn(c, Ft.ecdsa))
+const vA = (c, a = Tt) => {
+  if (!pn(c, Ft.ecdsa))
     throw new Error("P2PK: invalid publicKey");
   return { type: "pk", script: a0.encode({ type: "pk", pubkey: c }) };
-}, h6 = (c, a = Tt) => {
-  if (!dn(c, Ft.ecdsa))
+}, l6 = (c, a = Tt) => {
+  if (!pn(c, Ft.ecdsa))
     throw new Error("P2PKH: invalid publicKey");
-  const h = f2(c);
+  const h = o2(c);
   return {
     type: "pkh",
     script: a0.encode({ type: "pkh", hash: h }),
@@ -3999,7 +3999,7 @@ const EA = (c, a = Tt) => {
   const h = c.script;
   if (!$0(h))
     throw new Error(`Wrong script: ${typeof c.script}, expected Uint8Array`);
-  const k = f2(h), d = a0.encode({ type: "sh", hash: k });
+  const k = o2(h), d = a0.encode({ type: "sh", hash: k });
   return o1(d, h, c.witnessScript), c.witnessScript ? {
     type: "sh",
     redeemScript: h,
@@ -4027,18 +4027,18 @@ const EA = (c, a = Tt) => {
     hash: k
   };
 }, Ko = (c, a = Tt) => {
-  if (!dn(c, Ft.ecdsa))
+  if (!pn(c, Ft.ecdsa))
     throw new Error("P2WPKH: invalid publicKey");
   if (c.length === 65)
     throw new Error("P2WPKH: uncompressed public key");
-  const h = f2(c);
+  const h = o2(c);
   return {
     type: "wpkh",
     script: a0.encode({ type: "wpkh", hash: h }),
     address: st(a).encode({ type: "wpkh", hash: h }),
     hash: h
   };
-}, Oo = (c, a, h = !1) => (h || l6(a), {
+}, Oo = (c, a, h = !1) => (h || u6(a), {
   type: "ms",
   script: a0.encode({ type: "ms", pubkeys: a, m: c })
 });
@@ -4046,7 +4046,7 @@ function eb(c, a, h = !1, k) {
   const d = a0.decode(c);
   if (d.type === "unknown") {
     if (k) {
-      const E = vn(qe, e1.match(k)).decode(c);
+      const E = mn(qe, e1.match(k)).decode(c);
       if (E !== void 0) {
         if (typeof E.type != "string" || !E.type.startsWith("tr_"))
           throw new Error(`P2TR: invalid custom type=${E.type}`);
@@ -4067,7 +4067,7 @@ function eb(c, a, h = !1, k) {
         throw new Error("Using P2TR with leaf script with same key as internal key is not supported");
     }
 }
-function k6(c) {
+function h6(c) {
   const a = Array.from(c);
   for (; a.length >= 2; ) {
     a.sort((y, E) => (E.weight || 1) - (y.weight || 1));
@@ -4120,21 +4120,21 @@ function k9(c, a, h = !1, k) {
       type: "leaf",
       version: S,
       script: I,
-      hash: yn(I, S)
+      hash: gn(I, S)
     };
   }
-  if (c.length !== 2 && (c = k6(c)), c.length !== 2)
+  if (c.length !== 2 && (c = h6(c)), c.length !== 2)
     throw new Error("hashTree: non binary tree!");
   const d = k9(c[0], a, h, k), g = k9(c[1], a, h, k);
   let [y, E] = [d.hash, g.hash];
-  return Rr(E, y) === -1 && ([y, E] = [E, y]), { type: "branch", left: d, right: g, hash: o6("TapBranch", y, E) };
+  return Rr(E, y) === -1 && ([y, E] = [E, y]), { type: "branch", left: d, right: g, hash: s6("TapBranch", y, E) };
 }
-const Qo = 192, yn = (c, a = Qo) => o6("TapLeaf", new Uint8Array([a]), wr.encode(c));
+const Qo = 192, gn = (c, a = Qo) => s6("TapLeaf", new Uint8Array([a]), wr.encode(c));
 function f1(c, a, h = Tt, k = !1, d) {
   if (!c && !a)
     throw new Error("p2tr: should have pubKey or scriptTree (or both)");
   const g = typeof c == "string" ? q.decode(c) : c || n1;
-  if (!dn(g, Ft.schnorr))
+  if (!pn(g, Ft.schnorr))
     throw new Error("p2tr: non-schnorr pubkey");
   if (a) {
     let y = l9(k9(a, g, k, d));
@@ -4174,7 +4174,7 @@ function f1(c, a, h = Tt, k = !1, d) {
     };
   }
 }
-function SA(c, a) {
+function EA(c, a) {
   const h = [];
   if (!Array.isArray(a))
     throw new Error("combinations: lst arg should be array");
@@ -4195,12 +4195,12 @@ function SA(c, a) {
   }
   return h;
 }
-const xA = (c, a, h = !1) => (h || l6(a), SA(c, a).map((k) => ({
+const SA = (c, a, h = !1) => (h || u6(a), EA(c, a).map((k) => ({
   type: "tr_ns",
   script: a0.encode({ type: "tr_ns", pubkeys: k })
-}))), tb = (c) => xA(1, [c], void 0)[0];
-function TA(c, a, h = !1) {
-  return h || l6(a), {
+}))), tb = (c) => SA(1, [c], void 0)[0];
+function xA(c, a, h = !1) {
+  return h || u6(a), {
     type: "tr_ms",
     script: a0.encode({ type: "tr_ms", pubkeys: a, m: c })
   };
@@ -4208,23 +4208,23 @@ function TA(c, a, h = !1) {
 function rb(c, a, h = Tt) {
   if (c === "tr")
     return f1(i1(a), void 0, h).address;
-  const k = s6(a);
+  const k = n6(a);
   if (c === "pkh")
-    return h6(k, h).address;
+    return l6(k, h).address;
   if (c === "wpkh")
     return Ko(k, h).address;
   throw new Error(`getAddress: unknown type=${c}`);
 }
-const bA = (c) => Array.from(c).sort(Rr);
-function BA(c, a, h = !1, k = !1, d = Tt) {
-  const g = Oo(c, h ? bA(a) : a);
+const TA = (c) => Array.from(c).sort(Rr);
+function bA(c, a, h = !1, k = !1, d = Tt) {
+  const g = Oo(c, h ? TA(a) : a);
   return k ? Ho(g, d) : Os(g, d);
 }
 function ib(c, a, h = !1, k = Tt) {
-  return BA(c, a, !0, h, k);
+  return bA(c, a, !0, h, k);
 }
-const A6 = J9(V0);
-function IA(c, a) {
+const k6 = q9(V0);
+function BA(c, a) {
   if (a.length < 2 || a.length > 40)
     throw new Error("Witness: invalid length");
   if (c > 16)
@@ -4233,12 +4233,12 @@ function IA(c, a) {
     throw new Error("Witness: invalid length for version");
 }
 function Au(c, a, h = Tt) {
-  IA(c, a);
+  BA(c, a);
   const k = c === 0 ? o9 : Ts;
   return k.encode(h.bech32, [c].concat(k.toWords(a)));
 }
 function A9(c, a) {
-  return A6.encode(Xt(Uint8Array.from(a), c));
+  return k6.encode(Xt(Uint8Array.from(a), c));
 }
 function nb(c = Tt) {
   return {
@@ -4247,7 +4247,7 @@ function nb(c = Tt) {
       return A9(h.subarray(0, 33), [c.wif]);
     },
     decode(a) {
-      let h = A6.decode(a);
+      let h = k6.decode(a);
       if (h[0] !== c.wif)
         throw new Error("Wrong WIF prefix");
       if (h = h.subarray(1), h.length !== 33)
@@ -4289,7 +4289,7 @@ function st(c = Tt) {
         if (k.prefix !== c.bech32)
           throw new Error(`wrong bech32 prefix=${k.prefix}`);
         const [d, ...g] = k.words, y = o9.fromWords(g);
-        if (IA(d, y), d === 0 && y.length === 32)
+        if (BA(d, y), d === 0 && y.length === 32)
           return { type: "wsh", hash: y };
         if (d === 0 && y.length === 20)
           return { type: "wpkh", hash: y };
@@ -4297,7 +4297,7 @@ function st(c = Tt) {
           return { type: "tr", pubkey: y };
         throw new Error("Unknown witness program");
       }
-      const h = A6.decode(a);
+      const h = k6.decode(a);
       if (h.length !== 21)
         throw new Error("Invalid base58 address");
       if (h[0] === c.pubKeyHash)
@@ -4314,7 +4314,7 @@ function st(c = Tt) {
 const J1 = new Uint8Array(32), sb = {
   amount: 0xffffffffffffffffn,
   script: H0
-}, p9 = (c) => Math.ceil(c / 4), ob = 8, fb = 2, S2 = 0, Pa = 4294967295, ab = e1.decimal(ob), Uo = (c, a) => c === void 0 ? a : c;
+}, p9 = (c) => Math.ceil(c / 4), ob = 8, fb = 2, E2 = 0, Pa = 4294967295, ab = e1.decimal(ob), Uo = (c, a) => c === void 0 ? a : c;
 function Yf(c) {
   if (Array.isArray(c))
     return c.map((a) => Yf(a));
@@ -4343,11 +4343,11 @@ const T0 = {
   ALL_ANYONECANPAY: T0.ALL | T0.ANYONECANPAY,
   NONE_ANYONECANPAY: T0.NONE | T0.ANYONECANPAY,
   SINGLE_ANYONECANPAY: T0.SINGLE | T0.ANYONECANPAY
-}, cb = wA(Ut);
+}, cb = dA(Ut);
 function ub(c, a, h, k = H0) {
   return D0(h, a) && (c = TT(c, k), a = i1(c)), { privKey: c, pubKey: a };
 }
-function x2(c) {
+function S2(c) {
   if (c.script === void 0 || c.amount === void 0)
     throw new Error("Transaction/output: script and amount required");
   return { script: c.script, amount: c.amount };
@@ -4374,7 +4374,7 @@ function lb(c) {
     throw new Error(`Invalid SigHash=${c}`);
   return c;
 }
-function R5(c) {
+function C5(c) {
   const a = c & 31;
   return {
     isAny: !!(c & T0.ANYONECANPAY),
@@ -4424,7 +4424,7 @@ function hb(c) {
   }
   return Object.freeze(a);
 }
-function P5(c) {
+function R5(c) {
   if (c.nonWitnessUtxo && c.index !== void 0) {
     const a = c.nonWitnessUtxo.outputs.length - 1;
     if (c.index > a)
@@ -4435,7 +4435,7 @@ function P5(c) {
     if (c.txid) {
       if (c.nonWitnessUtxo.outputs.length - 1 < c.index)
         throw new Error("nonWitnessUtxo: incorect output index");
-      const d = lt.fromRaw(Zn.encode(c.nonWitnessUtxo), {
+      const d = lt.fromRaw(Yn.encode(c.nonWitnessUtxo), {
         allowUnknownOutputs: !0,
         disableScriptCheck: !0,
         allowUnknownInputs: !0
@@ -4459,9 +4459,9 @@ function _o(c) {
 }
 function d9(c, a, h, k = !1, d = !1) {
   let { nonWitnessUtxo: g, txid: y } = c;
-  typeof g == "string" && (g = q.decode(g)), $0(g) && (g = Zn.decode(g)), !("nonWitnessUtxo" in c) && g === void 0 && (g = a?.nonWitnessUtxo), typeof y == "string" && (y = q.decode(y)), y === void 0 && (y = a?.txid);
+  typeof g == "string" && (g = q.decode(g)), $0(g) && (g = Yn.decode(g)), !("nonWitnessUtxo" in c) && g === void 0 && (g = a?.nonWitnessUtxo), typeof y == "string" && (y = q.decode(y)), y === void 0 && (y = a?.txid);
   let E = { ...a, ...c, nonWitnessUtxo: g, txid: y };
-  !("nonWitnessUtxo" in c) && E.nonWitnessUtxo === void 0 && delete E.nonWitnessUtxo, E.sequence === void 0 && (E.sequence = Pa), E.tapMerkleRoot === null && delete E.tapMerkleRoot, E = u9(Ra, E, a, h, d), c6.encode(E);
+  !("nonWitnessUtxo" in c) && E.nonWitnessUtxo === void 0 && delete E.nonWitnessUtxo, E.sequence === void 0 && (E.sequence = Pa), E.tapMerkleRoot === null && delete E.tapMerkleRoot, E = u9(Ra, E, a, h, d), a6.encode(E);
   let S;
   return E.nonWitnessUtxo && E.index !== void 0 ? S = E.nonWitnessUtxo.outputs[E.index] : E.witnessUtxo && (S = E.witnessUtxo), S && !k && o1(S && S.script, E.redeemScript, E.witnessScript), E;
 }
@@ -4517,11 +4517,11 @@ let lt = class Sf {
   opts;
   constructor(a = {}) {
     const h = this.opts = hb(a);
-    h.lockTime !== S2 && (this.global.fallbackLocktime = h.lockTime), this.global.txVersion = h.version;
+    h.lockTime !== E2 && (this.global.fallbackLocktime = h.lockTime), this.global.txVersion = h.version;
   }
   // Import
   static fromRaw(a, h = {}) {
-    const k = Zn.decode(a), d = new Sf({ ...h, version: k.version, lockTime: k.lockTime });
+    const k = Yn.decode(a), d = new Sf({ ...h, version: k.version, lockTime: k.lockTime });
     for (const g of k.outputs)
       d.addOutput(g);
     if (d.outputs = k.outputs, d.inputs = k.inputs, k.witnesses)
@@ -4533,10 +4533,10 @@ let lt = class Sf {
   static fromPSBT(a, h = {}) {
     let k;
     try {
-      k = B5.decode(a);
+      k = b5.decode(a);
     } catch (P) {
       try {
-        k = I5.decode(a);
+        k = B5.decode(a);
       } catch {
         throw P;
       }
@@ -4545,7 +4545,7 @@ let lt = class Sf {
     if (d !== 0 && d !== 2)
       throw new Error(`Wrong PSBT version=${d}`);
     const g = k.global.unsignedTx, y = d === 0 ? g?.version : k.global.txVersion, E = d === 0 ? g?.lockTime : k.global.fallbackLocktime, S = new Sf({ ...h, version: y, lockTime: E, PSBTVersion: d }), b = d === 0 ? g?.inputs.length : k.global.inputCount;
-    S.inputs = k.inputs.slice(0, b).map((P, O) => P5({
+    S.inputs = k.inputs.slice(0, b).map((P, O) => R5({
       finalScriptSig: H0,
       ...k.global.unsignedTx?.inputs[O],
       ...P
@@ -4554,15 +4554,15 @@ let lt = class Sf {
     return S.outputs = k.outputs.slice(0, I).map((P, O) => ({
       ...P,
       ...k.global.unsignedTx?.outputs[O]
-    })), S.global = { ...k.global, txVersion: y }, E !== S2 && (S.global.fallbackLocktime = E), S;
+    })), S.global = { ...k.global, txVersion: y }, E !== E2 && (S.global.fallbackLocktime = E), S;
   }
   toPSBT(a = this.opts.PSBTVersion) {
     if (a !== 0 && a !== 2)
       throw new Error(`Wrong PSBT version=${a}`);
-    const h = this.inputs.map((g) => P5(b5(a, Ra, g)));
+    const h = this.inputs.map((g) => R5(T5(a, Ra, g)));
     for (const g of h)
       g.partialSig && !g.partialSig.length && delete g.partialSig, g.finalScriptSig && !g.finalScriptSig.length && delete g.finalScriptSig, g.finalScriptWitness && !g.finalScriptWitness.length && delete g.finalScriptWitness;
-    const k = this.outputs.map((g) => b5(a, Wo, g)), d = { ...this.global };
+    const k = this.outputs.map((g) => T5(a, Wo, g)), d = { ...this.global };
     return a === 0 ? (d.unsignedTx = Bs.decode(Bs.encode({
       version: this.version,
       lockTime: this.lockTime,
@@ -4570,8 +4570,8 @@ let lt = class Sf {
         ...g,
         finalScriptSig: H0
       })),
-      outputs: this.outputs.map(x2)
-    })), delete d.fallbackLocktime, delete d.txVersion) : (d.version = a, d.txVersion = this.version, d.inputCount = this.inputs.length, d.outputCount = this.outputs.length, d.fallbackLocktime && d.fallbackLocktime === S2 && delete d.fallbackLocktime), this.opts.bip174jsCompat && (h.length || h.push({}), k.length || k.push({})), (a === 0 ? B5 : I5).encode({
+      outputs: this.outputs.map(S2)
+    })), delete d.fallbackLocktime, delete d.txVersion) : (d.version = a, d.txVersion = this.version, d.inputCount = this.inputs.length, d.outputCount = this.outputs.length, d.fallbackLocktime && d.fallbackLocktime === E2 && delete d.fallbackLocktime), this.opts.bip174jsCompat && (h.length || h.push({}), k.length || k.push({})), (a === 0 ? b5 : B5).encode({
       global: d,
       inputs: h,
       outputs: k
@@ -4579,10 +4579,10 @@ let lt = class Sf {
   }
   // BIP370 lockTime (https://github.com/bitcoin/bips/blob/master/bip-0370.mediawiki#determining-lock-time)
   get lockTime() {
-    let a = S2, h = 0, k = S2, d = 0;
+    let a = E2, h = 0, k = E2, d = 0;
     for (const g of this.inputs)
       g.requiredHeightLocktime && (a = Math.max(a, g.requiredHeightLocktime), h++), g.requiredTimeLocktime && (k = Math.max(k, g.requiredTimeLocktime), d++);
-    return h && h >= d ? a : k !== S2 ? k : this.global.fallbackLocktime || S2;
+    return h && h >= d ? a : k !== E2 ? k : this.global.fallbackLocktime || E2;
   }
   get version() {
     if (this.global.txVersion === void 0)
@@ -4635,27 +4635,27 @@ let lt = class Sf {
     if (!this.isFinal)
       throw new Error("Transaction is not finalized");
     let a = 32;
-    const h = this.outputs.map(x2);
+    const h = this.outputs.map(S2);
     a += 4 * Yt.encode(this.outputs.length).length;
     for (const k of h)
       a += 32 + 4 * wr.encode(k.script).length;
     this.hasWitnesses && (a += 2), a += 4 * Yt.encode(this.inputs.length).length;
     for (const k of this.inputs)
-      a += 160 + 4 * wr.encode(k.finalScriptSig || H0).length, this.hasWitnesses && k.finalScriptWitness && (a += En.encode(k.finalScriptWitness).length);
+      a += 160 + 4 * wr.encode(k.finalScriptSig || H0).length, this.hasWitnesses && k.finalScriptWitness && (a += vn.encode(k.finalScriptWitness).length);
     return a;
   }
   get vsize() {
     return p9(this.weight);
   }
   toBytes(a = !1, h = !1) {
-    return Zn.encode({
+    return Yn.encode({
       version: this.version,
       lockTime: this.lockTime,
       inputs: this.inputs.map(Es).map((k) => ({
         ...k,
         finalScriptSig: a && k.finalScriptSig || H0
       })),
-      outputs: this.outputs.map(x2),
+      outputs: this.outputs.map(S2),
       witnesses: this.inputs.map((k) => k.finalScriptWitness || []),
       segwitFlag: h && this.hasWitnesses
     });
@@ -4720,7 +4720,7 @@ let lt = class Sf {
       throw new Error(`Wrong amount type, should be of type bigint in sats, but got ${d} of type ${typeof d}`);
     typeof g == "string" && (g = q.decode(g)), g === void 0 && (g = h?.script);
     let y = { ...h, ...a, amount: d, script: g };
-    if (y.amount === void 0 && delete y.amount, y = u9(Wo, y, h, k, this.opts.allowUnknown), u6.encode(y), y.script && !this.opts.allowUnknownOutputs && a0.decode(y.script).type === "unknown")
+    if (y.amount === void 0 && delete y.amount, y = u9(Wo, y, h, k, this.opts.allowUnknown), c6.encode(y), y.script && !this.opts.allowUnknownOutputs && a0.decode(y.script).type === "unknown")
       throw new Error("Transaction/output: unknown output script type, there is a chance that input is unspendable. Pass allowUnknownOutputs=true, if you sure");
     return this.opts.disableScriptCheck || o1(y.script, y.redeemScript, y.witnessScript), y;
   }
@@ -4750,7 +4750,7 @@ let lt = class Sf {
         throw new Error("Empty input amount");
       a += d.amount;
     }
-    const h = this.outputs.map(x2);
+    const h = this.outputs.map(S2);
     for (const k of h)
       a -= k.amount;
     return a;
@@ -4760,11 +4760,11 @@ let lt = class Sf {
   // There is optimization opportunity to re-use hashes for multiple inputs for witness v0/v1,
   // but we are trying to be less complicated for audit purpose for now.
   preimageLegacy(a, h, k) {
-    const { isAny: d, isNone: g, isSingle: y } = R5(k);
+    const { isAny: d, isNone: g, isSingle: y } = C5(k);
     if (a < 0 || !Number.isSafeInteger(a))
       throw new Error(`Invalid input idx=${a}`);
     if (y && a >= this.outputs.length || a >= this.inputs.length)
-      return kA.encode(1n);
+      return hA.encode(1n);
     h = qe.encode(qe.decode(h).filter((I) => I !== "CODESEPARATOR"));
     let E = this.inputs.map(Es).map((I, P) => ({
       ...I,
@@ -4774,9 +4774,9 @@ let lt = class Sf {
       ...I,
       sequence: P === a ? I.sequence : 0
     })));
-    let S = this.outputs.map(x2);
+    let S = this.outputs.map(S2);
     g ? S = [] : y && (S = S.slice(0, a).fill(sb).concat([S[a]]));
-    const b = Zn.encode({
+    const b = Yn.encode({
       lockTime: this.lockTime,
       version: this.version,
       segwitFlag: !1,
@@ -4786,10 +4786,10 @@ let lt = class Sf {
     return un(b, bs.encode(k));
   }
   preimageWitnessV0(a, h, k, d) {
-    const { isAny: g, isNone: y, isSingle: E } = R5(k);
+    const { isAny: g, isNone: y, isSingle: E } = C5(k);
     let S = J1, b = J1, I = J1;
-    const P = this.inputs.map(Es), O = this.outputs.map(x2);
-    g || (S = un(...P.map(du.encode))), !g && !E && !y && (b = un(...P.map((N) => K0.encode(N.sequence)))), !E && !y ? I = un(...O.map(N2.encode)) : E && a < O.length && (I = un(N2.encode(O[a])));
+    const P = this.inputs.map(Es), O = this.outputs.map(S2);
+    g || (S = un(...P.map(du.encode))), !g && !E && !y && (b = un(...P.map((N) => K0.encode(N.sequence)))), !E && !y ? I = un(...O.map(P2.encode)) : E && a < O.length && (I = un(P2.encode(O[a])));
     const $ = P[a];
     return un(bs.encode(this.version), S, b, nt(32, !0).encode($.txid), K0.encode($.index), wr.encode(h), Ef.encode(d), K0.encode($.sequence), I, K0.encode(this.lockTime), K0.encode(k));
   }
@@ -4799,25 +4799,25 @@ let lt = class Sf {
     if (!Array.isArray(h) || this.inputs.length !== h.length)
       throw new Error(`Invalid prevOutScript array=${h}`);
     const b = [
-      Yn.encode(0),
-      Yn.encode(k),
+      Xn.encode(0),
+      Xn.encode(k),
       // U8 sigHash
       bs.encode(this.version),
       K0.encode(this.lockTime)
-    ], I = k === T0.DEFAULT ? T0.ALL : k & 3, P = k & T0.ANYONECANPAY, O = this.inputs.map(Es), $ = this.outputs.map(x2);
+    ], I = k === T0.DEFAULT ? T0.ALL : k & 3, P = k & T0.ANYONECANPAY, O = this.inputs.map(Es), $ = this.outputs.map(S2);
     P !== T0.ANYONECANPAY && b.push(...[
       O.map(du.encode),
       d.map(Ef.encode),
       h.map(wr.encode),
       O.map((M) => K0.encode(M.sequence))
-    ].map((M) => V0(Xt(...M)))), I === T0.ALL && b.push(V0(Xt(...$.map(N2.encode))));
+    ].map((M) => V0(Xt(...M)))), I === T0.ALL && b.push(V0(Xt(...$.map(P2.encode))));
     const N = (S ? 1 : 0) | (y ? 2 : 0);
     if (b.push(new Uint8Array([N])), P === T0.ANYONECANPAY) {
       const M = O[a];
       b.push(du.encode(M), Ef.encode(d[a]), wr.encode(h[a]), K0.encode(M.sequence));
     } else
       b.push(K0.encode(a));
-    return N & 1 && b.push(V0(wr.encode(S || H0))), I === T0.SINGLE && b.push(a < $.length ? V0(N2.encode($[a])) : J1), y && b.push(yn(y, E), Yn.encode(0), bs.encode(g)), o6("TapSighash", ...b);
+    return N & 1 && b.push(V0(wr.encode(S || H0))), I === T0.SINGLE && b.push(a < $.length ? V0(P2.encode($[a])) : J1), y && b.push(gn(y, E), Xn.encode(0), bs.encode(g)), s6("TapSighash", ...b);
   }
   // Signer can be privateKey OR instance of bip32 HD stuff
   signIdx(a, h, k, d) {
@@ -4857,17 +4857,17 @@ let lt = class Sf {
       if (g.tapInternalKey) {
         const { pubKey: W, privKey: Z } = ub(a, N, g.tapInternalKey, M), [ke, we] = zf(g.tapInternalKey, M);
         if (D0(ke, W)) {
-          const me = this.preimageWitnessV1(h, P, E, O), fe = Xt(v5(me, Z, d), E !== T0.DEFAULT ? new Uint8Array([E]) : H0);
+          const me = this.preimageWitnessV1(h, P, E, O), fe = Xt(m5(me, Z, d), E !== T0.DEFAULT ? new Uint8Array([E]) : H0);
           this.updateInput(h, { tapKeySig: fe }, !0), $ = !0;
         }
       }
       if (g.tapLeafScript) {
         g.tapScriptSig = g.tapScriptSig || [];
         for (const [W, Z] of g.tapLeafScript) {
-          const ke = Z.subarray(0, -1), we = qe.decode(ke), me = Z[Z.length - 1], fe = yn(ke, me);
+          const ke = Z.subarray(0, -1), we = qe.decode(ke), me = Z[Z.length - 1], fe = gn(ke, me);
           if (we.findIndex((Q) => $0(Q) && D0(Q, N)) === -1)
             continue;
-          const j = this.preimageWitnessV1(h, P, E, O, void 0, ke, me), ie = Xt(v5(j, a, d), E !== T0.DEFAULT ? new Uint8Array([E]) : H0);
+          const j = this.preimageWitnessV1(h, P, E, O, void 0, ke, me), ie = Xt(m5(j, a, d), E !== T0.DEFAULT ? new Uint8Array([E]) : H0);
           this.updateInput(h, { tapScriptSig: [[{ pubKey: N, leafHash: fe }, ie]] }, !0), $ = !0;
         }
       }
@@ -4875,9 +4875,9 @@ let lt = class Sf {
         throw new Error("No taproot scripts signed");
       return !0;
     } else {
-      const I = s6(a);
+      const I = n6(a);
       let P = !1;
-      const O = f2(I);
+      const O = o2(I);
       for (const M of qe.decode(y.lastScript))
         $0(M) && (D0(M, I) || D0(M, O)) && (P = !0);
       if (!P)
@@ -4925,7 +4925,7 @@ let lt = class Sf {
       else if (h.tapLeafScript && h.tapScriptSig) {
         const S = h.tapLeafScript.sort((b, I) => ti.encode(b[0]).length - ti.encode(I[0]).length);
         for (const [b, I] of S) {
-          const P = I.slice(0, -1), O = I[I.length - 1], $ = a0.decode(P), N = yn(P, O), M = h.tapScriptSig.filter((Z) => D0(Z[0].leafHash, N));
+          const P = I.slice(0, -1), O = I[I.length - 1], $ = a0.decode(P), N = gn(P, O), M = h.tapScriptSig.filter((Z) => D0(Z[0].leafHash, N));
           let W = [];
           if ($.type === "tr_ms") {
             const Z = $.m, ke = $.pubkeys;
@@ -5038,7 +5038,7 @@ let lt = class Sf {
     const h = this.global.unsignedTx ? Bs.encode(this.global.unsignedTx) : H0, k = a.global.unsignedTx ? Bs.encode(a.global.unsignedTx) : H0;
     if (!D0(h, k))
       throw new Error("Transaction/combine: different unsigned tx");
-    this.global = u9(f6, this.global, a.global, void 0, this.opts.allowUnknown);
+    this.global = u9(o6, this.global, a.global, void 0, this.opts.allowUnknown);
     for (let d = 0; d < this.inputs.length; d++)
       this.updateInput(d, a.inputs[d], !0);
     for (let d = 0; d < this.outputs.length; d++)
@@ -5057,7 +5057,7 @@ function kb(c) {
     a.combine(lt.fromPSBT(c[h]));
   return a.toPSBT();
 }
-const N5 = 2147483648;
+const P5 = 2147483648;
 function w9(c) {
   const a = [];
   if (!/^[mM]'?/.test(c))
@@ -5070,9 +5070,9 @@ function w9(c) {
     if (!d || d.length !== 3)
       throw new Error(`Invalid child index: ${k}`);
     let g = +d[1];
-    if (!Number.isSafeInteger(g) || g >= N5)
+    if (!Number.isSafeInteger(g) || g >= P5)
       throw new Error("Invalid index");
-    d[2] === "'" && (g += N5), a.push(g);
+    d[2] === "'" && (g += P5), a.push(g);
   }
   return a;
 }
@@ -5096,7 +5096,7 @@ function Ab(c, a, h) {
     else {
       if (!h)
         throw new Error("Finalize: Unknown tapLeafScript");
-      const P = yn(E, S);
+      const P = gn(E, S);
       for (const O of h) {
         if (!O.finalizeTaproot)
           continue;
@@ -5156,7 +5156,7 @@ function pb(c, a, h) {
     })), I = I.concat(c.lastScript)), c.txType === "segwit" && (d = I), c.type.startsWith("sh-wsh-") ? k = qe.encode([qe.encode([0, new Uint8Array(V0.outputLen)])]) : c.type.startsWith("sh-") ? k = qe.encode([...qe.decode(b), c.lastScript]) : c.type.startsWith("wsh-") || c.txType !== "segwit" && (k = b);
   }
   let g = 160 + 4 * wr.encode(k).length, y = !1;
-  return d && (g += En.encode(d).length, y = !0), { weight: g, hasWitnesses: y };
+  return d && (g += vn.encode(d).length, y = !0), { weight: g, hasWitnesses: y };
 }
 const g9 = (c, a) => {
   const h = c - a;
@@ -5177,7 +5177,7 @@ function wu(c, a = {}, h = Tt) {
     throw new Error("Estimator: unknown output script type, there is a chance that input is unspendable. Pass allowUnknownOutputs=true, if you sure");
   return a.disableScriptCheck || o1(k), k;
 }
-class CA {
+class IA {
   baseWeight;
   changeWeight;
   amount;
@@ -5367,7 +5367,7 @@ class CA {
 }
 function db(c, a, h, k) {
   const d = { createTx: !0, bip69: !0, ...k };
-  return new CA(c, a, d).result(h);
+  return new IA(c, a, d).result(h);
 }
 /*! scure-btc-signer - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 const wb = {
@@ -5388,8 +5388,8 @@ const wb = {
   OP: pt,
   OutScript: a0,
   PSBTCombine: kb,
-  RawTx: Zn,
-  RawWitness: En,
+  RawTx: Yn,
+  RawWitness: vn,
   Script: qe,
   ScriptNum: Ia,
   SigHash: Ut,
@@ -5399,27 +5399,27 @@ const wb = {
   Transaction: lt,
   WIF: nb,
   _DebugPSBT: FT,
-  _Estimator: CA,
+  _Estimator: IA,
   _cmpBig: g9,
-  _sortPubkeys: bA,
+  _sortPubkeys: TA,
   bip32Path: w9,
-  combinations: SA,
+  combinations: EA,
   getAddress: rb,
   getInputType: Zf,
-  multisig: BA,
+  multisig: bA,
   p2ms: Oo,
-  p2pk: EA,
-  p2pkh: h6,
+  p2pk: vA,
+  p2pkh: l6,
   p2sh: Os,
   p2tr: f1,
-  p2tr_ms: TA,
-  p2tr_ns: xA,
+  p2tr_ms: xA,
+  p2tr_ns: SA,
   p2tr_pk: tb,
   p2wpkh: Ko,
   p2wsh: Ho,
   selectUTXO: db,
   sortedMultisig: ib,
-  taprootListToTree: k6,
+  taprootListToTree: h6,
   utils: wb
 }, Symbol.toStringTag, { value: "Module" }));
 class qt extends lt {
@@ -5441,18 +5441,18 @@ qt.ARK_TX_OPTS = {
 function gu(c) {
   return { ...qt.ARK_TX_OPTS, ...c };
 }
-class p6 extends Error {
+class A6 extends Error {
   idx;
   // Indice of participant
   constructor(a, h) {
     super(h), this.idx = a;
   }
 }
-const { taggedHash: d6, pointToBytes: Co } = mi.utils, yi = F0.Point, E0 = yi.Fn, Zi = F0.lengths.publicKey, y9 = new Uint8Array(Zi), O5 = vn(nt(33), {
+const { taggedHash: p6, pointToBytes: Co } = yi.utils, gi = F0.Point, E0 = gi.Fn, Zi = F0.lengths.publicKey, y9 = new Uint8Array(Zi), N5 = mn(nt(33), {
   decode: (c) => Go(c) ? y9 : c.toBytes(!0),
-  encode: (c) => Vo(c, y9) ? yi.ZERO : yi.fromBytes(c)
-}), U5 = Sr(kA, (c) => (P8("n", c, 1n, E0.ORDER), c)), Us = Dt({ R1: O5, R2: O5 }), RA = Dt({ k1: U5, k2: U5, publicKey: nt(Zi) });
-function _5(c, ...a) {
+  encode: (c) => Vo(c, y9) ? gi.ZERO : gi.fromBytes(c)
+}), O5 = Sr(hA, (c) => (R8("n", c, 1n, E0.ORDER), c)), Us = Dt({ R1: N5, R2: N5 }), CA = Dt({ k1: O5, k2: O5, publicKey: nt(Zi) });
+function U5(c, ...a) {
   c !== void 0 && p0(c, ...a);
 }
 function Jr(c, ...a) {
@@ -5460,7 +5460,7 @@ function Jr(c, ...a) {
     throw new Error("expected array");
   c.forEach((h) => p0(h, ...a));
 }
-function D5(c) {
+function _5(c) {
   if (!Array.isArray(c))
     throw new Error("expected array");
   c.forEach((a, h) => {
@@ -5468,47 +5468,47 @@ function D5(c) {
       throw new Error("expected boolean in xOnly array, got" + a + "(" + h + ")");
   });
 }
-const qf = (c, ...a) => E0.create(E0.fromBytes(d6(c, ...a), !0)), vo = (c, a) => r1(c.y) ? a : E0.neg(a);
-function O2(c) {
-  return yi.BASE.multiply(c);
+const qf = (c, ...a) => E0.create(E0.fromBytes(p6(c, ...a), !0)), vo = (c, a) => r1(c.y) ? a : E0.neg(a);
+function N2(c) {
+  return gi.BASE.multiply(c);
 }
 function Go(c) {
-  return c.equals(yi.ZERO);
+  return c.equals(gi.ZERO);
 }
 function m9(c) {
   return Jr(c, Zi), c.sort(Rr);
 }
-function PA(c) {
+function RA(c) {
   Jr(c, Zi);
   for (let a = 1; a < c.length; a++)
     if (!Vo(c[a], c[0]))
       return c[a];
   return y9;
 }
-function NA(c) {
-  return Jr(c, Zi), d6("KeyAgg list", ...c);
+function PA(c) {
+  return Jr(c, Zi), p6("KeyAgg list", ...c);
 }
-function OA(c, a, h) {
+function NA(c, a, h) {
   return p0(c, Zi), p0(a, Zi), Vo(c, a) ? 1n : qf("KeyAgg coefficient", h, c);
 }
 function Jf(c, a = [], h = []) {
   if (Jr(c, Zi), Jr(a, 32), a.length !== h.length)
     throw new Error("The tweaks and isXonly arrays must have the same length");
-  const k = PA(c), d = NA(c);
-  let g = yi.ZERO;
+  const k = RA(c), d = PA(c);
+  let g = gi.ZERO;
   for (let S = 0; S < c.length; S++) {
     let b;
     try {
-      b = yi.fromBytes(c[S]);
+      b = gi.fromBytes(c[S]);
     } catch {
-      throw new p6(S, "pubkey");
+      throw new A6(S, "pubkey");
     }
-    g = g.add(b.multiply(OA(c[S], k, d)));
+    g = g.add(b.multiply(NA(c[S], k, d)));
   }
   let y = E0.ONE, E = E0.ZERO;
   for (let S = 0; S < a.length; S++) {
     const b = h[S] && !r1(g.y) ? E0.neg(E0.ONE) : E0.ONE, I = E0.fromBytes(a[S]);
-    if (g = g.multiply(b).add(O2(I)), Go(g))
+    if (g = g.multiply(b).add(N2(I)), Go(g))
       throw new Error("The result of tweaking cannot be infinity");
     y = E0.mul(b, y), E = E0.add(I, E0.mul(b, E));
   }
@@ -5518,7 +5518,7 @@ function yb(c) {
   return Co(c.aggPublicKey);
 }
 function mb(c, a) {
-  const h = d6("MuSig/aux", a);
+  const h = p6("MuSig/aux", a);
   if (c.length !== h.length)
     throw new Error("Cannot XOR arrays of different lengths");
   const k = new Uint8Array(c.length);
@@ -5526,20 +5526,20 @@ function mb(c, a) {
     k[d] = c[d] ^ h[d];
   return k;
 }
-const $5 = (c, a, h, k, d, g) => qf("MuSig/nonce", c, new Uint8Array([a.length]), a, new Uint8Array([h.length]), h, d, eo(g.length, 4), g, new Uint8Array([k]));
-function UA(c, a, h = new Uint8Array(0), k, d = new Uint8Array(0), g = V2(32)) {
-  if (p0(c, Zi), _5(a, 32), p0(h), ![0, 32].includes(h.length))
+const D5 = (c, a, h, k, d, g) => qf("MuSig/nonce", c, new Uint8Array([a.length]), a, new Uint8Array([h.length]), h, d, eo(g.length, 4), g, new Uint8Array([k]));
+function OA(c, a, h = new Uint8Array(0), k, d = new Uint8Array(0), g = V2(32)) {
+  if (p0(c, Zi), U5(a, 32), p0(h), ![0, 32].includes(h.length))
     throw new Error("wrong aggPublicKey");
-  _5(k), p0(d), p0(g, 32), a !== void 0 && (g = mb(a, g));
-  const y = k !== void 0 ? Zt(Uint8Array.of(1), eo(k.length, 8), k) : Uint8Array.of(0), E = $5(g, c, h, 0, y, d), S = $5(g, c, h, 1, y, d);
+  U5(k), p0(d), p0(g, 32), a !== void 0 && (g = mb(a, g));
+  const y = k !== void 0 ? Zt(Uint8Array.of(1), eo(k.length, 8), k) : Uint8Array.of(0), E = D5(g, c, h, 0, y, d), S = D5(g, c, h, 1, y, d);
   return {
-    secret: RA.encode({ k1: E, k2: S, publicKey: c }),
-    public: Us.encode({ R1: O2(E), R2: O2(S) })
+    secret: CA.encode({ k1: E, k2: S, publicKey: c }),
+    public: Us.encode({ R1: N2(E), R2: N2(S) })
   };
 }
-function _A(c) {
+function UA(c) {
   Jr(c, 66);
-  let a = yi.ZERO, h = yi.ZERO;
+  let a = gi.ZERO, h = gi.ZERO;
   for (let k = 0; k < c.length; k++) {
     const d = c[k];
     try {
@@ -5548,12 +5548,12 @@ function _A(c) {
         throw new Error("infinity point");
       a = a.add(g), h = h.add(y);
     } catch {
-      throw new p6(k, "pubnonce");
+      throw new A6(k, "pubnonce");
     }
   }
   return Us.encode({ R1: a, R2: h });
 }
-class DA {
+class _A {
   publicKeys;
   Q;
   gAcc;
@@ -5577,12 +5577,12 @@ class DA {
    * @throws {Error} If the input is invalid, such as wrong array sizes or lengths.
    */
   constructor(a, h, k, d = [], g = []) {
-    if (Jr(h, 33), Jr(d, 32), D5(g), p0(k), d.length !== g.length)
+    if (Jr(h, 33), Jr(d, 32), _5(g), p0(k), d.length !== g.length)
       throw new Error("The tweaks and isXonly arrays must have the same length");
     const { aggPublicKey: y, gAcc: E, tweakAcc: S } = Jf(h, d, g), { R1: b, R2: I } = Us.decode(a);
     this.publicKeys = h, this.Q = y, this.gAcc = E, this.tweakAcc = S, this.b = qf("MuSig/noncecoef", a, Co(y), k);
     const P = b.add(I.multiply(this.b));
-    this.R = Go(P) ? yi.BASE : P, this.e = qf("BIP0340/challenge", Co(this.R), Co(y), k), this.tweaks = d, this.isXonly = g, this.L = NA(h), this.secondKey = PA(h);
+    this.R = Go(P) ? gi.BASE : P, this.e = qf("BIP0340/challenge", Co(this.R), Co(y), k), this.tweaks = d, this.isXonly = g, this.L = PA(h), this.secondKey = RA(h);
   }
   /**
    * Calculates the key aggregation coefficient for a given point.
@@ -5595,13 +5595,13 @@ class DA {
     const { publicKeys: h } = this, k = a.toBytes(!0);
     if (!h.some((g) => Vo(g, k)))
       throw new Error("The signer's pubkey must be included in the list of pubkeys");
-    return OA(k, this.secondKey, this.L);
+    return NA(k, this.secondKey, this.L);
   }
   partialSigVerifyInternal(a, h, k) {
     const { Q: d, gAcc: g, b: y, R: E, e: S } = this, b = E0.fromBytes(a, !0);
     if (!E0.isValid(b))
       return !1;
-    const { R1: I, R2: P } = Us.decode(h), O = I.add(P.multiply(y)), $ = r1(E.y) ? O : O.negate(), N = yi.fromBytes(k), M = this.getSessionKeyAggCoeff(N), W = E0.mul(vo(d, 1n), g), Z = O2(b), ke = $.add(N.multiply(E0.mul(S, E0.mul(M, W))));
+    const { R1: I, R2: P } = Us.decode(h), O = I.add(P.multiply(y)), $ = r1(E.y) ? O : O.negate(), N = gi.fromBytes(k), M = this.getSessionKeyAggCoeff(N), W = E0.mul(vo(d, 1n), g), Z = N2(b), ke = $.add(N.multiply(E0.mul(S, E0.mul(M, W))));
     return Z.equals(ke);
   }
   /**
@@ -5616,7 +5616,7 @@ class DA {
   sign(a, h, k = !1) {
     if (p0(h, 32), typeof k != "boolean")
       throw new Error("expected boolean");
-    const { Q: d, gAcc: g, b: y, R: E, e: S } = this, { k1: b, k2: I, publicKey: P } = RA.decode(a);
+    const { Q: d, gAcc: g, b: y, R: E, e: S } = this, { k1: b, k2: I, publicKey: P } = CA.decode(a);
     if (a.fill(0, 0, 64), !E0.isValid(b))
       throw new Error("wrong k1");
     if (!E0.isValid(I))
@@ -5624,14 +5624,14 @@ class DA {
     const O = vo(E, b), $ = vo(E, I), N = E0.fromBytes(h);
     if (E0.is0(N))
       throw new Error("wrong d_");
-    const M = O2(N), W = M.toBytes(!0);
+    const M = N2(N), W = M.toBytes(!0);
     if (!Vo(W, P))
       throw new Error("Public key does not match nonceGen argument");
     const Z = this.getSessionKeyAggCoeff(M), ke = vo(d, 1n), we = E0.mul(ke, E0.mul(g, N)), me = E0.add(O, E0.add(E0.mul(y, $), E0.mul(S, E0.mul(Z, we)))), fe = E0.toBytes(me);
     if (!k) {
       const Ae = Us.encode({
-        R1: O2(b),
-        R2: O2(I)
+        R1: N2(b),
+        R2: N2(I)
       });
       if (!this.partialSigVerifyInternal(fe, Ae, W))
         throw new Error("Partial signature verification failed");
@@ -5652,7 +5652,7 @@ class DA {
    */
   partialSigVerify(a, h, k) {
     const { publicKeys: d, tweaks: g, isXonly: y } = this;
-    if (p0(a, 32), Jr(h, 66), Jr(d, Zi), Jr(g, 32), D5(y), t2(k), h.length !== d.length)
+    if (p0(a, 32), Jr(h, 66), Jr(d, Zi), Jr(g, 32), _5(y), e2(k), h.length !== d.length)
       throw new Error("The pubNonces and publicKeys arrays must have the same length");
     if (g.length !== y.length)
       throw new Error("The tweaks and isXonly arrays must have the same length");
@@ -5674,7 +5674,7 @@ class DA {
     for (let S = 0; S < a.length; S++) {
       const b = E0.fromBytes(a[S], !0);
       if (!E0.isValid(b))
-        throw new p6(S, "psig");
+        throw new A6(S, "psig");
       y = E0.add(y, b);
     }
     const E = vo(h, 1n);
@@ -5682,14 +5682,14 @@ class DA {
   }
 }
 function vb(c) {
-  const a = UA(c);
+  const a = OA(c);
   return { secNonce: a.secret, pubNonce: a.public };
 }
 function Eb(c) {
-  return _A(c);
+  return UA(c);
 }
 /*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) */
-function w6(c) {
+function d6(c) {
   return c instanceof Uint8Array || ArrayBuffer.isView(c) && c.constructor.name === "Uint8Array";
 }
 function H2(c, a = "") {
@@ -5699,14 +5699,14 @@ function H2(c, a = "") {
   }
 }
 function q0(c, a, h = "") {
-  const k = w6(c), d = c?.length, g = a !== void 0;
+  const k = d6(c), d = c?.length, g = a !== void 0;
   if (!k || g && d !== a) {
     const y = h && `"${h}" `, E = g ? ` of length ${a}` : "", S = k ? `length=${d}` : `type=${typeof c}`;
     throw new Error(y + "expected Uint8Array" + E + ", got " + S);
   }
   return c;
 }
-function $A(c) {
+function DA(c) {
   if (typeof c != "function" || typeof c.create != "function")
     throw new Error("Hash must wrapped by utils.createHasher");
   H2(c.outputLen), H2(c.blockLen);
@@ -5730,12 +5730,12 @@ function ta(...c) {
 function yu(c) {
   return new DataView(c.buffer, c.byteOffset, c.byteLength);
 }
-function $i(c, a) {
+function Di(c, a) {
   return c << 32 - a | c >>> a;
 }
-const MA = /* @ts-ignore */ typeof Uint8Array.from([]).toHex == "function" && typeof Uint8Array.fromHex == "function", xb = /* @__PURE__ */ Array.from({ length: 256 }, (c, a) => a.toString(16).padStart(2, "0"));
+const $A = /* @ts-ignore */ typeof Uint8Array.from([]).toHex == "function" && typeof Uint8Array.fromHex == "function", xb = /* @__PURE__ */ Array.from({ length: 256 }, (c, a) => a.toString(16).padStart(2, "0"));
 function Na(c) {
-  if (q0(c), MA)
+  if (q0(c), $A)
     return c.toHex();
   let a = "";
   for (let h = 0; h < c.length; h++)
@@ -5743,7 +5743,7 @@ function Na(c) {
   return a;
 }
 const an = { _0: 48, _9: 57, A: 65, F: 70, a: 97, f: 102 };
-function M5(c) {
+function $5(c) {
   if (c >= an._0 && c <= an._9)
     return c - an._0;
   if (c >= an.A && c <= an.F)
@@ -5754,14 +5754,14 @@ function M5(c) {
 function ra(c) {
   if (typeof c != "string")
     throw new Error("hex string expected, got " + typeof c);
-  if (MA)
+  if ($A)
     return Uint8Array.fromHex(c);
   const a = c.length, h = a / 2;
   if (a % 2)
     throw new Error("hex string expected, got unpadded hex of length " + a);
   const k = new Uint8Array(h);
   for (let d = 0, g = 0; d < h; d++, g += 2) {
-    const y = M5(c.charCodeAt(g)), E = M5(c.charCodeAt(g + 1));
+    const y = $5(c.charCodeAt(g)), E = $5(c.charCodeAt(g + 1));
     if (y === void 0 || E === void 0) {
       const S = c[g] + c[g + 1];
       throw new Error('hex string expected, got non-hex character "' + S + '" at index ' + g);
@@ -5770,7 +5770,7 @@ function ra(c) {
   }
   return k;
 }
-function Qi(...c) {
+function Ki(...c) {
   let a = 0;
   for (let k = 0; k < c.length; k++) {
     const d = c[k];
@@ -5797,7 +5797,7 @@ const bb = (c) => ({
   oid: Uint8Array.from([6, 9, 96, 134, 72, 1, 101, 3, 4, 2, c])
 });
 /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
-const g6 = /* @__PURE__ */ BigInt(0), v9 = /* @__PURE__ */ BigInt(1);
+const w6 = /* @__PURE__ */ BigInt(0), v9 = /* @__PURE__ */ BigInt(1);
 function ia(c, a = "") {
   if (typeof c != "boolean") {
     const h = a && `"${a}" `;
@@ -5805,7 +5805,7 @@ function ia(c, a = "") {
   }
   return c;
 }
-function LA(c) {
+function MA(c) {
   if (typeof c == "bigint") {
     if (!xf(c))
       throw new Error("positive bigint expected, got " + c);
@@ -5814,31 +5814,31 @@ function LA(c) {
   return c;
 }
 function tf(c) {
-  const a = LA(c).toString(16);
+  const a = MA(c).toString(16);
   return a.length & 1 ? "0" + a : a;
 }
-function FA(c) {
+function LA(c) {
   if (typeof c != "string")
     throw new Error("hex string expected, got " + typeof c);
-  return c === "" ? g6 : BigInt("0x" + c);
+  return c === "" ? w6 : BigInt("0x" + c);
 }
 function io(c) {
-  return FA(Na(c));
+  return LA(Na(c));
 }
-function VA(c) {
-  return FA(Na(Bb(q0(c)).reverse()));
+function FA(c) {
+  return LA(Na(Bb(q0(c)).reverse()));
 }
-function y6(c, a) {
-  H2(a), c = LA(c);
+function g6(c, a) {
+  H2(a), c = MA(c);
   const h = ra(c.toString(16).padStart(a * 2, "0"));
   if (h.length !== a)
     throw new Error("number too large");
   return h;
 }
-function WA(c, a) {
-  return y6(c, a).reverse();
+function VA(c, a) {
+  return g6(c, a).reverse();
 }
-function HA(c, a) {
+function WA(c, a) {
   if (c.length !== a.length)
     return !1;
   let h = 0;
@@ -5857,7 +5857,7 @@ function Ib(c) {
     return k;
   });
 }
-const xf = (c) => typeof c == "bigint" && g6 <= c;
+const xf = (c) => typeof c == "bigint" && w6 <= c;
 function Cb(c, a, h) {
   return xf(c) && xf(a) && xf(h) && a <= c && c < h;
 }
@@ -5867,11 +5867,11 @@ function Rb(c, a, h, k) {
 }
 function Pb(c) {
   let a;
-  for (a = 0; c > g6; c >>= v9, a += 1)
+  for (a = 0; c > w6; c >>= v9, a += 1)
     ;
   return a;
 }
-const m6 = (c) => (v9 << BigInt(c)) - v9;
+const y6 = (c) => (v9 << BigInt(c)) - v9;
 function Nb(c, a, h) {
   if (H2(c, "hashLen"), H2(a, "qByteLen"), typeof h != "function")
     throw new Error("hmacFn must be a function");
@@ -5879,7 +5879,7 @@ function Nb(c, a, h) {
   let S = k(c), b = k(c), I = 0;
   const P = () => {
     S.fill(1), b.fill(0), I = 0;
-  }, O = (...W) => h(b, Qi(S, ...W)), $ = (W = d) => {
+  }, O = (...W) => h(b, Ki(S, ...W)), $ = (W = d) => {
     b = O(g, W), S = O(), W.length !== 0 && (b = O(y, W), S = O());
   }, N = () => {
     if (I++ >= E)
@@ -5891,7 +5891,7 @@ function Nb(c, a, h) {
       const ke = S.slice();
       Z.push(ke), W += S.length;
     }
-    return Qi(...Z);
+    return Ki(...Z);
   };
   return (W, Z) => {
     P(), $(W);
@@ -5901,7 +5901,7 @@ function Nb(c, a, h) {
     return P(), ke;
   };
 }
-function v6(c, a = {}, h = {}) {
+function m6(c, a = {}, h = {}) {
   if (!c || typeof c != "object")
     throw new Error("expected valid options object");
   function k(g, y, E) {
@@ -5915,7 +5915,7 @@ function v6(c, a = {}, h = {}) {
   const d = (g, y) => Object.entries(g).forEach(([E, S]) => k(E, S, y));
   d(a, !1), d(h, !0);
 }
-function L5(c) {
+function M5(c) {
   const a = /* @__PURE__ */ new WeakMap();
   return (h, ...k) => {
     const d = a.get(h);
@@ -5926,7 +5926,7 @@ function L5(c) {
   };
 }
 /*! noble-secp256k1 - MIT License (c) 2019 Paul Miller (paulmillr.com) */
-const KA = {
+const HA = {
   p: 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2fn,
   n: 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n,
   h: 1n,
@@ -5934,7 +5934,7 @@ const KA = {
   b: 7n,
   Gx: 0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798n,
   Gy: 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8n
-}, { p: qn, n: n2, Gx: Ob, Gy: Ub, b: QA } = KA, _t = 32, K2 = 64, na = {
+}, { p: Zn, n: i2, Gx: Ob, Gy: Ub, b: KA } = HA, _t = 32, K2 = 64, na = {
   publicKey: _t + 1,
   publicKeyUncompressed: K2 + 1,
   signature: K2,
@@ -5951,38 +5951,38 @@ const KA = {
     Q0(y + "expected Uint8Array" + E + ", got " + S);
   }
   return c;
-}, s2 = (c) => new Uint8Array(c), GA = (c, a) => c.toString(16).padStart(a, "0"), zA = (c) => Array.from(Pr(c)).map((a) => GA(a, 2)).join(""), cn = { _0: 48, _9: 57, A: 65, F: 70, a: 97, f: 102 }, F5 = (c) => {
+}, n2 = (c) => new Uint8Array(c), QA = (c, a) => c.toString(16).padStart(a, "0"), GA = (c) => Array.from(Pr(c)).map((a) => QA(a, 2)).join(""), cn = { _0: 48, _9: 57, A: 65, F: 70, a: 97, f: 102 }, L5 = (c) => {
   if (c >= cn._0 && c <= cn._9)
     return c - cn._0;
   if (c >= cn.A && c <= cn.F)
     return c - (cn.A - 10);
   if (c >= cn.a && c <= cn.f)
     return c - (cn.a - 10);
-}, jA = (c) => {
+}, zA = (c) => {
   const a = "hex invalid";
   if (!$b(c))
     return Q0(a);
   const h = c.length, k = h / 2;
   if (h % 2)
     return Q0(a);
-  const d = s2(k);
+  const d = n2(k);
   for (let g = 0, y = 0; g < k; g++, y += 2) {
-    const E = F5(c.charCodeAt(y)), S = F5(c.charCodeAt(y + 1));
+    const E = L5(c.charCodeAt(y)), S = L5(c.charCodeAt(y + 1));
     if (E === void 0 || S === void 0)
       return Q0(a);
     d[g] = E * 16 + S;
   }
   return d;
-}, XA = () => globalThis?.crypto, V5 = () => XA()?.subtle ?? Q0("crypto.subtle must be defined, consider polyfill"), qi = (...c) => {
-  const a = s2(c.reduce((k, d) => k + Pr(d).length, 0));
+}, jA = () => globalThis?.crypto, F5 = () => jA()?.subtle ?? Q0("crypto.subtle must be defined, consider polyfill"), qi = (...c) => {
+  const a = n2(c.reduce((k, d) => k + Pr(d).length, 0));
   let h = 0;
   return c.forEach((k) => {
     a.set(k, h), h += k.length;
   }), a;
-}, Ua = (c = _t) => XA().getRandomValues(s2(c)), zo = BigInt, Q2 = (c, a, h, k = "bad number: out of range") => Db(c) && a <= c && c < h ? c : Q0(k), Je = (c, a = qn) => {
+}, Ua = (c = _t) => jA().getRandomValues(n2(c)), zo = BigInt, Q2 = (c, a, h, k = "bad number: out of range") => Db(c) && a <= c && c < h ? c : Q0(k), Je = (c, a = Zn) => {
   const h = c % a;
   return h >= 0n ? h : a + h;
-}, wn = (c) => Je(c, n2), YA = (c, a) => {
+}, dn = (c) => Je(c, i2), XA = (c, a) => {
   (c === 0n || a <= 0n) && Q0("no inverse n=" + c + " mod=" + a);
   let h = Je(c, a), k = a, d = 0n, g = 1n;
   for (; h !== 0n; ) {
@@ -5990,32 +5990,32 @@ const KA = {
     k = h, h = E, d = g, g = S;
   }
   return k === 1n ? Je(d, a) : Q0("no inverse");
-}, ZA = (c) => {
+}, YA = (c) => {
   const a = Da[c];
   return typeof a != "function" && Q0("hashes." + c + " not set"), a;
-}, mu = (c) => c instanceof X2 ? c : Q0("Point expected"), qA = (c) => Je(Je(c * c) * c + QA), W5 = (c) => Q2(c, 0n, qn), Tf = (c) => Q2(c, 1n, qn), E9 = (c) => Q2(c, 1n, n2), Ks = (c) => (c & 1n) === 0n, _a = (c) => Uint8Array.of(c), Lb = (c) => _a(Ks(c) ? 2 : 3), JA = (c) => {
-  const a = qA(Tf(c));
+}, mu = (c) => c instanceof X2 ? c : Q0("Point expected"), ZA = (c) => Je(Je(c * c) * c + KA), V5 = (c) => Q2(c, 0n, Zn), Tf = (c) => Q2(c, 1n, Zn), E9 = (c) => Q2(c, 1n, i2), Ks = (c) => (c & 1n) === 0n, _a = (c) => Uint8Array.of(c), Lb = (c) => _a(Ks(c) ? 2 : 3), qA = (c) => {
+  const a = ZA(Tf(c));
   let h = 1n;
-  for (let k = a, d = (qn + 1n) / 4n; d > 0n; d >>= 1n)
-    d & 1n && (h = h * k % qn), k = k * k % qn;
+  for (let k = a, d = (Zn + 1n) / 4n; d > 0n; d >>= 1n)
+    d & 1n && (h = h * k % Zn), k = k * k % Zn;
   return Je(h * h) === a ? h : Q0("sqrt invalid");
 };
-let X2 = class T2 {
+let X2 = class x2 {
   static BASE;
   static ZERO;
   X;
   Y;
   Z;
   constructor(a, h, k) {
-    this.X = W5(a), this.Y = Tf(h), this.Z = W5(k), Object.freeze(this);
+    this.X = V5(a), this.Y = Tf(h), this.Z = V5(k), Object.freeze(this);
   }
   static CURVE() {
-    return KA;
+    return HA;
   }
   /** Create 3d xyz point from 2d xy. (0, 0) => (0, 1, 0), not (0, 0, 1) */
   static fromAffine(a) {
     const { x: h, y: k } = a;
-    return h === 0n && k === 0n ? I2 : new T2(h, k, 1n);
+    return h === 0n && k === 0n ? B2 : new x2(h, k, 1n);
   }
   /** Convert Uint8Array or hex string to Point. */
   static fromBytes(a) {
@@ -6024,14 +6024,14 @@ let X2 = class T2 {
     let d;
     const g = a.length, y = a[0], E = a.subarray(1), S = Qs(E, 0, _t);
     if (g === h && (y === 2 || y === 3)) {
-      let b = JA(S);
+      let b = qA(S);
       const I = Ks(b);
-      Ks(zo(y)) !== I && (b = Je(-b)), d = new T2(S, b, 1n);
+      Ks(zo(y)) !== I && (b = Je(-b)), d = new x2(S, b, 1n);
     }
-    return g === k && y === 4 && (d = new T2(S, Qs(E, _t, K2), 1n)), d ? d.assertValidity() : Q0("bad point: not on curve");
+    return g === k && y === 4 && (d = new x2(S, Qs(E, _t, K2), 1n)), d ? d.assertValidity() : Q0("bad point: not on curve");
   }
   static fromHex(a) {
-    return T2.fromBytes(jA(a));
+    return x2.fromBytes(zA(a));
   }
   get x() {
     return this.toAffine().x;
@@ -6045,11 +6045,11 @@ let X2 = class T2 {
     return S === b && I === P;
   }
   is0() {
-    return this.equals(I2);
+    return this.equals(B2);
   }
   /** Flip point over y coordinate. */
   negate() {
-    return new T2(this.X, Je(-this.Y), this.Z);
+    return new x2(this.X, Je(-this.Y), this.Z);
   }
   /** Point doubling: P+P, complete formula. */
   double() {
@@ -6062,13 +6062,13 @@ let X2 = class T2 {
    */
   // prettier-ignore
   add(a) {
-    const { X: h, Y: k, Z: d } = this, { X: g, Y: y, Z: E } = mu(a), S = 0n, b = QA;
+    const { X: h, Y: k, Z: d } = this, { X: g, Y: y, Z: E } = mu(a), S = 0n, b = KA;
     let I = 0n, P = 0n, O = 0n;
     const $ = Je(b * 3n);
     let N = Je(h * g), M = Je(k * y), W = Je(d * E), Z = Je(h + k), ke = Je(g + y);
     Z = Je(Z * ke), ke = Je(N + M), Z = Je(Z - ke), ke = Je(h + d);
     let we = Je(g + E);
-    return ke = Je(ke * we), we = Je(N + W), ke = Je(ke - we), we = Je(k + d), I = Je(y + E), we = Je(we * I), I = Je(M + W), we = Je(we - I), O = Je(S * ke), I = Je($ * W), O = Je(I + O), I = Je(M - O), O = Je(M + O), P = Je(I * O), M = Je(N + N), M = Je(M + N), W = Je(S * W), ke = Je($ * ke), M = Je(M + W), W = Je(N - W), W = Je(S * W), ke = Je(ke + W), N = Je(M * ke), P = Je(P + N), N = Je(we * ke), I = Je(Z * I), I = Je(I - N), N = Je(Z * M), O = Je(we * O), O = Je(O + N), new T2(I, P, O);
+    return ke = Je(ke * we), we = Je(N + W), ke = Je(ke - we), we = Je(k + d), I = Je(y + E), we = Je(we * I), I = Je(M + W), we = Je(we - I), O = Je(S * ke), I = Je($ * W), O = Je(I + O), I = Je(M - O), O = Je(M + O), P = Je(I * O), M = Je(N + N), M = Je(M + N), W = Je(S * W), ke = Je($ * ke), M = Je(M + W), W = Je(N - W), W = Je(S * W), ke = Je(ke + W), N = Je(M * ke), P = Je(P + N), N = Je(we * ke), I = Je(Z * I), I = Je(I - N), N = Je(Z * M), O = Je(we * O), O = Je(O + N), new x2(I, P, O);
   }
   subtract(a) {
     return this.add(mu(a).negate());
@@ -6082,12 +6082,12 @@ let X2 = class T2 {
    */
   multiply(a, h = !0) {
     if (!h && a === 0n)
-      return I2;
+      return B2;
     if (E9(a), a === 1n)
       return this;
-    if (this.equals(o2))
+    if (this.equals(s2))
       return lB(a).p;
-    let k = I2, d = o2;
+    let k = B2, d = s2;
     for (let g = this; a > 0n; g = g.double(), a >>= 1n)
       a & 1n ? k = k.add(g) : h && (d = d.add(g));
     return k;
@@ -6098,17 +6098,17 @@ let X2 = class T2 {
   /** Convert point to 2d xy affine point. (X, Y, Z) ∋ (x=X/Z, y=Y/Z) */
   toAffine() {
     const { X: a, Y: h, Z: k } = this;
-    if (this.equals(I2))
+    if (this.equals(B2))
       return { x: 0n, y: 0n };
     if (k === 1n)
       return { x: a, y: h };
-    const d = YA(k, qn);
+    const d = XA(k, Zn);
     return Je(k * d) !== 1n && Q0("inverse invalid"), { x: Je(a * d), y: Je(h * d) };
   }
   /** Checks if the point is valid and on-curve. */
   assertValidity() {
     const { x: a, y: h } = this.toAffine();
-    return Tf(a), Tf(h), Je(h * h) === qA(a) ? this : Q0("bad point: not on curve");
+    return Tf(a), Tf(h), Je(h * h) === ZA(a) ? this : Q0("bad point: not on curve");
   }
   /** Converts point to 33/65-byte Uint8Array. */
   toBytes(a = !0) {
@@ -6116,19 +6116,19 @@ let X2 = class T2 {
     return a ? qi(Lb(k), d) : qi(_a(4), d, Ur(k));
   }
   toHex(a) {
-    return zA(this.toBytes(a));
+    return GA(this.toBytes(a));
   }
 };
-const o2 = new X2(Ob, Ub, 1n), I2 = new X2(0n, 1n, 0n);
-X2.BASE = o2;
-X2.ZERO = I2;
-const Fb = (c, a, h) => o2.multiply(a, !1).add(c.multiply(h, !1)).assertValidity(), a2 = (c) => zo("0x" + (zA(c) || "0")), Qs = (c, a, h) => a2(c.subarray(a, h)), Vb = 2n ** 256n, Ur = (c) => jA(GA(Q2(c, 0n, Vb), K2)), ep = (c) => {
-  const a = a2(Pr(c, _t, "secret key"));
-  return Q2(a, 1n, n2, "invalid secret key: outside of range");
-}, tp = (c) => c > n2 >> 1n, Wb = (c) => {
+const s2 = new X2(Ob, Ub, 1n), B2 = new X2(0n, 1n, 0n);
+X2.BASE = s2;
+X2.ZERO = B2;
+const Fb = (c, a, h) => s2.multiply(a, !1).add(c.multiply(h, !1)).assertValidity(), f2 = (c) => zo("0x" + (GA(c) || "0")), Qs = (c, a, h) => f2(c.subarray(a, h)), Vb = 2n ** 256n, Ur = (c) => zA(QA(Q2(c, 0n, Vb), K2)), JA = (c) => {
+  const a = f2(Pr(c, _t, "secret key"));
+  return Q2(a, 1n, i2, "invalid secret key: outside of range");
+}, ep = (c) => c > i2 >> 1n, Wb = (c) => {
   [0, 1, 2, 3].includes(c) || Q0("recovery id must be valid and present");
 }, Hb = (c) => {
-  c != null && !H5.includes(c) && Q0(`Signature format must be one of: ${H5.join(", ")}`), c === ip && Q0('Signature format "der" is not supported: switch to noble-curves');
+  c != null && !W5.includes(c) && Q0(`Signature format must be one of: ${W5.join(", ")}`), c === rp && Q0('Signature format "der" is not supported: switch to noble-curves');
 }, Kb = (c, a = Gs) => {
   Hb(a);
   const h = na.signature, k = h + 1;
@@ -6153,33 +6153,33 @@ class sa {
     return new sa(this.r, this.s, a);
   }
   hasHighS() {
-    return tp(this.s);
+    return ep(this.s);
   }
   toBytes(a = Gs) {
     const { r: h, s: k, recovery: d } = this, g = qi(Ur(h), Ur(k));
     return a === oa ? (Wb(d), qi(Uint8Array.of(d), g)) : g;
   }
 }
-const rp = (c) => {
+const tp = (c) => {
   const a = c.length * 8 - 256;
   a > 1024 && Q0("msg invalid");
-  const h = a2(c);
+  const h = f2(c);
   return a > 0 ? h >> zo(a) : h;
-}, Qb = (c) => wn(rp(Pr(c))), Gs = "compact", oa = "recovered", ip = "der", H5 = [Gs, oa, ip], K5 = {
+}, Qb = (c) => dn(tp(Pr(c))), Gs = "compact", oa = "recovered", rp = "der", W5 = [Gs, oa, rp], H5 = {
   lowS: !0,
   prehash: !0,
   format: Gs,
   extraEntropy: !1
-}, Q5 = "SHA-256", Da = {
+}, K5 = "SHA-256", Da = {
   hmacSha256Async: async (c, a) => {
-    const h = V5(), k = "HMAC", d = await h.importKey("raw", c, { name: k, hash: { name: Q5 } }, !1, ["sign"]);
-    return s2(await h.sign(k, d, a));
+    const h = F5(), k = "HMAC", d = await h.importKey("raw", c, { name: k, hash: { name: K5 } }, !1, ["sign"]);
+    return n2(await h.sign(k, d, a));
   },
   hmacSha256: void 0,
-  sha256Async: async (c) => s2(await V5().digest(Q5, c)),
+  sha256Async: async (c) => n2(await F5().digest(K5, c)),
   sha256: void 0
-}, Gb = (c, a, h) => (Pr(c, void 0, "message"), a.prehash ? h ? Da.sha256Async(c) : ZA("sha256")(c) : c), zb = s2(0), jb = _a(0), Xb = _a(1), Yb = 1e3, Zb = "drbg: tried max amount of iterations", qb = async (c, a) => {
-  let h = s2(_t), k = s2(_t), d = 0;
+}, Gb = (c, a, h) => (Pr(c, void 0, "message"), a.prehash ? h ? Da.sha256Async(c) : YA("sha256")(c) : c), zb = n2(0), jb = _a(0), Xb = _a(1), Yb = 1e3, Zb = "drbg: tried max amount of iterations", qb = async (c, a) => {
+  let h = n2(_t), k = n2(_t), d = 0;
   const g = () => {
     h.fill(1), k.fill(0);
   }, y = (...I) => Da.hmacSha256Async(k, qi(h, ...I)), E = async (I = zb) => {
@@ -6192,86 +6192,86 @@ const rp = (c) => {
   return g(), b;
 }, Jb = (c, a, h, k) => {
   let { lowS: d, extraEntropy: g } = h;
-  const y = Ur, E = Qb(c), S = y(E), b = ep(a), I = [y(b), S];
+  const y = Ur, E = Qb(c), S = y(E), b = JA(a), I = [y(b), S];
   if (g != null && g !== !1) {
     const N = g === !0 ? Ua(_t) : g;
     I.push(Pr(N, void 0, "extraEntropy"));
   }
   const P = qi(...I), O = E;
   return k(P, (N) => {
-    const M = rp(N);
-    if (!(1n <= M && M < n2))
+    const M = tp(N);
+    if (!(1n <= M && M < i2))
       return;
-    const W = YA(M, n2), Z = o2.multiply(M).toAffine(), ke = wn(Z.x);
+    const W = XA(M, i2), Z = s2.multiply(M).toAffine(), ke = dn(Z.x);
     if (ke === 0n)
       return;
-    const we = wn(W * wn(O + ke * b));
+    const we = dn(W * dn(O + ke * b));
     if (we === 0n)
       return;
     let me = (Z.x === ke ? 0 : 2) | Number(Z.y & 1n), fe = we;
-    return d && tp(we) && (fe = wn(-we), me ^= 1), new sa(ke, fe, me).toBytes(h.format);
+    return d && ep(we) && (fe = dn(-we), me ^= 1), new sa(ke, fe, me).toBytes(h.format);
   });
 }, eB = (c) => {
   const a = {};
-  return Object.keys(K5).forEach((h) => {
-    a[h] = c[h] ?? K5[h];
+  return Object.keys(H5).forEach((h) => {
+    a[h] = c[h] ?? H5[h];
   }), a;
 }, tB = async (c, a, h = {}) => (h = eB(h), c = await Gb(c, h, !0), Jb(c, a, h, qb)), rB = (c = Ua(na.seed)) => {
   Pr(c), (c.length < na.seed || c.length > 1024) && Q0("expected 40-1024b");
-  const a = Je(a2(c), n2 - 1n);
+  const a = Je(f2(c), i2 - 1n);
   return Ur(a + 1n);
 }, iB = (c) => (a) => {
   const h = rB(a);
   return { secretKey: h, publicKey: c(h) };
-}, np = (c) => Uint8Array.from("BIP0340/" + c, (a) => a.charCodeAt(0)), sp = "aux", op = "nonce", fp = "challenge", S9 = (c, ...a) => {
-  const h = ZA("sha256"), k = h(np(c));
+}, ip = (c) => Uint8Array.from("BIP0340/" + c, (a) => a.charCodeAt(0)), np = "aux", sp = "nonce", op = "challenge", S9 = (c, ...a) => {
+  const h = YA("sha256"), k = h(ip(c));
   return h(qi(k, k, ...a));
 }, x9 = async (c, ...a) => {
-  const h = Da.sha256Async, k = await h(np(c));
+  const h = Da.sha256Async, k = await h(ip(c));
   return await h(qi(k, k, ...a));
-}, E6 = (c) => {
-  const a = ep(c), h = o2.multiply(a), { x: k, y: d } = h.assertValidity().toAffine(), g = Ks(d) ? a : wn(-a), y = Ur(k);
+}, v6 = (c) => {
+  const a = JA(c), h = s2.multiply(a), { x: k, y: d } = h.assertValidity().toAffine(), g = Ks(d) ? a : dn(-a), y = Ur(k);
   return { d: g, px: y };
-}, S6 = (c) => wn(a2(c)), ap = (...c) => S6(S9(fp, ...c)), cp = async (...c) => S6(await x9(fp, ...c)), up = (c) => E6(c).px, nB = iB(up), lp = (c, a, h) => {
-  const { px: k, d } = E6(a);
+}, E6 = (c) => dn(f2(c)), fp = (...c) => E6(S9(op, ...c)), ap = async (...c) => E6(await x9(op, ...c)), cp = (c) => v6(c).px, nB = iB(cp), up = (c, a, h) => {
+  const { px: k, d } = v6(a);
   return { m: Pr(c), px: k, d, a: Pr(h, _t) };
-}, hp = (c) => {
-  const a = S6(c);
+}, lp = (c) => {
+  const a = E6(c);
   a === 0n && Q0("sign failed: k is zero");
-  const { px: h, d: k } = E6(Ur(a));
+  const { px: h, d: k } = v6(Ur(a));
   return { rx: h, k };
-}, kp = (c, a, h, k) => qi(a, Ur(wn(c + h * k))), Ap = "invalid signature produced", sB = (c, a, h = Ua(_t)) => {
-  const { m: k, px: d, d: g, a: y } = lp(c, a, h), E = S9(sp, y), S = Ur(g ^ a2(E)), b = S9(op, S, d, k), { rx: I, k: P } = hp(b), O = ap(I, d, k), $ = kp(P, I, O, g);
-  return dp($, k, d) || Q0(Ap), $;
+}, hp = (c, a, h, k) => qi(a, Ur(dn(c + h * k))), kp = "invalid signature produced", sB = (c, a, h = Ua(_t)) => {
+  const { m: k, px: d, d: g, a: y } = up(c, a, h), E = S9(np, y), S = Ur(g ^ f2(E)), b = S9(sp, S, d, k), { rx: I, k: P } = lp(b), O = fp(I, d, k), $ = hp(P, I, O, g);
+  return pp($, k, d) || Q0(kp), $;
 }, oB = async (c, a, h = Ua(_t)) => {
-  const { m: k, px: d, d: g, a: y } = lp(c, a, h), E = await x9(sp, y), S = Ur(g ^ a2(E)), b = await x9(op, S, d, k), { rx: I, k: P } = hp(b), O = await cp(I, d, k), $ = kp(P, I, O, g);
-  return await wp($, k, d) || Q0(Ap), $;
-}, fB = (c, a) => c instanceof Promise ? c.then(a) : a(c), pp = (c, a, h, k) => {
+  const { m: k, px: d, d: g, a: y } = up(c, a, h), E = await x9(np, y), S = Ur(g ^ f2(E)), b = await x9(sp, S, d, k), { rx: I, k: P } = lp(b), O = await ap(I, d, k), $ = hp(P, I, O, g);
+  return await dp($, k, d) || Q0(kp), $;
+}, fB = (c, a) => c instanceof Promise ? c.then(a) : a(c), Ap = (c, a, h, k) => {
   const d = Pr(c, K2, "signature"), g = Pr(a, void 0, "message"), y = Pr(h, _t, "publicKey");
   try {
-    const E = a2(y), S = JA(E), b = Ks(S) ? S : Je(-S), I = new X2(E, b, 1n).assertValidity(), P = Ur(I.toAffine().x), O = Qs(d, 0, _t);
-    Q2(O, 1n, qn);
+    const E = f2(y), S = qA(E), b = Ks(S) ? S : Je(-S), I = new X2(E, b, 1n).assertValidity(), P = Ur(I.toAffine().x), O = Qs(d, 0, _t);
+    Q2(O, 1n, Zn);
     const $ = Qs(d, _t, K2);
-    Q2($, 1n, n2);
+    Q2($, 1n, i2);
     const N = qi(Ur(O), P, g);
     return fB(k(N), (M) => {
-      const { x: W, y: Z } = Fb(I, $, wn(-M)).toAffine();
+      const { x: W, y: Z } = Fb(I, $, dn(-M)).toAffine();
       return !(!Ks(Z) || W !== O);
     });
   } catch {
     return !1;
   }
-}, dp = (c, a, h) => pp(c, a, h, ap), wp = async (c, a, h) => pp(c, a, h, cp), aB = {
+}, pp = (c, a, h) => Ap(c, a, h, fp), dp = async (c, a, h) => Ap(c, a, h, ap), aB = {
   keygen: nB,
-  getPublicKey: up,
+  getPublicKey: cp,
   sign: sB,
-  verify: dp,
+  verify: pp,
   signAsync: oB,
-  verifyAsync: wp
-}, fa = 8, cB = 256, gp = Math.ceil(cB / fa) + 1, T9 = 2 ** (fa - 1), uB = () => {
+  verifyAsync: dp
+}, fa = 8, cB = 256, wp = Math.ceil(cB / fa) + 1, T9 = 2 ** (fa - 1), uB = () => {
   const c = [];
-  let a = o2, h = a;
-  for (let k = 0; k < gp; k++) {
+  let a = s2, h = a;
+  for (let k = 0; k < wp; k++) {
     h = a, c.push(h);
     for (let d = 1; d < T9; d++)
       h = h.add(a), c.push(h);
@@ -6279,19 +6279,19 @@ const rp = (c) => {
   }
   return c;
 };
-let G5;
-const z5 = (c, a) => {
+let Q5;
+const G5 = (c, a) => {
   const h = a.negate();
   return c ? h : a;
 }, lB = (c) => {
-  const a = G5 || (G5 = uB());
-  let h = I2, k = o2;
+  const a = Q5 || (Q5 = uB());
+  let h = B2, k = s2;
   const d = 2 ** fa, g = d, y = zo(d - 1), E = zo(fa);
-  for (let S = 0; S < gp; S++) {
+  for (let S = 0; S < wp; S++) {
     let b = Number(c & y);
     c >>= E, b > T9 && (b -= g, c += 1n);
     const I = S * T9, P = I, O = I + Math.abs(b) - 1, $ = S % 2 !== 0, N = b < 0;
-    b === 0 ? k = k.add(z5($, a[P])) : h = h.add(z5(N, a[O]));
+    b === 0 ? k = k.add(G5($, a[P])) : h = h.add(G5(N, a[O]));
   }
   return c !== 0n && Q0("invalid wnaf"), { p: h, f: k };
 };
@@ -6363,7 +6363,7 @@ class AB {
     return this._cloneInto();
   }
 }
-const Vn = /* @__PURE__ */ Uint32Array.from([
+const Fn = /* @__PURE__ */ Uint32Array.from([
   1779033703,
   3144134277,
   1013904242,
@@ -6437,7 +6437,7 @@ const Vn = /* @__PURE__ */ Uint32Array.from([
   2756734187,
   3204031479,
   3329325298
-]), Wn = /* @__PURE__ */ new Uint32Array(64);
+]), Vn = /* @__PURE__ */ new Uint32Array(64);
 class dB extends AB {
   constructor(a) {
     super(64, a, 8, !1);
@@ -6452,20 +6452,20 @@ class dB extends AB {
   }
   process(a, h) {
     for (let P = 0; P < 16; P++, h += 4)
-      Wn[P] = a.getUint32(h, !1);
+      Vn[P] = a.getUint32(h, !1);
     for (let P = 16; P < 64; P++) {
-      const O = Wn[P - 15], $ = Wn[P - 2], N = $i(O, 7) ^ $i(O, 18) ^ O >>> 3, M = $i($, 17) ^ $i($, 19) ^ $ >>> 10;
-      Wn[P] = M + Wn[P - 7] + N + Wn[P - 16] | 0;
+      const O = Vn[P - 15], $ = Vn[P - 2], N = Di(O, 7) ^ Di(O, 18) ^ O >>> 3, M = Di($, 17) ^ Di($, 19) ^ $ >>> 10;
+      Vn[P] = M + Vn[P - 7] + N + Vn[P - 16] | 0;
     }
     let { A: k, B: d, C: g, D: y, E, F: S, G: b, H: I } = this;
     for (let P = 0; P < 64; P++) {
-      const O = $i(E, 6) ^ $i(E, 11) ^ $i(E, 25), $ = I + O + hB(E, S, b) + pB[P] + Wn[P] | 0, M = ($i(k, 2) ^ $i(k, 13) ^ $i(k, 22)) + kB(k, d, g) | 0;
+      const O = Di(E, 6) ^ Di(E, 11) ^ Di(E, 25), $ = I + O + hB(E, S, b) + pB[P] + Vn[P] | 0, M = (Di(k, 2) ^ Di(k, 13) ^ Di(k, 22)) + kB(k, d, g) | 0;
       I = b, b = S, S = E, E = y + $ | 0, y = g, g = d, d = k, k = $ + M | 0;
     }
     k = k + this.A | 0, d = d + this.B | 0, g = g + this.C | 0, y = y + this.D | 0, E = E + this.E | 0, S = S + this.F | 0, b = b + this.G | 0, I = I + this.H | 0, this.set(k, d, g, y, E, S, b, I);
   }
   roundClean() {
-    ta(Wn);
+    ta(Vn);
   }
   destroy() {
     this.set(0, 0, 0, 0, 0, 0, 0, 0), ta(this.buffer);
@@ -6474,14 +6474,14 @@ class dB extends AB {
 class wB extends dB {
   // We cannot use array here since array allows indexing by variable
   // which means optimizer/compiler cannot use registers.
-  A = Vn[0] | 0;
-  B = Vn[1] | 0;
-  C = Vn[2] | 0;
-  D = Vn[3] | 0;
-  E = Vn[4] | 0;
-  F = Vn[5] | 0;
-  G = Vn[6] | 0;
-  H = Vn[7] | 0;
+  A = Fn[0] | 0;
+  B = Fn[1] | 0;
+  C = Fn[2] | 0;
+  D = Fn[3] | 0;
+  E = Fn[4] | 0;
+  F = Fn[5] | 0;
+  G = Fn[6] | 0;
+  H = Fn[7] | 0;
   constructor() {
     super(32);
   }
@@ -6491,7 +6491,7 @@ const b9 = /* @__PURE__ */ Tb(
   /* @__PURE__ */ bb(1)
 );
 /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
-const vr = /* @__PURE__ */ BigInt(0), or = /* @__PURE__ */ BigInt(1), U2 = /* @__PURE__ */ BigInt(2), yp = /* @__PURE__ */ BigInt(3), mp = /* @__PURE__ */ BigInt(4), vp = /* @__PURE__ */ BigInt(5), gB = /* @__PURE__ */ BigInt(7), Ep = /* @__PURE__ */ BigInt(8), yB = /* @__PURE__ */ BigInt(9), Sp = /* @__PURE__ */ BigInt(16);
+const vr = /* @__PURE__ */ BigInt(0), or = /* @__PURE__ */ BigInt(1), O2 = /* @__PURE__ */ BigInt(2), gp = /* @__PURE__ */ BigInt(3), yp = /* @__PURE__ */ BigInt(4), mp = /* @__PURE__ */ BigInt(5), gB = /* @__PURE__ */ BigInt(7), vp = /* @__PURE__ */ BigInt(8), yB = /* @__PURE__ */ BigInt(9), Ep = /* @__PURE__ */ BigInt(16);
 function ki(c, a) {
   const h = c % a;
   return h >= vr ? h : a + h;
@@ -6502,7 +6502,7 @@ function Xr(c, a, h) {
     k *= k, k %= h;
   return k;
 }
-function j5(c, a) {
+function z5(c, a) {
   if (c === vr)
     throw new Error("invert: expected non-zero number");
   if (a <= vr)
@@ -6516,47 +6516,47 @@ function j5(c, a) {
     throw new Error("invert: does not exist");
   return ki(d, a);
 }
-function x6(c, a, h) {
+function S6(c, a, h) {
   if (!c.eql(c.sqr(a), h))
     throw new Error("Cannot find square root");
 }
-function xp(c, a) {
-  const h = (c.ORDER + or) / mp, k = c.pow(a, h);
-  return x6(c, k, a), k;
+function Sp(c, a) {
+  const h = (c.ORDER + or) / yp, k = c.pow(a, h);
+  return S6(c, k, a), k;
 }
 function mB(c, a) {
-  const h = (c.ORDER - vp) / Ep, k = c.mul(a, U2), d = c.pow(k, h), g = c.mul(a, d), y = c.mul(c.mul(g, U2), d), E = c.mul(g, c.sub(y, c.ONE));
-  return x6(c, E, a), E;
+  const h = (c.ORDER - mp) / vp, k = c.mul(a, O2), d = c.pow(k, h), g = c.mul(a, d), y = c.mul(c.mul(g, O2), d), E = c.mul(g, c.sub(y, c.ONE));
+  return S6(c, E, a), E;
 }
 function vB(c) {
-  const a = $a(c), h = Tp(c), k = h(a, a.neg(a.ONE)), d = h(a, k), g = h(a, a.neg(k)), y = (c + gB) / Sp;
+  const a = $a(c), h = xp(c), k = h(a, a.neg(a.ONE)), d = h(a, k), g = h(a, a.neg(k)), y = (c + gB) / Ep;
   return (E, S) => {
     let b = E.pow(S, y), I = E.mul(b, k);
     const P = E.mul(b, d), O = E.mul(b, g), $ = E.eql(E.sqr(I), S), N = E.eql(E.sqr(P), S);
     b = E.cmov(b, I, $), I = E.cmov(O, P, N);
     const M = E.eql(E.sqr(I), S), W = E.cmov(b, I, M);
-    return x6(E, W, S), W;
+    return S6(E, W, S), W;
   };
 }
-function Tp(c) {
-  if (c < yp)
+function xp(c) {
+  if (c < gp)
     throw new Error("sqrt is not defined for small field");
   let a = c - or, h = 0;
-  for (; a % U2 === vr; )
-    a /= U2, h++;
-  let k = U2;
+  for (; a % O2 === vr; )
+    a /= O2, h++;
+  let k = O2;
   const d = $a(c);
-  for (; X5(d, k) === 1; )
+  for (; j5(d, k) === 1; )
     if (k++ > 1e3)
       throw new Error("Cannot find square root: probably non-prime P");
   if (h === 1)
-    return xp;
+    return Sp;
   let g = d.pow(k, a);
-  const y = (a + or) / U2;
+  const y = (a + or) / O2;
   return function(S, b) {
     if (S.is0(b))
       return b;
-    if (X5(S, b) !== 1)
+    if (j5(S, b) !== 1)
       throw new Error("Cannot find square root");
     let I = h, P = S.mul(S.ONE, g), O = S.pow(b, a), $ = S.pow(b, y);
     for (; !S.eql(O, S.ONE); ) {
@@ -6573,7 +6573,7 @@ function Tp(c) {
   };
 }
 function EB(c) {
-  return c % mp === yp ? xp : c % Ep === vp ? mB : c % Sp === yB ? vB(c) : Tp(c);
+  return c % yp === gp ? Sp : c % vp === mp ? mB : c % Ep === yB ? vB(c) : xp(c);
 }
 const SB = [
   "create",
@@ -6600,7 +6600,7 @@ function xB(c) {
     BYTES: "number",
     BITS: "number"
   }, h = SB.reduce((k, d) => (k[d] = "function", k), a);
-  return v6(c, h), c;
+  return m6(c, h), c;
 }
 function TB(c, a, h) {
   if (h < vr)
@@ -6614,12 +6614,12 @@ function TB(c, a, h) {
     h & or && (k = c.mul(k, d)), d = c.sqr(d), h >>= or;
   return k;
 }
-function bp(c, a, h = !1) {
+function Tp(c, a, h = !1) {
   const k = new Array(a.length).fill(h ? c.ZERO : void 0), d = a.reduce((y, E, S) => c.is0(E) ? y : (k[S] = y, c.mul(y, E)), c.ONE), g = c.inv(d);
   return a.reduceRight((y, E, S) => c.is0(E) ? y : (k[S] = c.mul(y, k[S]), c.mul(y, E)), g), k;
 }
-function X5(c, a) {
-  const h = (c.ORDER - or) / U2, k = c.pow(a, h), d = c.eql(k, c.ONE), g = c.eql(k, c.ZERO), y = c.eql(k, c.neg(c.ONE));
+function j5(c, a) {
+  const h = (c.ORDER - or) / O2, k = c.pow(a, h), d = c.eql(k, c.ONE), g = c.eql(k, c.ZERO), y = c.eql(k, c.neg(c.ONE));
   if (!d && !g && !y)
     throw new Error("invalid Legendre symbol result");
   return d ? 1 : g ? 0 : -1;
@@ -6690,7 +6690,7 @@ class BB {
     return TB(this, a, h);
   }
   div(a, h) {
-    return ki(a * j5(h, this.ORDER), this.ORDER);
+    return ki(a * z5(h, this.ORDER), this.ORDER);
   }
   // Same as above, but doesn't normalize
   sqrN(a) {
@@ -6706,13 +6706,13 @@ class BB {
     return a * h;
   }
   inv(a) {
-    return j5(a, this.ORDER);
+    return z5(a, this.ORDER);
   }
   sqrt(a) {
     return this._sqrt || (this._sqrt = EB(this.ORDER)), this._sqrt(this, a);
   }
   toBytes(a) {
-    return this.isLE ? WA(a, this.BYTES) : y6(a, this.BYTES);
+    return this.isLE ? VA(a, this.BYTES) : g6(a, this.BYTES);
   }
   fromBytes(a, h = !1) {
     q0(a);
@@ -6725,14 +6725,14 @@ class BB {
     }
     if (a.length !== d)
       throw new Error("Field.fromBytes: expected " + d + " bytes, got " + a.length);
-    let S = g ? VA(a) : io(a);
+    let S = g ? FA(a) : io(a);
     if (E && (S = ki(S, y)), !h && !this.isValid(S))
       throw new Error("invalid field element: outside of range 0..ORDER");
     return S;
   }
   // TODO: we don't need it here, move out to separate fn
   invertBatch(a) {
-    return bp(this, a);
+    return Tp(this, a);
   }
   // We can't move this out because Fp6, Fp12 implement it
   // and it's unclear what to return in there.
@@ -6743,55 +6743,55 @@ class BB {
 function $a(c, a = {}) {
   return new BB(c, a);
 }
-function Bp(c) {
+function bp(c) {
   if (typeof c != "bigint")
     throw new Error("field order must be bigint");
   const a = c.toString(2).length;
   return Math.ceil(a / 8);
 }
-function Ip(c) {
-  const a = Bp(c);
+function Bp(c) {
+  const a = bp(c);
   return a + Math.ceil(a / 2);
 }
-function Cp(c, a, h = !1) {
+function Ip(c, a, h = !1) {
   q0(c);
-  const k = c.length, d = Bp(a), g = Ip(a);
+  const k = c.length, d = bp(a), g = Bp(a);
   if (k < 16 || k < g || k > 1024)
     throw new Error("expected " + g + "-1024 bytes of input, got " + k);
-  const y = h ? VA(c) : io(c), E = ki(y, a - or) + or;
-  return h ? WA(E, d) : y6(E, d);
+  const y = h ? FA(c) : io(c), E = ki(y, a - or) + or;
+  return h ? VA(E, d) : g6(E, d);
 }
 /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
-const zs = /* @__PURE__ */ BigInt(0), _2 = /* @__PURE__ */ BigInt(1);
+const zs = /* @__PURE__ */ BigInt(0), U2 = /* @__PURE__ */ BigInt(1);
 function aa(c, a) {
   const h = a.negate();
   return c ? h : a;
 }
-function Y5(c, a) {
-  const h = bp(c.Fp, a.map((k) => k.Z));
+function X5(c, a) {
+  const h = Tp(c.Fp, a.map((k) => k.Z));
   return a.map((k, d) => c.fromAffine(k.toAffine(h[d])));
 }
-function Rp(c, a) {
+function Cp(c, a) {
   if (!Number.isSafeInteger(c) || c <= 0 || c > a)
     throw new Error("invalid window size, expected [1.." + a + "], got W=" + c);
 }
 function vu(c, a) {
-  Rp(c, a);
-  const h = Math.ceil(a / c) + 1, k = 2 ** (c - 1), d = 2 ** c, g = m6(c), y = BigInt(c);
+  Cp(c, a);
+  const h = Math.ceil(a / c) + 1, k = 2 ** (c - 1), d = 2 ** c, g = y6(c), y = BigInt(c);
   return { windows: h, windowSize: k, mask: g, maxNumber: d, shiftBy: y };
 }
-function Z5(c, a, h) {
+function Y5(c, a, h) {
   const { windowSize: k, mask: d, maxNumber: g, shiftBy: y } = h;
   let E = Number(c & d), S = c >> y;
-  E > k && (E -= g, S += _2);
+  E > k && (E -= g, S += U2);
   const b = a * k, I = b + Math.abs(E) - 1, P = E === 0, O = E < 0, $ = a % 2 !== 0;
   return { nextN: S, offset: I, isZero: P, isNeg: O, isNegF: $, offsetF: b };
 }
-const Eu = /* @__PURE__ */ new WeakMap(), Pp = /* @__PURE__ */ new WeakMap();
+const Eu = /* @__PURE__ */ new WeakMap(), Rp = /* @__PURE__ */ new WeakMap();
 function Su(c) {
-  return Pp.get(c) || 1;
+  return Rp.get(c) || 1;
 }
-function q5(c) {
+function Z5(c) {
   if (c !== zs)
     throw new Error("invalid wNAF");
 }
@@ -6808,7 +6808,7 @@ class IB {
   _unsafeLadder(a, h, k = this.ZERO) {
     let d = a;
     for (; h > zs; )
-      h & _2 && (k = k.add(d)), d = d.double(), h >>= _2;
+      h & U2 && (k = k.add(d)), d = d.double(), h >>= U2;
     return k;
   }
   /**
@@ -6846,10 +6846,10 @@ class IB {
     let d = this.ZERO, g = this.BASE;
     const y = vu(a, this.bits);
     for (let E = 0; E < y.windows; E++) {
-      const { nextN: S, offset: b, isZero: I, isNeg: P, isNegF: O, offsetF: $ } = Z5(k, E, y);
+      const { nextN: S, offset: b, isZero: I, isNeg: P, isNegF: O, offsetF: $ } = Y5(k, E, y);
       k = S, I ? g = g.add(aa(O, h[$])) : d = d.add(aa(P, h[b]));
     }
-    return q5(k), { p: d, f: g };
+    return Z5(k), { p: d, f: g };
   }
   /**
    * Implements ec unsafe (non const-time) multiplication using precomputed tables and w-ary non-adjacent form.
@@ -6859,13 +6859,13 @@ class IB {
   wNAFUnsafe(a, h, k, d = this.ZERO) {
     const g = vu(a, this.bits);
     for (let y = 0; y < g.windows && k !== zs; y++) {
-      const { nextN: E, offset: S, isZero: b, isNeg: I } = Z5(k, y, g);
+      const { nextN: E, offset: S, isZero: b, isNeg: I } = Y5(k, y, g);
       if (k = E, !b) {
         const P = h[S];
         d = d.add(I ? P.negate() : P);
       }
     }
-    return q5(k), d;
+    return Z5(k), d;
   }
   getPrecomputes(a, h, k) {
     let d = Eu.get(h);
@@ -6883,7 +6883,7 @@ class IB {
   // using windowed method. This specifies window size and
   // stores precomputed values. Usually only base point would be precomputed.
   createCache(a, h) {
-    Rp(h, this.bits), Pp.set(a, h), Eu.delete(a);
+    Cp(h, this.bits), Rp.set(a, h), Eu.delete(a);
   }
   hasCache(a) {
     return Su(a) !== 1;
@@ -6892,10 +6892,10 @@ class IB {
 function CB(c, a, h, k) {
   let d = a, g = c.ZERO, y = c.ZERO;
   for (; h > zs || k > zs; )
-    h & _2 && (g = g.add(d)), k & _2 && (y = y.add(d)), d = d.double(), h >>= _2, k >>= _2;
+    h & U2 && (g = g.add(d)), k & U2 && (y = y.add(d)), d = d.double(), h >>= U2, k >>= U2;
   return { p1: g, p2: y };
 }
-function J5(c, a, h) {
+function q5(c, a, h) {
   if (a) {
     if (a.ORDER !== c)
       throw new Error("Field.ORDER must match order: Fp == p, Fn == n");
@@ -6911,19 +6911,19 @@ function RB(c, a, h = {}, k) {
     if (!(typeof b == "bigint" && b > zs))
       throw new Error(`CURVE.${S} must be positive bigint`);
   }
-  const d = J5(a.p, h.Fp, k), g = J5(a.n, h.Fn, k), E = ["Gx", "Gy", "a", "b"];
+  const d = q5(a.p, h.Fp, k), g = q5(a.n, h.Fn, k), E = ["Gx", "Gy", "a", "b"];
   for (const S of E)
     if (!d.isValid(a[S]))
       throw new Error(`CURVE.${S} must be valid field element of CURVE.Fp`);
   return a = Object.freeze(Object.assign({}, a)), { CURVE: a, Fp: d, Fn: g };
 }
-function Np(c, a) {
+function Pp(c, a) {
   return function(k) {
     const d = c(k);
     return { secretKey: d, publicKey: a(d) };
   };
 }
-class Op {
+class Np {
   oHash;
   iHash;
   blockLen;
@@ -6931,7 +6931,7 @@ class Op {
   finished = !1;
   destroyed = !1;
   constructor(a, h) {
-    if ($A(a), q0(h, void 0, "key"), this.iHash = a.create(), typeof this.iHash.update != "function")
+    if (DA(a), q0(h, void 0, "key"), this.iHash = a.create(), typeof this.iHash.update != "function")
       throw new Error("Expected instance of class which extends utils.Hash");
     this.blockLen = this.iHash.blockLen, this.outputLen = this.iHash.outputLen;
     const k = this.blockLen, d = new Uint8Array(k);
@@ -6965,17 +6965,17 @@ class Op {
     this.destroyed = !0, this.oHash.destroy(), this.iHash.destroy();
   }
 }
-const Up = (c, a, h) => new Op(c, a).update(h).digest();
-Up.create = (c, a) => new Op(c, a);
+const Op = (c, a, h) => new Np(c, a).update(h).digest();
+Op.create = (c, a) => new Np(c, a);
 /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
-const ek = (c, a) => (c + (c >= 0 ? a : -a) / _p) / a;
+const J5 = (c, a) => (c + (c >= 0 ? a : -a) / Up) / a;
 function PB(c, a, h) {
-  const [[k, d], [g, y]] = a, E = ek(y * c, h), S = ek(-d * c, h);
+  const [[k, d], [g, y]] = a, E = J5(y * c, h), S = J5(-d * c, h);
   let b = c - E * k - S * g, I = -E * d - S * y;
-  const P = b < gn, O = I < gn;
+  const P = b < wn, O = I < wn;
   P && (b = -b), O && (I = -I);
-  const $ = m6(Math.ceil(Pb(h) / 2)) + _s;
-  if (b < gn || b >= $ || I < gn || I >= $)
+  const $ = y6(Math.ceil(Pb(h) / 2)) + _s;
+  if (b < wn || b >= $ || I < wn || I >= $)
     throw new Error("splitScalar (endomorphism): failed, k=" + c);
   return { k1neg: P, k1: b, k2neg: O, k2: I };
 }
@@ -6995,13 +6995,13 @@ class NB extends Error {
     super(a);
   }
 }
-const Gn = {
+const Qn = {
   // asn.1 DER encoding utils
   Err: NB,
   // Basic building block is TLV (Tag-Length-Value)
   _tlv: {
     encode: (c, a) => {
-      const { Err: h } = Gn;
+      const { Err: h } = Qn;
       if (c < 0 || c > 256)
         throw new h("tlv.encode: wrong tag");
       if (a.length & 1)
@@ -7014,7 +7014,7 @@ const Gn = {
     },
     // v - value, l - left bytes (unparsed)
     decode(c, a) {
-      const { Err: h } = Gn;
+      const { Err: h } = Qn;
       let k = 0;
       if (c < 0 || c > 256)
         throw new h("tlv.encode: wrong tag");
@@ -7052,8 +7052,8 @@ const Gn = {
   // - if next byte doesn't have a flag, leading zero is not allowed (minimal encoding)
   _int: {
     encode(c) {
-      const { Err: a } = Gn;
-      if (c < gn)
+      const { Err: a } = Qn;
+      if (c < wn)
         throw new a("integer: negative integers are not allowed");
       let h = tf(c);
       if (Number.parseInt(h[0], 16) & 8 && (h = "00" + h), h.length & 1)
@@ -7061,7 +7061,7 @@ const Gn = {
       return h;
     },
     decode(c) {
-      const { Err: a } = Gn;
+      const { Err: a } = Qn;
       if (c[0] & 128)
         throw new a("invalid signature integer: negative");
       if (c[0] === 0 && !(c[1] & 128))
@@ -7070,7 +7070,7 @@ const Gn = {
     }
   },
   toSig(c) {
-    const { Err: a, _int: h, _tlv: k } = Gn, d = q0(c, void 0, "signature"), { v: g, l: y } = k.decode(48, d);
+    const { Err: a, _int: h, _tlv: k } = Qn, d = q0(c, void 0, "signature"), { v: g, l: y } = k.decode(48, d);
     if (y.length)
       throw new a("invalid signature: left bytes after parsing");
     const { v: E, l: S } = k.decode(2, g), { v: b, l: I } = k.decode(2, S);
@@ -7079,15 +7079,15 @@ const Gn = {
     return { r: h.decode(E), s: h.decode(b) };
   },
   hexFromSig(c) {
-    const { _tlv: a, _int: h } = Gn, k = a.encode(2, h.encode(c.r)), d = a.encode(2, h.encode(c.s)), g = k + d;
+    const { _tlv: a, _int: h } = Qn, k = a.encode(2, h.encode(c.r)), d = a.encode(2, h.encode(c.s)), g = k + d;
     return a.encode(48, g);
   }
-}, gn = BigInt(0), _s = BigInt(1), _p = BigInt(2), rf = BigInt(3), OB = BigInt(4);
+}, wn = BigInt(0), _s = BigInt(1), Up = BigInt(2), rf = BigInt(3), OB = BigInt(4);
 function UB(c, a = {}) {
   const h = RB("weierstrass", c, a), { Fp: k, Fn: d } = h;
   let g = h.CURVE;
   const { h: y, n: E } = g;
-  v6(a, {}, {
+  m6(a, {}, {
     allowInfinityPoint: "boolean",
     clearCofactor: "function",
     isTorsionFree: "function",
@@ -7098,7 +7098,7 @@ function UB(c, a = {}) {
   const { endo: S } = a;
   if (S && (!k.is0(g.a) || typeof S.beta != "bigint" || !Array.isArray(S.basises)))
     throw new Error('invalid endo: expected "beta": bigint and "basises": array');
-  const b = $p(k, d);
+  const b = Dp(k, d);
   function I() {
     if (!k.isOdd)
       throw new Error("compression is not supported: Field does not have .isOdd()");
@@ -7108,9 +7108,9 @@ function UB(c, a = {}) {
     if (ia(Y, "isCompressed"), Y) {
       I();
       const Ee = !k.isOdd(te);
-      return Qi(Dp(Ee), ae);
+      return Ki(_p(Ee), ae);
     } else
-      return Qi(Uint8Array.of(4), ae, k.toBytes(te));
+      return Ki(Uint8Array.of(4), ae, k.toBytes(te));
   }
   function O(G) {
     q0(G, void 0, "Point");
@@ -7166,7 +7166,7 @@ function UB(c, a = {}) {
       throw new Error("no endo");
     return PB(G, S.basises, d.ORDER);
   }
-  const Ae = L5((G, H) => {
+  const Ae = M5((G, H) => {
     const { X: Y, Y: X, Z: te } = G;
     if (k.eql(te, k.ONE))
       return { x: Y, y: X };
@@ -7178,7 +7178,7 @@ function UB(c, a = {}) {
     if (!k.eql(Se, k.ONE))
       throw new Error("invZ was invalid");
     return { x: Ee, y: be };
-  }), j = L5((G) => {
+  }), j = M5((G) => {
     if (G.is0()) {
       if (a.allowInfinityPoint && !k.is0(G.Y))
         return;
@@ -7311,7 +7311,7 @@ function UB(c, a = {}) {
       if (!d.isValidNot0(H))
         throw new Error("invalid scalar: out of range");
       let X, te;
-      const ae = (Ee) => re.cached(this, Ee, (be) => Y5(Q, be));
+      const ae = (Ee) => re.cached(this, Ee, (be) => X5(Q, be));
       if (Y) {
         const { k1neg: Ee, k1: be, k2neg: Se, k2: de } = fe(H), { p: Ce, f: Pe } = ae(be), { p: _e, f: Ie } = ae(de);
         te = Pe.add(Ie), X = ie(Y.beta, Ce, _e, Ee, Se);
@@ -7319,7 +7319,7 @@ function UB(c, a = {}) {
         const { p: Ee, f: be } = ae(H);
         X = Ee, te = be;
       }
-      return Y5(Q, [X, te])[0];
+      return X5(Q, [X, te])[0];
     }
     /**
      * Non-constant-time multiplication. Uses double-and-add algorithm.
@@ -7330,7 +7330,7 @@ function UB(c, a = {}) {
       const { endo: Y } = a, X = this;
       if (!d.isValid(H))
         throw new Error("invalid scalar: out of range");
-      if (H === gn || X.is0())
+      if (H === wn || X.is0())
         return Q.ZERO;
       if (H === _s)
         return X;
@@ -7377,10 +7377,10 @@ function UB(c, a = {}) {
   const he = d.BITS, re = new IB(Q, a.endo ? Math.ceil(he / 2) : he);
   return Q.BASE.precompute(8), Q;
 }
-function Dp(c) {
+function _p(c) {
   return Uint8Array.of(c ? 2 : 3);
 }
-function $p(c, a) {
+function Dp(c, a) {
   return {
     secretKey: a.BYTES,
     publicKey: 1 + c.BYTES,
@@ -7390,7 +7390,7 @@ function $p(c, a) {
   };
 }
 function _B(c, a = {}) {
-  const { Fn: h } = c, k = a.randomBytes || Oa, d = Object.assign($p(c.Fp, h), { seed: Ip(h.ORDER) });
+  const { Fn: h } = c, k = a.randomBytes || Oa, d = Object.assign(Dp(c.Fp, h), { seed: Bp(h.ORDER) });
   function g($) {
     try {
       const N = h.fromBytes($);
@@ -7409,14 +7409,14 @@ function _B(c, a = {}) {
     }
   }
   function E($ = k(d.seed)) {
-    return Cp(q0($, d.seed, "seed"), h.ORDER);
+    return Ip(q0($, d.seed, "seed"), h.ORDER);
   }
   function S($, N = !0) {
     return c.BASE.multiply(h.fromBytes($)).toBytes(N);
   }
   function b($) {
     const { secretKey: N, publicKey: M, publicKeyUncompressed: W } = d;
-    if (!w6($) || "_lengths" in h && h._lengths || N === M)
+    if (!d6($) || "_lengths" in h && h._lengths || N === M)
       return;
     const Z = q0($, void 0, "key").length;
     return Z === M || Z === W;
@@ -7433,23 +7433,23 @@ function _B(c, a = {}) {
     isValidSecretKey: g,
     isValidPublicKey: y,
     randomSecretKey: E
-  }, O = Np(E, S);
+  }, O = Pp(E, S);
   return Object.freeze({ getPublicKey: S, getSharedSecret: I, keygen: O, Point: c, utils: P, lengths: d });
 }
 function DB(c, a, h = {}) {
-  $A(a), v6(h, {}, {
+  DA(a), m6(h, {}, {
     hmac: "function",
     lowS: "boolean",
     randomBytes: "function",
     bits2int: "function",
     bits2int_modN: "function"
   }), h = Object.assign({}, h);
-  const k = h.randomBytes || Oa, d = h.hmac || ((Y, X) => Up(a, Y, X)), { Fp: g, Fn: y } = c, { ORDER: E, BITS: S } = y, { keygen: b, getPublicKey: I, getSharedSecret: P, utils: O, lengths: $ } = _B(c, h), N = {
+  const k = h.randomBytes || Oa, d = h.hmac || ((Y, X) => Op(a, Y, X)), { Fp: g, Fn: y } = c, { ORDER: E, BITS: S } = y, { keygen: b, getPublicKey: I, getSharedSecret: P, utils: O, lengths: $ } = _B(c, h), N = {
     prehash: !0,
     lowS: typeof h.lowS == "boolean" ? h.lowS : !0,
     format: "compact",
     extraEntropy: !1
-  }, M = E * _p < g.ORDER;
+  }, M = E * Up < g.ORDER;
   function W(Y) {
     const X = E >> _s;
     return Y > X;
@@ -7484,7 +7484,7 @@ function DB(c, a, h = {}) {
       we(X, te);
       let ae;
       if (te === "der") {
-        const { r: de, s: Ce } = Gn.toSig(q0(X));
+        const { r: de, s: Ce } = Qn.toSig(q0(X));
         return new me(de, Ce);
       }
       te === "recovered" && (ae = X[0], te = "compact", X = X.subarray(1));
@@ -7507,7 +7507,7 @@ function DB(c, a, h = {}) {
       const { r: te, s: ae } = this, Ee = this.assertRecovery(), be = Ee === 2 || Ee === 3 ? te + E : te;
       if (!g.isValid(be))
         throw new Error("invalid recovery id: sig.r+curve.n != R.x");
-      const Se = g.toBytes(be), de = c.fromBytes(Qi(Dp((Ee & 1) === 0), Se)), Ce = y.inv(be), Pe = Ae(q0(X, void 0, "msgHash")), _e = y.create(-Pe * Ce), Ie = y.create(ae * Ce), Le = c.BASE.multiplyUnsafe(_e).add(de.multiplyUnsafe(Ie));
+      const Se = g.toBytes(be), de = c.fromBytes(Ki(_p((Ee & 1) === 0), Se)), Ce = y.inv(be), Pe = Ae(q0(X, void 0, "msgHash")), _e = y.create(-Pe * Ce), Ie = y.create(ae * Ce), Le = c.BASE.multiplyUnsafe(_e).add(de.multiplyUnsafe(Ie));
       if (Le.is0())
         throw new Error("invalid recovery: point at infinify");
       return Le.assertValidity(), Le;
@@ -7518,9 +7518,9 @@ function DB(c, a, h = {}) {
     }
     toBytes(X = N.format) {
       if (B9(X), X === "der")
-        return ra(Gn.hexFromSig(this));
+        return ra(Qn.hexFromSig(this));
       const { r: te, s: ae } = this, Ee = y.toBytes(te), be = y.toBytes(ae);
-      return X === "recovered" ? (ke(), Qi(Uint8Array.of(this.assertRecovery()), Ee, be)) : Qi(Ee, be);
+      return X === "recovered" ? (ke(), Ki(Uint8Array.of(this.assertRecovery()), Ee, be)) : Ki(Ee, be);
     }
     toHex(X) {
       return Na(this.toBytes(X));
@@ -7533,9 +7533,9 @@ function DB(c, a, h = {}) {
     return ae > 0 ? te >> BigInt(ae) : te;
   }, Ae = h.bits2int_modN || function(X) {
     return y.create(fe(X));
-  }, j = m6(S);
+  }, j = y6(S);
   function ie(Y) {
-    return Rb("num < 2^" + S, Y, gn, j), y.toBytes(Y);
+    return Rb("num < 2^" + S, Y, wn, j), y.toBytes(Y);
   }
   function Q(Y, X) {
     return q0(Y, void 0, "message"), X ? q0(a(Y), void 0, "prehashed message") : Y;
@@ -7551,19 +7551,19 @@ function DB(c, a, h = {}) {
       const Le = be === !0 ? k($.secretKey) : be;
       Ce.push(q0(Le, void 0, "extraEntropy"));
     }
-    const Pe = Qi(...Ce), _e = Se;
+    const Pe = Ki(...Ce), _e = Se;
     function Ie(Le) {
       const Ye = fe(Le);
       if (!y.isValidNot0(Ye))
         return;
       const ze = y.inv(Ye), Xe = c.BASE.multiply(Ye).toAffine(), i0 = y.create(Xe.x);
-      if (i0 === gn)
+      if (i0 === wn)
         return;
       const at = y.create(ze * y.create(_e + i0 * de));
-      if (at === gn)
+      if (at === wn)
         return;
-      let Si = (Xe.x === i0 ? 0 : 2) | Number(Xe.y & _s), xn = at;
-      return ae && W(at) && (xn = y.neg(at), Si ^= 1), new me(i0, xn, M ? void 0 : Si);
+      let Ei = (Xe.x === i0 ? 0 : 2) | Number(Xe.y & _s), Sn = at;
+      return ae && W(at) && (Sn = y.neg(at), Ei ^= 1), new me(i0, Sn, M ? void 0 : Ei);
     }
     return { seed: Pe, k2sig: Ie };
   }
@@ -7573,7 +7573,7 @@ function DB(c, a, h = {}) {
   }
   function G(Y, X, te, ae = {}) {
     const { lowS: Ee, prehash: be, format: Se } = xu(ae, N);
-    if (te = q0(te, void 0, "publicKey"), X = Q(X, be), !w6(Y)) {
+    if (te = q0(te, void 0, "publicKey"), X = Q(X, be), !d6(Y)) {
       const de = Y instanceof me ? ", use sig.toBytes()" : "";
       throw new Error("verify expects Uint8Array signature" + de);
     }
@@ -7631,71 +7631,71 @@ function LB(c) {
 const ca = $a(Ma.p, { sqrt: LB }), Y2 = /* @__PURE__ */ UB(Ma, {
   Fp: ca,
   endo: $B
-}), ua = /* @__PURE__ */ DB(Y2, b9), tk = {};
+}), ua = /* @__PURE__ */ DB(Y2, b9), ek = {};
 function la(c, ...a) {
-  let h = tk[c];
+  let h = ek[c];
   if (h === void 0) {
     const k = b9(Ib(c));
-    h = Qi(k, k), tk[c] = h;
+    h = Ki(k, k), ek[c] = h;
   }
-  return b9(Qi(h, ...a));
+  return b9(Ki(h, ...a));
 }
-const T6 = (c) => c.toBytes(!0).slice(1), b6 = (c) => c % I9 === MB;
+const x6 = (c) => c.toBytes(!0).slice(1), T6 = (c) => c % I9 === MB;
 function C9(c) {
   const { Fn: a, BASE: h } = Y2, k = a.fromBytes(c), d = h.multiply(k);
-  return { scalar: b6(d.y) ? k : a.neg(k), bytes: T6(d) };
+  return { scalar: T6(d.y) ? k : a.neg(k), bytes: x6(d) };
 }
-function Mp(c) {
+function $p(c) {
   const a = ca;
   if (!a.isValidNot0(c))
     throw new Error("invalid x: Fail if x ≥ p");
   const h = a.create(c * c), k = a.create(h * c + BigInt(7));
   let d = a.sqrt(k);
-  b6(d) || (d = a.neg(d));
+  T6(d) || (d = a.neg(d));
   const g = Y2.fromAffine({ x: c, y: d });
   return g.assertValidity(), g;
 }
 const Do = io;
-function Lp(...c) {
+function Mp(...c) {
   return Y2.Fn.create(Do(la("BIP0340/challenge", ...c)));
 }
-function rk(c) {
+function tk(c) {
   return C9(c).bytes;
 }
 function FB(c, a, h = Oa(32)) {
-  const { Fn: k } = Y2, d = q0(c, void 0, "message"), { bytes: g, scalar: y } = C9(a), E = q0(h, 32, "auxRand"), S = k.toBytes(y ^ Do(la("BIP0340/aux", E))), b = la("BIP0340/nonce", S, g, d), { bytes: I, scalar: P } = C9(b), O = Lp(I, g, d), $ = new Uint8Array(64);
-  if ($.set(I, 0), $.set(k.toBytes(k.create(P + O * y)), 32), !Fp($, d, g))
+  const { Fn: k } = Y2, d = q0(c, void 0, "message"), { bytes: g, scalar: y } = C9(a), E = q0(h, 32, "auxRand"), S = k.toBytes(y ^ Do(la("BIP0340/aux", E))), b = la("BIP0340/nonce", S, g, d), { bytes: I, scalar: P } = C9(b), O = Mp(I, g, d), $ = new Uint8Array(64);
+  if ($.set(I, 0), $.set(k.toBytes(k.create(P + O * y)), 32), !Lp($, d, g))
     throw new Error("sign: Invalid signature produced");
   return $;
 }
-function Fp(c, a, h) {
+function Lp(c, a, h) {
   const { Fp: k, Fn: d, BASE: g } = Y2, y = q0(c, 64, "signature"), E = q0(a, void 0, "message"), S = q0(h, 32, "publicKey");
   try {
-    const b = Mp(Do(S)), I = Do(y.subarray(0, 32));
+    const b = $p(Do(S)), I = Do(y.subarray(0, 32));
     if (!k.isValidNot0(I))
       return !1;
     const P = Do(y.subarray(32, 64));
     if (!d.isValidNot0(P))
       return !1;
-    const O = Lp(d.toBytes(I), T6(b), E), $ = g.multiplyUnsafe(P).add(b.multiplyUnsafe(d.neg(O))), { x: N, y: M } = $.toAffine();
-    return !($.is0() || !b6(M) || N !== I);
+    const O = Mp(d.toBytes(I), x6(b), E), $ = g.multiplyUnsafe(P).add(b.multiplyUnsafe(d.neg(O))), { x: N, y: M } = $.toAffine();
+    return !($.is0() || !T6(M) || N !== I);
   } catch {
     return !1;
   }
 }
 const Z2 = /* @__PURE__ */ (() => {
-  const h = (k = Oa(48)) => Cp(k, Ma.n);
+  const h = (k = Oa(48)) => Ip(k, Ma.n);
   return {
-    keygen: Np(h, rk),
-    getPublicKey: rk,
+    keygen: Pp(h, tk),
+    getPublicKey: tk,
     sign: FB,
-    verify: Fp,
+    verify: Lp,
     Point: Y2,
     utils: {
       randomSecretKey: h,
       taggedHash: la,
-      lift_x: Mp,
-      pointToBytes: T6
+      lift_x: $p,
+      pointToBytes: x6
     },
     lengths: {
       secretKey: 32,
@@ -7706,7 +7706,7 @@ const Z2 = /* @__PURE__ */ (() => {
     }
   };
 })();
-function B6(c, a, h = {}) {
+function b6(c, a, h = {}) {
   c = m9(c);
   const { aggPublicKey: k } = Jf(c);
   if (!h.taprootTweak)
@@ -7725,7 +7725,7 @@ class nf extends Error {
     super(a), this.name = "PartialSignatureError";
   }
 }
-class I6 {
+class B6 {
   constructor(a, h) {
     if (this.s = a, this.R = h, a.length !== 32)
       throw new nf("Invalid s length");
@@ -7749,25 +7749,25 @@ class I6 {
     if (io(a) >= X2.CURVE().n)
       throw new nf("s value overflows curve order");
     const k = new Uint8Array(33);
-    return new I6(a, k);
+    return new B6(a, k);
   }
 }
 function VB(c, a, h, k, d, g) {
   let y;
   if (g?.taprootTweak !== void 0) {
-    const { preTweakedKey: b } = B6(m9(k));
+    const { preTweakedKey: b } = b6(m9(k));
     y = Z2.utils.taggedHash("TapTweak", b.subarray(1), g.taprootTweak);
   }
-  const S = new DA(h, m9(k), d, y ? [y] : void 0, y ? [!0] : void 0).sign(c, a);
-  return I6.decode(S);
+  const S = new _A(h, m9(k), d, y ? [y] : void 0, y ? [!0] : void 0).sign(c, a);
+  return B6.decode(S);
 }
-function Vp(c) {
+function Fp(c) {
   return c && c.__esModule && Object.prototype.hasOwnProperty.call(c, "default") ? c.default : c;
 }
-var Tu, ik;
-function Wp() {
-  if (ik) return Tu;
-  ik = 1;
+var Tu, rk;
+function Vp() {
+  if (rk) return Tu;
+  rk = 1;
   const c = 4294967295, a = 1 << 31, h = 9, k = 65535, d = 1 << 22, g = k, y = 1 << h, E = k << h;
   function S(I) {
     return I & a ? {} : I & d ? {
@@ -7791,14 +7791,14 @@ function Wp() {
   }
   return Tu = { decode: S, encode: b }, Tu;
 }
-var js = Wp();
-const WB = /* @__PURE__ */ Vp(js);
+var js = Vp();
+const WB = /* @__PURE__ */ Fp(js);
 var Nr;
 (function(c) {
   c.VtxoTaprootTree = "taptree", c.VtxoTreeExpiry = "expiry", c.Cosigner = "cosigner", c.ConditionWitness = "condition";
 })(Nr || (Nr = {}));
-const C6 = 222;
-function Hp(c, a, h, k) {
+const I6 = 222;
+function Wp(c, a, h, k) {
   c.updateInput(a, {
     unknown: [
       ...c.getInput(a)?.unknown ?? [],
@@ -7814,31 +7814,31 @@ function R9(c, a, h) {
   }
   return d;
 }
-const R6 = {
+const C6 = {
   key: Nr.VtxoTaprootTree,
   encode: (c) => [
     {
-      type: C6,
+      type: I6,
       key: La[Nr.VtxoTaprootTree]
     },
     c
   ],
-  decode: (c) => P6(() => N6(c[0], Nr.VtxoTaprootTree) ? c[1] : null)
-}, Kp = {
+  decode: (c) => R6(() => P6(c[0], Nr.VtxoTaprootTree) ? c[1] : null)
+}, Hp = {
   key: Nr.ConditionWitness,
   encode: (c) => [
     {
-      type: C6,
+      type: I6,
       key: La[Nr.ConditionWitness]
     },
-    En.encode(c)
+    vn.encode(c)
   ],
-  decode: (c) => P6(() => N6(c[0], Nr.ConditionWitness) ? En.decode(c[1]) : null)
+  decode: (c) => R6(() => P6(c[0], Nr.ConditionWitness) ? vn.decode(c[1]) : null)
 }, P9 = {
   key: Nr.Cosigner,
   encode: (c) => [
     {
-      type: C6,
+      type: I6,
       key: new Uint8Array([
         ...La[Nr.Cosigner],
         c.index
@@ -7846,7 +7846,7 @@ const R6 = {
     },
     c.key
   ],
-  decode: (c) => P6(() => N6(c[0], Nr.Cosigner) ? {
+  decode: (c) => R6(() => P6(c[0], Nr.Cosigner) ? {
     index: c[0].key[c[0].key.length - 1],
     key: c[1]
   } : null)
@@ -7855,14 +7855,14 @@ Nr.VtxoTreeExpiry;
 const La = Object.fromEntries(Object.values(Nr).map((c) => [
   c,
   new TextEncoder().encode(c)
-])), P6 = (c) => {
+])), R6 = (c) => {
   try {
     return c();
   } catch {
     return null;
   }
 };
-function N6(c, a) {
+function P6(c, a) {
   const h = q.encode(La[a]);
   return q.encode(new Uint8Array([c.type, ...c.key])).includes(h);
 }
@@ -7955,7 +7955,7 @@ class jo {
     const k = this.aggregateNonces.get(a.txid);
     if (!k)
       throw new Error("missing aggregate nonce");
-    const d = [], g = [], y = R9(a.root, 0, P9).map((b) => b.key), { finalKey: E } = B6(y, !0, {
+    const d = [], g = [], y = R9(a.root, 0, P9).map((b) => b.key), { finalKey: E } = b6(y, !0, {
       taprootTweak: this.scriptRoot
     });
     for (let b = 0; b < a.root.inputsLength; b++) {
@@ -8000,7 +8000,7 @@ function HB(c, a, h, k) {
     script: d
   };
 }
-const nk = Object.values(Ut).filter((c) => typeof c == "number");
+const ik = Object.values(Ut).filter((c) => typeof c == "number");
 class $o {
   constructor(a) {
     this.key = a || Gf();
@@ -8026,7 +8026,7 @@ class $o {
     const k = a.clone();
     if (!h) {
       try {
-        if (!k.sign(this.key, nk))
+        if (!k.sign(this.key, ik))
           throw new Error("Failed to sign transaction");
       } catch (d) {
         if (!(d instanceof Error && d.message.includes("No inputs signed"))) throw d;
@@ -8034,12 +8034,12 @@ class $o {
       return k;
     }
     for (const d of h)
-      if (!k.signIdx(this.key, d, nk))
+      if (!k.signIdx(this.key, d, ik))
         throw new Error(`Failed to sign input #${d}`);
     return k;
   }
   compressedPublicKey() {
-    return Promise.resolve(s6(this.key, !0));
+    return Promise.resolve(n6(this.key, !0));
   }
   xOnlyPublicKey() {
     return Promise.resolve(i1(this.key));
@@ -8080,7 +8080,7 @@ class Fa {
     return Promise.resolve(this.publicKey);
   }
 }
-const Gi = {
+const Qi = {
   bitcoin: {
     messagePrefix: `Bitcoin Signed Message:
 `,
@@ -8109,7 +8109,7 @@ const Gi = {
     wif: 239
   }
 };
-function sk(c) {
+function nk(c) {
   return {
     bech32: c.bech32,
     pubKeyHash: c.pubKeyHash,
@@ -8117,12 +8117,12 @@ function sk(c) {
     wif: c.wif
   };
 }
-const { Script: Qp, OP: Gp, ScriptNum: KB } = gb;
-function O6(c) {
+const { Script: Kp, OP: Qp, ScriptNum: KB } = gb;
+function N6(c) {
   return c < 253 ? 1 : c <= 65535 ? 3 : c <= 4294967295 ? 5 : 9;
 }
 const N9 = /* @__PURE__ */ new Set();
-for (const c of Object.keys(Gp))
+for (const c of Object.keys(Qp))
   isNaN(Number(c)) && N9.add(c);
 function QB(c) {
   if (c === "OP_0" || c === "OP_FALSE")
@@ -8142,7 +8142,7 @@ function QB(c) {
   if (N9.has(c))
     return c;
 }
-function zp(c) {
+function Gp(c) {
   const a = c.trim().split(/\s+/), h = [];
   for (const k of a) {
     if (k === "")
@@ -8158,14 +8158,14 @@ function zp(c) {
         throw new Error(`Error: unknown ASM token: ${k}`);
       }
   }
-  return Qp.encode(h);
+  return Kp.encode(h);
 }
 function Xo(c) {
   try {
-    return Qp.decode(c).map((h) => {
+    return Kp.decode(c).map((h) => {
       if (typeof h == "number" || h instanceof Uint8Array)
         return h;
-      const k = Gp[h];
+      const k = Qp[h];
       return k !== void 0 ? k : h;
     });
   } catch {
@@ -8180,11 +8180,11 @@ function GB(c) {
   const a = KB(6).encode(BigInt(c));
   return q.encode(a);
 }
-function ok(c) {
+function sk(c) {
   return (c[0] << 24 | c[1] << 16 | c[2] << 8 | c[3]) >>> 0;
 }
 /*! scure-bip32 - MIT License (c) 2022 Patricio Palladino, Paul Miller (paulmillr.com) */
-const Ro = F0.Point, { Fn: Eo } = Ro, bu = J9(V0), zB = Uint8Array.from("Bitcoin seed".split(""), (c) => c.charCodeAt(0)), Bu = { private: 76066276, public: 76067358 }, Iu = 2147483648, jB = (c) => X9(V0(c)), XB = (c) => Ps(c).getUint32(0, !1), of = (c) => {
+const Ro = F0.Point, { Fn: Eo } = Ro, bu = q9(V0), zB = Uint8Array.from("Bitcoin seed".split(""), (c) => c.charCodeAt(0)), Bu = { private: 76066276, public: 76067358 }, Iu = 2147483648, jB = (c) => j9(V0(c)), XB = (c) => Ps(c).getUint32(0, !1), of = (c) => {
   if (!Number.isSafeInteger(c) || c < 0 || c > 2 ** 32 - 1)
     throw new Error("invalid number, should be from 0 to 2**32-1, got " + c);
   const a = new Uint8Array(4);
@@ -8222,7 +8222,7 @@ class Ai {
   static fromMasterSeed(a, h = Bu) {
     if (p0(a), 8 * a.length < 128 || 8 * a.length > 512)
       throw new Error("HDKey: seed length must be between 128 and 512 bits; 256 bits is advised, got " + a.length);
-    const k = Ff(r5, zB, a), d = k.slice(0, 32), g = k.slice(32);
+    const k = Ff(t5, zB, a), d = k.slice(0, 32), g = k.slice(32);
     return new Ai({ versions: h, chainCode: g, privateKey: d });
   }
   static fromExtendedKey(a, h = Bu) {
@@ -8296,7 +8296,7 @@ class Ai {
       h = Zt(Uint8Array.of(0), S, h);
     } else
       h = Zt(this._publicKey, h);
-    const k = Ff(r5, this.chainCode, h), d = k.slice(0, 32), g = k.slice(32);
+    const k = Ff(t5, this.chainCode, h), d = k.slice(0, 32), g = k.slice(32);
     if (!F0.utils.isValidSecretKey(d))
       throw new Error("Tweak bigger than curve order");
     const y = {
@@ -8348,20 +8348,20 @@ class Ai {
     return p0(h, 33), Zt(of(a), new Uint8Array([this.depth]), of(this.parentFingerprint), of(this.index), this.chainCode, h);
   }
 }
-const ha = nT(V0), D2 = Gi.bitcoin;
+const ha = nT(V0), _2 = Qi.bitcoin;
 function YB(c) {
   const a = c.toString(16).padStart(64, "0");
   return q.decode(a);
 }
-function b2(c, a, h) {
+function T2(c, a, h) {
   c[h] = a >>> 24 & 255, c[h + 1] = a >>> 16 & 255, c[h + 2] = a >>> 8 & 255, c[h + 3] = a & 255;
 }
-function jp(c, a, h) {
+function zp(c, a, h) {
   const k = Uint8Array.from([h.wif]), d = a ? Xt(k, c, Uint8Array.from([1])) : Xt(k, c);
   return ha.encode(d);
 }
 function ZB(c, a) {
-  const h = ha.decode(c), k = h[0], g = (a ? Array.isArray(a) ? a : [a] : [Gi.bitcoin, Gi.testnet, Gi.regtest]).find((y) => y.wif === k);
+  const h = ha.decode(c), k = h[0], g = (a ? Array.isArray(a) ? a : [a] : [Qi.bitcoin, Qi.testnet, Qi.regtest]).find((y) => y.wif === k);
   if (!g)
     throw new Error("Invalid network version");
   if (h.length === 34 && h[33] === 1)
@@ -8401,7 +8401,7 @@ function Is(c, a, h, k) {
     toWIF() {
       if (!c)
         throw new Error("Missing private key");
-      return jp(c, h, k);
+      return zp(c, h, k);
     },
     tweak(y) {
       const E = BigInt("0x" + q.encode(y)), S = F0.Point.CURVE().n;
@@ -8421,11 +8421,11 @@ function Is(c, a, h, k) {
 }
 const qB = {
   fromPublicKey(c, a) {
-    const h = a?.compressed !== !1, k = a?.network ?? D2;
+    const h = a?.compressed !== !1, k = a?.network ?? _2;
     return Is(void 0, c, h, k);
   },
   fromPrivateKey(c, a) {
-    const h = a?.compressed !== !1, k = a?.network ?? D2;
+    const h = a?.compressed !== !1, k = a?.network ?? _2;
     return Is(c, void 0, h, k);
   },
   fromWIF(c, a) {
@@ -8433,7 +8433,7 @@ const qB = {
     return Is(h, void 0, k, d);
   },
   makeRandom(c) {
-    const a = F0.utils.randomSecretKey(), h = c?.compressed !== !1, k = c?.network ?? D2;
+    const a = F0.utils.randomSecretKey(), h = c?.compressed !== !1, k = c?.network ?? _2;
     return Is(a, void 0, h, k);
   },
   isPoint(c) {
@@ -8447,7 +8447,7 @@ const qB = {
 function Po(c) {
   return { public: c.bip32.public, private: c.bip32.private };
 }
-function jn(c, a) {
+function zn(c, a) {
   const h = Po(a), k = {
     get publicKey() {
       if (!c.publicKey)
@@ -8461,7 +8461,7 @@ function jn(c, a) {
     },
     get fingerprint() {
       const d = new Uint8Array(4);
-      return b2(d, c.fingerprint >>> 0, 0), d;
+      return T2(d, c.fingerprint >>> 0, 0), d;
     },
     get depth() {
       return c.depth;
@@ -8475,17 +8475,17 @@ function jn(c, a) {
     network: a,
     derivePath(d) {
       const g = d.startsWith("m") || d.startsWith("M") ? d : `m/${d}`;
-      return jn(c.derive(g), a);
+      return zn(c.derive(g), a);
     },
     derive(d) {
-      return jn(c.deriveChild(d), a);
+      return zn(c.deriveChild(d), a);
     },
     deriveHardened(d) {
-      return jn(c.deriveChild(d + 2147483648), a);
+      return zn(c.deriveChild(d + 2147483648), a);
     },
     neutered() {
       const d = c.publicExtendedKey, g = Ai.fromExtendedKey(d, h);
-      return jn(g, a);
+      return zn(g, a);
     },
     toBase58() {
       return c.privateKey ? c.privateExtendedKey : c.publicExtendedKey;
@@ -8504,7 +8504,7 @@ function jn(c, a) {
     toWIF() {
       if (!c.privateKey)
         throw new Error("Missing private key");
-      return jp(c.privateKey, !0, a);
+      return zp(c.privateKey, !0, a);
     }
   };
   return c.privateKey ? Object.defineProperty(k, "privateKey", {
@@ -8517,24 +8517,24 @@ function jn(c, a) {
 }
 const JB = {
   fromBase58(c, a) {
-    const h = a ?? D2, k = Po(h), d = Ai.fromExtendedKey(c, k);
-    return jn(d, h);
+    const h = a ?? _2, k = Po(h), d = Ai.fromExtendedKey(c, k);
+    return zn(d, h);
   },
   fromPublicKey(c, a, h) {
-    const k = h ?? D2, d = Po(k), g = new Uint8Array(78);
-    b2(g, d.public, 0), g[4] = 0, b2(g, 0, 5), b2(g, 0, 9), g.set(a, 13), g.set(c, 45);
+    const k = h ?? _2, d = Po(k), g = new Uint8Array(78);
+    T2(g, d.public, 0), g[4] = 0, T2(g, 0, 5), T2(g, 0, 9), g.set(a, 13), g.set(c, 45);
     const y = ha.encode(g), E = Ai.fromExtendedKey(y, d);
-    return jn(E, k);
+    return zn(E, k);
   },
   fromPrivateKey(c, a, h) {
-    const k = h ?? D2, d = Po(k), g = new Uint8Array(78);
-    b2(g, d.private, 0), g[4] = 0, b2(g, 0, 5), b2(g, 0, 9), g.set(a, 13), g[45] = 0, g.set(c, 46);
+    const k = h ?? _2, d = Po(k), g = new Uint8Array(78);
+    T2(g, d.private, 0), g[4] = 0, T2(g, 0, 5), T2(g, 0, 9), g.set(a, 13), g[45] = 0, g.set(c, 46);
     const y = ha.encode(g), E = Ai.fromExtendedKey(y, d);
-    return jn(E, k);
+    return zn(E, k);
   },
   fromSeed(c, a) {
-    const h = a ?? D2, k = Po(h), d = Ai.fromMasterSeed(c, k);
-    return jn(d, h);
+    const h = a ?? _2, k = Po(h), d = Ai.fromMasterSeed(c, k);
+    return zn(d, h);
   }
 };
 function eI(c, a, h, k, d) {
@@ -8570,7 +8570,7 @@ function tI({ psbt: c, vout: a, txHex: h, txId: k, value: d, sequence: g, lockti
   if (b && h === void 0 && (k === void 0 || d === void 0))
     throw new Error("Error: pass txHex or txId+value for Segwit inputs");
   if (h !== void 0) {
-    const M = q.decode(h), W = Zn.decode(M), Z = W.outputs[a];
+    const M = q.decode(h), W = Yn.decode(M), Z = W.outputs[a];
     if (!Z)
       throw new Error(`Error: tx ${h} does not have vout ${a}`);
     const ke = Z.script;
@@ -8618,7 +8618,7 @@ function tI({ psbt: c, vout: a, txHex: h, txId: k, value: d, sequence: g, lockti
           hashes: [],
           // Empty for tr(KEY) taproot key spend
           der: {
-            fingerprint: ok(W.masterFingerprint),
+            fingerprint: sk(W.masterFingerprint),
             path: w9(W.path)
           }
         }
@@ -8634,7 +8634,7 @@ function tI({ psbt: c, vout: a, txHex: h, txId: k, value: d, sequence: g, lockti
       return [
         Z,
         {
-          fingerprint: ok(W.masterFingerprint),
+          fingerprint: sk(W.masterFingerprint),
           path: w9(W.path)
         }
       ];
@@ -8646,7 +8646,7 @@ function tI({ psbt: c, vout: a, txHex: h, txId: k, value: d, sequence: g, lockti
 const ff = (c, a) => {
   const h = c >> 35n;
   return c = (c & 0x7ffffffffn) << 5n ^ a, h & 1n && (c ^= 0xf5dee51989n), h & 2n && (c ^= 0xa9fdca3312n), h & 4n && (c ^= 0x1bab10e32dn), h & 8n && (c ^= 0x3706b1677an), h & 16n && (c ^= 0x644d626ffdn), c;
-}, Xp = "qpzry9x8gf2tvdw0s3jn54khce6mua7l", rI = (c) => {
+}, jp = "qpzry9x8gf2tvdw0s3jn54khce6mua7l", rI = (c) => {
   const a = "0123456789()[],'/*abcdefgh@:$%{}IJKLMNOPQRSTUVWXYZ&+-.;<=>?!^_|~ijklmnopqrstuvwxyzABCDEFGH`#\"\\ ";
   let h = 1n, k = 0n, d = 0n;
   for (const y of c) {
@@ -8664,10 +8664,10 @@ const ff = (c, a) => {
     const E = h >> 5n * (7n - BigInt(y)) & 31n;
     if (E < 0 || E > Number.MAX_SAFE_INTEGER)
       throw new Error(`Error: could not compute checksum, invalid index ${E}`);
-    g += Xp[Number(E)];
+    g += jp[Number(E)];
   }
   return g;
-}, Yp = String.raw`(['hH])`, U6 = String.raw`(\d+${Yp}?)`, Zp = String.raw`(${U6}\/)`, iI = String.raw`(\/${Zp}*${U6})`, qp = String.raw`[0-9a-fA-F]{8}`, Va = String.raw`(\[${qp}(${iI})?\])`, Jp = String.raw`(#[${Xp}]{8})`, _6 = String.raw`((02|03)[0-9a-fA-F]{64})`, nI = String.raw`(04[0-9a-fA-F]{128})`, sI = String.raw`([0-9a-fA-F]{64})`, ed = String.raw`(${_6}|${nI})`, td = String.raw`(${_6})`, rd = String.raw`(${_6}|${sI})`, Wa = String.raw`([5KLc9][1-9A-HJ-NP-Za-km-z]{50,51})`, id = String.raw`([xXtT]pub[1-9A-HJ-NP-Za-km-z]{79,108})`, nd = String.raw`([xXtT]prv[1-9A-HJ-NP-Za-km-z]{79,108})`, oI = String.raw`(\*(${Yp})?)`, Cs = String.raw`(\/(${Zp})*(${oI}|${U6}))`, Ha = String.raw`(${id})(${Cs})?`, Ka = String.raw`(${nd})(${Cs})?`, fI = String.raw`(${Ha}|${Ka}|${ed}|${Wa})`, aI = String.raw`(${Ha}|${Ka}|${td}|${Wa})`, cI = String.raw`(${Ha}|${Ka}|${rd}|${Wa})`, Xs = String.raw`(${Va})?(${fI})`, G2 = String.raw`(${Va})?(${aI})`, D6 = String.raw`(${Va})?(${cI})`, uI = String.raw`pk\((.*?)\)`, lI = String.raw`addr\((.*?)\)`, hI = String.raw`pkh\(${Xs}\)`, kI = String.raw`wpkh\(${G2}\)`, AI = String.raw`sh\(wpkh\(${G2}\)\)`, pI = String.raw`tr\(${D6}\)`, dI = String.raw`sortedmulti\(((?:1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20)(?:,${Xs})+)\)`, sd = String.raw`sortedmulti\(((?:1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20)(?:,${G2})+)\)`, $6 = String.raw`(.*?)`, M6 = (c) => String.raw`sh\(${c}\)`, L6 = (c) => String.raw`wsh\(${c}\)`, od = (c) => M6(L6(c)), Jt = (c) => String.raw`^${c}$`, ii = (c) => String.raw`${c}(${Jp})?`, wI = Jt(ii(uI)), Cu = Jt(ii(lI)), gI = Jt(ii(hI)), yI = Jt(ii(kI)), mI = Jt(ii(AI)), vI = Jt(ii(pI)), fk = Jt(ii(M6(dI))), ak = Jt(ii(L6(sd))), ck = Jt(ii(od(sd))), uk = Jt(ii(M6($6))), lk = Jt(ii(od($6))), hk = Jt(ii(L6($6))), kk = (c, a) => {
+}, Xp = String.raw`(['hH])`, O6 = String.raw`(\d+${Xp}?)`, Yp = String.raw`(${O6}\/)`, iI = String.raw`(\/${Yp}*${O6})`, Zp = String.raw`[0-9a-fA-F]{8}`, Va = String.raw`(\[${Zp}(${iI})?\])`, qp = String.raw`(#[${jp}]{8})`, U6 = String.raw`((02|03)[0-9a-fA-F]{64})`, nI = String.raw`(04[0-9a-fA-F]{128})`, sI = String.raw`([0-9a-fA-F]{64})`, Jp = String.raw`(${U6}|${nI})`, ed = String.raw`(${U6})`, td = String.raw`(${U6}|${sI})`, Wa = String.raw`([5KLc9][1-9A-HJ-NP-Za-km-z]{50,51})`, rd = String.raw`([xXtT]pub[1-9A-HJ-NP-Za-km-z]{79,108})`, id = String.raw`([xXtT]prv[1-9A-HJ-NP-Za-km-z]{79,108})`, oI = String.raw`(\*(${Xp})?)`, Cs = String.raw`(\/(${Yp})*(${oI}|${O6}))`, Ha = String.raw`(${rd})(${Cs})?`, Ka = String.raw`(${id})(${Cs})?`, fI = String.raw`(${Ha}|${Ka}|${Jp}|${Wa})`, aI = String.raw`(${Ha}|${Ka}|${ed}|${Wa})`, cI = String.raw`(${Ha}|${Ka}|${td}|${Wa})`, Xs = String.raw`(${Va})?(${fI})`, G2 = String.raw`(${Va})?(${aI})`, _6 = String.raw`(${Va})?(${cI})`, uI = String.raw`pk\((.*?)\)`, lI = String.raw`addr\((.*?)\)`, hI = String.raw`pkh\(${Xs}\)`, kI = String.raw`wpkh\(${G2}\)`, AI = String.raw`sh\(wpkh\(${G2}\)\)`, pI = String.raw`tr\(${_6}\)`, dI = String.raw`sortedmulti\(((?:1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20)(?:,${Xs})+)\)`, nd = String.raw`sortedmulti\(((?:1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20)(?:,${G2})+)\)`, D6 = String.raw`(.*?)`, $6 = (c) => String.raw`sh\(${c}\)`, M6 = (c) => String.raw`wsh\(${c}\)`, sd = (c) => $6(M6(c)), Jt = (c) => String.raw`^${c}$`, ii = (c) => String.raw`${c}(${qp})?`, wI = Jt(ii(uI)), Cu = Jt(ii(lI)), gI = Jt(ii(hI)), yI = Jt(ii(kI)), mI = Jt(ii(AI)), vI = Jt(ii(pI)), ok = Jt(ii($6(dI))), fk = Jt(ii(M6(nd))), ak = Jt(ii(sd(nd))), ck = Jt(ii($6(D6))), uk = Jt(ii(sd(D6))), lk = Jt(ii(M6(D6))), hk = (c, a) => {
   if (typeof a != "string")
     throw new Error(`Error: invalid derivation path ${a}`);
   const h = a.replaceAll("H", "'").replaceAll("h", "'").slice(1), k = h.split("/");
@@ -8678,14 +8678,14 @@ const ff = (c, a) => {
   }
   return c.derivePath(h);
 };
-function fd({ keyExpression: c, isSegwit: a, isTaproot: h, ECPair: k, BIP32: d, network: g = Gi.bitcoin }) {
+function od({ keyExpression: c, isSegwit: a, isTaproot: h, ECPair: k, BIP32: d, network: g = Qi.bitcoin }) {
   let y, E, S, b, I, P, O;
-  const $ = c.indexOf("*") !== -1, N = h ? D6 : a ? G2 : Xs, M = h ? rd : a ? td : ed, W = c.match(N);
+  const $ = c.indexOf("*") !== -1, N = h ? _6 : a ? G2 : Xs, M = h ? td : a ? ed : Jp, W = c.match(N);
   if (W === null || W[0] !== c)
     throw new Error(`Error: expected a keyExpression but got ${c}`);
   const Z = RegExp(String.raw`^(${Va})?`), ke = c.match(Z);
   if (ke) {
-    const ie = ke[0].replace(/[[\]]/g, ""), Q = String.raw`^(${qp})`, he = ie.match(Q), re = he ? he[0] : "";
+    const ie = ke[0].replace(/[[\]]/g, ""), Q = String.raw`^(${Zp})`, he = ie.match(Q), re = he ? he[0] : "";
     if (I = ie.replace(re, ""), re.length > 0) {
       if (re.length !== 8)
         throw new Error(`Error: masterFingerprint ${re} invalid for keyExpression: ${c}`);
@@ -8703,23 +8703,23 @@ function fd({ keyExpression: c, isSegwit: a, isTaproot: h, ECPair: k, BIP32: d, 
     if (E = k.fromWIF(fe[0], g), y = E.publicKey, typeof a == "boolean" && a && y.length !== 33)
       throw new Error("Error: invalid pubkey");
   } else if ((Ae = we.match(Jt(Ha))) !== null) {
-    const ie = Ae[0], Q = ie.match(id)?.[0];
+    const ie = Ae[0], Q = ie.match(rd)?.[0];
     if (!Q)
       throw new Error("Error: xpub could not be matched");
     if (S = d.fromBase58(Q, g), ie.match(Cs) !== null) {
       if (P = ie.match(Cs)?.[0], !P)
         throw new Error("Error: could not extract a path");
-      $ || (y = kk(S, P).publicKey);
+      $ || (y = hk(S, P).publicKey);
     } else
       y = S.publicKey;
   } else if ((j = we.match(Jt(Ka))) !== null) {
-    const ie = j[0], Q = ie.match(nd)?.[0];
+    const ie = j[0], Q = ie.match(id)?.[0];
     if (!Q)
       throw new Error("Error: xprv could not be matched");
     if (S = d.fromBase58(Q, g), ie.match(Cs) !== null) {
       if (P = ie.match(Cs)?.[0], !P)
         throw new Error("Error: could not extract a path");
-      $ || (y = kk(S, P).publicKey);
+      $ || (y = hk(S, P).publicKey);
     } else
       y = S.publicKey;
   } else
@@ -8735,11 +8735,11 @@ function fd({ keyExpression: c, isSegwit: a, isTaproot: h, ECPair: k, BIP32: d, 
     ...O !== void 0 ? { path: O } : {}
   };
 }
-var So = {}, Ak;
+var So = {}, kk;
 function EI() {
-  if (Ak) return So;
-  Ak = 1;
-  var c = Wp();
+  if (kk) return So;
+  kk = 1;
+  var c = Vp();
   const a = "ABSOLUTE", h = "RELATIVE";
   function k(j, ie, Q) {
     if (typeof j > "u" && typeof ie > "u")
@@ -9096,7 +9096,7 @@ function EI() {
               function bt(ot, Ze) {
                 fr[ot] = Ze;
               }
-              function Tn() {
+              function xn() {
                 return Tr[0];
               }
               function Dr(ot) {
@@ -9112,7 +9112,7 @@ function EI() {
                 j0[2] = ot;
               }
               function Wt(ot) {
-                var Ze = ot.a, ni = Ze.a, br = ni.buffer, l = new Int8Array(br), t0 = new Int16Array(br), e = new Int32Array(br), A = new Uint8Array(br), $t = new Uint16Array(br), Qe = new Uint32Array(br), oo = new Float32Array(br), ye = new Float64Array(br), ne = Math.imul, dt = Math.fround, U3 = Math.abs, b0 = Math.clz32, d4 = Math.ceil, B = Ze.b, D = Ze.c, K = Ze.d, J = Ze.e, ue = Ze.f, le = Ze.g, ve = Ze.h, Ne = Ze.i, We = Ze.j, Ge = Ze.k, m0 = Ze.l, wt = Ze.m, Ht = Ze.n, cr = Ze.o, Br = Ze.p, $r = Ze.q, Mr = Ze.r, xi = Ze.s, Ti = Ze.t, k2 = Ze.u, A2 = Ze.v, es = Ze.w, A1 = Ze.x, p1 = Ze.y, d1 = Ze.z, rc = Ze.A, ic = Ze.B, nc = Ze.C, sc = Ze.D, w4 = Ze.E, g4 = Ze.F, y4 = Ze.G, m4 = Ze.H, v4 = Ze.I, _3 = Ze.J, D3 = Ze.K, $3 = Ze.L, M3 = Ze.M, L3 = Ze.N, F3 = Ze.O, V3 = Ze.P, W3 = Ze.Q, H3 = Ze.R, K3 = Ze.S, Q3 = Ze.T, G3 = Ze.U, z3 = Ze.V, j3 = Ze.W, X3 = Ze.X, C = 92880, k0 = 0, Ve = 0;
+                var Ze = ot.a, ni = Ze.a, br = ni.buffer, l = new Int8Array(br), t0 = new Int16Array(br), e = new Int32Array(br), A = new Uint8Array(br), $t = new Uint16Array(br), Qe = new Uint32Array(br), oo = new Float32Array(br), ye = new Float64Array(br), ne = Math.imul, dt = Math.fround, U3 = Math.abs, b0 = Math.clz32, p4 = Math.ceil, B = Ze.b, D = Ze.c, K = Ze.d, J = Ze.e, ue = Ze.f, le = Ze.g, ve = Ze.h, Ne = Ze.i, We = Ze.j, Ge = Ze.k, m0 = Ze.l, wt = Ze.m, Ht = Ze.n, cr = Ze.o, Br = Ze.p, $r = Ze.q, Mr = Ze.r, Si = Ze.s, xi = Ze.t, h2 = Ze.u, k2 = Ze.v, es = Ze.w, A1 = Ze.x, p1 = Ze.y, d1 = Ze.z, rc = Ze.A, ic = Ze.B, nc = Ze.C, sc = Ze.D, d4 = Ze.E, w4 = Ze.F, g4 = Ze.G, y4 = Ze.H, m4 = Ze.I, _3 = Ze.J, D3 = Ze.K, $3 = Ze.L, M3 = Ze.M, L3 = Ze.N, F3 = Ze.O, V3 = Ze.P, W3 = Ze.Q, H3 = Ze.R, K3 = Ze.S, Q3 = Ze.T, G3 = Ze.U, z3 = Ze.V, j3 = Ze.W, X3 = Ze.X, C = 92880, k0 = 0, Ve = 0;
                 function Y3(t, r) {
                   t = t | 0, r = r | 0;
                   var i = 0, n = 0, o = 0, s = 0, f = 0, u = 0, p = 0, w = 0, v = 0, m = 0, T = 0;
@@ -11128,7 +11128,7 @@ function EI() {
                                                           break A;
                                                         if (s = I1(i, o + 240 | 0), l[o + 179 | 0] < 0 && x(e[i >> 2]), !s || (s = e[o + 244 >> 2], f = s, i = e[o + 240 >> 2], u = i - -2147483648 | 0, s = s - (i >>> 0 < 2147483648) | 0, (s | 0) == -1 & u >>> 0 < 2147483649 | (s | 0) != -1))
                                                           break d;
-                                                        e[5996] = 0, s = o + 332 | 0, Oh(s, 5, i, f), i = e[5996], e[5996] = 0;
+                                                        e[5996] = 0, s = o + 332 | 0, Nh(s, 5, i, f), i = e[5996], e[5996] = 0;
                                                         b: {
                                                           if ((i | 0) != 1) {
                                                             if (e[5996] = 0, J(151, o + 308 | 0, s | 0), i = e[5996], e[5996] = 0, (i | 0) == 1)
@@ -11175,7 +11175,7 @@ function EI() {
                                                               break y;
                                                             if (s = I1(i, o + 240 | 0), l[o + 155 | 0] < 0 && x(e[i >> 2]), !s || (s = e[o + 244 >> 2], f = s, i = e[o + 240 >> 2], u = i - -2147483648 | 0, s = s - (i >>> 0 < 2147483648) | 0, (s | 0) == -1 & u >>> 0 < 2147483649 | (s | 0) != -1))
                                                               break b;
-                                                            e[5996] = 0, s = o + 332 | 0, Oh(s, 4, i, f), i = e[5996], e[5996] = 0;
+                                                            e[5996] = 0, s = o + 332 | 0, Nh(s, 4, i, f), i = e[5996], e[5996] = 0;
                                                             B: {
                                                               if ((i | 0) != 1) {
                                                                 if (e[5996] = 0, J(151, o + 308 | 0, s | 0), i = e[5996], e[5996] = 0, (i | 0) == 1)
@@ -12792,7 +12792,7 @@ function EI() {
                                           x(s);
                                           break e;
                                         case 4:
-                                          if (l[t | 0] = 0, l[t + 1 | 0] = 0, l[t + 2 | 0] = 0, l[t + 3 | 0] = 0, l[t + 4 | 0] = 0, l[t + 5 | 0] = 0, l[t + 6 | 0] = 0, l[t + 7 | 0] = 0, l[t + 24 | 0] = 0, l[t + 25 | 0] = 0, l[t + 26 | 0] = 0, l[t + 27 | 0] = 0, l[t + 28 | 0] = 0, l[t + 29 | 0] = 0, l[t + 30 | 0] = 0, l[t + 31 | 0] = 0, l[t + 16 | 0] = 0, l[t + 17 | 0] = 0, l[t + 18 | 0] = 0, l[t + 19 | 0] = 0, l[t + 20 | 0] = 0, l[t + 21 | 0] = 0, l[t + 22 | 0] = 0, l[t + 23 | 0] = 0, l[t + 8 | 0] = 0, l[t + 9 | 0] = 0, l[t + 10 | 0] = 0, l[t + 11 | 0] = 0, l[t + 12 | 0] = 0, l[t + 13 | 0] = 0, l[t + 14 | 0] = 0, l[t + 15 | 0] = 0, r = e[i + 4 >> 2], e[5996] = 0, o = Nn(t, r, 0), r = e[5996], e[5996] = 0, (r | 0) != 1)
+                                          if (l[t | 0] = 0, l[t + 1 | 0] = 0, l[t + 2 | 0] = 0, l[t + 3 | 0] = 0, l[t + 4 | 0] = 0, l[t + 5 | 0] = 0, l[t + 6 | 0] = 0, l[t + 7 | 0] = 0, l[t + 24 | 0] = 0, l[t + 25 | 0] = 0, l[t + 26 | 0] = 0, l[t + 27 | 0] = 0, l[t + 28 | 0] = 0, l[t + 29 | 0] = 0, l[t + 30 | 0] = 0, l[t + 31 | 0] = 0, l[t + 16 | 0] = 0, l[t + 17 | 0] = 0, l[t + 18 | 0] = 0, l[t + 19 | 0] = 0, l[t + 20 | 0] = 0, l[t + 21 | 0] = 0, l[t + 22 | 0] = 0, l[t + 23 | 0] = 0, l[t + 8 | 0] = 0, l[t + 9 | 0] = 0, l[t + 10 | 0] = 0, l[t + 11 | 0] = 0, l[t + 12 | 0] = 0, l[t + 13 | 0] = 0, l[t + 14 | 0] = 0, l[t + 15 | 0] = 0, r = e[i + 4 >> 2], e[5996] = 0, o = Pn(t, r, 0), r = e[5996], e[5996] = 0, (r | 0) != 1)
                                             h: {
                                               if (s = A[o | 0] | A[o + 1 | 0] << 8 | (A[o + 2 | 0] << 16 | A[o + 3 | 0] << 24), r = s - 29 | 0, n = s >>> 0 < 29 ? s : r, i = n + 1 | 0, i >>> 0 > (s >>> 0 <= 28 ? 28 : A[o + 4 | 0] | A[o + 5 | 0] << 8 | (A[o + 6 | 0] << 16 | A[o + 7 | 0] << 24)) >>> 0) {
                                                 if (e[5996] = 0, J(124, o | 0, i + (i >>> 1 | 0) | 0), r = e[5996], e[5996] = 0, (r | 0) == 1)
@@ -12804,7 +12804,7 @@ function EI() {
                                             }
                                           break t;
                                         case 5:
-                                          if (l[t | 0] = 0, l[t + 1 | 0] = 0, l[t + 2 | 0] = 0, l[t + 3 | 0] = 0, l[t + 4 | 0] = 0, l[t + 5 | 0] = 0, l[t + 6 | 0] = 0, l[t + 7 | 0] = 0, l[t + 24 | 0] = 0, l[t + 25 | 0] = 0, l[t + 26 | 0] = 0, l[t + 27 | 0] = 0, l[t + 28 | 0] = 0, l[t + 29 | 0] = 0, l[t + 30 | 0] = 0, l[t + 31 | 0] = 0, l[t + 16 | 0] = 0, l[t + 17 | 0] = 0, l[t + 18 | 0] = 0, l[t + 19 | 0] = 0, l[t + 20 | 0] = 0, l[t + 21 | 0] = 0, l[t + 22 | 0] = 0, l[t + 23 | 0] = 0, l[t + 8 | 0] = 0, l[t + 9 | 0] = 0, l[t + 10 | 0] = 0, l[t + 11 | 0] = 0, l[t + 12 | 0] = 0, l[t + 13 | 0] = 0, l[t + 14 | 0] = 0, l[t + 15 | 0] = 0, r = e[i + 4 >> 2], e[5996] = 0, o = Nn(t, r, 0), r = e[5996], e[5996] = 0, (r | 0) != 1)
+                                          if (l[t | 0] = 0, l[t + 1 | 0] = 0, l[t + 2 | 0] = 0, l[t + 3 | 0] = 0, l[t + 4 | 0] = 0, l[t + 5 | 0] = 0, l[t + 6 | 0] = 0, l[t + 7 | 0] = 0, l[t + 24 | 0] = 0, l[t + 25 | 0] = 0, l[t + 26 | 0] = 0, l[t + 27 | 0] = 0, l[t + 28 | 0] = 0, l[t + 29 | 0] = 0, l[t + 30 | 0] = 0, l[t + 31 | 0] = 0, l[t + 16 | 0] = 0, l[t + 17 | 0] = 0, l[t + 18 | 0] = 0, l[t + 19 | 0] = 0, l[t + 20 | 0] = 0, l[t + 21 | 0] = 0, l[t + 22 | 0] = 0, l[t + 23 | 0] = 0, l[t + 8 | 0] = 0, l[t + 9 | 0] = 0, l[t + 10 | 0] = 0, l[t + 11 | 0] = 0, l[t + 12 | 0] = 0, l[t + 13 | 0] = 0, l[t + 14 | 0] = 0, l[t + 15 | 0] = 0, r = e[i + 4 >> 2], e[5996] = 0, o = Pn(t, r, 0), r = e[5996], e[5996] = 0, (r | 0) != 1)
                                             h: {
                                               if (s = A[o | 0] | A[o + 1 | 0] << 8 | (A[o + 2 | 0] << 16 | A[o + 3 | 0] << 24), r = s - 29 | 0, n = s >>> 0 < 29 ? s : r, i = n + 1 | 0, i >>> 0 > (s >>> 0 <= 28 ? 28 : A[o + 4 | 0] | A[o + 5 | 0] << 8 | (A[o + 6 | 0] << 16 | A[o + 7 | 0] << 24)) >>> 0) {
                                                 if (e[5996] = 0, J(124, o | 0, i + (i >>> 1 | 0) | 0), r = e[5996], e[5996] = 0, (r | 0) == 1)
@@ -13272,7 +13272,7 @@ function EI() {
                                           }
                                           break t;
                                         case 25:
-                                          if (e[u + 72 >> 2] = 0, e[u + 76 >> 2] = 0, n = u - -64 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[u + 56 >> 2] = 0, e[u + 60 >> 2] = 0, e[u + 48 >> 2] = 0, e[u + 52 >> 2] = 0, n = e[i + 4 >> 2], e[5996] = 0, U = Nn(u + 48 | 0, n, 0), n = e[5996], e[5996] = 0, (n | 0) == 1) {
+                                          if (e[u + 72 >> 2] = 0, e[u + 76 >> 2] = 0, n = u - -64 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[u + 56 >> 2] = 0, e[u + 60 >> 2] = 0, e[u + 48 >> 2] = 0, e[u + 52 >> 2] = 0, n = e[i + 4 >> 2], e[5996] = 0, U = Pn(u + 48 | 0, n, 0), n = e[5996], e[5996] = 0, (n | 0) == 1) {
                                             if (f = B() | 0, Qe[u + 48 >> 2] < 29)
                                               break e;
                                             x(e[u + 56 >> 2]);
@@ -13360,7 +13360,7 @@ function EI() {
                                                     for (n = o + m | 0; l[f | 0] = A[s | 0], l[f + 1 | 0] = A[s + 1 | 0], l[f + 2 | 0] = A[s + 2 | 0], l[f + 3 | 0] = A[s + 3 | 0], l[f + 4 | 0] = A[s + 4 | 0], l[f + 5 | 0] = A[s + 5 | 0], l[f + 6 | 0] = A[s + 6 | 0], l[f + 7 | 0] = A[s + 7 | 0], f = f + 8 | 0, s = s + 8 | 0, (n | 0) != (s | 0); )
                                                       ;
                                                   }
-                                                  if (i = e[i + 4 >> 2], e[5996] = 0, n = Nn(t, i, 0), i = e[5996], e[5996] = 0, (i | 0) == 1)
+                                                  if (i = e[i + 4 >> 2], e[5996] = 0, n = Pn(t, i, 0), i = e[5996], e[5996] = 0, (i | 0) == 1)
                                                     break p;
                                                   if (e[5996] = 0, D(127, n | 0, (r ? 136 : 135) | 0) | 0, r = e[5996], e[5996] = 0, (r | 0) != 1)
                                                     break a;
@@ -13421,7 +13421,7 @@ function EI() {
                                   for (i = i + w | 0; l[f | 0] = A[s | 0], l[f + 1 | 0] = A[s + 1 | 0], l[f + 2 | 0] = A[s + 2 | 0], l[f + 3 | 0] = A[s + 3 | 0], l[f + 4 | 0] = A[s + 4 | 0], l[f + 5 | 0] = A[s + 5 | 0], l[f + 6 | 0] = A[s + 6 | 0], l[f + 7 | 0] = A[s + 7 | 0], f = f + 8 | 0, s = s + 8 | 0, (i | 0) != (s | 0); )
                                     ;
                                 }
-                                if (e[5996] = 0, n = Nn(t, p, 0), i = e[5996], e[5996] = 0, (i | 0) == 1)
+                                if (e[5996] = 0, n = Pn(t, p, 0), i = e[5996], e[5996] = 0, (i | 0) == 1)
                                   break f;
                                 if (e[5996] = 0, D(127, n | 0, (r ? 175 : 174) | 0) | 0, r = e[5996], e[5996] = 0, (r | 0) != 1)
                                   break n;
@@ -14969,7 +14969,7 @@ function EI() {
                   }
                   ve(r | 0), V();
                 }
-                function E4(t, r, i) {
+                function v4(t, r, i) {
                   t = t | 0, r = r | 0, i = i | 0;
                   var n = 0, o = 0, s = 0, f = 0, u = 0, p = 0, w = 0, v = 0, m = 0, T = 0, R = 0, U = 0, _ = 0, F = 0;
                   u = C - 48 | 0, C = u, e[u + 24 >> 2] = 0, e[u + 16 >> 2] = 0, e[u + 20 >> 2] = 0;
@@ -17231,7 +17231,7 @@ function EI() {
                                                                 }
                                                                 if (T = z3(22528, 22864) | 0, t = k0, (t | 0) != (rc(22528) | 0))
                                                                   break B;
-                                                                if (Ti(T | 0) | 0, e[m + 240 >> 2] = 0, e[m + 244 >> 2] = 0, e[m + 232 >> 2] = 0, e[m + 236 >> 2] = 0, e[m + 224 >> 2] = 0, e[m + 228 >> 2] = 0, e[m + 216 >> 2] = 0, e[m + 220 >> 2] = 0, e[m + 208 >> 2] = 0, e[m + 212 >> 2] = 0, e[m + 200 >> 2] = 0, e[m + 204 >> 2] = 0, e[m + 192 >> 2] = 0, e[m + 196 >> 2] = 0, e[5996] = 0, le(110), t = e[5996], e[5996] = 0, (t | 0) != 1)
+                                                                if (xi(T | 0) | 0, e[m + 240 >> 2] = 0, e[m + 244 >> 2] = 0, e[m + 232 >> 2] = 0, e[m + 236 >> 2] = 0, e[m + 224 >> 2] = 0, e[m + 228 >> 2] = 0, e[m + 216 >> 2] = 0, e[m + 220 >> 2] = 0, e[m + 208 >> 2] = 0, e[m + 212 >> 2] = 0, e[m + 200 >> 2] = 0, e[m + 204 >> 2] = 0, e[m + 192 >> 2] = 0, e[m + 196 >> 2] = 0, e[5996] = 0, le(110), t = e[5996], e[5996] = 0, (t | 0) != 1)
                                                                   break I;
                                                                 T = We(22864) | 0, t = k0;
                                                                 break B;
@@ -17254,14 +17254,14 @@ function EI() {
                                                               x: {
                                                                 m: {
                                                                   if (U) {
-                                                                    if (e[m + 252 >> 2] = 0, e[m + 256 >> 2] = 0, e[5996] = 0, e[m + 248 >> 2] = m + 252, t = k2(50, U | 0, 1, 0, m + 248 | 0) | 0, T = e[5996], e[5996] = 0, (T | 0) == 1)
+                                                                    if (e[m + 252 >> 2] = 0, e[m + 256 >> 2] = 0, e[5996] = 0, e[m + 248 >> 2] = m + 252, t = h2(50, U | 0, 1, 0, m + 248 | 0) | 0, T = e[5996], e[5996] = 0, (T | 0) == 1)
                                                                       break m;
                                                                     e[5996] = 0, T = D(54, 1639, 3) | 0, R = e[5996], e[5996] = 0;
                                                                     v: {
                                                                       k: {
                                                                         C: {
                                                                           g: {
-                                                                            if ((R | 0) == 1 || (R = e[t >> 2], t = e[t + 4 >> 2], e[5996] = 0, xi(51, m + 160 | 0, R | 0, t | 0, T | 0, 0), t = e[5996], e[5996] = 0, (t | 0) == 1))
+                                                                            if ((R | 0) == 1 || (R = e[t >> 2], t = e[t + 4 >> 2], e[5996] = 0, Si(51, m + 160 | 0, R | 0, t | 0, T | 0, 0), t = e[5996], e[5996] = 0, (t | 0) == 1))
                                                                               break g;
                                                                             if (T = e[m + 164 >> 2], R = e[m + 160 >> 2], U = T - R | 0, (U | 0) != 32)
                                                                               break C;
@@ -17439,7 +17439,7 @@ function EI() {
                                                                             T = We(22864) | 0;
                                                                             break y;
                                                                           }
-                                                                          T = A[T - 4 | 0], e[5996] = 0, xi(113, m + 248 | 0, T | 0, t | 0, (ne(R, 12) + F | 0) + ne(ee, -12) | 0, ee | 0), T = e[5996], e[5996] = 0;
+                                                                          T = A[T - 4 | 0], e[5996] = 0, Si(113, m + 248 | 0, T | 0, t | 0, (ne(R, 12) + F | 0) + ne(ee, -12) | 0, ee | 0), T = e[5996], e[5996] = 0;
                                                                           S: {
                                                                             if ((T | 0) != 1) {
                                                                               if (A[m + 260 | 0])
@@ -17674,13 +17674,13 @@ function EI() {
                                                                                                                   break F;
                                                                                                                 if (e[m + 56 >> 2] = e[t + 8 >> 2], T = e[t + 4 >> 2], e[m + 48 >> 2] = e[t >> 2], e[m + 52 >> 2] = T, e[t >> 2] = 0, e[t + 4 >> 2] = 0, e[t + 8 >> 2] = 0, e[5996] = 0, T = D(97, m + 48 | 0, 5422) | 0, R = e[5996], e[5996] = 0, (R | 0) == 1)
                                                                                                                   break M;
-                                                                                                                if (e[m + 72 >> 2] = e[T + 8 >> 2], R = e[T + 4 >> 2], e[m + 64 >> 2] = e[T >> 2], e[m + 68 >> 2] = R, e[T >> 2] = 0, e[T + 4 >> 2] = 0, e[T + 8 >> 2] = 0, e[5996] = 0, R = m + 248 | 0, m4(116, R | 0, +xe), U = e[5996], e[5996] = 0, (U | 0) == 1)
+                                                                                                                if (e[m + 72 >> 2] = e[T + 8 >> 2], R = e[T + 4 >> 2], e[m + 64 >> 2] = e[T >> 2], e[m + 68 >> 2] = R, e[T >> 2] = 0, e[T + 4 >> 2] = 0, e[T + 8 >> 2] = 0, e[5996] = 0, R = m + 248 | 0, y4(116, R | 0, +xe), U = e[5996], e[5996] = 0, (U | 0) == 1)
                                                                                                                   break L;
                                                                                                                 if (e[5996] = 0, _ = R, R = A[m + 259 | 0], U = R << 24 >> 24 < 0, R = ue(100, m - -64 | 0, (U ? e[m + 248 >> 2] : _) | 0, (U ? e[m + 252 >> 2] : R) | 0) | 0, U = e[5996], e[5996] = 0, (U | 0) == 1)
                                                                                                                   break $;
                                                                                                                 if (e[m + 88 >> 2] = e[R + 8 >> 2], U = e[R + 4 >> 2], e[m + 80 >> 2] = e[R >> 2], e[m + 84 >> 2] = U, e[R >> 2] = 0, e[R + 4 >> 2] = 0, e[R + 8 >> 2] = 0, e[5996] = 0, U = D(97, m + 80 | 0, 5504) | 0, _ = e[5996], e[5996] = 0, (_ | 0) == 1)
                                                                                                                   break D;
-                                                                                                                if (e[m + 136 >> 2] = e[U + 8 >> 2], _ = e[U + 4 >> 2], e[m + 128 >> 2] = e[U >> 2], e[m + 132 >> 2] = _, e[U >> 2] = 0, e[U + 4 >> 2] = 0, e[U + 8 >> 2] = 0, _ = e[e[m + 12 >> 2] + 84 >> 2], e[5996] = 0, z = m + 192 | 0, m4(116, z | 0, +(xe + +(_ >>> 0))), _ = e[5996], e[5996] = 0, (_ | 0) == 1)
+                                                                                                                if (e[m + 136 >> 2] = e[U + 8 >> 2], _ = e[U + 4 >> 2], e[m + 128 >> 2] = e[U >> 2], e[m + 132 >> 2] = _, e[U >> 2] = 0, e[U + 4 >> 2] = 0, e[U + 8 >> 2] = 0, _ = e[e[m + 12 >> 2] + 84 >> 2], e[5996] = 0, z = m + 192 | 0, y4(116, z | 0, +(xe + +(_ >>> 0))), _ = e[5996], e[5996] = 0, (_ | 0) == 1)
                                                                                                                   break _;
                                                                                                                 if (e[5996] = 0, pe = z, _ = A[m + 203 | 0], z = _ << 24 >> 24 < 0, _ = ue(100, m + 128 | 0, (z ? e[m + 192 >> 2] : pe) | 0, (z ? e[m + 196 >> 2] : _) | 0) | 0, z = e[5996], e[5996] = 0, (z | 0) == 1)
                                                                                                                   break U;
@@ -17838,7 +17838,7 @@ function EI() {
                                         }
                                         if ((rc(22864) | 0) != (t | 0))
                                           break r;
-                                        if (t = Ti(T | 0) | 0, t = L[e[e[t >> 2] + 8 >> 2]](t) | 0, e[5996] = 0, p = D(30, m + 24 | 0, t | 0) | 0, t = e[5996], e[5996] = 0, (t | 0) == 1)
+                                        if (t = xi(T | 0) | 0, t = L[e[e[t >> 2] + 8 >> 2]](t) | 0, e[5996] = 0, p = D(30, m + 24 | 0, t | 0) | 0, t = e[5996], e[5996] = 0, (t | 0) == 1)
                                           break u;
                                         if (e[5996] = 0, t = ue(99, p | 0, 0, 5474) | 0, u = e[5996], e[5996] = 0, (u | 0) == 1)
                                           break l;
@@ -17854,7 +17854,7 @@ function EI() {
                                           break s;
                                         if (p = n, r = e[t >> 2], i = A[t + 11 | 0], n = i << 24 >> 24, u = (n | 0) < 0, w = u ? r : t, t = u ? e[t + 4 >> 2] : i, i = o - 1 | 0, t = (t | 0) < (i | 0) ? t : i, l[s0(p, w, t) + t | 0] = 0, (n | 0) < 0 && x(r), e[5996] = 0, t = D(30, m + 12 | 0, 5575) | 0, r = e[5996], e[5996] = 0, (r | 0) == 1)
                                           break n;
-                                        r = e[t >> 2], i = A[t + 11 | 0], n = i << 24 >> 24, o = (n | 0) < 0, u = o ? r : t, t = o ? e[t + 4 >> 2] : i, i = f - 1 | 0, t = (t | 0) < (i | 0) ? t : i, l[s0(s, u, t) + t | 0] = 0, (n | 0) < 0 && x(r), A2();
+                                        r = e[t >> 2], i = A[t + 11 | 0], n = i << 24 >> 24, o = (n | 0) < 0, u = o ? r : t, t = o ? e[t + 4 >> 2] : i, i = f - 1 | 0, t = (t | 0) < (i | 0) ? t : i, l[s0(s, u, t) + t | 0] = 0, (n | 0) < 0 && x(r), k2();
                                       }
                                       C = m + 304 | 0;
                                       return;
@@ -17888,7 +17888,7 @@ function EI() {
                   }
                   V();
                 }
-                function S4(t, r, i) {
+                function E4(t, r, i) {
                   t = t | 0, r = r | 0, i = i | 0;
                   var n = 0, o = 0, s = 0, f = 0, u = 0, p = 0, w = 0, v = 0, m = 0, T = 0, R = 0, U = 0, _ = 0, F = 0, z = 0, ee = 0, pe = 0, xe = 0, Re = 0;
                   s = C - 144 | 0, C = s, m = ye[r + 24 >> 3], T = ye[r + 16 >> 3];
@@ -17969,17 +17969,17 @@ function EI() {
                                                                           }
                                                                         if (n = e[t + 4 >> 2], t = e[t + 8 >> 2], (n | 0) == (t | 0))
                                                                           break f;
-                                                                        for (; S4(e[n >> 2], r, i), n = n + 4 | 0, (t | 0) != (n | 0); )
+                                                                        for (; E4(e[n >> 2], r, i), n = n + 4 | 0, (t | 0) != (n | 0); )
                                                                           ;
                                                                         break f;
                                                                       }
-                                                                      if (t = N4(t, T, m, i), n = e[t >> 2], i = e[t + 4 >> 2], (n | 0) == (i | 0))
+                                                                      if (t = P4(t, T, m, i), n = e[t >> 2], i = e[t + 4 >> 2], (n | 0) == (i | 0))
                                                                         break f;
-                                                                      for (; e[s + 56 >> 2] = e[n >> 2], t = e[n + 4 >> 2], e[s + 60 >> 2] = t, t && (e[t + 4 >> 2] = e[t + 4 >> 2] + 1), t = e[s + 60 >> 2], e[s >> 2] = e[s + 56 >> 2], e[s + 4 >> 2] = t, P4(r, n + 8 | 0, s), n = n + 32 | 0, (i | 0) != (n | 0); )
+                                                                      for (; e[s + 56 >> 2] = e[n >> 2], t = e[n + 4 >> 2], e[s + 60 >> 2] = t, t && (e[t + 4 >> 2] = e[t + 4 >> 2] + 1), t = e[s + 60 >> 2], e[s >> 2] = e[s + 56 >> 2], e[s + 4 >> 2] = t, R4(r, n + 8 | 0, s), n = n + 32 | 0, (i | 0) != (n | 0); )
                                                                         ;
                                                                       break f;
                                                                     }
-                                                                    bi(r, i, 1, t + 4 | 0, 0, 0);
+                                                                    Ti(r, i, 1, t + 4 | 0, 0, 0);
                                                                     break f;
                                                                   }
                                                                   if (R = (o | 0) == 4 ? 4 : 5, fo(s + 56 | 0, R, T, m, 0, 0), e[5996] = 0, n = K(46, R | 0) | 0, o = e[5996], e[5996] = 0, (o | 0) == 1)
@@ -18029,9 +18029,9 @@ function EI() {
                                                                                 R: {
                                                                                   for (; ; ) {
                                                                                     E: {
-                                                                                      if (n = w << 3, m = ye[n + e[s + 68 >> 2] >> 3], T = ye[n + e[s + 56 >> 2] >> 3], o = e[(w << 2) + o >> 2], e[5996] = 0, o = k2(50, o | 0, +T, +m, i | 0) | 0, f = e[5996], e[5996] = 0, (f | 0) == 1)
+                                                                                      if (n = w << 3, m = ye[n + e[s + 68 >> 2] >> 3], T = ye[n + e[s + 56 >> 2] >> 3], o = e[(w << 2) + o >> 2], e[5996] = 0, o = h2(50, o | 0, +T, +m, i | 0) | 0, f = e[5996], e[5996] = 0, (f | 0) == 1)
                                                                                         break E;
-                                                                                      if (n = n + e[F + e[s + 80 >> 2] >> 2] | 0, f = e[n >> 2], n = e[n + 4 >> 2], v = e[o + 4 >> 2], o = e[o >> 2], e[5996] = 0, xi(51, s + 100 | 0, o | 0, v | 0, f | 0, n | 0), o = e[5996], e[5996] = 0, (o | 0) == 1)
+                                                                                      if (n = n + e[F + e[s + 80 >> 2] >> 2] | 0, f = e[n >> 2], n = e[n + 4 >> 2], v = e[o + 4 >> 2], o = e[o >> 2], e[5996] = 0, Si(51, s + 100 | 0, o | 0, v | 0, f | 0, n | 0), o = e[5996], e[5996] = 0, (o | 0) == 1)
                                                                                         break R;
                                                                                       f = e[s + 128 >> 2];
                                                                                       T: {
@@ -18125,7 +18125,7 @@ function EI() {
                                                                               if (e[t + 8 >> 2] != e[t + 4 >> 2])
                                                                                 for (n = 0, f = e[s + 120 >> 2], o = u; p = ne(n, 12), w = p + f | 0, f = e[w >> 2], e[v + (n << 2) >> 2] = f + ((o >>> 0) % (e[w + 4 >> 2] - f >> 5 >>> 0) << 5), w = o, f = e[s + 120 >> 2], o = p + f | 0, o = (w >>> 0) / (e[o + 4 >> 2] - e[o >> 2] >> 5 >>> 0) | 0, n = n + 1 | 0, n >>> 0 < e[t + 8 >> 2] - e[t + 4 >> 2] >> 2 >>> 0; )
                                                                                   ;
-                                                                              if (e[5996] = 0, v4(53, r | 0, R | 0, s + 132 | 0, 0, xe | 0), o = e[5996], e[5996] = 0, u = u + 1 | 0, (o | 0) == 1)
+                                                                              if (e[5996] = 0, m4(53, r | 0, R | 0, s + 132 | 0, 0, xe | 0), o = e[5996], e[5996] = 0, u = u + 1 | 0, (o | 0) == 1)
                                                                                 break;
                                                                             }
                                                                             n = B() | 0;
@@ -18178,7 +18178,7 @@ function EI() {
                                                                   n = B() | 0;
                                                                   break n;
                                                                 }
-                                                                bi(r, i, 0, t + 4 | 0, 0, 0);
+                                                                Ti(r, i, 0, t + 4 | 0, 0, 0);
                                                                 break f;
                                                               }
                                                               fo(s + 56 | 0, 24, T, m, ye[t + 48 >> 3], e[t + 8 >> 2] - e[t + 4 >> 2] >> 2), e[s + 88 >> 2] = 0, e[s + 80 >> 2] = 0, e[s + 84 >> 2] = 0, e[s + 140 >> 2] = 0, e[s + 132 >> 2] = 0, e[s + 136 >> 2] = 0;
@@ -18200,7 +18200,7 @@ function EI() {
                                                                                   m = -1, o = f, v = -1;
                                                                                   P: {
                                                                                     for (; ; ) {
-                                                                                      if (n = u << 3, T = ye[n + e[s + 68 >> 2] >> 3], _ = ye[n + e[s + 56 >> 2] >> 3], o = e[(u << 2) + o >> 2], e[5996] = 0, o = k2(50, o | 0, +_, +T, i | 0) | 0, n = e[5996], e[5996] = 0, (n | 0) == 1)
+                                                                                      if (n = u << 3, T = ye[n + e[s + 68 >> 2] >> 3], _ = ye[n + e[s + 56 >> 2] >> 3], o = e[(u << 2) + o >> 2], e[5996] = 0, o = h2(50, o | 0, +_, +T, i | 0) | 0, n = e[5996], e[5996] = 0, (n | 0) == 1)
                                                                                         break T;
                                                                                       e[5996] = 0, n = D(54, 1283, 5) | 0, f = e[5996], e[5996] = 0;
                                                                                       O: {
@@ -18208,7 +18208,7 @@ function EI() {
                                                                                           _: {
                                                                                             D: {
                                                                                               $: {
-                                                                                                if ((f | 0) == 1 || (f = e[o >> 2], p = e[o + 4 >> 2], e[5996] = 0, xi(51, s + 120 | 0, f | 0, p | 0, n | 0, 0), n = e[5996], e[5996] = 0, (n | 0) == 1))
+                                                                                                if ((f | 0) == 1 || (f = e[o >> 2], p = e[o + 4 >> 2], e[5996] = 0, Si(51, s + 120 | 0, f | 0, p | 0, n | 0, 0), n = e[5996], e[5996] = 0, (n | 0) == 1))
                                                                                                   break $;
                                                                                                 switch (p = 1, f = e[s + 120 >> 2], e[s + 124 >> 2] - f >> 5) {
                                                                                                   case 0:
@@ -18229,7 +18229,7 @@ function EI() {
                                                                                           }
                                                                                           if (e[5996] = 0, J(55, s + 80 | 0, f | 0), n = e[5996], e[5996] = 0, (n | 0) == 1)
                                                                                             break E;
-                                                                                          if (e[5996] = 0, n = D(54, 1277, 5) | 0, f = e[5996], e[5996] = 0, (f | 0) == 1 || (f = e[o >> 2], o = e[o + 4 >> 2], e[5996] = 0, xi(51, s + 100 | 0, f | 0, o | 0, n | 0, 0), o = e[5996], e[5996] = 0, (o | 0) == 1))
+                                                                                          if (e[5996] = 0, n = D(54, 1277, 5) | 0, f = e[5996], e[5996] = 0, (f | 0) == 1 || (f = e[o >> 2], o = e[o + 4 >> 2], e[5996] = 0, Si(51, s + 100 | 0, f | 0, o | 0, n | 0, 0), o = e[5996], e[5996] = 0, (o | 0) == 1))
                                                                                             break O;
                                                                                           _: {
                                                                                             D: {
@@ -18344,7 +18344,7 @@ function EI() {
                                                                                     if (u = u + 1 | 0, !(u >>> 0 < e[t + 8 >> 2] - e[t + 4 >> 2] >> 2 >>> 0))
                                                                                       break;
                                                                                   }
-                                                                                if (m = ye[t + 48 >> 3], e[5996] = 0, v4(53, r | 0, 24, s + 120 | 0, +m, t + 40 | 0), t = e[5996], e[5996] = 0, (t | 0) != 1) {
+                                                                                if (m = ye[t + 48 >> 3], e[5996] = 0, m4(53, r | 0, 24, s + 120 | 0, +m, t + 40 | 0), t = e[5996], e[5996] = 0, (t | 0) != 1) {
                                                                                   if (t = e[s + 120 >> 2], !t)
                                                                                     break C;
                                                                                   x(t);
@@ -18440,25 +18440,25 @@ function EI() {
                                                         }
                                                         break e;
                                                       }
-                                                      bi(r, i, 14, t + 4 | 0, 0, 0);
+                                                      Ti(r, i, 14, t + 4 | 0, 0, 0);
                                                       break f;
                                                     }
-                                                    bi(r, i, 15, t + 4 | 0, 0, 0);
+                                                    Ti(r, i, 15, t + 4 | 0, 0, 0);
                                                     break f;
                                                   }
-                                                  bi(r, i, 16, t + 4 | 0, 0, 0);
+                                                  Ti(r, i, 16, t + 4 | 0, 0, 0);
                                                   break f;
                                                 }
-                                                bi(r, i, 13, t + 4 | 0, 0, 0);
+                                                Ti(r, i, 13, t + 4 | 0, 0, 0);
                                                 break f;
                                               }
-                                              bi(r, i, 12, t + 4 | 0, 0, 0);
+                                              Ti(r, i, 12, t + 4 | 0, 0, 0);
                                               break f;
                                             }
-                                            t = t + 4 | 0, bi(r, i, 10, t, 0, 0), bi(r, i, 11, t, 0, 0);
+                                            t = t + 4 | 0, Ti(r, i, 10, t, 0, 0), Ti(r, i, 11, t, 0, 0);
                                             break f;
                                           }
-                                          o = e[t + 40 >> 2], v = e[t + 44 >> 2], A[24588] || (e[6145] = 0, e[6146] = 0, e[6143] = 0, e[6144] = 0, e[6141] = 0, e[6142] = 0, l[24588] = 1), R = W4(s + 56 | 0), e[5996] = 0, n = K(46, 25) | 0, f = e[5996], e[5996] = 0;
+                                          o = e[t + 40 >> 2], v = e[t + 44 >> 2], A[24588] || (e[6145] = 0, e[6146] = 0, e[6143] = 0, e[6144] = 0, e[6141] = 0, e[6142] = 0, l[24588] = 1), R = V4(s + 56 | 0), e[5996] = 0, n = K(46, 25) | 0, f = e[5996], e[5996] = 0;
                                           a: {
                                             p: {
                                               if ((f | 0) != 1) {
@@ -18492,9 +18492,9 @@ function EI() {
                                                                   B: {
                                                                     I: {
                                                                       for (; ; ) {
-                                                                        if (n = w << 3, _ = ye[n + e[R + 12 >> 2] >> 3], Re = ye[n + e[R >> 2] >> 3], o = e[(w << 2) + o >> 2], e[5996] = 0, o = k2(50, o | 0, +Re, +_, i | 0) | 0, f = e[5996], e[5996] = 0, (f | 0) == 1)
+                                                                        if (n = w << 3, _ = ye[n + e[R + 12 >> 2] >> 3], Re = ye[n + e[R >> 2] >> 3], o = e[(w << 2) + o >> 2], e[5996] = 0, o = h2(50, o | 0, +Re, +_, i | 0) | 0, f = e[5996], e[5996] = 0, (f | 0) == 1)
                                                                           break B;
-                                                                        if (n = n + e[F + e[s + 44 >> 2] >> 2] | 0, f = e[n >> 2], n = e[n + 4 >> 2], v = e[o + 4 >> 2], o = e[o >> 2], e[5996] = 0, xi(51, s + 80 | 0, o | 0, v | 0, f | 0, n | 0), o = e[5996], e[5996] = 0, (o | 0) != 1) {
+                                                                        if (n = n + e[F + e[s + 44 >> 2] >> 2] | 0, f = e[n >> 2], n = e[n + 4 >> 2], v = e[o + 4 >> 2], o = e[o >> 2], e[5996] = 0, Si(51, s + 80 | 0, o | 0, v | 0, f | 0, n | 0), o = e[5996], e[5996] = 0, (o | 0) != 1) {
                                                                           f = e[s + 28 >> 2];
                                                                           x: {
                                                                             if (f >>> 0 > u >>> 0) {
@@ -18782,7 +18782,7 @@ function EI() {
                                           us(s + 80 | 0);
                                           break t;
                                         }
-                                        o = t + 4 | 0, t = t + 16 | 0, b4(r, i, 2, o, t), b4(r, i, 3, o, t);
+                                        o = t + 4 | 0, t = t + 16 | 0, T4(r, i, 2, o, t), T4(r, i, 3, o, t);
                                         break f;
                                       }
                                       w1(r, i, 6, t + 4 | 0, t + 28 | 0);
@@ -18813,7 +18813,7 @@ function EI() {
                   }
                   t = B() | 0, x(o), ve(t | 0), V();
                 }
-                function x4(t, r, i, n) {
+                function S4(t, r, i, n) {
                   var o = 0, s = 0, f = 0, u = 0, p = 0, w = 0, v = 0, m = 0, T = 0, R = 0, U = 0, _ = 0, F = 0, z = 0, ee = 0, pe = 0, xe = 0, Re = 0, Me = 0, He = 0, o0 = 0, O0 = 0, L0 = 0, Y0 = 0, rt = 0, At = 0, Gt = 0;
                   F = C - 48 | 0, C = F;
                   e: {
@@ -19031,7 +19031,7 @@ function EI() {
                                           }
                                           ai(r, 0, 0);
                                         }
-                                        Ci(s + 96 | 0, +(pe | 0) * 0), m = e[s + 96 >> 2], U = e[s + 100 >> 2], i = e[s + 108 >> 2], r = e[s + 104 >> 2];
+                                        Ii(s + 96 | 0, +(pe | 0) * 0), m = e[s + 96 >> 2], U = e[s + 100 >> 2], i = e[s + 108 >> 2], r = e[s + 104 >> 2];
                                         break s;
                                       }
                                       if ((p | 0) <= 0 & w >>> 0 <= 7 | (p | 0) < 0)
@@ -19041,7 +19041,7 @@ function EI() {
                                         o: {
                                           l: {
                                             if ((f & -33) == 80) {
-                                              if (u = L4(r, n), i = Ve, v = i, u | (i | 0) != -2147483648)
+                                              if (u = M4(r, n), i = Ve, v = i, u | (i | 0) != -2147483648)
                                                 break f;
                                               if (n) {
                                                 if (i = e[r + 116 >> 2], (i | 0) > 0 | (i | 0) >= 0)
@@ -19059,7 +19059,7 @@ function EI() {
                                         u = 0, v = 0;
                                       }
                                       if (!T) {
-                                        Ci(s + 112 | 0, +(pe | 0) * 0), m = e[s + 112 >> 2], U = e[s + 116 >> 2], i = e[s + 124 >> 2], r = e[s + 120 >> 2];
+                                        Ii(s + 112 | 0, +(pe | 0) * 0), m = e[s + 112 >> 2], U = e[s + 116 >> 2], i = e[s + 124 >> 2], r = e[s + 120 >> 2];
                                         break s;
                                       }
                                       if (r = _ ? z : w, p = (_ ? ee : p) << 2 | r >>> 30, i = u + (r << 2) | 0, r = p + v | 0, w = i - 32 | 0, p = (i >>> 0 < u >>> 0 ? r + 1 | 0 : r) - (i >>> 0 < 32) | 0, r = p, w >>> 0 > 0 - O0 >>> 0 & (r | 0) >= 0 | (r | 0) > 0) {
@@ -19068,7 +19068,7 @@ function EI() {
                                       }
                                       if (r = O0 - 226 | 0, i = r >> 31, (p | 0) >= (i | 0) & r >>> 0 <= w >>> 0 | (i | 0) < (p | 0)) {
                                         if ((T | 0) >= 0)
-                                          for (; tr(s + 416 | 0, m, U, Re, Me, 0, 0, 0, -1073807360), r = il(m, U, Re, Me, 1073610752), i = (r | 0) >= 0, r = i, tr(s + 400 | 0, m, U, Re, Me, r ? e[s + 416 >> 2] : m, r ? e[s + 420 >> 2] : U, r ? e[s + 424 >> 2] : Re, r ? e[s + 428 >> 2] : Me), r = w, w = r - 1 | 0, p = p - !r | 0, Re = e[s + 408 >> 2], Me = e[s + 412 >> 2], m = e[s + 400 >> 2], U = e[s + 404 >> 2], T = i | T << 1, (T | 0) >= 0; )
+                                          for (; tr(s + 416 | 0, m, U, Re, Me, 0, 0, 0, -1073807360), r = rl(m, U, Re, Me, 1073610752), i = (r | 0) >= 0, r = i, tr(s + 400 | 0, m, U, Re, Me, r ? e[s + 416 >> 2] : m, r ? e[s + 420 >> 2] : U, r ? e[s + 424 >> 2] : Re, r ? e[s + 428 >> 2] : Me), r = w, w = r - 1 | 0, p = p - !r | 0, Re = e[s + 408 >> 2], Me = e[s + 412 >> 2], m = e[s + 400 >> 2], U = e[s + 404 >> 2], T = i | T << 1, (T | 0) >= 0; )
                                             ;
                                         r = p - ((O0 >> 31) + (w >>> 0 < O0 >>> 0) | 0) | 0, i = (w - O0 | 0) + 32 | 0, r = i >>> 0 < 32 ? r + 1 | 0 : r, i = i >>> 0 < L0 >>> 0 & (r | 0) <= 0 | (r | 0) < 0 ? (i | 0) > 0 ? i : 0 : L0;
                                         f: {
@@ -19076,9 +19076,9 @@ function EI() {
                                             ur(s + 384 | 0, pe), z = e[s + 392 >> 2], ee = e[s + 396 >> 2], He = e[s + 384 >> 2], o0 = e[s + 388 >> 2], u = 0, r = 0;
                                             break f;
                                           }
-                                          Ci(s + 352 | 0, Bc(144 - i | 0)), ur(s + 336 | 0, pe), He = e[s + 336 >> 2], o0 = e[s + 340 >> 2], z = e[s + 344 >> 2], ee = e[s + 348 >> 2], jl(s + 368 | 0, e[s + 352 >> 2], e[s + 356 >> 2], e[s + 360 >> 2], e[s + 364 >> 2], He, o0, z, ee), R = e[s + 376 >> 2], xe = e[s + 380 >> 2], u = e[s + 372 >> 2], r = e[s + 368 >> 2];
+                                          Ii(s + 352 | 0, Bc(144 - i | 0)), ur(s + 336 | 0, pe), He = e[s + 336 >> 2], o0 = e[s + 340 >> 2], z = e[s + 344 >> 2], ee = e[s + 348 >> 2], zl(s + 368 | 0, e[s + 352 >> 2], e[s + 356 >> 2], e[s + 360 >> 2], e[s + 364 >> 2], He, o0, z, ee), R = e[s + 376 >> 2], xe = e[s + 380 >> 2], u = e[s + 372 >> 2], r = e[s + 368 >> 2];
                                         }
-                                        n = !(T & 1) & ((p2(m, U, Re, Me, 0, 0, 0, 0) | 0) != 0 & (i | 0) < 32), cs(s + 320 | 0, n + T | 0), P0(s + 304 | 0, He, o0, z, ee, e[s + 320 >> 2], e[s + 324 >> 2], e[s + 328 >> 2], e[s + 332 >> 2]), i = r, tr(s + 272 | 0, e[s + 304 >> 2], e[s + 308 >> 2], e[s + 312 >> 2], e[s + 316 >> 2], r, u, R, xe), r = n, P0(s + 288 | 0, He, o0, z, ee, r ? 0 : m, r ? 0 : U, r ? 0 : Re, r ? 0 : Me), tr(s + 256 | 0, e[s + 288 >> 2], e[s + 292 >> 2], e[s + 296 >> 2], e[s + 300 >> 2], e[s + 272 >> 2], e[s + 276 >> 2], e[s + 280 >> 2], e[s + 284 >> 2]), Nc(s + 240 | 0, e[s + 256 >> 2], e[s + 260 >> 2], e[s + 264 >> 2], e[s + 268 >> 2], i, u, R, xe), r = e[s + 240 >> 2], n = e[s + 244 >> 2], i = e[s + 248 >> 2], u = e[s + 252 >> 2], p2(r, n, i, u, 0, 0, 0, 0) || (e[5732] = 68), j4(s + 224 | 0, r, n, i, u, w), m = e[s + 224 >> 2], U = e[s + 228 >> 2], i = e[s + 236 >> 2], r = e[s + 232 >> 2];
+                                        n = !(T & 1) & ((A2(m, U, Re, Me, 0, 0, 0, 0) | 0) != 0 & (i | 0) < 32), cs(s + 320 | 0, n + T | 0), P0(s + 304 | 0, He, o0, z, ee, e[s + 320 >> 2], e[s + 324 >> 2], e[s + 328 >> 2], e[s + 332 >> 2]), i = r, tr(s + 272 | 0, e[s + 304 >> 2], e[s + 308 >> 2], e[s + 312 >> 2], e[s + 316 >> 2], r, u, R, xe), r = n, P0(s + 288 | 0, He, o0, z, ee, r ? 0 : m, r ? 0 : U, r ? 0 : Re, r ? 0 : Me), tr(s + 256 | 0, e[s + 288 >> 2], e[s + 292 >> 2], e[s + 296 >> 2], e[s + 300 >> 2], e[s + 272 >> 2], e[s + 276 >> 2], e[s + 280 >> 2], e[s + 284 >> 2]), Nc(s + 240 | 0, e[s + 256 >> 2], e[s + 260 >> 2], e[s + 264 >> 2], e[s + 268 >> 2], i, u, R, xe), r = e[s + 240 >> 2], n = e[s + 244 >> 2], i = e[s + 248 >> 2], u = e[s + 252 >> 2], A2(r, n, i, u, 0, 0, 0, 0) || (e[5732] = 68), z4(s + 224 | 0, r, n, i, u, w), m = e[s + 224 >> 2], U = e[s + 228 >> 2], i = e[s + 236 >> 2], r = e[s + 232 >> 2];
                                         break s;
                                       }
                                       e[5732] = 68, ur(s + 208 | 0, pe), P0(s + 192 | 0, e[s + 208 >> 2], e[s + 212 >> 2], e[s + 216 >> 2], e[s + 220 >> 2], 0, 0, 0, 65536), P0(s + 176 | 0, e[s + 192 >> 2], e[s + 196 >> 2], e[s + 200 >> 2], e[s + 204 >> 2], 0, 0, 0, 65536), m = e[s + 176 >> 2], U = e[s + 180 >> 2], i = e[s + 188 >> 2], r = e[s + 184 >> 2];
@@ -19165,7 +19165,7 @@ function EI() {
                                                 break;
                                             }
                                           if (w = Y0 ? w : u, p = Y0 ? p : v, !(!n | (T & -33) != 69)) {
-                                            m = L4(f, s), r = Ve, U = r;
+                                            m = M4(f, s), r = Ve, U = r;
                                             u: {
                                               if (m | (r | 0) != -2147483648)
                                                 break u;
@@ -19193,7 +19193,7 @@ function EI() {
                                     break n;
                                   }
                                   if (r = e[o + 784 >> 2], !r) {
-                                    Ci(o, +(pe | 0) * 0), u = e[o >> 2], v = e[o + 4 >> 2], i = e[o + 12 >> 2], r = e[o + 8 >> 2];
+                                    Ii(o, +(pe | 0) * 0), u = e[o >> 2], v = e[o + 4 >> 2], i = e[o + 12 >> 2], r = e[o + 8 >> 2];
                                     break n;
                                   }
                                   if (!(u >>> 0 > 9 & (v | 0) >= 0 | (v | 0) > 0 | ((u | 0) != (w | 0) | (p | 0) != (v | 0)) | (r >>> L0 | 0 ? (L0 | 0) <= 30 : 0))) {
@@ -19225,7 +19225,7 @@ function EI() {
                                       break n;
                                     }
                                     if ((R | 0) <= 8) {
-                                      ur(o + 272 | 0, pe), cs(o + 256 | 0, e[o + 784 >> 2]), P0(o + 240 | 0, e[o + 272 >> 2], e[o + 276 >> 2], e[o + 280 >> 2], e[o + 284 >> 2], e[o + 256 >> 2], e[o + 260 >> 2], e[o + 264 >> 2], e[o + 268 >> 2]), ur(o + 224 | 0, e[(0 - R << 2) + 8960 >> 2]), B4(o + 208 | 0, e[o + 240 >> 2], e[o + 244 >> 2], e[o + 248 >> 2], e[o + 252 >> 2], e[o + 224 >> 2], e[o + 228 >> 2], e[o + 232 >> 2], e[o + 236 >> 2]), u = e[o + 208 >> 2], v = e[o + 212 >> 2], i = e[o + 220 >> 2], r = e[o + 216 >> 2];
+                                      ur(o + 272 | 0, pe), cs(o + 256 | 0, e[o + 784 >> 2]), P0(o + 240 | 0, e[o + 272 >> 2], e[o + 276 >> 2], e[o + 280 >> 2], e[o + 284 >> 2], e[o + 256 >> 2], e[o + 260 >> 2], e[o + 264 >> 2], e[o + 268 >> 2]), ur(o + 224 | 0, e[(0 - R << 2) + 8960 >> 2]), b4(o + 208 | 0, e[o + 240 >> 2], e[o + 244 >> 2], e[o + 248 >> 2], e[o + 252 >> 2], e[o + 224 >> 2], e[o + 228 >> 2], e[o + 232 >> 2], e[o + 236 >> 2]), u = e[o + 208 >> 2], v = e[o + 212 >> 2], i = e[o + 220 >> 2], r = e[o + 216 >> 2];
                                       break n;
                                     }
                                     if (r = (ne(R, -3) + L0 | 0) + 27 | 0, i = e[o + 784 >> 2], i >>> r | 0 && (r | 0) <= 30)
@@ -19324,7 +19324,7 @@ function EI() {
                                       }
                                       break;
                                     }
-                                    Ci(o + 656 | 0, Bc(225 - i | 0)), jl(o + 688 | 0, e[o + 656 >> 2], e[o + 660 >> 2], e[o + 664 >> 2], e[o + 668 >> 2], m, U, u, v), He = e[o + 696 >> 2], o0 = e[o + 700 >> 2], Re = e[o + 688 >> 2], Me = e[o + 692 >> 2], Ci(o + 640 | 0, Bc(113 - i | 0)), O4(o + 672 | 0, m, U, u, v, e[o + 640 >> 2], e[o + 644 >> 2], e[o + 648 >> 2], e[o + 652 >> 2]), w = e[o + 672 >> 2], p = e[o + 676 >> 2], z = e[o + 680 >> 2], ee = e[o + 684 >> 2], Nc(o + 624 | 0, m, U, u, v, w, p, z, ee), tr(o + 608 | 0, Re, Me, He, o0, e[o + 624 >> 2], e[o + 628 >> 2], e[o + 632 >> 2], e[o + 636 >> 2]), u = e[o + 616 >> 2], v = e[o + 620 >> 2], m = e[o + 608 >> 2], U = e[o + 612 >> 2];
+                                    Ii(o + 656 | 0, Bc(225 - i | 0)), zl(o + 688 | 0, e[o + 656 >> 2], e[o + 660 >> 2], e[o + 664 >> 2], e[o + 668 >> 2], m, U, u, v), He = e[o + 696 >> 2], o0 = e[o + 700 >> 2], Re = e[o + 688 >> 2], Me = e[o + 692 >> 2], Ii(o + 640 | 0, Bc(113 - i | 0)), N4(o + 672 | 0, m, U, u, v, e[o + 640 >> 2], e[o + 644 >> 2], e[o + 648 >> 2], e[o + 652 >> 2]), w = e[o + 672 >> 2], p = e[o + 676 >> 2], z = e[o + 680 >> 2], ee = e[o + 684 >> 2], Nc(o + 624 | 0, m, U, u, v, w, p, z, ee), tr(o + 608 | 0, Re, Me, He, o0, e[o + 624 >> 2], e[o + 628 >> 2], e[o + 632 >> 2], e[o + 636 >> 2]), u = e[o + 616 >> 2], v = e[o + 620 >> 2], m = e[o + 608 >> 2], U = e[o + 612 >> 2];
                                   }
                                   R = n + 4 & 2047;
                                   s: {
@@ -19335,30 +19335,30 @@ function EI() {
                                       if (R >>> 0 <= 499999999) {
                                         if (!R & (n + 5 & 2047) == (r | 0))
                                           break f;
-                                        Ci(o + 496 | 0, +(pe | 0) * 0.25), tr(o + 480 | 0, w, p, z, ee, e[o + 496 >> 2], e[o + 500 >> 2], e[o + 504 >> 2], e[o + 508 >> 2]), z = e[o + 488 >> 2], ee = e[o + 492 >> 2], w = e[o + 480 >> 2], p = e[o + 484 >> 2];
+                                        Ii(o + 496 | 0, +(pe | 0) * 0.25), tr(o + 480 | 0, w, p, z, ee, e[o + 496 >> 2], e[o + 500 >> 2], e[o + 504 >> 2], e[o + 508 >> 2]), z = e[o + 488 >> 2], ee = e[o + 492 >> 2], w = e[o + 480 >> 2], p = e[o + 484 >> 2];
                                         break f;
                                       }
                                       if ((R | 0) != 5e8) {
-                                        Ci(o + 592 | 0, +(pe | 0) * 0.75), tr(o + 576 | 0, w, p, z, ee, e[o + 592 >> 2], e[o + 596 >> 2], e[o + 600 >> 2], e[o + 604 >> 2]), z = e[o + 584 >> 2], ee = e[o + 588 >> 2], w = e[o + 576 >> 2], p = e[o + 580 >> 2];
+                                        Ii(o + 592 | 0, +(pe | 0) * 0.75), tr(o + 576 | 0, w, p, z, ee, e[o + 592 >> 2], e[o + 596 >> 2], e[o + 600 >> 2], e[o + 604 >> 2]), z = e[o + 584 >> 2], ee = e[o + 588 >> 2], w = e[o + 576 >> 2], p = e[o + 580 >> 2];
                                         break f;
                                       }
                                       if (Gt = +(pe | 0), (n + 5 & 2047) == (r | 0)) {
-                                        Ci(o + 528 | 0, Gt * 0.5), tr(o + 512 | 0, w, p, z, ee, e[o + 528 >> 2], e[o + 532 >> 2], e[o + 536 >> 2], e[o + 540 >> 2]), z = e[o + 520 >> 2], ee = e[o + 524 >> 2], w = e[o + 512 >> 2], p = e[o + 516 >> 2];
+                                        Ii(o + 528 | 0, Gt * 0.5), tr(o + 512 | 0, w, p, z, ee, e[o + 528 >> 2], e[o + 532 >> 2], e[o + 536 >> 2], e[o + 540 >> 2]), z = e[o + 520 >> 2], ee = e[o + 524 >> 2], w = e[o + 512 >> 2], p = e[o + 516 >> 2];
                                         break f;
                                       }
-                                      Ci(o + 560 | 0, Gt * 0.75), tr(o + 544 | 0, w, p, z, ee, e[o + 560 >> 2], e[o + 564 >> 2], e[o + 568 >> 2], e[o + 572 >> 2]), z = e[o + 552 >> 2], ee = e[o + 556 >> 2], w = e[o + 544 >> 2], p = e[o + 548 >> 2];
+                                      Ii(o + 560 | 0, Gt * 0.75), tr(o + 544 | 0, w, p, z, ee, e[o + 560 >> 2], e[o + 564 >> 2], e[o + 568 >> 2], e[o + 572 >> 2]), z = e[o + 552 >> 2], ee = e[o + 556 >> 2], w = e[o + 544 >> 2], p = e[o + 548 >> 2];
                                     }
-                                    if ((i | 0) > 111 || (O4(o + 464 | 0, w, p, z, ee, 0, 0, 0, 1073676288), p2(e[o + 464 >> 2], e[o + 468 >> 2], e[o + 472 >> 2], e[o + 476 >> 2], 0, 0, 0, 0)))
+                                    if ((i | 0) > 111 || (N4(o + 464 | 0, w, p, z, ee, 0, 0, 0, 1073676288), A2(e[o + 464 >> 2], e[o + 468 >> 2], e[o + 472 >> 2], e[o + 476 >> 2], 0, 0, 0, 0)))
                                       break s;
                                     tr(o + 448 | 0, w, p, z, ee, 0, 0, 0, 1073676288), z = e[o + 456 >> 2], ee = e[o + 460 >> 2], w = e[o + 448 >> 2], p = e[o + 452 >> 2];
                                   }
                                   tr(o + 432 | 0, m, U, u, v, w, p, z, ee), Nc(o + 416 | 0, e[o + 432 >> 2], e[o + 436 >> 2], e[o + 440 >> 2], e[o + 444 >> 2], Re, Me, He, o0), u = e[o + 424 >> 2], v = e[o + 428 >> 2], m = e[o + 416 >> 2], U = e[o + 420 >> 2];
                                   s: {
-                                    if ((rt - 2 | 0) >= (_ & 2147483647) || (e[o + 408 >> 2] = u, e[o + 412 >> 2] = v & 2147483647, e[o + 400 >> 2] = m, e[o + 404 >> 2] = U, P0(o + 384 | 0, m, U, u, v, 0, 0, 0, 1073610752), n = il(e[o + 400 >> 2], e[o + 404 >> 2], e[o + 408 >> 2], e[o + 412 >> 2], 1081081856), r = (n | 0) >= 0, u = r ? e[o + 392 >> 2] : u, v = r ? e[o + 396 >> 2] : v, m = r ? e[o + 384 >> 2] : m, U = r ? e[o + 388 >> 2] : U, xe = r + xe | 0, !(T & ((i | 0) != (f | 0) | (n | 0) < 0) & (p2(w, p, z, ee, 0, 0, 0, 0) | 0) != 0) & (xe + 110 | 0) <= (rt | 0)))
+                                    if ((rt - 2 | 0) >= (_ & 2147483647) || (e[o + 408 >> 2] = u, e[o + 412 >> 2] = v & 2147483647, e[o + 400 >> 2] = m, e[o + 404 >> 2] = U, P0(o + 384 | 0, m, U, u, v, 0, 0, 0, 1073610752), n = rl(e[o + 400 >> 2], e[o + 404 >> 2], e[o + 408 >> 2], e[o + 412 >> 2], 1081081856), r = (n | 0) >= 0, u = r ? e[o + 392 >> 2] : u, v = r ? e[o + 396 >> 2] : v, m = r ? e[o + 384 >> 2] : m, U = r ? e[o + 388 >> 2] : U, xe = r + xe | 0, !(T & ((i | 0) != (f | 0) | (n | 0) < 0) & (A2(w, p, z, ee, 0, 0, 0, 0) | 0) != 0) & (xe + 110 | 0) <= (rt | 0)))
                                       break s;
                                     e[5732] = 68;
                                   }
-                                  j4(o + 368 | 0, m, U, u, v, xe), u = e[o + 368 >> 2], v = e[o + 372 >> 2], i = e[o + 380 >> 2], r = e[o + 376 >> 2];
+                                  z4(o + 368 | 0, m, U, u, v, xe), u = e[o + 368 >> 2], v = e[o + 372 >> 2], i = e[o + 380 >> 2], r = e[o + 376 >> 2];
                                 }
                                 e[F + 40 >> 2] = r, e[F + 44 >> 2] = i, e[F + 32 >> 2] = u, e[F + 36 >> 2] = v, C = o + 8976 | 0, w = e[F + 40 >> 2], p = e[F + 44 >> 2], u = e[F + 32 >> 2], v = e[F + 36 >> 2];
                                 break e;
@@ -19527,7 +19527,7 @@ function EI() {
                                     for (n = n + f | 0; l[o | 0] = A[r | 0], l[o + 1 | 0] = A[r + 1 | 0], l[o + 2 | 0] = A[r + 2 | 0], l[o + 3 | 0] = A[r + 3 | 0], l[o + 4 | 0] = A[r + 4 | 0], l[o + 5 | 0] = A[r + 5 | 0], l[o + 6 | 0] = A[r + 6 | 0], l[o + 7 | 0] = A[r + 7 | 0], o = o + 8 | 0, r = r + 8 | 0, (n | 0) != (r | 0); )
                                       ;
                                   }
-                                  if (l[o | 0] = 0, r = tl(i + 16 | 0, i + 88 | 0), l[i + 27 | 0] < 0 && x(e[i + 16 >> 2]), !r) {
+                                  if (l[o | 0] = 0, r = el(i + 16 | 0, i + 88 | 0), l[i + 27 | 0] < 0 && x(e[i + 16 >> 2]), !r) {
                                     e[t >> 2] = 0, e[t + 4 >> 2] = 0, e[t + 48 >> 2] = 0, e[t + 52 >> 2] = 0, e[t + 40 >> 2] = 0, e[t + 44 >> 2] = 0, e[t + 32 >> 2] = 0, e[t + 36 >> 2] = 0, e[t + 24 >> 2] = 0, e[t + 28 >> 2] = 0, e[t + 16 >> 2] = 0, e[t + 20 >> 2] = 0, e[t + 8 >> 2] = 0, e[t + 12 >> 2] = 0;
                                     break n;
                                   }
@@ -19567,7 +19567,7 @@ function EI() {
                                     for (n = n + f | 0; l[o | 0] = A[r | 0], l[o + 1 | 0] = A[r + 1 | 0], l[o + 2 | 0] = A[r + 2 | 0], l[o + 3 | 0] = A[r + 3 | 0], l[o + 4 | 0] = A[r + 4 | 0], l[o + 5 | 0] = A[r + 5 | 0], l[o + 6 | 0] = A[r + 6 | 0], l[o + 7 | 0] = A[r + 7 | 0], o = o + 8 | 0, r = r + 8 | 0, (n | 0) != (r | 0); )
                                       ;
                                   }
-                                  if (l[o | 0] = 0, r = tl(i + 16 | 0, i + 88 | 0), l[i + 27 | 0] < 0 && x(e[i + 16 >> 2]), !r) {
+                                  if (l[o | 0] = 0, r = el(i + 16 | 0, i + 88 | 0), l[i + 27 | 0] < 0 && x(e[i + 16 >> 2]), !r) {
                                     e[t >> 2] = 0, e[t + 4 >> 2] = 0, e[t + 48 >> 2] = 0, e[t + 52 >> 2] = 0, e[t + 40 >> 2] = 0, e[t + 44 >> 2] = 0, e[t + 32 >> 2] = 0, e[t + 36 >> 2] = 0, e[t + 24 >> 2] = 0, e[t + 28 >> 2] = 0, e[t + 16 >> 2] = 0, e[t + 20 >> 2] = 0, e[t + 8 >> 2] = 0, e[t + 12 >> 2] = 0;
                                     break n;
                                   }
@@ -20724,7 +20724,7 @@ function EI() {
                                 }
                                 if (t = e[n + 36 >> 2], t && x(t), t = je(1), e[n + 36 >> 2] = t, r = t + 1 | 0, e[n + 44 >> 2] = r, l[t | 0] = 1, e[5996] = 0, e[n + 40 >> 2] = r, D(9, 24232, n + 36 | 0) | 0, t = e[5996], e[5996] = 0, (t | 0) == 1)
                                   break s;
-                                if (t = e[n + 36 >> 2], t && x(t), e[6066] = 0, e[6067] = 0, e[6064] = 1, e[6068] = 0, e[6069] = 0, l[24262] = 0, t0[12130] = 0, e[6074] = 0, e[6075] = 0, e[6072] = -1, e[6073] = 0, l[24283] = 0, l[24284] = 0, l[24285] = 0, l[24286] = 0, e[6070] = 0, e[6076] = 0, e[6077] = 0, e[6078] = 0, r = je(56), e[r >> 2] = 0, e[r + 4 >> 2] = 0, e[r + 40 >> 2] = 0, e[r + 44 >> 2] = 0, e[r + 32 >> 2] = 0, e[r + 36 >> 2] = 0, e[r + 24 >> 2] = 0, e[r + 28 >> 2] = 0, e[r + 16 >> 2] = 0, e[r + 20 >> 2] = 0, e[r + 8 >> 2] = 0, e[r + 12 >> 2] = 0, bn(24304, r), t = je(4), e[t >> 2] = r, e[5996] = 0, r = K(3, 56) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1)
+                                if (t = e[n + 36 >> 2], t && x(t), e[6066] = 0, e[6067] = 0, e[6064] = 1, e[6068] = 0, e[6069] = 0, l[24262] = 0, t0[12130] = 0, e[6074] = 0, e[6075] = 0, e[6072] = -1, e[6073] = 0, l[24283] = 0, l[24284] = 0, l[24285] = 0, l[24286] = 0, e[6070] = 0, e[6076] = 0, e[6077] = 0, e[6078] = 0, r = je(56), e[r >> 2] = 0, e[r + 4 >> 2] = 0, e[r + 40 >> 2] = 0, e[r + 44 >> 2] = 0, e[r + 32 >> 2] = 0, e[r + 36 >> 2] = 0, e[r + 24 >> 2] = 0, e[r + 28 >> 2] = 0, e[r + 16 >> 2] = 0, e[r + 20 >> 2] = 0, e[r + 8 >> 2] = 0, e[r + 12 >> 2] = 0, Tn(24304, r), t = je(4), e[t >> 2] = r, e[5996] = 0, r = K(3, 56) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1)
                                   break n;
                                 break i;
                               }
@@ -20734,9 +20734,9 @@ function EI() {
                             o = B() | 0;
                             break t;
                           }
-                          if (e[r + 16 >> 2] = 0, e[r + 20 >> 2] = 0, e[r + 4 >> 2] = t, e[r >> 2] = 21, t = t + 4 | 0, e[r + 12 >> 2] = t, e[r + 8 >> 2] = t, e[r + 24 >> 2] = 0, e[r + 28 >> 2] = 0, e[r + 32 >> 2] = 0, e[r + 36 >> 2] = 0, e[r + 40 >> 2] = 0, e[r + 44 >> 2] = 0, bn(24304, r), e[6079] = r, r = je(56), e[r + 4 >> 2] = 0, e[r + 8 >> 2] = 0, e[r >> 2] = 1, e[r + 12 >> 2] = 0, e[r + 16 >> 2] = 0, e[r + 20 >> 2] = 0, e[r + 24 >> 2] = 0, e[r + 28 >> 2] = 0, e[r + 32 >> 2] = 0, e[r + 36 >> 2] = 0, e[r + 40 >> 2] = 0, e[r + 44 >> 2] = 0, bn(24304, r), t = je(4), e[t >> 2] = r, e[5996] = 0, r = K(3, 56) | 0, i = e[5996], e[5996] = 0, (i | 0) == 1)
+                          if (e[r + 16 >> 2] = 0, e[r + 20 >> 2] = 0, e[r + 4 >> 2] = t, e[r >> 2] = 21, t = t + 4 | 0, e[r + 12 >> 2] = t, e[r + 8 >> 2] = t, e[r + 24 >> 2] = 0, e[r + 28 >> 2] = 0, e[r + 32 >> 2] = 0, e[r + 36 >> 2] = 0, e[r + 40 >> 2] = 0, e[r + 44 >> 2] = 0, Tn(24304, r), e[6079] = r, r = je(56), e[r + 4 >> 2] = 0, e[r + 8 >> 2] = 0, e[r >> 2] = 1, e[r + 12 >> 2] = 0, e[r + 16 >> 2] = 0, e[r + 20 >> 2] = 0, e[r + 24 >> 2] = 0, e[r + 28 >> 2] = 0, e[r + 32 >> 2] = 0, e[r + 36 >> 2] = 0, e[r + 40 >> 2] = 0, e[r + 44 >> 2] = 0, Tn(24304, r), t = je(4), e[t >> 2] = r, e[5996] = 0, r = K(3, 56) | 0, i = e[5996], e[5996] = 0, (i | 0) == 1)
                             break i;
-                          e[r + 16 >> 2] = 0, e[r + 20 >> 2] = 0, e[r + 4 >> 2] = t, e[r >> 2] = 21, t = t + 4 | 0, e[r + 12 >> 2] = t, e[r + 8 >> 2] = t, e[r + 24 >> 2] = 0, e[r + 28 >> 2] = 0, e[r + 32 >> 2] = 0, e[r + 36 >> 2] = 0, e[r + 40 >> 2] = 0, e[r + 44 >> 2] = 0, bn(24304, r), e[6080] = r, C = n + 48 | 0;
+                          e[r + 16 >> 2] = 0, e[r + 20 >> 2] = 0, e[r + 4 >> 2] = t, e[r >> 2] = 21, t = t + 4 | 0, e[r + 12 >> 2] = t, e[r + 8 >> 2] = t, e[r + 24 >> 2] = 0, e[r + 28 >> 2] = 0, e[r + 32 >> 2] = 0, e[r + 36 >> 2] = 0, e[r + 40 >> 2] = 0, e[r + 44 >> 2] = 0, Tn(24304, r), e[6080] = r, C = n + 48 | 0;
                           break r;
                         }
                         r = B() | 0, x(t), ve(r | 0), V();
@@ -20888,7 +20888,7 @@ function EI() {
                                   m = B() | 0;
                                   break t;
                                 }
-                                if (r = A[s - 4 | 0], e[5996] = 0, xi(122, f + 40 | 0, r | 0, R | 0, (o + (i << 5) | 0) - (u << 5) | 0, u | 0), r = e[5996], e[5996] = 0, (r | 0) == 1) {
+                                if (r = A[s - 4 | 0], e[5996] = 0, Si(122, f + 40 | 0, r | 0, R | 0, (o + (i << 5) | 0) - (u << 5) | 0, u | 0), r = e[5996], e[5996] = 0, (r | 0) == 1) {
                                   m = B() | 0;
                                   break t;
                                 }
@@ -21005,9 +21005,9 @@ function EI() {
                         e[f + 32 >> 2] = i, x(r), v && x(v), C = f + 96 | 0;
                         return;
                       }
-                      ll(f + 28 | 0), v && x(v), ve(m | 0), V();
+                      ul(f + 28 | 0), v && x(v), ve(m | 0), V();
                     }
-                    t = B() | 0, ll(f + 28 | 0), ve(t | 0), V();
+                    t = B() | 0, ul(f + 28 | 0), ve(t | 0), V();
                   }
                   V();
                 }
@@ -21506,20 +21506,20 @@ function EI() {
                         U && x(U), C = f + 48 | 0;
                         return;
                       }
-                      Cl(f + 24 | 0), U && x(U), ve(r | 0), V();
+                      Il(f + 24 | 0), U && x(U), ve(r | 0), V();
                     }
-                    t = B() | 0, Cl(f + 24 | 0), ve(t | 0), V();
+                    t = B() | 0, Il(f + 24 | 0), ve(t | 0), V();
                   }
                   V();
                 }
-                function T4(t, r, i) {
+                function x4(t, r, i) {
                   var n = 0, o = 0, s = 0, f = 0, u = 0, p = 0, w = 0, v = 0, m = 0, T = 0, R = 0, U = 0, _ = 0, F = 0, z = 0, ee = 0, pe = 0, xe = 0, Re = 0, Me = 0, He = 0;
                   o = C - 144 | 0, C = o, n = Fr(o, 0, 144), e[n + 76 >> 2] = -1, e[n + 44 >> 2] = t, e[n + 32 >> 2] = 178, e[n + 84 >> 2] = t, ee = i, t = 0, w = C - 304 | 0, C = w;
                   e: {
                     t: {
                       r: {
                         i: {
-                          if (e[n + 4 >> 2] || (pl(n), e[n + 4 >> 2]))
+                          if (e[n + 4 >> 2] || (Al(n), e[n + 4 >> 2]))
                             break i;
                           break r;
                         }
@@ -21665,7 +21665,7 @@ function EI() {
                                             i = (i | 0) <= 1 ? 1 : i;
                                             break u;
                                           }
-                                          Tl(m, xe, T, U);
+                                          xl(m, xe, T, U);
                                           break l;
                                         }
                                         for (ai(n, 0, 0); ; ) {
@@ -21705,7 +21705,7 @@ function EI() {
                                                   case 13:
                                                   case 14:
                                                   case 15:
-                                                    if (x4(w + 8 | 0, n, xe, 0), i = e[n + 4 >> 2] - e[n + 44 >> 2] | 0, e[n + 120 >> 2] != (0 - i | 0) | e[n + 124 >> 2] != (0 - ((i >> 31) + ((i | 0) != 0) | 0) | 0))
+                                                    if (S4(w + 8 | 0, n, xe, 0), i = e[n + 4 >> 2] - e[n + 44 >> 2] | 0, e[n + 120 >> 2] != (0 - i | 0) | e[n + 124 >> 2] != (0 - ((i >> 31) + ((i | 0) != 0) | 0) | 0))
                                                       break c;
                                                     break s;
                                                   case 3:
@@ -21996,7 +21996,7 @@ function EI() {
                                               e[m >> 2] = o;
                                               break u;
                                             }
-                                            Tl(m, xe, o, p);
+                                            xl(m, xe, o, p);
                                             break u;
                                           }
                                           if (!m)
@@ -22005,7 +22005,7 @@ function EI() {
                                           c:
                                             switch (xe | 0) {
                                               case 0:
-                                                oo[m >> 2] = Q4(r, o, i, s);
+                                                oo[m >> 2] = K4(r, o, i, s);
                                                 break u;
                                               case 1:
                                                 ye[m >> 3] = hc(r, o, i, s);
@@ -22427,9 +22427,9 @@ function EI() {
                                           l: {
                                             u: {
                                               for (; ; ) {
-                                                if (s = v << 3, Re = ye[s + e[u + 68 >> 2] >> 3], Me = ye[s + e[u + 56 >> 2] >> 3], f = e[(v << 2) + f >> 2], e[5996] = 0, f = k2(50, f | 0, +Me, +Re, r | 0) | 0, p = e[5996], e[5996] = 0, (p | 0) == 1)
+                                                if (s = v << 3, Re = ye[s + e[u + 68 >> 2] >> 3], Me = ye[s + e[u + 56 >> 2] >> 3], f = e[(v << 2) + f >> 2], e[5996] = 0, f = h2(50, f | 0, +Me, +Re, r | 0) | 0, p = e[5996], e[5996] = 0, (p | 0) == 1)
                                                   break l;
-                                                if (s = s + e[R + e[u + 44 >> 2] >> 2] | 0, p = e[s >> 2], s = e[s + 4 >> 2], T = e[f + 4 >> 2], f = e[f >> 2], e[5996] = 0, xi(51, u + 124 | 0, f | 0, T | 0, p | 0, s | 0), s = e[5996], e[5996] = 0, (s | 0) != 1) {
+                                                if (s = s + e[R + e[u + 44 >> 2] >> 2] | 0, p = e[s >> 2], s = e[s + 4 >> 2], T = e[f + 4 >> 2], f = e[f >> 2], e[5996] = 0, Si(51, u + 124 | 0, f | 0, T | 0, p | 0, s | 0), s = e[5996], e[5996] = 0, (s | 0) != 1) {
                                                   p = e[u + 28 >> 2];
                                                   h: {
                                                     if (p >>> 0 > w >>> 0) {
@@ -22974,7 +22974,7 @@ function EI() {
                                       }
                                       if ((rc(22864) | 0) != (t | 0))
                                         break r;
-                                      if (t = Ti(v | 0) | 0, t = L[e[e[t >> 2] + 8 >> 2]](t) | 0, e[5996] = 0, f = D(30, w + 120 | 0, t | 0) | 0, t = e[5996], e[5996] = 0, (t | 0) == 1)
+                                      if (t = xi(v | 0) | 0, t = L[e[e[t >> 2] + 8 >> 2]](t) | 0, e[5996] = 0, f = D(30, w + 120 | 0, t | 0) | 0, t = e[5996], e[5996] = 0, (t | 0) == 1)
                                         break l;
                                       if (e[5996] = 0, t = ue(99, f | 0, 0, 5474) | 0, s = e[5996], e[5996] = 0, (s | 0) == 1)
                                         break o;
@@ -22988,7 +22988,7 @@ function EI() {
                                       }
                                       if (l[t + 11 | 0] < 0 && x(e[t >> 2]), e[5996] = 0, t = D(30, w + 16 | 0, 5575) | 0, r = e[5996], e[5996] = 0, (r | 0) == 1)
                                         break n;
-                                      f = n, r = e[t >> 2], i = A[t + 11 | 0], n = i << 24 >> 24, s = (n | 0) < 0, u = s ? r : t, t = s ? e[t + 4 >> 2] : i, i = o - 1 | 0, t = (t | 0) < (i | 0) ? t : i, l[s0(f, u, t) + t | 0] = 0, (n | 0) < 0 && x(r), A2();
+                                      f = n, r = e[t >> 2], i = A[t + 11 | 0], n = i << 24 >> 24, s = (n | 0) < 0, u = s ? r : t, t = s ? e[t + 4 >> 2] : i, i = o - 1 | 0, t = (t | 0) < (i | 0) ? t : i, l[s0(f, u, t) + t | 0] = 0, (n | 0) < 0 && x(r), k2();
                                     }
                                     C = w + 208 | 0;
                                     return;
@@ -23019,7 +23019,7 @@ function EI() {
                   }
                   V();
                 }
-                function b4(t, r, i, n, o) {
+                function T4(t, r, i, n, o) {
                   var s = 0, f = 0, u = 0, p = 0, w = 0, v = 0, m = 0, T = 0, R = 0, U = 0, _ = 0, F = 0, z = 0, ee = 0, pe = 0, xe = 0;
                   u = C - 160 | 0, C = u, fo(u + 48 | 0, i, ye[t + 16 >> 3], ye[t + 24 >> 3], 0, 0), e[5996] = 0, f = K(46, i | 0) | 0, s = e[5996], e[5996] = 0;
                   e: {
@@ -23067,9 +23067,9 @@ function EI() {
                                           l: {
                                             u: {
                                               for (; ; ) {
-                                                if (f = m << 3, pe = ye[f + e[u + 60 >> 2] >> 3], xe = ye[f + e[u + 48 >> 2] >> 3], s = e[(m << 2) + s >> 2], e[5996] = 0, s = k2(50, s | 0, +xe, +pe, r | 0) | 0, p = e[5996], e[5996] = 0, (p | 0) == 1)
+                                                if (f = m << 3, pe = ye[f + e[u + 60 >> 2] >> 3], xe = ye[f + e[u + 48 >> 2] >> 3], s = e[(m << 2) + s >> 2], e[5996] = 0, s = h2(50, s | 0, +xe, +pe, r | 0) | 0, p = e[5996], e[5996] = 0, (p | 0) == 1)
                                                   break l;
-                                                if (f = f + e[R + e[u + 36 >> 2] >> 2] | 0, p = e[f >> 2], f = e[f + 4 >> 2], T = e[s + 4 >> 2], s = e[s >> 2], e[5996] = 0, xi(51, u + 136 | 0, s | 0, T | 0, p | 0, f | 0), s = e[5996], e[5996] = 0, (s | 0) != 1) {
+                                                if (f = f + e[R + e[u + 36 >> 2] >> 2] | 0, p = e[f >> 2], f = e[f + 4 >> 2], T = e[s + 4 >> 2], s = e[s >> 2], e[5996] = 0, Si(51, u + 136 | 0, s | 0, T | 0, p | 0, f | 0), s = e[5996], e[5996] = 0, (s | 0) != 1) {
                                                   p = e[u + 20 >> 2];
                                                   h: {
                                                     if (p >>> 0 > w >>> 0) {
@@ -23321,9 +23321,9 @@ function EI() {
                                               f = B() | 0;
                                               break o;
                                             }
-                                            f = B() | 0, xl(u + 136 | 0), e[u + 108 >> 2] = p;
+                                            f = B() | 0, Sl(u + 136 | 0), e[u + 108 >> 2] = p;
                                           }
-                                          wl(u + 128 | 0);
+                                          dl(u + 128 | 0);
                                         }
                                         S0(u + 116 | 0), x(w);
                                       }
@@ -23391,8 +23391,8 @@ function EI() {
                   }
                   V();
                 }
-                function B4(t, r, i, n, o, s, f, u, p) {
-                  var w = 0, v = 0, m = 0, T = 0, R = 0, U = 0, _ = 0, F = 0, z = 0, ee = 0, pe = 0, xe = 0, Re = 0, Me = 0, He = 0, o0 = 0, O0 = 0, L0 = 0, Y0 = 0, rt = 0, At = 0, Gt = 0, zr = 0, ui = 0, _i = 0, sn = 0, Un = 0, _n = 0, Dn = 0, m2 = 0, v2 = 0, E2 = 0;
+                function b4(t, r, i, n, o, s, f, u, p) {
+                  var w = 0, v = 0, m = 0, T = 0, R = 0, U = 0, _ = 0, F = 0, z = 0, ee = 0, pe = 0, xe = 0, Re = 0, Me = 0, He = 0, o0 = 0, O0 = 0, L0 = 0, Y0 = 0, rt = 0, At = 0, Gt = 0, zr = 0, ui = 0, Ui = 0, sn = 0, On = 0, Un = 0, _n = 0, y2 = 0, m2 = 0, v2 = 0;
                   v = C - 336 | 0, C = v, T = u, R = p & 65535, U = n, _ = o & 65535, pe = (o ^ p) & -2147483648, z = p >>> 16 & 32767, ee = o >>> 16 & 32767;
                   e: {
                     t: {
@@ -23430,10 +23430,10 @@ function EI() {
                         break t;
                       n = !(R | T), u = n, p = n ? s : T, n = n << 6, u = b0(u ? f : R), n = n + ((u | 0) == 32 ? b0(p) + 32 | 0 : u) | 0, Bt(v + 304 | 0, s, f, T, R, n - 15 | 0), xe = (n + xe | 0) - 16 | 0, T = e[v + 312 >> 2], R = e[v + 316 >> 2], s = e[v + 304 >> 2], f = e[v + 308 >> 2];
                     }
-                    o = R | 65536, O0 = o, L0 = T, n = T, w = o << 15 | n >>> 17, o = n << 15 | f >>> 17, n = o, p = 0 - n | 0, u = w, w = 1963258675 - (w + ((n | 0) != 0) | 0) | 0, gt(v + 288 | 0, n, u, 0, 0, p, w, 0, 0), n = e[v + 296 >> 2], gt(v + 272 | 0, 0 - n | 0, 0 - (e[v + 300 >> 2] + ((n | 0) != 0) | 0) | 0, 0, 0, p, w, 0, 0), n = e[v + 280 >> 2], p = n << 1 | e[v + 276 >> 2] >>> 31, n = e[v + 284 >> 2] << 1 | n >>> 31, gt(v + 256 | 0, p, n, 0, 0, o, u, 0, 0), w = e[v + 264 >> 2], gt(v + 240 | 0, p, n, 0, 0, 0 - w | 0, 0 - (e[v + 268 >> 2] + ((w | 0) != 0) | 0) | 0, 0, 0), p = e[v + 248 >> 2], w = p << 1 | e[v + 244 >> 2] >>> 31, n = e[v + 252 >> 2] << 1 | p >>> 31, gt(v + 224 | 0, w, n, 0, 0, o, u, 0, 0), p = e[v + 232 >> 2], gt(v + 208 | 0, w, n, 0, 0, 0 - p | 0, 0 - (e[v + 236 >> 2] + ((p | 0) != 0) | 0) | 0, 0, 0), n = e[v + 216 >> 2], p = n << 1 | e[v + 212 >> 2] >>> 31, n = e[v + 220 >> 2] << 1 | n >>> 31, gt(v + 192 | 0, p, n, 0, 0, o, u, 0, 0), w = e[v + 200 >> 2], gt(v + 176 | 0, p, n, 0, 0, 0 - w | 0, 0 - (e[v + 204 >> 2] + ((w | 0) != 0) | 0) | 0, 0, 0), p = o, o = e[v + 184 >> 2], n = u, T = o << 1 | e[v + 180 >> 2] >>> 31, u = T - 1 | 0, o = (e[v + 188 >> 2] << 1 | o >>> 31) - !T | 0, gt(v + 160 | 0, p, n, 0, 0, u, o, 0, 0), n = u, gt(v + 144 | 0, s << 15, f << 15 | s >>> 17, 0, 0, n, o, 0, 0), Me = v + 112 | 0, He = e[v + 168 >> 2], u = e[v + 172 >> 2], T = e[v + 160 >> 2], p = e[v + 152 >> 2], m = T + p | 0, R = e[v + 164 >> 2], w = R + e[v + 156 >> 2] | 0, w = p >>> 0 > m >>> 0 ? w + 1 | 0 : w, p = w, w = (R | 0) == (w | 0) & m >>> 0 < T >>> 0 | w >>> 0 < R >>> 0, R = w + He | 0, w = w >>> 0 > R >>> 0 ? u + 1 | 0 : u, T = !p & m >>> 0 > 1 | (p | 0) != 0, u = R + T | 0, w = T >>> 0 > u >>> 0 ? w + 1 | 0 : w, gt(Me, n, o, 0, 0, 0 - u | 0, 0 - (((u | 0) != 0) + w | 0) | 0, 0, 0), gt(v + 128 | 0, 1 - m | 0, 0 - ((m >>> 0 > 1) + p | 0) | 0, 0, 0, n, o, 0, 0), sn = (ee - z | 0) + xe | 0, o = e[v + 116 >> 2], Me = o, n = e[v + 112 >> 2], w = o << 1 | n >>> 31, p = n << 1, R = w, n = w, u = e[v + 140 >> 2], o0 = u, o = e[v + 136 >> 2], w = u << 1 | o >>> 31, m = o << 1 | e[v + 132 >> 2] >>> 31, u = m + p | 0, n = n + w | 0, n = u >>> 0 < m >>> 0 ? n + 1 | 0 : n, o = n, n = n - (u >>> 0 < 13927) | 0, Re = n, He = n, m = 0, w = _ | 65536, Un = w, _n = U, n = U, w = w << 1 | n >>> 31, m2 = n << 1, v2 = w, Gt = w, n = f0(Re, m, w, 0), w = Ve, Y0 = n, rt = w, xe = r << 1, n = i << 1 | r >>> 31, z = n, w = 0, ee = w, T = u - 13927 | 0, Re = (o | 0) == (Re | 0) & T >>> 0 < u >>> 0 | o >>> 0 > Re >>> 0, o = (o | 0) == (R | 0) & u >>> 0 < p >>> 0 | o >>> 0 < R >>> 0, n = e[v + 120 >> 2], u = e[v + 124 >> 2] << 1 | n >>> 31, n = n << 1 | Me >>> 31, m = o0 >>> 31 | 0, n = m + n | 0, w = u, w = n >>> 0 < m >>> 0 ? w + 1 | 0 : w, u = n, n = n + o | 0, w = u >>> 0 > n >>> 0 ? w + 1 | 0 : w, o = n, n = n + Re | 0, m = o >>> 0 > n >>> 0 ? w + 1 | 0 : w, o = n - 1 | 0, At = m - !n | 0, o0 = 0, p = f0(z, ee, At, o0), n = p + Y0 | 0, u = Ve + rt | 0, u = n >>> 0 < p >>> 0 ? u + 1 | 0 : u, R = (rt | 0) == (u | 0) & n >>> 0 < Y0 >>> 0 | u >>> 0 < rt >>> 0, Y0 = o, Dn = i >>> 31 | 0, ui = Dn | U << 1, Re = 0, o = f0(o, 0, ui, Re), U = o + n | 0, w = Ve + u | 0, m = 0, w = o >>> 0 > U >>> 0 ? w + 1 | 0 : w, _ = w, n = (w | 0) == (u | 0) & n >>> 0 > U >>> 0 | u >>> 0 > w >>> 0, o = n, n = n + R | 0, m = o >>> 0 > n >>> 0 ? 1 : m, o = f0(Gt, ee, At, o0), n = o + n | 0, w = Ve + m | 0, R = n, n = n >>> 0 < o >>> 0 ? w + 1 | 0 : w, o = f0(Gt, ee, Y0, Re), m = Ve, u = o, o = f0(ui, Re, At, o0), p = u + o | 0, w = Ve + m | 0, w = o >>> 0 > p >>> 0 ? w + 1 | 0 : w, o = w, w = (m | 0) == (w | 0) & u >>> 0 > p >>> 0 | w >>> 0 < m >>> 0, m = R + o | 0, n = n + w | 0, n = m >>> 0 < o >>> 0 ? n + 1 | 0 : n, R = m, m = n, o = 0, n = o + U | 0, w = p + _ | 0, w = n >>> 0 < o >>> 0 ? w + 1 | 0 : w, o = w, u = (w | 0) == (_ | 0) & n >>> 0 < U >>> 0 | w >>> 0 < _ >>> 0, w = m, p = u, u = u + R | 0, w = p >>> 0 > u >>> 0 ? w + 1 | 0 : w, zr = u, m = w, Me = n, U = n, rt = T, n = f0(T, 0, ui, Re), p = Ve, u = n, T = f0(He, F, z, F), n = n + T | 0, w = Ve + p | 0, w = n >>> 0 < T >>> 0 ? w + 1 | 0 : w, T = (p | 0) == (w | 0) & n >>> 0 < u >>> 0 | p >>> 0 > w >>> 0, u = w, _i = xe & -2, p = f0(Y0, Re, _i, 0), _ = p + n | 0, w = Ve + w | 0, w = p >>> 0 > _ >>> 0 ? w + 1 | 0 : w, p = w, n = (w | 0) == (u | 0) & n >>> 0 > _ >>> 0 | u >>> 0 > w >>> 0, u = 0, w = n + T | 0, n = (w >>> 0 < n >>> 0 ? 1 : u) + o | 0, R = w + U | 0, n = R >>> 0 < w >>> 0 ? n + 1 | 0 : n, w = m, U = n, n = (n | 0) == (o | 0) & R >>> 0 < Me >>> 0 | n >>> 0 < o >>> 0, o = n, n = n + zr | 0, w = o >>> 0 > n >>> 0 ? w + 1 | 0 : w, E2 = n, Me = w, n = f0(Gt, ee, rt, F), zr = Ve, Gt = n, o = f0(At, o0, _i, F), n = n + o | 0, w = Ve + zr | 0, w = n >>> 0 < o >>> 0 ? w + 1 | 0 : w, T = n, m = f0(He, F, ui, Re), o = n + m | 0, u = w, n = w + Ve | 0, n = o >>> 0 < m >>> 0 ? n + 1 | 0 : n, ee = o, w = f0(z, F, Y0, Re), o = o + w | 0, m = Ve + n | 0, m = o >>> 0 < w >>> 0 ? m + 1 | 0 : m, At = (n | 0) == (m | 0) & o >>> 0 < ee >>> 0 | n >>> 0 > m >>> 0, w = (u | 0) == (zr | 0) & T >>> 0 < Gt >>> 0 | u >>> 0 < zr >>> 0, n = (n | 0) == (u | 0) & T >>> 0 > ee >>> 0 | n >>> 0 < u >>> 0, n = n + w | 0, n = n + At | 0, u = m, ee = u + R | 0, w = (n | o0) + U | 0, w = u >>> 0 > ee >>> 0 ? w + 1 | 0 : w, T = w, n = (U | 0) == (w | 0) & R >>> 0 > ee >>> 0 | w >>> 0 < U >>> 0, w = Me, u = n, n = n + E2 | 0, w = u >>> 0 > n >>> 0 ? w + 1 | 0 : w, o0 = n, U = w, n = f0(He, F, _i, F), He = Ve, R = n, u = f0(z, F, rt, F), n = n + u | 0, w = Ve + He | 0, w = n >>> 0 < u >>> 0 ? w + 1 | 0 : w, Me = 0, u = (w | 0) == (He | 0) & n >>> 0 < R >>> 0 | w >>> 0 < He >>> 0, R = w, n = w + _ | 0, w = (u | Me) + p | 0, w = n >>> 0 < R >>> 0 ? w + 1 | 0 : w, p = (p | 0) == (w | 0) & n >>> 0 < _ >>> 0 | p >>> 0 > w >>> 0, u = w, w = o, _ = 0, o = _ + n | 0, m = u + w | 0, w = 0, m = o >>> 0 < _ >>> 0 ? m + 1 | 0 : m, n = (u | 0) == (m | 0) & n >>> 0 > o >>> 0 | u >>> 0 > m >>> 0, o = n, n = n + p | 0, w = (o >>> 0 > n >>> 0 ? 1 : w) + T | 0, m = U, o = n, n = n + ee | 0, w = o >>> 0 > n >>> 0 ? w + 1 | 0 : w, o = w, u = (T | 0) == (w | 0) & n >>> 0 < ee >>> 0 | w >>> 0 < T >>> 0, p = u, u = u + o0 | 0, m = p >>> 0 > u >>> 0 ? m + 1 | 0 : m, p = m;
+                    o = R | 65536, O0 = o, L0 = T, n = T, w = o << 15 | n >>> 17, o = n << 15 | f >>> 17, n = o, p = 0 - n | 0, u = w, w = 1963258675 - (w + ((n | 0) != 0) | 0) | 0, gt(v + 288 | 0, n, u, 0, 0, p, w, 0, 0), n = e[v + 296 >> 2], gt(v + 272 | 0, 0 - n | 0, 0 - (e[v + 300 >> 2] + ((n | 0) != 0) | 0) | 0, 0, 0, p, w, 0, 0), n = e[v + 280 >> 2], p = n << 1 | e[v + 276 >> 2] >>> 31, n = e[v + 284 >> 2] << 1 | n >>> 31, gt(v + 256 | 0, p, n, 0, 0, o, u, 0, 0), w = e[v + 264 >> 2], gt(v + 240 | 0, p, n, 0, 0, 0 - w | 0, 0 - (e[v + 268 >> 2] + ((w | 0) != 0) | 0) | 0, 0, 0), p = e[v + 248 >> 2], w = p << 1 | e[v + 244 >> 2] >>> 31, n = e[v + 252 >> 2] << 1 | p >>> 31, gt(v + 224 | 0, w, n, 0, 0, o, u, 0, 0), p = e[v + 232 >> 2], gt(v + 208 | 0, w, n, 0, 0, 0 - p | 0, 0 - (e[v + 236 >> 2] + ((p | 0) != 0) | 0) | 0, 0, 0), n = e[v + 216 >> 2], p = n << 1 | e[v + 212 >> 2] >>> 31, n = e[v + 220 >> 2] << 1 | n >>> 31, gt(v + 192 | 0, p, n, 0, 0, o, u, 0, 0), w = e[v + 200 >> 2], gt(v + 176 | 0, p, n, 0, 0, 0 - w | 0, 0 - (e[v + 204 >> 2] + ((w | 0) != 0) | 0) | 0, 0, 0), p = o, o = e[v + 184 >> 2], n = u, T = o << 1 | e[v + 180 >> 2] >>> 31, u = T - 1 | 0, o = (e[v + 188 >> 2] << 1 | o >>> 31) - !T | 0, gt(v + 160 | 0, p, n, 0, 0, u, o, 0, 0), n = u, gt(v + 144 | 0, s << 15, f << 15 | s >>> 17, 0, 0, n, o, 0, 0), Me = v + 112 | 0, He = e[v + 168 >> 2], u = e[v + 172 >> 2], T = e[v + 160 >> 2], p = e[v + 152 >> 2], m = T + p | 0, R = e[v + 164 >> 2], w = R + e[v + 156 >> 2] | 0, w = p >>> 0 > m >>> 0 ? w + 1 | 0 : w, p = w, w = (R | 0) == (w | 0) & m >>> 0 < T >>> 0 | w >>> 0 < R >>> 0, R = w + He | 0, w = w >>> 0 > R >>> 0 ? u + 1 | 0 : u, T = !p & m >>> 0 > 1 | (p | 0) != 0, u = R + T | 0, w = T >>> 0 > u >>> 0 ? w + 1 | 0 : w, gt(Me, n, o, 0, 0, 0 - u | 0, 0 - (((u | 0) != 0) + w | 0) | 0, 0, 0), gt(v + 128 | 0, 1 - m | 0, 0 - ((m >>> 0 > 1) + p | 0) | 0, 0, 0, n, o, 0, 0), sn = (ee - z | 0) + xe | 0, o = e[v + 116 >> 2], Me = o, n = e[v + 112 >> 2], w = o << 1 | n >>> 31, p = n << 1, R = w, n = w, u = e[v + 140 >> 2], o0 = u, o = e[v + 136 >> 2], w = u << 1 | o >>> 31, m = o << 1 | e[v + 132 >> 2] >>> 31, u = m + p | 0, n = n + w | 0, n = u >>> 0 < m >>> 0 ? n + 1 | 0 : n, o = n, n = n - (u >>> 0 < 13927) | 0, Re = n, He = n, m = 0, w = _ | 65536, On = w, Un = U, n = U, w = w << 1 | n >>> 31, y2 = n << 1, m2 = w, Gt = w, n = f0(Re, m, w, 0), w = Ve, Y0 = n, rt = w, xe = r << 1, n = i << 1 | r >>> 31, z = n, w = 0, ee = w, T = u - 13927 | 0, Re = (o | 0) == (Re | 0) & T >>> 0 < u >>> 0 | o >>> 0 > Re >>> 0, o = (o | 0) == (R | 0) & u >>> 0 < p >>> 0 | o >>> 0 < R >>> 0, n = e[v + 120 >> 2], u = e[v + 124 >> 2] << 1 | n >>> 31, n = n << 1 | Me >>> 31, m = o0 >>> 31 | 0, n = m + n | 0, w = u, w = n >>> 0 < m >>> 0 ? w + 1 | 0 : w, u = n, n = n + o | 0, w = u >>> 0 > n >>> 0 ? w + 1 | 0 : w, o = n, n = n + Re | 0, m = o >>> 0 > n >>> 0 ? w + 1 | 0 : w, o = n - 1 | 0, At = m - !n | 0, o0 = 0, p = f0(z, ee, At, o0), n = p + Y0 | 0, u = Ve + rt | 0, u = n >>> 0 < p >>> 0 ? u + 1 | 0 : u, R = (rt | 0) == (u | 0) & n >>> 0 < Y0 >>> 0 | u >>> 0 < rt >>> 0, Y0 = o, _n = i >>> 31 | 0, ui = _n | U << 1, Re = 0, o = f0(o, 0, ui, Re), U = o + n | 0, w = Ve + u | 0, m = 0, w = o >>> 0 > U >>> 0 ? w + 1 | 0 : w, _ = w, n = (w | 0) == (u | 0) & n >>> 0 > U >>> 0 | u >>> 0 > w >>> 0, o = n, n = n + R | 0, m = o >>> 0 > n >>> 0 ? 1 : m, o = f0(Gt, ee, At, o0), n = o + n | 0, w = Ve + m | 0, R = n, n = n >>> 0 < o >>> 0 ? w + 1 | 0 : w, o = f0(Gt, ee, Y0, Re), m = Ve, u = o, o = f0(ui, Re, At, o0), p = u + o | 0, w = Ve + m | 0, w = o >>> 0 > p >>> 0 ? w + 1 | 0 : w, o = w, w = (m | 0) == (w | 0) & u >>> 0 > p >>> 0 | w >>> 0 < m >>> 0, m = R + o | 0, n = n + w | 0, n = m >>> 0 < o >>> 0 ? n + 1 | 0 : n, R = m, m = n, o = 0, n = o + U | 0, w = p + _ | 0, w = n >>> 0 < o >>> 0 ? w + 1 | 0 : w, o = w, u = (w | 0) == (_ | 0) & n >>> 0 < U >>> 0 | w >>> 0 < _ >>> 0, w = m, p = u, u = u + R | 0, w = p >>> 0 > u >>> 0 ? w + 1 | 0 : w, zr = u, m = w, Me = n, U = n, rt = T, n = f0(T, 0, ui, Re), p = Ve, u = n, T = f0(He, F, z, F), n = n + T | 0, w = Ve + p | 0, w = n >>> 0 < T >>> 0 ? w + 1 | 0 : w, T = (p | 0) == (w | 0) & n >>> 0 < u >>> 0 | p >>> 0 > w >>> 0, u = w, Ui = xe & -2, p = f0(Y0, Re, Ui, 0), _ = p + n | 0, w = Ve + w | 0, w = p >>> 0 > _ >>> 0 ? w + 1 | 0 : w, p = w, n = (w | 0) == (u | 0) & n >>> 0 > _ >>> 0 | u >>> 0 > w >>> 0, u = 0, w = n + T | 0, n = (w >>> 0 < n >>> 0 ? 1 : u) + o | 0, R = w + U | 0, n = R >>> 0 < w >>> 0 ? n + 1 | 0 : n, w = m, U = n, n = (n | 0) == (o | 0) & R >>> 0 < Me >>> 0 | n >>> 0 < o >>> 0, o = n, n = n + zr | 0, w = o >>> 0 > n >>> 0 ? w + 1 | 0 : w, v2 = n, Me = w, n = f0(Gt, ee, rt, F), zr = Ve, Gt = n, o = f0(At, o0, Ui, F), n = n + o | 0, w = Ve + zr | 0, w = n >>> 0 < o >>> 0 ? w + 1 | 0 : w, T = n, m = f0(He, F, ui, Re), o = n + m | 0, u = w, n = w + Ve | 0, n = o >>> 0 < m >>> 0 ? n + 1 | 0 : n, ee = o, w = f0(z, F, Y0, Re), o = o + w | 0, m = Ve + n | 0, m = o >>> 0 < w >>> 0 ? m + 1 | 0 : m, At = (n | 0) == (m | 0) & o >>> 0 < ee >>> 0 | n >>> 0 > m >>> 0, w = (u | 0) == (zr | 0) & T >>> 0 < Gt >>> 0 | u >>> 0 < zr >>> 0, n = (n | 0) == (u | 0) & T >>> 0 > ee >>> 0 | n >>> 0 < u >>> 0, n = n + w | 0, n = n + At | 0, u = m, ee = u + R | 0, w = (n | o0) + U | 0, w = u >>> 0 > ee >>> 0 ? w + 1 | 0 : w, T = w, n = (U | 0) == (w | 0) & R >>> 0 > ee >>> 0 | w >>> 0 < U >>> 0, w = Me, u = n, n = n + v2 | 0, w = u >>> 0 > n >>> 0 ? w + 1 | 0 : w, o0 = n, U = w, n = f0(He, F, Ui, F), He = Ve, R = n, u = f0(z, F, rt, F), n = n + u | 0, w = Ve + He | 0, w = n >>> 0 < u >>> 0 ? w + 1 | 0 : w, Me = 0, u = (w | 0) == (He | 0) & n >>> 0 < R >>> 0 | w >>> 0 < He >>> 0, R = w, n = w + _ | 0, w = (u | Me) + p | 0, w = n >>> 0 < R >>> 0 ? w + 1 | 0 : w, p = (p | 0) == (w | 0) & n >>> 0 < _ >>> 0 | p >>> 0 > w >>> 0, u = w, w = o, _ = 0, o = _ + n | 0, m = u + w | 0, w = 0, m = o >>> 0 < _ >>> 0 ? m + 1 | 0 : m, n = (u | 0) == (m | 0) & n >>> 0 > o >>> 0 | u >>> 0 > m >>> 0, o = n, n = n + p | 0, w = (o >>> 0 > n >>> 0 ? 1 : w) + T | 0, m = U, o = n, n = n + ee | 0, w = o >>> 0 > n >>> 0 ? w + 1 | 0 : w, o = w, u = (T | 0) == (w | 0) & n >>> 0 < ee >>> 0 | w >>> 0 < T >>> 0, p = u, u = u + o0 | 0, m = p >>> 0 > u >>> 0 ? m + 1 | 0 : m, p = m;
                     t: {
                       if ((m | 0) == 131071 | m >>> 0 < 131071) {
-                        _n = m2 | Dn, Un = Re | v2, gt(v + 80 | 0, n, w, u, m, s, f, L0, O0), m = e[v + 84 >> 2], R = m, w = r << 17, T = 0, _ = e[v + 88 >> 2], i = T - _ | 0, r = e[v + 80 >> 2], m = (m | r) != 0, U = i - m | 0, _ = (w - (e[v + 92 >> 2] + (T >>> 0 < _ >>> 0) | 0) | 0) - (i >>> 0 < m >>> 0) | 0, T = 0 - r | 0, R = 0 - (((r | 0) != 0) + R | 0) | 0, r = sn + 16382 | 0;
+                        Un = y2 | _n, On = Re | m2, gt(v + 80 | 0, n, w, u, m, s, f, L0, O0), m = e[v + 84 >> 2], R = m, w = r << 17, T = 0, _ = e[v + 88 >> 2], i = T - _ | 0, r = e[v + 80 >> 2], m = (m | r) != 0, U = i - m | 0, _ = (w - (e[v + 92 >> 2] + (T >>> 0 < _ >>> 0) | 0) | 0) - (i >>> 0 < m >>> 0) | 0, T = 0 - r | 0, R = 0 - (((r | 0) != 0) + R | 0) | 0, r = sn + 16382 | 0;
                         break t;
                       }
                       n = (o & 1) << 31 | n >>> 1, o = u << 31 | o >>> 1, u = (p & 1) << 31 | u >>> 1, p = p >>> 1 | 0, gt(v + 96 | 0, n, o, u, p, s, f, L0, O0), U = e[v + 100 >> 2], z = U, R = 0, xe = e[v + 104 >> 2], T = R - xe | 0, m = e[v + 96 >> 2], _ = (U | m) != 0, U = T - _ | 0, _ = ((r << 16) - (e[v + 108 >> 2] + (R >>> 0 < xe >>> 0) | 0) | 0) - (T >>> 0 < _ >>> 0) | 0, T = 0 - m | 0, R = 0 - (((m | 0) != 0) + z | 0) | 0, xe = r, z = i, r = sn + 16383 | 0;
@@ -23451,13 +23451,13 @@ function EI() {
                         r = 0, i = 0;
                         break e;
                       }
-                      d2(v - -64 | 0, n, o, u, p, 1 - r | 0), Bt(v + 48 | 0, xe, z, _n, Un, r + 112 | 0), n = e[v + 64 >> 2], o = e[v + 68 >> 2], xe = e[v + 72 >> 2], z = e[v + 76 >> 2], gt(v + 32 | 0, s, f, L0, O0, n, o, xe, z), r = e[v + 40 >> 2], i = e[v + 56 >> 2], m = e[v + 36 >> 2], U = r << 1 | m >>> 31, T = i - U | 0, _ = e[v + 60 >> 2] - ((e[v + 44 >> 2] << 1 | r >>> 31) + (i >>> 0 < U >>> 0) | 0) | 0, r = e[v + 32 >> 2], u = m << 1 | r >>> 31, w = r << 1, p = e[v + 52 >> 2], i = e[v + 48 >> 2], r = (u | 0) == (p | 0) & w >>> 0 > i >>> 0 | u >>> 0 > p >>> 0, U = T - r | 0, _ = _ - (r >>> 0 > T >>> 0) | 0, m = p - ((i >>> 0 < w >>> 0) + u | 0) | 0, p = i - w | 0;
+                      p2(v - -64 | 0, n, o, u, p, 1 - r | 0), Bt(v + 48 | 0, xe, z, Un, On, r + 112 | 0), n = e[v + 64 >> 2], o = e[v + 68 >> 2], xe = e[v + 72 >> 2], z = e[v + 76 >> 2], gt(v + 32 | 0, s, f, L0, O0, n, o, xe, z), r = e[v + 40 >> 2], i = e[v + 56 >> 2], m = e[v + 36 >> 2], U = r << 1 | m >>> 31, T = i - U | 0, _ = e[v + 60 >> 2] - ((e[v + 44 >> 2] << 1 | r >>> 31) + (i >>> 0 < U >>> 0) | 0) | 0, r = e[v + 32 >> 2], u = m << 1 | r >>> 31, w = r << 1, p = e[v + 52 >> 2], i = e[v + 48 >> 2], r = (u | 0) == (p | 0) & w >>> 0 > i >>> 0 | u >>> 0 > p >>> 0, U = T - r | 0, _ = _ - (r >>> 0 > T >>> 0) | 0, m = p - ((i >>> 0 < w >>> 0) + u | 0) | 0, p = i - w | 0;
                     }
                     r = p, gt(v + 16 | 0, s, f, L0, O0, 3, 0, 0, 0), gt(v, s, f, L0, O0, 5, 0, 0, 0), i = 0, u = m + i | 0, w = n & 1, r = r + w | 0, u = p >>> 0 > r >>> 0 ? u + 1 | 0 : u, p = r, f = (u | 0) == (f | 0) & s >>> 0 < p >>> 0 | f >>> 0 < u >>> 0, m = _, r = (i | 0) == (u | 0) & p >>> 0 < w >>> 0 | i >>> 0 > u >>> 0, s = r + U | 0, m = r >>> 0 > s >>> 0 ? m + 1 | 0 : m, w = o, r = (m | 0) == (O0 | 0), r = r & (s | 0) == (L0 | 0) ? f : r & s >>> 0 > L0 >>> 0 | m >>> 0 > O0 >>> 0, i = r, r = r + n | 0, w = i >>> 0 > r >>> 0 ? w + 1 | 0 : w, i = w, n = (o | 0) == (w | 0) & r >>> 0 < n >>> 0 | o >>> 0 > w >>> 0, w = z, o = n, n = n + xe | 0, w = o >>> 0 > n >>> 0 ? w + 1 | 0 : w, f = n, o = e[v + 20 >> 2], R = (o | 0) == (u | 0) & Qe[v + 16 >> 2] < p >>> 0 | o >>> 0 < u >>> 0, o = e[v + 28 >> 2], n = e[v + 24 >> 2], o = w >>> 0 < 2147418112 & ((n | 0) == (s | 0) & (o | 0) == (m | 0) ? R : (o | 0) == (m | 0) & n >>> 0 < s >>> 0 | o >>> 0 < m >>> 0), n = i, R = o, o = r + o | 0, n = R >>> 0 > o >>> 0 ? n + 1 | 0 : n, r = (i | 0) == (n | 0) & r >>> 0 > o >>> 0 | i >>> 0 > n >>> 0, i = r, r = r + f | 0, w = i >>> 0 > r >>> 0 ? w + 1 | 0 : w, f = r, i = e[v + 4 >> 2], u = (i | 0) == (u | 0) & Qe[v >> 2] < p >>> 0 | i >>> 0 < u >>> 0, i = e[v + 12 >> 2], r = e[v + 8 >> 2], r = w >>> 0 < 2147418112 & ((r | 0) == (s | 0) & (i | 0) == (m | 0) ? u : (i | 0) == (m | 0) & r >>> 0 < s >>> 0 | i >>> 0 < m >>> 0), i = r, r = r + o | 0, m = i >>> 0 > r >>> 0 ? n + 1 | 0 : n, i = m, o = (n | 0) == (m | 0) & r >>> 0 < o >>> 0 | n >>> 0 > m >>> 0, n = w, s = o, o = o + f | 0, n = s >>> 0 > o >>> 0 ? n + 1 | 0 : n, F = o | F, pe = n | pe;
                   }
                   e[t >> 2] = r, e[t + 4 >> 2] = i, e[t + 8 >> 2] = F, e[t + 12 >> 2] = pe, C = v + 336 | 0;
                 }
-                function bi(t, r, i, n, o, s) {
+                function Ti(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = +o, s = s | 0;
                   var f = 0, u = 0, p = 0, w = 0, v = 0, m = 0, T = 0, R = 0, U = 0, _ = 0, F = 0, z = 0, ee = 0, pe = 0;
                   u = C - 128 | 0, C = u, fo(u + 56 | 0, i, ye[t + 16 >> 3], ye[t + 24 >> 3], o, s), e[5996] = 0, s = K(46, i | 0) | 0, f = e[5996], e[5996] = 0;
@@ -23506,9 +23506,9 @@ function EI() {
                                           l: {
                                             u: {
                                               for (; ; ) {
-                                                if (s = T << 3, ee = ye[s + e[u + 68 >> 2] >> 3], pe = ye[s + e[u + 56 >> 2] >> 3], f = e[(T << 2) + f >> 2], e[5996] = 0, f = k2(50, f | 0, +pe, +ee, r | 0) | 0, p = e[5996], e[5996] = 0, (p | 0) == 1)
+                                                if (s = T << 3, ee = ye[s + e[u + 68 >> 2] >> 3], pe = ye[s + e[u + 56 >> 2] >> 3], f = e[(T << 2) + f >> 2], e[5996] = 0, f = h2(50, f | 0, +pe, +ee, r | 0) | 0, p = e[5996], e[5996] = 0, (p | 0) == 1)
                                                   break l;
-                                                if (s = s + e[U + e[u + 44 >> 2] >> 2] | 0, p = e[s >> 2], s = e[s + 4 >> 2], m = e[f + 4 >> 2], f = e[f >> 2], e[5996] = 0, xi(51, u + 80 | 0, f | 0, m | 0, p | 0, s | 0), s = e[5996], e[5996] = 0, (s | 0) != 1) {
+                                                if (s = s + e[U + e[u + 44 >> 2] >> 2] | 0, p = e[s >> 2], s = e[s + 4 >> 2], m = e[f + 4 >> 2], f = e[f >> 2], e[5996] = 0, Si(51, u + 80 | 0, f | 0, m | 0, p | 0, s | 0), s = e[5996], e[5996] = 0, (s | 0) != 1) {
                                                   p = e[u + 28 >> 2];
                                                   h: {
                                                     if (p >>> 0 > w >>> 0) {
@@ -23896,7 +23896,7 @@ function EI() {
                                           break l;
                                         u: {
                                           for (; ; ) {
-                                            if (i = In(_), r = e[m + 12 >> 2], (i | 0) == (r | 0))
+                                            if (i = Bn(_), r = e[m + 12 >> 2], (i | 0) == (r | 0))
                                               break u;
                                             if (r = e[r >> 2], e[5996] = 0, r = ue(230, u | 0, 1, r | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                                               if (!r)
@@ -23909,7 +23909,7 @@ function EI() {
                                           break e;
                                         }
                                         if (r = Ar(_), r = e[m + 12 >> 2] - r >> 2, i = A[F + 11 | 0], r >>> 0 <= ((i & 128) >>> 7 | 0 ? e[F + 4 >> 2] : i & 127) >>> 0) {
-                                          for (i = Vc(In(F), 0 - r | 0), n = In(F), v = Ar(_), r = C - 16 | 0, C = r, e[r + 8 >> 2] = v, e[r + 12 >> 2] = i; ; ) {
+                                          for (i = Vc(Bn(F), 0 - r | 0), n = Bn(F), v = Ar(_), r = C - 16 | 0, C = r, e[r + 8 >> 2] = v, e[r + 12 >> 2] = i; ; ) {
                                             if (v = (i | 0) != (n | 0), !(!v | e[i >> 2] != e[e[r + 8 >> 2] >> 2])) {
                                               e[r + 12 >> 2] = e[r + 12 >> 2] + 4, e[r + 8 >> 2] = e[r + 8 >> 2] + 4, i = e[r + 12 >> 2];
                                               continue;
@@ -23924,7 +23924,7 @@ function EI() {
                                       e[m + 8 >> 2] = e[m + 12 >> 2];
                                       l: {
                                         for (; ; ) {
-                                          if ((In(_) | 0) == e[m + 8 >> 2])
+                                          if ((Bn(_) | 0) == e[m + 8 >> 2])
                                             break l;
                                           e[5996] = 0, r = D(202, t | 0, m + 524 | 0) | 0, i = e[5996], e[5996] = 0;
                                           u: {
@@ -23945,7 +23945,7 @@ function EI() {
                                         }
                                         break e;
                                       }
-                                      if (!Re || (In(_) | 0) == e[m + 8 >> 2])
+                                      if (!Re || (Bn(_) | 0) == e[m + 8 >> 2])
                                         break r;
                                       e[s >> 2] = e[s >> 2] | 4, t = 0;
                                       break i;
@@ -24210,7 +24210,7 @@ function EI() {
                                         break o;
                                       for (; ; ) {
                                         l: {
-                                          if (i = Cn(_), r = e[m + 16 >> 2], (i | 0) == (r | 0) || (i = e[u + 8 >> 2], r = l[r | 0], (r | 0) >= 0 ? r = e[i + ((r & 255) << 2) >> 2] & 1 : r = 0, !r))
+                                          if (i = In(_), r = e[m + 16 >> 2], (i | 0) == (r | 0) || (i = e[u + 8 >> 2], r = l[r | 0], (r | 0) >= 0 ? r = e[i + ((r & 255) << 2) >> 2] & 1 : r = 0, !r))
                                             break l;
                                           e[m + 16 >> 2] = e[m + 16 >> 2] + 1;
                                           continue;
@@ -24218,7 +24218,7 @@ function EI() {
                                         break;
                                       }
                                       if (r = Ar(_), r = e[m + 16 >> 2] - r | 0, i = A[F + 11 | 0], r >>> 0 <= ((i & 128) >>> 7 | 0 ? e[F + 4 >> 2] : i & 127) >>> 0) {
-                                        for (i = Wc(Cn(F), 0 - r | 0), v = Cn(F), Re = Ar(_), r = C - 16 | 0, C = r, e[r + 8 >> 2] = Re, e[r + 12 >> 2] = i; ; ) {
+                                        for (i = Wc(In(F), 0 - r | 0), v = In(F), Re = Ar(_), r = C - 16 | 0, C = r, e[r + 8 >> 2] = Re, e[r + 12 >> 2] = i; ; ) {
                                           if (Re = (i | 0) != (v | 0), !(!Re | A[i | 0] != A[e[r + 8 >> 2]])) {
                                             e[r + 12 >> 2] = e[r + 12 >> 2] + 1, e[r + 8 >> 2] = e[r + 8 >> 2] + 1, i = e[r + 12 >> 2];
                                             continue;
@@ -24233,7 +24233,7 @@ function EI() {
                                     e[m + 12 >> 2] = e[m + 16 >> 2];
                                     o: {
                                       for (; ; ) {
-                                        if ((Cn(_) | 0) == e[m + 12 >> 2])
+                                        if ((In(_) | 0) == e[m + 12 >> 2])
                                           break o;
                                         e[5996] = 0, r = D(186, t | 0, m + 524 | 0) | 0, i = e[5996], e[5996] = 0;
                                         l: {
@@ -24254,7 +24254,7 @@ function EI() {
                                       }
                                       break e;
                                     }
-                                    if (!Me || (Cn(_) | 0) == e[m + 12 >> 2])
+                                    if (!Me || (In(_) | 0) == e[m + 12 >> 2])
                                       break r;
                                     e[s >> 2] = e[s >> 2] | 4, t = 0;
                                     break i;
@@ -24879,7 +24879,7 @@ function EI() {
                   }
                   l[o + 79 | 0] < 0 && x(e[o + 68 >> 2]), ve(r | 0), V();
                 }
-                function I4(t, r, i, n, o, s) {
+                function B4(t, r, i, n, o, s) {
                   t = t | 0, r = +r, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0, p = 0, w = 0, v = 0, m = 0, T = 0, R = 0, U = 0, _ = 0, F = 0, z = 0, ee = 0, pe = 0, xe = 0, Re = 0, Me = 0, He = 0, o0 = 0;
                   T = C - 560 | 0, C = T, e[T + 44 >> 2] = 0, Dr(+r), f = W0(1) | 0, W0(0) | 0;
@@ -24903,7 +24903,7 @@ function EI() {
                     t: {
                       r: {
                         i: {
-                          if (r = dl(r, T + 44 | 0), r = r + r, r != 0) {
+                          if (r = pl(r, T + 44 | 0), r = r + r, r != 0) {
                             if (f = e[T + 44 >> 2], e[T + 44 >> 2] = f - 1, Re = s | 32, (Re | 0) != 97)
                               break i;
                             break t;
@@ -25342,7 +25342,7 @@ function EI() {
                   }
                   e[t >> 2] = 1, e[t + 4 >> 2] = 1;
                 }
-                function C4(t, r, i, n, o) {
+                function I4(t, r, i, n, o) {
                   var s = 0, f = 0, u = 0, p = 0, w = 0, v = 0, m = 0, T = 0, R = 0, U = 0, _ = 0, F = 0, z = 0, ee = 0, pe = 0, xe = 0, Re = 0, Me = 0, He = 0;
                   u = C - 80 | 0, C = u, e[u + 76 >> 2] = r, He = u + 55 | 0, F = u + 56 | 0;
                   e: {
@@ -25425,7 +25425,7 @@ function EI() {
                                             R = 0 - R | 0, T = T | 8192;
                                             break u;
                                           }
-                                          if (R = Sl(u + 76 | 0), (R | 0) < 0)
+                                          if (R = El(u + 76 | 0), (R | 0) < 0)
                                             break r;
                                           r = e[u + 76 >> 2];
                                         }
@@ -25456,7 +25456,7 @@ function EI() {
                                             e[u + 76 >> 2] = r, f = (p ^ -1) >>> 31 | 0;
                                             break u;
                                           }
-                                          e[u + 76 >> 2] = r + 1, p = Sl(u + 76 | 0), r = e[u + 76 >> 2], f = 1;
+                                          e[u + 76 >> 2] = r + 1, p = El(u + 76 | 0), r = e[u + 76 >> 2], f = 1;
                                         }
                                         for (pe = f; ; ) {
                                           if (ee = s, w = 28, xe = r, f = l[r | 0], f - 123 >>> 0 < 4294967238)
@@ -25479,7 +25479,7 @@ function EI() {
                                             }
                                             if (!t)
                                               break s;
-                                            z4(u - -64 | 0, s, i);
+                                            G4(u - -64 | 0, s, i);
                                             break u;
                                           }
                                           if ((U | 0) >= 0)
@@ -25665,7 +25665,7 @@ function EI() {
                                                 for (; ; ) {
                                                   if (v = e[f >> 2], !v)
                                                     break a;
-                                                  if (v = Rh(u + 4 | 0, v), m = (v | 0) < 0, !(m | v >>> 0 > p - s >>> 0)) {
+                                                  if (v = Ch(u + 4 | 0, v), m = (v | 0) < 0, !(m | v >>> 0 > p - s >>> 0)) {
                                                     if (f = f + 4 | 0, s = s + v | 0, p >>> 0 > s >>> 0)
                                                       continue;
                                                     break a;
@@ -25682,7 +25682,7 @@ function EI() {
                                                 break c;
                                               }
                                               for (m = 0, f = e[u + 64 >> 2]; ; ) {
-                                                if (v = e[f >> 2], !v || (w = u + 4 | 0, v = Rh(w, v), m = v + m | 0, m >>> 0 > s >>> 0))
+                                                if (v = e[f >> 2], !v || (w = u + 4 | 0, v = Ch(w, v), m = v + m | 0, m >>> 0 > s >>> 0))
                                                   break c;
                                                 if (yt(t, w, v), f = f + 4 | 0, !(s >>> 0 > m >>> 0))
                                                   break;
@@ -25693,7 +25693,7 @@ function EI() {
                                           }
                                           if ((p | 0) < 0 && pe)
                                             break r;
-                                          if (w = 61, s = I4(t, ye[u + 64 >> 3], R, p, T, s), (s | 0) >= 0)
+                                          if (w = 61, s = B4(t, ye[u + 64 >> 3], R, p, T, s), (s | 0) >= 0)
                                             continue n;
                                           break t;
                                         }
@@ -25708,7 +25708,7 @@ function EI() {
                                     break s;
                                   for (s = 1; ; ) {
                                     if (t = e[(s << 2) + o >> 2], t) {
-                                      if (z4((s << 3) + n | 0, t, i), w = 1, s = s + 1 | 0, (s | 0) != 10)
+                                      if (G4((s << 3) + n | 0, t, i), w = 1, s = s + 1 | 0, (s | 0) != 10)
                                         continue;
                                       break e;
                                     }
@@ -25752,10 +25752,10 @@ function EI() {
                   var r = 0, i = 0, n = 0, o = 0, s = 0;
                   e: {
                     if (t >>> 0 <= 211) {
-                      n = e[ml(7504, 7696, t) >> 2];
+                      n = e[yl(7504, 7696, t) >> 2];
                       break e;
                     }
-                    for (t >>> 0 >= 4294967292 && (t = Vr(8), e[5996] = 0, n = K(167, t | 0) | 0, o = e[5996], e[5996] = 0, (o | 0) != 1 && (Mr(n | 0, 22716, 92), V()), n = B() | 0, rn(t), ve(n | 0), V()), s = (t >>> 0) / 210 | 0, n = ne(s, 210), o = ml(7696, 7888, t - n | 0) - 7696 >> 2; ; ) {
+                    for (t >>> 0 >= 4294967292 && (t = Vr(8), e[5996] = 0, n = K(167, t | 0) | 0, o = e[5996], e[5996] = 0, (o | 0) != 1 && (Mr(n | 0, 22716, 92), V()), n = B() | 0, rn(t), ve(n | 0), V()), s = (t >>> 0) / 210 | 0, n = ne(s, 210), o = yl(7696, 7888, t - n | 0) - 7696 >> 2; ; ) {
                       for (n = e[(o << 2) + 7696 >> 2] + n | 0, t = 5; ; ) {
                         t: {
                           if ((t | 0) == 47) {
@@ -25968,7 +25968,7 @@ function EI() {
                   return n | 0;
                 }
                 function P0(t, r, i, n, o, s, f, u, p) {
-                  var w = 0, v = 0, m = 0, T = 0, R = 0, U = 0, _ = 0, F = 0, z = 0, ee = 0, pe = 0, xe = 0, Re = 0, Me = 0, He = 0, o0 = 0, O0 = 0, L0 = 0, Y0 = 0, rt = 0, At = 0, Gt = 0, zr = 0, ui = 0, _i = 0, sn = 0, Un = 0, _n = 0, Dn = 0, m2 = 0, v2 = 0, E2 = 0, fu = 0, au = 0;
+                  var w = 0, v = 0, m = 0, T = 0, R = 0, U = 0, _ = 0, F = 0, z = 0, ee = 0, pe = 0, xe = 0, Re = 0, Me = 0, He = 0, o0 = 0, O0 = 0, L0 = 0, Y0 = 0, rt = 0, At = 0, Gt = 0, zr = 0, ui = 0, Ui = 0, sn = 0, On = 0, Un = 0, _n = 0, y2 = 0, m2 = 0, v2 = 0, fu = 0, au = 0;
                   v = C - 96 | 0, C = v, xe = p & 65535, U = (o ^ p) & -2147483648, z = o & 65535, o0 = z, fu = p >>> 16 & 32767, au = o >>> 16 & 32767;
                   e: {
                     t: {
@@ -26010,7 +26010,7 @@ function EI() {
                         break t;
                       p = !(u | xe), o = p ? s : u, z = p << 6, w = b0(o) + 32 | 0, o = b0(p ? f : xe), o = z + ((o | 0) == 32 ? w : o) | 0, Bt(v - -64 | 0, s, f, u, xe, o - 15 | 0), pe = (pe - o | 0) + 16 | 0, u = e[v + 72 >> 2], xe = e[v + 76 >> 2], s = e[v + 64 >> 2], f = e[v + 68 >> 2];
                     }
-                    o = s, s = f << 15 | s >>> 17, p = o << 15, o = 0, Re = p & -32768, Un = i, ee = f0(Re, o, i, 0), o = Ve, O0 = o, _n = s, F = r, i = f0(s, 0, r, 0), r = i + ee | 0, s = Ve + o | 0, p = r, i = r >>> 0 < i >>> 0 ? s + 1 | 0 : s, s = r, w = 0, r = f0(F, m, Re, m), _ = w + r | 0, o = Ve + s | 0, o = r >>> 0 > _ >>> 0 ? o + 1 | 0 : o, z = o, Dn = (s | 0) == (o | 0) & w >>> 0 > _ >>> 0 | o >>> 0 < s >>> 0, m2 = n, Me = f0(Re, m, n, 0), v2 = Ve, r = f0(Un, m, _n, m), He = r + Me | 0, w = Ve + v2 | 0, w = r >>> 0 > He >>> 0 ? w + 1 | 0 : w, r = xe << 15 | u >>> 17, L0 = u << 15 | f >>> 17, n = f0(L0, 0, F, m), Y0 = n + He | 0, s = Ve + w | 0, s = n >>> 0 > Y0 >>> 0 ? s + 1 | 0 : s, rt = s, n = (i | 0) == (O0 | 0) & p >>> 0 < ee >>> 0 | i >>> 0 < O0 >>> 0, At = i + Y0 | 0, s = n + s | 0, s = i >>> 0 > At >>> 0 ? s + 1 | 0 : s, xe = s, f = At, i = s, Gt = o0 | 65536, o0 = f0(Re, m, Gt, R), E2 = Ve, n = f0(m2, T, _n, m), zr = n + o0 | 0, o = Ve + E2 | 0, o = n >>> 0 > zr >>> 0 ? o + 1 | 0 : o, p = o, ui = r | -2147483648, r = f0(ui, 0, F, m), _i = r + zr | 0, s = Ve + o | 0, s = r >>> 0 > _i >>> 0 ? s + 1 | 0 : s, n = f0(L0, T, Un, m), r = n + _i | 0, sn = s, s = s + Ve | 0, O0 = r, ee = r >>> 0 < n >>> 0 ? s + 1 | 0 : s, s = r, r = 0, F = r + f | 0, o = i + s | 0, o = r >>> 0 > F >>> 0 ? o + 1 | 0 : o, Re = o, s = o, r = F + Dn | 0, i = r >>> 0 < F >>> 0 ? s + 1 | 0 : s, pe = ((au + fu | 0) + pe | 0) - 16383 | 0, n = f0(ui, T, Un, m), u = Ve, o = f0(Gt, T, _n, m), f = o + n | 0, s = Ve + u | 0, s = o >>> 0 > f >>> 0 ? s + 1 | 0 : s, R = (u | 0) == (s | 0) & n >>> 0 > f >>> 0 | s >>> 0 < u >>> 0, u = s, o = f0(L0, T, m2, T), n = o + f | 0, s = Ve + s | 0, s = n >>> 0 < o >>> 0 ? s + 1 | 0 : s, o = s, f = (s | 0) == (u | 0) & n >>> 0 < f >>> 0 | s >>> 0 < u >>> 0, s = 0, u = f, f = f + R | 0, s = u >>> 0 > f >>> 0 ? 1 : s, u = f, f = f0(ui, T, Gt, T), u = u + f | 0, s = Ve + s | 0, Dn = u, f = f >>> 0 > u >>> 0 ? s + 1 | 0 : s, u = n, m = o, o = (w | 0) == (v2 | 0) & Me >>> 0 > He >>> 0 | w >>> 0 < v2 >>> 0, s = 0, w = (w | 0) == (rt | 0) & He >>> 0 > Y0 >>> 0 | w >>> 0 > rt >>> 0, R = w, w = o + w | 0, o = (R >>> 0 > w >>> 0 ? 1 : s) + m | 0, s = f, n = n + w | 0, o = n >>> 0 < w >>> 0 ? o + 1 | 0 : o, R = o, Me = n, n = (o | 0) == (m | 0) & n >>> 0 < u >>> 0 | o >>> 0 < m >>> 0, o = n, n = n + Dn | 0, s = o >>> 0 > n >>> 0 ? s + 1 | 0 : s, w = n, u = s, o = f0(L0, T, Gt, T), m = Ve, f = f0(ui, T, m2, T), n = f + o | 0, s = Ve + m | 0, s = n >>> 0 < f >>> 0 ? s + 1 | 0 : s, f = s, s = (m | 0) == (s | 0) & n >>> 0 < o >>> 0 | s >>> 0 < m >>> 0, He = f + w | 0, o = s + u | 0, o = f >>> 0 > He >>> 0 ? o + 1 | 0 : o, m = He, u = o, w = n, o = 0, n = o + Me | 0, s = w + R | 0, s = n >>> 0 < o >>> 0 ? s + 1 | 0 : s, o = s, f = (R | 0) == (s | 0) & n >>> 0 < Me >>> 0 | s >>> 0 < R >>> 0, s = u, u = f, f = f + m | 0, s = u >>> 0 > f >>> 0 ? s + 1 | 0 : s, Me = f, f = s, u = n, w = o, o = (ee | 0) == (sn | 0) & O0 >>> 0 < _i >>> 0 | ee >>> 0 < sn >>> 0, n = (p | 0) == (E2 | 0) & o0 >>> 0 > zr >>> 0 | p >>> 0 < E2 >>> 0, p = (p | 0) == (sn | 0) & zr >>> 0 > _i >>> 0 | p >>> 0 > sn >>> 0, n = n + p | 0, n = n + o | 0, R = ee, p = R + u | 0, o = n + w | 0, s = f, n = p, o = n >>> 0 < R >>> 0 ? o + 1 | 0 : o, u = (o | 0) == (w | 0) & u >>> 0 > n >>> 0 | o >>> 0 < w >>> 0, f = u + Me | 0, s = u >>> 0 > f >>> 0 ? s + 1 | 0 : s, w = f, f = s, u = n, s = 0, p = o, R = (xe | 0) == (Re | 0) & F >>> 0 < At >>> 0 | xe >>> 0 > Re >>> 0, m = R, R = R + ((xe | 0) == (rt | 0) & Y0 >>> 0 > At >>> 0 | xe >>> 0 < rt >>> 0) | 0, o = o + (m >>> 0 > R >>> 0 ? 1 : s) | 0, s = f, n = n + R | 0, o = n >>> 0 < R >>> 0 ? o + 1 | 0 : o, u = (o | 0) == (p | 0) & n >>> 0 < u >>> 0 | o >>> 0 < p >>> 0, f = u, u = u + w | 0, s = f >>> 0 > u >>> 0 ? s + 1 | 0 : s, p = s;
+                    o = s, s = f << 15 | s >>> 17, p = o << 15, o = 0, Re = p & -32768, On = i, ee = f0(Re, o, i, 0), o = Ve, O0 = o, Un = s, F = r, i = f0(s, 0, r, 0), r = i + ee | 0, s = Ve + o | 0, p = r, i = r >>> 0 < i >>> 0 ? s + 1 | 0 : s, s = r, w = 0, r = f0(F, m, Re, m), _ = w + r | 0, o = Ve + s | 0, o = r >>> 0 > _ >>> 0 ? o + 1 | 0 : o, z = o, _n = (s | 0) == (o | 0) & w >>> 0 > _ >>> 0 | o >>> 0 < s >>> 0, y2 = n, Me = f0(Re, m, n, 0), m2 = Ve, r = f0(On, m, Un, m), He = r + Me | 0, w = Ve + m2 | 0, w = r >>> 0 > He >>> 0 ? w + 1 | 0 : w, r = xe << 15 | u >>> 17, L0 = u << 15 | f >>> 17, n = f0(L0, 0, F, m), Y0 = n + He | 0, s = Ve + w | 0, s = n >>> 0 > Y0 >>> 0 ? s + 1 | 0 : s, rt = s, n = (i | 0) == (O0 | 0) & p >>> 0 < ee >>> 0 | i >>> 0 < O0 >>> 0, At = i + Y0 | 0, s = n + s | 0, s = i >>> 0 > At >>> 0 ? s + 1 | 0 : s, xe = s, f = At, i = s, Gt = o0 | 65536, o0 = f0(Re, m, Gt, R), v2 = Ve, n = f0(y2, T, Un, m), zr = n + o0 | 0, o = Ve + v2 | 0, o = n >>> 0 > zr >>> 0 ? o + 1 | 0 : o, p = o, ui = r | -2147483648, r = f0(ui, 0, F, m), Ui = r + zr | 0, s = Ve + o | 0, s = r >>> 0 > Ui >>> 0 ? s + 1 | 0 : s, n = f0(L0, T, On, m), r = n + Ui | 0, sn = s, s = s + Ve | 0, O0 = r, ee = r >>> 0 < n >>> 0 ? s + 1 | 0 : s, s = r, r = 0, F = r + f | 0, o = i + s | 0, o = r >>> 0 > F >>> 0 ? o + 1 | 0 : o, Re = o, s = o, r = F + _n | 0, i = r >>> 0 < F >>> 0 ? s + 1 | 0 : s, pe = ((au + fu | 0) + pe | 0) - 16383 | 0, n = f0(ui, T, On, m), u = Ve, o = f0(Gt, T, Un, m), f = o + n | 0, s = Ve + u | 0, s = o >>> 0 > f >>> 0 ? s + 1 | 0 : s, R = (u | 0) == (s | 0) & n >>> 0 > f >>> 0 | s >>> 0 < u >>> 0, u = s, o = f0(L0, T, y2, T), n = o + f | 0, s = Ve + s | 0, s = n >>> 0 < o >>> 0 ? s + 1 | 0 : s, o = s, f = (s | 0) == (u | 0) & n >>> 0 < f >>> 0 | s >>> 0 < u >>> 0, s = 0, u = f, f = f + R | 0, s = u >>> 0 > f >>> 0 ? 1 : s, u = f, f = f0(ui, T, Gt, T), u = u + f | 0, s = Ve + s | 0, _n = u, f = f >>> 0 > u >>> 0 ? s + 1 | 0 : s, u = n, m = o, o = (w | 0) == (m2 | 0) & Me >>> 0 > He >>> 0 | w >>> 0 < m2 >>> 0, s = 0, w = (w | 0) == (rt | 0) & He >>> 0 > Y0 >>> 0 | w >>> 0 > rt >>> 0, R = w, w = o + w | 0, o = (R >>> 0 > w >>> 0 ? 1 : s) + m | 0, s = f, n = n + w | 0, o = n >>> 0 < w >>> 0 ? o + 1 | 0 : o, R = o, Me = n, n = (o | 0) == (m | 0) & n >>> 0 < u >>> 0 | o >>> 0 < m >>> 0, o = n, n = n + _n | 0, s = o >>> 0 > n >>> 0 ? s + 1 | 0 : s, w = n, u = s, o = f0(L0, T, Gt, T), m = Ve, f = f0(ui, T, y2, T), n = f + o | 0, s = Ve + m | 0, s = n >>> 0 < f >>> 0 ? s + 1 | 0 : s, f = s, s = (m | 0) == (s | 0) & n >>> 0 < o >>> 0 | s >>> 0 < m >>> 0, He = f + w | 0, o = s + u | 0, o = f >>> 0 > He >>> 0 ? o + 1 | 0 : o, m = He, u = o, w = n, o = 0, n = o + Me | 0, s = w + R | 0, s = n >>> 0 < o >>> 0 ? s + 1 | 0 : s, o = s, f = (R | 0) == (s | 0) & n >>> 0 < Me >>> 0 | s >>> 0 < R >>> 0, s = u, u = f, f = f + m | 0, s = u >>> 0 > f >>> 0 ? s + 1 | 0 : s, Me = f, f = s, u = n, w = o, o = (ee | 0) == (sn | 0) & O0 >>> 0 < Ui >>> 0 | ee >>> 0 < sn >>> 0, n = (p | 0) == (v2 | 0) & o0 >>> 0 > zr >>> 0 | p >>> 0 < v2 >>> 0, p = (p | 0) == (sn | 0) & zr >>> 0 > Ui >>> 0 | p >>> 0 > sn >>> 0, n = n + p | 0, n = n + o | 0, R = ee, p = R + u | 0, o = n + w | 0, s = f, n = p, o = n >>> 0 < R >>> 0 ? o + 1 | 0 : o, u = (o | 0) == (w | 0) & u >>> 0 > n >>> 0 | o >>> 0 < w >>> 0, f = u + Me | 0, s = u >>> 0 > f >>> 0 ? s + 1 | 0 : s, w = f, f = s, u = n, s = 0, p = o, R = (xe | 0) == (Re | 0) & F >>> 0 < At >>> 0 | xe >>> 0 > Re >>> 0, m = R, R = R + ((xe | 0) == (rt | 0) & Y0 >>> 0 > At >>> 0 | xe >>> 0 < rt >>> 0) | 0, o = o + (m >>> 0 > R >>> 0 ? 1 : s) | 0, s = f, n = n + R | 0, o = n >>> 0 < R >>> 0 ? o + 1 | 0 : o, u = (o | 0) == (p | 0) & n >>> 0 < u >>> 0 | o >>> 0 < p >>> 0, f = u, u = u + w | 0, s = f >>> 0 > u >>> 0 ? s + 1 | 0 : s, p = s;
                     t: {
                       if (s & 65536) {
                         pe = pe + 1 | 0;
@@ -26025,7 +26025,7 @@ function EI() {
                     t: {
                       if ((pe | 0) <= 0) {
                         if (f = 1 - pe | 0, f >>> 0 <= 127) {
-                          s = pe + 127 | 0, Bt(v + 48 | 0, _, z, r, i, s), Bt(v + 32 | 0, n, o, u, p, s), d2(v + 16 | 0, _, z, r, i, f), d2(v, n, o, u, p, f), _ = e[v + 32 >> 2] | e[v + 16 >> 2] | (e[v + 48 >> 2] | e[v + 56 >> 2] | (e[v + 52 >> 2] | e[v + 60 >> 2])) != 0, z = e[v + 36 >> 2] | e[v + 20 >> 2], r = e[v + 40 >> 2] | e[v + 24 >> 2], i = e[v + 44 >> 2] | e[v + 28 >> 2], n = e[v >> 2], o = e[v + 4 >> 2], f = e[v + 8 >> 2], s = e[v + 12 >> 2];
+                          s = pe + 127 | 0, Bt(v + 48 | 0, _, z, r, i, s), Bt(v + 32 | 0, n, o, u, p, s), p2(v + 16 | 0, _, z, r, i, f), p2(v, n, o, u, p, f), _ = e[v + 32 >> 2] | e[v + 16 >> 2] | (e[v + 48 >> 2] | e[v + 56 >> 2] | (e[v + 52 >> 2] | e[v + 60 >> 2])) != 0, z = e[v + 36 >> 2] | e[v + 20 >> 2], r = e[v + 40 >> 2] | e[v + 24 >> 2], i = e[v + 44 >> 2] | e[v + 28 >> 2], n = e[v >> 2], o = e[v + 4 >> 2], f = e[v + 8 >> 2], s = e[v + 12 >> 2];
                           break t;
                         }
                         r = 0, i = 0;
@@ -26045,24 +26045,24 @@ function EI() {
                   }
                   e[t >> 2] = r, e[t + 4 >> 2] = i, e[t + 8 >> 2] = T, e[t + 12 >> 2] = U, C = v + 96 | 0;
                 }
-                function R4() {
+                function C4() {
                   var t = 0, r = 0, i = 0;
                   if (A[25020])
                     return e[6254];
                   e[6663] = 0, e[6662] = 22008, e[6662] = 14144, e[6662] = 12664, t = C - 16 | 0, C = t, e[6664] = 0, e[6665] = 0, e[6666] = 0, l[26792] = 0, e[t + 4 >> 2] = 26656, i = e[t + 4 >> 2], r = t + 8 | 0, l[r + 4 | 0] = 0, e[r >> 2] = i, e[5996] = 0, m0(273, 26656), i = e[5996], e[5996] = 0;
                   e: {
                     if ((i | 0) != 1) {
-                      gl(26656, 30), l[r + 4 | 0] = 1, Fh(r), C = t + 16 | 0;
+                      wl(26656, 30), l[r + 4 | 0] = 1, Lh(r), C = t + 16 | 0;
                       break e;
                     }
-                    r = B() | 0, Fh(t + 8 | 0), ve(r | 0), V();
+                    r = B() | 0, Lh(t + 8 | 0), ve(r | 0), V();
                   }
                   e[5996] = 0, r = D(30, 26800, 3538) | 0, t = e[5996], e[5996] = 0;
                   e: {
                     t: {
                       r: {
                         if ((t | 0) != 1) {
-                          if (Xh(26656), e[6581] = 0, e[6580] = 22008, e[6580] = 14144, e[6580] = 15252, e[5996] = 0, m0(240, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1 || (e[6583] = 0, e[6582] = 22008, e[6582] = 14144, e[6582] = 15284, e[5996] = 0, m0(241, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6585] = 0, e[6584] = 22008, e[6584] = 14144, l[26348] = 0, e[6586] = 0, e[6584] = 12684, e[6586] = 12736, e[5996] = 0, m0(242, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6589] = 0, e[6588] = 22008, e[6588] = 14144, e[6588] = 14200, e[5996] = 0, m0(243, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6591] = 0, e[6590] = 22008, e[6590] = 14144, e[6590] = 14348, e[5996] = 0, m0(244, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[5996] = 0, le(245), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[5996] = 0, m0(246, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6597] = 0, e[6596] = 22008, e[6596] = 14144, e[6596] = 14496, e[5996] = 0, m0(247, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6599] = 0, e[6598] = 22008, e[6598] = 14144, e[6598] = 14728, e[5996] = 0, m0(248, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6601] = 0, e[6600] = 22008, e[6600] = 14144, e[6600] = 14612, e[5996] = 0, m0(249, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6603] = 0, e[6602] = 22008, e[6602] = 14144, e[6602] = 14844, e[5996] = 0, m0(250, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6605] = 0, e[6604] = 22008, e[6604] = 14144, t0[13212] = 11310, e[6604] = 13816, e[6607] = 0, e[6608] = 0, e[6609] = 0, e[5996] = 0, m0(251, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6611] = 0, e[6610] = 22008, e[6610] = 14144, e[6612] = 46, e[6613] = 44, e[6610] = 13856, e[6614] = 0, e[6615] = 0, e[6616] = 0, e[5996] = 0, m0(252, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6619] = 0, e[6618] = 22008, e[6618] = 14144, e[6618] = 15316, e[5996] = 0, m0(253, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6621] = 0, e[6620] = 22008, e[6620] = 14144, e[6620] = 15560, e[5996] = 0, m0(254, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6623] = 0, e[6622] = 22008, e[6622] = 14144, e[6622] = 15772, e[5996] = 0, m0(255, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6625] = 0, e[6624] = 22008, e[6624] = 14144, e[6624] = 16004, e[5996] = 0, m0(256, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6627] = 0, e[6626] = 22008, e[6626] = 14144, e[6626] = 16988, e[5996] = 0, m0(257, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6629] = 0, e[6628] = 22008, e[6628] = 14144, e[6628] = 17136, e[5996] = 0, m0(258, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6631] = 0, e[6630] = 22008, e[6630] = 14144, e[6630] = 17252, e[5996] = 0, m0(259, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6633] = 0, e[6632] = 22008, e[6632] = 14144, e[6632] = 17368, e[5996] = 0, m0(260, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6635] = 0, e[6634] = 22008, e[6634] = 14144, e[6634] = 17484, e[5996] = 0, m0(261, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6637] = 0, e[6636] = 22008, e[6636] = 14144, e[6636] = 17648, e[5996] = 0, m0(262, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6639] = 0, e[6638] = 22008, e[6638] = 14144, e[6638] = 17812, e[5996] = 0, m0(263, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6641] = 0, e[6640] = 22008, e[6640] = 14144, e[6640] = 17976, e[5996] = 0, m0(264, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6643] = 0, e[6642] = 22008, e[6642] = 14144, e[6644] = 19232, e[6644] = 16252, e[6642] = 16204, e[5996] = 0, m0(265, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6647] = 0, e[6646] = 22008, e[6646] = 14144, e[6648] = 19268, e[6648] = 16516, e[6646] = 16468, e[5996] = 0, m0(266, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[5996] = 0, le(267), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[5996] = 0, m0(268, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[5996] = 0, le(269), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[5996] = 0, m0(270, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6659] = 0, e[6658] = 22008, e[6658] = 14144, e[6658] = 18140, e[5996] = 0, m0(271, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6661] = 0, e[6660] = 22008, e[6660] = 14144, e[6660] = 18260, e[5996] = 0, m0(272, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1))
+                          if (jh(26656), e[6581] = 0, e[6580] = 22008, e[6580] = 14144, e[6580] = 15252, e[5996] = 0, m0(240, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1 || (e[6583] = 0, e[6582] = 22008, e[6582] = 14144, e[6582] = 15284, e[5996] = 0, m0(241, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6585] = 0, e[6584] = 22008, e[6584] = 14144, l[26348] = 0, e[6586] = 0, e[6584] = 12684, e[6586] = 12736, e[5996] = 0, m0(242, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6589] = 0, e[6588] = 22008, e[6588] = 14144, e[6588] = 14200, e[5996] = 0, m0(243, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6591] = 0, e[6590] = 22008, e[6590] = 14144, e[6590] = 14348, e[5996] = 0, m0(244, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[5996] = 0, le(245), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[5996] = 0, m0(246, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6597] = 0, e[6596] = 22008, e[6596] = 14144, e[6596] = 14496, e[5996] = 0, m0(247, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6599] = 0, e[6598] = 22008, e[6598] = 14144, e[6598] = 14728, e[5996] = 0, m0(248, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6601] = 0, e[6600] = 22008, e[6600] = 14144, e[6600] = 14612, e[5996] = 0, m0(249, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6603] = 0, e[6602] = 22008, e[6602] = 14144, e[6602] = 14844, e[5996] = 0, m0(250, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6605] = 0, e[6604] = 22008, e[6604] = 14144, t0[13212] = 11310, e[6604] = 13816, e[6607] = 0, e[6608] = 0, e[6609] = 0, e[5996] = 0, m0(251, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6611] = 0, e[6610] = 22008, e[6610] = 14144, e[6612] = 46, e[6613] = 44, e[6610] = 13856, e[6614] = 0, e[6615] = 0, e[6616] = 0, e[5996] = 0, m0(252, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6619] = 0, e[6618] = 22008, e[6618] = 14144, e[6618] = 15316, e[5996] = 0, m0(253, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6621] = 0, e[6620] = 22008, e[6620] = 14144, e[6620] = 15560, e[5996] = 0, m0(254, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6623] = 0, e[6622] = 22008, e[6622] = 14144, e[6622] = 15772, e[5996] = 0, m0(255, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6625] = 0, e[6624] = 22008, e[6624] = 14144, e[6624] = 16004, e[5996] = 0, m0(256, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6627] = 0, e[6626] = 22008, e[6626] = 14144, e[6626] = 16988, e[5996] = 0, m0(257, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6629] = 0, e[6628] = 22008, e[6628] = 14144, e[6628] = 17136, e[5996] = 0, m0(258, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6631] = 0, e[6630] = 22008, e[6630] = 14144, e[6630] = 17252, e[5996] = 0, m0(259, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6633] = 0, e[6632] = 22008, e[6632] = 14144, e[6632] = 17368, e[5996] = 0, m0(260, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6635] = 0, e[6634] = 22008, e[6634] = 14144, e[6634] = 17484, e[5996] = 0, m0(261, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6637] = 0, e[6636] = 22008, e[6636] = 14144, e[6636] = 17648, e[5996] = 0, m0(262, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6639] = 0, e[6638] = 22008, e[6638] = 14144, e[6638] = 17812, e[5996] = 0, m0(263, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6641] = 0, e[6640] = 22008, e[6640] = 14144, e[6640] = 17976, e[5996] = 0, m0(264, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6643] = 0, e[6642] = 22008, e[6642] = 14144, e[6644] = 19232, e[6644] = 16252, e[6642] = 16204, e[5996] = 0, m0(265, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6647] = 0, e[6646] = 22008, e[6646] = 14144, e[6648] = 19268, e[6648] = 16516, e[6646] = 16468, e[5996] = 0, m0(266, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[5996] = 0, le(267), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[5996] = 0, m0(268, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[5996] = 0, le(269), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[5996] = 0, m0(270, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6659] = 0, e[6658] = 22008, e[6658] = 14144, e[6658] = 18140, e[5996] = 0, m0(271, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1) || (e[6661] = 0, e[6660] = 22008, e[6660] = 14144, e[6660] = 18260, e[5996] = 0, m0(272, 26648), t = e[5996], e[5996] = 0, (t | 0) == 1))
                             break r;
                           break e;
                         }
@@ -26071,7 +26071,7 @@ function EI() {
                       }
                       t = B() | 0, ce(r);
                     }
-                    Ah(26656), ve(t | 0), V();
+                    kh(26656), ve(t | 0), V();
                   }
                   return e[6253] = 26648, l[25020] = 1, e[6254] = 25012, 25012;
                 }
@@ -26193,16 +26193,16 @@ function EI() {
                                                                           }
                                                                         i = B() | 0, t = e[u >> 2], r = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = r, (r | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), ve(i | 0), V();
                                                                       }
-                                                                      Kl(t, s + 24 | 0, u + 44 | 0, i, o, p);
+                                                                      Hl(t, s + 24 | 0, u + 44 | 0, i, o, p);
                                                                       break t;
                                                                     }
-                                                                    Wl(t, s + 16 | 0, u + 44 | 0, i, o, p);
+                                                                    Vl(t, s + 16 | 0, u + 44 | 0, i, o, p);
                                                                     break t;
                                                                   }
                                                                   f = L[e[e[t + 8 >> 2] + 12 >> 2]](t + 8 | 0) | 0, p = A[f + 11 | 0], w = t, v = r, r = (p & 128) >>> 7 | 0, t = r ? e[f >> 2] : f, e[u + 44 >> 2] = tn(w, v, i, n, o, s, t, t + ((r ? e[f + 4 >> 2] : p & 127) << 2) | 0);
                                                                   break t;
                                                                 }
-                                                                t = Ii(u + 44 | 0, i, o, p, 2), r = e[o >> 2];
+                                                                t = Bi(u + 44 | 0, i, o, p, 2), r = e[o >> 2];
                                                                 v: {
                                                                   if (!(t - 1 >>> 0 > 30 | r & 4)) {
                                                                     e[s + 12 >> 2] = t;
@@ -26218,7 +26218,7 @@ function EI() {
                                                             f = e[3135], e[u + 24 >> 2] = e[3134], e[u + 28 >> 2] = f, f = e[3133], e[u + 16 >> 2] = e[3132], e[u + 20 >> 2] = f, f = e[3131], e[u + 8 >> 2] = e[3130], e[u + 12 >> 2] = f, f = e[3129], e[u >> 2] = e[3128], e[u + 4 >> 2] = f, e[u + 44 >> 2] = tn(t, r, i, n, o, s, u, u + 32 | 0);
                                                             break t;
                                                           }
-                                                          t = Ii(u + 44 | 0, i, o, p, 2), r = e[o >> 2];
+                                                          t = Bi(u + 44 | 0, i, o, p, 2), r = e[o >> 2];
                                                           I: {
                                                             if (!((t | 0) > 23 | r & 4)) {
                                                               e[s + 8 >> 2] = t;
@@ -26228,7 +26228,7 @@ function EI() {
                                                           }
                                                           break t;
                                                         }
-                                                        t = Ii(u + 44 | 0, i, o, p, 2), r = e[o >> 2];
+                                                        t = Bi(u + 44 | 0, i, o, p, 2), r = e[o >> 2];
                                                         B: {
                                                           if (!(t - 1 >>> 0 > 11 | r & 4)) {
                                                             e[s + 8 >> 2] = t;
@@ -26238,7 +26238,7 @@ function EI() {
                                                         }
                                                         break t;
                                                       }
-                                                      t = Ii(u + 44 | 0, i, o, p, 3), r = e[o >> 2];
+                                                      t = Bi(u + 44 | 0, i, o, p, 3), r = e[o >> 2];
                                                       N: {
                                                         if (!((t | 0) > 365 | r & 4)) {
                                                           e[s + 28 >> 2] = t;
@@ -26248,7 +26248,7 @@ function EI() {
                                                       }
                                                       break t;
                                                     }
-                                                    r = Ii(u + 44 | 0, i, o, p, 2) - 1 | 0, t = e[o >> 2];
+                                                    r = Bi(u + 44 | 0, i, o, p, 2) - 1 | 0, t = e[o >> 2];
                                                     b: {
                                                       if (!(r >>> 0 > 11 | t & 4)) {
                                                         e[s + 16 >> 2] = r;
@@ -26258,7 +26258,7 @@ function EI() {
                                                     }
                                                     break t;
                                                   }
-                                                  t = Ii(u + 44 | 0, i, o, p, 2), r = e[o >> 2];
+                                                  t = Bi(u + 44 | 0, i, o, p, 2), r = e[o >> 2];
                                                   y: {
                                                     if (!((t | 0) > 59 | r & 4)) {
                                                       e[s + 4 >> 2] = t;
@@ -26310,7 +26310,7 @@ function EI() {
                                           e[u + 16 >> 2] = e[3152], f = e[3151], e[u + 8 >> 2] = e[3150], e[u + 12 >> 2] = f, f = e[3149], e[u >> 2] = e[3148], e[u + 4 >> 2] = f, e[u + 44 >> 2] = tn(t, r, i, n, o, s, u, u + 20 | 0);
                                           break t;
                                         }
-                                        t = Ii(u + 44 | 0, i, o, p, 2), r = e[o >> 2];
+                                        t = Bi(u + 44 | 0, i, o, p, 2), r = e[o >> 2];
                                         c: {
                                           if (!((t | 0) > 60 | r & 4)) {
                                             e[s >> 2] = t;
@@ -26323,7 +26323,7 @@ function EI() {
                                       f = e[3163], e[u + 24 >> 2] = e[3162], e[u + 28 >> 2] = f, f = e[3161], e[u + 16 >> 2] = e[3160], e[u + 20 >> 2] = f, f = e[3159], e[u + 8 >> 2] = e[3158], e[u + 12 >> 2] = f, f = e[3157], e[u >> 2] = e[3156], e[u + 4 >> 2] = f, e[u + 44 >> 2] = tn(t, r, i, n, o, s, u, u + 32 | 0);
                                       break t;
                                     }
-                                    t = Ii(u + 44 | 0, i, o, p, 1), r = e[o >> 2];
+                                    t = Bi(u + 44 | 0, i, o, p, 1), r = e[o >> 2];
                                     u: {
                                       if (!((t | 0) > 6 | r & 4)) {
                                         e[s + 24 >> 2] = t;
@@ -26339,10 +26339,10 @@ function EI() {
                                 f = L[e[e[t + 8 >> 2] + 24 >> 2]](t + 8 | 0) | 0, p = A[f + 11 | 0], w = t, v = r, r = (p & 128) >>> 7 | 0, t = r ? e[f >> 2] : f, e[u + 44 >> 2] = tn(w, v, i, n, o, s, t, t + ((r ? e[f + 4 >> 2] : p & 127) << 2) | 0);
                                 break t;
                               }
-                              Zl(s + 20 | 0, u + 44 | 0, i, o, p);
+                              Yl(s + 20 | 0, u + 44 | 0, i, o, p);
                               break t;
                             }
-                            t = Ii(u + 44 | 0, i, o, p, 4), A[o | 0] & 4 || (e[s + 20 >> 2] = t - 1900);
+                            t = Bi(u + 44 | 0, i, o, p, 4), A[o | 0] & 4 || (e[s + 20 >> 2] = t - 1900);
                             break t;
                           }
                           if ((f | 0) == 37)
@@ -26528,16 +26528,16 @@ function EI() {
                                                                           }
                                                                         i = B() | 0, t = e[u >> 2], r = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = r, (r | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), ve(i | 0), V();
                                                                       }
-                                                                      Hl(t, s + 24 | 0, u + 12 | 0, i, o, p);
+                                                                      Wl(t, s + 24 | 0, u + 12 | 0, i, o, p);
                                                                       break t;
                                                                     }
-                                                                    Vl(t, s + 16 | 0, u + 12 | 0, i, o, p);
+                                                                    Fl(t, s + 16 | 0, u + 12 | 0, i, o, p);
                                                                     break t;
                                                                   }
                                                                   f = L[e[e[t + 8 >> 2] + 12 >> 2]](t + 8 | 0) | 0, p = A[f + 11 | 0], w = t, v = r, r = (p & 128) >>> 7 | 0, t = r ? e[f >> 2] : f, e[u + 12 >> 2] = en(w, v, i, n, o, s, t, t + (r ? e[f + 4 >> 2] : p & 127) | 0);
                                                                   break t;
                                                                 }
-                                                                t = Bi(u + 12 | 0, i, o, p, 2), r = e[o >> 2];
+                                                                t = bi(u + 12 | 0, i, o, p, 2), r = e[o >> 2];
                                                                 v: {
                                                                   if (!(t - 1 >>> 0 > 30 | r & 4)) {
                                                                     e[s + 12 >> 2] = t;
@@ -26553,7 +26553,7 @@ function EI() {
                                                             e[u >> 2] = 623728933, e[u + 4 >> 2] = 1680158061, e[u + 12 >> 2] = en(t, r, i, n, o, s, u, u + 8 | 0);
                                                             break t;
                                                           }
-                                                          t = Bi(u + 12 | 0, i, o, p, 2), r = e[o >> 2];
+                                                          t = bi(u + 12 | 0, i, o, p, 2), r = e[o >> 2];
                                                           I: {
                                                             if (!((t | 0) > 23 | r & 4)) {
                                                               e[s + 8 >> 2] = t;
@@ -26563,7 +26563,7 @@ function EI() {
                                                           }
                                                           break t;
                                                         }
-                                                        t = Bi(u + 12 | 0, i, o, p, 2), r = e[o >> 2];
+                                                        t = bi(u + 12 | 0, i, o, p, 2), r = e[o >> 2];
                                                         B: {
                                                           if (!(t - 1 >>> 0 > 11 | r & 4)) {
                                                             e[s + 8 >> 2] = t;
@@ -26573,7 +26573,7 @@ function EI() {
                                                         }
                                                         break t;
                                                       }
-                                                      t = Bi(u + 12 | 0, i, o, p, 3), r = e[o >> 2];
+                                                      t = bi(u + 12 | 0, i, o, p, 3), r = e[o >> 2];
                                                       N: {
                                                         if (!((t | 0) > 365 | r & 4)) {
                                                           e[s + 28 >> 2] = t;
@@ -26583,7 +26583,7 @@ function EI() {
                                                       }
                                                       break t;
                                                     }
-                                                    r = Bi(u + 12 | 0, i, o, p, 2) - 1 | 0, t = e[o >> 2];
+                                                    r = bi(u + 12 | 0, i, o, p, 2) - 1 | 0, t = e[o >> 2];
                                                     b: {
                                                       if (!(r >>> 0 > 11 | t & 4)) {
                                                         e[s + 16 >> 2] = r;
@@ -26593,7 +26593,7 @@ function EI() {
                                                     }
                                                     break t;
                                                   }
-                                                  t = Bi(u + 12 | 0, i, o, p, 2), r = e[o >> 2];
+                                                  t = bi(u + 12 | 0, i, o, p, 2), r = e[o >> 2];
                                                   y: {
                                                     if (!((t | 0) > 59 | r & 4)) {
                                                       e[s + 4 >> 2] = t;
@@ -26645,7 +26645,7 @@ function EI() {
                                           l[u + 4 | 0] = A[12464], e[u >> 2] = A[12460] | A[12461] << 8 | (A[12462] << 16 | A[12463] << 24), e[u + 12 >> 2] = en(t, r, i, n, o, s, u, u + 5 | 0);
                                           break t;
                                         }
-                                        t = Bi(u + 12 | 0, i, o, p, 2), r = e[o >> 2];
+                                        t = bi(u + 12 | 0, i, o, p, 2), r = e[o >> 2];
                                         c: {
                                           if (!((t | 0) > 60 | r & 4)) {
                                             e[s >> 2] = t;
@@ -26658,7 +26658,7 @@ function EI() {
                                       e[u >> 2] = 624576549, e[u + 4 >> 2] = 1394948685, e[u + 12 >> 2] = en(t, r, i, n, o, s, u, u + 8 | 0);
                                       break t;
                                     }
-                                    t = Bi(u + 12 | 0, i, o, p, 1), r = e[o >> 2];
+                                    t = bi(u + 12 | 0, i, o, p, 1), r = e[o >> 2];
                                     u: {
                                       if (!((t | 0) > 6 | r & 4)) {
                                         e[s + 24 >> 2] = t;
@@ -26674,10 +26674,10 @@ function EI() {
                                 f = L[e[e[t + 8 >> 2] + 24 >> 2]](t + 8 | 0) | 0, p = A[f + 11 | 0], w = t, v = r, r = (p & 128) >>> 7 | 0, t = r ? e[f >> 2] : f, e[u + 12 >> 2] = en(w, v, i, n, o, s, t, t + (r ? e[f + 4 >> 2] : p & 127) | 0);
                                 break t;
                               }
-                              ql(s + 20 | 0, u + 12 | 0, i, o, p);
+                              Zl(s + 20 | 0, u + 12 | 0, i, o, p);
                               break t;
                             }
-                            t = Bi(u + 12 | 0, i, o, p, 4), A[o | 0] & 4 || (e[s + 20 >> 2] = t - 1900);
+                            t = bi(u + 12 | 0, i, o, p, 4), A[o | 0] & 4 || (e[s + 20 >> 2] = t - 1900);
                             break t;
                           }
                           if ((f | 0) == 37)
@@ -26837,7 +26837,7 @@ function EI() {
                                 case 25:
                                   break s;
                               }
-                            W4(t);
+                            V4(t);
                           }
                           C = f + 32 | 0;
                           return;
@@ -26851,7 +26851,7 @@ function EI() {
                   }
                   x(r), ve(t | 0), V();
                 }
-                function P4(t, r, i) {
+                function R4(t, r, i) {
                   t = t | 0, r = r | 0, i = i | 0;
                   var n = 0, o = 0, s = 0, f = 0, u = 0, p = 0, w = 0, v = 0, m = 0;
                   e: {
@@ -27033,7 +27033,7 @@ function EI() {
                           n: {
                             if (!u)
                               break n;
-                            o = e[r >> 2], v = kh(u), n = u - 1 & f;
+                            o = e[r >> 2], v = hh(u), n = u - 1 & f;
                             s: {
                               if (v >>> 0 <= 1 || (n = f, n >>> 0 < u >>> 0))
                                 break s;
@@ -27073,7 +27073,7 @@ function EI() {
                                 break;
                             }
                           }
-                          if (T = E4(t, r, i), !T)
+                          if (T = v4(t, r, i), !T)
                             return 0;
                           if (n = e[r + 4 >> 2], !n)
                             break r;
@@ -27106,7 +27106,7 @@ function EI() {
                           f = i;
                           break r;
                         }
-                        o = 2, i = (n - 1 & n) != 0 | n >>> 0 < 3 | n << 1, p = dt(d4(dt(R / p)));
+                        o = 2, i = (n - 1 & n) != 0 | n >>> 0 < 3 | n << 1, p = dt(p4(dt(R / p)));
                         i: {
                           if (p < dt(4294967296) & p >= dt(0)) {
                             t = ~~p >>> 0;
@@ -27131,7 +27131,7 @@ function EI() {
                             if (n >>> 0 >= o >>> 0) {
                               if (n >>> 0 <= o >>> 0)
                                 break i;
-                              i = n >>> 0 < 3, p = dt(d4(dt(dt(Qe[r + 12 >> 2]) / oo[r + 16 >> 2])));
+                              i = n >>> 0 < 3, p = dt(p4(dt(dt(Qe[r + 12 >> 2]) / oo[r + 16 >> 2])));
                               s: {
                                 if (p < dt(4294967296) & p >= dt(0)) {
                                   t = ~~p >>> 0;
@@ -27141,7 +27141,7 @@ function EI() {
                               }
                               s: {
                                 f: {
-                                  if (i || kh(n) >>> 0 > 1)
+                                  if (i || hh(n) >>> 0 > 1)
                                     break f;
                                   t = t >>> 0 < 2 ? t : 1 << 32 - b0(t - 1 | 0);
                                   break s;
@@ -27438,7 +27438,7 @@ function EI() {
                         r = 0, i = 0, v = 0, n = 1;
                         break t;
                       }
-                      Bt(w - -64 | 0, n, v, r, i, 128 - o | 0), d2(w + 48 | 0, n, v, r, i, o), r = e[w + 56 >> 2], i = e[w + 60 >> 2], v = e[w + 52 >> 2], n = e[w + 48 >> 2] | (e[w + 64 >> 2] | e[w + 72 >> 2] | (e[w + 68 >> 2] | e[w + 76 >> 2])) != 0;
+                      Bt(w - -64 | 0, n, v, r, i, 128 - o | 0), p2(w + 48 | 0, n, v, r, i, o), r = e[w + 56 >> 2], i = e[w + 60 >> 2], v = e[w + 52 >> 2], n = e[w + 48 >> 2] | (e[w + 64 >> 2] | e[w + 72 >> 2] | (e[w + 68 >> 2] | e[w + 76 >> 2])) != 0;
                     }
                     R = n, m = v, z = u | 524288, v = _ << 3 | T >>> 29, T = T << 3;
                     t: {
@@ -27464,7 +27464,7 @@ function EI() {
                         m = U;
                         break t;
                       }
-                      Bt(w + 16 | 0, n, o, u, p, U + 127 | 0), d2(w, n, o, u, p, 1 - U | 0), n = e[w >> 2] | (e[w + 16 >> 2] | e[w + 24 >> 2] | (e[w + 20 >> 2] | e[w + 28 >> 2])) != 0, o = e[w + 4 >> 2], u = e[w + 8 >> 2], p = e[w + 12 >> 2];
+                      Bt(w + 16 | 0, n, o, u, p, U + 127 | 0), p2(w, n, o, u, p, 1 - U | 0), n = e[w >> 2] | (e[w + 16 >> 2] | e[w + 24 >> 2] | (e[w + 20 >> 2] | e[w + 28 >> 2])) != 0, o = e[w + 4 >> 2], u = e[w + 8 >> 2], p = e[w + 12 >> 2];
                     }
                     T = n & 7, n = (o & 7) << 29 | n >>> 3, s = (T >>> 0 > 4) + n | 0, r = u << 29 | o >>> 3, f = n >>> 0 > s >>> 0 ? r + 1 | 0 : r, n = (r | 0) == (f | 0) & n >>> 0 > s >>> 0 | r >>> 0 > f >>> 0, r = i | ((p & 7) << 29 | u >>> 3), u = n + r | 0, p = _ | (p >>> 3 & 65535 | m << 16), p = r >>> 0 > u >>> 0 ? p + 1 | 0 : p;
                     t: {
@@ -27780,7 +27780,7 @@ function EI() {
                   }
                   S0(s + 32 | 0), ve(f | 0), V();
                 }
-                function N4(t, r, i, n) {
+                function P4(t, r, i, n) {
                   t = t | 0, r = +r, i = +i, n = n | 0;
                   var o = 0, s = 0, f = 0, u = 0, p = 0, w = 0, v = 0, m = 0;
                   f = C - 48 | 0, C = f;
@@ -27934,7 +27934,7 @@ function EI() {
                             u = w + 528 | 0;
                             break i;
                           }
-                          if (t = y0(), e[w >> 2] = s, e[w + 4 >> 2] = f, e[w + 8 >> 2] = u, e[w + 12 >> 2] = p, m = Ri(w + 940 | 0, t, 2304, w), (m | 0) != -1 && (t = e[w + 940 >> 2], ft(R, t), ft(T, tt(m << 2)), u = e[T >> 2], u))
+                          if (t = y0(), e[w >> 2] = s, e[w + 4 >> 2] = f, e[w + 8 >> 2] = u, e[w + 12 >> 2] = p, m = Ci(w + 940 | 0, t, 2304, w), (m | 0) != -1 && (t = e[w + 940 >> 2], ft(R, t), ft(T, tt(m << 2)), u = e[T >> 2], u))
                             break i;
                           if (e[5996] = 0, le(185), t = e[5996], e[5996] = 0, (t | 0) != 1)
                             break e;
@@ -28030,7 +28030,7 @@ function EI() {
                             u = w + 224 | 0;
                             break i;
                           }
-                          if (t = y0(), e[w >> 2] = s, e[w + 4 >> 2] = f, e[w + 8 >> 2] = u, e[w + 12 >> 2] = p, m = Ri(w + 332 | 0, t, 2304, w), (m | 0) != -1 && (t = e[w + 332 >> 2], ft(R, t), ft(T, tt(m)), u = e[T >> 2], u))
+                          if (t = y0(), e[w >> 2] = s, e[w + 4 >> 2] = f, e[w + 8 >> 2] = u, e[w + 12 >> 2] = p, m = Ci(w + 332 | 0, t, 2304, w), (m | 0) != -1 && (t = e[w + 332 >> 2], ft(R, t), ft(T, tt(m)), u = e[T >> 2], u))
                             break i;
                           if (e[5996] = 0, le(185), t = e[5996], e[5996] = 0, (t | 0) != 1)
                             break e;
@@ -28164,13 +28164,13 @@ function EI() {
                   }
                   e[t + 8 >> 2] = 0, e[t + 12 >> 2] = 2146435072, e[t >> 2] = 0, e[t + 4 >> 2] = 0;
                 }
-                function O4(t, r, i, n, o, s, f, u, p) {
+                function N4(t, r, i, n, o, s, f, u, p) {
                   var w = 0, v = 0, m = 0, T = 0, R = 0, U = 0, _ = 0, F = 0, z = 0, ee = 0, pe = 0;
                   w = C - 128 | 0, C = w;
                   e: {
                     t: {
                       r: {
-                        if (!p2(s, f, u, p, 0, 0, 0, 0))
+                        if (!A2(s, f, u, p, 0, 0, 0, 0))
                           break r;
                         v = p & 65535, R = p >>> 16 & 32767;
                         i:
@@ -28188,11 +28188,11 @@ function EI() {
                         if (m)
                           break t;
                       }
-                      P0(w + 16 | 0, r, i, n, o, s, f, u, p), r = e[w + 16 >> 2], n = e[w + 20 >> 2], o = e[w + 24 >> 2], i = e[w + 28 >> 2], B4(w, r, n, o, i, r, n, o, i), n = e[w + 8 >> 2], o = e[w + 12 >> 2], u = e[w >> 2], p = e[w + 4 >> 2];
+                      P0(w + 16 | 0, r, i, n, o, s, f, u, p), r = e[w + 16 >> 2], n = e[w + 20 >> 2], o = e[w + 24 >> 2], i = e[w + 28 >> 2], b4(w, r, n, o, i, r, n, o, i), n = e[w + 8 >> 2], o = e[w + 12 >> 2], u = e[w >> 2], p = e[w + 4 >> 2];
                       break e;
                     }
-                    if (m = n, _ = o & 2147483647, v = _, R = u, T = p & 2147483647, (p2(r, i, m, v, s, f, u, T) | 0) <= 0) {
-                      if (p2(r, i, m, v, s, f, u, T)) {
+                    if (m = n, _ = o & 2147483647, v = _, R = u, T = p & 2147483647, (A2(r, i, m, v, s, f, u, T) | 0) <= 0) {
+                      if (A2(r, i, m, v, s, f, u, T)) {
                         u = r, p = i;
                         break e;
                       }
@@ -28391,7 +28391,7 @@ function EI() {
                         e[s >> 2] = e[s >> 2] + (f - p << 2);
                         break t;
                       }
-                      if (w2(p, f), e[5996] = 0, F = K(206, U | 0) | 0, u = e[5996], e[5996] = 0, (u | 0) == 1)
+                      if (d2(p, f), e[5996] = 0, F = K(206, U | 0) | 0, u = e[5996], e[5996] = 0, (u | 0) == 1)
                         break e;
                       for (u = p; ; ) {
                         if (f >>> 0 <= u >>> 0) {
@@ -28472,11 +28472,11 @@ function EI() {
                         e[s >> 2] = e[s >> 2] + (f - p | 0);
                         break t;
                       }
-                      if (w2(p, f), e[5996] = 0, F = K(193, U | 0) | 0, u = e[5996], e[5996] = 0, (u | 0) == 1)
+                      if (d2(p, f), e[5996] = 0, F = K(193, U | 0) | 0, u = e[5996], e[5996] = 0, (u | 0) == 1)
                         break e;
                       for (u = p; ; ) {
                         if (f >>> 0 <= u >>> 0) {
-                          w2((p - t | 0) + n | 0, e[s >> 2]);
+                          d2((p - t | 0) + n | 0, e[s >> 2]);
                           break t;
                         }
                         if (w = v + 4 | 0, T = (A[w + 11 | 0] & 128) >>> 7 | 0, l[(T ? e[w >> 2] : w) + R | 0] <= 0 | l[(T ? e[w >> 2] : w) + R | 0] != (_ | 0) || (w = e[s >> 2], e[s >> 2] = w + 1, l[w | 0] = F, _ = 0, w = A[v + 15 | 0], R = (((w & 128) >>> 7 | 0 ? e[v + 8 >> 2] : w & 127) - 1 >>> 0 > R >>> 0) + R | 0), w = l[u | 0], e[5996] = 0, w = D(171, m | 0, w | 0) | 0, T = e[5996], e[5996] = 0, (T | 0) != 1) {
@@ -28508,7 +28508,7 @@ function EI() {
                   }
                   t = B() | 0, ce(v + 4 | 0), ve(t | 0), V();
                 }
-                function U4(t, r, i, n) {
+                function O4(t, r, i, n) {
                   var o = 0, s = 0, f = 0, u = 0, p = 0;
                   o = e[r >> 2];
                   e: {
@@ -28714,7 +28714,7 @@ function EI() {
                                     break n;
                                   n = e[t + 180 >> 2];
                                 }
-                                if (e[5996] = 0, J(172, i | 0, n - r | 0), r = e[5996], e[5996] = 0, (r | 0) == 1 || (r = e[i >> 2], n = (A[i + 11 | 0] & 128) >>> 7 | 0, f = y0(), e[t >> 2] = s, (Rl(n ? r : i, f, t) | 0) != 1 && (e[o >> 2] = 4), e[5996] = 0, r = D(186, t + 252 | 0, t + 248 | 0) | 0, n = e[5996], e[5996] = 0, (n | 0) == 1))
+                                if (e[5996] = 0, J(172, i | 0, n - r | 0), r = e[5996], e[5996] = 0, (r | 0) == 1 || (r = e[i >> 2], n = (A[i + 11 | 0] & 128) >>> 7 | 0, f = y0(), e[t >> 2] = s, (Cl(n ? r : i, f, t) | 0) != 1 && (e[o >> 2] = 4), e[5996] = 0, r = D(186, t + 252 | 0, t + 248 | 0) | 0, n = e[5996], e[5996] = 0, (n | 0) == 1))
                                   break i;
                                 return r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 252 >> 2], ce(i), ce(u), C = t + 256 | 0, r | 0;
                               }
@@ -28758,7 +28758,7 @@ function EI() {
                                     break n;
                                   n = e[t + 180 >> 2];
                                 }
-                                if (e[5996] = 0, J(172, i | 0, n - r | 0), r = e[5996], e[5996] = 0, (r | 0) == 1 || (r = e[i >> 2], n = (A[i + 11 | 0] & 128) >>> 7 | 0, f = y0(), e[t >> 2] = s, (Rl(n ? r : i, f, t) | 0) != 1 && (e[o >> 2] = 4), e[5996] = 0, r = D(202, t + 316 | 0, t + 312 | 0) | 0, n = e[5996], e[5996] = 0, (n | 0) == 1))
+                                if (e[5996] = 0, J(172, i | 0, n - r | 0), r = e[5996], e[5996] = 0, (r | 0) == 1 || (r = e[i >> 2], n = (A[i + 11 | 0] & 128) >>> 7 | 0, f = y0(), e[t >> 2] = s, (Cl(n ? r : i, f, t) | 0) != 1 && (e[o >> 2] = 4), e[5996] = 0, r = D(202, t + 316 | 0, t + 312 | 0) | 0, n = e[5996], e[5996] = 0, (n | 0) == 1))
                                   break i;
                                 return r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 316 >> 2], ce(i), ce(u), C = t + 320 | 0, r | 0;
                               }
@@ -28887,7 +28887,7 @@ function EI() {
                   var _ = 0, F = 0, z = 0, ee = 0, pe = 0, xe = 0, Re = 0, Me = 0, He = 0;
                   for (e[i >> 2] = t, Re = n & 512, Me = u << 2; ; ) {
                     if ((xe | 0) == 4)
-                      o = A[R + 11 | 0], ((o & 128) >>> 7 | 0 ? e[R + 4 >> 2] : o & 127) >>> 0 > 1 && (e[i >> 2] = hl(Vc(Ar(R), 1), In(R), e[i >> 2])), n = n & 176, (n | 0) != 16 && ((n | 0) == 32 && (t = e[i >> 2]), e[r >> 2] = t);
+                      o = A[R + 11 | 0], ((o & 128) >>> 7 | 0 ? e[R + 4 >> 2] : o & 127) >>> 0 > 1 && (e[i >> 2] = ll(Vc(Ar(R), 1), Bn(R), e[i >> 2])), n = n & 176, (n | 0) != 16 && ((n | 0) == 32 && (t = e[i >> 2]), e[r >> 2] = t);
                     else {
                       e: {
                         t:
@@ -28906,7 +28906,7 @@ function EI() {
                             case 2:
                               if (!Re || (u = A[T + 11 | 0], !((u & 128) >>> 7 | 0 ? e[T + 4 >> 2] : u & 127)))
                                 break e;
-                              e[i >> 2] = hl(Ar(T), In(T), e[i >> 2]);
+                              e[i >> 2] = ll(Ar(T), Bn(T), e[i >> 2]);
                               break e;
                             case 4:
                               break t;
@@ -28987,7 +28987,7 @@ function EI() {
                   var _ = 0, F = 0, z = 0, ee = 0, pe = 0, xe = 0, Re = 0, Me = 0, He = 0;
                   for (e[i >> 2] = t, Me = n & 512; ; ) {
                     if ((xe | 0) == 4)
-                      o = A[R + 11 | 0], ((o & 128) >>> 7 | 0 ? e[R + 4 >> 2] : o & 127) >>> 0 > 1 && (e[i >> 2] = kl(Wc(Ar(R), 1), Cn(R), e[i >> 2])), n = n & 176, (n | 0) != 16 && ((n | 0) == 32 && (t = e[i >> 2]), e[r >> 2] = t);
+                      o = A[R + 11 | 0], ((o & 128) >>> 7 | 0 ? e[R + 4 >> 2] : o & 127) >>> 0 > 1 && (e[i >> 2] = hl(Wc(Ar(R), 1), In(R), e[i >> 2])), n = n & 176, (n | 0) != 16 && ((n | 0) == 32 && (t = e[i >> 2]), e[r >> 2] = t);
                     else {
                       e: {
                         t:
@@ -29006,7 +29006,7 @@ function EI() {
                             case 2:
                               if (!Me || (_ = A[T + 11 | 0], !((_ & 128) >>> 7 | 0 ? e[T + 4 >> 2] : _ & 127)))
                                 break e;
-                              e[i >> 2] = kl(Ar(T), Cn(T), e[i >> 2]);
+                              e[i >> 2] = hl(Ar(T), In(T), e[i >> 2]);
                               break e;
                             case 4:
                               break t;
@@ -29063,7 +29063,7 @@ function EI() {
                             z = z - 1 | 0, _ = A[z | 0], Re = e[i >> 2], e[i >> 2] = Re + 1, l[Re | 0] = _, _ = ee + 1 | 0;
                           }
                         }
-                        w2(He, e[i >> 2]);
+                        d2(He, e[i >> 2]);
                       }
                       xe = xe + 1 | 0;
                       continue;
@@ -29103,7 +29103,7 @@ function EI() {
                                       p = F;
                                       break n;
                                     }
-                                    if (pe = U4(_, U + 12 | 0, p >>> 0 < m >>> 0 ? p : m, r), p = e[U + 12 >> 2], (pe | 0) == -1) {
+                                    if (pe = O4(_, U + 12 | 0, p >>> 0 < m >>> 0 ? p : m, r), p = e[U + 12 >> 2], (pe | 0) == -1) {
                                       m = 0, v = -1;
                                       break s;
                                     }
@@ -29165,7 +29165,7 @@ function EI() {
                                         l: {
                                           u: {
                                             h:
-                                              switch (r = Fl(s, i, w - i | 0, z + 8 | 0, e[t + 8 >> 2]), r + 2 | 0) {
+                                              switch (r = Ll(s, i, w - i | 0, z + 8 | 0, e[t + 8 >> 2]), r + 2 | 0) {
                                                 case 0:
                                                   break n;
                                                 case 2:
@@ -29194,7 +29194,7 @@ function EI() {
                                     w = n;
                                     continue;
                                   }
-                                  if (!Fl(s, i, 1, r, e[t + 8 >> 2]))
+                                  if (!Ll(s, i, 1, r, e[t + 8 >> 2]))
                                     break s;
                                 }
                                 t = 2;
@@ -29480,7 +29480,7 @@ function EI() {
                             }
                             for (A[u + 191 | 0] && (l[o | 0] = 45, o = o + 1 | 0), i = e[p >> 2]; ; ) {
                               if (r >>> 0 <= i >>> 0) {
-                                if (l[o | 0] = 0, e[u >> 2] = f, (nh(u + 16 | 0, u) | 0) != 1) {
+                                if (l[o | 0] = 0, e[u >> 2] = f, (ih(u + 16 | 0, u) | 0) != 1) {
                                   if (e[5996] = 0, m0(222, 1730), t = e[5996], e[5996] = 0, (t | 0) != 1)
                                     break e;
                                   break r;
@@ -29513,12 +29513,12 @@ function EI() {
                     u = C - 32 | 0, C = u, s = r - n | 0;
                     e: {
                       if (s >>> 0 <= e[t + 8 >> 2] - o >> 2 >>> 0) {
-                        gl(t, s);
+                        wl(t, s);
                         break e;
                       }
                       f = t + 16 | 0, n = u + 12 | 0, i = C - 16 | 0, C = i, o = s + (o - e[t >> 2] >> 2) | 0, e[i + 12 >> 2] = o;
                       t: {
-                        if (r = Ul(), o >>> 0 <= r >>> 0) {
+                        if (r = Ol(), o >>> 0 <= r >>> 0) {
                           o = e[t + 8 >> 2] - e[t >> 2] >> 2, o >>> 0 < r >>> 1 >>> 0 && (e[i + 8 >> 2] = o << 1, r = e[(Qe[i + 8 >> 2] < Qe[i + 12 >> 2] ? i + 12 | 0 : i + 8 | 0) >> 2]), C = i + 16 | 0;
                           break t;
                         }
@@ -29530,7 +29530,7 @@ function EI() {
                           i = 0, r = 0;
                           break t;
                         }
-                        eh(o + 8 | 0, e[n + 16 >> 2], r), i = e[o + 8 >> 2], r = e[o + 12 >> 2];
+                        Jl(o + 8 | 0, e[n + 16 >> 2], r), i = e[o + 8 >> 2], r = e[o + 12 >> 2];
                       }
                       for (e[n >> 2] = i, f = i + (p << 2) | 0, e[n + 8 >> 2] = f, e[n + 4 >> 2] = f, e[n + 12 >> 2] = i + (r << 2), C = o + 16 | 0, i = C - 16 | 0, C = i, e[i + 4 >> 2] = e[n + 8 >> 2], r = e[n + 8 >> 2], e[i + 12 >> 2] = n + 8, e[i + 8 >> 2] = r + (s << 2), r = e[i + 4 >> 2]; ; ) {
                         if (e[i + 8 >> 2] != (r | 0)) {
@@ -29553,12 +29553,12 @@ function EI() {
                         }
                         break;
                       }
-                      t = e[n >> 2], t && dh(e[n + 16 >> 2], t);
+                      t = e[n >> 2], t && ph(e[n + 16 >> 2], t);
                     }
                     C = u + 32 | 0;
                     return;
                   }
-                  r >>> 0 < n >>> 0 && th(t, i + (r << 2) | 0);
+                  r >>> 0 < n >>> 0 && eh(t, i + (r << 2) | 0);
                 }
                 function $g(t, r, i, n, o, s, f) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0, f = f | 0;
@@ -29592,7 +29592,7 @@ function EI() {
                             }
                             for (A[u + 143 | 0] && (l[o | 0] = 45, o = o + 1 | 0), i = e[p >> 2]; ; ) {
                               if (r >>> 0 <= i >>> 0) {
-                                if (l[o | 0] = 0, e[u >> 2] = f, (nh(u + 16 | 0, u) | 0) != 1) {
+                                if (l[o | 0] = 0, e[u >> 2] = f, (ih(u + 16 | 0, u) | 0) != 1) {
                                   if (e[5996] = 0, m0(222, 1730), t = e[5996], e[5996] = 0, (t | 0) != 1)
                                     break e;
                                   break r;
@@ -29656,7 +29656,7 @@ function EI() {
                           break r;
                         e[t + 28 >> 2] = r + 4, e[r >> 2] = e[t + 24 >> 2];
                       }
-                      if (G4(t, i, e[t + 192 >> 2], o), r = e[t >> 2], i = e[t + 4 >> 2], f = e[t + 12 >> 2], e[s + 8 >> 2] = e[t + 8 >> 2], e[s + 12 >> 2] = f, e[s >> 2] = r, e[s + 4 >> 2] = i, It(t + 208 | 0, t + 32 | 0, e[t + 28 >> 2], o), e[5996] = 0, r = D(186, t + 268 | 0, t + 264 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
+                      if (Q4(t, i, e[t + 192 >> 2], o), r = e[t >> 2], i = e[t + 4 >> 2], f = e[t + 12 >> 2], e[s + 8 >> 2] = e[t + 8 >> 2], e[s + 12 >> 2] = f, e[s >> 2] = r, e[s + 4 >> 2] = i, It(t + 208 | 0, t + 32 | 0, e[t + 28 >> 2], o), e[5996] = 0, r = D(186, t + 268 | 0, t + 264 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                         r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 268 >> 2], ce(n), ce(t + 208 | 0), C = t + 272 | 0;
                         break e;
                       }
@@ -29703,7 +29703,7 @@ function EI() {
                           break r;
                         e[t + 28 >> 2] = r + 4, e[r >> 2] = e[t + 24 >> 2];
                       }
-                      if (G4(t, i, e[t + 204 >> 2], o), r = e[t >> 2], i = e[t + 4 >> 2], f = e[t + 12 >> 2], e[s + 8 >> 2] = e[t + 8 >> 2], e[s + 12 >> 2] = f, e[s >> 2] = r, e[s + 4 >> 2] = i, It(t + 220 | 0, t + 32 | 0, e[t + 28 >> 2], o), e[5996] = 0, r = D(202, t + 380 | 0, t + 376 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
+                      if (Q4(t, i, e[t + 204 >> 2], o), r = e[t >> 2], i = e[t + 4 >> 2], f = e[t + 12 >> 2], e[s + 8 >> 2] = e[t + 8 >> 2], e[s + 12 >> 2] = f, e[s >> 2] = r, e[s + 4 >> 2] = i, It(t + 220 | 0, t + 32 | 0, e[t + 28 >> 2], o), e[5996] = 0, r = D(202, t + 380 | 0, t + 376 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                         r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 380 >> 2], ce(n), ce(t + 220 | 0), C = t + 384 | 0;
                         break e;
                       }
@@ -29732,10 +29732,10 @@ function EI() {
                             t = y0();
                             n: {
                               if (m) {
-                                w = e[i + 8 >> 2], e[p + 16 >> 2] = f, e[p + 20 >> 2] = u, e[p + 8 >> 2] = o, e[p + 12 >> 2] = s, e[p >> 2] = w, w = Ri(p + 204 | 0, t, p + 248 | 0, p);
+                                w = e[i + 8 >> 2], e[p + 16 >> 2] = f, e[p + 20 >> 2] = u, e[p + 8 >> 2] = o, e[p + 12 >> 2] = s, e[p >> 2] = w, w = Ci(p + 204 | 0, t, p + 248 | 0, p);
                                 break n;
                               }
-                              e[p + 32 >> 2] = o, e[p + 36 >> 2] = s, e[p + 40 >> 2] = f, e[p + 44 >> 2] = u, w = Ri(p + 204 | 0, t, p + 248 | 0, p + 32 | 0);
+                              e[p + 32 >> 2] = o, e[p + 36 >> 2] = s, e[p + 40 >> 2] = f, e[p + 44 >> 2] = u, w = Ci(p + 204 | 0, t, p + 248 | 0, p + 32 | 0);
                             }
                             if ((w | 0) == -1) {
                               if (e[5996] = 0, le(185), t = e[5996], e[5996] = 0, (t | 0) == 1)
@@ -29803,10 +29803,10 @@ function EI() {
                             t = y0();
                             n: {
                               if (m) {
-                                w = e[i + 8 >> 2], e[p + 16 >> 2] = f, e[p + 20 >> 2] = u, e[p + 8 >> 2] = o, e[p + 12 >> 2] = s, e[p >> 2] = w, w = Ri(p + 364 | 0, t, p + 408 | 0, p);
+                                w = e[i + 8 >> 2], e[p + 16 >> 2] = f, e[p + 20 >> 2] = u, e[p + 8 >> 2] = o, e[p + 12 >> 2] = s, e[p >> 2] = w, w = Ci(p + 364 | 0, t, p + 408 | 0, p);
                                 break n;
                               }
-                              e[p + 32 >> 2] = o, e[p + 36 >> 2] = s, e[p + 40 >> 2] = f, e[p + 44 >> 2] = u, w = Ri(p + 364 | 0, t, p + 408 | 0, p + 32 | 0);
+                              e[p + 32 >> 2] = o, e[p + 36 >> 2] = s, e[p + 40 >> 2] = f, e[p + 44 >> 2] = u, w = Ci(p + 364 | 0, t, p + 408 | 0, p + 32 | 0);
                             }
                             if ((w | 0) == -1) {
                               if (e[5996] = 0, le(185), t = e[5996], e[5996] = 0, (t | 0) == 1)
@@ -29925,7 +29925,7 @@ function EI() {
                           break r;
                         e[t + 12 >> 2] = r + 4, e[r >> 2] = e[t + 8 >> 2];
                       }
-                      if (oo[s >> 2] = fl(i, e[t + 176 >> 2], o), It(t + 192 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(186, t + 252 | 0, t + 248 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
+                      if (oo[s >> 2] = ol(i, e[t + 176 >> 2], o), It(t + 192 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(186, t + 252 | 0, t + 248 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                         r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 252 >> 2], ce(n), ce(t + 192 | 0), C = t + 256 | 0;
                         break e;
                       }
@@ -29972,7 +29972,7 @@ function EI() {
                           break r;
                         e[t + 12 >> 2] = r + 4, e[r >> 2] = e[t + 8 >> 2];
                       }
-                      if (ye[s >> 3] = al(i, e[t + 176 >> 2], o), It(t + 192 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(186, t + 252 | 0, t + 248 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
+                      if (ye[s >> 3] = fl(i, e[t + 176 >> 2], o), It(t + 192 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(186, t + 252 | 0, t + 248 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                         r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 252 >> 2], ce(n), ce(t + 192 | 0), C = t + 256 | 0;
                         break e;
                       }
@@ -30100,7 +30100,7 @@ function EI() {
                           break r;
                         e[t + 12 >> 2] = r + 4, e[r >> 2] = e[t + 8 >> 2];
                       }
-                      if (oo[s >> 2] = fl(i, e[t + 188 >> 2], o), It(t + 204 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(202, t + 364 | 0, t + 360 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
+                      if (oo[s >> 2] = ol(i, e[t + 188 >> 2], o), It(t + 204 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(202, t + 364 | 0, t + 360 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                         r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 364 >> 2], ce(n), ce(t + 204 | 0), C = t + 368 | 0;
                         break e;
                       }
@@ -30147,7 +30147,7 @@ function EI() {
                           break r;
                         e[t + 12 >> 2] = r + 4, e[r >> 2] = e[t + 8 >> 2];
                       }
-                      if (ye[s >> 3] = al(i, e[t + 188 >> 2], o), It(t + 204 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(202, t + 364 | 0, t + 360 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
+                      if (ye[s >> 3] = fl(i, e[t + 188 >> 2], o), It(t + 204 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(202, t + 364 | 0, t + 360 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                         r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 364 >> 2], ce(n), ce(t + 204 | 0), C = t + 368 | 0;
                         break e;
                       }
@@ -30242,7 +30242,7 @@ function EI() {
                 function Gg(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0, p = 0;
-                  t = C - 336 | 0, C = t, e[t + 328 >> 2] = i, e[t + 332 >> 2] = r, r = Ni(e[n + 4 >> 2]), p = lo(e[n + 28 >> 2], t + 208 | 0), co(t + 196 | 0, e[n + 28 >> 2], t + 324 | 0), n = t + 184 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
+                  t = C - 336 | 0, C = t, e[t + 328 >> 2] = i, e[t + 332 >> 2] = r, r = Pi(e[n + 4 >> 2]), p = lo(e[n + 28 >> 2], t + 208 | 0), co(t + 196 | 0, e[n + 28 >> 2], t + 324 | 0), n = t + 184 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
                   e: {
                     t: {
                       r: {
@@ -30277,7 +30277,7 @@ function EI() {
                           break r;
                         e[t + 12 >> 2] = f + 4, e[f >> 2] = e[t + 8 >> 2];
                       }
-                      if (e[s >> 2] = ul(i, e[t + 180 >> 2], o, r), e[s + 4 >> 2] = Ve, It(t + 196 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(202, t + 332 | 0, t + 328 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
+                      if (e[s >> 2] = cl(i, e[t + 180 >> 2], o, r), e[s + 4 >> 2] = Ve, It(t + 196 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(202, t + 332 | 0, t + 328 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                         r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 332 >> 2], ce(n), ce(t + 196 | 0), C = t + 336 | 0;
                         break e;
                       }
@@ -30289,7 +30289,7 @@ function EI() {
                 function zg(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0, p = 0;
-                  t = C - 336 | 0, C = t, e[t + 328 >> 2] = i, e[t + 332 >> 2] = r, r = Ni(e[n + 4 >> 2]), p = lo(e[n + 28 >> 2], t + 208 | 0), co(t + 196 | 0, e[n + 28 >> 2], t + 324 | 0), n = t + 184 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
+                  t = C - 336 | 0, C = t, e[t + 328 >> 2] = i, e[t + 332 >> 2] = r, r = Pi(e[n + 4 >> 2]), p = lo(e[n + 28 >> 2], t + 208 | 0), co(t + 196 | 0, e[n + 28 >> 2], t + 324 | 0), n = t + 184 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
                   e: {
                     t: {
                       r: {
@@ -30324,7 +30324,7 @@ function EI() {
                           break r;
                         e[t + 12 >> 2] = f + 4, e[f >> 2] = e[t + 8 >> 2];
                       }
-                      if (e[s >> 2] = rl(i, e[t + 180 >> 2], o, r), e[s + 4 >> 2] = Ve, It(t + 196 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(202, t + 332 | 0, t + 328 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
+                      if (e[s >> 2] = tl(i, e[t + 180 >> 2], o, r), e[s + 4 >> 2] = Ve, It(t + 196 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(202, t + 332 | 0, t + 328 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                         r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 332 >> 2], ce(n), ce(t + 196 | 0), C = t + 336 | 0;
                         break e;
                       }
@@ -30336,7 +30336,7 @@ function EI() {
                 function jg(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0, p = 0;
-                  t = C - 336 | 0, C = t, e[t + 328 >> 2] = i, e[t + 332 >> 2] = r, r = Ni(e[n + 4 >> 2]), p = lo(e[n + 28 >> 2], t + 208 | 0), co(t + 196 | 0, e[n + 28 >> 2], t + 324 | 0), n = t + 184 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
+                  t = C - 336 | 0, C = t, e[t + 328 >> 2] = i, e[t + 332 >> 2] = r, r = Pi(e[n + 4 >> 2]), p = lo(e[n + 28 >> 2], t + 208 | 0), co(t + 196 | 0, e[n + 28 >> 2], t + 324 | 0), n = t + 184 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
                   e: {
                     t: {
                       r: {
@@ -30371,7 +30371,7 @@ function EI() {
                           break r;
                         e[t + 12 >> 2] = f + 4, e[f >> 2] = e[t + 8 >> 2];
                       }
-                      if (e[s >> 2] = q4(i, e[t + 180 >> 2], o, r), It(t + 196 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(202, t + 332 | 0, t + 328 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
+                      if (e[s >> 2] = Z4(i, e[t + 180 >> 2], o, r), It(t + 196 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(202, t + 332 | 0, t + 328 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                         r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 332 >> 2], ce(n), ce(t + 196 | 0), C = t + 336 | 0;
                         break e;
                       }
@@ -30383,7 +30383,7 @@ function EI() {
                 function Xg(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0, p = 0;
-                  t = C - 336 | 0, C = t, e[t + 328 >> 2] = i, e[t + 332 >> 2] = r, r = Ni(e[n + 4 >> 2]), p = lo(e[n + 28 >> 2], t + 208 | 0), co(t + 196 | 0, e[n + 28 >> 2], t + 324 | 0), n = t + 184 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
+                  t = C - 336 | 0, C = t, e[t + 328 >> 2] = i, e[t + 332 >> 2] = r, r = Pi(e[n + 4 >> 2]), p = lo(e[n + 28 >> 2], t + 208 | 0), co(t + 196 | 0, e[n + 28 >> 2], t + 324 | 0), n = t + 184 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
                   e: {
                     t: {
                       r: {
@@ -30418,7 +30418,7 @@ function EI() {
                           break r;
                         e[t + 12 >> 2] = f + 4, e[f >> 2] = e[t + 8 >> 2];
                       }
-                      if (t0[s >> 1] = el(i, e[t + 180 >> 2], o, r), It(t + 196 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(202, t + 332 | 0, t + 328 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
+                      if (t0[s >> 1] = J4(i, e[t + 180 >> 2], o, r), It(t + 196 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(202, t + 332 | 0, t + 328 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                         r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 332 >> 2], ce(n), ce(t + 196 | 0), C = t + 336 | 0;
                         break e;
                       }
@@ -30427,10 +30427,10 @@ function EI() {
                   }
                   return r | 0;
                 }
-                function _4(t, r, i, n, o, s) {
+                function U4(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0, p = 0;
-                  t = C - 336 | 0, C = t, e[t + 328 >> 2] = i, e[t + 332 >> 2] = r, r = Ni(e[n + 4 >> 2]), p = lo(e[n + 28 >> 2], t + 208 | 0), co(t + 196 | 0, e[n + 28 >> 2], t + 324 | 0), n = t + 184 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
+                  t = C - 336 | 0, C = t, e[t + 328 >> 2] = i, e[t + 332 >> 2] = r, r = Pi(e[n + 4 >> 2]), p = lo(e[n + 28 >> 2], t + 208 | 0), co(t + 196 | 0, e[n + 28 >> 2], t + 324 | 0), n = t + 184 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
                   e: {
                     t: {
                       r: {
@@ -30465,7 +30465,7 @@ function EI() {
                           break r;
                         e[t + 12 >> 2] = f + 4, e[f >> 2] = e[t + 8 >> 2];
                       }
-                      if (e[s >> 2] = sl(i, e[t + 180 >> 2], o, r), It(t + 196 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(202, t + 332 | 0, t + 328 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
+                      if (e[s >> 2] = nl(i, e[t + 180 >> 2], o, r), It(t + 196 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(202, t + 332 | 0, t + 328 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                         r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 332 >> 2], ce(n), ce(t + 196 | 0), C = t + 336 | 0;
                         break e;
                       }
@@ -30477,7 +30477,7 @@ function EI() {
                 function Yg(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0;
-                  f = e[n + 4 >> 2], n = e[n + 28 >> 2], t = C - 224 | 0, C = t, e[t + 216 >> 2] = i, e[t + 220 >> 2] = r, r = Ni(f), uo(t + 200 | 0, n, t + 215 | 0), n = t + 188 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
+                  f = e[n + 4 >> 2], n = e[n + 28 >> 2], t = C - 224 | 0, C = t, e[t + 216 >> 2] = i, e[t + 220 >> 2] = r, r = Pi(f), uo(t + 200 | 0, n, t + 215 | 0), n = t + 188 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
                   e: {
                     t: {
                       r: {
@@ -30512,7 +30512,7 @@ function EI() {
                           break r;
                         e[t + 12 >> 2] = f + 4, e[f >> 2] = e[t + 8 >> 2];
                       }
-                      if (e[s >> 2] = ul(i, e[t + 184 >> 2], o, r), e[s + 4 >> 2] = Ve, It(t + 200 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(186, t + 220 | 0, t + 216 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
+                      if (e[s >> 2] = cl(i, e[t + 184 >> 2], o, r), e[s + 4 >> 2] = Ve, It(t + 200 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(186, t + 220 | 0, t + 216 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                         r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 220 >> 2], ce(n), ce(t + 200 | 0), C = t + 224 | 0;
                         break e;
                       }
@@ -30524,7 +30524,7 @@ function EI() {
                 function Zg(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0;
-                  f = e[n + 4 >> 2], n = e[n + 28 >> 2], t = C - 224 | 0, C = t, e[t + 216 >> 2] = i, e[t + 220 >> 2] = r, r = Ni(f), uo(t + 200 | 0, n, t + 215 | 0), n = t + 188 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
+                  f = e[n + 4 >> 2], n = e[n + 28 >> 2], t = C - 224 | 0, C = t, e[t + 216 >> 2] = i, e[t + 220 >> 2] = r, r = Pi(f), uo(t + 200 | 0, n, t + 215 | 0), n = t + 188 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
                   e: {
                     t: {
                       r: {
@@ -30559,7 +30559,7 @@ function EI() {
                           break r;
                         e[t + 12 >> 2] = f + 4, e[f >> 2] = e[t + 8 >> 2];
                       }
-                      if (e[s >> 2] = rl(i, e[t + 184 >> 2], o, r), e[s + 4 >> 2] = Ve, It(t + 200 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(186, t + 220 | 0, t + 216 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
+                      if (e[s >> 2] = tl(i, e[t + 184 >> 2], o, r), e[s + 4 >> 2] = Ve, It(t + 200 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(186, t + 220 | 0, t + 216 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                         r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 220 >> 2], ce(n), ce(t + 200 | 0), C = t + 224 | 0;
                         break e;
                       }
@@ -30644,7 +30644,7 @@ function EI() {
                 function qg(t, r) {
                   t = t | 0, r = r | 0;
                   var i = 0, n = 0, o = 0, s = 0, f = 0, u = 0, p = 0;
-                  n = C - 160 | 0, C = n, e[n + 72 >> 2] = 8356, e[n + 16 >> 2] = 8336, u = n + 72 | 0, i = u, e[i + 20 >> 2] = 0, o = n + 20 | 0, e[i + 24 >> 2] = o, e[i + 12 >> 2] = 0, e[i + 4 >> 2] = 4098, e[i + 8 >> 2] = 6, e[i + 16 >> 2] = !o, Fr(i + 32 | 0, 0, 40), Pl(i + 28 | 0), e[n + 72 >> 2] = 8316, e[n + 16 >> 2] = 8296, e[n + 144 >> 2] = 0, e[n + 148 >> 2] = -1, e[o >> 2] = 7896, Pl(o + 4 | 0), e[o + 24 >> 2] = 0, e[o + 28 >> 2] = 0, e[o + 16 >> 2] = 0, e[o + 20 >> 2] = 0, e[o + 8 >> 2] = 0, e[o + 12 >> 2] = 0, e[o >> 2] = 7960, e[n + 60 >> 2] = 0, e[n + 64 >> 2] = 0, e[n + 52 >> 2] = 0, e[n + 56 >> 2] = 0, e[n + 68 >> 2] = 16, i = e[e[n + 16 >> 2] - 12 >> 2], e[5996] = 0, f = y4(129) | 0, s = e[5996], e[5996] = 0;
+                  n = C - 160 | 0, C = n, e[n + 72 >> 2] = 8356, e[n + 16 >> 2] = 8336, u = n + 72 | 0, i = u, e[i + 20 >> 2] = 0, o = n + 20 | 0, e[i + 24 >> 2] = o, e[i + 12 >> 2] = 0, e[i + 4 >> 2] = 4098, e[i + 8 >> 2] = 6, e[i + 16 >> 2] = !o, Fr(i + 32 | 0, 0, 40), Rl(i + 28 | 0), e[n + 72 >> 2] = 8316, e[n + 16 >> 2] = 8296, e[n + 144 >> 2] = 0, e[n + 148 >> 2] = -1, e[o >> 2] = 7896, Rl(o + 4 | 0), e[o + 24 >> 2] = 0, e[o + 28 >> 2] = 0, e[o + 16 >> 2] = 0, e[o + 20 >> 2] = 0, e[o + 8 >> 2] = 0, e[o + 12 >> 2] = 0, e[o >> 2] = 7960, e[n + 60 >> 2] = 0, e[n + 64 >> 2] = 0, e[n + 52 >> 2] = 0, e[n + 56 >> 2] = 0, e[n + 68 >> 2] = 16, i = e[e[n + 16 >> 2] - 12 >> 2], e[5996] = 0, f = g4(129) | 0, s = e[5996], e[5996] = 0;
                   e: {
                     t: {
                       if ((s | 0) == 1)
@@ -30656,7 +30656,7 @@ function EI() {
                         if (i = e[n + 156 >> 2], p = e[i + 4 >> 2] - 1 | 0, e[i + 4 >> 2] = p, (p | 0) == -1 && L[e[e[i >> 2] + 8 >> 2]](i), i = e[s + 24 >> 2], i) {
                           if (s = e[e[i >> 2] + 8 >> 2], e[5996] = 0, J(s | 0, i | 0, f | 0), s = e[5996], e[5996] = 0, (s | 0) == 1)
                             break r;
-                          s = e[i + 4 >> 2], e[n + 152 >> 2] = s, e[s + 4 >> 2] = e[s + 4 >> 2] + 1, Nl(i + 4 | 0, f), i = e[n + 152 >> 2], f = e[i + 4 >> 2] - 1 | 0, e[i + 4 >> 2] = f, (f | 0) == -1 && L[e[e[i >> 2] + 8 >> 2]](i);
+                          s = e[i + 4 >> 2], e[n + 152 >> 2] = s, e[s + 4 >> 2] = e[s + 4 >> 2] + 1, Pl(i + 4 | 0, f), i = e[n + 152 >> 2], f = e[i + 4 >> 2] - 1 | 0, e[i + 4 >> 2] = f, (f | 0) == -1 && L[e[e[i >> 2] + 8 >> 2]](i);
                         }
                         if (i = e[n + 12 >> 2], f = e[i + 4 >> 2] - 1 | 0, e[i + 4 >> 2] = f, (f | 0) == -1 && L[e[e[i >> 2] + 8 >> 2]](i), r = e[r >> 2], e[5996] = 0, r = D(131, n + 16 | 0, r | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) == 1 || (e[5996] = 0, J(132, t | 0, o | 0), t = e[5996], e[5996] = 0, (t | 0) == 1))
                           break t;
@@ -30670,10 +30670,10 @@ function EI() {
                   }
                   $1(n + 16 | 0), ve(t | 0), V();
                 }
-                function D4(t, r, i, n, o, s) {
+                function _4(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0;
-                  f = e[n + 4 >> 2], n = e[n + 28 >> 2], t = C - 224 | 0, C = t, e[t + 216 >> 2] = i, e[t + 220 >> 2] = r, r = Ni(f), uo(t + 200 | 0, n, t + 215 | 0), n = t + 188 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
+                  f = e[n + 4 >> 2], n = e[n + 28 >> 2], t = C - 224 | 0, C = t, e[t + 216 >> 2] = i, e[t + 220 >> 2] = r, r = Pi(f), uo(t + 200 | 0, n, t + 215 | 0), n = t + 188 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
                   e: {
                     t: {
                       r: {
@@ -30708,7 +30708,7 @@ function EI() {
                           break r;
                         e[t + 12 >> 2] = f + 4, e[f >> 2] = e[t + 8 >> 2];
                       }
-                      if (e[s >> 2] = sl(i, e[t + 184 >> 2], o, r), It(t + 200 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(186, t + 220 | 0, t + 216 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
+                      if (e[s >> 2] = nl(i, e[t + 184 >> 2], o, r), It(t + 200 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(186, t + 220 | 0, t + 216 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                         r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 220 >> 2], ce(n), ce(t + 200 | 0), C = t + 224 | 0;
                         break e;
                       }
@@ -30720,7 +30720,7 @@ function EI() {
                 function Jg(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0;
-                  f = e[n + 4 >> 2], n = e[n + 28 >> 2], t = C - 224 | 0, C = t, e[t + 216 >> 2] = i, e[t + 220 >> 2] = r, r = Ni(f), uo(t + 200 | 0, n, t + 215 | 0), n = t + 188 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
+                  f = e[n + 4 >> 2], n = e[n + 28 >> 2], t = C - 224 | 0, C = t, e[t + 216 >> 2] = i, e[t + 220 >> 2] = r, r = Pi(f), uo(t + 200 | 0, n, t + 215 | 0), n = t + 188 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
                   e: {
                     t: {
                       r: {
@@ -30755,7 +30755,7 @@ function EI() {
                           break r;
                         e[t + 12 >> 2] = f + 4, e[f >> 2] = e[t + 8 >> 2];
                       }
-                      if (e[s >> 2] = q4(i, e[t + 184 >> 2], o, r), It(t + 200 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(186, t + 220 | 0, t + 216 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
+                      if (e[s >> 2] = Z4(i, e[t + 184 >> 2], o, r), It(t + 200 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(186, t + 220 | 0, t + 216 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                         r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 220 >> 2], ce(n), ce(t + 200 | 0), C = t + 224 | 0;
                         break e;
                       }
@@ -30767,7 +30767,7 @@ function EI() {
                 function ey(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0;
-                  f = e[n + 4 >> 2], n = e[n + 28 >> 2], t = C - 224 | 0, C = t, e[t + 216 >> 2] = i, e[t + 220 >> 2] = r, r = Ni(f), uo(t + 200 | 0, n, t + 215 | 0), n = t + 188 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
+                  f = e[n + 4 >> 2], n = e[n + 28 >> 2], t = C - 224 | 0, C = t, e[t + 216 >> 2] = i, e[t + 220 >> 2] = r, r = Pi(f), uo(t + 200 | 0, n, t + 215 | 0), n = t + 188 | 0, e[n >> 2] = 0, e[n + 4 >> 2] = 0, e[n + 8 >> 2] = 0, i = (A[n + 11 | 0] & 128) >>> 7 | 0 ? (e[n + 8 >> 2] & 2147483647) - 1 | 0 : 10, e[5996] = 0, J(172, n | 0, i | 0), i = e[5996], e[5996] = 0;
                   e: {
                     t: {
                       r: {
@@ -30802,7 +30802,7 @@ function EI() {
                           break r;
                         e[t + 12 >> 2] = f + 4, e[f >> 2] = e[t + 8 >> 2];
                       }
-                      if (t0[s >> 1] = el(i, e[t + 184 >> 2], o, r), It(t + 200 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(186, t + 220 | 0, t + 216 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
+                      if (t0[s >> 1] = J4(i, e[t + 184 >> 2], o, r), It(t + 200 | 0, t + 16 | 0, e[t + 12 >> 2], o), e[5996] = 0, r = D(186, t + 220 | 0, t + 216 | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                         r && (e[o >> 2] = e[o >> 2] | 2), r = e[t + 220 >> 2], ce(n), ce(t + 200 | 0), C = t + 224 | 0;
                         break e;
                       }
@@ -30912,10 +30912,10 @@ function EI() {
                             t = y0();
                             n: {
                               if (u) {
-                                f = e[i + 8 >> 2], ye[s + 8 >> 3] = o, e[s >> 2] = f, f = Ri(s + 156 | 0, t, s + 200 | 0, s);
+                                f = e[i + 8 >> 2], ye[s + 8 >> 3] = o, e[s >> 2] = f, f = Ci(s + 156 | 0, t, s + 200 | 0, s);
                                 break n;
                               }
-                              ye[s + 16 >> 3] = o, f = Ri(s + 156 | 0, t, s + 200 | 0, s + 16 | 0);
+                              ye[s + 16 >> 3] = o, f = Ci(s + 156 | 0, t, s + 200 | 0, s + 16 | 0);
                             }
                             if ((f | 0) == -1) {
                               if (e[5996] = 0, le(185), t = e[5996], e[5996] = 0, (t | 0) == 1)
@@ -30983,10 +30983,10 @@ function EI() {
                             t = y0();
                             n: {
                               if (u) {
-                                f = e[i + 8 >> 2], ye[s + 8 >> 3] = o, e[s >> 2] = f, f = Ri(s + 316 | 0, t, s + 360 | 0, s);
+                                f = e[i + 8 >> 2], ye[s + 8 >> 3] = o, e[s >> 2] = f, f = Ci(s + 316 | 0, t, s + 360 | 0, s);
                                 break n;
                               }
-                              ye[s + 16 >> 3] = o, f = Ri(s + 316 | 0, t, s + 360 | 0, s + 16 | 0);
+                              ye[s + 16 >> 3] = o, f = Ci(s + 316 | 0, t, s + 360 | 0, s + 16 | 0);
                             }
                             if ((f | 0) == -1) {
                               if (e[5996] = 0, le(185), t = e[5996], e[5996] = 0, (t | 0) == 1)
@@ -31175,7 +31175,7 @@ function EI() {
                           break t;
                         u = e[s >> 2], e[s >> 2] = u + 4, e[u >> 2] = p, w = w + 2 | 0;
                       }
-                      if (w2(w, i), e[5996] = 0, U = K(206, f | 0) | 0, f = e[5996], e[5996] = 0, (f | 0) == 1)
+                      if (d2(w, i), e[5996] = 0, U = K(206, f | 0) | 0, f = e[5996], e[5996] = 0, (f | 0) == 1)
                         break t;
                       for (p = 0, f = w; ; ) {
                         if (i >>> 0 <= f >>> 0) {
@@ -31225,11 +31225,11 @@ function EI() {
                           break t;
                         u = e[s >> 2], e[s >> 2] = u + 1, l[u | 0] = p, w = w + 2 | 0;
                       }
-                      if (w2(w, i), e[5996] = 0, U = K(193, f | 0) | 0, f = e[5996], e[5996] = 0, (f | 0) == 1)
+                      if (d2(w, i), e[5996] = 0, U = K(193, f | 0) | 0, f = e[5996], e[5996] = 0, (f | 0) == 1)
                         break t;
                       for (p = 0, f = w; ; ) {
                         if (i >>> 0 <= f >>> 0) {
-                          w2((w - t | 0) + n | 0, e[s >> 2]), f = e[s >> 2];
+                          d2((w - t | 0) + n | 0, e[s >> 2]), f = e[s >> 2];
                           break e;
                         }
                         if (u = v + 4 | 0, m = (A[u + 11 | 0] & 128) >>> 7 | 0, !A[(m ? e[u >> 2] : u) + p | 0] | l[(m ? e[u >> 2] : u) + p | 0] != (R | 0) || (u = e[s >> 2], e[s >> 2] = u + 1, l[u | 0] = U, R = 0, m = p, p = A[v + 15 | 0], p = m + (m >>> 0 < ((p & 128) >>> 7 | 0 ? e[v + 8 >> 2] : p & 127) - 1 >>> 0) | 0), u = l[f | 0], e[5996] = 0, u = D(171, T | 0, u | 0) | 0, m = e[5996], e[5996] = 0, (m | 0) != 1) {
@@ -31243,7 +31243,7 @@ function EI() {
                   }
                   e[o >> 2] = (r | 0) == (i | 0) ? f : (r - t | 0) + n | 0, ce(v + 4 | 0), C = v + 16 | 0;
                 }
-                function $4(t, r, i, n, o, s, f, u) {
+                function D4(t, r, i, n, o, s, f, u) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0, f = f | 0, u = u | 0;
                   var p = 0, w = 0, v = 0;
                   t = C - 16 | 0, C = t, e[t + 12 >> 2] = i, e[t + 8 >> 2] = s, e[t + 12 >> 2] = i, e[t + 8 >> 2] = s;
@@ -31371,7 +31371,7 @@ function EI() {
                                 }
                                 if (e[5996] = 0, J(200, f | 12, r | 0), t = e[5996], e[5996] = 0, (t | 0) == 1)
                                   break n;
-                                if (e[5996] = 0, n = f + 24 | 0, t = g4(201, f + 28 | 0, i | 0, f | 0, n | 0, u | 0, o | 0, 1) | 0, r = e[5996], e[5996] = 0, (r | 0) == 1)
+                                if (e[5996] = 0, n = f + 24 | 0, t = w4(201, f + 28 | 0, i | 0, f | 0, n | 0, u | 0, o | 0, 1) | 0, r = e[5996], e[5996] = 0, (r | 0) == 1)
                                   break i;
                                 for (l[s | 0] = (t | 0) == (f | 0), r = e[f + 28 >> 2]; n = ce(n - 12 | 0), (f | 0) != (n | 0); )
                                   ;
@@ -31430,7 +31430,7 @@ function EI() {
                                 }
                                 if (e[5996] = 0, J(182, f | 12, r | 0), t = e[5996], e[5996] = 0, (t | 0) == 1)
                                   break n;
-                                if (e[5996] = 0, n = f + 24 | 0, t = g4(183, f + 28 | 0, i | 0, f | 0, n | 0, u | 0, o | 0, 1) | 0, r = e[5996], e[5996] = 0, (r | 0) == 1)
+                                if (e[5996] = 0, n = f + 24 | 0, t = w4(183, f + 28 | 0, i | 0, f | 0, n | 0, u | 0, o | 0, 1) | 0, r = e[5996], e[5996] = 0, (r | 0) == 1)
                                   break i;
                                 for (l[s | 0] = (t | 0) == (f | 0), r = e[f + 28 >> 2]; n = ce(n - 12 | 0), (f | 0) != (n | 0); )
                                   ;
@@ -31700,7 +31700,7 @@ function EI() {
                     }
                   }
                 }
-                function M4(t, r, i, n, o, s, f, u) {
+                function $4(t, r, i, n, o, s, f, u) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0, f = f | 0, u = u | 0;
                   var p = 0;
                   t = C - 16 | 0, C = t, e[t + 12 >> 2] = i, e[t + 8 >> 2] = s, e[t + 12 >> 2] = i, e[t + 8 >> 2] = s, i = e[t + 12 >> 2];
@@ -31798,7 +31798,7 @@ function EI() {
                   }
                   Hr(), V();
                 }
-                function L4(t, r) {
+                function M4(t, r) {
                   var i = 0, n = 0, o = 0, s = 0, f = 0;
                   e: {
                     t: {
@@ -31895,7 +31895,7 @@ function EI() {
                   }
                   return Ve = -2147483648, 0;
                 }
-                function F4(t, r, i, n, o, s, f, u) {
+                function L4(t, r, i, n, o, s, f, u) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0, f = f | 0, u = u | 0;
                   var p = 0, w = 0, v = 0, m = 0, T = 0;
                   t = C - 16 | 0, C = t, e[t + 12 >> 2] = i, e[t + 8 >> 2] = s, e[t + 12 >> 2] = i, e[t + 8 >> 2] = s;
@@ -32036,7 +32036,7 @@ function EI() {
                               break r;
                             case 4:
                             case 5:
-                              if (e[f + 24 >> 2] = 0, e[f + 28 >> 2] = 0, e[f + 16 >> 2] = 0, e[f + 20 >> 2] = 0, e[f + 8 >> 2] = 0, e[f + 12 >> 2] = 0, e[f >> 2] = 0, e[f + 4 >> 2] = 0, e[5996] = 0, t = Nn(f, n, 0), r = e[5996], e[5996] = 0, (r | 0) == 1) {
+                              if (e[f + 24 >> 2] = 0, e[f + 28 >> 2] = 0, e[f + 16 >> 2] = 0, e[f + 20 >> 2] = 0, e[f + 8 >> 2] = 0, e[f + 12 >> 2] = 0, e[f >> 2] = 0, e[f + 4 >> 2] = 0, e[5996] = 0, t = Pn(f, n, 0), r = e[5996], e[5996] = 0, (r | 0) == 1) {
                                 if (u = B() | 0, Qe[f >> 2] < 29)
                                   break e;
                                 break t;
@@ -32083,7 +32083,7 @@ function EI() {
                               u = i + 4 | 0;
                               break r;
                             case 24:
-                              if (e[f + 24 >> 2] = 0, e[f + 28 >> 2] = 0, e[f + 16 >> 2] = 0, e[f + 20 >> 2] = 0, e[f + 8 >> 2] = 0, e[f + 12 >> 2] = 0, e[f >> 2] = 0, e[f + 4 >> 2] = 0, e[5996] = 0, t = Nn(f, n, 0), r = e[5996], e[5996] = 0, (r | 0) == 1) {
+                              if (e[f + 24 >> 2] = 0, e[f + 28 >> 2] = 0, e[f + 16 >> 2] = 0, e[f + 20 >> 2] = 0, e[f + 8 >> 2] = 0, e[f + 12 >> 2] = 0, e[f >> 2] = 0, e[f + 4 >> 2] = 0, e[5996] = 0, t = Pn(f, n, 0), r = e[5996], e[5996] = 0, (r | 0) == 1) {
                                 if (u = B() | 0, Qe[f >> 2] >= 29)
                                   break t;
                                 break e;
@@ -32232,7 +32232,7 @@ function EI() {
                   v = C - 16 | 0, C = v;
                   e: {
                     if (t) {
-                      t = Hh(i);
+                      t = Wh(i);
                       t: {
                         if (r) {
                           r = v + 4 | 0, L[e[e[t >> 2] + 44 >> 2]](r, t), i = e[v + 4 >> 2], l[n | 0] = i, l[n + 1 | 0] = i >>> 8, l[n + 2 | 0] = i >>> 16, l[n + 3 | 0] = i >>> 24, L[e[e[t >> 2] + 32 >> 2]](r, t);
@@ -32240,10 +32240,10 @@ function EI() {
                         }
                         r = v + 4 | 0, L[e[e[t >> 2] + 40 >> 2]](r, t), i = e[v + 4 >> 2], l[n | 0] = i, l[n + 1 | 0] = i >>> 8, l[n + 2 | 0] = i >>> 16, l[n + 3 | 0] = i >>> 24, L[e[e[t >> 2] + 28 >> 2]](r, t);
                       }
-                      Pi(p, r), ce(r), e[o >> 2] = L[e[e[t >> 2] + 12 >> 2]](t), e[s >> 2] = L[e[e[t >> 2] + 16 >> 2]](t), r = v + 4 | 0, L[e[e[t >> 2] + 20 >> 2]](r, t), Pt(f, r), ce(r), L[e[e[t >> 2] + 24 >> 2]](r, t), Pi(u, r), ce(r), t = L[e[e[t >> 2] + 36 >> 2]](t) | 0;
+                      Ri(p, r), ce(r), e[o >> 2] = L[e[e[t >> 2] + 12 >> 2]](t), e[s >> 2] = L[e[e[t >> 2] + 16 >> 2]](t), r = v + 4 | 0, L[e[e[t >> 2] + 20 >> 2]](r, t), Pt(f, r), ce(r), L[e[e[t >> 2] + 24 >> 2]](r, t), Ri(u, r), ce(r), t = L[e[e[t >> 2] + 36 >> 2]](t) | 0;
                       break e;
                     }
-                    t = Kh(i);
+                    t = Hh(i);
                     t: {
                       if (r) {
                         r = v + 4 | 0, L[e[e[t >> 2] + 44 >> 2]](r, t), i = e[v + 4 >> 2], l[n | 0] = i, l[n + 1 | 0] = i >>> 8, l[n + 2 | 0] = i >>> 16, l[n + 3 | 0] = i >>> 24, L[e[e[t >> 2] + 32 >> 2]](r, t);
@@ -32251,7 +32251,7 @@ function EI() {
                       }
                       r = v + 4 | 0, L[e[e[t >> 2] + 40 >> 2]](r, t), i = e[v + 4 >> 2], l[n | 0] = i, l[n + 1 | 0] = i >>> 8, l[n + 2 | 0] = i >>> 16, l[n + 3 | 0] = i >>> 24, L[e[e[t >> 2] + 28 >> 2]](r, t);
                     }
-                    Pi(p, r), ce(r), e[o >> 2] = L[e[e[t >> 2] + 12 >> 2]](t), e[s >> 2] = L[e[e[t >> 2] + 16 >> 2]](t), r = v + 4 | 0, L[e[e[t >> 2] + 20 >> 2]](r, t), Pt(f, r), ce(r), L[e[e[t >> 2] + 24 >> 2]](r, t), Pi(u, r), ce(r), t = L[e[e[t >> 2] + 36 >> 2]](t) | 0;
+                    Ri(p, r), ce(r), e[o >> 2] = L[e[e[t >> 2] + 12 >> 2]](t), e[s >> 2] = L[e[e[t >> 2] + 16 >> 2]](t), r = v + 4 | 0, L[e[e[t >> 2] + 20 >> 2]](r, t), Pt(f, r), ce(r), L[e[e[t >> 2] + 24 >> 2]](r, t), Ri(u, r), ce(r), t = L[e[e[t >> 2] + 36 >> 2]](t) | 0;
                   }
                   e[w >> 2] = t, C = v + 16 | 0;
                 }
@@ -32313,7 +32313,7 @@ function EI() {
                   v = C - 16 | 0, C = v;
                   e: {
                     if (t) {
-                      t = Vh(i);
+                      t = Fh(i);
                       t: {
                         if (r) {
                           r = v + 4 | 0, L[e[e[t >> 2] + 44 >> 2]](r, t), i = e[v + 4 >> 2], l[n | 0] = i, l[n + 1 | 0] = i >>> 8, l[n + 2 | 0] = i >>> 16, l[n + 3 | 0] = i >>> 24, L[e[e[t >> 2] + 32 >> 2]](r, t);
@@ -32324,7 +32324,7 @@ function EI() {
                       Pt(p, r), ce(r), l[o | 0] = L[e[e[t >> 2] + 12 >> 2]](t), l[s | 0] = L[e[e[t >> 2] + 16 >> 2]](t), r = v + 4 | 0, L[e[e[t >> 2] + 20 >> 2]](r, t), Pt(f, r), ce(r), L[e[e[t >> 2] + 24 >> 2]](r, t), Pt(u, r), ce(r), t = L[e[e[t >> 2] + 36 >> 2]](t) | 0;
                       break e;
                     }
-                    t = Wh(i);
+                    t = Vh(i);
                     t: {
                       if (r) {
                         r = v + 4 | 0, L[e[e[t >> 2] + 44 >> 2]](r, t), i = e[v + 4 >> 2], l[n | 0] = i, l[n + 1 | 0] = i >>> 8, l[n + 2 | 0] = i >>> 16, l[n + 3 | 0] = i >>> 24, L[e[e[t >> 2] + 32 >> 2]](r, t);
@@ -32411,9 +32411,9 @@ function EI() {
                         }
                         r = We(0) | 0;
                       }
-                      if (Ti(r | 0) | 0, r = e[e[t >> 2] - 12 >> 2], e[5996] = 0, m0(139, t + r | 0), r = e[5996], e[5996] = 0, (r | 0) == 1)
+                      if (xi(r | 0) | 0, r = e[e[t >> 2] - 12 >> 2], e[5996] = 0, m0(139, t + r | 0), r = e[5996], e[5996] = 0, (r | 0) == 1)
                         break e;
-                      A2();
+                      k2();
                     }
                     return C = n + 16 | 0, t | 0;
                   }
@@ -32535,7 +32535,7 @@ function EI() {
                   var f = 0, u = 0;
                   if (l[t | 0] = 0, l[t + 1 | 0] = 0, l[t + 2 | 0] = 0, l[t + 3 | 0] = 0, l[t + 4 | 0] = 0, l[t + 5 | 0] = 0, l[t + 6 | 0] = 0, l[t + 7 | 0] = 0, l[t + 24 | 0] = 0, l[t + 25 | 0] = 0, l[t + 26 | 0] = 0, l[t + 27 | 0] = 0, l[t + 28 | 0] = 0, l[t + 29 | 0] = 0, l[t + 30 | 0] = 0, l[t + 31 | 0] = 0, l[t + 16 | 0] = 0, l[t + 17 | 0] = 0, l[t + 18 | 0] = 0, l[t + 19 | 0] = 0, l[t + 20 | 0] = 0, l[t + 21 | 0] = 0, l[t + 22 | 0] = 0, l[t + 23 | 0] = 0, l[t + 8 | 0] = 0, l[t + 9 | 0] = 0, l[t + 10 | 0] = 0, l[t + 11 | 0] = 0, l[t + 12 | 0] = 0, l[t + 13 | 0] = 0, l[t + 14 | 0] = 0, l[t + 15 | 0] = 0, e[5996] = 0, f = D(127, t | 0, 130) | 0, u = e[5996], e[5996] = 0, (u | 0) != 1)
                     e: {
-                      if (r = e[r >> 2], e[5996] = 0, r = Nn(f, r, r >> 31), f = e[5996], e[5996] = 0, (f | 0) == 1 || (i = e[i >> 2], e[5996] = 0, r = D(127, r | 0, i | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) == 1) || (i = e[n >> 2], e[5996] = 0, r = D(127, r | 0, i | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) == 1) || (e[5996] = 0, r = D(19, r | 0, o | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) == 1) || (i = e[s >> 2], e[5996] = 0, D(127, r | 0, i | 0) | 0, r = e[5996], e[5996] = 0, (r | 0) == 1))
+                      if (r = e[r >> 2], e[5996] = 0, r = Pn(f, r, r >> 31), f = e[5996], e[5996] = 0, (f | 0) == 1 || (i = e[i >> 2], e[5996] = 0, r = D(127, r | 0, i | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) == 1) || (i = e[n >> 2], e[5996] = 0, r = D(127, r | 0, i | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) == 1) || (e[5996] = 0, r = D(19, r | 0, o | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) == 1) || (i = e[s >> 2], e[5996] = 0, D(127, r | 0, i | 0) | 0, r = e[5996], e[5996] = 0, (r | 0) == 1))
                         break e;
                       return;
                     }
@@ -32642,15 +32642,15 @@ function EI() {
                     e: {
                       t: {
                         if (f = m + 16 | 0, R = $t[((i >>> 0 <= 153 ? i : 0) << 1) + 21296 >> 1] + 19372 | 0, r = e[e[6178] + 20 >> 2], r) {
-                          u = e[r + 4 >> 2], n = e[r >> 2], s = e[n >> 2] + 1794895138 | 0, p = g2(e[n + 8 >> 2], s), w = g2(e[n + 12 >> 2], s), o = g2(e[n + 16 >> 2], s);
+                          u = e[r + 4 >> 2], n = e[r >> 2], s = e[n >> 2] + 1794895138 | 0, p = w2(e[n + 8 >> 2], s), w = w2(e[n + 12 >> 2], s), o = w2(e[n + 16 >> 2], s);
                           r: {
                             if (u >>> 2 >>> 0 <= p >>> 0 || (r = u - (p << 2) | 0, (o | w) & 3 | (r >>> 0 <= w >>> 0 | r >>> 0 <= o >>> 0)))
                               break r;
                             for (z = o >>> 2 | 0, ee = w >>> 2 | 0; ; ) {
-                              if (T = p >>> 1 | 0, w = T + U | 0, o = w << 1, r = n + (o + ee << 2) | 0, _ = g2(e[r >> 2], s), r = g2(e[r + 4 >> 2], s), r >>> 0 >= u >>> 0 | u - r >>> 0 <= _ >>> 0 | A[n + (r + _ | 0) | 0])
+                              if (T = p >>> 1 | 0, w = T + U | 0, o = w << 1, r = n + (o + ee << 2) | 0, _ = w2(e[r >> 2], s), r = w2(e[r + 4 >> 2], s), r >>> 0 >= u >>> 0 | u - r >>> 0 <= _ >>> 0 | A[n + (r + _ | 0) | 0])
                                 break r;
                               if (r = Ao(R, r + n | 0), !r) {
-                                if (r = n + (o + z << 2) | 0, o = g2(e[r >> 2], s), r = g2(e[r + 4 >> 2], s), r >>> 0 >= u >>> 0 | o >>> 0 >= u - r >>> 0)
+                                if (r = n + (o + z << 2) | 0, o = w2(e[r >> 2], s), r = w2(e[r + 4 >> 2], s), r >>> 0 >= u >>> 0 | o >>> 0 >= u - r >>> 0)
                                   break r;
                                 v = A[n + (r + o | 0) | 0] ? 0 : r + n | 0;
                                 break r;
@@ -32891,7 +32891,7 @@ function EI() {
                     }
                     if (o = 0, s = 2146435072, u >>> 0 > 1140785151 || (s = 0, u = u >>> 16 | 0, u >>> 0 < 15249))
                       break e;
-                    if (o = n & 65535 | 65536, Bt(f + 16 | 0, t, r, i, o, u - 15233 | 0), d2(f, t, r, i, o, 15361 - u | 0), r = e[f + 8 >> 2], o = r << 4, r = e[f + 12 >> 2] << 4 | r >>> 28, i = e[f >> 2], s = e[f + 4 >> 2], u = s, o = s >>> 28 | o, s = r, t = u & 268435455, r = i | (e[f + 16 >> 2] | e[f + 24 >> 2] | (e[f + 20 >> 2] | e[f + 28 >> 2])) != 0, (t | 0) == 134217728 & (r | 0) != 0 | t >>> 0 > 134217728) {
+                    if (o = n & 65535 | 65536, Bt(f + 16 | 0, t, r, i, o, u - 15233 | 0), p2(f, t, r, i, o, 15361 - u | 0), r = e[f + 8 >> 2], o = r << 4, r = e[f + 12 >> 2] << 4 | r >>> 28, i = e[f >> 2], s = e[f + 4 >> 2], u = s, o = s >>> 28 | o, s = r, t = u & 268435455, r = i | (e[f + 16 >> 2] | e[f + 24 >> 2] | (e[f + 20 >> 2] | e[f + 28 >> 2])) != 0, (t | 0) == 134217728 & (r | 0) != 0 | t >>> 0 > 134217728) {
                       o = o + 1 | 0, s = o ? s : s + 1 | 0;
                       break e;
                     }
@@ -32899,7 +32899,7 @@ function EI() {
                       break e;
                     t = o, o = o + (o & 1) | 0, s = t >>> 0 > o >>> 0 ? s + 1 | 0 : s;
                   }
-                  return C = f + 32 | 0, bt(0, o | 0), bt(1, n & -2147483648 | s), +Tn();
+                  return C = f + 32 | 0, bt(0, o | 0), bt(1, n & -2147483648 | s), +xn();
                 }
                 function Cy(t, r) {
                   t = t | 0, r = r | 0;
@@ -32928,14 +32928,14 @@ function EI() {
                             }
                             f = e[s + 12 >> 2], i = A[t + 11 | 0], r = (i & 128) >>> 7 | 0, w = r, u = r ? e[t >> 2] : t, i = r ? e[t + 4 >> 2] : i & 127, r = e[s + 8 >> 2];
                           }
-                          if (r = Oi(r, u, i + 1 | 0), w && x(u), !p) {
+                          if (r = Ni(r, u, i + 1 | 0), w && x(u), !p) {
                             e[t + 8 >> 2] = f | -2147483648, e[t + 4 >> 2] = o, e[t >> 2] = r;
                             break t;
                           }
                           l[t + 11 | 0] = o;
                           break t;
                         }
-                        Ti(We(0) | 0) | 0, A2();
+                        xi(We(0) | 0) | 0, k2();
                       }
                       C = s + 16 | 0;
                     }
@@ -32984,7 +32984,7 @@ function EI() {
                   }
                   return (n | 0) != -1;
                 }
-                function V4(t, r, i, n, o, s, f, u) {
+                function F4(t, r, i, n, o, s, f, u) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0, f = f | 0, u = u | 0, t = C - 16 | 0, C = t, e[t + 12 >> 2] = i, e[t + 8 >> 2] = s, e[t + 12 >> 2] = i, e[t + 8 >> 2] = s, r = e[t + 12 >> 2];
                   e: {
                     for (; ; ) {
@@ -33027,7 +33027,7 @@ function EI() {
                   }
                   return e[o >> 2] = e[t + 12 >> 2], e[u >> 2] = e[t + 8 >> 2], C = t + 16 | 0, i | 0;
                 }
-                function W4(t) {
+                function V4(t) {
                   var r = 0, i = 0, n = 0, o = 0, s = 0;
                   e[t + 8 >> 2] = 0, e[t >> 2] = 0, e[t + 4 >> 2] = 0;
                   e: {
@@ -33075,7 +33075,7 @@ function EI() {
                   }
                   V();
                 }
-                function H4(t, r, i, n, o) {
+                function W4(t, r, i, n, o) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0;
                   var s = 0, f = 0, u = 0, p = 0;
                   for (r = 0, t = i; ; ) {
@@ -33190,11 +33190,11 @@ function EI() {
                       r = B() | 0;
                       break e;
                     }
-                    r = B() | 0, xl(i + 8 | 0), e[t + 4 >> 2] = o;
+                    r = B() | 0, Sl(i + 8 | 0), e[t + 4 >> 2] = o;
                   }
-                  wl(i), ve(r | 0), V();
+                  dl(i), ve(r | 0), V();
                 }
-                function K4(t, r, i, n, o) {
+                function H4(t, r, i, n, o) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0;
                   var s = 0, f = 0, u = 0, p = 0;
                   for (t = i; ; ) {
@@ -33272,10 +33272,10 @@ function EI() {
                   v = C - 16 | 0, C = v, m = w;
                   e: {
                     if (t) {
-                      w = v + 4 | 0, t = Vh(r), L[e[e[t >> 2] + 44 >> 2]](w, t), r = e[v + 4 >> 2], l[i | 0] = r, l[i + 1 | 0] = r >>> 8, l[i + 2 | 0] = r >>> 16, l[i + 3 | 0] = r >>> 24, L[e[e[t >> 2] + 32 >> 2]](w, t), Pt(p, w), ce(w), L[e[e[t >> 2] + 28 >> 2]](w, t), Pt(u, w), ce(w), l[n | 0] = L[e[e[t >> 2] + 12 >> 2]](t), l[o | 0] = L[e[e[t >> 2] + 16 >> 2]](t), L[e[e[t >> 2] + 20 >> 2]](w, t), Pt(s, w), ce(w), L[e[e[t >> 2] + 24 >> 2]](w, t), Pt(f, w), ce(v + 4 | 0), t = L[e[e[t >> 2] + 36 >> 2]](t) | 0;
+                      w = v + 4 | 0, t = Fh(r), L[e[e[t >> 2] + 44 >> 2]](w, t), r = e[v + 4 >> 2], l[i | 0] = r, l[i + 1 | 0] = r >>> 8, l[i + 2 | 0] = r >>> 16, l[i + 3 | 0] = r >>> 24, L[e[e[t >> 2] + 32 >> 2]](w, t), Pt(p, w), ce(w), L[e[e[t >> 2] + 28 >> 2]](w, t), Pt(u, w), ce(w), l[n | 0] = L[e[e[t >> 2] + 12 >> 2]](t), l[o | 0] = L[e[e[t >> 2] + 16 >> 2]](t), L[e[e[t >> 2] + 20 >> 2]](w, t), Pt(s, w), ce(w), L[e[e[t >> 2] + 24 >> 2]](w, t), Pt(f, w), ce(v + 4 | 0), t = L[e[e[t >> 2] + 36 >> 2]](t) | 0;
                       break e;
                     }
-                    w = v + 4 | 0, t = Wh(r), L[e[e[t >> 2] + 44 >> 2]](w, t), r = e[v + 4 >> 2], l[i | 0] = r, l[i + 1 | 0] = r >>> 8, l[i + 2 | 0] = r >>> 16, l[i + 3 | 0] = r >>> 24, L[e[e[t >> 2] + 32 >> 2]](w, t), Pt(p, w), ce(w), L[e[e[t >> 2] + 28 >> 2]](w, t), Pt(u, w), ce(w), l[n | 0] = L[e[e[t >> 2] + 12 >> 2]](t), l[o | 0] = L[e[e[t >> 2] + 16 >> 2]](t), L[e[e[t >> 2] + 20 >> 2]](w, t), Pt(s, w), ce(w), L[e[e[t >> 2] + 24 >> 2]](w, t), Pt(f, w), ce(v + 4 | 0), t = L[e[e[t >> 2] + 36 >> 2]](t) | 0;
+                    w = v + 4 | 0, t = Vh(r), L[e[e[t >> 2] + 44 >> 2]](w, t), r = e[v + 4 >> 2], l[i | 0] = r, l[i + 1 | 0] = r >>> 8, l[i + 2 | 0] = r >>> 16, l[i + 3 | 0] = r >>> 24, L[e[e[t >> 2] + 32 >> 2]](w, t), Pt(p, w), ce(w), L[e[e[t >> 2] + 28 >> 2]](w, t), Pt(u, w), ce(w), l[n | 0] = L[e[e[t >> 2] + 12 >> 2]](t), l[o | 0] = L[e[e[t >> 2] + 16 >> 2]](t), L[e[e[t >> 2] + 20 >> 2]](w, t), Pt(s, w), ce(w), L[e[e[t >> 2] + 24 >> 2]](w, t), Pt(f, w), ce(v + 4 | 0), t = L[e[e[t >> 2] + 36 >> 2]](t) | 0;
                   }
                   e[m >> 2] = t, C = v + 16 | 0;
                 }
@@ -33285,10 +33285,10 @@ function EI() {
                   v = C - 16 | 0, C = v, m = w;
                   e: {
                     if (t) {
-                      w = v + 4 | 0, t = Hh(r), L[e[e[t >> 2] + 44 >> 2]](w, t), r = e[v + 4 >> 2], l[i | 0] = r, l[i + 1 | 0] = r >>> 8, l[i + 2 | 0] = r >>> 16, l[i + 3 | 0] = r >>> 24, L[e[e[t >> 2] + 32 >> 2]](w, t), Pi(p, w), ce(w), L[e[e[t >> 2] + 28 >> 2]](w, t), Pi(u, w), ce(w), e[n >> 2] = L[e[e[t >> 2] + 12 >> 2]](t), e[o >> 2] = L[e[e[t >> 2] + 16 >> 2]](t), L[e[e[t >> 2] + 20 >> 2]](w, t), Pt(s, w), ce(w), L[e[e[t >> 2] + 24 >> 2]](w, t), Pi(f, w), ce(w), t = L[e[e[t >> 2] + 36 >> 2]](t) | 0;
+                      w = v + 4 | 0, t = Wh(r), L[e[e[t >> 2] + 44 >> 2]](w, t), r = e[v + 4 >> 2], l[i | 0] = r, l[i + 1 | 0] = r >>> 8, l[i + 2 | 0] = r >>> 16, l[i + 3 | 0] = r >>> 24, L[e[e[t >> 2] + 32 >> 2]](w, t), Ri(p, w), ce(w), L[e[e[t >> 2] + 28 >> 2]](w, t), Ri(u, w), ce(w), e[n >> 2] = L[e[e[t >> 2] + 12 >> 2]](t), e[o >> 2] = L[e[e[t >> 2] + 16 >> 2]](t), L[e[e[t >> 2] + 20 >> 2]](w, t), Pt(s, w), ce(w), L[e[e[t >> 2] + 24 >> 2]](w, t), Ri(f, w), ce(w), t = L[e[e[t >> 2] + 36 >> 2]](t) | 0;
                       break e;
                     }
-                    w = v + 4 | 0, t = Kh(r), L[e[e[t >> 2] + 44 >> 2]](w, t), r = e[v + 4 >> 2], l[i | 0] = r, l[i + 1 | 0] = r >>> 8, l[i + 2 | 0] = r >>> 16, l[i + 3 | 0] = r >>> 24, L[e[e[t >> 2] + 32 >> 2]](w, t), Pi(p, w), ce(w), L[e[e[t >> 2] + 28 >> 2]](w, t), Pi(u, w), ce(w), e[n >> 2] = L[e[e[t >> 2] + 12 >> 2]](t), e[o >> 2] = L[e[e[t >> 2] + 16 >> 2]](t), L[e[e[t >> 2] + 20 >> 2]](w, t), Pt(s, w), ce(w), L[e[e[t >> 2] + 24 >> 2]](w, t), Pi(f, w), ce(w), t = L[e[e[t >> 2] + 36 >> 2]](t) | 0;
+                    w = v + 4 | 0, t = Hh(r), L[e[e[t >> 2] + 44 >> 2]](w, t), r = e[v + 4 >> 2], l[i | 0] = r, l[i + 1 | 0] = r >>> 8, l[i + 2 | 0] = r >>> 16, l[i + 3 | 0] = r >>> 24, L[e[e[t >> 2] + 32 >> 2]](w, t), Ri(p, w), ce(w), L[e[e[t >> 2] + 28 >> 2]](w, t), Ri(u, w), ce(w), e[n >> 2] = L[e[e[t >> 2] + 12 >> 2]](t), e[o >> 2] = L[e[e[t >> 2] + 16 >> 2]](t), L[e[e[t >> 2] + 20 >> 2]](w, t), Pt(s, w), ce(w), L[e[e[t >> 2] + 24 >> 2]](w, t), Ri(f, w), ce(w), t = L[e[e[t >> 2] + 36 >> 2]](t) | 0;
                   }
                   e[m >> 2] = t, C = v + 16 | 0;
                 }
@@ -33299,7 +33299,7 @@ function EI() {
                     if (r = o >>> 0 < p >>> 0 ? r + 1 | 0 : r, !(((r | 0) >= (n | 0) & o >>> 0 >= u >>> 0 | (r | 0) > (n | 0)) & f)) {
                       n = C - 16 | 0, C = n, i = -1;
                       t: {
-                        if (pl(t) || (L[e[t + 32 >> 2]](t, n + 15 | 0, 1) | 0) != 1)
+                        if (Al(t) || (L[e[t + 32 >> 2]](t, n + 15 | 0, 1) | 0) != 1)
                           break t;
                         i = A[n + 15 | 0];
                       }
@@ -33331,17 +33331,17 @@ function EI() {
                             break t;
                           i = (A[i + 11 | 0] & 128) >>> 7 | 0 ? e[i >> 2] : i, o = A[t + 43 | 0], e[t + 28 >> 2] = i + ((o & 128) >>> 7 | 0 ? e[t + 36 >> 2] : o & 127), e[t + 20 >> 2] = i, e[t + 24 >> 2] = i, e[t + 24 >> 2] = e[t + 24 >> 2] + (n - u | 0), e[t + 44 >> 2] = e[t + 20 >> 2] + (v - u | 0), n = e[t + 24 >> 2];
                         }
-                        e[f + 12 >> 2] = n + 1, n = t + 44 | 0, i = f + 12 | 0, i = e[(Qe[i >> 2] < Qe[n >> 2] ? n : i) >> 2], e[t + 44 >> 2] = i, A[t + 48 | 0] & 8 && (n = t + 32 | 0, n = (A[n + 11 | 0] & 128) >>> 7 | 0 ? e[n >> 2] : n, e[t + 16 >> 2] = i, e[t + 12 >> 2] = n + (w - p | 0), e[t + 8 >> 2] = n), o = Ll(t, r << 24 >> 24);
+                        e[f + 12 >> 2] = n + 1, n = t + 44 | 0, i = f + 12 | 0, i = e[(Qe[i >> 2] < Qe[n >> 2] ? n : i) >> 2], e[t + 44 >> 2] = i, A[t + 48 | 0] & 8 && (n = t + 32 | 0, n = (A[n + 11 | 0] & 128) >>> 7 | 0 ? e[n >> 2] : n, e[t + 16 >> 2] = i, e[t + 12 >> 2] = n + (w - p | 0), e[t + 8 >> 2] = n), o = Ml(t, r << 24 >> 24);
                         break e;
                       }
                       o = (r | 0) != -1 ? r : 0;
                       break e;
                     }
-                    Ti(We(0) | 0) | 0, A2();
+                    xi(We(0) | 0) | 0, k2();
                   }
                   return C = f + 16 | 0, o | 0;
                 }
-                function Q4(t, r, i, n) {
+                function K4(t, r, i, n) {
                   var o = 0, s = 0, f = 0, u = 0;
                   f = C - 32 | 0, C = f, s = n & 2147483647, o = s - 1065418752 | 0, u = s - 1082064896 | 0;
                   e: {
@@ -33361,7 +33361,7 @@ function EI() {
                     }
                     if (o = 2139095040, s >>> 0 > 1082064895 || (o = 0, s = s >>> 16 | 0, s >>> 0 < 16145))
                       break e;
-                    if (o = n & 65535 | 65536, Bt(f + 16 | 0, t, r, i, o, s - 16129 | 0), d2(f, t, r, i, o, 16257 - s | 0), t = e[f + 8 >> 2], o = (e[f + 12 >> 2] & 33554431) << 7 | t >>> 25, i = e[f >> 2] | (e[f + 16 >> 2] | e[f + 24 >> 2] | (e[f + 20 >> 2] | e[f + 28 >> 2])) != 0, s = e[f + 4 >> 2], r = 0, t = t & 33554431, !(!r & (t | 0) == 16777216 ? !(i | s) : !r & t >>> 0 < 16777216)) {
+                    if (o = n & 65535 | 65536, Bt(f + 16 | 0, t, r, i, o, s - 16129 | 0), p2(f, t, r, i, o, 16257 - s | 0), t = e[f + 8 >> 2], o = (e[f + 12 >> 2] & 33554431) << 7 | t >>> 25, i = e[f >> 2] | (e[f + 16 >> 2] | e[f + 24 >> 2] | (e[f + 20 >> 2] | e[f + 28 >> 2])) != 0, s = e[f + 4 >> 2], r = 0, t = t & 33554431, !(!r & (t | 0) == 16777216 ? !(i | s) : !r & t >>> 0 < 16777216)) {
                       o = o + 1 | 0;
                       break e;
                     }
@@ -33573,7 +33573,7 @@ function EI() {
                     }
                     l[s | 0] = 0, s = 0, r = C - 208 | 0, C = r, e[r + 204 >> 2] = n, t = r + 160 | 0, Fr(t, 0, 40), e[r + 200 >> 2] = e[r + 204 >> 2];
                     t: {
-                      if ((C4(0, i, r + 200 | 0, r + 80 | 0, t) | 0) < 0) {
+                      if ((I4(0, i, r + 200 | 0, r + 80 | 0, t) | 0) < 0) {
                         t = -1;
                         break t;
                       }
@@ -33588,10 +33588,10 @@ function EI() {
                             if (e[o + 16 >> 2])
                               break i;
                           }
-                          if (t = -1, bl(o))
+                          if (t = -1, Tl(o))
                             break r;
                         }
-                        t = C4(o, i, r + 200 | 0, r + 80 | 0, r + 160 | 0);
+                        t = I4(o, i, r + 200 | 0, r + 80 | 0, r + 160 | 0);
                       }
                       if (i = t, s && (L[e[o + 36 >> 2]](o, 0, 0) | 0, e[o + 48 >> 2] = 0, e[o + 44 >> 2] = s, e[o + 28 >> 2] = 0, t = e[o + 20 >> 2], e[o + 16 >> 2] = 0, e[o + 20 >> 2] = 0, i = t ? i : -1), t = e[o >> 2], e[o >> 2] = t | f & 32, t = t & 32 ? -1 : i, !n)
                         break t;
@@ -33603,9 +33603,9 @@ function EI() {
                 function _y(t, r, i, n, o, s, f) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0, f = f | 0;
                   var u = 0, p = 0;
-                  for (u = C - 416 | 0, C = u, n = u + 416 | 0, e[u + 12 >> 2] = n, i = C - 144 | 0, C = i, e[i + 28 >> 2] = i + 132, p = i + 32 | 0, El(e[t + 8 >> 2], p, i + 28 | 0, o, s, f), e[i + 16 >> 2] = 0, e[i + 20 >> 2] = 0, e[i + 12 >> 2] = p, o = u + 16 | 0, f = e[u + 12 >> 2] - o >> 2, s = C - 16 | 0, C = s, t = ci(s + 12 | 0, e[t + 8 >> 2]), f = U4(o, i + 12 | 0, f, i + 16 | 0), t = e[t >> 2], t && (e[6178] = (t | 0) == -1 ? 24816 : t), C = s + 16 | 0, (f | 0) == -1 && (Ol(2472), V()), e[u + 12 >> 2] = o + (f << 2), C = i + 144 | 0, i = C - 16 | 0, C = i, t = C - 32 | 0, C = t, s = C - 16 | 0, C = s, e[s + 12 >> 2] = e[u + 12 >> 2], e[t + 24 >> 2] = o, e[t + 28 >> 2] = e[s + 12 >> 2], C = s + 16 | 0, s = e[t + 24 >> 2], f = e[t + 28 >> 2], o = C - 16 | 0, C = o, e[o + 12 >> 2] = r; ; ) {
+                  for (u = C - 416 | 0, C = u, n = u + 416 | 0, e[u + 12 >> 2] = n, i = C - 144 | 0, C = i, e[i + 28 >> 2] = i + 132, p = i + 32 | 0, vl(e[t + 8 >> 2], p, i + 28 | 0, o, s, f), e[i + 16 >> 2] = 0, e[i + 20 >> 2] = 0, e[i + 12 >> 2] = p, o = u + 16 | 0, f = e[u + 12 >> 2] - o >> 2, s = C - 16 | 0, C = s, t = ci(s + 12 | 0, e[t + 8 >> 2]), f = O4(o, i + 12 | 0, f, i + 16 | 0), t = e[t >> 2], t && (e[6178] = (t | 0) == -1 ? 24816 : t), C = s + 16 | 0, (f | 0) == -1 && (Nl(2472), V()), e[u + 12 >> 2] = o + (f << 2), C = i + 144 | 0, i = C - 16 | 0, C = i, t = C - 32 | 0, C = t, s = C - 16 | 0, C = s, e[s + 12 >> 2] = e[u + 12 >> 2], e[t + 24 >> 2] = o, e[t + 28 >> 2] = e[s + 12 >> 2], C = s + 16 | 0, s = e[t + 24 >> 2], f = e[t + 28 >> 2], o = C - 16 | 0, C = o, e[o + 12 >> 2] = r; ; ) {
                     if ((s | 0) != (f | 0)) {
-                      vl(o + 12 | 0, e[s >> 2]), s = s + 4 | 0;
+                      ml(o + 12 | 0, e[s >> 2]), s = s + 4 | 0;
                       continue;
                     }
                     break;
@@ -33627,11 +33627,11 @@ function EI() {
                               l[n | 0] = r + 48, i = n + 1 | 0;
                               break t;
                             }
-                            i = y2(n, r);
+                            i = g2(n, r);
                             break t;
                           }
                           if (r >>> 0 <= 999) {
-                            i = (r >>> 0) / 100 | 0, l[n | 0] = i + 48, i = y2(n + 1 | 0, ne(i, -100) + r | 0);
+                            i = (r >>> 0) / 100 | 0, l[n | 0] = i + 48, i = g2(n + 1 | 0, ne(i, -100) + r | 0);
                             break t;
                           }
                           i = Qc(n, r);
@@ -33656,7 +33656,7 @@ function EI() {
                         i = (r >>> 0) / 1e8 | 0, l[n | 0] = i + 48, i = zc(n + 1 | 0, ne(i, -1e8) + r | 0);
                         break t;
                       }
-                      i = (r >>> 0) / 1e8 | 0, i = zc(y2(n, i), ne(i, -1e8) + r | 0);
+                      i = (r >>> 0) / 1e8 | 0, i = zc(g2(n, i), ne(i, -1e8) + r | 0);
                     }
                     f = 0;
                   }
@@ -33718,7 +33718,7 @@ function EI() {
                   }
                   r && x(r);
                 }
-                function G4(t, r, i, n) {
+                function Q4(t, r, i, n) {
                   var o = 0, s = 0, f = 0, u = 0, p = 0, w = 0, v = 0, m = 0, T = 0, R = 0, U = 0;
                   p = C - 32 | 0, C = p;
                   e: {
@@ -33791,7 +33791,7 @@ function EI() {
                           L[e[e[t >> 2] + 28 >> 2]](s + 16 | 0, t);
                         }
                         for (e[s + 12 >> 2] = Ar(s + 16 | 0); ; ) {
-                          if (t = s + 16 | 0, i = In(t), r = e[s + 12 >> 2], (i | 0) == (r | 0)) {
+                          if (t = s + 16 | 0, i = Bn(t), r = e[s + 12 >> 2], (i | 0) == (r | 0)) {
                             i = e[s + 28 >> 2], ce(t);
                             break e;
                           }
@@ -33831,7 +33831,7 @@ function EI() {
                           L[e[e[t >> 2] + 28 >> 2]](s + 16 | 0, t);
                         }
                         for (e[s + 12 >> 2] = Ar(s + 16 | 0); ; ) {
-                          if (t = s + 16 | 0, i = Cn(t), r = e[s + 12 >> 2], (i | 0) == (r | 0)) {
+                          if (t = s + 16 | 0, i = In(t), r = e[s + 12 >> 2], (i | 0) == (r | 0)) {
                             i = e[s + 28 >> 2], ce(t);
                             break e;
                           }
@@ -33940,11 +33940,11 @@ function EI() {
                                 f = (n - t | 0) + f | 0;
                                 break i;
                               }
-                              On(o, f, t), o = n - t | 0, f = n + f | 0, r = t + r | 0, t = 0, n = o;
+                              Nn(o, f, t), o = n - t | 0, f = n + f | 0, r = t + r | 0, t = 0, n = o;
                             }
-                            o = r + s | 0, On(o + n | 0, t + o | 0, w);
+                            o = r + s | 0, Nn(o + n | 0, t + o | 0, w);
                           }
-                          On(r + s | 0, f, n), L1(i, s, (n + u | 0) - t | 0);
+                          Nn(r + s | 0, f, n), L1(i, s, (n + u | 0) - t | 0);
                           break e;
                         }
                         b1(i, s, n + u - (t + s) | 0, u, r, t, n, f);
@@ -33952,7 +33952,7 @@ function EI() {
                       }
                       Uc(), V();
                     }
-                    r = On(o, f, n), On(r + n | 0, t + r | 0, w), L1(i, s, (n + u | 0) - t | 0);
+                    r = Nn(o, f, n), Nn(r + n | 0, t + r | 0, w), L1(i, s, (n + u | 0) - t | 0);
                   }
                   C = p + 16 | 0;
                 }
@@ -33965,12 +33965,12 @@ function EI() {
                       break e;
                     t: {
                       if (f = A[t + 11 | 0], p = (f & 128) >>> 7 | 0 ? e[t >> 2] : t, p >>> 0 <= r >>> 0 ? f = (((f & 128) >>> 7 | 0 ? e[t + 4 >> 2] : f & 127) << 2) + p >>> 0 >= r >>> 0 : f = 0, !f)
-                        for (n - o >>> 0 < s >>> 0 && J4(t, n, (o - n | 0) + s | 0, o, o), n = (o << 2) + ((A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t) | 0; ; ) {
+                        for (n - o >>> 0 < s >>> 0 && q4(t, n, (o - n | 0) + s | 0, o, o), n = (o << 2) + ((A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t) | 0; ; ) {
                           if ((r | 0) == (i | 0))
                             break t;
                           e[n >> 2] = e[r >> 2], r = r + 4 | 0, n = n + 4 | 0;
                         }
-                      if (r = ol(u + 4 | 0, r, i), i = A[r + 11 | 0], s = (i & 128) >>> 7 | 0, n = s ? e[r >> 2] : r, o = e[r + 4 >> 2], e[5996] = 0, ue(235, t | 0, n | 0, (s ? o : i & 127) | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
+                      if (r = sl(u + 4 | 0, r, i), i = A[r + 11 | 0], s = (i & 128) >>> 7 | 0, n = s ? e[r >> 2] : r, o = e[r + 4 >> 2], e[5996] = 0, ue(235, t | 0, n | 0, (s ? o : i & 127) | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1) {
                         ce(r);
                         break e;
                       }
@@ -34012,9 +34012,9 @@ function EI() {
                               }
                               i = We(0) | 0;
                             }
-                            if (Ti(i | 0) | 0, n = e[e[r >> 2] - 12 >> 2], e[5996] = 0, m0(139, r + n | 0), r = e[5996], e[5996] = 0, (r | 0) == 1)
+                            if (xi(i | 0) | 0, n = e[e[r >> 2] - 12 >> 2], e[5996] = 0, m0(139, r + n | 0), r = e[5996], e[5996] = 0, (r | 0) == 1)
                               break t;
-                            A2();
+                            k2();
                           }
                           C = o + 16 | 0;
                           break e;
@@ -34190,7 +34190,7 @@ function EI() {
                   }
                   return t;
                 }
-                function z4(t, r, i) {
+                function G4(t, r, i) {
                   e:
                     switch (r - 9 | 0) {
                       case 0:
@@ -34212,7 +34212,7 @@ function EI() {
                         r = e[i >> 2] + 7 & -8, e[i >> 2] = r + 8, ye[t >> 3] = ye[r >> 3];
                         return;
                       case 17:
-                        zl(t, i);
+                        Gl(t, i);
                       default:
                         return;
                       case 1:
@@ -34256,7 +34256,7 @@ function EI() {
                   }
                   i = B() | 0, t = e[s + 12 >> 2], r = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = r, (r | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), ve(i | 0), V();
                 }
-                function j4(t, r, i, n, o, s) {
+                function z4(t, r, i, n, o, s) {
                   var f = 0;
                   f = C - 80 | 0, C = f;
                   e: {
@@ -34278,7 +34278,7 @@ function EI() {
                   }
                   P0(f, r, i, n, o, 0, 0, 0, s + 16383 << 16), r = e[f + 12 >> 2], e[t + 8 >> 2] = e[f + 8 >> 2], e[t + 12 >> 2] = r, r = e[f + 4 >> 2], e[t >> 2] = e[f >> 2], e[t + 4 >> 2] = r, C = f + 80 | 0;
                 }
-                function Bi(t, r, i, n, o) {
+                function bi(t, r, i, n, o) {
                   var s = 0, f = 0, u = 0, p = 0;
                   u = C - 16 | 0, C = u, e[u + 12 >> 2] = r, r = 0, f = 6;
                   e: {
@@ -34446,7 +34446,7 @@ function EI() {
                   e: {
                     t: {
                       for (; ; ) {
-                        if (r = i + 8 | 0, n = Y4(t, 1 << t & 2147483647 ? 3538 : 5575), e[r + (t << 2) >> 2] = n, (n | 0) == -1)
+                        if (r = i + 8 | 0, n = X4(t, 1 << t & 2147483647 ? 3538 : 5575), e[r + (t << 2) >> 2] = n, (n | 0) == -1)
                           break t;
                         if (t = t + 1 | 0, (t | 0) == 6)
                           break;
@@ -34454,7 +34454,7 @@ function EI() {
                       if (t = 19324, !Mt(r, 19324, 24) || (t = 19348, !Mt(r, 19348, 24)))
                         break e;
                       if (t = 0, !A[24780]) {
-                        for (; e[(t << 2) + 24732 >> 2] = Y4(t, 5575), t = t + 1 | 0, (t | 0) != 6; )
+                        for (; e[(t << 2) + 24732 >> 2] = X4(t, 5575), t = t + 1 | 0, (t | 0) != 6; )
                           ;
                         l[24780] = 1, e[6189] = e[6183];
                       }
@@ -34469,7 +34469,7 @@ function EI() {
                   }
                   return C = i + 32 | 0, l[25008] = 1, e[6251] = t, t;
                 }
-                function X4(t, r) {
+                function j4(t, r) {
                   var i = 0, n = 0, o = 0, s = 0;
                   i = C + -64 | 0, C = i, n = e[t >> 2], o = e[n - 4 >> 2], s = e[n - 8 >> 2], e[i + 28 >> 2] = 0, e[i + 32 >> 2] = 0, e[i + 36 >> 2] = 0, e[i + 40 >> 2] = 0, e[i + 44 >> 2] = 0, e[i + 48 >> 2] = 0, e[i + 52 >> 2] = 0, e[i + 56 >> 2] = 0, n = 0, l[i + 59 | 0] = 0, l[i + 60 | 0] = 0, l[i + 61 | 0] = 0, l[i + 62 | 0] = 0, e[i + 20 >> 2] = 0, e[i + 24 >> 2] = 0, e[i + 16 >> 2] = 22056, e[i + 12 >> 2] = t, e[i + 8 >> 2] = r, t = t + s | 0;
                   e: {
@@ -34494,7 +34494,7 @@ function EI() {
                   }
                   return C = i - -64 | 0, n;
                 }
-                function Y4(t, r) {
+                function X4(t, r) {
                   var i = 0, n = 0, o = 0;
                   e: {
                     if (A[r | 0] || (r = pc(3169), A[r | 0] && r) || (r = pc(ne(t, 12) + 9024 | 0), A[r | 0] && r) || (r = pc(3321), A[r | 0] && r))
@@ -34646,7 +34646,7 @@ function EI() {
                   }
                   return e[o >> 2] = 0, 0;
                 }
-                function bn(t, r) {
+                function Tn(t, r) {
                   t = t | 0, r = r | 0;
                   var i = 0, n = 0, o = 0, s = 0, f = 0, u = 0;
                   if (i = e[t + 4 >> 2], n = e[t + 8 >> 2], i >>> 0 < n >>> 0) {
@@ -34697,7 +34697,7 @@ function EI() {
                 function zy(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0, p = 0;
-                  f = C - 256 | 0, C = f, e[f + 248 >> 2] = 37, e[f + 252 >> 2] = 0, u = f + 248 | 0, Bn(u | 1, 2055, 1, e[i + 4 >> 2]), p = y0(), e[f >> 2] = o, e[f + 4 >> 2] = s, t = f + 224 | 0, o = Rt(t, 24, p, u, f) + t | 0, p = lr(t, o, e[i + 4 >> 2]), s = f + 20 | 0, u = e[i + 28 >> 2], e[s >> 2] = u, e[u + 4 >> 2] = e[u + 4 >> 2] + 1, e[5996] = 0, u = f + 32 | 0, $r(215, t | 0, p | 0, o | 0, u | 0, f + 28 | 0, f + 24 | 0, s | 0), t = e[5996], e[5996] = 0;
+                  f = C - 256 | 0, C = f, e[f + 248 >> 2] = 37, e[f + 252 >> 2] = 0, u = f + 248 | 0, bn(u | 1, 2055, 1, e[i + 4 >> 2]), p = y0(), e[f >> 2] = o, e[f + 4 >> 2] = s, t = f + 224 | 0, o = Rt(t, 24, p, u, f) + t | 0, p = lr(t, o, e[i + 4 >> 2]), s = f + 20 | 0, u = e[i + 28 >> 2], e[s >> 2] = u, e[u + 4 >> 2] = e[u + 4 >> 2] + 1, e[5996] = 0, u = f + 32 | 0, $r(215, t | 0, p | 0, o | 0, u | 0, f + 28 | 0, f + 24 | 0, s | 0), t = e[5996], e[5996] = 0;
                   e: {
                     if ((t | 0) != 1) {
                       t = e[s >> 2], o = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = o, (o | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), t = os(r, u, e[f + 28 >> 2], e[f + 24 >> 2], i, n), C = f + 256 | 0;
@@ -34710,7 +34710,7 @@ function EI() {
                 function jy(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0, p = 0;
-                  f = C - 256 | 0, C = f, e[f + 248 >> 2] = 37, e[f + 252 >> 2] = 0, u = f + 248 | 0, Bn(u | 1, 2055, 0, e[i + 4 >> 2]), p = y0(), e[f >> 2] = o, e[f + 4 >> 2] = s, t = f + 224 | 0, o = Rt(t, 24, p, u, f) + t | 0, p = lr(t, o, e[i + 4 >> 2]), s = f + 20 | 0, u = e[i + 28 >> 2], e[s >> 2] = u, e[u + 4 >> 2] = e[u + 4 >> 2] + 1, e[5996] = 0, u = f + 32 | 0, $r(215, t | 0, p | 0, o | 0, u | 0, f + 28 | 0, f + 24 | 0, s | 0), t = e[5996], e[5996] = 0;
+                  f = C - 256 | 0, C = f, e[f + 248 >> 2] = 37, e[f + 252 >> 2] = 0, u = f + 248 | 0, bn(u | 1, 2055, 0, e[i + 4 >> 2]), p = y0(), e[f >> 2] = o, e[f + 4 >> 2] = s, t = f + 224 | 0, o = Rt(t, 24, p, u, f) + t | 0, p = lr(t, o, e[i + 4 >> 2]), s = f + 20 | 0, u = e[i + 28 >> 2], e[s >> 2] = u, e[u + 4 >> 2] = e[u + 4 >> 2] + 1, e[5996] = 0, u = f + 32 | 0, $r(215, t | 0, p | 0, o | 0, u | 0, f + 28 | 0, f + 24 | 0, s | 0), t = e[5996], e[5996] = 0;
                   e: {
                     if ((t | 0) != 1) {
                       t = e[s >> 2], o = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = o, (o | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), t = os(r, u, e[f + 28 >> 2], e[f + 24 >> 2], i, n), C = f + 256 | 0;
@@ -34723,7 +34723,7 @@ function EI() {
                 function Xy(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0, p = 0;
-                  f = C - 112 | 0, C = f, e[f + 104 >> 2] = 37, e[f + 108 >> 2] = 0, u = f + 104 | 0, Bn(u | 1, 2055, 1, e[i + 4 >> 2]), p = y0(), e[f >> 2] = o, e[f + 4 >> 2] = s, t = f + 80 | 0, o = Rt(t, 24, p, u, f) + t | 0, p = lr(t, o, e[i + 4 >> 2]), s = f + 20 | 0, u = e[i + 28 >> 2], e[s >> 2] = u, e[u + 4 >> 2] = e[u + 4 >> 2] + 1, e[5996] = 0, u = f + 32 | 0, $r(211, t | 0, p | 0, o | 0, u | 0, f + 28 | 0, f + 24 | 0, s | 0), t = e[5996], e[5996] = 0;
+                  f = C - 112 | 0, C = f, e[f + 104 >> 2] = 37, e[f + 108 >> 2] = 0, u = f + 104 | 0, bn(u | 1, 2055, 1, e[i + 4 >> 2]), p = y0(), e[f >> 2] = o, e[f + 4 >> 2] = s, t = f + 80 | 0, o = Rt(t, 24, p, u, f) + t | 0, p = lr(t, o, e[i + 4 >> 2]), s = f + 20 | 0, u = e[i + 28 >> 2], e[s >> 2] = u, e[u + 4 >> 2] = e[u + 4 >> 2] + 1, e[5996] = 0, u = f + 32 | 0, $r(211, t | 0, p | 0, o | 0, u | 0, f + 28 | 0, f + 24 | 0, s | 0), t = e[5996], e[5996] = 0;
                   e: {
                     if ((t | 0) != 1) {
                       t = e[s >> 2], o = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = o, (o | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), t = is(r, u, e[f + 28 >> 2], e[f + 24 >> 2], i, n), C = f + 112 | 0;
@@ -34736,7 +34736,7 @@ function EI() {
                 function Yy(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0, p = 0;
-                  f = C - 112 | 0, C = f, e[f + 104 >> 2] = 37, e[f + 108 >> 2] = 0, u = f + 104 | 0, Bn(u | 1, 2055, 0, e[i + 4 >> 2]), p = y0(), e[f >> 2] = o, e[f + 4 >> 2] = s, t = f + 80 | 0, o = Rt(t, 24, p, u, f) + t | 0, p = lr(t, o, e[i + 4 >> 2]), s = f + 20 | 0, u = e[i + 28 >> 2], e[s >> 2] = u, e[u + 4 >> 2] = e[u + 4 >> 2] + 1, e[5996] = 0, u = f + 32 | 0, $r(211, t | 0, p | 0, o | 0, u | 0, f + 28 | 0, f + 24 | 0, s | 0), t = e[5996], e[5996] = 0;
+                  f = C - 112 | 0, C = f, e[f + 104 >> 2] = 37, e[f + 108 >> 2] = 0, u = f + 104 | 0, bn(u | 1, 2055, 0, e[i + 4 >> 2]), p = y0(), e[f >> 2] = o, e[f + 4 >> 2] = s, t = f + 80 | 0, o = Rt(t, 24, p, u, f) + t | 0, p = lr(t, o, e[i + 4 >> 2]), s = f + 20 | 0, u = e[i + 28 >> 2], e[s >> 2] = u, e[u + 4 >> 2] = e[u + 4 >> 2] + 1, e[5996] = 0, u = f + 32 | 0, $r(211, t | 0, p | 0, o | 0, u | 0, f + 28 | 0, f + 24 | 0, s | 0), t = e[5996], e[5996] = 0;
                   e: {
                     if ((t | 0) != 1) {
                       t = e[s >> 2], o = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = o, (o | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), t = is(r, u, e[f + 28 >> 2], e[f + 24 >> 2], i, n), C = f + 112 | 0;
@@ -34779,7 +34779,7 @@ function EI() {
                   }
                   l[r + 53 | 0] = m, l[r + 52 | 0] = u;
                 }
-                function Ii(t, r, i, n, o) {
+                function Bi(t, r, i, n, o) {
                   var s = 0, f = 0, u = 0, p = 0;
                   u = C - 16 | 0, C = u, e[u + 12 >> 2] = r, r = 0, f = 6;
                   e: {
@@ -34873,7 +34873,7 @@ function EI() {
                 function qy(t, r, i, n, o) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0;
                   var s = 0, f = 0, u = 0, p = 0;
-                  s = C - 144 | 0, C = s, e[s + 136 >> 2] = 37, e[s + 140 >> 2] = 0, u = s + 136 | 0, Bn(u | 1, 2096, 1, e[i + 4 >> 2]), f = y0(), e[s >> 2] = o, t = s + 123 | 0, o = Rt(t, 13, f, u, s) + t | 0, p = lr(t, o, e[i + 4 >> 2]), u = s + 4 | 0, f = e[i + 28 >> 2], e[u >> 2] = f, e[f + 4 >> 2] = e[f + 4 >> 2] + 1, e[5996] = 0, f = s + 16 | 0, $r(215, t | 0, p | 0, o | 0, f | 0, s + 12 | 0, s + 8 | 0, u | 0), t = e[5996], e[5996] = 0;
+                  s = C - 144 | 0, C = s, e[s + 136 >> 2] = 37, e[s + 140 >> 2] = 0, u = s + 136 | 0, bn(u | 1, 2096, 1, e[i + 4 >> 2]), f = y0(), e[s >> 2] = o, t = s + 123 | 0, o = Rt(t, 13, f, u, s) + t | 0, p = lr(t, o, e[i + 4 >> 2]), u = s + 4 | 0, f = e[i + 28 >> 2], e[u >> 2] = f, e[f + 4 >> 2] = e[f + 4 >> 2] + 1, e[5996] = 0, f = s + 16 | 0, $r(215, t | 0, p | 0, o | 0, f | 0, s + 12 | 0, s + 8 | 0, u | 0), t = e[5996], e[5996] = 0;
                   e: {
                     if ((t | 0) != 1) {
                       t = e[u >> 2], o = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = o, (o | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), t = os(r, f, e[s + 12 >> 2], e[s + 8 >> 2], i, n), C = s + 144 | 0;
@@ -34886,7 +34886,7 @@ function EI() {
                 function Jy(t, r, i, n, o) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0;
                   var s = 0, f = 0, u = 0, p = 0;
-                  s = C - 144 | 0, C = s, e[s + 136 >> 2] = 37, e[s + 140 >> 2] = 0, u = s + 136 | 0, Bn(u | 1, 2096, 0, e[i + 4 >> 2]), f = y0(), e[s >> 2] = o, t = s + 123 | 0, o = Rt(t, 13, f, u, s) + t | 0, p = lr(t, o, e[i + 4 >> 2]), u = s + 4 | 0, f = e[i + 28 >> 2], e[u >> 2] = f, e[f + 4 >> 2] = e[f + 4 >> 2] + 1, e[5996] = 0, f = s + 16 | 0, $r(215, t | 0, p | 0, o | 0, f | 0, s + 12 | 0, s + 8 | 0, u | 0), t = e[5996], e[5996] = 0;
+                  s = C - 144 | 0, C = s, e[s + 136 >> 2] = 37, e[s + 140 >> 2] = 0, u = s + 136 | 0, bn(u | 1, 2096, 0, e[i + 4 >> 2]), f = y0(), e[s >> 2] = o, t = s + 123 | 0, o = Rt(t, 13, f, u, s) + t | 0, p = lr(t, o, e[i + 4 >> 2]), u = s + 4 | 0, f = e[i + 28 >> 2], e[u >> 2] = f, e[f + 4 >> 2] = e[f + 4 >> 2] + 1, e[5996] = 0, f = s + 16 | 0, $r(215, t | 0, p | 0, o | 0, f | 0, s + 12 | 0, s + 8 | 0, u | 0), t = e[5996], e[5996] = 0;
                   e: {
                     if ((t | 0) != 1) {
                       t = e[u >> 2], o = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = o, (o | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), t = os(r, f, e[s + 12 >> 2], e[s + 8 >> 2], i, n), C = s + 144 | 0;
@@ -34899,7 +34899,7 @@ function EI() {
                 function em(t, r, i, n, o) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0;
                   var s = 0, f = 0, u = 0, p = 0;
-                  s = C + -64 | 0, C = s, e[s + 56 >> 2] = 37, e[s + 60 >> 2] = 0, u = s + 56 | 0, Bn(u | 1, 2096, 1, e[i + 4 >> 2]), f = y0(), e[s >> 2] = o, t = s + 43 | 0, o = Rt(t, 13, f, u, s) + t | 0, p = lr(t, o, e[i + 4 >> 2]), u = s + 4 | 0, f = e[i + 28 >> 2], e[u >> 2] = f, e[f + 4 >> 2] = e[f + 4 >> 2] + 1, e[5996] = 0, f = s + 16 | 0, $r(211, t | 0, p | 0, o | 0, f | 0, s + 12 | 0, s + 8 | 0, u | 0), t = e[5996], e[5996] = 0;
+                  s = C + -64 | 0, C = s, e[s + 56 >> 2] = 37, e[s + 60 >> 2] = 0, u = s + 56 | 0, bn(u | 1, 2096, 1, e[i + 4 >> 2]), f = y0(), e[s >> 2] = o, t = s + 43 | 0, o = Rt(t, 13, f, u, s) + t | 0, p = lr(t, o, e[i + 4 >> 2]), u = s + 4 | 0, f = e[i + 28 >> 2], e[u >> 2] = f, e[f + 4 >> 2] = e[f + 4 >> 2] + 1, e[5996] = 0, f = s + 16 | 0, $r(211, t | 0, p | 0, o | 0, f | 0, s + 12 | 0, s + 8 | 0, u | 0), t = e[5996], e[5996] = 0;
                   e: {
                     if ((t | 0) != 1) {
                       t = e[u >> 2], o = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = o, (o | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), t = is(r, f, e[s + 12 >> 2], e[s + 8 >> 2], i, n), C = s - -64 | 0;
@@ -34912,7 +34912,7 @@ function EI() {
                 function tm(t, r, i, n, o) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0;
                   var s = 0, f = 0, u = 0, p = 0;
-                  s = C + -64 | 0, C = s, e[s + 56 >> 2] = 37, e[s + 60 >> 2] = 0, u = s + 56 | 0, Bn(u | 1, 2096, 0, e[i + 4 >> 2]), f = y0(), e[s >> 2] = o, t = s + 43 | 0, o = Rt(t, 13, f, u, s) + t | 0, p = lr(t, o, e[i + 4 >> 2]), u = s + 4 | 0, f = e[i + 28 >> 2], e[u >> 2] = f, e[f + 4 >> 2] = e[f + 4 >> 2] + 1, e[5996] = 0, f = s + 16 | 0, $r(211, t | 0, p | 0, o | 0, f | 0, s + 12 | 0, s + 8 | 0, u | 0), t = e[5996], e[5996] = 0;
+                  s = C + -64 | 0, C = s, e[s + 56 >> 2] = 37, e[s + 60 >> 2] = 0, u = s + 56 | 0, bn(u | 1, 2096, 0, e[i + 4 >> 2]), f = y0(), e[s >> 2] = o, t = s + 43 | 0, o = Rt(t, 13, f, u, s) + t | 0, p = lr(t, o, e[i + 4 >> 2]), u = s + 4 | 0, f = e[i + 28 >> 2], e[u >> 2] = f, e[f + 4 >> 2] = e[f + 4 >> 2] + 1, e[5996] = 0, f = s + 16 | 0, $r(211, t | 0, p | 0, o | 0, f | 0, s + 12 | 0, s + 8 | 0, u | 0), t = e[5996], e[5996] = 0;
                   e: {
                     if ((t | 0) != 1) {
                       t = e[u >> 2], o = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = o, (o | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), t = is(r, f, e[s + 12 >> 2], e[s + 8 >> 2], i, n), C = s - -64 | 0;
@@ -34956,7 +34956,7 @@ function EI() {
                   }
                   e[i >> 2] = 1, oc(t, r);
                 }
-                function p2(t, r, i, n, o, s, f, u) {
+                function A2(t, r, i, n, o, s, f, u) {
                   var p = 0, w = 0, v = 0, m = 0;
                   w = 1, p = n & 2147483647, m = p, v = (p | 0) == 2147418112;
                   e: {
@@ -35055,10 +35055,10 @@ function EI() {
                     return s = e[t + 12 >> 2], v = e[s + 4 >> 2] - 1 | 0, e[s + 4 >> 2] = v, (v | 0) == -1 && L[e[e[s >> 2] + 8 >> 2]](s), s = o, o = t + 16 | 0, L[e[e[w >> 2] + 32 >> 2]](w, s, f, o) | 0, s = r, r = o + u | 0, r = is(s, o, (f | 0) == (p | 0) ? r : (t + (p - t | 0) | 0) - 48 | 0, r, i, n), C = t + 96 | 0, r | 0;
                   i = B() | 0, t = e[t + 12 >> 2], r = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = r, (r | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), ve(i | 0), V();
                 }
-                function Z4(t, r, i, n, o, s, f, u) {
+                function Y4(t, r, i, n, o, s, f, u) {
                   var p = 0, w = 0, v = 0, m = 0;
                   if (p = C - 16 | 0, C = p, 1073741806 - r >>> 0 >= i >>> 0) {
-                    v = (A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t, w = p + 4 | 0, m = w, r >>> 0 <= 536870886 ? (e[p + 12 >> 2] = r << 1, e[p + 4 >> 2] = r + i, i = e[(Qe[w >> 2] < Qe[p + 12 >> 2] ? p + 12 | 0 : w) >> 2], i >>> 0 >= 2 ? (w = i + 4 & -4, i = w - 1 | 0, i = (i | 0) == 2 ? w : i) : i = 1, i = i + 1 | 0) : i = 1073741807, ks(m, i), i = e[p + 4 >> 2], o && Rn(i, v, o), f && Rn(i + (o << 2) | 0, u, f), w = o + s | 0, u = n - w | 0, (n | 0) != (w | 0) && (n = o << 2, Rn((n + i | 0) + (f << 2) | 0, (n + v | 0) + (s << 2) | 0, u)), (r | 0) != 1 && x(v), e[t >> 2] = i, e[t + 8 >> 2] = e[p + 8 >> 2] | -2147483648, r = t, t = u + (o + f | 0) | 0, e[r + 4 >> 2] = t, e[i + (t << 2) >> 2] = 0, C = p + 16 | 0;
+                    v = (A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t, w = p + 4 | 0, m = w, r >>> 0 <= 536870886 ? (e[p + 12 >> 2] = r << 1, e[p + 4 >> 2] = r + i, i = e[(Qe[w >> 2] < Qe[p + 12 >> 2] ? p + 12 | 0 : w) >> 2], i >>> 0 >= 2 ? (w = i + 4 & -4, i = w - 1 | 0, i = (i | 0) == 2 ? w : i) : i = 1, i = i + 1 | 0) : i = 1073741807, ks(m, i), i = e[p + 4 >> 2], o && Cn(i, v, o), f && Cn(i + (o << 2) | 0, u, f), w = o + s | 0, u = n - w | 0, (n | 0) != (w | 0) && (n = o << 2, Cn((n + i | 0) + (f << 2) | 0, (n + v | 0) + (s << 2) | 0, u)), (r | 0) != 1 && x(v), e[t >> 2] = i, e[t + 8 >> 2] = e[p + 8 >> 2] | -2147483648, r = t, t = u + (o + f | 0) | 0, e[r + 4 >> 2] = t, e[i + (t << 2) >> 2] = 0, C = p + 16 | 0;
                     return;
                   }
                   kt(), V();
@@ -35126,7 +35126,7 @@ function EI() {
                 function b1(t, r, i, n, o, s, f, u) {
                   var p = 0, w = 0, v = 0, m = 0;
                   if (p = C - 16 | 0, C = p, 2147483630 - r >>> 0 >= i >>> 0) {
-                    v = (A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t, w = p + 4 | 0, m = w, r >>> 0 <= 1073741798 ? (e[p + 12 >> 2] = r << 1, e[p + 4 >> 2] = r + i, i = e[(Qe[w >> 2] < Qe[p + 12 >> 2] ? p + 12 | 0 : w) >> 2], i >>> 0 >= 11 ? (w = i + 16 & -16, i = w - 1 | 0, i = (i | 0) == 11 ? w : i) : i = 10, i = i + 1 | 0) : i = 2147483631, hs(m, i), i = e[p + 4 >> 2], o && Oi(i, v, o), f && Oi(i + o | 0, u, f), w = o + s | 0, u = n - w | 0, (n | 0) != (w | 0) && Oi((i + o | 0) + f | 0, (o + v | 0) + s | 0, u), (r | 0) != 10 && x(v), e[t >> 2] = i, e[t + 8 >> 2] = e[p + 8 >> 2] | -2147483648, r = t, t = u + (o + f | 0) | 0, e[r + 4 >> 2] = t, l[t + i | 0] = 0, C = p + 16 | 0;
+                    v = (A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t, w = p + 4 | 0, m = w, r >>> 0 <= 1073741798 ? (e[p + 12 >> 2] = r << 1, e[p + 4 >> 2] = r + i, i = e[(Qe[w >> 2] < Qe[p + 12 >> 2] ? p + 12 | 0 : w) >> 2], i >>> 0 >= 11 ? (w = i + 16 & -16, i = w - 1 | 0, i = (i | 0) == 11 ? w : i) : i = 10, i = i + 1 | 0) : i = 2147483631, hs(m, i), i = e[p + 4 >> 2], o && Ni(i, v, o), f && Ni(i + o | 0, u, f), w = o + s | 0, u = n - w | 0, (n | 0) != (w | 0) && Ni((i + o | 0) + f | 0, (o + v | 0) + s | 0, u), (r | 0) != 10 && x(v), e[t >> 2] = i, e[t + 8 >> 2] = e[p + 8 >> 2] | -2147483648, r = t, t = u + (o + f | 0) | 0, e[r + 4 >> 2] = t, l[t + i | 0] = 0, C = p + 16 | 0;
                     return;
                   }
                   kt(), V();
@@ -35140,7 +35140,7 @@ function EI() {
                       if (!t || (f = e[o + 12 >> 2], u = i - r | 0, (u | 0) > 0 && (u = u >>> 2 | 0, (L[e[e[t >> 2] + 48 >> 2]](t, r, u) | 0) != (u | 0))))
                         break t;
                       if (r = n - r >> 2, f = (r | 0) < (f | 0) ? f - r | 0 : 0, (f | 0) > 0) {
-                        if (r = nl(p + 4 | 0, f, s), s = (A[r + 11 | 0] & 128) >>> 7 | 0 ? e[r >> 2] : r, e[5996] = 0, s = ue(217, t | 0, s | 0, f | 0) | 0, u = e[5996], e[5996] = 0, (u | 0) == 1)
+                        if (r = il(p + 4 | 0, f, s), s = (A[r + 11 | 0] & 128) >>> 7 | 0 ? e[r >> 2] : r, e[5996] = 0, s = ue(217, t | 0, s | 0, f | 0) | 0, u = e[5996], e[5996] = 0, (u | 0) == 1)
                           break e;
                         if (ce(r), (s | 0) != (f | 0))
                           break t;
@@ -35199,7 +35199,7 @@ function EI() {
                         }
                         break e;
                       }
-                      Ti(We(0) | 0) | 0, e[t >> 2] = 0, e[5996] = 0, le(192), t = e[5996], e[5996] = 0;
+                      xi(We(0) | 0) | 0, e[t >> 2] = 0, e[5996] = 0, le(192), t = e[5996], e[5996] = 0;
                       t: {
                         if ((t | 0) == 1) {
                           if (t = B() | 0, e[5996] = 0, le(110), r = e[5996], e[5996] = 0, (r | 0) != 1)
@@ -35213,9 +35213,9 @@ function EI() {
                   return C = n + 16 | 0, C = o + 16 | 0, e[t + 4 >> 2] - 1 | 0;
                 }
                 function fm(t, r, i, n, o, s, f) {
-                  for (t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0, f = f | 0, i = C - 128 | 0, C = i, e[i + 12 >> 2] = i + 116, n = e[t + 8 >> 2], t = i + 16 | 0, El(n, t, i + 12 | 0, o, s, f), o = C - 16 | 0, C = o, f = C - 32 | 0, C = f, n = C - 16 | 0, C = n, e[n + 12 >> 2] = e[i + 12 >> 2], e[f + 24 >> 2] = t, e[f + 28 >> 2] = e[n + 12 >> 2], C = n + 16 | 0, s = e[f + 24 >> 2], t = e[f + 28 >> 2], n = C - 16 | 0, C = n, e[n + 12 >> 2] = r; ; ) {
+                  for (t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0, f = f | 0, i = C - 128 | 0, C = i, e[i + 12 >> 2] = i + 116, n = e[t + 8 >> 2], t = i + 16 | 0, vl(n, t, i + 12 | 0, o, s, f), o = C - 16 | 0, C = o, f = C - 32 | 0, C = f, n = C - 16 | 0, C = n, e[n + 12 >> 2] = e[i + 12 >> 2], e[f + 24 >> 2] = t, e[f + 28 >> 2] = e[n + 12 >> 2], C = n + 16 | 0, s = e[f + 24 >> 2], t = e[f + 28 >> 2], n = C - 16 | 0, C = n, e[n + 12 >> 2] = r; ; ) {
                     if ((t | 0) != (s | 0)) {
-                      Yl(n + 12 | 0, l[s | 0]), s = s + 1 | 0;
+                      Xl(n + 12 | 0, l[s | 0]), s = s + 1 | 0;
                       continue;
                     }
                     break;
@@ -35262,7 +35262,7 @@ function EI() {
                   }
                   t = B() | 0, S0(n + 4 | 0), ve(t | 0), V();
                 }
-                function Ci(t, r) {
+                function Ii(t, r) {
                   var i = 0, n = 0, o = 0, s = 0, f = 0, u = 0, p = 0;
                   o = C - 16 | 0, C = o, Dr(+r), f = W0(1) | 0, i = W0(0) | 0, n = f & 2147483647, s = n + -1048576 | 0;
                   e: {
@@ -35342,14 +35342,14 @@ function EI() {
                   }
                   t = B() | 0, X0(o + 4 | 0), x(s), ve(t | 0), V();
                 }
-                function q4(t, r, i, n) {
+                function Z4(t, r, i, n) {
                   var o = 0, s = 0, f = 0;
                   o = C - 16 | 0, C = o;
                   e: {
                     t: {
                       if ((t | 0) != (r | 0))
                         r: {
-                          f = e[5732], e[5732] = 0, y0(), t = Dh(t, o + 12 | 0, n), n = Ve;
+                          f = e[5732], e[5732] = 0, y0(), t = _h(t, o + 12 | 0, n), n = Ve;
                           i: {
                             if (s = e[5732], s) {
                               if (e[o + 12 >> 2] != (r | 0))
@@ -35382,7 +35382,7 @@ function EI() {
                   }
                   return C = o + 16 | 0, r;
                 }
-                function d2(t, r, i, n, o, s) {
+                function p2(t, r, i, n, o, s) {
                   var f = 0, u = 0, p = 0, w = 0;
                   e: {
                     if (s & 64) {
@@ -35429,7 +35429,7 @@ function EI() {
                       if (n = n ? (e[t + 8 >> 2] & 2147483647) - 1 | 0 : 10, n - o >>> 0 >= s >>> 0) {
                         if (!s)
                           break e;
-                        n = (A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t, u = n + r | 0, (r | 0) != (o | 0) && (f = r + n | 0, On(f + s | 0, f, o - r | 0), i = (i >>> 0 >= f >>> 0 && n + o >>> 0 > i >>> 0 ? s : 0) + i | 0), On(u, i, s), r = s + o | 0;
+                        n = (A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t, u = n + r | 0, (r | 0) != (o | 0) && (f = r + n | 0, Nn(f + s | 0, f, o - r | 0), i = (i >>> 0 >= f >>> 0 && n + o >>> 0 > i >>> 0 ? s : 0) + i | 0), Nn(u, i, s), r = s + o | 0;
                         t: {
                           if ((A[t + 11 | 0] & 128) >>> 7 | 0) {
                             e[t + 4 >> 2] = r;
@@ -35538,10 +35538,10 @@ function EI() {
                 function gm(t) {
                   return A[25140] ? e[6284] : (A[25936] || (l[25936] = 1), g0(25648, 1065), g0(25660, 1056), g0(25672, 2204), g0(25684, 2058), g0(25696, 1135), g0(25708, 2381), g0(25720, 1073), g0(25732, 1297), g0(25744, 1802), g0(25756, 1785), g0(25768, 1793), g0(25780, 1812), g0(25792, 2024), g0(25804, 2543), g0(25816, 1837), g0(25828, 1683), g0(25840, 1135), g0(25852, 1965), g0(25864, 2051), g0(25876, 2280), g0(25888, 1924), g0(25900, 1386), g0(25912, 1263), g0(25924, 2539), l[25140] = 1, e[6284] = 25648, 25648);
                 }
-                function J4(t, r, i, n, o) {
+                function q4(t, r, i, n, o) {
                   var s = 0, f = 0, u = 0, p = 0;
                   if (s = C - 16 | 0, C = s, 1073741807 - r >>> 0 >= i >>> 0) {
-                    u = (A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t, f = s + 4 | 0, p = f, r >>> 0 <= 536870886 ? (e[s + 12 >> 2] = r << 1, e[s + 4 >> 2] = r + i, i = e[(Qe[f >> 2] < Qe[s + 12 >> 2] ? s + 12 | 0 : f) >> 2], i >>> 0 >= 2 ? (f = i + 4 & -4, i = f - 1 | 0, i = (i | 0) == 2 ? f : i) : i = 1, i = i + 1 | 0) : i = 1073741807, ks(p, i), i = e[s + 4 >> 2], o && Rn(i, u, o), (n | 0) != (o | 0) && (f = o << 2, Rn(f + i | 0, f + u | 0, n - o | 0)), (r | 0) != 1 && x(u), e[t >> 2] = i, e[t + 8 >> 2] = e[s + 8 >> 2] | -2147483648, C = s + 16 | 0;
+                    u = (A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t, f = s + 4 | 0, p = f, r >>> 0 <= 536870886 ? (e[s + 12 >> 2] = r << 1, e[s + 4 >> 2] = r + i, i = e[(Qe[f >> 2] < Qe[s + 12 >> 2] ? s + 12 | 0 : f) >> 2], i >>> 0 >= 2 ? (f = i + 4 & -4, i = f - 1 | 0, i = (i | 0) == 2 ? f : i) : i = 1, i = i + 1 | 0) : i = 1073741807, ks(p, i), i = e[s + 4 >> 2], o && Cn(i, u, o), (n | 0) != (o | 0) && (f = o << 2, Cn(f + i | 0, f + u | 0, n - o | 0)), (r | 0) != 1 && x(u), e[t >> 2] = i, e[t + 8 >> 2] = e[s + 8 >> 2] | -2147483648, C = s + 16 | 0;
                     return;
                   }
                   kt(), V();
@@ -35549,7 +35549,7 @@ function EI() {
                 function vc(t, r, i, n, o) {
                   var s = 0, f = 0, u = 0, p = 0;
                   if (s = C - 16 | 0, C = s, 2147483631 - r >>> 0 >= i >>> 0) {
-                    u = (A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t, f = s + 4 | 0, p = f, r >>> 0 <= 1073741798 ? (e[s + 12 >> 2] = r << 1, e[s + 4 >> 2] = r + i, i = e[(Qe[f >> 2] < Qe[s + 12 >> 2] ? s + 12 | 0 : f) >> 2], i >>> 0 >= 11 ? (f = i + 16 & -16, i = f - 1 | 0, i = (i | 0) == 11 ? f : i) : i = 10, i = i + 1 | 0) : i = 2147483631, hs(p, i), i = e[s + 4 >> 2], o && Oi(i, u, o), (n | 0) != (o | 0) && Oi(i + o | 0, o + u | 0, n - o | 0), (r | 0) != 10 && x(u), e[t >> 2] = i, e[t + 8 >> 2] = e[s + 8 >> 2] | -2147483648, C = s + 16 | 0;
+                    u = (A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t, f = s + 4 | 0, p = f, r >>> 0 <= 1073741798 ? (e[s + 12 >> 2] = r << 1, e[s + 4 >> 2] = r + i, i = e[(Qe[f >> 2] < Qe[s + 12 >> 2] ? s + 12 | 0 : f) >> 2], i >>> 0 >= 11 ? (f = i + 16 & -16, i = f - 1 | 0, i = (i | 0) == 11 ? f : i) : i = 10, i = i + 1 | 0) : i = 2147483631, hs(p, i), i = e[s + 4 >> 2], o && Ni(i, u, o), (n | 0) != (o | 0) && Ni(i + o | 0, o + u | 0, n - o | 0), (r | 0) != 10 && x(u), e[t >> 2] = i, e[t + 8 >> 2] = e[s + 8 >> 2] | -2147483648, C = s + 16 | 0;
                     return;
                   }
                   kt(), V();
@@ -35564,7 +35564,7 @@ function EI() {
                       f = e[t + 16 >> 2], n = e[t + 12 >> 2];
                       t: {
                         if (f >>> 0 > n >>> 0) {
-                          e[o + 12 >> 2] = 2147483647, e[o + 8 >> 2] = f - n, e[o + 4 >> 2] = i - s, u = r, f = n, r = o + 4 | 0, n = o + 8 | 0, r = e[r >> 2] < e[n >> 2] ? r : n, n = o + 12 | 0, n = e[(e[r >> 2] < e[n >> 2] ? r : n) >> 2], r = Oi(u, f, n), e[t + 12 >> 2] = e[t + 12 >> 2] + n, r = r + n | 0;
+                          e[o + 12 >> 2] = 2147483647, e[o + 8 >> 2] = f - n, e[o + 4 >> 2] = i - s, u = r, f = n, r = o + 4 | 0, n = o + 8 | 0, r = e[r >> 2] < e[n >> 2] ? r : n, n = o + 12 | 0, n = e[(e[r >> 2] < e[n >> 2] ? r : n) >> 2], r = Ni(u, f, n), e[t + 12 >> 2] = e[t + 12 >> 2] + n, r = r + n | 0;
                           break t;
                         }
                         if (n = L[e[e[t >> 2] + 40 >> 2]](t) | 0, (n | 0) == -1)
@@ -35597,7 +35597,7 @@ function EI() {
                         break e;
                       i = s0(n, i, s) + s | 0;
                     }
-                    return e[o + 4 >> 2] = 0, e[o + 8 >> 2] = 0, e[o >> 2] = r, e[o + 40 >> 2] = 0, e[o + 44 >> 2] = 0, e[o + 28 >> 2] = n, e[o + 12 >> 2] = 0, e[o + 16 >> 2] = 0, e[o + 20 >> 2] = 0, e[o + 24 >> 2] = 0, e[o + 36 >> 2] = i, e[o + 32 >> 2] = i, bn(t, o), o | 0;
+                    return e[o + 4 >> 2] = 0, e[o + 8 >> 2] = 0, e[o >> 2] = r, e[o + 40 >> 2] = 0, e[o + 44 >> 2] = 0, e[o + 28 >> 2] = n, e[o + 12 >> 2] = 0, e[o + 16 >> 2] = 0, e[o + 20 >> 2] = 0, e[o + 24 >> 2] = 0, e[o + 36 >> 2] = i, e[o + 32 >> 2] = i, Tn(t, o), o | 0;
                   }
                   t = B() | 0, x(o), ve(t | 0), V();
                 }
@@ -35660,7 +35660,7 @@ function EI() {
                             break r;
                           f = n + 8 | 0, i >>> 0 >= 2 ? (s = i + 4 & -4, r = s - 1 | 0, r = (r | 0) == 2 ? s : r) : r = 1, ks(f, r + 1 | 0), r = e[n + 8 >> 2], e[t >> 2] = r, e[t + 8 >> 2] = e[n + 12 >> 2] | -2147483648, e[t + 4 >> 2] = i, t = r;
                         }
-                        Rn(t, o, i + 1 | 0), C = n + 16 | 0;
+                        Cn(t, o, i + 1 | 0), C = n + 16 | 0;
                         break t;
                       }
                       kt(), V();
@@ -35674,14 +35674,14 @@ function EI() {
                     t: {
                       if (!e[r + 24 >> 2] | e[r + 16 >> 2] | !(A[r + 5 | 0] & 32) || ($3() | 0) > 0 || (r = e[t + 4 >> 2], r = e[(e[e[r >> 2] - 12 >> 2] + r | 0) + 24 >> 2], e[5996] = 0, r = K(169, r | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1 && ((r | 0) != -1 || (t = e[t + 4 >> 2], r = e[e[t >> 2] - 12 >> 2], e[5996] = 0, J(138, t + r | 0, 1), t = e[5996], e[5996] = 0, (t | 0) != 1))))
                         break t;
-                      if (Ti(We(0) | 0) | 0, e[5996] = 0, le(110), t = e[5996], e[5996] = 0, (t | 0) == 1)
+                      if (xi(We(0) | 0) | 0, e[5996] = 0, le(110), t = e[5996], e[5996] = 0, (t | 0) == 1)
                         break e;
                     }
                     return;
                   }
                   We(0) | 0, Wr(), V();
                 }
-                function el(t, r, i, n) {
+                function J4(t, r, i, n) {
                   var o = 0, s = 0, f = 0, u = 0;
                   o = C - 16 | 0, C = o;
                   e: {
@@ -35717,17 +35717,17 @@ function EI() {
                   }
                   return C = o + 16 | 0, t & 65535;
                 }
-                function tl(t, r) {
+                function el(t, r) {
                   var i = 0, n = 0, o = 0, s = 0, f = 0, u = 0;
                   o = C - 16 | 0, C = o, n = A[t + 11 | 0], i = n << 24 >> 24, i = (i | 0) < 0, n = i ? e[t + 4 >> 2] : n;
                   e: {
-                    if (!n || (i = i ? e[t >> 2] : t, f = A[i | 0], s = f - 9 & 255, s >>> 0 < 24 & (8388639 >>> s & 1)) || (s = A[(i + n | 0) - 1 | 0] - 9 | 0, (s & 255) >>> 0 < 24 & (8388639 >>> s & 1)) || (f | 0) == 45 | (Qt(i) | 0) != (n | 0) || (e[o + 12 >> 2] = 0, e[5732] = 0, t = Nh(l[t + 11 | 0] < 0 ? e[t >> 2] : t, o + 12 | 0, 10), i = Ve, r && (e[r >> 2] = t, e[r + 4 >> 2] = i), t = e[o + 12 >> 2], !t | A[t | 0]))
+                    if (!n || (i = i ? e[t >> 2] : t, f = A[i | 0], s = f - 9 & 255, s >>> 0 < 24 & (8388639 >>> s & 1)) || (s = A[(i + n | 0) - 1 | 0] - 9 | 0, (s & 255) >>> 0 < 24 & (8388639 >>> s & 1)) || (f | 0) == 45 | (Qt(i) | 0) != (n | 0) || (e[o + 12 >> 2] = 0, e[5732] = 0, t = Ph(l[t + 11 | 0] < 0 ? e[t >> 2] : t, o + 12 | 0, 10), i = Ve, r && (e[r >> 2] = t, e[r + 4 >> 2] = i), t = e[o + 12 >> 2], !t | A[t | 0]))
                       break e;
                     u = !e[5732];
                   }
                   return C = o + 16 | 0, u;
                 }
-                function rl(t, r, i, n) {
+                function tl(t, r, i, n) {
                   var o = 0, s = 0, f = 0, u = 0;
                   o = C - 16 | 0, C = o;
                   e: {
@@ -35777,7 +35777,7 @@ function EI() {
                   var i = 0, n = 0, o = 0, s = 0, f = 0;
                   o = C - 16 | 0, C = o, n = A[t + 11 | 0], i = n << 24 >> 24, i = (i | 0) < 0, n = i ? e[t + 4 >> 2] : n;
                   e: {
-                    if (!n || (i = i ? e[t >> 2] : t, s = A[i | 0] - 9 & 255, s >>> 0 < 24 & (8388639 >>> s & 1)) || (s = A[(i + n | 0) - 1 | 0] - 9 | 0, (s & 255) >>> 0 < 24 & (8388639 >>> s & 1)) || (Qt(i) | 0) != (n | 0) || (e[o + 12 >> 2] = 0, e[5732] = 0, t = bh(l[t + 11 | 0] < 0 ? e[t >> 2] : t, o + 12 | 0, 10), i = Ve, r && (e[r >> 2] = t, e[r + 4 >> 2] = i), t = e[o + 12 >> 2], !t | A[t | 0]))
+                    if (!n || (i = i ? e[t >> 2] : t, s = A[i | 0] - 9 & 255, s >>> 0 < 24 & (8388639 >>> s & 1)) || (s = A[(i + n | 0) - 1 | 0] - 9 | 0, (s & 255) >>> 0 < 24 & (8388639 >>> s & 1)) || (Qt(i) | 0) != (n | 0) || (e[o + 12 >> 2] = 0, e[5732] = 0, t = Th(l[t + 11 | 0] < 0 ? e[t >> 2] : t, o + 12 | 0, 10), i = Ve, r && (e[r >> 2] = t, e[r + 4 >> 2] = i), t = e[o + 12 >> 2], !t | A[t | 0]))
                       break e;
                     f = !e[5732];
                   }
@@ -35801,28 +35801,28 @@ function EI() {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0;
                   if (f = C - 16 | 0, C = f, e[f + 12 >> 2] = r, r = e[n + 28 >> 2], e[f + 8 >> 2] = r, e[r + 4 >> 2] = e[r + 4 >> 2] + 1, e[5996] = 0, u = K(170, e[f + 8 >> 2]) | 0, r = e[5996], e[5996] = 0, (r | 0) != 1)
-                    return r = e[f + 8 >> 2], n = e[r + 4 >> 2] - 1 | 0, e[r + 4 >> 2] = n, (n | 0) == -1 && L[e[e[r >> 2] + 8 >> 2]](r), Hl(t, s + 24 | 0, f + 12 | 0, i, o, u), C = f + 16 | 0, e[f + 12 >> 2];
+                    return r = e[f + 8 >> 2], n = e[r + 4 >> 2] - 1 | 0, e[r + 4 >> 2] = n, (n | 0) == -1 && L[e[e[r >> 2] + 8 >> 2]](r), Wl(t, s + 24 | 0, f + 12 | 0, i, o, u), C = f + 16 | 0, e[f + 12 >> 2];
                   i = B() | 0, t = e[f + 8 >> 2], r = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = r, (r | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), ve(i | 0), V();
                 }
                 function xm(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0;
                   if (f = C - 16 | 0, C = f, e[f + 12 >> 2] = r, r = e[n + 28 >> 2], e[f + 8 >> 2] = r, e[r + 4 >> 2] = e[r + 4 >> 2] + 1, e[5996] = 0, u = K(170, e[f + 8 >> 2]) | 0, r = e[5996], e[5996] = 0, (r | 0) != 1)
-                    return r = e[f + 8 >> 2], n = e[r + 4 >> 2] - 1 | 0, e[r + 4 >> 2] = n, (n | 0) == -1 && L[e[e[r >> 2] + 8 >> 2]](r), Vl(t, s + 16 | 0, f + 12 | 0, i, o, u), C = f + 16 | 0, e[f + 12 >> 2];
+                    return r = e[f + 8 >> 2], n = e[r + 4 >> 2] - 1 | 0, e[r + 4 >> 2] = n, (n | 0) == -1 && L[e[e[r >> 2] + 8 >> 2]](r), Fl(t, s + 16 | 0, f + 12 | 0, i, o, u), C = f + 16 | 0, e[f + 12 >> 2];
                   i = B() | 0, t = e[f + 8 >> 2], r = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = r, (r | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), ve(i | 0), V();
                 }
                 function Tm(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0;
                   if (f = C - 16 | 0, C = f, e[f + 12 >> 2] = r, r = e[n + 28 >> 2], e[f + 8 >> 2] = r, e[r + 4 >> 2] = e[r + 4 >> 2] + 1, e[5996] = 0, u = K(197, e[f + 8 >> 2]) | 0, r = e[5996], e[5996] = 0, (r | 0) != 1)
-                    return r = e[f + 8 >> 2], n = e[r + 4 >> 2] - 1 | 0, e[r + 4 >> 2] = n, (n | 0) == -1 && L[e[e[r >> 2] + 8 >> 2]](r), Kl(t, s + 24 | 0, f + 12 | 0, i, o, u), C = f + 16 | 0, e[f + 12 >> 2];
+                    return r = e[f + 8 >> 2], n = e[r + 4 >> 2] - 1 | 0, e[r + 4 >> 2] = n, (n | 0) == -1 && L[e[e[r >> 2] + 8 >> 2]](r), Hl(t, s + 24 | 0, f + 12 | 0, i, o, u), C = f + 16 | 0, e[f + 12 >> 2];
                   i = B() | 0, t = e[f + 8 >> 2], r = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = r, (r | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), ve(i | 0), V();
                 }
                 function bm(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0, u = 0;
                   if (f = C - 16 | 0, C = f, e[f + 12 >> 2] = r, r = e[n + 28 >> 2], e[f + 8 >> 2] = r, e[r + 4 >> 2] = e[r + 4 >> 2] + 1, e[5996] = 0, u = K(197, e[f + 8 >> 2]) | 0, r = e[5996], e[5996] = 0, (r | 0) != 1)
-                    return r = e[f + 8 >> 2], n = e[r + 4 >> 2] - 1 | 0, e[r + 4 >> 2] = n, (n | 0) == -1 && L[e[e[r >> 2] + 8 >> 2]](r), Wl(t, s + 16 | 0, f + 12 | 0, i, o, u), C = f + 16 | 0, e[f + 12 >> 2];
+                    return r = e[f + 8 >> 2], n = e[r + 4 >> 2] - 1 | 0, e[r + 4 >> 2] = n, (n | 0) == -1 && L[e[e[r >> 2] + 8 >> 2]](r), Vl(t, s + 16 | 0, f + 12 | 0, i, o, u), C = f + 16 | 0, e[f + 12 >> 2];
                   i = B() | 0, t = e[f + 8 >> 2], r = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = r, (r | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), ve(i | 0), V();
                 }
                 function Ec(t, r) {
@@ -35880,7 +35880,7 @@ function EI() {
                     x(n);
                   }
                 }
-                function il(t, r, i, n, o) {
+                function rl(t, r, i, n, o) {
                   var s = 0, f = 0, u = 0;
                   u = -1, f = n & 2147483647, s = (f | 0) == 2147418112;
                   e: {
@@ -35903,17 +35903,17 @@ function EI() {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0;
                   if (t = C - 16 | 0, C = t, e[t + 12 >> 2] = r, r = e[n + 28 >> 2], e[t + 8 >> 2] = r, e[r + 4 >> 2] = e[r + 4 >> 2] + 1, e[5996] = 0, f = K(170, e[t + 8 >> 2]) | 0, r = e[5996], e[5996] = 0, (r | 0) != 1)
-                    return r = e[t + 8 >> 2], n = e[r + 4 >> 2] - 1 | 0, e[r + 4 >> 2] = n, (n | 0) == -1 && L[e[e[r >> 2] + 8 >> 2]](r), ql(s + 20 | 0, t + 12 | 0, i, o, f), C = t + 16 | 0, e[t + 12 >> 2];
+                    return r = e[t + 8 >> 2], n = e[r + 4 >> 2] - 1 | 0, e[r + 4 >> 2] = n, (n | 0) == -1 && L[e[e[r >> 2] + 8 >> 2]](r), Zl(s + 20 | 0, t + 12 | 0, i, o, f), C = t + 16 | 0, e[t + 12 >> 2];
                   i = B() | 0, t = e[t + 8 >> 2], r = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = r, (r | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), ve(i | 0), V();
                 }
                 function Im(t, r, i, n, o, s) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, s = s | 0;
                   var f = 0;
                   if (t = C - 16 | 0, C = t, e[t + 12 >> 2] = r, r = e[n + 28 >> 2], e[t + 8 >> 2] = r, e[r + 4 >> 2] = e[r + 4 >> 2] + 1, e[5996] = 0, f = K(197, e[t + 8 >> 2]) | 0, r = e[5996], e[5996] = 0, (r | 0) != 1)
-                    return r = e[t + 8 >> 2], n = e[r + 4 >> 2] - 1 | 0, e[r + 4 >> 2] = n, (n | 0) == -1 && L[e[e[r >> 2] + 8 >> 2]](r), Zl(s + 20 | 0, t + 12 | 0, i, o, f), C = t + 16 | 0, e[t + 12 >> 2];
+                    return r = e[t + 8 >> 2], n = e[r + 4 >> 2] - 1 | 0, e[r + 4 >> 2] = n, (n | 0) == -1 && L[e[e[r >> 2] + 8 >> 2]](r), Yl(s + 20 | 0, t + 12 | 0, i, o, f), C = t + 16 | 0, e[t + 12 >> 2];
                   i = B() | 0, t = e[t + 8 >> 2], r = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = r, (r | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), ve(i | 0), V();
                 }
-                function nl(t, r, i) {
+                function il(t, r, i) {
                   var n = 0, o = 0, s = 0, f = 0, u = 0;
                   o = t, f = C - 16 | 0, C = f;
                   e: {
@@ -35943,7 +35943,7 @@ function EI() {
                   var w = 0, v = 0, m = 0, T = 0;
                   p = f0(r, i, u, p), u = Ve, o = f0(n, o, s, f), p = o + p | 0, n = Ve + u | 0, u = o >>> 0 > p >>> 0 ? n + 1 | 0 : n, w = f, o = 0, v = i, n = 0, i = f0(f, o, i, n), f = i + p | 0, p = Ve + u | 0, m = f, i = i >>> 0 > f >>> 0 ? p + 1 | 0 : p, f = f0(s, 0, r, 0), u = Ve, p = 0, n = f0(s, p, v, n), u = u + n | 0, s = Ve + p | 0, s = n >>> 0 > u >>> 0 ? s + 1 | 0 : s, p = s + m | 0, n = i, s = s >>> 0 > p >>> 0 ? n + 1 | 0 : n, r = f0(r, T, w, o) + u | 0, o = Ve, o = r >>> 0 < u >>> 0 ? o + 1 | 0 : o, u = o + p | 0, p = s, e[t + 8 >> 2] = u, e[t + 12 >> 2] = o >>> 0 > u >>> 0 ? p + 1 | 0 : p, e[t >> 2] = f, e[t + 4 >> 2] = r;
                 }
-                function sl(t, r, i, n) {
+                function nl(t, r, i, n) {
                   var o = 0, s = 0, f = 0, u = 0;
                   o = C - 16 | 0, C = o;
                   e: {
@@ -35985,7 +35985,7 @@ function EI() {
                   e: {
                     if (n = A[t + 11 | 0], i = n & 127, n = (n & 128) >>> 7 | 0, i = n ? e[t + 4 >> 2] : i, i >>> 0 < r >>> 0) {
                       if (r = r - i | 0, r) {
-                        n = n ? (e[t + 8 >> 2] & 2147483647) - 1 | 0 : 10, i = A[t + 11 | 0], i = (i & 128) >>> 7 | 0 ? e[t + 4 >> 2] : i & 127, n - i >>> 0 < r >>> 0 && vc(t, n, i + (r - n | 0) | 0, i, i), n = (A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t, $l(n + i | 0, r, 0), r = r + i | 0;
+                        n = n ? (e[t + 8 >> 2] & 2147483647) - 1 | 0 : 10, i = A[t + 11 | 0], i = (i & 128) >>> 7 | 0 ? e[t + 4 >> 2] : i & 127, n - i >>> 0 < r >>> 0 && vc(t, n, i + (r - n | 0) | 0, i, i), n = (A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t, Dl(n + i | 0, r, 0), r = r + i | 0;
                         t: {
                           if ((A[t + 11 | 0] & 128) >>> 7 | 0) {
                             e[t + 4 >> 2] = r;
@@ -36009,10 +36009,10 @@ function EI() {
                         break e;
                       t = e[s >> 2];
                     }
-                    t = (i << 2) + t | 0, r = e[t >> 2], r && (t = e[r + 4 >> 2] - 1 | 0, e[r + 4 >> 2] = t, (t | 0) == -1 && L[e[e[r >> 2] + 8 >> 2]](r), t = e[s >> 2] + (i << 2) | 0), r = e[n >> 2], e[n >> 2] = 0, e[t >> 2] = r, Xl(n), C = o + 16 | 0;
+                    t = (i << 2) + t | 0, r = e[t >> 2], r && (t = e[r + 4 >> 2] - 1 | 0, e[r + 4 >> 2] = t, (t | 0) == -1 && L[e[e[r >> 2] + 8 >> 2]](r), t = e[s >> 2] + (i << 2) | 0), r = e[n >> 2], e[n >> 2] = 0, e[t >> 2] = r, jl(n), C = o + 16 | 0;
                     return;
                   }
-                  t = B() | 0, Xl(n), ve(t | 0), V();
+                  t = B() | 0, jl(n), ve(t | 0), V();
                 }
                 function Cm(t, r, i) {
                   t = t | 0, r = r | 0, i = i | 0;
@@ -36048,7 +36048,7 @@ function EI() {
                   o = C - 16 | 0, C = o;
                   e: {
                     if (s = e[r >> 2], s) {
-                      if (n = A[i + 11 | 0], ((n & 128) >>> 7 | 0 ? e[i + 4 >> 2] : n & 127) && (Ch(i, 5570), s = e[r >> 2]), n = o + 4 | 0, r = e[r + 4 >> 2], L[e[e[r >> 2] + 24 >> 2]](n, r, s), e[5996] = 0, D(290, i | 0, n | 0) | 0, r = e[5996], e[5996] = 0, (r | 0) == 1)
+                      if (n = A[i + 11 | 0], ((n & 128) >>> 7 | 0 ? e[i + 4 >> 2] : n & 127) && (Ih(i, 5570), s = e[r >> 2]), n = o + 4 | 0, r = e[r + 4 >> 2], L[e[e[r >> 2] + 24 >> 2]](n, r, s), e[5996] = 0, D(290, i | 0, n | 0) | 0, r = e[5996], e[5996] = 0, (r | 0) == 1)
                         break e;
                       ce(n);
                     }
@@ -36156,7 +36156,7 @@ function EI() {
                   }
                   return t;
                 }
-                function ol(t, r, i) {
+                function sl(t, r, i) {
                   var n = 0, o = 0, s = 0, f = 0, u = 0, p = 0;
                   n = t, f = C - 16 | 0, C = f;
                   e: {
@@ -36199,7 +36199,7 @@ function EI() {
                           break e;
                         s = s + 1 | 0, r = r + 1 | 0;
                       } else
-                        e[o + 12 >> 2] = f - n, e[o + 8 >> 2] = i - s, u = n, n = o + 8 | 0, f = o + 12 | 0, n = e[(e[n >> 2] < e[f >> 2] ? n : f) >> 2], Oi(u, r, n), e[t + 24 >> 2] = n + e[t + 24 >> 2], s = n + s | 0, r = r + n | 0;
+                        e[o + 12 >> 2] = f - n, e[o + 8 >> 2] = i - s, u = n, n = o + 8 | 0, f = o + 12 | 0, n = e[(e[n >> 2] < e[f >> 2] ? n : f) >> 2], Ni(u, r, n), e[t + 24 >> 2] = n + e[t + 24 >> 2], s = n + s | 0, r = r + n | 0;
                       continue;
                     }
                     break;
@@ -36217,7 +36217,7 @@ function EI() {
                       n = r, r = t, t = e[r + 16 >> 2];
                       t: {
                         if (!t) {
-                          if (bl(r))
+                          if (Tl(r))
                             break t;
                           t = e[r + 16 >> 2];
                         }
@@ -36279,14 +36279,14 @@ function EI() {
                   }
                   Sc(r, o), n = e[r + 4 >> 2], e[t >> 2] = e[r >> 2], e[t + 4 >> 2] = n, e[t + 8 >> 2] = e[r + 8 >> 2], e[r >> 2] = 0, e[r + 4 >> 2] = 0, e[r + 8 >> 2] = 0, C = s + 16 | 0;
                 }
-                function fl(t, r, i) {
+                function ol(t, r, i) {
                   var n = 0, o = 0, s = dt(0), f = 0, u = dt(0);
                   o = C - 16 | 0, C = o;
                   e: {
                     t: {
                       r: {
                         if ((t | 0) != (r | 0)) {
-                          if (f = e[5732], e[5732] = 0, y0(), n = C - 16 | 0, C = n, Ic(n, t, o + 12 | 0, 0), s = Q4(e[n >> 2], e[n + 4 >> 2], e[n + 8 >> 2], e[n + 12 >> 2]), C = n + 16 | 0, t = e[5732], !t)
+                          if (f = e[5732], e[5732] = 0, y0(), n = C - 16 | 0, C = n, Ic(n, t, o + 12 | 0, 0), s = K4(e[n >> 2], e[n + 4 >> 2], e[n + 8 >> 2], e[n + 12 >> 2]), C = n + 16 | 0, t = e[5732], !t)
                             break r;
                           if (e[o + 12 >> 2] != (r | 0))
                             break t;
@@ -36304,7 +36304,7 @@ function EI() {
                   }
                   return C = o + 16 | 0, s;
                 }
-                function al(t, r, i) {
+                function fl(t, r, i) {
                   var n = 0, o = 0, s = 0, f = 0, u = 0;
                   o = C - 16 | 0, C = o;
                   e: {
@@ -36337,7 +36337,7 @@ function EI() {
                     if (o - n >>> 0 >= i >>> 0) {
                       if (!i)
                         break e;
-                      o = (s & 128) >>> 7 | 0 ? e[t >> 2] : t, Rn(o + (n << 2) | 0, r, i), r = i + n | 0;
+                      o = (s & 128) >>> 7 | 0 ? e[t >> 2] : t, Cn(o + (n << 2) | 0, r, i), r = i + n | 0;
                       t: {
                         if ((A[t + 11 | 0] & 128) >>> 7 | 0) {
                           e[t + 4 >> 2] = r;
@@ -36347,7 +36347,7 @@ function EI() {
                       }
                       return e[o + (r << 2) >> 2] = 0, t | 0;
                     }
-                    Z4(t, o, n + (i - o | 0) | 0, n, n, 0, i, r);
+                    Y4(t, o, n + (i - o | 0) | 0, n, n, 0, i, r);
                   }
                   return t | 0;
                 }
@@ -36410,7 +36410,7 @@ function EI() {
                     if (o - n >>> 0 >= i >>> 0) {
                       if (!i)
                         break e;
-                      o = (s & 128) >>> 7 | 0 ? e[t >> 2] : t, Oi(o + n | 0, r, i), r = i + n | 0;
+                      o = (s & 128) >>> 7 | 0 ? e[t >> 2] : t, Ni(o + n | 0, r, i), r = i + n | 0;
                       t: {
                         if ((A[t + 11 | 0] & 128) >>> 7 | 0) {
                           e[t + 4 >> 2] = r;
@@ -36441,11 +36441,11 @@ function EI() {
                     e[r + 20 >> 2] = i, e[r + 32 >> 2] = n, e[r + 40 >> 2] = e[r + 40 >> 2] + 1, e[r + 36 >> 2] != 1 | e[r + 24 >> 2] != 2 || (l[r + 54 | 0] = 1), e[r + 44 >> 2] = 4;
                   }
                 }
-                function cl(t, r, i) {
+                function al(t, r, i) {
                   t = t | 0, r = r | 0, i = i | 0;
                   var n = 0, o = 0, s = 0, f = 0, u = 0, p = 0;
                   if (o = C - 16 | 0, C = o, p = e[r >> 2], n = e[i >> 2], f = e[t >> 2], s = n - f | 0, s = s >>> 0 >= 2147483647 ? -1 : (n | 0) == (f | 0) ? 4 : s << 1, n = e[t + 4 >> 2] == 220, u = ao(n ? 0 : f, s), u) {
-                    n || (e[t >> 2] = 0), e[o + 4 >> 2] = 184, n = o + 8 | 0, e[n >> 2] = u, e[n + 4 >> 2] = e[o + 4 >> 2], t = uh(t, n), r0(n), e[r >> 2] = e[t >> 2] + (p - f | 0), e[i >> 2] = e[t >> 2] + (s & -4), C = o + 16 | 0;
+                    n || (e[t >> 2] = 0), e[o + 4 >> 2] = 184, n = o + 8 | 0, e[n >> 2] = u, e[n + 4 >> 2] = e[o + 4 >> 2], t = ch(t, n), r0(n), e[r >> 2] = e[t >> 2] + (p - f | 0), e[i >> 2] = e[t >> 2] + (s & -4), C = o + 16 | 0;
                     return;
                   }
                   Kc(), V();
@@ -36476,12 +36476,12 @@ function EI() {
                   }
                   return u;
                 }
-                function ul(t, r, i, n) {
+                function cl(t, r, i, n) {
                   var o = 0, s = 0, f = 0;
                   o = C - 16 | 0, C = o;
                   e: {
                     if ((t | 0) != (r | 0)) {
-                      f = e[5732], e[5732] = 0, y0(), t = Dh(t, o + 12 | 0, n), n = Ve, s = e[5732];
+                      f = e[5732], e[5732] = 0, y0(), t = _h(t, o + 12 | 0, n), n = Ve, s = e[5732];
                       t: {
                         if (s) {
                           if (e[o + 12 >> 2] != (r | 0))
@@ -36508,7 +36508,7 @@ function EI() {
                   t = t | 0, r = r | 0, i = i | 0;
                   var n = 0, o = 0, s = 0, f = 0, u = 0, p = 0;
                   if (o = C - 16 | 0, C = o, p = e[r >> 2], f = e[t >> 2], n = e[i >> 2] - f | 0, s = n << 1, s = n >>> 0 >= 2147483647 ? -1 : s >>> 0 <= 1 ? 1 : s, n = e[t + 4 >> 2] == 220, u = ao(n ? 0 : f, s), u) {
-                    n || (e[t >> 2] = 0), e[o + 4 >> 2] = 184, n = o + 8 | 0, e[n >> 2] = u, e[n + 4 >> 2] = e[o + 4 >> 2], t = uh(t, n), r0(n), e[r >> 2] = e[t >> 2] + (p - f | 0), e[i >> 2] = s + e[t >> 2], C = o + 16 | 0;
+                    n || (e[t >> 2] = 0), e[o + 4 >> 2] = 184, n = o + 8 | 0, e[n >> 2] = u, e[n + 4 >> 2] = e[o + 4 >> 2], t = ch(t, n), r0(n), e[r >> 2] = e[t >> 2] + (p - f | 0), e[i >> 2] = s + e[t >> 2], C = o + 16 | 0;
                     return;
                   }
                   Kc(), V();
@@ -36544,7 +36544,7 @@ function EI() {
                   var n = 0, o = 0;
                   n = C + -64 | 0, C = n, o = 1;
                   e: {
-                    if (kr(t, r, 0) || (o = 0, !r) || (r = X4(r, 22104), o = 0, !r))
+                    if (kr(t, r, 0) || (o = 0, !r) || (r = j4(r, 22104), o = 0, !r))
                       break e;
                     Fr(n + 12 | 0, 0, 52), e[n + 56 >> 2] = 1, e[n + 20 >> 2] = -1, e[n + 16 >> 2] = t, e[n + 8 >> 2] = r, L[e[e[r >> 2] + 28 >> 2]](r, n + 8 | 0, e[i >> 2], 1), t = e[n + 32 >> 2], (t | 0) == 1 && (e[i >> 2] = e[n + 24 >> 2]), o = (t | 0) == 1;
                   }
@@ -36578,7 +36578,7 @@ function EI() {
                         break e;
                       f = o + 8 | 0, i >>> 0 >= 11 ? (s = i + 16 & -16, n = s - 1 | 0, n = (n | 0) == 11 ? s : n) : n = 10, hs(f, n + 1 | 0), n = e[o + 8 >> 2], e[t >> 2] = n, e[t + 8 >> 2] = e[o + 12 >> 2] | -2147483648, e[t + 4 >> 2] = i, t = n;
                     }
-                    Oi(t, r, i + 1 | 0), C = o + 16 | 0;
+                    Ni(t, r, i + 1 | 0), C = o + 16 | 0;
                     return;
                   }
                   kt(), V();
@@ -36586,7 +36586,7 @@ function EI() {
                 function w0(t, r) {
                   var i = 0, n = 0, o = 0, s = 0;
                   e: {
-                    if (i = rh(r), n = (A[t + 11 | 0] & 128) >>> 7 | 0 ? (e[t + 8 >> 2] & 2147483647) - 1 | 0 : 1, i >>> 0 <= n >>> 0) {
+                    if (i = th(r), n = (A[t + 11 | 0] & 128) >>> 7 | 0 ? (e[t + 8 >> 2] & 2147483647) - 1 | 0 : 1, i >>> 0 <= n >>> 0) {
                       r = n0((A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t, r, i << 2);
                       t: {
                         if ((A[t + 11 | 0] & 128) >>> 7 | 0) {
@@ -36598,10 +36598,10 @@ function EI() {
                       e[(i << 2) + r >> 2] = 0;
                       break e;
                     }
-                    o = t, s = e[t + 4 >> 2], t = A[t + 11 | 0], t = (t & 128) >>> 7 | 0 ? s : t & 127, Z4(o, n, i - n | 0, t, 0, t, i, r);
+                    o = t, s = e[t + 4 >> 2], t = A[t + 11 | 0], t = (t & 128) >>> 7 | 0 ? s : t & 127, Y4(o, n, i - n | 0, t, 0, t, i, r);
                   }
                 }
-                function ll(t) {
+                function ul(t) {
                   var r = 0, i = 0, n = 0;
                   if (n = e[t >> 2], n) {
                     if (r = e[t + 4 >> 2], i = n, (r | 0) != (i | 0)) {
@@ -36620,7 +36620,7 @@ function EI() {
                 function Qm(t, r, i, n) {
                   t = t | 0, r = r | 0, i = i | 0, n = +n;
                   var o = 0, s = 0, f = 0, u = 0;
-                  return o = je(56), s = e[i + 8 >> 2], e[i + 8 >> 2] = 0, f = e[i >> 2], u = e[i + 4 >> 2], e[i >> 2] = 0, e[i + 4 >> 2] = 0, e[o + 16 >> 2] = 0, e[o + 20 >> 2] = 0, e[o + 12 >> 2] = s, e[o + 4 >> 2] = f, e[o + 8 >> 2] = u, e[o >> 2] = r, e[o + 24 >> 2] = 0, e[o + 28 >> 2] = 0, e[o + 32 >> 2] = 0, e[o + 36 >> 2] = 0, e[o + 40 >> 2] = 0, e[o + 44 >> 2] = 0, ye[o + 48 >> 3] = n, bn(t, o), o | 0;
+                  return o = je(56), s = e[i + 8 >> 2], e[i + 8 >> 2] = 0, f = e[i >> 2], u = e[i + 4 >> 2], e[i >> 2] = 0, e[i + 4 >> 2] = 0, e[o + 16 >> 2] = 0, e[o + 20 >> 2] = 0, e[o + 12 >> 2] = s, e[o + 4 >> 2] = f, e[o + 8 >> 2] = u, e[o >> 2] = r, e[o + 24 >> 2] = 0, e[o + 28 >> 2] = 0, e[o + 32 >> 2] = 0, e[o + 36 >> 2] = 0, e[o + 40 >> 2] = 0, e[o + 44 >> 2] = 0, ye[o + 48 >> 3] = n, Tn(t, o), o | 0;
                 }
                 function Gm(t) {
                   return A[25124] ? e[6280] : (A[25464] || (l[25464] = 1), g0(25296, 1114), g0(25308, 1121), g0(25320, 1087), g0(25332, 1095), g0(25344, 1078), g0(25356, 1128), g0(25368, 1105), g0(25380, 1961), g0(25392, 1999), g0(25404, 2336), g0(25416, 2493), g0(25428, 1273), g0(25440, 2172), g0(25452, 1390), l[25124] = 1, e[6280] = 25296, 25296);
@@ -36628,7 +36628,7 @@ function EI() {
                 function fs(t, r) {
                   var i = 0, n = 0, o = 0, s = 0, f = 0;
                   e: {
-                    if (i = rh(r), o = C - 16 | 0, C = o, i >>> 0 < 1073741808) {
+                    if (i = th(r), o = C - 16 | 0, C = o, i >>> 0 < 1073741808) {
                       t: {
                         if (i >>> 0 < 2) {
                           l[t + 11 | 0] = i;
@@ -36636,13 +36636,13 @@ function EI() {
                         }
                         f = o + 8 | 0, i >>> 0 >= 2 ? (s = i + 4 & -4, n = s - 1 | 0, n = (n | 0) == 2 ? s : n) : n = 1, ks(f, n + 1 | 0), n = e[o + 8 >> 2], e[t >> 2] = n, e[t + 8 >> 2] = e[o + 12 >> 2] | -2147483648, e[t + 4 >> 2] = i, t = n;
                       }
-                      e[Rn(t, r, i) + (i << 2) >> 2] = 0, C = o + 16 | 0;
+                      e[Cn(t, r, i) + (i << 2) >> 2] = 0, C = o + 16 | 0;
                       break e;
                     }
                     kt(), V();
                   }
                 }
-                function Ri(t, r, i, n) {
+                function Ci(t, r, i, n) {
                   var o = 0, s = 0, f = 0, u = 0;
                   o = C - 16 | 0, C = o, e[o + 12 >> 2] = n, f = ci(o + 8 | 0, r), r = C - 16 | 0, C = r, n = e[o + 12 >> 2], e[r + 12 >> 2] = n, e[r + 8 >> 2] = n, s = -1, n = S1(0, 0, i, n);
                   e: {
@@ -36655,7 +36655,7 @@ function EI() {
                 function zm(t, r, i) {
                   t = t | 0, r = r | 0, i = +i;
                   var n = 0, o = 0, s = 0, f = 0;
-                  return n = je(56), o = e[r + 8 >> 2], e[r + 8 >> 2] = 0, s = e[r >> 2], f = e[r + 4 >> 2], e[r >> 2] = 0, e[r + 4 >> 2] = 0, e[n + 16 >> 2] = 0, e[n + 20 >> 2] = 0, e[n + 12 >> 2] = o, e[n + 4 >> 2] = s, e[n + 8 >> 2] = f, e[n >> 2] = 12, e[n + 24 >> 2] = 0, e[n + 28 >> 2] = 0, e[n + 32 >> 2] = 0, e[n + 36 >> 2] = 0, e[n + 40 >> 2] = 0, e[n + 44 >> 2] = 0, ye[n + 48 >> 3] = i, bn(t, n), n | 0;
+                  return n = je(56), o = e[r + 8 >> 2], e[r + 8 >> 2] = 0, s = e[r >> 2], f = e[r + 4 >> 2], e[r >> 2] = 0, e[r + 4 >> 2] = 0, e[n + 16 >> 2] = 0, e[n + 20 >> 2] = 0, e[n + 12 >> 2] = o, e[n + 4 >> 2] = s, e[n + 8 >> 2] = f, e[n >> 2] = 12, e[n + 24 >> 2] = 0, e[n + 28 >> 2] = 0, e[n + 32 >> 2] = 0, e[n + 36 >> 2] = 0, e[n + 40 >> 2] = 0, e[n + 44 >> 2] = 0, ye[n + 48 >> 3] = i, Tn(t, n), n | 0;
                 }
                 function Bc(t) {
                   var r = 0;
@@ -36677,7 +36677,7 @@ function EI() {
                     }
                     r = 0, t = ((t | 0) <= -2960 ? -2960 : t) + 1938 | 0;
                   }
-                  return bt(0, 0), bt(1, t + 1023 << 20), r * +Tn();
+                  return bt(0, 0), bt(1, t + 1023 << 20), r * +xn();
                 }
                 function O1(t) {
                   var r = 0, i = 0, n = 0, o = 0;
@@ -36719,7 +36719,7 @@ function EI() {
                   }
                   return t = s, C = f + 16 | 0, t | 0;
                 }
-                function Bn(t, r, i, n) {
+                function bn(t, r, i, n) {
                   var o = 0;
                   e: {
                     if (!(n & 2048) || (o = n & 74, !i | ((o | 0) == 8 | (o | 0) == 64)))
@@ -36787,12 +36787,12 @@ function EI() {
                     Rc(r, i, n);
                     return;
                   }
-                  s = e[t + 12 >> 2], Dl(e[t + 16 >> 2], e[t + 20 >> 2], r, i, n), o = t + 24 | 0, t = (t + 16 | 0) + (s << 3) | 0;
+                  s = e[t + 12 >> 2], _l(e[t + 16 >> 2], e[t + 20 >> 2], r, i, n), o = t + 24 | 0, t = (t + 16 | 0) + (s << 3) | 0;
                   e: {
                     if (o >>> 0 >= t >>> 0)
                       break e;
                     for (; ; ) {
-                      if (Dl(e[o >> 2], e[o + 4 >> 2], r, i, n), A[r + 54 | 0])
+                      if (_l(e[o >> 2], e[o + 4 >> 2], r, i, n), A[r + 54 | 0])
                         break e;
                       if (o = o + 8 | 0, !(t >>> 0 > o >>> 0))
                         break;
@@ -36882,7 +36882,7 @@ function EI() {
                           if (n = 1, i = i & 127, (i | 0) != 1)
                             break t;
                         }
-                        J4(t, n, 1, n, n), i = n;
+                        q4(t, n, 1, n, n), i = n;
                       }
                       n = e[t >> 2], e[t + 4 >> 2] = i + 1;
                       break e;
@@ -36903,15 +36903,15 @@ function EI() {
                   }
                   e[t >> 2] = r, e[t + 4 >> 2] = i, e[t + 8 >> 2] = o, e[t + 12 >> 2] = s, C = n + 16 | 0;
                 }
-                function hl(t, r, i) {
+                function ll(t, r, i) {
                   var n = 0, o = 0, s = 0;
                   return o = C - 16 | 0, C = o, n = C - 32 | 0, C = n, s = C - 16 | 0, C = s, e[s + 12 >> 2] = r, e[n + 24 >> 2] = t, e[n + 28 >> 2] = e[s + 12 >> 2], C = s + 16 | 0, Dc(n + 16 | 0, e[n + 24 >> 2], e[n + 28 >> 2], i), t = Vc(t, e[n + 16 >> 2] - t >> 2), e[n + 12 >> 2] = e[n + 20 >> 2], e[o + 8 >> 2] = t, e[o + 12 >> 2] = e[n + 12 >> 2], C = n + 32 | 0, C = o + 16 | 0, e[o + 12 >> 2];
                 }
                 function Ic(t, r, i, n) {
                   var o = 0, s = 0, f = 0, u = 0;
-                  o = C - 160 | 0, C = o, e[o + 60 >> 2] = r, e[o + 20 >> 2] = r, e[o + 24 >> 2] = -1, s = o + 16 | 0, ai(s, 0, 0), x4(o, s, n, 1), n = e[o + 8 >> 2], f = e[o + 12 >> 2], s = e[o >> 2], u = e[o + 4 >> 2], i && (e[i >> 2] = ((e[o + 20 >> 2] + e[o + 136 >> 2] | 0) - e[o + 60 >> 2] | 0) + r), e[t + 8 >> 2] = n, e[t + 12 >> 2] = f, e[t >> 2] = s, e[t + 4 >> 2] = u, C = o + 160 | 0;
+                  o = C - 160 | 0, C = o, e[o + 60 >> 2] = r, e[o + 20 >> 2] = r, e[o + 24 >> 2] = -1, s = o + 16 | 0, ai(s, 0, 0), S4(o, s, n, 1), n = e[o + 8 >> 2], f = e[o + 12 >> 2], s = e[o >> 2], u = e[o + 4 >> 2], i && (e[i >> 2] = ((e[o + 20 >> 2] + e[o + 136 >> 2] | 0) - e[o + 60 >> 2] | 0) + r), e[t + 8 >> 2] = n, e[t + 12 >> 2] = f, e[t >> 2] = s, e[t + 4 >> 2] = u, C = o + 160 | 0;
                 }
-                function kl(t, r, i) {
+                function hl(t, r, i) {
                   var n = 0, o = 0, s = 0;
                   return o = C - 16 | 0, C = o, n = C - 32 | 0, C = n, s = C - 16 | 0, C = s, e[s + 12 >> 2] = r, e[n + 24 >> 2] = t, e[n + 28 >> 2] = e[s + 12 >> 2], C = s + 16 | 0, Dc(n + 16 | 0, e[n + 24 >> 2], e[n + 28 >> 2], i), t = Wc(t, e[n + 16 >> 2] - t | 0), e[n + 12 >> 2] = e[n + 20 >> 2], e[o + 8 >> 2] = t, e[o + 12 >> 2] = e[n + 12 >> 2], C = n + 32 | 0, C = o + 16 | 0, e[o + 12 >> 2];
                 }
@@ -37035,7 +37035,7 @@ function EI() {
                 function r7(t, r, i) {
                   t = t | 0, r = r | 0, i = i | 0;
                   var n = 0;
-                  n = e[r + 28 >> 2], e[t >> 2] = n, e[n + 4 >> 2] = e[n + 4 >> 2] + 1, Nl(r + 28 | 0, i), e[5996] = 0, J(133, r | 0, 1), r = e[5996], e[5996] = 0, (r | 0) == 1 && (i = B() | 0, t = e[t >> 2], r = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = r, (r | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), ve(i | 0), V());
+                  n = e[r + 28 >> 2], e[t >> 2] = n, e[n + 4 >> 2] = e[n + 4 >> 2] + 1, Pl(r + 28 | 0, i), e[5996] = 0, J(133, r | 0, 1), r = e[5996], e[5996] = 0, (r | 0) == 1 && (i = B() | 0, t = e[t >> 2], r = e[t + 4 >> 2] - 1 | 0, e[t + 4 >> 2] = r, (r | 0) == -1 && L[e[e[t >> 2] + 8 >> 2]](t), ve(i | 0), V());
                 }
                 function i7(t, r, i, n, o) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0;
@@ -37056,7 +37056,7 @@ function EI() {
                   }
                   return t | 0;
                 }
-                function Al(t) {
+                function kl(t) {
                   t = t | 0;
                   var r = 0, i = 0, n = 0, o = 0;
                   for (e[t >> 2] = 12664, o = t + 8 | 0; ; ) {
@@ -37066,7 +37066,7 @@ function EI() {
                     }
                     break;
                   }
-                  return ce(t + 152 | 0), Ah(o), t | 0;
+                  return ce(t + 152 | 0), kh(o), t | 0;
                 }
                 function us(t) {
                   var r = 0, i = 0, n = 0, o = 0, s = 0;
@@ -37081,7 +37081,7 @@ function EI() {
                     e[o + 4 >> 2] = r, x(i);
                   }
                 }
-                function pl(t) {
+                function Al(t) {
                   var r = 0, i = 0;
                   return r = e[t + 72 >> 2], e[t + 72 >> 2] = r - 1 | r, e[t + 20 >> 2] != e[t + 28 >> 2] && L[e[t + 36 >> 2]](t, 0, 0) | 0, e[t + 28 >> 2] = 0, e[t + 16 >> 2] = 0, e[t + 20 >> 2] = 0, r = e[t >> 2], r & 4 ? (e[t >> 2] = r | 32, -1) : (i = e[t + 44 >> 2] + e[t + 48 >> 2] | 0, e[t + 8 >> 2] = i, e[t + 4 >> 2] = i, r << 27 >> 31);
                 }
@@ -37089,7 +37089,7 @@ function EI() {
                   var i = 0, n = 0, o = 0, s = 0;
                   e: {
                     if (i = Qt(r), n = (A[t + 11 | 0] & 128) >>> 7 | 0 ? (e[t + 8 >> 2] & 2147483647) - 1 | 0 : 10, i >>> 0 <= n >>> 0) {
-                      L1(t, On((A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t, r, i), i);
+                      L1(t, Nn((A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t, r, i), i);
                       break e;
                     }
                     o = t, s = e[t + 4 >> 2], t = A[t + 11 | 0], t = (t & 128) >>> 7 | 0 ? s : t & 127, b1(o, n, i - n | 0, t, 0, t, i, r);
@@ -37105,16 +37105,16 @@ function EI() {
                   }
                   e[t + 104 >> 2] = n;
                 }
-                function dl(t, r) {
+                function pl(t, r) {
                   var i = 0, n = 0, o = 0;
                   if (Dr(+t), n = W0(1) | 0, o = W0(0) | 0, i = n >>> 20 & 2047, (i | 0) != 2047) {
                     if (!i)
-                      return t == 0 ? i = 0 : (t = dl(t * 18446744073709552e3, r), i = e[r >> 2] + -64 | 0), e[r >> 2] = i, t;
-                    e[r >> 2] = i - 1022, bt(0, o | 0), bt(1, n & -2146435073 | 1071644672), t = +Tn();
+                      return t == 0 ? i = 0 : (t = pl(t * 18446744073709552e3, r), i = e[r >> 2] + -64 | 0), e[r >> 2] = i, t;
+                    e[r >> 2] = i - 1022, bt(0, o | 0), bt(1, n & -2146435073 | 1071644672), t = +xn();
                   }
                   return t;
                 }
-                function wl(t) {
+                function dl(t) {
                   var r = 0, i = 0, n = 0, o = 0;
                   e: {
                     if (A[t + 4 | 0] || (o = e[t >> 2], r = e[o >> 2], !r))
@@ -37127,7 +37127,7 @@ function EI() {
                     e[o + 4 >> 2] = r, x(i);
                   }
                 }
-                function gl(t, r) {
+                function wl(t, r) {
                   var i = 0, n = 0;
                   for (n = C - 16 | 0, C = n, i = n + 4 | 0, e[i >> 2] = t, t = e[t + 4 >> 2], e[i + 4 >> 2] = t, e[i + 8 >> 2] = t + (r << 2), r = e[i + 4 >> 2], t = e[i + 8 >> 2]; ; ) {
                     if ((t | 0) == (r | 0))
@@ -37143,13 +37143,13 @@ function EI() {
                   var t = 0;
                   t = e[5728], e[5996] = 0, le(t | 0), t = e[5996], e[5996] = 0;
                   e: {
-                    if ((t | 0) != 1 && (e[5996] = 0, le(291), t = e[5996], e[5996] = 0, (t | 0) != 1) || (Ti(We(0) | 0) | 0, e[5996] = 0, le(291), t = e[5996], e[5996] = 0, (t | 0) != 1))
+                    if ((t | 0) != 1 && (e[5996] = 0, le(291), t = e[5996], e[5996] = 0, (t | 0) != 1) || (xi(We(0) | 0) | 0, e[5996] = 0, le(291), t = e[5996], e[5996] = 0, (t | 0) != 1))
                       break e;
                     We(0) | 0, Wr();
                   }
                   V();
                 }
-                function yl(t, r, i, n) {
+                function gl(t, r, i, n) {
                   var o = 0, s = 0;
                   o = C - 32 | 0, C = o, s = C - 16 | 0, C = s, e[s + 12 >> 2] = i, e[o + 24 >> 2] = r, e[o + 28 >> 2] = e[s + 12 >> 2], C = s + 16 | 0, Dc(o + 16 | 0, e[o + 24 >> 2], e[o + 28 >> 2], n), r = e[o + 16 >> 2], e[o + 12 >> 2] = e[o + 20 >> 2], e[t >> 2] = r, e[t + 4 >> 2] = e[o + 12 >> 2], C = o + 32 | 0;
                 }
@@ -37204,7 +37204,7 @@ function EI() {
                   }
                   We(0) | 0, Wr(), V();
                 }
-                function ml(t, r, i) {
+                function yl(t, r, i) {
                   var n = 0, o = 0, s = 0, f = 0;
                   for (n = C - 16 | 0, C = n, r = r - t >> 2; ; ) {
                     if (r) {
@@ -37261,7 +37261,7 @@ function EI() {
                   var f = 0, u = 0, p = 0, w = 0;
                   return f = L[e[e[t + 8 >> 2] + 20 >> 2]](t + 8 | 0) | 0, u = A[f + 11 | 0], p = t, w = r, r = (u & 128) >>> 7 | 0, t = r ? e[f >> 2] : f, en(p, w, i, n, o, s, t, t + (r ? e[f + 4 >> 2] : u & 127) | 0) | 0;
                 }
-                function vl(t, r) {
+                function ml(t, r) {
                   t = t | 0, r = r | 0;
                   var i = 0, n = 0;
                   i = e[t >> 2];
@@ -37310,7 +37310,7 @@ function EI() {
                       ;
                   }
                 }
-                function El(t, r, i, n, o, s) {
+                function vl(t, r, i, n, o, s) {
                   var f = 0;
                   f = C - 16 | 0, C = f, l[f + 15 | 0] = 0, l[f + 14 | 0] = s, l[f + 13 | 0] = o, l[f + 12 | 0] = 37, s && (o = A[f + 13 | 0], l[f + 13 | 0] = A[f + 14 | 0], l[f + 14 | 0] = o), e[i >> 2] = (X3(r | 0, e[i >> 2] - r | 0, f + 12 | 0, n | 0, t | 0) | 0) + r, C = f + 16 | 0;
                 }
@@ -37599,7 +37599,7 @@ function EI() {
                     e[6044] = t, x(r);
                   }
                 }
-                function Sl(t) {
+                function El(t) {
                   var r = 0, i = 0, n = 0;
                   for (n = e[t >> 2]; ; ) {
                     if (i = l[n | 0], i - 48 >>> 0 < 10) {
@@ -37706,7 +37706,7 @@ function EI() {
                     e[6138] = t, x(r);
                   }
                 }
-                function xl(t) {
+                function Sl(t) {
                   var r = 0, i = 0;
                   e: {
                     if (A[t + 12 | 0] || (r = e[e[t + 8 >> 2] >> 2], i = e[e[t + 4 >> 2] >> 2], (r | 0) == (i | 0)))
@@ -37730,7 +37730,7 @@ function EI() {
                     e[t + 4 >> 2] = r, x(i);
                   }
                 }
-                function Tl(t, r, i, n) {
+                function xl(t, r, i, n) {
                   e: {
                     if (!t)
                       break e;
@@ -37754,7 +37754,7 @@ function EI() {
                     e[t >> 2] = i, e[t + 4 >> 2] = n;
                   }
                 }
-                function bl(t) {
+                function Tl(t) {
                   var r = 0;
                   return r = e[t + 72 >> 2], e[t + 72 >> 2] = r - 1 | r, r = e[t >> 2], r & 8 ? (e[t >> 2] = r | 32, -1) : (e[t + 4 >> 2] = 0, e[t + 8 >> 2] = 0, r = e[t + 44 >> 2], e[t + 28 >> 2] = r, e[t + 20 >> 2] = r, e[t + 16 >> 2] = r + e[t + 48 >> 2], 0);
                 }
@@ -37815,7 +37815,7 @@ function EI() {
                   }
                   return i | 0;
                 }
-                function Bl(t) {
+                function bl(t) {
                   var r = 0, i = 0;
                   if (r = e[t >> 2], r) {
                     i = e[r + 12 >> 2];
@@ -37832,7 +37832,7 @@ function EI() {
                   }
                   return 1;
                 }
-                function Il(t) {
+                function Bl(t) {
                   var r = 0, i = 0;
                   if (r = e[t >> 2], r) {
                     i = e[r + 12 >> 2];
@@ -37849,7 +37849,7 @@ function EI() {
                   }
                   return 1;
                 }
-                function Cl(t) {
+                function Il(t) {
                   var r = 0, i = 0, n = 0;
                   if (r = e[t >> 2], r) {
                     if (n = r, i = e[t + 4 >> 2], (i | 0) != (r | 0)) {
@@ -37897,7 +37897,7 @@ function EI() {
                 function G7(t) {
                   t = t | 0;
                   var r = 0, i = 0;
-                  return r = C - 16 | 0, C = r, i = e[ci(r + 12 | 0, e[t + 8 >> 2]) >> 2], i && (e[6178] = (i | 0) == -1 ? 24816 : i), C = r + 16 | 0, t = e[t + 8 >> 2], t ? (Ml(t) | 0) == 1 | 0 : 1;
+                  return r = C - 16 | 0, C = r, i = e[ci(r + 12 | 0, e[t + 8 >> 2]) >> 2], i && (e[6178] = (i | 0) == -1 ? 24816 : i), C = r + 16 | 0, t = e[t + 8 >> 2], t ? ($l(t) | 0) == 1 | 0 : 1;
                 }
                 function _1(t) {
                   var r = 0, i = 0;
@@ -37914,7 +37914,7 @@ function EI() {
                 function z7(t) {
                   t = t | 0;
                   var r = 0, i = 0;
-                  r = C - 16 | 0, C = r, Ul() >>> 0 <= 29 && (N0(), V()), eh(r + 8 | 0, t + 16 | 0, 30), i = e[r + 8 >> 2], e[t + 4 >> 2] = i, e[t >> 2] = i, e[t + 8 >> 2] = (e[r + 12 >> 2] << 2) + i, C = r + 16 | 0;
+                  r = C - 16 | 0, C = r, Ol() >>> 0 <= 29 && (N0(), V()), Jl(r + 8 | 0, t + 16 | 0, 30), i = e[r + 8 >> 2], e[t + 4 >> 2] = i, e[t >> 2] = i, e[t + 8 >> 2] = (e[r + 12 >> 2] << 2) + i, C = r + 16 | 0;
                 }
                 function po(t) {
                   var r = 0, i = 0, n = 0;
@@ -37994,9 +37994,9 @@ function EI() {
                   }
                   We(0) | 0, Wr(), V();
                 }
-                function Rl(t, r, i) {
+                function Cl(t, r, i) {
                   var n = 0;
-                  return n = C - 16 | 0, C = n, e[n + 12 >> 2] = i, r = ci(n + 8 | 0, r), i = T4(t, 1937, e[n + 12 >> 2]), t = e[r >> 2], t && (e[6178] = (t | 0) == -1 ? 24816 : t), C = n + 16 | 0, i;
+                  return n = C - 16 | 0, C = n, e[n + 12 >> 2] = i, r = ci(n + 8 | 0, r), i = x4(t, 1937, e[n + 12 >> 2]), t = e[r >> 2], t && (e[6178] = (t | 0) == -1 ? 24816 : t), C = n + 16 | 0, i;
                 }
                 function ev(t, r, i) {
                   for (t = t | 0, r = r | 0, i = i | 0; ; ) {
@@ -38008,9 +38008,9 @@ function EI() {
                   }
                   return i | 0;
                 }
-                function Pl(t) {
+                function Rl(t) {
                   var r = 0, i = 0;
-                  if (e[5996] = 0, i = y4(168) | 0, r = e[5996], e[5996] = 0, (r | 0) != 1) {
+                  if (e[5996] = 0, i = g4(168) | 0, r = e[5996], e[5996] = 0, (r | 0) != 1) {
                     r = t, t = e[i >> 2], e[r >> 2] = t, e[t + 4 >> 2] = e[t + 4 >> 2] + 1;
                     return;
                   }
@@ -38026,7 +38026,7 @@ function EI() {
                   }
                   return i | 0;
                 }
-                function In(t) {
+                function Bn(t) {
                   var r = 0, i = 0, n = 0;
                   return r = C - 16 | 0, C = r, i = A[t + 11 | 0], n = (i & 128) >>> 7 | 0, e[r + 12 >> 2] = (n ? e[t >> 2] : t) + ((n ? e[t + 4 >> 2] : i & 127) << 2), C = r + 16 | 0, e[r + 12 >> 2];
                 }
@@ -38040,7 +38040,7 @@ function EI() {
                   }
                   return i | 0;
                 }
-                function Nl(t, r) {
+                function Pl(t, r) {
                   var i = 0, n = 0;
                   i = e[r >> 2], e[i + 4 >> 2] = e[i + 4 >> 2] + 1, i = e[t >> 2], n = e[i + 4 >> 2] - 1 | 0, e[i + 4 >> 2] = n, (n | 0) == -1 && L[e[e[i >> 2] + 8 >> 2]](i), e[t >> 2] = e[r >> 2];
                 }
@@ -38061,7 +38061,7 @@ function EI() {
                   var n = 0;
                   return n = C - 16 | 0, C = n, L[e[e[t >> 2] + 12 >> 2]](n + 8 | 0, t, r), C = n + 16 | 0, e[n + 12 >> 2] == e[i + 4 >> 2] & e[n + 8 >> 2] == e[i >> 2];
                 }
-                function Ol(t) {
+                function Nl(t) {
                   t = t | 0;
                   var r = 0, i = 0;
                   r = Vr(8), e[5996] = 0, t = D(91, r | 0, t | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1 && (Mr(t | 0, 22664, 92), V()), t = B() | 0, rn(r), ve(t | 0), V();
@@ -38103,7 +38103,7 @@ function EI() {
                   }
                   t = e[t + 8 >> 2], L[e[e[t >> 2] + 20 >> 2]](t, r, i, n, o, s);
                 }
-                function Cn(t) {
+                function In(t) {
                   var r = 0, i = 0, n = 0;
                   return r = C - 16 | 0, C = r, i = A[t + 11 | 0], n = (i & 128) >>> 7 | 0, e[r + 12 >> 2] = (n ? e[t >> 2] : t) + (n ? e[t + 4 >> 2] : i & 127), C = r + 16 | 0, e[r + 12 >> 2];
                 }
@@ -38118,7 +38118,7 @@ function EI() {
                     break;
                   }
                 }
-                function w2(t, r) {
+                function d2(t, r) {
                   var i = 0;
                   e: {
                     if ((t | 0) == (r | 0))
@@ -38130,11 +38130,11 @@ function EI() {
                     }
                   }
                 }
-                function Ul() {
+                function Ol() {
                   var t = 0, r = 0;
                   return t = C - 16 | 0, C = t, e[t + 12 >> 2] = 1073741823, e[t + 8 >> 2] = 2147483647, C = t + 16 | 0, r = t + 8 | 0, t = t + 12 | 0, e[(Qe[r >> 2] < Qe[t >> 2] ? r : t) >> 2];
                 }
-                function Pi(t, r) {
+                function Ri(t, r) {
                   var i = 0;
                   (A[t + 11 | 0] & 128) >>> 7 | 0 && x(e[t >> 2]), i = e[r + 4 >> 2], e[t >> 2] = e[r >> 2], e[t + 4 >> 2] = i, e[t + 8 >> 2] = e[r + 8 >> 2], l[r + 11 | 0] = 0, e[r >> 2] = 0;
                 }
@@ -38160,11 +38160,11 @@ function EI() {
                 function uv(t) {
                   return A[25156] ? e[6288] : (A[26280] || (l[26280] = 1), g0(26256, 3116), g0(26268, 3113), l[25156] = 1, e[6288] = 26256, 26256);
                 }
-                function _l(t) {
+                function Ul(t) {
                   var r = 0, i = 0;
                   r = Vr(8), e[5996] = 0, t = D(6, r | 0, t | 0) | 0, i = e[5996], e[5996] = 0, (i | 0) != 1 && (Mr(t | 0, 22580, 7), V()), t = B() | 0, rn(r), ve(t | 0), V();
                 }
-                function Dl(t, r, i, n, o) {
+                function _l(t, r, i, n, o) {
                   var s = 0;
                   s = i, i = 0;
                   e: {
@@ -38174,7 +38174,7 @@ function EI() {
                   }
                   L[e[e[t >> 2] + 28 >> 2]](t, s, i + n | 0, r & 2 ? o : 2);
                 }
-                function $l(t, r, i) {
+                function Dl(t, r, i) {
                   var n = 0;
                   for (n = C - 16 | 0, C = n, l[n + 15 | 0] = i, i = t; ; ) {
                     if (r) {
@@ -38185,15 +38185,15 @@ function EI() {
                   }
                   return C = n + 16 | 0, t;
                 }
-                function Ml(t) {
+                function $l(t) {
                   var r = 0, i = 0;
                   return r = C - 16 | 0, C = r, t = ci(r + 12 | 0, t), i = e[e[6178] >> 2] ? 4 : 1, t = e[t >> 2], t && (e[6178] = (t | 0) == -1 ? 24816 : t), C = r + 16 | 0, i;
                 }
-                function Ll(t, r) {
+                function Ml(t, r) {
                   var i = 0;
                   return i = e[t + 24 >> 2], (i | 0) == e[t + 28 >> 2] ? L[e[e[t >> 2] + 52 >> 2]](t, r & 255) | 0 : (e[t + 24 >> 2] = i + 1, l[i | 0] = r, r & 255);
                 }
-                function Fl(t, r, i, n, o) {
+                function Ll(t, r, i, n, o) {
                   var s = 0;
                   return s = C - 16 | 0, C = s, o = ci(s + 12 | 0, o), r = x1(t, r, i, n), t = e[o >> 2], t && (e[6178] = (t | 0) == -1 ? 24816 : t), C = s + 16 | 0, r;
                 }
@@ -38204,7 +38204,7 @@ function EI() {
                 }
                 function lv() {
                   var t = 0;
-                  return A[25032] ? e[6257] : (t = e[R4() >> 2], e[6256] = t, e[t + 4 >> 2] = e[t + 4 >> 2] + 1, l[25032] = 1, e[6257] = 25024, 25024);
+                  return A[25032] ? e[6257] : (t = e[C4() >> 2], e[6256] = t, e[t + 4 >> 2] = e[t + 4 >> 2] + 1, l[25032] = 1, e[6257] = 25024, 25024);
                 }
                 function hv(t) {
                   l[24063] < 0 && x(e[6013]), l[24051] < 0 && x(e[6010]), l[24039] < 0 && x(e[6007]), l[24027] < 0 && x(e[6004]);
@@ -38239,10 +38239,10 @@ function EI() {
                   var n = 0;
                   return n = C - 16 | 0, C = n, i = ci(n + 12 | 0, i), r = Ec(t, r), t = e[i >> 2], t && (e[6178] = (t | 0) == -1 ? 24816 : t), C = n + 16 | 0, r;
                 }
-                function Vl(t, r, i, n, o, s) {
+                function Fl(t, r, i, n, o, s) {
                   t = L[e[e[t + 8 >> 2] + 4 >> 2]](t + 8 | 0) | 0, t = g1(i, n, t, t + 288 | 0, s, o, 0) - t | 0, (t | 0) <= 287 && (e[r >> 2] = ((t | 0) / 12 | 0) % 12);
                 }
-                function Wl(t, r, i, n, o, s) {
+                function Vl(t, r, i, n, o, s) {
                   t = L[e[e[t + 8 >> 2] + 4 >> 2]](t + 8 | 0) | 0, t = y1(i, n, t, t + 288 | 0, s, o, 0) - t | 0, (t | 0) <= 287 && (e[r >> 2] = ((t | 0) / 12 | 0) % 12);
                 }
                 function pv(t) {
@@ -38275,10 +38275,10 @@ function EI() {
                   }
                   t = e[t + 8 >> 2], L[e[e[t >> 2] + 28 >> 2]](t, r, i, n);
                 }
-                function Hl(t, r, i, n, o, s) {
+                function Wl(t, r, i, n, o, s) {
                   t = L[e[e[t + 8 >> 2] >> 2]](t + 8 | 0) | 0, t = g1(i, n, t, t + 168 | 0, s, o, 0) - t | 0, (t | 0) <= 167 && (e[r >> 2] = ((t | 0) / 12 | 0) % 7);
                 }
-                function Kl(t, r, i, n, o, s) {
+                function Hl(t, r, i, n, o, s) {
                   t = L[e[e[t + 8 >> 2] >> 2]](t + 8 | 0) | 0, t = y1(i, n, t, t + 168 | 0, s, o, 0) - t | 0, (t | 0) <= 167 && (e[r >> 2] = ((t | 0) / 12 | 0) % 7);
                 }
                 function Dc(t, r, i, n) {
@@ -38311,15 +38311,15 @@ function EI() {
                   var i = 0;
                   return i = t, t = A[r + 11 | 0], Tc(i, (t & 128) >>> 7 | 0 ? e[r >> 2] : r, (t & 128) >>> 7 | 0 ? e[r + 4 >> 2] : t & 127) | 0;
                 }
-                function Ql(t) {
+                function Kl(t) {
                   var r = 0;
                   return r = e[t + 12 >> 2], (r | 0) == e[t + 16 >> 2] ? L[e[e[t >> 2] + 40 >> 2]](t) | 0 : (e[t + 12 >> 2] = r + 4, e[r >> 2]);
                 }
-                function Gl(t) {
+                function Ql(t) {
                   var r = 0;
                   return r = e[t + 12 >> 2], (r | 0) == e[t + 16 >> 2] ? L[e[e[t >> 2] + 40 >> 2]](t) | 0 : (e[t + 12 >> 2] = r + 1, A[r | 0]);
                 }
-                function zl(t, r) {
+                function Gl(t, r) {
                   t = t | 0, r = r | 0;
                   var i = 0;
                   i = r, r = e[r >> 2] + 7 & -8, e[i >> 2] = r + 16, ye[t >> 3] = hc(e[r >> 2], e[r + 4 >> 2], e[r + 8 >> 2], e[r + 12 >> 2]);
@@ -38342,19 +38342,19 @@ function EI() {
                   var r = 0, i = 0;
                   i = e[t + 4 >> 2], r = e[t >> 2], t = e[t + 8 >> 2], r = r + (t >> 1) | 0, t & 1 && (i = e[i + e[r >> 2] >> 2]), L[i | 0](r);
                 }
-                function jl(t, r, i, n, o, s, f, u, p) {
+                function zl(t, r, i, n, o, s, f, u, p) {
                   e[t >> 2] = r, e[t + 4 >> 2] = i, e[t + 8 >> 2] = n, e[t + 12 >> 2] = o & 65535 | (p >>> 16 & 32768 | o >>> 16 & 32767) << 16;
                 }
-                function Xl(t) {
+                function jl(t) {
                   var r = 0;
                   r = e[t >> 2], e[t >> 2] = 0, r && (t = e[r + 4 >> 2] - 1 | 0, e[r + 4 >> 2] = t, (t | 0) == -1 && L[e[e[r >> 2] + 8 >> 2]](r));
                 }
-                function Yl(t, r) {
+                function Xl(t, r) {
                   t = t | 0, r = r | 0;
                   var i = 0;
                   i = e[t >> 2];
                   e: {
-                    if (!i || (Ll(i, r) | 0) != -1)
+                    if (!i || (Ml(i, r) | 0) != -1)
                       break e;
                     e[t >> 2] = 0;
                   }
@@ -38394,28 +38394,28 @@ function EI() {
                   var i = 0;
                   return i = C - 16 | 0, C = i, e[i + 12 >> 2] = t, t = i + 12 | 0, e[t >> 2] = e[t >> 2] + (r << 2), C = i + 16 | 0, e[t >> 2];
                 }
-                function Zl(t, r, i, n, o) {
-                  r = Ii(r, i, n, o, 4), A[n | 0] & 4 || (e[t >> 2] = ((r | 0) < 69 ? r + 2e3 | 0 : (r | 0) < 100 ? r + 1900 | 0 : r) - 1900);
+                function Yl(t, r, i, n, o) {
+                  r = Bi(r, i, n, o, 4), A[n | 0] & 4 || (e[t >> 2] = ((r | 0) < 69 ? r + 2e3 | 0 : (r | 0) < 100 ? r + 1900 | 0 : r) - 1900);
                 }
                 function Ar(t) {
                   var r = 0;
                   return r = C - 16 | 0, C = r, e[r + 12 >> 2] = (A[t + 11 | 0] & 128) >>> 7 | 0 ? e[t >> 2] : t, C = r + 16 | 0, e[r + 12 >> 2];
                 }
-                function ql(t, r, i, n, o) {
-                  r = Bi(r, i, n, o, 4), A[n | 0] & 4 || (e[t >> 2] = ((r | 0) < 69 ? r + 2e3 | 0 : (r | 0) < 100 ? r + 1900 | 0 : r) - 1900);
+                function Zl(t, r, i, n, o) {
+                  r = bi(r, i, n, o, 4), A[n | 0] & 4 || (e[t >> 2] = ((r | 0) < 69 ? r + 2e3 | 0 : (r | 0) < 100 ? r + 1900 | 0 : r) - 1900);
                 }
                 function M1(t, r, i, n, o, s) {
                   var f = 0;
                   f = r >> 8, r & 1 && (f = e[e[n >> 2] + f >> 2]), L[e[e[t >> 2] + 24 >> 2]](t, i, n + f | 0, r & 2 ? o : 2, s);
                 }
-                function Jl(t, r, i, n, o, s, f, u) {
+                function ql(t, r, i, n, o, s, f, u) {
                   return i = i | 0, o = o | 0, s = s | 0, u = u | 0, e[o >> 2] = i, e[u >> 2] = s, 3;
                 }
                 function Wc(t, r) {
                   var i = 0;
                   return i = C - 16 | 0, C = i, e[i + 12 >> 2] = t, t = i + 12 | 0, e[t >> 2] = e[t >> 2] + r, C = i + 16 | 0, e[t >> 2];
                 }
-                function Ni(t) {
+                function Pi(t) {
                   e: {
                     if (t = t & 74, t) {
                       if ((t | 0) == 64)
@@ -38432,17 +38432,17 @@ function EI() {
                   var i = 0;
                   return i = e[6178], r && (e[6178] = (r | 0) == -1 ? 24816 : r), e[t >> 2] = (i | 0) == 24816 ? -1 : i, t;
                 }
-                function eh(t, r, i) {
+                function Jl(t, r, i) {
                   e: {
                     if (!(A[r + 120 | 0] | i >>> 0 > 30)) {
                       l[r + 120 | 0] = 1;
                       break e;
                     }
-                    r = gh(i);
+                    r = wh(i);
                   }
                   e[t + 4 >> 2] = i, e[t >> 2] = r;
                 }
-                function th(t, r) {
+                function eh(t, r) {
                   e[t + 4 >> 2], e[t + 4 >> 2] = r;
                 }
                 function Sv(t, r, i, n) {
@@ -38461,13 +38461,13 @@ function EI() {
                 function bv(t, r, i, n, o) {
                   return t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, L[e[e[t >> 2] + 24 >> 2]](t, r, i, n, o) | 0;
                 }
-                function rh(t) {
+                function th(t) {
                   var r = 0, i = 0;
                   for (i = t; r = i, i = r + 4 | 0, !!e[r >> 2]; )
                     ;
                   return r - t >> 2;
                 }
-                function ih(t) {
+                function rh(t) {
                   t = t | 0;
                   var r = 0;
                   return e[t >> 2] = 12684, r = e[t + 8 >> 2], !r | !A[t + 12 | 0] || x(r), t | 0;
@@ -38490,24 +38490,24 @@ function EI() {
                   var o = 0;
                   return o = C - 16 | 0, C = o, e[o + 12 >> 2] = n, t = S1(t, r, i, n), C = o + 16 | 0, t;
                 }
-                function nh(t, r) {
+                function ih(t, r) {
                   var i = 0;
-                  return i = C - 16 | 0, C = i, e[i + 12 >> 2] = r, t = T4(t, 2310, r), C = i + 16 | 0, t;
+                  return i = C - 16 | 0, C = i, e[i + 12 >> 2] = r, t = x4(t, 2310, r), C = i + 16 | 0, t;
                 }
-                function sh(t) {
+                function nh(t) {
                   (t | 0) != 0 & (t | 0) != 19324 & (t | 0) != 19348 & (t | 0) != 24732 & (t | 0) != 24756 && x(t);
                 }
                 function Bv(t, r) {
                   t = t | 0, r = r | 0;
                   var i = 0;
-                  i = Gl(e[r >> 2]), e[t + 4 >> 2] = e[r >> 2], l[t | 0] = i << 24 >> 24;
+                  i = Ql(e[r >> 2]), e[t + 4 >> 2] = e[r >> 2], l[t | 0] = i << 24 >> 24;
                 }
-                function oh(t, r) {
-                  t = t | 0, r = r | 0, r = C - 16 | 0, C = r, l[t + 11 | 0] = 1, l[$l(t, 1, 45) + 1 | 0] = 0, C = r + 16 | 0;
+                function sh(t, r) {
+                  t = t | 0, r = r | 0, r = C - 16 | 0, C = r, l[t + 11 | 0] = 1, l[Dl(t, 1, 45) + 1 | 0] = 0, C = r + 16 | 0;
                 }
-                function Rn(t, r, i) {
+                function Cn(t, r, i) {
                   var n = 0;
-                  return n = C - 16 | 0, C = n, yl(n + 8 | 0, r, (i << 2) + r | 0, t), C = n + 16 | 0, t;
+                  return n = C - 16 | 0, C = n, gl(n + 8 | 0, r, (i << 2) + r | 0, t), C = n + 16 | 0, t;
                 }
                 function Iv(t, r) {
                   return r = r | 0, (r | 0) >= 0 && (r = e[((r & 255) << 2) + 11184 >> 2]), r << 24 >> 24;
@@ -38515,14 +38515,14 @@ function EI() {
                 function Cv(t) {
                   t = t | 0, t = e[6144], t && (e[6145] = t, x(t)), t = e[6141], t && (e[6142] = t, x(t));
                 }
-                function fh(t, r, i) {
+                function oh(t, r, i) {
                   var n = 0;
-                  return n = C - 16 | 0, C = n, yl(n + 8 | 0, t, r, i), C = n + 16 | 0, e[n + 12 >> 2];
+                  return n = C - 16 | 0, C = n, gl(n + 8 | 0, t, r, i), C = n + 16 | 0, e[n + 12 >> 2];
                 }
                 function Rv(t, r) {
                   return r = r | 0, (r | 0) >= 0 && (r = e[((r & 255) << 2) + 9648 >> 2]), r << 24 >> 24;
                 }
-                function ah(t) {
+                function fh(t) {
                   var r = 0;
                   t = e[t >> 2] - 12 | 0, r = e[t + 8 >> 2] - 1 | 0, e[t + 8 >> 2] = r, (r | 0) < 0 && x(t);
                 }
@@ -38553,16 +38553,16 @@ function EI() {
                   for (t = t | 0, t = 25464; t = ce(t - 12 | 0), (t | 0) != 25296; )
                     ;
                 }
-                function ch(t) {
-                  return t = t | 0, e[t >> 2] = 13768, e[t + 8 >> 2] != (y0() | 0) && sh(e[t + 8 >> 2]), t | 0;
+                function ah(t) {
+                  return t = t | 0, e[t >> 2] = 13768, e[t + 8 >> 2] != (y0() | 0) && nh(e[t + 8 >> 2]), t | 0;
                 }
-                function uh(t, r) {
+                function ch(t, r) {
                   var i = 0;
                   return i = e[r >> 2], e[r >> 2] = 0, ft(t, i), e[t + 4 >> 2] = e[r + 4 >> 2], t;
                 }
-                function lh(t) {
+                function uh(t) {
                   var r = 0;
-                  r = e[t >> 2], e[r >> 2] && (Xh(r), t = e[t >> 2], dh(t + 16 | 0, e[t >> 2]));
+                  r = e[t >> 2], e[r >> 2] && (jh(r), t = e[t >> 2], ph(t + 16 | 0, e[t >> 2]));
                 }
                 function $v(t, r, i) {
                   return r = r | 0, i = i | 0, (e[(i << 2) + 12736 >> 2] & r) != 0 & i >>> 0 <= 127;
@@ -38573,7 +38573,7 @@ function EI() {
                 function Hc(t, r) {
                   return t = t | 0, r = r | 0, e[t >> 2] = 22892, e[t >> 2] = 22480, Fc(t + 4 | 0, r), t | 0;
                 }
-                function hh(t, r) {
+                function lh(t, r) {
                   return t = t | 0, r = r | 0, e[t >> 2] = 22892, e[t >> 2] = 22500, Fc(t + 4 | 0, r), t | 0;
                 }
                 function Lv(t, r, i, n, o) {
@@ -38582,12 +38582,12 @@ function EI() {
                 function Fv(t, r) {
                   t = t | 0, r = r | 0;
                   var i = 0;
-                  i = Ql(e[r >> 2]), e[t + 4 >> 2] = e[r >> 2], e[t >> 2] = i;
+                  i = Kl(e[r >> 2]), e[t + 4 >> 2] = e[r >> 2], e[t >> 2] = i;
                 }
                 function Vv() {
                   e[6593] = 0, e[6592] = 22008, e[6592] = 14144, e[6592] = 13768, e[6594] = y0();
                 }
-                function kh(t) {
+                function hh(t) {
                   for (var r = 0; ; ) {
                     if (t) {
                       t = t - 1 & t, r = r + 1 | 0;
@@ -38606,15 +38606,15 @@ function EI() {
                 }
                 function Qc(t, r) {
                   var i = 0;
-                  return i = t, t = (r >>> 0) / 100 | 0, y2(y2(i, t), ne(t, -100) + r | 0);
+                  return i = t, t = (r >>> 0) / 100 | 0, g2(g2(i, t), ne(t, -100) + r | 0);
                 }
                 function Gc(t, r) {
                   var i = 0;
-                  return i = t, t = (r >>> 0) / 1e4 | 0, Qc(y2(i, t), ne(t, -1e4) + r | 0);
+                  return i = t, t = (r >>> 0) / 1e4 | 0, Qc(g2(i, t), ne(t, -1e4) + r | 0);
                 }
                 function zc(t, r) {
                   var i = 0;
-                  return i = t, t = (r >>> 0) / 1e6 | 0, Gc(y2(i, t), ne(t, -1e6) + r | 0);
+                  return i = t, t = (r >>> 0) / 1e6 | 0, Gc(g2(i, t), ne(t, -1e6) + r | 0);
                 }
                 function Hv(t, r, i, n) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, L[e[e[t >> 2] + 32 >> 2]](t, r, i, n) | 0;
@@ -38622,9 +38622,9 @@ function EI() {
                 function Kv(t, r, i, n) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, L[e[e[t >> 2] + 48 >> 2]](t, r, i, n) | 0;
                 }
-                function Ah(t) {
+                function kh(t) {
                   var r = 0, i = 0;
-                  r = C - 16 | 0, C = r, i = r + 12 | 0, e[i >> 2] = t, lh(i), C = r + 16 | 0;
+                  r = C - 16 | 0, C = r, i = r + 12 | 0, e[i >> 2] = t, uh(i), C = r + 16 | 0;
                 }
                 function Qv(t, r) {
                   return r = r | 0, r >>> 0 <= 127 && (r = e[(r << 2) + 11184 >> 2]), r | 0;
@@ -38633,10 +38633,10 @@ function EI() {
                   return t = t | 0, r = r | 0, i = i | 0, e[r + 4 >> 2] == (t | 0) & e[r >> 2] == (i | 0);
                 }
                 function zv() {
-                  e[6651] = 0, e[6650] = 22008, e[6650] = 14144, Yh(26608), e[6650] = 16704;
+                  e[6651] = 0, e[6650] = 22008, e[6650] = 14144, Xh(26608), e[6650] = 16704;
                 }
                 function jv() {
-                  e[6655] = 0, e[6654] = 22008, e[6654] = 14144, Yh(26624), e[6654] = 16860;
+                  e[6655] = 0, e[6654] = 22008, e[6654] = 14144, Xh(26624), e[6654] = 16860;
                 }
                 function Xv(t, r) {
                   return r = r | 0, r >>> 0 <= 127 && (r = e[(r << 2) + 9648 >> 2]), r | 0;
@@ -38674,17 +38674,17 @@ function EI() {
                 function go(t, r, i, n, o) {
                   return i = i | 0, o = o | 0, e[o >> 2] = i, 3;
                 }
-                function Pn(t, r) {
+                function Rn(t, r) {
                   t = t | 0, l[t | 0] = 2, l[t + 1 | 0] = 3, l[t + 2 | 0] = 0, l[t + 3 | 0] = 4;
                 }
                 function oE(t) {
-                  t = t | 0, e[t + 16 >> 2] = e[t + 16 >> 2] | 1, l[t + 20 | 0] & 1 && (w4(), V());
+                  t = t | 0, e[t + 16 >> 2] = e[t + 16 >> 2] | 1, l[t + 20 | 0] & 1 && (d4(), V());
                 }
-                function ph(t, r, i, n, o) {
+                function Ah(t, r, i, n, o) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, o = o | 0, L[t | 0](r, i, n, o);
                 }
                 function jc(t) {
-                  return t = t | 0, e[t + 8 >> 2] != (y0() | 0) && sh(e[t + 8 >> 2]), t | 0;
+                  return t = t | 0, e[t + 8 >> 2] != (y0() | 0) && nh(e[t + 8 >> 2]), t | 0;
                 }
                 function fE(t, r, i, n) {
                   return t = t | 0, r = r | 0, i = i | 0, n = n | 0, L[t | 0](r, i, n) | 0;
@@ -38692,7 +38692,7 @@ function EI() {
                 function aE(t, r, i, n, o, s) {
                   t = t | 0, s = s | 0, Oc(t, s);
                 }
-                function g2(t, r) {
+                function w2(t, r) {
                   return r ? t << 24 | (t & 65280) << 8 | (t >>> 8 & 65280 | t >>> 24) : t;
                 }
                 function cE(t, r, i) {
@@ -38703,7 +38703,7 @@ function EI() {
                   var i = 0;
                   i = je(r), e[t + 4 >> 2] = r, e[t >> 2] = i;
                 }
-                function dh(t, r) {
+                function ph(t, r) {
                   e: {
                     if ((t | 0) == (r | 0)) {
                       l[r + 120 | 0] = 0;
@@ -38717,7 +38717,7 @@ function EI() {
                   var r = 0;
                   r = e[6259] + 1 | 0, e[6259] = r, e[t + 4 >> 2] = r;
                 }
-                function wh(t, r) {
+                function dh(t, r) {
                   return t = t | 0, r = r | 0, L[e[e[t >> 2] + 28 >> 2]](t, r) | 0;
                 }
                 function lE(t, r) {
@@ -38730,10 +38730,10 @@ function EI() {
                   return t = t | 0, r = r | 0, L[e[e[t >> 2] + 12 >> 2]](t, r) | 0;
                 }
                 function AE(t) {
-                  return t = t | 0, t ? (X4(t, 22200) | 0) != 0 | 0 : 0;
+                  return t = t | 0, t ? (j4(t, 22200) | 0) != 0 | 0 : 0;
                 }
                 function pE(t) {
-                  return t = t | 0, t = e[t + 8 >> 2], t ? Ml(t) | 0 : 1;
+                  return t = t | 0, t = e[t + 8 >> 2], t ? $l(t) | 0 : 1;
                 }
                 function dE(t, r) {
                   t = t | 0, r = r | 0, e[5996] || (e[5996] = t, e[5997] = r);
@@ -38744,13 +38744,13 @@ function EI() {
                 function ce(t) {
                   return (A[t + 11 | 0] & 128) >>> 7 | 0 && x(e[t >> 2]), t;
                 }
-                function gh(t) {
+                function wh(t) {
                   return t >>> 0 >= 1073741824 && (Hr(), V()), je(t << 2);
                 }
                 function wE(t, r, i, n) {
                   t = t | 0, r = r | 0, i = i | 0, n = n | 0, L[t | 0](r, i, n);
                 }
-                function yh(t) {
+                function gh(t) {
                   return t = t | 0, e[t >> 2] = 7960, ce(t + 32 | 0), wo(t) | 0;
                 }
                 function gE(t, r, i) {
@@ -38763,36 +38763,36 @@ function EI() {
                   t = t | 0, r = r | 0, i = i | 0, e[t + 4 >> 2] = r, e[t >> 2] = i;
                 }
                 function vE(t) {
-                  return t = t | 0, t = hh(t, 1241), e[t >> 2] = 22684, t | 0;
+                  return t = t | 0, t = lh(t, 1241), e[t >> 2] = 22684, t | 0;
                 }
-                function mh(t) {
+                function yh(t) {
                   return t = t | 0, e[t >> 2] = 13856, ce(t + 16 | 0), t | 0;
                 }
-                function vh(t) {
+                function mh(t) {
                   return t = t | 0, e[t >> 2] = 13816, ce(t + 12 | 0), t | 0;
                 }
                 function Xc(t) {
-                  return t = t | 0, e[t >> 2] = 22500, ah(t + 4 | 0), t | 0;
+                  return t = t | 0, e[t >> 2] = 22500, fh(t + 4 | 0), t | 0;
                 }
-                function Eh(t) {
-                  return t = t | 0, e[t >> 2] = 22480, ah(t + 4 | 0), t | 0;
+                function vh(t) {
+                  return t = t | 0, e[t >> 2] = 22480, fh(t + 4 | 0), t | 0;
                 }
-                function y2(t, r) {
-                  return r = (r << 1) + 21664 | 0, fh(r, r + 2 | 0, t);
+                function g2(t, r) {
+                  return r = (r << 1) + 21664 | 0, oh(r, r + 2 | 0, t);
                 }
                 function EE(t) {
                   return t = t | 0, Zc(e[e[t >> 2] - 12 >> 2] + t | 0) | 0;
                 }
-                function Sh(t, r) {
+                function Eh(t, r) {
                   t = t | 0, r = r | 0, L[e[e[r >> 2] + 24 >> 2]](t, r);
                 }
-                function xh(t, r) {
+                function Sh(t, r) {
                   t = t | 0, r = r | 0, L[e[e[r >> 2] + 28 >> 2]](t, r);
                 }
                 function SE(t) {
                   return t = t | 0, $1(e[e[t >> 2] - 12 >> 2] + t | 0) | 0;
                 }
-                function Th(t, r) {
+                function xh(t, r) {
                   t = t | 0, r = r | 0, L[e[e[r >> 2] + 20 >> 2]](t, r);
                 }
                 function xE(t) {
@@ -38802,32 +38802,32 @@ function EI() {
                   t = t | 0, i = i | 0, n = n | 0, mc(t, i, n);
                 }
                 function bE(t, r, i, n) {
-                  t = t | 0, i = i | 0, n = n | 0, ol(t, i, n);
+                  t = t | 0, i = i | 0, n = n | 0, sl(t, i, n);
                 }
                 function ks(t, r) {
                   var i = 0;
-                  i = gh(r), e[t + 4 >> 2] = r, e[t >> 2] = i;
+                  i = wh(r), e[t + 4 >> 2] = r, e[t >> 2] = i;
                 }
                 function BE(t) {
                   return t = t | 0, L[e[e[t >> 2] + 24 >> 2]](t) | 0;
                 }
-                function bh(t, r, i) {
+                function Th(t, r, i) {
                   return t = cc(t, r, i, 0, -2147483648), t;
                 }
-                function Bh(t) {
+                function bh(t) {
                   return t = t | 0, L[e[e[t >> 2] + 16 >> 2]](t) | 0;
                 }
-                function Ih(t) {
+                function Bh(t) {
                   return t = t | 0, L[e[e[t >> 2] + 12 >> 2]](t) | 0;
                 }
-                function Ch(t, r) {
+                function Ih(t, r) {
                   return t = t | 0, r = r | 0, Tc(t, r, Qt(r)) | 0;
                 }
                 function Qr(t, r) {
-                  return t = t | 0, r = r | 0, Il(t) ^ Il(r) ^ 1;
+                  return t = t | 0, r = r | 0, Bl(t) ^ Bl(r) ^ 1;
                 }
                 function Gr(t, r) {
-                  return t = t | 0, r = r | 0, Bl(t) ^ Bl(r) ^ 1;
+                  return t = t | 0, r = r | 0, bl(t) ^ bl(r) ^ 1;
                 }
                 function IE(t) {
                   l[24003] < 0 && x(e[5998]);
@@ -38835,31 +38835,31 @@ function EI() {
                 function CE(t) {
                   return t = t | 0, t = C - t & -16, C = t, t | 0;
                 }
-                function Rh(t, r) {
+                function Ch(t, r) {
                   return t ? Ec(t, r) : 0;
                 }
                 function RE(t, r, i) {
                   return t = t | 0, t | 0;
                 }
-                function Nn(t, r, i) {
+                function Pn(t, r, i) {
                   return K3(18, t | 0, r | 0, i | 0) | 0;
                 }
-                function Ph(t, r, i) {
+                function Rh(t, r, i) {
                   return -1;
                 }
                 function PE(t) {
-                  t = t | 0, Qh(e[e[t >> 2] - 12 >> 2] + t | 0);
+                  t = t | 0, Kh(e[e[t >> 2] - 12 >> 2] + t | 0);
                 }
-                function Nh(t, r, i) {
+                function Ph(t, r, i) {
                   return t = cc(t, r, i, -1, -1), t;
                 }
                 function NE(t) {
-                  t = t | 0, Gh(e[e[t >> 2] - 12 >> 2] + t | 0);
+                  t = t | 0, Qh(e[e[t >> 2] - 12 >> 2] + t | 0);
                 }
                 function V1(t, r, i, n) {
                   W3(152, t | 0, r | 0, i | 0, n | 0);
                 }
-                function Oh(t, r, i, n) {
+                function Nh(t, r, i, n) {
                   V3(155, t | 0, r | 0, i | 0, n | 0);
                 }
                 function OE(t) {
@@ -38869,10 +38869,10 @@ function EI() {
                   t = t | 0, L[e[e[t >> 2] + 4 >> 2]](t);
                 }
                 function As(t) {
-                  return t = t | 0, Gl(e[t >> 2]), t | 0;
+                  return t = t | 0, Ql(e[t >> 2]), t | 0;
                 }
                 function ps(t) {
-                  return t = t | 0, Ql(e[t >> 2]), t | 0;
+                  return t = t | 0, Kl(e[t >> 2]), t | 0;
                 }
                 function _E(t) {
                   t = t | 0, M0(t, 26616, _0(24916));
@@ -38976,8 +38976,8 @@ function EI() {
                 function lS(t) {
                   return t = t | 0, nn(t, 24876) | 0;
                 }
-                function Oi(t, r, i) {
-                  return fh(r, r + i | 0, t), t;
+                function Ni(t, r, i) {
+                  return oh(r, r + i | 0, t), t;
                 }
                 function Jc(t) {
                   return t = t | 0, nn(t, 25104) | 0;
@@ -38997,17 +38997,17 @@ function EI() {
                 function pS(t, r) {
                   t = t | 0, fs(t, 13908);
                 }
-                function Uh(t, r) {
+                function Oh(t, r) {
                   return r = r | 0, r | 0;
                 }
-                function _h(t, r) {
-                  t = t | 0, nl(t, 1, 45);
+                function Uh(t, r) {
+                  t = t | 0, il(t, 1, 45);
                 }
                 function tu(t, r, i) {
-                  return t = Nh(t, r, i), t;
+                  return t = Ph(t, r, i), t;
                 }
-                function Dh(t, r, i) {
-                  return t = bh(t, r, i), t;
+                function _h(t, r, i) {
+                  return t = Th(t, r, i), t;
                 }
                 function dS(t, r) {
                   t = t | 0, hr(t, 2331);
@@ -39027,10 +39027,10 @@ function EI() {
                 function yS(t) {
                   return t = t | 0, e[t + 8 >> 2];
                 }
-                function $h(t, r) {
+                function Dh(t, r) {
                   return -1;
                 }
-                function Mh(t) {
+                function $h(t) {
                   return t = t | 0, e[t + 4 >> 2];
                 }
                 function mS(t, r) {
@@ -39042,25 +39042,25 @@ function EI() {
                 function ES(t) {
                   return t = t | 0, l[t + 9 | 0];
                 }
-                function On(t, r, i) {
+                function Nn(t, r, i) {
                   return n0(t, r, i);
                 }
-                function Lh(t) {
+                function Mh(t) {
                   return t = t | 0, Xc(t) | 0;
                 }
-                function Fh(t) {
-                  A[t + 4 | 0] || lh(t);
+                function Lh(t) {
+                  A[t + 4 | 0] || uh(t);
                 }
-                function Vh(t) {
+                function Fh(t) {
                   return nn(t, 24932);
                 }
-                function Wh(t) {
+                function Vh(t) {
                   return nn(t, 24924);
                 }
-                function Hh(t) {
+                function Wh(t) {
                   return nn(t, 24948);
                 }
-                function Kh(t) {
+                function Hh(t) {
                   return nn(t, 24940);
                 }
                 function SS(t) {
@@ -39081,10 +39081,10 @@ function EI() {
                 function H1(t) {
                   return 127;
                 }
-                function Ui(t) {
+                function Oi(t) {
                   return t = t | 0, t | 0;
                 }
-                function Qh(t) {
+                function Kh(t) {
                   t = t | 0, x(Zc(t));
                 }
                 function K1(t) {
@@ -39097,9 +39097,9 @@ function EI() {
                   ce(25280);
                 }
                 function RS(t) {
-                  t = t | 0, x(ih(t));
+                  t = t | 0, x(rh(t));
                 }
-                function Gh(t) {
+                function Qh(t) {
                   t = t | 0, x($1(t));
                 }
                 function PS(t) {
@@ -39109,13 +39109,13 @@ function EI() {
                   ce(25216);
                 }
                 function OS(t) {
-                  t = t | 0, x(Al(t));
+                  t = t | 0, x(kl(t));
                 }
                 function US(t) {
                   ce(25232);
                 }
                 function _S(t) {
-                  t = t | 0, x(yh(t));
+                  t = t | 0, x(gh(t));
                 }
                 function DS(t) {
                   ce(25168);
@@ -39123,23 +39123,23 @@ function EI() {
                 function $S(t) {
                   ce(25200);
                 }
-                function zh(t) {
+                function Gh(t) {
                   t = t | 0, x(jc(t));
                 }
                 function MS(t) {
-                  t = t | 0, x(mh(t));
+                  t = t | 0, x(yh(t));
                 }
                 function LS(t) {
                   t = t | 0, x(Cc(t));
                 }
                 function FS(t) {
-                  t = t | 0, x(vh(t));
+                  t = t | 0, x(mh(t));
                 }
                 function VS(t) {
-                  t = t | 0, x(ch(t));
+                  t = t | 0, x(ah(t));
                 }
                 function ru(t) {
-                  t = t | 0, x(Eh(t));
+                  t = t | 0, x(vh(t));
                 }
                 function WS(t) {
                   t = t | 0, x(wo(t));
@@ -39159,22 +39159,22 @@ function EI() {
                 function rr(t) {
                   return 0;
                 }
-                function jh(t) {
+                function zh(t) {
                   return 2;
                 }
                 function nu(t, r) {
                 }
-                function Xh(t) {
-                  th(t, e[t >> 2]);
+                function jh(t) {
+                  eh(t, e[t >> 2]);
                 }
-                function Yh(t) {
+                function Xh(t) {
                   e[t >> 2] = y0();
                 }
                 function kt() {
-                  _l(2284), V();
+                  Ul(2284), V();
                 }
                 function N0() {
-                  _l(1687), V();
+                  Ul(1687), V();
                 }
                 function v0(t) {
                   t = t | 0, x(t);
@@ -39195,9 +39195,9 @@ function EI() {
                   ft(t, 0);
                 }
                 function XS() {
-                  Zh(), V();
+                  Yh(), V();
                 }
-                function Zh() {
+                function Yh() {
                   sc(), V();
                 }
                 function su(t) {
@@ -39206,11 +39206,11 @@ function EI() {
                 function ou(t) {
                 }
                 Te = A, z0();
-                var L = De([null, IE, kt, je, hv, Ui, lE, Eh, N0, Km, u7, N0, Ty, v7, E7, x7, P7, Hc, yg, pg, l7, k7, p7, w7, y7, j7, rm, Eg, pm, oc, hr, Sy, Ry, bn, N0, Hr, mm, wg, Qm, lm, N1, N0, zm, kg, Br, S4, og, N0, Fy, im, N4, gg, N0, mg, si, hy, N0, bi, Cv, N0, ky, P4, N0, xg, yy, by, Ey, S7, f7, Iy, T7, b7, B7, I7, C7, R7, N7, O7, U7, _7, D7, $7, M7, L7, N0, N0, ug, hg, eg, py, sg, hh, Xc, N0, N0, N0, N0, Ch, e7, Am, Tc, Cy, rg, h7, A7, d7, g7, m7, Uc, Tg, A2, E4, N0, Z3, rs, ts, Mm, ng, Hm, qg, Um, N0, q3, N0, Lr, yE, dy, Gy, fc, R4, r7, vy, n7, av, Hy, lS, um, bv, Pm, oE, Y3, J3, N0, By, yc, am, cm, Em, Ky, Xm, H7, J7, ay, Ay, mc, c7, Cm, Dy, hm, $y, Vy, lg, yc, my, ts, I4, zl, vE, lv, BE, Yc, wh, Sc, Ui, Rm, Ev, wm, Lh, F7, Lm, Jc, Sh, xh, g1, v0, Kc, Qr, kv, kE, As, uE, mv, w4, Bh, Th, Hv, Ih, qc, eu, Sh, xh, y1, Gr, gv, wh, ps, Bh, Th, Kv, Ih, Yl, sy, Bg, is, vl, ny, hE, tE, bg, os, ou, cg, Ol, Py, Bv, Fm, cl, Qy, ag, Ny, eE, Fv, Jm, cl, Wy, _m, gy, Og, wy, Ng, ME, LE, uS, FE, VE, Vv, WE, HE, KE, QE, GE, zE, jE, XE, YE, ZE, qE, JE, eS, tS, rS, iS, nS, sS, oS, fS, aS, zv, cS, jv, _E, DE, $E, z7, Dg, Ov, Nv, Pv, IS, CS, PS, NS, Dv, _v, Uv, US, HS, DS, $S, hs, yv, Zh, OE, v0, dm, mS, v0, wo, WS, nu, RE, vv, Tv, rr, rr, ym, KS, pv, $h, Nm, $h, yh, _S, Uy, Sv, Zm, Om, Oy, $1, Gh, SE, NE, Zc, Qh, EE, PE, Ui, v0, TS, mE, iv, Gv, xy, K1, Mh, Cc, LS, Al, OS, UE, ih, RS, Iv, nv, Rv, ov, Uh, dv, gE, sv, ch, VS, iy, Ug, jm, G7, rr, Dm, pE, vh, FS, vS, ES, kS, dS, wS, mh, MS, yS, gS, hS, AS, pS, Ui, v0, v0, $v, W7, Q7, K7, Qv, ev, Xv, tv, Uh, Av, cE, rv, v0, Jl, Jl, go, iu, iu, Z7, iu, v0, M4, $4, go, rr, rr, H4, Q1, v0, M4, $4, go, rr, rr, H4, Q1, v0, V4, F4, go, rr, rr, K4, Q1, v0, V4, F4, go, rr, rr, K4, Q1, Ui, v0, t7, TE, q7, Ui, v0, i7, bE, Y7, v0, fy, Jg, Yg, ey, D4, D4, Zg, Wg, Hg, Mg, Ig, v0, oy, jg, Gg, Xg, _4, _4, zg, Kg, Qg, Lg, Cg, v0, Ly, em, Xy, tm, Yy, ty, Fg, sm, v0, My, qy, zy, Jy, jy, ry, Vg, nm, Ui, v0, jh, V7, a7, Sm, xm, Bm, dg, Gm, gm, uv, rE, iE, nE, sE, Ui, v0, jh, Ym, o7, Tm, bm, Im, Ag, Wm, km, cv, Yv, Zv, qv, Jv, jc, zh, fm, jc, zh, _y, v0, H1, H1, Kr, Kr, Kr, oh, rr, Pn, Pn, v0, H1, H1, Kr, Kr, Kr, oh, rr, Pn, Pn, v0, W1, W1, Kr, Kr, Kr, _h, rr, Pn, Pn, v0, W1, W1, Kr, Kr, Kr, _h, rr, Pn, Pn, v0, $g, cy, v0, _g, uy, v0, Sg, Pg, v0, vg, Rg, v0, Ph, aE, nu, v0, Ph, vm, nu, Lh, K1, Ui, jS, XS, sc, Ui, v0, ou, ou, Vm, Zy, ly, qm, v0, BS, v0, SS, ru, Mh, K1, ru, ru, K1, v0, xS, v0, xv, $m, Wv, v0, fv, om, wv, v0, bS]);
+                var L = De([null, IE, kt, je, hv, Oi, lE, vh, N0, Km, u7, N0, Ty, v7, E7, x7, P7, Hc, yg, pg, l7, k7, p7, w7, y7, j7, rm, Eg, pm, oc, hr, Sy, Ry, Tn, N0, Hr, mm, wg, Qm, lm, N1, N0, zm, kg, Br, E4, og, N0, Fy, im, P4, gg, N0, mg, si, hy, N0, Ti, Cv, N0, ky, R4, N0, xg, yy, by, Ey, S7, f7, Iy, T7, b7, B7, I7, C7, R7, N7, O7, U7, _7, D7, $7, M7, L7, N0, N0, ug, hg, eg, py, sg, lh, Xc, N0, N0, N0, N0, Ih, e7, Am, Tc, Cy, rg, h7, A7, d7, g7, m7, Uc, Tg, k2, v4, N0, Z3, rs, ts, Mm, ng, Hm, qg, Um, N0, q3, N0, Lr, yE, dy, Gy, fc, C4, r7, vy, n7, av, Hy, lS, um, bv, Pm, oE, Y3, J3, N0, By, yc, am, cm, Em, Ky, Xm, H7, J7, ay, Ay, mc, c7, Cm, Dy, hm, $y, Vy, lg, yc, my, ts, B4, Gl, vE, lv, BE, Yc, dh, Sc, Oi, Rm, Ev, wm, Mh, F7, Lm, Jc, Eh, Sh, g1, v0, Kc, Qr, kv, kE, As, uE, mv, d4, bh, xh, Hv, Bh, qc, eu, Eh, Sh, y1, Gr, gv, dh, ps, bh, xh, Kv, Bh, Xl, sy, Bg, is, ml, ny, hE, tE, bg, os, ou, cg, Nl, Py, Bv, Fm, al, Qy, ag, Ny, eE, Fv, Jm, al, Wy, _m, gy, Og, wy, Ng, ME, LE, uS, FE, VE, Vv, WE, HE, KE, QE, GE, zE, jE, XE, YE, ZE, qE, JE, eS, tS, rS, iS, nS, sS, oS, fS, aS, zv, cS, jv, _E, DE, $E, z7, Dg, Ov, Nv, Pv, IS, CS, PS, NS, Dv, _v, Uv, US, HS, DS, $S, hs, yv, Yh, OE, v0, dm, mS, v0, wo, WS, nu, RE, vv, Tv, rr, rr, ym, KS, pv, Dh, Nm, Dh, gh, _S, Uy, Sv, Zm, Om, Oy, $1, Qh, SE, NE, Zc, Kh, EE, PE, Oi, v0, TS, mE, iv, Gv, xy, K1, $h, Cc, LS, kl, OS, UE, rh, RS, Iv, nv, Rv, ov, Oh, dv, gE, sv, ah, VS, iy, Ug, jm, G7, rr, Dm, pE, mh, FS, vS, ES, kS, dS, wS, yh, MS, yS, gS, hS, AS, pS, Oi, v0, v0, $v, W7, Q7, K7, Qv, ev, Xv, tv, Oh, Av, cE, rv, v0, ql, ql, go, iu, iu, Z7, iu, v0, $4, D4, go, rr, rr, W4, Q1, v0, $4, D4, go, rr, rr, W4, Q1, v0, F4, L4, go, rr, rr, H4, Q1, v0, F4, L4, go, rr, rr, H4, Q1, Oi, v0, t7, TE, q7, Oi, v0, i7, bE, Y7, v0, fy, Jg, Yg, ey, _4, _4, Zg, Wg, Hg, Mg, Ig, v0, oy, jg, Gg, Xg, U4, U4, zg, Kg, Qg, Lg, Cg, v0, Ly, em, Xy, tm, Yy, ty, Fg, sm, v0, My, qy, zy, Jy, jy, ry, Vg, nm, Oi, v0, zh, V7, a7, Sm, xm, Bm, dg, Gm, gm, uv, rE, iE, nE, sE, Oi, v0, zh, Ym, o7, Tm, bm, Im, Ag, Wm, km, cv, Yv, Zv, qv, Jv, jc, Gh, fm, jc, Gh, _y, v0, H1, H1, Kr, Kr, Kr, sh, rr, Rn, Rn, v0, H1, H1, Kr, Kr, Kr, sh, rr, Rn, Rn, v0, W1, W1, Kr, Kr, Kr, Uh, rr, Rn, Rn, v0, W1, W1, Kr, Kr, Kr, Uh, rr, Rn, Rn, v0, $g, cy, v0, _g, uy, v0, Sg, Pg, v0, vg, Rg, v0, Rh, aE, nu, v0, Rh, vm, nu, Mh, K1, Oi, jS, XS, sc, Oi, v0, ou, ou, Vm, Zy, ly, qm, v0, BS, v0, SS, ru, $h, K1, ru, ru, K1, v0, xS, v0, xv, $m, Wv, v0, fv, om, wv, v0, bS]);
                 function YS() {
                   return br.byteLength / 65536 | 0;
                 }
-                return { Y: ig, Z: v0, _: tt, $: tg, aa: fg, ba: L, ca: dE, da: QS, ea: GS, fa: zS, ga: CE, ha: s7, ia: xE, ja: X7, ka: AE, la: fE, ma: wE, na: ph, oa: ph, pa: Mv, qa: Lv };
+                return { Y: ig, Z: v0, _: tt, $: tg, aa: fg, ba: L, ca: dE, da: QS, ea: GS, fa: zS, ga: CE, ha: s7, ia: xE, ja: X7, ka: AE, la: fE, ma: wE, na: Ah, oa: Ah, pa: Mv, qa: Lv };
               }
               return Wt(Be);
             })(oe);
@@ -39227,37 +39227,37 @@ function EI() {
           }
           var i0 = G.INITIAL_MEMORY || 16777216;
           _e(i0 >= 65536, "INITIAL_MEMORY should be larger than STACK_SIZE, was " + i0 + "! (STACK_SIZE=65536)"), G.wasmMemory ? Ce = G.wasmMemory : Ce = new de.Memory({ initial: i0 / 65536, maximum: i0 / 65536 }), Xe(), i0 = Ce.buffer.byteLength;
-          var at, Si = [], xn = [], n4 = [];
+          var at, Ei = [], Sn = [], i4 = [];
           function iw() {
             if (G.preRun)
               for (typeof G.preRun == "function" && (G.preRun = [G.preRun]); G.preRun.length; )
                 ow(G.preRun.shift());
-            qa(Si);
+            qa(Ei);
           }
           function nw() {
-            qa(xn);
+            qa(Sn);
           }
           function sw() {
             if (G.postRun)
               for (typeof G.postRun == "function" && (G.postRun = [G.postRun]); G.postRun.length; )
                 aw(G.postRun.shift());
-            qa(n4);
+            qa(i4);
           }
           function ow(se) {
-            Si.unshift(se);
+            Ei.unshift(se);
           }
           function fw(se) {
-            xn.unshift(se);
+            Sn.unshift(se);
           }
           function aw(se) {
-            n4.unshift(se);
+            i4.unshift(se);
           }
-          var l2 = 0, no = null;
+          var u2 = 0, no = null;
           function cw(se) {
-            l2++, G.monitorRunDependencies && G.monitorRunDependencies(l2);
+            u2++, G.monitorRunDependencies && G.monitorRunDependencies(u2);
           }
           function uw(se) {
-            if (l2--, G.monitorRunDependencies && G.monitorRunDependencies(l2), l2 == 0 && no) {
+            if (u2--, G.monitorRunDependencies && G.monitorRunDependencies(u2), u2 == 0 && no) {
               var oe = no;
               no = null, oe();
             }
@@ -39267,12 +39267,12 @@ function EI() {
             var oe = new de.RuntimeError(se);
             throw Y(oe), oe;
           }
-          var s4 = "data:application/octet-stream;base64,";
-          function o4(se) {
-            return se.startsWith(s4);
+          var n4 = "data:application/octet-stream;base64,";
+          function s4(se) {
+            return se.startsWith(n4);
           }
           var J2;
-          J2 = "bindings.wasm", o4(J2) || (J2 = Ee(J2));
+          J2 = "bindings.wasm", s4(J2) || (J2 = Ee(J2));
           function lw(se) {
             if (se == J2 && Se)
               return new Uint8Array(Se);
@@ -39305,10 +39305,10 @@ function EI() {
           var qa = (se) => {
             for (; se.length > 0; )
               se.shift()(G);
-          }, f4 = typeof TextDecoder < "u" ? new TextDecoder("utf8") : void 0, Aw = (se, oe, ge) => {
+          }, o4 = typeof TextDecoder < "u" ? new TextDecoder("utf8") : void 0, Aw = (se, oe, ge) => {
             for (var Be = oe + ge, De = oe; se[De] && !(De >= Be); ) ++De;
-            if (De - oe > 16 && se.buffer && f4)
-              return f4.decode(se.subarray(oe, De));
+            if (De - oe > 16 && se.buffer && o4)
+              return o4.decode(se.subarray(oe, De));
             for (var Te = ""; oe < De; ) {
               var $e = se[oe++];
               if (!($e & 128)) {
@@ -39329,8 +39329,8 @@ function EI() {
               }
             }
             return Te;
-          }, h2 = (se, oe) => se ? Aw(Le, se, oe) : "", pw = (se, oe, ge, Be) => {
-            q2(`Assertion failed: ${h2(se)}, at: ` + [oe ? h2(oe) : "unknown filename", ge, Be ? h2(Be) : "unknown function"]);
+          }, l2 = (se, oe) => se ? Aw(Le, se, oe) : "", pw = (se, oe, ge, Be) => {
+            q2(`Assertion failed: ${l2(se)}, at: ` + [oe ? l2(oe) : "unknown filename", ge, Be ? l2(Be) : "unknown function"]);
           }, a1 = [], c1 = 0, dw = (se) => {
             var oe = new Ja(se);
             return oe.get_caught() || (oe.set_caught(!0), c1--), oe.set_rethrown(!1), a1.push(oe), Qw(oe.excPtr), oe.get_exception_ptr();
@@ -39434,22 +39434,22 @@ function EI() {
             for (var ge = 0, Be = 0; Be <= oe; ge += se[Be++])
               ;
             return ge;
-          }, a4 = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31], c4 = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31], _w = (se, oe) => {
+          }, f4 = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31], a4 = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31], _w = (se, oe) => {
             for (var ge = new Date(se.getTime()); oe > 0; ) {
-              var Be = u1(ge.getFullYear()), De = ge.getMonth(), Te = (Be ? a4 : c4)[De];
+              var Be = u1(ge.getFullYear()), De = ge.getMonth(), Te = (Be ? f4 : a4)[De];
               if (oe > Te - ge.getDate())
                 oe -= Te - ge.getDate() + 1, ge.setDate(1), De < 11 ? ge.setMonth(De + 1) : (ge.setMonth(0), ge.setFullYear(ge.getFullYear() + 1));
               else
                 return ge.setDate(ge.getDate() + oe), ge;
             }
             return ge;
-          }, u4 = (se) => {
+          }, c4 = (se) => {
             for (var oe = 0, ge = 0; ge < se.length; ++ge) {
               var Be = se.charCodeAt(ge);
               Be <= 127 ? oe++ : Be <= 2047 ? oe += 2 : Be >= 55296 && Be <= 57343 ? (oe += 4, ++ge) : oe += 3;
             }
             return oe;
-          }, l4 = (se, oe, ge, Be) => {
+          }, u4 = (se, oe, ge, Be) => {
             if (!(Be > 0)) return 0;
             for (var De = ge, Te = ge + Be - 1, $e = 0; $e < se.length; ++$e) {
               var Ke = se.charCodeAt($e);
@@ -39474,13 +39474,13 @@ function EI() {
             return oe[ge] = 0, ge - De;
           };
           function Dw(se, oe, ge) {
-            var Be = u4(se) + 1, De = new Array(Be);
-            return l4(se, De, 0, De.length), De;
+            var Be = c4(se) + 1, De = new Array(Be);
+            return u4(se, De, 0, De.length), De;
           }
-          var h4 = (se, oe) => {
+          var l4 = (se, oe) => {
             Ie.set(se, oe);
           }, $w = (se, oe, ge, Be) => {
-            var De = ze[Be + 40 >> 2], Te = { tm_sec: Ye[Be >> 2], tm_min: Ye[Be + 4 >> 2], tm_hour: Ye[Be + 8 >> 2], tm_mday: Ye[Be + 12 >> 2], tm_mon: Ye[Be + 16 >> 2], tm_year: Ye[Be + 20 >> 2], tm_wday: Ye[Be + 24 >> 2], tm_yday: Ye[Be + 28 >> 2], tm_isdst: Ye[Be + 32 >> 2], tm_gmtoff: Ye[Be + 36 >> 2], tm_zone: De ? h2(De) : "" }, $e = h2(ge), Ke = { "%c": "%a %b %d %H:%M:%S %Y", "%D": "%m/%d/%y", "%F": "%Y-%m-%d", "%h": "%b", "%r": "%I:%M:%S %p", "%R": "%H:%M", "%T": "%H:%M:%S", "%x": "%m/%d/%y", "%X": "%H:%M:%S", "%Ec": "%c", "%EC": "%C", "%Ex": "%m/%d/%y", "%EX": "%H:%M:%S", "%Ey": "%y", "%EY": "%Y", "%Od": "%d", "%Oe": "%e", "%OH": "%H", "%OI": "%I", "%Om": "%m", "%OM": "%M", "%OS": "%S", "%Ou": "%u", "%OU": "%U", "%OV": "%V", "%Ow": "%w", "%OW": "%W", "%Oy": "%y" };
+            var De = ze[Be + 40 >> 2], Te = { tm_sec: Ye[Be >> 2], tm_min: Ye[Be + 4 >> 2], tm_hour: Ye[Be + 8 >> 2], tm_mday: Ye[Be + 12 >> 2], tm_mon: Ye[Be + 16 >> 2], tm_year: Ye[Be + 20 >> 2], tm_wday: Ye[Be + 24 >> 2], tm_yday: Ye[Be + 28 >> 2], tm_isdst: Ye[Be + 32 >> 2], tm_gmtoff: Ye[Be + 36 >> 2], tm_zone: De ? l2(De) : "" }, $e = l2(ge), Ke = { "%c": "%a %b %d %H:%M:%S %Y", "%D": "%m/%d/%y", "%F": "%Y-%m-%d", "%h": "%b", "%r": "%I:%M:%S %p", "%R": "%H:%M", "%T": "%H:%M:%S", "%x": "%m/%d/%y", "%X": "%H:%M:%S", "%Ec": "%c", "%EC": "%C", "%Ex": "%m/%d/%y", "%EX": "%H:%M:%S", "%Ey": "%y", "%EY": "%Y", "%Od": "%d", "%Oe": "%e", "%OH": "%H", "%OI": "%I", "%Om": "%m", "%OM": "%M", "%OS": "%S", "%Ou": "%u", "%OU": "%U", "%OV": "%V", "%Ow": "%w", "%OW": "%W", "%Oy": "%y" };
             for (var Fe in Ke)
               $e = $e.replace(new RegExp(Fe, "g"), Ke[Fe]);
             var z0 = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], ht = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -39521,13 +39521,13 @@ function EI() {
               var c0 = _w(new Date(V.tm_year + 1900, 0, 1), V.tm_yday), ar = new Date(c0.getFullYear(), 0, 4), Wt = new Date(c0.getFullYear() + 1, 0, 4), ot = W0(ar), Ze = W0(Wt);
               return Tr(ot, c0) <= 0 ? Tr(Ze, c0) <= 0 ? c0.getFullYear() + 1 : c0.getFullYear() : c0.getFullYear() - 1;
             }
-            var Tn = { "%a": (V) => z0[V.tm_wday].substring(0, 3), "%A": (V) => z0[V.tm_wday], "%b": (V) => ht[V.tm_mon].substring(0, 3), "%B": (V) => ht[V.tm_mon], "%C": (V) => {
+            var xn = { "%a": (V) => z0[V.tm_wday].substring(0, 3), "%A": (V) => z0[V.tm_wday], "%b": (V) => ht[V.tm_mon].substring(0, 3), "%B": (V) => ht[V.tm_mon], "%C": (V) => {
               var c0 = V.tm_year + 1900;
               return j0(c0 / 100 | 0, 2);
             }, "%d": (V) => j0(V.tm_mday, 2), "%e": (V) => fr(V.tm_mday, 2, " "), "%g": (V) => bt(V).toString().substring(2), "%G": (V) => bt(V), "%H": (V) => j0(V.tm_hour, 2), "%I": (V) => {
               var c0 = V.tm_hour;
               return c0 == 0 ? c0 = 12 : c0 > 12 && (c0 -= 12), j0(c0, 2);
-            }, "%j": (V) => j0(V.tm_mday + Uw(u1(V.tm_year + 1900) ? a4 : c4, V.tm_mon - 1), 3), "%m": (V) => j0(V.tm_mon + 1, 2), "%M": (V) => j0(V.tm_min, 2), "%n": () => `
+            }, "%j": (V) => j0(V.tm_mday + Uw(u1(V.tm_year + 1900) ? f4 : a4, V.tm_mon - 1), 3), "%m": (V) => j0(V.tm_mon + 1, 2), "%M": (V) => j0(V.tm_min, 2), "%n": () => `
 `, "%p": (V) => V.tm_hour >= 0 && V.tm_hour < 12 ? "AM" : "PM", "%S": (V) => j0(V.tm_sec, 2), "%t": () => "	", "%u": (V) => V.tm_wday || 7, "%U": (V) => {
               var c0 = V.tm_yday + 7 - V.tm_wday;
               return j0(Math.floor(c0 / 7), 2);
@@ -39552,32 +39552,32 @@ function EI() {
               return c0 = Math.abs(c0) / 60, c0 = c0 / 60 * 100 + c0 % 60, (ar ? "+" : "-") + ("0000" + c0).slice(-4);
             }, "%Z": (V) => V.tm_zone, "%%": () => "%" };
             $e = $e.replace(/%%/g, "\0\0");
-            for (var Fe in Tn)
-              $e.includes(Fe) && ($e = $e.replace(new RegExp(Fe, "g"), Tn[Fe](Te)));
+            for (var Fe in xn)
+              $e.includes(Fe) && ($e = $e.replace(new RegExp(Fe, "g"), xn[Fe](Te)));
             $e = $e.replace(/\0\0/g, "%");
             var Dr = Dw($e);
-            return Dr.length > oe ? 0 : (h4(Dr, se), Dr.length - 1);
+            return Dr.length > oe ? 0 : (l4(Dr, se), Dr.length - 1);
           }, Mw = (se, oe, ge, Be, De) => $w(se, oe, ge, Be), l1 = [], G0 = (se) => {
             var oe = l1[se];
             return oe || (se >= l1.length && (l1.length = se + 1), l1[se] = oe = at.get(se)), oe;
-          }, k4 = (se) => {
+          }, h4 = (se) => {
             var oe = G["_" + se];
             return oe;
-          }, Lw = (se, oe, ge) => l4(se, Le, oe, ge), Fw = (se) => {
-            var oe = u4(se) + 1, ge = A4(oe);
+          }, Lw = (se, oe, ge) => u4(se, Le, oe, ge), Fw = (se) => {
+            var oe = c4(se) + 1, ge = k4(oe);
             return Lw(se, ge, oe), ge;
           }, Vw = (se, oe, ge, Be, De) => {
             var Te = { string: (W0) => {
               var bt = 0;
               return W0 != null && W0 !== 0 && (bt = Fw(W0)), bt;
             }, array: (W0) => {
-              var bt = A4(W0.length);
-              return h4(W0, bt), bt;
+              var bt = k4(W0.length);
+              return l4(W0, bt), bt;
             } };
             function $e(W0) {
-              return oe === "string" ? h2(W0) : oe === "boolean" ? !!W0 : W0;
+              return oe === "string" ? l2(W0) : oe === "boolean" ? !!W0 : W0;
             }
-            var Ke = k4(se), Fe = [], z0 = 0;
+            var Ke = h4(se), Fe = [], z0 = 0;
             if (Be)
               for (var ht = 0; ht < Be.length; ht++) {
                 var fr = Te[ge[ht]];
@@ -39590,12 +39590,12 @@ function EI() {
             return j0 = Tr(j0), j0;
           }, Ww = (se, oe, ge, Be) => {
             var De = !ge || ge.every(($e) => $e === "number" || $e === "boolean"), Te = oe !== "string";
-            return Te && De && !Be ? k4(se) : function() {
+            return Te && De && !Be ? h4(se) : function() {
               return Vw(se, oe, ge, arguments);
             };
           }, Hw = { p: pw, t: dw, v: ww, b: yw, j: mw, V: vw, E: Ew, r: Sw, L: xw, h: gw, D: Tw, M: bw, U: Iw, J: Pw, K: Nw, G: g3, d: t3, u: u3, c: r3, W: a3, f: i3, C: f3, m: n3, B: A3, o: d3, F: m3, y: E3, N: P3, S: b3, g: e3, l: y3, H: w3, e: o3, T: T3, i: s3, I: h3, k: c3, z: p3, n: k3, s: l3, q: v3, w: S3, x: x3, O: R3, P: C3, R: B3, Q: I3, A: Ow, a: Ce, X: Mw }, J0 = kw();
           J0.Y, J0.__errno_location, J0.__cxa_free_exception, G._free = J0.Z, G._malloc = J0._, G._miniscript_compile = J0.$, G._miniscript_analyze = J0.aa;
-          var I0 = J0.ca, h1 = J0.da, C0 = J0.ea, R0 = J0.fa, A4 = J0.ga, Kw = J0.ha, Qw = J0.ia, Gw = J0.ja, zw = J0.ka, jw = G.dynCall_iij = J0.la, Xw = G.dynCall_vij = J0.ma, Yw = G.dynCall_viji = J0.na, Zw = G.dynCall_viij = J0.oa, qw = G.dynCall_viiij = J0.pa, Jw = G.dynCall_iiij = J0.qa;
+          var I0 = J0.ca, h1 = J0.da, C0 = J0.ea, R0 = J0.fa, k4 = J0.ga, Kw = J0.ha, Qw = J0.ia, Gw = J0.ja, zw = J0.ka, jw = G.dynCall_iij = J0.la, Xw = G.dynCall_vij = J0.ma, Yw = G.dynCall_viji = J0.na, Zw = G.dynCall_viij = J0.oa, qw = G.dynCall_viiij = J0.pa, Jw = G.dynCall_iiij = J0.qa;
           function e3(se) {
             var oe = C0();
             try {
@@ -39813,11 +39813,11 @@ function EI() {
             }
           }
           function x3(se, oe, ge, Be, De, Te, $e, Ke, Fe, z0, ht, fr, j0, Tr, W0, bt) {
-            var Tn = C0();
+            var xn = C0();
             try {
               G0(se)(oe, ge, Be, De, Te, $e, Ke, Fe, z0, ht, fr, j0, Tr, W0, bt);
             } catch (Dr) {
-              if (R0(Tn), Dr !== Dr + 0) throw Dr;
+              if (R0(xn), Dr !== Dr + 0) throw Dr;
               I0(1, 0);
             }
           }
@@ -39894,16 +39894,16 @@ function EI() {
             }
           }
           function O3(se) {
-            if (o4(se))
-              return N3(se.slice(s4.length));
+            if (s4(se))
+              return N3(se.slice(n4.length));
           }
-          G.cwrap = Ww, G.UTF8ToString = h2;
+          G.cwrap = Ww, G.UTF8ToString = l2;
           var k1;
           no = function se() {
-            k1 || p4(), k1 || (no = se);
+            k1 || A4(), k1 || (no = se);
           };
-          function p4() {
-            if (l2 > 0 || (iw(), l2 > 0))
+          function A4() {
+            if (u2 > 0 || (iw(), u2 > 0))
               return;
             function se() {
               k1 || (k1 = !0, G.calledRun = !0, !Pe && (nw(), H(G), G.onRuntimeInitialized && G.onRuntimeInitialized(), sw()));
@@ -39917,7 +39917,7 @@ function EI() {
           if (G.preInit)
             for (typeof G.preInit == "function" && (G.preInit = [G.preInit]); G.preInit.length > 0; )
               G.preInit.pop()();
-          return p4(), re;
+          return A4(), re;
         });
       })();
       j.exports = Q;
@@ -40081,11 +40081,11 @@ function EI() {
   };
   return So.compileMiniscript = Z, So.compilePolicy = W, So.satisfier = Ae, So;
 }
-var ad = EI();
-function SI({ miniscript: c, isSegwit: a, isTaproot: h, network: k = Gi.bitcoin, ECPair: d, BIP32: g }) {
+var fd = EI();
+function SI({ miniscript: c, isSegwit: a, isTaproot: h, network: k = Qi.bitcoin, ECPair: d, BIP32: g }) {
   const y = a ? G2 : Xs, E = {}, S = c.replace(RegExp(y, "g"), (I) => {
     const P = "@" + Object.keys(E).length;
-    return E[P] = fd({
+    return E[P] = od({
       keyExpression: I,
       isSegwit: a,
       network: k,
@@ -40101,22 +40101,22 @@ function SI({ miniscript: c, isSegwit: a, isTaproot: h, network: k = Gi.bitcoin,
     throw new Error(`Error: miniscript ${c} is not sane: contains duplicate public keys.`);
   return { expandedMiniscript: S, expansionMap: E };
 }
-function cd({ expandedAsm: c, expansionMap: a }) {
+function ad({ expandedAsm: c, expansionMap: a }) {
   let h = Object.keys(a).reduce((k, d) => {
     const g = a[d]?.pubkey;
     if (!g)
       throw new Error(`Error: invalid expansionMap for ${d}`);
-    return k.replaceAll(`<${d}>`, `<${q.encode(g)}>`).replaceAll(`<HASH160(${d})>`, `<${q.encode(f2(g))}>`);
+    return k.replaceAll(`<${d}>`, `<${q.encode(g)}>`).replaceAll(`<HASH160(${d})>`, `<${q.encode(o2(g))}>`);
   }, c);
   return h = h.trim().replace(/\s+/g, " ").replace(/(<\d+>)|\b\d+\b/g, (k) => k.startsWith("<") ? k : GB(Number(k))).replace(/[<>]/g, ""), h;
 }
 function Ru({ expandedMiniscript: c, expansionMap: a }) {
-  const h = ad.compileMiniscript(c);
+  const h = fd.compileMiniscript(c);
   if (h.issane !== !0)
     throw new Error(`Error: Miniscript ${c} is not sane`);
-  return zp(cd({ expandedAsm: h.asm, expansionMap: a }));
+  return Gp(ad({ expandedAsm: h.asm, expansionMap: a }));
 }
-function pk({ expandedMiniscript: c, expansionMap: a, signatures: h = [], preimages: k = [], timeConstraints: d }) {
+function Ak({ expandedMiniscript: c, expansionMap: a, signatures: h = [], preimages: k = [], timeConstraints: d }) {
   const g = {};
   k.forEach(($) => {
     g["<" + $.digest.replace("(", "_preimage(") + ">"] = "<" + $.preimage + ">";
@@ -40129,7 +40129,7 @@ function pk({ expandedMiniscript: c, expansionMap: a, signatures: h = [], preima
     });
     y["<sig(" + M + ")>"] = "<" + q.encode($.signature) + ">";
   });
-  const E = { ...g, ...y }, S = Object.keys(E), { nonMalleableSats: b } = ad.satisfier(c, { knowns: S });
+  const E = { ...g, ...y }, S = Object.keys(E), { nonMalleableSats: b } = fd.satisfier(c, { knowns: S });
   if (!Array.isArray(b) || !b[0])
     throw new Error(`Error: unresolvable miniscript ${c}`);
   let I;
@@ -40145,7 +40145,7 @@ function pk({ expandedMiniscript: c, expansionMap: a, signatures: h = [], preima
     P = P.replaceAll($, N);
   }
   return {
-    scriptSatisfaction: zp(cd({ expandedAsm: P, expansionMap: a })),
+    scriptSatisfaction: Gp(ad({ expandedAsm: P, expansionMap: a })),
     nLockTime: I.nLockTime,
     nSequence: I.nSequence
   };
@@ -40170,22 +40170,22 @@ function gs(c, a) {
     return h.set(d, g), g;
   };
 }
-const dk = 520, af = 3600, ys = 201;
+const pk = 520, af = 3600, ys = 201;
 function Pu(c) {
   const a = Xo(c);
   if (!a)
     throw new Error(`Error: cound not decompile ${c}`);
   return a.filter((h) => typeof h == "number" && h > pt.OP_16).length;
 }
-function wk(c) {
+function dk(c) {
   const a = c.length;
-  return O6(a) + c.reduce((h, k) => h + bf(k), 0);
+  return N6(a) + c.reduce((h, k) => h + bf(k), 0);
 }
 function bf(c) {
   const a = c.length;
-  return O6(a) + a;
+  return N6(a) + a;
 }
-function gk(c, a) {
+function wk(c, a) {
   try {
     return Ho({ type: "unknown", script: c }, a);
   } catch {
@@ -40201,11 +40201,11 @@ function gk(c, a) {
     };
   }
 }
-function yk(c, a) {
+function gk(c, a) {
   try {
     return Os({ type: "unknown", script: c }, a);
   } catch {
-    const h = f2(c), k = a0.encode({ type: "sh", hash: h }), d = a ? st(a).encode({ type: "sh", hash: h }) : void 0;
+    const h = o2(c), k = a0.encode({ type: "sh", hash: h }), d = a ? st(a).encode({ type: "sh", hash: h }) : void 0;
     return {
       type: "sh",
       script: k,
@@ -40216,12 +40216,12 @@ function yk(c, a) {
 }
 function Nu(c) {
   const a = c === "DANGEROUSLY_USE_FAKE_SIGNATURES" ? 72 : c.signature.length;
-  return O6(a) + a;
+  return N6(a) + a;
 }
 function xI({ descriptor: c, checksumRequired: a, index: h }) {
   if (!c)
     throw new Error("You must provide a descriptor.");
-  const k = c.match(String.raw`(${Jp})$`);
+  const k = c.match(String.raw`(${qp})$`);
   if (k === null && a === !0)
     throw new Error(`Error: descriptor ${c} has not checksum`);
   let d = c;
@@ -40255,7 +40255,7 @@ function Ou(c) {
 }
 function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
   var h, k, d, g, y, E, S, b, I, P, O, $, N, M, W;
-  const Z = ({ keyExpression: fe, isSegwit: Ae, isTaproot: j, network: ie = Gi.bitcoin }) => fd({
+  const Z = ({ keyExpression: fe, isSegwit: Ae, isTaproot: j, network: ie = Qi.bitcoin }) => od({
     keyExpression: fe,
     network: ie,
     ...typeof Ae == "boolean" ? { isSegwit: Ae } : {},
@@ -40263,9 +40263,9 @@ function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
     ECPair: c,
     BIP32: a
   });
-  function ke({ descriptor: fe, index: Ae, checksumRequired: j = !1, network: ie = Gi.bitcoin, allowMiniscriptInP2SH: Q = !1 }) {
+  function ke({ descriptor: fe, index: Ae, checksumRequired: j = !1, network: ie = Qi.bitcoin, allowMiniscriptInP2SH: Q = !1 }) {
     let he, re, G, H, Y, X, te, ae, Ee;
-    const be = fe.indexOf("*") !== -1, Se = sk(ie);
+    const be = fe.indexOf("*") !== -1, Se = nk(ie);
     if (Ae !== void 0 && (!Number.isInteger(Ae) || Ae < 0))
       throw new Error(`Error: invalid index ${Ae}`);
     const de = xI({
@@ -40281,7 +40281,7 @@ function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
         throw new Error(`Error: could not get an address in ${fe}`);
       let _e;
       try {
-        const Le = st(sk(ie)).decode(Pe);
+        const Le = st(nk(ie)).decode(Pe);
         _e = a0.encode(Le);
       } catch {
         throw new Error(`Error: invalid address ${Pe}`);
@@ -40321,7 +40321,7 @@ function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
         const Ie = _e.pubkey;
         if (!Ie)
           throw new Error(`Error: could not extract a pubkey from ${fe}`);
-        te = EA(Ie, Se);
+        te = vA(Ie, Se);
       }
     } else if (de.match(gI)) {
       H = !1, Y = !1;
@@ -40336,7 +40336,7 @@ function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
         const Ie = _e.pubkey;
         if (!Ie)
           throw new Error(`Error: could not extract a pubkey from ${fe}`);
-        te = h6(Ie, Se);
+        te = l6(Ie, Se);
       }
     } else if (de.match(mI)) {
       H = !0, Y = !1;
@@ -40370,9 +40370,9 @@ function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
           throw new Error(`Error: could not extract a pubkey from ${fe}`);
         te = Ko(Ie, Se);
       }
-    } else if (de.match(fk)) {
+    } else if (de.match(ok)) {
       H = !1, Y = !1;
-      const Pe = de.match(fk)?.[1];
+      const Pe = de.match(ok)?.[1];
       if (!Pe)
         throw new Error(`Error extracting sortedmulti() in ${fe}`);
       const { m: _e, keyExpressions: Ie } = Ou(Pe), Le = Ie.map((ze) => Z({ keyExpression: ze, network: ie, isSegwit: !1 })), Ye = {};
@@ -40386,9 +40386,9 @@ function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
         const Xe = Oo(_e, ze, void 0);
         Ee = Xe.script, te = Os(Xe, Se);
       }
-    } else if (de.match(ak)) {
+    } else if (de.match(fk)) {
       H = !0, Y = !1;
-      const Pe = de.match(ak)?.[1];
+      const Pe = de.match(fk)?.[1];
       if (!Pe)
         throw new Error(`Error extracting sortedmulti() in ${fe}`);
       const { m: _e, keyExpressions: Ie } = Ou(Pe), Le = Ie.map((ze) => Z({ keyExpression: ze, network: ie, isSegwit: !0 })), Ye = {};
@@ -40402,9 +40402,9 @@ function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
         const Xe = Oo(_e, ze, void 0);
         ae = Xe.script, te = Ho(Xe, Se);
       }
-    } else if (de.match(ck)) {
+    } else if (de.match(ak)) {
       H = !0, Y = !1;
-      const Pe = de.match(ck)?.[1];
+      const Pe = de.match(ak)?.[1];
       if (!Pe)
         throw new Error(`Error extracting sortedmulti() in ${fe}`);
       const { m: _e, keyExpressions: Ie } = Ou(Pe), Le = Ie.map((ze) => Z({ keyExpression: ze, network: ie, isSegwit: !0 })), Ye = {};
@@ -40414,12 +40414,12 @@ function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
             throw new Error("Error: key has no pubkey");
           return at.pubkey;
         });
-        ze.sort((at, Si) => Rr(at, Si));
+        ze.sort((at, Ei) => Rr(at, Ei));
         const Xe = Oo(_e, ze, void 0), i0 = Ho(Xe, Se);
         ae = Xe.script, Ee = i0.script, te = Os(i0, Se);
       }
-    } else if (de.match(lk)) {
-      if (H = !0, Y = !1, re = de.match(lk)?.[1], !re)
+    } else if (de.match(uk)) {
+      if (H = !0, Y = !1, re = de.match(uk)?.[1], !re)
         throw new Error(`Error: could not get miniscript in ${fe}`);
       if ({ expandedMiniscript: X, expansionMap: G } = we({
         miniscript: re,
@@ -40432,12 +40432,12 @@ function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
         const _e = Pu(Pe);
         if (_e > ys)
           throw new Error(`Error: too many non-push ops, ${_e} non-push ops is larger than ${ys}`);
-        const Ie = gk(Pe, Se);
-        if (te = yk(Ie.script, Se), Ee = Ie.script, !Ee)
+        const Ie = wk(Pe, Se);
+        if (te = gk(Ie.script, Se), Ee = Ie.script, !Ee)
           throw new Error(`Error: could not calculate redeemScript for ${fe}`);
       }
-    } else if (de.match(uk)) {
-      if (H = !1, Y = !1, re = de.match(uk)?.[1], !re)
+    } else if (de.match(ck)) {
+      if (H = !1, Y = !1, re = de.match(ck)?.[1], !re)
         throw new Error(`Error: could not get miniscript in ${fe}`);
       if (Q === !1 && re.search(/^(pk\(|pkh\(|wpkh\(|combo\(|multi\(|sortedmulti\(|multi_a\(|sortedmulti_a\()/) !== 0)
         throw new Error("Error: Miniscript expressions can only be used in wsh");
@@ -40447,15 +40447,15 @@ function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
         network: ie
       }), he = `sh(${X})`, !Ce) {
         const Pe = Ru({ expandedMiniscript: X, expansionMap: G });
-        if (Ee = Pe, Pe.byteLength > dk)
-          throw new Error(`Error: P2SH script is too large, ${Pe.byteLength} bytes is larger than ${dk} bytes`);
+        if (Ee = Pe, Pe.byteLength > pk)
+          throw new Error(`Error: P2SH script is too large, ${Pe.byteLength} bytes is larger than ${pk} bytes`);
         const _e = Pu(Pe);
         if (_e > ys)
           throw new Error(`Error: too many non-push ops, ${_e} non-push ops is larger than ${ys}`);
-        te = yk(Pe, Se);
+        te = gk(Pe, Se);
       }
-    } else if (de.match(hk)) {
-      if (H = !0, Y = !1, re = de.match(hk)?.[1], !re)
+    } else if (de.match(lk)) {
+      if (H = !0, Y = !1, re = de.match(lk)?.[1], !re)
         throw new Error(`Error: could not get miniscript in ${fe}`);
       if ({ expandedMiniscript: X, expansionMap: G } = we({
         miniscript: re,
@@ -40468,11 +40468,11 @@ function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
         const _e = Pu(Pe);
         if (_e > ys)
           throw new Error(`Error: too many non-push ops, ${_e} non-push ops is larger than ${ys}`);
-        te = gk(Pe, Se);
+        te = wk(Pe, Se);
       }
     } else if (de.match(vI)) {
       H = !0, Y = !0;
-      const Pe = de.match(D6)?.[0];
+      const Pe = de.match(_6)?.[0];
       if (!Pe)
         throw new Error("Error: keyExpression could not me extracted");
       if (de !== `tr(${Pe})`)
@@ -40506,7 +40506,7 @@ function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
       canonicalExpression: de
     };
   }
-  function we({ miniscript: fe, isSegwit: Ae, network: j = Gi.bitcoin }) {
+  function we({ miniscript: fe, isSegwit: Ae, network: j = Qi.bitcoin }) {
     return SI({
       miniscript: fe,
       isSegwit: Ae,
@@ -40517,7 +40517,7 @@ function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
     });
   }
   class me {
-    constructor({ descriptor: Ae, index: j, checksumRequired: ie = !1, allowMiniscriptInP2SH: Q = !1, network: he = Gi.bitcoin, preimages: re = [], signersPubKeys: G }) {
+    constructor({ descriptor: Ae, index: j, checksumRequired: ie = !1, allowMiniscriptInP2SH: Q = !1, network: he = Qi.bitcoin, preimages: re = [], signersPubKeys: G }) {
       if (h.add(this), k.set(this, void 0), d.set(this, []), g.set(this, void 0), y.set(this, void 0), E.set(this, void 0), S.set(this, void 0), b.set(this, void 0), I.set(this, void 0), P.set(this, void 0), O.set(this, void 0), $.set(this, void 0), N.set(this, void 0), pr(this, N, he, "f"), pr(this, d, re, "f"), typeof Ae != "string")
         throw new Error("Error: invalid descriptor type");
       const H = ke({
@@ -40573,7 +40573,7 @@ function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
       const j = x0(this, y, "f"), ie = x0(this, O, "f"), Q = x0(this, $, "f");
       if (j === void 0 || ie === void 0 || Q === void 0)
         throw new Error(`Error: cannot get satisfaction from not expanded miniscript ${j}`);
-      const he = pk({
+      const he = Ak({
         expandedMiniscript: ie,
         expansionMap: Q,
         signatures: Ae,
@@ -40651,7 +40651,7 @@ function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
         if (!be)
           throw new Error("Could not decompile script satisfaction");
         const Se = be.map((de) => typeof de == "number" ? new Uint8Array(0) : de);
-        return Se.push(X), 4 * (40 + bf(Ee)) + wk(Se);
+        return Se.push(X), 4 * (40 + bf(Ee)) + dk(Se);
       } else if (ie?.startsWith("sh(")) {
         const X = this.getRedeemScript();
         if (!X)
@@ -40670,7 +40670,7 @@ function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
         const Ee = ae.map((Se) => typeof Se == "number" ? new Uint8Array(0) : Se);
         Ee.push(X);
         const be = new Uint8Array(0);
-        return 4 * (40 + bf(be)) + wk(Ee);
+        return 4 * (40 + bf(be)) + dk(Ee);
       } else if (G && (!ie || ie === "tr(@0)")) {
         if (!Ae)
           throw new Error("Should be SegwitTx");
@@ -40760,7 +40760,7 @@ function TI({ ECPair: c = qB, BIP32: a = JB } = {}) {
       const re = he.map((Y) => ({
         pubkey: Y,
         signature: new Uint8Array(72)
-      })), { nLockTime: G, nSequence: H } = pk({
+      })), { nLockTime: G, nSequence: H } = Ak({
         expandedMiniscript: ie,
         expansionMap: Q,
         signatures: re,
@@ -40835,7 +40835,7 @@ var xt;
 (function(c) {
   c.Multisig = "multisig", c.CSVMultisig = "csv-multisig", c.ConditionCSVMultisig = "condition-csv-multisig", c.ConditionMultisig = "condition-multisig", c.CLTVMultisig = "cltv-multisig";
 })(xt || (xt = {}));
-function F6(c) {
+function L6(c) {
   const a = [
     _r,
     er,
@@ -40867,7 +40867,7 @@ var _r;
       return {
         type: xt.Multisig,
         params: E,
-        script: TA(E.pubkeys.length, E.pubkeys).script
+        script: xA(E.pubkeys.length, E.pubkeys).script
       };
     const S = [];
     for (let b = 0; b < E.pubkeys.length; b++)
@@ -41189,18 +41189,18 @@ var Ys;
   }
   c.is = k;
 })(Ys || (Ys = {}));
-const mk = Wo.tapTree[2];
+const yk = Wo.tapTree[2];
 function Ds(c) {
   return c[1].subarray(0, c[1].length - 1);
 }
 class Vt {
   static decode(a) {
-    const k = mk.decode(a).map((d) => d.script);
+    const k = yk.decode(a).map((d) => d.script);
     return new Vt(k);
   }
   constructor(a) {
     this.scripts = a;
-    const h = a.length % 2 !== 0 ? a.slice().reverse() : a, k = k6(h.map((g) => ({
+    const h = a.length % 2 !== 0 ? a.slice().reverse() : a, k = h6(h.map((g) => ({
       script: g,
       leafVersion: Qo
     }))), d = f1(n1, k, void 0, !0);
@@ -41209,7 +41209,7 @@ class Vt {
     this.leaves = d.tapLeafScript, this.tweakedPublicKey = d.tweakedPubkey;
   }
   encode() {
-    return mk.encode(this.scripts.map((h) => ({
+    return yk.encode(this.scripts.map((h) => ({
       depth: 1,
       version: Qo,
       script: h
@@ -41251,7 +41251,7 @@ class Vt {
     return a;
   }
 }
-function V6(c) {
+function F6(c) {
   let a;
   try {
     const h = c[1], k = h.subarray(0, h.length - 1);
@@ -41354,7 +41354,7 @@ var pa;
 function bI(c) {
   return qe.encode(["HASH160", c, "EQUAL"]);
 }
-var zi;
+var Gi;
 (function(c) {
   class a extends Vt {
     constructor(k) {
@@ -41377,12 +41377,12 @@ var zi;
     value: 144n,
     type: "blocks"
   }, c.Script = a;
-})(zi || (zi = {}));
+})(Gi || (Gi = {}));
 var Zo;
 (function(c) {
   class a extends Vt {
     constructor(k) {
-      const d = new zi.Script(k), { delegatePubKey: g, pubKey: y, serverPubKey: E } = k, S = _r.encode({
+      const d = new Gi.Script(k), { delegatePubKey: g, pubKey: y, serverPubKey: E } = k, S = _r.encode({
         pubkeys: [y, g, E]
       }).script;
       super([...d.scripts, S]), this.options = k, this.defaultVtxo = d, this.delegateScript = q.encode(S);
@@ -41400,15 +41400,15 @@ var Zo;
   c.Script = a;
 })(Zo || (Zo = {}));
 const cf = /* @__PURE__ */ new Map();
-let vk = /* @__PURE__ */ new WeakSet();
-function ud() {
+let mk = /* @__PURE__ */ new WeakSet();
+function cd() {
   if (!("serviceWorker" in navigator))
     throw new Error("Service workers are not supported in this browser");
 }
 function Bf(c, ...a) {
   c && console.debug(...a);
 }
-function ld(c) {
+function ud(c) {
   return typeof c == "string" ? {
     path: c,
     updateViaCache: "none",
@@ -41425,7 +41425,7 @@ function ld(c) {
     activationTimeoutMs: c.activationTimeoutMs ?? 1e4
   };
 }
-function Ek(c, a) {
+function vk(c, a) {
   if (c)
     try {
       c.postMessage({ type: "SKIP_WAITING" }), Bf(a, "Sent SKIP_WAITING to waiting service worker");
@@ -41434,16 +41434,16 @@ function Ek(c, a) {
     }
 }
 function BI(c, a) {
-  if (vk.has(c))
+  if (mk.has(c))
     return;
-  vk.add(c);
+  mk.add(c);
   const { autoReload: h, onNeedRefresh: k, onUpdated: d, activationTimeoutMs: g, debug: y } = a;
   let E = !1;
   const S = () => {
     E || (E = !0, Bf(y, "Service worker controller change detected"), d?.(), h && typeof window < "u" && typeof window.location?.reload == "function" && window.location.reload());
   }, b = (I) => {
-    I && (k?.(), Ek(I, y), g > 0 && typeof window < "u" && window.setTimeout(() => {
-      c.waiting && (Bf(y, "Waiting worker still pending; re-sending SKIP_WAITING"), Ek(c.waiting, y), c.update().catch(() => Bf(y, "Service worker update retry failed (timeout path)")));
+    I && (k?.(), vk(I, y), g > 0 && typeof window < "u" && window.setTimeout(() => {
+      c.waiting && (Bf(y, "Waiting worker still pending; re-sending SKIP_WAITING"), vk(c.waiting, y), c.update().catch(() => Bf(y, "Service worker update retry failed (timeout path)")));
     }, g));
   };
   c.waiting && b(c.waiting), c.addEventListener("updatefound", () => {
@@ -41455,7 +41455,7 @@ function BI(c, a) {
     once: !0
   });
 }
-function hd(c) {
+function ld(c) {
   const { path: a, updateViaCache: h } = c;
   if (!cf.has(a)) {
     const k = navigator.serviceWorker.register(a, { updateViaCache: h }).then(async (d) => {
@@ -41473,13 +41473,13 @@ function hd(c) {
   return cf.get(a).then((k) => (BI(k, c), k));
 }
 async function II(c) {
-  ud();
-  const a = ld(c);
-  return hd(a);
+  cd();
+  const a = ud(c);
+  return ld(a);
 }
-async function Sk(c) {
-  ud();
-  const a = c ? await hd(ld(c)) : await navigator.serviceWorker.ready;
+async function Ek(c) {
+  cd();
+  const a = c ? await ld(ud(c)) : await navigator.serviceWorker.ready;
   let h = a.active || a.waiting || a.installing || navigator.serviceWorker.controller;
   if (!h && c) {
     const k = await navigator.serviceWorker.ready;
@@ -41519,7 +41519,7 @@ function If(c) {
     }
   })();
 }
-class kd extends Error {
+class hd extends Error {
   constructor(a, h, k, d) {
     super(h), this.code = a, this.message = h, this.name = k, this.metadata = d;
   }
@@ -41542,7 +41542,7 @@ function CI(c) {
         continue;
       const y = h.name;
       let E;
-      return "metadata" in h && RI(h.metadata) && (E = h.metadata), new kd(d, g, y, E);
+      return "metadata" in h && RI(h.metadata) && (E = h.metadata), new hd(d, g, y, E);
     }
     return;
   } catch {
@@ -41607,7 +41607,7 @@ var ri;
   }
   c.encodeMessage = k;
 })(ri || (ri = {}));
-const W6 = new Uint8Array([pt.RETURN]), PI = new Uint8Array(32).fill(0), NI = 4294967295, Ad = "ark-intent-proof-message";
+const V6 = new Uint8Array([pt.RETURN]), PI = new Uint8Array(32).fill(0), NI = 4294967295, kd = "ark-intent-proof-message";
 function OI(c) {
   if (c.index === void 0)
     throw new Error("intent proof input requires index");
@@ -41630,7 +41630,7 @@ function _I(c) {
 function DI(c) {
   return c.forEach(_I), !0;
 }
-function Qa(c, a, h = Ad) {
+function Qa(c, a, h = kd) {
   const k = MI(c, h), d = new qt({
     version: 0
   });
@@ -41671,7 +41671,7 @@ function $I(c, a, h) {
   h.length === 0 && (h = [
     {
       amount: 0n,
-      script: W6
+      script: V6
     }
   ]);
   for (const y of h)
@@ -41681,14 +41681,14 @@ function $I(c, a, h) {
     });
   return g;
 }
-function MI(c, a = Ad) {
+function MI(c, a = kd) {
   return Z2.utils.taggedHash(a, new TextEncoder().encode(c));
 }
 function LI(c) {
   if (!("tapTree" in c))
     return c;
-  const a = Vt.decode(c.tapTree), h = V6(c.intentTapLeafScript), k = [R6.encode(c.tapTree)];
-  return c.extraWitness && k.push(Kp.encode(c.extraWitness)), {
+  const a = Vt.decode(c.tapTree), h = F6(c.intentTapLeafScript), k = [C6.encode(c.tapTree)];
+  return c.extraWitness && k.push(Hp.encode(c.extraWitness)), {
     txid: q.decode(c.txid),
     index: c.vout,
     witnessUtxo: {
@@ -41704,7 +41704,7 @@ var St;
 (function(c) {
   c.BatchStarted = "batch_started", c.BatchFinalization = "batch_finalization", c.BatchFinalized = "batch_finalized", c.BatchFailed = "batch_failed", c.TreeSigningStarted = "tree_signing_started", c.TreeNonces = "tree_nonces", c.TreeTx = "tree_tx", c.TreeSignature = "tree_signature", c.StreamStarted = "stream_started";
 })(St || (St = {}));
-class H6 {
+class W6 {
   constructor(a) {
     this.serverUrl = a;
   }
@@ -41712,7 +41712,7 @@ class H6 {
     const a = `${this.serverUrl}/v1/info`, h = await fetch(a);
     if (!h.ok) {
       const d = await h.text();
-      Mi(d, `Failed to get server info: ${h.statusText}`);
+      $i(d, `Failed to get server info: ${h.statusText}`);
     }
     const k = await h.json();
     return {
@@ -41762,7 +41762,7 @@ class H6 {
     });
     if (!d.ok) {
       const y = await d.text();
-      Mi(y, `Failed to submit virtual transaction: ${y}`);
+      $i(y, `Failed to submit virtual transaction: ${y}`);
     }
     const g = await d.json();
     return {
@@ -41784,7 +41784,7 @@ class H6 {
     });
     if (!d.ok) {
       const g = await d.text();
-      Mi(g, `Failed to finalize offchain transaction: ${g}`);
+      $i(g, `Failed to finalize offchain transaction: ${g}`);
     }
   }
   async registerIntent(a) {
@@ -41802,7 +41802,7 @@ class H6 {
     });
     if (!k.ok) {
       const g = await k.text();
-      Mi(g, `Failed to register intent: ${g}`);
+      $i(g, `Failed to register intent: ${g}`);
     }
     return (await k.json()).intentId;
   }
@@ -41821,7 +41821,7 @@ class H6 {
     });
     if (!k.ok) {
       const d = await k.text();
-      Mi(d, `Failed to delete intent: ${d}`);
+      $i(d, `Failed to delete intent: ${d}`);
     }
   }
   async confirmRegistration(a) {
@@ -41836,7 +41836,7 @@ class H6 {
     });
     if (!k.ok) {
       const d = await k.text();
-      Mi(d, `Failed to confirm registration: ${d}`);
+      $i(d, `Failed to confirm registration: ${d}`);
     }
   }
   async submitTreeNonces(a, h, k) {
@@ -41853,7 +41853,7 @@ class H6 {
     });
     if (!g.ok) {
       const y = await g.text();
-      Mi(y, `Failed to submit tree nonces: ${y}`);
+      $i(y, `Failed to submit tree nonces: ${y}`);
     }
   }
   async submitTreeSignatures(a, h, k) {
@@ -41870,7 +41870,7 @@ class H6 {
     });
     if (!g.ok) {
       const y = await g.text();
-      Mi(y, `Failed to submit tree signatures: ${y}`);
+      $i(y, `Failed to submit tree signatures: ${y}`);
     }
   }
   async submitSignedForfeitTxs(a, h) {
@@ -41886,7 +41886,7 @@ class H6 {
     });
     if (!d.ok) {
       const g = await d.text();
-      Mi(g, `Failed to submit forfeit transactions: ${d.statusText}`);
+      $i(g, `Failed to submit forfeit transactions: ${d.statusText}`);
     }
   }
   getEventStream(a, h) {
@@ -41974,7 +41974,7 @@ class H6 {
     });
     if (!k.ok) {
       const g = await k.text();
-      Mi(g, `Failed to get pending transactions: ${g}`);
+      $i(g, `Failed to get pending transactions: ${g}`);
     }
     return (await k.json()).pendingTxs;
   }
@@ -42111,7 +42111,7 @@ function uf(c) {
     arkTxid: c.arkTxid
   };
 }
-function Mi(c, a) {
+function $i(c, a) {
   const h = new Error(c);
   throw CI(h) ?? new Error(a);
 }
@@ -42154,7 +42154,7 @@ class HI {
 function KI(c) {
   return !!c && typeof c == "object" && "pubkey" in c && "fee" in c && "delegatorAddress" in c && typeof c.pubkey == "string" && typeof c.fee == "string" && typeof c.delegatorAddress == "string" && c.pubkey !== "" && c.fee !== "" && c.delegatorAddress !== "";
 }
-const pd = (c) => Cf[c], Cf = {
+const Ad = (c) => Cf[c], Cf = {
   bitcoin: xo(Tt, "ark"),
   testnet: xo(Io, "tark"),
   signet: xo(Io, "tark"),
@@ -42335,49 +42335,49 @@ class GI {
 function zI(c) {
   return Array.isArray(c) && c.every((a) => a && typeof a == "object" && typeof a.id == "string" && a.id.length > 0 && typeof a.height == "number" && a.height >= 0 && typeof a.mediantime == "number" && a.mediantime > 0);
 }
-const jI = (c) => typeof c.txid == "string" && Array.isArray(c.vout) && c.vout.every((a) => typeof a.scriptpubkey_address == "string" && typeof a.value == "number") && typeof c.status == "object" && typeof c.status.confirmed == "boolean", XI = 0n, YI = new Uint8Array([81, 2, 78, 115]), K6 = {
+const jI = (c) => typeof c.txid == "string" && Array.isArray(c.vout) && c.vout.every((a) => typeof a.scriptpubkey_address == "string" && typeof a.value == "number") && typeof c.status == "object" && typeof c.status.confirmed == "boolean", XI = 0n, YI = new Uint8Array([81, 2, 78, 115]), H6 = {
   script: YI,
   amount: XI
 };
-q.encode(K6.script);
-function dd(c, a, h) {
+q.encode(H6.script);
+function pd(c, a, h) {
   let k = 0n;
   for (const d of c) {
     if (!d.witnessUtxo)
       throw new Error("input needs witness utxo");
     k += d.witnessUtxo.amount;
   }
-  return wd(c, {
+  return dd(c, {
     script: a,
     amount: k
   }, h);
 }
-function wd(c, a, h) {
+function dd(c, a, h) {
   const k = new qt({
     version: 3,
     lockTime: h
   });
   for (const d of c)
     k.addInput(d);
-  return k.addOutput(a), k.addOutput(K6), k;
+  return k.addOutput(a), k.addOutput(H6), k;
 }
-const ZI = new Error("invalid settlement transaction outputs"), qI = new Error("empty tree"), JI = new Error("invalid number of inputs"), Uu = new Error("wrong settlement txid"), eC = new Error("invalid amount"), tC = new Error("no leaves"), rC = new Error("invalid taproot script"), xk = new Error("invalid round transaction outputs"), iC = new Error("wrong commitment txid"), nC = new Error("missing cosigners public keys"), _u = 0, Tk = 1;
-function gd(c, a) {
+const ZI = new Error("invalid settlement transaction outputs"), qI = new Error("empty tree"), JI = new Error("invalid number of inputs"), Uu = new Error("wrong settlement txid"), eC = new Error("invalid amount"), tC = new Error("no leaves"), rC = new Error("invalid taproot script"), Sk = new Error("invalid round transaction outputs"), iC = new Error("wrong commitment txid"), nC = new Error("missing cosigners public keys"), _u = 0, xk = 1;
+function wd(c, a) {
   if (a.validate(), a.root.inputsLength !== 1)
     throw JI;
   const h = a.root.getInput(0), k = lt.fromPSBT(h0.decode(c));
-  if (k.outputsLength <= Tk)
+  if (k.outputsLength <= xk)
     throw ZI;
   const d = k.id;
-  if (!h.txid || q.encode(h.txid) !== d || h.index !== Tk)
+  if (!h.txid || q.encode(h.txid) !== d || h.index !== xk)
     throw Uu;
 }
-function yd(c, a, h) {
+function gd(c, a, h) {
   if (a.outputsLength < _u + 1)
-    throw xk;
+    throw Sk;
   const k = a.getOutput(_u)?.amount;
   if (!k)
-    throw xk;
+    throw Sk;
   if (!c.root)
     throw qI;
   const d = c.root.getInput(0), g = a.id;
@@ -42404,7 +42404,7 @@ function yd(c, a, h) {
       const $ = R9(I.root, 0, P9);
       if ($.length === 0)
         throw nC;
-      const N = $.map((W) => W.key), { finalKey: M } = B6(N, !0, {
+      const N = $.map((W) => W.key), { finalKey: M } = b6(N, !0, {
         taprootTweak: h
       });
       if (!M || q.encode(M.slice(1)) !== q.encode(O))
@@ -42421,7 +42421,7 @@ var Zr;
   c[c.Unspecified = 0] = "Unspecified", c[c.ByID = 1] = "ByID", c[c.ByGroup = 2] = "ByGroup";
 })(Zr || (Zr = {}));
 const Du = 1, $u = 2, Mu = 4;
-class vi {
+class mi {
   constructor() {
     this.buffer = [];
   }
@@ -42457,7 +42457,7 @@ class vi {
     return new Uint8Array(this.buffer);
   }
 }
-class Ei {
+class vi {
   constructor(a) {
     this.offset = 0, this.view = new DataView(a.buffer, a.byteOffset, a.byteLength);
   }
@@ -42495,7 +42495,7 @@ class Ei {
     return this.readSlice(a);
   }
 }
-function md(c) {
+function yd(c) {
   return c.every((a) => a === 0);
 }
 class gr {
@@ -42530,18 +42530,18 @@ class gr {
       throw new Error("missing asset id");
     if (a.length !== lf)
       throw new Error(`invalid asset id length: got ${a.length} bytes, want ${lf} bytes`);
-    const h = new Ei(a);
+    const h = new vi(a);
     return gr.fromReader(h);
   }
   serialize() {
-    const a = new vi();
+    const a = new mi();
     return this.serializeTo(a), a.toBytes();
   }
   toString() {
     return q.encode(this.serialize());
   }
   validate() {
-    if (md(this.txid))
+    if (yd(this.txid))
       throw new Error("empty txid");
     if (!Number.isInteger(this.groupIndex) || this.groupIndex < 0 || this.groupIndex > 65535)
       throw new Error(`invalid group index: ${this.groupIndex}, must be in range [0, 65535]`);
@@ -42581,11 +42581,11 @@ class hn {
   static fromBytes(a) {
     if (!a || a.length === 0)
       throw new Error("missing asset ref");
-    const h = new Ei(a);
+    const h = new vi(a);
     return hn.fromReader(h);
   }
   serialize() {
-    const a = new vi();
+    const a = new mi();
     return this.serializeTo(a), a.toBytes();
   }
   toString() {
@@ -42672,11 +42672,11 @@ class yr {
     return yr.fromBytes(h);
   }
   static fromBytes(a) {
-    const h = new Ei(a);
+    const h = new vi(a);
     return yr.fromReader(h);
   }
   serialize() {
-    const a = new vi();
+    const a = new mi();
     return this.serializeTo(a), a.toBytes();
   }
   toString() {
@@ -42687,7 +42687,7 @@ class yr {
       case jt.Local:
         break;
       case jt.Intent:
-        if (md(this.input.txid))
+        if (yd(this.input.txid))
           throw new Error("missing input intent txid");
         break;
     }
@@ -42745,11 +42745,11 @@ class Mo {
     } catch {
       throw new Error("invalid asset inputs format, must be hex");
     }
-    const k = new Ei(h);
+    const k = new vi(h);
     return Mo.fromReader(k);
   }
   serialize() {
-    const a = new vi();
+    const a = new mi();
     return this.serializeTo(a), a.toBytes();
   }
   toString() {
@@ -42803,11 +42803,11 @@ class nr {
   static fromBytes(a) {
     if (!a || a.length === 0)
       throw new Error("missing asset output");
-    const h = new Ei(a), k = nr.fromReader(h);
+    const h = new vi(a), k = nr.fromReader(h);
     return k.validate(), k;
   }
   serialize() {
-    const a = new vi();
+    const a = new mi();
     return this.serializeTo(a), a.toBytes();
   }
   toString() {
@@ -42856,11 +42856,11 @@ class Rs {
     } catch {
       throw new Error("invalid asset outputs format, must be hex");
     }
-    const k = new Ei(h);
+    const k = new vi(h);
     return Rs.fromReader(k);
   }
   serialize() {
-    const a = new vi();
+    const a = new mi();
     return this.serializeTo(a), a.toBytes();
   }
   toString() {
@@ -42890,12 +42890,12 @@ class Rs {
       h.serializeTo(a);
   }
 }
-class $2 {
+class D2 {
   constructor(a, h) {
     this.key = a, this.value = h;
   }
   static create(a, h) {
-    const k = new $2(a, h);
+    const k = new D2(a, h);
     return k.validate(), k;
   }
   static fromString(a) {
@@ -42905,16 +42905,16 @@ class $2 {
     } catch {
       throw new Error("invalid metadata format, must be hex");
     }
-    return $2.fromBytes(h);
+    return D2.fromBytes(h);
   }
   static fromBytes(a) {
     if (!a || a.length === 0)
       throw new Error("missing metadata");
-    const h = new Ei(a);
-    return $2.fromReader(h);
+    const h = new vi(a);
+    return D2.fromReader(h);
   }
   serialize() {
-    const a = new vi();
+    const a = new mi();
     return this.serializeTo(a), a.toBytes();
   }
   toString() {
@@ -42944,7 +42944,7 @@ class $2 {
     } catch {
       throw new Error("invalid metadata length");
     }
-    const d = new $2(h, k);
+    const d = new D2(h, k);
     return d.validate(), d;
   }
   serializeTo(a) {
@@ -42967,11 +42967,11 @@ class Or {
   static fromBytes(a) {
     if (!a || a.length === 0)
       throw new Error("missing metadata list");
-    const h = new Ei(a);
+    const h = new vi(a);
     return Or.fromReader(h);
   }
   static fromReader(a) {
-    const h = Number(a.readVarUint()), k = Array.from({ length: h }, () => $2.fromReader(a));
+    const h = Number(a.readVarUint()), k = Array.from({ length: h }, () => D2.fromReader(a));
     return new Or(k);
   }
   serializeTo(a) {
@@ -42980,7 +42980,7 @@ class Or {
       h.serializeTo(a);
   }
   serialize() {
-    const a = new vi();
+    const a = new mi();
     return this.serializeTo(a), a.toBytes();
   }
   [Symbol.iterator]() {
@@ -43000,7 +43000,7 @@ Or.ARK_LEAF_TAG = "ArkadeAssetLeaf";
 Or.ARK_BRANCH_TAG = "ArkadeAssetBranch";
 Or.ARK_LEAF_VERSION = 0;
 function sC(c) {
-  const a = new vi();
+  const a = new mi();
   return a.writeByte(Or.ARK_LEAF_VERSION), a.writeVarSlice(c.key), a.writeVarSlice(c.value), Z2.utils.taggedHash(Or.ARK_LEAF_TAG, a.toBytes());
 }
 function oC(c, a) {
@@ -43041,7 +43041,7 @@ class Cr {
   static fromBytes(a) {
     if (!a || a.length === 0)
       throw new Error("missing asset group");
-    const h = new Ei(a);
+    const h = new vi(a);
     return Cr.fromReader(h);
   }
   // an issuance is a group with null assetId
@@ -43058,7 +43058,7 @@ class Cr {
   }
   serialize() {
     this.validate();
-    const a = new vi();
+    const a = new mi();
     return this.serializeTo(a), a.toBytes();
   }
   validate() {
@@ -43106,7 +43106,7 @@ class ir {
    * fromBytes parses a Packet from raw bytes.
    */
   static fromBytes(a) {
-    return ir.fromReader(new Ei(a));
+    return ir.fromReader(new vi(a));
   }
   /**
    * fromString parses a Packet from a raw hex string (not an OP_RETURN script).
@@ -43140,7 +43140,7 @@ class ir {
   serialize() {
     if (this.groups.length === 0)
       return new Uint8Array(0);
-    const a = new vi();
+    const a = new mi();
     a.writeVarUint(this.groups.length);
     for (const h of this.groups)
       h.serializeTo(a);
@@ -43189,7 +43189,7 @@ class aC {
     return this.data;
   }
 }
-const Li = new Uint8Array([65, 82, 75]);
+const Mi = new Uint8Array([65, 82, 75]);
 class cC extends Error {
   constructor() {
     super("no extension output found in transaction"), this.name = "ExtensionNotFoundError";
@@ -43220,7 +43220,7 @@ class pi {
       if (h.length < 2 || h[0] !== "RETURN")
         return !1;
       const k = h[1];
-      return k instanceof Uint8Array ? k.length >= Li.length && D0(k.slice(0, Li.length), Li) : !1;
+      return k instanceof Uint8Array ? k.length >= Mi.length && D0(k.slice(0, Mi.length), Mi) : !1;
     } catch {
       return !1;
     }
@@ -43246,9 +43246,9 @@ class pi {
     let g = 0;
     for (const b of k)
       d.set(b, g), g += b.length;
-    if (d.length < Li.length || !D0(d.slice(0, Li.length), Li))
-      throw new Error(`expected magic prefix ${q.encode(Li)}, got ${q.encode(d.slice(0, Math.min(d.length, Li.length)))}`);
-    const y = new Ei(d.slice(Li.length)), E = [];
+    if (d.length < Mi.length || !D0(d.slice(0, Mi.length), Mi))
+      throw new Error(`expected magic prefix ${q.encode(Mi)}, got ${q.encode(d.slice(0, Math.min(d.length, Mi.length)))}`);
+    const y = new vi(d.slice(Mi.length)), E = [];
     for (; y.remaining() > 0; ) {
       const b = y.readByte();
       let I;
@@ -43287,7 +43287,7 @@ class pi {
    * Layout: OP_RETURN | <push> | ARK | [type | varint_len | data]...
    */
   serialize() {
-    const a = [Li];
+    const a = [Mi];
     for (const g of this.packets) {
       const y = g.serialize(), E = new Uint8Array([g.type()]), S = lC(y.length);
       a.push(E, S, y);
@@ -43409,17 +43409,17 @@ function TC(c, a, h, k) {
   if (g.amount !== y)
     throw AC(g.amount, y, h);
 }
-var An;
+var kn;
 (function(c) {
   c.TxSent = "SENT", c.TxReceived = "RECEIVED";
-})(An || (An = {}));
-function kn(c) {
+})(kn || (kn = {}));
+function $2(c) {
   return !c.isSpent;
 }
-function di(c) {
-  return c.virtualStatus.state === "swept" && kn(c);
+function zi(c) {
+  return c.virtualStatus.state === "swept" && $2(c);
 }
-function U9(c) {
+function md(c) {
   if (c.virtualStatus.state === "swept")
     return !0;
   const a = c.virtualStatus.batchExpiry;
@@ -43428,7 +43428,7 @@ function U9(c) {
 function vd(c, a) {
   return c.value < a;
 }
-function bk(c, a, h) {
+function Tk(c, a, h) {
   const k = /* @__PURE__ */ new Map();
   for (const [S, b] of c)
     for (const I of b) {
@@ -43469,7 +43469,7 @@ function bk(c, a, h) {
   }
   return ir.create(y);
 }
-function _9(c, a, h) {
+function U9(c, a, h) {
   const k = c.filter((y) => y.assets?.some((E) => E.assetId === a));
   k.sort((y, E) => {
     const S = y.assets?.find((I) => I.assetId === a)?.amount ?? 0, b = E.assets?.find((I) => I.assetId === a)?.amount ?? 0;
@@ -43496,7 +43496,7 @@ function Rf(c) {
   }
   return a;
 }
-function Q6(c, a, h) {
+function K6(c, a, h) {
   let k = !1;
   for (const [y, E] of a.entries()) {
     if (!E.script)
@@ -43516,9 +43516,9 @@ function Q6(c, a, h) {
 function Ed(c, a) {
   let h = 0n;
   for (const d of c) {
-    const g = F6(Ds(d.tapLeafScript));
+    const g = L6(Ds(d.tapLeafScript));
     if (Ys.is(g)) {
-      if (h !== 0n && Bk(h) !== Bk(g.params.absoluteTimelock))
+      if (h !== 0n && bk(h) !== bk(g.params.absoluteTimelock))
         throw new Error("cannot mix seconds and blocks locktime");
       g.params.absoluteTimelock > h && (h = g.params.absoluteTimelock);
     }
@@ -43537,13 +43537,13 @@ function Ed(c, a) {
         amount: BigInt(g.value)
       },
       tapLeafScript: [g.tapLeafScript]
-    }), Hp(k, d, R6, g.tapTree);
+    }), Wp(k, d, C6, g.tapTree);
   for (const d of a)
     k.addOutput(d);
-  return k.addOutput(K6), k;
+  return k.addOutput(H6), k;
 }
 function bC(c, a) {
-  const h = F6(Ds(c.tapLeafScript)), k = new Vt([
+  const h = L6(Ds(c.tapLeafScript)), k = new Vt([
     a.script,
     h.script
   ]), d = Ed([c], [
@@ -43564,7 +43564,7 @@ function bC(c, a) {
   };
 }
 const BC = 500000000n;
-function Bk(c) {
+function bk(c) {
   return c >= BC;
 }
 function IC(c, a) {
@@ -43604,7 +43604,7 @@ function RC(c, a, h, k = [], d = [Ut.DEFAULT]) {
     const Z = P.leafHash, ke = q.encode(Z);
     let we, me;
     for (const [j, ie] of g.tapLeafScript) {
-      const Q = ie.subarray(0, -1), he = ie[ie.length - 1], re = yn(Q, he);
+      const Q = ie.subarray(0, -1), he = ie[ie.length - 1], re = gn(Q, he);
       if (q.encode(re) === ke) {
         we = Q, me = he;
         break;
@@ -43686,15 +43686,15 @@ function _C(c, a) {
 function DC(c) {
   return qe.encode(["SHA256", c, "EQUAL"]);
 }
-var D9;
+var _9;
 (function(c) {
   c[c.INDEXER_TX_TYPE_UNSPECIFIED = 0] = "INDEXER_TX_TYPE_UNSPECIFIED", c[c.INDEXER_TX_TYPE_RECEIVED = 1] = "INDEXER_TX_TYPE_RECEIVED", c[c.INDEXER_TX_TYPE_SENT = 2] = "INDEXER_TX_TYPE_SENT";
-})(D9 || (D9 = {}));
+})(_9 || (_9 = {}));
 var Ms;
 (function(c) {
   c.UNSPECIFIED = "INDEXER_CHAINED_TX_TYPE_UNSPECIFIED", c.COMMITMENT = "INDEXER_CHAINED_TX_TYPE_COMMITMENT", c.ARK = "INDEXER_CHAINED_TX_TYPE_ARK", c.TREE = "INDEXER_CHAINED_TX_TYPE_TREE", c.CHECKPOINT = "INDEXER_CHAINED_TX_TYPE_CHECKPOINT";
 })(Ms || (Ms = {}));
-class G6 {
+class Q6 {
   constructor(a) {
     this.serverUrl = a;
   }
@@ -43982,7 +43982,7 @@ var Yr;
   }
   c.isTxsArray = E;
   function S(Q) {
-    return typeof Q == "object" && typeof Q.amount == "string" && typeof Q.createdAt == "string" && typeof Q.isSettled == "boolean" && typeof Q.settledBy == "string" && Object.values(D9).includes(Q.type) && (!Q.commitmentTxid && typeof Q.virtualTxid == "string" || typeof Q.commitmentTxid == "string" && !Q.virtualTxid);
+    return typeof Q == "object" && typeof Q.amount == "string" && typeof Q.createdAt == "string" && typeof Q.isSettled == "boolean" && typeof Q.settledBy == "string" && Object.values(_9).includes(Q.type) && (!Q.commitmentTxid && typeof Q.virtualTxid == "string" || typeof Q.commitmentTxid == "string" && !Q.virtualTxid);
   }
   function b(Q) {
     return Array.isArray(Q) && Q.every(S);
@@ -44109,7 +44109,7 @@ class MC {
     this.handlers.clear();
   }
 }
-const Jn = new MC();
+const qn = new MC();
 function Ls(c) {
   return js.encode(c.type === "blocks" ? { blocks: Number(c.value) } : { seconds: Number(c.value) });
 }
@@ -44131,7 +44131,7 @@ function Fu(c, a) {
       return "receiver";
   }
 }
-function Xn(c, a) {
+function jn(c, a) {
   if (a === void 0)
     return !0;
   if (!c.vtxo)
@@ -44149,7 +44149,7 @@ const LC = {
   type: "default",
   createScript(c) {
     const a = this.deserializeParams(c);
-    return new zi.Script(a);
+    return new Gi.Script(a);
   },
   serializeParams(c) {
     return {
@@ -44159,7 +44159,7 @@ const LC = {
     };
   },
   deserializeParams(c) {
-    const a = c.csvTimelock ? Fs(Number(c.csvTimelock)) : zi.Script.DEFAULT_TIMELOCK;
+    const a = c.csvTimelock ? Fs(Number(c.csvTimelock)) : Gi.Script.DEFAULT_TIMELOCK;
     return {
       pubKey: q.decode(c.pubKey),
       serverPubKey: q.decode(c.serverPubKey),
@@ -44170,7 +44170,7 @@ const LC = {
     if (h.collaborative)
       return { leaf: c.forfeit() };
     const k = a.params.csvTimelock ? Number(a.params.csvTimelock) : void 0;
-    return Xn(h, k) ? {
+    return jn(h, k) ? {
       leaf: c.exit(),
       sequence: k
     } : null;
@@ -44185,7 +44185,7 @@ const LC = {
     const k = [];
     h.collaborative && k.push({ leaf: c.forfeit() });
     const d = a.params.csvTimelock ? Number(a.params.csvTimelock) : void 0;
-    if (Xn(h, d)) {
+    if (jn(h, d)) {
       const g = { leaf: c.exit() };
       d !== void 0 && (g.sequence = d), k.push(g);
     }
@@ -44206,7 +44206,7 @@ const LC = {
     };
   },
   deserializeParams(c) {
-    const a = c.csvTimelock ? Fs(Number(c.csvTimelock)) : zi.Script.DEFAULT_TIMELOCK;
+    const a = c.csvTimelock ? Fs(Number(c.csvTimelock)) : Gi.Script.DEFAULT_TIMELOCK;
     return {
       pubKey: q.decode(c.pubKey),
       serverPubKey: q.decode(c.serverPubKey),
@@ -44218,7 +44218,7 @@ const LC = {
     if (h.collaborative)
       return { leaf: c.forfeit() };
     const k = a.params.csvTimelock ? Number(a.params.csvTimelock) : void 0;
-    return Xn(h, k) ? {
+    return jn(h, k) ? {
       leaf: c.exit(),
       sequence: k
     } : null;
@@ -44233,7 +44233,7 @@ const LC = {
     const k = [];
     h.collaborative && k.push({ leaf: c.forfeit() });
     const d = a.params.csvTimelock ? Number(a.params.csvTimelock) : void 0;
-    if (Xn(h, d)) {
+    if (jn(h, d)) {
       const g = { leaf: c.exit() };
       d !== void 0 && (g.sequence = d), k.push(g);
     }
@@ -44288,7 +44288,7 @@ const LC = {
       } : null;
     if (k === "receiver" && d) {
       const E = Number(a.params.claimDelay);
-      return Xn(h, E) ? {
+      return jn(h, E) ? {
         leaf: c.unilateralClaim(),
         extraWitness: [q.decode(d)],
         sequence: E
@@ -44296,7 +44296,7 @@ const LC = {
     }
     if (k === "sender") {
       const E = Number(a.params.refundNoReceiverDelay);
-      return Xn(h, E) ? {
+      return jn(h, E) ? {
         leaf: c.unilateralRefundWithoutReceiver(),
         sequence: E
       } : null;
@@ -44354,7 +44354,7 @@ const LC = {
       }), d;
     if (k === "receiver" && g) {
       const S = Number(a.params.claimDelay);
-      Xn(h, S) && d.push({
+      jn(h, S) && d.push({
         leaf: c.unilateralClaim(),
         extraWitness: [q.decode(g)],
         sequence: S
@@ -44362,7 +44362,7 @@ const LC = {
     }
     if (k === "sender") {
       const S = Number(a.params.refundNoReceiverDelay);
-      Xn(h, S) && d.push({
+      jn(h, S) && d.push({
         leaf: c.unilateralRefundWithoutReceiver(),
         sequence: S
       });
@@ -44370,9 +44370,9 @@ const LC = {
     return d;
   }
 };
-Jn.register(LC);
-Jn.register(FC);
-Jn.register(VC);
+qn.register(LC);
+qn.register(FC);
+qn.register(VC);
 const WC = 546;
 function L2(c, a) {
   return {
@@ -44382,7 +44382,7 @@ function L2(c, a) {
     tapTree: c.offchainTapscript.encode()
   };
 }
-function $9(c, a) {
+function D9(c, a) {
   return {
     ...a,
     forfeitTapLeafScript: c.boardingTapscript.forfeit(),
@@ -44391,7 +44391,7 @@ function $9(c, a) {
   };
 }
 function HC(c, a) {
-  const h = Jn.get(a.type);
+  const h = qn.get(a.type);
   if (!h)
     throw new Error(`No handler for contract type '${a.type}'`);
   const k = h.createScript(a.params);
@@ -44797,7 +44797,7 @@ function XC(c) {
     })
   );
 }
-const M9 = Object.hasOwn, Xi = Object.keys, c2 = Object.freeze, YC = Object.entries, Nf = Array.isArray, Ik = Array.from, ga = /* @__PURE__ */ new Set([
+const $9 = Object.hasOwn, Xi = Object.keys, a2 = Object.freeze, YC = Object.entries, Nf = Array.isArray, Bk = Array.from, ga = /* @__PURE__ */ new Set([
   "as",
   "break",
   "const",
@@ -44818,7 +44818,7 @@ const M9 = Object.hasOwn, Xi = Object.keys, c2 = Object.freeze, YC = Object.entr
   "__proto__",
   "prototype"
 ]);
-class C2 {
+class I2 {
   #e;
   constructor(a) {
     this.verify(BigInt(a));
@@ -44849,7 +44849,7 @@ const ZC = {
   µs: 1000n,
   ns: 1n
 };
-class e2 {
+class Jn {
   #e;
   #t;
   constructor(a, h = 0) {
@@ -44866,18 +44866,18 @@ class e2 {
   }
   static fromMilliseconds(a) {
     const h = BigInt(Math.trunc(a * 1e6)), k = h / 1000000000n, d = Number(h % 1000000000n);
-    return new e2(k, d);
+    return new Jn(k, d);
   }
   addDuration(a) {
     const h = this.#t + a.nanos;
-    return new e2(
+    return new Jn(
       this.#e + a.seconds + BigInt(Math.floor(h / 1e9)),
       h % 1e9
     );
   }
   subtractDuration(a) {
     const h = this.#t - a.nanos;
-    return new e2(
+    return new Jn(
       this.#e - a.seconds + BigInt(Math.floor(h / 1e9)),
       (h + 1e9) % 1e9
     );
@@ -44939,7 +44939,7 @@ function qC(c) {
       default:
         throw new u0(`bool() conversion error: invalid string value "${N}"`);
     }
-  }), a("size(string): int", (N) => BigInt(Ck(N))), a("size(bytes): int", (N) => BigInt(N.length)), a("size(list): int", (N) => BigInt(N.length ?? N.size)), a("size(map): int", (N) => BigInt(N instanceof Map ? N.size : Xi(N).length)), a("string.size(): int", (N) => BigInt(Ck(N))), a("bytes.size(): int", (N) => BigInt(N.length)), a("list.size(): int", (N) => BigInt(N.length ?? N.size)), a("map.size(): int", (N) => BigInt(N instanceof Map ? N.size : Xi(N).length)), a("bytes(string): bytes", (N) => g.fromString(N)), a("bytes(bytes): bytes", h), a("double(double): double", h), a("double(int): double", (N) => Number(N)), a("double(uint): double", (N) => Number(N)), a("double(string): double", (N) => {
+  }), a("size(string): int", (N) => BigInt(Ik(N))), a("size(bytes): int", (N) => BigInt(N.length)), a("size(list): int", (N) => BigInt(N.length ?? N.size)), a("size(map): int", (N) => BigInt(N instanceof Map ? N.size : Xi(N).length)), a("string.size(): int", (N) => BigInt(Ik(N))), a("bytes.size(): int", (N) => BigInt(N.length)), a("list.size(): int", (N) => BigInt(N.length ?? N.size)), a("map.size(): int", (N) => BigInt(N instanceof Map ? N.size : Xi(N).length)), a("bytes(string): bytes", (N) => g.fromString(N)), a("bytes(bytes): bytes", h), a("double(double): double", h), a("double(int): double", (N) => Number(N)), a("double(uint): double", (N) => Number(N)), a("double(string): double", (N) => {
     if (!N || N !== N.trim())
       throw new u0("double() type error: cannot convert to double");
     switch (N.toLowerCase()) {
@@ -45046,8 +45046,8 @@ function qC(c) {
     textEncoder: new TextEncoder("utf8"),
     byteLength: (N) => k.encode(N).length,
     fromString: (N) => k.encode(N),
-    toHex: Uint8Array.prototype.toHex ? (N) => N.toHex() : (N) => Ik(N, (M) => M.toString(16).padStart(2, "0")).join(""),
-    toBase64: Uint8Array.prototype.toBase64 ? (N) => N.toBase64() : (N) => btoa(Ik(N, (M) => String.fromCodePoint(M)).join("")),
+    toHex: Uint8Array.prototype.toHex ? (N) => N.toHex() : (N) => Bk(N, (M) => M.toString(16).padStart(2, "0")).join(""),
+    toBase64: Uint8Array.prototype.toBase64 ? (N) => N.toBase64() : (N) => btoa(Bk(N, (M) => String.fromCodePoint(M)).join("")),
     toUtf8: (N) => d.decode(N),
     jsonParse: (N) => JSON.parse(k.decode(N))
   };
@@ -45055,7 +45055,7 @@ function qC(c) {
     if (M < 0 || M >= N.length) throw new u0("Bytes index out of range");
     return BigInt(N[M]);
   });
-  const y = "google.protobuf.Timestamp", E = "google.protobuf.Duration", S = c.registerType(y, Date).getObjectType(y).typeType, b = c.registerType(E, e2).getObjectType(E).typeType;
+  const y = "google.protobuf.Timestamp", E = "google.protobuf.Duration", S = c.registerType(y, Date).getObjectType(y).typeType, b = c.registerType(E, Jn).getObjectType(E).typeType;
   c.registerConstant("google", "map<string, map<string, type>>", {
     protobuf: { Duration: b, Timestamp: S }
   });
@@ -45094,11 +45094,11 @@ function qC(c) {
       if (W += j + ie, N === "") break;
     }
     const Z = W >= 1000000000n ? W / 1000000000n : 0n, ke = Number(W % 1000000000n);
-    return M ? new e2(-Z, -ke) : new e2(Z, ke);
+    return M ? new Jn(-Z, -ke) : new Jn(Z, ke);
   }
   a("duration(string): google.protobuf.Duration", (N) => $(N)), a("google.protobuf.Duration.getHours(): int", (N) => N.getHours()), a("google.protobuf.Duration.getMinutes(): int", (N) => N.getMinutes()), a("google.protobuf.Duration.getSeconds(): int", (N) => N.getSeconds()), a("google.protobuf.Duration.getMilliseconds(): int", (N) => N.getMilliseconds()), XC(c);
 }
-function Ck(c) {
+function Ik(c) {
   let a = 0;
   for (const h of c) a++;
   return a;
@@ -45106,7 +45106,7 @@ function Ck(c) {
 class dr {
   #e;
   constructor(a) {
-    this.#e = a, c2(this);
+    this.#e = a, a2(this);
   }
   get name() {
     return this.#e;
@@ -45163,18 +45163,18 @@ class Ga {
 }
 class eR extends Ga {
   get(a) {
-    return super.get(a) ?? (ga.has(a) ? void 0 : wi);
+    return super.get(a) ?? (ga.has(a) ? void 0 : di);
   }
 }
-function Hn(c, a = Ga, h = !0) {
+function Wn(c, a = Ga, h = !0) {
   return c instanceof a ? c.fork(h) : new a(c);
 }
-class u2 {
+class c2 {
   #e = /* @__PURE__ */ new WeakMap();
   #t = null;
   #r = null;
   constructor({ kind: a, type: h, name: k, keyType: d, valueType: g, values: y }) {
-    this.kind = a, this.type = h, this.name = k, d && (this.keyType = d), g && (this.valueType = g), y && (this.values = y), this.unwrappedType = a === "dyn" && g ? g.unwrappedType : this, this.wrappedType = a === "dyn" ? this : bd(this.unwrappedType), a === "list" ? this.fieldLazy = this.#f : a === "map" ? this.fieldLazy = this.#o : a === "message" ? this.fieldLazy = this.#n : a === "optional" && (this.fieldLazy = this.#i), this.#t = this.kind === "dyn" || this.valueType?.hasDyn() || this.keyType?.hasDyn() || !1, this.#r = this.kind === "param" || this.keyType?.hasPlaceholder() || this.valueType?.hasPlaceholder() || !1, c2(this);
+    this.kind = a, this.type = h, this.name = k, d && (this.keyType = d), g && (this.valueType = g), y && (this.values = y), this.unwrappedType = a === "dyn" && g ? g.unwrappedType : this, this.wrappedType = a === "dyn" ? this : bd(this.unwrappedType), a === "list" ? this.fieldLazy = this.#f : a === "map" ? this.fieldLazy = this.#o : a === "message" ? this.fieldLazy = this.#n : a === "optional" && (this.fieldLazy = this.#i), this.#t = this.kind === "dyn" || this.valueType?.hasDyn() || this.keyType?.hasDyn() || !1, this.#r = this.kind === "param" || this.keyType?.hasPlaceholder() || this.valueType?.hasPlaceholder() || !1, a2(this);
   }
   hasDyn() {
     return this.#t;
@@ -45241,7 +45241,7 @@ class u2 {
   #n(a, h, k, d) {
     const g = d.objectTypesByConstructor.get(a.constructor);
     if (!g || !(a instanceof g.ctor)) return;
-    if (!g.fields) return M9(a, h) ? a[h] : void 0;
+    if (!g.fields) return $9(a, h) ? a[h] : void 0;
     const y = g.fields[h];
     if (!y) return;
     const E = a[h], S = d.debugType(E);
@@ -45256,7 +45256,7 @@ class u2 {
   }
   #o(a, h, k, d) {
     let g;
-    if (a instanceof Map ? g = a.get(h) : g = M9(a, h) ? a[h] : void 0, g === void 0) return;
+    if (a instanceof Map ? g = a.get(h) : g = $9(a, h) ? a[h] : void 0, g === void 0) return;
     const y = this.valueType, E = d.debugType(g);
     if (y.matches(E)) return g;
     throw new u0(`Field '${h}' is not of type '${y}', got '${E}'`, k);
@@ -45323,7 +45323,7 @@ class nR {
   constructor({ name: a, receiverType: h, argTypes: k, returnType: d, handler: g }) {
     this.name = a, this.receiverType = h || null, this.argTypes = k, this.returnType = d, this.macro = k.includes(Of);
     const y = h ? `${h}.` : "";
-    this.signature = `${y}${a}(${k.join(", ")}): ${d}`, this.handler = this.macro ? iR(this.signature, g) : g, this.#e = this.returnType.hasPlaceholder() || this.receiverType?.hasPlaceholder() || this.argTypes.some((E) => E.hasPlaceholder()) || !1, c2(this);
+    this.signature = `${y}${a}(${k.join(", ")}): ${d}`, this.handler = this.macro ? iR(this.signature, g) : g, this.#e = this.returnType.hasPlaceholder() || this.receiverType?.hasPlaceholder() || this.argTypes.some((E) => E.hasPlaceholder()) || !1, a2(this);
   }
   hasPlaceholder() {
     return this.#e;
@@ -45335,7 +45335,7 @@ class nR {
 class To {
   #e;
   constructor({ operator: a, leftType: h, rightType: k, handler: d, returnType: g }) {
-    this.operator = a, this.leftType = h, this.rightType = k || null, this.handler = d, this.returnType = g, k ? this.signature = `${h} ${a} ${k}: ${g}` : this.signature = `${a}${h}: ${g}`, this.#e = this.leftType.hasPlaceholder() || this.rightType?.hasPlaceholder() || !1, c2(this);
+    this.operator = a, this.leftType = h, this.rightType = k || null, this.handler = d, this.returnType = g, k ? this.signature = `${h} ${a} ${k}: ${g}` : this.signature = `${a}${h}: ${g}`, this.#e = this.leftType.hasPlaceholder() || this.rightType?.hasPlaceholder() || !1, a2(this);
   }
   hasPlaceholder() {
     return this.#e;
@@ -45344,8 +45344,8 @@ class To {
     return this.operator === a.operator && this.leftType === a.leftType && this.rightType === a.rightType;
   }
 }
-function z6(c) {
-  return new u2({
+function G6(c) {
+  return new c2({
     kind: "list",
     name: `list<${c}>`,
     type: "list",
@@ -45353,21 +45353,21 @@ function z6(c) {
   });
 }
 function ln(c) {
-  return new u2({ kind: "primitive", name: c, type: c });
+  return new c2({ kind: "primitive", name: c, type: c });
 }
 function sR(c) {
-  return new u2({ kind: "message", name: c, type: c });
+  return new c2({ kind: "message", name: c, type: c });
 }
 function bd(c) {
   const a = c ? `dyn<${c}>` : "dyn";
-  return new u2({ kind: "dyn", name: a, type: a, valueType: c });
+  return new c2({ kind: "dyn", name: a, type: a, valueType: c });
 }
 function Bd(c) {
   const a = `optional<${c}>`;
-  return new u2({ kind: "optional", name: a, type: "optional", valueType: c });
+  return new c2({ kind: "optional", name: a, type: "optional", valueType: c });
 }
-function j6(c, a) {
-  return new u2({
+function z6(c, a) {
+  return new c2({
     kind: "map",
     name: `map<${c}, ${a}>`,
     type: "map",
@@ -45376,26 +45376,26 @@ function j6(c, a) {
   });
 }
 function oR(c) {
-  return new u2({ kind: "param", name: c, type: c });
+  return new c2({ kind: "param", name: c, type: c });
 }
-const wi = bd(), Of = ln("ast"), Rk = z6(wi), Pk = j6(wi, wi), U0 = {
+const di = bd(), Of = ln("ast"), Ck = G6(di), Rk = z6(di, di), U0 = {
   string: ln("string"),
   bool: ln("bool"),
   int: ln("int"),
   uint: ln("uint"),
   double: ln("double"),
   bytes: ln("bytes"),
-  dyn: wi,
+  dyn: di,
   null: ln("null"),
   type: ln("type"),
-  optional: Bd(wi),
-  list: Rk,
-  "list<dyn>": Rk,
-  map: Pk,
-  "map<dyn, dyn>": Pk
+  optional: Bd(di),
+  list: Ck,
+  "list<dyn>": Ck,
+  map: Rk,
+  "map<dyn, dyn>": Rk
 };
 for (const c of [U0.string, U0.double, U0.int]) {
-  const a = z6(c), h = j6(U0.string, c);
+  const a = G6(c), h = z6(U0.string, c);
   U0[a.name] = a, U0[h.name] = h;
 }
 Object.freeze(U0);
@@ -45407,7 +45407,7 @@ class fR {
     this.registry = a;
   }
   add(a) {
-    this.returnType = (this.returnType || a.returnType).unify(this.registry, a.returnType) || wi, a.macro && (this.macro = a), this.declarations.push(a);
+    this.returnType = (this.returnType || a.returnType).unify(this.registry, a.returnType) || di, a.macro && (this.macro = a), this.declarations.push(a);
   }
   findMatch(a, h = null) {
     for (let k = 0; k < this.declarations.length; k++) {
@@ -45435,7 +45435,7 @@ class fR {
     };
   }
 }
-function Nk(c) {
+function Pk(c) {
   const a = [];
   let h = "", k = 0;
   for (const d of c) {
@@ -45454,13 +45454,13 @@ const Id = [
   [Object, "map", qr.map, U0.map],
   [Map, "map", qr.map, U0.map],
   [Array, "list", qr.list, U0.list],
-  [C2, "uint", qr.uint, U0.uint],
+  [I2, "uint", qr.uint, U0.uint],
   [dr, "type", qr.type, U0.type],
   [ji, "optional", JC, U0.optional],
   [Uint8Array, "bytes", qr.bytes, U0.bytes],
   ...typeof Buffer < "u" ? [[Buffer, "bytes", qr.bytes, U0.bytes]] : []
 ].map(([c, a, h, k]) => Object.freeze({ name: a, typeType: h, type: k, ctor: c })), aR = Id.map((c) => [c.name, c]), cR = Id.map((c) => [c.ctor, c]);
-class X6 {
+class j6 {
   #e = {};
   #t = {};
   #r;
@@ -45472,11 +45472,11 @@ class X6 {
   #l = /* @__PURE__ */ new Map();
   #k = /* @__PURE__ */ new Map();
   constructor(a = {}) {
-    if (this.enableOptionalTypes = a.enableOptionalTypes ?? !1, this.objectTypes = Hn(a.objectTypes || aR), this.objectTypesByConstructor = Hn(a.objectTypesByConstructor || cR), this.#n = Hn(a.functionDeclarations), this.#i = Hn(a.operatorDeclarations), this.#r = Hn(
+    if (this.enableOptionalTypes = a.enableOptionalTypes ?? !1, this.objectTypes = Wn(a.objectTypes || aR), this.objectTypesByConstructor = Wn(a.objectTypesByConstructor || cR), this.#n = Wn(a.functionDeclarations), this.#i = Wn(a.operatorDeclarations), this.#r = Wn(
       a.typeDeclarations || YC(U0),
       void 0,
       !1
-    ), this.constants = Hn(a.constants), this.variables = a.unlistedVariablesAreDyn ? Hn(a.variables, eR) : Hn(a.variables), this.variables.size)
+    ), this.constants = Wn(a.constants), this.variables = a.unlistedVariablesAreDyn ? Wn(a.variables, eR) : Wn(a.variables), this.variables.size)
       jC(this, this.enableOptionalTypes);
     else
       for (const h in qr) this.registerConstant(h, "type", qr[h]);
@@ -45487,7 +45487,7 @@ class X6 {
   registerVariable(a, h) {
     if (ga.has(a)) throw new Error(`Cannot register reserved variable name: ${a}`);
     if (this.variables.has(a)) throw new Error(`Variable already registered: ${a}`);
-    return this.variables.set(a, h instanceof u2 ? h : this.getType(h)), this;
+    return this.variables.set(a, h instanceof c2 ? h : this.getType(h)), this;
   }
   registerConstant(a, h, k) {
     return this.registerVariable(a, h), this.constants.set(a, k), this;
@@ -45565,13 +45565,13 @@ class X6 {
       }
       case "list": {
         const y = this.#s(g, h);
-        return this.#c(z6, `list<${y}>`, y);
+        return this.#c(G6, `list<${y}>`, y);
       }
       case "map": {
-        const y = Nk(g);
+        const y = Pk(g);
         if (y.length !== 2) throw new Error(`Invalid map type: ${a}`);
         const E = this.#s(y[0], h), S = this.#s(y[1], h);
-        return this.#c(j6, `map<${E}, ${S}>`, E, S);
+        return this.#c(z6, `map<${E}, ${S}>`, E, S);
       }
       case "optional": {
         const y = this.#s(g, h);
@@ -45719,7 +45719,7 @@ class X6 {
     return k;
   }
   clone(a) {
-    return new X6({
+    return new j6({
       objectTypes: this.objectTypes,
       objectTypesByConstructor: this.objectTypesByConstructor,
       typeDeclarations: this.#r,
@@ -45741,7 +45741,7 @@ class X6 {
         name: g,
         receiverType: d ? this.getType(d) : null,
         returnType: this.getType(E.trim()),
-        argTypes: Nk(y).map((S) => this.getFunctionType(S)),
+        argTypes: Pk(y).map((S) => this.getFunctionType(S)),
         handler: h
       });
     } catch (S) {
@@ -45753,9 +45753,9 @@ class X6 {
    * @param {FunctionDeclaration} b
    */
   #b(a, h) {
-    return a.name !== h.name || a.argTypes.length !== h.argTypes.length || (a.receiverType || h.receiverType) && (!a.receiverType || !h.receiverType) ? !1 : !(a.receiverType !== h.receiverType && a.receiverType !== wi && h.receiverType !== wi) && (h.macro || a.macro || h.argTypes.every((d, g) => {
+    return a.name !== h.name || a.argTypes.length !== h.argTypes.length || (a.receiverType || h.receiverType) && (!a.receiverType || !h.receiverType) ? !1 : !(a.receiverType !== h.receiverType && a.receiverType !== di && h.receiverType !== di) && (h.macro || a.macro || h.argTypes.every((d, g) => {
       const y = a.argTypes[g];
-      return d === y || d === Of || y === Of || d === wi || y === wi;
+      return d === y || d === Of || y === Of || d === di || y === di;
     }));
   }
   /** @param {FunctionDeclaration} newDec */
@@ -45798,9 +45798,9 @@ class X6 {
     return !1;
   }
   binaryOverload(a, h, k, d, g) {
-    g ??= Ok(h) ? "bool" : a;
+    g ??= Nk(h) ? "bool" : a;
     const y = `${a} ${h} ${k}: ${g}`, E = this.assertType(a, "left type", y), S = this.assertType(k, "right type", y), b = this.assertType(g, "return type", y);
-    if (Ok(h) && b.type !== "bool")
+    if (Nk(h) && b.type !== "bool")
       throw new Error(`Comparison operator '${h}' must return 'bool', got '${b.type}'`);
     const I = new To({ operator: h, leftType: E, rightType: S, returnType: b, handler: d });
     if (I.hasPlaceholder() && !(S.hasPlaceholder() && E.hasPlaceholder()))
@@ -45849,13 +45849,13 @@ class X6 {
     this.#i.set(I.signature, I), this.#A();
   }
 }
-function Ok(c) {
+function Nk(c) {
   return c === "<" || c === "<=" || c === ">" || c === ">=" || c === "==" || c === "!=" || c === "in";
 }
 function uR(c) {
-  return new X6(c);
+  return new j6(c);
 }
-class Uk {
+class Ok {
   #e;
   #t;
   #r;
@@ -45998,30 +45998,30 @@ class Cd {
           case Set:
             return this.listType;
           default:
-            return this.objectTypesByConstructor.get(a.constructor)?.type || _k(this, a.constructor?.name || typeof a);
+            return this.objectTypesByConstructor.get(a.constructor)?.type || Uk(this, a.constructor?.name || typeof a);
         }
       default:
-        _k(this, typeof a);
+        Uk(this, typeof a);
     }
   }
 }
-function _k(c, a) {
+function Uk(c, a) {
   throw new c.Error(`Unsupported type: ${a}`);
 }
 function Uf(c, a, h, k, d) {
   return h instanceof Promise ? k instanceof Promise ? Promise.all([h, k]).then((g) => d(c, a, g[0], g[1])) : h.then((g) => d(c, a, g, k)) : k.then((g) => d(c, a, h, g));
 }
-function Dk(c, a, h) {
+function _k(c, a, h) {
   const k = c.check(a.args[0], h);
   return a.op === "[]" && c.check(a.args[1], h), k.kind !== "optional" ? c.checkAccessOnType(a, h, k) : c.registry.getOptionalType(c.checkAccessOnType(a, h, k.valueType, !0));
 }
-function $k(c, a, h) {
+function Dk(c, a, h) {
   const k = c.check(a.args[0], h);
   a.op === "[?]" && c.check(a.args[1], h);
   const d = k.kind === "optional" ? k.valueType : k;
   return c.registry.getOptionalType(c.checkAccessOnType(a, h, d, !0));
 }
-function Mk(c, a, h, k, d) {
+function $k(c, a, h, k, d) {
   const g = c.check(k, a);
   if (g === h || h.isEmpty()) return g;
   if (g.isEmpty()) return h;
@@ -46031,40 +46031,40 @@ function Mk(c, a, h, k, d) {
     k
   );
 }
-function Lk(c, a, h, k) {
+function Mk(c, a, h, k) {
   return h.unify(c.registry, c.check(k, a)) || c.dynType;
 }
 function hR(c, a, h) {
   const k = c.debugRuntimeType(a, h.checkedType);
   return new c.Error(`${h.meta.label || "Ternary condition must be bool"}, got '${k}'`, h);
 }
-function Fk(c, a, h, k) {
+function Lk(c, a, h, k) {
   if (k === !0) return c.eval(a.args[1], h);
   if (k === !1) return c.eval(a.args[2], h);
   throw hR(c, k, a.args[0]);
 }
-function Vk(c, a, h) {
+function Fk(c, a, h) {
   if (a.staticHandler) return a.staticHandler.handler(h, a, c);
   const k = c.debugRuntimeType(h, a.args.checkedType), d = c.registry.findUnaryOverload(a.op, k);
   if (d) return d.handler(h);
   throw new c.Error(`no such overload: ${a.op[0]}${k}`, a);
 }
-function Wk(c, a, h) {
+function Vk(c, a, h) {
   const k = c.eval(a.args, h);
-  return k instanceof Promise ? k.then((d) => Vk(c, a, d)) : Vk(c, a, k);
+  return k instanceof Promise ? k.then((d) => Fk(c, a, d)) : Fk(c, a, k);
 }
-function Hk(c, a, h, k) {
+function Wk(c, a, h, k) {
   if (a.staticHandler) return a.staticHandler.handler(h, k, a, c);
   const d = c.debugOperandType(h, a.args[0].checkedType), g = c.debugOperandType(k, a.args[1].checkedType), y = c.registry.findBinaryOverload(a.op, d, g);
   if (y) return y.handler(h, k, a, c);
   throw new c.Error(`no such overload: ${d} ${a.op} ${g}`, a);
 }
-function Y6(c, a, h) {
+function X6(c, a, h) {
   const k = c.debugRuntimeType(a, h.checkedType);
   return new c.Error(`Logical operator requires bool operands, got '${k}'`, h);
 }
 function Rd(c, a, h) {
-  return a instanceof Error ? a : Y6(c, a, h);
+  return a instanceof Error ? a : X6(c, a, h);
 }
 function ms(c, a, h, k, d) {
   if (d === c) return c;
@@ -46073,15 +46073,15 @@ function ms(c, a, h, k, d) {
     throw Rd(a, k, h.args[0]);
   }
   if (d instanceof Promise) return d.then((g) => kR(c, a, h, k, g));
-  throw Y6(a, d, h.args[1]);
+  throw X6(a, d, h.args[1]);
 }
 function kR(c, a, h, k, d) {
   if (d === c) return c;
-  if (typeof d != "boolean") throw Y6(a, d, h.args[1]);
+  if (typeof d != "boolean") throw X6(a, d, h.args[1]);
   if (typeof k != "boolean") throw Rd(a, k, h.args[0]);
   return !c;
 }
-function Kk(c, a, h) {
+function Hk(c, a, h) {
   const k = c.check(a.args[0], h), d = c.check(a.args[1], h);
   if (!k.isDynOrBool())
     throw new c.Error(
@@ -46095,7 +46095,7 @@ function Kk(c, a, h) {
     );
   return c.boolType;
 }
-function Qk(c, a, h) {
+function Kk(c, a, h) {
   const k = a.op, d = c.check(a.args, h);
   if (d.kind === "dyn") return k === "!_" ? c.boolType : d;
   const g = c.registry.findUnaryOverload(k, d);
@@ -46114,9 +46114,9 @@ function AR(c, a, h) {
 }
 function pR(c, a, h) {
   const k = a.args, d = c.eval(k[0], h), g = c.eval(k[1], h);
-  return d instanceof Promise || g instanceof Promise ? Uf(c, a, d, g, Hk) : Hk(c, a, d, g);
+  return d instanceof Promise || g instanceof Promise ? Uf(c, a, d, g, Wk) : Wk(c, a, d, g);
 }
-function Gk(c, a, h) {
+function Qk(c, a, h) {
   if (a.staticHandler) return a.staticHandler.handler.apply(c, h);
   const [k, d] = a.args, g = d.length, y = a.functionCandidates ??= c.registry.getFunctionCandidates(
     !1,
@@ -46132,7 +46132,7 @@ function Gk(c, a, h) {
     a
   );
 }
-function zk(c, a, h, k) {
+function Gk(c, a, h, k) {
   if (a.staticHandler) return a.staticHandler.handler.call(c, h, ...k);
   const [d, g, y] = a.args, E = a.functionCandidates ??= c.registry.getFunctionCandidates(
     !0,
@@ -46156,7 +46156,7 @@ function Wu(c, a, h, k = a.length) {
   for (; k--; ) (g[k] = c.eval(a[k], h)) instanceof Promise && (d ??= !0);
   return d ? Promise.all(g) : g;
 }
-function jk(c) {
+function zk(c) {
   const a = {};
   for (let h = 0; h < c.length; h++) {
     const [k, d] = c[h];
@@ -46187,7 +46187,7 @@ function wR(c, a, h) {
     a.iterable
   );
 }
-function Xk(c, a, h, k) {
+function jk(c, a, h, k) {
   Nf(k) || (k = wR(c, a, k));
   const d = c.eval(a.init, h = a.iterCtx.reuse(h)), g = a.errorsAreFatal ? Pd : Od;
   return (h === a.iterCtx ? g : g.async)(c, h, a, k, h.accuValue = d, 0);
@@ -46266,7 +46266,7 @@ const e0 = {
   },
   ".": {
     alias: "fieldAccess",
-    check: Dk,
+    check: _k,
     evaluate(c, a, h) {
       const k = a.args, d = c.eval(k[0], h);
       return d instanceof Promise ? d.then((g) => Af(c, a, g, k[1])) : Af(c, a, d, k[1]);
@@ -46274,7 +46274,7 @@ const e0 = {
   },
   ".?": {
     alias: "optionalFieldAccess",
-    check: $k,
+    check: Dk,
     evaluate(c, a, h) {
       const k = a.args, d = c.eval(k[0], h);
       return d instanceof Promise ? d.then((g) => kf(c, a, g, k[1])) : kf(c, a, d, k[1]);
@@ -46282,7 +46282,7 @@ const e0 = {
   },
   "[]": {
     alias: "bracketAccess",
-    check: Dk,
+    check: _k,
     evaluate(c, a, h) {
       const k = a.args, d = c.eval(k[0], h), g = c.eval(k[1], h);
       return d instanceof Promise || g instanceof Promise ? Uf(c, a, d, g, Af) : Af(c, a, d, g);
@@ -46290,7 +46290,7 @@ const e0 = {
   },
   "[?]": {
     alias: "optionalBracketAccess",
-    check: $k,
+    check: Dk,
     evaluate(c, a, h) {
       const k = a.args, d = c.eval(k[0], h), g = c.eval(k[1], h);
       return d instanceof Promise || g instanceof Promise ? Uf(c, a, d, g, kf) : kf(c, a, d, g);
@@ -46312,7 +46312,7 @@ const e0 = {
     },
     evaluate(c, a, h) {
       const k = Wu(c, a.args[1], h);
-      return k instanceof Promise ? k.then((d) => Gk(c, a, d)) : Gk(c, a, k);
+      return k instanceof Promise ? k.then((d) => Qk(c, a, d)) : Qk(c, a, k);
     }
   },
   rcall: {
@@ -46335,7 +46335,7 @@ const e0 = {
     },
     evaluate(c, a, h) {
       const k = c.eval(a.args[1], h), d = Wu(c, a.args[2], h);
-      return k instanceof Promise || d instanceof Promise ? Uf(c, a, k, d, zk) : zk(c, a, k, d);
+      return k instanceof Promise || d instanceof Promise ? Uf(c, a, k, d, Gk) : Gk(c, a, k, d);
     }
   },
   list: {
@@ -46343,7 +46343,7 @@ const e0 = {
       const k = a.args, d = k.length;
       if (d === 0) return c.getType("list<T>");
       let g = c.check(k[0], h);
-      const y = c.opts.homogeneousAggregateLiterals ? Mk : Lk;
+      const y = c.opts.homogeneousAggregateLiterals ? $k : Mk;
       for (let E = 1; E < d; E++) g = y(c, h, g, k[E], 0);
       return c.registry.getListType(g);
     },
@@ -46355,7 +46355,7 @@ const e0 = {
     check(c, a, h) {
       const k = a.args, d = k.length;
       if (d === 0) return c.getType("map<K, V>");
-      const g = c.opts.homogeneousAggregateLiterals ? Mk : Lk;
+      const g = c.opts.homogeneousAggregateLiterals ? $k : Mk;
       let y = c.check(k[0][0], h), E = c.check(k[0][1], h);
       for (let S = 1; S < d; S++) {
         const b = k[S];
@@ -46370,7 +46370,7 @@ const e0 = {
         const S = k[E], b = c.eval(S[0], h), I = c.eval(S[1], h);
         b instanceof Promise || I instanceof Promise ? (g[E] = Promise.all([b, I]), y ??= !0) : g[E] = [b, I];
       }
-      return y ? Promise.all(g).then(jk) : jk(g);
+      return y ? Promise.all(g).then(zk) : zk(g);
     }
   },
   comprehension: {
@@ -46382,7 +46382,7 @@ const e0 = {
     },
     evaluate(c, a, h) {
       const k = a.args, d = c.eval(k.iterable, h);
-      return d instanceof Promise ? d.then((g) => Xk(c, k, h, g)) : Xk(c, k, h, d);
+      return d instanceof Promise ? d.then((g) => jk(c, k, h, g)) : jk(c, k, h, d);
     }
   },
   accuValue: {
@@ -46431,11 +46431,11 @@ const e0 = {
     },
     evaluate(c, a, h) {
       const k = c.eval(a.args[0], h);
-      return k instanceof Promise ? k.then((d) => Fk(c, a, h, d)) : Fk(c, a, h, k);
+      return k instanceof Promise ? k.then((d) => Lk(c, a, h, d)) : Lk(c, a, h, k);
     }
   },
   "||": {
-    check: Kk,
+    check: Hk,
     evaluate(c, a, h) {
       const k = a.args, d = c.tryEval(k[0], h);
       if (d === !0) return !0;
@@ -46449,7 +46449,7 @@ const e0 = {
     }
   },
   "&&": {
-    check: Kk,
+    check: Hk,
     evaluate(c, a, h) {
       const k = a.args, d = c.tryEval(k[0], h);
       if (d === !1) return !1;
@@ -46462,8 +46462,8 @@ const e0 = {
       ) : ms(!1, c, a, d, c.eval(k[1], h));
     }
   },
-  "!_": { alias: "unaryNot", check: Qk, evaluate: Wk },
-  "-_": { alias: "unaryMinus", check: Qk, evaluate: Wk }
+  "!_": { alias: "unaryNot", check: Kk, evaluate: Vk },
+  "-_": { alias: "unaryMinus", check: Kk, evaluate: Vk }
 }, gR = ["!=", "==", "in", "+", "-", "*", "/", "%", "<", "<=", ">", ">="];
 for (const c of gR) e0[c] = { check: AR, evaluate: pR };
 for (const c of Xi(e0)) {
@@ -46520,7 +46520,7 @@ const Oe = {
 for (const c in Oe) _f[Oe[c]] = c;
 const _d = new Uint8Array(128);
 for (const c of "0123456789abcdefABCDEF") _d[c.charCodeAt(0)] = 1;
-const Yk = {
+const Xk = {
   "\\": "\\",
   "?": "?",
   '"': '"',
@@ -46684,7 +46684,7 @@ class yR {
     if (d === "u" || d === "U") {
       this.pos++;
       try {
-        return this.token(a, Oe.NUMBER, new C2(g));
+        return this.token(a, Oe.NUMBER, new I2(g));
       } catch {
       }
     } else
@@ -46790,8 +46790,8 @@ class yR {
         continue;
       }
       const g = a[d + 1];
-      if (Yk[g])
-        k += Yk[g], d += 2;
+      if (Xk[g])
+        k += Xk[g], d += 2;
       else if (g === "u") {
         if (h) throw new et("\\u not allowed in bytes literals");
         const y = a.substring(d + 2, d += 6);
@@ -47067,7 +47067,7 @@ function Xa(c, a) {
 function it(c, a, h) {
   return new za(c.input, c.pos, a, h);
 }
-function Zk(c) {
+function Yk(c) {
   const a = c ? "map(var, filter, transform)" : "map(var, transform)", h = `${a} invalid predicate iteration variable`, k = `${a} filter predicate must return bool`;
   return ({ args: d, receiver: g, ast: y }) => {
     const [E, S, b] = c ? d : [d[0], null, d[1]];
@@ -47204,7 +47204,7 @@ function SR(c) {
         };
       }
     })
-  ), c.registerFunctionOverload("list.map(ast, ast): list<dyn>", Zk(!1)), c.registerFunctionOverload("list.map(ast, ast, ast): list<dyn>", Zk(!0)), c.registerFunctionOverload("list.filter(ast, ast): list<dyn>", vR());
+  ), c.registerFunctionOverload("list.map(ast, ast): list<dyn>", Yk(!1)), c.registerFunctionOverload("list.map(ast, ast, ast): list<dyn>", Yk(!0)), c.registerFunctionOverload("list.filter(ast, ast): list<dyn>", vR());
   function a(y, E, S, b) {
     const I = y.eval(E.exp, S = E.bindCtx.reuse(S).setIterValue(b));
     return I instanceof Promise && S === E.bindCtx && (S.async = !0), I;
@@ -47250,14 +47250,14 @@ function xR(c) {
   const d = "google.protobuf.Duration";
   h(d, "+", d, (b, I) => b.addDuration(I)), h(d, "-", d, (b, I) => b.subtractDuration(I)), h(d, "==", d, (b, I) => b.seconds === I.seconds && b.nanos === I.nanos);
   const g = "google.protobuf.Timestamp";
-  h(g, "==", g, (b, I) => b.getTime() === I.getTime()), h(g, "-", g, (b, I) => e2.fromMilliseconds(b.getTime() - I.getTime()), d), h(g, "-", d, (b, I) => I.subtractTimestamp(b)), h(g, "+", d, (b, I) => I.extendTimestamp(b)), h(d, "+", g, (b, I) => b.extendTimestamp(I));
+  h(g, "==", g, (b, I) => b.getTime() === I.getTime()), h(g, "-", g, (b, I) => Jn.fromMilliseconds(b.getTime() - I.getTime()), d), h(g, "-", d, (b, I) => I.subtractTimestamp(b)), h(g, "+", d, (b, I) => I.extendTimestamp(b)), h(d, "+", g, (b, I) => b.extendTimestamp(I));
   function y(b, I, P, O) {
     if (I instanceof Set && I.has(b)) return !0;
     for (const $ of I) if (bo(b, $, P, O)) return !0;
     return !1;
   }
   function E(b, I) {
-    return I instanceof Map ? I.get(b) !== void 0 : M9(I, b) ? I[b] !== void 0 : !1;
+    return I instanceof Map ? I.get(b) !== void 0 : $9(I, b) ? I[b] !== void 0 : !1;
   }
   function S(b, I, P, O) {
     return y(b, I, P, O);
@@ -47311,12 +47311,12 @@ function xR(c) {
       if (!(W in I && bo(b[W], I[W], P, O))) return !1;
     }
     return !0;
-  }), h("uint", "==", "uint", (b, I) => b.valueOf() === I.valueOf()), h("dyn<uint>", "==", "double", (b, I) => b.valueOf() == I), h("dyn<uint>", "==", "int", (b, I) => b.valueOf() == I), h("uint", "+", "uint", (b, I) => new C2(b.valueOf() + I.valueOf())), h("uint", "-", "uint", (b, I) => new C2(b.valueOf() - I.valueOf())), h("uint", "*", "uint", (b, I) => new C2(b.valueOf() * I.valueOf())), h("uint", "/", "uint", (b, I, P) => {
+  }), h("uint", "==", "uint", (b, I) => b.valueOf() === I.valueOf()), h("dyn<uint>", "==", "double", (b, I) => b.valueOf() == I), h("dyn<uint>", "==", "int", (b, I) => b.valueOf() == I), h("uint", "+", "uint", (b, I) => new I2(b.valueOf() + I.valueOf())), h("uint", "-", "uint", (b, I) => new I2(b.valueOf() - I.valueOf())), h("uint", "*", "uint", (b, I) => new I2(b.valueOf() * I.valueOf())), h("uint", "/", "uint", (b, I, P) => {
     if (I.valueOf() === 0n) throw new u0("division by zero", P);
-    return new C2(b.valueOf() / I.valueOf());
+    return new I2(b.valueOf() / I.valueOf());
   }), h("uint", "%", "uint", (b, I, P) => {
     if (I.valueOf() === 0n) throw new u0("modulo by zero", P);
-    return new C2(b.valueOf() % I.valueOf());
+    return new I2(b.valueOf() % I.valueOf());
   });
   for (const [b, I] of [
     ["bool", "bool"],
@@ -47356,7 +47356,7 @@ function bo(c, a, h, k) {
   throw new u0(`Cannot compare values of type ${typeof c}`, h);
 }
 const TR = (/* @__PURE__ */ new Map()).set("A", "dyn").set("T", "dyn").set("K", "dyn").set("V", "dyn");
-class qk extends Cd {
+class Zk extends Cd {
   constructor(a, h) {
     super(a), this.isEvaluating = h, this.Error = h ? u0 : zC;
   }
@@ -47405,14 +47405,14 @@ class qk extends Cd {
     return a.map((h) => this.formatType(h)).join(", ");
   }
 }
-const Z6 = c2({
+const Y6 = a2({
   maxAstNodes: 1e5,
   maxDepth: 250,
   maxListElements: 1e3,
   maxMapEntries: 1e3,
   maxCallArguments: 32
-}), bR = new Set(Xi(Z6));
-function BR(c, a = Z6) {
+}), bR = new Set(Xi(Y6));
+function BR(c, a = Y6) {
   const h = c ? Xi(c) : void 0;
   if (!h?.length) return a;
   const k = { ...a };
@@ -47421,13 +47421,13 @@ function BR(c, a = Z6) {
     const g = c[d];
     typeof g == "number" && (k[d] = g);
   }
-  return c2(k);
+  return a2(k);
 }
-const IR = c2({
+const IR = a2({
   unlistedVariablesAreDyn: !1,
   homogeneousAggregateLiterals: !0,
   enableOptionalTypes: !1,
-  limits: Z6
+  limits: Y6
 });
 function Ku(c, a, h) {
   const k = c?.[h] ?? a?.[h];
@@ -47435,7 +47435,7 @@ function Ku(c, a, h) {
   return k;
 }
 function CR(c, a = IR) {
-  return c ? c2({
+  return c ? a2({
     unlistedVariablesAreDyn: Ku(c, a, "unlistedVariablesAreDyn"),
     homogeneousAggregateLiterals: Ku(c, a, "homogeneousAggregateLiterals"),
     enableOptionalTypes: Ku(c, a, "enableOptionalTypes"),
@@ -47446,7 +47446,7 @@ const Ya = uR({ enableOptionalTypes: !1 });
 qC(Ya);
 xR(Ya);
 SR(Ya);
-const Jk = /* @__PURE__ */ new WeakMap();
+const qk = /* @__PURE__ */ new WeakMap();
 class z2 {
   #e;
   #t;
@@ -47454,14 +47454,14 @@ class z2 {
   #i;
   #n;
   constructor(a, h) {
-    this.opts = CR(a, h?.opts), this.#e = (h instanceof z2 ? Jk.get(h) : Ya).clone(this.opts);
+    this.opts = CR(a, h?.opts), this.#e = (h instanceof z2 ? qk.get(h) : Ya).clone(this.opts);
     const k = {
       objectTypes: this.#e.objectTypes,
       objectTypesByConstructor: this.#e.objectTypesByConstructor,
       registry: this.#e,
       opts: this.opts
     };
-    this.#r = new qk(k), this.#i = new qk(k, !0), this.#t = new RR(k), this.#n = new mR(this.opts.limits, this.#e), Jk.set(this, this.#e), Object.freeze(this);
+    this.#r = new Zk(k), this.#i = new Zk(k, !0), this.#t = new RR(k), this.#n = new mR(this.opts.limits, this.#e), qk.set(this, this.#e), Object.freeze(this);
   }
   clone(a) {
     return new z2(a, this);
@@ -47493,7 +47493,7 @@ class z2 {
   }
   #o(a) {
     try {
-      const h = this.#r.check(a, new Uk(this.#e));
+      const h = this.#r.check(a, new Ok(this.#e));
       return { valid: !0, type: this.#f(h) };
     } catch (h) {
       return { valid: !1, error: h };
@@ -47510,7 +47510,7 @@ class z2 {
     return this.#a(this.#n.parse(a), h);
   }
   #a(a, h) {
-    return h = new Uk(this.#e, h), a.checkedType || this.#i.check(a, h), this.#t.eval(a, h);
+    return h = new Ok(this.#e, h), a.checkedType || this.#i.check(a, h), this.#t.eval(a, h);
   }
 }
 class RR extends Cd {
@@ -47562,10 +47562,10 @@ class RR extends Cd {
 new z2({
   unlistedVariablesAreDyn: !0
 });
-const q6 = "amount", PR = "expiry", NR = "birth", OR = "weight", UR = "inputType", _R = "script", qs = {
+const Z6 = "amount", PR = "expiry", NR = "birth", OR = "weight", UR = "inputType", _R = "script", qs = {
   signature: "now(): double",
   implementation: () => Math.floor(Date.now() / 1e3)
-}, e8 = new z2().registerVariable(q6, "double").registerVariable(_R, "string").registerFunction(qs.signature, qs.implementation), DR = new z2().registerVariable(q6, "double").registerVariable(PR, "double").registerVariable(NR, "double").registerVariable(OR, "double").registerVariable(UR, "string").registerFunction(qs.signature, qs.implementation), $R = new z2().registerVariable(q6, "double").registerFunction(qs.signature, qs.implementation);
+}, Jk = new z2().registerVariable(Z6, "double").registerVariable(_R, "string").registerFunction(qs.signature, qs.implementation), DR = new z2().registerVariable(Z6, "double").registerVariable(PR, "double").registerVariable(NR, "double").registerVariable(OR, "double").registerVariable(UR, "string").registerFunction(qs.signature, qs.implementation), $R = new z2().registerVariable(Z6, "double").registerFunction(qs.signature, qs.implementation);
 class Ir {
   constructor(a) {
     this.value = a;
@@ -47584,7 +47584,7 @@ class Dd {
    * @param config - Configuration containing CEL programs for fee calculation
    */
   constructor(a) {
-    this.config = a, this.intentOffchainInput = a.offchainInput ? df(a.offchainInput, DR) : void 0, this.intentOnchainInput = a.onchainInput ? df(a.onchainInput, $R) : void 0, this.intentOffchainOutput = a.offchainOutput ? df(a.offchainOutput, e8) : void 0, this.intentOnchainOutput = a.onchainOutput ? df(a.onchainOutput, e8) : void 0;
+    this.config = a, this.intentOffchainInput = a.offchainInput ? df(a.offchainInput, DR) : void 0, this.intentOnchainInput = a.onchainInput ? df(a.onchainInput, $R) : void 0, this.intentOffchainOutput = a.offchainOutput ? df(a.offchainOutput, Jk) : void 0, this.intentOnchainOutput = a.onchainOutput ? df(a.onchainOutput, Jk) : void 0;
   }
   /**
    * Evaluates the fee for a given vtxo input
@@ -47618,7 +47618,7 @@ class Dd {
   evalOffchainOutput(a) {
     if (!this.intentOffchainOutput)
       return Ir.ZERO;
-    const h = t8(a);
+    const h = e8(a);
     return new Ir(this.intentOffchainOutput.program(h));
   }
   /**
@@ -47629,7 +47629,7 @@ class Dd {
   evalOnchainOutput(a) {
     if (!this.intentOnchainOutput)
       return Ir.ZERO;
-    const h = t8(a);
+    const h = e8(a);
     return new Ir(this.intentOnchainOutput.program(h));
   }
   /**
@@ -47661,7 +47661,7 @@ function MR(c) {
   };
   return c.expiry && (a.expiry = Math.floor(c.expiry.getTime() / 1e3)), c.birth && (a.birth = Math.floor(c.birth.getTime() / 1e3)), a;
 }
-function t8(c) {
+function e8(c) {
   return {
     amount: Number(c.amount),
     script: c.script
@@ -47680,7 +47680,7 @@ const Bo = {
   boardingTxid: "",
   arkTxid: ""
 };
-function r8(c) {
+function t8(c) {
   const a = /* @__PURE__ */ new Map();
   for (const h of c)
     if (h.assets)
@@ -47710,14 +47710,14 @@ async function LR(c, a, h, k) {
   for (const b of d) {
     if (b.status.isLeaf) {
       if (!h.has(b.virtualStatus.commitmentTxIds[0]) && d.filter((I) => I.settledBy === b.virtualStatus.commitmentTxIds[0]).length === 0) {
-        const I = r8([b]);
+        const I = t8([b]);
         y.push({
           key: {
             ...Bo,
             commitmentTxid: b.virtualStatus.commitmentTxIds[0]
           },
           tag: "batch",
-          type: An.TxReceived,
+          type: kn.TxReceived,
           amount: b.value,
           settled: b.status.isLeaf || b.isSpent,
           createdAt: b.createdAt.getTime(),
@@ -47725,11 +47725,11 @@ async function LR(c, a, h, k) {
         });
       }
     } else if (d.filter((I) => I.arkTxId === b.txid).length === 0) {
-      const I = r8([b]);
+      const I = t8([b]);
       y.push({
         key: { ...Bo, arkTxid: b.txid },
         tag: "offchain",
-        type: An.TxReceived,
+        type: kn.TxReceived,
         amount: b.value,
         settled: b.status.isLeaf || b.isSpent,
         createdAt: b.createdAt.getTime(),
@@ -47749,7 +47749,7 @@ async function LR(c, a, h, k) {
         g.push({
           key: { ...Bo, arkTxid: b.arkTxId },
           tag: "offchain",
-          type: An.TxSent,
+          type: kn.TxSent,
           amount: $,
           settled: !0,
           createdAt: N,
@@ -47765,7 +47765,7 @@ async function LR(c, a, h, k) {
             g.push({
               key: { ...Bo, commitmentTxid: b.settledBy },
               tag: "exit",
-              type: An.TxSent,
+              type: kn.TxSent,
               amount: O - $,
               settled: !0,
               createdAt: I[0].createdAt.getTime(),
@@ -47777,7 +47777,7 @@ async function LR(c, a, h, k) {
           g.push({
             key: { ...Bo, commitmentTxid: b.settledBy },
             tag: "exit",
-            type: An.TxSent,
+            type: kn.TxSent,
             amount: O,
             settled: !0,
             // TODO: fetch commitment tx with /v1/indexer/commitmentTx/<commitmentTxid> to know when the tx was made
@@ -47886,7 +47886,7 @@ class FR extends $d {
       throw new Error(`Asset ${a.assetId} is not reissuable`);
     const k = await this.wallet.getVtxos({
       withRecoverable: !1
-    }), d = /* @__PURE__ */ new Map(), { selected: g } = _9(k, h, 1n);
+    }), d = /* @__PURE__ */ new Map(), { selected: g } = U9(k, h, 1n);
     let y = [...g], E = 0n;
     for (const me of g)
       if (me.assets)
@@ -47955,7 +47955,7 @@ class FR extends $d {
       throw new Error(`Burn amount must be greater than 0, got ${a.amount}`);
     const h = await this.wallet.getVtxos({
       withRecoverable: !1
-    }), k = /* @__PURE__ */ new Map(), { selected: d } = _9(h, a.assetId, BigInt(a.amount)), g = [...d];
+    }), k = /* @__PURE__ */ new Map(), { selected: d } = U9(h, a.assetId, BigInt(a.amount)), g = [...d];
     let y = 0;
     for (const N of d)
       if (y += N.value, !!N.assets)
@@ -48009,7 +48009,7 @@ function VR(c) {
       g = new Uint8Array(d);
     else
       throw new Error("Invalid metadata value type");
-    a.push($2.create(h.encode(k), g));
+    a.push(D2.create(h.encode(k), g));
   }
   return a;
 }
@@ -48035,7 +48035,7 @@ class WR {
     const g = /* @__PURE__ */ new Map();
     let y = [];
     for (const O of a) {
-      if (di(O)) {
+      if (zi(O)) {
         y.push(O);
         continue;
       }
@@ -48082,7 +48082,7 @@ async function Gu(c, a, h, k, d, g) {
   if (!a)
     throw new Error("unable to delegate: delegator provider not configured");
   if (!g) {
-    const Ae = k.filter((j) => !di(j) && j.virtualStatus.batchExpiry).reduce((j, ie) => Math.min(j, ie.virtualStatus.batchExpiry), Number.MAX_SAFE_INTEGER);
+    const Ae = k.filter((j) => !zi(j) && j.virtualStatus.batchExpiry).reduce((j, ie) => Math.min(j, ie.virtualStatus.batchExpiry), Number.MAX_SAFE_INTEGER);
     if (!Ae || Ae === Number.MAX_SAFE_INTEGER)
       g = new Date(Date.now() + 60 * 1e3);
     else {
@@ -48124,7 +48124,7 @@ async function Gu(c, a, h, k, d, g) {
     script: d,
     amount: O
   });
-  const we = await KR(c, k, W, [], [N], I), me = a0.encode(st(pd(b)).decode(S)), fe = await Promise.all(k.filter((Ae) => !di(Ae)).map(async (Ae) => {
+  const we = await KR(c, k, W, [], [N], I), me = a0.encode(st(Ad(b)).decode(S)), fe = await Promise.all(k.filter((Ae) => !zi(Ae)).map(async (Ae) => {
     const j = await HR(Ae, E, N, me, c);
     return h0.encode(j.toPSBT());
   }));
@@ -48133,12 +48133,12 @@ async function Gu(c, a, h, k, d, g) {
 async function HR(c, a, h, k, d) {
   h.length === 66 && (h = h.slice(2));
   const y = Vt.decode(c.tapTree).leaves.find((S) => {
-    const b = F6(Ds(S));
+    const b = L6(Ds(S));
     return !(!_r.is(b) || !b.params.pubkeys.map(q.encode).includes(h));
   });
   if (!y)
     throw new Error(`delegate tap leaf not found for input: ${c.txid}:${c.vout}`);
-  const E = wd([
+  const E = dd([
     {
       txid: c.txid,
       index: c.vout,
@@ -48172,10 +48172,10 @@ function QR(c) {
   const a = new Date(c);
   return a.setUTCHours(0, 0, 0, 0), a.getTime();
 }
-const Fi = "vtxos", Vi = "utxos", Wi = "transactions", zn = "walletState", li = "contracts", i8 = "contractsCollections", Md = 2;
+const Li = "vtxos", Fi = "utxos", Vi = "transactions", Gn = "walletState", li = "contracts", r8 = "contractsCollections", Md = 2;
 function Ld(c) {
-  if (!c.objectStoreNames.contains(Fi)) {
-    const a = c.createObjectStore(Fi, {
+  if (!c.objectStoreNames.contains(Li)) {
+    const a = c.createObjectStore(Li, {
       keyPath: ["address", "txid", "vout"]
     });
     a.indexNames.contains("address") || a.createIndex("address", "address", {
@@ -48198,8 +48198,8 @@ function Ld(c) {
       unique: !1
     });
   }
-  if (!c.objectStoreNames.contains(Vi)) {
-    const a = c.createObjectStore(Vi, {
+  if (!c.objectStoreNames.contains(Fi)) {
+    const a = c.createObjectStore(Fi, {
       keyPath: ["address", "txid", "vout"]
     });
     a.indexNames.contains("address") || a.createIndex("address", "address", {
@@ -48208,8 +48208,8 @@ function Ld(c) {
       unique: !1
     });
   }
-  if (!c.objectStoreNames.contains(Wi)) {
-    const a = c.createObjectStore(Wi, {
+  if (!c.objectStoreNames.contains(Vi)) {
+    const a = c.createObjectStore(Vi, {
       keyPath: [
         "address",
         "keyBoardingTxid",
@@ -48231,7 +48231,7 @@ function Ld(c) {
       unique: !1
     });
   }
-  if (c.objectStoreNames.contains(zn) || c.createObjectStore(zn, {
+  if (c.objectStoreNames.contains(Gn) || c.createObjectStore(Gn, {
     keyPath: "key"
   }), !c.objectStoreNames.contains(li)) {
     const a = c.createObjectStore(li, {
@@ -48243,7 +48243,7 @@ function Ld(c) {
       unique: !1
     });
   }
-  c.objectStoreNames.contains(i8) || c.createObjectStore(i8, {
+  c.objectStoreNames.contains(r8) || c.createObjectStore(r8, {
     keyPath: "key"
   });
 }
@@ -48285,7 +48285,7 @@ function YR() {
   throw new Error("Global object not found");
 }
 const Lo = /* @__PURE__ */ new Map(), M2 = /* @__PURE__ */ new Map();
-async function J6(c, a, h) {
+async function q6(c, a, h) {
   const { globalObject: k } = YR();
   if (!k.indexedDB)
     throw new Error("IndexedDB is not available in this environment");
@@ -48310,7 +48310,7 @@ async function J6(c, a, h) {
   });
   return Lo.set(c, { version: a, promise: g }), M2.set(c, 1), g;
 }
-async function e4(c) {
+async function J6(c) {
   const a = Lo.get(c);
   if (!a)
     return !1;
@@ -48415,10 +48415,10 @@ class Vd {
     return a.filter((k) => !(k === void 0 || h.has("script") && !h.get("script")?.includes(k.script) || h.has("state") && !h.get("state")?.includes(k.state) || h.has("type") && !h.get("type")?.includes(k.type)));
   }
   async getDB() {
-    return this.db ? this.db : (this.db = await J6(this.dbName, Md, Ld), this.db);
+    return this.db ? this.db : (this.db = await q6(this.dbName, Md, Ld), this.db);
   }
   async [Symbol.asyncDispose]() {
-    this.db && (await e4(this.dbName), this.db = null);
+    this.db && (await J6(this.dbName), this.db = null);
   }
 }
 const ZR = ["script", "state", "type"];
@@ -48437,11 +48437,11 @@ class Wd {
       const a = await this.getDB();
       return new Promise((h, k) => {
         const d = a.transaction([
+          Li,
           Fi,
           Vi,
-          Wi,
-          zn
-        ], "readwrite"), g = d.objectStore(Fi), y = d.objectStore(Vi), E = d.objectStore(Wi), S = d.objectStore(zn), b = [
+          Gn
+        ], "readwrite"), g = d.objectStore(Li), y = d.objectStore(Fi), E = d.objectStore(Vi), S = d.objectStore(Gn), b = [
           g.clear(),
           y.clear(),
           E.clear(),
@@ -48460,13 +48460,13 @@ class Wd {
     }
   }
   async [Symbol.asyncDispose]() {
-    this.db && (await e4(this.dbName), this.db = null);
+    this.db && (await J6(this.dbName), this.db = null);
   }
   async getVtxos(a) {
     try {
       const h = await this.getDB();
       return new Promise((k, d) => {
-        const S = h.transaction([Fi], "readonly").objectStore(Fi).index("address").getAll(a);
+        const S = h.transaction([Li], "readonly").objectStore(Li).index("address").getAll(a);
         S.onerror = () => d(S.error), S.onsuccess = () => {
           const I = (S.result || []).map(jR);
           k(I);
@@ -48480,7 +48480,7 @@ class Wd {
     try {
       const k = await this.getDB();
       return new Promise((d, g) => {
-        const y = k.transaction([Fi], "readwrite"), E = y.objectStore(Fi), S = h.map((b) => new Promise((I, P) => {
+        const y = k.transaction([Li], "readwrite"), E = y.objectStore(Li), S = h.map((b) => new Promise((I, P) => {
           const O = GR(b), $ = {
             address: a,
             ...O
@@ -48497,7 +48497,7 @@ class Wd {
     try {
       const h = await this.getDB();
       return new Promise((k, d) => {
-        const S = h.transaction([Fi], "readwrite").objectStore(Fi).index("address").openCursor(IDBKeyRange.only(a));
+        const S = h.transaction([Li], "readwrite").objectStore(Li).index("address").openCursor(IDBKeyRange.only(a));
         S.onerror = () => d(S.error), S.onsuccess = () => {
           const b = S.result;
           b ? (b.delete(), b.continue()) : k();
@@ -48511,7 +48511,7 @@ class Wd {
     try {
       const h = await this.getDB();
       return new Promise((k, d) => {
-        const S = h.transaction([Vi], "readonly").objectStore(Vi).index("address").getAll(a);
+        const S = h.transaction([Fi], "readonly").objectStore(Fi).index("address").getAll(a);
         S.onerror = () => d(S.error), S.onsuccess = () => {
           const I = (S.result || []).map(XR);
           k(I);
@@ -48525,7 +48525,7 @@ class Wd {
     try {
       const k = await this.getDB();
       return new Promise((d, g) => {
-        const y = k.transaction([Vi], "readwrite"), E = y.objectStore(Vi), S = h.map((b) => new Promise((I, P) => {
+        const y = k.transaction([Fi], "readwrite"), E = y.objectStore(Fi), S = h.map((b) => new Promise((I, P) => {
           const O = zR(b), $ = {
             address: a,
             ...O
@@ -48542,7 +48542,7 @@ class Wd {
     try {
       const h = await this.getDB();
       return new Promise((k, d) => {
-        const S = h.transaction([Vi], "readwrite").objectStore(Vi).index("address").openCursor(IDBKeyRange.only(a));
+        const S = h.transaction([Fi], "readwrite").objectStore(Fi).index("address").openCursor(IDBKeyRange.only(a));
         S.onerror = () => d(S.error), S.onsuccess = () => {
           const b = S.result;
           b ? (b.delete(), b.continue()) : k();
@@ -48556,7 +48556,7 @@ class Wd {
     try {
       const h = await this.getDB();
       return new Promise((k, d) => {
-        const S = h.transaction([Wi], "readonly").objectStore(Wi).index("address").getAll(a);
+        const S = h.transaction([Vi], "readonly").objectStore(Vi).index("address").getAll(a);
         S.onerror = () => d(S.error), S.onsuccess = () => {
           const b = S.result || [];
           k(b.sort((I, P) => I.createdAt - P.createdAt));
@@ -48570,7 +48570,7 @@ class Wd {
     try {
       const k = await this.getDB();
       return new Promise((d, g) => {
-        const y = k.transaction([Wi], "readwrite"), E = y.objectStore(Wi);
+        const y = k.transaction([Vi], "readwrite"), E = y.objectStore(Vi);
         h.forEach((S) => {
           const b = {
             address: a,
@@ -48590,7 +48590,7 @@ class Wd {
     try {
       const h = await this.getDB();
       return new Promise((k, d) => {
-        const S = h.transaction([Wi], "readwrite").objectStore(Wi).index("address").openCursor(IDBKeyRange.only(a));
+        const S = h.transaction([Vi], "readwrite").objectStore(Vi).index("address").openCursor(IDBKeyRange.only(a));
         S.onerror = () => d(S.error), S.onsuccess = () => {
           const b = S.result;
           b ? (b.delete(), b.continue()) : k();
@@ -48604,7 +48604,7 @@ class Wd {
     try {
       const a = await this.getDB();
       return new Promise((h, k) => {
-        const y = a.transaction([zn], "readonly").objectStore(zn).get("state");
+        const y = a.transaction([Gn], "readonly").objectStore(Gn).get("state");
         y.onerror = () => k(y.error), y.onsuccess = () => {
           const E = y.result;
           E && E.data ? h(E.data) : h(null);
@@ -48618,7 +48618,7 @@ class Wd {
     try {
       const h = await this.getDB();
       return new Promise((k, d) => {
-        const y = h.transaction([zn], "readwrite").objectStore(zn), E = {
+        const y = h.transaction([Gn], "readwrite").objectStore(Gn), E = {
           key: "state",
           data: a
         }, S = y.put(E);
@@ -48629,7 +48629,7 @@ class Wd {
     }
   }
   async getDB() {
-    return this.db ? this.db : (this.db = await J6(this.dbName, Md, Ld), this.db);
+    return this.db ? this.db : (this.db = await q6(this.dbName, Md, Ld), this.db);
   }
 }
 class JR {
@@ -49006,7 +49006,7 @@ class JR {
     }
   }
 }
-class t4 {
+class e4 {
   constructor(a) {
     this.initialized = !1, this.eventCallbacks = /* @__PURE__ */ new Set(), this.config = a, this.watcher = new JR({
       indexerProvider: a.indexerProvider,
@@ -49024,7 +49024,7 @@ class t4 {
    * @param config ContractManagerConfig
    */
   static async create(a) {
-    const h = new t4(a);
+    const h = new e4(a);
     return await h.initialize(), h;
   }
   async initialize() {
@@ -49046,7 +49046,7 @@ class t4 {
    * @returns The created contract
    */
   async createContract(a) {
-    const h = Jn.get(a.type);
+    const h = qn.get(a.type);
     if (!h)
       throw new Error(`No handler registered for contract type '${a.type}'`);
     try {
@@ -49165,7 +49165,7 @@ class t4 {
     const { contractScript: h, collaborative: k = !0, walletPubKey: d, vtxo: g } = a, [y] = await this.getContracts({ script: h });
     if (!y)
       return [];
-    const E = Jn.get(y.type);
+    const E = qn.get(y.type);
     if (!E)
       return [];
     const S = E.createScript(y.params), b = {
@@ -49180,7 +49180,7 @@ class t4 {
     const { contractScript: h, collaborative: k = !0, walletPubKey: d } = a, [g] = await this.getContracts({ script: h });
     if (!g)
       return [];
-    const y = Jn.get(g.type);
+    const y = qn.get(g.type);
     if (!y)
       return [];
     const E = y.createScript(g.params), S = {
@@ -49332,11 +49332,11 @@ class F2 {
     const k = a.arkProvider || (() => {
       if (!a.arkServerUrl)
         throw new Error("Either arkProvider or arkServerUrl must be provided");
-      return new H6(a.arkServerUrl);
+      return new W6(a.arkServerUrl);
     })(), d = a.arkServerUrl || k.serverUrl;
     if (!d)
       throw new Error("Could not determine arkServerUrl from provider");
-    const g = a.indexerUrl || d, y = a.indexerProvider || new G6(g), E = await k.getInfo(), S = pd(E.network), b = a.esploraUrl || QI[E.network], I = a.onchainProvider || new GI(b);
+    const g = a.indexerUrl || d, y = a.indexerProvider || new Q6(g), E = await k.getInfo(), S = Ad(E.network), b = a.esploraUrl || QI[E.network], I = a.onchainProvider || new GI(b);
     if (a.exitTimelock) {
       const { value: me, type: fe } = a.exitTimelock;
       if (me < 512n && fe !== "blocks" || me >= 512n && fe !== "seconds")
@@ -49358,7 +49358,7 @@ class F2 {
       pubKey: h,
       serverPubKey: $,
       csvTimelock: P
-    }, W = N ? new Zo.Script({ ...M, delegatePubKey: N }) : new zi.Script(M), Z = new zi.Script({
+    }, W = N ? new Zo.Script({ ...M, delegatePubKey: N }) : new Gi.Script(M), Z = new Gi.Script({
       ...M,
       csvTimelock: O
     }), ke = a.storage?.walletRepository ?? new Wd(), we = a.storage?.contractRepository ?? new Vd();
@@ -49410,10 +49410,10 @@ class F2 {
     for (const O of a)
       O.status.confirmed ? k += O.value : d += O.value;
     let g = 0, y = 0, E = 0;
-    g = h.filter((O) => O.virtualStatus.state === "settled").reduce((O, $) => O + $.value, 0), y = h.filter((O) => O.virtualStatus.state === "preconfirmed").reduce((O, $) => O + $.value, 0), E = h.filter((O) => kn(O) && O.virtualStatus.state === "swept").reduce((O, $) => O + $.value, 0);
+    g = h.filter((O) => O.virtualStatus.state === "settled").reduce((O, $) => O + $.value, 0), y = h.filter((O) => O.virtualStatus.state === "preconfirmed").reduce((O, $) => O + $.value, 0), E = h.filter((O) => $2(O) && O.virtualStatus.state === "swept").reduce((O, $) => O + $.value, 0);
     const S = k + d, b = g + y + E, I = /* @__PURE__ */ new Map();
     for (const O of h)
-      if (kn(O) && O.assets)
+      if ($2(O) && O.assets)
         for (const $ of O.assets) {
           const N = I.get($.assetId) ?? 0;
           I.set($.assetId, N + $.amount);
@@ -49442,9 +49442,9 @@ class F2 {
       const S = await this.indexerProvider.getVtxos({
         scripts: [y]
       });
-      let b = S.vtxos.filter(kn);
-      if (d.withRecoverable || (b = b.filter((I) => !di(I) && !U9(I))), d.withUnrolled) {
-        const I = S.vtxos.filter((P) => !kn(P));
+      let b = S.vtxos.filter($2);
+      if (d.withRecoverable || (b = b.filter((I) => !zi(I) && !md(I))), d.withUnrolled) {
+        const I = S.vtxos.filter((P) => !$2(P));
         b.push(...I.filter((P) => P.isUnrolled));
       }
       for (const I of b)
@@ -49456,15 +49456,6 @@ class F2 {
         });
     }
     return await this.walletRepository.saveVtxos(h, g), g;
-  }
-  async getVirtualCoins(a = { withRecoverable: !0, withUnrolled: !1 }) {
-    const h = [q.encode(this.offchainTapscript.pkScript)], d = (await this.indexerProvider.getVtxos({ scripts: h })).vtxos;
-    let g = d.filter(kn);
-    if (a.withRecoverable || (g = g.filter((y) => !di(y) && !U9(y))), a.withUnrolled) {
-      const y = d.filter((E) => !kn(E));
-      g.push(...y.filter((E) => E.isUnrolled));
-    }
-    return g;
   }
   async getTransactionHistory() {
     const a = await this.getWalletScripts(), h = await this.indexerProvider.getVtxos({ scripts: a }), { boardingTxs: k, commitmentsToIgnore: d } = await this.getBoardingTxs(), g = (y) => this.indexerProvider.getVtxos({ outpoints: [{ txid: y, vout: 0 }] }).then((E) => E.vtxos[0]?.createdAt.getTime() || 0);
@@ -49503,7 +49494,7 @@ class F2 {
           arkTxid: ""
         },
         amount: E.value,
-        type: An.TxReceived,
+        type: kn.TxReceived,
         settled: E.virtualStatus.state === "spent",
         createdAt: E.status.block_time ? new Date(E.status.block_time * 1e3).getTime() : 0
       };
@@ -49515,7 +49506,7 @@ class F2 {
     };
   }
   async getBoardingUtxos() {
-    const a = await this.getBoardingAddress(), k = (await this.onchainProvider.getCoins(a)).map((d) => $9(this, d));
+    const a = await this.getBoardingAddress(), k = (await this.onchainProvider.getCoins(a)).map((d) => D9(this, d));
     return await this.walletRepository.saveUtxos(a, k), k;
   }
   async notifyIncomingFunds(a) {
@@ -49596,7 +49587,7 @@ class F2 {
         for (const d of k) {
           if (a.has(d.script))
             continue;
-          const g = Jn.get(d.type);
+          const g = qn.get(d.type);
           if (g) {
             const y = g.createScript(d.params);
             a.set(d.script, y);
@@ -49652,13 +49643,13 @@ class F2 {
     }
   }
   async initializeContractManager() {
-    const a = await t4.create({
+    const a = await e4.create({
       indexerProvider: this.indexerProvider,
       contractRepository: this.contractRepository,
       walletRepository: this.walletRepository,
       getDefaultAddress: () => this.getAddress(),
       watcherConfig: this.watcherConfig
-    }), h = this.offchainTapscript.options.csvTimelock ?? zi.Script.DEFAULT_TIMELOCK, k = Ls(h).toString();
+    }), h = this.offchainTapscript.options.csvTimelock ?? Gi.Script.DEFAULT_TIMELOCK, k = Ls(h).toString();
     if (this.offchainTapscript instanceof Zo.Script) {
       const g = this.offchainTapscript;
       await a.createContract({
@@ -49673,7 +49664,7 @@ class F2 {
         address: await this.getAddress(),
         state: "active"
       });
-      const y = new zi.Script({
+      const y = new Gi.Script({
         pubKey: g.options.pubKey,
         serverPubKey: g.options.serverPubKey,
         csvTimelock: h
@@ -49754,6 +49745,10 @@ class Js extends F2 {
   async getDelegatorManager() {
     return this._delegatorManager;
   }
+  /**
+   * @deprecated Use `send`
+   * @param params
+   */
   async sendBitcoin(a) {
     if (a.amount <= 0)
       throw new Error("Amount must be positive");
@@ -49878,7 +49873,7 @@ class Js extends F2 {
       assets: Z === S ? E : void 0
     }));
     if (E && E.length > 0) {
-      const W = bk(y, b);
+      const W = Tk(y, b);
       d.push(pi.create([W]).txOut());
     }
     let I;
@@ -49906,7 +49901,7 @@ class Js extends F2 {
     }
   }
   async handleSettlementFinalizationEvent(a, h, k, d) {
-    const g = [], y = await this.getVirtualCoins();
+    const g = [], y = await this.getVtxos();
     let E = lt.fromPSBT(h0.decode(a.commitmentTx)), S = !1, b = 0;
     const I = d?.leaves() || [];
     for (const P of h) {
@@ -49927,7 +49922,7 @@ class Js extends F2 {
         }
         continue;
       }
-      if (di(O) || vd(O, this.dustAmount))
+      if (zi(O) || vd(O, this.dustAmount))
         continue;
       if (I.length === 0)
         throw new Error("connectors not received");
@@ -49940,7 +49935,7 @@ class Js extends F2 {
       if (!W || !Z)
         throw new Error("invalid connector output");
       b++;
-      let ke = dd([
+      let ke = pd([
         {
           txid: P.txid,
           index: P.vout,
@@ -49992,7 +49987,7 @@ class Js extends F2 {
           },
           pubkeys: [this.forfeitPubkey]
         }).script;
-        return g = yn(P), { skip: !1 };
+        return g = gn(P), { skip: !1 };
       },
       onTreeSigningStarted: async (y, E) => {
         if (!d)
@@ -50003,7 +49998,7 @@ class Js extends F2 {
         if (!S.includes(q.encode(I)))
           return { skip: !0 };
         const P = lt.fromPSBT(h0.decode(y.unsignedCommitmentTx));
-        yd(E, P, g), k && k.length > 0 && vC(P, E.leaves(), k, this.network);
+        gd(E, P, g), k && k.length > 0 && vC(P, E.leaves(), k, this.network);
         const O = P.getOutput(0);
         if (!O?.amount)
           throw new Error("Shared output not found");
@@ -50023,7 +50018,7 @@ class Js extends F2 {
       onBatchFinalization: async (y, E, S) => {
         if (!this.forfeitOutputScript)
           throw new Error("Forfeit output script not set");
-        S && gd(y.commitmentTx, S), await this.handleSettlementFinalizationEvent(y, h, this.forfeitOutputScript, S);
+        S && wd(y.commitmentTx, S), await this.handleSettlementFinalizationEvent(y, h, this.forfeitOutputScript, S);
       }
     };
   }
@@ -50031,7 +50026,7 @@ class Js extends F2 {
     try {
       return await this.arkProvider.registerIntent(a);
     } catch (h) {
-      if (h instanceof kd && h.code === 0 && h.message.includes("duplicated input")) {
+      if (h instanceof hd && h.code === 0 && h.message.includes("duplicated input")) {
         const k = await this.getVtxos({
           withRecoverable: !0
         }), d = await this.makeDeleteIntentSignature(k);
@@ -50133,7 +50128,7 @@ class Js extends F2 {
   async send(...a) {
     if (a.length === 0)
       throw new Error("At least one receiver is required");
-    const h = KC(a, Number(this.dustAmount)), k = await this.getAddress(), d = ut.decode(k), g = await this.getVirtualCoins({
+    const h = KC(a, Number(this.dustAmount)), k = await this.getAddress(), d = ut.decode(k), g = await this.getVtxos({
       withRecoverable: !1
     }), y = /* @__PURE__ */ new Map();
     let E = [], S = 0;
@@ -50149,7 +50144,7 @@ class Js extends F2 {
             continue;
           }
           j > 0n && (Ae -= j, y.delete(fe.assetId));
-          const ie = g.filter((G) => !E.find((H) => H.txid === G.txid && H.vout === G.vout)), { selected: Q, totalAssetAmount: he } = _9(ie, fe.assetId, Ae);
+          const ie = g.filter((G) => !E.find((H) => H.txid === G.txid && H.vout === G.vout)), { selected: Q, totalAssetAmount: he } = U9(ie, fe.assetId, Ae);
           for (const G of Q)
             if (E.push(G), S -= G.value, G.assets)
               for (const H of G.assets) {
@@ -50206,7 +50201,7 @@ class Js extends F2 {
     }
     const M = Rf(E);
     if (M.size > 0 || h.some((me) => me.assets && me.assets.length > 0)) {
-      const me = bk(M, h, $);
+      const me = Tk(M, h, $);
       I.push(pi.create([me]).txOut());
     }
     const Z = h.reduce((me, fe) => me + fe.amount, 0), { arkTxid: ke, signedCheckpointTxs: we } = await this.buildAndSubmitOffchainTx(E, I);
@@ -50218,18 +50213,14 @@ class Js extends F2 {
    * @returns The ark transaction id and server-signed checkpoint PSBTs (for bookkeeping)
    */
   async buildAndSubmitOffchainTx(a, h) {
-    const k = this.offchainTapscript.forfeit();
-    if (!k)
-      throw new Error("Selected leaf not found");
-    const d = this.offchainTapscript.encode(), g = Q6(a.map((I) => ({
-      ...I,
-      tapLeafScript: k,
-      tapTree: d
-    })), h, this.serverUnrollScript), y = await this.identity.sign(g.arkTx), { arkTxid: E, signedCheckpointTxs: S } = await this.arkProvider.submitTx(h0.encode(y.toPSBT()), g.checkpoints.map((I) => h0.encode(I.toPSBT()))), b = await Promise.all(S.map(async (I) => {
-      const P = lt.fromPSBT(h0.decode(I)), O = await this.identity.sign(P);
-      return h0.encode(O.toPSBT());
+    const k = K6(a.map((S) => ({
+      ...S,
+      tapLeafScript: S.forfeitTapLeafScript
+    })), h, this.serverUnrollScript), d = await this.identity.sign(k.arkTx), { arkTxid: g, signedCheckpointTxs: y } = await this.arkProvider.submitTx(h0.encode(d.toPSBT()), k.checkpoints.map((S) => h0.encode(S.toPSBT()))), E = await Promise.all(y.map(async (S) => {
+      const b = lt.fromPSBT(h0.decode(S)), I = await this.identity.sign(b);
+      return h0.encode(I.toPSBT());
     }));
-    return await this.arkProvider.finalizeTx(E, b), { arkTxid: E, signedCheckpointTxs: S };
+    return await this.arkProvider.finalizeTx(g, E), { arkTxid: g, signedCheckpointTxs: y };
   }
   // mark vtxo spent and save change vtxo if any
   async updateDbAfterOffchainTx(a, h, k, d, g, y, E) {
@@ -50296,7 +50287,7 @@ class Js extends F2 {
             arkTxid: h
           },
           amount: d,
-          type: An.TxSent,
+          type: kn.TxSent,
           settled: !1,
           createdAt: O
         }
@@ -50405,7 +50396,7 @@ class tP {
     this.scheduleNextTick(), this.initialized = !0;
   }
   async buildServices(a) {
-    const h = new H6(a.arkServer.url), k = {
+    const h = new W6(a.arkServer.url), k = {
       walletRepository: this.walletRepository,
       contractRepository: this.contractRepository
     }, d = a.delegatorUrl ? new HI(a.delegatorUrl) : void 0;
@@ -50493,7 +50484,7 @@ class tP {
    * @throws if not running in a browser environment
    */
   static async getServiceWorker(a) {
-    return Sk(a);
+    return Ek(a);
   }
   /**
    * Set up and register the Service Worker, ensuring it's done once at most.
@@ -50503,7 +50494,7 @@ class tP {
    * @throws if not running in a browser environment
    */
   static async setup(a) {
-    return await II(a), Sk(a);
+    return await II(a), Ek(a);
   }
 }
 const rP = "WALLET_UPDATER";
@@ -50775,7 +50766,7 @@ class iP {
   // Wallet methods
   async handleInitWallet({ payload: a }) {
     const { arkServerUrl: h } = a;
-    this.indexerProvider = new G6(h), await this.onWalletInitialized();
+    this.indexerProvider = new Q6(h), await this.onWalletInitialized();
   }
   async handleGetBalance() {
     const [a, h, k] = await Promise.all([
@@ -50790,7 +50781,7 @@ class iP {
     for (const $ of h)
       $.virtualStatus.state === "settled" ? y += $.value : $.virtualStatus.state === "preconfirmed" && (E += $.value);
     for (const $ of k)
-      kn($) && (S += $.value);
+      $2($) && (S += $.value);
     const b = d + g, I = y + E + S, P = /* @__PURE__ */ new Map();
     for (const $ of h)
       if ($.assets)
@@ -50820,7 +50811,7 @@ class iP {
    * Get spendable vtxos for the current wallet address
    */
   async getSpendableVtxos() {
-    return this.readonlyWallet ? (await this.readonlyWallet.getVtxos()).filter(kn) : [];
+    return this.readonlyWallet ? (await this.readonlyWallet.getVtxos()).filter($2) : [];
   }
   /**
    * Get swept vtxos for the current wallet address
@@ -50842,7 +50833,7 @@ class iP {
     const d = await this.readonlyWallet.getAddress();
     await this.walletRepository.saveVtxos(d, k);
     const g = await this.readonlyWallet.getBoardingAddress(), y = await this.readonlyWallet.onchainProvider.getCoins(g);
-    await this.walletRepository.saveUtxos(g, y.map((S) => $9(this.readonlyWallet, S)));
+    await this.walletRepository.saveUtxos(g, y.map((S) => D9(this.readonlyWallet, S)));
     const E = await this.readonlyWallet.getTransactionHistory();
     E && await this.walletRepository.saveTransactions(d, E), this.incomingFundsSubscription && this.incomingFundsSubscription(), this.incomingFundsSubscription = await this.readonlyWallet.notifyIncomingFunds(async (S) => {
       if (S.type === "vtxo") {
@@ -50859,7 +50850,7 @@ class iP {
         }));
       }
       if (S.type === "utxo") {
-        const b = S.coins.map((P) => $9(this.readonlyWallet, P)), I = await this.readonlyWallet.getBoardingAddress();
+        const b = S.coins.map((P) => D9(this.readonlyWallet, P)), I = await this.readonlyWallet.getBoardingAddress();
         await this.walletRepository?.saveUtxos(I, b), this.scheduleForNextTick(() => this.tagged({
           type: "UTXO_UPDATE",
           broadcast: !0,
@@ -50925,7 +50916,7 @@ class iP {
     if (!this.readonlyWallet)
       throw new Error("Wallet handler not initialized");
     const h = await this.getSpendableVtxos(), k = this.readonlyWallet.dustAmount;
-    return a.payload.filter?.withRecoverable ?? !1 ? h : h.filter((y) => !(k != null && vd(y, k) || di(y) || U9(y)));
+    return a.payload.filter?.withRecoverable ?? !1 ? h : h.filter((y) => !(k != null && vd(y, k) || zi(y) || md(y)));
   }
   async clear() {
     if (this.readonlyWallet) {
@@ -51016,16 +51007,16 @@ const nP = (c) => {
     value: a,
     fee: (h) => h * a
   };
-}, r4 = "BIP0322-signed-message";
-var n8;
+}, t4 = "BIP0322-signed-message";
+var i8;
 (function(c) {
   async function a(k, d, g) {
-    const y = await d.xOnlyPublicKey(), E = f1(y, void 0, g), S = Qa(k, E.script, r4), b = Hd(S, E.script, y), I = await d.sign(b, [0]);
+    const y = await d.xOnlyPublicKey(), E = f1(y, void 0, g), S = Qa(k, E.script, t4), b = Hd(S, E.script, y), I = await d.sign(b, [0]);
     I.finalizeIdx(0);
     const P = I.getInput(0);
     if (!P.finalScriptWitness)
       throw new Error("BIP-322: failed to produce witness after signing");
-    return h0.encode(En.encode(P.finalScriptWitness));
+    return h0.encode(vn.encode(P.finalScriptWitness));
   }
   c.sign = a;
   function h(k, d, g, y) {
@@ -51043,7 +51034,7 @@ var n8;
       }
     let S, b;
     try {
-      S = a0.encode(E), b = En.decode(h0.decode(d));
+      S = a0.encode(E), b = vn.decode(h0.decode(d));
     } catch {
       return !1;
     }
@@ -51056,7 +51047,7 @@ var n8;
     throw new Error(`BIP-322 verify: unsupported address type '${E.type}'`);
   }
   c.verify = h;
-})(n8 || (n8 = {}));
+})(i8 || (i8 = {}));
 function sP(c, a, h, k) {
   if (a.length !== 1)
     return !1;
@@ -51066,7 +51057,7 @@ function sP(c, a, h, k) {
   const g = d.length === 65 ? d[64] : Ut.DEFAULT;
   if (g !== Ut.DEFAULT && g !== Ut.ALL)
     return !1;
-  const y = Qa(c, h, r4), S = Hd(y, h, k).preimageWitnessV1(0, [h], g, [0n]), b = d.length === 65 ? d.subarray(0, 64) : d;
+  const y = Qa(c, h, t4), S = Hd(y, h, k).preimageWitnessV1(0, [h], g, [0n]), b = d.length === 65 ? d.subarray(0, 64) : d;
   return Z2.verify(b, S, k);
 }
 function oP(c, a, h, k) {
@@ -51076,9 +51067,9 @@ function oP(c, a, h, k) {
   if (g.length !== 33 || d.length < 2)
     return !1;
   const y = Ko(g);
-  if (!HA(y.hash, k))
+  if (!WA(y.hash, k))
     return !1;
-  const E = d[d.length - 1], S = d.subarray(0, d.length - 1), b = Qa(c, h, r4), I = uP(b, h), P = a0.encode({ type: "pkh", hash: k }), O = I.preimageWitnessV0(0, P, E, 0n);
+  const E = d[d.length - 1], S = d.subarray(0, d.length - 1), b = Qa(c, h, t4), I = uP(b, h), P = a0.encode({ type: "pkh", hash: k }), O = I.preimageWitnessV0(0, P, E, 0n);
   return ua.verify(S, O, g, {
     prehash: !1,
     format: "der"
@@ -51093,7 +51084,7 @@ function fP(c, a, h) {
   const d = k >= 31, g = d ? k - 31 : k - 27, y = a.subarray(1, 65), E = aP(c);
   try {
     const I = ua.Signature.fromBytes(y, "compact").addRecoveryBit(g).recoverPublicKey(E).toBytes(d);
-    return HA(f2(I), h);
+    return WA(o2(I), h);
   } catch {
     return !1;
   }
@@ -51127,7 +51118,7 @@ function Hd(c, a, h) {
     sighashType: Ut.DEFAULT
   }), k.addOutput({
     amount: 0n,
-    script: W6
+    script: V6
   }), k;
 }
 function uP(c, a) {
@@ -51142,10 +51133,10 @@ function uP(c, a) {
     }
   }), h.addOutput({
     amount: 0n,
-    script: W6
+    script: V6
   }), h;
 }
-var s8;
+var n8;
 (function(c) {
   let a;
   (function(d) {
@@ -51274,7 +51265,7 @@ var s8;
     return W.finalize(), await d.onchainProvider.broadcastTransaction(W.hex), W.id;
   }
   c.completeUnroll = k;
-})(s8 || (s8 = {}));
+})(n8 || (n8 = {}));
 function lP(c) {
   return new Promise((a) => setTimeout(a, c));
 }
@@ -51304,9 +51295,9 @@ function AP(c, a, h) {
     } else if (a.time >= c.time + Number(d.params.timelock.value))
       return d;
 }
-var ju = {}, o8;
+var ju = {}, s8;
 function pP() {
-  return o8 || (o8 = 1, (function(c) {
+  return s8 || (s8 = 1, (function(c) {
     /*! scure-base - MIT License (c) 2022 Paul Miller (paulmillr.com) */
     Object.defineProperty(c, "__esModule", { value: !0 }), c.bytes = c.stringToBytes = c.str = c.bytesToString = c.hex = c.utf8 = c.bech32m = c.bech32 = c.base58check = c.base58xmr = c.base58xrp = c.base58flickr = c.base58 = c.base64url = c.base64 = c.base32crockford = c.base32hex = c.base32 = c.base16 = c.utils = c.assertNumber = void 0;
     function a(re) {
@@ -51647,10 +51638,10 @@ function pP() {
     c.stringToBytes = he, c.bytes = c.stringToBytes;
   })(ju)), ju;
 }
-var Xu, f8;
+var Xu, o8;
 function dP() {
-  if (f8) return Xu;
-  f8 = 1;
+  if (o8) return Xu;
+  o8 = 1;
   const { bech32: c, hex: a, utf8: h } = pP(), k = {
     // default network is bitcoin
     bech32: "bc",
@@ -51919,7 +51910,7 @@ function dP() {
   }, Xu;
 }
 var wP = dP();
-const gP = /* @__PURE__ */ Vp(wP);
+const gP = /* @__PURE__ */ Fp(wP);
 var A0 = class extends Error {
   isClaimable;
   isRefundable;
@@ -51938,7 +51929,7 @@ var A0 = class extends Error {
       ...c
     }), this.name = "InvoiceFailedToPayError";
   }
-}, Ki = class extends Error {
+}, Hi = class extends Error {
   statusCode;
   errorData;
   constructor(c, a, h) {
@@ -51968,7 +51959,7 @@ var A0 = class extends Error {
   "invoice.failedToPay",
   "transaction.claimed",
   "swap.expired"
-].includes(c), a8 = (c) => [
+].includes(c), f8 = (c) => [
   "invoice.failedToPay",
   "transaction.lockupFailed",
   "swap.expired"
@@ -51978,7 +51969,7 @@ var A0 = class extends Error {
   "invoice.settled",
   // normal status for completed swaps
   "swap.expired"
-].includes(c), c8 = (c) => ["transaction.mempool", "transaction.confirmed"].includes(c), u8 = (c) => [
+].includes(c), a8 = (c) => ["transaction.mempool", "transaction.confirmed"].includes(c), c8 = (c) => [
   "transaction.server.mempool",
   "transaction.server.confirmed"
 ].includes(c), Gd = (c) => [
@@ -51987,7 +51978,7 @@ var A0 = class extends Error {
   "transaction.claimed",
   // normal status for completed swaps
   "swap.expired"
-].includes(c), l8 = (c) => ["swap.expired"].includes(c), h8 = (c) => ["transaction.claim.pending"].includes(c), Ss = (c) => c.type === "reverse", xs = (c) => c.type === "submarine", B2 = (c) => c.type === "chain", Za = (c) => c && typeof c == "object" && typeof c.refund == "number" && typeof c.unilateralClaim == "number" && typeof c.unilateralRefund == "number" && typeof c.unilateralRefundWithoutReceiver == "number", EP = (c) => c && typeof c == "object" && typeof c.id == "string" && typeof c.timeoutBlockHeight == "number", SP = (c) => c && typeof c == "object" && typeof c.status == "string" && (c.zeroConfRejected === void 0 || typeof c.zeroConfRejected == "boolean") && (c.transaction === void 0 || c.transaction && typeof c.transaction == "object" && typeof c.transaction.id == "string" && (c.transaction.eta === void 0 || typeof c.transaction.eta == "number") && (c.transaction.hex === void 0 || typeof c.transaction.hex == "string") && (c.transaction.preimage === void 0 || typeof c.transaction.preimage == "string")), k8 = (c) => c && typeof c == "object" && c.ARK && typeof c.ARK == "object" && c.ARK.BTC && typeof c.ARK.BTC == "object" && typeof c.ARK.BTC.hash == "string" && typeof c.ARK.BTC.rate == "number" && c.ARK.BTC.limits && typeof c.ARK.BTC.limits == "object" && typeof c.ARK.BTC.limits.maximal == "number" && typeof c.ARK.BTC.limits.minimal == "number" && typeof c.ARK.BTC.limits.maximalZeroConf == "number" && c.ARK.BTC.fees && typeof c.ARK.BTC.fees == "object" && typeof c.ARK.BTC.fees.percentage == "number" && typeof c.ARK.BTC.fees.minerFees == "number", xP = (c) => c && typeof c == "object" && c.BTC && typeof c.BTC == "object" && c.BTC.ARK && typeof c.BTC.ARK == "object" && c.BTC.ARK.hash && typeof c.BTC.ARK.hash == "string" && typeof c.BTC.ARK.rate == "number" && c.BTC.ARK.limits && typeof c.BTC.ARK.limits == "object" && typeof c.BTC.ARK.limits.maximal == "number" && typeof c.BTC.ARK.limits.minimal == "number" && c.BTC.ARK.fees && typeof c.BTC.ARK.fees == "object" && typeof c.BTC.ARK.fees.percentage == "number" && typeof c.BTC.ARK.fees.minerFees == "object" && typeof c.BTC.ARK.fees.minerFees.claim == "number" && typeof c.BTC.ARK.fees.minerFees.lockup == "number", TP = (c) => c && typeof c == "object" && typeof c.id == "string" && typeof c.address == "string" && typeof c.expectedAmount == "number" && typeof c.claimPublicKey == "string" && typeof c.acceptZeroConf == "boolean" && Za(c.timeoutBlockHeights), bP = (c) => c && typeof c == "object" && typeof c.preimage == "string", BP = (c) => c && typeof c == "object" && typeof c.id == "string" && typeof c.invoice == "string" && typeof c.onchainAmount == "number" && typeof c.lockupAddress == "string" && typeof c.refundPublicKey == "string" && Za(c.timeoutBlockHeights), IP = (c) => c && typeof c == "object" && typeof c.transaction == "string" && typeof c.checkpoint == "string", CP = (c) => c && typeof c == "object" && typeof c.transaction == "string" && typeof c.checkpoint == "string", A8 = (c) => c && typeof c == "object" && c.ARK && c.BTC && typeof c.ARK == "object" && typeof c.BTC == "object" && c.ARK.BTC && c.BTC.ARK && typeof c.ARK.BTC == "object" && typeof c.BTC.ARK == "object" && typeof c.ARK.BTC.hash == "string" && typeof c.BTC.ARK.hash == "string" && typeof c.ARK.BTC.rate == "number" && typeof c.BTC.ARK.rate == "number" && c.ARK.BTC.limits && c.BTC.ARK.limits && typeof c.ARK.BTC.limits == "object" && typeof c.BTC.ARK.limits == "object" && typeof c.ARK.BTC.limits.maximal == "number" && typeof c.BTC.ARK.limits.maximal == "number" && typeof c.ARK.BTC.limits.minimal == "number" && typeof c.BTC.ARK.limits.minimal == "number" && typeof c.ARK.BTC.limits.maximalZeroConf == "number" && typeof c.BTC.ARK.limits.maximalZeroConf == "number" && c.ARK.BTC.fees && c.BTC.ARK.fees && typeof c.ARK.BTC.fees == "object" && typeof c.BTC.ARK.fees == "object" && typeof c.ARK.BTC.fees.percentage == "number" && typeof c.BTC.ARK.fees.percentage == "number" && typeof c.ARK.BTC.fees.minerFees == "object" && typeof c.BTC.ARK.fees.minerFees == "object" && typeof c.ARK.BTC.fees.minerFees.server == "number" && typeof c.BTC.ARK.fees.minerFees.server == "number" && c.ARK.BTC.fees.minerFees.user && c.BTC.ARK.fees.minerFees.user && typeof c.ARK.BTC.fees.minerFees.user == "object" && typeof c.BTC.ARK.fees.minerFees.user == "object" && typeof c.ARK.BTC.fees.minerFees.user.claim == "number" && typeof c.BTC.ARK.fees.minerFees.user.claim == "number" && typeof c.ARK.BTC.fees.minerFees.user.lockup == "number" && typeof c.BTC.ARK.fees.minerFees.user.lockup == "number", RP = (c) => c && typeof c == "object" && typeof c.claimLeaf == "object" && typeof c.claimLeaf.version == "number" && typeof c.claimLeaf.output == "string" && typeof c.refundLeaf == "object" && typeof c.refundLeaf.version == "number" && typeof c.refundLeaf.output == "string", p8 = (c) => c && typeof c == "object" && typeof c.amount == "number" && typeof c.lockupAddress == "string" && typeof c.serverPublicKey == "string" && typeof c.timeoutBlockHeight == "number" && (c.swapTree === void 0 || RP(c.swapTree)) && (c.timeouts === void 0 || Za(c.timeouts)) && (c.bip21 === void 0 || typeof c.bip21 == "string"), PP = (c) => c && typeof c == "object" && typeof c.id == "string" && p8(c.claimDetails) && p8(c.lockupDetails), NP = (c) => c && typeof c == "object" && typeof c.pubNonce == "string" && typeof c.publicKey == "string" && typeof c.transactionHash == "string", OP = (c) => c && typeof c == "object" && (typeof c.pubNonce == "string" && typeof c.partialSignature == "string" || typeof c.pubNonce > "u" && typeof c.partialSignature > "u"), UP = (c) => c && typeof c == "object" && typeof c.amount == "number", _P = (c) => c && typeof c == "object" && Object.keys(c).length === 0 && c.constructor === Object, DP = (c) => c && typeof c == "object" && typeof c.id == "string", vs = (c) => c && typeof c == "object" && typeof c.version == "number" && typeof c.output == "string", $P = (c) => c && typeof c == "object" && vs(c.claimLeaf) && vs(c.refundLeaf) && vs(c.refundWithoutBoltzLeaf) && vs(c.unilateralClaimLeaf) && vs(c.unilateralRefundLeaf) && vs(c.unilateralRefundWithoutBoltzLeaf), zd = (c) => c && typeof c == "object" && $P(c.tree) && (c.amount === void 0 || typeof c.amount == "number") && typeof c.keyIndex == "number" && (c.transaction === void 0 || c.transaction && typeof c.transaction == "object" && typeof c.transaction.id == "string" && typeof c.transaction.vout == "number") && typeof c.lockupAddress == "string" && typeof c.serverPublicKey == "string" && typeof c.timeoutBlockHeight == "number" && Za(c.timeoutBlockHeights) && (c.preimageHash === void 0 || typeof c.preimageHash == "string"), jd = (c) => c && typeof c == "object" && c.to === "BTC" && typeof c.id == "string" && c.from === "ARK" && c.type === "submarine" && typeof c.createdAt == "number" && typeof c.preimageHash == "string" && typeof c.status == "string" && zd(c.refundDetails), Xd = (c) => c && typeof c == "object" && c.to === "ARK" && typeof c.id == "string" && c.from === "BTC" && c.type === "reverse" && typeof c.createdAt == "number" && typeof c.preimageHash == "string" && typeof c.status == "string" && zd(c.claimDetails), MP = (c) => Array.isArray(c) && c.every(
+].includes(c), u8 = (c) => ["swap.expired"].includes(c), l8 = (c) => ["transaction.claim.pending"].includes(c), Ss = (c) => c.type === "reverse", xs = (c) => c.type === "submarine", b2 = (c) => c.type === "chain", Za = (c) => c && typeof c == "object" && typeof c.refund == "number" && typeof c.unilateralClaim == "number" && typeof c.unilateralRefund == "number" && typeof c.unilateralRefundWithoutReceiver == "number", EP = (c) => c && typeof c == "object" && typeof c.id == "string" && typeof c.timeoutBlockHeight == "number", SP = (c) => c && typeof c == "object" && typeof c.status == "string" && (c.zeroConfRejected === void 0 || typeof c.zeroConfRejected == "boolean") && (c.transaction === void 0 || c.transaction && typeof c.transaction == "object" && typeof c.transaction.id == "string" && (c.transaction.eta === void 0 || typeof c.transaction.eta == "number") && (c.transaction.hex === void 0 || typeof c.transaction.hex == "string") && (c.transaction.preimage === void 0 || typeof c.transaction.preimage == "string")), h8 = (c) => c && typeof c == "object" && c.ARK && typeof c.ARK == "object" && c.ARK.BTC && typeof c.ARK.BTC == "object" && typeof c.ARK.BTC.hash == "string" && typeof c.ARK.BTC.rate == "number" && c.ARK.BTC.limits && typeof c.ARK.BTC.limits == "object" && typeof c.ARK.BTC.limits.maximal == "number" && typeof c.ARK.BTC.limits.minimal == "number" && typeof c.ARK.BTC.limits.maximalZeroConf == "number" && c.ARK.BTC.fees && typeof c.ARK.BTC.fees == "object" && typeof c.ARK.BTC.fees.percentage == "number" && typeof c.ARK.BTC.fees.minerFees == "number", xP = (c) => c && typeof c == "object" && c.BTC && typeof c.BTC == "object" && c.BTC.ARK && typeof c.BTC.ARK == "object" && c.BTC.ARK.hash && typeof c.BTC.ARK.hash == "string" && typeof c.BTC.ARK.rate == "number" && c.BTC.ARK.limits && typeof c.BTC.ARK.limits == "object" && typeof c.BTC.ARK.limits.maximal == "number" && typeof c.BTC.ARK.limits.minimal == "number" && c.BTC.ARK.fees && typeof c.BTC.ARK.fees == "object" && typeof c.BTC.ARK.fees.percentage == "number" && typeof c.BTC.ARK.fees.minerFees == "object" && typeof c.BTC.ARK.fees.minerFees.claim == "number" && typeof c.BTC.ARK.fees.minerFees.lockup == "number", TP = (c) => c && typeof c == "object" && typeof c.id == "string" && typeof c.address == "string" && typeof c.expectedAmount == "number" && typeof c.claimPublicKey == "string" && typeof c.acceptZeroConf == "boolean" && Za(c.timeoutBlockHeights), bP = (c) => c && typeof c == "object" && typeof c.preimage == "string", BP = (c) => c && typeof c == "object" && typeof c.id == "string" && typeof c.invoice == "string" && typeof c.onchainAmount == "number" && typeof c.lockupAddress == "string" && typeof c.refundPublicKey == "string" && Za(c.timeoutBlockHeights), IP = (c) => c && typeof c == "object" && typeof c.transaction == "string" && typeof c.checkpoint == "string", CP = (c) => c && typeof c == "object" && typeof c.transaction == "string" && typeof c.checkpoint == "string", k8 = (c) => c && typeof c == "object" && c.ARK && c.BTC && typeof c.ARK == "object" && typeof c.BTC == "object" && c.ARK.BTC && c.BTC.ARK && typeof c.ARK.BTC == "object" && typeof c.BTC.ARK == "object" && typeof c.ARK.BTC.hash == "string" && typeof c.BTC.ARK.hash == "string" && typeof c.ARK.BTC.rate == "number" && typeof c.BTC.ARK.rate == "number" && c.ARK.BTC.limits && c.BTC.ARK.limits && typeof c.ARK.BTC.limits == "object" && typeof c.BTC.ARK.limits == "object" && typeof c.ARK.BTC.limits.maximal == "number" && typeof c.BTC.ARK.limits.maximal == "number" && typeof c.ARK.BTC.limits.minimal == "number" && typeof c.BTC.ARK.limits.minimal == "number" && typeof c.ARK.BTC.limits.maximalZeroConf == "number" && typeof c.BTC.ARK.limits.maximalZeroConf == "number" && c.ARK.BTC.fees && c.BTC.ARK.fees && typeof c.ARK.BTC.fees == "object" && typeof c.BTC.ARK.fees == "object" && typeof c.ARK.BTC.fees.percentage == "number" && typeof c.BTC.ARK.fees.percentage == "number" && typeof c.ARK.BTC.fees.minerFees == "object" && typeof c.BTC.ARK.fees.minerFees == "object" && typeof c.ARK.BTC.fees.minerFees.server == "number" && typeof c.BTC.ARK.fees.minerFees.server == "number" && c.ARK.BTC.fees.minerFees.user && c.BTC.ARK.fees.minerFees.user && typeof c.ARK.BTC.fees.minerFees.user == "object" && typeof c.BTC.ARK.fees.minerFees.user == "object" && typeof c.ARK.BTC.fees.minerFees.user.claim == "number" && typeof c.BTC.ARK.fees.minerFees.user.claim == "number" && typeof c.ARK.BTC.fees.minerFees.user.lockup == "number" && typeof c.BTC.ARK.fees.minerFees.user.lockup == "number", RP = (c) => c && typeof c == "object" && typeof c.claimLeaf == "object" && typeof c.claimLeaf.version == "number" && typeof c.claimLeaf.output == "string" && typeof c.refundLeaf == "object" && typeof c.refundLeaf.version == "number" && typeof c.refundLeaf.output == "string", A8 = (c) => c && typeof c == "object" && typeof c.amount == "number" && typeof c.lockupAddress == "string" && typeof c.serverPublicKey == "string" && typeof c.timeoutBlockHeight == "number" && (c.swapTree === void 0 || RP(c.swapTree)) && (c.timeouts === void 0 || Za(c.timeouts)) && (c.bip21 === void 0 || typeof c.bip21 == "string"), PP = (c) => c && typeof c == "object" && typeof c.id == "string" && A8(c.claimDetails) && A8(c.lockupDetails), NP = (c) => c && typeof c == "object" && typeof c.pubNonce == "string" && typeof c.publicKey == "string" && typeof c.transactionHash == "string", OP = (c) => c && typeof c == "object" && (typeof c.pubNonce == "string" && typeof c.partialSignature == "string" || typeof c.pubNonce > "u" && typeof c.partialSignature > "u"), UP = (c) => c && typeof c == "object" && typeof c.amount == "number", _P = (c) => c && typeof c == "object" && Object.keys(c).length === 0 && c.constructor === Object, DP = (c) => c && typeof c == "object" && typeof c.id == "string", vs = (c) => c && typeof c == "object" && typeof c.version == "number" && typeof c.output == "string", $P = (c) => c && typeof c == "object" && vs(c.claimLeaf) && vs(c.refundLeaf) && vs(c.refundWithoutBoltzLeaf) && vs(c.unilateralClaimLeaf) && vs(c.unilateralRefundLeaf) && vs(c.unilateralRefundWithoutBoltzLeaf), zd = (c) => c && typeof c == "object" && $P(c.tree) && (c.amount === void 0 || typeof c.amount == "number") && typeof c.keyIndex == "number" && (c.transaction === void 0 || c.transaction && typeof c.transaction == "object" && typeof c.transaction.id == "string" && typeof c.transaction.vout == "number") && typeof c.lockupAddress == "string" && typeof c.serverPublicKey == "string" && typeof c.timeoutBlockHeight == "number" && Za(c.timeoutBlockHeights) && (c.preimageHash === void 0 || typeof c.preimageHash == "string"), jd = (c) => c && typeof c == "object" && c.to === "BTC" && typeof c.id == "string" && c.from === "ARK" && c.type === "submarine" && typeof c.createdAt == "number" && typeof c.preimageHash == "string" && typeof c.status == "string" && zd(c.refundDetails), Xd = (c) => c && typeof c == "object" && c.to === "ARK" && typeof c.id == "string" && c.from === "BTC" && c.type === "reverse" && typeof c.createdAt == "number" && typeof c.preimageHash == "string" && typeof c.status == "string" && zd(c.claimDetails), MP = (c) => Array.isArray(c) && c.every(
   (a) => Xd(a) || jd(a)
 ), LP = {
   mutinynet: "https://api.boltz.mutinynet.arkade.sh",
@@ -52023,7 +52014,7 @@ var A0 = class extends Error {
       ),
       this.request("/v2/swap/reverse", "GET")
     ]);
-    if (!k8(c))
+    if (!h8(c))
       throw new ct({ message: "error fetching submarine fees" });
     if (!xP(a))
       throw new ct({ message: "error fetching reverse fees" });
@@ -52043,7 +52034,7 @@ var A0 = class extends Error {
       "/v2/swap/submarine",
       "GET"
     );
-    if (!k8(c))
+    if (!h8(c))
       throw new ct({ message: "error fetching limits" });
     return {
       min: c.ARK.BTC.limits.minimal,
@@ -52235,11 +52226,11 @@ var A0 = class extends Error {
   async monitorSwap(c, a) {
     return new Promise((h, k) => {
       const d = new globalThis.WebSocket(this.wsUrl), g = setTimeout(() => {
-        d.close(), k(new Ki("WebSocket connection timeout"));
+        d.close(), k(new Hi("WebSocket connection timeout"));
       }, 3e4);
       d.onerror = (y) => {
         clearTimeout(g), k(
-          new Ki(
+          new Hi(
             `WebSocket error: ${y.message}`
           )
         );
@@ -52292,7 +52283,7 @@ var A0 = class extends Error {
       "/v2/swap/chain",
       "GET"
     );
-    if (!A8(h))
+    if (!k8(h))
       throw new ct({ message: "error fetching fees" });
     if (!h[c]?.[a])
       throw new ct({
@@ -52307,7 +52298,7 @@ var A0 = class extends Error {
       "/v2/swap/chain",
       "GET"
     );
-    if (!A8(h))
+    if (!k8(h))
       throw new ct({ message: "error fetching limits" });
     if (!h[c]?.[a])
       throw new ct({
@@ -52406,18 +52397,18 @@ var A0 = class extends Error {
         } catch {
         }
         const E = `Boltz API error: ${d.status} ${g}`;
-        throw new Ki(E, d.status, y);
+        throw new Hi(E, d.status, y);
       }
       if (d.headers.get("content-length") === "0")
-        throw new Ki("Empty response from Boltz API");
+        throw new Hi("Empty response from Boltz API");
       return await d.json();
     } catch (d) {
-      throw d instanceof Ki ? d : new Ki(
+      throw d instanceof Hi ? d : new Hi(
         `Request to ${k} failed: ${d.message}`
       );
     }
   }
-}, i4 = (c) => {
+}, r4 = (c) => {
   const a = gP.decode(c), h = Number(
     a.sections.find((k) => k.name === "amount")?.value ?? "0"
   );
@@ -52427,7 +52418,7 @@ var A0 = class extends Error {
     description: a.sections.find((k) => k.name === "description")?.value ?? "",
     paymentHash: a.sections.find((k) => k.name === "payment_hash")?.value ?? ""
   };
-}, VP = (c) => i4(c).paymentHash, Zu = (c, a, h) => {
+}, VP = (c) => r4(c).paymentHash, Zu = (c, a, h) => {
   try {
     return RC(c, a, h), !0;
   } catch {
@@ -52674,7 +52665,7 @@ var A0 = class extends Error {
           new Error(
             `Swap failed with status: ${y.status}`
           )
-        ) : B2(y) && (y.status === "transaction.claimed" ? h({ txid: y.id }) : k(
+        ) : b2(y) && (y.status === "transaction.claimed" ? h({ txid: y.id }) : k(
           new Error(
             `Swap failed with status: ${y.status}`
           )
@@ -52707,7 +52698,7 @@ var A0 = class extends Error {
     if (!(this.isReconnecting || this.webSocketUnavailable)) {
       if (!this.hasWebSocketSupport()) {
         this.webSocketUnavailable = !0, this.enterPollingFallback(
-          new Ki("WebSocket is not available in this runtime")
+          new Hi("WebSocket is not available in this runtime")
         );
         return;
       }
@@ -52717,12 +52708,12 @@ var A0 = class extends Error {
         this.websocket = new globalThis.WebSocket(c);
         const a = setTimeout(() => {
           l0.error("WebSocket connection timeout"), this.websocket?.close(), this.enterPollingFallback(
-            new Ki("WebSocket connection failed")
+            new Hi("WebSocket connection failed")
           );
         }, 1e4);
         this.websocket.onerror = (h) => {
           clearTimeout(a), l0.error("WebSocket error:", h), this.enterPollingFallback(
-            new Ki("WebSocket connection failed")
+            new Hi("WebSocket connection failed")
           );
         }, this.websocket.onopen = () => {
           clearTimeout(a), this.currentReconnectDelay = this.config.reconnectDelayMs, this.usePollingFallback = !1, this.isReconnecting = !1;
@@ -52736,7 +52727,7 @@ var A0 = class extends Error {
         };
       } catch (c) {
         l0.error("Failed to create WebSocket:", c), this.enterPollingFallback(
-          new Ki("WebSocket connection failed")
+          new Hi("WebSocket connection failed")
         );
       }
     }
@@ -52850,7 +52841,7 @@ var A0 = class extends Error {
           );
           return;
         }
-        c8(c.status) && (l0.log(`Auto-claiming reverse swap ${c.id}`), await this.executeClaimAction(c), this.actionExecutedListeners.forEach(
+        a8(c.status) && (l0.log(`Auto-claiming reverse swap ${c.id}`), await this.executeClaimAction(c), this.actionExecutedListeners.forEach(
           (a) => a(c, "claim")
         ));
       } else if (xs(c)) {
@@ -52860,23 +52851,23 @@ var A0 = class extends Error {
           );
           return;
         }
-        a8(c.status) && (l0.log(`Auto-refunding submarine swap ${c.id}`), await this.executeRefundAction(c), this.actionExecutedListeners.forEach(
+        f8(c.status) && (l0.log(`Auto-refunding submarine swap ${c.id}`), await this.executeRefundAction(c), this.actionExecutedListeners.forEach(
           (a) => a(c, "refund")
         ));
-      } else if (B2(c)) {
-        if (u8(c.status))
+      } else if (b2(c)) {
+        if (c8(c.status))
           c.request.to === "ARK" ? (l0.log(`Auto-claiming ARK chain swap ${c.id}`), await this.executeClaimArkAction(c), this.actionExecutedListeners.forEach(
             (a) => a(c, "claimArk")
           )) : c.request.to === "BTC" && (l0.log(`Auto-claiming BTC chain swap ${c.id}`), await this.executeClaimBtcAction(c), this.actionExecutedListeners.forEach(
             (a) => a(c, "claimBtc")
           ));
-        else if (l8(c.status))
+        else if (u8(c.status))
           c.request.from === "ARK" && (l0.log(`Auto-refunding ARK chain swap ${c.id}`), await this.executeRefundArkAction(c), this.actionExecutedListeners.forEach(
             (a) => a(c, "refundArk")
           )), c.request.from === "BTC" && l0.warn(
             `Chain swap ${c.id} expired: BTC lockup will be refunded by Boltz after timelock`
           );
-        else if (c.request.to === "ARK" && h8(c.status)) {
+        else if (c.request.to === "ARK" && l8(c.status)) {
           l0.log(
             `Auto-signing server's cooperative claim for ARK chain swap ${c.id}`
           );
@@ -52979,7 +52970,7 @@ var A0 = class extends Error {
     if (this.config.enableAutoActions)
       for (const c of this.monitoredSwaps.values())
         try {
-          Ss(c) && c8(c.status) ? (l0.log(`Resuming claim for swap ${c.id}`), await this.executeAutonomousAction(c)) : xs(c) && a8(c.status) ? (l0.log(`Resuming refund for swap ${c.id}`), await this.executeAutonomousAction(c)) : B2(c) && u8(c.status) ? (l0.log(`Resuming chain claim for swap ${c.id}`), await this.executeAutonomousAction(c)) : B2(c) && l8(c.status) ? (l0.log(`Resuming chain refund for swap ${c.id}`), await this.executeAutonomousAction(c)) : B2(c) && c.request.to === "ARK" && h8(c.status) && (l0.log(
+          Ss(c) && a8(c.status) ? (l0.log(`Resuming claim for swap ${c.id}`), await this.executeAutonomousAction(c)) : xs(c) && f8(c.status) ? (l0.log(`Resuming refund for swap ${c.id}`), await this.executeAutonomousAction(c)) : b2(c) && c8(c.status) ? (l0.log(`Resuming chain claim for swap ${c.id}`), await this.executeAutonomousAction(c)) : b2(c) && u8(c.status) ? (l0.log(`Resuming chain refund for swap ${c.id}`), await this.executeAutonomousAction(c)) : b2(c) && c.request.to === "ARK" && l8(c.status) && (l0.log(
             `Resuming server claim signing for swap ${c.id}`
           ), await this.executeAutonomousAction(c));
         } catch (a) {
@@ -53037,7 +53028,7 @@ var A0 = class extends Error {
    */
   isFinalStatus(c) {
     const a = c.status;
-    return Ss(c) && Qd(a) || xs(c) && Kd(a) || B2(c) && Gd(a);
+    return Ss(c) && Qd(a) || xs(c) && Kd(a) || b2(c) && Gd(a);
   }
   /**
    * Get current manager statistics (for debugging/monitoring)
@@ -53056,7 +53047,7 @@ var A0 = class extends Error {
 async function HP(c, a) {
   Ss(c) ? a.saveReverseSwap ? await a.saveReverseSwap(c) : console.warn("No saveReverseSwap handler provided, swap not saved") : xs(c) ? a.saveSubmarineSwap ? await a.saveSubmarineSwap(c) : console.warn(
     "No saveSubmarineSwap handler provided, swap not saved"
-  ) : B2(c) && (a.saveChainSwap ? await a.saveChainSwap(c) : console.warn("No saveChainSwap handler provided, swap not saved"));
+  ) : b2(c) && (a.saveChainSwap ? await a.saveChainSwap(c) : console.warn("No saveChainSwap handler provided, swap not saved"));
 }
 async function qu(c, a, h, k) {
   await h({
@@ -53083,7 +53074,7 @@ function KP(c, a) {
 function QP(c, a) {
   let h;
   try {
-    const k = i4(a);
+    const k = r4(a);
     if (!k.paymentHash)
       throw new Error("Invoice missing payment hash");
     h = k.paymentHash;
@@ -53096,10 +53087,10 @@ function QP(c, a) {
     );
   return c.request.invoice = a, c;
 }
-var GP = "arkade-boltz-swap", zP = 2, Hi = "swaps";
+var GP = "arkade-boltz-swap", zP = 2, Wi = "swaps";
 function jP(c) {
-  if (!c.objectStoreNames.contains(Hi)) {
-    const a = c.createObjectStore(Hi, {
+  if (!c.objectStoreNames.contains(Wi)) {
+    const a = c.createObjectStore(Wi, {
       keyPath: "id"
     });
     a.createIndex("status", "status", { unique: !1 }), a.createIndex("type", "type", { unique: !1 }), a.createIndex("createdAt", "createdAt", { unique: !1 });
@@ -53112,15 +53103,15 @@ var Yd = class {
   version = 1;
   db = null;
   async getDB() {
-    return this.db ? this.db : (this.db = await J6(this.dbName, zP, jP), this.db);
+    return this.db ? this.db : (this.db = await q6(this.dbName, zP, jP), this.db);
   }
   async saveSwap(c) {
     const a = await this.getDB();
     return new Promise((h, k) => {
       const y = a.transaction(
-        [Hi],
+        [Wi],
         "readwrite"
-      ).objectStore(Hi).put(c);
+      ).objectStore(Wi).put(c);
       y.onsuccess = () => h(), y.onerror = () => k(y.error);
     });
   }
@@ -53128,9 +53119,9 @@ var Yd = class {
     const a = await this.getDB();
     return new Promise((h, k) => {
       const y = a.transaction(
-        [Hi],
+        [Wi],
         "readwrite"
-      ).objectStore(Hi).delete(c);
+      ).objectStore(Wi).delete(c);
       y.onsuccess = () => h(), y.onerror = () => k(y.error);
     });
   }
@@ -53141,9 +53132,9 @@ var Yd = class {
     const c = await this.getDB();
     return new Promise((a, h) => {
       const g = c.transaction(
-        [Hi],
+        [Wi],
         "readwrite"
-      ).objectStore(Hi).clear();
+      ).objectStore(Wi).clear();
       g.onsuccess = () => a(), g.onerror = () => h(g.error);
     });
   }
@@ -53160,7 +53151,7 @@ var Yd = class {
     );
   }
   async getAllSwapsFromStore(c) {
-    const h = (await this.getDB()).transaction([Hi], "readonly").objectStore(Hi);
+    const h = (await this.getDB()).transaction([Wi], "readonly").objectStore(Wi);
     if (!c || Object.keys(c).length === 0)
       return new Promise((g, y) => {
         const E = h.getAll();
@@ -53237,7 +53228,7 @@ var Yd = class {
     return c.slice().sort((k, d) => (k.createdAt - d.createdAt) * h);
   }
   async [Symbol.asyncDispose]() {
-    this.db && (await e4(this.dbName), this.db = null);
+    this.db && (await J6(this.dbName), this.db = null);
   }
 }, XP = ["id", "status", "type"];
 function YP(c) {
@@ -53289,7 +53280,7 @@ var Zd = (c, a) => c.findIndex((h) => D0(a, h)), qd = (c) => {
     this.privateKey = c, this.myPublicKey = a, this.publicKeys = h, this.myIndex = k, this.aggPubkey = d, this.tweak = g, this.msg = y;
   }
   generateNonce() {
-    const c = UA(
+    const c = OA(
       this.myPublicKey,
       this.privateKey,
       this.aggPubkey,
@@ -53330,7 +53321,7 @@ var Zd = (c, a) => c.findIndex((h) => D0(a, h)), qd = (c) => {
       if (!E) throw new Error("missing nonce for public key");
       d.push(E);
     }
-    const g = _A([...d]);
+    const g = UA([...d]);
     return new eN(
       this.privateKey,
       this.myPublicKey,
@@ -53352,7 +53343,7 @@ var Zd = (c, a) => c.findIndex((h) => D0(a, h)), qd = (c) => {
     return this.nonce.public;
   }
   initializeSession() {
-    const c = new DA(
+    const c = new _A(
       this.aggregatedNonce,
       [...this.publicKeys],
       this.msg,
@@ -53408,7 +53399,7 @@ var Zd = (c, a) => c.findIndex((h) => D0(a, h)), qd = (c) => {
       this.partialSignatures
     );
   }
-}, d8 = (c, a) => {
+}, p8 = (c, a) => {
   if (a.length < 2)
     throw new Error("need at least 2 keys to aggregate");
   const h = [...a];
@@ -53432,7 +53423,7 @@ var Zd = (c, a) => c.findIndex((h) => D0(a, h)), qd = (c) => {
   bech32: "tb",
   pubKeyHash: 111,
   scriptHash: 196
-}, w8 = (c) => ({
+}, d8 = (c) => ({
   version: c.version,
   output: q.decode(c.output)
 }), sN = (c) => {
@@ -53446,8 +53437,8 @@ var Zd = (c, a) => c.findIndex((h) => D0(a, h)), qd = (c) => {
     return [h(k.slice(0, g)), h(k.slice(g))];
   };
   return h(a);
-}, g8 = (c) => {
-  const a = typeof c == "string" ? JSON.parse(c) : c, h = w8(a.claimLeaf), k = w8(a.refundLeaf);
+}, w8 = (c) => {
+  const a = typeof c == "string" ? JSON.parse(c) : c, h = d8(a.claimLeaf), k = d8(a.refundLeaf);
   return {
     claimLeaf: h,
     refundLeaf: k,
@@ -53456,26 +53447,26 @@ var Zd = (c, a) => c.findIndex((h) => D0(a, h)), qd = (c) => {
       { probability: 49, value: k }
     ])
   };
-}, L9 = (c) => {
+}, M9 = (c) => {
   if (!Array.isArray(c))
     return {
       type: "leaf",
       version: c.version,
       script: c.output,
-      hash: yn(c.output, c.version)
+      hash: gn(c.output, c.version)
     };
-  const a = L9(c[0]), h = L9(c[1]);
+  const a = M9(c[0]), h = M9(c[1]);
   let [k, d] = [a.hash, h.hash];
   return Rr(d, k) === -1 && ([k, d] = [d, k]), {
     type: "branch",
     left: a,
     right: h,
-    hash: mi.utils.taggedHash("TapBranch", k, d)
+    hash: yi.utils.taggedHash("TapBranch", k, d)
   };
-}, y8 = (c, a) => {
-  const h = L9(a).hash;
+}, g8 = (c, a) => {
+  const h = M9(a).hash;
   return c.xonlyTweakAdd(
-    mi.utils.taggedHash("TapTweak", c.aggPubkey, h)
+    yi.utils.taggedHash("TapTweak", c.aggPubkey, h)
   );
 }, oN = (c) => {
   if (c.length === 32) return c;
@@ -53518,7 +53509,7 @@ var Zd = (c, a) => c.findIndex((h) => D0(a, h)), qd = (c) => {
     BigInt(Math.ceil((h.vsize + h.inputsLength) * c))
   );
 };
-function Kn(c) {
+function Hn(c) {
   if (!c) return 0;
   try {
     const a = qe.decode(q.decode(c)), h = a.findIndex((d) => d === "CHECKLOCKTIMEVERIFY");
@@ -53552,7 +53543,7 @@ function hN(c, a) {
   const { percentage: h, minerFees: k } = a.reverse, d = k.lockup + k.claim;
   return h >= 100 || h < 0 || d >= c ? 0 : Math.ceil((c - d) / (1 - h / 100));
 }
-function m8(c, a) {
+function y8(c, a) {
   return {
     ...c,
     sign: async (h, k) => {
@@ -53563,7 +53554,7 @@ function m8(c, a) {
           { length: g.inputsLength },
           (E, S) => S
         ))
-          Hp(g, y, Kp, [
+          Wp(g, y, Hp, [
             a
           ]);
       return g;
@@ -53591,7 +53582,7 @@ function kN(c, a, h, k, d, g, y, E = 0) {
         },
         pubkeys: [g]
       }).script;
-      return P = yn(N), { skip: !1 };
+      return P = gn(N), { skip: !1 };
     },
     onTreeSigningStarted: async (O, $) => {
       if (!d)
@@ -53606,7 +53597,7 @@ function kN(c, a, h, k, d, g, y, E = 0) {
       const Z = qt.fromPSBT(
         h0.decode(O.unsignedCommitmentTx)
       );
-      yd($, Z, P);
+      gd($, Z, P);
       const ke = Z.getOutput(0);
       if (!ke?.amount)
         throw new Error("Shared output not found");
@@ -53636,7 +53627,7 @@ function kN(c, a, h, k, d, g, y, E = 0) {
         throw new Error(
           "BatchFinalizationEvent: expected connector tree to be defined"
         );
-      gd(O.commitmentTx, N);
+      wd(O.commitmentTx, N);
       const M = N.leaves();
       if (M.length <= E)
         throw new Error(
@@ -53660,8 +53651,8 @@ function AN(c, a, h) {
   const g = d.amount, y = d.script;
   if (!g || !y)
     throw new Error("invalid connector output");
-  const E = V6(c.tapLeafScript);
-  return dd(
+  const E = F6(c.tapLeafScript);
+  return pd(
     [
       {
         txid: c.txid,
@@ -53705,7 +53696,7 @@ var pN = (c) => {
     q.decode(g),
     "server"
   ), I = (N) => N < 512 ? "blocks" : "seconds", P = new pa.Script({
-    preimageHash: X9(h),
+    preimageHash: j9(h),
     sender: S,
     receiver: E,
     server: b,
@@ -53751,8 +53742,8 @@ var pN = (c) => {
       script: Vt.decode(h.tapTree).pkScript
     },
     tapLeafScript: [h.tapLeafScript],
-    unknown: [R6.encode(h.tapTree)],
-    sequence: V6(h.tapLeafScript)
+    unknown: [C6.encode(h.tapTree)],
+    sequence: F6(h.tapLeafScript)
   }, $ = ri.create(
     I,
     [O],
@@ -53797,10 +53788,10 @@ var pN = (c) => {
     }
     throw me;
   }
-}, v8 = async (c, a, h, k, d, g, y) => {
+}, m8 = async (c, a, h, k, d, g, y) => {
   const E = q.decode(g.checkpointTapscript), S = er.decode(
     E
-  ), { arkTx: b, checkpoints: I } = Q6(
+  ), { arkTx: b, checkpoints: I } = K6(
     [k],
     [d],
     S
@@ -53819,10 +53810,10 @@ var pN = (c) => {
     })
   );
   await y.finalizeTx(O, M);
-}, E8 = async (c, a, h, k, d, g, y, E, S, b) => {
+}, v8 = async (c, a, h, k, d, g, y, E, S, b) => {
   const I = q.decode(S.checkpointTapscript), P = er.decode(
     I
-  ), { arkTx: O, checkpoints: $ } = Q6([y], [E], P);
+  ), { arkTx: O, checkpoints: $ } = K6([y], [E], P);
   if ($.length !== 1)
     throw new Error(
       `Expected one checkpoint transaction, got ${$.length}`
@@ -54009,7 +54000,7 @@ var pN = (c) => {
    * @returns The response containing the created Lightning invoice.
    */
   async createLightningInvoice(c) {
-    const a = await this.createReverseSwap(c), h = i4(a.response.invoice);
+    const a = await this.createReverseSwap(c), h = r4(a.response.invoice);
     return {
       amount: a.response.onchainAmount,
       expiry: h.expiry,
@@ -54099,12 +54090,12 @@ var pN = (c) => {
     }, O = {
       amount: BigInt(I.value),
       script: ut.decode(k).pkScript
-    }, $ = m8(
+    }, $ = y8(
       this.wallet.identity,
       a
     );
     let N;
-    di(I) ? (await this.joinBatch($, P, O, h), N = "transaction.claimed") : (await v8(
+    zi(I) ? (await this.joinBatch($, P, O, h), N = "transaction.claimed") : (await m8(
       $,
       E,
       y,
@@ -54295,7 +54286,7 @@ var pN = (c) => {
     });
     if (!I.claimScript)
       throw new Error("Failed to create VHTLC script for submarine swap");
-    const P = di(d), O = {
+    const P = zi(d), O = {
       ...d,
       tapLeafScript: P ? I.refundWithoutReceiver() : I.refund(),
       tapTree: I.encode()
@@ -54303,7 +54294,7 @@ var pN = (c) => {
       amount: BigInt(d.value),
       script: ut.decode(y).pkScript
     };
-    P ? await this.joinBatch(this.wallet.identity, O, $, g) : await E8(
+    P ? await this.joinBatch(this.wallet.identity, O, $, g) : await v8(
       c.id,
       this.wallet.identity,
       this.arkProvider,
@@ -54504,10 +54495,10 @@ var pN = (c) => {
       throw new Error("BTC transaction hex is required");
     const h = lt.fromRaw(
       q.decode(a.transaction.hex)
-    ), k = await this.arkProvider.getInfo(), d = k.network === "bitcoin" ? Tt : k.network === "mutinynet" ? nN : iN, g = g8(
+    ), k = await this.arkProvider.getInfo(), d = k.network === "bitcoin" ? Tt : k.network === "mutinynet" ? nN : iN, g = w8(
       c.response.claimDetails.swapTree
-    ), y = y8(
-      d8(q.decode(c.ephemeralKey), [
+    ), y = g8(
+      p8(q.decode(c.ephemeralKey), [
         q.decode(c.response.claimDetails.serverPublicKey),
         F0.getPublicKey(q.decode(c.ephemeralKey))
       ]),
@@ -54612,7 +54603,7 @@ var pN = (c) => {
       throw new A0({
         message: "Unable to claim: invalid VHTLC address"
       });
-    const P = di(S), O = {
+    const P = zi(S), O = {
       ...S,
       tapLeafScript: P ? I.refundWithoutReceiver() : I.refund(),
       tapTree: I.encode()
@@ -54620,7 +54611,7 @@ var pN = (c) => {
       amount: BigInt(S.value),
       script: ut.decode(h).pkScript
     };
-    P ? await this.joinBatch(this.wallet.identity, O, $, a) : await E8(
+    P ? await this.joinBatch(this.wallet.identity, O, $, a) : await v8(
       c.id,
       this.wallet.identity,
       this.arkProvider,
@@ -54800,11 +54791,11 @@ var pN = (c) => {
     }, O = {
       amount: BigInt(I.value),
       script: ut.decode(k).pkScript
-    }, $ = m8(
+    }, $ = y8(
       this.wallet.identity,
       h
     );
-    di(I) ? await this.joinBatch($, P, O, a) : await v8(
+    zi(I) ? await this.joinBatch($, P, O, a) : await m8(
       $,
       S,
       y,
@@ -54835,12 +54826,12 @@ var pN = (c) => {
       throw new Error(
         `Server public key mismatch: claim response has ${a.publicKey}, expected ${h}`
       );
-    const g = y8(
-      d8(q.decode(c.ephemeralKey), [
+    const g = g8(
+      p8(q.decode(c.ephemeralKey), [
         q.decode(h),
         F0.getPublicKey(q.decode(c.ephemeralKey))
       ]),
-      g8(c.response.lockupDetails.swapTree).tree
+      w8(c.response.lockupDetails.swapTree).tree
     ).message(q.decode(a.transactionHash)).generateNonce().aggregateNonces([
       [
         q.decode(
@@ -55146,16 +55137,16 @@ var pN = (c) => {
             lockupAddress: P,
             refundPublicKey: $,
             timeoutBlockHeights: {
-              refund: Kn(
+              refund: Hn(
                 N.refundWithoutBoltzLeaf.output
               ),
-              unilateralClaim: Kn(
+              unilateralClaim: Hn(
                 N.unilateralClaimLeaf.output
               ),
-              unilateralRefund: Kn(
+              unilateralRefund: Hn(
                 N.unilateralRefundLeaf.output
               ),
-              unilateralRefundWithoutReceiver: Kn(
+              unilateralRefundWithoutReceiver: Hn(
                 N.unilateralRefundWithoutBoltzLeaf.output
               )
             }
@@ -55194,16 +55185,16 @@ var pN = (c) => {
             expectedAmount: I,
             claimPublicKey: O,
             timeoutBlockHeights: {
-              refund: Kn(
+              refund: Hn(
                 $.refundWithoutBoltzLeaf.output
               ),
-              unilateralClaim: Kn(
+              unilateralClaim: Hn(
                 $.unilateralClaimLeaf.output
               ),
-              unilateralRefund: Kn(
+              unilateralRefund: Hn(
                 $.unilateralRefundLeaf.output
               ),
-              unilateralRefundWithoutReceiver: Kn(
+              unilateralRefundWithoutReceiver: Hn(
                 $.unilateralRefundWithoutBoltzLeaf.output
               )
             }
@@ -55597,7 +55588,7 @@ var pN = (c) => {
     if (!this.wallet)
       throw new Error("Wallet is required");
     const { arkServerUrl: h } = a;
-    this.arkProvider = new H6(h), this.indexerProvider = new G6(h), this.swapProvider = new FP({
+    this.arkProvider = new W6(h), this.indexerProvider = new Q6(h), this.swapProvider = new FP({
       apiUrl: a.swapProvider.baseUrl,
       network: a.network
     });
