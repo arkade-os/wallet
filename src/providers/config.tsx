@@ -52,15 +52,19 @@ export const ConfigContext = createContext<ConfigContextProps>({
   useFiat: false,
 })
 
-const updateDefaultConfig = (config: Config) => {
+const updateDefaultConfig = (config: Partial<Config>): Config => {
   // Ad-hoc merge keeps defaults immutable and documents per-field semantics.
   // Arrays are replaced (not concatenated) and nested objects are rebuilt so we don't
   // leak references between sessions when the stored config is partial.
+  const announcementsSeen = Array.isArray(config.announcementsSeen)
+    ? config.announcementsSeen
+    : defaultConfig.announcementsSeen
+  const importedAssets = Array.isArray(config.importedAssets) ? config.importedAssets : defaultConfig.importedAssets
   return {
     ...defaultConfig,
     ...config,
-    announcementsSeen: [...(config.announcementsSeen ?? defaultConfig.announcementsSeen)],
-    importedAssets: [...(config.importedAssets ?? defaultConfig.importedAssets)],
+    announcementsSeen: [...announcementsSeen],
+    importedAssets: [...importedAssets],
     apps: {
       assets: { enabled: config.apps?.assets?.enabled ?? defaultConfig.apps.assets.enabled },
       boltz: { connected: config.apps?.boltz?.connected ?? defaultConfig.apps.boltz.connected },
