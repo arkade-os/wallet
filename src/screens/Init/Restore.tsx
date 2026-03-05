@@ -80,7 +80,7 @@ export default function InitRestore() {
             <OnboardStaggerChild>
               <FlexCol between>
                 <FlexCol>
-                  <Input name='private-key' label='Private key' onChange={setSomeKey} />
+                  <Input name='private-key' label='Private key' onChange={setSomeKey} value={someKey} />
                   <ErrorMessage error={Boolean(error)} text={error} />
                 </FlexCol>
                 <TextSecondary wrap>

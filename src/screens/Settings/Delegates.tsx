@@ -13,12 +13,11 @@ import WarningBox from '../../components/Warning'
 import { SettingsOptions } from '../../lib/types'
 import { ConfigContext } from '../../providers/config'
 import { WalletContext } from '../../providers/wallet'
-import { getDelegateUrlForNetwork } from '../../lib/constants'
+import { defaultDelegate } from '../../lib/constants'
 import { useContext, useEffect, useState } from 'react'
 import { OptionsContext } from '../../providers/options'
 import Text, { TextSecondary } from '../../components/Text'
 import { decodeArkAddress, isArkAddress } from '../../lib/address'
-import { NetworkName } from '@arkade-os/sdk'
 
 // format the URL to ensure it has the correct protocol and no trailing slashes
 const formatUrl = (host: string, path: string): string => {
@@ -133,11 +132,10 @@ function DelegateCard({ active = true }: { active?: boolean }) {
   const { config } = useContext(ConfigContext)
   const { wallet } = useContext(WalletContext)
   const { setOption } = useContext(OptionsContext)
-  const { aspInfo } = useContext(AspContext)
 
   if (!config.delegate) return null
 
-  const delegate = getDelegateUrlForNetwork(aspInfo.network as NetworkName)
+  const delegate = defaultDelegate()
 
   const nextRolloverText = wallet.nextRollover
     ? `next renewal ${prettyAgo(wallet.nextRollover)}`
@@ -174,12 +172,11 @@ export default function Delegates() {
   const { aspInfo } = useContext(AspContext)
   const { goBack } = useContext(OptionsContext)
   const { config, updateConfig } = useContext(ConfigContext)
-  const network = aspInfo.network as NetworkName
 
   const [active, setActive] = useState(false)
   const [learnMore, setLearnMore] = useState(false)
 
-  const delegate = getDelegateUrlForNetwork(network)
+  const delegate = defaultDelegate()
 
   // test connection to delegate when url changes
   useEffect(() => {

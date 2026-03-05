@@ -14,10 +14,10 @@ import { canBrowserShareData, shareData } from '../../../lib/share'
 import ExpandAddresses from '../../../components/ExpandAddresses'
 import FlexCol from '../../../components/FlexCol'
 import { LimitsContext } from '../../../providers/limits'
-import { Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import Loading from '../../../components/Loading'
 import { SwapsContext } from '../../../providers/swaps'
-import { encodeBip21 } from '../../../lib/bip21'
+import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
 import { PendingChainSwap, PendingReverseSwap } from '@arkade-os/boltz-swap'
 
 export default function ReceiveQRCode() {
@@ -32,7 +32,8 @@ export default function ReceiveQRCode() {
   const [sharing, setSharing] = useState(false)
 
   // manage all possible receive methods
-  const { boardingAddr, offchainAddr, satoshis } = recvInfo
+  const { boardingAddr, offchainAddr, satoshis, assetId } = recvInfo
+  const isAssetReceive = assetId && assetId !== ''
 
   const [noPaymentMethods, setNoPaymentMethods] = useState(false)
   const [arkAddress, setArkAddress] = useState(offchainAddr)
@@ -74,6 +75,14 @@ export default function ReceiveQRCode() {
   }
 
   useEffect(() => {
+    if (isAssetReceive) {
+      const uri = encodeBip21Asset(offchainAddr, assetId, satoshis)
+      setQrCodeValue(uri)
+      setBip21Uri(uri)
+      setArkAddress(offchainAddr)
+      setShowQrCode(true)
+      return
+    }
     if (!satoshis || !svcWallet || !arkadeSwaps) return
     Promise.allSettled([createBtcAddress(), createLightningInvoice()]).then(([btc, lightning]) => {
       if (btc.status === 'fulfilled') {
@@ -126,14 +135,31 @@ export default function ReceiveQRCode() {
 
     const listenForPayments = (event: MessageEvent) => {
       let satoshis = 0
+      let receivedAssets: Asset[] = []
+
       if (event.data && event.data.type === 'VTXO_UPDATE') {
         const newVtxos = event.data.payload?.newVtxos
         if (Array.isArray(newVtxos)) {
           satoshis = (newVtxos as ExtendedVirtualCoin[]).reduce((acc, v) => acc + v.value, 0)
+          for (const v of newVtxos as ExtendedVirtualCoin[]) {
+            receivedAssets.push(...(v.assets ?? []))
+          }
         } else {
           consoleError('VTXO_UPDATE message has unexpected payload shape:', event.data.payload)
         }
       }
+
+      // reduce received assets to unique asset ids (sum amounts if same asset id)
+      receivedAssets = receivedAssets.reduce((acc, v) => {
+        const existing = acc.find((a) => a.assetId === v.assetId)
+        if (existing) {
+          existing.amount += v.amount
+        } else {
+          acc.push(v)
+        }
+        return acc
+      }, [] as Asset[])
+
       if (event.data && event.data.type === 'UTXO_UPDATE') {
         const coins = event.data.payload?.coins
         if (Array.isArray(coins)) {
@@ -142,9 +168,10 @@ export default function ReceiveQRCode() {
           consoleError('UTXO_UPDATE message has unexpected payload shape:', event.data.payload)
         }
       }
-      if (satoshis) {
-        setRecvInfo({ ...recvInfo, satoshis })
-        notifyPaymentReceived(satoshis)
+
+      if (satoshis || receivedAssets.length > 0) {
+        setRecvInfo({ ...recvInfo, satoshis, receivedAssets })
+        if (!isAssetReceive) notifyPaymentReceived(satoshis)
         navigate(Pages.ReceiveSuccess)
       }
     }

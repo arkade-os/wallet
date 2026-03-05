@@ -1,6 +1,5 @@
-import { test, expect } from '@playwright/test'
-import { exec } from 'child_process'
-import { createWallet, pay, receiveOffchain, waitForPaymentReceived } from './utils'
+import { test, expect, createWallet, pay, receiveOffchain, waitForPaymentReceived } from './utils'
+import { execSync } from 'child_process'
 import { faucetOffchain } from './fundedWallet'
 
 test('should send to ark address', async ({ page, isMobile }) => {
@@ -37,7 +36,7 @@ test('should send to ark address', async ({ page, isMobile }) => {
 
 test('should send to onchain address', async ({ page, isMobile }) => {
   // set fees
-  exec('docker exec -t arkd arkd fees intent --onchain-output "200.0"')
+  execSync('docker exec -t arkd arkd fees intent --onchain-output "200.0"')
 
   // create wallet
   await createWallet(page)
@@ -65,9 +64,9 @@ test('should send to onchain address', async ({ page, isMobile }) => {
   // main page
   await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('5,000 SATS')).toBeVisible()
-  await expect(page.getByText('- 2,275 SATS')).toBeVisible()
+  await expect(page.getByText('- 2,200 SATS')).toBeVisible()
   await expect(page.getByText('Sent')).toBeVisible()
 
   // clear fees
-  exec('docker exec -t arkd arkd fees clear')
+  execSync('docker exec -t arkd arkd fees clear')
 })

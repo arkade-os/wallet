@@ -6,9 +6,10 @@ import {
   ServiceWorkerWallet,
   ExtendedVirtualCoin,
   FeeInfo,
+  WalletBalance,
   DelegateContractHandler,
 } from '@arkade-os/sdk'
-import { Addresses, Satoshis, Tx, Vtxo } from './types'
+import { Addresses, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
 import { consoleError } from './logs'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
@@ -147,10 +148,8 @@ export const getAspInfo = async (url: string): Promise<AspInfo> => {
   }
 }
 
-export const getBalance = async (wallet: IWallet): Promise<Satoshis> => {
-  const balance = await wallet.getBalance()
-  const { total } = balance
-  return total
+export const getBalance = async (wallet: IWallet): Promise<WalletBalance> => {
+  return await wallet.getBalance()
 }
 
 export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
@@ -163,8 +162,10 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
       const unix = Math.floor(date.getTime() / 1000)
       const { key, settled, type, amount } = tx
       const explorable = key.boardingTxid ? key.boardingTxid : key.commitmentTxid ? key.commitmentTxid : undefined
+      const assets = tx.assets?.map((a) => ({ assetId: a.assetId, amount: a.amount }))
       txs.push({
         amount: Math.abs(amount),
+        assets,
         boardingTxid: key.boardingTxid,
         redeemTxid: key.arkTxid,
         roundTxid: key.commitmentTxid,
@@ -232,12 +233,8 @@ export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<voi
   }
 }
 
-export const sendOffChain = async (wallet: IWallet, sats: number, address: string): Promise<string> => {
-  return wallet.sendBitcoin({ address, amount: sats })
-}
-
-export const sendOnChain = async (wallet: IWallet, sats: number, address: string): Promise<string> => {
-  return wallet.sendBitcoin({ address, amount: sats })
+export const sendOffChain = async (wallet: IWallet, amount: number, address: string): Promise<string> => {
+  return wallet.send({ address, amount })
 }
 
 export const getInputsToSettle = async (

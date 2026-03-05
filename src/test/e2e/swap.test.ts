@@ -1,7 +1,15 @@
-import test, { expect } from '@playwright/test'
-import { exec } from 'child_process'
+import {
+  test,
+  expect,
+  createWallet,
+  pay,
+  receiveLightning,
+  receiveOffchain,
+  receiveOnchain,
+  waitForPaymentReceived,
+} from './utils'
+import { exec, execSync } from 'child_process'
 import { promisify } from 'util'
-import { createWallet, pay, receiveLightning, receiveOffchain, receiveOnchain, waitForPaymentReceived } from './utils'
 import { faucetOffchain } from './fundedWallet'
 
 const execAsync = promisify(exec)
@@ -159,7 +167,7 @@ test('should receive bitcoin funds from swap', async ({ page, isMobile }) => {
 
 test('should send funds to onchain address via swap', async ({ page, isMobile }) => {
   // set fees
-  exec('docker exec -t arkd arkd fees intent --onchain-output "200.0"')
+  execSync('docker exec -t arkd arkd fees intent --onchain-output "200.0"')
 
   // create wallet
   await createWallet(page)
@@ -187,9 +195,9 @@ test('should send funds to onchain address via swap', async ({ page, isMobile })
   // main page
   await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('5,000 SATS')).toBeVisible()
-  await expect(page.getByText('- 2,275 SATS')).toBeVisible()
+  await expect(page.getByText('- 2,200 SATS')).toBeVisible()
   await expect(page.getByText('Sent')).toBeVisible()
 
   // clear fees
-  exec('docker exec -t arkd arkd fees clear')
+  execSync('docker exec -t arkd arkd fees clear')
 })

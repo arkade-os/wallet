@@ -6,8 +6,10 @@ import { ConfigContext } from '../providers/config'
 import { prettyNumber } from '../lib/format'
 import { LimitsContext } from '../providers/limits'
 import Focusable from './Focusable'
+import { AssetDetails } from '@arkade-os/sdk'
 
 interface InputAmountProps {
+  asset?: AssetDetails
   disabled?: boolean
   focus?: boolean
   label?: string
@@ -25,6 +27,7 @@ interface InputAmountProps {
 }
 
 export default function InputAmount({
+  asset,
   disabled,
   focus,
   label,
@@ -55,6 +58,7 @@ export default function InputAmount({
   }, [focus])
 
   useEffect(() => {
+    if (asset) return
     setOtherValue(useFiat ? prettyNumber(sats) : prettyNumber(toFiat(sats), 2))
     setError(sats ? (sats < 0 ? 'Invalid amount' : '') : '')
   }, [sats])
@@ -62,14 +66,14 @@ export default function InputAmount({
   const handleInput = (ev: Event) => {
     const value = Number((ev.target as HTMLInputElement).value)
     if (Number.isNaN(value)) return
-    onSats(useFiat ? fromFiat(value) : value)
+    onSats(useFiat && !asset ? fromFiat(value) : value)
   }
 
   const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0
   const maximumSats = max ? Math.min(max, maxSwapAllowed()) : 0
 
-  const leftLabel = useFiat ? config.fiat : 'SATS'
-  const rightLabel = `${otherValue} ${useFiat ? 'SATS' : config.fiat}`
+  const leftLabel = asset ? asset.metadata?.ticker : useFiat ? config.fiat : 'SATS'
+  const rightLabel = asset ? '' : `${otherValue} ${useFiat ? 'SATS' : config.fiat}`
   const fontStyle = { color: 'var(--dark50)', fontSize: '13px' }
   const bottomLeft = minimumSats ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}` : ''
   const bottomRight = maximumSats ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'SAT' : 'SATS'}` : ''

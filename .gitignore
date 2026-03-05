@@ -44,6 +44,8 @@ node_modules/
 /playwright/.auth/
 /dev-dist/
 
+# plans
+docs/plans/
 # Claude Code
 .claude/
 CLAUDE.md

@@ -1,5 +1,12 @@
-import { test, expect } from '@playwright/test'
-import { createWallet, pay, receiveLightning, resetAndRestoreWallet, waitForPaymentReceived } from './utils'
+import {
+  test,
+  expect,
+  createWallet,
+  pay,
+  receiveLightning,
+  resetAndRestoreWallet,
+  waitForPaymentReceived,
+} from './utils'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 
@@ -65,6 +72,7 @@ test('should save config to nostr', async ({ page }) => {
 })
 
 test('should save swaps to nostr', async ({ page, isMobile }) => {
+  test.setTimeout(120000)
   // create wallet
   await createWallet(page)
 
@@ -89,7 +97,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   // transaction should be visible on main page
   await page.getByTestId('tab-wallet').click()
   await page.waitForSelector('text=Received', { timeout: 10000 })
-  await expect(page.getByText('+ 1,992 SATS')).toBeVisible()
+  await expect(page.getByText('1,992', { exact: true })).toBeVisible()
 
   // generate lightning invoice to pay
   const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)

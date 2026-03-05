@@ -1,10 +1,15 @@
+import { AssetDetails } from '@arkade-os/sdk'
 import { Config, Wallet } from '../lib/types'
 
-// clear localStorage but persist config
+// clear localStorage but persist config (with asset data reset)
 export async function clearStorage(): Promise<void> {
   const config = readConfigFromStorage()
   localStorage.clear()
-  if (config) saveConfigToStorage(config)
+  if (config) {
+    config.importedAssets = []
+    config.apps.assets.enabled = false
+    saveConfigToStorage(config)
+  }
 }
 
 export const getStorageItem = <T>(key: string, fallback: T, parser: (val: string) => T): T => {
@@ -34,4 +39,22 @@ export const saveWalletToStorage = (wallet: Wallet): void => {
 
 export const readWalletFromStorage = (): Wallet | undefined => {
   return getStorageItem('wallet', undefined, (val) => JSON.parse(val))
+}
+
+// local storage caches the asset details for 24 hours
+export type CachedAssetDetails = AssetDetails & { cachedAt: number; hasIcon?: boolean }
+
+export const saveAssetMetadataToStorage = (cache: Map<string, CachedAssetDetails>): void => {
+  const obj: Record<string, CachedAssetDetails> = {}
+  cache.forEach((v, k) => {
+    obj[k] = v
+  })
+  setStorageItem('assetMetadataCache', JSON.stringify(obj))
+}
+
+export const readAssetMetadataFromStorage = (): Map<string, CachedAssetDetails> | undefined => {
+  return getStorageItem('assetMetadataCache', undefined, (val) => {
+    const obj = JSON.parse(val) as Record<string, CachedAssetDetails>
+    return new Map(Object.entries(obj))
+  })
 }

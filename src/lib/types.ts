@@ -1,4 +1,4 @@
-import { NetworkName, type ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { Asset, NetworkName, type ExtendedVirtualCoin } from '@arkade-os/sdk'
 
 export type Addresses = {
   boardingAddr: string
@@ -8,6 +8,9 @@ export type Addresses = {
 export type Config = {
   announcementsSeen: string[]
   apps: {
+    assets: {
+      enabled: boolean
+    }
     boltz: {
       connected: boolean
     }
@@ -16,6 +19,7 @@ export type Config = {
   currencyDisplay: CurrencyDisplay
   delegate: boolean
   fiat: Fiats
+  importedAssets: string[]
   haptics: boolean
   nostrBackup: boolean
   notifications: boolean
@@ -81,6 +85,7 @@ export enum Themes {
 
 export type Tx = {
   amount: number
+  assets?: Asset[]
   boardingTxid: string
   createdAt: number
   explorable: string | undefined

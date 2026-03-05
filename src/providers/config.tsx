@@ -9,11 +9,12 @@ import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
 
 const defaultConfig: Config = {
   announcementsSeen: [],
-  apps: { boltz: { connected: true } },
+  apps: { assets: { enabled: false }, boltz: { connected: true } },
   aspUrl: defaultArkServer(),
   currencyDisplay: CurrencyDisplay.Both,
-  delegate: true,
+  delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
   fiat: Fiats.USD,
+  importedAssets: [],
   haptics: true,
   nostrBackup: false,
   notifications: false,
@@ -85,7 +86,9 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     else root.classList.remove(darkPalette)
   }
 
-  const updateConfig = async (config: Config) => {
+  const updateConfig = async (incoming: Config) => {
+    // merge with defaults so newly added fields are always present
+    const config = { ...defaultConfig, ...incoming }
     // add protocol to aspUrl if missing
     if (!config.aspUrl.startsWith('http://') && !config.aspUrl.startsWith('https://')) {
       const protocol = config.aspUrl.startsWith('localhost') ? 'http://' : 'https://'
@@ -109,8 +112,9 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
       window.location.hash = ''
     }
     let config = readConfigFromStorage() ?? { ...defaultConfig }
-    // allow upgradability while keeping user preference (delegate defaults true but respects stored false)
+    // merge with defaults to ensure all fields are present
     config = { ...defaultConfig, ...config }
+    config.apps = { ...defaultConfig.apps, ...config.apps }
     updateConfig(config)
     setConfigLoaded(true)
   }, [configLoaded])
