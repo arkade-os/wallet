@@ -23,7 +23,7 @@ export const defaultArkServer = () => {
 }
 
 export const defaultDelegate = (): Delegate => {
-  const devServer = 'http://localhost:7004'
+  const devServer = 'http://localhost:7002'
   const mainServer = 'https://delegate.arkade.computer'
   const getDefaultUrl = () => {
     if (import.meta.env.VITE_DELEGATOR_URL) return import.meta.env.VITE_DELEGATOR_URL
