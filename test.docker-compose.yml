@@ -229,17 +229,20 @@ services:
     volumes:
       - postgres_datadir:/var/lib/postgresql/data
   boltz-fulmine:
-    image: ghcr.io/arklabshq/fulmine:v0.3.11
+    image: ghcr.io/arklabshq/fulmine:v0.3.15
     container_name: boltz-fulmine
     environment:
+      - FULMINE_DELEGATOR_FEE=350
+      - FULMINE_DELEGATOR_ENABLED=true
       - FULMINE_ARK_SERVER=http://arkd:7070
       - FULMINE_ESPLORA_URL=http://chopsticks:3000
-      - FULMINE_NO_MACAROONS=true
-      - FULMINE_LOG_LEVEL=6
       - FULMINE_DISABLE_TELEMETRY=true
+      - FULMINE_NO_MACAROONS=true
+      - FULMINE_LOG_LEVEL=5
     ports:
-      - 7002:7000
-      - 7003:7001
+      - '7000:7000'
+      - '7001:7001'
+      - '7002:7002'
     volumes:
       - bitcoin_fulmine_data:/app/data
     restart: unless-stopped
