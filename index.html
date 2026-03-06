@@ -19,7 +19,7 @@
       try {
         var c = JSON.parse(localStorage.getItem('config') || '{}')
         var t = c.theme
-        var dark = t === 'dark' || (t !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        var dark = t === 'Dark' || (t !== 'Light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
         if (dark) {
           document.querySelector('meta[name="theme-color"]').setAttribute('content', '#101010')
           document.documentElement.classList.add('ion-palette-dark')
