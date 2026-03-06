@@ -41,6 +41,7 @@ import { Indexer } from '../lib/indexer'
 import { IndexedDbSwapRepository, migrateToSwapRepository, Network } from '@arkade-os/boltz-swap'
 
 const ASSET_METADATA_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
+const SERVICE_WORKER_SETUP_TIMEOUT_MS = 30_000
 
 const defaultWallet: Wallet = {
   network: '',
@@ -280,6 +281,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         esploraUrl,
         delegatorUrl,
         storage: { walletRepository, contractRepository },
+        serviceWorkerActivationTimeoutMs: SERVICE_WORKER_SETUP_TIMEOUT_MS,
+        messageBusTimeoutMs: SERVICE_WORKER_SETUP_TIMEOUT_MS,
       })
 
       // Migration!
@@ -356,7 +359,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         (err.message.includes('Service worker activation timed out') || err.message.includes('MessageBus timed out'))
 
       if (isTimeoutError && retryCount < maxRetries) {
-        // exponential backoff: wait 1s, 2s, 4s for each retry
+        // exponential backoff: wait 1s, 2s, 4s, 8s, 16s for each retry
         const delay = Math.pow(2, retryCount) * 1000
         consoleError(
           new Error(
