@@ -10,6 +10,7 @@ const defaultConfig: Config = {
   announcementsSeen: [],
   apps: { boltz: { connected: true } },
   aspUrl: defaultArkServer(),
+  dismissedBanners: [],
   currencyDisplay: CurrencyDisplay.Both,
   fiat: Fiats.USD,
   haptics: true,

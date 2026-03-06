@@ -4,9 +4,6 @@ import { useReducedMotion } from '../hooks/useReducedMotion'
 import FlexCol from './FlexCol'
 import FlexRow from './FlexRow'
 import Text from './Text'
-import XMarkIcon from '../icons/XMark'
-
-export type BannerVariant = 'expanded' | 'cta' | 'card' | 'minimal'
 
 interface DismissibleBannerProps {
   id: string
@@ -16,7 +13,6 @@ interface DismissibleBannerProps {
   action?: { label: string; onClick: () => void }
   onDismiss: () => void
   visible: boolean
-  variant?: BannerVariant
 }
 
 const EASE_OUT_QUINT = [0.23, 1, 0.32, 1] as const
@@ -49,54 +45,6 @@ function TextButton({ onClick, label }: { onClick: () => void; label: string }) 
   )
 }
 
-function CloseButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label='Dismiss'
-      style={{
-        background: 'none',
-        border: 'none',
-        cursor: 'pointer',
-        padding: 0,
-        position: 'relative',
-        width: '20px',
-        height: '20px',
-        flexShrink: 0,
-        touchAction: 'manipulation',
-        color: 'var(--dark50)',
-      }}
-    >
-      <span style={{ position: 'absolute', inset: '-12px' }} />
-      <XMarkIcon />
-    </button>
-  )
-}
-
-function DismissButton({ onClick, label }: { onClick: () => void; label: string }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        background: 'var(--dark05)',
-        border: 'none',
-        borderRadius: '0.5rem',
-        cursor: 'pointer',
-        padding: '0.625rem 1rem',
-        width: '100%',
-        fontSize: '16px',
-        fontWeight: 600,
-        color: 'var(--black)',
-        touchAction: 'manipulation',
-        fontFamily: 'inherit',
-        minHeight: '44px',
-      }}
-    >
-      {label}
-    </button>
-  )
-}
-
 const baseStyle: React.CSSProperties = {
   width: '100%',
   touchAction: 'manipulation',
@@ -106,7 +54,7 @@ const containerStyle: React.CSSProperties = {
   backgroundColor: 'var(--purple10)',
   borderRadius: '0.75rem',
   boxShadow: BANNER_SHADOW,
-  padding: '0.75rem',
+  padding: '0.75rem 0.75rem 0.25rem 0.75rem',
   width: '100%',
 }
 
@@ -118,8 +66,7 @@ const iconStyle: React.CSSProperties = {
   color: 'var(--white)',
 }
 
-// Variant 1: Expanded — icon + title + description + text action buttons
-function ExpandedBanner({ icon, title, description, action, onDismiss }: DismissibleBannerProps) {
+function BannerContent({ icon, title, description, action, onDismiss }: DismissibleBannerProps) {
   return (
     <div style={containerStyle}>
       <FlexRow gap='0.75rem' alignItems='flex-start'>
@@ -147,91 +94,9 @@ function ExpandedBanner({ icon, title, description, action, onDismiss }: Dismiss
   )
 }
 
-// Variant 2: CTA button — icon + text + full-width dismiss button
-function CtaBanner({ icon, title, description, onDismiss }: DismissibleBannerProps) {
-  return (
-    <div style={containerStyle}>
-      <FlexCol gap='0.75rem'>
-        <FlexRow gap='0.5rem' alignItems='flex-start'>
-          <div style={iconStyle}>{icon}</div>
-          <FlexCol gap='0.25rem'>
-            <Text color='black' medium heading>
-              {title}
-            </Text>
-            {description ? (
-              <Text color='dark70' small wrap>
-                {description}
-              </Text>
-            ) : null}
-          </FlexCol>
-        </FlexRow>
-        <DismissButton onClick={onDismiss} label='Dismiss' />
-      </FlexCol>
-    </div>
-  )
-}
-
-// Variant 3: Card — icon on top, text below, dismiss button at bottom
-function CardBanner({ icon, title, description, onDismiss }: DismissibleBannerProps) {
-  return (
-    <div style={{ ...containerStyle, padding: '1rem' }}>
-      <FlexCol gap='0.75rem' centered>
-        <div style={{ ...iconStyle, padding: '8px', borderRadius: '10px' }}>{icon}</div>
-        <FlexCol gap='0.25rem' centered>
-          <Text color='black' medium heading>
-            {title}
-          </Text>
-          {description ? (
-            <Text color='dark70' small wrap>
-              {description}
-            </Text>
-          ) : null}
-        </FlexCol>
-        <DismissButton onClick={onDismiss} label='Dismiss' />
-      </FlexCol>
-    </div>
-  )
-}
-
-// Variant 4: Minimal — text-only with left border accent, inline dismiss
-function MinimalBanner({ title, description, onDismiss }: DismissibleBannerProps) {
-  return (
-    <div
-      style={{
-        width: '100%',
-        borderLeft: '3px solid var(--purple)',
-        paddingLeft: '0.75rem',
-        paddingTop: '0.25rem',
-        paddingBottom: '0.25rem',
-      }}
-    >
-      <FlexRow between gap='0.5rem' alignItems='flex-start'>
-        <FlexCol gap='0.125rem'>
-          <Text color='black' medium heading>
-            {title}
-          </Text>
-          {description ? (
-            <Text color='dark70' small wrap>
-              {description}
-            </Text>
-          ) : null}
-        </FlexCol>
-        <CloseButton onClick={onDismiss} />
-      </FlexRow>
-    </div>
-  )
-}
-
-const variantMap: Record<BannerVariant, (props: DismissibleBannerProps) => JSX.Element> = {
-  expanded: ExpandedBanner,
-  cta: CtaBanner,
-  card: CardBanner,
-  minimal: MinimalBanner,
-}
-
 export default function DismissibleBanner(props: DismissibleBannerProps) {
   const prefersReduced = useReducedMotion()
-  const { visible, onDismiss, variant = 'expanded' } = props
+  const { visible, onDismiss } = props
 
   const handleDragEnd = (_: unknown, info: PanInfo) => {
     const swipeVelocity = Math.abs(info.velocity.x)
@@ -239,8 +104,6 @@ export default function DismissibleBanner(props: DismissibleBannerProps) {
       onDismiss()
     }
   }
-
-  const BannerContent = variantMap[variant]
 
   return (
     <AnimatePresence mode='popLayout'>
