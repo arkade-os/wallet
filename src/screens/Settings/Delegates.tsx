@@ -54,65 +54,42 @@ const testConnection = (url: string, expectedServerPubKey: string): Promise<void
   })
 }
 
-// hero component to explain what delegates are
-function Hero({ learnMore, setLearnMore }: { learnMore: boolean; setLearnMore: (value: boolean) => void }) {
+const DELEGATION_DOCS_URL = 'https://docs.arkadeos.com/learn/pillars/batch-expiry#delegation-solutions'
+
+// hero component with link to delegation docs
+function Hero() {
   return (
     <FlexRow between>
       <FlexCol gap='0.5rem'>
-        <Text bold>What is a Delegate?</Text>
+        <Text bold>Delegates</Text>
         <Text small thin wrap>
           A delegate is a trusted third party you appoint to help keep your VTXOs safe and secure.
         </Text>
-        {!learnMore ? (
-          <div
-            onClick={() => setLearnMore(true)}
-            style={{
-              marginTop: '1rem',
-              padding: '0.75rem',
-              borderRadius: '6px',
-              color: '#040404',
-              background: '#fbfbfb',
-              textTransform: 'uppercase',
-              width: 'fit-content',
-              cursor: 'pointer',
-            }}
-          >
-            <Text tiny thin>
-              Learn more
-            </Text>
-          </div>
-        ) : null}
+        <a
+          href={DELEGATION_DOCS_URL}
+          target='_blank'
+          rel='noopener noreferrer'
+          style={{
+            marginTop: '1rem',
+            padding: '0.75rem',
+            borderRadius: '6px',
+            color: '#040404',
+            background: '#fbfbfb',
+            textTransform: 'uppercase',
+            width: 'fit-content',
+            cursor: 'pointer',
+            textDecoration: 'none',
+          }}
+        >
+          <Text tiny thin>
+            Learn more
+          </Text>
+        </a>
       </FlexCol>
       <div style={{ transform: 'translateX(30px) translateY(40px) rotate(13deg)', width: '140px' }}>
         <SuccessIcon />
       </div>
     </FlexRow>
-  )
-}
-
-// component with information about delegates and how they work
-function LearnMore() {
-  return (
-    <FlexCol gap='1rem'>
-      <TextSecondary>
-        Delegation allows you to outsource VTXO renewal to a third-party delegate service. Instead of renewing VTXOs
-        yourself, the delegate will automatically settle them before they expire, sending the funds back to your wallet
-        address (minus a service fee). This is useful for wallets that cannot be online 24/7.
-      </TextSecondary>
-      <TextSecondary>🔸 Why do you need Delegates?</TextSecondary>
-      <TextSecondary>
-        In Arkade, VTXOs expire periodically (e.g., every week or month). To keep your balance usable, you must rotate
-        (renew) your VTXOs before they expire. If you fail to renew them (because you're offline too long), your funds
-        could become stuck or lost. A delegate prevents this by stepping in to rotate your VTXOs on your behalf.
-      </TextSecondary>
-      <TextSecondary>🔹 How do Delegates work technically?</TextSecondary>
-      <TextSecondary>
-        You generate a pre-signed transaction that lets the delegate renew your VTXO. This transaction is limited: it
-        only allows rotating your funds, not spending them. The delegate holds this pre-signed transaction and can
-        broadcast it if your wallet doesn't renew in time. This ensures your coins don't expire without giving the
-        delegate full control over your funds.
-      </TextSecondary>
-    </FlexCol>
   )
 }
 
@@ -174,7 +151,6 @@ export default function Delegates() {
   const { config, updateConfig } = useContext(ConfigContext)
 
   const [active, setActive] = useState(false)
-  const [learnMore, setLearnMore] = useState(false)
 
   const delegate = defaultDelegate()
 
@@ -185,15 +161,6 @@ export default function Delegates() {
       .then(() => setActive(true))
       .catch(() => setActive(false))
   }, [config.delegate, aspInfo.signerPubkey])
-
-  // handle back navigation
-  const handleBack = () => {
-    if (learnMore) {
-      setLearnMore(false)
-    } else {
-      goBack()
-    }
-  }
 
   // toggle delegate
   const handleToggle = async () => {
@@ -208,33 +175,24 @@ export default function Delegates() {
 
   return (
     <>
-      <Header backFunc={handleBack} text='Delegates' />
+      <Header backFunc={goBack} text='Delegates' />
       <Content>
         <Padded>
-          {learnMore ? (
-            <>
-              <FlexCol gap='3rem'>
-                <Hero learnMore={learnMore} setLearnMore={setLearnMore} />
-                <LearnMore />
-              </FlexCol>
-            </>
-          ) : (
-            <FlexCol gap='1rem'>
-              <Shadow fat purple>
-                <Hero learnMore={learnMore} setLearnMore={setLearnMore} />
-              </Shadow>
-              <Toggle
-                checked={config.delegate}
-                onClick={handleToggle}
-                testId='toggle-delegates'
-                text='Use default Arkade delegate'
-                subtext="Use Arkade's default delegate to manage renewals"
-              />
-              <TextSecondary>The wallet will reload to apply the change.</TextSecondary>
-              <WarningBox text={warningText} />
-              <DelegateCard active={active} />
-            </FlexCol>
-          )}
+          <FlexCol gap='1rem'>
+            <Shadow fat purple>
+              <Hero />
+            </Shadow>
+            <Toggle
+              checked={config.delegate}
+              onClick={handleToggle}
+              testId='toggle-delegates'
+              text='Use default Arkade delegate'
+              subtext="Use Arkade's default delegate to manage renewals"
+            />
+            <TextSecondary>The wallet will reload to apply the change.</TextSecondary>
+            <WarningBox text={warningText} />
+            <DelegateCard active={active} />
+          </FlexCol>
         </Padded>
       </Content>
     </>
