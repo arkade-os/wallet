@@ -18,6 +18,7 @@ import { consoleError } from '../../../lib/logs'
 import { formatAssetAmount } from '../../../lib/format'
 import { SettingsIconLight } from '../../../icons/Settings'
 import { EmptyAssetsList } from '../../../components/Empty'
+import { AspContext } from '../../../providers/asp'
 
 interface AssetListItem {
   assetId: string
@@ -30,9 +31,10 @@ interface AssetListItem {
 
 export default function AppAssets() {
   const { navigate } = useContext(NavigationContext)
-  const { assetBalances, svcWallet, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
+  const { assetBalances, balance, svcWallet, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
   const { config } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
+  const { aspInfo } = useContext(AspContext)
 
   const [assets, setAssets] = useState<AssetListItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -139,7 +141,12 @@ export default function AppAssets() {
       {config.apps.assets.enabled ? (
         <ButtonsOnBottom>
           <Button label='Import' onClick={() => navigate(Pages.AppAssetImport)} />
-          <Button label='Mint' onClick={() => navigate(Pages.AppAssetMint)} secondary />
+          <Button
+            label='Mint'
+            onClick={() => navigate(Pages.AppAssetMint)}
+            disabled={balance < aspInfo.dust}
+            secondary
+          />
         </ButtonsOnBottom>
       ) : null}
     </>
