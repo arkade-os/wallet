@@ -50,10 +50,10 @@ if (typeof window !== 'undefined') {
 
 export const canPromptInstall = () => _deferredPrompt !== null
 
-export const promptPwaInstall = async () => {
-  if (!_deferredPrompt) return
+export const promptPwaInstall = async (): Promise<'accepted' | 'dismissed' | null> => {
+  if (!_deferredPrompt) return null
   const p = _deferredPrompt
   _deferredPrompt = null
   await p.prompt()
-  await p.userChoice
+  return (await p.userChoice).outcome
 }
