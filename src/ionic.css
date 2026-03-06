@@ -179,9 +179,10 @@ ion-app ion-header {
   }
 }
 
-.ion-page {
+ion-app > .ion-page {
   max-width: 640px;
   margin: auto;
+  top: env(safe-area-inset-top);
 }
 
 ion-tab-bar {
