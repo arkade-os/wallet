@@ -18,7 +18,7 @@ test('should toggle delegates', async ({ page }) => {
   await toggle.click()
 
   const maybeLater = page.getByRole('button', { name: 'Maybe later' })
-  await maybeLater.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
+  await maybeLater.waitFor({ state: 'visible', timeout: 150 }).catch(() => {})
   if (await maybeLater.isVisible()) {
     await maybeLater.click({ force: true })
     await maybeLater.waitFor({ state: 'hidden' }).catch(() => {})
