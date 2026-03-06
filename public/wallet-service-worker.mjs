@@ -55640,18 +55640,18 @@ var pN = (c) => {
     }));
   }
 };
-const vN = new Wd(), EN = new Vd(), SN = new Yd();
+const vN = "a484af96-dirty", EN = new Wd(), SN = new Vd(), xN = new Yd();
 self.addEventListener("message", (c) => {
   c.data?.type === "SKIP_WAITING" && c.waitUntil(self.skipWaiting());
 });
-const xN = new tP(vN, EN, {
-  messageHandlers: [new iP(), new mN(SN)],
+const TN = new tP(EN, SN, {
+  messageHandlers: [new iP(), new mN(xN)],
   tickIntervalMs: 5e3
 });
-xN.start().catch(console.error);
+TN.start().catch(console.error);
 const rw = "arkade-cache-v1";
 self.addEventListener("install", (c) => {
-  c.waitUntil(caches.open(rw)), self.skipWaiting();
+  c.waitUntil(caches.open(rw)), self.skipWaiting(), console.log(`Service worker installed ${vN}`);
 });
 self.addEventListener("activate", (c) => {
   c.waitUntil(

@@ -5,6 +5,7 @@ import {
   MessageBus,
   WalletMessageHandler,
 } from '@arkade-os/sdk'
+import { gitCommit } from './_gitCommit'
 
 const walletRepository = new IndexedDBWalletRepository()
 const contractRepository = new IndexedDBContractRepository()
@@ -36,6 +37,7 @@ declare const self: ServiceWorkerGlobalScope
 self.addEventListener('install', (event: ExtendableEvent) => {
   event.waitUntil(caches.open(CACHE_NAME))
   self.skipWaiting() // activate service worker immediately
+  console.log(`Service worker installed ${gitCommit}`)
 })
 
 // activate event: clean up old caches
