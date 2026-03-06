@@ -185,7 +185,6 @@ ion-app > .ion-page {
   top: env(safe-area-inset-top);
 }
 
-
 ion-tab-bar {
   border-top: 1px solid var(--dark20);
   width: 100%;
