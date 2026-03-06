@@ -109,7 +109,7 @@ export default function Apps() {
             <App
               name='LendaSat'
               icon={<LendasatIcon />}
-              desc='Borrow against your sats'
+              desc='Take loans with Bitcoin as collateral. Receive USDC or USDT in 2 minutes'
               link='https://lendasat.com'
               page={Pages.AppLendasat}
               live
@@ -118,7 +118,7 @@ export default function Apps() {
             <App
               name='LendaSwap'
               icon={<LendaswapIcon />}
-              desc='Swap Bitcoin to USDC instantly'
+              desc='Swap Bitcoin to USDC or USDT instantly'
               link='https://swap.lendasat.com'
               page={Pages.AppLendaswap}
               live
