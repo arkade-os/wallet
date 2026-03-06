@@ -29,7 +29,6 @@ import { hapticLight } from './lib/haptics'
 import PageTransition from './components/PageTransition'
 import SettingsIcon from './icons/Settings'
 import Loading from './components/Loading'
-import { pwaIsInstalled } from './lib/pwa'
 import FlexCol from './components/FlexCol'
 import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
@@ -127,7 +126,7 @@ export default function App() {
     // avoid redirect if the user is still setting up the wallet
     if (initInfo.password || initInfo.privateKey) return
     if (!walletLoaded) return navigate(Pages.Loading)
-    if (!wallet.pubkey) return navigate(pwaIsInstalled() ? Pages.Init : Pages.Onboard)
+    if (!wallet.pubkey) return navigate(Pages.Init)
     if (!initialized) return navigate(Pages.Unlock)
   }, [walletLoaded, initialized, initInfo, aspInfo.unreachable, jsCapabilitiesChecked, isCapable])
 

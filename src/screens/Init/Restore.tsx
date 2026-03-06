@@ -63,7 +63,7 @@ export default function InitRestore() {
       .catch((err) => consoleError(err, 'Error restoring from nostr'))
       .finally(() => {
         setRestoring(false)
-        navigate(Pages.InitSuccess)
+        navigate(Pages.InitConnect)
       })
   }
 

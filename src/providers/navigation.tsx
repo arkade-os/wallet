@@ -18,7 +18,7 @@ import Unlock from '../screens/Wallet/Unlock'
 import Vtxos from '../screens/Settings/Vtxos'
 import Wallet from '../screens/Wallet/Index'
 import Settings from '../screens/Settings/Index'
-import Onboard from '../screens/Wallet/Onboard'
+
 import Apps from '../screens/Apps/Index'
 import AppBoltz from '../screens/Apps/Boltz/Index'
 import AppBoltzSettings from '../screens/Apps/Boltz/Settings'
@@ -62,7 +62,7 @@ export enum Pages {
   NotesRedeem,
   NotesForm,
   NotesSuccess,
-  Onboard,
+
   ReceiveAmount,
   ReceiveQRCode,
   ReceiveSuccess,
@@ -108,7 +108,7 @@ const pageTab = {
   [Pages.NotesRedeem]: Tabs.Settings,
   [Pages.NotesForm]: Tabs.Settings,
   [Pages.NotesSuccess]: Tabs.Settings,
-  [Pages.Onboard]: Tabs.None,
+
   [Pages.ReceiveAmount]: Tabs.Wallet,
   [Pages.ReceiveQRCode]: Tabs.Wallet,
   [Pages.ReceiveSuccess]: Tabs.Wallet,
@@ -174,8 +174,6 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <NotesForm />
     case Pages.NotesSuccess:
       return <NotesSuccess />
-    case Pages.Onboard:
-      return <Onboard />
     case Pages.ReceiveAmount:
       return <ReceiveAmount />
     case Pages.ReceiveQRCode:

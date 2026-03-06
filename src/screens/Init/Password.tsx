@@ -35,7 +35,7 @@ export default function InitPassword() {
       .then(({ password, passkeyId }) => {
         updateWallet({ ...wallet, lockedByBiometrics: true, passkeyId })
         setInitInfo({ ...initInfo, password })
-        navigate(Pages.InitSuccess)
+        navigate(Pages.InitConnect)
       })
       .catch(consoleLog)
   }
@@ -43,7 +43,7 @@ export default function InitPassword() {
   const handleContinue = () => {
     const pass = password ? password : defaultPassword
     setInitInfo({ ...initInfo, password: pass })
-    navigate(Pages.InitSuccess)
+    navigate(Pages.InitConnect)
   }
 
   return (
