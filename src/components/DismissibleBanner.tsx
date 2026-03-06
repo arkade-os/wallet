@@ -1,6 +1,7 @@
 import { ReactNode } from 'react'
 import { AnimatePresence, motion, PanInfo } from 'framer-motion'
 import { useReducedMotion } from '../hooks/useReducedMotion'
+import { hapticSubtle } from '../lib/haptics'
 import FlexCol from './FlexCol'
 import FlexRow from './FlexRow'
 import Text from './Text'
@@ -21,9 +22,13 @@ const BANNER_SHADOW =
   '0px 0px 0px 1px rgba(0, 0, 0, 0.06), 0px 1px 2px -1px rgba(0, 0, 0, 0.06), 0px 2px 4px 0px rgba(0, 0, 0, 0.04)'
 
 function TextButton({ onClick, label }: { onClick: () => void; label: string }) {
+  const handleClick = () => {
+    hapticSubtle()
+    onClick()
+  }
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
       style={{
         background: 'none',
         border: 'none',
@@ -101,6 +106,7 @@ export default function DismissibleBanner(props: DismissibleBannerProps) {
   const handleDragEnd = (_: unknown, info: PanInfo) => {
     const swipeVelocity = Math.abs(info.velocity.x)
     if (Math.abs(info.offset.x) > 100 || swipeVelocity > 150) {
+      hapticSubtle()
       onDismiss()
     }
   }
