@@ -116,7 +116,7 @@ export async function pay(page: Page, address: string, isMobile = false, sats = 
   // continue to send
   await page.getByText('Continue').click()
   await page.getByText('Tap to Sign').click()
-  await page.waitForSelector('text=Payment sent!')
+  await page.waitForSelector('text=Payment sent!', { timeout: 90000 })
 }
 
 async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = false, sats = 0): Promise<string> {

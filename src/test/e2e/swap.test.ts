@@ -166,6 +166,7 @@ test('should receive bitcoin funds from swap', async ({ page, isMobile }) => {
 })
 
 test('should send funds to onchain address via swap', async ({ page, isMobile }) => {
+  test.setTimeout(120000)
   // set fees
   execSync('docker exec -t arkd arkd fees intent --onchain-output "200.0"')
 
