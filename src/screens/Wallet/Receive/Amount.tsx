@@ -27,6 +27,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import { InfoLine } from '../../../components/Info'
 import FlexRow from '../../../components/FlexRow'
 import { enableChainSwapsReceive } from '../../../lib/constants'
+import { centsToUnits } from '../../../lib/assets'
 
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
@@ -96,7 +97,7 @@ export default function ReceiveAmount() {
 
   const handleChange = (sats: number) => {
     setSatoshis(sats)
-    const value = useFiat && !assetMeta ? toFiat(sats) : sats
+    const value = assetMeta ? centsToUnits(sats, assetMeta) : useFiat ? toFiat(sats) : sats
     const maximumFractionDigits = assetMeta?.metadata?.decimals ? assetMeta?.metadata?.decimals : useFiat ? 2 : 0
     setTextValue(prettyNumber(value, maximumFractionDigits, false))
     setButtonLabel(sats ? 'Continue' : defaultButtonLabel)
@@ -164,10 +165,6 @@ export default function ReceiveAmount() {
         </Content>
       </>
     )
-  }
-
-  if (showKeys) {
-    return <Keyboard back={() => setShowKeys(false)} hideBalance onSats={handleChange} value={satoshis} />
   }
 
   return (
