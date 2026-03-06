@@ -7,6 +7,7 @@ import { prettyNumber } from '../lib/format'
 import { LimitsContext } from '../providers/limits'
 import Focusable from './Focusable'
 import { AssetDetails } from '@arkade-os/sdk'
+import { unitsToCents } from '../lib/assets'
 
 interface InputAmountProps {
   asset?: AssetDetails
@@ -66,7 +67,7 @@ export default function InputAmount({
   const handleInput = (ev: Event) => {
     const value = Number((ev.target as HTMLInputElement).value)
     if (Number.isNaN(value)) return
-    onSats(useFiat && !asset ? fromFiat(value) : value)
+    onSats(asset ? unitsToCents(value, asset) : useFiat ? fromFiat(value) : value)
   }
 
   const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0
