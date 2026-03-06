@@ -101,8 +101,9 @@ export default function Wallet() {
                       canPromptInstall()
                         ? {
                             label: 'Install',
-                            onClick: () => {
-                              void promptPwaInstall().catch(() => {})
+                            onClick: async () => {
+                              const outcome = await promptPwaInstall().catch(() => null)
+                              if (outcome) dismissPwaBanner()
                             },
                           }
                         : undefined
