@@ -55216,7 +55216,7 @@ var pN = (c) => {
   enrichSubmarineSwapInvoice(c, a) {
     return QP(c, a);
   }
-}, yN = "ARKADE_LIGHTNING_UPDATER", mN = class tw {
+}, yN = "ARKADE_SWAPS_UPDATER", mN = class tw {
   constructor(a) {
     this.swapRepository = a;
   }
@@ -55264,11 +55264,11 @@ var pN = (c) => {
   }
   async handleMessage(a) {
     const h = a.id;
-    if (a.type === "INIT_ARKADE_LIGHTNING")
+    if (a.type === "INIT_ARKADE_SWAPS")
       try {
         return await this.handleInit(a), this.tagged({
           id: h,
-          type: "ARKADE_LIGHTNING_INITIALIZED"
+          type: "ARKADE_SWAPS_INITIALIZED"
         });
       } catch (k) {
         return this.tagged({ id: h, error: k });
