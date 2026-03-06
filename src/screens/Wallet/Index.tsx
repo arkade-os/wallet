@@ -43,7 +43,7 @@ export default function Wallet() {
   const showPwaBanner = pwaCanInstall() && (isIOS() || isAndroid()) && !pwaInstalled && !dismissed
 
   const pwaDescription = isIOS()
-    ? "Tap the share button, then 'Add to Home Screen'."
+    ? "Tap the share icon in Safari's toolbar, then 'Add to Home Screen'."
     : "Tap 'Install' to add Arkade to your home screen."
 
   const dismissPwaBanner = () => {
