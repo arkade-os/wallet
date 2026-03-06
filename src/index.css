@@ -48,6 +48,7 @@ html,
 body,
 #root {
   height: 100%;
+  overscroll-behavior: none;
 }
 body {
   margin: 0;
