@@ -11,6 +11,7 @@ const defaultConfig: Config = {
   announcementsSeen: [],
   apps: { assets: { enabled: false }, boltz: { connected: true } },
   aspUrl: defaultArkServer(),
+  dismissedBanners: [],
   currencyDisplay: CurrencyDisplay.Both,
   delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
   fiat: Fiats.USD,

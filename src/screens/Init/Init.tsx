@@ -53,7 +53,17 @@ export default function Init() {
               variants={prefersReduced ? undefined : onboardStaggerContainer}
               initial={prefersReduced ? false : 'initial'}
               animate={prefersReduced ? undefined : 'animate'}
-              exit={prefersReduced ? undefined : { opacity: 0, transition: { duration: 0.15, ease: EASE_OUT_QUINT as unknown as [number, number, number, number] } }}
+              exit={
+                prefersReduced
+                  ? undefined
+                  : {
+                      opacity: 0,
+                      transition: {
+                        duration: 0.15,
+                        ease: EASE_OUT_QUINT as unknown as [number, number, number, number],
+                      },
+                    }
+              }
               style={{ width: '100%', display: 'flex', flexDirection: 'column', flex: 1 }}
             >
               <motion.div
@@ -77,8 +87,8 @@ export default function Init() {
                     Your bitcoin has entered a new dimension. Send, receive, and swap in Arkade's virtual environment.
                   </Text>
                   <Text color='dark80' thin wrap>
-                    Arkade is your gateway to a new generation of bitcoin-native applications. Access Lightning payments,
-                    DeFi, assets, and more — all secured by bitcoin.
+                    Arkade is your gateway to a new generation of bitcoin-native applications. Access Lightning
+                    payments, DeFi, assets, and more — all secured by bitcoin.
                   </Text>
                 </FlexCol>
               </OnboardStaggerChild>

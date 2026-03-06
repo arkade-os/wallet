@@ -26,6 +26,21 @@ if (!window.matchMedia) {
 
 setupIonicReact()
 
+// Mock matchMedia for tests (used by useReducedMotion, usePwaInstalled, etc.)
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+})
+
 // Silence noisy console output while preserving console identity
 beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {})
