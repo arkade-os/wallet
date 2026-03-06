@@ -169,7 +169,7 @@ export function LendaSatAnnouncement({ close }: { close: () => void }) {
       title='LendaSat'
       page={Pages.AppLendasat}
       icon={<LendasatIcon big />}
-      message='Borrow against your sats.'
+      message='Take loans with Bitcoin as collateral. Receive USDC or USDT in 2 minutes.'
       bulletPoints={[
         [
           'Choose a loan',
@@ -195,7 +195,7 @@ export function LendaSwapAnnouncement({ close }: { close: () => void }) {
       title='LendaSwap'
       page={Pages.AppLendaswap}
       icon={<LendaSwapIcon big />}
-      message='Swap Bitcoin to USDC.'
+      message='Swap Bitcoin to USDC or USDT instantly.'
       bulletPoints={[
         ['Swap to stablecoins', 'Swap native $BTC for $USDT or $USDC on Ethereum and Polygon.'],
         [
