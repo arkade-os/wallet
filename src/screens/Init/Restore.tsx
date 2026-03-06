@@ -18,6 +18,7 @@ import Padded from '../../components/Padded'
 import Input from '../../components/Input'
 import { TextSecondary } from '../../components/Text'
 import { hex } from '@scure/base'
+import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
 import { OnboardStaggerContainer, OnboardStaggerChild } from '../../components/OnboardLoadIn'
 
 export default function InitRestore() {
@@ -54,8 +55,11 @@ export default function InitRestore() {
   const handleProceed = () => {
     setInitInfo({ privateKey, password: defaultPassword, restoring: true })
     setRestoring(true)
-    new BackupProvider({ seckey: privateKey! })
-      .restore(updateConfig)
+    new BackupProvider({ seckey: privateKey! }, new IndexedDbSwapRepository())
+      .restore((conf) =>
+        // we enforce delegates on restore
+        updateConfig({ ...conf, delegate: true }),
+      )
       .catch((err) => consoleError(err, 'Error restoring from nostr'))
       .finally(() => {
         setRestoring(false)
@@ -76,7 +80,7 @@ export default function InitRestore() {
             <OnboardStaggerChild>
               <FlexCol between>
                 <FlexCol>
-                  <Input name='private-key' label='Private key' onChange={setSomeKey} />
+                  <Input name='private-key' label='Private key' onChange={setSomeKey} value={someKey} />
                   <ErrorMessage error={Boolean(error)} text={error} />
                 </FlexCol>
                 <TextSecondary wrap>

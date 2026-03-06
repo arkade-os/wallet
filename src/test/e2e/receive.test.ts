@@ -1,8 +1,9 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, createWallet, receiveOffchain, receiveOnchain, waitForPaymentReceived } from './utils'
 import { exec } from 'child_process'
-import { createWallet, receiveOffchain, receiveOnchain, waitForPaymentReceived } from './utils'
+import { faucetOffchain } from './fundedWallet'
 
 test('should receive onchain funds', async ({ page }) => {
+  test.setTimeout(120000)
   // create wallet
   await createWallet(page)
 
@@ -28,7 +29,7 @@ test('should receive offchain funds', async ({ page }) => {
   expect(arkAddress).toBeTruthy()
 
   // faucet
-  exec(`docker exec -t arkd ark send --to ${arkAddress} --amount 5000 --password secret`)
+  await faucetOffchain(arkAddress, 10000)
 
   // wait for payment received
   await waitForPaymentReceived(page)

@@ -23,6 +23,12 @@ function EmptyTemplate({ icon, text, secondaryText }: EmptyProps) {
   )
 }
 
+export function EmptyAssetsList() {
+  return (
+    <EmptyTemplate icon={<EmptyCoinsIcon />} text='No assets yet' secondaryText='Import or mint one to get started' />
+  )
+}
+
 export function EmptyCoinsList() {
   return (
     <EmptyTemplate

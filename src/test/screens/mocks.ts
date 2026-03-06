@@ -4,6 +4,7 @@ import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../.
 import { AspInfo } from '../../providers/asp'
 import { SingleKey } from '@arkade-os/sdk'
 import { CurrencyDisplay, Fiats, Themes } from '../../lib/types'
+import { AssetIconApprovalManager } from '../../lib/assetIconApproval'
 
 const mockAspInfo: AspInfo = {
   ...emptyAspInfo,
@@ -32,6 +33,19 @@ export const mockTxInfo = {
   type: 'received',
 }
 
+export const mockIssuanceTxInfo = {
+  amount: 0,
+  assets: [{ assetId: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd', amount: 10000 }],
+  boardingTxid: '',
+  redeemTxid: mockTxId,
+  roundTxid: '',
+  createdAt: Math.floor(Date.now() / 1000) - 60,
+  explorable: mockTxId,
+  preconfirmed: false,
+  settled: true,
+  type: 'sent',
+}
+
 export const mockAspContextValue = {
   aspInfo: mockAspInfo,
   calcBestMarketHour: () => undefined,
@@ -41,12 +55,24 @@ export const mockAspContextValue = {
 
 export const mockConfigContextValue = {
   config: {
+    apps: {
+      assets: {
+        enabled: true,
+      },
+      boltz: {
+        connected: true,
+      },
+    },
     currencyDisplay: CurrencyDisplay.Both,
+    delegate: false,
     fiat: Fiats.EUR,
+    importedAssets: [],
     nostrBackup: true,
     notifications: true,
+    showBalance: true,
     theme: Themes.Dark,
   },
+  updateConfig: () => {},
   effectiveTheme: Themes.Dark,
   systemTheme: Themes.Dark,
   useFiat: false,
@@ -57,8 +83,8 @@ export const mockFiatContextValue = {
   toFiat: (amount: number) => amount,
 }
 
-export const mockLightningContextValue = {
-  arkadeLightning: null,
+export const mockSwapsContextValue = {
+  arkadeSwaps: null,
   swapManager: null,
   connected: false,
   calcSubmarineSwapFee: () => 0,
@@ -71,7 +97,6 @@ export const mockLightningContextValue = {
     throw new Error('Lightning not initialized')
   },
   getSwapHistory: async () => [],
-  getFees: async () => null,
   getApiUrl: () => null,
   toggleConnection: () => {},
 }
@@ -81,6 +106,9 @@ export const mockOptionsContextValue = {
 }
 
 export const mockNavigationContextValue = {
+  direction: 'none' as const,
+  goBack: () => {},
+  isInitialLoad: false,
   navigate: () => {},
   screen: Pages.Init,
   tab: Tabs.None,
@@ -93,6 +121,7 @@ export const mockWalletContextValue = {
   settlePreconfirmed: () => Promise.resolve(),
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
+  restartWallet: () => Promise.resolve(),
   wallet: {
     nextRollover: 0,
   },
@@ -100,8 +129,13 @@ export const mockWalletContextValue = {
   svcWallet: undefined,
   isLocked: () => Promise.resolve(true),
   balance: 0,
+  assetBalances: [],
+  assetMetadataCache: new Map(),
+  setCacheEntry: () => {},
   txs: [mockTxInfo],
   vtxos: { spendable: [], spent: [] },
+  iconApprovalManager: new AssetIconApprovalManager(),
+  dataReady: false,
 }
 
 export const mockFlowContextValue = {
@@ -117,17 +151,25 @@ export const mockFlowContextValue = {
   setSendInfo: () => {},
   setSwapInfo: () => {},
   setTxInfo: () => {},
+  assetInfo: { assetId: '', supply: 0 },
+  setAssetInfo: () => {},
+  deepLinkInfo: undefined,
+  setDeepLinkInfo: () => {},
 }
 
 export const mockLimitsContextValue = {
   amountIsAboveMaxLimit: () => false,
   amountIsBelowMinLimit: () => false,
+  validArkToBtc: () => true,
+  validBtcToArk: () => true,
   lnSwapsAllowed: () => true,
   utxoTxsAllowed: () => true,
   vtxoTxsAllowed: () => true,
   validLnSwap: () => true,
   validUtxoTx: () => true,
   validVtxoTx: () => true,
+  arkToBtcAllowed: () => true,
+  btcToArkAllowed: () => true,
   minSwapAllowed: () => 0,
   maxSwapAllowed: () => 0,
 }

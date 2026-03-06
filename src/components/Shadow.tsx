@@ -4,6 +4,7 @@ interface ShadowProps {
   border?: boolean
   borderPurple?: boolean
   children: ReactNode
+  darkPurple?: boolean
   fat?: boolean
   flex?: boolean
   inverted?: boolean
@@ -20,6 +21,7 @@ export default function Shadow({
   border,
   borderPurple,
   children,
+  darkPurple,
   fat,
   flex,
   inverted,
@@ -32,19 +34,22 @@ export default function Shadow({
   testId,
 }: ShadowProps) {
   const style: React.CSSProperties = {
-    backgroundColor: purple
+    backgroundColor: darkPurple
       ? 'var(--purplebg)'
-      : red
-        ? 'var(--red)'
-        : lighter
-          ? 'var(--dark05)'
-          : inverted
-            ? 'var(--magenta)'
-            : 'var(--dark10)',
+      : purple
+        ? 'var(--purple)'
+        : red
+          ? 'var(--red)'
+          : lighter
+            ? 'var(--dark05)'
+            : inverted
+              ? 'var(--magenta)'
+              : 'var(--dark10)',
     border: border ? `1px solid var(--${borderPurple ? 'purple' : 'dark10'})` : undefined,
     borderRadius: squared ? undefined : '0.5rem',
-    color: purple ? 'white' : '',
+    color: purple || darkPurple ? 'white' : '',
     cursor: onClick ? 'pointer' : undefined,
+    overflow: 'hidden',
     padding: slim ? '0.25rem' : fat ? '1rem' : '0.5rem',
     width: flex ? undefined : '100%',
   }

@@ -1,4 +1,71 @@
-import type { Page } from '@playwright/test'
+import { test as base, type Page } from '@playwright/test'
+import { exec } from 'child_process'
+
+export const test = base.extend({
+  page: async ({ page }, use) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await use(page)
+  },
+})
+
+export { expect } from '@playwright/test'
+
+interface MintAssetOptions {
+  amount: number
+  name: string
+  ticker: string
+  decimals?: number
+  controlMode?: 'mint-new' | 'existing'
+  ctrlAmount?: number
+}
+
+export async function navigateToAssets(page: Page): Promise<void> {
+  await page.getByTestId('tab-apps').click()
+  await page.getByTestId('app-assets').click()
+  await page.waitForSelector('text=Assets', { state: 'visible' })
+}
+
+export async function enableAssets(page: Page): Promise<void> {
+  await navigateToAssets(page)
+  await page.getByTestId('settings-icon-light').click()
+  await page.waitForSelector('text=Assets settings', { state: 'visible' })
+  await page.getByTestId('assets-toggle').click()
+}
+
+export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<void> {
+  await navigateToAssets(page)
+  await page.getByText('Mint', { exact: true }).click()
+  await page.waitForSelector('text=Mint Asset', { state: 'visible' })
+
+  // fill amount
+  await page.getByTestId('asset-amount').locator('input:not(.cloned-input)').fill(opts.amount.toString())
+  // fill name
+  await page.getByTestId('asset-name').locator('input:not(.cloned-input)').fill(opts.name)
+  // fill ticker
+  await page.getByTestId('asset-ticker').locator('input:not(.cloned-input)').fill(opts.ticker)
+  // fill decimals if provided
+  if (opts.decimals !== undefined) {
+    const decimalsInput = page.getByTestId('asset-decimals').locator('input:not(.cloned-input)')
+    await decimalsInput.clear()
+    await decimalsInput.fill(opts.decimals.toString())
+  }
+
+  // select control mode if specified
+  if (opts.controlMode === 'mint-new') {
+    await page.getByText('New').click()
+    if (opts.ctrlAmount !== undefined) {
+      const ctrlAmountInput = page.getByTestId('control-asset-amount').locator('input:not(.cloned-input)')
+      await ctrlAmountInput.clear()
+      await ctrlAmountInput.fill(opts.ctrlAmount.toString())
+    }
+  } else if (opts.controlMode === 'existing') {
+    await page.getByText('Existing').click()
+  }
+
+  // submit
+  await page.getByText('Mint', { exact: true }).click()
+  await page.waitForSelector('text=Asset minted!', { state: 'visible', timeout: 30000 })
+}
 
 export async function createWallet(page: Page): Promise<void> {
   await page.goto('/')
@@ -10,7 +77,7 @@ export async function createWallet(page: Page): Promise<void> {
   await page.waitForSelector('text=Your new wallet is live!', { state: 'visible' })
   await page.getByText('Go to wallet').click()
   const maybeLater = page.getByRole('button', { name: 'Maybe later' })
-  await maybeLater.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {})
+  await maybeLater.waitFor({ state: 'visible', timeout: 150 }).catch(() => {})
   if (await maybeLater.isVisible()) {
     await maybeLater.click({ force: true })
     await maybeLater.waitFor({ state: 'hidden' }).catch(() => {})
@@ -76,8 +143,8 @@ async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = f
   return await readClipboard(page)
 }
 
-export async function receiveOnchain(page: Page): Promise<string> {
-  return receive(page, 'btc')
+export async function receiveOnchain(page: Page, isMobile = false, sats = 0): Promise<string> {
+  return receive(page, 'btc', isMobile, sats)
 }
 
 export async function receiveOffchain(page: Page): Promise<string> {
@@ -115,11 +182,18 @@ async function restoreWallet(page: Page, nsec: string): Promise<void> {
   await page.getByText('Continue').click()
   await page.getByText('Go to wallet').click()
   const maybeLater = page.getByRole('button', { name: 'Maybe later' })
-  await maybeLater.waitFor({ state: 'visible', timeout: 1500 }).catch(() => {})
+  await maybeLater.waitFor({ state: 'visible', timeout: 150 }).catch(() => {})
   if (await maybeLater.isVisible()) {
     await maybeLater.click({ force: true })
     await maybeLater.waitFor({ state: 'hidden' }).catch(() => {})
   }
+}
+
+export async function fundWallet(page: Page, amount: number = 5000): Promise<void> {
+  const arkAddress = await receiveOffchain(page)
+  exec(`docker exec -t arkd ark send --to ${arkAddress} --amount ${amount} --password secret`)
+  await waitForPaymentReceived(page)
+  await page.getByTestId('tab-wallet').click()
 }
 
 export async function resetAndRestoreWallet(page: Page): Promise<void> {

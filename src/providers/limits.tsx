@@ -1,16 +1,28 @@
 import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
-import { Satoshis, TxType } from '../lib/types'
+import { Satoshis } from '../lib/types'
 import { AspContext } from './asp'
 import { consoleError } from '../lib/logs'
 import { WalletContext } from './wallet'
-import { LightningContext } from './lightning'
+import { SwapsContext } from './swaps'
+
+enum TxType {
+  arkToBtc = 'arkToBtc',
+  btcToArk = 'btcToArk',
+  swap = 'swap',
+  utxo = 'utxo',
+  vtxo = 'vtxo',
+}
 
 type LimitsContextProps = {
   amountIsAboveMaxLimit: (sats: Satoshis) => boolean
   amountIsBelowMinLimit: (sats: Satoshis) => boolean
+  validArkToBtc: (sats: Satoshis) => boolean
+  validBtcToArk: (sats: Satoshis) => boolean
   validLnSwap: (sats: Satoshis) => boolean
   validUtxoTx: (sats: Satoshis) => boolean
   validVtxoTx: (sats: Satoshis) => boolean
+  arkToBtcAllowed: () => boolean
+  btcToArkAllowed: () => boolean
   lnSwapsAllowed: () => boolean
   utxoTxsAllowed: () => boolean
   vtxoTxsAllowed: () => boolean
@@ -28,9 +40,13 @@ type LimitTxTypes = Record<TxType, LimitAmounts>
 export const LimitsContext = createContext<LimitsContextProps>({
   amountIsAboveMaxLimit: () => false,
   amountIsBelowMinLimit: () => false,
+  arkToBtcAllowed: () => false,
+  btcToArkAllowed: () => false,
   lnSwapsAllowed: () => false,
   utxoTxsAllowed: () => false,
   vtxoTxsAllowed: () => false,
+  validArkToBtc: () => false,
+  validBtcToArk: () => false,
   validLnSwap: () => false,
   validUtxoTx: () => false,
   validVtxoTx: () => false,
@@ -41,9 +57,11 @@ export const LimitsContext = createContext<LimitsContextProps>({
 export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet } = useContext(WalletContext)
-  const { arkadeLightning, connected } = useContext(LightningContext)
+  const { arkadeSwaps, connected } = useContext(SwapsContext)
 
   const limits = useRef<LimitTxTypes>({
+    arkToBtc: { min: BigInt(0), max: BigInt(0) },
+    btcToArk: { min: BigInt(0), max: BigInt(0) },
     swap: { min: BigInt(0), max: BigInt(0) },
     utxo: { min: BigInt(0), max: BigInt(-1) },
     vtxo: { min: BigInt(0), max: BigInt(-1) },
@@ -51,7 +69,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
 
   // update limits when aspInfo or svcWallet changes
   useEffect(() => {
-    if (!aspInfo.network || !svcWallet || !arkadeLightning) return
+    if (!aspInfo.network || !svcWallet || !connected) return
 
     limits.current.utxo = {
       min: BigInt(import.meta.env.VITE_UTXO_MIN_AMOUNT || aspInfo.utxoMinAmount || aspInfo.dust || -1),
@@ -62,14 +80,29 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
       min: BigInt(import.meta.env.VITE_VTXO_MIN_AMOUNT || aspInfo.vtxoMinAmount || aspInfo.dust || -1),
       max: BigInt(import.meta.env.VITE_VTXO_MAX_AMOUNT || aspInfo.vtxoMaxAmount || -1),
     }
-  }, [aspInfo.network, svcWallet, arkadeLightning])
+  }, [aspInfo.network, svcWallet, connected])
 
-  // update limits when arkadeLightning or connected changes
+  // update limits when arkadeSwaps or connected changes
   useEffect(() => {
-    if (!arkadeLightning) return
-
-    if (connected) {
-      arkadeLightning
+    if (!arkadeSwaps) return
+    if (!connected) {
+      limits.current.swap = {
+        ...limits.current.swap,
+        min: BigInt(0),
+        max: BigInt(0),
+      }
+      limits.current.arkToBtc = {
+        ...limits.current.arkToBtc,
+        min: BigInt(0),
+        max: BigInt(0),
+      }
+      limits.current.btcToArk = {
+        ...limits.current.btcToArk,
+        min: BigInt(0),
+        max: BigInt(0),
+      }
+    } else {
+      arkadeSwaps
         .getLimits()
         .then((res) => {
           if (!res) return
@@ -80,14 +113,30 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
           }
         })
         .catch(consoleError)
-    } else {
-      limits.current.swap = {
-        ...limits.current.swap,
-        min: BigInt(0),
-        max: BigInt(0),
-      }
+      arkadeSwaps
+        .getLimits('ARK', 'BTC')
+        .then((res) => {
+          if (!res) return
+          limits.current.arkToBtc = {
+            ...limits.current.arkToBtc,
+            min: BigInt(res.min),
+            max: BigInt(res.max),
+          }
+        })
+        .catch(consoleError)
+      arkadeSwaps
+        .getLimits('BTC', 'ARK')
+        .then((res) => {
+          if (!res) return
+          limits.current.btcToArk = {
+            ...limits.current.btcToArk,
+            min: BigInt(res.min),
+            max: BigInt(res.max),
+          }
+        })
+        .catch(consoleError)
     }
-  }, [arkadeLightning, connected])
+  }, [arkadeSwaps, connected])
 
   const minSwapAllowed = () => Number(limits.current.swap.min)
   const maxSwapAllowed = () => Number(limits.current.swap.max)
@@ -102,6 +151,8 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   const validLnSwap = (sats: Satoshis): boolean => validAmount(sats, TxType.swap)
   const validUtxoTx = (sats: Satoshis): boolean => validAmount(sats, TxType.utxo)
   const validVtxoTx = (sats: Satoshis): boolean => validAmount(sats, TxType.vtxo)
+  const validArkToBtc = (sats: Satoshis): boolean => validAmount(sats, TxType.arkToBtc)
+  const validBtcToArk = (sats: Satoshis): boolean => validAmount(sats, TxType.btcToArk)
 
   /**
    * Calculates the maximum allowed amount based on UTXO and VTXO limits.
@@ -166,12 +217,16 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   const lnSwapsAllowed = () => limits.current.swap.max !== BigInt(0)
   const utxoTxsAllowed = () => limits.current.utxo.max !== BigInt(0)
   const vtxoTxsAllowed = () => limits.current.vtxo.max !== BigInt(0)
+  const arkToBtcAllowed = () => limits.current.arkToBtc.max !== BigInt(0)
+  const btcToArkAllowed = () => limits.current.btcToArk.max !== BigInt(0)
 
   return (
     <LimitsContext.Provider
       value={{
         amountIsAboveMaxLimit,
         amountIsBelowMinLimit,
+        arkToBtcAllowed,
+        btcToArkAllowed,
         minSwapAllowed,
         maxSwapAllowed,
         lnSwapsAllowed,
@@ -180,6 +235,8 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
         validLnSwap,
         validUtxoTx,
         validVtxoTx,
+        validArkToBtc,
+        validBtcToArk,
       }}
     >
       {children}

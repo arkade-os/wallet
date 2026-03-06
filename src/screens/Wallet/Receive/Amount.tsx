@@ -23,18 +23,25 @@ import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { LimitsContext } from '../../../providers/limits'
-import { LightningContext } from '../../../providers/lightning'
+import { SwapsContext } from '../../../providers/swaps'
 import { InfoLine } from '../../../components/Info'
+import FlexRow from '../../../components/FlexRow'
+import { enableChainSwapsReceive } from '../../../lib/constants'
+import { centsToUnits } from '../../../lib/assets'
 
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
-  const { calcReverseSwapFee } = useContext(LightningContext)
-  const { amountIsAboveMaxLimit, amountIsBelowMinLimit, validLnSwap } = useContext(LimitsContext)
+  const { calcBtcToArkSwapFee, calcReverseSwapFee } = useContext(SwapsContext)
+  const { amountIsAboveMaxLimit, amountIsBelowMinLimit, validBtcToArk, validLnSwap } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
-  const { balance, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
+
+  const assetId = recvInfo.assetId ?? ''
+  const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
+  const isAssetReceive = recvInfo.assetId && recvInfo.assetId !== ''
 
   const defaultButtonLabel = 'Skip'
 
@@ -63,7 +70,7 @@ export default function ReceiveAmount() {
       .then(({ offchainAddr, boardingAddr }) => {
         if (!offchainAddr) throw 'Unable to get offchain address'
         if (!boardingAddr) throw 'Unable to get boarding address'
-        setRecvInfo({ boardingAddr, offchainAddr, satoshis: 0 })
+        setRecvInfo({ ...recvInfo, boardingAddr, offchainAddr, satoshis: 0 })
       })
       .catch((err) => {
         const error = extractError(err)
@@ -78,9 +85,9 @@ export default function ReceiveAmount() {
         ? defaultButtonLabel
         : satoshis < 1
           ? 'Amount below 1 satoshi'
-          : amountIsAboveMaxLimit(satoshis)
+          : !isAssetReceive && amountIsAboveMaxLimit(satoshis)
             ? 'Amount above max limit'
-            : amountIsBelowMinLimit(satoshis)
+            : !isAssetReceive && amountIsBelowMinLimit(satoshis)
               ? 'Amount below min limit'
               : 'Continue',
     )
@@ -90,8 +97,8 @@ export default function ReceiveAmount() {
 
   const handleChange = (sats: number) => {
     setSatoshis(sats)
-    const value = useFiat ? toFiat(sats) : sats
-    const maximumFractionDigits = useFiat ? 2 : 0
+    const value = assetMeta ? centsToUnits(sats, assetMeta) : useFiat ? toFiat(sats) : sats
+    const maximumFractionDigits = assetMeta?.metadata?.decimals ? assetMeta?.metadata?.decimals : useFiat ? 2 : 0
     setTextValue(prettyNumber(value, maximumFractionDigits, false))
     setButtonLabel(sats ? 'Continue' : defaultButtonLabel)
   }
@@ -120,14 +127,18 @@ export default function ReceiveAmount() {
     navigate(Pages.ReceiveQRCode)
   }
 
-  const showFaucetButton = balance === 0 && faucetAvailable
-  const showLightningFees = satoshis && validLnSwap(satoshis)
+  const showFaucetButton = balance === 0 && faucetAvailable && !isAssetReceive
   const reverseSwapFee = calcReverseSwapFee(satoshis)
+  const showLightningFees = satoshis && validLnSwap(satoshis) && !isAssetReceive
   const lightningFeeText = `Lightning fees: ${prettyAmount(reverseSwapFee)}`
+
+  const chainSwapFee = calcBtcToArkSwapFee(satoshis)
+  const showChainSwapFees = satoshis && validBtcToArk(satoshis) && enableChainSwapsReceive
+  const chainSwapFeeText = `Chain swap fees: ${prettyAmount(chainSwapFee)}`
 
   const disabled = !satoshis
     ? false
-    : satoshis < 1 || amountIsAboveMaxLimit(satoshis) || amountIsBelowMinLimit(satoshis)
+    : satoshis < 1 || (!isAssetReceive && (amountIsAboveMaxLimit(satoshis) || amountIsBelowMinLimit(satoshis)))
 
   if (showKeys) {
     return <Keyboard back={() => setShowKeys(false)} hideBalance onSats={handleChange} value={satoshis} />
@@ -156,13 +167,9 @@ export default function ReceiveAmount() {
     )
   }
 
-  if (showKeys) {
-    return <Keyboard back={() => setShowKeys(false)} hideBalance onSats={handleChange} value={satoshis} />
-  }
-
   return (
     <>
-      <Header text='Receive' back />
+      <Header text={isAssetReceive ? 'Receive Asset' : 'Receive'} back={() => navigate(Pages.Wallet)} />
       <Content>
         <Padded>
           <FlexCol>
@@ -176,8 +183,12 @@ export default function ReceiveAmount() {
               readOnly={isMobileBrowser}
               value={textValue ? Number(textValue) : undefined}
               sats={satoshis}
+              asset={assetMeta}
             />
-            {showLightningFees ? <InfoLine color='orange' text={lightningFeeText} /> : null}
+            <FlexRow between>
+              <div>{showLightningFees ? <InfoLine color='orange' text={lightningFeeText} /> : null}</div>
+              <div>{showChainSwapFees ? <InfoLine color='orange' text={chainSwapFeeText} /> : null}</div>
+            </FlexRow>
           </FlexCol>
         </Padded>
       </Content>

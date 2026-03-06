@@ -1,8 +1,28 @@
 import { ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react'
-import { clearStorage, readWalletFromStorage, saveWalletToStorage } from '../lib/storage'
+import {
+  ArkNote,
+  ServiceWorkerWallet,
+  NetworkName,
+  SingleKey,
+  AssetDetails,
+  WalletBalance,
+  migrateWalletRepository,
+  getMigrationStatus,
+  rollbackMigration,
+  IndexedDBWalletRepository,
+  IndexedDBContractRepository,
+} from '@arkade-os/sdk'
+import {
+  clearStorage,
+  readWalletFromStorage,
+  saveWalletToStorage,
+  saveAssetMetadataToStorage,
+  readAssetMetadataFromStorage,
+  CachedAssetDetails,
+} from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
-import { getBalance, getTxHistory, getVtxos, renewCoins, settleVtxos } from '../lib/asp'
+import { delegateVtxos, getBalance, getTxHistory, getVtxos, renewCoins, settleVtxos } from '../lib/asp'
 import { AspContext } from './asp'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
@@ -11,11 +31,17 @@ import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
-import { ArkNote, ServiceWorkerWallet, NetworkName, SingleKey } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
-import { maxPercentage } from '../lib/constants'
+import { getDelegateUrlForNetwork, maxPercentage } from '../lib/constants'
+import { AssetIconApprovalManager } from '../lib/assetIconApproval'
+import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
+import { Indexer } from '../lib/indexer'
+import { IndexedDbSwapRepository, migrateToSwapRepository, Network } from '@arkade-os/boltz-swap'
+
+const ASSET_METADATA_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
+const SERVICE_WORKER_SETUP_TIMEOUT_MS = 30_000
 
 const defaultWallet: Wallet = {
   network: '',
@@ -30,12 +56,17 @@ interface WalletContextProps {
   updateWallet: (w: Wallet | ((prev: Wallet) => Wallet)) => void
   isLocked: () => Promise<boolean>
   reloadWallet: (svcWallet?: ServiceWorkerWallet) => Promise<void>
+  restartWallet: (delegateEnabled?: boolean) => Promise<void>
   wallet: Wallet
   walletLoaded: boolean
   svcWallet: ServiceWorkerWallet | undefined
   txs: Tx[]
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
-  balance: number
+  balance: WalletBalance['total']
+  assetBalances: WalletBalance['assets']
+  assetMetadataCache: Map<string, CachedAssetDetails>
+  setCacheEntry: (assetId: string, details: AssetDetails) => void
+  iconApprovalManager: AssetIconApprovalManager
   dataReady: boolean
   initialized?: boolean
 }
@@ -47,11 +78,16 @@ export const WalletContext = createContext<WalletContextProps>({
   settlePreconfirmed: () => Promise.resolve(),
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
+  restartWallet: () => Promise.resolve(),
   wallet: defaultWallet,
   walletLoaded: false,
   svcWallet: undefined,
   isLocked: () => Promise.resolve(true),
   balance: 0,
+  assetBalances: [],
+  assetMetadataCache: new Map(),
+  setCacheEntry: () => {},
+  iconApprovalManager: new AssetIconApprovalManager(),
   dataReady: false,
   txs: [],
   vtxos: { spendable: [], spent: [] },
@@ -65,16 +101,32 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { notifyTxSettled } = useContext(NotificationsContext)
 
   const [txs, setTxs] = useState<Tx[]>([])
-  const [balance, setBalance] = useState(0)
+  const [balance, setBalance] = useState<WalletBalance['total']>(0)
   const [wallet, setWallet] = useState(defaultWallet)
   const [walletLoaded, setWalletLoaded] = useState(false)
   const [initialized, setInitialized] = useState<boolean>(false)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
   const [dataReady, setDataReady] = useState(false)
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
+  const [assetBalances, setAssetBalances] = useState<WalletBalance['assets']>([])
 
   const hasLoadedOnce = useRef(false)
   const listeningForServiceWorker = useRef(false)
+  const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
+  const iconApprovalManager = useRef(new AssetIconApprovalManager()).current
+  const verifiedAssetsFetched = useRef(false)
+  const statusPingInterval = useRef<ReturnType<typeof setInterval>>()
+
+  const setCacheEntry = (assetId: string, details: AssetDetails) => {
+    const hasIcon = !!details.metadata?.icon
+    const moderated =
+      hasIcon && !iconApprovalManager.isApproved(assetId)
+        ? { ...details, metadata: { ...details.metadata, icon: undefined } }
+        : details
+    const entry: CachedAssetDetails = { ...moderated, cachedAt: Date.now(), hasIcon }
+    assetMetadataCache.current.set(assetId, entry)
+    saveAssetMetadataToStorage(assetMetadataCache.current)
+  }
 
   // read wallet from storage
   useEffect(() => {
@@ -94,7 +146,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const computeThresholds = async () => {
       try {
         const allVtxos = await svcWallet.getVtxos({ withRecoverable: true })
-        const batchLifetimeMs = await calcBatchLifetimeMs(aspInfo, allVtxos)
+        const batchLifetimeMs = await calcBatchLifetimeMs(allVtxos, new Indexer(aspInfo))
         const thresholdMs = Math.floor((batchLifetimeMs * maxPercentage) / 100)
         const nextRollover = await calcNextRollover(vtxos.spendable, svcWallet, aspInfo)
         updateWallet((prev) => ({ ...prev, nextRollover, thresholdMs }))
@@ -104,6 +156,27 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
     computeThresholds()
   }, [initialized, vtxos, svcWallet, aspInfo])
+
+  // fetch verified assets list once on startup
+  useEffect(() => {
+    const verifiedUrl = import.meta.env.VITE_VERIFIED_ASSETS_URL
+    if (!verifiedUrl || verifiedAssetsFetched.current) return
+    if (!initialized) return
+    verifiedAssetsFetched.current = true
+
+    fetch(verifiedUrl)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json()
+      })
+      .then((data) => {
+        if (!Array.isArray(data) || !data.every((id) => typeof id === 'string')) {
+          throw new Error('Invalid verified assets response')
+        }
+        iconApprovalManager.setVerifiedAssets(data)
+      })
+      .catch((err) => consoleError(err, 'Failed to fetch verified assets'))
+  }, [initialized])
 
   // if ark note is present in the URL, decode it and set the note info
   useEffect(() => {
@@ -152,8 +225,23 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     try {
       const vtxos = await getVtxos(swWallet)
       const txs = await getTxHistory(swWallet)
-      const balance = await getBalance(swWallet)
-      setBalance(balance)
+      const { total, assets } = await getBalance(swWallet)
+      // prefetch asset metadata before triggering re-renders
+      for (const ab of assets) {
+        const cached = assetMetadataCache.current.get(ab.assetId)
+        if (cached && Date.now() - cached.cachedAt < ASSET_METADATA_TTL_MS) continue
+        try {
+          const meta = await swWallet.assetManager.getAssetDetails(ab.assetId)
+          if (meta) setCacheEntry(ab.assetId, meta)
+        } catch (err) {
+          consoleError(err, `error prefetching metadata for ${ab.assetId}`)
+        }
+      }
+      setBalance(total)
+      setAssetBalances(assets)
+      if (assets.length > 0 && !config.apps.assets.enabled) {
+        updateConfig({ ...config, apps: { ...config.apps, assets: { enabled: true } } })
+      }
       setVtxos(vtxos)
       setTxs(txs)
       if (!hasLoadedOnce.current) {
@@ -172,21 +260,55 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     privateKey,
     retryCount = 0,
     maxRetries = 5,
+    delegatorUrl,
   }: {
     arkServerUrl: string
     esploraUrl: string
     privateKey: string
     retryCount?: number
     maxRetries?: number
+    delegatorUrl?: string
   }) => {
     try {
       // create service worker wallet
+      const walletRepository = new IndexedDBWalletRepository()
+      const contractRepository = new IndexedDBContractRepository()
+      await walletRepository.getWalletState()
       const svcWallet = await ServiceWorkerWallet.setup({
         serviceWorkerPath: '/wallet-service-worker.mjs',
         identity: SingleKey.fromHex(privateKey),
         arkServerUrl,
         esploraUrl,
+        delegatorUrl,
+        storage: { walletRepository, contractRepository },
+        serviceWorkerActivationTimeoutMs: SERVICE_WORKER_SETUP_TIMEOUT_MS,
+        messageBusTimeoutMs: SERVICE_WORKER_SETUP_TIMEOUT_MS,
       })
+
+      // Migration!
+      try {
+        const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
+        const walletStatus = await getMigrationStatus('wallet', oldStorage)
+        if (walletStatus !== 'not-needed') {
+          if (walletStatus === 'pending' || walletStatus === 'in-progress') {
+            const arkAddress = await svcWallet.getAddress()
+            const boardingAddress = await svcWallet.getBoardingAddress()
+            try {
+              await migrateWalletRepository(oldStorage, svcWallet.walletRepository, {
+                offchain: [arkAddress],
+                onchain: [boardingAddress],
+              })
+            } catch (err) {
+              await rollbackMigration('wallet', oldStorage)
+              throw err
+            }
+          }
+          await migrateToSwapRepository(oldStorage, new IndexedDbSwapRepository())
+        }
+      } catch (err) {
+        consoleError(err, 'Error migrating wallet repository')
+      }
+
       setSvcWallet(svcWallet)
 
       // handle messages from the service worker
@@ -213,7 +335,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setInitialized(walletInitialized)
 
       // ping the service worker wallet status every 1 second
-      setInterval(async () => {
+      if (statusPingInterval.current) clearInterval(statusPingInterval.current)
+      statusPingInterval.current = setInterval(async () => {
         try {
           const { walletInitialized } = await svcWallet.getStatus()
           setInitialized(walletInitialized)
@@ -222,36 +345,41 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }, 1_000)
 
-      // renew expiring coins on startup
-      renewCoins(svcWallet, aspInfo.dust, wallet.thresholdMs).catch(() => {})
-    } catch (err) {
-      if (err instanceof Error && err.message.includes('Service worker activation timed out')) {
-        if (retryCount < maxRetries) {
-          // exponential backoff: wait 1s, 2s, 4s for each retry
-          const delay = Math.pow(2, retryCount) * 1000
-          consoleError(
-            new Error(
-              `Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,
-            ),
-            'Service worker activation retry',
-          )
-          await new Promise((resolve) => setTimeout(resolve, delay))
-          return initSvcWorkerWallet({
-            arkServerUrl,
-            esploraUrl,
-            privateKey,
-            retryCount: retryCount + 1,
-            maxRetries,
-          })
-        } else {
-          consoleError(
-            new Error('Service worker activation timed out after maximum retries'),
-            'Service worker activation failed',
-          )
-          return
-        }
+      // delegate or renew expiring coins on startup
+      if (config.delegate) {
+        delegateVtxos(svcWallet).catch((e) => {
+          console.error('Error delegating coins', e)
+        })
+      } else {
+        renewCoins(svcWallet, aspInfo.dust, wallet.thresholdMs).catch(() => {})
       }
-      // re-throw other errors
+    } catch (err) {
+      const isTimeoutError =
+        err instanceof Error &&
+        (err.message.includes('Service worker activation timed out') || err.message.includes('MessageBus timed out'))
+
+      if (isTimeoutError && retryCount < maxRetries) {
+        // exponential backoff: wait 1s, 2s, 4s, 8s, 16s for each retry
+        const delay = Math.pow(2, retryCount) * 1000
+        consoleError(
+          new Error(
+            `Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,
+          ),
+          'Service worker activation retry',
+        )
+        await new Promise((resolve) => setTimeout(resolve, delay))
+        return initSvcWorkerWallet({
+          arkServerUrl,
+          esploraUrl,
+          privateKey,
+          retryCount: retryCount + 1,
+          maxRetries,
+          delegatorUrl,
+        })
+      }
+
+      // If we are here, either retries are exhausted or it's a different error.
+      // Surface the failure so the unlock flow cannot proceed silently without an initialized wallet.
       throw err
     }
   }
@@ -262,17 +390,45 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const esploraUrl = getRestApiExplorerURL(network) ?? ''
     const pubkey = hex.encode(secp.getPublicKey(privateKey))
     updateConfig({ ...config, pubkey })
+    const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
     await initSvcWorkerWallet({
       privateKey: hex.encode(privateKey),
       arkServerUrl,
       esploraUrl,
+      delegatorUrl,
     })
     updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
   }
 
+  /**
+   * Reinitialize the service-worker wallet in-place so runtime config changes
+   * (e.g., delegate on/off) take effect without forcing a lock/unlock cycle.
+   * Keeps local tx/balance state; just rebuilds the SW wallet with the current
+   * delegatorUrl flag.
+   */
+  const restartWallet = async (delegateEnabled = config.delegate) => {
+    if (!svcWallet) return
+    type HasToHex = { toHex: () => string }
+    const identity = svcWallet.identity
+    const privateKey =
+      typeof (identity as Partial<HasToHex>).toHex === 'function' ? (identity as HasToHex).toHex() : undefined
+    if (!privateKey) throw new Error('Unable to reinitialize wallet without private key')
+    const arkServerUrl = aspInfo.url
+    const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
+    const delegatorUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as Network).url : undefined
+    await initSvcWorkerWallet({
+      privateKey,
+      arkServerUrl,
+      esploraUrl,
+      delegatorUrl,
+    })
+  }
+
   const lockWallet = async () => {
     if (!svcWallet) throw new Error('Service worker not initialized')
+    if (statusPingInterval.current) clearInterval(statusPingInterval.current)
+    statusPingInterval.current = undefined
     await svcWallet.clear()
     setInitialized(false)
     setDataReady(false)
@@ -283,7 +439,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!svcWallet) throw new Error('Service worker not initialized')
     await clearStorage()
     await svcWallet.clear()
-    await svcWallet.contractRepository.clearContractData()
+    await svcWallet.walletRepository.clear()
+    await svcWallet.contractRepository.clear()
     setDataReady(false)
     hasLoadedOnce.current = false
   }
@@ -325,8 +482,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         walletLoaded,
         svcWallet,
         lockWallet,
+        restartWallet,
         txs,
         balance,
+        assetBalances,
+        assetMetadataCache: assetMetadataCache.current,
+        setCacheEntry,
+        iconApprovalManager,
         dataReady,
         reloadWallet,
         vtxos: vtxos ?? { spendable: [], spent: [] },

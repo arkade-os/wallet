@@ -5,12 +5,12 @@ import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import Toggle from '../../../components/Toggle'
 import Text from '../../../components/Text'
-import { LightningContext } from '../../../providers/lightning'
+import { SwapsContext } from '../../../providers/swaps'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 
 export default function AppBoltzSettings() {
-  const { connected, getApiUrl, restoreSwaps, toggleConnection } = useContext(LightningContext)
+  const { connected, getApiUrl, restoreSwaps, toggleConnection } = useContext(SwapsContext)
 
   const [counter, setCounter] = useState(0)
   const [results, setResults] = useState('')

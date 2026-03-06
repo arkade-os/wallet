@@ -4,7 +4,7 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
-import { prettyAgo, prettyDate } from '../../lib/format'
+import { formatAssetAmount, isBurn, isIssuance, prettyAgo, prettyDate } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
 import ErrorMessage from '../../components/Error'
 import { extractError } from '../../lib/error'
@@ -12,9 +12,11 @@ import Header from '../../components/Header'
 import Content from '../../components/Content'
 import Info from '../../components/Info'
 import FlexCol from '../../components/FlexCol'
+import FlexRow from '../../components/FlexRow'
 import WaitingForRound from '../../components/WaitingForRound'
 import { sleep } from '../../lib/sleep'
 import Text, { TextSecondary } from '../../components/Text'
+import AssetAvatar from '../../components/AssetAvatar'
 import Details, { DetailsProps } from '../../components/Details'
 import VtxosIcon from '../../icons/Vtxos'
 import CheckMarkIcon from '../../icons/CheckMark'
@@ -27,9 +29,11 @@ export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { settlePreconfirmed, vtxos, wallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, settlePreconfirmed, vtxos, wallet, svcWallet } = useContext(WalletContext)
 
   const tx = txInfo
+  const issuanceTx = tx ? isIssuance(tx) : false
+  const burnTx = tx ? isBurn(tx) : false
   const boardingTx = Boolean(tx?.boardingTxid)
   const defaultButtonLabel = boardingTx ? 'Complete boarding' : 'Settle transaction'
   const boardingExitDelay = Number(aspInfo?.boardingExitDelay || 0)
@@ -99,7 +103,7 @@ export default function Transaction() {
   if (!tx) return <></>
 
   const details: DetailsProps = {
-    direction: tx.type === 'sent' ? 'Sent' : 'Received',
+    direction: issuanceTx ? 'Issuance' : burnTx ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received',
     when: tx.createdAt ? prettyAgo(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
     date: tx.createdAt ? prettyDate(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
     status: expiredBoardingTx
@@ -112,7 +116,7 @@ export default function Transaction() {
             ? 'Settled'
             : 'Preconfirmed',
     type: boardingTx ? 'Boarding' : 'Offchain',
-    txid: tx.boardingTxid || '',
+    txid: tx.boardingTxid || tx.redeemTxid || '',
     satoshis: tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
     fees: tx.type === 'sent' ? defaultFee : 0,
     total: tx.amount,
@@ -140,6 +144,30 @@ export default function Transaction() {
             <Info color='green' icon={<CheckMarkIcon small />} title='Success'>
               <TextSecondary>Transaction settled successfully</TextSecondary>
             </Info>
+          ) : null}
+          {tx.assets?.length ? (
+            <FlexCol gap='0.5rem'>
+              {tx.assets.map((a) => {
+                const meta = assetMetadataCache.get(a.assetId)?.metadata
+                const ticker = meta?.ticker
+                const name = meta?.name
+                const icon = meta?.icon
+                const decimals = meta?.decimals ?? 8
+                const color = tx.type === 'received' || issuanceTx ? 'green' : ''
+                const label = ticker ?? name ?? `${a.assetId.slice(0, 8)}...`
+                return (
+                  <FlexRow key={a.assetId} gap='0.5rem'>
+                    <AssetAvatar icon={icon} ticker={ticker} size={32} assetId={a.assetId} clickable />
+                    <FlexCol gap='0'>
+                      <Text color={color}>
+                        {formatAssetAmount(a.amount, decimals)} {label}
+                      </Text>
+                      {name && ticker ? <TextSecondary>{name}</TextSecondary> : null}
+                    </FlexCol>
+                  </FlexRow>
+                )
+              })}
+            </FlexCol>
           ) : null}
           <Details details={details} />
         </FlexCol>
