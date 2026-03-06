@@ -9,8 +9,13 @@
     />
     <meta name="theme-color" content="#fff" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!--
+      Theme bootstrap: MUST run as inline script before first paint to prevent
+      a white flash on dark-mode page loads (React hasn't mounted yet).
+      All runtime theme changes are handled by applyTheme() in
+      src/providers/config.tsx. Keep these two locations in sync.
+    -->
     <script>
-      // Set theme-color before first paint to avoid white flash in status bar
       try {
         var c = JSON.parse(localStorage.getItem('config') || '{}')
         var t = c.theme

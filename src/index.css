@@ -50,6 +50,22 @@ body,
   height: 100%;
   background-color: var(--ion-background-color, #fff);
 }
+
+/* Fixed overlay for iOS 26+ status bar color sampling.
+   iOS derives the status bar color from the rendered content at the top of the page.
+   This strip sits behind the transparent status bar and matches the theme. */
+body::before {
+  content: '';
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top);
+  background-color: var(--ion-background-color, #fff);
+  z-index: 99999;
+  pointer-events: none;
+}
 body {
   margin: 0;
   font-family:
