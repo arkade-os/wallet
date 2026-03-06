@@ -97,16 +97,16 @@ export default function Wallet() {
                     icon={<HomeIcon />}
                     title='Add Arkade to your home screen'
                     description={pwaDescription}
-                    action={{
-                      label: 'Install',
-                      onClick: () => {
-                        if (canPromptInstall()) {
-                          void promptPwaInstall().catch(() => {})
-                        } else if (navigator.share) {
-                          navigator.share({ url: window.location.href }).catch(() => {})
-                        }
-                      },
-                    }}
+                    action={
+                      canPromptInstall()
+                        ? {
+                            label: 'Install',
+                            onClick: () => {
+                              void promptPwaInstall().catch(() => {})
+                            },
+                          }
+                        : undefined
+                    }
                     onDismiss={dismissPwaBanner}
                     visible={Boolean(nudgeCheckComplete && !nudgeVisible && showPwaBanner)}
                   />

@@ -106,11 +106,11 @@ export default function DismissibleBanner(props: DismissibleBannerProps) {
   }
 
   return (
-    <AnimatePresence mode='popLayout'>
+    <AnimatePresence mode={prefersReduced ? undefined : 'popLayout'}>
       {visible ? (
         <motion.div
           key={props.id}
-          layout
+          layout={!prefersReduced}
           style={baseStyle}
           drag={prefersReduced ? false : 'x'}
           dragConstraints={{ left: 0, right: 0 }}
