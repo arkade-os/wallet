@@ -26,6 +26,7 @@ import { LimitsContext } from '../../../providers/limits'
 import { SwapsContext } from '../../../providers/swaps'
 import { InfoLine } from '../../../components/Info'
 import FlexRow from '../../../components/FlexRow'
+import { enableChainSwapsReceive } from '../../../lib/constants'
 
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
@@ -131,7 +132,7 @@ export default function ReceiveAmount() {
   const lightningFeeText = `Lightning fees: ${prettyAmount(reverseSwapFee)}`
 
   const chainSwapFee = calcBtcToArkSwapFee(satoshis)
-  const showChainSwapFees = satoshis && validBtcToArk(satoshis)
+  const showChainSwapFees = satoshis && validBtcToArk(satoshis) && enableChainSwapsReceive
   const chainSwapFeeText = `Chain swap fees: ${prettyAmount(chainSwapFee)}`
 
   const disabled = !satoshis

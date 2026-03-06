@@ -19,6 +19,7 @@ import Loading from '../../../components/Loading'
 import { SwapsContext } from '../../../providers/swaps'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
 import { PendingChainSwap, PendingReverseSwap } from '@arkade-os/boltz-swap'
+import { enableChainSwapsReceive } from '../../../lib/constants'
 
 export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
@@ -46,6 +47,7 @@ export default function ReceiveQRCode() {
 
   const createBtcAddress = () => {
     return new Promise((resolve, reject) => {
+      if (!enableChainSwapsReceive) return reject()
       if (!validBtcToArk(satoshis)) return reject()
       createBtcToArkSwap(satoshis)
         .then((result) => {
