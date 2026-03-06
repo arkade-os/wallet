@@ -204,9 +204,116 @@ button.reminder-button.action-sheet-button {
   }
 }
 
-/* Tab icon animation wrapper */
-.tab-icon-animated {
+/* ============================================================
+   Pill navbar
+   ============================================================ */
+
+.pill-navbar {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background-color: var(--ion-background-color);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 1px 3px -1px rgba(0, 0, 0, 0.12),
+    0 8px 20px -4px rgba(0, 0, 0, 0.14);
+  z-index: 80;
+}
+
+.ion-palette-dark .pill-navbar {
+  background-color: #1c1c1e;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 1px 3px -1px rgba(0, 0, 0, 0.4),
+    0 8px 24px -4px rgba(0, 0, 0, 0.6);
+}
+
+.pill-nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 72px;
+  min-height: 44px;
+  padding: 6px 20px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: #9a9a9a;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color 150ms ease-out,
+    background-color 150ms ease-out;
+}
+
+.ion-palette-dark .pill-nav-btn {
+  color: #6e6e6e;
+}
+
+.pill-nav-btn:focus-visible {
+  outline: 2px solid var(--ion-color-primary);
+  outline-offset: -2px;
+}
+
+.pill-nav-btn--active {
+  color: var(--ion-color-dark);
+  background-color: var(--dark05);
+}
+
+.pill-nav-icon {
   display: inline-flex;
+  width: 24px;
+  height: 24px;
+}
+
+.pill-nav-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.pill-icon-pop {
+  animation: tab-pop 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.pill-nav-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+/* Content gradient fade above pill — eased curve for smooth perceptual transition */
+.pill-navbar-fade {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(var(--fade-rgb), 0.02) 15%,
+    rgba(var(--fade-rgb), 0.08) 30%,
+    rgba(var(--fade-rgb), 0.18) 40%,
+    rgba(var(--fade-rgb), 0.32) 50%,
+    rgba(var(--fade-rgb), 0.5) 60%,
+    rgba(var(--fade-rgb), 0.68) 70%,
+    rgba(var(--fade-rgb), 0.82) 80%,
+    rgba(var(--fade-rgb), 0.92) 90%,
+    rgba(var(--fade-rgb), 0.97) 100%
+  );
+  pointer-events: none;
+  z-index: 79;
 }
 
 /* Tab icon pop animation */
@@ -221,17 +328,14 @@ button.reminder-button.action-sheet-button {
     transform: scale(1);
   }
 }
-.tab-anim-pop {
-  animation: tab-pop 250ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
 
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .tab-icon-animated {
+  .pill-icon-pop {
     animation: none !important;
   }
-  [class*='tab-anim-'] {
-    animation: none !important;
+  .pill-nav-btn {
+    transition: none;
   }
 }
 

@@ -1,23 +1,45 @@
-export default function WalletIcon() {
+export default function WalletIcon({ active }: { active?: boolean }) {
+  if (active) {
+    return (
+      <svg width='24' height='24' viewBox='0 0 24 24' fill='currentColor'>
+        <path
+          fillRule='evenodd'
+          clipRule='evenodd'
+          d='M2.273 5.625A4.483 4.483 0 0 1 5.25 4.5h13.5c1.141 0 2.183.425 2.977 1.125A3 3 0 0 0 18.75 3H5.25a3 3 0 0 0-2.977 2.625ZM2.273 8.625A4.483 4.483 0 0 1 5.25 7.5h13.5c1.141 0 2.183.425 2.977 1.125A3 3 0 0 0 18.75 6H5.25a3 3 0 0 0-2.977 2.625ZM5.25 9a3 3 0 0 0-3 3v6a3 3 0 0 0 3 3h13.5a3 3 0 0 0 3-3v-6a3 3 0 0 0-3-3H15a.75.75 0 0 0-.75.75 2.25 2.25 0 0 1-4.5 0A.75.75 0 0 0 9 9H5.25Z'
+        />
+      </svg>
+    )
+  }
+
   return (
-    <svg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
-      <path
-        fillRule='evenodd'
-        clipRule='evenodd'
-        d='M6.5 3C4.567 3 3 4.567 3 6.5V17C3 19.2091 4.79086 21 7 21H20C20.5523 21 21 20.5523 21 20V9C21 8.44772 20.5523 8 20 8H17V4C17 3.44772 16.5523 3 16 3H6.5ZM15 8V5H6.5C5.67157 5 5 5.67157 5 6.5C5 7.32843 5.67157 8 6.5 8H15ZM15.5 15.75C16.1904 15.75 16.75 15.1904 16.75 14.5C16.75 13.8096 16.1904 13.25 15.5 13.25C14.8096 13.25 14.25 13.8096 14.25 14.5C14.25 15.1904 14.8096 15.75 15.5 15.75Z'
-        fill='currentColor'
-      />
+    <svg
+      width='24'
+      height='24'
+      viewBox='0 0 24 24'
+      fill='none'
+      stroke='currentColor'
+      strokeWidth='1.5'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+    >
+      <path d='M21 12a2.25 2.25 0 0 0-2.25-2.25H15a3 3 0 1 1-6 0H5.25A2.25 2.25 0 0 0 3 12m18 0v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 9m18 0V6a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 6v3' />
     </svg>
   )
 }
 
 export function WalletAlternativeIcon() {
   return (
-    <svg width='49' height='48' viewBox='0 0 49 48' fill='none' xmlns='http://www.w3.org/2000/svg'>
-      <path
-        d='M36.5 6H4.5V42H40.5V34H44.5V14H40.5V6H36.5ZM36.5 34V38H8.5V10H36.5V14H20.5V34H36.5ZM40.5 30H24.5V18H40.5V30ZM32.5 22H28.5V26H32.5V22Z'
-        fill='currentColor'
-      />
+    <svg
+      width='48'
+      height='48'
+      viewBox='0 0 24 24'
+      fill='none'
+      stroke='currentColor'
+      strokeWidth='1.5'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+    >
+      <path d='M21 12a2.25 2.25 0 0 0-2.25-2.25H15a3 3 0 1 1-6 0H5.25A2.25 2.25 0 0 0 3 12m18 0v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 9m18 0V6a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 6v3' />
     </svg>
   )
 }
