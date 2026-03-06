@@ -14,6 +14,7 @@ import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { formatAssetAmount } from '../../../lib/format'
+import AssetCard from '../../../components/AssetCard'
 
 export default function AppAssetMintSuccess() {
   const { navigate } = useContext(NavigationContext)
@@ -41,33 +42,14 @@ export default function AppAssetMintSuccess() {
             <Text centered big bold>
               Asset minted!
             </Text>
-
-            <Shadow border>
-              <FlexRow between padding='0.75rem'>
-                <FlexRow>
-                  <AssetAvatar
-                    icon={icon}
-                    ticker={ticker}
-                    name={name}
-                    size={32}
-                    assetId={assetInfo.assetId}
-                    clickable
-                  />
-                  <FlexCol gap='0'>
-                    <Text bold>{name}</Text>
-                    {ticker ? (
-                      <Text color='dark50' smaller>
-                        {ticker}
-                      </Text>
-                    ) : null}
-                  </FlexCol>
-                </FlexRow>
-                <Text>
-                  {typeof details.supply === 'number' ? formatAssetAmount(details.supply, decimals) : 'Unknown'}
-                </Text>
-              </FlexRow>
-            </Shadow>
-
+            <AssetCard
+              assetId={assetInfo.assetId}
+              balance={details.supply}
+              decimals={decimals}
+              icon={icon}
+              name={name}
+              ticker={ticker}
+            />
             <FlexCol gap='0.25rem' centered>
               <Text copy={assetInfo.assetId} color='dark50' smaller>
                 {assetInfo.assetId.slice(0, 12)}...{assetInfo.assetId.slice(-12)}

@@ -97,7 +97,7 @@ export default function ReceiveAmount() {
 
   const handleChange = (sats: number) => {
     setSatoshis(sats)
-    const value = assetMeta ? centsToUnits(sats, assetMeta) : useFiat ? toFiat(sats) : sats
+    const value = assetMeta ? centsToUnits(sats, assetMeta.metadata?.decimals) : useFiat ? toFiat(sats) : sats
     const maximumFractionDigits = assetMeta?.metadata?.decimals ? assetMeta?.metadata?.decimals : useFiat ? 2 : 0
     setTextValue(prettyNumber(value, maximumFractionDigits, false))
     setButtonLabel(sats ? 'Continue' : defaultButtonLabel)

@@ -122,7 +122,7 @@ export default function ReceiveQRCode() {
     const btcAddress = validUtxoTx(satoshis) && utxoTxsAllowed() ? swapAddress || boardingAddr : ''
 
     const bip21uri = isAssetReceive
-      ? encodeBip21Asset(arkAddress, assetId, centsToUnits(satoshis, assetMeta!))
+      ? encodeBip21Asset(arkAddress, assetId, centsToUnits(satoshis, assetMeta?.metadata?.decimals))
       : encodeBip21(btcAddress, arkAddress, invoice, satoshis)
 
     setNoPaymentMethods(!arkAddress && !btcAddress && !invoice && !isAssetReceive)

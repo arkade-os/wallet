@@ -20,6 +20,7 @@ import { extractError } from '../../../lib/error'
 import { Decimal } from 'decimal.js'
 import { formatAssetAmount } from '../../../lib/format'
 import Input from '../../../components/Input'
+import AssetCard from '../../../components/AssetCard'
 
 export default function AppAssetBurn() {
   const { navigate } = useContext(NavigationContext)
@@ -104,24 +105,14 @@ export default function AppAssetBurn() {
         <Padded>
           <FlexCol gap='1rem'>
             <ErrorMessage error={Boolean(error)} text={error} />
-
-            <Shadow border>
-              <FlexRow between padding='0.75rem'>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
-                  <AssetAvatar icon={icon} ticker={ticker} size={32} />
-                  <FlexCol gap='0'>
-                    <Text bold>{name}</Text>
-                    <Text color='dark50' smaller>
-                      {ticker}
-                    </Text>
-                  </FlexCol>
-                </div>
-                <Text>
-                  {formatAssetAmount(balance, decimals)} {ticker}
-                </Text>
-              </FlexRow>
-            </Shadow>
-
+            <AssetCard
+              assetId={assetInfo.assetId}
+              balance={balance}
+              decimals={decimals}
+              icon={icon}
+              name={name}
+              ticker={ticker}
+            />
             <Input
               label='Amount to Burn'
               right={
