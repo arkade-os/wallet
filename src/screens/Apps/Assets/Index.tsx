@@ -1,12 +1,9 @@
 import { useContext, useEffect, useState } from 'react'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import FlexRow from '../../../components/FlexRow'
 import Header from '../../../components/Header'
 import Padded from '../../../components/Padded'
 import Text from '../../../components/Text'
-import AssetAvatar from '../../../components/AssetAvatar'
-import Shadow from '../../../components/Shadow'
 import Button from '../../../components/Button'
 import Loading from '../../../components/Loading'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
@@ -15,10 +12,10 @@ import { WalletContext } from '../../../providers/wallet'
 import { ConfigContext } from '../../../providers/config'
 import { FlowContext } from '../../../providers/flow'
 import { consoleError } from '../../../lib/logs'
-import { formatAssetAmount } from '../../../lib/format'
 import { SettingsIconLight } from '../../../icons/Settings'
 import { EmptyAssetsList } from '../../../components/Empty'
 import { AspContext } from '../../../providers/asp'
+import AssetCard from '../../../components/AssetCard'
 
 interface AssetListItem {
   assetId: string
@@ -86,8 +83,6 @@ export default function AppAssets() {
     navigate(Pages.AppAssetDetail)
   }
 
-  const truncateId = (id: string) => `${id.slice(0, 8)}...${id.slice(-8)}`
-
   if (loading) return <Loading text='Loading assets...' />
 
   const goToSettings = () => navigate(Pages.AppAssetsSettings)
@@ -103,28 +98,16 @@ export default function AppAssets() {
                 <EmptyAssetsList />
               ) : (
                 assets.map((asset) => (
-                  <Shadow key={asset.assetId} border onClick={() => handleAssetClick(asset.assetId)}>
-                    <FlexRow between padding='0.75rem'>
-                      <FlexRow>
-                        <AssetAvatar
-                          icon={asset.icon}
-                          ticker={asset.ticker}
-                          size={32}
-                          assetId={asset.assetId}
-                          clickable
-                        />
-                        <FlexCol gap='0'>
-                          <Text bold>{asset.name ?? truncateId(asset.assetId)}</Text>
-                          {asset.ticker ? (
-                            <Text color='dark50' smaller>
-                              {asset.ticker}
-                            </Text>
-                          ) : null}
-                        </FlexCol>
-                      </FlexRow>
-                      <Text>{formatAssetAmount(asset.balance, asset.decimals ?? 8)}</Text>
-                    </FlexRow>
-                  </Shadow>
+                  <AssetCard
+                    key={asset.assetId}
+                    assetId={asset.assetId}
+                    balance={asset.balance}
+                    name={asset.name}
+                    ticker={asset.ticker}
+                    icon={asset.icon}
+                    decimals={asset.decimals}
+                    onClick={() => handleAssetClick(asset.assetId)}
+                  />
                 ))
               )}
             </FlexCol>

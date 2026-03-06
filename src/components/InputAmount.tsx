@@ -67,7 +67,7 @@ export default function InputAmount({
   const handleInput = (ev: Event) => {
     const value = Number((ev.target as HTMLInputElement).value)
     if (Number.isNaN(value)) return
-    onSats(asset ? unitsToCents(value, asset) : useFiat ? fromFiat(value) : value)
+    onSats(asset ? unitsToCents(value, asset.metadata?.decimals) : useFiat ? fromFiat(value) : value)
   }
 
   const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0
