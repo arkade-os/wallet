@@ -20,13 +20,14 @@ import { SwapsContext } from '../../../providers/swaps'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
 import { PendingChainSwap, PendingReverseSwap } from '@arkade-os/boltz-swap'
 import { enableChainSwapsReceive } from '../../../lib/constants'
+import { centsToUnits } from '../../../lib/assets'
 
 export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { arkadeSwaps, createBtcToArkSwap, createReverseSwap } = useContext(SwapsContext)
-  const { svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, svcWallet } = useContext(WalletContext)
   const { validBtcToArk, validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } =
     useContext(LimitsContext)
 
@@ -34,6 +35,7 @@ export default function ReceiveQRCode() {
 
   // manage all possible receive methods
   const { boardingAddr, offchainAddr, satoshis, assetId } = recvInfo
+  const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const isAssetReceive = assetId && assetId !== ''
 
   const [noPaymentMethods, setNoPaymentMethods] = useState(false)
@@ -77,14 +79,7 @@ export default function ReceiveQRCode() {
   }
 
   useEffect(() => {
-    if (isAssetReceive) {
-      const uri = encodeBip21Asset(offchainAddr, assetId, satoshis)
-      setQrCodeValue(uri)
-      setBip21Uri(uri)
-      setArkAddress(offchainAddr)
-      setShowQrCode(true)
-      return
-    }
+    if (isAssetReceive) return setShowQrCode(true)
     if (!satoshis || !svcWallet || !arkadeSwaps) return
     Promise.allSettled([createBtcAddress(), createLightningInvoice()]).then(([btc, lightning]) => {
       if (btc.status === 'fulfilled') {
@@ -122,10 +117,15 @@ export default function ReceiveQRCode() {
   //
   useEffect(() => {
     if (!showQrCode) return
+
     const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
     const btcAddress = validUtxoTx(satoshis) && utxoTxsAllowed() ? swapAddress || boardingAddr : ''
-    const bip21uri = encodeBip21(btcAddress, arkAddress, invoice, satoshis)
-    setNoPaymentMethods(!arkAddress && !btcAddress && !invoice)
+
+    const bip21uri = isAssetReceive
+      ? encodeBip21Asset(arkAddress, assetId, centsToUnits(satoshis, assetMeta!))
+      : encodeBip21(btcAddress, arkAddress, invoice, satoshis)
+
+    setNoPaymentMethods(!arkAddress && !btcAddress && !invoice && !isAssetReceive)
     setArkAddress(arkAddress)
     setBtcAddress(btcAddress)
     setQrCodeValue(bip21uri)
