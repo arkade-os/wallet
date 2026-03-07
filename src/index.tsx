@@ -17,6 +17,7 @@ import { LightningProvider } from './providers/lightning'
 import { shouldInitializeSentry } from './lib/sentry'
 import { FeesProvider } from './providers/fees'
 import { AnnouncementProvider } from './providers/announcements'
+import { Agentation } from 'agentation'
 
 // Initialize Sentry only in production and when DSN is provided
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN
@@ -46,6 +47,7 @@ root.render(
                         <NudgeProvider>
                           <AnnouncementProvider>
                             <App />
+                            {import.meta.env.DEV ? <Agentation endpoint='http://localhost:4747' /> : null}
                           </AnnouncementProvider>
                         </NudgeProvider>
                       </OptionsProvider>
