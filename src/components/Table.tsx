@@ -9,7 +9,7 @@ import { useIonToast } from '@ionic/react'
 import { copiedToClipboard } from '../lib/toast'
 import { hapticSubtle } from '../lib/haptics'
 
-export type TableLine = [string, string | undefined, JSX.Element?]
+export type TableLine = [string, string | undefined, JSX.Element?, (() => void)?]
 export type TableData = TableLine[]
 
 export default function Table({ data }: { data: TableData }) {
@@ -45,13 +45,13 @@ export default function Table({ data }: { data: TableData }) {
   return (
     <Focusable id='outer' inactive={focused} onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
       <FlexCol gap='0.5rem'>
-        {data.map(([title, value, icon]) =>
+        {data.map(([title, value, icon, onClick]) =>
           value == '' || value === undefined || value === null ? null : (
             <Focusable
               id={title}
               key={title}
               inactive={!focused}
-              onEnter={() => copy(value)}
+              onEnter={() => (onClick ? onClick() : copy(value))}
               onEscape={focusOnOuterShell}
               ariaLabel={ariaLabel(title, value)}
             >
@@ -62,9 +62,20 @@ export default function Table({ data }: { data: TableData }) {
                     {title}
                   </Text>
                 </FlexRow>
-                <Text color='dark' copy={value} small bold>
-                  {prettyLongText(value)}
-                </Text>
+                {onClick ? (
+                  <span
+                    onClick={onClick}
+                    style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    <Text color='dark' small bold>
+                      {prettyLongText(value)}
+                    </Text>
+                  </span>
+                ) : (
+                  <Text color='dark' copy={value} small bold>
+                    {prettyLongText(value)}
+                  </Text>
+                )}
               </FlexRow>
             </Focusable>
           ),
