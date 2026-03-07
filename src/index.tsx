@@ -47,7 +47,7 @@ root.render(
                         <NudgeProvider>
                           <AnnouncementProvider>
                             <App />
-                            {import.meta.env.DEV ? <Agentation endpoint="http://localhost:4747" /> : null}
+                            {import.meta.env.DEV ? <Agentation endpoint='http://localhost:4747' /> : null}
                           </AnnouncementProvider>
                         </NudgeProvider>
                       </OptionsProvider>
