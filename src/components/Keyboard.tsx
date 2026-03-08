@@ -4,7 +4,7 @@ import Content from './Content'
 import { useContext, useEffect, useState } from 'react'
 import Text, { TextSecondary } from './Text'
 import { FiatContext } from '../providers/fiat'
-import { prettyAmount, prettyNumber } from '../lib/format'
+import { formatAssetAmount, prettyAmount, prettyNumber } from '../lib/format'
 import { WalletContext } from '../providers/wallet'
 import { defaultFee } from '../lib/constants'
 import ErrorMessage from './Error'
@@ -13,15 +13,17 @@ import ButtonsOnBottom from './ButtonsOnBottom'
 import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
 import SwapIcon from '../icons/Swap'
+import { AssetOption } from '../lib/types'
 
 interface KeyboardProps {
+  asset?: AssetOption
   back: () => void
   hideBalance?: boolean
   onSats: (sats: number) => void
   value: number | undefined
 }
 
-export default function Keyboard({ back, hideBalance, onSats, value }: KeyboardProps) {
+export default function Keyboard({ asset, back, hideBalance, onSats, value }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { balance, svcWallet } = useContext(WalletContext)
@@ -29,7 +31,7 @@ export default function Keyboard({ back, hideBalance, onSats, value }: KeyboardP
   const [amountInSats, setAmountInSats] = useState(0)
   const [available, setAvailable] = useState(0)
   const [error, setError] = useState('')
-  const [inputMode, setInputMode] = useState<'sats' | 'fiat'>(useFiat ? 'fiat' : 'sats')
+  const [inputMode, setInputMode] = useState<'sats' | 'fiat' | 'asset'>(asset ? 'asset' : useFiat ? 'fiat' : 'sats')
   const [textValue, setTextValue] = useState('')
 
   useEffect(() => {
@@ -50,7 +52,15 @@ export default function Keyboard({ back, hideBalance, onSats, value }: KeyboardP
   }, [textValue])
 
   const getMaxDecimals = () => {
-    return inputMode === 'fiat' ? 2 : 0
+    switch (inputMode) {
+      case 'asset':
+        return asset?.decimals ?? 0
+      case 'fiat':
+        return 2
+      case 'sats':
+      default:
+        return 0
+    }
   }
 
   const handleKeyPress = (k: string) => {
@@ -105,9 +115,19 @@ export default function Keyboard({ back, hideBalance, onSats, value }: KeyboardP
 
   // Display amounts based on input mode
   const amount = {
-    primary: `${textValue || '0'} ${inputMode === 'fiat' ? config.fiat : 'SATS'}`,
-    secondary: inputMode === 'fiat' ? prettyAmount(amountInSats) : prettyAmount(toFiat(amountInSats), config.fiat),
-    balance: inputMode === 'fiat' ? prettyAmount(toFiat(available), config.fiat) : prettyAmount(available),
+    primary: `${textValue || '0'} ${inputMode === 'fiat' ? config.fiat : inputMode === 'asset' ? asset?.ticker : 'SATS'}`,
+    secondary:
+      inputMode === 'fiat'
+        ? prettyAmount(amountInSats)
+        : inputMode === 'asset'
+          ? prettyAmount(amountInSats, asset?.ticker)
+          : prettyAmount(toFiat(amountInSats), config.fiat),
+    balance:
+      inputMode === 'asset'
+        ? `${formatAssetAmount(asset?.balance ?? 0, asset?.decimals ?? 0)} ${asset?.ticker}`
+        : inputMode === 'fiat'
+          ? prettyAmount(toFiat(available), config.fiat)
+          : prettyAmount(available),
   }
 
   const disabled = !amountInSats || Number.isNaN(amountInSats)
@@ -146,7 +166,7 @@ export default function Keyboard({ back, hideBalance, onSats, value }: KeyboardP
           <Text big centered heading>
             {amount.primary}
           </Text>
-          <TextSecondary centered>{amount.secondary}</TextSecondary>
+          {asset ? null : <TextSecondary centered>≈ {amount.secondary}</TextSecondary>}
           {hideBalance ? null : (
             <div onClick={handleMaxPress}>
               <TextSecondary centered>{amount.balance}</TextSecondary>

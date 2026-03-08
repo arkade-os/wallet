@@ -28,7 +28,7 @@ import Shadow from '../../../components/Shadow'
 import Scanner from '../../../components/Scanner'
 import Loading from '../../../components/Loading'
 import { consoleError } from '../../../lib/logs'
-import { Addresses, SettingsOptions } from '../../../lib/types'
+import { Addresses, AssetOption, SettingsOptions } from '../../../lib/types'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
@@ -44,15 +44,6 @@ import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { FeesContext } from '../../../providers/fees'
 import { InfoLine } from '../../../components/Info'
 import { unitsToCents } from '../../../lib/assets'
-
-interface AssetOption {
-  assetId: string
-  name: string
-  ticker: string
-  balance: number
-  decimals: number
-  icon?: string
-}
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
@@ -506,6 +497,7 @@ export default function SendForm() {
 
   const handleSendAll = () => {
     if (isAssetSend && selectedAsset) {
+      setTextValue(formatAssetAmount(selectedAsset.balance, selectedAsset.decimals))
       setState({
         ...sendInfo,
         assets: [{ assetId: selectedAsset.assetId, amount: selectedAsset.balance }],
@@ -579,9 +571,6 @@ export default function SendForm() {
       <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
     )
 
-  if (keys && !amountIsReadOnly)
-    return <Keyboard back={() => setKeys(false)} onSats={handleAmountChange} value={amount} />
-
   const selectedAssetLabel = selectedAsset ? `${selectedAsset.name} (${selectedAsset.ticker})` : 'Bitcoin (BTC)'
 
   const btcIcon = (
@@ -604,7 +593,14 @@ export default function SendForm() {
   )
 
   if (keys && !amountIsReadOnly) {
-    return <Keyboard back={() => setKeys(false)} onSats={handleAmountChange} value={amount} />
+    return (
+      <Keyboard
+        back={() => setKeys(false)}
+        onSats={handleAmountChange}
+        value={amount}
+        asset={selectedAsset ?? undefined}
+      />
+    )
   }
 
   if (scan) {
@@ -720,6 +716,7 @@ export default function SendForm() {
               </FlexCol>
             ) : null}
             <InputAmount
+              asset={selectedAsset ?? undefined}
               name='send-amount'
               focus={focus === 'amount' && !isMobileBrowser}
               label='Amount'

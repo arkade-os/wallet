@@ -28,6 +28,7 @@ import { InfoLine } from '../../../components/Info'
 import FlexRow from '../../../components/FlexRow'
 import { enableChainSwapsReceive } from '../../../lib/constants'
 import { centsToUnits } from '../../../lib/assets'
+import { AssetOption } from '../../../lib/types'
 
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
@@ -136,6 +137,15 @@ export default function ReceiveAmount() {
   const showChainSwapFees = satoshis && validBtcToArk(satoshis) && enableChainSwapsReceive
   const chainSwapFeeText = `Chain swap fees: ${prettyAmount(chainSwapFee)}`
 
+  const assetOption: AssetOption = {
+    assetId,
+    name: assetMeta?.metadata?.name ?? '',
+    ticker: assetMeta?.metadata?.ticker ?? '',
+    balance: 0,
+    decimals: assetMeta?.metadata?.decimals ?? 0,
+    icon: assetMeta?.metadata?.icon,
+  }
+
   const disabled = !satoshis
     ? false
     : satoshis < 1 || (!isAssetReceive && (amountIsAboveMaxLimit(satoshis) || amountIsBelowMinLimit(satoshis)))
@@ -183,7 +193,7 @@ export default function ReceiveAmount() {
               readOnly={isMobileBrowser}
               value={textValue ? Number(textValue) : undefined}
               sats={satoshis}
-              asset={assetMeta}
+              asset={assetOption}
             />
             <FlexRow between>
               <div>{showLightningFees ? <InfoLine color='orange' text={lightningFeeText} /> : null}</div>
