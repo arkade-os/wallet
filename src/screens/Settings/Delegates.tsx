@@ -313,7 +313,7 @@ export default function Delegates() {
               />
               <TextSecondary>The wallet will reload to apply changes.</TextSecondary>
               <WarningBox text={warningText} />
-              {delegates.enabled && (
+              {delegates.enabled ? (
                 <>
                   <FlexRow between>
                     <Text bold>Delegates</Text>
@@ -374,15 +374,15 @@ export default function Delegates() {
                           Add
                         </div>
                       </FlexRow>
-                      {addError && (
+                      {addError ? (
                         <Text tiny color='danger'>
                           {addError}
                         </Text>
-                      )}
+                      ) : null}
                     </FlexCol>
                   </Shadow>
                 </>
-              )}
+              ) : null}
             </FlexCol>
           )}
         </Padded>
