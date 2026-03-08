@@ -17,7 +17,6 @@ interface AssetCardProps {
 export default function AssetCard({ assetId, balance, decimals, icon, name, ticker, onClick }: AssetCardProps) {
   const assetName = name || truncatedAssetId(assetId) || 'Asset name'
   const tokenTick = ticker ? ticker : 'TKN'
-  console.log('Rendering AssetCard:', { ticker, tokenTick })
   return (
     <Shadow key={assetId} border onClick={onClick} darkPurple>
       <FlexRow between padding='0.75rem'>
