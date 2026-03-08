@@ -7,6 +7,8 @@ export default function ExternalLinkIcon({ small }: { small?: boolean }) {
       viewBox='0 0 24 24'
       xmlns='http://www.w3.org/2000/svg'
       style={{ marginLeft: '0.25rem', verticalAlign: 'middle' }}
+      aria-label='Open in explorer'
+      role='img'
     >
       <path
         fill='none'

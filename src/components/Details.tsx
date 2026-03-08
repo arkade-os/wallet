@@ -15,7 +15,13 @@ import StatusIcon from '../icons/Status'
 import ArrowIcon from '../icons/Arrow'
 import InfoIcon from '../icons/Info'
 import { Wallet } from '../lib/types'
-import { openInNewTab, openOffchainTxInNewTab, openAssetInNewTab } from '../lib/explorers'
+import {
+  openInNewTab,
+  openOffchainTxInNewTab,
+  openAssetInNewTab,
+  getOffchainTxURL,
+  getAssetURL,
+} from '../lib/explorers'
 
 export interface DetailsProps {
   address?: string
@@ -71,6 +77,7 @@ export default function Details({ details }: { details?: DetailsProps }) {
     return useFiat ? prettyFunc(toFiat(amount), config.fiat) : prettyFunc(amount)
   }
 
+  // Only show explorer link if URL is available (e.g., mainnet for vmempool)
   const txidOnClick =
     wallet && txid
       ? () => {
@@ -82,8 +89,11 @@ export default function Details({ details }: { details?: DetailsProps }) {
         }
       : undefined
 
+  // Hide offchain tx link if vmempool URL not configured for this network
+  const showTxidLink = txidOnClick && (!isOffchainTx || getOffchainTxURL(txid ?? '', wallet!))
+
   const assetIdOnClick =
-    wallet && assetId
+    wallet && assetId && getAssetURL(assetId, wallet)
       ? () => {
           openAssetInNewTab(assetId, wallet)
         }
@@ -95,7 +105,7 @@ export default function Details({ details }: { details?: DetailsProps }) {
     ['Invoice', invoice, <TypeIcon key='invoice-icon' />],
     ['Swap ID', swapId, <InfoIcon key='swap-id-icon' />],
     ['Destination', destination, <TypeIcon key='destination-icon' />],
-    ['Transaction ID', txid, <ArrowIcon key='txid-icon' />, txidOnClick],
+    ['Transaction ID', txid, <ArrowIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
     ['Asset ID', assetId, <InfoIcon key='asset-id-icon' />, assetIdOnClick],
     ['Direction', direction, <DirectionIcon key='direction-icon' />],
     ['Type', type, <TypeIcon key='type-icon' />],
