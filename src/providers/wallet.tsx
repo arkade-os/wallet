@@ -34,7 +34,7 @@ import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
-import { getDelegateUrlForNetwork, maxPercentage } from '../lib/constants'
+import { maxPercentage } from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { Indexer } from '../lib/indexer'
@@ -346,7 +346,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }, 1_000)
 
       // delegate or renew expiring coins on startup
-      if (config.delegate) {
+      if (config.delegates.enabled && config.delegates.activeUrl) {
         delegateVtxos(svcWallet).catch((e) => {
           console.error('Error delegating coins', e)
         })
@@ -390,7 +390,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const esploraUrl = getRestApiExplorerURL(network) ?? ''
     const pubkey = hex.encode(secp.getPublicKey(privateKey))
     updateConfig({ ...config, pubkey })
-    const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
+    const delegatorUrl = config.delegates.enabled ? (config.delegates.activeUrl ?? undefined) : undefined
     await initSvcWorkerWallet({
       privateKey: hex.encode(privateKey),
       arkServerUrl,
@@ -407,7 +407,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
    * Keeps local tx/balance state; just rebuilds the SW wallet with the current
    * delegatorUrl flag.
    */
-  const restartWallet = async (delegateEnabled = config.delegate) => {
+  const restartWallet = async (delegateEnabled = config.delegates.enabled) => {
     if (!svcWallet) return
     type HasToHex = { toHex: () => string }
     const identity = svcWallet.identity
@@ -418,7 +418,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!privateKey) throw new Error('Unable to reinitialize wallet without private key')
     const arkServerUrl = aspInfo.url
     const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
-    const delegatorUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as Network).url : undefined
+    const delegatorUrl = delegateEnabled ? (config.delegates.activeUrl ?? undefined) : undefined
     await initSvcWorkerWallet({
       privateKey,
       arkServerUrl,

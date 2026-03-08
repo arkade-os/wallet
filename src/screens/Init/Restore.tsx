@@ -58,7 +58,7 @@ export default function InitRestore() {
     new BackupProvider({ seckey: privateKey! }, new IndexedDbSwapRepository())
       .restore((conf) =>
         // we enforce delegates on restore
-        updateConfig({ ...conf, delegate: true }),
+        updateConfig({ ...conf, delegates: { ...conf.delegates, enabled: true } }),
       )
       .catch((err) => consoleError(err, 'Error restoring from nostr'))
       .finally(() => {

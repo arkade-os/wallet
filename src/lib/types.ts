@@ -17,7 +17,7 @@ export type Config = {
   }
   aspUrl: string
   currencyDisplay: CurrencyDisplay
-  delegate: boolean
+  delegates: DelegatesConfig
   fiat: Fiats
   importedAssets: string[]
   haptics: boolean
@@ -36,8 +36,13 @@ export enum CurrencyDisplay {
 }
 
 export type Delegate = {
-  name: string
   url: string
+}
+
+export type DelegatesConfig = {
+  enabled: boolean
+  activeUrl: string | null
+  list: Delegate[]
 }
 
 export enum Fiats {

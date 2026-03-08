@@ -64,7 +64,11 @@ export const mockConfigContextValue = {
       },
     },
     currencyDisplay: CurrencyDisplay.Both,
-    delegate: false,
+    delegates: {
+      enabled: false,
+      activeUrl: null,
+      list: [{ url: 'http://localhost:7002' }],
+    },
     fiat: Fiats.EUR,
     importedAssets: [],
     nostrBackup: true,
