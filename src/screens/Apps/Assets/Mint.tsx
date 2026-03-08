@@ -19,8 +19,10 @@ import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 import { Decimal } from 'decimal.js'
-import type { IssuanceParams, KnownMetadata } from '@arkade-os/sdk'
+import type { AssetDetails, IssuanceParams, KnownMetadata } from '@arkade-os/sdk'
 import Input from '../../../components/Input'
+import AssetCard from '../../../components/AssetCard'
+import { unitsToCents } from '../../../lib/assets'
 
 interface KnownAssetOption {
   assetId: string
@@ -56,7 +58,7 @@ export default function AppAssetMint() {
       if (!svcWallet) return
       const options: KnownAssetOption[] = []
       for (const ab of assetBalances) {
-        let meta = assetMetadataCache.get(ab.assetId)
+        let meta = assetMetadataCache.get(ab.assetId) as AssetDetails
         if (!meta) {
           try {
             meta = await svcWallet.assetManager.getAssetDetails(ab.assetId)
@@ -192,27 +194,14 @@ export default function AppAssetMint() {
         <Padded>
           <FlexCol gap='1rem'>
             <ErrorMessage error={Boolean(error)} text={error} />
-
-            <Shadow border>
-              <FlexRow between padding='0.75rem'>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
-                  <AssetAvatar
-                    icon={iconUrl && !iconError ? iconUrl : undefined}
-                    ticker={ticker}
-                    size={32}
-                    onError={() => setIconError(true)}
-                  />
-                  <FlexCol gap='0'>
-                    <Text bold>{name || 'Asset Name'}</Text>
-                    <Text color='dark50' smaller>
-                      {ticker || 'TKN'}
-                    </Text>
-                  </FlexCol>
-                </div>
-                <Text>{amount || '0'}</Text>
-              </FlexRow>
-            </Shadow>
-
+            <AssetCard
+              assetId='preview'
+              balance={unitsToCents(parsedUnits, parsedDecimals) || 0}
+              name={name}
+              ticker={ticker}
+              icon={iconUrl && !iconError ? iconUrl : undefined}
+              decimals={isNaN(parsedDecimals) ? 0 : parsedDecimals}
+            />
             <FlexRow gap='0.5rem' alignItems='flex-end'>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <Input
