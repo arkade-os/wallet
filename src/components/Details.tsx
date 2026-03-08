@@ -71,17 +71,23 @@ export default function Details({ details }: { details?: DetailsProps }) {
     return useFiat ? prettyFunc(toFiat(amount), config.fiat) : prettyFunc(amount)
   }
 
-  const txidOnClick = wallet && txid ? () => {
-    if (isOffchainTx) {
-      openOffchainTxInNewTab(txid, wallet)
-    } else {
-      openInNewTab(txid, wallet)
-    }
-  } : undefined
+  const txidOnClick =
+    wallet && txid
+      ? () => {
+          if (isOffchainTx) {
+            openOffchainTxInNewTab(txid, wallet)
+          } else {
+            openInNewTab(txid, wallet)
+          }
+        }
+      : undefined
 
-  const assetIdOnClick = wallet && assetId ? () => {
-    openAssetInNewTab(assetId, wallet)
-  } : undefined
+  const assetIdOnClick =
+    wallet && assetId
+      ? () => {
+          openAssetInNewTab(assetId, wallet)
+        }
+      : undefined
 
   const data: TableData = [
     ['Address', address, <TypeIcon key='address-icon' />],

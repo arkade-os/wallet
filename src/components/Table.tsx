@@ -8,6 +8,7 @@ import { copyToClipboard } from '../lib/clipboard'
 import { useIonToast } from '@ionic/react'
 import { copiedToClipboard } from '../lib/toast'
 import { hapticSubtle } from '../lib/haptics'
+import ExternalLinkIcon from '../icons/ExternalLink'
 
 export type TableLine = [string, string | undefined, JSX.Element?, (() => void)?]
 export type TableData = TableLine[]
@@ -62,20 +63,16 @@ export default function Table({ data }: { data: TableData }) {
                     {title}
                   </Text>
                 </FlexRow>
-                {onClick ? (
-                  <span
-                    onClick={onClick}
-                    style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                  >
-                    <Text color='dark' small bold>
-                      {prettyLongText(value)}
-                    </Text>
-                  </span>
-                ) : (
+                <FlexRow gap='0.25rem'>
                   <Text color='dark' copy={value} small bold>
                     {prettyLongText(value)}
                   </Text>
-                )}
+                  {onClick ? (
+                    <span onClick={onClick} style={{ cursor: 'pointer', color: 'var(--dark50)' }}>
+                      <ExternalLinkIcon small />
+                    </span>
+                  ) : null}
+                </FlexRow>
               </FlexRow>
             </Focusable>
           ),
