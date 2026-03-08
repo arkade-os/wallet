@@ -18,7 +18,6 @@ import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
-import { Decimal } from 'decimal.js'
 import type { AssetDetails, IssuanceParams, KnownMetadata } from '@arkade-os/sdk'
 import Input from '../../../components/Input'
 import AssetCard from '../../../components/AssetCard'
@@ -102,7 +101,7 @@ export default function AppAssetMint() {
       metadata.decimals = parsedDecimals
       if (iconUrl) metadata.icon = iconUrl
 
-      const rawAmount = Decimal.mul(parsedUnits, Math.pow(10, parsedDecimals)).floor().toNumber()
+      const rawAmount = unitsToCents(parsedUnits, parsedDecimals)
 
       let resolvedControlAssetId = controlMode === 'Existing' ? controlAssetId : ''
 
@@ -111,7 +110,7 @@ export default function AppAssetMint() {
         const ctrlMeta: KnownMetadata = { decimals: 0 }
         if (name) ctrlMeta.name = `ctrl-${name}`
         if (ticker) ctrlMeta.ticker = `ctrl-${ticker}`
-        const ctrlRawAmount = Decimal.mul(parseFloat(ctrlAmount), Math.pow(10, 0)).floor().toNumber()
+        const ctrlRawAmount = unitsToCents(parseFloat(ctrlAmount) || 0, 0)
 
         const ctrlResult = await svcWallet.assetManager.issue({
           amount: ctrlRawAmount,

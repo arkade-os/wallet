@@ -16,13 +16,9 @@ import { AspContext } from '../../../providers/asp'
 import { isArkNote } from '../../../lib/arknote'
 import InputAmount from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
-import InputContainer from '../../../components/InputContainer'
-import { IonInput, IonText } from '@ionic/react'
-import Focusable from '../../../components/Focusable'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
 import { formatAssetAmount, prettyAmount, prettyNumber } from '../../../lib/format'
-import { Decimal } from 'decimal.js'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -32,7 +28,7 @@ import Shadow from '../../../components/Shadow'
 import Scanner from '../../../components/Scanner'
 import Loading from '../../../components/Loading'
 import { consoleError } from '../../../lib/logs'
-import { Addresses, SettingsOptions } from '../../../lib/types'
+import { Addresses, AssetOption, SettingsOptions } from '../../../lib/types'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
@@ -47,15 +43,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { FeesContext } from '../../../providers/fees'
 import { InfoLine } from '../../../components/Info'
-
-interface AssetOption {
-  assetId: string
-  name: string
-  ticker: string
-  balance: number
-  decimals: number
-  icon?: string
-}
+import { unitsToCents } from '../../../lib/assets'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
@@ -72,7 +60,6 @@ export default function SendForm() {
 
   const [amount, setAmount] = useState<number>()
   const [amountIsReadOnly, setAmountIsReadOnly] = useState(false)
-  const [assetAmount, setAssetAmount] = useState('')
   const [assetOptions, setAssetOptions] = useState<AssetOption[]>([])
   const [availableBalance, setAvailableBalance] = useState(0)
   const [deductFromAmount, setDeductFromAmount] = useState(false)
@@ -209,9 +196,7 @@ export default function SendForm() {
             }
           }
           setSelectedAsset(found)
-          const rawAmount =
-            assetAmount != null ? Decimal.mul(assetAmount, Math.pow(10, found.decimals)).floor().toNumber() : 0
-          if (assetAmount != null) setAssetAmount(String(assetAmount))
+          const rawAmount = assetAmount != null ? unitsToCents(assetAmount, found.decimals) : 0
           return setState({
             address,
             arkAddress,
@@ -429,30 +414,27 @@ export default function SendForm() {
   }
 
   const handleAmountChange = (sats: number) => {
-    setTextValue(useFiat ? prettyNumber(toFiat(sats), 2, false) : prettyNumber(sats, 0, false))
-    setState({ ...sendInfo, satoshis: sats })
-    setAmount(sats)
-  }
-
-  const handleAssetAmountChange = (value: string) => {
-    setAssetAmount(value)
-    const parsed = parseFloat(value) || 0
-    if (selectedAsset) {
-      const rawAmount = Decimal.mul(parsed, Math.pow(10, selectedAsset.decimals)).floor().toNumber()
-      setState({ ...sendInfo, assets: [{ assetId: selectedAsset.assetId, amount: rawAmount }], satoshis: 0 })
+    if (isAssetSend) {
+      setTextValue(String(sats))
+      if (selectedAsset) {
+        const rawAmount = unitsToCents(sats, selectedAsset.decimals)
+        setState({ ...sendInfo, assets: [{ assetId: selectedAsset.assetId, amount: rawAmount }], satoshis: 0 })
+      }
+    } else {
+      setTextValue(useFiat ? prettyNumber(toFiat(sats), 2, false) : prettyNumber(sats, 0, false))
+      setState({ ...sendInfo, satoshis: sats })
     }
+    setAmount(sats)
   }
 
   const handleSelectAsset = (asset: AssetOption | null) => {
     setShowAssetSelector(false)
     setSelectedAsset(asset)
     if (asset) {
-      setAssetAmount('')
       setState({ ...sendInfo, address: '', assets: [{ assetId: asset.assetId, amount: 0 }], satoshis: 0 })
       setAmount(undefined)
       setTextValue('')
     } else {
-      setAssetAmount('')
       setState({ ...sendInfo, assets: undefined, satoshis: 0 })
     }
   }
@@ -515,8 +497,7 @@ export default function SendForm() {
 
   const handleSendAll = () => {
     if (isAssetSend && selectedAsset) {
-      const humanBalance = Decimal.div(selectedAsset.balance, Math.pow(10, selectedAsset.decimals)).toNumber()
-      setAssetAmount(String(humanBalance))
+      setTextValue(formatAssetAmount(selectedAsset.balance, selectedAsset.decimals))
       setState({
         ...sendInfo,
         assets: [{ assetId: selectedAsset.assetId, amount: selectedAsset.balance }],
@@ -590,11 +571,7 @@ export default function SendForm() {
       <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
     )
 
-  if (keys && !amountIsReadOnly)
-    return <Keyboard back={() => setKeys(false)} onSats={handleAmountChange} value={amount} />
-
   const selectedAssetLabel = selectedAsset ? `${selectedAsset.name} (${selectedAsset.ticker})` : 'Bitcoin (BTC)'
-  const fontStyle = { color: 'var(--dark50)', fontSize: '13px' }
 
   const btcIcon = (
     <div
@@ -616,7 +593,14 @@ export default function SendForm() {
   )
 
   if (keys && !amountIsReadOnly) {
-    return <Keyboard back={() => setKeys(false)} onSats={handleAmountChange} value={amount} />
+    return (
+      <Keyboard
+        back={() => setKeys(false)}
+        onSats={handleAmountChange}
+        value={amount}
+        asset={selectedAsset ?? undefined}
+      />
+    )
   }
 
   if (scan) {
@@ -731,48 +715,22 @@ export default function SendForm() {
                 ) : null}
               </FlexCol>
             ) : null}
-            {isAssetSend ? (
-              <InputContainer label='Amount' right={<Available />}>
-                <IonInput
-                  name='send-asset-amount'
-                  onIonInput={(ev: any) => handleAssetAmountChange(String((ev.target as HTMLInputElement).value ?? ''))}
-                  onKeyUp={(ev) => ev.key === 'Enter' && handleEnter()}
-                  type='number'
-                  value={assetAmount ? Number(assetAmount) : undefined}
-                >
-                  <IonText slot='start' style={{ ...fontStyle, marginRight: '0.5rem' }}>
-                    {selectedAsset?.ticker ?? ''}
-                  </IonText>
-                </IonInput>
-                <Focusable onEnter={handleSendAll} fit>
-                  <IonText
-                    slot='end'
-                    role='button'
-                    onClick={handleSendAll}
-                    aria-label='Set maximum amount'
-                    style={{ ...fontStyle, marginLeft: '0.5rem', color: 'var(--purpletext)', cursor: 'pointer' }}
-                  >
-                    Max
-                  </IonText>
-                </Focusable>
-              </InputContainer>
-            ) : (
-              <InputAmount
-                name='send-amount'
-                focus={focus === 'amount' && !isMobileBrowser}
-                label='Amount'
-                min={lnUrlLimits.min}
-                max={lnUrlLimits.max}
-                onSats={handleAmountChange}
-                onEnter={handleEnter}
-                onFocus={handleFocus}
-                onMax={handleSendAll}
-                readOnly={amountIsReadOnly}
-                right={<Available />}
-                sats={amount}
-                value={textValue ? Number(textValue) : undefined}
-              />
-            )}
+            <InputAmount
+              asset={selectedAsset ?? undefined}
+              name='send-amount'
+              focus={focus === 'amount' && !isMobileBrowser}
+              label='Amount'
+              min={lnUrlLimits.min}
+              max={lnUrlLimits.max}
+              onSats={handleAmountChange}
+              onEnter={handleEnter}
+              onFocus={handleFocus}
+              onMax={handleSendAll}
+              readOnly={amountIsReadOnly}
+              right={<Available />}
+              sats={amount}
+              value={textValue ? Number(textValue) : undefined}
+            />
             {deductFromAmount ? <InfoLine color='orange' text='Fees will be deducted from the amount sent' /> : null}
             {tryingToSelfSend ? (
               <div style={{ width: '100%' }}>

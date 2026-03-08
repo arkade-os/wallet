@@ -143,7 +143,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
 
   const validAmount = (sats: Satoshis, txtype: TxType): boolean => {
     if (!sats) return txtype !== TxType.swap
-    const bigSats = BigInt(sats)
+    const bigSats = BigInt(Math.floor(sats))
     const { min, max } = limits.current[txtype]
     return bigSats >= min && (max === BigInt(-1) || bigSats <= max)
   }
@@ -202,7 +202,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
    */
   const amountIsAboveMaxLimit = (sats: Satoshis): boolean => {
     const maxAllowed = getMaxSatsAllowed()
-    return maxAllowed === BigInt(-1) ? false : BigInt(sats) > maxAllowed
+    return maxAllowed === BigInt(-1) ? false : BigInt(Math.floor(sats)) > maxAllowed
   }
 
   /**
@@ -211,7 +211,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
    * @returns true if the amount is below the minimum limit, false otherwise
    */
   const amountIsBelowMinLimit = (sats: Satoshis) => {
-    return getMinSatsAllowed() < 0 ? false : BigInt(sats) < getMinSatsAllowed()
+    return getMinSatsAllowed() < 0 ? false : BigInt(Math.floor(sats)) < getMinSatsAllowed()
   }
 
   const lnSwapsAllowed = () => limits.current.swap.max !== BigInt(0)
