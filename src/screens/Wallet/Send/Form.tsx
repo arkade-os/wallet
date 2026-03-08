@@ -22,7 +22,6 @@ import Focusable from '../../../components/Focusable'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
 import { formatAssetAmount, prettyAmount, prettyNumber } from '../../../lib/format'
-import { Decimal } from 'decimal.js'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -47,6 +46,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { FeesContext } from '../../../providers/fees'
 import { InfoLine } from '../../../components/Info'
+import { centsToUnits, unitsToCents } from '../../../lib/assets'
 
 interface AssetOption {
   assetId: string
@@ -209,8 +209,7 @@ export default function SendForm() {
             }
           }
           setSelectedAsset(found)
-          const rawAmount =
-            assetAmount != null ? Decimal.mul(assetAmount, Math.pow(10, found.decimals)).floor().toNumber() : 0
+          const rawAmount = assetAmount != null ? unitsToCents(assetAmount, found.decimals) : 0
           if (assetAmount != null) setAssetAmount(String(assetAmount))
           return setState({
             address,
@@ -438,7 +437,7 @@ export default function SendForm() {
     setAssetAmount(value)
     const parsed = parseFloat(value) || 0
     if (selectedAsset) {
-      const rawAmount = Decimal.mul(parsed, Math.pow(10, selectedAsset.decimals)).floor().toNumber()
+      const rawAmount = unitsToCents(parsed, selectedAsset.decimals)
       setState({ ...sendInfo, assets: [{ assetId: selectedAsset.assetId, amount: rawAmount }], satoshis: 0 })
     }
   }
@@ -515,7 +514,7 @@ export default function SendForm() {
 
   const handleSendAll = () => {
     if (isAssetSend && selectedAsset) {
-      const humanBalance = Decimal.div(selectedAsset.balance, Math.pow(10, selectedAsset.decimals)).toNumber()
+      const humanBalance = centsToUnits(selectedAsset.balance, selectedAsset.decimals)
       setAssetAmount(String(humanBalance))
       setState({
         ...sendInfo,
