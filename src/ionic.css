@@ -1,5 +1,4 @@
 :root {
-  color-scheme: light;
   --black: #040404;
   --cream: #391998;
   --dark80: rgba(var(--ion-color-dark-rgb), 0.8);
@@ -45,7 +44,6 @@
 }
 
 .ion-palette-dark {
-  color-scheme: dark;
   --black: #fbfbfb;
   --cream: #d9d9d9;
   --greenbg: #092d13;

@@ -2,6 +2,7 @@ import { RefObject, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, useAnimationControls } from 'framer-motion'
 import { EASE_OUT_QUINT } from '../lib/animations'
+import { SLOT_SHAPES, CELL, GAP, SCALE_CLOSED } from '../icons/pixel-shapes'
 import PixelSplash from './PixelSplash'
 
 const LARGE_SIZE = 100
@@ -9,66 +10,13 @@ const SMALL_SIZE = 28
 const EASE_QUINT_TUPLE = EASE_OUT_QUINT as unknown as [number, number, number, number]
 const EASE_IN = [0.55, 0, 1, 0.45] as [number, number, number, number]
 
+// Morph CSS transition duration (ms) — how long pixels take to slide between shapes
+const MORPH_MS = 180
+
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
-// ─── SVG Shape Paths (all in 0 0 35 35 viewBox) ─────────────────
-
-function ArcadePaths() {
-  return (
-    <>
-      <path d='M0 8.75L8.75 0H26.25L35 8.75V17.5H26.25V8.75H8.75V17.5H2.45431e-07L0 8.75Z' fill='var(--logo-color)' />
-      <path d='M8.75 26.25V17.5H26.25V26.25H8.75Z' fill='var(--logo-color)' />
-      <path d='M8.75 26.25H2.45431e-07V35H8.75V26.25Z' fill='var(--logo-color)' />
-      <path d='M26.25 26.25V35H35V26.25H26.25Z' fill='var(--logo-color)' />
-    </>
-  )
-}
-
-// Space invader — compound path from 8x8 grid cells
-const INVADER_D =
-  'M8.75 0h4.375v4.375H8.75Z' +
-  'M21.875 0h4.375v4.375H21.875Z' +
-  'M13.125 4.375h8.75v4.375H13.125Z' +
-  'M8.75 8.75h17.5v4.375H8.75Z' +
-  'M4.375 13.125h8.75v4.375H4.375Z' +
-  'M21.875 13.125h8.75v4.375H21.875Z' +
-  'M0 17.5h35v4.375H0Z' +
-  'M0 21.875h4.375v4.375H0Z' +
-  'M8.75 21.875h17.5v4.375H8.75Z' +
-  'M30.625 21.875h4.375v4.375H30.625Z' +
-  'M0 26.25h4.375v4.375H0Z' +
-  'M8.75 26.25h4.375v4.375H8.75Z' +
-  'M21.875 26.25h4.375v4.375H21.875Z' +
-  'M30.625 26.25h4.375v4.375H30.625Z' +
-  'M4.375 30.625h4.375v4.375H4.375Z' +
-  'M13.125 30.625h8.75v4.375H13.125Z' +
-  'M26.25 30.625h4.375v4.375H26.25Z'
-
-function InvaderPaths() {
-  return <path d={INVADER_D} fill='var(--logo-color)' />
-}
-
-// Heart — smooth bezier curve
-const HEART_D =
-  'M17.5 10.5' +
-  'C17.5 7 14 3.5 10.5 3.5' +
-  'C5.25 3.5 1.75 8.75 1.75 14' +
-  'C1.75 21 10.5 28 17.5 33.25' +
-  'C24.5 28 33.25 21 33.25 14' +
-  'C33.25 8.75 29.75 3.5 24.5 3.5' +
-  'C21 3.5 17.5 7 17.5 10.5Z'
-
-function HeartPaths() {
-  return <path d={HEART_D} fill='var(--logo-color)' />
-}
-
-const SHAPES = [
-  { key: 'arcade', Component: ArcadePaths },
-  { key: 'invader', Component: InvaderPaths },
-  { key: 'heart', Component: HeartPaths },
-]
-
-// ─── Component ───────────────────────────────────────────────────
+// Shape indices in pixel-shapes.ts: 0=Arcade, 1=Invader, 2=Heart
+// Sequence: Arcade → Invader → Heart → Arcade (fly)
 
 interface OnboardingLogoProps {
   targetRef: RefObject<HTMLDivElement | null>
@@ -91,6 +39,21 @@ export default function OnboardingLogo({ targetRef, onComplete, onFlyStart, redu
   const onFlyStartRef = useRef(onFlyStart)
   onFlyStartRef.current = onFlyStart
 
+  const slots = SLOT_SHAPES[activeShape]
+  const isArcade = activeShape === 0
+
+  // SVG paths: visible when on Arcade shape (clean, non-pixelated A)
+  const pathsOpacity = isArcade ? 1 : 0
+  const pathsTransition = isArcade ? 'opacity 100ms ease-out' : 'opacity 60ms ease-out'
+
+  // Pixels: visible when NOT on Arcade, scale to close gaps when returning to Arcade
+  const pixelScale = isArcade ? SCALE_CLOSED : 1
+  const pixelOpacity = isArcade ? 0 : 1
+  const pixelOrigin = `${(CELL - GAP) / 2}px ${(CELL - GAP) / 2}px`
+  const morphTransition = isArcade
+    ? `transform ${MORPH_MS}ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 100ms ease-out`
+    : `transform ${MORPH_MS}ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 60ms ease-out`
+
   useEffect(() => {
     if (reducedMotion) {
       onCompleteRef.current()
@@ -102,59 +65,41 @@ export default function OnboardingLogo({ targetRef, onComplete, onFlyStart, redu
     async function bounceAndMorph(nextShape: number) {
       setBounceCount((c) => c + 1)
 
-      // Down-stroke: deep squash
-      await bounceControls.start({
-        y: 50,
-        scaleY: 0.55,
-        scaleX: 1.35,
-        transition: { duration: 0.13, ease: EASE_IN },
-      })
-      if (cancelled.current) return
-
-      // Instant shape swap at max squash (no slow cross-fade)
+      // Trigger morph + bounce simultaneously
       setActiveShape(nextShape)
 
-      // Up-stroke: spring up with overshoot
+      // Quick squash down (gravity)
       await bounceControls.start({
-        y: -24,
-        scaleY: 1.2,
-        scaleX: 0.85,
-        transition: { duration: 0.16, ease: EASE_QUINT_TUPLE },
+        y: 20,
+        scaleY: 0.75,
+        scaleX: 1.15,
+        transition: { duration: 0.06, ease: EASE_IN },
       })
       if (cancelled.current) return
 
-      // First settle — slight undershoot
-      await bounceControls.start({
-        y: 4,
-        scaleY: 0.96,
-        scaleX: 1.03,
-        transition: { duration: 0.1, ease: EASE_QUINT_TUPLE },
-      })
-      if (cancelled.current) return
-
-      // Final settle
+      // Spring recovery — overshoots past origin, one clean bounce, settles
       await bounceControls.start({
         y: 0,
         scaleY: 1,
         scaleX: 1,
-        transition: { duration: 0.08, ease: EASE_QUINT_TUPLE },
+        transition: { type: 'spring', stiffness: 600, damping: 18, mass: 0.6 },
       })
     }
 
     async function bounceAndMorphAndFly(nextShape: number) {
       setBounceCount((c) => c + 1)
 
-      // Down-stroke
+      // Trigger morph + squash simultaneously
+      setActiveShape(nextShape)
+
+      // Quick squash down
       await bounceControls.start({
-        y: 50,
-        scaleY: 0.55,
-        scaleX: 1.35,
-        transition: { duration: 0.13, ease: EASE_IN },
+        y: 20,
+        scaleY: 0.75,
+        scaleX: 1.15,
+        transition: { duration: 0.06, ease: EASE_IN },
       })
       if (cancelled.current) return
-
-      // Instant shape swap
-      setActiveShape(nextShape)
 
       // Calculate fly target
       const target = targetRef.current
@@ -185,13 +130,13 @@ export default function OnboardingLogo({ targetRef, onComplete, onFlyStart, redu
           y: 0,
           scaleY: 1,
           scaleX: 1,
-          transition: { duration: 0.3, ease: EASE_QUINT_TUPLE },
+          transition: { duration: 0.2, ease: EASE_QUINT_TUPLE },
         }),
         flyControls.start({
           x: dx,
           y: dy,
           scale: targetScale,
-          transition: { duration: 0.45, ease: EASE_QUINT_TUPLE },
+          transition: { duration: 0.35, ease: EASE_QUINT_TUPLE },
         }),
       ])
 
@@ -201,24 +146,24 @@ export default function OnboardingLogo({ targetRef, onComplete, onFlyStart, redu
     }
 
     async function runSequence() {
-      // Pause showing Arcade
-      await delay(500)
+      // Brief pause showing Arcade
+      await delay(180)
       if (cancelled.current) return
 
       // Bounce + morph to Invader
       await bounceAndMorph(1)
       if (cancelled.current) return
 
-      // Pause showing Invader
-      await delay(250)
+      // Brief pause
+      await delay(60)
       if (cancelled.current) return
 
       // Bounce + morph to Heart
       await bounceAndMorph(2)
       if (cancelled.current) return
 
-      // Pause showing Heart
-      await delay(250)
+      // Brief pause
+      await delay(60)
       if (cancelled.current) return
 
       // Bounce + morph to Arcade + fly to header
@@ -253,7 +198,7 @@ export default function OnboardingLogo({ targetRef, onComplete, onFlyStart, redu
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.3, ease: EASE_QUINT_TUPLE }}
+          transition={{ duration: 0.25, ease: EASE_QUINT_TUPLE }}
         >
           <motion.div animate={bounceControls} style={{ y: 0, scaleY: 1, scaleX: 1 }}>
             <svg
@@ -263,16 +208,31 @@ export default function OnboardingLogo({ targetRef, onComplete, onFlyStart, redu
               fill='none'
               xmlns='http://www.w3.org/2000/svg'
             >
-              {SHAPES.map((shape, idx) => (
-                <g
-                  key={shape.key}
+              {/* Clean SVG paths — visible when on Arcade shape */}
+              <g style={{ opacity: pathsOpacity, transition: pathsTransition }}>
+                <path
+                  d='M0 8.75L8.75 0H26.25L35 8.75V17.5H26.25V8.75H8.75V17.5H2.45431e-07L0 8.75Z'
+                  fill='var(--logo-color)'
+                />
+                <path d='M8.75 26.25V17.5H26.25V26.25H8.75Z' fill='var(--logo-color)' />
+                <path d='M8.75 26.25H2.45431e-07V35H8.75V26.25Z' fill='var(--logo-color)' />
+                <path d='M26.25 26.25V35H35V26.25H26.25Z' fill='var(--logo-color)' />
+              </g>
+              {/* Pixel rects — always in DOM for transition tracking, visible when morphing */}
+              {slots.map((slot) => (
+                <rect
+                  key={slot.id}
+                  width={CELL - GAP}
+                  height={CELL - GAP}
+                  rx={0.4}
+                  fill='var(--logo-color)'
                   style={{
-                    opacity: activeShape === idx ? 1 : 0,
-                    transition: 'opacity 80ms ease-out',
+                    transform: `translate(${slot.x * CELL}px, ${slot.y * CELL}px) scale(${pixelScale})`,
+                    transformOrigin: pixelOrigin,
+                    opacity: pixelOpacity,
+                    transition: morphTransition,
                   }}
-                >
-                  <shape.Component />
-                </g>
+                />
               ))}
             </svg>
           </motion.div>

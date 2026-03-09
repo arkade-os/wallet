@@ -15,17 +15,17 @@ interface Burst {
 }
 
 function generateBurst(burstId: number): Burst {
-  const count = 12 + Math.floor(Math.random() * 5)
+  const count = 20 + Math.floor(Math.random() * 8)
   const particles: Particle[] = []
   for (let i = 0; i < count; i++) {
     // Bias angles downward/outward: -60° to 240° (mostly below)
     const angle = (-60 + Math.random() * 300) * (Math.PI / 180)
-    const velocity = 30 + Math.random() * 60
+    const velocity = 25 + Math.random() * 80
     particles.push({
       id: `${burstId}-${i}`,
       x: Math.cos(angle) * velocity,
       y: Math.sin(angle) * velocity,
-      size: 3 + Math.random() * 3,
+      size: 2.5 + Math.random() * 4,
     })
   }
   return { id: burstId, particles }

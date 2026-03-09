@@ -72,45 +72,13 @@ export default function Init() {
   const [showOptions, setShowOptions] = useState(false)
   const [contentReady, setContentReady] = useState(prefersReduced)
   const [sunriseVisible, setSunriseVisible] = useState(prefersReduced)
-  const [replayKey, setReplayKey] = useState(0)
   const logoTargetRef = useRef<HTMLDivElement>(null)
-
-  const handleReplay = useCallback(() => {
-    setContentReady(false)
-    setSunriseVisible(false)
-    setReplayKey((k) => k + 1)
-  }, [])
 
   const handleFlyStart = useCallback(() => {
     setSunriseVisible(true)
   }, [])
 
-  // Tint Safari status bar/toolbar to match gradient while on this screen
-  useEffect(() => {
-    const meta = document.querySelector('meta[name="theme-color"]')
-    const prev = meta?.getAttribute('content')
-
-    function update() {
-      if (!meta) return
-      const isDark =
-        document.documentElement.classList.contains('ion-palette-dark') ||
-        window.matchMedia('(prefers-color-scheme: dark)').matches
-      meta.setAttribute('content', isDark ? '#2B1669' : '#8771BC')
-    }
-
-    update()
-
-    const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    mq.addEventListener('change', update)
-    const observer = new MutationObserver(update)
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-
-    return () => {
-      mq.removeEventListener('change', update)
-      observer.disconnect()
-      if (meta && prev) meta.setAttribute('content', prev)
-    }
-  }, [])
+  const aspReady = !!aspInfo.signerPubkey || aspInfo.unreachable
 
   useEffect(() => {
     setError(aspInfo.unreachable)
@@ -142,13 +110,12 @@ export default function Init() {
   return (
     <>
       <OnboardingLogo
-        key={`logo-${replayKey}`}
         targetRef={logoTargetRef}
         onComplete={handleLogoComplete}
         onFlyStart={handleFlyStart}
         reducedMotion={prefersReduced}
       />
-      <PixelSunrise key={`sunrise-${replayKey}`} show={sunriseVisible} reducedMotion={prefersReduced} />
+      <PixelSunrise show={sunriseVisible} reducedMotion={prefersReduced} />
       <Content>
         <Padded>
           <FlexCol between>
@@ -253,8 +220,13 @@ export default function Init() {
             pointerEvents: contentReady ? 'auto' : 'none',
           }}
         >
-          <Button disabled={error} onClick={handleNewWallet} label='+ Create wallet' />
-          <Button disabled={error} onClick={() => setShowOptions(true)} label='Other login options' clear />
+          <Button disabled={error || !aspReady} onClick={handleNewWallet} label='+ Create wallet' />
+          <Button
+            disabled={error || !aspReady}
+            onClick={() => setShowOptions(true)}
+            label='Other login options'
+            clear
+          />
         </motion.div>
       </ButtonsOnBottom>
       <SheetModal isOpen={showOptions} onClose={() => setShowOptions(false)}>
@@ -263,27 +235,6 @@ export default function Init() {
           <Button fancy disabled={error} onClick={handleOldWallet} label='Restore wallet' secondary />
         </FlexCol>
       </SheetModal>
-      {/* TEMP: replay button for dev testing — remove before merge */}
-      {contentReady ? (
-        <button
-          onClick={handleReplay}
-          style={{
-            position: 'fixed',
-            bottom: 8,
-            right: 8,
-            zIndex: 999,
-            padding: '4px 10px',
-            fontSize: 11,
-            background: '#eee',
-            border: '1px solid #ccc',
-            borderRadius: 4,
-            cursor: 'pointer',
-            opacity: 0.6,
-          }}
-        >
-          Replay
-        </button>
-      ) : null}
     </>
   )
 }

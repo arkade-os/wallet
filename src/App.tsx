@@ -184,8 +184,13 @@ export default function App() {
   const prefersReduced = useReducedMotion()
   const effectiveDirection = prefersReduced ? 'none' : direction
 
-  const page =
-    jsCapabilitiesChecked && configLoaded && (aspInfo.signerPubkey || aspInfo.unreachable) ? screen : Pages.Loading
+  // New users (no wallet in storage) skip straight to Init — the logo morph animation
+  // serves as the intro visual while ASP and JS capability checks resolve in the background.
+  // Init doesn't need ASP or crypto until "Create wallet" is clicked.
+  const aspReady = aspInfo.signerPubkey || aspInfo.unreachable
+  const isNewUser = walletLoaded && !wallet.pubkey
+  const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
+  const page = allChecksReady || isNewUser ? screen : Pages.Loading
 
   const comp = page === Pages.Loading ? <Loading /> : pageComponent(page)
 
