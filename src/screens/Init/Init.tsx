@@ -79,6 +79,16 @@ export default function Init() {
     setReplayKey((k) => k + 1)
   }, [])
 
+  // Tint Safari status bar to match gradient while on this screen
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]')
+    const prev = meta?.getAttribute('content')
+    if (meta) meta.setAttribute('content', '#8771BC')
+    return () => {
+      if (meta && prev) meta.setAttribute('content', prev)
+    }
+  }, [])
+
   useEffect(() => {
     setError(aspInfo.unreachable)
   }, [aspInfo.unreachable])
@@ -118,26 +128,29 @@ export default function Init() {
       <Content>
         <Padded>
           <FlexCol between>
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', flex: 1 }}>
-              {/* Header row: logo target + title — target div always in DOM for fly positioning */}
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'flex-end', paddingBottom: 40 }}>
+              {/* Logo + title stacked — logo optically centered with bullet icons */}
               <div
                 style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
                   padding: '0 0 1.5rem 0',
                 }}
               >
-                <div ref={logoTargetRef} style={{ width: 28, height: 28, flexShrink: 0 }}>
+                <div
+                  ref={logoTargetRef}
+                  style={{ width: 40, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                >
                   {contentReady ? <SmallLogo /> : null}
                 </div>
                 {contentReady ? (
                   <motion.div
-                    initial={prefersReduced ? false : { opacity: 0, x: -8 }}
-                    animate={prefersReduced ? undefined : { opacity: 1, x: 0 }}
+                    initial={prefersReduced ? false : { opacity: 0, y: 6 }}
+                    animate={prefersReduced ? undefined : { opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, ease: EASE_QUINT_TUPLE }}
                   >
-                    <h1 style={titleStyle}>Welcome to Arkade 👾</h1>
+                    <h1 style={{ ...titleStyle, paddingLeft: 4 }}>Welcome to Arkade 👾</h1>
                   </motion.div>
                 ) : null}
               </div>
