@@ -27,8 +27,7 @@ export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { arkadeSwaps, swapsInitError, connected, createBtcToArkSwap, createReverseSwap } =
-    useContext(SwapsContext)
+  const { arkadeSwaps, swapsInitError, connected, createBtcToArkSwap, createReverseSwap } = useContext(SwapsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
   const { validBtcToArk, validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } =
     useContext(LimitsContext)
