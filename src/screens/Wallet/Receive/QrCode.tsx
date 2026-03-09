@@ -26,7 +26,7 @@ export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { arkadeSwaps, createBtcToArkSwap, createReverseSwap } = useContext(SwapsContext)
+  const { arkadeSwaps, swapsInitError, createBtcToArkSwap, createReverseSwap } = useContext(SwapsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
   const { validBtcToArk, validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } =
     useContext(LimitsContext)
@@ -80,7 +80,17 @@ export default function ReceiveQRCode() {
 
   useEffect(() => {
     if (isAssetReceive) return setShowQrCode(true)
-    if (!satoshis || !svcWallet || !arkadeSwaps) return
+    if (!satoshis || !svcWallet) return
+
+    // Show QR immediately with available addresses (ark + boarding),
+    // then progressively enhance with swap addresses if arkadeSwaps is ready
+    setShowQrCode(true)
+
+    if (!arkadeSwaps) {
+      if (swapsInitError) consoleError(swapsInitError, 'Swaps unavailable, showing receive without swap options')
+      return
+    }
+
     Promise.allSettled([createBtcAddress(), createLightningInvoice()]).then(([btc, lightning]) => {
       if (btc.status === 'fulfilled') {
         const pendingSwap = btc.value as PendingChainSwap
@@ -110,7 +120,6 @@ export default function ReceiveQRCode() {
             consoleError(error, 'Error claiming reverse swap:')
           })
       }
-      setShowQrCode(true)
     })
   }, [satoshis, svcWallet, arkadeSwaps])
 
@@ -130,7 +139,7 @@ export default function ReceiveQRCode() {
     setBtcAddress(btcAddress)
     setQrCodeValue(bip21uri)
     setBip21Uri(bip21uri)
-  }, [showQrCode])
+  }, [showQrCode, swapAddress, invoice])
 
   useEffect(() => {
     if (!svcWallet) return
