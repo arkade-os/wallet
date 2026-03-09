@@ -43,7 +43,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { FeesContext } from '../../../providers/fees'
 import { InfoLine } from '../../../components/Info'
-import { unitsToCents } from '../../../lib/assets'
+import { centsToUnits, unitsToCents } from '../../../lib/assets'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
@@ -497,7 +497,7 @@ export default function SendForm() {
 
   const handleSendAll = () => {
     if (isAssetSend && selectedAsset) {
-      setTextValue(formatAssetAmount(selectedAsset.balance, selectedAsset.decimals))
+      setTextValue(String(centsToUnits(selectedAsset.balance, selectedAsset.decimals)))
       setState({
         ...sendInfo,
         assets: [{ assetId: selectedAsset.assetId, amount: selectedAsset.balance }],
