@@ -103,7 +103,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [txs, setTxs] = useState<Tx[]>([])
   const [balance, setBalance] = useState(0)
   const [wallet, setWallet] = useState(() => readWalletFromStorage() ?? defaultWallet)
-  const [walletLoaded, setWalletLoaded] = useState(true)
+  const walletLoaded = true
   const [initialized, setInitialized] = useState<boolean>(false)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
   const [dataReady, setDataReady] = useState(false)
