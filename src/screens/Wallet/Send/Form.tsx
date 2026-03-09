@@ -197,6 +197,7 @@ export default function SendForm() {
           }
           setSelectedAsset(found)
           const rawAmount = assetAmount != null ? unitsToCents(assetAmount, found.decimals) : 0
+          setTextValue(String(assetAmount))
           return setState({
             address,
             arkAddress,
@@ -415,10 +416,9 @@ export default function SendForm() {
 
   const handleAmountChange = (sats: number) => {
     if (isAssetSend) {
-      setTextValue(String(sats))
+      setTextValue(String(centsToUnits(sats, selectedAsset?.decimals ?? 8)))
       if (selectedAsset) {
-        const rawAmount = unitsToCents(sats, selectedAsset.decimals)
-        setState({ ...sendInfo, assets: [{ assetId: selectedAsset.assetId, amount: rawAmount }], satoshis: 0 })
+        setState({ ...sendInfo, assets: [{ assetId: selectedAsset.assetId, amount: sats }], satoshis: 0 })
       }
     } else {
       setTextValue(useFiat ? prettyNumber(toFiat(sats), 2, false) : prettyNumber(sats, 0, false))
