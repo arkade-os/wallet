@@ -12,24 +12,35 @@ import WhenIcon from '../icons/When'
 import NotesIcon from '../icons/Notes'
 import Table, { TableData } from './Table'
 import StatusIcon from '../icons/Status'
-import ArrowIcon from '../icons/Arrow'
+import HashIcon from '../icons/Hash'
 import InfoIcon from '../icons/Info'
+import { Wallet } from '../lib/types'
+import {
+  openInNewTab,
+  openOffchainTxInNewTab,
+  openAssetInNewTab,
+  getOffchainTxURL,
+  getAssetURL,
+} from '../lib/explorers'
 
 export interface DetailsProps {
   address?: string
   arknote?: string
+  assetId?: string
   date?: string
   destination?: string
   direction?: string
   expiry?: string
   fees?: number
   invoice?: string
+  isOffchainTx?: boolean
   satoshis?: number
   status?: string
   swapId?: string
   total?: number
   txid?: string
   type?: string
+  wallet?: Wallet
   when?: string
 }
 
@@ -42,18 +53,21 @@ export default function Details({ details }: { details?: DetailsProps }) {
   const {
     address,
     arknote,
+    assetId,
     date,
     direction,
     destination,
     expiry,
     fees,
     invoice,
+    isOffchainTx,
     satoshis,
     status,
     swapId,
     txid,
     type,
     total,
+    wallet,
     when,
   } = details
 
@@ -63,13 +77,36 @@ export default function Details({ details }: { details?: DetailsProps }) {
     return useFiat ? prettyFunc(toFiat(amount), config.fiat) : prettyFunc(amount)
   }
 
+  // Only show explorer link if URL is available (e.g., mainnet for vmempool)
+  const txidOnClick =
+    wallet && txid
+      ? () => {
+          if (isOffchainTx) {
+            openOffchainTxInNewTab(txid, wallet)
+          } else {
+            openInNewTab(txid, wallet)
+          }
+        }
+      : undefined
+
+  // Hide offchain tx link if vmempool URL not configured for this network
+  const showTxidLink = txidOnClick && (!isOffchainTx || getOffchainTxURL(txid ?? '', wallet!))
+
+  const assetIdOnClick =
+    wallet && assetId && getAssetURL(assetId, wallet)
+      ? () => {
+          openAssetInNewTab(assetId, wallet)
+        }
+      : undefined
+
   const data: TableData = [
     ['Address', address, <TypeIcon key='address-icon' />],
     ['Arknote', arknote, <NotesIcon key='notes-icon' small />],
     ['Invoice', invoice, <TypeIcon key='invoice-icon' />],
     ['Swap ID', swapId, <InfoIcon key='swap-id-icon' />],
     ['Destination', destination, <TypeIcon key='destination-icon' />],
-    ['Transaction ID', txid, <ArrowIcon key='txid-icon' />],
+    ['Transaction ID', txid, <HashIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
+    ['Asset ID', assetId, <InfoIcon key='asset-id-icon' />, assetIdOnClick],
     ['Direction', direction, <DirectionIcon key='direction-icon' />],
     ['Type', type, <TypeIcon key='type-icon' />],
     ['Status', status, <StatusIcon key='status-icon' />],
