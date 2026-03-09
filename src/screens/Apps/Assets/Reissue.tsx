@@ -17,9 +17,9 @@ import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
-import { Decimal } from 'decimal.js'
 import { formatAssetAmount } from '../../../lib/format'
 import Input from '../../../components/Input'
+import { unitsToCents } from '../../../lib/assets'
 
 export default function AppAssetReissue() {
   const { navigate } = useContext(NavigationContext)
@@ -42,9 +42,7 @@ export default function AppAssetReissue() {
       setError('Asset ID is required')
       return
     }
-    const parsedAmount = Decimal.mul(parseFloat(amount) || 0, Math.pow(10, decimals))
-      .floor()
-      .toNumber()
+    const parsedAmount = unitsToCents(parseFloat(amount) || 0, decimals)
     if (!parsedAmount || parsedAmount <= 0) {
       setError('Amount must be a positive number')
       return
@@ -55,9 +53,7 @@ export default function AppAssetReissue() {
 
   const handleReissueConfirm = async () => {
     if (!svcWallet) return
-    const parsedAmount = Decimal.mul(parseFloat(amount) || 0, Math.pow(10, decimals))
-      .floor()
-      .toNumber()
+    const parsedAmount = unitsToCents(parseFloat(amount) || 0, decimals)
 
     setShowConfirm(false)
     setProcessing(true)

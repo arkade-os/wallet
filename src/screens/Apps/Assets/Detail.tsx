@@ -17,6 +17,7 @@ import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { formatAssetAmount } from '../../../lib/format'
 import type { AssetDetails } from '@arkade-os/sdk'
+
 export default function AppAssetDetail() {
   const { navigate } = useContext(NavigationContext)
   const { config, updateConfig } = useContext(ConfigContext)
@@ -147,6 +148,12 @@ export default function AppAssetDetail() {
                     <Text bold>{name}</Text>
                   </FlexRow>
                 ) : null}
+                {ticker ? (
+                  <FlexRow between>
+                    <TextSecondary>Ticker</TextSecondary>
+                    <Text bold>{ticker}</Text>
+                  </FlexRow>
+                ) : null}
                 <FlexRow between>
                   <TextSecondary>Supply</TextSecondary>
                   <Text bold>{typeof supply === 'number' ? formatAssetAmount(supply, decimals) : 'Unknown'}</Text>
@@ -155,12 +162,6 @@ export default function AppAssetDetail() {
                   <TextSecondary>Decimals</TextSecondary>
                   <Text bold>{decimals}</Text>
                 </FlexRow>
-                {ticker ? (
-                  <FlexRow between>
-                    <TextSecondary>Ticker</TextSecondary>
-                    <Text bold>{ticker}</Text>
-                  </FlexRow>
-                ) : null}
                 {controlAssetId ? (
                   <FlexRow between>
                     <TextSecondary>Control Asset</TextSecondary>

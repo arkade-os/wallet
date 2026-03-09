@@ -1,3 +1,4 @@
+import { centsToUnits } from './assets'
 import { Satoshis, Tx } from './types'
 import { Decimal } from 'decimal.js'
 
@@ -90,7 +91,7 @@ export const prettyNumber = (num?: number, maximumFractionDigits = 8, useGroupin
 
 export const formatAssetAmount = (amount: number, decimals: number): string => {
   if (decimals === 0) return prettyNumber(amount, 0)
-  return prettyNumber(Decimal.div(amount, Math.pow(10, decimals)).toNumber(), decimals)
+  return prettyNumber(centsToUnits(amount, decimals), decimals)
 }
 
 export const isIssuance = (tx: Tx): boolean => {

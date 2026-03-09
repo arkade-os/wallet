@@ -114,3 +114,12 @@ export type Wallet = {
   passkeyId?: string
   pubkey?: string
 }
+
+export interface AssetOption {
+  assetId: string
+  name: string
+  ticker: string
+  balance: number
+  decimals: number
+  icon?: string
+}
