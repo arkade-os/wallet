@@ -22,7 +22,6 @@ import type { AssetDetails, IssuanceParams, KnownMetadata } from '@arkade-os/sdk
 import Input from '../../../components/Input'
 import AssetCard from '../../../components/AssetCard'
 import { unitsToCents } from '../../../lib/assets'
-import { sleep } from '../../../lib/sleep'
 
 interface KnownAssetOption {
   assetId: string
@@ -125,8 +124,12 @@ export default function AppAssetMint() {
           supply: ctrlRawAmount,
           metadata: ctrlMeta,
         })
-
-        await sleep(3000) // wait for control asset to be fully processed before minting main asset
+        await new Promise<boolean>((resolve) => {
+          const listenNewVtxos = (event: MessageEvent) => {
+            if (event.data && event.data.type === 'VTXO_UPDATE') resolve(true)
+          }
+          navigator.serviceWorker.addEventListener('message', listenNewVtxos)
+        })
       }
 
       setMintingText('Minting asset...')
