@@ -128,7 +128,16 @@ export default function Init() {
       <Content>
         <Padded>
           <FlexCol between>
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'flex-end', paddingBottom: 40 }}>
+            <div
+              style={{
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                flex: 1,
+                justifyContent: 'flex-end',
+                paddingBottom: 40,
+              }}
+            >
               {/* Logo + title stacked — logo optically centered with bullet icons */}
               <div
                 style={{
@@ -140,7 +149,14 @@ export default function Init() {
               >
                 <div
                   ref={logoTargetRef}
-                  style={{ width: 40, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                  style={{
+                    width: 40,
+                    height: 28,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
                 >
                   {contentReady ? <SmallLogo /> : null}
                 </div>
