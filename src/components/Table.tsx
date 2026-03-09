@@ -63,15 +63,15 @@ export default function Table({ data }: { data: TableData }) {
                     {title}
                   </Text>
                 </FlexRow>
-                <FlexRow gap='0.25rem'>
-                  <Text color='dark' copy={value} small bold>
-                    {prettyLongText(value)}
-                  </Text>
+                <FlexRow end gap='0.25rem'>
                   {onClick ? (
                     <span onClick={onClick} style={{ cursor: 'pointer', color: 'var(--dark50)' }}>
-                      <ExternalLinkIcon small />
+                      <ExternalLinkIcon />
                     </span>
                   ) : null}
+                  <Text color='dark' copy={value} small bold>
+                    {prettyLongText(value, onClick ? 8 : undefined)}
+                  </Text>
                 </FlexRow>
               </FlexRow>
             </Focusable>

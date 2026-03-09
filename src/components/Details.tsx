@@ -12,7 +12,7 @@ import WhenIcon from '../icons/When'
 import NotesIcon from '../icons/Notes'
 import Table, { TableData } from './Table'
 import StatusIcon from '../icons/Status'
-import ArrowIcon from '../icons/Arrow'
+import HashIcon from '../icons/Hash'
 import InfoIcon from '../icons/Info'
 import { Wallet } from '../lib/types'
 import {
@@ -105,7 +105,7 @@ export default function Details({ details }: { details?: DetailsProps }) {
     ['Invoice', invoice, <TypeIcon key='invoice-icon' />],
     ['Swap ID', swapId, <InfoIcon key='swap-id-icon' />],
     ['Destination', destination, <TypeIcon key='destination-icon' />],
-    ['Transaction ID', txid, <ArrowIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
+    ['Transaction ID', txid, <HashIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
     ['Asset ID', assetId, <InfoIcon key='asset-id-icon' />, assetIdOnClick],
     ['Direction', direction, <DirectionIcon key='direction-icon' />],
     ['Type', type, <TypeIcon key='type-icon' />],

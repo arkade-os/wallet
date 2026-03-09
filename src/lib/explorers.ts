@@ -32,7 +32,9 @@ const explorers: Explorers = {
 }
 
 const vmempoolDefaults: Partial<Record<NetworkName, string>> = {
-  bitcoin: 'https://vmempool.space',
+  bitcoin: 'https://arkade.space',
+  mutinynet: 'https://explorer.mutinynet.arkade.sh',
+  regtest: 'http://localhost:7080',
 }
 
 export const getRestApiExplorerURL = (network: NetworkName): string => {
@@ -44,7 +46,7 @@ export const getWebExplorerURL = (network: NetworkName): string => {
 }
 
 export const getVmempoolURL = (network: NetworkName): string => {
-  return import.meta.env.VITE_VMEMPOOL_URL ?? vmempoolDefaults[network] ?? ''
+  return vmempoolDefaults[network] ?? ''
 }
 
 export const getTxIdURL = (txid: string, wallet: Wallet) => {

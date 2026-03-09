@@ -55640,7 +55640,7 @@ var pN = (c) => {
     }));
   }
 };
-const vN = "00ca7a93", EN = new Wd(), SN = new Vd(), xN = new Yd();
+const vN = "35a39853-dirty", EN = new Wd(), SN = new Vd(), xN = new Yd();
 self.addEventListener("message", (c) => {
   c.data?.type === "SKIP_WAITING" && c.waitUntil(self.skipWaiting());
 });

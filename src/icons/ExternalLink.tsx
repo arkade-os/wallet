@@ -1,22 +1,12 @@
 export default function ExternalLinkIcon({ small }: { small?: boolean }) {
   const size = small ? 12 : 16
   return (
-    <svg
-      height={size}
-      width={size}
-      viewBox='0 0 24 24'
-      xmlns='http://www.w3.org/2000/svg'
-      style={{ marginLeft: '0.25rem', verticalAlign: 'middle' }}
-      aria-label='Open in explorer'
-      role='img'
-    >
+    <svg xmlns='http://www.w3.org/2000/svg' width={size} height={size} viewBox='0 0 15 15'>
       <path
-        fill='none'
-        stroke='currentColor'
-        strokeWidth='2'
-        strokeLinecap='round'
-        strokeLinejoin='round'
-        d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3'
+        fill='currentColor'
+        fill-rule='evenodd'
+        d='M3 2a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V8.5a.5.5 0 0 0-1 0V12H3V3h3.5a.5.5 0 0 0 0-1H3Zm9.854.146a.5.5 0 0 1 .146.351V5.5a.5.5 0 0 1-1 0V3.707L6.854 8.854a.5.5 0 1 1-.708-.708L11.293 3H9.5a.5.5 0 0 1 0-1h3a.499.499 0 0 1 .354.146Z'
+        clip-rule='evenodd'
       />
     </svg>
   )
