@@ -186,7 +186,13 @@ export default function Init() {
                 </div>
                 <motion.div
                   initial={prefersReduced ? false : { opacity: 0, y: 6 }}
-                  animate={contentReady && !prefersReduced ? { opacity: 1, y: 0 } : prefersReduced && contentReady ? { opacity: 1 } : { opacity: 0, y: 6 }}
+                  animate={
+                    contentReady && !prefersReduced
+                      ? { opacity: 1, y: 0 }
+                      : prefersReduced && contentReady
+                        ? { opacity: 1 }
+                        : { opacity: 0, y: 6 }
+                  }
                   transition={{ duration: 0.3, ease: EASE_QUINT_TUPLE }}
                 >
                   <h1 style={{ ...titleStyle, paddingLeft: 4 }}>Welcome to Arkade 👾</h1>
@@ -197,7 +203,9 @@ export default function Init() {
               <motion.div
                 variants={prefersReduced ? undefined : onboardStaggerContainer}
                 initial={prefersReduced ? false : 'initial'}
-                animate={contentReady ? (prefersReduced ? undefined : 'animate') : (prefersReduced ? undefined : 'initial')}
+                animate={
+                  contentReady ? (prefersReduced ? undefined : 'animate') : prefersReduced ? undefined : 'initial'
+                }
                 exit={
                   prefersReduced ? undefined : { opacity: 0, transition: { duration: 0.15, ease: EASE_QUINT_TUPLE } }
                 }
@@ -230,9 +238,20 @@ export default function Init() {
       <ButtonsOnBottom>
         <motion.div
           initial={prefersReduced ? false : { opacity: 0, y: 16 }}
-          animate={contentReady && !prefersReduced ? { opacity: 1, y: 0 } : prefersReduced && contentReady ? { opacity: 1 } : { opacity: 0, y: 16 }}
+          animate={
+            contentReady && !prefersReduced
+              ? { opacity: 1, y: 0 }
+              : prefersReduced && contentReady
+                ? { opacity: 1 }
+                : { opacity: 0, y: 16 }
+          }
           transition={{ duration: 0.4, ease: EASE_QUINT_TUPLE, delay: 0.24 }}
-          style={{ display: 'flex', flexDirection: 'column', width: '100%', pointerEvents: contentReady ? 'auto' : 'none' }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            width: '100%',
+            pointerEvents: contentReady ? 'auto' : 'none',
+          }}
         >
           <Button disabled={error} onClick={handleNewWallet} label='+ Create wallet' />
           <Button disabled={error} onClick={() => setShowOptions(true)} label='Other login options' clear />
