@@ -51,6 +51,7 @@ body,
 }
 body {
   margin: 0;
+  background-color: var(--ion-background-color, #fff);
   font-family:
     'Geist', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;

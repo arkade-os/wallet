@@ -1,11 +1,13 @@
+import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { EASE_OUT_QUINT } from '../lib/animations'
 
 interface PixelSunriseProps {
+  show: boolean
   reducedMotion: boolean
 }
 
-export default function PixelSunrise({ reducedMotion }: PixelSunriseProps) {
+export default function PixelSunrise({ show, reducedMotion }: PixelSunriseProps) {
   const gradient = (
     <div
       style={{
@@ -25,24 +27,29 @@ export default function PixelSunrise({ reducedMotion }: PixelSunriseProps) {
     bottom: 0,
     zIndex: 1,
     pointerEvents: 'none',
+    transformOrigin: 'top center',
   }
+
+  let content: React.ReactNode
 
   if (reducedMotion) {
-    return <div style={wrapperStyle}>{gradient}</div>
+    content = show ? <div style={wrapperStyle}>{gradient}</div> : null
+  } else {
+    content = (
+      <motion.div
+        initial={{ opacity: 0, scaleY: 0.3 }}
+        animate={show ? { opacity: 1, scaleY: 1 } : { opacity: 0, scaleY: 0.3 }}
+        transition={{
+          duration: 1.8,
+          ease: EASE_OUT_QUINT as unknown as [number, number, number, number],
+        }}
+        style={wrapperStyle}
+      >
+        {gradient}
+      </motion.div>
+    )
   }
 
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{
-        duration: 0.8,
-        ease: EASE_OUT_QUINT as unknown as [number, number, number, number],
-        delay: 0.1,
-      }}
-      style={wrapperStyle}
-    >
-      {gradient}
-    </motion.div>
-  )
+  // Portal to document.body so the gradient escapes IonPage's max-width container
+  return createPortal(content, document.body)
 }

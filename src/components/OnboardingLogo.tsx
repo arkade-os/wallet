@@ -1,9 +1,11 @@
 import { RefObject, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, useAnimationControls } from 'framer-motion'
 import { EASE_OUT_QUINT } from '../lib/animations'
 import PixelSplash from './PixelSplash'
 
 const LARGE_SIZE = 100
+const SMALL_SIZE = 28
 const EASE_QUINT_TUPLE = EASE_OUT_QUINT as unknown as [number, number, number, number]
 const EASE_IN = [0.55, 0, 1, 0.45] as [number, number, number, number]
 
@@ -22,7 +24,7 @@ function ArcadePaths() {
   )
 }
 
-// Space invader — compound path from 8x8 grid cells, merged horizontally into solid fill
+// Space invader — compound path from 8x8 grid cells
 const INVADER_D =
   'M8.75 0h4.375v4.375H8.75Z' +
   'M21.875 0h4.375v4.375H21.875Z' +
@@ -71,10 +73,11 @@ const SHAPES = [
 interface OnboardingLogoProps {
   targetRef: RefObject<HTMLDivElement | null>
   onComplete: () => void
+  onFlyStart?: () => void
   reducedMotion: boolean
 }
 
-export default function OnboardingLogo({ targetRef, onComplete, reducedMotion }: OnboardingLogoProps) {
+export default function OnboardingLogo({ targetRef, onComplete, onFlyStart, reducedMotion }: OnboardingLogoProps) {
   const [visible, setVisible] = useState(!reducedMotion)
   const [activeShape, setActiveShape] = useState(0)
   const [bounceCount, setBounceCount] = useState(0)
@@ -85,6 +88,8 @@ export default function OnboardingLogo({ targetRef, onComplete, reducedMotion }:
 
   const onCompleteRef = useRef(onComplete)
   onCompleteRef.current = onComplete
+  const onFlyStartRef = useRef(onFlyStart)
+  onFlyStartRef.current = onFlyStart
 
   useEffect(() => {
     if (reducedMotion) {
@@ -97,33 +102,42 @@ export default function OnboardingLogo({ targetRef, onComplete, reducedMotion }:
     async function bounceAndMorph(nextShape: number) {
       setBounceCount((c) => c + 1)
 
-      // Down-stroke: squash
+      // Down-stroke: deep squash
       await bounceControls.start({
-        y: 40,
-        scaleY: 0.7,
-        scaleX: 1.2,
-        transition: { duration: 0.18, ease: EASE_IN },
+        y: 50,
+        scaleY: 0.55,
+        scaleX: 1.35,
+        transition: { duration: 0.13, ease: EASE_IN },
       })
       if (cancelled.current) return
 
-      // At bottom: cross-fade to next shape
+      // Instant shape swap at max squash (no slow cross-fade)
       setActiveShape(nextShape)
 
-      // Up-stroke: stretch with overshoot
+      // Up-stroke: spring up with overshoot
       await bounceControls.start({
-        y: -10,
-        scaleY: 1.08,
-        scaleX: 0.95,
-        transition: { duration: 0.22, ease: EASE_QUINT_TUPLE },
+        y: -24,
+        scaleY: 1.2,
+        scaleX: 0.85,
+        transition: { duration: 0.16, ease: EASE_QUINT_TUPLE },
       })
       if (cancelled.current) return
 
-      // Settle
+      // First settle — slight undershoot
+      await bounceControls.start({
+        y: 4,
+        scaleY: 0.96,
+        scaleX: 1.03,
+        transition: { duration: 0.1, ease: EASE_QUINT_TUPLE },
+      })
+      if (cancelled.current) return
+
+      // Final settle
       await bounceControls.start({
         y: 0,
         scaleY: 1,
         scaleX: 1,
-        transition: { duration: 0.12, ease: EASE_QUINT_TUPLE },
+        transition: { duration: 0.08, ease: EASE_QUINT_TUPLE },
       })
     }
 
@@ -132,14 +146,14 @@ export default function OnboardingLogo({ targetRef, onComplete, reducedMotion }:
 
       // Down-stroke
       await bounceControls.start({
-        y: 40,
-        scaleY: 0.7,
-        scaleX: 1.2,
-        transition: { duration: 0.18, ease: EASE_IN },
+        y: 50,
+        scaleY: 0.55,
+        scaleX: 1.35,
+        transition: { duration: 0.13, ease: EASE_IN },
       })
       if (cancelled.current) return
 
-      // Cross-fade at bottom
+      // Instant shape swap
       setActiveShape(nextShape)
 
       // Calculate fly target
@@ -160,7 +174,10 @@ export default function OnboardingLogo({ targetRef, onComplete, reducedMotion }:
 
       const dx = targetCenterX - currentCenterX
       const dy = targetCenterY - currentCenterY
-      const targetScale = targetRect.width / LARGE_SIZE
+      const targetScale = SMALL_SIZE / LARGE_SIZE
+
+      // Signal gradient sunrise to begin
+      onFlyStartRef.current?.()
 
       // Unsquash + fly simultaneously
       await Promise.all([
@@ -168,13 +185,13 @@ export default function OnboardingLogo({ targetRef, onComplete, reducedMotion }:
           y: 0,
           scaleY: 1,
           scaleX: 1,
-          transition: { duration: 0.35, ease: EASE_QUINT_TUPLE },
+          transition: { duration: 0.3, ease: EASE_QUINT_TUPLE },
         }),
         flyControls.start({
           x: dx,
           y: dy,
           scale: targetScale,
-          transition: { duration: 0.5, ease: EASE_QUINT_TUPLE },
+          transition: { duration: 0.45, ease: EASE_QUINT_TUPLE },
         }),
       ])
 
@@ -185,7 +202,7 @@ export default function OnboardingLogo({ targetRef, onComplete, reducedMotion }:
 
     async function runSequence() {
       // Pause showing Arcade
-      await delay(700)
+      await delay(500)
       if (cancelled.current) return
 
       // Bounce + morph to Invader
@@ -193,7 +210,7 @@ export default function OnboardingLogo({ targetRef, onComplete, reducedMotion }:
       if (cancelled.current) return
 
       // Pause showing Invader
-      await delay(400)
+      await delay(250)
       if (cancelled.current) return
 
       // Bounce + morph to Heart
@@ -201,7 +218,7 @@ export default function OnboardingLogo({ targetRef, onComplete, reducedMotion }:
       if (cancelled.current) return
 
       // Pause showing Heart
-      await delay(400)
+      await delay(250)
       if (cancelled.current) return
 
       // Bounce + morph to Arcade + fly to header
@@ -219,7 +236,8 @@ export default function OnboardingLogo({ targetRef, onComplete, reducedMotion }:
 
   if (!visible) return null
 
-  return (
+  // Portal to body so the logo escapes IonPage's max-width container on desktop
+  return createPortal(
     <div
       style={{
         position: 'fixed',
@@ -250,7 +268,7 @@ export default function OnboardingLogo({ targetRef, onComplete, reducedMotion }:
                   key={shape.key}
                   style={{
                     opacity: activeShape === idx ? 1 : 0,
-                    transition: 'opacity 200ms ease-out',
+                    transition: 'opacity 80ms ease-out',
                   }}
                 >
                   <shape.Component />
@@ -261,6 +279,7 @@ export default function OnboardingLogo({ targetRef, onComplete, reducedMotion }:
         </motion.div>
         <PixelSplash bounceCount={bounceCount} reducedMotion={reducedMotion} />
       </motion.div>
-    </div>
+    </div>,
+    document.body,
   )
 }

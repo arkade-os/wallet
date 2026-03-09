@@ -71,20 +71,43 @@ export default function Init() {
   const [error, setError] = useState(false)
   const [showOptions, setShowOptions] = useState(false)
   const [contentReady, setContentReady] = useState(prefersReduced)
+  const [sunriseVisible, setSunriseVisible] = useState(prefersReduced)
   const [replayKey, setReplayKey] = useState(0)
   const logoTargetRef = useRef<HTMLDivElement>(null)
 
   const handleReplay = useCallback(() => {
     setContentReady(false)
+    setSunriseVisible(false)
     setReplayKey((k) => k + 1)
   }, [])
 
-  // Tint Safari status bar to match gradient while on this screen
+  const handleFlyStart = useCallback(() => {
+    setSunriseVisible(true)
+  }, [])
+
+  // Tint Safari status bar/toolbar to match gradient while on this screen
   useEffect(() => {
     const meta = document.querySelector('meta[name="theme-color"]')
     const prev = meta?.getAttribute('content')
-    if (meta) meta.setAttribute('content', '#8771BC')
+
+    function update() {
+      if (!meta) return
+      const isDark =
+        document.documentElement.classList.contains('ion-palette-dark') ||
+        window.matchMedia('(prefers-color-scheme: dark)').matches
+      meta.setAttribute('content', isDark ? '#2B1669' : '#8771BC')
+    }
+
+    update()
+
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    mq.addEventListener('change', update)
+    const observer = new MutationObserver(update)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+
     return () => {
+      mq.removeEventListener('change', update)
+      observer.disconnect()
       if (meta && prev) meta.setAttribute('content', prev)
     }
   }, [])
@@ -122,9 +145,10 @@ export default function Init() {
         key={`logo-${replayKey}`}
         targetRef={logoTargetRef}
         onComplete={handleLogoComplete}
+        onFlyStart={handleFlyStart}
         reducedMotion={prefersReduced}
       />
-      <PixelSunrise key={`sunrise-${replayKey}`} reducedMotion={prefersReduced} />
+      <PixelSunrise key={`sunrise-${replayKey}`} show={sunriseVisible} reducedMotion={prefersReduced} />
       <Content>
         <Padded>
           <FlexCol between>
@@ -160,73 +184,59 @@ export default function Init() {
                 >
                   {contentReady ? <SmallLogo /> : null}
                 </div>
-                {contentReady ? (
-                  <motion.div
-                    initial={prefersReduced ? false : { opacity: 0, y: 6 }}
-                    animate={prefersReduced ? undefined : { opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, ease: EASE_QUINT_TUPLE }}
-                  >
-                    <h1 style={{ ...titleStyle, paddingLeft: 4 }}>Welcome to Arkade 👾</h1>
-                  </motion.div>
-                ) : null}
+                <motion.div
+                  initial={prefersReduced ? false : { opacity: 0, y: 6 }}
+                  animate={contentReady && !prefersReduced ? { opacity: 1, y: 0 } : prefersReduced && contentReady ? { opacity: 1 } : { opacity: 0, y: 6 }}
+                  transition={{ duration: 0.3, ease: EASE_QUINT_TUPLE }}
+                >
+                  <h1 style={{ ...titleStyle, paddingLeft: 4 }}>Welcome to Arkade 👾</h1>
+                </motion.div>
               </div>
 
-              {/* Bullet points + error — stagger in after header */}
-              {contentReady ? (
-                <motion.div
-                  variants={prefersReduced ? undefined : onboardStaggerContainer}
-                  initial={prefersReduced ? false : 'initial'}
-                  animate={prefersReduced ? undefined : 'animate'}
-                  exit={
-                    prefersReduced ? undefined : { opacity: 0, transition: { duration: 0.15, ease: EASE_QUINT_TUPLE } }
-                  }
-                  style={{ width: '100%' }}
-                >
-                  <OnboardStaggerChild>
-                    <BulletPoint icon={<BoltOutlineIcon />} text='Fast payments, swaps, and more' />
-                  </OnboardStaggerChild>
-                  <OnboardStaggerChild>
-                    <BulletPoint
-                      icon={<GlobeOutlineIcon />}
-                      text='Access Lightning, DeFi, and more, all secured by Bitcoin'
-                    />
-                  </OnboardStaggerChild>
-                  <OnboardStaggerChild>
-                    <BulletPoint
-                      icon={<ShieldCheckOutlineIcon />}
-                      text='Stay in control. Settle and withdraw on your terms'
-                    />
-                  </OnboardStaggerChild>
+              {/* Bullet points + error — always in DOM for stable layout, animated in when ready */}
+              <motion.div
+                variants={prefersReduced ? undefined : onboardStaggerContainer}
+                initial={prefersReduced ? false : 'initial'}
+                animate={contentReady ? (prefersReduced ? undefined : 'animate') : (prefersReduced ? undefined : 'initial')}
+                exit={
+                  prefersReduced ? undefined : { opacity: 0, transition: { duration: 0.15, ease: EASE_QUINT_TUPLE } }
+                }
+                style={{ width: '100%', visibility: contentReady ? 'visible' : 'hidden' }}
+              >
+                <OnboardStaggerChild>
+                  <BulletPoint icon={<BoltOutlineIcon />} text='Fast payments, swaps, and more' />
+                </OnboardStaggerChild>
+                <OnboardStaggerChild>
+                  <BulletPoint
+                    icon={<GlobeOutlineIcon />}
+                    text='Access Lightning, DeFi, and more, all secured by Bitcoin'
+                  />
+                </OnboardStaggerChild>
+                <OnboardStaggerChild>
+                  <BulletPoint
+                    icon={<ShieldCheckOutlineIcon />}
+                    text='Stay in control. Settle and withdraw on your terms'
+                  />
+                </OnboardStaggerChild>
 
-                  {/* <Text color='dark80' thin wrap>
-                    Your bitcoin has entered a new dimension. Send, receive, and swap in Arkade's virtual environment.
-                  </Text>
-                  <Text color='dark80' thin wrap>
-                    Arkade is your gateway to a new generation of bitcoin-native applications. Access Lightning
-                    payments, DeFi, assets, and more — all secured by bitcoin.
-                  </Text> */}
-
-                  <OnboardStaggerChild>
-                    <ErrorMessage error={error} text='Ark server unreachable' />
-                  </OnboardStaggerChild>
-                </motion.div>
-              ) : null}
+                <OnboardStaggerChild>
+                  <ErrorMessage error={error} text='Ark server unreachable' />
+                </OnboardStaggerChild>
+              </motion.div>
             </div>
           </FlexCol>
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        {contentReady ? (
-          <motion.div
-            initial={prefersReduced ? false : { opacity: 0, y: 16 }}
-            animate={prefersReduced ? undefined : { opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: EASE_QUINT_TUPLE, delay: 0.24 }}
-            style={{ display: 'flex', flexDirection: 'column', width: '100%' }}
-          >
-            <Button disabled={error} onClick={handleNewWallet} label='+ Create wallet' />
-            <Button disabled={error} onClick={() => setShowOptions(true)} label='Other login options' clear />
-          </motion.div>
-        ) : null}
+        <motion.div
+          initial={prefersReduced ? false : { opacity: 0, y: 16 }}
+          animate={contentReady && !prefersReduced ? { opacity: 1, y: 0 } : prefersReduced && contentReady ? { opacity: 1 } : { opacity: 0, y: 16 }}
+          transition={{ duration: 0.4, ease: EASE_QUINT_TUPLE, delay: 0.24 }}
+          style={{ display: 'flex', flexDirection: 'column', width: '100%', pointerEvents: contentReady ? 'auto' : 'none' }}
+        >
+          <Button disabled={error} onClick={handleNewWallet} label='+ Create wallet' />
+          <Button disabled={error} onClick={() => setShowOptions(true)} label='Other login options' clear />
+        </motion.div>
       </ButtonsOnBottom>
       <SheetModal isOpen={showOptions} onClose={() => setShowOptions(false)}>
         <FlexCol gap='1rem'>
