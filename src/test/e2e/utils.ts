@@ -1,5 +1,4 @@
 import { test as base, type Page } from '@playwright/test'
-import { exec } from 'child_process'
 import { faucetOffchain } from './fundedWallet'
 
 export const test = base.extend({
