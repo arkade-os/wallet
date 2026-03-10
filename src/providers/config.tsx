@@ -1,18 +1,18 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
 import { clearStorage, readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
-import { defaultArkServer } from '../lib/constants'
-import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
+import { defaultArkServer, getDefaultDelegatesForNetwork } from '../lib/constants'
+import { Config, CurrencyDisplay, DelegatesConfig, Fiats, Themes, Unit } from '../lib/types'
 import { BackupProvider } from '../lib/backup'
 import { consoleError } from '../lib/logs'
 import { setHapticsEnabled } from '../lib/haptics'
-import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
+import { IndexedDbSwapRepository, Network } from '@arkade-os/boltz-swap'
 
 const defaultConfig: Config = {
   announcementsSeen: [],
   apps: { assets: { enabled: false }, boltz: { connected: true } },
   aspUrl: defaultArkServer(),
   currencyDisplay: CurrencyDisplay.Both,
-  delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
+  delegates: getDefaultDelegatesForNetwork('bitcoin' as Network),
   fiat: Fiats.USD,
   importedAssets: [],
   haptics: true,
@@ -60,11 +60,26 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
     ? config.announcementsSeen
     : defaultConfig.announcementsSeen
   const importedAssets = Array.isArray(config.importedAssets) ? config.importedAssets : defaultConfig.importedAssets
+
+  // migrate old boolean delegate field to new delegates config
+  let delegates: DelegatesConfig
+  if ('delegate' in config && typeof (config as any).delegate === 'boolean') {
+    const oldEnabled = (config as any).delegate as boolean
+    delegates = {
+      ...defaultConfig.delegates,
+      enabled: oldEnabled,
+      activeUrl: oldEnabled ? (defaultConfig.delegates.list[0]?.url ?? null) : null,
+    }
+  } else {
+    delegates = config.delegates ?? defaultConfig.delegates
+  }
+
   return {
     ...defaultConfig,
     ...config,
     announcementsSeen: [...announcementsSeen],
     importedAssets: [...importedAssets],
+    delegates,
     apps: {
       assets: { enabled: config.apps?.assets?.enabled ?? defaultConfig.apps.assets.enabled },
       boltz: { connected: config.apps?.boltz?.connected ?? defaultConfig.apps.boltz.connected },

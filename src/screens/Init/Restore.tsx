@@ -4,7 +4,7 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { useContext, useEffect, useState } from 'react'
 import { ConfigContext } from '../../providers/config'
 import { BackupProvider } from '../../lib/backup'
-import { defaultPassword } from '../../lib/constants'
+import { defaultPassword, getDefaultDelegatesForNetwork } from '../../lib/constants'
 import { FlowContext } from '../../providers/flow'
 import ErrorMessage from '../../components/Error'
 import Content from '../../components/Content'
@@ -56,10 +56,14 @@ export default function InitRestore() {
     setInitInfo({ privateKey, password: defaultPassword, restoring: true })
     setRestoring(true)
     new BackupProvider({ seckey: privateKey! }, new IndexedDbSwapRepository())
-      .restore((conf) =>
+      .restore((conf) => {
         // we enforce delegates on restore
-        updateConfig({ ...conf, delegate: true }),
-      )
+        // ensure activeUrl is set when enabling (use defaults if missing)
+        const defaultDelegates = getDefaultDelegatesForNetwork('bitcoin')
+        const activeUrl = conf.delegates?.activeUrl ?? defaultDelegates.activeUrl
+        const list = conf.delegates?.list ?? defaultDelegates.list
+        updateConfig({ ...conf, delegates: { enabled: true, activeUrl, list } })
+      })
       .catch((err) => consoleError(err, 'Error restoring from nostr'))
       .finally(() => {
         setRestoring(false)

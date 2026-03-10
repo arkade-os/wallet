@@ -10,15 +10,13 @@ import FlexCol from '../../components/FlexCol'
 import FlexRow from '../../components/FlexRow'
 import { AspContext } from '../../providers/asp'
 import WarningBox from '../../components/Warning'
-import { SettingsOptions } from '../../lib/types'
+import { Delegate, SettingsOptions } from '../../lib/types'
 import { ConfigContext } from '../../providers/config'
 import { WalletContext } from '../../providers/wallet'
-import { getDelegateUrlForNetwork } from '../../lib/constants'
 import { useContext, useEffect, useState } from 'react'
 import { OptionsContext } from '../../providers/options'
 import Text, { TextSecondary } from '../../components/Text'
 import { decodeArkAddress, isArkAddress } from '../../lib/address'
-import { Network } from '@arkade-os/boltz-swap'
 
 // format the URL to ensure it has the correct protocol and no trailing slashes
 const formatUrl = (host: string, path: string): string => {
@@ -33,8 +31,10 @@ const formatUrl = (host: string, path: string): string => {
   return `${prefix}${host}/${path}`
 }
 
+type DelegateInfo = { fee?: string }
+
 // test connection to delegate by fetching delegate info and validating the response
-const testConnection = (url: string, expectedServerPubKey: string): Promise<void> => {
+const testConnection = (url: string, expectedServerPubKey: string): Promise<DelegateInfo> => {
   return new Promise((resolve, reject) => {
     // ensure expected pubkey is in xonly format
     const expectedPubKey = expectedServerPubKey.length === 66 ? expectedServerPubKey.slice(2) : expectedServerPubKey
@@ -48,7 +48,7 @@ const testConnection = (url: string, expectedServerPubKey: string): Promise<void
           if (!isArkAddress(data.delegatorAddress)) return reject(new Error('Invalid delegate address'))
           const { serverPubKey } = decodeArkAddress(data.delegatorAddress)
           if (serverPubKey !== expectedPubKey) return reject(new Error('Invalid delegate server key'))
-          resolve()
+          resolve({ fee: data.fee })
         })
       })
       .catch(() => reject(new Error('Unable to connect')))
@@ -128,43 +128,50 @@ function Middot({ ok = true }: { ok?: boolean }) {
   )
 }
 
-// card component to show current delegate information and status
-function DelegateCard({ active = true }: { active?: boolean }) {
-  const { config } = useContext(ConfigContext)
-  const { wallet } = useContext(WalletContext)
-  const { setOption } = useContext(OptionsContext)
-  const { aspInfo } = useContext(AspContext)
-
-  if (!config.delegate) return null
-
-  const delegate = getDelegateUrlForNetwork(aspInfo.network as Network)
-
-  const nextRolloverText = wallet.nextRollover
-    ? `next renewal ${prettyAgo(wallet.nextRollover)}`
-    : 'No upcoming renewal'
-
+// card component to show a single delegate entry
+function DelegateCard({
+  delegate,
+  isActive,
+  isSelected,
+  fee,
+  onSelect,
+  onRemove,
+}: {
+  delegate: Delegate
+  isActive: boolean
+  isSelected: boolean
+  fee: string | null
+  onSelect: () => void
+  onRemove: () => void
+}) {
   return (
     <Shadow lighter fat testId='delegate-card'>
       <FlexCol gap='0.5rem'>
         <FlexRow between>
-          <Text>{delegate.name}</Text>
-          <FlexRow end onClick={() => setOption(SettingsOptions.Vtxos)}>
-            <Text color='dark50' tiny>
-              {nextRolloverText}
-            </Text>
-            <ArrowIcon small />
-          </FlexRow>
-        </FlexRow>
-        <hr className='dashed-hr' />
-        <FlexRow between>
-          <Shadow flex>
+          <FlexRow onClick={onSelect}>
+            <input
+              type='radio'
+              name='active-delegate'
+              checked={isSelected}
+              onChange={onSelect}
+              style={{ accentColor: '#60B18A', marginRight: '0.5rem' }}
+            />
             <Text tiny>{delegate.url}</Text>
-          </Shadow>
+          </FlexRow>
           <FlexRow end>
-            <Middot ok={active} />
-            <Text tiny>{active ? 'Active' : 'Inactive'}</Text>
+            <Middot ok={isActive} />
+            <div onClick={onRemove} style={{ cursor: 'pointer' }}>
+              <Text tiny color='dark50'>
+                Remove
+              </Text>
+            </div>
           </FlexRow>
         </FlexRow>
+        {fee !== null && (
+          <Text tiny color='dark50'>
+            Fee: {fee} sats
+          </Text>
+        )}
       </FlexCol>
     </Shadow>
   )
@@ -173,20 +180,30 @@ function DelegateCard({ active = true }: { active?: boolean }) {
 export default function Delegates() {
   const { aspInfo } = useContext(AspContext)
   const { goBack } = useContext(OptionsContext)
+  const { wallet } = useContext(WalletContext)
   const { config, updateConfig } = useContext(ConfigContext)
+  const { setOption } = useContext(OptionsContext)
 
-  const [active, setActive] = useState(false)
+  const [connectionStatus, setConnectionStatus] = useState<Record<string, boolean>>({})
+  const [delegateFees, setDelegateFees] = useState<Record<string, string>>({})
   const [learnMore, setLearnMore] = useState(false)
+  const [newUrl, setNewUrl] = useState('')
+  const [addError, setAddError] = useState('')
 
-  const delegate = getDelegateUrlForNetwork(aspInfo.network as Network)
+  const delegates = config.delegates
 
-  // test connection to delegate when url changes
+  // test connection and fetch fee for all delegates
   useEffect(() => {
-    if (!config.delegate) return
-    testConnection(delegate.url, aspInfo.signerPubkey)
-      .then(() => setActive(true))
-      .catch(() => setActive(false))
-  }, [config.delegate, aspInfo.signerPubkey])
+    if (!delegates.enabled) return
+    for (const d of delegates.list) {
+      testConnection(d.url, aspInfo.signerPubkey)
+        .then((info) => {
+          setConnectionStatus((prev) => ({ ...prev, [d.url]: true }))
+          if (info.fee) setDelegateFees((prev) => ({ ...prev, [d.url]: info.fee! }))
+        })
+        .catch(() => setConnectionStatus((prev) => ({ ...prev, [d.url]: false })))
+    }
+  }, [delegates.enabled, delegates.list.map((d) => d.url).join(','), aspInfo.signerPubkey])
 
   // handle back navigation
   const handleBack = () => {
@@ -197,15 +214,79 @@ export default function Delegates() {
     }
   }
 
-  // toggle delegate
+  // toggle delegation on/off
   const handleToggle = async () => {
-    const nextDelegate = !config.delegate
-    await updateConfig({ ...config, delegate: nextDelegate })
-    // Full page reload ensures service worker and wallet are re-instantiated with the new delegator setting.
+    const nextEnabled = !delegates.enabled
+    if (nextEnabled && delegates.list.length === 0) return
+    await updateConfig({
+      ...config,
+      delegates: { ...delegates, enabled: nextEnabled },
+    })
     window.location.reload()
   }
 
-  // text to show on warning box
+  // select a delegate as active
+  const handleSelect = async (url: string) => {
+    if (url === delegates.activeUrl) return
+    await updateConfig({
+      ...config,
+      delegates: { ...delegates, activeUrl: url },
+    })
+    window.location.reload()
+  }
+
+  // remove a delegate from the list
+  const handleRemove = async (url: string) => {
+    const newList = delegates.list.filter((d) => d.url !== url)
+    const newActiveUrl = delegates.activeUrl === url ? (newList[0]?.url ?? null) : delegates.activeUrl
+    await updateConfig({
+      ...config,
+      delegates: {
+        ...delegates,
+        list: newList,
+        activeUrl: newActiveUrl,
+        enabled: newList.length > 0 ? delegates.enabled : false,
+      },
+    })
+    if (delegates.activeUrl === url) {
+      window.location.reload()
+    }
+  }
+
+  // add a new delegate
+  const handleAdd = async () => {
+    setAddError('')
+    const url = newUrl.trim()
+    if (!url) return
+    if (delegates.list.some((d) => d.url === url)) {
+      setAddError('Already in list')
+      return
+    }
+    let info: DelegateInfo
+    try {
+      info = await testConnection(url, aspInfo.signerPubkey)
+    } catch (e) {
+      setAddError(e instanceof Error ? e.message : 'Unable to connect')
+      return
+    }
+    const newList = [...delegates.list, { url }]
+    await updateConfig({
+      ...config,
+      delegates: {
+        ...delegates,
+        list: newList,
+        activeUrl: delegates.activeUrl ?? url,
+      },
+    })
+    setNewUrl('')
+    setConnectionStatus((prev) => ({ ...prev, [url]: true }))
+    if (info.fee) setDelegateFees((prev) => ({ ...prev, [url]: info.fee! }))
+  }
+
+  const nextRolloverText = wallet.nextRollover
+    ? `next renewal ${prettyAgo(wallet.nextRollover)}`
+    : 'No upcoming renewal'
+
   const warningText = 'Delegates can only renew your VTXOs, they cannot spend your funds or control your wallet'
 
   return (
@@ -214,27 +295,94 @@ export default function Delegates() {
       <Content>
         <Padded>
           {learnMore ? (
-            <>
-              <FlexCol gap='3rem'>
-                <Hero learnMore={learnMore} setLearnMore={setLearnMore} />
-                <LearnMore />
-              </FlexCol>
-            </>
+            <FlexCol gap='3rem'>
+              <Hero learnMore={learnMore} setLearnMore={setLearnMore} />
+              <LearnMore />
+            </FlexCol>
           ) : (
             <FlexCol gap='1rem'>
               <Shadow fat purple>
                 <Hero learnMore={learnMore} setLearnMore={setLearnMore} />
               </Shadow>
               <Toggle
-                checked={config.delegate}
+                checked={delegates.enabled}
                 onClick={handleToggle}
                 testId='toggle-delegates'
-                text='Use default Arkade delegate'
-                subtext="Use Arkade's default delegate to manage renewals"
+                text='Enable delegation'
+                subtext='Outsource VTXO renewal to a delegate service'
               />
-              <TextSecondary>The wallet will reload to apply the change.</TextSecondary>
+              <TextSecondary>The wallet will reload to apply changes.</TextSecondary>
               <WarningBox text={warningText} />
-              <DelegateCard active={active} />
+              {delegates.enabled ? (
+                <>
+                  <FlexRow between>
+                    <Text bold>Delegates</Text>
+                    <FlexRow end onClick={() => setOption(SettingsOptions.Vtxos)}>
+                      <Text color='dark50' tiny>
+                        {nextRolloverText}
+                      </Text>
+                      <ArrowIcon small />
+                    </FlexRow>
+                  </FlexRow>
+                  {delegates.list.map((d) => (
+                    <DelegateCard
+                      key={d.url}
+                      delegate={d}
+                      isActive={connectionStatus[d.url] ?? false}
+                      isSelected={d.url === delegates.activeUrl}
+                      fee={delegateFees[d.url] ?? null}
+                      onSelect={() => handleSelect(d.url)}
+                      onRemove={() => handleRemove(d.url)}
+                    />
+                  ))}
+                  <Shadow lighter fat>
+                    <FlexCol gap='0.5rem'>
+                      <Text tiny bold>
+                        Add delegate
+                      </Text>
+                      <FlexRow gap='0.5rem'>
+                        <input
+                          type='text'
+                          value={newUrl}
+                          onChange={(e) => {
+                            setNewUrl(e.target.value)
+                            setAddError('')
+                          }}
+                          placeholder='delegate.example.com:7002'
+                          style={{
+                            flex: 1,
+                            padding: '0.5rem',
+                            borderRadius: '6px',
+                            border: '1px solid var(--ion-color-medium)',
+                            background: 'transparent',
+                            color: 'inherit',
+                            fontSize: '0.85rem',
+                          }}
+                        />
+                        <div
+                          onClick={handleAdd}
+                          style={{
+                            padding: '0.5rem 1rem',
+                            borderRadius: '6px',
+                            background: '#60B18A',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Add
+                        </div>
+                      </FlexRow>
+                      {addError ? (
+                        <Text tiny color='danger'>
+                          {addError}
+                        </Text>
+                      ) : null}
+                    </FlexCol>
+                  </Shadow>
+                </>
+              ) : null}
             </FlexCol>
           )}
         </Padded>

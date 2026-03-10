@@ -17,15 +17,22 @@ describe('Delegates screen', () => {
     expect(screen.getByText('Delegates')).toBeInTheDocument()
     expect(screen.getByText('Learn more')).toBeInTheDocument()
     expect(screen.getByText('What is a Delegate?')).toBeInTheDocument()
-    expect(screen.getByText('Use default Arkade delegate')).toBeInTheDocument()
+    expect(screen.getByText('Enable delegation')).toBeInTheDocument()
     expect(screen.getByText(/Delegates can only renew your VTXOs/)).toBeInTheDocument()
     expect(screen.getByTestId('toggle-delegates').getAttribute('checked')).toBe('false')
   })
 
-  it('renders the delegate card when toggle is on', () => {
+  it('renders the delegate list when toggle is on', () => {
     const mockConfigWithDelegate = {
       ...mockConfigContextValue,
-      config: { ...mockConfigContextValue.config, delegate: true },
+      config: {
+        ...mockConfigContextValue.config,
+        delegates: {
+          enabled: true,
+          activeUrl: 'http://localhost:7002',
+          list: [{ url: 'http://localhost:7002' }],
+        },
+      },
     }
     render(
       <AspContext.Provider value={mockAspContextValue as any}>
@@ -37,7 +44,7 @@ describe('Delegates screen', () => {
     expect(screen.getByText('Delegates')).toBeInTheDocument()
     expect(screen.getByText('Learn more')).toBeInTheDocument()
     expect(screen.getByText('What is a Delegate?')).toBeInTheDocument()
-    expect(screen.getByText('Use default Arkade delegate')).toBeInTheDocument()
+    expect(screen.getByText('Enable delegation')).toBeInTheDocument()
     expect(screen.getByText(/Delegates can only renew your VTXOs/)).toBeInTheDocument()
     expect(screen.getByTestId('delegate-card')).toBeInTheDocument()
     expect(screen.getByTestId('toggle-delegates').getAttribute('checked')).toBe('true')

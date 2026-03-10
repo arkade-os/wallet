@@ -1,4 +1,4 @@
-import { Delegate } from './types'
+import { Delegate, DelegatesConfig } from './types'
 import { Network } from '@arkade-os/boltz-swap'
 
 export const arknoteHRP = 'arknote'
@@ -23,21 +23,19 @@ export const defaultArkServer = () => {
   return mainServer
 }
 
-const DELEGATE_URL: Record<Network, string | null> = {
-  bitcoin: 'https://delegate.arkade.money',
-  mutinynet: `https://delegator.mutinynet.arkade.sh`,
-  signet: null,
-  regtest: 'http://localhost:7002',
-  testnet: null,
+const DEFAULT_DELEGATES: Record<Network, Delegate[]> = {
+  bitcoin: [{ url: 'https://delegate.arkade.money' }, { url: 'https://d.vmempool.space' }],
+  mutinynet: [{ url: 'https://delegator.mutinynet.arkade.sh' }],
+  signet: [],
+  regtest: [{ url: 'http://localhost:7002' }],
+  testnet: [],
 }
 
-export const getDelegateUrlForNetwork = (network: Network): Delegate => {
-  const url = DELEGATE_URL[network]
-  if (!url) {
-    throw new Error(`Delegate URL not found for network: ${network}`)
-  }
+export const getDefaultDelegatesForNetwork = (network: Network): DelegatesConfig => {
+  const list = DEFAULT_DELEGATES[network] ?? []
   return {
-    name: 'Arkade Default',
-    url,
+    enabled: list.length > 0 && import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
+    activeUrl: list.length > 0 ? list[0].url : null,
+    list,
   }
 }
