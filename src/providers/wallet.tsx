@@ -41,7 +41,7 @@ import { Indexer } from '../lib/indexer'
 import { IndexedDbSwapRepository, migrateToSwapRepository, Network } from '@arkade-os/boltz-swap'
 
 const ASSET_METADATA_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
-const SERVICE_WORKER_SETUP_TIMEOUT_MS = 30_000
+const SERVICE_WORKER_SETUP_TIMEOUT_MS = 5_000
 
 const defaultWallet: Wallet = {
   network: '',

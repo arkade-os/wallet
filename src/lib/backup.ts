@@ -1,4 +1,10 @@
-import { PendingReverseSwap, PendingSubmarineSwap, SwapRepository } from '@arkade-os/boltz-swap'
+import {
+  PendingChainSwap,
+  PendingReverseSwap,
+  PendingSubmarineSwap,
+  ServiceWorkerArkadeSwaps,
+  SwapRepository,
+} from '@arkade-os/boltz-swap'
 import { getPublicKey } from 'nostr-tools/pure'
 import { NostrStorage } from './nostr'
 import { Config } from './types'
@@ -9,6 +15,7 @@ type NostrStorageData = {
   config?: Config
   reverseSwaps?: PendingReverseSwap[]
   submarineSwaps?: PendingSubmarineSwap[]
+  chainSwaps?: PendingChainSwap[]
 }
 export class BackupProvider {
   private nostrStorage: NostrStorage
@@ -67,16 +74,28 @@ export class BackupProvider {
   }
 
   /**
+   * Backup a submarine swap to Nostr
+   * @param submarineSwap PendingSubmarineSwap to backup
+   */
+  backupChainSwap = async (chainSwap: PendingChainSwap) => {
+    const data: NostrStorageData = { chainSwaps: [chainSwap] }
+    await this.nostrStorage.save(JSON.stringify(data))
+  }
+
+  /**
    * Does a full backup of config and swaps to Nostr
    * If data size is larger than 65kb, splits into multiple events
    * @param config
    */
-  fullBackup = async (config: Config) => {
+  fullBackup = async (config: Config, arkadeSwaps?: ServiceWorkerArkadeSwaps) => {
+    if (!arkadeSwaps) return this.backupConfig(config)
+
+    const allSwaps = await arkadeSwaps.getSwapHistory()
     const data: NostrStorageData = {
       config,
-      // TODO: backup as contracts
-      // reverseSwaps: (await this.contractRepository.getContractCollection('reverseSwaps')) as PendingReverseSwap[],
-      // submarineSwaps: (await this.contractRepository.getContractCollection('submarineSwaps')) as PendingSubmarineSwap[],
+      chainSwaps: allSwaps.filter((s) => s.type === 'chain'),
+      reverseSwaps: allSwaps.filter((s) => s.type === 'reverse'),
+      submarineSwaps: allSwaps.filter((s) => s.type === 'submarine'),
     }
 
     const dataSize = JSON.stringify(data).length
@@ -90,6 +109,10 @@ export class BackupProvider {
 
       for (const submarineSwap of data.submarineSwaps ?? []) {
         await this.backupSubmarineSwap(submarineSwap)
+      }
+
+      for (const chainSwap of data.chainSwaps ?? []) {
+        await this.backupChainSwap(chainSwap)
       }
     } else {
       await this.nostrStorage.save(JSON.stringify(data))
@@ -114,6 +137,10 @@ export class BackupProvider {
     for (const swap of data?.submarineSwaps ?? []) {
       await this.swapRepository.saveSwap(swap)
     }
+
+    for (const swap of data?.chainSwaps ?? []) {
+      await this.swapRepository.saveSwap(swap)
+    }
   }
 
   /**
@@ -126,6 +153,7 @@ export class BackupProvider {
   private loadData = async (): Promise<NostrStorageData> => {
     const loaded = {
       config: null as Config | null,
+      chainSwaps: new Map<string, PendingChainSwap>(),
       reverseSwaps: new Map<string, PendingReverseSwap>(),
       submarineSwaps: new Map<string, PendingSubmarineSwap>(),
     }
@@ -156,10 +184,15 @@ export class BackupProvider {
       for (const swap of data.submarineSwaps ?? []) {
         loaded.submarineSwaps.set(swap.id, swap)
       }
+
+      for (const swap of data.chainSwaps ?? []) {
+        loaded.chainSwaps.set(swap.id, swap)
+      }
     }
 
     return {
       config: loaded.config ?? undefined,
+      chainSwaps: Array.from(loaded.chainSwaps.values()),
       reverseSwaps: Array.from(loaded.reverseSwaps.values()),
       submarineSwaps: Array.from(loaded.submarineSwaps.values()),
     }
