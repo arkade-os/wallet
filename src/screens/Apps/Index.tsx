@@ -6,7 +6,7 @@ import Header from '../../components/Header'
 import FlexCol from '../../components/FlexCol'
 import Text from '../../components/Text'
 import Shadow from '../../components/Shadow'
-import AssetsIcon from '../../icons/Assets'
+import ArkadeMintIcon from '../../icons/ArkadeMintIcon'
 import BoltzIcon from '../../icons/Boltz'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import LendasatIcon from './Lendasat/LendasatIcon'
@@ -98,8 +98,8 @@ export default function Apps() {
         <Padded>
           <FlexCol>
             <App
-              name='Assets'
-              icon={<AssetsIcon />}
+              name='Arkade Mint'
+              icon={<ArkadeMintIcon />}
               desc='Issue, send, and receive assets on Arkade'
               link='https://github.com/ArkLabsHQ/arkade-assets'
               page={Pages.AppAssets}

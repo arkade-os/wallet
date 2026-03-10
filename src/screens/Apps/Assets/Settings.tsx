@@ -19,15 +19,15 @@ export default function AppAssetsSettings() {
 
   return (
     <>
-      <Header text='Assets settings' back />
+      <Header text='Arkade Mint settings' back />
       <Content>
         <Padded>
           <FlexCol>
             <Toggle
               checked={config.apps.assets.enabled}
               onClick={toggleConnection}
-              text='Enable Assets'
-              subtext='Turn Assets integration on or off'
+              text='Enable Arkade Mint'
+              subtext='Turn Arkade Mint on or off'
               testId='assets-toggle'
             />
           </FlexCol>

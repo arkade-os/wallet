@@ -89,7 +89,7 @@ export default function AppAssets() {
 
   return (
     <>
-      <Header text='Assets' back={() => navigate(Pages.Apps)} auxFunc={goToSettings} auxIcon={<SettingsIconLight />} />
+      <Header text='Arkade Mint' back={() => navigate(Pages.Apps)} auxFunc={goToSettings} auxIcon={<SettingsIconLight />} />
       <Content>
         <Padded>
           {config.apps.assets.enabled ? (
@@ -113,7 +113,7 @@ export default function AppAssets() {
             </FlexCol>
           ) : (
             <FlexCol gap='0.5rem'>
-              <Text color='dark50'>Assets integration is disabled.</Text>
+              <Text color='dark50'>Arkade Mint is disabled.</Text>
               <Text color='dark50'>
                 <a onClick={goToSettings}>Enable it</a> to view your assets.
               </Text>
