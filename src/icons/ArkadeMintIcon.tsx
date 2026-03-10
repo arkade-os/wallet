@@ -37,7 +37,14 @@ function buildRects() {
     for (let x = 0; x < grid[y].length; x++) {
       const c = grid[y][x]
       if (c) {
-        rects.push({ x: oX + x * cell, y: oY + y * cell, w: cell + 0.5, h: cell + 0.5, fill: PALETTE[c], id: `p${x}r${y}` })
+        rects.push({
+          x: oX + x * cell,
+          y: oY + y * cell,
+          w: cell + 0.5,
+          h: cell + 0.5,
+          fill: PALETTE[c],
+          id: `p${x}r${y}`,
+        })
       }
     }
   }
@@ -49,7 +56,15 @@ const RECTS = buildRects()
 export default function ArkadeMintIcon({ big = false }: { big?: boolean }) {
   const size = big ? 78 : 55
   return (
-    <svg width={size} height={size} viewBox='0 0 64 64' fill='none' xmlns='http://www.w3.org/2000/svg' role='img' aria-label='Arkade Mint icon'>
+    <svg
+      width={size}
+      height={size}
+      viewBox='0 0 64 64'
+      fill='none'
+      xmlns='http://www.w3.org/2000/svg'
+      role='img'
+      aria-label='Arkade Mint icon'
+    >
       {RECTS.map((r) => (
         <rect key={r.id} x={r.x} y={r.y} width={r.w} height={r.h} fill={r.fill} />
       ))}

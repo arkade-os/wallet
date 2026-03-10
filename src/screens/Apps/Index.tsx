@@ -84,8 +84,12 @@ function App({ desc, icon, link, name, live, page, isDark }: AppProps) {
     width: '100%',
     cursor: 'pointer',
     background: pressed
-      ? isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
-      : isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+      ? isDark
+        ? 'rgba(255,255,255,0.08)'
+        : 'rgba(0,0,0,0.06)'
+      : isDark
+        ? 'rgba(255,255,255,0.04)'
+        : 'rgba(0,0,0,0.03)',
     transition: 'background 0.12s ease-out',
   }
 
