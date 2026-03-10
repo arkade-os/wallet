@@ -233,13 +233,14 @@ services:
     image: ghcr.io/arklabshq/fulmine:v0.3.15
     container_name: boltz-fulmine
     environment:
+      - FULMINE_LOG_LEVEL=5
+      - FULMINE_NO_MACAROONS=true
       - FULMINE_DELEGATOR_FEE=350
       - FULMINE_DELEGATOR_ENABLED=true
+      - FULMINE_DELEGATOR_ENABLED=true
+      - FULMINE_DISABLE_TELEMETRY=true
       - FULMINE_ARK_SERVER=http://arkd:7070
       - FULMINE_ESPLORA_URL=http://chopsticks:3000
-      - FULMINE_DISABLE_TELEMETRY=true
-      - FULMINE_NO_MACAROONS=true
-      - FULMINE_LOG_LEVEL=5
     ports:
       - '7000:7000'
       - '7001:7001'

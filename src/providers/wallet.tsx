@@ -412,7 +412,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     type HasToHex = { toHex: () => string }
     const identity = svcWallet.identity
     const privateKey =
-      typeof (identity as Partial<HasToHex>).toHex === 'function' ? (identity as HasToHex).toHex() : undefined
+      typeof (identity as Partial<HasToHex>).toHex === 'function'
+        ? (identity as unknown as HasToHex).toHex()
+        : undefined
     if (!privateKey) throw new Error('Unable to reinitialize wallet without private key')
     const arkServerUrl = aspInfo.url
     const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''

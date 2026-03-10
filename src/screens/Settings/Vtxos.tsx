@@ -190,7 +190,7 @@ export default function Vtxos() {
           <IonGrid>
             <IonRow className='ion-align-items-end'>
               <IonCol size='4'>
-                <Text>{amount}</Text>
+                <Text tooltip={amount}>{amount}</Text>
               </IonCol>
               <IonCol size='4'>{tags}</IonCol>
               <IonCol size='4'>
@@ -204,6 +204,16 @@ export default function Vtxos() {
   }
 
   const VtxoLine = ({ vtxo }: { vtxo: Vtxo }) => {
+    console.log('Rendering VtxoLine for vtxo:', vtxo) // Debug log to check vtxo data
+    const now = Date.now()
+    console.log(
+      'Current time:',
+      now,
+      'vtxo batch expiry:',
+      vtxo.virtualStatus?.batchExpiry,
+      now > (vtxo.virtualStatus?.batchExpiry || 0),
+    ) // Debug log to check time and expiry
+    const expired = vtxo.virtualStatus?.batchExpiry ? now > vtxo.virtualStatus.batchExpiry : false
     const amount = config.showBalance ? prettyNumber(vtxo.value) : prettyHide(vtxo.value)
     const vtxoAssets = vtxo.assets
     const assetText = vtxoAssets?.length
@@ -221,7 +231,7 @@ export default function Vtxos() {
       <FlexRow centered>
         {vtxo.value < aspInfo.dust
           ? Tags.subdust
-          : vtxo.virtualStatus?.state === 'swept'
+          : vtxo.virtualStatus?.state === 'swept' || expired
             ? Tags.swept
             : wallet.thresholdMs && isVtxoExpiringSoon(vtxo, wallet.thresholdMs)
               ? Tags.expiring
