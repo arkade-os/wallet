@@ -1,5 +1,6 @@
 import { test as base, type Page } from '@playwright/test'
 import { exec } from 'child_process'
+import { faucetOffchain } from './fundedWallet'
 
 export const test = base.extend({
   page: async ({ page }, use) => {
@@ -191,7 +192,7 @@ async function restoreWallet(page: Page, nsec: string): Promise<void> {
 
 export async function fundWallet(page: Page, amount: number = 5000): Promise<void> {
   const arkAddress = await receiveOffchain(page)
-  exec(`docker exec -t arkd ark send --to ${arkAddress} --amount ${amount} --password secret`)
+  await faucetOffchain(arkAddress, amount)
   await waitForPaymentReceived(page)
   await page.getByTestId('tab-wallet').click()
 }

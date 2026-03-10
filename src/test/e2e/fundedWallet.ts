@@ -67,5 +67,5 @@ const getFundedWallet = async (arkUrl: string): Promise<Wallet> => {
 
 export async function faucetOffchain(address: string, amount: number): Promise<void> {
   const fundedWallet = await getFundedWallet('http://localhost:7070')
-  await fundedWallet.sendBitcoin({ address, amount })
+  await fundedWallet.send({ address, amount })
 }
