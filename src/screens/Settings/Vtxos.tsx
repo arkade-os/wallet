@@ -204,15 +204,7 @@ export default function Vtxos() {
   }
 
   const VtxoLine = ({ vtxo }: { vtxo: Vtxo }) => {
-    console.log('Rendering VtxoLine for vtxo:', vtxo) // Debug log to check vtxo data
     const now = Date.now()
-    console.log(
-      'Current time:',
-      now,
-      'vtxo batch expiry:',
-      vtxo.virtualStatus?.batchExpiry,
-      now > (vtxo.virtualStatus?.batchExpiry || 0),
-    ) // Debug log to check time and expiry
     const expired = vtxo.virtualStatus?.batchExpiry ? now > vtxo.virtualStatus.batchExpiry : false
     const amount = config.showBalance ? prettyNumber(vtxo.value) : prettyHide(vtxo.value)
     const vtxoAssets = vtxo.assets
