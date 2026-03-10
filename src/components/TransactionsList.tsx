@@ -126,6 +126,7 @@ export default function TransactionsList() {
 
   const focusRow = (index: number) => {
     if (index < 0 || index >= txs.length) return
+    setFocusedIndex(index)
     virtualizer.scrollToIndex(index)
     requestAnimationFrame(() => {
       const el = document.getElementById(key(txs[index], index)) as HTMLElement
@@ -194,6 +195,10 @@ export default function TransactionsList() {
                 <div
                   key={k}
                   data-testid='tx-row'
+                  onFocus={() => {
+                    if (focusedIndex !== virtualItem.index) setFocusedIndex(virtualItem.index)
+                    if (!focused) setFocused(true)
+                  }}
                   style={{
                     left: 0,
                     position: 'absolute',
