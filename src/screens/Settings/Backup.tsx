@@ -29,9 +29,11 @@ import { authenticateUser } from '../../lib/biometrics'
 import FingerprintIcon from '../../icons/Fingerprint'
 import InputPassword from '../../components/InputPassword'
 import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
+import { SwapsContext } from '../../providers/swaps'
 
 export default function Backup() {
   const { wallet } = useContext(WalletContext)
+  const { arkadeSwaps } = useContext(SwapsContext)
   const { backupConfig, config, updateConfig } = useContext(ConfigContext)
 
   const [present] = useIonToast()
@@ -89,7 +91,7 @@ export default function Backup() {
     updateConfig(newConfig)
     if (newConfig.nostrBackup) {
       const backupProvider = new BackupProvider({ pubkey: config.pubkey }, new IndexedDbSwapRepository())
-      await backupProvider.fullBackup(newConfig).catch((error) => {
+      await backupProvider.fullBackup(newConfig, arkadeSwaps ?? undefined).catch((error) => {
         consoleError(error, 'Backup to Nostr failed')
         setError('Backup to Nostr failed')
         return

@@ -43,6 +43,7 @@ import { IndexedDbSwapRepository, migrateToSwapRepository, Network } from '@arka
 const ASSET_METADATA_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 const SERVICE_WORKER_SETUP_TIMEOUT_MS = 10_000
 
+
 const defaultWallet: Wallet = {
   network: '',
   nextRollover: 0,
