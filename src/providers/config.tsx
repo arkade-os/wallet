@@ -5,14 +5,14 @@ import { Config, CurrencyDisplay, DelegatesConfig, Fiats, Themes, Unit } from '.
 import { BackupProvider } from '../lib/backup'
 import { consoleError } from '../lib/logs'
 import { setHapticsEnabled } from '../lib/haptics'
-import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
+import { IndexedDbSwapRepository, Network } from '@arkade-os/boltz-swap'
 
 const defaultConfig: Config = {
   announcementsSeen: [],
   apps: { assets: { enabled: false }, boltz: { connected: true } },
   aspUrl: defaultArkServer(),
   currencyDisplay: CurrencyDisplay.Both,
-  delegates: getDefaultDelegatesForNetwork('bitcoin' as any),
+  delegates: getDefaultDelegatesForNetwork('bitcoin' as Network),
   fiat: Fiats.USD,
   importedAssets: [],
   haptics: true,
