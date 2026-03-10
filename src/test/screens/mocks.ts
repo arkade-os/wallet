@@ -86,18 +86,30 @@ export const mockFiatContextValue = {
 export const mockSwapsContextValue = {
   arkadeSwaps: null,
   swapManager: null,
+  swapsInitError: null,
   connected: false,
+  calcArkToBtcSwapFee: () => 0,
+  calcBtcToArkSwapFee: () => 0,
   calcSubmarineSwapFee: () => 0,
   calcReverseSwapFee: () => 0,
+  createArkToBtcSwap: async () => null,
+  createBtcToArkSwap: async () => null,
   createSubmarineSwap: async () => null,
   createReverseSwap: async () => null,
+  claimArk: async () => {},
+  claimBtc: async () => {},
   claimVHTLC: async () => {},
+  refundArk: async () => {},
   refundVHTLC: async () => {},
+  payBtc: async () => {
+    throw new Error('Chain swap not initialized')
+  },
   payInvoice: async () => {
     throw new Error('Lightning not initialized')
   },
   getSwapHistory: async () => [],
   getApiUrl: () => null,
+  restoreSwaps: async () => 0,
   toggleConnection: () => {},
 }
 

@@ -21,12 +21,13 @@ import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
 import { PendingChainSwap, PendingReverseSwap } from '@arkade-os/boltz-swap'
 import { enableChainSwapsReceive } from '../../../lib/constants'
 import { centsToUnits } from '../../../lib/assets'
+import WarningBox from '../../../components/Warning'
 
 export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { arkadeSwaps, createBtcToArkSwap, createReverseSwap } = useContext(SwapsContext)
+  const { arkadeSwaps, swapsInitError, connected, createBtcToArkSwap, createReverseSwap } = useContext(SwapsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
   const { validBtcToArk, validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } =
     useContext(LimitsContext)
@@ -42,6 +43,7 @@ export default function ReceiveQRCode() {
   const [arkAddress, setArkAddress] = useState(offchainAddr)
   const [btcAddress, setBtcAddress] = useState(boardingAddr)
   const [showQrCode, setShowQrCode] = useState(!satoshis)
+  const [swapsTimedOut, setSwapsTimedOut] = useState(false)
   const [swapAddress, setSwapAddress] = useState('')
   const [qrCodeValue, setQrCodeValue] = useState('')
   const [bip21Uri, setBip21Uri] = useState('')
@@ -80,7 +82,32 @@ export default function ReceiveQRCode() {
 
   useEffect(() => {
     if (isAssetReceive) return setShowQrCode(true)
-    if (!satoshis || !svcWallet || !arkadeSwaps) return
+    if (!satoshis || !svcWallet) return
+
+    // LN is only expected when Boltz is enabled and this isn't an asset receive
+    const lnExpected = connected && !isAssetReceive
+
+    if (!arkadeSwaps) {
+      if (!lnExpected || swapsInitError) {
+        // LN not expected or already failed — show QR immediately
+        if (lnExpected && swapsInitError) {
+          consoleError(swapsInitError, 'Swaps unavailable, showing receive without swap options')
+          setSwapsTimedOut(true)
+        }
+        setShowQrCode(true)
+        return
+      }
+      // LN expected but swaps still initializing — wait up to 5s
+      const timeout = setTimeout(() => {
+        setSwapsTimedOut(true)
+        setShowQrCode(true)
+      }, 5_000)
+      return () => clearTimeout(timeout)
+    }
+
+    // arkadeSwaps is ready, generate swaps before showing QR to avoid QR code changing
+    setSwapsTimedOut(false)
+
     Promise.allSettled([createBtcAddress(), createLightningInvoice()]).then(([btc, lightning]) => {
       if (btc.status === 'fulfilled') {
         const pendingSwap = btc.value as PendingChainSwap
@@ -112,7 +139,7 @@ export default function ReceiveQRCode() {
       }
       setShowQrCode(true)
     })
-  }, [satoshis, svcWallet, arkadeSwaps])
+  }, [satoshis, svcWallet, arkadeSwaps, swapsInitError])
 
   //
   useEffect(() => {
@@ -130,7 +157,7 @@ export default function ReceiveQRCode() {
     setBtcAddress(btcAddress)
     setQrCodeValue(bip21uri)
     setBip21Uri(bip21uri)
-  }, [showQrCode])
+  }, [showQrCode, swapAddress, invoice])
 
   useEffect(() => {
     if (!svcWallet) return
@@ -212,6 +239,9 @@ export default function ReceiveQRCode() {
                 invoice={invoice || ''}
                 onClick={setQrCodeValue}
               />
+              {swapsTimedOut && !invoice && !isAssetReceive ? (
+                <WarningBox text='Lightning is temporarily unavailable. This QR code only supports Ark and on-chain payments.' />
+              ) : null}
             </FlexCol>
           ) : (
             <Loading text='Generating QR code...' />

@@ -33,6 +33,7 @@ interface SwapsContextProps {
   connected: boolean
   arkadeSwaps: ServiceWorkerArkadeSwaps | null
   swapManager: SwapManagerClient | null
+  swapsInitError: string | null
   toggleConnection: () => void
   // Helper methods for chain swaps
   calcArkToBtcSwapFee: (satoshis: number) => number
@@ -61,6 +62,7 @@ export const SwapsContext = createContext<SwapsContextProps>({
   connected: false,
   arkadeSwaps: null,
   swapManager: null,
+  swapsInitError: null,
   toggleConnection: () => {},
   calcArkToBtcSwapFee: () => 0,
   calcBtcToArkSwapFee: () => 0,
@@ -94,6 +96,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const [arkToBtcFees, setArkToBtcFees] = useState<ChainFeesResponse | null>(null)
   const [btcToArkFees, setBtcToArkFees] = useState<ChainFeesResponse | null>(null)
   const [arkadeSwaps, setArkadeSwaps] = useState<ServiceWorkerArkadeSwaps | null>(null)
+  const [swapsInitError, setSwapsInitError] = useState<string | null>(null)
   const [fees, setFees] = useState<FeesResponse | null>(null)
   const [apiUrl, setApiUrl] = useState<string | null>(null)
 
@@ -127,10 +130,14 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
           instance.dispose().catch(consoleError)
         } else {
           disposeArkadeSwaps = () => instance.dispose().catch(consoleError)
+          setSwapsInitError(null)
           setArkadeSwaps(instance)
         }
       })
-      .catch(console.error)
+      .catch((err) => {
+        consoleError(err, 'Failed to initialize swaps')
+        if (!cancelled) setSwapsInitError(err instanceof Error ? err.message : String(err))
+      })
     setLogger({
       log: (...args: unknown[]) => consoleLog(...args),
       error: (...args: unknown[]) => consoleError(args[0], args.slice(1).join(' ')),
@@ -347,6 +354,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         connected,
         arkadeSwaps,
         swapManager,
+        swapsInitError,
         toggleConnection,
         calcArkToBtcSwapFee,
         calcBtcToArkSwapFee,
