@@ -137,6 +137,7 @@ services:
         host = "boltz-fulmine"
         port = 7000
         useLocktimeSeconds = true
+
         [ark.unilateralDelays]
         claim = 444 # 3d.2h in blocks
         refund = 444 # 3d.2h in blocks
@@ -207,8 +208,10 @@ services:
         port = 18443
         user = "admin1"
         password = "123"
+        zmqpubrawtx = "tcp://bitcoin:28333"
+        zmqpubrawblock = "tcp://bitcoin:28332"
 
-        [currencies.lnd]
+        [[currencies.lnds]]
         host = "boltz-lnd"
         port = 10009
         certpath = "/home/boltz/.lnd/tls.cert"
