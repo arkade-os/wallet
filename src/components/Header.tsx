@@ -66,7 +66,7 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
         >
           {text}
         </IonTitle>
-        <div style={style} onClick={auxFunc} aria-label={auxAriaLabel}>
+        <div style={style} onClick={auxFunc} aria-label={auxAriaLabel} data-testid='header-aux-btn'>
           {auxText || auxIcon ? (
             <Focusable onEnter={auxFunc} fit round>
               {auxText ? SideButton(auxText) : <div style={{ padding: '0.5rem' }}>{auxIcon}</div>}
