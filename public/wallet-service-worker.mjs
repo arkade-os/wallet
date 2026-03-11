@@ -3103,7 +3103,7 @@ function Er(c, a) {
     }
   });
 }
-const ro = F0.Point, m5 = ro.Fn, pA = ro.Fn.ORDER, r1 = (c) => c % 2n === 0n, $0 = t6.isBytes, Xt = t6.concatBytes, D0 = t6.equalBytes, o2 = (c) => Y9(V0(c)), un = (...c) => V0(V0(Xt(...c))), zf = yi.utils.randomSecretKey, i1 = yi.getPublicKey, o6 = F0.getPublicKey, v5 = (c) => c.r < pA / 2n;
+const ro = F0.Point, m5 = ro.Fn, pA = ro.Fn.ORDER, r1 = (c) => c % 2n === 0n, $0 = t6.isBytes, Xt = t6.concatBytes, U0 = t6.equalBytes, o2 = (c) => Y9(V0(c)), un = (...c) => V0(V0(Xt(...c))), zf = yi.utils.randomSecretKey, i1 = yi.getPublicKey, o6 = F0.getPublicKey, v5 = (c) => c.r < pA / 2n;
 function IT(c, a, l = !1) {
   let k = F0.Signature.fromBytes(F0.sign(c, a, { prehash: !1 }));
   if (l && !v5(k)) {
@@ -3756,7 +3756,7 @@ function u9(c, a, l, k, d) {
       }
     } else if (typeof g[y] == "string")
       g[y] = I.decode(q.decode(g[y]));
-    else if (P && y in a && l && l[y] !== void 0 && !D0(I.encode(a[y]), I.encode(l[y])))
+    else if (P && y in a && l && l[y] !== void 0 && !U0(I.encode(a[y]), I.encode(l[y])))
       throw new Error(`Cannot change signed field=${y}`);
   }
   for (const y in g)
@@ -3943,7 +3943,7 @@ const zT = {
   return c;
 });
 function R5(c, a) {
-  if (!D0(c.hash, V0(a)))
+  if (!U0(c.hash, V0(a)))
     throw new Error("checkScript: wsh wrong witnessScript hash");
   const l = a0.decode(a);
   if (l.type === "tr" || l.type === "tr_ns" || l.type === "tr_ms")
@@ -3957,7 +3957,7 @@ function o1(c, a, l) {
     if (k.type === "tr_ns" || k.type === "tr_ms" || k.type === "ms" || k.type == "pk")
       throw new Error(`checkScript: non-wrapped ${k.type}`);
     if (k.type === "sh" && a) {
-      if (!D0(k.hash, o2(a)))
+      if (!U0(k.hash, o2(a)))
         throw new Error("checkScript: sh wrong redeemScript hash");
       const d = a0.decode(a);
       if (d.type === "tr" || d.type === "tr_ns" || d.type === "tr_ms")
@@ -4061,9 +4061,9 @@ function nb(c, a, l = !1, k) {
   const g = d;
   if (!l && g.pubkeys)
     for (const y of g.pubkeys) {
-      if (D0(y, n1))
+      if (U0(y, n1))
         throw new Error("Unspendable taproot key in leaf script");
-      if (D0(y, a))
+      if (U0(y, a))
         throw new Error("Using P2TR with leaf script with same key as internal key is not supported");
     }
 }
@@ -4111,7 +4111,7 @@ function k9(c, a, l = !1, k) {
     throw new Error("taprootHashTree: empty tree");
   if (Array.isArray(c) && c.length === 1 && (c = c[0]), !Array.isArray(c)) {
     const { leafVersion: S, script: b } = c;
-    if (c.tapLeafScript || c.tapMerkleRoot && !D0(c.tapMerkleRoot, H0))
+    if (c.tapLeafScript || c.tapMerkleRoot && !U0(c.tapMerkleRoot, H0))
       throw new Error("P2TR: tapRoot leafScript cannot have tree");
     const I = typeof b == "string" ? q.decode(b) : b;
     if (!$0(I))
@@ -4345,7 +4345,7 @@ const T0 = {
   SINGLE_ANYONECANPAY: T0.SINGLE | T0.ANYONECANPAY
 }, kb = wA(Ut);
 function Ab(c, a, l, k = H0) {
-  return D0(l, a) && (c = CT(c, k), a = i1(c)), { privKey: c, pubKey: a };
+  return U0(l, a) && (c = CT(c, k), a = i1(c)), { privKey: c, pubKey: a };
 }
 function S2(c) {
   if (c.script === void 0 || c.amount === void 0)
@@ -4430,7 +4430,7 @@ function N5(c) {
     if (c.index > a)
       throw new Error(`validateInput: index(${c.index}) not in nonWitnessUtxo`);
     const l = c.nonWitnessUtxo.outputs[c.index];
-    if (c.witnessUtxo && (!D0(c.witnessUtxo.script, l.script) || c.witnessUtxo.amount !== l.amount))
+    if (c.witnessUtxo && (!U0(c.witnessUtxo.script, l.script) || c.witnessUtxo.amount !== l.amount))
       throw new Error("validateInput: witnessUtxo different from nonWitnessUtxo");
     if (c.txid) {
       if (c.nonWitnessUtxo.outputs.length - 1 < c.index)
@@ -4830,7 +4830,7 @@ let lt = class Sf {
         let N = a;
         for (const M of $)
           N = N.deriveChild(M);
-        if (!D0(N.publicKey, O))
+        if (!U0(N.publicKey, O))
           throw new Error("bip32Derivation: wrong pubKey");
         if (!N.privateKey)
           throw new Error("bip32Derivation: no privateKey");
@@ -4856,7 +4856,7 @@ let lt = class Sf {
       let $ = !1, N = i1(a), M = g.tapMerkleRoot || H0;
       if (g.tapInternalKey) {
         const { pubKey: V, privKey: Z } = Ab(a, N, g.tapInternalKey, M), [he, de] = Gf(g.tapInternalKey, M);
-        if (D0(he, V)) {
+        if (U0(he, V)) {
           const me = this.preimageWitnessV1(l, P, E, O), fe = Xt(E5(me, Z, d), E !== T0.DEFAULT ? new Uint8Array([E]) : H0);
           this.updateInput(l, { tapKeySig: fe }, !0), $ = !0;
         }
@@ -4865,7 +4865,7 @@ let lt = class Sf {
         g.tapScriptSig = g.tapScriptSig || [];
         for (const [V, Z] of g.tapLeafScript) {
           const he = Z.subarray(0, -1), de = qe.decode(he), me = Z[Z.length - 1], fe = gn(he, me);
-          if (de.findIndex((Q) => $0(Q) && D0(Q, N)) === -1)
+          if (de.findIndex((Q) => $0(Q) && U0(Q, N)) === -1)
             continue;
           const j = this.preimageWitnessV1(l, P, E, O, void 0, he, me), ie = Xt(E5(j, a, d), E !== T0.DEFAULT ? new Uint8Array([E]) : H0);
           this.updateInput(l, { tapScriptSig: [[{ pubKey: N, leafHash: fe }, ie]] }, !0), $ = !0;
@@ -4879,7 +4879,7 @@ let lt = class Sf {
       let P = !1;
       const O = o2(I);
       for (const M of qe.decode(y.lastScript))
-        $0(M) && (D0(M, I) || D0(M, O)) && (P = !0);
+        $0(M) && (U0(M, I) || U0(M, O)) && (P = !0);
       if (!P)
         throw new Error(`Input script doesn't have pubKey: ${y.lastScript}`);
       let $;
@@ -4925,13 +4925,13 @@ let lt = class Sf {
       else if (l.tapLeafScript && l.tapScriptSig) {
         const S = l.tapLeafScript.sort((b, I) => ti.encode(b[0]).length - ti.encode(I[0]).length);
         for (const [b, I] of S) {
-          const P = I.slice(0, -1), O = I[I.length - 1], $ = a0.decode(P), N = gn(P, O), M = l.tapScriptSig.filter((Z) => D0(Z[0].leafHash, N));
+          const P = I.slice(0, -1), O = I[I.length - 1], $ = a0.decode(P), N = gn(P, O), M = l.tapScriptSig.filter((Z) => U0(Z[0].leafHash, N));
           let V = [];
           if ($.type === "tr_ms") {
             const Z = $.m, he = $.pubkeys;
             let de = 0;
             for (const me of he) {
-              const fe = M.findIndex((Ae) => D0(Ae[0].pubKey, me));
+              const fe = M.findIndex((Ae) => U0(Ae[0].pubKey, me));
               if (de === Z || fe === -1) {
                 V.push(H0);
                 continue;
@@ -4942,7 +4942,7 @@ let lt = class Sf {
               continue;
           } else if ($.type === "tr_ns") {
             for (const Z of $.pubkeys) {
-              const he = M.findIndex((de) => D0(de[0].pubKey, Z));
+              const he = M.findIndex((de) => U0(de[0].pubKey, Z));
               he !== -1 && V.push(M[he][1]);
             }
             if (V.length !== $.pubkeys.length)
@@ -4950,7 +4950,7 @@ let lt = class Sf {
           } else if ($.type === "unknown" && this.opts.allowUnknownInputs) {
             const Z = qe.decode(P);
             if (V = M.map(([{ pubKey: he }, de]) => {
-              const me = Z.findIndex((fe) => $0(fe) && D0(fe, he));
+              const me = Z.findIndex((fe) => $0(fe) && U0(fe, he));
               if (me === -1)
                 throw new Error("finalize/taproot: cannot find position of pubkey in script");
               return { signature: de, pos: me };
@@ -4990,7 +4990,7 @@ let lt = class Sf {
       const S = k.last.m, b = k.last.pubkeys;
       let I = [];
       for (const P of b) {
-        const O = l.partialSig.find(($) => D0(P, $[0]));
+        const O = l.partialSig.find(($) => U0(P, $[0]));
         O && I.push(O[1]);
       }
       if (I = I.slice(0, S), I.length !== S)
@@ -5036,7 +5036,7 @@ let lt = class Sf {
       if (this[d].length !== a[d].length)
         throw new Error(`Transaction/combine: different ${d} length this=${this[d].length} other=${a[d].length}`);
     const l = this.global.unsignedTx ? Bs.encode(this.global.unsignedTx) : H0, k = a.global.unsignedTx ? Bs.encode(a.global.unsignedTx) : H0;
-    if (!D0(l, k))
+    if (!U0(l, k))
       throw new Error("Transaction/combine: different unsigned tx");
     this.global = u9(a6, this.global, a.global, void 0, this.opts.allowUnknown);
     for (let d = 0; d < this.inputs.length; d++)
@@ -5124,7 +5124,7 @@ function yb(c, a, l) {
   let k = H0, d;
   if (c.txType === "taproot") {
     const E = c.sighash !== T0.DEFAULT ? 65 : 64;
-    if (a.tapInternalKey && !D0(a.tapInternalKey, n1))
+    if (a.tapInternalKey && !U0(a.tapInternalKey, n1))
       d = [new Uint8Array(E)];
     else if (a.tapLeafScript)
       d = gb(a.tapLeafScript, E, l.customScripts);
@@ -8576,7 +8576,7 @@ function sI({ psbt: c, vout: a, txHex: l, txId: k, value: d, sequence: g, lockti
     const he = Z.script;
     if (!he)
       throw new Error(`Error: could not extract outputScript for txHex ${l} and vout ${a}`);
-    if (!D0(he, S))
+    if (!U0(he, S))
       throw new Error(`Error: txHex ${l} for vout ${a} does not correspond to scriptPubKey ${q.encode(S)}`);
     const de = Bs.encode(V), me = V0(V0(de)), fe = q.encode(me.slice().reverse());
     if (k !== void 0) {
@@ -35185,7 +35185,7 @@ function bI() {
                     t = e[t + 8 >> 2], L[e[e[t >> 2] + 24 >> 2]](t, r, i, n, o);
                   }
                 }
-                function _0(t) {
+                function D0(t) {
                   var r = 0, i = 0, n = 0, o = 0;
                   if (o = C - 16 | 0, C = o, r = o + 4 | 0, e[r + 4 >> 2] = 190, e[r >> 2] = t, e[r + 8 >> 2] = 0, n = C - 16 | 0, C = n, e[t >> 2] != -1)
                     e: {
@@ -37717,7 +37717,7 @@ function bI() {
                 }
                 function nn(t, r) {
                   var i = 0;
-                  return r = _0(r), i = e[t + 12 >> 2], t = e[t + 8 >> 2], r >>> 0 < i - t >> 2 >>> 0 ? i = e[t + (r << 2) >> 2] != 0 : i = 0, i || (t = Vr(4), e[t >> 2] = 22892, e[t >> 2] = 22736, Mr(t | 0, 22872, 173), W()), e[t + (r << 2) >> 2];
+                  return r = D0(r), i = e[t + 12 >> 2], t = e[t + 8 >> 2], r >>> 0 < i - t >> 2 >>> 0 ? i = e[t + (r << 2) >> 2] != 0 : i = 0, i || (t = Vr(4), e[t >> 2] = 22892, e[t >> 2] = 22736, Mr(t | 0, 22872, 173), W()), e[t + (r << 2) >> 2];
                 }
                 function X0(t) {
                   var r = 0, i = 0, n = 0;
@@ -38875,94 +38875,94 @@ function bI() {
                   return t = t | 0, zl(e[t >> 2]), t | 0;
                 }
                 function LE(t) {
-                  t = t | 0, M0(t, 26616, _0(24916));
+                  t = t | 0, M0(t, 26616, D0(24916));
                 }
                 function FE(t) {
-                  t = t | 0, M0(t, 26632, _0(24988));
+                  t = t | 0, M0(t, 26632, D0(24988));
                 }
                 function VE(t) {
-                  t = t | 0, M0(t, 26640, _0(24996));
+                  t = t | 0, M0(t, 26640, D0(24996));
                 }
                 function WE(t) {
-                  t = t | 0, M0(t, 26320, _0(24844));
+                  t = t | 0, M0(t, 26320, D0(24844));
                 }
                 function HE(t) {
-                  t = t | 0, M0(t, 26328, _0(24852));
+                  t = t | 0, M0(t, 26328, D0(24852));
                 }
                 function KE(t) {
-                  t = t | 0, M0(t, 26352, _0(25040));
+                  t = t | 0, M0(t, 26352, D0(25040));
                 }
                 function QE(t) {
-                  t = t | 0, M0(t, 26360, _0(25056));
+                  t = t | 0, M0(t, 26360, D0(25056));
                 }
                 function zE(t) {
-                  t = t | 0, M0(t, 26368, _0(25064));
+                  t = t | 0, M0(t, 26368, D0(25064));
                 }
                 function GE(t) {
-                  t = t | 0, M0(t, 26384, _0(25072));
+                  t = t | 0, M0(t, 26384, D0(25072));
                 }
                 function jE(t) {
-                  t = t | 0, M0(t, 26392, _0(25088));
+                  t = t | 0, M0(t, 26392, D0(25088));
                 }
                 function XE(t) {
-                  t = t | 0, M0(t, 26400, _0(25080));
+                  t = t | 0, M0(t, 26400, D0(25080));
                 }
                 function YE(t) {
-                  t = t | 0, M0(t, 26408, _0(25096));
+                  t = t | 0, M0(t, 26408, D0(25096));
                 }
                 function ZE(t) {
-                  t = t | 0, M0(t, 26416, _0(25104));
+                  t = t | 0, M0(t, 26416, D0(25104));
                 }
                 function qE(t) {
-                  t = t | 0, M0(t, 26440, _0(25112));
+                  t = t | 0, M0(t, 26440, D0(25112));
                 }
                 function JE(t) {
-                  t = t | 0, M0(t, 26472, _0(24860));
+                  t = t | 0, M0(t, 26472, D0(24860));
                 }
                 function eS(t) {
-                  t = t | 0, M0(t, 26480, _0(24868));
+                  t = t | 0, M0(t, 26480, D0(24868));
                 }
                 function tS(t) {
-                  t = t | 0, M0(t, 26488, _0(24876));
+                  t = t | 0, M0(t, 26488, D0(24876));
                 }
                 function rS(t) {
-                  t = t | 0, M0(t, 26496, _0(24884));
+                  t = t | 0, M0(t, 26496, D0(24884));
                 }
                 function iS(t) {
-                  t = t | 0, M0(t, 26504, _0(24924));
+                  t = t | 0, M0(t, 26504, D0(24924));
                 }
                 function nS(t) {
-                  t = t | 0, M0(t, 26512, _0(24932));
+                  t = t | 0, M0(t, 26512, D0(24932));
                 }
                 function sS(t) {
-                  t = t | 0, M0(t, 26520, _0(24940));
+                  t = t | 0, M0(t, 26520, D0(24940));
                 }
                 function oS(t) {
-                  t = t | 0, M0(t, 26528, _0(24948));
+                  t = t | 0, M0(t, 26528, D0(24948));
                 }
                 function fS(t) {
-                  t = t | 0, M0(t, 26536, _0(24956));
+                  t = t | 0, M0(t, 26536, D0(24956));
                 }
                 function aS(t) {
-                  t = t | 0, M0(t, 26544, _0(24964));
+                  t = t | 0, M0(t, 26544, D0(24964));
                 }
                 function cS(t) {
-                  t = t | 0, M0(t, 26552, _0(24972));
+                  t = t | 0, M0(t, 26552, D0(24972));
                 }
                 function uS(t) {
-                  t = t | 0, M0(t, 26560, _0(24980));
+                  t = t | 0, M0(t, 26560, D0(24980));
                 }
                 function lS(t) {
-                  t = t | 0, M0(t, 26568, _0(24892));
+                  t = t | 0, M0(t, 26568, D0(24892));
                 }
                 function hS(t) {
-                  t = t | 0, M0(t, 26584, _0(24900));
+                  t = t | 0, M0(t, 26584, D0(24900));
                 }
                 function kS(t) {
-                  t = t | 0, M0(t, 26600, _0(24908));
+                  t = t | 0, M0(t, 26600, D0(24908));
                 }
                 function AS(t) {
-                  t = t | 0, M0(t, 26336, _0(25048));
+                  t = t | 0, M0(t, 26336, D0(25048));
                 }
                 function Yc(t) {
                   return t = t | 0, nn(t, 25048) | 0;
@@ -40785,8 +40785,8 @@ function CI({ ECPair: c = rI, BIP32: a = iI } = {}) {
         throw new Error("Error: utxo should exist");
       re = Ee.script;
     }
-    const z = this.getLockTime() || 0, H = this.getSequence(), Y = H !== void 0 ? H : z === 0 ? 4294967295 : 4294967294, X = H !== void 0 ? H : 4294967293, te = (ae, Ee) => ae && Ee ? D0(ae, Ee) : ae === void 0 && Ee === void 0;
-    if (!D0(re, this.getScriptPubKey()) || X !== Q && Y !== Q || z !== Ae.lockTime || !te(this.getWitnessScript(), ie.witnessScript) || !te(this.getRedeemScript(), ie.redeemScript))
+    const z = this.getLockTime() || 0, H = this.getSequence(), Y = H !== void 0 ? H : z === 0 ? 4294967295 : 4294967294, X = H !== void 0 ? H : 4294967293, te = (ae, Ee) => ae && Ee ? U0(ae, Ee) : ae === void 0 && Ee === void 0;
+    if (!U0(re, this.getScriptPubKey()) || X !== Q && Y !== Q || z !== Ae.lockTime || !te(this.getWitnessScript(), ie.witnessScript) || !te(this.getRedeemScript(), ie.redeemScript))
       throw new Error(`Error: cannot finalize psbt index ${j} since it does not correspond to this descriptor`);
   }, {
     Output: me,
@@ -43220,7 +43220,7 @@ class ri {
       if (l.length < 2 || l[0] !== "RETURN")
         return !1;
       const k = l[1];
-      return k instanceof Uint8Array ? k.length >= Mi.length && D0(k.slice(0, Mi.length), Mi) : !1;
+      return k instanceof Uint8Array ? k.length >= Mi.length && U0(k.slice(0, Mi.length), Mi) : !1;
     } catch {
       return !1;
     }
@@ -43246,7 +43246,7 @@ class ri {
     let g = 0;
     for (const b of k)
       d.set(b, g), g += b.length;
-    if (d.length < Mi.length || !D0(d.slice(0, Mi.length), Mi))
+    if (d.length < Mi.length || !U0(d.slice(0, Mi.length), Mi))
       throw new Error(`expected magic prefix ${q.encode(Mi)}, got ${q.encode(d.slice(0, Math.min(d.length, Mi.length)))}`);
     const y = new vi(d.slice(Mi.length)), E = [];
     for (; y.remaining() > 0; ) {
@@ -43358,7 +43358,7 @@ function bC(c, a, l, k) {
     if (k.has(y))
       continue;
     const E = c.getOutput(y);
-    if (!(!E?.script || E.script.length === 0) && D0(E.script, g)) {
+    if (!(!E?.script || E.script.length === 0) && U0(E.script, g)) {
       if (E.amount !== BigInt(a.amount))
         continue;
       k.add(y);
@@ -43377,7 +43377,7 @@ function BC(c, a, l, k) {
     const S = c[E];
     for (let b = 0; b < S.outputsLength; b++) {
       const I = S.getOutput(b);
-      if (!I?.script || I.script.length === 0 || !D0(I.script, d) || I.amount !== g)
+      if (!I?.script || I.script.length === 0 || !U0(I.script, d) || I.amount !== g)
         continue;
       const P = `${E}:${b}`;
       if (!k.has(P)) {
@@ -45246,7 +45246,7 @@ class c2 {
     if (!y) return;
     const E = a[l], S = d.debugType(E);
     switch (y) {
-      case U0.dyn:
+      case _0.dyn:
       case S:
         return E;
       default:
@@ -45378,7 +45378,7 @@ function X6(c, a) {
 function uR(c) {
   return new c2({ kind: "param", name: c, type: c });
 }
-const di = Bd(), Of = ln("ast"), Rk = j6(di), Pk = X6(di, di), U0 = {
+const di = Bd(), Of = ln("ast"), Rk = j6(di), Pk = X6(di, di), _0 = {
   string: ln("string"),
   bool: ln("bool"),
   int: ln("int"),
@@ -45394,11 +45394,11 @@ const di = Bd(), Of = ln("ast"), Rk = j6(di), Pk = X6(di, di), U0 = {
   map: Pk,
   "map<dyn, dyn>": Pk
 };
-for (const c of [U0.string, U0.double, U0.int]) {
-  const a = j6(c), l = X6(U0.string, c);
-  U0[a.name] = a, U0[l.name] = l;
+for (const c of [_0.string, _0.double, _0.int]) {
+  const a = j6(c), l = X6(_0.string, c);
+  _0[a.name] = a, _0[l.name] = l;
 }
-Object.freeze(U0);
+Object.freeze(_0);
 class lR {
   returnType = null;
   /** @type {Array<FunctionDeclaration>} */
@@ -45450,15 +45450,15 @@ function Nk(c) {
   return l && a.push(l.trim()), a;
 }
 const Cd = [
-  [void 0, "map", qr.map, U0.map],
-  [Object, "map", qr.map, U0.map],
-  [Map, "map", qr.map, U0.map],
-  [Array, "list", qr.list, U0.list],
-  [I2, "uint", qr.uint, U0.uint],
-  [dr, "type", qr.type, U0.type],
-  [ji, "optional", iR, U0.optional],
-  [Uint8Array, "bytes", qr.bytes, U0.bytes],
-  ...typeof Buffer < "u" ? [[Buffer, "bytes", qr.bytes, U0.bytes]] : []
+  [void 0, "map", qr.map, _0.map],
+  [Object, "map", qr.map, _0.map],
+  [Map, "map", qr.map, _0.map],
+  [Array, "list", qr.list, _0.list],
+  [I2, "uint", qr.uint, _0.uint],
+  [dr, "type", qr.type, _0.type],
+  [ji, "optional", iR, _0.optional],
+  [Uint8Array, "bytes", qr.bytes, _0.bytes],
+  ...typeof Buffer < "u" ? [[Buffer, "bytes", qr.bytes, _0.bytes]] : []
 ].map(([c, a, l, k]) => Object.freeze({ name: a, typeType: l, type: k, ctor: c })), hR = Cd.map((c) => [c.name, c]), kR = Cd.map((c) => [c.ctor, c]);
 class Y6 {
   #e = {};
@@ -45473,7 +45473,7 @@ class Y6 {
   #k = /* @__PURE__ */ new Map();
   constructor(a = {}) {
     if (this.enableOptionalTypes = a.enableOptionalTypes ?? !1, this.objectTypes = Wn(a.objectTypes || hR), this.objectTypesByConstructor = Wn(a.objectTypesByConstructor || kR), this.#n = Wn(a.functionDeclarations), this.#i = Wn(a.operatorDeclarations), this.#r = Wn(
-      a.typeDeclarations || eR(U0),
+      a.typeDeclarations || eR(_0),
       void 0,
       !1
     ), this.constants = Wn(a.constants), this.variables = a.unlistedVariablesAreDyn ? Wn(a.variables, nR) : Wn(a.variables), this.variables.size)
@@ -45635,7 +45635,7 @@ class Y6 {
     const d = this.#d(a, l, k);
     if (d.length === 0) return !1;
     const g = d[0].returnType;
-    return d.every((y) => y.returnType === g) ? g : (g.kind === "list" || g.kind === "map") && d.every((y) => y.returnType.kind === g.kind) ? g.kind === "list" ? U0.list : U0.map : U0.dyn;
+    return d.every((y) => y.returnType === g) ? g : (g.kind === "list" || g.kind === "map") && d.every((y) => y.returnType.kind === g.kind) ? g.kind === "list" ? _0.list : _0.map : _0.dyn;
   }
   #w(a, l, k, d, g) {
     const y = a[l] ??= /* @__PURE__ */ new Map();
@@ -45668,7 +45668,7 @@ class Y6 {
     const g = d || l.kind === "dyn";
     switch (l = l.unwrappedType, a.kind) {
       case "param": {
-        const y = g ? U0.dyn : l;
+        const y = g ? _0.dyn : l;
         return this.#v(a.name, y, k);
       }
       case "list":
@@ -45957,15 +45957,15 @@ function Vu(c, a) {
   }
 }
 class Rd {
-  dynType = U0.dyn;
-  optionalType = U0.optional;
-  stringType = U0.string;
-  intType = U0.int;
-  doubleType = U0.double;
-  boolType = U0.bool;
-  nullType = U0.null;
-  listType = U0.list;
-  mapType = U0.map;
+  dynType = _0.dyn;
+  optionalType = _0.optional;
+  stringType = _0.string;
+  intType = _0.int;
+  doubleType = _0.double;
+  boolType = _0.bool;
+  nullType = _0.null;
+  listType = _0.list;
+  mapType = _0.map;
   constructor(a) {
     this.opts = a.opts, this.objectTypes = a.objectTypes, this.objectTypesByConstructor = a.objectTypesByConstructor, this.registry = a.registry;
   }
@@ -46256,7 +46256,7 @@ const e0 = {
       const g = c.debugType(d);
       switch (k) {
         case g:
-        case U0.dyn:
+        case _0.dyn:
           return d;
         default:
           if (k.matches(g)) return d;
@@ -48042,7 +48042,7 @@ class zR {
       const $ = O.virtualStatus.batchExpiry;
       if (!$)
         continue;
-      const N = XR($);
+      const N = YR($);
       g.set(N, [
         ...g.get(N) ?? [],
         O
@@ -48124,7 +48124,7 @@ async function zu(c, a, l, k, d, g) {
     script: d,
     amount: O
   });
-  const de = await jR(c, k, V, [], [N], I), me = a0.encode(st(pd(b)).decode(S)), fe = await Promise.all(k.filter((Ae) => !Gi(Ae)).map(async (Ae) => {
+  const de = await jR(c, k, V, [], [N], I, d), me = a0.encode(st(pd(b)).decode(S)), fe = await Promise.all(k.filter((Ae) => !Gi(Ae)).map(async (Ae) => {
     const j = await GR(Ae, E, N, me, c);
     return h0.encode(j.toPSBT());
   }));
@@ -48155,52 +48155,54 @@ async function GR(c, a, l, k, d) {
   });
   return d.sign(E);
 }
-async function jR(c, a, l, k, d, g) {
-  const y = /* @__PURE__ */ new Map();
-  for (let $ = 0; $ < a.length; $++)
-    if ("assets" in a[$]) {
-      const N = a[$].assets;
-      N && N.length > 0 && y.set($ + 1, N);
+async function jR(c, a, l, k, d, g, y) {
+  const E = /* @__PURE__ */ new Map();
+  for (let N = 0; N < a.length; N++)
+    if ("assets" in a[N]) {
+      const M = a[N].assets;
+      M && M.length > 0 && E.set(N + 1, M);
     }
-  let E, S;
-  if (y.size > 0) {
-    const $ = /* @__PURE__ */ new Map();
-    for (const [, M] of y)
+  let S;
+  const b = XR(l, y);
+  if (E.size > 0) {
+    if (b === -1)
+      throw new Error("Cannot assign assets: no output matches the destination address");
+    const N = /* @__PURE__ */ new Map();
+    for (const [, M] of E)
       for (const V of M) {
-        const Z = $.get(V.assetId) ?? 0n;
-        $.set(V.assetId, Z + BigInt(V.amount));
+        const Z = N.get(V.assetId) ?? 0n;
+        N.set(V.assetId, Z + BigInt(V.amount));
       }
-    E = [];
-    for (const [M, V] of $)
-      E.push({ assetId: M, amount: Number(V) });
-    const N = l.findIndex((M, V) => !k.includes(V));
-    if (N === -1)
-      throw new Error("Cannot settle assets without an offchain output");
-    S = N;
+    S = [];
+    for (const [M, V] of N)
+      S.push({ assetId: M, amount: Number(V) });
   }
-  const b = l.map(($, N) => ({
+  const I = l.map((N, M) => ({
     address: "",
     // not needed for asset packet creation
-    amount: Number($.amount),
-    assets: N === S ? E : void 0
+    amount: Number(N.amount),
+    assets: M === b ? S : void 0
   }));
-  if (E && E.length > 0) {
-    const $ = U9(y, b);
-    l.push(ri.create([$]).txOut());
+  if (S && S.length > 0) {
+    const N = U9(E, I);
+    l.push(ri.create([N]).txOut());
   }
-  const I = {
+  const P = {
     type: "register",
     onchain_output_indexes: k,
     valid_at: Math.floor(g),
     expire_at: 0,
     cosigners_public_keys: d
-  }, P = ii.create(I, a, l), O = await c.sign(P);
+  }, O = ii.create(P, a, l), $ = await c.sign(O);
   return {
-    proof: h0.encode(O.toPSBT()),
-    message: I
+    proof: h0.encode($.toPSBT()),
+    message: P
   };
 }
-function XR(c) {
+function XR(c, a) {
+  return c.findIndex((l) => l.script && U0(l.script, a));
+}
+function YR(c) {
   const a = new Date(c);
   return a.setUTCHours(0, 0, 0, 0), a.getTime();
 }
@@ -48282,13 +48284,13 @@ function Fd(c) {
 const ma = ([c, a]) => ({
   cb: q.encode(ti.encode(c)),
   s: q.encode(a)
-}), YR = (c) => ({
+}), ZR = (c) => ({
   ...c,
   tapTree: q.encode(c.tapTree),
   forfeitTapLeafScript: ma(c.forfeitTapLeafScript),
   intentTapLeafScript: ma(c.intentTapLeafScript),
   extraWitness: c.extraWitness?.map(q.encode)
-}), ZR = (c) => ({
+}), qR = (c) => ({
   ...c,
   tapTree: q.encode(c.tapTree),
   forfeitTapLeafScript: ma(c.forfeitTapLeafScript),
@@ -48297,28 +48299,28 @@ const ma = ([c, a]) => ({
 }), va = (c) => {
   const a = ti.decode(q.decode(c.cb)), l = q.decode(c.s);
   return [a, l];
-}, qR = (c) => ({
+}, JR = (c) => ({
   ...c,
   createdAt: new Date(c.createdAt),
   tapTree: q.decode(c.tapTree),
   forfeitTapLeafScript: va(c.forfeitTapLeafScript),
   intentTapLeafScript: va(c.intentTapLeafScript),
   extraWitness: c.extraWitness?.map(q.decode)
-}), JR = (c) => ({
+}), eP = (c) => ({
   ...c,
   tapTree: q.decode(c.tapTree),
   forfeitTapLeafScript: va(c.forfeitTapLeafScript),
   intentTapLeafScript: va(c.intentTapLeafScript),
   extraWitness: c.extraWitness?.map(q.decode)
 });
-function eP() {
+function tP() {
   if (typeof globalThis < "u")
     return typeof globalThis.self == "object" && globalThis.self !== null ? { globalObject: globalThis.self } : typeof globalThis.window == "object" && globalThis.window !== null ? { globalObject: globalThis.window } : { globalObject: globalThis };
   throw new Error("Global object not found");
 }
 const Lo = /* @__PURE__ */ new Map(), M2 = /* @__PURE__ */ new Map();
 async function e4(c, a, l) {
-  const { globalObject: k } = eP();
+  const { globalObject: k } = tP();
   if (!k.indexedDB)
     throw new Error("IndexedDB is not available in this environment");
   const d = Lo.get(c);
@@ -48384,7 +48386,7 @@ class Wd {
           const S = k.getAll();
           S.onerror = () => E(S.error), S.onsuccess = () => y(S.result ?? []);
         });
-      const d = rP(a);
+      const d = iP(a);
       if (d.has("script")) {
         const y = d.get("script"), E = await Promise.all(y.map((S) => new Promise((b, I) => {
           const P = k.get(S);
@@ -48453,10 +48455,10 @@ class Wd {
     this.db && (await t4(this.dbName), this.db = null);
   }
 }
-const tP = ["script", "state", "type"];
-function rP(c) {
+const rP = ["script", "state", "type"];
+function iP(c) {
   const a = /* @__PURE__ */ new Map();
-  return tP.forEach((l) => {
+  return rP.forEach((l) => {
     c?.[l] && (Array.isArray(c[l]) ? a.set(l, c[l]) : a.set(l, [c[l]]));
   }), a;
 }
@@ -48500,7 +48502,7 @@ class Hd {
       return new Promise((k, d) => {
         const S = l.transaction([Li], "readonly").objectStore(Li).index("address").getAll(a);
         S.onerror = () => d(S.error), S.onsuccess = () => {
-          const I = (S.result || []).map(qR);
+          const I = (S.result || []).map(JR);
           k(I);
         };
       });
@@ -48513,7 +48515,7 @@ class Hd {
       const k = await this.getDB();
       return new Promise((d, g) => {
         const y = k.transaction([Li], "readwrite"), E = y.objectStore(Li), S = l.map((b) => new Promise((I, P) => {
-          const O = YR(b), $ = {
+          const O = ZR(b), $ = {
             address: a,
             ...O
           }, N = E.put($);
@@ -48545,7 +48547,7 @@ class Hd {
       return new Promise((k, d) => {
         const S = l.transaction([Fi], "readonly").objectStore(Fi).index("address").getAll(a);
         S.onerror = () => d(S.error), S.onsuccess = () => {
-          const I = (S.result || []).map(JR);
+          const I = (S.result || []).map(eP);
           k(I);
         };
       });
@@ -48558,7 +48560,7 @@ class Hd {
       const k = await this.getDB();
       return new Promise((d, g) => {
         const y = k.transaction([Fi], "readwrite"), E = y.objectStore(Fi), S = l.map((b) => new Promise((I, P) => {
-          const O = ZR(b), $ = {
+          const O = qR(b), $ = {
             address: a,
             ...O
           }, N = E.put($);
@@ -48664,7 +48666,7 @@ class Hd {
     return this.db ? this.db : (this.db = await e4(this.dbName, Ld, Fd), this.db);
   }
 }
-class iP {
+class nP {
   constructor(a) {
     this.contracts = /* @__PURE__ */ new Map(), this.isWatching = !1, this.connectionState = "disconnected", this.reconnectAttempts = 0, this.config = {
       failsafePollIntervalMs: 6e4,
@@ -49040,7 +49042,7 @@ class iP {
 }
 class r4 {
   constructor(a) {
-    this.initialized = !1, this.eventCallbacks = /* @__PURE__ */ new Set(), this.config = a, this.watcher = new iP({
+    this.initialized = !1, this.eventCallbacks = /* @__PURE__ */ new Set(), this.config = a, this.watcher = new nP({
       indexerProvider: a.indexerProvider,
       walletRepository: a.walletRepository,
       ...a.watcherConfig
@@ -49346,7 +49348,7 @@ class r4 {
     this.stopWatcherFn?.(), this.stopWatcherFn = void 0, this.eventCallbacks.clear(), this.initialized = !1;
   }
 }
-function nP(c) {
+function sP(c) {
   return typeof c == "object" && c !== null && "toReadonly" in c && typeof c.toReadonly == "function";
 }
 class F2 {
@@ -49771,7 +49773,7 @@ class Js extends F2 {
    * ```
    */
   async toReadonly() {
-    const a = nP(this.identity) ? await this.identity.toReadonly() : this.identity;
+    const a = sP(this.identity) ? await this.identity.toReadonly() : this.identity;
     return new F2(a, this.network, this.onchainProvider, this.indexerProvider, this.arkServerPublicKey, this.offchainTapscript, this.boardingTapscript, this.dustAmount, this.walletRepository, this.contractRepository, this.delegatorProvider, this.watcherConfig);
   }
   async getDelegatorManager() {
@@ -50375,7 +50377,7 @@ function Fo(c, a) {
     changeAmount: g
   };
 }
-class sP {
+class oP {
   constructor(a, l, { messageHandlers: k, tickIntervalMs: d = 1e4, messageTimeoutMs: g = 3e4, debug: y = !1, buildServices: E }) {
     this.walletRepository = a, this.contractRepository = l, this.running = !1, this.tickTimeout = null, this.tickInProgress = !1, this.debug = !1, this.initialized = !1, this.boundOnMessage = this.onMessage.bind(this), this.handlers = new Map(k.map((S) => [S.messageTag, S])), this.tickIntervalMs = d, this.messageTimeoutMs = g, this.debug = y, this.buildServicesFn = E ?? this.buildServices.bind(this);
   }
@@ -50550,15 +50552,15 @@ class sP {
     return await NI(a), xk(a);
   }
 }
-const oP = "WALLET_UPDATER";
-class fP {
+const fP = "WALLET_UPDATER";
+class aP {
   /**
    * Instantiate a new WalletUpdater.
    * Can override the default `messageTag` allowing more than one updater to run in parallel.
    * Note that the default ServiceWorkerWallet sends messages to the default WalletUpdater tag.
    */
   constructor(a) {
-    this.onNextTick = [], this.messageTag = a?.messageTag ?? oP;
+    this.onNextTick = [], this.messageTag = a?.messageTag ?? fP;
   }
   // lifecycle methods
   async start(...a) {
@@ -51042,7 +51044,7 @@ class Z0 {
   vsize() {
     const a = Gu(this.inputCount), l = Gu(this.outputCount);
     let d = (Z0.BASE_TX_SIZE + a + this.inputSize + l + this.outputSize) * Z0.WITNESS_SCALE_FACTOR;
-    return this.hasWitness && (d += Z0.WITNESS_HEADER_SIZE + this.inputWitnessSize), aP(d);
+    return this.hasWitness && (d += Z0.WITNESS_HEADER_SIZE + this.inputWitnessSize), cP(d);
   }
 }
 Z0.P2PKH_SCRIPT_SIG_SIZE = 108;
@@ -51054,7 +51056,7 @@ Z0.BASE_TX_SIZE = 10;
 Z0.WITNESS_HEADER_SIZE = 2;
 Z0.WITNESS_SCALE_FACTOR = 4;
 Z0.P2TR_OUTPUT_SIZE = 34;
-const aP = (c) => {
+const cP = (c) => {
   const a = BigInt(Math.ceil(c / Z0.WITNESS_SCALE_FACTOR));
   return {
     value: a,
@@ -51081,7 +51083,7 @@ var n8;
     }
     if (E.type === "pkh")
       try {
-        return lP(k, h0.decode(d), E.hash);
+        return hP(k, h0.decode(d), E.hash);
       } catch {
         return !1;
       }
@@ -51094,14 +51096,14 @@ var n8;
     if (b.length === 0)
       return !1;
     if (E.type === "tr")
-      return cP(k, b, S, E.pubkey);
+      return uP(k, b, S, E.pubkey);
     if (E.type === "wpkh")
-      return uP(k, b, S, E.hash);
+      return lP(k, b, S, E.hash);
     throw new Error(`BIP-322 verify: unsupported address type '${E.type}'`);
   }
   c.verify = l;
 })(n8 || (n8 = {}));
-function cP(c, a, l, k) {
+function uP(c, a, l, k) {
   if (a.length !== 1)
     return !1;
   const d = a[0];
@@ -51113,7 +51115,7 @@ function cP(c, a, l, k) {
   const y = Qa(c, l, i4), S = Kd(y, l, k).preimageWitnessV1(0, [l], g, [0n]), b = d.length === 65 ? d.subarray(0, 64) : d;
   return Z2.verify(b, S, k);
 }
-function uP(c, a, l, k) {
+function lP(c, a, l, k) {
   if (a.length !== 2)
     return !1;
   const d = a[0], g = a[1];
@@ -51122,19 +51124,19 @@ function uP(c, a, l, k) {
   const y = Ko(g);
   if (!HA(y.hash, k))
     return !1;
-  const E = d[d.length - 1], S = d.subarray(0, d.length - 1), b = Qa(c, l, i4), I = AP(b, l), P = a0.encode({ type: "pkh", hash: k }), O = I.preimageWitnessV0(0, P, E, 0n);
+  const E = d[d.length - 1], S = d.subarray(0, d.length - 1), b = Qa(c, l, i4), I = pP(b, l), P = a0.encode({ type: "pkh", hash: k }), O = I.preimageWitnessV0(0, P, E, 0n);
   return ua.verify(S, O, g, {
     prehash: !1,
     format: "der"
   });
 }
-function lP(c, a, l) {
+function hP(c, a, l) {
   if (a.length !== 65)
     return !1;
   const k = a[0];
   if (k < 27 || k > 34)
     return !1;
-  const d = k >= 31, g = d ? k - 31 : k - 27, y = a.subarray(1, 65), E = hP(c);
+  const d = k >= 31, g = d ? k - 31 : k - 27, y = a.subarray(1, 65), E = kP(c);
   try {
     const I = ua.Signature.fromBytes(y, "compact").addRecoveryBit(g).recoverPublicKey(E).toBytes(d);
     return HA(o2(I), l);
@@ -51142,12 +51144,12 @@ function lP(c, a, l) {
     return !1;
   }
 }
-function hP(c) {
+function kP(c) {
   const a = new TextEncoder().encode(`Bitcoin Signed Message:
 `), l = new TextEncoder().encode(c);
-  return un(Xt(a, kP(l.length), l));
+  return un(Xt(a, AP(l.length), l));
 }
-function kP(c) {
+function AP(c) {
   if (c < 253)
     return new Uint8Array([c]);
   if (c <= 65535) {
@@ -51174,7 +51176,7 @@ function Kd(c, a, l) {
     script: H6
   }), k;
 }
-function AP(c, a) {
+function pP(c, a) {
   const l = new qt({ version: 0 });
   return l.addInput({
     txid: c.id,
@@ -51218,7 +51220,7 @@ var s8;
               return {
                 type: a.WAIT,
                 txid: I.txid,
-                do: wP(this.explorer, I.txid)
+                do: gP(this.explorer, I.txid)
               };
           } catch {
             g = I;
@@ -51252,7 +51254,7 @@ var s8;
       return {
         type: a.UNROLL,
         tx: S,
-        do: dP(this.bumper, this.explorer, S)
+        do: wP(this.bumper, this.explorer, S)
       };
     }
     /**
@@ -51262,7 +51264,7 @@ var s8;
     async *[Symbol.asyncIterator]() {
       let g;
       do {
-        g !== void 0 && await pP(1e3);
+        g !== void 0 && await dP(1e3);
         const y = await this.next();
         await y.do(), yield y, g = y.type;
       } while (g !== a.DONE);
@@ -51283,7 +51285,7 @@ var s8;
       const he = await d.onchainProvider.getTxStatus(Z.txid);
       if (!he.confirmed)
         throw new Error(`tx ${Z.txid} is not confirmed`);
-      const de = gP({ height: he.blockHeight, time: he.blockTime }, E, Z);
+      const de = yP({ height: he.blockHeight, time: he.blockTime }, E, Z);
       if (!de)
         throw new Error(`no available exit path found for vtxo ${Z.txid}:${Z.vout}`);
       const me = Vt.decode(Z.tapTree).findLeaf(q.encode(de.script));
@@ -51319,16 +51321,16 @@ var s8;
   }
   c.completeUnroll = k;
 })(s8 || (s8 = {}));
-function pP(c) {
+function dP(c) {
   return new Promise((a) => setTimeout(a, c));
 }
-function dP(c, a, l) {
+function wP(c, a, l) {
   return async () => {
     const [k, d] = await c.bumpP2A(l);
     await a.broadcastTransaction(k, d);
   };
 }
-function wP(c, a) {
+function gP(c, a) {
   return () => new Promise((l, k) => {
     const d = setInterval(async () => {
       try {
@@ -51339,7 +51341,7 @@ function wP(c, a) {
     }, 5e3);
   });
 }
-function gP(c, a, l) {
+function yP(c, a, l) {
   const k = Vt.decode(l.tapTree).exitPaths();
   for (const d of k)
     if (d.params.timelock.type === "blocks") {
@@ -51349,7 +51351,7 @@ function gP(c, a, l) {
       return d;
 }
 var ju = {}, o8;
-function yP() {
+function mP() {
   return o8 || (o8 = 1, (function(c) {
     /*! scure-base - MIT License (c) 2022 Paul Miller (paulmillr.com) */
     Object.defineProperty(c, "__esModule", { value: !0 }), c.bytes = c.stringToBytes = c.str = c.bytesToString = c.hex = c.utf8 = c.bech32m = c.bech32 = c.base58check = c.base58xmr = c.base58xrp = c.base58flickr = c.base58 = c.base64url = c.base64 = c.base32crockford = c.base32hex = c.base32 = c.base16 = c.utils = c.assertNumber = void 0;
@@ -51692,10 +51694,10 @@ function yP() {
   })(ju)), ju;
 }
 var Xu, f8;
-function mP() {
+function vP() {
   if (f8) return Xu;
   f8 = 1;
-  const { bech32: c, hex: a, utf8: l } = yP(), k = {
+  const { bech32: c, hex: a, utf8: l } = mP(), k = {
     // default network is bitcoin
     bech32: "bc",
     pubKeyHash: 0,
@@ -51962,8 +51964,8 @@ function mP() {
     hrpToMillisat: de
   }, Xu;
 }
-var vP = mP();
-const EP = /* @__PURE__ */ Vp(vP);
+var EP = vP();
+const SP = /* @__PURE__ */ Vp(EP);
 var A0 = class extends Error {
   /** Whether the swap can still be claimed (default: false). */
   isClaimable;
@@ -51974,11 +51976,11 @@ var A0 = class extends Error {
   constructor(c = {}) {
     super(c.message ?? "Error during swap."), this.name = "SwapError", this.isClaimable = c.isClaimable ?? !1, this.isRefundable = c.isRefundable ?? !1, this.pendingSwap = c.pendingSwap;
   }
-}, SP = class extends A0 {
+}, xP = class extends A0 {
   constructor(c = {}) {
     super({ message: "The invoice has expired.", ...c }), this.name = "InvoiceExpiredError";
   }
-}, xP = class extends A0 {
+}, TP = class extends A0 {
   constructor(c = {}) {
     super({
       message: "The provider failed to pay the invoice",
@@ -52005,7 +52007,7 @@ var A0 = class extends Error {
   constructor(c = {}) {
     super({ message: "The transaction has failed.", ...c }), this.name = "TransactionFailedError";
   }
-}, TP = class extends A0 {
+}, bP = class extends A0 {
   constructor(c = {}) {
     super({ message: "The transaction lockup has failed.", ...c }), this.name = "TransactionLockupFailedError";
   }
@@ -52036,9 +52038,9 @@ var A0 = class extends Error {
   "transaction.claimed",
   // normal status for completed swaps
   "swap.expired"
-].includes(c), l8 = (c) => ["swap.expired"].includes(c), h8 = (c) => ["transaction.claim.pending"].includes(c), Ss = (c) => c.type === "reverse", xs = (c) => c.type === "submarine", b2 = (c) => c.type === "chain", Za = (c) => c && typeof c == "object" && typeof c.refund == "number" && typeof c.unilateralClaim == "number" && typeof c.unilateralRefund == "number" && typeof c.unilateralRefundWithoutReceiver == "number", bP = (c) => c && typeof c == "object" && typeof c.id == "string" && typeof c.timeoutBlockHeight == "number", BP = (c) => c && typeof c == "object" && typeof c.status == "string" && (c.zeroConfRejected === void 0 || typeof c.zeroConfRejected == "boolean") && (c.transaction === void 0 || c.transaction && typeof c.transaction == "object" && typeof c.transaction.id == "string" && (c.transaction.eta === void 0 || typeof c.transaction.eta == "number") && (c.transaction.hex === void 0 || typeof c.transaction.hex == "string") && (c.transaction.preimage === void 0 || typeof c.transaction.preimage == "string")), k8 = (c) => c && typeof c == "object" && c.ARK && typeof c.ARK == "object" && c.ARK.BTC && typeof c.ARK.BTC == "object" && typeof c.ARK.BTC.hash == "string" && typeof c.ARK.BTC.rate == "number" && c.ARK.BTC.limits && typeof c.ARK.BTC.limits == "object" && typeof c.ARK.BTC.limits.maximal == "number" && typeof c.ARK.BTC.limits.minimal == "number" && typeof c.ARK.BTC.limits.maximalZeroConf == "number" && c.ARK.BTC.fees && typeof c.ARK.BTC.fees == "object" && typeof c.ARK.BTC.fees.percentage == "number" && typeof c.ARK.BTC.fees.minerFees == "number", IP = (c) => c && typeof c == "object" && c.BTC && typeof c.BTC == "object" && c.BTC.ARK && typeof c.BTC.ARK == "object" && c.BTC.ARK.hash && typeof c.BTC.ARK.hash == "string" && typeof c.BTC.ARK.rate == "number" && c.BTC.ARK.limits && typeof c.BTC.ARK.limits == "object" && typeof c.BTC.ARK.limits.maximal == "number" && typeof c.BTC.ARK.limits.minimal == "number" && c.BTC.ARK.fees && typeof c.BTC.ARK.fees == "object" && typeof c.BTC.ARK.fees.percentage == "number" && typeof c.BTC.ARK.fees.minerFees == "object" && typeof c.BTC.ARK.fees.minerFees.claim == "number" && typeof c.BTC.ARK.fees.minerFees.lockup == "number", CP = (c) => c && typeof c == "object" && typeof c.id == "string" && typeof c.address == "string" && typeof c.expectedAmount == "number" && typeof c.claimPublicKey == "string" && typeof c.acceptZeroConf == "boolean" && Za(c.timeoutBlockHeights), RP = (c) => c && typeof c == "object" && typeof c.preimage == "string", PP = (c) => c && typeof c == "object" && typeof c.id == "string" && typeof c.invoice == "string" && typeof c.onchainAmount == "number" && typeof c.lockupAddress == "string" && typeof c.refundPublicKey == "string" && Za(c.timeoutBlockHeights), NP = (c) => c && typeof c == "object" && typeof c.transaction == "string" && typeof c.checkpoint == "string", OP = (c) => c && typeof c == "object" && typeof c.transaction == "string" && typeof c.checkpoint == "string", A8 = (c) => c && typeof c == "object" && c.ARK && c.BTC && typeof c.ARK == "object" && typeof c.BTC == "object" && c.ARK.BTC && c.BTC.ARK && typeof c.ARK.BTC == "object" && typeof c.BTC.ARK == "object" && typeof c.ARK.BTC.hash == "string" && typeof c.BTC.ARK.hash == "string" && typeof c.ARK.BTC.rate == "number" && typeof c.BTC.ARK.rate == "number" && c.ARK.BTC.limits && c.BTC.ARK.limits && typeof c.ARK.BTC.limits == "object" && typeof c.BTC.ARK.limits == "object" && typeof c.ARK.BTC.limits.maximal == "number" && typeof c.BTC.ARK.limits.maximal == "number" && typeof c.ARK.BTC.limits.minimal == "number" && typeof c.BTC.ARK.limits.minimal == "number" && typeof c.ARK.BTC.limits.maximalZeroConf == "number" && typeof c.BTC.ARK.limits.maximalZeroConf == "number" && c.ARK.BTC.fees && c.BTC.ARK.fees && typeof c.ARK.BTC.fees == "object" && typeof c.BTC.ARK.fees == "object" && typeof c.ARK.BTC.fees.percentage == "number" && typeof c.BTC.ARK.fees.percentage == "number" && typeof c.ARK.BTC.fees.minerFees == "object" && typeof c.BTC.ARK.fees.minerFees == "object" && typeof c.ARK.BTC.fees.minerFees.server == "number" && typeof c.BTC.ARK.fees.minerFees.server == "number" && c.ARK.BTC.fees.minerFees.user && c.BTC.ARK.fees.minerFees.user && typeof c.ARK.BTC.fees.minerFees.user == "object" && typeof c.BTC.ARK.fees.minerFees.user == "object" && typeof c.ARK.BTC.fees.minerFees.user.claim == "number" && typeof c.BTC.ARK.fees.minerFees.user.claim == "number" && typeof c.ARK.BTC.fees.minerFees.user.lockup == "number" && typeof c.BTC.ARK.fees.minerFees.user.lockup == "number", UP = (c) => c && typeof c == "object" && typeof c.claimLeaf == "object" && typeof c.claimLeaf.version == "number" && typeof c.claimLeaf.output == "string" && typeof c.refundLeaf == "object" && typeof c.refundLeaf.version == "number" && typeof c.refundLeaf.output == "string", p8 = (c) => c && typeof c == "object" && typeof c.amount == "number" && typeof c.lockupAddress == "string" && typeof c.serverPublicKey == "string" && typeof c.timeoutBlockHeight == "number" && (c.swapTree === void 0 || UP(c.swapTree)) && (c.timeouts === void 0 || Za(c.timeouts)) && (c.bip21 === void 0 || typeof c.bip21 == "string"), _P = (c) => c && typeof c == "object" && typeof c.id == "string" && p8(c.claimDetails) && p8(c.lockupDetails), DP = (c) => c && typeof c == "object" && typeof c.pubNonce == "string" && typeof c.publicKey == "string" && typeof c.transactionHash == "string", $P = (c) => c && typeof c == "object" && (typeof c.pubNonce == "string" && typeof c.partialSignature == "string" || typeof c.pubNonce > "u" && typeof c.partialSignature > "u"), MP = (c) => c && typeof c == "object" && typeof c.amount == "number", LP = (c) => c && typeof c == "object" && Object.keys(c).length === 0 && c.constructor === Object, FP = (c) => c && typeof c == "object" && typeof c.id == "string", vs = (c) => c && typeof c == "object" && typeof c.version == "number" && typeof c.output == "string", jd = (c) => c && typeof c == "object" && vs(c.claimLeaf) && vs(c.refundLeaf) && vs(c.refundWithoutBoltzLeaf) && vs(c.unilateralClaimLeaf) && vs(c.unilateralRefundLeaf) && vs(c.unilateralRefundWithoutBoltzLeaf), Xd = (c) => c && typeof c == "object" && jd(c.tree) && (c.amount === void 0 || typeof c.amount == "number") && typeof c.keyIndex == "number" && (c.transaction === void 0 || c.transaction && typeof c.transaction == "object" && typeof c.transaction.id == "string" && typeof c.transaction.vout == "number") && typeof c.lockupAddress == "string" && typeof c.serverPublicKey == "string" && typeof c.timeoutBlockHeight == "number" && (c.timeoutBlockHeights === void 0 || Za(c.timeoutBlockHeights)) && (c.preimageHash === void 0 || typeof c.preimageHash == "string"), Yd = (c) => c && typeof c == "object" && typeof c.id == "string" && c.type === "chain" && typeof c.status == "string" && typeof c.createdAt == "number" && (c.from === "ARK" || c.from === "BTC") && (c.to === "ARK" || c.to === "BTC") && typeof c.preimageHash == "string" && c.refundDetails && typeof c.refundDetails == "object" && jd(c.refundDetails.tree) && typeof c.refundDetails.amount == "number" && typeof c.refundDetails.keyIndex == "number" && (c.refundDetails.transaction === void 0 || c.refundDetails.transaction && typeof c.refundDetails.transaction == "object" && typeof c.refundDetails.transaction.id == "string" && typeof c.refundDetails.transaction.vout == "number") && typeof c.refundDetails.lockupAddress == "string" && typeof c.refundDetails.serverPublicKey == "string" && typeof c.refundDetails.timeoutBlockHeight == "number", Zd = (c) => c && typeof c == "object" && c.to === "BTC" && typeof c.id == "string" && c.from === "ARK" && c.type === "submarine" && typeof c.createdAt == "number" && typeof c.preimageHash == "string" && typeof c.status == "string" && Xd(c.refundDetails), qd = (c) => c && typeof c == "object" && c.to === "ARK" && typeof c.id == "string" && c.from === "BTC" && c.type === "reverse" && typeof c.createdAt == "number" && typeof c.preimageHash == "string" && typeof c.status == "string" && Xd(c.claimDetails), VP = (c) => Array.isArray(c) && c.every(
+].includes(c), l8 = (c) => ["swap.expired"].includes(c), h8 = (c) => ["transaction.claim.pending"].includes(c), Ss = (c) => c.type === "reverse", xs = (c) => c.type === "submarine", b2 = (c) => c.type === "chain", Za = (c) => c && typeof c == "object" && typeof c.refund == "number" && typeof c.unilateralClaim == "number" && typeof c.unilateralRefund == "number" && typeof c.unilateralRefundWithoutReceiver == "number", BP = (c) => c && typeof c == "object" && typeof c.id == "string" && typeof c.timeoutBlockHeight == "number", IP = (c) => c && typeof c == "object" && typeof c.status == "string" && (c.zeroConfRejected === void 0 || typeof c.zeroConfRejected == "boolean") && (c.transaction === void 0 || c.transaction && typeof c.transaction == "object" && typeof c.transaction.id == "string" && (c.transaction.eta === void 0 || typeof c.transaction.eta == "number") && (c.transaction.hex === void 0 || typeof c.transaction.hex == "string") && (c.transaction.preimage === void 0 || typeof c.transaction.preimage == "string")), k8 = (c) => c && typeof c == "object" && c.ARK && typeof c.ARK == "object" && c.ARK.BTC && typeof c.ARK.BTC == "object" && typeof c.ARK.BTC.hash == "string" && typeof c.ARK.BTC.rate == "number" && c.ARK.BTC.limits && typeof c.ARK.BTC.limits == "object" && typeof c.ARK.BTC.limits.maximal == "number" && typeof c.ARK.BTC.limits.minimal == "number" && typeof c.ARK.BTC.limits.maximalZeroConf == "number" && c.ARK.BTC.fees && typeof c.ARK.BTC.fees == "object" && typeof c.ARK.BTC.fees.percentage == "number" && typeof c.ARK.BTC.fees.minerFees == "number", CP = (c) => c && typeof c == "object" && c.BTC && typeof c.BTC == "object" && c.BTC.ARK && typeof c.BTC.ARK == "object" && c.BTC.ARK.hash && typeof c.BTC.ARK.hash == "string" && typeof c.BTC.ARK.rate == "number" && c.BTC.ARK.limits && typeof c.BTC.ARK.limits == "object" && typeof c.BTC.ARK.limits.maximal == "number" && typeof c.BTC.ARK.limits.minimal == "number" && c.BTC.ARK.fees && typeof c.BTC.ARK.fees == "object" && typeof c.BTC.ARK.fees.percentage == "number" && typeof c.BTC.ARK.fees.minerFees == "object" && typeof c.BTC.ARK.fees.minerFees.claim == "number" && typeof c.BTC.ARK.fees.minerFees.lockup == "number", RP = (c) => c && typeof c == "object" && typeof c.id == "string" && typeof c.address == "string" && typeof c.expectedAmount == "number" && typeof c.claimPublicKey == "string" && typeof c.acceptZeroConf == "boolean" && Za(c.timeoutBlockHeights), PP = (c) => c && typeof c == "object" && typeof c.preimage == "string", NP = (c) => c && typeof c == "object" && typeof c.id == "string" && typeof c.invoice == "string" && typeof c.onchainAmount == "number" && typeof c.lockupAddress == "string" && typeof c.refundPublicKey == "string" && Za(c.timeoutBlockHeights), OP = (c) => c && typeof c == "object" && typeof c.transaction == "string" && typeof c.checkpoint == "string", UP = (c) => c && typeof c == "object" && typeof c.transaction == "string" && typeof c.checkpoint == "string", A8 = (c) => c && typeof c == "object" && c.ARK && c.BTC && typeof c.ARK == "object" && typeof c.BTC == "object" && c.ARK.BTC && c.BTC.ARK && typeof c.ARK.BTC == "object" && typeof c.BTC.ARK == "object" && typeof c.ARK.BTC.hash == "string" && typeof c.BTC.ARK.hash == "string" && typeof c.ARK.BTC.rate == "number" && typeof c.BTC.ARK.rate == "number" && c.ARK.BTC.limits && c.BTC.ARK.limits && typeof c.ARK.BTC.limits == "object" && typeof c.BTC.ARK.limits == "object" && typeof c.ARK.BTC.limits.maximal == "number" && typeof c.BTC.ARK.limits.maximal == "number" && typeof c.ARK.BTC.limits.minimal == "number" && typeof c.BTC.ARK.limits.minimal == "number" && typeof c.ARK.BTC.limits.maximalZeroConf == "number" && typeof c.BTC.ARK.limits.maximalZeroConf == "number" && c.ARK.BTC.fees && c.BTC.ARK.fees && typeof c.ARK.BTC.fees == "object" && typeof c.BTC.ARK.fees == "object" && typeof c.ARK.BTC.fees.percentage == "number" && typeof c.BTC.ARK.fees.percentage == "number" && typeof c.ARK.BTC.fees.minerFees == "object" && typeof c.BTC.ARK.fees.minerFees == "object" && typeof c.ARK.BTC.fees.minerFees.server == "number" && typeof c.BTC.ARK.fees.minerFees.server == "number" && c.ARK.BTC.fees.minerFees.user && c.BTC.ARK.fees.minerFees.user && typeof c.ARK.BTC.fees.minerFees.user == "object" && typeof c.BTC.ARK.fees.minerFees.user == "object" && typeof c.ARK.BTC.fees.minerFees.user.claim == "number" && typeof c.BTC.ARK.fees.minerFees.user.claim == "number" && typeof c.ARK.BTC.fees.minerFees.user.lockup == "number" && typeof c.BTC.ARK.fees.minerFees.user.lockup == "number", _P = (c) => c && typeof c == "object" && typeof c.claimLeaf == "object" && typeof c.claimLeaf.version == "number" && typeof c.claimLeaf.output == "string" && typeof c.refundLeaf == "object" && typeof c.refundLeaf.version == "number" && typeof c.refundLeaf.output == "string", p8 = (c) => c && typeof c == "object" && typeof c.amount == "number" && typeof c.lockupAddress == "string" && typeof c.serverPublicKey == "string" && typeof c.timeoutBlockHeight == "number" && (c.swapTree === void 0 || _P(c.swapTree)) && (c.timeouts === void 0 || Za(c.timeouts)) && (c.bip21 === void 0 || typeof c.bip21 == "string"), DP = (c) => c && typeof c == "object" && typeof c.id == "string" && p8(c.claimDetails) && p8(c.lockupDetails), $P = (c) => c && typeof c == "object" && typeof c.pubNonce == "string" && typeof c.publicKey == "string" && typeof c.transactionHash == "string", MP = (c) => c && typeof c == "object" && (typeof c.pubNonce == "string" && typeof c.partialSignature == "string" || typeof c.pubNonce > "u" && typeof c.partialSignature > "u"), LP = (c) => c && typeof c == "object" && typeof c.amount == "number", FP = (c) => c && typeof c == "object" && Object.keys(c).length === 0 && c.constructor === Object, VP = (c) => c && typeof c == "object" && typeof c.id == "string", vs = (c) => c && typeof c == "object" && typeof c.version == "number" && typeof c.output == "string", jd = (c) => c && typeof c == "object" && vs(c.claimLeaf) && vs(c.refundLeaf) && vs(c.refundWithoutBoltzLeaf) && vs(c.unilateralClaimLeaf) && vs(c.unilateralRefundLeaf) && vs(c.unilateralRefundWithoutBoltzLeaf), Xd = (c) => c && typeof c == "object" && jd(c.tree) && (c.amount === void 0 || typeof c.amount == "number") && typeof c.keyIndex == "number" && (c.transaction === void 0 || c.transaction && typeof c.transaction == "object" && typeof c.transaction.id == "string" && typeof c.transaction.vout == "number") && typeof c.lockupAddress == "string" && typeof c.serverPublicKey == "string" && typeof c.timeoutBlockHeight == "number" && (c.timeoutBlockHeights === void 0 || Za(c.timeoutBlockHeights)) && (c.preimageHash === void 0 || typeof c.preimageHash == "string"), Yd = (c) => c && typeof c == "object" && typeof c.id == "string" && c.type === "chain" && typeof c.status == "string" && typeof c.createdAt == "number" && (c.from === "ARK" || c.from === "BTC") && (c.to === "ARK" || c.to === "BTC") && typeof c.preimageHash == "string" && c.refundDetails && typeof c.refundDetails == "object" && jd(c.refundDetails.tree) && typeof c.refundDetails.amount == "number" && typeof c.refundDetails.keyIndex == "number" && (c.refundDetails.transaction === void 0 || c.refundDetails.transaction && typeof c.refundDetails.transaction == "object" && typeof c.refundDetails.transaction.id == "string" && typeof c.refundDetails.transaction.vout == "number") && typeof c.refundDetails.lockupAddress == "string" && typeof c.refundDetails.serverPublicKey == "string" && typeof c.refundDetails.timeoutBlockHeight == "number", Zd = (c) => c && typeof c == "object" && c.to === "BTC" && typeof c.id == "string" && c.from === "ARK" && c.type === "submarine" && typeof c.createdAt == "number" && typeof c.preimageHash == "string" && typeof c.status == "string" && Xd(c.refundDetails), qd = (c) => c && typeof c == "object" && c.to === "ARK" && typeof c.id == "string" && c.from === "BTC" && c.type === "reverse" && typeof c.createdAt == "number" && typeof c.preimageHash == "string" && typeof c.status == "string" && Xd(c.claimDetails), WP = (c) => Array.isArray(c) && c.every(
   (a) => Yd(a) || qd(a) || Zd(a)
-), WP = {
+), HP = {
   bitcoin: "https://api.ark.boltz.exchange",
   mutinynet: "https://api.boltz.mutinynet.arkade.sh",
   regtest: "http://localhost:9069"
@@ -52050,7 +52052,7 @@ var A0 = class extends Error {
   /** @param config Provider configuration with network and optional API URL. */
   constructor(c) {
     this.network = c.network, this.referralId = c.referralId;
-    const a = c.apiUrl || WP[c.network];
+    const a = c.apiUrl || HP[c.network];
     if (!a)
       throw new Error(
         `API URL is required for network: ${c.network}`
@@ -52080,7 +52082,7 @@ var A0 = class extends Error {
     ]);
     if (!k8(c))
       throw new ct({ message: "error fetching submarine fees" });
-    if (!IP(a))
+    if (!CP(a))
       throw new ct({ message: "error fetching reverse fees" });
     return {
       submarine: {
@@ -52112,7 +52114,7 @@ var A0 = class extends Error {
       `/v2/swap/reverse/${c}/transaction`,
       "GET"
     );
-    if (!bP(a))
+    if (!BP(a))
       throw new ct({
         message: `error fetching txid for swap: ${c}`
       });
@@ -52124,7 +52126,7 @@ var A0 = class extends Error {
       `/v2/swap/${c}`,
       "GET"
     );
-    if (!BP(a))
+    if (!IP(a))
       throw new ct({
         message: `error fetching status for swap: ${c}`
       });
@@ -52136,7 +52138,7 @@ var A0 = class extends Error {
       `/v2/swap/submarine/${c}/preimage`,
       "GET"
     );
-    if (!RP(a))
+    if (!PP(a))
       throw new ct({
         message: `error fetching preimage for swap: ${c}`
       });
@@ -52162,7 +52164,7 @@ var A0 = class extends Error {
       "POST",
       l
     );
-    if (!CP(k))
+    if (!RP(k))
       throw new ct({ message: "Error creating submarine swap" });
     return k;
   }
@@ -52190,7 +52192,7 @@ var A0 = class extends Error {
       "POST",
       d
     );
-    if (!PP(g))
+    if (!NP(g))
       throw new ct({ message: "Error creating reverse swap" });
     return g;
   }
@@ -52246,7 +52248,7 @@ var A0 = class extends Error {
       "POST",
       S
     );
-    if (!_P(b))
+    if (!DP(b))
       throw new ct({ message: "Error creating chain swap" });
     return b;
   }
@@ -52260,7 +52262,7 @@ var A0 = class extends Error {
       "POST",
       k
     );
-    if (!NP(d))
+    if (!OP(d))
       throw new ct({
         message: "Error refunding submarine swap"
       });
@@ -52283,7 +52285,7 @@ var A0 = class extends Error {
       "POST",
       k
     );
-    if (!OP(d))
+    if (!UP(d))
       throw new ct({
         message: "Error refunding chain swap"
       });
@@ -52391,7 +52393,7 @@ var A0 = class extends Error {
       `/v2/swap/chain/${c}/claim`,
       "GET"
     );
-    if (!DP(a))
+    if (!$P(a))
       throw new ct({
         message: `error fetching claim details for swap: ${c}`
       });
@@ -52403,7 +52405,7 @@ var A0 = class extends Error {
       `/v2/swap/chain/${c}/quote`,
       "GET"
     );
-    if (!MP(a))
+    if (!LP(a))
       throw new ct({
         message: `error fetching quote for swap: ${c}`
       });
@@ -52416,7 +52418,7 @@ var A0 = class extends Error {
       "POST",
       a
     );
-    if (!LP(l))
+    if (!FP(l))
       throw new ct({
         message: `error posting quote for swap: ${c}`
       });
@@ -52429,7 +52431,7 @@ var A0 = class extends Error {
       "POST",
       a
     );
-    if (!FP(l))
+    if (!VP(l))
       throw new ct({
         message: "error posting BTC transaction"
       });
@@ -52442,7 +52444,7 @@ var A0 = class extends Error {
       "POST",
       a
     );
-    if (!$P(l))
+    if (!MP(l))
       throw new ct({
         message: `error posting claim details for swap: ${c}`
       });
@@ -52457,7 +52459,7 @@ var A0 = class extends Error {
       "POST",
       a
     );
-    if (!VP(l))
+    if (!WP(l))
       throw new ct({
         message: "Invalid schema in response for swap restoration"
       });
@@ -52491,7 +52493,7 @@ var A0 = class extends Error {
     }
   }
 }, n4 = (c) => {
-  const a = EP.decode(c), l = Number(
+  const a = SP.decode(c), l = Number(
     a.sections.find((k) => k.name === "amount")?.value ?? "0"
   );
   return {
@@ -52500,7 +52502,7 @@ var A0 = class extends Error {
     description: a.sections.find((k) => k.name === "description")?.value ?? "",
     paymentHash: a.sections.find((k) => k.name === "payment_hash")?.value ?? ""
   };
-}, HP = (c) => n4(c).paymentHash, Zu = (c, a, l) => {
+}, KP = (c) => n4(c).paymentHash, Zu = (c, a, l) => {
   try {
     return UC(c, a, l), !0;
   } catch {
@@ -52515,7 +52517,7 @@ var A0 = class extends Error {
       `Invalid ${a} key length: ${k.length} ${l ? "for swap " + l : ""}`
     );
   return k;
-}, l0 = console, KP = class {
+}, l0 = console, QP = class {
   swapProvider;
   config;
   // Event listeners storage (supports multiple listeners per event)
@@ -53126,7 +53128,7 @@ var A0 = class extends Error {
     };
   }
 };
-async function QP(c, a) {
+async function zP(c, a) {
   Ss(c) ? a.saveReverseSwap ? await a.saveReverseSwap(c) : console.warn("No saveReverseSwap handler provided, swap not saved") : xs(c) ? a.saveSubmarineSwap ? await a.saveSubmarineSwap(c) : console.warn(
     "No saveSubmarineSwap handler provided, swap not saved"
   ) : b2(c) && (a.saveChainSwap ? await a.saveChainSwap(c) : console.warn("No saveChainSwap handler provided, swap not saved"));
@@ -53145,7 +53147,7 @@ async function yf(c, a, l, k) {
     ...k
   });
 }
-function zP(c, a) {
+function GP(c, a) {
   const l = q.encode(V0(q.decode(a)));
   if (l !== c.request.preimageHash)
     throw new Error(
@@ -53153,7 +53155,7 @@ function zP(c, a) {
     );
   return c.preimage = a, c;
 }
-function GP(c, a) {
+function jP(c, a) {
   let l;
   try {
     const k = n4(a);
@@ -53169,8 +53171,8 @@ function GP(c, a) {
     );
   return c.request.invoice = a, c;
 }
-var jP = "arkade-boltz-swap", XP = 2, Wi = "swaps";
-function YP(c) {
+var XP = "arkade-boltz-swap", YP = 2, Wi = "swaps";
+function ZP(c) {
   if (!c.objectStoreNames.contains(Wi)) {
     const a = c.createObjectStore(Wi, {
       keyPath: "id"
@@ -53179,13 +53181,13 @@ function YP(c) {
   }
 }
 var ew = class {
-  constructor(c = jP) {
+  constructor(c = XP) {
     this.dbName = c;
   }
   version = 1;
   db = null;
   async getDB() {
-    return this.db ? this.db : (this.db = await e4(this.dbName, XP, YP), this.db);
+    return this.db ? this.db : (this.db = await e4(this.dbName, YP, ZP), this.db);
   }
   async saveSwap(c) {
     const a = await this.getDB();
@@ -53239,7 +53241,7 @@ var ew = class {
         const E = l.getAll();
         E.onsuccess = () => g(E.result ?? []), E.onerror = () => y(E.error);
       });
-    const k = qP(c);
+    const k = JP(c);
     if (k.has("id")) {
       const g = k.get("id"), y = await Promise.all(
         g.map(
@@ -53312,14 +53314,14 @@ var ew = class {
   async [Symbol.asyncDispose]() {
     this.db && (await t4(this.dbName), this.db = null);
   }
-}, ZP = ["id", "status", "type"];
-function qP(c) {
+}, qP = ["id", "status", "type"];
+function JP(c) {
   const a = /* @__PURE__ */ new Map();
-  return ZP.forEach((l) => {
+  return qP.forEach((l) => {
     c?.[l] && (Array.isArray(c[l]) ? a.set(l, c[l]) : a.set(l, [c[l]]));
   }), a;
 }
-var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
+var tw = (c, a) => c.findIndex((l) => U0(a, l)), rw = (c) => {
   const a = /* @__PURE__ */ new Set();
   for (const l of c) {
     if (l.length !== 33)
@@ -53330,7 +53332,7 @@ var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
   }
 }, iw = (c, a) => (rw([...c]), Sb(
   Jf([...c], a ? [a] : [], a ? [!0] : [])
-)), JP = class nw {
+)), eN = class nw {
   constructor(a, l, k, d, g, y, E) {
     this.privateKey = a, this.myPublicKey = l, this.publicKeys = k, this.myIndex = d, this.aggPubkey = g, this.internalKey = y, this._tweak = E;
   }
@@ -53347,7 +53349,7 @@ var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
     );
   }
   message(a) {
-    return new eN(
+    return new tN(
       this.privateKey,
       this.myPublicKey,
       this.publicKeys,
@@ -53357,7 +53359,7 @@ var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
       a
     );
   }
-}, eN = class {
+}, tN = class {
   constructor(c, a, l, k, d, g, y) {
     this.privateKey = c, this.myPublicKey = a, this.publicKeys = l, this.myIndex = k, this.aggPubkey = d, this.tweak = g, this.msg = y;
   }
@@ -53368,7 +53370,7 @@ var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
       this.aggPubkey,
       this.msg
     );
-    return new tN(
+    return new rN(
       this.privateKey,
       this.myPublicKey,
       this.publicKeys,
@@ -53379,7 +53381,7 @@ var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
       c
     );
   }
-}, tN = class {
+}, rN = class {
   constructor(c, a, l, k, d, g, y, E) {
     this.privateKey = c, this.myPublicKey = a, this.publicKeys = l, this.myIndex = k, this.aggPubkey = d, this.tweak = g, this.msg = y, this.nonce = E;
   }
@@ -53387,10 +53389,10 @@ var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
     return this.nonce.public;
   }
   aggregateNonces(c) {
-    const a = Array.from(c), l = a.find(([y]) => D0(this.myPublicKey, y));
+    const a = Array.from(c), l = a.find(([y]) => U0(this.myPublicKey, y));
     if (!l)
       a.push([this.myPublicKey, this.publicNonce]);
-    else if (!D0(l[1], this.publicNonce))
+    else if (!U0(l[1], this.publicNonce))
       throw new Error("nonce for our public key does not match");
     if (this.publicKeys.length !== a.length)
       throw new Error("number of nonces != number of public keys");
@@ -53404,7 +53406,7 @@ var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
       d.push(E);
     }
     const g = _A([...d]);
-    return new rN(
+    return new iN(
       this.privateKey,
       this.myPublicKey,
       this.publicKeys,
@@ -53417,7 +53419,7 @@ var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
       g
     );
   }
-}, rN = class {
+}, iN = class {
   constructor(c, a, l, k, d, g, y, E, S, b) {
     this.privateKey = c, this.myPublicKey = a, this.publicKeys = l, this.myIndex = k, this.aggPubkey = d, this.tweak = g, this.msg = y, this.nonce = E, this.pubNonces = S, this.aggregatedNonce = b;
   }
@@ -53432,7 +53434,7 @@ var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
       this.tweak ? [this.tweak] : [],
       this.tweak ? [!0] : []
     );
-    return new iN(
+    return new nN(
       this.privateKey,
       this.publicKeys,
       this.myIndex,
@@ -53441,7 +53443,7 @@ var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
       c
     );
   }
-}, iN = class {
+}, nN = class {
   constructor(c, a, l, k, d, g) {
     this.privateKey = c, this.publicKeys = a, this.myIndex = l, this.nonce = k, this.pubNonces = d, this.session = g, this.partialSignatures = Array(a.length).fill(null);
   }
@@ -53463,14 +53465,14 @@ var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
   }
   signPartial() {
     const c = this.session.sign(this.nonce.secret, this.privateKey, !0);
-    return this.partialSignatures[this.myIndex] = c, new nN(
+    return this.partialSignatures[this.myIndex] = c, new sN(
       this.session,
       [...this.partialSignatures],
       c,
       this.nonce.public
     );
   }
-}, nN = class {
+}, sN = class {
   constructor(c, a, l, k) {
     this.session = c, this.partialSignatures = a, this.ourPartialSignature = l, this.publicNonce = k;
   }
@@ -53489,7 +53491,7 @@ var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
   const k = F0.getPublicKey(c), d = tw(l, k);
   if (d === -1) throw new Error("our key is not in publicKeys");
   const g = iw(l);
-  return new JP(
+  return new eN(
     c,
     k,
     l,
@@ -53497,18 +53499,18 @@ var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
     g,
     g
   );
-}, sN = {
+}, oN = {
   bech32: "bcrt",
   pubKeyHash: 111,
   scriptHash: 196
-}, oN = {
+}, fN = {
   bech32: "tb",
   pubKeyHash: 111,
   scriptHash: 196
 }, w8 = (c) => ({
   version: c.version,
   output: q.decode(c.output)
-}), fN = (c) => {
+}), aN = (c) => {
   const a = [...c].sort((k, d) => d.probability - k.probability), l = (k) => {
     if (k.length === 1) return k[0].value;
     if (k.length === 2) return [k[0].value, k[1].value];
@@ -53524,7 +53526,7 @@ var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
   return {
     claimLeaf: l,
     refundLeaf: k,
-    tree: fN([
+    tree: aN([
       { probability: 51, value: l },
       { probability: 49, value: k }
     ])
@@ -53550,7 +53552,7 @@ var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
   return c.xonlyTweakAdd(
     yi.utils.taggedHash("TapTweak", c.aggPubkey, l)
   );
-}, aN = (c) => {
+}, cN = (c) => {
   if (c.length === 32) return c;
   if (c.length === 33) {
     if (c[0] !== 2 && c[0] !== 3)
@@ -53562,15 +53564,15 @@ var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
   throw new Error(
     `Invalid public key length: expected 32 or 33 bytes, got ${c.length}`
   );
-}, cN = (c) => qe.encode(["OP_1", aN(c)]), uN = (c, a) => {
-  const l = cN(c);
+}, uN = (c) => qe.encode(["OP_1", cN(c)]), lN = (c, a) => {
+  const l = uN(c);
   for (let k = 0; k < a.outputsLength; k++) {
     const d = a.getOutput(k);
-    if (d.script !== void 0 && d.amount !== void 0 && D0(l, d.script))
+    if (d.script !== void 0 && d.amount !== void 0 && U0(l, d.script))
       return { ...d, vout: k };
   }
   throw new Error("Swap output not found in transaction");
-}, lN = new Uint8Array(64), hN = (c, a, l) => {
+}, hN = new Uint8Array(64), kN = (c, a, l) => {
   if (l < BigInt(0) || l >= c.amount)
     throw new Error("fee exceeds utxo amount");
   const k = new lt({ version: 2 });
@@ -53583,9 +53585,9 @@ var tw = (c, a) => c.findIndex((l) => D0(a, l)), rw = (c) => {
     sequence: 4294967293
     // RBF enabled
   }), k.updateInput(0, {
-    finalScriptWitness: [lN]
+    finalScriptWitness: [hN]
   }), k;
-}, kN = (c, a) => {
+}, AN = (c, a) => {
   const l = a(BigInt(1));
   return a(
     BigInt(Math.ceil((l.vsize + l.inputsLength) * c))
@@ -53620,7 +53622,7 @@ function Hn(c) {
   }
   return 0;
 }
-function AN(c, a) {
+function pN(c, a) {
   if (!c) return 0;
   const { percentage: l, minerFees: k } = a.reverse, d = k.lockup + k.claim;
   return l >= 100 || l < 0 || d >= c ? 0 : Math.ceil((c - d) / (1 - l / 100));
@@ -53643,7 +53645,7 @@ function m8(c, a) {
     }
   };
 }
-function pN(c, a, l, k, d, g, y, E = 0) {
+function dN(c, a, l, k, d, g, y, E = 0) {
   const S = new TextEncoder().encode(c), b = V0(S), I = q.encode(b);
   let P;
   return {
@@ -53715,7 +53717,7 @@ function pN(c, a, l, k, d, g, y, E = 0) {
         throw new Error(
           `BatchFinalizationEvent: expected connector tree has ${M.length} leaves, expected at least ${E + 1}`
         );
-      const V = dN(
+      const V = wN(
         a,
         y,
         M[E]
@@ -53726,7 +53728,7 @@ function pN(c, a, l, k, d, g, y, E = 0) {
     }
   };
 }
-function dN(c, a, l) {
+function wN(c, a, l) {
   const k = l.id, d = l.getOutput(0);
   if (!d)
     throw new Error("connector output not found");
@@ -53760,7 +53762,7 @@ function dN(c, a, l) {
     E
   );
 }
-var wN = (c) => {
+var gN = (c) => {
   const {
     network: a,
     preimageHash: l,
@@ -53802,7 +53804,7 @@ var wN = (c) => {
     throw new Error("Failed to create VHTLC script");
   const O = a === "bitcoin" ? "ark" : "tark", $ = P.address(O, b).encode();
   return { vhtlcScript: P, vhtlcAddress: $ };
-}, gN = async (c, a, l, k, {
+}, yN = async (c, a, l, k, {
   forfeitPubkey: d,
   forfeitAddress: g,
   network: y
@@ -53840,7 +53842,7 @@ var wN = (c) => {
     y in Cf ? Cf[y] : Cf.bitcoin
   ).decode(g);
   try {
-    const me = pN(
+    const me = dN(
       he,
       l,
       c,
@@ -53881,7 +53883,7 @@ var wN = (c) => {
     h0.encode(P.toPSBT()),
     I.map((V) => h0.encode(V.toPSBT()))
   );
-  if (!yN($, l, a.leaves))
+  if (!mN($, l, a.leaves))
     throw new Error("Invalid final Ark transaction");
   const M = await Promise.all(
     N.map(async (V) => {
@@ -53937,7 +53939,7 @@ var wN = (c) => {
   await l.finalizeTx(Ae, [
     h0.encode(H.toPSBT())
   ]);
-}, yN = (c, a, l) => {
+}, mN = (c, a, l) => {
   const k = lt.fromPSBT(h0.decode(c), {
     allowUnknown: !0
   });
@@ -53946,7 +53948,7 @@ var wN = (c) => {
   for (let g = 0; g < k.inputsLength; g++)
     d.push(k.getInput(g));
   return d.every((g) => g.witnessUtxo);
-}, mN = class F9 {
+}, vN = class F9 {
   /** The Arkade wallet instance used for signing and address generation. */
   wallet;
   /** Provider for Ark protocol operations (VTXO management, batch joining). */
@@ -54004,7 +54006,7 @@ var wN = (c) => {
       );
     if (this.indexerProvider = k, this.swapProvider = a.swapProvider, a.swapRepository ? this.swapRepository = a.swapRepository : this.swapRepository = new ew(), a.swapManager !== !1) {
       const d = !a.swapManager || a.swapManager === !0 ? {} : a.swapManager, g = d.autoStart ?? !0;
-      this.swapManager = new KP(
+      this.swapManager = new QP(
         this.swapProvider,
         d
       ), this.swapManager.setCallbacks({
@@ -54027,7 +54029,7 @@ var wN = (c) => {
           await this.signCooperativeClaimForServer(y);
         },
         saveSwap: async (y) => {
-          await QP(y, {
+          await zP(y, {
             saveReverseSwap: this.savePendingReverseSwap.bind(this),
             saveSubmarineSwap: this.savePendingSubmarineSwap.bind(this),
             saveChainSwap: this.savePendingChainSwap.bind(this)
@@ -54271,7 +54273,7 @@ var wN = (c) => {
           }
           case "invoice.expired":
             await E(), k(
-              new SP({
+              new xP({
                 isRefundable: !0,
                 pendingSwap: a
               })
@@ -54377,7 +54379,7 @@ var wN = (c) => {
    * @throws {Error} If preimage hash is unavailable, VHTLC not found, or already spent.
    */
   async refundVHTLC(a) {
-    const l = a.request.invoice ? HP(a.request.invoice) : a.preimageHash;
+    const l = a.request.invoice ? KP(a.request.invoice) : a.preimageHash;
     if (!l)
       throw new Error("Preimage hash is required to refund VHTLC");
     const k = ut.decode(
@@ -54473,7 +54475,7 @@ var wN = (c) => {
             break;
           case "invoice.failedToPay":
             d = !0, await E({ refundable: !0 }), k(
-              new xP({
+              new TP({
                 isRefundable: !0,
                 pendingSwap: a
               })
@@ -54481,7 +54483,7 @@ var wN = (c) => {
             break;
           case "transaction.lockupFailed":
             d = !0, await E({ refundable: !0 }), k(
-              new TP({
+              new bP({
                 isRefundable: !0,
                 pendingSwap: a
               })
@@ -54632,7 +54634,7 @@ var wN = (c) => {
       throw new Error("BTC transaction hex is required");
     const k = lt.fromRaw(
       q.decode(l.transaction.hex)
-    ), d = await this.arkProvider.getInfo(), g = d.network === "bitcoin" ? Tt : d.network === "mutinynet" ? oN : sN, y = g8(
+    ), d = await this.arkProvider.getInfo(), g = d.network === "bitcoin" ? Tt : d.network === "mutinynet" ? fN : oN, y = g8(
       a.response.claimDetails.swapTree
     ), E = y8(
       d8(q.decode(a.ephemeralKey), [
@@ -54640,11 +54642,11 @@ var wN = (c) => {
         F0.getPublicKey(q.decode(a.ephemeralKey))
       ]),
       y.tree
-    ), S = uN(E.aggPubkey, k), b = BigInt(
+    ), S = lN(E.aggPubkey, k), b = BigInt(
       a.request.serverLockAmount ? a.request.serverLockAmount - a.amount : 0
-    ), I = kN(
+    ), I = AN(
       a.feeSatsPerByte,
-      (M) => hN(
+      (M) => kN(
         {
           script: S.script,
           amount: S.amount,
@@ -55119,7 +55121,7 @@ var wN = (c) => {
    * @returns The commitment transaction ID.
    */
   async joinBatch(a, l, k, d, g = !0) {
-    return gN(
+    return yN(
       this.arkProvider,
       a,
       l,
@@ -55133,7 +55135,7 @@ var wN = (c) => {
    * Works for submarine, reverse, and chain swaps.
    */
   createVHTLCScript(a) {
-    return wN(a);
+    return gN(a);
   }
   async getFees(a, l) {
     return a && l ? this.swapProvider.getChainFees(a, l) : this.swapProvider.getFees();
@@ -55266,7 +55268,7 @@ var wN = (c) => {
           id: b,
           createdAt: I,
           request: {
-            invoiceAmount: AN(O, k),
+            invoiceAmount: pN(O, k),
             claimPublicKey: l,
             preimageHash: N
           },
@@ -55384,19 +55386,19 @@ var wN = (c) => {
    * Enrich a restored reverse swap with its preimage.
    */
   enrichReverseSwapPreimage(a, l) {
-    return zP(a, l);
+    return GP(a, l);
   }
   /**
    * Enrich a restored submarine swap with its invoice.
    */
   enrichSubmarineSwapInvoice(a, l) {
-    return GP(a, l);
+    return jP(a, l);
   }
-}, vN = "ARKADE_SWAPS_UPDATER", EN = class sw {
+}, EN = "ARKADE_SWAPS_UPDATER", SN = class sw {
   constructor(a) {
     this.swapRepository = a;
   }
-  static messageTag = vN;
+  static messageTag = EN;
   messageTag = sw.messageTag;
   arkProvider;
   indexerProvider;
@@ -55768,7 +55770,7 @@ var wN = (c) => {
       apiUrl: a.swapProvider.baseUrl,
       network: a.network
     });
-    const k = new mN({
+    const k = new vN({
       wallet: this.wallet,
       arkProvider: this.arkProvider,
       swapProvider: this.swapProvider,
@@ -55816,18 +55818,18 @@ var wN = (c) => {
     }));
   }
 };
-const SN = "7f49f916-dirty", xN = new Hd(), TN = new Wd(), bN = new ew();
+const xN = "c2053e49-dirty", TN = new Hd(), bN = new Wd(), BN = new ew();
 self.addEventListener("message", (c) => {
   c.data?.type === "SKIP_WAITING" && c.waitUntil(self.skipWaiting());
 });
-const BN = new sP(xN, TN, {
-  messageHandlers: [new fP(), new EN(bN)],
+const IN = new oP(TN, bN, {
+  messageHandlers: [new aP(), new SN(BN)],
   tickIntervalMs: 5e3
 });
-BN.start().catch(console.error);
+IN.start().catch(console.error);
 const ow = "arkade-cache-v1";
 self.addEventListener("install", (c) => {
-  c.waitUntil(caches.open(ow)), self.skipWaiting(), console.log(`Service worker installed ${SN}`);
+  c.waitUntil(caches.open(ow)), self.skipWaiting(), console.log(`Service worker installed ${xN}`);
 });
 self.addEventListener("activate", (c) => {
   c.waitUntil(
