@@ -247,3 +247,11 @@ button.reminder-button.action-sheet-button {
 .tabs-inner {
   overflow: hidden;
 }
+
+/* Hide scrollbar while keeping scroll functionality */
+.hide-scrollbar {
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
