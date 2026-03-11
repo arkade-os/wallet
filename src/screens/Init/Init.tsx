@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { ReactElement, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { generateMnemonic, mnemonicToSeedSync } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import Button from '../../components/Button'
@@ -10,16 +10,57 @@ import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
 import Padded from '../../components/Padded'
 import Text from '../../components/Text'
-import Title from '../../components/Title'
 import FlexCol from '../../components/FlexCol'
 import { deriveKeyFromSeed } from '../../lib/wallet'
 import SheetModal from '../../components/SheetModal'
-import WalletNewIcon from '../../icons/WalletNew'
 import { defaultPassword } from '../../lib/constants'
 import { OnboardStaggerChild } from '../../components/OnboardLoadIn'
 import { motion } from 'framer-motion'
-import { onboardStaggerContainer, onboardStaggerChild, EASE_OUT_QUINT } from '../../lib/animations'
+import { onboardStaggerContainer, EASE_OUT_QUINT } from '../../lib/animations'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
+import OnboardingLogo from '../../components/OnboardingLogo'
+import PixelSunrise from '../../components/PixelSunrise'
+import BoltOutlineIcon from '../../icons/BoltOutline'
+import GlobeOutlineIcon from '../../icons/GlobeOutline'
+import ShieldCheckOutlineIcon from '../../icons/ShieldCheckOutline'
+
+const EASE_QUINT_TUPLE = EASE_OUT_QUINT as unknown as [number, number, number, number]
+
+function SmallLogo() {
+  return (
+    <svg width={28} height={28} viewBox='0 0 35 35' fill='none'>
+      <path d='M0 8.75L8.75 0H26.25L35 8.75V17.5H26.25V8.75H8.75V17.5H2.45431e-07L0 8.75Z' fill='var(--logo-color)' />
+      <path d='M8.75 26.25V17.5H26.25V26.25H8.75Z' fill='var(--logo-color)' />
+      <path d='M8.75 26.25H2.45431e-07V35H8.75V26.25Z' fill='var(--logo-color)' />
+      <path d='M26.25 26.25V35H35V26.25H26.25Z' fill='var(--logo-color)' />
+    </svg>
+  )
+}
+
+function BulletPoint({ icon, text }: { icon: ReactElement; text: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0' }}>
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: '50%',
+          background: 'var(--bullet-icon-bg)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          color: 'var(--logo-color)',
+        }}
+      >
+        {icon}
+      </div>
+      <Text color='dark80' thin wrap>
+        {text}
+      </Text>
+    </div>
+  )
+}
 
 export default function Init() {
   const { aspInfo } = useContext(AspContext)
@@ -29,6 +70,15 @@ export default function Init() {
   const prefersReduced = useReducedMotion()
   const [error, setError] = useState(false)
   const [showOptions, setShowOptions] = useState(false)
+  const [contentReady, setContentReady] = useState(prefersReduced)
+  const [sunriseVisible, setSunriseVisible] = useState(prefersReduced)
+  const logoTargetRef = useRef<HTMLDivElement>(null)
+
+  const handleFlyStart = useCallback(() => {
+    setSunriseVisible(true)
+  }, [])
+
+  const aspReady = !!aspInfo.signerPubkey || aspInfo.unreachable
 
   useEffect(() => {
     setError(aspInfo.unreachable)
@@ -44,64 +94,140 @@ export default function Init() {
 
   const handleOldWallet = () => navigate(Pages.InitRestore)
 
+  const handleLogoComplete = useCallback(() => {
+    setContentReady(true)
+  }, [])
+
+  const titleStyle = {
+    margin: 0,
+    fontFamily: 'var(--heading-font)',
+    fontSize: '24px',
+    fontWeight: 500,
+    letterSpacing: '-0.5px',
+    lineHeight: '1.2',
+  }
+
   return (
     <>
+      <OnboardingLogo
+        targetRef={logoTargetRef}
+        onComplete={handleLogoComplete}
+        onFlyStart={handleFlyStart}
+        reducedMotion={prefersReduced}
+      />
+      <PixelSunrise show={sunriseVisible} reducedMotion={prefersReduced} />
       <Content>
         <Padded>
           <FlexCol between>
-            <motion.div
-              variants={prefersReduced ? undefined : onboardStaggerContainer}
-              initial={prefersReduced ? false : 'initial'}
-              animate={prefersReduced ? undefined : 'animate'}
-              exit={
-                prefersReduced
-                  ? undefined
-                  : {
-                      opacity: 0,
-                      transition: {
-                        duration: 0.15,
-                        ease: EASE_OUT_QUINT as unknown as [number, number, number, number],
-                      },
-                    }
-              }
-              style={{ width: '100%', display: 'flex', flexDirection: 'column', flex: 1 }}
+            <div
+              style={{
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                flex: 1,
+                justifyContent: 'flex-end',
+                paddingBottom: 40,
+              }}
             >
-              <motion.div
-                variants={prefersReduced ? undefined : onboardStaggerChild}
+              {/* Logo + title stacked — logo optically centered with bullet icons */}
+              <div
                 style={{
-                  flex: 1,
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  maxWidth: '70%',
-                  margin: '0 auto',
-                  willChange: 'transform, opacity',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
+                  padding: '0 0 1.5rem 0',
                 }}
               >
-                <WalletNewIcon />
+                <div
+                  ref={logoTargetRef}
+                  style={{
+                    width: 40,
+                    height: 28,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  {contentReady ? <SmallLogo /> : null}
+                </div>
+                <motion.div
+                  initial={prefersReduced ? false : { opacity: 0, y: 6 }}
+                  animate={
+                    contentReady && !prefersReduced
+                      ? { opacity: 1, y: 0 }
+                      : prefersReduced && contentReady
+                        ? { opacity: 1 }
+                        : { opacity: 0, y: 6 }
+                  }
+                  transition={{ duration: 0.3, ease: EASE_QUINT_TUPLE }}
+                >
+                  <h1 style={{ ...titleStyle, paddingLeft: 4 }}>Welcome to Arkade 👾</h1>
+                </motion.div>
+              </div>
+
+              {/* Bullet points + error — always in DOM for stable layout, animated in when ready */}
+              <motion.div
+                variants={prefersReduced ? undefined : onboardStaggerContainer}
+                initial={prefersReduced ? false : 'initial'}
+                animate={
+                  contentReady ? (prefersReduced ? undefined : 'animate') : prefersReduced ? undefined : 'initial'
+                }
+                exit={
+                  prefersReduced ? undefined : { opacity: 0, transition: { duration: 0.15, ease: EASE_QUINT_TUPLE } }
+                }
+                style={{ width: '100%', visibility: contentReady ? 'visible' : 'hidden' }}
+              >
+                <OnboardStaggerChild>
+                  <BulletPoint icon={<BoltOutlineIcon />} text='Fast payments, swaps, and more' />
+                </OnboardStaggerChild>
+                <OnboardStaggerChild>
+                  <BulletPoint
+                    icon={<GlobeOutlineIcon />}
+                    text='Access Lightning, DeFi, and more, all secured by Bitcoin'
+                  />
+                </OnboardStaggerChild>
+                <OnboardStaggerChild>
+                  <BulletPoint
+                    icon={<ShieldCheckOutlineIcon />}
+                    text='Stay in control. Settle and withdraw on your terms'
+                  />
+                </OnboardStaggerChild>
+
+                <OnboardStaggerChild>
+                  <ErrorMessage error={error} text='Ark server unreachable' />
+                </OnboardStaggerChild>
               </motion.div>
-              <OnboardStaggerChild>
-                <FlexCol gap='0.5rem' padding='0 0 1.5rem 0'>
-                  <Title text='Welcome to Arkade 👾' />
-                  <Text color='dark80' thin wrap>
-                    Your bitcoin has entered a new dimension. Send, receive, and swap in Arkade's virtual environment.
-                  </Text>
-                  <Text color='dark80' thin wrap>
-                    Arkade is your gateway to a new generation of bitcoin-native applications. Access Lightning
-                    payments, loans, trading, and more — all secured by bitcoin.
-                  </Text>
-                </FlexCol>
-              </OnboardStaggerChild>
-              <OnboardStaggerChild>
-                <ErrorMessage error={error} text='Ark server unreachable' />
-              </OnboardStaggerChild>
-            </motion.div>
+            </div>
           </FlexCol>
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button disabled={error} onClick={handleNewWallet} label='+ Create wallet' />
-        <Button disabled={error} onClick={() => setShowOptions(true)} label='Other login options' clear />
+        <motion.div
+          initial={prefersReduced ? false : { opacity: 0, y: 16 }}
+          animate={
+            contentReady && !prefersReduced
+              ? { opacity: 1, y: 0 }
+              : prefersReduced && contentReady
+                ? { opacity: 1 }
+                : { opacity: 0, y: 16 }
+          }
+          transition={{ duration: 0.4, ease: EASE_QUINT_TUPLE, delay: 0.24 }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            width: '100%',
+            pointerEvents: contentReady ? 'auto' : 'none',
+          }}
+        >
+          <Button disabled={error || !aspReady} onClick={handleNewWallet} label='+ Create wallet' />
+          <Button
+            disabled={error || !aspReady}
+            onClick={() => setShowOptions(true)}
+            label='Other login options'
+            clear
+          />
+        </motion.div>
       </ButtonsOnBottom>
       <SheetModal isOpen={showOptions} onClose={() => setShowOptions(false)}>
         <FlexCol gap='1rem'>
