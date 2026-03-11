@@ -18,7 +18,7 @@ const style = {
   willChange: 'transform, opacity',
 }
 
-export default function PageTransition({ children, direction, pageKey }: PageTransitionProps) {
+export function PageTransition({ children, direction, pageKey }: PageTransitionProps) {
   const prefersReduced = useReducedMotion()
 
   if (prefersReduced) {
