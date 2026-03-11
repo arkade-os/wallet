@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.3.0
-        version: 0.3.0
+        specifier: 0.3.2
+        version: 0.3.2
       '@arkade-os/sdk':
-        specifier: 0.4.0
-        version: 0.4.0
+        specifier: 0.4.3
+        version: 0.4.3
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -111,6 +111,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^5.0.2
         version: 5.1.0(vite@7.1.12(@types/node@24.10.0))
+      baseline-browser-mapping:
+        specifier: ^2.10.0
+        version: 2.10.0
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
@@ -174,12 +177,12 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@0.3.0':
-    resolution: {integrity: sha512-1RWFXbXc/FnhQiOb46HKJM7Ny2PhwyeFww+9urc1mbCWqphj+kNUul3D8iv9tN7dA8HhKVTZX9ILXjLlOavz5g==}
+  '@arkade-os/boltz-swap@0.3.2':
+    resolution: {integrity: sha512-12y+axVahMY/wRPA1deavnXVWbg9VyCIzHpr+ZvRxJLsD9tr68a5Bj8BW7M/Y+fcY2fVLgKXW7vDLuVxs0V9nw==}
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
 
-  '@arkade-os/sdk@0.4.0':
-    resolution: {integrity: sha512-spr/41KmF/3Cly7zp5OaDcuTFWcACqZVEH/kjrxat4c1SZ9y9YVnvRE2/Q7RX7PXN7DXVO8dmGzs/NXJlQQqDQ==}
+  '@arkade-os/sdk@0.4.3':
+    resolution: {integrity: sha512-8FdIzawJRwrdMbnPSQWQ2qtTeV6/OUCVg5xSTU44jMXONBjKY+jnAhE39Qv2S492dLqIsTbMxcGtezq0ZJZ99A==}
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -1140,8 +1143,9 @@ packages:
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
 
-  baseline-browser-mapping@2.8.23:
-    resolution: {integrity: sha512-616V5YX4bepJFzNyOfce5Fa8fDJMfoxzOIzDCZwaGL8MKVpFrXqfNUoIpRn9YMI5pXf/VKgzjB4htFMsFKKdiQ==}
+  baseline-browser-mapping@2.10.0:
+    resolution: {integrity: sha512-lIyg0szRfYbiy67j9KN8IyeD7q7hcmqnJ1ddWmNt19ItGpNN64mnllmxUNFIOdOm6by97jlL6wfpTTJrmnjWAA==}
+    engines: {node: '>=6.0.0'}
     hasBin: true
 
   bip68@1.0.4:
@@ -2650,9 +2654,9 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@0.3.0':
+  '@arkade-os/boltz-swap@0.3.2':
     dependencies:
-      '@arkade-os/sdk': 0.4.0
+      '@arkade-os/sdk': 0.4.3
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
@@ -2666,7 +2670,7 @@ snapshots:
       - expo-sqlite
       - expo-task-manager
 
-  '@arkade-os/sdk@0.4.0':
+  '@arkade-os/sdk@0.4.3':
     dependencies:
       '@kukks/bitcoin-descriptors': 3.1.0
       '@marcbachmann/cel-js': 7.3.1
@@ -3621,7 +3625,7 @@ snapshots:
 
   balanced-match@1.0.2: {}
 
-  baseline-browser-mapping@2.8.23: {}
+  baseline-browser-mapping@2.10.0: {}
 
   bip68@1.0.4: {}
 
@@ -3640,7 +3644,7 @@ snapshots:
 
   browserslist@4.27.0:
     dependencies:
-      baseline-browser-mapping: 2.8.23
+      baseline-browser-mapping: 2.10.0
       caniuse-lite: 1.0.30001753
       electron-to-chromium: 1.5.244
       node-releases: 2.0.27

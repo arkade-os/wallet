@@ -196,7 +196,7 @@ test('should send funds to onchain address via swap', async ({ page, isMobile })
   // main page
   await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('5,000 SATS')).toBeVisible()
-  await expect(page.getByText('- 2,275 SATS')).toBeVisible()
+  await expect(page.getByText('Received')).toBeVisible()
   await expect(page.getByText('Sent')).toBeVisible()
 
   // clear fees

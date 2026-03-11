@@ -25,6 +25,7 @@ export type Config = {
   notifications: boolean
   pubkey: string
   showBalance: boolean
+  dismissedBanners: string[]
   theme: Themes
   unit: Unit
 }

@@ -165,9 +165,9 @@ export default function Delegates() {
   }, [config.delegate, aspInfo.signerPubkey])
 
   // toggle delegate
-  const handleToggle = async () => {
+  const handleToggle = () => {
     const nextDelegate = !config.delegate
-    await updateConfig({ ...config, delegate: nextDelegate })
+    updateConfig({ ...config, delegate: nextDelegate })
     // Full page reload ensures service worker and wallet are re-instantiated with the new delegator setting.
     window.location.reload()
   }

@@ -67,6 +67,7 @@ export default function ReceiveQRCode() {
 
   const createLightningInvoice = () => {
     return new Promise((resolve, reject) => {
+      if (invoice) return reject() // invoice already exists, no need to create another
       if (!validLnSwap(satoshis)) return reject()
       createReverseSwap(satoshis)
         .then((pendingSwap) => {

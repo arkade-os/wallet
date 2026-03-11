@@ -164,6 +164,7 @@ export default function TransactionsList() {
 
   const focusRow = (index: number) => {
     if (index < 0 || index >= txs.length) return
+    setFocusedIndex(index)
     virtualizer.scrollToIndex(index)
     requestAnimationFrame(() => {
       const el = document.getElementById(key(txs[index], index)) as HTMLElement
@@ -174,7 +175,6 @@ export default function TransactionsList() {
   const focusOnFirstRow = () => {
     if (txs.length === 0) return
     setFocused(true)
-    setFocusedIndex(0)
     focusRow(0)
   }
 
@@ -182,14 +182,10 @@ export default function TransactionsList() {
     if (!focused) return
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      const next = Math.min(focusedIndex + 1, txs.length - 1)
-      setFocusedIndex(next)
-      focusRow(next)
+      focusRow(Math.min(focusedIndex + 1, txs.length - 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      const next = Math.max(focusedIndex - 1, 0)
-      setFocusedIndex(next)
-      focusRow(next)
+      focusRow(Math.max(focusedIndex - 1, 0))
     }
   }
 
@@ -217,6 +213,7 @@ export default function TransactionsList() {
         <div
           ref={parentRef}
           onKeyDown={handleListKeyDown}
+          className='hide-scrollbar'
           style={{
             borderBottom: border,
             height: 'calc(100dvh - 380px)',
@@ -232,6 +229,10 @@ export default function TransactionsList() {
                 <div
                   key={k}
                   data-testid='tx-row'
+                  onFocus={() => {
+                    if (focusedIndex !== virtualItem.index) setFocusedIndex(virtualItem.index)
+                    if (!focused) setFocused(true)
+                  }}
                   style={{
                     left: 0,
                     position: 'absolute',
