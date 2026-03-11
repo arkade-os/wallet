@@ -144,7 +144,6 @@ export default function Apps() {
               name='Arkade Mint'
               icon={<ArkadeMintIcon />}
               desc='Issue, send, and receive assets on Arkade'
-              link='https://github.com/ArkLabsHQ/arkade-assets'
               page={Pages.AppAssets}
               isDark={isDark}
               live
