@@ -36,7 +36,7 @@ function TextButton({ onClick, label }: { onClick: () => void; label: string }) 
         padding: 0,
         fontSize: '16px',
         fontWeight: 600,
-        color: 'var(--purple)',
+        color: 'var(--purpletext)',
         touchAction: 'manipulation',
         fontFamily: 'inherit',
         textAlign: 'left',
