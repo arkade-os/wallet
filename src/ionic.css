@@ -18,6 +18,7 @@
   --orange: #ff8e24;
   --orangebg: #ff8e2418;
   --purple: #391998;
+  --purple10: #39199815;
   --purple20: #39199833;
   --purplebg: #391998;
   --purpletext: #7043f4;
@@ -40,6 +41,7 @@
     'Droid Sans', 'Helvetica Neue', sans-serif;
   --heading-font: 'TT Firs Neue', 'Geist', sans-serif;
   --animation-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --bullet-icon-bg: #ede7fb;
 }
 
 .ion-palette-dark {
@@ -48,6 +50,7 @@
   --greenbg: #092d13;
   --orange: #e69b39;
   --orangebg: #2e1800;
+  --purple10: #39199820;
   --purplebg: #39199833;
   --red: #e04d4d;
   --redbg: #380008;
@@ -61,6 +64,7 @@
   --logo-color: #fbfbfb;
   --toggle-background: #ddd;
   --danger: #e04d4d;
+  --bullet-icon-bg: #1f1050;
 }
 
 .my-ion-action-sheet div.action-sheet-group {
@@ -181,9 +185,10 @@ ion-app ion-header {
   }
 }
 
-.ion-page {
+ion-app > .ion-page {
   max-width: 640px;
   margin: auto;
+  top: env(safe-area-inset-top);
 }
 
 ion-tab-bar {

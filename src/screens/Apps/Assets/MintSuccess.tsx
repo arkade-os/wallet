@@ -57,7 +57,7 @@ export default function AppAssetMintSuccess() {
       </Content>
       <ButtonsOnBottom>
         <Button label='View Asset' onClick={handleViewAsset} />
-        <Button label='Back to Assets' onClick={() => navigate(Pages.AppAssets)} secondary />
+        <Button label='Back to Arkade Mint' onClick={() => navigate(Pages.AppAssets)} secondary />
       </ButtonsOnBottom>
     </>
   )
