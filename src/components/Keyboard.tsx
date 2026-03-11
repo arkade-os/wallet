@@ -14,6 +14,7 @@ import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
 import SwapIcon from '../icons/Swap'
 import { AssetOption } from '../lib/types'
+import { unitsToCents } from '../lib/assets'
 
 interface KeyboardProps {
   asset?: AssetOption
@@ -48,7 +49,13 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
   useEffect(() => {
     const value = Number(textValue.replaceAll(',', ''))
     if (Number.isNaN(value)) return
-    setAmountInSats(inputMode === 'fiat' ? fromFiat(value) : value)
+    setAmountInSats(
+      inputMode === 'fiat'
+        ? fromFiat(value)
+        : inputMode === 'asset'
+          ? unitsToCents(value, asset?.decimals ?? 0)
+          : value,
+    )
   }, [textValue])
 
   const getMaxDecimals = () => {

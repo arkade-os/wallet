@@ -81,6 +81,11 @@ export default function SendForm() {
 
   const isAssetSend = selectedAsset !== null
 
+  const DUST_AMOUNT = 330
+  const hasAssets = assetBalances.length > 0
+  const reserveApplied = !isAssetSend && hasAssets
+  const liquidBalance = availableBalance - (reserveApplied ? DUST_AMOUNT : 0)
+
   const smartSetError = (str: string) => {
     setError(str === '' ? (aspInfo.unreachable ? 'Ark server unreachable' : '') : str)
   }
@@ -338,7 +343,7 @@ export default function SendForm() {
     }
     const satoshis = sendInfo.satoshis ?? 0
     setLabel(
-      satoshis > availableBalance
+      satoshis > liquidBalance
         ? 'Insufficient funds'
         : lnUrlLimits.min && satoshis < lnUrlLimits.min
           ? 'Amount below LNURL min limit'
@@ -352,7 +357,7 @@ export default function SendForm() {
                   ? 'Amount below min limit'
                   : 'Continue',
     )
-  }, [sendInfo.satoshis, sendInfo.assets, availableBalance, selectedAsset])
+  }, [sendInfo.satoshis, sendInfo.assets, liquidBalance, selectedAsset])
 
   // manage server unreachable error
   useEffect(() => {
@@ -492,9 +497,6 @@ export default function SendForm() {
     if (isMobileBrowser) setKeys(true)
   }
 
-  const DUST_AMOUNT = 330
-  const hasAssets = assetBalances.length > 0
-
   const handleSendAll = () => {
     if (isAssetSend && selectedAsset) {
       setTextValue(String(centsToUnits(selectedAsset.balance, selectedAsset.decimals)))
@@ -505,17 +507,14 @@ export default function SendForm() {
       })
       return
     }
-    const fees = sendInfo.lnUrl ? (calcSubmarineSwapFee(availableBalance) ?? 0) : 0
-    const reserve = hasAssets ? DUST_AMOUNT : 0
-    const amountInSats = Math.max(0, availableBalance - fees - reserve)
+    const fees = sendInfo.lnUrl ? (calcSubmarineSwapFee(liquidBalance) ?? 0) : 0
+    const amountInSats = Math.max(0, liquidBalance - fees)
     const maximumFractionDigits = useFiat ? 2 : 0
     const value = useFiat ? toFiat(amountInSats) : amountInSats
     setTextValue(prettyNumber(value, maximumFractionDigits, false))
     setState({ ...sendInfo, satoshis: amountInSats })
     setAmount(amountInSats)
   }
-
-  const reserveApplied = !isAssetSend && hasAssets && sendInfo.satoshis === availableBalance - DUST_AMOUNT
 
   const Available = () => {
     if (isAssetSend && selectedAsset) {
@@ -527,18 +526,16 @@ export default function SendForm() {
         </div>
       )
     }
-    const amount = useFiat ? toFiat(availableBalance) : availableBalance
+
+    const amount = useFiat ? toFiat(liquidBalance) : liquidBalance
     const pretty = useFiat ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
+
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
         <Text color='dark50' smaller>
           {`${pretty} available`}
+          <sup>{reserveApplied ? '*' : ''}</sup>
         </Text>
-        {reserveApplied ? (
-          <Text color='dark50' smaller>
-            {`${DUST_AMOUNT} sats reserved to keep your assets safe`}
-          </Text>
-        ) : null}
       </div>
     )
   }
@@ -559,7 +556,7 @@ export default function SendForm() {
       (lnUrlLimits.min && satoshis < lnUrlLimits.min) ||
       amountIsAboveMaxLimit(satoshis) ||
       amountIsBelowMinLimit(satoshis) ||
-      satoshis > availableBalance ||
+      satoshis > liquidBalance ||
       aspInfo.unreachable ||
       tryingToSelfSend ||
       Boolean(error) ||
@@ -715,22 +712,33 @@ export default function SendForm() {
                 ) : null}
               </FlexCol>
             ) : null}
-            <InputAmount
-              asset={selectedAsset ?? undefined}
-              name='send-amount'
-              focus={focus === 'amount' && !isMobileBrowser}
-              label='Amount'
-              min={lnUrlLimits.min}
-              max={lnUrlLimits.max}
-              onSats={handleAmountChange}
-              onEnter={handleEnter}
-              onFocus={handleFocus}
-              onMax={handleSendAll}
-              readOnly={amountIsReadOnly}
-              right={<Available />}
-              sats={amount}
-              value={textValue ? Number(textValue) : undefined}
-            />
+            <FlexCol gap='0.5rem'>
+              <InputAmount
+                asset={selectedAsset ?? undefined}
+                name='send-amount'
+                focus={focus === 'amount' && !isMobileBrowser}
+                label='Amount'
+                min={lnUrlLimits.min}
+                max={lnUrlLimits.max}
+                onSats={handleAmountChange}
+                onEnter={handleEnter}
+                onFocus={handleFocus}
+                onMax={handleSendAll}
+                readOnly={amountIsReadOnly}
+                right={<Available />}
+                sats={amount}
+                value={textValue ? Number(textValue) : undefined}
+              />
+              {reserveApplied ? (
+                <FlexRow between>
+                  <div />
+                  <Text color='dark50' smaller>
+                    {`${DUST_AMOUNT} sats are reserved to keep your assets safe`}
+                    <sup>*</sup>
+                  </Text>
+                </FlexRow>
+              ) : null}
+            </FlexCol>
             {deductFromAmount ? <InfoLine color='orange' text='Fees will be deducted from the amount sent' /> : null}
             {tryingToSelfSend ? (
               <div style={{ width: '100%' }}>
