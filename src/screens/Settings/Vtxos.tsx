@@ -41,6 +41,7 @@ export default function Vtxos() {
   const [hasInputsToSettle, setHasInputsToSettle] = useState(false)
   const [hideUtxos, setHideUtxos] = useState(false)
   const [label, setLabel] = useState(defaultLabel)
+  const [loading, setLoading] = useState(true)
   const [rollingover, setRollingover] = useState(false)
   const [reminderIsOpen, setReminderIsOpen] = useState(false)
   const [showList, setShowList] = useState(false)
@@ -85,15 +86,25 @@ export default function Vtxos() {
   useEffect(() => {
     if (!aspInfo || !svcWallet) return
     // get all VTXOs including recoverable ones
-    svcWallet
-      .getVtxos({
-        withRecoverable: true,
-        withUnrolled: false,
-      })
-      .then(setAllVtxos)
-      .catch(consoleError)
-    // get all UTXOs
-    svcWallet.getBoardingUtxos().then(setAllUtxos).catch(consoleError)
+    const fetchData = async () => {
+      try {
+        const [vtxosData, utxosData] = await Promise.all([
+          svcWallet.getVtxos({
+            withRecoverable: true,
+            withUnrolled: false,
+          }),
+          svcWallet.getBoardingUtxos(),
+        ])
+        setAllVtxos(vtxosData)
+        setAllUtxos(utxosData)
+        setLoading(false)
+      } catch (err) {
+        consoleError(err)
+        setError('Failed to fetch coins')
+        setLoading(false)
+      }
+    }
+    fetchData()
   }, [aspInfo, vtxos, svcWallet, wallet.thresholdMs])
 
   // Fetch inputs to settle
@@ -116,7 +127,7 @@ export default function Vtxos() {
     return () => clearTimeout(timeoutId)
   }, [success])
 
-  if (!svcWallet) return <Loading text='Loading...' />
+  if (!svcWallet || loading) return <Loading text='Loading...' />
 
   const listableVtxos = allVtxos.filter((vtxo) => vtxo.isSpent === false)
 
