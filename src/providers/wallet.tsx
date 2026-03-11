@@ -101,9 +101,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { notifyTxSettled } = useContext(NotificationsContext)
 
   const [txs, setTxs] = useState<Tx[]>([])
-  const [balance, setBalance] = useState<WalletBalance['total']>(0)
-  const [wallet, setWallet] = useState(defaultWallet)
-  const [walletLoaded, setWalletLoaded] = useState(false)
+  const [balance, setBalance] = useState(0)
+  const [wallet, setWallet] = useState(() => readWalletFromStorage() ?? defaultWallet)
+  const walletLoaded = true
   const [initialized, setInitialized] = useState<boolean>(false)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
   const [dataReady, setDataReady] = useState(false)
@@ -128,12 +128,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     saveAssetMetadataToStorage(assetMetadataCache.current)
   }
 
-  // read wallet from storage
-  useEffect(() => {
-    const walletFromStorage = readWalletFromStorage()
-    if (walletFromStorage) setWallet(walletFromStorage)
-    setWalletLoaded(true)
-  }, [])
+  // wallet is read synchronously in useState initializer above
 
   // reload wallet as soon as we have a service worker wallet available
   useEffect(() => {

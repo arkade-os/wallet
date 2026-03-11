@@ -69,19 +69,8 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
 
 export async function createWallet(page: Page): Promise<void> {
   await page.goto('/')
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Skip for now').click()
   await page.getByText('+ Create wallet').click()
-  await page.waitForSelector('text=Your new wallet is live!', { state: 'visible' })
-  await page.getByText('Go to wallet').click()
-  const maybeLater = page.getByRole('button', { name: 'Maybe later' })
-  await maybeLater.waitFor({ state: 'visible', timeout: 150 }).catch(() => {})
-  if (await maybeLater.isVisible()) {
-    await maybeLater.click({ force: true })
-    await maybeLater.waitFor({ state: 'hidden' }).catch(() => {})
-  }
+  await page.waitForSelector('text=Send', { state: 'visible', timeout: 30000 })
 }
 
 export async function createWalletWithPassword(page: Page, password: string): Promise<void> {
@@ -172,21 +161,11 @@ async function resetWallet(page: Page): Promise<void> {
 }
 
 async function restoreWallet(page: Page, nsec: string): Promise<void> {
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Continue').click()
-  await page.getByText('Skip for now').click()
   await page.getByText('Other login options').click()
   await page.getByText('Restore wallet').click()
   await page.locator('ion-input[name="private-key"] input').fill(nsec)
   await page.getByText('Continue').click()
-  await page.getByText('Go to wallet').click()
-  const maybeLater = page.getByRole('button', { name: 'Maybe later' })
-  await maybeLater.waitFor({ state: 'visible', timeout: 150 }).catch(() => {})
-  if (await maybeLater.isVisible()) {
-    await maybeLater.click({ force: true })
-    await maybeLater.waitFor({ state: 'hidden' }).catch(() => {})
-  }
+  await page.waitForSelector('text=Send', { state: 'visible', timeout: 30000 })
 }
 
 export async function fundWallet(page: Page, amount: number = 5000): Promise<void> {
