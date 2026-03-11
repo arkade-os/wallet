@@ -88,7 +88,7 @@ export default function Init() {
                   </Text>
                   <Text color='dark80' thin wrap>
                     Arkade is your gateway to a new generation of bitcoin-native applications. Access Lightning
-                    payments, DeFi, assets, and more — all secured by bitcoin.
+                    payments, loans, trading, and more — all secured by bitcoin.
                   </Text>
                 </FlexCol>
               </OnboardStaggerChild>
