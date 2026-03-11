@@ -343,7 +343,7 @@ button.reminder-button.action-sheet-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 15;
+  z-index: 9;
   border: none;
   border-radius: 12px;
   background: none;
@@ -386,16 +386,19 @@ button.reminder-button.action-sheet-button {
 .header-icon-x {
   opacity: 0;
   transform: rotate(-90deg);
+  pointer-events: none;
 }
 
 .header-icon-morph--close .header-icon-gear {
   opacity: 0;
   transform: rotate(90deg);
+  pointer-events: none;
 }
 
 .header-icon-morph--close .header-icon-x {
   opacity: 1;
   transform: rotate(0deg);
+  pointer-events: auto;
 }
 
 /* Tab icon animation wrapper */
