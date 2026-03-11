@@ -21,14 +21,14 @@ interface MintAssetOptions {
 
 export async function navigateToAssets(page: Page): Promise<void> {
   await page.getByTestId('tab-apps').click()
-  await page.getByTestId('app-assets').click()
-  await page.waitForSelector('text=Assets', { state: 'visible' })
+  await page.getByTestId('app-arkade-mint').click()
+  await page.waitForSelector('text=Arkade Mint', { state: 'visible' })
 }
 
 export async function enableAssets(page: Page): Promise<void> {
   await navigateToAssets(page)
   await page.getByTestId('settings-icon-light').click()
-  await page.waitForSelector('text=Assets settings', { state: 'visible' })
+  await page.waitForSelector('text=Arkade Mint settings', { state: 'visible' })
   await page.getByTestId('assets-toggle').click()
 }
 

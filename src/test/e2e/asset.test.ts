@@ -33,7 +33,7 @@ test('should mint an asset and see it in list', async ({ page }) => {
   await expect(page.getByText('TST')).toBeVisible()
 
   // go back to asset list
-  await page.getByText('Back to Assets').click()
+  await page.getByText('Back to Arkade Mint').click()
   await expect(page.getByText('TestCoin')).toBeVisible()
 })
 
@@ -89,7 +89,7 @@ test('should reissue an asset with control token', async ({ page }) => {
 
   // mint control token
   await mintAsset(page, { amount: 100, name: 'CtrlToken', ticker: 'CTL', decimals: 0 })
-  await page.getByText('Back to Assets').click()
+  await page.getByText('Back to Arkade Mint').click()
 
   // mint asset with control token
   await page.getByText('Mint', { exact: true }).click()
