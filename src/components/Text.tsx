@@ -21,7 +21,6 @@ interface TextProps {
   small?: boolean
   thin?: boolean
   tiny?: boolean
-  tooltip?: string
   wrap?: boolean
 }
 
@@ -42,7 +41,6 @@ export default function Text({
   small,
   thin,
   tiny,
-  tooltip,
   wrap,
 }: TextProps) {
   const fontSize = tiny ? 12 : smaller ? 13 : small ? 14 : big ? 24 : bigger ? 32 : large ? 18 : 16
@@ -75,7 +73,7 @@ export default function Text({
 
   return (
     <IonText>
-      <p className={className} onClick={handleClick} style={pStyle} title={tooltip}>
+      <p className={className} onClick={handleClick} style={pStyle}>
         {children}
       </p>
     </IonText>
