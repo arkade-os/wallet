@@ -237,7 +237,7 @@ button.reminder-button.action-sheet-button {
 }
 
 .ion-palette-dark .pill-navbar {
-  background-color: #1C1C1E;
+  background-color: #1c1c1e;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.1),
     0 1px 3px -1px rgba(0, 0, 0, 0.4),
@@ -260,7 +260,9 @@ button.reminder-button.action-sheet-button {
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  transition: color 150ms ease-out, background-color 150ms ease-out;
+  transition:
+    color 150ms ease-out,
+    background-color 150ms ease-out;
 }
 
 .pill-nav-btn--active {
@@ -353,7 +355,9 @@ button.reminder-button.action-sheet-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 250ms ease-out, opacity 250ms ease-out;
+  transition:
+    transform 250ms ease-out,
+    opacity 250ms ease-out;
 }
 
 .header-icon-gear {
