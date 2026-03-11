@@ -190,7 +190,7 @@ export default function Vtxos() {
           <IonGrid>
             <IonRow className='ion-align-items-end'>
               <IonCol size='4'>
-                <Text tooltip={amount}>{amount}</Text>
+                <Text>{amount}</Text>
               </IonCol>
               <IonCol size='4'>{tags}</IonCol>
               <IonCol size='4'>
