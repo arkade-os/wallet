@@ -436,6 +436,9 @@ export default function SendForm() {
     setShowAssetSelector(false)
     setSelectedAsset(asset)
     if (asset) {
+      if (isBTCAddress(recipient)) {
+        return setError('Assets can only be sent to Ark addresses')
+      }
       setState({ ...sendInfo, address: '', assets: [{ assetId: asset.assetId, amount: 0 }], satoshis: 0 })
       setAmount(undefined)
       setTextValue('')
