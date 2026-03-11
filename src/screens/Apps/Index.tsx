@@ -12,6 +12,7 @@ import { ConfigContext } from '../../providers/config'
 import { Themes } from '../../lib/types'
 import LendasatIcon from './Lendasat/LendasatIcon'
 import LendaswapIcon from './Lendaswap/LendaswapIcon'
+import Focusable from '../../components/Focusable'
 import { hapticSubtle } from '../../lib/haptics'
 
 const Middot = () => (
@@ -94,45 +95,38 @@ function App({ desc, icon, link, name, live, page, isDark }: AppProps) {
   }
 
   return (
-    <div
-      style={wrapperStyle}
-      onClick={handleClick}
-      onMouseDown={handlePressStart}
-      onMouseUp={handlePressEnd}
-      onMouseLeave={handlePressEnd}
-      onTouchStart={handlePressStart}
-      onTouchEnd={handlePressEnd}
-      onTouchCancel={handlePressEnd}
-      role='button'
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (['Enter', ' '].includes(e.key)) {
-          e.preventDefault()
-          handleClick()
-        }
-      }}
-      aria-label={name}
-    >
-      <div style={cardStyle}>
-        <FlexCol gap='0.75rem' testId={testId}>
-          <FlexRow between alignItems='flex-start'>
-            {icon}
-            <FlexCol gap='0.25rem'>
-              <FlexRow between>
-                <Text bold>{name}</Text>
-                <Tag kind={live ? 'new' : 'coming soon'} />
-              </FlexRow>
-              <Text color='dark80' small thin wrap>
-                {link}
-              </Text>
-              <Text color='dark80' small thin wrap>
-                {desc}
-              </Text>
-            </FlexCol>
-          </FlexRow>
-        </FlexCol>
+    <Focusable onEnter={handleClick} round ariaLabel={name}>
+      <div
+        style={wrapperStyle}
+        onClick={handleClick}
+        onMouseDown={handlePressStart}
+        onMouseUp={handlePressEnd}
+        onMouseLeave={handlePressEnd}
+        onTouchStart={handlePressStart}
+        onTouchEnd={handlePressEnd}
+        onTouchCancel={handlePressEnd}
+      >
+        <div style={cardStyle}>
+          <FlexCol gap='0.75rem' testId={testId}>
+            <FlexRow between alignItems='flex-start'>
+              {icon}
+              <FlexCol gap='0.25rem'>
+                <FlexRow between>
+                  <Text bold>{name}</Text>
+                  <Tag kind={live ? 'new' : 'coming soon'} />
+                </FlexRow>
+                <Text color='dark80' small thin wrap>
+                  {link}
+                </Text>
+                <Text color='dark80' small thin wrap>
+                  {desc}
+                </Text>
+              </FlexCol>
+            </FlexRow>
+          </FlexCol>
+        </div>
       </div>
-    </div>
+    </Focusable>
   )
 }
 
