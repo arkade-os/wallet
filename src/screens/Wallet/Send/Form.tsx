@@ -394,7 +394,7 @@ export default function SendForm() {
 
   // deal with fees deduction from amount
   useEffect(() => {
-    if (!sendInfo.address || sendInfo.arkAddress || sendInfo.invoice) {
+    if (!sendInfo.address || sendInfo.arkAddress || sendInfo.invoice || !availableBalance) {
       setDeductFromAmount(false)
       return
     }
