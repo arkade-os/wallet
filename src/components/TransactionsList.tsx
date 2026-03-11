@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useContext, useRef, useState } from 'react'
+import { useContext, useRef } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
@@ -148,8 +148,8 @@ export default function TransactionsList() {
   const { navigate } = useContext(NavigationContext)
   const { txs } = useContext(WalletContext)
 
-  const [focused, setFocused] = useState(false)
-  const [focusedIndex, setFocusedIndex] = useState(0)
+  const focusedRef = useRef(false)
+  const focusedIndexRef = useRef(0)
   const parentRef = useRef<HTMLDivElement>(null)
 
   const virtualizer = useVirtualizer({
@@ -164,7 +164,7 @@ export default function TransactionsList() {
 
   const focusRow = (index: number) => {
     if (index < 0 || index >= txs.length) return
-    setFocusedIndex(index)
+    focusedIndexRef.current = index
     virtualizer.scrollToIndex(index)
     requestAnimationFrame(() => {
       const el = document.getElementById(key(txs[index], index)) as HTMLElement
@@ -174,23 +174,23 @@ export default function TransactionsList() {
 
   const focusOnFirstRow = () => {
     if (txs.length === 0) return
-    setFocused(true)
+    focusedRef.current = true
     focusRow(0)
   }
 
   const handleListKeyDown = (e: React.KeyboardEvent) => {
-    if (!focused) return
+    if (!focusedRef.current) return
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      focusRow(Math.min(focusedIndex + 1, txs.length - 1))
+      focusRow(Math.min(focusedIndexRef.current + 1, txs.length - 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      focusRow(Math.max(focusedIndex - 1, 0))
+      focusRow(Math.max(focusedIndexRef.current - 1, 0))
     }
   }
 
   const focusOnOuterShell = () => {
-    setFocused(false)
+    focusedRef.current = false
     const outer = document.getElementById('outer') as HTMLElement
     if (outer) outer.focus()
   }
@@ -232,8 +232,8 @@ export default function TransactionsList() {
                   data-index={virtualItem.index}
                   data-testid='tx-row'
                   onFocus={() => {
-                    if (focusedIndex !== virtualItem.index) setFocusedIndex(virtualItem.index)
-                    if (!focused) setFocused(true)
+                    focusedIndexRef.current = virtualItem.index
+                    focusedRef.current = true
                   }}
                   style={{
                     left: 0,
@@ -245,7 +245,7 @@ export default function TransactionsList() {
                 >
                   <Focusable
                     id={k}
-                    inactive={!focused}
+                    inactive={!focusedRef.current}
                     onEnter={() => handleClick(tx)}
                     onEscape={focusOnOuterShell}
                     ariaLabel={ariaLabel(tx)}
