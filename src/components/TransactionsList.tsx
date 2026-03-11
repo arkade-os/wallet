@@ -155,9 +155,9 @@ export default function TransactionsList() {
   const virtualizer = useVirtualizer({
     count: txs.length,
     getScrollElement: () => parentRef.current,
-    // Estimated height of one TransactionLine row (icon 24px + 2×line-height + 2×8px padding)
     estimateSize: () => 61,
     overscan: 5,
+    measureElement: (el) => el.getBoundingClientRect().height,
   })
 
   const key = (tx: Tx, index: number) => tx.roundTxid || tx.redeemTxid || tx.boardingTxid || `tx-${index}`
@@ -228,6 +228,8 @@ export default function TransactionsList() {
               return (
                 <div
                   key={k}
+                  ref={virtualizer.measureElement}
+                  data-index={virtualItem.index}
                   data-testid='tx-row'
                   onFocus={() => {
                     if (focusedIndex !== virtualItem.index) setFocusedIndex(virtualItem.index)
