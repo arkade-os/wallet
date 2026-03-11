@@ -8,6 +8,7 @@ import {
   FeeInfo,
   WalletBalance,
   DelegateContractHandler,
+  VtxoManager,
 } from '@arkade-os/sdk'
 import { Addresses, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
@@ -239,15 +240,21 @@ export const sendOffChain = async (wallet: IWallet, amount: number, address: str
 
 export const getInputsToSettle = async (
   wallet: IWallet,
+  vtxoManager: VtxoManager,
   thresholdMs?: number,
 ): Promise<{ inputs: ExtendedCoin[]; vtxos: ExtendedVirtualCoin[]; boardingUtxos: ExtendedCoin[] }> => {
-  const vtxos = thresholdMs ? await getExpiringAndRecoverableVtxos(wallet, thresholdMs) : []
+  const vtxos = thresholdMs ? await getExpiringAndRecoverableVtxos(vtxoManager, thresholdMs) : []
   const boardingUtxos = await getConfirmedAndNotExpiredUtxos(wallet)
   return { inputs: [...boardingUtxos, ...vtxos], vtxos, boardingUtxos }
 }
 
-export const settleVtxos = async (wallet: IWallet, dustAmount: bigint, thresholdMs?: number): Promise<void> => {
-  const { inputs } = await getInputsToSettle(wallet, thresholdMs)
+export const settleVtxos = async (
+  wallet: IWallet,
+  vtxoManager: VtxoManager,
+  dustAmount: bigint,
+  thresholdMs?: number,
+): Promise<void> => {
+  const { inputs } = await getInputsToSettle(wallet, vtxoManager, thresholdMs)
 
   if (inputs.length === 0) throw new Error('No UTXOs or VTXOs eligible to settle')
 
@@ -275,9 +282,14 @@ export const settleVtxos = async (wallet: IWallet, dustAmount: bigint, threshold
   }
 }
 
-export const renewCoins = async (wallet: IWallet, dustAmount: bigint, thresholdMs?: number): Promise<void> => {
-  const { inputs } = await getInputsToSettle(wallet, thresholdMs)
-  if (inputs.length > 0) await settleVtxos(wallet, dustAmount, thresholdMs)
+export const renewCoins = async (
+  wallet: IWallet,
+  vtxoManager: VtxoManager,
+  dustAmount: bigint,
+  thresholdMs?: number,
+): Promise<void> => {
+  const { inputs } = await getInputsToSettle(wallet, vtxoManager, thresholdMs)
+  if (inputs.length > 0) await settleVtxos(wallet, vtxoManager, dustAmount, thresholdMs)
 }
 
 export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> => {
