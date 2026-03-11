@@ -5,7 +5,7 @@ export default function SettingsIcon() {
 }
 
 export function SettingsIconLight() {
-  return <Settings size={22} strokeWidth={2} />
+  return <Settings size={22} strokeWidth={2} data-testid='settings-icon-light' />
 }
 
 export function CloseIcon() {
