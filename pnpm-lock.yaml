@@ -12,8 +12,8 @@ importers:
         specifier: 0.3.0
         version: 0.3.0
       '@arkade-os/sdk':
-        specifier: 0.4.0
-        version: 0.4.0
+        specifier: 0.4.1
+        version: 0.4.1
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -180,6 +180,27 @@ packages:
 
   '@arkade-os/sdk@0.4.0':
     resolution: {integrity: sha512-spr/41KmF/3Cly7zp5OaDcuTFWcACqZVEH/kjrxat4c1SZ9y9YVnvRE2/Q7RX7PXN7DXVO8dmGzs/NXJlQQqDQ==}
+    engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
+    peerDependencies:
+      '@react-native-async-storage/async-storage': '>=1.0.0'
+      expo: '>=54.0.0'
+      expo-background-task: ~1.0.10
+      expo-sqlite: ~16.0.10
+      expo-task-manager: ~14.0.9
+    peerDependenciesMeta:
+      '@react-native-async-storage/async-storage':
+        optional: true
+      expo:
+        optional: true
+      expo-background-task:
+        optional: true
+      expo-sqlite:
+        optional: true
+      expo-task-manager:
+        optional: true
+
+  '@arkade-os/sdk@0.4.1':
+    resolution: {integrity: sha512-Rs5fVYi+VUd7URJVHE3OKhj6o9IRG4olmTnTg/O1r7JQZqET+zFbZm3v9rYTRkN/rulzN8uJNWpWt+raCg6N9Q==}
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -2659,6 +2680,18 @@ snapshots:
       - expo-task-manager
 
   '@arkade-os/sdk@0.4.0':
+    dependencies:
+      '@kukks/bitcoin-descriptors': 3.1.0
+      '@marcbachmann/cel-js': 7.3.1
+      '@noble/curves': 2.0.0
+      '@noble/secp256k1': 3.0.0
+      '@scure/base': 2.0.0
+      '@scure/bip32': 2.0.0
+      '@scure/bip39': 2.0.1
+      '@scure/btc-signer': 2.0.1
+      bip68: 1.0.4
+
+  '@arkade-os/sdk@0.4.1':
     dependencies:
       '@kukks/bitcoin-descriptors': 3.1.0
       '@marcbachmann/cel-js': 7.3.1
