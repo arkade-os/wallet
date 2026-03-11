@@ -176,7 +176,17 @@ export default function Vtxos() {
     ),
   }
 
-  const CoinLine = ({ amount, tags, expiry }: { amount: string; tags: React.ReactNode; expiry: string }) => {
+  const CoinLine = ({
+    amount,
+    assets,
+    tags,
+    expiry,
+  }: {
+    amount: string
+    assets?: string[]
+    tags: React.ReactNode
+    expiry: string
+  }) => {
     const style: React.CSSProperties = {
       backgroundColor: 'var(--dark10)',
       border: '1px solid var(--dark20)',
@@ -186,19 +196,24 @@ export default function Vtxos() {
     }
     return (
       <div style={style}>
-        <FlexRow between>
-          <IonGrid>
-            <IonRow className='ion-align-items-end'>
-              <IonCol size='4'>
-                <Text tooltip={amount}>{amount}</Text>
-              </IonCol>
-              <IonCol size='4'>{tags}</IonCol>
-              <IonCol size='4'>
-                <Text right>{expiry}</Text>
-              </IonCol>
-            </IonRow>
-          </IonGrid>
-        </FlexRow>
+        <IonGrid>
+          <IonRow className='ion-align-items-start'>
+            <IonCol size='4'>
+              <FlexCol gap='0.25rem'>
+                <Text>{amount}</Text>
+                {assets?.map((a) => (
+                  <Text key={a} color='dark50' smaller>
+                    {a}
+                  </Text>
+                ))}
+              </FlexCol>
+            </IonCol>
+            <IonCol size='4'>{tags}</IonCol>
+            <IonCol size='4'>
+              <Text right>{expiry}</Text>
+            </IonCol>
+          </IonRow>
+        </IonGrid>
       </div>
     )
   }
@@ -206,18 +221,15 @@ export default function Vtxos() {
   const VtxoLine = ({ vtxo }: { vtxo: Vtxo }) => {
     const now = Date.now()
     const expired = vtxo.virtualStatus?.batchExpiry ? now > vtxo.virtualStatus.batchExpiry : false
-    const amount = config.showBalance ? prettyNumber(vtxo.value) : prettyHide(vtxo.value)
-    const vtxoAssets = vtxo.assets
-    const assetText = vtxoAssets?.length
-      ? vtxoAssets
-          .map((a) => {
-            const meta = assetMetadataCache.get(a.assetId)?.metadata
-            const decimals = meta?.decimals ?? 8
-            const label = meta?.ticker ?? `${a.assetId.slice(0, 8)}...`
-            return `+ ${formatAssetAmount(a.amount, decimals)} ${label}`
-          })
-          .join(', ')
-      : ''
+    const satsAmount = config.showBalance ? prettyNumber(vtxo.value) : prettyHide(vtxo.value)
+    const assetsAmounts = vtxo.assets?.length
+      ? vtxo.assets.map((a) => {
+          const meta = assetMetadataCache.get(a.assetId)?.metadata
+          const decimals = meta?.decimals ?? 8
+          const label = meta?.ticker ?? `${a.assetId.slice(0, 8)}...`
+          return `${formatAssetAmount(a.amount, decimals)} ${label}`
+        })
+      : []
     const expiry = vtxo.virtualStatus?.batchExpiry ? prettyAgo(vtxo.virtualStatus.batchExpiry) : 'Unknown'
     const tags = (
       <FlexRow centered>
@@ -232,7 +244,7 @@ export default function Vtxos() {
                 : null}
       </FlexRow>
     )
-    return <CoinLine amount={`${amount} SATS${assetText ? ' ' + assetText : ''}`} tags={tags} expiry={expiry} />
+    return <CoinLine amount={`${satsAmount} SATS`} assets={assetsAmounts} tags={tags} expiry={expiry} />
   }
 
   const UtxoLine = ({ utxo }: { utxo: ExtendedCoin }) => {
