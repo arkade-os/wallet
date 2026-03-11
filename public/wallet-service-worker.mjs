@@ -62548,7 +62548,7 @@ function d_(c, a, u) {
     } else if (a.time >= c.time + Number(k.params.timelock.value))
       return k;
 }
-const p_ = "dccb2fd3-dirty", k_ = new Oy(), A_ = new Py(), w_ = new iy();
+const p_ = "070e98bc-dirty", k_ = new Oy(), A_ = new Py(), w_ = new iy();
 self.addEventListener("message", (c) => {
   c.data?.type === "SKIP_WAITING" && c.waitUntil(self.skipWaiting());
 });
