@@ -77,7 +77,7 @@ const SwapLine = ({ onClick, swap }: { onClick: () => void; swap: PendingSwap })
     }
   }
 
-  if (!sats || !direction || !prefix) throw new Error('Invalid swap data')
+  if (!direction || !prefix) throw new Error('Invalid swap data')
 
   const status: statusUI = statusDict[swap.status] || 'Pending'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(sats) : prettyHide(sats)}`

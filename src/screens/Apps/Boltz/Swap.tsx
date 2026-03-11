@@ -5,7 +5,7 @@ import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import Table, { TableData } from '../../../components/Table'
 import { FlowContext } from '../../../providers/flow'
-import { decodeInvoice } from '../../../lib/bolt11'
+import { decodeInvoice, isValidInvoice } from '../../../lib/bolt11'
 import { prettyAgo, prettyAmount, prettyDate, prettyHide } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
 import {
@@ -111,8 +111,8 @@ export default function AppBoltzSwap() {
       ['Total', formatAmount(sentSats)],
     ]
   } else if (swapInfo.type === 'submarine') {
-    const sentSats = decodeInvoice(swapInfo.request.invoice).amountSats
-    const rcvdSats = swapInfo.response.expectedAmount
+    const sentSats = isValidInvoice(swapInfo.request.invoice) ? decodeInvoice(swapInfo.request.invoice).amountSats : 0
+    const rcvdSats = swapInfo.response.expectedAmount ?? 0
 
     tableData = [
       ['When', when],
