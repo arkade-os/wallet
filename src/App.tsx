@@ -30,7 +30,6 @@ import { PageTransition } from './components/PageTransition'
 import SettingsIcon, { SettingsIconLight, CloseIcon } from './icons/Settings'
 import Loading from './components/Loading'
 import PillNavbar from './components/PillNavbar'
-import { pwaIsInstalled } from './lib/pwa'
 import FlexCol from './components/FlexCol'
 import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
@@ -84,7 +83,7 @@ export default function App() {
   const { configLoaded } = useContext(ConfigContext)
   const { direction, navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
-  const { setOption } = useContext(OptionsContext)
+  const { option, setOption } = useContext(OptionsContext)
   const { walletLoaded, initialized, wallet } = useContext(WalletContext)
 
   const [isCapable, setIsCapable] = useState(false)
@@ -216,8 +215,9 @@ export default function App() {
           <>
             <button
               className='header-settings-btn'
-              onClick={tab === Tabs.Settings ? handleCloseSettings : handleSettings}
-              aria-label={tab === Tabs.Settings ? 'Close settings' : 'Settings'}
+              data-testid='tab-settings'
+              onClick={tab === Tabs.Settings && option === SettingsOptions.Menu ? handleCloseSettings : handleSettings}
+              aria-label={tab === Tabs.Settings && option === SettingsOptions.Menu ? 'Close settings' : 'Settings'}
             >
               <span className={`header-icon-morph ${tab === Tabs.Settings ? 'header-icon-morph--close' : ''}`}>
                 <span className='header-icon-gear'>
@@ -271,7 +271,7 @@ export default function App() {
               <IonTabBar slot='bottom'>
                 <IonTabButton tab={Tabs.Wallet} onClick={handleWallet} selected={tab === Tabs.Wallet}>
                   <Focusable>
-                    <FlexCol centered gap='6px' padding='5px' testId='tab-wallet'>
+                    <FlexCol centered gap='6px' padding='5px'>
                       <AnimatedTabIcon animating={animatingTab === 'wallet'}>
                         <WalletIcon />
                       </AnimatedTabIcon>
@@ -281,7 +281,7 @@ export default function App() {
                 </IonTabButton>
                 <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps}>
                   <Focusable>
-                    <FlexCol centered gap='6px' padding='5px' testId='tab-apps'>
+                    <FlexCol centered gap='6px' padding='5px'>
                       <AnimatedTabIcon animating={animatingTab === 'apps'}>
                         <AppsIcon />
                       </AnimatedTabIcon>
@@ -291,7 +291,7 @@ export default function App() {
                 </IonTabButton>
                 <IonTabButton tab={Tabs.Settings} onClick={handleSettings} selected={tab === Tabs.Settings}>
                   <Focusable>
-                    <FlexCol centered gap='6px' padding='5px' testId='tab-settings'>
+                    <FlexCol centered gap='6px' padding='5px'>
                       <AnimatedTabIcon animating={animatingTab === 'settings'}>
                         <SettingsIcon />
                       </AnimatedTabIcon>

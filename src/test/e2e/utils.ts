@@ -81,7 +81,9 @@ export async function createWalletWithPassword(page: Page, password: string): Pr
   await page.locator('div[data-testid="new-password"] input').fill(password)
   await page.locator('div[data-testid="confirm-password"] input').fill(password)
   await page.getByText('Save password').click()
-  await page.getByTestId('tab-wallet').click()
+  // go to settings main, then close settings to return to wallet
+  await page.getByTestId('tab-settings').click()
+  await page.getByTestId('tab-settings').click()
 }
 
 export async function pay(page: Page, address: string, isMobile = false, sats = 0): Promise<void> {

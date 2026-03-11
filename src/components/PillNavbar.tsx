@@ -32,6 +32,7 @@ export default function PillNavbar({ activeTab, onWalletClick, onAppsClick }: Pi
         role='tab'
         aria-selected={activeTab === 'wallet'}
         aria-label='Wallet'
+        data-testid='tab-wallet'
       >
         <div ref={walletRef} className='pill-nav-icon'>
           <WalletIcon />
@@ -44,6 +45,7 @@ export default function PillNavbar({ activeTab, onWalletClick, onAppsClick }: Pi
         role='tab'
         aria-selected={activeTab === 'apps'}
         aria-label='Apps'
+        data-testid='tab-apps'
       >
         <div ref={appsRef} className='pill-nav-icon'>
           <AppsIcon />
