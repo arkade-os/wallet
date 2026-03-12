@@ -65,7 +65,7 @@ interface WalletContextProps {
   balance: WalletBalance['total']
   assetBalances: WalletBalance['assets']
   assetMetadataCache: Map<string, CachedAssetDetails>
-  setCacheEntry: (assetId: string, details: AssetDetails) => void
+  setCacheEntry: (assetId: string, details: AssetDetails) => CachedAssetDetails
   iconApprovalManager: AssetIconApprovalManager
   dataReady: boolean
   initialized?: boolean
@@ -86,7 +86,7 @@ export const WalletContext = createContext<WalletContextProps>({
   balance: 0,
   assetBalances: [],
   assetMetadataCache: new Map(),
-  setCacheEntry: () => {},
+  setCacheEntry: () => ({ cachedAt: 0 }) as CachedAssetDetails,
   iconApprovalManager: new AssetIconApprovalManager(),
   dataReady: false,
   txs: [],
@@ -117,7 +117,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const verifiedAssetsFetched = useRef(false)
   const statusPingInterval = useRef<ReturnType<typeof setInterval>>()
 
-  const setCacheEntry = (assetId: string, details: AssetDetails) => {
+  const setCacheEntry = (assetId: string, details: AssetDetails): CachedAssetDetails => {
     const hasIcon = !!details.metadata?.icon
     const moderated =
       hasIcon && !iconApprovalManager.isApproved(assetId)
@@ -126,6 +126,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const entry: CachedAssetDetails = { ...moderated, cachedAt: Date.now(), hasIcon }
     assetMetadataCache.current.set(assetId, entry)
     saveAssetMetadataToStorage(assetMetadataCache.current)
+    return entry
   }
 
   // wallet is read synchronously in useState initializer above

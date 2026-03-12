@@ -143,7 +143,7 @@ export const mockWalletContextValue = {
   balance: 0,
   assetBalances: [],
   assetMetadataCache: new Map(),
-  setCacheEntry: () => {},
+  setCacheEntry: () => ({ cachedAt: 0 }) as any,
   txs: [mockTxInfo],
   vtxos: { spendable: [], spent: [] },
   iconApprovalManager: new AssetIconApprovalManager(),
