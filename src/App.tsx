@@ -218,6 +218,11 @@ export default function App() {
               data-testid='tab-settings'
               onClick={tab === Tabs.Settings && option === SettingsOptions.Menu ? handleCloseSettings : handleSettings}
               aria-label={tab === Tabs.Settings && option === SettingsOptions.Menu ? 'Close settings' : 'Settings'}
+              style={
+                page !== Pages.Wallet && page !== Pages.Apps && tab !== Tabs.Settings
+                  ? { display: 'none' }
+                  : undefined
+              }
             >
               <span className={`header-icon-morph ${tab === Tabs.Settings ? 'header-icon-morph--close' : ''}`}>
                 <span className='header-icon-gear'>
