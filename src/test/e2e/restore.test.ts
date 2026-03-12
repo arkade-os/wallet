@@ -25,7 +25,7 @@ const execAsync = promisify(exec)
 // 6. Restore wallet with backup phrase
 // 7. Verify swap history has both swaps
 
-test.skip('should restore swaps without nostr backup', async ({ page, isMobile }) => {
+test('should restore swaps without nostr backup', async ({ page, isMobile }) => {
   test.setTimeout(120000)
   // create wallet
   await createWallet(page)
@@ -34,8 +34,8 @@ test.skip('should restore swaps without nostr backup', async ({ page, isMobile }
    * reverse swap
    */
 
-  // define amount 2000 SATS
-  const invoice = await receiveLightning(page, isMobile, 2000)
+  // define amount 5000 SATS
+  const invoice = await receiveLightning(page, isMobile, 5000)
   expect(invoice).toBeDefined()
   expect(invoice).toBeTruthy()
   expect(invoice).toContain('lnbcrt')
@@ -49,7 +49,7 @@ test.skip('should restore swaps without nostr backup', async ({ page, isMobile }
   // navigate to wallet tab and verify balance before proceeding
   await page.getByTestId('tab-wallet').click()
   await page.waitForSelector('text=Received', { timeout: 10000 })
-  await expect(page.getByText('1,992', { exact: true })).toBeVisible()
+  await expect(page.getByText('4,980', { exact: true })).toBeVisible()
 
   /**
    * submarine swap
@@ -71,6 +71,16 @@ test.skip('should restore swaps without nostr backup', async ({ page, isMobile }
   await pay(page, paymentRequest, isMobile)
 
   /**
+   * chain swap
+   */
+
+  // send page
+  const someOnchainAddress = 'bcrt1pxxxth5z4yn8nylc6nzz6w3vkumwdllaky5sls7an8e044u2qlnes2vvy6y'
+  await pay(page, someOnchainAddress, isMobile, 2000)
+  await page.waitForSelector('text=SATS sent successfully', { timeout: 10000 })
+  await expect(page.getByText('SATS sent successfully')).toBeVisible()
+
+  /**
    * restore wallet
    */
 
@@ -86,10 +96,11 @@ test.skip('should restore swaps without nostr backup', async ({ page, isMobile }
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
 
-  // verify both swaps are present
+  // verify all swaps are present
   await expect(page.getByText('Boltz')).toBeVisible()
-  await expect(page.getByText('+ 1,992')).toBeVisible()
-  await expect(page.getByText('Lightning to Arkade')).toBeVisible()
+  await expect(page.getByText('+ 4,980')).toBeVisible()
   await expect(page.getByText('- 1,001')).toBeVisible()
+  await expect(page.getByText('Arkade to Bitcoin')).toBeVisible()
   await expect(page.getByText('Arkade to Lightning')).toBeVisible()
+  await expect(page.getByText('Lightning to Arkade')).toBeVisible()
 })
