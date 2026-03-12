@@ -29,7 +29,7 @@ export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo, setTxInfo } = useContext(FlowContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { assetMetadataCache, settlePreconfirmed, vtxos, wallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } = useContext(WalletContext)
 
   const tx = txInfo
   const issuanceTx = tx ? isIssuance(tx) : false
@@ -69,13 +69,13 @@ export default function Transaction() {
   }, [wallet.nextRollover])
 
   useEffect(() => {
-    if (!aspInfo || !svcWallet) return
-    getInputsToSettle(svcWallet, wallet.thresholdMs).then(({ inputs }) => {
+    if (!aspInfo || !svcWallet || !vtxoManager) return
+    getInputsToSettle(svcWallet, vtxoManager, wallet.thresholdMs).then(({ inputs }) => {
       setHasInputsToSettle(inputs.length > 0)
       const totalAmount = inputs.reduce((a, v) => a + v.value, 0) || 0
       setAmountAboveDust(totalAmount > aspInfo.dust)
     })
-  }, [aspInfo, vtxos, svcWallet, wallet.thresholdMs])
+  }, [aspInfo, vtxos, svcWallet, vtxoManager, wallet.thresholdMs])
 
   // TODO implement resend
   //  - create new boarding tx

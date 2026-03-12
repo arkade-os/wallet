@@ -16,9 +16,8 @@ const getOrphanVtxos = async (wallet: IWallet): Promise<ExtendedVirtualCoin[]> =
 }
 
 export const getExpiringAndRecoverableVtxos = async (
-  wallet: IWallet,
+  manager: VtxoManager,
   thresholdMs: number,
 ): Promise<ExtendedVirtualCoin[]> => {
-  const manager = new VtxoManager(wallet, { thresholdMs })
-  return [...(await manager.getExpiringVtxos()), ...(await getOrphanVtxos(wallet))]
+  return [...(await manager.getExpiringVtxos(thresholdMs)), ...(await getOrphanVtxos(manager.wallet))]
 }
