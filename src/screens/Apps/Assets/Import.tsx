@@ -42,14 +42,14 @@ export default function AppAssetImport() {
       const details = await svcWallet.assetManager.getAssetDetails(assetId)
       if (!details) throw new Error('Asset not found')
 
-      setCacheEntry(assetId, details)
+      const moderated = setCacheEntry(assetId, details)
 
       // Add to imported assets if not already there
       if (!config.importedAssets.includes(assetId)) {
         updateConfig({ ...config, importedAssets: [...config.importedAssets, assetId] })
       }
 
-      setAssetInfo(details)
+      setAssetInfo(moderated)
       navigate(Pages.AppAssetDetail)
     } catch (err) {
       consoleError(err, 'error importing asset')
