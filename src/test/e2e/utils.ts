@@ -27,7 +27,7 @@ export async function navigateToAssets(page: Page): Promise<void> {
 
 export async function enableAssets(page: Page): Promise<void> {
   await navigateToAssets(page)
-  await page.getByTestId('header-aux-btn').click()
+  await page.getByTestId('header-aux-btn').click({ force: true })
   await page.waitForSelector('text=Arkade Mint settings', { state: 'visible' })
   await page.getByTestId('assets-toggle').click()
 }
