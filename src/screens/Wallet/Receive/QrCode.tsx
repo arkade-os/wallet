@@ -14,93 +14,194 @@ import { canBrowserShareData, shareData } from '../../../lib/share'
 import ExpandAddresses from '../../../components/ExpandAddresses'
 import FlexCol from '../../../components/FlexCol'
 import { LimitsContext } from '../../../providers/limits'
-import { Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import Loading from '../../../components/Loading'
-import { LightningContext } from '../../../providers/lightning'
-import { encodeBip21 } from '../../../lib/bip21'
-import { InfoLine } from '../../../components/Info'
+import { SwapsContext } from '../../../providers/swaps'
+import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
+import { PendingChainSwap, PendingReverseSwap } from '@arkade-os/boltz-swap'
+import { enableChainSwapsReceive } from '../../../lib/constants'
+import { centsToUnits } from '../../../lib/assets'
+import WarningBox from '../../../components/Warning'
 
 export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { arkadeLightning, createReverseSwap } = useContext(LightningContext)
-  const { svcWallet, wallet } = useContext(WalletContext)
-  const { validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
+  const { arkadeSwaps, swapsInitError, connected, createBtcToArkSwap, createReverseSwap } = useContext(SwapsContext)
+  const { assetMetadataCache, svcWallet } = useContext(WalletContext)
+  const { validBtcToArk, validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } =
+    useContext(LimitsContext)
 
   const [sharing, setSharing] = useState(false)
 
   // manage all possible receive methods
-  const { boardingAddr, offchainAddr, satoshis } = recvInfo
-  const address = validUtxoTx(satoshis) && utxoTxsAllowed() ? boardingAddr : ''
-  const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
-  const noPaymentMethods = !address && !arkAddress && !validLnSwap(satoshis)
-  const defaultBip21uri = encodeBip21(address, arkAddress, '', satoshis)
+  const { boardingAddr, offchainAddr, satoshis, assetId } = recvInfo
+  const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
+  const isAssetReceive = assetId && assetId !== ''
 
-  const [invoice, setInvoice] = useState(recvInfo.invoice ?? '')
-  const [qrValue, setQrValue] = useState(defaultBip21uri)
-  const [bip21uri, setBip21uri] = useState(defaultBip21uri)
-  const [showQrCode, setShowQrCode] = useState(false)
+  const [noPaymentMethods, setNoPaymentMethods] = useState(false)
+  const [arkAddress, setArkAddress] = useState(offchainAddr)
+  const [btcAddress, setBtcAddress] = useState(boardingAddr)
+  const [showQrCode, setShowQrCode] = useState(!satoshis)
+  const [swapsTimedOut, setSwapsTimedOut] = useState(false)
+  const [swapAddress, setSwapAddress] = useState('')
+  const [qrCodeValue, setQrCodeValue] = useState('')
+  const [bip21Uri, setBip21Uri] = useState('')
+  const [invoice, setInvoice] = useState('')
 
-  // set the QR code value to the bip21uri the first time
-  useEffect(() => {
-    const bip21uri = encodeBip21(address, arkAddress, invoice, satoshis)
-    setBip21uri(bip21uri)
-    setQrValue(bip21uri)
-    if (invoice) setShowQrCode(true)
-  }, [invoice])
+  const createBtcAddress = () => {
+    return new Promise((resolve, reject) => {
+      if (!enableChainSwapsReceive) return reject()
+      if (!validBtcToArk(satoshis)) return reject()
+      createBtcToArkSwap(satoshis)
+        .then((result) => {
+          if (!result) throw new Error('Failed to create chain swap')
+          resolve(result.pendingSwap)
+        })
+        .catch((error) => {
+          consoleError(error, 'Error creating chain swap')
+          reject(error)
+        })
+    })
+  }
 
-  useEffect(() => {
-    // if boltz is available and amount is between limits, let's create a swap invoice
-    if (invoice) {
-      setShowQrCode(true)
-      return
-    }
-
-    if (validLnSwap(satoshis) && wallet && svcWallet && arkadeLightning) {
+  const createLightningInvoice = () => {
+    return new Promise((resolve, reject) => {
+      if (invoice) return reject() // invoice already exists, no need to create another
+      if (!validLnSwap(satoshis)) return reject()
       createReverseSwap(satoshis)
         .then((pendingSwap) => {
           if (!pendingSwap) throw new Error('Failed to create reverse swap')
-          const invoice = pendingSwap.response.invoice
-          setRecvInfo({ ...recvInfo, invoice })
-          setInvoice(invoice)
-          // Use waitAndClaim which delegates to SwapManager if enabled
-          arkadeLightning
-            .waitAndClaim(pendingSwap)
-            .then(() => {
-              setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
-              navigate(Pages.ReceiveSuccess)
-            })
-            .catch((error) => {
-              setShowQrCode(true)
-              consoleError(error, 'Error claiming reverse swap:')
-            })
+          resolve(pendingSwap)
         })
         .catch((error) => {
-          setShowQrCode(true)
           consoleError(error, 'Error creating reverse swap:')
+          reject(error)
         })
-    } else {
-      setShowQrCode(true)
+    })
+  }
+
+  useEffect(() => {
+    if (isAssetReceive) return setShowQrCode(true)
+    if (!satoshis || !svcWallet) return
+
+    // LN is only expected when Boltz is enabled and this isn't an asset receive
+    const lnExpected = connected && !isAssetReceive
+
+    if (!arkadeSwaps) {
+      if (!lnExpected || swapsInitError) {
+        // LN not expected or already failed — show QR immediately
+        if (lnExpected && swapsInitError) {
+          consoleError(swapsInitError, 'Swaps unavailable, showing receive without swap options')
+          setSwapsTimedOut(true)
+        }
+        setShowQrCode(true)
+        return
+      }
+      // LN expected but swaps still initializing — wait up to 5s
+      const timeout = setTimeout(() => {
+        setSwapsTimedOut(true)
+        setShowQrCode(true)
+      }, 5_000)
+      return () => clearTimeout(timeout)
     }
-  }, [satoshis, arkadeLightning, invoice])
+
+    // arkadeSwaps is ready, generate swaps before showing QR to avoid QR code changing
+    setSwapsTimedOut(false)
+
+    Promise.allSettled([createBtcAddress(), createLightningInvoice()]).then(([btc, lightning]) => {
+      if (btc.status === 'fulfilled') {
+        const pendingSwap = btc.value as PendingChainSwap
+        const btcAddr = pendingSwap.response.lockupDetails.lockupAddress
+        setSwapAddress(btcAddr)
+        arkadeSwaps
+          .waitAndClaimArk(pendingSwap)
+          .then(() => {
+            setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.claimDetails.amount })
+            navigate(Pages.ReceiveSuccess)
+          })
+          .catch((error) => {
+            consoleError(error, 'Error claiming chain swap:')
+          })
+      }
+      if (lightning.status === 'fulfilled') {
+        const pendingSwap = lightning.value as PendingReverseSwap
+        const invoice = pendingSwap.response.invoice
+        setInvoice(invoice)
+        arkadeSwaps
+          .waitAndClaim(pendingSwap)
+          .then(() => {
+            setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
+            navigate(Pages.ReceiveSuccess)
+          })
+          .catch((error) => {
+            consoleError(error, 'Error claiming reverse swap:')
+          })
+      }
+      setShowQrCode(true)
+    })
+  }, [satoshis, svcWallet, arkadeSwaps, swapsInitError])
+
+  //
+  useEffect(() => {
+    if (!showQrCode) return
+
+    const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
+    const btcAddress = validUtxoTx(satoshis) && utxoTxsAllowed() ? swapAddress || boardingAddr : ''
+
+    const bip21uri = isAssetReceive
+      ? encodeBip21Asset(arkAddress, assetId, centsToUnits(satoshis, assetMeta?.metadata?.decimals))
+      : encodeBip21(btcAddress, arkAddress, invoice, satoshis)
+
+    setNoPaymentMethods(!arkAddress && !btcAddress && !invoice && !isAssetReceive)
+    setArkAddress(arkAddress)
+    setBtcAddress(btcAddress)
+    setQrCodeValue(bip21uri)
+    setBip21Uri(bip21uri)
+  }, [showQrCode, swapAddress, invoice])
 
   useEffect(() => {
     if (!svcWallet) return
 
     const listenForPayments = (event: MessageEvent) => {
       let satoshis = 0
+      let receivedAssets: Asset[] = []
+
       if (event.data && event.data.type === 'VTXO_UPDATE') {
-        const newVtxos = event.data.newVtxos as ExtendedVirtualCoin[]
-        satoshis = newVtxos.reduce((acc, v) => acc + v.value, 0)
+        const newVtxos = event.data.payload?.newVtxos
+        if (Array.isArray(newVtxos)) {
+          satoshis = (newVtxos as ExtendedVirtualCoin[]).reduce((acc, v) => acc + v.value, 0)
+          for (const v of newVtxos as ExtendedVirtualCoin[]) {
+            receivedAssets.push(...(v.assets ?? []))
+          }
+        } else {
+          consoleError('VTXO_UPDATE message has unexpected payload shape:', event.data.payload)
+        }
       }
+
+      // reduce received assets to unique asset ids (sum amounts if same asset id)
+      receivedAssets = receivedAssets.reduce((acc, v) => {
+        const existing = acc.find((a) => a.assetId === v.assetId)
+        if (existing) {
+          existing.amount += v.amount
+        } else {
+          acc.push(v)
+        }
+        return acc
+      }, [] as Asset[])
+
       if (event.data && event.data.type === 'UTXO_UPDATE') {
-        const coins = event.data.coins as Coin[]
-        satoshis = coins.reduce((acc, v) => acc + v.value, 0)
+        const coins = event.data.payload?.coins
+        if (Array.isArray(coins)) {
+          satoshis = (coins as Coin[]).reduce((acc, v) => acc + v.value, 0)
+        } else {
+          consoleError('UTXO_UPDATE message has unexpected payload shape:', event.data.payload)
+        }
       }
-      if (satoshis) {
-        setRecvInfo({ ...recvInfo, satoshis })
-        notifyPaymentReceived(satoshis)
+
+      if (satoshis || receivedAssets.length > 0) {
+        setRecvInfo({ ...recvInfo, satoshis, receivedAssets })
+        if (!isAssetReceive) notifyPaymentReceived(satoshis)
         navigate(Pages.ReceiveSuccess)
       }
     }
@@ -119,7 +220,7 @@ export default function ReceiveQRCode() {
       .finally(() => setSharing(false))
   }
 
-  const data = { title: 'Receive', text: qrValue }
+  const data = { title: 'Receive', text: qrCodeValue }
   const disabled = !canBrowserShareData(data) || sharing
 
   return (
@@ -129,17 +230,19 @@ export default function ReceiveQRCode() {
         <Padded>
           {noPaymentMethods ? (
             <div>No valid payment methods available for this amount</div>
-          ) : showQrCode ? (
+          ) : qrCodeValue ? (
             <FlexCol centered>
-              {invoice ? <InfoLine centered color='orange' text='Keep tab open to receive Lightning' /> : null}
-              <QrCode value={qrValue} />
+              <QrCode value={qrCodeValue} />
               <ExpandAddresses
-                bip21uri={bip21uri}
-                boardingAddr={address}
+                bip21uri={bip21Uri}
+                boardingAddr={btcAddress}
                 offchainAddr={arkAddress}
-                invoice={invoice}
-                onClick={setQrValue}
+                invoice={invoice || ''}
+                onClick={setQrCodeValue}
               />
+              {swapsTimedOut && !invoice && !isAssetReceive ? (
+                <WarningBox text='Lightning is temporarily unavailable. This QR code only supports Ark and on-chain payments.' />
+              ) : null}
             </FlexCol>
           ) : (
             <Loading text='Generating QR code...' />

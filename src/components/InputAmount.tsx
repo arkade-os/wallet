@@ -6,8 +6,11 @@ import { ConfigContext } from '../providers/config'
 import { prettyNumber } from '../lib/format'
 import { LimitsContext } from '../providers/limits'
 import Focusable from './Focusable'
+import { unitsToCents } from '../lib/assets'
+import { AssetOption } from '../lib/types'
 
 interface InputAmountProps {
+  asset?: AssetOption
   disabled?: boolean
   focus?: boolean
   label?: string
@@ -25,6 +28,7 @@ interface InputAmountProps {
 }
 
 export default function InputAmount({
+  asset,
   disabled,
   focus,
   label,
@@ -55,6 +59,7 @@ export default function InputAmount({
   }, [focus])
 
   useEffect(() => {
+    if (asset) return
     setOtherValue(useFiat ? prettyNumber(sats) : prettyNumber(toFiat(sats), 2))
     setError(sats ? (sats < 0 ? 'Invalid amount' : '') : '')
   }, [sats])
@@ -62,14 +67,14 @@ export default function InputAmount({
   const handleInput = (ev: Event) => {
     const value = Number((ev.target as HTMLInputElement).value)
     if (Number.isNaN(value)) return
-    onSats(useFiat ? fromFiat(value) : value)
+    onSats(asset?.assetId ? unitsToCents(value, asset.decimals) : useFiat ? fromFiat(value) : value)
   }
 
   const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0
   const maximumSats = max ? Math.min(max, maxSwapAllowed()) : 0
 
-  const leftLabel = useFiat ? config.fiat : 'SATS'
-  const rightLabel = `${otherValue} ${useFiat ? 'SATS' : config.fiat}`
+  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? config.fiat : 'SATS'
+  const rightLabel = asset?.assetId ? '' : `${otherValue} ${useFiat ? 'SATS' : config.fiat}`
   const fontStyle = { color: 'var(--dark50)', fontSize: '13px' }
   const bottomLeft = minimumSats ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}` : ''
   const bottomRight = maximumSats ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'SAT' : 'SATS'}` : ''

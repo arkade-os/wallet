@@ -71,7 +71,7 @@ export default function AppLendasat() {
           switch (asset) {
             case 'bitcoin':
               if (isArkAddress(address)) {
-                const txId = await svcWallet?.sendBitcoin({ amount: amount, address: address })
+                const txId = await svcWallet?.send({ amount, address })
                 if (txId) {
                   return txId
                 } else {

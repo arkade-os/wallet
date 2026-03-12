@@ -1,8 +1,10 @@
-import { useContext, useState } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { useContext, useRef } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
-import { prettyAmount, prettyDate, prettyHide } from '../lib/format'
+import { formatAssetAmount, isBurn, isIssuance, prettyAmount, prettyDate, prettyHide } from '../lib/format'
+import AssetAvatar from './AssetAvatar'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
 import FlexRow from './FlexRow'
@@ -19,12 +21,16 @@ const border = '1px solid var(--dark20)'
 const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   const { config } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
+  const { assetMetadataCache } = useContext(WalletContext)
 
   const prefix = tx.type === 'sent' ? '-' : '+'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount) : prettyHide(tx.amount)}`
   const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
+  const issuance = isIssuance(tx)
+  const burn = isBurn(tx)
 
   const Fiat = () => {
+    if (issuance || burn) return null
     const color =
       config.currencyDisplay === CurrencyDisplay.Both
         ? 'dark50'
@@ -44,7 +50,11 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   }
 
   const Icon = () =>
-    tx.type === 'sent' ? (
+    issuance ? (
+      <ReceivedIcon />
+    ) : burn ? (
+      <SentIcon />
+    ) : tx.type === 'sent' ? (
       <SentIcon />
     ) : tx.preconfirmed && tx.boardingTxid ? (
       <PreconfirmedIcon />
@@ -52,15 +62,43 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
       <ReceivedIcon dotted={tx.preconfirmed} />
     )
 
-  const Kind = () => <Text thin>{tx.type === 'sent' ? 'Sent' : 'Received'}</Text>
+  const Kind = () => (
+    <Text thin>{issuance ? 'Issuance' : burn ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received'}</Text>
+  )
 
   const When = () => <TextSecondary>{date}</TextSecondary>
 
-  const Sats = () => (
-    <Text color={tx.type === 'received' ? (tx.preconfirmed && tx.boardingTxid ? 'orange' : 'green') : ''} thin>
-      {amount}
-    </Text>
-  )
+  const Sats = () =>
+    issuance || burn ? null : (
+      <Text color={tx.type === 'received' ? (tx.preconfirmed && tx.boardingTxid ? 'orange' : 'green') : ''} thin>
+        {amount}
+      </Text>
+    )
+
+  const AssetInfo = () => {
+    if (!tx.assets?.length) return null
+    const color = tx.type === 'received' || issuance ? 'green' : ''
+    return (
+      <>
+        {tx.assets.map((a) => {
+          const meta = assetMetadataCache.get(a.assetId)?.metadata
+          const ticker = meta?.ticker
+          const icon = meta?.icon
+          const decimals = meta?.decimals ?? 8
+          return (
+            <FlexRow key={a.assetId} gap='0.25rem' end>
+              <Text color={color} smaller>
+                {config.showBalance
+                  ? `${formatAssetAmount(a.amount, decimals)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
+                  : prettyHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}
+              </Text>
+              <AssetAvatar icon={icon} ticker={ticker} size={16} assetId={a.assetId} clickable />
+            </FlexRow>
+          )
+        })}
+      </>
+    )
+  }
 
   const rowStyle = {
     alignItems: 'center',
@@ -91,6 +129,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
           <Fiat />
         </>
       )}
+      <AssetInfo />
     </div>
   )
 
@@ -109,20 +148,49 @@ export default function TransactionsList() {
   const { navigate } = useContext(NavigationContext)
   const { txs } = useContext(WalletContext)
 
-  const [focused, setFocused] = useState(false)
+  const focusedRef = useRef(false)
+  const focusedIndexRef = useRef(0)
+  const parentRef = useRef<HTMLDivElement>(null)
+
+  const virtualizer = useVirtualizer({
+    count: txs.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 61,
+    overscan: 5,
+    measureElement: (el) => el.getBoundingClientRect().height,
+  })
 
   const key = (tx: Tx, index: number) => tx.roundTxid || tx.redeemTxid || tx.boardingTxid || `tx-${index}`
 
+  const focusRow = (index: number) => {
+    if (index < 0 || index >= txs.length) return
+    focusedIndexRef.current = index
+    virtualizer.scrollToIndex(index)
+    requestAnimationFrame(() => {
+      const el = document.getElementById(key(txs[index], index)) as HTMLElement
+      if (el) el.focus()
+    })
+  }
+
   const focusOnFirstRow = () => {
-    setFocused(true)
     if (txs.length === 0) return
-    const id = key(txs[0], 0)
-    const first = document.getElementById(id) as HTMLElement
-    if (first) first.focus()
+    focusedRef.current = true
+    focusRow(0)
+  }
+
+  const handleListKeyDown = (e: React.KeyboardEvent) => {
+    if (!focusedRef.current) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      focusRow(Math.min(focusedIndexRef.current + 1, txs.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      focusRow(Math.max(focusedIndexRef.current - 1, 0))
+    }
   }
 
   const focusOnOuterShell = () => {
-    setFocused(false)
+    focusedRef.current = false
     const outer = document.getElementById('outer') as HTMLElement
     if (outer) outer.focus()
   }
@@ -142,22 +210,52 @@ export default function TransactionsList() {
     <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
       <TextLabel>Transaction history</TextLabel>
       <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
-        <div style={{ borderBottom: border }}>
-          {txs.map((tx, index) => {
-            const k = key(tx, index)
-            return (
-              <Focusable
-                id={k}
-                key={k}
-                inactive={!focused}
-                onEnter={() => handleClick(tx)}
-                onEscape={focusOnOuterShell}
-                ariaLabel={ariaLabel(tx)}
-              >
-                <TransactionLine onClick={() => handleClick(tx)} tx={tx} />
-              </Focusable>
-            )
-          })}
+        <div
+          ref={parentRef}
+          onKeyDown={handleListKeyDown}
+          className='hide-scrollbar'
+          style={{
+            borderBottom: border,
+            height: 'calc(100dvh - 380px)',
+            minHeight: '200px',
+            overflowY: 'auto',
+          }}
+        >
+          <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
+            {virtualizer.getVirtualItems().map((virtualItem) => {
+              const tx = txs[virtualItem.index]
+              const k = key(tx, virtualItem.index)
+              return (
+                <div
+                  key={k}
+                  ref={virtualizer.measureElement}
+                  data-index={virtualItem.index}
+                  data-testid='tx-row'
+                  onFocus={() => {
+                    focusedIndexRef.current = virtualItem.index
+                    focusedRef.current = true
+                  }}
+                  style={{
+                    left: 0,
+                    position: 'absolute',
+                    top: 0,
+                    transform: `translateY(${virtualItem.start}px)`,
+                    width: '100%',
+                  }}
+                >
+                  <Focusable
+                    id={k}
+                    inactive={!focusedRef.current}
+                    onEnter={() => handleClick(tx)}
+                    onEscape={focusOnOuterShell}
+                    ariaLabel={ariaLabel(tx)}
+                  >
+                    <TransactionLine onClick={() => handleClick(tx)} tx={tx} />
+                  </Focusable>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </Focusable>
     </div>

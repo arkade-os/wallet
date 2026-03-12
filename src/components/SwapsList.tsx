@@ -5,14 +5,13 @@ import { FlowContext } from '../providers/flow'
 import { ConfigContext } from '../providers/config'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { useContext, useEffect, useState } from 'react'
-import { LightningContext } from '../providers/lightning'
+import { SwapsContext } from '../providers/swaps'
 import { NavigationContext, Pages } from '../providers/navigation'
 import { prettyAgo, prettyAmount, prettyDate, prettyHide } from '../lib/format'
 import { SwapFailedIcon, SwapPendingIcon, SwapSuccessIcon } from '../icons/Swap'
-import { BoltzSwapStatus } from '@arkade-os/boltz-swap'
+import { BoltzSwapStatus, PendingSwap } from '@arkade-os/boltz-swap'
 import { consoleError } from '../lib/logs'
 import Focusable from './Focusable'
-import { PendingSwap } from '../lib/types'
 
 const border = '1px solid var(--dark20)'
 
@@ -34,6 +33,8 @@ const statusDict = {
   'transaction.lockupFailed': 'Failed',
   'transaction.mempool': 'Pending',
   'transaction.refunded': 'Refunded',
+  'transaction.server.mempool': 'Pending',
+  'transaction.server.confirmed': 'Pending',
 } satisfies Record<BoltzSwapStatus, statusUI>
 
 const colorDict: Record<statusUI, string> = {
@@ -53,10 +54,32 @@ const iconDict: Record<statusUI, JSX.Element> = {
 const SwapLine = ({ onClick, swap }: { onClick: () => void; swap: PendingSwap }) => {
   const { config } = useContext(ConfigContext)
 
-  const sats = swap.type === 'reverse' ? swap.response.onchainAmount : swap.response.expectedAmount
-  const direction = swap.type === 'reverse' ? 'Lightning to Arkade' : 'Arkade to Lightning'
+  let sats = 0,
+    direction = '',
+    prefix = ''
+
+  if (swap.type === 'reverse') {
+    sats = swap.response.onchainAmount
+    direction = 'Lightning to Arkade'
+    prefix = '+'
+  } else if (swap.type === 'submarine') {
+    sats = swap.response.expectedAmount
+    direction = 'Arkade to Lightning'
+    prefix = '-'
+  } else if (swap.type === 'chain') {
+    sats = swap.request.userLockAmount || swap.request.serverLockAmount || 0
+    if (swap.request.from === 'ARK') {
+      direction = 'Arkade to Bitcoin'
+      prefix = '-'
+    } else {
+      direction = 'Bitcoin to Arkade'
+      prefix = '+'
+    }
+  }
+
+  if (!direction || !prefix) throw new Error('Invalid swap data')
+
   const status: statusUI = statusDict[swap.status] || 'Pending'
-  const prefix = swap.type === 'reverse' ? '+' : '-'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(sats) : prettyHide(sats)}`
   const when = window.innerWidth < 400 ? prettyAgo(swap.createdAt) : prettyDate(swap.createdAt)
   const refunded = swap.type === 'submarine' && swap.refunded
@@ -97,41 +120,51 @@ const SwapLine = ({ onClick, swap }: { onClick: () => void; swap: PendingSwap })
 export default function SwapsList() {
   const { setSwapInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { arkadeLightning, swapManager, getSwapHistory } = useContext(LightningContext)
+  const { swapManager, getSwapHistory } = useContext(SwapsContext)
 
   const [focused, setFocused] = useState(false)
   const [swapHistory, setSwapHistory] = useState<PendingSwap[]>([])
 
   // Load initial swap history
   useEffect(() => {
-    const loadHistory = async () => {
-      if (!arkadeLightning) return
-      try {
-        const history = await getSwapHistory()
-        setSwapHistory(history)
-      } catch (err) {
+    getSwapHistory()
+      .then(setSwapHistory)
+      .catch((err) => {
         consoleError(err, 'Error fetching swap history:')
-      }
-    }
-    loadHistory()
-  }, [arkadeLightning])
+      })
+  }, [getSwapHistory])
 
   // Subscribe to swap updates from SwapManager for real-time updates
   useEffect(() => {
     if (!swapManager) return
-    const unsubscribe = swapManager.onSwapUpdate((swap) => {
-      setSwapHistory((prev) => {
-        const existingIndex = prev.findIndex((s) => s.id === swap.id)
-        if (existingIndex >= 0) {
-          const updated = [...prev]
-          updated[existingIndex] = swap
-          return updated
-        }
-        // New swap, add to beginning
-        return [swap, ...prev]
+
+    let unsub: (() => void) | null = null
+    let cancelled = false
+    swapManager
+      .onSwapUpdate((swap) => {
+        setSwapHistory((prev) => {
+          const existingIndex = prev.findIndex((s) => s.id === swap.id)
+          if (existingIndex >= 0) {
+            const updated = [...prev]
+            updated[existingIndex] = swap
+            return updated
+          }
+          // New swap, add to beginning
+          return [swap, ...prev]
+        })
       })
-    })
-    return unsubscribe
+      .then((unsubscribe) => {
+        if (cancelled) {
+          unsubscribe()
+        } else {
+          unsub = unsubscribe
+        }
+      })
+
+    return () => {
+      cancelled = true
+      unsub?.()
+    }
   }, [swapManager])
 
   if (swapHistory.length === 0) return <EmptySwapList />

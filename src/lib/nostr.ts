@@ -1,6 +1,7 @@
 import { finalizeEvent, generateSecretKey, getPublicKey, nip44, SimplePool, UnsignedEvent, Event } from 'nostr-tools'
 import { EncryptedDirectMessage } from 'nostr-tools/kinds'
 import { consoleError } from './logs'
+import { toXOnlyHex } from './keys'
 
 const nostrAppName = 'arkade_backup'
 const defaultRelays = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://nostr.arkade.sh']
@@ -26,13 +27,8 @@ export class NostrStorage {
       this.pubkey = getPublicKey(options.seckey)
       this.seckey = options.seckey
     } else if (options.pubkey) {
-      this.pubkey = options.pubkey
-      if (this.pubkey.length === 66) {
-        this.pubkey = options.pubkey.slice(2)
-      }
-      if (this.pubkey.length !== 64) {
-        throw new Error('Invalid pubkey length')
-      }
+      this.pubkey = toXOnlyHex(options.pubkey)
+      if (this.pubkey.length !== 64) throw new Error('Invalid pubkey length')
       this.seckey = null
     } else {
       throw new Error('Either seckey or pubkey must be provided')

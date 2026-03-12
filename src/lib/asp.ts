@@ -6,13 +6,17 @@ import {
   ServiceWorkerWallet,
   ExtendedVirtualCoin,
   FeeInfo,
+  WalletBalance,
+  DelegateContractHandler,
 } from '@arkade-os/sdk'
-import { Addresses, Satoshis, Tx, Vtxo } from './types'
+import { Addresses, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
 import { consoleError } from './logs'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import { getExpiringAndRecoverableVtxos } from './vtxo'
 import * as Sentry from '@sentry/react'
+import { hex } from '@scure/base'
+import { toXOnlyHex } from './keys'
 
 const emptyFees: FeeInfo = {
   intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
@@ -71,6 +75,8 @@ export const collaborativeExit = async (wallet: IWallet, amount: number, address
     outputs.push({ address: offchainAddr, amount: BigInt(changeAmount) })
   }
 
+  outputs.reverse() // fix for exit with assets
+
   try {
     return await wallet.settle({ inputs: selectedVtxos, outputs })
   } catch (error) {
@@ -115,6 +121,8 @@ export const collaborativeExitWithFees = async (
     outputs.push({ address: offchainAddr, amount: BigInt(changeAmount) })
   }
 
+  outputs.reverse() // fix for exit with assets
+
   try {
     return await wallet.settle({ inputs: selectedVtxos, outputs })
   } catch (error) {
@@ -144,10 +152,8 @@ export const getAspInfo = async (url: string): Promise<AspInfo> => {
   }
 }
 
-export const getBalance = async (wallet: IWallet): Promise<Satoshis> => {
-  const balance = await wallet.getBalance()
-  const { total } = balance
-  return total
+export const getBalance = async (wallet: IWallet): Promise<WalletBalance> => {
+  return await wallet.getBalance()
 }
 
 export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
@@ -160,8 +166,10 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
       const unix = Math.floor(date.getTime() / 1000)
       const { key, settled, type, amount } = tx
       const explorable = key.boardingTxid ? key.boardingTxid : key.commitmentTxid ? key.commitmentTxid : undefined
+      const assets = tx.assets?.map((a) => ({ assetId: a.assetId, amount: a.amount }))
       txs.push({
         amount: Math.abs(amount),
+        assets,
         boardingTxid: key.boardingTxid,
         redeemTxid: key.arkTxid,
         roundTxid: key.commitmentTxid,
@@ -229,12 +237,8 @@ export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<voi
   }
 }
 
-export const sendOffChain = async (wallet: IWallet, sats: number, address: string): Promise<string> => {
-  return wallet.sendBitcoin({ address, amount: sats })
-}
-
-export const sendOnChain = async (wallet: IWallet, sats: number, address: string): Promise<string> => {
-  return wallet.sendBitcoin({ address, amount: sats })
+export const sendOffChain = async (wallet: IWallet, amount: number, address: string): Promise<string> => {
+  return wallet.send({ address, amount })
 }
 
 export const getInputsToSettle = async (
@@ -278,6 +282,35 @@ export const settleVtxos = async (wallet: IWallet, dustAmount: bigint, threshold
 export const renewCoins = async (wallet: IWallet, dustAmount: bigint, thresholdMs?: number): Promise<void> => {
   const { inputs } = await getInputsToSettle(wallet, thresholdMs)
   if (inputs.length > 0) await settleVtxos(wallet, dustAmount, thresholdMs)
+}
+
+export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> => {
+  const cm = await wallet.getContractManager()
+  const contractWithVtxos = await cm.getContractsWithVtxos({ type: 'delegate' })
+  const dm = await wallet.getDelegatorManager()
+
+  if (!dm) {
+    throw new Error('Delegator manager not found')
+  }
+
+  const delegateInfo = await dm.getDelegateInfo()
+  const vtxosToDelegate = contractWithVtxos
+    .filter(({ contract, vtxos }) => {
+      if (vtxos.length === 0) return false
+      const contractParams = DelegateContractHandler.deserializeParams(contract.params)
+      const contractDelegatePubKey = hex.encode(contractParams.delegatePubKey) // x-only (32 bytes)
+      const delegateInfoPubKey = toXOnlyHex(delegateInfo.pubkey)
+      return contractDelegatePubKey === delegateInfoPubKey
+    })
+    .flatMap((_) => _.vtxos)
+
+  if (vtxosToDelegate.length === 0) return
+  const destination = await wallet.getAddress()
+  const result = await dm.delegate(vtxosToDelegate, destination)
+  if (result.failed.length > 0) {
+    // eslint-disable-next-line no-console
+    console.warn('Delegation partial failure:', result.failed)
+  }
 }
 
 const serializeForSentry = (value: any): string => {

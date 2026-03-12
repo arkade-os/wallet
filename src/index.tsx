@@ -2,6 +2,7 @@ import ReactDOM from 'react-dom/client'
 import './index.css'
 import './ionic.css'
 import App from './App'
+// import IconPreview from './screens/IconPreview'
 import { AspProvider } from './providers/asp'
 import { ConfigProvider } from './providers/config'
 import { FiatProvider } from './providers/fiat'
@@ -13,7 +14,7 @@ import { OptionsProvider } from './providers/options'
 import { LimitsProvider } from './providers/limits'
 import { NudgeProvider } from './providers/nudge'
 import * as Sentry from '@sentry/react'
-import { LightningProvider } from './providers/lightning'
+import { SwapsProvider } from './providers/swaps'
 import { shouldInitializeSentry } from './lib/sentry'
 import { FeesProvider } from './providers/fees'
 import { AnnouncementProvider } from './providers/announcements'
@@ -39,7 +40,7 @@ root.render(
           <FiatProvider>
             <FlowProvider>
               <WalletProvider>
-                <LightningProvider>
+                <SwapsProvider>
                   <LimitsProvider>
                     <FeesProvider>
                       <OptionsProvider>
@@ -51,7 +52,7 @@ root.render(
                       </OptionsProvider>
                     </FeesProvider>
                   </LimitsProvider>
-                </LightningProvider>
+                </SwapsProvider>
               </WalletProvider>
             </FlowProvider>
           </FiatProvider>

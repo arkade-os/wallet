@@ -1,5 +1,4 @@
-import { PendingReverseSwap, PendingSubmarineSwap } from '@arkade-os/boltz-swap'
-import { NetworkName, type ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { Asset, NetworkName, type ExtendedVirtualCoin } from '@arkade-os/sdk'
 
 export type Addresses = {
   boardingAddr: string
@@ -9,18 +8,24 @@ export type Addresses = {
 export type Config = {
   announcementsSeen: string[]
   apps: {
+    assets: {
+      enabled: boolean
+    }
     boltz: {
       connected: boolean
     }
   }
   aspUrl: string
   currencyDisplay: CurrencyDisplay
+  delegate: boolean
   fiat: Fiats
+  importedAssets: string[]
   haptics: boolean
   nostrBackup: boolean
   notifications: boolean
   pubkey: string
   showBalance: boolean
+  dismissedBanners: string[]
   theme: Themes
   unit: Unit
 }
@@ -31,13 +36,16 @@ export enum CurrencyDisplay {
   Sats = 'Sats only',
 }
 
+export type Delegate = {
+  name: string
+  url: string
+}
+
 export enum Fiats {
   EUR = 'EUR',
   USD = 'USD',
   CHF = 'CHF',
 }
-
-export type PendingSwap = PendingReverseSwap | PendingSubmarineSwap
 
 export type Satoshis = number
 
@@ -67,6 +75,7 @@ export enum SettingsOptions {
   Theme = 'theme',
   Fiat = 'fiat currency',
   Display = 'display preferences',
+  Delegates = 'delegates',
 }
 
 export enum Themes {
@@ -77,6 +86,7 @@ export enum Themes {
 
 export type Tx = {
   amount: number
+  assets?: Asset[]
   boardingTxid: string
   createdAt: number
   explorable: string | undefined
@@ -85,12 +95,6 @@ export type Tx = {
   roundTxid: string
   settled: boolean
   type: string
-}
-
-export enum TxType {
-  swap = 'swap',
-  utxo = 'utxo',
-  vtxo = 'vtxo',
 }
 
 export enum Unit {
@@ -110,4 +114,13 @@ export type Wallet = {
   nextRollover: number
   passkeyId?: string
   pubkey?: string
+}
+
+export interface AssetOption {
+  assetId: string
+  name: string
+  ticker: string
+  balance: number
+  decimals: number
+  icon?: string
 }

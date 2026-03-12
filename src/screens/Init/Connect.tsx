@@ -9,11 +9,11 @@ import Loading from '../../components/Loading'
 import Header from '../../components/Header'
 import { setPrivateKey } from '../../lib/privateKey'
 import { consoleError, consoleLog } from '../../lib/logs'
-import { LightningContext } from '../../providers/lightning'
+import { SwapsContext } from '../../providers/swaps'
 
 export default function InitConnect() {
   const { initInfo, setInitInfo } = useContext(FlowContext)
-  const { arkadeLightning, restoreSwaps } = useContext(LightningContext)
+  const { arkadeSwaps, restoreSwaps } = useContext(SwapsContext)
   const { navigate } = useContext(NavigationContext)
   const { initWallet } = useContext(WalletContext)
 
@@ -32,12 +32,12 @@ export default function InitConnect() {
   useEffect(() => {
     if (!initialized) return
     if (!initInfo.restoring) return handleProceed()
-    if (!arkadeLightning) return
+    if (!arkadeSwaps) return
     restoreSwaps()
       .then((count) => count && consoleLog(`Restored ${count} swaps from network`))
       .catch((err) => consoleError(err, 'Error restoring swaps:'))
       .finally(handleProceed)
-  }, [arkadeLightning, initialized, initInfo.restoring])
+  }, [arkadeSwaps, initialized, initInfo.restoring])
 
   const handleCancel = () => navigate(Pages.Init)
 

@@ -1,5 +1,4 @@
-import { test, expect } from '@playwright/test'
-import { createWallet } from './utils'
+import { test, expect, createWallet } from './utils'
 
 test('should create a new wallet', async ({ page }) => {
   // Create wallet

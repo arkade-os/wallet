@@ -43,7 +43,7 @@ services:
         condition: service_healthy
   arkd-wallet:
     restart: unless-stopped
-    image: ghcr.io/arkade-os/arkd-wallet:v0.8.11
+    image: ghcr.io/arkade-os/arkd-wallet:v0.9.0-rc.4
     container_name: arkd-wallet
     depends_on:
       - nbxplorer
@@ -59,7 +59,7 @@ services:
       - type: tmpfs
         target: /app/data
   arkd:
-    image: ghcr.io/arkade-os/arkd:v0.8.11
+    image: ghcr.io/arkade-os/arkd:v0.9.0-rc.4
     container_name: arkd
     restart: unless-stopped
     depends_on:
@@ -121,7 +121,8 @@ services:
   boltz:
     container_name: boltz
     restart: unless-stopped
-    image: boltz/boltz:ark
+    image: boltz/boltz:latest
+    pull_policy: always
     ports:
       - '9000:9000'
       - '9001:9001'
@@ -136,6 +137,7 @@ services:
         host = "boltz-fulmine"
         port = 7000
         useLocktimeSeconds = true
+
         [ark.unilateralDelays]
         claim = 444 # 3d.2h in blocks
         refund = 444 # 3d.2h in blocks
@@ -206,8 +208,10 @@ services:
         port = 18443
         user = "admin1"
         password = "123"
+        zmqpubrawtx = "tcp://bitcoin:28333"
+        zmqpubrawblock = "tcp://bitcoin:28332"
 
-        [currencies.lnd]
+        [[currencies.lnds]]
         host = "boltz-lnd"
         port = 10009
         certpath = "/home/boltz/.lnd/tls.cert"
@@ -229,17 +233,21 @@ services:
     volumes:
       - postgres_datadir:/var/lib/postgresql/data
   boltz-fulmine:
-    image: ghcr.io/arklabshq/fulmine:v0.3.11
+    image: ghcr.io/arklabshq/fulmine:v0.3.15
     container_name: boltz-fulmine
     environment:
+      - FULMINE_LOG_LEVEL=5
+      - FULMINE_NO_MACAROONS=true
+      - FULMINE_DELEGATOR_FEE=350
+      - FULMINE_DELEGATOR_ENABLED=true
+      - FULMINE_DELEGATOR_ENABLED=true
+      - FULMINE_DISABLE_TELEMETRY=true
       - FULMINE_ARK_SERVER=http://arkd:7070
       - FULMINE_ESPLORA_URL=http://chopsticks:3000
-      - FULMINE_NO_MACAROONS=true
-      - FULMINE_LOG_LEVEL=6
-      - FULMINE_DISABLE_TELEMETRY=true
     ports:
-      - 7002:7000
-      - 7003:7001
+      - '7000:7000'
+      - '7001:7001'
+      - '7002:7002'
     volumes:
       - bitcoin_fulmine_data:/app/data
     restart: unless-stopped

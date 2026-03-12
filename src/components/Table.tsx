@@ -8,8 +8,9 @@ import { copyToClipboard } from '../lib/clipboard'
 import { useIonToast } from '@ionic/react'
 import { copiedToClipboard } from '../lib/toast'
 import { hapticSubtle } from '../lib/haptics'
+import ExternalLinkIcon from '../icons/ExternalLink'
 
-export type TableLine = [string, string | undefined, JSX.Element?]
+export type TableLine = [string, string | undefined, JSX.Element?, (() => void)?]
 export type TableData = TableLine[]
 
 export default function Table({ data }: { data: TableData }) {
@@ -45,13 +46,13 @@ export default function Table({ data }: { data: TableData }) {
   return (
     <Focusable id='outer' inactive={focused} onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
       <FlexCol gap='0.5rem'>
-        {data.map(([title, value, icon]) =>
+        {data.map(([title, value, icon, onClick]) =>
           value == '' || value === undefined || value === null ? null : (
             <Focusable
               id={title}
               key={title}
               inactive={!focused}
-              onEnter={() => copy(value)}
+              onEnter={() => (onClick ? onClick() : copy(value))}
               onEscape={focusOnOuterShell}
               ariaLabel={ariaLabel(title, value)}
             >
@@ -62,9 +63,16 @@ export default function Table({ data }: { data: TableData }) {
                     {title}
                   </Text>
                 </FlexRow>
-                <Text color='dark' copy={value} small bold>
-                  {prettyLongText(value)}
-                </Text>
+                <FlexRow end gap='0.25rem'>
+                  {onClick ? (
+                    <span onClick={onClick} style={{ cursor: 'pointer', color: 'var(--dark50)' }}>
+                      <ExternalLinkIcon />
+                    </span>
+                  ) : null}
+                  <Text color='dark' copy={value} small bold>
+                    {prettyLongText(value, onClick ? 8 : undefined)}
+                  </Text>
+                </FlexRow>
               </FlexRow>
             </Focusable>
           ),

@@ -8,7 +8,7 @@ import Button from '../../components/Button'
 import { WalletContext } from '../../providers/wallet'
 import { ConfigContext } from '../../providers/config'
 import { AspContext } from '../../providers/asp'
-import { LightningContext } from '../../providers/lightning'
+import { SwapsContext } from '../../providers/swaps'
 import { getReceivingAddresses } from '../../lib/asp'
 import { Addresses } from '../../lib/types'
 import { getWebExplorerURL } from '../../lib/explorers'
@@ -21,7 +21,7 @@ import { hasChatwootVars } from '../../lib/chatwoot'
 export default function Support() {
   const { aspInfo } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
-  const { getApiUrl } = useContext(LightningContext)
+  const { getApiUrl } = useContext(SwapsContext)
   const { wallet, svcWallet } = useContext(WalletContext)
 
   const [error, setError] = useState('')

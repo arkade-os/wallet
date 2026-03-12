@@ -25,7 +25,7 @@ export default function Notifications() {
     }
   }
 
-  const subtext = notificationApiSupport
+  const subText = notificationApiSupport
     ? "Get notified when an update is available or a payment is received. You'll need to grant permission if asked."
     : "Your browser does not support the Notifications API. If on iOS you'll need to 'Add to homescreen' and be running iOS 16.4 or higher."
 
@@ -35,11 +35,11 @@ export default function Notifications() {
       <Content>
         <Padded>
           <Toggle
-            checked={config.notifications}
+            subtext={subText}
             onClick={handleChange}
             text='Allow notifications'
             testId='toggle-notifications'
-            subtext={subtext}
+            checked={config.notifications}
           />
         </Padded>
       </Content>

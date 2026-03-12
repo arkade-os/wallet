@@ -26,10 +26,9 @@ import { FlowContext } from './providers/flow'
 import { SettingsOptions } from './lib/types'
 import { AspContext } from './providers/asp'
 import { hapticLight } from './lib/haptics'
-import PageTransition from './components/PageTransition'
+import { PageTransition } from './components/PageTransition'
 import SettingsIcon from './icons/Settings'
 import Loading from './components/Loading'
-import { pwaIsInstalled } from './lib/pwa'
 import FlexCol from './components/FlexCol'
 import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
@@ -126,8 +125,8 @@ export default function App() {
     if (jsCapabilitiesChecked && !isCapable) return navigate(Pages.Unavailable)
     // avoid redirect if the user is still setting up the wallet
     if (initInfo.password || initInfo.privateKey) return
-    if (!walletLoaded) return
-    if (!wallet.pubkey) return navigate(pwaIsInstalled() ? Pages.Init : Pages.Onboard)
+    if (!walletLoaded) return navigate(Pages.Loading)
+    if (!wallet.pubkey) return navigate(Pages.Init)
     if (!initialized) return navigate(Pages.Unlock)
   }, [walletLoaded, initialized, initInfo, aspInfo.unreachable, jsCapabilitiesChecked, isCapable])
 
@@ -185,8 +184,13 @@ export default function App() {
   const prefersReduced = useReducedMotion()
   const effectiveDirection = prefersReduced ? 'none' : direction
 
-  const page =
-    jsCapabilitiesChecked && configLoaded && (aspInfo.signerPubkey || aspInfo.unreachable) ? screen : Pages.Loading
+  // New users (no wallet in storage) skip straight to Init — the logo morph animation
+  // serves as the intro visual while ASP and JS capability checks resolve in the background.
+  // Init doesn't need ASP or crypto until "Create wallet" is clicked.
+  const aspReady = aspInfo.signerPubkey || aspInfo.unreachable
+  const isNewUser = walletLoaded && !wallet.pubkey
+  const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
+  const page = allChecksReady || isNewUser ? screen : Pages.Loading
 
   const comp = page === Pages.Loading ? <Loading /> : pageComponent(page)
 

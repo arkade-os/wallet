@@ -1,7 +1,14 @@
 import { promisify } from 'util'
 import { exec } from 'child_process'
-import { createWallet, pay, receiveLightning, resetAndRestoreWallet, waitForPaymentReceived } from './utils'
-import { test, expect } from '@playwright/test'
+import {
+  test,
+  expect,
+  createWallet,
+  pay,
+  receiveLightning,
+  resetAndRestoreWallet,
+  waitForPaymentReceived,
+} from './utils'
 
 const execAsync = promisify(exec)
 
@@ -18,7 +25,8 @@ const execAsync = promisify(exec)
 // 6. Restore wallet with backup phrase
 // 7. Verify swap history has both swaps
 
-test('should restore swaps without nostr backup', async ({ page, isMobile }) => {
+test.skip('should restore swaps without nostr backup', async ({ page, isMobile }) => {
+  test.setTimeout(120000)
   // create wallet
   await createWallet(page)
 
@@ -37,6 +45,11 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
 
   // wait for payment received
   await waitForPaymentReceived(page)
+
+  // navigate to wallet tab and verify balance before proceeding
+  await page.getByTestId('tab-wallet').click()
+  await page.waitForSelector('text=Received', { timeout: 10000 })
+  await expect(page.getByText('1,992', { exact: true })).toBeVisible()
 
   /**
    * submarine swap

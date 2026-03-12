@@ -4,7 +4,7 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import { WalletContext } from '../../providers/wallet'
-import { prettyAgo, prettyDate, prettyDelta, prettyHide, prettyNumber } from '../../lib/format'
+import { formatAssetAmount, prettyAgo, prettyDate, prettyDelta, prettyHide, prettyNumber } from '../../lib/format'
 import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
@@ -29,7 +29,7 @@ export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { reloadWallet, vtxos, wallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, reloadWallet, vtxos, wallet, svcWallet } = useContext(WalletContext)
 
   const defaultLabel = 'Renew Virtual Coins'
 
@@ -41,6 +41,7 @@ export default function Vtxos() {
   const [hasInputsToSettle, setHasInputsToSettle] = useState(false)
   const [hideUtxos, setHideUtxos] = useState(false)
   const [label, setLabel] = useState(defaultLabel)
+  const [loading, setLoading] = useState(true)
   const [rollingover, setRollingover] = useState(false)
   const [reminderIsOpen, setReminderIsOpen] = useState(false)
   const [showList, setShowList] = useState(false)
@@ -85,15 +86,25 @@ export default function Vtxos() {
   useEffect(() => {
     if (!aspInfo || !svcWallet) return
     // get all VTXOs including recoverable ones
-    svcWallet
-      .getVtxos({
-        withRecoverable: true,
-        withUnrolled: false,
-      })
-      .then(setAllVtxos)
-      .catch(consoleError)
-    // get all UTXOs
-    svcWallet.getBoardingUtxos().then(setAllUtxos).catch(consoleError)
+    const fetchData = async () => {
+      try {
+        const [vtxosData, utxosData] = await Promise.all([
+          svcWallet.getVtxos({
+            withRecoverable: true,
+            withUnrolled: false,
+          }),
+          svcWallet.getBoardingUtxos(),
+        ])
+        setAllVtxos(vtxosData)
+        setAllUtxos(utxosData)
+        setLoading(false)
+      } catch (err) {
+        consoleError(err)
+        setError('Failed to fetch coins')
+        setLoading(false)
+      }
+    }
+    fetchData()
   }, [aspInfo, vtxos, svcWallet, wallet.thresholdMs])
 
   // Fetch inputs to settle
@@ -116,7 +127,7 @@ export default function Vtxos() {
     return () => clearTimeout(timeoutId)
   }, [success])
 
-  if (!svcWallet) return <Loading text='Loading...' />
+  if (!svcWallet || loading) return <Loading text='Loading...' />
 
   const listableVtxos = allVtxos.filter((vtxo) => vtxo.isSpent === false)
 
@@ -176,7 +187,17 @@ export default function Vtxos() {
     ),
   }
 
-  const CoinLine = ({ amount, tags, expiry }: { amount: string; tags: React.ReactNode; expiry: string }) => {
+  const CoinLine = ({
+    amount,
+    assets,
+    tags,
+    expiry,
+  }: {
+    amount: string
+    assets?: string[]
+    tags: React.ReactNode
+    expiry: string
+  }) => {
     const style: React.CSSProperties = {
       backgroundColor: 'var(--dark10)',
       border: '1px solid var(--dark20)',
@@ -186,31 +207,46 @@ export default function Vtxos() {
     }
     return (
       <div style={style}>
-        <FlexRow between>
-          <IonGrid>
-            <IonRow className='ion-align-items-end'>
-              <IonCol size='4'>
+        <IonGrid>
+          <IonRow className='ion-align-items-start'>
+            <IonCol size='4'>
+              <FlexCol gap='0.25rem'>
                 <Text>{amount}</Text>
-              </IonCol>
-              <IonCol size='4'>{tags}</IonCol>
-              <IonCol size='4'>
-                <Text right>{expiry}</Text>
-              </IonCol>
-            </IonRow>
-          </IonGrid>
-        </FlexRow>
+                {assets?.map((a) => (
+                  <Text key={a} color='dark50' smaller>
+                    {a}
+                  </Text>
+                ))}
+              </FlexCol>
+            </IonCol>
+            <IonCol size='4'>{tags}</IonCol>
+            <IonCol size='4'>
+              <Text right>{expiry}</Text>
+            </IonCol>
+          </IonRow>
+        </IonGrid>
       </div>
     )
   }
 
   const VtxoLine = ({ vtxo }: { vtxo: Vtxo }) => {
-    const amount = config.showBalance ? prettyNumber(vtxo.value) : prettyHide(vtxo.value)
+    const now = Date.now()
+    const expired = vtxo.virtualStatus?.batchExpiry ? now > vtxo.virtualStatus.batchExpiry : false
+    const satsAmount = config.showBalance ? prettyNumber(vtxo.value) : prettyHide(vtxo.value)
+    const assetsAmounts = vtxo.assets?.length
+      ? vtxo.assets.map((a) => {
+          const meta = assetMetadataCache.get(a.assetId)?.metadata
+          const decimals = meta?.decimals ?? 8
+          const label = meta?.ticker ?? `${a.assetId.slice(0, 8)}...`
+          return `${formatAssetAmount(a.amount, decimals)} ${label}`
+        })
+      : []
     const expiry = vtxo.virtualStatus?.batchExpiry ? prettyAgo(vtxo.virtualStatus.batchExpiry) : 'Unknown'
     const tags = (
       <FlexRow centered>
         {vtxo.value < aspInfo.dust
           ? Tags.subdust
-          : vtxo.virtualStatus?.state === 'swept'
+          : vtxo.virtualStatus?.state === 'swept' || expired
             ? Tags.swept
             : wallet.thresholdMs && isVtxoExpiringSoon(vtxo, wallet.thresholdMs)
               ? Tags.expiring
@@ -219,7 +255,7 @@ export default function Vtxos() {
                 : null}
       </FlexRow>
     )
-    return <CoinLine amount={`${amount} SATS`} tags={tags} expiry={expiry} />
+    return <CoinLine amount={`${satsAmount} SATS`} assets={assetsAmounts} tags={tags} expiry={expiry} />
   }
 
   const UtxoLine = ({ utxo }: { utxo: ExtendedCoin }) => {
