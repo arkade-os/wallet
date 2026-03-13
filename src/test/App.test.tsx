@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import App from '../App'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import App, { appReloader } from '../App'
 import { AspContext } from '../providers/asp'
 import { ConfigContext } from '../providers/config'
 import { FlowContext } from '../providers/flow'
@@ -18,6 +18,8 @@ import {
 } from './screens/mocks'
 import { defaultPassword } from '../lib/constants'
 import { detectJSCapabilities } from '../lib/jsCapabilities'
+
+const PASSWORDLESS_AUTO_RELOAD_KEY = 'passwordless-auto-reload-attempted'
 
 vi.mock('../lib/jsCapabilities', () => ({
   detectJSCapabilities: vi.fn().mockResolvedValue({ isSupported: true }),
@@ -97,6 +99,7 @@ function renderApp({
 
 describe('App startup routing', () => {
   beforeEach(() => {
+    sessionStorage.clear()
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
       matches: false,
       media: query,
@@ -108,6 +111,10 @@ describe('App startup routing', () => {
       dispatchEvent: vi.fn(),
     }))
     vi.mocked(detectJSCapabilities).mockResolvedValue({ isSupported: true })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('keeps passwordless wallets on loading and boots them in the background', async () => {
@@ -131,5 +138,35 @@ describe('App startup routing', () => {
     expect(await screen.findByText('Loading...')).toBeInTheDocument()
     expect(unlockWallet).not.toHaveBeenCalled()
     expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
+  })
+
+  it('schedules a single reload after passwordless auto-init failure', async () => {
+    vi.useFakeTimers()
+    const reloadSpy = vi.spyOn(appReloader, 'reload').mockImplementation(() => {})
+    const unlockWallet = vi.fn().mockRejectedValue(new Error('backend init failed'))
+
+    renderApp({ authState: 'passwordless', initialized: false, unlockWallet })
+
+    await act(async () => {})
+    await Promise.resolve()
+    expect(unlockWallet).toHaveBeenCalledWith(defaultPassword)
+    expect(sessionStorage.getItem(PASSWORDLESS_AUTO_RELOAD_KEY)).toBe('true')
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(reloadSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not schedule a second reload if one was already attempted in this session', async () => {
+    vi.useFakeTimers()
+    sessionStorage.setItem(PASSWORDLESS_AUTO_RELOAD_KEY, 'true')
+    const reloadSpy = vi.spyOn(appReloader, 'reload').mockImplementation(() => {})
+    const unlockWallet = vi.fn().mockRejectedValue(new Error('backend init failed'))
+
+    renderApp({ authState: 'passwordless', initialized: false, unlockWallet })
+
+    await act(async () => {})
+    await Promise.resolve()
+    expect(unlockWallet).toHaveBeenCalledWith(defaultPassword)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(reloadSpy).not.toHaveBeenCalled()
   })
 })
