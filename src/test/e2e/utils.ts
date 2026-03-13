@@ -27,7 +27,7 @@ export async function navigateToAssets(page: Page): Promise<void> {
 
 export async function enableAssets(page: Page): Promise<void> {
   await navigateToAssets(page)
-  await page.getByTestId('settings-icon-light').click()
+  await page.getByTestId('header-aux-btn').click()
   await page.waitForSelector('text=Arkade Mint settings', { state: 'visible' })
   await page.getByTestId('assets-toggle').click()
 }
@@ -81,7 +81,9 @@ export async function createWalletWithPassword(page: Page, password: string): Pr
   await page.locator('div[data-testid="new-password"] input').fill(password)
   await page.locator('div[data-testid="confirm-password"] input').fill(password)
   await page.getByText('Save password').click()
-  await page.getByTestId('tab-wallet').click()
+  // go to settings main, then close settings to return to wallet
+  await page.getByTestId('tab-settings').click()
+  await page.getByTestId('tab-settings').click()
 }
 
 export async function pay(page: Page, address: string, isMobile = false, sats = 0): Promise<void> {
@@ -144,8 +146,16 @@ export async function receiveLightning(page: Page, isMobile: boolean, sats: numb
   return receive(page, 'invoice', isMobile, sats)
 }
 
-async function getNsec(page: Page): Promise<string> {
+async function navigateToSettings(page: Page): Promise<void> {
+  const walletTab = page.getByTestId('tab-wallet')
+  if (await walletTab.isVisible().catch(() => false)) {
+    await walletTab.click()
+  }
   await page.getByTestId('tab-settings').click()
+}
+
+async function getNsec(page: Page): Promise<string> {
+  await navigateToSettings(page)
   await page.getByText('backup', { exact: true }).click()
   await page.getByText('View private key').click()
   await page.getByText('Confirm').click()
@@ -154,7 +164,7 @@ async function getNsec(page: Page): Promise<string> {
 }
 
 async function resetWallet(page: Page): Promise<void> {
-  await page.getByTestId('tab-settings').click()
+  await navigateToSettings(page)
   await page.getByText('Reset wallet').click()
   await page.getByText('I have backed up my wallet').click()
   await page.getByRole('contentinfo').getByText('Reset wallet').click()

@@ -27,8 +27,9 @@ import { SettingsOptions } from './lib/types'
 import { AspContext } from './providers/asp'
 import { hapticLight } from './lib/haptics'
 import { PageTransition } from './components/PageTransition'
-import SettingsIcon from './icons/Settings'
+import SettingsIcon, { SettingsIconLight, CloseIcon } from './icons/Settings'
 import Loading from './components/Loading'
+import PillNavbar from './components/PillNavbar'
 import FlexCol from './components/FlexCol'
 import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
@@ -89,7 +90,7 @@ export default function App() {
   const { configLoaded } = useContext(ConfigContext)
   const { direction, navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
-  const { setOption } = useContext(OptionsContext)
+  const { option, setOption } = useContext(OptionsContext)
   const { authState, dataReady, unlockWallet, walletLoaded, initialized, wallet } = useContext(WalletContext)
 
   const [isCapable, setIsCapable] = useState(false)
@@ -202,6 +203,11 @@ export default function App() {
   const prefersReduced = useReducedMotion()
   const effectiveDirection = prefersReduced ? 'none' : direction
 
+  const handleCloseSettings = () => {
+    hapticLight()
+    navigate(Pages.Wallet)
+  }
+
   // New users (no wallet in storage) skip straight to Init — the logo morph animation
   // serves as the intro visual while ASP and JS capability checks resolve in the background.
   // Init doesn't need ASP or crypto until "Create wallet" is clicked.
@@ -263,73 +269,99 @@ export default function App() {
             </PageAnimWrapper>
           </div>
         ) : (
-          <IonTabs>
-            <IonTab ref={walletRef} tab={Tabs.Wallet}>
-              <div className='page-transition-container'>
-                <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-                  {tab === Tabs.Wallet && (
-                    <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                      {comp}
-                    </PageTransition>
-                  )}
-                </PageAnimWrapper>
-              </div>
-            </IonTab>
-            <IonTab ref={appsRef} tab={Tabs.Apps}>
-              <div className='page-transition-container'>
-                <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-                  {tab === Tabs.Apps && (
-                    <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                      {comp}
-                    </PageTransition>
-                  )}
-                </PageAnimWrapper>
-              </div>
-            </IonTab>
-            <IonTab ref={settingsRef} tab={Tabs.Settings}>
-              <div className='page-transition-container'>
-                <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-                  {tab === Tabs.Settings && (
-                    <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                      {comp}
-                    </PageTransition>
-                  )}
-                </PageAnimWrapper>
-              </div>
-            </IonTab>
-            <IonTabBar slot='bottom'>
-              <IonTabButton tab={Tabs.Wallet} onClick={handleWallet} selected={tab === Tabs.Wallet}>
-                <Focusable>
-                  <FlexCol centered gap='6px' padding='5px' testId='tab-wallet'>
-                    <AnimatedTabIcon animating={animatingTab === 'wallet'}>
-                      <WalletIcon />
-                    </AnimatedTabIcon>
-                    Wallet
-                  </FlexCol>
-                </Focusable>
-              </IonTabButton>
-              <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps}>
-                <Focusable>
-                  <FlexCol centered gap='6px' padding='5px' testId='tab-apps'>
-                    <AnimatedTabIcon animating={animatingTab === 'apps'}>
-                      <AppsIcon />
-                    </AnimatedTabIcon>
-                    Apps
-                  </FlexCol>
-                </Focusable>
-              </IonTabButton>
-              <IonTabButton tab={Tabs.Settings} onClick={handleSettings} selected={tab === Tabs.Settings}>
-                <Focusable>
-                  <FlexCol centered gap='6px' padding='5px' testId='tab-settings'>
-                    <AnimatedTabIcon animating={animatingTab === 'settings'}>
-                      <SettingsIcon />
-                    </AnimatedTabIcon>
-                    Settings
-                  </FlexCol>
-                </Focusable>
-              </IonTabButton>
-            </IonTabBar>
-          </IonTabs>
+          <>
+            <button
+              className='header-settings-btn'
+              data-testid='tab-settings'
+              onClick={tab === Tabs.Settings && option === SettingsOptions.Menu ? handleCloseSettings : handleSettings}
+              aria-label={tab === Tabs.Settings && option === SettingsOptions.Menu ? 'Close settings' : 'Settings'}
+              style={
+                page !== Pages.Wallet && page !== Pages.Apps && tab !== Tabs.Settings ? { display: 'none' } : undefined
+              }
+            >
+              <span className={`header-icon-morph ${tab === Tabs.Settings ? 'header-icon-morph--close' : ''}`}>
+                <span className='header-icon-gear'>
+                  <SettingsIconLight />
+                </span>
+                <span className='header-icon-x'>
+                  <CloseIcon />
+                </span>
+              </span>
+            </button>
+            {tab !== Tabs.Settings && (
+              <>
+                <div className='pill-navbar-fade' />
+                <PillNavbar activeTab={tab} onWalletClick={handleWallet} onAppsClick={handleApps} />
+              </>
+            )}
+            <IonTabs>
+              <IonTab ref={walletRef} tab={Tabs.Wallet}>
+                <div className='page-transition-container'>
+                  <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
+                    {tab === Tabs.Wallet && (
+                      <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                        {comp}
+                      </PageTransition>
+                    )}
+                  </PageAnimWrapper>
+                </div>
+              </IonTab>
+              <IonTab ref={appsRef} tab={Tabs.Apps}>
+                <div className='page-transition-container'>
+                  <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
+                    {tab === Tabs.Apps && (
+                      <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                        {comp}
+                      </PageTransition>
+                    )}
+                  </PageAnimWrapper>
+                </div>
+              </IonTab>
+              <IonTab ref={settingsRef} tab={Tabs.Settings}>
+                <div className='page-transition-container'>
+                  <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
+                    {tab === Tabs.Settings && (
+                      <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                        {comp}
+                      </PageTransition>
+                    )}
+                  </PageAnimWrapper>
+                </div>
+              </IonTab>
+              <IonTabBar slot='bottom'>
+                <IonTabButton tab={Tabs.Wallet} onClick={handleWallet} selected={tab === Tabs.Wallet}>
+                  <Focusable>
+                    <FlexCol centered gap='6px' padding='5px'>
+                      <AnimatedTabIcon animating={animatingTab === 'wallet'}>
+                        <WalletIcon />
+                      </AnimatedTabIcon>
+                      Wallet
+                    </FlexCol>
+                  </Focusable>
+                </IonTabButton>
+                <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps}>
+                  <Focusable>
+                    <FlexCol centered gap='6px' padding='5px'>
+                      <AnimatedTabIcon animating={animatingTab === 'apps'}>
+                        <AppsIcon />
+                      </AnimatedTabIcon>
+                      Apps
+                    </FlexCol>
+                  </Focusable>
+                </IonTabButton>
+                <IonTabButton tab={Tabs.Settings} onClick={handleSettings} selected={tab === Tabs.Settings}>
+                  <Focusable>
+                    <FlexCol centered gap='6px' padding='5px'>
+                      <AnimatedTabIcon animating={animatingTab === 'settings'}>
+                        <SettingsIcon />
+                      </AnimatedTabIcon>
+                      Settings
+                    </FlexCol>
+                  </Focusable>
+                </IonTabButton>
+              </IonTabBar>
+            </IonTabs>
+          </>
         )}
       </IonPage>
     </IonApp>
