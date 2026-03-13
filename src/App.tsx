@@ -190,7 +190,6 @@ export default function App() {
     navigate(Pages.Wallet)
   }
 
-
   // New users (no wallet in storage) skip straight to Init — the logo morph animation
   // serves as the intro visual while ASP and JS capability checks resolve in the background.
   // Init doesn't need ASP or crypto until "Create wallet" is clicked.
@@ -220,9 +219,7 @@ export default function App() {
               onClick={tab === Tabs.Settings && option === SettingsOptions.Menu ? handleCloseSettings : handleSettings}
               aria-label={tab === Tabs.Settings && option === SettingsOptions.Menu ? 'Close settings' : 'Settings'}
               style={
-                page !== Pages.Wallet && page !== Pages.Apps && tab !== Tabs.Settings
-                  ? { display: 'none' }
-                  : undefined
+                page !== Pages.Wallet && page !== Pages.Apps && tab !== Tabs.Settings ? { display: 'none' } : undefined
               }
             >
               <span className={`header-icon-morph ${tab === Tabs.Settings ? 'header-icon-morph--close' : ''}`}>
