@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
@@ -48,6 +48,13 @@ export default function InAppBrowser() {
   const [contentReady, setContentReady] = useState(prefersReduced)
   const [sunriseVisible, setSunriseVisible] = useState(prefersReduced)
   const logoTargetRef = useRef<HTMLDivElement>(null)
+  const copyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeout.current) clearTimeout(copyTimeout.current)
+    }
+  }, [])
 
   const handleFlyStart = useCallback(() => {
     setSunriseVisible(true)
@@ -58,9 +65,13 @@ export default function InAppBrowser() {
   }, [])
 
   const handleCopy = async () => {
-    await copyToClipboard(window.location.origin)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await copyToClipboard(window.location.origin)
+      setCopied(true)
+      copyTimeout.current = setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // clipboard API may be unavailable in some in-app browsers
+    }
   }
 
   const titleStyle = {
