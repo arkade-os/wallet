@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { EASE_OUT_QUINT } from '../lib/animations'
+import { EASE_OUT_QUINT_TUPLE } from '../lib/animations'
 
 interface Particle {
   id: string
@@ -73,7 +73,7 @@ export default function PixelSplash({ bounceCount, reducedMotion }: PixelSplashP
             animate={{ x: p.x, y: p.y, opacity: 0, scale: 0.3 }}
             transition={{
               duration: 0.6,
-              ease: EASE_OUT_QUINT as unknown as [number, number, number, number],
+              ease: EASE_OUT_QUINT_TUPLE,
             }}
             style={{
               position: 'absolute',

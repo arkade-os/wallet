@@ -1,13 +1,12 @@
 import { RefObject, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, useAnimationControls } from 'framer-motion'
-import { EASE_OUT_QUINT } from '../lib/animations'
+import { EASE_OUT_QUINT_TUPLE } from '../lib/animations'
 import { SLOT_SHAPES, CELL, GAP, SCALE_CLOSED } from '../icons/pixel-shapes'
 import PixelSplash from './PixelSplash'
 
 const LARGE_SIZE = 100
 const SMALL_SIZE = 28
-const EASE_QUINT_TUPLE = EASE_OUT_QUINT as unknown as [number, number, number, number]
 const EASE_IN = [0.55, 0, 1, 0.45] as [number, number, number, number]
 
 // Morph CSS transition duration (ms) — how long pixels take to slide between shapes
@@ -130,13 +129,13 @@ export default function OnboardingLogo({ targetRef, onComplete, onFlyStart, redu
           y: 0,
           scaleY: 1,
           scaleX: 1,
-          transition: { duration: 0.2, ease: EASE_QUINT_TUPLE },
+          transition: { duration: 0.2, ease: EASE_OUT_QUINT_TUPLE },
         }),
         flyControls.start({
           x: dx,
           y: dy,
           scale: targetScale,
-          transition: { duration: 0.35, ease: EASE_QUINT_TUPLE },
+          transition: { duration: 0.35, ease: EASE_OUT_QUINT_TUPLE },
         }),
       ])
 
@@ -198,7 +197,7 @@ export default function OnboardingLogo({ targetRef, onComplete, onFlyStart, redu
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.25, ease: EASE_QUINT_TUPLE }}
+          transition={{ duration: 0.25, ease: EASE_OUT_QUINT_TUPLE }}
         >
           <motion.div animate={bounceControls} style={{ y: 0, scaleY: 1, scaleX: 1 }}>
             <svg

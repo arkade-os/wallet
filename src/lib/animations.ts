@@ -2,6 +2,7 @@ import { Variants } from 'framer-motion'
 
 // Easing: Emil Kowalski's ease-out quint
 export const EASE_OUT_QUINT = [0.23, 1, 0.32, 1]
+export const EASE_OUT_QUINT_TUPLE = EASE_OUT_QUINT as [number, number, number, number]
 
 // Page transition timing
 export const PAGE_TRANSITION_DURATION = 0.3
