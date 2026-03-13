@@ -1,0 +1,135 @@
+import { render, screen, waitFor } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import App from '../App'
+import { AspContext } from '../providers/asp'
+import { ConfigContext } from '../providers/config'
+import { FlowContext } from '../providers/flow'
+import { NavigationContext, Pages, Tabs } from '../providers/navigation'
+import { OptionsContext } from '../providers/options'
+import { WalletContext, type WalletAuthState } from '../providers/wallet'
+import {
+  mockAspContextValue,
+  mockConfigContextValue,
+  mockFlowContextValue,
+  mockNavigationContextValue,
+  mockOptionsContextValue,
+  mockWalletContextValue,
+} from './screens/mocks'
+import { defaultPassword } from '../lib/constants'
+import { detectJSCapabilities } from '../lib/jsCapabilities'
+
+vi.mock('../lib/jsCapabilities', () => ({
+  detectJSCapabilities: vi.fn().mockResolvedValue({ isSupported: true }),
+}))
+
+vi.mock('@ionic/react', async (importOriginal) => {
+  const React = await import('react')
+  const actual = await importOriginal<typeof import('@ionic/react')>()
+
+  const IonTab = React.forwardRef(function MockIonTab(
+    { children }: { children: ReactNode },
+    ref: React.ForwardedRef<{ setActive: () => void; classList: { add: () => void; remove: () => void } }>,
+  ) {
+    React.useImperativeHandle(ref, () => ({
+      setActive: () => {},
+      classList: {
+        add: () => {},
+        remove: () => {},
+      },
+    }))
+
+    return <div>{children}</div>
+  })
+
+  return {
+    ...actual,
+    IonApp: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    IonPage: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    IonTab,
+    IonTabBar: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    IonTabButton: ({ children, onClick }: { children: ReactNode; onClick?: () => void }) => (
+      <button onClick={onClick}>{children}</button>
+    ),
+    IonTabs: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    setupIonicReact: vi.fn(),
+  }
+})
+
+function renderApp({
+  authState,
+  initialized,
+  unlockWallet = vi.fn().mockResolvedValue(undefined),
+}: {
+  authState: WalletAuthState
+  initialized: boolean
+  unlockWallet?: ReturnType<typeof vi.fn>
+}) {
+  const navigate = vi.fn()
+
+  render(
+    <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate, screen: Pages.Init, tab: Tabs.None }}>
+      <AspContext.Provider value={mockAspContextValue as any}>
+        <ConfigContext.Provider value={{ ...mockConfigContextValue, configLoaded: true } as any}>
+          <FlowContext.Provider value={mockFlowContextValue as any}>
+            <OptionsContext.Provider value={mockOptionsContextValue as any}>
+              <WalletContext.Provider
+                value={{
+                  ...mockWalletContextValue,
+                  authState,
+                  initialized,
+                  unlockWallet,
+                  walletLoaded: true,
+                  wallet: { nextRollover: 0, pubkey: 'stored-pubkey' },
+                }}
+              >
+                <App />
+              </WalletContext.Provider>
+            </OptionsContext.Provider>
+          </FlowContext.Provider>
+        </ConfigContext.Provider>
+      </AspContext.Provider>
+    </NavigationContext.Provider>,
+  )
+
+  return { navigate, unlockWallet }
+}
+
+describe('App startup routing', () => {
+  beforeEach(() => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+    vi.mocked(detectJSCapabilities).mockResolvedValue({ isSupported: true })
+  })
+
+  it('keeps passwordless wallets on loading and boots them in the background', async () => {
+    const { navigate, unlockWallet } = renderApp({ authState: 'passwordless', initialized: false })
+
+    expect(await screen.findByText('Loading...')).toBeInTheDocument()
+    await waitFor(() => expect(unlockWallet).toHaveBeenCalledWith(defaultPassword))
+    expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
+  })
+
+  it('shows unlock when authentication is required', async () => {
+    const { navigate } = renderApp({ authState: 'locked', initialized: false })
+
+    expect(await screen.findByText('Unlock')).toBeInTheDocument()
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.Unlock))
+  })
+
+  it('keeps authenticated but uninitialized wallets on loading', async () => {
+    const { navigate, unlockWallet } = renderApp({ authState: 'authenticated', initialized: false })
+
+    expect(await screen.findByText('Loading...')).toBeInTheDocument()
+    expect(unlockWallet).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
+  })
+})
