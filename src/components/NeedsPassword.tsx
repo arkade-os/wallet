@@ -15,7 +15,7 @@ import LockIcon from '../icons/Lock'
 
 interface NeedsPasswordProps {
   error: string
-  onPassword: (password: string) => void
+  onPassword: (password: string) => void | Promise<void>
 }
 
 export default function NeedsPassword({ error, onPassword }: NeedsPasswordProps) {

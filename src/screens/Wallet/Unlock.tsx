@@ -27,6 +27,7 @@ export default function Unlock() {
         return
       }
       consoleError(err, 'error unlocking wallet')
+      setUnlocking(false)
     }
   }
 
