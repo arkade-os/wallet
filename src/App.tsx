@@ -216,7 +216,7 @@ export default function App() {
   const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
   const hasStoredWallet = walletLoaded && !!wallet.pubkey
   const shouldShowUnlock = hasStoredWallet && !initialized && authState === 'locked'
-  const shouldHoldOnLoading = hasStoredWallet && authState !== 'locked' && (!initialized || !dataReady)
+  const shouldHoldOnLoading = hasStoredWallet && !initialized && authState !== 'locked'
 
   useEffect(() => {
     passwordlessBootAttempted.current = false
