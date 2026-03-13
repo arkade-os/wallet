@@ -91,7 +91,7 @@ export default function App() {
   const { direction, navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
   const { option, setOption } = useContext(OptionsContext)
-  const { authState, dataReady, unlockWallet, walletLoaded, initialized, wallet } = useContext(WalletContext)
+  const { authState, unlockWallet, walletLoaded, initialized, wallet } = useContext(WalletContext)
 
   const [isCapable, setIsCapable] = useState(false)
   const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
@@ -216,7 +216,7 @@ export default function App() {
   const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
   const hasStoredWallet = walletLoaded && !!wallet.pubkey
   const shouldShowUnlock = hasStoredWallet && !initialized && authState === 'locked'
-  const shouldHoldOnLoading = hasStoredWallet && authState !== 'locked' && (!initialized || !dataReady)
+  const shouldHoldOnLoading = hasStoredWallet && !initialized && authState !== 'locked'
 
   useEffect(() => {
     passwordlessBootAttempted.current = false
