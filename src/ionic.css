@@ -27,6 +27,7 @@
   --white: #fbfbfb;
   --yellow: #e2c542;
   --yellowoutlier: #debb20;
+  --fade-rgb: 255, 255, 255;
   --ion-background-color: #fff;
   --ion-background-focused: var(--purple20);
   --ion-tabbar-background-color: #fafafa;
@@ -55,6 +56,7 @@
   --redbg: #380008;
   --yellow: #ffdd46;
   --yellowoutlier: #ffdd46;
+  --fade-rgb: 16, 16, 16;
   --ion-background-color: #101010;
   --ion-background-focused: var(--dark10);
   --ion-tabbar-background-color: #181818;
@@ -191,24 +193,10 @@ ion-app > .ion-page {
 }
 
 ion-tab-bar {
-  border-top: 1px solid var(--dark20);
-  width: 100%;
-  & ion-tab-button {
-    --color-selected: var(--ion-color-dark);
-    max-width: none;
-    &:hover,
-    &:hover svg,
-    &.tab-selected,
-    &.tab-selected svg {
-      color: var(--ion-color-dark);
-    }
-    & .focusable:focus {
-      background-color: transparent;
-    }
-  }
-  & svg {
-    color: var(--dark50);
-  }
+  --background: transparent;
+  border: none;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 ion-checkbox {
