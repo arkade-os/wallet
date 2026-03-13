@@ -147,6 +147,7 @@ export async function receiveLightning(page: Page, isMobile: boolean, sats: numb
 }
 
 async function getNsec(page: Page): Promise<string> {
+  await page.getByTestId('tab-wallet').click()
   await page.getByTestId('tab-settings').click()
   await page.getByText('backup', { exact: true }).click()
   await page.getByText('View private key').click()
@@ -156,6 +157,7 @@ async function getNsec(page: Page): Promise<string> {
 }
 
 async function resetWallet(page: Page): Promise<void> {
+  await page.getByTestId('tab-wallet').click()
   await page.getByTestId('tab-settings').click()
   await page.getByText('Reset wallet').click()
   await page.getByText('I have backed up my wallet').click()
