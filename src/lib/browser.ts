@@ -13,13 +13,16 @@ export const isAndroid = (): boolean => {
 export const isInAppBrowser = (): boolean => {
   const ua = navigator.userAgent || ''
 
-  // Known in-app browser tokens
+  // Known in-app browser tokens (sorted by global user base)
   if (
-    /FBAN|FBAV|Instagram|Twitter|Line\/|Snapchat|LinkedIn|Reddit|Pinterest|TikTok|Telegram|WhatsApp|Weibo|MicroMessenger/i.test(
+    /FBAN|FBAV|Instagram|Twitter|Line\/|Snapchat|LinkedIn|Reddit|Pinterest|TikTok|Telegram|WhatsApp|Weibo|MicroMessenger|Barcelona|Viber|KAKAOTALK|GSA\/|musical_ly|BytedanceWebview|Bytedance|baiduboxapp|baidubrowser|MQQBrowser|\bQQ\/|Flipboard/i.test(
       ua,
     )
   )
     return true
+
+  // Telegram iOS doesn't add a UA token, but exposes window globals
+  if ('TelegramWebviewProxy' in window || 'TelegramWebviewProxyProto' in window) return true
 
   // Generic Android WebView marker
   if (/; wv\)/.test(ua)) return true

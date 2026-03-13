@@ -67,6 +67,7 @@ export default function InAppBrowser() {
   const handleCopy = async () => {
     try {
       await copyToClipboard(window.location.origin)
+      if (copyTimeout.current) clearTimeout(copyTimeout.current)
       setCopied(true)
       copyTimeout.current = setTimeout(() => setCopied(false), 2000)
     } catch {
