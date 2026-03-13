@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-import { EASE_OUT_QUINT } from '../lib/animations'
+import { EASE_OUT_QUINT_TUPLE } from '../lib/animations'
 
 interface PixelSunriseProps {
   show: boolean
@@ -41,7 +41,7 @@ export default function PixelSunrise({ show, reducedMotion }: PixelSunriseProps)
         animate={show ? { opacity: 1, scaleY: 1 } : { opacity: 0, scaleY: 0.3 }}
         transition={{
           duration: 1.8,
-          ease: EASE_OUT_QUINT as unknown as [number, number, number, number],
+          ease: EASE_OUT_QUINT_TUPLE,
         }}
         style={wrapperStyle}
       >

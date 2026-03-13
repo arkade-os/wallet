@@ -1,31 +1,20 @@
-import { ReactElement, useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { generateMnemonic, mnemonicToSeedSync } from '@scure/bip39'
-import { wordlist } from '@scure/bip39/wordlists/english'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
-import { NavigationContext, Pages } from '../../providers/navigation'
-import { AspContext } from '../../providers/asp'
-import ErrorMessage from '../../components/Error'
-import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
 import Padded from '../../components/Padded'
 import Text from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
-import { deriveKeyFromSeed } from '../../lib/wallet'
-import SheetModal from '../../components/SheetModal'
-import { defaultPassword } from '../../lib/constants'
 import { OnboardStaggerChild } from '../../components/OnboardLoadIn'
-import { motion } from 'framer-motion'
 import { onboardStaggerContainer, EASE_OUT_QUINT_TUPLE } from '../../lib/animations'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import OnboardingLogo from '../../components/OnboardingLogo'
 import PixelSunrise from '../../components/PixelSunrise'
 import SmallLogo from '../../components/SmallLogo'
-import BoltOutlineIcon from '../../icons/BoltOutline'
-import GlobeOutlineIcon from '../../icons/GlobeOutline'
-import ShieldCheckOutlineIcon from '../../icons/ShieldCheckOutline'
+import { copyToClipboard } from '../../lib/clipboard'
 
-function BulletPoint({ icon, text }: { icon: ReactElement; text: string }) {
+function NumberedBullet({ number, text }: { number: number; text: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0' }}>
       <div
@@ -39,9 +28,12 @@ function BulletPoint({ icon, text }: { icon: ReactElement; text: string }) {
           justifyContent: 'center',
           flexShrink: 0,
           color: 'var(--logo-color)',
+          fontFamily: 'var(--heading-font)',
+          fontWeight: 600,
+          fontSize: '14px',
         }}
       >
-        {icon}
+        {number}
       </div>
       <Text color='dark80' thin wrap>
         {text}
@@ -50,41 +42,38 @@ function BulletPoint({ icon, text }: { icon: ReactElement; text: string }) {
   )
 }
 
-export default function Init() {
-  const { aspInfo } = useContext(AspContext)
-  const { setInitInfo } = useContext(FlowContext)
-  const { navigate } = useContext(NavigationContext)
-
+export default function InAppBrowser() {
   const prefersReduced = useReducedMotion()
-  const [error, setError] = useState(false)
-  const [showOptions, setShowOptions] = useState(false)
+  const [copied, setCopied] = useState(false)
   const [contentReady, setContentReady] = useState(prefersReduced)
   const [sunriseVisible, setSunriseVisible] = useState(prefersReduced)
   const logoTargetRef = useRef<HTMLDivElement>(null)
+  const copyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeout.current) clearTimeout(copyTimeout.current)
+    }
+  }, [])
 
   const handleFlyStart = useCallback(() => {
     setSunriseVisible(true)
   }, [])
 
-  const aspReady = !!aspInfo.signerPubkey || aspInfo.unreachable
-
-  useEffect(() => {
-    setError(aspInfo.unreachable)
-  }, [aspInfo.unreachable])
-
-  const handleNewWallet = () => {
-    const mnemonic = generateMnemonic(wordlist)
-    const seed = mnemonicToSeedSync(mnemonic)
-    const privateKey = deriveKeyFromSeed(seed)
-    setInitInfo({ privateKey, password: defaultPassword, restoring: false })
-    navigate(Pages.InitConnect)
-  }
-
-  const handleOldWallet = () => navigate(Pages.InitRestore)
-
   const handleLogoComplete = useCallback(() => {
     setContentReady(true)
   }, [])
+
+  const handleCopy = async () => {
+    try {
+      await copyToClipboard(window.location.origin)
+      if (copyTimeout.current) clearTimeout(copyTimeout.current)
+      setCopied(true)
+      copyTimeout.current = setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // clipboard API may be unavailable in some in-app browsers
+    }
+  }
 
   const titleStyle = {
     margin: 0,
@@ -117,7 +106,7 @@ export default function Init() {
                 paddingBottom: 40,
               }}
             >
-              {/* Logo + title stacked — logo optically centered with bullet icons */}
+              {/* Logo + title stacked */}
               <div
                 style={{
                   display: 'flex',
@@ -151,10 +140,13 @@ export default function Init() {
                   transition={{ duration: 0.3, ease: EASE_OUT_QUINT_TUPLE }}
                 >
                   <h1 style={{ ...titleStyle, paddingLeft: 4 }}>Welcome to Arkade 👾</h1>
+                  <Text color='dark50' thin wrap>
+                    Arkade Wallet won't work in this app.
+                  </Text>
                 </motion.div>
               </div>
 
-              {/* Bullet points + error — always in DOM for stable layout, animated in when ready */}
+              {/* Bullet points — animated in when logo sequence completes */}
               <motion.div
                 variants={prefersReduced ? undefined : onboardStaggerContainer}
                 initial={prefersReduced ? false : 'initial'}
@@ -169,23 +161,13 @@ export default function Init() {
                 style={{ width: '100%', visibility: contentReady ? 'visible' : 'hidden' }}
               >
                 <OnboardStaggerChild>
-                  <BulletPoint icon={<BoltOutlineIcon />} text='Fast payments, swaps, and more' />
+                  <NumberedBullet number={1} text='Copy the link below' />
                 </OnboardStaggerChild>
                 <OnboardStaggerChild>
-                  <BulletPoint
-                    icon={<GlobeOutlineIcon />}
-                    text='Access Lightning, DeFi, and more, all secured by Bitcoin'
-                  />
+                  <NumberedBullet number={2} text='Open Safari, Chrome, or your browser' />
                 </OnboardStaggerChild>
                 <OnboardStaggerChild>
-                  <BulletPoint
-                    icon={<ShieldCheckOutlineIcon />}
-                    text='Stay in control. Settle and withdraw on your terms'
-                  />
-                </OnboardStaggerChild>
-
-                <OnboardStaggerChild>
-                  <ErrorMessage error={error} text='Ark server unreachable' />
+                  <NumberedBullet number={3} text='Paste the link and go' />
                 </OnboardStaggerChild>
               </motion.div>
             </div>
@@ -210,21 +192,9 @@ export default function Init() {
             pointerEvents: contentReady ? 'auto' : 'none',
           }}
         >
-          <Button disabled={error || !aspReady} onClick={handleNewWallet} label='+ Create wallet' />
-          <Button
-            disabled={error || !aspReady}
-            onClick={() => setShowOptions(true)}
-            label='Other login options'
-            clear
-          />
+          <Button onClick={handleCopy} label={copied ? 'Copied!' : 'Copy link'} />
         </motion.div>
       </ButtonsOnBottom>
-      <SheetModal isOpen={showOptions} onClose={() => setShowOptions(false)}>
-        <FlexCol gap='1rem'>
-          <Text>Other login options</Text>
-          <Button fancy disabled={error} onClick={handleOldWallet} label='Restore wallet' secondary />
-        </FlexCol>
-      </SheetModal>
     </>
   )
 }
