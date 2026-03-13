@@ -303,17 +303,19 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     let counter = 0
 
     // Restore swaps from Boltz endpoint
+    let chainSwaps: PendingChainSwap[] = []
     let reverseSwaps: PendingReverseSwap[] = []
     let submarineSwaps: PendingSubmarineSwap[] = []
     try {
       const result = await arkadeSwaps.restoreSwaps()
+      chainSwaps = result.chainSwaps
       reverseSwaps = result.reverseSwaps
       submarineSwaps = result.submarineSwaps
     } catch (err) {
       consoleError(err, 'Error restoring swaps from Boltz:')
       return 0
     }
-    if (reverseSwaps.length === 0 && submarineSwaps.length === 0) return 0
+    if (reverseSwaps.length === 0 && submarineSwaps.length === 0 && chainSwaps.length === 0) return 0
 
     // Get existing swap history to avoid duplicates
     const history = await arkadeSwaps.getSwapHistory()
@@ -339,6 +341,17 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
           counter++
         } catch (err) {
           consoleError(err, `Failed to save submarine swap ${swap.response.id}`)
+        }
+      }
+    }
+
+    for (const swap of chainSwaps) {
+      if (!historyIds.has(swap.response.id)) {
+        try {
+          await arkadeSwaps.swapRepository.saveSwap(swap)
+          counter++
+        } catch (err) {
+          consoleError(err, `Failed to save chain swap ${swap.response.id}`)
         }
       }
     }
