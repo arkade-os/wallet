@@ -34,14 +34,23 @@ declare const self: ServiceWorkerGlobalScope
 // different service worker, and it'll get its own install event.
 //
 // install event: activate service worker immediately
-self.addEventListener('install', (event: ExtendableEvent) => {
+self.addEventListener('install', async (event: ExtendableEvent) => {
+  // wait until the promise is resolved before terminating the worker, so that we can
+  // ensure the service worker is activated immediately and can take control of the page
   event.waitUntil(caches.open(CACHE_NAME))
-  self.skipWaiting() // activate service worker immediately
-  console.log(`Service worker installed ${gitCommit}`)
+
+  // activate service worker immediately
+  await self.skipWaiting()
+
+  // notify clients that the service worker is installed, so that they
+  // can refresh to load the new service worker and the updated wallet sdk
+  const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+  clients.forEach((client) => client.postMessage({ type: 'SW_INSTALLED', gitCommit }))
 })
 
-// activate event: clean up old caches
-self.addEventListener('activate', (event: ExtendableEvent) => {
+// activate event: delete old caches and take control of clients immediately
+self.addEventListener('activate', async (event: ExtendableEvent) => {
+  // delete old caches
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -52,7 +61,14 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
       )
     }),
   )
-  self.clients.claim() // take control of clients immediately
+
+  // take control of clients immediately
+  await self.clients.claim()
+
+  // notify clients that the service worker is activated, so that they
+  // can refresh to load the new service worker and the updated wallet sdk
+  const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+  clients.forEach((client) => client.postMessage({ type: 'SW_ACTIVATED', gitCommit }))
 })
 
 // we can adopt two different strategies for caching:

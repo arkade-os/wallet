@@ -29,6 +29,12 @@ if (shouldInitializeSentry(sentryDsn)) {
   })
 }
 
+// refresh the page when the service worker is updated, so that the new service
+// worker can take control of the page and serve the updated wallet sdk
+navigator.serviceWorker.addEventListener('message', (event) => {
+  if (event.data?.type === 'SW_INSTALLED') window.location.reload()
+})
+
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 
 root.render(
