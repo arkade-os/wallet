@@ -24,7 +24,7 @@ export default function AssetCard({ assetId, balance, decimals, icon, name, tick
           <AssetAvatar icon={icon} name={name} ticker={ticker} size={32} assetId={assetId} clickable />
           <FlexCol gap='0'>
             <Text bold>{assetName}</Text>
-            <Text color='dark50' smaller>
+            <Text color='white' smaller>
               {tokenTick}
             </Text>
           </FlexCol>

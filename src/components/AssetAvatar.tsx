@@ -16,24 +16,30 @@ interface AssetAvatarProps {
 export default function AssetAvatar({ icon, ticker, name, size, onError, assetId, clickable }: AssetAvatarProps) {
   const { setAssetInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
+  const avatarStyle = {
+    width: size,
+    height: size,
+    minWidth: size,
+    minHeight: size,
+    borderRadius: '50%',
+    flexShrink: 0,
+  } as const
 
   const content = icon ? (
-    <img
-      src={icon}
-      alt=''
-      width={size}
-      height={size}
-      style={{ borderRadius: '50%', objectFit: 'cover', minWidth: size, minHeight: size }}
-      onError={onError}
-    />
+    <div style={{ ...avatarStyle, overflow: 'hidden' }}>
+      <img
+        src={icon}
+        alt=''
+        width={size}
+        height={size}
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        onError={onError}
+      />
+    </div>
   ) : (
     <div
       style={{
-        width: size,
-        height: size,
-        minWidth: size,
-        minHeight: size,
-        borderRadius: '50%',
+        ...avatarStyle,
         background: 'var(--dark20)',
         display: 'flex',
         alignItems: 'center',
