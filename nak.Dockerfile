@@ -5,7 +5,7 @@ FROM golang:1.25.5-alpine AS builder
 RUN apk add --no-cache gcc musl-dev
 
 # Install nak
-RUN go install github.com/fiatjaf/nak@latest
+RUN go install github.com/fiatjaf/nak@v0.18.7
 
 # runtime stage
 FROM alpine:latest

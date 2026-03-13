@@ -190,6 +190,7 @@ export default function App() {
     navigate(Pages.Wallet)
   }
 
+
   // New users (no wallet in storage) skip straight to Init — the logo morph animation
   // serves as the intro visual while ASP and JS capability checks resolve in the background.
   // Init doesn't need ASP or crypto until "Create wallet" is clicked.

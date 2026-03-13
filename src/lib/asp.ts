@@ -75,6 +75,8 @@ export const collaborativeExit = async (wallet: IWallet, amount: number, address
     outputs.push({ address: offchainAddr, amount: BigInt(changeAmount) })
   }
 
+  outputs.reverse() // fix for exit with assets
+
   try {
     return await wallet.settle({ inputs: selectedVtxos, outputs })
   } catch (error) {
@@ -118,6 +120,8 @@ export const collaborativeExitWithFees = async (
     const { offchainAddr } = await getReceivingAddresses(wallet)
     outputs.push({ address: offchainAddr, amount: BigInt(changeAmount) })
   }
+
+  outputs.reverse() // fix for exit with assets
 
   try {
     return await wallet.settle({ inputs: selectedVtxos, outputs })

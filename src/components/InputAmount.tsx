@@ -67,14 +67,14 @@ export default function InputAmount({
   const handleInput = (ev: Event) => {
     const value = Number((ev.target as HTMLInputElement).value)
     if (Number.isNaN(value)) return
-    onSats(asset ? unitsToCents(value, asset.decimals) : useFiat ? fromFiat(value) : value)
+    onSats(asset?.assetId ? unitsToCents(value, asset.decimals) : useFiat ? fromFiat(value) : value)
   }
 
   const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0
   const maximumSats = max ? Math.min(max, maxSwapAllowed()) : 0
 
-  const leftLabel = asset ? asset.ticker : useFiat ? config.fiat : 'SATS'
-  const rightLabel = asset ? '' : `${otherValue} ${useFiat ? 'SATS' : config.fiat}`
+  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? config.fiat : 'SATS'
+  const rightLabel = asset?.assetId ? '' : `${otherValue} ${useFiat ? 'SATS' : config.fiat}`
   const fontStyle = { color: 'var(--dark50)', fontSize: '13px' }
   const bottomLeft = minimumSats ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}` : ''
   const bottomRight = maximumSats ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'SAT' : 'SATS'}` : ''

@@ -20,7 +20,7 @@
   --purple: #391998;
   --purple10: #39199815;
   --purple20: #39199833;
-  --purplebg: #391998;
+  --purplebg: #24154f;
   --purpletext: #7043f4;
   --red: #a51515;
   --redbg: #68222b;
@@ -64,6 +64,7 @@
   --logo-color: #fbfbfb;
   --toggle-background: #ddd;
   --danger: #e04d4d;
+  --purpletext: #9678f7;
   --bullet-icon-bg: #1f1050;
 }
 

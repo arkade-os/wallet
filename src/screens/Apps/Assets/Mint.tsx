@@ -57,11 +57,11 @@ export default function AppAssetMint() {
       if (!svcWallet) return
       const options: KnownAssetOption[] = []
       for (const ab of assetBalances) {
-        let meta = assetMetadataCache.get(ab.assetId) as AssetDetails
+        let meta = assetMetadataCache.get(ab.assetId) as AssetDetails | undefined
         if (!meta) {
           try {
-            meta = await svcWallet.assetManager.getAssetDetails(ab.assetId)
-            if (meta) setCacheEntry(ab.assetId, meta)
+            const fetched = await svcWallet.assetManager.getAssetDetails(ab.assetId)
+            if (fetched) meta = setCacheEntry(ab.assetId, fetched)
           } catch {
             // skip assets we can't fetch metadata for
           }

@@ -452,3 +452,11 @@ button.reminder-button.action-sheet-button {
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Hide scrollbar while keeping scroll functionality */
+.hide-scrollbar {
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

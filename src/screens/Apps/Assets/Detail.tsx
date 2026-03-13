@@ -40,8 +40,7 @@ export default function AppAssetDetail() {
       try {
         const fetched = await svcWallet.assetManager.getAssetDetails(assetInfo.assetId)
         if (fetched) {
-          setCacheEntry(assetInfo.assetId, fetched)
-          cached = assetMetadataCache.get(assetInfo.assetId)
+          cached = setCacheEntry(assetInfo.assetId, fetched)
         }
       } catch (err) {
         consoleError(err, 'error loading asset details')

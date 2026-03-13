@@ -47,8 +47,8 @@ export default function ReceiveSuccess() {
         .getAssetDetails(a.assetId)
         .then((details) => {
           if (details) {
-            setCacheEntry(a.assetId, details)
-            setAssetDetails((prev) => new Map([...prev, [a.assetId, details]]))
+            const moderated = setCacheEntry(a.assetId, details)
+            setAssetDetails((prev) => new Map([...prev, [a.assetId, moderated]]))
           }
         })
         .catch((err) => consoleError(err, 'error fetching asset details'))

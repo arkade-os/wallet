@@ -123,12 +123,11 @@ export default function SendForm() {
       if (!svcWallet) return
       const options: AssetOption[] = []
       for (const ab of assetBalances) {
-        let cachedMeta = assetMetadataCache.get(ab.assetId)
-        let meta: AssetDetails | undefined = cachedMeta
+        let meta: AssetDetails | undefined = assetMetadataCache.get(ab.assetId)
         if (!meta) {
           try {
-            meta = await svcWallet.assetManager.getAssetDetails(ab.assetId)
-            if (meta) setCacheEntry(ab.assetId, meta)
+            const fetched = await svcWallet.assetManager.getAssetDetails(ab.assetId)
+            if (fetched) meta = setCacheEntry(ab.assetId, fetched)
           } catch (err) {
             consoleError(err, `error fetching metadata for ${ab.assetId}`)
           }
@@ -181,12 +180,11 @@ export default function SendForm() {
         if (assetId) {
           let found = assetOptions.find((a) => a.assetId === assetId)
           if (!found) {
-            let cachedMeta = assetMetadataCache.get(assetId)
-            let meta: AssetDetails | undefined = cachedMeta
+            let meta: AssetDetails | undefined = assetMetadataCache.get(assetId)
             if (!meta && svcWallet) {
               try {
-                meta = await svcWallet.assetManager.getAssetDetails(assetId)
-                if (meta) setCacheEntry(assetId, meta)
+                const fetched = await svcWallet.assetManager.getAssetDetails(assetId)
+                if (fetched) meta = setCacheEntry(assetId, fetched)
               } catch (err) {
                 consoleError(err, `error fetching metadata for ${assetId}`)
               }
@@ -394,7 +392,7 @@ export default function SendForm() {
 
   // deal with fees deduction from amount
   useEffect(() => {
-    if (!sendInfo.address || sendInfo.arkAddress || sendInfo.invoice) {
+    if (!sendInfo.address || sendInfo.arkAddress || sendInfo.invoice || !availableBalance) {
       setDeductFromAmount(false)
       return
     }
@@ -436,6 +434,9 @@ export default function SendForm() {
     setShowAssetSelector(false)
     setSelectedAsset(asset)
     if (asset) {
+      if (isBTCAddress(recipient)) {
+        return setError('Assets can only be sent to Ark addresses')
+      }
       setState({ ...sendInfo, address: '', assets: [{ assetId: asset.assetId, amount: 0 }], satoshis: 0 })
       setAmount(undefined)
       setTextValue('')
