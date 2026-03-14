@@ -219,7 +219,9 @@ export default function App() {
               onClick={tab === Tabs.Settings && option === SettingsOptions.Menu ? handleCloseSettings : handleSettings}
               aria-label={tab === Tabs.Settings && option === SettingsOptions.Menu ? 'Close settings' : 'Settings'}
               style={
-                page !== Pages.Wallet && page !== Pages.Apps && (tab !== Tabs.Settings || option !== SettingsOptions.Menu)
+                page !== Pages.Wallet &&
+                page !== Pages.Apps &&
+                (tab !== Tabs.Settings || option !== SettingsOptions.Menu)
                   ? { display: 'none' }
                   : undefined
               }
