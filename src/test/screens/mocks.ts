@@ -127,10 +127,12 @@ export const mockNavigationContextValue = {
 }
 
 export const mockWalletContextValue = {
+  authState: 'authenticated' as const,
   initWallet: () => Promise.resolve(),
   lockWallet: () => Promise.resolve(),
   resetWallet: () => Promise.resolve(),
   settlePreconfirmed: () => Promise.resolve(),
+  unlockWallet: () => Promise.resolve(),
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
   restartWallet: () => Promise.resolve(),
