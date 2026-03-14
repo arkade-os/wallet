@@ -42,6 +42,8 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
     justifyContent: 'flex-end',
     minWidth: '4rem',
     paddingRight: '1rem',
+    position: 'relative',
+    zIndex: 10,
   }
 
   return (
