@@ -154,11 +154,18 @@ async function navigateToSettings(page: Page): Promise<void> {
     await backBtn.click()
     await page.waitForTimeout(200)
   }
-  // If on wallet/apps, open settings; if already on settings menu, this is a no-op
+  // If on wallet/apps sub-page, go to wallet root first (settings btn may be hidden)
+  const walletTab = page.getByTestId('tab-wallet')
+  if (await walletTab.isVisible().catch(() => false)) {
+    await walletTab.click()
+  }
+  // Open settings if visible and not already on settings menu
   const settingsBtn = page.getByTestId('tab-settings')
-  const label = await settingsBtn.getAttribute('aria-label').catch(() => '')
-  if (label === 'Settings') {
-    await settingsBtn.click()
+  if (await settingsBtn.isVisible().catch(() => false)) {
+    const label = await settingsBtn.getAttribute('aria-label').catch(() => '')
+    if (label === 'Settings') {
+      await settingsBtn.click()
+    }
   }
 }
 
