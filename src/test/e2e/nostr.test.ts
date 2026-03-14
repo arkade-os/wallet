@@ -34,7 +34,7 @@ test('should save config to nostr', async ({ page }) => {
   await page.getByText('Enable Nostr backups').click()
 
   // change fiat currency to euro
-  await page.getByTestId('tab-settings').click()
+  await page.getByLabel('Go back').click()
   await page.getByText('general', { exact: true }).click()
   await expect(page.getByText('USD')).toBeVisible()
   await page.getByText('Fiat currency').click()
@@ -42,24 +42,22 @@ test('should save config to nostr', async ({ page }) => {
   await page.waitForTimeout(500)
 
   // verify fiat currency is euro
-  await page.getByTestId('tab-settings').click()
-  await page.getByText('general', { exact: true }).click()
+  await page.getByLabel('Go back').click()
   await expect(page.getByText('EUR')).toBeVisible({ timeout: 2000 })
 
   // disable nostr backups
-  await page.getByTestId('tab-settings').click()
+  await page.getByLabel('Go back').click()
   await page.getByText('backup', { exact: true }).click()
   await page.getByText('Enable Nostr backups').click()
 
   // change fiat currency to usd
-  await page.getByTestId('tab-settings').click()
+  await page.getByLabel('Go back').click()
   await page.getByText('general', { exact: true }).click()
   await page.getByText('Fiat currency').click()
   await page.getByText('USD').click()
 
   // verify fiat currency is usd
-  await page.getByTestId('tab-settings').click()
-  await page.getByText('general', { exact: true }).click()
+  await page.getByLabel('Go back').click()
   await expect(page.getByText('USD')).toBeVisible()
 
   // restore wallet
