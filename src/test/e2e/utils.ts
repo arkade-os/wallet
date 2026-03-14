@@ -81,8 +81,9 @@ export async function createWalletWithPassword(page: Page, password: string): Pr
   await page.locator('div[data-testid="new-password"] input').fill(password)
   await page.locator('div[data-testid="confirm-password"] input').fill(password)
   await page.getByText('Save password').click()
-  // go to settings main, then close settings to return to wallet
-  await page.getByTestId('tab-settings').click()
+  // go back from Password → Advanced → Menu, then close settings
+  await page.getByLabel('Go back').click()
+  await page.getByLabel('Go back').click()
   await page.getByTestId('tab-settings').click()
 }
 
@@ -147,11 +148,25 @@ export async function receiveLightning(page: Page, isMobile: boolean, sats: numb
 }
 
 async function navigateToSettings(page: Page): Promise<void> {
+  // If on a settings sub-page, go back until we reach the settings menu
+  const backBtn = page.getByLabel('Go back')
+  while (await backBtn.isVisible({ timeout: 300 }).catch(() => false)) {
+    await backBtn.click()
+    await page.waitForTimeout(200)
+  }
+  // If on wallet/apps sub-page, go to wallet root first (settings btn may be hidden)
   const walletTab = page.getByTestId('tab-wallet')
   if (await walletTab.isVisible().catch(() => false)) {
     await walletTab.click()
   }
-  await page.getByTestId('tab-settings').click()
+  // Open settings if visible and not already on settings menu
+  const settingsBtn = page.getByTestId('tab-settings')
+  if (await settingsBtn.isVisible().catch(() => false)) {
+    const label = await settingsBtn.getAttribute('aria-label').catch(() => '')
+    if (label === 'Settings') {
+      await settingsBtn.click()
+    }
+  }
 }
 
 async function getNsec(page: Page): Promise<string> {
