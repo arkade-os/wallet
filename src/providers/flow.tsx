@@ -24,6 +24,7 @@ export interface RecvInfo {
   invoice?: string
   satoshis: number
   txid?: string
+  addressError?: string
 }
 
 export type SendInfo = {

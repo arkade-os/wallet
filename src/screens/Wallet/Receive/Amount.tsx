@@ -63,12 +63,13 @@ export default function ReceiveAmount() {
       .then(({ offchainAddr, boardingAddr }) => {
         if (!offchainAddr) throw 'Unable to get offchain address'
         if (!boardingAddr) throw 'Unable to get boarding address'
-        setRecvInfo({ boardingAddr, offchainAddr, satoshis: 0 })
+        setRecvInfo({ boardingAddr, offchainAddr, satoshis: 0, addressError: undefined })
       })
       .catch((err) => {
         const error = extractError(err)
         consoleError(error, 'error getting addresses')
         setError(error)
+        setRecvInfo({ ...recvInfo, addressError: error })
       })
   }, [svcWallet])
 

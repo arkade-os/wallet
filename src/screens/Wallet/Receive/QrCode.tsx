@@ -18,6 +18,7 @@ import { Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import Loading from '../../../components/Loading'
 import { LightningContext } from '../../../providers/lightning'
 import { encodeBip21 } from '../../../lib/bip21'
+import ErrorMessage from '../../../components/Error'
 
 export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
@@ -30,10 +31,11 @@ export default function ReceiveQRCode() {
   const [sharing, setSharing] = useState(false)
 
   // manage all possible receive methods
-  const { boardingAddr, offchainAddr, satoshis } = recvInfo
+  const { boardingAddr, offchainAddr, satoshis, addressError } = recvInfo
   const address = validUtxoTx(satoshis) && utxoTxsAllowed() ? boardingAddr : ''
   const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
   const noPaymentMethods = !address && !arkAddress && !validLnSwap(satoshis)
+  const hasError = Boolean(addressError)
   const defaultBip21uri = encodeBip21(address, arkAddress, '', satoshis)
 
   const [invoice, setInvoice] = useState('')
@@ -114,14 +116,16 @@ export default function ReceiveQRCode() {
   }
 
   const data = { title: 'Receive', text: qrValue }
-  const disabled = !canBrowserShareData(data) || sharing
+  const disabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods
 
   return (
     <>
       <Header text='Receive' back={() => navigate(Pages.ReceiveAmount)} />
       <Content>
         <Padded>
-          {noPaymentMethods ? (
+          {hasError ? (
+            <ErrorMessage error text={`Failed to get address: ${addressError}`} />
+          ) : noPaymentMethods ? (
             <div>No valid payment methods available for this amount</div>
           ) : showQrCode ? (
             <FlexCol centered>
