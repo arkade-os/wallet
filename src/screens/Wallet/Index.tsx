@@ -14,6 +14,7 @@ import FlexCol from '../../components/FlexCol'
 import Button from '../../components/Button'
 import SendIcon from '../../icons/Send'
 import ReceiveIcon from '../../icons/Receive'
+import ExternalLinkIcon from '../../icons/ExternalLink'
 import FlexRow from '../../components/FlexRow'
 import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
@@ -25,6 +26,9 @@ import { AnnouncementContext } from '../../providers/announcements'
 import { WalletStaggerContainer, WalletStaggerChild } from '../../components/WalletLoadIn'
 import { pwaCanInstall, usePwaInstalled, canPromptInstall, promptPwaInstall } from '../../lib/pwa'
 import { isIOS, isAndroid } from '../../lib/browser'
+import { getReceivingAddresses } from '../../lib/asp'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex } from '@noble/hashes/utils.js'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
@@ -32,7 +36,7 @@ export default function Wallet() {
   const { config, updateConfig } = useContext(ConfigContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { isInitialLoad, navigate } = useContext(NavigationContext)
-  const { balance, txs } = useContext(WalletContext)
+  const { balance, txs, svcWallet } = useContext(WalletContext)
   const { nudge, nudgeVisible, nudgeCheckComplete } = useContext(NudgeContext)
 
   const [error, setError] = useState(false)
@@ -66,6 +70,26 @@ export default function Wallet() {
     navigate(Pages.SendForm)
   }
 
+  const handleBuyFiat = async () => {
+    if (!svcWallet) return
+
+    // Open popup synchronously to avoid browser popup-blocker after await
+    const popup = window.open('about:blank', '_blank')
+
+    const { offchainAddr } = await getReceivingAddresses(svcWallet)
+
+    const res = await fetch(`https://api.dfx.swiss/v1/auth/signMessage?address=${encodeURIComponent(offchainAddr)}`)
+    const { message } = await res.json()
+
+    const messageHash = sha256(new TextEncoder().encode(message))
+    const signatureBytes = await svcWallet.identity.signMessage(messageHash, 'ecdsa')
+    const signature = bytesToHex(signatureBytes)
+
+    const url = `https://app.dfx.swiss/buy/?address=${encodeURIComponent(offchainAddr)}&signature=${signature}&wallet=Arkade`
+    if (popup) popup.location.href = url
+    else window.open(url, '_blank')
+  }
+
   return (
     <>
       {announcement}
@@ -87,6 +111,9 @@ export default function Wallet() {
                   <FlexRow padding='0 0 0.5rem 0'>
                     <Button main icon={<SendIcon />} label='Send' onClick={handleSend} />
                     <Button main icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
+                  </FlexRow>
+                  <FlexRow padding='0 0 0.5rem 0'>
+                    <Button outline icon={<ExternalLinkIcon />} label='Buy with Fiat' onClick={handleBuyFiat} />
                   </FlexRow>
                 </WalletStaggerChild>
                 <WalletStaggerChild animate={shouldStagger}>
