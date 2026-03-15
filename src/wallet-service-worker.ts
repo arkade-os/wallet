@@ -33,10 +33,12 @@ declare const self: ServiceWorkerGlobalScope
 // service worker script the browser considers it a
 // different service worker, and it'll get its own install event.
 //
+// skipWaiting() must be called before or during waiting
+//
 // install event: activate service worker immediately
 self.addEventListener('install', (event: ExtendableEvent) => {
-  event.waitUntil(caches.open(CACHE_NAME))
   self.skipWaiting() // activate service worker immediately
+  event.waitUntil(caches.open(CACHE_NAME))
   console.log(`Service worker installed ${gitCommit}`)
 })
 
