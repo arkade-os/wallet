@@ -32,18 +32,23 @@ declare const self: ServiceWorkerGlobalScope
 // only called once per service worker. If you alter your
 // service worker script the browser considers it a
 // different service worker, and it'll get its own install event.
-//
-// skipWaiting() must be called before or during waiting
-//
-// install event: activate service worker immediately
 self.addEventListener('install', (event: ExtendableEvent) => {
-  self.skipWaiting() // activate service worker immediately
-  event.waitUntil(caches.open(CACHE_NAME))
-  console.log(`Service worker installed ${gitCommit}`)
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(() => {
+      // activate service worker immediately
+      console.log(`Activating service worker ${gitCommit}`)
+      return self.skipWaiting()
+    }),
+  )
 })
 
 // activate event: clean up old caches
 self.addEventListener('activate', (event: ExtendableEvent) => {
+  // claim clients immediately so that the new
+  // service worker starts controlling the page
+  event.waitUntil(self.clients.claim())
+
+  // delete old caches
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -54,7 +59,6 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
       )
     }),
   )
-  self.clients.claim() // take control of clients immediately
 })
 
 // we can adopt two different strategies for caching:
