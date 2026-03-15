@@ -31,12 +31,22 @@ const explorers: Explorers = {
   },
 }
 
+const vmempoolDefaults: Partial<Record<NetworkName, string>> = {
+  bitcoin: 'https://arkade.space',
+  mutinynet: 'https://explorer.mutinynet.arkade.sh',
+  regtest: 'http://localhost:7080',
+}
+
 export const getRestApiExplorerURL = (network: NetworkName): string => {
   return explorers[network]?.api ?? ''
 }
 
 export const getWebExplorerURL = (network: NetworkName): string => {
   return explorers[network]?.web ?? ''
+}
+
+export const getVmempoolURL = (network: NetworkName): string => {
+  return vmempoolDefaults[network] ?? ''
 }
 
 export const getTxIdURL = (txid: string, wallet: Wallet) => {
@@ -48,6 +58,26 @@ export const getTxIdURL = (txid: string, wallet: Wallet) => {
   return `${url}/tx/${txid}`
 }
 
+export const getOffchainTxURL = (txid: string, wallet: Wallet) => {
+  const base = getVmempoolURL(wallet.network as NetworkName)
+  return base ? `${base}/tx/${txid}` : ''
+}
+
+export const getAssetURL = (assetId: string, wallet: Wallet) => {
+  const base = getVmempoolURL(wallet.network as NetworkName)
+  return base ? `${base}/asset/${assetId}` : ''
+}
+
 export const openInNewTab = (txid: string, wallet: Wallet) => {
   window.open(getTxIdURL(txid, wallet), '_blank', 'noreferrer')
+}
+
+export const openOffchainTxInNewTab = (txid: string, wallet: Wallet) => {
+  const url = getOffchainTxURL(txid, wallet)
+  if (url) window.open(url, '_blank', 'noreferrer')
+}
+
+export const openAssetInNewTab = (assetId: string, wallet: Wallet) => {
+  const url = getAssetURL(assetId, wallet)
+  if (url) window.open(url, '_blank', 'noreferrer')
 }

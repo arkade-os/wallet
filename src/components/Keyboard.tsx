@@ -4,7 +4,7 @@ import Content from './Content'
 import { useContext, useEffect, useState } from 'react'
 import Text, { TextSecondary } from './Text'
 import { FiatContext } from '../providers/fiat'
-import { prettyAmount } from '../lib/format'
+import { formatAssetAmount, prettyAmount, prettyNumber } from '../lib/format'
 import { WalletContext } from '../providers/wallet'
 import { defaultFee } from '../lib/constants'
 import ErrorMessage from './Error'
@@ -12,54 +12,132 @@ import Button from './Button'
 import ButtonsOnBottom from './ButtonsOnBottom'
 import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
+import SwapIcon from '../icons/Swap'
+import { AssetOption } from '../lib/types'
+import { unitsToCents } from '../lib/assets'
 
 interface KeyboardProps {
+  asset?: AssetOption
   back: () => void
   hideBalance?: boolean
-  onChange: (arg0: number) => void
+  onSats: (sats: number) => void
   value: number | undefined
 }
 
-export default function Keyboard({ back, hideBalance, onChange, value }: KeyboardProps) {
+export default function Keyboard({ asset, back, hideBalance, onSats, value }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { balance, svcWallet } = useContext(WalletContext)
 
-  const [amount, setAmount] = useState(0)
-  const [availableBalance, setAvailableBalance] = useState(0)
+  const [amountInSats, setAmountInSats] = useState(0)
+  const [available, setAvailable] = useState(0)
   const [error, setError] = useState('')
+  const [inputMode, setInputMode] = useState<'sats' | 'fiat' | 'asset'>(asset ? 'asset' : useFiat ? 'fiat' : 'sats')
+  const [textValue, setTextValue] = useState('')
 
   useEffect(() => {
-    setAmount(value ?? 0)
+    if (!value) return setTextValue('')
+    const amount = inputMode === 'fiat' ? toFiat(value) : value
+    setTextValue(prettyNumber(amount, getMaxDecimals()))
   }, [value])
 
   useEffect(() => {
     if (!svcWallet) return
-    svcWallet.getBalance().then((bal) => setAvailableBalance(bal.available))
+    svcWallet.getBalance().then((bal) => setAvailable(bal.available))
   }, [balance])
 
+  useEffect(() => {
+    const value = Number(textValue.replaceAll(',', ''))
+    if (Number.isNaN(value)) return
+    setAmountInSats(
+      inputMode === 'fiat'
+        ? fromFiat(value)
+        : inputMode === 'asset'
+          ? unitsToCents(value, asset?.decimals ?? 0)
+          : value,
+    )
+  }, [textValue])
+
+  const getMaxDecimals = () => {
+    switch (inputMode) {
+      case 'asset':
+        return asset?.decimals ?? 0
+      case 'fiat':
+        return 2
+      case 'sats':
+      default:
+        return 0
+    }
+  }
+
   const handleKeyPress = (k: string) => {
-    if (k === 'x' && !amount) return
-    const text = amount.toString()
-    const res = k === 'x' ? text.slice(0, -1) : text + k
-    setAmount(Number(res))
+    // Handle decimal point
+    if (k === '.') {
+      const maxDecimals = getMaxDecimals()
+      if (maxDecimals === 0) return // No decimals for sats
+      if (textValue.includes('.')) return // Already has decimal point
+      return setTextValue((prev) => (prev === '' ? '0.' : prev + '.'))
+    }
+
+    // Handle backspace
+    if (k === 'x') {
+      if (textValue.length === 0) return // nothing to delete
+      return setTextValue(textValue.slice(0, -1))
+    }
+
+    // Handle number input with decimal validation
+    const newText = textValue + k
+    const parts = newText.split('.')
+    if (parts.length > 1) {
+      const decimalPlaces = parts[1].length
+      const maxDecimals = getMaxDecimals()
+      if (decimalPlaces > maxDecimals) return // Exceeded max decimals
+    }
+
+    setTextValue(newText)
   }
 
   const handleMaxPress = () => {
-    if (availableBalance < defaultFee) return setError('Total balance is below fee')
-    setAmount(availableBalance - defaultFee)
+    if (available < defaultFee) return setError('Total balance is below fee')
+    const maxSats = available - defaultFee
+    const maxTextValue = inputMode === 'fiat' ? toFiat(maxSats) : maxSats
+    setTextValue(prettyNumber(maxTextValue, getMaxDecimals(), false))
+  }
+
+  const handleToggleCurrency = () => {
+    if (inputMode === 'sats') {
+      // Convert from sats to fiat and round to 2 decimal places
+      setTextValue(amountInSats ? prettyNumber(toFiat(amountInSats), 2, false) : '')
+      setInputMode('fiat')
+    } else {
+      setTextValue(amountInSats ? prettyNumber(amountInSats, 0, false) : '')
+      setInputMode('sats')
+    }
   }
 
   const handleSave = () => {
-    onChange(amount)
+    onSats(amountInSats)
     back()
   }
 
-  const primaryAmount = useFiat ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
-  const secondaryAmount = useFiat ? prettyAmount(fromFiat(amount)) : prettyAmount(toFiat(amount), config.fiat)
-  const balanceAmount = useFiat ? prettyAmount(availableBalance, config.fiat) : prettyAmount(availableBalance)
+  // Display amounts based on input mode
+  const amount = {
+    primary: `${textValue || '0'} ${inputMode === 'fiat' ? config.fiat : inputMode === 'asset' ? asset?.ticker : 'SATS'}`,
+    secondary:
+      inputMode === 'fiat'
+        ? prettyAmount(amountInSats)
+        : inputMode === 'asset'
+          ? prettyAmount(amountInSats, asset?.ticker)
+          : prettyAmount(toFiat(amountInSats), config.fiat),
+    balance:
+      inputMode === 'asset'
+        ? `${formatAssetAmount(asset?.balance ?? 0, asset?.decimals ?? 0)} ${asset?.ticker}`
+        : inputMode === 'fiat'
+          ? prettyAmount(toFiat(available), config.fiat)
+          : prettyAmount(available),
+  }
 
-  const disabled = !amount || Number.isNaN(amount)
+  const disabled = !amountInSats || Number.isNaN(amountInSats)
 
   const gridStyle = {
     borderTop: '1px solid var(--dark50)',
@@ -80,20 +158,27 @@ export default function Keyboard({ back, hideBalance, onChange, value }: Keyboar
     ['.', '0', 'x'],
   ]
 
-  const auxFunc = hideBalance ? undefined : handleMaxPress
-  const auxText = hideBalance ? undefined : 'Max'
-
   return (
     <>
-      <Header auxFunc={auxFunc} auxText={auxText} back={back} text='Amount' />
+      <Header
+        auxAriaLabel='Toggle currency'
+        auxFunc={handleToggleCurrency}
+        auxIcon={<SwapIcon />}
+        back={back}
+        text='Amount'
+      />
       <Content>
         <FlexCol centered gap='0.5rem'>
           <ErrorMessage error={Boolean(error)} text={error} />
-          <Text big centered>
-            {primaryAmount}
+          <Text big centered heading>
+            {amount.primary}
           </Text>
-          <TextSecondary centered>{secondaryAmount}</TextSecondary>
-          {hideBalance ? null : <TextSecondary centered>{balanceAmount} available</TextSecondary>}
+          {asset ? null : <TextSecondary centered>≈ {amount.secondary}</TextSecondary>}
+          {hideBalance ? null : (
+            <div onClick={handleMaxPress}>
+              <TextSecondary centered>{amount.balance}</TextSecondary>
+            </div>
+          )}
         </FlexCol>
       </Content>
       <IonGrid style={gridStyle}>

@@ -1,10 +1,9 @@
 import { ReactNode } from 'react'
-import Text from './Text'
 import ErrorMessage from './Error'
 import FlexRow from './FlexRow'
-import Shadow from './Shadow'
 import FlexCol from './FlexCol'
-import Padded from './Padded'
+import Shadow from './Shadow'
+import Text from './Text'
 
 interface InputContainerProps {
   children: ReactNode
@@ -48,7 +47,7 @@ export default function InputContainer({
       <FlexCol gap='0.5rem'>
         {label || right ? <TopLabel /> : null}
         <Shadow>
-          <Padded>{children}</Padded>
+          <FlexRow>{children}</FlexRow>
         </Shadow>
         {bottomLeft || bottomRight ? <BottomLabel /> : null}
       </FlexCol>

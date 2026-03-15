@@ -1,21 +1,35 @@
 import { IonHeader, IonTitle } from '@ionic/react'
+import React, { useContext } from 'react'
+import { NavigationContext } from '../providers/navigation'
 import BackIcon from '../icons/Back'
 import Shadow from './Shadow'
 import Text from './Text'
 import FlexRow from './FlexRow'
-import React from 'react'
+import Focusable from './Focusable'
+import { hapticLight } from '../lib/haptics'
 
 interface HeaderProps {
+  auxAriaLabel?: string
   auxFunc?: () => void
   auxText?: string
   auxIcon?: JSX.Element
-  back?: () => void
+  back?: (() => void) | boolean
+  heading?: boolean
   text: string
 }
 
-export default function Header({ auxFunc, auxText, back, text, auxIcon }: HeaderProps) {
-  const SideButton = (text: string, onClick = () => {}) => (
-    <Shadow onClick={onClick}>
+export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, auxIcon, heading = true }: HeaderProps) {
+  const { goBack } = useContext(NavigationContext)
+
+  const handleBack = back
+    ? () => {
+        hapticLight()
+        if (typeof back === 'function') back()
+        else goBack()
+      }
+    : undefined
+  const SideButton = (text: string) => (
+    <Shadow>
       <Text color='dark80' centered tiny wrap>
         {text}
       </Text>
@@ -33,18 +47,33 @@ export default function Header({ auxFunc, auxText, back, text, auxIcon }: Header
   return (
     <IonHeader style={{ boxShadow: 'none' }}>
       <FlexRow between>
-        <div style={{ minWidth: '4rem' }}>
-          {back ? (
-            <div onClick={back} style={{ cursor: 'pointer', marginLeft: '0.5rem' }}>
-              <BackIcon />
-            </div>
+        <div style={{ minWidth: '4rem', marginLeft: '0.5rem' }}>
+          {handleBack ? (
+            <Focusable onEnter={handleBack} fit round>
+              <div onClick={handleBack} style={{ cursor: 'pointer' }} aria-label='Go back'>
+                <BackIcon />
+              </div>
+            </Focusable>
           ) : (
-            <p>&nbsp;</p>
+            '\u00A0'
           )}
         </div>
-        <IonTitle className='ion-text-center'>{text}</IonTitle>
-        <div style={style} onClick={auxFunc}>
-          {auxText ? SideButton(auxText) : auxIcon ? auxIcon : <p>&nbsp;</p>}
+        <IonTitle
+          className='ion-text-center'
+          style={
+            heading ? { fontFamily: 'var(--heading-font)', letterSpacing: '-0.5px', fontWeight: '500' } : undefined
+          }
+        >
+          {text}
+        </IonTitle>
+        <div style={style} onClick={auxFunc} aria-label={auxAriaLabel} data-testid='header-aux-btn'>
+          {auxText || auxIcon ? (
+            <Focusable onEnter={auxFunc} fit round>
+              {auxText ? SideButton(auxText) : <div style={{ padding: '0.5rem' }}>{auxIcon}</div>}
+            </Focusable>
+          ) : (
+            '\u00A0'
+          )}
         </div>
       </FlexRow>
     </IonHeader>

@@ -18,6 +18,7 @@ export default function Header({ auxFunc, auxText, backFunc, back, text }: Heade
       auxFunc={auxFunc}
       auxText={auxText}
       back={backFunc ? backFunc : back ? goBack : undefined}
+      heading={false}
       text={text}
     />
   )

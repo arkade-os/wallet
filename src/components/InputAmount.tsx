@@ -5,37 +5,44 @@ import InputContainer from './InputContainer'
 import { ConfigContext } from '../providers/config'
 import { prettyNumber } from '../lib/format'
 import { LimitsContext } from '../providers/limits'
+import Focusable from './Focusable'
+import { unitsToCents } from '../lib/assets'
+import { AssetOption } from '../lib/types'
 
 interface InputAmountProps {
+  asset?: AssetOption
   disabled?: boolean
   focus?: boolean
   label?: string
   min?: number
   max?: number
   name?: string
-  onChange: (arg0: any) => void
   onEnter?: () => void
   onFocus?: () => void
   onMax?: () => void
+  onSats: (sats: number) => void
   readOnly?: boolean
   right?: JSX.Element
   value?: number
+  sats?: number
 }
 
 export default function InputAmount({
+  asset,
   disabled,
   focus,
   label,
   min,
   max,
   name,
-  onChange,
   onEnter,
   onFocus,
   onMax,
+  onSats,
   readOnly,
   right,
   value,
+  sats,
 }: InputAmountProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
@@ -44,32 +51,30 @@ export default function InputAmount({
   const [error, setError] = useState('')
   const [otherValue, setOtherValue] = useState('')
 
-  const firstRun = useRef(true)
   const input = useRef<HTMLIonInputElement>(null)
 
+  // focus input when focus prop changes
   useEffect(() => {
-    if (focus && firstRun.current) {
-      firstRun.current = false
-      input.current?.setFocus()
-    }
-  })
+    if (focus && input.current) input.current.setFocus()
+  }, [focus])
 
   useEffect(() => {
-    setOtherValue(useFiat ? prettyNumber(fromFiat(value)) : prettyNumber(toFiat(value), 2))
-    setError(value ? (value < 0 ? 'Invalid amount' : '') : '')
-  }, [value])
+    if (asset) return
+    setOtherValue(useFiat ? prettyNumber(sats) : prettyNumber(toFiat(sats), 2))
+    setError(sats ? (sats < 0 ? 'Invalid amount' : '') : '')
+  }, [sats])
 
   const handleInput = (ev: Event) => {
     const value = Number((ev.target as HTMLInputElement).value)
     if (Number.isNaN(value)) return
-    onChange(value)
+    onSats(asset?.assetId ? unitsToCents(value, asset.decimals) : useFiat ? fromFiat(value) : value)
   }
 
   const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0
   const maximumSats = max ? Math.min(max, maxSwapAllowed()) : 0
 
-  const leftLabel = useFiat ? config.fiat : 'SATS'
-  const rightLabel = `${otherValue} ${useFiat ? 'SATS' : config.fiat}`
+  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? config.fiat : 'SATS'
+  const rightLabel = asset?.assetId ? '' : `${otherValue} ${useFiat ? 'SATS' : config.fiat}`
   const fontStyle = { color: 'var(--dark50)', fontSize: '13px' }
   const bottomLeft = minimumSats ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}` : ''
   const bottomRight = maximumSats ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'SAT' : 'SATS'}` : ''
@@ -94,19 +99,20 @@ export default function InputAmount({
           <IonText slot='end' style={{ ...fontStyle, marginLeft: '0.5rem' }}>
             {rightLabel}
           </IonText>
-          {onMax && !disabled && !readOnly ? (
+        </IonInput>
+        {onMax && !disabled && !readOnly ? (
+          <Focusable onEnter={onMax} fit>
             <IonText
               slot='end'
-              style={{ ...fontStyle, marginLeft: '0.5rem', color: 'var(--purpletext)', cursor: 'pointer' }}
-              onClick={onMax}
               role='button'
-              tabIndex={0}
+              onClick={onMax}
               aria-label='Set maximum amount'
+              style={{ ...fontStyle, marginLeft: '0.5rem', color: 'var(--purpletext)', cursor: 'pointer' }}
             >
               Max
             </IonText>
-          ) : null}
-        </IonInput>
+          </Focusable>
+        ) : null}
       </InputContainer>
     </>
   )

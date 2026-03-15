@@ -5,7 +5,7 @@ interface PaddedProps {
 }
 
 export default function Padded({ children }: PaddedProps) {
-  const style = {
+  const style: React.CSSProperties = {
     height: '100%',
     padding: '0 1rem',
     width: '100%',

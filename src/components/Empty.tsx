@@ -15,11 +15,17 @@ function EmptyTemplate({ icon, text, secondaryText }: EmptyProps) {
       <FlexCol centered gap='1rem'>
         {icon}
         <FlexCol centered gap='0.5rem'>
-          <Text>{text}</Text>
+          <Text heading>{text}</Text>
           <TextSecondary>{secondaryText}</TextSecondary>
         </FlexCol>
       </FlexCol>
     </CenterScreen>
+  )
+}
+
+export function EmptyAssetsList() {
+  return (
+    <EmptyTemplate icon={<EmptyCoinsIcon />} text='No assets yet' secondaryText='Import or mint one to get started' />
   )
 }
 

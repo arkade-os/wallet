@@ -6,6 +6,7 @@ import { LimitsContext } from '../../../providers/limits'
 import {
   mockAspContextValue,
   mockFlowContextValue,
+  mockIssuanceTxInfo,
   mockLimitsContextValue,
   mockNavigationContextValue,
   mockTxId,
@@ -225,5 +226,55 @@ describe('Transaction screen', () => {
     // buttons should not be present
     expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
     expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
+  })
+
+  it('renders issuance transaction with correct direction and amounts', async () => {
+    const localFlowContextValue = { ...mockFlowContextValue, txInfo: mockIssuanceTxInfo }
+    const localWalletContextValue = { ...mockWalletContextValue, txs: [mockIssuanceTxInfo] }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={localFlowContextValue}>
+            <WalletContext.Provider value={localWalletContextValue}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    // Should show "Issuance" instead of "Sent"
+    expect(screen.getByText('Issuance')).toBeInTheDocument()
+    expect(screen.queryByText('Sent')).not.toBeInTheDocument()
+  })
+
+  it('renders burn transaction with correct direction', async () => {
+    const mockBurnTxInfo = {
+      ...mockIssuanceTxInfo,
+      assets: [{ assetId: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd', amount: -5000 }],
+    }
+    const localFlowContextValue = { ...mockFlowContextValue, txInfo: mockBurnTxInfo }
+    const localWalletContextValue = { ...mockWalletContextValue, txs: [mockBurnTxInfo] }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={localFlowContextValue}>
+            <WalletContext.Provider value={localWalletContextValue}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    // Should show "Burn" instead of "Sent"
+    expect(screen.getByText('Burn')).toBeInTheDocument()
+    expect(screen.queryByText('Sent')).not.toBeInTheDocument()
   })
 })

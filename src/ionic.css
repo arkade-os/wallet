@@ -1,10 +1,12 @@
 :root {
   --black: #040404;
+  --cream: #391998;
   --dark80: rgba(var(--ion-color-dark-rgb), 0.8);
   --dark70: rgba(var(--ion-color-dark-rgb), 0.7);
   --dark50: rgba(var(--ion-color-dark-rgb), 0.5);
   --dark30: rgba(var(--ion-color-dark-rgb), 0.3);
   --dark20: rgba(var(--ion-color-dark-rgb), 0.2);
+  --dark15: rgba(var(--ion-color-dark-rgb), 0.15);
   --dark10: rgba(var(--ion-color-dark-rgb), 0.1);
   --dark05: rgba(var(--ion-color-dark-rgb), 0.05);
   --green: #60b18a;
@@ -13,18 +15,21 @@
   --liz: #d5c6ff;
   --logo-color: #391998;
   --magenta: #8563e4;
-  --orange: #c3730a;
-  --orangebg: #572d00;
+  --orange: #ff8e24;
+  --orangebg: #ff8e2418;
   --purple: #391998;
+  --purple10: #39199815;
   --purple20: #39199833;
-  --purplebg: #391998;
+  --purplebg: #24154f;
   --purpletext: #7043f4;
   --red: #a51515;
   --redbg: #68222b;
   --white: #fbfbfb;
   --yellow: #e2c542;
   --yellowoutlier: #debb20;
+  --fade-rgb: 255, 255, 255;
   --ion-background-color: #fff;
+  --ion-background-focused: var(--purple20);
   --ion-tabbar-background-color: #fafafa;
   --ion-backdrop-color: #fff;
   --toggle-background: #fbfbfb;
@@ -34,25 +39,33 @@
   --ion-font-family:
     'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans',
     'Droid Sans', 'Helvetica Neue', sans-serif;
+  --heading-font: 'TT Firs Neue', 'Geist', sans-serif;
   --animation-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --bullet-icon-bg: #ede7fb;
 }
 
 .ion-palette-dark {
   --black: #fbfbfb;
+  --cream: #d9d9d9;
   --greenbg: #092d13;
   --orange: #e69b39;
   --orangebg: #2e1800;
+  --purple10: #39199820;
   --purplebg: #39199833;
   --red: #e04d4d;
   --redbg: #380008;
   --yellow: #ffdd46;
   --yellowoutlier: #ffdd46;
+  --fade-rgb: 16, 16, 16;
   --ion-background-color: #101010;
+  --ion-background-focused: var(--dark10);
   --ion-tabbar-background-color: #181818;
-  --ion-backdrop-color: #000;
+  --ion-backdrop-color: #101010;
   --logo-color: #fbfbfb;
   --toggle-background: #ddd;
   --danger: #e04d4d;
+  --purpletext: #9678f7;
+  --bullet-icon-bg: #1f1050;
 }
 
 .my-ion-action-sheet div.action-sheet-group {
@@ -78,37 +91,87 @@
 
 ion-button {
   --border-radius: 0.5rem;
-  font-family: 'Geist Mono';
+  --ripple-color: transparent;
+  --ion-color-activated: transparent;
+  --box-shadow: none;
+  --btn-shadow-color: rgba(0, 0, 0, 0.25);
+
+  border-radius: 0.5rem;
+  font-family: 'Geist Mono', monospace;
   font-size: 0.875rem;
   font-weight: 400;
   letter-spacing: 0%;
   min-height: 40px;
   text-transform: uppercase;
   width: 100%;
+  transform: translateY(0);
+  box-shadow: 0 4px 0 0 var(--btn-shadow-color);
+  transition:
+    transform 100ms cubic-bezier(0.165, 0.84, 0.44, 1),
+    box-shadow 100ms cubic-bezier(0.165, 0.84, 0.44, 1);
+  &::part(native) {
+    box-shadow: none !important;
+  }
+  &::part(native):focus-visible {
+    outline: 2px solid var(--ion-color-dark);
+    outline-offset: 2px;
+  }
+  &::part(native)::after {
+    display: none !important;
+  }
+  &.pressed {
+    transform: translateY(4px);
+    box-shadow: 0 0 0 0 var(--btn-shadow-color);
+  }
   &.clear {
     --background: none;
     --border-color: none;
     --color: var(--black);
+
+    box-shadow: none;
+
+    &.pressed {
+      transform: scale(0.97);
+      box-shadow: none;
+    }
   }
   &.dark {
     --background: var(--purple);
     --border-color: var(--purple);
+    --btn-shadow-color: #1a0b4a;
     --color: white;
+  }
+  &.outline {
+    --background: none;
+    --border-color: var(--dark50);
+    --btn-shadow-color: rgba(0, 0, 0, 0.1);
+    --color: var(--dark50);
   }
   &.red {
     --background: var(--red);
     --border-color: var(--red);
+    --btn-shadow-color: #6b0e0e;
     --color: white;
   }
   &.secondary {
     --background: var(--dark20);
     --border-color: var(--black);
+    --btn-shadow-color: rgba(0, 0, 0, 0.1);
     --color: var(--black);
   }
   &[size='small'] {
     min-height: 16px;
     --padding-top: 0.5rem;
     --padding-bottom: 0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ion-button {
+    transition: none;
+    &.pressed {
+      transform: none;
+    }
   }
 }
 
@@ -123,28 +186,17 @@ ion-app ion-header {
   }
 }
 
-.ion-page {
+ion-app > .ion-page {
   max-width: 640px;
   margin: auto;
+  top: env(safe-area-inset-top);
 }
 
 ion-tab-bar {
-  border-top: 1px solid var(--dark20);
-  width: 100%;
-  & ion-tab-button {
-    --color-selected: var(--ion-color-dark);
-    background-color: var(--ion-tabbar-background-color);
-    max-width: none;
-    &:hover,
-    &:hover svg,
-    &.tab-selected,
-    &.tab-selected svg {
-      color: var(--ion-color-dark);
-    }
-  }
-  & svg {
-    color: var(--dark50);
-  }
+  --background: transparent;
+  border: none;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 ion-checkbox {
@@ -233,8 +285,8 @@ ion-toggle {
   --handle-background: var(--grey);
   --handle-background-checked: var(--purple);
 
-  --handle-width: 15px;
-  --handle-height: 15px;
+  --handle-width: 13px;
+  --handle-height: 13px;
   --handle-max-height: auto;
   --handle-spacing: 0;
 

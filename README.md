@@ -18,26 +18,33 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 
 ## Environment Variables
 
-| Variable                    | Description                                                         | Example Value                                     |
-| --------------------------- | ------------------------------------------------------------------- | ------------------------------------------------- |
-| `VITE_ARK_SERVER`           | Override the default Arkade server URL                              | `VITE_ARK_SERVER=http://localhost:7070`           |
-| `VITE_BOLTZ_URL`            | Override the default Boltz swap provider URL for Lightning          | `VITE_BOLTZ_URL=https://boltz-provider-url.com`   |
-| `VITE_PSA_MESSAGE`          | Manage message to show in wallet index page                         | `VITE_PSA_MESSAGE=@arkade_os on TG for support`   |
-| `VITE_SENTRY_DSN`           | Enable Sentry error tracking (only in production, not on localhost) | `VITE_SENTRY_DSN=your-sentry-dsn`                 |
-| `CI`                        | Set to `true` for Continuous Integration environments               | `CI=true`                                         |
-| `GENERATE_SOURCEMAP`        | Disable source map generation during build                          | `GENERATE_SOURCEMAP=false`                        |
-| `VITE_LENDASAT_IFRAME_URL`  | Overwrite the default LendaSat URL                                  | `VITE_LENDASAT_IFRAME_URL=http://localhost:5173`  |
-| `VITE_LENDASWAP_IFRAME_URL` | Overwrite the default LendaSwap URL                                 | `VITE_LENDASWAP_IFRAME_URL=http://localhost:5174` |
-| `VITE_UTXO_MAX_AMOUNT`.     | Overwrite the server's utxoMaxAmount                                | `VITE_UTXO_MAX_AMOUNT=-1`                         |
-| `VITE_UTXO_MIN_AMOUNT`.     | Overwrite the server's utxoMinAmount                                | `VITE_UTXO_MIN_AMOUNT=330`                        |
-| `VITE_VTXO_MAX_AMOUNT`.     | Overwrite the server's vtxoMaxAmount                                | `VITE_VTXO_MAX_AMOUNT=-1`                         |
-| `VITE_VTXO_MIN_AMOUNT`.     | Overwrite the server's vtxoMinAmount                                | `VITE_VTXO_MIN_AMOUNT=330`                        |
+| Variable                      | Description                                                         | Example Value                                      |
+| ----------------------------- | ------------------------------------------------------------------- | -------------------------------------------------- |
+| `VITE_ARK_SERVER`             | Override the default Arkade server URL                              | `VITE_ARK_SERVER=http://localhost:7070`             |
+| `VITE_APP_VERSION`            | App version string shown in support diagnostics                     | `VITE_APP_VERSION=1.2.3`                           |
+| `VITE_BOLTZ_URL`              | Override the default Boltz swap provider URL for Lightning          | `VITE_BOLTZ_URL=https://boltz-provider-url.com`    |
+| `VITE_CHATWOOT_WEBSITE_TOKEN` | ChatWoot website token for customer support integration             | `VITE_CHATWOOT_WEBSITE_TOKEN=your-token`           |
+| `VITE_CHATWOOT_BASE_URL`      | ChatWoot server base URL for customer support integration           | `VITE_CHATWOOT_BASE_URL=https://app.chatwoot.com`  |
+| `VITE_DELEGATOR_URL`         | Delegator service URL for the wallet service worker                 | `VITE_DELEGATOR_URL=https://delegator.example.com` |
+| `VITE_LENDASAT_IFRAME_URL`    | Override the default LendaSat URL                                   | `VITE_LENDASAT_IFRAME_URL=http://localhost:5173`   |
+| `VITE_LENDASWAP_IFRAME_URL`   | Override the default LendaSwap URL                                  | `VITE_LENDASWAP_IFRAME_URL=http://localhost:5174`  |
+| `VITE_MAX_PERCENTAGE`         | Override the max fee percentage (default 10)                        | `VITE_MAX_PERCENTAGE=5`                            |
+| `VITE_NOSTR_RELAY_URL`        | Override the default Nostr relay URLs for backup                    | `VITE_NOSTR_RELAY_URL=wss://relay.example.com`     |
+| `VITE_PSA_MESSAGE`            | Message to show on the wallet index page                            | `VITE_PSA_MESSAGE=@arkade_os on TG for support`    |
+| `VITE_SENTRY_DSN`             | Enable Sentry error tracking (only in production, not on localhost) | `VITE_SENTRY_DSN=your-sentry-dsn`                  |
+| `VITE_UTXO_MAX_AMOUNT`        | Override the server's utxoMaxAmount                                 | `VITE_UTXO_MAX_AMOUNT=-1`                          |
+| `VITE_UTXO_MIN_AMOUNT`        | Override the server's utxoMinAmount                                 | `VITE_UTXO_MIN_AMOUNT=330`                         |
+| `VITE_VERIFIED_ASSETS_URL`    | URL to fetch the verified assets list                               | `VITE_VERIFIED_ASSETS_URL=https://arklabshq.github.io/asset-registry/mutinynet.json` |
+| `VITE_VTXO_MAX_AMOUNT`        | Override the server's vtxoMaxAmount                                 | `VITE_VTXO_MAX_AMOUNT=-1`                          |
+| `VITE_VTXO_MIN_AMOUNT`        | Override the server's vtxoMinAmount                                 | `VITE_VTXO_MIN_AMOUNT=330`                         |
+| `CI`                          | Set to `true` for Continuous Integration environments               | `CI=true`                                          |
+| `GENERATE_SOURCEMAP`          | Disable source map generation during build                          | `GENERATE_SOURCEMAP=false`                         |
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js >=20
+- Node.js v20.19+ or v22.12+ (Required by Vite 7)
 - PNPM >=8
 
 ### Installation
@@ -68,7 +75,17 @@ Your app is ready to be deployed!
 
 ### `pnpm run regtest`
 
-Starts the regtest environment and sets up the arkd instance. Requires Docker to be installed and [Nigiri](https://nigiri.vulpem.com/) to be running.
+Starts the regtest environment and sets up the arkd instance.\
+Requires Docker to be installed and [Nigiri](https://nigiri.vulpem.com/) to be running with `--ln` flag.
+
+### Funding your local wallet
+To interact with Ark features, you need Regtest coins.
+1. Copy your address from the wallet's **Receive** screen (ensure it starts with bcrt1 for Regtest).
+2. Run the Nigiri faucet command: 
+```bash
+nigiri faucet <bcrt-address>
+```
+
 
 ### e2e tests
 
@@ -95,3 +112,9 @@ Access the playwright code generator tool with:
 ```bash
 pnpm run test:codegen
 ```
+
+## Troubleshooting
+### `address already in use` (Port 5000) on macOS
+macOS AirPlay Receiver uses port 5000 by default, which conflicts with Nigiri.
+- **Fix:** Go to `System Settings > General > AirDrop & Handoff` and disable **AirPlay Receiver**.
+

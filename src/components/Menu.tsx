@@ -5,6 +5,8 @@ import Text from './Text'
 import FlexRow from './FlexRow'
 import { SettingsOptions } from '../lib/types'
 import FlexCol from './FlexCol'
+import Focusable from './Focusable'
+import { hapticSubtle } from '../lib/haptics'
 
 interface MenuProps {
   rows: Option[]
@@ -24,22 +26,36 @@ export default function Menu({ rows, styled }: MenuProps) {
     cursor: 'pointer',
     display: 'flex',
     justifyContent: 'space-between',
-    padding: '0.5rem 1rem',
+    padding: '0.7rem 1rem',
     width: '100%',
   })
 
   return (
     <FlexCol gap='0'>
       {rows.map(({ icon, option }) => (
-        <FlexRow key={option} between>
-          <div onClick={() => setOption(option)} style={rowStyle(option)}>
-            <FlexRow>
-              {styled ? icon : null}
-              <Text capitalize>{option}</Text>
-            </FlexRow>
-            <ArrowIcon />
-          </div>
-        </FlexRow>
+        <Focusable
+          onEnter={() => {
+            hapticSubtle()
+            setOption(option)
+          }}
+          key={option}
+        >
+          <FlexRow between>
+            <div
+              onClick={() => {
+                hapticSubtle()
+                setOption(option)
+              }}
+              style={rowStyle(option)}
+            >
+              <FlexRow>
+                {styled ? icon : null}
+                <Text capitalize>{option}</Text>
+              </FlexRow>
+              <ArrowIcon />
+            </div>
+          </FlexRow>
+        </Focusable>
       ))}
     </FlexCol>
   )

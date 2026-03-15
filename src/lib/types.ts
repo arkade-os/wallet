@@ -1,4 +1,4 @@
-import { NetworkName, type ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { Asset, NetworkName, type ExtendedVirtualCoin } from '@arkade-os/sdk'
 
 export type Addresses = {
   boardingAddr: string
@@ -6,18 +6,26 @@ export type Addresses = {
 }
 
 export type Config = {
+  announcementsSeen: string[]
   apps: {
+    assets: {
+      enabled: boolean
+    }
     boltz: {
       connected: boolean
     }
   }
   aspUrl: string
   currencyDisplay: CurrencyDisplay
+  delegate: boolean
   fiat: Fiats
+  importedAssets: string[]
+  haptics: boolean
   nostrBackup: boolean
   notifications: boolean
   pubkey: string
   showBalance: boolean
+  dismissedBanners: string[]
   theme: Themes
   unit: Unit
 }
@@ -28,9 +36,15 @@ export enum CurrencyDisplay {
   Sats = 'Sats only',
 }
 
+export type Delegate = {
+  name: string
+  url: string
+}
+
 export enum Fiats {
   EUR = 'EUR',
   USD = 'USD',
+  CHF = 'CHF',
 }
 
 export type Satoshis = number
@@ -46,8 +60,9 @@ export enum SettingsOptions {
   Menu = 'menu',
   About = 'about',
   Advanced = 'advanced',
-  Backup = 'backup and privacy',
+  Backup = 'backup',
   General = 'general',
+  Haptics = 'haptics feedback',
   Lock = 'lock wallet',
   Logs = 'logs',
   Notifications = 'notifications',
@@ -55,19 +70,23 @@ export enum SettingsOptions {
   Password = 'change password',
   Reset = 'reset wallet',
   Server = 'server',
+  Support = 'support',
   Vtxos = 'coin control',
   Theme = 'theme',
   Fiat = 'fiat currency',
   Display = 'display preferences',
+  Delegates = 'delegates',
 }
 
 export enum Themes {
+  Auto = 'Auto',
   Dark = 'Dark',
   Light = 'Light',
 }
 
 export type Tx = {
   amount: number
+  assets?: Asset[]
   boardingTxid: string
   createdAt: number
   explorable: string | undefined
@@ -78,25 +97,30 @@ export type Tx = {
   type: string
 }
 
-export enum TxType {
-  swap = 'swap',
-  utxo = 'utxo',
-  vtxo = 'vtxo',
-}
-
 export enum Unit {
   BTC = 'btc',
   EUR = 'eur',
   USD = 'usd',
+  CHF = 'chf',
   SAT = 'sat',
 }
 
 export type Vtxo = ExtendedVirtualCoin
 
 export type Wallet = {
+  thresholdMs?: number
   lockedByBiometrics?: boolean
   network?: NetworkName | ''
   nextRollover: number
   passkeyId?: string
   pubkey?: string
+}
+
+export interface AssetOption {
+  assetId: string
+  name: string
+  ticker: string
+  balance: number
+  decimals: number
+  icon?: string
 }

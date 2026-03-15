@@ -3,20 +3,23 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { useContext, useEffect, useState } from 'react'
 import { ConfigContext } from '../../providers/config'
-import { handleNostrRestore } from '../../lib/backup'
+import { BackupProvider } from '../../lib/backup'
 import { defaultPassword } from '../../lib/constants'
 import { FlowContext } from '../../providers/flow'
 import ErrorMessage from '../../components/Error'
 import Content from '../../components/Content'
 import FlexCol from '../../components/FlexCol'
 import { extractError } from '../../lib/error'
+import Loading from '../../components/Loading'
 import { consoleError } from '../../lib/logs'
 import Button from '../../components/Button'
 import Header from '../../components/Header'
 import Padded from '../../components/Padded'
 import Input from '../../components/Input'
-import Text from '../../components/Text'
+import { TextSecondary } from '../../components/Text'
 import { hex } from '@scure/base'
+import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
+import { OnboardStaggerContainer, OnboardStaggerChild } from '../../components/OnboardLoadIn'
 
 export default function InitRestore() {
   const { updateConfig } = useContext(ConfigContext)
@@ -28,6 +31,7 @@ export default function InitRestore() {
   const [error, setError] = useState('')
   const [label, setLabel] = useState(buttonLabel)
   const [privateKey, setPrivateKey] = useState<Uint8Array>()
+  const [restoring, setRestoring] = useState(false)
   const [someKey, setSomeKey] = useState<string>()
 
   useEffect(() => {
@@ -50,27 +54,41 @@ export default function InitRestore() {
 
   const handleProceed = () => {
     setInitInfo({ privateKey, password: defaultPassword, restoring: true })
-    handleNostrRestore(privateKey!, updateConfig)
-      .then(() => navigate(Pages.InitSuccess))
+    setRestoring(true)
+    new BackupProvider({ seckey: privateKey! }, new IndexedDbSwapRepository())
+      .restore((conf) =>
+        // we enforce delegates on restore
+        updateConfig({ ...conf, delegate: true }),
+      )
       .catch((err) => consoleError(err, 'Error restoring from nostr'))
+      .finally(() => {
+        setRestoring(false)
+        navigate(Pages.InitConnect)
+      })
   }
 
   const disabled = Boolean(!privateKey || error)
 
+  if (restoring) return <Loading text='Restoring wallet...' />
+
   return (
     <>
-      <Header text='Restore wallet' back={handleCancel} />
+      <Header text='Restore wallet' back />
       <Content>
         <Padded>
-          <FlexCol between>
-            <FlexCol>
-              <Input label='Private key' onChange={setSomeKey} />
-              <ErrorMessage error={Boolean(error)} text={error} />
-            </FlexCol>
-            <Text centered color='dark70' fullWidth thin small>
-              Your private key should start with the 'nsec' string. Do not share it with anyone.
-            </Text>
-          </FlexCol>
+          <OnboardStaggerContainer>
+            <OnboardStaggerChild>
+              <FlexCol between>
+                <FlexCol>
+                  <Input name='private-key' label='Private key' onChange={setSomeKey} value={someKey} />
+                  <ErrorMessage error={Boolean(error)} text={error} />
+                </FlexCol>
+                <TextSecondary wrap>
+                  Your private key should start with the 'nsec' string. Do not share it with anyone.
+                </TextSecondary>
+              </FlexCol>
+            </OnboardStaggerChild>
+          </OnboardStaggerContainer>
         </Padded>
       </Content>
       <ButtonsOnBottom>

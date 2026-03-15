@@ -9,18 +9,19 @@ import { defaultPassword } from '../../lib/constants'
 import Loading from '../../components/Loading'
 
 export default function Unlock() {
-  const { initWallet } = useContext(WalletContext)
+  const { initWallet, dataReady } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
 
   const [error, setError] = useState('')
   const [password, setPassword] = useState('')
   const [tried, setTried] = useState(false)
+  const [unlocked, setUnlocked] = useState(false)
 
   useEffect(() => {
     const pass = password ? password : defaultPassword
     getPrivateKey(pass)
       .then(initWallet)
-      .then(() => navigate(Pages.Wallet))
+      .then(() => setUnlocked(true))
       .catch((err) => {
         setTried(true)
         if (password) {
@@ -29,6 +30,10 @@ export default function Unlock() {
         }
       })
   }, [password])
+
+  useEffect(() => {
+    if (unlocked && dataReady) navigate(Pages.Wallet)
+  }, [unlocked, dataReady])
 
   return tried ? (
     <>

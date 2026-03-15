@@ -33,7 +33,7 @@ export const StrengthLabel = ({ strength }: { strength: number }): JSX.Element =
 )
 
 export default function StrengthBars({ strength }: { strength: number }) {
-  const style = (col: number) => ({
+  const style = (col: number): React.CSSProperties => ({
     backgroundColor: col < strength ? `var(--${getColor(strength)})` : '',
     border: '1px solid var(--dark20)',
     height: '0.5rem',

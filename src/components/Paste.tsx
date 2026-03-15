@@ -3,6 +3,7 @@ import PasteIcon from '../icons/Paste'
 import FlexRow from './FlexRow'
 import Text from './Text'
 import Shadow from './Shadow'
+import { hapticLight } from '../lib/haptics'
 
 interface PasteProps {
   data: string
@@ -15,8 +16,13 @@ export default function Paste({ data, onClick }: PasteProps) {
     cursor: 'pointer',
   }
 
+  const handleClick = () => {
+    hapticLight()
+    onClick()
+  }
+
   return (
-    <Shadow lighter onClick={onClick}>
+    <Shadow lighter onClick={handleClick}>
       <IonGrid style={gridStyle}>
         <IonRow>
           <IonCol size='7'>

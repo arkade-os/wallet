@@ -11,7 +11,7 @@ type FiatContextProps = {
   updateFiatPrices: () => void
 }
 
-const emptyFiatPrices: FiatPrices = { eur: 0, usd: 0 }
+const emptyFiatPrices: FiatPrices = { eur: 0, usd: 0, chf: 0 }
 
 export const FiatContext = createContext<FiatContextProps>({
   fromFiat: () => 0,
@@ -28,11 +28,21 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
 
   const fromEUR = (fiat = 0) => toSatoshis(Decimal.div(fiat, fiatPrices.current.eur).toNumber())
   const fromUSD = (fiat = 0) => toSatoshis(Decimal.div(fiat, fiatPrices.current.usd).toNumber())
+  const fromCHF = (fiat = 0) => toSatoshis(Decimal.div(fiat, fiatPrices.current.chf).toNumber())
   const toEUR = (sats = 0) => Decimal.mul(fromSatoshis(sats), fiatPrices.current.eur).toNumber()
   const toUSD = (sats = 0) => Decimal.mul(fromSatoshis(sats), fiatPrices.current.usd).toNumber()
+  const toCHF = (sats = 0) => Decimal.mul(fromSatoshis(sats), fiatPrices.current.chf).toNumber()
 
-  const fromFiat = (fiat = 0) => (config.fiat === Fiats.EUR ? fromEUR(fiat) : fromUSD(fiat))
-  const toFiat = (sats = 0) => (config.fiat === Fiats.EUR ? toEUR(sats) : toUSD(sats))
+  const fromFiat = (fiat = 0) => {
+    if (config.fiat === Fiats.EUR) return fromEUR(fiat)
+    if (config.fiat === Fiats.CHF) return fromCHF(fiat)
+    return fromUSD(fiat)
+  }
+  const toFiat = (sats = 0) => {
+    if (config.fiat === Fiats.EUR) return toEUR(sats)
+    if (config.fiat === Fiats.CHF) return toCHF(sats)
+    return toUSD(sats)
+  }
 
   const updateFiatPrices = async () => {
     if (loading) return

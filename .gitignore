@@ -43,3 +43,13 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 /dev-dist/
+
+# plans
+docs/plans/
+# Claude Code
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+claude.md
+HANDOVER*.md
+TASKS.md

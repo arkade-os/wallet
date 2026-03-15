@@ -9,7 +9,7 @@ export default function Loading({ text }: { text?: string }) {
         <LoadingBar />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', height: '120px' }}>
-        <Text centered small wrap>
+        <Text centered small wrap heading>
           {text || 'Loading...'}
         </Text>
       </div>

@@ -27,7 +27,7 @@ export default function Balance({ amount }: BalanceProps) {
   const mainUnit = config.currencyDisplay === CurrencyDisplay.Fiat ? config.fiat : 'SATS'
   const showBoth = config.currencyDisplay === CurrencyDisplay.Both
 
-  const toggleShow = () => updateConfig({ ...config, showBalance: !config.showBalance }, false)
+  const toggleShow = () => updateConfig({ ...config, showBalance: !config.showBalance })
 
   return (
     <FlexCol gap='0' margin='3rem 0 2rem 0'>
@@ -35,9 +35,11 @@ export default function Balance({ amount }: BalanceProps) {
         My balance
       </Text>
       <FlexRow>
-        <Text bigger>{mainBalance}</Text>
+        <Text bigger heading medium>
+          {mainBalance}
+        </Text>
         <div style={{ paddingTop: ' 0.75rem' }}>
-          <Text>{mainUnit}</Text>
+          <Text heading>{mainUnit}</Text>
         </div>
         <div onClick={toggleShow} style={{ cursor: 'pointer' }}>
           <EyeIcon />
