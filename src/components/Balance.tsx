@@ -34,19 +34,19 @@ export default function Balance({ amount }: BalanceProps) {
       <Text color='dark50' smaller>
         My balance
       </Text>
-      <FlexRow>
+      <FlexRow alignItems='baseline'>
         <Text bigger heading medium>
           {mainBalance}
         </Text>
-        <div style={{ paddingTop: ' 0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Text heading>{mainUnit}</Text>
-        </div>
-        <div onClick={toggleShow} style={{ cursor: 'pointer' }}>
-          <EyeIcon />
+          <div onClick={toggleShow} style={{ cursor: 'pointer', display: 'flex' }}>
+            <EyeIcon size={16} />
+          </div>
         </div>
       </FlexRow>
       {showBoth ? (
-        <FlexRow>
+        <FlexRow alignItems='baseline'>
           <Text color='dark80'>{otherBalance}</Text>
           <Text small>{otherUnit}</Text>
         </FlexRow>
