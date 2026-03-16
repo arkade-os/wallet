@@ -26,7 +26,11 @@ export default function SheetModal({ children, isOpen, onClose }: SheetModalProp
   }
 
   const closeButtonStyle: React.CSSProperties = {
+    background: 'none',
+    border: 'none',
+    color: 'var(--ion-text-color)',
     cursor: 'pointer',
+    padding: 0,
     position: 'absolute',
     right: '1rem',
     top: '1rem',
@@ -36,12 +40,7 @@ export default function SheetModal({ children, isOpen, onClose }: SheetModalProp
     <IonModal initialBreakpoint={1} isOpen={isOpen} onDidDismiss={onClose}>
       <div style={outerStyle}>
         <div style={innerStyle}>
-          <button
-            type="button"
-            style={{ ...closeButtonStyle, background: 'none', border: 'none', padding: 0 }}
-            onClick={onClose}
-            aria-label="Close"
-          >
+          <button type='button' style={closeButtonStyle} onClick={onClose} aria-label='Close'>
             <CloseIcon />
           </button>
           {children}
