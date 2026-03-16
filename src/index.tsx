@@ -29,6 +29,17 @@ if (shouldInitializeSentry(sentryDsn)) {
   })
 }
 
+// check if there's a service worker controlling the page
+const previousSW = navigator.serviceWorker.controller
+
+// This fires when the service worker controlling this page changes,
+// eg a new worker has skipped waiting and become the new active worker.
+// We reload the page to have the new service worker properly initialized.
+navigator.serviceWorker.addEventListener('controllerchange', () => {
+  // don't reload on fresh install, only when the service worker changes (eg update)
+  if (previousSW) window.location.reload()
+})
+
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 
 root.render(
