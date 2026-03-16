@@ -26,6 +26,7 @@ export interface RecvInfo {
   invoice?: string
   satoshis: number
   txid?: string
+  addressError?: string
   assetId?: string
   assetAmount?: number
   receivedAssets?: Asset[]
