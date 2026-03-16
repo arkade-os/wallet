@@ -22,6 +22,7 @@ import { PendingChainSwap, PendingReverseSwap } from '@arkade-os/boltz-swap'
 import { enableChainSwapsReceive } from '../../../lib/constants'
 import { centsToUnits } from '../../../lib/assets'
 import WarningBox from '../../../components/Warning'
+import ErrorMessage from '../../../components/Error'
 
 export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
@@ -35,9 +36,10 @@ export default function ReceiveQRCode() {
   const [sharing, setSharing] = useState(false)
 
   // manage all possible receive methods
-  const { boardingAddr, offchainAddr, satoshis, assetId } = recvInfo
+  const { boardingAddr, offchainAddr, satoshis, assetId, addressError } = recvInfo
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const isAssetReceive = assetId && assetId !== ''
+  const hasError = Boolean(addressError)
 
   const [noPaymentMethods, setNoPaymentMethods] = useState(false)
   const [arkAddress, setArkAddress] = useState(offchainAddr)
@@ -221,14 +223,16 @@ export default function ReceiveQRCode() {
   }
 
   const data = { title: 'Receive', text: qrCodeValue }
-  const disabled = !canBrowserShareData(data) || sharing
+  const disabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods
 
   return (
     <>
       <Header text='Receive' back />
       <Content>
         <Padded>
-          {noPaymentMethods ? (
+          {hasError ? (
+            <ErrorMessage error text={`Failed to get address: ${addressError}`} />
+          ) : noPaymentMethods ? (
             <div>No valid payment methods available for this amount</div>
           ) : qrCodeValue ? (
             <FlexCol centered>

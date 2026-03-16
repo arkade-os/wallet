@@ -1,6 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 /src/_gitCommit.ts
+/public/wallet-service-worker.mjs
 
 # dependencies
 /node_modules

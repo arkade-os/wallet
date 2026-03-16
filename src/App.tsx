@@ -16,7 +16,7 @@ import '@ionic/react/css/palettes/dark.class.css'
 
 import { AnimatePresence } from 'framer-motion'
 import { ConfigContext } from './providers/config'
-import { IonApp, IonPage, IonTab, IonTabBar, IonTabButton, IonTabs, setupIonicReact } from '@ionic/react'
+import { IonApp, IonPage, IonTab, IonTabs, setupIonicReact } from '@ionic/react'
 import { NavigationContext, pageComponent, Pages, Tabs, type NavigationDirection } from './providers/navigation'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { isInAppBrowser } from './lib/browser'
@@ -28,13 +28,9 @@ import { SettingsOptions } from './lib/types'
 import { AspContext } from './providers/asp'
 import { hapticLight } from './lib/haptics'
 import { PageTransition } from './components/PageTransition'
-import SettingsIcon, { SettingsIconLight, CloseIcon } from './icons/Settings'
+import { SettingsIconLight, CloseIcon } from './icons/Settings'
 import Loading from './components/Loading'
 import PillNavbar from './components/PillNavbar'
-import FlexCol from './components/FlexCol'
-import WalletIcon from './icons/Wallet'
-import AppsIcon from './icons/Apps'
-import Focusable from './components/Focusable'
 import { useReducedMotion } from './hooks/useReducedMotion'
 
 setupIonicReact()
@@ -56,29 +52,6 @@ function PageAnimWrapper({
   )
 }
 
-const animClass = 'tab-anim-pop'
-
-function AnimatedTabIcon({ children, animating }: { children: React.ReactNode; animating: boolean }) {
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!animating || !ref.current) return
-    const el = ref.current
-    el.classList.remove(animClass)
-    void el.offsetWidth // Force reflow so removing + re-adding the class triggers the animation
-    el.classList.add(animClass)
-    const handleEnd = () => el.classList.remove(animClass)
-    el.addEventListener('animationend', handleEnd)
-    return () => el.removeEventListener('animationend', handleEnd)
-  }, [animating])
-
-  return (
-    <div ref={ref} className='tab-icon-animated'>
-      {children}
-    </div>
-  )
-}
-
 export default function App() {
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
@@ -90,7 +63,6 @@ export default function App() {
   const isIAB = useMemo(() => isInAppBrowser(), [])
   const [isCapable, setIsCapable] = useState(false)
   const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
-  const [animatingTab, setAnimatingTab] = useState<string | null>(null)
 
   // refs for the tabs to be able to programmatically activate them
   const appsRef = useRef<HTMLIonTabElement>(null)
@@ -162,25 +134,17 @@ export default function App() {
     }
   }, [tab])
 
-  const triggerTabAnim = useCallback((tabName: string) => {
-    setAnimatingTab(null)
-    requestAnimationFrame(() => setAnimatingTab(tabName))
-  }, [])
-
   const handleWallet = () => {
-    triggerTabAnim('wallet')
     hapticLight()
     navigate(Pages.Wallet)
   }
 
   const handleApps = () => {
-    triggerTabAnim('apps')
     hapticLight()
     navigate(Pages.Apps)
   }
 
   const handleSettings = () => {
-    triggerTabAnim('settings')
     hapticLight()
     setOption(SettingsOptions.Menu)
     navigate(Pages.Settings)
@@ -223,7 +187,11 @@ export default function App() {
               onClick={tab === Tabs.Settings && option === SettingsOptions.Menu ? handleCloseSettings : handleSettings}
               aria-label={tab === Tabs.Settings && option === SettingsOptions.Menu ? 'Close settings' : 'Settings'}
               style={
-                page !== Pages.Wallet && page !== Pages.Apps && tab !== Tabs.Settings ? { display: 'none' } : undefined
+                page !== Pages.Wallet &&
+                page !== Pages.Apps &&
+                (tab !== Tabs.Settings || option !== SettingsOptions.Menu)
+                  ? { display: 'none' }
+                  : undefined
               }
             >
               <span className={`header-icon-morph ${tab === Tabs.Settings ? 'header-icon-morph--close' : ''}`}>
@@ -235,78 +203,46 @@ export default function App() {
                 </span>
               </span>
             </button>
-            {tab !== Tabs.Settings && (
+            {tab !== Tabs.Settings ? (
               <>
                 <div className='pill-navbar-fade' />
                 <PillNavbar activeTab={tab} onWalletClick={handleWallet} onAppsClick={handleApps} />
               </>
-            )}
+            ) : null}
             <IonTabs>
               <IonTab ref={walletRef} tab={Tabs.Wallet}>
                 <div className='page-transition-container'>
                   <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-                    {tab === Tabs.Wallet && (
+                    {tab === Tabs.Wallet ? (
                       <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
                         {comp}
                       </PageTransition>
-                    )}
+                    ) : null}
                   </PageAnimWrapper>
                 </div>
               </IonTab>
               <IonTab ref={appsRef} tab={Tabs.Apps}>
                 <div className='page-transition-container'>
                   <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-                    {tab === Tabs.Apps && (
+                    {tab === Tabs.Apps ? (
                       <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
                         {comp}
                       </PageTransition>
-                    )}
+                    ) : null}
                   </PageAnimWrapper>
                 </div>
               </IonTab>
               <IonTab ref={settingsRef} tab={Tabs.Settings}>
                 <div className='page-transition-container'>
                   <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-                    {tab === Tabs.Settings && (
+                    {tab === Tabs.Settings ? (
                       <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
                         {comp}
                       </PageTransition>
-                    )}
+                    ) : null}
                   </PageAnimWrapper>
                 </div>
               </IonTab>
-              <IonTabBar slot='bottom'>
-                <IonTabButton tab={Tabs.Wallet} onClick={handleWallet} selected={tab === Tabs.Wallet}>
-                  <Focusable>
-                    <FlexCol centered gap='6px' padding='5px'>
-                      <AnimatedTabIcon animating={animatingTab === 'wallet'}>
-                        <WalletIcon />
-                      </AnimatedTabIcon>
-                      Wallet
-                    </FlexCol>
-                  </Focusable>
-                </IonTabButton>
-                <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps}>
-                  <Focusable>
-                    <FlexCol centered gap='6px' padding='5px'>
-                      <AnimatedTabIcon animating={animatingTab === 'apps'}>
-                        <AppsIcon />
-                      </AnimatedTabIcon>
-                      Apps
-                    </FlexCol>
-                  </Focusable>
-                </IonTabButton>
-                <IonTabButton tab={Tabs.Settings} onClick={handleSettings} selected={tab === Tabs.Settings}>
-                  <Focusable>
-                    <FlexCol centered gap='6px' padding='5px'>
-                      <AnimatedTabIcon animating={animatingTab === 'settings'}>
-                        <SettingsIcon />
-                      </AnimatedTabIcon>
-                      Settings
-                    </FlexCol>
-                  </Focusable>
-                </IonTabButton>
-              </IonTabBar>
             </IonTabs>
           </>
         )}
