@@ -23,7 +23,7 @@ import {
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
-import { delegateVtxos, getBalance, getTxHistory, getVtxos, renewCoins, settleVtxos } from '../lib/asp'
+import { delegateVtxos, getBalance, getTxHistory, getVtxos } from '../lib/asp'
 import { AspContext } from './asp'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
@@ -354,7 +354,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           console.error('Error delegating coins', e)
         })
       } else {
-        renewCoins(svcWallet, vtxoMgr, aspInfo.dust, wallet.thresholdMs).catch(() => {})
+        vtxoMgr.renewVtxos().catch(() => {})
       }
     } catch (err) {
       const isTimeoutError =
@@ -451,8 +451,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const settlePreconfirmed = async () => {
-    if (!svcWallet || !vtxoManager) throw new Error('Service worker not initialized')
-    await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs)
+    if (!vtxoManager) throw new Error('Service worker not initialized')
+    await vtxoManager.renewVtxos()
     notifyTxSettled()
   }
 

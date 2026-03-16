@@ -16,7 +16,7 @@ import ErrorMessage from '../../components/Error'
 import WaitingForRound from '../../components/WaitingForRound'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
-import { getInputsToSettle, settleVtxos } from '../../lib/asp'
+import { getInputsToSettle } from '../../lib/asp'
 import Loading from '../../components/Loading'
 import { LimitsContext } from '../../providers/limits'
 import { EmptyCoinsList } from '../../components/Empty'
@@ -134,7 +134,7 @@ export default function Vtxos() {
   const handleRollover = async () => {
     try {
       setRollingover(true)
-      await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs)
+      await vtxoManager.renewVtxos()
       await reloadWallet()
       setRollingover(false)
       setSuccess(true)
