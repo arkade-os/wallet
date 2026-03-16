@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { motion } from 'framer-motion'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Content from '../../components/Content'
@@ -13,6 +13,9 @@ import OnboardingLogo from '../../components/OnboardingLogo'
 import PixelSunrise from '../../components/PixelSunrise'
 import SmallLogo from '../../components/SmallLogo'
 import { copyToClipboard } from '../../lib/clipboard'
+import CopyIcon from '../../icons/Copy'
+import CheckMarkIcon from '../../icons/CheckMark'
+import { hapticTap } from '../../lib/haptics'
 
 function NumberedBullet({ number, text }: { number: number; text: string }) {
   return (
@@ -42,6 +45,44 @@ function NumberedBullet({ number, text }: { number: number; text: string }) {
   )
 }
 
+function TextMorph({ text, reducedMotion }: { text: string; reducedMotion: boolean }) {
+  const chars = useMemo(() => {
+    const counts: Record<string, number> = {}
+    return text.split('').map((char) => {
+      const count = (counts[char] = (counts[char] || 0) + 1)
+      return { char, layoutId: `morph-${char}-${count}` }
+    })
+  }, [text])
+
+  if (reducedMotion) return <span>{text}</span>
+
+  return (
+    <span style={{ display: 'flex', lineHeight: '20px' }}>
+      <LayoutGroup>
+        <AnimatePresence mode='popLayout'>
+          {chars.map(({ char, layoutId }) => (
+            <motion.span
+              key={layoutId}
+              layoutId={layoutId}
+              initial={{ opacity: 0, filter: 'blur(4px)' }}
+              animate={{ opacity: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, filter: 'blur(4px)' }}
+              transition={{
+                layout: { duration: 0.25, ease: EASE_OUT_QUINT_TUPLE },
+                opacity: { duration: 0.15, ease: EASE_OUT_QUINT_TUPLE },
+                filter: { duration: 0.15 },
+              }}
+              style={{ display: 'inline-block', whiteSpace: char === ' ' ? 'pre' : undefined }}
+            >
+              {char}
+            </motion.span>
+          ))}
+        </AnimatePresence>
+      </LayoutGroup>
+    </span>
+  )
+}
+
 export default function InAppBrowser() {
   const prefersReduced = useReducedMotion()
   const [copied, setCopied] = useState(false)
@@ -66,7 +107,7 @@ export default function InAppBrowser() {
 
   const handleCopy = async () => {
     try {
-      await copyToClipboard(window.location.origin)
+      await copyToClipboard(window.location.href)
       if (copyTimeout.current) clearTimeout(copyTimeout.current)
       setCopied(true)
       copyTimeout.current = setTimeout(() => setCopied(false), 2000)
@@ -141,7 +182,7 @@ export default function InAppBrowser() {
                 >
                   <h1 style={{ ...titleStyle, paddingLeft: 4 }}>Welcome to Arkade 👾</h1>
                   <Text color='dark50' thin wrap>
-                    Arkade Wallet won't work in this app.
+                    Won't work in this browser.
                   </Text>
                 </motion.div>
               </div>
@@ -188,11 +229,89 @@ export default function InAppBrowser() {
           style={{
             display: 'flex',
             flexDirection: 'column',
+            gap: '0.75rem',
             width: '100%',
             pointerEvents: contentReady ? 'auto' : 'none',
           }}
         >
-          <Button onClick={handleCopy} label={copied ? 'Copied!' : 'Copy link'} />
+          {/* URL display with inline copy icon */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: 'var(--dark05)',
+              boxShadow: '0 0 0 1px var(--dark10)',
+              borderRadius: '0.75rem',
+              minHeight: 48,
+              padding: '0 0.25rem 0 0.875rem',
+              width: '100%',
+              gap: '0.5rem',
+            }}
+          >
+            <span
+              style={{
+                flex: 1,
+                fontSize: '14px',
+                color: 'var(--dark50)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                userSelect: 'text',
+                WebkitUserSelect: 'text',
+              }}
+            >
+              {window.location.href}
+            </span>
+            <button
+              onClick={() => { hapticTap(); handleCopy() }}
+              aria-label={copied ? 'Copied' : 'Copy link'}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 44,
+                height: 44,
+                flexShrink: 0,
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                color: 'var(--dark50)',
+                touchAction: 'manipulation',
+                position: 'relative',
+              }}
+            >
+              <AnimatePresence initial={false}>
+                {copied ? (
+                  <motion.div
+                    key='check'
+                    initial={prefersReduced ? false : { opacity: 0, scale: 0.5, rotate: -45, filter: 'blur(4px)' }}
+                    animate={{ opacity: 1, scale: 1, rotate: 0, filter: 'blur(0px)' }}
+                    exit={prefersReduced ? undefined : { opacity: 0, scale: 0.5, rotate: 45, filter: 'blur(4px)' }}
+                    transition={{ duration: 0.25, ease: EASE_OUT_QUINT_TUPLE }}
+                    style={{ display: 'flex', color: 'var(--success)', position: 'absolute' }}
+                  >
+                    <CheckMarkIcon small />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key='copy'
+                    initial={prefersReduced ? false : { opacity: 0, scale: 0.5, rotate: 45, filter: 'blur(4px)' }}
+                    animate={{ opacity: 1, scale: 1, rotate: 0, filter: 'blur(0px)' }}
+                    exit={prefersReduced ? undefined : { opacity: 0, scale: 0.5, rotate: -45, filter: 'blur(4px)' }}
+                    transition={{ duration: 0.25, ease: EASE_OUT_QUINT_TUPLE }}
+                    style={{ display: 'flex', position: 'absolute' }}
+                  >
+                    <CopyIcon />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </button>
+          </div>
+
+          <Button onClick={handleCopy} label={copied ? 'Copied!' : 'Copy link'}>
+            <TextMorph text={copied ? 'Copied!' : 'Copy link'} reducedMotion={prefersReduced} />
+          </Button>
         </motion.div>
       </ButtonsOnBottom>
     </>

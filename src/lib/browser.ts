@@ -11,7 +11,7 @@ export const isAndroid = (): boolean => {
 }
 
 export const isInAppBrowser = (): boolean => {
-  const ua = navigator.userAgent || ''
+  const ua = navigator.userAgent || navigator.vendor || (window as any).opera || ''
 
   // Known in-app browser tokens (sorted by global user base)
   if (
