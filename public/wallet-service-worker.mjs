@@ -55817,7 +55817,7 @@ var gN = (c) => {
     }));
   }
 };
-const xN = "5cd4082c", TN = new Kd(), bN = new Hd(), BN = new tw();
+const xN = "d5cd1d99-dirty", TN = new Kd(), bN = new Hd(), BN = new tw();
 self.addEventListener("message", (c) => {
   c.data?.type === "SKIP_WAITING" && c.waitUntil(self.skipWaiting());
 });
@@ -55828,15 +55828,17 @@ const IN = new oP(TN, bN, {
 IN.start().catch(console.error);
 const fw = "arkade-cache-v1";
 self.addEventListener("install", (c) => {
-  c.waitUntil(caches.open(fw)), self.skipWaiting(), console.log(`Service worker installed ${xN}`);
+  c.waitUntil(
+    caches.open(fw).then(() => (console.log(`Activating service worker ${xN}`), self.skipWaiting()))
+  );
 });
 self.addEventListener("activate", (c) => {
-  c.waitUntil(
+  c.waitUntil(self.clients.claim()), c.waitUntil(
     caches.keys().then((a) => Promise.all(
       a.map((l) => {
         if (l !== fw)
           return caches.delete(l);
       })
     ))
-  ), self.clients.claim();
+  );
 });
