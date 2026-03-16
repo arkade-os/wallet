@@ -36,9 +36,14 @@ export default function SheetModal({ children, isOpen, onClose }: SheetModalProp
     <IonModal initialBreakpoint={1} isOpen={isOpen} onDidDismiss={onClose}>
       <div style={outerStyle}>
         <div style={innerStyle}>
-          <div style={closeButtonStyle} onClick={onClose}>
+          <button
+            type="button"
+            style={{ ...closeButtonStyle, background: 'none', border: 'none', padding: 0 }}
+            onClick={onClose}
+            aria-label="Close"
+          >
             <CloseIcon />
-          </div>
+          </button>
           {children}
         </div>
       </div>
