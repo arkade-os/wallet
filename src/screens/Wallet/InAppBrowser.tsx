@@ -263,7 +263,10 @@ export default function InAppBrowser() {
               {window.location.href}
             </span>
             <button
-              onClick={() => { hapticTap(); handleCopy() }}
+              onClick={() => {
+                hapticTap()
+                handleCopy()
+              }}
               aria-label={copied ? 'Copied' : 'Copy link'}
               style={{
                 display: 'flex',
