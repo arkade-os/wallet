@@ -1,6 +1,7 @@
 import { IonFooter } from '@ionic/react'
-import { ReactNode } from 'react'
+import { ReactNode, useContext } from 'react'
 import FlexCol from './FlexCol'
+import { NavigationContext, Tabs } from '../providers/navigation'
 
 interface ButtonsOnBottomProps {
   bordered?: boolean
@@ -8,19 +9,24 @@ interface ButtonsOnBottomProps {
 }
 
 export default function ButtonsOnBottom({ bordered, children }: ButtonsOnBottomProps) {
+  const { tab } = useContext(NavigationContext)
+
   const borderStyle = {
     backgroundColor: 'var(--dark10)',
     marginTop: '1rem',
     width: '100%',
   }
+
+  const paddingBottom = [Tabs.Wallet, Tabs.Apps].includes(tab) ? '4rem' : '0'
+
   return (
-    <>
+    <div style={{ paddingBottom }}>
       {bordered ? <hr style={borderStyle} /> : null}
       <IonFooter className='ion-padding ion-no-border'>
         <FlexCol gap='0' strech>
           {children}
         </FlexCol>
       </IonFooter>
-    </>
+    </div>
   )
 }
