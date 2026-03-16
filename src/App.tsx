@@ -18,7 +18,8 @@ import { AnimatePresence } from 'framer-motion'
 import { ConfigContext } from './providers/config'
 import { IonApp, IonPage, IonTab, IonTabs, setupIonicReact } from '@ionic/react'
 import { NavigationContext, pageComponent, Pages, Tabs, type NavigationDirection } from './providers/navigation'
-import { useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { isInAppBrowser } from './lib/browser'
 import { detectJSCapabilities } from './lib/jsCapabilities'
 import { OptionsContext } from './providers/options'
 import { WalletContext } from './providers/wallet'
@@ -59,6 +60,7 @@ export default function App() {
   const { option, setOption } = useContext(OptionsContext)
   const { walletLoaded, initialized, wallet } = useContext(WalletContext)
 
+  const isIAB = useMemo(() => isInAppBrowser(), [])
   const [isCapable, setIsCapable] = useState(false)
   const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
 
@@ -94,6 +96,7 @@ export default function App() {
   }, [navigate])
 
   useEffect(() => {
+    if (isIAB) return navigate(Pages.InAppBrowser)
     if (aspInfo.unreachable) return navigate(Pages.Unavailable)
     if (jsCapabilitiesChecked && !isCapable) return navigate(Pages.Unavailable)
     // avoid redirect if the user is still setting up the wallet
@@ -101,6 +104,7 @@ export default function App() {
     if (!walletLoaded) return navigate(Pages.Loading)
     if (!wallet.pubkey) return navigate(Pages.Init)
     if (!initialized) return navigate(Pages.Unlock)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- navigate is unstable (recreated every render), including it causes an infinite redirect loop
   }, [walletLoaded, initialized, initInfo, aspInfo.unreachable, jsCapabilitiesChecked, isCapable])
 
   // for some reason you need to manually set the active tab

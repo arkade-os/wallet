@@ -16,26 +16,14 @@ import SheetModal from '../../components/SheetModal'
 import { defaultPassword } from '../../lib/constants'
 import { OnboardStaggerChild } from '../../components/OnboardLoadIn'
 import { motion } from 'framer-motion'
-import { onboardStaggerContainer, EASE_OUT_QUINT } from '../../lib/animations'
+import { onboardStaggerContainer, EASE_OUT_QUINT_TUPLE } from '../../lib/animations'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import OnboardingLogo from '../../components/OnboardingLogo'
 import PixelSunrise from '../../components/PixelSunrise'
+import SmallLogo from '../../components/SmallLogo'
 import BoltOutlineIcon from '../../icons/BoltOutline'
 import GlobeOutlineIcon from '../../icons/GlobeOutline'
 import ShieldCheckOutlineIcon from '../../icons/ShieldCheckOutline'
-
-const EASE_QUINT_TUPLE = EASE_OUT_QUINT as unknown as [number, number, number, number]
-
-function SmallLogo() {
-  return (
-    <svg width={28} height={28} viewBox='0 0 35 35' fill='none'>
-      <path d='M0 8.75L8.75 0H26.25L35 8.75V17.5H26.25V8.75H8.75V17.5H2.45431e-07L0 8.75Z' fill='var(--logo-color)' />
-      <path d='M8.75 26.25V17.5H26.25V26.25H8.75Z' fill='var(--logo-color)' />
-      <path d='M8.75 26.25H2.45431e-07V35H8.75V26.25Z' fill='var(--logo-color)' />
-      <path d='M26.25 26.25V35H35V26.25H26.25Z' fill='var(--logo-color)' />
-    </svg>
-  )
-}
 
 function BulletPoint({ icon, text }: { icon: ReactElement; text: string }) {
   return (
@@ -160,7 +148,7 @@ export default function Init() {
                         ? { opacity: 1 }
                         : { opacity: 0, y: 6 }
                   }
-                  transition={{ duration: 0.3, ease: EASE_QUINT_TUPLE }}
+                  transition={{ duration: 0.3, ease: EASE_OUT_QUINT_TUPLE }}
                 >
                   <h1 style={{ ...titleStyle, paddingLeft: 4 }}>Welcome to Arkade 👾</h1>
                 </motion.div>
@@ -174,7 +162,9 @@ export default function Init() {
                   contentReady ? (prefersReduced ? undefined : 'animate') : prefersReduced ? undefined : 'initial'
                 }
                 exit={
-                  prefersReduced ? undefined : { opacity: 0, transition: { duration: 0.15, ease: EASE_QUINT_TUPLE } }
+                  prefersReduced
+                    ? undefined
+                    : { opacity: 0, transition: { duration: 0.15, ease: EASE_OUT_QUINT_TUPLE } }
                 }
                 style={{ width: '100%', visibility: contentReady ? 'visible' : 'hidden' }}
               >
@@ -212,7 +202,7 @@ export default function Init() {
                 ? { opacity: 1 }
                 : { opacity: 0, y: 16 }
           }
-          transition={{ duration: 0.4, ease: EASE_QUINT_TUPLE, delay: 0.24 }}
+          transition={{ duration: 0.4, ease: EASE_OUT_QUINT_TUPLE, delay: 0.24 }}
           style={{
             display: 'flex',
             flexDirection: 'column',

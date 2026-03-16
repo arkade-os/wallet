@@ -1,15 +1,16 @@
 import { IonButton } from '@ionic/react'
-import { ReactElement, useCallback, useState } from 'react'
+import { ReactElement, ReactNode, useCallback, useState } from 'react'
 import FlexRow from './FlexRow'
 import ArrowIcon from '../icons/Arrow'
 import { hapticTap } from '../lib/haptics'
 
 interface ButtonProps {
+  children?: ReactNode
   clear?: boolean
   disabled?: boolean
   fancy?: boolean
   icon?: ReactElement
-  label: string
+  label?: string
   loading?: boolean
   main?: boolean
   onClick: (event: any) => void
@@ -19,6 +20,7 @@ interface ButtonProps {
 }
 
 export default function Button({
+  children,
   clear,
   disabled,
   fancy,
@@ -75,14 +77,14 @@ export default function Button({
         <FlexRow between>
           <FlexRow>
             {icon}
-            <Label label={label} />
+            {children ?? (label ? <Label label={label} /> : null)}
           </FlexRow>
           <ArrowIcon />
         </FlexRow>
       ) : (
         <FlexRow main={main} centered>
           {icon}
-          <Label label={label} />
+          {children ?? (label ? <Label label={label} /> : null)}
         </FlexRow>
       )}
     </IonButton>

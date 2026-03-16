@@ -34,6 +34,7 @@ import AppAssetMintSuccess from '../screens/Apps/Assets/MintSuccess'
 import AppAssetReissue from '../screens/Apps/Assets/Reissue'
 import AppAssetBurn from '../screens/Apps/Assets/Burn'
 import AppAssetsSettings from '../screens/Apps/Assets/Settings'
+import InAppBrowser from '../screens/Wallet/InAppBrowser'
 import Unavailable from '../screens/Wallet/Unavailable'
 
 export type NavigationDirection = 'forward' | 'back' | 'none'
@@ -57,6 +58,7 @@ export enum Pages {
   InitRestore,
   InitPassword,
   InitConnect,
+  InAppBrowser,
   InitSuccess,
   Loading,
   NotesRedeem,
@@ -103,6 +105,7 @@ const pageTab = {
   [Pages.InitRestore]: Tabs.None,
   [Pages.InitPassword]: Tabs.None,
   [Pages.InitConnect]: Tabs.None,
+  [Pages.InAppBrowser]: Tabs.None,
   [Pages.InitSuccess]: Tabs.None,
   [Pages.Loading]: Tabs.None,
   [Pages.NotesRedeem]: Tabs.Settings,
@@ -179,6 +182,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <InitRestore />
     case Pages.InitPassword:
       return <InitPassword />
+    case Pages.InAppBrowser:
+      return <InAppBrowser />
     case Pages.InitSuccess:
       return <InitSuccess />
     case Pages.Loading:
