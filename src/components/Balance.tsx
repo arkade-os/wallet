@@ -40,9 +40,23 @@ export default function Balance({ amount }: BalanceProps) {
         </Text>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Text heading>{mainUnit}</Text>
-          <div onClick={toggleShow} style={{ cursor: 'pointer', display: 'flex' }}>
+          <button
+            type='button'
+            onClick={toggleShow}
+            aria-label={config.showBalance ? 'Hide balance' : 'Show balance'}
+            style={{
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '0.25rem',
+              background: 'none',
+              border: 'none',
+              color: 'inherit',
+            }}
+          >
             <EyeIcon size={16} />
-          </div>
+          </button>
         </div>
       </FlexRow>
       {showBoth ? (
