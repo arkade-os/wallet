@@ -132,7 +132,8 @@ export default function App() {
     if (!walletLoaded) return navigate(Pages.Loading)
     if (!wallet.pubkey) return navigate(Pages.Init)
     if (!initialized) return navigate(Pages.Unlock)
-  }, [walletLoaded, initialized, initInfo, aspInfo.unreachable, jsCapabilitiesChecked, isCapable, isIAB, navigate])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- navigate is unstable (recreated every render), including it causes an infinite redirect loop
+  }, [walletLoaded, initialized, initInfo, aspInfo.unreachable, jsCapabilitiesChecked, isCapable])
 
   // for some reason you need to manually set the active tab
   // if you are coming from a page in a different tab
