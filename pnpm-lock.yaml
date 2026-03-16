@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.3.4
-        version: 0.3.4
+        specifier: 0.3.5
+        version: 0.3.5
       '@arkade-os/sdk':
-        specifier: 0.4.6
-        version: 0.4.6
+        specifier: 0.4.7
+        version: 0.4.7
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -180,12 +180,12 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@0.3.4':
-    resolution: {integrity: sha512-+5f1uJEK7FeKaOPOKevzZ1HXdWYhiKLuXhJmpdMpgQVGw6dA5++352W4oUyWf7TkSqf/jz4rqXhtNCMcEgysmw==}
+  '@arkade-os/boltz-swap@0.3.5':
+    resolution: {integrity: sha512-YD+uuThkPum8UGXgJz1A8nEqJmpJAiF3+4HTbSD4jTmn9UNhrR3F0ufl9vMi8JVYnIHp+GxitYXFISojResjIQ==}
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
 
-  '@arkade-os/sdk@0.4.6':
-    resolution: {integrity: sha512-bbkuZpD9aPZkwde+F9VFidIm3MLBFdrjWpweew4M+S9CACVoaa6BqSl6aj9A0YVxG6y1oZ6LVitDS4W3veVG4A==}
+  '@arkade-os/sdk@0.4.7':
+    resolution: {integrity: sha512-T4C2wr6Tm43hT7I7gAFC5MC+FMeTXo0u31bbC17Km/OCb1qsLyCiO6c+NBFcJxFiKysxMEdGCoBNb+r8iWgV8Q==}
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -2662,9 +2662,9 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@0.3.4':
+  '@arkade-os/boltz-swap@0.3.5':
     dependencies:
-      '@arkade-os/sdk': 0.4.6
+      '@arkade-os/sdk': 0.4.7
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
@@ -2678,7 +2678,7 @@ snapshots:
       - expo-sqlite
       - expo-task-manager
 
-  '@arkade-os/sdk@0.4.6':
+  '@arkade-os/sdk@0.4.7':
     dependencies:
       '@kukks/bitcoin-descriptors': 3.1.0
       '@marcbachmann/cel-js': 7.3.1

@@ -44023,7 +44023,7 @@ class XC {
         ]);
         return l.onContractEvent((g) => {
           g.type === "vtxo_received" && (this.renewVtxos().catch((y) => {
-            console.error("Error renewing VTXOs:", y);
+            y instanceof Error && (y.message.includes("No VTXOs available to renew") || y.message.includes("is below dust threshold")) || console.error("Error renewing VTXOs:", y);
           }), f?.delegate(g.vtxos, k).catch((y) => {
             console.error("Error delegating VTXOs:", y);
           }));
@@ -56260,7 +56260,7 @@ var IN = (c) => {
     }));
   }
 };
-const UN = "5cd4082c", _N = new Zd(), DN = new Yd(), $N = new aw();
+const UN = "0a5ee6f4-dirty", _N = new Zd(), DN = new Yd(), $N = new aw();
 self.addEventListener("message", (c) => {
   c.data?.type === "SKIP_WAITING" && c.waitUntil(self.skipWaiting());
 });
