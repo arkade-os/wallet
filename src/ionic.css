@@ -30,7 +30,7 @@
   --fade-rgb: 255, 255, 255;
   --ion-background-color: #fff;
   --ion-background-focused: var(--purple20);
-  --ion-tabbar-background-color: #fafafa;
+  --ion-tab-bar-background: transparent;
   --ion-backdrop-color: #fff;
   --toggle-background: #fbfbfb;
   --danger: #a51515;
@@ -42,6 +42,9 @@
   --heading-font: 'TT Firs Neue', 'Geist', sans-serif;
   --animation-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   --bullet-icon-bg: #ede7fb;
+  --pill-navbar-spacer: calc(80px + env(safe-area-inset-bottom, 0px));
+  --pill-navbar-clearance: calc(64px + env(safe-area-inset-bottom, 0px));
+  --pill-navbar-footer-clearance: calc(72px + env(safe-area-inset-bottom, 0px));
 }
 
 .ion-palette-dark {
@@ -59,7 +62,7 @@
   --fade-rgb: 16, 16, 16;
   --ion-background-color: #101010;
   --ion-background-focused: var(--dark10);
-  --ion-tabbar-background-color: #181818;
+  --ion-tab-bar-background: transparent;
   --ion-backdrop-color: #101010;
   --logo-color: #fbfbfb;
   --toggle-background: #ddd;
@@ -194,9 +197,62 @@ ion-app > .ion-page {
 
 ion-tab-bar {
   --background: transparent;
+  --border: none;
+  --ion-tab-bar-background: transparent;
+  background: transparent;
+  box-shadow: none;
   border: none;
-  visibility: hidden;
   pointer-events: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  height: var(--pill-navbar-spacer);
+  min-height: var(--pill-navbar-spacer);
+}
+
+ion-tab-bar ion-tab-button {
+  opacity: 0;
+  --background: transparent;
+}
+
+.content-shell {
+  height: 100%;
+  padding-top: 2rem;
+}
+
+ion-app.has-pill-navbar ion-content {
+  --padding-bottom: var(--pill-navbar-clearance);
+}
+
+ion-app.has-pill-navbar ion-footer.buttons-on-bottom {
+  margin-bottom: var(--pill-navbar-footer-clearance);
+}
+
+ion-app.has-pill-navbar ion-content::part(scroll) {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - var(--pill-navbar-clearance) - 56px),
+    rgba(0, 0, 0, 0.86) calc(100% - var(--pill-navbar-clearance) - 12px),
+    rgba(0, 0, 0, 0.54) calc(100% - var(--pill-navbar-clearance) + 18px),
+    rgba(0, 0, 0, 0.16) calc(100% - 18px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - var(--pill-navbar-clearance) - 56px),
+    rgba(0, 0, 0, 0.86) calc(100% - var(--pill-navbar-clearance) - 12px),
+    rgba(0, 0, 0, 0.54) calc(100% - var(--pill-navbar-clearance) + 18px),
+    rgba(0, 0, 0, 0.16) calc(100% - 18px),
+    transparent 100%
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
 }
 
 ion-checkbox {
