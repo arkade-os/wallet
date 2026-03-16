@@ -8,13 +8,12 @@ import {
   FeeInfo,
   WalletBalance,
   DelegateContractHandler,
-  VtxoManager,
+  IVtxoManager,
 } from '@arkade-os/sdk'
 import { Addresses, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
 import { consoleError } from './logs'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
-import { getExpiringAndRecoverableVtxos } from './vtxo'
 import * as Sentry from '@sentry/react'
 import { hex } from '@scure/base'
 import { toXOnlyHex } from './keys'
@@ -244,17 +243,17 @@ export const sendOffChain = async (wallet: IWallet, amount: number, address: str
 
 export const getInputsToSettle = async (
   wallet: IWallet,
-  vtxoManager: VtxoManager,
+  vtxoManager: IVtxoManager,
   thresholdMs?: number,
 ): Promise<{ inputs: ExtendedCoin[]; vtxos: ExtendedVirtualCoin[]; boardingUtxos: ExtendedCoin[] }> => {
-  const vtxos = thresholdMs ? await getExpiringAndRecoverableVtxos(vtxoManager, thresholdMs) : []
+  const vtxos = thresholdMs ? await vtxoManager.getExpiringVtxos(thresholdMs) : []
   const boardingUtxos = await getConfirmedAndNotExpiredUtxos(wallet)
   return { inputs: [...boardingUtxos, ...vtxos], vtxos, boardingUtxos }
 }
 
 export const settleVtxos = async (
   wallet: IWallet,
-  vtxoManager: VtxoManager,
+  vtxoManager: IVtxoManager,
   dustAmount: bigint,
   thresholdMs?: number,
 ): Promise<void> => {
@@ -288,7 +287,7 @@ export const settleVtxos = async (
 
 export const renewCoins = async (
   wallet: IWallet,
-  vtxoManager: VtxoManager,
+  vtxoManager: IVtxoManager,
   dustAmount: bigint,
   thresholdMs?: number,
 ): Promise<void> => {

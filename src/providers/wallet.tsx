@@ -6,7 +6,7 @@ import {
   SingleKey,
   AssetDetails,
   WalletBalance,
-  VtxoManager,
+  IVtxoManager,
   migrateWalletRepository,
   getMigrationStatus,
   rollbackMigration,
@@ -65,7 +65,7 @@ interface WalletContextProps {
   wallet: Wallet
   walletLoaded: boolean
   svcWallet: ServiceWorkerWallet | undefined
-  vtxoManager: VtxoManager | undefined
+  vtxoManager: IVtxoManager | undefined
   txs: Tx[]
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: WalletBalance['total']
@@ -121,7 +121,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
   const [assetBalances, setAssetBalances] = useState<WalletBalance['assets']>([])
 
-  const [vtxoManager, setVtxoManager] = useState<VtxoManager>()
+  const [vtxoManager, setVtxoManager] = useState<IVtxoManager>()
 
   const hasLoadedOnce = useRef(false)
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
@@ -359,7 +359,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         consoleError(err, 'Error migrating wallet repository')
       }
 
-      const vtxoMgr = new VtxoManager(svcWallet)
+      const vtxoMgr = await svcWallet.getVtxoManager()
       setSvcWallet(svcWallet)
       setVtxoManager(vtxoMgr)
 
