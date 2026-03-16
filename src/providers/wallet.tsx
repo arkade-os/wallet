@@ -404,7 +404,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // When delegation is enabled, the SDK's VtxoManager auto-delegates
       // via onContractEvent, so no wallet-side call is needed.
       if (!config.delegate) {
-        renewCoins(svcWallet, vtxoMgr, aspInfo.dust, wallet.thresholdMs).catch(() => {})
+        vtxoMgr.renewVtxos().catch(() => {})
       }
     } catch (err) {
       const isTimeoutError =
@@ -515,8 +515,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const settlePreconfirmed = async () => {
-    if (!svcWallet || !vtxoManager) throw new Error('Service worker not initialized')
-    await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs)
+    if (!vtxoManager) throw new Error('Service worker not initialized')
+    await vtxoManager.renewVtxos()
     notifyTxSettled()
   }
 

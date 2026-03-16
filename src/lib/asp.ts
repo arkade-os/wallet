@@ -251,50 +251,6 @@ export const getInputsToSettle = async (
   return { inputs: [...boardingUtxos, ...vtxos], vtxos, boardingUtxos }
 }
 
-export const settleVtxos = async (
-  wallet: IWallet,
-  vtxoManager: IVtxoManager,
-  dustAmount: bigint,
-  thresholdMs?: number,
-): Promise<void> => {
-  const { inputs } = await getInputsToSettle(wallet, vtxoManager, thresholdMs)
-
-  if (inputs.length === 0) throw new Error('No UTXOs or VTXOs eligible to settle')
-
-  const amount = inputs.reduce((sum, input) => sum + input.value, 0)
-
-  if (amount < Number(dustAmount)) throw new Error('Total amount is below dust threshold')
-
-  const outputs = [
-    {
-      address: await wallet.getAddress(),
-      amount: BigInt(amount),
-    },
-  ]
-
-  try {
-    await wallet.settle({ inputs, outputs }, console.log)
-  } catch (error) {
-    await captureSettleError(error, wallet, 'settleVtxos', {
-      amount: amount.toString(),
-      dustAmount: dustAmount.toString(),
-      thresholdMs,
-      inputs: serializeForSentry(inputs),
-    })
-    throw error
-  }
-}
-
-export const renewCoins = async (
-  wallet: IWallet,
-  vtxoManager: IVtxoManager,
-  dustAmount: bigint,
-  thresholdMs?: number,
-): Promise<void> => {
-  const { inputs } = await getInputsToSettle(wallet, vtxoManager, thresholdMs)
-  if (inputs.length > 0) await settleVtxos(wallet, vtxoManager, dustAmount, thresholdMs)
-}
-
 export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> => {
   const cm = await wallet.getContractManager()
   const contractWithVtxos = await cm.getContractsWithVtxos({ type: 'delegate' })
