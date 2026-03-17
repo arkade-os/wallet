@@ -245,7 +245,7 @@ export default function ReceiveQRCode() {
                 onClick={setQrCodeValue}
               />
               {swapsTimedOut && !invoice && !isAssetReceive ? (
-                <WarningBox text='Lightning is temporarily unavailable. This QR code only supports Ark and on-chain payments.' />
+                <WarningBox text='Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.' />
               ) : null}
             </FlexCol>
           ) : (
