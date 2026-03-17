@@ -53,7 +53,7 @@ export default function SendDetails() {
       const feeInSats = defaultFee
       setDetails({
         destination,
-        direction: 'Paying inside the Ark',
+        direction: 'Paying inside Arkade',
         fees: feeInSats,
         satoshis: 0,
         total: feeInSats,
@@ -72,7 +72,7 @@ export default function SendDetails() {
             : ''
     const direction =
       destination === arkAddress
-        ? 'Paying inside the Ark'
+        ? 'Paying inside Arkade'
         : destination === invoice
           ? 'Swapping to Lightning'
           : pendingSwap?.type === 'chain'
@@ -164,7 +164,7 @@ export default function SendDetails() {
           details?.destination === invoice ? (
             <Loading text='Paying to Lightning' />
           ) : details?.destination === arkAddress ? (
-            <Loading text='Paying inside the Ark' />
+            <Loading text='Paying inside Arkade' />
           ) : (
             <WaitingForRound />
           )
