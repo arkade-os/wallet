@@ -117,7 +117,7 @@ export default function AppLendasat() {
 
           switch (addressType) {
             case AddressType.ARK:
-              if (!arkAddress) throw new Error('Ark address not yet loaded')
+              if (!arkAddress) throw new Error('Arkade address not yet loaded')
               return arkAddress
 
             case AddressType.BITCOIN:
