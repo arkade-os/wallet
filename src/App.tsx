@@ -143,15 +143,7 @@ export default function App() {
     if (import.meta.env.DEV && import.meta.env.VITE_DEV_NSEC && !initialized) return
     if (!wallet.pubkey) return navigate(Pages.Init)
     if (authState === 'locked') return navigate(Pages.Unlock)
-  }, [
-    walletLoaded,
-    wallet.pubkey,
-    authState,
-    initInfo,
-    aspInfo.unreachable,
-    jsCapabilitiesChecked,
-    isCapable,
-  ])
+  }, [walletLoaded, wallet.pubkey, authState, initInfo, aspInfo.unreachable, jsCapabilitiesChecked, isCapable])
 
   // for some reason you need to manually set the active tab
   // if you are coming from a page in a different tab
