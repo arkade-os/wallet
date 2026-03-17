@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
+import { V2BrantaClient, BrantaServerBaseUrl } from '@branta-ops/branta'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
@@ -45,6 +46,10 @@ import { FeesContext } from '../../../providers/fees'
 import { InfoLine } from '../../../components/Info'
 import { centsToUnits, unitsToCents } from '../../../lib/assets'
 
+const brantaClient = new V2BrantaClient({
+  baseUrl: BrantaServerBaseUrl.Production,
+})
+
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
@@ -74,6 +79,9 @@ export default function SendForm() {
   const [recipient, setRecipient] = useState('')
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
   const [scan, setScan] = useState(false)
+  const [rawScanData, setRawScanData] = useState('')
+  const [brantaPayment, setBrantaPayment] = useState<any>(null)
+  const [brantaLoading, setBrantaLoading] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<AssetOption | null>(null)
   const [showAssetSelector, setShowAssetSelector] = useState(false)
   const [textValue, setTextValue] = useState('')
@@ -252,6 +260,34 @@ export default function SendForm() {
     }
     parseRecipient()
   }, [recipient])
+
+  // fetch branta payment info for ZK QR-scanned addresses only
+  useEffect(() => {
+    if (!rawScanData) return
+    setBrantaPayment(null)
+
+    let isValidZKCode = false;
+    try {
+      const url = new URL(rawScanData.trim());
+      isValidZKCode = url.searchParams.has('branta_id') &&
+        url.searchParams.has('branta_secret');
+    } catch {
+      // Invalid URL, not a ZK code
+    }
+
+    if (!isValidZKCode) return;
+
+    setBrantaLoading(true)
+    brantaClient
+      .getPaymentsByQRCode(rawScanData)
+      .then((payments: any[]) => {
+        setBrantaPayment(payments?.[0] ?? null)
+      })
+      .catch(() => {
+        setBrantaPayment(null)
+      })
+      .finally(() => setBrantaLoading(false))
+  }, [rawScanData])
 
   // check lnurl limits
   useEffect(() => {
@@ -446,6 +482,8 @@ export default function SendForm() {
   }
 
   const handleRecipientChange = (recipient: string) => {
+    setRawScanData('')
+    setBrantaPayment(null)
     setState({ ...sendInfo, recipient })
     setRecipient(recipient)
   }
@@ -566,7 +604,15 @@ export default function SendForm() {
 
   if (scan)
     return (
-      <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
+      <Scanner
+        close={() => setScan(false)}
+        label='Recipient address'
+        onData={(data) => {
+          setRawScanData(data)
+          setRecipient(data)
+        }}
+        onError={smartSetError}
+      />
     )
 
   const selectedAssetLabel = selectedAsset ? `${selectedAsset.name} (${selectedAsset.ticker})` : 'Bitcoin (BTC)'
@@ -603,7 +649,15 @@ export default function SendForm() {
 
   if (scan) {
     return (
-      <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
+      <Scanner
+        close={() => setScan(false)}
+        label='Recipient address'
+        onData={(data) => {
+          setRawScanData(data)
+          setRecipient(data)
+        }}
+        onError={smartSetError}
+      />
     )
   }
 
@@ -626,6 +680,37 @@ export default function SendForm() {
               }}
               value={recipient}
             />
+            {brantaLoading ? (
+              <Text color='dark50' smaller>
+                Verifying address...
+              </Text>
+            ) : null}
+            {brantaPayment ? (
+              <Shadow>
+                <FlexRow between padding='0.75rem'>
+                  <FlexCol gap='0.1rem'>
+                    <Text smaller>{brantaPayment.platform}</Text>
+                    <Text smaller color='dark50'>
+                      {brantaPayment.verify_url ? (
+                        <a href={brantaPayment.verify_url} target='_blank' rel='noreferrer'>
+                          Verified by Branta
+                        </a>
+                      ) : (
+                        'Verified by Branta'
+                      )}
+                    </Text>
+                  </FlexCol>
+                  {brantaPayment.platform_logo_url ? (
+                    <img
+                      src={brantaPayment.platform_logo_url}
+                      alt={brantaPayment.platform}
+                      width={48}
+                      height={48}
+                    />
+                  ) : null}
+                </FlexRow>
+              </Shadow>
+            ) : null}
             {assetOptions.length > 0 ? (
               <FlexCol gap='0.25rem'>
                 <Text smaller color='dark50'>
