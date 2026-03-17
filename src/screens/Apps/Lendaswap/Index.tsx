@@ -23,7 +23,7 @@ export default function AppLendaswap() {
           const addresses = await getReceivingAddresses(svcWallet)
           setArkAddress(addresses.offchainAddr)
         } catch (error) {
-          console.error('Failed to load Ark address:', error)
+          console.error('Failed to load Arkade address:', error)
         }
       }
     }
@@ -61,7 +61,7 @@ export default function AppLendaswap() {
             case AddressType.LOAN_ASSET:
               throw Error('Address type not supported')
             case AddressType.ARK:
-              if (!arkAddress) throw new Error('Ark address not yet loaded')
+              if (!arkAddress) throw new Error('Arkade address not yet loaded')
               return arkAddress
           }
         },
