@@ -132,6 +132,13 @@ describe('App startup routing', () => {
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.Unlock))
   })
 
+  it('shows unlock even when the wallet remains initialized', async () => {
+    const { navigate } = renderApp({ authState: 'locked', initialized: true })
+
+    expect(await screen.findByText('Unlock')).toBeInTheDocument()
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.Unlock))
+  })
+
   it('keeps authenticated but uninitialized wallets on loading', async () => {
     const { navigate, unlockWallet } = renderApp({ authState: 'authenticated', initialized: false })
 

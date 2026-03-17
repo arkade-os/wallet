@@ -142,11 +142,10 @@ export default function App() {
     // dev auto-init: stay on loading screen while VITE_DEV_NSEC initializes the wallet
     if (import.meta.env.DEV && import.meta.env.VITE_DEV_NSEC && !initialized) return
     if (!wallet.pubkey) return navigate(Pages.Init)
-    if (!initialized && authState === 'locked') return navigate(Pages.Unlock)
+    if (authState === 'locked') return navigate(Pages.Unlock)
   }, [
     walletLoaded,
     wallet.pubkey,
-    initialized,
     authState,
     initInfo,
     aspInfo.unreachable,
@@ -215,7 +214,7 @@ export default function App() {
   const isNewUser = walletLoaded && !wallet.pubkey
   const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
   const hasStoredWallet = walletLoaded && !!wallet.pubkey
-  const shouldShowUnlock = hasStoredWallet && !initialized && authState === 'locked'
+  const shouldShowUnlock = hasStoredWallet && authState === 'locked'
   const shouldHoldOnLoading = hasStoredWallet && !initialized && authState !== 'locked'
 
   useEffect(() => {
