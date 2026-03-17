@@ -107,7 +107,9 @@ describe('Receive QR Code screen', () => {
     expect(screen.queryByText('Generating QR code...')).not.toBeInTheDocument()
     // Should NOT show the LN unavailable warning (constraint 1a)
     expect(
-      screen.queryByText('Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.'),
+      screen.queryByText(
+        'Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.',
+      ),
     ).not.toBeInTheDocument()
   })
 
@@ -134,7 +136,9 @@ describe('Receive QR Code screen', () => {
     expect(screen.queryByText('Generating QR code...')).not.toBeInTheDocument()
     // Should show the warning (constraint 2a)
     expect(
-      screen.getByText('Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.'),
+      screen.getByText(
+        'Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.',
+      ),
     ).toBeInTheDocument()
   })
 
@@ -194,7 +198,9 @@ describe('Receive QR Code screen', () => {
     expect(screen.queryByText('Generating QR code...')).not.toBeInTheDocument()
     // Should show the warning
     expect(
-      screen.getByText('Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.'),
+      screen.getByText(
+        'Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.',
+      ),
     ).toBeInTheDocument()
 
     vi.useRealTimers()
