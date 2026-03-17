@@ -126,7 +126,7 @@ export default function SendDetails() {
     if (!details || !svcWallet) return
     if (!isAssetSend && (!details.total || !details.satoshis)) return
     if (isAssetSend && !arkAddress) {
-      setError('Assets can only be sent to Ark addresses')
+      setError('Assets can only be sent to Arkade addresses')
       return
     }
     setSending(true)
