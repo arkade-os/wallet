@@ -90,6 +90,7 @@ export default function SendDetails() {
             : defaultFee
     const swapId = pendingSwap?.id
     const total = satoshis + feeInSats
+    console.log({ destination, direction, feeInSats, satoshis, swapId, total })
     setDetails({
       destination,
       direction,
@@ -125,6 +126,7 @@ export default function SendDetails() {
   const handleContinue = async () => {
     if (!details || !svcWallet) return
     if (!isAssetSend && (!details.total || !details.satoshis)) return
+    if (!details.total || !details.satoshis) return
     if (isAssetSend && !arkAddress) {
       setError('Assets can only be sent to Ark addresses')
       return

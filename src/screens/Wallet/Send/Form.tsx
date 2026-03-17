@@ -41,17 +41,15 @@ import { extractError } from '../../../lib/error'
 import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 import { SwapsContext } from '../../../providers/swaps'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
-import { FeesContext } from '../../../providers/fees'
 import { InfoLine } from '../../../components/Info'
 import { centsToUnits, unitsToCents } from '../../../lib/assets'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
-  const { calcOnchainOutputFee } = useContext(FeesContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
-  const { calcSubmarineSwapFee, createArkToBtcSwap, createSubmarineSwap, connected, getApiUrl } =
+  const { calcSubmarineSwapFee, calcArkToBtcSwapFee, createArkToBtcSwap, createSubmarineSwap, connected, getApiUrl } =
     useContext(SwapsContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
@@ -392,13 +390,13 @@ export default function SendForm() {
 
   // deal with fees deduction from amount
   useEffect(() => {
-    if (!sendInfo.address || sendInfo.arkAddress || sendInfo.invoice || !availableBalance) {
+    if (!sendInfo.address || sendInfo.arkAddress || sendInfo.invoice || !liquidBalance) {
       setDeductFromAmount(false)
       return
     }
     const satoshis = sendInfo.satoshis ?? 0
-    setDeductFromAmount(satoshis + calcOnchainOutputFee() > availableBalance)
-  }, [availableBalance, sendInfo.satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
+    setDeductFromAmount(satoshis + calcArkToBtcSwapFee(satoshis) > liquidBalance)
+  }, [liquidBalance, sendInfo.satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
 
   if (!svcWallet) return <Loading text='Loading...' />
 
@@ -472,13 +470,16 @@ export default function SendForm() {
           setState({ ...sendInfo, invoice, arkAddress: undefined })
         }
       } else if (deductFromAmount) {
-        const fee = calcOnchainOutputFee()
-        const spendable = availableBalance - fee
-        if (spendable <= 0) {
-          handleError('Insufficient funds to cover fees')
-          return
+        const sats = sendInfo.satoshis ?? 0
+        const fee = calcArkToBtcSwapFee(sats)
+        if (liquidBalance <= fee) {
+          return handleError('Insufficient funds to cover fees')
         }
-        setState({ ...sendInfo, satoshis: Math.min(sendInfo.satoshis ?? 0, spendable) })
+        const deductedAmount = sats - fee
+        const deductedFee = calcArkToBtcSwapFee(deductedAmount)
+        const diffBeweenFees = fee - deductedFee
+        const finalAmount = deductedAmount + diffBeweenFees
+        setState({ ...sendInfo, satoshis: finalAmount })
       } else {
         setState({ ...sendInfo, satoshis: sendInfo.satoshis ?? 0 })
       }
