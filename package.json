@@ -114,9 +114,6 @@
     ],
     "onlyBuiltDependencies": [
       "@arkade-os/sdk"
-    ],
-    "overrides": {
-      "@arkade-os/sdk": "link:../ts-sdk"
-    }
+    ]
   }
 }
