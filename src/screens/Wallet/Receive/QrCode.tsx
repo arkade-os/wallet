@@ -289,20 +289,41 @@ export default function ReceiveQRCode() {
   }
 
   const handleAmountConfirm = () => {
-    setRecvInfo({ ...recvInfo, satoshis: amountInput })
-    setShowAmountSheet(false)
     setShowKeys(false)
+    setShowAmountSheet(false)
+    setRecvInfo({ ...recvInfo, satoshis: amountInput })
+  }
+
+  const handleAmountClear = () => {
+    setAmountInput(0)
+    setAmountTextValue('')
+    setShowKeys(false)
+    setShowAmountSheet(false)
+    setRecvInfo({ ...recvInfo, satoshis: 0 })
   }
 
   const data = { title: 'Receive', text: qrCodeValue }
   const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods
 
-  // Mobile keyboard for amount sheet
+  // Mobile keyboard — bypass sheet on save, go straight to QR
   if (showKeys) {
-    return <Keyboard back={() => setShowKeys(false)} hideBalance onSats={handleAmountChange} value={amountInput} />
+    return (
+      <Keyboard
+        back={() => {
+          setShowKeys(false)
+          setShowAmountSheet(false)
+        }}
+        hideBalance
+        onSats={(sats) => {
+          setAmountInput(sats)
+          setRecvInfo({ ...recvInfo, satoshis: sats })
+        }}
+        value={amountInput}
+      />
+    )
   }
 
-  const amountLabel = satoshis ? `${prettyNumber(satoshis)} sats` : 'Add amount'
+  const amountLabel = satoshis ? 'Edit amount' : 'Add amount'
 
   return (
     <>
@@ -317,13 +338,19 @@ export default function ReceiveQRCode() {
             <div>No valid payment methods available for this amount</div>
           ) : (
             <FlexCol centered>
-              <QrCode value={qrCodeValue} />
-
-              {satoshis > 0 ? (
-                <div style={{ fontSize: '13px', color: 'var(--dark50)', textAlign: 'center' }}>
-                  Requesting {prettyNumber(satoshis)} sats
-                </div>
-              ) : null}
+              <div>
+                <QrCode value={qrCodeValue} />
+                {satoshis > 0 ? (
+                  <div style={{ fontSize: '14px', color: 'var(--dark50)', textAlign: 'center', marginTop: '0.5rem' }}>
+                    Requesting {prettyNumber(satoshis)} sats
+                  </div>
+                ) : null}
+                {(!satoshis || satoshis < 500) && !isAssetReceive ? (
+                  <div style={{ fontSize: '13px', color: 'var(--dark50)', textAlign: 'center', marginTop: '0.25rem' }}>
+                    500 sats min for Lightning
+                  </div>
+                ) : null}
+              </div>
 
               {swapsTimedOut && !invoice && !isAssetReceive ? (
                 <WarningBox text='Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.' />
@@ -363,6 +390,7 @@ export default function ReceiveQRCode() {
             onEnter={handleAmountConfirm}
           />
           <Button label='Set amount' onClick={handleAmountConfirm} disabled={!amountInput} />
+          {satoshis > 0 ? <Button label='Clear amount' onClick={handleAmountClear} secondary /> : null}
         </FlexCol>
       </SheetModal>
 
