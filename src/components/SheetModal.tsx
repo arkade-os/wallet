@@ -1,5 +1,7 @@
 import { IonModal } from '@ionic/react'
+import { useContext } from 'react'
 import CloseIcon from '../icons/Close'
+import { NavigationContext, Tabs } from '../providers/navigation'
 
 interface SheetModalProps {
   children?: React.ReactNode
@@ -8,6 +10,9 @@ interface SheetModalProps {
 }
 
 export default function SheetModal({ children, isOpen, onClose }: SheetModalProps) {
+  const { tab } = useContext(NavigationContext)
+  const hasNavbar = [Tabs.Wallet, Tabs.Apps].includes(tab)
+
   const outerStyle: React.CSSProperties = {
     maxWidth: '640px',
     margin: '0 auto',
@@ -20,7 +25,7 @@ export default function SheetModal({ children, isOpen, onClose }: SheetModalProp
     borderRadius: '1rem',
     height: '100%',
     padding: '1rem',
-    paddingBottom: '2rem',
+    paddingBottom: hasNavbar ? 'var(--pill-navbar-spacer)' : '2rem',
     width: '100%',
     position: 'relative',
   }
