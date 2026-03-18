@@ -112,14 +112,26 @@ export default function Vtxos() {
   // Fetch inputs to settle
   useEffect(() => {
     if (!aspInfo || !svcWallet || !vtxoManager) return
-    getInputsToSettle(svcWallet, vtxoManager, wallet.thresholdMs).then(({ boardingUtxos, inputs, vtxos }) => {
-      setHasBoardingUtxosToSettle(boardingUtxos.length > 0)
-      setHasInputsToSettle(inputs.length > 0)
-      setHasVtxosToSettle(vtxos.length > 0)
-      const amount = inputs.reduce((a, v) => a + v.value, 0) || 0
-      setAboveDust(amount > aspInfo.dust)
-    })
-  }, [allUtxos, allVtxos, aspInfo, svcWallet, vtxoManager])
+    let cancelled = false
+    const fetchInputs = async () => {
+      try {
+        const { boardingUtxos, inputs, vtxos } = await getInputsToSettle(svcWallet, vtxoManager, wallet.thresholdMs)
+        if (cancelled) return
+        setHasBoardingUtxosToSettle(boardingUtxos.length > 0)
+        setHasInputsToSettle(inputs.length > 0)
+        setHasVtxosToSettle(vtxos.length > 0)
+        const amount = inputs.reduce((a, v) => a + v.value, 0) || 0
+        setAboveDust(amount > aspInfo.dust)
+      } catch (err) {
+        if (cancelled) return
+        consoleError(err)
+      }
+    }
+    fetchInputs()
+    return () => {
+      cancelled = true
+    }
+  }, [allUtxos, allVtxos, aspInfo, svcWallet, vtxoManager, wallet.thresholdMs])
 
   // Automatically reset `success` after 5s, with cleanup on unmount or re-run
   useEffect(() => {
