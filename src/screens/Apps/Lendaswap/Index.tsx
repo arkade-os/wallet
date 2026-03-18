@@ -9,6 +9,7 @@ import { collaborativeExit, getReceivingAddresses } from '../../../lib/asp'
 import { isArkAddress, isBTCAddress } from '../../../lib/address'
 
 const IFRAME_URL = import.meta.env.VITE_LENDASWAP_IFRAME_URL || 'https://lendaswap.com'
+const DEFAULT_SWAP_PATH = '/arkade:BTC/polygon:USDC'
 
 export default function AppLendaswap() {
   const { svcWallet } = useContext(WalletContext)
@@ -124,7 +125,7 @@ export default function AppLendaswap() {
           <FlexCol gap='2rem' between>
             <iframe
               ref={iframeRef}
-              src={IFRAME_URL}
+              src={`${IFRAME_URL}${DEFAULT_SWAP_PATH}`}
               title='Lendaswap'
               className='lendaswap-iframe'
               allow='clipboard-write; clipboard-read'
