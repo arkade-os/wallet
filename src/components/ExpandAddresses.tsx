@@ -97,7 +97,7 @@ export default function ExpandAddresses({
           <FlexCol gap='0.21rem'>
             {bip21uri ? <ExpandLine testId='bip21' title='BIP21' value={bip21uri} /> : null}
             {boardingAddr ? <ExpandLine testId='btc' title='BTC address' value={boardingAddr} /> : null}
-            {offchainAddr ? <ExpandLine testId='ark' title='Ark address' value={offchainAddr} /> : null}
+            {offchainAddr ? <ExpandLine testId='ark' title='Arkade address' value={offchainAddr} /> : null}
             {invoice ? <ExpandLine testId='invoice' title='Lightning invoice' value={invoice} /> : null}
           </FlexCol>
         </div>

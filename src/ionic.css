@@ -289,7 +289,7 @@ ion-action-sheet.my-ion-action-sheet {
 }
 
 ion-modal::part(content) {
-  --background: var(--ion-background-color);
+  --background: transparent;
   --border-radius: 1rem;
   --height: auto;
   --max-width: 100%;

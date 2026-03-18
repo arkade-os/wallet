@@ -2,6 +2,7 @@ import { ReactNode } from 'react'
 import { AnimatePresence, motion, PanInfo } from 'framer-motion'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 import { hapticSubtle } from '../lib/haptics'
+import { EASE_OUT_QUINT_TUPLE } from '../lib/animations'
 import FlexCol from './FlexCol'
 import FlexRow from './FlexRow'
 import Text from './Text'
@@ -15,8 +16,6 @@ interface DismissibleBannerProps {
   onDismiss: () => void
   visible: boolean
 }
-
-const EASE_OUT_QUINT = [0.23, 1, 0.32, 1] as const
 
 const BANNER_SHADOW =
   '0px 0px 0px 1px rgba(0, 0, 0, 0.06), 0px 1px 2px -1px rgba(0, 0, 0, 0.06), 0px 2px 4px 0px rgba(0, 0, 0, 0.04)'
@@ -128,7 +127,7 @@ export default function DismissibleBanner(props: DismissibleBannerProps) {
             y: 0,
             transition: {
               duration: 0.25,
-              ease: EASE_OUT_QUINT as unknown as [number, number, number, number],
+              ease: EASE_OUT_QUINT_TUPLE,
             },
           }}
           exit={
@@ -140,7 +139,7 @@ export default function DismissibleBanner(props: DismissibleBannerProps) {
                   scale: 0.97,
                   transition: {
                     duration: 0.25,
-                    ease: EASE_OUT_QUINT as unknown as [number, number, number, number],
+                    ease: EASE_OUT_QUINT_TUPLE,
                   },
                 }
           }
