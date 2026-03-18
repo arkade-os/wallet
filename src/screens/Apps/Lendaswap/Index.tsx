@@ -8,7 +8,7 @@ import { WalletProvider, type LoanAsset, AddressType } from '@lendasat/lendasat-
 import { collaborativeExit, getReceivingAddresses } from '../../../lib/asp'
 import { isArkAddress, isBTCAddress } from '../../../lib/address'
 
-const IFRAME_URL = import.meta.env.VITE_LENDASWAP_IFRAME_URL || 'https://swap.lendasat.com'
+const IFRAME_URL = import.meta.env.VITE_LENDASWAP_IFRAME_URL || 'https://lendaswap.com'
 
 export default function AppLendaswap() {
   const { svcWallet } = useContext(WalletContext)
