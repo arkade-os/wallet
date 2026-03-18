@@ -130,6 +130,8 @@ export default function App() {
     // avoid redirect if the user is still setting up the wallet
     if (initInfo.password || initInfo.privateKey) return
     if (!walletLoaded) return navigate(Pages.Loading)
+    // dev auto-init: stay on loading screen while VITE_DEV_NSEC initializes the wallet
+    if (import.meta.env.DEV && import.meta.env.VITE_DEV_NSEC && !initialized) return
     if (!wallet.pubkey) return navigate(Pages.Init)
     if (!initialized) return navigate(Pages.Unlock)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- navigate is unstable (recreated every render), including it causes an infinite redirect loop

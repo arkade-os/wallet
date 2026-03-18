@@ -30,6 +30,7 @@ import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
+import { nsecToPrivateKey } from '../lib/privateKey'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
@@ -130,6 +131,25 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   // wallet is read synchronously in useState initializer above
+
+  // dev-only: auto-initialize wallet from VITE_DEV_NSEC, bypassing onboarding and unlock
+  useEffect(() => {
+    if (!import.meta.env.DEV || !import.meta.env.VITE_DEV_NSEC) return
+    if (initialized) return
+    if (!aspInfo.url) return
+
+    const autoInit = async () => {
+      try {
+        const privateKey = nsecToPrivateKey(import.meta.env.VITE_DEV_NSEC)
+        await initWallet(privateKey)
+      } catch (err) {
+        consoleError(err, 'Dev auto-init failed')
+      }
+    }
+
+    autoInit()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aspInfo.url, initialized])
 
   // reload wallet as soon as we have a service worker wallet available
   useEffect(() => {
