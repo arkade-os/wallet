@@ -45,6 +45,10 @@
   --pill-navbar-spacer: calc(80px + env(safe-area-inset-bottom, 0px));
   --pill-navbar-clearance: calc(64px + env(safe-area-inset-bottom, 0px));
   --pill-navbar-footer-clearance: calc(72px + env(safe-area-inset-bottom, 0px));
+  --pill-mask-fade-start: 56px;
+  --pill-mask-fade-mid: 12px;
+  --pill-mask-fade-lower: 18px;
+  --pill-mask-fade-bottom: 18px;
 }
 
 .ion-palette-dark {
@@ -234,19 +238,19 @@ ion-app.has-pill-navbar ion-content::part(scroll) {
   -webkit-mask-image: linear-gradient(
     to bottom,
     #000 0,
-    #000 calc(100% - var(--pill-navbar-clearance) - 56px),
-    rgba(0, 0, 0, 0.86) calc(100% - var(--pill-navbar-clearance) - 12px),
-    rgba(0, 0, 0, 0.54) calc(100% - var(--pill-navbar-clearance) + 18px),
-    rgba(0, 0, 0, 0.16) calc(100% - 18px),
+    #000 calc(100% - var(--pill-navbar-clearance) - var(--pill-mask-fade-start)),
+    rgba(0, 0, 0, 0.86) calc(100% - var(--pill-navbar-clearance) - var(--pill-mask-fade-mid)),
+    rgba(0, 0, 0, 0.54) calc(100% - var(--pill-navbar-clearance) + var(--pill-mask-fade-lower)),
+    rgba(0, 0, 0, 0.16) calc(100% - var(--pill-mask-fade-bottom)),
     transparent 100%
   );
   mask-image: linear-gradient(
     to bottom,
     #000 0,
-    #000 calc(100% - var(--pill-navbar-clearance) - 56px),
-    rgba(0, 0, 0, 0.86) calc(100% - var(--pill-navbar-clearance) - 12px),
-    rgba(0, 0, 0, 0.54) calc(100% - var(--pill-navbar-clearance) + 18px),
-    rgba(0, 0, 0, 0.16) calc(100% - 18px),
+    #000 calc(100% - var(--pill-navbar-clearance) - var(--pill-mask-fade-start)),
+    rgba(0, 0, 0, 0.86) calc(100% - var(--pill-navbar-clearance) - var(--pill-mask-fade-mid)),
+    rgba(0, 0, 0, 0.54) calc(100% - var(--pill-navbar-clearance) + var(--pill-mask-fade-lower)),
+    rgba(0, 0, 0, 0.16) calc(100% - var(--pill-mask-fade-bottom)),
     transparent 100%
   );
   -webkit-mask-repeat: no-repeat;

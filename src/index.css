@@ -283,7 +283,7 @@ button.reminder-button.action-sheet-button {
   border: none;
   border-radius: 999px;
   background: none;
-  color: #808080;
+  color: var(--dark50);
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -293,12 +293,8 @@ button.reminder-button.action-sheet-button {
 }
 
 .pill-nav-btn--active {
-  color: #040404;
+  color: var(--black);
   background-color: var(--dark05);
-}
-
-.ion-palette-dark .pill-nav-btn--active {
-  color: #fbfbfb;
 }
 
 .pill-nav-icon {
@@ -349,12 +345,6 @@ button.reminder-button.action-sheet-button {
   );
 }
 
-/* Tab icon animation wrapper */
-.tab-icon-animated {
-  display: inline-flex;
-}
-
-/* Tab icon pop animation */
 @keyframes tab-pop {
   0% {
     transform: scale(1);
@@ -366,18 +356,8 @@ button.reminder-button.action-sheet-button {
     transform: scale(1);
   }
 }
-.tab-anim-pop {
-  animation: tab-pop 250ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .tab-icon-animated {
-    animation: none !important;
-  }
-  [class*='tab-anim-'] {
-    animation: none !important;
-  }
   .pill-icon-pop {
     animation: none !important;
   }
@@ -389,14 +369,6 @@ button.reminder-button.action-sheet-button {
 /* Hide inactive tabs so content doesn't bleed through */
 .tab-hidden {
   display: none !important;
-}
-
-/* Hide scrollbar while keeping scroll functionality */
-.hide-scrollbar {
-  scrollbar-width: none;
-}
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
 }
 
 /* Hide scrollbar while keeping scroll functionality */

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import WalletIcon from '../icons/Wallet'
 import AppsIcon from '../icons/Apps'
 import SettingsIcon from '../icons/Settings'
+import { useReducedMotion } from '../hooks/useReducedMotion'
 
 interface PillNavbarProps {
   activeTab: string
@@ -14,17 +15,17 @@ export default function PillNavbar({ activeTab, onWalletClick, onAppsClick, onSe
   const walletRef = useRef<HTMLDivElement>(null)
   const appsRef = useRef<HTMLDivElement>(null)
   const settingsRef = useRef<HTMLDivElement>(null)
+  const prefersReduced = useReducedMotion()
+
+  const refMap: Record<string, React.RefObject<HTMLDivElement | null>> = {
+    wallet: walletRef,
+    apps: appsRef,
+    settings: settingsRef,
+  }
 
   useEffect(() => {
-    const ref =
-      activeTab === 'wallet'
-        ? walletRef
-        : activeTab === 'apps'
-          ? appsRef
-          : activeTab === 'settings'
-            ? settingsRef
-            : null
-    if (!ref?.current) return
+    const ref = refMap[activeTab] ?? null
+    if (!ref?.current || prefersReduced) return
     const el = ref.current
     el.classList.remove('pill-icon-pop')
     void el.offsetWidth
@@ -32,7 +33,7 @@ export default function PillNavbar({ activeTab, onWalletClick, onAppsClick, onSe
     const handleEnd = () => el.classList.remove('pill-icon-pop')
     el.addEventListener('animationend', handleEnd)
     return () => el.removeEventListener('animationend', handleEnd)
-  }, [activeTab])
+  }, [activeTab, prefersReduced])
 
   return (
     <nav className='pill-navbar' role='tablist' aria-label='Main navigation'>
