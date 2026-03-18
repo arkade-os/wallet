@@ -250,6 +250,11 @@ ion-app.has-pill-navbar ion-content:has(.scroll-fade)::part(scroll) {
   mask-size: 100% 100%;
 }
 
+ion-app.has-pill-navbar ion-content.no-content-fade::part(scroll) {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
 ion-checkbox {
   --border-color: var(--dark10);
   --border-color-checked: var(--ion-color-danger);
