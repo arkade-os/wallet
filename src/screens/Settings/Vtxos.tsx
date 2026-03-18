@@ -23,6 +23,7 @@ import { EmptyCoinsList } from '../../components/Empty'
 import WarningBox from '../../components/Warning'
 import { ExtendedCoin, ExtendedVirtualCoin, isVtxoExpiringSoon } from '@arkade-os/sdk'
 import { consoleError } from '../../lib/logs'
+import * as Sentry from '@sentry/react'
 import { IonCol, IonGrid, IonRow } from '@ionic/react'
 
 export default function Vtxos() {
@@ -140,6 +141,9 @@ export default function Vtxos() {
       setRollingover(false)
       setSuccess(true)
     } catch (err) {
+      Sentry.captureException(err, {
+        tags: { function: 'renewVtxos:handleRollover' },
+      })
       setError(extractError(err))
       setRollingover(false)
     }
