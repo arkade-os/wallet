@@ -31,7 +31,6 @@ import { FlowContext } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
-import * as Sentry from '@sentry/react'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
@@ -520,15 +519,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const settlePreconfirmed = async () => {
-    if (!vtxoManager) throw new Error('Service worker not initialized')
-    try {
-      await vtxoManager.renewVtxos()
-    } catch (err) {
-      Sentry.captureException(err, {
-        tags: { function: 'renewVtxos:settlePreconfirmed' },
-      })
-      throw err
-    }
+    if (!svcWallet || !vtxoManager) throw new Error('Service worker not initialized')
+    await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs)
     notifyTxSettled()
   }
 

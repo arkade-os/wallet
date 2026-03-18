@@ -16,14 +16,13 @@ import ErrorMessage from '../../components/Error'
 import WaitingForRound from '../../components/WaitingForRound'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
-import { getInputsToSettle } from '../../lib/asp'
+import { getInputsToSettle, settleVtxos } from '../../lib/asp'
 import LoadingLogo from '../../components/LoadingLogo'
 import { LimitsContext } from '../../providers/limits'
 import { EmptyCoinsList } from '../../components/Empty'
 import WarningBox from '../../components/Warning'
 import { ExtendedCoin, ExtendedVirtualCoin, isVtxoExpiringSoon } from '@arkade-os/sdk'
 import { consoleError } from '../../lib/logs'
-import * as Sentry from '@sentry/react'
 import { IonCol, IonGrid, IonRow } from '@ionic/react'
 
 export default function Vtxos() {
@@ -136,7 +135,7 @@ export default function Vtxos() {
   const handleRollover = async () => {
     try {
       setRollingover(true)
-      await vtxoManager.renewVtxos()
+      await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs)
       await reloadWallet()
       setRollingover(false)
       setSuccess(true)
