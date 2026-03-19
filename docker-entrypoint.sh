@@ -12,7 +12,8 @@ substitute() {
   local placeholder="$1"
   local value="$2"
   if [ -n "$value" ]; then
-    find "$JS_DIR" -name '*.js' -exec sed -i "s|${placeholder}|${value}|g" {} +
+    escaped_value=$(printf '%s' "$value" | sed 's/[&|\\]/\\&/g')
+    find "$JS_DIR" -name '*.js' -exec sed -i "s|${placeholder}|${escaped_value}|g" {} +
   fi
 }
 
