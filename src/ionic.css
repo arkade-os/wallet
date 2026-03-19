@@ -255,6 +255,11 @@ ion-app.has-pill-navbar ion-content::part(scroll) {
   mask-size: 100% 100%;
 }
 
+ion-app.has-pill-navbar ion-content.no-content-fade::part(scroll) {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
 ion-checkbox {
   --border-color: var(--dark10);
   --border-color-checked: var(--ion-color-danger);
@@ -288,14 +293,19 @@ ion-action-sheet.my-ion-action-sheet {
   --width: 100%;
 }
 
+ion-modal {
+  z-index: 200 !important;
+  --backdrop-opacity: 0.4;
+}
+
 ion-modal::part(content) {
   --background: transparent;
-  --border-radius: 1rem;
+  --border-radius: 1.5rem 1.5rem 0 0;
   --height: auto;
   --max-width: 100%;
   --width: 100%;
   position: absolute;
-  bottom: -1rem;
+  bottom: 0;
 }
 
 ion-select {
