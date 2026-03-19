@@ -215,7 +215,7 @@ export default function SendForm() {
       }
       if (isLightningInvoice(lowerCaseData)) {
         if (isAssetSend) {
-          return setError('Assets can only be sent to Ark addresses')
+          return setError('Assets can only be sent to Arkade addresses')
         }
         if (!connected) {
           setError('Lightning swaps not enabled')
@@ -230,7 +230,7 @@ export default function SendForm() {
       }
       if (isBTCAddress(recipient)) {
         if (isAssetSend) {
-          return setError('Assets can only be sent to Ark addresses')
+          return setError('Assets can only be sent to Arkade addresses')
         }
         return setState({ ...sendInfo, address: recipient, arkAddress: '' })
       }
@@ -433,7 +433,7 @@ export default function SendForm() {
     setSelectedAsset(asset)
     if (asset) {
       if (isBTCAddress(recipient)) {
-        return setError('Assets can only be sent to Ark addresses')
+        return setError('Assets can only be sent to Arkade addresses')
       }
       setState({ ...sendInfo, address: '', assets: [{ assetId: asset.assetId, amount: 0 }], satoshis: 0 })
       setAmount(undefined)
@@ -460,7 +460,7 @@ export default function SendForm() {
           // Fetch Ark address instead of Lightning invoice
           const arkResponse = await fetchArkAddress(sendInfo.lnUrl)
           if (!isArkAddress(arkResponse.address)) {
-            handleError('Invalid Ark address received from LNURL')
+            handleError('Invalid Arkade address received from LNURL')
             return
           }
           setState({ ...sendInfo, arkAddress: arkResponse.address, invoice: undefined })

@@ -178,7 +178,7 @@ export default function Delegates() {
       <Header backFunc={goBack} text='Delegates' />
       <Content>
         <Padded>
-          <FlexCol gap='1rem'>
+          <FlexCol gap='1rem' padding='0 0 calc(var(--pill-navbar-clearance) + 24px) 0'>
             <Shadow fat purple>
               <Hero />
             </Shadow>
