@@ -1,7 +1,7 @@
 import { Settings, X } from 'lucide-react'
 
 export default function SettingsIcon() {
-  return <Settings size={28} strokeWidth={2} />
+  return <Settings size={24} strokeWidth={2} />
 }
 
 export function SettingsIconLight() {
