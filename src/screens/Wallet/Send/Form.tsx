@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
-import { V2BrantaClient, BrantaServerBaseUrl } from '@branta-ops/branta'
+import { V2BrantaClient, BrantaServerBaseUrl, Payment } from '@branta-ops/branta'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
@@ -281,7 +281,7 @@ export default function SendForm() {
     setBrantaLoading(true)
     brantaClient
       .getPaymentsByQRCode(rawScanData)
-      .then((payments: any[]) => {
+      .then((payments: Payment[]) => {
         setBrantaPayment(payments?.[0] ?? null)
       })
       .catch(() => {
