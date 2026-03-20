@@ -19,17 +19,15 @@ import { consoleError } from '../../../lib/logs'
 import WaitingForRound from '../../../components/WaitingForRound'
 import { LimitsContext } from '../../../providers/limits'
 import { SwapsContext } from '../../../providers/swaps'
-import { FeesContext } from '../../../providers/fees'
 import Text from '../../../components/Text'
 import { isPendingChainSwap, isPendingSubmarineSwap } from '@arkade-os/boltz-swap'
 
 export default function SendDetails() {
   const { navigate } = useContext(NavigationContext)
-  const { calcOnchainOutputFee } = useContext(FeesContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const isAssetSend = Boolean(sendInfo.assets?.length)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { calcArkToBtcSwapFee, calcSubmarineSwapFee, payInvoice, payBtc } = useContext(SwapsContext)
+  const { payInvoice, payBtc } = useContext(SwapsContext)
   const { assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
 
   const assetId = sendInfo.assets?.[0]?.assetId
@@ -80,21 +78,19 @@ export default function SendDetails() {
             : destination === address
               ? 'Paying to mainnet'
               : ''
-    const feeInSats =
-      destination === invoice
-        ? calcSubmarineSwapFee(satoshis)
-        : pendingSwap?.type === 'chain'
-          ? calcArkToBtcSwapFee(satoshis)
-          : destination === address
-            ? calcOnchainOutputFee()
-            : defaultFee
+    const total = pendingSwap
+      ? pendingSwap.type === 'chain'
+        ? pendingSwap.response.lockupDetails.amount
+        : pendingSwap.type === 'submarine'
+          ? pendingSwap.response.expectedAmount
+          : satoshis
+      : satoshis
+    const fees = total - satoshis
     const swapId = pendingSwap?.id
-    const total = satoshis + feeInSats
-    console.log({ destination, direction, feeInSats, satoshis, swapId, total })
     setDetails({
       destination,
       direction,
-      fees: feeInSats,
+      fees,
       satoshis,
       swapId,
       total,

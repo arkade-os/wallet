@@ -43,15 +43,18 @@ import { SwapsContext } from '../../../providers/swaps'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
 import { centsToUnits, unitsToCents } from '../../../lib/assets'
+import { FeesContext } from '../../../providers/fees'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
+  const { calcOnchainOutputFee } = useContext(FeesContext)
   const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { calcSubmarineSwapFee, calcArkToBtcSwapFee, createArkToBtcSwap, createSubmarineSwap, connected, getApiUrl } =
     useContext(SwapsContext)
-  const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
+  const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed, validArkToBtc } =
+    useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
   const { assetBalances, assetMetadataCache, balance, setCacheEntry, svcWallet } = useContext(WalletContext)
@@ -316,6 +319,8 @@ export default function SendForm() {
     if (address === boardingAddr || arkAddress === offchainAddr) {
       setTryingToSelfSend(true) // nudge user to rollover
       return setError('Cannot send to yourself')
+    } else {
+      setTryingToSelfSend(false)
     }
     // everything is ok, clean error
     setError('')
@@ -374,12 +379,14 @@ export default function SendForm() {
     if (sendInfo.invoice) {
       createSubmarineSwap(sendInfo.invoice)
         .then((pendingSwap) => {
-          if (!pendingSwap) return setError('Unable to create swap')
+          if (!pendingSwap) return handleError('Unable to create swap')
           setState({ ...sendInfo, pendingSwap })
         })
         .catch(handleError)
     } else if (satoshis && sendInfo.address) {
-      createArkToBtcSwap(sendInfo.address, satoshis)
+      const amountForSwap = deductFromAmount ? satoshis - calcArkToBtcSwapFee(satoshis) : satoshis
+      if (amountForSwap < 1) return handleError('Amount too low to cover fees')
+      createArkToBtcSwap(sendInfo.address, amountForSwap)
         .then((result) => {
           if (!result) return navigate(Pages.SendDetails)
           setState({ ...sendInfo, pendingSwap: result.pendingSwap })
@@ -390,13 +397,18 @@ export default function SendForm() {
 
   // deal with fees deduction from amount
   useEffect(() => {
-    if (!sendInfo.address || sendInfo.arkAddress || sendInfo.invoice || !liquidBalance) {
-      setDeductFromAmount(false)
-      return
-    }
     const satoshis = sendInfo.satoshis ?? 0
-    setDeductFromAmount(satoshis + calcArkToBtcSwapFee(satoshis) > liquidBalance)
-  }, [liquidBalance, sendInfo.satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
+    const onlyBtcAddress = sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice
+    if (sendInfo.lnUrl) {
+      const fees = calcSubmarineSwapFee(satoshis)
+      setDeductFromAmount(satoshis + fees > liquidBalance)
+    } else if (onlyBtcAddress) {
+      const fees = validArkToBtc(satoshis) ? calcArkToBtcSwapFee(satoshis) : calcOnchainOutputFee()
+      setDeductFromAmount(satoshis + fees > liquidBalance)
+    } else {
+      setDeductFromAmount(false)
+    }
+  }, [liquidBalance, sendInfo.satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl])
 
   if (!svcWallet) return <Loading text='Loading...' />
 
@@ -450,6 +462,7 @@ export default function SendForm() {
 
   const handleContinue = async () => {
     setProcessing(true)
+    const satoshis = sendInfo.satoshis ?? 0
     try {
       if (sendInfo.lnUrl) {
         // Check if Ark method is available
@@ -466,22 +479,13 @@ export default function SendForm() {
           setState({ ...sendInfo, arkAddress: arkResponse.address, invoice: undefined })
         } else {
           // Fallback to Lightning invoice
-          const invoice = await fetchInvoice(sendInfo.lnUrl, sendInfo.satoshis ?? 0, '')
+          const amountForInvoice = deductFromAmount ? satoshis - calcSubmarineSwapFee(satoshis) : satoshis
+          if (amountForInvoice < 1) return handleError('Amount too low to cover fees')
+          const invoice = await fetchInvoice(sendInfo.lnUrl, amountForInvoice, '')
           setState({ ...sendInfo, invoice, arkAddress: undefined })
         }
-      } else if (deductFromAmount) {
-        const sats = sendInfo.satoshis ?? 0
-        const fee = calcArkToBtcSwapFee(sats)
-        if (liquidBalance <= fee) {
-          return handleError('Insufficient funds to cover fees')
-        }
-        const deductedAmount = sats - fee
-        const deductedFee = calcArkToBtcSwapFee(deductedAmount)
-        const diffBeweenFees = fee - deductedFee
-        const finalAmount = deductedAmount + diffBeweenFees
-        setState({ ...sendInfo, satoshis: finalAmount })
       } else {
-        setState({ ...sendInfo, satoshis: sendInfo.satoshis ?? 0 })
+        setState({ ...sendInfo, satoshis })
       }
       setProceed(true)
     } catch (error) {
@@ -501,21 +505,21 @@ export default function SendForm() {
 
   const handleSendAll = () => {
     if (isAssetSend && selectedAsset) {
-      setTextValue(String(centsToUnits(selectedAsset.balance, selectedAsset.decimals)))
+      const { assetId, balance, decimals } = selectedAsset
+      const units = centsToUnits(balance, decimals)
+      setTextValue(prettyNumber(units, decimals, false))
       setState({
         ...sendInfo,
-        assets: [{ assetId: selectedAsset.assetId, amount: selectedAsset.balance }],
+        assets: [{ assetId, amount: balance }],
         satoshis: 0,
       })
       return
     }
-    const fees = sendInfo.lnUrl ? (calcSubmarineSwapFee(liquidBalance) ?? 0) : 0
-    const amountInSats = Math.max(0, liquidBalance - fees)
     const maximumFractionDigits = useFiat ? 2 : 0
-    const value = useFiat ? toFiat(amountInSats) : amountInSats
+    const value = useFiat ? toFiat(liquidBalance) : liquidBalance
     setTextValue(prettyNumber(value, maximumFractionDigits, false))
-    setState({ ...sendInfo, satoshis: amountInSats })
-    setAmount(amountInSats)
+    setState({ ...sendInfo, satoshis: liquidBalance })
+    setAmount(liquidBalance)
   }
 
   const Available = () => {
