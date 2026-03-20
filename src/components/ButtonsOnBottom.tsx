@@ -17,7 +17,7 @@ export default function ButtonsOnBottom({ bordered, children }: ButtonsOnBottomP
     width: '100%',
   }
 
-  const paddingBottom = [Tabs.Wallet, Tabs.Apps].includes(tab) ? '4rem' : '0'
+  const paddingBottom = [Tabs.Wallet, Tabs.Apps, Tabs.Settings].includes(tab) ? '4rem' : '0'
 
   return (
     <div style={{ paddingBottom }}>
