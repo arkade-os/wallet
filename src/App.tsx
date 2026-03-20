@@ -92,7 +92,7 @@ export default function App() {
   const { direction, navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
-  const { authState, dataReady, unlockWallet, walletLoaded, initialized, wallet } = useContext(WalletContext)
+  const { authState, unlockWallet, walletLoaded, initialized, wallet } = useContext(WalletContext)
 
   const isIAB = useMemo(() => isInAppBrowser(), [])
   const [isCapable, setIsCapable] = useState(false)
