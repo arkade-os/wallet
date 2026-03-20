@@ -17,15 +17,15 @@ export default function Balance({ amount }: BalanceProps) {
   const { toFiat } = useContext(FiatContext)
 
   const fiatAmount = toFiat(amount)
+  const showFiat = config.currencyDisplay === CurrencyDisplay.Fiat
 
   const satsBalance = config.showBalance ? prettyNumber(amount) : prettyHide(amount, '')
   const fiatBalance = config.showBalance ? prettyNumber(fiatAmount, 2) : prettyHide(fiatAmount, '')
 
-  const otherBalance = config.currencyDisplay === CurrencyDisplay.Fiat ? satsBalance : fiatBalance
-  const mainBalance = config.currencyDisplay === CurrencyDisplay.Fiat ? fiatBalance : satsBalance
-  const otherUnit = config.currencyDisplay === CurrencyDisplay.Fiat ? 'SATS' : config.fiat
-  const mainUnit = config.currencyDisplay === CurrencyDisplay.Fiat ? config.fiat : 'SATS'
-  const showBoth = config.currencyDisplay === CurrencyDisplay.Both
+  const mainBalance = showFiat ? fiatBalance : satsBalance
+  const otherBalance = showFiat ? satsBalance : fiatBalance
+  const mainUnit = showFiat ? config.fiat : mainBalance === '1' ? 'SAT' : 'SATS'
+  const otherUnit = showFiat ? (otherBalance === '1' ? 'SAT' : 'SATS') : config.fiat
 
   const toggleShow = () => updateConfig({ ...config, showBalance: !config.showBalance })
 
@@ -59,7 +59,7 @@ export default function Balance({ amount }: BalanceProps) {
           </button>
         </div>
       </FlexRow>
-      {showBoth ? (
+      {config.currencyDisplay === CurrencyDisplay.Both ? (
         <FlexRow alignItems='baseline'>
           <Text color='dark80'>{otherBalance}</Text>
           <Text small>{otherUnit}</Text>
