@@ -24,8 +24,9 @@ export default function Balance({ amount }: BalanceProps) {
 
   const mainBalance = showFiat ? fiatBalance : satsBalance
   const otherBalance = showFiat ? satsBalance : fiatBalance
-  const mainUnit = showFiat ? config.fiat : mainBalance === '1' ? 'SAT' : 'SATS'
-  const otherUnit = showFiat ? (otherBalance === '1' ? 'SAT' : 'SATS') : config.fiat
+  const satsUnit = amount === 1 ? 'SAT' : 'SATS'
+  const mainUnit = showFiat ? config.fiat : satsUnit
+  const otherUnit = showFiat ? satsUnit : config.fiat
 
   const toggleShow = () => updateConfig({ ...config, showBalance: !config.showBalance })
 

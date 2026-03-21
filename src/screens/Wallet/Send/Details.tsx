@@ -88,7 +88,7 @@ export default function SendDetails() {
           : satoshis
       : satoshis
     const amount = direction === 'Paying to mainnet' ? satoshis - calcOnchainOutputFee() : satoshis
-    const fees = total - amount
+    const fees = Math.max(0, total - amount)
     const swapId = pendingSwap?.id
     setDetails({
       destination,
@@ -125,7 +125,6 @@ export default function SendDetails() {
   const handleContinue = async () => {
     if (!details || !svcWallet) return
     if (!isAssetSend && (!details.total || !details.satoshis)) return
-    if (!details.total || !details.satoshis) return
     if (isAssetSend && !arkAddress) {
       setError('Assets can only be sent to Arkade addresses')
       return
@@ -139,6 +138,7 @@ export default function SendDetails() {
         .then(handleTxid)
         .catch(handleError)
     } else if (arkAddress) {
+      if (!details.total) return setError('Missing total amount')
       sendOffChain(svcWallet, details.total, arkAddress).then(handleTxid).catch(handleError)
     } else if (invoice && pendingSwap && isPendingSubmarineSwap(pendingSwap)) {
       const swapAddress = pendingSwap.response.address
@@ -150,6 +150,8 @@ export default function SendDetails() {
           .then(({ txid }) => handleTxid(txid))
           .catch(handleError)
       } else {
+        if (!details.total) return setError('Missing input amount')
+        if (!details.satoshis) return setError('Missing output amount')
         collaborativeExitWithFees(svcWallet, details.total, details.satoshis, address)
           .then(handleTxid)
           .catch(handleError)
