@@ -21,10 +21,12 @@ import { LimitsContext } from '../../../providers/limits'
 import { SwapsContext } from '../../../providers/swaps'
 import Text from '../../../components/Text'
 import { isPendingChainSwap, isPendingSubmarineSwap } from '@arkade-os/boltz-swap'
+import { FeesContext } from '../../../providers/fees'
 
 export default function SendDetails() {
   const { navigate } = useContext(NavigationContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
+  const { calcOnchainOutputFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.assets?.length)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { payInvoice, payBtc } = useContext(SwapsContext)
@@ -85,13 +87,14 @@ export default function SendDetails() {
           ? pendingSwap.response.expectedAmount
           : satoshis
       : satoshis
-    const fees = total - satoshis
+    const amount = direction === 'Paying to mainnet' ? satoshis - calcOnchainOutputFee() : satoshis
+    const fees = total - amount
     const swapId = pendingSwap?.id
     setDetails({
       destination,
       direction,
       fees,
-      satoshis,
+      satoshis: amount,
       swapId,
       total,
     })

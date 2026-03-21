@@ -106,6 +106,7 @@ export default function InputAmount({
               role='button'
               onClick={onMax}
               aria-label='Set maximum amount'
+              data-testid='input-amount-max'
               style={{ ...fontStyle, color: 'var(--purpletext)', cursor: 'pointer' }}
             >
               Max

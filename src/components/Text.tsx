@@ -19,6 +19,7 @@ interface TextProps {
   right?: boolean
   smaller?: boolean
   small?: boolean
+  testid?: string
   thin?: boolean
   tiny?: boolean
   tooltip?: string
@@ -40,6 +41,7 @@ export default function Text({
   right,
   smaller,
   small,
+  testid,
   thin,
   tiny,
   tooltip,
@@ -74,7 +76,7 @@ export default function Text({
   }
 
   return (
-    <IonText>
+    <IonText data-testid={testid}>
       <p className={className} onClick={handleClick} style={pStyle} title={tooltip}>
         {children}
       </p>
