@@ -49,7 +49,7 @@ export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
-  const { fromFiat, toFiat } = useContext(FiatContext)
+  const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { calcSubmarineSwapFee, calcArkToBtcSwapFee, createArkToBtcSwap, createSubmarineSwap, connected, getApiUrl } =
     useContext(SwapsContext)
@@ -534,7 +534,7 @@ export default function SendForm() {
     }
 
     const amount = useFiat ? toFiat(liquidBalance) : liquidBalance
-    const pretty = useFiat ? prettyAmount(amount, config.fiat) : prettyAmount(amount)
+    const pretty = useFiat ? prettyAmount(amount, config.fiat, fiatDecimals()) : prettyAmount(amount)
 
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>

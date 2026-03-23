@@ -26,9 +26,9 @@ export const prettyAgo = (timestamp: number | string, long = false): string => {
   return ''
 }
 
-export const prettyAmount = (amount: string | number, suffix?: string): string => {
+export const prettyAmount = (amount: string | number, suffix?: string, decimals = 2): string => {
   const sats = typeof amount === 'string' ? Number(amount) : amount
-  if (suffix) return `${prettyNumber(sats, 2)} ${suffix}`
+  if (suffix) return `${prettyNumber(sats, decimals)} ${suffix}`
   if (sats >= 100_000_000_000) return `${prettyNumber(fromSatoshis(sats), 0)} BTC`
   if (sats >= 100_000_000) return `${prettyNumber(fromSatoshis(sats), 3)} BTC`
   if (sats >= 1_000_000) return `${prettyNumber(sats / 1_000_000, 3)}M SATS`
