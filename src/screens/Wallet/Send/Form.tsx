@@ -266,6 +266,7 @@ export default function SendForm() {
   useEffect(() => {
     if (!rawScanData) return
     setBrantaPayment(null)
+    let cancelled = false
 
     let isValidZKCode = false;
     try {
@@ -281,13 +282,19 @@ export default function SendForm() {
     setBrantaLoading(true)
     brantaClient
       .getPaymentsByQRCode(rawScanData)
-      .then((payments: Payment[]) => {
+      .then((payments: any[]) => {
+        if (cancelled) return
         setBrantaPayment(payments?.[0] ?? null)
       })
       .catch(() => {
+        if (cancelled) return
         setBrantaPayment(null)
       })
       .finally(() => setBrantaLoading(false))
+
+    return () => {
+      cancelled = true
+    }
   }, [rawScanData])
 
   // check lnurl limits
