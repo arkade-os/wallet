@@ -59,7 +59,7 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const fiatDecimals = () => {
-    return [Fiats.JPY, Fiats.CNY].includes(config.fiat) ? 0 : 2
+    return config.fiat === Fiats.JPY ? 0 : 2
   }
 
   const updateFiatPrices = async () => {
