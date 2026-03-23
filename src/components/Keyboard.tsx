@@ -63,7 +63,7 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
       case 'asset':
         return asset?.decimals ?? 0
       case 'fiat':
-        return 2
+        return fiatDecimals()
       case 'sats':
       default:
         return 0
