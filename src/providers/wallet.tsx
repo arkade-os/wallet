@@ -112,11 +112,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [assetBalances, setAssetBalances] = useState<WalletBalance['assets']>([])
 
   const hasLoadedOnce = useRef(false)
-  const listeningForServiceWorker = useRef(false)
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
   const iconApprovalManager = useRef(new AssetIconApprovalManager()).current
   const verifiedAssetsFetched = useRef(false)
   const statusPingInterval = useRef<ReturnType<typeof setInterval>>()
+  const reloadTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const swMessageHandlerRef = useRef<(event: MessageEvent) => void>()
 
   const setCacheEntry = (assetId: string, details: AssetDetails): CachedAssetDetails => {
     const hasIcon = !!details.metadata?.icon
@@ -327,27 +328,27 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       setSvcWallet(svcWallet)
 
+      // Cancel any pending reload from a previous wallet instance
+      clearTimeout(reloadTimerRef.current)
+
       // handle messages from the service worker
       // we listen for UTXO/VTXO updates to refresh the tx history and balance
-      let reloadTimer: ReturnType<typeof setTimeout> | undefined
       const handleServiceWorkerMessages = (event: MessageEvent) => {
         if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
           // Debounced reload: short delay lets the indexer update its cache.
           // If multiple updates arrive in quick succession, only the last
           // one triggers a reload (avoids redundant fetches).
-          clearTimeout(reloadTimer)
-          reloadTimer = setTimeout(() => reloadWallet(svcWallet), 1000)
+          clearTimeout(reloadTimerRef.current)
+          reloadTimerRef.current = setTimeout(() => reloadWallet(svcWallet), 1000)
         }
       }
 
       // listen for messages from the service worker
-      if (listeningForServiceWorker.current) {
-        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessages)
-        navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
-      } else {
-        navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
-        listeningForServiceWorker.current = true
+      if (swMessageHandlerRef.current) {
+        navigator.serviceWorker.removeEventListener('message', swMessageHandlerRef.current)
       }
+      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
+      swMessageHandlerRef.current = handleServiceWorkerMessages
 
       // check if the service worker wallet is initialized
       const { walletInitialized } = await svcWallet.getStatus()
