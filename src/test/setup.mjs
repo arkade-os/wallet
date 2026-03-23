@@ -228,8 +228,8 @@ async function setupBoltz() {
     }
 
     console.log('\nOpening channel between LND instances...')
-    await execCommand(`${lncli} openchannel --node_key="${nigiriPubkey}" --local_amt=100000`, true)
-    console.log('  ✔ Channel opened (100k sats)')
+    await execCommand(`${lncli} openchannel --node_key="${nigiriPubkey}" --local_amt=1000000`, true)
+    console.log('  ✔ Channel opened (1M sats)')
 
     console.log('\nMining blocks to mature channel...')
     await execCommand('nigiri rpc --generate 10', true)
@@ -237,12 +237,12 @@ async function setupBoltz() {
     await sleep(5000)
 
     console.log('\nBalancing channel...')
-    const invoiceResponse = execSync('docker exec lnd lncli --network=regtest addinvoice --amt 50000', {
+    const invoiceResponse = execSync('docker exec lnd lncli --network=regtest addinvoice --amt 500000', {
       encoding: 'utf8',
     })
     const invoice = JSON.parse(invoiceResponse).payment_request
     await execCommand(`${lncli} payinvoice --force ${invoice}`, true)
-    console.log('  ✔ Channel balanced (50k sats each side)')
+    console.log('  ✔ Channel balanced (500k sats each side)')
 
     console.log('\nWaiting for ark to be ready...')
     await waitForArkReady()
