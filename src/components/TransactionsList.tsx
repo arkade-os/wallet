@@ -160,7 +160,8 @@ export default function TransactionsList() {
     measureElement: (el) => el.getBoundingClientRect().height,
   })
 
-  const key = (tx: Tx, index: number) => tx.roundTxid || tx.redeemTxid || tx.boardingTxid || `tx-${index}`
+  const key = (tx: Tx, index: number) =>
+    [tx.roundTxid, tx.redeemTxid, tx.boardingTxid].filter(Boolean).join('-') || `tx-${index}`
 
   const focusRow = (index: number) => {
     if (index < 0 || index >= txs.length) return
