@@ -45,6 +45,9 @@ export enum Fiats {
   EUR = 'EUR',
   USD = 'USD',
   CHF = 'CHF',
+  JPY = 'JPY',
+  GBP = 'GBP',
+  CNY = 'CNY',
 }
 
 export type Satoshis = number
