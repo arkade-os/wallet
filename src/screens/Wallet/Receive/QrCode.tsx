@@ -235,7 +235,7 @@ export default function ReceiveQRCode() {
           ) : noPaymentMethods ? (
             <div>No valid payment methods available for this amount</div>
           ) : qrCodeValue ? (
-            <FlexCol centered>
+            <FlexCol centered className='no-fade'>
               <QrCode value={qrCodeValue} />
               <ExpandAddresses
                 bip21uri={bip21Uri}

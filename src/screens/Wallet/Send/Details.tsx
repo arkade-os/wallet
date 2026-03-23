@@ -19,17 +19,17 @@ import { consoleError } from '../../../lib/logs'
 import WaitingForRound from '../../../components/WaitingForRound'
 import { LimitsContext } from '../../../providers/limits'
 import { SwapsContext } from '../../../providers/swaps'
-import { FeesContext } from '../../../providers/fees'
 import Text from '../../../components/Text'
 import { isPendingChainSwap, isPendingSubmarineSwap } from '@arkade-os/boltz-swap'
+import { FeesContext } from '../../../providers/fees'
 
 export default function SendDetails() {
   const { navigate } = useContext(NavigationContext)
-  const { calcOnchainOutputFee } = useContext(FeesContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
+  const { calcOnchainOutputFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.assets?.length)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { calcArkToBtcSwapFee, calcSubmarineSwapFee, payInvoice, payBtc } = useContext(SwapsContext)
+  const { payInvoice, payBtc } = useContext(SwapsContext)
   const { assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
 
   const assetId = sendInfo.assets?.[0]?.assetId
@@ -80,21 +80,21 @@ export default function SendDetails() {
             : destination === address
               ? 'Paying to mainnet'
               : ''
-    const feeInSats =
-      destination === invoice
-        ? calcSubmarineSwapFee(satoshis)
-        : pendingSwap?.type === 'chain'
-          ? calcArkToBtcSwapFee(satoshis)
-          : destination === address
-            ? calcOnchainOutputFee()
-            : defaultFee
+    const total = pendingSwap
+      ? pendingSwap.type === 'chain'
+        ? pendingSwap.response.lockupDetails.amount
+        : pendingSwap.type === 'submarine'
+          ? pendingSwap.response.expectedAmount
+          : satoshis
+      : satoshis
+    const amount = direction === 'Paying to mainnet' ? satoshis - calcOnchainOutputFee() : satoshis
+    const fees = Math.max(0, total - amount)
     const swapId = pendingSwap?.id
-    const total = satoshis + feeInSats
     setDetails({
       destination,
       direction,
-      fees: feeInSats,
-      satoshis,
+      fees,
+      satoshis: amount,
       swapId,
       total,
     })
@@ -138,6 +138,7 @@ export default function SendDetails() {
         .then(handleTxid)
         .catch(handleError)
     } else if (arkAddress) {
+      if (!details.total) return setError('Missing total amount')
       sendOffChain(svcWallet, details.total, arkAddress).then(handleTxid).catch(handleError)
     } else if (invoice && pendingSwap && isPendingSubmarineSwap(pendingSwap)) {
       const swapAddress = pendingSwap.response.address
@@ -149,6 +150,8 @@ export default function SendDetails() {
           .then(({ txid }) => handleTxid(txid))
           .catch(handleError)
       } else {
+        if (!details.total) return setError('Missing input amount')
+        if (!details.satoshis) return setError('Missing output amount')
         collaborativeExitWithFees(svcWallet, details.total, details.satoshis, address)
           .then(handleTxid)
           .catch(handleError)
@@ -174,10 +177,10 @@ export default function SendDetails() {
               <ErrorMessage error={Boolean(error)} text={error} />
               {isAssetSend ? (
                 <FlexCol gap='0.5rem'>
-                  <Text color='dark50' smaller>
+                  <Text color='dark50' smaller testId='send-details-asset-name'>
                     {assetName} ({assetTicker})
                   </Text>
-                  <Text bold>
+                  <Text bold testId='send-details-asset-amount'>
                     {formatAssetAmount(assetAmountValue, assetMeta?.metadata?.decimals ?? 8)} {assetTicker}
                   </Text>
                 </FlexCol>

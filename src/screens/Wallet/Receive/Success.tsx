@@ -20,7 +20,7 @@ import type { AssetDetails } from '@arkade-os/sdk'
 
 export default function ReceiveSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
-  const { toFiat } = useContext(FiatContext)
+  const { toFiat, fiatDecimals } = useContext(FiatContext)
   const { recvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetMetadataCache, setCacheEntry, svcWallet } = useContext(WalletContext)
@@ -71,7 +71,9 @@ export default function ReceiveSuccess() {
     }
   }, [assetDetails])
 
-  const displayAmount = useFiat ? prettyAmount(toFiat(recvInfo.satoshis), config.fiat) : prettyAmount(recvInfo.satoshis)
+  const displayAmount = useFiat
+    ? prettyAmount(toFiat(recvInfo.satoshis), config.fiat, fiatDecimals())
+    : prettyAmount(recvInfo.satoshis)
 
   if (isAssetReceive) {
     return (

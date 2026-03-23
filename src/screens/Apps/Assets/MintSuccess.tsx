@@ -33,7 +33,7 @@ export default function AppAssetMintSuccess() {
       <Header text='Asset Created' />
       <Content>
         <Padded>
-          <FlexCol gap='1.5rem' centered padding='1rem 0 0 0'>
+          <FlexCol gap='1.5rem' centered padding='1rem 0 0 0' className='no-fade'>
             <SuccessIcon small />
             <Text centered big bold>
               Asset minted!

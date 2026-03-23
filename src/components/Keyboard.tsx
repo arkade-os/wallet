@@ -14,7 +14,7 @@ import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
 import SwapIcon from '../icons/Swap'
 import { AssetOption } from '../lib/types'
-import { unitsToCents } from '../lib/assets'
+import { centsToUnits, unitsToCents } from '../lib/assets'
 
 interface KeyboardProps {
   asset?: AssetOption
@@ -26,7 +26,7 @@ interface KeyboardProps {
 
 export default function Keyboard({ asset, back, hideBalance, onSats, value }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
-  const { fromFiat, toFiat } = useContext(FiatContext)
+  const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
   const { balance, svcWallet } = useContext(WalletContext)
 
   const [amountInSats, setAmountInSats] = useState(0)
@@ -63,7 +63,7 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
       case 'asset':
         return asset?.decimals ?? 0
       case 'fiat':
-        return 2
+        return fiatDecimals()
       case 'sats':
       default:
         return 0
@@ -99,15 +99,21 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
 
   const handleMaxPress = () => {
     if (available < defaultFee) return setError('Total balance is below fee')
-    const maxSats = available - defaultFee
-    const maxTextValue = inputMode === 'fiat' ? toFiat(maxSats) : maxSats
-    setTextValue(prettyNumber(maxTextValue, getMaxDecimals(), false))
+    if (asset) {
+      const { balance, decimals } = asset
+      const units = centsToUnits(balance, decimals)
+      setTextValue(prettyNumber(units, decimals, false))
+    } else {
+      const maxSats = available - defaultFee
+      const maxTextValue = inputMode === 'fiat' ? toFiat(maxSats) : maxSats
+      setTextValue(prettyNumber(maxTextValue, getMaxDecimals(), false))
+    }
   }
 
   const handleToggleCurrency = () => {
     if (inputMode === 'sats') {
       // Convert from sats to fiat and round to 2 decimal places
-      setTextValue(amountInSats ? prettyNumber(toFiat(amountInSats), 2, false) : '')
+      setTextValue(amountInSats ? prettyNumber(toFiat(amountInSats), fiatDecimals(), false) : '')
       setInputMode('fiat')
     } else {
       setTextValue(amountInSats ? prettyNumber(amountInSats, 0, false) : '')
@@ -128,12 +134,12 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
         ? prettyAmount(amountInSats)
         : inputMode === 'asset'
           ? prettyAmount(amountInSats, asset?.ticker)
-          : prettyAmount(toFiat(amountInSats), config.fiat),
+          : prettyAmount(toFiat(amountInSats), config.fiat, fiatDecimals()),
     balance:
       inputMode === 'asset'
         ? `${formatAssetAmount(asset?.balance ?? 0, asset?.decimals ?? 0)} ${asset?.ticker}`
         : inputMode === 'fiat'
-          ? prettyAmount(toFiat(available), config.fiat)
+          ? prettyAmount(toFiat(available), config.fiat, fiatDecimals())
           : prettyAmount(available),
   }
 
@@ -168,7 +174,7 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
         text='Amount'
       />
       <Content>
-        <FlexCol centered gap='0.5rem'>
+        <FlexCol centered gap='0.5rem' className='no-fade'>
           <ErrorMessage error={Boolean(error)} text={error} />
           <Text big centered heading>
             {amount.primary}

@@ -20,7 +20,7 @@ const border = '1px solid var(--dark20)'
 
 const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   const { config } = useContext(ConfigContext)
-  const { toFiat } = useContext(FiatContext)
+  const { toFiat, fiatDecimals } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
 
   const prefix = tx.type === 'sent' ? '-' : '+'
@@ -41,7 +41,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
             : ''
     const value = toFiat(tx.amount)
     const small = config.currencyDisplay === CurrencyDisplay.Both
-    const world = config.showBalance ? prettyAmount(value, config.fiat) : prettyHide(value, config.fiat)
+    const world = config.showBalance ? prettyAmount(value, config.fiat, fiatDecimals()) : prettyHide(value, config.fiat)
     return (
       <Text color={color} small={small}>
         {world}
@@ -160,7 +160,8 @@ export default function TransactionsList() {
     measureElement: (el) => el.getBoundingClientRect().height,
   })
 
-  const key = (tx: Tx, index: number) => tx.roundTxid || tx.redeemTxid || tx.boardingTxid || `tx-${index}`
+  const key = (tx: Tx, index: number) =>
+    [tx.roundTxid, tx.redeemTxid, tx.boardingTxid].filter(Boolean).join('-') || `tx-${index}`
 
   const focusRow = (index: number) => {
     if (index < 0 || index >= txs.length) return
