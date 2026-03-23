@@ -284,13 +284,27 @@ export default function SendForm() {
       .getPaymentsByQRCode(rawScanData)
       .then((payments: Payment[]) => {
         if (cancelled) return
-        setBrantaPayment(payments?.[0] ?? null)
+        const payment = payments?.[0] ?? null
+        if (payment) {
+          const isHttpsUrl = (val: unknown): boolean =>
+            typeof val === 'string' && val.startsWith('https://')
+          setBrantaPayment({
+            ...payment,
+            verify_url: isHttpsUrl(payment.verify_url) ? payment.verify_url : undefined,
+            platform_logo_url: isHttpsUrl(payment.platform_logo_url) ? payment.platform_logo_url : undefined,
+          })
+        } else {
+          setBrantaPayment(null)
+        }
       })
       .catch(() => {
         if (cancelled) return
         setBrantaPayment(null)
       })
-      .finally(() => setBrantaLoading(false))
+      .finally(() => {
+        if (cancelled) return
+        setBrantaLoading(false)
+      })
 
     return () => {
       cancelled = true
