@@ -228,8 +228,8 @@ async function setupBoltz() {
     }
 
     console.log('\nOpening channel between LND instances...')
-    await execCommand(`${lncli} openchannel --node_key="${nigiriPubkey}" --local_amt=100000`, true)
-    console.log('  ✔ Channel opened (100k sats)')
+    await execCommand(`${lncli} openchannel --node_key="${nigiriPubkey}" --local_amt=1000000`, true)
+    console.log('  ✔ Channel opened (1M sats)')
 
     console.log('\nMining blocks to mature channel...')
     await execCommand('nigiri rpc --generate 10', true)
