@@ -44,7 +44,6 @@
   --bullet-icon-bg: #ede7fb;
   --pill-navbar-spacer: calc(80px + env(safe-area-inset-bottom, 0px));
   --pill-navbar-clearance: calc(64px + env(safe-area-inset-bottom, 0px));
-  --pill-navbar-footer-clearance: calc(72px + env(safe-area-inset-bottom, 0px));
 }
 
 .ion-palette-dark {
@@ -227,10 +226,10 @@ ion-app.has-pill-navbar ion-content {
 }
 
 ion-app.has-pill-navbar ion-footer.buttons-on-bottom {
-  margin-bottom: var(--pill-navbar-footer-clearance);
+  margin-bottom: var(--pill-navbar-clearance);
 }
 
-ion-app.has-pill-navbar ion-content::part(scroll) {
+ion-app.has-pill-navbar ion-content:not(:has(.no-fade))::part(scroll) {
   -webkit-mask-image: linear-gradient(
     to bottom,
     #000 0,

@@ -5,6 +5,7 @@ interface FlexColProps {
   border?: boolean
   centered?: boolean
   children: ReactNode
+  className?: string
   end?: boolean
   gap?: string
   margin?: string
@@ -18,6 +19,7 @@ export default function FlexCol({
   border,
   centered,
   children,
+  className,
   end,
   gap,
   margin,
@@ -39,7 +41,7 @@ export default function FlexCol({
   }
 
   return (
-    <div data-testid={testId ?? ''} style={style}>
+    <div data-testid={testId ?? ''} style={style} className={className}>
       {children}
     </div>
   )
