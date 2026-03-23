@@ -242,5 +242,5 @@ export async function handleKeyboardInput(page: Page, sats: number): Promise<voi
 
 export async function getFeesFromDetails(page: Page): Promise<number> {
   const txtValue = await page.getByTestId('Network fees').textContent()
-  return parseInt(txtValue?.replace(' SATS', '').replace(',', '') || '0')
+  return parseInt(txtValue?.replace(' SATS', '').replaceAll(',', '') || '0')
 }
