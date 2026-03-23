@@ -14,12 +14,12 @@ interface BalanceProps {
 
 export default function Balance({ amount }: BalanceProps) {
   const { config, updateConfig } = useContext(ConfigContext)
-  const { toFiat } = useContext(FiatContext)
+  const { toFiat, fiatDecimals } = useContext(FiatContext)
 
   const fiatAmount = toFiat(amount)
 
   const satsBalance = config.showBalance ? prettyNumber(amount) : prettyHide(amount, '')
-  const fiatBalance = config.showBalance ? prettyNumber(fiatAmount, 2) : prettyHide(fiatAmount, '')
+  const fiatBalance = config.showBalance ? prettyNumber(fiatAmount, fiatDecimals()) : prettyHide(fiatAmount, '')
 
   const otherBalance = config.currencyDisplay === CurrencyDisplay.Fiat ? satsBalance : fiatBalance
   const mainBalance = config.currencyDisplay === CurrencyDisplay.Fiat ? fiatBalance : satsBalance

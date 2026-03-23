@@ -33,7 +33,7 @@ import { AssetOption } from '../../../lib/types'
 export default function ReceiveAmount() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
-  const { toFiat } = useContext(FiatContext)
+  const { toFiat, fiatDecimals } = useContext(FiatContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { calcBtcToArkSwapFee, calcReverseSwapFee } = useContext(SwapsContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, validBtcToArk, validLnSwap } = useContext(LimitsContext)
@@ -100,7 +100,11 @@ export default function ReceiveAmount() {
   const handleChange = (sats: number) => {
     setSatoshis(sats)
     const value = assetMeta ? centsToUnits(sats, assetMeta.metadata?.decimals) : useFiat ? toFiat(sats) : sats
-    const maximumFractionDigits = useFiat ? 2 : assetMeta?.metadata?.decimals ? assetMeta?.metadata?.decimals : 0
+    const maximumFractionDigits = useFiat
+      ? fiatDecimals()
+      : assetMeta?.metadata?.decimals
+        ? assetMeta?.metadata?.decimals
+        : 0
     setTextValue(prettyNumber(value, maximumFractionDigits, false))
     setButtonLabel(sats ? 'Continue' : defaultButtonLabel)
   }
@@ -167,7 +171,9 @@ export default function ReceiveAmount() {
   }
 
   if (faucetSuccess) {
-    const displayAmount = useFiat ? prettyAmount(toFiat(satoshis), config.fiat) : prettyAmount(satoshis ?? 0)
+    const displayAmount = useFiat
+      ? prettyAmount(toFiat(satoshis), config.fiat, fiatDecimals())
+      : prettyAmount(satoshis ?? 0)
     return (
       <>
         <Header text='Success' />
