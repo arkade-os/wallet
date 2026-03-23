@@ -2,7 +2,6 @@ import {
   test,
   expect,
   createWallet,
-  pay,
   receiveOffchain,
   waitForPaymentReceived,
   fundWallet,
@@ -47,7 +46,7 @@ test('should send to ark address', async ({ page, isMobile }) => {
   await expect(page.getByText('Sent')).toBeVisible()
 })
 
-test('should send MAX to ark address', async ({ page, isMobile }) => {
+test('should send MAX to ark address', async ({ page }) => {
   // create wallet
   await createWallet(page)
   await fundWallet(page, 5000)
@@ -129,7 +128,7 @@ test('should send to onchain address', async ({ page, isMobile }) => {
 // wallet balance is 5000 sats, wants to send 5000 sats onchain,
 // since it's a max send, wallet will calculate the fees and deduct from the amount,
 // so user will receive less than 5000 sats onchain, but it will be a successful send
-test('should send MAX to onchain address with chain swap', async ({ page, isMobile }) => {
+test('should send MAX to onchain address with chain swap', async ({ page }) => {
   // create wallet
   await createWallet(page)
   await fundWallet(page, 5000)
@@ -177,7 +176,7 @@ test('should send MAX to onchain address with chain swap', async ({ page, isMobi
 // since it's a max send, wallet will calculate the fees and deduct from the amount,
 // so user will receive less than 1000 sats onchain, but it will be a successful send.
 // since 1000 sats is below the minimum for chain swap, wallet will use collaborative exit to send onchain
-test('should send MAX to onchain address with collaborative exit', async ({ page, isMobile }) => {
+test('should send MAX to onchain address with collaborative exit', async ({ page }) => {
   // set fees
   execSync('docker exec -t arkd arkd fees intent --onchain-output "200.0"')
 
