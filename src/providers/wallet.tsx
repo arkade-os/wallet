@@ -22,7 +22,7 @@ import {
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
-import { delegateVtxos, getBalance, getTxHistory, getVtxos, renewCoins, settleVtxos } from '../lib/asp'
+import { getBalance, getTxHistory, getVtxos, renewCoins, settleVtxos } from '../lib/asp'
 import { AspContext } from './asp'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
@@ -364,12 +364,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }, 1_000)
 
-      // delegate or renew expiring coins on startup
-      if (config.delegate) {
-        delegateVtxos(svcWallet).catch((e) => {
-          console.error('Error delegating coins', e)
-        })
-      } else {
+      // Renew expiring coins on startup (non-delegate mode only).
+      // When delegation is enabled, the SDK's VtxoManager auto-delegates
+      // via onContractEvent, so no wallet-side call is needed.
+      if (!config.delegate) {
         renewCoins(svcWallet, aspInfo.dust, wallet.thresholdMs).catch(() => {})
       }
     } catch (err) {
