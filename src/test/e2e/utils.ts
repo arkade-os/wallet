@@ -231,7 +231,7 @@ export async function waitForPaymentReceived(page: Page): Promise<void> {
   await page.waitForSelector('text=Payment received!')
 }
 
-async function handleKeyboardInput(page: Page, sats: number): Promise<void> {
+export async function handleKeyboardInput(page: Page, sats: number): Promise<void> {
   await page.waitForSelector('text=Save', { state: 'visible' })
   const digits = sats.toString().split('')
   for (const digit of digits) {

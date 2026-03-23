@@ -177,10 +177,10 @@ export default function SendDetails() {
               <ErrorMessage error={Boolean(error)} text={error} />
               {isAssetSend ? (
                 <FlexCol gap='0.5rem'>
-                  <Text color='dark50' smaller>
+                  <Text color='dark50' smaller testid='send-details-asset-name'>
                     {assetName} ({assetTicker})
                   </Text>
-                  <Text bold>
+                  <Text bold testid='send-details-asset-amount'>
                     {formatAssetAmount(assetAmountValue, assetMeta?.metadata?.decimals ?? 8)} {assetTicker}
                   </Text>
                 </FlexCol>

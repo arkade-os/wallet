@@ -636,7 +636,7 @@ export default function SendForm() {
                 <Text smaller color='dark50'>
                   Asset
                 </Text>
-                <Shadow border onClick={() => setShowAssetSelector(!showAssetSelector)}>
+                <Shadow border onClick={() => setShowAssetSelector(!showAssetSelector)} testId='asset-selector'>
                   <FlexRow between padding='0.5rem'>
                     <FlexRow>
                       {selectedAsset ? (
@@ -683,7 +683,11 @@ export default function SendForm() {
                       {assetOptions
                         .filter((asset) => asset.assetId !== selectedAsset?.assetId)
                         .map((asset) => (
-                          <Shadow key={asset.assetId} onClick={() => handleSelectAsset(asset)}>
+                          <Shadow
+                            key={asset.assetId}
+                            onClick={() => handleSelectAsset(asset)}
+                            testId={`asset-${asset.ticker.toLowerCase()}-option`}
+                          >
                             <FlexRow between padding='0.5rem'>
                               <FlexRow>
                                 {asset.icon ? (
