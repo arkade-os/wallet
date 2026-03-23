@@ -95,7 +95,8 @@ export default function Vtxos() {
           }),
           svcWallet.getBoardingUtxos(),
         ])
-        setAllVtxos(vtxosData)
+        const ordered = [...vtxosData].sort((a, b) => a.value - b.value)
+        setAllVtxos(ordered)
         setAllUtxos(utxosData)
         setLoading(false)
       } catch (err) {
