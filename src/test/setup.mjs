@@ -237,12 +237,12 @@ async function setupBoltz() {
     await sleep(5000)
 
     console.log('\nBalancing channel...')
-    const invoiceResponse = execSync('docker exec lnd lncli --network=regtest addinvoice --amt 50000', {
+    const invoiceResponse = execSync('docker exec lnd lncli --network=regtest addinvoice --amt 500000', {
       encoding: 'utf8',
     })
     const invoice = JSON.parse(invoiceResponse).payment_request
     await execCommand(`${lncli} payinvoice --force ${invoice}`, true)
-    console.log('  ✔ Channel balanced (50k sats each side)')
+    console.log('  ✔ Channel balanced (500k sats each side)')
 
     console.log('\nWaiting for ark to be ready...')
     await waitForArkReady()
