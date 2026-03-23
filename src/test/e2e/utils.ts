@@ -87,7 +87,7 @@ export async function createWalletWithPassword(page: Page, password: string): Pr
   await page.getByTestId('tab-settings').click()
 }
 
-export async function pay(page: Page, address: string, isMobile = false, sats = 0): Promise<void> {
+export async function prePay(page: Page, address: string, isMobile = false, sats = 0): Promise<void> {
   // go to send page
   await page.getByTestId('tab-wallet').click()
   await page.getByText('Send').click()
@@ -105,8 +105,15 @@ export async function pay(page: Page, address: string, isMobile = false, sats = 
     }
   }
 
-  // continue to send
+  // continue to details page
   await page.getByText('Continue').click()
+}
+
+export async function pay(page: Page, address: string, isMobile = false, sats = 0): Promise<void> {
+  // insert value and address, then continue to details page
+  await prePay(page, address, isMobile, sats)
+
+  // continue to send
   await page.getByText('Tap to Sign').click()
   await page.waitForSelector('text=Payment sent!')
 }
@@ -224,11 +231,16 @@ export async function waitForPaymentReceived(page: Page): Promise<void> {
   await page.waitForSelector('text=Payment received!')
 }
 
-async function handleKeyboardInput(page: Page, sats: number): Promise<void> {
+export async function handleKeyboardInput(page: Page, sats: number): Promise<void> {
   await page.waitForSelector('text=Save', { state: 'visible' })
   const digits = sats.toString().split('')
   for (const digit of digits) {
     await page.getByTestId(`keyboard-${digit}`).click()
   }
   await page.getByText('Save').click()
+}
+
+export async function getFeesFromDetails(page: Page): Promise<number> {
+  const txtValue = await page.getByTestId('Network fees').textContent()
+  return parseInt(txtValue?.replace(' SATS', '').replaceAll(',', '') || '0')
 }

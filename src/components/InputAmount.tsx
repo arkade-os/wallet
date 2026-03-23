@@ -103,11 +103,11 @@ export default function InputAmount({
         {onMax && !disabled && !readOnly ? (
           <Focusable onEnter={onMax} fit>
             <IonText
-              slot='end'
               role='button'
               onClick={onMax}
               aria-label='Set maximum amount'
-              style={{ ...fontStyle, marginLeft: '0.5rem', color: 'var(--purpletext)', cursor: 'pointer' }}
+              data-testid='input-amount-max'
+              style={{ ...fontStyle, color: 'var(--purpletext)', cursor: 'pointer' }}
             >
               Max
             </IonText>
