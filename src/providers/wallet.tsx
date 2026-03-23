@@ -332,11 +332,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       let reloadTimer: ReturnType<typeof setTimeout> | undefined
       const handleServiceWorkerMessages = (event: MessageEvent) => {
         if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
-          // Debounced reload: wait 5s for the indexer to update its cache.
+          // Debounced reload: short delay lets the indexer update its cache.
           // If multiple updates arrive in quick succession, only the last
           // one triggers a reload (avoids redundant fetches).
           clearTimeout(reloadTimer)
-          reloadTimer = setTimeout(() => reloadWallet(svcWallet), 5000)
+          reloadTimer = setTimeout(() => reloadWallet(svcWallet), 1000)
         }
       }
 
