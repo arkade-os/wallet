@@ -10,7 +10,7 @@ import { FiatContext } from '../../../providers/fiat'
 
 export default function NotesSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
-  const { toFiat } = useContext(FiatContext)
+  const { toFiat, fiatDecimals } = useContext(FiatContext)
   const { noteInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
 
@@ -18,7 +18,9 @@ export default function NotesSuccess() {
     notifyPaymentReceived(noteInfo.satoshis)
   }, [])
 
-  const displayAmount = useFiat ? prettyAmount(toFiat(noteInfo.satoshis), config.fiat) : prettyAmount(noteInfo.satoshis)
+  const displayAmount = useFiat
+    ? prettyAmount(toFiat(noteInfo.satoshis), config.fiat, fiatDecimals())
+    : prettyAmount(noteInfo.satoshis)
 
   return (
     <>
