@@ -282,7 +282,7 @@ export default function SendForm() {
     setBrantaLoading(true)
     brantaClient
       .getPaymentsByQRCode(rawScanData)
-      .then((payments: any[]) => {
+      .then((payments: Payment[]) => {
         if (cancelled) return
         setBrantaPayment(payments?.[0] ?? null)
       })
