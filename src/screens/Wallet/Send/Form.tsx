@@ -80,7 +80,7 @@ export default function SendForm() {
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
   const [scan, setScan] = useState(false)
   const [rawScanData, setRawScanData] = useState('')
-  const [brantaPayment, setBrantaPayment] = useState<any>(null)
+  const [brantaPayment, setBrantaPayment] = useState<Payment>(null)
   const [brantaLoading, setBrantaLoading] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<AssetOption | null>(null)
   const [showAssetSelector, setShowAssetSelector] = useState(false)
