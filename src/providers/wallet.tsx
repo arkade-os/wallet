@@ -30,7 +30,7 @@ import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
-import { nsecToPrivateKey } from '../lib/privateKey'
+import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
@@ -40,7 +40,6 @@ import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { Indexer } from '../lib/indexer'
 import { IndexedDbSwapRepository, migrateToSwapRepository, Network } from '@arkade-os/boltz-swap'
-import { getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 
 const ASSET_METADATA_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 const SERVICE_WORKER_SETUP_TIMEOUT_MS = 5_000
