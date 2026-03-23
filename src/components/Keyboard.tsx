@@ -14,7 +14,7 @@ import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
 import SwapIcon from '../icons/Swap'
 import { AssetOption } from '../lib/types'
-import { unitsToCents } from '../lib/assets'
+import { centsToUnits, unitsToCents } from '../lib/assets'
 
 interface KeyboardProps {
   asset?: AssetOption
@@ -99,9 +99,15 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
 
   const handleMaxPress = () => {
     if (available < defaultFee) return setError('Total balance is below fee')
-    const maxSats = available - defaultFee
-    const maxTextValue = inputMode === 'fiat' ? toFiat(maxSats) : maxSats
-    setTextValue(prettyNumber(maxTextValue, getMaxDecimals(), false))
+    if (asset) {
+      const { balance, decimals } = asset
+      const units = centsToUnits(balance, decimals)
+      setTextValue(prettyNumber(units, decimals, false))
+    } else {
+      const maxSats = available - defaultFee
+      const maxTextValue = inputMode === 'fiat' ? toFiat(maxSats) : maxSats
+      setTextValue(prettyNumber(maxTextValue, getMaxDecimals(), false))
+    }
   }
 
   const handleToggleCurrency = () => {
