@@ -28,6 +28,7 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
         else goBack()
       }
     : undefined
+
   const SideButton = (text: string) => (
     <Shadow>
       <Text color='dark80' centered tiny wrap>
