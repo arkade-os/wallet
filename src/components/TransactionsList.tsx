@@ -157,7 +157,6 @@ export default function TransactionsList() {
     getScrollElement: () => parentRef.current,
     estimateSize: () => 61,
     overscan: 5,
-    measureElement: (el) => el.getBoundingClientRect().height,
   })
 
   const key = (tx: Tx, index: number) =>
@@ -229,7 +228,6 @@ export default function TransactionsList() {
               return (
                 <div
                   key={k}
-                  ref={virtualizer.measureElement}
                   data-index={virtualItem.index}
                   data-testid='tx-row'
                   onFocus={() => {
