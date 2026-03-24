@@ -52,12 +52,7 @@ export default function AppDfx() {
                 Failed to connect to DFX. Please go back and try again.
               </Text>
             ) : (
-              <iframe
-                src={dfxUrl!}
-                title='DFX'
-                allow='clipboard-write; clipboard-read'
-                style={{ height: '100%' }}
-              />
+              <iframe src={dfxUrl!} title='DFX' allow='clipboard-write; clipboard-read' style={{ height: '100%' }} />
             )}
           </FlexCol>
         </Padded>
