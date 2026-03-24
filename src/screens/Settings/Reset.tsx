@@ -24,19 +24,18 @@ export default function Reset() {
     setDisabled(!disabled)
   }
 
-  const handleReset = () => {
+  const handleReset = async () => {
     setLoading(true)
-    resetWallet()
-      .then(() => {
-        location.reload()
-      })
-      .catch((err) => {
-        consoleError(err)
-        setLoading(false)
-      })
-    // stop swap manager polling and clear swap data
-    if (arkadeSwaps) {
-      arkadeSwaps.reset().catch((err) => consoleError(err))
+    try {
+      await Promise.all([
+        resetWallet(),
+        // stop swap manager polling and clear swap data
+        arkadeSwaps?.reset(),
+      ])
+      location.reload()
+    } catch (err) {
+      consoleError(err)
+      setLoading(false)
     }
   }
 
