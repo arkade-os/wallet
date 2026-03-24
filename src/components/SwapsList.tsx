@@ -95,7 +95,7 @@ const SwapLine = ({ onClick, swap }: { onClick: () => void; swap: PendingSwap })
     alignItems: 'center',
     borderTop: border,
     cursor: 'pointer',
-    padding: '0.5rem 1rem',
+    padding: '0.5rem 0',
   }
 
   return (
@@ -196,23 +196,21 @@ export default function SwapsList() {
   const key = (swap: PendingSwap) => swap.response.id
 
   return (
-    <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
+    <div style={{ width: '100%' }} className='scroll-fade'>
       <TextLabel>Swap history</TextLabel>
       <Focusable id='outer' inactive={focused} onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
-        <div style={{ borderBottom: border }}>
-          {swapHistory.map((swap) => (
-            <Focusable
-              id={key(swap)}
-              key={key(swap)}
-              inactive={!focused}
-              ariaLabel={ariaLabel(swap)}
-              onEscape={focusOnOuterShell}
-              onEnter={() => handleClick(swap)}
-            >
-              <SwapLine onClick={() => handleClick(swap)} swap={swap} />
-            </Focusable>
-          ))}
-        </div>
+        {swapHistory.map((swap) => (
+          <Focusable
+            id={key(swap)}
+            key={key(swap)}
+            inactive={!focused}
+            ariaLabel={ariaLabel(swap)}
+            onEscape={focusOnOuterShell}
+            onEnter={() => handleClick(swap)}
+          >
+            <SwapLine onClick={() => handleClick(swap)} swap={swap} />
+          </Focusable>
+        ))}
       </Focusable>
     </div>
   )

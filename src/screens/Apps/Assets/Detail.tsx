@@ -108,7 +108,7 @@ export default function AppAssetDetail() {
       <Header text={name} back={() => navigate(Pages.AppAssets)} />
       <Content>
         <Padded>
-          <FlexCol gap='1rem' centered className='no-fade'>
+          <FlexCol gap='1rem' centered>
             <AssetAvatar icon={meta?.icon} ticker={ticker} name={name} size={64} />
 
             <FlexCol gap='0.25rem' centered>
