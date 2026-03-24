@@ -151,21 +151,21 @@ export default function Apps() {
             />
 
             <App
-              name='DFX'
-              icon={<DfxIcon />}
-              desc='Buy Bitcoin natively on Ark with EUR and CHF bank transfers'
-              link='https://dfx.swiss'
-              page={Pages.AppDfx}
-              isDark={isDark}
-              live
-            />
-
-            <App
               name='Boltz'
               icon={<BoltzIcon />}
               desc='Swap instantly between Arkade, Lightning and Bitcoin'
               link='https://boltz.exchange/'
               page={Pages.AppBoltz}
+              isDark={isDark}
+              live
+            />
+
+            <App
+              name='DFX'
+              icon={<DfxIcon />}
+              desc='Buy Bitcoin natively on Arkade with EUR and CHF bank transfers'
+              link='https://dfx.swiss'
+              page={Pages.AppDfx}
               isDark={isDark}
               live
             />
