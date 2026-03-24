@@ -34,9 +34,9 @@ export default function Reset() {
         consoleError(err)
         setLoading(false)
       })
-    // remove all data from swap repository
+    // stop swap manager polling and clear swap data
     if (arkadeSwaps) {
-      arkadeSwaps?.swapRepository?.clear().catch((err) => consoleError(err))
+      arkadeSwaps.reset().catch((err) => consoleError(err))
     }
   }
 
