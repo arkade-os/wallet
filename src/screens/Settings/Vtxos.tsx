@@ -284,7 +284,7 @@ export default function Vtxos() {
           <WaitingForRound rollover />
         ) : (
           <Padded>
-            <FlexCol>
+            <FlexCol className='scroll-fade'>
               <ErrorMessage error={Boolean(error)} text={error} />
               {listableVtxos.length + allUtxos.length === 0 ? (
                 <EmptyCoinsList />

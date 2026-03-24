@@ -104,7 +104,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
     alignItems: 'center',
     borderTop: border,
     cursor: 'pointer',
-    padding: '0.5rem 1rem',
+    padding: '0.5rem 0',
   }
 
   const Left = () => (
@@ -208,13 +208,13 @@ export default function TransactionsList() {
   }
 
   return (
-    <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
+    <>
       <TextLabel>Transaction history</TextLabel>
       <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
         <div
           ref={parentRef}
           onKeyDown={handleListKeyDown}
-          className='hide-scrollbar'
+          className='hide-scrollbar scroll-fade'
           style={{
             borderBottom: border,
             height: 'calc(100dvh - 380px)',
@@ -259,6 +259,6 @@ export default function TransactionsList() {
           </div>
         </div>
       </Focusable>
-    </div>
+    </>
   )
 }

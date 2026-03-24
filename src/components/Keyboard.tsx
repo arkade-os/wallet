@@ -174,7 +174,7 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
         text='Amount'
       />
       <Content>
-        <FlexCol centered gap='0.5rem' className='no-fade'>
+        <FlexCol centered gap='0.5rem'>
           <ErrorMessage error={Boolean(error)} text={error} />
           <Text big centered heading>
             {amount.primary}

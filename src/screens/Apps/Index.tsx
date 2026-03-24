@@ -152,7 +152,7 @@ export default function Apps() {
             <App
               name='Boltz'
               icon={<BoltzIcon />}
-              desc='Swap instantly between Arkade and Lightning'
+              desc='Swap instantly between Arkade, Lightning and Bitcoin'
               link='https://boltz.exchange/'
               page={Pages.AppBoltz}
               isDark={isDark}
