@@ -12,6 +12,7 @@ import { ConfigContext } from '../../providers/config'
 import { Themes } from '../../lib/types'
 import LendasatIcon from './Lendasat/LendasatIcon'
 import LendaswapIcon from './Lendaswap/LendaswapIcon'
+import DfxIcon from './Dfx/DfxIcon'
 import Focusable from '../../components/Focusable'
 import { hapticSubtle } from '../../lib/haptics'
 
@@ -145,6 +146,16 @@ export default function Apps() {
               icon={<ArkadeMintIcon />}
               desc='Issue, send, and receive assets on Arkade'
               page={Pages.AppAssets}
+              isDark={isDark}
+              live
+            />
+
+            <App
+              name='DFX'
+              icon={<DfxIcon />}
+              desc='Buy Bitcoin natively on Ark with EUR and CHF bank transfers'
+              link='https://dfx.swiss'
+              page={Pages.AppDfx}
               isDark={isDark}
               live
             />
