@@ -278,6 +278,8 @@ async function setupBoltz() {
     console.log('\nFunding Fulmine address...')
     await faucet(fulmineAddress, 1)
 
+    await sleep(2000)
+
     console.log('\nSettling funds in Fulmine...')
     await execCommand('curl -s -X GET http://localhost:7001/api/v1/settle', true)
     console.log('  ✔ Funds settled')
