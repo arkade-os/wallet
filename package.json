@@ -6,7 +6,7 @@
   "dependencies": {
     "@arkade-os/boltz-swap": "0.3.8",
     "@arkade-os/sdk": "0.4.10",
-    "@branta-ops/branta": "^0.0.8",
+    "@branta-ops/branta": "^0.0.9",
     "@ionic/react": "^8.5.6",
     "@lendasat/lendasat-wallet-bridge": "^0.0.90",
     "@noble/curves": "^2.0.1",
