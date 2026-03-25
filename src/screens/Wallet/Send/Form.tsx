@@ -717,7 +717,7 @@ export default function SendForm() {
                   <FlexCol gap='0.1rem'>
                     <Text smaller>{brantaPayment.platform}</Text>
                     <Text smaller color='dark50'>
-                      {brantaPayment.verify_url ? (
+                      {brantaPayment.verify_url?.startsWith('https://') ? (
                         <a href={brantaPayment.verify_url} target='_blank' rel='noreferrer'>
                           Verified by Branta
                         </a>
