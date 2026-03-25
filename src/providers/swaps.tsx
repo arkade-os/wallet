@@ -20,6 +20,8 @@ import {
 import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
 import { sendOffChain } from '../lib/asp'
+import { ArkAddress, RestIndexerProvider } from '@arkade-os/sdk'
+import { hex } from '@scure/base'
 
 const BASE_URLS: Record<Network, string | null> = {
   bitcoin: import.meta.env.VITE_BOLTZ_URL ?? 'https://api.ark.boltz.exchange',
@@ -236,6 +238,9 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     const satoshis = pendingSwap.response.lockupDetails.amount
     const swapAddress = pendingSwap.response.lockupDetails.lockupAddress
 
+    // Prevent double-funding: check that the swap address has no existing VTXOs
+    await assertSwapAddressUnfunded(aspInfo.url, swapAddress)
+
     const txid = await sendOffChain(svcWallet, satoshis, swapAddress)
     if (!txid) throw new Error('Failed to send offchain payment')
 
@@ -276,6 +281,9 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
     const satoshis = pendingSwap.response.expectedAmount
     const swapAddress = pendingSwap.response.address
+
+    // Prevent double-funding: check that the swap address has no existing VTXOs before paying
+    await assertSwapAddressUnfunded(aspInfo.url, swapAddress)
 
     const txid = await sendOffChain(svcWallet, satoshis, swapAddress)
     if (!txid) throw new Error('Failed to send offchain payment')
@@ -392,4 +400,14 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </SwapsContext.Provider>
   )
+}
+
+const assertSwapAddressUnfunded = async (url: string, swapAddress: string): Promise<void> => {
+  const decoded = ArkAddress.decode(swapAddress)
+  const script = hex.encode(decoded.pkScript)
+  const indexer = new RestIndexerProvider(url)
+  const { vtxos } = await indexer.getVtxos({ scripts: [script] })
+  if (vtxos.length > 0) {
+    throw new Error('Swap address already funded')
+  }
 }
