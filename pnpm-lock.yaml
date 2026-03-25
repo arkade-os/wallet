@@ -15,8 +15,8 @@ importers:
         specifier: 0.4.7
         version: 0.4.7
       '@branta-ops/branta':
-        specifier: ^0.0.8
-        version: 0.0.8
+        specifier: ^0.0.9
+        version: 0.0.9
       '@ionic/react':
         specifier: ^8.5.6
         version: 8.7.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -309,8 +309,8 @@ packages:
   '@bitcoinerlab/miniscript@1.4.3':
     resolution: {integrity: sha512-gf7WK4dKJJJl+IgLGmkTOxXQLiCje9c9y4wTLC+cyt0tBDTiSXgsG0X8FFaXf4d+34b8B5p/EJGvRd7mEYB6mQ==}
 
-  '@branta-ops/branta@0.0.8':
-    resolution: {integrity: sha512-D2JckIHrcJp8IirKeHTc4yuxfvz1/CEkqxvoDszasx1/VAuoaK4zemyN1pQUCoZMHRJsXSI7uU+kaltHoOFOqQ==}
+  '@branta-ops/branta@0.0.9':
+    resolution: {integrity: sha512-CLx8UUJQ5dLGWSUmxaFOBitw8C6DTNV0Hk/sm7jOhLOQPjgELLpcIwe/L2Tm3m9kkyKV8M9xdK9YClGRLf5Epw==}
 
   '@csstools/color-helpers@5.1.0':
     resolution: {integrity: sha512-S11EXWJyy0Mz5SYvRmY8nJYTFFd1LCNV+7cXyAgQtOOuzb4EsgfqDufL+9esx72/eLhsRdGZwaldu/h+E4t4BA==}
@@ -2838,7 +2838,7 @@ snapshots:
     dependencies:
       bip68: 1.0.4
 
-  '@branta-ops/branta@0.0.8': {}
+  '@branta-ops/branta@0.0.9': {}
 
   '@csstools/color-helpers@5.1.0': {}
 
