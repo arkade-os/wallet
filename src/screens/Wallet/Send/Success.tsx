@@ -18,7 +18,7 @@ import { WalletContext } from '../../../providers/wallet'
 
 export default function SendSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
-  const { toFiat } = useContext(FiatContext)
+  const { toFiat, fiatDecimals } = useContext(FiatContext)
   const { sendInfo } = useContext(FlowContext)
   const { notifyPaymentSent } = useContext(NotificationsContext)
   const { assetMetadataCache } = useContext(WalletContext)
@@ -41,7 +41,7 @@ export default function SendSuccess() {
   const displayAmount = isAssetSend
     ? `${formatAssetAmount(assetAmountValue, assetDecimals)} ${assetTicker}`
     : useFiat
-      ? prettyAmount(toFiat(totalSats), config.fiat)
+      ? prettyAmount(toFiat(totalSats), config.fiat, fiatDecimals())
       : prettyAmount(totalSats)
 
   if (isAssetSend) {

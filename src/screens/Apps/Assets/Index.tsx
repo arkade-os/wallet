@@ -98,7 +98,7 @@ export default function AppAssets() {
       <Content>
         <Padded>
           {config.apps.assets.enabled ? (
-            <FlexCol gap='0.5rem'>
+            <FlexCol gap='0.5rem' className='scroll-fade'>
               {assets.length === 0 ? (
                 <EmptyAssetsList />
               ) : (

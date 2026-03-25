@@ -95,7 +95,8 @@ export default function Vtxos() {
           }),
           svcWallet.getBoardingUtxos(),
         ])
-        setAllVtxos(vtxosData)
+        const ordered = [...vtxosData].sort((a, b) => a.value - b.value)
+        setAllVtxos(ordered)
         setAllUtxos(utxosData)
         setLoading(false)
       } catch (err) {
@@ -283,7 +284,7 @@ export default function Vtxos() {
           <WaitingForRound rollover />
         ) : (
           <Padded>
-            <FlexCol>
+            <FlexCol className='scroll-fade'>
               <ErrorMessage error={Boolean(error)} text={error} />
               {listableVtxos.length + allUtxos.length === 0 ? (
                 <EmptyCoinsList />

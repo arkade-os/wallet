@@ -60,7 +60,7 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
 
   return (
     <Focusable id='outer' inactive={focused} onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
-      <div style={{ margin: '1rem' }}>
+      <div style={{ margin: '1rem' }} className='scroll-fade'>
         <FlexCol gap='0.5rem'>
           {[...logs].reverse().map(({ time, msg, level }) => (
             <Focusable

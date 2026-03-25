@@ -45,7 +45,7 @@ export default function InputAmount({
   sats,
 }: InputAmountProps) {
   const { config, useFiat } = useContext(ConfigContext)
-  const { fromFiat, toFiat } = useContext(FiatContext)
+  const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
   const { minSwapAllowed, maxSwapAllowed } = useContext(LimitsContext)
 
   const [error, setError] = useState('')
@@ -60,7 +60,7 @@ export default function InputAmount({
 
   useEffect(() => {
     if (asset) return
-    setOtherValue(useFiat ? prettyNumber(sats) : prettyNumber(toFiat(sats), 2))
+    setOtherValue(useFiat ? prettyNumber(sats) : prettyNumber(toFiat(sats), fiatDecimals()))
     setError(sats ? (sats < 0 ? 'Invalid amount' : '') : '')
   }, [sats])
 
@@ -103,11 +103,11 @@ export default function InputAmount({
         {onMax && !disabled && !readOnly ? (
           <Focusable onEnter={onMax} fit>
             <IonText
-              slot='end'
               role='button'
               onClick={onMax}
               aria-label='Set maximum amount'
-              style={{ ...fontStyle, marginLeft: '0.5rem', color: 'var(--purpletext)', cursor: 'pointer' }}
+              data-testid='input-amount-max'
+              style={{ ...fontStyle, color: 'var(--purpletext)', cursor: 'pointer' }}
             >
               Max
             </IonText>

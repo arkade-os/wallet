@@ -79,6 +79,7 @@ export const mockConfigContextValue = {
 }
 
 export const mockFiatContextValue = {
+  fiatDecimals: () => 2,
   fromFiat: (amount: number) => amount,
   toFiat: (amount: number) => amount,
 }
@@ -127,10 +128,12 @@ export const mockNavigationContextValue = {
 }
 
 export const mockWalletContextValue = {
+  authState: 'authenticated' as const,
   initWallet: () => Promise.resolve(),
   lockWallet: () => Promise.resolve(),
   resetWallet: () => Promise.resolve(),
   settlePreconfirmed: () => Promise.resolve(),
+  unlockWallet: () => Promise.resolve(),
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
   restartWallet: () => Promise.resolve(),

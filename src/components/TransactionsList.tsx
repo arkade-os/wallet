@@ -20,7 +20,7 @@ const border = '1px solid var(--dark20)'
 
 const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   const { config } = useContext(ConfigContext)
-  const { toFiat } = useContext(FiatContext)
+  const { toFiat, fiatDecimals } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
 
   const prefix = tx.type === 'sent' ? '-' : '+'
@@ -41,7 +41,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
             : ''
     const value = toFiat(tx.amount)
     const small = config.currencyDisplay === CurrencyDisplay.Both
-    const world = config.showBalance ? prettyAmount(value, config.fiat) : prettyHide(value, config.fiat)
+    const world = config.showBalance ? prettyAmount(value, config.fiat, fiatDecimals()) : prettyHide(value, config.fiat)
     return (
       <Text color={color} small={small}>
         {world}
@@ -104,7 +104,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
     alignItems: 'center',
     borderTop: border,
     cursor: 'pointer',
-    padding: '0.5rem 1rem',
+    padding: '0.5rem 0',
   }
 
   const Left = () => (
@@ -157,10 +157,10 @@ export default function TransactionsList() {
     getScrollElement: () => parentRef.current,
     estimateSize: () => 61,
     overscan: 5,
-    measureElement: (el) => el.getBoundingClientRect().height,
   })
 
-  const key = (tx: Tx, index: number) => tx.roundTxid || tx.redeemTxid || tx.boardingTxid || `tx-${index}`
+  const key = (tx: Tx, index: number) =>
+    [tx.roundTxid, tx.redeemTxid, tx.boardingTxid].filter(Boolean).join('-') || `tx-${index}`
 
   const focusRow = (index: number) => {
     if (index < 0 || index >= txs.length) return
@@ -207,13 +207,13 @@ export default function TransactionsList() {
   }
 
   return (
-    <div style={{ width: 'calc(100% + 2rem)', margin: '0 -1rem' }}>
+    <>
       <TextLabel>Transaction history</TextLabel>
       <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
         <div
           ref={parentRef}
           onKeyDown={handleListKeyDown}
-          className='hide-scrollbar'
+          className='hide-scrollbar scroll-fade'
           style={{
             borderBottom: border,
             height: 'calc(100dvh - 380px)',
@@ -228,7 +228,6 @@ export default function TransactionsList() {
               return (
                 <div
                   key={k}
-                  ref={virtualizer.measureElement}
                   data-index={virtualItem.index}
                   data-testid='tx-row'
                   onFocus={() => {
@@ -258,6 +257,6 @@ export default function TransactionsList() {
           </div>
         </div>
       </Focusable>
-    </div>
+    </>
   )
 }

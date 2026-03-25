@@ -410,3 +410,7 @@ button.reminder-button.action-sheet-button {
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+.scroll-fade {
+  padding-bottom: 4rem;
+}

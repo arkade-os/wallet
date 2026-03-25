@@ -36,8 +36,15 @@ import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
 import Focusable from './components/Focusable'
 import { useReducedMotion } from './hooks/useReducedMotion'
+import { defaultPassword } from './lib/constants'
+import { consoleError } from './lib/logs'
 
 setupIonicReact()
+
+const PASSWORDLESS_AUTO_RELOAD_KEY = 'passwordless-auto-reload-attempted'
+export const appReloader = {
+  reload: () => window.location.reload(),
+}
 
 function PageAnimWrapper({
   children,
@@ -85,7 +92,7 @@ export default function App() {
   const { direction, navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
   const { option, setOption } = useContext(OptionsContext)
-  const { walletLoaded, initialized, wallet } = useContext(WalletContext)
+  const { authState, unlockWallet, walletLoaded, initialized, wallet } = useContext(WalletContext)
 
   const isIAB = useMemo(() => isInAppBrowser(), [])
   const [isCapable, setIsCapable] = useState(false)
@@ -96,6 +103,8 @@ export default function App() {
   const appsRef = useRef<HTMLIonTabElement>(null)
   const walletRef = useRef<HTMLIonTabElement>(null)
   const settingsRef = useRef<HTMLIonTabElement>(null)
+  const passwordlessBootAttempted = useRef(false)
+  const passwordlessReloadTimer = useRef<ReturnType<typeof setTimeout>>()
 
   // lock screen orientation to portrait
   // this is a workaround for the issue with the screen orientation API
@@ -133,9 +142,8 @@ export default function App() {
     // dev auto-init: stay on loading screen while VITE_DEV_NSEC initializes the wallet
     if (import.meta.env.DEV && import.meta.env.VITE_DEV_NSEC && !initialized) return
     if (!wallet.pubkey) return navigate(Pages.Init)
-    if (!initialized) return navigate(Pages.Unlock)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- navigate is unstable (recreated every render), including it causes an infinite redirect loop
-  }, [walletLoaded, initialized, initInfo, aspInfo.unreachable, jsCapabilitiesChecked, isCapable])
+    if (authState === 'locked') return navigate(Pages.Unlock)
+  }, [walletLoaded, wallet.pubkey, authState, initInfo, aspInfo.unreachable, jsCapabilitiesChecked, isCapable])
 
   // for some reason you need to manually set the active tab
   // if you are coming from a page in a different tab
@@ -197,7 +205,46 @@ export default function App() {
   const aspReady = aspInfo.signerPubkey || aspInfo.unreachable
   const isNewUser = walletLoaded && !wallet.pubkey
   const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
-  const page = allChecksReady || isNewUser ? screen : Pages.Loading
+  const hasStoredWallet = walletLoaded && !!wallet.pubkey
+  const shouldShowUnlock = hasStoredWallet && authState === 'locked'
+  const shouldHoldOnLoading = hasStoredWallet && !initialized && authState !== 'locked'
+
+  useEffect(() => {
+    passwordlessBootAttempted.current = false
+  }, [wallet.pubkey, authState])
+
+  useEffect(() => {
+    return () => {
+      if (passwordlessReloadTimer.current) clearTimeout(passwordlessReloadTimer.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!allChecksReady) return
+    if (!wallet.pubkey || initialized) return
+    if (authState !== 'passwordless') return
+    if (passwordlessBootAttempted.current) return
+
+    passwordlessBootAttempted.current = true
+    unlockWallet(defaultPassword).catch((err) => {
+      consoleError(err, 'error auto-initializing passwordless wallet')
+      try {
+        if (sessionStorage.getItem(PASSWORDLESS_AUTO_RELOAD_KEY)) return
+        sessionStorage.setItem(PASSWORDLESS_AUTO_RELOAD_KEY, 'true')
+        passwordlessReloadTimer.current = setTimeout(() => appReloader.reload(), 1_000)
+      } catch {
+        // ignore session storage errors; keep the app on loading instead of retry-looping
+      }
+    })
+  }, [allChecksReady, wallet.pubkey, initialized, authState, unlockWallet])
+
+  const page = !(allChecksReady || isNewUser)
+    ? Pages.Loading
+    : shouldHoldOnLoading
+      ? Pages.Loading
+      : shouldShowUnlock
+        ? Pages.Unlock
+        : screen
 
   const comp = page === Pages.Loading ? <Loading /> : pageComponent(page)
   const isSettingsRoot = screen === Pages.Settings && option === SettingsOptions.Menu

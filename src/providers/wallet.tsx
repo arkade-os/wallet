@@ -22,7 +22,7 @@ import {
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
-import { delegateVtxos, getBalance, getTxHistory, getVtxos, renewCoins, settleVtxos } from '../lib/asp'
+import { getBalance, getTxHistory, getVtxos, renewCoins, settleVtxos } from '../lib/asp'
 import { AspContext } from './asp'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
@@ -30,7 +30,7 @@ import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
-import { nsecToPrivateKey } from '../lib/privateKey'
+import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
@@ -49,11 +49,14 @@ const defaultWallet: Wallet = {
   nextRollover: 0,
 }
 
+export type WalletAuthState = 'unknown' | 'passwordless' | 'locked' | 'authenticated'
+
 interface WalletContextProps {
   initWallet: (seed: Uint8Array) => Promise<void>
   lockWallet: () => Promise<void>
   resetWallet: () => Promise<void>
   settlePreconfirmed: () => Promise<void>
+  unlockWallet: (password: string) => Promise<void>
   updateWallet: (w: Wallet | ((prev: Wallet) => Wallet)) => void
   isLocked: () => Promise<boolean>
   reloadWallet: (svcWallet?: ServiceWorkerWallet) => Promise<void>
@@ -69,6 +72,7 @@ interface WalletContextProps {
   setCacheEntry: (assetId: string, details: AssetDetails) => CachedAssetDetails
   iconApprovalManager: AssetIconApprovalManager
   dataReady: boolean
+  authState: WalletAuthState
   initialized?: boolean
 }
 
@@ -77,6 +81,7 @@ export const WalletContext = createContext<WalletContextProps>({
   lockWallet: () => Promise.resolve(),
   resetWallet: () => Promise.resolve(),
   settlePreconfirmed: () => Promise.resolve(),
+  unlockWallet: () => Promise.resolve(),
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
   restartWallet: () => Promise.resolve(),
@@ -90,6 +95,7 @@ export const WalletContext = createContext<WalletContextProps>({
   setCacheEntry: () => ({ cachedAt: 0 }) as CachedAssetDetails,
   iconApprovalManager: new AssetIconApprovalManager(),
   dataReady: false,
+  authState: 'unknown',
   txs: [],
   vtxos: { spendable: [], spent: [] },
 })
@@ -108,15 +114,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [initialized, setInitialized] = useState<boolean>(false)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
   const [dataReady, setDataReady] = useState(false)
+  const [authState, setAuthState] = useState<WalletAuthState>('unknown')
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
   const [assetBalances, setAssetBalances] = useState<WalletBalance['assets']>([])
 
   const hasLoadedOnce = useRef(false)
-  const listeningForServiceWorker = useRef(false)
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
   const iconApprovalManager = useRef(new AssetIconApprovalManager()).current
   const verifiedAssetsFetched = useRef(false)
   const statusPingInterval = useRef<ReturnType<typeof setInterval>>()
+  const reloadTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const swMessageHandlerRef = useRef<(event: MessageEvent) => void>()
 
   const setCacheEntry = (assetId: string, details: AssetDetails): CachedAssetDetails => {
     const hasIcon = !!details.metadata?.icon
@@ -150,6 +158,28 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     autoInit()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspInfo.url, initialized])
+
+  useEffect(() => {
+    if (!wallet.pubkey) {
+      setAuthState('authenticated')
+      return
+    }
+
+    let cancelled = false
+    setAuthState('unknown')
+    noUserDefinedPassword()
+      .then((noPassword) => {
+        if (!cancelled) setAuthState(noPassword ? 'passwordless' : 'locked')
+      })
+      .catch(() => {
+        if (!cancelled) setAuthState('locked')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [wallet.pubkey])
+
 
   // reload wallet as soon as we have a service worker wallet available
   useEffect(() => {
@@ -327,24 +357,27 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       setSvcWallet(svcWallet)
 
+      // Cancel any pending reload from a previous wallet instance
+      clearTimeout(reloadTimerRef.current)
+
       // handle messages from the service worker
       // we listen for UTXO/VTXO updates to refresh the tx history and balance
       const handleServiceWorkerMessages = (event: MessageEvent) => {
         if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
-          reloadWallet(svcWallet)
-          // reload again after a delay to give the indexer time to update its cache
-          setTimeout(() => reloadWallet(svcWallet), 5000)
+          // Debounced reload: short delay lets the indexer update its cache.
+          // If multiple updates arrive in quick succession, only the last
+          // one triggers a reload (avoids redundant fetches).
+          clearTimeout(reloadTimerRef.current)
+          reloadTimerRef.current = setTimeout(() => reloadWallet(svcWallet), 1000)
         }
       }
 
       // listen for messages from the service worker
-      if (listeningForServiceWorker.current) {
-        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessages)
-        navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
-      } else {
-        navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
-        listeningForServiceWorker.current = true
+      if (swMessageHandlerRef.current) {
+        navigator.serviceWorker.removeEventListener('message', swMessageHandlerRef.current)
       }
+      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
+      swMessageHandlerRef.current = handleServiceWorkerMessages
 
       // check if the service worker wallet is initialized
       const { walletInitialized } = await svcWallet.getStatus()
@@ -361,12 +394,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }, 1_000)
 
-      // delegate or renew expiring coins on startup
-      if (config.delegate) {
-        delegateVtxos(svcWallet).catch((e) => {
-          console.error('Error delegating coins', e)
-        })
-      } else {
+      // Renew expiring coins on startup (non-delegate mode only).
+      // When delegation is enabled, the SDK's VtxoManager auto-delegates
+      // via onContractEvent, so no wallet-side call is needed.
+      if (!config.delegate) {
         renewCoins(svcWallet, aspInfo.dust, wallet.thresholdMs).catch(() => {})
       }
     } catch (err) {
@@ -417,6 +448,19 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setInitialized(true)
   }
 
+  const unlockWallet = async (password: string) => {
+    let privateKey: Uint8Array
+    try {
+      privateKey = await getPrivateKey(password)
+    } catch {
+      setAuthState('locked')
+      throw new Error('Invalid password')
+    }
+
+    setAuthState('authenticated')
+    await initWallet(privateKey)
+  }
+
   /**
    * Reinitialize the service-worker wallet in-place so runtime config changes
    * (e.g., delegate on/off) take effect without forcing a lock/unlock cycle.
@@ -448,6 +492,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (statusPingInterval.current) clearInterval(statusPingInterval.current)
     statusPingInterval.current = undefined
     await svcWallet.clear()
+    setAuthState('locked')
     setInitialized(false)
     setDataReady(false)
     hasLoadedOnce.current = false
@@ -490,11 +535,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   return (
     <WalletContext.Provider
       value={{
+        authState,
         initWallet,
         isLocked,
         initialized,
         resetWallet,
         settlePreconfirmed,
+        unlockWallet,
         updateWallet,
         wallet,
         walletLoaded,
