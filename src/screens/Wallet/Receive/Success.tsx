@@ -1,4 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
+import Button from '../../../components/Button'
+import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -11,6 +13,7 @@ import Success from '../../../components/Success'
 import { NotificationsContext } from '../../../providers/notifications'
 import { FlowContext } from '../../../providers/flow'
 import Header from '../../../components/Header'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 import { formatAssetAmount, prettyAmount } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
@@ -24,6 +27,7 @@ export default function ReceiveSuccess() {
   const { recvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetMetadataCache, setCacheEntry, svcWallet } = useContext(WalletContext)
+  const { navigate } = useContext(NavigationContext)
 
   const receivedAssets = recvInfo.receivedAssets ?? []
   const isAssetReceive = receivedAssets.length > 0
@@ -119,6 +123,9 @@ export default function ReceiveSuccess() {
             </FlexCol>
           </Padded>
         </Content>
+        <ButtonsOnBottom>
+          <Button label='Sounds good' onClick={() => navigate(Pages.Wallet)} />
+        </ButtonsOnBottom>
       </>
     )
   }
@@ -129,6 +136,9 @@ export default function ReceiveSuccess() {
       <Content>
         <Success headline='Payment received!' text={`${displayAmount} received successfully`} />
       </Content>
+      <ButtonsOnBottom>
+        <Button label='Sounds good' onClick={() => navigate(Pages.Wallet)} />
+      </ButtonsOnBottom>
     </>
   )
 }

@@ -91,7 +91,7 @@ export default function App() {
   const { configLoaded } = useContext(ConfigContext)
   const { direction, navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
-  const { setOption } = useContext(OptionsContext)
+  const { option, setOption } = useContext(OptionsContext)
   const { authState, unlockWallet, walletLoaded, initialized, wallet } = useContext(WalletContext)
 
   const isIAB = useMemo(() => isInAppBrowser(), [])
@@ -247,9 +247,11 @@ export default function App() {
         : screen
 
   const comp = page === Pages.Loading ? <Loading /> : pageComponent(page)
+  const isSettingsRoot = screen === Pages.Settings && option === SettingsOptions.Menu
+  const showNavbar = page === screen && (screen === Pages.Wallet || screen === Pages.Apps || isSettingsRoot)
 
   return (
-    <IonApp className={tab !== Tabs.None ? 'has-pill-navbar' : undefined}>
+    <IonApp className={showNavbar ? 'has-pill-navbar' : undefined}>
       <IonPage>
         {tab === Tabs.None ? (
           <div className='page-transition-container'>
@@ -333,6 +335,7 @@ export default function App() {
       </IonPage>
       {tab !== Tabs.None && (
         <PillNavbarOverlay
+          visible={showNavbar}
           activeTab={tab}
           onWalletClick={handleWallet}
           onAppsClick={handleApps}
