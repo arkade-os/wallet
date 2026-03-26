@@ -93,15 +93,15 @@ export async function prePay(page: Page, address: string, isMobile = false, sats
   await page.getByText('Send').click()
 
   // fill address
-  await page.locator('ion-input[name="send-address"] input').fill(address)
+  await page.locator('input[name="send-address"]').fill(address)
 
   // fill amount
   if (sats) {
     if (isMobile) {
-      await page.locator('ion-input[name="send-amount"] input').click()
+      await page.locator('input[name="send-amount"]').click()
       await handleKeyboardInput(page, sats)
     } else {
-      await page.locator('ion-input[name="send-amount"] input').fill(sats.toString())
+      await page.locator('input[name="send-amount"]').fill(sats.toString())
     }
   }
 
@@ -126,10 +126,10 @@ async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = f
   // fill amount to receive if provided
   if (sats) {
     if (isMobile) {
-      await page.locator('ion-input[name="receive-amount"] input').click()
+      await page.locator('input[name="receive-amount"]').click()
       await handleKeyboardInput(page, sats)
     } else {
-      await page.locator('ion-input[name="receive-amount"] input').fill(sats.toString())
+      await page.locator('input[name="receive-amount"]').fill(sats.toString())
     }
     await page.getByText('Continue').click()
   } else {
@@ -195,7 +195,7 @@ async function resetWallet(page: Page): Promise<void> {
 async function restoreWallet(page: Page, nsec: string): Promise<void> {
   await page.getByText('Other login options').click()
   await page.getByText('Restore wallet').click()
-  await page.locator('ion-input[name="private-key"] input').fill(nsec)
+  await page.locator('input[name="private-key"]').fill(nsec)
   await page.getByText('Continue').click()
   await page.waitForSelector('text=Send', { state: 'visible', timeout: 30000 })
 }

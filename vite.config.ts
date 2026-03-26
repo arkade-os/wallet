@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import eslint from 'vite-plugin-eslint'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 
@@ -7,6 +8,7 @@ import basicSsl from '@vitejs/plugin-basic-ssl'
 export default defineConfig({
   plugins: [
     react(),
+    tailwindcss(),
     eslint({
       include: ['src/**/*.ts', 'src/**/*.tsx'],
       exclude: ['src/test/**/*.ts', 'src/test/**/*.tsx'],
