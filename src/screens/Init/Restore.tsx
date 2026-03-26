@@ -1,7 +1,7 @@
 import { invalidPrivateKey, nsecToPrivateKey } from '../../lib/privateKey'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
-import { useContext, useEffect, useState } from 'react'
+import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { ConfigContext } from '../../providers/config'
 import { BackupProvider } from '../../lib/backup'
 import { defaultPassword } from '../../lib/constants'
@@ -10,7 +10,7 @@ import ErrorMessage from '../../components/Error'
 import Content from '../../components/Content'
 import FlexCol from '../../components/FlexCol'
 import { extractError } from '../../lib/error'
-import Loading from '../../components/Loading'
+import LoadingLogo from '../../components/LoadingLogo'
 import { consoleError } from '../../lib/logs'
 import Button from '../../components/Button'
 import Header from '../../components/Header'
@@ -32,6 +32,8 @@ export default function InitRestore() {
   const [label, setLabel] = useState(buttonLabel)
   const [privateKey, setPrivateKey] = useState<Uint8Array>()
   const [restoring, setRestoring] = useState(false)
+  const [restoreDone, setRestoreDone] = useState(false)
+  const pendingNav = useRef<() => void>()
   const [someKey, setSomeKey] = useState<string>()
 
   useEffect(() => {
@@ -62,14 +64,19 @@ export default function InitRestore() {
       )
       .catch((err) => consoleError(err, 'Error restoring from nostr'))
       .finally(() => {
-        setRestoring(false)
-        navigate(Pages.InitConnect)
+        pendingNav.current = () => {
+          setRestoring(false)
+          navigate(Pages.InitConnect)
+        }
+        setRestoreDone(true)
       })
   }
 
+  const handleExitComplete = useCallback(() => { pendingNav.current?.() }, [])
+
   const disabled = Boolean(!privateKey || error)
 
-  if (restoring) return <Loading text='Restoring wallet...' />
+  if (restoring || restoreDone) return <LoadingLogo text='Restoring wallet...' done={restoreDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
 
   return (
     <>

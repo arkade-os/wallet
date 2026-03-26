@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useCallback, useContext, useEffect, useState } from 'react'
 import Balance from '../../components/Balance'
 import DismissibleBanner from '../../components/DismissibleBanner'
 import ErrorMessage from '../../components/Error'
@@ -25,6 +25,7 @@ import { AnnouncementContext } from '../../providers/announcements'
 import { WalletStaggerContainer, WalletStaggerChild } from '../../components/WalletLoadIn'
 import { pwaCanInstall, usePwaInstalled, canPromptInstall, promptPwaInstall } from '../../lib/pwa'
 import { isIOS, isAndroid } from '../../lib/browser'
+import { setLogoAnchor } from '../../lib/logoAnchor'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
@@ -37,6 +38,11 @@ export default function Wallet() {
 
   const [error, setError] = useState(false)
   const shouldStagger = isInitialLoad
+
+  const logoRef = useCallback((el: HTMLDivElement | null) => {
+    setLogoAnchor(el)
+  }, [])
+  useEffect(() => () => setLogoAnchor(null), [])
 
   const pwaInstalled = usePwaInstalled()
   const dismissed = (config?.dismissedBanners ?? []).includes('pwa-install')
@@ -71,12 +77,13 @@ export default function Wallet() {
       {announcement}
       <Content>
         <Padded>
+          {/* Anchor lives outside the stagger tree so getBoundingClientRect returns the final position */}
+          <div ref={logoRef} style={{ display: 'inline-flex' }}>
+            <LogoIcon small />
+          </div>
           <WalletStaggerContainer animate={shouldStagger}>
             <FlexCol>
               <FlexCol gap='0'>
-                <WalletStaggerChild animate={shouldStagger}>
-                  <LogoIcon small />
-                </WalletStaggerChild>
                 <WalletStaggerChild animate={shouldStagger}>
                   <Balance amount={balance} />
                 </WalletStaggerChild>

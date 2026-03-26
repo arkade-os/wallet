@@ -26,7 +26,7 @@ import Keyboard from '../../../components/Keyboard'
 import Text from '../../../components/Text'
 import Shadow from '../../../components/Shadow'
 import Scanner from '../../../components/Scanner'
-import Loading from '../../../components/Loading'
+import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
 import { Addresses, AssetOption, SettingsOptions } from '../../../lib/types'
 import { getReceivingAddresses } from '../../../lib/asp'
@@ -410,7 +410,7 @@ export default function SendForm() {
     }
   }, [liquidBalance, sendInfo.satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl])
 
-  if (!svcWallet) return <Loading text='Loading...' />
+  if (!svcWallet) return <LoadingLogo text='Loading...' />
 
   const gotoBoltzApp = () => {
     navigate(Pages.AppBoltzSettings)

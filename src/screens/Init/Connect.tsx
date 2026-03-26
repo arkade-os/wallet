@@ -1,11 +1,11 @@
-import { useContext, useEffect, useState } from 'react'
+import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
 import { WalletContext } from '../../providers/wallet'
-import Loading from '../../components/Loading'
+import LoadingLogo from '../../components/LoadingLogo'
 import Header from '../../components/Header'
 import { setPrivateKey } from '../../lib/privateKey'
 import { consoleError, consoleLog } from '../../lib/logs'
@@ -18,6 +18,8 @@ export default function InitConnect() {
   const { initWallet } = useContext(WalletContext)
 
   const [initialized, setInitialized] = useState(false)
+  const [connectDone, setConnectDone] = useState(false)
+  const pendingNav = useRef<() => void>()
 
   const { password, privateKey } = initInfo
 
@@ -42,15 +44,20 @@ export default function InitConnect() {
   const handleCancel = () => navigate(Pages.Init)
 
   const handleProceed = () => {
-    setInitInfo({ ...initInfo, password: undefined, privateKey: undefined })
-    navigate(Pages.Wallet)
+    pendingNav.current = () => {
+      setInitInfo({ ...initInfo, password: undefined, privateKey: undefined })
+      navigate(Pages.Wallet)
+    }
+    setConnectDone(true)
   }
+
+  const handleExitComplete = useCallback(() => { pendingNav.current?.() }, [])
 
   return (
     <>
       <Header text='Connecting to server' back={handleCancel} />
       <Content>
-        <Loading text='Connecting to server' />
+        <LoadingLogo text='Connecting to server' done={connectDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
       </Content>
       <ButtonsOnBottom>
         <Button onClick={handleCancel} label='Cancel' secondary />

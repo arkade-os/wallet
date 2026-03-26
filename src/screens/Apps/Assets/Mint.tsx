@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Content from '../../../components/Content'
@@ -6,7 +6,7 @@ import ErrorMessage from '../../../components/Error'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
 import Header from '../../../components/Header'
-import Loading from '../../../components/Loading'
+import LoadingLogo from '../../../components/LoadingLogo'
 import Padded from '../../../components/Padded'
 import Shadow from '../../../components/Shadow'
 import Text from '../../../components/Text'
@@ -51,6 +51,8 @@ export default function AppAssetMint() {
   const [controlMode, setControlMode] = useState<'None' | 'Existing' | 'New'>('None')
   const [ctrlAmount, setCtrlAmount] = useState('1')
   const [mintingText, setMintingText] = useState('Minting asset...')
+  const [mintDone, setMintDone] = useState(false)
+  const pendingNav = useRef<() => void>()
 
   useEffect(() => {
     const load = async () => {
@@ -157,11 +159,11 @@ export default function AppAssetMint() {
       }
       setCacheEntry(newAssetId, assetDetails)
       setAssetInfo(assetDetails)
-      navigate(Pages.AppAssetMintSuccess)
+      pendingNav.current = () => navigate(Pages.AppAssetMintSuccess)
+      setMintDone(true)
     } catch (err) {
       consoleError(err, 'error minting asset')
       setError(extractError(err))
-    } finally {
       setMinting(false)
     }
   }
@@ -190,7 +192,9 @@ export default function AppAssetMint() {
                     ? 'Control amount must be positive'
                     : ''
 
-  if (minting) return <Loading text={mintingText} />
+  const handleExitComplete = useCallback(() => { pendingNav.current?.() }, [])
+
+  if (minting || mintDone) return <LoadingLogo text={mintingText} done={mintDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
 
   return (
     <>

@@ -15,7 +15,7 @@ import ExpandAddresses from '../../../components/ExpandAddresses'
 import FlexCol from '../../../components/FlexCol'
 import { LimitsContext } from '../../../providers/limits'
 import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
-import Loading from '../../../components/Loading'
+import LoadingLogo from '../../../components/LoadingLogo'
 import { SwapsContext } from '../../../providers/swaps'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
 import { PendingChainSwap, PendingReverseSwap } from '@arkade-os/boltz-swap'
@@ -249,7 +249,7 @@ export default function ReceiveQRCode() {
               ) : null}
             </FlexCol>
           ) : (
-            <Loading text='Generating QR code...' />
+            <LoadingLogo text='Generating QR code...' />
           )}
         </Padded>
       </Content>
