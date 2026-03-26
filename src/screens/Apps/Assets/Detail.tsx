@@ -5,7 +5,7 @@ import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
 import Header from '../../../components/Header'
-import Loading from '../../../components/Loading'
+import LoadingLogo from '../../../components/LoadingLogo'
 import Padded from '../../../components/Padded'
 import Shadow from '../../../components/Shadow'
 import Text, { TextSecondary } from '../../../components/Text'
@@ -61,7 +61,7 @@ export default function AppAssetDetail() {
     setRefreshing(false)
   }
 
-  if (loading) return <Loading text='Loading asset...' />
+  if (loading) return <LoadingLogo text='Loading asset...' />
 
   const meta = assetInfo.metadata
   const name = meta?.name ?? 'Unknown Asset'

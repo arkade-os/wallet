@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useCallback, useContext, useEffect, useState } from 'react'
 import Padded from '../../../components/Padded'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
@@ -23,7 +23,7 @@ import ErrorMessage from '../../../components/Error'
 import { TextSecondary } from '../../../components/Text'
 import CheckMarkIcon from '../../../icons/CheckMark'
 import Info from '../../../components/Info'
-import Loading from '../../../components/Loading'
+import LoadingLogo from '../../../components/LoadingLogo'
 import FlexRow from '../../../components/FlexRow'
 import { InfoIconDark } from '../../../icons/Info'
 
@@ -34,6 +34,7 @@ export default function AppBoltzSwap() {
 
   const [error, setError] = useState<string>('')
   const [processing, setProcessing] = useState<boolean>(false)
+  const [opDone, setOpDone] = useState(false)
   const [success, setSuccess] = useState<boolean>(false)
 
   // Subscribe to real-time updates for this swap
@@ -158,13 +159,17 @@ export default function AppBoltzSwap() {
         setSuccess(true)
       }
       // No need to manually refresh - SwapManager handles status updates
+      setOpDone(true)
     } catch (error) {
       setError(extractError(error))
       consoleError(error, 'Error processing swap')
-    } finally {
       setProcessing(false)
     }
   }
+
+  const handleExitComplete = useCallback(() => {
+    setProcessing(false)
+  }, [])
 
   return (
     <>
@@ -172,7 +177,12 @@ export default function AppBoltzSwap() {
       <Content>
         <Padded>
           {processing ? (
-            <Loading text='Processing swap...' />
+            <LoadingLogo
+              text='Processing swap...'
+              done={opDone}
+              exitMode='fly-up'
+              onExitComplete={handleExitComplete}
+            />
           ) : (
             <FlexCol gap='2rem'>
               <ErrorMessage error={Boolean(error)} text={error} />

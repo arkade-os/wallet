@@ -1,8 +1,11 @@
 import { Variants } from 'framer-motion'
 
-// Easing: Emil Kowalski's ease-out quint
+// Easing: Emil Kowalski's curves
 export const EASE_OUT_QUINT = [0.23, 1, 0.32, 1]
 export const EASE_OUT_QUINT_TUPLE = EASE_OUT_QUINT as [number, number, number, number]
+// ease-in-out-quint: for on-screen elements moving between positions
+export const EASE_IN_OUT_QUINT = [0.86, 0, 0.07, 1]
+export const EASE_IN_OUT_QUINT_TUPLE = EASE_IN_OUT_QUINT as [number, number, number, number]
 
 // Page transition timing
 export const PAGE_TRANSITION_DURATION = 0.3
@@ -10,7 +13,7 @@ export const PAGE_TRANSITION_EXIT_DURATION = 0.24 // 20% faster exit
 
 // Stagger timing for wallet load-in
 export const STAGGER_DELAY = 0.06
-export const STAGGER_DURATION = 0.4
+export const STAGGER_DURATION = 0.3
 
 // Slide distance (% of container)
 const SLIDE_OFFSET = '20%'

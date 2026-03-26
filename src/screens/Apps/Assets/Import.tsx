@@ -5,7 +5,7 @@ import Content from '../../../components/Content'
 import ErrorMessage from '../../../components/Error'
 import FlexCol from '../../../components/FlexCol'
 import Header from '../../../components/Header'
-import Loading from '../../../components/Loading'
+import LoadingLogo from '../../../components/LoadingLogo'
 import Padded from '../../../components/Padded'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
@@ -59,7 +59,7 @@ export default function AppAssetImport() {
     }
   }
 
-  if (loading) return <Loading text='Fetching asset details...' />
+  if (loading) return <LoadingLogo text='Fetching asset details...' />
 
   if (scan) return <Scanner close={() => setScan(false)} label='Ark note' onData={setAssetId} onError={setError} />
 

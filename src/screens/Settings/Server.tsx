@@ -14,7 +14,7 @@ import FlexCol from '../../components/FlexCol'
 import Scanner from '../../components/Scanner'
 import { AspContext, AspInfo } from '../../providers/asp'
 import { consoleError } from '../../lib/logs'
-import Loading from '../../components/Loading'
+import LoadingLogo from '../../components/LoadingLogo'
 
 export default function Server() {
   const { aspInfo } = useContext(AspContext)
@@ -49,7 +49,7 @@ export default function Server() {
     })
   }, [aspUrl])
 
-  if (!svcWallet) return <Loading text='Loading...' />
+  if (!svcWallet) return <LoadingLogo text='Loading...' />
 
   const handleConnect = async () => {
     setLoading(true)

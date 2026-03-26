@@ -17,7 +17,7 @@ import WaitingForRound from '../../components/WaitingForRound'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { getInputsToSettle, settleVtxos } from '../../lib/asp'
-import Loading from '../../components/Loading'
+import LoadingLogo from '../../components/LoadingLogo'
 import { LimitsContext } from '../../providers/limits'
 import { EmptyCoinsList } from '../../components/Empty'
 import WarningBox from '../../components/Warning'
@@ -128,7 +128,7 @@ export default function Vtxos() {
     return () => clearTimeout(timeoutId)
   }, [success])
 
-  if (!svcWallet || loading) return <Loading text='Loading...' />
+  if (!svcWallet || loading) return <LoadingLogo text='Loading...' />
 
   const listableVtxos = allVtxos.filter((vtxo) => vtxo.isSpent === false)
 

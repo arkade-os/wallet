@@ -27,9 +27,10 @@ import { FlowContext } from './providers/flow'
 import { SettingsOptions } from './lib/types'
 import { AspContext } from './providers/asp'
 import { hapticLight } from './lib/haptics'
+import { setBootAnimActive as syncBootAnimFlag } from './lib/logoAnchor'
 import { PageTransition } from './components/PageTransition'
 import SettingsIcon from './icons/Settings'
-import Loading from './components/Loading'
+import LoadingLogo from './components/LoadingLogo'
 import PillNavbarOverlay from './components/PillNavbarOverlay'
 import FlexCol from './components/FlexCol'
 import WalletIcon from './icons/Wallet'
@@ -98,6 +99,15 @@ export default function App() {
   const [isCapable, setIsCapable] = useState(false)
   const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
   const [animatingTab, setAnimatingTab] = useState<string | null>(null)
+  const [bootAnimActive, setBootAnimActive] = useState(false)
+  // Syncs the external store before React re-renders, so Wallet reads
+  // the correct value on the same frame LoadingLogo unmounts.
+  const updateBootAnim = useCallback((active: boolean) => {
+    syncBootAnimFlag(active)
+    setBootAnimActive(active)
+  }, [])
+  const [bootAnimDone, setBootAnimDone] = useState(false)
+  const [bootExitMode, setBootExitMode] = useState<'fly-to-target' | 'fly-up'>('fly-up')
 
   // refs for the tabs to be able to programmatically activate them
   const appsRef = useRef<HTMLIonTabElement>(null)
@@ -246,7 +256,38 @@ export default function App() {
         ? Pages.Unlock
         : screen
 
-  const comp = page === Pages.Loading ? <Loading /> : pageComponent(page)
+  // Boot animation: persists from Loading through Unlock until Wallet is reached,
+  // then flies to the LogoIcon position. For new users (→ Init), exits with fly-up.
+  useEffect(() => {
+    // Start boot animation when we first see the Loading page
+    if (page === Pages.Loading && !bootAnimActive) {
+      setBootAnimDone(false)
+      setBootExitMode('fly-up')
+      updateBootAnim(true)
+      return
+    }
+
+    if (!bootAnimActive || bootAnimDone) return
+
+    // When we reach Wallet, fly to the logo target
+    if (page === Pages.Wallet) {
+      setBootExitMode('fly-to-target')
+      setBootAnimDone(true)
+      return
+    }
+
+    // If we land on Init (new user) or any non-boot page, fly up and exit
+    if (page !== Pages.Loading && page !== Pages.Unlock) {
+      setBootExitMode('fly-up')
+      setBootAnimDone(true)
+    }
+  }, [page, bootAnimActive, bootAnimDone])
+
+  const handleBootAnimComplete = useCallback(() => {
+    updateBootAnim(false)
+  }, [updateBootAnim])
+
+  const comp = page === Pages.Loading ? null : pageComponent(page)
 
   return (
     <IonApp className={tab !== Tabs.None ? 'has-pill-navbar' : undefined}>
@@ -331,7 +372,7 @@ export default function App() {
           </>
         )}
       </IonPage>
-      {tab !== Tabs.None && (
+      {tab !== Tabs.None && !bootAnimActive && (
         <PillNavbarOverlay
           activeTab={tab}
           onWalletClick={handleWallet}
@@ -339,6 +380,9 @@ export default function App() {
           onSettingsClick={handleSettings}
         />
       )}
+      {bootAnimActive ? (
+        <LoadingLogo exitMode={bootExitMode} done={bootAnimDone} onExitComplete={handleBootAnimComplete} />
+      ) : null}
     </IonApp>
   )
 }

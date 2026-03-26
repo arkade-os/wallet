@@ -1,9 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import Loading from './Loading'
+import LoadingLogo from './LoadingLogo'
 import { getInfoLogLineMsg, getInfoLogsLength } from '../lib/logs'
 import { sleep } from '../lib/sleep'
 
-export default function WaitingForRound({ rollover, settle }: { rollover?: boolean; settle?: boolean }) {
+interface WaitingForRoundProps {
+  rollover?: boolean
+  settle?: boolean
+  done?: boolean
+  exitMode?: 'fly-to-target' | 'fly-up' | 'none'
+  onExitComplete?: () => void
+}
+
+export default function WaitingForRound({ rollover, settle, done, exitMode, onExitComplete }: WaitingForRoundProps) {
   const initial = settle ? 'Settling transactions' : rollover ? 'Renewing your virtual coins' : 'Paying to mainnet'
   const message = initial + '. This may take a few moments.'
 
@@ -31,5 +39,5 @@ export default function WaitingForRound({ rollover, settle }: { rollover?: boole
     setLogMessage(getInfoLogLineMsg(logLength - 1))
   }, [logLength])
 
-  return <Loading text={logMessage} />
+  return <LoadingLogo text={logMessage} done={done} exitMode={exitMode} onExitComplete={onExitComplete} />
 }

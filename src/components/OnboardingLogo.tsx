@@ -2,15 +2,12 @@ import { RefObject, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, useAnimationControls } from 'framer-motion'
 import { EASE_OUT_QUINT_TUPLE } from '../lib/animations'
-import { SLOT_SHAPES, CELL, GAP, SCALE_CLOSED } from '../icons/pixel-shapes'
+import PixelLogoSvg from './PixelLogoSvg'
 import PixelSplash from './PixelSplash'
 
 const LARGE_SIZE = 100
 const SMALL_SIZE = 28
 const EASE_IN = [0.55, 0, 1, 0.45] as [number, number, number, number]
-
-// Morph CSS transition duration (ms) — how long pixels take to slide between shapes
-const MORPH_MS = 180
 
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
@@ -37,21 +34,6 @@ export default function OnboardingLogo({ targetRef, onComplete, onFlyStart, redu
   onCompleteRef.current = onComplete
   const onFlyStartRef = useRef(onFlyStart)
   onFlyStartRef.current = onFlyStart
-
-  const slots = SLOT_SHAPES[activeShape]
-  const isArcade = activeShape === 0
-
-  // SVG paths: visible when on Arcade shape (clean, non-pixelated A)
-  const pathsOpacity = isArcade ? 1 : 0
-  const pathsTransition = isArcade ? 'opacity 100ms ease-out' : 'opacity 60ms ease-out'
-
-  // Pixels: visible when NOT on Arcade, scale to close gaps when returning to Arcade
-  const pixelScale = isArcade ? SCALE_CLOSED : 1
-  const pixelOpacity = isArcade ? 0 : 1
-  const pixelOrigin = `${(CELL - GAP) / 2}px ${(CELL - GAP) / 2}px`
-  const morphTransition = isArcade
-    ? `transform ${MORPH_MS}ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 100ms ease-out`
-    : `transform ${MORPH_MS}ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 60ms ease-out`
 
   useEffect(() => {
     if (reducedMotion) {
@@ -200,40 +182,7 @@ export default function OnboardingLogo({ targetRef, onComplete, onFlyStart, redu
           transition={{ duration: 0.25, ease: EASE_OUT_QUINT_TUPLE }}
         >
           <motion.div animate={bounceControls} style={{ y: 0, scaleY: 1, scaleX: 1 }}>
-            <svg
-              width={LARGE_SIZE}
-              height={LARGE_SIZE}
-              viewBox='0 0 35 35'
-              fill='none'
-              xmlns='http://www.w3.org/2000/svg'
-            >
-              {/* Clean SVG paths — visible when on Arcade shape */}
-              <g style={{ opacity: pathsOpacity, transition: pathsTransition }}>
-                <path
-                  d='M0 8.75L8.75 0H26.25L35 8.75V17.5H26.25V8.75H8.75V17.5H2.45431e-07L0 8.75Z'
-                  fill='var(--logo-color)'
-                />
-                <path d='M8.75 26.25V17.5H26.25V26.25H8.75Z' fill='var(--logo-color)' />
-                <path d='M8.75 26.25H2.45431e-07V35H8.75V26.25Z' fill='var(--logo-color)' />
-                <path d='M26.25 26.25V35H35V26.25H26.25Z' fill='var(--logo-color)' />
-              </g>
-              {/* Pixel rects — always in DOM for transition tracking, visible when morphing */}
-              {slots.map((slot) => (
-                <rect
-                  key={slot.id}
-                  width={CELL - GAP}
-                  height={CELL - GAP}
-                  rx={0.4}
-                  fill='var(--logo-color)'
-                  style={{
-                    transform: `translate(${slot.x * CELL}px, ${slot.y * CELL}px) scale(${pixelScale})`,
-                    transformOrigin: pixelOrigin,
-                    opacity: pixelOpacity,
-                    transition: morphTransition,
-                  }}
-                />
-              ))}
-            </svg>
+            <PixelLogoSvg activeShape={activeShape} size={LARGE_SIZE} />
           </motion.div>
         </motion.div>
         <PixelSplash bounceCount={bounceCount} reducedMotion={reducedMotion} />

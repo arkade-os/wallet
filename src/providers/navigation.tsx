@@ -3,7 +3,7 @@ import Init from '../screens/Init/Init'
 import InitConnect from '../screens/Init/Connect'
 import InitRestore from '../screens/Init/Restore'
 import InitPassword from '../screens/Init/Password'
-import Loading from '../components/Loading'
+import LoadingLogo from '../components/LoadingLogo'
 import NotesRedeem from '../screens/Wallet/Notes/Redeem'
 import NotesForm from '../screens/Wallet/Notes/Form'
 import NotesSuccess from '../screens/Wallet/Notes/Success'
@@ -187,7 +187,7 @@ export const pageComponent = (page: Pages): JSX.Element => {
     case Pages.InitSuccess:
       return <InitSuccess />
     case Pages.Loading:
-      return <Loading />
+      return <LoadingLogo />
     case Pages.NotesRedeem:
       return <NotesRedeem />
     case Pages.NotesForm:
