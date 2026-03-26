@@ -1,6 +1,5 @@
 import { IonModal } from '@ionic/react'
 import { useContext } from 'react'
-import CloseIcon from '../icons/Close'
 import { NavigationContext, Tabs } from '../providers/navigation'
 import { hapticLight } from '../lib/haptics'
 
@@ -19,60 +18,45 @@ export default function SheetModal({ children, isOpen, onClose }: SheetModalProp
     onClose()
   }
 
-  const outerStyle: React.CSSProperties = {
-    maxWidth: '640px',
-    margin: '0 auto',
-    width: '100%',
-  }
-
-  const innerStyle: React.CSSProperties = {
-    backgroundColor: 'var(--ion-background-color)',
-    borderRadius: '1.5rem 1.5rem 0 0',
-    boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04)',
-    height: '100%',
-    padding: '1.25rem',
-    paddingTop: '0.75rem',
-    paddingBottom: hasNavbar ? 'var(--pill-navbar-spacer)' : '2rem',
-    width: '100%',
-    position: 'relative',
-  }
-
-  const handleStyle: React.CSSProperties = {
-    backgroundColor: 'var(--dark20)',
-    borderRadius: '2px',
-    height: '4px',
-    margin: '0 auto 1rem',
-    width: '36px',
-  }
-
-  const closeButtonStyle: React.CSSProperties = {
-    alignItems: 'center',
-    background: 'var(--dark05)',
-    border: 'none',
-    borderRadius: '50%',
-    color: 'var(--ion-text-color)',
-    cursor: 'pointer',
-    display: 'flex',
-    height: '32px',
-    justifyContent: 'center',
-    padding: 0,
-    position: 'absolute',
-    right: '1rem',
-    top: '1rem',
-    width: '32px',
-  }
-
   return (
     <IonModal initialBreakpoint={1} backdropBreakpoint={0} isOpen={isOpen} onDidDismiss={handleClose}>
       <div style={outerStyle}>
-        <div style={innerStyle}>
-          <div style={handleStyle} />
-          <button type='button' style={closeButtonStyle} onClick={handleClose} aria-label='Close'>
-            <CloseIcon />
-          </button>
+        <div
+          style={{
+            ...innerStyle,
+            paddingBottom: hasNavbar ? 'var(--pill-navbar-spacer)' : '2rem',
+          }}
+        >
+          <div style={handleAreaStyle} onClick={handleClose}>
+            <div style={handleStyle} />
+          </div>
           {children}
         </div>
       </div>
     </IonModal>
   )
+}
+
+const outerStyle: React.CSSProperties = {
+  maxWidth: '640px',
+  margin: '0 auto',
+  width: '100%',
+}
+
+const innerStyle: React.CSSProperties = {
+  padding: '0 1.25rem',
+  width: '100%',
+}
+
+const handleAreaStyle: React.CSSProperties = {
+  padding: '12px 0 20px',
+  cursor: 'grab',
+}
+
+const handleStyle: React.CSSProperties = {
+  backgroundColor: 'var(--dark20)',
+  borderRadius: '100px',
+  height: '5px',
+  margin: '0 auto',
+  width: '40px',
 }

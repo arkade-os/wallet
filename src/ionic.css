@@ -44,6 +44,9 @@
   --bullet-icon-bg: #ede7fb;
   --pill-navbar-spacer: calc(80px + env(safe-area-inset-bottom, 0px));
   --pill-navbar-clearance: calc(64px + env(safe-area-inset-bottom, 0px));
+  --sheet-bg: #fff;
+  --toast-bg: #1a1a1a;
+  --toast-color: #fafafa;
 }
 
 .ion-palette-dark {
@@ -68,6 +71,14 @@
   --danger: #e04d4d;
   --purpletext: #9678f7;
   --bullet-icon-bg: #1f1050;
+  --sheet-bg: #1a1a1a;
+  --toast-bg: #2a2a2a;
+  --toast-color: #e0e0e0;
+}
+
+.ion-palette-dark ion-modal {
+  --box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4), 0 -1px 0 rgba(255, 255, 255, 0.08);
+  --border-color: rgba(255, 255, 255, 0.1);
 }
 
 .my-ion-action-sheet div.action-sheet-group {
@@ -291,14 +302,19 @@ ion-action-sheet.my-ion-action-sheet {
 ion-modal {
   z-index: 200 !important;
   --backdrop-opacity: 0.4;
-}
-
-ion-modal::part(content) {
-  --background: transparent;
-  --border-radius: 1.5rem 1.5rem 0 0;
+  --background: var(--sheet-bg, #fff);
+  --border-radius: 16px 16px 0 0;
   --height: auto;
   --max-width: 100%;
   --width: 100%;
+  --overflow: visible;
+  --box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.12), 0 -1px 6px rgba(0, 0, 0, 0.04);
+  --border-width: 1px 0 0 0;
+  --border-style: solid;
+  --border-color: var(--dark10);
+}
+
+ion-modal::part(content) {
   position: absolute;
   bottom: 0;
 }
@@ -367,4 +383,35 @@ ion-toggle::part(track) {
 ion-input[readonly] {
   --color: var(--dark50);
   --highlight-color-focused: none;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.95);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes toast-in {
+    from, to { opacity: 1; transform: none; }
+  }
+  @keyframes toast-out {
+    from, to { opacity: 0; transform: none; }
+  }
 }

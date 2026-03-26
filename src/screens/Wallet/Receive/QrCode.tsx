@@ -27,11 +27,9 @@ import { extractError } from '../../../lib/error'
 import InputAmount from '../../../components/InputAmount'
 import Keyboard from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
-import Shadow from '../../../components/Shadow'
 import Text, { TextSecondary } from '../../../components/Text'
 import { copyToClipboard } from '../../../lib/clipboard'
-import { useIonToast } from '@ionic/react'
-import { copiedToClipboard } from '../../../lib/toast'
+import { useToast } from '../../../components/Toast'
 import { prettyLongText, prettyNumber } from '../../../lib/format'
 import CopyIcon from '../../../icons/Copy'
 import CheckMarkIcon from '../../../icons/CheckMark'
@@ -52,7 +50,7 @@ export default function ReceiveQRCode() {
   const { validBtcToArk, validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } =
     useContext(LimitsContext)
 
-  const [present] = useIonToast()
+  const { toast } = useToast()
 
   const [sharing, setSharing] = useState(false)
   const [addressesLoaded, setAddressesLoaded] = useState(false)
@@ -277,7 +275,7 @@ export default function ReceiveQRCode() {
   const handleCopy = async (value: string) => {
     hapticSubtle()
     await copyToClipboard(value)
-    present(copiedToClipboard)
+    toast('Copied to clipboard')
     setCopied(value)
   }
 
@@ -337,45 +335,48 @@ export default function ReceiveQRCode() {
           ) : noPaymentMethods ? (
             <div>No valid payment methods available for this amount</div>
           ) : (
-            <FlexCol centered>
-              <div>
-                <QrCode value={qrCodeValue} />
-                {satoshis > 0 ? (
-                  <div style={{ fontSize: '14px', color: 'var(--dark50)', textAlign: 'center', marginTop: '0.5rem' }}>
-                    Requesting {prettyNumber(satoshis)} sats
-                  </div>
-                ) : null}
-                {(!satoshis || satoshis < 500) && !isAssetReceive ? (
-                  <div style={{ fontSize: '13px', color: 'var(--dark50)', textAlign: 'center', marginTop: '0.25rem' }}>
-                    500 sats min for Lightning
-                  </div>
-                ) : null}
+            <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 2rem)', gap: '1rem' }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <QrCode value={qrCodeValue} />
+                  {satoshis > 0 ? (
+                    <div style={{ fontSize: '14px', color: 'var(--dark50)', marginTop: '0.5rem' }}>
+                      Requesting {prettyNumber(satoshis)} sats
+                    </div>
+                  ) : null}
+                  {(!satoshis || satoshis < 500) && !isAssetReceive ? (
+                    <div style={{ fontSize: '13px', color: 'var(--dark50)', marginTop: '0.25rem' }}>
+                      500 sats min for Lightning
+                    </div>
+                  ) : null}
+                </div>
               </div>
 
-              {swapsTimedOut && !invoice && !isAssetReceive ? (
-                <WarningBox text='Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.' />
-              ) : null}
-
-              <FlexCol strech>
-                <FlexRow centered gap='0.5rem'>
-                  <div style={{ flex: 1 }}>
-                    <Button label={amountLabel} onClick={() => setShowAmountSheet(true)} secondary />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <Button label='Copy' onClick={() => setShowCopySheet(true)} secondary />
-                  </div>
-                </FlexRow>
-                <Button label='Share' onClick={handleShare} disabled={shareDisabled} />
-              </FlexCol>
-            </FlexCol>
+              <div style={{ paddingBottom: '1.5rem' }}>
+                <FlexCol strech>
+                  {swapsTimedOut && !invoice && !isAssetReceive ? (
+                    <WarningBox text='Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.' />
+                  ) : null}
+                  <FlexRow centered gap='0.5rem'>
+                    <div style={{ flex: 1 }}>
+                      <Button label={amountLabel} onClick={() => setShowAmountSheet(true)} secondary />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <Button label='Copy' onClick={() => setShowCopySheet(true)} secondary />
+                    </div>
+                  </FlexRow>
+                  <Button label='Share' onClick={handleShare} disabled={shareDisabled} />
+                </FlexCol>
+              </div>
+            </div>
           )}
         </Padded>
       </Content>
 
       {/* Amount bottom sheet */}
       <SheetModal isOpen={showAmountSheet} onClose={() => setShowAmountSheet(false)}>
-        <FlexCol gap='1rem' padding='1rem 0'>
-          <Text>Set amount</Text>
+        <FlexCol gap='1rem' padding='0.5rem 0'>
+          <Text big bold>Set amount</Text>
           <InputAmount
             name='receive-amount-sheet'
             focus={!isMobileBrowser}
@@ -396,8 +397,8 @@ export default function ReceiveQRCode() {
 
       {/* Copy address bottom sheet */}
       <SheetModal isOpen={showCopySheet} onClose={() => setShowCopySheet(false)}>
-        <FlexCol gap='1rem' padding='1rem 0'>
-          <Text>Copy address</Text>
+        <FlexCol gap='1rem' padding='0.5rem 0'>
+          <Text big bold>Copy address</Text>
           <AddressList
             bip21Uri={bip21Uri}
             btcAddress={btcAddress}
@@ -434,22 +435,22 @@ function AddressList({
   copied: string
 }) {
   return (
-    <FlexCol gap='0.5rem'>
+    <FlexCol gap='0.75rem'>
       {bip21Uri ? (
         <AddressLine
           testId='bip21'
-          title='BIP21'
+          title='Unified'
           value={bip21Uri}
           onCopy={onCopy}
           onSelect={onSelect}
           copied={copied}
         />
       ) : null}
-      {btcAddress ? (
+      {invoice ? (
         <AddressLine
-          testId='btc'
-          title='BTC address'
-          value={btcAddress}
+          testId='invoice'
+          title='Lightning invoice'
+          value={invoice}
           onCopy={onCopy}
           onSelect={onSelect}
           copied={copied}
@@ -465,11 +466,11 @@ function AddressList({
           copied={copied}
         />
       ) : null}
-      {invoice ? (
+      {btcAddress ? (
         <AddressLine
-          testId='invoice'
-          title='Lightning invoice'
-          value={invoice}
+          testId='btc'
+          title='Bitcoin address'
+          value={btcAddress}
           onCopy={onCopy}
           onSelect={onSelect}
           copied={copied}
@@ -506,9 +507,31 @@ function AddressLine({
           <TextSecondary>{title}</TextSecondary>
           <Text>{prettyLongText(value, 12)}</Text>
         </FlexCol>
-        <Shadow flex onClick={() => onCopy(value)} testId={testId + '-address-copy'}>
+        <button
+          type='button'
+          aria-label={`Copy ${title}`}
+          data-testid={testId + '-address-copy'}
+          onClick={(e) => {
+            e.stopPropagation()
+            onCopy(value)
+          }}
+          style={{
+            alignItems: 'center',
+            background: 'var(--dark05)',
+            border: 'none',
+            borderRadius: '8px',
+            color: 'var(--dark30)',
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'center',
+            minWidth: '44px',
+            minHeight: '44px',
+            padding: 0,
+            touchAction: 'manipulation',
+          }}
+        >
           {copied === value ? <CheckMarkIcon /> : <CopyIcon />}
-        </Shadow>
+        </button>
       </FlexRow>
     </Focusable>
   )

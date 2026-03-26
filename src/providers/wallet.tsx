@@ -149,6 +149,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const autoInit = async () => {
       try {
         const privateKey = nsecToPrivateKey(import.meta.env.VITE_DEV_NSEC)
+        setAuthState('authenticated')
         await initWallet(privateKey)
       } catch (err) {
         consoleError(err, 'Dev auto-init failed')
