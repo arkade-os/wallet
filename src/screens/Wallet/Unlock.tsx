@@ -4,8 +4,6 @@ import { consoleError } from '../../lib/logs'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import NeedsPassword from '../../components/NeedsPassword'
 import Header from '../../components/Header'
-import Loading from '../../components/Loading'
-
 export default function Unlock() {
   const { dataReady, unlockWallet } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
@@ -35,9 +33,11 @@ export default function Unlock() {
     if (unlocked && dataReady) navigate(Pages.Wallet)
   }, [unlocked, dataReady, navigate])
 
-  return unlocking ? (
-    <Loading />
-  ) : (
+  // While unlocking, render nothing — the boot animation from App.tsx
+  // covers this loading state visually.
+  if (unlocking) return null
+
+  return (
     <>
       <Header text='Unlock' />
       <NeedsPassword error={error} onPassword={handleUnlock} />
