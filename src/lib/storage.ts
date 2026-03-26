@@ -47,7 +47,10 @@ export type CachedAssetDetails = AssetDetails & { cachedAt: number; hasIcon?: bo
 export const saveAssetMetadataToStorage = (cache: Map<string, CachedAssetDetails>): void => {
   const obj: Record<string, CachedAssetDetails> = {}
   cache.forEach((v, k) => {
-    obj[k] = v
+    // strip icon from persisted data — it can be large (base64) and is re-fetched on demand
+    const { metadata, ...rest } = v
+    const { icon: _, ...metaWithoutIcon } = metadata ?? {}
+    obj[k] = { ...rest, metadata: metaWithoutIcon }
   })
   setStorageItem('assetMetadataCache', JSON.stringify(obj))
 }
