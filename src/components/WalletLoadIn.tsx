@@ -18,7 +18,12 @@ export function WalletStaggerContainer({
   if (skip) return <div style={{ width: '100%' }}>{children}</div>
 
   return (
-    <motion.div initial='initial' animate={hold ? 'initial' : 'animate'} variants={walletLoadInContainer} style={{ width: '100%' }}>
+    <motion.div
+      initial='initial'
+      animate={hold ? 'initial' : 'animate'}
+      variants={walletLoadInContainer}
+      style={{ width: '100%' }}
+    >
       {children}
     </motion.div>
   )
