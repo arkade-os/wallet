@@ -248,7 +248,7 @@ export default function App() {
 
   const comp = page === Pages.Loading ? <Loading /> : pageComponent(page)
   const isSettingsRoot = screen === Pages.Settings && option === SettingsOptions.Menu
-  const showNavbar = screen === Pages.Wallet || screen === Pages.Apps || isSettingsRoot
+  const showNavbar = page === screen && (screen === Pages.Wallet || screen === Pages.Apps || isSettingsRoot)
 
   return (
     <IonApp className={showNavbar ? 'has-pill-navbar' : undefined}>

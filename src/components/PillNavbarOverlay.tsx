@@ -25,6 +25,7 @@ export default function PillNavbarOverlay({
       animate={visible ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
       initial={false}
       transition={prefersReduced ? { duration: 0 } : { type: 'spring', duration: 0.5, bounce: 0.25 }}
+      {...(!visible && { inert: '' })}
     >
       <div className='pill-navbar-haze' aria-hidden='true' />
       <PillNavbar

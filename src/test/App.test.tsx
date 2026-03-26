@@ -46,7 +46,9 @@ vi.mock('@ionic/react', async (importOriginal) => {
 
   return {
     ...actual,
-    IonApp: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    IonApp: ({ children, className }: { children: ReactNode; className?: string }) => (
+      <div data-testid='ion-app' className={className}>{children}</div>
+    ),
     IonPage: ({ children }: { children: ReactNode }) => <div>{children}</div>,
     IonTab,
     IonTabBar: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -62,15 +64,19 @@ function renderApp({
   authState,
   initialized,
   unlockWallet = vi.fn().mockResolvedValue(undefined),
+  screen: screenOverride = Pages.Init,
+  tab: tabOverride = Tabs.None,
 }: {
   authState: WalletAuthState
   initialized: boolean
   unlockWallet?: ReturnType<typeof vi.fn>
+  screen?: Pages
+  tab?: Tabs
 }) {
   const navigate = vi.fn()
 
   render(
-    <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate, screen: Pages.Init, tab: Tabs.None }}>
+    <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate, screen: screenOverride, tab: tabOverride }}>
       <AspContext.Provider value={mockAspContextValue as any}>
         <ConfigContext.Provider value={{ ...mockConfigContextValue, configLoaded: true } as any}>
           <FlowContext.Provider value={mockFlowContextValue as any}>
@@ -111,10 +117,12 @@ describe('App startup routing', () => {
       dispatchEvent: vi.fn(),
     }))
     vi.mocked(detectJSCapabilities).mockResolvedValue({ isSupported: true })
+    vi.stubEnv('VITE_DEV_NSEC', '')
   })
 
   afterEach(() => {
     vi.useRealTimers()
+    vi.unstubAllEnvs()
   })
 
   it('keeps passwordless wallets on loading and boots them in the background', async () => {
@@ -175,5 +183,50 @@ describe('App startup routing', () => {
     expect(unlockWallet).toHaveBeenCalledWith(defaultPassword)
     await vi.advanceTimersByTimeAsync(1000)
     expect(reloadSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('Navbar visibility', () => {
+  beforeEach(() => {
+    sessionStorage.clear()
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+    vi.mocked(detectJSCapabilities).mockResolvedValue({ isSupported: true })
+    vi.stubEnv('VITE_DEV_NSEC', '')
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('hides navbar on unlock screen even when navigation context has Wallet tab', async () => {
+    renderApp({ authState: 'locked', initialized: false, screen: Pages.Wallet, tab: Tabs.Wallet })
+
+    await screen.findByText('Unlock')
+    const ionApp = screen.getByTestId('ion-app')
+    expect(ionApp.className).not.toContain('has-pill-navbar')
+  })
+
+  it('hides navbar during loading hold', async () => {
+    renderApp({ authState: 'authenticated', initialized: false, screen: Pages.Wallet, tab: Tabs.Wallet })
+
+    await screen.findByText('Loading...')
+    const ionApp = screen.getByTestId('ion-app')
+    expect(ionApp.className).not.toContain('has-pill-navbar')
+  })
+
+  it('shows navbar on wallet root when authenticated and initialized', async () => {
+    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Wallet, tab: Tabs.Wallet })
+
+    const ionApp = await screen.findByTestId('ion-app')
+    expect(ionApp.className).toContain('has-pill-navbar')
   })
 })
