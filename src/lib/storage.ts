@@ -42,11 +42,16 @@ export const readWalletFromStorage = (): Wallet | undefined => {
 }
 
 // local storage caches the asset details for 24 hours
+export const ASSET_METADATA_TTL_MS = 24 * 60 * 60 * 1000
+
 export type CachedAssetDetails = AssetDetails & { cachedAt: number; hasIcon?: boolean }
 
 export const saveAssetMetadataToStorage = (cache: Map<string, CachedAssetDetails>): void => {
+  const now = Date.now()
   const obj: Record<string, CachedAssetDetails> = {}
   cache.forEach((v, k) => {
+    // evict expired entries to prevent unbounded localStorage growth
+    if (now - v.cachedAt >= ASSET_METADATA_TTL_MS) return
     obj[k] = v
   })
   setStorageItem('assetMetadataCache', JSON.stringify(obj))

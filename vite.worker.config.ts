@@ -12,6 +12,9 @@ export default defineConfig({
     emptyOutDir: false,
     rollupOptions: {
       external: ['fs'],
+      output: {
+        inlineDynamicImports: true,
+      },
     },
   },
   worker: {
