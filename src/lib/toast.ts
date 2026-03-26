@@ -1,28 +1,19 @@
-import { ToastOptions } from '@ionic/react'
+import { toast } from 'sonner'
 
-const defaultToastOptions: ToastOptions = {
-  duration: 1000,
-  position: 'top',
+export function copiedToClipboard() {
+  toast('Copied to clipboard', { duration: 1000 })
 }
 
-const toastReloadButton = {
-  text: 'reload',
-  handler: () => window.location.reload(),
+export function newVersionAvailable() {
+  toast('New version available', {
+    duration: Infinity,
+    action: {
+      label: 'Reload',
+      onClick: () => window.location.reload(),
+    },
+  })
 }
 
-export const copiedToClipboard: ToastOptions = {
-  ...defaultToastOptions,
-  message: 'Copied to clipboard',
-}
-
-export const newVersionAvailable: ToastOptions = {
-  ...defaultToastOptions,
-  buttons: [toastReloadButton],
-  duration: 0,
-  message: 'New version available',
-}
-
-export const backupToNostr: ToastOptions = {
-  ...defaultToastOptions,
-  message: 'Nostr backup updated',
+export function backupToNostr() {
+  toast('Nostr backup updated', { duration: 1000 })
 }

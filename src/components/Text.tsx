@@ -1,4 +1,3 @@
-import { IonText } from '@ionic/react'
 import { ReactNode } from 'react'
 import { copyToClipboard } from '../lib/clipboard'
 import { useToast } from './Toast'
@@ -54,7 +53,7 @@ export default function Text({
   const pStyle: any = {
     color: color ? `var(--${color})` : undefined,
     cursor: copy ? 'pointer' : undefined,
-    fontFamily: heading ? 'var(--heading-font)' : undefined,
+    fontFamily: heading ? 'var(--font-heading)' : undefined,
     fontSize,
     fontWeight: thin ? '400' : medium ? '500' : bold ? (heading ? '700' : '600') : undefined,
     letterSpacing: heading ? '-0.5px' : undefined,
@@ -80,11 +79,11 @@ export default function Text({
   }
 
   return (
-    <IonText data-testid={testId}>
+    <div data-testid={testId} style={{ minWidth: 0 }}>
       <p className={className} onClick={handleClick} style={pStyle} title={tooltip}>
         {children}
       </p>
-    </IonText>
+    </div>
   )
 }
 

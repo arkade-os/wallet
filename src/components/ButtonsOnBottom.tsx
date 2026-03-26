@@ -1,4 +1,3 @@
-import { IonFooter } from '@ionic/react'
 import { ReactNode } from 'react'
 import FlexCol from './FlexCol'
 
@@ -14,14 +13,19 @@ export default function ButtonsOnBottom({ bordered, children }: ButtonsOnBottomP
     width: '100%',
   }
 
+  const footerStyle: React.CSSProperties = {
+    padding: '1rem',
+    paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))',
+  }
+
   return (
     <>
       {bordered ? <hr style={borderStyle} /> : null}
-      <IonFooter className='buttons-on-bottom ion-padding ion-no-border'>
+      <footer role='contentinfo' style={footerStyle}>
         <FlexCol gap='0' strech>
           {children}
         </FlexCol>
-      </IonFooter>
+      </footer>
     </>
   )
 }

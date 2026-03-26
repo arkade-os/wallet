@@ -205,6 +205,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [wallet.pubkey])
 
+
   // reload wallet as soon as we have a service worker wallet available
   useEffect(() => {
     if (svcWallet) reloadWallet().catch(consoleError)
