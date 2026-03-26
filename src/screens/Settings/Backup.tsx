@@ -1,4 +1,4 @@
-import { useIonToast } from '@ionic/react'
+import { useToast } from '../../components/Toast'
 import { useState, useEffect, useContext, useRef } from 'react'
 import Button from '../../components/Button'
 import Padded from '../../components/Padded'
@@ -7,7 +7,6 @@ import { copyToClipboard } from '../../lib/clipboard'
 import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
-import { backupToNostr, copiedToClipboard } from '../../lib/toast'
 import { getPrivateKey, privateKeyToNsec } from '../../lib/privateKey'
 import { consoleError } from '../../lib/logs'
 import Shadow from '../../components/Shadow'
@@ -36,7 +35,7 @@ export default function Backup() {
   const { arkadeSwaps } = useContext(SwapsContext)
   const { backupConfig, config, updateConfig } = useContext(ConfigContext)
 
-  const [present] = useIonToast()
+  const { toast } = useToast()
 
   const [nsec, setNsec] = useState('')
   const [error, setError] = useState('')
@@ -61,7 +60,7 @@ export default function Backup() {
   const handleCopy = async () => {
     if (!nsec) return
     await copyToClipboard(nsec)
-    present(copiedToClipboard)
+    toast('Copied to clipboard')
   }
 
   const onChangePassword = (e: any) => {
@@ -99,7 +98,7 @@ export default function Backup() {
     } else {
       backupConfig(newConfig)
     }
-    present(backupToNostr)
+    toast('Nostr backup updated')
   }
 
   const Dialog = () => (
