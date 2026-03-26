@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { lnurlServerBaseUrl as rawLnurlServerUrl } from '../lib/constants'
+import { lnurlServerUrl as rawLnurlServerUrl } from '../lib/constants'
 import { consoleError } from '../lib/logs'
 
 const lnurlServerBaseUrl = rawLnurlServerUrl?.replace(/\/+$/, '')
