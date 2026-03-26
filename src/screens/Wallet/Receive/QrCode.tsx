@@ -376,7 +376,9 @@ export default function ReceiveQRCode() {
       {/* Amount bottom sheet */}
       <SheetModal isOpen={showAmountSheet} onClose={() => setShowAmountSheet(false)}>
         <FlexCol gap='1rem' padding='0.5rem 0'>
-          <Text big bold>Set amount</Text>
+          <Text big bold>
+            Set amount
+          </Text>
           <InputAmount
             name='receive-amount-sheet'
             focus={!isMobileBrowser}
@@ -398,7 +400,9 @@ export default function ReceiveQRCode() {
       {/* Copy address bottom sheet */}
       <SheetModal isOpen={showCopySheet} onClose={() => setShowCopySheet(false)}>
         <FlexCol gap='1rem' padding='0.5rem 0'>
-          <Text big bold>Copy address</Text>
+          <Text big bold>
+            Copy address
+          </Text>
           <AddressList
             bip21Uri={bip21Uri}
             btcAddress={btcAddress}

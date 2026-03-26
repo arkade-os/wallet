@@ -59,9 +59,7 @@ function ToastMessage({ message, leaving }: { message: string; leaving: boolean 
     <div
       style={{
         ...toastStyle,
-        animation: leaving
-          ? 'toast-out 150ms ease-out forwards'
-          : 'toast-in 250ms ease-out forwards',
+        animation: leaving ? 'toast-out 150ms ease-out forwards' : 'toast-in 250ms ease-out forwards',
       }}
     >
       {message}

@@ -409,9 +409,17 @@ ion-input[readonly] {
 
 @media (prefers-reduced-motion: reduce) {
   @keyframes toast-in {
-    from, to { opacity: 1; transform: none; }
+    from,
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
   @keyframes toast-out {
-    from, to { opacity: 0; transform: none; }
+    from,
+    to {
+      opacity: 0;
+      transform: none;
+    }
   }
 }
