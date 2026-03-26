@@ -3,6 +3,7 @@ import {
   saveAssetMetadataToStorage,
   readAssetMetadataFromStorage,
   CachedAssetDetails,
+  ASSET_METADATA_TTL_MS,
   clearStorage,
 } from '../../lib/storage'
 
@@ -59,6 +60,19 @@ describe('asset metadata storage', () => {
     expect(loaded!.get('asset1')?.metadata?.name).toBe('Token')
     expect(loaded!.get('asset1')?.metadata?.icon).toBeUndefined()
     expect(loaded!.get('asset1')?.hasIcon).toBe(true)
+  })
+
+  it('should evict expired entries when saving', () => {
+    const cache = new Map<string, CachedAssetDetails>()
+    cache.set('fresh', makeCached('fresh', 'Fresh Token'))
+    cache.set('stale', makeCached('stale', 'Stale Token', Date.now() - ASSET_METADATA_TTL_MS - 1))
+
+    saveAssetMetadataToStorage(cache)
+    const loaded = readAssetMetadataFromStorage()
+
+    expect(loaded!.size).toBe(1)
+    expect(loaded!.has('fresh')).toBe(true)
+    expect(loaded!.has('stale')).toBe(false)
   })
 
   it('should overwrite on re-save', () => {
