@@ -50,6 +50,18 @@ export function useLnurlSession(
     }
   }, [])
 
+  const postError = useCallback(async (sessionId: string, reason: string) => {
+    try {
+      await fetch(`${lnurlServerBaseUrl}/lnurl/session/${sessionId}/invoice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: reason }),
+      })
+    } catch (err) {
+      consoleError(err, 'Failed to post error to lnurl-server')
+    }
+  }, [])
+
   useEffect(() => {
     if (!enabled || !lnurlServerBaseUrl) return
 
@@ -116,9 +128,11 @@ export function useLnurlSession(
                     await postInvoice(sessionIdRef.current, pr)
                   }
                 } catch (err) {
+                  const reason = err instanceof Error ? err.message : 'Failed to create invoice'
                   consoleError(err, 'Failed to handle invoice request')
-                  setError('Failed to fulfill payment request')
-                  setLnurl('')
+                  if (sessionIdRef.current) {
+                    await postError(sessionIdRef.current, reason)
+                  }
                 }
               }
 
@@ -144,7 +158,7 @@ export function useLnurlSession(
       abort.abort()
       abortRef.current = null
     }
-  }, [enabled, postInvoice])
+  }, [enabled, postInvoice, postError])
 
   return { lnurl, active, error }
 }

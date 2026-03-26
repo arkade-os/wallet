@@ -58,7 +58,6 @@ export default function ReceiveQRCode() {
   const handleInvoiceRequest = useCallback(
     async (req: { amountMsat: number }) => {
       const sats = Math.floor(req.amountMsat / 1000)
-      if (!validLnSwap(sats)) throw new Error('Amount outside Lightning receive limits')
       const pendingSwap = await createReverseSwap(sats)
       if (!pendingSwap) throw new Error('Failed to create reverse swap')
       // Auto-claim in background
@@ -74,7 +73,7 @@ export default function ReceiveQRCode() {
       }
       return pendingSwap.response.invoice
     },
-    [arkadeSwaps, createReverseSwap, validLnSwap, setRecvInfo, recvInfo, navigate, notifyPaymentReceived],
+    [arkadeSwaps, createReverseSwap, setRecvInfo, recvInfo, navigate, notifyPaymentReceived],
   )
   const lnurlSession = useLnurlSession(isAmountlessLnurl, handleInvoiceRequest)
 
