@@ -100,8 +100,10 @@ export default function App() {
   const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
   const [animatingTab, setAnimatingTab] = useState<string | null>(null)
   const [bootAnimActive, setBootAnimActive] = useState(false)
-  const updateBootAnimActive = useCallback((active: boolean) => {
-    syncBootAnimFlag(active) // sync external store before React re-render
+  // Syncs the external store before React re-renders, so Wallet reads
+  // the correct value on the same frame LoadingLogo unmounts.
+  const updateBootAnim = useCallback((active: boolean) => {
+    syncBootAnimFlag(active)
     setBootAnimActive(active)
   }, [])
   const [bootAnimDone, setBootAnimDone] = useState(false)
@@ -259,7 +261,7 @@ export default function App() {
   useEffect(() => {
     // Start boot animation when we first see the Loading page
     if (page === Pages.Loading && !bootAnimActive) {
-      updateBootAnimActive(true)
+      updateBootAnim(true)
       return
     }
 
@@ -280,8 +282,8 @@ export default function App() {
   }, [page, bootAnimActive, bootAnimDone])
 
   const handleBootAnimComplete = useCallback(() => {
-    updateBootAnimActive(false)
-  }, [updateBootAnimActive])
+    updateBootAnim(false)
+  }, [updateBootAnim])
 
   const comp = page === Pages.Loading ? null : pageComponent(page)
 

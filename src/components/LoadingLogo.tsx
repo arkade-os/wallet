@@ -10,6 +10,8 @@ import PixelSplash from './PixelSplash'
 import Text from './Text'
 
 const LARGE_SIZE = 100
+// Max frames to wait for the header logo anchor to mount before falling back to fly-up
+const ANCHOR_RETRY_FRAMES = 10
 
 interface LoadingLogoProps {
   text?: string
@@ -57,12 +59,20 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
       return
     }
 
+    const flyUp = () =>
+      flyControlsRef.current.start({
+        y: -200,
+        scale: 0.5,
+        opacity: 0,
+        transition: { duration: 0.35, ease: EASE_OUT_QUINT_TUPLE },
+      })
+
     async function runExit() {
       if (mode === 'fly-to-target') {
         // Wait for anchor to be mounted (may lag behind page render)
         let target = getLogoAnchor()
         if (!target) {
-          for (let i = 0; i < 10; i++) {
+          for (let i = 0; i < ANCHOR_RETRY_FRAMES; i++) {
             await new Promise<void>((r) => requestAnimationFrame(() => r()))
             target = getLogoAnchor()
             if (target) break
@@ -86,22 +96,10 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
             transition: { duration: 0.4, ease: EASE_IN_OUT_QUINT_TUPLE },
           })
         } else {
-          // Anchor not available — fall back to fly-up
-          await flyControlsRef.current.start({
-            y: -200,
-            scale: 0.5,
-            opacity: 0,
-            transition: { duration: 0.35, ease: EASE_OUT_QUINT_TUPLE },
-          })
+          await flyUp()
         }
       } else {
-        // fly-up
-        await flyControlsRef.current.start({
-          y: -200,
-          scale: 0.5,
-          opacity: 0,
-          transition: { duration: 0.35, ease: EASE_OUT_QUINT_TUPLE },
-        })
+        await flyUp()
       }
 
       setVisible(false)
