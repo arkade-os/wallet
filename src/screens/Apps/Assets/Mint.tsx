@@ -192,9 +192,12 @@ export default function AppAssetMint() {
                     ? 'Control amount must be positive'
                     : ''
 
-  const handleExitComplete = useCallback(() => { pendingNav.current?.() }, [])
+  const handleExitComplete = useCallback(() => {
+    pendingNav.current?.()
+  }, [])
 
-  if (minting || mintDone) return <LoadingLogo text={mintingText} done={mintDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
+  if (minting || mintDone)
+    return <LoadingLogo text={mintingText} done={mintDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
 
   return (
     <>

@@ -115,5 +115,8 @@
     "onlyBuiltDependencies": [
       "@arkade-os/sdk"
     ]
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-darwin-x64": "^4.60.0"
   }
 }

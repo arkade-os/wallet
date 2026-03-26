@@ -51,13 +51,20 @@ export default function InitConnect() {
     setConnectDone(true)
   }
 
-  const handleExitComplete = useCallback(() => { pendingNav.current?.() }, [])
+  const handleExitComplete = useCallback(() => {
+    pendingNav.current?.()
+  }, [])
 
   return (
     <>
       <Header text='Connecting to server' back={handleCancel} />
       <Content>
-        <LoadingLogo text='Connecting to server' done={connectDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
+        <LoadingLogo
+          text='Connecting to server'
+          done={connectDone}
+          exitMode='fly-up'
+          onExitComplete={handleExitComplete}
+        />
       </Content>
       <ButtonsOnBottom>
         <Button onClick={handleCancel} label='Cancel' secondary />

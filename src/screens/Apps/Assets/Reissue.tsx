@@ -73,9 +73,12 @@ export default function AppAssetReissue() {
     }
   }
 
-  const handleExitComplete = useCallback(() => { pendingNav.current?.() }, [])
+  const handleExitComplete = useCallback(() => {
+    pendingNav.current?.()
+  }, [])
 
-  if (processing || opDone) return <LoadingLogo text='Reissuing...' done={opDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
+  if (processing || opDone)
+    return <LoadingLogo text='Reissuing...' done={opDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
 
   return (
     <>

@@ -72,11 +72,21 @@ export default function InitRestore() {
       })
   }
 
-  const handleExitComplete = useCallback(() => { pendingNav.current?.() }, [])
+  const handleExitComplete = useCallback(() => {
+    pendingNav.current?.()
+  }, [])
 
   const disabled = Boolean(!privateKey || error)
 
-  if (restoring || restoreDone) return <LoadingLogo text='Restoring wallet...' done={restoreDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
+  if (restoring || restoreDone)
+    return (
+      <LoadingLogo
+        text='Restoring wallet...'
+        done={restoreDone}
+        exitMode='fly-up'
+        onExitComplete={handleExitComplete}
+      />
+    )
 
   return (
     <>

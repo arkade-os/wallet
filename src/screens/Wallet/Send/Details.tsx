@@ -172,9 +172,19 @@ export default function SendDetails() {
       <Content>
         {sending ? (
           details?.destination === invoice ? (
-            <LoadingLogo text='Paying to Lightning' done={sendDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
+            <LoadingLogo
+              text='Paying to Lightning'
+              done={sendDone}
+              exitMode='fly-up'
+              onExitComplete={handleExitComplete}
+            />
           ) : details?.destination === arkAddress ? (
-            <LoadingLogo text='Paying inside Arkade' done={sendDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
+            <LoadingLogo
+              text='Paying inside Arkade'
+              done={sendDone}
+              exitMode='fly-up'
+              onExitComplete={handleExitComplete}
+            />
           ) : (
             <WaitingForRound done={sendDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
           )

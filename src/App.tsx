@@ -101,7 +101,6 @@ export default function App() {
   const [bootAnimActive, setBootAnimActive] = useState(false)
   const [bootAnimDone, setBootAnimDone] = useState(false)
   const [bootExitMode, setBootExitMode] = useState<'fly-to-target' | 'fly-up'>('fly-up')
-  const prevPageRef = useRef<Pages | null>(null)
 
   // refs for the tabs to be able to programmatically activate them
   const appsRef = useRef<HTMLIonTabElement>(null)
@@ -373,11 +372,7 @@ export default function App() {
         />
       )}
       {bootAnimActive ? (
-        <LoadingLogo
-          exitMode={bootExitMode}
-          done={bootAnimDone}
-          onExitComplete={handleBootAnimComplete}
-        />
+        <LoadingLogo exitMode={bootExitMode} done={bootAnimDone} onExitComplete={handleBootAnimComplete} />
       ) : null}
     </IonApp>
   )

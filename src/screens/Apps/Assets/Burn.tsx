@@ -74,9 +74,12 @@ export default function AppAssetBurn() {
     }
   }
 
-  const handleExitComplete = useCallback(() => { pendingNav.current?.() }, [])
+  const handleExitComplete = useCallback(() => {
+    pendingNav.current?.()
+  }, [])
 
-  if (processing || opDone) return <LoadingLogo text='Burning...' done={opDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
+  if (processing || opDone)
+    return <LoadingLogo text='Burning...' done={opDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
 
   return (
     <>

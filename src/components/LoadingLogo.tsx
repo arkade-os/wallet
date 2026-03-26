@@ -74,8 +74,8 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
           const targetRect = target.getBoundingClientRect()
           const containerRect = container.getBoundingClientRect()
 
-          const dx = (targetRect.left + targetRect.width / 2) - (containerRect.left + containerRect.width / 2)
-          const dy = (targetRect.top + targetRect.height / 2) - (containerRect.top + containerRect.height / 2)
+          const dx = targetRect.left + targetRect.width / 2 - (containerRect.left + containerRect.width / 2)
+          const dy = targetRect.top + targetRect.height / 2 - (containerRect.top + containerRect.height / 2)
           const targetScale = 35 / LARGE_SIZE
 
           // Step 4: Fly to the logo position
@@ -135,7 +135,11 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
           gap: '1rem',
         }}
       >
-        <motion.div ref={containerRef} animate={flyControls} style={{ position: 'relative', x: 0, y: 0, scale: 1, opacity: 1 }}>
+        <motion.div
+          ref={containerRef}
+          animate={flyControls}
+          style={{ position: 'relative', x: 0, y: 0, scale: 1, opacity: 1 }}
+        >
           <motion.div
             initial={reducedMotion ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}

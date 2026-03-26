@@ -167,7 +167,9 @@ export default function AppBoltzSwap() {
     }
   }
 
-  const handleExitComplete = useCallback(() => { setProcessing(false) }, [])
+  const handleExitComplete = useCallback(() => {
+    setProcessing(false)
+  }, [])
 
   return (
     <>
@@ -175,7 +177,12 @@ export default function AppBoltzSwap() {
       <Content>
         <Padded>
           {processing ? (
-            <LoadingLogo text='Processing swap...' done={opDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
+            <LoadingLogo
+              text='Processing swap...'
+              done={opDone}
+              exitMode='fly-up'
+              onExitComplete={handleExitComplete}
+            />
           ) : (
             <FlexCol gap='2rem'>
               <ErrorMessage error={Boolean(error)} text={error} />
