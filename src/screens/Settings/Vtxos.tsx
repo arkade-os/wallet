@@ -23,7 +23,6 @@ import { EmptyCoinsList } from '../../components/Empty'
 import WarningBox from '../../components/Warning'
 import { ExtendedCoin, ExtendedVirtualCoin, isVtxoExpiringSoon } from '@arkade-os/sdk'
 import { consoleError } from '../../lib/logs'
-import { IonCol, IonGrid, IonRow } from '@ionic/react'
 import * as Sentry from '@sentry/react'
 
 export default function Vtxos() {
@@ -224,24 +223,18 @@ export default function Vtxos() {
     }
     return (
       <div style={style}>
-        <IonGrid>
-          <IonRow className='ion-align-items-start'>
-            <IonCol size='4'>
-              <FlexCol gap='0.25rem'>
-                <Text>{amount}</Text>
-                {assets?.map((a) => (
-                  <Text key={a} color='dark50' smaller>
-                    {a}
-                  </Text>
-                ))}
-              </FlexCol>
-            </IonCol>
-            <IonCol size='4'>{tags}</IonCol>
-            <IonCol size='4'>
-              <Text right>{expiry}</Text>
-            </IonCol>
-          </IonRow>
-        </IonGrid>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', alignItems: 'start' }}>
+          <FlexCol gap='0.25rem'>
+            <Text>{amount}</Text>
+            {assets?.map((a) => (
+              <Text key={a} color='dark50' smaller>
+                {a}
+              </Text>
+            ))}
+          </FlexCol>
+          <div>{tags}</div>
+          <Text right>{expiry}</Text>
+        </div>
       </div>
     )
   }

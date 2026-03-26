@@ -1,0 +1,78 @@
+@import 'tailwindcss';
+
+/* Dark mode: use .dark class (matches tokens.css and config.tsx) */
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Purple ramp — brand primary at 700 */
+  --color-purple-50: var(--purple-50);
+  --color-purple-100: var(--purple-100);
+  --color-purple-200: var(--purple-200);
+  --color-purple-300: var(--purple-300);
+  --color-purple-400: var(--purple-400);
+  --color-purple-500: var(--purple-500);
+  --color-purple-600: var(--purple-600);
+  --color-purple-700: var(--purple-700);
+  --color-purple-800: var(--purple-800);
+  --color-purple-900: var(--purple-900);
+  --color-purple-950: var(--purple-950);
+
+  /* Semantic */
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-green: var(--green);
+  --color-green-bg: var(--greenbg);
+  --color-red: var(--red);
+  --color-red-bg: var(--redbg);
+  --color-orange: var(--orange);
+  --color-orange-bg: var(--orangebg);
+  --color-yellow: var(--yellow);
+  --color-grey: var(--grey);
+  --color-black: var(--black);
+  --color-white: var(--white);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+
+  /* Foreground opacity scale */
+  --color-dark-80: var(--dark80);
+  --color-dark-70: var(--dark70);
+  --color-dark-50: var(--dark50);
+  --color-dark-30: var(--dark30);
+  --color-dark-20: var(--dark20);
+  --color-dark-15: var(--dark15);
+  --color-dark-10: var(--dark10);
+  --color-dark-05: var(--dark05);
+
+  /* shadcn required tokens */
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-primary: var(--purple-700);
+  --color-primary-foreground: #fff;
+  --color-secondary: var(--dark20);
+  --color-secondary-foreground: var(--fg);
+  --color-destructive: var(--red);
+  --color-destructive-foreground: #fff;
+  --color-accent: var(--dark05);
+  --color-accent-foreground: var(--fg);
+  --color-muted: var(--dark50);
+  --color-muted-foreground: var(--dark50);
+  --color-popover: var(--bg);
+  --color-popover-foreground: var(--fg);
+  --color-card: var(--bg);
+  --color-card-foreground: var(--fg);
+  --color-input: var(--dark20);
+  --color-border: var(--dark10);
+  --color-ring: var(--purple-700);
+
+  /* Typography — body uses Geist, headings use TT Firs Neue */
+  --font-sans: var(--font-sans);
+  --font-heading: var(--font-heading);
+  --font-mono: var(--font-mono);
+
+  /* Border radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+  --radius-full: 9999px;
+}

@@ -1,4 +1,3 @@
-import { IonCol, IonGrid, IonRow } from '@ionic/react'
 import PasteIcon from '../icons/Paste'
 import FlexRow from './FlexRow'
 import Text from './Text'
@@ -11,11 +10,6 @@ interface PasteProps {
 }
 
 export default function Paste({ data, onClick }: PasteProps) {
-  const gridStyle = {
-    padding: '0',
-    cursor: 'pointer',
-  }
-
   const handleClick = () => {
     hapticLight()
     onClick()
@@ -23,21 +17,19 @@ export default function Paste({ data, onClick }: PasteProps) {
 
   return (
     <Shadow lighter onClick={handleClick}>
-      <IonGrid style={gridStyle}>
-        <IonRow>
-          <IonCol size='7'>
-            <FlexRow>
-              <PasteIcon />
-              <Text smaller>Paste from clipboard</Text>
-            </FlexRow>
-          </IonCol>
-          <IonCol size='5'>
-            <Text right color='dark50' smaller>
-              {data}
-            </Text>
-          </IonCol>
-        </IonRow>
-      </IonGrid>
+      <div style={{ display: 'flex', padding: 0, cursor: 'pointer' }}>
+        <div style={{ flex: 7 }}>
+          <FlexRow>
+            <PasteIcon />
+            <Text smaller>Paste from clipboard</Text>
+          </FlexRow>
+        </div>
+        <div style={{ flex: 5 }}>
+          <Text right color='dark50' smaller>
+            {data}
+          </Text>
+        </div>
+      </div>
     </Shadow>
   )
 }

@@ -44,6 +44,6 @@ describe('Backup screen with default password', () => {
     await screen.findByText('Private key')
 
     expect(screen.getByTestId('toggle-backup')).toBeInTheDocument()
-    expect(screen.getByTestId('toggle-backup').getAttribute('checked')).toBe('true')
+    expect(screen.getByTestId('toggle-backup').getAttribute('aria-checked')).toBe('true')
   })
 })

@@ -1,4 +1,5 @@
-import { IonModal } from '@ionic/react'
+import { Drawer, DrawerContent, DrawerClose } from './ui/drawer'
+import CloseIcon from '../icons/Close'
 import { hapticLight } from '../lib/haptics'
 
 interface SheetModalProps {
@@ -14,44 +15,27 @@ export default function SheetModal({ children, isOpen, onClose }: SheetModalProp
   }
 
   return (
-    <IonModal initialBreakpoint={1} backdropBreakpoint={0} isOpen={isOpen} onDidDismiss={handleClose}>
-      <div style={outerStyle}>
-        <div
-          style={{
-            ...innerStyle,
-            paddingBottom: '2rem',
-          }}
-        >
-          <div style={handleAreaStyle} onClick={handleClose}>
-            <div style={handleStyle} />
-          </div>
+    <Drawer open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DrawerContent className='max-w-[640px] mx-auto'>
+        <div style={{ padding: '1rem', paddingBottom: '2rem', position: 'relative' }}>
+          <DrawerClose
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--fg)',
+              cursor: 'pointer',
+              padding: 0,
+              position: 'absolute',
+              right: '1rem',
+              top: '0.5rem',
+            }}
+            aria-label='Close'
+          >
+            <CloseIcon />
+          </DrawerClose>
           {children}
         </div>
-      </div>
-    </IonModal>
+      </DrawerContent>
+    </Drawer>
   )
-}
-
-const outerStyle: React.CSSProperties = {
-  maxWidth: '640px',
-  margin: '0 auto',
-  width: '100%',
-}
-
-const innerStyle: React.CSSProperties = {
-  padding: '0 1.25rem',
-  width: '100%',
-}
-
-const handleAreaStyle: React.CSSProperties = {
-  padding: '12px 0 20px',
-  cursor: 'grab',
-}
-
-const handleStyle: React.CSSProperties = {
-  backgroundColor: 'var(--dark20)',
-  borderRadius: '100px',
-  height: '5px',
-  margin: '0 auto',
-  width: '40px',
 }

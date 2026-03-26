@@ -11,12 +11,10 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { EmptyLogsList } from '../../components/Empty'
 import Focusable from '../../components/Focusable'
 import { copyToClipboard } from '../../lib/clipboard'
-import { useToast } from '../../components/Toast'
+import { copiedToClipboard } from '../../lib/toast'
 
 function LogsTable({ logs }: { logs: LogLine[] }) {
   const [focused, setFocused] = useState(false)
-
-  const { toast } = useToast()
 
   const color = (level: string): string => {
     if (level === 'info') return ''
@@ -35,7 +33,7 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
 
   const copy = (value: string) => {
     copyToClipboard(value)
-    toast('Copied to clipboard')
+    copiedToClipboard()
   }
 
   const focusOnFirstRow = () => {

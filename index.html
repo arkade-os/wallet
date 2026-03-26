@@ -22,7 +22,7 @@
         var dark = t === 'Dark' || (t !== 'Light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
         if (dark) {
           document.querySelector('meta[name="theme-color"]').setAttribute('content', '#101010')
-          document.documentElement.classList.add('ion-palette-dark')
+          document.documentElement.classList.add('dark')
         }
       } catch (e) {
         if (location.hostname === 'localhost') console.warn('Theme bootstrap failed', e)

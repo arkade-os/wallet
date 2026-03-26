@@ -9,7 +9,7 @@ import FlexRow from './FlexRow'
 import Shadow from './Shadow'
 import { copyToClipboard } from '../lib/clipboard'
 import CheckMarkIcon from '../icons/CheckMark'
-import { useToast } from './Toast'
+import { copiedToClipboard } from '../lib/toast'
 import Focusable from './Focusable'
 import { hapticSubtle } from '../lib/haptics'
 
@@ -33,8 +33,6 @@ export default function ExpandAddresses({
   const [copied, setCopied] = useState('')
   const [expand, setExpand] = useState(false)
 
-  const { toast } = useToast()
-
   useEffect(() => {
     const handleArrowDown = (event: KeyboardEvent) => {
       if (event.key === 'ArrowDown') {
@@ -51,7 +49,7 @@ export default function ExpandAddresses({
   const handleCopy = async (value: string) => {
     hapticSubtle()
     await copyToClipboard(value)
-    toast('Copied to clipboard')
+    copiedToClipboard()
     setCopied(value)
   }
 

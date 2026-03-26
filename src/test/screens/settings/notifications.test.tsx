@@ -13,7 +13,7 @@ describe('Notifications screen', () => {
     )
     expect(screen.getByText('Allow notifications')).toBeInTheDocument()
     expect(screen.getByTestId('toggle-notifications')).toBeInTheDocument()
-    expect(screen.getByTestId('toggle-notifications').getAttribute('checked')).toBe('true')
+    expect(screen.getByTestId('toggle-notifications').getAttribute('aria-checked')).toBe('true')
   })
 
   it('renders the notifications screen with the correct toggle', () => {
@@ -23,6 +23,6 @@ describe('Notifications screen', () => {
       </ConfigContext.Provider>,
     )
     expect(screen.getByTestId('toggle-notifications')).toBeInTheDocument()
-    expect(screen.getByTestId('toggle-notifications').getAttribute('checked')).toBe('true')
+    expect(screen.getByTestId('toggle-notifications').getAttribute('aria-checked')).toBe('true')
   })
 })
