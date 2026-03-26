@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, useAnimationControls } from 'framer-motion'
-import { EASE_OUT_QUINT_TUPLE } from '../lib/animations'
+import { EASE_OUT_QUINT_TUPLE, EASE_IN_OUT_QUINT_TUPLE } from '../lib/animations'
 import { useBounceMorph } from '../hooks/useBounceMorph'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 import { getLogoAnchor } from '../lib/logoAnchor'
@@ -78,13 +78,13 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
           const dy = targetRect.top + targetRect.height / 2 - (containerRect.top + containerRect.height / 2)
           const targetScale = 35 / LARGE_SIZE
 
-          // Step 4: Fly to the logo position
+          // Step 4: Fly to the logo position (ease-in-out for on-screen movement)
           await flyControlsRef.current.start({
             x: dx,
             y: dy,
             scale: targetScale,
             opacity: 1,
-            transition: { duration: 0.35, ease: EASE_OUT_QUINT_TUPLE },
+            transition: { duration: 0.4, ease: EASE_IN_OUT_QUINT_TUPLE },
           })
         }
       } else {

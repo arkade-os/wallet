@@ -3,14 +3,22 @@ import { ReactNode, useEffect, useState } from 'react'
 import { walletLoadInContainer, walletLoadInChild } from '../lib/animations'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 
-export function WalletStaggerContainer({ children, animate = true }: { children: ReactNode; animate?: boolean }) {
+export function WalletStaggerContainer({
+  children,
+  animate = true,
+  hold = false,
+}: {
+  children: ReactNode
+  animate?: boolean
+  hold?: boolean
+}) {
   const prefersReduced = useReducedMotion()
   const [started, setStarted] = useState(false)
   const skip = prefersReduced || !animate
 
   useEffect(() => {
-    if (!skip) setStarted(true)
-  }, [skip])
+    if (!skip && !hold) setStarted(true)
+  }, [skip, hold])
 
   if (skip) return <div style={{ width: '100%' }}>{children}</div>
 

@@ -27,6 +27,7 @@ import { FlowContext } from './providers/flow'
 import { SettingsOptions } from './lib/types'
 import { AspContext } from './providers/asp'
 import { hapticLight } from './lib/haptics'
+import { setBootAnimActive as syncBootAnimFlag } from './lib/logoAnchor'
 import { PageTransition } from './components/PageTransition'
 import SettingsIcon from './icons/Settings'
 import LoadingLogo from './components/LoadingLogo'
@@ -101,6 +102,11 @@ export default function App() {
   const [bootAnimActive, setBootAnimActive] = useState(false)
   const [bootAnimDone, setBootAnimDone] = useState(false)
   const [bootExitMode, setBootExitMode] = useState<'fly-to-target' | 'fly-up'>('fly-up')
+
+  // Sync boot animation state so the Wallet header logo can hide itself
+  useEffect(() => {
+    syncBootAnimFlag(bootAnimActive)
+  }, [bootAnimActive])
 
   // refs for the tabs to be able to programmatically activate them
   const appsRef = useRef<HTMLIonTabElement>(null)
