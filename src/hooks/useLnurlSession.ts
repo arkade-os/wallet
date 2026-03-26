@@ -71,6 +71,7 @@ export function useLnurlSession(
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
         let buffer = ''
+        let eventType = ''
 
         while (!abort.signal.aborted) {
           const { done, value } = await reader.read()
@@ -81,7 +82,6 @@ export function useLnurlSession(
           // Keep the last incomplete line in the buffer
           buffer = lines.pop() ?? ''
 
-          let eventType = ''
           for (const line of lines) {
             if (line.startsWith('event: ')) {
               eventType = line.slice(7).trim()
