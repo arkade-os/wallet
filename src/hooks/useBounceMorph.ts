@@ -44,10 +44,14 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
 
   useEffect(() => {
     if (reducedMotion) {
+      stopRequested.current = false
+      setActiveShape(0)
       setStopped(true)
       return
     }
 
+    stopRequested.current = false
+    setStopped(false)
     cancelled.current = false
 
     async function bounceAndMorph(nextShape: number) {

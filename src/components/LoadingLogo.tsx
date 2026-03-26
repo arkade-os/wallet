@@ -85,7 +85,7 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
 
           const dx = targetRect.left + targetRect.width / 2 - (containerRect.left + containerRect.width / 2)
           const dy = targetRect.top + targetRect.height / 2 - (containerRect.top + containerRect.height / 2)
-          const targetScale = 35 / LARGE_SIZE
+          const targetScale = Math.min(targetRect.width, targetRect.height) / LARGE_SIZE
 
           // Fly to the logo position (background stays opaque throughout)
           await flyControlsRef.current.start({

@@ -62,7 +62,7 @@ export default function InitConnect() {
         <LoadingLogo
           text='Connecting to server'
           done={connectDone}
-          exitMode='fly-up'
+          exitMode={connectDone ? 'fly-up' : 'none'}
           onExitComplete={handleExitComplete}
         />
       </Content>

@@ -261,6 +261,8 @@ export default function App() {
   useEffect(() => {
     // Start boot animation when we first see the Loading page
     if (page === Pages.Loading && !bootAnimActive) {
+      setBootAnimDone(false)
+      setBootExitMode('fly-up')
       updateBootAnim(true)
       return
     }
