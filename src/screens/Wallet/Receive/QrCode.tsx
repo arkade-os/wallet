@@ -186,7 +186,7 @@ export default function ReceiveQRCode() {
     setBtcAddress(btcAddress)
     setQrCodeValue(bip21uri)
     setBip21Uri(bip21uri)
-  }, [showQrCode, swapAddress, invoice, lnurlSession.lnurl, lnurlSession.active])
+  }, [showQrCode, swapAddress, invoice, lnurlSession.lnurl, lnurlSession.active, isAmountlessLnurl])
 
   useEffect(() => {
     if (!svcWallet) return

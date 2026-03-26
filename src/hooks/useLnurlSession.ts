@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { lnurlServerUrl } from '../lib/constants'
+import { lnurlServerBaseUrl as rawLnurlServerUrl } from '../lib/constants'
 import { consoleError } from '../lib/logs'
+
+const lnurlServerBaseUrl = rawLnurlServerUrl?.replace(/\/+$/, '')
 
 interface LnurlSession {
   /** LNURL bech32 string to display/share */
@@ -39,7 +41,7 @@ export function useLnurlSession(
 
   const postInvoice = useCallback(async (sessionId: string, pr: string) => {
     try {
-      await fetch(`${lnurlServerUrl}/lnurl/session/${sessionId}/invoice`, {
+      await fetch(`${lnurlServerBaseUrl}/lnurl/session/${sessionId}/invoice`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pr }),
@@ -50,14 +52,14 @@ export function useLnurlSession(
   }, [])
 
   useEffect(() => {
-    if (!enabled || !lnurlServerUrl) return
+    if (!enabled || !lnurlServerBaseUrl) return
 
     const abort = new AbortController()
     abortRef.current = abort
 
     const connect = async () => {
       try {
-        const response = await fetch(`${lnurlServerUrl}/lnurl/session`, {
+        const response = await fetch(`${lnurlServerBaseUrl}/lnurl/session`, {
           method: 'POST',
           signal: abort.signal,
         })
@@ -85,20 +87,32 @@ export function useLnurlSession(
             if (line.startsWith('event: ')) {
               eventType = line.slice(7).trim()
             } else if (line.startsWith('data: ') && eventType) {
-              const data = JSON.parse(line.slice(6))
+              let data: Record<string, unknown>
+              try {
+                data = JSON.parse(line.slice(6))
+              } catch {
+                consoleError('Failed to parse SSE data:', line)
+                eventType = ''
+                continue
+              }
 
               if (eventType === 'session_created') {
-                sessionIdRef.current = data.sessionId
-                setLnurl(data.lnurl)
+                sessionIdRef.current = data.sessionId as string
+                setLnurl(data.lnurl as string)
                 setActive(true)
                 setError(undefined)
               } else if (eventType === 'invoice_request') {
-                const req: InvoiceRequest = {
-                  amountMsat: data.amountMsat,
-                  comment: data.comment,
+                const amountMsat = Number(data.amountMsat)
+                if (!amountMsat || amountMsat <= 0) {
+                  consoleError('Invalid amountMsat in invoice request:', data.amountMsat)
+                  eventType = ''
+                  continue
                 }
                 try {
-                  const pr = await onInvoiceRequestRef.current(req)
+                  const pr = await onInvoiceRequestRef.current({
+                    amountMsat,
+                    comment: data.comment as string | undefined,
+                  })
                   if (sessionIdRef.current) {
                     await postInvoice(sessionIdRef.current, pr)
                   }
