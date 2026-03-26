@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { ReactNode, useEffect, useState } from 'react'
+import { ReactNode } from 'react'
 import { walletLoadInContainer, walletLoadInChild } from '../lib/animations'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 
@@ -13,17 +13,12 @@ export function WalletStaggerContainer({
   hold?: boolean
 }) {
   const prefersReduced = useReducedMotion()
-  const [started, setStarted] = useState(false)
   const skip = prefersReduced || !animate
-
-  useEffect(() => {
-    if (!skip && !hold) setStarted(true)
-  }, [skip, hold])
 
   if (skip) return <div style={{ width: '100%' }}>{children}</div>
 
   return (
-    <motion.div animate={started ? 'animate' : 'initial'} variants={walletLoadInContainer} style={{ width: '100%' }}>
+    <motion.div initial='initial' animate={hold ? 'initial' : 'animate'} variants={walletLoadInContainer} style={{ width: '100%' }}>
       {children}
     </motion.div>
   )

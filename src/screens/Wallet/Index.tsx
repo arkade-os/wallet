@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useState, useSyncExternalStore } from 'react'
+import { useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Balance from '../../components/Balance'
 import DismissibleBanner from '../../components/DismissibleBanner'
 import ErrorMessage from '../../components/Error'
@@ -37,8 +37,10 @@ export default function Wallet() {
   const { nudge, nudgeVisible, nudgeCheckComplete } = useContext(NudgeContext)
 
   const [error, setError] = useState(false)
-  const shouldStagger = isInitialLoad
   const bootAnimActive = useSyncExternalStore(subscribeBootAnim, getBootAnimActive)
+  // Capture isInitialLoad at mount — it goes false before boot animation ends,
+  // which would switch the stagger container from motion.div to plain div
+  const shouldStagger = useRef(isInitialLoad).current
 
   const logoRef = useCallback((el: HTMLDivElement | null) => {
     setLogoAnchor(el)

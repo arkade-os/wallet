@@ -21,7 +21,7 @@ interface LoadingLogoProps {
 export default function LoadingLogo({ text, done, exitMode = 'none', onExitComplete }: LoadingLogoProps) {
   const reducedMotion = useReducedMotion()
   const [visible, setVisible] = useState(true)
-  const [showBackground, setShowBackground] = useState(exitMode !== 'none')
+  const showBackground = exitMode !== 'none'
   const containerRef = useRef<HTMLDivElement>(null)
   const flyControls = useAnimationControls()
   const flyControlsRef = useRef(flyControls)
@@ -59,16 +59,15 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
 
     async function runExit() {
       if (mode === 'fly-to-target') {
-        // Step 1: Remove the white background to reveal content underneath
-        setShowBackground(false)
-
-        // Step 2: Wait for React to render + browser to layout the now-visible content
-        await new Promise<void>((r) => {
-          requestAnimationFrame(() => requestAnimationFrame(() => r()))
-        })
-
-        // Step 3: Now the anchor element has correct layout — measure it
-        const target = getLogoAnchor()
+        // Wait for anchor to be mounted (may lag behind page render)
+        let target = getLogoAnchor()
+        if (!target) {
+          for (let i = 0; i < 10; i++) {
+            await new Promise<void>((r) => requestAnimationFrame(() => r()))
+            target = getLogoAnchor()
+            if (target) break
+          }
+        }
         const container = containerRef.current
         if (target && container) {
           const targetRect = target.getBoundingClientRect()
@@ -78,13 +77,21 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
           const dy = targetRect.top + targetRect.height / 2 - (containerRect.top + containerRect.height / 2)
           const targetScale = 35 / LARGE_SIZE
 
-          // Step 4: Fly to the logo position (ease-in-out for on-screen movement)
+          // Fly to the logo position (background stays opaque throughout)
           await flyControlsRef.current.start({
             x: dx,
             y: dy,
             scale: targetScale,
             opacity: 1,
             transition: { duration: 0.4, ease: EASE_IN_OUT_QUINT_TUPLE },
+          })
+        } else {
+          // Anchor not available — fall back to fly-up
+          await flyControlsRef.current.start({
+            y: -200,
+            scale: 0.5,
+            opacity: 0,
+            transition: { duration: 0.35, ease: EASE_OUT_QUINT_TUPLE },
           })
         }
       } else {
@@ -111,7 +118,7 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
 
   return createPortal(
     <>
-      {/* White background — covers page content during bounce loop, removed before fly */}
+      {/* White background — covers page content during bounce + fly, removed on exit complete */}
       {showBackground ? (
         <div
           style={{

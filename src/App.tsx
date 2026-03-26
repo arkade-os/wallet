@@ -100,13 +100,12 @@ export default function App() {
   const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
   const [animatingTab, setAnimatingTab] = useState<string | null>(null)
   const [bootAnimActive, setBootAnimActive] = useState(false)
+  const updateBootAnimActive = useCallback((active: boolean) => {
+    syncBootAnimFlag(active) // sync external store before React re-render
+    setBootAnimActive(active)
+  }, [])
   const [bootAnimDone, setBootAnimDone] = useState(false)
   const [bootExitMode, setBootExitMode] = useState<'fly-to-target' | 'fly-up'>('fly-up')
-
-  // Sync boot animation state so the Wallet header logo can hide itself
-  useEffect(() => {
-    syncBootAnimFlag(bootAnimActive)
-  }, [bootAnimActive])
 
   // refs for the tabs to be able to programmatically activate them
   const appsRef = useRef<HTMLIonTabElement>(null)
@@ -260,7 +259,7 @@ export default function App() {
   useEffect(() => {
     // Start boot animation when we first see the Loading page
     if (page === Pages.Loading && !bootAnimActive) {
-      setBootAnimActive(true)
+      updateBootAnimActive(true)
       return
     }
 
@@ -281,8 +280,8 @@ export default function App() {
   }, [page, bootAnimActive, bootAnimDone])
 
   const handleBootAnimComplete = useCallback(() => {
-    setBootAnimActive(false)
-  }, [])
+    updateBootAnimActive(false)
+  }, [updateBootAnimActive])
 
   const comp = page === Pages.Loading ? null : pageComponent(page)
 
