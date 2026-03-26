@@ -47,7 +47,9 @@ vi.mock('@ionic/react', async (importOriginal) => {
   return {
     ...actual,
     IonApp: ({ children, className }: { children: ReactNode; className?: string }) => (
-      <div data-testid='ion-app' className={className}>{children}</div>
+      <div data-testid='ion-app' className={className}>
+        {children}
+      </div>
     ),
     IonPage: ({ children }: { children: ReactNode }) => <div>{children}</div>,
     IonTab,
@@ -76,7 +78,9 @@ function renderApp({
   const navigate = vi.fn()
 
   render(
-    <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate, screen: screenOverride, tab: tabOverride }}>
+    <NavigationContext.Provider
+      value={{ ...mockNavigationContextValue, navigate, screen: screenOverride, tab: tabOverride }}
+    >
       <AspContext.Provider value={mockAspContextValue as any}>
         <ConfigContext.Provider value={{ ...mockConfigContextValue, configLoaded: true } as any}>
           <FlowContext.Provider value={mockFlowContextValue as any}>
