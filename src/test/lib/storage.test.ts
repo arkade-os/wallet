@@ -45,23 +45,6 @@ describe('asset metadata storage', () => {
     expect(loaded).toBeUndefined()
   })
 
-  it('should strip icon field when persisting', () => {
-    const cache = new Map<string, CachedAssetDetails>()
-    cache.set('asset1', {
-      assetId: 'asset1',
-      supply: 100,
-      metadata: { name: 'Token', ticker: 'TKN', decimals: 8, icon: 'data:image/png;base64,huge-string' },
-      cachedAt: Date.now(),
-      hasIcon: true,
-    })
-    saveAssetMetadataToStorage(cache)
-    const loaded = readAssetMetadataFromStorage()
-
-    expect(loaded!.get('asset1')?.metadata?.name).toBe('Token')
-    expect(loaded!.get('asset1')?.metadata?.icon).toBeUndefined()
-    expect(loaded!.get('asset1')?.hasIcon).toBe(true)
-  })
-
   it('should evict expired entries when saving', () => {
     const cache = new Map<string, CachedAssetDetails>()
     cache.set('fresh', makeCached('fresh', 'Fresh Token'))

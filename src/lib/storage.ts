@@ -52,10 +52,7 @@ export const saveAssetMetadataToStorage = (cache: Map<string, CachedAssetDetails
   cache.forEach((v, k) => {
     // evict expired entries to prevent unbounded localStorage growth
     if (now - v.cachedAt >= ASSET_METADATA_TTL_MS) return
-    // strip icon from persisted data — it can be large (base64) and is re-fetched on demand
-    const { metadata, ...rest } = v
-    const { icon: _, ...metaWithoutIcon } = metadata ?? {}
-    obj[k] = { ...rest, metadata: metaWithoutIcon }
+    obj[k] = v
   })
   setStorageItem('assetMetadataCache', JSON.stringify(obj))
 }
