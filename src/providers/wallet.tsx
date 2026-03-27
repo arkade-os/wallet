@@ -329,19 +329,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // in <10ms, so anything slower is dead.
       const zombieCheck = (async () => {
         const existingReg = await navigator.serviceWorker.getRegistration()
-        if (existingReg?.active) {
+        const active = existingReg?.active
+        if (active) {
           const alive = await new Promise<boolean>((resolve) => {
             const channel = new MessageChannel()
             const timer = setTimeout(() => {
               channel.port1.close()
               resolve(false)
             }, 500)
-            channel.port1.onmessage = () => {
+            channel.port1.onmessage = (event) => {
               clearTimeout(timer)
               channel.port1.close()
-              resolve(true)
+              resolve(event.data?.type === 'PONG')
             }
-            existingReg.active!.postMessage({ type: 'PING' }, [channel.port2])
+            active.postMessage({ type: 'PING' }, [channel.port2])
           })
           if (!alive) {
             await existingReg.unregister()
