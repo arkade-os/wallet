@@ -20,7 +20,9 @@ export default function Balance({ amount }: BalanceProps) {
   const showFiat = config.currencyDisplay === CurrencyDisplay.Fiat
 
   const satsBalance = config.showBalance ? prettyNumber(amount) : prettyHide(amount, '')
-  const fiatBalance = config.showBalance ? prettyNumber(fiatAmount, fiatDecimals(), true, fiatDecimals()) : prettyHide(fiatAmount, '')
+  const fiatBalance = config.showBalance
+    ? prettyNumber(fiatAmount, fiatDecimals(), true, fiatDecimals())
+    : prettyHide(fiatAmount, '')
 
   const mainBalance = showFiat ? fiatBalance : satsBalance
   const otherBalance = showFiat ? satsBalance : fiatBalance

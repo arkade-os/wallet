@@ -91,7 +91,12 @@ export const prettyNumber = (
   minimumFractionDigits?: number,
 ): string => {
   if (!num) return '0'
-  return new Intl.NumberFormat('en', { style: 'decimal', maximumFractionDigits, minimumFractionDigits, useGrouping }).format(num)
+  return new Intl.NumberFormat('en', {
+    style: 'decimal',
+    maximumFractionDigits,
+    minimumFractionDigits,
+    useGrouping,
+  }).format(num)
 }
 
 export const formatAssetAmount = (amount: number, decimals: number): string => {
