@@ -105,6 +105,7 @@ export default function InputWithScanner({
               style={{
                 ...pillBase,
                 padding: '0.4rem 0.5rem',
+                minWidth: '44px',
                 background: 'none',
                 border: 'none',
                 color: 'var(--dark50)',
