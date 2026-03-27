@@ -162,7 +162,7 @@ export default function AppBoltzSwap() {
       setOpDone(true)
     } catch (error) {
       setError(extractError(error))
-      consoleError(error, 'Error processing swap')
+      consoleError(error, `Error processing swap ${swapInfo?.id}`)
       setProcessing(false)
     }
   }
