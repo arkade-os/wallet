@@ -94,7 +94,7 @@ export default function App() {
   const { direction, navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
-  const { authState, unlockWallet, walletLoaded, initialized, wallet } = useContext(WalletContext)
+  const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady } = useContext(WalletContext)
 
   const loadingStatus = useLoadingStatus()
   const isIAB = useMemo(() => isInAppBrowser(), [])
@@ -219,7 +219,7 @@ export default function App() {
   const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
   const hasStoredWallet = walletLoaded && !!wallet.pubkey
   const shouldShowUnlock = hasStoredWallet && authState === 'locked'
-  const shouldHoldOnLoading = hasStoredWallet && !initialized && authState !== 'locked'
+  const shouldHoldOnLoading = hasStoredWallet && (!initialized || !dataReady) && authState !== 'locked'
 
   useEffect(() => {
     passwordlessBootAttempted.current = false
