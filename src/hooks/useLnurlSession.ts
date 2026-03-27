@@ -35,32 +35,47 @@ export function useLnurlSession(
   const [active, setActive] = useState(false)
   const [error, setError] = useState<string | undefined>()
   const sessionIdRef = useRef<string | null>(null)
+  const tokenRef = useRef<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const onInvoiceRequestRef = useRef(onInvoiceRequest)
   onInvoiceRequestRef.current = onInvoiceRequest
 
-  const postInvoice = useCallback(async (sessionId: string, pr: string) => {
-    const response = await fetch(`${lnurlServerBaseUrl}/lnurl/session/${sessionId}/invoice`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pr }),
-    })
-    if (!response.ok) {
-      throw new Error(`Failed to post invoice: ${response.status}`)
-    }
-  }, [])
+  const authHeaders = useCallback(
+    () => ({
+      'Content-Type': 'application/json',
+      ...(tokenRef.current ? { Authorization: `Bearer ${tokenRef.current}` } : {}),
+    }),
+    [],
+  )
 
-  const postError = useCallback(async (sessionId: string, reason: string) => {
-    try {
-      await fetch(`${lnurlServerBaseUrl}/lnurl/session/${sessionId}/invoice`, {
+  const postInvoice = useCallback(
+    async (sessionId: string, pr: string) => {
+      const response = await fetch(`${lnurlServerBaseUrl}/lnurl/session/${sessionId}/invoice`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: reason }),
+        headers: authHeaders(),
+        body: JSON.stringify({ pr }),
       })
-    } catch (err) {
-      consoleError(err, 'Failed to post error to lnurl-server')
-    }
-  }, [])
+      if (!response.ok) {
+        throw new Error(`Failed to post invoice: ${response.status}`)
+      }
+    },
+    [authHeaders],
+  )
+
+  const postError = useCallback(
+    async (sessionId: string, reason: string) => {
+      try {
+        await fetch(`${lnurlServerBaseUrl}/lnurl/session/${sessionId}/invoice`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ error: reason }),
+        })
+      } catch (err) {
+        consoleError(err, 'Failed to post error to lnurl-server')
+      }
+    },
+    [authHeaders],
+  )
 
   useEffect(() => {
     if (!enabled || !lnurlServerBaseUrl) return
@@ -109,6 +124,7 @@ export function useLnurlSession(
 
               if (eventType === 'session_created') {
                 sessionIdRef.current = data.sessionId as string
+                tokenRef.current = data.token as string
                 setLnurl(data.lnurl as string)
                 setActive(true)
                 setError(undefined)
@@ -149,6 +165,7 @@ export function useLnurlSession(
         setActive(false)
         setLnurl('')
         sessionIdRef.current = null
+        tokenRef.current = null
       }
     }
 
