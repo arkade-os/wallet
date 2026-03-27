@@ -49,11 +49,12 @@ export function useLnurlSession(
   )
 
   const postInvoice = useCallback(
-    async (sessionId: string, pr: string) => {
+    async (sessionId: string, pr: string, signal?: AbortSignal) => {
       const response = await fetch(`${lnurlServerBaseUrl}/lnurl/session/${sessionId}/invoice`, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({ pr }),
+        signal,
       })
       if (!response.ok) {
         throw new Error(`Failed to post invoice: ${response.status}`)
@@ -63,15 +64,18 @@ export function useLnurlSession(
   )
 
   const postError = useCallback(
-    async (sessionId: string, reason: string) => {
+    async (sessionId: string, reason: string, signal?: AbortSignal) => {
       try {
         await fetch(`${lnurlServerBaseUrl}/lnurl/session/${sessionId}/invoice`, {
           method: 'POST',
           headers: authHeaders(),
           body: JSON.stringify({ error: reason }),
+          signal,
         })
       } catch (err) {
-        consoleError(err, 'Failed to post error to lnurl-server')
+        if (!(err instanceof DOMException && err.name === 'AbortError')) {
+          consoleError(err, 'Failed to post error to lnurl-server')
+        }
       }
     },
     [authHeaders],
@@ -129,9 +133,13 @@ export function useLnurlSession(
                 setActive(true)
                 setError(undefined)
               } else if (eventType === 'invoice_request') {
+                const sessionId = sessionIdRef.current
+                if (!sessionId) break
+
                 const amountMsat = Number(data.amountMsat)
                 if (!amountMsat || amountMsat <= 0) {
                   consoleError('Invalid amountMsat in invoice request:', data.amountMsat)
+                  await postError(sessionId, 'Invalid amount', abort.signal)
                   eventType = ''
                   continue
                 }
@@ -140,15 +148,11 @@ export function useLnurlSession(
                     amountMsat,
                     comment: data.comment as string | undefined,
                   })
-                  if (sessionIdRef.current) {
-                    await postInvoice(sessionIdRef.current, pr)
-                  }
+                  await postInvoice(sessionId, pr, abort.signal)
                 } catch (err) {
                   const reason = err instanceof Error ? err.message : 'Failed to create invoice'
                   consoleError(err, 'Failed to handle invoice request')
-                  if (sessionIdRef.current) {
-                    await postError(sessionIdRef.current, reason)
-                  }
+                  await postError(sessionId, reason, abort.signal)
                 }
               }
 
