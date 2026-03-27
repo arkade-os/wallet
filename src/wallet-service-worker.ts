@@ -7,6 +7,15 @@ import {
 } from '@arkade-os/sdk'
 import { gitCommit } from './_gitCommit'
 
+// Health-check ping: responds via MessageChannel so the main thread can
+// detect if this worker is alive before attempting full initialization.
+// Must be registered before any other code that could fail.
+self.addEventListener('message', (event: ExtendableMessageEvent) => {
+  if (event.data?.type === 'PING' && event.ports?.[0]) {
+    event.ports[0].postMessage({ type: 'PONG' })
+  }
+})
+
 const walletRepository = new IndexedDBWalletRepository()
 const contractRepository = new IndexedDBContractRepository()
 const swapRepository = new IndexedDbSwapRepository()
