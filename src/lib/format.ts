@@ -90,7 +90,7 @@ export const prettyNumber = (
   useGrouping = true,
   minimumFractionDigits?: number,
 ): string => {
-  if (!num) return '0'
+  if (num === undefined || num === null || Number.isNaN(num)) return '0'
   return new Intl.NumberFormat('en', {
     style: 'decimal',
     maximumFractionDigits,
