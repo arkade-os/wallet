@@ -23,6 +23,8 @@ export default function SheetModal({ children, isOpen, onClose }: SheetModalProp
     paddingBottom: '2rem',
     width: '100%',
     position: 'relative',
+    overflowY: 'auto',
+    wordBreak: 'break-word',
   }
 
   const closeButtonStyle: React.CSSProperties = {

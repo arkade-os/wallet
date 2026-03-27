@@ -44,6 +44,10 @@ import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
 import { centsToUnits, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
+import SheetModal from '../../../components/SheetModal'
+import { AnimatePresence, motion } from 'framer-motion'
+import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
+import { useReducedMotion } from '../../../hooks/useReducedMotion'
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
@@ -78,8 +82,10 @@ export default function SendForm() {
   const [selectedAsset, setSelectedAsset] = useState<AssetOption | null>(null)
   const [showAssetSelector, setShowAssetSelector] = useState(false)
   const [textValue, setTextValue] = useState('')
+  const [showReserveModal, setShowReserveModal] = useState(false)
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
 
+  const prefersReducedMotion = useReducedMotion()
   const isAssetSend = selectedAsset !== null
 
   const DUST_AMOUNT = 330
@@ -456,6 +462,13 @@ export default function SendForm() {
   }
 
   const handleRecipientChange = (recipient: string) => {
+    if (!recipient) {
+      setState({ address: '', arkAddress: '', invoice: '', lnUrl: '', recipient: '', satoshis: 0 })
+      setRecipient('')
+      setAmountIsReadOnly(false)
+      setLnUrlLimits({ min: 0, max: 0 })
+      return
+    }
     setState({ ...sendInfo, recipient })
     setRecipient(recipient)
   }
@@ -503,7 +516,7 @@ export default function SendForm() {
     if (isMobileBrowser) setKeys(true)
   }
 
-  const handleSendAll = () => {
+  const applySendAll = () => {
     if (isAssetSend && selectedAsset) {
       const { assetId, balance, decimals } = selectedAsset
       const units = centsToUnits(balance, decimals)
@@ -520,6 +533,19 @@ export default function SendForm() {
     setTextValue(prettyNumber(value, maximumFractionDigits, false))
     setState({ ...sendInfo, satoshis: liquidBalance })
     setAmount(liquidBalance)
+  }
+
+  const handleSendAll = () => {
+    if (reserveApplied) {
+      setShowReserveModal(true)
+      return
+    }
+    applySendAll()
+  }
+
+  const confirmSendAll = () => {
+    setShowReserveModal(false)
+    applySendAll()
   }
 
   const Available = () => {
@@ -540,7 +566,6 @@ export default function SendForm() {
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
         <Text color='dark50' smaller>
           {`${pretty} available`}
-          <sup>{reserveApplied ? '*' : ''}</sup>
         </Text>
       </div>
     )
@@ -569,11 +594,6 @@ export default function SendForm() {
       satoshis < 1 ||
       processing
 
-  if (scan)
-    return (
-      <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
-    )
-
   const selectedAssetLabel = selectedAsset ? `${selectedAsset.name} (${selectedAsset.ticker})` : 'Bitcoin (BTC)'
 
   const btcIcon = (
@@ -595,25 +615,13 @@ export default function SendForm() {
     </div>
   )
 
-  if (keys && !amountIsReadOnly) {
-    return (
-      <Keyboard
-        back={() => setKeys(false)}
-        onSats={handleAmountChange}
-        value={amount}
-        asset={selectedAsset ?? undefined}
-      />
-    )
-  }
-
-  if (scan) {
-    return (
-      <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
-    )
-  }
+  const overlayOpen = scan || (keys && !amountIsReadOnly)
+  const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
 
   return (
     <>
+      {/* @ts-expect-error inert is valid HTML but React types lag behind */}
+      <div inert={overlayOpen || undefined}>
       <Header text='Send' back />
       <Content>
         <Padded>
@@ -739,15 +747,6 @@ export default function SendForm() {
                 sats={amount}
                 value={textValue ? Number(textValue) : undefined}
               />
-              {reserveApplied ? (
-                <FlexRow between>
-                  <div />
-                  <Text color='dark50' smaller>
-                    {`${DUST_AMOUNT} sats are reserved to keep your assets safe`}
-                    <sup>*</sup>
-                  </Text>
-                </FlexRow>
-              ) : null}
             </FlexCol>
             {deductFromAmount ? <InfoLine color='orange' text='Fees will be deducted from the amount sent' /> : null}
             {tryingToSelfSend ? (
@@ -770,6 +769,46 @@ export default function SendForm() {
       <ButtonsOnBottom>
         <Button onClick={handleContinue} label={label} disabled={buttonDisabled} />
       </ButtonsOnBottom>
+      </div>
+      <SheetModal isOpen={showReserveModal} onClose={() => setShowReserveModal(false)}>
+        <FlexCol gap='1rem'>
+          <Text bold>Balance reserve</Text>
+          <Text color='dark50' small>
+            {`${DUST_AMOUNT} sats are kept in reserve to protect your assets. Your max sendable amount is ${prettyNumber(liquidBalance)} sats.`}
+          </Text>
+          <FlexCol gap='0.5rem'>
+            <Button onClick={confirmSendAll} label='Send max' />
+            <Button onClick={() => setShowReserveModal(false)} label='Cancel' secondary />
+          </FlexCol>
+        </FlexCol>
+      </SheetModal>
+      {prefersReducedMotion ? (
+        <>
+          {scan ? (
+            <div style={sendOverlayStyle}>
+              <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
+            </div>
+          ) : null}
+          {keys && !amountIsReadOnly ? (
+            <div style={sendOverlayStyle}>
+              <Keyboard back={() => setKeys(false)} onSats={handleAmountChange} value={amount} asset={selectedAsset ?? undefined} />
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <AnimatePresence>
+          {scan ? (
+            <motion.div key='scanner' variants={overlaySlideUp} initial='initial' animate='animate' exit='exit' style={sendOverlayStyle}>
+              <Scanner close={() => setScan(false)} label='Recipient address' onData={setRecipient} onError={smartSetError} />
+            </motion.div>
+          ) : null}
+          {keys && !amountIsReadOnly ? (
+            <motion.div key='keyboard' variants={overlaySlideUp} initial='initial' animate='animate' exit='exit' style={sendOverlayStyle}>
+              <Keyboard back={() => setKeys(false)} onSats={handleAmountChange} value={amount} asset={selectedAsset ?? undefined} />
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      )}
     </>
   )
 }
