@@ -169,22 +169,24 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
           </motion.div>
         ) : null}
       </div>
-      <div
-        style={{
-          position: 'fixed',
-          bottom: '1rem',
-          left: 0,
-          right: 0,
-          textAlign: 'center',
-          pointerEvents: 'none',
-          zIndex: 10,
-          fontSize: '0.65rem',
-          opacity: 0.35,
-          color: 'var(--ion-text-color, #000)',
-        }}
-      >
-        {gitCommit}
-      </div>
+      {showBackground ? (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '1rem',
+            left: 0,
+            right: 0,
+            textAlign: 'center',
+            pointerEvents: 'none',
+            zIndex: 10,
+            fontSize: '0.65rem',
+            opacity: 0.35,
+            color: 'var(--ion-text-color, #000)',
+          }}
+        >
+          {gitCommit}
+        </div>
+      ) : null}
     </>,
     document.body,
   )
