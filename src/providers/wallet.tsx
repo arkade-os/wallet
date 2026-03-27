@@ -321,34 +321,35 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     delegatorUrl?: string
   }) => {
     try {
-      // Detect zombie service workers: some browsers (Vivaldi) keep the SW
-      // registered as "activated" after long idle periods but never actually
-      // wake the worker thread on postMessage. A MessageChannel ping bypasses
-      // event.source issues and gives a reliable alive/dead signal.
-      const existingReg = await navigator.serviceWorker.getRegistration()
-      if (existingReg?.active) {
-        const alive = await new Promise<boolean>((resolve) => {
-          const channel = new MessageChannel()
-          const timer = setTimeout(() => {
-            channel.port1.close()
-            resolve(false)
-          }, 2_000)
-          channel.port1.onmessage = () => {
-            clearTimeout(timer)
-            channel.port1.close()
-            resolve(true)
-          }
-          existingReg.active!.postMessage({ type: 'PING' }, [channel.port2])
-        })
-        if (!alive) {
-          await existingReg.unregister()
-        }
-      }
-
-      // create service worker wallet
       const walletRepository = new IndexedDBWalletRepository()
       const contractRepository = new IndexedDBContractRepository()
-      await walletRepository.getWalletState()
+
+      // Zombie SW detection and IndexedDB warmup are independent — run them
+      // concurrently. The zombie ping timeout is 500ms: alive workers respond
+      // in <10ms, so anything slower is dead.
+      const zombieCheck = (async () => {
+        const existingReg = await navigator.serviceWorker.getRegistration()
+        if (existingReg?.active) {
+          const alive = await new Promise<boolean>((resolve) => {
+            const channel = new MessageChannel()
+            const timer = setTimeout(() => {
+              channel.port1.close()
+              resolve(false)
+            }, 500)
+            channel.port1.onmessage = () => {
+              clearTimeout(timer)
+              channel.port1.close()
+              resolve(true)
+            }
+            existingReg.active!.postMessage({ type: 'PING' }, [channel.port2])
+          })
+          if (!alive) {
+            await existingReg.unregister()
+          }
+        }
+      })()
+
+      await Promise.all([walletRepository.getWalletState(), zombieCheck])
       const svcWallet = await ServiceWorkerWallet.setup({
         serviceWorkerPath: '/wallet-service-worker.mjs',
         identity: SingleKey.fromHex(privateKey),
