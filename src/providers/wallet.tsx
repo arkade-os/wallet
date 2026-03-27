@@ -43,7 +43,8 @@ import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { Indexer } from '../lib/indexer'
 import { IndexedDbSwapRepository, migrateToSwapRepository, Network } from '@arkade-os/boltz-swap'
 
-const SERVICE_WORKER_SETUP_TIMEOUT_MS = 5_000
+const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
+const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
 
 const defaultWallet: Wallet = {
   network: '',
@@ -309,7 +310,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     esploraUrl,
     privateKey,
     retryCount = 0,
-    maxRetries = 5,
+    maxRetries = 2,
     delegatorUrl,
   }: {
     arkServerUrl: string
@@ -320,10 +321,36 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     delegatorUrl?: string
   }) => {
     try {
-      // create service worker wallet
       const walletRepository = new IndexedDBWalletRepository()
       const contractRepository = new IndexedDBContractRepository()
-      await walletRepository.getWalletState()
+
+      // Zombie SW detection and IndexedDB warmup are independent — run them
+      // concurrently. The zombie ping timeout is 500ms: alive workers respond
+      // in <10ms, so anything slower is dead.
+      const zombieCheck = (async () => {
+        const existingReg = await navigator.serviceWorker.getRegistration()
+        const active = existingReg?.active
+        if (active) {
+          const alive = await new Promise<boolean>((resolve) => {
+            const channel = new MessageChannel()
+            const timer = setTimeout(() => {
+              channel.port1.close()
+              resolve(false)
+            }, 500)
+            channel.port1.onmessage = (event) => {
+              clearTimeout(timer)
+              channel.port1.close()
+              resolve(event.data?.type === 'PONG')
+            }
+            active.postMessage({ type: 'PING' }, [channel.port2])
+          })
+          if (!alive) {
+            await existingReg.unregister()
+          }
+        }
+      })()
+
+      await Promise.all([walletRepository.getWalletState(), zombieCheck])
       const svcWallet = await ServiceWorkerWallet.setup({
         serviceWorkerPath: '/wallet-service-worker.mjs',
         identity: SingleKey.fromHex(privateKey),
@@ -331,8 +358,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         esploraUrl,
         delegatorUrl,
         storage: { walletRepository, contractRepository },
-        serviceWorkerActivationTimeoutMs: SERVICE_WORKER_SETUP_TIMEOUT_MS,
-        messageBusTimeoutMs: SERVICE_WORKER_SETUP_TIMEOUT_MS,
+        serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
+        messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
         ...(wallet.thresholdMs && {
           settlementConfig: { vtxoThreshold: Math.floor(wallet.thresholdMs / 1000) },
         }),
@@ -435,6 +462,18 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // If we are here, either retries are exhausted or it's a different error.
+      // When the SW is permanently unresponsive (all retries exhausted), unregister
+      // it so the next page load gets a fresh registration instead of reusing the
+      // broken activation. This makes the one-time reload recovery effective.
+      if (isTimeoutError && retryCount >= maxRetries) {
+        try {
+          const reg = await navigator.serviceWorker.getRegistration()
+          if (reg) await reg.unregister()
+        } catch {
+          // best-effort cleanup
+        }
+      }
+
       // Surface the failure so the unlock flow cannot proceed silently without an initialized wallet.
       throw err
     }

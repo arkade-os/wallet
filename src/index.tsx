@@ -29,6 +29,13 @@ if (shouldInitializeSentry(sentryDsn)) {
   })
 }
 
+// Pre-register service worker so activation happens in parallel with page
+// bootstrap (ASP fetch, auth check, etc.). On cold starts this saves the
+// full activation wait from the critical path; on warm starts it's a no-op.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/wallet-service-worker.mjs').catch(() => {})
+}
+
 // check if there's a service worker controlling the page
 const previousSW = navigator.serviceWorker.controller
 
