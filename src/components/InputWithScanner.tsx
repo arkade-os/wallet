@@ -55,6 +55,7 @@ export default function InputWithScanner({
   onEnter,
   openScan,
   placeholder,
+  validator,
   value,
 }: InputWithScannerProps) {
   const input = useRef<HTMLIonInputElement>(null)
@@ -70,7 +71,7 @@ export default function InputWithScanner({
   const handlePaste = () => {
     hapticLight()
     pasteFromClipboard().then((data) => {
-      if (data) onChange(data)
+      if (data && (!validator || validator(data))) onChange(data)
     })
   }
 
