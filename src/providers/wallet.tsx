@@ -435,6 +435,18 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // If we are here, either retries are exhausted or it's a different error.
+      // When the SW is permanently unresponsive (all retries exhausted), unregister
+      // it so the next page load gets a fresh registration instead of reusing the
+      // broken activation. This makes the one-time reload recovery effective.
+      if (isTimeoutError && retryCount >= maxRetries) {
+        try {
+          const reg = await navigator.serviceWorker.getRegistration()
+          if (reg) await reg.unregister()
+        } catch {
+          // best-effort cleanup
+        }
+      }
+
       // Surface the failure so the unlock flow cannot proceed silently without an initialized wallet.
       throw err
     }
