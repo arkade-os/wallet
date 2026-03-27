@@ -76,8 +76,14 @@ export default function InputAmount({
   const leftLabel = asset?.assetId ? asset.ticker : useFiat ? config.fiat : 'SATS'
   const rightLabel = asset?.assetId ? '' : `${otherValue} ${useFiat ? 'SATS' : config.fiat}`
   const fontStyle = { color: 'var(--dark50)', fontSize: '13px' }
-  const bottomLeft = minimumSats ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}` : ''
-  const bottomRight = maximumSats ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'SAT' : 'SATS'}` : ''
+  const bottomLeft =
+    minimumSats && sats !== undefined && sats < minimumSats
+      ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}`
+      : ''
+  const bottomRight =
+    maximumSats && sats !== undefined && sats > maximumSats
+      ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'SAT' : 'SATS'}`
+      : ''
 
   return (
     <>
