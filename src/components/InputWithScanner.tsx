@@ -1,9 +1,11 @@
 import { IonInput, IonText } from '@ionic/react'
 import InputContainer from './InputContainer'
+import PasteIcon from '../icons/Paste'
 import ScanIcon from '../icons/Scan'
-import Clipboard from './Clipboard'
-import FlexCol from './FlexCol'
+import XIcon from '../icons/X'
 import { useRef, useEffect } from 'react'
+import { pasteFromClipboard } from '../lib/clipboard'
+import { hapticLight } from '../lib/haptics'
 
 interface InputWithScannerProps {
   error?: string
@@ -18,6 +20,32 @@ interface InputWithScannerProps {
   value?: string
 }
 
+const pillBase: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.3rem',
+  padding: '0.4rem 0.65rem',
+  borderRadius: '999px',
+  border: '1px solid var(--dark20)',
+  background: 'var(--dark05)',
+  cursor: 'pointer',
+  fontSize: '13px',
+  color: 'var(--dark80)',
+  whiteSpace: 'nowrap',
+  minHeight: '36px',
+  position: 'relative',
+  touchAction: 'manipulation',
+  userSelect: 'none',
+  WebkitTapHighlightColor: 'transparent',
+}
+
+// Expands tap target to 44px without increasing visual size
+const hitAreaStyle: React.CSSProperties = {
+  content: '""',
+  position: 'absolute',
+  inset: '-4px',
+}
+
 export default function InputWithScanner({
   error,
   focus,
@@ -27,13 +55,10 @@ export default function InputWithScanner({
   onEnter,
   openScan,
   placeholder,
-  validator,
   value,
 }: InputWithScannerProps) {
-  // input reference
   const input = useRef<HTMLIonInputElement>(null)
 
-  // focus input when focus prop changes
   useEffect(() => {
     if (focus && input.current) input.current.setFocus()
   }, [focus, input.current])
@@ -42,25 +67,62 @@ export default function InputWithScanner({
     onChange((ev.target as HTMLInputElement).value)
   }
 
+  const handlePaste = () => {
+    hapticLight()
+    pasteFromClipboard().then((data) => {
+      if (data) onChange(data)
+    })
+  }
+
+  const handleClear = () => {
+    hapticLight()
+    onChange('')
+  }
+
+  const handleScan = () => {
+    hapticLight()
+    openScan()
+  }
+
+  const hasValue = Boolean(value && value.length > 0)
+
   return (
-    <FlexCol gap='0.5rem'>
-      <InputContainer label={label} error={error}>
-        <IonInput
-          ref={input}
-          name={name}
-          value={value}
-          onIonInput={handleInput}
-          placeholder={placeholder}
-          onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
-        >
-          <IonText slot='end' style={{ color: 'var(--dark80)', cursor: 'pointer' }}>
-            <div onClick={openScan}>
-              <ScanIcon />
+    <InputContainer label={label} error={error}>
+      <IonInput
+        ref={input}
+        name={name}
+        value={value}
+        onIonInput={handleInput}
+        placeholder={placeholder}
+        onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
+      >
+        <IonText slot='end'>
+          {hasValue ? (
+            <button
+              type='button'
+              onClick={handleClear}
+              aria-label='Clear address'
+              style={{ ...pillBase, padding: '0.4rem 0.5rem', background: 'none', border: 'none', color: 'var(--dark50)' }}
+            >
+              <span style={hitAreaStyle} />
+              <XIcon />
+            </button>
+          ) : (
+            <div style={{ display: 'flex', gap: '0.35rem' }}>
+              <button type='button' onClick={handlePaste} aria-label='Paste address' style={pillBase}>
+                <span style={hitAreaStyle} />
+                <PasteIcon />
+                Paste
+              </button>
+              <button type='button' onClick={handleScan} aria-label='Scan QR code' style={pillBase}>
+                <span style={hitAreaStyle} />
+                <ScanIcon />
+                Scan QR
+              </button>
             </div>
-          </IonText>
-        </IonInput>
-      </InputContainer>
-      <Clipboard onPaste={onChange} validator={validator} />
-    </FlexCol>
+          )}
+        </IonText>
+      </IonInput>
+    </InputContainer>
   )
 }
