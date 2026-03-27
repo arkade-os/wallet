@@ -102,7 +102,13 @@ export default function InputWithScanner({
               type='button'
               onClick={handleClear}
               aria-label='Clear address'
-              style={{ ...pillBase, padding: '0.4rem 0.5rem', background: 'none', border: 'none', color: 'var(--dark50)' }}
+              style={{
+                ...pillBase,
+                padding: '0.4rem 0.5rem',
+                background: 'none',
+                border: 'none',
+                color: 'var(--dark50)',
+              }}
             >
               <span style={hitAreaStyle} />
               <XIcon />
