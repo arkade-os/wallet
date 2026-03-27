@@ -8,6 +8,7 @@ import { getLogoAnchor } from '../lib/logoAnchor'
 import PixelLogoSvg from './PixelLogoSvg'
 import PixelSplash from './PixelSplash'
 import Text from './Text'
+import { gitCommit } from '../_gitCommit'
 
 const LARGE_SIZE = 100
 // Max frames to wait for the header logo anchor to mount before falling back to fly-up
@@ -168,6 +169,24 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
           </motion.div>
         ) : null}
       </div>
+      {showBackground ? (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '1rem',
+            left: 0,
+            right: 0,
+            textAlign: 'center',
+            pointerEvents: 'none',
+            zIndex: 10,
+            fontSize: '0.65rem',
+            opacity: 0.35,
+            color: 'var(--ion-text-color, #000)',
+          }}
+        >
+          {gitCommit}
+        </div>
+      ) : null}
     </>,
     document.body,
   )
