@@ -23,7 +23,6 @@ export const appReloader = {
   reload: () => window.location.reload(),
 }
 
-
 function PageAnimWrapper({
   children,
   animated,
