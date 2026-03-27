@@ -34,6 +34,7 @@ import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
+import { setLoadingStatus, clearLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
@@ -273,11 +274,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const reloadWallet = async (swWallet = svcWallet) => {
     if (!swWallet) return
+    const isFirstLoad = !hasLoadedOnce.current
     try {
+      if (isFirstLoad) setLoadingStatus('Fetching coins...')
       const vtxos = await getVtxos(swWallet)
+      if (isFirstLoad) setLoadingStatus('Fetching transactions...')
       const txs = await getTxHistory(swWallet)
+      if (isFirstLoad) setLoadingStatus('Updating balance...')
       const { total, assets } = await getBalance(swWallet)
       // prefetch asset metadata before triggering re-renders
+      if (isFirstLoad && assets.length > 0) setLoadingStatus('Loading asset metadata...')
       for (const ab of assets) {
         const cached = assetMetadataCache.current.get(ab.assetId)
         if (cached && Date.now() - cached.cachedAt < ASSET_METADATA_TTL_MS) continue
@@ -297,6 +303,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setTxs(txs)
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
+        clearLoadingStatus()
         setDataReady(true)
       }
     } catch (err) {
@@ -321,6 +328,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     delegatorUrl?: string
   }) => {
     try {
+      setLoadingStatus('Starting wallet...')
       const walletRepository = new IndexedDBWalletRepository()
       const contractRepository = new IndexedDBContractRepository()
 
@@ -351,6 +359,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       })()
 
       await Promise.all([walletRepository.getWalletState(), zombieCheck])
+      setLoadingStatus('Connecting to service worker...')
       const svcWallet = await ServiceWorkerWallet.setup({
         serviceWorkerPath: '/wallet-service-worker.mjs',
         identity: SingleKey.fromHex(privateKey),
@@ -366,6 +375,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       })
 
       // Migration!
+      setLoadingStatus('Migrating data...')
       try {
         const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
         const walletStatus = await getMigrationStatus('wallet', oldStorage)
@@ -444,6 +454,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (isTimeoutError && retryCount < maxRetries) {
         // exponential backoff: wait 1s, 2s, 4s, 8s, 16s for each retry
         const delay = Math.pow(2, retryCount) * 1000
+        setLoadingStatus('Retrying connection...')
         consoleError(
           new Error(
             `Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,
