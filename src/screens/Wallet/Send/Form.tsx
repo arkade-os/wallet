@@ -465,6 +465,8 @@ export default function SendForm() {
     if (!recipient) {
       setState({ address: '', arkAddress: '', invoice: '', lnUrl: '', recipient: '', satoshis: 0 })
       setRecipient('')
+      setAmount(undefined)
+      setTextValue('')
       setAmountIsReadOnly(false)
       setLnUrlLimits({ min: 0, max: 0 })
       return
