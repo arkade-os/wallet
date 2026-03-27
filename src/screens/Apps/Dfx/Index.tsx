@@ -3,7 +3,7 @@ import Padded from '../../../components/Padded'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import Loading from '../../../components/Loading'
+import LoadingLogo from '../../../components/LoadingLogo'
 import Text from '../../../components/Text'
 import { WalletContext } from '../../../providers/wallet'
 import { getReceivingAddresses } from '../../../lib/asp'
@@ -39,7 +39,7 @@ export default function AppDfx() {
     authenticate()
   }, [svcWallet])
 
-  if (!dfxUrl && !error) return <Loading text='Connecting to DFX...' />
+  if (!dfxUrl && !error) return <LoadingLogo text='Connecting to DFX...' />
 
   return (
     <>
