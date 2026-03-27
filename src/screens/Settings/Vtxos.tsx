@@ -24,12 +24,13 @@ import WarningBox from '../../components/Warning'
 import { ExtendedCoin, ExtendedVirtualCoin, isVtxoExpiringSoon } from '@arkade-os/sdk'
 import { consoleError } from '../../lib/logs'
 import { IonCol, IonGrid, IonRow } from '@ionic/react'
+import * as Sentry from '@sentry/react'
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { assetMetadataCache, reloadWallet, vtxos, wallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, reloadWallet, vtxos, vtxoManager, wallet, svcWallet } = useContext(WalletContext)
 
   const defaultLabel = 'Renew Virtual Coins'
 
@@ -110,15 +111,27 @@ export default function Vtxos() {
 
   // Fetch inputs to settle
   useEffect(() => {
-    if (!aspInfo || !svcWallet) return
-    getInputsToSettle(svcWallet, wallet.thresholdMs).then(({ boardingUtxos, inputs, vtxos }) => {
-      setHasBoardingUtxosToSettle(boardingUtxos.length > 0)
-      setHasInputsToSettle(inputs.length > 0)
-      setHasVtxosToSettle(vtxos.length > 0)
-      const amount = inputs.reduce((a, v) => a + v.value, 0) || 0
-      setAboveDust(amount > aspInfo.dust)
-    })
-  }, [allUtxos, allVtxos, aspInfo, svcWallet])
+    if (!aspInfo || !svcWallet || !vtxoManager) return
+    let cancelled = false
+    const fetchInputs = async () => {
+      try {
+        const { boardingUtxos, inputs, vtxos } = await getInputsToSettle(svcWallet, vtxoManager, wallet.thresholdMs)
+        if (cancelled) return
+        setHasBoardingUtxosToSettle(boardingUtxos.length > 0)
+        setHasInputsToSettle(inputs.length > 0)
+        setHasVtxosToSettle(vtxos.length > 0)
+        const amount = inputs.reduce((a, v) => a + v.value, 0) || 0
+        setAboveDust(amount > aspInfo.dust)
+      } catch (err) {
+        if (cancelled) return
+        consoleError(err)
+      }
+    }
+    fetchInputs()
+    return () => {
+      cancelled = true
+    }
+  }, [allUtxos, allVtxos, aspInfo, svcWallet, vtxoManager, wallet.thresholdMs])
 
   // Automatically reset `success` after 5s, with cleanup on unmount or re-run
   useEffect(() => {
@@ -128,18 +141,21 @@ export default function Vtxos() {
     return () => clearTimeout(timeoutId)
   }, [success])
 
-  if (!svcWallet || loading) return <LoadingLogo text='Loading...' />
+  if (!svcWallet || !vtxoManager || loading) return <LoadingLogo text='Loading...' />
 
   const listableVtxos = allVtxos.filter((vtxo) => vtxo.isSpent === false)
 
   const handleRollover = async () => {
     try {
       setRollingover(true)
-      await settleVtxos(svcWallet, aspInfo.dust, wallet.thresholdMs)
+      await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs)
       await reloadWallet()
       setRollingover(false)
       setSuccess(true)
     } catch (err) {
+      Sentry.captureException(err, {
+        tags: { function: 'renewVtxos:handleRollover' },
+      })
       setError(extractError(err))
       setRollingover(false)
     }

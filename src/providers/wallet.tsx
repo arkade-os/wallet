@@ -6,6 +6,7 @@ import {
   SingleKey,
   AssetDetails,
   WalletBalance,
+  IVtxoManager,
   migrateWalletRepository,
   getMigrationStatus,
   rollbackMigration,
@@ -23,7 +24,7 @@ import {
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
-import { getBalance, getTxHistory, getVtxos, renewCoins, settleVtxos } from '../lib/asp'
+import { getBalance, getTxHistory, getVtxos, settleVtxos } from '../lib/asp'
 import { AspContext } from './asp'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
@@ -64,6 +65,7 @@ interface WalletContextProps {
   wallet: Wallet
   walletLoaded: boolean
   svcWallet: ServiceWorkerWallet | undefined
+  vtxoManager: IVtxoManager | undefined
   txs: Tx[]
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: WalletBalance['total']
@@ -88,6 +90,7 @@ export const WalletContext = createContext<WalletContextProps>({
   wallet: defaultWallet,
   walletLoaded: false,
   svcWallet: undefined,
+  vtxoManager: undefined,
   isLocked: () => Promise.resolve(true),
   balance: 0,
   assetBalances: [],
@@ -117,6 +120,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [authState, setAuthState] = useState<WalletAuthState>('unknown')
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
   const [assetBalances, setAssetBalances] = useState<WalletBalance['assets']>([])
+
+  const [vtxoManager, setVtxoManager] = useState<IVtxoManager>()
 
   const hasLoadedOnce = useRef(false)
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
@@ -328,6 +333,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         storage: { walletRepository, contractRepository },
         serviceWorkerActivationTimeoutMs: SERVICE_WORKER_SETUP_TIMEOUT_MS,
         messageBusTimeoutMs: SERVICE_WORKER_SETUP_TIMEOUT_MS,
+        ...(wallet.thresholdMs && {
+          settlementConfig: { vtxoThreshold: Math.floor(wallet.thresholdMs / 1000) },
+        }),
       })
 
       // Migration!
@@ -354,7 +362,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         consoleError(err, 'Error migrating wallet repository')
       }
 
+      const vtxoMgr = await svcWallet.getVtxoManager()
       setSvcWallet(svcWallet)
+      setVtxoManager(vtxoMgr)
 
       // Cancel any pending reload from a previous wallet instance
       clearTimeout(reloadTimerRef.current)
@@ -397,7 +407,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // When delegation is enabled, the SDK's VtxoManager auto-delegates
       // via onContractEvent, so no wallet-side call is needed.
       if (!config.delegate) {
-        renewCoins(svcWallet, aspInfo.dust, wallet.thresholdMs).catch(() => {})
+        vtxoMgr.renewVtxos().catch(() => {})
       }
     } catch (err) {
       const isTimeoutError =
@@ -508,8 +518,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const settlePreconfirmed = async () => {
-    if (!svcWallet) throw new Error('Service worker not initialized')
-    await settleVtxos(svcWallet, aspInfo.dust, wallet.thresholdMs)
+    if (!svcWallet || !vtxoManager) throw new Error('Service worker not initialized')
+    await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs)
     notifyTxSettled()
   }
 
@@ -545,6 +555,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         wallet,
         walletLoaded,
         svcWallet,
+        vtxoManager,
         lockWallet,
         restartWallet,
         txs,
