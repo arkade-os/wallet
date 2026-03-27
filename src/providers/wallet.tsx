@@ -43,7 +43,8 @@ import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { Indexer } from '../lib/indexer'
 import { IndexedDbSwapRepository, migrateToSwapRepository, Network } from '@arkade-os/boltz-swap'
 
-const SERVICE_WORKER_SETUP_TIMEOUT_MS = 5_000
+const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
+const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
 
 const defaultWallet: Wallet = {
   network: '',
@@ -309,7 +310,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     esploraUrl,
     privateKey,
     retryCount = 0,
-    maxRetries = 5,
+    maxRetries = 2,
     delegatorUrl,
   }: {
     arkServerUrl: string
@@ -331,8 +332,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         esploraUrl,
         delegatorUrl,
         storage: { walletRepository, contractRepository },
-        serviceWorkerActivationTimeoutMs: SERVICE_WORKER_SETUP_TIMEOUT_MS,
-        messageBusTimeoutMs: SERVICE_WORKER_SETUP_TIMEOUT_MS,
+        serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
+        messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
         ...(wallet.thresholdMs && {
           settlementConfig: { vtxoThreshold: Math.floor(wallet.thresholdMs / 1000) },
         }),
