@@ -1,5 +1,4 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
-import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App, { appReloader } from '../App'
 import { AspContext } from '../providers/asp'
@@ -24,39 +23,6 @@ const PASSWORDLESS_AUTO_RELOAD_KEY = 'passwordless-auto-reload-attempted'
 vi.mock('../lib/jsCapabilities', () => ({
   detectJSCapabilities: vi.fn().mockResolvedValue({ isSupported: true }),
 }))
-
-vi.mock('@ionic/react', async (importOriginal) => {
-  const React = await import('react')
-  const actual = await importOriginal<typeof import('@ionic/react')>()
-
-  const IonTab = React.forwardRef(function MockIonTab(
-    { children }: { children: ReactNode },
-    ref: React.ForwardedRef<{ setActive: () => void; classList: { add: () => void; remove: () => void } }>,
-  ) {
-    React.useImperativeHandle(ref, () => ({
-      setActive: () => {},
-      classList: {
-        add: () => {},
-        remove: () => {},
-      },
-    }))
-
-    return <div>{children}</div>
-  })
-
-  return {
-    ...actual,
-    IonApp: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-    IonPage: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-    IonTab,
-    IonTabBar: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-    IonTabButton: ({ children, onClick }: { children: ReactNode; onClick?: () => void }) => (
-      <button onClick={onClick}>{children}</button>
-    ),
-    IonTabs: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-    setupIonicReact: vi.fn(),
-  }
-})
 
 function renderApp({
   authState,

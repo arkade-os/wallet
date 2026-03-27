@@ -1,4 +1,3 @@
-import { useIonToast } from '@ionic/react'
 import { useState, useEffect, useContext, useRef } from 'react'
 import Button from '../../components/Button'
 import Padded from '../../components/Padded'
@@ -36,8 +35,6 @@ export default function Backup() {
   const { arkadeSwaps } = useContext(SwapsContext)
   const { backupConfig, config, updateConfig } = useContext(ConfigContext)
 
-  const [present] = useIonToast()
-
   const [nsec, setNsec] = useState('')
   const [error, setError] = useState('')
   const [dialog, setDialog] = useState(false)
@@ -61,7 +58,7 @@ export default function Backup() {
   const handleCopy = async () => {
     if (!nsec) return
     await copyToClipboard(nsec)
-    present(copiedToClipboard)
+    copiedToClipboard()
   }
 
   const onChangePassword = (e: any) => {
@@ -99,7 +96,7 @@ export default function Backup() {
     } else {
       backupConfig(newConfig)
     }
-    present(backupToNostr)
+    backupToNostr()
   }
 
   const Dialog = () => (

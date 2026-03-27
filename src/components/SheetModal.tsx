@@ -1,4 +1,4 @@
-import { IonModal } from '@ionic/react'
+import { Drawer, DrawerContent, DrawerClose } from './ui/drawer'
 import CloseIcon from '../icons/Close'
 
 interface SheetModalProps {
@@ -8,44 +8,28 @@ interface SheetModalProps {
 }
 
 export default function SheetModal({ children, isOpen, onClose }: SheetModalProps) {
-  const outerStyle: React.CSSProperties = {
-    maxWidth: '640px',
-    margin: '0 auto',
-    width: '100%',
-  }
-
-  const innerStyle: React.CSSProperties = {
-    backgroundColor: 'var(--ion-background-color)',
-    borderTop: '1px solid var(--dark50)',
-    borderRadius: '1rem',
-    height: '100%',
-    padding: '1rem',
-    paddingBottom: '2rem',
-    width: '100%',
-    position: 'relative',
-  }
-
-  const closeButtonStyle: React.CSSProperties = {
-    background: 'none',
-    border: 'none',
-    color: 'var(--ion-text-color)',
-    cursor: 'pointer',
-    padding: 0,
-    position: 'absolute',
-    right: '1rem',
-    top: '1rem',
-  }
-
   return (
-    <IonModal initialBreakpoint={1} isOpen={isOpen} onDidDismiss={onClose}>
-      <div style={outerStyle}>
-        <div style={innerStyle}>
-          <button type='button' style={closeButtonStyle} onClick={onClose} aria-label='Close'>
+    <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DrawerContent className='max-w-[640px] mx-auto'>
+        <div style={{ padding: '1rem', paddingBottom: '2rem', position: 'relative' }}>
+          <DrawerClose
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--fg)',
+              cursor: 'pointer',
+              padding: 0,
+              position: 'absolute',
+              right: '1rem',
+              top: '0.5rem',
+            }}
+            aria-label='Close'
+          >
             <CloseIcon />
-          </button>
+          </DrawerClose>
           {children}
         </div>
-      </div>
-    </IonModal>
+      </DrawerContent>
+    </Drawer>
   )
 }

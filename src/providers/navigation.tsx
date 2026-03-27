@@ -36,6 +36,7 @@ import AppAssetBurn from '../screens/Apps/Assets/Burn'
 import AppAssetsSettings from '../screens/Apps/Assets/Settings'
 import InAppBrowser from '../screens/Wallet/InAppBrowser'
 import Unavailable from '../screens/Wallet/Unavailable'
+import ComponentPreview from '../screens/ComponentPreview'
 
 export type NavigationDirection = 'forward' | 'back' | 'none'
 
@@ -77,6 +78,7 @@ export enum Pages {
   Unlock,
   Vtxos,
   Wallet,
+  ComponentPreview,
 }
 
 export enum Tabs {
@@ -124,6 +126,7 @@ const pageTab = {
   [Pages.Unlock]: Tabs.None,
   [Pages.Vtxos]: Tabs.Settings,
   [Pages.Wallet]: Tabs.Wallet,
+  [Pages.ComponentPreview]: Tabs.Settings,
 }
 
 // Root pages of each tab — tab switches between these get no animation
@@ -218,6 +221,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <Vtxos />
     case Pages.Wallet:
       return <Wallet />
+    case Pages.ComponentPreview:
+      return <ComponentPreview />
     default:
       return <></>
   }

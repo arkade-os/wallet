@@ -5,7 +5,6 @@ import { prettyLongText } from '../lib/format'
 import { useState } from 'react'
 import Focusable from './Focusable'
 import { copyToClipboard } from '../lib/clipboard'
-import { useIonToast } from '@ionic/react'
 import { copiedToClipboard } from '../lib/toast'
 import { hapticSubtle } from '../lib/haptics'
 import ExternalLinkIcon from '../icons/ExternalLink'
@@ -16,12 +15,10 @@ export type TableData = TableLine[]
 export default function Table({ data }: { data: TableData }) {
   const [focused, setFocused] = useState(false)
 
-  const [present] = useIonToast()
-
   const copy = (value: string) => {
     hapticSubtle()
     copyToClipboard(value)
-    present(copiedToClipboard)
+    copiedToClipboard()
   }
 
   const focusOnFirstRow = () => {

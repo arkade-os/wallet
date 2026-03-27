@@ -1,22 +1,5 @@
-import '@ionic/react/css/core.css'
-/* Basic CSS for apps built with Ionic */
-import '@ionic/react/css/normalize.css'
-import '@ionic/react/css/structure.css'
-import '@ionic/react/css/typography.css'
-
-/* Optional CSS utils that can be commented out */
-import '@ionic/react/css/padding.css'
-import '@ionic/react/css/float-elements.css'
-import '@ionic/react/css/text-alignment.css'
-import '@ionic/react/css/text-transformation.css'
-import '@ionic/react/css/flex-utils.css'
-import '@ionic/react/css/display.css'
-
-import '@ionic/react/css/palettes/dark.class.css'
-
 import { AnimatePresence } from 'framer-motion'
 import { ConfigContext } from './providers/config'
-import { IonApp, IonPage, IonTab, IonTabBar, IonTabButton, IonTabs, setupIonicReact } from '@ionic/react'
 import { NavigationContext, pageComponent, Pages, Tabs, type NavigationDirection } from './providers/navigation'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { isInAppBrowser } from './lib/browser'
@@ -29,18 +12,11 @@ import { AspContext } from './providers/asp'
 import { hapticLight } from './lib/haptics'
 import { setBootAnimActive as syncBootAnimFlag } from './lib/logoAnchor'
 import { PageTransition } from './components/PageTransition'
-import SettingsIcon from './icons/Settings'
 import LoadingLogo from './components/LoadingLogo'
 import PillNavbarOverlay from './components/PillNavbarOverlay'
-import FlexCol from './components/FlexCol'
-import WalletIcon from './icons/Wallet'
-import AppsIcon from './icons/Apps'
-import Focusable from './components/Focusable'
 import { useReducedMotion } from './hooks/useReducedMotion'
 import { defaultPassword } from './lib/constants'
 import { consoleError } from './lib/logs'
-
-setupIonicReact()
 
 const PASSWORDLESS_AUTO_RELOAD_KEY = 'passwordless-auto-reload-attempted'
 export const appReloader = {
@@ -64,29 +40,6 @@ function PageAnimWrapper({
   )
 }
 
-const animClass = 'tab-anim-pop'
-
-function AnimatedTabIcon({ children, animating }: { children: React.ReactNode; animating: boolean }) {
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!animating || !ref.current) return
-    const el = ref.current
-    el.classList.remove(animClass)
-    void el.offsetWidth // Force reflow so removing + re-adding the class triggers the animation
-    el.classList.add(animClass)
-    const handleEnd = () => el.classList.remove(animClass)
-    el.addEventListener('animationend', handleEnd)
-    return () => el.removeEventListener('animationend', handleEnd)
-  }, [animating])
-
-  return (
-    <div ref={ref} className='tab-icon-animated'>
-      {children}
-    </div>
-  )
-}
-
 export default function App() {
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
@@ -98,7 +51,6 @@ export default function App() {
   const isIAB = useMemo(() => isInAppBrowser(), [])
   const [isCapable, setIsCapable] = useState(false)
   const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
-  const [animatingTab, setAnimatingTab] = useState<string | null>(null)
   const [bootAnimActive, setBootAnimActive] = useState(false)
   // Syncs the external store before React re-renders, so Wallet reads
   // the correct value on the same frame LoadingLogo unmounts.
@@ -109,16 +61,14 @@ export default function App() {
   const [bootAnimDone, setBootAnimDone] = useState(false)
   const [bootExitMode, setBootExitMode] = useState<'fly-to-target' | 'fly-up'>('fly-up')
 
-  // refs for the tabs to be able to programmatically activate them
-  const appsRef = useRef<HTMLIonTabElement>(null)
-  const walletRef = useRef<HTMLIonTabElement>(null)
-  const settingsRef = useRef<HTMLIonTabElement>(null)
+  // Refs for tab divs to toggle visibility
+  const walletRef = useRef<HTMLDivElement>(null)
+  const appsRef = useRef<HTMLDivElement>(null)
+  const settingsRef = useRef<HTMLDivElement>(null)
   const passwordlessBootAttempted = useRef(false)
   const passwordlessReloadTimer = useRef<ReturnType<typeof setTimeout>>()
 
   // lock screen orientation to portrait
-  // this is a workaround for the issue with the screen orientation API
-  // not being supported in some browsers
   const orientation = window.screen.orientation as any
   if (orientation && typeof orientation.lock === 'function') {
     orientation.lock('portrait').catch(() => {})
@@ -155,52 +105,27 @@ export default function App() {
     if (authState === 'locked') return navigate(Pages.Unlock)
   }, [walletLoaded, wallet.pubkey, authState, initInfo, aspInfo.unreachable, jsCapabilitiesChecked, isCapable])
 
-  // for some reason you need to manually set the active tab
-  // if you are coming from a page in a different tab
+  // Toggle tab visibility via CSS classes (single-stack navigation model)
   useEffect(() => {
-    switch (tab) {
-      case Tabs.Wallet:
-        walletRef.current?.setActive()
-        walletRef.current?.classList.remove('tab-hidden')
-        appsRef.current?.classList.add('tab-hidden')
-        settingsRef.current?.classList.add('tab-hidden')
-        break
-      case Tabs.Apps:
-        appsRef.current?.setActive()
-        appsRef.current?.classList.remove('tab-hidden')
-        walletRef.current?.classList.add('tab-hidden')
-        settingsRef.current?.classList.add('tab-hidden')
-        break
-      case Tabs.Settings:
-        settingsRef.current?.setActive()
-        settingsRef.current?.classList.remove('tab-hidden')
-        walletRef.current?.classList.add('tab-hidden')
-        appsRef.current?.classList.add('tab-hidden')
-        break
-      default:
-        break
+    const refs = { [Tabs.Wallet]: walletRef, [Tabs.Apps]: appsRef, [Tabs.Settings]: settingsRef }
+    for (const [t, ref] of Object.entries(refs)) {
+      if (!ref.current) continue
+      if (t === tab) ref.current.classList.remove('tab-hidden')
+      else ref.current.classList.add('tab-hidden')
     }
   }, [tab])
 
-  const triggerTabAnim = useCallback((tabName: string) => {
-    setAnimatingTab(null)
-    requestAnimationFrame(() => setAnimatingTab(tabName))
-  }, [])
-
   const handleWallet = () => {
-    triggerTabAnim('wallet')
     hapticLight()
     navigate(Pages.Wallet)
   }
 
   const handleApps = () => {
-    triggerTabAnim('apps')
     hapticLight()
     navigate(Pages.Apps)
   }
 
   const handleSettings = () => {
-    triggerTabAnim('settings')
     hapticLight()
     setOption(SettingsOptions.Menu)
     navigate(Pages.Settings)
@@ -209,9 +134,7 @@ export default function App() {
   const prefersReduced = useReducedMotion()
   const effectiveDirection = prefersReduced ? 'none' : direction
 
-  // New users (no wallet in storage) skip straight to Init — the logo morph animation
-  // serves as the intro visual while ASP and JS capability checks resolve in the background.
-  // Init doesn't need ASP or crypto until "Create wallet" is clicked.
+  // New users skip straight to Init
   const aspReady = aspInfo.signerPubkey || aspInfo.unreachable
   const isNewUser = walletLoaded && !wallet.pubkey
   const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
@@ -289,89 +212,64 @@ export default function App() {
 
   const comp = page === Pages.Loading ? null : pageComponent(page)
 
+  const appStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    maxWidth: '640px',
+    margin: '0 auto',
+    overflow: 'hidden',
+    paddingTop: 'env(safe-area-inset-top)',
+    position: 'relative',
+  }
+
   return (
-    <IonApp className={tab !== Tabs.None ? 'has-pill-navbar' : undefined}>
-      <IonPage>
-        {tab === Tabs.None ? (
-          <div className='page-transition-container'>
-            <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-              <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                {comp}
-              </PageTransition>
-            </PageAnimWrapper>
+    <div className={tab !== Tabs.None ? 'has-pill-navbar' : undefined} style={appStyle}>
+      {tab === Tabs.None ? (
+        <div className='page-transition-container'>
+          <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
+            <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+              {comp}
+            </PageTransition>
+          </PageAnimWrapper>
+        </div>
+      ) : (
+        <>
+          <div ref={walletRef} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+            <div className='page-transition-container'>
+              <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
+                {tab === Tabs.Wallet && (
+                  <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                    {comp}
+                  </PageTransition>
+                )}
+              </PageAnimWrapper>
+            </div>
           </div>
-        ) : (
-          <>
-            <IonTabs>
-              <IonTab ref={walletRef} tab={Tabs.Wallet}>
-                <div className='page-transition-container'>
-                  <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-                    {tab === Tabs.Wallet && (
-                      <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                        {comp}
-                      </PageTransition>
-                    )}
-                  </PageAnimWrapper>
-                </div>
-              </IonTab>
-              <IonTab ref={appsRef} tab={Tabs.Apps}>
-                <div className='page-transition-container'>
-                  <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-                    {tab === Tabs.Apps && (
-                      <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                        {comp}
-                      </PageTransition>
-                    )}
-                  </PageAnimWrapper>
-                </div>
-              </IonTab>
-              <IonTab ref={settingsRef} tab={Tabs.Settings}>
-                <div className='page-transition-container'>
-                  <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-                    {tab === Tabs.Settings && (
-                      <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                        {comp}
-                      </PageTransition>
-                    )}
-                  </PageAnimWrapper>
-                </div>
-              </IonTab>
-              <IonTabBar slot='bottom'>
-                <IonTabButton tab={Tabs.Wallet} onClick={handleWallet} selected={tab === Tabs.Wallet}>
-                  <Focusable>
-                    <FlexCol centered gap='6px' padding='5px'>
-                      <AnimatedTabIcon animating={animatingTab === 'wallet'}>
-                        <WalletIcon />
-                      </AnimatedTabIcon>
-                      Wallet
-                    </FlexCol>
-                  </Focusable>
-                </IonTabButton>
-                <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps}>
-                  <Focusable>
-                    <FlexCol centered gap='6px' padding='5px'>
-                      <AnimatedTabIcon animating={animatingTab === 'apps'}>
-                        <AppsIcon />
-                      </AnimatedTabIcon>
-                      Apps
-                    </FlexCol>
-                  </Focusable>
-                </IonTabButton>
-                <IonTabButton tab={Tabs.Settings} onClick={handleSettings} selected={tab === Tabs.Settings}>
-                  <Focusable>
-                    <FlexCol centered gap='6px' padding='5px'>
-                      <AnimatedTabIcon animating={animatingTab === 'settings'}>
-                        <SettingsIcon />
-                      </AnimatedTabIcon>
-                      Settings
-                    </FlexCol>
-                  </Focusable>
-                </IonTabButton>
-              </IonTabBar>
-            </IonTabs>
-          </>
-        )}
-      </IonPage>
+          <div ref={appsRef} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+            <div className='page-transition-container'>
+              <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
+                {tab === Tabs.Apps && (
+                  <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                    {comp}
+                  </PageTransition>
+                )}
+              </PageAnimWrapper>
+            </div>
+          </div>
+          <div ref={settingsRef} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+            <div className='page-transition-container'>
+              <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
+                {tab === Tabs.Settings && (
+                  <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                    {comp}
+                  </PageTransition>
+                )}
+              </PageAnimWrapper>
+            </div>
+          </div>
+        </>
+      )}
       {tab !== Tabs.None && !bootAnimActive && (
         <PillNavbarOverlay
           activeTab={tab}
@@ -383,6 +281,6 @@ export default function App() {
       {bootAnimActive ? (
         <LoadingLogo exitMode={bootExitMode} done={bootAnimDone} onExitComplete={handleBootAnimComplete} />
       ) : null}
-    </IonApp>
+    </div>
   )
 }

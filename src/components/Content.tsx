@@ -1,16 +1,50 @@
-import { IonContent } from '@ionic/react'
-import { ReactNode } from 'react'
-import Refresher from './Refresher'
+import { ReactNode, useRef } from 'react'
+import { useRefresher } from './Refresher'
 
 interface ContentProps {
   children: ReactNode
 }
 
 export default function Content({ children }: ContentProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const { handleTouchStart, handleTouchMove, handleTouchEnd, refreshing, pullOffset } = useRefresher(scrollRef)
+
+  const style: React.CSSProperties = {
+    flex: 1,
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    scrollbarWidth: 'none',
+    position: 'relative',
+    touchAction: 'pan-x pan-down pinch-zoom',
+  }
+
   return (
-    <IonContent>
-      <Refresher />
+    <main
+      role='main'
+      ref={scrollRef}
+      style={style}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {pullOffset > 0 || refreshing ? (
+        <div
+          style={{
+            textAlign: 'center',
+            padding: '0.5rem',
+            color: 'var(--dark50)',
+            fontSize: '0.75rem',
+            height: pullOffset > 0 ? pullOffset : 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: pullOffset === 0 ? 'height 200ms ease-out' : 'none',
+          }}
+        >
+          {refreshing ? 'Refreshing...' : 'Pull to refresh'}
+        </div>
+      ) : null}
       <div className='content-shell'>{children}</div>
-    </IonContent>
+    </main>
   )
 }

@@ -1,7 +1,9 @@
 import ReactDOM from 'react-dom/client'
+import './tokens.css'
+import './app.css'
 import './index.css'
-import './ionic.css'
 import App from './App'
+import { Toaster } from 'sonner'
 // import IconPreview from './screens/IconPreview'
 import { AspProvider } from './providers/asp'
 import { ConfigProvider } from './providers/config'
@@ -57,6 +59,23 @@ root.render(
                       <OptionsProvider>
                         <NudgeProvider>
                           <AnnouncementProvider>
+                            <Toaster
+                              position='top-center'
+                              duration={1500}
+                              toastOptions={{
+                                style: {
+                                  background: 'var(--fg)',
+                                  color: 'var(--bg)',
+                                  borderRadius: '0.5rem',
+                                  border: 'none',
+                                  textAlign: 'center',
+                                  maxWidth: '260px',
+                                  padding: '0.75rem 1rem',
+                                  fontSize: '0.875rem',
+                                  justifyContent: 'center',
+                                },
+                              }}
+                            />
                             <App />
                           </AnnouncementProvider>
                         </NudgeProvider>
