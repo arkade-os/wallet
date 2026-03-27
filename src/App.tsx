@@ -37,6 +37,7 @@ import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
 import Focusable from './components/Focusable'
 import { useReducedMotion } from './hooks/useReducedMotion'
+import { useLoadingStatus } from './hooks/useLoadingStatus'
 import { defaultPassword } from './lib/constants'
 import { consoleError } from './lib/logs'
 
@@ -95,6 +96,7 @@ export default function App() {
   const { setOption } = useContext(OptionsContext)
   const { authState, unlockWallet, walletLoaded, initialized, wallet } = useContext(WalletContext)
 
+  const loadingStatus = useLoadingStatus()
   const isIAB = useMemo(() => isInAppBrowser(), [])
   const [isCapable, setIsCapable] = useState(false)
   const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
@@ -381,7 +383,12 @@ export default function App() {
         />
       )}
       {bootAnimActive ? (
-        <LoadingLogo exitMode={bootExitMode} done={bootAnimDone} onExitComplete={handleBootAnimComplete} />
+        <LoadingLogo
+          text={loadingStatus}
+          exitMode={bootExitMode}
+          done={bootAnimDone}
+          onExitComplete={handleBootAnimComplete}
+        />
       ) : null}
     </IonApp>
   )
