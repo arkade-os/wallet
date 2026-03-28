@@ -81,7 +81,7 @@ export default function SendForm() {
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
   const [scan, setScan] = useState(false)
   const [rawScanData, setRawScanData] = useState('')
-  const [brantaPayment, setBrantaPayment] = useState<Payment>(null)
+  const [brantaPayment, setBrantaPayment] = useState<Payment | null>(null)
   const [brantaLoading, setBrantaLoading] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<AssetOption | null>(null)
   const [showAssetSelector, setShowAssetSelector] = useState(false)
@@ -264,20 +264,25 @@ export default function SendForm() {
 
   // fetch branta payment info for ZK QR-scanned addresses only
   useEffect(() => {
-    if (!rawScanData) return
+    if (!rawScanData) {
+      setBrantaLoading(false)
+      return
+    }
     setBrantaPayment(null)
     let cancelled = false
 
-    let isValidZKCode = false;
+    let isValidZKCode = false
     try {
-      const url = new URL(rawScanData.trim());
-      isValidZKCode = url.searchParams.has('branta_id') &&
-        url.searchParams.has('branta_secret');
+      const url = new URL(rawScanData.trim())
+      isValidZKCode = url.searchParams.has('branta_id') && url.searchParams.has('branta_secret')
     } catch {
       // Invalid URL, not a ZK code
     }
 
-    if (!isValidZKCode) return;
+    if (!isValidZKCode) {
+      setBrantaLoading(false)
+      return
+    }
 
     setBrantaLoading(true)
     brantaClient
@@ -286,8 +291,7 @@ export default function SendForm() {
         if (cancelled) return
         const payment = payments?.[0] ?? null
         if (payment) {
-          const isHttpsUrl = (val: unknown): boolean =>
-            typeof val === 'string' && val.startsWith('https://')
+          const isHttpsUrl = (val: unknown): boolean => typeof val === 'string' && val.startsWith('https://')
           setBrantaPayment({
             ...payment,
             verify_url: isHttpsUrl(payment.verify_url) ? payment.verify_url : undefined,
@@ -297,8 +301,9 @@ export default function SendForm() {
           setBrantaPayment(null)
         }
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return
+        consoleError('Branta API error', err)
         setBrantaPayment(null)
       })
       .finally(() => {
@@ -727,12 +732,7 @@ export default function SendForm() {
                     </Text>
                   </FlexCol>
                   {brantaPayment.platform_logo_url ? (
-                    <img
-                      src={brantaPayment.platform_logo_url}
-                      alt={brantaPayment.platform}
-                      width={48}
-                      height={48}
-                    />
+                    <img src={brantaPayment.platform_logo_url} alt={brantaPayment.platform} width={48} height={48} />
                   ) : null}
                 </FlexRow>
               </Shadow>
