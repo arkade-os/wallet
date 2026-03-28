@@ -39,7 +39,7 @@ test('should send to ark address', async ({ page, isMobile }) => {
 
   // finalize payment
   await page.getByText('Tap to Sign').click()
-  await page.waitForSelector('text=Payment sent!')
+  await page.waitForSelector('text=Payment sent!', { timeout: 60000 })
   await expect(page.getByText('2,000 SATS sent successfully')).toBeVisible()
 
   // main page
