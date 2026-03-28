@@ -522,7 +522,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
 
     setAuthState('authenticated')
-    await initWallet(privateKey)
+    try {
+      await initWallet(privateKey)
+    } catch (err) {
+      setAuthState('locked')
+      throw err
+    }
   }
 
   /**

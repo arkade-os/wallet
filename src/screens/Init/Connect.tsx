@@ -28,10 +28,20 @@ export default function InitConnect() {
 
   useEffect(() => {
     if (!password || !privateKey) return
+    let cancelled = false
     setPrivateKey(privateKey, password)
-      .then(() => initWallet(privateKey))
-      .then(() => setInitialized(true))
+      .then(() => {
+        if (cancelled) return
+        return initWallet(privateKey)
+      })
+      .then(() => {
+        if (cancelled) return
+        setInitialized(true)
+      })
       .catch((err) => consoleError(err, 'Error initializing wallet:'))
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
