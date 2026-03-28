@@ -30,6 +30,7 @@ import { hapticLight } from './lib/haptics'
 import { setBootAnimActive as syncBootAnimFlag } from './lib/logoAnchor'
 import { PageTransition } from './components/PageTransition'
 import SettingsIcon from './icons/Settings'
+import BootError from './components/BootError'
 import LoadingLogo from './components/LoadingLogo'
 import PillNavbarOverlay from './components/PillNavbarOverlay'
 import FlexCol from './components/FlexCol'
@@ -94,7 +95,7 @@ export default function App() {
   const { direction, navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
-  const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady } = useContext(WalletContext)
+  const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError } = useContext(WalletContext)
 
   const loadingStatus = useLoadingStatus()
   const isIAB = useMemo(() => isInAppBrowser(), [])
@@ -383,12 +384,16 @@ export default function App() {
         />
       )}
       {bootAnimActive ? (
-        <LoadingLogo
-          text={loadingStatus}
-          exitMode={bootExitMode}
-          done={bootAnimDone}
-          onExitComplete={handleBootAnimComplete}
-        />
+        loadError ? (
+          <BootError />
+        ) : (
+          <LoadingLogo
+            text={loadingStatus}
+            exitMode={bootExitMode}
+            done={bootAnimDone}
+            onExitComplete={handleBootAnimComplete}
+          />
+        )
       ) : null}
     </IonApp>
   )
