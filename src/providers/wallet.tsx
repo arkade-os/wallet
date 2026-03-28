@@ -308,7 +308,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (err) {
       consoleError(err, 'Error reloading wallet')
-      return
+    } finally {
+      if (!hasLoadedOnce.current) {
+        hasLoadedOnce.current = true
+        clearLoadingStatus()
+        setDataReady(true)
+      }
     }
   }
 
