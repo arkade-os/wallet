@@ -151,6 +151,8 @@ export const mockWalletContextValue = {
   vtxos: { spendable: [], spent: [] },
   iconApprovalManager: new AssetIconApprovalManager(),
   dataReady: false,
+  loadError: null,
+  dismissLoadError: () => {},
 }
 
 export const mockFlowContextValue = {

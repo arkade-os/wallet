@@ -34,7 +34,7 @@ import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
-import { setLoadingStatus, clearLoadingStatus } from '../lib/loadingStatus'
+import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
@@ -76,6 +76,8 @@ interface WalletContextProps {
   setCacheEntry: (assetId: string, details: AssetDetails) => CachedAssetDetails
   iconApprovalManager: AssetIconApprovalManager
   dataReady: boolean
+  loadError: string | null
+  dismissLoadError: () => void
   authState: WalletAuthState
   initialized?: boolean
 }
@@ -100,6 +102,8 @@ export const WalletContext = createContext<WalletContextProps>({
   setCacheEntry: () => ({ cachedAt: 0 }) as CachedAssetDetails,
   iconApprovalManager: new AssetIconApprovalManager(),
   dataReady: false,
+  loadError: null,
+  dismissLoadError: () => {},
   authState: 'unknown',
   txs: [],
   vtxos: { spendable: [], spent: [] },
@@ -119,6 +123,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [initialized, setInitialized] = useState<boolean>(false)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
   const [dataReady, setDataReady] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [authState, setAuthState] = useState<WalletAuthState>('unknown')
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
   const [assetBalances, setAssetBalances] = useState<WalletBalance['assets']>([])
@@ -275,6 +280,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const reloadWallet = async (swWallet = svcWallet) => {
     if (!swWallet) return
     const isFirstLoad = !hasLoadedOnce.current
+    if (isFirstLoad) setLoadError(null)
     try {
       if (isFirstLoad) setLoadingStatus('Fetching coins...')
       const vtxos = await getVtxos(swWallet)
@@ -303,18 +309,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setTxs(txs)
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
-        clearLoadingStatus()
         setDataReady(true)
       }
     } catch (err) {
       consoleError(err, 'Error reloading wallet')
-    } finally {
       if (!hasLoadedOnce.current) {
-        hasLoadedOnce.current = true
-        clearLoadingStatus()
-        setDataReady(true)
+        setLoadError('Unable to load wallet data. Check your connection and try again.')
       }
     }
+  }
+
+  const dismissLoadError = () => {
+    setLoadError(null)
+    hasLoadedOnce.current = true
+    setDataReady(true)
   }
 
   const initSvcWorkerWallet = async ({
@@ -625,6 +633,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         setCacheEntry,
         iconApprovalManager,
         dataReady,
+        loadError,
+        dismissLoadError,
         reloadWallet,
         vtxos: vtxos ?? { spendable: [], spent: [] },
       }}
