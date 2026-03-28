@@ -27,6 +27,21 @@ import LoadingLogo from '../../../components/LoadingLogo'
 import FlexRow from '../../../components/FlexRow'
 import { InfoIconDark } from '../../../icons/Info'
 
+function friendlySwapError(message: string): string {
+  const locktimeMatch = message.match(/locktime=(\d+)/)
+  if (locktimeMatch) {
+    const date = prettyDate(parseInt(locktimeMatch[1]))
+    return `Refund not yet available. Your funds will be recoverable after ${date}.`
+  }
+  if (message.includes('VHTLC is already spent')) {
+    return 'This swap has already been refunded or claimed.'
+  }
+  if (message.includes('VHTLC not found')) {
+    return 'No funds found at the swap address. The swap may not have been funded.'
+  }
+  return message
+}
+
 export default function AppBoltzSwap() {
   const { config } = useContext(ConfigContext)
   const { swapInfo, setSwapInfo } = useContext(FlowContext)
@@ -161,8 +176,9 @@ export default function AppBoltzSwap() {
       // No need to manually refresh - SwapManager handles status updates
       setOpDone(true)
     } catch (error) {
-      setError(extractError(error))
-      consoleError(error, 'Error processing swap')
+      const raw = extractError(error)
+      setError(friendlySwapError(raw))
+      consoleError(error, `Error processing swap ${swapInfo?.id}`)
       setProcessing(false)
     }
   }
