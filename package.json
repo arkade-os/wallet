@@ -47,10 +47,9 @@
     "format": "prettier --write src",
     "format:check": "prettier --check src",
     "git-info": "node scripts/git-commit-info.js",
-    "regtest": "pnpm regtest:down && pnpm regtest:build && pnpm regtest:up && pnpm regtest:setup",
-    "regtest:build": "docker compose -f test.docker-compose.yml build",
-    "regtest:up": "docker compose -f test.docker-compose.yml up arkd arkd-wallet nbxplorer pgnbxplorer -d",
-    "regtest:down": "docker compose -f test.docker-compose.yml down -v",
+    "regtest:start": "./regtest/start-env.sh && docker compose -f docker-compose.nak.yml up -d",
+    "regtest:stop": "./regtest/stop-env.sh && docker compose -f docker-compose.nak.yml down",
+    "regtest:clean": "./regtest/clean-env.sh && docker compose -f docker-compose.nak.yml down -v",
     "regtest:setup": "node src/test/setup.mjs"
   },
   "eslintConfig": {
