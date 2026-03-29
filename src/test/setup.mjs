@@ -49,8 +49,8 @@ async function setup() {
     // Verify boltz pairs are loaded
     await waitForService('boltz', 'curl -sf http://localhost:9069/v2/swap/submarine')
 
-    // Verify nostr relay
-    await waitForService('nak', 'curl -sf http://localhost:10547', 10, 1000)
+    // Verify nostr relay (nak is a WebSocket server, check container is running)
+    await waitForService('nak', 'docker exec nak nak --version', 10, 1000)
 
     console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('  ✓ regtest environment verified')
