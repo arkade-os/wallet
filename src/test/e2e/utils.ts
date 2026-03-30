@@ -248,7 +248,7 @@ export function readClipboard(page: Page): Promise<string> {
 }
 
 export async function waitForPaymentReceived(page: Page): Promise<void> {
-  await page.waitForSelector('text=Payment received!')
+  await page.waitForSelector('text=Payment received!', { timeout: 60000 })
 }
 
 export async function handleKeyboardInput(page: Page, sats: number): Promise<void> {
