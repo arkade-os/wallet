@@ -66,12 +66,17 @@ export function useLnurlSession(
   const postError = useCallback(
     async (sessionId: string, reason: string, signal?: AbortSignal) => {
       try {
-        await fetch(`${lnurlServerBaseUrl}/lnurl/session/${sessionId}/invoice`, {
+        const response = await fetch(`${lnurlServerBaseUrl}/lnurl/session/${sessionId}/invoice`, {
           method: 'POST',
           headers: authHeaders(),
           body: JSON.stringify({ error: reason }),
           signal,
         })
+        if (!response.ok) {
+          consoleError(
+            `Failed to post error to lnurl-server: ${response.status} ${await response.text().catch(() => '')}`,
+          )
+        }
       } catch (err) {
         if (!(err instanceof DOMException && err.name === 'AbortError')) {
           consoleError(err, 'Failed to post error to lnurl-server')
