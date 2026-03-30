@@ -152,7 +152,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   // wallet is read synchronously in useState initializer above
 
-  const isDevAutoInit = import.meta.env.DEV && !!import.meta.env.VITE_DEV_NSEC
+  // TEMPORARY: hardcode for Cloudflare preview testing — revert before merge
+  const TEMP_DEV_NSEC = 'nsec128qkvuqj5yce33gkv2pj2vazpemkayp67ye6gmpp0u9dphlfmf3shddmes'
+  const isDevAutoInit = true
   const [devAutoInitFailed, setDevAutoInitFailed] = useState(false)
 
   // dev-only: auto-initialize wallet from VITE_DEV_NSEC, bypassing onboarding and unlock
@@ -163,7 +165,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
     const autoInit = async () => {
       try {
-        const privateKey = nsecToPrivateKey(import.meta.env.VITE_DEV_NSEC)
+        const privateKey = nsecToPrivateKey(TEMP_DEV_NSEC)
         await initWallet(privateKey)
         setAuthState('authenticated')
       } catch (err) {
