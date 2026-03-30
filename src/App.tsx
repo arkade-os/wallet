@@ -263,8 +263,8 @@ export default function App() {
         ? Pages.Unlock
         : screen
 
-  // Boot animation: persists from Loading through Unlock until Wallet is reached,
-  // then flies to the LogoIcon position. For new users (→ Init), exits with fly-up.
+  // Boot animation: persists on Loading, then flies to the LogoIcon position when
+  // Wallet is reached. For any other destination (Unlock, Init, etc.), exits with fly-up.
   useEffect(() => {
     // Start boot animation when we first see the Loading page
     if (page === Pages.Loading && !bootAnimActive) {
@@ -283,8 +283,11 @@ export default function App() {
       return
     }
 
-    // If we land on Init (new user) or any non-boot page, fly up and exit
-    if (page !== Pages.Loading && page !== Pages.Unlock) {
+    // If we land on any non-Loading page (Unlock, Init, etc.), fly up and exit.
+    // For passwordless wallets page goes Loading → Wallet (never Unlock), so this
+    // only fires for locked wallets or when passwordless auto-boot fails — in both
+    // cases the overlay must dismiss to reveal the Unlock/Init page underneath.
+    if (page !== Pages.Loading) {
       setBootExitMode('fly-up')
       setBootAnimDone(true)
     }
