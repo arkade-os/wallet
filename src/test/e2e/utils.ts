@@ -4,6 +4,14 @@ import { faucetOffchain } from './fundedWallet'
 export const test = base.extend({
   page: async ({ page }, use) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
+    // Pre-set currency display to "Show both" so e2e tests see SATS amounts.
+    // The default changed to "Fiat only" in PR #473 which hides SATS from the balance.
+    await page.addInitScript(() => {
+      const raw = localStorage.getItem('config')
+      const config = raw ? JSON.parse(raw) : {}
+      config.currencyDisplay = 'Show both'
+      localStorage.setItem('config', JSON.stringify(config))
+    })
     await use(page)
   },
 })
