@@ -27,6 +27,20 @@ if (shouldInitializeSentry(sentryDsn)) {
     dsn: sentryDsn,
     sendDefaultPii: false,
     enableLogs: true,
+    ignoreErrors: [/null is not an object.*a\[je\]/i, /translate\.googleapis\.com.*translate_http/],
+    denyUrls: [/translate\.google\.com\/translate_a\/element\.js/, /translate\.googleapis\.com/],
+    beforeSend(event, hint) {
+      const error = hint.originalException
+      const isTranslateOrigin =
+        (error instanceof Error && error.stack?.includes('translate.google.com')) ||
+        event.exception?.values?.some((v) =>
+          v.stacktrace?.frames?.some((f) => f.filename?.includes('translate.googleapis.com')),
+        )
+      if (isTranslateOrigin) {
+        return null
+      }
+      return event
+    },
   })
 }
 

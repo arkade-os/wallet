@@ -26,6 +26,7 @@ export default function Unlock() {
       }
       consoleError(err, 'error unlocking wallet')
       setUnlocking(false)
+      setError('Connection failed. Please try again.')
     }
   }
 
