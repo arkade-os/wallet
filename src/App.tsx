@@ -220,7 +220,11 @@ export default function App() {
   const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
   const hasStoredWallet = walletLoaded && !!wallet.pubkey
   const shouldShowUnlock = hasStoredWallet && authState === 'locked'
-  const shouldHoldOnLoading = hasStoredWallet && (!initialized || !dataReady) && authState !== 'locked'
+  // Hold the loading screen during boot until wallet data is ready.
+  // Skip during the init/connect flow (creating or restoring a wallet) so the
+  // Connect component stays mounted and can run swap recovery before navigating.
+  const isInInitFlow = !!(initInfo.password || initInfo.privateKey)
+  const shouldHoldOnLoading = hasStoredWallet && (!initialized || !dataReady) && authState !== 'locked' && !isInInitFlow
 
   useEffect(() => {
     passwordlessBootAttempted.current = false
