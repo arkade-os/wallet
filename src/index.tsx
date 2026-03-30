@@ -26,6 +26,33 @@ if (shouldInitializeSentry(sentryDsn)) {
     dsn: sentryDsn,
     sendDefaultPii: false,
     enableLogs: true,
+    ignoreErrors: [
+      /null is not an object.*a\[je\]/i,
+      /Maximum call stack size exceeded/,
+      /translate\.googleapis\.com.*translate_http/,
+    ],
+    denyUrls: [
+      /translate\.google\.com\/translate_a\/element\.js/,
+      /translate\.googleapis\.com/,
+    ],
+    beforeSend(event, hint) {
+      const error = hint.originalException
+      if (
+        (error instanceof Error && error.message?.includes('a[je]')) ||
+        (error instanceof Error &&
+          error.stack?.includes('translate.google.com')) ||
+        (error instanceof Error &&
+          error.message?.includes('Maximum call stack size exceeded')) ||
+        event.exception?.values?.some((v) =>
+          v.stacktrace?.frames?.some((f) =>
+            f.filename?.includes('translate.googleapis.com'),
+          ),
+        )
+      ) {
+        return null
+      }
+      return event
+    },
   })
 }
 
