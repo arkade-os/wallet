@@ -35,11 +35,7 @@ if (shouldInitializeSentry(sentryDsn)) {
         event.exception?.values?.some((v) =>
           v.stacktrace?.frames?.some((f) => f.filename?.includes('translate.googleapis.com')),
         )
-      if (
-        (error instanceof Error && error.message?.includes('a[je]')) ||
-        isTranslateOrigin ||
-        (error instanceof Error && error.message?.includes('Maximum call stack size exceeded') && isTranslateOrigin)
-      ) {
+      if (isTranslateOrigin) {
         return null
       }
       return event
