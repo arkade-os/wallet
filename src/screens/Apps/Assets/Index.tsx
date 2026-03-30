@@ -5,7 +5,7 @@ import Header from '../../../components/Header'
 import Padded from '../../../components/Padded'
 import Text from '../../../components/Text'
 import Button from '../../../components/Button'
-import Loading from '../../../components/Loading'
+import LoadingLogo from '../../../components/LoadingLogo'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
@@ -83,7 +83,7 @@ export default function AppAssets() {
     navigate(Pages.AppAssetDetail)
   }
 
-  if (loading) return <Loading text='Loading assets...' />
+  if (loading) return <LoadingLogo text='Loading assets...' />
 
   const goToSettings = () => navigate(Pages.AppAssetsSettings)
 

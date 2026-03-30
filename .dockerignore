@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+*.Dockerfile
+*.docker-compose.yml
+.github
+.husky
+.vscode
+playwright-report
+test-results

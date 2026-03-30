@@ -26,7 +26,28 @@ if (shouldInitializeSentry(sentryDsn)) {
     dsn: sentryDsn,
     sendDefaultPii: false,
     enableLogs: true,
+    ignoreErrors: [/null is not an object.*a\[je\]/i, /translate\.googleapis\.com.*translate_http/],
+    denyUrls: [/translate\.google\.com\/translate_a\/element\.js/, /translate\.googleapis\.com/],
+    beforeSend(event, hint) {
+      const error = hint.originalException
+      const isTranslateOrigin =
+        (error instanceof Error && error.stack?.includes('translate.google.com')) ||
+        event.exception?.values?.some((v) =>
+          v.stacktrace?.frames?.some((f) => f.filename?.includes('translate.googleapis.com')),
+        )
+      if (isTranslateOrigin) {
+        return null
+      }
+      return event
+    },
   })
+}
+
+// Pre-register service worker so activation happens in parallel with page
+// bootstrap (ASP fetch, auth check, etc.). On cold starts this saves the
+// full activation wait from the critical path; on warm starts it's a no-op.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/wallet-service-worker.mjs').catch(() => {})
 }
 
 // check if there's a service worker controlling the page

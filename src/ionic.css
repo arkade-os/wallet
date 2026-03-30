@@ -179,7 +179,7 @@ ion-button {
 
 ion-app ion-header {
   align-items: center;
-  border-bottom: 1px solid #444;
+  border-bottom: 1px solid var(--dark10);
   color: var(--ion-color-dark);
   display: flex;
   height: 4rem;
