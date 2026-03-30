@@ -1,4 +1,4 @@
 [submodule "regtest"]
 	path = regtest
 	url = https://github.com/ArkLabsHQ/arkade-regtest.git
-	branch = feat/shared-regtest-env-discovery
+	branch = master
