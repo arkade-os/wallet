@@ -28,6 +28,7 @@ export default function Balance({ amount }: BalanceProps) {
   const mainUnit = showFiat ? config.fiat : satsUnit
   const otherUnit = showFiat ? satsUnit : config.fiat
 
+  const showBoth = config.currencyDisplay === CurrencyDisplay.Both
   const toggleShow = () => updateConfig({ ...config, showBalance: !config.showBalance })
 
   return (
@@ -60,7 +61,7 @@ export default function Balance({ amount }: BalanceProps) {
           </button>
         </div>
       </FlexRow>
-      {config.currencyDisplay === CurrencyDisplay.Both ? (
+      {showBoth ? (
         <FlexRow alignItems='baseline'>
           <Text color='dark80'>{otherBalance}</Text>
           <Text small>{otherUnit}</Text>
