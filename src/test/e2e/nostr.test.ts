@@ -81,7 +81,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   expect(receiveInvoice).toContain('lnbcrt')
 
   // pay invoice with lnd
-  exec(`docker exec lnd lncli --network=regtest payinvoice ${receiveInvoice} --force`)
+  await execAsync(`docker exec lnd lncli --network=regtest payinvoice ${receiveInvoice} --force`)
 
   // wait for payment received
   await waitForPaymentReceived(page)

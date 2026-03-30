@@ -30,6 +30,7 @@ import { hapticLight } from './lib/haptics'
 import { setBootAnimActive as syncBootAnimFlag } from './lib/logoAnchor'
 import { PageTransition } from './components/PageTransition'
 import SettingsIcon from './icons/Settings'
+import BootError from './components/BootError'
 import LoadingLogo from './components/LoadingLogo'
 import PillNavbarOverlay from './components/PillNavbarOverlay'
 import FlexCol from './components/FlexCol'
@@ -37,6 +38,7 @@ import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
 import Focusable from './components/Focusable'
 import { useReducedMotion } from './hooks/useReducedMotion'
+import { useLoadingStatus } from './hooks/useLoadingStatus'
 import { defaultPassword } from './lib/constants'
 import { consoleError } from './lib/logs'
 
@@ -93,8 +95,9 @@ export default function App() {
   const { direction, navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
-  const { authState, unlockWallet, walletLoaded, initialized, wallet } = useContext(WalletContext)
+  const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError } = useContext(WalletContext)
 
+  const loadingStatus = useLoadingStatus()
   const isIAB = useMemo(() => isInAppBrowser(), [])
   const [isCapable, setIsCapable] = useState(false)
   const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
@@ -217,7 +220,11 @@ export default function App() {
   const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
   const hasStoredWallet = walletLoaded && !!wallet.pubkey
   const shouldShowUnlock = hasStoredWallet && authState === 'locked'
-  const shouldHoldOnLoading = hasStoredWallet && !initialized && authState !== 'locked'
+  // Hold the loading screen during boot until wallet data is ready.
+  // Skip during the init/connect flow (creating or restoring a wallet) so the
+  // Connect component stays mounted and can run swap recovery before navigating.
+  const isInInitFlow = !!(initInfo.password || initInfo.privateKey)
+  const shouldHoldOnLoading = hasStoredWallet && (!initialized || !dataReady) && authState !== 'locked' && !isInInitFlow
 
   useEffect(() => {
     passwordlessBootAttempted.current = false
@@ -381,7 +388,16 @@ export default function App() {
         />
       )}
       {bootAnimActive ? (
-        <LoadingLogo exitMode={bootExitMode} done={bootAnimDone} onExitComplete={handleBootAnimComplete} />
+        loadError ? (
+          <BootError />
+        ) : (
+          <LoadingLogo
+            text={loadingStatus}
+            exitMode={bootExitMode}
+            done={bootAnimDone}
+            onExitComplete={handleBootAnimComplete}
+          />
+        )
       ) : null}
     </IonApp>
   )
