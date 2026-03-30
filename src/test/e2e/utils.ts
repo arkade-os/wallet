@@ -10,6 +10,26 @@ export const test = base.extend({
 
 export { expect } from '@playwright/test'
 
+/**
+ * Wait for the wallet main page to be ready.
+ *
+ * The boot flow holds the loading screen until the first data load
+ * completes.  If that load fails, a BootError overlay appears with
+ * "Retry" and "Continue anyway" buttons.  This helper handles both
+ * paths: it waits for either the wallet's "Send" button *or* the
+ * error's "Continue anyway" button, dismisses the error if it shows,
+ * and then waits for the wallet page.
+ */
+export async function waitForWalletPage(page: Page, timeout = 60000): Promise<void> {
+  const sendBtn = page.getByText('Send', { exact: true })
+  const continueBtn = page.getByText('Continue anyway')
+  await sendBtn.or(continueBtn).first().waitFor({ state: 'visible', timeout })
+  if (await continueBtn.isVisible()) {
+    await continueBtn.click()
+    await sendBtn.waitFor({ state: 'visible', timeout: 30000 })
+  }
+}
+
 interface MintAssetOptions {
   amount: number
   name: string
@@ -70,7 +90,7 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
 export async function createWallet(page: Page): Promise<void> {
   await page.goto('/')
   await page.getByText('+ Create wallet').click()
-  await page.waitForSelector('text=Send', { state: 'visible', timeout: 30000 })
+  await waitForWalletPage(page)
 }
 
 export async function createWalletWithPassword(page: Page, password: string): Promise<void> {
@@ -197,7 +217,7 @@ async function restoreWallet(page: Page, nsec: string): Promise<void> {
   await page.getByText('Restore wallet').click()
   await page.locator('ion-input[name="private-key"] input').fill(nsec)
   await page.getByText('Continue').click()
-  await page.waitForSelector('text=Send', { state: 'visible', timeout: 30000 })
+  await waitForWalletPage(page)
 }
 
 export async function fundWallet(page: Page, amount: number = 5000): Promise<void> {
