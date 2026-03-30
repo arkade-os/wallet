@@ -37,6 +37,18 @@ jobs:
       run: docker compose -f docker-compose.nak.yml up -d --build
     - name: Verify environment
       run: pnpm regtest:setup
+    - name: Diagnostic - dump regtest env state
+      run: |
+        echo "=== .env.regtest ==="
+        cat .env.regtest || echo "no .env.regtest"
+        echo "=== arkd container env ==="
+        docker exec ark env 2>/dev/null | grep -E "ARKD_|ARK_|SCHEDULER|CSV|VTXO|ROUND" || true
+        echo "=== arkd info ==="
+        curl -s http://localhost:7070/v1/info 2>/dev/null | head -50 || true
+        echo "=== arkd admin fees ==="
+        curl -s http://localhost:7070/v1/admin/intentFees 2>/dev/null || true
+        echo "=== docker ps ==="
+        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || true
     - name: Run Playwright tests
       run: sleep 5 && pnpm run test:e2e
       env:
