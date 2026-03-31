@@ -704,7 +704,7 @@ export default function SendForm() {
   return (
     <>
       {/* @ts-expect-error inert is valid HTML but React types lag behind */}
-      <div inert={overlayOpen || undefined}>
+      <div inert={overlayOpen || undefined} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <Header text='Send' back />
         <Content>
           <Padded>
