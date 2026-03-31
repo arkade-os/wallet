@@ -36,7 +36,7 @@ export default function NeedsPassword({ error, onPassword }: NeedsPasswordProps)
               <Text centered>Unlock with your passkey</Text>
             </CenterScreen>
           ) : (
-            <FlexCol gap='1rem'>
+            <FlexCol gap='1rem' testId='password'>
               <InputPassword
                 focus
                 label='Insert password'

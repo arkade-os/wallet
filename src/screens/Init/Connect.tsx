@@ -1,7 +1,4 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
-import Button from '../../components/Button'
-import ButtonsOnBottom from '../../components/ButtonsOnBottom'
-import { NavigationContext, Pages } from '../../providers/navigation'
 import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
 import { WalletContext } from '../../providers/wallet'
@@ -10,6 +7,9 @@ import Header from '../../components/Header'
 import { setPrivateKey } from '../../lib/privateKey'
 import { consoleError, consoleLog } from '../../lib/logs'
 import { SwapsContext } from '../../providers/swaps'
+import { useLoadingStatus } from '../../hooks/useLoadingStatus'
+import { setLoadingStatus } from '../../lib/loadingStatus'
+import { NavigationContext, Pages } from '../../providers/navigation'
 
 export default function InitConnect() {
   const { initInfo, setInitInfo } = useContext(FlowContext)
@@ -17,6 +17,7 @@ export default function InitConnect() {
   const { navigate } = useContext(NavigationContext)
   const { initWallet } = useContext(WalletContext)
 
+  const loadingStatus = useLoadingStatus()
   const [initialized, setInitialized] = useState(false)
   const [connectDone, setConnectDone] = useState(false)
   const pendingNav = useRef<() => void>()
@@ -35,13 +36,12 @@ export default function InitConnect() {
     if (!initialized) return
     if (!initInfo.restoring) return handleProceed()
     if (!arkadeSwaps) return
+    setLoadingStatus('Restoring swaps...')
     restoreSwaps()
       .then((count) => count && consoleLog(`Restored ${count} swaps from network`))
       .catch((err) => consoleError(err, 'Error restoring swaps:'))
       .finally(handleProceed)
   }, [arkadeSwaps, initialized, initInfo.restoring])
-
-  const handleCancel = () => navigate(Pages.Init)
 
   const handleProceed = () => {
     pendingNav.current = () => {
@@ -57,18 +57,15 @@ export default function InitConnect() {
 
   return (
     <>
-      <Header text='Connecting to server' back={handleCancel} />
+      <Header text='Connecting to server' />
       <Content>
         <LoadingLogo
-          text='Connecting to server'
+          text={loadingStatus || 'Connecting to server'}
           done={connectDone}
           exitMode={connectDone ? 'fly-up' : 'none'}
           onExitComplete={handleExitComplete}
         />
       </Content>
-      <ButtonsOnBottom>
-        <Button onClick={handleCancel} label='Cancel' secondary />
-      </ButtonsOnBottom>
     </>
   )
 }

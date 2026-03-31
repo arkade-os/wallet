@@ -30,6 +30,7 @@ import { hapticLight } from './lib/haptics'
 import { setBootAnimActive as syncBootAnimFlag } from './lib/logoAnchor'
 import { PageTransition } from './components/PageTransition'
 import SettingsIcon from './icons/Settings'
+import BootError from './components/BootError'
 import LoadingLogo from './components/LoadingLogo'
 import PillNavbarOverlay from './components/PillNavbarOverlay'
 import FlexCol from './components/FlexCol'
@@ -37,6 +38,7 @@ import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
 import Focusable from './components/Focusable'
 import { useReducedMotion } from './hooks/useReducedMotion'
+import { useLoadingStatus } from './hooks/useLoadingStatus'
 import { defaultPassword } from './lib/constants'
 import { consoleError } from './lib/logs'
 
@@ -93,8 +95,9 @@ export default function App() {
   const { direction, navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
   const { setOption } = useContext(OptionsContext)
-  const { authState, unlockWallet, walletLoaded, initialized, wallet } = useContext(WalletContext)
+  const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError } = useContext(WalletContext)
 
+  const loadingStatus = useLoadingStatus()
   const isIAB = useMemo(() => isInAppBrowser(), [])
   const [isCapable, setIsCapable] = useState(false)
   const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
@@ -217,7 +220,11 @@ export default function App() {
   const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
   const hasStoredWallet = walletLoaded && !!wallet.pubkey
   const shouldShowUnlock = hasStoredWallet && authState === 'locked'
-  const shouldHoldOnLoading = hasStoredWallet && !initialized && authState !== 'locked'
+  // Hold the loading screen during boot until wallet data is ready.
+  // Skip during the init/connect flow (creating or restoring a wallet) so the
+  // Connect component stays mounted and can run swap recovery before navigating.
+  const isInInitFlow = !!(initInfo.password || initInfo.privateKey)
+  const shouldHoldOnLoading = hasStoredWallet && (!initialized || !dataReady) && authState !== 'locked' && !isInInitFlow
 
   useEffect(() => {
     passwordlessBootAttempted.current = false
@@ -256,8 +263,8 @@ export default function App() {
         ? Pages.Unlock
         : screen
 
-  // Boot animation: persists from Loading through Unlock until Wallet is reached,
-  // then flies to the LogoIcon position. For new users (→ Init), exits with fly-up.
+  // Boot animation: persists on Loading, then flies to the LogoIcon position when
+  // Wallet is reached. For any other destination (Unlock, Init, etc.), exits with fly-up.
   useEffect(() => {
     // Start boot animation when we first see the Loading page
     if (page === Pages.Loading && !bootAnimActive) {
@@ -276,8 +283,11 @@ export default function App() {
       return
     }
 
-    // If we land on Init (new user) or any non-boot page, fly up and exit
-    if (page !== Pages.Loading && page !== Pages.Unlock) {
+    // If we land on any non-Loading page (Unlock, Init, etc.), fly up and exit.
+    // For passwordless wallets page goes Loading → Wallet (never Unlock), so this
+    // only fires for locked wallets or when passwordless auto-boot fails — in both
+    // cases the overlay must dismiss to reveal the Unlock/Init page underneath.
+    if (page !== Pages.Loading) {
       setBootExitMode('fly-up')
       setBootAnimDone(true)
     }
@@ -381,7 +391,16 @@ export default function App() {
         />
       )}
       {bootAnimActive ? (
-        <LoadingLogo exitMode={bootExitMode} done={bootAnimDone} onExitComplete={handleBootAnimComplete} />
+        loadError ? (
+          <BootError />
+        ) : (
+          <LoadingLogo
+            text={loadingStatus}
+            exitMode={bootExitMode}
+            done={bootAnimDone}
+            onExitComplete={handleBootAnimComplete}
+          />
+        )
       ) : null}
     </IonApp>
   )
