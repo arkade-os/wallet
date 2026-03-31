@@ -73,12 +73,12 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
   return result
 }
 
-export const encodeBip21 = (address: string, arkAddress: string, invoice: string, sats: number) => {
+export const encodeBip21 = (address: string, arkAddress: string, invoice: string, sats: number, lnurl?: string) => {
   return (
     `bitcoin:${address}` +
     `?ark=${arkAddress}` +
-    (invoice ? `&lightning=${invoice}` : '') +
-    `&amount=${prettyNumber(fromSatoshis(sats))}`
+    (invoice ? `&lightning=${invoice}` : lnurl ? `&lightning=${lnurl}` : '') +
+    (sats ? `&amount=${prettyNumber(fromSatoshis(sats))}` : '')
   )
 }
 
