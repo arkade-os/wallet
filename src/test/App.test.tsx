@@ -18,6 +18,7 @@ import {
 } from './screens/mocks'
 import { defaultPassword } from '../lib/constants'
 import { detectJSCapabilities } from '../lib/jsCapabilities'
+import { SettingsOptions } from '../lib/types'
 
 const PASSWORDLESS_AUTO_RELOAD_KEY = 'passwordless-auto-reload-attempted'
 
@@ -68,12 +69,14 @@ function renderApp({
   unlockWallet = vi.fn().mockResolvedValue(undefined),
   screen: screenOverride = Pages.Init,
   tab: tabOverride = Tabs.None,
+  option,
 }: {
   authState: WalletAuthState
   initialized: boolean
   unlockWallet?: ReturnType<typeof vi.fn>
   screen?: Pages
   tab?: Tabs
+  option?: SettingsOptions
 }) {
   const navigate = vi.fn()
 
@@ -84,7 +87,7 @@ function renderApp({
       <AspContext.Provider value={mockAspContextValue as any}>
         <ConfigContext.Provider value={{ ...mockConfigContextValue, configLoaded: true } as any}>
           <FlowContext.Provider value={mockFlowContextValue as any}>
-            <OptionsContext.Provider value={mockOptionsContextValue as any}>
+            <OptionsContext.Provider value={{ ...mockOptionsContextValue, ...(option !== undefined && { option }) } as any}>
               <WalletContext.Provider
                 value={{
                   ...mockWalletContextValue,
@@ -229,6 +232,26 @@ describe('Navbar visibility', () => {
 
   it('shows navbar on wallet root when authenticated and initialized', async () => {
     renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Wallet, tab: Tabs.Wallet })
+
+    const ionApp = await screen.findByTestId('ion-app')
+    expect(ionApp.className).toContain('has-pill-navbar')
+  })
+
+  it('shows navbar on apps root when authenticated and initialized', async () => {
+    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Apps, tab: Tabs.Apps })
+
+    const ionApp = await screen.findByTestId('ion-app')
+    expect(ionApp.className).toContain('has-pill-navbar')
+  })
+
+  it('shows navbar on settings menu when authenticated and initialized', async () => {
+    renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      screen: Pages.Settings,
+      tab: Tabs.Settings,
+      option: SettingsOptions.Menu,
+    })
 
     const ionApp = await screen.findByTestId('ion-app')
     expect(ionApp.className).toContain('has-pill-navbar')
