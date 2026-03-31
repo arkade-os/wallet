@@ -4,8 +4,8 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/boltz-swap": "0.3.12",
-    "@arkade-os/sdk": "0.4.12",
+    "@arkade-os/boltz-swap": "0.3.13",
+    "@arkade-os/sdk": "0.4.14",
     "@branta-ops/branta": "0.0.9",
     "@ionic/react": "^8.5.6",
     "@lendasat/lendasat-wallet-bridge": "^0.0.90",
