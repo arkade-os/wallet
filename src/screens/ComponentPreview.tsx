@@ -54,6 +54,7 @@ export default function ComponentPreview() {
   const [toggle1, setToggle1] = useState(false)
   const [toggle2, setToggle2] = useState(true)
   const [inputVal, setInputVal] = useState('')
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [passVal, setPassVal] = useState('')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)

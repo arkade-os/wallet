@@ -104,6 +104,7 @@ describe('App startup routing', () => {
   it('keeps passwordless wallets on loading and boots them in the background', async () => {
     const { navigate, unlockWallet } = renderApp({ authState: 'passwordless', initialized: false })
 
+    expect(await screen.findByTestId('loading-logo')).toBeInTheDocument()
     await waitFor(() => expect(unlockWallet).toHaveBeenCalledWith(defaultPassword))
     expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
   })
@@ -125,7 +126,7 @@ describe('App startup routing', () => {
   it('keeps authenticated but uninitialized wallets on loading', async () => {
     const { navigate, unlockWallet } = renderApp({ authState: 'authenticated', initialized: false })
 
-    await waitFor(() => expect(screen.getByTestId('app-shell')).toBeInTheDocument())
+    expect(await screen.findByTestId('loading-logo')).toBeInTheDocument()
     expect(unlockWallet).not.toHaveBeenCalled()
     expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
   })
