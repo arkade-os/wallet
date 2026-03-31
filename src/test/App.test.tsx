@@ -87,7 +87,9 @@ function renderApp({
       <AspContext.Provider value={mockAspContextValue as any}>
         <ConfigContext.Provider value={{ ...mockConfigContextValue, configLoaded: true } as any}>
           <FlowContext.Provider value={mockFlowContextValue as any}>
-            <OptionsContext.Provider value={{ ...mockOptionsContextValue, ...(option !== undefined && { option }) } as any}>
+            <OptionsContext.Provider
+              value={{ ...mockOptionsContextValue, ...(option !== undefined && { option }) } as any}
+            >
               <WalletContext.Provider
                 value={{
                   ...mockWalletContextValue,
