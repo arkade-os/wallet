@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import Button from '../../../components/Button'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext } from '../../../providers/flow'
@@ -14,7 +14,7 @@ import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { collaborativeExitWithFees, sendOffChain } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
-import Loading from '../../../components/Loading'
+import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
 import WaitingForRound from '../../../components/WaitingForRound'
 import { LimitsContext } from '../../../providers/limits'
@@ -42,6 +42,8 @@ export default function SendDetails() {
   const [details, setDetails] = useState<DetailsProps>()
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
+  const [sendDone, setSendDone] = useState(false)
+  const pendingNav = useRef<() => void>()
 
   const { address, arkAddress, invoice, pendingSwap, satoshis } = sendInfo
 
@@ -113,8 +115,13 @@ export default function SendDetails() {
   const handleTxid = (txid: string) => {
     if (!txid) return setError('Error sending transaction')
     setSendInfo({ ...sendInfo, total: details?.total, txid })
-    navigate(Pages.SendSuccess)
+    pendingNav.current = () => navigate(Pages.SendSuccess)
+    setSendDone(true)
   }
+
+  const handleExitComplete = useCallback(() => {
+    pendingNav.current?.()
+  }, [])
 
   const handleError = (err: any) => {
     consoleError(err, 'error sending payment')
@@ -165,11 +172,21 @@ export default function SendDetails() {
       <Content>
         {sending ? (
           details?.destination === invoice ? (
-            <Loading text='Paying to Lightning' />
+            <LoadingLogo
+              text='Paying to Lightning'
+              done={sendDone}
+              exitMode='fly-up'
+              onExitComplete={handleExitComplete}
+            />
           ) : details?.destination === arkAddress ? (
-            <Loading text='Paying inside Arkade' />
+            <LoadingLogo
+              text='Paying inside Arkade'
+              done={sendDone}
+              exitMode='fly-up'
+              onExitComplete={handleExitComplete}
+            />
           ) : (
-            <WaitingForRound />
+            <WaitingForRound done={sendDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
           )
         ) : (
           <Padded>

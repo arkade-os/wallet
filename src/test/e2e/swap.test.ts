@@ -28,6 +28,7 @@ test('should be connected to Boltz app', async ({ page }) => {
 })
 
 test('should receive funds from Lightning', async ({ page, isMobile }) => {
+  test.setTimeout(120000)
   await createWallet(page)
 
   // get invoice
@@ -37,7 +38,7 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   expect(invoice).toContain('lnbcrt')
 
   // pay invoice
-  exec(`docker exec lnd lncli --network=regtest payinvoice ${invoice} --force`)
+  await execAsync(`docker exec lnd lncli --network=regtest payinvoice ${invoice} --force`)
 
   // wait for payment received
   await waitForPaymentReceived(page)
@@ -99,6 +100,7 @@ test('should send funds to Lightning', async ({ page }) => {
 })
 
 test('should refund failing swap', async ({ page }) => {
+  test.setTimeout(120000)
   await createWallet(page)
 
   // get offchain address
@@ -143,7 +145,7 @@ test('should refund failing swap', async ({ page }) => {
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
-  await expect(page.getByText('Refunded')).toBeVisible()
+  await expect(page.getByText('Refunded')).toBeVisible({ timeout: 30000 })
   await expect(page.getByText('- 1,001')).toBeVisible()
   await expect(page.getByText('Arkade to Lightning')).toBeVisible()
 })
@@ -166,6 +168,7 @@ test('should receive bitcoin funds from swap', async ({ page, isMobile }) => {
 })
 
 test('should send funds to onchain address via swap', async ({ page, isMobile }) => {
+  test.setTimeout(120000)
   // set fees
   execSync('docker exec -t arkd arkd fees intent --onchain-output "200.0"')
 

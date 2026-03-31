@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Balance from '../../components/Balance'
 import DismissibleBanner from '../../components/DismissibleBanner'
 import ErrorMessage from '../../components/Error'
@@ -25,6 +25,7 @@ import { AnnouncementContext } from '../../providers/announcements'
 import { WalletStaggerContainer, WalletStaggerChild } from '../../components/WalletLoadIn'
 import { pwaCanInstall, usePwaInstalled, canPromptInstall, promptPwaInstall } from '../../lib/pwa'
 import { isIOS, isAndroid } from '../../lib/browser'
+import { setLogoAnchor, getBootAnimActive, subscribeBootAnim } from '../../lib/logoAnchor'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
@@ -36,7 +37,15 @@ export default function Wallet() {
   const { nudge, nudgeVisible, nudgeCheckComplete } = useContext(NudgeContext)
 
   const [error, setError] = useState(false)
-  const shouldStagger = isInitialLoad
+  const bootAnimActive = useSyncExternalStore(subscribeBootAnim, getBootAnimActive)
+  // Capture isInitialLoad at mount — it goes false before boot animation ends,
+  // which would switch the stagger container from motion.div to plain div
+  const shouldStagger = useRef(isInitialLoad).current
+
+  const logoRef = useCallback((el: HTMLDivElement | null) => {
+    setLogoAnchor(el)
+  }, [])
+  useEffect(() => () => setLogoAnchor(null), [])
 
   const pwaInstalled = usePwaInstalled()
   const dismissed = (config?.dismissedBanners ?? []).includes('pwa-install')
@@ -71,12 +80,13 @@ export default function Wallet() {
       {announcement}
       <Content>
         <Padded>
-          <WalletStaggerContainer animate={shouldStagger}>
+          {/* Anchor lives outside the stagger tree so getBoundingClientRect returns the final position */}
+          <div ref={logoRef} style={{ display: 'inline-flex', visibility: bootAnimActive ? 'hidden' : 'visible' }}>
+            <LogoIcon small />
+          </div>
+          <WalletStaggerContainer animate={shouldStagger} hold={bootAnimActive}>
             <FlexCol>
               <FlexCol gap='0'>
-                <WalletStaggerChild animate={shouldStagger}>
-                  <LogoIcon small />
-                </WalletStaggerChild>
                 <WalletStaggerChild animate={shouldStagger}>
                   <Balance amount={balance} />
                 </WalletStaggerChild>

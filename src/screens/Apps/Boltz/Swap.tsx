@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useCallback, useContext, useEffect, useState } from 'react'
 import Padded from '../../../components/Padded'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
@@ -23,9 +23,24 @@ import ErrorMessage from '../../../components/Error'
 import { TextSecondary } from '../../../components/Text'
 import CheckMarkIcon from '../../../icons/CheckMark'
 import Info from '../../../components/Info'
-import Loading from '../../../components/Loading'
+import LoadingLogo from '../../../components/LoadingLogo'
 import FlexRow from '../../../components/FlexRow'
 import { InfoIconDark } from '../../../icons/Info'
+
+function friendlySwapError(message: string): string {
+  const locktimeMatch = message.match(/locktime=(\d+)/)
+  if (locktimeMatch) {
+    const date = prettyDate(parseInt(locktimeMatch[1]))
+    return `Refund not yet available. Your funds will be recoverable after ${date}.`
+  }
+  if (message.includes('VHTLC is already spent')) {
+    return 'This swap has already been refunded or claimed.'
+  }
+  if (message.includes('VHTLC not found')) {
+    return 'No funds found at the swap address. The swap may not have been funded.'
+  }
+  return message
+}
 
 export default function AppBoltzSwap() {
   const { config } = useContext(ConfigContext)
@@ -34,6 +49,7 @@ export default function AppBoltzSwap() {
 
   const [error, setError] = useState<string>('')
   const [processing, setProcessing] = useState<boolean>(false)
+  const [opDone, setOpDone] = useState(false)
   const [success, setSuccess] = useState<boolean>(false)
 
   // Subscribe to real-time updates for this swap
@@ -158,13 +174,18 @@ export default function AppBoltzSwap() {
         setSuccess(true)
       }
       // No need to manually refresh - SwapManager handles status updates
+      setOpDone(true)
     } catch (error) {
-      setError(extractError(error))
-      consoleError(error, 'Error processing swap')
-    } finally {
+      const raw = extractError(error)
+      setError(friendlySwapError(raw))
+      consoleError(error, `Error processing swap ${swapInfo?.id}`)
       setProcessing(false)
     }
   }
+
+  const handleExitComplete = useCallback(() => {
+    setProcessing(false)
+  }, [])
 
   return (
     <>
@@ -172,7 +193,12 @@ export default function AppBoltzSwap() {
       <Content>
         <Padded>
           {processing ? (
-            <Loading text='Processing swap...' />
+            <LoadingLogo
+              text='Processing swap...'
+              done={opDone}
+              exitMode='fly-up'
+              onExitComplete={handleExitComplete}
+            />
           ) : (
             <FlexCol gap='2rem'>
               <ErrorMessage error={Boolean(error)} text={error} />

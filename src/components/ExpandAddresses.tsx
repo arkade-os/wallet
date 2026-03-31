@@ -18,6 +18,7 @@ interface ExpandAddressesProps {
   boardingAddr: string
   offchainAddr: string
   invoice: string
+  lnurl?: string
   onClick: (arg0: string) => void
 }
 
@@ -26,6 +27,7 @@ export default function ExpandAddresses({
   boardingAddr,
   offchainAddr,
   invoice,
+  lnurl,
   onClick,
 }: ExpandAddressesProps) {
   const [copied, setCopied] = useState('')
@@ -98,6 +100,7 @@ export default function ExpandAddresses({
             {boardingAddr ? <ExpandLine testId='btc' title='BTC address' value={boardingAddr} /> : null}
             {offchainAddr ? <ExpandLine testId='ark' title='Arkade address' value={offchainAddr} /> : null}
             {invoice ? <ExpandLine testId='invoice' title='Lightning invoice' value={invoice} /> : null}
+            {lnurl ? <ExpandLine testId='lnurl' title='LNURL' value={lnurl} /> : null}
           </FlexCol>
         </div>
       ) : null}

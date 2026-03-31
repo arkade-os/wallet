@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useCallback, useContext, useEffect, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
@@ -14,11 +14,11 @@ import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
 import { LimitsContext } from '../../../providers/limits'
 import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
-import Loading from '../../../components/Loading'
+import LoadingLogo from '../../../components/LoadingLogo'
 import { SwapsContext } from '../../../providers/swaps'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
 import { PendingChainSwap, PendingReverseSwap } from '@arkade-os/boltz-swap'
-import { enableChainSwapsReceive } from '../../../lib/constants'
+import { enableChainSwapsReceive, lnurlServerUrl } from '../../../lib/constants'
 import { centsToUnits } from '../../../lib/assets'
 import WarningBox from '../../../components/Warning'
 import ErrorMessage from '../../../components/Error'
@@ -38,6 +38,7 @@ import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import Focusable from '../../../components/Focusable'
+import { useLnurlSession } from '../../../hooks/useLnurlSession'
 
 export default function ReceiveQRCode() {
   const { useFiat } = useContext(ConfigContext)
@@ -102,6 +103,31 @@ export default function ReceiveQRCode() {
         setAddressesLoaded(true)
       })
   }, [svcWallet])
+
+  // LNURL session for amountless Lightning receives
+  const isAmountlessLnurl =
+    !satoshis && !isAssetReceive && !!lnurlServerUrl && connected && !!arkadeSwaps && !swapsInitError
+  const handleInvoiceRequest = useCallback(
+    async (req: { amountMsat: number }) => {
+      const sats = Math.floor(req.amountMsat / 1000)
+      const pendingSwap = await createReverseSwap(sats)
+      if (!pendingSwap) throw new Error('Failed to create reverse swap')
+      // Auto-claim in background
+      if (arkadeSwaps) {
+        arkadeSwaps
+          .waitAndClaim(pendingSwap)
+          .then(() => {
+            setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
+            notifyPaymentReceived(pendingSwap.response.onchainAmount)
+            navigate(Pages.ReceiveSuccess)
+          })
+          .catch((err) => consoleError(err, 'Error claiming LNURL reverse swap'))
+      }
+      return pendingSwap.response.invoice
+    },
+    [arkadeSwaps, createReverseSwap, setRecvInfo, recvInfo, navigate, notifyPaymentReceived],
+  )
+  const lnurlSession = useLnurlSession(isAmountlessLnurl, handleInvoiceRequest)
 
   const createBtcAddress = () => {
     return new Promise((resolve, reject) => {
@@ -205,14 +231,26 @@ export default function ReceiveQRCode() {
 
     const bip21uri = isAssetReceive
       ? encodeBip21Asset(ark, assetId, centsToUnits(satoshis, assetMeta?.metadata?.decimals))
-      : encodeBip21(btc, ark, invoice, satoshis)
+      : encodeBip21(btc, ark, invoice, satoshis, lnurlSession.lnurl)
 
-    setNoPaymentMethods(!ark && !btc && !invoice && !isAssetReceive)
+    const hasLnurl = isAmountlessLnurl && lnurlSession.active
+    setNoPaymentMethods(!ark && !btc && !invoice && !hasLnurl && !isAssetReceive)
     setArkAddress(ark)
     setBtcAddress(btc)
     setQrCodeValue(bip21uri)
     setBip21Uri(bip21uri)
-  }, [showQrCode, swapAddress, invoice, addressesLoaded, recvInfo.offchainAddr, recvInfo.boardingAddr, satoshis])
+  }, [
+    showQrCode,
+    swapAddress,
+    invoice,
+    addressesLoaded,
+    recvInfo.offchainAddr,
+    recvInfo.boardingAddr,
+    satoshis,
+    lnurlSession.lnurl,
+    lnurlSession.active,
+    isAmountlessLnurl,
+  ])
 
   // Payment listener
   useEffect(() => {
@@ -331,7 +369,7 @@ export default function ReceiveQRCode() {
           {hasError ? (
             <ErrorMessage error text={`Failed to get address: ${addressError}`} />
           ) : !addressesLoaded || (!qrCodeValue && !noPaymentMethods) ? (
-            <Loading text='Loading...' />
+            <LoadingLogo text='Loading...' />
           ) : noPaymentMethods ? (
             <div>No valid payment methods available for this amount</div>
           ) : (
