@@ -265,7 +265,10 @@ export default function App() {
 
   // Boot animation: persists on Loading, then flies to the LogoIcon position when
   // Wallet is reached. For any other destination (Unlock, Init, etc.), exits with fly-up.
+  // Skip in dev with VITE_DEV_NSEC — the fast auto-init races with the animation.
   useEffect(() => {
+    if (import.meta.env.DEV && import.meta.env.VITE_DEV_NSEC) return
+
     if (page === Pages.Loading && !bootAnimActive) {
       setBootAnimDone(false)
       setBootExitMode('fly-up')
