@@ -8,15 +8,12 @@ export const requestPermission = async (): Promise<boolean> => {
 
 export const sendNotification = (title: string, body: string) => {
   if (!notificationApiSupport) return
+  if (Notification.permission !== 'granted') return
   const options = { body, icon: '/arkade-icon.svg' }
   try {
     new Notification(title, options)
   } catch {
-    try {
-      navigator.serviceWorker.ready.then((registration) => {
-        registration.showNotification(title, options)
-      })
-    } catch {}
+    navigator.serviceWorker.ready.then((registration) => registration.showNotification(title, options)).catch(() => {})
   }
 }
 
