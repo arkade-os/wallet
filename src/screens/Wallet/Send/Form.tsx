@@ -184,6 +184,9 @@ export default function SendForm() {
     const parseRecipient = async () => {
       setNudgeBoltz(false)
       if (!recipient) return
+      // Clean base — only carry forward asset selection; all parsed targets
+      // start empty so switching recipient types never leaks stale state.
+      const base: SendInfo = { recipient, assets: sendInfo.assets }
       const lowerCaseData = recipient.toLowerCase().replace(/^lightning:/, '')
       if (isURLWithLightningQueryString(recipient)) {
         const url = new URL(recipient)
@@ -225,10 +228,10 @@ export default function SendForm() {
             assets: [{ assetId, amount: rawAmount }],
           })
         }
-        return setState({ address, arkAddress, invoice, recipient, satoshis, assets: sendInfo.assets })
+        return setState({ ...base, address, arkAddress, invoice, satoshis })
       }
       if (isArkAddress(lowerCaseData)) {
-        return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
+        return setState({ ...base, arkAddress: lowerCaseData })
       }
       if (isLightningInvoice(lowerCaseData)) {
         if (isAssetSend) {
@@ -240,7 +243,7 @@ export default function SendForm() {
         }
         const satoshis = getInvoiceSatoshis(lowerCaseData)
         if (!satoshis) return setError('Invoice must have amount defined')
-        setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData, satoshis })
+        setState({ ...base, invoice: lowerCaseData, satoshis })
         setAmountIsReadOnly(true)
         setAmount(satoshis)
         return
@@ -249,7 +252,7 @@ export default function SendForm() {
         if (isAssetSend) {
           return setError('Assets can only be sent to Arkade addresses')
         }
-        return setState({ ...sendInfo, address: recipient, arkAddress: '' })
+        return setState({ ...base, address: recipient })
       }
       if (isArkNote(lowerCaseData)) {
         try {
@@ -261,7 +264,7 @@ export default function SendForm() {
         }
       }
       if (isValidLnUrl(lowerCaseData)) {
-        return setState({ ...sendInfo, lnUrl: lowerCaseData })
+        return setState({ ...base, lnUrl: lowerCaseData })
       }
       setError('Invalid recipient address')
     }
@@ -526,17 +529,16 @@ export default function SendForm() {
   const handleRecipientChange = (recipient: string) => {
     setRawScanData('')
     setBrantaPayment(null)
+    // Always clear derived send targets so stale state (e.g. a previous
+    // invoice) doesn't leak when the user switches recipient types.
+    setState({ address: '', arkAddress: '', invoice: '', lnUrl: '', recipient, satoshis: 0 })
+    setRecipient(recipient)
+    setAmountIsReadOnly(false)
+    setLnUrlLimits({ min: 0, max: 0 })
     if (!recipient) {
-      setState({ address: '', arkAddress: '', invoice: '', lnUrl: '', recipient: '', satoshis: 0 })
-      setRecipient('')
       setAmount(undefined)
       setTextValue('')
-      setAmountIsReadOnly(false)
-      setLnUrlLimits({ min: 0, max: 0 })
-      return
     }
-    setState({ ...sendInfo, recipient })
-    setRecipient(recipient)
   }
 
   const handleContinue = async () => {
@@ -726,12 +728,7 @@ export default function SendForm() {
                       </Text>
                     </FlexCol>
                     {brantaPayment.platform_logo_url ? (
-                      <img
-                        src={brantaPayment.platform_logo_url}
-                        alt={brantaPayment.platform}
-                        width={48}
-                        height={48}
-                      />
+                      <img src={brantaPayment.platform_logo_url} alt={brantaPayment.platform} width={48} height={48} />
                     ) : null}
                   </FlexRow>
                 </Shadow>
@@ -900,7 +897,11 @@ export default function SendForm() {
                 label='Recipient address'
                 onData={(data) => {
                   setRawScanData(data)
+                  setBrantaPayment(null)
+                  setState({ address: '', arkAddress: '', invoice: '', lnUrl: '', recipient: data, satoshis: 0 })
                   setRecipient(data)
+                  setAmountIsReadOnly(false)
+                  setLnUrlLimits({ min: 0, max: 0 })
                 }}
                 onError={smartSetError}
               />
@@ -933,7 +934,11 @@ export default function SendForm() {
                 label='Recipient address'
                 onData={(data) => {
                   setRawScanData(data)
+                  setBrantaPayment(null)
+                  setState({ address: '', arkAddress: '', invoice: '', lnUrl: '', recipient: data, satoshis: 0 })
                   setRecipient(data)
+                  setAmountIsReadOnly(false)
+                  setLnUrlLimits({ min: 0, max: 0 })
                 }}
                 onError={smartSetError}
               />
