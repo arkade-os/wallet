@@ -173,6 +173,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }, [aspInfo.url, initialized])
 
   useEffect(() => {
+    // Dev auto-init bypasses password, so skip the auth state check
+    if (import.meta.env.DEV && import.meta.env.VITE_DEV_NSEC) return
+
     if (!wallet.pubkey) {
       setAuthState('authenticated')
       return
