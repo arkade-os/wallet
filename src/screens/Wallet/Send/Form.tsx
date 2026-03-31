@@ -526,19 +526,34 @@ export default function SendForm() {
     }
   }
 
-  const handleRecipientChange = (recipient: string) => {
-    setRawScanData('')
+  const resetDerivedState = (newRecipient: string) => {
     setBrantaPayment(null)
-    // Always clear derived send targets so stale state (e.g. a previous
-    // invoice) doesn't leak when the user switches recipient types.
-    setState({ address: '', arkAddress: '', invoice: '', lnUrl: '', recipient, satoshis: 0 })
-    setRecipient(recipient)
+    setState({
+      address: '',
+      arkAddress: '',
+      invoice: '',
+      lnUrl: '',
+      recipient: newRecipient,
+      satoshis: 0,
+      assets: sendInfo.assets,
+    })
+    setRecipient(newRecipient)
     setAmountIsReadOnly(false)
     setLnUrlLimits({ min: 0, max: 0 })
+  }
+
+  const handleRecipientChange = (recipient: string) => {
+    setRawScanData('')
+    resetDerivedState(recipient)
     if (!recipient) {
       setAmount(undefined)
       setTextValue('')
     }
+  }
+
+  const handleScanData = (data: string) => {
+    setRawScanData(data)
+    resetDerivedState(data)
   }
 
   const handleContinue = async () => {
@@ -895,14 +910,7 @@ export default function SendForm() {
               <Scanner
                 close={() => setScan(false)}
                 label='Recipient address'
-                onData={(data) => {
-                  setRawScanData(data)
-                  setBrantaPayment(null)
-                  setState({ address: '', arkAddress: '', invoice: '', lnUrl: '', recipient: data, satoshis: 0 })
-                  setRecipient(data)
-                  setAmountIsReadOnly(false)
-                  setLnUrlLimits({ min: 0, max: 0 })
-                }}
+                onData={handleScanData}
                 onError={smartSetError}
               />
             </div>
@@ -932,14 +940,7 @@ export default function SendForm() {
               <Scanner
                 close={() => setScan(false)}
                 label='Recipient address'
-                onData={(data) => {
-                  setRawScanData(data)
-                  setBrantaPayment(null)
-                  setState({ address: '', arkAddress: '', invoice: '', lnUrl: '', recipient: data, satoshis: 0 })
-                  setRecipient(data)
-                  setAmountIsReadOnly(false)
-                  setLnUrlLimits({ min: 0, max: 0 })
-                }}
+                onData={handleScanData}
                 onError={smartSetError}
               />
             </motion.div>

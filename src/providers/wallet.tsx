@@ -153,7 +153,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // wallet is read synchronously in useState initializer above
 
   const devNsec = import.meta.env.VITE_DEV_NSEC as string | undefined
-  const isDevAutoInit = Boolean(devNsec)
+  const isDevAutoInit = import.meta.env.DEV && Boolean(devNsec)
   const [devAutoInitFailed, setDevAutoInitFailed] = useState(false)
 
   // dev-only: auto-initialize wallet from VITE_DEV_NSEC, bypassing onboarding and unlock
