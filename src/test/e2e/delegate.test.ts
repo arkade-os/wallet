@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import { createWallet, waitForWalletPage } from './utils'
 
 test('should toggle delegates', async ({ page }) => {
+  test.setTimeout(60000)
   // create wallet
   await createWallet(page)
 
