@@ -8,7 +8,7 @@ import Button from '../../../components/Button'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { extractError } from '../../../lib/error'
 import { redeemNotes } from '../../../lib/asp'
-import Loading from '../../../components/Loading'
+import LoadingLogo from '../../../components/LoadingLogo'
 import Header from '../../../components/Header'
 import FlexCol from '../../../components/FlexCol'
 import { consoleError } from '../../../lib/logs'
@@ -40,7 +40,7 @@ export default function NotesRedeem() {
     navigate(Pages.NotesForm)
   }
 
-  if (!svcWallet) return <Loading text='Loading...' />
+  if (!svcWallet) return <LoadingLogo text='Loading...' />
 
   const handleRedeem = async () => {
     setError('')
@@ -65,7 +65,7 @@ export default function NotesRedeem() {
       <Header text='Redeem Note' back={handleBack} />
       <Content>
         {redeeming ? (
-          <Loading text='Processing. This may take a few moments.' />
+          <LoadingLogo text='Processing. This may take a few moments.' />
         ) : (
           <Padded>
             <FlexCol gap='2rem'>

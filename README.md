@@ -40,6 +40,44 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 | `CI`                          | Set to `true` for Continuous Integration environments               | `CI=true`                                          |
 | `GENERATE_SOURCEMAP`          | Disable source map generation during build                          | `GENERATE_SOURCEMAP=false`                         |
 
+## Docker
+
+The wallet is available as a Docker image on GitHub Container Registry.
+
+### Pull and run
+
+```bash
+docker pull ghcr.io/arkade-os/wallet:latest
+docker run -p 8080:80 ghcr.io/arkade-os/wallet:latest
+```
+
+Open [http://localhost:8080](http://localhost:8080) to view the wallet.
+
+### Runtime configuration
+
+Environment variables can be passed at runtime to configure the wallet without rebuilding the image:
+
+```bash
+docker run -p 8080:80 \
+  -e VITE_ARK_SERVER=https://arkade.computer \
+  -e VITE_BOLTZ_URL=https://api.ark.boltz.exchange \
+  ghcr.io/arkade-os/wallet:latest
+```
+
+See the [Environment Variables](#environment-variables) table for all supported variables.
+
+### Build locally
+
+```bash
+docker build -t arkade-wallet .
+
+# With build-time configuration
+docker build \
+  --build-arg VITE_ARK_SERVER=https://arkade.computer \
+  --build-arg VITE_BOLTZ_URL=https://api.ark.boltz.exchange \
+  -t arkade-wallet .
+```
+
 ## Getting Started
 
 ### Prerequisites

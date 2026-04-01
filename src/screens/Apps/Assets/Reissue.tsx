@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react'
+import { useCallback, useContext, useRef, useState } from 'react'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Content from '../../../components/Content'
@@ -6,7 +6,7 @@ import ErrorMessage from '../../../components/Error'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
 import Header from '../../../components/Header'
-import Loading from '../../../components/Loading'
+import LoadingLogo from '../../../components/LoadingLogo'
 import Modal from '../../../components/Modal'
 import Padded from '../../../components/Padded'
 import Shadow from '../../../components/Shadow'
@@ -29,6 +29,8 @@ export default function AppAssetReissue() {
   const [amount, setAmount] = useState('')
   const [error, setError] = useState('')
   const [processing, setProcessing] = useState(false)
+  const [opDone, setOpDone] = useState(false)
+  const pendingNav = useRef<() => void>()
   const [showConfirm, setShowConfirm] = useState(false)
 
   const name = assetInfo.metadata?.name ?? 'Unknown'
@@ -62,16 +64,21 @@ export default function AppAssetReissue() {
     try {
       await svcWallet.assetManager.reissue({ assetId: assetInfo.assetId, amount: parsedAmount })
       await reloadWallet()
-      navigate(Pages.AppAssetDetail)
+      pendingNav.current = () => navigate(Pages.AppAssetDetail)
+      setOpDone(true)
     } catch (err) {
       consoleError(err, 'error reissuing asset')
       setError(extractError(err))
-    } finally {
       setProcessing(false)
     }
   }
 
-  if (processing) return <Loading text='Reissuing...' />
+  const handleExitComplete = useCallback(() => {
+    pendingNav.current?.()
+  }, [])
+
+  if (processing || opDone)
+    return <LoadingLogo text='Reissuing...' done={opDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
 
   return (
     <>

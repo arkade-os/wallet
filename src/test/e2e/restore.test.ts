@@ -41,7 +41,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   expect(invoice).toContain('lnbcrt')
 
   // pay invoice with lnd
-  exec(`docker exec lnd lncli --network=regtest payinvoice ${invoice} --force`)
+  await execAsync(`docker exec lnd lncli --network=regtest payinvoice ${invoice} --force`)
 
   // wait for payment received
   await waitForPaymentReceived(page)
@@ -96,11 +96,11 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
 
-  // verify all swaps are present
+  // verify all swaps are present (swap recovery from Boltz API can take a moment)
   await expect(page.getByText('Boltz')).toBeVisible()
-  await expect(page.getByText('+ 4,980')).toBeVisible()
-  await expect(page.getByText('- 1,001')).toBeVisible()
-  await expect(page.getByText('Arkade to Bitcoin')).toBeVisible()
+  await expect(page.getByText('+ 4,980')).toBeVisible({ timeout: 30000 })
+  await expect(page.getByText('- 1,001')).toBeVisible({ timeout: 10000 })
+  await expect(page.getByText('Arkade to Bitcoin')).toBeVisible({ timeout: 10000 })
   await expect(page.getByText('Arkade to Lightning')).toBeVisible()
   await expect(page.getByText('Lightning to Arkade')).toBeVisible()
 })

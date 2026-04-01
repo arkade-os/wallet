@@ -14,7 +14,7 @@ import FlexCol from '../../../components/FlexCol'
 import Keyboard from '../../../components/Keyboard'
 import { WalletContext } from '../../../providers/wallet'
 import { callFaucet, pingFaucet } from '../../../lib/faucet'
-import Loading from '../../../components/Loading'
+import LoadingLogo from '../../../components/LoadingLogo'
 import { prettyAmount, prettyNumber } from '../../../lib/format'
 import Success from '../../../components/Success'
 import { consoleError } from '../../../lib/logs'
@@ -95,7 +95,7 @@ export default function ReceiveAmount() {
     )
   }, [satoshis])
 
-  if (!svcWallet) return <Loading text='Loading...' />
+  if (!svcWallet) return <LoadingLogo text='Loading...' />
 
   const handleChange = (sats: number) => {
     setSatoshis(sats)
@@ -164,7 +164,7 @@ export default function ReceiveAmount() {
       <>
         <Header text='Fauceting' />
         <Content>
-          <Loading text='Getting sats from a faucet. This may take a few moments.' />
+          <LoadingLogo text='Getting sats from a faucet. This may take a few moments.' />
         </Content>
       </>
     )

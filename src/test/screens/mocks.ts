@@ -115,8 +115,12 @@ export const mockSwapsContextValue = {
 }
 
 export const mockOptionsContextValue = {
+  direction: 'forward' as const,
   option: SettingsOptions.Menu,
+  options: [],
+  goBack: () => {},
   setOption: () => {},
+  validOptions: () => [],
 }
 
 export const mockNavigationContextValue = {
@@ -152,6 +156,8 @@ export const mockWalletContextValue = {
   vtxos: { spendable: [], spent: [] },
   iconApprovalManager: new AssetIconApprovalManager(),
   dataReady: false,
+  loadError: null,
+  dismissLoadError: () => {},
 }
 
 export const mockFlowContextValue = {
