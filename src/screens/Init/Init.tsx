@@ -174,7 +174,7 @@ export default function Init() {
                 <OnboardStaggerChild>
                   <BulletPoint
                     icon={<GlobeOutlineIcon />}
-                    text='Access Lightning, DeFi, and more, all secured by Bitcoin'
+                    text='Access Lightning, mint assets, and more. All secured by Bitcoin'
                   />
                 </OnboardStaggerChild>
                 <OnboardStaggerChild>
