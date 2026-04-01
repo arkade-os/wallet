@@ -173,6 +173,8 @@ export default function SendForm() {
   }, [balance])
 
   // parse recipient data
+  // repeat when asset changes to re-validate addresses (e.g. if user
+  // selects an asset and the address is not compatible with it)
   useEffect(() => {
     smartSetError('')
     const parseRecipient = async () => {
