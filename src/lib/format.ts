@@ -84,9 +84,19 @@ export const prettyLongText = (str?: string, showChars = 11): string => {
   return `${left}...${right}`
 }
 
-export const prettyNumber = (num?: number, maximumFractionDigits = 8, useGrouping = true): string => {
-  if (!num) return '0'
-  return new Intl.NumberFormat('en', { style: 'decimal', maximumFractionDigits, useGrouping }).format(num)
+export const prettyNumber = (
+  num?: number,
+  maximumFractionDigits = 8,
+  useGrouping = true,
+  minimumFractionDigits?: number,
+): string => {
+  if (num === undefined || num === null || Number.isNaN(num)) return '0'
+  return new Intl.NumberFormat('en', {
+    style: 'decimal',
+    maximumFractionDigits,
+    minimumFractionDigits,
+    useGrouping,
+  }).format(num)
 }
 
 export const formatAssetAmount = (amount: number, decimals: number): string => {
