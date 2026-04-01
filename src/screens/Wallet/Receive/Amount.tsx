@@ -180,6 +180,9 @@ export default function ReceiveAmount() {
         <Content>
           <Success headline='Faucet completed!' text={`${displayAmount} received successfully`} />
         </Content>
+        <ButtonsOnBottom>
+          <Button label='Sounds good' onClick={() => navigate(Pages.Wallet)} />
+        </ButtonsOnBottom>
       </>
     )
   }
