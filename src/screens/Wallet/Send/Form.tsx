@@ -37,7 +37,7 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { ArkNote, AssetDetails } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
-import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl } from '../../../lib/lnurl'
+import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, parseLoginLnUrl } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 import { SwapsContext } from '../../../providers/swaps'
@@ -336,6 +336,13 @@ export default function SendForm() {
   useEffect(() => {
     if (!sendInfo.lnUrl) return
     if (sendInfo.lnUrl && sendInfo.invoice) return
+    const { k1 } = parseLoginLnUrl(sendInfo.lnUrl)
+    if (k1) {
+      // Navigate to login confirmation screen
+      navigate(Pages.LnUrlLogin)
+      return
+    }
+
     checkLnUrlConditions(sendInfo.lnUrl)
       .then((conditions) => {
         if (!conditions) return setError('Unable to fetch LNURL conditions')

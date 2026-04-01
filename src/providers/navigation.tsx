@@ -13,6 +13,7 @@ import ReceiveSuccess from '../screens/Wallet/Receive/Success'
 import SendForm from '../screens/Wallet/Send/Form'
 import SendDetails from '../screens/Wallet/Send/Details'
 import SendSuccess from '../screens/Wallet/Send/Success'
+import LnUrlLogin from '../screens/Wallet/Send/LnUrlLogin'
 import Transaction from '../screens/Wallet/Transaction'
 import Unlock from '../screens/Wallet/Unlock'
 import Vtxos from '../screens/Settings/Vtxos'
@@ -73,6 +74,7 @@ export enum Pages {
   SendForm,
   SendDetails,
   SendSuccess,
+  LnUrlLogin,
   Settings,
   Transaction,
   Unavailable,
@@ -121,6 +123,7 @@ const pageTab = {
   [Pages.SendForm]: Tabs.Wallet,
   [Pages.SendDetails]: Tabs.Wallet,
   [Pages.SendSuccess]: Tabs.Wallet,
+  [Pages.LnUrlLogin]: Tabs.Wallet,
   [Pages.Settings]: Tabs.Settings,
   [Pages.Transaction]: Tabs.Wallet,
   [Pages.Unavailable]: Tabs.None,
@@ -211,6 +214,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <SendDetails />
     case Pages.SendSuccess:
       return <SendSuccess />
+    case Pages.LnUrlLogin:
+      return <LnUrlLogin />
     case Pages.Settings:
       return <Settings />
     case Pages.Transaction:
