@@ -260,7 +260,7 @@ export default function SendForm() {
       setError('Invalid recipient address')
     }
     parseRecipient()
-  }, [recipient])
+  }, [recipient, isAssetSend])
 
   // fetch branta payment info for ZK QR-scanned addresses only
   useEffect(() => {
