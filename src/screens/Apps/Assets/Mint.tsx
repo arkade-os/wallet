@@ -257,11 +257,7 @@ export default function AppAssetMint() {
                   step='1'
                   value={decimals}
                   onChange={(v: number) => {
-                    if (!v && v !== 0) {
-                      setDecimals('')
-                      return
-                    }
-                    if (!isNaN(v) && v >= 0 && v <= 8) setDecimals(String(v))
+                    setDecimals(!isNaN(v) && v >= 0 && v <= 8 ? String(v) : '')
                   }}
                   placeholder='0'
                   testId='asset-decimals'
