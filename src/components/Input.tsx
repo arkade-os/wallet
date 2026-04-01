@@ -16,7 +16,7 @@ interface InputProps {
   step?: string
   testId?: string
   type?: 'text' | 'number' | 'url'
-  value?: string
+  value?: string | number
 }
 
 export default function Input({
