@@ -21,6 +21,8 @@ interface ExpandAddressesProps {
   invoice: string
   lnurl?: string
   onClick: (arg0: string) => void
+  onRequestInvoice?: () => void
+  invoiceLoading?: boolean
 }
 
 export default function ExpandAddresses({
@@ -30,6 +32,8 @@ export default function ExpandAddresses({
   invoice,
   lnurl,
   onClick,
+  onRequestInvoice,
+  invoiceLoading,
 }: ExpandAddressesProps) {
   const [copied, setCopied] = useState('')
   const [expand, setExpand] = useState(false)
@@ -100,7 +104,18 @@ export default function ExpandAddresses({
             {bip21uri ? <ExpandLine testId='bip21' title='BIP21' value={bip21uri} /> : null}
             {boardingAddr ? <ExpandLine testId='btc' title='BTC address' value={boardingAddr} /> : null}
             {offchainAddr ? <ExpandLine testId='ark' title='Arkade address' value={offchainAddr} /> : null}
-            {invoice ? <ExpandLine testId='invoice' title='Lightning invoice' value={invoice} /> : null}
+            {invoice ? (
+              <ExpandLine testId='invoice' title='Lightning invoice' value={invoice} />
+            ) : onRequestInvoice ? (
+              <Focusable onEnter={onRequestInvoice}>
+                <FlexRow between onClick={onRequestInvoice} data-testid='invoice-generate'>
+                  <FlexCol gap='0'>
+                    <TextSecondary>Lightning invoice</TextSecondary>
+                    <Text>{invoiceLoading ? 'Generating...' : 'Tap to generate'}</Text>
+                  </FlexCol>
+                </FlexRow>
+              </Focusable>
+            ) : null}
             {lnurl ? <ExpandLine testId='lnurl' title='LNURL' value={lnurl} /> : null}
           </FlexCol>
         </div>

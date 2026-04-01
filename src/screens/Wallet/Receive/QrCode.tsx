@@ -51,6 +51,7 @@ export default function ReceiveQRCode() {
   const [qrCodeValue, setQrCodeValue] = useState('')
   const [bip21Uri, setBip21Uri] = useState('')
   const [invoice, setInvoice] = useState('')
+  const [invoiceLoading, setInvoiceLoading] = useState(false)
 
   // LNURL session for amountless Lightning receives
   const isAmountlessLnurl =
@@ -113,20 +114,17 @@ export default function ReceiveQRCode() {
     if (isAssetReceive) return setShowQrCode(true)
     if (!satoshis || !svcWallet) return
 
-    // LN is only expected when Boltz is enabled and this isn't an asset receive
-    const lnExpected = connected && !isAssetReceive
-
     if (!arkadeSwaps) {
-      if (!lnExpected || swapsInitError) {
-        // LN not expected or already failed — show QR immediately
-        if (lnExpected && swapsInitError) {
+      if (!enableChainSwapsReceive || swapsInitError) {
+        // Chain swaps not enabled or already failed — show QR immediately
+        if (swapsInitError) {
           consoleError(swapsInitError, 'Swaps unavailable, showing receive without swap options')
           setSwapsTimedOut(true)
         }
         setShowQrCode(true)
         return
       }
-      // LN expected but swaps still initializing — wait up to 5s
+      // Chain swaps enabled but swaps still initializing — wait up to 5s
       const timeout = setTimeout(() => {
         setSwapsTimedOut(true)
         setShowQrCode(true)
@@ -134,12 +132,13 @@ export default function ReceiveQRCode() {
       return () => clearTimeout(timeout)
     }
 
-    // arkadeSwaps is ready, generate swaps before showing QR to avoid QR code changing
+    // arkadeSwaps is ready, generate chain swap before showing QR
+    // Lightning invoice is created lazily when the user requests it
     setSwapsTimedOut(false)
 
-    Promise.allSettled([createBtcAddress(), createLightningInvoice()]).then(([btc, lightning]) => {
-      if (btc.status === 'fulfilled') {
-        const pendingSwap = btc.value as PendingChainSwap
+    createBtcAddress()
+      .then((result) => {
+        const pendingSwap = result as PendingChainSwap
         const btcAddr = pendingSwap.response.lockupDetails.lockupAddress
         setSwapAddress(btcAddr)
         arkadeSwaps
@@ -151,11 +150,20 @@ export default function ReceiveQRCode() {
           .catch((error) => {
             consoleError(error, 'Error claiming chain swap:')
           })
-      }
-      if (lightning.status === 'fulfilled') {
-        const pendingSwap = lightning.value as PendingReverseSwap
-        const invoice = pendingSwap.response.invoice
-        setInvoice(invoice)
+      })
+      .catch(() => {}) // chain swap not available for this amount/config
+      .finally(() => setShowQrCode(true))
+  }, [satoshis, svcWallet, arkadeSwaps, swapsInitError])
+
+  const canRequestInvoice = !!arkadeSwaps && connected && !isAssetReceive && !!satoshis && validLnSwap(satoshis)
+
+  const handleRequestInvoice = useCallback(() => {
+    if (invoice || invoiceLoading || !arkadeSwaps) return
+    setInvoiceLoading(true)
+    createLightningInvoice()
+      .then((result) => {
+        const pendingSwap = result as PendingReverseSwap
+        setInvoice(pendingSwap.response.invoice)
         arkadeSwaps
           .waitAndClaim(pendingSwap)
           .then(() => {
@@ -165,10 +173,12 @@ export default function ReceiveQRCode() {
           .catch((error) => {
             consoleError(error, 'Error claiming reverse swap:')
           })
-      }
-      setShowQrCode(true)
-    })
-  }, [satoshis, svcWallet, arkadeSwaps, swapsInitError])
+      })
+      .catch((error) => {
+        consoleError(error, 'Error creating reverse swap:')
+      })
+      .finally(() => setInvoiceLoading(false))
+  }, [invoice, invoiceLoading, arkadeSwaps, createLightningInvoice, navigate, setRecvInfo, recvInfo])
 
   //
   useEffect(() => {
@@ -271,6 +281,8 @@ export default function ReceiveQRCode() {
                 invoice={invoice || ''}
                 lnurl={lnurlSession.lnurl}
                 onClick={setQrCodeValue}
+                onRequestInvoice={canRequestInvoice ? handleRequestInvoice : undefined}
+                invoiceLoading={invoiceLoading}
               />
               {swapsTimedOut && !invoice && !isAssetReceive ? (
                 <WarningBox text='Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.' />
