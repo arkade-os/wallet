@@ -112,7 +112,7 @@ export default function AppAssetMint() {
         const ctrlMeta: KnownMetadata = { decimals: 0 }
         if (name) ctrlMeta.name = `ctrl-${name}`
         if (ticker) ctrlMeta.ticker = `ctrl-${ticker}`
-        const ctrlRawAmount = ctrlAmount
+        const ctrlRawAmount = parseInt(ctrlAmount.toString())
 
         const ctrlResult = await svcWallet.assetManager.issue({
           amount: ctrlRawAmount,
@@ -170,7 +170,7 @@ export default function AppAssetMint() {
 
   const selectedControl = knownAssets.find((a) => a.assetId === controlAssetId) ?? null
 
-  const parsedUnits = amount
+  const parsedUnits = parseInt(amount.toString())
   const parsedDecimals = decimals !== '' ? parseInt(decimals) : NaN
   const disabledReason = !name
     ? 'Enter a name'
