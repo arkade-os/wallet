@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, useAnimationControls } from 'framer-motion'
 import { EASE_OUT_QUINT_TUPLE, EASE_IN_OUT_QUINT_TUPLE } from '../lib/animations'
@@ -24,8 +24,11 @@ interface LoadingLogoProps {
 export default function LoadingLogo({ text, done, exitMode = 'none', onExitComplete }: LoadingLogoProps) {
   const reducedMotion = useReducedMotion()
   const [visible, setVisible] = useState(true)
+  const [statusRevealed, setStatusRevealed] = useState(false)
   const showBackground = exitMode !== 'none'
   const containerRef = useRef<HTMLDivElement>(null)
+  const tapCountRef = useRef(0)
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const flyControls = useAnimationControls()
   const flyControlsRef = useRef(flyControls)
   flyControlsRef.current = flyControls
@@ -38,10 +41,28 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
     reducedMotion,
   })
 
+  const handleLogoTap = useCallback(() => {
+    tapCountRef.current += 1
+    clearTimeout(tapTimerRef.current)
+    if (tapCountRef.current >= 3) {
+      tapCountRef.current = 0
+      setStatusRevealed((v) => !v)
+    } else {
+      tapTimerRef.current = setTimeout(() => {
+        tapCountRef.current = 0
+      }, 600)
+    }
+  }, [])
+
   // When done signal arrives, request the bounce loop to stop
   useEffect(() => {
     if (done) requestStop()
   }, [done, requestStop])
+
+  // Clean up tap timer on unmount
+  useEffect(() => {
+    return () => clearTimeout(tapTimerRef.current)
+  }, [])
 
   // When bounce loop has stopped, play exit animation
   useEffect(() => {
@@ -141,23 +162,25 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
           gap: '1rem',
         }}
       >
-        <motion.div
-          ref={containerRef}
-          animate={flyControls}
-          style={{ position: 'relative', x: 0, y: 0, scale: 1, opacity: 1 }}
-        >
+        <div style={{ pointerEvents: 'auto', cursor: 'default' }} onClick={handleLogoTap}>
           <motion.div
-            initial={reducedMotion ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.25, ease: EASE_OUT_QUINT_TUPLE }}
+            ref={containerRef}
+            animate={flyControls}
+            style={{ position: 'relative', x: 0, y: 0, scale: 1, opacity: 1 }}
           >
-            <motion.div animate={bounceControls} style={{ y: 0, scaleY: 1, scaleX: 1 }}>
-              <PixelLogoSvg activeShape={activeShape} size={LARGE_SIZE} />
+            <motion.div
+              initial={reducedMotion ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.25, ease: EASE_OUT_QUINT_TUPLE }}
+            >
+              <motion.div animate={bounceControls} style={{ y: 0, scaleY: 1, scaleX: 1 }}>
+                <PixelLogoSvg activeShape={activeShape} size={LARGE_SIZE} />
+              </motion.div>
             </motion.div>
+            <PixelSplash bounceCount={bounceCount} reducedMotion={reducedMotion} />
           </motion.div>
-          <PixelSplash bounceCount={bounceCount} reducedMotion={reducedMotion} />
-        </motion.div>
-        {text ? (
+        </div>
+        {text && statusRevealed ? (
           <motion.div
             style={{ paddingTop: '0.5rem' }}
             animate={{ opacity: exiting ? 0 : 1 }}
@@ -169,7 +192,7 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
           </motion.div>
         ) : null}
       </div>
-      {showBackground ? (
+      {showBackground && statusRevealed ? (
         <div
           style={{
             position: 'fixed',
