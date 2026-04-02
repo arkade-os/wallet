@@ -3,7 +3,7 @@ import { Pages, Tabs } from '../../providers/navigation'
 import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { AspInfo } from '../../providers/asp'
 import { SingleKey, IVtxoManager } from '@arkade-os/sdk'
-import { CurrencyDisplay, Fiats, Themes } from '../../lib/types'
+import { CurrencyDisplay, Fiats, SettingsOptions, Themes } from '../../lib/types'
 import { AssetIconApprovalManager } from '../../lib/assetIconApproval'
 
 const mockAspInfo: AspInfo = {
@@ -115,7 +115,12 @@ export const mockSwapsContextValue = {
 }
 
 export const mockOptionsContextValue = {
+  direction: 'forward' as const,
+  option: SettingsOptions.Menu,
+  options: [],
+  goBack: () => {},
   setOption: () => {},
+  validOptions: () => [],
 }
 
 export const mockNavigationContextValue = {
