@@ -1,6 +1,6 @@
 import { emptyAspInfo } from '../../lib/asp'
 import { Pages, Tabs } from '../../providers/navigation'
-import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
+import { emptyBancoInfo, emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { AspInfo } from '../../providers/asp'
 import { SingleKey } from '@arkade-os/sdk'
 import { CurrencyDisplay, Fiats, Themes } from '../../lib/types'
@@ -170,6 +170,8 @@ export const mockFlowContextValue = {
   setAssetInfo: () => {},
   deepLinkInfo: undefined,
   setDeepLinkInfo: () => {},
+  bancoInfo: emptyBancoInfo,
+  setBancoInfo: () => {},
 }
 
 export const mockLimitsContextValue = {

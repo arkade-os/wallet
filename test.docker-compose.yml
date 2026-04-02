@@ -261,6 +261,21 @@ services:
       - boltz
     ports:
       - '9069:9069'
+  introspector:
+    image: ghcr.io/arklabshq/introspector:v0.0.1-rc.2
+    container_name: introspector
+    restart: unless-stopped
+    ports:
+      - '7073:7073'
+    environment:
+      - INTROSPECTOR_NO_TLS=true
+      - INTROSPECTOR_SECRET_KEY=b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c4
+      - INTROSPECTOR_PORT=7073
+      - INTROSPECTOR_LOG_LEVEL=5
+      - INTROSPECTOR_DATADIR=/app/data
+    volumes:
+      - type: tmpfs
+        target: /app/data
   nak:
     build:
       context: .

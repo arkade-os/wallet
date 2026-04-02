@@ -49,6 +49,19 @@ export type SendInfo = {
 
 export type SwapInfo = PendingSwap | undefined
 
+export interface BancoInfo {
+  /** Amount the user is paying (sats or asset amount) */
+  payAmount?: number
+  /** Asset the user is paying with (empty = BTC) */
+  payAsset?: string
+  /** Amount the user receives */
+  receiveAmount?: number
+  /** Asset the user receives (empty = BTC) */
+  receiveAsset?: string
+  /** Pair label (e.g., "BTC/USDT") */
+  pair?: string
+}
+
 export type TxInfo = Tx | undefined
 
 interface FlowContextProps {
@@ -68,6 +81,8 @@ interface FlowContextProps {
   setTxInfo: (arg0: TxInfo) => void
   assetInfo: AssetDetails
   setAssetInfo: (arg0: AssetDetails) => void
+  bancoInfo: BancoInfo
+  setBancoInfo: (arg0: BancoInfo) => void
 }
 
 export const emptyInitInfo: InitInfo = {
@@ -87,6 +102,8 @@ export const emptyRecvInfo: RecvInfo = {
 }
 
 export const emptyAssetInfo: AssetDetails = { assetId: '', supply: 0 }
+
+export const emptyBancoInfo: BancoInfo = {}
 
 export const emptySendInfo: SendInfo = {
   address: '',
@@ -114,6 +131,8 @@ export const FlowContext = createContext<FlowContextProps>({
   setTxInfo: () => {},
   assetInfo: emptyAssetInfo,
   setAssetInfo: () => {},
+  bancoInfo: emptyBancoInfo,
+  setBancoInfo: () => {},
 })
 
 export const FlowProvider = ({ children }: { children: ReactNode }) => {
@@ -125,6 +144,7 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
   const [swapInfo, setSwapInfo] = useState<SwapInfo>()
   const [txInfo, setTxInfo] = useState<TxInfo>()
   const [assetInfo, setAssetInfo] = useState<AssetDetails>(emptyAssetInfo)
+  const [bancoInfo, setBancoInfo] = useState<BancoInfo>(emptyBancoInfo)
 
   return (
     <FlowContext.Provider
@@ -145,6 +165,8 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
         setTxInfo,
         assetInfo,
         setAssetInfo,
+        bancoInfo,
+        setBancoInfo,
       }}
     >
       {children}

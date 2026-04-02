@@ -18,7 +18,7 @@ export default defineConfig({
     contextOptions: { reducedMotion: 'reduce' },
   },
   webServer: {
-    command: 'VITE_NOSTR_RELAY_URL=ws://localhost:10547 VITE_DELEGATE_ENABLED=false pnpm start',
+    command: 'VITE_NOSTR_RELAY_URL=ws://localhost:10547 VITE_DELEGATE_ENABLED=false VITE_INTROSPECTOR_URL=http://localhost:7073 VITE_BANCO_PAIRS=\'[{"base":"BTC","quote":"USDT","priceFeedUrl":"http://localhost:3001/api/price"}]\' pnpm start',
     port: 3002,
   },
   projects: [

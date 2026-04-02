@@ -5,7 +5,7 @@
   "homepage": ".",
   "dependencies": {
     "@arkade-os/boltz-swap": "0.3.12",
-    "@arkade-os/sdk": "0.4.12",
+    "@arkade-os/sdk": "file:../ts-sdk",
     "@ionic/react": "^8.5.6",
     "@lendasat/lendasat-wallet-bridge": "^0.0.90",
     "@noble/curves": "^2.0.1",
@@ -48,7 +48,7 @@
     "git-info": "node scripts/git-commit-info.js",
     "regtest": "pnpm regtest:down && pnpm regtest:build && pnpm regtest:up && pnpm regtest:setup",
     "regtest:build": "docker compose -f test.docker-compose.yml build",
-    "regtest:up": "docker compose -f test.docker-compose.yml up arkd arkd-wallet nbxplorer pgnbxplorer -d",
+    "regtest:up": "docker compose -f test.docker-compose.yml up arkd arkd-wallet nbxplorer pgnbxplorer introspector -d",
     "regtest:down": "docker compose -f test.docker-compose.yml down -v",
     "regtest:setup": "node src/test/setup.mjs"
   },

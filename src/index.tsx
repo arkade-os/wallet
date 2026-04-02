@@ -15,6 +15,7 @@ import { LimitsProvider } from './providers/limits'
 import { NudgeProvider } from './providers/nudge'
 import * as Sentry from '@sentry/react'
 import { SwapsProvider } from './providers/swaps'
+import { BancoProvider } from './providers/banco'
 import { shouldInitializeSentry } from './lib/sentry'
 import { FeesProvider } from './providers/fees'
 import { AnnouncementProvider } from './providers/announcements'
@@ -52,17 +53,19 @@ root.render(
             <FlowProvider>
               <WalletProvider>
                 <SwapsProvider>
-                  <LimitsProvider>
-                    <FeesProvider>
-                      <OptionsProvider>
-                        <NudgeProvider>
-                          <AnnouncementProvider>
-                            <App />
-                          </AnnouncementProvider>
-                        </NudgeProvider>
-                      </OptionsProvider>
-                    </FeesProvider>
-                  </LimitsProvider>
+                  <BancoProvider>
+                    <LimitsProvider>
+                      <FeesProvider>
+                        <OptionsProvider>
+                          <NudgeProvider>
+                            <AnnouncementProvider>
+                              <App />
+                            </AnnouncementProvider>
+                          </NudgeProvider>
+                        </OptionsProvider>
+                      </FeesProvider>
+                    </LimitsProvider>
+                  </BancoProvider>
                 </SwapsProvider>
               </WalletProvider>
             </FlowProvider>

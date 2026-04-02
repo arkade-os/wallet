@@ -34,6 +34,9 @@ import AppAssetMintSuccess from '../screens/Apps/Assets/MintSuccess'
 import AppAssetReissue from '../screens/Apps/Assets/Reissue'
 import AppAssetBurn from '../screens/Apps/Assets/Burn'
 import AppAssetsSettings from '../screens/Apps/Assets/Settings'
+import AppBanco from '../screens/Apps/Banco/Index'
+import AppBancoSwap from '../screens/Apps/Banco/Swap'
+import AppBancoDetail from '../screens/Apps/Banco/Detail'
 import InAppBrowser from '../screens/Wallet/InAppBrowser'
 import Unavailable from '../screens/Wallet/Unavailable'
 
@@ -53,6 +56,9 @@ export enum Pages {
   AppAssetReissue,
   AppAssetBurn,
   AppAssetsSettings,
+  AppBanco,
+  AppBancoSwap,
+  AppBancoDetail,
   Apps,
   Init,
   InitRestore,
@@ -100,6 +106,9 @@ const pageTab = {
   [Pages.AppAssetReissue]: Tabs.Apps,
   [Pages.AppAssetBurn]: Tabs.Apps,
   [Pages.AppAssetsSettings]: Tabs.Apps,
+  [Pages.AppBanco]: Tabs.Apps,
+  [Pages.AppBancoSwap]: Tabs.Apps,
+  [Pages.AppBancoDetail]: Tabs.Apps,
   [Pages.Apps]: Tabs.Apps,
   [Pages.Init]: Tabs.None,
   [Pages.InitRestore]: Tabs.None,
@@ -172,6 +181,12 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <AppAssetBurn />
     case Pages.AppAssetsSettings:
       return <AppAssetsSettings />
+    case Pages.AppBanco:
+      return <AppBanco />
+    case Pages.AppBancoSwap:
+      return <AppBancoSwap />
+    case Pages.AppBancoDetail:
+      return <AppBancoDetail />
     case Pages.Apps:
       return <Apps />
     case Pages.Init:
