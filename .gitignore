@@ -35,6 +35,7 @@ yarn-error.log*
 .pnpm-store/
 .pnpm-debug.log
 .idea
+*.har
 
 # Playwright
 node_modules/
@@ -54,3 +55,4 @@ CLAUDE.local.md
 claude.md
 HANDOVER*.md
 TASKS.md
+*.agents.md

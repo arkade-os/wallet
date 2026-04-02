@@ -173,6 +173,8 @@ export default function SendForm() {
   }, [balance])
 
   // parse recipient data
+  // repeat when asset changes to re-validate addresses (e.g. if user
+  // selects an asset and the address is not compatible with it)
   useEffect(() => {
     smartSetError('')
     const parseRecipient = async () => {
@@ -260,7 +262,7 @@ export default function SendForm() {
       setError('Invalid recipient address')
     }
     parseRecipient()
-  }, [recipient])
+  }, [recipient, isAssetSend])
 
   // fetch branta payment info for ZK QR-scanned addresses only
   useEffect(() => {
@@ -505,13 +507,13 @@ export default function SendForm() {
   const handleSelectAsset = (asset: AssetOption | null) => {
     setShowAssetSelector(false)
     setSelectedAsset(asset)
+    setAmount(undefined)
+    setTextValue('')
     if (asset) {
       if (isBTCAddress(recipient)) {
         return setError('Assets can only be sent to Arkade addresses')
       }
       setState({ ...sendInfo, address: '', assets: [{ assetId: asset.assetId, amount: 0 }], satoshis: 0 })
-      setAmount(undefined)
-      setTextValue('')
     } else {
       setState({ ...sendInfo, assets: undefined, satoshis: 0 })
     }

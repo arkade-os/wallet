@@ -1,8 +1,11 @@
 import { useContext, useEffect } from 'react'
 import { FlowContext } from '../../../providers/flow'
 import { NotificationsContext } from '../../../providers/notifications'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
+import Button from '../../../components/Button'
+import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Success from '../../../components/Success'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -22,6 +25,7 @@ export default function SendSuccess() {
   const { sendInfo } = useContext(FlowContext)
   const { notifyPaymentSent } = useContext(NotificationsContext)
   const { assetMetadataCache } = useContext(WalletContext)
+  const { navigate } = useContext(NavigationContext)
 
   const isAssetSend = Boolean(sendInfo.assets?.length)
   const assetId = sendInfo.assets?.[0]?.assetId
@@ -86,6 +90,9 @@ export default function SendSuccess() {
             </FlexCol>
           </Padded>
         </Content>
+        <ButtonsOnBottom>
+          <Button label='Sounds good' onClick={() => navigate(Pages.Wallet)} />
+        </ButtonsOnBottom>
       </>
     )
   }
@@ -96,6 +103,9 @@ export default function SendSuccess() {
       <Content>
         <Success headline='Payment sent!' text={`${displayAmount} sent successfully`} />
       </Content>
+      <ButtonsOnBottom>
+        <Button label='Sounds good' onClick={() => navigate(Pages.Wallet)} />
+      </ButtonsOnBottom>
     </>
   )
 }

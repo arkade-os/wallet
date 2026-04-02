@@ -91,6 +91,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
   await expect(page.getByText('+ 1,992 SATS', { exact: true })).toBeVisible()
+  await page.getByLabel('Go back').click()
 
   // transaction should be visible on main page
   await page.getByTestId('tab-wallet').click()
@@ -117,6 +118,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
   await expect(page.getByText('- 1,001 SATS', { exact: true })).toBeVisible()
+  await page.getByLabel('Go back').click()
 
   // transaction should be visible on main page
   await page.getByTestId('tab-wallet').click()

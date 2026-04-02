@@ -58,6 +58,7 @@ export async function enableAssets(page: Page): Promise<void> {
   await page.getByTestId('header-aux-btn').click()
   await page.waitForSelector('text=Arkade Mint settings', { state: 'visible' })
   await page.getByTestId('assets-toggle').click()
+  await page.getByLabel('Go back').click()
 }
 
 export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<void> {
@@ -144,6 +145,7 @@ export async function pay(page: Page, address: string, isMobile = false, sats = 
   // continue to send
   await page.getByText('Tap to Sign').click()
   await page.waitForSelector('text=Payment sent!', { timeout: 60000 })
+  await page.getByText('Sounds good').click()
 }
 
 async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = false, sats = 0): Promise<string> {
@@ -257,6 +259,7 @@ export function readClipboard(page: Page): Promise<string> {
 
 export async function waitForPaymentReceived(page: Page): Promise<void> {
   await page.waitForSelector('text=Payment received!', { timeout: 60000 })
+  await page.getByText('Sounds good').click()
 }
 
 export async function handleKeyboardInput(page: Page, sats: number): Promise<void> {

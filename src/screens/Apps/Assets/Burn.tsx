@@ -15,17 +15,17 @@ import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
-import { formatAssetAmount } from '../../../lib/format'
+import { formatAssetAmount, prettyNumber } from '../../../lib/format'
 import Input from '../../../components/Input'
 import AssetCard from '../../../components/AssetCard'
-import { unitsToCents } from '../../../lib/assets'
+import { centsToUnits, unitsToCents } from '../../../lib/assets'
 
 export default function AppAssetBurn() {
   const { navigate } = useContext(NavigationContext)
   const { assetInfo } = useContext(FlowContext)
   const { assetBalances, svcWallet, reloadWallet } = useContext(WalletContext)
 
-  const [amount, setAmount] = useState('')
+  const [amount, setAmount] = useState(0)
   const [error, setError] = useState('')
   const [processing, setProcessing] = useState(false)
   const [opDone, setOpDone] = useState(false)
@@ -38,10 +38,10 @@ export default function AppAssetBurn() {
   const decimals = assetInfo.metadata?.decimals ?? 8
   const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? 0
 
-  const handleMax = () => setAmount(formatAssetAmount(balance, decimals))
+  const handleMax = () => setAmount(centsToUnits(balance, decimals))
 
   const handleBurnRequest = () => {
-    const parsedAmount = unitsToCents(parseFloat(amount) || 0, decimals)
+    const parsedAmount = unitsToCents(amount, decimals)
     if (!parsedAmount || parsedAmount <= 0) {
       setError('Amount must be a positive number')
       return
@@ -56,7 +56,7 @@ export default function AppAssetBurn() {
 
   const handleBurnConfirm = async () => {
     if (!svcWallet) return
-    const parsedAmount = unitsToCents(parseFloat(amount) || 0, decimals)
+    const parsedAmount = unitsToCents(amount, decimals)
 
     setShowConfirm(false)
     setProcessing(true)
@@ -92,7 +92,7 @@ export default function AppAssetBurn() {
                 Confirm Burn
               </Text>
               <Text centered wrap color='dark50'>
-                You are about to burn {amount} {ticker || name}. This action is irreversible.
+                You are about to burn {prettyNumber(amount)} {ticker || name}. This action is irreversible.
               </Text>
             </FlexCol>
             <FlexRow>
@@ -124,7 +124,7 @@ export default function AppAssetBurn() {
               type='number'
               value={amount}
               onChange={setAmount}
-              placeholder={formatAssetAmount(balance, decimals)}
+              placeholder='0'
             />
           </FlexCol>
         </Padded>
