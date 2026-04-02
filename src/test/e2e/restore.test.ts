@@ -77,8 +77,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   // send page
   const someOnchainAddress = 'bcrt1pxxxth5z4yn8nylc6nzz6w3vkumwdllaky5sls7an8e044u2qlnes2vvy6y'
   await pay(page, someOnchainAddress, isMobile, 2000)
-  await page.waitForSelector('text=SATS sent successfully', { timeout: 10000 })
-  await expect(page.getByText('SATS sent successfully')).toBeVisible()
+  await page.waitForSelector('text=- 2,303 SATS', { timeout: 10000 })
 
   /**
    * restore wallet
@@ -98,9 +97,10 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
 
   // verify all swaps are present (swap recovery from Boltz API can take a moment)
   await expect(page.getByText('Boltz')).toBeVisible()
-  await expect(page.getByText('+ 4,980')).toBeVisible({ timeout: 30000 })
-  await expect(page.getByText('- 1,001')).toBeVisible({ timeout: 10000 })
   await expect(page.getByText('Arkade to Bitcoin')).toBeVisible({ timeout: 10000 })
+  await expect(page.getByText('- 2,303')).toBeVisible()
   await expect(page.getByText('Arkade to Lightning')).toBeVisible()
+  await expect(page.getByText('- 1,001')).toBeVisible()
   await expect(page.getByText('Lightning to Arkade')).toBeVisible()
+  await expect(page.getByText('+ 4,980')).toBeVisible()
 })
