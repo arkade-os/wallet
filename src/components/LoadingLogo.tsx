@@ -150,6 +150,7 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
         />
       ) : null}
       <div
+        data-testid='loading-logo'
         style={{
           position: 'fixed',
           inset: 0,

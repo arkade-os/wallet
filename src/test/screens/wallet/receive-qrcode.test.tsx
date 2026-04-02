@@ -162,7 +162,7 @@ describe('Receive QR Code screen', () => {
     })
 
     // Should show the loader while waiting for swaps to initialize
-    expect(screen.getByText('Generating QR code...')).toBeInTheDocument()
+    expect(screen.getByTestId('loading-logo')).toBeInTheDocument()
   })
 
   // UX Constraint 2b: After timeout, show QR with warning
@@ -187,7 +187,7 @@ describe('Receive QR Code screen', () => {
     })
 
     // Initially should show loader
-    expect(screen.getByText('Generating QR code...')).toBeInTheDocument()
+    expect(screen.getByTestId('loading-logo')).toBeInTheDocument()
 
     // Advance past the 5s timeout
     await act(async () => {

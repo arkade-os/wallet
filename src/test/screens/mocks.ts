@@ -2,7 +2,7 @@ import { emptyAspInfo } from '../../lib/asp'
 import { Pages, Tabs } from '../../providers/navigation'
 import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { AspInfo } from '../../providers/asp'
-import { SingleKey } from '@arkade-os/sdk'
+import { SingleKey, IVtxoManager } from '@arkade-os/sdk'
 import { CurrencyDisplay, Fiats, Themes } from '../../lib/types'
 import { AssetIconApprovalManager } from '../../lib/assetIconApproval'
 
@@ -87,7 +87,7 @@ export const mockFiatContextValue = {
 export const mockSwapsContextValue = {
   arkadeSwaps: null,
   swapManager: null,
-  swapsInitError: null,
+  swapsInitError: null as string | null,
   connected: false,
   calcArkToBtcSwapFee: () => 0,
   calcBtcToArkSwapFee: () => 0,
@@ -137,6 +137,7 @@ export const mockWalletContextValue = {
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
   restartWallet: () => Promise.resolve(),
+  vtxoManager: {} as IVtxoManager,
   wallet: {
     nextRollover: 0,
   },
