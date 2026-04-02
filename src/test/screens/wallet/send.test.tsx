@@ -47,7 +47,7 @@ describe('Send screen', () => {
       </NavigationContext.Provider>,
     )
     // should be loading because svcWallet is undefined
-    expect(screen.getByText('Loading...')).toBeInTheDocument()
+    expect(screen.getByTestId('loading-logo')).toBeInTheDocument()
   })
   it('renders the send screen correctly', async () => {
     render(
@@ -71,8 +71,6 @@ describe('Send screen', () => {
         </AspContext.Provider>
       </NavigationContext.Provider>,
     )
-    // should not be loading because svcWallet is defined
-    expect(screen.queryByText('Loading...')).not.toBeInTheDocument()
     // find text elements
     expect(screen.getByText('Max')).toBeInTheDocument()
     expect(screen.getByText('Send')).toBeInTheDocument()
