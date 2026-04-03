@@ -1,4 +1,4 @@
-export type BancoSwapStatus = 'pending' | 'fulfilled' | 'cancelled'
+export type BancoSwapStatus = 'pending' | 'fulfilled' | 'cancelled' | 'recoverable'
 
 export interface BancoSwap {
   id: string

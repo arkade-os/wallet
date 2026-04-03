@@ -50,27 +50,42 @@ export default function AppBancoSwap() {
         setPhase('creating')
         const serverUrl = aspInfo.url.startsWith('http') ? aspInfo.url : 'http://' + aspInfo.url
         const maker = new banco.Maker(svcWallet, serverUrl, INTROSPECTOR_URL)
-        const { offer, packet, swapPkScript } = await maker.createOffer({
-          wantAmount: BigInt(bancoInfo.receiveAmount ?? 0),
-          wantAsset: bancoInfo.receiveAsset ? asset.AssetId.fromString(bancoInfo.receiveAsset) : undefined,
-          offerAsset: bancoInfo.payAsset ? asset.AssetId.fromString(bancoInfo.payAsset) : undefined,
-          cancelDelay: CANCEL_DELAY_SECONDS,
+        console.log('banco: calling createOffer with', {
+          wantAmount: bancoInfo.receiveAmount,
+          wantAsset: bancoInfo.receiveAsset || '(BTC)',
+          offerAsset: bancoInfo.payAsset || '(BTC)',
         })
+        let result: Awaited<ReturnType<typeof maker.createOffer>>
+        try {
+          result = await maker.createOffer({
+            wantAmount: BigInt(bancoInfo.receiveAmount ?? 0),
+            wantAsset: bancoInfo.receiveAsset ? asset.AssetId.fromString(bancoInfo.receiveAsset) : undefined,
+            offerAsset: bancoInfo.payAsset ? asset.AssetId.fromString(bancoInfo.payAsset) : undefined,
+            cancelDelay: CANCEL_DELAY_SECONDS,
+          })
+        } catch (offerErr) {
+          console.error('banco: createOffer threw:', offerErr)
+          throw offerErr
+        }
+        console.log('banco: createOffer keys:', Object.keys(result))
+        const { offer, packet, swapPkScript } = result
 
         // Convert swapPkScript to ark address
-        // pkScript = OP_1 (0x51) + PUSH32 (0x20) + 32-byte vtxoTaprootKey
         const vtxoTaprootKey = swapPkScript.slice(2)
         const info = await fetch(serverUrl + '/v1/info').then((r) => r.json())
         const rawServerPubkey = hex.decode(info.signerPubkey || info.signer_pubkey || '')
         const serverPubKeyBytes = rawServerPubkey.length === 33 ? rawServerPubkey.slice(1) : rawServerPubkey
         const addrPrefix = info.addrPrefix || info.addr_prefix || 'tark'
-        const swapAddress = new ArkAddress(serverPubKeyBytes, vtxoTaprootKey, addrPrefix).encode()
+        const finalAddress = new ArkAddress(serverPubKeyBytes, vtxoTaprootKey, addrPrefix).encode()
+        const finalPkScript = hex.encode(swapPkScript)
 
         // Phase 2: Fund the swap
         setPhase('funding')
+        const isPayingAsset = Boolean(bancoInfo.payAsset)
         const fundingTxid = await svcWallet.send({
-          address: swapAddress,
-          amount: bancoInfo.payAmount ?? 0,
+          address: finalAddress,
+          amount: isPayingAsset ? undefined : (bancoInfo.payAmount ?? 0),
+          assets: isPayingAsset ? [{ assetId: bancoInfo.payAsset!, amount: bancoInfo.payAmount ?? 0 }] : undefined,
           extensions: [{ type: packet.type(), payload: packet.serialize() }],
         })
 
@@ -83,8 +98,8 @@ export default function AppBancoSwap() {
           payAsset: bancoInfo.payAsset ?? '',
           receiveAmount: bancoInfo.receiveAmount ?? 0,
           receiveAsset: bancoInfo.receiveAsset ?? '',
-          swapAddress,
-          swapPkScript: hex.encode(swapPkScript),
+          swapAddress: finalAddress,
+          swapPkScript: finalPkScript,
           offerHex: offer,
           fundingTxid,
           status: 'pending',

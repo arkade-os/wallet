@@ -1,9 +1,15 @@
 import { test, expect, createWallet } from './utils'
 import type { Page } from '@playwright/test'
 
-async function mockPriceFeed(page: Page, price = 67000) {
-  await page.route('**/api/price', (route) => {
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ price }) })
+async function mockCoinGeckoPrice(page: Page, btcPrice = 0.0000149) {
+  // CoinGecko returns { "<id>": { "btc": <price> } }
+  // btcPrice = how many BTC per 1 quote unit (e.g. 0.0000149 for USDT)
+  await page.route('**/api.coingecko.com/**', (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ tether: { btc: btcPrice } }),
+    })
   })
 }
 
@@ -14,35 +20,38 @@ async function navigateToBanco(page: Page) {
 }
 
 async function waitForPrice(page: Page) {
-  // Wait for the rate line to appear, meaning price loaded
   await page.waitForSelector('text=/1 .+ =/i', { state: 'visible', timeout: 10000 })
 }
 
 async function typePayAmount(page: Page, amount: string) {
-  const input = page.locator('ion-input[data-testid="banco-pay-amount"] input')
+  const input = page.getByTestId('banco-pay-card').locator('input')
   await input.click()
   await input.fill(amount)
-  // Trigger ionInput by pressing a key then backspacing — ensures Ionic event fires
-  await input.press('End')
 }
 
 // ── Basic form display ──
 
-test('should display swap form with price from feed', async ({ page }) => {
-  await mockPriceFeed(page)
+test('should display swap form with currency tabs', async ({ page }) => {
+  await mockCoinGeckoPrice(page)
   await createWallet(page)
   await navigateToBanco(page)
 
   await expect(page.getByText('You pay')).toBeVisible()
   await expect(page.getByText('You receive')).toBeVisible()
-  await expect(page.getByText('Enter an amount')).toBeVisible()
-  // Verify asset labels from configured pair (BTC/USDT)
+  // USDT is a well-known currency (no wallet asset), swap is disabled
+  await expect(page.getByText('Select a wallet asset to swap')).toBeVisible()
+  // Default: BTC on pay side, USDT on receive side
   await expect(page.getByTestId('banco-pay-card').getByText('BTC')).toBeVisible()
   await expect(page.getByTestId('banco-receive-card').getByText('USDT')).toBeVisible()
+  // Currency tabs visible
+  await expect(page.getByText('USDT')).toBeVisible()
+  await expect(page.getByText('USD')).toBeVisible()
+  await expect(page.getByText('EUR')).toBeVisible()
 })
 
 test('should display rate when price loads', async ({ page }) => {
-  await mockPriceFeed(page, 67000)
+  // 1 USDT = 0.0000149 BTC -> 1 BTC = ~67114 USDT
+  await mockCoinGeckoPrice(page, 0.0000149)
   await createWallet(page)
   await navigateToBanco(page)
 
@@ -52,97 +61,97 @@ test('should display rate when price loads', async ({ page }) => {
 // ── Amount calculation ──
 
 test('should auto-calculate receive amount when entering pay amount', async ({ page }) => {
-  await mockPriceFeed(page, 67000)
+  await mockCoinGeckoPrice(page, 0.0000149)
   await createWallet(page)
   await navigateToBanco(page)
   await waitForPrice(page)
 
   await typePayAmount(page, '1000')
-  await expect(page.getByTestId('banco-receive-amount')).not.toHaveText('0', { timeout: 5000 })
+  await expect(page.getByTestId('banco-receive-card-amount')).not.toHaveText('0', { timeout: 5000 })
 })
 
 test('should clear receive amount when pay amount is cleared', async ({ page }) => {
-  await mockPriceFeed(page, 67000)
+  await mockCoinGeckoPrice(page, 0.0000149)
   await createWallet(page)
   await navigateToBanco(page)
   await waitForPrice(page)
 
   await typePayAmount(page, '1000')
-  await expect(page.getByTestId('banco-receive-amount')).not.toHaveText('0', { timeout: 5000 })
+  await expect(page.getByTestId('banco-receive-card-amount')).not.toHaveText('0', { timeout: 5000 })
 
   await typePayAmount(page, '')
-  await expect(page.getByTestId('banco-receive-amount')).toHaveText('0')
+  await expect(page.getByTestId('banco-receive-card-amount')).toHaveText('0')
 })
 
 test('should show zero receive for zero pay amount', async ({ page }) => {
-  await mockPriceFeed(page, 67000)
+  await mockCoinGeckoPrice(page, 0.0000149)
   await createWallet(page)
   await navigateToBanco(page)
   await waitForPrice(page)
 
   await typePayAmount(page, '0')
-  await expect(page.getByTestId('banco-receive-amount')).toHaveText('0')
+  await expect(page.getByTestId('banco-receive-card-amount')).toHaveText('0')
 })
 
 test('should handle decimal pay amount', async ({ page }) => {
-  await mockPriceFeed(page, 67000)
+  await mockCoinGeckoPrice(page, 0.0000149)
   await createWallet(page)
   await navigateToBanco(page)
   await waitForPrice(page)
 
   await typePayAmount(page, '0.5')
-  await expect(page.getByTestId('banco-receive-amount')).not.toHaveText('0', { timeout: 5000 })
+  await expect(page.getByTestId('banco-receive-card-amount')).not.toHaveText('0', { timeout: 5000 })
 })
 
 // ── Flip direction ──
 
 test('should flip direction when clicking swap icon', async ({ page }) => {
-  await mockPriceFeed(page)
+  await mockCoinGeckoPrice(page)
   await createWallet(page)
   await navigateToBanco(page)
 
-  // Before flip: pay card shows BTC
+  // Before flip: pay BTC, receive USDT
   await expect(page.getByTestId('banco-pay-card').getByText('BTC')).toBeVisible()
   await expect(page.getByTestId('banco-receive-card').getByText('USDT')).toBeVisible()
 
   await page.getByTestId('banco-flip').click()
 
-  // After flip: pay card shows USDT, receive card shows BTC
+  // After flip: pay USDT, receive BTC
   await expect(page.getByTestId('banco-pay-card').getByText('USDT')).toBeVisible()
   await expect(page.getByTestId('banco-receive-card').getByText('BTC')).toBeVisible()
 })
 
 test('should clear amounts when flipping direction', async ({ page }) => {
-  await mockPriceFeed(page, 67000)
+  await mockCoinGeckoPrice(page, 0.0000149)
   await createWallet(page)
   await navigateToBanco(page)
   await waitForPrice(page)
 
   await typePayAmount(page, '1000')
-  await expect(page.getByTestId('banco-receive-amount')).not.toHaveText('0', { timeout: 5000 })
+  await expect(page.getByTestId('banco-receive-card-amount')).not.toHaveText('0', { timeout: 5000 })
 
   await page.getByTestId('banco-flip').click()
 
-  // Amounts should be cleared after flip
-  await expect(page.getByTestId('banco-receive-amount')).toHaveText('0')
+  await expect(page.getByTestId('banco-receive-card-amount')).toHaveText('0')
 })
 
 test('should recalculate with inverse rate after flip', async ({ page }) => {
-  await mockPriceFeed(page, 2) // 1 BTC = 2 USDT
+  // 1 USDT = 0.5 BTC -> 1 BTC = 2 USDT
+  await mockCoinGeckoPrice(page, 0.5)
   await createWallet(page)
   await navigateToBanco(page)
   await waitForPrice(page)
 
-  // BTC → USDT: 100 BTC = 200 USDT
+  // BTC -> USDT: 100 BTC = 200 USDT
   await typePayAmount(page, '100')
-  const receiveBeforeFlip = await page.getByTestId('banco-receive-amount').textContent()
+  const receiveBeforeFlip = await page.getByTestId('banco-receive-card-amount').textContent()
 
   await page.getByTestId('banco-flip').click()
 
-  // USDT → BTC: 100 USDT = 50 BTC (inverse rate)
+  // USDT -> BTC: 100 USDT = 50 BTC (inverse rate)
   await typePayAmount(page, '100')
-  await page.waitForTimeout(500) // let Ionic re-render
-  const receiveAfterFlip = await page.getByTestId('banco-receive-amount').textContent()
+  await page.waitForTimeout(500)
+  const receiveAfterFlip = await page.getByTestId('banco-receive-card-amount').textContent()
 
   expect(receiveBeforeFlip).not.toBe(receiveAfterFlip)
 })
@@ -150,42 +159,40 @@ test('should recalculate with inverse rate after flip', async ({ page }) => {
 // ── Validation ──
 
 test('should validate insufficient balance', async ({ page }) => {
-  await mockPriceFeed(page, 1)
+  await mockCoinGeckoPrice(page, 0.5)
   await createWallet(page)
   await navigateToBanco(page)
 
   await typePayAmount(page, '5000')
-  await expect(page.getByText('Insufficient balance')).toBeVisible()
+  await expect(page.getByText('Insufficient BTC balance')).toBeVisible()
 })
 
-test('should not show insufficient balance for non-BTC pay asset', async ({ page }) => {
-  await mockPriceFeed(page, 1)
+test('should not show insufficient balance when flipped (quote on pay side)', async ({ page }) => {
+  await mockCoinGeckoPrice(page, 0.5)
   await createWallet(page)
   await navigateToBanco(page)
 
-  // Flip so USDT is the pay asset (not BTC)
   await page.getByTestId('banco-flip').click()
 
-  // Enter large amount — should NOT show insufficient balance since it's not BTC
   await typePayAmount(page, '999999')
-  await expect(page.getByText('Insufficient balance')).not.toBeVisible()
+  await expect(page.getByText(/Insufficient/)).not.toBeVisible()
 })
 
-test('should keep swap button disabled when amount is zero', async ({ page }) => {
-  await mockPriceFeed(page)
+test('should keep swap button disabled for well-known currencies', async ({ page }) => {
+  await mockCoinGeckoPrice(page)
   await createWallet(page)
   await navigateToBanco(page)
 
-  await expect(page.getByText('Enter an amount')).toBeVisible()
-  // Button component uses IonButton which renders ion-button
-  const swapButton = page.locator('ion-button', { hasText: 'Swap' })
+  // USDT is a well-known currency, not a wallet asset — swap should be disabled
+  await expect(page.getByText('Select a wallet asset to swap')).toBeVisible()
+  const swapButton = page.locator('ion-button', { hasText: 'Select a wallet asset to swap' })
   await expect(swapButton).toHaveAttribute('aria-disabled', 'true')
 })
 
 // ── Price feed errors ──
 
 test('should show error when price feed is unreachable', async ({ page }) => {
-  await page.route('**/api/price', (route) => route.abort('connectionrefused'))
+  await page.route('**/api.coingecko.com/**', (route) => route.abort('connectionrefused'))
   await createWallet(page)
   await navigateToBanco(page)
 
@@ -193,7 +200,7 @@ test('should show error when price feed is unreachable', async ({ page }) => {
 })
 
 test('should show error when price feed returns invalid data', async ({ page }) => {
-  await page.route('**/api/price', (route) => {
+  await page.route('**/api.coingecko.com/**', (route) => {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ invalid: true }) })
   })
   await createWallet(page)
@@ -202,44 +209,40 @@ test('should show error when price feed returns invalid data', async ({ page }) 
   await expect(page.getByText('Unable to fetch price')).toBeVisible()
 })
 
-test('should show error when price feed returns zero', async ({ page }) => {
-  await page.route('**/api/price', (route) => {
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ price: 0 }) })
-  })
-  await createWallet(page)
-  await navigateToBanco(page)
-
-  await expect(page.getByText('Unable to fetch price')).toBeVisible()
-})
-
-test('should show error when price feed returns negative', async ({ page }) => {
-  await page.route('**/api/price', (route) => {
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ price: -5 }) })
-  })
-  await createWallet(page)
-  await navigateToBanco(page)
-
-  await expect(page.getByText('Unable to fetch price')).toBeVisible()
-})
-
 test('should disable swap button when price feed fails', async ({ page }) => {
-  await page.route('**/api/price', (route) => route.abort('connectionrefused'))
+  await page.route('**/api.coingecko.com/**', (route) => route.abort('connectionrefused'))
   await createWallet(page)
   await navigateToBanco(page)
 
-  await expect(page.getByText('Unable to fetch price')).toBeVisible()
-  const swapButton = page.locator('ion-button', { hasText: 'Swap' })
+  const swapButton = page.locator('ion-button', { hasText: 'Unable to fetch price' })
   await expect(swapButton).toHaveAttribute('aria-disabled', 'true')
+})
+
+// ── Tab switching ──
+
+test('should switch quote currency when clicking tabs', async ({ page }) => {
+  await mockCoinGeckoPrice(page)
+  await createWallet(page)
+  await navigateToBanco(page)
+
+  // Default: USDT selected
+  await expect(page.getByTestId('banco-receive-card').getByText('USDT')).toBeVisible()
+
+  // Click USD tab
+  await page.getByText('USD', { exact: true }).click()
+  await expect(page.getByTestId('banco-receive-card').getByText('USD')).toBeVisible()
+
+  // Click EUR tab
+  await page.getByText('EUR', { exact: true }).click()
+  await expect(page.getByTestId('banco-receive-card').getByText('EUR')).toBeVisible()
 })
 
 // ── History list (empty state) ──
 
 test('should not show history list when no swaps exist', async ({ page }) => {
-  await mockPriceFeed(page)
+  await mockCoinGeckoPrice(page)
   await createWallet(page)
   await navigateToBanco(page)
 
   await expect(page.getByText('RECENT SWAPS')).not.toBeVisible()
 })
-
-// Full-stack swap tests are in bancoSwaps.test.ts (SDK-level integration tests).

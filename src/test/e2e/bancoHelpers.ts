@@ -6,12 +6,13 @@
  */
 import {
   ArkNote,
+  ArkAddress,
   InMemoryContractRepository,
   InMemoryWalletRepository,
   SingleKey,
   Wallet,
-  AssetManager,
 } from '@arkade-os/sdk'
+import { hex } from '@scure/base'
 import { exec } from 'child_process'
 import { EventSource } from 'eventsource'
 import { promisify } from 'util'
@@ -28,20 +29,20 @@ async function createNote(amount: number): Promise<string> {
   return stdout.trim()
 }
 
-async function waitForBalance(
-  getBalance: () => Promise<{ available: number }>,
+async function waitForSettledBalance(
+  getBalance: () => Promise<{ settled: number; available: number }>,
   minAmount = 100,
-  timeout = 10_000,
+  timeout = 30_000,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const timeoutId = setTimeout(() => {
       clearInterval(intervalId)
-      reject(new Error('Timed out waiting for balance'))
+      reject(new Error('Timed out waiting for settled balance'))
     }, timeout)
     const intervalId = setInterval(async () => {
       try {
         const balance = await getBalance()
-        if (balance.available >= minAmount) {
+        if (balance.settled >= minAmount) {
           clearTimeout(timeoutId)
           clearInterval(intervalId)
           resolve()
@@ -64,6 +65,7 @@ export async function createFundedWallet(amount = 100_000): Promise<Wallet> {
       walletRepository: new InMemoryWalletRepository(),
       contractRepository: new InMemoryContractRepository(),
     },
+    settlementConfig: false,
   })
 
   await wallet.settle({
@@ -71,14 +73,13 @@ export async function createFundedWallet(amount = 100_000): Promise<Wallet> {
     outputs: [{ address: await wallet.getAddress(), amount: BigInt(amount) }],
   })
 
-  await waitForBalance(() => wallet.getBalance())
+  await waitForSettledBalance(() => wallet.getBalance())
   return wallet
 }
 
 /** Issue an asset from a funded wallet. Returns the asset ID string. */
 export async function issueAsset(wallet: Wallet, supply: number): Promise<string> {
-  const am = new AssetManager(wallet)
-  const result = await am.issue({ amount: supply })
+  const result = await wallet.assetManager.issue({ amount: supply })
   return result.assetId
 }
 
@@ -153,4 +154,26 @@ export async function fundFulmineWithBtc(amount = 50_000): Promise<void> {
   const fulmineAddr = await getFulmineAddress()
   await helperWallet.send({ address: fulmineAddr, amount })
   await new Promise((r) => setTimeout(r, 3000))
+}
+
+/** Convert a swap pkScript to an ark address using the server's public key. */
+export async function swapPkScriptToAddress(swapPkScript: Uint8Array): Promise<string> {
+  const info = await fetch(`${ARK_URL}/v1/info`).then((r) => r.json())
+  const rawPubkey = hex.decode(info.signerPubkey || info.signer_pubkey)
+  const serverPubKey = rawPubkey.length === 33 ? rawPubkey.slice(1) : rawPubkey
+  const addrPrefix = info.addrPrefix || info.addr_prefix || 'tark'
+  const vtxoKey = swapPkScript.slice(2)
+  return new ArkAddress(serverPubKey, vtxoKey, addrPrefix).encode()
+}
+
+/** Wait until the wallet has at least one VTXO with the given asset ID. */
+export async function waitForAssetVtxo(wallet: Wallet, assetId: string, timeoutMs = 30_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const vtxos = await wallet.getVtxos()
+    const found = vtxos.some((v) => v.assets && v.assets.some((a) => a.assetId === assetId))
+    if (found) return
+    await new Promise((r) => setTimeout(r, 2000))
+  }
+  throw new Error(`Timed out waiting for asset ${assetId} VTXO`)
 }

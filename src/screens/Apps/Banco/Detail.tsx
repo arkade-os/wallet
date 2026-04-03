@@ -1,14 +1,13 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { hex } from '@scure/base'
-import { banco } from '@arkade-os/sdk'
+import { motion } from 'framer-motion'
+import { banco, RestIndexerProvider } from '@arkade-os/sdk'
+import { ArrowDown, Check, X, Loader2, Copy, ExternalLink, AlertTriangle } from 'lucide-react'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Content from '../../../components/Content'
-import FlexCol from '../../../components/FlexCol'
-import FlexRow from '../../../components/FlexRow'
 import Header from '../../../components/Header'
 import Padded from '../../../components/Padded'
-import Shadow from '../../../components/Shadow'
 import Text from '../../../components/Text'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { AspContext } from '../../../providers/asp'
@@ -18,29 +17,35 @@ import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 import { prettyDate } from '../../../lib/format'
 import type { BancoSwap } from '../../../lib/banco'
+import { SwapCard } from './SwapCard'
+import { getOffchainTxURL } from '../../../lib/explorers'
 
 const INTROSPECTOR_URL = import.meta.env.VITE_INTROSPECTOR_URL
 const POLL_INTERVAL = 5000
 
-function statusIcon(status: BancoSwap['status']): string {
-  if (status === 'fulfilled') return '✓'
-  if (status === 'cancelled') return '✕'
-  return '⏳'
-}
-
 function statusColor(status: BancoSwap['status']): string {
-  if (status === 'fulfilled') return 'green'
-  if (status === 'cancelled') return 'red'
-  return 'yellow'
+  if (status === 'fulfilled') return '#4ade80'
+  if (status === 'cancelled') return '#f87171'
+  if (status === 'recoverable') return '#fb923c'
+  return '#facc15'
 }
 
-function statusSubtitle(status: BancoSwap['status']): string {
-  if (status === 'fulfilled') return 'Swap completed successfully'
-  if (status === 'cancelled') return 'Swap cancelled'
-  return 'Waiting for taker to fulfill'
+function statusBg(status: BancoSwap['status']): string {
+  if (status === 'fulfilled') return 'rgba(74, 222, 128, 0.1)'
+  if (status === 'cancelled') return 'rgba(248, 113, 113, 0.1)'
+  if (status === 'recoverable') return 'rgba(251, 146, 60, 0.1)'
+  return 'rgba(250, 204, 21, 0.1)'
 }
 
-function truncate(s: string, start = 6, end = 4): string {
+function StatusIcon({ status }: { status: BancoSwap['status'] }) {
+  const color = statusColor(status)
+  if (status === 'fulfilled') return <Check size={24} color={color} strokeWidth={3} />
+  if (status === 'cancelled') return <X size={24} color={color} strokeWidth={3} />
+  if (status === 'recoverable') return <AlertTriangle size={24} color={color} strokeWidth={2} />
+  return <Loader2 size={24} color={color} strokeWidth={2} className='spin' />
+}
+
+function truncate(s: string, start = 12, end = 8): string {
   if (s.length <= start + end + 3) return s
   return s.slice(0, start) + '…' + s.slice(-end)
 }
@@ -51,11 +56,54 @@ function formatCountdown(secs: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+function CopyableRow({ label, value, href }: { label: string; value: string; href?: string }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
+  const handleLink = () => {
+    if (href) window.open(href, '_blank', 'noreferrer')
+  }
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '0.5rem 0',
+      }}
+    >
+      <span style={{ fontSize: 13, color: 'var(--dark50)' }}>{label}</span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--dark70)' }}>
+        {truncate(value)}
+        <span onClick={handleCopy} style={{ cursor: 'pointer', display: 'flex' }}>
+          {copied ? <Check size={12} color='var(--green)' /> : <Copy size={12} color='var(--dark30)' />}
+        </span>
+        {href ? (
+          <span onClick={handleLink} style={{ cursor: 'pointer', display: 'flex' }}>
+            <ExternalLink size={12} color='var(--dark30)' />
+          </span>
+        ) : null}
+      </span>
+    </div>
+  )
+}
+
 export default function AppBancoDetail() {
   const { navigate } = useContext(NavigationContext)
   const { aspInfo } = useContext(AspContext)
-  const { svcWallet } = useContext(WalletContext)
+  const { svcWallet, assetMetadataCache, wallet } = useContext(WalletContext)
   const { swaps, updateSwap, selectedSwapId } = useContext(BancoContext)
+
+  function displayAsset(assetId: string): string {
+    if (!assetId) return 'sats'
+    const cached = assetMetadataCache.get(assetId)
+    return cached?.metadata?.ticker || cached?.metadata?.name || truncate(assetId)
+  }
 
   const swap = swaps.find((s) => s.id === selectedSwapId)
   const [cancelling, setCancelling] = useState(false)
@@ -64,23 +112,28 @@ export default function AppBancoDetail() {
   const pollRef = useRef<ReturnType<typeof setInterval>>()
   const tickRef = useRef<ReturnType<typeof setInterval>>()
 
-  // Tick every second for countdown
   useEffect(() => {
     tickRef.current = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000)
     return () => clearInterval(tickRef.current)
   }, [])
 
-  // Poll for fulfillment
   useEffect(() => {
     if (!swap || swap.status !== 'pending' || !svcWallet || !aspInfo.url || !INTROSPECTOR_URL) return
 
     const serverUrl = aspInfo.url.startsWith('http') ? aspInfo.url : 'http://' + aspInfo.url
     const poll = async () => {
       try {
-        const maker = new banco.Maker(svcWallet, serverUrl, INTROSPECTOR_URL)
-        const offers = await maker.getOffers(hex.decode(swap.swapPkScript))
-        const stillPending = offers.some((o) => o.spendable)
-        if (!stillPending) {
+        // Use SDK indexer provider to get full VTXO status including swept state
+        const indexer = new RestIndexerProvider(serverUrl)
+        const { vtxos } = await indexer.getVtxos({ scripts: [swap.swapPkScript], spendableOnly: false })
+        if (vtxos.length === 0) return
+
+        const hasSwept = vtxos.some((v) => v.virtualStatus.state === 'swept')
+        const hasSpendable = vtxos.some((v) => v.virtualStatus.state !== 'spent' && v.virtualStatus.state !== 'swept')
+
+        if (hasSwept && !hasSpendable) {
+          updateSwap(swap.id, { status: 'recoverable' })
+        } else if (!hasSpendable) {
           updateSwap(swap.id, { status: 'fulfilled' })
         }
       } catch (err) {
@@ -126,161 +179,193 @@ export default function AppBancoDetail() {
     )
   }
 
-  const isPast = swap.status !== 'pending'
-  const payLabel = isPast ? 'You paid' : 'You pay'
-  const receiveLabel = isPast ? 'You received' : 'You receive'
+  const isPending = swap.status === 'pending'
+  const isRecoverable = swap.status === 'recoverable'
 
   return (
     <>
       <Header text='Swap Detail' back />
       <Content>
         <Padded>
-          <FlexCol gap='1rem'>
-            {/* Status hero */}
-            <FlexCol centered gap='0.25rem'>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+          >
+            {/* Status badge */}
+            <SwapCard>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem' }}>
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20, delay: 0.1 }}
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: '50%',
+                    background: statusBg(swap.status),
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <StatusIcon status={swap.status} />
+                </motion.div>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: statusColor(swap.status) }}>
+                    {swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--dark50)' }}>
+                    {isPending
+                      ? 'Waiting for taker to fulfill'
+                      : swap.status === 'fulfilled'
+                        ? 'Swap completed'
+                        : swap.status === 'recoverable'
+                          ? 'Funds can be recovered on-chain'
+                          : 'Swap cancelled'}
+                  </div>
+                </div>
+              </div>
+            </SwapCard>
+
+            {/* Swap amounts — reuse the layered card look */}
+            <SwapCard>
+              {/* Pay block */}
+              <div style={{ background: 'var(--dark10)', borderRadius: '0.75rem', padding: '0.75rem 1rem' }}>
+                <div style={{ fontSize: 13, color: 'var(--dark50)', marginBottom: 4 }}>
+                  {isPending ? 'You pay' : 'You paid'}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--black)' }}>
+                    {swap.payAmount.toLocaleString()}
+                  </span>
+                  <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--dark50)' }}>
+                    {displayAsset(swap.payAsset)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Arrow */}
               <div
                 style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: '50%',
                   display: 'flex',
-                  alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 24,
-                  background:
-                    swap.status === 'fulfilled'
-                      ? 'rgba(74, 222, 128, 0.15)'
-                      : swap.status === 'cancelled'
-                        ? 'rgba(248, 113, 113, 0.15)'
-                        : 'rgba(250, 204, 21, 0.15)',
+                  margin: '-14px 0',
+                  position: 'relative',
+                  zIndex: 2,
                 }}
               >
-                {statusIcon(swap.status)}
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: '50%',
+                    border: '4px solid var(--dark05)',
+                    background: 'var(--dark10)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <ArrowDown size={18} strokeWidth={2.5} color='var(--dark50)' />
+                </div>
               </div>
-              <Text big bold color={statusColor(swap.status)}>
-                {swap.status.charAt(0).toUpperCase() + swap.status.slice(1)}
-              </Text>
-              <Text smaller color='dark50'>
-                {statusSubtitle(swap.status)}
-              </Text>
-            </FlexCol>
 
-            {/* Summary card */}
-            <Shadow lighter>
-              <FlexCol padding='0.75rem' gap='0.5rem'>
-                <FlexRow between>
-                  <div style={{ flex: 1 }}>
-                    <FlexCol centered>
-                      <Text smaller color='dark50'>
-                        {payLabel}
-                      </Text>
-                      <Text big bold>
-                        {swap.payAmount}
-                      </Text>
-                      <Text smaller color='dark50'>
-                        {swap.payAsset || 'sats'}
-                      </Text>
-                    </FlexCol>
-                  </div>
-                  <div style={{ padding: '0 0.5rem' }}>
-                    <Text color='dark50'>→</Text>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <FlexCol centered>
-                      <Text smaller color='dark50'>
-                        {receiveLabel}
-                      </Text>
-                      <Text big bold color={swap.status === 'fulfilled' ? 'green' : undefined}>
-                        {swap.receiveAmount}
-                      </Text>
-                      <Text smaller color='dark50'>
-                        {swap.receiveAsset || 'sats'}
-                      </Text>
-                    </FlexCol>
-                  </div>
-                </FlexRow>
-                <div style={{ borderTop: '1px solid var(--dark10)' }} />
-                <FlexRow between>
-                  <Text smaller color='dark50'>
-                    Pair
-                  </Text>
-                  <Text smaller bold>
-                    {swap.pair}
-                  </Text>
-                </FlexRow>
-                <FlexRow between>
-                  <Text smaller color='dark50'>
-                    Created
-                  </Text>
-                  <Text smaller>{prettyDate(Math.floor(swap.createdAt / 1000))}</Text>
-                </FlexRow>
-                {swap.status === 'pending' && swap.cancelAt > 0 ? (
-                  <FlexRow between>
-                    <Text smaller color='dark50'>
-                      Cancel available
-                    </Text>
-                    <Text smaller color={canCancel ? 'green' : 'yellow'}>
+              {/* Receive block */}
+              <div style={{ background: 'var(--dark10)', borderRadius: '0.75rem', padding: '0.75rem 1rem' }}>
+                <div style={{ fontSize: 13, color: 'var(--dark50)', marginBottom: 4 }}>
+                  {isPending ? 'You receive' : 'You received'}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span
+                    style={{
+                      fontSize: 28,
+                      fontWeight: 700,
+                      color: swap.status === 'fulfilled' ? '#4ade80' : 'var(--black)',
+                    }}
+                  >
+                    {swap.receiveAmount.toLocaleString()}
+                  </span>
+                  <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--dark50)' }}>
+                    {displayAsset(swap.receiveAsset)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Info rows */}
+              <div style={{ padding: '0.25rem 1rem 0.75rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '0.375rem 0',
+                    borderBottom: '1px solid var(--dark10)',
+                  }}
+                >
+                  <span style={{ fontSize: 13, color: 'var(--dark50)' }}>Pair</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--black)' }}>{swap.pair}</span>
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '0.375rem 0',
+                    borderBottom: '1px solid var(--dark10)',
+                  }}
+                >
+                  <span style={{ fontSize: 13, color: 'var(--dark50)' }}>Created</span>
+                  <span style={{ fontSize: 13, color: 'var(--black)' }}>
+                    {prettyDate(Math.floor(swap.createdAt / 1000))}
+                  </span>
+                </div>
+                {isPending && swap.cancelAt > 0 ? (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.375rem 0' }}>
+                    <span style={{ fontSize: 13, color: 'var(--dark50)' }}>Cancel available</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: canCancel ? '#4ade80' : '#facc15' }}>
                       {canCancel ? 'Now' : `in ${formatCountdown(cancelCountdown)}`}
-                    </Text>
-                  </FlexRow>
+                    </span>
+                  </div>
                 ) : null}
-              </FlexCol>
-            </Shadow>
+              </div>
+            </SwapCard>
 
-            {/* Transaction info */}
-            <Shadow lighter>
-              <FlexCol padding='0.75rem' gap='0.25rem'>
-                <FlexRow between>
-                  <Text smaller color='dark50'>
-                    Funding tx
-                  </Text>
-                  <Text smaller copy={swap.fundingTxid}>
-                    {truncate(swap.fundingTxid)}
-                  </Text>
-                </FlexRow>
-                <FlexRow between>
-                  <Text smaller color='dark50'>
-                    Swap address
-                  </Text>
-                  <Text smaller copy={swap.swapAddress}>
-                    {truncate(swap.swapAddress, 8, 6)}
-                  </Text>
-                </FlexRow>
-              </FlexCol>
-            </Shadow>
+            {/* Transaction details */}
+            <SwapCard>
+              <div style={{ padding: '0.25rem 1rem' }}>
+                <CopyableRow
+                  label='Funding tx'
+                  value={swap.fundingTxid}
+                  href={getOffchainTxURL(swap.fundingTxid, wallet)}
+                />
+                <div style={{ borderBottom: '1px solid var(--dark10)' }} />
+                <CopyableRow label='Swap address' value={swap.swapAddress} />
+              </div>
+            </SwapCard>
 
             {cancelError ? (
-              <Shadow>
-                <FlexCol padding='0.5rem'>
-                  <Text smaller color='red'>
-                    {cancelError}
-                  </Text>
-                </FlexCol>
-              </Shadow>
+              <div style={{ background: 'rgba(248, 113, 113, 0.1)', borderRadius: '0.75rem', padding: '0.75rem 1rem' }}>
+                <Text smaller color='red'>
+                  {cancelError}
+                </Text>
+              </div>
             ) : null}
-          </FlexCol>
+          </motion.div>
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        {swap.status === 'pending' ? (
-          <Button
-            label={
-              canCancel
-                ? cancelling
-                  ? 'Cancelling...'
-                  : 'Cancel Swap'
-                : `Cancel Swap (${formatCountdown(cancelCountdown)})`
-            }
-            onClick={() => {
-              if (canCancel) handleCancel()
-            }}
-            disabled={!canCancel || cancelling}
-            secondary
-          />
+        {isPending ? (
+          canCancel ? (
+            <Button label='Cancel Swap' onClick={handleCancel} disabled={cancelling} loading={cancelling} red />
+          ) : (
+            <Button label={`Cancel Swap (${formatCountdown(cancelCountdown)})`} onClick={() => {}} disabled secondary />
+          )
         ) : (
           <Button label='Done' onClick={() => navigate(Pages.AppBanco)} />
         )}
       </ButtonsOnBottom>
+      <style>{`.spin { animation: spin 1.5s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </>
   )
 }
