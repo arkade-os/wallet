@@ -361,6 +361,7 @@ export default function ReceiveQRCode() {
   }
 
   const amountLabel = satoshis ? 'Edit amount' : 'Add amount'
+  const unitLabel = assetMeta?.metadata?.ticker ?? 'sats'
 
   return (
     <>
@@ -380,7 +381,7 @@ export default function ReceiveQRCode() {
                   <QrCode value={qrCodeValue} />
                   {satoshis > 0 ? (
                     <div style={{ fontSize: '14px', color: 'var(--dark50)', marginTop: '0.5rem' }}>
-                      Requesting {prettyNumber(satoshis)} sats
+                      Requesting {prettyNumber(satoshis)} {unitLabel}
                     </div>
                   ) : null}
                   {(!satoshis || satoshis < minSwapAllowed()) && !isAssetReceive ? (
