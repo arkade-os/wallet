@@ -39,6 +39,7 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import Focusable from '../../../components/Focusable'
 import { useLnurlSession } from '../../../hooks/useLnurlSession'
+import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 
 export default function ReceiveQRCode() {
   const { useFiat } = useContext(ConfigContext)
@@ -387,29 +388,25 @@ export default function ReceiveQRCode() {
                       {minSwapAllowed()} sats min for Lightning
                     </div>
                   ) : null}
-                </div>
-              </div>
-
-              <div style={{ paddingBottom: '1.5rem' }}>
-                <FlexCol strech>
                   {swapsTimedOut && !invoice && !isAssetReceive ? (
                     <WarningBox text='Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.' />
                   ) : null}
-                  <FlexRow centered gap='0.5rem'>
-                    <div style={{ flex: 1 }}>
-                      <Button label={amountLabel} onClick={() => setShowAmountSheet(true)} secondary />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <Button label='Copy' onClick={() => setShowCopySheet(true)} secondary />
-                    </div>
-                  </FlexRow>
-                  <Button label='Share' onClick={handleShare} disabled={shareDisabled} />
-                </FlexCol>
+                </div>
               </div>
             </div>
           )}
         </Padded>
       </Content>
+
+      <ButtonsOnBottom>
+        <FlexCol gap='0'>
+          <FlexRow gap='0.5rem'>
+            <Button label={amountLabel} onClick={() => setShowAmountSheet(true)} secondary />
+            <Button label='Copy' onClick={() => setShowCopySheet(true)} secondary />
+          </FlexRow>
+          <Button label='Share' onClick={handleShare} disabled={shareDisabled} />
+        </FlexCol>
+      </ButtonsOnBottom>
 
       {/* Amount bottom sheet */}
       <SheetModal isOpen={showAmountSheet} onClose={() => setShowAmountSheet(false)}>
