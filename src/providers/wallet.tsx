@@ -152,26 +152,39 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   // wallet is read synchronously in useState initializer above
 
+  const devNsec = import.meta.env.VITE_DEV_NSEC as string | undefined
+  const isDevAutoInit = import.meta.env.DEV && Boolean(devNsec)
+  const [devAutoInitFailed, setDevAutoInitFailed] = useState(false)
+
   // dev-only: auto-initialize wallet from VITE_DEV_NSEC, bypassing onboarding and unlock
   useEffect(() => {
-    if (!import.meta.env.DEV || !import.meta.env.VITE_DEV_NSEC) return
+    if (!isDevAutoInit || !devNsec || devAutoInitFailed) return
     if (initialized) return
     if (!aspInfo.url) return
 
     const autoInit = async () => {
       try {
-        const privateKey = nsecToPrivateKey(import.meta.env.VITE_DEV_NSEC)
+        const privateKey = nsecToPrivateKey(devNsec)
         await initWallet(privateKey)
+        setAuthState('authenticated')
       } catch (err) {
         consoleError(err, 'Dev auto-init failed')
+        setDevAutoInitFailed(true)
       }
     }
 
     autoInit()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspInfo.url, initialized])
+  }, [aspInfo.url, initialized, devAutoInitFailed])
 
   useEffect(() => {
+    // skip auth check when dev auto-init will handle it
+    if (isDevAutoInit && !devAutoInitFailed) {
+      if (!initialized) return
+      setAuthState('authenticated')
+      return
+    }
+
     if (!wallet.pubkey) {
       setAuthState('authenticated')
       return
@@ -190,7 +203,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       cancelled = true
     }
-  }, [wallet.pubkey])
+  }, [wallet.pubkey, initialized, devAutoInitFailed])
 
   // reload wallet as soon as we have a service worker wallet available
   useEffect(() => {
