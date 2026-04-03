@@ -40,10 +40,11 @@ import { FiatContext } from '../../../providers/fiat'
 import Focusable from '../../../components/Focusable'
 import { useLnurlSession } from '../../../hooks/useLnurlSession'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
+import { AssetOption } from '../../../lib/types'
 
 export default function ReceiveQRCode() {
   const { useFiat } = useContext(ConfigContext)
-  const { toFiat } = useContext(FiatContext)
+  const { toFiat, fiatDecimals } = useContext(FiatContext)
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
@@ -162,6 +163,16 @@ export default function ReceiveQRCode() {
     })
   }
 
+  const createBip21 = (sats = satoshis): { ark: string; btc: string; bip21: string } => {
+    const ark = validVtxoTx(sats) && vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
+    const btc = validUtxoTx(sats) && utxoTxsAllowed() ? swapAddress || recvInfo.boardingAddr : ''
+    const bip21 = isAssetReceive
+      ? encodeBip21Asset(ark, assetId, centsToUnits(sats, assetMeta?.metadata?.decimals))
+      : encodeBip21(btc, ark, invoice, sats, lnurlSession.lnurl)
+
+    return { ark, btc, bip21 }
+  }
+
   useEffect(() => {
     if (isAssetReceive) return setShowQrCode(true)
     if (!satoshis || !svcWallet) return
@@ -224,22 +235,14 @@ export default function ReceiveQRCode() {
   useEffect(() => {
     if (!addressesLoaded && !showQrCode) return
 
-    const recvOffchain = recvInfo.offchainAddr
-    const recvBoarding = recvInfo.boardingAddr
-
-    const ark = validVtxoTx(satoshis) && vtxoTxsAllowed() ? recvOffchain : ''
-    const btc = validUtxoTx(satoshis) && utxoTxsAllowed() ? swapAddress || recvBoarding : ''
-
-    const bip21uri = isAssetReceive
-      ? encodeBip21Asset(ark, assetId, centsToUnits(satoshis, assetMeta?.metadata?.decimals))
-      : encodeBip21(btc, ark, invoice, satoshis, lnurlSession.lnurl)
-
+    const { ark, btc, bip21 } = createBip21()
     const hasLnurl = isAmountlessLnurl && lnurlSession.active
+
     setNoPaymentMethods(!ark && !btc && !invoice && !hasLnurl && !isAssetReceive)
     setArkAddress(ark)
     setBtcAddress(btc)
-    setQrCodeValue(bip21uri)
-    setBip21Uri(bip21uri)
+    setBip21Uri(bip21)
+    setQrCodeValue(bip21)
   }, [
     showQrCode,
     swapAddress,
@@ -303,6 +306,13 @@ export default function ReceiveQRCode() {
     return () => navigator.serviceWorker.removeEventListener('message', listenForPayments)
   }, [svcWallet])
 
+  // update bip21 when amount changes
+  useEffect(() => {
+    const { bip21 } = createBip21(amountInput)
+    setQrCodeValue(bip21)
+    setBip21Uri(bip21)
+  }, [amountInput])
+
   // Handlers
   const handleShare = () => {
     setSharing(true)
@@ -320,15 +330,19 @@ export default function ReceiveQRCode() {
 
   const handleAmountChange = (sats: number) => {
     setAmountInput(sats)
-    const value = useFiat ? toFiat(sats) : sats
-    const maxFrac = useFiat ? 2 : 0
-    setAmountTextValue(prettyNumber(value, maxFrac, false))
+    const value = assetMeta ? centsToUnits(sats, assetMeta.metadata?.decimals) : useFiat ? toFiat(sats) : sats
+    const maximumFractionDigits = useFiat
+      ? fiatDecimals()
+      : assetMeta?.metadata?.decimals
+        ? assetMeta?.metadata?.decimals
+        : 0
+    setAmountTextValue(prettyNumber(value, maximumFractionDigits, false))
   }
 
-  const handleAmountConfirm = () => {
+  const handleAmountConfirm = (satoshis = amountInput) => {
     setShowKeys(false)
     setShowAmountSheet(false)
-    setRecvInfo({ ...recvInfo, satoshis: amountInput })
+    setRecvInfo({ ...recvInfo, satoshis })
   }
 
   const handleAmountClear = () => {
@@ -339,6 +353,15 @@ export default function ReceiveQRCode() {
     setRecvInfo({ ...recvInfo, satoshis: 0 })
   }
 
+  const assetOption: AssetOption = {
+    assetId: assetId ?? '',
+    name: assetMeta?.metadata?.name ?? '',
+    ticker: assetMeta?.metadata?.ticker ?? '',
+    balance: 0,
+    decimals: assetMeta?.metadata?.decimals ?? 0,
+    icon: assetMeta?.metadata?.icon,
+  }
+
   const data = { title: 'Receive', text: qrCodeValue }
   const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods
 
@@ -346,21 +369,22 @@ export default function ReceiveQRCode() {
   if (showKeys) {
     return (
       <Keyboard
+        asset={assetOption}
         back={() => {
           setShowKeys(false)
           setShowAmountSheet(false)
         }}
         hideBalance
         onSats={(sats) => {
-          setAmountInput(sats)
-          setRecvInfo({ ...recvInfo, satoshis: sats })
+          handleAmountChange(sats)
+          handleAmountConfirm(sats)
         }}
         value={amountInput}
       />
     )
   }
 
-  const amountLabel = satoshis ? 'Edit amount' : 'Add amount'
+  const amountLabel = amountInput ? 'Edit amount' : 'Add amount'
   const unitLabel = assetMeta?.metadata?.ticker ?? 'sats'
 
   return (
@@ -416,13 +440,12 @@ export default function ReceiveQRCode() {
             Set amount
           </Text>
           <InputAmount
+            asset={assetOption}
             name='receive-amount-sheet'
             focus={!isMobileBrowser}
             label='Amount'
             onSats={handleAmountChange}
-            onFocus={() => {
-              if (isMobileBrowser) setShowKeys(true)
-            }}
+            onFocus={() => setShowKeys(isMobileBrowser)}
             readOnly={isMobileBrowser}
             value={amountTextValue ? Number(amountTextValue) : undefined}
             sats={amountInput}
