@@ -48,7 +48,7 @@ export default function ReceiveQRCode() {
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { arkadeSwaps, swapsInitError, connected, createBtcToArkSwap, createReverseSwap } = useContext(SwapsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
-  const { validBtcToArk, validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } =
+  const { minSwapAllowed, validBtcToArk, validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } =
     useContext(LimitsContext)
 
   const { toast } = useToast()
@@ -382,9 +382,9 @@ export default function ReceiveQRCode() {
                       Requesting {prettyNumber(satoshis)} sats
                     </div>
                   ) : null}
-                  {(!satoshis || satoshis < 500) && !isAssetReceive ? (
+                  {(!satoshis || satoshis < minSwapAllowed()) && !isAssetReceive ? (
                     <div style={{ fontSize: '13px', color: 'var(--dark50)', marginTop: '0.25rem' }}>
-                      500 sats min for Lightning
+                      {minSwapAllowed()} sats min for Lightning
                     </div>
                   ) : null}
                 </div>
