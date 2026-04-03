@@ -2,7 +2,14 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import { hex } from '@scure/base'
 import { banco, ArkAddress, asset } from '@arkade-os/sdk'
+import Button from '../../../components/Button'
+import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
+import Content from '../../../components/Content'
+import FlexCol from '../../../components/FlexCol'
+import Header from '../../../components/Header'
 import LoadingLogo from '../../../components/LoadingLogo'
+import Padded from '../../../components/Padded'
+import Text from '../../../components/Text'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext } from '../../../providers/flow'
 import { AspContext } from '../../../providers/asp'
@@ -125,7 +132,26 @@ export default function AppBancoSwap() {
   }
 
   if (phase === 'error') {
-    return <LoadingLogo text={error || 'Swap failed'} />
+    return (
+      <>
+        <Header text='Swap Failed' back={() => navigate(Pages.AppBanco)} />
+        <Content>
+          <Padded>
+            <FlexCol centered gap='1rem' padding='2rem 0'>
+              <Text big bold color='red'>
+                Swap failed
+              </Text>
+              <Text small color='dark50' centered>
+                {error}
+              </Text>
+            </FlexCol>
+          </Padded>
+        </Content>
+        <ButtonsOnBottom>
+          <Button label='Back' onClick={() => navigate(Pages.AppBanco)} />
+        </ButtonsOnBottom>
+      </>
+    )
   }
 
   return <LoadingLogo text={phaseText[phase]} />

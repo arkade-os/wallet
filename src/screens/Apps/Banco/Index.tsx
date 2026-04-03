@@ -258,7 +258,10 @@ export default function AppBanco() {
   }
 
   const pay = Number(payAmount) || 0
-  const payAssetBalance = flipped ? (assetBalances.find((ab) => ab.assetId === quoteAssetId)?.amount ?? 0) : balance
+  // For BTC: balance is in sats, input is in BTC (8 decimals) — convert sats to BTC for comparison
+  // For assets: balance is in smallest units — convert to human-readable
+  const payBalanceRaw = flipped ? (assetBalances.find((ab) => ab.assetId === quoteAssetId)?.amount ?? 0) : balance
+  const payAssetBalance = payBalanceRaw / 10 ** payDecimals
 
   type ButtonState = 'loading' | 'error' | 'no-pairs' | 'enter-amount' | 'insufficient' | 'ready'
   const buttonState: ButtonState =
@@ -297,7 +300,7 @@ export default function AppBanco() {
 
   return (
     <>
-      <Header text='Banco' back />
+      <Header text='Banco' back={() => navigate(Pages.Apps)} />
       <Content>
         <Padded>
           <motion.div
@@ -328,7 +331,7 @@ export default function AppBanco() {
                 onAmountChange={handlePayChange}
                 tokenLabel={payLabel}
                 tokenIcon={payIcon}
-                balance={flipped ? payAssetBalance : balance}
+                balance={flipped ? payBalanceRaw : balance}
                 balanceUnit={flipped ? undefined : 'sats'}
                 testId='banco-pay-card'
               />

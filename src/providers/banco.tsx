@@ -1,5 +1,11 @@
 import { createContext, useState, useCallback, type ReactNode } from 'react'
-import { getSwaps, addSwap as addSwapToStore, updateSwap as updateSwapInStore, type BancoSwap } from '../lib/banco'
+import {
+  getSwaps,
+  addSwap as addSwapToStore,
+  updateSwap as updateSwapInStore,
+  deduplicateSwaps,
+  type BancoSwap,
+} from '../lib/banco'
 
 interface BancoContextProps {
   swaps: BancoSwap[]
@@ -20,7 +26,10 @@ export const BancoContext = createContext<BancoContextProps>({
 })
 
 export const BancoProvider = ({ children }: { children: ReactNode }) => {
-  const [swaps, setSwaps] = useState<BancoSwap[]>(getSwaps)
+  const [swaps, setSwaps] = useState<BancoSwap[]>(() => {
+    deduplicateSwaps()
+    return getSwaps()
+  })
   const [selectedSwapId, setSelectedSwapId] = useState<string | null>(null)
 
   const reload = useCallback(() => setSwaps(getSwaps()), [])

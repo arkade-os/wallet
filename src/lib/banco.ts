@@ -29,8 +29,22 @@ export function getSwaps(): BancoSwap[] {
 
 export function addSwap(swap: BancoSwap): void {
   const swaps = getSwaps()
+  if (swaps.some((s) => s.id === swap.id)) return // dedup
   swaps.unshift(swap)
   localStorage.setItem(STORAGE_KEY, JSON.stringify(swaps))
+}
+
+export function deduplicateSwaps(): void {
+  const swaps = getSwaps()
+  const seen = new Set<string>()
+  const deduped = swaps.filter((s) => {
+    if (seen.has(s.id)) return false
+    seen.add(s.id)
+    return true
+  })
+  if (deduped.length !== swaps.length) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(deduped))
+  }
 }
 
 export function updateSwap(id: string, updates: Partial<BancoSwap>): void {

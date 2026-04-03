@@ -168,7 +168,7 @@ export default function AppBancoDetail() {
   if (!swap) {
     return (
       <>
-        <Header text='Swap Detail' back />
+        <Header text='Swap Detail' back={() => navigate(Pages.AppBanco)} />
         <Content>
           <Padded>
             <Text>Swap not found</Text>
@@ -182,7 +182,7 @@ export default function AppBancoDetail() {
 
   return (
     <>
-      <Header text='Swap Detail' back />
+      <Header text='Swap Detail' back={() => navigate(Pages.AppBanco)} />
       <Content>
         <Padded>
           <motion.div

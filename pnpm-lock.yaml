@@ -13,7 +13,7 @@ importers:
         version: 0.3.13
       '@arkade-os/sdk':
         specifier: github:arkade-os/ts-sdk#arkade-script-final
-        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/0e8a1d066b2d6bda44b99f1b666b27b79c2a0b9f
+        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/6552e366d8d8deca01823a2875dcf67ec7ab27f3(@bitcoinerlab/miniscript@1.4.3)
       '@branta-ops/branta':
         specifier: 0.0.9
         version: 0.0.9
@@ -208,9 +208,9 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/0e8a1d066b2d6bda44b99f1b666b27b79c2a0b9f':
-    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/0e8a1d066b2d6bda44b99f1b666b27b79c2a0b9f}
-    version: 0.4.0-next.6
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/6552e366d8d8deca01823a2875dcf67ec7ab27f3':
+    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/6552e366d8d8deca01823a2875dcf67ec7ab27f3}
+    version: 0.4.10
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -635,8 +635,13 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@kukks/bitcoin-descriptors@3.1.0':
-    resolution: {integrity: sha512-7HOCZjufw3DIIDebx7/ZOeol6khkWoccM6vzee6t5bXOJoj/6ISdssEDhjxDgy88in/I39pKz+kzFukxK5eqVw==}
+  '@kukks/bitcoin-descriptors@3.2.3':
+    resolution: {integrity: sha512-oa37RYwnbd6WIRgZTr44ifUYrrQCESvM/K4ITXPU54HywDlin4y57fJzj1h+g3koBdz/dUP4DpE8qhzVGefLeQ==}
+    peerDependencies:
+      '@bitcoinerlab/miniscript': ^1.4.3
+    peerDependenciesMeta:
+      '@bitcoinerlab/miniscript':
+        optional: true
 
   '@lendasat/lendasat-wallet-bridge@0.0.90':
     resolution: {integrity: sha512-VfgM5vUx81vVWlggtOReUkaC8VVOFVavIMixQM0G/ZI0L/nMi10fmkIBvXOVI4Jmsu9A5z6wHSUrERxD3a/Juw==}
@@ -2793,9 +2798,9 @@ snapshots:
       - bitcoinjs-lib
       - ecpair
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/0e8a1d066b2d6bda44b99f1b666b27b79c2a0b9f':
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/6552e366d8d8deca01823a2875dcf67ec7ab27f3(@bitcoinerlab/miniscript@1.4.3)':
     dependencies:
-      '@kukks/bitcoin-descriptors': 3.1.0
+      '@kukks/bitcoin-descriptors': 3.2.3(@bitcoinerlab/miniscript@1.4.3)
       '@marcbachmann/cel-js': 7.3.1
       '@noble/curves': 2.0.0
       '@noble/secp256k1': 3.0.0
@@ -2804,6 +2809,8 @@ snapshots:
       '@scure/bip39': 2.0.1
       '@scure/btc-signer': 2.0.1
       bip68: 1.0.4
+    transitivePeerDependencies:
+      - '@bitcoinerlab/miniscript'
 
   '@asamuzakjp/css-color@3.2.0':
     dependencies:
@@ -2964,6 +2971,7 @@ snapshots:
   '@bitcoinerlab/miniscript@1.4.3':
     dependencies:
       bip68: 1.0.4
+    optional: true
 
   '@bitcoinerlab/miniscript@2.0.0':
     dependencies:
@@ -3149,14 +3157,15 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@kukks/bitcoin-descriptors@3.1.0':
+  '@kukks/bitcoin-descriptors@3.2.3(@bitcoinerlab/miniscript@1.4.3)':
     dependencies:
-      '@bitcoinerlab/miniscript': 1.4.3
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
       '@scure/bip32': 2.0.1
       '@scure/btc-signer': 2.0.1
+    optionalDependencies:
+      '@bitcoinerlab/miniscript': 1.4.3
 
   '@lendasat/lendasat-wallet-bridge@0.0.90': {}
 
