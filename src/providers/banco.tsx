@@ -75,10 +75,8 @@ export const BancoProvider = ({ children }: { children: ReactNode }) => {
           if (vtxos.length === 0) continue
 
           const hasSwept = vtxos.some((v) => v.virtualStatus.state === 'swept')
-          const hasSpent = vtxos.some((v) => v.virtualStatus.state === 'spent')
-          const hasSpendable = vtxos.some(
-            (v) => v.virtualStatus.state !== 'spent' && v.virtualStatus.state !== 'swept',
-          )
+          const hasSpent = vtxos.some((v) => v.isSpent)
+          const hasSpendable = vtxos.some((v) => !v.isSpent && v.virtualStatus.state !== 'swept')
 
           if (hasSwept && !hasSpendable) {
             updateSwapInStore(swap.id, { status: 'recoverable' })
