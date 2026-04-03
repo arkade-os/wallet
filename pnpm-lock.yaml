@@ -13,7 +13,7 @@ importers:
         version: 0.3.13
       '@arkade-os/sdk':
         specifier: github:arkade-os/ts-sdk#arkade-script-final
-        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/6552e366d8d8deca01823a2875dcf67ec7ab27f3(@bitcoinerlab/miniscript@1.4.3)
+        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/87c969a11a8724f5112b75f8b1a80f681edb40e7(@bitcoinerlab/miniscript@1.4.3)
       '@branta-ops/branta':
         specifier: 0.0.9
         version: 0.0.9
@@ -208,8 +208,8 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/6552e366d8d8deca01823a2875dcf67ec7ab27f3':
-    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/6552e366d8d8deca01823a2875dcf67ec7ab27f3}
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/87c969a11a8724f5112b75f8b1a80f681edb40e7':
+    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/87c969a11a8724f5112b75f8b1a80f681edb40e7}
     version: 0.4.10
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
     peerDependencies:
@@ -2798,7 +2798,7 @@ snapshots:
       - bitcoinjs-lib
       - ecpair
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/6552e366d8d8deca01823a2875dcf67ec7ab27f3(@bitcoinerlab/miniscript@1.4.3)':
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/87c969a11a8724f5112b75f8b1a80f681edb40e7(@bitcoinerlab/miniscript@1.4.3)':
     dependencies:
       '@kukks/bitcoin-descriptors': 3.2.3(@bitcoinerlab/miniscript@1.4.3)
       '@marcbachmann/cel-js': 7.3.1

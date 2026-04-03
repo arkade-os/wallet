@@ -126,9 +126,12 @@ export default function AppBancoSwap() {
     execute()
   }, [])
 
+  useEffect(() => {
+    if (phase === 'done') navigate(Pages.AppBancoDetail)
+  }, [phase])
+
   if (phase === 'done') {
-    navigate(Pages.AppBancoDetail)
-    return null
+    return <LoadingLogo text='Swap created!' />
   }
 
   if (phase === 'error') {
