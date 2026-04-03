@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { banco, RestIndexerProvider } from '@arkade-os/sdk'
+import { banco } from '@arkade-os/sdk'
 import { ArrowDown, Check, X, Loader2, Copy, ExternalLink, AlertTriangle } from 'lucide-react'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
@@ -20,7 +20,7 @@ import { SwapCard } from './SwapCard'
 import { getOffchainTxURL } from '../../../lib/explorers'
 
 const INTROSPECTOR_URL = import.meta.env.VITE_INTROSPECTOR_URL
-const POLL_INTERVAL = 5000
+// Polling is now handled globally by BancoProvider
 
 function statusColor(status: BancoSwap['status']): string {
   if (status === 'fulfilled') return '#4ade80'
@@ -108,42 +108,15 @@ export default function AppBancoDetail() {
   const [cancelling, setCancelling] = useState(false)
   const [cancelError, setCancelError] = useState('')
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000))
-  const pollRef = useRef<ReturnType<typeof setInterval>>()
   const tickRef = useRef<ReturnType<typeof setInterval>>()
 
+  // Tick every second for countdown
   useEffect(() => {
     tickRef.current = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000)
     return () => clearInterval(tickRef.current)
   }, [])
 
-  useEffect(() => {
-    if (!swap || swap.status !== 'pending' || !svcWallet || !aspInfo.url || !INTROSPECTOR_URL) return
-
-    const serverUrl = aspInfo.url.startsWith('http') ? aspInfo.url : 'http://' + aspInfo.url
-    const poll = async () => {
-      try {
-        // Use SDK indexer provider to get full VTXO status including swept state
-        const indexer = new RestIndexerProvider(serverUrl)
-        const { vtxos } = await indexer.getVtxos({ scripts: [swap.swapPkScript], spendableOnly: false })
-        if (vtxos.length === 0) return
-
-        const hasSwept = vtxos.some((v) => v.virtualStatus.state === 'swept')
-        const hasSpendable = vtxos.some((v) => v.virtualStatus.state !== 'spent' && v.virtualStatus.state !== 'swept')
-
-        if (hasSwept && !hasSpendable) {
-          updateSwap(swap.id, { status: 'recoverable' })
-        } else if (!hasSpendable) {
-          updateSwap(swap.id, { status: 'fulfilled' })
-        }
-      } catch (err) {
-        consoleError(err, 'error polling banco offer status')
-      }
-    }
-
-    poll()
-    pollRef.current = setInterval(poll, POLL_INTERVAL)
-    return () => clearInterval(pollRef.current)
-  }, [swap?.id, swap?.status])
+  // Polling is handled globally by BancoProvider
 
   const canCancel = swap && swap.status === 'pending' && swap.cancelAt > 0 && now >= swap.cancelAt
   const cancelCountdown = swap && swap.cancelAt > 0 ? Math.max(0, swap.cancelAt - now) : 0
