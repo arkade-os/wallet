@@ -1,5 +1,7 @@
 import { IonModal } from '@ionic/react'
-import CloseIcon from '../icons/Close'
+import { useContext } from 'react'
+import { NavigationContext, Tabs } from '../providers/navigation'
+import { hapticLight } from '../lib/haptics'
 
 interface SheetModalProps {
   children?: React.ReactNode
@@ -8,44 +10,53 @@ interface SheetModalProps {
 }
 
 export default function SheetModal({ children, isOpen, onClose }: SheetModalProps) {
-  const outerStyle: React.CSSProperties = {
-    maxWidth: '640px',
-    margin: '0 auto',
-    width: '100%',
-  }
+  const { tab } = useContext(NavigationContext)
+  const hasNavbar = [Tabs.Wallet, Tabs.Apps].includes(tab)
 
-  const innerStyle: React.CSSProperties = {
-    backgroundColor: 'var(--ion-background-color)',
-    borderTop: '1px solid var(--dark50)',
-    borderRadius: '1rem',
-    height: '100%',
-    padding: '1rem',
-    paddingBottom: '2rem',
-    width: '100%',
-    position: 'relative',
-  }
-
-  const closeButtonStyle: React.CSSProperties = {
-    background: 'none',
-    border: 'none',
-    color: 'var(--ion-text-color)',
-    cursor: 'pointer',
-    padding: 0,
-    position: 'absolute',
-    right: '1rem',
-    top: '1rem',
+  const handleClose = () => {
+    hapticLight()
+    onClose()
   }
 
   return (
-    <IonModal initialBreakpoint={1} isOpen={isOpen} onDidDismiss={onClose}>
+    <IonModal initialBreakpoint={1} backdropBreakpoint={0} isOpen={isOpen} onDidDismiss={handleClose}>
       <div style={outerStyle}>
-        <div style={innerStyle}>
-          <button type='button' style={closeButtonStyle} onClick={onClose} aria-label='Close'>
-            <CloseIcon />
-          </button>
+        <div
+          style={{
+            ...innerStyle,
+            paddingBottom: hasNavbar ? 'var(--pill-navbar-spacer)' : '2rem',
+          }}
+        >
+          <div style={handleAreaStyle} onClick={handleClose}>
+            <div style={handleStyle} />
+          </div>
           {children}
         </div>
       </div>
     </IonModal>
   )
+}
+
+const outerStyle: React.CSSProperties = {
+  maxWidth: '640px',
+  margin: '0 auto',
+  width: '100%',
+}
+
+const innerStyle: React.CSSProperties = {
+  padding: '0 1.25rem',
+  width: '100%',
+}
+
+const handleAreaStyle: React.CSSProperties = {
+  padding: '12px 0 20px',
+  cursor: 'grab',
+}
+
+const handleStyle: React.CSSProperties = {
+  backgroundColor: 'var(--dark20)',
+  borderRadius: '100px',
+  height: '5px',
+  margin: '0 auto',
+  width: '40px',
 }
