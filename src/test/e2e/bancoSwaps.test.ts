@@ -12,7 +12,6 @@
  */
 import { test, expect } from '@playwright/test'
 import { banco, asset } from '@arkade-os/sdk'
-import { hex } from '@scure/base'
 import {
   createFundedWallet,
   issueAsset,
@@ -21,7 +20,6 @@ import {
   addBancoPair,
   removeBancoPair,
   swapPkScriptToAddress,
-  waitForAssetVtxo,
 } from './bancoHelpers'
 
 const ARK_URL = 'http://localhost:7070'
@@ -280,7 +278,7 @@ test.describe('Banco taker-fulfilled swaps', () => {
       const maker = new banco.Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
 
       // 4. Create offer: deposit asset, want BTC
-      const { offer, packet, swapPkScript } = await maker.createOffer({
+      const { packet, swapPkScript } = await maker.createOffer({
         wantAmount: 5000n,
         offerAsset: asset.AssetId.fromString(assetId),
         cancelDelay: 300,
@@ -325,7 +323,7 @@ test.describe('Banco taker-fulfilled swaps', () => {
       const maker = new banco.Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
 
       // 4. Create offer: deposit assetA, want 500 of assetB
-      const { offer, packet, swapPkScript } = await maker.createOffer({
+      const { packet, swapPkScript } = await maker.createOffer({
         wantAmount: 500n,
         wantAsset: asset.AssetId.fromString(assetB),
         offerAsset: asset.AssetId.fromString(assetA),

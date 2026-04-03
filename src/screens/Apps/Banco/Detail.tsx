@@ -1,5 +1,4 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { hex } from '@scure/base'
 import { motion } from 'framer-motion'
 import { banco, RestIndexerProvider } from '@arkade-os/sdk'
 import { ArrowDown, Check, X, Loader2, Copy, ExternalLink, AlertTriangle } from 'lucide-react'
@@ -180,7 +179,6 @@ export default function AppBancoDetail() {
   }
 
   const isPending = swap.status === 'pending'
-  const isRecoverable = swap.status === 'recoverable'
 
   return (
     <>
