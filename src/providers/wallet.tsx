@@ -34,6 +34,7 @@ import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
+import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
@@ -43,7 +44,8 @@ import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { Indexer } from '../lib/indexer'
 import { IndexedDbSwapRepository, migrateToSwapRepository, Network } from '@arkade-os/boltz-swap'
 
-const SERVICE_WORKER_SETUP_TIMEOUT_MS = 5_000
+const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
+const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
 
 const defaultWallet: Wallet = {
   network: '',
@@ -74,6 +76,8 @@ interface WalletContextProps {
   setCacheEntry: (assetId: string, details: AssetDetails) => CachedAssetDetails
   iconApprovalManager: AssetIconApprovalManager
   dataReady: boolean
+  loadError: string | null
+  dismissLoadError: () => void
   authState: WalletAuthState
   initialized?: boolean
 }
@@ -98,6 +102,8 @@ export const WalletContext = createContext<WalletContextProps>({
   setCacheEntry: () => ({ cachedAt: 0 }) as CachedAssetDetails,
   iconApprovalManager: new AssetIconApprovalManager(),
   dataReady: false,
+  loadError: null,
+  dismissLoadError: () => {},
   authState: 'unknown',
   txs: [],
   vtxos: { spendable: [], spent: [] },
@@ -117,6 +123,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [initialized, setInitialized] = useState<boolean>(false)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
   const [dataReady, setDataReady] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [authState, setAuthState] = useState<WalletAuthState>('unknown')
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
   const [assetBalances, setAssetBalances] = useState<WalletBalance['assets']>([])
@@ -272,11 +279,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const reloadWallet = async (swWallet = svcWallet) => {
     if (!swWallet) return
+    const isFirstLoad = !hasLoadedOnce.current
+    if (isFirstLoad) setLoadError(null)
     try {
+      if (isFirstLoad) setLoadingStatus('Fetching coins...')
       const vtxos = await getVtxos(swWallet)
+      if (isFirstLoad) setLoadingStatus('Fetching transactions...')
       const txs = await getTxHistory(swWallet)
+      if (isFirstLoad) setLoadingStatus('Updating balance...')
       const { total, assets } = await getBalance(swWallet)
       // prefetch asset metadata before triggering re-renders
+      if (isFirstLoad && assets.length > 0) setLoadingStatus('Loading asset metadata...')
       for (const ab of assets) {
         const cached = assetMetadataCache.current.get(ab.assetId)
         if (cached && Date.now() - cached.cachedAt < ASSET_METADATA_TTL_MS) continue
@@ -300,8 +313,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (err) {
       consoleError(err, 'Error reloading wallet')
-      return
+      if (!hasLoadedOnce.current) {
+        setLoadError('Unable to load wallet data. Check your connection and try again.')
+      }
     }
+  }
+
+  const dismissLoadError = () => {
+    setLoadError(null)
+    hasLoadedOnce.current = true
+    setDataReady(true)
   }
 
   const initSvcWorkerWallet = async ({
@@ -309,7 +330,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     esploraUrl,
     privateKey,
     retryCount = 0,
-    maxRetries = 5,
+    maxRetries = 2,
     delegatorUrl,
   }: {
     arkServerUrl: string
@@ -320,10 +341,38 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     delegatorUrl?: string
   }) => {
     try {
-      // create service worker wallet
+      setLoadingStatus('Starting wallet...')
       const walletRepository = new IndexedDBWalletRepository()
       const contractRepository = new IndexedDBContractRepository()
-      await walletRepository.getWalletState()
+
+      // Zombie SW detection and IndexedDB warmup are independent — run them
+      // concurrently. The zombie ping timeout is 500ms: alive workers respond
+      // in <10ms, so anything slower is dead.
+      const zombieCheck = (async () => {
+        const existingReg = await navigator.serviceWorker.getRegistration()
+        const active = existingReg?.active
+        if (active) {
+          const alive = await new Promise<boolean>((resolve) => {
+            const channel = new MessageChannel()
+            const timer = setTimeout(() => {
+              channel.port1.close()
+              resolve(false)
+            }, 500)
+            channel.port1.onmessage = (event) => {
+              clearTimeout(timer)
+              channel.port1.close()
+              resolve(event.data?.type === 'PONG')
+            }
+            active.postMessage({ type: 'PING' }, [channel.port2])
+          })
+          if (!alive) {
+            await existingReg.unregister()
+          }
+        }
+      })()
+
+      await Promise.all([walletRepository.getWalletState(), zombieCheck])
+      setLoadingStatus('Connecting to service worker...')
       const svcWallet = await ServiceWorkerWallet.setup({
         serviceWorkerPath: '/wallet-service-worker.mjs',
         identity: SingleKey.fromHex(privateKey),
@@ -331,14 +380,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         esploraUrl,
         delegatorUrl,
         storage: { walletRepository, contractRepository },
-        serviceWorkerActivationTimeoutMs: SERVICE_WORKER_SETUP_TIMEOUT_MS,
-        messageBusTimeoutMs: SERVICE_WORKER_SETUP_TIMEOUT_MS,
+        serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
+        messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
         ...(wallet.thresholdMs && {
           settlementConfig: { vtxoThreshold: Math.floor(wallet.thresholdMs / 1000) },
         }),
       })
 
       // Migration!
+      setLoadingStatus('Migrating data...')
       try {
         const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
         const walletStatus = await getMigrationStatus('wallet', oldStorage)
@@ -417,6 +467,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (isTimeoutError && retryCount < maxRetries) {
         // exponential backoff: wait 1s, 2s, 4s, 8s, 16s for each retry
         const delay = Math.pow(2, retryCount) * 1000
+        setLoadingStatus('Retrying connection...')
         consoleError(
           new Error(
             `Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,
@@ -435,6 +486,18 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // If we are here, either retries are exhausted or it's a different error.
+      // When the SW is permanently unresponsive (all retries exhausted), unregister
+      // it so the next page load gets a fresh registration instead of reusing the
+      // broken activation. This makes the one-time reload recovery effective.
+      if (isTimeoutError && retryCount >= maxRetries) {
+        try {
+          const reg = await navigator.serviceWorker.getRegistration()
+          if (reg) await reg.unregister()
+        } catch {
+          // best-effort cleanup
+        }
+      }
+
       // Surface the failure so the unlock flow cannot proceed silently without an initialized wallet.
       throw err
     }
@@ -467,7 +530,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
 
     setAuthState('authenticated')
-    await initWallet(privateKey)
+    try {
+      await initWallet(privateKey)
+    } catch (err) {
+      setAuthState('locked')
+      throw err
+    }
   }
 
   /**
@@ -565,6 +633,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         setCacheEntry,
         iconApprovalManager,
         dataReady,
+        loadError,
+        dismissLoadError,
         reloadWallet,
         vtxos: vtxos ?? { spendable: [], spent: [] },
       }}

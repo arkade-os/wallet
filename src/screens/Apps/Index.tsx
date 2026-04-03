@@ -13,6 +13,7 @@ import { Themes } from '../../lib/types'
 import LendasatIcon from './Lendasat/LendasatIcon'
 import LendaswapIcon from './Lendaswap/LendaswapIcon'
 import BancoIcon from './Banco/BancoIcon'
+import DfxIcon from './Dfx/DfxIcon'
 import Focusable from '../../components/Focusable'
 import { hapticSubtle } from '../../lib/haptics'
 
@@ -156,6 +157,16 @@ export default function Apps() {
               desc='Swap instantly between Arkade, Lightning and Bitcoin'
               link='https://boltz.exchange/'
               page={Pages.AppBoltz}
+              isDark={isDark}
+              live
+            />
+
+            <App
+              name='DFX'
+              icon={<DfxIcon />}
+              desc='Buy Bitcoin natively on Arkade with EUR and CHF bank transfers'
+              link='https://dfx.swiss'
+              page={Pages.AppDfx}
               isDark={isDark}
               live
             />

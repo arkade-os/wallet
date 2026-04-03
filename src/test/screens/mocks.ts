@@ -2,8 +2,8 @@ import { emptyAspInfo } from '../../lib/asp'
 import { Pages, Tabs } from '../../providers/navigation'
 import { emptyBancoInfo, emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { AspInfo } from '../../providers/asp'
-import { SingleKey } from '@arkade-os/sdk'
-import { CurrencyDisplay, Fiats, Themes } from '../../lib/types'
+import { SingleKey, IVtxoManager } from '@arkade-os/sdk'
+import { CurrencyDisplay, Fiats, SettingsOptions, Themes } from '../../lib/types'
 import { AssetIconApprovalManager } from '../../lib/assetIconApproval'
 
 const mockAspInfo: AspInfo = {
@@ -87,7 +87,7 @@ export const mockFiatContextValue = {
 export const mockSwapsContextValue = {
   arkadeSwaps: null,
   swapManager: null,
-  swapsInitError: null,
+  swapsInitError: null as string | null,
   connected: false,
   calcArkToBtcSwapFee: () => 0,
   calcBtcToArkSwapFee: () => 0,
@@ -115,7 +115,12 @@ export const mockSwapsContextValue = {
 }
 
 export const mockOptionsContextValue = {
+  direction: 'forward' as const,
+  option: SettingsOptions.Menu,
+  options: [],
+  goBack: () => {},
   setOption: () => {},
+  validOptions: () => [],
 }
 
 export const mockNavigationContextValue = {
@@ -137,6 +142,7 @@ export const mockWalletContextValue = {
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
   restartWallet: () => Promise.resolve(),
+  vtxoManager: {} as IVtxoManager,
   wallet: {
     nextRollover: 0,
   },
@@ -151,6 +157,8 @@ export const mockWalletContextValue = {
   vtxos: { spendable: [], spent: [] },
   iconApprovalManager: new AssetIconApprovalManager(),
   dataReady: false,
+  loadError: null,
+  dismissLoadError: () => {},
 }
 
 export const mockFlowContextValue = {

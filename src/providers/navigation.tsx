@@ -37,6 +37,7 @@ import AppAssetsSettings from '../screens/Apps/Assets/Settings'
 import AppBanco from '../screens/Apps/Banco/Index'
 import AppBancoSwap from '../screens/Apps/Banco/Swap'
 import AppBancoDetail from '../screens/Apps/Banco/Detail'
+import AppDfx from '../screens/Apps/Dfx/Index'
 import InAppBrowser from '../screens/Wallet/InAppBrowser'
 import Unavailable from '../screens/Wallet/Unavailable'
 
@@ -59,6 +60,7 @@ export enum Pages {
   AppBanco,
   AppBancoSwap,
   AppBancoDetail,
+  AppDfx,
   Apps,
   Init,
   InitRestore,
@@ -109,6 +111,7 @@ const pageTab = {
   [Pages.AppBanco]: Tabs.Apps,
   [Pages.AppBancoSwap]: Tabs.Apps,
   [Pages.AppBancoDetail]: Tabs.Apps,
+  [Pages.AppDfx]: Tabs.Apps,
   [Pages.Apps]: Tabs.Apps,
   [Pages.Init]: Tabs.None,
   [Pages.InitRestore]: Tabs.None,
@@ -187,6 +190,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <AppBancoSwap />
     case Pages.AppBancoDetail:
       return <AppBancoDetail />
+    case Pages.AppDfx:
+      return <AppDfx />
     case Pages.Apps:
       return <Apps />
     case Pages.Init:

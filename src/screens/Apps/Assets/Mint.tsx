@@ -36,7 +36,7 @@ export default function AppAssetMint() {
   const { setAssetInfo } = useContext(FlowContext)
   const { svcWallet, assetBalances, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
 
-  const [amount, setAmount] = useState('')
+  const [amount, setAmount] = useState(0)
   const [name, setName] = useState('')
   const [ticker, setTicker] = useState('')
   const [decimals, setDecimals] = useState('0')
@@ -49,7 +49,7 @@ export default function AppAssetMint() {
   const [showControlDropdown, setShowControlDropdown] = useState(false)
   const [knownAssets, setKnownAssets] = useState<KnownAssetOption[]>([])
   const [controlMode, setControlMode] = useState<'None' | 'Existing' | 'New'>('None')
-  const [ctrlAmount, setCtrlAmount] = useState('1')
+  const [ctrlAmount, setCtrlAmount] = useState(1)
   const [mintingText, setMintingText] = useState('Minting asset...')
   const [mintDone, setMintDone] = useState(false)
   const pendingNav = useRef<() => void>()
@@ -82,7 +82,7 @@ export default function AppAssetMint() {
 
   const handleMint = async () => {
     if (!svcWallet) return
-    const parsedUnits = parseFloat(amount)
+    const parsedUnits = amount
     if (!parsedUnits || parsedUnits <= 0) {
       setError('Amount must be a positive number')
       return
@@ -112,7 +112,7 @@ export default function AppAssetMint() {
         const ctrlMeta: KnownMetadata = { decimals: 0 }
         if (name) ctrlMeta.name = `ctrl-${name}`
         if (ticker) ctrlMeta.ticker = `ctrl-${ticker}`
-        const ctrlRawAmount = unitsToCents(parseFloat(ctrlAmount) || 0, 0)
+        const ctrlRawAmount = parseInt(ctrlAmount.toString())
 
         const ctrlResult = await svcWallet.assetManager.issue({
           amount: ctrlRawAmount,
@@ -170,7 +170,7 @@ export default function AppAssetMint() {
 
   const selectedControl = knownAssets.find((a) => a.assetId === controlAssetId) ?? null
 
-  const parsedUnits = parseFloat(amount)
+  const parsedUnits = parseInt(amount.toString())
   const parsedDecimals = decimals !== '' ? parseInt(decimals) : NaN
   const disabledReason = !name
     ? 'Enter a name'
@@ -188,7 +188,7 @@ export default function AppAssetMint() {
                 ? 'Decimals must be 0–8'
                 : controlMode === 'New' && !ctrlAmount
                   ? 'Enter control asset amount'
-                  : controlMode === 'New' && (isNaN(parseFloat(ctrlAmount)) || parseFloat(ctrlAmount) <= 0)
+                  : controlMode === 'New' && (isNaN(ctrlAmount) || ctrlAmount <= 0)
                     ? 'Control amount must be positive'
                     : ''
 
@@ -256,13 +256,8 @@ export default function AppAssetMint() {
                   max='8'
                   step='1'
                   value={decimals}
-                  onChange={(v: string) => {
-                    if (v === '') {
-                      setDecimals('')
-                      return
-                    }
-                    const n = parseInt(v)
-                    if (!isNaN(n) && n >= 0 && n <= 8) setDecimals(String(n))
+                  onChange={(v: number) => {
+                    setDecimals(!isNaN(v) && v >= 0 && v <= 8 ? String(v) : '')
                   }}
                   placeholder='0'
                   testId='asset-decimals'

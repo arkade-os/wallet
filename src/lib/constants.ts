@@ -12,6 +12,7 @@ export const minSatsToNudge = 100_000
 export const maxPercentage = import.meta.env.VITE_MAX_PERCENTAGE ?? 10
 export const psaMessage = import.meta.env.VITE_PSA_MESSAGE ?? ''
 export const enableChainSwapsReceive = import.meta.env.VITE_CHAIN_SWAPS_RECEIVE_ENABLED === 'true'
+export const lnurlServerUrl: string | undefined = import.meta.env.VITE_LNURL_SERVER_URL
 
 export const defaultArkServer = () => {
   if (import.meta.env.VITE_ARK_SERVER) return import.meta.env.VITE_ARK_SERVER

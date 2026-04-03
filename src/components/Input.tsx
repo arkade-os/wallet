@@ -16,7 +16,7 @@ interface InputProps {
   step?: string
   testId?: string
   type?: 'text' | 'number' | 'url'
-  value?: string
+  value?: string | number
 }
 
 export default function Input({
@@ -47,7 +47,7 @@ export default function Input({
 
   const handleInput = (ev: Event) => {
     const v = (ev.target as HTMLInputElement).value
-    onChange(v)
+    onChange(type === 'number' ? Number(v) : v)
   }
 
   return (

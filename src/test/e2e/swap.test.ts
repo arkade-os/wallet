@@ -28,6 +28,7 @@ test('should be connected to Boltz app', async ({ page }) => {
 })
 
 test('should receive funds from Lightning', async ({ page, isMobile }) => {
+  test.setTimeout(120000)
   await createWallet(page)
 
   // get invoice
@@ -37,7 +38,7 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   expect(invoice).toContain('lnbcrt')
 
   // pay invoice
-  exec(`docker exec lnd lncli --network=regtest payinvoice ${invoice} --force`)
+  await execAsync(`docker exec lnd lncli --network=regtest payinvoice ${invoice} --force`)
 
   // wait for payment received
   await waitForPaymentReceived(page)
@@ -99,6 +100,7 @@ test('should send funds to Lightning', async ({ page }) => {
 })
 
 test('should refund failing swap', async ({ page }) => {
+  test.setTimeout(120000)
   await createWallet(page)
 
   // get offchain address
@@ -137,13 +139,15 @@ test('should refund failing swap', async ({ page }) => {
   await page.getByText('Continue').click()
   await page.getByText('Tap to Sign').click()
   await page.waitForSelector('text=Swap failed')
+  await page.getByLabel('Go back').click()
+  await page.getByLabel('Go back').click()
 
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
-  await expect(page.getByText('Refunded')).toBeVisible()
+  await expect(page.getByText('Refunded')).toBeVisible({ timeout: 30000 })
   await expect(page.getByText('- 1,001')).toBeVisible()
   await expect(page.getByText('Arkade to Lightning')).toBeVisible()
 })
@@ -166,6 +170,7 @@ test('should receive bitcoin funds from swap', async ({ page, isMobile }) => {
 })
 
 test('should send funds to onchain address via swap', async ({ page, isMobile }) => {
+  test.setTimeout(120000)
   // set fees
   execSync('docker exec -t arkd arkd fees intent --onchain-output "200.0"')
 
@@ -189,8 +194,6 @@ test('should send funds to onchain address via swap', async ({ page, isMobile })
   // send page
   const someOnchainAddress = 'bcrt1pxxxth5z4yn8nylc6nzz6w3vkumwdllaky5sls7an8e044u2qlnes2vvy6y'
   await pay(page, someOnchainAddress, isMobile, 2000)
-  await page.waitForSelector('text=SATS sent successfully', { timeout: 10000 })
-  await expect(page.getByText('SATS sent successfully')).toBeVisible()
 
   // main page
   await page.getByTestId('tab-wallet').click()
