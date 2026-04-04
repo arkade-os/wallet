@@ -27,6 +27,17 @@ const execAsync = promisify(exec)
 
 test('should restore swaps without nostr backup', async ({ page, isMobile }) => {
   test.setTimeout(120000)
+
+  // Capture browser console for debugging chain swap failures
+  const consoleLogs: string[] = []
+  page.on('console', (msg) => {
+    const text = msg.text()
+    if (text.includes('swap') || text.includes('Swap') || text.includes('boltz') || text.includes('Boltz') ||
+        text.includes('error') || text.includes('Error') || text.includes('chain') || text.includes('Chain') ||
+        text.includes('arkToBtc') || text.includes('collaborative'))
+      consoleLogs.push(`[${msg.type()}] ${text}`)
+  })
+
   // create wallet
   await createWallet(page)
 
@@ -79,6 +90,28 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   await pay(page, someOnchainAddress, isMobile, 2000)
   await page.waitForSelector('text=SATS sent successfully', { timeout: 10000 })
   await expect(page.getByText('SATS sent successfully')).toBeVisible()
+
+  // Verify chain swap was created (not collaborative exit) by checking Boltz swap history
+  await page.getByTestId('tab-apps').click()
+  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
+  await page.getByTestId('app-boltz').click()
+  await expect(page.getByText('Boltz')).toBeVisible()
+
+  // Dump console logs for debugging if chain swap wasn't created
+  const chainSwapVisible = await page.getByText('Arkade to Bitcoin').isVisible({ timeout: 5000 }).catch(() => false)
+  if (!chainSwapVisible) {
+    console.log('=== Chain swap NOT found in Boltz history before restore ===')
+    console.log('This means createArkToBtcSwap() failed and the wallet fell back to collaborative exit.')
+    console.log(`Captured ${consoleLogs.length} relevant console messages:`)
+    consoleLogs.forEach((log) => console.log(`  ${log}`))
+
+    // Also check what IS visible in the swap history
+    const pageContent = await page.locator('[class*="swap"], [class*="history"], ion-list, ion-content').first().textContent().catch(() => 'N/A')
+    console.log(`Swap history content: ${pageContent?.substring(0, 500)}`)
+  }
+
+  expect(chainSwapVisible, 'Chain swap (Arkade to Bitcoin) should exist in Boltz history before restore. ' +
+    `Console logs: ${consoleLogs.filter(l => l.includes('error') || l.includes('Error')).join(' | ')}`).toBe(true)
 
   /**
    * restore wallet
