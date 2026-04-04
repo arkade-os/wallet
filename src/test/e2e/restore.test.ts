@@ -117,11 +117,32 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
           req.onsuccess = () => resolve(req.result)
           req.onerror = () => reject(req.error)
         })
-        allSwaps.push({ store: storeName, count: items.length, items: items.map((i: any) => ({ id: i.id, type: i.type, request: i.request ? { from: i.request.from, to: i.request.to, refundPublicKey: i.request.refundPublicKey, claimPublicKey: i.request.claimPublicKey } : null })) })
+        allSwaps.push({
+          store: storeName,
+          count: items.length,
+          items: items.map((i: any) => ({
+            id: i.id,
+            type: i.type,
+            request: i.request
+              ? {
+                  from: i.request.from,
+                  to: i.request.to,
+                  refundPublicKey: i.request.refundPublicKey,
+                  claimPublicKey: i.request.claimPublicKey,
+                }
+              : null,
+          })),
+        })
       }
       swapDb.close()
 
-      return { dbNames, storeNames, allSwaps, testEndpoint: { status: testResp.status, body: testData.substring(0, 200) }, config: { boltzApiUrl: config.boltzApiUrl } }
+      return {
+        dbNames,
+        storeNames,
+        allSwaps,
+        testEndpoint: { status: testResp.status, body: testData.substring(0, 200) },
+        config: { boltzApiUrl: config.boltzApiUrl },
+      }
     } catch (e: any) {
       return { error: e.message, stack: e.stack }
     }
