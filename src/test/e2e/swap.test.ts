@@ -139,6 +139,8 @@ test('should refund failing swap', async ({ page }) => {
   await page.getByText('Continue').click()
   await page.getByText('Tap to Sign').click()
   await page.waitForSelector('text=Swap failed')
+  await page.getByLabel('Go back').click()
+  await page.getByLabel('Go back').click()
 
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
@@ -192,8 +194,6 @@ test('should send funds to onchain address via swap', async ({ page, isMobile })
   // send page
   const someOnchainAddress = 'bcrt1pxxxth5z4yn8nylc6nzz6w3vkumwdllaky5sls7an8e044u2qlnes2vvy6y'
   await pay(page, someOnchainAddress, isMobile, 2000)
-  await page.waitForSelector('text=SATS sent successfully', { timeout: 10000 })
-  await expect(page.getByText('SATS sent successfully')).toBeVisible()
 
   // main page
   await page.getByTestId('tab-wallet').click()

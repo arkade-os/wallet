@@ -26,7 +26,7 @@ export default function AppAssetReissue() {
   const { assetInfo } = useContext(FlowContext)
   const { assetBalances, svcWallet, reloadWallet } = useContext(WalletContext)
 
-  const [amount, setAmount] = useState('')
+  const [amount, setAmount] = useState(0)
   const [error, setError] = useState('')
   const [processing, setProcessing] = useState(false)
   const [opDone, setOpDone] = useState(false)
@@ -44,7 +44,7 @@ export default function AppAssetReissue() {
       setError('Asset ID is required')
       return
     }
-    const parsedAmount = unitsToCents(parseFloat(amount) || 0, decimals)
+    const parsedAmount = unitsToCents(amount, decimals)
     if (!parsedAmount || parsedAmount <= 0) {
       setError('Amount must be a positive number')
       return
@@ -55,7 +55,7 @@ export default function AppAssetReissue() {
 
   const handleReissueConfirm = async () => {
     if (!svcWallet) return
-    const parsedAmount = unitsToCents(parseFloat(amount) || 0, decimals)
+    const parsedAmount = unitsToCents(amount, decimals)
 
     setShowConfirm(false)
     setProcessing(true)
