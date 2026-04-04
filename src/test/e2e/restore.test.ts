@@ -82,6 +82,89 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
    * restore wallet
    */
 
+  // Diagnostic: call Boltz restore API directly to see raw response
+  const restoreDiag = await page.evaluate(async () => {
+    try {
+      // Get the wallet's compressed public key from IndexedDB arkade-swaps store
+      const dbs = await indexedDB.databases()
+      const dbNames = dbs.map((d: any) => d.name)
+
+      // Find the public key by reading the arkade identity from localStorage
+      const configRaw = localStorage.getItem('config')
+      const config = configRaw ? JSON.parse(configRaw) : {}
+
+      // Call Boltz restore with a dummy key first to check if the endpoint works
+      const testResp = await fetch('http://localhost:9069/v2/swap/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publicKey: '000000000000000000000000000000000000000000000000000000000000000000' }),
+      })
+      const testData = await testResp.text()
+
+      // Get the actual swap history from IndexedDB to find swap IDs
+      const swapDb = await new Promise<any>((resolve, reject) => {
+        const req = indexedDB.open('arkade-swaps')
+        req.onsuccess = () => resolve(req.result)
+        req.onerror = () => reject(req.error)
+      })
+      const storeNames = Array.from(swapDb.objectStoreNames) as string[]
+      const allSwaps: any[] = []
+      for (const storeName of storeNames) {
+        const tx = swapDb.transaction(storeName, 'readonly')
+        const store = tx.objectStore(storeName)
+        const items = await new Promise<any[]>((resolve, reject) => {
+          const req = store.getAll()
+          req.onsuccess = () => resolve(req.result)
+          req.onerror = () => reject(req.error)
+        })
+        allSwaps.push({ store: storeName, count: items.length, items: items.map((i: any) => ({ id: i.id, type: i.type, request: i.request ? { from: i.request.from, to: i.request.to, refundPublicKey: i.request.refundPublicKey, claimPublicKey: i.request.claimPublicKey } : null })) })
+      }
+      swapDb.close()
+
+      return { dbNames, storeNames, allSwaps, testEndpoint: { status: testResp.status, body: testData.substring(0, 200) }, config: { boltzApiUrl: config.boltzApiUrl } }
+    } catch (e: any) {
+      return { error: e.message, stack: e.stack }
+    }
+  })
+  console.log('=== RESTORE DIAGNOSTIC ===')
+  console.log(JSON.stringify(restoreDiag, null, 2))
+
+  // If we found swap data with public keys, call restore with the actual key
+  if (restoreDiag && !restoreDiag.error && restoreDiag.allSwaps) {
+    for (const store of restoreDiag.allSwaps) {
+      for (const item of store.items) {
+        if (item.request?.refundPublicKey) {
+          const resp = await page.evaluate(async (pubKey: string) => {
+            const r = await fetch('http://localhost:9069/v2/swap/restore', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ publicKey: pubKey }),
+            })
+            const text = await r.text()
+            return { status: r.status, body: text.substring(0, 2000) }
+          }, item.request.refundPublicKey)
+          console.log(`=== RESTORE WITH refundPublicKey from ${store.store}/${item.id} ===`)
+          console.log(JSON.stringify(resp, null, 2))
+          break
+        }
+        if (item.request?.claimPublicKey) {
+          const resp = await page.evaluate(async (pubKey: string) => {
+            const r = await fetch('http://localhost:9069/v2/swap/restore', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ publicKey: pubKey }),
+            })
+            const text = await r.text()
+            return { status: r.status, body: text.substring(0, 2000) }
+          }, item.request.claimPublicKey)
+          console.log(`=== RESTORE WITH claimPublicKey from ${store.store}/${item.id} ===`)
+          console.log(JSON.stringify(resp, null, 2))
+          break
+        }
+      }
+    }
+  }
+
   // restore wallet with nsec
   await resetAndRestoreWallet(page)
 
