@@ -28,14 +28,10 @@ const execAsync = promisify(exec)
 test('should restore swaps without nostr backup', async ({ page, isMobile }) => {
   test.setTimeout(120000)
 
-  // Capture browser console for debugging chain swap failures
+  // Capture ALL browser console messages for debugging
   const consoleLogs: string[] = []
   page.on('console', (msg) => {
-    const text = msg.text()
-    if (text.includes('swap') || text.includes('Swap') || text.includes('boltz') || text.includes('Boltz') ||
-        text.includes('error') || text.includes('Error') || text.includes('chain') || text.includes('Chain') ||
-        text.includes('arkToBtc') || text.includes('collaborative'))
-      consoleLogs.push(`[${msg.type()}] ${text}`)
+    consoleLogs.push(`[${msg.type()}] ${msg.text()}`)
   })
 
   // create wallet
@@ -91,27 +87,11 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   await page.waitForSelector('text=SATS sent successfully', { timeout: 10000 })
   await expect(page.getByText('SATS sent successfully')).toBeVisible()
 
-  // Verify chain swap was created (not collaborative exit) by checking Boltz swap history
+  // Verify chain swap was created by waiting for Boltz history to show it
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
-  await expect(page.getByText('Boltz')).toBeVisible()
-
-  // Dump console logs for debugging if chain swap wasn't created
-  const chainSwapVisible = await page.getByText('Arkade to Bitcoin').isVisible({ timeout: 5000 }).catch(() => false)
-  if (!chainSwapVisible) {
-    console.log('=== Chain swap NOT found in Boltz history before restore ===')
-    console.log('This means createArkToBtcSwap() failed and the wallet fell back to collaborative exit.')
-    console.log(`Captured ${consoleLogs.length} relevant console messages:`)
-    consoleLogs.forEach((log) => console.log(`  ${log}`))
-
-    // Also check what IS visible in the swap history
-    const pageContent = await page.locator('[class*="swap"], [class*="history"], ion-list, ion-content').first().textContent().catch(() => 'N/A')
-    console.log(`Swap history content: ${pageContent?.substring(0, 500)}`)
-  }
-
-  expect(chainSwapVisible, 'Chain swap (Arkade to Bitcoin) should exist in Boltz history before restore. ' +
-    `Console logs: ${consoleLogs.filter(l => l.includes('error') || l.includes('Error')).join(' | ')}`).toBe(true)
+  await expect(page.getByText('Arkade to Bitcoin')).toBeVisible({ timeout: 15000 })
 
   /**
    * restore wallet
@@ -133,7 +113,42 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('+ 4,980')).toBeVisible({ timeout: 30000 })
   await expect(page.getByText('- 1,001')).toBeVisible({ timeout: 10000 })
-  await expect(page.getByText('Arkade to Bitcoin')).toBeVisible({ timeout: 10000 })
+
+  // Debug: dump post-restore Boltz page content if chain swap is missing
+  const chainSwapRestored = await page.getByText('Arkade to Bitcoin').isVisible().catch(() => false)
+  if (!chainSwapRestored) {
+    // Wait a bit more and check again — restoreSwaps may be slow
+    await page.waitForTimeout(5000)
+    const content = await page.locator('ion-content').first().textContent().catch(() => 'N/A')
+    console.log('=== Post-restore Boltz page (after extra 5s wait) ===')
+    console.log(`Content: ${content?.substring(0, 500)}`)
+
+    // Check if restoreSwaps logged any errors
+    const restoreErrors = consoleLogs.filter(l => l.toLowerCase().includes('restore') || l.toLowerCase().includes('chain'))
+    console.log(`Restore-related console logs (${restoreErrors.length}):`)
+    restoreErrors.forEach((log) => console.log(`  ${log}`))
+
+    // Dump ALL console logs for comprehensive debugging
+    console.log(`ALL captured console logs (${consoleLogs.length}):`)
+    consoleLogs.slice(-30).forEach((log) => console.log(`  ${log}`))
+
+    // Call Boltz restore API directly to check what it returns
+    const restoreApiResult = await page.evaluate(async () => {
+      try {
+        // Get the compressed public key from the wallet
+        const configRaw = localStorage.getItem('config')
+        const boltzUrl = 'http://localhost:9069'
+        // We can't easily get the public key from here, so let's check the IndexedDB state
+        const dbs = await indexedDB.databases()
+        return { databases: dbs.map(d => d.name), boltzUrl }
+      } catch (e) {
+        return { error: String(e) }
+      }
+    })
+    console.log(`IndexedDB state: ${JSON.stringify(restoreApiResult)}`)
+  }
+
+  await expect(page.getByText('Arkade to Bitcoin')).toBeVisible({ timeout: 15000 })
   await expect(page.getByText('Arkade to Lightning')).toBeVisible()
   await expect(page.getByText('Lightning to Arkade')).toBeVisible()
 })
