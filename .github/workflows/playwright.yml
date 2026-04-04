@@ -49,6 +49,18 @@ jobs:
         curl -s http://localhost:7070/v1/admin/intentFees 2>/dev/null || true
         echo "=== docker ps ==="
         docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || true
+        echo "=== boltz-fulmine env ==="
+        docker exec boltz-fulmine env 2>/dev/null | grep -i -E "FULMINE_|DELEGAT" || true
+        echo "=== delegator endpoint (port 7002) ==="
+        curl -sv http://localhost:7002/v1/delegator/info 2>&1 | head -30 || true
+        echo "=== delegator endpoint (port 7012) ==="
+        curl -sv http://localhost:7012/v1/delegator/info 2>&1 | head -30 || true
+        echo "=== nostr relay (nak ws) ==="
+        curl -sv http://localhost:10547 2>&1 | head -20 || true
+        echo "=== boltz-fulmine logs ==="
+        docker logs boltz-fulmine 2>&1 | tail -20 || true
+        echo "=== nak logs ==="
+        docker logs nak 2>&1 | tail -10 || true
     - name: Run Playwright tests
       run: sleep 5 && pnpm run test:e2e
       env:
