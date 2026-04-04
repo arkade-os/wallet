@@ -37,41 +37,6 @@ jobs:
       run: docker compose -f docker-compose.nak.yml up -d --build
     - name: Verify environment
       run: pnpm regtest:setup
-    - name: Diagnostic - dump regtest env state
-      run: |
-        echo "=== .env.regtest ==="
-        cat .env.regtest || echo "no .env.regtest"
-        echo "=== arkd container env ==="
-        docker exec ark env 2>/dev/null | grep -E "ARKD_|ARK_|SCHEDULER|CSV|VTXO|ROUND" || true
-        echo "=== arkd info ==="
-        curl -s http://localhost:7070/v1/info 2>/dev/null | head -50 || true
-        echo "=== arkd admin fees ==="
-        curl -s http://localhost:7070/v1/admin/intentFees 2>/dev/null || true
-        echo "=== docker ps ==="
-        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || true
-        echo "=== boltz-fulmine env ==="
-        docker exec boltz-fulmine env 2>/dev/null | grep -i -E "FULMINE_|DELEGAT" || true
-        echo "=== Boltz chain swap limits (ARK/BTC) ==="
-        curl -sv http://localhost:9069/v2/swap/chain 2>&1 || true
-        echo ""
-        echo "=== Boltz test chain swap creation ==="
-        curl -sv -X POST http://localhost:9069/v2/swap/chain \
-          -H "Content-Type: application/json" \
-          -d '{"from":"ARK","to":"BTC","userLockAmount":2000,"claimAddress":"bcrt1pxxxth5z4yn8nylc6nzz6w3vkumwdllaky5sls7an8e044u2qlnes2vvy6y"}' 2>&1 || true
-        echo ""
-        echo "=== Boltz test chain swap with P2WPKH ==="
-        curl -sv -X POST http://localhost:9069/v2/swap/chain \
-          -H "Content-Type: application/json" \
-          -d '{"from":"ARK","to":"BTC","userLockAmount":2000,"claimAddress":"bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7"}' 2>&1 || true
-        echo ""
-        echo "=== nostr relay (nak ws) ==="
-        curl -sv http://localhost:10547 2>&1 | head -20 || true
-        echo "=== boltz-fulmine logs ==="
-        docker logs boltz-fulmine 2>&1 | tail -20 || true
-        echo "=== boltz logs (last 30) ==="
-        docker logs boltz 2>&1 | tail -30 || true
-        echo "=== nak logs ==="
-        docker logs nak 2>&1 | tail -10 || true
     - name: Run Playwright tests
       run: sleep 5 && pnpm run test:e2e
       env:
@@ -79,20 +44,12 @@ jobs:
     - name: Capture logs on failure
       if: failure()
       run: |
-        echo "=== boltz logs (chain swap related) ==="
-        docker logs boltz 2>&1 | grep -iE "chain|swap|error|warn|reject|invalid" | tail -50 || true
-        echo "=== boltz full logs (last 100) ==="
-        docker logs boltz 2>&1 | tail -100 || true
-        echo "=== boltz-fulmine logs (last 50) ==="
-        docker logs boltz-fulmine 2>&1 | tail -50 || true
+        echo "=== docker ps ==="
+        docker ps --format "table {{.Names}}\t{{.Status}}" || true
+        echo "=== boltz logs (last 50) ==="
+        docker logs boltz 2>&1 | tail -50 || true
         echo "=== ark logs (last 50) ==="
         docker logs ark 2>&1 | tail -50 || true
-        echo "=== ark-wallet logs (last 30) ==="
-        docker logs ark-wallet 2>&1 | tail -30 || true
-        echo "=== boltz-lnd logs (last 30) ==="
-        docker logs boltz-lnd 2>&1 | tail -30 || true
-        echo "=== nak logs ==="
-        docker logs nak 2>&1 || true
     - name: Cleanup
       if: always()
       run: |
