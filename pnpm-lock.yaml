@@ -8,12 +8,15 @@ importers:
 
   .:
     dependencies:
+      '@arkade-os/banco':
+        specifier: github:arkade-os/banco
+        version: https://codeload.github.com/arkade-os/banco/tar.gz/6785d328806fd3d1d2c5b5a37f28d8294d8fad4f(@bitcoinerlab/miniscript@1.4.3)
       '@arkade-os/boltz-swap':
         specifier: 0.3.13
         version: 0.3.13
       '@arkade-os/sdk':
         specifier: github:arkade-os/ts-sdk#arkade-script-final
-        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/4a9a17721946558e6c024fee1f0a9f98c73305af(@bitcoinerlab/miniscript@1.4.3)
+        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/93096da8402a90b5b937e19183f40b144fc96c04(@bitcoinerlab/miniscript@1.4.3)
       '@branta-ops/branta':
         specifier: 0.0.9
         version: 0.0.9
@@ -183,6 +186,11 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
+  '@arkade-os/banco@https://codeload.github.com/arkade-os/banco/tar.gz/6785d328806fd3d1d2c5b5a37f28d8294d8fad4f':
+    resolution: {tarball: https://codeload.github.com/arkade-os/banco/tar.gz/6785d328806fd3d1d2c5b5a37f28d8294d8fad4f}
+    version: 0.0.1
+    engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
+
   '@arkade-os/boltz-swap@0.3.13':
     resolution: {integrity: sha512-oQ+wXUDhFGY7j05A0uGfMN17nN7Q3SGIbGXa2JLXhm/H9ghwOGguWEvFZlJfSVJYHfJIMHJ8gtcBeKW8a/vXyg==}
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
@@ -208,8 +216,8 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/4a9a17721946558e6c024fee1f0a9f98c73305af':
-    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/4a9a17721946558e6c024fee1f0a9f98c73305af}
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/93096da8402a90b5b937e19183f40b144fc96c04':
+    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/93096da8402a90b5b937e19183f40b144fc96c04}
     version: 0.4.10
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
     peerDependencies:
@@ -2762,6 +2770,18 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
+  '@arkade-os/banco@https://codeload.github.com/arkade-os/banco/tar.gz/6785d328806fd3d1d2c5b5a37f28d8294d8fad4f(@bitcoinerlab/miniscript@1.4.3)':
+    dependencies:
+      '@arkade-os/sdk': https://codeload.github.com/arkade-os/ts-sdk/tar.gz/93096da8402a90b5b937e19183f40b144fc96c04(@bitcoinerlab/miniscript@1.4.3)
+      '@scure/base': 2.0.0
+    transitivePeerDependencies:
+      - '@bitcoinerlab/miniscript'
+      - '@react-native-async-storage/async-storage'
+      - expo
+      - expo-background-task
+      - expo-sqlite
+      - expo-task-manager
+
   '@arkade-os/boltz-swap@0.3.13':
     dependencies:
       '@arkade-os/sdk': 0.4.14
@@ -2798,7 +2818,7 @@ snapshots:
       - bitcoinjs-lib
       - ecpair
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/4a9a17721946558e6c024fee1f0a9f98c73305af(@bitcoinerlab/miniscript@1.4.3)':
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/93096da8402a90b5b937e19183f40b144fc96c04(@bitcoinerlab/miniscript@1.4.3)':
     dependencies:
       '@kukks/bitcoin-descriptors': 3.2.3(@bitcoinerlab/miniscript@1.4.3)
       '@marcbachmann/cel-js': 7.3.1

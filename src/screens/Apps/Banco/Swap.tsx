@@ -1,7 +1,8 @@
 // src/screens/Apps/Banco/Swap.tsx
 import { useContext, useEffect, useRef, useState } from 'react'
 import { hex } from '@scure/base'
-import { banco, ArkAddress, asset } from '@arkade-os/sdk'
+import { Maker } from '@arkade-os/banco'
+import { ArkAddress, asset } from '@arkade-os/sdk'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Content from '../../../components/Content'
@@ -56,7 +57,7 @@ export default function AppBancoSwap() {
         // Phase 1: Create offer
         setPhase('creating')
         const serverUrl = aspInfo.url.startsWith('http') ? aspInfo.url : 'http://' + aspInfo.url
-        const maker = new banco.Maker(svcWallet, serverUrl, INTROSPECTOR_URL)
+        const maker = new Maker(svcWallet, serverUrl, INTROSPECTOR_URL)
         console.log('banco: calling createOffer with', {
           wantAmount: bancoInfo.receiveAmount,
           wantAsset: bancoInfo.receiveAsset || '(BTC)',
@@ -137,7 +138,7 @@ export default function AppBancoSwap() {
   if (phase === 'error') {
     return (
       <>
-        <Header text='Swap Failed' back={() => navigate(Pages.AppBanco)} />
+        <Header text='Swap Failed' back={() => navigate(Pages.Swaps)} />
         <Content>
           <Padded>
             <FlexCol centered gap='1rem' padding='2rem 0'>
@@ -151,7 +152,7 @@ export default function AppBancoSwap() {
           </Padded>
         </Content>
         <ButtonsOnBottom>
-          <Button label='Back' onClick={() => navigate(Pages.AppBanco)} />
+          <Button label='Back' onClick={() => navigate(Pages.Swaps)} />
         </ButtonsOnBottom>
       </>
     )

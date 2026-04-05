@@ -2,16 +2,25 @@ import { useEffect, useRef } from 'react'
 import WalletIcon from '../icons/Wallet'
 import AppsIcon from '../icons/Apps'
 import SettingsIcon from '../icons/Settings'
+import BancoIcon from '../screens/Apps/Banco/BancoIcon'
 
 interface PillNavbarProps {
   activeTab: string
   onWalletClick: () => void
+  onSwapsClick: () => void
   onAppsClick: () => void
   onSettingsClick: () => void
 }
 
-export default function PillNavbar({ activeTab, onWalletClick, onAppsClick, onSettingsClick }: PillNavbarProps) {
+export default function PillNavbar({
+  activeTab,
+  onWalletClick,
+  onSwapsClick,
+  onAppsClick,
+  onSettingsClick,
+}: PillNavbarProps) {
   const walletRef = useRef<HTMLDivElement>(null)
+  const swapsRef = useRef<HTMLDivElement>(null)
   const appsRef = useRef<HTMLDivElement>(null)
   const settingsRef = useRef<HTMLDivElement>(null)
 
@@ -19,11 +28,13 @@ export default function PillNavbar({ activeTab, onWalletClick, onAppsClick, onSe
     const ref =
       activeTab === 'wallet'
         ? walletRef
-        : activeTab === 'apps'
-          ? appsRef
-          : activeTab === 'settings'
-            ? settingsRef
-            : null
+        : activeTab === 'swaps'
+          ? swapsRef
+          : activeTab === 'apps'
+            ? appsRef
+            : activeTab === 'settings'
+              ? settingsRef
+              : null
     if (!ref?.current) return
     const el = ref.current
     el.classList.remove('pill-icon-pop')
@@ -48,6 +59,19 @@ export default function PillNavbar({ activeTab, onWalletClick, onAppsClick, onSe
           <WalletIcon />
         </div>
         <span className='pill-nav-label'>Wallet</span>
+      </button>
+      <button
+        className={`pill-nav-btn ${activeTab === 'swaps' ? 'pill-nav-btn--active' : ''}`}
+        onClick={onSwapsClick}
+        role='tab'
+        aria-selected={activeTab === 'swaps'}
+        aria-label='Swaps'
+        data-testid='tab-swaps'
+      >
+        <div ref={swapsRef} className='pill-nav-icon'>
+          <BancoIcon />
+        </div>
+        <span className='pill-nav-label'>Swaps</span>
       </button>
       <button
         className={`pill-nav-btn ${activeTab === 'apps' ? 'pill-nav-btn--active' : ''}`}

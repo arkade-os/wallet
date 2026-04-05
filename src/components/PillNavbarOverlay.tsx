@@ -6,6 +6,7 @@ interface PillNavbarOverlayProps {
   visible: boolean
   activeTab: string
   onWalletClick: () => void
+  onSwapsClick: () => void
   onAppsClick: () => void
   onSettingsClick: () => void
 }
@@ -14,6 +15,7 @@ export default function PillNavbarOverlay({
   visible,
   activeTab,
   onWalletClick,
+  onSwapsClick,
   onAppsClick,
   onSettingsClick,
 }: PillNavbarOverlayProps) {
@@ -31,6 +33,7 @@ export default function PillNavbarOverlay({
       <PillNavbar
         activeTab={activeTab}
         onWalletClick={onWalletClick}
+        onSwapsClick={onSwapsClick}
         onAppsClick={onAppsClick}
         onSettingsClick={onSettingsClick}
       />

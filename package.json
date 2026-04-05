@@ -4,6 +4,7 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
+    "@arkade-os/banco": "github:arkade-os/banco",
     "@arkade-os/boltz-swap": "0.3.13",
     "@arkade-os/sdk": "github:arkade-os/ts-sdk#arkade-script-final",
     "@branta-ops/branta": "0.0.9",

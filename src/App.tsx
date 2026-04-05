@@ -36,6 +36,7 @@ import PillNavbarOverlay from './components/PillNavbarOverlay'
 import FlexCol from './components/FlexCol'
 import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
+import BancoIcon from './screens/Apps/Banco/BancoIcon'
 import Focusable from './components/Focusable'
 import { useReducedMotion } from './hooks/useReducedMotion'
 import { useLoadingStatus } from './hooks/useLoadingStatus'
@@ -115,6 +116,7 @@ export default function App() {
   // refs for the tabs to be able to programmatically activate them
   const appsRef = useRef<HTMLIonTabElement>(null)
   const walletRef = useRef<HTMLIonTabElement>(null)
+  const swapsRef = useRef<HTMLIonTabElement>(null)
   const settingsRef = useRef<HTMLIonTabElement>(null)
   const passwordlessBootAttempted = useRef(false)
   const passwordlessReloadTimer = useRef<ReturnType<typeof setTimeout>>()
@@ -161,27 +163,23 @@ export default function App() {
   // for some reason you need to manually set the active tab
   // if you are coming from a page in a different tab
   useEffect(() => {
-    switch (tab) {
-      case Tabs.Wallet:
-        walletRef.current?.setActive()
-        walletRef.current?.classList.remove('tab-hidden')
-        appsRef.current?.classList.add('tab-hidden')
-        settingsRef.current?.classList.add('tab-hidden')
-        break
-      case Tabs.Apps:
-        appsRef.current?.setActive()
-        appsRef.current?.classList.remove('tab-hidden')
-        walletRef.current?.classList.add('tab-hidden')
-        settingsRef.current?.classList.add('tab-hidden')
-        break
-      case Tabs.Settings:
-        settingsRef.current?.setActive()
-        settingsRef.current?.classList.remove('tab-hidden')
-        walletRef.current?.classList.add('tab-hidden')
-        appsRef.current?.classList.add('tab-hidden')
-        break
-      default:
-        break
+    const allRefs = [walletRef, appsRef, swapsRef, settingsRef]
+    const activeRef =
+      tab === Tabs.Wallet
+        ? walletRef
+        : tab === Tabs.Apps
+          ? appsRef
+          : tab === Tabs.Swaps
+            ? swapsRef
+            : tab === Tabs.Settings
+              ? settingsRef
+              : null
+    if (activeRef) {
+      activeRef.current?.setActive()
+      for (const ref of allRefs) {
+        if (ref === activeRef) ref.current?.classList.remove('tab-hidden')
+        else ref.current?.classList.add('tab-hidden')
+      }
     }
   }, [tab])
 
@@ -200,6 +198,12 @@ export default function App() {
     triggerTabAnim('apps')
     hapticLight()
     navigate(Pages.Apps)
+  }
+
+  const handleSwaps = () => {
+    triggerTabAnim('swaps')
+    hapticLight()
+    navigate(Pages.Swaps)
   }
 
   const handleSettings = () => {
@@ -299,7 +303,8 @@ export default function App() {
 
   const comp = page === Pages.Loading ? null : pageComponent(page)
   const isSettingsRoot = screen === Pages.Settings && option === SettingsOptions.Menu
-  const showNavbar = page === screen && (screen === Pages.Wallet || screen === Pages.Apps || isSettingsRoot)
+  const showNavbar =
+    page === screen && (screen === Pages.Wallet || screen === Pages.Apps || screen === Pages.Swaps || isSettingsRoot)
 
   return (
     <IonApp className={showNavbar ? 'has-pill-navbar' : undefined}>
@@ -337,6 +342,17 @@ export default function App() {
                   </PageAnimWrapper>
                 </div>
               </IonTab>
+              <IonTab ref={swapsRef} tab={Tabs.Swaps}>
+                <div className='page-transition-container'>
+                  <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
+                    {tab === Tabs.Swaps && (
+                      <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+                        {comp}
+                      </PageTransition>
+                    )}
+                  </PageAnimWrapper>
+                </div>
+              </IonTab>
               <IonTab ref={settingsRef} tab={Tabs.Settings}>
                 <div className='page-transition-container'>
                   <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
@@ -356,6 +372,16 @@ export default function App() {
                         <WalletIcon />
                       </AnimatedTabIcon>
                       Wallet
+                    </FlexCol>
+                  </Focusable>
+                </IonTabButton>
+                <IonTabButton tab={Tabs.Swaps} onClick={handleSwaps} selected={tab === Tabs.Swaps}>
+                  <Focusable>
+                    <FlexCol centered gap='6px' padding='5px'>
+                      <AnimatedTabIcon animating={animatingTab === 'swaps'}>
+                        <BancoIcon />
+                      </AnimatedTabIcon>
+                      Swaps
                     </FlexCol>
                   </Focusable>
                 </IonTabButton>
@@ -389,6 +415,7 @@ export default function App() {
           visible={showNavbar}
           activeTab={tab}
           onWalletClick={handleWallet}
+          onSwapsClick={handleSwaps}
           onAppsClick={handleApps}
           onSettingsClick={handleSettings}
         />

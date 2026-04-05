@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { banco } from '@arkade-os/sdk'
+import { Maker } from '@arkade-os/banco'
 import { ArrowDown, Check, X, Loader2, Copy, ExternalLink, AlertTriangle } from 'lucide-react'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
@@ -127,7 +127,7 @@ export default function AppBancoDetail() {
     setCancelError('')
     try {
       const serverUrl = aspInfo.url.startsWith('http') ? aspInfo.url : 'http://' + aspInfo.url
-      const maker = new banco.Maker(svcWallet, serverUrl, INTROSPECTOR_URL)
+      const maker = new Maker(svcWallet, serverUrl, INTROSPECTOR_URL)
       await maker.cancelOffer(swap.offerHex)
       updateSwap(swap.id, { status: 'cancelled' })
     } catch (err) {
@@ -141,7 +141,7 @@ export default function AppBancoDetail() {
   if (!swap) {
     return (
       <>
-        <Header text='Swap Detail' back={() => navigate(Pages.AppBanco)} />
+        <Header text='Swap Detail' back={() => navigate(Pages.Swaps)} />
         <Content>
           <Padded>
             <Text>Swap not found</Text>
@@ -155,7 +155,7 @@ export default function AppBancoDetail() {
 
   return (
     <>
-      <Header text='Swap Detail' back={() => navigate(Pages.AppBanco)} />
+      <Header text='Swap Detail' back={() => navigate(Pages.Swaps)} />
       <Content>
         <Padded>
           <motion.div
@@ -333,7 +333,7 @@ export default function AppBancoDetail() {
             <Button label={`Cancel Swap (${formatCountdown(cancelCountdown)})`} onClick={() => {}} disabled secondary />
           )
         ) : (
-          <Button label='Done' onClick={() => navigate(Pages.AppBanco)} />
+          <Button label='Done' onClick={() => navigate(Pages.Swaps)} />
         )}
       </ButtonsOnBottom>
       <style>{`.spin { animation: spin 1.5s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>

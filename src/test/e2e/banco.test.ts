@@ -14,9 +14,8 @@ async function mockCoinGeckoPrice(page: Page, btcPrice = 0.0000149) {
 }
 
 async function navigateToBanco(page: Page) {
-  await page.getByTestId('tab-apps').click()
-  await page.getByTestId('app-banco').click()
-  await page.waitForSelector('text=Banco', { state: 'visible' })
+  await page.getByTestId('tab-swaps').click()
+  await page.waitForSelector('text=Swaps', { state: 'visible' })
 }
 
 async function waitForPrice(page: Page) {

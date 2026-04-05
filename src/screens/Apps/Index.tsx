@@ -12,7 +12,6 @@ import { ConfigContext } from '../../providers/config'
 import { Themes } from '../../lib/types'
 import LendasatIcon from './Lendasat/LendasatIcon'
 import LendaswapIcon from './Lendaswap/LendaswapIcon'
-import BancoIcon from './Banco/BancoIcon'
 import DfxIcon from './Dfx/DfxIcon'
 import Focusable from '../../components/Focusable'
 import { hapticSubtle } from '../../lib/haptics'
@@ -187,15 +186,6 @@ export default function Apps() {
               desc='Swap Bitcoin to USDC or USDT instantly'
               link='https://swap.lendasat.com'
               page={Pages.AppLendaswap}
-              isDark={isDark}
-              live
-            />
-
-            <App
-              name='Banco'
-              icon={<BancoIcon />}
-              desc='Peer-to-peer atomic swaps on Arkade'
-              page={Pages.AppBanco}
               isDark={isDark}
               live
             />

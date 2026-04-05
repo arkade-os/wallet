@@ -1,7 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import Button from '../../../components/Button'
-import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Content from '../../../components/Content'
 import Header from '../../../components/Header'
 import Padded from '../../../components/Padded'
@@ -300,7 +299,7 @@ export default function AppBanco() {
 
   return (
     <>
-      <Header text='Banco' back={() => navigate(Pages.Apps)} />
+      <Header text='Swaps' />
       <Content>
         <Padded>
           <motion.div
@@ -367,6 +366,9 @@ export default function AppBanco() {
                 </div>
               ) : null}
             </SwapCard>
+            <div style={{ marginTop: '1rem' }}>
+              <Button label={buttonLabel[buttonState]} onClick={handleSwap} disabled={buttonState !== 'ready'} />
+            </div>
           </motion.div>
 
           {/* Recent swaps */}
@@ -461,11 +463,10 @@ export default function AppBanco() {
               <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
             </div>
           ) : null}
+          {/* Spacer so the tab bar doesn't cover the last swap */}
+          <div style={{ height: 80 }} />
         </Padded>
       </Content>
-      <ButtonsOnBottom>
-        <Button label={buttonLabel[buttonState]} onClick={handleSwap} disabled={buttonState !== 'ready'} />
-      </ButtonsOnBottom>
     </>
   )
 }

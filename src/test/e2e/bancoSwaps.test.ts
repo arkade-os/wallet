@@ -11,7 +11,8 @@
  * banco.test.ts. These test the underlying banco mechanics end-to-end.
  */
 import { test, expect } from '@playwright/test'
-import { banco, asset } from '@arkade-os/sdk'
+import { Maker, Offer } from '@arkade-os/banco'
+import { asset, Wallet } from '@arkade-os/sdk'
 import {
   createFundedWallet,
   issueAsset,
@@ -31,11 +32,7 @@ const PRICE_FEED = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs
  * We track the VTXO count before the swap and wait until it increases,
  * which indicates the taker fulfilled and the maker received funds.
  */
-async function waitForNewVtxos(
-  wallet: InstanceType<typeof import('@arkade-os/sdk').Wallet>,
-  initialVtxoCount: number,
-  timeoutMs = 60_000,
-): Promise<void> {
+async function waitForNewVtxos(wallet: Wallet, initialVtxoCount: number, timeoutMs = 60_000): Promise<void> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     const vtxos = await wallet.getVtxos()
@@ -52,11 +49,11 @@ test.describe('Banco offer lifecycle', () => {
 
   test('Create offer and verify it appears as spendable', async () => {
     const makerWallet = await createFundedWallet(100_000)
-    const maker = new banco.Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
+    const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
 
     // Create offer
     const { offer, packet, swapPkScript } = await maker.createOffer({
-      wantAmount: 500n,
+      wantAmount: BigInt(500),
       cancelDelay: 300,
     })
 
@@ -87,11 +84,11 @@ test.describe('Banco offer lifecycle', () => {
   test('Create asset offer and verify funding', async () => {
     const makerWallet = await createFundedWallet(100_000)
     const assetId = await issueAsset(makerWallet, 500)
-    const maker = new banco.Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
+    const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
 
     // Create offer: deposit asset, want BTC
     const { offer, packet, swapPkScript } = await maker.createOffer({
-      wantAmount: 5000n,
+      wantAmount: BigInt(5000),
       offerAsset: asset.AssetId.fromString(assetId),
       cancelDelay: 300,
     })
@@ -119,12 +116,12 @@ test.describe('Banco offer lifecycle', () => {
     const assetId = await issueAsset(helperWallet, 100)
 
     const makerWallet = await createFundedWallet(100_000)
-    const maker = new banco.Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
+    const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
 
     // Create offer: deposit BTC, want specific asset
     const wantAssetId = asset.AssetId.fromString(assetId)
     const { offer, packet, swapPkScript } = await maker.createOffer({
-      wantAmount: 50n,
+      wantAmount: BigInt(50),
       wantAsset: wantAssetId,
       cancelDelay: 300,
     })
@@ -152,11 +149,11 @@ test.describe('Banco offer lifecycle', () => {
     const helperWallet = await createFundedWallet(100_000)
     const assetB = await issueAsset(helperWallet, 100)
 
-    const maker = new banco.Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
+    const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
 
     // Create offer: deposit assetA, want assetB
     const { offer, packet, swapPkScript } = await maker.createOffer({
-      wantAmount: 50n,
+      wantAmount: BigInt(50),
       wantAsset: asset.AssetId.fromString(assetB),
       offerAsset: asset.AssetId.fromString(assetA),
       cancelDelay: 300,
@@ -180,21 +177,21 @@ test.describe('Banco offer lifecycle', () => {
 
   test('Offer hex roundtrips correctly', async () => {
     const makerWallet = await createFundedWallet(100_000)
-    const maker = new banco.Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
+    const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
 
     const { offer } = await maker.createOffer({
-      wantAmount: 1000n,
+      wantAmount: BigInt(1000),
       cancelDelay: 300,
     })
 
     // Verify offer hex can be decoded and re-encoded
-    const decoded = banco.Offer.fromHex(offer)
-    expect(decoded.wantAmount).toBe(1000n)
+    const decoded = Offer.fromHex(offer)
+    expect(decoded.wantAmount).toBe(BigInt(1000))
     expect(decoded.makerPkScript.length).toBe(34)
     expect(decoded.introspectorPubkey.length).toBe(32)
     expect(decoded.cancelDelay).toBeDefined()
 
-    const reEncoded = banco.Offer.toHex(decoded)
+    const reEncoded = Offer.toHex(decoded)
     expect(reEncoded).toBe(offer)
   })
 })
@@ -221,12 +218,12 @@ test.describe('Banco taker-fulfilled swaps', () => {
     try {
       // 3. Create a maker wallet with BTC
       const makerWallet = await createFundedWallet(100_000)
-      const maker = new banco.Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
+      const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
 
       // 4. Create offer: deposit BTC, want 500 of asset
       const wantAssetId = asset.AssetId.fromString(assetId)
       const { offer, packet, swapPkScript } = await maker.createOffer({
-        wantAmount: 500n,
+        wantAmount: BigInt(500),
         wantAsset: wantAssetId,
         cancelDelay: 300,
       })
@@ -275,11 +272,11 @@ test.describe('Banco taker-fulfilled swaps', () => {
     await addBancoPair(pairName, '', PRICE_FEED)
 
     try {
-      const maker = new banco.Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
+      const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
 
       // 4. Create offer: deposit asset, want BTC
       const { packet, swapPkScript } = await maker.createOffer({
-        wantAmount: 5000n,
+        wantAmount: BigInt(5000),
         offerAsset: asset.AssetId.fromString(assetId),
         cancelDelay: 300,
       })
@@ -320,11 +317,11 @@ test.describe('Banco taker-fulfilled swaps', () => {
     await addBancoPair(pairName, assetB, PRICE_FEED)
 
     try {
-      const maker = new banco.Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
+      const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
 
       // 4. Create offer: deposit assetA, want 500 of assetB
       const { packet, swapPkScript } = await maker.createOffer({
-        wantAmount: 500n,
+        wantAmount: BigInt(500),
         wantAsset: asset.AssetId.fromString(assetB),
         offerAsset: asset.AssetId.fromString(assetA),
         cancelDelay: 300,

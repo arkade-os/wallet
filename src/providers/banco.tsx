@@ -1,4 +1,4 @@
-import { createContext, useState, useCallback, useEffect, useContext, useRef, type ReactNode } from 'react'
+import { createContext, useState, useCallback, useEffect, useContext, useMemo, useRef, type ReactNode } from 'react'
 import {
   getSwaps,
   addSwap as addSwapToStore,
@@ -9,9 +9,6 @@ import {
 import { RestIndexerProvider } from '@arkade-os/sdk'
 import { AspContext } from './asp'
 import { consoleError } from '../lib/logs'
-
-const POLL_INTERVAL_MS = 10_000 // 10 seconds
-const MAX_POLL_INTERVAL_MS = 120_000 // 2 minutes (backoff cap)
 
 interface BancoContextProps {
   swaps: BancoSwap[]
@@ -31,6 +28,46 @@ export const BancoContext = createContext<BancoContextProps>({
   setSelectedSwapId: () => {},
 })
 
+/** Check VTXOs at the given scripts and update swap statuses accordingly. */
+async function checkSwapStatuses(
+  indexer: RestIndexerProvider,
+  pendingScripts: Map<string, string>, // pkScript hex → swap ID
+): Promise<boolean> {
+  if (pendingScripts.size === 0) return false
+
+  const scripts = [...pendingScripts.keys()]
+  const { vtxos } = await indexer.getVtxos({ scripts, spendableOnly: false })
+
+  // Group vtxos by script
+  const byScript = new Map<string, typeof vtxos>()
+  for (const v of vtxos) {
+    if (!v.script) continue
+    const list = byScript.get(v.script) ?? []
+    list.push(v)
+    byScript.set(v.script, list)
+  }
+
+  let anyUpdated = false
+  for (const [script, swapId] of pendingScripts) {
+    const swapVtxos = byScript.get(script)
+    if (!swapVtxos || swapVtxos.length === 0) continue
+
+    const hasSwept = swapVtxos.some((v) => v.virtualStatus.state === 'swept')
+    const hasSpent = swapVtxos.some((v) => v.isSpent)
+    const hasSpendable = swapVtxos.some((v) => !v.isSpent && v.virtualStatus.state !== 'swept')
+
+    if (hasSwept && !hasSpendable) {
+      updateSwapInStore(swapId, { status: 'recoverable' })
+      anyUpdated = true
+    } else if (hasSpent || !hasSpendable) {
+      updateSwapInStore(swapId, { status: 'fulfilled' })
+      anyUpdated = true
+    }
+  }
+
+  return anyUpdated
+}
+
 export const BancoProvider = ({ children }: { children: ReactNode }) => {
   const [swaps, setSwaps] = useState<BancoSwap[]>(() => {
     deduplicateSwaps()
@@ -38,16 +75,12 @@ export const BancoProvider = ({ children }: { children: ReactNode }) => {
   })
   const [selectedSwapId, setSelectedSwapId] = useState<string | null>(null)
   const { aspInfo } = useContext(AspContext)
-  const pollInterval = useRef(POLL_INTERVAL_MS)
-  const timerRef = useRef<ReturnType<typeof setTimeout>>()
 
   const reload = useCallback(() => setSwaps(getSwaps()), [])
 
   const addSwap = useCallback((swap: BancoSwap) => {
     addSwapToStore(swap)
     setSwaps(getSwaps())
-    // Reset poll interval when a new swap is created
-    pollInterval.current = POLL_INTERVAL_MS
   }, [])
 
   const updateSwap = useCallback((id: string, updates: Partial<BancoSwap>) => {
@@ -55,61 +88,93 @@ export const BancoProvider = ({ children }: { children: ReactNode }) => {
     setSwaps(getSwaps())
   }, [])
 
-  // Poll pending swaps for status changes
+  // Derive pending scripts: pkScript hex → swap ID
+  const pendingScripts = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const s of swaps) {
+      if (s.status === 'pending' && s.swapPkScript) {
+        map.set(s.swapPkScript, s.id)
+      }
+    }
+    return map
+  }, [swaps])
+
+  // Stable serialized key so the effect only re-runs when the actual set of scripts changes
+  const pendingScriptsKey = useMemo(() => [...pendingScripts.keys()].sort().join(','), [pendingScripts])
+
+  // Track the current subscription ID so addSwap can append scripts without tearing down
+  const subscriptionIdRef = useRef<string | null>(null)
+  const indexerRef = useRef<RestIndexerProvider | null>(null)
+
+  // SSE subscription for pending swap status changes
   useEffect(() => {
-    const pollPending = async () => {
-      const current = getSwaps()
-      const pending = current.filter((s) => s.status === 'pending')
-      if (pending.length === 0) return
+    const serverUrl = aspInfo?.url
+    if (!serverUrl || pendingScripts.size === 0) return
 
-      const serverUrl = aspInfo?.url
-      if (!serverUrl) return
+    const url = serverUrl.startsWith('http') ? serverUrl : 'http://' + serverUrl
+    const indexer = new RestIndexerProvider(url)
+    indexerRef.current = indexer
+    const abortController = new AbortController()
+    let subscriptionId: string | null = null
 
-      const url = serverUrl.startsWith('http') ? serverUrl : 'http://' + serverUrl
-      const indexer = new RestIndexerProvider(url)
+    const run = async () => {
+      try {
+        const scripts = [...pendingScripts.keys()]
 
-      let anyUpdated = false
-      for (const swap of pending) {
-        try {
-          const { vtxos } = await indexer.getVtxos({ scripts: [swap.swapPkScript], spendableOnly: false })
-          if (vtxos.length === 0) continue
+        // Create subscription and do initial catch-up
+        subscriptionId = await indexer.subscribeForScripts(scripts)
+        subscriptionIdRef.current = subscriptionId
 
-          const hasSwept = vtxos.some((v) => v.virtualStatus.state === 'swept')
-          const hasSpent = vtxos.some((v) => v.isSpent)
-          const hasSpendable = vtxos.some((v) => !v.isSpent && v.virtualStatus.state !== 'swept')
+        // Catch-up poll on startup
+        const updated = await checkSwapStatuses(indexer, pendingScripts)
+        if (updated) setSwaps(getSwaps())
 
-          if (hasSwept && !hasSpendable) {
-            updateSwapInStore(swap.id, { status: 'recoverable' })
-            anyUpdated = true
-          } else if (hasSpent || !hasSpendable) {
-            updateSwapInStore(swap.id, { status: 'fulfilled' })
-            anyUpdated = true
+        // Listen for SSE events
+        const subscription = indexer.getSubscription(subscriptionId, abortController.signal)
+        for await (const event of subscription) {
+          if (abortController.signal.aborted) break
+
+          // Check if any spent/swept vtxos match our pending scripts
+          const affectedScripts = new Set<string>()
+          for (const v of [...(event.spentVtxos ?? []), ...(event.sweptVtxos ?? [])]) {
+            if (v.script && pendingScripts.has(v.script)) {
+              affectedScripts.add(v.script)
+            }
           }
-        } catch (err) {
-          consoleError(err, 'banco poll error for swap ' + swap.id)
+
+          if (affectedScripts.size > 0) {
+            // Re-check affected swaps via getVtxos for authoritative status
+            const affected = new Map<string, string>()
+            for (const script of affectedScripts) {
+              affected.set(script, pendingScripts.get(script)!)
+            }
+            try {
+              const changed = await checkSwapStatuses(indexer, affected)
+              if (changed) setSwaps(getSwaps())
+            } catch (err) {
+              consoleError(err, 'banco: error checking swap status after SSE event')
+            }
+          }
         }
-      }
-
-      if (anyUpdated) {
-        setSwaps(getSwaps())
-        // Reset interval on state change
-        pollInterval.current = POLL_INTERVAL_MS
-      } else {
-        // Backoff: increase interval up to max
-        pollInterval.current = Math.min(pollInterval.current * 1.5, MAX_POLL_INTERVAL_MS)
+      } catch (err) {
+        if (abortController.signal.aborted) return
+        consoleError(err, 'banco: subscription error')
       }
     }
 
-    const schedule = () => {
-      timerRef.current = setTimeout(async () => {
-        await pollPending()
-        schedule()
-      }, pollInterval.current)
-    }
+    run()
 
-    schedule()
-    return () => clearTimeout(timerRef.current)
-  }, [aspInfo?.url])
+    return () => {
+      abortController.abort()
+      if (subscriptionId) {
+        indexer.unsubscribeForScripts(subscriptionId).catch((err) => {
+          consoleError(err, 'banco: error unsubscribing')
+        })
+      }
+      subscriptionIdRef.current = null
+      indexerRef.current = null
+    }
+  }, [aspInfo?.url, pendingScriptsKey])
 
   return (
     <BancoContext.Provider value={{ swaps, addSwap, updateSwap, reload, selectedSwapId, setSelectedSwapId }}>

@@ -62,6 +62,7 @@ export enum Pages {
   AppBancoDetail,
   AppDfx,
   Apps,
+  Swaps,
   Init,
   InitRestore,
   InitPassword,
@@ -91,6 +92,7 @@ export enum Tabs {
   Apps = 'apps',
   None = 'none',
   Settings = 'settings',
+  Swaps = 'swaps',
   Wallet = 'wallet',
 }
 
@@ -108,9 +110,10 @@ const pageTab = {
   [Pages.AppAssetReissue]: Tabs.Apps,
   [Pages.AppAssetBurn]: Tabs.Apps,
   [Pages.AppAssetsSettings]: Tabs.Apps,
-  [Pages.AppBanco]: Tabs.Apps,
-  [Pages.AppBancoSwap]: Tabs.Apps,
-  [Pages.AppBancoDetail]: Tabs.Apps,
+  [Pages.AppBanco]: Tabs.Swaps,
+  [Pages.AppBancoSwap]: Tabs.Swaps,
+  [Pages.AppBancoDetail]: Tabs.Swaps,
+  [Pages.Swaps]: Tabs.Swaps,
   [Pages.AppDfx]: Tabs.Apps,
   [Pages.Apps]: Tabs.Apps,
   [Pages.Init]: Tabs.None,
@@ -139,7 +142,7 @@ const pageTab = {
 }
 
 // Root pages of each tab — tab switches between these get no animation
-const ROOT_PAGES = new Set([Pages.Wallet, Pages.Apps, Pages.Settings])
+const ROOT_PAGES = new Set([Pages.Wallet, Pages.Apps, Pages.Swaps, Pages.Settings])
 
 // Coordination point for sub-navigation (e.g., Settings options)
 // Sub-navigation providers register here so the main popstate handler can delegate
@@ -194,6 +197,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <AppDfx />
     case Pages.Apps:
       return <Apps />
+    case Pages.Swaps:
+      return <AppBanco />
     case Pages.Init:
       return <Init />
     case Pages.InitConnect:
