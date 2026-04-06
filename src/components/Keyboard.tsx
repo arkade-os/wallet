@@ -21,10 +21,11 @@ interface KeyboardProps {
   back: () => void
   hideBalance?: boolean
   onSats: (sats: number) => void
+  onSave: () => void
   value: number | undefined
 }
 
-export default function Keyboard({ asset, back, hideBalance, onSats, value }: KeyboardProps) {
+export default function Keyboard({ asset, back, hideBalance, onSats, onSave, value }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
   const { balance, svcWallet } = useContext(WalletContext)
@@ -59,6 +60,10 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
           : value,
     )
   }, [textValue])
+
+  useEffect(() => {
+    onSats(amountInSats)
+  }, [amountInSats])
 
   const getMaxDecimals = () => {
     switch (inputMode) {
@@ -121,11 +126,6 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
       setTextValue(amountInSats ? prettyNumber(amountInSats, 0, false) : '')
       setInputMode('sats')
     }
-  }
-
-  const handleSave = () => {
-    onSats(amountInSats)
-    back()
   }
 
   // Display amounts based on input mode
@@ -206,7 +206,7 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
         ))}
       </IonGrid>
       <ButtonsOnBottom>
-        <Button label='Save' disabled={disabled} onClick={handleSave} />
+        <Button label='Save' disabled={disabled} onClick={onSave} />
       </ButtonsOnBottom>
     </>
   )

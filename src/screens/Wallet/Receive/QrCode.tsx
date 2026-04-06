@@ -375,9 +375,11 @@ export default function ReceiveQRCode() {
           setShowAmountSheet(false)
         }}
         hideBalance
-        onSats={(sats) => {
-          handleAmountChange(sats)
-          handleAmountConfirm(sats)
+        onSats={handleAmountChange}
+        onSave={() => {
+          setShowKeys(false)
+          setShowAmountSheet(false)
+          handleAmountConfirm()
         }}
         value={amountInput}
       />
