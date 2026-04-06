@@ -16,7 +16,6 @@ import { faucetOffchain } from './fundedWallet'
 import { prettyNumber } from '../../lib/format'
 
 test('should send to ark address', async ({ page, isMobile }) => {
-  test.setTimeout(60000)
   // create wallet
   await createWallet(page)
   await fundWallet(page, 5000)
@@ -50,7 +49,6 @@ test('should send to ark address', async ({ page, isMobile }) => {
 })
 
 test('should send MAX to ark address', async ({ page }) => {
-  test.setTimeout(60000)
   // create wallet
   await createWallet(page)
   await fundWallet(page, 5000)
@@ -91,7 +89,6 @@ test('should send MAX to ark address', async ({ page }) => {
 })
 
 test('should send assets to ark address', async ({ page, isMobile }) => {
-  test.setTimeout(60000)
   // create wallet
   await createWallet(page)
   await fundWallet(page, 5000)
@@ -153,7 +150,6 @@ test('should send assets to ark address', async ({ page, isMobile }) => {
 })
 
 test('should send MAX assets to ark address', async ({ page }) => {
-  test.setTimeout(60000)
   // create wallet
   await createWallet(page)
   await fundWallet(page, 5000)
