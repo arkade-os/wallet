@@ -2,7 +2,6 @@ import { useCallback, useContext, useEffect, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
-import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
@@ -11,8 +10,8 @@ import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import { consoleError } from '../../../lib/logs'
 import { canBrowserShareData, shareData } from '../../../lib/share'
-import ExpandAddresses from '../../../components/ExpandAddresses'
 import FlexCol from '../../../components/FlexCol'
+import FlexRow from '../../../components/FlexRow'
 import { LimitsContext } from '../../../providers/limits'
 import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import LoadingLogo from '../../../components/LoadingLogo'
@@ -23,20 +22,53 @@ import { enableChainSwapsReceive, lnurlServerUrl } from '../../../lib/constants'
 import { centsToUnits } from '../../../lib/assets'
 import WarningBox from '../../../components/Warning'
 import ErrorMessage from '../../../components/Error'
+import { getReceivingAddresses } from '../../../lib/asp'
+import { extractError } from '../../../lib/error'
+import InputAmount from '../../../components/InputAmount'
+import Keyboard from '../../../components/Keyboard'
+import SheetModal from '../../../components/SheetModal'
+import Text, { TextSecondary } from '../../../components/Text'
+import { copyToClipboard } from '../../../lib/clipboard'
+import { useToast } from '../../../components/Toast'
+import { prettyLongText, prettyNumber } from '../../../lib/format'
+import CopyIcon from '../../../icons/Copy'
+import CheckMarkIcon from '../../../icons/CheckMark'
+import { hapticSubtle } from '../../../lib/haptics'
+import { isMobileBrowser } from '../../../lib/browser'
+import { ConfigContext } from '../../../providers/config'
+import { FiatContext } from '../../../providers/fiat'
+import Focusable from '../../../components/Focusable'
 import { useLnurlSession } from '../../../hooks/useLnurlSession'
+import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
+import { AssetOption } from '../../../lib/types'
 
 export default function ReceiveQRCode() {
+  const { useFiat } = useContext(ConfigContext)
+  const { toFiat, fiatDecimals } = useContext(FiatContext)
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { arkadeSwaps, swapsInitError, connected, createBtcToArkSwap, createReverseSwap } = useContext(SwapsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
-  const { validBtcToArk, validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } =
+  const { minSwapAllowed, validBtcToArk, validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } =
     useContext(LimitsContext)
 
-  const [sharing, setSharing] = useState(false)
+  const { toast } = useToast()
 
-  // manage all possible receive methods
+  const [sharing, setSharing] = useState(false)
+  const [addressesLoaded, setAddressesLoaded] = useState(false)
+
+  // Amount sheet state
+  const [showAmountSheet, setShowAmountSheet] = useState(false)
+  const [showKeys, setShowKeys] = useState(false)
+  const [amountInput, setAmountInput] = useState(0)
+  const [amountTextValue, setAmountTextValue] = useState('')
+
+  // Copy address sheet state
+  const [showCopySheet, setShowCopySheet] = useState(false)
+  const [copied, setCopied] = useState('')
+
+  // Receive methods
   const { boardingAddr, offchainAddr, satoshis, assetId, addressError } = recvInfo
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const isAssetReceive = assetId && assetId !== ''
@@ -51,6 +83,28 @@ export default function ReceiveQRCode() {
   const [qrCodeValue, setQrCodeValue] = useState('')
   const [bip21Uri, setBip21Uri] = useState('')
   const [invoice, setInvoice] = useState('')
+
+  // Fetch addresses on mount
+  useEffect(() => {
+    if (!svcWallet) return
+    if (boardingAddr && offchainAddr) {
+      setAddressesLoaded(true)
+      return
+    }
+    getReceivingAddresses(svcWallet)
+      .then(({ offchainAddr, boardingAddr }) => {
+        if (!offchainAddr) throw 'Unable to get offchain address'
+        if (!boardingAddr) throw 'Unable to get boarding address'
+        setRecvInfo({ ...recvInfo, boardingAddr, offchainAddr, satoshis: 0, addressError: undefined })
+        setAddressesLoaded(true)
+      })
+      .catch((err) => {
+        const error = extractError(err)
+        consoleError(error, 'error getting addresses')
+        setRecvInfo({ ...recvInfo, addressError: error })
+        setAddressesLoaded(true)
+      })
+  }, [svcWallet])
 
   // LNURL session for amountless Lightning receives
   const isAmountlessLnurl =
@@ -95,7 +149,7 @@ export default function ReceiveQRCode() {
 
   const createLightningInvoice = () => {
     return new Promise((resolve, reject) => {
-      if (invoice) return reject() // invoice already exists, no need to create another
+      if (invoice) return reject()
       if (!validLnSwap(satoshis)) return reject()
       createReverseSwap(satoshis)
         .then((pendingSwap) => {
@@ -109,16 +163,25 @@ export default function ReceiveQRCode() {
     })
   }
 
+  const createBip21 = (sats = satoshis): { ark: string; btc: string; bip21: string } => {
+    const ark = validVtxoTx(sats) && vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
+    const btc = validUtxoTx(sats) && utxoTxsAllowed() ? swapAddress || recvInfo.boardingAddr : ''
+    const bip21 = isAssetReceive
+      ? encodeBip21Asset(ark, assetId, centsToUnits(sats, assetMeta?.metadata?.decimals))
+      : encodeBip21(btc, ark, invoice, sats, lnurlSession.lnurl)
+
+    return { ark, btc, bip21 }
+  }
+
   useEffect(() => {
     if (isAssetReceive) return setShowQrCode(true)
     if (!satoshis || !svcWallet) return
+    if (!addressesLoaded) return
 
-    // LN is only expected when Boltz is enabled and this isn't an asset receive
     const lnExpected = connected && !isAssetReceive
 
     if (!arkadeSwaps) {
       if (!lnExpected || swapsInitError) {
-        // LN not expected or already failed — show QR immediately
         if (lnExpected && swapsInitError) {
           consoleError(swapsInitError, 'Swaps unavailable, showing receive without swap options')
           setSwapsTimedOut(true)
@@ -126,7 +189,6 @@ export default function ReceiveQRCode() {
         setShowQrCode(true)
         return
       }
-      // LN expected but swaps still initializing — wait up to 5s
       const timeout = setTimeout(() => {
         setSwapsTimedOut(true)
         setShowQrCode(true)
@@ -134,7 +196,6 @@ export default function ReceiveQRCode() {
       return () => clearTimeout(timeout)
     }
 
-    // arkadeSwaps is ready, generate swaps before showing QR to avoid QR code changing
     setSwapsTimedOut(false)
 
     Promise.allSettled([createBtcAddress(), createLightningInvoice()]).then(([btc, lightning]) => {
@@ -154,8 +215,8 @@ export default function ReceiveQRCode() {
       }
       if (lightning.status === 'fulfilled') {
         const pendingSwap = lightning.value as PendingReverseSwap
-        const invoice = pendingSwap.response.invoice
-        setInvoice(invoice)
+        const inv = pendingSwap.response.invoice
+        setInvoice(inv)
         arkadeSwaps
           .waitAndClaim(pendingSwap)
           .then(() => {
@@ -168,38 +229,45 @@ export default function ReceiveQRCode() {
       }
       setShowQrCode(true)
     })
-  }, [satoshis, svcWallet, arkadeSwaps, swapsInitError])
+  }, [satoshis, svcWallet, arkadeSwaps, swapsInitError, addressesLoaded])
 
-  //
+  // Build BIP21 URI
   useEffect(() => {
-    if (!showQrCode) return
+    if (!addressesLoaded && !showQrCode) return
 
-    const arkAddress = validVtxoTx(satoshis) && vtxoTxsAllowed() ? offchainAddr : ''
-    const btcAddress = validUtxoTx(satoshis) && utxoTxsAllowed() ? swapAddress || boardingAddr : ''
-
-    const bip21uri = isAssetReceive
-      ? encodeBip21Asset(arkAddress, assetId, centsToUnits(satoshis, assetMeta?.metadata?.decimals))
-      : encodeBip21(btcAddress, arkAddress, invoice, satoshis, lnurlSession.lnurl)
-
+    const { ark, btc, bip21 } = createBip21()
     const hasLnurl = isAmountlessLnurl && lnurlSession.active
-    setNoPaymentMethods(!arkAddress && !btcAddress && !invoice && !hasLnurl && !isAssetReceive)
-    setArkAddress(arkAddress)
-    setBtcAddress(btcAddress)
-    setQrCodeValue(bip21uri)
-    setBip21Uri(bip21uri)
-  }, [showQrCode, swapAddress, invoice, lnurlSession.lnurl, lnurlSession.active, isAmountlessLnurl])
 
+    setNoPaymentMethods(!ark && !btc && !invoice && !hasLnurl && !isAssetReceive)
+    setArkAddress(ark)
+    setBtcAddress(btc)
+    setBip21Uri(bip21)
+    setQrCodeValue(bip21)
+  }, [
+    showQrCode,
+    swapAddress,
+    invoice,
+    addressesLoaded,
+    recvInfo.offchainAddr,
+    recvInfo.boardingAddr,
+    satoshis,
+    lnurlSession.lnurl,
+    lnurlSession.active,
+    isAmountlessLnurl,
+  ])
+
+  // Payment listener
   useEffect(() => {
     if (!svcWallet) return
 
     const listenForPayments = (event: MessageEvent) => {
-      let satoshis = 0
+      let sats = 0
       let receivedAssets: Asset[] = []
 
       if (event.data && event.data.type === 'VTXO_UPDATE') {
         const newVtxos = event.data.payload?.newVtxos
         if (Array.isArray(newVtxos)) {
-          satoshis = (newVtxos as ExtendedVirtualCoin[]).reduce((acc, v) => acc + v.value, 0)
+          sats = (newVtxos as ExtendedVirtualCoin[]).reduce((acc, v) => acc + v.value, 0)
           for (const v of newVtxos as ExtendedVirtualCoin[]) {
             receivedAssets.push(...(v.assets ?? []))
           }
@@ -208,7 +276,6 @@ export default function ReceiveQRCode() {
         }
       }
 
-      // reduce received assets to unique asset ids (sum amounts if same asset id)
       receivedAssets = receivedAssets.reduce((acc, v) => {
         const existing = acc.find((a) => a.assetId === v.assetId)
         if (existing) {
@@ -222,26 +289,31 @@ export default function ReceiveQRCode() {
       if (event.data && event.data.type === 'UTXO_UPDATE') {
         const coins = event.data.payload?.coins
         if (Array.isArray(coins)) {
-          satoshis = (coins as Coin[]).reduce((acc, v) => acc + v.value, 0)
+          sats = (coins as Coin[]).reduce((acc, v) => acc + v.value, 0)
         } else {
           consoleError('UTXO_UPDATE message has unexpected payload shape:', event.data.payload)
         }
       }
 
-      if (satoshis || receivedAssets.length > 0) {
-        setRecvInfo({ ...recvInfo, satoshis, receivedAssets })
-        if (!isAssetReceive) notifyPaymentReceived(satoshis)
+      if (sats || receivedAssets.length > 0) {
+        setRecvInfo({ ...recvInfo, satoshis: sats, receivedAssets })
+        if (!isAssetReceive) notifyPaymentReceived(sats)
         navigate(Pages.ReceiveSuccess)
       }
     }
 
     navigator.serviceWorker.addEventListener('message', listenForPayments)
-
-    return () => {
-      navigator.serviceWorker.removeEventListener('message', listenForPayments)
-    }
+    return () => navigator.serviceWorker.removeEventListener('message', listenForPayments)
   }, [svcWallet])
 
+  // update bip21 when amount changes
+  useEffect(() => {
+    const { bip21 } = createBip21(amountInput)
+    setQrCodeValue(bip21)
+    setBip21Uri(bip21)
+  }, [amountInput])
+
+  // Handlers
   const handleShare = () => {
     setSharing(true)
     shareData(data)
@@ -249,41 +321,293 @@ export default function ReceiveQRCode() {
       .finally(() => setSharing(false))
   }
 
+  const handleCopy = async (value: string) => {
+    hapticSubtle()
+    await copyToClipboard(value)
+    toast('Copied to clipboard')
+    setCopied(value)
+  }
+
+  const handleAmountChange = (sats: number) => {
+    setAmountInput(sats)
+    const value = assetMeta ? centsToUnits(sats, assetMeta.metadata?.decimals) : useFiat ? toFiat(sats) : sats
+    const maximumFractionDigits = useFiat
+      ? fiatDecimals()
+      : assetMeta?.metadata?.decimals
+        ? assetMeta?.metadata?.decimals
+        : 0
+    setAmountTextValue(prettyNumber(value, maximumFractionDigits, false))
+  }
+
+  const handleAmountConfirm = (satoshis = amountInput) => {
+    setShowKeys(false)
+    setShowAmountSheet(false)
+    setRecvInfo({ ...recvInfo, satoshis })
+  }
+
+  const handleAmountClear = () => {
+    setAmountInput(0)
+    setAmountTextValue('')
+    setShowKeys(false)
+    setShowAmountSheet(false)
+    setRecvInfo({ ...recvInfo, satoshis: 0 })
+  }
+
+  const assetOption: AssetOption = {
+    assetId: assetId ?? '',
+    name: assetMeta?.metadata?.name ?? '',
+    ticker: assetMeta?.metadata?.ticker ?? '',
+    balance: 0,
+    decimals: assetMeta?.metadata?.decimals ?? 0,
+    icon: assetMeta?.metadata?.icon,
+  }
+
   const data = { title: 'Receive', text: qrCodeValue }
-  const disabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods
+  const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods
+
+  // Mobile keyboard — bypass sheet on save, go straight to QR
+  if (showKeys) {
+    return (
+      <Keyboard
+        asset={assetOption}
+        back={() => {
+          setShowKeys(false)
+          setShowAmountSheet(false)
+        }}
+        hideBalance
+        onSats={handleAmountChange}
+        onSave={() => {
+          setShowKeys(false)
+          setShowAmountSheet(false)
+          handleAmountConfirm()
+        }}
+        value={amountInput}
+      />
+    )
+  }
+
+  const amountLabel = amountInput ? 'Edit amount' : 'Add amount'
+  const unitLabel = assetMeta?.metadata?.ticker ?? 'sats'
 
   return (
     <>
-      <Header text='Receive' back />
-      <Content>
+      <Header text='Receive' back={() => navigate(Pages.Wallet)} />
+      <Content noFade>
         <Padded>
           {hasError ? (
             <ErrorMessage error text={`Failed to get address: ${addressError}`} />
+          ) : !addressesLoaded || (!qrCodeValue && !noPaymentMethods) ? (
+            <LoadingLogo text='Loading...' />
           ) : noPaymentMethods ? (
             <div>No valid payment methods available for this amount</div>
-          ) : qrCodeValue ? (
-            <FlexCol centered>
-              <QrCode value={qrCodeValue} />
-              <ExpandAddresses
-                bip21uri={bip21Uri}
-                boardingAddr={btcAddress}
-                offchainAddr={arkAddress}
-                invoice={invoice || ''}
-                lnurl={lnurlSession.lnurl}
-                onClick={setQrCodeValue}
-              />
-              {swapsTimedOut && !invoice && !isAssetReceive ? (
-                <WarningBox text='Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.' />
-              ) : null}
-            </FlexCol>
           ) : (
-            <LoadingLogo text='Generating QR code...' />
+            <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 2rem)', gap: '1rem' }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <QrCode value={qrCodeValue} />
+                  {satoshis > 0 ? (
+                    <div style={{ fontSize: '14px', color: 'var(--dark50)', marginTop: '0.5rem' }}>
+                      Requesting {prettyNumber(satoshis)} {unitLabel}
+                    </div>
+                  ) : null}
+                  {(!satoshis || satoshis < minSwapAllowed()) && !isAssetReceive ? (
+                    <div style={{ fontSize: '13px', color: 'var(--dark50)', marginTop: '0.25rem' }}>
+                      {minSwapAllowed()} sats min for Lightning
+                    </div>
+                  ) : null}
+                  {swapsTimedOut && !invoice && !isAssetReceive ? (
+                    <WarningBox text='Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.' />
+                  ) : null}
+                </div>
+              </div>
+            </div>
           )}
         </Padded>
       </Content>
+
       <ButtonsOnBottom>
-        <Button onClick={handleShare} label='Share' disabled={disabled} />
+        <FlexCol gap='0'>
+          <FlexRow gap='0.5rem'>
+            <Button label={amountLabel} onClick={() => setShowAmountSheet(true)} secondary />
+            <Button label='Copy' onClick={() => setShowCopySheet(true)} secondary />
+          </FlexRow>
+          <Button label='Share' onClick={handleShare} disabled={shareDisabled} />
+        </FlexCol>
       </ButtonsOnBottom>
+
+      {/* Amount bottom sheet */}
+      <SheetModal isOpen={showAmountSheet} onClose={() => setShowAmountSheet(false)}>
+        <FlexCol gap='1rem' padding='0.5rem 0'>
+          <Text big bold>
+            Set amount
+          </Text>
+          <InputAmount
+            asset={assetOption}
+            name='receive-amount-sheet'
+            focus={!isMobileBrowser}
+            label='Amount'
+            onSats={handleAmountChange}
+            onFocus={() => setShowKeys(isMobileBrowser)}
+            readOnly={isMobileBrowser}
+            value={amountTextValue ? Number(amountTextValue) : undefined}
+            sats={amountInput}
+            onEnter={handleAmountConfirm}
+          />
+          <Button label='Set amount' onClick={handleAmountConfirm} disabled={!amountInput} />
+          {satoshis > 0 ? <Button label='Clear amount' onClick={handleAmountClear} secondary /> : null}
+        </FlexCol>
+      </SheetModal>
+
+      {/* Copy address bottom sheet */}
+      <SheetModal isOpen={showCopySheet} onClose={() => setShowCopySheet(false)}>
+        <FlexCol gap='1rem' padding='0.5rem 0'>
+          <Text big bold>
+            Copy address
+          </Text>
+          <AddressList
+            bip21Uri={bip21Uri}
+            btcAddress={btcAddress}
+            arkAddress={arkAddress}
+            lnurl={lnurlSession.lnurl}
+            invoice={invoice}
+            onCopy={handleCopy}
+            onSelect={(v) => {
+              setQrCodeValue(v)
+              setShowCopySheet(false)
+            }}
+            copied={copied}
+          />
+        </FlexCol>
+      </SheetModal>
     </>
+  )
+}
+
+function AddressList({
+  bip21Uri,
+  btcAddress,
+  arkAddress,
+  invoice,
+  lnurl,
+  onCopy,
+  onSelect,
+  copied,
+}: {
+  bip21Uri: string
+  btcAddress: string
+  arkAddress: string
+  invoice: string
+  lnurl: string
+  onCopy: (value: string) => void
+  onSelect: (value: string) => void
+  copied: string
+}) {
+  return (
+    <FlexCol gap='0.75rem'>
+      {bip21Uri ? (
+        <AddressLine
+          testId='bip21'
+          title='Unified'
+          value={bip21Uri}
+          onCopy={onCopy}
+          onSelect={onSelect}
+          copied={copied}
+        />
+      ) : null}
+      {invoice ? (
+        <AddressLine
+          testId='invoice'
+          title='Lightning invoice'
+          value={invoice}
+          onCopy={onCopy}
+          onSelect={onSelect}
+          copied={copied}
+        />
+      ) : null}
+      {arkAddress ? (
+        <AddressLine
+          testId='ark'
+          title='Arkade address'
+          value={arkAddress}
+          onCopy={onCopy}
+          onSelect={onSelect}
+          copied={copied}
+        />
+      ) : null}
+      {btcAddress ? (
+        <AddressLine
+          testId='btc'
+          title='Bitcoin address'
+          value={btcAddress}
+          onCopy={onCopy}
+          onSelect={onSelect}
+          copied={copied}
+        />
+      ) : null}
+      {lnurl ? (
+        <AddressLine
+          testId='lnurl'
+          title='LNURL address'
+          value={lnurl}
+          onCopy={onCopy}
+          onSelect={onSelect}
+          copied={copied}
+        />
+      ) : null}
+    </FlexCol>
+  )
+}
+
+function AddressLine({
+  testId,
+  title,
+  value,
+  onCopy,
+  onSelect,
+  copied,
+}: {
+  testId: string
+  title: string
+  value: string
+  onCopy: (value: string) => void
+  onSelect: (value: string) => void
+  copied: string
+}) {
+  return (
+    <Focusable
+      onEnter={() => {
+        onCopy(value)
+        onSelect(value)
+      }}
+    >
+      <FlexRow between onClick={() => onSelect(value)}>
+        <FlexCol gap='0'>
+          <TextSecondary>{title}</TextSecondary>
+          <Text>{prettyLongText(value, 12)}</Text>
+        </FlexCol>
+        <button
+          type='button'
+          aria-label={`Copy ${title}`}
+          data-testid={testId + '-address-copy'}
+          onClick={() => onCopy(value)}
+          style={{
+            alignItems: 'center',
+            background: 'var(--dark05)',
+            border: 'none',
+            borderRadius: '8px',
+            color: 'var(--dark30)',
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'center',
+            minWidth: '44px',
+            minHeight: '44px',
+            padding: 0,
+            touchAction: 'manipulation',
+          }}
+        >
+          {copied === value ? <CheckMarkIcon /> : <CopyIcon />}
+        </button>
+      </FlexRow>
+    </Focusable>
   )
 }

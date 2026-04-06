@@ -21,10 +21,11 @@ interface KeyboardProps {
   back: () => void
   hideBalance?: boolean
   onSats: (sats: number) => void
+  onSave: () => void
   value: number | undefined
 }
 
-export default function Keyboard({ asset, back, hideBalance, onSats, value }: KeyboardProps) {
+export default function Keyboard({ asset, back, hideBalance, onSats, onSave, value }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
   const { balance, svcWallet } = useContext(WalletContext)
@@ -32,7 +33,9 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
   const [amountInSats, setAmountInSats] = useState(0)
   const [available, setAvailable] = useState(0)
   const [error, setError] = useState('')
-  const [inputMode, setInputMode] = useState<'sats' | 'fiat' | 'asset'>(asset ? 'asset' : useFiat ? 'fiat' : 'sats')
+  const [inputMode, setInputMode] = useState<'sats' | 'fiat' | 'asset'>(
+    asset?.assetId ? 'asset' : useFiat ? 'fiat' : 'sats',
+  )
   const [textValue, setTextValue] = useState('')
 
   useEffect(() => {
@@ -57,6 +60,10 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
           : value,
     )
   }, [textValue])
+
+  useEffect(() => {
+    onSats(amountInSats)
+  }, [amountInSats])
 
   const getMaxDecimals = () => {
     switch (inputMode) {
@@ -121,14 +128,14 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
     }
   }
 
-  const handleSave = () => {
-    onSats(amountInSats)
-    back()
-  }
-
   // Display amounts based on input mode
   const amount = {
-    primary: `${textValue || '0'} ${inputMode === 'fiat' ? config.fiat : inputMode === 'asset' ? asset?.ticker : 'SATS'}`,
+    primary:
+      inputMode === 'fiat'
+        ? prettyAmount(amountInSats ? toFiat(amountInSats) : 0, config.fiat, fiatDecimals())
+        : inputMode === 'asset'
+          ? `${textValue || '0'} ${asset?.ticker}`
+          : `${textValue || '0'} SATS`,
     secondary:
       inputMode === 'fiat'
         ? prettyAmount(amountInSats)
@@ -179,7 +186,7 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
           <Text big centered heading>
             {amount.primary}
           </Text>
-          {asset ? null : <TextSecondary centered>≈ {amount.secondary}</TextSecondary>}
+          {asset?.assetId ? null : <TextSecondary centered>≈ {amount.secondary}</TextSecondary>}
           {hideBalance ? null : (
             <div onClick={handleMaxPress}>
               <TextSecondary centered>{amount.balance}</TextSecondary>
@@ -199,7 +206,7 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
         ))}
       </IonGrid>
       <ButtonsOnBottom>
-        <Button label='Save' disabled={disabled} onClick={handleSave} />
+        <Button label='Save' disabled={disabled} onClick={onSave} />
       </ButtonsOnBottom>
     </>
   )
