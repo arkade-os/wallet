@@ -48,8 +48,8 @@ jobs:
         docker ps --format "table {{.Names}}\t{{.Status}}" || true
         echo "=== boltz logs (last 50) ==="
         docker logs boltz 2>&1 | tail -50 || true
-        echo "=== ark logs (last 50) ==="
-        docker logs ark 2>&1 | tail -50 || true
+        echo "=== arkd logs (last 50) ==="
+        docker logs arkd 2>&1 | tail -50 || true
     - name: Cleanup
       if: always()
       run: |

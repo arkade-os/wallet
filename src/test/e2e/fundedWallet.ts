@@ -33,7 +33,7 @@ const waitForBalance = async (
 }
 
 const createNote = async (amount: number): Promise<string> => {
-  const { stdout } = await execAsync(`docker exec -t ark arkd note --amount ${amount}`)
+  const { stdout } = await execAsync(`docker exec -t arkd arkd note --amount ${amount}`)
   return stdout.trim()
 }
 
