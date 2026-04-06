@@ -339,10 +339,10 @@ export default function ReceiveQRCode() {
     setAmountTextValue(prettyNumber(value, maximumFractionDigits, false))
   }
 
-  const handleAmountConfirm = (satoshis = amountInput) => {
+  const handleAmountConfirm = () => {
     setShowKeys(false)
     setShowAmountSheet(false)
-    setRecvInfo({ ...recvInfo, satoshis })
+    setRecvInfo({ ...recvInfo, satoshis: amountInput })
   }
 
   const handleAmountClear = () => {
