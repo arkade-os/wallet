@@ -466,6 +466,7 @@ export default function ReceiveQRCode() {
             bip21Uri={bip21Uri}
             btcAddress={btcAddress}
             arkAddress={arkAddress}
+            lnurl={lnurlSession.lnurl}
             invoice={invoice}
             onCopy={handleCopy}
             onSelect={(v) => {
@@ -485,6 +486,7 @@ function AddressList({
   btcAddress,
   arkAddress,
   invoice,
+  lnurl,
   onCopy,
   onSelect,
   copied,
@@ -493,6 +495,7 @@ function AddressList({
   btcAddress: string
   arkAddress: string
   invoice: string
+  lnurl: string
   onCopy: (value: string) => void
   onSelect: (value: string) => void
   copied: string
@@ -534,6 +537,16 @@ function AddressList({
           testId='btc'
           title='Bitcoin address'
           value={btcAddress}
+          onCopy={onCopy}
+          onSelect={onSelect}
+          copied={copied}
+        />
+      ) : null}
+      {lnurl ? (
+        <AddressLine
+          testId='lnurl'
+          title='LNURL address'
+          value={lnurl}
           onCopy={onCopy}
           onSelect={onSelect}
           copied={copied}
