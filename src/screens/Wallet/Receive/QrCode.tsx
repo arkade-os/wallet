@@ -439,7 +439,7 @@ export default function ReceiveQRCode() {
       <SheetModal isOpen={showAmountSheet} onClose={() => setShowAmountSheet(false)}>
         <FlexCol gap='1rem' padding='0.5rem 0'>
           <Text big bold>
-            Set amount
+            Add amount
           </Text>
           <InputAmount
             asset={assetOption}

@@ -128,7 +128,7 @@ test('should reissue an asset with control token', async ({ page }) => {
 
   // back on detail page with increased balance
   await page.waitForSelector('text=ReissueCoin', { state: 'visible' })
-  await expect(page.getByText('700 RSI')).toBeVisible()
+  await page.waitForSelector('text=700 RSI', { state: 'visible' })
 })
 
 test('should mint asset with new control asset', async ({ page }) => {

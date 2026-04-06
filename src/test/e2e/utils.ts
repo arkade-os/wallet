@@ -155,19 +155,18 @@ async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = f
 
   // fill amount to receive if provided
   if (sats) {
+    await page.getByText('Add amount').click()
     if (isMobile) {
-      await page.locator('ion-input[name="receive-amount"] input').click()
+      await page.locator('ion-input[name="receive-amount-sheet"] input').click()
       await handleKeyboardInput(page, sats)
     } else {
-      await page.locator('ion-input[name="receive-amount"] input').fill(sats.toString())
+      await page.locator('ion-input[name="receive-amount-sheet"] input').fill(sats.toString())
+      await page.getByText('Set amount').click()
     }
-    await page.getByText('Continue').click()
-  } else {
-    await page.getByText('Skip').click()
   }
 
   // copy address/invoice
-  await page.getByTestId('expand-addresses').click()
+  await page.getByText('Copy').click()
   await page.getByTestId(`${type}-address-copy`).click()
   return await readClipboard(page)
 }
