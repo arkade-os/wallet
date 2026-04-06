@@ -1,0 +1,15 @@
+name: nigiri
+services:
+  nak:
+    build:
+      context: .
+      dockerfile: nak.Dockerfile
+    container_name: nak
+    ports:
+      - '10547:10547'
+    command: ['nak', 'serve', '--hostname', '0.0.0.0', '--port', '10547']
+
+networks:
+  default:
+    name: nigiri
+    external: true
