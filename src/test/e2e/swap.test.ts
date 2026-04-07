@@ -172,7 +172,7 @@ test('should receive bitcoin funds from swap', async ({ page, isMobile }) => {
 test('should send funds to onchain address via swap', async ({ page, isMobile }) => {
   test.setTimeout(120000)
   // set fees
-  execSync('docker exec -t ark arkd fees intent --onchain-output "200.0"')
+  execSync('docker exec -t arkd arkd fees intent --onchain-output "200.0"')
 
   // create wallet
   await createWallet(page)
@@ -202,5 +202,5 @@ test('should send funds to onchain address via swap', async ({ page, isMobile })
   await expect(page.getByText('Sent')).toBeVisible()
 
   // clear fees
-  execSync('docker exec -t ark arkd fees clear')
+  execSync('docker exec -t arkd arkd fees clear')
 })
