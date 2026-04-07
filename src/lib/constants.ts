@@ -38,7 +38,10 @@ export const getDelegateUrlForNetwork = (network: Network): Delegate => {
     throw new Error(`Delegate URL not found for network: ${network}`)
   }
   return {
-    name: 'Arkade Default',
     url,
+    fee: 0,
+    pubkey: '', // Placeholder, as the actual pubkey should be fetched from the delegate server
+    address: '', // Placeholder, as the actual address should be fetched from the delegate server
+    name: 'Arkade Default',
   }
 }
