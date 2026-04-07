@@ -163,9 +163,7 @@ export default function AppBanco() {
 
   // TODO(temp): remove once the swap page UI is reworked.
   const isMutinynet = aspInfo.network === 'mutinynet'
-  const tabs = [...allPairs, ...walletExtras].filter(
-    (t) => !(isMutinynet && MUTINYNET_HIDDEN_TICKERS.has(t.ticker)),
-  )
+  const tabs = [...allPairs, ...walletExtras].filter((t) => !(isMutinynet && MUTINYNET_HIDDEN_TICKERS.has(t.ticker)))
   const totalTabs = tabs.length
   const safeTab = totalTabs > 0 ? Math.min(selectedTab, totalTabs - 1) : -1
   const selected = safeTab >= 0 ? tabs[safeTab] : null
