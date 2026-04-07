@@ -310,6 +310,16 @@ export default function AppBancoDetail() {
                   value={swap.fundingTxid}
                   href={getOffchainTxURL(swap.fundingTxid, wallet)}
                 />
+                {swap.spentTxid ? (
+                  <>
+                    <div style={{ borderBottom: '1px solid var(--dark10)' }} />
+                    <CopyableRow
+                      label='Spending tx'
+                      value={swap.spentTxid}
+                      href={getOffchainTxURL(swap.spentTxid, wallet)}
+                    />
+                  </>
+                ) : null}
                 <div style={{ borderBottom: '1px solid var(--dark10)' }} />
                 <CopyableRow label='Swap address' value={swap.swapAddress} />
               </div>

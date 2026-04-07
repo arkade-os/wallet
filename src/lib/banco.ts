@@ -11,6 +11,8 @@ export interface BancoSwap {
   swapPkScript: string
   offerHex: string
   fundingTxid: string
+  /** Txid of the ark tx that spent the swap VTXO (set once fulfilled). */
+  spentTxid?: string
   status: BancoSwapStatus
   createdAt: number
   cancelAt: number

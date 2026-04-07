@@ -8,6 +8,7 @@ import Text from '../../../components/Text'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext, emptyBancoInfo } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
+import { AspContext } from '../../../providers/asp'
 import { consoleError } from '../../../lib/logs'
 import { prettyNumber, prettyAgo } from '../../../lib/format'
 import { BancoContext } from '../../../providers/banco'
@@ -38,6 +39,10 @@ function parseExtraPairs(): BancoPair[] {
 const EXTRA_PAIRS = parseExtraPairs()
 const VERIFIED_ASSETS_URL = import.meta.env.VITE_VERIFIED_ASSETS_URL
 const BTC_ICON = 'https://coin-images.coingecko.com/coins/images/1/small/bitcoin.png'
+
+// TODO(temp): remove once the swap page UI is reworked.
+// Hides known-shitcoin test assets from the mutinynet swap page.
+const MUTINYNET_HIDDEN_TICKERS = new Set(['TRUMP', 'TRL', 'PAN', 'FRA'])
 
 // All banco pairs use the BTC/USDT price: 1 asset unit = 1 USD-cent worth of sats
 const PRICE_FEED_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=btc'
@@ -71,6 +76,7 @@ export default function AppBanco() {
   const { navigate } = useContext(NavigationContext)
   const { setBancoInfo } = useContext(FlowContext)
   const { balance, assetBalances, svcWallet } = useContext(WalletContext)
+  const { aspInfo } = useContext(AspContext)
   const { swaps, setSelectedSwapId } = useContext(BancoContext)
 
   const [selectedTab, setSelectedTab] = useState(0)
@@ -155,7 +161,11 @@ export default function AppBanco() {
     return truncateId(assetId)
   }
 
-  const tabs = [...allPairs, ...walletExtras]
+  // TODO(temp): remove once the swap page UI is reworked.
+  const isMutinynet = aspInfo.network === 'mutinynet'
+  const tabs = [...allPairs, ...walletExtras].filter(
+    (t) => !(isMutinynet && MUTINYNET_HIDDEN_TICKERS.has(t.ticker)),
+  )
   const totalTabs = tabs.length
   const safeTab = totalTabs > 0 ? Math.min(selectedTab, totalTabs - 1) : -1
   const selected = safeTab >= 0 ? tabs[safeTab] : null

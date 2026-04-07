@@ -60,7 +60,8 @@ async function checkSwapStatuses(
       updateSwapInStore(swapId, { status: 'recoverable' })
       anyUpdated = true
     } else if (hasSpent || !hasSpendable) {
-      updateSwapInStore(swapId, { status: 'fulfilled' })
+      const spentTxid = swapVtxos.find((v) => v.isSpent && v.spentBy)?.spentBy
+      updateSwapInStore(swapId, { status: 'fulfilled', ...(spentTxid ? { spentTxid } : {}) })
       anyUpdated = true
     }
   }
