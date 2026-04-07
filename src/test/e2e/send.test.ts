@@ -330,7 +330,7 @@ test('should send to onchain address with collaborative exit', async ({ page, is
 // since 1000 sats is below the minimum for chain swap, wallet will use collaborative exit to send onchain
 test('should send MAX to onchain address with collaborative exit', async ({ page }) => {
   // set fees
-  execSync('docker exec -t arkd arkd fees intent --onchain-output "200.0"')
+  execSync('docker exec -t ark arkd fees intent --onchain-output "200.0"')
 
   // create wallet
   await createWallet(page)
@@ -379,5 +379,5 @@ test('should send MAX to onchain address with collaborative exit', async ({ page
   await expect(page.getByText('Sent')).toBeVisible()
 
   // clear fees
-  execSync('docker exec -t arkd arkd fees clear')
+  execSync('docker exec -t ark arkd fees clear')
 })
