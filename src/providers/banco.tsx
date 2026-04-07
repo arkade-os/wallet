@@ -60,7 +60,14 @@ async function checkSwapStatuses(
       updateSwapInStore(swapId, { status: 'recoverable' })
       anyUpdated = true
     } else if (hasSpent || !hasSpendable) {
-      const spentTxid = swapVtxos.find((v) => v.isSpent && v.spentBy)?.spentBy
+      const spentVtxo = swapVtxos.find((v) => v.isSpent)
+      const spentTxid =
+        spentVtxo?.arkTxId ??
+        // Some indexer responses use `arkTxid` instead of `arkTxId`.
+        (spentVtxo as any)?.arkTxid ??
+        // Fallback (older behavior): this may be a checkpoint txid, not an off-chain Ark txid.
+        spentVtxo?.spentBy ??
+        undefined
       updateSwapInStore(swapId, { status: 'fulfilled', ...(spentTxid ? { spentTxid } : {}) })
       anyUpdated = true
     }
