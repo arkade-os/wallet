@@ -1,5 +1,6 @@
 import { test as base, type Page } from '@playwright/test'
 import { faucetOffchain } from './fundedWallet'
+import { sleep } from '../../lib/sleep'
 
 export const test = base.extend({
   page: async ({ page }, use) => {
@@ -235,6 +236,7 @@ export async function fundWallet(page: Page, amount: number = 5000): Promise<voi
   await faucetOffchain(arkAddress, amount)
   await waitForPaymentReceived(page)
   await page.getByTestId('tab-wallet').click()
+  await sleep(3000)
 }
 
 export async function resetAndRestoreWallet(page: Page): Promise<void> {
