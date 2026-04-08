@@ -14,7 +14,7 @@ import { WalletContext } from '../../../providers/wallet'
 import { BancoContext } from '../../../providers/banco'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
-import { prettyDate } from '../../../lib/format'
+import { formatAssetAmount, prettyDate } from '../../../lib/format'
 import type { BancoSwap } from '../../../lib/banco'
 import { SwapCard } from './SwapCard'
 import { getOffchainTxURL } from '../../../lib/explorers'
@@ -102,6 +102,14 @@ export default function AppBancoDetail() {
     if (!assetId) return 'sats'
     const cached = assetMetadataCache.get(assetId)
     return cached?.metadata?.ticker || cached?.metadata?.name || truncate(assetId)
+  }
+
+  // Format raw smallest-unit amounts according to the asset's decimals.
+  // BTC (empty assetId) is displayed as raw sats to match the 'sats' label.
+  function displayAmount(amount: number, assetId: string): string {
+    if (!assetId) return amount.toLocaleString()
+    const decimals = assetMetadataCache.get(assetId)?.metadata?.decimals ?? 0
+    return formatAssetAmount(amount, decimals)
   }
 
   const swap = swaps.find((s) => s.id === selectedSwapId)
@@ -210,7 +218,7 @@ export default function AppBancoDetail() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                   <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--black)' }}>
-                    {swap.payAmount.toLocaleString()}
+                    {displayAmount(swap.payAmount, swap.payAsset)}
                   </span>
                   <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--dark50)' }}>
                     {displayAsset(swap.payAsset)}
@@ -257,7 +265,7 @@ export default function AppBancoDetail() {
                       color: swap.status === 'fulfilled' ? '#4ade80' : 'var(--black)',
                     }}
                   >
-                    {swap.receiveAmount.toLocaleString()}
+                    {displayAmount(swap.receiveAmount, swap.receiveAsset)}
                   </span>
                   <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--dark50)' }}>
                     {displayAsset(swap.receiveAsset)}

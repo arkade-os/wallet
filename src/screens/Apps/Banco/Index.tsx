@@ -45,25 +45,46 @@ const BTC_ICON = 'https://coin-images.coingecko.com/coins/images/1/small/bitcoin
 // Hides known-shitcoin test assets from the mutinynet swap page.
 const MUTINYNET_HIDDEN_TICKERS = new Set(['TRUMP', 'TRL', 'PAN', 'FRA'])
 
-// All banco pairs use the BTC/USDT price: 1 asset unit = 1 USD-cent worth of sats
-const PRICE_FEED_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=btc'
+// Default price feed: 1 asset unit = 1 USD-cent worth of sats (BTC/USDT).
+// DEPIX is pegged 1:1 to BRL, so it uses a BTC/BRL feed instead.
+const PRICE_FEED_URL_USDT = 'https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=btc'
+const PRICE_FEED_URL_BRL = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=brl'
 const CACHE_TTL_MS = 5 * 60 * 1000
 
-let cachedBtcPrice: { value: number; fetchedAt: number } | null = null
+let cachedBtcUsdPrice: { value: number; fetchedAt: number } | null = null
+let cachedBtcBrlPrice: { value: number; fetchedAt: number } | null = null
 let cachedRegistryPairs: { pairs: BancoPair[]; fetchedAt: number } | null = null
 
 async function fetchBtcUsdPrice(): Promise<number> {
-  if (cachedBtcPrice && Date.now() - cachedBtcPrice.fetchedAt < CACHE_TTL_MS) {
-    return cachedBtcPrice.value
+  if (cachedBtcUsdPrice && Date.now() - cachedBtcUsdPrice.fetchedAt < CACHE_TTL_MS) {
+    return cachedBtcUsdPrice.value
   }
-  const res = await fetch(PRICE_FEED_URL)
+  const res = await fetch(PRICE_FEED_URL_USDT)
   const data = await res.json()
   const btcPerUsdt = data?.tether?.btc
   if (typeof btcPerUsdt !== 'number' || btcPerUsdt <= 0) throw new Error('Invalid price data')
   // 1 BTC = (1/btcPerUsdt) USDT
   const price = 1 / btcPerUsdt
-  cachedBtcPrice = { value: price, fetchedAt: Date.now() }
+  cachedBtcUsdPrice = { value: price, fetchedAt: Date.now() }
   return price
+}
+
+async function fetchBtcBrlPrice(): Promise<number> {
+  if (cachedBtcBrlPrice && Date.now() - cachedBtcBrlPrice.fetchedAt < CACHE_TTL_MS) {
+    return cachedBtcBrlPrice.value
+  }
+  const res = await fetch(PRICE_FEED_URL_BRL)
+  const data = await res.json()
+  const brlPerBtc = data?.bitcoin?.brl
+  if (typeof brlPerBtc !== 'number' || brlPerBtc <= 0) throw new Error('Invalid price data')
+  // 1 BTC = brlPerBtc BRL; 1 DEPIX = 1 BRL, so this is also DEPIX per BTC.
+  cachedBtcBrlPrice = { value: brlPerBtc, fetchedAt: Date.now() }
+  return brlPerBtc
+}
+
+async function fetchQuotePrice(ticker: string): Promise<number> {
+  if (ticker === 'DEPIX') return fetchBtcBrlPrice()
+  return fetchBtcUsdPrice()
 }
 
 function truncateId(id: string): string {
@@ -181,21 +202,23 @@ export default function AppBanco() {
   const payDecimals = flipped ? quoteDecimals : BTC_DECIMALS
   const receiveDecimals = flipped ? BTC_DECIMALS : quoteDecimals
 
-  // Fetch BTC/USDT price (shared across all pairs, cached 5 min)
+  // Fetch BTC price in the selected quote currency (cached 5 min per feed).
+  // Most pairs use BTC/USDT; DEPIX uses BTC/BRL (1 DEPIX = 1 BRL).
+  const quoteTicker = selected?.ticker ?? ''
   useEffect(() => {
-    if (totalTabs === 0) return
+    if (totalTabs === 0 || !quoteTicker) return
 
     setLoadingPrice(true)
     setError('')
 
-    fetchBtcUsdPrice()
+    fetchQuotePrice(quoteTicker)
       .then((p) => setPrice(p))
       .catch((err) => {
         consoleError(err, 'error fetching price feed')
         setError('Unable to fetch price')
       })
       .finally(() => setLoadingPrice(false))
-  }, [totalTabs])
+  }, [totalTabs, quoteTicker])
 
   const effectivePrice = price ? (flipped ? 1 / price : price) : null
 
