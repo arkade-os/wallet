@@ -12,6 +12,7 @@ interface FlexColProps {
   padding?: string
   strech?: boolean
   testId?: string
+  style?: React.CSSProperties
 }
 
 export default function FlexCol({
@@ -26,6 +27,7 @@ export default function FlexCol({
   padding,
   strech,
   testId,
+  style: customStyle,
 }: FlexColProps) {
   const style: any = {
     alignItems: centered ? 'center' : end ? 'end' : strech ? 'strech' : 'start',
@@ -38,6 +40,7 @@ export default function FlexCol({
     margin,
     padding,
     width: '100%',
+    ...customStyle
   }
 
   return (
