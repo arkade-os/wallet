@@ -63,7 +63,7 @@ export default function Keyboard({ asset, back, hideBalance, onSats, onSave, val
 
   useEffect(() => {
     onSats(amountInSats)
-  }, [amountInSats])
+  }, [amountInSats, onSats])
 
   const getMaxDecimals = () => {
     switch (inputMode) {
