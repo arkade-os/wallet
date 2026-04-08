@@ -38,7 +38,7 @@ const createNote = async (amount: number): Promise<string> => {
 }
 
 const getFundedWallet = async (arkUrl: string): Promise<Wallet> => {
-  const amount = 1_000_000
+  const amount = 21_000
 
   globalThis.EventSource ??= EventSource as typeof globalThis.EventSource
 
