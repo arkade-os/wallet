@@ -31,7 +31,7 @@ jobs:
         run: chmod +x regtest/*.sh regtest/helpers/*.sh && ./regtest/start-env.sh
       - name: Add nigiri to PATH
         run: echo "${{ github.workspace }}/regtest/_build/nigiri/build" >> $GITHUB_PATH
-      - name: Start nostr relay
+      - name: Start nostr relay nak
         run: docker compose -f docker-compose.nak.yml up -d --build
       - name: Verify environment
         run: pnpm regtest:setup
