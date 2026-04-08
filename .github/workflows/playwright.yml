@@ -10,48 +10,53 @@ jobs:
     timeout-minutes: 45
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - uses: actions/setup-go@v5
-      with:
-        go-version: '1.23'
-    - uses: actions/cache@v4
-      with:
-        path: regtest/_build
-        key: nigiri-${{ hashFiles('regtest/.env.defaults', '.env.regtest') }}
-    - uses: actions/setup-node@v4
-      with:
-        node-version: lts/*
-    - name: Install pnpm
-      uses: pnpm/action-setup@v4
-    - name: Install dependencies
-      run: pnpm install
-    - name: Install Playwright Browsers
-      run: pnpm exec playwright install --with-deps
-    - name: Start regtest environment
-      run: chmod +x regtest/*.sh regtest/helpers/*.sh && ./regtest/start-env.sh
-    - name: Add nigiri to PATH
-      run: echo "${{ github.workspace }}/regtest/_build/nigiri/build" >> $GITHUB_PATH
-    - name: Start nostr relay
-      run: docker compose -f docker-compose.nak.yml up -d --build
-    - name: Verify environment
-      run: pnpm regtest:setup
-    - name: Run Playwright tests
-      run: sleep 5 && pnpm run test:e2e
-      env:
-        CI: true
-    - name: Capture logs on failure
-      if: failure()
-      run: |
-        echo "=== docker ps ==="
-        docker ps --format "table {{.Names}}\t{{.Status}}" || true
-        echo "=== boltz logs (last 50) ==="
-        docker logs boltz 2>&1 | tail -50 || true
-        echo "=== arkd logs (last 50) ==="
-        docker logs arkd 2>&1 | tail -50 || true
-    - name: Cleanup
-      if: always()
-      run: |
-        docker compose -f docker-compose.nak.yml down -v 2>/dev/null || true
-        chmod +x regtest/*.sh regtest/helpers/*.sh 2>/dev/null; ./regtest/clean-env.sh
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+      - uses: actions/cache@v4
+        with:
+          path: regtest/_build
+          key: nigiri-${{ hashFiles('regtest/.env.defaults', '.env.regtest') }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+      - name: Install dependencies
+        run: pnpm install
+      - name: Start regtest environment
+        run: chmod +x regtest/*.sh regtest/helpers/*.sh && ./regtest/start-env.sh
+      - name: Add nigiri to PATH
+        run: echo "${{ github.workspace }}/regtest/_build/nigiri/build" >> $GITHUB_PATH
+      - name: Start nostr relay
+        run: docker compose -f docker-compose.nak.yml up -d --build
+      - name: Verify environment
+        run: pnpm regtest:setup
+      - name: Run Playwright tests in Docker image
+        run: |
+          sleep 5
+          docker run --rm \
+            --network host \
+            -v "$PWD":"$PWD" \
+            -w "$PWD" \
+            -e CI=true \
+            -e VITE_NOSTR_RELAY_URL=http://localhost:10547 \
+            mcr.microsoft.com/playwright:v1.56.1-jammy \
+            bash -lc "corepack enable && pnpm run test:e2e"
+      - name: Capture logs on failure
+        if: failure()
+        run: |
+          echo "=== docker ps ==="
+          docker ps --format "table {{.Names}}\t{{.Status}}" || true
+          echo "=== boltz logs (last 50) ==="
+          docker logs boltz 2>&1 | tail -50 || true
+          echo "=== arkd logs (last 50) ==="
+          docker logs arkd 2>&1 | tail -50 || true
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose -f docker-compose.nak.yml down -v 2>/dev/null || true
+          chmod +x regtest/*.sh regtest/helpers/*.sh 2>/dev/null; ./regtest/clean-env.sh
