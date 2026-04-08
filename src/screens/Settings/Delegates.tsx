@@ -1,6 +1,6 @@
 import Header from './Header'
 import ArrowIcon from '../../icons/Arrow'
-import { prettyAgo } from '../../lib/format'
+import { prettyAgo, prettyAmount, prettyLongText } from '../../lib/format'
 import Toggle from '../../components/Toggle'
 import Shadow from '../../components/Shadow'
 import Padded from '../../components/Padded'
@@ -8,9 +8,9 @@ import SuccessIcon from '../../icons/Success'
 import Content from '../../components/Content'
 import FlexCol from '../../components/FlexCol'
 import FlexRow from '../../components/FlexRow'
-import { AspContext } from '../../providers/asp'
+import { AspContext, AspInfo } from '../../providers/asp'
 import WarningBox from '../../components/Warning'
-import { SettingsOptions } from '../../lib/types'
+import { Delegate, SettingsOptions } from '../../lib/types'
 import { ConfigContext } from '../../providers/config'
 import { WalletContext } from '../../providers/wallet'
 import { getDelegateUrlForNetwork } from '../../lib/constants'
@@ -19,6 +19,9 @@ import { OptionsContext } from '../../providers/options'
 import Text, { TextSecondary } from '../../components/Text'
 import { decodeArkAddress, isArkAddress } from '../../lib/address'
 import { Network } from '@arkade-os/boltz-swap'
+import { copyToClipboard } from '../../lib/clipboard'
+import { copiedToClipboard } from '../../lib/toast'
+import { useIonToast } from '@ionic/react'
 
 // format the URL to ensure it has the correct protocol and no trailing slashes
 const formatUrl = (host: string, path: string): string => {
@@ -34,22 +37,33 @@ const formatUrl = (host: string, path: string): string => {
 }
 
 // test connection to delegate by fetching delegate info and validating the response
-const testConnection = (url: string, expectedServerPubKey: string): Promise<void> => {
+const testConnection = (aspInfo: AspInfo): Promise<Delegate> => {
   return new Promise((resolve, reject) => {
     // ensure expected pubkey is in xonly format
-    const expectedPubKey = expectedServerPubKey.length === 66 ? expectedServerPubKey.slice(2) : expectedServerPubKey
+    const expectedPubKey = aspInfo.signerPubkey.length === 66 ? aspInfo.signerPubkey.slice(2) : aspInfo.signerPubkey
     if (expectedPubKey.length !== 64) return reject(new Error('Invalid expected server pubkey'))
+    const delegate = getDelegateUrlForNetwork(aspInfo.network as Network)
     // fetch delegate info from the delegate server
-    fetch(formatUrl(url, '/v1/delegator/info'))
+    fetch(formatUrl(delegate.url, '/v1/delegator/info'))
       .then((res) => {
         if (!res.ok) return reject(new Error('Unable to connect'))
-        res.json().then((data) => {
-          if (!data?.delegatorAddress) return reject(new Error('Invalid delegate response'))
-          if (!isArkAddress(data.delegatorAddress)) return reject(new Error('Invalid delegate address'))
-          const { serverPubKey } = decodeArkAddress(data.delegatorAddress)
-          if (serverPubKey !== expectedPubKey) return reject(new Error('Invalid delegate server key'))
-          resolve()
-        })
+        res
+          .json()
+          .then((data: { delegatorAddress: string; pubkey: string; fee: string }) => {
+            if (!data) return reject(new Error('Invalid delegate response'))
+            if (!data.fee) return reject(new Error('Missing delegate fee'))
+            if (isNaN(parseInt(data.fee))) return reject(new Error('Invalid delegate fee'))
+            if (parseInt(data.fee) < 0) return reject(new Error("Delegate fee can't be negative"))
+            if (!data.pubkey) return reject(new Error('Missing delegate pubkey'))
+            if (data.pubkey.length !== 66) return reject(new Error('Invalid delegate pubkey size'))
+            if (!/^[0-9a-fA-F]{66}$/.test(data.pubkey)) return reject(new Error('Invalid delegate pubkey hex'))
+            if (!data.delegatorAddress) return reject(new Error('Missing delegate address'))
+            if (!isArkAddress(data.delegatorAddress)) return reject(new Error('Invalid delegate address'))
+            const { serverPubKey } = decodeArkAddress(data.delegatorAddress)
+            if (serverPubKey !== expectedPubKey) return reject(new Error('Invalid delegate server key'))
+            resolve({ ...delegate, address: data.delegatorAddress, pubkey: data.pubkey, fee: parseInt(data.fee) })
+          })
+          .catch(() => reject(new Error('Invalid json in delegate response')))
       })
       .catch(() => reject(new Error('Unable to connect')))
   })
@@ -104,15 +118,34 @@ function Middot({ ok = true }: { ok?: boolean }) {
 }
 
 // card component to show current delegate information and status
-function DelegateCard({ active = true }: { active?: boolean }) {
+function DelegateCard() {
+  const { aspInfo } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
   const { wallet } = useContext(WalletContext)
   const { setOption } = useContext(OptionsContext)
-  const { aspInfo } = useContext(AspContext)
+
+  const [present] = useIonToast()
+
+  const [active, setActive] = useState(false)
+  const [delegate, setDelegate] = useState<Delegate>(getDelegateUrlForNetwork(aspInfo.network as Network))
+
+  // test connection to delegate when url changes
+  useEffect(() => {
+    if (!config.delegate) return
+    testConnection(aspInfo)
+      .then((delegate) => {
+        setDelegate(delegate)
+        setActive(true)
+      })
+      .catch(() => setActive(false))
+  }, [config.delegate, aspInfo.signerPubkey])
 
   if (!config.delegate) return null
 
-  const delegate = getDelegateUrlForNetwork(aspInfo.network as Network)
+  const handleCopy = async (value: string) => {
+    await copyToClipboard(value)
+    present(copiedToClipboard)
+  }
 
   const nextRolloverText = wallet.nextRollover
     ? `next renewal ${prettyAgo(wallet.nextRollover)}`
@@ -140,27 +173,25 @@ function DelegateCard({ active = true }: { active?: boolean }) {
             <Text tiny>{active ? 'Active' : 'Inactive'}</Text>
           </FlexRow>
         </FlexRow>
+        <FlexCol gap='0.25rem'>
+          <FlexRow onClick={() => handleCopy(delegate.address)}>
+            <TextSecondary>address: {prettyLongText(delegate.address, 14)}</TextSecondary>
+          </FlexRow>
+          <FlexRow onClick={() => handleCopy(delegate.pubkey)}>
+            <TextSecondary>pubkey: {prettyLongText(delegate.pubkey, 14)}</TextSecondary>
+          </FlexRow>
+          <FlexRow onClick={() => handleCopy(delegate.fee.toString())}>
+            <TextSecondary>fee: {prettyAmount(delegate.fee)}</TextSecondary>
+          </FlexRow>
+        </FlexCol>
       </FlexCol>
     </Shadow>
   )
 }
 
 export default function Delegates() {
-  const { aspInfo } = useContext(AspContext)
   const { goBack } = useContext(OptionsContext)
   const { config, updateConfig } = useContext(ConfigContext)
-
-  const [active, setActive] = useState(false)
-
-  const delegate = getDelegateUrlForNetwork(aspInfo.network as Network)
-
-  // test connection to delegate when url changes
-  useEffect(() => {
-    if (!config.delegate) return
-    testConnection(delegate.url, aspInfo.signerPubkey)
-      .then(() => setActive(true))
-      .catch(() => setActive(false))
-  }, [config.delegate, aspInfo.signerPubkey])
 
   // toggle delegate
   const handleToggle = () => {
@@ -191,7 +222,7 @@ export default function Delegates() {
             />
             <TextSecondary>The wallet will reload to apply the change.</TextSecondary>
             <WarningBox text={warningText} />
-            <DelegateCard active={active} />
+            <DelegateCard />
           </FlexCol>
         </Padded>
       </Content>

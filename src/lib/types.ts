@@ -37,8 +37,11 @@ export enum CurrencyDisplay {
 }
 
 export type Delegate = {
-  name: string
+  fee: number
   url: string
+  name: string
+  pubkey: string
+  address: string
 }
 
 export enum Fiats {
