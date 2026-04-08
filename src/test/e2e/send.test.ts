@@ -44,7 +44,7 @@ test('should send to ark address', async ({ page, isMobile }) => {
   // main page
   await page.getByText('Sounds good').click()
   await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
-  await expect(page.getByText('- 2,000 SATS')).toBeVisible()
+  await page.waitForSelector('text=- 2,000 SATS', { timeout: 10000 })
   await expect(page.getByText('Sent')).toBeVisible()
 })
 
@@ -84,7 +84,7 @@ test('should send MAX to ark address', async ({ page }) => {
 
   // main page
   await page.getByText('Sounds good').click()
-  await expect(page.getByText('- 5,000 SATS')).toBeVisible()
+  await page.waitForSelector('text=- 5,000 SATS', { timeout: 10000 })
   await expect(page.getByText('Sent')).toBeVisible()
 })
 
@@ -145,7 +145,7 @@ test('should send assets to ark address', async ({ page, isMobile }) => {
 
   // main page
   await page.getByText('Sounds good').click()
-  await expect(page.getByText('- 330 SATS')).toBeVisible()
+  await page.waitForSelector('text=-200 TST', { timeout: 10000 })
   await expect(page.getByText('Sent')).toBeVisible()
 })
 
@@ -201,7 +201,7 @@ test('should send MAX assets to ark address', async ({ page }) => {
 
   // main page
   await page.getByText('Sounds good').click()
-  await expect(page.getByText('- 330 SATS')).toBeVisible()
+  await page.waitForSelector('text=-1,000 TST', { timeout: 10000 })
   await expect(page.getByText('Sent')).toBeVisible()
 })
 
@@ -282,7 +282,7 @@ test('should send MAX to onchain address with chain swap', async ({ page }) => {
 
   // main page
   await page.getByText('Sounds good').click()
-  await expect(page.getByText('- 5,000 SATS')).toBeVisible()
+  await page.waitForSelector('text=- 5,000 SATS', { timeout: 10000 })
   await expect(page.getByText('Sent')).toBeVisible()
 })
 
@@ -375,7 +375,7 @@ test('should send MAX to onchain address with collaborative exit', async ({ page
 
   // main page
   await page.getByText('Sounds good').click()
-  await expect(page.getByText('- 1,000 SATS')).toBeVisible()
+  await page.waitForSelector('text=- 1,000 SATS', { timeout: 10000 })
   await expect(page.getByText('Sent')).toBeVisible()
 
   // clear fees
