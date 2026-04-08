@@ -589,7 +589,10 @@ function AddressLine({
           type='button'
           aria-label={`Copy ${title}`}
           data-testid={testId + '-address-copy'}
-          onClick={() => onCopy(value)}
+          onClick={(event) => {
+            event.stopPropagation()
+            onCopy(value)
+          }}
           style={{
             alignItems: 'center',
             background: 'var(--dark05)',
