@@ -1,6 +1,4 @@
 import { IonModal } from '@ionic/react'
-import { useContext } from 'react'
-import { NavigationContext, Tabs } from '../providers/navigation'
 import { hapticLight } from '../lib/haptics'
 
 interface SheetModalProps {
@@ -10,9 +8,6 @@ interface SheetModalProps {
 }
 
 export default function SheetModal({ children, isOpen, onClose }: SheetModalProps) {
-  const { tab } = useContext(NavigationContext)
-  const hasNavbar = [Tabs.Wallet, Tabs.Apps].includes(tab)
-
   const handleClose = () => {
     hapticLight()
     onClose()
@@ -24,7 +19,7 @@ export default function SheetModal({ children, isOpen, onClose }: SheetModalProp
         <div
           style={{
             ...innerStyle,
-            paddingBottom: hasNavbar ? 'var(--pill-navbar-spacer)' : '2rem',
+            paddingBottom: '2rem',
           }}
         >
           <div style={handleAreaStyle} onClick={handleClose}>
