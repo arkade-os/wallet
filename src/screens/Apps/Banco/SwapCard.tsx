@@ -38,8 +38,10 @@ interface TokenBlockProps {
   onAmountChange?: (v: string) => void
   tokenLabel: string
   tokenIcon?: string
-  balance?: number
-  balanceUnit?: string // e.g. "sats"
+  /** Pre-formatted human-readable balance string (e.g. "0.00010000"). */
+  balance?: string
+  /** Unit suffix shown after the balance — defaults to `tokenLabel` when omitted. */
+  balanceUnit?: string
   readOnly?: boolean
   loading?: boolean
   testId?: string
@@ -81,8 +83,7 @@ export function TokenBlock({
         <span style={{ fontSize: 13, color: 'var(--dark50)' }}>{label}</span>
         {balance !== undefined && (
           <span style={{ fontSize: 13, color: 'var(--dark50)' }}>
-            Balance: {balance.toLocaleString()}
-            {balanceUnit ? ` ${balanceUnit}` : ''}
+            Balance: {balance} {balanceUnit ?? tokenLabel}
           </span>
         )}
       </div>

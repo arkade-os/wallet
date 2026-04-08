@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { Decimal } from 'decimal.js'
 import Button from '../../../components/Button'
 import Content from '../../../components/Content'
 import Header from '../../../components/Header'
@@ -198,37 +199,63 @@ export default function AppBanco() {
 
   const effectivePrice = price ? (flipped ? 1 / price : price) : null
 
+  // Accepts digits, `.` and `,` as decimal separators (comma normalized to dot).
+  // Enforces a single decimal separator and truncates the fractional part to
+  // `decimals`. For indivisible assets (decimals === 0) any separator is dropped.
   const sanitizeAmount = (value: string, decimals: number): string => {
-    let s = value.replace(/[^0-9.]/g, '')
-    // Only allow one decimal point
-    const parts = s.split('.')
-    if (parts.length > 2) s = parts[0] + '.' + parts.slice(1).join('')
-    // Truncate to max decimals
-    if (decimals === 0 && parts.length > 1) s = parts[0]
-    else if (parts.length === 2 && parts[1].length > decimals) s = parts[0] + '.' + parts[1].slice(0, decimals)
+    // Normalize comma to dot, strip everything else
+    let s = value.replace(/,/g, '.').replace(/[^0-9.]/g, '')
+    // Collapse multiple dots (keep the first)
+    const firstDot = s.indexOf('.')
+    if (firstDot !== -1) {
+      s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, '')
+    }
+    // Strip leading zeros (but keep "0." and "0")
+    if (s.length > 1 && s[0] === '0' && s[1] !== '.') {
+      s = s.replace(/^0+/, '') || '0'
+    }
+    // Truncate / drop fractional part according to asset precision
+    const dotIdx = s.indexOf('.')
+    if (dotIdx !== -1) {
+      if (decimals === 0) {
+        s = s.slice(0, dotIdx)
+      } else {
+        const intPart = s.slice(0, dotIdx)
+        const fracPart = s.slice(dotIdx + 1).slice(0, decimals)
+        s = intPart + '.' + fracPart
+      }
+    }
     return s
   }
 
   const handlePayChange = (value: string) => {
     const sanitized = sanitizeAmount(value, payDecimals)
     setPayAmount(sanitized)
-    const num = Number(sanitized)
-    if (!effectivePrice || !sanitized || isNaN(num) || num <= 0) {
-      setReceiveAmount('')
-      return
+    if (!effectivePrice || !sanitized) return setReceiveAmount('')
+    let payDec: Decimal
+    try {
+      payDec = new Decimal(sanitized)
+    } catch {
+      return setReceiveAmount('')
     }
-    setReceiveAmount(prettyNumber(num * effectivePrice, receiveDecimals, false))
+    if (payDec.lte(0)) return setReceiveAmount('')
+    const receiveDec = payDec.mul(effectivePrice).toDecimalPlaces(receiveDecimals, Decimal.ROUND_DOWN)
+    setReceiveAmount(prettyNumber(receiveDec.toNumber(), receiveDecimals, false))
   }
 
   const handleReceiveChange = (value: string) => {
     const sanitized = sanitizeAmount(value, receiveDecimals)
     setReceiveAmount(sanitized)
-    const num = Number(sanitized)
-    if (!effectivePrice || !sanitized || isNaN(num) || num <= 0) {
-      setPayAmount('')
-      return
+    if (!effectivePrice || !sanitized) return setPayAmount('')
+    let receiveDec: Decimal
+    try {
+      receiveDec = new Decimal(sanitized)
+    } catch {
+      return setPayAmount('')
     }
-    setPayAmount(prettyNumber(num / effectivePrice, payDecimals, false))
+    if (receiveDec.lte(0)) return setPayAmount('')
+    const payDec = receiveDec.div(effectivePrice).toDecimalPlaces(payDecimals, Decimal.ROUND_DOWN)
+    setPayAmount(prettyNumber(payDec.toNumber(), payDecimals, false))
   }
 
   const handleFlip = () => {
@@ -245,18 +272,29 @@ export default function AppBanco() {
     setRateInverted(false)
   }
 
-  const toSmallestUnit = (amount: number, decimals: number): number => Math.round(amount * 10 ** decimals)
+  // Exact conversion from human-readable amount string to smallest unit integer.
+  // Returns NaN when `amount` is not a valid decimal string.
+  const toSmallestUnit = (amount: string, decimals: number): number => {
+    if (!amount) return NaN
+    try {
+      return new Decimal(amount).mul(new Decimal(10).pow(decimals)).toDecimalPlaces(0, Decimal.ROUND_DOWN).toNumber()
+    } catch {
+      return NaN
+    }
+  }
 
   const handleSwap = () => {
-    const pay = Number(payAmount)
-    const receive = Number(receiveAmount)
-    if (pay <= 0 || receive <= 0 || !quoteAssetId) return
+    if (!quoteAssetId) return
+    const payUnits = toSmallestUnit(payAmount, payDecimals)
+    const receiveUnits = toSmallestUnit(receiveAmount, receiveDecimals)
+    if (!Number.isFinite(payUnits) || !Number.isFinite(receiveUnits)) return
+    if (payUnits <= 0 || receiveUnits <= 0) return
 
     // Convert display amounts to smallest units (sats for BTC, base units for assets)
     setBancoInfo({
-      payAmount: toSmallestUnit(pay, payDecimals),
+      payAmount: payUnits,
       payAsset: flipped ? quoteAssetId : '',
-      receiveAmount: toSmallestUnit(receive, receiveDecimals),
+      receiveAmount: receiveUnits,
       receiveAsset: flipped ? '' : quoteAssetId,
       pair: `${payLabel}/${receiveLabel}`,
     })
@@ -264,11 +302,18 @@ export default function AppBanco() {
     navigate(Pages.AppBancoSwap)
   }
 
-  const pay = Number(payAmount) || 0
-  // For BTC: balance is in sats, input is in BTC (8 decimals) — convert sats to BTC for comparison
-  // For assets: balance is in smallest units — convert to human-readable
+  // Balance of the asset the user is paying with, in smallest units
+  // (sats for BTC, base units for assets).
   const payBalanceRaw = flipped ? (assetBalances.find((ab) => ab.assetId === quoteAssetId)?.amount ?? 0) : balance
-  const payAssetBalance = payBalanceRaw / 10 ** payDecimals
+  const payBalanceDisplay = prettyNumber(
+    new Decimal(payBalanceRaw).div(new Decimal(10).pow(payDecimals)).toNumber(),
+    payDecimals,
+  )
+
+  // Compare entered amount against balance in smallest units to avoid float drift.
+  const payUnitsEntered = toSmallestUnit(payAmount, payDecimals)
+  const hasValidPay = Number.isFinite(payUnitsEntered) && payUnitsEntered > 0
+  const insufficientBalance = hasValidPay && payUnitsEntered > payBalanceRaw
 
   type ButtonState = 'loading' | 'error' | 'no-pairs' | 'enter-amount' | 'insufficient' | 'ready'
   const buttonState: ButtonState =
@@ -280,9 +325,9 @@ export default function AppBanco() {
           ? 'error'
           : !quoteAssetId
             ? 'no-pairs'
-            : pay <= 0
+            : !hasValidPay
               ? 'enter-amount'
-              : pay > payAssetBalance
+              : insufficientBalance
                 ? 'insufficient'
                 : 'ready'
 
@@ -338,8 +383,7 @@ export default function AppBanco() {
                 onAmountChange={handlePayChange}
                 tokenLabel={payLabel}
                 tokenIcon={payIcon}
-                balance={flipped ? payBalanceRaw : balance}
-                balanceUnit={flipped ? undefined : 'sats'}
+                balance={payBalanceDisplay}
                 testId='banco-pay-card'
               />
 
