@@ -99,15 +99,15 @@ export default function AppBancoDetail() {
   const { swaps, updateSwap, selectedSwapId } = useContext(BancoContext)
 
   function displayAsset(assetId: string): string {
-    if (!assetId) return 'sats'
+    if (!assetId) return 'BTC'
     const cached = assetMetadataCache.get(assetId)
     return cached?.metadata?.ticker || cached?.metadata?.name || truncate(assetId)
   }
 
   // Format raw smallest-unit amounts according to the asset's decimals.
-  // BTC (empty assetId) is displayed as raw sats to match the 'sats' label.
+  // BTC (empty assetId) is converted from sats to BTC (8 decimals).
   function displayAmount(amount: number, assetId: string): string {
-    if (!assetId) return amount.toLocaleString()
+    if (!assetId) return formatAssetAmount(amount, 8)
     const decimals = assetMetadataCache.get(assetId)?.metadata?.decimals ?? 0
     return formatAssetAmount(amount, decimals)
   }
