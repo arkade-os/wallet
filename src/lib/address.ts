@@ -21,12 +21,14 @@ export const getDefaultAddress = (pubKey: string, aspInfo: AspInfo) => {
   try {
     const xOnlyPubKey = toXonly(pubKey)
     const xOnlySignerPubKey = toXonly(aspInfo.signerPubkey)
+    const hrp = aspInfo.network === 'bitcoin' ? 'ark' : 'tark'
+
     return new DefaultVtxo.Script({
       pubKey: hex.decode(xOnlyPubKey),
       serverPubKey: hex.decode(xOnlySignerPubKey),
       csvTimelock: { value: aspInfo.unilateralExitDelay, type: 'seconds' },
     })
-      .address('tark', hex.decode(xOnlySignerPubKey))
+      .address(hrp, hex.decode(xOnlySignerPubKey))
       .encode()
   } catch (err) {
     console.error('Error encoding default Arkade address:', err)
