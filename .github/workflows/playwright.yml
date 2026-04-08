@@ -45,7 +45,7 @@ jobs:
             -e CI=true \
             -e VITE_NOSTR_RELAY_URL=http://localhost:10547 \
             mcr.microsoft.com/playwright:v1.56.1-jammy \
-            bash -lc "corepack enable && pnpm run test:e2e"
+            bash -lc "git config --global --add safe.directory '$PWD' && corepack enable && pnpm run test:e2e"
       - name: Capture logs on failure
         if: failure()
         run: |
