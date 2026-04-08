@@ -332,18 +332,22 @@ export default function ReceiveQRCode() {
     setAmountTextValue(prettyNumber(value, maximumFractionDigits, false))
   }
 
-  const handleAmountConfirm = () => {
+  const handleAmountConfirm = (sats = amountInput) => {
     setShowKeys(false)
     setShowAmountSheet(false)
-    setRecvInfo({ ...recvInfo, satoshis: amountInput })
+    // if amount was changed, we need to reset invoice and swap address, since they are amount-specific
+    // this will also trigger the useEffect to create new ones if needed
+    if (sats !== satoshis) {
+      setInvoice('')
+      setSwapAddress('')
+      setShowQrCode(false)
+    }
+    setRecvInfo({ ...recvInfo, satoshis: sats })
   }
 
   const handleAmountClear = () => {
-    setAmountInput(0)
-    setAmountTextValue('')
-    setShowKeys(false)
-    setShowAmountSheet(false)
-    setRecvInfo({ ...recvInfo, satoshis: 0 })
+    handleAmountChange(0)
+    handleAmountConfirm(0)
   }
 
   const assetOption: AssetOption = {
@@ -368,18 +372,18 @@ export default function ReceiveQRCode() {
           setShowAmountSheet(false)
         }}
         hideBalance
-        onSats={handleAmountChange}
-        onSave={() => {
+        onSave={(sats: number) => {
           setShowKeys(false)
           setShowAmountSheet(false)
-          handleAmountConfirm()
+          handleAmountChange(sats)
+          handleAmountConfirm(sats)
         }}
         value={amountInput}
       />
     )
   }
 
-  const amountLabel = amountInput ? 'Edit amount' : 'Add amount'
+  const amountLabel = satoshis ? 'Edit amount' : 'Add amount'
   const unitLabel = assetMeta?.metadata?.ticker ?? 'sats'
 
   return (
@@ -446,7 +450,7 @@ export default function ReceiveQRCode() {
             sats={amountInput}
             onEnter={handleAmountConfirm}
           />
-          <Button label='Set amount' onClick={handleAmountConfirm} disabled={!amountInput} />
+          <Button label='Set amount' onClick={() => handleAmountConfirm()} disabled={!amountInput} />
           {satoshis > 0 ? <Button label='Clear amount' onClick={handleAmountClear} secondary /> : null}
         </FlexCol>
       </SheetModal>

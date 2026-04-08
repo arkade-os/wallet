@@ -673,8 +673,10 @@ export default function SendForm() {
     return (
       <Keyboard
         back={() => setKeys(false)}
-        onSats={handleAmountChange}
-        onSave={() => setKeys(false)}
+        onSave={(sats) => {
+          handleAmountChange(sats)
+          setKeys(false)
+        }}
         value={amount}
         asset={selectedAsset ?? undefined}
       />
