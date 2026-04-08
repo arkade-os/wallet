@@ -306,13 +306,6 @@ export default function ReceiveQRCode() {
     return () => navigator.serviceWorker.removeEventListener('message', listenForPayments)
   }, [svcWallet])
 
-  // update bip21 when amount changes
-  useEffect(() => {
-    const { bip21 } = createBip21(amountInput)
-    setQrCodeValue(bip21)
-    setBip21Uri(bip21)
-  }, [amountInput])
-
   // Handlers
   const handleShare = () => {
     setSharing(true)
