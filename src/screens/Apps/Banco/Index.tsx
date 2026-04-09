@@ -437,6 +437,18 @@ export default function AppBanco() {
                 {swaps.map((swap, i) => {
                   const payName = swap.payAsset ? displayAssetName(swap.payAsset) : 'BTC'
                   const recvName = swap.receiveAsset ? displayAssetName(swap.receiveAsset) : 'BTC'
+                  const payDec = swap.payAsset ? (allPairs.find((p) => p.assetId === swap.payAsset)?.decimals ?? 0) : 8
+                  const recvDec = swap.receiveAsset
+                    ? (allPairs.find((p) => p.assetId === swap.receiveAsset)?.decimals ?? 0)
+                    : 8
+                  const payDisplay = prettyNumber(
+                    new Decimal(swap.payAmount).div(new Decimal(10).pow(payDec)).toNumber(),
+                    payDec,
+                  )
+                  const recvDisplay = prettyNumber(
+                    new Decimal(swap.receiveAmount).div(new Decimal(10).pow(recvDec)).toNumber(),
+                    recvDec,
+                  )
                   const statusIcon =
                     swap.status === 'fulfilled' ? (
                       <Check size={14} color='#4ade80' strokeWidth={3} />
@@ -505,7 +517,7 @@ export default function AppBanco() {
                           {payName} <ArrowRight size={12} color='var(--dark30)' /> {recvName}
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--dark50)', marginTop: 2 }}>
-                          {swap.payAmount.toLocaleString()} → {swap.receiveAmount.toLocaleString()}
+                          {payDisplay} → {recvDisplay}
                         </div>
                       </div>
                       {/* Time */}
