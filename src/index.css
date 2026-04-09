@@ -185,7 +185,7 @@ button.reminder-button.action-sheet-button {
 }
 
 .focusable {
-  &:focus {
+  &:focus-visible {
     background-color: var(--ion-background-focused);
   }
 }

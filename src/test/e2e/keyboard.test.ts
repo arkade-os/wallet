@@ -5,7 +5,8 @@ import type { Page } from '@playwright/test'
 async function setupWalletAndOpenKeyboard(page: Page) {
   await createWallet(page)
   await page.getByText('Receive').click()
-  await page.locator('ion-input[name="receive-amount"] input').click()
+  await page.getByText('Add amount').click()
+  await page.locator('ion-input[name="receive-amount-sheet"] input').click()
   await page.waitForSelector('text=Save', { state: 'visible' })
 }
 
@@ -66,7 +67,7 @@ test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, is
   await btn0.click()
 
   // verify decimal amount is displayed in FIAT
-  await expect(page.locator('text=/1\\.50\\s+(USD|EUR)/')).toBeVisible()
+  await expect(page.locator('text=1.5 USD')).toBeVisible()
 
   // switch back to SATS to verify conversion
   await swapButton.click()
@@ -78,7 +79,7 @@ test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, is
   await page.getByText('Save').click()
 
   // verify we're back on the receive page (not the keyboard)
-  await expect(page.getByText('Continue')).toBeVisible()
+  await expect(page.getByText('Edit amount')).toBeVisible()
 })
 
 test('should prevent decimal input in SATS mode', async ({ page, isMobile }) => {

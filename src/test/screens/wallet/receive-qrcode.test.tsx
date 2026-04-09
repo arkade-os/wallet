@@ -24,7 +24,7 @@ import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 
 // Mock qr module used by QrCode component
 vi.mock('qr', () => ({
-  default: () => new Uint8Array([0]),
+  default: () => Array.from({ length: 21 }, () => new Uint8Array(21).fill(1)),
 }))
 
 // Mock URL.createObjectURL

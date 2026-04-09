@@ -86,7 +86,7 @@ export default function AppAssetDetail() {
 
   const handleReceive = () => {
     setRecvInfo({ ...emptyRecvInfo, assetId: assetInfo.assetId })
-    navigate(Pages.ReceiveAmount)
+    navigate(Pages.ReceiveQRCode)
   }
 
   const handleReissue = () => {

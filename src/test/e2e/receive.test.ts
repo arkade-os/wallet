@@ -33,5 +33,5 @@ test('should receive offchain funds', async ({ page }) => {
 
   // wait for payment received
   await waitForPaymentReceived(page)
-  await expect(page.getByText('+ 10,000 SATS')).toBeVisible()
+  await page.waitForSelector('text=+ 10,000 SATS', { timeout: 10000 })
 })

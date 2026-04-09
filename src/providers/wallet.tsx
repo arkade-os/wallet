@@ -164,7 +164,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
     const autoInit = async () => {
       try {
+<<<<<<< HEAD
         const privateKey = nsecToPrivateKey(devNsec)
+=======
+        const privateKey = nsecToPrivateKey(import.meta.env.VITE_DEV_NSEC)
+        setAuthState('authenticated')
+>>>>>>> a3fc66c2 (Receive v2 (#512))
         await initWallet(privateKey)
         setAuthState('authenticated')
       } catch (err) {
@@ -178,12 +183,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }, [aspInfo.url, initialized, devAutoInitFailed])
 
   useEffect(() => {
+<<<<<<< HEAD
     // skip auth check when dev auto-init will handle it
     if (isDevAutoInit && !devAutoInitFailed) {
       if (!initialized) return
       setAuthState('authenticated')
       return
     }
+=======
+    // Dev auto-init bypasses password, so skip the auth state check
+    if (import.meta.env.DEV && import.meta.env.VITE_DEV_NSEC) return
+>>>>>>> a3fc66c2 (Receive v2 (#512))
 
     if (!wallet.pubkey) {
       setAuthState('authenticated')

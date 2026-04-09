@@ -700,8 +700,38 @@ export default function SendForm() {
     </div>
   )
 
+<<<<<<< HEAD
   const overlayOpen = scan || (keys && !amountIsReadOnly)
   const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
+=======
+  if (keys && !amountIsReadOnly) {
+    return (
+      <Keyboard
+        back={() => setKeys(false)}
+        onSave={(sats) => {
+          handleAmountChange(sats)
+          setKeys(false)
+        }}
+        value={amount}
+        asset={selectedAsset ?? undefined}
+      />
+    )
+  }
+
+  if (scan) {
+    return (
+      <Scanner
+        close={() => setScan(false)}
+        label='Recipient address'
+        onData={(data) => {
+          setRawScanData(data)
+          setRecipient(data)
+        }}
+        onError={smartSetError}
+      />
+    )
+  }
+>>>>>>> a3fc66c2 (Receive v2 (#512))
 
   return (
     <>
