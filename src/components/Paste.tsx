@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { pasteFromClipboard, queryPastePermission } from '../lib/clipboard'
 import { PasteButtonOnInput } from './Button'
+import { consoleError } from '../lib/logs'
 
 interface PasteProps {
   validator?: (arg0: string) => boolean
@@ -12,18 +13,22 @@ export default function Paste({ validator, onPaste }: PasteProps) {
   const [showPaste, setShowPaste] = useState(false)
 
   useEffect(() => {
-    queryPastePermission().then((state) => {
-      if (['prompt', 'granted'].includes(state)) {
-        // if content is valid, show it to user in UI
-        pasteFromClipboard().then((data) => {
-          if (!data) return
-          if (!validator || validator(data)) {
-            setClipboard(data)
-            setShowPaste(true)
-          }
-        })
-      }
-    })
+    queryPastePermission()
+      .then((state) => {
+        if (['prompt', 'granted'].includes(state)) {
+          // if content is valid, show it to user in UI
+          pasteFromClipboard().then((data) => {
+            if (!data) return
+            if (!validator || validator(data)) {
+              setClipboard(data)
+              setShowPaste(true)
+            }
+          })
+        }
+      })
+      .catch(() => {
+        consoleError('Clipboard permission query failed')
+      })
   }, [])
 
   const handleClick = () => {
