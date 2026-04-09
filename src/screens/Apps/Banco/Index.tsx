@@ -9,7 +9,6 @@ import Text from '../../../components/Text'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext, emptyBancoInfo } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
-import { AspContext } from '../../../providers/asp'
 import { consoleError } from '../../../lib/logs'
 import { prettyNumber, prettyAgo } from '../../../lib/format'
 import { BancoContext } from '../../../providers/banco'
@@ -40,10 +39,6 @@ function parseExtraPairs(): BancoPair[] {
 const EXTRA_PAIRS = parseExtraPairs()
 const VERIFIED_ASSETS_URL = import.meta.env.VITE_VERIFIED_ASSETS_URL
 const BTC_ICON = 'https://coin-images.coingecko.com/coins/images/1/small/bitcoin.png'
-
-// TODO(temp): remove once the swap page UI is reworked.
-// Hides known-shitcoin test assets from the mutinynet swap page.
-const MUTINYNET_HIDDEN_TICKERS = new Set(['TRUMP', 'TRL', 'PAN', 'FRA'])
 
 // Default price feed: 1 asset unit = 1 USD-cent worth of sats (BTC/USDT).
 // DEPIX is pegged 1:1 to BRL, so it uses a BTC/BRL feed instead.
@@ -98,7 +93,6 @@ export default function AppBanco() {
   const { navigate } = useContext(NavigationContext)
   const { setBancoInfo } = useContext(FlowContext)
   const { balance, assetBalances, svcWallet } = useContext(WalletContext)
-  const { aspInfo } = useContext(AspContext)
   const { swaps, setSelectedSwapId } = useContext(BancoContext)
 
   const [selectedTab, setSelectedTab] = useState(0)
@@ -162,30 +156,17 @@ export default function AppBanco() {
     load()
   }, [svcWallet])
 
-  // All banco pairs: env var extras + registry
+  // All banco pairs: env var extras + registry (only verified assets)
   const allPairs = [...EXTRA_PAIRS, ...registryPairs]
-
-  // Also show wallet assets not already in banco pairs
-  const pairIds = new Set(allPairs.map((p) => p.assetId))
-  const walletExtras = assetBalances
-    .filter((ab) => !pairIds.has(ab.assetId))
-    .map((ab) => {
-      const ticker = truncateId(ab.assetId)
-      return { ticker, assetId: ab.assetId, icon: undefined as string | undefined, decimals: 0 }
-    })
 
   // Resolve asset ID to display name
   const displayAssetName = (assetId: string): string => {
     const pair = allPairs.find((p) => p.assetId === assetId)
     if (pair) return pair.ticker
-    const wa = walletExtras.find((a) => a.assetId === assetId)
-    if (wa) return wa.ticker
     return truncateId(assetId)
   }
 
-  // TODO(temp): remove once the swap page UI is reworked.
-  const isMutinynet = aspInfo.network === 'mutinynet'
-  const tabs = [...allPairs, ...walletExtras].filter((t) => !(isMutinynet && MUTINYNET_HIDDEN_TICKERS.has(t.ticker)))
+  const tabs = allPairs
   const totalTabs = tabs.length
   const safeTab = totalTabs > 0 ? Math.min(selectedTab, totalTabs - 1) : -1
   const selected = safeTab >= 0 ? tabs[safeTab] : null
