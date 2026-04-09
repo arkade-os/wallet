@@ -4,11 +4,12 @@ import Refresher from './Refresher'
 
 interface ContentProps {
   children: ReactNode
+  noFade?: boolean
 }
 
-export default function Content({ children }: ContentProps) {
+export default function Content({ children, noFade }: ContentProps) {
   return (
-    <IonContent>
+    <IonContent className={noFade ? 'no-content-fade' : undefined}>
       <Refresher />
       <div className='content-shell'>{children}</div>
     </IonContent>

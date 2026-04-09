@@ -20,11 +20,11 @@ interface KeyboardProps {
   asset?: AssetOption
   back: () => void
   hideBalance?: boolean
-  onSats: (sats: number) => void
+  onSave: (sats: number) => void
   value: number | undefined
 }
 
-export default function Keyboard({ asset, back, hideBalance, onSats, value }: KeyboardProps) {
+export default function Keyboard({ asset, back, hideBalance, onSave, value }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
   const { balance, svcWallet } = useContext(WalletContext)
@@ -32,7 +32,9 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
   const [amountInSats, setAmountInSats] = useState(0)
   const [available, setAvailable] = useState(0)
   const [error, setError] = useState('')
-  const [inputMode, setInputMode] = useState<'sats' | 'fiat' | 'asset'>(asset ? 'asset' : useFiat ? 'fiat' : 'sats')
+  const [inputMode, setInputMode] = useState<'sats' | 'fiat' | 'asset'>(
+    asset?.assetId ? 'asset' : useFiat ? 'fiat' : 'sats',
+  )
   const [textValue, setTextValue] = useState('')
 
   useEffect(() => {
@@ -111,6 +113,7 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
   }
 
   const handleToggleCurrency = () => {
+    if (inputMode === 'asset') return // No toggle for assets
     if (inputMode === 'sats') {
       // Convert from sats to fiat and round to 2 decimal places
       setTextValue(amountInSats ? prettyNumber(toFiat(amountInSats), fiatDecimals(), false) : '')
@@ -122,13 +125,21 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
   }
 
   const handleSave = () => {
-    onSats(amountInSats)
-    back()
+    if (!amountInSats || Number.isNaN(amountInSats)) {
+      setError('Please enter a valid amount')
+      return
+    }
+    onSave(amountInSats)
   }
 
   // Display amounts based on input mode
   const amount = {
-    primary: `${textValue || '0'} ${inputMode === 'fiat' ? config.fiat : inputMode === 'asset' ? asset?.ticker : 'SATS'}`,
+    primary:
+      inputMode === 'fiat'
+        ? prettyAmount(amountInSats ? toFiat(amountInSats) : 0, config.fiat, fiatDecimals())
+        : inputMode === 'asset'
+          ? `${textValue || '0'} ${asset?.ticker}`
+          : `${textValue || '0'} SATS`,
     secondary:
       inputMode === 'fiat'
         ? prettyAmount(amountInSats)
@@ -179,7 +190,7 @@ export default function Keyboard({ asset, back, hideBalance, onSats, value }: Ke
           <Text big centered heading>
             {amount.primary}
           </Text>
-          {asset ? null : <TextSecondary centered>≈ {amount.secondary}</TextSecondary>}
+          {asset?.assetId ? null : <TextSecondary centered>≈ {amount.secondary}</TextSecondary>}
           {hideBalance ? null : (
             <div onClick={handleMaxPress}>
               <TextSecondary centered>{amount.balance}</TextSecondary>

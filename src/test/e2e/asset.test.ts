@@ -63,7 +63,7 @@ test('should burn part of an asset', async ({ page }) => {
 
   // go to asset detail
   await page.getByText('View Asset').click()
-  await expect(page.getByText('1,000 BRN')).toBeVisible()
+  await page.waitForSelector('text=1,000 BRN', { timeout: 10000 })
 
   // click burn
   await page.getByText('Burn', { exact: true }).click()
@@ -79,7 +79,7 @@ test('should burn part of an asset', async ({ page }) => {
 
   // back on detail page with reduced balance
   await page.waitForSelector('text=BurnCoin', { state: 'visible' })
-  await expect(page.getByText('500 BRN')).toBeVisible()
+  await page.waitForSelector('text=500 BRN', { timeout: 10000 })
 })
 
 test('should reissue an asset with control token', async ({ page }) => {
@@ -112,7 +112,7 @@ test('should reissue an asset with control token', async ({ page }) => {
 
   // go to asset detail
   await page.getByText('View Asset').click()
-  await expect(page.getByText('500 RSI')).toBeVisible()
+  await page.waitForSelector('text=500 RSI', { timeout: 10000 })
 
   // click reissue
   await page.getByText('Reissue', { exact: true }).click()
@@ -128,7 +128,7 @@ test('should reissue an asset with control token', async ({ page }) => {
 
   // back on detail page with increased balance
   await page.waitForSelector('text=ReissueCoin', { state: 'visible' })
-  await expect(page.getByText('700 RSI')).toBeVisible()
+  await page.waitForSelector('text=700 RSI', { state: 'visible' })
 })
 
 test('should mint asset with new control asset', async ({ page }) => {
@@ -151,7 +151,7 @@ test('should mint asset with new control asset', async ({ page }) => {
 
   // view asset detail
   await page.getByText('View Asset').click()
-  await expect(page.getByText('500 MYC')).toBeVisible()
+  await page.waitForSelector('text=500 MYC', { timeout: 10000 })
 
   // control asset should be displayed
   await expect(page.getByText('ctrl-MyCoin')).toBeVisible()

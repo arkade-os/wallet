@@ -10,14 +10,13 @@ import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { EmptyLogsList } from '../../components/Empty'
 import Focusable from '../../components/Focusable'
-import { useIonToast } from '@ionic/react'
 import { copyToClipboard } from '../../lib/clipboard'
-import { copiedToClipboard } from '../../lib/toast'
+import { useToast } from '../../components/Toast'
 
 function LogsTable({ logs }: { logs: LogLine[] }) {
   const [focused, setFocused] = useState(false)
 
-  const [present] = useIonToast()
+  const { toast } = useToast()
 
   const color = (level: string): string => {
     if (level === 'info') return ''
@@ -36,7 +35,7 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
 
   const copy = (value: string) => {
     copyToClipboard(value)
-    present(copiedToClipboard)
+    toast('Copied to clipboard')
   }
 
   const focusOnFirstRow = () => {

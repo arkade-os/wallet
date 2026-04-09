@@ -1,7 +1,7 @@
-import { IonText, useIonToast } from '@ionic/react'
+import { IonText } from '@ionic/react'
 import { ReactNode } from 'react'
 import { copyToClipboard } from '../lib/clipboard'
-import { copiedToClipboard } from '../lib/toast'
+import { useToast } from './Toast'
 import { hapticSubtle } from '../lib/haptics'
 
 interface TextProps {
@@ -66,13 +66,17 @@ export default function Text({
     wordBreak: 'break-word',
   }
 
-  const [present] = useIonToast()
+  const { toast } = useToast()
 
-  const handleClick = () => {
+  const handleClick = async () => {
     if (!copy) return
     hapticSubtle()
-    copyToClipboard(copy)
-    present(copiedToClipboard)
+    try {
+      await copyToClipboard(copy)
+      toast('Copied to clipboard')
+    } catch {
+      toast('Failed to copy')
+    }
   }
 
   return (

@@ -1,6 +1,7 @@
 import { test as base, type Page } from '@playwright/test'
 import { faucetOffchain } from './fundedWallet'
 import { sleep } from '../../lib/sleep'
+import { prettyNumber } from '../../lib/format'
 
 export const test = base.extend({
   page: async ({ page }, use) => {
@@ -63,6 +64,7 @@ export async function enableAssets(page: Page): Promise<void> {
 }
 
 export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<void> {
+  await sleep(5000)
   await navigateToAssets(page)
   await page.getByText('Mint', { exact: true }).click()
   await page.waitForSelector('text=Mint Asset', { state: 'visible' })
@@ -156,19 +158,18 @@ async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = f
 
   // fill amount to receive if provided
   if (sats) {
+    await page.getByText('Add amount').click()
     if (isMobile) {
-      await page.locator('ion-input[name="receive-amount"] input').click()
+      await page.locator('ion-input[name="receive-amount-sheet"] input').click()
       await handleKeyboardInput(page, sats)
     } else {
-      await page.locator('ion-input[name="receive-amount"] input').fill(sats.toString())
+      await page.locator('ion-input[name="receive-amount-sheet"] input').fill(sats.toString())
+      await page.getByText('Set amount').click()
     }
-    await page.getByText('Continue').click()
-  } else {
-    await page.getByText('Skip').click()
   }
 
   // copy address/invoice
-  await page.getByTestId('expand-addresses').click()
+  await page.getByText('Copy').click()
   await page.getByTestId(`${type}-address-copy`).click()
   return await readClipboard(page)
 }
@@ -236,7 +237,7 @@ export async function fundWallet(page: Page, amount: number = 5000): Promise<voi
   await faucetOffchain(arkAddress, amount)
   await waitForPaymentReceived(page)
   await page.getByTestId('tab-wallet').click()
-  await sleep(3000)
+  await page.waitForSelector(`text=+ ${prettyNumber(amount)} SATS`, { timeout: 10000 })
 }
 
 export async function resetAndRestoreWallet(page: Page): Promise<void> {

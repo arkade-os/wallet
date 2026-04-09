@@ -95,7 +95,7 @@ test('should send funds to Lightning', async ({ page }) => {
   await page.getByTestId('app-boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Successful')).toBeVisible()
-  await expect(page.getByText('- 1,001')).toBeVisible()
+  await page.waitForSelector('text=- 1,001', { timeout: 10000 })
   await expect(page.getByText('Arkade to Lightning')).toBeVisible()
 })
 
