@@ -410,3 +410,28 @@ button.reminder-button.action-sheet-button {
 .scroll-fade {
   padding-bottom: 4rem;
 }
+
+.pill-base {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--dark20);
+  background: var(--dark05);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--dark80);
+  white-space: nowrap;
+  min-height: 36px;
+  position: relative;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hit-area {
+  content: '""';
+  position: absolute;
+  inset: -4px;
+}

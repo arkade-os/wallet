@@ -98,47 +98,26 @@ const Label = ({ label }: { label: string }) => <p style={{ lineHeight: '20px' }
 
 interface ButtonOnInputProps {
   ariaLabel?: string
-  border?: boolean
+  clear?: boolean
   label?: string
   icon?: ReactElement
   onClick: () => void
 }
 
-export function ButtonOnInput({ label, border, icon, onClick, ariaLabel }: ButtonOnInputProps) {
-  const pillBase: React.CSSProperties = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.3rem',
-    padding: '0.4rem 0.65rem',
-    borderRadius: '999px',
-    border: border ? '1px solid var(--dark20)' : 'none',
-    background: border ? 'var(--dark05)' : 'none',
-    cursor: 'pointer',
-    fontSize: '13px',
-    color: 'var(--dark80)',
-    whiteSpace: 'nowrap',
-    minHeight: '36px',
-    position: 'relative',
-    touchAction: 'manipulation',
-    userSelect: 'none',
-    WebkitTapHighlightColor: 'transparent',
-  }
-
-  // Expands tap target to 44px without increasing visual size
-  const hitAreaStyle: React.CSSProperties = {
-    content: '""',
-    position: 'absolute',
-    inset: '-4px',
-  }
-
+export function ButtonOnInput({ label, clear, icon, onClick, ariaLabel }: ButtonOnInputProps) {
   const handleClick = () => {
     hapticLight()
     onClick()
   }
 
   return (
-    <button type='button' onClick={handleClick} aria-label={ariaLabel || label} style={pillBase}>
-      <span style={hitAreaStyle} />
+    <button
+      type='button'
+      onClick={handleClick}
+      aria-label={ariaLabel || label}
+      className='pill-base'
+      style={clear ? { border: 'none', background: 'none' } : {}}
+    >
       {icon}
       {label}
     </button>
@@ -146,13 +125,13 @@ export function ButtonOnInput({ label, border, icon, onClick, ariaLabel }: Butto
 }
 
 export function PasteButtonOnInput({ onClick }: { onClick: () => void }) {
-  return <ButtonOnInput border label='Paste' icon={<PasteIcon />} onClick={onClick} />
+  return <ButtonOnInput label='Paste' icon={<PasteIcon />} onClick={onClick} />
 }
 
 export function ScanButtonOnInput({ onClick }: { onClick: () => void }) {
-  return <ButtonOnInput border label='Scan QR' icon={<ScanIcon />} onClick={onClick} />
+  return <ButtonOnInput label='Scan QR' icon={<ScanIcon />} onClick={onClick} />
 }
 
 export function ClearButtonOnInput({ onClick }: { onClick: () => void }) {
-  return <ButtonOnInput ariaLabel='Clear' icon={<XIcon />} onClick={onClick} />
+  return <ButtonOnInput ariaLabel='Clear' clear icon={<XIcon />} onClick={onClick} />
 }
