@@ -17,6 +17,7 @@ import ChatwootWidget from '../../components/ChatWoot'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import ErrorMessage from '../../components/Error'
 import { hasChatwootVars } from '../../lib/chatwoot'
+import { getDefaultAddress } from '../../lib/address'
 
 export default function Support() {
   const { aspInfo } = useContext(AspContext)
@@ -67,11 +68,14 @@ export default function Support() {
     const userIdentifier = wallet.pubkey.substring(0, 16)
     window.$chatwoot.setUser(userIdentifier, { name: `User ${userIdentifier}` })
 
+    const defaultAddress = getDefaultAddress(wallet.pubkey, aspInfo)
+
     // Set custom attributes including addresses and service URLs
     window.$chatwoot.setCustomAttributes({
       wallet_pubkey: wallet.pubkey,
       network: wallet.network || 'not available',
       location_origin: window.location.origin,
+      default_address: defaultAddress,
       ark_address: addresses.offchainAddr || 'not available',
       boltz_url: getApiUrl() || 'not available',
       indexer_url: aspInfo.url || config.aspUrl || 'not available',

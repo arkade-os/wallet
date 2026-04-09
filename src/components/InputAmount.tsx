@@ -59,7 +59,7 @@ export default function InputAmount({
   }, [focus])
 
   useEffect(() => {
-    if (asset) return
+    if (asset?.assetId) return
     setOtherValue(useFiat ? prettyNumber(sats) : prettyNumber(toFiat(sats), fiatDecimals()))
     setError(sats ? (sats < 0 ? 'Invalid amount' : '') : '')
   }, [sats])

@@ -225,10 +225,6 @@ ion-app.has-pill-navbar ion-content {
   --padding-bottom: var(--pill-navbar-clearance);
 }
 
-ion-app.has-pill-navbar ion-footer.buttons-on-bottom {
-  margin-bottom: var(--pill-navbar-clearance);
-}
-
 ion-app.has-pill-navbar ion-content:has(.scroll-fade)::part(scroll) {
   -webkit-mask-image: linear-gradient(
     to bottom,

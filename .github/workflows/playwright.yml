@@ -7,10 +7,19 @@ on:
     branches: [master, next]
 jobs:
   test:
-    timeout-minutes: 30
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+    - uses: actions/cache@v4
+      with:
+        path: regtest/_build
+        key: nigiri-${{ hashFiles('regtest/.env.defaults', '.env.regtest') }}
     - uses: actions/setup-node@v4
       with:
         node-version: lts/*
@@ -20,14 +29,29 @@ jobs:
       run: pnpm install
     - name: Install Playwright Browsers
       run: pnpm exec playwright install --with-deps
-    - name: Run Nigiri
-      uses: vulpemventures/nigiri-github-action@v1
-      with:
-        use_liquid: false
-        use_ln: true
-    - name: Setup regtest environment
-      run: pnpm regtest
+    - name: Start regtest environment
+      run: chmod +x regtest/*.sh regtest/helpers/*.sh && ./regtest/start-env.sh
+    - name: Add nigiri to PATH
+      run: echo "${{ github.workspace }}/regtest/_build/nigiri/build" >> $GITHUB_PATH
+    - name: Start nostr relay
+      run: docker compose -f docker-compose.nak.yml up -d --build
+    - name: Verify environment
+      run: pnpm regtest:setup
     - name: Run Playwright tests
       run: sleep 5 && pnpm run test:e2e
       env:
         CI: true
+    - name: Capture logs on failure
+      if: failure()
+      run: |
+        echo "=== docker ps ==="
+        docker ps --format "table {{.Names}}\t{{.Status}}" || true
+        echo "=== boltz logs (last 50) ==="
+        docker logs boltz 2>&1 | tail -50 || true
+        echo "=== arkd logs (last 50) ==="
+        docker logs arkd 2>&1 | tail -50 || true
+    - name: Cleanup
+      if: always()
+      run: |
+        docker compose -f docker-compose.nak.yml down -v 2>/dev/null || true
+        chmod +x regtest/*.sh regtest/helpers/*.sh 2>/dev/null; ./regtest/clean-env.sh

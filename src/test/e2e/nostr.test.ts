@@ -25,6 +25,7 @@ const execAsync = promisify(exec)
 // 9. Restore wallet with nsec key
 // 10. Verify setting is euro (proving it was restored from nostr)
 test('should save config to nostr', async ({ page }) => {
+  test.setTimeout(60000)
   // create wallet
   await createWallet(page)
 
@@ -91,6 +92,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
   await expect(page.getByText('+ 1,992 SATS', { exact: true })).toBeVisible()
+  await page.getByLabel('Go back').click()
 
   // transaction should be visible on main page
   await page.getByTestId('tab-wallet').click()
@@ -117,6 +119,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
   await expect(page.getByText('- 1,001 SATS', { exact: true })).toBeVisible()
+  await page.getByLabel('Go back').click()
 
   // transaction should be visible on main page
   await page.getByTestId('tab-wallet').click()

@@ -1,9 +1,18 @@
 import { test as base, type Page } from '@playwright/test'
 import { faucetOffchain } from './fundedWallet'
+import { sleep } from '../../lib/sleep'
 
 export const test = base.extend({
   page: async ({ page }, use) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
+    // Pre-set currency display to "Show both" so e2e tests see SATS amounts.
+    // The default changed to "Fiat only" in PR #473 which hides SATS from the balance.
+    await page.addInitScript(() => {
+      const raw = localStorage.getItem('config')
+      const config = raw ? JSON.parse(raw) : {}
+      config.currencyDisplay = 'Show both'
+      localStorage.setItem('config', JSON.stringify(config))
+    })
     await use(page)
   },
 })
@@ -50,6 +59,7 @@ export async function enableAssets(page: Page): Promise<void> {
   await page.getByTestId('header-aux-btn').click()
   await page.waitForSelector('text=Arkade Mint settings', { state: 'visible' })
   await page.getByTestId('assets-toggle').click()
+  await page.getByLabel('Go back').click()
 }
 
 export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<void> {
@@ -136,6 +146,7 @@ export async function pay(page: Page, address: string, isMobile = false, sats = 
   // continue to send
   await page.getByText('Tap to Sign').click()
   await page.waitForSelector('text=Payment sent!', { timeout: 60000 })
+  await page.getByText('Sounds good').click()
 }
 
 async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = false, sats = 0): Promise<string> {
@@ -225,6 +236,7 @@ export async function fundWallet(page: Page, amount: number = 5000): Promise<voi
   await faucetOffchain(arkAddress, amount)
   await waitForPaymentReceived(page)
   await page.getByTestId('tab-wallet').click()
+  await sleep(3000)
 }
 
 export async function resetAndRestoreWallet(page: Page): Promise<void> {
@@ -249,6 +261,7 @@ export function readClipboard(page: Page): Promise<string> {
 
 export async function waitForPaymentReceived(page: Page): Promise<void> {
   await page.waitForSelector('text=Payment received!', { timeout: 60000 })
+  await page.getByText('Sounds good').click()
 }
 
 export async function handleKeyboardInput(page: Page, sats: number): Promise<void> {

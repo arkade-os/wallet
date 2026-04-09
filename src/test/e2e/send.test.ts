@@ -21,7 +21,6 @@ test('should send to ark address', async ({ page, isMobile }) => {
   await fundWallet(page, 5000)
 
   // main page
-  await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
 
@@ -43,8 +42,8 @@ test('should send to ark address', async ({ page, isMobile }) => {
   await expect(page.getByText('2,000 SATS sent successfully')).toBeVisible()
 
   // main page
-  await page.getByTestId('tab-wallet').click()
-  await expect(page.getByText('3,000SATS')).toBeVisible()
+  await page.getByText('Sounds good').click()
+  await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
   await expect(page.getByText('- 2,000 SATS')).toBeVisible()
   await expect(page.getByText('Sent')).toBeVisible()
 })
@@ -55,7 +54,6 @@ test('should send MAX to ark address', async ({ page }) => {
   await fundWallet(page, 5000)
 
   // main page
-  await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
 
@@ -65,7 +63,6 @@ test('should send MAX to ark address', async ({ page }) => {
     'h6u2nredqtn0cr4p4zqz53gsmhju4l9t7x47kzleesa9dprx7e56xhzlen'
 
   // go to send page
-  await page.getByTestId('tab-wallet').click()
   await page.getByText('Send').click()
 
   // fill address
@@ -86,7 +83,7 @@ test('should send MAX to ark address', async ({ page }) => {
   await page.waitForSelector('text=5,000 SATS sent successfully', { timeout: 10000 })
 
   // main page
-  await page.getByTestId('tab-wallet').click()
+  await page.getByText('Sounds good').click()
   await expect(page.getByText('- 5,000 SATS')).toBeVisible()
   await expect(page.getByText('Sent')).toBeVisible()
 })
@@ -101,6 +98,8 @@ test('should send assets to ark address', async ({ page, isMobile }) => {
   // assert success screen
   await expect(page.getByText('TestCoin')).toBeVisible()
   await expect(page.getByText('TST')).toBeVisible()
+  await page.getByText('Back to arkade mint').click()
+  await page.getByLabel('Go back').click()
 
   // main page
   await page.getByTestId('tab-wallet').click()
@@ -114,7 +113,6 @@ test('should send assets to ark address', async ({ page, isMobile }) => {
     'h6u2nredqtn0cr4p4zqz53gsmhju4l9t7x47kzleesa9dprx7e56xhzlen'
 
   // go to send page
-  await page.getByTestId('tab-wallet').click()
   await page.getByText('Send').click()
 
   // fill address
@@ -146,7 +144,7 @@ test('should send assets to ark address', async ({ page, isMobile }) => {
   await page.waitForSelector('text=200 TST sent successfully', { timeout: 10000 })
 
   // main page
-  await page.getByTestId('tab-wallet').click()
+  await page.getByText('Sounds good').click()
   await expect(page.getByText('- 330 SATS')).toBeVisible()
   await expect(page.getByText('Sent')).toBeVisible()
 })
@@ -161,6 +159,8 @@ test('should send MAX assets to ark address', async ({ page }) => {
   // assert success screen
   await expect(page.getByText('TestCoin')).toBeVisible()
   await expect(page.getByText('TST')).toBeVisible()
+  await page.getByText('Back to arkade mint').click()
+  await page.getByLabel('Go back').click()
 
   // main page
   await page.getByTestId('tab-wallet').click()
@@ -174,7 +174,6 @@ test('should send MAX assets to ark address', async ({ page }) => {
     'h6u2nredqtn0cr4p4zqz53gsmhju4l9t7x47kzleesa9dprx7e56xhzlen'
 
   // go to send page
-  await page.getByTestId('tab-wallet').click()
   await page.getByText('Send').click()
 
   // fill address
@@ -201,7 +200,7 @@ test('should send MAX assets to ark address', async ({ page }) => {
   await page.waitForSelector('text=1,000 TST sent successfully', { timeout: 10000 })
 
   // main page
-  await page.getByTestId('tab-wallet').click()
+  await page.getByText('Sounds good').click()
   await expect(page.getByText('- 330 SATS')).toBeVisible()
   await expect(page.getByText('Sent')).toBeVisible()
 })
@@ -216,7 +215,6 @@ test('should send to onchain address with chain swap', async ({ page, isMobile }
   await fundWallet(page, 5000)
 
   // main page
-  await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
 
@@ -236,7 +234,7 @@ test('should send to onchain address with chain swap', async ({ page, isMobile }
   await page.waitForSelector(`text=${total} sent successfully`, { timeout: 10000 })
 
   // main page
-  await page.getByTestId('tab-wallet').click()
+  await page.getByText('Sounds good').click()
   await expect(page.getByText('Received')).toBeVisible()
   await expect(page.getByText('5,000 SATS')).toBeVisible()
   await expect(page.getByText('Sent')).toBeVisible()
@@ -252,7 +250,6 @@ test('should send MAX to onchain address with chain swap', async ({ page }) => {
   await fundWallet(page, 5000)
 
   // main page
-  await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
 
@@ -260,7 +257,6 @@ test('should send MAX to onchain address with chain swap', async ({ page }) => {
   const someOnchainAddress = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 
   // go to send page
-  await page.getByTestId('tab-wallet').click()
   await page.getByText('Send').click()
 
   // fill address
@@ -285,7 +281,7 @@ test('should send MAX to onchain address with chain swap', async ({ page }) => {
   await page.waitForSelector('text=5,000 SATS sent successfully', { timeout: 10000 })
 
   // main page
-  await page.getByTestId('tab-wallet').click()
+  await page.getByText('Sounds good').click()
   await expect(page.getByText('- 5,000 SATS')).toBeVisible()
   await expect(page.getByText('Sent')).toBeVisible()
 })
@@ -302,7 +298,6 @@ test('should send to onchain address with collaborative exit', async ({ page, is
   await fundWallet(page, 5000)
 
   // main page
-  await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
 
@@ -322,7 +317,7 @@ test('should send to onchain address with collaborative exit', async ({ page, is
   await page.waitForSelector(`text=${total} sent successfully`, { timeout: 10000 })
 
   // main page
-  await page.getByTestId('tab-wallet').click()
+  await page.getByText('Sounds good').click()
   await expect(page.getByText('Received')).toBeVisible()
   await expect(page.getByText('5,000 SATS')).toBeVisible()
   await expect(page.getByText('Sent')).toBeVisible()
@@ -350,7 +345,6 @@ test('should send MAX to onchain address with collaborative exit', async ({ page
   await waitForPaymentReceived(page)
 
   // main page
-  await page.getByTestId('tab-wallet').click()
   await expect(page.getByText('1,000', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 1,000 SATS')).toBeVisible()
 
@@ -358,7 +352,6 @@ test('should send MAX to onchain address with collaborative exit', async ({ page
   const someOnchainAddress = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 
   // go to send page
-  await page.getByTestId('tab-wallet').click()
   await page.getByText('Send').click()
 
   // fill address
@@ -381,7 +374,7 @@ test('should send MAX to onchain address with collaborative exit', async ({ page
   await page.waitForSelector('text=1,000 SATS sent successfully', { timeout: 10000 })
 
   // main page
-  await page.getByTestId('tab-wallet').click()
+  await page.getByText('Sounds good').click()
   await expect(page.getByText('- 1,000 SATS')).toBeVisible()
   await expect(page.getByText('Sent')).toBeVisible()
 

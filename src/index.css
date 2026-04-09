@@ -242,6 +242,10 @@ button.reminder-button.action-sheet-button {
   isolation: isolate;
 }
 
+.pill-navbar-layer--hidden .pill-navbar {
+  pointer-events: none;
+}
+
 .pill-navbar {
   position: absolute;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
