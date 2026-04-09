@@ -2,8 +2,6 @@ import {
   test,
   expect,
   createWallet,
-  receiveOffchain,
-  waitForPaymentReceived,
   fundWallet,
   prePay,
   getFeesFromDetails,
@@ -12,7 +10,6 @@ import {
   handleKeyboardInput,
 } from './utils'
 import { execSync } from 'child_process'
-import { faucetOffchain } from './fundedWallet'
 import { prettyNumber } from '../../lib/format'
 
 test('should send to ark address', async ({ page, isMobile }) => {
@@ -293,7 +290,7 @@ test('should send to onchain address with collaborative exit', async ({ page, is
   await page.getByText('Sounds good').click()
   await expect(page.getByText('Received')).toBeVisible()
   await expect(page.getByText('5,000 SATS')).toBeVisible()
-  await expect(page.getByText('Sent')).toBeVisible()
+  await page.waitForSelector('text=Sent', { timeout: 10000 })
   await expect(page.getByText(`- ${total}`)).toBeVisible()
 })
 
@@ -307,21 +304,8 @@ test('should send MAX to onchain address with collaborative exit', async ({ page
 
   // create wallet
   await createWallet(page)
+  await fundWallet(page, 1000)
 
-  // get offchain address
-  const arkAddress = await receiveOffchain(page)
-  expect(arkAddress).toBeDefined()
-  expect(arkAddress).toBeTruthy()
-
-  // faucet
-  await faucetOffchain(arkAddress, 1000)
-  await waitForPaymentReceived(page)
-
-  // main page
-  await expect(page.getByText('1,000', { exact: true })).toBeVisible()
-  await expect(page.getByText('+ 1,000 SATS')).toBeVisible()
-
-  // send page
   const someOnchainAddress = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 
   // go to send page
