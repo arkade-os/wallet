@@ -1,7 +1,6 @@
 import { IonInput, IonText } from '@ionic/react'
 import InputContainer from './InputContainer'
 import { useRef, useEffect } from 'react'
-import { pasteFromClipboard } from '../lib/clipboard'
 import { hapticLight } from '../lib/haptics'
 import Paste from './Paste'
 import { ClearButtonOnInput, ScanButtonOnInput } from './Button'
@@ -41,11 +40,8 @@ export default function InputWithScanner({
     onChange((ev.target as HTMLInputElement).value)
   }
 
-  const handlePaste = () => {
-    hapticLight()
-    pasteFromClipboard().then((data) => {
-      if (data && (!validator || validator(data))) onChange(data)
-    })
+  const handlePaste = (data: string) => {
+    onChange(data)
   }
 
   const handleClear = () => {
