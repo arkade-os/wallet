@@ -1,43 +1,37 @@
-import { IonCol, IonGrid, IonRow } from '@ionic/react'
-import PasteIcon from '../icons/Paste'
-import FlexRow from './FlexRow'
-import Text from './Text'
-import Shadow from './Shadow'
-import { hapticLight } from '../lib/haptics'
+import { useEffect, useState } from 'react'
+import { pasteFromClipboard, queryPastePermission } from '../lib/clipboard'
+import { PasteButtonOnInput } from './Button'
 
 interface PasteProps {
-  data: string
-  onClick: () => void
+  validator?: (arg0: string) => boolean
+  onPaste: (arg0: string) => void
 }
 
-export default function Paste({ data, onClick }: PasteProps) {
-  const gridStyle = {
-    padding: '0',
-    cursor: 'pointer',
-  }
+export default function Paste({ validator, onPaste }: PasteProps) {
+  const [clipboard, setClipboard] = useState('')
+  const [showPaste, setShowPaste] = useState(false)
+
+  useEffect(() => {
+    queryPastePermission().then((state) => {
+      if (['prompt', 'granted'].includes(state)) {
+        // if content is valid, show it to user in UI
+        pasteFromClipboard().then((data) => {
+          if (!data) return
+          if (!validator || validator(data)) {
+            setClipboard(data)
+            setShowPaste(true)
+          }
+        })
+      }
+    })
+  }, [])
 
   const handleClick = () => {
-    hapticLight()
-    onClick()
+    if (clipboard) return onPaste(clipboard)
+    pasteFromClipboard().then((data) => {
+      if (data) onPaste(data)
+    })
   }
 
-  return (
-    <Shadow lighter onClick={handleClick}>
-      <IonGrid style={gridStyle}>
-        <IonRow>
-          <IonCol size='7'>
-            <FlexRow>
-              <PasteIcon />
-              <Text smaller>Paste from clipboard</Text>
-            </FlexRow>
-          </IonCol>
-          <IonCol size='5'>
-            <Text right color='dark50' smaller>
-              {data}
-            </Text>
-          </IonCol>
-        </IonRow>
-      </IonGrid>
-    </Shadow>
-  )
+  return showPaste ? <PasteButtonOnInput onClick={handleClick} /> : <></>
 }
