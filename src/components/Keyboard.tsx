@@ -113,6 +113,7 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
   }
 
   const handleToggleCurrency = () => {
+    if (inputMode === 'asset') return // No toggle for assets
     if (inputMode === 'sats') {
       // Convert from sats to fiat and round to 2 decimal places
       setTextValue(amountInSats ? prettyNumber(toFiat(amountInSats), fiatDecimals(), false) : '')
