@@ -178,7 +178,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }, [aspInfo.url, initialized, devAutoInitFailed])
 
   useEffect(() => {
-    console.log('Wallet auth state check:', { pubkey: wallet.pubkey, initialized, devAutoInitFailed })
     // skip auth check when dev auto-init will handle it
     if (isDevAutoInit && !devAutoInitFailed) {
       if (!initialized) return
