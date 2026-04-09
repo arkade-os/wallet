@@ -1,6 +1,7 @@
 import { test as base, type Page } from '@playwright/test'
 import { faucetOffchain } from './fundedWallet'
 import { sleep } from '../../lib/sleep'
+import { prettyNumber } from '../../lib/format'
 
 export const test = base.extend({
   page: async ({ page }, use) => {
@@ -63,6 +64,7 @@ export async function enableAssets(page: Page): Promise<void> {
 }
 
 export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<void> {
+  await sleep(5000)
   await navigateToAssets(page)
   await page.getByText('Mint', { exact: true }).click()
   await page.waitForSelector('text=Mint Asset', { state: 'visible' })
@@ -235,7 +237,7 @@ export async function fundWallet(page: Page, amount: number = 5000): Promise<voi
   await faucetOffchain(arkAddress, amount)
   await waitForPaymentReceived(page)
   await page.getByTestId('tab-wallet').click()
-  await sleep(3000)
+  await page.waitForSelector(`text=+ ${prettyNumber(amount)} SATS`, { timeout: 10000 })
 }
 
 export async function resetAndRestoreWallet(page: Page): Promise<void> {
