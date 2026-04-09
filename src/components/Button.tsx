@@ -97,13 +97,14 @@ export default function Button({
 const Label = ({ label }: { label: string }) => <p style={{ lineHeight: '20px' }}>{label}</p>
 
 interface ButtonOnInputProps {
-  label?: string
+  ariaLabel?: string
   border?: boolean
+  label?: string
   icon?: ReactElement
   onClick: () => void
 }
 
-export function ButtonOnInput({ label, border, icon, onClick }: ButtonOnInputProps) {
+export function ButtonOnInput({ label, border, icon, onClick, ariaLabel }: ButtonOnInputProps) {
   const pillBase: React.CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
@@ -136,7 +137,7 @@ export function ButtonOnInput({ label, border, icon, onClick }: ButtonOnInputPro
   }
 
   return (
-    <button type='button' onClick={handleClick} aria-label={label} style={pillBase}>
+    <button type='button' onClick={handleClick} aria-label={ariaLabel || label} style={pillBase}>
       <span style={hitAreaStyle} />
       {icon}
       {label}
@@ -153,5 +154,5 @@ export function ScanButtonOnInput({ onClick }: { onClick: () => void }) {
 }
 
 export function ClearButtonOnInput({ onClick }: { onClick: () => void }) {
-  return <ButtonOnInput icon={<XIcon />} onClick={onClick} />
+  return <ButtonOnInput ariaLabel='Clear' icon={<XIcon />} onClick={onClick} />
 }
