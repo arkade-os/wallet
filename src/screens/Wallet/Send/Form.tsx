@@ -553,11 +553,6 @@ export default function SendForm() {
     }
   }
 
-  const handleScanData = (data: string) => {
-    setRawScanData(data)
-    resetDerivedState(data)
-  }
-
   const handleContinue = async () => {
     setProcessing(true)
     const satoshis = sendInfo.satoshis ?? 0
@@ -700,38 +695,74 @@ export default function SendForm() {
     </div>
   )
 
-<<<<<<< HEAD
   const overlayOpen = scan || (keys && !amountIsReadOnly)
   const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
-=======
+
+  const Keys = () => (
+    <Keyboard
+      back={() => setKeys(false)}
+      onSave={(sats) => {
+        handleAmountChange(sats)
+        setKeys(false)
+      }}
+      value={amount}
+      asset={selectedAsset ?? undefined}
+    />
+  )
+
   if (keys && !amountIsReadOnly) {
-    return (
-      <Keyboard
-        back={() => setKeys(false)}
-        onSave={(sats) => {
-          handleAmountChange(sats)
-          setKeys(false)
-        }}
-        value={amount}
-        asset={selectedAsset ?? undefined}
-      />
+    return prefersReducedMotion ? (
+      <div style={sendOverlayStyle}>
+        <Keys />
+      </div>
+    ) : (
+      <AnimatePresence>
+        <motion.div
+          key='keyboard'
+          variants={overlaySlideUp}
+          initial='initial'
+          animate='animate'
+          exit='exit'
+          style={sendOverlayStyle}
+        >
+          <Keys />
+        </motion.div>
+      </AnimatePresence>
     )
   }
 
+  const Scan = () => (
+    <Scanner
+      close={() => setScan(false)}
+      label='Recipient address'
+      onData={(data) => {
+        setRawScanData(data)
+        resetDerivedState(data)
+      }}
+      onError={smartSetError}
+    />
+  )
+
   if (scan) {
-    return (
-      <Scanner
-        close={() => setScan(false)}
-        label='Recipient address'
-        onData={(data) => {
-          setRawScanData(data)
-          setRecipient(data)
-        }}
-        onError={smartSetError}
-      />
+    return prefersReducedMotion ? (
+      <div style={sendOverlayStyle}>
+        <Scan />
+      </div>
+    ) : (
+      <AnimatePresence>
+        <motion.div
+          key='scanner'
+          variants={overlaySlideUp}
+          initial='initial'
+          animate='animate'
+          exit='exit'
+          style={sendOverlayStyle}
+        >
+          <Scan />
+        </motion.div>{' '}
+      </AnimatePresence>
     )
   }
->>>>>>> a3fc66c2 (Receive v2 (#512))
 
   return (
     <>
@@ -935,67 +966,6 @@ export default function SendForm() {
           </FlexCol>
         </FlexCol>
       </SheetModal>
-      {prefersReducedMotion ? (
-        <>
-          {scan ? (
-            <div style={sendOverlayStyle}>
-              <Scanner
-                close={() => setScan(false)}
-                label='Recipient address'
-                onData={handleScanData}
-                onError={smartSetError}
-              />
-            </div>
-          ) : null}
-          {keys && !amountIsReadOnly ? (
-            <div style={sendOverlayStyle}>
-              <Keyboard
-                back={() => setKeys(false)}
-                onSats={handleAmountChange}
-                value={amount}
-                asset={selectedAsset ?? undefined}
-              />
-            </div>
-          ) : null}
-        </>
-      ) : (
-        <AnimatePresence>
-          {scan ? (
-            <motion.div
-              key='scanner'
-              variants={overlaySlideUp}
-              initial='initial'
-              animate='animate'
-              exit='exit'
-              style={sendOverlayStyle}
-            >
-              <Scanner
-                close={() => setScan(false)}
-                label='Recipient address'
-                onData={handleScanData}
-                onError={smartSetError}
-              />
-            </motion.div>
-          ) : null}
-          {keys && !amountIsReadOnly ? (
-            <motion.div
-              key='keyboard'
-              variants={overlaySlideUp}
-              initial='initial'
-              animate='animate'
-              exit='exit'
-              style={sendOverlayStyle}
-            >
-              <Keyboard
-                back={() => setKeys(false)}
-                onSats={handleAmountChange}
-                value={amount}
-                asset={selectedAsset ?? undefined}
-              />
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-      )}
     </>
   )
 }

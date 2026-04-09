@@ -8,40 +8,9 @@ interface SheetModalProps {
 }
 
 export default function SheetModal({ children, isOpen, onClose }: SheetModalProps) {
-<<<<<<< HEAD
-  const outerStyle: React.CSSProperties = {
-    maxWidth: '640px',
-    margin: '0 auto',
-    width: '100%',
-  }
-
-  const innerStyle: React.CSSProperties = {
-    backgroundColor: 'var(--ion-background-color)',
-    borderTop: '1px solid var(--dark50)',
-    borderRadius: '1rem',
-    height: '100%',
-    padding: '1rem',
-    paddingBottom: '2rem',
-    width: '100%',
-    position: 'relative',
-    overflowY: 'auto',
-    wordBreak: 'break-word',
-  }
-
-  const closeButtonStyle: React.CSSProperties = {
-    background: 'none',
-    border: 'none',
-    color: 'var(--ion-text-color)',
-    cursor: 'pointer',
-    padding: 0,
-    position: 'absolute',
-    right: '1rem',
-    top: '1rem',
-=======
   const handleClose = () => {
     hapticLight()
     onClose()
->>>>>>> a3fc66c2 (Receive v2 (#512))
   }
 
   return (
