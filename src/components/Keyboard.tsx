@@ -179,8 +179,8 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
     <>
       <Header
         auxAriaLabel='Toggle currency'
-        auxFunc={handleToggleCurrency}
-        auxIcon={<SwapIcon />}
+        auxFunc={inputMode !== 'asset' ? handleToggleCurrency : undefined}
+        auxIcon={inputMode !== 'asset' ? <SwapIcon /> : undefined}
         back={back}
         text='Amount'
       />
