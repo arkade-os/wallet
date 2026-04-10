@@ -138,6 +138,7 @@ test('should refund failing swap', async ({ page }) => {
   await page.locator('ion-input[name="send-address"] input').fill(invoice)
   await page.getByText('Continue').click()
   await page.getByText('Tap to Sign').click()
+  await page.getByTestId('loading-logo').waitFor({ state: 'visible', timeout: 3000 })
   await page.waitForSelector('text=Swap failed')
   await page.getByLabel('Go back').click()
   await page.getByLabel('Go back').click()

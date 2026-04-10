@@ -96,7 +96,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
 
   // verify all swaps are present (swap recovery from Boltz API can take a moment)
   await expect(page.getByText('Boltz')).toBeVisible()
-  await expect(page.getByText('Arkade to Bitcoin')).toBeVisible({ timeout: 10000 })
+  await page.waitForSelector('text=Arkade to Bitcoin', { timeout: 10000 })
   await expect(page.getByText('Arkade to Lightning')).toBeVisible()
   await expect(page.getByText('- 1,001')).toBeVisible()
   await expect(page.getByText('Lightning to Arkade')).toBeVisible()
