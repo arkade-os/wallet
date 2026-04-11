@@ -3,7 +3,7 @@ import { exec } from 'child_process'
 import { faucetOffchain } from './fundedWallet'
 
 test('should receive onchain funds', async ({ page }) => {
-  test.setTimeout(120000)
+  test.setTimeout(60000)
   // create wallet
   await createWallet(page)
 
