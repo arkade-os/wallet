@@ -2,6 +2,7 @@ import { test as base, type Page } from '@playwright/test'
 import { faucetOffchain } from './fundedWallet'
 import { sleep } from '../../lib/sleep'
 import { prettyNumber } from '../../lib/format'
+import { execSync } from 'child_process'
 
 export const test = base.extend({
   page: async ({ page }, use) => {
@@ -64,7 +65,6 @@ export async function enableAssets(page: Page): Promise<void> {
 }
 
 export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<void> {
-  await sleep(5000)
   await navigateToAssets(page)
   await page.getByText('Mint', { exact: true }).click()
   await page.waitForSelector('text=Mint Asset', { state: 'visible' })
@@ -101,6 +101,7 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
 }
 
 export async function createWallet(page: Page): Promise<void> {
+  execSync('nigiri rpc --generate 1')
   await page.goto('/')
   await page.getByText('+ Create wallet').click()
   await waitForWalletPage(page)
