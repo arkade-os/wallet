@@ -25,7 +25,7 @@ const execAsync = promisify(exec)
 // 8. Reset wallet
 // 9. Restore wallet with nsec key
 // 10. Verify setting is euro (proving it was restored from nostr)
-test.skip('should save config to nostr', async ({ page }) => {
+test('should save config to nostr', async ({ page }) => {
   test.setTimeout(60000)
   // create wallet
   await createWallet(page)
@@ -71,7 +71,7 @@ test.skip('should save config to nostr', async ({ page }) => {
   await expect(page.getByText('EUR')).toBeVisible()
 })
 
-test.skip('should save swaps to nostr', async ({ page, isMobile }) => {
+test('should save swaps to nostr', async ({ page, isMobile }) => {
   test.setTimeout(60000)
   // create wallet
   await createWallet(page)
@@ -104,6 +104,8 @@ test.skip('should save swaps to nostr', async ({ page, isMobile }) => {
    * submarine swap
    */
 
+  await sleep(3000)
+
   // generate lightning invoice to pay
   const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
   const output = stdout.trim()
@@ -134,6 +136,8 @@ test.skip('should save swaps to nostr', async ({ page, isMobile }) => {
    * chain swap
    */
 
+  await sleep(3000)
+
   // send page
   const someOnchainAddress = 'bcrt1pxxxth5z4yn8nylc6nzz6w3vkumwdllaky5sls7an8e044u2qlnes2vvy6y'
   await pay(page, someOnchainAddress, isMobile, 2000)
@@ -149,10 +153,11 @@ test.skip('should save swaps to nostr', async ({ page, isMobile }) => {
   await page.getByTestId('tab-settings').click()
   await page.getByText('backup', { exact: true }).click()
   await page.getByText('Enable Nostr backups').click()
-  await sleep(2000) // wait for backup to complete
+  await sleep(3000) // wait for backup to complete
 
   // restore wallet
   await resetAndRestoreWallet(page)
+  await sleep(3000) // wait for restore to complete
 
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
