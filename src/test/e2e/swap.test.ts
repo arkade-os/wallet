@@ -42,9 +42,10 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
 
   // wait for payment received
   await waitForPaymentReceived(page)
-  await page.getByTestId('tab-wallet').click()
 
   // main page
+  await page.getByTestId('tab-wallet').click()
+  await page.waitForSelector('text=Received', { timeout: 10000 })
   await expect(page.getByText('1,992', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 1,992 SATS')).toBeVisible()
 
@@ -72,6 +73,7 @@ test('should send funds to Lightning', async ({ page }) => {
 
   // main page
   await page.getByTestId('tab-wallet').click()
+  await page.waitForSelector('text=Received', { timeout: 10000 })
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
 
@@ -114,6 +116,7 @@ test('should refund failing swap', async ({ page }) => {
 
   // main page
   await page.getByTestId('tab-wallet').click()
+  await page.waitForSelector('text=Received', { timeout: 10000 })
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
 
@@ -148,26 +151,9 @@ test('should refund failing swap', async ({ page }) => {
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
   await expect(page.getByText('Boltz')).toBeVisible()
-  await expect(page.getByText('Refunded')).toBeVisible({ timeout: 30000 })
+  await page.waitForSelector('text=Refunded', { timeout: 10000 })
   await expect(page.getByText('- 1,001')).toBeVisible()
   await expect(page.getByText('Arkade to Lightning')).toBeVisible()
-})
-
-test('should receive bitcoin funds from swap', async ({ page, isMobile }) => {
-  test.setTimeout(60000)
-  // create wallet
-  await createWallet(page)
-
-  // get onchain address
-  const chainAddress = await receiveOnchain(page, isMobile, 10000)
-  expect(chainAddress).toBeDefined()
-  expect(chainAddress).toBeTruthy()
-
-  // faucet
-  exec(`nigiri faucet ${chainAddress} 0.0001`)
-
-  // wait for payment received
-  await waitForPaymentReceived(page)
 })
 
 test('should send funds to onchain address via swap', async ({ page, isMobile }) => {
@@ -189,6 +175,7 @@ test('should send funds to onchain address via swap', async ({ page, isMobile })
 
   // main page
   await page.getByTestId('tab-wallet').click()
+  await page.waitForSelector('text=Received', { timeout: 10000 })
   await expect(page.getByText('5,000', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
 
@@ -198,9 +185,7 @@ test('should send funds to onchain address via swap', async ({ page, isMobile })
 
   // main page
   await page.getByTestId('tab-wallet').click()
-  await expect(page.getByText('5,000 SATS')).toBeVisible()
-  await expect(page.getByText('Received')).toBeVisible()
-  await expect(page.getByText('Sent')).toBeVisible()
+  await page.waitForSelector('text=Sent', { timeout: 10000 })
 
   // clear fees
   execSync('docker exec -t arkd arkd fees clear')

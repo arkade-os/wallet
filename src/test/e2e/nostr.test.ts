@@ -130,6 +130,7 @@ test.skip('should save swaps to nostr', async ({ page, isMobile }) => {
 
   // transaction should be visible on main page
   await page.getByTestId('tab-wallet').click()
+  await page.waitForSelector('text=Sent', { timeout: 10000 })
   await expect(page.getByText('- 1,001 SATS')).toBeVisible()
 
   /**
