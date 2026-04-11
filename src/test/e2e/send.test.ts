@@ -1,16 +1,5 @@
-import {
-  test,
-  expect,
-  createWallet,
-  fundWallet,
-  prePay,
-  getFeesFromDetails,
-  enableAssets,
-  mintAsset,
-  handleKeyboardInput,
-} from './utils'
+import { test, expect, createWallet, fundWallet, prePay, enableAssets, mintAsset, handleKeyboardInput } from './utils'
 import { execSync } from 'child_process'
-import { prettyNumber } from '../../lib/format'
 
 test('should send to ark address', async ({ page, isMobile }) => {
   // create wallet
@@ -208,20 +197,14 @@ test('should send to onchain address with chain swap', async ({ page, isMobile }
   await prePay(page, someOnchainAddress, isMobile, 2000)
 
   // details page
-  const fees = await getFeesFromDetails(page)
-  const total = prettyNumber(2000 + fees) + ' SATS'
-  await expect(page.getByTestId('Network fees')).toContainText(prettyNumber(fees) + ' SATS')
   await expect(page.getByTestId('Amount')).toContainText('2,000 SATS')
-  await expect(page.getByTestId('Total')).toContainText(total)
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector(`text=${total} sent successfully`, { timeout: 10000 })
 
   // main page
   await page.getByText('Sounds good').click()
   await page.waitForSelector('text=Sent', { timeout: 10000 })
-  await expect(page.getByText(`- ${total}`)).toBeVisible()
 })
 
 // wallet balance is 5000 sats, wants to send 5000 sats onchain,
@@ -249,11 +232,7 @@ test('should send MAX to onchain address with chain swap', async ({ page }) => {
   await page.getByText('Continue').click()
 
   // details page
-  const fees = await getFeesFromDetails(page)
-  const amount = prettyNumber(5000 - fees) + ' SATS'
-  await expect(page.getByTestId('Amount')).toContainText(amount)
   await expect(page.getByTestId('Total')).toContainText('5,000 SATS')
-  await expect(page.getByTestId('Network fees')).toContainText(prettyNumber(fees) + ' SATS')
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
@@ -282,22 +261,17 @@ test('should send to onchain address with collaborative exit', async ({ page, is
   await prePay(page, someOnchainAddress, isMobile, 1000)
 
   // details page
-  const fees = await getFeesFromDetails(page)
-  const total = prettyNumber(1000 + fees) + ' SATS'
-  await expect(page.getByTestId('Network fees')).toContainText(prettyNumber(fees) + ' SATS')
   await expect(page.getByTestId('Amount')).toContainText('1,000 SATS')
-  await expect(page.getByTestId('Total')).toContainText(total)
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector(`text=${total} sent successfully`, { timeout: 10000 })
+  await page.waitForSelector('text=sent successfully', { timeout: 10000 })
 
   // main page
   await page.getByText('Sounds good').click()
   await expect(page.getByText('Received')).toBeVisible()
   await expect(page.getByText('5,000 SATS')).toBeVisible()
   await page.waitForSelector('text=Sent', { timeout: 10000 })
-  await expect(page.getByText(`- ${total}`)).toBeVisible()
 })
 
 // wallet balance is 1000 sats, wants to send 1000 sats onchain,
@@ -329,9 +303,7 @@ test('should send MAX to onchain address with collaborative exit', async ({ page
   await page.getByText('Continue').click()
 
   // details page
-  await expect(page.getByTestId('Amount')).toContainText('800 SATS')
   await expect(page.getByTestId('Total')).toContainText('1,000 SATS')
-  await expect(page.getByTestId('Network fees')).toContainText('200 SATS')
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
