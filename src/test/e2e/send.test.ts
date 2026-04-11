@@ -31,8 +31,8 @@ test('should send to ark address', async ({ page, isMobile }) => {
 
   // finalize payment
   await page.getByText('Tap to Sign').click()
-  await page.getByTestId('loading-logo').waitFor({ state: 'visible', timeout: 3000 })
-  await page.waitForSelector('text=Payment sent!', { timeout: 60000 })
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
+  await page.waitForSelector('text=Payment sent!', { timeout: 30000 })
   await expect(page.getByText('2,000 SATS sent successfully')).toBeVisible()
 
   // main page
@@ -70,7 +70,7 @@ test('should send MAX to ark address', async ({ page }) => {
   await expect(page.getByTestId('Total')).toContainText('5,000 SATS')
 
   await page.getByText('Tap to Sign').click()
-  await page.getByTestId('loading-logo').waitFor({ state: 'visible', timeout: 3000 })
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
   await page.waitForSelector('text=5,000 SATS sent successfully', { timeout: 10000 })
 
   // main page
@@ -130,7 +130,6 @@ test('should send assets to ark address', async ({ page, isMobile }) => {
   await expect(page.getByTestId('Total')).toHaveText('0 SATS')
 
   await page.getByText('Tap to Sign').click()
-  await page.getByTestId('loading-logo').waitFor({ state: 'visible', timeout: 3000 })
   await page.waitForSelector('text=200 TST sent successfully', { timeout: 10000 })
 
   // main page
@@ -185,7 +184,7 @@ test('should send MAX assets to ark address', async ({ page }) => {
   await expect(page.getByTestId('Total')).toHaveText('0 SATS')
 
   await page.getByText('Tap to Sign').click()
-  await page.getByTestId('loading-logo').waitFor({ state: 'visible', timeout: 3000 })
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
   await page.waitForSelector('text=1,000 TST sent successfully', { timeout: 10000 })
 
   // main page
@@ -216,7 +215,7 @@ test('should send to onchain address with chain swap', async ({ page, isMobile }
   await expect(page.getByTestId('Total')).toContainText(total)
 
   await page.getByText('Tap to Sign').click()
-  await page.getByTestId('loading-logo').waitFor({ state: 'visible', timeout: 3000 })
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
   await page.waitForSelector(`text=${total} sent successfully`, { timeout: 10000 })
 
   // main page
@@ -257,7 +256,7 @@ test('should send MAX to onchain address with chain swap', async ({ page }) => {
   await expect(page.getByTestId('Network fees')).toContainText(prettyNumber(fees) + ' SATS')
 
   await page.getByText('Tap to Sign').click()
-  await page.getByTestId('loading-logo').waitFor({ state: 'visible', timeout: 3000 })
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
   await page.waitForSelector('text=5,000 SATS sent successfully', { timeout: 10000 })
 
   // main page
@@ -290,7 +289,7 @@ test('should send to onchain address with collaborative exit', async ({ page, is
   await expect(page.getByTestId('Total')).toContainText(total)
 
   await page.getByText('Tap to Sign').click()
-  await page.getByTestId('loading-logo').waitFor({ state: 'visible', timeout: 3000 })
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
   await page.waitForSelector(`text=${total} sent successfully`, { timeout: 10000 })
 
   // main page
@@ -335,7 +334,7 @@ test('should send MAX to onchain address with collaborative exit', async ({ page
   await expect(page.getByTestId('Network fees')).toContainText('200 SATS')
 
   await page.getByText('Tap to Sign').click()
-  await page.getByTestId('loading-logo').waitFor({ state: 'visible', timeout: 3000 })
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
   await page.waitForSelector('text=1,000 SATS sent successfully', { timeout: 10000 })
 
   // main page

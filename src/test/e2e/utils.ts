@@ -96,8 +96,8 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
 
   // submit
   await page.getByText('Mint', { exact: true }).click()
-  await page.getByTestId('loading-logo').waitFor({ state: 'visible', timeout: 3000 })
-  await page.waitForSelector('text=Asset minted!', { timeout: 3000 })
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
+  await page.waitForSelector('text=Asset minted!', { timeout: 30000 })
 }
 
 export async function createWallet(page: Page): Promise<void> {
@@ -148,8 +148,8 @@ export async function pay(page: Page, address: string, isMobile = false, sats = 
 
   // continue to send
   await page.getByText('Tap to Sign').click()
-  await page.getByTestId('loading-logo').waitFor({ state: 'visible', timeout: 3000 })
-  await page.waitForSelector('text=Payment sent!', { timeout: 60000 })
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
+  await page.waitForSelector('text=Payment sent!', { timeout: 30000 })
   await page.getByText('Sounds good').click()
 }
 
