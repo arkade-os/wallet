@@ -234,6 +234,7 @@ async function restoreWallet(page: Page, nsec: string): Promise<void> {
 }
 
 export async function fundWallet(page: Page, amount: number = 5000): Promise<void> {
+  execSync('nigiri rpc --generate 1')
   const arkAddress = await receiveOffchain(page)
   await faucetOffchain(arkAddress, amount)
   await waitForPaymentReceived(page)
