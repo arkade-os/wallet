@@ -1,13 +1,4 @@
-import {
-  test,
-  expect,
-  createWallet,
-  pay,
-  receiveLightning,
-  receiveOffchain,
-  receiveOnchain,
-  waitForPaymentReceived,
-} from './utils'
+import { test, expect, createWallet, pay, receiveLightning, receiveOffchain, waitForPaymentReceived } from './utils'
 import { exec, execSync } from 'child_process'
 import { promisify } from 'util'
 import { faucetOffchain } from './fundedWallet'
