@@ -57,30 +57,6 @@ button.atcb-button {
   box-shadow: none;
 }
 
-button.reminder-button.action-sheet-button {
-  width: calc(100% - 2rem);
-  margin: 1rem;
-  padding: 0;
-  border: 1px solid var(--dark50);
-  border-radius: 0.25rem;
-  background-color: #e5e5e5;
-  color: var(--color);
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  & span.action-sheet-button-inner {
-    justify-content: center;
-  }
-}
-
-.dark button.reminder-button.action-sheet-button {
-  background-color: #222;
-  color: #f7fafc;
-}
-
 .spinner {
   width: 20px;
   height: 20px;
@@ -398,6 +374,12 @@ button.reminder-button.action-sheet-button {
   mask-repeat: no-repeat;
   -webkit-mask-size: 100% 100%;
   mask-size: 100% 100%;
+}
+
+/* Opt out of the scroll fade mask (e.g. Receive QR full-bleed screen) */
+.has-pill-navbar main[role='main'].no-content-fade {
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 /* Hide placeholder on focus for native inputs */
