@@ -23,6 +23,8 @@ import { sendOffChain } from '../lib/asp'
 import { ArkAddress, ServiceWorkerWallet } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 
+const FUNDING_LOOKBACK_SECONDS = 60000
+
 const BASE_URLS: Record<Network, string | null> = {
   bitcoin: import.meta.env.VITE_BOLTZ_URL ?? 'https://api.ark.boltz.exchange',
   mutinynet: 'https://api.boltz.mutinynet.arkade.sh',
@@ -406,7 +408,7 @@ const assertSwapAddressUnfunded = async (svcWallet: ServiceWorkerWallet, swapAdd
   const decoded = ArkAddress.decode(swapAddress)
   const script = hex.encode(decoded.pkScript)
   const manager = await svcWallet.getContractManager()
-  await manager.refreshVtxos({ scripts: [script], after: Date.now() - 5000 })
+  await manager.refreshVtxos({ scripts: [script], after: Date.now() - FUNDING_LOOKBACK_SECONDS })
   const contracts = await manager.getContractsWithVtxos({ script })
   if (contracts.some((c) => c.vtxos.length > 0)) {
     throw new Error('Swap address already funded')
