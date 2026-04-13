@@ -9,6 +9,7 @@ import {
   resetAndRestoreWallet,
   waitForPaymentReceived,
 } from './utils'
+import { sleep } from '../../lib/sleep'
 
 const execAsync = promisify(exec)
 
@@ -26,7 +27,7 @@ const execAsync = promisify(exec)
 // 7. Verify swap history has both swaps
 
 test('should restore swaps without nostr backup', async ({ page, isMobile }) => {
-  test.setTimeout(120000)
+  test.setTimeout(60000)
   // create wallet
   await createWallet(page)
 
@@ -42,9 +43,15 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
 
   // pay invoice with lnd
   await execAsync(`docker exec lnd lncli --network=regtest payinvoice ${invoice} --force`)
-
   // wait for payment received
   await waitForPaymentReceived(page)
+
+  // should be visible in Boltz app
+  await page.getByTestId('tab-apps').click()
+  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
+  await page.getByTestId('app-boltz').click()
+  await expect(page.getByText('+ 4,980 SATS', { exact: true })).toBeVisible()
+  await page.getByLabel('Go back').click()
 
   // navigate to wallet tab and verify balance before proceeding
   await page.getByTestId('tab-wallet').click()
@@ -70,6 +77,13 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   // go to send page and pay invoice
   await pay(page, paymentRequest, isMobile)
 
+  // should be visible in Boltz app
+  await page.getByTestId('tab-apps').click()
+  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
+  await page.getByTestId('app-boltz').click()
+  await expect(page.getByText('- 1,001 SATS', { exact: true })).toBeVisible()
+  await page.getByLabel('Go back').click()
+
   /**
    * chain swap
    */
@@ -84,6 +98,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
 
   // restore wallet with nsec
   await resetAndRestoreWallet(page)
+  await sleep(5000) // wait for wallet to restore and sync
 
   /**
    * verify swap history
@@ -96,7 +111,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
 
   // verify all swaps are present (swap recovery from Boltz API can take a moment)
   await expect(page.getByText('Boltz')).toBeVisible()
-  await expect(page.getByText('Arkade to Bitcoin')).toBeVisible({ timeout: 10000 })
+  await page.waitForSelector('text=Arkade to Bitcoin', { timeout: 10000 })
   await expect(page.getByText('Arkade to Lightning')).toBeVisible()
   await expect(page.getByText('- 1,001')).toBeVisible()
   await expect(page.getByText('Lightning to Arkade')).toBeVisible()

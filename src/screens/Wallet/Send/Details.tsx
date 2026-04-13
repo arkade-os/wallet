@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import Button from '../../../components/Button'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext } from '../../../providers/flow'
@@ -43,7 +43,6 @@ export default function SendDetails() {
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
   const [sendDone, setSendDone] = useState(false)
-  const pendingNav = useRef<() => void>()
 
   const { address, arkAddress, invoice, pendingSwap, satoshis } = sendInfo
 
@@ -113,20 +112,20 @@ export default function SendDetails() {
   }
 
   const handleTxid = (txid: string) => {
-    if (!txid) return setError('Error sending transaction')
+    if (!txid) return handleError('Error sending transaction')
     setSendInfo({ ...sendInfo, total: details?.total, txid })
-    pendingNav.current = () => navigate(Pages.SendSuccess)
     setSendDone(true)
   }
 
-  const handleExitComplete = useCallback(() => {
-    pendingNav.current?.()
-  }, [])
+  const handleExitComplete = () => {
+    if (error) return setSending(false)
+    else navigate(Pages.SendSuccess)
+  }
 
   const handleError = (err: any) => {
     consoleError(err, 'error sending payment')
     setError(extractError(err))
-    setSending(false)
+    setSendDone(true)
   }
 
   const handleContinue = async () => {

@@ -1,7 +1,7 @@
 import { invalidPrivateKey, nsecToPrivateKey } from '../../lib/privateKey'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
-import { useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { ConfigContext } from '../../providers/config'
 import { BackupProvider } from '../../lib/backup'
 import { defaultPassword } from '../../lib/constants'
@@ -33,7 +33,6 @@ export default function InitRestore() {
   const [privateKey, setPrivateKey] = useState<Uint8Array>()
   const [restoring, setRestoring] = useState(false)
   const [restoreDone, setRestoreDone] = useState(false)
-  const pendingNav = useRef<() => void>()
   const [someKey, setSomeKey] = useState<string>()
 
   useEffect(() => {
@@ -63,22 +62,17 @@ export default function InitRestore() {
         updateConfig({ ...conf, delegate: true }),
       )
       .catch((err) => consoleError(err, 'Error restoring from nostr'))
-      .finally(() => {
-        pendingNav.current = () => {
-          setRestoring(false)
-          navigate(Pages.InitConnect)
-        }
-        setRestoreDone(true)
-      })
+      .finally(() => setRestoreDone(true))
   }
 
-  const handleExitComplete = useCallback(() => {
-    pendingNav.current?.()
-  }, [])
+  const handleExitComplete = () => {
+    if (error) return setRestoring(false)
+    else navigate(Pages.InitConnect)
+  }
 
   const disabled = Boolean(!privateKey || error)
 
-  if (restoring || restoreDone)
+  if (restoring)
     return (
       <LoadingLogo
         text='Restoring wallet...'

@@ -108,7 +108,8 @@ test('should reissue an asset with control token', async ({ page }) => {
 
   // submit
   await page.getByText('Mint', { exact: true }).click()
-  await page.waitForSelector('text=Asset minted!', { state: 'visible', timeout: 30000 })
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
+  await page.waitForSelector('text=Asset minted!', { timeout: 30000 })
 
   // go to asset detail
   await page.getByText('View Asset').click()

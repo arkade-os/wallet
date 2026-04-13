@@ -1,7 +1,7 @@
 import { test as base, type Page } from '@playwright/test'
 import { faucetOffchain } from './fundedWallet'
-import { sleep } from '../../lib/sleep'
 import { prettyNumber } from '../../lib/format'
+import { execSync } from 'child_process'
 
 export const test = base.extend({
   page: async ({ page }, use) => {
@@ -64,7 +64,6 @@ export async function enableAssets(page: Page): Promise<void> {
 }
 
 export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<void> {
-  await sleep(5000)
   await navigateToAssets(page)
   await page.getByText('Mint', { exact: true }).click()
   await page.waitForSelector('text=Mint Asset', { state: 'visible' })
@@ -96,7 +95,8 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
 
   // submit
   await page.getByText('Mint', { exact: true }).click()
-  await page.waitForSelector('text=Asset minted!', { state: 'visible', timeout: 30000 })
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
+  await page.waitForSelector('text=Asset minted!', { timeout: 30000 })
 }
 
 export async function createWallet(page: Page): Promise<void> {
@@ -147,7 +147,8 @@ export async function pay(page: Page, address: string, isMobile = false, sats = 
 
   // continue to send
   await page.getByText('Tap to Sign').click()
-  await page.waitForSelector('text=Payment sent!', { timeout: 60000 })
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
+  await page.waitForSelector('text=Payment sent!', { timeout: 30000 })
   await page.getByText('Sounds good').click()
 }
 
@@ -233,6 +234,7 @@ async function restoreWallet(page: Page, nsec: string): Promise<void> {
 }
 
 export async function fundWallet(page: Page, amount: number = 5000): Promise<void> {
+  execSync('nigiri rpc --generate 1')
   const arkAddress = await receiveOffchain(page)
   await faucetOffchain(arkAddress, amount)
   await waitForPaymentReceived(page)
