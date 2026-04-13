@@ -1,16 +1,6 @@
-import {
-  test,
-  expect,
-  createWallet,
-  pay,
-  receiveLightning,
-  receiveOffchain,
-  waitForPaymentReceived,
-  fundWallet,
-} from './utils'
-import { exec, execSync } from 'child_process'
+import { test, expect, createWallet, pay, receiveLightning, waitForPaymentReceived, fundWallet } from './utils'
+import { exec } from 'child_process'
 import { promisify } from 'util'
-import { faucetOffchain } from './fundedWallet'
 
 const execAsync = promisify(exec)
 
