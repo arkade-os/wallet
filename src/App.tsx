@@ -68,6 +68,13 @@ export default function App() {
   const walletRef = useRef<HTMLDivElement>(null)
   const appsRef = useRef<HTMLDivElement>(null)
   const settingsRef = useRef<HTMLDivElement>(null)
+
+  // Track each tab's last-shown page for keep-alive (inactive tabs stay mounted)
+  const tabPages = useRef<Record<string, Pages>>({
+    [Tabs.Wallet]: Pages.Wallet,
+    [Tabs.Apps]: Pages.Apps,
+    [Tabs.Settings]: Pages.Settings,
+  })
   const passwordlessBootAttempted = useRef(false)
   const passwordlessReloadTimer = useRef<ReturnType<typeof setTimeout>>()
 
@@ -186,6 +193,13 @@ export default function App() {
         ? Pages.Unlock
         : screen
 
+  // Update the active tab's last-shown page for keep-alive
+  useEffect(() => {
+    if (tab !== Tabs.None) {
+      tabPages.current[tab] = page
+    }
+  }, [tab, page])
+
   // Boot animation: persists on Loading, then flies to the LogoIcon position when
   // Wallet is reached. For any other destination (Unlock, Init, etc.), exits with fly-up.
   // Skip in dev with VITE_DEV_NSEC — the fast auto-init races with the animation.
@@ -246,34 +260,28 @@ export default function App() {
         <>
           <div ref={walletRef} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
             <div className='page-transition-container'>
-              <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-                {tab === Tabs.Wallet && (
-                  <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                    {comp}
-                  </PageTransition>
-                )}
+              <PageAnimWrapper animated={tab === Tabs.Wallet && !prefersReduced} direction={tab === Tabs.Wallet ? effectiveDirection : 'none'}>
+                <PageTransition key={String(tabPages.current[Tabs.Wallet])} direction={direction} pageKey={String(tabPages.current[Tabs.Wallet])}>
+                  {pageComponent(tabPages.current[Tabs.Wallet])}
+                </PageTransition>
               </PageAnimWrapper>
             </div>
           </div>
           <div ref={appsRef} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
             <div className='page-transition-container'>
-              <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-                {tab === Tabs.Apps && (
-                  <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                    {comp}
-                  </PageTransition>
-                )}
+              <PageAnimWrapper animated={tab === Tabs.Apps && !prefersReduced} direction={tab === Tabs.Apps ? effectiveDirection : 'none'}>
+                <PageTransition key={String(tabPages.current[Tabs.Apps])} direction={direction} pageKey={String(tabPages.current[Tabs.Apps])}>
+                  {pageComponent(tabPages.current[Tabs.Apps])}
+                </PageTransition>
               </PageAnimWrapper>
             </div>
           </div>
           <div ref={settingsRef} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
             <div className='page-transition-container'>
-              <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-                {tab === Tabs.Settings && (
-                  <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                    {comp}
-                  </PageTransition>
-                )}
+              <PageAnimWrapper animated={tab === Tabs.Settings && !prefersReduced} direction={tab === Tabs.Settings ? effectiveDirection : 'none'}>
+                <PageTransition key={String(tabPages.current[Tabs.Settings])} direction={direction} pageKey={String(tabPages.current[Tabs.Settings])}>
+                  {pageComponent(tabPages.current[Tabs.Settings])}
+                </PageTransition>
               </PageAnimWrapper>
             </div>
           </div>
