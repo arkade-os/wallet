@@ -8,10 +8,11 @@ test('should navigate to assets and see disabled state', async ({ page }) => {
   await expect(page.getByText('is disabled')).toBeVisible()
   await expect(page.getByText('Import', { exact: true })).not.toBeVisible()
   await expect(page.getByText('Mint', { exact: true })).not.toBeVisible()
-})
 
-test('should navigate to assets enabled and see empty state', async ({ page }) => {
-  await createWallet(page)
+  // go back
+  await page.getByLabel('Go back').click()
+
+  // enable assets and navigate again
   await enableAssets(page)
   await navigateToAssets(page)
 
@@ -22,7 +23,7 @@ test('should navigate to assets enabled and see empty state', async ({ page }) =
   await expect(page.getByText('Mint', { exact: true })).toBeVisible()
 })
 
-test('should mint an asset and see it in list', async ({ page }) => {
+test('should mint an asset, see it in list, view details and burn part of it', async ({ page }) => {
   await createWallet(page)
   await fundWallet(page)
   await enableAssets(page)
@@ -35,16 +36,9 @@ test('should mint an asset and see it in list', async ({ page }) => {
   // go back to asset list
   await page.getByText('Back to Arkade Mint').click()
   await expect(page.getByText('TestCoin')).toBeVisible()
-})
-
-test('should view asset detail after minting', async ({ page }) => {
-  await createWallet(page)
-  await fundWallet(page)
-  await enableAssets(page)
-  await mintAsset(page, { amount: 1000, name: 'TestCoin', ticker: 'TST', decimals: 0 })
 
   // view asset detail from success screen
-  await page.getByText('View Asset').click()
+  await page.getByTestId('TST').click()
 
   // assert detail page
   await expect(page.getByText('TestCoin').first()).toBeVisible()
@@ -53,17 +47,6 @@ test('should view asset detail after minting', async ({ page }) => {
   await expect(page.getByText('Decimals')).toBeVisible()
   await expect(page.getByText('Send')).toBeVisible()
   await expect(page.getByText('Receive')).toBeVisible()
-})
-
-test('should burn part of an asset', async ({ page }) => {
-  await createWallet(page)
-  await fundWallet(page)
-  await enableAssets(page)
-  await mintAsset(page, { amount: 1000, name: 'BurnCoin', ticker: 'BRN', decimals: 0 })
-
-  // go to asset detail
-  await page.getByText('View Asset').click()
-  await page.waitForSelector('text=1,000 BRN', { timeout: 10000 })
 
   // click burn
   await page.getByText('Burn', { exact: true }).click()
@@ -78,8 +61,8 @@ test('should burn part of an asset', async ({ page }) => {
   await page.getByText('Burn', { exact: true }).first().click()
 
   // back on detail page with reduced balance
-  await page.waitForSelector('text=BurnCoin', { state: 'visible' })
-  await page.waitForSelector('text=500 BRN', { timeout: 10000 })
+  await page.waitForSelector('text=TestCoin', { state: 'visible' })
+  await page.waitForSelector('text=500 TST', { timeout: 10000 })
 })
 
 test('should reissue an asset with control token', async ({ page }) => {

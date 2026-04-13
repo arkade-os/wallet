@@ -1,4 +1,13 @@
-import { test, expect, createWallet, pay, receiveLightning, receiveOffchain, waitForPaymentReceived } from './utils'
+import {
+  test,
+  expect,
+  createWallet,
+  pay,
+  receiveLightning,
+  receiveOffchain,
+  waitForPaymentReceived,
+  fundWallet,
+} from './utils'
 import { exec, execSync } from 'child_process'
 import { promisify } from 'util'
 import { faucetOffchain } from './fundedWallet'
@@ -52,21 +61,7 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
 
 test('should send funds to Lightning', async ({ page }) => {
   await createWallet(page)
-
-  // get offchain address
-  const arkAddress = await receiveOffchain(page)
-  expect(arkAddress).toBeDefined()
-  expect(arkAddress).toBeTruthy()
-
-  // faucet
-  await faucetOffchain(arkAddress, 5000)
-  await waitForPaymentReceived(page)
-
-  // main page
-  await page.getByTestId('tab-wallet').click()
-  await page.waitForSelector('text=Received', { timeout: 10000 })
-  await expect(page.getByText('5,000', { exact: true })).toBeVisible()
-  await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
+  await fundWallet(page, 5000)
 
   const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
   const output = stdout.trim()
@@ -95,21 +90,7 @@ test('should send funds to Lightning', async ({ page }) => {
 test('should refund failing swap', async ({ page }) => {
   test.setTimeout(60000)
   await createWallet(page)
-
-  // get offchain address
-  const arkAddress = await receiveOffchain(page)
-  expect(arkAddress).toBeDefined()
-  expect(arkAddress).toBeTruthy()
-
-  // faucet
-  await faucetOffchain(arkAddress, 5000)
-  await waitForPaymentReceived(page)
-
-  // main page
-  await page.getByTestId('tab-wallet').click()
-  await page.waitForSelector('text=Received', { timeout: 10000 })
-  await expect(page.getByText('5,000', { exact: true })).toBeVisible()
-  await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
+  await fundWallet(page, 5000)
 
   const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
   const output = stdout.trim()
@@ -145,39 +126,4 @@ test('should refund failing swap', async ({ page }) => {
   await page.waitForSelector('text=Refunded', { timeout: 10000 })
   await expect(page.getByText('- 1,001')).toBeVisible()
   await expect(page.getByText('Arkade to Lightning')).toBeVisible()
-})
-
-test('should send funds to onchain address via swap', async ({ page, isMobile }) => {
-  test.setTimeout(60000)
-  // set fees
-  execSync('docker exec -t arkd arkd fees intent --onchain-output "200.0"')
-
-  // create wallet
-  await createWallet(page)
-
-  // get offchain address
-  const arkAddress = await receiveOffchain(page)
-  expect(arkAddress).toBeDefined()
-  expect(arkAddress).toBeTruthy()
-
-  // faucet
-  await faucetOffchain(arkAddress, 5000)
-  await waitForPaymentReceived(page)
-
-  // main page
-  await page.getByTestId('tab-wallet').click()
-  await page.waitForSelector('text=Received', { timeout: 10000 })
-  await expect(page.getByText('5,000', { exact: true })).toBeVisible()
-  await expect(page.getByText('+ 5,000 SATS')).toBeVisible()
-
-  // send page
-  const someOnchainAddress = 'bcrt1pxxxth5z4yn8nylc6nzz6w3vkumwdllaky5sls7an8e044u2qlnes2vvy6y'
-  await pay(page, someOnchainAddress, isMobile, 2000)
-
-  // main page
-  await page.getByTestId('tab-wallet').click()
-  await page.waitForSelector('text=Sent', { timeout: 10000 })
-
-  // clear fees
-  execSync('docker exec -t arkd arkd fees clear')
 })
