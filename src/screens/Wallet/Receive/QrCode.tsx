@@ -55,8 +55,6 @@ export default function ReceiveQRCode() {
   const { minSwapAllowed, validBtcToArk, validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } =
     useContext(LimitsContext)
 
-
-
   const [sharing, setSharing] = useState(false)
   const [addressesLoaded, setAddressesLoaded] = useState(false)
   const [qrTransform, setQrTransform] = useState('')
