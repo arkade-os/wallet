@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 import { copyToClipboard } from '../lib/clipboard'
-import { useToast } from './Toast'
+import { toast } from 'sonner'
 import { hapticSubtle } from '../lib/haptics'
 
 interface TextProps {
@@ -64,8 +64,6 @@ export default function Text({
     whiteSpace: wrap ? undefined : 'nowrap',
     wordBreak: 'break-word',
   }
-
-  const { toast } = useToast()
 
   const handleClick = async () => {
     if (!copy) return

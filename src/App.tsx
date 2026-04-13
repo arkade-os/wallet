@@ -233,7 +233,7 @@ export default function App() {
   }
 
   return (
-    <div className={showNavbar ? 'has-pill-navbar' : undefined} style={appStyle}>
+    <div data-testid='app-shell' className={showNavbar ? 'has-pill-navbar' : undefined} style={appStyle}>
       {tab === Tabs.None ? (
         <div className='page-transition-container'>
           <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
