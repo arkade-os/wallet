@@ -2,7 +2,7 @@ import { test as base, type Page } from '@playwright/test'
 import { faucetOffchain } from './fundedWallet'
 import { prettyNumber } from '../../lib/format'
 import { sleep } from '../../lib/sleep'
-import { exec, execSync } from 'child_process'
+import { execSync } from 'child_process'
 
 export const test = base.extend({
   page: async ({ page }, use) => {
