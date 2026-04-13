@@ -2,6 +2,7 @@ import { test as base, type Page } from '@playwright/test'
 import { faucetOffchain } from './fundedWallet'
 import { prettyNumber } from '../../lib/format'
 import { sleep } from '../../lib/sleep'
+import { exec, execSync } from 'child_process'
 
 export const test = base.extend({
   page: async ({ page }, use) => {
@@ -101,6 +102,7 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
 }
 
 export async function createWallet(page: Page): Promise<void> {
+  execSync('nigiri rpc --generate 1')
   await page.goto('/')
   await page.getByText('+ Create wallet').click()
   await waitForWalletPage(page)
