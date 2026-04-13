@@ -19,7 +19,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: regtest/_build
-          key: nigiri-${{ hashFiles('regtest/.env.defaults', '.env.regtest') }}
+          key: nigiri-${{ hashFiles('regtest/.env.defaults', '.env.regtest') }}-${{ hashFiles('.gitmodules') }}
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install
       - name: Install Playwright Browsers
-        run: pnpm exec playwright install --with-deps chromium chrome
+        run: pnpm exec playwright install --with-deps
       - name: Start regtest environment
         run: chmod +x regtest/*.sh regtest/helpers/*.sh && ./regtest/start-env.sh
       - name: Add nigiri to PATH
