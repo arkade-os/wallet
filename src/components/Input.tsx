@@ -1,6 +1,6 @@
 import InputContainer from './InputContainer'
+import { Input as ShadcnInput } from './ui/input'
 import { useRef, useEffect } from 'react'
-import { IonInput } from '@ionic/react'
 
 interface InputProps {
   focus?: boolean
@@ -36,28 +36,28 @@ export default function Input({
   value,
 }: InputProps) {
   const firstRun = useRef(true)
-  const input = useRef<HTMLIonInputElement>(null)
+  const input = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (focus && firstRun.current) {
       firstRun.current = false
-      input.current?.setFocus()
+      input.current?.focus()
     }
   })
 
-  const handleInput = (ev: Event) => {
+  const handleInput = (ev: React.FormEvent<HTMLInputElement>) => {
     const v = (ev.target as HTMLInputElement).value
     onChange(type === 'number' ? Number(v) : v)
   }
 
   return (
     <InputContainer label={label} right={right}>
-      <IonInput
+      <ShadcnInput
         max={max}
-        maxlength={maxLength}
+        maxLength={maxLength}
         min={min}
         name={name}
-        onIonInput={handleInput}
+        onInput={handleInput}
         onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
         placeholder={placeholder}
         ref={input}
@@ -65,6 +65,7 @@ export default function Input({
         type={type}
         value={value}
         data-testid={testId}
+        className='border-none shadow-none focus-visible:ring-0 bg-transparent px-0'
       />
     </InputContainer>
   )

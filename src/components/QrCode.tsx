@@ -91,7 +91,7 @@ export default function QrCode({ value }: QrCodeProps) {
     const svgSize = size * moduleSize + quietZone * 2
 
     const fgColor = 'var(--black)'
-    const bgColor = 'var(--ion-background-color, #fff)'
+    const bgColor = 'var(--bg)'
     const logoColor = 'var(--logo-color)'
 
     const logoModules = Math.ceil(size * 0.2)

@@ -1,4 +1,3 @@
-import { IonButton } from '@ionic/react'
 import { ReactElement, ReactNode, useCallback, useState } from 'react'
 import FlexRow from './FlexRow'
 import ArrowIcon from '../icons/Arrow'
@@ -19,6 +18,42 @@ interface ButtonProps {
   secondary?: boolean
 }
 
+const variantStyles: Record<string, React.CSSProperties> = {
+  dark: {
+    background: 'var(--purple)',
+    border: '1px solid var(--purple)',
+    color: 'white',
+  },
+  red: {
+    background: 'var(--red)',
+    border: '1px solid var(--red)',
+    color: 'white',
+  },
+  secondary: {
+    background: 'var(--dark20)',
+    border: '1px solid var(--dark20)',
+    color: 'var(--black)',
+  },
+  outline: {
+    background: 'none',
+    border: '1px solid var(--dark50)',
+    color: 'var(--dark50)',
+  },
+  clear: {
+    background: 'none',
+    border: '1px solid transparent',
+    color: 'var(--black)',
+  },
+}
+
+const shadowColors: Record<string, string> = {
+  dark: '#1a0b4a',
+  red: '#6b0e0e',
+  secondary: 'rgba(0, 0, 0, 0.1)',
+  outline: 'rgba(0, 0, 0, 0.1)',
+  clear: 'transparent',
+}
+
 export default function Button({
   children,
   clear,
@@ -36,7 +71,9 @@ export default function Button({
   const [pressed, setPressed] = useState(false)
 
   const variant = red ? 'red' : secondary ? 'secondary' : clear ? 'clear' : outline ? 'outline' : 'dark'
-  const className = `${variant}${pressed ? ' pressed' : ''}`
+  const isClear = variant === 'clear'
+  const vStyle = variantStyles[variant]
+  const shadowColor = shadowColors[variant]
 
   const handlePressStart = useCallback(() => {
     if (disabled || loading) return
@@ -55,11 +92,31 @@ export default function Button({
     [onClick],
   )
 
+  const style: React.CSSProperties = {
+    ...vStyle,
+    alignItems: 'center',
+    borderRadius: '0.5rem',
+    boxShadow: isClear ? 'none' : `0 ${pressed ? '0' : '4'}px 0 0 ${shadowColor}`,
+    cursor: disabled ? 'default' : 'pointer',
+    display: 'flex',
+    fontFamily: 'var(--font-heading)',
+    fontSize: '0.875rem',
+    fontWeight: 500,
+    justifyContent: 'center',
+    letterSpacing: '-0.2px',
+    margin: '4px 0',
+    minHeight: '40px',
+    opacity: disabled ? 0.4 : 1,
+    padding: '0.5rem 1rem',
+    transform: pressed ? (isClear ? 'scale(0.97)' : 'translateY(4px)') : 'translateY(0)',
+    transition:
+      'transform 100ms cubic-bezier(0.165, 0.84, 0.44, 1), box-shadow 100ms cubic-bezier(0.165, 0.84, 0.44, 1)',
+    width: '100%',
+  }
+
   return (
-    <IonButton
-      className={className}
+    <button
       disabled={disabled}
-      fill={clear ? 'clear' : outline ? 'outline' : 'solid'}
       onClick={handleClick}
       onMouseDown={handlePressStart}
       onMouseUp={handlePressEnd}
@@ -67,7 +124,7 @@ export default function Button({
       onTouchStart={handlePressStart}
       onTouchEnd={handlePressEnd}
       onTouchCancel={handlePressEnd}
-      style={{ margin: '4px 0' }}
+      style={style}
     >
       {loading ? (
         <FlexRow centered>
@@ -87,8 +144,8 @@ export default function Button({
           {children ?? (label ? <Label label={label} /> : null)}
         </FlexRow>
       )}
-    </IonButton>
+    </button>
   )
 }
 
-const Label = ({ label }: { label: string }) => <p style={{ lineHeight: '20px' }}>{label}</p>
+const Label = ({ label }: { label: string }) => <span style={{ lineHeight: '20px' }}>{label}</span>

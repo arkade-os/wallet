@@ -1,4 +1,3 @@
-import { IonGrid, IonRow, IonCol, IonProgressBar } from '@ionic/react'
 import Text from './Text'
 import FlexRow from './FlexRow'
 
@@ -41,26 +40,29 @@ export default function StrengthBars({ strength }: { strength: number }) {
   })
 
   return (
-    <IonGrid style={{ width: '100%' }}>
-      <IonRow>
-        <IonCol size='3'>
-          <div style={style(0)} />
-        </IonCol>
-        <IonCol size='3'>
-          <div style={style(1)} />
-        </IonCol>
-        <IonCol size='3'>
-          <div style={style(2)} />
-        </IonCol>
-        <IonCol size='3'>
-          <div style={style(3)} />
-        </IonCol>
-      </IonRow>
-    </IonGrid>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', width: '100%' }}>
+      <div style={style(0)} />
+      <div style={style(1)} />
+      <div style={style(2)} />
+      <div style={style(3)} />
+    </div>
   )
 }
 
 export function StrengthProgress({ strength }: { strength: number }) {
   const color = getColor(strength)
-  return <IonProgressBar value={strength * 0.25} color={color} style={{ height: '4px' }} />
+  const value = Math.min(strength * 0.25, 1)
+  return (
+    <div style={{ width: '100%', height: '4px', background: 'var(--dark10)', borderRadius: '2px' }}>
+      <div
+        style={{
+          width: `${value * 100}%`,
+          height: '100%',
+          background: `var(--${color})`,
+          borderRadius: '2px',
+          transition: 'width 200ms ease-out',
+        }}
+      />
+    </div>
+  )
 }

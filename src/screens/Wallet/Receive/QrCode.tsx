@@ -29,7 +29,7 @@ import Keyboard from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
 import Text, { TextSecondary } from '../../../components/Text'
 import { copyToClipboard } from '../../../lib/clipboard'
-import { useToast } from '../../../components/Toast'
+import { toast } from 'sonner'
 import { prettyLongText, prettyNumber } from '../../../lib/format'
 import CopyIcon from '../../../icons/Copy'
 import CheckMarkIcon from '../../../icons/CheckMark'
@@ -52,8 +52,6 @@ export default function ReceiveQRCode() {
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
   const { minSwapAllowed, validBtcToArk, validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } =
     useContext(LimitsContext)
-
-  const { toast } = useToast()
 
   const [sharing, setSharing] = useState(false)
   const [addressesLoaded, setAddressesLoaded] = useState(false)

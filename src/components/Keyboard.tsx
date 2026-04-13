@@ -1,4 +1,3 @@
-import { IonCol, IonGrid, IonRow } from '@ionic/react'
 import Header from './Header'
 import Content from './Content'
 import { useContext, useEffect, useState } from 'react'
@@ -156,7 +155,7 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
 
   const disabled = !amountInSats || Number.isNaN(amountInSats)
 
-  const gridStyle = {
+  const gridStyle: React.CSSProperties = {
     borderTop: '1px solid var(--dark50)',
     marginTop: '0.5rem',
     textAlign: 'center',
@@ -198,17 +197,13 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
           )}
         </FlexCol>
       </Content>
-      <IonGrid style={gridStyle}>
-        {keys.map((row) => (
-          <IonRow style={rowStyle} key={row[0]}>
-            {row.map((key) => (
-              <IonCol size='4' key={key} onClick={() => handleKeyPress(key)}>
-                <p data-testid={`keyboard-${key}`}>{key === 'x' ? <>&larr;</> : key}</p>
-              </IonCol>
-            ))}
-          </IonRow>
+      <div style={{ ...gridStyle, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        {keys.flat().map((key) => (
+          <div key={key} style={{ ...rowStyle, cursor: 'pointer' }} onClick={() => handleKeyPress(key)}>
+            <p data-testid={`keyboard-${key}`}>{key === 'x' ? <>&larr;</> : key}</p>
+          </div>
         ))}
-      </IonGrid>
+      </div>
       <ButtonsOnBottom>
         <Button label='Save' disabled={disabled} onClick={handleSave} />
       </ButtonsOnBottom>

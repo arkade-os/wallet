@@ -1,5 +1,4 @@
 import { useContext, useEffect, useRef, useState } from 'react'
-import { IonInput, IonText } from '@ionic/react'
 import { FiatContext } from '../providers/fiat'
 import InputContainer from './InputContainer'
 import { ConfigContext } from '../providers/config'
@@ -51,11 +50,10 @@ export default function InputAmount({
   const [error, setError] = useState('')
   const [otherValue, setOtherValue] = useState('')
 
-  const input = useRef<HTMLIonInputElement>(null)
+  const input = useRef<HTMLInputElement>(null)
 
-  // focus input when focus prop changes
   useEffect(() => {
-    if (focus && input.current) input.current.setFocus()
+    if (focus && input.current) input.current.focus()
   }, [focus])
 
   useEffect(() => {
@@ -64,7 +62,7 @@ export default function InputAmount({
     setError(sats ? (sats < 0 ? 'Invalid amount' : '') : '')
   }, [sats])
 
-  const handleInput = (ev: Event) => {
+  const handleInput = (ev: React.FormEvent<HTMLInputElement>) => {
     const value = Number((ev.target as HTMLInputElement).value)
     if (Number.isNaN(value)) return
     onSats(asset?.assetId ? unitsToCents(value, asset.decimals) : useFiat ? fromFiat(value) : value)
@@ -75,44 +73,54 @@ export default function InputAmount({
 
   const leftLabel = asset?.assetId ? asset.ticker : useFiat ? config.fiat : 'SATS'
   const rightLabel = asset?.assetId ? '' : `${otherValue} ${useFiat ? 'SATS' : config.fiat}`
-  const fontStyle = { color: 'var(--dark50)', fontSize: '13px' }
+  const fontStyle: React.CSSProperties = { color: 'var(--dark50)', fontSize: '13px' }
   const bottomLeft = minimumSats ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}` : ''
   const bottomRight = maximumSats ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'SAT' : 'SATS'}` : ''
+
+  const inputStyle: React.CSSProperties = {
+    background: 'transparent',
+    border: 'none',
+    color: readOnly ? 'var(--dark50)' : 'inherit',
+    fontFamily: 'inherit',
+    fontSize: 'inherit',
+    outline: 'none',
+    padding: '0.5rem 0',
+    width: '100%',
+  }
 
   return (
     <>
       <InputContainer error={error} label={label} right={right} bottomLeft={bottomLeft} bottomRight={bottomRight}>
-        <IonInput
-          disabled={disabled}
-          name={name}
-          onIonFocus={onFocus}
-          onIonInput={handleInput}
-          onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
-          readonly={readOnly}
-          ref={input}
-          type='number'
-          value={value}
-        >
-          <IonText slot='start' style={{ ...fontStyle, marginRight: '0.5rem' }}>
-            {leftLabel}
-          </IonText>
-          <IonText slot='end' style={{ ...fontStyle, marginLeft: '0.5rem' }}>
-            {rightLabel}
-          </IonText>
-        </IonInput>
-        {onMax && !disabled && !readOnly ? (
-          <Focusable onEnter={onMax} fit>
-            <IonText
-              role='button'
-              onClick={onMax}
-              aria-label='Set maximum amount'
-              data-testid='input-amount-max'
-              style={{ ...fontStyle, color: 'var(--purpletext)', cursor: 'pointer' }}
-            >
-              Max
-            </IonText>
-          </Focusable>
-        ) : null}
+        <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+          <span style={{ ...fontStyle, marginRight: '0.5rem' }}>{leftLabel}</span>
+          <input
+            disabled={disabled}
+            name={name}
+            onFocus={onFocus}
+            onInput={handleInput}
+            onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
+            readOnly={readOnly}
+            ref={input}
+            type='text'
+            inputMode='decimal'
+            value={value}
+            style={inputStyle}
+          />
+          <span style={{ ...fontStyle, marginLeft: '0.5rem', whiteSpace: 'nowrap' }}>{rightLabel}</span>
+          {onMax && !disabled && !readOnly ? (
+            <Focusable onEnter={onMax} fit>
+              <span
+                role='button'
+                onClick={onMax}
+                aria-label='Set maximum amount'
+                data-testid='input-amount-max'
+                style={{ ...fontStyle, marginLeft: '0.5rem', color: 'var(--purpletext)', cursor: 'pointer' }}
+              >
+                Max
+              </span>
+            </Focusable>
+          ) : null}
+        </div>
       </InputContainer>
     </>
   )
