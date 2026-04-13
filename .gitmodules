@@ -1,4 +1,0 @@
-[submodule "regtest"]
-	path = regtest
-	url = https://github.com/ArkLabsHQ/arkade-regtest.git
-	branch = master
