@@ -396,6 +396,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         storage: { walletRepository, contractRepository },
         serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
         messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
+        messageTimeouts: {
+          SETTLE: 60_000,
+          SEND: 60_000,
+        },
         ...(wallet.thresholdMs && {
           settlementConfig: { vtxoThreshold: Math.floor(wallet.thresholdMs / 1000) },
         }),
