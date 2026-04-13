@@ -155,7 +155,7 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
 
   const disabled = !amountInSats || Number.isNaN(amountInSats)
 
-  const gridStyle = {
+  const gridStyle: React.CSSProperties = {
     borderTop: '1px solid var(--dark50)',
     marginTop: '0.5rem',
     textAlign: 'center',
