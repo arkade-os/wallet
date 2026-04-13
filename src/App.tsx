@@ -260,8 +260,15 @@ export default function App() {
         <>
           <div ref={walletRef} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
             <div className='page-transition-container'>
-              <PageAnimWrapper animated={tab === Tabs.Wallet && !prefersReduced} direction={tab === Tabs.Wallet ? effectiveDirection : 'none'}>
-                <PageTransition key={String(tabPages.current[Tabs.Wallet])} direction={direction} pageKey={String(tabPages.current[Tabs.Wallet])}>
+              <PageAnimWrapper
+                animated={tab === Tabs.Wallet && !prefersReduced}
+                direction={tab === Tabs.Wallet ? effectiveDirection : 'none'}
+              >
+                <PageTransition
+                  key={String(tabPages.current[Tabs.Wallet])}
+                  direction={direction}
+                  pageKey={String(tabPages.current[Tabs.Wallet])}
+                >
                   {pageComponent(tabPages.current[Tabs.Wallet])}
                 </PageTransition>
               </PageAnimWrapper>
@@ -269,8 +276,15 @@ export default function App() {
           </div>
           <div ref={appsRef} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
             <div className='page-transition-container'>
-              <PageAnimWrapper animated={tab === Tabs.Apps && !prefersReduced} direction={tab === Tabs.Apps ? effectiveDirection : 'none'}>
-                <PageTransition key={String(tabPages.current[Tabs.Apps])} direction={direction} pageKey={String(tabPages.current[Tabs.Apps])}>
+              <PageAnimWrapper
+                animated={tab === Tabs.Apps && !prefersReduced}
+                direction={tab === Tabs.Apps ? effectiveDirection : 'none'}
+              >
+                <PageTransition
+                  key={String(tabPages.current[Tabs.Apps])}
+                  direction={direction}
+                  pageKey={String(tabPages.current[Tabs.Apps])}
+                >
                   {pageComponent(tabPages.current[Tabs.Apps])}
                 </PageTransition>
               </PageAnimWrapper>
@@ -278,8 +292,15 @@ export default function App() {
           </div>
           <div ref={settingsRef} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
             <div className='page-transition-container'>
-              <PageAnimWrapper animated={tab === Tabs.Settings && !prefersReduced} direction={tab === Tabs.Settings ? effectiveDirection : 'none'}>
-                <PageTransition key={String(tabPages.current[Tabs.Settings])} direction={direction} pageKey={String(tabPages.current[Tabs.Settings])}>
+              <PageAnimWrapper
+                animated={tab === Tabs.Settings && !prefersReduced}
+                direction={tab === Tabs.Settings ? effectiveDirection : 'none'}
+              >
+                <PageTransition
+                  key={String(tabPages.current[Tabs.Settings])}
+                  direction={direction}
+                  pageKey={String(tabPages.current[Tabs.Settings])}
+                >
                   {pageComponent(tabPages.current[Tabs.Settings])}
                 </PageTransition>
               </PageAnimWrapper>
