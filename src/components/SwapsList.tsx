@@ -79,7 +79,7 @@ const SwapLine = ({ onClick, swap }: { onClick: () => void; swap: PendingSwap })
 
   if (!direction || !prefix) throw new Error('Invalid swap data')
 
-  const status: statusUI = statusDict[swap.status] || 'Pending'
+  const status: statusUI = statusDict[swap.status as BoltzSwapStatus] || 'Pending'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(sats) : prettyHide(sats)}`
   const when = window.innerWidth < 400 ? prettyAgo(swap.createdAt) : prettyDate(swap.createdAt)
   const refunded = swap.type === 'submarine' && swap.refunded
