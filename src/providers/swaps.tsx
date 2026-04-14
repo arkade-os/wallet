@@ -20,7 +20,7 @@ import {
 import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
 import { sendOffChain } from '../lib/asp'
-import { ArkAddress, ServiceWorkerWallet } from '@arkade-os/sdk'
+import { ArkAddress, RestIndexerProvider } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 
 const BASE_URLS: Record<Network, string | null> = {
@@ -239,7 +239,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     const swapAddress = pendingSwap.response.lockupDetails.lockupAddress
 
     // Prevent double-funding: check that the swap address has no existing VTXOs
-    await assertSwapAddressUnfunded(svcWallet, swapAddress)
+    await assertSwapAddressUnfunded(aspInfo.url, swapAddress)
 
     const txid = await sendOffChain(svcWallet, satoshis, swapAddress)
     if (!txid) throw new Error('Failed to send offchain payment')
@@ -283,7 +283,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     const swapAddress = pendingSwap.response.address
 
     // Prevent double-funding: check that the swap address has no existing VTXOs before paying
-    await assertSwapAddressUnfunded(svcWallet, swapAddress)
+    await assertSwapAddressUnfunded(aspInfo.url, swapAddress)
 
     const txid = await sendOffChain(svcWallet, satoshis, swapAddress)
     if (!txid) throw new Error('Failed to send offchain payment')
@@ -402,13 +402,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   )
 }
 
-const assertSwapAddressUnfunded = async (svcWallet: ServiceWorkerWallet, swapAddress: string): Promise<void> => {
+const assertSwapAddressUnfunded = async (aspUrl: string, swapAddress: string): Promise<void> => {
   const decoded = ArkAddress.decode(swapAddress)
   const script = hex.encode(decoded.pkScript)
-  const manager = await svcWallet.getContractManager()
-  await manager.refreshVtxos({ scripts: [script], after: Date.now() - 5000 })
-  const contracts = await manager.getContractsWithVtxos({ script })
-  if (contracts.some((c) => c.vtxos.length > 0)) {
+  const indexer = new RestIndexerProvider(aspUrl)
+  const { vtxos } = await indexer.getVtxos({ scripts: [script], spendableOnly: true })
+  if (vtxos.length > 0) {
     throw new Error('Swap address already funded')
   }
 }
