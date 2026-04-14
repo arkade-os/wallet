@@ -400,9 +400,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           SETTLE: 60_000,
           SEND: 60_000,
         },
-        ...(wallet.thresholdMs && {
-          settlementConfig: { vtxoThreshold: Math.floor(wallet.thresholdMs / 1000) },
-        }),
+        settlementConfig: { vtxoThreshold: wallet.thresholdMs ? Math.floor(wallet.thresholdMs / 1000) : 1 },
       })
 
       // Migration!
