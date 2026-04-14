@@ -87,12 +87,13 @@ export default function QrCode({ value }: QrCodeProps) {
     const matrix = encodeQR(value, 'raw', { ecc: 'medium', border: 0 })
     const size = matrix.length
     const moduleSize = 10
-    const quietZone = moduleSize * 2
+    const quietZone = moduleSize * 4
     const svgSize = size * moduleSize + quietZone * 2
 
-    const fgColor = 'var(--black)'
-    const bgColor = 'var(--ion-background-color, #fff)'
-    const logoColor = 'var(--logo-color)'
+    // Hardcoded for scanner reliability — QR must always be dark-on-white regardless of theme
+    const fgColor = '#040404'
+    const bgColor = '#ffffff'
+    const logoColor = '#391998'
 
     const logoModules = Math.ceil(size * 0.2)
     const logoZoneSize = logoModules % 2 === 0 ? logoModules + 1 : logoModules
