@@ -28,7 +28,7 @@ jobs:
     - name: Install dependencies
       run: pnpm install
     - name: Install Playwright Browsers
-      run: pnpm exec playwright install chrome cromium --with-deps
+      run: pnpm exec playwright install chrome chromium --with-deps
     - name: Start regtest environment
       run: chmod +x regtest/*.sh regtest/helpers/*.sh && ./regtest/start-env.sh
     - name: Add nigiri to PATH
