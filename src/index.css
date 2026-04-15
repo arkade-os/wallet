@@ -231,10 +231,10 @@ button.reminder-button.action-sheet-button {
 }
 
 /* ============================================================
-   Pill navbar
+   Wallet action bar (floating bottom dock)
    ============================================================ */
 
-.pill-navbar-layer {
+.wallet-action-bar-layer {
   position: fixed;
   inset: 0;
   z-index: 100;
@@ -242,114 +242,51 @@ button.reminder-button.action-sheet-button {
   isolation: isolate;
 }
 
-.pill-navbar-layer--hidden .pill-navbar {
+.wallet-action-bar-layer--hidden .wallet-action-bar-dock {
   pointer-events: none;
 }
 
-.pill-navbar {
+/* Full-width button dock pinned to the bottom of the viewport, with a soft
+   radial haze behind it to fade the scrolling content below. */
+.wallet-action-bar-dock {
   position: absolute;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
-  left: 50%;
-  transform: translateX(-50%);
-  width: fit-content;
-  max-width: calc(100vw - 24px);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 999px;
-  background-color: var(--ion-background-color);
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.08),
-    0 1px 3px -1px rgba(0, 0, 0, 0.12),
-    0 8px 20px -4px rgba(0, 0, 0, 0.14);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1rem 1rem calc(env(safe-area-inset-bottom, 0px) + 1rem) 1rem;
+  max-width: 640px;
+  margin: 0 auto;
   z-index: 1;
   pointer-events: auto;
 }
 
-.ion-palette-dark .pill-navbar {
-  background-color: #1c1c1e;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.1),
-    0 1px 3px -1px rgba(0, 0, 0, 0.4),
-    0 8px 24px -4px rgba(0, 0, 0, 0.6);
-}
-
-.pill-nav-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  min-width: 72px;
-  min-height: 44px;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 999px;
-  background: none;
-  color: #808080;
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  transition:
-    color 150ms ease-out,
-    background-color 150ms ease-out;
-}
-
-.pill-nav-btn--active {
-  color: #040404;
-  background-color: var(--dark05);
-}
-
-.ion-palette-dark .pill-nav-btn--active {
-  color: #fbfbfb;
-}
-
-.pill-nav-icon {
-  display: inline-flex;
-}
-
-.pill-nav-icon svg {
-  shape-rendering: geometricPrecision;
-}
-
-.pill-icon-pop {
-  animation: tab-pop 250ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-.pill-nav-label {
-  font-size: 0.65rem;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-}
-
-.pill-navbar-haze {
+.wallet-action-bar-haze {
   position: absolute;
   left: 50%;
-  bottom: calc(env(safe-area-inset-bottom, 0px) - 12px);
-  width: min(460px, calc(100vw - 16px));
-  height: 136px;
+  bottom: 0;
+  width: min(720px, 100vw);
+  height: 200px;
   transform: translateX(-50%);
   z-index: 0;
-  background: radial-gradient(
-    ellipse 78% 88% at 50% 100%,
-    rgba(var(--fade-rgb), 0.68) 0%,
-    rgba(var(--fade-rgb), 0.5) 24%,
-    rgba(var(--fade-rgb), 0.24) 52%,
-    rgba(var(--fade-rgb), 0.08) 74%,
-    rgba(var(--fade-rgb), 0) 100%
-  );
   pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(var(--fade-rgb), 0) 0%,
+    rgba(var(--fade-rgb), 0.35) 32%,
+    rgba(var(--fade-rgb), 0.7) 58%,
+    rgba(var(--fade-rgb), 0.9) 82%,
+    rgba(var(--fade-rgb), 0.96) 100%
+  );
 }
 
-.ion-palette-dark .pill-navbar-haze {
-  background: radial-gradient(
-    ellipse 78% 88% at 50% 100%,
-    rgba(var(--fade-rgb), 0.84) 0%,
-    rgba(var(--fade-rgb), 0.62) 26%,
-    rgba(var(--fade-rgb), 0.32) 54%,
-    rgba(var(--fade-rgb), 0.12) 74%,
-    rgba(var(--fade-rgb), 0) 100%
+.ion-palette-dark .wallet-action-bar-haze {
+  background: linear-gradient(
+    to bottom,
+    rgba(var(--fade-rgb), 0) 0%,
+    rgba(var(--fade-rgb), 0.45) 32%,
+    rgba(var(--fade-rgb), 0.8) 58%,
+    rgba(var(--fade-rgb), 0.94) 82%,
+    rgba(var(--fade-rgb), 0.98) 100%
   );
 }
 
@@ -382,10 +319,10 @@ button.reminder-button.action-sheet-button {
   [class*='tab-anim-'] {
     animation: none !important;
   }
-  .pill-icon-pop {
+  .wallet-action-bar-icon-pop {
     animation: none !important;
   }
-  .pill-nav-btn {
+  .wallet-action-bar-btn {
     transition: none;
   }
 }

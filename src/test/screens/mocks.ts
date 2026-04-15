@@ -3,7 +3,7 @@ import { Pages, Tabs } from '../../providers/navigation'
 import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { AspInfo } from '../../providers/asp'
 import { SingleKey, IVtxoManager } from '@arkade-os/sdk'
-import { CurrencyDisplay, Fiats, SettingsOptions, Themes } from '../../lib/types'
+import { Fiats, SettingsOptions, Themes } from '../../lib/types'
 import { AssetIconApprovalManager } from '../../lib/assetIconApproval'
 
 const mockAspInfo: AspInfo = {
@@ -63,7 +63,6 @@ export const mockConfigContextValue = {
         connected: true,
       },
     },
-    currencyDisplay: CurrencyDisplay.Both,
     delegate: false,
     fiat: Fiats.EUR,
     importedAssets: [],
@@ -75,7 +74,7 @@ export const mockConfigContextValue = {
   updateConfig: () => {},
   effectiveTheme: Themes.Dark,
   systemTheme: Themes.Dark,
-  useFiat: false,
+  useFiat: true,
 }
 
 export const mockFiatContextValue = {

@@ -63,8 +63,6 @@ export default function General() {
             />
             <Row option={SettingsOptions.Fiat} value={config.fiat} />
             <hr style={{ backgroundColor: 'var(--dark20)', width: '100%' }} />
-            <Row option={SettingsOptions.Display} value={config.currencyDisplay} />
-            <hr style={{ backgroundColor: 'var(--dark20)', width: '100%' }} />
             <Row option={SettingsOptions.Haptics} value={config.haptics ? 'On' : 'Off'} />
           </FlexCol>
         </Padded>

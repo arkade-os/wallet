@@ -98,11 +98,6 @@ export const options: Option[] = [
   },
   {
     icon: <></>,
-    option: SettingsOptions.Display,
-    section: SettingsSections.Config,
-  },
-  {
-    icon: <></>,
     option: SettingsOptions.Haptics,
     section: SettingsSections.Config,
   },

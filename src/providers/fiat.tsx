@@ -2,12 +2,15 @@ import { ReactNode, createContext, useContext, useEffect, useRef, useState } fro
 import { FiatPrices, getPriceFeed } from '../lib/fiat'
 import { fromSatoshis, toSatoshis } from '../lib/format'
 import Decimal from 'decimal.js'
-import { CurrencyDisplay, Fiats, Satoshis } from '../lib/types'
+import { Fiats, Satoshis } from '../lib/types'
 import { ConfigContext } from './config'
 
 type FiatContextProps = {
   toFiat: (satoshis?: Satoshis) => number
   fromFiat: (fiat?: number) => Satoshis
+  /** Always-USD conversions — useful when pricing mock data against a reference currency. */
+  toUSD: (satoshis?: Satoshis) => number
+  fromUSD: (usd?: number) => Satoshis
   fiatDecimals: () => number
   updateFiatPrices: () => void
 }
@@ -17,12 +20,14 @@ const emptyFiatPrices: FiatPrices = { eur: 0, usd: 0, chf: 0, jpy: 0, gbp: 0, cn
 export const FiatContext = createContext<FiatContextProps>({
   toFiat: () => 0,
   fromFiat: () => 0,
+  toUSD: () => 0,
+  fromUSD: () => 0,
   fiatDecimals: () => 2,
   updateFiatPrices: () => {},
 })
 
 export const FiatProvider = ({ children }: { children: ReactNode }) => {
-  const { config, setConfig } = useContext(ConfigContext)
+  const { config } = useContext(ConfigContext)
 
   const [loading, setLoading] = useState(false)
 
@@ -67,7 +72,6 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true)
     const pf = await getPriceFeed()
     if (pf) prices.current = pf
-    else setConfig({ ...config, currencyDisplay: CurrencyDisplay.Sats }) // hide fiat if fetch fails
     setLoading(false)
   }
 
@@ -76,6 +80,8 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   return (
-    <FiatContext.Provider value={{ fromFiat, toFiat, fiatDecimals, updateFiatPrices }}>{children}</FiatContext.Provider>
+    <FiatContext.Provider value={{ fromFiat, toFiat, fromUSD, toUSD, fiatDecimals, updateFiatPrices }}>
+      {children}
+    </FiatContext.Provider>
   )
 }

@@ -23,7 +23,7 @@ import { isInAppBrowser } from './lib/browser'
 import { detectJSCapabilities } from './lib/jsCapabilities'
 import { OptionsContext } from './providers/options'
 import { WalletContext } from './providers/wallet'
-import { FlowContext } from './providers/flow'
+import { emptyRecvInfo, emptySendInfo, FlowContext } from './providers/flow'
 import { SettingsOptions } from './lib/types'
 import { AspContext } from './providers/asp'
 import { hapticLight } from './lib/haptics'
@@ -32,11 +32,10 @@ import { PageTransition } from './components/PageTransition'
 import SettingsIcon from './icons/Settings'
 import BootError from './components/BootError'
 import LoadingLogo from './components/LoadingLogo'
-import PillNavbarOverlay from './components/PillNavbarOverlay'
+import WalletActionBarOverlay from './components/WalletActionBarOverlay'
 import FlexCol from './components/FlexCol'
 import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
-import Focusable from './components/Focusable'
 import { useReducedMotion } from './hooks/useReducedMotion'
 import { useLoadingStatus } from './hooks/useLoadingStatus'
 import { defaultPassword } from './lib/constants'
@@ -93,8 +92,8 @@ export default function App() {
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
   const { direction, navigate, screen, tab } = useContext(NavigationContext)
-  const { initInfo } = useContext(FlowContext)
-  const { option, setOption } = useContext(OptionsContext)
+  const { initInfo, setSendInfo, setRecvInfo } = useContext(FlowContext)
+  const { setOption } = useContext(OptionsContext)
   const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError } = useContext(WalletContext)
 
   const loadingStatus = useLoadingStatus()
@@ -209,6 +208,20 @@ export default function App() {
     navigate(Pages.Settings)
   }
 
+  const handleSend = () => {
+    setSendInfo(emptySendInfo)
+    navigate(Pages.SendForm)
+  }
+
+  const handleSwap = () => {
+    navigate(Pages.Swap)
+  }
+
+  const handleReceive = () => {
+    setRecvInfo(emptyRecvInfo)
+    navigate(Pages.ReceiveQRCode)
+  }
+
   const prefersReduced = useReducedMotion()
   const effectiveDirection = prefersReduced ? 'none' : direction
 
@@ -295,11 +308,10 @@ export default function App() {
   }, [updateBootAnim])
 
   const comp = page === Pages.Loading ? null : pageComponent(page)
-  const isSettingsRoot = screen === Pages.Settings && option === SettingsOptions.Menu
-  const showNavbar = page === screen && (screen === Pages.Wallet || screen === Pages.Apps || isSettingsRoot)
+  const showWalletActionBar = page === screen && screen === Pages.Wallet
 
   return (
-    <IonApp className={showNavbar ? 'has-pill-navbar' : undefined}>
+    <IonApp className={showWalletActionBar ? 'has-wallet-action-bar' : undefined}>
       <IonPage>
         {tab === Tabs.None ? (
           <div className='page-transition-container'>
@@ -345,36 +357,42 @@ export default function App() {
                   </PageAnimWrapper>
                 </div>
               </IonTab>
-              <IonTabBar slot='bottom'>
-                <IonTabButton tab={Tabs.Wallet} onClick={handleWallet} selected={tab === Tabs.Wallet}>
-                  <Focusable>
-                    <FlexCol centered gap='6px' padding='5px'>
-                      <AnimatedTabIcon animating={animatingTab === 'wallet'}>
-                        <WalletIcon />
-                      </AnimatedTabIcon>
-                      Wallet
-                    </FlexCol>
-                  </Focusable>
+              {/*
+                 The IonTabBar stays mounted because IonTabs requires a bar child to
+                 coordinate tab registration/activation. It is not user-facing anymore —
+                 the user interacts with WalletActionBarOverlay + top-right icons instead.
+                 Hide it from assistive tech and keyboard focus so it doesn't compete with
+                 the new chrome.
+              */}
+              <IonTabBar slot='bottom' aria-hidden='true' {...({ inert: '' } as any)} style={{ pointerEvents: 'none' }}>
+                <IonTabButton tab={Tabs.Wallet} onClick={handleWallet} selected={tab === Tabs.Wallet} tabIndex={-1}>
+                  <FlexCol centered gap='6px' padding='5px'>
+                    <AnimatedTabIcon animating={animatingTab === 'wallet'}>
+                      <WalletIcon />
+                    </AnimatedTabIcon>
+                    Wallet
+                  </FlexCol>
                 </IonTabButton>
-                <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps}>
-                  <Focusable>
-                    <FlexCol centered gap='6px' padding='5px'>
-                      <AnimatedTabIcon animating={animatingTab === 'apps'}>
-                        <AppsIcon />
-                      </AnimatedTabIcon>
-                      Apps
-                    </FlexCol>
-                  </Focusable>
+                <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps} tabIndex={-1}>
+                  <FlexCol centered gap='6px' padding='5px'>
+                    <AnimatedTabIcon animating={animatingTab === 'apps'}>
+                      <AppsIcon />
+                    </AnimatedTabIcon>
+                    Apps
+                  </FlexCol>
                 </IonTabButton>
-                <IonTabButton tab={Tabs.Settings} onClick={handleSettings} selected={tab === Tabs.Settings}>
-                  <Focusable>
-                    <FlexCol centered gap='6px' padding='5px'>
-                      <AnimatedTabIcon animating={animatingTab === 'settings'}>
-                        <SettingsIcon />
-                      </AnimatedTabIcon>
-                      Settings
-                    </FlexCol>
-                  </Focusable>
+                <IonTabButton
+                  tab={Tabs.Settings}
+                  onClick={handleSettings}
+                  selected={tab === Tabs.Settings}
+                  tabIndex={-1}
+                >
+                  <FlexCol centered gap='6px' padding='5px'>
+                    <AnimatedTabIcon animating={animatingTab === 'settings'}>
+                      <SettingsIcon />
+                    </AnimatedTabIcon>
+                    Settings
+                  </FlexCol>
                 </IonTabButton>
               </IonTabBar>
             </IonTabs>
@@ -382,12 +400,11 @@ export default function App() {
         )}
       </IonPage>
       {tab !== Tabs.None && !bootAnimActive && (
-        <PillNavbarOverlay
-          visible={showNavbar}
-          activeTab={tab}
-          onWalletClick={handleWallet}
-          onAppsClick={handleApps}
-          onSettingsClick={handleSettings}
+        <WalletActionBarOverlay
+          visible={showWalletActionBar}
+          onSendClick={handleSend}
+          onSwapClick={handleSwap}
+          onReceiveClick={handleReceive}
         />
       )}
       {bootAnimActive ? (

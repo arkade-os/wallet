@@ -1,6 +1,6 @@
 import { useContext } from 'react'
 import { prettyHide, prettyNumber } from '../lib/format'
-import { CurrencyDisplay, Satoshis } from '../lib/types'
+import { Satoshis } from '../lib/types'
 import { FiatContext } from '../providers/fiat'
 import Text from './Text'
 import FlexCol from './FlexCol'
@@ -12,35 +12,30 @@ interface BalanceProps {
   amount: Satoshis
 }
 
+// Fiat-primary balance with sats shown as a smaller secondary line.
+// Privacy: `config.showBalance` toggles the eye-mask for both figures.
 export default function Balance({ amount }: BalanceProps) {
   const { config, updateConfig } = useContext(ConfigContext)
   const { toFiat, fiatDecimals } = useContext(FiatContext)
 
   const fiatAmount = toFiat(amount)
-  const showFiat = config.currencyDisplay === CurrencyDisplay.Fiat
+  const satsUnit = amount === 1 ? 'SAT' : 'SATS'
 
   const satsBalance = config.showBalance ? prettyNumber(amount) : prettyHide(amount, '')
   const fiatBalance = config.showBalance
     ? prettyNumber(fiatAmount, fiatDecimals(), true, fiatDecimals())
     : prettyHide(fiatAmount, '')
 
-  const mainBalance = showFiat ? fiatBalance : satsBalance
-  const otherBalance = showFiat ? satsBalance : fiatBalance
-  const satsUnit = amount === 1 ? 'SAT' : 'SATS'
-  const mainUnit = showFiat ? config.fiat : satsUnit
-  const otherUnit = showFiat ? satsUnit : config.fiat
-
-  const showBoth = config.currencyDisplay === CurrencyDisplay.Both
   const toggleShow = () => updateConfig({ ...config, showBalance: !config.showBalance })
 
   return (
     <FlexCol gap='0' margin='2.5rem 0 1rem 0'>
       <FlexRow alignItems='baseline'>
         <Text bigger heading medium>
-          {mainBalance}
+          {fiatBalance}
         </Text>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Text heading>{mainUnit}</Text>
+          <Text heading>{config.fiat}</Text>
           <button
             type='button'
             onClick={toggleShow}
@@ -60,12 +55,10 @@ export default function Balance({ amount }: BalanceProps) {
           </button>
         </div>
       </FlexRow>
-      {showBoth ? (
-        <FlexRow alignItems='baseline'>
-          <Text color='dark80'>{otherBalance}</Text>
-          <Text small>{otherUnit}</Text>
-        </FlexRow>
-      ) : null}
+      <FlexRow alignItems='baseline'>
+        <Text color='dark80'>{satsBalance}</Text>
+        <Text small>{satsUnit}</Text>
+      </FlexRow>
     </FlexCol>
   )
 }

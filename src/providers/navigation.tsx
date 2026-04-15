@@ -13,6 +13,8 @@ import SendForm from '../screens/Wallet/Send/Form'
 import SendDetails from '../screens/Wallet/Send/Details'
 import SendSuccess from '../screens/Wallet/Send/Success'
 import Transaction from '../screens/Wallet/Transaction'
+import Activity from '../screens/Wallet/Activity'
+import Swap from '../screens/Wallet/Swap'
 import Unlock from '../screens/Wallet/Unlock'
 import Vtxos from '../screens/Settings/Vtxos'
 import Wallet from '../screens/Wallet/Index'
@@ -40,6 +42,8 @@ import Unavailable from '../screens/Wallet/Unavailable'
 export type NavigationDirection = 'forward' | 'back' | 'none'
 
 export enum Pages {
+  Activity,
+  Swap,
   AppBoltz,
   AppBoltzSettings,
   AppBoltzSwap,
@@ -86,6 +90,8 @@ export enum Tabs {
 }
 
 const pageTab = {
+  [Pages.Activity]: Tabs.Wallet,
+  [Pages.Swap]: Tabs.Wallet,
   [Pages.AppBoltz]: Tabs.Apps,
   [Pages.AppBoltzSettings]: Tabs.Apps,
   [Pages.AppBoltzSwap]: Tabs.Apps,
@@ -124,8 +130,11 @@ const pageTab = {
   [Pages.Wallet]: Tabs.Wallet,
 }
 
-// Root pages of each tab — tab switches between these get no animation
-const ROOT_PAGES = new Set([Pages.Wallet, Pages.Apps, Pages.Settings])
+// Root pages — navigation to a root page clears the back stack.
+// Since the bottom tab nav was retired, Apps/Settings are now just regular
+// destinations you reach from Wallet. Only Wallet is still a "root" that
+// resets state on entry.
+const ROOT_PAGES = new Set([Pages.Wallet])
 
 // Coordination point for sub-navigation (e.g., Settings options)
 // Sub-navigation providers register here so the main popstate handler can delegate
@@ -144,6 +153,10 @@ export const subNavHandler = {
 
 export const pageComponent = (page: Pages): JSX.Element => {
   switch (page) {
+    case Pages.Activity:
+      return <Activity />
+    case Pages.Swap:
+      return <Swap />
     case Pages.AppBoltz:
       return <AppBoltz />
     case Pages.AppBoltzSettings:

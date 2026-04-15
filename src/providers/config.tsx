@@ -1,7 +1,7 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
 import { clearStorage, readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
 import { defaultArkServer } from '../lib/constants'
-import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
+import { Config, Fiats, Themes, Unit } from '../lib/types'
 import { BackupProvider } from '../lib/backup'
 import { consoleError } from '../lib/logs'
 import { setHapticsEnabled } from '../lib/haptics'
@@ -12,7 +12,6 @@ const defaultConfig: Config = {
   apps: { assets: { enabled: false }, boltz: { connected: true } },
   aspUrl: defaultArkServer(),
   dismissedBanners: [],
-  currencyDisplay: CurrencyDisplay.Fiat,
   delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
   fiat: Fiats.USD,
   importedAssets: [],
@@ -50,7 +49,7 @@ export const ConfigContext = createContext<ConfigContextProps>({
   systemTheme: Themes.Dark,
   toggleShowConfig: () => {},
   updateConfig: () => {},
-  useFiat: false,
+  useFiat: true,
 })
 
 const updateDefaultConfig = (config: Partial<Config>): Config => {
@@ -153,7 +152,8 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     return () => mediaQuery.removeEventListener('change', handler)
   }, [config.theme])
 
-  const useFiat = config.currencyDisplay === CurrencyDisplay.Fiat
+  // Always display fiat as primary — CurrencyDisplay setting was removed.
+  const useFiat = true
 
   return (
     <ConfigContext.Provider
