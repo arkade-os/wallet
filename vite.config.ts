@@ -15,9 +15,10 @@ export default defineConfig({
     process.env.HTTPS === 'true' && basicSsl(),
   ].filter(Boolean),
   server: {
-    port: 3002,
+    port: process.env.PORT ? Number(process.env.PORT) : 3002,
     host: true,
-    allowedHosts: ['.trycloudflare.com'],
+    strictPort: Boolean(process.env.PORT),
+    allowedHosts: ['.trycloudflare.com', '.arkade.localhost'],
   },
   build: {
     emptyOutDir: true,
