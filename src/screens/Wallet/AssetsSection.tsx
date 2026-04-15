@@ -40,8 +40,7 @@ export default function AssetsSection({ onCreateClick }: AssetsSectionProps) {
     navigate(Pages.AppAssetDetail)
   }
 
-  const fiatLabel = (amount: number) =>
-    `${prettyNumber(amount, fiatDecimals(), true, fiatDecimals())} ${config.fiat}`
+  const fiatLabel = (amount: number) => `${prettyNumber(amount, fiatDecimals(), true, fiatDecimals())} ${config.fiat}`
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>

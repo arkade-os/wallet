@@ -89,12 +89,7 @@ export default function AppAssets() {
 
   return (
     <>
-      <Header
-        text='Arkade Mint'
-        back
-        auxFunc={goToSettings}
-        auxIcon={<SettingsIconLight />}
-      />
+      <Header text='Arkade Mint' back auxFunc={goToSettings} auxIcon={<SettingsIconLight />} />
       <Content>
         <Padded>
           {config.apps.assets.enabled ? (

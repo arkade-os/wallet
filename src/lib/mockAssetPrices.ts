@@ -15,9 +15,7 @@ import { MOCK_ASSETS } from './mockPortfolio'
 // Known demo assets get fixed plausible prices. Anything else gets a
 // deterministic hash-based value in a sensible range so the list always
 // looks stable between reloads.
-const knownPrices: Record<string, number> = Object.fromEntries(
-  MOCK_ASSETS.map((a) => [a.assetId, a.satsPerUnit]),
-)
+const knownPrices: Record<string, number> = Object.fromEntries(MOCK_ASSETS.map((a) => [a.assetId, a.satsPerUnit]))
 
 export function mockAssetSatsPerUnit(assetId: string): number {
   if (knownPrices[assetId] !== undefined) return knownPrices[assetId]
