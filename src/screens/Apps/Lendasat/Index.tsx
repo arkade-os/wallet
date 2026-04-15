@@ -179,7 +179,7 @@ export default function AppLendasat() {
 
   return (
     <>
-      <Header text='Lendasat' back={() => navigate(Pages.Apps)} />
+      <Header text='Lendasat' back />
       <Content>
         <Padded>
           <FlexCol gap='2rem' between>

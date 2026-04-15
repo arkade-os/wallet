@@ -91,7 +91,7 @@ export default function AppAssets() {
     <>
       <Header
         text='Arkade Mint'
-        back={() => navigate(Pages.Apps)}
+        back
         auxFunc={goToSettings}
         auxIcon={<SettingsIconLight />}
       />

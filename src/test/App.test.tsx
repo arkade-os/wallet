@@ -199,7 +199,7 @@ describe('App startup routing', () => {
   })
 })
 
-describe('Navbar visibility', () => {
+describe('Wallet action bar visibility', () => {
   beforeEach(() => {
     setupTestEnvironment()
   })
@@ -208,36 +208,36 @@ describe('Navbar visibility', () => {
     vi.unstubAllEnvs()
   })
 
-  it('hides navbar on unlock screen even when navigation context has Wallet tab', async () => {
+  it('hides action bar on unlock screen even when navigation context has Wallet tab', async () => {
     renderApp({ authState: 'locked', initialized: false, screen: Pages.Wallet, tab: Tabs.Wallet })
 
     await screen.findByText('Unlock')
     const ionApp = screen.getByTestId('ion-app')
-    expect(ionApp.className).not.toContain('has-pill-navbar')
+    expect(ionApp.className).not.toContain('has-wallet-action-bar')
   })
 
-  it('hides navbar during loading hold', async () => {
+  it('hides action bar during loading hold', async () => {
     renderApp({ authState: 'authenticated', initialized: false, screen: Pages.Wallet, tab: Tabs.Wallet })
 
     const ionApp = await screen.findByTestId('ion-app')
-    expect(ionApp.className).not.toContain('has-pill-navbar')
+    expect(ionApp.className).not.toContain('has-wallet-action-bar')
   })
 
-  it('shows navbar on wallet root when authenticated and initialized', async () => {
+  it('shows action bar on wallet root when authenticated and initialized', async () => {
     renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Wallet, tab: Tabs.Wallet })
 
     const ionApp = await screen.findByTestId('ion-app')
-    expect(ionApp.className).toContain('has-pill-navbar')
+    expect(ionApp.className).toContain('has-wallet-action-bar')
   })
 
-  it('shows navbar on apps root when authenticated and initialized', async () => {
+  it('hides action bar on apps root (action bar is Wallet-only now)', async () => {
     renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Apps, tab: Tabs.Apps })
 
     const ionApp = await screen.findByTestId('ion-app')
-    expect(ionApp.className).toContain('has-pill-navbar')
+    expect(ionApp.className).not.toContain('has-wallet-action-bar')
   })
 
-  it('shows navbar on settings menu when authenticated and initialized', async () => {
+  it('hides action bar on settings menu (action bar is Wallet-only now)', async () => {
     renderApp({
       authState: 'authenticated',
       initialized: true,
@@ -247,10 +247,10 @@ describe('Navbar visibility', () => {
     })
 
     const ionApp = await screen.findByTestId('ion-app')
-    expect(ionApp.className).toContain('has-pill-navbar')
+    expect(ionApp.className).not.toContain('has-wallet-action-bar')
   })
 
-  it('hides navbar on settings sub-page when authenticated and initialized', async () => {
+  it('hides action bar on settings sub-page when authenticated and initialized', async () => {
     renderApp({
       authState: 'authenticated',
       initialized: true,
@@ -260,6 +260,6 @@ describe('Navbar visibility', () => {
     })
 
     const ionApp = await screen.findByTestId('ion-app')
-    expect(ionApp.className).not.toContain('has-pill-navbar')
+    expect(ionApp.className).not.toContain('has-wallet-action-bar')
   })
 })

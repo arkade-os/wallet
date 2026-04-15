@@ -42,8 +42,8 @@
   --heading-font: 'TT Firs Neue', 'Geist', sans-serif;
   --animation-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   --bullet-icon-bg: #ede7fb;
-  --pill-navbar-spacer: calc(80px + env(safe-area-inset-bottom, 0px));
-  --pill-navbar-clearance: calc(64px + env(safe-area-inset-bottom, 0px));
+  --wallet-action-bar-spacer: calc(112px + env(safe-area-inset-bottom, 0px));
+  --wallet-action-bar-clearance: calc(96px + env(safe-area-inset-bottom, 0px));
   --sheet-bg: #fff;
   --toast-bg: #1a1a1a;
   --toast-color: #fafafa;
@@ -218,8 +218,8 @@ ion-tab-bar {
   right: 0;
   bottom: 0;
   z-index: 0;
-  height: var(--pill-navbar-spacer);
-  min-height: var(--pill-navbar-spacer);
+  height: var(--wallet-action-bar-spacer);
+  min-height: var(--wallet-action-bar-spacer);
 }
 
 ion-tab-bar ion-tab-button {
@@ -232,26 +232,35 @@ ion-tab-bar ion-tab-button {
   padding-top: 2rem;
 }
 
-ion-app.has-pill-navbar ion-content {
-  --padding-bottom: var(--pill-navbar-clearance);
+/* Wallet home needs its content to grow past the viewport so the IonContent
+   scroll container can see the overflow (hero + assets + upsells + activity).
+   Other pages (Init, Settings, Send, etc.) rely on `height: 100%` for their
+   `FlexCol between` layouts, so the growth is scoped to the action-bar page. */
+ion-app.has-wallet-action-bar .content-shell {
+  height: auto;
+  min-height: 100%;
 }
 
-ion-app.has-pill-navbar ion-content:has(.scroll-fade)::part(scroll) {
+ion-app.has-wallet-action-bar ion-content {
+  --padding-bottom: var(--wallet-action-bar-clearance);
+}
+
+ion-app.has-wallet-action-bar ion-content:has(.scroll-fade)::part(scroll) {
   -webkit-mask-image: linear-gradient(
     to bottom,
     #000 0,
-    #000 calc(100% - var(--pill-navbar-clearance) - 56px),
-    rgba(0, 0, 0, 0.86) calc(100% - var(--pill-navbar-clearance) - 12px),
-    rgba(0, 0, 0, 0.54) calc(100% - var(--pill-navbar-clearance) + 18px),
+    #000 calc(100% - var(--wallet-action-bar-clearance) - 56px),
+    rgba(0, 0, 0, 0.86) calc(100% - var(--wallet-action-bar-clearance) - 12px),
+    rgba(0, 0, 0, 0.54) calc(100% - var(--wallet-action-bar-clearance) + 18px),
     rgba(0, 0, 0, 0.16) calc(100% - 18px),
     transparent 100%
   );
   mask-image: linear-gradient(
     to bottom,
     #000 0,
-    #000 calc(100% - var(--pill-navbar-clearance) - 56px),
-    rgba(0, 0, 0, 0.86) calc(100% - var(--pill-navbar-clearance) - 12px),
-    rgba(0, 0, 0, 0.54) calc(100% - var(--pill-navbar-clearance) + 18px),
+    #000 calc(100% - var(--wallet-action-bar-clearance) - 56px),
+    rgba(0, 0, 0, 0.86) calc(100% - var(--wallet-action-bar-clearance) - 12px),
+    rgba(0, 0, 0, 0.54) calc(100% - var(--wallet-action-bar-clearance) + 18px),
     rgba(0, 0, 0, 0.16) calc(100% - 18px),
     transparent 100%
   );
@@ -261,7 +270,7 @@ ion-app.has-pill-navbar ion-content:has(.scroll-fade)::part(scroll) {
   mask-size: 100% 100%;
 }
 
-ion-app.has-pill-navbar ion-content.no-content-fade::part(scroll) {
+ion-app.has-wallet-action-bar ion-content.no-content-fade::part(scroll) {
   -webkit-mask-image: none;
   mask-image: none;
 }

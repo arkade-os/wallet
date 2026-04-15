@@ -65,7 +65,7 @@ export default function AppAssetImport() {
 
   return (
     <>
-      <Header text='Import Asset' back={() => navigate(Pages.AppAssets)} />
+      <Header text='Import Asset' back />
       <Content>
         <Padded>
           <FlexCol>
