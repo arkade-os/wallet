@@ -8,6 +8,9 @@ import { ConfigContext } from './config'
 type FiatContextProps = {
   toFiat: (satoshis?: Satoshis) => number
   fromFiat: (fiat?: number) => Satoshis
+  /** Always-USD conversions — useful when pricing mock data against a reference currency. */
+  toUSD: (satoshis?: Satoshis) => number
+  fromUSD: (usd?: number) => Satoshis
   fiatDecimals: () => number
   updateFiatPrices: () => void
 }
@@ -17,6 +20,8 @@ const emptyFiatPrices: FiatPrices = { eur: 0, usd: 0, chf: 0, jpy: 0, gbp: 0, cn
 export const FiatContext = createContext<FiatContextProps>({
   toFiat: () => 0,
   fromFiat: () => 0,
+  toUSD: () => 0,
+  fromUSD: () => 0,
   fiatDecimals: () => 2,
   updateFiatPrices: () => {},
 })
@@ -75,6 +80,8 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   return (
-    <FiatContext.Provider value={{ fromFiat, toFiat, fiatDecimals, updateFiatPrices }}>{children}</FiatContext.Provider>
+    <FiatContext.Provider value={{ fromFiat, toFiat, fromUSD, toUSD, fiatDecimals, updateFiatPrices }}>
+      {children}
+    </FiatContext.Provider>
   )
 }

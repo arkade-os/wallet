@@ -1,7 +1,6 @@
 import { useContext } from 'react'
 import { WalletContext } from '../providers/wallet'
 import { FiatContext } from '../providers/fiat'
-import { assetToSats } from '../lib/mockAssetPrices'
 import { MOCK_ASSETS, USE_MOCK_PORTFOLIO } from '../lib/mockPortfolio'
 
 export interface PortfolioRow {
@@ -15,7 +14,7 @@ export interface PortfolioRow {
   balance: number
   /** Fiat value in the user's selected currency. */
   fiatAmount: number
-  /** Equivalent value in satoshis, computed via the mock price feed for non-BTC assets. */
+  /** Equivalent value in satoshis, computed via the live BTC→USD rate. */
   satsEquivalent: number
 }
 
@@ -23,19 +22,20 @@ export interface PortfolioFiat {
   totalFiat: number
   totalSats: number
   rows: PortfolioRow[]
-  /** True when at least one row's fiat value comes from the prototype mock price. */
+  /** True when at least one row's fiat value comes from the prototype mock. */
   hasMockPrices: boolean
 }
 
 /**
  * Aggregates BTC + all asset balances into a single fiat total using the
- * user's configured currency. Non-BTC assets use the mock sats-per-unit feed
- * in `mockAssetPrices.ts` — the BTC fiat rate then converts the total into
- * whichever currency the user picked.
+ * user's configured currency. Non-BTC assets are priced in USD per unit; we
+ * convert USD → sats via the live BTC rate, then sats → user's fiat. This
+ * keeps stablecoin values honest (a $1 stablecoin always shows as $1)
+ * regardless of BTC price movement.
  */
 export function usePortfolioFiat(): PortfolioFiat {
   const { balance, assetBalances, assetMetadataCache } = useContext(WalletContext)
-  const { toFiat } = useContext(FiatContext)
+  const { toFiat, fromUSD } = useContext(FiatContext)
 
   const rows: PortfolioRow[] = []
   let totalSats = 0
@@ -53,14 +53,16 @@ export function usePortfolioFiat(): PortfolioFiat {
     satsEquivalent: balance,
   })
 
-  // Non-BTC asset rows. For the prototype we ignore the SDK-backed
-  // assetBalances (which reflect the dev regtest environment) and show a
-  // fixed realistic demo set instead.
+  // Non-BTC asset rows. The prototype uses a fixed demo set instead of the
+  // real SDK-backed assetBalances (which reflect the dev regtest env).
   if (USE_MOCK_PORTFOLIO) {
     for (const mock of MOCK_ASSETS) {
-      const satsEq = assetToSats(mock.assetId, mock.amount, mock.decimals)
+      const wholeUnits = mock.amount / Math.pow(10, mock.decimals)
+      const usdValue = wholeUnits * mock.usdPricePerUnit
+      const satsEq = fromUSD(usdValue)
       totalSats += satsEq
       hasMockPrices = true
+
       rows.push({
         assetId: mock.assetId,
         name: mock.name,
@@ -75,9 +77,8 @@ export function usePortfolioFiat(): PortfolioFiat {
     for (const ab of assetBalances) {
       const meta = assetMetadataCache.get(ab.assetId)?.metadata
       const decimals = meta?.decimals ?? 8
-      const satsEq = assetToSats(ab.assetId, ab.amount, decimals)
+      const satsEq = 0 // real price feed not yet wired; see mockAssetPrices for the prototype path
       totalSats += satsEq
-      hasMockPrices = true
 
       rows.push({
         assetId: ab.assetId,
