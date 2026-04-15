@@ -16,7 +16,6 @@ import Advanced from './Advanced'
 import General from './General'
 import Theme from './Theme'
 import Fiat from './Fiat'
-import Display from './Display'
 import Password from './Password'
 import Delegates from './Delegates'
 import SettingsPageTransition from '../../components/SettingsPageTransition'
@@ -56,8 +55,6 @@ function settingsContent(option: SettingsOptions): JSX.Element {
       return <Theme />
     case SettingsOptions.Fiat:
       return <Fiat />
-    case SettingsOptions.Display:
-      return <Display />
     case SettingsOptions.Password:
       return <Password />
     case SettingsOptions.Haptics:

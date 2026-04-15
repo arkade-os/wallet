@@ -2,7 +2,7 @@ import { ReactNode, createContext, useContext, useEffect, useRef, useState } fro
 import { FiatPrices, getPriceFeed } from '../lib/fiat'
 import { fromSatoshis, toSatoshis } from '../lib/format'
 import Decimal from 'decimal.js'
-import { CurrencyDisplay, Fiats, Satoshis } from '../lib/types'
+import { Fiats, Satoshis } from '../lib/types'
 import { ConfigContext } from './config'
 
 type FiatContextProps = {
@@ -22,7 +22,7 @@ export const FiatContext = createContext<FiatContextProps>({
 })
 
 export const FiatProvider = ({ children }: { children: ReactNode }) => {
-  const { config, setConfig } = useContext(ConfigContext)
+  const { config } = useContext(ConfigContext)
 
   const [loading, setLoading] = useState(false)
 
@@ -67,7 +67,6 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true)
     const pf = await getPriceFeed()
     if (pf) prices.current = pf
-    else setConfig({ ...config, currencyDisplay: CurrencyDisplay.Sats }) // hide fiat if fetch fails
     setLoading(false)
   }
 

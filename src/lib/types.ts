@@ -16,7 +16,6 @@ export type Config = {
     }
   }
   aspUrl: string
-  currencyDisplay: CurrencyDisplay
   delegate: boolean
   fiat: Fiats
   importedAssets: string[]
@@ -28,12 +27,6 @@ export type Config = {
   dismissedBanners: string[]
   theme: Themes
   unit: Unit
-}
-
-export enum CurrencyDisplay {
-  Both = 'Show both',
-  Fiat = 'Fiat only',
-  Sats = 'Sats only',
 }
 
 export type Delegate = {
@@ -80,7 +73,6 @@ export enum SettingsOptions {
   Vtxos = 'coin control',
   Theme = 'theme',
   Fiat = 'fiat currency',
-  Display = 'display preferences',
   Delegates = 'delegates',
 }
 
