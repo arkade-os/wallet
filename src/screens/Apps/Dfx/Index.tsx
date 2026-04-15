@@ -9,10 +9,7 @@ import { WalletContext } from '../../../providers/wallet'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
-import { NavigationContext, Pages } from '../../../providers/navigation'
-
 export default function AppDfx() {
-  const { navigate } = useContext(NavigationContext)
   const { svcWallet } = useContext(WalletContext)
   const [dfxUrl, setDfxUrl] = useState<string | null>(null)
   const [error, setError] = useState(false)

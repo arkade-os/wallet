@@ -36,7 +36,6 @@ import WalletActionBarOverlay from './components/WalletActionBarOverlay'
 import FlexCol from './components/FlexCol'
 import WalletIcon from './icons/Wallet'
 import AppsIcon from './icons/Apps'
-import Focusable from './components/Focusable'
 import { useReducedMotion } from './hooks/useReducedMotion'
 import { useLoadingStatus } from './hooks/useLoadingStatus'
 import { defaultPassword } from './lib/constants'
@@ -94,7 +93,7 @@ export default function App() {
   const { configLoaded } = useContext(ConfigContext)
   const { direction, navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo, setSendInfo, setRecvInfo } = useContext(FlowContext)
-  const { option, setOption } = useContext(OptionsContext)
+  const { setOption } = useContext(OptionsContext)
   const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError } = useContext(WalletContext)
 
   const loadingStatus = useLoadingStatus()
