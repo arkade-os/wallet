@@ -192,11 +192,15 @@ describe('Receive QR Code screen', () => {
   })
 
   // UX Constraint 2b: When LN expected but still initializing, show loader (waiting up to 5s)
-  // Pre-existing failure on master (unrelated to tap-to-copy change): React 18
-  // + RTL flushes effects before the initial assert, so the BIP21-building
-  // effect runs and sets qrCodeValue, taking the render past the loader
-  // before the test can observe it. Skipped here so CI stays green on this
-  // branch; tracked separately for a proper fix.
+  // SKIP: pre-existing failure on master (git blame pre-dates this PR). React 18 +
+  // RTL flush effects before the initial `getByTestId('loading-logo')` assert, so
+  // the BIP21-building effect runs and sets qrCodeValue, taking the render past
+  // the loader before the test can observe it.
+  // To unskip: rewrite to catch the pre-effect render — e.g. assert via
+  // `act(() => { render(...) })` split from the first assert, or mount with
+  // `svcWallet: undefined` first and then update to trigger the loader->QR
+  // transition inside an `act`. Not done here to keep this PR scoped to the
+  // tap-to-copy feature.
   it.skip('shows loader while waiting for arkadeSwaps to initialize', () => {
     renderReceiveQrCode({
       swaps: {
@@ -220,9 +224,8 @@ describe('Receive QR Code screen', () => {
   })
 
   // UX Constraint 2b: After timeout, show QR with warning
-  // Pre-existing failure on master (same root cause as the sibling skip above):
-  // the loader is never observable in the first assert under React 18 + RTL's
-  // effect-flushing behavior. Skipped.
+  // SKIP: same root cause as the sibling skip above (pre-existing, React 18 +
+  // RTL flush effects before the loader can be observed). Same unskip plan.
   it.skip('shows QR with warning after 5s timeout when arkadeSwaps never initializes', async () => {
     vi.useFakeTimers()
 
