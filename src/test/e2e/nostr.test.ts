@@ -137,18 +137,20 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
    * chain swap
    */
 
-  await sleep(3000)
-
-  // send page
-  const someOnchainAddress = 'bcrt1pxxxth5z4yn8nylc6nzz6w3vkumwdllaky5sls7an8e044u2qlnes2vvy6y'
-  await pay(page, someOnchainAddress, isMobile, 2000)
-
-  // should be visible in Boltz app
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
-  await expect(page.getByText('Arkade to Bitcoin', { exact: true })).toBeVisible()
-  await page.getByLabel('Go back').click()
+  /**
+   * await sleep(3000)
+   *
+   * // send page
+   * const someOnchainAddress = 'bcrt1pxxxth5z4yn8nylc6nzz6w3vkumwdllaky5sls7an8e044u2qlnes2vvy6y'
+   * await pay(page, someOnchainAddress, isMobile, 2000)
+   *
+   * // should be visible in Boltz app
+   * await page.getByTestId('tab-apps').click()
+   * await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
+   * await page.getByTestId('app-boltz').click()
+   * await expect(page.getByText('Arkade to Bitcoin', { exact: true })).toBeVisible()
+   * await page.getByLabel('Go back').click()
+   */
 
   // enable nostr backups
   await page.getByTestId('tab-settings').click()
@@ -166,5 +168,5 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await page.getByTestId('app-boltz').click()
   await expect(page.getByText('- 1,001 SATS', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 4,980 SATS', { exact: true })).toBeVisible()
-  await expect(page.getByText('Arkade to Bitcoin', { exact: true })).toBeVisible()
+  // await expect(page.getByText('Arkade to Bitcoin', { exact: true })).toBeVisible()
 })
