@@ -230,7 +230,8 @@ export default function SendForm() {
             assets: [{ assetId, amount: rawAmount }],
           })
         }
-        return setState({ ...base, address, arkAddress, invoice, satoshis })
+        setAmount(satoshis)
+        return setState({ address, arkAddress, invoice, recipient, satoshis, assets: sendInfo.assets })
       }
       if (isArkAddress(lowerCaseData)) {
         return setState({ ...base, arkAddress: lowerCaseData })
