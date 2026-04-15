@@ -2,7 +2,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useRef } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
-import { CurrencyDisplay, Tx } from '../lib/types'
+import { Tx } from '../lib/types'
 import { formatAssetAmount, isBurn, isIssuance, prettyAmount, prettyDate, prettyHide } from '../lib/format'
 import AssetAvatar from './AssetAvatar'
 import ReceivedIcon from '../icons/Received'
@@ -31,19 +31,11 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
 
   const Fiat = () => {
     if (issuance || burn) return null
-    const color =
-      config.currencyDisplay === CurrencyDisplay.Both
-        ? 'dark50'
-        : tx.type === 'received'
-          ? 'green'
-          : tx.boardingTxid && tx.preconfirmed
-            ? 'orange'
-            : ''
+    // Fiat is always the secondary line (dark50, small) paired with the primary sats amount.
     const value = toFiat(tx.amount)
-    const small = config.currencyDisplay === CurrencyDisplay.Both
     const world = config.showBalance ? prettyAmount(value, config.fiat, fiatDecimals()) : prettyHide(value, config.fiat)
     return (
-      <Text color={color} small={small}>
+      <Text color='dark50' small>
         {world}
       </Text>
     )
@@ -119,16 +111,8 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
 
   const Right = () => (
     <div style={{ textAlign: 'right' }}>
-      {config.currencyDisplay === CurrencyDisplay.Fiat ? (
-        <Fiat />
-      ) : config.currencyDisplay === CurrencyDisplay.Sats ? (
-        <Sats />
-      ) : (
-        <>
-          <Sats />
-          <Fiat />
-        </>
-      )}
+      <Sats />
+      <Fiat />
       <AssetInfo />
     </div>
   )
@@ -143,7 +127,17 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   )
 }
 
-export default function TransactionsList() {
+interface TransactionsListProps {
+  title?: string
+  limit?: number
+  mode?: 'viewport' | 'static'
+}
+
+export default function TransactionsList({
+  title = 'Transaction history',
+  limit,
+  mode = 'viewport',
+}: TransactionsListProps = {}) {
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { txs } = useContext(WalletContext)
@@ -152,8 +146,10 @@ export default function TransactionsList() {
   const focusedIndexRef = useRef(0)
   const parentRef = useRef<HTMLDivElement>(null)
 
+  const visibleTxs = limit ? txs.slice(0, limit) : txs
+
   const virtualizer = useVirtualizer({
-    count: txs.length,
+    count: visibleTxs.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 61,
     overscan: 5,
@@ -163,17 +159,17 @@ export default function TransactionsList() {
     [tx.roundTxid, tx.redeemTxid, tx.boardingTxid].filter(Boolean).join('-') || `tx-${index}`
 
   const focusRow = (index: number) => {
-    if (index < 0 || index >= txs.length) return
+    if (index < 0 || index >= visibleTxs.length) return
     focusedIndexRef.current = index
     virtualizer.scrollToIndex(index)
     requestAnimationFrame(() => {
-      const el = document.getElementById(key(txs[index], index)) as HTMLElement
+      const el = document.getElementById(key(visibleTxs[index], index)) as HTMLElement
       if (el) el.focus()
     })
   }
 
   const focusOnFirstRow = () => {
-    if (txs.length === 0) return
+    if (visibleTxs.length === 0) return
     focusedRef.current = true
     focusRow(0)
   }
@@ -182,7 +178,7 @@ export default function TransactionsList() {
     if (!focusedRef.current) return
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      focusRow(Math.min(focusedIndexRef.current + 1, txs.length - 1))
+      focusRow(Math.min(focusedIndexRef.current + 1, visibleTxs.length - 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       focusRow(Math.max(focusedIndexRef.current - 1, 0))
@@ -206,9 +202,25 @@ export default function TransactionsList() {
     navigate(Pages.Transaction)
   }
 
+  // Static mode: no virtualization, no fixed height, no keyboard shell. For home "recent N" usage.
+  if (mode === 'static') {
+    return (
+      <>
+        {title ? <TextLabel>{title}</TextLabel> : null}
+        <div data-testid='tx-list-static'>
+          {visibleTxs.map((tx, index) => (
+            <div key={key(tx, index)} data-testid='tx-row'>
+              <TransactionLine tx={tx} onClick={() => handleClick(tx)} />
+            </div>
+          ))}
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
-      <TextLabel>Transaction history</TextLabel>
+      <TextLabel>{title}</TextLabel>
       <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
         <div
           ref={parentRef}
@@ -223,7 +235,7 @@ export default function TransactionsList() {
         >
           <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
             {virtualizer.getVirtualItems().map((virtualItem) => {
-              const tx = txs[virtualItem.index]
+              const tx = visibleTxs[virtualItem.index]
               const k = key(tx, virtualItem.index)
               return (
                 <div
