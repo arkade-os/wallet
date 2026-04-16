@@ -43,9 +43,9 @@ export default function Reminder({ callback, duration, name, isOpen, startTime }
   const buttonStyle: React.CSSProperties = {
     width: '100%',
     padding: '0.75rem',
-    border: '1px solid var(--dark50)',
+    border: '1px solid var(--neutral-500)',
     borderRadius: '0.25rem',
-    background: 'var(--dark05)',
+    background: 'var(--neutral-50)',
     color: 'inherit',
     fontSize: '1rem',
     fontWeight: 500,

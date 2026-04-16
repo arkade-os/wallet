@@ -35,7 +35,7 @@ export default function InputPassword({ focus, label, onChange, onEnter, strengt
   const toggleStyle: React.CSSProperties = {
     background: 'none',
     border: 'none',
-    color: 'var(--dark50)',
+    color: 'var(--neutral-500)',
     cursor: 'pointer',
     fontSize: '0.75rem',
     padding: '0.25rem 0.5rem',

@@ -54,7 +54,7 @@ export default function Table({ data }: { data: TableData }) {
               ariaLabel={ariaLabel(title, value)}
             >
               <FlexRow between>
-                <FlexRow color='dark50'>
+                <FlexRow color='neutral-500'>
                   {icon}
                   <Text small thin>
                     {title}
@@ -62,7 +62,7 @@ export default function Table({ data }: { data: TableData }) {
                 </FlexRow>
                 <FlexRow end gap='0.25rem'>
                   {onClick ? (
-                    <span onClick={onClick} style={{ cursor: 'pointer', color: 'var(--dark50)' }}>
+                    <span onClick={onClick} style={{ cursor: 'pointer', color: 'var(--neutral-500)' }}>
                       <ExternalLinkIcon />
                     </span>
                   ) : null}

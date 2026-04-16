@@ -22,7 +22,7 @@ export const calcStrength = (pass: string): number => {
 
 export const StrengthLabel = ({ strength }: { strength: number }): JSX.Element => (
   <FlexRow gap='0.25rem'>
-    <Text smaller color='dark50'>
+    <Text smaller color='neutral-500'>
       Strength:
     </Text>
     <Text smaller color={getColor(strength)}>
@@ -34,7 +34,7 @@ export const StrengthLabel = ({ strength }: { strength: number }): JSX.Element =
 export default function StrengthBars({ strength }: { strength: number }) {
   const style = (col: number): React.CSSProperties => ({
     backgroundColor: col < strength ? `var(--${getColor(strength)})` : '',
-    border: '1px solid var(--dark20)',
+    border: '1px solid var(--neutral-200)',
     height: '0.5rem',
     width: '100%',
   })
@@ -53,7 +53,7 @@ export function StrengthProgress({ strength }: { strength: number }) {
   const color = getColor(strength)
   const value = Math.min(strength * 0.25, 1)
   return (
-    <div style={{ width: '100%', height: '4px', background: 'var(--dark10)', borderRadius: '2px' }}>
+    <div style={{ width: '100%', height: '4px', background: 'var(--neutral-100)', borderRadius: '2px' }}>
       <div
         style={{
           width: `${value * 100}%`,

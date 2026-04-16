@@ -34,7 +34,7 @@ export default function Content({ children, noFade }: ContentProps) {
           style={{
             textAlign: 'center',
             padding: '0.5rem',
-            color: 'var(--dark50)',
+            color: 'var(--neutral-500)',
             fontSize: '0.75rem',
             height: pullOffset > 0 ? pullOffset : 'auto',
             display: 'flex',

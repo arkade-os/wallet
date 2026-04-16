@@ -62,7 +62,7 @@ export default function Balance({ amount }: BalanceProps) {
       </FlexRow>
       {showBoth ? (
         <FlexRow alignItems='baseline'>
-          <Text color='dark80'>{otherBalance}</Text>
+          <Text color='neutral-800'>{otherBalance}</Text>
           <Text small>{otherUnit}</Text>
         </FlexRow>
       ) : null}

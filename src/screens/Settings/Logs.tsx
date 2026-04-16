@@ -70,7 +70,7 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
             >
               <FlexRow between>
                 <Text color={color(level)}>{prettyAgo(time)}</Text>
-                <Text color='dark50' copy={msg}>
+                <Text color='neutral-500' copy={msg}>
                   {prettyLongText(msg.replace('...', ''), numChars(prettyAgo(time)))}
                 </Text>
               </FlexRow>

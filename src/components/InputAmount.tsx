@@ -73,7 +73,7 @@ export default function InputAmount({
 
   const leftLabel = asset?.assetId ? asset.ticker : useFiat ? config.fiat : 'SATS'
   const rightLabel = asset?.assetId ? '' : `${otherValue} ${useFiat ? 'SATS' : config.fiat}`
-  const fontStyle: React.CSSProperties = { color: 'var(--dark50)', fontSize: '13px' }
+  const fontStyle: React.CSSProperties = { color: 'var(--neutral-500)', fontSize: '13px' }
   const bottomLeft =
     minimumSats && sats !== undefined && sats < minimumSats
       ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}`
@@ -86,7 +86,7 @@ export default function InputAmount({
   const inputStyle: React.CSSProperties = {
     background: 'transparent',
     border: 'none',
-    color: readOnly ? 'var(--dark50)' : 'inherit',
+    color: readOnly ? 'var(--neutral-500)' : 'inherit',
     fontFamily: 'inherit',
     fontSize: 'inherit',
     outline: 'none',

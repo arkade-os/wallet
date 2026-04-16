@@ -16,12 +16,12 @@ interface MenuProps {
 export default function Menu({ rows, styled }: MenuProps) {
   const { setOption } = useContext(OptionsContext)
 
-  const bgColor = styled ? 'var(--dark10)' : 'transparent'
+  const bgColor = styled ? 'var(--neutral-100)' : 'transparent'
 
   const rowStyle = (option: SettingsOptions) => ({
     alignItems: 'center',
     backgroundColor: option === SettingsOptions.Reset ? 'var(--redbg)' : bgColor,
-    borderBottom: '1px solid var(--dark10)',
+    borderBottom: '1px solid var(--neutral-100)',
     color: option === SettingsOptions.Reset ? 'white' : 'var(--dark)',
     cursor: 'pointer',
     display: 'flex',

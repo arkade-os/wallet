@@ -118,8 +118,8 @@ export default function AppAssets() {
             </FlexCol>
           ) : (
             <FlexCol gap='0.5rem'>
-              <Text color='dark50'>Arkade Mint is disabled.</Text>
-              <Text color='dark50'>
+              <Text color='neutral-500'>Arkade Mint is disabled.</Text>
+              <Text color='neutral-500'>
                 <a onClick={goToSettings}>Enable it</a> to view your assets.
               </Text>
             </FlexCol>

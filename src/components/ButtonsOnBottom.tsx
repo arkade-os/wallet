@@ -8,7 +8,7 @@ interface ButtonsOnBottomProps {
 
 export default function ButtonsOnBottom({ bordered, children }: ButtonsOnBottomProps) {
   const borderStyle = {
-    backgroundColor: 'var(--dark10)',
+    backgroundColor: 'var(--neutral-100)',
     marginTop: '1rem',
     width: '100%',
   }

@@ -90,7 +90,7 @@ export default function AppAssetReissue() {
               <Text big bold>
                 Confirm Reissue
               </Text>
-              <Text centered wrap color='dark50'>
+              <Text centered wrap color='neutral-500'>
                 You are about to mint {amount} additional {ticker || name}.
               </Text>
             </FlexCol>
@@ -112,7 +112,7 @@ export default function AppAssetReissue() {
                   <AssetAvatar icon={icon} ticker={ticker} size={32} />
                   <FlexCol gap='0'>
                     <Text bold>{name}</Text>
-                    <Text color='dark50' smaller>
+                    <Text color='neutral-500' smaller>
                       {ticker}
                     </Text>
                   </FlexCol>

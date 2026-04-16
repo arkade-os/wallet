@@ -30,7 +30,7 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
 
   const SideButton = (text: string) => (
     <Shadow>
-      <Text color='dark80' centered tiny wrap>
+      <Text color='neutral-800' centered tiny wrap>
         {text}
       </Text>
     </Shadow>
@@ -46,7 +46,7 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
 
   const headerStyle: React.CSSProperties = {
     alignItems: 'center',
-    borderBottom: '1px solid var(--dark10)',
+    borderBottom: '1px solid var(--neutral-100)',
     display: 'flex',
     height: '4rem',
     flexShrink: 0,

@@ -126,7 +126,7 @@ button.atcb-button {
   width: 100%;
   border: none;
   background: none;
-  border-top: 1px dashed var(--dark10);
+  border-top: 1px dashed var(--neutral-100);
 }
 
 /* Theme transition ripple */
@@ -229,7 +229,7 @@ button.atcb-button {
 
 .pill-nav-btn--active {
   color: #040404;
-  background-color: var(--dark05);
+  background-color: var(--neutral-50);
 }
 
 .dark .pill-nav-btn--active {
