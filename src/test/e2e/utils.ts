@@ -105,7 +105,7 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
 }
 
 export async function createWallet(page: Page): Promise<void> {
-  await execAsync('nigiri rpc --generate 1')
+  // await execAsync('nigiri rpc --generate 1')
   await page.goto('/')
   await page.getByText('+ Create wallet').click()
   await waitForWalletPage(page)
@@ -161,10 +161,10 @@ export async function pay(page: Page, address: string, isMobile = false, sats = 
 async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = false, sats = 0): Promise<string> {
   // go to receive page
   await page.getByTestId('tab-wallet').click()
-  await page.getByText('Receive').click()
+  await page.getByText('Receive', { exact: true }).click()
 
   // fill amount to receive if provided
-  if (sats) {
+  if (sats && type === 'invoice') {
     await page.getByText('Add amount').click()
     if (isMobile) {
       await page.locator('ion-input[name="receive-amount-sheet"] input').click()

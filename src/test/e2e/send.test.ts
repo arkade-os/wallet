@@ -151,7 +151,7 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
 // wants to send 2000 sats onchain,
 // wallet will deliver 2000 sats on final UTXO,
 // which means user must pay more for chain swap fees
-test('should send (some and max) to onchain address with chain swap', async ({ page, isMobile }) => {
+test('should send sats (some and max) to onchain address with chain swap', async ({ page, isMobile }) => {
   // create wallet
   await createWallet(page)
   await fundWallet(page, 5000)
@@ -213,15 +213,15 @@ test('should send sats (some and max) to onchain address with collaborative exit
 
   // create wallet
   await createWallet(page)
-  await fundWallet(page, 2100)
+  await fundWallet(page, 1800)
 
   const someOnchainAddress = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 
   // send page
-  await prePay(page, someOnchainAddress, isMobile, 1000)
+  await prePay(page, someOnchainAddress, isMobile, 900)
 
   // details page
-  await expect(page.getByTestId('Amount')).toContainText('1,000 SATS')
+  await expect(page.getByTestId('Amount')).toContainText('700 SATS')
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
@@ -230,7 +230,7 @@ test('should send sats (some and max) to onchain address with collaborative exit
   // main page
   await page.getByText('Sounds good').click()
   await expect(page.getByText('Received')).toBeVisible()
-  await expect(page.getByText('2,100 SATS')).toBeVisible()
+  await expect(page.getByText('1,800 SATS')).toBeVisible()
   await page.waitForSelector('text=Sent', { timeout: 10000 })
 
   const balanceText = await page.getByTestId('main-balance').textContent()

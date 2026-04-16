@@ -5,7 +5,7 @@ const execAsync = promisify(exec)
 
 export async function faucetOffchain(address: string, amount: number): Promise<void> {
   // uses fulmine to fund wallets offchain, which is much faster
-  await execAsync(`curl -X POST http://localhost:7003/api/v1/send/offchain \
+  await execAsync(`curl -X POST http://localhost:7011/api/v1/send/offchain \
         -H "Content-Type: application/json" \
         -d '{"address": "${address}", "amount": ${amount}}'`)
 }

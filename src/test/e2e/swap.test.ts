@@ -1,6 +1,7 @@
 import { test, expect, createWallet, pay, receiveLightning, waitForPaymentReceived, fundWallet } from './utils'
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import { sleep } from '../../lib/sleep'
 
 const execAsync = promisify(exec)
 
@@ -28,7 +29,9 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   expect(invoice).toContain('lnbcrt')
 
   // pay invoice
-  await execAsync(`docker exec lnd lncli --network=regtest payinvoice ${invoice} --force`)
+  console.log('Paying invoice:', invoice)
+  execAsync(`docker exec lnd lncli --network=regtest payinvoice ${invoice} --force`)
+  console.log('Invoice paid, waiting for Arkade to receive the payment...')
 
   // wait for payment received
   await waitForPaymentReceived(page)
