@@ -185,7 +185,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       return
     }
 
-    if (initialized) {
+    if (!wallet.pubkey) {
       setAuthState('authenticated')
       return
     }
@@ -203,7 +203,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       cancelled = true
     }
-  }, [wallet.pubkey, initialized, devAutoInitFailed])
+  }, [wallet.pubkey])
 
   // reload wallet as soon as we have a service worker wallet available
   useEffect(() => {
