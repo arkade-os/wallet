@@ -16,7 +16,7 @@ export default function Content({ children, noFade }: ContentProps) {
     overflowX: 'hidden',
     scrollbarWidth: 'none',
     position: 'relative',
-    touchAction: 'pan-x pan-down pinch-zoom',
+    touchAction: 'manipulation',
   }
 
   return (

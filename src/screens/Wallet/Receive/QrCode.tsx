@@ -181,7 +181,7 @@ export default function ReceiveQRCode() {
     if (!satoshis || !svcWallet) return
     if (!addressesLoaded) return
 
-    const lnExpected = connected && !isAssetReceive
+    const lnExpected = connected && !isAssetReceive && validLnSwap(satoshis)
 
     if (!arkadeSwaps) {
       if (!lnExpected || swapsInitError) {
@@ -456,7 +456,7 @@ export default function ReceiveQRCode() {
                       {minSwapAllowed()} sats min for Lightning
                     </div>
                   ) : null}
-                  {swapsTimedOut && !invoice && !isAssetReceive ? (
+                  {swapsTimedOut && !invoice && !isAssetReceive && validLnSwap(satoshis) ? (
                     <WarningBox text='Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.' />
                   ) : null}
                 </div>

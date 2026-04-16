@@ -22,7 +22,7 @@ export default function Menu({ rows, styled }: MenuProps) {
     alignItems: 'center',
     backgroundColor: option === SettingsOptions.Reset ? 'var(--redbg)' : bgColor,
     borderBottom: '1px solid var(--neutral-100)',
-    color: option === SettingsOptions.Reset ? 'white' : 'var(--dark)',
+    color: option === SettingsOptions.Reset ? 'white' : 'var(--fg)',
     cursor: 'pointer',
     display: 'flex',
     justifyContent: 'space-between',

@@ -66,7 +66,7 @@ export default function Table({ data }: { data: TableData }) {
                       <ExternalLinkIcon />
                     </span>
                   ) : null}
-                  <Text color='dark' copy={value} small bold testId={title}>
+                  <Text color='fg' copy={value} small bold testId={title}>
                     {prettyLongText(value, onClick ? 8 : undefined)}
                   </Text>
                 </FlexRow>

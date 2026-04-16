@@ -405,11 +405,11 @@ input:focus::placeholder {
   gap: 0.3rem;
   padding: 0.4rem 0.65rem;
   border-radius: 999px;
-  border: 1px solid var(--dark20);
-  background: var(--dark05);
+  border: 1px solid var(--neutral-200);
+  background: var(--neutral-50);
   cursor: pointer;
   font-size: 13px;
-  color: var(--dark80);
+  color: var(--neutral-800);
   white-space: nowrap;
   min-height: 36px;
   position: relative;
