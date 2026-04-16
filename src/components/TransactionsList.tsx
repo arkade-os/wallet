@@ -110,7 +110,6 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   }
 
   const rowStyle = {
-    alignItems: 'center',
     borderTop: border,
     cursor: 'pointer',
     padding: '0.5rem 0',
@@ -144,7 +143,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
 
   return (
     <div style={rowStyle} onClick={onClick}>
-      <FlexRow>
+      <FlexRow between alignItems='start'>
         <Left />
         <Right />
       </FlexRow>
