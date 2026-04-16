@@ -15,7 +15,7 @@ export default function ButtonsOnBottom({ bordered, children }: ButtonsOnBottomP
 
   const footerStyle: React.CSSProperties = {
     padding: '1rem',
-    paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))',
+    paddingBottom: 'var(--bottom-anchor-gap)',
   }
 
   return (

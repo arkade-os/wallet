@@ -193,12 +193,20 @@ export default function App() {
         ? Pages.Unlock
         : screen
 
-  // Update the active tab's last-shown page for keep-alive
-  useEffect(() => {
-    if (tab !== Tabs.None) {
-      tabPages.current[tab] = page
-    }
-  }, [tab, page])
+  // Update the active tab's last-shown page for keep-alive (for tab-switch restore).
+  // This also has to run during render — otherwise the render below reads a stale
+  // ref on the SAME commit that `page` changed, and the new page doesn't appear
+  // until some unrelated state update forces another render. The effect alone can't
+  // fix that: effects run after commit, ref mutations don't trigger re-renders.
+  if (tab !== Tabs.None) {
+    tabPages.current[tab] = page
+  }
+
+  // Pages to render per tab: current `page` for the active tab (fresh every render),
+  // last-known page for inactive tabs (preserved across tab switches).
+  const walletTabPage = tab === Tabs.Wallet ? page : tabPages.current[Tabs.Wallet]
+  const appsTabPage = tab === Tabs.Apps ? page : tabPages.current[Tabs.Apps]
+  const settingsTabPage = tab === Tabs.Settings ? page : tabPages.current[Tabs.Settings]
 
   // Boot animation: persists on Loading, then flies to the LogoIcon position when
   // Wallet is reached. For any other destination (Unlock, Init, etc.), exits with fly-up.
@@ -264,12 +272,8 @@ export default function App() {
                 animated={tab === Tabs.Wallet && !prefersReduced}
                 direction={tab === Tabs.Wallet ? effectiveDirection : 'none'}
               >
-                <PageTransition
-                  key={String(tabPages.current[Tabs.Wallet])}
-                  direction={direction}
-                  pageKey={String(tabPages.current[Tabs.Wallet])}
-                >
-                  {pageComponent(tabPages.current[Tabs.Wallet])}
+                <PageTransition key={String(walletTabPage)} direction={direction} pageKey={String(walletTabPage)}>
+                  {pageComponent(walletTabPage)}
                 </PageTransition>
               </PageAnimWrapper>
             </div>
@@ -280,12 +284,8 @@ export default function App() {
                 animated={tab === Tabs.Apps && !prefersReduced}
                 direction={tab === Tabs.Apps ? effectiveDirection : 'none'}
               >
-                <PageTransition
-                  key={String(tabPages.current[Tabs.Apps])}
-                  direction={direction}
-                  pageKey={String(tabPages.current[Tabs.Apps])}
-                >
-                  {pageComponent(tabPages.current[Tabs.Apps])}
+                <PageTransition key={String(appsTabPage)} direction={direction} pageKey={String(appsTabPage)}>
+                  {pageComponent(appsTabPage)}
                 </PageTransition>
               </PageAnimWrapper>
             </div>
@@ -296,12 +296,8 @@ export default function App() {
                 animated={tab === Tabs.Settings && !prefersReduced}
                 direction={tab === Tabs.Settings ? effectiveDirection : 'none'}
               >
-                <PageTransition
-                  key={String(tabPages.current[Tabs.Settings])}
-                  direction={direction}
-                  pageKey={String(tabPages.current[Tabs.Settings])}
-                >
-                  {pageComponent(tabPages.current[Tabs.Settings])}
+                <PageTransition key={String(settingsTabPage)} direction={direction} pageKey={String(settingsTabPage)}>
+                  {pageComponent(settingsTabPage)}
                 </PageTransition>
               </PageAnimWrapper>
             </div>
