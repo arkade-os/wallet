@@ -20,6 +20,7 @@ import { SwapsProvider } from './providers/swaps'
 import { shouldInitializeSentry } from './lib/sentry'
 import { FeesProvider } from './providers/fees'
 import { AnnouncementProvider } from './providers/announcements'
+import { HapticProvider } from './providers/haptics'
 import ErrorBoundary from './components/ErrorBoundary'
 
 // Initialize Sentry only in production and when DSN is provided
@@ -68,6 +69,7 @@ const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 
 root.render(
   // <React.StrictMode>
+  <HapticProvider>
   <NavigationProvider>
     <ConfigProvider>
       <AspProvider>
@@ -113,6 +115,7 @@ root.render(
         </NotificationsProvider>
       </AspProvider>
     </ConfigProvider>
-  </NavigationProvider>,
+  </NavigationProvider>
+  </HapticProvider>,
   // </React.StrictMode>,
 )
