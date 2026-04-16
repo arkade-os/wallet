@@ -14,7 +14,7 @@ import { NotificationsContext } from '../../../providers/notifications'
 import { FlowContext } from '../../../providers/flow'
 import Header from '../../../components/Header'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import { formatAssetAmount, prettyAmount } from '../../../lib/format'
+import { formatAssetAmount, prettyAmount, prettyFiatAmount } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
@@ -23,7 +23,7 @@ import type { AssetDetails } from '@arkade-os/sdk'
 
 export default function ReceiveSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
-  const { toFiat, fiatDecimals } = useContext(FiatContext)
+  const { toFiat } = useContext(FiatContext)
   const { recvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetMetadataCache, setCacheEntry, svcWallet } = useContext(WalletContext)
@@ -76,7 +76,7 @@ export default function ReceiveSuccess() {
   }, [assetDetails])
 
   const displayAmount = useFiat
-    ? prettyAmount(toFiat(recvInfo.satoshis), config.fiat, fiatDecimals())
+    ? prettyFiatAmount(toFiat(recvInfo.satoshis), config.fiat)
     : prettyAmount(recvInfo.satoshis)
 
   if (isAssetReceive) {
