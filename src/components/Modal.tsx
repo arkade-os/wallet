@@ -8,7 +8,7 @@ interface ModalProps {
 export default function Modal({ children, onClose }: ModalProps) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose?.()}>
-      <DialogContent showCloseButton={false} className='max-w-[min(22rem,90%)] p-4 rounded-lg border border-dark-10'>
+      <DialogContent showCloseButton={false} className='max-w-[min(22rem,90%)] p-4 rounded-lg shadow-lg'>
         {children}
       </DialogContent>
     </Dialog>
