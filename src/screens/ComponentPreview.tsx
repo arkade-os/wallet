@@ -20,7 +20,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <Text heading big bold>
         {title}
       </Text>
-      <div style={{ border: '1px dashed var(--dark20)', borderRadius: '0.5rem', padding: '1rem' }}>{children}</div>
+      <div style={{ border: '1px dashed var(--neutral-200)', borderRadius: '0.5rem', padding: '1rem' }}>{children}</div>
     </FlexCol>
   )
 }
@@ -34,7 +34,7 @@ function ColorSwatch({ name, cssVar }: { name: string; cssVar: string }) {
           height: 32,
           borderRadius: 4,
           background: `var(${cssVar})`,
-          border: '1px solid var(--dark20)',
+          border: '1px solid var(--neutral-200)',
           flexShrink: 0,
         }}
       />
@@ -42,7 +42,7 @@ function ColorSwatch({ name, cssVar }: { name: string; cssVar: string }) {
         <Text small bold>
           {name}
         </Text>
-        <Text tiny color='dark50'>
+        <Text tiny color='neutral-500'>
           {cssVar}
         </Text>
       </FlexCol>
@@ -94,16 +94,16 @@ export default function ComponentPreview() {
               </div>
             </Section>
 
-            <Section title='Opacity scale'>
+            <Section title='Neutral ramp'>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
-                <ColorSwatch name='Dark 05' cssVar='--dark05' />
-                <ColorSwatch name='Dark 10' cssVar='--dark10' />
-                <ColorSwatch name='Dark 15' cssVar='--dark15' />
-                <ColorSwatch name='Dark 20' cssVar='--dark20' />
-                <ColorSwatch name='Dark 30' cssVar='--dark30' />
-                <ColorSwatch name='Dark 50' cssVar='--dark50' />
-                <ColorSwatch name='Dark 70' cssVar='--dark70' />
-                <ColorSwatch name='Dark 80' cssVar='--dark80' />
+                <ColorSwatch name='Neutral 50' cssVar='--neutral-50' />
+                <ColorSwatch name='Neutral 100' cssVar='--neutral-100' />
+                <ColorSwatch name='Neutral 200' cssVar='--neutral-200' />
+                <ColorSwatch name='Neutral 300' cssVar='--neutral-300' />
+                <ColorSwatch name='Neutral 400' cssVar='--neutral-400' />
+                <ColorSwatch name='Neutral 500' cssVar='--neutral-500' />
+                <ColorSwatch name='Neutral 700' cssVar='--neutral-700' />
+                <ColorSwatch name='Neutral 800' cssVar='--neutral-800' />
               </div>
             </Section>
 
@@ -184,7 +184,7 @@ export default function ComponentPreview() {
                   label='With right element'
                   placeholder='Amount'
                   right={
-                    <Text small color='dark50'>
+                    <Text small color='neutral-500'>
                       SATS
                     </Text>
                   }
@@ -259,7 +259,7 @@ export default function ComponentPreview() {
                 <div className='bg-purple-700 text-white p-3 rounded-md text-sm'>
                   bg-purple-700 text-white p-3 rounded-md
                 </div>
-                <div className='bg-dark-10 p-3 rounded-md text-sm'>bg-dark-10 p-3 rounded-md</div>
+                <div className='bg-neutral-100 p-3 rounded-md text-sm'>bg-neutral-100 p-3 rounded-md</div>
                 <div className='border border-border p-3 rounded-md text-sm'>border border-border p-3 rounded-md</div>
                 <div className='text-muted text-sm'>text-muted (should be 50% opacity)</div>
                 <div className='font-heading text-lg'>font-heading (TT Firs Neue)</div>

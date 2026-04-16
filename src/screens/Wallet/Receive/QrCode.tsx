@@ -389,6 +389,21 @@ export default function ReceiveQRCode() {
   const amountLabel = satoshis ? 'Edit amount' : 'Add amount'
   const unitLabel = assetMeta?.metadata?.ticker ?? 'sats'
 
+  // UX: when an amount is set AND Lightning is actually valid for that amount,
+  // wait up to 5s for arkadeSwaps to initialize before rendering the QR — so
+  // the QR can include the LN invoice if swaps become ready. If swaps time out
+  // or error, fall through and render the QR without LN (with a warning).
+  // Amounts below the LN minimum skip the wait entirely — no reason to hide
+  // the on-chain / Ark QR behind a 5s spinner for a payment that can't use LN.
+  const waitingForLnSwaps =
+    satoshis > 0 &&
+    connected &&
+    !isAssetReceive &&
+    validLnSwap(satoshis) &&
+    !arkadeSwaps &&
+    !swapsInitError &&
+    !swapsTimedOut
+
   return (
     <>
       <Header text='Receive' back={() => navigate(Pages.Wallet)} />
@@ -396,7 +411,7 @@ export default function ReceiveQRCode() {
         <Padded>
           {hasError ? (
             <ErrorMessage error text={`Failed to get address: ${addressError}`} />
-          ) : !addressesLoaded || (!qrCodeValue && !noPaymentMethods) ? (
+          ) : !addressesLoaded || waitingForLnSwaps || (!qrCodeValue && !noPaymentMethods) ? (
             <LoadingLogo text='Loading...' />
           ) : noPaymentMethods ? (
             <div>No valid payment methods available for this amount</div>
@@ -432,12 +447,12 @@ export default function ReceiveQRCode() {
                     <QrCode value={qrCodeValue} />
                   </button>
                   {satoshis > 0 ? (
-                    <div style={{ fontSize: '14px', color: 'var(--dark50)', marginTop: '0.5rem' }}>
+                    <div style={{ fontSize: '14px', color: 'var(--neutral-500)', marginTop: '0.5rem' }}>
                       Requesting {prettyNumber(satoshis)} {unitLabel}
                     </div>
                   ) : null}
                   {(!satoshis || satoshis < minSwapAllowed()) && !isAssetReceive ? (
-                    <div style={{ fontSize: '13px', color: 'var(--dark50)', marginTop: '0.25rem' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--neutral-500)', marginTop: '0.25rem' }}>
                       {minSwapAllowed()} sats min for Lightning
                     </div>
                   ) : null}
@@ -621,10 +636,10 @@ function AddressLine({
           }}
           style={{
             alignItems: 'center',
-            background: 'var(--dark05)',
+            background: 'var(--neutral-50)',
             border: 'none',
             borderRadius: '8px',
-            color: 'var(--dark30)',
+            color: 'var(--neutral-300)',
             cursor: 'pointer',
             display: 'flex',
             justifyContent: 'center',
