@@ -28,9 +28,7 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   expect(invoice).toContain('lnbcrt')
 
   // pay invoice
-  console.log('Paying invoice:', invoice)
-  execAsync(`docker exec lnd lncli --network=regtest payinvoice ${invoice} --force`)
-  console.log('Invoice paid, waiting for Arkade to receive the payment...')
+  await execAsync(`docker exec lnd lncli --network=regtest payinvoice ${invoice} --force`)
 
   // wait for payment received
   await waitForPaymentReceived(page)
