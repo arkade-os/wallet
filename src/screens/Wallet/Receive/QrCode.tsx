@@ -156,7 +156,6 @@ export default function ReceiveQRCode() {
     return new Promise((resolve, reject) => {
       if (invoice) return reject()
       if (!validLnSwap(satoshis)) return reject()
-      console.log('Creating Lightning invoice for', satoshis, 'sats')
       createReverseSwap(satoshis)
         .then((pendingSwap) => {
           if (!pendingSwap) throw new Error('Failed to create reverse swap')
