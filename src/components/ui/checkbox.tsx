@@ -7,11 +7,7 @@ import { Checkbox as CheckboxPrimitive } from 'radix-ui'
 import { cn } from '../../lib/utils'
 import { useHapticCheckedChange } from '../../lib/haptics'
 
-function Checkbox({
-  className,
-  onCheckedChange,
-  ...props
-}: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
+function Checkbox({ className, onCheckedChange, ...props }: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
   return (
     <CheckboxPrimitive.Root
       data-slot='checkbox'

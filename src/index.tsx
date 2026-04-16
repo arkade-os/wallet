@@ -70,52 +70,52 @@ const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 root.render(
   // <React.StrictMode>
   <HapticProvider>
-  <NavigationProvider>
-    <ConfigProvider>
-      <AspProvider>
-        <NotificationsProvider>
-          <FiatProvider>
-            <FlowProvider>
-              <WalletProvider>
-                <SwapsProvider>
-                  <LimitsProvider>
-                    <FeesProvider>
-                      <OptionsProvider>
-                        <NudgeProvider>
-                          <AnnouncementProvider>
-                            <Toaster
-                              position='top-center'
-                              duration={1500}
-                              toastOptions={{
-                                style: {
-                                  background: 'var(--fg)',
-                                  color: 'var(--bg)',
-                                  borderRadius: '0.5rem',
-                                  border: 'none',
-                                  textAlign: 'center',
-                                  maxWidth: '260px',
-                                  padding: '0.75rem 1rem',
-                                  fontSize: '0.875rem',
-                                  justifyContent: 'center',
-                                },
-                              }}
-                            />
-                            <ErrorBoundary>
-                              <App />
-                            </ErrorBoundary>
-                          </AnnouncementProvider>
-                        </NudgeProvider>
-                      </OptionsProvider>
-                    </FeesProvider>
-                  </LimitsProvider>
-                </SwapsProvider>
-              </WalletProvider>
-            </FlowProvider>
-          </FiatProvider>
-        </NotificationsProvider>
-      </AspProvider>
-    </ConfigProvider>
-  </NavigationProvider>
+    <NavigationProvider>
+      <ConfigProvider>
+        <AspProvider>
+          <NotificationsProvider>
+            <FiatProvider>
+              <FlowProvider>
+                <WalletProvider>
+                  <SwapsProvider>
+                    <LimitsProvider>
+                      <FeesProvider>
+                        <OptionsProvider>
+                          <NudgeProvider>
+                            <AnnouncementProvider>
+                              <Toaster
+                                position='top-center'
+                                duration={1500}
+                                toastOptions={{
+                                  style: {
+                                    background: 'var(--fg)',
+                                    color: 'var(--bg)',
+                                    borderRadius: '0.5rem',
+                                    border: 'none',
+                                    textAlign: 'center',
+                                    maxWidth: '260px',
+                                    padding: '0.75rem 1rem',
+                                    fontSize: '0.875rem',
+                                    justifyContent: 'center',
+                                  },
+                                }}
+                              />
+                              <ErrorBoundary>
+                                <App />
+                              </ErrorBoundary>
+                            </AnnouncementProvider>
+                          </NudgeProvider>
+                        </OptionsProvider>
+                      </FeesProvider>
+                    </LimitsProvider>
+                  </SwapsProvider>
+                </WalletProvider>
+              </FlowProvider>
+            </FiatProvider>
+          </NotificationsProvider>
+        </AspProvider>
+      </ConfigProvider>
+    </NavigationProvider>
   </HapticProvider>,
   // </React.StrictMode>,
 )

@@ -134,57 +134,57 @@
 
   /* Body / UI scale — Geist. text-base is 16px so iOS Safari doesn't zoom
      on input focus. Line heights tighten as size grows. */
-  --text-xs-size: 0.75rem;         /* 12px */
-  --text-xs-line: 1rem;            /* 16px — 1.33 */
-  --text-sm-size: 0.875rem;        /* 14px */
-  --text-sm-line: 1.25rem;         /* 20px — 1.43 */
-  --text-base-size: 1rem;          /* 16px */
-  --text-base-line: 1.5rem;        /* 24px — 1.5 */
-  --text-lg-size: 1.125rem;        /* 18px */
-  --text-lg-line: 1.625rem;        /* 26px — 1.44 */
-  --text-xl-size: 1.25rem;         /* 20px */
-  --text-xl-line: 1.75rem;         /* 28px — 1.4 */
-  --text-2xl-size: 1.5rem;         /* 24px */
-  --text-2xl-line: 2rem;           /* 32px — 1.33 */
-  --text-3xl-size: 1.875rem;       /* 30px */
-  --text-3xl-line: 2.25rem;        /* 36px — 1.2 */
-  --text-4xl-size: 2.25rem;        /* 36px */
-  --text-4xl-line: 2.5rem;         /* 40px — 1.11 */
-  --text-5xl-size: 3rem;           /* 48px */
-  --text-5xl-line: 1;              /* 1.0 — tight display */
-  --text-6xl-size: 3.75rem;        /* 60px */
+  --text-xs-size: 0.75rem; /* 12px */
+  --text-xs-line: 1rem; /* 16px — 1.33 */
+  --text-sm-size: 0.875rem; /* 14px */
+  --text-sm-line: 1.25rem; /* 20px — 1.43 */
+  --text-base-size: 1rem; /* 16px */
+  --text-base-line: 1.5rem; /* 24px — 1.5 */
+  --text-lg-size: 1.125rem; /* 18px */
+  --text-lg-line: 1.625rem; /* 26px — 1.44 */
+  --text-xl-size: 1.25rem; /* 20px */
+  --text-xl-line: 1.75rem; /* 28px — 1.4 */
+  --text-2xl-size: 1.5rem; /* 24px */
+  --text-2xl-line: 2rem; /* 32px — 1.33 */
+  --text-3xl-size: 1.875rem; /* 30px */
+  --text-3xl-line: 2.25rem; /* 36px — 1.2 */
+  --text-4xl-size: 2.25rem; /* 36px */
+  --text-4xl-line: 2.5rem; /* 40px — 1.11 */
+  --text-5xl-size: 3rem; /* 48px */
+  --text-5xl-line: 1; /* 1.0 — tight display */
+  --text-6xl-size: 3.75rem; /* 60px */
   --text-6xl-line: 1;
-  --text-7xl-size: 4.5rem;         /* 72px */
+  --text-7xl-size: 4.5rem; /* 72px */
   --text-7xl-line: 1;
-  --text-8xl-size: 6rem;           /* 96px */
+  --text-8xl-size: 6rem; /* 96px */
   --text-8xl-line: 1;
-  --text-9xl-size: 8rem;           /* 128px */
+  --text-9xl-size: 8rem; /* 128px */
   --text-9xl-line: 1;
 
   /* Heading / display scale — TT Firs Neue. Exposed as `text-heading-*` in
      @theme, which bundles font, weight, line-height, and letter-spacing. */
-  --heading-sm-size: 1.125rem;      /* 18px — small section label */
-  --heading-sm-line: 1.5rem;        /* 24px — 1.33 */
+  --heading-sm-size: 1.125rem; /* 18px — small section label */
+  --heading-sm-line: 1.5rem; /* 24px — 1.33 */
   --heading-sm-tracking: -0.005em;
-  --heading-md-size: 1.375rem;      /* 22px — card / subsection heading */
-  --heading-md-line: 1.75rem;       /* 28px — 1.27 */
+  --heading-md-size: 1.375rem; /* 22px — card / subsection heading */
+  --heading-md-line: 1.75rem; /* 28px — 1.27 */
   --heading-md-tracking: -0.01em;
-  --heading-lg-size: 1.75rem;       /* 28px — section heading */
-  --heading-lg-line: 2.125rem;      /* 34px — 1.21 */
+  --heading-lg-size: 1.75rem; /* 28px — section heading */
+  --heading-lg-line: 2.125rem; /* 34px — 1.21 */
   --heading-lg-tracking: -0.015em;
-  --heading-xl-size: 2.25rem;       /* 36px — page title */
-  --heading-xl-line: 2.5rem;        /* 40px — 1.11 */
+  --heading-xl-size: 2.25rem; /* 36px — page title */
+  --heading-xl-line: 2.5rem; /* 40px — 1.11 */
   --heading-xl-tracking: -0.02em;
-  --heading-2xl-size: 3rem;         /* 48px — hero */
-  --heading-2xl-line: 3.25rem;      /* 52px — 1.08 */
+  --heading-2xl-size: 3rem; /* 48px — hero */
+  --heading-2xl-line: 3.25rem; /* 52px — 1.08 */
   --heading-2xl-tracking: -0.025em;
-  --heading-3xl-size: 4rem;         /* 64px — big hero */
-  --heading-3xl-line: 4.25rem;      /* 68px — 1.06 */
+  --heading-3xl-size: 4rem; /* 64px — big hero */
+  --heading-3xl-line: 4.25rem; /* 68px — 1.06 */
   --heading-3xl-tracking: -0.03em;
-  --heading-4xl-size: 5rem;         /* 80px — splash display */
-  --heading-4xl-line: 5.25rem;      /* 84px — 1.05 */
+  --heading-4xl-size: 5rem; /* 80px — splash display */
+  --heading-4xl-line: 5.25rem; /* 84px — 1.05 */
   --heading-4xl-tracking: -0.035em;
-  --heading-5xl-size: 6.5rem;       /* 104px — megatype */
+  --heading-5xl-size: 6.5rem; /* 104px — megatype */
   --heading-5xl-line: 1;
   --heading-5xl-tracking: -0.04em;
 
@@ -194,28 +194,16 @@
   /* Shadows — three-layer (outline + soft + depth) per ui-polish skill.
      Named --elevation-* so app.css @theme can map `--shadow-sm: var(--elevation-sm)`
      without a CSS var cycle. */
-  --elevation-sm:
-    0 0 0 1px rgb(0 0 0 / 0.04),
-    0 1px 2px -1px rgb(0 0 0 / 0.06),
-    0 2px 4px 0 rgb(0 0 0 / 0.04);
-  --elevation-md:
-    0 0 0 1px rgb(0 0 0 / 0.06),
-    0 2px 4px -1px rgb(0 0 0 / 0.08),
-    0 4px 8px 0 rgb(0 0 0 / 0.05);
-  --elevation-lg:
-    0 0 0 1px rgb(0 0 0 / 0.06),
-    0 6px 12px -2px rgb(0 0 0 / 0.10),
-    0 10px 20px 0 rgb(0 0 0 / 0.06);
-  --elevation-xl:
-    0 0 0 1px rgb(0 0 0 / 0.08),
-    0 12px 24px -4px rgb(0 0 0 / 0.12),
-    0 20px 32px 0 rgb(0 0 0 / 0.08);
+  --elevation-sm: 0 0 0 1px rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.06), 0 2px 4px 0 rgb(0 0 0 / 0.04);
+  --elevation-md: 0 0 0 1px rgb(0 0 0 / 0.06), 0 2px 4px -1px rgb(0 0 0 / 0.08), 0 4px 8px 0 rgb(0 0 0 / 0.05);
+  --elevation-lg: 0 0 0 1px rgb(0 0 0 / 0.06), 0 6px 12px -2px rgb(0 0 0 / 0.1), 0 10px 20px 0 rgb(0 0 0 / 0.06);
+  --elevation-xl: 0 0 0 1px rgb(0 0 0 / 0.08), 0 12px 24px -4px rgb(0 0 0 / 0.12), 0 20px 32px 0 rgb(0 0 0 / 0.08);
 
   /* Radius tokens live in app.css @theme (Tailwind v4 emits them at :root). */
 
   /* Touch targets — 44px iOS HIG minimum, 48px Material comfort */
-  --size-touch-min: 2.75rem;       /* 44px */
-  --size-touch-lg: 3rem;           /* 48px */
+  --size-touch-min: 2.75rem; /* 44px */
+  --size-touch-lg: 3rem; /* 48px */
 
   /* Layout */
   --pill-navbar-spacer: calc(80px + env(safe-area-inset-bottom, 0px));
@@ -248,22 +236,10 @@
 
   /* Shadows — three-layer, stronger in dark mode for visibility.
      Outline layer uses white-alpha for crisp rim in dark mode. */
-  --elevation-sm:
-    0 0 0 1px rgb(255 255 255 / 0.06),
-    0 1px 2px -1px rgb(0 0 0 / 0.4),
-    0 2px 4px 0 rgb(0 0 0 / 0.3);
-  --elevation-md:
-    0 0 0 1px rgb(255 255 255 / 0.08),
-    0 2px 4px -1px rgb(0 0 0 / 0.45),
-    0 4px 8px 0 rgb(0 0 0 / 0.3);
-  --elevation-lg:
-    0 0 0 1px rgb(255 255 255 / 0.08),
-    0 6px 12px -2px rgb(0 0 0 / 0.5),
-    0 10px 20px 0 rgb(0 0 0 / 0.35);
-  --elevation-xl:
-    0 0 0 1px rgb(255 255 255 / 0.1),
-    0 12px 24px -4px rgb(0 0 0 / 0.6),
-    0 20px 32px 0 rgb(0 0 0 / 0.4);
+  --elevation-sm: 0 0 0 1px rgb(255 255 255 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.4), 0 2px 4px 0 rgb(0 0 0 / 0.3);
+  --elevation-md: 0 0 0 1px rgb(255 255 255 / 0.08), 0 2px 4px -1px rgb(0 0 0 / 0.45), 0 4px 8px 0 rgb(0 0 0 / 0.3);
+  --elevation-lg: 0 0 0 1px rgb(255 255 255 / 0.08), 0 6px 12px -2px rgb(0 0 0 / 0.5), 0 10px 20px 0 rgb(0 0 0 / 0.35);
+  --elevation-xl: 0 0 0 1px rgb(255 255 255 / 0.1), 0 12px 24px -4px rgb(0 0 0 / 0.6), 0 20px 32px 0 rgb(0 0 0 / 0.4);
 
   /* Opacity scale auto-derives from --fg-rgb */
 }

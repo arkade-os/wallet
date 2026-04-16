@@ -81,7 +81,8 @@ function buildTree(overrides?: RenderOverrides) {
   const config = { ...mockConfigContextValue, ...overrides?.config }
 
   return (
-    <><Toaster />
+    <>
+      <Toaster />
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <AspContext.Provider value={mockAspContextValue}>
           <ConfigContext.Provider value={config as any}>

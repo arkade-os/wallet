@@ -207,11 +207,11 @@
    * Tailwind emits `rounded-*` utilities too.
    * ====================================== */
 
-  --radius-sm: 0.25rem;        /* 4px  */
-  --radius-md: 0.5rem;         /* 8px  */
-  --radius-lg: 1rem;           /* 16px */
-  --radius-xl: 1.5rem;         /* 24px */
-  --radius-2xl: 2rem;          /* 32px */
+  --radius-sm: 0.25rem; /* 4px  */
+  --radius-md: 0.5rem; /* 8px  */
+  --radius-lg: 1rem; /* 16px */
+  --radius-xl: 1.5rem; /* 24px */
+  --radius-2xl: 2rem; /* 32px */
   --radius-full: 9999px;
 
   /* ======================================

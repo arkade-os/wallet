@@ -22,13 +22,7 @@ export default function Toggle({ checked, onClick, text, subtext, testId }: Togg
       <label htmlFor={id} style={{ cursor: 'pointer', display: 'block', minHeight: 44 }}>
         <FlexRow between>
           <Text thin>{text}</Text>
-          <Switch
-            id={id}
-            checked={checked}
-            onCheckedChange={onClick}
-            data-testid={testId}
-            aria-checked={checked}
-          />
+          <Switch id={id} checked={checked} onCheckedChange={onClick} data-testid={testId} aria-checked={checked} />
         </FlexRow>
       </label>
       {subtext ? (

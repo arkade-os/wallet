@@ -17,7 +17,13 @@ export default function SheetModal({ children, isOpen, onClose }: SheetModalProp
   return (
     <Drawer open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DrawerContent className='max-w-[640px] mx-auto'>
-        <div style={{ padding: '1rem', paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 0px))', position: 'relative' }}>
+        <div
+          style={{
+            padding: '1rem',
+            paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 0px))',
+            position: 'relative',
+          }}
+        >
           <DrawerClose
             style={{
               background: 'none',

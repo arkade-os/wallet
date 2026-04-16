@@ -60,7 +60,15 @@ export default function Reminder({ callback, duration, name, isOpen, startTime }
           <DrawerTitle>{name}</DrawerTitle>
           <DrawerDescription>{prettyDate(startTime)}</DrawerDescription>
         </DrawerHeader>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0 1rem', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 0px))' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem',
+            padding: '0 1rem',
+            paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 0px))',
+          }}
+        >
           <button type='button' style={buttonStyle} onClick={handleGoogle}>
             Google Calendar
           </button>
