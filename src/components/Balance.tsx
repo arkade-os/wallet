@@ -41,7 +41,7 @@ export default function Balance({ amount }: BalanceProps) {
   return (
     <FlexCol gap='0' margin='2.5rem 0 1rem 0'>
       <FlexRow alignItems='baseline'>
-        <Text bigger heading medium>
+        <Text bigger heading medium testId='main-balance'>
           {mainBalance}
         </Text>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

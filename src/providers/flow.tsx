@@ -1,4 +1,4 @@
-import { PendingSwap } from '@arkade-os/boltz-swap'
+import { BoltzSwap } from '@arkade-os/boltz-swap'
 import { ReactNode, createContext, useState } from 'react'
 import type { Asset, AssetDetails } from '@arkade-os/sdk'
 import { Tx } from '../lib/types'
@@ -38,7 +38,7 @@ export type SendInfo = {
   arkAddress?: string
   invoice?: string
   lnUrl?: string
-  pendingSwap?: PendingSwap
+  pendingSwap?: BoltzSwap
   recipient?: string
   satoshis?: number
   swapId?: string
@@ -47,7 +47,7 @@ export type SendInfo = {
   txid?: string
 }
 
-export type SwapInfo = PendingSwap | undefined
+export type SwapInfo = BoltzSwap | undefined
 
 export type TxInfo = Tx | undefined
 

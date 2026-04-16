@@ -20,7 +20,7 @@ export default function AssetCard({ assetId, balance, decimals, icon, name, tick
   const tokenTick = ticker ? ticker : 'TKN'
   return (
     <Shadow key={assetId} border onClick={onClick} darkPurple>
-      <FlexRow between padding='0.75rem'>
+      <FlexRow between padding='0.75rem' testId={tokenTick}>
         <FlexRow>
           <AssetAvatar icon={icon} name={name} ticker={ticker} size={32} assetId={assetId} clickable />
           <FlexCol gap='0'>

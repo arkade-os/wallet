@@ -152,29 +152,38 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   // wallet is read synchronously in useState initializer above
 
+  const devNsec = import.meta.env.VITE_DEV_NSEC as string | undefined
+  const isDevAutoInit = import.meta.env.DEV && Boolean(devNsec)
+  const [devAutoInitFailed, setDevAutoInitFailed] = useState(false)
+
   // dev-only: auto-initialize wallet from VITE_DEV_NSEC, bypassing onboarding and unlock
   useEffect(() => {
-    if (!import.meta.env.DEV || !import.meta.env.VITE_DEV_NSEC) return
+    if (!isDevAutoInit || !devNsec || devAutoInitFailed) return
     if (initialized) return
     if (!aspInfo.url) return
 
     const autoInit = async () => {
       try {
-        const privateKey = nsecToPrivateKey(import.meta.env.VITE_DEV_NSEC)
-        setAuthState('authenticated')
+        const privateKey = nsecToPrivateKey(devNsec)
         await initWallet(privateKey)
+        setAuthState('authenticated')
       } catch (err) {
         consoleError(err, 'Dev auto-init failed')
+        setDevAutoInitFailed(true)
       }
     }
 
     autoInit()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspInfo.url, initialized])
+  }, [aspInfo.url, initialized, devAutoInitFailed])
 
   useEffect(() => {
-    // Dev auto-init bypasses password, so skip the auth state check
-    if (import.meta.env.DEV && import.meta.env.VITE_DEV_NSEC) return
+    // skip auth check when dev auto-init will handle it
+    if (isDevAutoInit && !devAutoInitFailed) {
+      if (!initialized) return
+      setAuthState('authenticated')
+      return
+    }
 
     if (!wallet.pubkey) {
       setAuthState('authenticated')
@@ -266,6 +275,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       return
     }
     // if app url is present, navigate to it
+    if (!deepLinkInfo?.appId) return
     switch (deepLinkInfo?.appId) {
       case 'boltz':
         navigate(Pages.AppBoltz)
@@ -390,9 +400,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           SETTLE: 60_000,
           SEND: 60_000,
         },
-        ...(wallet.thresholdMs && {
-          settlementConfig: { vtxoThreshold: Math.floor(wallet.thresholdMs / 1000) },
-        }),
+        settlementConfig: { vtxoThreshold: wallet.thresholdMs ? Math.floor(wallet.thresholdMs / 1000) : 1 },
       })
 
       // Migration!
