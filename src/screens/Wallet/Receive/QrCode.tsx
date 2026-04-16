@@ -59,6 +59,7 @@ export default function ReceiveQRCode() {
 
   const [sharing, setSharing] = useState(false)
   const [addressesLoaded, setAddressesLoaded] = useState(false)
+  const [qrTransform, setQrTransform] = useState('')
 
   // Amount sheet state
   const [showAmountSheet, setShowAmountSheet] = useState(false)
@@ -408,12 +409,10 @@ export default function ReceiveQRCode() {
                   <button
                     type='button'
                     onClick={() => handleCopy(qrCodeValue)}
-                    onPointerDown={(e) => {
-                      if (!prefersReducedMotion) e.currentTarget.style.transform = 'scale(0.97)'
-                    }}
-                    onPointerUp={(e) => (e.currentTarget.style.transform = '')}
-                    onPointerLeave={(e) => (e.currentTarget.style.transform = '')}
-                    onPointerCancel={(e) => (e.currentTarget.style.transform = '')}
+                    onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
+                    onPointerUp={() => setQrTransform('')}
+                    onPointerLeave={() => setQrTransform('')}
+                    onPointerCancel={() => setQrTransform('')}
                     aria-label='Copy QR code'
                     style={{
                       background: 'none',
@@ -429,6 +428,7 @@ export default function ReceiveQRCode() {
                         : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
                       WebkitTapHighlightColor: 'transparent',
                       touchAction: 'manipulation',
+                      transform: qrTransform,
                     }}
                   >
                     <QrCode value={qrCodeValue} />
