@@ -173,37 +173,55 @@ button.atcb-button {
   isolation: isolate;
 }
 
-.pill-navbar-layer--hidden .pill-navbar {
+.pill-navbar-layer--hidden .pill-navbar-slot {
+  pointer-events: none;
+}
+
+.pill-navbar-chrome {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: calc(var(--pill-navbar-slot) + 32px);
+  background: linear-gradient(
+    to top,
+    rgba(var(--fade-rgb), 0.96) 0%,
+    rgba(var(--fade-rgb), 0.9) 35%,
+    rgba(var(--fade-rgb), 0.6) 65%,
+    rgba(var(--fade-rgb), 0.2) 88%,
+    rgba(var(--fade-rgb), 0) 100%
+  );
+  pointer-events: none;
+}
+
+.pill-navbar-slot {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  padding: var(--pill-navbar-dock-padding-top) 12px var(--pill-navbar-dock-padding-bottom);
   pointer-events: none;
 }
 
 .pill-navbar {
-  position: absolute;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative;
   width: fit-content;
   max-width: calc(100vw - 24px);
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 999px;
-  background-color: var(--bg);
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.08),
-    0 1px 3px -1px rgba(0, 0, 0, 0.12),
-    0 8px 20px -4px rgba(0, 0, 0, 0.14);
-  z-index: 1;
+  background-color: color-mix(in srgb, var(--bg) 92%, white 8%);
+  box-shadow: var(--elevation-lg);
   pointer-events: auto;
 }
 
 .dark .pill-navbar {
-  background-color: #1c1c1e;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.1),
-    0 1px 3px -1px rgba(0, 0, 0, 0.4),
-    0 8px 24px -4px rgba(0, 0, 0, 0.6);
+  border-color: rgba(255, 255, 255, 0.12);
+  background-color: color-mix(in srgb, var(--bg) 82%, white 18%);
 }
 
 .pill-nav-btn {
@@ -252,36 +270,6 @@ button.atcb-button {
   font-size: 0.65rem;
   font-weight: 500;
   letter-spacing: 0.01em;
-}
-
-.pill-navbar-haze {
-  position: absolute;
-  left: 50%;
-  bottom: calc(env(safe-area-inset-bottom, 0px) - 12px);
-  width: min(460px, calc(100vw - 16px));
-  height: 136px;
-  transform: translateX(-50%);
-  z-index: 0;
-  background: radial-gradient(
-    ellipse 78% 88% at 50% 100%,
-    rgba(var(--fade-rgb), 0.68) 0%,
-    rgba(var(--fade-rgb), 0.5) 24%,
-    rgba(var(--fade-rgb), 0.24) 52%,
-    rgba(var(--fade-rgb), 0.08) 74%,
-    rgba(var(--fade-rgb), 0) 100%
-  );
-  pointer-events: none;
-}
-
-.dark .pill-navbar-haze {
-  background: radial-gradient(
-    ellipse 78% 88% at 50% 100%,
-    rgba(var(--fade-rgb), 0.84) 0%,
-    rgba(var(--fade-rgb), 0.62) 26%,
-    rgba(var(--fade-rgb), 0.32) 54%,
-    rgba(var(--fade-rgb), 0.12) 74%,
-    rgba(var(--fade-rgb), 0) 100%
-  );
 }
 
 /* Tab icon animation wrapper */
