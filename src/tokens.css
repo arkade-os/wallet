@@ -215,7 +215,9 @@
   --pill-navbar-height: 52px;
   --pill-navbar-dock-padding-top: 6px;
   --pill-navbar-dock-padding-bottom: var(--bottom-anchor-gap);
-  --pill-navbar-slot: calc(var(--pill-navbar-height) + var(--pill-navbar-dock-padding-top) + var(--pill-navbar-dock-padding-bottom));
+  --pill-navbar-slot: calc(
+    var(--pill-navbar-height) + var(--pill-navbar-dock-padding-top) + var(--pill-navbar-dock-padding-bottom)
+  );
   --pill-navbar-spacer: calc(var(--pill-navbar-slot) + 20px);
   --pill-navbar-clearance: calc(var(--pill-navbar-slot) + 14px);
   --pill-navbar-footer-clearance: calc(var(--pill-navbar-slot) + 22px);
