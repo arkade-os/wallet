@@ -460,6 +460,7 @@ export default function SendForm() {
     } else if (satoshis && sendInfo.address) {
       const amountForSwap = deductFromAmount ? satoshis - calcArkToBtcSwapFee(satoshis) : satoshis
       if (amountForSwap < 1) return handleError('Amount too low to cover fees')
+      if (!validArkToBtc(amountForSwap)) return navigate(Pages.SendDetails)
       createArkToBtcSwap(sendInfo.address, amountForSwap)
         .then((result) => {
           if (!result) return navigate(Pages.SendDetails)

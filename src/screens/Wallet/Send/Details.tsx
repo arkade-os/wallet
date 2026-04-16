@@ -16,7 +16,6 @@ import { collaborativeExitWithFees, sendOffChain } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
-import WaitingForRound from '../../../components/WaitingForRound'
 import { LimitsContext } from '../../../providers/limits'
 import { SwapsContext } from '../../../providers/swaps'
 import Text from '../../../components/Text'
@@ -144,11 +143,11 @@ export default function SendDetails() {
         .then(handleTxid)
         .catch(handleError)
     } else if (arkAddress) {
-      if (!details.total) return setError('Missing total amount')
+      if (!details.total) return handleError('Missing total amount')
       sendOffChain(svcWallet, details.total, arkAddress).then(handleTxid).catch(handleError)
     } else if (invoice && pendingSwap && isPendingSubmarineSwap(pendingSwap)) {
       const swapAddress = pendingSwap.response.address
-      if (!swapAddress) return setError('Swap address not available')
+      if (!swapAddress) return handleError('Swap address not available')
       payInvoice(pendingSwap).then(handlePreimage).catch(handleError)
     } else if (address) {
       if (pendingSwap && isPendingChainSwap(pendingSwap)) {
@@ -156,8 +155,8 @@ export default function SendDetails() {
           .then(({ txid }) => handleTxid(txid))
           .catch(handleError)
       } else {
-        if (!details.total) return setError('Missing input amount')
-        if (!details.satoshis) return setError('Missing output amount')
+        if (!details.total) return handleError('Missing input amount')
+        if (!details.satoshis) return handleError('Missing output amount')
         collaborativeExitWithFees(svcWallet, details.total, details.satoshis, address)
           .then(handleTxid)
           .catch(handleError)
@@ -185,7 +184,12 @@ export default function SendDetails() {
               onExitComplete={handleExitComplete}
             />
           ) : (
-            <WaitingForRound done={sendDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
+            <LoadingLogo
+              text='Paying to Bitcoin'
+              done={sendDone}
+              exitMode='fly-up'
+              onExitComplete={handleExitComplete}
+            />
           )
         ) : (
           <Padded>
