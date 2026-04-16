@@ -232,6 +232,10 @@ ion-tab-bar ion-tab-button {
   padding-top: 2rem;
 }
 
+ion-footer.buttons-on-bottom {
+  padding-bottom: calc(var(--ion-padding, 16px) + env(safe-area-inset-bottom, 0px));
+}
+
 ion-app.has-pill-navbar ion-content {
   --padding-bottom: var(--pill-navbar-clearance);
 }
