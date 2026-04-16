@@ -125,8 +125,8 @@ button {
     box-shadow: 0 0 0 0 var(--btn-shadow-color);
   }
   &.clear {
+    border: none;
     background: none;
-    border-color: none;
     color: var(--black);
     box-shadow: none;
     &.pressed {
