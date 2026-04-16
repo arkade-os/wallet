@@ -1,5 +1,5 @@
 import { useContext } from 'react'
-import { prettyAmount, prettyHide } from '../lib/format'
+import { prettyAmount, prettyFiatAmount, prettyFiatHide, prettyHide } from '../lib/format'
 import { ConfigContext } from '../providers/config'
 import { FiatContext } from '../providers/fiat'
 import FeesIcon from '../icons/Fees'
@@ -73,8 +73,11 @@ export default function Details({ details }: { details?: DetailsProps }) {
 
   const formatAmount = (amount?: number) => {
     if (amount === undefined) return ''
-    const prettyFunc = config.showBalance ? prettyAmount : prettyHide
-    return useFiat ? prettyFunc(toFiat(amount), config.fiat) : prettyFunc(amount)
+    if (useFiat) {
+      const fiat = toFiat(amount)
+      return config.showBalance ? prettyFiatAmount(fiat, config.fiat) : prettyFiatHide(fiat, config.fiat)
+    }
+    return config.showBalance ? prettyAmount(amount) : prettyHide(amount)
   }
 
   // Only show explorer link if URL is available (e.g., mainnet for vmempool)
