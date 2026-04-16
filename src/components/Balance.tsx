@@ -1,5 +1,6 @@
 import { useContext } from 'react'
 import { prettyHide, prettyNumber } from '../lib/format'
+import { FIAT_SYMBOLS } from '../lib/fiat'
 import { CurrencyDisplay, Satoshis } from '../lib/types'
 import { FiatContext } from '../providers/fiat'
 import Text from './Text'
@@ -18,17 +19,21 @@ export default function Balance({ amount }: BalanceProps) {
 
   const fiatAmount = toFiat(amount)
   const showFiat = config.currencyDisplay === CurrencyDisplay.Fiat
+  const fiatSymbol = FIAT_SYMBOLS[config.fiat]
 
   const satsBalance = config.showBalance ? prettyNumber(amount) : prettyHide(amount, '')
-  const fiatBalance = config.showBalance
+  const fiatBalanceRaw = config.showBalance
     ? prettyNumber(fiatAmount, fiatDecimals(), true, fiatDecimals())
     : prettyHide(fiatAmount, '')
+  // prettyHide returns '' for a zero balance; skip the symbol prefix to avoid a lone "$".
+  const fiatBalance = fiatSymbol && fiatBalanceRaw ? `${fiatSymbol}${fiatBalanceRaw}` : fiatBalanceRaw
+  const fiatUnit = fiatSymbol ? '' : config.fiat
 
   const mainBalance = showFiat ? fiatBalance : satsBalance
   const otherBalance = showFiat ? satsBalance : fiatBalance
   const satsUnit = amount === 1 ? 'SAT' : 'SATS'
-  const mainUnit = showFiat ? config.fiat : satsUnit
-  const otherUnit = showFiat ? satsUnit : config.fiat
+  const mainUnit = showFiat ? fiatUnit : satsUnit
+  const otherUnit = showFiat ? satsUnit : fiatUnit
 
   const showBoth = config.currencyDisplay === CurrencyDisplay.Both
   const toggleShow = () => updateConfig({ ...config, showBalance: !config.showBalance })
@@ -40,7 +45,7 @@ export default function Balance({ amount }: BalanceProps) {
           {mainBalance}
         </Text>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Text heading>{mainUnit}</Text>
+          {mainUnit ? <Text heading>{mainUnit}</Text> : null}
           <button
             type='button'
             onClick={toggleShow}

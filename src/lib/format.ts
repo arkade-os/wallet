@@ -1,5 +1,6 @@
 import { centsToUnits } from './assets'
-import { Satoshis, Tx } from './types'
+import { fiatDecimalsFor, FIAT_SYMBOLS } from './fiat'
+import { Fiats, Satoshis, Tx } from './types'
 import { Decimal } from 'decimal.js'
 
 export const fromSatoshis = (num: Satoshis): number => {
@@ -35,6 +36,12 @@ export const prettyAmount = (amount: string | number, suffix?: string, decimals 
   return `${prettyNumber(sats)} ${sats === 1 ? 'SAT' : 'SATS'}`
 }
 
+export const prettyFiatAmount = (amount: number, currency: Fiats): string => {
+  const symbol = FIAT_SYMBOLS[currency]
+  const formatted = prettyNumber(amount, fiatDecimalsFor(currency))
+  return symbol ? `${symbol}${formatted}` : `${formatted} ${currency}`
+}
+
 export const prettyDelta = (seconds: number, long = true): string => {
   const delta = Math.abs(seconds)
   if (delta >= 86_400) {
@@ -68,11 +75,23 @@ export const prettyDate = (num: number): string => {
   }).format(date)
 }
 
-export const prettyHide = (value: string | number, suffix = 'SATS'): string => {
-  if (!value) return ''
+const hideDots = (value: string | number): string => {
   const str = typeof value === 'string' ? value : value.toString()
   const length = str.length * 2 > 6 ? str.length * 2 : 6
-  return Array(length).fill('·').join('') + ' ' + suffix
+  return '·'.repeat(length)
+}
+
+export const prettyHide = (value: string | number, suffix = 'SATS'): string => {
+  if (!value) return ''
+  const dots = hideDots(value)
+  return suffix ? `${dots} ${suffix}` : dots
+}
+
+export const prettyFiatHide = (value: number, currency: Fiats): string => {
+  if (!value) return ''
+  const dots = hideDots(value)
+  const symbol = FIAT_SYMBOLS[currency]
+  return symbol ? `${symbol}${dots}` : `${dots} ${currency}`
 }
 
 export const prettyLongText = (str?: string, showChars = 11): string => {
