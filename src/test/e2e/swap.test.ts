@@ -1,7 +1,6 @@
 import { test, expect, createWallet, pay, receiveLightning, waitForPaymentReceived, fundWallet } from './utils'
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import { sleep } from '../../lib/sleep'
 
 const execAsync = promisify(exec)
 
