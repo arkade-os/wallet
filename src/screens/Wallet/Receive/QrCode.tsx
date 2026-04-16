@@ -17,7 +17,7 @@ import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { SwapsContext } from '../../../providers/swaps'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
-import { PendingChainSwap, PendingReverseSwap } from '@arkade-os/boltz-swap'
+import { BoltzChainSwap, BoltzReverseSwap } from '@arkade-os/boltz-swap'
 import { enableChainSwapsReceive, lnurlServerUrl } from '../../../lib/constants'
 import { centsToUnits } from '../../../lib/assets'
 import WarningBox from '../../../components/Warning'
@@ -119,8 +119,8 @@ export default function ReceiveQRCode() {
         arkadeSwaps
           .waitAndClaim(pendingSwap)
           .then(() => {
-            setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
-            notifyPaymentReceived(pendingSwap.response.onchainAmount)
+            setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount ?? 0 })
+            notifyPaymentReceived(pendingSwap.response.onchainAmount ?? 0)
             navigate(Pages.ReceiveSuccess)
           })
           .catch((err) => consoleError(err, 'Error claiming LNURL reverse swap'))
@@ -151,6 +151,7 @@ export default function ReceiveQRCode() {
     return new Promise((resolve, reject) => {
       if (invoice) return reject()
       if (!validLnSwap(satoshis)) return reject()
+      console.log('Creating Lightning invoice for', satoshis, 'sats')
       createReverseSwap(satoshis)
         .then((pendingSwap) => {
           if (!pendingSwap) throw new Error('Failed to create reverse swap')
@@ -200,7 +201,7 @@ export default function ReceiveQRCode() {
 
     Promise.allSettled([createBtcAddress(), createLightningInvoice()]).then(([btc, lightning]) => {
       if (btc.status === 'fulfilled') {
-        const pendingSwap = btc.value as PendingChainSwap
+        const pendingSwap = btc.value as BoltzChainSwap
         const btcAddr = pendingSwap.response.lockupDetails.lockupAddress
         setSwapAddress(btcAddr)
         arkadeSwaps
@@ -214,13 +215,13 @@ export default function ReceiveQRCode() {
           })
       }
       if (lightning.status === 'fulfilled') {
-        const pendingSwap = lightning.value as PendingReverseSwap
+        const pendingSwap = lightning.value as BoltzReverseSwap
         const inv = pendingSwap.response.invoice
         setInvoice(inv)
         arkadeSwaps
           .waitAndClaim(pendingSwap)
           .then(() => {
-            setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
+            setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount ?? 0 })
             navigate(Pages.ReceiveSuccess)
           })
           .catch((error) => {
