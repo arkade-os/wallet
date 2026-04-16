@@ -1,4 +1,3 @@
-import { IonButton } from '@ionic/react'
 import { ReactElement, ReactNode, useCallback, useState } from 'react'
 import FlexRow from './FlexRow'
 import ArrowIcon from '../icons/Arrow'
@@ -59,10 +58,9 @@ export default function Button({
   )
 
   return (
-    <IonButton
+    <button
       className={className}
       disabled={disabled}
-      fill={clear ? 'clear' : outline ? 'outline' : 'solid'}
       onClick={handleClick}
       onMouseDown={handlePressStart}
       onMouseUp={handlePressEnd}
@@ -90,7 +88,7 @@ export default function Button({
           {children ?? (label ? <Label label={label} /> : null)}
         </FlexRow>
       )}
-    </IonButton>
+    </button>
   )
 }
 
