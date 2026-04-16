@@ -3,7 +3,16 @@ import { useContext, useRef } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextLabel, TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
-import { formatAssetAmount, isBurn, isIssuance, prettyAmount, prettyDate, prettyHide } from '../lib/format'
+import {
+  formatAssetAmount,
+  isBurn,
+  isIssuance,
+  prettyAmount,
+  prettyDate,
+  prettyFiatAmount,
+  prettyFiatHide,
+  prettyHide,
+} from '../lib/format'
 import AssetAvatar from './AssetAvatar'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
@@ -20,7 +29,7 @@ const border = '1px solid var(--neutral-200)'
 
 const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   const { config } = useContext(ConfigContext)
-  const { toFiat, fiatDecimals } = useContext(FiatContext)
+  const { toFiat } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
 
   const prefix = tx.type === 'sent' ? '-' : '+'
@@ -41,7 +50,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
             : ''
     const value = toFiat(tx.amount)
     const small = config.currencyDisplay === CurrencyDisplay.Both
-    const world = config.showBalance ? prettyAmount(value, config.fiat, fiatDecimals()) : prettyHide(value, config.fiat)
+    const world = config.showBalance ? prettyFiatAmount(value, config.fiat) : prettyFiatHide(value, config.fiat)
     return (
       <Text color={color} small={small}>
         {world}

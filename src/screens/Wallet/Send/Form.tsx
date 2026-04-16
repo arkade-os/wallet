@@ -19,7 +19,7 @@ import InputAmount from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
-import { formatAssetAmount, prettyAmount, prettyNumber } from '../../../lib/format'
+import { formatAssetAmount, prettyAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -58,7 +58,7 @@ export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
-  const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
+  const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { calcSubmarineSwapFee, calcArkToBtcSwapFee, createArkToBtcSwap, createSubmarineSwap, connected, getApiUrl } =
     useContext(SwapsContext)
@@ -642,7 +642,7 @@ export default function SendForm() {
     }
 
     const amount = useFiat ? toFiat(liquidBalance) : liquidBalance
-    const pretty = useFiat ? prettyAmount(amount, config.fiat, fiatDecimals()) : prettyAmount(amount)
+    const pretty = useFiat ? prettyFiatAmount(amount, config.fiat) : prettyAmount(amount)
 
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>

@@ -14,14 +14,14 @@ import Shadow from '../../../components/Shadow'
 import Text from '../../../components/Text'
 import AssetAvatar from '../../../components/AssetAvatar'
 import SuccessIcon from '../../../icons/Success'
-import { formatAssetAmount, prettyAmount } from '../../../lib/format'
+import { formatAssetAmount, prettyAmount, prettyFiatAmount } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
 
 export default function SendSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
-  const { toFiat, fiatDecimals } = useContext(FiatContext)
+  const { toFiat } = useContext(FiatContext)
   const { sendInfo } = useContext(FlowContext)
   const { notifyPaymentSent } = useContext(NotificationsContext)
   const { assetMetadataCache } = useContext(WalletContext)
@@ -45,7 +45,7 @@ export default function SendSuccess() {
   const displayAmount = isAssetSend
     ? `${formatAssetAmount(assetAmountValue, assetDecimals)} ${assetTicker}`
     : useFiat
-      ? prettyAmount(toFiat(totalSats), config.fiat, fiatDecimals())
+      ? prettyFiatAmount(toFiat(totalSats), config.fiat)
       : prettyAmount(totalSats)
 
   if (isAssetSend) {
