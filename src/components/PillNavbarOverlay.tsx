@@ -27,13 +27,15 @@ export default function PillNavbarOverlay({
       transition={prefersReduced ? { duration: 0 } : { type: 'spring', duration: 0.5, bounce: 0.25 }}
       {...(!visible && { inert: '' })}
     >
-      <div className='pill-navbar-haze' aria-hidden='true' />
-      <PillNavbar
-        activeTab={activeTab}
-        onWalletClick={onWalletClick}
-        onAppsClick={onAppsClick}
-        onSettingsClick={onSettingsClick}
-      />
+      <div className='pill-navbar-chrome' aria-hidden='true' />
+      <div className='pill-navbar-slot'>
+        <PillNavbar
+          activeTab={activeTab}
+          onWalletClick={onWalletClick}
+          onAppsClick={onAppsClick}
+          onSettingsClick={onSettingsClick}
+        />
+      </div>
     </motion.div>,
     document.body,
   )

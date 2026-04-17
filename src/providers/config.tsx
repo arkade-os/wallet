@@ -101,7 +101,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
   const applyTheme = (theme: Themes) => {
     const resolved = resolveTheme(theme)
     setEffectiveTheme(resolved)
-    const darkPalette = 'ion-palette-dark'
+    const darkPalette = 'dark'
     const root = document.documentElement
     if (resolved === Themes.Dark) root.classList.add(darkPalette)
     else root.classList.remove(darkPalette)
@@ -135,9 +135,24 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
       defaultConfig.aspUrl = 'http://localhost:7070'
       window.location.hash = ''
     }
+    // Manual reset escape hatch: /#reset clears stored config and reloads.
+    if (window.location.hash === '#reset') {
+      clearStorage().finally(() => {
+        window.location.hash = ''
+        window.location.reload()
+      })
+      return
+    }
     let config = readConfigFromStorage() ?? { ...defaultConfig }
     // merge with defaults to ensure all fields are present
     config = updateDefaultConfig(config)
+    // Narrow auto-migration: if the stored aspUrl is the old dev-default
+    // (localhost:7070) but VITE_ARK_SERVER is now set in this environment,
+    // the user clearly switched from regtest to an env-var-driven setup —
+    // update to the new default so they don't see a stale "unreachable".
+    if (config.aspUrl === 'http://localhost:7070' && import.meta.env.VITE_ARK_SERVER) {
+      config.aspUrl = import.meta.env.VITE_ARK_SERVER
+    }
     updateConfig(config)
     setConfigLoaded(true)
   }, [configLoaded])

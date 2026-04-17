@@ -1,7 +1,9 @@
 import ReactDOM from 'react-dom/client'
+import './tokens.css'
+import './app.css'
 import './index.css'
-import './ionic.css'
 import App from './App'
+import { Toaster } from 'sonner'
 // import IconPreview from './screens/IconPreview'
 import { AspProvider } from './providers/asp'
 import { ConfigProvider } from './providers/config'
@@ -18,7 +20,7 @@ import { SwapsProvider } from './providers/swaps'
 import { shouldInitializeSentry } from './lib/sentry'
 import { FeesProvider } from './providers/fees'
 import { AnnouncementProvider } from './providers/announcements'
-import { ToastProvider } from './components/Toast'
+import { HapticProvider } from './providers/haptics'
 import ErrorBoundary from './components/ErrorBoundary'
 
 // Initialize Sentry only in production and when DSN is provided
@@ -67,36 +69,51 @@ const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 
 root.render(
   // <React.StrictMode>
-  <NavigationProvider>
-    <ConfigProvider>
-      <AspProvider>
-        <NotificationsProvider>
-          <FiatProvider>
-            <FlowProvider>
-              <WalletProvider>
-                <SwapsProvider>
-                  <LimitsProvider>
-                    <FeesProvider>
-                      <OptionsProvider>
-                        <NudgeProvider>
-                          <AnnouncementProvider>
-                            <ToastProvider>
+  <HapticProvider>
+    <NavigationProvider>
+      <ConfigProvider>
+        <AspProvider>
+          <NotificationsProvider>
+            <FiatProvider>
+              <FlowProvider>
+                <WalletProvider>
+                  <SwapsProvider>
+                    <LimitsProvider>
+                      <FeesProvider>
+                        <OptionsProvider>
+                          <NudgeProvider>
+                            <AnnouncementProvider>
+                              <Toaster
+                                position='top-center'
+                                duration={1500}
+                                toastOptions={{
+                                  style: {
+                                    background: 'var(--fg)',
+                                    color: 'var(--bg)',
+                                    borderRadius: '0.5rem',
+                                    border: 'none',
+                                    padding: '0.75rem 1rem',
+                                    fontSize: '0.875rem',
+                                    boxShadow: 'var(--elevation-md)',
+                                  },
+                                }}
+                              />
                               <ErrorBoundary>
                                 <App />
                               </ErrorBoundary>
-                            </ToastProvider>
-                          </AnnouncementProvider>
-                        </NudgeProvider>
-                      </OptionsProvider>
-                    </FeesProvider>
-                  </LimitsProvider>
-                </SwapsProvider>
-              </WalletProvider>
-            </FlowProvider>
-          </FiatProvider>
-        </NotificationsProvider>
-      </AspProvider>
-    </ConfigProvider>
-  </NavigationProvider>,
+                            </AnnouncementProvider>
+                          </NudgeProvider>
+                        </OptionsProvider>
+                      </FeesProvider>
+                    </LimitsProvider>
+                  </SwapsProvider>
+                </WalletProvider>
+              </FlowProvider>
+            </FiatProvider>
+          </NotificationsProvider>
+        </AspProvider>
+      </ConfigProvider>
+    </NavigationProvider>
+  </HapticProvider>,
   // </React.StrictMode>,
 )

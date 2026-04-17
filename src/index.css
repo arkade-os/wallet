@@ -1,55 +1,10 @@
-/* from tailwindcss/base */
-blockquote,
-dl,
-dd,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-hr,
-figure,
-p,
-pre {
-  margin: 0;
-}
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-size: inherit;
-  font-weight: inherit;
-}
-
-img,
-svg,
-video,
-canvas,
-audio,
-iframe,
-embed,
-object {
-  display: block;
-}
-
-img,
-video {
-  max-width: 100%;
-  height: auto;
-}
-
-/* end of tailwindcss/base */
-
 html,
 body,
 #root {
   height: 100%;
   overscroll-behavior: none;
-  background-color: var(--ion-background-color, #fff);
+  background-color: var(--bg);
+  color: var(--fg);
 }
 
 /* Fixed overlay for iOS status bar color sampling.
@@ -63,7 +18,7 @@ body::before {
   left: 0;
   right: 0;
   height: env(safe-area-inset-top);
-  background-color: var(--ion-background-color, #fff);
+  background-color: var(--bg);
   z-index: 99999;
   pointer-events: none;
 }
@@ -100,30 +55,6 @@ iframe {
 
 button.atcb-button {
   box-shadow: none;
-}
-
-button.reminder-button.action-sheet-button {
-  width: calc(100% - 2rem);
-  margin: 1rem;
-  padding: 0;
-  border: 1px solid var(--dark50);
-  border-radius: 0.25rem;
-  background-color: #e5e5e5;
-  color: var(--color);
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  & span.action-sheet-button-inner {
-    justify-content: center;
-  }
-}
-
-.ion-palette-dark button.reminder-button.action-sheet-button {
-  background-color: #222;
-  color: #f7fafc;
 }
 
 .spinner {
@@ -185,8 +116,8 @@ button.reminder-button.action-sheet-button {
 }
 
 .focusable {
-  &:focus-visible {
-    background-color: var(--ion-background-focused);
+  &:focus {
+    background-color: var(--purple20);
   }
 }
 
@@ -195,7 +126,7 @@ button.reminder-button.action-sheet-button {
   width: 100%;
   border: none;
   background: none;
-  border-top: 1px dashed var(--dark10);
+  border-top: 1px dashed var(--neutral-100);
 }
 
 /* Theme transition ripple */
@@ -242,37 +173,55 @@ button.reminder-button.action-sheet-button {
   isolation: isolate;
 }
 
-.pill-navbar-layer--hidden .pill-navbar {
+.pill-navbar-layer--hidden .pill-navbar-slot {
+  pointer-events: none;
+}
+
+.pill-navbar-chrome {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: calc(var(--pill-navbar-slot) + 32px);
+  background: linear-gradient(
+    to top,
+    rgba(var(--fade-rgb), 0.96) 0%,
+    rgba(var(--fade-rgb), 0.9) 35%,
+    rgba(var(--fade-rgb), 0.6) 65%,
+    rgba(var(--fade-rgb), 0.2) 88%,
+    rgba(var(--fade-rgb), 0) 100%
+  );
+  pointer-events: none;
+}
+
+.pill-navbar-slot {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  padding: var(--pill-navbar-dock-padding-top) 12px var(--pill-navbar-dock-padding-bottom);
   pointer-events: none;
 }
 
 .pill-navbar {
-  position: absolute;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative;
   width: fit-content;
   max-width: calc(100vw - 24px);
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 999px;
-  background-color: var(--ion-background-color);
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.08),
-    0 1px 3px -1px rgba(0, 0, 0, 0.12),
-    0 8px 20px -4px rgba(0, 0, 0, 0.14);
-  z-index: 1;
+  background-color: color-mix(in srgb, var(--bg) 92%, white 8%);
+  box-shadow: var(--elevation-lg);
   pointer-events: auto;
 }
 
-.ion-palette-dark .pill-navbar {
-  background-color: #1c1c1e;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.1),
-    0 1px 3px -1px rgba(0, 0, 0, 0.4),
-    0 8px 24px -4px rgba(0, 0, 0, 0.6);
+.dark .pill-navbar {
+  border-color: rgba(255, 255, 255, 0.12);
+  background-color: color-mix(in srgb, var(--bg) 82%, white 18%);
 }
 
 .pill-nav-btn {
@@ -298,10 +247,10 @@ button.reminder-button.action-sheet-button {
 
 .pill-nav-btn--active {
   color: #040404;
-  background-color: var(--dark05);
+  background-color: var(--neutral-50);
 }
 
-.ion-palette-dark .pill-nav-btn--active {
+.dark .pill-nav-btn--active {
   color: #fbfbfb;
 }
 
@@ -321,36 +270,6 @@ button.reminder-button.action-sheet-button {
   font-size: 0.65rem;
   font-weight: 500;
   letter-spacing: 0.01em;
-}
-
-.pill-navbar-haze {
-  position: absolute;
-  left: 50%;
-  bottom: calc(env(safe-area-inset-bottom, 0px) - 12px);
-  width: min(460px, calc(100vw - 16px));
-  height: 136px;
-  transform: translateX(-50%);
-  z-index: 0;
-  background: radial-gradient(
-    ellipse 78% 88% at 50% 100%,
-    rgba(var(--fade-rgb), 0.68) 0%,
-    rgba(var(--fade-rgb), 0.5) 24%,
-    rgba(var(--fade-rgb), 0.24) 52%,
-    rgba(var(--fade-rgb), 0.08) 74%,
-    rgba(var(--fade-rgb), 0) 100%
-  );
-  pointer-events: none;
-}
-
-.ion-palette-dark .pill-navbar-haze {
-  background: radial-gradient(
-    ellipse 78% 88% at 50% 100%,
-    rgba(var(--fade-rgb), 0.84) 0%,
-    rgba(var(--fade-rgb), 0.62) 26%,
-    rgba(var(--fade-rgb), 0.32) 54%,
-    rgba(var(--fade-rgb), 0.12) 74%,
-    rgba(var(--fade-rgb), 0) 100%
-  );
 }
 
 /* Tab icon animation wrapper */
@@ -390,17 +309,70 @@ button.reminder-button.action-sheet-button {
   }
 }
 
+/* Page transition container — constrains absolutely-positioned page transitions */
+.page-transition-container {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 /* Hide inactive tabs so content doesn't bleed through */
 .tab-hidden {
   display: none !important;
 }
 
-/* Hide scrollbar while keeping scroll functionality */
-.hide-scrollbar {
-  scrollbar-width: none;
+/* Content shell — padding for page content */
+.content-shell {
+  height: 100%;
+  padding-top: 2rem;
 }
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
+
+/* Pill navbar clearance for content and footer */
+.has-pill-navbar main[role='main'] {
+  padding-bottom: var(--pill-navbar-clearance);
+}
+
+.has-pill-navbar footer[role='contentinfo'] {
+  margin-bottom: var(--pill-navbar-footer-clearance);
+}
+
+/* Scroll fade mask for content behind pill navbar */
+.has-pill-navbar main[role='main'] {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - var(--pill-navbar-clearance) - 56px),
+    rgba(0, 0, 0, 0.86) calc(100% - var(--pill-navbar-clearance) - 12px),
+    rgba(0, 0, 0, 0.54) calc(100% - var(--pill-navbar-clearance) + 18px),
+    rgba(0, 0, 0, 0.16) calc(100% - 18px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - var(--pill-navbar-clearance) - 56px),
+    rgba(0, 0, 0, 0.86) calc(100% - var(--pill-navbar-clearance) - 12px),
+    rgba(0, 0, 0, 0.54) calc(100% - var(--pill-navbar-clearance) + 18px),
+    rgba(0, 0, 0, 0.16) calc(100% - 18px),
+    transparent 100%
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
+/* Opt out of the scroll fade mask (e.g. Receive QR full-bleed screen) */
+.has-pill-navbar main[role='main'].no-content-fade {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+/* Hide placeholder on focus for native inputs */
+input:focus::placeholder {
+  color: transparent;
 }
 
 /* Hide scrollbar while keeping scroll functionality */
@@ -421,11 +393,11 @@ button.reminder-button.action-sheet-button {
   gap: 0.3rem;
   padding: 0.4rem 0.65rem;
   border-radius: 999px;
-  border: 1px solid var(--dark20);
-  background: var(--dark05);
+  border: 1px solid var(--neutral-200);
+  background: var(--neutral-50);
   cursor: pointer;
   font-size: 13px;
-  color: var(--dark80);
+  color: var(--neutral-800);
   white-space: nowrap;
   min-height: 36px;
   position: relative;
@@ -438,4 +410,26 @@ button.reminder-button.action-sheet-button {
   content: '""';
   position: absolute;
   inset: -4px;
+}
+
+/* Sonner toast: fit-content width, perfectly centered */
+[data-sonner-toaster][data-x-position='center'] {
+  left: 0 !important;
+  right: 0 !important;
+  width: auto !important;
+  transform: none !important;
+}
+
+[data-sonner-toaster][data-x-position='center'] [data-sonner-toast][data-styled='true'] {
+  width: fit-content !important;
+  min-width: 0 !important;
+  max-width: 90vw !important;
+  left: 0 !important;
+  right: 0 !important;
+  margin-inline: auto !important;
+}
+
+[data-sonner-toaster][data-x-position='center'] [data-sonner-toast][data-styled='true'] [data-content] {
+  width: auto !important;
+  white-space: nowrap !important;
 }

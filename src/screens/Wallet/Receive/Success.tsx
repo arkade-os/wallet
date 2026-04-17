@@ -105,7 +105,7 @@ export default function ReceiveSuccess() {
                         <FlexCol gap='0'>
                           <Text bold>{name}</Text>
                           {ticker ? (
-                            <Text color='dark50' smaller>
+                            <Text color='neutral-500' smaller>
                               {ticker}
                             </Text>
                           ) : null}
@@ -117,7 +117,7 @@ export default function ReceiveSuccess() {
                 )
               })}
 
-              <Text centered color='dark70' thin small wrap>
+              <Text centered color='neutral-700' thin small wrap>
                 {displayAmount}
               </Text>
             </FlexCol>

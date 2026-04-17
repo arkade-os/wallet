@@ -1,4 +1,3 @@
-import { IonInput, IonText } from '@ionic/react'
 import InputContainer from './InputContainer'
 import { useRef, useEffect } from 'react'
 import { hapticLight } from '../lib/haptics'
@@ -30,13 +29,13 @@ export default function InputWithScanner({
   validator,
   value,
 }: InputWithScannerProps) {
-  const input = useRef<HTMLIonInputElement>(null)
+  const input = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (focus && input.current) input.current.setFocus()
-  }, [focus, input.current])
+    if (focus && input.current) input.current.focus()
+  }, [focus])
 
-  const handleInput = (ev: Event) => {
+  const handleInput = (ev: React.FormEvent<HTMLInputElement>) => {
     onChange((ev.target as HTMLInputElement).value)
   }
 
@@ -58,25 +57,36 @@ export default function InputWithScanner({
 
   return (
     <InputContainer label={label} error={error}>
-      <IonInput
-        ref={input}
-        name={name}
-        value={value}
-        onIonInput={handleInput}
-        placeholder={placeholder}
-        onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
-      >
-        <IonText slot='end'>
+      <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+        <input
+          ref={input}
+          name={name}
+          value={value}
+          onInput={handleInput}
+          placeholder={placeholder}
+          onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'inherit',
+            fontFamily: 'inherit',
+            fontSize: 'inherit',
+            outline: 'none',
+            padding: '0.5rem 0',
+            width: '100%',
+          }}
+        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
           {hasValue ? (
             <ClearButtonOnInput onClick={handleClear} />
           ) : (
-            <div style={{ display: 'flex', gap: '0.35rem' }}>
+            <>
               <Paste validator={validator} onPaste={handlePaste} />
               <ScanButtonOnInput onClick={handleScan} />
-            </div>
+            </>
           )}
-        </IonText>
-      </IonInput>
+        </div>
+      </div>
     </InputContainer>
   )
 }

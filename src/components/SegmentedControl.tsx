@@ -10,7 +10,7 @@ export default function SegmentedControl({ options, selected, onChange }: Segmen
       style={{
         display: 'flex',
         borderRadius: '0.5rem',
-        border: '1px solid var(--dark10)',
+        border: '1px solid var(--neutral-100)',
         width: '100%',
       }}
     >
@@ -27,8 +27,8 @@ export default function SegmentedControl({ options, selected, onChange }: Segmen
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              backgroundColor: isSelected ? 'var(--dark10)' : 'transparent',
-              borderLeft: i > 0 ? '1px solid var(--dark10)' : undefined,
+              backgroundColor: isSelected ? 'var(--neutral-100)' : 'transparent',
+              borderLeft: i > 0 ? '1px solid var(--neutral-100)' : undefined,
               transition: 'background-color 0.15s',
               WebkitTapHighlightColor: 'transparent',
             }}
@@ -37,7 +37,7 @@ export default function SegmentedControl({ options, selected, onChange }: Segmen
               style={{
                 fontSize: 14,
                 fontWeight: isSelected ? 600 : 400,
-                color: isSelected ? 'var(--text)' : 'var(--dark50)',
+                color: isSelected ? 'var(--fg)' : 'var(--neutral-500)',
                 whiteSpace: 'nowrap',
               }}
             >

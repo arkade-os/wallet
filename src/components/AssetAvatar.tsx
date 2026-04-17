@@ -40,7 +40,7 @@ export default function AssetAvatar({ icon, ticker, name, size, onError, assetId
     <div
       style={{
         ...avatarStyle,
-        background: 'var(--dark20)',
+        background: 'var(--neutral-200)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

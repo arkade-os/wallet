@@ -2,6 +2,14 @@ import { Variants } from 'framer-motion'
 
 // Easing: Emil Kowalski's curves
 export const EASE_OUT_QUINT = [0.23, 1, 0.32, 1]
+
+// Spring config for pull-to-refresh bounce-back
+export const SPRING_BOUNCE_BACK = {
+  type: 'spring' as const,
+  stiffness: 400,
+  damping: 30,
+  mass: 0.8,
+}
 export const EASE_OUT_QUINT_TUPLE = EASE_OUT_QUINT as [number, number, number, number]
 // ease-in-out-quint: for on-screen elements moving between positions
 export const EASE_IN_OUT_QUINT = [0.86, 0, 0.07, 1]
@@ -58,7 +66,7 @@ export const overlayStyle = {
   zIndex: 10,
   display: 'flex',
   flexDirection: 'column' as const,
-  background: 'var(--ion-background-color)',
+  background: 'var(--bg)',
 }
 
 // Overlay slide-up animation — used for keyboard, scanner, etc.

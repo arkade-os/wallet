@@ -22,7 +22,7 @@ export default function Success({ headline, text }: SuccessProps) {
               </Text>
             ) : null}
             {text ? (
-              <Text centered color='dark70' thin small wrap>
+              <Text centered color='neutral-700' thin small wrap>
                 {text}
               </Text>
             ) : null}

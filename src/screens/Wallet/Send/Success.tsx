@@ -74,7 +74,7 @@ export default function SendSuccess() {
                     <FlexCol gap='0'>
                       <Text bold>{assetName}</Text>
                       {assetTicker ? (
-                        <Text color='dark50' smaller>
+                        <Text color='neutral-500' smaller>
                           {assetTicker}
                         </Text>
                       ) : null}
@@ -84,7 +84,7 @@ export default function SendSuccess() {
                 </FlexRow>
               </Shadow>
 
-              <Text centered color='dark70' thin small wrap>
+              <Text centered color='neutral-700' thin small wrap>
                 {displayAmount} sent successfully
               </Text>
             </FlexCol>

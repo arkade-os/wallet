@@ -1,4 +1,3 @@
-import { useToast } from '../../components/Toast'
 import { useState, useEffect, useContext, useRef } from 'react'
 import Button from '../../components/Button'
 import Padded from '../../components/Padded'
@@ -29,13 +28,12 @@ import FingerprintIcon from '../../icons/Fingerprint'
 import InputPassword from '../../components/InputPassword'
 import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
 import { SwapsContext } from '../../providers/swaps'
+import { copiedToClipboard, backupToNostr } from '../../lib/toast'
 
 export default function Backup() {
   const { wallet } = useContext(WalletContext)
   const { arkadeSwaps } = useContext(SwapsContext)
   const { backupConfig, config, updateConfig } = useContext(ConfigContext)
-
-  const { toast } = useToast()
 
   const [nsec, setNsec] = useState('')
   const [error, setError] = useState('')
@@ -60,7 +58,7 @@ export default function Backup() {
   const handleCopy = async () => {
     if (!nsec) return
     await copyToClipboard(nsec)
-    toast('Copied to clipboard')
+    copiedToClipboard()
   }
 
   const onChangePassword = (e: any) => {
@@ -98,7 +96,7 @@ export default function Backup() {
     } else {
       backupConfig(newConfig)
     }
-    toast('Nostr backup updated')
+    backupToNostr()
   }
 
   const Dialog = () => (

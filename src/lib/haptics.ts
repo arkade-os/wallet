@@ -1,70 +1,106 @@
-// Cross-platform haptic feedback
-// Android: navigator.vibrate()
-// iOS 18+: hidden <input type="checkbox" switch> hack triggers Taptic Engine
-// Desktop / older iOS: silent no-op
+/**
+ * Haptic feedback — module-level singleton wrapping web-haptics.
+ * Respects prefers-reduced-motion. In React, prefer `useHaptic()` from
+ * providers/haptics.tsx; outside React or for small leaf components, the
+ * direct functions below are fine.
+ */
 
-let iosLabel: HTMLLabelElement | null = null
+import React from 'react'
+import { WebHaptics } from 'web-haptics'
+
+/**
+ * Preset names we accept. web-haptics' `HapticPreset` is the object shape
+ * `{ pattern: Vibration[] }`; we want the name-union for type-safe call sites.
+ */
+export type HapticName =
+  | 'light'
+  | 'medium'
+  | 'heavy'
+  | 'soft'
+  | 'rigid'
+  | 'selection'
+  | 'success'
+  | 'warning'
+  | 'error'
+  | 'nudge'
+  | 'buzz'
+
+let instance: WebHaptics | null = null
 let enabled = true
+let reducedMotion = false
+let reducedMotionInitialized = false
+
+function ensureReducedMotionInit(): void {
+  if (reducedMotionInitialized) return
+  if (typeof window === 'undefined') return
+  reducedMotionInitialized = true
+  try {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    reducedMotion = mq.matches
+    mq.addEventListener('change', (e) => {
+      reducedMotion = e.matches
+    })
+  } catch {
+    /* ignore */
+  }
+}
+
+function getInstance(): WebHaptics | null {
+  if (typeof window === 'undefined') return null
+  if (instance) return instance
+  // Do NOT gate on WebHaptics.isSupported. On iOS Safari that returns false
+  // even though the library can fall back to the hidden-switch Taptic hack.
+  try {
+    instance = new WebHaptics()
+  } catch {
+    instance = null
+  }
+  return instance
+}
+
+export function triggerHaptic(preset: HapticName): void {
+  // Init BEFORE the enabled/reducedMotion check so the first tap can't slip
+  // through while the media query is still loading.
+  ensureReducedMotionInit()
+  if (!enabled || reducedMotion) return
+  getInstance()
+    ?.trigger(preset)
+    .catch(() => {})
+}
 
 export function setHapticsEnabled(value: boolean): void {
   enabled = value
 }
 
-function getIosHapticLabel(): HTMLLabelElement | null {
-  if (iosLabel) return iosLabel
-  try {
-    const checkbox = document.createElement('input')
-    checkbox.type = 'checkbox'
-    checkbox.setAttribute('switch', '')
-    checkbox.id = 'haptic-switch'
-    checkbox.style.position = 'fixed'
-    checkbox.style.left = '-9999px'
-    checkbox.style.opacity = '0'
-    checkbox.style.pointerEvents = 'none'
-
-    const label = document.createElement('label')
-    label.htmlFor = 'haptic-switch'
-    label.style.position = 'fixed'
-    label.style.left = '-9999px'
-    label.style.opacity = '0'
-    label.style.pointerEvents = 'none'
-
-    document.body.appendChild(checkbox)
-    document.body.appendChild(label)
-    iosLabel = label
-    return label
-  } catch {
-    return null
-  }
-}
-
-function isIos(): boolean {
-  if (typeof navigator === 'undefined') return false
-  const ua = navigator.userAgent
-  const isAppleMobile = /iPhone|iPad|iPod/.test(ua)
-  const isIpadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
-  return isAppleMobile || isIpadOS
-}
-
-function triggerHaptic(durationMs: number): void {
-  if (!enabled) return
-  if (typeof navigator === 'undefined') return
-  if (isIos()) {
-    const label = getIosHapticLabel()
-    if (label) label.click()
-  } else if (navigator.vibrate) {
-    navigator.vibrate(durationMs)
-  }
-}
-
+// Legacy call sites. CLAUDE.md pattern mapping:
+//   tap → 'light' (standard tap)
+//   light → 'light' (same as tap now — both are "standard tap")
+//   subtle → 'selection' (dismiss / expand / tab switch)
 export function hapticTap(): void {
-  triggerHaptic(8)
+  triggerHaptic('light')
 }
-
 export function hapticLight(): void {
-  triggerHaptic(4)
+  triggerHaptic('light')
+}
+export function hapticSubtle(): void {
+  triggerHaptic('selection')
 }
 
-export function hapticSubtle(): void {
-  triggerHaptic(2)
+/**
+ * Hook: wrap a `(checked) => void` callback so it fires a haptic before
+ * forwarding. Used by shadcn primitives (Checkbox, Switch) where we want
+ * 'selection' by default on change. Safe when callers pass unmemoized props
+ * — the inner callback re-memoizes on parent change, same cost as useCallback.
+ */
+export function useHapticCheckedChange<T extends boolean | 'indeterminate'>(
+  onCheckedChange?: (checked: T) => void,
+  preset: HapticName = 'selection',
+): (checked: T) => void {
+  return React.useCallback(
+    (checked: T) => {
+      triggerHaptic(preset)
+      onCheckedChange?.(checked)
+    },
+    [onCheckedChange, preset],
+  )
 }

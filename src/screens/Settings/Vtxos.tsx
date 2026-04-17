@@ -23,7 +23,6 @@ import { EmptyCoinsList } from '../../components/Empty'
 import WarningBox from '../../components/Warning'
 import { ExtendedCoin, ExtendedVirtualCoin, isVtxoExpiringSoon } from '@arkade-os/sdk'
 import { consoleError } from '../../lib/logs'
-import { IonCol, IonGrid, IonRow } from '@ionic/react'
 import * as Sentry from '@sentry/react'
 
 export default function Vtxos() {
@@ -163,8 +162,8 @@ export default function Vtxos() {
 
   const Box = ({ children }: { children: ReactNode }) => {
     const style: React.CSSProperties = {
-      backgroundColor: 'var(--dark10)',
-      border: '1px solid var(--dark20)',
+      backgroundColor: 'var(--neutral-100)',
+      border: '1px solid var(--neutral-200)',
       borderRadius: '0.25rem',
       padding: '10px',
       width: '100%',
@@ -216,32 +215,26 @@ export default function Vtxos() {
     expiry: string
   }) => {
     const style: React.CSSProperties = {
-      backgroundColor: 'var(--dark10)',
-      border: '1px solid var(--dark20)',
+      backgroundColor: 'var(--neutral-100)',
+      border: '1px solid var(--neutral-200)',
       borderRadius: '0.25rem',
       padding: '0',
       width: '100%',
     }
     return (
       <div style={style}>
-        <IonGrid>
-          <IonRow className='ion-align-items-start'>
-            <IonCol size='4'>
-              <FlexCol gap='0.25rem'>
-                <Text>{amount}</Text>
-                {assets?.map((a) => (
-                  <Text key={a} color='dark50' smaller>
-                    {a}
-                  </Text>
-                ))}
-              </FlexCol>
-            </IonCol>
-            <IonCol size='4'>{tags}</IonCol>
-            <IonCol size='4'>
-              <Text right>{expiry}</Text>
-            </IonCol>
-          </IonRow>
-        </IonGrid>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', alignItems: 'start' }}>
+          <FlexCol gap='0.25rem'>
+            <Text>{amount}</Text>
+            {assets?.map((a) => (
+              <Text key={a} color='neutral-500' smaller>
+                {a}
+              </Text>
+            ))}
+          </FlexCol>
+          <div>{tags}</div>
+          <Text right>{expiry}</Text>
+        </div>
       </div>
     )
   }
@@ -309,7 +302,7 @@ export default function Vtxos() {
                   {success ? <WarningBox green text='Coins renewed successfully' /> : null}
                   {listableVtxos.length > 0 ? (
                     <FlexCol gap='0.5rem'>
-                      <Text capitalize color='dark50' smaller>
+                      <Text capitalize color='neutral-500' smaller>
                         Your virtual coins with amount and expiration
                       </Text>
                       {listableVtxos.map((v: ExtendedVirtualCoin) => (
@@ -319,7 +312,7 @@ export default function Vtxos() {
                   ) : null}
                   {!hideUtxos && allUtxos.length > 0 ? (
                     <FlexCol gap='0.5rem'>
-                      <Text capitalize color='dark50' smaller>
+                      <Text capitalize color='neutral-500' smaller>
                         Your boarding utxos with amount and expiration
                       </Text>
                       {allUtxos.map((u: ExtendedCoin) => (
@@ -331,7 +324,7 @@ export default function Vtxos() {
               ) : (
                 <>
                   <FlexCol gap='0.5rem' margin='0 0 1rem 0'>
-                    <Text capitalize color='dark50' smaller>
+                    <Text capitalize color='neutral-500' smaller>
                       Next renewal
                     </Text>
                     <Box>

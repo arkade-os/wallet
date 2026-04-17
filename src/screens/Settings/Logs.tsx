@@ -11,12 +11,10 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { EmptyLogsList } from '../../components/Empty'
 import Focusable from '../../components/Focusable'
 import { copyToClipboard } from '../../lib/clipboard'
-import { useToast } from '../../components/Toast'
+import { copiedToClipboard } from '../../lib/toast'
 
 function LogsTable({ logs }: { logs: LogLine[] }) {
   const [focused, setFocused] = useState(false)
-
-  const { toast } = useToast()
 
   const color = (level: string): string => {
     if (level === 'info') return ''
@@ -35,7 +33,7 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
 
   const copy = (value: string) => {
     copyToClipboard(value)
-    toast('Copied to clipboard')
+    copiedToClipboard()
   }
 
   const focusOnFirstRow = () => {
@@ -72,7 +70,7 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
             >
               <FlexRow between>
                 <Text color={color(level)}>{prettyAgo(time)}</Text>
-                <Text color='dark50' copy={msg}>
+                <Text color='neutral-500' copy={msg}>
                   {prettyLongText(msg.replace('...', ''), numChars(prettyAgo(time)))}
                 </Text>
               </FlexRow>

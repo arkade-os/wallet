@@ -1,11 +1,12 @@
 import { prettyDate } from '../lib/format'
-import { IonActionSheet } from '@ionic/react'
 import {
   CalendarEvent,
   generateAppleCalendarUrl,
   generateGoogleCalendarUrl,
   generateOutlookCalendarUrl,
 } from '../lib/calendar'
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from './ui/drawer'
+
 interface ReminderProps {
   callback: () => void
   duration: number
@@ -15,7 +16,6 @@ interface ReminderProps {
 }
 
 export default function Reminder({ callback, duration, name, isOpen, startTime }: ReminderProps) {
-  // Create CalendarEvent object to pass to helper functions
   const calendarEvent: CalendarEvent = {
     name,
     startTime,
@@ -40,30 +40,46 @@ export default function Reminder({ callback, duration, name, isOpen, startTime }
     callback()
   }
 
+  const buttonStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '0.75rem',
+    border: '1px solid var(--neutral-500)',
+    borderRadius: '0.25rem',
+    background: 'var(--neutral-50)',
+    color: 'inherit',
+    fontSize: '1rem',
+    fontWeight: 500,
+    cursor: 'pointer',
+    textAlign: 'center',
+  }
+
   return (
-    <IonActionSheet
-      onDidDismiss={callback}
-      cssClass='my-ion-action-sheet'
-      header={name}
-      subHeader={prettyDate(startTime)}
-      isOpen={isOpen}
-      buttons={[
-        {
-          cssClass: 'reminder-button',
-          text: 'Google Calendar',
-          handler: handleGoogle,
-        },
-        {
-          cssClass: 'reminder-button',
-          text: 'Apple Calendar',
-          handler: handleApple,
-        },
-        {
-          cssClass: 'reminder-button',
-          text: 'Outlook',
-          handler: handleOutlook,
-        },
-      ]}
-    />
+    <Drawer open={isOpen} onOpenChange={(open) => !open && callback()}>
+      <DrawerContent>
+        <DrawerHeader>
+          <DrawerTitle>{name}</DrawerTitle>
+          <DrawerDescription>{prettyDate(startTime)}</DrawerDescription>
+        </DrawerHeader>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem',
+            padding: '0 1rem',
+            paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 0px))',
+          }}
+        >
+          <button type='button' style={buttonStyle} onClick={handleGoogle}>
+            Google Calendar
+          </button>
+          <button type='button' style={buttonStyle} onClick={handleApple}>
+            Apple Calendar
+          </button>
+          <button type='button' style={buttonStyle} onClick={handleOutlook}>
+            Outlook
+          </button>
+        </div>
+      </DrawerContent>
+    </Drawer>
   )
 }

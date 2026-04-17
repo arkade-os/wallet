@@ -197,7 +197,7 @@ export default function SendDetails() {
               <ErrorMessage error={Boolean(error)} text={error} />
               {isAssetSend ? (
                 <FlexCol gap='0.5rem'>
-                  <Text color='dark50' smaller testId='send-details-asset-name'>
+                  <Text color='neutral-500' smaller testId='send-details-asset-name'>
                     {assetName} ({assetTicker})
                   </Text>
                   <Text bold testId='send-details-asset-amount'>
