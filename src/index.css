@@ -411,3 +411,25 @@ input:focus::placeholder {
   position: absolute;
   inset: -4px;
 }
+
+/* Sonner toast: fit-content width, perfectly centered */
+[data-sonner-toaster][data-x-position='center'] {
+  left: 0 !important;
+  right: 0 !important;
+  width: auto !important;
+  transform: none !important;
+}
+
+[data-sonner-toaster][data-x-position='center'] [data-sonner-toast][data-styled='true'] {
+  width: fit-content !important;
+  min-width: 0 !important;
+  max-width: 90vw !important;
+  left: 0 !important;
+  right: 0 !important;
+  margin-inline: auto !important;
+}
+
+[data-sonner-toaster][data-x-position='center'] [data-sonner-toast][data-styled='true'] [data-content] {
+  width: auto !important;
+  white-space: nowrap !important;
+}

@@ -92,11 +92,9 @@ root.render(
                                     color: 'var(--bg)',
                                     borderRadius: '0.5rem',
                                     border: 'none',
-                                    textAlign: 'center',
-                                    maxWidth: '260px',
                                     padding: '0.75rem 1rem',
                                     fontSize: '0.875rem',
-                                    justifyContent: 'center',
+                                    boxShadow: 'var(--elevation-md)',
                                   },
                                 }}
                               />
