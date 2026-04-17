@@ -33,7 +33,7 @@ export default function Wallet() {
   const { config, updateConfig } = useContext(ConfigContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { isInitialLoad, navigate } = useContext(NavigationContext)
-  const { balance, txs } = useContext(WalletContext)
+  const { balance, txs, reloadWallet, svcWallet } = useContext(WalletContext)
   const { nudge, nudgeVisible, nudgeCheckComplete } = useContext(NudgeContext)
 
   const [error, setError] = useState(false)
@@ -75,10 +75,15 @@ export default function Wallet() {
     navigate(Pages.SendForm)
   }
 
+  const handleRefresh = useCallback(async () => {
+    await svcWallet?.reload()
+    await reloadWallet()
+  }, [svcWallet, reloadWallet])
+
   return (
     <>
       {announcement}
-      <Content>
+      <Content onPullToRefresh={handleRefresh}>
         <Padded>
           {/* Anchor lives outside the stagger tree so getBoundingClientRect returns the final position */}
           <div ref={logoRef} style={{ display: 'inline-flex', visibility: bootAnimActive ? 'hidden' : 'visible' }}>

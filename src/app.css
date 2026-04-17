@@ -266,3 +266,9 @@
 @utility h-dvh {
   height: 100dvh;
 }
+
+/* Pull-to-refresh spinner animation */
+@keyframes ptr-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

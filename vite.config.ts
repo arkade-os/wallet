@@ -20,7 +20,7 @@ export default defineConfig({
     port: process.env.PORT ? Number(process.env.PORT) : 3002,
     host: true,
     strictPort: Boolean(process.env.PORT),
-    allowedHosts: ['.trycloudflare.com', '.arkade.localhost', '.slim.show'],
+    allowedHosts: ['.trycloudflare.com', '.arkade.localhost', '.slim.show', '.loca.lt'],
   },
   build: {
     emptyOutDir: true,

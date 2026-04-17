@@ -1,52 +1,124 @@
 import { ReactNode, useRef } from 'react'
-import { useRefresher } from './Refresher'
+import { usePullToRefresh } from '../hooks/usePullToRefresh'
 
 interface ContentProps {
   children: ReactNode
   noFade?: boolean
+  onPullToRefresh?: () => Promise<void>
 }
 
-export default function Content({ children, noFade }: ContentProps) {
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const { handleTouchStart, handleTouchMove, handleTouchEnd, refreshing, pullOffset } = useRefresher(scrollRef)
+// Simple iOS-style spinner
+function Spinner() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      style={{ animation: 'ptr-spin 0.8s linear infinite' }}
+    >
+      <circle cx="12" cy="2.5" r="1.5" fill="currentColor" opacity="0.2" />
+      <circle cx="12" cy="2.5" r="1.5" fill="currentColor" opacity="0.3" transform="rotate(45 12 12)" />
+      <circle cx="12" cy="2.5" r="1.5" fill="currentColor" opacity="0.4" transform="rotate(90 12 12)" />
+      <circle cx="12" cy="2.5" r="1.5" fill="currentColor" opacity="0.5" transform="rotate(135 12 12)" />
+      <circle cx="12" cy="2.5" r="1.5" fill="currentColor" opacity="0.6" transform="rotate(180 12 12)" />
+      <circle cx="12" cy="2.5" r="1.5" fill="currentColor" opacity="0.7" transform="rotate(225 12 12)" />
+      <circle cx="12" cy="2.5" r="1.5" fill="currentColor" opacity="0.85" transform="rotate(270 12 12)" />
+      <circle cx="12" cy="2.5" r="1.5" fill="currentColor" opacity="1" transform="rotate(315 12 12)" />
+    </svg>
+  )
+}
 
-  const style: React.CSSProperties = {
-    flex: 1,
-    overflowY: 'auto',
-    overflowX: 'hidden',
-    scrollbarWidth: 'none',
-    position: 'relative',
-    touchAction: 'manipulation',
-  }
+// Arrow that rotates based on pull progress
+function PullArrow({ progress }: { progress: number }) {
+  const rotation = progress * 180
+  const opacity = 0.4 + progress * 0.6
+
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      style={{
+        opacity,
+        transform: `rotate(${rotation}deg)`,
+        transition: 'transform 0.1s ease-out',
+      }}
+    >
+      <path
+        d="M12 4v12m0 0l-4-4m4 4l4-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+export default function Content({ children, noFade, onPullToRefresh }: ContentProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  const { pullOffset, isRefreshing, progress } = usePullToRefresh({
+    scrollRef,
+    onRefresh: onPullToRefresh,
+    threshold: 60,
+  })
+
+  const showIndicator = pullOffset > 0 || isRefreshing
+  const indicatorOffset = isRefreshing ? 60 : pullOffset
+
+  // Spring-like transition when releasing
+  const transition = pullOffset === 0 && !isRefreshing
+    ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+    : 'none'
 
   return (
     <main
-      role='main'
+      role="main"
       ref={scrollRef}
-      style={style}
+      style={{
+        flex: 1,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        scrollbarWidth: 'none',
+        position: 'relative',
+        touchAction: onPullToRefresh ? 'pan-y' : undefined,
+      }}
       className={noFade ? 'no-content-fade' : undefined}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
     >
-      {pullOffset > 0 || refreshing ? (
+      {/* Indicator in the space above content */}
+      {onPullToRefresh ? (
         <div
           style={{
-            textAlign: 'center',
-            padding: '0.5rem',
-            color: 'var(--neutral-500)',
-            fontSize: '0.75rem',
-            height: pullOffset > 0 ? pullOffset : 'auto',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: indicatorOffset,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            transition: pullOffset === 0 ? 'height 200ms ease-out' : 'none',
+            color: progress >= 1 ? 'var(--purple-700)' : 'var(--neutral-400)',
+            opacity: showIndicator ? 1 : 0,
+            transition: 'color 0.15s ease',
+            pointerEvents: 'none',
           }}
         >
-          {refreshing ? 'Refreshing...' : 'Pull to refresh'}
+          {isRefreshing ? <Spinner /> : <PullArrow progress={progress} />}
         </div>
       ) : null}
-      <div className='content-shell'>{children}</div>
+
+      {/* Content translates down */}
+      <div
+        className="content-shell"
+        style={{
+          transform: `translateY(${indicatorOffset}px)`,
+          transition,
+        }}
+      >
+        {children}
+      </div>
     </main>
   )
 }
