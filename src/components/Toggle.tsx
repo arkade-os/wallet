@@ -19,7 +19,7 @@ export default function Toggle({ checked, onClick, text, subtext, testId }: Togg
   // change). Do NOT trigger haptics here or taps will double-fire.
   return (
     <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
-      <label htmlFor={id} style={{ cursor: 'pointer', display: 'block', minHeight: 44 }}>
+      <label htmlFor={id} style={{ cursor: 'pointer', display: 'block', minHeight: 44, width: '100%' }}>
         <FlexRow between>
           <Text thin>{text}</Text>
           <Switch id={id} checked={checked} onCheckedChange={onClick} data-testid={testId} aria-checked={checked} />
