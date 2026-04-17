@@ -163,7 +163,7 @@ function DelegateCard() {
             <ArrowIcon small />
           </FlexRow>
         </FlexRow>
-        <hr className='dashed-hr' />
+        <hr className='dashed' />
         <FlexRow between>
           <Shadow flex>
             <Text tiny>{delegate.url}</Text>

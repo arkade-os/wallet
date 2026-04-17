@@ -614,26 +614,12 @@ function AddressLine({
           <Text>{prettyLongText(value, 12)}</Text>
         </FlexCol>
         <button
-          type='button'
           aria-label={`Copy ${title}`}
+          className='copy'
           data-testid={testId + '-address-copy'}
           onClick={(event) => {
             event.stopPropagation()
             onCopy(value)
-          }}
-          style={{
-            alignItems: 'center',
-            background: 'var(--dark05)',
-            border: 'none',
-            borderRadius: '8px',
-            color: 'var(--dark30)',
-            cursor: 'pointer',
-            display: 'flex',
-            justifyContent: 'center',
-            minWidth: '44px',
-            minHeight: '44px',
-            padding: 0,
-            touchAction: 'manipulation',
           }}
         >
           {copied === value ? <CheckMarkIcon /> : <CopyIcon />}
