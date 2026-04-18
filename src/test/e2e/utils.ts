@@ -211,13 +211,15 @@ async function navigateToSettings(page: Page): Promise<void> {
   }
 }
 
-async function getNsec(page: Page): Promise<string> {
+async function getSecret(page: Page): Promise<string> {
   await navigateToSettings(page)
   await page.getByText('backup', { exact: true }).click()
-  await page.getByText('View private key').click()
+  // Mnemonic wallets show "View recovery phrase", legacy shows "View private key"
+  const viewBtn = page.getByText('View recovery phrase').or(page.getByText('View private key'))
+  await viewBtn.click()
   await page.getByText('Confirm').click()
-  const nsec = await page.getByTestId('private-key').innerText()
-  return nsec
+  const secret = await page.getByTestId('private-key').innerText()
+  return secret
 }
 
 async function resetWallet(page: Page): Promise<void> {
@@ -244,9 +246,9 @@ export async function fundWallet(page: Page, amount: number = 5000): Promise<voi
 }
 
 export async function resetAndRestoreWallet(page: Page): Promise<void> {
-  const nsec = await getNsec(page)
+  const secret = await getSecret(page)
   await resetWallet(page)
-  await restoreWallet(page, nsec)
+  await restoreWallet(page, secret)
   await page.waitForTimeout(1000)
 }
 
