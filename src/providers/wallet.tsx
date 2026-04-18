@@ -14,6 +14,7 @@ import {
   rollbackMigration,
   IndexedDBWalletRepository,
   IndexedDBContractRepository,
+  type Identity,
 } from '@arkade-os/sdk'
 import {
   clearStorage,
