@@ -13,6 +13,7 @@ import NeedsPassword from '../../components/NeedsPassword'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { isBiometricsSupported, registerUser } from '../../lib/biometrics'
 import { getPrivateKey, isValidPassword, noUserDefinedPassword, setPrivateKey } from '../../lib/privateKey'
+import { hasMnemonic, getMnemonic, setMnemonic } from '../../lib/mnemonic'
 
 export default function Password() {
   const { updateWallet, wallet } = useContext(WalletContext)
@@ -42,10 +43,15 @@ export default function Password() {
   const saveNewPassword = async (nextPassword: string | null, biometrics: boolean): Promise<boolean> => {
     if (!oldPassword || nextPassword === null || !authenticated) return false
     const finalPassword = nextPassword === '' ? defaultPassword : nextPassword
-    const privateKey = await getPrivateKey(oldPassword)
     try {
       setSaving(true)
-      await setPrivateKey(privateKey, finalPassword)
+      if (hasMnemonic()) {
+        const mnemonic = await getMnemonic(oldPassword)
+        await setMnemonic(mnemonic, finalPassword)
+      } else {
+        const privateKey = await getPrivateKey(oldPassword)
+        await setPrivateKey(privateKey, finalPassword)
+      }
       setSuccessText(
         biometrics
           ? 'Password changed to biometrics'
