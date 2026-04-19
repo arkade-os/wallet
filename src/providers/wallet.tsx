@@ -4,6 +4,8 @@ import {
   ServiceWorkerWallet,
   NetworkName,
   SingleKey,
+  MnemonicIdentity,
+  setupServiceWorker,
   AssetDetails,
   WalletBalance,
   IVtxoManager,
@@ -34,7 +36,7 @@ import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
-import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
+import { hasMnemonic, getMnemonic } from '../lib/mnemonic'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
@@ -139,6 +141,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const statusPingInterval = useRef<ReturnType<typeof setInterval>>()
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const swMessageHandlerRef = useRef<(event: MessageEvent) => void>()
+  const mnemonicRef = useRef<{ mnemonic: string; isMainnet: boolean }>()
 
   const setCacheEntry = (assetId: string, details: AssetDetails): CachedAssetDetails => {
     const hasIcon = !!details.metadata?.icon
@@ -358,6 +361,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     arkServerUrl,
     esploraUrl,
     identity,
+    mnemonic,
+    mnemonicIsMainnet,
     retryCount = 0,
     maxRetries = 2,
     delegatorUrl,
@@ -365,6 +370,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     arkServerUrl: string
     esploraUrl: string
     identity: Identity
+    mnemonic?: string
+    mnemonicIsMainnet?: boolean
     retryCount?: number
     maxRetries?: number
     delegatorUrl?: string
@@ -402,21 +409,100 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       await Promise.all([walletRepository.getWalletState(), zombieCheck])
       setLoadingStatus('Connecting to service worker...')
-      const svcWallet = await ServiceWorkerWallet.setup({
-        serviceWorkerPath: '/wallet-service-worker.mjs',
-        identity,
-        arkServerUrl,
-        esploraUrl,
-        delegatorUrl,
-        storage: { walletRepository, contractRepository },
-        serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
-        messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
-        messageTimeouts: {
-          SETTLE: 60_000,
-          SEND: 60_000,
-        },
-        settlementConfig: { vtxoThreshold: wallet.thresholdMs ? Math.floor(wallet.thresholdMs / 1000) : 1 },
-      })
+
+      let svcWallet: ServiceWorkerWallet
+      if (mnemonic !== undefined) {
+        const serviceWorker = await setupServiceWorker({
+          path: '/wallet-service-worker.mjs',
+          activationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
+        })
+
+        // Send mnemonic data to the service worker message bus so it can
+        // create MnemonicIdentity internally for signing.
+        const busId = crypto.randomUUID()
+        await new Promise<void>((resolve, reject) => {
+          const cleanup = () => {
+            navigator.serviceWorker.removeEventListener('message', onMsg)
+            clearTimeout(timer)
+          }
+          const onMsg = (event: MessageEvent) => {
+            if (event.data?.id !== busId) return
+            cleanup()
+            if (event.data.error) reject(event.data.error)
+            else resolve()
+          }
+          const timer = setTimeout(() => {
+            cleanup()
+            reject(new Error('MessageBus timed out'))
+          }, MESSAGE_BUS_INIT_TIMEOUT_MS)
+          navigator.serviceWorker.addEventListener('message', onMsg)
+          serviceWorker.postMessage({
+            tag: 'INITIALIZE_MESSAGE_BUS',
+            id: busId,
+            config: {
+              wallet: { mnemonic, isMainnet: mnemonicIsMainnet },
+              arkServer: { url: arkServerUrl },
+              delegatorUrl,
+              esploraUrl,
+              timeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
+              settlementConfig: {
+                vtxoThreshold: wallet.thresholdMs ? Math.floor(wallet.thresholdMs / 1000) : 1,
+              },
+            },
+          })
+        })
+
+        svcWallet = new (ServiceWorkerWallet as any)(
+          serviceWorker,
+          identity,
+          walletRepository,
+          contractRepository,
+          'WALLET_UPDATER',
+          !!delegatorUrl,
+        ) as ServiceWorkerWallet
+
+        // Send INIT_WALLET to set up the indexer in the message handler
+        const initId = crypto.randomUUID()
+        await new Promise<void>((resolve, reject) => {
+          const cleanup = () => {
+            navigator.serviceWorker.removeEventListener('message', onMsg)
+            clearTimeout(timer)
+          }
+          const onMsg = (event: MessageEvent) => {
+            if (event.data?.id !== initId || event.data?.tag !== 'WALLET_UPDATER') return
+            cleanup()
+            if (event.data.error) reject(event.data.error)
+            else resolve()
+          }
+          const timer = setTimeout(() => {
+            cleanup()
+            reject(new Error('INIT_WALLET timed out'))
+          }, MESSAGE_BUS_INIT_TIMEOUT_MS)
+          navigator.serviceWorker.addEventListener('message', onMsg)
+          serviceWorker.postMessage({
+            tag: 'WALLET_UPDATER',
+            type: 'INIT_WALLET',
+            id: initId,
+            payload: { arkServerUrl },
+          })
+        })
+      } else {
+        svcWallet = await ServiceWorkerWallet.setup({
+          serviceWorkerPath: '/wallet-service-worker.mjs',
+          identity,
+          arkServerUrl,
+          esploraUrl,
+          delegatorUrl,
+          storage: { walletRepository, contractRepository },
+          serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
+          messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
+          messageTimeouts: {
+            SETTLE: 60_000,
+            SEND: 60_000,
+          },
+          settlementConfig: { vtxoThreshold: wallet.thresholdMs ? Math.floor(wallet.thresholdMs / 1000) : 1 },
+        })
+      }
 
       // Migration!
       setLoadingStatus('Migrating data...')
@@ -510,6 +596,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           arkServerUrl,
           esploraUrl,
           identity,
+          mnemonic,
+          mnemonicIsMainnet,
           retryCount: retryCount + 1,
           maxRetries,
           delegatorUrl,
@@ -546,24 +634,37 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     let pubkey: string
 
     if (credentials.mnemonic) {
-      const derivedKey = deriveNostrKeyFromMnemonic(credentials.mnemonic, isMainnet(network))
-      identity = SingleKey.fromPrivateKey(derivedKey)
-      pubkey = hex.encode(await identity.compressedPublicKey())
+      const mainnet = isMainnet(network)
+      const mnemonicIdentity = MnemonicIdentity.fromMnemonic(credentials.mnemonic, { isMainnet: mainnet })
+      identity = mnemonicIdentity
+      pubkey = hex.encode(await mnemonicIdentity.compressedPublicKey())
+      mnemonicRef.current = { mnemonic: credentials.mnemonic, isMainnet: mainnet }
+
+      updateConfig({ ...config, pubkey })
+      const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
+      await initSvcWorkerWallet({
+        identity,
+        mnemonic: credentials.mnemonic,
+        mnemonicIsMainnet: mainnet,
+        arkServerUrl,
+        esploraUrl,
+        delegatorUrl,
+      })
     } else if (credentials.privateKey) {
       identity = SingleKey.fromPrivateKey(credentials.privateKey)
       pubkey = hex.encode(secp.getPublicKey(credentials.privateKey))
+
+      updateConfig({ ...config, pubkey })
+      const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
+      await initSvcWorkerWallet({
+        identity,
+        arkServerUrl,
+        esploraUrl,
+        delegatorUrl,
+      })
     } else {
       throw new Error('Either mnemonic or privateKey must be provided')
     }
-
-    updateConfig({ ...config, pubkey })
-    const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
-    await initSvcWorkerWallet({
-      identity,
-      arkServerUrl,
-      esploraUrl,
-      delegatorUrl,
-    })
     updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
   }
@@ -603,6 +704,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       arkServerUrl,
       esploraUrl,
       delegatorUrl,
+      mnemonic: mnemonicRef.current?.mnemonic,
+      mnemonicIsMainnet: mnemonicRef.current?.isMainnet,
     })
   }
 
@@ -610,6 +713,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!svcWallet) throw new Error('Service worker not initialized')
     if (statusPingInterval.current) clearInterval(statusPingInterval.current)
     statusPingInterval.current = undefined
+    mnemonicRef.current = undefined
     await svcWallet.clear()
     setAuthState('locked')
     setInitialized(false)
