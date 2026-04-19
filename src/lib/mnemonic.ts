@@ -1,5 +1,6 @@
 import { HDKey } from '@scure/bip32'
-import { mnemonicToSeedSync } from '@scure/bip39'
+import { mnemonicToSeedSync, validateMnemonic } from '@scure/bip39'
+import { wordlist } from '@scure/bip39/wordlists/english'
 
 const STORAGE_KEY = 'encrypted_mnemonic'
 
@@ -23,6 +24,9 @@ export const getMnemonic = async (password: string): Promise<string> => {
  * Used for Nostr backup operations (NIP-44 encryption needs raw seckey).
  */
 export const deriveNostrKeyFromMnemonic = (mnemonic: string, isMainnet: boolean): Uint8Array => {
+  if (!validateMnemonic(mnemonic, wordlist)) {
+    throw new Error('Invalid mnemonic phrase')
+  }
   const seed = mnemonicToSeedSync(mnemonic)
   const masterNode = HDKey.fromMasterSeed(seed)
   const coinType = isMainnet ? 0 : 1
