@@ -4,7 +4,6 @@ import {
   ServiceWorkerWallet,
   NetworkName,
   SingleKey,
-  MnemonicIdentity,
   AssetDetails,
   WalletBalance,
   IVtxoManager,
@@ -35,7 +34,7 @@ import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
-import { hasMnemonic, getMnemonic } from '../lib/mnemonic'
+import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
@@ -547,9 +546,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     let pubkey: string
 
     if (credentials.mnemonic) {
-      const mnemonicIdentity = MnemonicIdentity.fromMnemonic(credentials.mnemonic, { isMainnet: isMainnet(network) })
-      identity = mnemonicIdentity
-      pubkey = hex.encode(await mnemonicIdentity.compressedPublicKey())
+      const derivedKey = deriveNostrKeyFromMnemonic(credentials.mnemonic, isMainnet(network))
+      identity = SingleKey.fromPrivateKey(derivedKey)
+      pubkey = hex.encode(await identity.compressedPublicKey())
     } else if (credentials.privateKey) {
       identity = SingleKey.fromPrivateKey(credentials.privateKey)
       pubkey = hex.encode(secp.getPublicKey(credentials.privateKey))
