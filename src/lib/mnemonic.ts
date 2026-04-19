@@ -31,7 +31,8 @@ export const deriveNostrKeyFromMnemonic = (mnemonic: string, isMainnet: boolean)
   const masterNode = HDKey.fromMasterSeed(seed)
   const coinType = isMainnet ? 0 : 1
   const derived = masterNode.derive(`m/86'/${coinType}'/0'`).deriveChild(0).deriveChild(0)
-  return derived.privateKey!
+  if (!derived.privateKey) throw new Error('BIP32 derivation yielded no private key')
+  return derived.privateKey
 }
 
 const encryptMnemonic = async (mnemonic: string, password: string): Promise<string> => {
