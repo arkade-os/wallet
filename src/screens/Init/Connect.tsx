@@ -5,6 +5,7 @@ import { WalletContext } from '../../providers/wallet'
 import LoadingLogo from '../../components/LoadingLogo'
 import Header from '../../components/Header'
 import { setPrivateKey } from '../../lib/privateKey'
+import { setMnemonic } from '../../lib/mnemonic'
 import { consoleError, consoleLog } from '../../lib/logs'
 import { SwapsContext } from '../../providers/swaps'
 import { useLoadingStatus } from '../../hooks/useLoadingStatus'
@@ -22,14 +23,21 @@ export default function InitConnect() {
   const [initialized, setInitialized] = useState(false)
   const [connectDone, setConnectDone] = useState(false)
 
-  const { password, privateKey } = initInfo
+  const { password, privateKey, mnemonic } = initInfo
 
   useEffect(() => {
-    if (!password || !privateKey) return
-    setPrivateKey(privateKey, password)
-      .then(() => initWallet(privateKey))
-      .then(() => setInitialized(true))
-      .catch(abortConnectionWithError)
+    if (!password) return
+    if (mnemonic) {
+      setMnemonic(mnemonic, password)
+        .then(() => initWallet({ mnemonic }))
+        .then(() => setInitialized(true))
+        .catch(abortConnectionWithError)
+    } else if (privateKey) {
+      setPrivateKey(privateKey, password)
+        .then(() => initWallet({ privateKey }))
+        .then(() => setInitialized(true))
+        .catch(abortConnectionWithError)
+    }
   }, [])
 
   useEffect(() => {
@@ -43,7 +51,7 @@ export default function InitConnect() {
   }, [arkadeSwaps, initialized, initInfo.restoring])
 
   const handleExitComplete = () => {
-    setInitInfo({ ...initInfo, password: undefined, privateKey: undefined })
+    setInitInfo({ ...initInfo, password: undefined, privateKey: undefined, mnemonic: undefined })
     navigate(error ? Pages.Init : Pages.Wallet)
   }
 
