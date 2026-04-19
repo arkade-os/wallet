@@ -476,7 +476,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           }
           const timer = setTimeout(() => {
             cleanup()
-            reject(new Error('INIT_WALLET timed out'))
+            reject(new Error('MessageBus timed out during INIT_WALLET'))
           }, MESSAGE_BUS_INIT_TIMEOUT_MS)
           navigator.serviceWorker.addEventListener('message', onMsg)
           serviceWorker.postMessage({
