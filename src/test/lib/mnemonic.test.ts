@@ -55,5 +55,9 @@ describe('mnemonic storage', () => {
       const testnet = deriveNostrKeyFromMnemonic(testMnemonic, false)
       expect(mainnet).not.toEqual(testnet)
     })
+
+    it('should throw on invalid mnemonic', () => {
+      expect(() => deriveNostrKeyFromMnemonic('invalid words here', false)).toThrow('Invalid mnemonic phrase')
+    })
   })
 })

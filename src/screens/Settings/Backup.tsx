@@ -117,8 +117,8 @@ export default function Backup() {
         </Text>
         <TextSecondary centered wrap>
           {isMnemonicWallet
-            ? 'Your recovery phrase is the key used to back up your wallet. Keep it secret and secure at all times.'
-            : 'Your Private Key is the key used to back up your wallet. Keep it secret and secure at all times.'}
+            ? 'Your recovery phrase is used to back up your wallet. Keep it secret and secure at all times.'
+            : 'Your private key is used to back up your wallet. Keep it secret and secure at all times.'}
         </TextSecondary>
       </FlexCol>
       {!secret ? (
@@ -190,7 +190,7 @@ export default function Backup() {
                   text={
                     isMnemonicWallet
                       ? "Your recovery phrase can be used to access everything in your wallet. Don't share it with anyone."
-                      : "Your Private Key can be used to access everything in your wallet. Don't share it with anyone."
+                      : "Your private key can be used to access everything in your wallet. Don't share it with anyone."
                   }
                 />
               ) : null}
