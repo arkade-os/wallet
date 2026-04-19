@@ -582,6 +582,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (err) {
       setAuthState('locked')
+      if (err instanceof DOMException) throw new Error('Invalid password')
       throw err instanceof Error ? err : new Error('Invalid password')
     }
   }
