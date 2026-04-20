@@ -109,6 +109,7 @@ export default function Logs() {
       .map((row) =>
         Object.values(row)
           .map((k) => `"${k}"`)
+          .reverse()
           .join(','),
       )
       .join('\n')
