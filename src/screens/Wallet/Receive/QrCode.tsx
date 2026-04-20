@@ -114,6 +114,7 @@ export default function ReceiveQRCode() {
   // LNURL session for amountless Lightning receives
   const isAmountlessLnurl =
     !satoshis && !isAssetReceive && !!lnurlServerUrl && connected && !!arkadeSwaps && !swapsInitError
+
   const handleInvoiceRequest = useCallback(
     async (req: { amountMsat: number }) => {
       const sats = Math.floor(req.amountMsat / 1000)
@@ -124,7 +125,7 @@ export default function ReceiveQRCode() {
         arkadeSwaps
           .waitAndClaim(pendingSwap)
           .then(() => {
-            setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount ?? 0 })
+            setRecvInfo({ ...recvInfo, received: true, satoshis: pendingSwap.response.onchainAmount ?? 0 })
             notifyPaymentReceived(pendingSwap.response.onchainAmount ?? 0)
             navigate(Pages.ReceiveSuccess)
           })
@@ -212,7 +213,7 @@ export default function ReceiveQRCode() {
         arkadeSwaps
           .waitAndClaimArk(pendingSwap)
           .then(() => {
-            setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.claimDetails.amount })
+            setRecvInfo({ ...recvInfo, received: true, satoshis: pendingSwap.response.claimDetails.amount })
             navigate(Pages.ReceiveSuccess)
           })
           .catch((error) => {
@@ -226,7 +227,7 @@ export default function ReceiveQRCode() {
         arkadeSwaps
           .waitAndClaim(pendingSwap)
           .then(() => {
-            setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount ?? 0 })
+            setRecvInfo({ ...recvInfo, received: true, satoshis: pendingSwap.response.onchainAmount ?? 0 })
             navigate(Pages.ReceiveSuccess)
           })
           .catch((error) => {
