@@ -35,6 +35,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   const prefix = tx.type === 'sent' ? '-' : '+'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount) : prettyHide(tx.amount)}`
   const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
+  const asAssets = Boolean(tx.assets?.length)
   const issuance = isIssuance(tx)
   const burn = isBurn(tx)
 
@@ -49,7 +50,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
             ? 'orange'
             : ''
     const value = toFiat(tx.amount)
-    const small = config.currencyDisplay === CurrencyDisplay.Both
+    const small = asAssets || config.currencyDisplay === CurrencyDisplay.Both
     const world = config.showBalance ? prettyFiatAmount(value, config.fiat) : prettyFiatHide(value, config.fiat)
     return (
       <Text color={color} small={small}>
@@ -79,7 +80,11 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
 
   const Sats = () =>
     issuance || burn ? null : (
-      <Text color={tx.type === 'received' ? (tx.preconfirmed && tx.boardingTxid ? 'orange' : 'green') : ''} thin>
+      <Text
+        color={tx.type === 'received' ? (tx.preconfirmed && tx.boardingTxid ? 'orange' : 'green') : ''}
+        smaller={asAssets}
+        thin
+      >
         {amount}
       </Text>
     )
@@ -96,7 +101,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
           const decimals = meta?.decimals ?? 8
           return (
             <FlexRow key={a.assetId} gap='0.25rem' end>
-              <Text color={color} smaller>
+              <Text color={color}>
                 {config.showBalance
                   ? `${formatAssetAmount(a.amount, decimals)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
                   : prettyHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}
@@ -127,7 +132,12 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
 
   const Right = () => (
     <div style={{ textAlign: 'right' }}>
-      {config.currencyDisplay === CurrencyDisplay.Fiat ? (
+      {tx.assets?.length ? (
+        <>
+          <AssetInfo />
+          {config.currencyDisplay === CurrencyDisplay.Fiat ? <Fiat /> : <Sats />}
+        </>
+      ) : config.currencyDisplay === CurrencyDisplay.Fiat ? (
         <Fiat />
       ) : config.currencyDisplay === CurrencyDisplay.Sats ? (
         <Sats />
@@ -137,7 +147,6 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
           <Fiat />
         </>
       )}
-      <AssetInfo />
     </div>
   )
 
