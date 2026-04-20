@@ -59,7 +59,7 @@ const SwapLine = ({ onClick, swap }: { onClick: () => void; swap: BoltzSwap }) =
     prefix = ''
 
   if (swap.type === 'reverse') {
-    sats = swap.response.onchainAmount
+    sats = swap.response.onchainAmount ?? 0
     direction = 'Lightning to Arkade'
     prefix = '+'
   } else if (swap.type === 'submarine') {
