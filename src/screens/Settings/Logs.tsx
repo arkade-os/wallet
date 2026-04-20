@@ -105,7 +105,7 @@ export default function Logs() {
       Object.keys(logs[0])
         .map((k) => `"${k}"`)
         .join(',') + '\n'
-    const csvBody = logs
+    const csvBody = [...logs]
       .reverse()
       .map((row) =>
         Object.values(row)
