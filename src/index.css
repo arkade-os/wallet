@@ -127,8 +127,8 @@ button {
   &.clear {
     border: none;
     background: none;
-    color: var(--black);
     box-shadow: none;
+    color: var(--black);
     &.pressed {
       transform: scale(0.97);
     }
@@ -137,6 +137,7 @@ button {
     aspect-ratio: 1;
     align-items: center;
     background: var(--dark05);
+    box-shadow: none;
     color: var(--dark30);
     cursor: pointer;
     display: flex;
@@ -155,6 +156,9 @@ button {
     border-color: var(--dark50);
     box-shadow: 0 4px 0 0 rgba(0, 0, 0, 0.1);
     color: var(--dark50);
+  }
+  &.pill-nav-btn {
+    box-shadow: none;
   }
   &.red {
     background: var(--red);
@@ -198,6 +202,34 @@ button.reminder-button.action-sheet-button {
   }
 }
 
+.buttons-on-bottom {
+  padding: 1rem;
+}
+
+.content {
+  display: block;
+  position: relative;
+  flex: 1 1 0%;
+  width: 100%;
+  height: 100%;
+  font-family: var(--ion-font-family, inherit);
+  contain: size style;
+  margin: 0px;
+  padding: 0px;
+}
+
+.has-pill-navbar .content {
+  --padding-bottom: var(--pill-navbar-clearance);
+}
+
+.header {
+  align-items: center;
+  border-bottom: 1px solid var(--dark10);
+  color: var(--ion-color-dark);
+  display: flex;
+  height: 4rem;
+}
+
 .ion-palette-dark button.reminder-button.action-sheet-button {
   background-color: #222;
   color: #f7fafc;
@@ -210,6 +242,14 @@ button.reminder-button.action-sheet-button {
   border-top: 2px solid transparent;
   border-radius: 50%;
   animation: spin 1s linear infinite;
+}
+
+.title {
+  text-align: center;
+  font-family: var(--heading-font);
+  letter-spacing: -0.5px;
+  font-size: 1.25rem;
+  font-weight: 500;
 }
 
 @keyframes spin {

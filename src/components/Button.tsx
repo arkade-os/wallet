@@ -19,6 +19,7 @@ interface ButtonProps {
   outline?: boolean
   red?: boolean
   secondary?: boolean
+  testId?: string
 }
 
 export default function Button({
@@ -34,6 +35,7 @@ export default function Button({
   outline,
   red,
   secondary,
+  testId,
 }: ButtonProps) {
   const [pressed, setPressed] = useState(false)
 
@@ -64,6 +66,7 @@ export default function Button({
       onClick={handleClick}
       onMouseDown={handlePressStart}
       onMouseUp={handlePressEnd}
+      data-testid={testId}
       onMouseLeave={handlePressEnd}
       onTouchStart={handlePressStart}
       onTouchEnd={handlePressEnd}
