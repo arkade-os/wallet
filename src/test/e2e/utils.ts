@@ -163,10 +163,11 @@ async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = f
   if (sats && type === 'invoice') {
     await page.getByText('Add amount').click()
     if (isMobile) {
-      await page.locator('input[name="receive-amount"]').click()
+      await page.locator('input[name="receive-amount-sheet"]').click()
       await handleKeyboardInput(page, sats)
     } else {
-      await page.locator('input[name="receive-amount"]').fill(sats.toString())
+      await page.locator('input[name="receive-amount-sheet"]').fill(sats.toString())
+      await page.getByText('Set amount').click()
     }
   }
 
