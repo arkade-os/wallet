@@ -323,6 +323,7 @@ export default function ReceiveQRCode() {
     if (!prefersReducedMotion) hapticSubtle()
     await copyToClipboard(value)
     toast('Copied to clipboard')
+    setShowCopySheet(false)
     setCopied(value)
   }
 
