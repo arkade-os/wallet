@@ -30,6 +30,7 @@ export interface RecvInfo {
   assetId?: string
   assetAmount?: number
   receivedAssets?: Asset[]
+  received: boolean
 }
 
 export type SendInfo = {
@@ -83,6 +84,7 @@ export const emptyNoteInfo: NoteInfo = {
 export const emptyRecvInfo: RecvInfo = {
   boardingAddr: '',
   offchainAddr: '',
+  received: false,
   satoshis: 0,
 }
 
