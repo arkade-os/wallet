@@ -77,7 +77,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await createWallet(page)
 
   // copy invoice
-  const receiveInvoice = await receiveLightning(page, isMobile, 2000)
+  const receiveInvoice = await receiveLightning(page, isMobile, 5000)
   expect(receiveInvoice).toBeDefined()
   expect(receiveInvoice).toBeTruthy()
   expect(receiveInvoice).toContain('lnbcrt')
@@ -92,13 +92,13 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
-  await expect(page.getByText('+ 1,992 SATS', { exact: true })).toBeVisible()
+  await expect(page.getByText('+ 4,980 SATS', { exact: true })).toBeVisible()
   await page.getByLabel('Go back').click()
 
   // transaction should be visible on main page
   await page.getByTestId('tab-wallet').click()
   await page.waitForSelector('text=Received', { timeout: 10000 })
-  await expect(page.getByText('1,992', { exact: true })).toBeVisible()
+  await expect(page.getByText('4,980', { exact: true })).toBeVisible()
 
   /**
    * submarine swap
@@ -141,7 +141,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
 
   // send page
   const someOnchainAddress = 'bcrt1pxxxth5z4yn8nylc6nzz6w3vkumwdllaky5sls7an8e044u2qlnes2vvy6y'
-  await pay(page, someOnchainAddress, isMobile, 2100)
+  await pay(page, someOnchainAddress, isMobile, 2000)
 
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
@@ -165,6 +165,6 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
   await expect(page.getByText('- 1,001 SATS', { exact: true })).toBeVisible()
-  await expect(page.getByText('+ 1,992 SATS', { exact: true })).toBeVisible()
+  await expect(page.getByText('+ 4,980 SATS', { exact: true })).toBeVisible()
   await expect(page.getByText('Arkade to Bitcoin', { exact: true })).toBeVisible()
 })
