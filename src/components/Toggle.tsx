@@ -1,5 +1,4 @@
 import Text from './Text'
-import { IonToggle } from '@ionic/react'
 import FlexRow from './FlexRow'
 import FlexCol from './FlexCol'
 import Focusable from './Focusable'
