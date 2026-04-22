@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from 'react'
+import { ChangeEventHandler, useContext, useEffect, useRef, useState } from 'react'
 import { IonInput, IonText } from '@ionic/react'
 import { FiatContext } from '../providers/fiat'
 import InputContainer from './InputContainer'
@@ -9,6 +9,8 @@ import { LimitsContext } from '../providers/limits'
 import Focusable from './Focusable'
 import { unitsToCents } from '../lib/assets'
 import { AssetOption } from '../lib/types'
+import Text from './Text'
+import FlexRow from './FlexRow'
 
 interface InputAmountProps {
   asset?: AssetOption
@@ -65,8 +67,8 @@ export default function InputAmount({
     setError(sats ? (sats < 0 ? 'Invalid amount' : '') : '')
   }, [sats])
 
-  const handleInput = (ev: Event) => {
-    const value = Number((ev.target as HTMLInputElement).value)
+  const handleInput: ChangeEventHandler<HTMLInputElement> = (ev) => {
+    const value = Number(ev.currentTarget.value)
     if (Number.isNaN(value)) return
     onSats(asset?.assetId ? unitsToCents(value, asset.decimals) : useFiat ? fromFiat(value) : value)
   }
@@ -96,40 +98,33 @@ export default function InputAmount({
       : ''
 
   return (
-    <>
-      <InputContainer error={error} label={label} right={right} bottomLeft={bottomLeft} bottomRight={bottomRight}>
-        <IonInput
-          disabled={disabled}
-          name={name}
-          onIonFocus={onFocus}
-          onIonInput={handleInput}
-          onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
-          readonly={readOnly}
-          ref={input}
+    <InputContainer error={error} label={label} right={right} bottomLeft={bottomLeft} bottomRight={bottomRight}>
+      <label style={{ display: 'flex', alignItems: 'strech', gap: '0.25rem', flex: 1 }}>
+        <Text small>{leftLabel}</Text>
+        <input
           type='number'
-          value={value}
-        >
-          <IonText slot='start' style={{ ...fontStyle, marginRight: '0.5rem' }}>
-            {leftLabel}
-          </IonText>
-          <IonText slot='end' style={{ ...fontStyle, marginLeft: '0.5rem' }}>
-            {rightLabel}
-          </IonText>
-        </IonInput>
-        {onMax && !disabled && !readOnly ? (
-          <Focusable onEnter={onMax} fit>
-            <IonText
-              role='button'
-              onClick={onMax}
-              aria-label='Set maximum amount'
-              data-testid='input-amount-max'
-              style={{ ...fontStyle, color: 'var(--purpletext)', cursor: 'pointer' }}
-            >
-              Max
-            </IonText>
-          </Focusable>
-        ) : null}
-      </InputContainer>
-    </>
+          inputMode='decimal'
+          value={value ?? ''}
+          onChange={handleInput}
+          disabled={disabled}
+          readOnly={readOnly}
+          style={{ flex: 1 }}
+        />
+        <Text>{rightLabel}</Text>
+      </label>
+      {onMax && !disabled && !readOnly ? (
+        <Focusable onEnter={onMax} fit>
+          <p
+            role='button'
+            onClick={onMax}
+            aria-label='Set maximum amount'
+            data-testid='input-amount-max'
+            style={{ ...fontStyle, color: 'var(--purpletext)', cursor: 'pointer' }}
+          >
+            Max
+          </p>
+        </Focusable>
+      ) : null}
+    </InputContainer>
   )
 }

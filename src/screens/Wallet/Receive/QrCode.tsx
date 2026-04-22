@@ -617,9 +617,9 @@ function AddressLine({
           <Text>{prettyLongText(value, 12)}</Text>
         </FlexCol>
         <Button
-          aria-label={`Copy ${title}`}
           copy
-          data-testid={testId + '-address-copy'}
+          ariaLabel={`Copy ${title}`}
+          testId={testId + '-address-copy'}
           onClick={(event) => {
             event.stopPropagation()
             onCopy(value)

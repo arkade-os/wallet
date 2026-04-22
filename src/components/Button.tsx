@@ -7,6 +7,7 @@ import PasteIcon from '../icons/Paste'
 import XIcon from '../icons/X'
 
 interface ButtonProps {
+  ariaLabel?: string
   children?: ReactNode
   clear?: boolean
   copy?: boolean
@@ -24,6 +25,7 @@ interface ButtonProps {
 }
 
 export default function Button({
+  ariaLabel,
   children,
   clear,
   copy,
@@ -63,6 +65,8 @@ export default function Button({
 
   return (
     <button
+      aria-label={ariaLabel || label}
+      type='button'
       className={className}
       disabled={disabled}
       onClick={handleClick}

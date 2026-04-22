@@ -2,6 +2,7 @@ import FlexRow from './FlexRow'
 import { hapticLight } from '../lib/haptics'
 import { useState } from 'react'
 import Text from './Text'
+import Focusable from './Focusable'
 
 interface CheckboxProps {
   onChange: () => void
@@ -26,16 +27,18 @@ export default function Checkbox({ onChange, text }: CheckboxProps) {
   }
   return (
     <div style={style}>
-      <FlexRow onClick={handleChange} gap='0.5rem'>
-        <BoxIcon checked={checked} />
-        <Text small>{text}</Text>
-      </FlexRow>
+      <Focusable onEnter={handleChange} fit>
+        <FlexRow onClick={handleChange} gap='0.5rem'>
+          <BoxIcon checked={checked} />
+          <Text small>{text}</Text>
+        </FlexRow>
+      </Focusable>
     </div>
   )
 }
 
 const BoxIcon = ({ checked }: { checked: boolean }) => {
-  const color = checked ? '#f24c58' : '#7c7c7c'
+  const color = checked ? 'var(--red)' : 'var(--dark50)'
   const svgStyle: React.CSSProperties = {
     background: color,
     borderColor: color,
