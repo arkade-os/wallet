@@ -1,7 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useRef } from 'react'
 import { WalletContext } from '../providers/wallet'
-import Text, { TextLabel, TextSecondary } from './Text'
+import Text, { TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
 import { formatAssetAmount, isBurn, isIssuance, prettyAmount, prettyDate, prettyHide } from '../lib/format'
 import AssetAvatar from './AssetAvatar'
@@ -207,9 +207,7 @@ export default function TransactionsList() {
   }
 
   return (
-    <>
-      <TextLabel>Transaction history</TextLabel>
-      <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
+    <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
         <div
           ref={parentRef}
           onKeyDown={handleListKeyDown}
@@ -257,6 +255,5 @@ export default function TransactionsList() {
           </div>
         </div>
       </Focusable>
-    </>
   )
 }
