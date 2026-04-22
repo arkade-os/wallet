@@ -241,7 +241,8 @@ export default function App() {
 
   const comp = page === Pages.Loading ? null : pageComponent(page)
   const isSettingsRoot = screen === Pages.Settings && option === SettingsOptions.Menu
-  const showNavbar = page === screen && (screen === Pages.Wallet || screen === Pages.Apps || isSettingsRoot)
+  // Wallet home uses floating action bar + header icons instead of pill navbar
+  const showNavbar = page === screen && (screen === Pages.Apps || isSettingsRoot)
 
   const appStyle: React.CSSProperties = {
     display: 'flex',
