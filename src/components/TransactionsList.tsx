@@ -16,9 +16,9 @@ import PreconfirmedIcon from '../icons/Preconfirmed'
 import Focusable from './Focusable'
 import { hapticSubtle } from '../lib/haptics'
 
-const border = '1px solid var(--dark20)'
+const border = '1px solid var(--dark10)'
 
-const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
+const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void; isFirst?: boolean }) => {
   const { config } = useContext(ConfigContext)
   const { toFiat, fiatDecimals } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
@@ -87,12 +87,12 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
           const decimals = meta?.decimals ?? 8
           return (
             <FlexRow key={a.assetId} gap='0.25rem' end>
-              <Text color={color} smaller>
+              <AssetAvatar icon={icon} ticker={ticker} size={16} assetId={a.assetId} clickable />
+              <Text color={color} thin>
                 {config.showBalance
                   ? `${formatAssetAmount(a.amount, decimals)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
                   : prettyHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}
               </Text>
-              <AssetAvatar icon={icon} ticker={ticker} size={16} assetId={a.assetId} clickable />
             </FlexRow>
           )
         })}
@@ -102,7 +102,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
 
   const rowStyle = {
     alignItems: 'center',
-    borderTop: border,
+    borderTop: isFirst ? 'none' : border,
     cursor: 'pointer',
     padding: '0.5rem 0',
   }
@@ -249,7 +249,7 @@ export default function TransactionsList() {
                     onEscape={focusOnOuterShell}
                     ariaLabel={ariaLabel(tx)}
                   >
-                    <TransactionLine onClick={() => handleClick(tx)} tx={tx} />
+                    <TransactionLine onClick={() => handleClick(tx)} tx={tx} isFirst={virtualItem.index === 0} />
                   </Focusable>
                 </div>
               )
