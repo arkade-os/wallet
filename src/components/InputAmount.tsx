@@ -1,5 +1,4 @@
 import { ChangeEventHandler, useContext, useEffect, useRef, useState } from 'react'
-import { IonInput, IonText } from '@ionic/react'
 import { FiatContext } from '../providers/fiat'
 import InputContainer from './InputContainer'
 import { ConfigContext } from '../providers/config'
@@ -9,8 +8,7 @@ import { LimitsContext } from '../providers/limits'
 import Focusable from './Focusable'
 import { unitsToCents } from '../lib/assets'
 import { AssetOption } from '../lib/types'
-import Text from './Text'
-import FlexRow from './FlexRow'
+import Text, { TextSecondary } from './Text'
 
 interface InputAmountProps {
   asset?: AssetOption
@@ -54,11 +52,11 @@ export default function InputAmount({
   const [error, setError] = useState('')
   const [otherValue, setOtherValue] = useState('')
 
-  const input = useRef<HTMLIonInputElement>(null)
+  const input = useRef<HTMLInputElement>(null)
 
   // focus input when focus prop changes
   useEffect(() => {
-    if (focus && input.current) input.current.setFocus()
+    if (focus && input.current) input.current.focus()
   }, [focus])
 
   useEffect(() => {
@@ -99,18 +97,22 @@ export default function InputAmount({
 
   return (
     <InputContainer error={error} label={label} right={right} bottomLeft={bottomLeft} bottomRight={bottomRight}>
-      <label style={{ display: 'flex', alignItems: 'strech', gap: '0.25rem', flex: 1 }}>
-        <Text small>{leftLabel}</Text>
+      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flex: 1 }}>
+        <TextSecondary>{leftLabel}</TextSecondary>
         <input
+          ref={input}
+          name={name}
           type='number'
+          onFocus={onFocus}
+          className='input'
           inputMode='decimal'
           value={value ?? ''}
-          onChange={handleInput}
           disabled={disabled}
           readOnly={readOnly}
-          style={{ flex: 1 }}
+          onChange={handleInput}
+          onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
         />
-        <Text>{rightLabel}</Text>
+        <TextSecondary>{rightLabel}</TextSecondary>
       </label>
       {onMax && !disabled && !readOnly ? (
         <Focusable onEnter={onMax} fit>
