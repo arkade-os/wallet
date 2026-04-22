@@ -24,6 +24,7 @@ import WarningBox from '../../components/Warning'
 import { ExtendedCoin, ExtendedVirtualCoin, isVtxoExpiringSoon } from '@arkade-os/sdk'
 import { consoleError } from '../../lib/logs'
 import * as Sentry from '@sentry/react'
+import Grid from '../../components/Grid'
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -223,7 +224,7 @@ export default function Vtxos() {
     }
     return (
       <div style={style}>
-        <div className='grid'>
+        <Grid>
           <div>
             <div>
               <FlexCol gap='0.25rem'>
@@ -240,7 +241,7 @@ export default function Vtxos() {
               <Text right>{expiry}</Text>
             </div>
           </div>
-        </div>
+        </Grid>
       </div>
     )
   }

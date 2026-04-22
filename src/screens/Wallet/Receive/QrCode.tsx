@@ -616,9 +616,9 @@ function AddressLine({
           <TextSecondary>{title}</TextSecondary>
           <Text>{prettyLongText(value, 12)}</Text>
         </FlexCol>
-        <button
+        <Button
           aria-label={`Copy ${title}`}
-          className='copy'
+          copy
           data-testid={testId + '-address-copy'}
           onClick={(event) => {
             event.stopPropagation()
@@ -626,7 +626,7 @@ function AddressLine({
           }}
         >
           {copied === value ? <CheckMarkIcon /> : <CopyIcon />}
-        </button>
+        </Button>
       </FlexRow>
     </Focusable>
   )

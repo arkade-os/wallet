@@ -98,7 +98,7 @@ iframe {
   border: none;
 }
 
-button {
+.button {
   border: none;
   border-radius: 8px;
   box-shadow: 0 4px 0 0 var(--btn-shadow-color);
@@ -221,13 +221,13 @@ button.reminder-button.action-sheet-button {
 .grid {
   padding: 10px;
   width: 100%;
-  & div {
+  & > div {
     display: flex;
     width: 100%;
-    & div {
+    & > div {
       flex: 1;
       &:last-child {
-        flex: 0;
+        justify-content: flex-end;
       }
     }
   }

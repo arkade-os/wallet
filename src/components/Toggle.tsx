@@ -13,8 +13,7 @@ interface ToggleProps {
 }
 
 export default function Toggle({ checked, onClick, text, subtext, testId }: ToggleProps) {
-  const handleClick = () => {
-    console.log('Toggle clicked, new value:', !checked)
+  const handleChange = () => {
     hapticLight()
     onClick()
   }
@@ -23,10 +22,10 @@ export default function Toggle({ checked, onClick, text, subtext, testId }: Togg
     <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
       <FlexRow between>
         <Text thin>{text}</Text>
-        <Focusable onEnter={handleClick} fit round>
+        <Focusable onEnter={handleChange} fit round>
           <div className='cl-toggle-switch'>
-            <label className='cl-switch'>
-              <input type='checkbox' checked={checked} data-testid={testId} readOnly onClick={handleClick} />
+            <label className='cl-switch' data-checked={checked} data-testid={testId}>
+              <input type='checkbox' checked={checked} onChange={handleChange} />
               <span />
             </label>
           </div>

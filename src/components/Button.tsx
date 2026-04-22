@@ -9,6 +9,7 @@ import XIcon from '../icons/X'
 interface ButtonProps {
   children?: ReactNode
   clear?: boolean
+  copy?: boolean
   disabled?: boolean
   fancy?: boolean
   icon?: ReactElement
@@ -25,6 +26,7 @@ interface ButtonProps {
 export default function Button({
   children,
   clear,
+  copy,
   disabled,
   fancy,
   icon,
@@ -39,8 +41,8 @@ export default function Button({
 }: ButtonProps) {
   const [pressed, setPressed] = useState(false)
 
-  const variant = red ? 'red' : secondary ? 'secondary' : clear ? 'clear' : outline ? 'outline' : 'dark'
-  const className = `${variant}${pressed ? ' pressed' : ''}`
+  const variant = red ? 'red' : secondary ? 'secondary' : clear ? 'clear' : outline ? 'outline' : copy ? 'copy' : 'dark'
+  const className = `button ${variant}${pressed ? ' pressed' : ''}`
 
   const handlePressStart = useCallback(() => {
     if (disabled || loading) return

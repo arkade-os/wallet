@@ -233,7 +233,7 @@ export default function App() {
   return (
     <IonApp className={showNavbar ? 'has-pill-navbar' : undefined}>
       <IonPage>
-        <div className='page-transition-container' style={{ width: '640px' }}>
+        <div className='page-transition-container' style={{ maxWidth: '640px' }}>
           <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
             <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
               {comp}
