@@ -8,7 +8,7 @@ import { LimitsContext } from '../providers/limits'
 import Focusable from './Focusable'
 import { unitsToCents } from '../lib/assets'
 import { AssetOption } from '../lib/types'
-import Text, { TextSecondary } from './Text'
+import { TextSecondary } from './Text'
 
 interface InputAmountProps {
   asset?: AssetOption
