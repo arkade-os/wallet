@@ -74,6 +74,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: auto;
 }
 
 .first-letter::first-letter {
@@ -258,6 +259,17 @@ button.reminder-button.action-sheet-button {
 .ion-palette-dark button.reminder-button.action-sheet-button {
   background-color: #222;
   color: #f7fafc;
+}
+
+.pull-to-refresh {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: top 0.7s ease-in-out;
 }
 
 .spinner {
