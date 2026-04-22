@@ -5,9 +5,11 @@ import Wallet from '../../../screens/Wallet/Index'
 describe('Wallet screen', () => {
   it('renders the wallet screen with the correct elements', () => {
     render(<Wallet />)
-    expect(screen.getByText('$0.00')).toBeInTheDocument()
-    expect(screen.getByText('Send')).toBeInTheDocument()
-    expect(screen.getByText('Receive')).toBeInTheDocument()
-    expect(screen.getByText('No transactions yet')).toBeInTheDocument()
+    // New home screen structure: PortfolioHero, AssetsSection, etc.
+    expect(screen.getByText('Total')).toBeInTheDocument()
+    expect(screen.getByText('Assets')).toBeInTheDocument()
+    // Action bar is rendered via portal, so Send/Receive are in body
+    expect(document.body.querySelector('[data-testid="action-send"]')).toBeInTheDocument()
+    expect(document.body.querySelector('[data-testid="action-receive"]')).toBeInTheDocument()
   })
 })

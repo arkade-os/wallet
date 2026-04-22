@@ -16,6 +16,7 @@ import Transaction from '../screens/Wallet/Transaction'
 import Unlock from '../screens/Wallet/Unlock'
 import Vtxos from '../screens/Settings/Vtxos'
 import Wallet from '../screens/Wallet/Index'
+import Activity from '../screens/Wallet/Activity'
 import Settings from '../screens/Settings/Index'
 
 import Apps from '../screens/Apps/Index'
@@ -41,6 +42,7 @@ import ComponentPreview from '../screens/ComponentPreview'
 export type NavigationDirection = 'forward' | 'back' | 'none'
 
 export enum Pages {
+  Activity,
   AppBoltz,
   AppBoltzSettings,
   AppBoltzSwap,
@@ -88,6 +90,7 @@ export enum Tabs {
 }
 
 const pageTab = {
+  [Pages.Activity]: Tabs.Wallet,
   [Pages.AppBoltz]: Tabs.Apps,
   [Pages.AppBoltzSettings]: Tabs.Apps,
   [Pages.AppBoltzSwap]: Tabs.Apps,
@@ -147,6 +150,8 @@ export const subNavHandler = {
 
 export const pageComponent = (page: Pages): JSX.Element => {
   switch (page) {
+    case Pages.Activity:
+      return <Activity />
     case Pages.AppBoltz:
       return <AppBoltz />
     case Pages.AppBoltzSettings:

@@ -152,10 +152,20 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   )
 }
 
-export default function TransactionsList() {
+interface TransactionsListProps {
+  /** Override the default "Transaction history" title. Pass '' to hide it. */
+  title?: string
+  /** 'virtual' (default) uses virtualization; 'static' renders a simple list. */
+  mode?: 'virtual' | 'static'
+  /** Max number of transactions to show (only applies when mode='static'). */
+  limit?: number
+}
+
+export default function TransactionsList({ title, mode = 'virtual', limit }: TransactionsListProps = {}) {
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { txs } = useContext(WalletContext)
+  const { txs: allTxs } = useContext(WalletContext)
+  const txs = mode === 'static' && limit ? allTxs.slice(0, limit) : allTxs
 
   const focusedRef = useRef(false)
   const focusedIndexRef = useRef(0)
@@ -215,9 +225,24 @@ export default function TransactionsList() {
     navigate(Pages.Transaction)
   }
 
+  // Static mode: simple list without virtualization
+  if (mode === 'static') {
+    return (
+      <div>
+        {title !== '' && <TextLabel>{title ?? 'Transaction history'}</TextLabel>}
+        <div style={{ borderBottom: border }}>
+          {txs.map((tx, index) => (
+            <TransactionLine key={key(tx, index)} onClick={() => handleClick(tx)} tx={tx} />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Virtual mode: virtualized list for long transaction history
   return (
     <>
-      <TextLabel>Transaction history</TextLabel>
+      {title !== '' && <TextLabel>{title ?? 'Transaction history'}</TextLabel>}
       <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
         <div
           ref={parentRef}
@@ -232,7 +257,7 @@ export default function TransactionsList() {
         >
           <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
             {virtualizer.getVirtualItems().map((virtualItem) => {
-              const tx = txs[virtualItem.index]
+              const tx = allTxs[virtualItem.index]
               const k = key(tx, virtualItem.index)
               return (
                 <div

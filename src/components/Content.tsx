@@ -3,6 +3,7 @@ import { usePullToRefresh } from '../hooks/usePullToRefresh'
 
 interface ContentProps {
   children: ReactNode
+  className?: string
   noFade?: boolean
   onPullToRefresh?: () => Promise<void>
 }
@@ -56,7 +57,7 @@ function PullArrow({ progress }: { progress: number }) {
   )
 }
 
-export default function Content({ children, noFade, onPullToRefresh }: ContentProps) {
+export default function Content({ children, className, noFade, onPullToRefresh }: ContentProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const { pullOffset, isRefreshing, progress } = usePullToRefresh({
@@ -85,7 +86,7 @@ export default function Content({ children, noFade, onPullToRefresh }: ContentPr
         position: 'relative',
         touchAction: onPullToRefresh ? 'pan-y' : undefined,
       }}
-      className={noFade ? 'no-content-fade' : undefined}
+      className={[noFade ? 'no-content-fade' : '', className].filter(Boolean).join(' ') || undefined}
     >
       {/* Indicator in the space above content */}
       {onPullToRefresh ? (

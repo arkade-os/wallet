@@ -186,11 +186,11 @@ describe('Navbar visibility', () => {
     expect(appShell.className).not.toContain('has-pill-navbar')
   })
 
-  it('shows navbar on wallet root when authenticated and initialized', async () => {
+  it('hides navbar on wallet root (uses floating action bar instead)', async () => {
     renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Wallet, tab: Tabs.Wallet })
 
     const appShell = await screen.findByTestId('app-shell')
-    expect(appShell.className).toContain('has-pill-navbar')
+    expect(appShell.className).not.toContain('has-pill-navbar')
   })
 
   it('shows navbar on apps root when authenticated and initialized', async () => {
