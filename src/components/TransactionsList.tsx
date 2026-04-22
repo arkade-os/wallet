@@ -208,52 +208,52 @@ export default function TransactionsList() {
 
   return (
     <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
-        <div
-          ref={parentRef}
-          onKeyDown={handleListKeyDown}
-          className='hide-scrollbar scroll-fade'
-          style={{
-            borderBottom: border,
-            height: 'calc(100dvh - 380px)',
-            minHeight: '200px',
-            overflowY: 'auto',
-          }}
-        >
-          <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
-            {virtualizer.getVirtualItems().map((virtualItem) => {
-              const tx = txs[virtualItem.index]
-              const k = key(tx, virtualItem.index)
-              return (
-                <div
-                  key={k}
-                  data-index={virtualItem.index}
-                  data-testid='tx-row'
-                  onFocus={() => {
-                    focusedIndexRef.current = virtualItem.index
-                    focusedRef.current = true
-                  }}
-                  style={{
-                    left: 0,
-                    position: 'absolute',
-                    top: 0,
-                    transform: `translateY(${virtualItem.start}px)`,
-                    width: '100%',
-                  }}
+      <div
+        ref={parentRef}
+        onKeyDown={handleListKeyDown}
+        className='hide-scrollbar scroll-fade'
+        style={{
+          borderBottom: border,
+          height: 'calc(100dvh - 380px)',
+          minHeight: '200px',
+          overflowY: 'auto',
+        }}
+      >
+        <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
+          {virtualizer.getVirtualItems().map((virtualItem) => {
+            const tx = txs[virtualItem.index]
+            const k = key(tx, virtualItem.index)
+            return (
+              <div
+                key={k}
+                data-index={virtualItem.index}
+                data-testid='tx-row'
+                onFocus={() => {
+                  focusedIndexRef.current = virtualItem.index
+                  focusedRef.current = true
+                }}
+                style={{
+                  left: 0,
+                  position: 'absolute',
+                  top: 0,
+                  transform: `translateY(${virtualItem.start}px)`,
+                  width: '100%',
+                }}
+              >
+                <Focusable
+                  id={k}
+                  inactive={!focusedRef.current}
+                  onEnter={() => handleClick(tx)}
+                  onEscape={focusOnOuterShell}
+                  ariaLabel={ariaLabel(tx)}
                 >
-                  <Focusable
-                    id={k}
-                    inactive={!focusedRef.current}
-                    onEnter={() => handleClick(tx)}
-                    onEscape={focusOnOuterShell}
-                    ariaLabel={ariaLabel(tx)}
-                  >
-                    <TransactionLine onClick={() => handleClick(tx)} tx={tx} isFirst={virtualItem.index === 0} />
-                  </Focusable>
-                </div>
-              )
-            })}
-          </div>
+                  <TransactionLine onClick={() => handleClick(tx)} tx={tx} isFirst={virtualItem.index === 0} />
+                </Focusable>
+              </div>
+            )
+          })}
         </div>
-      </Focusable>
+      </div>
+    </Focusable>
   )
 }
