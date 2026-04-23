@@ -178,7 +178,7 @@ test('should refund failing swap', async ({ page }) => {
 
   // try to send funds to Lightning
   await page.getByText('Send').click()
-  await page.locator('ion-input[name="send-address"] input').fill(invoice)
+  await page.locator('input[name="send-address"]').fill(invoice)
   await page.getByText('Continue').click()
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })

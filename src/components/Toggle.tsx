@@ -1,9 +1,8 @@
+import { useId } from 'react'
 import Text from './Text'
-import { IonToggle } from '@ionic/react'
+import { Switch } from './ui/switch'
 import FlexRow from './FlexRow'
 import FlexCol from './FlexCol'
-import Focusable from './Focusable'
-import { hapticLight } from '../lib/haptics'
 
 interface ToggleProps {
   checked: boolean
@@ -14,21 +13,20 @@ interface ToggleProps {
 }
 
 export default function Toggle({ checked, onClick, text, subtext, testId }: ToggleProps) {
-  const handleClick = () => {
-    hapticLight()
-    onClick()
-  }
+  const id = useId()
 
+  // Haptic feedback is owned by the Switch primitive (fires 'selection' on
+  // change). Do NOT trigger haptics here or taps will double-fire.
   return (
     <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
-      <FlexRow between onClick={handleClick}>
-        <Text thin>{text}</Text>
-        <Focusable onEnter={handleClick} fit round>
-          <IonToggle checked={checked} data-testid={testId} />
-        </Focusable>
-      </FlexRow>
+      <label htmlFor={id} style={{ cursor: 'pointer', display: 'block', minHeight: 44, width: '100%' }}>
+        <FlexRow between>
+          <Text thin>{text}</Text>
+          <Switch id={id} checked={checked} onCheckedChange={onClick} data-testid={testId} aria-checked={checked} />
+        </FlexRow>
+      </label>
       {subtext ? (
-        <Text color='dark50' small thin wrap>
+        <Text color='neutral-500' small thin wrap>
           {subtext}
         </Text>
       ) : null}

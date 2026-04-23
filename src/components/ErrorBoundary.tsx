@@ -1,7 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import * as Sentry from '@sentry/react'
 import Button from './Button'
-import { IonApp, IonPage } from '@ionic/react'
 import Padded from './Padded'
 import Content from './Content'
 import Header from './Header'
@@ -39,23 +38,21 @@ export default class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <IonApp>
-          <IonPage>
-            <Header text='Something went wrong' />
-            <Content>
-              <Padded>
-                <CenterScreen>
-                  <Text>The app ran into an unexpected error</Text>
-                  <Text>Please reload to continue</Text>
-                  <TextSecondary centered>{this.state.error?.message}</TextSecondary>
-                </CenterScreen>
-              </Padded>
-            </Content>
-            <ButtonsOnBottom>
-              <Button label='Reload' onClick={this.handleReload} />
-            </ButtonsOnBottom>
-          </IonPage>
-        </IonApp>
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
+          <Header text='Something went wrong' />
+          <Content>
+            <Padded>
+              <CenterScreen>
+                <Text>The app ran into an unexpected error</Text>
+                <Text>Please reload to continue</Text>
+                <TextSecondary centered>{this.state.error?.message}</TextSecondary>
+              </CenterScreen>
+            </Padded>
+          </Content>
+          <ButtonsOnBottom>
+            <Button label='Reload' onClick={this.handleReload} />
+          </ButtonsOnBottom>
+        </div>
       )
     }
 

@@ -19,7 +19,7 @@ describe('Delegates screen', () => {
     expect(screen.getByText('What is a Delegate?')).toBeInTheDocument()
     expect(screen.getByText('Use default Arkade delegate')).toBeInTheDocument()
     expect(screen.getByText(/Delegates can only renew your VTXOs/)).toBeInTheDocument()
-    expect(screen.getByTestId('toggle-delegates').getAttribute('checked')).toBe('false')
+    expect(screen.getByTestId('toggle-delegates').getAttribute('aria-checked')).toBe('false')
   })
 
   it('renders the delegate card when toggle is on', () => {
@@ -40,6 +40,6 @@ describe('Delegates screen', () => {
     expect(screen.getByText('Use default Arkade delegate')).toBeInTheDocument()
     expect(screen.getByText(/Delegates can only renew your VTXOs/)).toBeInTheDocument()
     expect(screen.getByTestId('delegate-card')).toBeInTheDocument()
-    expect(screen.getByTestId('toggle-delegates').getAttribute('checked')).toBe('true')
+    expect(screen.getByTestId('toggle-delegates').getAttribute('aria-checked')).toBe('true')
   })
 })

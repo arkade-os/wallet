@@ -37,7 +37,7 @@ describe('CheckList component', () => {
   ])('applies colors correctly for %s', (pwd, [lenOk, hasNum, hasSpec]) => {
     render(<CheckList data={generateData(pwd)} />)
     const GREEN = 'color: var(--green)'
-    const DARK = 'color: var(--dark70)'
+    const DARK = 'color: var(--neutral-700)'
     expect(screen.getByText('8 characters minimum')).toHaveStyle(lenOk ? GREEN : DARK)
     expect(screen.getByText('contain at least 1 number')).toHaveStyle(hasNum ? GREEN : DARK)
     expect(screen.getByText('contain at least 1 special character')).toHaveStyle(hasSpec ? GREEN : DARK)

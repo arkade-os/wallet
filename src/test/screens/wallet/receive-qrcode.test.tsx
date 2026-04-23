@@ -20,7 +20,7 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { SwapsContext } from '../../../providers/swaps'
 import { NotificationsContext } from '../../../providers/notifications'
-import { ToastProvider } from '../../../components/Toast'
+import { Toaster } from 'sonner'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 
 // Mock qr module used by QrCode component
@@ -81,7 +81,8 @@ function buildTree(overrides?: RenderOverrides) {
   const config = { ...mockConfigContextValue, ...overrides?.config }
 
   return (
-    <ToastProvider>
+    <>
+      <Toaster />
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <AspContext.Provider value={mockAspContextValue}>
           <ConfigContext.Provider value={config as any}>
@@ -101,7 +102,7 @@ function buildTree(overrides?: RenderOverrides) {
           </ConfigContext.Provider>
         </AspContext.Provider>
       </NavigationContext.Provider>
-    </ToastProvider>
+    </>
   )
 }
 

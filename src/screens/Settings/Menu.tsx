@@ -3,10 +3,15 @@ import { options } from '../../providers/options'
 import Content from '../../components/Content'
 import { SettingsSections } from '../../lib/types'
 import Menu from '../../components/Menu'
-import { TextLabel } from '../../components/Text'
+import Text, { TextLabel } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
+import { useContext } from 'react'
+import { NavigationContext, Pages } from '../../providers/navigation'
+import Shadow from '../../components/Shadow'
 
 export default function SettingsMenu() {
+  const { navigate } = useContext(NavigationContext)
+
   // get rows for General and Security sections
   const generalRows = options.filter((o) => o.section === SettingsSections.General)
   const securityRows = options.filter((o) => o.section === SettingsSections.Security)
@@ -24,6 +29,14 @@ export default function SettingsMenu() {
             <TextLabel>Security</TextLabel>
             <Menu rows={securityRows} styled />
           </FlexCol>
+          {import.meta.env.DEV ? (
+            <FlexCol gap='0'>
+              <TextLabel>Dev tools</TextLabel>
+              <Shadow onClick={() => navigate(Pages.ComponentPreview)}>
+                <Text>Component preview</Text>
+              </Shadow>
+            </FlexCol>
+          ) : null}
         </FlexCol>
       </Content>
     </>

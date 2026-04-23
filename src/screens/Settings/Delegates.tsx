@@ -21,7 +21,6 @@ import { decodeArkAddress, isArkAddress } from '../../lib/address'
 import { Network } from '@arkade-os/boltz-swap'
 import { copyToClipboard } from '../../lib/clipboard'
 import { copiedToClipboard } from '../../lib/toast'
-import { useIonToast } from '@ionic/react'
 
 // format the URL to ensure it has the correct protocol and no trailing slashes
 const formatUrl = (host: string, path: string): string => {
@@ -124,8 +123,6 @@ function DelegateCard() {
   const { wallet } = useContext(WalletContext)
   const { setOption } = useContext(OptionsContext)
 
-  const [present] = useIonToast()
-
   const [active, setActive] = useState(false)
   const [delegate, setDelegate] = useState<Delegate>(getDelegateUrlForNetwork(aspInfo.network as Network))
 
@@ -144,7 +141,7 @@ function DelegateCard() {
 
   const handleCopy = async (value: string) => {
     await copyToClipboard(value)
-    present(copiedToClipboard)
+    copiedToClipboard()
   }
 
   const nextRolloverText = wallet.nextRollover
@@ -157,7 +154,7 @@ function DelegateCard() {
         <FlexRow between>
           <Text>{delegate.name}</Text>
           <FlexRow end onClick={() => setOption(SettingsOptions.Vtxos)}>
-            <Text color='dark50' tiny>
+            <Text color='neutral-500' tiny>
               {nextRolloverText}
             </Text>
             <ArrowIcon small />

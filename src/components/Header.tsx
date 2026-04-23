@@ -1,4 +1,3 @@
-import { IonHeader, IonTitle } from '@ionic/react'
 import React, { useContext } from 'react'
 import { NavigationContext } from '../providers/navigation'
 import BackIcon from '../icons/Back'
@@ -31,7 +30,7 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
 
   const SideButton = (text: string) => (
     <Shadow>
-      <Text color='dark80' centered tiny wrap>
+      <Text color='neutral-800' centered tiny wrap>
         {text}
       </Text>
     </Shadow>
@@ -45,8 +44,24 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
     paddingRight: '1rem',
   }
 
+  const headerStyle: React.CSSProperties = {
+    alignItems: 'center',
+    borderBottom: '1px solid var(--neutral-100)',
+    display: 'flex',
+    height: '4rem',
+    flexShrink: 0,
+  }
+
+  const titleStyle: React.CSSProperties = {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: '1rem',
+    fontWeight: '500',
+    ...(heading ? { fontFamily: 'var(--font-heading)', letterSpacing: '-0.5px' } : {}),
+  }
+
   return (
-    <IonHeader style={{ boxShadow: 'none' }}>
+    <header role='banner' style={headerStyle}>
       <FlexRow between>
         <div style={{ minWidth: '4rem', marginLeft: '0.5rem' }}>
           {handleBack ? (
@@ -59,14 +74,7 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
             '\u00A0'
           )}
         </div>
-        <IonTitle
-          className='ion-text-center'
-          style={
-            heading ? { fontFamily: 'var(--heading-font)', letterSpacing: '-0.5px', fontWeight: '500' } : undefined
-          }
-        >
-          {text}
-        </IonTitle>
+        <span style={titleStyle}>{text}</span>
         <div style={style} onClick={auxFunc} aria-label={auxAriaLabel} data-testid='header-aux-btn'>
           {auxText || auxIcon ? (
             <Focusable onEnter={auxFunc} fit round>
@@ -77,6 +85,6 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
           )}
         </div>
       </FlexRow>
-    </IonHeader>
+    </header>
   )
 }

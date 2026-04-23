@@ -5,7 +5,7 @@ import { prettyLongText } from '../lib/format'
 import { useState } from 'react'
 import Focusable from './Focusable'
 import { copyToClipboard } from '../lib/clipboard'
-import { useToast } from './Toast'
+import { copiedToClipboard } from '../lib/toast'
 import { hapticSubtle } from '../lib/haptics'
 import ExternalLinkIcon from '../icons/ExternalLink'
 
@@ -15,12 +15,10 @@ export type TableData = TableLine[]
 export default function Table({ data }: { data: TableData }) {
   const [focused, setFocused] = useState(false)
 
-  const { toast } = useToast()
-
   const copy = (value: string) => {
     hapticSubtle()
     copyToClipboard(value)
-    toast('Copied to clipboard')
+    copiedToClipboard()
   }
 
   const focusOnFirstRow = () => {
@@ -56,7 +54,7 @@ export default function Table({ data }: { data: TableData }) {
               ariaLabel={ariaLabel(title, value)}
             >
               <FlexRow between>
-                <FlexRow color='dark50'>
+                <FlexRow color='neutral-500'>
                   {icon}
                   <Text small thin>
                     {title}
@@ -64,11 +62,11 @@ export default function Table({ data }: { data: TableData }) {
                 </FlexRow>
                 <FlexRow end gap='0.25rem'>
                   {onClick ? (
-                    <span onClick={onClick} style={{ cursor: 'pointer', color: 'var(--dark50)' }}>
+                    <span onClick={onClick} style={{ cursor: 'pointer', color: 'var(--neutral-500)' }}>
                       <ExternalLinkIcon />
                     </span>
                   ) : null}
-                  <Text color='dark' copy={value} small bold testId={title}>
+                  <Text color='fg' copy={value} small bold testId={title}>
                     {prettyLongText(value, onClick ? 8 : undefined)}
                   </Text>
                 </FlexRow>
