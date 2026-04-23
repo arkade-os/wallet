@@ -13,7 +13,7 @@ import { formatAssetAmount, prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { collaborativeExitWithFees, sendOffChain } from '../../../lib/asp'
-import { extractError } from '../../../lib/error'
+import { friendlyError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
 import { LimitsContext } from '../../../providers/limits'
@@ -123,7 +123,7 @@ export default function SendDetails() {
 
   const handleError = (err: any) => {
     consoleError(err, 'error sending payment')
-    setError(extractError(err))
+    setError(friendlyError(err, 'Payment'))
     setSendDone(true)
   }
 
