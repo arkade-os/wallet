@@ -2,7 +2,6 @@ import FlexRow from './FlexRow'
 import { hapticLight } from '../lib/haptics'
 import { useState } from 'react'
 import Text from './Text'
-import Focusable from './Focusable'
 
 interface CheckboxProps {
   onChange: () => void
