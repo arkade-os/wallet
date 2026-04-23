@@ -6,7 +6,6 @@ async function setupWalletAndOpenKeyboard(page: Page) {
   await createWallet(page)
   await page.getByText('Receive').click()
   await page.getByText('Add amount').click()
-  await page.locator('input[name="receive-amount-sheet"]').click()
   await page.waitForSelector('text=Save', { state: 'visible' })
 }
 

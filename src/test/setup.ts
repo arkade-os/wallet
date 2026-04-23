@@ -1,5 +1,4 @@
 import '@testing-library/jest-dom/vitest'
-import { setupIonicReact } from '@ionic/react'
 import { afterEach, beforeEach, vi } from 'vitest'
 
 // jsdom adds ontouchstart which makes isMobileBrowser=true; remove it to simulate desktop
@@ -16,8 +15,6 @@ const createMatchMedia = (query: string): MediaQueryList =>
     removeEventListener: () => {},
     dispatchEvent: () => false,
   }) as unknown as MediaQueryList
-
-setupIonicReact()
 
 // Provide a stable matchMedia implementation for tests (used by useReducedMotion, usePwaInstalled, etc.).
 // Keep this as a plain function so vi.restoreAllMocks() does not reset it.

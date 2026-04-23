@@ -19,6 +19,7 @@ export default function Checkbox({ onChange, text }: CheckboxProps) {
   }
 
   const style: React.CSSProperties = {
+    display: 'block',
     border: '1px solid var(--dark50)',
     borderRadius: '0.5rem',
     margin: '0 2px',
@@ -26,13 +27,11 @@ export default function Checkbox({ onChange, text }: CheckboxProps) {
     width: '100%',
   }
   return (
-    <div style={style}>
-      <Focusable onEnter={handleChange} fit>
-        <FlexRow onClick={handleChange} gap='0.5rem'>
-          <BoxIcon checked={checked} />
-          <Text small>{text}</Text>
-        </FlexRow>
-      </Focusable>
+    <div style={style} onClick={handleChange} data-testid='checkbox'>
+      <FlexRow gap='0.5rem'>
+        <BoxIcon checked={checked} />
+        <Text small>{text}</Text>
+      </FlexRow>
     </div>
   )
 }

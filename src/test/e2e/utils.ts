@@ -162,7 +162,6 @@ async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = f
   if (sats && type === 'invoice') {
     await page.getByText('Add amount').click()
     if (isMobile) {
-      await page.locator('input[name="receive-amount-sheet"]').click()
       await handleKeyboardInput(page, sats)
     } else {
       await page.locator('input[name="receive-amount-sheet"]').fill(sats.toString())
@@ -222,7 +221,7 @@ async function getNsec(page: Page): Promise<string> {
 async function resetWallet(page: Page): Promise<void> {
   await navigateToSettings(page)
   await page.getByText('Reset wallet').click()
-  await page.getByText('I have backed up my wallet').click()
+  await page.getByTestId('checkbox').click()
   await page.getByRole('contentinfo').getByText('Reset wallet').click()
 }
 

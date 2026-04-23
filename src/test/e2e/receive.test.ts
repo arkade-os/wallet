@@ -59,7 +59,6 @@ test('changing amount should update the invoice', async ({ page, isMobile }) => 
   // fill amount to receive if provided
   await page.getByText('Add amount').click()
   if (isMobile) {
-    await page.locator('input[name="receive-amount-sheet"]').click()
     await handleKeyboardInput(page, sats)
   } else {
     await page.locator('input[name="receive-amount-sheet"]').fill(sats.toString())
@@ -81,7 +80,6 @@ test('changing amount should update the invoice', async ({ page, isMobile }) => 
 
   await page.getByText('Edit amount').click()
   if (isMobile) {
-    await page.locator('input[name="receive-amount-sheet"]').click()
     // delete previous amount
     for (let i = 0; i < sats.toString().length + 1; i++) {
       await page.getByTestId('keyboard-x').click()

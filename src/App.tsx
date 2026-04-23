@@ -1,22 +1,5 @@
-import '@ionic/react/css/core.css'
-/* Basic CSS for apps built with Ionic */
-// import '@ionic/react/css/normalize.css'
-import '@ionic/react/css/structure.css'
-import '@ionic/react/css/typography.css'
-
-/* Optional CSS utils that can be commented out */
-import '@ionic/react/css/padding.css'
-import '@ionic/react/css/float-elements.css'
-import '@ionic/react/css/text-alignment.css'
-import '@ionic/react/css/text-transformation.css'
-import '@ionic/react/css/flex-utils.css'
-import '@ionic/react/css/display.css'
-
-import '@ionic/react/css/palettes/dark.class.css'
-
 import { AnimatePresence } from 'framer-motion'
 import { ConfigContext } from './providers/config'
-import { IonApp, IonPage, setupIonicReact } from '@ionic/react'
 import { NavigationContext, pageComponent, Pages, Tabs, type NavigationDirection } from './providers/navigation'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { isInAppBrowser } from './lib/browser'
@@ -36,8 +19,6 @@ import { useReducedMotion } from './hooks/useReducedMotion'
 import { useLoadingStatus } from './hooks/useLoadingStatus'
 import { defaultPassword } from './lib/constants'
 import { consoleError } from './lib/logs'
-
-setupIonicReact()
 
 const PASSWORDLESS_AUTO_RELOAD_KEY = 'passwordless-auto-reload-attempted'
 export const appReloader = {
@@ -231,16 +212,12 @@ export default function App() {
   const showNavbar = page === screen && (screen === Pages.Wallet || screen === Pages.Apps || isSettingsRoot)
 
   return (
-    <IonApp className={showNavbar ? 'has-pill-navbar' : undefined}>
-      <IonPage>
-        <div className='page-transition-container' style={{ maxWidth: '640px' }}>
-          <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-            <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-              {comp}
-            </PageTransition>
-          </PageAnimWrapper>
-        </div>
-      </IonPage>
+    <div className={showNavbar ? 'page has-pill-navbar' : 'page'}>
+      <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
+        <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+          {comp}
+        </PageTransition>
+      </PageAnimWrapper>
       {tab !== Tabs.None && !bootAnimActive && (
         <PillNavbarOverlay
           visible={showNavbar}
@@ -262,6 +239,6 @@ export default function App() {
           />
         )
       ) : null}
-    </IonApp>
+    </div>
   )
 }

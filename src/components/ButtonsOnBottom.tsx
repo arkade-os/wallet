@@ -8,7 +8,7 @@ interface ButtonsOnBottomProps {
 export default function ButtonsOnBottom({ children }: ButtonsOnBottomProps) {
   return (
     <footer className='buttons-on-bottom'>
-      <FlexCol gap='0' strech>
+      <FlexCol gap='0.25rem' strech>
         {children}
       </FlexCol>
     </footer>

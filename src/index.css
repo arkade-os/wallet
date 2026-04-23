@@ -1,3 +1,86 @@
+:root {
+  --black: #040404;
+  --cream: #391998;
+  --dark80: rgba(34, 36, 40, 0.8);
+  --dark70: rgba(34, 36, 40, 0.7);
+  --dark50: rgba(34, 36, 40, 0.5);
+  --dark30: rgba(34, 36, 40, 0.3);
+  --dark20: rgba(34, 36, 40, 0.2);
+  --dark15: rgba(34, 36, 40, 0.15);
+  --dark10: rgba(34, 36, 40, 0.1);
+  --dark05: rgba(34, 36, 40, 0.05);
+  --green: #60b18a;
+  --greenbg: #054a19;
+  --grey: #747474;
+  --liz: #d5c6ff;
+  --logo-color: #391998;
+  --magenta: #8563e4;
+  --orange: #ff8e24;
+  --orangebg: #ff8e2418;
+  --purple: #391998;
+  --purple10: #39199815;
+  --purple20: #39199833;
+  --purplebg: #24154f;
+  --purpletext: #7043f4;
+  --btn-shadow-color: #1a0b4a;
+  --red: #a51515;
+  --redbg: #68222b;
+  --white: #fbfbfb;
+  --yellow: #e2c542;
+  --yellowoutlier: #debb20;
+  --fade-rgb: 255, 255, 255;
+  --background-color: #fff;
+  --background-focused: var(--purple20);
+  --danger: #a51515;
+  --warning: #c3730a;
+  --success: #60b18a;
+  --heading-font: 'TT Firs Neue', 'Geist', sans-serif;
+  --animation-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --bullet-icon-bg: #ede7fb;
+  --pill-navbar-spacer: calc(80px + env(safe-area-inset-bottom, 0px));
+  --pill-navbar-clearance: calc(64px + env(safe-area-inset-bottom, 0px));
+  --sheet-bg: #fff;
+  --toast-bg: #1a1a1a;
+  --toast-color: #fafafa;
+  --text-color: #040404;
+}
+
+html.palette-dark {
+  --black: #fbfbfb;
+  --cream: #d9d9d9;
+  --dark80: rgba(244, 245, 248, 0.8);
+  --dark70: rgba(244, 245, 248, 0.7);
+  --dark50: rgba(244, 245, 248, 0.5);
+  --dark30: rgba(244, 245, 248, 0.3);
+  --dark20: rgba(244, 245, 248, 0.2);
+  --dark15: rgba(244, 245, 248, 0.15);
+  --dark10: rgba(244, 245, 248, 0.1);
+  --dark05: rgba(244, 245, 248, 0.05);
+  --greenbg: #092d13;
+  --orange: #e69b39;
+  --orangebg: #2e1800;
+  --purple10: #39199820;
+  --purplebg: #39199833;
+  --red: #e04d4d;
+  --redbg: #380008;
+  --yellow: #ffdd46;
+  --yellowoutlier: #ffdd46;
+  --fade-rgb: 16, 16, 16;
+  --background-color: #101010;
+  --background-focused: var(--dark10);
+  --tab-bar-background: transparent;
+  --logo-color: #fbfbfb;
+  --toggle-background: #ddd;
+  --danger: #e04d4d;
+  --purpletext: #9678f7;
+  --bullet-icon-bg: #1f1050;
+  --sheet-bg: #1a1a1a;
+  --toast-bg: #2a2a2a;
+  --toast-color: #e0e0e0;
+  --rsbs-bg: #202020;
+  --text-color: #fbfbfb;
+}
+
 /* from tailwindcss/base */
 blockquote,
 dl,
@@ -48,8 +131,9 @@ html,
 body,
 #root {
   height: 100%;
+  color: var(--black);
   overscroll-behavior: none;
-  background-color: var(--ion-background-color, #fff);
+  background-color: var(--background-color, #fff);
 }
 
 /* Fixed overlay for iOS status bar color sampling.
@@ -63,10 +147,11 @@ body::before {
   left: 0;
   right: 0;
   height: env(safe-area-inset-top);
-  background-color: var(--ion-background-color, #fff);
+  background-color: var(--background-color, #fff);
   z-index: 99999;
   pointer-events: none;
 }
+
 body {
   margin: 0;
   font-family:
@@ -77,15 +162,16 @@ body {
   overscroll-behavior-y: auto;
 }
 
-.first-letter::first-letter {
-  text-transform: uppercase;
-}
-
-p a {
-  color: inherit;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+p {
+  &.first-letter::first-letter {
+    text-transform: uppercase;
+  }
+  & a {
+    color: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
 }
 
 iframe#webpack-dev-server-client-overlay {
@@ -180,17 +266,13 @@ iframe {
   }
 }
 
-button.atcb-button {
-  box-shadow: none;
-}
-
-button.reminder-button.action-sheet-button {
-  width: calc(100% - 2rem);
+button.reminder-button {
+  width: 100%;
   margin: 1rem;
-  padding: 0;
+  padding: 1rem;
   border: 1px solid var(--dark50);
   border-radius: 0.25rem;
-  background-color: #e5e5e5;
+  background-color: var(--background-color);
   color: var(--color);
   font-size: 1rem;
   font-weight: 500;
@@ -198,7 +280,7 @@ button.reminder-button.action-sheet-button {
   display: flex;
   justify-content: center;
   align-items: center;
-  & span.action-sheet-button-inner {
+  & span {
     justify-content: center;
   }
 }
@@ -207,16 +289,48 @@ button.reminder-button.action-sheet-button {
   padding: 1rem;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+    &.pressed {
+      transform: none;
+    }
+  }
+}
+
 .content {
-  display: block;
-  position: relative;
-  flex: 1 1 0%;
   width: 100%;
   height: 100%;
-  font-family: var(--ion-font-family, inherit);
-  contain: size style;
-  margin: 0px;
-  padding: 0px;
+  display: block;
+  position: relative;
+  font-family:
+    'Geist',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    'Roboto',
+    'Oxygen',
+    'Ubuntu',
+    'Cantarell',
+    'Fira Sans',
+    'Droid Sans',
+    'Helvetica Neue',
+    sans-serif;
+  & > .content-shell {
+    padding-top: 2rem;
+    height: 100%;
+  }
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.content::part(scroll)::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.content::part(scroll) {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }
 
 .grid {
@@ -234,14 +348,43 @@ button.reminder-button.action-sheet-button {
   }
 }
 
-.has-pill-navbar .content {
-  --padding-bottom: var(--pill-navbar-clearance);
+.has-pill-navbar {
+  & .content {
+    --padding-bottom: var(--pill-navbar-clearance);
+  }
+  & .content:has(.scroll-fade)::part(scroll) {
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      #000 0,
+      #000 calc(100% - var(--pill-navbar-clearance) - 56px),
+      rgba(0, 0, 0, 0.86) calc(100% - var(--pill-navbar-clearance) - 12px),
+      rgba(0, 0, 0, 0.54) calc(100% - var(--pill-navbar-clearance) + 18px),
+      rgba(0, 0, 0, 0.16) calc(100% - 18px),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      #000 0,
+      #000 calc(100% - var(--pill-navbar-clearance) - 56px),
+      rgba(0, 0, 0, 0.86) calc(100% - var(--pill-navbar-clearance) - 12px),
+      rgba(0, 0, 0, 0.54) calc(100% - var(--pill-navbar-clearance) + 18px),
+      rgba(0, 0, 0, 0.16) calc(100% - 18px),
+      transparent 100%
+    );
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+  }
+  & .content.no-content-fade::part(scroll) {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
 }
 
 .header {
   align-items: center;
   border-bottom: 1px solid var(--dark10);
-  color: var(--ion-color-dark);
   display: flex;
   height: 4rem;
 }
@@ -256,9 +399,27 @@ button.reminder-button.action-sheet-button {
   color: var(--black);
 }
 
-.ion-palette-dark button.reminder-button.action-sheet-button {
+input:focus::placeholder {
+  color: transparent; /* Hide placeholder on focus */
+}
+
+.palette-dark button.reminder-button.action-sheet-button {
   background-color: #222;
   color: #f7fafc;
+}
+
+.page {
+  inset: 0;
+  display: flex;
+  position: absolute;
+  flex-direction: column;
+  justify-content: space-between;
+  contain: layout size style;
+  z-index: 0;
+  & > div {
+    max-width: 640px;
+    margin: auto;
+  }
 }
 
 .pull-to-refresh {
@@ -340,7 +501,7 @@ button.reminder-button.action-sheet-button {
 
 .focusable {
   &:focus-visible {
-    background-color: var(--ion-background-focused);
+    background-color: var(--background-focused);
   }
 }
 
@@ -415,7 +576,7 @@ hr {
   gap: 4px;
   padding: 4px;
   border-radius: 999px;
-  background-color: var(--ion-background-color);
+  background-color: var(--background-color);
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.08),
     0 1px 3px -1px rgba(0, 0, 0, 0.12),
@@ -424,7 +585,7 @@ hr {
   pointer-events: auto;
 }
 
-.ion-palette-dark .pill-navbar {
+.palette-dark .pill-navbar {
   background-color: #1c1c1e;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.1),
@@ -458,7 +619,7 @@ hr {
   background-color: var(--dark05);
 }
 
-.ion-palette-dark .pill-nav-btn--active {
+.palette-dark .pill-nav-btn--active {
   color: #fbfbfb;
 }
 
@@ -499,7 +660,7 @@ hr {
   pointer-events: none;
 }
 
-.ion-palette-dark .pill-navbar-haze {
+.palette-dark .pill-navbar-haze {
   background: radial-gradient(
     ellipse 78% 88% at 50% 100%,
     rgba(var(--fade-rgb), 0.84) 0%,
