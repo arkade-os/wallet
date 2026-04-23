@@ -73,6 +73,8 @@ export default function SendForm() {
     amountIsAboveMaxLimit,
     amountIsBelowMinLimit,
     lnSwapsAllowed,
+    minSwapAllowed,
+    maxSwapAllowed,
     utxoTxsAllowed,
     validArkToBtc,
     validLnSwap,
@@ -260,6 +262,17 @@ export default function SendForm() {
         }
         const satoshis = getInvoiceSatoshis(lowerCaseData)
         if (!satoshis) return setError('Invoice must have amount defined')
+        // Check swap limits proactively
+        if (!lnSwapsAllowed()) {
+          setError('Lightning sends are currently unavailable')
+        } else if (satoshis < minSwapAllowed()) {
+          setError(`Minimum Lightning send is ${minSwapAllowed()} sats`)
+        } else {
+          const maxSwap = maxSwapAllowed()
+          if (maxSwap > 0 && satoshis > maxSwap) {
+            setError(`Maximum Lightning send is ${maxSwap} sats`)
+          }
+        }
         setState({ ...base, invoice: lowerCaseData, satoshis })
         setAmountIsReadOnly(true)
         setAmount(satoshis)
@@ -432,6 +445,22 @@ export default function SendForm() {
     }
     const satoshis = sendInfo.satoshis ?? 0
     const isLightningSend = Boolean(sendInfo.invoice)
+
+    // Set error for Lightning limit violations
+    if (isLightningSend && satoshis > 0) {
+      if (!lnSwapsAllowed()) {
+        setError('Lightning sends are currently unavailable')
+      } else {
+        const minSwap = minSwapAllowed()
+        const maxSwap = maxSwapAllowed()
+        if (minSwap > 0 && satoshis < minSwap) {
+          setError(`Minimum Lightning send is ${minSwap} sats`)
+        } else if (maxSwap > 0 && satoshis > maxSwap) {
+          setError(`Maximum Lightning send is ${maxSwap} sats`)
+        }
+      }
+    }
+
     setLabel(
       satoshis > liquidBalance
         ? 'Insufficient funds'
@@ -441,15 +470,11 @@ export default function SendForm() {
             ? 'Amount above LNURL max limit'
             : satoshis && satoshis < 1
               ? 'Amount below 1 satoshi'
-              : isLightningSend && !lnSwapsAllowed()
-                ? 'Lightning swaps not enabled'
-                : isLightningSend && !validLnSwap(satoshis)
-                  ? 'Amount outside Lightning swap limits'
-                  : amountIsAboveMaxLimit(satoshis)
-                    ? 'Amount above max limit'
-                    : satoshis && amountIsBelowMinLimit(satoshis)
-                      ? 'Amount below min limit'
-                      : 'Continue',
+              : amountIsAboveMaxLimit(satoshis)
+                ? 'Amount above max limit'
+                : satoshis && amountIsBelowMinLimit(satoshis)
+                  ? 'Amount below min limit'
+                  : 'Continue',
     )
   }, [sendInfo.satoshis, sendInfo.assets, sendInfo.invoice, liquidBalance, selectedAsset])
 
@@ -470,8 +495,11 @@ export default function SendForm() {
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
     if (sendInfo.arkAddress || sendInfo.pendingSwap) return navigate(Pages.SendDetails)
     if (sendInfo.invoice) {
-      if (!lnSwapsAllowed()) return handleError('Lightning swaps not enabled')
-      if (!validLnSwap(sendInfo.satoshis ?? 0)) return handleError('Amount outside Lightning swap limits')
+      if (!lnSwapsAllowed()) return handleError('Lightning sends are currently unavailable')
+      const invoiceSats = sendInfo.satoshis ?? 0
+      if (invoiceSats < minSwapAllowed()) return handleError(`Minimum Lightning send is ${minSwapAllowed()} sats`)
+      const maxSwap = maxSwapAllowed()
+      if (maxSwap > 0 && invoiceSats > maxSwap) return handleError(`Maximum Lightning send is ${maxSwap} sats`)
       createSubmarineSwap(sendInfo.invoice)
         .then((pendingSwap) => {
           if (!pendingSwap) return handleError('Unable to create swap')
@@ -595,8 +623,10 @@ export default function SendForm() {
           setState({ ...sendInfo, arkAddress: arkResponse.address, invoice: undefined })
         } else {
           // Fallback to Lightning invoice
-          if (!lnSwapsAllowed()) return handleError('Lightning swaps not enabled')
-          if (!validLnSwap(satoshis)) return handleError('Amount outside Lightning swap limits')
+          if (!lnSwapsAllowed()) return handleError('Lightning sends are currently unavailable')
+          if (satoshis < minSwapAllowed()) return handleError(`Minimum Lightning send is ${minSwapAllowed()} sats`)
+          const maxSwap = maxSwapAllowed()
+          if (maxSwap > 0 && satoshis > maxSwap) return handleError(`Maximum Lightning send is ${maxSwap} sats`)
           const amountForInvoice = deductFromAmount ? satoshis - calcSubmarineSwapFee(satoshis) : satoshis
           if (amountForInvoice < 1) return handleError('Amount too low to cover fees')
           const invoice = await fetchInvoice(sendInfo.lnUrl, amountForInvoice, '')
@@ -604,8 +634,10 @@ export default function SendForm() {
         }
       } else {
         if (sendInfo.invoice) {
-          if (!lnSwapsAllowed()) return handleError('Lightning swaps not enabled')
-          if (!validLnSwap(satoshis)) return handleError('Amount outside Lightning swap limits')
+          if (!lnSwapsAllowed()) return handleError('Lightning sends are currently unavailable')
+          if (satoshis < minSwapAllowed()) return handleError(`Minimum Lightning send is ${minSwapAllowed()} sats`)
+          const maxSwap = maxSwapAllowed()
+          if (maxSwap > 0 && satoshis > maxSwap) return handleError(`Maximum Lightning send is ${maxSwap} sats`)
         }
         setState({ ...sendInfo, satoshis })
       }
