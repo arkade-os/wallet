@@ -4,7 +4,7 @@ import Content from './Content'
 import { useContext, useEffect, useState } from 'react'
 import Text, { TextSecondary } from './Text'
 import { FiatContext } from '../providers/fiat'
-import { formatAssetAmount, prettyAmount, prettyNumber } from '../lib/format'
+import { formatAssetAmount, prettyAmount, prettyFiatAmount, prettyNumber } from '../lib/format'
 import { WalletContext } from '../providers/wallet'
 import { defaultFee } from '../lib/constants'
 import ErrorMessage from './Error'
@@ -136,7 +136,7 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
   const amount = {
     primary:
       inputMode === 'fiat'
-        ? prettyAmount(amountInSats ? toFiat(amountInSats) : 0, config.fiat, fiatDecimals())
+        ? prettyFiatAmount(amountInSats ? toFiat(amountInSats) : 0, config.fiat)
         : inputMode === 'asset'
           ? `${textValue || '0'} ${asset?.ticker}`
           : `${textValue || '0'} SATS`,
@@ -145,12 +145,12 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
         ? prettyAmount(amountInSats)
         : inputMode === 'asset'
           ? prettyAmount(amountInSats, asset?.ticker)
-          : prettyAmount(toFiat(amountInSats), config.fiat, fiatDecimals()),
+          : prettyFiatAmount(toFiat(amountInSats), config.fiat),
     balance:
       inputMode === 'asset'
         ? `${formatAssetAmount(asset?.balance ?? 0, asset?.decimals ?? 0)} ${asset?.ticker}`
         : inputMode === 'fiat'
-          ? prettyAmount(toFiat(available), config.fiat, fiatDecimals())
+          ? prettyFiatAmount(toFiat(available), config.fiat)
           : prettyAmount(available),
   }
 
@@ -179,8 +179,8 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
     <>
       <Header
         auxAriaLabel='Toggle currency'
-        auxFunc={handleToggleCurrency}
-        auxIcon={<SwapIcon />}
+        auxFunc={inputMode !== 'asset' ? handleToggleCurrency : undefined}
+        auxIcon={inputMode !== 'asset' ? <SwapIcon /> : undefined}
         back={back}
         text='Amount'
       />

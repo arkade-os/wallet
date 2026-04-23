@@ -17,7 +17,7 @@ import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { SwapsContext } from '../../../providers/swaps'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
-import { PendingChainSwap, PendingReverseSwap } from '@arkade-os/boltz-swap'
+import { BoltzChainSwap, BoltzReverseSwap } from '@arkade-os/boltz-swap'
 import { enableChainSwapsReceive, lnurlServerUrl } from '../../../lib/constants'
 import { centsToUnits } from '../../../lib/assets'
 import WarningBox from '../../../components/Warning'
@@ -39,8 +39,10 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import Focusable from '../../../components/Focusable'
 import { useLnurlSession } from '../../../hooks/useLnurlSession'
+import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { AssetOption } from '../../../lib/types'
+import { EASE_OUT_QUINT } from '../../../lib/animations'
 
 export default function ReceiveQRCode() {
   const { useFiat } = useContext(ConfigContext)
@@ -57,6 +59,7 @@ export default function ReceiveQRCode() {
 
   const [sharing, setSharing] = useState(false)
   const [addressesLoaded, setAddressesLoaded] = useState(false)
+  const [qrTransform, setQrTransform] = useState('')
 
   // Amount sheet state
   const [showAmountSheet, setShowAmountSheet] = useState(false)
@@ -68,8 +71,10 @@ export default function ReceiveQRCode() {
   const [showCopySheet, setShowCopySheet] = useState(false)
   const [copied, setCopied] = useState('')
 
+  const prefersReducedMotion = useReducedMotion()
+
   // Receive methods
-  const { boardingAddr, offchainAddr, satoshis, assetId, addressError } = recvInfo
+  const { boardingAddr, offchainAddr, satoshis, assetId, addressError, received } = recvInfo
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const isAssetReceive = assetId && assetId !== ''
   const hasError = Boolean(addressError)
@@ -109,6 +114,7 @@ export default function ReceiveQRCode() {
   // LNURL session for amountless Lightning receives
   const isAmountlessLnurl =
     !satoshis && !isAssetReceive && !!lnurlServerUrl && connected && !!arkadeSwaps && !swapsInitError
+
   const handleInvoiceRequest = useCallback(
     async (req: { amountMsat: number }) => {
       const sats = Math.floor(req.amountMsat / 1000)
@@ -119,8 +125,8 @@ export default function ReceiveQRCode() {
         arkadeSwaps
           .waitAndClaim(pendingSwap)
           .then(() => {
-            setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
-            notifyPaymentReceived(pendingSwap.response.onchainAmount)
+            setRecvInfo({ ...recvInfo, received: true, satoshis: pendingSwap.response.onchainAmount ?? 0 })
+            notifyPaymentReceived(pendingSwap.response.onchainAmount ?? 0)
             navigate(Pages.ReceiveSuccess)
           })
           .catch((err) => consoleError(err, 'Error claiming LNURL reverse swap'))
@@ -177,6 +183,7 @@ export default function ReceiveQRCode() {
     if (isAssetReceive) return setShowQrCode(true)
     if (!satoshis || !svcWallet) return
     if (!addressesLoaded) return
+    if (received) return
 
     const lnExpected = connected && !isAssetReceive
 
@@ -200,13 +207,13 @@ export default function ReceiveQRCode() {
 
     Promise.allSettled([createBtcAddress(), createLightningInvoice()]).then(([btc, lightning]) => {
       if (btc.status === 'fulfilled') {
-        const pendingSwap = btc.value as PendingChainSwap
+        const pendingSwap = btc.value as BoltzChainSwap
         const btcAddr = pendingSwap.response.lockupDetails.lockupAddress
         setSwapAddress(btcAddr)
         arkadeSwaps
           .waitAndClaimArk(pendingSwap)
           .then(() => {
-            setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.claimDetails.amount })
+            setRecvInfo({ ...recvInfo, received: true, satoshis: pendingSwap.response.claimDetails.amount })
             navigate(Pages.ReceiveSuccess)
           })
           .catch((error) => {
@@ -214,13 +221,13 @@ export default function ReceiveQRCode() {
           })
       }
       if (lightning.status === 'fulfilled') {
-        const pendingSwap = lightning.value as PendingReverseSwap
+        const pendingSwap = lightning.value as BoltzReverseSwap
         const inv = pendingSwap.response.invoice
         setInvoice(inv)
         arkadeSwaps
           .waitAndClaim(pendingSwap)
           .then(() => {
-            setRecvInfo({ ...recvInfo, satoshis: pendingSwap.response.onchainAmount })
+            setRecvInfo({ ...recvInfo, received: true, satoshis: pendingSwap.response.onchainAmount ?? 0 })
             navigate(Pages.ReceiveSuccess)
           })
           .catch((error) => {
@@ -296,7 +303,7 @@ export default function ReceiveQRCode() {
       }
 
       if (sats || receivedAssets.length > 0) {
-        setRecvInfo({ ...recvInfo, satoshis: sats, receivedAssets })
+        setRecvInfo({ ...recvInfo, received: true, satoshis: sats, receivedAssets })
         if (!isAssetReceive) notifyPaymentReceived(sats)
         navigate(Pages.ReceiveSuccess)
       }
@@ -315,9 +322,10 @@ export default function ReceiveQRCode() {
   }
 
   const handleCopy = async (value: string) => {
-    hapticSubtle()
+    if (!prefersReducedMotion) hapticSubtle()
     await copyToClipboard(value)
     toast('Copied to clipboard')
+    setShowCopySheet(false)
     setCopied(value)
   }
 
@@ -401,7 +409,33 @@ export default function ReceiveQRCode() {
             <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 2rem)', gap: '1rem' }}>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div style={{ textAlign: 'center' }}>
-                  <QrCode value={qrCodeValue} />
+                  <button
+                    type='button'
+                    onClick={() => handleCopy(qrCodeValue)}
+                    onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
+                    onPointerUp={() => setQrTransform('')}
+                    onPointerLeave={() => setQrTransform('')}
+                    onPointerCancel={() => setQrTransform('')}
+                    aria-label='Copy QR code'
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      margin: '0 auto',
+                      display: 'block',
+                      width: '100%',
+                      maxWidth: '340px',
+                      cursor: 'pointer',
+                      transition: prefersReducedMotion
+                        ? 'none'
+                        : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation',
+                      transform: qrTransform,
+                    }}
+                  >
+                    <QrCode value={qrCodeValue} />
+                  </button>
                   {satoshis > 0 ? (
                     <div style={{ fontSize: '14px', color: 'var(--dark50)', marginTop: '0.5rem' }}>
                       Requesting {prettyNumber(satoshis)} {unitLabel}
@@ -423,7 +457,7 @@ export default function ReceiveQRCode() {
       </Content>
 
       <ButtonsOnBottom>
-        <FlexCol gap='0'>
+        <FlexCol gap='0.75rem'>
           <FlexRow gap='0.5rem'>
             <Button label={amountLabel} onClick={() => setShowAmountSheet(true)} secondary />
             <Button label='Copy' onClick={() => setShowCopySheet(true)} secondary />

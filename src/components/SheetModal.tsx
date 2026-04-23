@@ -16,12 +16,7 @@ export default function SheetModal({ children, isOpen, onClose }: SheetModalProp
   return (
     <IonModal initialBreakpoint={1} backdropBreakpoint={0} isOpen={isOpen} onDidDismiss={handleClose}>
       <div style={outerStyle}>
-        <div
-          style={{
-            ...innerStyle,
-            paddingBottom: '2rem',
-          }}
-        >
+        <div style={innerStyleWithSafeArea}>
           <div style={handleAreaStyle} onClick={handleClose}>
             <div style={handleStyle} />
           </div>
@@ -41,6 +36,11 @@ const outerStyle: React.CSSProperties = {
 const innerStyle: React.CSSProperties = {
   padding: '0 1.25rem',
   width: '100%',
+}
+
+const innerStyleWithSafeArea: React.CSSProperties = {
+  ...innerStyle,
+  paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))',
 }
 
 const handleAreaStyle: React.CSSProperties = {

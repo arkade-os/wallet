@@ -111,11 +111,11 @@ export default function AppBoltzSwap() {
     ]
   } else if (swapInfo.type === 'reverse') {
     const sentSats = swapInfo.request.invoiceAmount
-    const rcvdSats = swapInfo.response.onchainAmount
+    const rcvdSats = swapInfo.response.onchainAmount ?? 0
 
     tableData = [
       ['When', when],
-      ['Kind', 'Chain Swap'],
+      ['Kind', 'Reverse Swap'],
       ['Swap ID', swapId],
       ['Direction', 'Lightning to Arkade'],
       ['Date', date],
@@ -127,8 +127,8 @@ export default function AppBoltzSwap() {
       ['Total', formatAmount(sentSats)],
     ]
   } else if (swapInfo.type === 'submarine') {
-    const sentSats = isValidInvoice(swapInfo.request.invoice) ? decodeInvoice(swapInfo.request.invoice).amountSats : 0
-    const rcvdSats = swapInfo.response.expectedAmount ?? 0
+    const sentSats = swapInfo.response.expectedAmount
+    const rcvdSats = isValidInvoice(swapInfo.request.invoice) ? decodeInvoice(swapInfo.request.invoice).amountSats : 0
 
     tableData = [
       ['When', when],

@@ -1,5 +1,5 @@
 import { ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react'
-import { FiatPrices, getPriceFeed } from '../lib/fiat'
+import { fiatDecimalsFor, FiatPrices, getPriceFeed } from '../lib/fiat'
 import { fromSatoshis, toSatoshis } from '../lib/format'
 import Decimal from 'decimal.js'
 import { CurrencyDisplay, Fiats, Satoshis } from '../lib/types'
@@ -58,9 +58,7 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
     return toUSD(sats)
   }
 
-  const fiatDecimals = () => {
-    return config.fiat === Fiats.JPY ? 0 : 2
-  }
+  const fiatDecimals = () => fiatDecimalsFor(config.fiat)
 
   const updateFiatPrices = async () => {
     if (loading) return

@@ -18,6 +18,7 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import ErrorMessage from '../../components/Error'
 import { hasChatwootVars } from '../../lib/chatwoot'
 import { getDefaultAddress } from '../../lib/address'
+import { gitCommit } from '../../_gitCommit'
 
 export default function Support() {
   const { aspInfo } = useContext(AspContext)
@@ -85,6 +86,7 @@ export default function Support() {
       lendasat_url: import.meta.env.VITE_LENDASAT_IFRAME_URL || 'not available',
       lendaswap_url: import.meta.env.VITE_LENDASWAP_IFRAME_URL || 'not available',
       explorer_url: wallet.network ? getWebExplorerURL(wallet.network as NetworkName) : 'not available',
+      git_commit: gitCommit,
     })
   }, [addresses, supportChatLoaded, wallet.pubkey, window.$chatwoot])
 

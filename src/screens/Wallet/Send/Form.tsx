@@ -19,7 +19,7 @@ import InputAmount from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
-import { formatAssetAmount, prettyAmount, prettyNumber } from '../../../lib/format'
+import { formatAssetAmount, prettyAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -45,6 +45,10 @@ import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
 import { centsToUnits, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
+import SheetModal from '../../../components/SheetModal'
+import { AnimatePresence, motion } from 'framer-motion'
+import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
+import { useReducedMotion } from '../../../hooks/useReducedMotion'
 
 const brantaClient = new V2BrantaClient({
   baseUrl: BrantaServerBaseUrl.Production,
@@ -54,7 +58,7 @@ export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
-  const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
+  const { fromFiat, toFiat } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { calcSubmarineSwapFee, calcArkToBtcSwapFee, createArkToBtcSwap, createSubmarineSwap, connected, getApiUrl } =
     useContext(SwapsContext)
@@ -86,8 +90,10 @@ export default function SendForm() {
   const [selectedAsset, setSelectedAsset] = useState<AssetOption | null>(null)
   const [showAssetSelector, setShowAssetSelector] = useState(false)
   const [textValue, setTextValue] = useState('')
+  const [showReserveModal, setShowReserveModal] = useState(false)
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
 
+  const prefersReducedMotion = useReducedMotion()
   const isAssetSend = selectedAsset !== null
 
   const DUST_AMOUNT = 330
@@ -180,6 +186,9 @@ export default function SendForm() {
     const parseRecipient = async () => {
       setNudgeBoltz(false)
       if (!recipient) return
+      // Clean base — only carry forward asset selection; all parsed targets
+      // start empty so switching recipient types never leaks stale state.
+      const base: SendInfo = { recipient, assets: sendInfo.assets }
       const lowerCaseData = recipient.toLowerCase().replace(/^lightning:/, '')
       if (isURLWithLightningQueryString(recipient)) {
         const url = new URL(recipient)
@@ -221,10 +230,11 @@ export default function SendForm() {
             assets: [{ assetId, amount: rawAmount }],
           })
         }
+        setAmount(satoshis)
         return setState({ address, arkAddress, invoice, recipient, satoshis, assets: sendInfo.assets })
       }
       if (isArkAddress(lowerCaseData)) {
-        return setState({ ...sendInfo, address: '', arkAddress: lowerCaseData })
+        return setState({ ...base, arkAddress: lowerCaseData })
       }
       if (isLightningInvoice(lowerCaseData)) {
         if (isAssetSend) {
@@ -236,7 +246,7 @@ export default function SendForm() {
         }
         const satoshis = getInvoiceSatoshis(lowerCaseData)
         if (!satoshis) return setError('Invoice must have amount defined')
-        setState({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData, satoshis })
+        setState({ ...base, invoice: lowerCaseData, satoshis })
         setAmountIsReadOnly(true)
         setAmount(satoshis)
         return
@@ -245,7 +255,7 @@ export default function SendForm() {
         if (isAssetSend) {
           return setError('Assets can only be sent to Arkade addresses')
         }
-        return setState({ ...sendInfo, address: recipient, arkAddress: '' })
+        return setState({ ...base, address: recipient })
       }
       if (isArkNote(lowerCaseData)) {
         try {
@@ -257,7 +267,7 @@ export default function SendForm() {
         }
       }
       if (isValidLnUrl(lowerCaseData)) {
-        return setState({ ...sendInfo, lnUrl: lowerCaseData })
+        return setState({ ...base, lnUrl: lowerCaseData })
       }
       setError('Invalid recipient address')
     }
@@ -450,6 +460,7 @@ export default function SendForm() {
     } else if (satoshis && sendInfo.address) {
       const amountForSwap = deductFromAmount ? satoshis - calcArkToBtcSwapFee(satoshis) : satoshis
       if (amountForSwap < 1) return handleError('Amount too low to cover fees')
+      if (!validArkToBtc(amountForSwap)) return navigate(Pages.SendDetails)
       createArkToBtcSwap(sendInfo.address, amountForSwap)
         .then((result) => {
           if (!result) return navigate(Pages.SendDetails)
@@ -519,11 +530,29 @@ export default function SendForm() {
     }
   }
 
+  const resetDerivedState = (newRecipient: string) => {
+    setBrantaPayment(null)
+    setState({
+      address: '',
+      arkAddress: '',
+      invoice: '',
+      lnUrl: '',
+      recipient: newRecipient,
+      satoshis: 0,
+      assets: sendInfo.assets,
+    })
+    setRecipient(newRecipient)
+    setAmountIsReadOnly(false)
+    setLnUrlLimits({ min: 0, max: 0 })
+  }
+
   const handleRecipientChange = (recipient: string) => {
     setRawScanData('')
-    setBrantaPayment(null)
-    setState({ ...sendInfo, recipient })
-    setRecipient(recipient)
+    resetDerivedState(recipient)
+    if (!recipient) {
+      setAmount(undefined)
+      setTextValue('')
+    }
   }
 
   const handleContinue = async () => {
@@ -569,7 +598,7 @@ export default function SendForm() {
     if (isMobileBrowser) setKeys(true)
   }
 
-  const handleSendAll = () => {
+  const applySendAll = () => {
     if (isAssetSend && selectedAsset) {
       const { assetId, balance, decimals } = selectedAsset
       const units = centsToUnits(balance, decimals)
@@ -588,6 +617,19 @@ export default function SendForm() {
     setAmount(liquidBalance)
   }
 
+  const handleSendAll = () => {
+    if (reserveApplied) {
+      setShowReserveModal(true)
+      return
+    }
+    applySendAll()
+  }
+
+  const confirmSendAll = () => {
+    setShowReserveModal(false)
+    applySendAll()
+  }
+
   const Available = () => {
     if (isAssetSend && selectedAsset) {
       return (
@@ -600,13 +642,12 @@ export default function SendForm() {
     }
 
     const amount = useFiat ? toFiat(liquidBalance) : liquidBalance
-    const pretty = useFiat ? prettyAmount(amount, config.fiat, fiatDecimals()) : prettyAmount(amount)
+    const pretty = useFiat ? prettyFiatAmount(amount, config.fiat) : prettyAmount(amount)
 
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
         <Text color='dark50' smaller>
           {`${pretty} available`}
-          <sup>{reserveApplied ? '*' : ''}</sup>
         </Text>
       </div>
     )
@@ -635,19 +676,6 @@ export default function SendForm() {
       satoshis < 1 ||
       processing
 
-  if (scan)
-    return (
-      <Scanner
-        close={() => setScan(false)}
-        label='Recipient address'
-        onData={(data) => {
-          setRawScanData(data)
-          setRecipient(data)
-        }}
-        onError={smartSetError}
-      />
-    )
-
   const selectedAssetLabel = selectedAsset ? `${selectedAsset.name} (${selectedAsset.ticker})` : 'Bitcoin (BTC)'
 
   const btcIcon = (
@@ -669,218 +697,277 @@ export default function SendForm() {
     </div>
   )
 
+  const overlayOpen = scan || (keys && !amountIsReadOnly)
+  const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
+
+  const Keys = () => (
+    <Keyboard
+      back={() => setKeys(false)}
+      onSave={(sats) => {
+        handleAmountChange(sats)
+        setKeys(false)
+      }}
+      value={amount}
+      asset={selectedAsset ?? undefined}
+    />
+  )
+
   if (keys && !amountIsReadOnly) {
-    return (
-      <Keyboard
-        back={() => setKeys(false)}
-        onSave={(sats) => {
-          handleAmountChange(sats)
-          setKeys(false)
-        }}
-        value={amount}
-        asset={selectedAsset ?? undefined}
-      />
+    return prefersReducedMotion ? (
+      <div style={sendOverlayStyle}>
+        <Keys />
+      </div>
+    ) : (
+      <AnimatePresence>
+        <motion.div
+          key='keyboard'
+          variants={overlaySlideUp}
+          initial='initial'
+          animate='animate'
+          exit='exit'
+          style={sendOverlayStyle}
+        >
+          <Keys />
+        </motion.div>
+      </AnimatePresence>
     )
   }
 
+  const Scan = () => (
+    <Scanner
+      close={() => setScan(false)}
+      label='Recipient address'
+      onData={(data) => {
+        setRawScanData(data)
+        resetDerivedState(data)
+      }}
+      onError={smartSetError}
+    />
+  )
+
   if (scan) {
-    return (
-      <Scanner
-        close={() => setScan(false)}
-        label='Recipient address'
-        onData={(data) => {
-          setRawScanData(data)
-          setRecipient(data)
-        }}
-        onError={smartSetError}
-      />
+    return prefersReducedMotion ? (
+      <div style={sendOverlayStyle}>
+        <Scan />
+      </div>
+    ) : (
+      <AnimatePresence>
+        <motion.div
+          key='scanner'
+          variants={overlaySlideUp}
+          initial='initial'
+          animate='animate'
+          exit='exit'
+          style={sendOverlayStyle}
+        >
+          <Scan />
+        </motion.div>{' '}
+      </AnimatePresence>
     )
   }
 
   return (
     <>
-      <Header text='Send' back />
-      <Content>
-        <Padded>
-          <FlexCol gap='2rem'>
-            <ErrorMessage error={Boolean(error)} text={error} />
-            <InputAddress
-              name='send-address'
-              focus={focus === 'recipient'}
-              label='Recipient address'
-              onChange={handleRecipientChange}
-              onEnter={handleEnter}
-              openScan={() => {
-                setKeys(false)
-                setScan(true)
-              }}
-              value={recipient}
-            />
-            {brantaLoading ? (
-              <Text color='dark50' smaller>
-                Verifying address...
-              </Text>
-            ) : null}
-            {brantaPayment ? (
-              <Shadow>
-                <FlexRow between padding='0.75rem'>
-                  <FlexCol gap='0.1rem'>
-                    <Text smaller>{brantaPayment.platform}</Text>
-                    <Text smaller color='dark50'>
-                      {brantaPayment.verify_url?.startsWith('https://') ? (
-                        <a href={brantaPayment.verify_url} target='_blank' rel='noreferrer'>
-                          Verified by Branta
-                        </a>
-                      ) : (
-                        'Verified by Branta'
-                      )}
-                    </Text>
-                  </FlexCol>
-                  {brantaPayment.platform_logo_url ? (
-                    <img src={brantaPayment.platform_logo_url} alt={brantaPayment.platform} width={48} height={48} />
-                  ) : null}
-                </FlexRow>
-              </Shadow>
-            ) : null}
-            {assetOptions.length > 0 ? (
-              <FlexCol gap='0.25rem'>
-                <Text smaller color='dark50'>
-                  Asset
+      {/* @ts-expect-error inert is valid HTML but React types lag behind */}
+      <div inert={overlayOpen || undefined} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <Header text='Send' back />
+        <Content>
+          <Padded>
+            <FlexCol gap='2rem'>
+              <ErrorMessage error={Boolean(error)} text={error} />
+              <InputAddress
+                name='send-address'
+                focus={focus === 'recipient'}
+                label='Recipient address'
+                onChange={handleRecipientChange}
+                onEnter={handleEnter}
+                openScan={() => {
+                  setKeys(false)
+                  setScan(true)
+                }}
+                value={recipient}
+              />
+              {brantaLoading ? (
+                <Text color='dark50' smaller>
+                  Verifying address...
                 </Text>
-                <Shadow border onClick={() => setShowAssetSelector(!showAssetSelector)} testId='asset-selector'>
-                  <FlexRow between padding='0.5rem'>
-                    <FlexRow>
-                      {selectedAsset ? (
-                        selectedAsset.icon ? (
-                          <img src={selectedAsset.icon} alt='' width={24} height={24} style={{ borderRadius: '50%' }} />
+              ) : null}
+              {brantaPayment ? (
+                <Shadow>
+                  <FlexRow between padding='0.75rem'>
+                    <FlexCol gap='0.1rem'>
+                      <Text smaller>{brantaPayment.platform}</Text>
+                      <Text smaller color='dark50'>
+                        {brantaPayment.verify_url?.startsWith('https://') ? (
+                          <a href={brantaPayment.verify_url} target='_blank' rel='noreferrer'>
+                            Verified by Branta
+                          </a>
                         ) : (
-                          <div
-                            style={{
-                              width: 24,
-                              height: 24,
-                              borderRadius: '50%',
-                              background: 'var(--dark20)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            <Text smaller>{selectedAsset.ticker?.[0] ?? 'A'}</Text>
-                          </div>
-                        )
-                      ) : (
-                        btcIcon
-                      )}
-                      <Text>{selectedAssetLabel}</Text>
-                    </FlexRow>
-                    <Text color='dark50' smaller>
-                      {showAssetSelector ? '▲' : '▼'}
-                    </Text>
+                          'Verified by Branta'
+                        )}
+                      </Text>
+                    </FlexCol>
+                    {brantaPayment.platform_logo_url ? (
+                      <img src={brantaPayment.platform_logo_url} alt={brantaPayment.platform} width={48} height={48} />
+                    ) : null}
                   </FlexRow>
                 </Shadow>
-                {showAssetSelector ? (
-                  <div style={{ maxHeight: '40vh', overflowY: 'auto', width: '100%' }}>
-                    <FlexCol gap='0.25rem'>
-                      {selectedAsset ? (
-                        <Shadow onClick={() => handleSelectAsset(null)}>
-                          <FlexRow between padding='0.5rem'>
-                            <FlexRow>
-                              {btcIcon}
-                              <Text>Bitcoin (BTC)</Text>
-                            </FlexRow>
-                          </FlexRow>
-                        </Shadow>
-                      ) : null}
-                      {assetOptions
-                        .filter((asset) => asset.assetId !== selectedAsset?.assetId)
-                        .map((asset) => (
-                          <Shadow
-                            key={asset.assetId}
-                            onClick={() => handleSelectAsset(asset)}
-                            testId={`asset-${asset.ticker.toLowerCase()}-option`}
-                          >
+              ) : null}
+              {assetOptions.length > 0 ? (
+                <FlexCol gap='0.25rem'>
+                  <Text smaller color='dark50'>
+                    Asset
+                  </Text>
+                  <Shadow border onClick={() => setShowAssetSelector(!showAssetSelector)} testId='asset-selector'>
+                    <FlexRow between padding='0.5rem'>
+                      <FlexRow>
+                        {selectedAsset ? (
+                          selectedAsset.icon ? (
+                            <img
+                              src={selectedAsset.icon}
+                              alt=''
+                              width={24}
+                              height={24}
+                              style={{ borderRadius: '50%' }}
+                            />
+                          ) : (
+                            <div
+                              style={{
+                                width: 24,
+                                height: 24,
+                                borderRadius: '50%',
+                                background: 'var(--dark20)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <Text smaller>{selectedAsset.ticker?.[0] ?? 'A'}</Text>
+                            </div>
+                          )
+                        ) : (
+                          btcIcon
+                        )}
+                        <Text>{selectedAssetLabel}</Text>
+                      </FlexRow>
+                      <Text color='dark50' smaller>
+                        {showAssetSelector ? '▲' : '▼'}
+                      </Text>
+                    </FlexRow>
+                  </Shadow>
+                  {showAssetSelector ? (
+                    <div style={{ maxHeight: '40vh', overflowY: 'auto', width: '100%' }}>
+                      <FlexCol gap='0.25rem'>
+                        {selectedAsset ? (
+                          <Shadow onClick={() => handleSelectAsset(null)}>
                             <FlexRow between padding='0.5rem'>
                               <FlexRow>
-                                {asset.icon ? (
-                                  <img src={asset.icon} alt='' width={24} height={24} style={{ borderRadius: '50%' }} />
-                                ) : (
-                                  <div
-                                    style={{
-                                      width: 24,
-                                      height: 24,
-                                      borderRadius: '50%',
-                                      background: 'var(--dark20)',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                    }}
-                                  >
-                                    <Text smaller>{asset.ticker?.[0] ?? 'A'}</Text>
-                                  </div>
-                                )}
-                                <Text>
-                                  {asset.name} ({asset.ticker})
-                                </Text>
+                                {btcIcon}
+                                <Text>Bitcoin (BTC)</Text>
                               </FlexRow>
-                              <Text color='dark50' smaller>
-                                {formatAssetAmount(asset.balance, asset.decimals)} {asset.ticker}
-                              </Text>
                             </FlexRow>
                           </Shadow>
-                        ))}
-                    </FlexCol>
-                  </div>
-                ) : null}
+                        ) : null}
+                        {assetOptions
+                          .filter((asset) => asset.assetId !== selectedAsset?.assetId)
+                          .map((asset) => (
+                            <Shadow
+                              key={asset.assetId}
+                              onClick={() => handleSelectAsset(asset)}
+                              testId={`asset-${asset.ticker.toLowerCase()}-option`}
+                            >
+                              <FlexRow between padding='0.5rem'>
+                                <FlexRow>
+                                  {asset.icon ? (
+                                    <img
+                                      src={asset.icon}
+                                      alt=''
+                                      width={24}
+                                      height={24}
+                                      style={{ borderRadius: '50%' }}
+                                    />
+                                  ) : (
+                                    <div
+                                      style={{
+                                        width: 24,
+                                        height: 24,
+                                        borderRadius: '50%',
+                                        background: 'var(--dark20)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                      }}
+                                    >
+                                      <Text smaller>{asset.ticker?.[0] ?? 'A'}</Text>
+                                    </div>
+                                  )}
+                                  <Text>
+                                    {asset.name} ({asset.ticker})
+                                  </Text>
+                                </FlexRow>
+                                <Text color='dark50' smaller>
+                                  {formatAssetAmount(asset.balance, asset.decimals)} {asset.ticker}
+                                </Text>
+                              </FlexRow>
+                            </Shadow>
+                          ))}
+                      </FlexCol>
+                    </div>
+                  ) : null}
+                </FlexCol>
+              ) : null}
+              <FlexCol gap='0.5rem'>
+                <InputAmount
+                  asset={selectedAsset ?? undefined}
+                  name='send-amount'
+                  focus={focus === 'amount' && !isMobileBrowser}
+                  label='Amount'
+                  min={lnUrlLimits.min}
+                  max={lnUrlLimits.max}
+                  onSats={handleAmountChange}
+                  onEnter={handleEnter}
+                  onFocus={handleFocus}
+                  onMax={handleSendAll}
+                  readOnly={amountIsReadOnly}
+                  right={<Available />}
+                  sats={amount}
+                  value={textValue ? Number(textValue) : undefined}
+                />
               </FlexCol>
-            ) : null}
-            <FlexCol gap='0.5rem'>
-              <InputAmount
-                asset={selectedAsset ?? undefined}
-                name='send-amount'
-                focus={focus === 'amount' && !isMobileBrowser}
-                label='Amount'
-                min={lnUrlLimits.min}
-                max={lnUrlLimits.max}
-                onSats={handleAmountChange}
-                onEnter={handleEnter}
-                onFocus={handleFocus}
-                onMax={handleSendAll}
-                readOnly={amountIsReadOnly}
-                right={<Available />}
-                sats={amount}
-                value={textValue ? Number(textValue) : undefined}
-              />
-              {reserveApplied ? (
-                <FlexRow between>
-                  <div />
-                  <Text color='dark50' smaller>
-                    {`${DUST_AMOUNT} sats are reserved to keep your assets safe`}
-                    <sup>*</sup>
+              {deductFromAmount ? <InfoLine color='orange' text='Fees will be deducted from the amount sent' /> : null}
+              {tryingToSelfSend ? (
+                <div style={{ width: '100%' }}>
+                  <Text centered color='dark50' small>
+                    Did you mean <a onClick={gotoRollover}>roll over your VTXOs</a>?
                   </Text>
-                </FlexRow>
+                </div>
+              ) : null}
+              {nudgeBoltz && getApiUrl() ? (
+                <div style={{ width: '100%' }}>
+                  <Text centered color='dark50' small>
+                    Enable <a onClick={gotoBoltzApp}>Lightning swaps</a> to pay
+                  </Text>
+                </div>
               ) : null}
             </FlexCol>
-            {deductFromAmount ? <InfoLine color='orange' text='Fees will be deducted from the amount sent' /> : null}
-            {tryingToSelfSend ? (
-              <div style={{ width: '100%' }}>
-                <Text centered color='dark50' small>
-                  Did you mean <a onClick={gotoRollover}>roll over your VTXOs</a>?
-                </Text>
-              </div>
-            ) : null}
-            {nudgeBoltz && getApiUrl() ? (
-              <div style={{ width: '100%' }}>
-                <Text centered color='dark50' small>
-                  Enable <a onClick={gotoBoltzApp}>Lightning swaps</a> to pay
-                </Text>
-              </div>
-            ) : null}
+          </Padded>
+        </Content>
+        <ButtonsOnBottom>
+          <Button onClick={handleContinue} label={label} disabled={buttonDisabled} />
+        </ButtonsOnBottom>
+      </div>
+      <SheetModal isOpen={showReserveModal} onClose={() => setShowReserveModal(false)}>
+        <FlexCol gap='1rem'>
+          <Text bold>Balance reserve</Text>
+          <Text color='dark50' small>
+            {`${DUST_AMOUNT} sats are kept in reserve to protect your assets. Your max sendable amount is ${prettyNumber(liquidBalance)} sats.`}
+          </Text>
+          <FlexCol gap='0.5rem'>
+            <Button onClick={confirmSendAll} label='Send max' />
+            <Button onClick={() => setShowReserveModal(false)} label='Cancel' secondary />
           </FlexCol>
-        </Padded>
-      </Content>
-      <ButtonsOnBottom>
-        <Button onClick={handleContinue} label={label} disabled={buttonDisabled} />
-      </ButtonsOnBottom>
+        </FlexCol>
+      </SheetModal>
     </>
   )
 }

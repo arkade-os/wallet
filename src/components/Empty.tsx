@@ -12,7 +12,7 @@ interface EmptyProps {
 function EmptyTemplate({ icon, text, secondaryText }: EmptyProps) {
   return (
     <CenterScreen>
-      <FlexCol centered gap='1rem'>
+      <FlexCol centered gap='1rem' testId='empty-template'>
         {icon}
         <FlexCol centered gap='0.5rem'>
           <Text heading>{text}</Text>

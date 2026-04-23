@@ -4,19 +4,6 @@ import { execSync } from 'child_process'
 
 const sleep = promisify(setTimeout)
 
-function execCommand(command, silent = false) {
-  try {
-    const options = silent ? { stdio: 'pipe', encoding: 'utf8' } : { encoding: 'utf8' }
-    return execSync(command, options).toString().trim()
-  } catch (error) {
-    if (error.stderr && error.stderr.toString().includes('wallet already initialized')) {
-      console.log('Wallet already initialized, continuing...')
-      return ''
-    }
-    throw error
-  }
-}
-
 async function waitForService(name, checkCmd, maxRetries = 30, retryDelay = 2000) {
   console.log(`Waiting for ${name} to be ready...`)
   for (let i = 0; i < maxRetries; i++) {
@@ -43,8 +30,8 @@ async function setup() {
     // Verify arkd is serving
     await waitForService('arkd', 'curl -sf http://localhost:7070/v1/info')
 
-    const serverInfo = JSON.parse(execSync('curl -s http://localhost:7070/v1/info').toString())
-    console.log(`\narkd Public Key: ${serverInfo.signerPubkey}`)
+    const serverInfo = execSync('curl -s http://localhost:7070/v1/info').toString()
+    console.log(`\narkd info: ${serverInfo}`)
 
     // Verify boltz pairs are loaded
     await waitForService('boltz', 'curl -sf http://localhost:9069/v2/swap/submarine')

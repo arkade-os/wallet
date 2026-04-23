@@ -4,6 +4,7 @@ import { FiatContext } from '../providers/fiat'
 import InputContainer from './InputContainer'
 import { ConfigContext } from '../providers/config'
 import { prettyNumber } from '../lib/format'
+import { FIAT_SYMBOLS } from '../lib/fiat'
 import { LimitsContext } from '../providers/limits'
 import Focusable from './Focusable'
 import { unitsToCents } from '../lib/assets'
@@ -73,11 +74,26 @@ export default function InputAmount({
   const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0
   const maximumSats = max ? Math.min(max, maxSwapAllowed()) : 0
 
-  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? config.fiat : 'SATS'
-  const rightLabel = asset?.assetId ? '' : `${otherValue} ${useFiat ? 'SATS' : config.fiat}`
+  const fiatSymbol = FIAT_SYMBOLS[config.fiat]
+  const fiatLabel = fiatSymbol ?? config.fiat
+
+  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? fiatLabel : 'SATS'
+  const rightLabel = asset?.assetId
+    ? ''
+    : useFiat
+      ? `${otherValue} SATS`
+      : fiatSymbol
+        ? `${fiatSymbol}${otherValue}`
+        : `${otherValue} ${config.fiat}`
   const fontStyle = { color: 'var(--dark50)', fontSize: '13px' }
-  const bottomLeft = minimumSats ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}` : ''
-  const bottomRight = maximumSats ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'SAT' : 'SATS'}` : ''
+  const bottomLeft =
+    minimumSats && sats !== undefined && sats < minimumSats
+      ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}`
+      : ''
+  const bottomRight =
+    maximumSats && sats !== undefined && sats > maximumSats
+      ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'SAT' : 'SATS'}`
+      : ''
 
   return (
     <>

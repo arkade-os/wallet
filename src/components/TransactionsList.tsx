@@ -3,7 +3,16 @@ import { useContext, useRef } from 'react'
 import { WalletContext } from '../providers/wallet'
 import Text, { TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
-import { formatAssetAmount, isBurn, isIssuance, prettyAmount, prettyDate, prettyHide } from '../lib/format'
+import {
+  formatAssetAmount,
+  isBurn,
+  isIssuance,
+  prettyAmount,
+  prettyDate,
+  prettyFiatAmount,
+  prettyFiatHide,
+  prettyHide,
+} from '../lib/format'
 import AssetAvatar from './AssetAvatar'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
@@ -20,12 +29,13 @@ const border = '1px solid var(--dark10)'
 
 const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void; isFirst?: boolean }) => {
   const { config } = useContext(ConfigContext)
-  const { toFiat, fiatDecimals } = useContext(FiatContext)
+  const { toFiat } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
 
   const prefix = tx.type === 'sent' ? '-' : '+'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount) : prettyHide(tx.amount)}`
   const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
+  const asAssets = Boolean(tx.assets?.length)
   const issuance = isIssuance(tx)
   const burn = isBurn(tx)
 
@@ -40,8 +50,8 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
             ? 'orange'
             : ''
     const value = toFiat(tx.amount)
-    const small = config.currencyDisplay === CurrencyDisplay.Both
-    const world = config.showBalance ? prettyAmount(value, config.fiat, fiatDecimals()) : prettyHide(value, config.fiat)
+    const small = asAssets || config.currencyDisplay === CurrencyDisplay.Both
+    const world = config.showBalance ? prettyFiatAmount(value, config.fiat) : prettyFiatHide(value, config.fiat)
     return (
       <Text color={color} small={small}>
         {world}
@@ -70,7 +80,11 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
 
   const Sats = () =>
     issuance || burn ? null : (
-      <Text color={tx.type === 'received' ? (tx.preconfirmed && tx.boardingTxid ? 'orange' : 'green') : ''} thin>
+      <Text
+        color={tx.type === 'received' ? (tx.preconfirmed && tx.boardingTxid ? 'orange' : 'green') : ''}
+        smaller={asAssets}
+        thin
+      >
         {amount}
       </Text>
     )
@@ -119,7 +133,12 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
 
   const Right = () => (
     <div style={{ textAlign: 'right' }}>
-      {config.currencyDisplay === CurrencyDisplay.Fiat ? (
+      {tx.assets?.length ? (
+        <>
+          <AssetInfo />
+          {config.currencyDisplay === CurrencyDisplay.Fiat ? <Fiat /> : <Sats />}
+        </>
+      ) : config.currencyDisplay === CurrencyDisplay.Fiat ? (
         <Fiat />
       ) : config.currencyDisplay === CurrencyDisplay.Sats ? (
         <Sats />
@@ -129,13 +148,12 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
           <Fiat />
         </>
       )}
-      <AssetInfo />
     </div>
   )
 
   return (
     <div style={rowStyle} onClick={onClick}>
-      <FlexRow>
+      <FlexRow between alignItems='start'>
         <Left />
         <Right />
       </FlexRow>

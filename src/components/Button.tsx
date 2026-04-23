@@ -2,7 +2,10 @@ import { IonButton } from '@ionic/react'
 import { ReactElement, ReactNode, useCallback, useState } from 'react'
 import FlexRow from './FlexRow'
 import ArrowIcon from '../icons/Arrow'
-import { hapticTap } from '../lib/haptics'
+import { hapticLight, hapticTap } from '../lib/haptics'
+import ScanIcon from '../icons/Scan'
+import PasteIcon from '../icons/Paste'
+import XIcon from '../icons/X'
 
 interface ButtonProps {
   children?: ReactNode
@@ -92,3 +95,43 @@ export default function Button({
 }
 
 const Label = ({ label }: { label: string }) => <p style={{ lineHeight: '20px' }}>{label}</p>
+
+interface ButtonOnInputProps {
+  ariaLabel?: string
+  clear?: boolean
+  label?: string
+  icon?: ReactElement
+  onClick: () => void
+}
+
+export function ButtonOnInput({ label, clear, icon, onClick, ariaLabel }: ButtonOnInputProps) {
+  const handleClick = () => {
+    hapticLight()
+    onClick()
+  }
+
+  return (
+    <button
+      type='button'
+      onClick={handleClick}
+      aria-label={ariaLabel || label}
+      className='pill-base'
+      style={clear ? { border: 'none', background: 'none' } : {}}
+    >
+      {icon}
+      {label}
+    </button>
+  )
+}
+
+export function PasteButtonOnInput({ onClick }: { onClick: () => void }) {
+  return <ButtonOnInput label='Paste' icon={<PasteIcon />} onClick={onClick} />
+}
+
+export function ScanButtonOnInput({ onClick }: { onClick: () => void }) {
+  return <ButtonOnInput label='Scan QR' icon={<ScanIcon />} onClick={onClick} />
+}
+
+export function ClearButtonOnInput({ onClick }: { onClick: () => void }) {
+  return <ButtonOnInput ariaLabel='Clear' clear icon={<XIcon />} onClick={onClick} />
+}

@@ -1,7 +1,7 @@
 import { test as base, type Page } from '@playwright/test'
 import { faucetOffchain } from './fundedWallet'
-import { sleep } from '../../lib/sleep'
 import { prettyNumber } from '../../lib/format'
+import { sleep } from '../../lib/sleep'
 
 export const test = base.extend({
   page: async ({ page }, use) => {
@@ -64,7 +64,7 @@ export async function enableAssets(page: Page): Promise<void> {
 }
 
 export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<void> {
-  await sleep(5000)
+  await sleep(3000)
   await navigateToAssets(page)
   await page.getByText('Mint', { exact: true }).click()
   await page.waitForSelector('text=Mint Asset', { state: 'visible' })
@@ -96,10 +96,12 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
 
   // submit
   await page.getByText('Mint', { exact: true }).click()
-  await page.waitForSelector('text=Asset minted!', { state: 'visible', timeout: 30000 })
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
+  await page.waitForSelector('text=Asset minted!', { timeout: 30000 })
 }
 
 export async function createWallet(page: Page): Promise<void> {
+  // await execAsync('nigiri rpc --generate 1')
   await page.goto('/')
   await page.getByText('+ Create wallet').click()
   await waitForWalletPage(page)
@@ -147,17 +149,18 @@ export async function pay(page: Page, address: string, isMobile = false, sats = 
 
   // continue to send
   await page.getByText('Tap to Sign').click()
-  await page.waitForSelector('text=Payment sent!', { timeout: 60000 })
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
+  await page.waitForSelector('text=Payment sent!', { timeout: 30000 })
   await page.getByText('Sounds good').click()
 }
 
 async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = false, sats = 0): Promise<string> {
   // go to receive page
   await page.getByTestId('tab-wallet').click()
-  await page.getByText('Receive').click()
+  await page.getByText('Receive', { exact: true }).click()
 
   // fill amount to receive if provided
-  if (sats) {
+  if (sats && type === 'invoice') {
     await page.getByText('Add amount').click()
     if (isMobile) {
       await page.locator('ion-input[name="receive-amount-sheet"] input').click()
