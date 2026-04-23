@@ -7,7 +7,7 @@ import { FlowContext } from '../../providers/flow'
 import { formatAssetAmount, isBurn, isIssuance, prettyAgo, prettyDate } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
 import ErrorMessage from '../../components/Error'
-import { extractError } from '../../lib/error'
+import { friendlyError } from '../../lib/error'
 import Header from '../../components/Header'
 import Content from '../../components/Content'
 import Info from '../../components/Info'
@@ -95,7 +95,7 @@ export default function Transaction() {
       setSettleSuccess(true)
       if (tx) setTxInfo({ ...tx, preconfirmed: false, settled: true })
     } catch (err) {
-      setError(extractError(err))
+      setError(friendlyError(err, 'Settlement'))
     }
     setSettling(false)
   }

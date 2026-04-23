@@ -11,7 +11,7 @@ import FlexCol from '../../components/FlexCol'
 import { Vtxo } from '../../lib/types'
 import FlexRow from '../../components/FlexRow'
 import { ConfigContext } from '../../providers/config'
-import { extractError } from '../../lib/error'
+import { friendlyError } from '../../lib/error'
 import ErrorMessage from '../../components/Error'
 import WaitingForRound from '../../components/WaitingForRound'
 import { AspContext } from '../../providers/asp'
@@ -156,7 +156,7 @@ export default function Vtxos() {
       Sentry.captureException(err, {
         tags: { function: 'renewVtxos:handleRollover' },
       })
-      setError(extractError(err))
+      setError(friendlyError(err, 'Settlement'))
       setRollingover(false)
     }
   }
