@@ -417,6 +417,7 @@ export default function SendForm() {
       return
     }
     const satoshis = sendInfo.satoshis ?? 0
+    const isLightningSend = Boolean(sendInfo.invoice)
     setLabel(
       satoshis > liquidBalance
         ? 'Insufficient funds'
@@ -426,13 +427,17 @@ export default function SendForm() {
             ? 'Amount above LNURL max limit'
             : satoshis && satoshis < 1
               ? 'Amount below 1 satoshi'
-              : amountIsAboveMaxLimit(satoshis)
-                ? 'Amount above max limit'
-                : satoshis && amountIsBelowMinLimit(satoshis)
-                  ? 'Amount below min limit'
-                  : 'Continue',
+              : isLightningSend && !lnSwapsAllowed()
+                ? 'Lightning swaps not enabled'
+                : isLightningSend && !validLnSwap(satoshis)
+                  ? 'Amount outside Lightning swap limits'
+                  : amountIsAboveMaxLimit(satoshis)
+                    ? 'Amount above max limit'
+                    : satoshis && amountIsBelowMinLimit(satoshis)
+                      ? 'Amount below min limit'
+                      : 'Continue',
     )
-  }, [sendInfo.satoshis, sendInfo.assets, liquidBalance, selectedAsset])
+  }, [sendInfo.satoshis, sendInfo.assets, sendInfo.invoice, liquidBalance, selectedAsset])
 
   // manage server unreachable error
   useEffect(() => {
@@ -451,6 +456,8 @@ export default function SendForm() {
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
     if (sendInfo.arkAddress || sendInfo.pendingSwap) return navigate(Pages.SendDetails)
     if (sendInfo.invoice) {
+      if (!lnSwapsAllowed()) return handleError('Lightning swaps not enabled')
+      if (!validLnSwap(sendInfo.satoshis ?? 0)) return handleError('Amount outside Lightning swap limits')
       createSubmarineSwap(sendInfo.invoice)
         .then((pendingSwap) => {
           if (!pendingSwap) return handleError('Unable to create swap')
@@ -468,7 +475,7 @@ export default function SendForm() {
         })
         .catch(() => navigate(Pages.SendDetails))
     }
-  }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
+  }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap, sendInfo.satoshis])
 
   // deal with fees deduction from amount
   useEffect(() => {
@@ -574,12 +581,18 @@ export default function SendForm() {
           setState({ ...sendInfo, arkAddress: arkResponse.address, invoice: undefined })
         } else {
           // Fallback to Lightning invoice
+          if (!lnSwapsAllowed()) return handleError('Lightning swaps not enabled')
+          if (!validLnSwap(satoshis)) return handleError('Amount outside Lightning swap limits')
           const amountForInvoice = deductFromAmount ? satoshis - calcSubmarineSwapFee(satoshis) : satoshis
           if (amountForInvoice < 1) return handleError('Amount too low to cover fees')
           const invoice = await fetchInvoice(sendInfo.lnUrl, amountForInvoice, '')
           setState({ ...sendInfo, invoice, arkAddress: undefined })
         }
       } else {
+        if (sendInfo.invoice) {
+          if (!lnSwapsAllowed()) return handleError('Lightning swaps not enabled')
+          if (!validLnSwap(satoshis)) return handleError('Amount outside Lightning swap limits')
+        }
         setState({ ...sendInfo, satoshis })
       }
       setProceed(true)
@@ -667,6 +680,8 @@ export default function SendForm() {
     : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
       (lnUrlLimits.max && satoshis > lnUrlLimits.max) ||
       (lnUrlLimits.min && satoshis < lnUrlLimits.min) ||
+      (invoice && !lnSwapsAllowed()) ||
+      (invoice && !validLnSwap(satoshis)) ||
       amountIsAboveMaxLimit(satoshis) ||
       amountIsBelowMinLimit(satoshis) ||
       satoshis > liquidBalance ||
