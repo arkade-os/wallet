@@ -51,6 +51,7 @@ export default function AppBoltzSwap() {
   const [processing, setProcessing] = useState<boolean>(false)
   const [opDone, setOpDone] = useState(false)
   const [success, setSuccess] = useState<boolean>(false)
+  const [swapManagerProcessing, setSwapManagerProcessing] = useState(false)
 
   // Subscribe to real-time updates for this swap
   useEffect(() => {
@@ -58,9 +59,17 @@ export default function AppBoltzSwap() {
 
     let unsub: (() => void) | null = null
     let cancelled = false
+
+    swapManager.isProcessing(swapInfo.id).then((p) => {
+      if (!cancelled) setSwapManagerProcessing(p)
+    })
+
     swapManager
       .subscribeToSwapUpdates(swapInfo.id, (updatedSwap) => {
         setSwapInfo(updatedSwap)
+        swapManager.isProcessing(updatedSwap.id).then((p) => {
+          if (!cancelled) setSwapManagerProcessing(p)
+        })
       })
       .then((unsubscribe) => {
         if (cancelled) {
@@ -147,11 +156,15 @@ export default function AppBoltzSwap() {
 
   const isRefundable = isSubmarineSwapRefundable(swapInfo) || isChainSwapRefundable(swapInfo)
   const isClaimable = isReverseSwapClaimable(swapInfo) || isChainSwapClaimable(swapInfo)
-  const buttonLabel = isClaimable ? 'Complete swap' : 'Refund swap'
+  const buttonLabel = swapManagerProcessing ? 'Claiming...' : isClaimable ? 'Complete swap' : 'Refund swap'
   const refunded = swapInfo.status === 'transaction.refunded'
 
   const buttonHandler = async () => {
     try {
+      if (swapManager) {
+        const alreadyProcessing = await swapManager.isProcessing(swapInfo.id)
+        if (alreadyProcessing) return
+      }
       setProcessing(true)
       if (isReverseSwapClaimable(swapInfo)) {
         await claimVHTLC(swapInfo)
@@ -217,9 +230,9 @@ export default function AppBoltzSwap() {
           )}
         </Padded>
       </Content>
-      {!success && (isRefundable || isClaimable) ? (
+      {!success && (isRefundable || isClaimable || swapManagerProcessing) ? (
         <ButtonsOnBottom>
-          <Button onClick={buttonHandler} label={buttonLabel} disabled={processing} />
+          <Button onClick={buttonHandler} label={buttonLabel} disabled={processing || swapManagerProcessing} />
         </ButtonsOnBottom>
       ) : null}
     </>
