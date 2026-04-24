@@ -52,7 +52,6 @@ export default function Shadow({
     overflow: 'hidden',
     padding: slim ? '0.25rem' : fat ? '1rem' : '0.5rem',
     width: flex ? undefined : '100%',
-    boxSizing: 'border-box',
   }
 
   return (

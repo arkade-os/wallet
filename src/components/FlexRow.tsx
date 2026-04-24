@@ -41,7 +41,6 @@ export default function FlexRow({
     minHeight: main ? '20px' : undefined,
     padding,
     width: end ? undefined : '100%',
-    boxSizing: 'border-box',
   }
   return (
     <div data-testid={testId} style={style} onClick={onClick}>

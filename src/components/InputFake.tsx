@@ -3,7 +3,6 @@ import { TextSecondary } from './Text'
 export default function InputFake({ text, testId }: { text: string; testId: string }) {
   const style: React.CSSProperties = {
     backgroundColor: 'var(--dark10)',
-    boxSizing: 'border-box',
     borderRadius: '0.5rem',
     color: 'var(--dark50)',
     alignItems: 'center',

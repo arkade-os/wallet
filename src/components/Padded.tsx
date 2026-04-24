@@ -6,7 +6,6 @@ interface PaddedProps {
 
 export default function Padded({ children }: PaddedProps) {
   const style: React.CSSProperties = {
-    boxSizing: 'border-box',
     padding: '0 1rem',
     height: '100%',
     width: '100%',

@@ -38,7 +38,6 @@ export default function FlexCol({
     margin,
     padding,
     width: '100%',
-    boxSizing: 'border-box',
   }
 
   return (

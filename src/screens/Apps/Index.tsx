@@ -74,7 +74,6 @@ function App({ desc, icon, link, name, live, page, isDark }: AppProps) {
 
   const wrapperStyle: React.CSSProperties = {
     width: '100%',
-    boxSizing: 'border-box',
     borderRadius: '0.5rem',
     overflow: 'hidden',
     WebkitTapHighlightColor: 'transparent',
@@ -83,7 +82,6 @@ function App({ desc, icon, link, name, live, page, isDark }: AppProps) {
   }
 
   const cardStyle: React.CSSProperties = {
-    boxSizing: 'border-box',
     padding: '0.75rem',
     width: '100%',
     cursor: 'pointer',
