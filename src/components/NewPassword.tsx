@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import InputPassword from './InputPassword'
 import FlexCol from './FlexCol'
 import CheckList from './CheckList'
-import { calcStrength, StrengthProgress } from './Strength'
+import { StrengthBars, calcStrength } from './Strength'
 
 interface NewPasswordProps {
   setLabel: (label: string) => void
@@ -59,7 +59,7 @@ export default function NewPassword({ onNewPassword, setLabel }: NewPasswordProp
           onChange={handleChangePassword}
           onEnter={handleEnter}
         />
-        <StrengthProgress strength={strength} />
+        <StrengthBars strength={strength} />
         <CheckList data={passwordChecks} />
       </FlexCol>
       <FlexCol testId='confirm-password'>

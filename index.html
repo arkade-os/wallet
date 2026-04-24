@@ -22,13 +22,16 @@
         var dark = t === 'Dark' || (t !== 'Light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
         if (dark) {
           document.querySelector('meta[name="theme-color"]').setAttribute('content', '#101010')
-          document.documentElement.classList.add('ion-palette-dark')
+          document.documentElement.classList.add('palette-dark')
         }
       } catch (e) {
         if (location.hostname === 'localhost') console.warn('Theme bootstrap failed', e)
       }
     </script>
-    <meta name="description" content="Your Bitcoin, supercharged. Send payments, swap assets, and lend without giving up your keys." />
+    <meta
+      name="description"
+      content="Your Bitcoin, supercharged. Send payments, swap assets, and lend without giving up your keys."
+    />
     <meta property="og:url" content="https://arkade.money" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Arkade Wallet" />

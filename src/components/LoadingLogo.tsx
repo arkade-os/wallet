@@ -144,7 +144,7 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'var(--ion-background-color, #fff)',
+            background: 'var(--background-color, #fff)',
             zIndex: 9,
           }}
         />
@@ -205,7 +205,7 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
             zIndex: 10,
             fontSize: '0.65rem',
             opacity: 0.35,
-            color: 'var(--ion-text-color, #000)',
+            color: 'var(--text-color)',
           }}
         >
           {gitCommit}

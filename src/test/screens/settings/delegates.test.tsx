@@ -40,6 +40,6 @@ describe('Delegates screen', () => {
     expect(screen.getByText('Use default Arkade delegate')).toBeInTheDocument()
     expect(screen.getByText(/Delegates can only renew your VTXOs/)).toBeInTheDocument()
     expect(screen.getByTestId('delegate-card')).toBeInTheDocument()
-    expect(screen.getByTestId('toggle-delegates').getAttribute('checked')).toBe('true')
+    expect(screen.getByTestId('toggle-delegates').getAttribute('data-checked')).toBe('true')
   })
 })

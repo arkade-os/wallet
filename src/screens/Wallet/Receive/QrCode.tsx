@@ -457,13 +457,11 @@ export default function ReceiveQRCode() {
       </Content>
 
       <ButtonsOnBottom>
-        <FlexCol gap='0.75rem'>
-          <FlexRow gap='0.5rem'>
-            <Button label={amountLabel} onClick={() => setShowAmountSheet(true)} secondary />
-            <Button label='Copy' onClick={() => setShowCopySheet(true)} secondary />
-          </FlexRow>
-          <Button label='Share' onClick={handleShare} disabled={shareDisabled} />
-        </FlexCol>
+        <FlexRow gap='0.75rem'>
+          <Button label={amountLabel} onClick={() => setShowAmountSheet(true)} secondary />
+          <Button label='Copy' onClick={() => setShowCopySheet(true)} secondary />
+        </FlexRow>
+        <Button label='Share' onClick={handleShare} disabled={shareDisabled} />
       </ButtonsOnBottom>
 
       {/* Amount bottom sheet */}
@@ -616,31 +614,17 @@ function AddressLine({
           <TextSecondary>{title}</TextSecondary>
           <Text>{prettyLongText(value, 12)}</Text>
         </FlexCol>
-        <button
-          type='button'
-          aria-label={`Copy ${title}`}
-          data-testid={testId + '-address-copy'}
+        <Button
+          copy
+          ariaLabel={`Copy ${title}`}
+          testId={testId + '-address-copy'}
           onClick={(event) => {
             event.stopPropagation()
             onCopy(value)
           }}
-          style={{
-            alignItems: 'center',
-            background: 'var(--dark05)',
-            border: 'none',
-            borderRadius: '8px',
-            color: 'var(--dark30)',
-            cursor: 'pointer',
-            display: 'flex',
-            justifyContent: 'center',
-            minWidth: '44px',
-            minHeight: '44px',
-            padding: 0,
-            touchAction: 'manipulation',
-          }}
         >
           {copied === value ? <CheckMarkIcon /> : <CopyIcon />}
-        </button>
+        </Button>
       </FlexRow>
     </Focusable>
   )

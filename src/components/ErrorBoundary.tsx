@@ -1,13 +1,12 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
-import * as Sentry from '@sentry/react'
-import Button from './Button'
-import { IonApp, IonPage } from '@ionic/react'
-import Padded from './Padded'
-import Content from './Content'
-import Header from './Header'
 import ButtonsOnBottom from './ButtonsOnBottom'
 import Text, { TextSecondary } from './Text'
 import CenterScreen from './CenterScreen'
+import * as Sentry from '@sentry/react'
+import Content from './Content'
+import Button from './Button'
+import Padded from './Padded'
+import Header from './Header'
 
 interface Props {
   children: ReactNode
@@ -39,8 +38,8 @@ export default class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <IonApp>
-          <IonPage>
+        <div className='page'>
+          <div className='page'>
             <Header text='Something went wrong' />
             <Content>
               <Padded>
@@ -54,8 +53,8 @@ export default class ErrorBoundary extends Component<Props, State> {
             <ButtonsOnBottom>
               <Button label='Reload' onClick={this.handleReload} />
             </ButtonsOnBottom>
-          </IonPage>
-        </IonApp>
+          </div>
+        </div>
       )
     }
 

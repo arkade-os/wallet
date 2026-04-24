@@ -88,6 +88,7 @@ export default function Backup() {
   const toggleNostrBackup = async () => {
     const newConfig = { ...config, nostrBackup: !config.nostrBackup }
     updateConfig(newConfig)
+    console.log('Updating backup with new config', newConfig)
     if (newConfig.nostrBackup) {
       const backupProvider = new BackupProvider({ pubkey: config.pubkey }, new IndexedDbSwapRepository())
       await backupProvider.fullBackup(newConfig, arkadeSwaps ?? undefined).catch((error) => {
