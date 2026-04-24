@@ -4,15 +4,7 @@ import {
   IndexedDBContractRepository,
   MessageBus,
   WalletMessageHandler,
-  MnemonicIdentity,
-  SingleKey,
-  ReadonlySingleKey,
-  Wallet,
-  ReadonlyWallet,
-  RestArkProvider,
-  RestDelegatorProvider,
 } from '@arkade-os/sdk'
-import { hex } from '@scure/base'
 import { gitCommit } from './_gitCommit'
 
 // Health-check ping: responds via MessageChannel so the main thread can
@@ -39,62 +31,6 @@ const worker = new MessageBus(walletRepository, contractRepository, {
   messageHandlers: [new WalletMessageHandler(), new ArkadeSwapsMessageHandler(swapRepository)],
   tickIntervalMs: 5000,
   messageTimeoutMs: 60_000,
-  buildServices: async (config: any) => {
-    const arkProvider = new RestArkProvider(config.arkServer.url)
-    const storage = { walletRepository, contractRepository }
-    const delegatorProvider = config.delegatorUrl ? new RestDelegatorProvider(config.delegatorUrl) : undefined
-
-    if ('mnemonic' in config.wallet) {
-      const identity = MnemonicIdentity.fromMnemonic(config.wallet.mnemonic, {
-        isMainnet: config.wallet.isMainnet,
-      })
-      const wallet = await Wallet.create({
-        identity,
-        arkServerUrl: config.arkServer.url,
-        arkServerPublicKey: config.arkServer.publicKey,
-        indexerUrl: config.indexerUrl,
-        esploraUrl: config.esploraUrl,
-        storage,
-        delegatorProvider,
-        settlementConfig: config.settlementConfig,
-        watcherConfig: config.watcherConfig,
-      })
-      return { wallet, arkProvider, readonlyWallet: wallet }
-    }
-
-    if ('privateKey' in config.wallet) {
-      const identity = SingleKey.fromHex(config.wallet.privateKey)
-      const wallet = await Wallet.create({
-        identity,
-        arkServerUrl: config.arkServer.url,
-        arkServerPublicKey: config.arkServer.publicKey,
-        indexerUrl: config.indexerUrl,
-        esploraUrl: config.esploraUrl,
-        storage,
-        delegatorProvider,
-        settlementConfig: config.settlementConfig,
-        watcherConfig: config.watcherConfig,
-      })
-      return { wallet, arkProvider, readonlyWallet: wallet }
-    }
-
-    if ('publicKey' in config.wallet) {
-      const identity = ReadonlySingleKey.fromPublicKey(hex.decode(config.wallet.publicKey))
-      const readonlyWallet = await ReadonlyWallet.create({
-        identity,
-        arkServerUrl: config.arkServer.url,
-        arkServerPublicKey: config.arkServer.publicKey,
-        indexerUrl: config.indexerUrl,
-        esploraUrl: config.esploraUrl,
-        storage,
-        delegatorProvider,
-        watcherConfig: config.watcherConfig,
-      })
-      return { readonlyWallet, arkProvider }
-    }
-
-    throw new Error('Missing wallet identity in configuration')
-  },
 })
 worker.start().catch(console.error)
 
