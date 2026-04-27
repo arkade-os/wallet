@@ -388,6 +388,7 @@ export default function SendForm() {
     if (!address && !arkAddress && invoice) {
       const min = minSwapAllowed()
       const max = maxSwapAllowed()
+      if (min === 0 && max === 0) return // limits not loaded yet
       const amountSats = getInvoiceSatoshis(invoice)
       if (amountSats < min) return setError(`Invoice amount below min of ${prettyNumber(min)} sats`)
       if (amountSats > max) return setError(`Invoice amount above max of ${prettyNumber(max)} sats`)
