@@ -125,7 +125,7 @@ describe('App startup routing', () => {
   it('keeps authenticated but uninitialized wallets on loading', async () => {
     const { navigate, unlockWallet } = renderApp({ authState: 'authenticated', initialized: false })
 
-    await waitFor(() => expect(screen.getByTestId('ion-app')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByTestId('app')).toBeInTheDocument())
     expect(unlockWallet).not.toHaveBeenCalled()
     expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
   })
@@ -174,28 +174,28 @@ describe('Navbar visibility', () => {
     renderApp({ authState: 'locked', initialized: false, screen: Pages.Wallet, tab: Tabs.Wallet })
 
     await screen.findByText('Unlock')
-    const ionApp = screen.getByTestId('ion-app')
+    const ionApp = screen.getByTestId('app')
     expect(ionApp.className).not.toContain('has-pill-navbar')
   })
 
   it('hides navbar during loading hold', async () => {
     renderApp({ authState: 'authenticated', initialized: false, screen: Pages.Wallet, tab: Tabs.Wallet })
 
-    const ionApp = await screen.findByTestId('ion-app')
+    const ionApp = await screen.findByTestId('app')
     expect(ionApp.className).not.toContain('has-pill-navbar')
   })
 
   it('shows navbar on wallet root when authenticated and initialized', async () => {
     renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Wallet, tab: Tabs.Wallet })
 
-    const ionApp = await screen.findByTestId('ion-app')
+    const ionApp = await screen.findByTestId('app')
     expect(ionApp.className).toContain('has-pill-navbar')
   })
 
   it('shows navbar on apps root when authenticated and initialized', async () => {
     renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Apps, tab: Tabs.Apps })
 
-    const ionApp = await screen.findByTestId('ion-app')
+    const ionApp = await screen.findByTestId('app')
     expect(ionApp.className).toContain('has-pill-navbar')
   })
 
@@ -208,7 +208,7 @@ describe('Navbar visibility', () => {
       option: SettingsOptions.Menu,
     })
 
-    const ionApp = await screen.findByTestId('ion-app')
+    const ionApp = await screen.findByTestId('app')
     expect(ionApp.className).toContain('has-pill-navbar')
   })
 
@@ -221,7 +221,7 @@ describe('Navbar visibility', () => {
       option: SettingsOptions.Password,
     })
 
-    const ionApp = await screen.findByTestId('ion-app')
+    const ionApp = await screen.findByTestId('app')
     expect(ionApp.className).not.toContain('has-pill-navbar')
   })
 })

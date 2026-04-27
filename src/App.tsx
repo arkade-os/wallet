@@ -212,7 +212,7 @@ export default function App() {
   const showNavbar = page === screen && (screen === Pages.Wallet || screen === Pages.Apps || isSettingsRoot)
 
   return (
-    <div className={showNavbar ? 'page has-pill-navbar' : 'page'}>
+    <div className={showNavbar ? 'page has-pill-navbar' : 'page'} data-testid='app'>
       <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
         <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
           {comp}
