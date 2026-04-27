@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.3.20
-        version: 0.3.20
+        specifier: 0.3.21
+        version: 0.3.21
       '@arkade-os/sdk':
-        specifier: 0.4.19
-        version: 0.4.19
+        specifier: 0.4.20
+        version: 0.4.20
       '@branta-ops/branta':
         specifier: 0.0.9
         version: 0.0.9
@@ -183,12 +183,12 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@0.3.20':
-    resolution: {integrity: sha512-z0pI1m9b2BQ/HoH/lWPtGziqduSYXJPz8XRkoFLNiTRpEekWEB48IIrvWSv2OjRSjpMthJS2hqlO9eJdxhAfmg==}
+  '@arkade-os/boltz-swap@0.3.21':
+    resolution: {integrity: sha512-8PfsDYLV6WHDIKAS7jcuVG7+Q9BbRCf8VB3iu7T8dgYHjbTCDXIwS39kW2gRnlh0OH7A2xYJCbvaWkTiWZqGig==}
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
 
-  '@arkade-os/sdk@0.4.19':
-    resolution: {integrity: sha512-ZKcnWipcYiK0xwyaolytT48TPOq1koNyQsW1PbE2M/0X5PaHRxs9av0JHaXZEdUkYDRcXtrirccDv/CJ0dWPqQ==}
+  '@arkade-os/sdk@0.4.20':
+    resolution: {integrity: sha512-QgIfvhfSaDf7a7iZiu+XnG3KzC/DhXFh07LAGqSdy4vX8w567tAGhdGX5bj1CKDW9u+ok/yVgCORUVLmkUaCEg==}
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -1913,6 +1913,11 @@ packages:
   isexe@2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
 
+  isomorphic-ws@5.0.0:
+    resolution: {integrity: sha512-muId7Zzn9ywDsyXgTIafTry2sV3nySZeUDe6YedVd1Hvuuep5AsIlqK+XefWpYTyJG5e503F2xIuT2lcU6rCSw==}
+    peerDependencies:
+      ws: '*'
+
   iterator.prototype@1.1.5:
     resolution: {integrity: sha512-H0dkQoCa3b2VEeKQBOxFph+JAbcrQdE7KC0UkqwpLmv2EC4P41QXP+rqo9wYodACiG5/WM5s9oDApTU8utwj9g==}
     engines: {node: '>= 0.4'}
@@ -2699,6 +2704,10 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
+  ws-electrumx-client@1.0.5:
+    resolution: {integrity: sha512-pBjfFqb9j2FBz7NPbnd8r2lOYanEw8ACzfKxOtHCgEGqre5QiTax5XHLVgbsiOvST0vmsHAiMtkJPvsZm77PIQ==}
+    engines: {node: '>=10'}
+
   ws@8.18.3:
     resolution: {integrity: sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg==}
     engines: {node: '>=10.0.0'}
@@ -2729,9 +2738,9 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@0.3.20':
+  '@arkade-os/boltz-swap@0.3.21':
     dependencies:
-      '@arkade-os/sdk': 0.4.19
+      '@arkade-os/sdk': 0.4.20
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
@@ -2743,13 +2752,15 @@ snapshots:
       - '@react-native-async-storage/async-storage'
       - bip32
       - bitcoinjs-lib
+      - bufferutil
       - ecpair
       - expo
       - expo-background-task
       - expo-sqlite
       - expo-task-manager
+      - utf-8-validate
 
-  '@arkade-os/sdk@0.4.19':
+  '@arkade-os/sdk@0.4.20':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 7.3.1
@@ -2759,11 +2770,14 @@ snapshots:
       '@scure/bip39': 2.0.1
       '@scure/btc-signer': 2.0.1
       bip68: 1.0.4
+      ws-electrumx-client: 1.0.5
     transitivePeerDependencies:
       - '@ledgerhq/ledger-bitcoin'
       - bip32
       - bitcoinjs-lib
+      - bufferutil
       - ecpair
+      - utf-8-validate
 
   '@asamuzakjp/css-color@3.2.0':
     dependencies:
@@ -4588,6 +4602,10 @@ snapshots:
 
   isexe@2.0.0: {}
 
+  isomorphic-ws@5.0.0(ws@8.18.3):
+    dependencies:
+      ws: 8.18.3
+
   iterator.prototype@1.1.5:
     dependencies:
       define-data-property: 1.1.4
@@ -5467,6 +5485,14 @@ snapshots:
   word-wrap@1.2.5: {}
 
   wrappy@1.0.2: {}
+
+  ws-electrumx-client@1.0.5:
+    dependencies:
+      isomorphic-ws: 5.0.0(ws@8.18.3)
+      ws: 8.18.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
 
   ws@8.18.3: {}
 
