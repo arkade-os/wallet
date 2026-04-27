@@ -109,6 +109,7 @@ export default function AppAssetBurn() {
             <AssetCard
               assetId={assetInfo.assetId}
               balance={balance}
+              darkPurple
               decimals={decimals}
               icon={icon}
               name={name}
