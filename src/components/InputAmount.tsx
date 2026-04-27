@@ -106,7 +106,7 @@ export default function InputAmount({
           onFocus={onFocus}
           className='input'
           inputMode='decimal'
-          value={value ?? ''}
+          value={value || ''}
           disabled={disabled}
           readOnly={readOnly}
           onChange={handleInput}
