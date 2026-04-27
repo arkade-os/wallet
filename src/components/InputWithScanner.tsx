@@ -58,7 +58,7 @@ export default function InputWithScanner({
 
   return (
     <InputContainer label={label} error={error}>
-      <label style={{ display: 'flex', alignItems: 'strech', gap: '0.25rem', flex: 1 }}>
+      <label className='label'>
         <input
           ref={input}
           name={name}

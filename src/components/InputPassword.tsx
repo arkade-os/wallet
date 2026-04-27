@@ -26,7 +26,7 @@ export default function InputPassword({ focus, label, onChange, onEnter, strengt
 
   return (
     <InputContainer label={label} right={right}>
-      <label style={{ display: 'flex', alignItems: 'strech', gap: '0.25rem', flex: 1 }}>
+      <label className='label'>
         <input
           ref={input}
           name={label}

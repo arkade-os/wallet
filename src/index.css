@@ -412,6 +412,12 @@ input:focus::placeholder {
   color: #f7fafc;
 }
 
+.label {
+  display: flex;
+  gap: 0.25rem;
+  flex: 1;
+}
+
 .page {
   inset: 0;
   display: flex;

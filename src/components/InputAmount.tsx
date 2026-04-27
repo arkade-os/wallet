@@ -97,7 +97,7 @@ export default function InputAmount({
 
   return (
     <InputContainer error={error} label={label} right={right} bottomLeft={bottomLeft} bottomRight={bottomRight}>
-      <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flex: 1 }}>
+      <label className='label'>
         <TextSecondary>{leftLabel}</TextSecondary>
         <input
           ref={input}
