@@ -7,7 +7,6 @@
     "@arkade-os/boltz-swap": "0.3.21",
     "@arkade-os/sdk": "0.4.20",
     "@branta-ops/branta": "0.0.9",
-    "@ionic/react": "^8.5.6",
     "@lendasat/lendasat-wallet-bridge": "^0.0.90",
     "@noble/curves": "^2.0.1",
     "@noble/hashes": "^2.0.1",
@@ -27,7 +26,8 @@
     "qr": "^0.5.2",
     "qr-scanner": "^1.4.2",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-spring-bottom-sheet": "^3.4.1"
   },
   "scripts": {
     "prepare": "husky install",

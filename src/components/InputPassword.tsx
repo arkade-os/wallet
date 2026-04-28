@@ -1,7 +1,7 @@
+import { useRef, useEffect, useState } from 'react'
 import InputContainer from './InputContainer'
-import { IonInput, IonInputPasswordToggle } from '@ionic/react'
 import { StrengthLabel } from './Strength'
-import { useRef, useEffect } from 'react'
+import PasswordIcon from '../icons/Password'
 
 interface InputPasswordProps {
   focus?: boolean
@@ -13,26 +13,33 @@ interface InputPasswordProps {
 }
 
 export default function InputPassword({ focus, label, onChange, onEnter, strength, placeholder }: InputPasswordProps) {
-  const right = strength ? <StrengthLabel strength={strength} /> : undefined
+  const [visible, setVisible] = useState(false)
 
-  const input = useRef<HTMLIonInputElement>(null)
+  const input = useRef<HTMLInputElement>(null)
 
   // focus input when focus prop changes
   useEffect(() => {
-    if (focus && input.current) input.current.setFocus()
+    if (focus && input.current) input.current.focus()
   }, [focus, input.current])
+
+  const right = strength ? <StrengthLabel strength={strength} /> : undefined
 
   return (
     <InputContainer label={label} right={right}>
-      <IonInput
-        onIonInput={onChange}
-        onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
-        placeholder={placeholder}
-        ref={input}
-        type='password'
-      >
-        <IonInputPasswordToggle color='dark' slot='end' />
-      </IonInput>
+      <label className='label'>
+        <input
+          ref={input}
+          name={label}
+          className='input'
+          onChange={onChange}
+          placeholder={placeholder}
+          type={visible ? 'text' : 'password'}
+          onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
+        />
+      </label>
+      <div onClick={() => setVisible(!visible)} style={{ cursor: 'pointer', padding: '12px' }}>
+        <PasswordIcon visible={visible} />
+      </div>
     </InputContainer>
   )
 }

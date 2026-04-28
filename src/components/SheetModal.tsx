@@ -1,5 +1,6 @@
-import { IonModal } from '@ionic/react'
 import { hapticLight } from '../lib/haptics'
+import { BottomSheet } from 'react-spring-bottom-sheet'
+import 'react-spring-bottom-sheet/dist/style.css'
 
 interface SheetModalProps {
   children?: React.ReactNode
@@ -14,16 +15,11 @@ export default function SheetModal({ children, isOpen, onClose }: SheetModalProp
   }
 
   return (
-    <IonModal initialBreakpoint={1} backdropBreakpoint={0} isOpen={isOpen} onDidDismiss={handleClose}>
+    <BottomSheet open={isOpen} onDismiss={handleClose} header={null}>
       <div style={outerStyle}>
-        <div style={innerStyleWithSafeArea}>
-          <div style={handleAreaStyle} onClick={handleClose}>
-            <div style={handleStyle} />
-          </div>
-          {children}
-        </div>
+        <div style={innerStyleWithSafeArea}>{children}</div>
       </div>
-    </IonModal>
+    </BottomSheet>
   )
 }
 
@@ -41,17 +37,4 @@ const innerStyle: React.CSSProperties = {
 const innerStyleWithSafeArea: React.CSSProperties = {
   ...innerStyle,
   paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))',
-}
-
-const handleAreaStyle: React.CSSProperties = {
-  padding: '12px 0 20px',
-  cursor: 'grab',
-}
-
-const handleStyle: React.CSSProperties = {
-  backgroundColor: 'var(--dark20)',
-  borderRadius: '100px',
-  height: '5px',
-  margin: '0 auto',
-  width: '40px',
 }

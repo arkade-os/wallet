@@ -23,8 +23,8 @@ import { EmptyCoinsList } from '../../components/Empty'
 import WarningBox from '../../components/Warning'
 import { ExtendedCoin, ExtendedVirtualCoin, isVtxoExpiringSoon } from '@arkade-os/sdk'
 import { consoleError } from '../../lib/logs'
-import { IonCol, IonGrid, IonRow } from '@ionic/react'
 import * as Sentry from '@sentry/react'
+import Grid from '../../components/Grid'
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -224,9 +224,9 @@ export default function Vtxos() {
     }
     return (
       <div style={style}>
-        <IonGrid>
-          <IonRow className='ion-align-items-start'>
-            <IonCol size='4'>
+        <Grid>
+          <div>
+            <div>
               <FlexCol gap='0.25rem'>
                 <Text>{amount}</Text>
                 {assets?.map((a) => (
@@ -235,13 +235,13 @@ export default function Vtxos() {
                   </Text>
                 ))}
               </FlexCol>
-            </IonCol>
-            <IonCol size='4'>{tags}</IonCol>
-            <IonCol size='4'>
+            </div>
+            <div>{tags}</div>
+            <div>
               <Text right>{expiry}</Text>
-            </IonCol>
-          </IonRow>
-        </IonGrid>
+            </div>
+          </div>
+        </Grid>
       </div>
     )
   }

@@ -1,4 +1,3 @@
-import { IonButton } from '@ionic/react'
 import { ReactElement, ReactNode, useCallback, useState } from 'react'
 import FlexRow from './FlexRow'
 import ArrowIcon from '../icons/Arrow'
@@ -8,8 +7,10 @@ import PasteIcon from '../icons/Paste'
 import XIcon from '../icons/X'
 
 interface ButtonProps {
+  ariaLabel?: string
   children?: ReactNode
   clear?: boolean
+  copy?: boolean
   disabled?: boolean
   fancy?: boolean
   icon?: ReactElement
@@ -20,11 +21,14 @@ interface ButtonProps {
   outline?: boolean
   red?: boolean
   secondary?: boolean
+  testId?: string
 }
 
 export default function Button({
+  ariaLabel,
   children,
   clear,
+  copy,
   disabled,
   fancy,
   icon,
@@ -35,11 +39,12 @@ export default function Button({
   outline,
   red,
   secondary,
+  testId,
 }: ButtonProps) {
   const [pressed, setPressed] = useState(false)
 
-  const variant = red ? 'red' : secondary ? 'secondary' : clear ? 'clear' : outline ? 'outline' : 'dark'
-  const className = `${variant}${pressed ? ' pressed' : ''}`
+  const variant = red ? 'red' : secondary ? 'secondary' : clear ? 'clear' : outline ? 'outline' : copy ? 'copy' : 'dark'
+  const className = `button ${variant}${pressed ? ' pressed' : ''}`
 
   const handlePressStart = useCallback(() => {
     if (disabled || loading) return
@@ -59,13 +64,15 @@ export default function Button({
   )
 
   return (
-    <IonButton
+    <button
+      aria-label={ariaLabel || label}
+      type='button'
       className={className}
       disabled={disabled}
-      fill={clear ? 'clear' : outline ? 'outline' : 'solid'}
       onClick={handleClick}
       onMouseDown={handlePressStart}
       onMouseUp={handlePressEnd}
+      data-testid={testId}
       onMouseLeave={handlePressEnd}
       onTouchStart={handlePressStart}
       onTouchEnd={handlePressEnd}
@@ -90,7 +97,7 @@ export default function Button({
           {children ?? (label ? <Label label={label} /> : null)}
         </FlexRow>
       )}
-    </IonButton>
+    </button>
   )
 }
 
