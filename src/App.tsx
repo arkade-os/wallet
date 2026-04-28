@@ -132,7 +132,7 @@ export default function App() {
   const isNewUser = walletLoaded && !wallet.pubkey
   const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
   const hasStoredWallet = walletLoaded && !!wallet.pubkey
-  const shouldShowUnlock = hasStoredWallet && authState === 'locked'
+  const shouldShowUnlock = hasStoredWallet && authState === 'locked' && !aspInfo.unreachable
   // Hold the loading screen during boot until wallet data is ready.
   // Skip during the init/connect flow (creating or restoring a wallet) so the
   // Connect component stays mounted and can run swap recovery before navigating.
