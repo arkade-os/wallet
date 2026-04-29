@@ -69,6 +69,25 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   expect(await page.getByTestId('Total').textContent()).toBe('2,000 SATS')
 })
 
+test('should raise error when trying to pay invoice with little amount', async ({ page }) => {
+  await createWallet(page)
+
+  const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 21`)
+  const outputJSON = JSON.parse(stdout.trim())
+  const invoice = outputJSON.payment_request
+  expect(invoice).toBeDefined()
+  expect(invoice).toBeTruthy()
+  expect(invoice).toContain('lnbcrt')
+
+  // go to send page
+  await page.getByTestId('tab-wallet').click()
+  await page.getByText('Send').click()
+
+  // fill invoice
+  await page.locator('ion-input[name="send-address"] input').fill(invoice)
+  await page.waitForSelector('text=Invoice amount below min of 1,000 sats', { state: 'visible' })
+})
+
 test('should send funds to Lightning', async ({ page }) => {
   await createWallet(page)
   await fundWallet(page, 5000)

@@ -69,8 +69,15 @@ export default function SendForm() {
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { calcSubmarineSwapFee, calcArkToBtcSwapFee, createArkToBtcSwap, createSubmarineSwap, connected, getApiUrl } =
     useContext(SwapsContext)
-  const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed, validArkToBtc } =
-    useContext(LimitsContext)
+  const {
+    amountIsAboveMaxLimit,
+    amountIsBelowMinLimit,
+    minSwapAllowed,
+    maxSwapAllowed,
+    utxoTxsAllowed,
+    vtxoTxsAllowed,
+    validArkToBtc,
+  } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
   const { assetBalances, assetMetadataCache, balance, setCacheEntry, svcWallet } = useContext(WalletContext)
@@ -383,6 +390,15 @@ export default function SendForm() {
     // check server limits for offchain transactions
     if (!address && (arkAddress || invoice) && !vtxoTxsAllowed()) {
       return setError('Sending offchain not allowed')
+    }
+    // check swap limits for lightning transactions
+    if (!address && !arkAddress && invoice) {
+      const min = minSwapAllowed()
+      const max = maxSwapAllowed()
+      if (min === 0 && max === 0) return // limits not loaded yet
+      const amountSats = getInvoiceSatoshis(invoice)
+      if (amountSats < min) return setError(`Invoice amount below min of ${prettyNumber(min)} sats`)
+      if (amountSats > max) return setError(`Invoice amount above max of ${prettyNumber(max)} sats`)
     }
     // check if server key is valid
     if (arkAddress && arkAddress.length > 0) {
