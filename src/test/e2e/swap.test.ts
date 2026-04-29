@@ -84,7 +84,7 @@ test('should raise error when trying to pay invoice with little amount', async (
   await page.getByText('Send').click()
 
   // fill invoice
-  await page.locator('ion-input[name="send-address"] input').fill(invoice)
+  await page.locator('input[name="send-address"]').fill(invoice)
   await page.waitForSelector('text=Invoice amount below min of 1,000 sats', { state: 'visible' })
 })
 
