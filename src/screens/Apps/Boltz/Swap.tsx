@@ -78,7 +78,13 @@ export default function AppBoltzSwap() {
 
   if (!swapInfo) return null
 
-  const formatAmount = (amt: number) => (config.showBalance ? prettyAmount(amt) : prettyHide(amt))
+  const formatAmount = (amt: number | undefined) => {
+    if (amt === undefined || Number.isNaN(amt)) return '—'
+    return config.showBalance ? prettyAmount(amt) : prettyHide(amt)
+  }
+
+  const diff = (a: number | undefined, b: number | undefined) =>
+    a === undefined || b === undefined ? undefined : a - b
 
   const date = prettyDate(swapInfo.createdAt)
   const when = prettyAgo(swapInfo.createdAt)
@@ -89,12 +95,12 @@ export default function AppBoltzSwap() {
   let tableData: TableData = []
 
   if (swapInfo.type === 'chain') {
-    const sentSats = swapInfo.response.lockupDetails.amount
-    const rcvdSats = swapInfo.response.claimDetails.amount
+    const sentSats = swapInfo.response.lockupDetails?.amount
+    const rcvdSats = swapInfo.response.claimDetails?.amount
     const btcAddress =
       swapInfo.request.from === 'ARK'
-        ? swapInfo.response.lockupDetails.lockupAddress
-        : swapInfo.response.claimDetails.lockupAddress
+        ? swapInfo.response.lockupDetails?.lockupAddress
+        : swapInfo.response.claimDetails?.lockupAddress
 
     tableData = [
       ['When', when],
@@ -106,12 +112,12 @@ export default function AppBoltzSwap() {
       ['BTC Address', btcAddress],
       ['Status', status],
       ['Amount', formatAmount(rcvdSats)],
-      ['Fees', formatAmount(sentSats - rcvdSats)],
+      ['Fees', formatAmount(diff(sentSats, rcvdSats))],
       ['Total', formatAmount(sentSats)],
     ]
   } else if (swapInfo.type === 'reverse') {
     const sentSats = swapInfo.request.invoiceAmount
-    const rcvdSats = swapInfo.response.onchainAmount ?? 0
+    const rcvdSats = swapInfo.response.onchainAmount
 
     tableData = [
       ['When', when],
@@ -123,12 +129,14 @@ export default function AppBoltzSwap() {
       ['Invoice', swapInfo.response.invoice],
       ['Status', swapInfo.status],
       ['Amount', formatAmount(rcvdSats)],
-      ['Fees', formatAmount(sentSats - rcvdSats)],
+      ['Fees', formatAmount(diff(sentSats, rcvdSats))],
       ['Total', formatAmount(sentSats)],
     ]
   } else if (swapInfo.type === 'submarine') {
     const sentSats = swapInfo.response.expectedAmount
-    const rcvdSats = isValidInvoice(swapInfo.request.invoice) ? decodeInvoice(swapInfo.request.invoice).amountSats : 0
+    const rcvdSats = isValidInvoice(swapInfo.request.invoice)
+      ? decodeInvoice(swapInfo.request.invoice).amountSats
+      : undefined
 
     tableData = [
       ['When', when],
@@ -140,7 +148,7 @@ export default function AppBoltzSwap() {
       ['Invoice', swapInfo.request.invoice],
       ['Status', status],
       ['Amount', formatAmount(rcvdSats)],
-      ['Fees', formatAmount(sentSats - rcvdSats)],
+      ['Fees', formatAmount(diff(sentSats, rcvdSats))],
       ['Total', formatAmount(sentSats)],
     ]
   }
