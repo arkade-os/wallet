@@ -339,4 +339,17 @@ describe('Receive QR Code screen', () => {
     expect(second).toContain('bc1BBBBBB')
     expect(second).not.toBe(first)
   })
+  it('clicking the Copy button copies the unified BIP21 URI immediately', async () => {
+    renderReceiveQrCode(tapFixture())
+
+    const copyButton = await screen.findByRole('button', { name: 'Copy' })
+    await act(async () => {
+      fireEvent.click(copyButton)
+    })
+
+    expect(copyToClipboardMock).toHaveBeenCalledTimes(1)
+    const copied = copyToClipboardMock.mock.calls[0][0]
+    expect(copied).toMatch(/^bitcoin:/)
+    expect(copied).toContain('ark1testaddr')
+  })
 })
