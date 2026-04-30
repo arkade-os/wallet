@@ -84,7 +84,7 @@ export default function Button({
           <div className='spinner' />
         </FlexRow>
       ) : fancy ? (
-        <FlexRow between>
+        <FlexRow between padding='0 0.5rem'>
           <FlexRow>
             {icon}
             {children ?? (label ? <Label label={label} /> : null)}
