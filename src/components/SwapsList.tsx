@@ -220,18 +220,31 @@ export default function SwapsList() {
           }}
         >
           <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
-            {swapHistory.map((swap) => (
-              <Focusable
-                id={key(swap)}
-                key={key(swap)}
-                inactive={!focused}
-                ariaLabel={ariaLabel(swap)}
-                onEscape={focusOnOuterShell}
-                onEnter={() => handleClick(swap)}
-              >
-                <SwapLine onClick={() => handleClick(swap)} swap={swap} />
-              </Focusable>
-            ))}
+            {virtualizer.getVirtualItems().map((virtualItem) => {
+              const swap = swapHistory[virtualItem.index]
+              return (
+                <div
+                  key={key(swap)}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualItem.start}px)`,
+                  }}
+                >
+                  <Focusable
+                    id={key(swap)}
+                    inactive={!focused}
+                    ariaLabel={ariaLabel(swap)}
+                    onEscape={focusOnOuterShell}
+                    onEnter={() => handleClick(swap)}
+                  >
+                    <SwapLine onClick={() => handleClick(swap)} swap={swap} />
+                  </Focusable>
+                </div>
+              )
+            })}
           </div>
         </div>
       </Focusable>
