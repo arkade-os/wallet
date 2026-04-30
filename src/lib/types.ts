@@ -68,7 +68,7 @@ export enum SettingsOptions {
   Advanced = 'advanced',
   Backup = 'backup',
   General = 'general',
-  Haptics = 'haptic feedback',
+  Haptics = 'haptics feedback',
   Lock = 'lock wallet',
   Logs = 'logs',
   Notifications = 'notifications',
