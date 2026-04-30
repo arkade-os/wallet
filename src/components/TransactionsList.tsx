@@ -232,7 +232,7 @@ export default function TransactionsList() {
         className='hide-scrollbar scroll-fade'
         style={{
           borderBottom: border,
-          height: 'calc(100dvh - 380px)',
+          height: 'calc(100dvh - 260px)',
           minHeight: '200px',
           overflowY: 'auto',
         }}
