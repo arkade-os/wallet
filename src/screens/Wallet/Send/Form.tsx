@@ -657,7 +657,7 @@ export default function SendForm() {
     if (isAssetSend && selectedAsset) {
       return (
         <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
-          <Text color='dark50' smaller>
+          <Text color='neutral-500' smaller>
             {`${formatAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`}
           </Text>
         </div>
@@ -669,7 +669,7 @@ export default function SendForm() {
 
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
-        <Text color='dark50' smaller>
+        <Text color='neutral-500' smaller>
           {`${pretty} available`}
         </Text>
       </div>
@@ -811,7 +811,7 @@ export default function SendForm() {
                 value={recipient}
               />
               {brantaLoading ? (
-                <Text color='dark50' smaller>
+                <Text color='neutral-500' smaller>
                   Verifying address...
                 </Text>
               ) : null}
@@ -820,7 +820,7 @@ export default function SendForm() {
                   <FlexRow between padding='0.75rem'>
                     <FlexCol gap='0.1rem'>
                       <Text smaller>{brantaPayment.platform}</Text>
-                      <Text smaller color='dark50'>
+                      <Text smaller color='neutral-500'>
                         {brantaPayment.verify_url?.startsWith('https://') ? (
                           <a href={brantaPayment.verify_url} target='_blank' rel='noreferrer'>
                             Verified by Branta
@@ -838,7 +838,7 @@ export default function SendForm() {
               ) : null}
               {assetOptions.length > 0 ? (
                 <FlexCol gap='0.25rem'>
-                  <Text smaller color='dark50'>
+                  <Text smaller color='neutral-500'>
                     Asset
                   </Text>
                   <Shadow border onClick={() => setShowAssetSelector(!showAssetSelector)} testId='asset-selector'>
@@ -859,7 +859,7 @@ export default function SendForm() {
                                 width: 24,
                                 height: 24,
                                 borderRadius: '50%',
-                                background: 'var(--dark20)',
+                                background: 'var(--neutral-200)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -873,7 +873,7 @@ export default function SendForm() {
                         )}
                         <Text>{selectedAssetLabel}</Text>
                       </FlexRow>
-                      <Text color='dark50' smaller>
+                      <Text color='neutral-500' smaller>
                         {showAssetSelector ? '▲' : '▼'}
                       </Text>
                     </FlexRow>
@@ -915,7 +915,7 @@ export default function SendForm() {
                                         width: 24,
                                         height: 24,
                                         borderRadius: '50%',
-                                        background: 'var(--dark20)',
+                                        background: 'var(--neutral-200)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
@@ -928,7 +928,7 @@ export default function SendForm() {
                                     {asset.name} ({asset.ticker})
                                   </Text>
                                 </FlexRow>
-                                <Text color='dark50' smaller>
+                                <Text color='neutral-500' smaller>
                                   {formatAssetAmount(asset.balance, asset.decimals)} {asset.ticker}
                                 </Text>
                               </FlexRow>
@@ -960,14 +960,14 @@ export default function SendForm() {
               {deductFromAmount ? <InfoLine color='orange' text='Fees will be deducted from the amount sent' /> : null}
               {tryingToSelfSend ? (
                 <div style={{ width: '100%' }}>
-                  <Text centered color='dark50' small>
+                  <Text centered color='neutral-500' small>
                     Did you mean <a onClick={gotoRollover}>roll over your VTXOs</a>?
                   </Text>
                 </div>
               ) : null}
               {nudgeBoltz && getApiUrl() ? (
                 <div style={{ width: '100%' }}>
-                  <Text centered color='dark50' small>
+                  <Text centered color='neutral-500' small>
                     Enable <a onClick={gotoBoltzApp}>Lightning swaps</a> to pay
                   </Text>
                 </div>
@@ -982,7 +982,7 @@ export default function SendForm() {
       <SheetModal isOpen={showReserveModal} onClose={() => setShowReserveModal(false)}>
         <FlexCol gap='1rem'>
           <Text bold>Balance reserve</Text>
-          <Text color='dark50' small>
+          <Text color='neutral-500' small>
             {`${DUST_AMOUNT} sats are kept in reserve to protect your assets. Your max sendable amount is ${prettyNumber(liquidBalance)} sats.`}
           </Text>
           <FlexCol gap='0.5rem'>

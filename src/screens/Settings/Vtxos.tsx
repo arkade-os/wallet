@@ -163,8 +163,8 @@ export default function Vtxos() {
 
   const Box = ({ children }: { children: ReactNode }) => {
     const style: React.CSSProperties = {
-      backgroundColor: 'var(--dark10)',
-      border: '1px solid var(--dark20)',
+      backgroundColor: 'var(--neutral-100)',
+      border: '1px solid var(--neutral-200)',
       borderRadius: '0.25rem',
       padding: '10px',
       width: '100%',
@@ -216,8 +216,8 @@ export default function Vtxos() {
     expiry: string
   }) => {
     const style: React.CSSProperties = {
-      backgroundColor: 'var(--dark10)',
-      border: '1px solid var(--dark20)',
+      backgroundColor: 'var(--neutral-100)',
+      border: '1px solid var(--neutral-200)',
       borderRadius: '0.25rem',
       padding: '0',
       width: '100%',
@@ -230,7 +230,7 @@ export default function Vtxos() {
               <FlexCol gap='0.25rem'>
                 <Text>{amount}</Text>
                 {assets?.map((a) => (
-                  <Text key={a} color='dark50' smaller>
+                  <Text key={a} color='neutral-500' smaller>
                     {a}
                   </Text>
                 ))}
@@ -309,7 +309,7 @@ export default function Vtxos() {
                   {success ? <WarningBox green text='Coins renewed successfully' /> : null}
                   {listableVtxos.length > 0 ? (
                     <FlexCol gap='0.5rem'>
-                      <Text capitalize color='dark50' smaller>
+                      <Text capitalize color='neutral-500' smaller>
                         Your virtual coins with amount and expiration
                       </Text>
                       {listableVtxos.map((v: ExtendedVirtualCoin) => (
@@ -319,7 +319,7 @@ export default function Vtxos() {
                   ) : null}
                   {!hideUtxos && allUtxos.length > 0 ? (
                     <FlexCol gap='0.5rem'>
-                      <Text capitalize color='dark50' smaller>
+                      <Text capitalize color='neutral-500' smaller>
                         Your boarding utxos with amount and expiration
                       </Text>
                       {allUtxos.map((u: ExtendedCoin) => (
@@ -331,7 +331,7 @@ export default function Vtxos() {
               ) : (
                 <>
                   <FlexCol gap='0.5rem' margin='0 0 1rem 0'>
-                    <Text capitalize color='dark50' smaller>
+                    <Text capitalize color='neutral-500' smaller>
                       Next renewal
                     </Text>
                     <Box>

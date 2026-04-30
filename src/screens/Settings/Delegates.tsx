@@ -85,8 +85,8 @@ function Hero() {
             marginTop: '1rem',
             padding: '0.75rem',
             borderRadius: '6px',
-            color: '#040404',
-            background: '#fbfbfb',
+            color: 'var(--fg)',
+            background: 'var(--bg)',
             textTransform: 'uppercase',
             width: 'fit-content',
             cursor: 'pointer',
@@ -156,7 +156,7 @@ function DelegateCard() {
         <FlexRow between>
           <Text>{delegate.name}</Text>
           <FlexRow end onClick={() => setOption(SettingsOptions.Vtxos)}>
-            <Text color='dark50' tiny>
+            <Text color='neutral-500' tiny>
               {nextRolloverText}
             </Text>
             <ArrowIcon small />

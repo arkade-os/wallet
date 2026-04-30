@@ -25,7 +25,7 @@ import PreconfirmedIcon from '../icons/Preconfirmed'
 import Focusable from './Focusable'
 import { hapticSubtle } from '../lib/haptics'
 
-const border = '1px solid var(--dark10)'
+const border = '1px solid var(--neutral-200)'
 
 const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void; isFirst?: boolean }) => {
   const { config } = useContext(ConfigContext)
@@ -43,7 +43,7 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
     if (issuance || burn) return null
     const color =
       config.currencyDisplay === CurrencyDisplay.Both
-        ? 'dark50'
+        ? 'neutral-500'
         : tx.type === 'received'
           ? 'green'
           : tx.boardingTxid && tx.preconfirmed

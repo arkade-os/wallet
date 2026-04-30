@@ -1,0 +1,278 @@
+@import 'tailwindcss';
+
+/* Dark mode: use html.palette-dark class (matches tokens.css and config.tsx) */
+@variant dark (&:where(html.palette-dark, html.palette-dark *));
+
+@theme {
+  /* ======================================
+   * COLORS — semantic ramps
+   * ====================================== */
+
+  /* Purple — brand primary at 700 */
+  --color-purple-50: var(--purple-50);
+  --color-purple-100: var(--purple-100);
+  --color-purple-200: var(--purple-200);
+  --color-purple-300: var(--purple-300);
+  --color-purple-400: var(--purple-400);
+  --color-purple-500: var(--purple-500);
+  --color-purple-600: var(--purple-600);
+  --color-purple-700: var(--purple-700);
+  --color-purple-800: var(--purple-800);
+  --color-purple-900: var(--purple-900);
+  --color-purple-950: var(--purple-950);
+
+  /* Green — success */
+  --color-green-50: var(--green-50);
+  --color-green-100: var(--green-100);
+  --color-green-200: var(--green-200);
+  --color-green-300: var(--green-300);
+  --color-green-400: var(--green-400);
+  --color-green-500: var(--green-500);
+  --color-green-600: var(--green-600);
+  --color-green-700: var(--green-700);
+  --color-green-800: var(--green-800);
+  --color-green-900: var(--green-900);
+  --color-green-950: var(--green-950);
+
+  /* Red — danger */
+  --color-red-50: var(--red-50);
+  --color-red-100: var(--red-100);
+  --color-red-200: var(--red-200);
+  --color-red-300: var(--red-300);
+  --color-red-400: var(--red-400);
+  --color-red-500: var(--red-500);
+  --color-red-600: var(--red-600);
+  --color-red-700: var(--red-700);
+  --color-red-800: var(--red-800);
+  --color-red-900: var(--red-900);
+  --color-red-950: var(--red-950);
+
+  /* Orange — warning */
+  --color-orange-50: var(--orange-50);
+  --color-orange-100: var(--orange-100);
+  --color-orange-200: var(--orange-200);
+  --color-orange-300: var(--orange-300);
+  --color-orange-400: var(--orange-400);
+  --color-orange-500: var(--orange-500);
+  --color-orange-600: var(--orange-600);
+  --color-orange-700: var(--orange-700);
+  --color-orange-800: var(--orange-800);
+  --color-orange-900: var(--orange-900);
+  --color-orange-950: var(--orange-950);
+
+  /* Yellow — caution */
+  --color-yellow-50: var(--yellow-50);
+  --color-yellow-100: var(--yellow-100);
+  --color-yellow-200: var(--yellow-200);
+  --color-yellow-300: var(--yellow-300);
+  --color-yellow-400: var(--yellow-400);
+  --color-yellow-500: var(--yellow-500);
+  --color-yellow-600: var(--yellow-600);
+  --color-yellow-700: var(--yellow-700);
+  --color-yellow-800: var(--yellow-800);
+  --color-yellow-900: var(--yellow-900);
+  --color-yellow-950: var(--yellow-950);
+
+  /* Background, foreground, named */
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-black: var(--black);
+  --color-white: var(--white);
+  --color-grey: var(--grey);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+
+  /* Neutral ramp — solid grays that auto-adapt to theme */
+  --color-neutral-50: var(--neutral-50);
+  --color-neutral-100: var(--neutral-100);
+  --color-neutral-200: var(--neutral-200);
+  --color-neutral-300: var(--neutral-300);
+  --color-neutral-400: var(--neutral-400);
+  --color-neutral-500: var(--neutral-500);
+  --color-neutral-600: var(--neutral-600);
+  --color-neutral-700: var(--neutral-700);
+  --color-neutral-800: var(--neutral-800);
+  --color-neutral-900: var(--neutral-900);
+  --color-neutral-950: var(--neutral-950);
+
+  /* shadcn required tokens */
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-primary: var(--purple-700);
+  --color-primary-foreground: #fff;
+  /* Secondary: lighter neutral so buttons don't read as disabled. */
+  --color-secondary: var(--neutral-100);
+  --color-secondary-foreground: var(--fg);
+  --color-destructive: var(--red-700);
+  --color-destructive-foreground: #fff;
+  --color-accent: var(--neutral-50);
+  --color-accent-foreground: var(--fg);
+  --color-muted: var(--neutral-500);
+  --color-muted-foreground: var(--neutral-500);
+  --color-popover: var(--bg);
+  --color-popover-foreground: var(--fg);
+  --color-card: var(--bg);
+  --color-card-foreground: var(--fg);
+  --color-input: var(--neutral-200);
+  --color-border: var(--neutral-100);
+  --color-ring: var(--purple-700);
+
+  /* ======================================
+   * TYPOGRAPHY
+   * ====================================== */
+
+  /* Font families — mapped from --font-family-* in tokens.css to avoid the
+     self-referential cycle that --font-sans: var(--font-sans) would create. */
+  --font-sans: var(--font-family-sans);
+  --font-heading: var(--font-family-heading);
+  --font-mono: var(--font-family-mono);
+
+  /* Body / UI scale — Geist. Use text-* for paragraphs, labels, UI chrome. */
+  --text-xs: var(--text-xs-size);
+  --text-xs--line-height: var(--text-xs-line);
+  --text-sm: var(--text-sm-size);
+  --text-sm--line-height: var(--text-sm-line);
+  --text-base: var(--text-base-size);
+  --text-base--line-height: var(--text-base-line);
+  --text-lg: var(--text-lg-size);
+  --text-lg--line-height: var(--text-lg-line);
+  --text-xl: var(--text-xl-size);
+  --text-xl--line-height: var(--text-xl-line);
+  --text-2xl: var(--text-2xl-size);
+  --text-2xl--line-height: var(--text-2xl-line);
+  --text-3xl: var(--text-3xl-size);
+  --text-3xl--line-height: var(--text-3xl-line);
+  --text-4xl: var(--text-4xl-size);
+  --text-4xl--line-height: var(--text-4xl-line);
+  --text-5xl: var(--text-5xl-size);
+  --text-5xl--line-height: var(--text-5xl-line);
+  --text-6xl: var(--text-6xl-size);
+  --text-6xl--line-height: var(--text-6xl-line);
+  --text-7xl: var(--text-7xl-size);
+  --text-7xl--line-height: var(--text-7xl-line);
+  --text-8xl: var(--text-8xl-size);
+  --text-8xl--line-height: var(--text-8xl-line);
+  --text-9xl: var(--text-9xl-size);
+  --text-9xl--line-height: var(--text-9xl-line);
+
+  /*
+   * Heading / display scale — TT Firs Neue. Use text-heading-* for actual
+   * headings (h1-h6, hero text). Ships font, line-height, letter-spacing, and
+   * semi-bold weight in one utility so callers don't forget any of them.
+   */
+  --text-heading-sm: var(--heading-sm-size);
+  --text-heading-sm--line-height: var(--heading-sm-line);
+  --text-heading-sm--letter-spacing: var(--heading-sm-tracking);
+  --text-heading-sm--font-family: var(--font-heading);
+  --text-heading-sm--font-weight: 600;
+  --text-heading-md: var(--heading-md-size);
+  --text-heading-md--line-height: var(--heading-md-line);
+  --text-heading-md--letter-spacing: var(--heading-md-tracking);
+  --text-heading-md--font-family: var(--font-heading);
+  --text-heading-md--font-weight: 600;
+  --text-heading-lg: var(--heading-lg-size);
+  --text-heading-lg--line-height: var(--heading-lg-line);
+  --text-heading-lg--letter-spacing: var(--heading-lg-tracking);
+  --text-heading-lg--font-family: var(--font-heading);
+  --text-heading-lg--font-weight: 600;
+  --text-heading-xl: var(--heading-xl-size);
+  --text-heading-xl--line-height: var(--heading-xl-line);
+  --text-heading-xl--letter-spacing: var(--heading-xl-tracking);
+  --text-heading-xl--font-family: var(--font-heading);
+  --text-heading-xl--font-weight: 600;
+  --text-heading-2xl: var(--heading-2xl-size);
+  --text-heading-2xl--line-height: var(--heading-2xl-line);
+  --text-heading-2xl--letter-spacing: var(--heading-2xl-tracking);
+  --text-heading-2xl--font-family: var(--font-heading);
+  --text-heading-2xl--font-weight: 600;
+  --text-heading-3xl: var(--heading-3xl-size);
+  --text-heading-3xl--line-height: var(--heading-3xl-line);
+  --text-heading-3xl--letter-spacing: var(--heading-3xl-tracking);
+  --text-heading-3xl--font-family: var(--font-heading);
+  --text-heading-3xl--font-weight: 600;
+  --text-heading-4xl: var(--heading-4xl-size);
+  --text-heading-4xl--line-height: var(--heading-4xl-line);
+  --text-heading-4xl--letter-spacing: var(--heading-4xl-tracking);
+  --text-heading-4xl--font-family: var(--font-heading);
+  --text-heading-4xl--font-weight: 600;
+  --text-heading-5xl: var(--heading-5xl-size);
+  --text-heading-5xl--line-height: var(--heading-5xl-line);
+  --text-heading-5xl--letter-spacing: var(--heading-5xl-tracking);
+  --text-heading-5xl--font-family: var(--font-heading);
+  --text-heading-5xl--font-weight: 600;
+
+  /* ======================================
+   * RADIUS — source values live in tokens.css :root; @theme maps them so
+   * Tailwind emits `rounded-*` utilities too.
+   * ====================================== */
+
+  --radius-sm: 0.25rem; /* 4px  */
+  --radius-md: 0.5rem; /* 8px  */
+  --radius-lg: 1rem; /* 16px */
+  --radius-xl: 1.5rem; /* 24px */
+  --radius-2xl: 2rem; /* 32px */
+  --radius-full: 9999px;
+
+  /* ======================================
+   * SHADOWS — layered, subtle (Jakub-inspired).
+   * Source values live as --elevation-* in tokens.css (with dark-mode
+   * overrides) so this mapping doesn't create a `var()` cycle.
+   * ====================================== */
+
+  --shadow-sm: var(--elevation-sm);
+  --shadow-md: var(--elevation-md);
+  --shadow-lg: var(--elevation-lg);
+  --shadow-xl: var(--elevation-xl);
+}
+
+/* ======================================
+ * SAFE-AREA UTILITIES (iOS notch / home indicator / Android gesture bar)
+ * Use p-safe on full-bleed containers, pt-safe on headers, pb-safe on footers.
+ * ====================================== */
+
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@utility pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+@utility pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+@utility p-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+/* Additive variants — add safe-area on top of an existing padding value.
+   Use pt-safe-or-4 to mean "max(safe-area-inset-top, 1rem)" effectively. */
+@utility pt-safe-or-* {
+  padding-top: max(env(safe-area-inset-top, 0px), --spacing(--value(integer)));
+}
+@utility pb-safe-or-* {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), --spacing(--value(integer)));
+}
+
+/* Full dynamic viewport height — adjusts when mobile browser chrome shows/hides. */
+@utility min-h-dvh {
+  min-height: 100dvh;
+}
+@utility h-dvh {
+  height: 100dvh;
+}
+
+/* Pull-to-refresh spinner animation */
+@keyframes ptr-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
