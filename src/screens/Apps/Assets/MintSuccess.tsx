@@ -48,7 +48,7 @@ export default function AppAssetMintSuccess() {
               darkPurple
             />
             <FlexCol gap='0.25rem' centered>
-              <Text copy={assetInfo.assetId} color='dark50' smaller>
+              <Text copy={assetInfo.assetId} color='neutral-500' smaller>
                 {assetInfo.assetId.slice(0, 12)}...{assetInfo.assetId.slice(-12)}
               </Text>
               <TextSecondary centered>Asset ID (tap to copy)</TextSecondary>

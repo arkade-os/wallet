@@ -107,7 +107,7 @@ export default function ReceiveSuccess() {
                 )
               })}
 
-              <Text centered color='dark70' thin small wrap>
+              <Text centered color='neutral-700' thin small wrap>
                 {displayAmount}
               </Text>
             </FlexCol>

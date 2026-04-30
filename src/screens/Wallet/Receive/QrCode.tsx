@@ -437,12 +437,12 @@ export default function ReceiveQRCode() {
                     <QrCode value={qrCodeValue} />
                   </button>
                   {satoshis > 0 ? (
-                    <div style={{ fontSize: '14px', color: 'var(--dark50)', marginTop: '0.5rem' }}>
+                    <div style={{ fontSize: '14px', color: 'var(--neutral-500)', marginTop: '0.5rem' }}>
                       Requesting {prettyNumber(satoshis)} {unitLabel}
                     </div>
                   ) : null}
                   {(!satoshis || satoshis < minSwapAllowed()) && !isAssetReceive ? (
-                    <div style={{ fontSize: '13px', color: 'var(--dark50)', marginTop: '0.25rem' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--neutral-500)', marginTop: '0.25rem' }}>
                       {minSwapAllowed()} sats min for Lightning
                     </div>
                   ) : null}

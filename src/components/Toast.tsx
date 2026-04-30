@@ -86,7 +86,7 @@ const toastStyle: React.CSSProperties = {
   padding: '14px 20px',
   borderRadius: '12px',
   backgroundColor: 'var(--toast-bg)',
-  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.12)',
+  boxShadow: 'var(--elevation-lg)',
   color: 'var(--toast-color)',
   fontSize: '15px',
   fontWeight: 500,

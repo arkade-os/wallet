@@ -47,7 +47,7 @@ export default function AppBoltzSettings() {
               <div onClick={() => setCounter((c) => (c += 1))}>
                 <Text thin>Boltz API URL</Text>
               </div>
-              <Text color='dark50' small thin>
+              <Text color='neutral-500' small thin>
                 {getApiUrl() ?? 'No server available'}
               </Text>
             </FlexCol>

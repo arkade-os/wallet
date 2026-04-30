@@ -91,7 +91,7 @@ export default function AppAssetBurn() {
               <Text big bold>
                 Confirm Burn
               </Text>
-              <Text centered wrap color='dark50'>
+              <Text centered wrap color='neutral-500'>
                 You are about to burn {prettyNumber(amount)} {ticker || name}. This action is irreversible.
               </Text>
             </FlexCol>

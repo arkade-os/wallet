@@ -1,0 +1,262 @@
+/*
+ * Design tokens for arkade-wallet
+ * Single source of truth for colors, typography, spacing.
+ * Light theme is :root, dark theme is html.palette-dark
+ */
+
+:root {
+  /* Background & foreground */
+  --bg: #fff;
+  --fg: #040404;
+  --fg-rgb: 4, 4, 4;
+
+  /* Purple ramp — built from brand primary #391998 (placed at 700) */
+  --purple-50: #f5f3ff;
+  --purple-100: #ede7fb;
+  --purple-200: #d5c6ff;
+  --purple-300: #b49aff;
+  --purple-400: #9172f0;
+  --purple-500: #7043f4;
+  --purple-600: #5528d4;
+  --purple-700: #391998;
+  --purple-800: #24154f;
+  --purple-900: #1a0b4a;
+  --purple-950: #0f062d;
+
+  /* Green ramp — base #60b18a placed at 500 (success) */
+  --green-50: #effaf4;
+  --green-100: #d9f1e2;
+  --green-200: #b4e3c6;
+  --green-300: #8dd1a8;
+  --green-400: #77c09a;
+  --green-500: #60b18a;
+  --green-600: #489772;
+  --green-700: #367659;
+  --green-800: #27553f;
+  --green-900: #1b3d2c;
+  --green-950: #0e2117;
+
+  /* Red ramp — base #a51515 placed at 700 (danger) */
+  --red-50: #fef2f2;
+  --red-100: #fde4e4;
+  --red-200: #fac3c3;
+  --red-300: #f49a9a;
+  --red-400: #eb6363;
+  --red-500: #d53737;
+  --red-600: #bc2222;
+  --red-700: #a51515;
+  --red-800: #851010;
+  --red-900: #5f0b0b;
+  --red-950: #380505;
+
+  /* Orange ramp — base #ff8e24 placed at 500 (warning) */
+  --orange-50: #fff5e8;
+  --orange-100: #ffe6c8;
+  --orange-200: #ffcf95;
+  --orange-300: #ffb15c;
+  --orange-400: #ffa03d;
+  --orange-500: #ff8e24;
+  --orange-600: #e27514;
+  --orange-700: #b55a0d;
+  --orange-800: #823f08;
+  --orange-900: #572905;
+  --orange-950: #2f1502;
+
+  /* Yellow ramp — base #e2c542 placed at 500 (caution) */
+  --yellow-50: #fefaec;
+  --yellow-100: #fbf1cc;
+  --yellow-200: #f5e39a;
+  --yellow-300: #edd262;
+  --yellow-400: #e7cb4f;
+  --yellow-500: #e2c542;
+  --yellow-600: #c2a82d;
+  --yellow-700: #957f1e;
+  --yellow-800: #695916;
+  --yellow-900: #423810;
+  --yellow-950: #221c08;
+
+  /* Convenience aliases (backward compat with existing code) */
+  --purple: var(--purple-700);
+  --purple10: color-mix(in srgb, var(--purple-700) 8%, transparent);
+  --purple20: color-mix(in srgb, var(--purple-700) 20%, transparent);
+  --purplebg: var(--purple-800);
+  --purpletext: var(--purple-500);
+  --magenta: #8563e4;
+  --liz: var(--purple-200);
+
+  /* Semantic single-shade aliases (backward compat) */
+  --green: var(--green-500);
+  --greenbg: var(--green-900);
+  --red: var(--red-700);
+  --redbg: #68222b;
+  --orange: var(--orange-500);
+  --orangebg: color-mix(in srgb, var(--orange-500) 9%, transparent);
+  --yellow: var(--yellow-500);
+  --yellowoutlier: #debb20;
+  --grey: #747474;
+  --danger: var(--red-700);
+  --warning: var(--orange-700);
+  --success: var(--green-500);
+
+  /* Named colors */
+  --black: #040404;
+  --white: #fbfbfb;
+  --cream: var(--purple-700);
+  --logo-color: var(--purple-700);
+
+  /* Neutral ramp — solid grays via color-mix(fg, bg). Replaces the old
+     opacity-based --darkXX scale. Numeric = fg-mix percentage. */
+  --neutral-50: color-mix(in oklab, var(--fg) 5%, var(--bg));
+  --neutral-100: color-mix(in oklab, var(--fg) 10%, var(--bg));
+  --neutral-200: color-mix(in oklab, var(--fg) 20%, var(--bg));
+  --neutral-300: color-mix(in oklab, var(--fg) 30%, var(--bg));
+  --neutral-400: color-mix(in oklab, var(--fg) 40%, var(--bg));
+  --neutral-500: color-mix(in oklab, var(--fg) 50%, var(--bg));
+  --neutral-600: color-mix(in oklab, var(--fg) 60%, var(--bg));
+  --neutral-700: color-mix(in oklab, var(--fg) 70%, var(--bg));
+  --neutral-800: color-mix(in oklab, var(--fg) 80%, var(--bg));
+  --neutral-900: color-mix(in oklab, var(--fg) 90%, var(--bg));
+  --neutral-950: color-mix(in oklab, var(--fg) 95%, var(--bg));
+
+  /* UI */
+  --fade-rgb: 255, 255, 255;
+  --toggle-background: #fbfbfb;
+  --bullet-icon-bg: var(--purple-100);
+
+  /* Legacy aliases — map old names to new tokens for backward compat */
+  --background-color: var(--bg);
+  --text-color: var(--fg);
+  --heading-font: var(--font-family-heading);
+
+  /* Typography families — named --font-family-* (not --font-*) so Tailwind's
+   * @theme can expose --font-sans/heading/mono without creating a CSS var
+   * cycle. Inline usage goes through var(--font-sans) which @theme emits. */
+  --font-family-sans:
+    'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans',
+    'Droid Sans', 'Helvetica Neue', sans-serif;
+  --font-family-heading: 'TT Firs Neue', 'Geist', sans-serif;
+  --font-family-mono: 'Geist Mono', monospace;
+
+  /* Body / UI scale — Geist. text-base is 16px so iOS Safari doesn't zoom
+     on input focus. Line heights tighten as size grows. */
+  --text-xs-size: 0.75rem; /* 12px */
+  --text-xs-line: 1rem; /* 16px — 1.33 */
+  --text-sm-size: 0.875rem; /* 14px */
+  --text-sm-line: 1.25rem; /* 20px — 1.43 */
+  --text-base-size: 1rem; /* 16px */
+  --text-base-line: 1.5rem; /* 24px — 1.5 */
+  --text-lg-size: 1.125rem; /* 18px */
+  --text-lg-line: 1.625rem; /* 26px — 1.44 */
+  --text-xl-size: 1.25rem; /* 20px */
+  --text-xl-line: 1.75rem; /* 28px — 1.4 */
+  --text-2xl-size: 1.5rem; /* 24px */
+  --text-2xl-line: 2rem; /* 32px — 1.33 */
+  --text-3xl-size: 1.875rem; /* 30px */
+  --text-3xl-line: 2.25rem; /* 36px — 1.2 */
+  --text-4xl-size: 2.25rem; /* 36px */
+  --text-4xl-line: 2.5rem; /* 40px — 1.11 */
+  --text-5xl-size: 3rem; /* 48px */
+  --text-5xl-line: 1; /* 1.0 — tight display */
+  --text-6xl-size: 3.75rem; /* 60px */
+  --text-6xl-line: 1;
+  --text-7xl-size: 4.5rem; /* 72px */
+  --text-7xl-line: 1;
+  --text-8xl-size: 6rem; /* 96px */
+  --text-8xl-line: 1;
+  --text-9xl-size: 8rem; /* 128px */
+  --text-9xl-line: 1;
+
+  /* Heading / display scale — TT Firs Neue. Exposed as `text-heading-*` in
+     @theme, which bundles font, weight, line-height, and letter-spacing. */
+  --heading-sm-size: 1.125rem; /* 18px — small section label */
+  --heading-sm-line: 1.5rem; /* 24px — 1.33 */
+  --heading-sm-tracking: -0.005em;
+  --heading-md-size: 1.375rem; /* 22px — card / subsection heading */
+  --heading-md-line: 1.75rem; /* 28px — 1.27 */
+  --heading-md-tracking: -0.01em;
+  --heading-lg-size: 1.75rem; /* 28px — section heading */
+  --heading-lg-line: 2.125rem; /* 34px — 1.21 */
+  --heading-lg-tracking: -0.015em;
+  --heading-xl-size: 2.25rem; /* 36px — page title */
+  --heading-xl-line: 2.5rem; /* 40px — 1.11 */
+  --heading-xl-tracking: -0.02em;
+  --heading-2xl-size: 3rem; /* 48px — hero */
+  --heading-2xl-line: 3.25rem; /* 52px — 1.08 */
+  --heading-2xl-tracking: -0.025em;
+  --heading-3xl-size: 4rem; /* 64px — big hero */
+  --heading-3xl-line: 4.25rem; /* 68px — 1.06 */
+  --heading-3xl-tracking: -0.03em;
+  --heading-4xl-size: 5rem; /* 80px — splash display */
+  --heading-4xl-line: 5.25rem; /* 84px — 1.05 */
+  --heading-4xl-tracking: -0.035em;
+  --heading-5xl-size: 6.5rem; /* 104px — megatype */
+  --heading-5xl-line: 1;
+  --heading-5xl-tracking: -0.04em;
+
+  /* Animation */
+  --animation-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+  /* Shadows — three-layer (outline + soft + depth) per ui-polish skill.
+     Named --elevation-* so app.css @theme can map `--shadow-sm: var(--elevation-sm)`
+     without a CSS var cycle. */
+  --elevation-sm: 0 0 0 1px rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.06), 0 2px 4px 0 rgb(0 0 0 / 0.04);
+  --elevation-md: 0 0 0 1px rgb(0 0 0 / 0.06), 0 2px 4px -1px rgb(0 0 0 / 0.08), 0 4px 8px 0 rgb(0 0 0 / 0.05);
+  --elevation-lg: 0 0 0 1px rgb(0 0 0 / 0.06), 0 6px 12px -2px rgb(0 0 0 / 0.1), 0 10px 20px 0 rgb(0 0 0 / 0.06);
+  --elevation-xl: 0 0 0 1px rgb(0 0 0 / 0.08), 0 12px 24px -4px rgb(0 0 0 / 0.12), 0 20px 32px 0 rgb(0 0 0 / 0.08);
+
+  /* Radius tokens live in app.css @theme (Tailwind v4 emits them at :root). */
+
+  /* Touch targets — 44px iOS HIG minimum, 48px Material comfort */
+  --size-touch-min: 2.75rem; /* 44px */
+  --size-touch-lg: 3rem; /* 48px */
+
+  /* Layout */
+  /* Single source of truth for any bottom-anchored UI (pill nav, footer buttons, etc).
+     Use this instead of env(safe-area-inset-bottom) directly. iOS draws the home
+     indicator on top of our chrome surface, same as native tab bars, so we don't
+     need to account for safe-area in layout math. */
+  --bottom-anchor-gap: 8px;
+
+  --pill-navbar-height: 52px;
+  --pill-navbar-dock-padding-top: 6px;
+  --pill-navbar-dock-padding-bottom: var(--bottom-anchor-gap);
+  --pill-navbar-slot: calc(
+    var(--pill-navbar-height) + var(--pill-navbar-dock-padding-top) + var(--pill-navbar-dock-padding-bottom)
+  );
+  --pill-navbar-spacer: calc(var(--pill-navbar-slot) + 20px);
+  --pill-navbar-clearance: calc(var(--pill-navbar-slot) + 14px);
+  --pill-navbar-footer-clearance: calc(var(--pill-navbar-slot) + 22px);
+}
+
+html.palette-dark {
+  --bg: #101010;
+  --fg: #fbfbfb;
+  --fg-rgb: 251, 251, 251;
+
+  --black: #fbfbfb;
+  --cream: #d9d9d9;
+  --greenbg: var(--green-950);
+  --orange: var(--orange-400);
+  --orangebg: var(--orange-950);
+  --purple10: color-mix(in srgb, var(--purple-700) 13%, transparent);
+  --purplebg: color-mix(in srgb, var(--purple-700) 20%, transparent);
+  --red: var(--red-400);
+  --redbg: var(--red-950);
+  --yellow: var(--yellow-400);
+  --yellowoutlier: #ffdd46;
+  --fade-rgb: 16, 16, 16;
+  --logo-color: #fbfbfb;
+  --toggle-background: #ddd;
+  --danger: var(--red-400);
+  --purpletext: #9678f7;
+  --bullet-icon-bg: #1f1050;
+
+  /* Shadows — three-layer, stronger in dark mode for visibility.
+     Outline layer uses white-alpha for crisp rim in dark mode. */
+  --elevation-sm: 0 0 0 1px rgb(255 255 255 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.4), 0 2px 4px 0 rgb(0 0 0 / 0.3);
+  --elevation-md: 0 0 0 1px rgb(255 255 255 / 0.08), 0 2px 4px -1px rgb(0 0 0 / 0.45), 0 4px 8px 0 rgb(0 0 0 / 0.3);
+  --elevation-lg: 0 0 0 1px rgb(255 255 255 / 0.08), 0 6px 12px -2px rgb(0 0 0 / 0.5), 0 10px 20px 0 rgb(0 0 0 / 0.35);
+  --elevation-xl: 0 0 0 1px rgb(255 255 255 / 0.1), 0 12px 24px -4px rgb(0 0 0 / 0.6), 0 20px 32px 0 rgb(0 0 0 / 0.4);
+
+  /* Opacity scale auto-derives from --fg-rgb */
+}

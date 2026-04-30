@@ -119,7 +119,7 @@ export default function AppAssetDetail() {
             </FlexCol>
 
             <FlexCol gap='0.25rem' centered>
-              <Text copy={assetInfo.assetId} color='dark50' smaller centered>
+              <Text copy={assetInfo.assetId} color='neutral-500' smaller centered>
                 {truncateId(assetInfo.assetId)}
               </Text>
               <FlexRow gap='0.25rem' centered>
@@ -129,7 +129,7 @@ export default function AppAssetDetail() {
                   style={{
                     cursor: 'pointer',
                     fontSize: 13,
-                    color: 'var(--dark50)',
+                    color: 'var(--neutral-500)',
                     opacity: refreshing ? 0.5 : 1,
                     transition: 'opacity 0.2s',
                   }}

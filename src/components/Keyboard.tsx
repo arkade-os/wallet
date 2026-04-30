@@ -156,7 +156,7 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
   const disabled = !amountInSats || Number.isNaN(amountInSats)
 
   const gridStyle = {
-    borderTop: '1px solid var(--dark50)',
+    borderTop: '1px solid var(--neutral-500)',
     marginTop: '0.5rem',
     width: '100%',
   }

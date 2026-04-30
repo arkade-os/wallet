@@ -1,84 +1,19 @@
+/* UI-specific vars not covered by tokens.css */
 :root {
-  --black: #040404;
-  --cream: #391998;
-  --dark80: rgba(34, 36, 40, 0.8);
-  --dark70: rgba(34, 36, 40, 0.7);
-  --dark50: rgba(34, 36, 40, 0.5);
-  --dark30: rgba(34, 36, 40, 0.3);
-  --dark20: rgba(34, 36, 40, 0.2);
-  --dark15: rgba(34, 36, 40, 0.15);
-  --dark10: rgba(34, 36, 40, 0.1);
-  --dark05: rgba(34, 36, 40, 0.05);
-  --green: #60b18a;
-  --greenbg: #054a19;
-  --grey: #747474;
-  --liz: #d5c6ff;
-  --logo-color: #391998;
-  --magenta: #8563e4;
-  --orange: #ff8e24;
-  --orangebg: #ff8e2418;
-  --purple: #391998;
-  --purple10: #39199815;
-  --purple20: #39199833;
-  --purplebg: #24154f;
-  --purpletext: #7043f4;
-  --btn-shadow-color: #1a0b4a;
-  --red: #a51515;
-  --redbg: #68222b;
-  --white: #fbfbfb;
-  --yellow: #e2c542;
-  --yellowoutlier: #debb20;
-  --fade-rgb: 255, 255, 255;
-  --background-color: #fff;
   --background-focused: var(--purple20);
-  --danger: #a51515;
-  --warning: #c3730a;
-  --success: #60b18a;
-  --heading-font: 'TT Firs Neue', 'Geist', sans-serif;
-  --animation-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  --bullet-icon-bg: #ede7fb;
-  --pill-navbar-spacer: calc(80px + env(safe-area-inset-bottom, 0px));
-  --pill-navbar-clearance: calc(64px + env(safe-area-inset-bottom, 0px));
-  --sheet-bg: #fff;
+  --btn-shadow-color: var(--purple-950);
+  --sheet-bg: var(--bg);
   --toast-bg: #1a1a1a;
   --toast-color: #fafafa;
-  --text-color: #040404;
 }
 
 html.palette-dark {
-  --black: #fbfbfb;
-  --cream: #d9d9d9;
-  --dark80: rgba(244, 245, 248, 0.8);
-  --dark70: rgba(244, 245, 248, 0.7);
-  --dark50: rgba(244, 245, 248, 0.5);
-  --dark30: rgba(244, 245, 248, 0.3);
-  --dark20: rgba(244, 245, 248, 0.2);
-  --dark15: rgba(244, 245, 248, 0.15);
-  --dark10: rgba(244, 245, 248, 0.1);
-  --dark05: rgba(244, 245, 248, 0.05);
-  --greenbg: #092d13;
-  --orange: #e69b39;
-  --orangebg: #2e1800;
-  --purple10: #39199820;
-  --purplebg: #39199833;
-  --red: #e04d4d;
-  --redbg: #380008;
-  --yellow: #ffdd46;
-  --yellowoutlier: #ffdd46;
-  --fade-rgb: 16, 16, 16;
-  --background-color: #101010;
-  --background-focused: var(--dark10);
-  --tab-bar-background: transparent;
-  --logo-color: #fbfbfb;
-  --toggle-background: #ddd;
-  --danger: #e04d4d;
-  --purpletext: #9678f7;
-  --bullet-icon-bg: #1f1050;
+  --background-focused: var(--neutral-100);
   --sheet-bg: #1a1a1a;
   --toast-bg: #2a2a2a;
   --toast-color: #e0e0e0;
   --rsbs-bg: #202020;
-  --text-color: #fbfbfb;
+  --tab-bar-background: transparent;
 }
 
 /* from tailwindcss/base */
@@ -235,9 +170,9 @@ iframe {
   &.copy {
     aspect-ratio: 1;
     align-items: center;
-    background: var(--dark05);
+    background: var(--neutral-50);
     box-shadow: none;
-    color: var(--dark30);
+    color: var(--neutral-300);
     cursor: pointer;
     display: flex;
     justify-content: center;
@@ -252,9 +187,9 @@ iframe {
   }
   &.outline {
     background: none;
-    border-color: var(--dark50);
+    border-color: var(--neutral-500);
     box-shadow: 0 4px 0 0 rgba(0, 0, 0, 0.1);
-    color: var(--dark50);
+    color: var(--neutral-500);
   }
   &.pill-nav-btn {
     box-shadow: none;
@@ -262,11 +197,11 @@ iframe {
   &.red {
     background: var(--red);
     border-color: var(--red);
-    box-shadow: 0 4px 0 0 #6b0e0e;
+    box-shadow: 0 4px 0 0 var(--red-800);
     color: white;
   }
   &.secondary {
-    background: var(--dark20);
+    background: var(--neutral-200);
     border-color: var(--black);
     box-shadow: 0 4px 0 0 rgba(0, 0, 0, 0.1);
     color: var(--black);
@@ -282,7 +217,7 @@ button.reminder-button {
   width: 100%;
   margin: 1rem;
   padding: 1rem;
-  border: 1px solid var(--dark50);
+  border: 1px solid var(--neutral-500);
   border-radius: 0.25rem;
   background-color: var(--background-color);
   color: var(--color);
@@ -396,7 +331,7 @@ button.reminder-button {
 
 .header {
   align-items: center;
-  border-bottom: 1px solid var(--dark10);
+  border-bottom: 1px solid var(--neutral-100);
   display: flex;
   min-height: 4rem;
 }
@@ -416,8 +351,8 @@ input:focus::placeholder {
 }
 
 .palette-dark button.reminder-button.action-sheet-button {
-  background-color: #222;
-  color: #f7fafc;
+  background-color: var(--neutral-200);
+  color: var(--fg);
 }
 
 .label {
@@ -535,7 +470,7 @@ hr {
   width: 100%;
   border: none;
   background: none;
-  border-top: 1px solid var(--dark20);
+  border-top: 1px solid var(--neutral-200);
   &.dashed {
     border-top-style: dashed;
   }
@@ -611,11 +546,8 @@ hr {
 }
 
 .palette-dark .pill-navbar {
-  background-color: #1c1c1e;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.1),
-    0 1px 3px -1px rgba(0, 0, 0, 0.4),
-    0 8px 24px -4px rgba(0, 0, 0, 0.6);
+  background-color: var(--neutral-100);
+  box-shadow: var(--elevation-lg);
 }
 
 .pill-nav-btn {
@@ -641,7 +573,7 @@ hr {
 
 .pill-nav-btn--active {
   color: #040404;
-  background-color: var(--dark05);
+  background-color: var(--neutral-50);
 }
 
 .palette-dark .pill-nav-btn--active {
@@ -764,11 +696,11 @@ hr {
   gap: 0.3rem;
   padding: 0.4rem 0.65rem;
   border-radius: 999px;
-  border: 1px solid var(--dark20);
-  background: var(--dark05);
+  border: 1px solid var(--neutral-200);
+  background: var(--neutral-50);
   cursor: pointer;
   font-size: 13px;
-  color: var(--dark80);
+  color: var(--neutral-800);
   white-space: nowrap;
   min-height: 36px;
   position: relative;

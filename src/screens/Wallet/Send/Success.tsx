@@ -65,7 +65,7 @@ export default function SendSuccess() {
                 name={assetName}
                 ticker={assetTicker}
               />
-              <Text centered color='dark70' thin small wrap>
+              <Text centered color='neutral-700' thin small wrap>
                 {displayAmount} sent successfully
               </Text>
             </FlexCol>
