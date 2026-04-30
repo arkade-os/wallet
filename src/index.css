@@ -398,7 +398,7 @@ button.reminder-button {
   align-items: center;
   border-bottom: 1px solid var(--dark10);
   display: flex;
-  height: 4rem;
+  min-height: 4rem;
 }
 
 .input {
