@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
-import type { BoltzSubmarineSwap, SubmarineRecoveryInfo, SubmarineRecoveryResult } from '@arkade-os/boltz-swap'
+import type { BoltzSubmarineSwap, SubmarineRecoveryInfo } from '@arkade-os/boltz-swap'
 import Padded from '../../../components/Padded'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
@@ -16,13 +16,6 @@ import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 import { prettyAmount } from '../../../lib/format'
 
-type RecoverySummary = {
-  recovered: number
-  failed: number
-  recoveredSats: number
-  errors: string[]
-}
-
 export default function AppBoltzSettings() {
   const { arkadeSwaps, connected, getApiUrl, restoreSwaps, toggleConnection } = useContext(SwapsContext)
   const { toast } = useToast()
@@ -35,9 +28,8 @@ export default function AppBoltzSettings() {
   const [scanned, setScanned] = useState<SubmarineRecoveryInfo[] | null>(null)
   const [scanError, setScanError] = useState('')
   const [scanning, setScanning] = useState(false)
-  const [recovering, setRecovering] = useState(false)
-  const [recoverError, setRecoverError] = useState('')
-  const [summary, setSummary] = useState<RecoverySummary | null>(null)
+  const [recoveringIds, setRecoveringIds] = useState<Set<string>>(new Set())
+  const [rowErrors, setRowErrors] = useState<Record<string, RowError>>({})
 
   useEffect(() => {
     if (counter !== 5) return
@@ -60,14 +52,7 @@ export default function AppBoltzSettings() {
   const invalid = scanned?.filter((s) => s.status === 'invalid_swap') ?? []
   // `none` and `already_spent` are healthy states; we don't show them.
 
-  const totalRecoverableSats = recoverable.reduce((sum, info) => sum + info.amountSats, 0)
-
-  const resetRecoveryState = () => {
-    setScanned(null)
-    setScanError('')
-    setRecoverError('')
-    setSummary(null)
-  }
+  const anyRecovering = recoveringIds.size > 0
 
   const handleScan = async () => {
     if (!arkadeSwaps) {
@@ -75,7 +60,9 @@ export default function AppBoltzSettings() {
       return
     }
     setScanning(true)
-    resetRecoveryState()
+    setScanned(null)
+    setScanError('')
+    setRowErrors({})
     try {
       const results = await arkadeSwaps.scanRecoverableSubmarineSwaps()
       setScanned(results)
@@ -87,48 +74,50 @@ export default function AppBoltzSettings() {
     }
   }
 
-  const handleRecoverAll = async () => {
+  const handleRecoverOne = async (swap: BoltzSubmarineSwap) => {
     if (!arkadeSwaps) {
-      setRecoverError('Boltz integration is not ready yet. Try again in a moment.')
+      toast('Boltz integration is not ready yet')
       return
     }
-    if (recoverable.length === 0) return
+    setRecoveringIds((prev) => {
+      const next = new Set(prev)
+      next.add(swap.id)
+      return next
+    })
+    setRowErrors((prev) => {
+      if (!(swap.id in prev)) return prev
+      const next = { ...prev }
+      delete next[swap.id]
+      return next
+    })
 
-    const swaps: BoltzSubmarineSwap[] = recoverable.map((info) => info.swap)
-    setRecovering(true)
-    setRecoverError('')
-    setSummary(null)
     try {
-      const results: SubmarineRecoveryResult[] = await arkadeSwaps.recoverAllSubmarineFunds(swaps)
-      const recoveredIds = new Set(results.filter((r) => r.recovered).map((r) => r.swapId))
-      const errors = results.filter((r) => !r.recovered).map((r) => r.error ?? 'unknown error')
-      const recoveredSats = recoverable
-        .filter((info) => recoveredIds.has(info.swap.id))
-        .reduce((sum, info) => sum + info.amountSats, 0)
-      const failed = results.length - recoveredIds.size
-
-      setSummary({ recovered: recoveredIds.size, failed, recoveredSats, errors })
-
-      if (failed === 0) {
-        toast(`Recovered ${prettyAmount(recoveredSats)}`)
-      } else if (recoveredIds.size === 0) {
-        toast('Recovery failed')
+      const outcome = await arkadeSwaps.recoverSubmarineFunds(swap)
+      if (outcome.swept > 0) {
+        toast(`Recovered ${outcome.swept} VTXO${outcome.swept === 1 ? '' : 's'}`)
+        try {
+          const fresh = await arkadeSwaps.scanRecoverableSubmarineSwaps()
+          setScanned(fresh)
+        } catch (err) {
+          consoleError(err, 'Failed to refresh recovery scan after recover')
+        }
+      } else if (outcome.skipped > 0) {
+        setRowErrors((prev) => ({ ...prev, [swap.id]: { type: 'deferred_locktime' } }))
       } else {
-        toast(`Recovered ${recoveredIds.size} of ${results.length}`)
-      }
-
-      // Refresh the scan so already-recovered entries drop off the list.
-      try {
-        const fresh = await arkadeSwaps.scanRecoverableSubmarineSwaps()
-        setScanned(fresh)
-      } catch (err) {
-        consoleError(err, 'Failed to refresh recovery scan after recover')
+        setRowErrors((prev) => ({
+          ...prev,
+          [swap.id]: { type: 'message', message: 'Nothing was swept; try again later.' },
+        }))
       }
     } catch (err) {
-      consoleError(err, 'Bulk recovery threw unexpectedly')
-      setRecoverError(`Recovery failed: ${extractError(err)}`)
+      consoleError(err, 'Per-swap recovery failed')
+      setRowErrors((prev) => ({ ...prev, [swap.id]: { type: 'message', message: extractError(err) } }))
     } finally {
-      setRecovering(false)
+      setRecoveringIds((prev) => {
+        const next = new Set(prev)
+        next.delete(swap.id)
+        return next
+      })
     }
   }
 
@@ -162,16 +151,15 @@ export default function AppBoltzSettings() {
               arkadeSwapsReady={Boolean(arkadeSwaps)}
               scanned={scanned}
               scanning={scanning}
-              recovering={recovering}
+              anyRecovering={anyRecovering}
+              recoveringIds={recoveringIds}
+              rowErrors={rowErrors}
               scanError={scanError}
-              recoverError={recoverError}
               recoverable={recoverable}
               preCltv={preCltv}
               invalid={invalid}
-              totalRecoverableSats={totalRecoverableSats}
-              summary={summary}
               onScan={handleScan}
-              onRecoverAll={handleRecoverAll}
+              onRecoverOne={handleRecoverOne}
             />
           </FlexCol>
         </Padded>
@@ -180,36 +168,36 @@ export default function AppBoltzSettings() {
   )
 }
 
+type RowError = { type: 'deferred_locktime' } | { type: 'message'; message: string }
+
 interface RecoverSectionProps {
   arkadeSwapsReady: boolean
   scanned: SubmarineRecoveryInfo[] | null
   scanning: boolean
-  recovering: boolean
+  anyRecovering: boolean
+  recoveringIds: Set<string>
+  rowErrors: Record<string, RowError>
   scanError: string
-  recoverError: string
   recoverable: SubmarineRecoveryInfo[]
   preCltv: SubmarineRecoveryInfo[]
   invalid: SubmarineRecoveryInfo[]
-  totalRecoverableSats: number
-  summary: RecoverySummary | null
   onScan: () => void
-  onRecoverAll: () => void
+  onRecoverOne: (swap: BoltzSubmarineSwap) => void
 }
 
 function RecoverSection({
   arkadeSwapsReady,
   scanned,
   scanning,
-  recovering,
+  anyRecovering,
+  recoveringIds,
+  rowErrors,
   scanError,
-  recoverError,
   recoverable,
   preCltv,
   invalid,
-  totalRecoverableSats,
-  summary,
   onScan,
-  onRecoverAll,
+  onRecoverOne,
 }: RecoverSectionProps) {
   const nothingFound = scanned !== null && recoverable.length === 0 && preCltv.length === 0 && invalid.length === 0
 
@@ -223,9 +211,6 @@ function RecoverSection({
       </Text>
 
       <ErrorMessage error={Boolean(scanError)} text={scanError} />
-      <ErrorMessage error={Boolean(recoverError)} text={recoverError} />
-
-      {summary ? <SummaryBox summary={summary} /> : null}
 
       {scanned ? (
         nothingFound ? (
@@ -233,7 +218,15 @@ function RecoverSection({
         ) : (
           <FlexCol gap='1.5rem'>
             {recoverable.length > 0 ? (
-              <RecoveryGroup title='Refundable now' tone='green' entries={recoverable} />
+              <RecoveryGroup
+                title='Refundable now'
+                tone='green'
+                entries={recoverable}
+                recoveringIds={recoveringIds}
+                rowErrors={rowErrors}
+                onRecoverOne={onRecoverOne}
+                disabled={!arkadeSwapsReady || scanning}
+              />
             ) : null}
             {preCltv.length > 0 ? (
               <RecoveryGroup
@@ -255,45 +248,14 @@ function RecoverSection({
         )
       ) : null}
 
-      <FlexCol gap='0.5rem'>
-        <Button
-          onClick={onScan}
-          loading={scanning}
-          disabled={!arkadeSwapsReady || scanning || recovering}
-          label={scanned ? 'Scan again' : 'Check for refundable funds'}
-          secondary={scanned !== null}
-        />
-        {recoverable.length > 0 ? (
-          <Button
-            onClick={onRecoverAll}
-            loading={recovering}
-            disabled={!arkadeSwapsReady || scanning || recovering}
-            label={`Recover ${prettyAmount(totalRecoverableSats)} from ${recoverable.length} swap${recoverable.length === 1 ? '' : 's'}`}
-          />
-        ) : null}
-      </FlexCol>
-    </FlexCol>
-  )
-}
-
-function SummaryBox({ summary }: { summary: RecoverySummary }) {
-  if (summary.recovered === 0 && summary.failed === 0) return null
-
-  if (summary.failed === 0) {
-    return (
-      <WarningBox
-        green
-        text={`Recovered ${prettyAmount(summary.recoveredSats)} from ${summary.recovered} swap${summary.recovered === 1 ? '' : 's'}.`}
+      <Button
+        onClick={onScan}
+        loading={scanning}
+        disabled={!arkadeSwapsReady || scanning || anyRecovering}
+        label={scanned ? 'Scan again' : 'Check for refundable funds'}
+        secondary={scanned !== null}
       />
-    )
-  }
-  if (summary.recovered === 0) {
-    return <WarningBox red text={`All ${summary.failed} recoveries failed. ${summary.errors[0] ?? ''}`} />
-  }
-  return (
-    <WarningBox
-      text={`Recovered ${summary.recovered} of ${summary.recovered + summary.failed} (${prettyAmount(summary.recoveredSats)}). ${summary.failed} failed.`}
-    />
+    </FlexCol>
   )
 }
 
@@ -302,9 +264,22 @@ interface RecoveryGroupProps {
   tone: 'green' | 'orange' | 'red'
   entries: SubmarineRecoveryInfo[]
   hint?: string
+  recoveringIds?: Set<string>
+  rowErrors?: Record<string, RowError>
+  onRecoverOne?: (swap: BoltzSubmarineSwap) => void
+  disabled?: boolean
 }
 
-function RecoveryGroup({ title, tone, entries, hint }: RecoveryGroupProps) {
+function RecoveryGroup({
+  title,
+  tone,
+  entries,
+  hint,
+  recoveringIds,
+  rowErrors,
+  onRecoverOne,
+  disabled,
+}: RecoveryGroupProps) {
   const toneColor = tone === 'green' ? 'green' : tone === 'orange' ? 'orange' : 'red'
   return (
     <FlexCol gap='0.5rem'>
@@ -323,7 +298,14 @@ function RecoveryGroup({ title, tone, entries, hint }: RecoveryGroupProps) {
       ) : null}
       <FlexCol gap='0.25rem'>
         {entries.map((info) => (
-          <RecoveryRow key={info.swap.id} info={info} />
+          <RecoveryRow
+            key={info.swap.id}
+            info={info}
+            recovering={recoveringIds?.has(info.swap.id) ?? false}
+            error={rowErrors?.[info.swap.id]}
+            onRecover={onRecoverOne}
+            disabled={disabled}
+          />
         ))}
       </FlexCol>
     </FlexCol>
@@ -332,7 +314,15 @@ function RecoveryGroup({ title, tone, entries, hint }: RecoveryGroupProps) {
 
 const LOCKTIME_THRESHOLD = 500_000_000
 
-function RecoveryRow({ info }: { info: SubmarineRecoveryInfo }) {
+interface RecoveryRowProps {
+  info: SubmarineRecoveryInfo
+  recovering: boolean
+  error?: RowError
+  onRecover?: (swap: BoltzSubmarineSwap) => void
+  disabled?: boolean
+}
+
+function RecoveryRow({ info, recovering, error, onRecover, disabled }: RecoveryRowProps) {
   const nowUnixSeconds = Math.floor(Date.now() / 1000)
   const style: React.CSSProperties = {
     backgroundColor: 'var(--dark10)',
@@ -353,6 +343,9 @@ function RecoveryRow({ info }: { info: SubmarineRecoveryInfo }) {
     }
   }
 
+  const showRecoverButton = info.status === 'recoverable' && Boolean(onRecover)
+  const errorText = error ? formatRowError(error, blocksAway, secondsAway) : null
+
   return (
     <div style={style}>
       <FlexRow between>
@@ -361,8 +354,24 @@ function RecoveryRow({ info }: { info: SubmarineRecoveryInfo }) {
           <Text color='dark50' tiny thin>
             {info.amountSats > 0 ? shortId(info.swap.id) : info.swap.status}
           </Text>
+          {errorText ? (
+            <Text color='red' tiny wrap>
+              {errorText}
+            </Text>
+          ) : null}
         </FlexCol>
         <FlexCol end gap='0.125rem'>
+          {showRecoverButton ? (
+            <div style={{ minWidth: '6rem' }}>
+              <Button
+                onClick={() => onRecover?.(info.swap)}
+                loading={recovering}
+                disabled={disabled || recovering}
+                label='Recover'
+                secondary
+              />
+            </div>
+          ) : null}
           {info.status === 'pre_cltv' && (blocksAway !== null || secondsAway !== null) ? (
             <Text color='orange' tiny>
               {secondsAway !== null && secondsAway <= 0 ? (
@@ -385,6 +394,29 @@ function RecoveryRow({ info }: { info: SubmarineRecoveryInfo }) {
       </FlexRow>
     </div>
   )
+}
+
+function formatRowError(error: RowError, blocksAway: number | null, secondsAway: number | null): string {
+  if (error.type === 'message') return error.message
+  // deferred_locktime: the SDK declined to broadcast because the on-chain
+  // refund locktime hasn't passed yet (Boltz cooperative path was rejected
+  // and the unilateral refundWithoutReceiver still needs CLTV).
+  const remaining = formatLocktimeRemaining(blocksAway, secondsAway)
+  return remaining
+    ? `Refund locktime not reached yet — try again in ${remaining}.`
+    : 'Refund locktime not reached yet — try again later.'
+}
+
+function formatLocktimeRemaining(blocksAway: number | null, secondsAway: number | null): string | null {
+  if (secondsAway !== null) {
+    if (secondsAway <= 0) return null
+    return formatRemainingTime(secondsAway)
+  }
+  if (blocksAway !== null) {
+    if (blocksAway <= 0) return null
+    return `${blocksAway} block${blocksAway === 1 ? '' : 's'}`
+  }
+  return null
 }
 
 function shortId(id: string): string {
