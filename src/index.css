@@ -250,6 +250,8 @@ button.reminder-button {
   height: 100%;
   display: block;
   position: relative;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   font-family:
     'Geist',
     -apple-system,
@@ -265,6 +267,7 @@ button.reminder-button {
     sans-serif;
   & > .content-shell {
     padding-top: 2rem;
+    min-height: 100%;
     height: 100%;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
