@@ -65,7 +65,9 @@ export default function Button({
   const [pressed, setPressed] = useState(false)
 
   // Support both old boolean props and new variant prop
-  const resolvedVariant = variant ?? (red ? 'destructive' : secondary ? 'secondary' : clear ? 'ghost' : outline ? 'outline' : copy ? 'copy' : 'default')
+  const resolvedVariant =
+    variant ??
+    (red ? 'destructive' : secondary ? 'secondary' : clear ? 'ghost' : outline ? 'outline' : copy ? 'copy' : 'default')
 
   const handlePressStart = useCallback(() => {
     if (disabled || loading) return
