@@ -5,7 +5,7 @@ import type { TooltipValueType } from 'recharts'
 import { cn } from '@/lib/utils'
 
 // Format: { THEME_NAME: CSS_SELECTOR }
-const THEMES = { light: '', dark: '.dark' } as const
+const THEMES = { light: '', dark: 'html.palette-dark' } as const
 
 const INITIAL_DIMENSION = { width: 320, height: 200 } as const
 type TooltipNameType = number | string
@@ -172,7 +172,7 @@ function ChartTooltipContent({
 
             return (
               <div
-                key={index}
+                key={item.dataKey ?? item.name ?? index}
                 className={cn(
                   'flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted-foreground',
                   indicator === 'dot' && 'items-center',
@@ -256,7 +256,7 @@ function ChartLegendContent({
 
           return (
             <div
-              key={index}
+              key={item.dataKey ?? item.value ?? index}
               className={cn('flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground')}
             >
               {itemConfig?.icon && !hideIcon ? (

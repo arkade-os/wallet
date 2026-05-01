@@ -3,7 +3,7 @@
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/geist';
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is(html.palette-dark *));
 
 /* Dark mode: use html.palette-dark class (matches tokens.css and config.tsx) */
 @variant dark (&:where(html.palette-dark, html.palette-dark *));
@@ -360,7 +360,7 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-.dark {
+html.palette-dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -397,11 +397,5 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
   }
 }
