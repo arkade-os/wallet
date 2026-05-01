@@ -31,7 +31,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 RUN echo "export const gitCommit = '${GIT_COMMIT}'" > src/_gitCommit.ts && \
-    pnpm build:worker && npx vite build
+    pnpm build:worker && pnpm exec vite build
 
 FROM nginx:alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
