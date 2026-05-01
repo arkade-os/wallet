@@ -30,8 +30,8 @@ export default function WalletActionBarOverlay({
       transition={prefersReduced ? { duration: 0 } : { type: 'spring', duration: 0.5, bounce: 0.25 }}
       {...(!visible && { inert: '' })}
     >
-      <div className="wallet-action-bar-haze" aria-hidden="true" />
-      <div className="wallet-action-bar-dock">
+      <div className='wallet-action-bar-haze' aria-hidden='true' />
+      <div className='wallet-action-bar-dock'>
         <WalletActionBar onSendClick={onSendClick} onSwapClick={onSwapClick} onReceiveClick={onReceiveClick} />
       </div>
     </motion.div>,

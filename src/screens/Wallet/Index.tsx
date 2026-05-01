@@ -92,18 +92,18 @@ export default function Wallet() {
         <Padded>
           <HomeHeader ref={logoRef} logoVisible={!bootAnimActive} />
           <WalletStaggerContainer animate={shouldStagger} hold={bootAnimActive}>
-            <FlexCol gap="1.5rem">
+            <FlexCol gap='1.5rem'>
               <PortfolioHero />
-              <ErrorMessage error={error} text="Ark server unreachable" />
+              <ErrorMessage error={error} text='Ark server unreachable' />
               <AssetsSection onCreateClick={handleCreateAsset} />
               <UpsellsSection />
               <RecentActivitySection />
               {nudge}
               {psaMessage ? <InfoBox html={psaMessage} /> : null}
               <DismissibleBanner
-                id="pwa-install"
+                id='pwa-install'
                 icon={<HomeIcon />}
-                title="Add Arkade to your home screen"
+                title='Add Arkade to your home screen'
                 description={pwaDescription}
                 action={
                   canPromptInstall()

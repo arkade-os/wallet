@@ -24,19 +24,19 @@ export default function Activity() {
   return (
     <Content>
       <Padded>
-        <div className="flex items-center gap-3 pb-4 pt-2">
+        <div className='flex items-center gap-3 pb-4 pt-2'>
           <button
-            type="button"
+            type='button'
             onClick={handleBack}
-            aria-label="Go back"
-            className="inline-flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 text-inherit active:scale-95"
+            aria-label='Go back'
+            className='inline-flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 text-inherit active:scale-95'
             style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
           >
             <BackIcon />
           </button>
-          <span className="font-heading text-xl font-medium">Activity</span>
+          <span className='font-heading text-xl font-medium'>Activity</span>
         </div>
-        {!txs || txs.length === 0 ? <EmptyTxList /> : <TransactionsList title="" />}
+        {!txs || txs.length === 0 ? <EmptyTxList /> : <TransactionsList title='' />}
       </Padded>
     </Content>
   )

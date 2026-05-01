@@ -55,7 +55,7 @@ export default function AssetCard({
 
   const renderedAvatar = avatar ? (
     <div
-      className="flex size-9 min-h-9 min-w-9 items-center justify-center rounded-full font-semibold"
+      className='flex size-9 min-h-9 min-w-9 items-center justify-center rounded-full font-semibold'
       style={{
         background: avatarBg ?? 'var(--neutral-100)',
         color: avatarColor ?? 'var(--orange)',
@@ -69,16 +69,16 @@ export default function AssetCard({
 
   const content = (
     <>
-      <div className="flex items-center gap-3">
+      <div className='flex items-center gap-3'>
         {renderedAvatar}
-        <div className="flex flex-col items-start gap-0.5">
-          <span className="font-medium">{assetName}</span>
-          <span className="text-sm text-neutral-500">{leftSecondary}</span>
+        <div className='flex flex-col items-start gap-0.5'>
+          <span className='font-medium'>{assetName}</span>
+          <span className='text-sm text-neutral-500'>{leftSecondary}</span>
         </div>
       </div>
       {fiatText ? (
-        <div className="text-right">
-          <span className="font-heading text-lg font-medium">{fiatText}</span>
+        <div className='text-right'>
+          <span className='font-heading text-lg font-medium'>{fiatText}</span>
         </div>
       ) : null}
     </>
@@ -99,7 +99,7 @@ export default function AssetCard({
   // Interactive row with tap feedback
   return (
     <button
-      type="button"
+      type='button'
       onClick={handleClick}
       data-testid={`asset-row-${assetId || 'btc'}`}
       className={`${baseClasses} cursor-pointer transition-transform active:scale-[0.98]`}

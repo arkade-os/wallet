@@ -30,27 +30,27 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
   }
 
   return (
-    <div className="flex w-full items-center justify-between pb-6 pt-2">
-      <div ref={ref} className="inline-flex" style={{ visibility: logoVisible ? 'visible' : 'hidden' }}>
+    <div className='flex w-full items-center justify-between pb-6 pt-2'>
+      <div ref={ref} className='inline-flex' style={{ visibility: logoVisible ? 'visible' : 'hidden' }}>
         <LogoIcon small />
       </div>
-      <div className="inline-flex items-center gap-1">
+      <div className='inline-flex items-center gap-1'>
         <button
-          type="button"
+          type='button'
           onClick={handleActivity}
-          aria-label="View recent activity"
-          data-testid="top-right-activity"
-          className="inline-flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 text-inherit active:scale-95"
+          aria-label='View recent activity'
+          data-testid='top-right-activity'
+          className='inline-flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 text-inherit active:scale-95'
           style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
         >
           <HistoryIcon size={22} />
         </button>
         <button
-          type="button"
+          type='button'
           onClick={handleSettings}
-          aria-label="Open settings"
-          data-testid="top-right-settings"
-          className="inline-flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 text-inherit active:scale-95"
+          aria-label='Open settings'
+          data-testid='top-right-settings'
+          className='inline-flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 text-inherit active:scale-95'
           style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
         >
           <SettingsIcon />

@@ -239,12 +239,7 @@ export default function TransactionsList({ mode = 'virtual', limit }: Transactio
     return (
       <div style={{ width: '100%' }}>
         {txs.map((tx, index) => (
-          <TransactionLine
-            key={key(tx, index)}
-            onClick={() => handleClick(tx)}
-            tx={tx}
-            isFirst={index === 0}
-          />
+          <TransactionLine key={key(tx, index)} onClick={() => handleClick(tx)} tx={tx} isFirst={index === 0} />
         ))}
       </div>
     )

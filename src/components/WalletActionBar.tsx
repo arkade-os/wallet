@@ -16,19 +16,15 @@ interface WalletActionBarProps {
  */
 export default function WalletActionBar({ onSendClick, onSwapClick, onReceiveClick }: WalletActionBarProps) {
   return (
-    <div
-      role="toolbar"
-      aria-label="Wallet actions"
-      className="flex w-full gap-2"
-    >
-      <div className="min-w-0 flex-1" data-testid="action-send">
-        <Button main icon={<SendIcon />} label="Send" onClick={onSendClick} />
+    <div role='toolbar' aria-label='Wallet actions' className='flex w-full gap-2'>
+      <div className='min-w-0 flex-1' data-testid='action-send'>
+        <Button main icon={<SendIcon />} label='Send' onClick={onSendClick} />
       </div>
-      <div className="min-w-0 flex-1" data-testid="action-swap">
-        <Button main icon={<SwapIcon />} label="Swap" onClick={onSwapClick} />
+      <div className='min-w-0 flex-1' data-testid='action-swap'>
+        <Button main icon={<SwapIcon />} label='Swap' onClick={onSwapClick} />
       </div>
-      <div className="min-w-0 flex-1" data-testid="action-receive">
-        <Button main icon={<ReceiveIcon />} label="Receive" onClick={onReceiveClick} />
+      <div className='min-w-0 flex-1' data-testid='action-receive'>
+        <Button main icon={<ReceiveIcon />} label='Receive' onClick={onReceiveClick} />
       </div>
     </div>
   )

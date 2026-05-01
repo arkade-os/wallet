@@ -16,11 +16,11 @@ export default function PortfolioHero() {
   const fiatText = prettyNumber(totalFiat, fiatDecimals(), true, fiatDecimals())
 
   return (
-    <div className="mb-4 flex flex-col gap-1">
-      <span className="text-sm text-neutral-500">Total</span>
-      <div className="flex items-baseline gap-2">
-        <span className="font-heading text-3xl font-medium tracking-tight">{fiatText}</span>
-        <span className="font-heading text-lg text-neutral-500">{config.fiat}</span>
+    <div className='mb-4 flex flex-col gap-1'>
+      <span className='text-sm text-neutral-500'>Total</span>
+      <div className='flex items-baseline gap-2'>
+        <span className='font-heading text-3xl font-medium tracking-tight'>{fiatText}</span>
+        <span className='font-heading text-lg text-neutral-500'>{config.fiat}</span>
       </div>
     </div>
   )

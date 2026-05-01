@@ -20,9 +20,9 @@ import {
 } from '../mocks'
 
 const mockFiatContextValue = {
-  toFiat: vi.fn((sats: number) => sats / 100000000 * 50000),
+  toFiat: vi.fn((sats: number) => (sats / 100000000) * 50000),
   fiatDecimals: vi.fn(() => 2),
-  fromFiat: vi.fn((fiat: number) => fiat * 100000000 / 50000),
+  fromFiat: vi.fn((fiat: number) => (fiat * 100000000) / 50000),
   btcPrice: 50000,
   loading: false,
 }

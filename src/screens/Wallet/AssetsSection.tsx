@@ -43,27 +43,27 @@ export default function AssetsSection({ onCreateClick }: AssetsSectionProps) {
   const fiatLabel = (amount: number) => `${prettyNumber(amount, fiatDecimals(), true, fiatDecimals())} ${config.fiat}`
 
   return (
-    <div className="flex w-full flex-col gap-3">
-      <div className="flex w-full items-center justify-between px-1">
-        <span className="text-sm text-neutral-500">Assets</span>
-        <div className="inline-flex items-center gap-4">
+    <div className='flex w-full flex-col gap-3'>
+      <div className='flex w-full items-center justify-between px-1'>
+        <span className='text-sm text-neutral-500'>Assets</span>
+        <div className='inline-flex items-center gap-4'>
           <LinkButton
             onClick={handleCreate}
-            label="Create"
-            testId="assets-create"
-            ariaLabel="Create asset"
+            label='Create'
+            testId='assets-create'
+            ariaLabel='Create asset'
             leadingIcon={<PlusIcon />}
           />
           <LinkButton
             onClick={handleViewAll}
-            label="View all"
-            testId="assets-view-all"
-            ariaLabel="View all assets"
+            label='View all'
+            testId='assets-view-all'
+            ariaLabel='View all assets'
             trailingIcon={<ArrowIcon small />}
           />
         </div>
       </div>
-      <div className="flex w-full flex-col gap-2">
+      <div className='flex w-full flex-col gap-2'>
         {rows.map((row) => {
           const isBtc = row.assetId === 'btc'
           return (
@@ -105,14 +105,14 @@ function LinkButton({
 }) {
   return (
     <button
-      type="button"
+      type='button'
       onClick={onClick}
       aria-label={ariaLabel}
       data-testid={testId}
-      className="inline-flex cursor-pointer items-center border-none bg-transparent p-0 text-inherit"
+      className='inline-flex cursor-pointer items-center border-none bg-transparent p-0 text-inherit'
       style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
     >
-      <span className="inline-flex items-center gap-1 text-sm font-medium leading-none text-purple-700">
+      <span className='inline-flex items-center gap-1 text-sm font-medium leading-none text-purple-700'>
         {leadingIcon}
         {label}
         {trailingIcon}

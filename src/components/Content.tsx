@@ -13,7 +13,7 @@ export default function Content({ children, noFade, className }: ContentProps) {
   return (
     <div className={cn(baseClass, className)}>
       <Refresher />
-      <div className="content-shell">{children}</div>
+      <div className='content-shell'>{children}</div>
     </div>
   )
 }
