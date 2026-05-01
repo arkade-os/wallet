@@ -1,7 +1,9 @@
 import InputContainer from './InputContainer'
 import { useRef, useEffect, ChangeEventHandler } from 'react'
+import { cn } from '@/lib/utils'
 
 interface InputProps {
+  className?: string
   focus?: boolean
   label?: string
   max?: string
@@ -19,6 +21,7 @@ interface InputProps {
 }
 
 export default function Input({
+  className,
   focus,
   label,
   max,
@@ -58,7 +61,7 @@ export default function Input({
         step={step}
         type={type}
         value={value}
-        className='input'
+        className={cn('input', className)}
         data-testid={testId}
         name={name ?? testId}
         maxLength={maxLength}

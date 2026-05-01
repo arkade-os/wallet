@@ -1,6 +1,5 @@
 import { hapticLight } from '../lib/haptics'
-import { BottomSheet } from 'react-spring-bottom-sheet'
-import 'react-spring-bottom-sheet/dist/style.css'
+import { Drawer, DrawerContent } from '@/components/ui/drawer'
 
 interface SheetModalProps {
   children?: React.ReactNode
@@ -9,32 +8,20 @@ interface SheetModalProps {
 }
 
 export default function SheetModal({ children, isOpen, onClose }: SheetModalProps) {
-  const handleClose = () => {
-    hapticLight()
-    onClose()
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      hapticLight()
+      onClose()
+    }
   }
 
   return (
-    <BottomSheet open={isOpen} onDismiss={handleClose} header={null}>
-      <div style={outerStyle}>
-        <div style={innerStyleWithSafeArea}>{children}</div>
-      </div>
-    </BottomSheet>
+    <Drawer open={isOpen} onOpenChange={handleOpenChange}>
+      <DrawerContent className='mx-auto max-w-[640px]'>
+        <div className='w-full px-5 pb-[calc(2rem+env(safe-area-inset-bottom,0px))]'>
+          {children}
+        </div>
+      </DrawerContent>
+    </Drawer>
   )
-}
-
-const outerStyle: React.CSSProperties = {
-  maxWidth: '640px',
-  margin: '0 auto',
-  width: '100%',
-}
-
-const innerStyle: React.CSSProperties = {
-  padding: '0 1.25rem',
-  width: '100%',
-}
-
-const innerStyleWithSafeArea: React.CSSProperties = {
-  ...innerStyle,
-  paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))',
 }

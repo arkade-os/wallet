@@ -1,14 +1,33 @@
 import { ReactElement, ReactNode, useCallback, useState } from 'react'
+import { cva, type VariantProps } from 'class-variance-authority'
 import FlexRow from './FlexRow'
 import ArrowIcon from '../icons/Arrow'
 import { hapticLight, hapticTap } from '../lib/haptics'
 import ScanIcon from '../icons/Scan'
 import PasteIcon from '../icons/Paste'
 import XIcon from '../icons/X'
+import { cn } from '@/lib/utils'
 
-interface ButtonProps {
+const buttonVariants = cva('button', {
+  variants: {
+    variant: {
+      default: 'dark',
+      secondary: 'secondary',
+      destructive: 'red',
+      ghost: 'clear',
+      outline: 'outline',
+      copy: 'copy',
+    },
+  },
+  defaultVariants: {
+    variant: 'default',
+  },
+})
+
+interface ButtonProps extends VariantProps<typeof buttonVariants> {
   ariaLabel?: string
   children?: ReactNode
+  className?: string
   clear?: boolean
   copy?: boolean
   disabled?: boolean
@@ -27,6 +46,7 @@ interface ButtonProps {
 export default function Button({
   ariaLabel,
   children,
+  className,
   clear,
   copy,
   disabled,
@@ -40,11 +60,12 @@ export default function Button({
   red,
   secondary,
   testId,
+  variant,
 }: ButtonProps) {
   const [pressed, setPressed] = useState(false)
 
-  const variant = red ? 'red' : secondary ? 'secondary' : clear ? 'clear' : outline ? 'outline' : copy ? 'copy' : 'dark'
-  const className = `button ${variant}${pressed ? ' pressed' : ''}`
+  // Support both old boolean props and new variant prop
+  const resolvedVariant = variant ?? (red ? 'destructive' : secondary ? 'secondary' : clear ? 'ghost' : outline ? 'outline' : copy ? 'copy' : 'default')
 
   const handlePressStart = useCallback(() => {
     if (disabled || loading) return
@@ -67,7 +88,7 @@ export default function Button({
     <button
       aria-label={ariaLabel || label}
       type='button'
-      className={className}
+      className={cn(buttonVariants({ variant: resolvedVariant }), pressed && 'pressed', className)}
       disabled={disabled}
       onClick={handleClick}
       onMouseDown={handlePressStart}
@@ -100,6 +121,8 @@ export default function Button({
     </button>
   )
 }
+
+export { buttonVariants }
 
 const Label = ({ label }: { label: string }) => <p style={{ lineHeight: '20px' }}>{label}</p>
 

@@ -3,7 +3,7 @@ import Button from './Button'
 import FlexCol from './FlexCol'
 import FlexRow from './FlexRow'
 import OkIcon from '../icons/Ok'
-import { useContext } from 'react'
+import { useContext, useState } from 'react'
 import NostrIcon from '../icons/Nostr'
 import BoltzIcon from '../icons/Boltz'
 import Text, { TextSecondary } from './Text'
@@ -102,6 +102,7 @@ export default function Announcement({
 }: AnnouncementProps) {
   const { navigate } = useContext(NavigationContext)
   const { setOption } = useContext(OptionsContext)
+  const [open, setOpen] = useState(true)
 
   const handleTryIt = () => {
     if (page) navigate(page)
@@ -109,11 +110,11 @@ export default function Announcement({
       setOption(option)
       navigate(Pages.Settings)
     }
-    close()
+    setOpen(false)
   }
 
   return (
-    <Modal>
+    <Modal open={open} onOpenChange={setOpen} onExitComplete={close}>
       <div style={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         {/* Note: the negative margin on the container is to offset the negative margin top of PrettyIcon class.*/}
         <div
@@ -137,7 +138,7 @@ export default function Announcement({
         </div>
         <FlexCol gap='0.25rem'>
           <Button onClick={handleTryIt} label={`Try ${title}`} />
-          <Button onClick={close} label='Maybe later' secondary />
+          <Button onClick={() => setOpen(false)} label='Maybe later' secondary />
         </FlexCol>
       </div>
     </Modal>
