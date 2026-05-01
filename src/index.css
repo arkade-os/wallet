@@ -266,6 +266,8 @@ button.reminder-button {
   & > .content-shell {
     padding-top: 2rem;
     height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
@@ -839,4 +841,64 @@ hr {
 
 .cl-switch > input:checked:disabled + span::after {
   background-color: #61b5b4;
+}
+
+/* ================================================
+   Wallet Action Bar
+   ================================================ */
+
+:root {
+  --wallet-action-bar-spacer: calc(112px + env(safe-area-inset-bottom, 0px));
+  --wallet-action-bar-clearance: calc(96px + env(safe-area-inset-bottom, 0px));
+}
+
+.wallet-action-bar-layer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.wallet-action-bar-layer--hidden .wallet-action-bar-dock {
+  pointer-events: none;
+}
+
+.wallet-action-bar-dock {
+  position: relative;
+  padding: 0 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  pointer-events: auto;
+}
+
+.wallet-action-bar-haze {
+  position: absolute;
+  inset: 0;
+  top: auto;
+  height: 200px;
+  background: linear-gradient(
+    to top,
+    var(--bg) 0%,
+    var(--bg) 40%,
+    color-mix(in srgb, var(--bg) 92%, transparent) 60%,
+    color-mix(in srgb, var(--bg) 70%, transparent) 75%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.dark .wallet-action-bar-haze {
+  background: linear-gradient(
+    to top,
+    var(--bg) 0%,
+    var(--bg) 45%,
+    color-mix(in srgb, var(--bg) 95%, transparent) 65%,
+    color-mix(in srgb, var(--bg) 80%, transparent) 80%,
+    transparent 100%
+  );
+}
+
+/* Content padding when action bar is visible */
+.has-wallet-action-bar .content-shell {
+  padding-bottom: var(--wallet-action-bar-spacer);
 }

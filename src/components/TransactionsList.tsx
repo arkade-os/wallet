@@ -161,10 +161,20 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
   )
 }
 
-export default function TransactionsList() {
+interface TransactionsListProps {
+  /** Override the default title. Pass '' to hide it. */
+  title?: string
+  /** 'virtual' (default) uses virtualization; 'static' renders a simple list. */
+  mode?: 'virtual' | 'static'
+  /** Max number of transactions to show (only applies when mode='static'). */
+  limit?: number
+}
+
+export default function TransactionsList({ mode = 'virtual', limit }: TransactionsListProps = {}) {
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { txs } = useContext(WalletContext)
+  const { txs: allTxs } = useContext(WalletContext)
+  const txs = mode === 'static' && limit ? allTxs.slice(0, limit) : allTxs
 
   const focusedRef = useRef(false)
   const focusedIndexRef = useRef(0)
@@ -224,6 +234,23 @@ export default function TransactionsList() {
     navigate(Pages.Transaction)
   }
 
+  // Static mode: render a simple list without virtualization
+  if (mode === 'static') {
+    return (
+      <div style={{ width: '100%' }}>
+        {txs.map((tx, index) => (
+          <TransactionLine
+            key={key(tx, index)}
+            onClick={() => handleClick(tx)}
+            tx={tx}
+            isFirst={index === 0}
+          />
+        ))}
+      </div>
+    )
+  }
+
+  // Virtual mode: use virtualization for performance
   return (
     <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
       <div

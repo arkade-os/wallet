@@ -209,7 +209,7 @@ export default function App() {
 
   const comp = page === Pages.Loading ? null : pageComponent(page)
   const isSettingsRoot = screen === Pages.Settings && option === SettingsOptions.Menu
-  const showNavbar = page === screen && (screen === Pages.Wallet || screen === Pages.Apps || isSettingsRoot)
+  const showNavbar = page === screen && (screen === Pages.Apps || isSettingsRoot)
 
   return (
     <div className={showNavbar ? 'page has-pill-navbar' : 'page'} data-testid='app'>
