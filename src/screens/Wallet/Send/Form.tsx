@@ -453,7 +453,7 @@ export default function SendForm() {
       return
     }
     const satoshis = sendInfo.satoshis ?? 0
-    const isLightningSend = Boolean(sendInfo.invoice)
+    const isLightningSend = Boolean(sendInfo.invoice && !sendInfo.arkAddress)
 
     // Set error for Lightning limit violations
     if (isLightningSend && satoshis > 0) {
@@ -485,7 +485,7 @@ export default function SendForm() {
                   ? 'Amount below min limit'
                   : 'Continue',
     )
-  }, [sendInfo.satoshis, sendInfo.assets, sendInfo.invoice, liquidBalance, selectedAsset])
+  }, [sendInfo.satoshis, sendInfo.assets, sendInfo.invoice, sendInfo.arkAddress, liquidBalance, selectedAsset])
 
   // manage server unreachable error
   useEffect(() => {
@@ -642,7 +642,7 @@ export default function SendForm() {
           setState({ ...sendInfo, invoice, arkAddress: undefined })
         }
       } else {
-        if (sendInfo.invoice) {
+        if (sendInfo.invoice && !sendInfo.arkAddress) {
           if (!lnSwapsAllowed()) return handleError('Lightning sends are currently unavailable')
           if (satoshis < minSwapAllowed()) return handleError(`Minimum Lightning send is ${minSwapAllowed()} sats`)
           const maxSwap = maxSwapAllowed()
@@ -735,8 +735,8 @@ export default function SendForm() {
     : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
       (lnUrlLimits.max && satoshis > lnUrlLimits.max) ||
       (lnUrlLimits.min && satoshis < lnUrlLimits.min) ||
-      (invoice && !lnSwapsAllowed()) ||
-      (invoice && !validLnSwap(satoshis)) ||
+      (invoice && !arkAddress && !lnSwapsAllowed()) ||
+      (invoice && !arkAddress && !validLnSwap(satoshis)) ||
       amountIsAboveMaxLimit(satoshis) ||
       amountIsBelowMinLimit(satoshis) ||
       satoshis > liquidBalance ||
