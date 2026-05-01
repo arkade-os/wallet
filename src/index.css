@@ -848,7 +848,7 @@ hr {
    ================================================ */
 
 :root {
-  --wallet-action-bar-spacer: calc(112px + env(safe-area-inset-bottom, 0px));
+  --wallet-action-bar-spacer: calc(140px + env(safe-area-inset-bottom, 0px));
   --wallet-action-bar-clearance: calc(96px + env(safe-area-inset-bottom, 0px));
 }
 

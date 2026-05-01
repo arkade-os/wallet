@@ -30,17 +30,17 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
   }
 
   return (
-    <div className='flex w-full items-center justify-between pb-6 pt-2'>
-      <div ref={ref} className='inline-flex' style={{ visibility: logoVisible ? 'visible' : 'hidden' }}>
+    <div className='sticky top-0 z-10 flex w-full items-center justify-between bg-[var(--bg)] pb-4 pt-2'>
+      <div ref={ref} className='inline-flex items-center' style={{ visibility: logoVisible ? 'visible' : 'hidden' }}>
         <LogoIcon small />
       </div>
-      <div className='inline-flex items-center gap-1'>
+      <div className='inline-flex items-center gap-0.5'>
         <button
           type='button'
           onClick={handleActivity}
           aria-label='View recent activity'
           data-testid='top-right-activity'
-          className='inline-flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 text-inherit active:scale-95'
+          className='inline-flex size-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-inherit active:scale-95'
           style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
         >
           <HistoryIcon size={22} />
@@ -50,10 +50,10 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
           onClick={handleSettings}
           aria-label='Open settings'
           data-testid='top-right-settings'
-          className='inline-flex cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-2 text-inherit active:scale-95'
+          className='inline-flex size-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-inherit active:scale-95'
           style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
         >
-          <SettingsIcon />
+          <SettingsIcon size={22} />
         </button>
       </div>
     </div>
