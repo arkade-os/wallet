@@ -119,6 +119,8 @@ export default function Wallet() {
                 onDismiss={dismissPwaBanner}
                 visible={Boolean(nudgeCheckComplete && !nudgeVisible && showPwaBanner)}
               />
+              {/* Spacer to ensure content scrolls above the floating action bar */}
+              {showActionBar ? <div className='h-36' aria-hidden='true' /> : null}
             </FlexCol>
           </WalletStaggerContainer>
         </Padded>
