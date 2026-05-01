@@ -28,7 +28,7 @@ export default function PortfolioHero() {
   return (
     <div className='mb-6 mt-8 flex w-full flex-col items-center justify-center'>
       <div className='flex items-baseline gap-2'>
-        <span className='text-5xl font-medium leading-none tracking-tight' data-testid='main-balance'>
+        <span className='text-heading-xl' data-testid='main-balance'>
           {fiatBalance}
         </span>
         {fiatUnit ? <span className='text-xl'>{fiatUnit}</span> : null}
