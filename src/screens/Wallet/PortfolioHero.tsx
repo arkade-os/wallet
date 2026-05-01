@@ -2,25 +2,45 @@ import { useContext } from 'react'
 import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
 import { usePortfolioFiat } from '../../hooks/usePortfolioFiat'
-import { prettyNumber } from '../../lib/format'
+import { prettyNumber, prettyHide } from '../../lib/format'
+import { FIAT_SYMBOLS } from '../../lib/fiat'
+import EyeIcon from '../../icons/Eye'
 
 /**
- * Fiat-primary total balance across BTC + all assets. Single line.
- * A small "Total" eyebrow label sits above the number.
+ * Fiat-primary total balance across BTC + all assets.
+ * Matches master Balance component styling.
  */
 export default function PortfolioHero() {
-  const { config } = useContext(ConfigContext)
+  const { config, updateConfig } = useContext(ConfigContext)
   const { fiatDecimals } = useContext(FiatContext)
   const { totalFiat } = usePortfolioFiat()
 
-  const fiatText = prettyNumber(totalFiat, fiatDecimals(), true, fiatDecimals())
+  const fiatSymbol = FIAT_SYMBOLS[config.fiat] ?? ''
+  const fiatBalanceRaw = config.showBalance
+    ? prettyNumber(totalFiat, fiatDecimals(), true, fiatDecimals())
+    : prettyHide(totalFiat, '')
+  // Skip symbol prefix for zero/hidden balance to avoid lone "$"
+  const fiatBalance = fiatSymbol && fiatBalanceRaw ? `${fiatSymbol}${fiatBalanceRaw}` : fiatBalanceRaw
+  const fiatUnit = fiatSymbol ? '' : config.fiat
+
+  const toggleShow = () => updateConfig({ ...config, showBalance: !config.showBalance })
 
   return (
-    <div className='mb-4 flex flex-col gap-1'>
-      <span className='text-sm text-neutral-500'>Total</span>
+    <div className='mb-6 mt-8 flex w-full flex-col items-center justify-center'>
       <div className='flex items-baseline gap-2'>
-        <span className='font-heading text-3xl font-medium tracking-tight'>{fiatText}</span>
-        <span className='font-heading text-lg text-neutral-500'>{config.fiat}</span>
+        <span className='text-5xl font-medium leading-none tracking-tight' data-testid='main-balance'>
+          {fiatBalance}
+        </span>
+        {fiatUnit ? <span className='text-xl'>{fiatUnit}</span> : null}
+        <button
+          type='button'
+          onClick={toggleShow}
+          aria-label={config.showBalance ? 'Hide balance' : 'Show balance'}
+          className='ml-1 flex cursor-pointer items-center justify-center border-none bg-transparent p-1 text-inherit'
+          style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+        >
+          <EyeIcon size={18} />
+        </button>
       </div>
     </div>
   )

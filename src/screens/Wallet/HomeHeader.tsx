@@ -30,31 +30,39 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
   }
 
   return (
-    <div className='sticky top-0 z-10 flex w-full items-center justify-between bg-[var(--bg)] pb-4 pt-2'>
-      <div ref={ref} className='inline-flex items-center' style={{ visibility: logoVisible ? 'visible' : 'hidden' }}>
-        <LogoIcon small />
-      </div>
-      <div className='inline-flex items-center gap-0.5'>
-        <button
-          type='button'
-          onClick={handleActivity}
-          aria-label='View recent activity'
-          data-testid='top-right-activity'
-          className='inline-flex size-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-inherit active:scale-95'
-          style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+    <div className='home-header sticky top-0 z-50 -mx-4 px-4 pb-3'>
+      <div className='flex w-full items-center justify-between'>
+        {/* Logo wrapper - account for LogoIcon's internal 18px padding/margin */}
+        <div
+          ref={ref}
+          className='-ml-[18px] flex h-9 items-center'
+          style={{ visibility: logoVisible ? 'visible' : 'hidden' }}
         >
-          <HistoryIcon size={22} />
-        </button>
-        <button
-          type='button'
-          onClick={handleSettings}
-          aria-label='Open settings'
-          data-testid='top-right-settings'
-          className='inline-flex size-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-inherit active:scale-95'
-          style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
-        >
-          <SettingsIcon size={22} />
-        </button>
+          <LogoIcon small />
+        </div>
+        {/* Icon cluster - right-aligned, same height as logo */}
+        <div className='-mr-2 flex h-9 items-center'>
+          <button
+            type='button'
+            onClick={handleActivity}
+            aria-label='View recent activity'
+            data-testid='top-right-activity'
+            className='inline-flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-inherit active:scale-95'
+            style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+          >
+            <HistoryIcon size={20} />
+          </button>
+          <button
+            type='button'
+            onClick={handleSettings}
+            aria-label='Open settings'
+            data-testid='top-right-settings'
+            className='inline-flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-inherit active:scale-95'
+            style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+          >
+            <SettingsIcon size={20} />
+          </button>
+        </div>
       </div>
     </div>
   )

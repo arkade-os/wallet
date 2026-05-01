@@ -902,3 +902,16 @@ hr {
 .has-wallet-action-bar .content-shell {
   padding-bottom: var(--wallet-action-bar-spacer);
 }
+
+/* Home header with gradient fade */
+.home-header {
+  background: linear-gradient(
+    to bottom,
+    var(--bg) 0%,
+    var(--bg) 70%,
+    color-mix(in srgb, var(--bg) 95%, transparent) 85%,
+    color-mix(in srgb, var(--bg) 80%, transparent) 92%,
+    transparent 100%
+  );
+  padding-top: env(safe-area-inset-top, 0px);
+}
