@@ -1,9 +1,9 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
 import { clearStorage, readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
-import { defaultArkServer } from '../lib/constants'
+import { defaultArkServer, envArkServer } from '../lib/constants'
 import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
 import { BackupProvider } from '../lib/backup'
-import { consoleError } from '../lib/logs'
+import { consoleError, consoleLog } from '../lib/logs'
 import { setHapticsEnabled } from '../lib/haptics'
 import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
 
@@ -61,9 +61,14 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
     ? config.announcementsSeen
     : defaultConfig.announcementsSeen
   const importedAssets = Array.isArray(config.importedAssets) ? config.importedAssets : defaultConfig.importedAssets
+  if (envArkServer && config.aspUrl && config.aspUrl !== envArkServer) {
+    consoleLog(`[config] VITE_ARK_SERVER overrides stored aspUrl (${config.aspUrl} → ${envArkServer})`)
+  }
+  const resolvedAspUrl = envArkServer || config.aspUrl || defaultConfig.aspUrl
   return {
     ...defaultConfig,
     ...config,
+    aspUrl: resolvedAspUrl,
     announcementsSeen: [...announcementsSeen],
     importedAssets: [...importedAssets],
     apps: {
@@ -121,7 +126,12 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     setConfig(config)
     applyTheme(config.theme)
     setHapticsEnabled(config.haptics)
-    saveConfigToStorage(config)
+    if (envArkServer) {
+      const { aspUrl: _aspUrl, ...toSave } = config
+      saveConfigToStorage(toSave)
+    } else {
+      saveConfigToStorage(config)
+    }
   }
 
   const resetConfig = async () => {
