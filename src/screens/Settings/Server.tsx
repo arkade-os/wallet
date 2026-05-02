@@ -15,6 +15,8 @@ import Scanner from '../../components/Scanner'
 import { AspContext, AspInfo } from '../../providers/asp'
 import { consoleError } from '../../lib/logs'
 import LoadingLogo from '../../components/LoadingLogo'
+import Table from '../../components/Table'
+import { envArkServer } from '../../lib/constants'
 
 export default function Server() {
   const { aspInfo } = useContext(AspContext)
@@ -50,6 +52,22 @@ export default function Server() {
   }, [aspUrl])
 
   if (!svcWallet) return <LoadingLogo text='Loading...' />
+
+  if (envArkServer) {
+    return (
+      <>
+        <Header text='Server' back />
+        <Content>
+          <Padded>
+            <FlexCol>
+              <Table data={[['Server URL', envArkServer]]} />
+              <WarningBox text='Server URL is set by an environment variable and cannot be changed here.' />
+            </FlexCol>
+          </Padded>
+        </Content>
+      </>
+    )
+  }
 
   const handleConnect = async () => {
     setLoading(true)

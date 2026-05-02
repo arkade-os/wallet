@@ -25,7 +25,7 @@
     "no-duplicate-imports": "error",
     "array-callback-return": ["error", { "allowImplicit": true }],
     "@typescript-eslint/no-explicit-any": ["off", { "ignoreRestArgs": false }],
-    "@typescript-eslint/no-unused-vars": ["warn", {}],
+    "@typescript-eslint/no-unused-vars": ["warn", { "varsIgnorePattern": "^_" }],
     "react/hook-use-state": ["error"],
     "react/no-array-index-key": ["error"],
     "react/jsx-boolean-value": ["error"],

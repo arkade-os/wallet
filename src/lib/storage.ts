@@ -25,7 +25,7 @@ const setStorageItem = (key: string, value: string): void => {
   localStorage.setItem(key, value)
 }
 
-export const saveConfigToStorage = (config: Config): void => {
+export const saveConfigToStorage = (config: Omit<Config, 'aspUrl'> & { aspUrl?: string }): void => {
   setStorageItem('config', JSON.stringify(config))
 }
 
