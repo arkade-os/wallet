@@ -7,7 +7,7 @@ export async function clearStorage(): Promise<void> {
   localStorage.clear()
   if (config) {
     config.importedAssets = []
-    config.apps.assets.enabled = false
+    if (config.apps) config.apps.assets.enabled = false
     saveConfigToStorage(config)
   }
 }
@@ -25,11 +25,11 @@ const setStorageItem = (key: string, value: string): void => {
   localStorage.setItem(key, value)
 }
 
-export const saveConfigToStorage = (config: Omit<Config, 'aspUrl'> & { aspUrl?: string }): void => {
+export const saveConfigToStorage = (config: Partial<Config>): void => {
   setStorageItem('config', JSON.stringify(config))
 }
 
-export const readConfigFromStorage = (): Config | undefined => {
+export const readConfigFromStorage = (): Partial<Config> | undefined => {
   return getStorageItem('config', undefined, (val) => JSON.parse(val))
 }
 
