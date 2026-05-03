@@ -4,6 +4,7 @@ import Backup from '../../../screens/Settings/Backup'
 import { render, screen } from '@testing-library/react'
 import { ConfigContext } from '../../../providers/config'
 import * as privateKeyModule from '../../../lib/privateKey'
+import * as mnemonicModule from '../../../lib/mnemonic'
 import { hex } from '@scure/base'
 
 const seckey = {
@@ -11,9 +12,12 @@ const seckey = {
   nsec: 'nsec16af97fgaay0xc3tycnfd92as9rfwcj49tscel2tm50hvm22jwrrqu8nz2f',
 }
 
-describe('Backup screen with default password', () => {
+const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
+
+describe('Backup screen with legacy private key', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    vi.spyOn(mnemonicModule, 'hasMnemonic').mockReturnValue(false)
     vi.spyOn(privateKeyModule, 'getPrivateKey').mockResolvedValue(hex.decode(seckey.hex))
   })
 
@@ -24,7 +28,6 @@ describe('Backup screen with default password', () => {
       </ConfigContext.Provider>,
     )
 
-    // wait for getPrivateKey to resolve
     await screen.findByText('Private key')
 
     expect(screen.getByText('Backup')).toBeInTheDocument()
@@ -40,10 +43,32 @@ describe('Backup screen with default password', () => {
       </ConfigContext.Provider>,
     )
 
-    // wait for getPrivateKey to resolve
     await screen.findByText('Private key')
 
     expect(screen.getByTestId('toggle-backup')).toBeInTheDocument()
     expect(screen.getByTestId('toggle-backup').getAttribute('data-checked')).toBe('true')
+  })
+})
+
+describe('Backup screen with mnemonic wallet', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.spyOn(mnemonicModule, 'hasMnemonic').mockReturnValue(true)
+    vi.spyOn(mnemonicModule, 'getMnemonic').mockResolvedValue(testMnemonic)
+  })
+
+  it('shows recovery phrase labels instead of private key', async () => {
+    render(
+      <ConfigContext.Provider value={mockConfigContextValue as any}>
+        <Backup />
+      </ConfigContext.Provider>,
+    )
+
+    await screen.findByText('Recovery phrase')
+
+    expect(screen.getByText('Recovery phrase')).toBeInTheDocument()
+    expect(screen.getByText('View recovery phrase')).toBeInTheDocument()
+    expect(screen.queryByText('Private key')).not.toBeInTheDocument()
+    expect(screen.queryByText('View private key')).not.toBeInTheDocument()
   })
 })

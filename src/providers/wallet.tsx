@@ -4,6 +4,7 @@ import {
   ServiceWorkerWallet,
   NetworkName,
   SingleKey,
+  MnemonicIdentity,
   AssetDetails,
   WalletBalance,
   IVtxoManager,
@@ -12,6 +13,7 @@ import {
   rollbackMigration,
   IndexedDBWalletRepository,
   IndexedDBContractRepository,
+  type Identity,
 } from '@arkade-os/sdk'
 import {
   clearStorage,
@@ -33,12 +35,13 @@ import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
+import { hasMnemonic, getMnemonic } from '../lib/mnemonic'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
-import { getDelegateUrlForNetwork, maxPercentage } from '../lib/constants'
+import { defaultPassword, getDelegateUrlForNetwork, maxPercentage } from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { Indexer } from '../lib/indexer'
@@ -55,7 +58,7 @@ const defaultWallet: Wallet = {
 export type WalletAuthState = 'unknown' | 'passwordless' | 'locked' | 'authenticated'
 
 interface WalletContextProps {
-  initWallet: (seed: Uint8Array) => Promise<void>
+  initWallet: (credentials: { mnemonic?: string; privateKey?: Uint8Array }) => Promise<void>
   lockWallet: () => Promise<void>
   resetWallet: () => Promise<void>
   settlePreconfirmed: () => Promise<void>
@@ -165,7 +168,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const autoInit = async () => {
       try {
         const privateKey = nsecToPrivateKey(devNsec)
-        await initWallet(privateKey)
+        await initWallet({ privateKey })
         setAuthState('authenticated')
       } catch (err) {
         consoleError(err, 'Dev auto-init failed')
@@ -192,7 +195,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
     let cancelled = false
     setAuthState('unknown')
-    noUserDefinedPassword()
+
+    const detectPasswordState = async () => {
+      if (hasMnemonic()) {
+        try {
+          await getMnemonic(defaultPassword)
+          return true // passwordless
+        } catch {
+          return false // has custom password
+        }
+      }
+      return noUserDefinedPassword()
+    }
+
+    detectPasswordState()
       .then((noPassword) => {
         if (!cancelled) setAuthState(noPassword ? 'passwordless' : 'locked')
       })
@@ -342,14 +358,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const initSvcWorkerWallet = async ({
     arkServerUrl,
     esploraUrl,
-    privateKey,
+    identity,
     retryCount = 0,
     maxRetries = 2,
     delegatorUrl,
   }: {
     arkServerUrl: string
     esploraUrl: string
-    privateKey: string
+    identity: Identity
     retryCount?: number
     maxRetries?: number
     delegatorUrl?: string
@@ -387,9 +403,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       await Promise.all([walletRepository.getWalletState(), zombieCheck])
       setLoadingStatus('Connecting to service worker...')
+
       const svcWallet = await ServiceWorkerWallet.setup({
         serviceWorkerPath: '/wallet-service-worker.mjs',
-        identity: SingleKey.fromHex(privateKey),
+        identity,
         arkServerUrl,
         esploraUrl,
         delegatorUrl,
@@ -494,7 +511,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         return initSvcWorkerWallet({
           arkServerUrl,
           esploraUrl,
-          privateKey,
+          identity,
           retryCount: retryCount + 1,
           maxRetries,
           delegatorUrl,
@@ -519,38 +536,64 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const initWallet = async (privateKey: Uint8Array) => {
+  const isMainnet = (network: NetworkName | string): boolean =>
+    network !== 'testnet' && network !== 'mutinynet' && network !== 'signet' && network !== 'regtest'
+
+  const initWallet = async (credentials: { mnemonic?: string; privateKey?: Uint8Array }) => {
     const arkServerUrl = aspInfo.url
     const network = aspInfo.network as NetworkName
     const esploraUrl = getRestApiExplorerURL(network) ?? ''
-    const pubkey = hex.encode(secp.getPublicKey(privateKey))
-    updateConfig({ ...config, pubkey })
-    const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
-    await initSvcWorkerWallet({
-      privateKey: hex.encode(privateKey),
-      arkServerUrl,
-      esploraUrl,
-      delegatorUrl,
-    })
+
+    let identity: Identity
+    let pubkey: string
+
+    if (credentials.mnemonic) {
+      const mnemonicIdentity = MnemonicIdentity.fromMnemonic(credentials.mnemonic, { isMainnet: isMainnet(network) })
+      identity = mnemonicIdentity
+      pubkey = hex.encode(await mnemonicIdentity.compressedPublicKey())
+
+      updateConfig({ ...config, pubkey })
+      const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
+      await initSvcWorkerWallet({
+        identity,
+        arkServerUrl,
+        esploraUrl,
+        delegatorUrl,
+      })
+    } else if (credentials.privateKey) {
+      identity = SingleKey.fromPrivateKey(credentials.privateKey)
+      pubkey = hex.encode(secp.getPublicKey(credentials.privateKey))
+
+      updateConfig({ ...config, pubkey })
+      const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
+      await initSvcWorkerWallet({
+        identity,
+        arkServerUrl,
+        esploraUrl,
+        delegatorUrl,
+      })
+    } else {
+      throw new Error('Either mnemonic or privateKey must be provided')
+    }
     updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
   }
 
   const unlockWallet = async (password: string) => {
-    let privateKey: Uint8Array
     try {
-      privateKey = await getPrivateKey(password)
-    } catch {
-      setAuthState('locked')
-      throw new Error('Invalid password')
-    }
-
-    setAuthState('authenticated')
-    try {
-      await initWallet(privateKey)
+      if (hasMnemonic()) {
+        const mnemonic = await getMnemonic(password)
+        setAuthState('authenticated')
+        await initWallet({ mnemonic })
+      } else {
+        const privateKey = await getPrivateKey(password)
+        setAuthState('authenticated')
+        await initWallet({ privateKey })
+      }
     } catch (err) {
       setAuthState('locked')
-      throw err
+      if (err instanceof DOMException) throw new Error('Invalid password')
+      throw err instanceof Error ? err : new Error('Invalid password')
     }
   }
 
@@ -562,18 +605,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
    */
   const restartWallet = async (delegateEnabled = config.delegate) => {
     if (!svcWallet) return
-    type HasToHex = { toHex: () => string }
-    const identity = svcWallet.identity
-    const privateKey =
-      typeof (identity as Partial<HasToHex>).toHex === 'function'
-        ? (identity as unknown as HasToHex).toHex()
-        : undefined
-    if (!privateKey) throw new Error('Unable to reinitialize wallet without private key')
+    const identity = svcWallet.identity as Identity
     const arkServerUrl = aspInfo.url
     const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
     const delegatorUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as Network).url : undefined
     await initSvcWorkerWallet({
-      privateKey,
+      identity,
       arkServerUrl,
       esploraUrl,
       delegatorUrl,
