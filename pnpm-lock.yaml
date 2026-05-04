@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.3.24
-        version: 0.3.24
+        specifier: 0.3.26
+        version: 0.3.26
       '@arkade-os/sdk':
-        specifier: 0.4.22
-        version: 0.4.22
+        specifier: 0.4.23
+        version: 0.4.23
       '@branta-ops/branta':
         specifier: 0.0.9
         version: 0.0.9
@@ -183,12 +183,12 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@0.3.24':
-    resolution: {integrity: sha512-V8QOK5jYCHKcfEpLQEsHtQWtjjZBHlf0IJSTZUUJdE8PNHetRMeXdnMbo6kGMgy7lpdOev7rvMSRR0+PmMHoMA==}
+  '@arkade-os/boltz-swap@0.3.26':
+    resolution: {integrity: sha512-WNGoPmo2MTNikv6/5Rl6uXR9w+QujQx7/0LxNIc4tVYMFS+0y7R/kv4eG+Qf2CDyy9wD0Ef3zrJQulcj43Xz3g==}
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
 
-  '@arkade-os/sdk@0.4.22':
-    resolution: {integrity: sha512-MARRLuDN359DYa5Y4BXtC/zakqDmWU3ipalbCEpubSH1i3xp1o7EUjzsAYETLHXTenxyft+NZ0IloQthULMRRg==}
+  '@arkade-os/sdk@0.4.23':
+    resolution: {integrity: sha512-09ewNFflv3RrEN1iFln5xKXWoxGKKYeBovAu7zJSOmMZ3SzOpLxUOFGPus6q5tHLjVD7mTeyc0GzZ9e1tUmgLQ==}
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -2757,9 +2757,9 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@0.3.24':
+  '@arkade-os/boltz-swap@0.3.26':
     dependencies:
-      '@arkade-os/sdk': 0.4.22
+      '@arkade-os/sdk': 0.4.23
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
@@ -2779,7 +2779,7 @@ snapshots:
       - expo-task-manager
       - utf-8-validate
 
-  '@arkade-os/sdk@0.4.22':
+  '@arkade-os/sdk@0.4.23':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 7.3.1

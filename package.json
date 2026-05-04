@@ -4,8 +4,8 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/boltz-swap": "0.3.24",
-    "@arkade-os/sdk": "0.4.22",
+    "@arkade-os/boltz-swap": "0.3.26",
+    "@arkade-os/sdk": "0.4.23",
     "@branta-ops/branta": "0.0.9",
     "@lendasat/lendasat-wallet-bridge": "^0.0.90",
     "@noble/curves": "^2.0.1",
@@ -32,7 +32,7 @@
   "scripts": {
     "prepare": "husky install",
     "start": "pnpm git-info && pnpm build:worker && vite",
-    "start:mainnet": "pnpm git-info && pnpm build:worker && cross-env VITE_ARK_SERVER=https://arkade.computer VITE_BOLTZ_URL=https://api.ark.boltz.exchange vite",
+    "start:mainnet": "pnpm git-info && pnpm build:worker && cross-env VITE_ARK_SERVER=https://arkade.computer VITE_BOLTZ_URL=https://api.boltz.exchange vite",
     "build": "pnpm git-info && pnpm build:worker && vite build",
     "build:worker": "vite build -c vite.worker.config.ts",
     "test": "vitest run",

@@ -60,7 +60,7 @@ Environment variables can be passed at runtime to configure the wallet without r
 ```bash
 docker run -p 8080:80 \
   -e VITE_ARK_SERVER=https://arkade.computer \
-  -e VITE_BOLTZ_URL=https://api.ark.boltz.exchange \
+  -e VITE_BOLTZ_URL=https://api.boltz.exchange \
   ghcr.io/arkade-os/wallet:latest
 ```
 
@@ -74,7 +74,7 @@ docker build -t arkade-wallet .
 # With build-time configuration
 docker build \
   --build-arg VITE_ARK_SERVER=https://arkade.computer \
-  --build-arg VITE_BOLTZ_URL=https://api.ark.boltz.exchange \
+  --build-arg VITE_BOLTZ_URL=https://api.boltz.exchange \
   -t arkade-wallet .
 ```
 

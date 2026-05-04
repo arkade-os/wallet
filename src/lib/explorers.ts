@@ -2,7 +2,7 @@ import { NetworkName } from '@arkade-os/sdk/'
 import { Wallet } from '../lib/types'
 
 type ExplorerURLs = {
-  api: string
+  api?: string
   web: string
 }
 
@@ -10,7 +10,6 @@ type Explorers = Record<NetworkName, ExplorerURLs>
 
 const explorers: Explorers = {
   bitcoin: {
-    api: 'https://mempool.space/api',
     web: 'https://mempool.space',
   },
   regtest: {
@@ -37,8 +36,8 @@ const vmempoolDefaults: Partial<Record<NetworkName, string>> = {
   regtest: 'http://localhost:7080',
 }
 
-export const getRestApiExplorerURL = (network: NetworkName): string => {
-  return explorers[network]?.api ?? ''
+export const getRestApiExplorerURL = (network: NetworkName): string | undefined => {
+  return explorers[network]?.api
 }
 
 export const getWebExplorerURL = (network: NetworkName): string => {
