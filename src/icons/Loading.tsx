@@ -1,5 +1,5 @@
 export default function LoadingIcon({ small }: { small?: boolean }) {
-  const size = small ? 32 : 64
+  const size = small ? 20 : 64
   return (
     <svg height={size} width={size} viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
       <circle cx='12' cy='2' r='0' fill='currentColor'>
