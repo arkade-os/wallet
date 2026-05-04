@@ -59,7 +59,7 @@ describe('format utilities', () => {
       expect(prettyFiatAmount(2500, Fiats.USD)).toBe('$2,500.00')
       expect(prettyFiatAmount(12345, Fiats.EUR)).toBe('€12,345.00')
       expect(prettyFiatAmount(1000, Fiats.GBP)).toBe('£1,000.00')
-      expect(prettyFiatAmount(1000, Fiats.JPY)).toBe('¥1,000.00')
+      expect(prettyFiatAmount(1000, Fiats.JPY)).toBe('¥1,000')
     })
 
     it('should keep the trailing code for currencies without a symbol', () => {
@@ -67,12 +67,12 @@ describe('format utilities', () => {
       expect(prettyFiatAmount(12345, Fiats.CNY)).toBe('12,345.00 CNY')
     })
 
-    it('should format every fiat currency with 2 decimals', () => {
+    it('should format fiat currencies with their standard minor units', () => {
       const cases: [Fiats, string, string][] = [
         [Fiats.EUR, '€10.00', '€10.80'],
         [Fiats.USD, '$10.00', '$10.80'],
         [Fiats.CHF, '10.00 CHF', '10.80 CHF'],
-        [Fiats.JPY, '¥10.00', '¥10.80'],
+        [Fiats.JPY, '¥10', '¥11'],
         [Fiats.GBP, '£10.00', '£10.80'],
         [Fiats.CNY, '10.00 CNY', '10.80 CNY'],
       ]
