@@ -110,7 +110,7 @@ export default function Announcement({
       setOption(option)
       navigate(Pages.Settings)
     }
-    setOpen(false)
+    close()
   }
 
   return (
