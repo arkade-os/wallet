@@ -56,21 +56,33 @@ describe('format utilities', () => {
 
   describe('prettyFiatAmount', () => {
     it('should prepend the symbol for currencies with one', () => {
-      expect(prettyFiatAmount(2500, Fiats.USD)).toBe('$2,500')
-      expect(prettyFiatAmount(12345, Fiats.EUR)).toBe('€12,345')
-      expect(prettyFiatAmount(1000, Fiats.GBP)).toBe('£1,000')
-      expect(prettyFiatAmount(1000, Fiats.JPY)).toBe('¥1,000')
+      expect(prettyFiatAmount(2500, Fiats.USD)).toBe('$2,500.00')
+      expect(prettyFiatAmount(12345, Fiats.EUR)).toBe('€12,345.00')
+      expect(prettyFiatAmount(1000, Fiats.GBP)).toBe('£1,000.00')
+      expect(prettyFiatAmount(1000, Fiats.JPY)).toBe('¥1,000.00')
     })
 
     it('should keep the trailing code for currencies without a symbol', () => {
-      expect(prettyFiatAmount(2500, Fiats.CHF)).toBe('2,500 CHF')
-      expect(prettyFiatAmount(12345, Fiats.CNY)).toBe('12,345 CNY')
+      expect(prettyFiatAmount(2500, Fiats.CHF)).toBe('2,500.00 CHF')
+      expect(prettyFiatAmount(12345, Fiats.CNY)).toBe('12,345.00 CNY')
     })
 
-    it('should use 2 decimals by default and 0 for JPY', () => {
+    it('should format every fiat currency with 2 decimals', () => {
+      const cases: [Fiats, string, string][] = [
+        [Fiats.EUR, '€10.00', '€10.80'],
+        [Fiats.USD, '$10.00', '$10.80'],
+        [Fiats.CHF, '10.00 CHF', '10.80 CHF'],
+        [Fiats.JPY, '¥10.00', '¥10.80'],
+        [Fiats.GBP, '£10.00', '£10.80'],
+        [Fiats.CNY, '10.00 CNY', '10.80 CNY'],
+      ]
+
+      cases.forEach(([currency, wholeAmount, fractionalAmount]) => {
+        expect(prettyFiatAmount(10, currency)).toBe(wholeAmount)
+        expect(prettyFiatAmount(10.8, currency)).toBe(fractionalAmount)
+      })
+
       expect(prettyFiatAmount(1.234, Fiats.USD)).toBe('$1.23')
-      expect(prettyFiatAmount(1.234, Fiats.CHF)).toBe('1.23 CHF')
-      expect(prettyFiatAmount(123.7, Fiats.JPY)).toBe('¥124')
     })
   })
 
