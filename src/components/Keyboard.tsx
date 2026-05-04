@@ -3,7 +3,7 @@ import Content from './Content'
 import { useContext, useEffect, useState } from 'react'
 import Text, { TextSecondary } from './Text'
 import { FiatContext } from '../providers/fiat'
-import { formatAssetAmount, prettyAmount, prettyFiatAmount, prettyNumber } from '../lib/format'
+import { prettyAmount, prettyFiatAmount, prettyNumber } from '../lib/format'
 import { WalletContext } from '../providers/wallet'
 import { defaultFee } from '../lib/constants'
 import ErrorMessage from './Error'
@@ -13,7 +13,7 @@ import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
 import SwapIcon from '../icons/Swap'
 import { AssetOption } from '../lib/types'
-import { centsToUnits, unitsToCents } from '../lib/assets'
+import { centsToUnits, prettyAssetAmount, unitsToCents } from '../lib/assets'
 
 interface KeyboardProps {
   asset?: AssetOption
@@ -54,7 +54,7 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
       inputMode === 'fiat'
         ? fromFiat(value)
         : inputMode === 'asset'
-          ? unitsToCents(value, asset?.decimals ?? 0)
+          ? Number(unitsToCents(BigInt(value), asset?.decimals ?? 0))
           : value,
     )
   }, [textValue])
@@ -103,7 +103,7 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
     if (asset) {
       const { balance, decimals } = asset
       const units = centsToUnits(balance, decimals)
-      setTextValue(prettyNumber(units, decimals, false))
+      setTextValue(prettyNumber(Number(units), decimals, false))
     } else {
       const maxSats = available - defaultFee
       const maxTextValue = inputMode === 'fiat' ? toFiat(maxSats) : maxSats
@@ -147,7 +147,7 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
           : prettyFiatAmount(toFiat(amountInSats), config.fiat),
     balance:
       inputMode === 'asset'
-        ? `${formatAssetAmount(asset?.balance ?? 0, asset?.decimals ?? 0)} ${asset?.ticker}`
+        ? `${prettyAssetAmount(asset?.balance ?? BigInt(0), asset?.decimals ?? 0)} ${asset?.ticker}`
         : inputMode === 'fiat'
           ? prettyFiatAmount(toFiat(available), config.fiat)
           : prettyAmount(available),

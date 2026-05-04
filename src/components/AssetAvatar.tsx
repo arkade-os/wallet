@@ -57,7 +57,7 @@ export default function AssetAvatar({ icon, ticker, name, size, onError, assetId
   return (
     <div
       onClick={() => {
-        setAssetInfo({ assetId, supply: 0 })
+        setAssetInfo({ assetId, supply: BigInt(0) })
         navigate(Pages.AppAssetDetail)
       }}
       style={{ cursor: 'pointer', transition: 'transform 0.1s', lineHeight: 0 }}

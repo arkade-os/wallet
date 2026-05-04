@@ -19,7 +19,7 @@ import InputAmount from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
-import { formatAssetAmount, prettyAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
+import { prettyAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -43,7 +43,7 @@ import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 import { SwapsContext } from '../../../providers/swaps'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { centsToUnits, unitsToCents } from '../../../lib/assets'
+import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -225,7 +225,7 @@ export default function SendForm() {
             }
             found = {
               assetId,
-              balance: 0,
+              balance: BigInt(0),
               name: meta?.metadata?.name ?? `${assetId.slice(0, 8)}...`,
               ticker: meta?.metadata?.ticker ?? '',
               icon: meta?.metadata?.icon,
@@ -233,7 +233,7 @@ export default function SendForm() {
             }
           }
           setSelectedAsset(found)
-          const rawAmount = assetAmount != null ? unitsToCents(assetAmount, found.decimals) : 0
+          const rawAmount = assetAmount != null ? unitsToCents(BigInt(assetAmount), found.decimals) : BigInt(0)
           setTextValue(String(assetAmount))
           return setState({
             address,
@@ -527,9 +527,9 @@ export default function SendForm() {
 
   const handleAmountChange = (sats: number) => {
     if (isAssetSend) {
-      setTextValue(String(centsToUnits(sats, selectedAsset?.decimals ?? 8)))
+      setTextValue(String(centsToUnits(BigInt(sats), selectedAsset?.decimals ?? 8)))
       if (selectedAsset) {
-        setState({ ...sendInfo, assets: [{ assetId: selectedAsset.assetId, amount: sats }], satoshis: 0 })
+        setState({ ...sendInfo, assets: [{ assetId: selectedAsset.assetId, amount: BigInt(sats) }], satoshis: 0 })
       }
     } else {
       setTextValue(useFiat ? prettyNumber(toFiat(sats), 2, false) : prettyNumber(sats, 0, false))
@@ -547,7 +547,7 @@ export default function SendForm() {
       if (isBTCAddress(recipient)) {
         return setError('Assets can only be sent to Arkade addresses')
       }
-      setState({ ...sendInfo, address: '', assets: [{ assetId: asset.assetId, amount: 0 }], satoshis: 0 })
+      setState({ ...sendInfo, address: '', assets: [{ assetId: asset.assetId, amount: BigInt(0) }], satoshis: 0 })
     } else {
       setState({ ...sendInfo, assets: undefined, satoshis: 0 })
     }
@@ -625,7 +625,7 @@ export default function SendForm() {
     if (isAssetSend && selectedAsset) {
       const { assetId, balance, decimals } = selectedAsset
       const units = centsToUnits(balance, decimals)
-      setTextValue(prettyNumber(units, decimals, false))
+      setTextValue(prettyNumber(Number(units), decimals, false))
       setState({
         ...sendInfo,
         assets: [{ assetId, amount: balance }],
@@ -658,7 +658,7 @@ export default function SendForm() {
       return (
         <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
           <Text color='dark50' smaller>
-            {`${formatAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`}
+            {`${prettyAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`}
           </Text>
         </div>
       )
@@ -929,7 +929,7 @@ export default function SendForm() {
                                   </Text>
                                 </FlexRow>
                                 <Text color='dark50' smaller>
-                                  {formatAssetAmount(asset.balance, asset.decimals)} {asset.ticker}
+                                  {prettyAssetAmount(asset.balance, asset.decimals)} {asset.ticker}
                                 </Text>
                               </FlexRow>
                             </Shadow>

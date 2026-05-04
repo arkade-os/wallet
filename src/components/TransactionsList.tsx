@@ -4,7 +4,6 @@ import { WalletContext } from '../providers/wallet'
 import Text, { TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
 import {
-  formatAssetAmount,
   isBurn,
   isIssuance,
   prettyAmount,
@@ -24,6 +23,7 @@ import { FiatContext } from '../providers/fiat'
 import PreconfirmedIcon from '../icons/Preconfirmed'
 import Focusable from './Focusable'
 import { hapticSubtle } from '../lib/haptics'
+import { prettyAssetAmount, prettyAssetAmountHide } from '../lib/assets'
 
 const border = '1px solid var(--dark10)'
 
@@ -104,8 +104,8 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
               <AssetAvatar icon={icon} ticker={ticker} size={16} assetId={a.assetId} clickable />
               <Text color={color} thin>
                 {config.showBalance
-                  ? `${formatAssetAmount(a.amount, decimals)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
-                  : prettyHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}
+                  ? `${prettyAssetAmount(a.amount, decimals)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
+                  : prettyAssetAmountHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}
               </Text>
             </FlexRow>
           )

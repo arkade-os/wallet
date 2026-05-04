@@ -3,12 +3,11 @@ import Shadow from './Shadow'
 import FlexCol from './FlexCol'
 import FlexRow from './FlexRow'
 import AssetAvatar from './AssetAvatar'
-import { centsToUnits, truncatedAssetId } from '../lib/assets'
-import { prettyNumber } from '../lib/format'
+import { prettyAssetAmount, truncatedAssetId } from '../lib/assets'
 
 interface AssetCardProps {
   assetId: string
-  balance: number
+  balance: bigint
   darkPurple?: boolean
   decimals?: number
   icon?: string
@@ -41,7 +40,7 @@ export default function AssetCard({
           </FlexCol>
         </FlexRow>
         <FlexCol end>
-          <Text>{prettyNumber(centsToUnits(balance, decimals ?? 8))}</Text>
+          <Text>{prettyAssetAmount(balance, decimals ?? 8)}</Text>
         </FlexCol>
       </FlexRow>
     </Shadow>

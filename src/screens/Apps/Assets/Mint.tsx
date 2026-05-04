@@ -36,7 +36,7 @@ export default function AppAssetMint() {
   const { setAssetInfo } = useContext(FlowContext)
   const { svcWallet, assetBalances, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
 
-  const [amount, setAmount] = useState(0)
+  const [amount, setAmount] = useState(BigInt(0))
   const [name, setName] = useState('')
   const [ticker, setTicker] = useState('')
   const [decimals, setDecimals] = useState('0')
@@ -103,7 +103,7 @@ export default function AppAssetMint() {
       metadata.decimals = parsedDecimals
       if (iconUrl) metadata.icon = iconUrl
 
-      const rawAmount = unitsToCents(parsedUnits, parsedDecimals)
+      const rawAmount = unitsToCents(BigInt(parsedUnits), parsedDecimals)
 
       let resolvedControlAssetId = controlMode === 'Existing' ? controlAssetId : ''
 
@@ -112,7 +112,7 @@ export default function AppAssetMint() {
         const ctrlMeta: KnownMetadata = { decimals: 0 }
         if (name) ctrlMeta.name = `ctrl-${name}`
         if (ticker) ctrlMeta.ticker = `ctrl-${ticker}`
-        const ctrlRawAmount = parseInt(ctrlAmount.toString())
+        const ctrlRawAmount = BigInt(parseInt(ctrlAmount.toString()))
 
         const ctrlResult = await svcWallet.assetManager.issue({
           amount: ctrlRawAmount,
@@ -208,7 +208,7 @@ export default function AppAssetMint() {
             <ErrorMessage error={Boolean(error)} text={error} />
             <AssetCard
               assetId='preview'
-              balance={unitsToCents(parsedUnits, parsedDecimals) || 0}
+              balance={unitsToCents(BigInt(parsedUnits), parsedDecimals) || BigInt(0)}
               name={name}
               ticker={ticker}
               icon={iconUrl && !iconError ? iconUrl : undefined}
@@ -243,7 +243,7 @@ export default function AppAssetMint() {
                 <Input
                   label='Amount *'
                   type='number'
-                  value={amount}
+                  value={Number(amount)}
                   onChange={setAmount}
                   placeholder='1000'
                   testId='asset-amount'

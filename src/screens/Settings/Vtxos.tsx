@@ -4,7 +4,7 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import { WalletContext } from '../../providers/wallet'
-import { formatAssetAmount, prettyAgo, prettyDate, prettyDelta, prettyHide, prettyNumber } from '../../lib/format'
+import { prettyAgo, prettyDate, prettyDelta, prettyHide, prettyNumber } from '../../lib/format'
 import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
@@ -25,6 +25,7 @@ import { ExtendedCoin, ExtendedVirtualCoin, isVtxoExpiringSoon } from '@arkade-o
 import { consoleError } from '../../lib/logs'
 import * as Sentry from '@sentry/react'
 import Grid from '../../components/Grid'
+import { prettyAssetAmount } from '../../lib/assets'
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -255,7 +256,7 @@ export default function Vtxos() {
           const meta = assetMetadataCache.get(a.assetId)?.metadata
           const decimals = meta?.decimals ?? 8
           const label = meta?.ticker ?? `${a.assetId.slice(0, 8)}...`
-          return `${formatAssetAmount(a.amount, decimals)} ${label}`
+          return `${prettyAssetAmount(a.amount, decimals)} ${label}`
         })
       : []
     const expiry = vtxo.virtualStatus?.batchExpiry ? prettyAgo(vtxo.virtualStatus.batchExpiry) : 'Unknown'

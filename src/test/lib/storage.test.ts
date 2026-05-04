@@ -14,7 +14,7 @@ describe('asset metadata storage', () => {
 
   const makeCached = (assetId: string, name: string, cachedAt = Date.now()): CachedAssetDetails => ({
     assetId,
-    supply: 1000,
+    supply: BigInt(1000),
     metadata: { name, ticker: 'TKN', decimals: 8 },
     cachedAt,
   })

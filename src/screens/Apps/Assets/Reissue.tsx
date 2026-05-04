@@ -17,16 +17,15 @@ import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
-import { formatAssetAmount } from '../../../lib/format'
 import Input from '../../../components/Input'
-import { unitsToCents } from '../../../lib/assets'
+import { prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 
 export default function AppAssetReissue() {
   const { navigate } = useContext(NavigationContext)
   const { assetInfo } = useContext(FlowContext)
   const { assetBalances, svcWallet, reloadWallet } = useContext(WalletContext)
 
-  const [amount, setAmount] = useState(0)
+  const [amount, setAmount] = useState(BigInt(0))
   const [error, setError] = useState('')
   const [processing, setProcessing] = useState(false)
   const [opDone, setOpDone] = useState(false)
@@ -37,7 +36,7 @@ export default function AppAssetReissue() {
   const ticker = assetInfo.metadata?.ticker ?? ''
   const icon = assetInfo.metadata?.icon
   const decimals = assetInfo.metadata?.decimals ?? 8
-  const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? 0
+  const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? BigInt(0)
 
   const handleReissueRequest = () => {
     if (!assetInfo.assetId) {
@@ -91,7 +90,7 @@ export default function AppAssetReissue() {
                 Confirm Reissue
               </Text>
               <Text centered wrap color='dark50'>
-                You are about to mint {amount} additional {ticker || name}.
+                You are about to mint {prettyAssetAmount(amount, decimals)} additional {ticker || name}.
               </Text>
             </FlexCol>
             <FlexRow>
@@ -118,7 +117,7 @@ export default function AppAssetReissue() {
                   </FlexCol>
                 </div>
                 <Text>
-                  {formatAssetAmount(balance, decimals)} {ticker}
+                  {prettyAssetAmount(balance, decimals)} {ticker}
                 </Text>
               </FlexRow>
             </Shadow>
@@ -126,8 +125,8 @@ export default function AppAssetReissue() {
             <Input
               label='Additional Amount'
               type='number'
-              value={amount}
-              onChange={setAmount}
+              value={Number(amount)}
+              onChange={(value) => setAmount(BigInt(value))}
               placeholder='1000'
               testId='asset-amount'
             />

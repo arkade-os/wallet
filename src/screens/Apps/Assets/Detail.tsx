@@ -15,8 +15,8 @@ import { ConfigContext } from '../../../providers/config'
 import { FlowContext, emptyRecvInfo, emptySendInfo } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
-import { formatAssetAmount } from '../../../lib/format'
 import type { AssetDetails } from '@arkade-os/sdk'
+import { prettyAssetAmount } from '../../../lib/assets'
 
 export default function AppAssetDetail() {
   const { navigate } = useContext(NavigationContext)
@@ -30,7 +30,7 @@ export default function AppAssetDetail() {
   const cachedEntry = assetMetadataCache.get(assetInfo.assetId)
   const hasIcon = cachedEntry?.hasIcon ?? false
 
-  const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? 0
+  const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? BigInt(0)
 
   const fetchDetails = async (forceRefresh = false) => {
     if (!svcWallet || !assetInfo.assetId) return
@@ -77,10 +77,10 @@ export default function AppAssetDetail() {
     : false
 
   const isImported = config.importedAssets.includes(assetInfo.assetId)
-  const canRemove = isImported && balance === 0
+  const canRemove = isImported && balance === BigInt(0)
 
   const handleSend = () => {
-    setSendInfo({ ...emptySendInfo, assets: [{ assetId: assetInfo.assetId, amount: 0 }] })
+    setSendInfo({ ...emptySendInfo, assets: [{ assetId: assetInfo.assetId, amount: BigInt(0) }] })
     navigate(Pages.SendForm)
   }
 
@@ -113,7 +113,7 @@ export default function AppAssetDetail() {
 
             <FlexCol gap='0.25rem' centered>
               <Text bigger bold centered>
-                {formatAssetAmount(balance, decimals)} {ticker}
+                {prettyAssetAmount(balance, decimals)} {ticker}
               </Text>
               <TextSecondary centered>{name}</TextSecondary>
             </FlexCol>
@@ -155,7 +155,7 @@ export default function AppAssetDetail() {
                 ) : null}
                 <FlexRow between>
                   <TextSecondary>Supply</TextSecondary>
-                  <Text bold>{typeof supply === 'number' ? formatAssetAmount(supply, decimals) : 'Unknown'}</Text>
+                  <Text bold>{prettyAssetAmount(supply, decimals) ?? 'Unknown'}</Text>
                 </FlexRow>
                 <FlexRow between>
                   <TextSecondary>Decimals</TextSecondary>
@@ -208,7 +208,7 @@ export default function AppAssetDetail() {
       </Content>
       <ButtonsOnBottom>
         <FlexRow gap='0.75rem'>
-          <Button label='Send' onClick={handleSend} disabled={balance === 0} />
+          <Button label='Send' onClick={handleSend} disabled={balance === BigInt(0)} />
           <Button label='Receive' onClick={handleReceive} />
         </FlexRow>
         <FlexRow gap='0.75rem'>
