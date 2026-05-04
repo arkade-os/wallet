@@ -906,15 +906,34 @@ hr {
   padding-bottom: var(--wallet-action-bar-spacer);
 }
 
-/* Home header with gradient fade */
+.wallet-home-content > .content-shell {
+  padding-top: 0;
+}
+
+/* Home header app bar */
 .home-header {
+  background: var(--bg);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.home-header::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -1.5rem;
+  left: 0;
+  height: 1.5rem;
   background: linear-gradient(
     to bottom,
     var(--bg) 0%,
-    var(--bg) 70%,
-    color-mix(in srgb, var(--bg) 95%, transparent) 85%,
-    color-mix(in srgb, var(--bg) 80%, transparent) 92%,
+    color-mix(in srgb, var(--bg) 82%, transparent) 42%,
     transparent 100%
   );
-  padding-top: env(safe-area-inset-top, 0px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.wallet-home-content--scrolled .home-header::after {
+  opacity: 1;
 }

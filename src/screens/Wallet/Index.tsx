@@ -24,6 +24,9 @@ import AssetsSection from './AssetsSection'
 import UpsellsSection from './UpsellsSection'
 import RecentActivitySection from './RecentActivitySection'
 import WalletActionBarOverlay from '../../components/WalletActionBarOverlay'
+import { usePortfolioBalanceDisplay } from '../../hooks/usePortfolioBalanceDisplay'
+import { useReducedMotion } from '../../hooks/useReducedMotion'
+import { hapticSubtle } from '../../lib/haptics'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
@@ -35,7 +38,11 @@ export default function Wallet() {
   const { nudge, nudgeVisible, nudgeCheckComplete } = useContext(NudgeContext)
 
   const [error, setError] = useState(false)
+  const [homeScrolled, setHomeScrolled] = useState(false)
+  const [balanceCollapseProgress, setBalanceCollapseProgress] = useState(0)
   const bootAnimActive = useSyncExternalStore(subscribeBootAnim, getBootAnimActive)
+  const { balance: portfolioBalance, unit: portfolioBalanceUnit } = usePortfolioBalanceDisplay()
+  const prefersReducedMotion = useReducedMotion()
   // Capture isInitialLoad at mount — it goes false before boot animation ends,
   // which would switch the stagger container from motion.div to plain div
   const shouldStagger = useRef(isInitialLoad).current
@@ -46,6 +53,9 @@ export default function Wallet() {
   const logoRef = useCallback((el: HTMLDivElement | null) => {
     setLogoAnchor(el)
   }, [])
+  const balanceRef = useRef<HTMLDivElement | null>(null)
+  const balanceCollapsedRef = useRef(false)
+  const balanceHapticReadyRef = useRef(false)
   useEffect(() => () => setLogoAnchor(null), [])
 
   const pwaInstalled = usePwaInstalled()
@@ -65,6 +75,53 @@ export default function Wallet() {
   useEffect(() => {
     setError(aspInfo.unreachable)
   }, [aspInfo.unreachable])
+
+  useEffect(() => {
+    const scrollEl = document.querySelector<HTMLElement>('.wallet-home-content > .content-shell')
+    if (!scrollEl) return
+
+    let frame = 0
+    const updateScrolled = () => {
+      frame = 0
+      setHomeScrolled(scrollEl.scrollTop > 2)
+
+      const balanceEl = balanceRef.current
+      if (!balanceEl) {
+        setBalanceCollapseProgress(0)
+        return
+      }
+
+      const balanceRect = balanceEl.getBoundingClientRect()
+      const headerBottom = document.querySelector('.home-header')?.getBoundingClientRect().bottom ?? 56
+      const collapseStart = headerBottom + 12
+      const collapseEnd = headerBottom - 28
+      const progress = prefersReducedMotion
+        ? Number(balanceRect.top <= headerBottom)
+        : (collapseStart - balanceRect.top) / (collapseStart - collapseEnd)
+      const nextProgress = Math.max(0, Math.min(1, progress))
+      const nextCollapsed = nextProgress >= 1
+
+      if (!balanceHapticReadyRef.current) {
+        balanceHapticReadyRef.current = true
+      } else if (nextCollapsed !== balanceCollapsedRef.current) {
+        hapticSubtle()
+      }
+
+      balanceCollapsedRef.current = nextCollapsed
+      setBalanceCollapseProgress(nextProgress)
+    }
+    const handleScroll = () => {
+      if (frame) return
+      frame = window.requestAnimationFrame(updateScrolled)
+    }
+
+    updateScrolled()
+    scrollEl.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame)
+      scrollEl.removeEventListener('scroll', handleScroll)
+    }
+  }, [prefersReducedMotion])
 
   const handleReceive = () => {
     setRecvInfo(emptyRecvInfo)
@@ -88,12 +145,24 @@ export default function Wallet() {
   return (
     <>
       {announcement}
-      <Content className={showActionBar ? 'has-wallet-action-bar' : ''}>
+      <Content
+        className={
+          showActionBar
+            ? `wallet-home-content has-wallet-action-bar ${homeScrolled ? 'wallet-home-content--scrolled' : ''}`
+            : `wallet-home-content ${homeScrolled ? 'wallet-home-content--scrolled' : ''}`
+        }
+      >
         <Padded>
-          <HomeHeader ref={logoRef} logoVisible={!bootAnimActive} />
+          <HomeHeader
+            ref={logoRef}
+            balance={portfolioBalance}
+            balanceProgress={balanceCollapseProgress}
+            balanceUnit={portfolioBalanceUnit}
+            logoVisible={!bootAnimActive}
+          />
           <WalletStaggerContainer animate={shouldStagger} hold={bootAnimActive}>
             <FlexCol gap='1.5rem'>
-              <PortfolioHero />
+              <PortfolioHero ref={balanceRef} collapseProgress={balanceCollapseProgress} />
               <ErrorMessage error={error} text='Ark server unreachable' />
               <AssetsSection onCreateClick={handleCreateAsset} />
               <UpsellsSection />

@@ -1,33 +1,40 @@
-import { useContext } from 'react'
-import { FiatContext } from '../../providers/fiat'
-import { usePortfolioFiat } from '../../hooks/usePortfolioFiat'
-import { prettyNumber } from '../../lib/format'
-import { FIAT_SYMBOLS } from '../../lib/fiat'
-import { ConfigContext } from '../../providers/config'
+import { forwardRef } from 'react'
+import { usePortfolioBalanceDisplay } from '../../hooks/usePortfolioBalanceDisplay'
+
+interface PortfolioHeroProps {
+  collapseProgress?: number
+}
 
 /**
  * Fiat-primary total balance across BTC + all assets.
  * Matches master Balance component styling.
  */
-export default function PortfolioHero() {
-  const { config } = useContext(ConfigContext)
-  const { fiatDecimals } = useContext(FiatContext)
-  const { totalFiat } = usePortfolioFiat()
-
-  const fiatSymbol = FIAT_SYMBOLS[config.fiat] ?? ''
-  const fiatBalanceRaw = prettyNumber(totalFiat, fiatDecimals(), true, fiatDecimals())
-  // Skip symbol prefix for zero/hidden balance to avoid lone "$"
-  const fiatBalance = fiatSymbol && fiatBalanceRaw ? `${fiatSymbol}${fiatBalanceRaw}` : fiatBalanceRaw
-  const fiatUnit = fiatSymbol ? '' : config.fiat
+const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function PortfolioHero(
+  { collapseProgress = 0 },
+  ref,
+) {
+  const { balance, unit } = usePortfolioBalanceDisplay()
+  const clampedProgress = Math.max(0, Math.min(1, collapseProgress))
 
   return (
     <div className='mb-6 mt-8 flex w-full flex-col items-center justify-center'>
-      <div className='flex items-baseline gap-2'>
+      <div
+        ref={ref}
+        className='flex items-baseline gap-2'
+        style={{
+          opacity: 1 - clampedProgress,
+          transform: `translate3d(0, ${-18 * clampedProgress}px, 0) scale(${1 - 0.28 * clampedProgress})`,
+          transformOrigin: 'center top',
+          willChange: clampedProgress > 0 && clampedProgress < 1 ? 'transform, opacity' : 'auto',
+        }}
+      >
         <span className='text-heading-xl' data-testid='main-balance'>
-          {fiatBalance}
+          {balance}
         </span>
-        {fiatUnit ? <span className='text-xl'>{fiatUnit}</span> : null}
+        {unit ? <span className='text-xl'>{unit}</span> : null}
       </div>
     </div>
   )
-}
+})
+
+export default PortfolioHero

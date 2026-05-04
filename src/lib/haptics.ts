@@ -5,6 +5,7 @@
 
 let iosLabel: HTMLLabelElement | null = null
 let enabled = true
+let hapticId = 0
 
 export function setHapticsEnabled(value: boolean): void {
   enabled = value
@@ -13,23 +14,25 @@ export function setHapticsEnabled(value: boolean): void {
 function getIosHapticLabel(): HTMLLabelElement | null {
   if (iosLabel) return iosLabel
   try {
+    const id = `haptic-switch-${++hapticId}`
+    const label = document.createElement('label')
+    label.htmlFor = id
+    label.textContent = 'Haptic feedback'
+    label.style.position = 'fixed'
+    label.style.left = '0'
+    label.style.bottom = '0'
+    label.style.display = 'none'
+    label.style.userSelect = 'none'
+
     const checkbox = document.createElement('input')
     checkbox.type = 'checkbox'
     checkbox.setAttribute('switch', '')
-    checkbox.id = 'haptic-switch'
-    checkbox.style.position = 'fixed'
-    checkbox.style.left = '-9999px'
-    checkbox.style.opacity = '0'
-    checkbox.style.pointerEvents = 'none'
+    checkbox.id = id
+    checkbox.style.all = 'initial'
+    checkbox.style.appearance = 'auto'
+    checkbox.style.display = 'none'
 
-    const label = document.createElement('label')
-    label.htmlFor = 'haptic-switch'
-    label.style.position = 'fixed'
-    label.style.left = '-9999px'
-    label.style.opacity = '0'
-    label.style.pointerEvents = 'none'
-
-    document.body.appendChild(checkbox)
+    label.appendChild(checkbox)
     document.body.appendChild(label)
     iosLabel = label
     return label
