@@ -12,7 +12,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <>
       {children}
       <Toaster
-        position="top-center"
+        position='top-center'
         richColors
         toastOptions={{
           style: {
