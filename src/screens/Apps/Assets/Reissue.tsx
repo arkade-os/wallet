@@ -31,6 +31,7 @@ export default function AppAssetReissue() {
   const [processing, setProcessing] = useState(false)
   const [opDone, setOpDone] = useState(false)
   const pendingNav = useRef<() => void>()
+  const pendingConfirm = useRef(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
   const name = assetInfo.metadata?.name ?? 'Unknown'
@@ -53,11 +54,10 @@ export default function AppAssetReissue() {
     setShowConfirm(true)
   }
 
-  const handleReissueConfirm = async () => {
+  const processReissue = async () => {
     if (!svcWallet) return
     const parsedAmount = unitsToCents(amount, decimals)
 
-    setShowConfirm(false)
     setProcessing(true)
     setError('')
 
@@ -73,6 +73,17 @@ export default function AppAssetReissue() {
     }
   }
 
+  const handleReissueConfirm = () => {
+    pendingConfirm.current = true
+    setShowConfirm(false)
+  }
+
+  const handleConfirmExitComplete = () => {
+    if (!pendingConfirm.current) return
+    pendingConfirm.current = false
+    void processReissue()
+  }
+
   const handleExitComplete = useCallback(() => {
     pendingNav.current?.()
   }, [])
@@ -83,24 +94,22 @@ export default function AppAssetReissue() {
   return (
     <>
       <Header text={`Reissue ${name}`} back={() => navigate(Pages.AppAssetDetail)} />
-      {showConfirm ? (
-        <Modal>
-          <FlexCol gap='1.5rem'>
-            <FlexCol centered gap='0.5rem'>
-              <Text big bold>
-                Confirm Reissue
-              </Text>
-              <Text centered wrap color='neutral-500'>
-                You are about to mint {amount} additional {ticker || name}.
-              </Text>
-            </FlexCol>
-            <FlexRow>
-              <Button onClick={() => setShowConfirm(false)} label='Cancel' secondary />
-              <Button onClick={handleReissueConfirm} label='Reissue' />
-            </FlexRow>
+      <Modal open={showConfirm} onOpenChange={setShowConfirm} onExitComplete={handleConfirmExitComplete}>
+        <FlexCol gap='1.5rem'>
+          <FlexCol centered gap='0.5rem'>
+            <Text big bold>
+              Confirm Reissue
+            </Text>
+            <Text centered wrap color='neutral-500'>
+              You are about to mint {amount} additional {ticker || name}.
+            </Text>
           </FlexCol>
-        </Modal>
-      ) : null}
+          <FlexRow>
+            <Button onClick={() => setShowConfirm(false)} label='Cancel' secondary />
+            <Button onClick={handleReissueConfirm} label='Reissue' />
+          </FlexRow>
+        </FlexCol>
+      </Modal>
       <Content>
         <Padded>
           <FlexCol gap='1rem'>

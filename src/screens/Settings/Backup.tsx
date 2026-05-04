@@ -150,11 +150,9 @@ export default function Backup() {
   return (
     <>
       <Header text='Backup' back />
-      {dialog ? (
-        <Modal>
-          <Dialog />
-        </Modal>
-      ) : null}
+      <Modal open={dialog} onOpenChange={setDialog}>
+        <Dialog />
+      </Modal>
       <Content>
         <Padded>
           <FlexCol gap='2rem'>

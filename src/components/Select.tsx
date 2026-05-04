@@ -1,8 +1,9 @@
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { GreenStatusIcon } from '../icons/Status'
 import { useEffect } from 'react'
-import FlexRow from './FlexRow'
 import Text from './Text'
 import { hapticSubtle } from '../lib/haptics'
+import { cn } from '@/lib/utils'
 
 interface SelectProps {
   labels?: string[]
@@ -21,34 +22,41 @@ export default function Select({ labels, onChange, options, selected }: SelectPr
         if (selectedIndex < options.length - 1) onChange(options[selectedIndex + 1])
       }
     }
-    // add event listener to the document
     document.addEventListener('keydown', handleKeyDown)
-    // cleanup event listener on component unmount
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [selected])
+  }, [selected, options, onChange])
+
+  const handleChange = (value: string) => {
+    hapticSubtle()
+    onChange(value)
+  }
 
   return (
-    <>
+    <RadioGroup value={selected} onValueChange={handleChange} className='flex flex-col !gap-0 !p-0 !m-0'>
       {options.map((option, index) => (
-        <div key={option} style={{ width: '100%' }}>
-          <FlexRow
-            between
-            testId={`select-option-${index}`}
-            key={option}
-            onClick={() => {
-              hapticSubtle()
-              onChange(option)
-            }}
-            padding='0.8rem 0'
-          >
-            <Text thin>{labels?.[index] ?? option}</Text>
-            {option === selected && <GreenStatusIcon small />}
-          </FlexRow>
-          {index < options.length - 1 && <hr />}
-        </div>
+        <label
+          key={option}
+          data-testid={`select-option-${index}`}
+          onClick={(event) => {
+            event.preventDefault()
+            handleChange(option)
+          }}
+          className={cn(
+            'flex w-full cursor-pointer items-center justify-between',
+            'py-[0.8rem] px-0',
+            index < options.length - 1 && 'border-b border-neutral-100',
+          )}
+        >
+          <RadioGroupItem
+            value={option}
+            className='!absolute !-m-px !size-px !border-0 !p-0 opacity-0 pointer-events-none'
+          />
+          <Text thin>{labels?.[index] ?? option}</Text>
+          {option === selected && <GreenStatusIcon small />}
+        </label>
       ))}
-    </>
+    </RadioGroup>
   )
 }
