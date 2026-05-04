@@ -1,5 +1,5 @@
 import { centsToUnits } from './assets'
-import { fiatDecimalsFor, FIAT_SYMBOLS } from './fiat'
+import { FIAT_SYMBOLS } from './fiat'
 import { Fiats, Satoshis, Tx } from './types'
 import { Decimal } from 'decimal.js'
 
@@ -38,7 +38,7 @@ export const prettyAmount = (amount: string | number, suffix?: string, decimals 
 
 export const prettyFiatAmount = (amount: number, currency: Fiats): string => {
   const symbol = FIAT_SYMBOLS[currency]
-  const formatted = prettyNumber(amount, fiatDecimalsFor(currency))
+  const formatted = prettyNumber(amount, 2, true, 2)
   return symbol ? `${symbol}${formatted}` : `${formatted} ${currency}`
 }
 
