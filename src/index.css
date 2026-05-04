@@ -315,7 +315,7 @@ button.reminder-button {
   height: 100%;
   display: block;
   position: relative;
-overflow-y: auto;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   flex: 1;
   font-family:
