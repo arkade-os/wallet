@@ -37,8 +37,8 @@
   --heading-font: 'TT Firs Neue', 'Geist', sans-serif;
   --animation-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   --bullet-icon-bg: #ede7fb;
-  --pill-navbar-spacer: calc(80px + env(safe-area-inset-bottom, 0px));
-  --pill-navbar-clearance: calc(64px + env(safe-area-inset-bottom, 0px));
+  --pill-navbar-spacer: 80px;
+  --pill-navbar-clearance: 64px;
   --sheet-bg: #fff;
   --toast-bg: #1a1a1a;
   --toast-color: #fafafa;
@@ -332,6 +332,7 @@ button.reminder-button {
     sans-serif;
   & > .content-shell {
     padding-top: 2rem;
+    padding-bottom: var(--padding-bottom, 0px);
     min-height: 100%;
   }
 }
@@ -366,7 +367,7 @@ button.reminder-button {
   & .content {
     --padding-bottom: var(--pill-navbar-clearance);
   }
-  & .content:has(.scroll-fade)::part(scroll) {
+  & .content:has(.scroll-fade) {
     -webkit-mask-image: linear-gradient(
       to bottom,
       #000 0,
@@ -390,7 +391,7 @@ button.reminder-button {
     -webkit-mask-size: 100% 100%;
     mask-size: 100% 100%;
   }
-  & .content.no-content-fade::part(scroll) {
+  & .content.no-content-fade {
     -webkit-mask-image: none;
     mask-image: none;
   }
@@ -430,7 +431,10 @@ input:focus::placeholder {
 }
 
 .page {
-  inset: 0;
+  top: env(safe-area-inset-top, 0px);
+  right: 0;
+  bottom: 0;
+  left: 0;
   display: flex;
   position: absolute;
   flex-direction: column;
@@ -593,7 +597,7 @@ hr {
 
 .pill-navbar {
   position: absolute;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
   width: fit-content;
@@ -671,7 +675,7 @@ hr {
 .pill-navbar-haze {
   position: absolute;
   left: 50%;
-  bottom: calc(env(safe-area-inset-bottom, 0px) - 12px);
+  bottom: -12px;
   width: min(460px, calc(100vw - 16px));
   height: 136px;
   transform: translateX(-50%);
