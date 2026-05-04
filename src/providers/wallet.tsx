@@ -348,7 +348,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     delegatorUrl,
   }: {
     arkServerUrl: string
-    esploraUrl: string
+    esploraUrl?: string
     privateKey: string
     retryCount?: number
     maxRetries?: number
@@ -522,7 +522,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const initWallet = async (privateKey: Uint8Array) => {
     const arkServerUrl = aspInfo.url
     const network = aspInfo.network as NetworkName
-    const esploraUrl = getRestApiExplorerURL(network) ?? ''
+    const esploraUrl = getRestApiExplorerURL(network)
     const pubkey = hex.encode(secp.getPublicKey(privateKey))
     updateConfig({ ...config, pubkey })
     const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
