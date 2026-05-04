@@ -27,7 +27,7 @@ interface AssetListItem {
 }
 
 export default function AppAssets() {
-  const { navigate } = useContext(NavigationContext)
+  const { goBack, navigate } = useContext(NavigationContext)
   const { assetBalances, balance, svcWallet, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
   const { config } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
@@ -91,7 +91,7 @@ export default function AppAssets() {
     <>
       <Header
         text='Arkade Mint'
-        back={() => navigate(Pages.Apps)}
+        back={goBack}
         auxFunc={goToSettings}
         auxIcon={<SettingsIconLight />}
       />
