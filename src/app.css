@@ -3,10 +3,8 @@
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/geist';
 
-@custom-variant dark (&:is(html.palette-dark *));
-
-/* Dark mode: use html.palette-dark class (matches tokens.css and config.tsx) */
-@variant dark (&:where(html.palette-dark, html.palette-dark *));
+/* Dark mode uses html.palette-dark, matching tokens.css and config.tsx. */
+@custom-variant dark (&:where(html.palette-dark, html.palette-dark *));
 
 @theme {
   /* ======================================
@@ -392,10 +390,4 @@ html.palette-dark {
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
 }
