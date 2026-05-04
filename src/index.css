@@ -411,6 +411,7 @@ button.reminder-button {
   background-color: transparent;
   caret-color: var(--black);
   color: var(--black);
+  width: 40px;
 }
 
 input:focus::placeholder {
