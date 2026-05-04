@@ -332,7 +332,7 @@ button.reminder-button {
     sans-serif;
   & > .content-shell {
     padding-top: 2rem;
-    min-height: 100%;
+    height: 100%;
   }
 }
 
@@ -758,6 +758,7 @@ hr {
 
 .scroll-fade {
   padding-bottom: 4rem;
+  height: 100%;
 }
 
 .pill-base {
