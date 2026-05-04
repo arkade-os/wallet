@@ -9,7 +9,7 @@ import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
 import { FlowContext } from '../../providers/flow'
 import { hapticLight } from '../../lib/haptics'
-import { prettyNumber } from '../../lib/format'
+import { prettyFiatAmount } from '../../lib/format'
 
 interface AssetsSectionProps {
   onCreateClick: () => void
@@ -40,7 +40,13 @@ export default function AssetsSection({ onCreateClick }: AssetsSectionProps) {
     navigate(Pages.AppAssetDetail)
   }
 
-  const fiatLabel = (amount: number) => `${prettyNumber(amount, fiatDecimals(), true, fiatDecimals())} ${config.fiat}`
+  const fiatLabel = (amount: number) => {
+    const decimals = fiatDecimals()
+    return prettyFiatAmount(amount, config.fiat, {
+      maximumFractionDigits: decimals,
+      minimumFractionDigits: decimals,
+    })
+  }
 
   return (
     <div className='flex w-full flex-col gap-3'>

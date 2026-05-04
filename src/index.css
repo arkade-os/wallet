@@ -851,8 +851,8 @@ hr {
    ================================================ */
 
 :root {
-  --wallet-action-bar-spacer: calc(140px + env(safe-area-inset-bottom, 0px));
-  --wallet-action-bar-clearance: calc(96px + env(safe-area-inset-bottom, 0px));
+  --wallet-action-bar-spacer: 116px;
+  --wallet-action-bar-clearance: 88px;
 }
 
 .wallet-action-bar-layer {
@@ -870,7 +870,7 @@ hr {
 
 .wallet-action-bar-dock {
   position: relative;
-  padding: 0 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  padding: 0 1rem var(--bottom-anchor-gap);
   pointer-events: auto;
 }
 
@@ -878,13 +878,13 @@ hr {
   position: absolute;
   inset: 0;
   top: auto;
-  height: 200px;
+  height: 128px;
   background: linear-gradient(
     to top,
     var(--bg) 0%,
-    var(--bg) 40%,
-    color-mix(in srgb, var(--bg) 92%, transparent) 60%,
-    color-mix(in srgb, var(--bg) 70%, transparent) 75%,
+    var(--bg) 48%,
+    color-mix(in srgb, var(--bg) 88%, transparent) 68%,
+    color-mix(in srgb, var(--bg) 56%, transparent) 82%,
     transparent 100%
   );
   pointer-events: none;
@@ -894,9 +894,9 @@ hr {
   background: linear-gradient(
     to top,
     var(--bg) 0%,
-    var(--bg) 45%,
-    color-mix(in srgb, var(--bg) 95%, transparent) 65%,
-    color-mix(in srgb, var(--bg) 80%, transparent) 80%,
+    var(--bg) 52%,
+    color-mix(in srgb, var(--bg) 92%, transparent) 72%,
+    color-mix(in srgb, var(--bg) 64%, transparent) 84%,
     transparent 100%
   );
 }

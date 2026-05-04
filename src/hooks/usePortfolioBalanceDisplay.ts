@@ -1,19 +1,19 @@
 import { useContext } from 'react'
 import { ConfigContext } from '../providers/config'
 import { FiatContext } from '../providers/fiat'
-import { FIAT_SYMBOLS } from '../lib/fiat'
-import { prettyNumber } from '../lib/format'
+import { formatFiatAmountParts } from '../lib/format'
 import { usePortfolioFiat } from './usePortfolioFiat'
 
 export function usePortfolioBalanceDisplay() {
   const { config } = useContext(ConfigContext)
   const { fiatDecimals } = useContext(FiatContext)
   const { totalFiat } = usePortfolioFiat()
+  const decimals = fiatDecimals()
 
-  const fiatSymbol = FIAT_SYMBOLS[config.fiat] ?? ''
-  const fiatBalanceRaw = prettyNumber(totalFiat, fiatDecimals(), true, fiatDecimals())
-  const balance = fiatSymbol && fiatBalanceRaw ? `${fiatSymbol}${fiatBalanceRaw}` : fiatBalanceRaw
-  const unit = fiatSymbol ? '' : config.fiat
+  const { amount: balance, unit } = formatFiatAmountParts(totalFiat, config.fiat, {
+    maximumFractionDigits: decimals,
+    minimumFractionDigits: decimals,
+  })
 
   return { balance, unit }
 }

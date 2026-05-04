@@ -26,7 +26,10 @@ function UpsellCard({ icon, title, description, testId, onClick }: UpsellCardPro
       className='flex w-full cursor-pointer items-center gap-3.5 rounded-xl border border-neutral-100 bg-[var(--bg)] px-4 py-3.5 text-left text-inherit shadow-sm transition-transform active:scale-[0.98]'
       style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
     >
-      <div className='flex size-10 min-w-10 items-center justify-center rounded-full bg-neutral-100 text-purple-700'>
+      <div
+        className='flex size-10 min-w-10 items-center justify-center rounded-full'
+        style={{ background: 'var(--bullet-icon-bg)', color: 'var(--logo-color)' }}
+      >
         {icon}
       </div>
       <div className='flex flex-col items-start gap-0.5'>

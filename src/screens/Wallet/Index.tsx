@@ -26,7 +26,7 @@ import RecentActivitySection from './RecentActivitySection'
 import WalletActionBarOverlay from '../../components/WalletActionBarOverlay'
 import { usePortfolioBalanceDisplay } from '../../hooks/usePortfolioBalanceDisplay'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
-import { hapticSubtle } from '../../lib/haptics'
+import { hapticLight } from '../../lib/haptics'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
@@ -55,7 +55,10 @@ export default function Wallet() {
   }, [])
   const balanceRef = useRef<HTMLDivElement | null>(null)
   const balanceCollapsedRef = useRef(false)
+  const balanceHapticCollapsedRef = useRef(false)
   const balanceHapticReadyRef = useRef(false)
+  const pendingBalanceHapticRef = useRef<{ collapsed: boolean; time: number } | null>(null)
+  const touchActiveRef = useRef(false)
   useEffect(() => () => setLogoAnchor(null), [])
 
   const pwaInstalled = usePwaInstalled()
@@ -81,7 +84,26 @@ export default function Wallet() {
     if (!scrollEl) return
 
     let frame = 0
-    const updateScrolled = () => {
+    // Scroll can detect the threshold outside Safari's haptic gesture window,
+    // so queue the crossing and flush it from the next touch event.
+    const flushPendingBalanceHaptic = () => {
+      const pending = pendingBalanceHapticRef.current
+      if (!pending) return
+
+      if (performance.now() - pending.time > 400) {
+        pendingBalanceHapticRef.current = null
+        return
+      }
+
+      if (pending.collapsed !== balanceHapticCollapsedRef.current) {
+        hapticLight()
+        balanceHapticCollapsedRef.current = pending.collapsed
+      }
+
+      pendingBalanceHapticRef.current = null
+    }
+
+    const updateScrolled = (allowHaptic = false) => {
       frame = 0
       setHomeScrolled(scrollEl.scrollTop > 2)
 
@@ -103,8 +125,19 @@ export default function Wallet() {
 
       if (!balanceHapticReadyRef.current) {
         balanceHapticReadyRef.current = true
-      } else if (nextCollapsed !== balanceCollapsedRef.current) {
-        hapticSubtle()
+        balanceHapticCollapsedRef.current = nextCollapsed
+        pendingBalanceHapticRef.current = null
+      } else if (nextCollapsed !== balanceHapticCollapsedRef.current) {
+        if (allowHaptic) {
+          hapticLight()
+          balanceHapticCollapsedRef.current = nextCollapsed
+          pendingBalanceHapticRef.current = null
+        } else if (touchActiveRef.current) {
+          pendingBalanceHapticRef.current = {
+            collapsed: nextCollapsed,
+            time: performance.now(),
+          }
+        }
       }
 
       balanceCollapsedRef.current = nextCollapsed
@@ -112,14 +145,34 @@ export default function Wallet() {
     }
     const handleScroll = () => {
       if (frame) return
-      frame = window.requestAnimationFrame(updateScrolled)
+      frame = window.requestAnimationFrame(() => updateScrolled(false))
+    }
+    const handleTouchStart = () => {
+      touchActiveRef.current = true
+    }
+    const handleTouchMove = () => {
+      updateScrolled(true)
+      flushPendingBalanceHaptic()
+    }
+    const handleTouchEnd = () => {
+      updateScrolled(true)
+      flushPendingBalanceHaptic()
+      touchActiveRef.current = false
     }
 
-    updateScrolled()
+    updateScrolled(false)
     scrollEl.addEventListener('scroll', handleScroll, { passive: true })
+    scrollEl.addEventListener('touchstart', handleTouchStart, { passive: true })
+    scrollEl.addEventListener('touchmove', handleTouchMove, { passive: true })
+    scrollEl.addEventListener('touchend', handleTouchEnd, { passive: true })
+    scrollEl.addEventListener('touchcancel', handleTouchEnd, { passive: true })
     return () => {
       if (frame) window.cancelAnimationFrame(frame)
       scrollEl.removeEventListener('scroll', handleScroll)
+      scrollEl.removeEventListener('touchstart', handleTouchStart)
+      scrollEl.removeEventListener('touchmove', handleTouchMove)
+      scrollEl.removeEventListener('touchend', handleTouchEnd)
+      scrollEl.removeEventListener('touchcancel', handleTouchEnd)
     }
   }, [prefersReducedMotion])
 
@@ -188,8 +241,6 @@ export default function Wallet() {
                 onDismiss={dismissPwaBanner}
                 visible={Boolean(nudgeCheckComplete && !nudgeVisible && showPwaBanner)}
               />
-              {/* Spacer to ensure content scrolls above the floating action bar */}
-              {showActionBar ? <div className='h-36' aria-hidden='true' /> : null}
             </FlexCol>
           </WalletStaggerContainer>
         </Padded>

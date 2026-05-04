@@ -19,7 +19,7 @@ interface AssetCardProps {
   name?: string
   /** Asset ticker (e.g. "BTC"). */
   ticker?: string
-  /** Fiat-value text shown on the right (e.g. "$7.29 USD"). */
+  /** Fiat-value text shown on the right (e.g. "$7.29"). */
   fiatText?: string
   onClick?: () => void
 }
