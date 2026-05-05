@@ -1,5 +1,6 @@
-import { IonModal } from '@ionic/react'
-import CloseIcon from '../icons/Close'
+import { hapticLight } from '../lib/haptics'
+import { BottomSheet } from 'react-spring-bottom-sheet'
+import 'react-spring-bottom-sheet/dist/style.css'
 
 interface SheetModalProps {
   children?: React.ReactNode
@@ -8,44 +9,32 @@ interface SheetModalProps {
 }
 
 export default function SheetModal({ children, isOpen, onClose }: SheetModalProps) {
-  const outerStyle: React.CSSProperties = {
-    maxWidth: '640px',
-    margin: '0 auto',
-    width: '100%',
-  }
-
-  const innerStyle: React.CSSProperties = {
-    backgroundColor: 'var(--ion-background-color)',
-    borderTop: '1px solid var(--dark50)',
-    borderRadius: '1rem',
-    height: '100%',
-    padding: '1rem',
-    paddingBottom: '2rem',
-    width: '100%',
-    position: 'relative',
-  }
-
-  const closeButtonStyle: React.CSSProperties = {
-    background: 'none',
-    border: 'none',
-    color: 'var(--ion-text-color)',
-    cursor: 'pointer',
-    padding: 0,
-    position: 'absolute',
-    right: '1rem',
-    top: '1rem',
+  const handleClose = () => {
+    hapticLight()
+    onClose()
   }
 
   return (
-    <IonModal initialBreakpoint={1} isOpen={isOpen} onDidDismiss={onClose}>
+    <BottomSheet open={isOpen} onDismiss={handleClose} header={null}>
       <div style={outerStyle}>
-        <div style={innerStyle}>
-          <button type='button' style={closeButtonStyle} onClick={onClose} aria-label='Close'>
-            <CloseIcon />
-          </button>
-          {children}
-        </div>
+        <div style={innerStyleWithSafeArea}>{children}</div>
       </div>
-    </IonModal>
+    </BottomSheet>
   )
+}
+
+const outerStyle: React.CSSProperties = {
+  maxWidth: '640px',
+  margin: '0 auto',
+  width: '100%',
+}
+
+const innerStyle: React.CSSProperties = {
+  padding: '0 1.25rem',
+  width: '100%',
+}
+
+const innerStyleWithSafeArea: React.CSSProperties = {
+  ...innerStyle,
+  paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))',
 }

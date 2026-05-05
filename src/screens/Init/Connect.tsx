@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
 import { WalletContext } from '../../providers/wallet'
@@ -18,9 +18,9 @@ export default function InitConnect() {
   const { initWallet } = useContext(WalletContext)
 
   const loadingStatus = useLoadingStatus()
+  const [error, setError] = useState<string>()
   const [initialized, setInitialized] = useState(false)
   const [connectDone, setConnectDone] = useState(false)
-  const pendingNav = useRef<() => void>()
 
   const { password, privateKey } = initInfo
 
@@ -29,31 +29,30 @@ export default function InitConnect() {
     setPrivateKey(privateKey, password)
       .then(() => initWallet(privateKey))
       .then(() => setInitialized(true))
-      .catch((err) => consoleError(err, 'Error initializing wallet:'))
+      .catch(abortConnectionWithError)
   }, [])
 
   useEffect(() => {
-    if (!initialized) return
-    if (!initInfo.restoring) return handleProceed()
-    if (!arkadeSwaps) return
+    if (!initialized || !arkadeSwaps) return
+    if (!initInfo.restoring) return setConnectDone(true)
     setLoadingStatus('Restoring swaps...')
     restoreSwaps()
       .then((count) => count && consoleLog(`Restored ${count} swaps from network`))
       .catch((err) => consoleError(err, 'Error restoring swaps:'))
-      .finally(handleProceed)
+      .finally(() => setConnectDone(true))
   }, [arkadeSwaps, initialized, initInfo.restoring])
 
-  const handleProceed = () => {
-    pendingNav.current = () => {
-      setInitInfo({ ...initInfo, password: undefined, privateKey: undefined })
-      navigate(Pages.Wallet)
-    }
-    setConnectDone(true)
+  const handleExitComplete = () => {
+    setInitInfo({ ...initInfo, password: undefined, privateKey: undefined })
+    navigate(error ? Pages.Init : Pages.Wallet)
   }
 
-  const handleExitComplete = useCallback(() => {
-    pendingNav.current?.()
-  }, [])
+  const abortConnectionWithError = (err: any) => {
+    consoleError(err, 'Error during connection:')
+    setLoadingStatus('Connection failed')
+    setError('Connection failed')
+    setConnectDone(true)
+  }
 
   return (
     <>
@@ -61,9 +60,9 @@ export default function InitConnect() {
       <Content>
         <LoadingLogo
           text={loadingStatus || 'Connecting to server'}
-          done={connectDone}
           exitMode={connectDone ? 'fly-up' : 'none'}
           onExitComplete={handleExitComplete}
+          done={connectDone}
         />
       </Content>
     </>

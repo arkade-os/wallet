@@ -1,13 +1,14 @@
-import { useContext, useEffect, useRef, useState } from 'react'
-import { IonInput, IonText } from '@ionic/react'
+import { ChangeEventHandler, useContext, useEffect, useRef, useState } from 'react'
 import { FiatContext } from '../providers/fiat'
 import InputContainer from './InputContainer'
 import { ConfigContext } from '../providers/config'
 import { prettyNumber } from '../lib/format'
+import { FIAT_SYMBOLS } from '../lib/fiat'
 import { LimitsContext } from '../providers/limits'
 import Focusable from './Focusable'
 import { unitsToCents } from '../lib/assets'
 import { AssetOption } from '../lib/types'
+import { TextSecondary } from './Text'
 
 interface InputAmountProps {
   asset?: AssetOption
@@ -51,11 +52,11 @@ export default function InputAmount({
   const [error, setError] = useState('')
   const [otherValue, setOtherValue] = useState('')
 
-  const input = useRef<HTMLIonInputElement>(null)
+  const input = useRef<HTMLInputElement>(null)
 
   // focus input when focus prop changes
   useEffect(() => {
-    if (focus && input.current) input.current.setFocus()
+    if (focus && input.current) input.current.focus()
   }, [focus])
 
   useEffect(() => {
@@ -64,8 +65,8 @@ export default function InputAmount({
     setError(sats ? (sats < 0 ? 'Invalid amount' : '') : '')
   }, [sats])
 
-  const handleInput = (ev: Event) => {
-    const value = Number((ev.target as HTMLInputElement).value)
+  const handleInput: ChangeEventHandler<HTMLInputElement> = (ev) => {
+    const value = Number(ev.currentTarget.value)
     if (Number.isNaN(value)) return
     onSats(asset?.assetId ? unitsToCents(value, asset.decimals) : useFiat ? fromFiat(value) : value)
   }
@@ -73,47 +74,59 @@ export default function InputAmount({
   const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0
   const maximumSats = max ? Math.min(max, maxSwapAllowed()) : 0
 
-  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? config.fiat : 'SATS'
-  const rightLabel = asset?.assetId ? '' : `${otherValue} ${useFiat ? 'SATS' : config.fiat}`
+  const fiatSymbol = FIAT_SYMBOLS[config.fiat]
+  const fiatLabel = fiatSymbol ?? config.fiat
+
+  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? fiatLabel : 'SATS'
+  const rightLabel = asset?.assetId
+    ? ''
+    : useFiat
+      ? `${otherValue} SATS`
+      : fiatSymbol
+        ? `${fiatSymbol}${otherValue}`
+        : `${otherValue} ${config.fiat}`
   const fontStyle = { color: 'var(--dark50)', fontSize: '13px' }
-  const bottomLeft = minimumSats ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}` : ''
-  const bottomRight = maximumSats ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'SAT' : 'SATS'}` : ''
+  const bottomLeft =
+    minimumSats && sats !== undefined && sats < minimumSats
+      ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}`
+      : ''
+  const bottomRight =
+    maximumSats && sats !== undefined && sats > maximumSats
+      ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'SAT' : 'SATS'}`
+      : ''
 
   return (
-    <>
-      <InputContainer error={error} label={label} right={right} bottomLeft={bottomLeft} bottomRight={bottomRight}>
-        <IonInput
-          disabled={disabled}
-          name={name}
-          onIonFocus={onFocus}
-          onIonInput={handleInput}
-          onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
-          readonly={readOnly}
+    <InputContainer error={error} label={label} right={right} bottomLeft={bottomLeft} bottomRight={bottomRight}>
+      <label className='label'>
+        <TextSecondary>{leftLabel}</TextSecondary>
+        <input
           ref={input}
+          name={name}
           type='number'
-          value={value}
-        >
-          <IonText slot='start' style={{ ...fontStyle, marginRight: '0.5rem' }}>
-            {leftLabel}
-          </IonText>
-          <IonText slot='end' style={{ ...fontStyle, marginLeft: '0.5rem' }}>
-            {rightLabel}
-          </IonText>
-        </IonInput>
-        {onMax && !disabled && !readOnly ? (
-          <Focusable onEnter={onMax} fit>
-            <IonText
-              role='button'
-              onClick={onMax}
-              aria-label='Set maximum amount'
-              data-testid='input-amount-max'
-              style={{ ...fontStyle, color: 'var(--purpletext)', cursor: 'pointer' }}
-            >
-              Max
-            </IonText>
-          </Focusable>
-        ) : null}
-      </InputContainer>
-    </>
+          onFocus={onFocus}
+          className='input'
+          inputMode='decimal'
+          value={value || ''}
+          disabled={disabled}
+          readOnly={readOnly}
+          onChange={handleInput}
+          onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
+        />
+        <TextSecondary>{rightLabel}</TextSecondary>
+      </label>
+      {onMax && !disabled && !readOnly ? (
+        <Focusable onEnter={onMax} fit>
+          <p
+            role='button'
+            onClick={onMax}
+            aria-label='Set maximum amount'
+            data-testid='input-amount-max'
+            style={{ ...fontStyle, color: 'var(--purpletext)', cursor: 'pointer' }}
+          >
+            Max
+          </p>
+        </Focusable>
+      ) : null}
+    </InputContainer>
   )
 }

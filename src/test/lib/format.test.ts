@@ -3,6 +3,8 @@ import {
   prettyAmount,
   prettyAgo,
   prettyDate,
+  prettyFiatAmount,
+  prettyFiatHide,
   prettyHide,
   fromSatoshis,
   toSatoshis,
@@ -12,6 +14,7 @@ import {
   isIssuance,
   isBurn,
 } from '../../lib/format'
+import { Fiats } from '../../lib/types'
 
 describe('format utilities', () => {
   describe('fromSatoshis', () => {
@@ -48,6 +51,26 @@ describe('format utilities', () => {
     it('should handle fiat currency formatting', () => {
       expect(prettyAmount(2500, 'USD')).toBe('2,500 USD')
       expect(prettyAmount(12345, 'EUR')).toBe('12,345 EUR')
+    })
+  })
+
+  describe('prettyFiatAmount', () => {
+    it('should prepend the symbol for currencies with one', () => {
+      expect(prettyFiatAmount(2500, Fiats.USD)).toBe('$2,500')
+      expect(prettyFiatAmount(12345, Fiats.EUR)).toBe('€12,345')
+      expect(prettyFiatAmount(1000, Fiats.GBP)).toBe('£1,000')
+      expect(prettyFiatAmount(1000, Fiats.JPY)).toBe('¥1,000')
+    })
+
+    it('should keep the trailing code for currencies without a symbol', () => {
+      expect(prettyFiatAmount(2500, Fiats.CHF)).toBe('2,500 CHF')
+      expect(prettyFiatAmount(12345, Fiats.CNY)).toBe('12,345 CNY')
+    })
+
+    it('should use 2 decimals by default and 0 for JPY', () => {
+      expect(prettyFiatAmount(1.234, Fiats.USD)).toBe('$1.23')
+      expect(prettyFiatAmount(1.234, Fiats.CHF)).toBe('1.23 CHF')
+      expect(prettyFiatAmount(123.7, Fiats.JPY)).toBe('¥124')
     })
   })
 
@@ -119,6 +142,25 @@ describe('format utilities', () => {
       expect(prettyHide(0)).toBe('')
       expect(prettyHide(12345)).toBe('·········· SATS')
       expect(prettyHide(999999999)).toBe('·················· SATS')
+    })
+  })
+
+  describe('prettyFiatHide', () => {
+    it('should prepend the symbol when masking fiat with a symbol', () => {
+      expect(prettyFiatHide(100, Fiats.USD)).toBe('$······')
+      expect(prettyFiatHide(100, Fiats.EUR)).toBe('€······')
+      expect(prettyFiatHide(100, Fiats.GBP)).toBe('£······')
+      expect(prettyFiatHide(100, Fiats.JPY)).toBe('¥······')
+    })
+
+    it('should keep the trailing code when masking fiat without a symbol', () => {
+      expect(prettyFiatHide(100, Fiats.CHF)).toBe('······ CHF')
+      expect(prettyFiatHide(100, Fiats.CNY)).toBe('······ CNY')
+    })
+
+    it('should return empty string for zero', () => {
+      expect(prettyFiatHide(0, Fiats.USD)).toBe('')
+      expect(prettyFiatHide(0, Fiats.CHF)).toBe('')
     })
   })
 

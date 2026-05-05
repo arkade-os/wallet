@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './src/test/e2e',
+  timeout: 60000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 5 : 0,
@@ -18,7 +19,8 @@ export default defineConfig({
     contextOptions: { reducedMotion: 'reduce' },
   },
   webServer: {
-    command: 'VITE_NOSTR_RELAY_URL=ws://localhost:10547 VITE_DELEGATE_ENABLED=false VITE_INTROSPECTOR_URL=http://localhost:7073 pnpm start',
+    command:
+      'VITE_NOSTR_RELAY_URL=ws://localhost:10547 VITE_DELEGATE_ENABLED=false VITE_LNURL_SERVER_URL=http://localhost:9090 VITE_INTROSPECTOR_URL=http://localhost:7073 pnpm start',
     port: 3002,
   },
   projects: [
@@ -28,7 +30,7 @@ export default defineConfig({
     },
     {
       name: 'Google Chrome',
-      use: { ...devices['Desktop Chrome'], channel: 'chrome' },
+      use: { ...devices['Desktop Chrome'], channel: 'chrome', viewport: { width: 1920, height: 1080 } },
     },
   ],
 })

@@ -4,8 +4,7 @@
  * These tests exercise the complete swap flow using the SDK directly:
  * create offer → fund → verify status → (taker auto-fulfills) → verify.
  *
- * Requirements: arkd (7070), introspector (7073).
- * For taker-fulfilled tests: fulmine with taker (7000/7001).
+ * Requirements: arkd (7070), introspector (7073), bancod (7091).
  *
  * Note: These are NOT UI tests. The wallet UI form is tested separately in
  * banco.test.ts. These test the underlying banco mechanics end-to-end.
@@ -16,8 +15,8 @@ import { asset, Wallet } from '@arkade-os/sdk'
 import {
   createFundedWallet,
   issueAsset,
-  fundFulmineWithAsset,
-  fundFulmineWithBtc,
+  fundBancodWithAsset,
+  fundBancodWithBtc,
   addBancoPair,
   removeBancoPair,
   swapPkScriptToAddress,
@@ -25,7 +24,23 @@ import {
 
 const ARK_URL = 'http://localhost:7070'
 const INTROSPECTOR_URL = 'http://localhost:7073'
-const PRICE_FEED = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd'
+
+/**
+ * Build a price-feed URL backed by the local mock that returns the requested
+ * price as `{"x":{"y": <price>}}`. bancod is in the nigiri network so it
+ * reaches the mock by container name; we point at it on the host network for
+ * sanity checks.
+ *
+ * The price is computed as `depositAmount / wantAmount` (with default decimal
+ * adjustments: BTC=8, asset=0). bancod accepts offers within 1% of this feed,
+ * so encoding the exact ratio always passes validation.
+ */
+function priceFeedURL(depositAmount: number, wantAmount: number, depositDecimals = 8, wantDecimals = 0): string {
+  const adjustedDeposit = depositAmount / 10 ** depositDecimals
+  const adjustedWant = wantAmount / 10 ** wantDecimals
+  const price = adjustedDeposit / adjustedWant
+  return `http://price-mock:9099/?p=${price}`
+}
 
 /**
  * Wait for the maker wallet to receive new VTXOs after the swap.
@@ -197,8 +212,8 @@ test.describe('Banco offer lifecycle', () => {
 })
 
 // ── Taker-fulfilled swap tests ──
-// These require a fulmine instance with FULMINE_TAKER_ENABLED=true
-// and FULMINE_INTROSPECTOR_URL configured.
+// These require bancod with the banco plugin enabled (BANCOD_BANCO_ENABLED=true)
+// and a configured BANCOD_INTROSPECTOR_URL.
 
 test.describe('Banco taker-fulfilled swaps', () => {
   // SDK-only tests: run on a single project to avoid depleting the taker's funds
@@ -208,12 +223,15 @@ test.describe('Banco taker-fulfilled swaps', () => {
   test.setTimeout(120_000)
 
   test('BTC → Asset swap (taker fulfills)', async () => {
-    // 1. Fund fulmine taker with an asset
-    const assetId = await fundFulmineWithAsset(1000)
+    // 1. Fund bancod taker with an asset
+    const assetId = await fundBancodWithAsset(1000)
     const pairName = `BTC/${assetId}`
 
-    // 2. Configure the pair on fulmine
-    await addBancoPair(pairName, assetId, PRICE_FEED)
+    const wantAmount = 500
+    const fundingAmount = 10_000
+
+    // 2. Configure the pair on bancod with a feed price matching the offer ratio
+    await addBancoPair(pairName, priceFeedURL(fundingAmount, wantAmount))
 
     try {
       // 3. Create a maker wallet with BTC
@@ -223,7 +241,7 @@ test.describe('Banco taker-fulfilled swaps', () => {
       // 4. Create offer: deposit BTC, want 500 of asset
       const wantAssetId = asset.AssetId.fromString(assetId)
       const { offer, packet, swapPkScript } = await maker.createOffer({
-        wantAmount: BigInt(500),
+        wantAmount: BigInt(wantAmount),
         wantAsset: wantAssetId,
         cancelDelay: 300,
       })
@@ -237,7 +255,7 @@ test.describe('Banco taker-fulfilled swaps', () => {
       const swapAddress = await swapPkScriptToAddress(swapPkScript)
       await makerWallet.send({
         address: swapAddress,
-        amount: 10000,
+        amount: fundingAmount,
         extensions: [{ type: packet.type(), payload: packet.serialize() }],
       })
 
@@ -253,30 +271,33 @@ test.describe('Banco taker-fulfilled swaps', () => {
         const assetMatch = v.assets!.find((a) => a.assetId === assetId)
         return sum + (assetMatch?.amount ?? 0)
       }, 0)
-      expect(totalReceived).toBeGreaterThanOrEqual(500)
+      expect(totalReceived).toBeGreaterThanOrEqual(wantAmount)
     } finally {
       await removeBancoPair(pairName)
     }
   })
 
   test('Asset → BTC swap (taker fulfills)', async () => {
-    // 1. Fund fulmine taker with BTC
-    await fundFulmineWithBtc(50_000)
+    // 1. Fund bancod taker with BTC
+    await fundBancodWithBtc(50_000)
 
     // 2. Create a maker wallet, fund and issue an asset
     const makerWallet = await createFundedWallet(100_000)
     const assetId = await issueAsset(makerWallet, 500)
     const pairName = `${assetId}/BTC`
 
-    // 3. Configure the pair
-    await addBancoPair(pairName, '', PRICE_FEED)
+    const wantAmount = 5000
+    const depositAmount = 500
+
+    // 3. Configure the pair (deposit is asset, want is BTC, so swap decimals)
+    await addBancoPair(pairName, priceFeedURL(depositAmount, wantAmount, 0, 8))
 
     try {
       const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
 
       // 4. Create offer: deposit asset, want BTC
       const { packet, swapPkScript } = await maker.createOffer({
-        wantAmount: BigInt(5000),
+        wantAmount: BigInt(wantAmount),
         offerAsset: asset.AssetId.fromString(assetId),
         cancelDelay: 300,
       })
@@ -289,7 +310,7 @@ test.describe('Banco taker-fulfilled swaps', () => {
       await makerWallet.send({
         address: swapAddress,
         amount: 450,
-        assets: [{ assetId, amount: 500 }],
+        assets: [{ assetId, amount: depositAmount }],
         extensions: [{ type: packet.type(), payload: packet.serialize() }],
       })
 
@@ -309,19 +330,22 @@ test.describe('Banco taker-fulfilled swaps', () => {
     const makerWallet = await createFundedWallet(100_000)
     const assetA = await issueAsset(makerWallet, 500)
 
-    // 2. Fund fulmine taker with assetB
-    const assetB = await fundFulmineWithAsset(1000)
+    // 2. Fund bancod taker with assetB
+    const assetB = await fundBancodWithAsset(1000)
     const pairName = `${assetA}/${assetB}`
 
-    // 3. Configure the pair
-    await addBancoPair(pairName, assetB, PRICE_FEED)
+    const wantAmount = 500
+    const depositAmount = 500
+
+    // 3. Configure the pair (asset/asset, both decimals 0)
+    await addBancoPair(pairName, priceFeedURL(depositAmount, wantAmount, 0, 0))
 
     try {
       const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
 
       // 4. Create offer: deposit assetA, want 500 of assetB
       const { packet, swapPkScript } = await maker.createOffer({
-        wantAmount: BigInt(500),
+        wantAmount: BigInt(wantAmount),
         wantAsset: asset.AssetId.fromString(assetB),
         offerAsset: asset.AssetId.fromString(assetA),
         cancelDelay: 300,
@@ -335,7 +359,7 @@ test.describe('Banco taker-fulfilled swaps', () => {
       await makerWallet.send({
         address: swapAddress,
         amount: 450,
-        assets: [{ assetId: assetA, amount: 500 }],
+        assets: [{ assetId: assetA, amount: depositAmount }],
         extensions: [{ type: packet.type(), payload: packet.serialize() }],
       })
 
@@ -351,7 +375,7 @@ test.describe('Banco taker-fulfilled swaps', () => {
         const match = v.assets!.find((a) => a.assetId === assetB)
         return sum + (match?.amount ?? 0)
       }, 0)
-      expect(totalAssetB).toBeGreaterThanOrEqual(500)
+      expect(totalAssetB).toBeGreaterThanOrEqual(wantAmount)
     } finally {
       await removeBancoPair(pairName)
     }

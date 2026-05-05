@@ -1,5 +1,4 @@
 import Text from './Text'
-import { IonToggle } from '@ionic/react'
 import FlexRow from './FlexRow'
 import FlexCol from './FlexCol'
 import Focusable from './Focusable'
@@ -14,17 +13,22 @@ interface ToggleProps {
 }
 
 export default function Toggle({ checked, onClick, text, subtext, testId }: ToggleProps) {
-  const handleClick = () => {
+  const handleChange = () => {
     hapticLight()
     onClick()
   }
 
   return (
     <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
-      <FlexRow between onClick={handleClick}>
+      <FlexRow between>
         <Text thin>{text}</Text>
-        <Focusable onEnter={handleClick} fit round>
-          <IonToggle checked={checked} data-testid={testId} />
+        <Focusable onEnter={handleChange} fit round>
+          <div className='cl-toggle-switch'>
+            <label className='cl-switch' data-checked={checked} data-testid={testId}>
+              <input type='checkbox' checked={checked} onChange={handleChange} />
+              <span />
+            </label>
+          </div>
         </Focusable>
       </FlexRow>
       {subtext ? (

@@ -213,6 +213,7 @@ export default function AppAssetMint() {
               ticker={ticker}
               icon={iconUrl && !iconError ? iconUrl : undefined}
               decimals={isNaN(parsedDecimals) ? 0 : parsedDecimals}
+              darkPurple
             />
             <FlexRow gap='0.5rem' alignItems='flex-end'>
               <div style={{ flex: 1, minWidth: 0 }}>

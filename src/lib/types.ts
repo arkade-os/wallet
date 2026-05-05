@@ -37,8 +37,11 @@ export enum CurrencyDisplay {
 }
 
 export type Delegate = {
-  name: string
+  fee: number
   url: string
+  name: string
+  pubkey: string
+  address: string
 }
 
 export enum Fiats {
@@ -65,7 +68,7 @@ export enum SettingsOptions {
   Advanced = 'advanced',
   Backup = 'backup',
   General = 'general',
-  Haptics = 'haptics feedback',
+  Haptics = 'haptic feedback',
   Lock = 'lock wallet',
   Logs = 'logs',
   Notifications = 'notifications',

@@ -67,7 +67,7 @@ export default function Wallet() {
 
   const handleReceive = () => {
     setRecvInfo(emptyRecvInfo)
-    navigate(Pages.ReceiveAmount)
+    navigate(Pages.ReceiveQRCode)
   }
 
   const handleSend = () => {

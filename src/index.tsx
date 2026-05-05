@@ -1,8 +1,6 @@
 import ReactDOM from 'react-dom/client'
 import './index.css'
-import './ionic.css'
 import App from './App'
-// import IconPreview from './screens/IconPreview'
 import { AspProvider } from './providers/asp'
 import { ConfigProvider } from './providers/config'
 import { FiatProvider } from './providers/fiat'
@@ -19,6 +17,7 @@ import { BancoProvider } from './providers/banco'
 import { shouldInitializeSentry } from './lib/sentry'
 import { FeesProvider } from './providers/fees'
 import { AnnouncementProvider } from './providers/announcements'
+import { ToastProvider } from './components/Toast'
 import ErrorBoundary from './components/ErrorBoundary'
 
 // Initialize Sentry only in production and when DSN is provided
@@ -81,9 +80,11 @@ root.render(
                         <OptionsProvider>
                           <NudgeProvider>
                             <AnnouncementProvider>
-                              <ErrorBoundary>
-                                <App />
-                              </ErrorBoundary>
+                              <ToastProvider>
+                                <ErrorBoundary>
+                                  <App />
+                                </ErrorBoundary>
+                              </ToastProvider>
                             </AnnouncementProvider>
                           </NudgeProvider>
                         </OptionsProvider>

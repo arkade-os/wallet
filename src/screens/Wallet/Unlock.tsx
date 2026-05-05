@@ -1,38 +1,32 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useState } from 'react'
 import { WalletContext } from '../../providers/wallet'
 import { consoleError } from '../../lib/logs'
-import { NavigationContext, Pages } from '../../providers/navigation'
 import NeedsPassword from '../../components/NeedsPassword'
 import Header from '../../components/Header'
+import { NavigationContext, Pages } from '../../providers/navigation'
+
 export default function Unlock() {
-  const { dataReady, unlockWallet } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
+  const { unlockWallet } = useContext(WalletContext)
 
   const [error, setError] = useState('')
   const [unlocking, setUnlocking] = useState(false)
-  const [unlocked, setUnlocked] = useState(false)
 
   const handleUnlock = async (password: string) => {
     setError('')
     setUnlocking(true)
     try {
       await unlockWallet(password)
-      setUnlocked(true)
+      navigate(Pages.Wallet)
     } catch (err) {
+      setUnlocking(false)
       if (err instanceof Error && err.message === 'Invalid password') {
-        setUnlocking(false)
-        setError('Invalid password')
-        return
+        return setError('Invalid password')
       }
       consoleError(err, 'error unlocking wallet')
-      setUnlocking(false)
       setError('Connection failed. Please try again.')
     }
   }
-
-  useEffect(() => {
-    if (unlocked && dataReady) navigate(Pages.Wallet)
-  }, [unlocked, dataReady, navigate])
 
   // While unlocking, render nothing — the boot animation from App.tsx
   // covers this loading state visually.

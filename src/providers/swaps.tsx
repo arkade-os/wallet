@@ -9,10 +9,10 @@ import {
   FeesResponse,
   IndexedDbSwapRepository,
   Network,
-  PendingChainSwap,
-  PendingReverseSwap,
-  PendingSubmarineSwap,
-  PendingSwap,
+  BoltzChainSwap,
+  BoltzReverseSwap,
+  BoltzSubmarineSwap,
+  BoltzSwap,
   ServiceWorkerArkadeSwaps,
   setLogger,
   SwapManagerClient,
@@ -20,7 +20,7 @@ import {
 import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
 import { sendOffChain } from '../lib/asp'
-import { ArkAddress, ServiceWorkerWallet } from '@arkade-os/sdk'
+import { ArkAddress, RestIndexerProvider } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 
 const BASE_URLS: Record<Network, string | null> = {
@@ -42,20 +42,20 @@ interface SwapsContextProps {
   calcBtcToArkSwapFee: (satoshis: number) => number
   createArkToBtcSwap: (address: string, sats: number) => Promise<ArkToBtcResponse | null>
   createBtcToArkSwap: (sats: number) => Promise<BtcToArkResponse | null>
-  payBtc: (swap: PendingChainSwap) => Promise<{ txid: string }>
-  claimArk: (swap: PendingChainSwap) => Promise<void>
-  claimBtc: (swap: PendingChainSwap) => Promise<void>
-  refundArk: (swap: PendingChainSwap) => Promise<void>
+  payBtc: (swap: BoltzChainSwap) => Promise<{ txid: string }>
+  claimArk: (swap: BoltzChainSwap) => Promise<void>
+  claimBtc: (swap: BoltzChainSwap) => Promise<void>
+  refundArk: (swap: BoltzChainSwap) => Promise<void>
   // Helper methods for lightning swaps
   calcReverseSwapFee: (satoshis: number) => number
   calcSubmarineSwapFee: (satoshis: number) => number
-  createSubmarineSwap: (invoice: string) => Promise<PendingSubmarineSwap | null>
-  createReverseSwap: (sats: number) => Promise<PendingReverseSwap | null>
-  claimVHTLC: (swap: PendingReverseSwap) => Promise<void>
-  refundVHTLC: (swap: PendingSubmarineSwap) => Promise<void>
-  payInvoice: (swap: PendingSubmarineSwap) => Promise<{ txid: string; preimage: string }>
+  createSubmarineSwap: (invoice: string) => Promise<BoltzSubmarineSwap | null>
+  createReverseSwap: (sats: number) => Promise<BoltzReverseSwap | null>
+  claimVHTLC: (swap: BoltzReverseSwap) => Promise<void>
+  refundVHTLC: (swap: BoltzSubmarineSwap) => Promise<void>
+  payInvoice: (swap: BoltzSubmarineSwap) => Promise<{ txid: string; preimage: string }>
   // Other helper methods
-  getSwapHistory: () => Promise<PendingSwap[]>
+  getSwapHistory: () => Promise<BoltzSwap[]>
   restoreSwaps: () => Promise<number>
   getApiUrl: () => string | null
 }
@@ -214,22 +214,22 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     return arkadeSwaps.btcToArk({ senderLockAmount: sats })
   }
 
-  const claimArk = async (swap: PendingChainSwap): Promise<void> => {
+  const claimArk = async (swap: BoltzChainSwap): Promise<void> => {
     if (!arkadeSwaps) return
     await arkadeSwaps.claimArk(swap)
   }
 
-  const claimBtc = async (swap: PendingChainSwap): Promise<void> => {
+  const claimBtc = async (swap: BoltzChainSwap): Promise<void> => {
     if (!arkadeSwaps) return
     await arkadeSwaps.claimBtc(swap)
   }
 
-  const refundArk = async (swap: PendingChainSwap): Promise<void> => {
+  const refundArk = async (swap: BoltzChainSwap): Promise<void> => {
     if (!arkadeSwaps) return
     await arkadeSwaps.refundArk(swap)
   }
 
-  const payBtc = async (pendingSwap: PendingChainSwap): Promise<{ txid: string }> => {
+  const payBtc = async (pendingSwap: BoltzChainSwap): Promise<{ txid: string }> => {
     if (!arkadeSwaps || !svcWallet) throw new Error('Chain swap not initialized')
     if (!pendingSwap) throw new Error('No pending swap found')
     if (!pendingSwap.response.lockupDetails.lockupAddress) throw new Error('No swap address found')
@@ -239,7 +239,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     const swapAddress = pendingSwap.response.lockupDetails.lockupAddress
 
     // Prevent double-funding: check that the swap address has no existing VTXOs
-    await assertSwapAddressUnfunded(svcWallet, swapAddress)
+    await assertSwapAddressUnfunded(aspInfo.url, swapAddress)
 
     const txid = await sendOffChain(svcWallet, satoshis, swapAddress)
     if (!txid) throw new Error('Failed to send offchain payment')
@@ -253,27 +253,27 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   // Helper methods that delegate to lightning swaps in arkadeSwaps
-  const createSubmarineSwap = async (invoice: string): Promise<PendingSubmarineSwap | null> => {
+  const createSubmarineSwap = async (invoice: string): Promise<BoltzSubmarineSwap | null> => {
     if (!arkadeSwaps) return null
     return arkadeSwaps.createSubmarineSwap({ invoice })
   }
 
-  const createReverseSwap = async (sats: number): Promise<PendingReverseSwap | null> => {
+  const createReverseSwap = async (sats: number): Promise<BoltzReverseSwap | null> => {
     if (!arkadeSwaps) return null
     return arkadeSwaps.createReverseSwap({ amount: sats, description: 'Lightning Invoice' })
   }
 
-  const claimVHTLC = async (swap: PendingReverseSwap): Promise<void> => {
+  const claimVHTLC = async (swap: BoltzReverseSwap): Promise<void> => {
     if (!arkadeSwaps) return
     await arkadeSwaps.claimVHTLC(swap)
   }
 
-  const refundVHTLC = async (swap: PendingSubmarineSwap): Promise<void> => {
+  const refundVHTLC = async (swap: BoltzSubmarineSwap): Promise<void> => {
     if (!arkadeSwaps) return
     await arkadeSwaps.refundVHTLC(swap)
   }
 
-  const payInvoice = async (pendingSwap: PendingSubmarineSwap): Promise<{ txid: string; preimage: string }> => {
+  const payInvoice = async (pendingSwap: BoltzSubmarineSwap): Promise<{ txid: string; preimage: string }> => {
     if (!arkadeSwaps || !svcWallet) throw new Error('Lightning not initialized')
     if (!pendingSwap) throw new Error('No pending swap found')
     if (!pendingSwap.response.address) throw new Error('No swap address found')
@@ -283,7 +283,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     const swapAddress = pendingSwap.response.address
 
     // Prevent double-funding: check that the swap address has no existing VTXOs before paying
-    await assertSwapAddressUnfunded(svcWallet, swapAddress)
+    await assertSwapAddressUnfunded(aspInfo.url, swapAddress)
 
     const txid = await sendOffChain(svcWallet, satoshis, swapAddress)
     if (!txid) throw new Error('Failed to send offchain payment')
@@ -297,7 +297,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const getSwapHistory = async (): Promise<PendingSwap[]> => {
+  const getSwapHistory = async (): Promise<BoltzSwap[]> => {
     if (!arkadeSwaps) return []
     return await arkadeSwaps.getSwapHistory()
   }
@@ -311,9 +311,9 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     let counter = 0
 
     // Restore swaps from Boltz endpoint
-    let chainSwaps: PendingChainSwap[] = []
-    let reverseSwaps: PendingReverseSwap[] = []
-    let submarineSwaps: PendingSubmarineSwap[] = []
+    let chainSwaps: BoltzChainSwap[] = []
+    let reverseSwaps: BoltzReverseSwap[] = []
+    let submarineSwaps: BoltzSubmarineSwap[] = []
     try {
       const result = await arkadeSwaps.restoreSwaps()
       chainSwaps = result.chainSwaps
@@ -402,13 +402,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   )
 }
 
-const assertSwapAddressUnfunded = async (svcWallet: ServiceWorkerWallet, swapAddress: string): Promise<void> => {
+const assertSwapAddressUnfunded = async (aspUrl: string, swapAddress: string): Promise<void> => {
   const decoded = ArkAddress.decode(swapAddress)
   const script = hex.encode(decoded.pkScript)
-  const manager = await svcWallet.getContractManager()
-  await manager.refreshVtxos({ scripts: [script], after: Date.now() - 5000 })
-  const contracts = await manager.getContractsWithVtxos({ script })
-  if (contracts.some((c) => c.vtxos.length > 0)) {
+  const indexer = new RestIndexerProvider(aspUrl)
+  const { vtxos } = await indexer.getVtxos({ scripts: [script], spendableOnly: true })
+  if (vtxos.length > 0) {
     throw new Error('Swap address already funded')
   }
 }

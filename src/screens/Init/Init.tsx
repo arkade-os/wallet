@@ -24,6 +24,7 @@ import SmallLogo from '../../components/SmallLogo'
 import BoltOutlineIcon from '../../icons/BoltOutline'
 import GlobeOutlineIcon from '../../icons/GlobeOutline'
 import ShieldCheckOutlineIcon from '../../icons/ShieldCheckOutline'
+import { WalletContext } from '../../providers/wallet'
 
 function BulletPoint({ icon, text }: { icon: ReactElement; text: string }) {
   return (
@@ -54,6 +55,7 @@ export default function Init() {
   const { aspInfo } = useContext(AspContext)
   const { setInitInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
+  const { authState, wallet } = useContext(WalletContext)
 
   const prefersReduced = useReducedMotion()
   const [error, setError] = useState(false)
@@ -67,6 +69,10 @@ export default function Init() {
   }, [])
 
   const aspReady = !!aspInfo.signerPubkey || aspInfo.unreachable
+
+  useEffect(() => {
+    if (wallet.pubkey && authState === 'authenticated') navigate(Pages.Wallet)
+  }, [wallet.pubkey, authState])
 
   useEffect(() => {
     setError(aspInfo.unreachable)

@@ -1,4 +1,3 @@
-import { IonGrid, IonRow, IonCol, IonProgressBar } from '@ionic/react'
 import Text from './Text'
 import FlexRow from './FlexRow'
 
@@ -32,35 +31,20 @@ export const StrengthLabel = ({ strength }: { strength: number }): JSX.Element =
   </FlexRow>
 )
 
-export default function StrengthBars({ strength }: { strength: number }) {
+export function StrengthBars({ strength }: { strength: number }) {
   const style = (col: number): React.CSSProperties => ({
     backgroundColor: col < strength ? `var(--${getColor(strength)})` : '',
-    border: '1px solid var(--dark20)',
-    height: '0.5rem',
+    height: '4px',
     width: '100%',
   })
 
   return (
-    <IonGrid style={{ width: '100%' }}>
-      <IonRow>
-        <IonCol size='3'>
-          <div style={style(0)} />
-        </IonCol>
-        <IonCol size='3'>
-          <div style={style(1)} />
-        </IonCol>
-        <IonCol size='3'>
-          <div style={style(2)} />
-        </IonCol>
-        <IonCol size='3'>
-          <div style={style(3)} />
-        </IonCol>
-      </IonRow>
-    </IonGrid>
+    <div style={{ width: '100%' }}>
+      <FlexRow gap='0'>
+        {[0, 1, 2, 3].map((col) => (
+          <div key={col} style={style(col)} />
+        ))}
+      </FlexRow>
+    </div>
   )
-}
-
-export function StrengthProgress({ strength }: { strength: number }) {
-  const color = getColor(strength)
-  return <IonProgressBar value={strength * 0.25} color={color} style={{ height: '4px' }} />
 }

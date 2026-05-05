@@ -1,8 +1,8 @@
 /**
  * Banco e2e test helpers.
  *
- * Provides functions to configure fulmine's taker bot, issue assets,
- * and fund fulmine with assets — all from the Node.js test process.
+ * Provides functions to configure bancod's solver bot, issue assets,
+ * and fund bancod with assets — all from the Node.js test process.
  */
 import {
   ArkNote,
@@ -20,7 +20,7 @@ import { promisify } from 'util'
 const execAsync = promisify(exec)
 
 const ARK_URL = 'http://localhost:7070'
-const FULMINE_URL = 'http://localhost:7001'
+const BANCOD_URL = 'http://localhost:7091'
 
 // ── SDK wallet helpers ──
 
@@ -77,9 +77,17 @@ export async function createFundedWallet(amount = 100_000): Promise<Wallet> {
   return wallet
 }
 
-/** Issue an asset from a funded wallet. Returns the asset ID string. */
+/**
+ * Issue an asset from a funded wallet. Returns the asset ID string.
+ *
+ * Sets `decimals: 0` metadata — bancod's pair validation requires the asset
+ * to publish a `decimals` value via the indexer.
+ */
 export async function issueAsset(wallet: Wallet, supply: number): Promise<string> {
-  const result = await wallet.assetManager.issue({ amount: supply })
+  const result = await wallet.assetManager.issue({
+    amount: supply,
+    metadata: { decimals: 0 },
+  })
   return result.assetId
 }
 
@@ -98,30 +106,38 @@ export async function sendAsset(
   })
 }
 
-// ── Fulmine taker bot helpers ──
+// ── bancod solver bot helpers ──
 
-/** Get fulmine's offchain ark address. */
-export async function getFulmineAddress(): Promise<string> {
-  const resp = await fetch(`${FULMINE_URL}/api/v1/address`)
-  const data = await resp.json()
-  // BIP21 format: bitcoin:<onchain>?ark=<offchain>
-  const bip21: string = data.address
-  const parts = bip21.split('?ark=')
-  if (parts.length !== 2) throw new Error('Unexpected fulmine address format: ' + bip21)
-  return parts[1]
+/** Get bancod's offchain ark address. */
+export async function getBancodAddress(): Promise<string> {
+  const resp = await fetch(`${BANCOD_URL}/v1/address`)
+  if (!resp.ok) {
+    throw new Error(`Failed to get bancod address: ${resp.status} ${await resp.text()}`)
+  }
+  const data = (await resp.json()) as { offchain_address?: string; offchainAddress?: string }
+  const addr = data.offchain_address ?? data.offchainAddress
+  if (!addr) throw new Error(`Unexpected bancod address response: ${JSON.stringify(data)}`)
+  return addr
 }
 
-/** Add a banco pair on fulmine's taker bot. */
-export async function addBancoPair(pair: string, quoteAssetId: string, priceFeed: string): Promise<void> {
-  const resp = await fetch(`${FULMINE_URL}/api/v1/banco/pair`, {
+/**
+ * Add a trading pair on bancod.
+ *
+ * The pair name encodes both sides of the swap: each side is either `BTC` for
+ * native bitcoin or the hex asset id. To want BTC, leave the quote side empty
+ * (e.g. `<asset_id>/`).
+ */
+export async function addBancoPair(pair: string, priceFeed: string): Promise<void> {
+  const resp = await fetch(`${BANCOD_URL}/v1/pair`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      pair,
-      quote_asset_id: quoteAssetId,
-      min_amount: '1',
-      max_amount: '100000000',
-      price_feed: priceFeed,
+      pair: {
+        pair,
+        min_amount: 1,
+        max_amount: 100_000_000,
+        price_feed: priceFeed,
+      },
     }),
   })
   if (!resp.ok) {
@@ -130,29 +146,32 @@ export async function addBancoPair(pair: string, quoteAssetId: string, priceFeed
   }
 }
 
-/** Remove a banco pair from fulmine's taker bot. */
+/** Remove a trading pair from bancod. */
 export async function removeBancoPair(pair: string): Promise<void> {
-  await fetch(`${FULMINE_URL}/api/v1/banco/pair/${encodeURIComponent(pair)}`, {
+  await fetch(`${BANCOD_URL}/v1/pair/${encodeURIComponent(pair)}`, {
     method: 'DELETE',
   })
 }
 
-/** Fund fulmine's taker wallet with an asset by sending from a helper wallet. */
-export async function fundFulmineWithAsset(supply: number): Promise<string> {
+/** Fund bancod's wallet with an asset by sending from a helper wallet. */
+export async function fundBancodWithAsset(supply: number): Promise<string> {
   const helperWallet = await createFundedWallet(100_000)
   const assetId = await issueAsset(helperWallet, supply)
-  const fulmineAddr = await getFulmineAddress()
-  await sendAsset(helperWallet, fulmineAddr, assetId, supply)
-  // Give fulmine time to see the incoming VTXO
+  // The wallet's coin view lags issuance by an arkd round; wait for the asset
+  // VTXO to materialize before trying to send it.
+  await waitForAssetVtxo(helperWallet, assetId)
+  const bancodAddr = await getBancodAddress()
+  await sendAsset(helperWallet, bancodAddr, assetId, supply)
+  // Give bancod time to see the incoming VTXO
   await new Promise((r) => setTimeout(r, 3000))
   return assetId
 }
 
-/** Fund fulmine with BTC by sending offchain from a helper wallet. */
-export async function fundFulmineWithBtc(amount = 50_000): Promise<void> {
+/** Fund bancod with BTC by sending offchain from a helper wallet. */
+export async function fundBancodWithBtc(amount = 50_000): Promise<void> {
   const helperWallet = await createFundedWallet(200_000)
-  const fulmineAddr = await getFulmineAddress()
-  await helperWallet.send({ address: fulmineAddr, amount })
+  const bancodAddr = await getBancodAddress()
+  await helperWallet.send({ address: bancodAddr, amount })
   await new Promise((r) => setTimeout(r, 3000))
 }
 

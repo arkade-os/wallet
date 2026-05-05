@@ -1,11 +1,12 @@
 import { prettyDate } from '../lib/format'
-import { IonActionSheet } from '@ionic/react'
 import {
   CalendarEvent,
   generateAppleCalendarUrl,
   generateGoogleCalendarUrl,
   generateOutlookCalendarUrl,
 } from '../lib/calendar'
+import SheetModal from './SheetModal'
+import FlexCol from './FlexCol'
 interface ReminderProps {
   callback: () => void
   duration: number
@@ -40,30 +41,36 @@ export default function Reminder({ callback, duration, name, isOpen, startTime }
     callback()
   }
 
+  const headerStyle: React.CSSProperties = {
+    fontSize: '1rem',
+    fontWeight: 700,
+  }
+
+  const subHeaderStyle: React.CSSProperties = {
+    fontSize: '0.8rem',
+    fontWeight: 400,
+    color: 'var(--dark50)',
+  }
+
   return (
-    <IonActionSheet
-      onDidDismiss={callback}
-      cssClass='my-ion-action-sheet'
-      header={name}
-      subHeader={prettyDate(startTime)}
-      isOpen={isOpen}
-      buttons={[
-        {
-          cssClass: 'reminder-button',
-          text: 'Google Calendar',
-          handler: handleGoogle,
-        },
-        {
-          cssClass: 'reminder-button',
-          text: 'Apple Calendar',
-          handler: handleApple,
-        },
-        {
-          cssClass: 'reminder-button',
-          text: 'Outlook',
-          handler: handleOutlook,
-        },
-      ]}
-    />
+    <SheetModal isOpen={isOpen} onClose={callback}>
+      <FlexCol gap='2rem'>
+        <FlexCol centered>
+          <p style={headerStyle}>{name}</p>
+          <p style={subHeaderStyle}>{prettyDate(startTime)}</p>
+        </FlexCol>
+        <FlexCol>
+          <button className='reminder-button' onClick={handleGoogle}>
+            Google Calendar
+          </button>
+          <button className='reminder-button' onClick={handleApple}>
+            Apple Calendar
+          </button>
+          <button className='reminder-button' onClick={handleOutlook}>
+            Outlook
+          </button>
+        </FlexCol>
+      </FlexCol>
+    </SheetModal>
   )
 }

@@ -3,27 +3,25 @@ import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import FlexRow from '../../../components/FlexRow'
 import Padded from '../../../components/Padded'
-import Shadow from '../../../components/Shadow'
 import Text from '../../../components/Text'
-import AssetAvatar from '../../../components/AssetAvatar'
 import SuccessIcon from '../../../icons/Success'
 import Success from '../../../components/Success'
 import { NotificationsContext } from '../../../providers/notifications'
 import { FlowContext } from '../../../providers/flow'
 import Header from '../../../components/Header'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import { formatAssetAmount, prettyAmount } from '../../../lib/format'
+import { formatAssetAmount, prettyAmount, prettyFiatAmount } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import type { AssetDetails } from '@arkade-os/sdk'
+import AssetCard from '../../../components/AssetCard'
 
 export default function ReceiveSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
-  const { toFiat, fiatDecimals } = useContext(FiatContext)
+  const { toFiat } = useContext(FiatContext)
   const { recvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetMetadataCache, setCacheEntry, svcWallet } = useContext(WalletContext)
@@ -76,7 +74,7 @@ export default function ReceiveSuccess() {
   }, [assetDetails])
 
   const displayAmount = useFiat
-    ? prettyAmount(toFiat(recvInfo.satoshis), config.fiat, fiatDecimals())
+    ? prettyFiatAmount(toFiat(recvInfo.satoshis), config.fiat)
     : prettyAmount(recvInfo.satoshis)
 
   if (isAssetReceive) {
@@ -98,22 +96,14 @@ export default function ReceiveSuccess() {
                 const icon = meta?.icon
 
                 return (
-                  <Shadow border key={a.assetId}>
-                    <FlexRow between padding='0.75rem'>
-                      <FlexRow>
-                        <AssetAvatar icon={icon} ticker={ticker} name={name} size={32} assetId={a.assetId} clickable />
-                        <FlexCol gap='0'>
-                          <Text bold>{name}</Text>
-                          {ticker ? (
-                            <Text color='dark50' smaller>
-                              {ticker}
-                            </Text>
-                          ) : null}
-                        </FlexCol>
-                      </FlexRow>
-                      <Text bold>{formatAssetAmount(a.amount, meta?.decimals ?? 0)}</Text>
-                    </FlexRow>
-                  </Shadow>
+                  <AssetCard
+                    assetId={a.assetId}
+                    balance={a.amount}
+                    decimals={meta?.decimals ?? 0}
+                    icon={icon}
+                    name={name}
+                    ticker={ticker}
+                  />
                 )
               })}
 

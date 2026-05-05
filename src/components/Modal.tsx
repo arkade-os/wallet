@@ -9,7 +9,7 @@ export default function Modal({ children }: { children: React.ReactNode }) {
     width: '100%',
     height: '100%',
     position: 'absolute' as 'absolute',
-    backgroundColor: 'var(--ion-background-color)',
+    backgroundColor: 'var(--background-color)',
   }
 
   const containerStyle = {
@@ -31,7 +31,7 @@ export default function Modal({ children }: { children: React.ReactNode }) {
     maxWidth: 'min(22rem, 90%)',
     borderRadius: '0.5rem',
     border: '1px solid var(--dark10)',
-    backgroundColor: 'var(--ion-background-color)',
+    backgroundColor: 'var(--background-color)',
     pointerEvents: 'auto' as 'auto', // Enable clicks on the modal content
   }
 

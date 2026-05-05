@@ -4,12 +4,13 @@ import { EmptySwapList } from './Empty'
 import { FlowContext } from '../providers/flow'
 import { ConfigContext } from '../providers/config'
 import Text, { TextLabel, TextSecondary } from './Text'
-import { useContext, useEffect, useState } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { SwapsContext } from '../providers/swaps'
 import { NavigationContext, Pages } from '../providers/navigation'
 import { prettyAgo, prettyAmount, prettyDate, prettyHide } from '../lib/format'
 import { SwapFailedIcon, SwapPendingIcon, SwapSuccessIcon } from '../icons/Swap'
-import { BoltzSwapStatus, PendingSwap } from '@arkade-os/boltz-swap'
+import { BoltzSwapStatus, BoltzSwap } from '@arkade-os/boltz-swap'
 import { consoleError } from '../lib/logs'
 import Focusable from './Focusable'
 
@@ -51,7 +52,7 @@ const iconDict: Record<statusUI, JSX.Element> = {
   Refunded: <SwapFailedIcon />,
 }
 
-const SwapLine = ({ onClick, swap }: { onClick: () => void; swap: PendingSwap }) => {
+const SwapLine = ({ onClick, swap }: { onClick: () => void; swap: BoltzSwap }) => {
   const { config } = useContext(ConfigContext)
 
   let sats = 0,
@@ -59,7 +60,7 @@ const SwapLine = ({ onClick, swap }: { onClick: () => void; swap: PendingSwap })
     prefix = ''
 
   if (swap.type === 'reverse') {
-    sats = swap.response.onchainAmount
+    sats = swap.response.onchainAmount ?? 0
     direction = 'Lightning to Arkade'
     prefix = '+'
   } else if (swap.type === 'submarine') {
@@ -79,7 +80,7 @@ const SwapLine = ({ onClick, swap }: { onClick: () => void; swap: PendingSwap })
 
   if (!direction || !prefix) throw new Error('Invalid swap data')
 
-  const status: statusUI = statusDict[swap.status] || 'Pending'
+  const status: statusUI = statusDict[swap.status as BoltzSwapStatus] || 'Pending'
   const amount = `${prefix} ${config.showBalance ? prettyAmount(sats) : prettyHide(sats)}`
   const when = window.innerWidth < 400 ? prettyAgo(swap.createdAt) : prettyDate(swap.createdAt)
   const refunded = swap.type === 'submarine' && swap.refunded
@@ -123,7 +124,9 @@ export default function SwapsList() {
   const { swapManager, getSwapHistory } = useContext(SwapsContext)
 
   const [focused, setFocused] = useState(false)
-  const [swapHistory, setSwapHistory] = useState<PendingSwap[]>([])
+  const [swapHistory, setSwapHistory] = useState<BoltzSwap[]>([])
+
+  const parentRef = useRef<HTMLDivElement>(null)
 
   // Load initial swap history
   useEffect(() => {
@@ -167,6 +170,13 @@ export default function SwapsList() {
     }
   }, [swapManager])
 
+  const virtualizer = useVirtualizer({
+    count: swapHistory.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 61,
+    overscan: 5,
+  })
+
   if (swapHistory.length === 0) return <EmptySwapList />
 
   const focusOnFirstRow = () => {
@@ -183,34 +193,60 @@ export default function SwapsList() {
     if (outer) outer.focus()
   }
 
-  const ariaLabel = (swap?: PendingSwap) => {
+  const ariaLabel = (swap?: BoltzSwap) => {
     if (!swap) return 'Pressing Enter enables keyboard navigation of the swap list'
     return `Transaction ${swap.type} with status ${swap.status}. Press Escape to exit keyboard navigation.`
   }
 
-  const handleClick = (swap: PendingSwap) => {
+  const handleClick = (swap: BoltzSwap) => {
     setSwapInfo(swap)
     navigate(Pages.AppBoltzSwap)
   }
 
-  const key = (swap: PendingSwap) => swap.response.id
+  const key = (swap: BoltzSwap) => swap.response.id
 
   return (
-    <div style={{ width: '100%' }} className='scroll-fade'>
+    <div style={{ width: '100%' }}>
       <TextLabel>Swap history</TextLabel>
       <Focusable id='outer' inactive={focused} onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
-        {swapHistory.map((swap) => (
-          <Focusable
-            id={key(swap)}
-            key={key(swap)}
-            inactive={!focused}
-            ariaLabel={ariaLabel(swap)}
-            onEscape={focusOnOuterShell}
-            onEnter={() => handleClick(swap)}
-          >
-            <SwapLine onClick={() => handleClick(swap)} swap={swap} />
-          </Focusable>
-        ))}
+        <div
+          ref={parentRef}
+          className='hide-scrollbar scroll-fade'
+          style={{
+            borderBottom: border,
+            height: 'calc(100dvh - 280px)',
+            minHeight: '200px',
+            overflowY: 'auto',
+          }}
+        >
+          <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
+            {virtualizer.getVirtualItems().map((virtualItem) => {
+              const swap = swapHistory[virtualItem.index]
+              return (
+                <div
+                  key={key(swap)}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualItem.start}px)`,
+                  }}
+                >
+                  <Focusable
+                    id={key(swap)}
+                    inactive={!focused}
+                    ariaLabel={ariaLabel(swap)}
+                    onEscape={focusOnOuterShell}
+                    onEnter={() => handleClick(swap)}
+                  >
+                    <SwapLine onClick={() => handleClick(swap)} swap={swap} />
+                  </Focusable>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       </Focusable>
     </div>
   )

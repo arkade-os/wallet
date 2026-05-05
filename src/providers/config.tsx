@@ -101,7 +101,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
   const applyTheme = (theme: Themes) => {
     const resolved = resolveTheme(theme)
     setEffectiveTheme(resolved)
-    const darkPalette = 'ion-palette-dark'
+    const darkPalette = 'palette-dark'
     const root = document.documentElement
     if (resolved === Themes.Dark) root.classList.add(darkPalette)
     else root.classList.remove(darkPalette)

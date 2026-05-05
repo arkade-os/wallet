@@ -1,22 +1,5 @@
-import '@ionic/react/css/core.css'
-/* Basic CSS for apps built with Ionic */
-import '@ionic/react/css/normalize.css'
-import '@ionic/react/css/structure.css'
-import '@ionic/react/css/typography.css'
-
-/* Optional CSS utils that can be commented out */
-import '@ionic/react/css/padding.css'
-import '@ionic/react/css/float-elements.css'
-import '@ionic/react/css/text-alignment.css'
-import '@ionic/react/css/text-transformation.css'
-import '@ionic/react/css/flex-utils.css'
-import '@ionic/react/css/display.css'
-
-import '@ionic/react/css/palettes/dark.class.css'
-
 import { AnimatePresence } from 'framer-motion'
 import { ConfigContext } from './providers/config'
-import { IonApp, IonPage, IonTab, IonTabBar, IonTabButton, IonTabs, setupIonicReact } from '@ionic/react'
 import { NavigationContext, pageComponent, Pages, Tabs, type NavigationDirection } from './providers/navigation'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { isInAppBrowser } from './lib/browser'
@@ -29,21 +12,13 @@ import { AspContext } from './providers/asp'
 import { hapticLight } from './lib/haptics'
 import { setBootAnimActive as syncBootAnimFlag } from './lib/logoAnchor'
 import { PageTransition } from './components/PageTransition'
-import SettingsIcon from './icons/Settings'
 import BootError from './components/BootError'
 import LoadingLogo from './components/LoadingLogo'
 import PillNavbarOverlay from './components/PillNavbarOverlay'
-import FlexCol from './components/FlexCol'
-import WalletIcon from './icons/Wallet'
-import AppsIcon from './icons/Apps'
-import BancoIcon from './screens/Apps/Banco/BancoIcon'
-import Focusable from './components/Focusable'
 import { useReducedMotion } from './hooks/useReducedMotion'
 import { useLoadingStatus } from './hooks/useLoadingStatus'
 import { defaultPassword } from './lib/constants'
 import { consoleError } from './lib/logs'
-
-setupIonicReact()
 
 const PASSWORDLESS_AUTO_RELOAD_KEY = 'passwordless-auto-reload-attempted'
 export const appReloader = {
@@ -67,29 +42,6 @@ function PageAnimWrapper({
   )
 }
 
-const animClass = 'tab-anim-pop'
-
-function AnimatedTabIcon({ children, animating }: { children: React.ReactNode; animating: boolean }) {
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!animating || !ref.current) return
-    const el = ref.current
-    el.classList.remove(animClass)
-    void el.offsetWidth // Force reflow so removing + re-adding the class triggers the animation
-    el.classList.add(animClass)
-    const handleEnd = () => el.classList.remove(animClass)
-    el.addEventListener('animationend', handleEnd)
-    return () => el.removeEventListener('animationend', handleEnd)
-  }, [animating])
-
-  return (
-    <div ref={ref} className='tab-icon-animated'>
-      {children}
-    </div>
-  )
-}
-
 export default function App() {
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
@@ -102,7 +54,6 @@ export default function App() {
   const isIAB = useMemo(() => isInAppBrowser(), [])
   const [isCapable, setIsCapable] = useState(false)
   const [jsCapabilitiesChecked, setJsCapabilitiesChecked] = useState(false)
-  const [animatingTab, setAnimatingTab] = useState<string | null>(null)
   const [bootAnimActive, setBootAnimActive] = useState(false)
   // Syncs the external store before React re-renders, so Wallet reads
   // the correct value on the same frame LoadingLogo unmounts.
@@ -113,11 +64,6 @@ export default function App() {
   const [bootAnimDone, setBootAnimDone] = useState(false)
   const [bootExitMode, setBootExitMode] = useState<'fly-to-target' | 'fly-up'>('fly-up')
 
-  // refs for the tabs to be able to programmatically activate them
-  const appsRef = useRef<HTMLIonTabElement>(null)
-  const walletRef = useRef<HTMLIonTabElement>(null)
-  const swapsRef = useRef<HTMLIonTabElement>(null)
-  const settingsRef = useRef<HTMLIonTabElement>(null)
   const passwordlessBootAttempted = useRef(false)
   const passwordlessReloadTimer = useRef<ReturnType<typeof setTimeout>>()
 
@@ -160,54 +106,22 @@ export default function App() {
     if (authState === 'locked') return navigate(Pages.Unlock)
   }, [walletLoaded, wallet.pubkey, authState, initInfo, aspInfo.unreachable, jsCapabilitiesChecked, isCapable])
 
-  // for some reason you need to manually set the active tab
-  // if you are coming from a page in a different tab
-  useEffect(() => {
-    const allRefs = [walletRef, appsRef, swapsRef, settingsRef]
-    const activeRef =
-      tab === Tabs.Wallet
-        ? walletRef
-        : tab === Tabs.Apps
-          ? appsRef
-          : tab === Tabs.Swaps
-            ? swapsRef
-            : tab === Tabs.Settings
-              ? settingsRef
-              : null
-    if (activeRef) {
-      activeRef.current?.setActive()
-      for (const ref of allRefs) {
-        if (ref === activeRef) ref.current?.classList.remove('tab-hidden')
-        else ref.current?.classList.add('tab-hidden')
-      }
-    }
-  }, [tab])
-
-  const triggerTabAnim = useCallback((tabName: string) => {
-    setAnimatingTab(null)
-    requestAnimationFrame(() => setAnimatingTab(tabName))
-  }, [])
-
   const handleWallet = () => {
-    triggerTabAnim('wallet')
     hapticLight()
     navigate(Pages.Wallet)
   }
 
   const handleApps = () => {
-    triggerTabAnim('apps')
     hapticLight()
     navigate(Pages.Apps)
   }
 
   const handleSwaps = () => {
-    triggerTabAnim('swaps')
     hapticLight()
     navigate(Pages.Swaps)
   }
 
   const handleSettings = () => {
-    triggerTabAnim('settings')
     hapticLight()
     setOption(SettingsOptions.Menu)
     navigate(Pages.Settings)
@@ -223,7 +137,7 @@ export default function App() {
   const isNewUser = walletLoaded && !wallet.pubkey
   const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
   const hasStoredWallet = walletLoaded && !!wallet.pubkey
-  const shouldShowUnlock = hasStoredWallet && authState === 'locked'
+  const shouldShowUnlock = hasStoredWallet && authState === 'locked' && !aspInfo.unreachable
   // Hold the loading screen during boot until wallet data is ready.
   // Skip during the init/connect flow (creating or restoring a wallet) so the
   // Connect component stays mounted and can run swap recovery before navigating.
@@ -269,8 +183,10 @@ export default function App() {
 
   // Boot animation: persists on Loading, then flies to the LogoIcon position when
   // Wallet is reached. For any other destination (Unlock, Init, etc.), exits with fly-up.
+  // Skip in dev with VITE_DEV_NSEC — the fast auto-init races with the animation.
   useEffect(() => {
-    // Start boot animation when we first see the Loading page
+    if (import.meta.env.DEV && import.meta.env.VITE_DEV_NSEC) return
+
     if (page === Pages.Loading && !bootAnimActive) {
       setBootAnimDone(false)
       setBootExitMode('fly-up')
@@ -280,17 +196,12 @@ export default function App() {
 
     if (!bootAnimActive || bootAnimDone) return
 
-    // When we reach Wallet, fly to the logo target
     if (page === Pages.Wallet) {
       setBootExitMode('fly-to-target')
       setBootAnimDone(true)
       return
     }
 
-    // If we land on any non-Loading page (Unlock, Init, etc.), fly up and exit.
-    // For passwordless wallets page goes Loading → Wallet (never Unlock), so this
-    // only fires for locked wallets or when passwordless auto-boot fails — in both
-    // cases the overlay must dismiss to reveal the Unlock/Init page underneath.
     if (page !== Pages.Loading) {
       setBootExitMode('fly-up')
       setBootAnimDone(true)
@@ -307,109 +218,12 @@ export default function App() {
     page === screen && (screen === Pages.Wallet || screen === Pages.Apps || screen === Pages.Swaps || isSettingsRoot)
 
   return (
-    <IonApp className={showNavbar ? 'has-pill-navbar' : undefined}>
-      <IonPage>
-        {tab === Tabs.None ? (
-          <div className='page-transition-container'>
-            <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-              <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                {comp}
-              </PageTransition>
-            </PageAnimWrapper>
-          </div>
-        ) : (
-          <>
-            <IonTabs>
-              <IonTab ref={walletRef} tab={Tabs.Wallet}>
-                <div className='page-transition-container'>
-                  <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-                    {tab === Tabs.Wallet && (
-                      <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                        {comp}
-                      </PageTransition>
-                    )}
-                  </PageAnimWrapper>
-                </div>
-              </IonTab>
-              <IonTab ref={appsRef} tab={Tabs.Apps}>
-                <div className='page-transition-container'>
-                  <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-                    {tab === Tabs.Apps && (
-                      <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                        {comp}
-                      </PageTransition>
-                    )}
-                  </PageAnimWrapper>
-                </div>
-              </IonTab>
-              <IonTab ref={swapsRef} tab={Tabs.Swaps}>
-                <div className='page-transition-container'>
-                  <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-                    {tab === Tabs.Swaps && (
-                      <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                        {comp}
-                      </PageTransition>
-                    )}
-                  </PageAnimWrapper>
-                </div>
-              </IonTab>
-              <IonTab ref={settingsRef} tab={Tabs.Settings}>
-                <div className='page-transition-container'>
-                  <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
-                    {tab === Tabs.Settings && (
-                      <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-                        {comp}
-                      </PageTransition>
-                    )}
-                  </PageAnimWrapper>
-                </div>
-              </IonTab>
-              <IonTabBar slot='bottom'>
-                <IonTabButton tab={Tabs.Wallet} onClick={handleWallet} selected={tab === Tabs.Wallet}>
-                  <Focusable>
-                    <FlexCol centered gap='6px' padding='5px'>
-                      <AnimatedTabIcon animating={animatingTab === 'wallet'}>
-                        <WalletIcon />
-                      </AnimatedTabIcon>
-                      Wallet
-                    </FlexCol>
-                  </Focusable>
-                </IonTabButton>
-                <IonTabButton tab={Tabs.Swaps} onClick={handleSwaps} selected={tab === Tabs.Swaps}>
-                  <Focusable>
-                    <FlexCol centered gap='6px' padding='5px'>
-                      <AnimatedTabIcon animating={animatingTab === 'swaps'}>
-                        <BancoIcon />
-                      </AnimatedTabIcon>
-                      Swaps
-                    </FlexCol>
-                  </Focusable>
-                </IonTabButton>
-                <IonTabButton tab={Tabs.Apps} onClick={handleApps} selected={tab === Tabs.Apps}>
-                  <Focusable>
-                    <FlexCol centered gap='6px' padding='5px'>
-                      <AnimatedTabIcon animating={animatingTab === 'apps'}>
-                        <AppsIcon />
-                      </AnimatedTabIcon>
-                      Apps
-                    </FlexCol>
-                  </Focusable>
-                </IonTabButton>
-                <IonTabButton tab={Tabs.Settings} onClick={handleSettings} selected={tab === Tabs.Settings}>
-                  <Focusable>
-                    <FlexCol centered gap='6px' padding='5px'>
-                      <AnimatedTabIcon animating={animatingTab === 'settings'}>
-                        <SettingsIcon />
-                      </AnimatedTabIcon>
-                      Settings
-                    </FlexCol>
-                  </Focusable>
-                </IonTabButton>
-              </IonTabBar>
-            </IonTabs>
-          </>
-        )}
-      </IonPage>
+    <div className={showNavbar ? 'page has-pill-navbar' : 'page'} data-testid='app'>
+      <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
+        <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+          {comp}
+        </PageTransition>
+      </PageAnimWrapper>
       {tab !== Tabs.None && !bootAnimActive && (
         <PillNavbarOverlay
           visible={showNavbar}
@@ -432,6 +246,6 @@ export default function App() {
           />
         )
       ) : null}
-    </IonApp>
+    </div>
   )
 }

@@ -143,7 +143,7 @@ export function useLnurlSession(
 
                 const amountMsat = Number(data.amountMsat)
                 if (!amountMsat || amountMsat <= 0) {
-                  consoleError('Invalid amountMsat in invoice request:', data.amountMsat)
+                  consoleError('Invalid amountMsat in invoice request:', amountMsat.toString())
                   await postError(sessionId, 'Invalid amount', abort.signal)
                   eventType = ''
                   continue

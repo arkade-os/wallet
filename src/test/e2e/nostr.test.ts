@@ -9,6 +9,7 @@ import {
 } from './utils'
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import { sleep } from '../../lib/sleep'
 
 const execAsync = promisify(exec)
 
@@ -25,13 +26,14 @@ const execAsync = promisify(exec)
 // 9. Restore wallet with nsec key
 // 10. Verify setting is euro (proving it was restored from nostr)
 test('should save config to nostr', async ({ page }) => {
+  test.setTimeout(60000)
   // create wallet
   await createWallet(page)
 
   // enable nostr backups
   await page.getByTestId('tab-settings').click()
   await page.getByText('backup', { exact: true }).click()
-  await page.getByText('Enable Nostr backups').click()
+  await page.getByTestId('toggle-backup').click()
 
   // change fiat currency to euro
   await page.getByLabel('Go back').click()
@@ -48,7 +50,7 @@ test('should save config to nostr', async ({ page }) => {
   // disable nostr backups
   await page.getByLabel('Go back').click()
   await page.getByText('backup', { exact: true }).click()
-  await page.getByText('Enable Nostr backups').click()
+  await page.getByTestId('toggle-backup').click()
 
   // change fiat currency to usd
   await page.getByLabel('Go back').click()
@@ -70,12 +72,12 @@ test('should save config to nostr', async ({ page }) => {
 })
 
 test('should save swaps to nostr', async ({ page, isMobile }) => {
-  test.setTimeout(120000)
+  test.setTimeout(60000)
   // create wallet
   await createWallet(page)
 
   // copy invoice
-  const receiveInvoice = await receiveLightning(page, isMobile, 2000)
+  const receiveInvoice = await receiveLightning(page, isMobile, 5000)
   expect(receiveInvoice).toBeDefined()
   expect(receiveInvoice).toBeTruthy()
   expect(receiveInvoice).toContain('lnbcrt')
@@ -90,13 +92,19 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
-  await expect(page.getByText('+ 1,992 SATS', { exact: true })).toBeVisible()
+  await expect(page.getByText('+ 4,980 SATS', { exact: true })).toBeVisible()
   await page.getByLabel('Go back').click()
 
   // transaction should be visible on main page
   await page.getByTestId('tab-wallet').click()
   await page.waitForSelector('text=Received', { timeout: 10000 })
-  await expect(page.getByText('1,992', { exact: true })).toBeVisible()
+  await expect(page.getByText('4,980', { exact: true })).toBeVisible()
+
+  /**
+   * submarine swap
+   */
+
+  await sleep(3000)
 
   // generate lightning invoice to pay
   const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
@@ -122,20 +130,41 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
 
   // transaction should be visible on main page
   await page.getByTestId('tab-wallet').click()
+  await page.waitForSelector('text=Sent', { timeout: 10000 })
   await expect(page.getByText('- 1,001 SATS')).toBeVisible()
+
+  /**
+   * chain swap
+   */
+
+  await sleep(3000)
+
+  // send page
+  const someOnchainAddress = 'bcrt1pxxxth5z4yn8nylc6nzz6w3vkumwdllaky5sls7an8e044u2qlnes2vvy6y'
+  await pay(page, someOnchainAddress, isMobile, 2000)
+
+  // should be visible in Boltz app
+  await page.getByTestId('tab-apps').click()
+  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
+  await page.getByTestId('app-boltz').click()
+  await expect(page.getByText('Arkade to Bitcoin', { exact: true })).toBeVisible()
+  await page.getByLabel('Go back').click()
 
   // enable nostr backups
   await page.getByTestId('tab-settings').click()
   await page.getByText('backup', { exact: true }).click()
-  await page.getByText('Enable Nostr backups').click()
+  await page.getByTestId('toggle-backup').click()
+  await sleep(3000) // wait for backup to complete
 
   // restore wallet
   await resetAndRestoreWallet(page)
+  await sleep(3000) // wait for restore to complete
 
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
   await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
   await page.getByTestId('app-boltz').click()
   await expect(page.getByText('- 1,001 SATS', { exact: true })).toBeVisible()
-  await expect(page.getByText('+ 1,992 SATS', { exact: true })).toBeVisible()
+  await expect(page.getByText('+ 4,980 SATS', { exact: true })).toBeVisible()
+  await expect(page.getByText('Arkade to Bitcoin', { exact: true })).toBeVisible()
 })

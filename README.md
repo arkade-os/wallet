@@ -111,10 +111,13 @@ It correctly bundles React in production mode and optimizes the build for the be
 The build is minified and the filenames include the hashes.\
 Your app is ready to be deployed!
 
-### `pnpm run regtest`
+### `pnpm regtest:start`
 
-Starts the regtest environment and sets up the arkd instance.\
-Requires Docker to be installed and [Nigiri](https://nigiri.vulpem.com/) to be running with `--ln` flag.
+Boots the full regtest stack: Nigiri (Bitcoin + LND + arkd) via the `regtest/` git submodule, the Nostr relay (`docker-compose.nak.yml`), and the banco solver stack (`docker-compose.bancod.yml`, which provides the introspector and bancod).
+
+Requires Docker and Go (the regtest scripts build a pinned Nigiri from source). On a fresh checkout, run `git submodule update --init` first.
+
+Use `pnpm regtest:stop` to stop everything (preserving data) or `pnpm regtest:clean` to wipe all state and remove volumes.
 
 ### Funding your local wallet
 To interact with Ark features, you need Regtest coins.
@@ -128,7 +131,7 @@ nigiri faucet <bcrt-address>
 ### e2e tests
 
 > note: e2e tests require a regtest environment to be running.
-> `pnpm run regtest` to start and setup the regtest environment.
+> `pnpm regtest:start` to start and setup the regtest environment.
 
 > note: e2e tests use playwright for ui testing, you may need to run
 > `pnpm exec playwright install` once to download new browsers.

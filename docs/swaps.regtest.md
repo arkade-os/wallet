@@ -1,163 +1,116 @@
 # Swaps
 
-The purpose of this guide is to make you able to test Ark/LN submarine and reverse submarine swaps and walks you through setting a full stack on regtest that includes:
+The purpose of this guide is to make you able to test Ark/LN submarine and reverse submarine swaps and walks you through setting up a full stack on regtest that includes:
 
-- Ark stack
-  - Bitcoind
-  - Arkd
-- Boltz stack
-  - Bitcoind
-  - LND
-  - Fulmine
-  - Boltz backend
-- User stack
-  - Bitcoind
-  - LND
-  - Arkade
+- Ark stack (Bitcoin, arkd)
+- Boltz stack (LND, Fulmine, Boltz backend)
+- Banco stack (introspector, bancod) — used as the solver for asset swaps
+- User stack (Arkade wallet)
 
-NOTE: _For sake of simplicity, all stacks use the same Bitcoind instance._
+NOTE: _For sake of simplicity, all stacks share the same Bitcoin regtest network managed by the `regtest/` submodule._
 
 ## Requirements
 
 - [Docker](https://docs.docker.com/engine/install/)
-- [Nigiri](https://nigiri.vulpem.com/)
+- [Go](https://go.dev/doc/install) (the regtest scripts build a pinned Nigiri from source)
 - [jq](https://formulae.brew.sh/formula/jq)
 
 ## Setup regtest environment
 
-Start regtest environment with Bitcoin and LND:
+Initialize the regtest submodule and start the full stack:
 
 ```sh
-nigiri start --ln
+git submodule update --init
+pnpm regtest:start
 ```
 
-Fund LND wallet:
+This runs `./regtest/start-env.sh` to bring up Nigiri (Bitcoin + chopsticks + LND + arkd + arkd-wallet + boltz-fulmine + boltz + nginx) and starts the auxiliary docker compose files used by the wallet:
+
+- `docker-compose.nak.yml` — Nostr relay
+- `docker-compose.bancod.yml` — introspector + bancod (the banco solver)
+
+To stop everything (preserving data):
 
 ```sh
-# Faucet 1 BTC
-nigiri faucet lnd
+pnpm regtest:stop
 ```
 
-Start LND used by boltz:
+To wipe all state and remove volumes:
 
 ```sh
-docker compose -f test.docker-compose.yml up -d boltz-lnd
-# Create an alias for lncli
-alias lncli="docker exec -i boltz-lnd lncli --network=regtest"
+pnpm regtest:clean
 ```
 
-Fund LND wallet:
+## Service URLs
+
+| Service                | URL                        |
+| ---------------------- | -------------------------- |
+| arkd gRPC              | `localhost:7070`           |
+| arkd REST              | `http://localhost:7070`    |
+| Boltz REST (via nginx) | `http://localhost:9069`    |
+| Boltz Fulmine HTTP UI  | `http://localhost:7002`    |
+| Boltz Fulmine API      | `http://localhost:7003`    |
+| Introspector REST/gRPC | `http://localhost:7073`    |
+| bancod gRPC            | `localhost:7090`           |
+| bancod HTTP/REST       | `http://localhost:7091`    |
+| Nostr relay (nak)      | `ws://localhost:10547`     |
+
+## Funding the bancod taker bot
+
+`bancod` runs a wallet that needs to be funded so it can fulfill banco offers
+posted by makers. Get its offchain address and faucet it via arkd:
 
 ```sh
-lncli newaddress p2wkh
-# Faucet 1 BTC
-nigiri faucet <address>
+# Get bancod's offchain address
+curl -s http://localhost:7091/v1/address | jq -r .offchain_address
+
+# Send funds to it from a separately funded wallet (the wallet's e2e helpers
+# do this automatically — see src/test/e2e/bancoHelpers.ts).
 ```
 
-Connect the LND instances:
+## Configuring trading pairs
+
+Pairs are added through bancod's REST API. The pair name is `<base>/<quote>`
+where each side is either `BTC` or an asset id (`txid:vout`):
 
 ```sh
-lncli connect `nigiri lnd getinfo | jq -r .identity_pubkey`@lnd:9735
-# Check the list of peers contains exactly one peer on both sides
-lncli listpeers | jq .peers | jq length
-nigiri lnd listpeers | jq .peers | jq length
+curl -X POST http://localhost:7091/v1/pair \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "pair": {
+      "pair": "BTC/<asset_id>",
+      "min_amount": 1,
+      "max_amount": 100000000,
+      "price_feed": "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
+    }
+  }'
 ```
 
-Open and fund channel between the LND instances:
+To remove a pair:
 
 ```sh
-# 100k sats channel Boltz <> User
-lncli openchannel --node_key=`nigiri lnd getinfo | jq -r .identity_pubkey` --local_amt=100000
-# Make the channel mature by mining 10 blocks
-nigiri rpc --generate 10
-# Send 50k sats to the other side to balance the channel
-nigiri lnd addinvoice --amt 50000
-# Type 'yes' if asked
-lncli payinvoice --force <invoice aka payment_request>
-```
-
-Start and provision Arkd:
-
-```sh
-docker compose -f test.docker-compose.yml up -d arkd
-# Create an alias for arkd
-alias arkd="docker exec arkd arkd"
-# Initialize the wallet
-arkd wallet create --password password
-# Unlock the service
-arkd wallet unlock --password password
-# Get an address to deposit funds.
-# If it returns error, just wait a few seconds and retry.
-arkd wallet address
-# Faucet 1 BTC (better if you repeat a few times)
-nigiri faucet <address>
-```
-
-NOTE: _The Docker services in `test.docker-compose.yml` use temporary volumes; restarting them wipes all state._ **AVOID RESTARTING.**
-
-## Setup Fulmine used by Boltz
-
-Start Fulmine used by Boltz:
-
-```sh
-docker compose -f test.docker-compose.yml up -d boltz-fulmine
-```
-
-Open [http://localhost:7003](http://localhost:7003) in your browser and initialise/unlock Fulmine — the Arkd URL field is pre-filled.
-
-Go to the receive page, copy the bitcoin address (the second one) and send it some funds:
-
-```sh
-# Faucet 100k sats
-nigiri faucet <address> 0.001
-```
-
-On your browser, go back to homepage of Fulmine, click on the pending tx and settle - click on the action menu, three dots on the top-right.
-
-Lastly, connect Fulmine with Boltz's LND instance. For this, you need an lndconnect URL that you can generate with:
-
-```sh
-docker exec boltz-lnd bash -c \
-  'echo -n "lndconnect://boltz-lnd:10009?cert=$(grep -v CERTIFICATE /root/.lnd/tls.cert \
-     | tr -d = | tr "/+" "_-")&macaroon=$(base64 /root/.lnd/data/chain/bitcoin/regtest/admin.macaroon \
-     | tr -d = | tr "/+" "_-")"' | tr -d '\n'
-```
-
-Copy the generated URL to the clipboard. On Fulmine's tab of your browser, go to Settings > Lightning, paste the URL and click the Connect button.
-
-## Start Boltz backend
-
-Start Boltz backend with:
-
-```sh
-docker compose -f test.docker-compose.yml up -d boltz-postgres boltz
-```
-
-## Start CORS proxy
-
-Start CORS proxy with:
-
-```sh
-docker compose -f test.docker-compose.yml up -d cors
+curl -X DELETE http://localhost:7091/v1/pair/$(printf 'BTC/<asset_id>' | jq -sRr @uri)
 ```
 
 ## Setup Arkade used by end user
 
-Start Arkade:
+Start Arkade pointing at the local arkd and introspector:
 
 ```sh
-VITE_ARK_SERVER=http://localhost:7070 pnpm start
+VITE_ARK_SERVER=http://localhost:7070 \
+VITE_INTROSPECTOR_URL=http://localhost:7073 \
+pnpm start
 ```
 
 Open [http://localhost:3002](http://localhost:3002) in a new browser tab and initialise/unlock the service.
 
-Go then to the receive page, click Skip, copy the boarding address - the second one - and send it some funds:
+Go to the receive page, copy the boarding address (the second one) and faucet it:
 
 ```sh
 nigiri faucet <address> 0.001
 ```
 
-On your browser, go back to homepage of Arkade, click on the pending tx and settle.
+On your browser, go back to the homepage of Arkade, click on the pending tx and settle.
 
 You're good to go to test submarine and reverse submarine swaps on Ark!
 
@@ -169,13 +122,13 @@ Generate a 5000 sats Lightning invoice:
 nigiri lnd addinvoice --amt 5000
 ```
 
-Copy the invoice (aka payment_request) and try to pay it on Arkade
+Copy the invoice (`payment_request`) and pay it on Arkade.
 
-After payment, your [transaction history](http://localhost:3002/) should have a new movement of -5001 sats
+After payment, your [transaction history](http://localhost:3002/) should have a new movement of -5001 sats.
 
-Boltz Fulmine's [transaction history](http://localhost:7003/) should have a new movement of +5001 sats
+Boltz Fulmine's [transaction history](http://localhost:7003/) should have a new movement of +5001 sats.
 
-Your LND channel balance should be 55000 sats
+Your LND channel balance should be 55000 sats:
 
 ```sh
 nigiri lnd channelbalance | jq .balance
@@ -183,9 +136,9 @@ nigiri lnd channelbalance | jq .balance
 
 ## Test Reverse Swap (Lightning => Ark)
 
-In Arkade go to Receive, define an amount of 4000 sats and click Continue
+In Arkade go to Receive, define an amount of 4000 sats and click Continue.
 
-Copy the Lightning invoice, the fourth one.
+Copy the Lightning invoice (the fourth one).
 
 Pay the invoice with LND:
 
@@ -193,16 +146,26 @@ Pay the invoice with LND:
 nigiri lnd payinvoice <invoice>
 ```
 
-Check if you receive the payment on Arkade
+Check that you receive the payment on Arkade.
 
-After payment, your [transaction history](http://localhost:3002/) should have a new movement of +3984 sats
+After payment, your [transaction history](http://localhost:3002/) should have a new movement of +3984 sats.
 
-Boltz Fulmine's [transaction history](http://localhost:7003/) should have a new movement of -3984 sats
+Boltz Fulmine's [transaction history](http://localhost:7003/) should have a new movement of -3984 sats.
 
-Your LND channel balance should be 51000 sats
+Your LND channel balance should be 51000 sats:
 
 ```sh
 nigiri lnd channelbalance | jq .balance
+```
+
+## Test Banco Asset Swap
+
+Banco swaps are atomic asset-for-asset (or asset-for-BTC) swaps brokered by
+`bancod`. Once a pair is configured and bancod is funded, the wallet's e2e
+tests in `src/test/e2e/bancoSwaps.test.ts` exercise the full flow end-to-end:
+
+```sh
+pnpm test:e2e -- bancoSwaps
 ```
 
 ## Troubleshooting
@@ -210,8 +173,6 @@ nigiri lnd channelbalance | jq .balance
 - If you're on Mac M-family, you have to build the boltz-backend docker image locally:
 
 ```sh
-# Clone boltz-backend locally
 git clone git@github.com:BoltzExchange/boltz-backend.git && cd boltz-backend
-# Build the image, the VERSION=ark makes sure that the ark branch of the repo is built.
 docker build --build-arg NODE_VERSION=lts-bookworm-slim --build-arg VERSION=ark -t boltz/boltz:ark -f docker/boltz/Dockerfile .
 ```

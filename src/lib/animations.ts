@@ -58,7 +58,7 @@ export const overlayStyle = {
   zIndex: 10,
   display: 'flex',
   flexDirection: 'column' as const,
-  background: 'var(--ion-background-color)',
+  background: 'var(--background-color)',
 }
 
 // Overlay slide-up animation — used for keyboard, scanner, etc.

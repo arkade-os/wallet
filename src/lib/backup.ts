@@ -1,7 +1,7 @@
 import {
-  PendingChainSwap,
-  PendingReverseSwap,
-  PendingSubmarineSwap,
+  BoltzChainSwap,
+  BoltzReverseSwap,
+  BoltzSubmarineSwap,
   ServiceWorkerArkadeSwaps,
   SwapRepository,
 } from '@arkade-os/boltz-swap'
@@ -13,9 +13,9 @@ import { toXOnlyHex } from './keys'
 
 type NostrStorageData = {
   config?: Config
-  reverseSwaps?: PendingReverseSwap[]
-  submarineSwaps?: PendingSubmarineSwap[]
-  chainSwaps?: PendingChainSwap[]
+  reverseSwaps?: BoltzReverseSwap[]
+  submarineSwaps?: BoltzSubmarineSwap[]
+  chainSwaps?: BoltzChainSwap[]
 }
 export class BackupProvider {
   private nostrStorage: NostrStorage
@@ -57,27 +57,27 @@ export class BackupProvider {
 
   /**
    * Backup a reverse swap to Nostr
-   * @param reverseSwap PendingReverseSwap to backup
+   * @param reverseSwap BoltzReverseSwap to backup
    */
-  backupReverseSwap = async (reverseSwap: PendingReverseSwap) => {
+  backupReverseSwap = async (reverseSwap: BoltzReverseSwap) => {
     const data: NostrStorageData = { reverseSwaps: [reverseSwap] }
     await this.nostrStorage.save(JSON.stringify(data))
   }
 
   /**
    * Backup a submarine swap to Nostr
-   * @param submarineSwap PendingSubmarineSwap to backup
+   * @param submarineSwap BoltzSubmarineSwap to backup
    */
-  backupSubmarineSwap = async (submarineSwap: PendingSubmarineSwap) => {
+  backupSubmarineSwap = async (submarineSwap: BoltzSubmarineSwap) => {
     const data: NostrStorageData = { submarineSwaps: [submarineSwap] }
     await this.nostrStorage.save(JSON.stringify(data))
   }
 
   /**
    * Backup a submarine swap to Nostr
-   * @param submarineSwap PendingSubmarineSwap to backup
+   * @param submarineSwap BoltzSubmarineSwap to backup
    */
-  backupChainSwap = async (chainSwap: PendingChainSwap) => {
+  backupChainSwap = async (chainSwap: BoltzChainSwap) => {
     const data: NostrStorageData = { chainSwaps: [chainSwap] }
     await this.nostrStorage.save(JSON.stringify(data))
   }
@@ -153,9 +153,9 @@ export class BackupProvider {
   private loadData = async (): Promise<NostrStorageData> => {
     const loaded = {
       config: null as Config | null,
-      chainSwaps: new Map<string, PendingChainSwap>(),
-      reverseSwaps: new Map<string, PendingReverseSwap>(),
-      submarineSwaps: new Map<string, PendingSubmarineSwap>(),
+      chainSwaps: new Map<string, BoltzChainSwap>(),
+      reverseSwaps: new Map<string, BoltzReverseSwap>(),
+      submarineSwaps: new Map<string, BoltzSubmarineSwap>(),
     }
 
     const events = await this.nostrStorage.load()

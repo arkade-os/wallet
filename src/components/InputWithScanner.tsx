@@ -1,9 +1,9 @@
-import { IonInput, IonText } from '@ionic/react'
 import InputContainer from './InputContainer'
-import ScanIcon from '../icons/Scan'
-import Clipboard from './Clipboard'
-import FlexCol from './FlexCol'
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, ChangeEventHandler } from 'react'
+import { hapticLight } from '../lib/haptics'
+import Paste from './Paste'
+import { ClearButtonOnInput, ScanButtonOnInput } from './Button'
+import FlexRow from './FlexRow'
 
 interface InputWithScannerProps {
   error?: string
@@ -30,37 +30,55 @@ export default function InputWithScanner({
   validator,
   value,
 }: InputWithScannerProps) {
-  // input reference
-  const input = useRef<HTMLIonInputElement>(null)
+  const input = useRef<HTMLInputElement>(null)
 
-  // focus input when focus prop changes
   useEffect(() => {
-    if (focus && input.current) input.current.setFocus()
+    if (focus && input.current) input.current.focus()
   }, [focus, input.current])
 
-  const handleInput = (ev: Event) => {
-    onChange((ev.target as HTMLInputElement).value)
+  const handleChange: ChangeEventHandler<HTMLInputElement> = (ev) => {
+    onChange(ev.currentTarget.value)
   }
 
+  const handlePaste = (data: string) => {
+    onChange(data)
+  }
+
+  const handleClear = () => {
+    hapticLight()
+    onChange('')
+  }
+
+  const handleScan = () => {
+    hapticLight()
+    openScan()
+  }
+
+  const hasValue = Boolean(value && value.length > 0)
+
   return (
-    <FlexCol gap='0.5rem'>
-      <InputContainer label={label} error={error}>
-        <IonInput
+    <InputContainer label={label} error={error}>
+      <label className='label'>
+        <input
           ref={input}
           name={name}
           value={value}
-          onIonInput={handleInput}
+          className='input'
+          onChange={handleChange}
           placeholder={placeholder}
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
-        >
-          <IonText slot='end' style={{ color: 'var(--dark80)', cursor: 'pointer' }}>
-            <div onClick={openScan}>
-              <ScanIcon />
-            </div>
-          </IonText>
-        </IonInput>
-      </InputContainer>
-      <Clipboard onPaste={onChange} validator={validator} />
-    </FlexCol>
+        />
+        <div>
+          {hasValue ? (
+            <ClearButtonOnInput onClick={handleClear} />
+          ) : (
+            <FlexRow gap='0.25rem'>
+              <Paste validator={validator} onPaste={handlePaste} />
+              <ScanButtonOnInput onClick={handleScan} />
+            </FlexRow>
+          )}
+        </div>
+      </label>
+    </InputContainer>
   )
 }
