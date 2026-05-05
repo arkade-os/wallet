@@ -1,4 +1,4 @@
-const MAX_DECIMALS = 18
+const MAX_DECIMALS = 8 // Arbitrary value to allow at least 1 sat/asset
 
 export function isValidAssetId(id: string) {
   return /^[0-9a-fA-F]{68}$/.test(id)
