@@ -243,8 +243,10 @@ export default function AppAssetMint() {
                 <Input
                   label='Amount *'
                   type='number'
+                  min='0'
+                  step='1'
                   value={Number(amount)}
-                  onChange={setAmount}
+                  onChange={(value) => setAmount(Number.isFinite(value) && value >= 0 ? BigInt(Math.trunc(value)) : 0n)}
                   placeholder='1000'
                   testId='asset-amount'
                 />

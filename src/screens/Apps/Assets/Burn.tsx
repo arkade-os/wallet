@@ -123,8 +123,10 @@ export default function AppAssetBurn() {
                 </span>
               }
               type='number'
+              min='0'
+              step='1'
               value={Number(amount)}
-              onChange={(value) => setAmount(BigInt(value))}
+              onChange={(value) => setAmount(Number.isFinite(value) && value >= 0 ? BigInt(Math.trunc(value)) : 0n)}
               placeholder='0'
             />
           </FlexCol>

@@ -1,13 +1,19 @@
+const MAX_DECIMALS = 18
+
 export function isValidAssetId(id: string) {
   return /^[0-9a-fA-F]{68}$/.test(id)
 }
 
+export const isValidDecimals = (d: number): boolean => Number.isInteger(d) && d >= 0 && d <= MAX_DECIMALS
+
 export function unitsToCents(units: bigint, decimals = 8): bigint {
-  return units * BigInt(10 ** decimals)
+  if (!isValidDecimals(decimals)) return units
+  return units * 10n ** BigInt(decimals)
 }
 
 export function centsToUnits(cents: bigint, decimals = 8): bigint {
-  return cents / BigInt(10 ** decimals)
+  if (!isValidDecimals(decimals)) return cents
+  return cents / 10n ** BigInt(decimals)
 }
 
 export const truncatedAssetId = (id: string): string => {
@@ -43,6 +49,6 @@ export const prettyAssetNumber = (
 }
 
 export const prettyAssetAmount = (amount: bigint, decimals: number): string => {
-  if (decimals === 0) return prettyAssetNumber(amount, 0)
+  if (!isValidDecimals(decimals) || decimals === 0) return prettyAssetNumber(amount, 0)
   return prettyAssetNumber(centsToUnits(amount, decimals), decimals)
 }
