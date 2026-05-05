@@ -1,4 +1,5 @@
 import { bech32, utf8 } from '@scure/base'
+import { corsProxyUrl } from './constants'
 
 const emailRegex =
   /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
@@ -27,7 +28,8 @@ type LnUrlCallbackResponse = {
 }
 
 const fetchWithCorsProxy = (url: string, options?: RequestInit): Promise<Response> => {
-  const proxyUrl = `https://cors-header-proxy.bordalix.workers.dev/proxy?apiurl=${encodeURIComponent(url)}`
+  // don't use proxy in tests to avoid CORS issues with Playwright's request interception
+  const proxyUrl = process.env.PLAYWRIGHT_TEST === '1' ? url : `${corsProxyUrl}${encodeURIComponent(url)}`
   return fetch(proxyUrl, options)
 }
 
