@@ -22,7 +22,7 @@ export default function BootError() {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'var(--ion-background-color, #fff)',
+        background: 'var(--background-color, #fff)',
         zIndex: 9,
         display: 'flex',
         alignItems: 'center',

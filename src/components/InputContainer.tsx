@@ -47,7 +47,7 @@ export default function InputContainer({
       <FlexCol gap='0.5rem'>
         {label || right ? <TopLabel /> : null}
         <Shadow>
-          <FlexRow>{children}</FlexRow>
+          <FlexRow between>{children}</FlexRow>
         </Shadow>
         {bottomLeft || bottomRight ? <BottomLabel /> : null}
       </FlexCol>

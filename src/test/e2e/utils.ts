@@ -70,15 +70,14 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
   await page.waitForSelector('text=Mint Asset', { state: 'visible' })
 
   // fill amount
-  await page.getByTestId('asset-amount').locator('input:not(.cloned-input)').fill(opts.amount.toString())
+  await page.getByTestId('asset-amount').fill(opts.amount.toString())
   // fill name
-  await page.getByTestId('asset-name').locator('input:not(.cloned-input)').fill(opts.name)
+  await page.getByTestId('asset-name').fill(opts.name)
   // fill ticker
-  await page.getByTestId('asset-ticker').locator('input:not(.cloned-input)').fill(opts.ticker)
+  await page.getByTestId('asset-ticker').fill(opts.ticker)
   // fill decimals if provided
   if (opts.decimals !== undefined) {
-    const decimalsInput = page.getByTestId('asset-decimals').locator('input:not(.cloned-input)')
-    await decimalsInput.clear()
+    const decimalsInput = page.getByTestId('asset-decimals')
     await decimalsInput.fill(opts.decimals.toString())
   }
 
@@ -86,7 +85,7 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
   if (opts.controlMode === 'mint-new') {
     await page.getByText('New').click()
     if (opts.ctrlAmount !== undefined) {
-      const ctrlAmountInput = page.getByTestId('control-asset-amount').locator('input:not(.cloned-input)')
+      const ctrlAmountInput = page.getByTestId('control-asset-amount')
       await ctrlAmountInput.clear()
       await ctrlAmountInput.fill(opts.ctrlAmount.toString())
     }
@@ -127,15 +126,15 @@ export async function prePay(page: Page, address: string, isMobile = false, sats
   await page.getByText('Send').click()
 
   // fill address
-  await page.locator('ion-input[name="send-address"] input').fill(address)
+  await page.locator('input[name="send-address"]').fill(address)
 
   // fill amount
   if (sats) {
     if (isMobile) {
-      await page.locator('ion-input[name="send-amount"] input').click()
+      await page.locator('input[name="send-amount"]').click()
       await handleKeyboardInput(page, sats)
     } else {
-      await page.locator('ion-input[name="send-amount"] input').fill(sats.toString())
+      await page.locator('input[name="send-amount"]').fill(sats.toString())
     }
   }
 
@@ -163,10 +162,9 @@ async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = f
   if (sats && type === 'invoice') {
     await page.getByText('Add amount').click()
     if (isMobile) {
-      await page.locator('ion-input[name="receive-amount-sheet"] input').click()
       await handleKeyboardInput(page, sats)
     } else {
-      await page.locator('ion-input[name="receive-amount-sheet"] input').fill(sats.toString())
+      await page.locator('input[name="receive-amount-sheet"]').fill(sats.toString())
       await page.getByText('Set amount').click()
     }
   }
@@ -223,14 +221,14 @@ async function getNsec(page: Page): Promise<string> {
 async function resetWallet(page: Page): Promise<void> {
   await navigateToSettings(page)
   await page.getByText('Reset wallet').click()
-  await page.getByText('I have backed up my wallet').click()
+  await page.getByTestId('checkbox').click()
   await page.getByRole('contentinfo').getByText('Reset wallet').click()
 }
 
 async function restoreWallet(page: Page, nsec: string): Promise<void> {
   await page.getByText('Other login options').click()
   await page.getByText('Restore wallet').click()
-  await page.locator('ion-input[name="private-key"] input').fill(nsec)
+  await page.locator('input[name="private-key"]').fill(nsec)
   await page.getByText('Continue').click()
   await waitForWalletPage(page)
 }

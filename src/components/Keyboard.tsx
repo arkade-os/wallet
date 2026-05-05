@@ -1,4 +1,3 @@
-import { IonCol, IonGrid, IonRow } from '@ionic/react'
 import Header from './Header'
 import Content from './Content'
 import { useContext, useEffect, useState } from 'react'
@@ -159,13 +158,20 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
   const gridStyle = {
     borderTop: '1px solid var(--dark50)',
     marginTop: '0.5rem',
-    textAlign: 'center',
     width: '100%',
   }
 
   const rowStyle = {
+    display: 'flex',
     fontSize: '1.5rem',
     padding: '1rem',
+  }
+
+  const keyStyle = {
+    flex: 1,
+    display: 'flex',
+    justifyContent: 'center',
+    cursor: 'pointer',
   }
 
   const keys = [
@@ -198,17 +204,17 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
           )}
         </FlexCol>
       </Content>
-      <IonGrid style={gridStyle}>
+      <div style={gridStyle}>
         {keys.map((row) => (
-          <IonRow style={rowStyle} key={row[0]}>
+          <div style={rowStyle} key={row[0]}>
             {row.map((key) => (
-              <IonCol size='4' key={key} onClick={() => handleKeyPress(key)}>
+              <div style={keyStyle} key={key} onClick={() => handleKeyPress(key)}>
                 <p data-testid={`keyboard-${key}`}>{key === 'x' ? <>&larr;</> : key}</p>
-              </IonCol>
+              </div>
             ))}
-          </IonRow>
+          </div>
         ))}
-      </IonGrid>
+      </div>
       <ButtonsOnBottom>
         <Button label='Save' disabled={disabled} onClick={handleSave} />
       </ButtonsOnBottom>

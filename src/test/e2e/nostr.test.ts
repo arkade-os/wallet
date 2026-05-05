@@ -33,7 +33,7 @@ test('should save config to nostr', async ({ page }) => {
   // enable nostr backups
   await page.getByTestId('tab-settings').click()
   await page.getByText('backup', { exact: true }).click()
-  await page.getByText('Enable Nostr backups').click()
+  await page.getByTestId('toggle-backup').click()
 
   // change fiat currency to euro
   await page.getByLabel('Go back').click()
@@ -50,7 +50,7 @@ test('should save config to nostr', async ({ page }) => {
   // disable nostr backups
   await page.getByLabel('Go back').click()
   await page.getByText('backup', { exact: true }).click()
-  await page.getByText('Enable Nostr backups').click()
+  await page.getByTestId('toggle-backup').click()
 
   // change fiat currency to usd
   await page.getByLabel('Go back').click()
@@ -153,7 +153,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   // enable nostr backups
   await page.getByTestId('tab-settings').click()
   await page.getByText('backup', { exact: true }).click()
-  await page.getByText('Enable Nostr backups').click()
+  await page.getByTestId('toggle-backup').click()
   await sleep(3000) // wait for backup to complete
 
   // restore wallet

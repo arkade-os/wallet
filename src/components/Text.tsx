@@ -1,4 +1,3 @@
-import { IonText } from '@ionic/react'
 import { ReactNode } from 'react'
 import { copyToClipboard } from '../lib/clipboard'
 import { useToast } from './Toast'
@@ -80,11 +79,9 @@ export default function Text({
   }
 
   return (
-    <IonText data-testid={testId}>
-      <p className={className} onClick={handleClick} style={pStyle} title={tooltip}>
-        {children}
-      </p>
-    </IonText>
+    <p className={className} onClick={handleClick} style={pStyle} title={tooltip} data-testid={testId}>
+      {children}
+    </p>
   )
 }
 

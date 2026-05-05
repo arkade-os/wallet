@@ -207,11 +207,11 @@ export default function AppAssetDetail() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <FlexRow gap='0.5rem'>
+        <FlexRow gap='0.75rem'>
           <Button label='Send' onClick={handleSend} disabled={balance === 0} />
           <Button label='Receive' onClick={handleReceive} />
         </FlexRow>
-        <FlexRow gap='0.5rem'>
+        <FlexRow gap='0.75rem'>
           <Button label='Reissue' onClick={handleReissue} secondary disabled={!holdsControlAsset} />
           {balance > 0 ? <Button label='Burn' onClick={handleBurn} secondary /> : null}
         </FlexRow>

@@ -38,7 +38,8 @@ export const prettyAmount = (amount: string | number, suffix?: string, decimals 
 
 export const prettyFiatAmount = (amount: number, currency: Fiats): string => {
   const symbol = FIAT_SYMBOLS[currency]
-  const formatted = prettyNumber(amount, fiatDecimalsFor(currency))
+  const decimals = fiatDecimalsFor(currency)
+  const formatted = prettyNumber(amount, decimals, true, decimals)
   return symbol ? `${symbol}${formatted}` : `${formatted} ${currency}`
 }
 

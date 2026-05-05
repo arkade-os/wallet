@@ -1,6 +1,7 @@
 import { ReactNode, createContext, useCallback, useRef, useState } from 'react'
 import { lnurlServerUrl as rawLnurlServerUrl } from '../lib/constants'
 import { consoleError } from '../lib/logs'
+import type { LnurlSessionCredentials } from '../lib/lnurl'
 
 const lnurlServerBaseUrl = rawLnurlServerUrl?.replace(/\/+$/, '')
 
@@ -15,7 +16,7 @@ interface LnurlContextProps {
   lnurl: string
   active: boolean
   error: string | undefined
-  startSession: (onInvoiceRequest: InvoiceRequestHandler) => void
+  startSession: (onInvoiceRequest: InvoiceRequestHandler, credentials?: LnurlSessionCredentials) => void
   stopSession: () => void
   updateHandler: (handler: InvoiceRequestHandler) => void
 }
@@ -96,7 +97,7 @@ export const LnurlProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   const startSession = useCallback(
-    (onInvoiceRequest: InvoiceRequestHandler) => {
+    (onInvoiceRequest: InvoiceRequestHandler, credentials?: LnurlSessionCredentials) => {
       if (!lnurlServerBaseUrl) return
 
       stopSession()
@@ -107,10 +108,19 @@ export const LnurlProvider = ({ children }: { children: ReactNode }) => {
 
       const connect = async () => {
         try {
-          const response = await fetch(`${lnurlServerBaseUrl}/lnurl/session`, {
+          const fetchOptions: RequestInit = {
             method: 'POST',
             signal: abort.signal,
-          })
+          }
+          if (credentials) {
+            fetchOptions.headers = { 'Content-Type': 'application/json' }
+            fetchOptions.body = JSON.stringify({
+              sessionId: credentials.sessionId,
+              token: credentials.token,
+            })
+          }
+
+          const response = await fetch(`${lnurlServerBaseUrl}/lnurl/session`, fetchOptions)
 
           if (!response.ok || !response.body) {
             setError('Failed to open LNURL session')

@@ -1,4 +1,3 @@
-import { IonContent } from '@ionic/react'
 import { ReactNode } from 'react'
 import Refresher from './Refresher'
 
@@ -8,10 +7,11 @@ interface ContentProps {
 }
 
 export default function Content({ children, noFade }: ContentProps) {
+  const className = noFade ? 'content no-content-fade' : 'content'
   return (
-    <IonContent className={noFade ? 'no-content-fade' : undefined}>
+    <div className={className}>
       <Refresher />
       <div className='content-shell'>{children}</div>
-    </IonContent>
+    </div>
   )
 }

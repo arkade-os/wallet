@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
-import { V2BrantaClient, BrantaServerBaseUrl, Payment } from '@branta-ops/branta'
+import { V2BrantaClient, BrantaServerBaseUrl } from '@branta-ops/branta'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
@@ -50,6 +50,13 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 
+// TODO: Replace when SDK is accurate
+type BrantaPayment = Partial<
+  Awaited<ReturnType<V2BrantaClient['addPayment']>>['payment'] & {
+    platform_logo_url: string
+  }
+>
+
 const brantaClient = new V2BrantaClient({
   baseUrl: BrantaServerBaseUrl.Production,
 })
@@ -62,8 +69,15 @@ export default function SendForm() {
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { calcSubmarineSwapFee, calcArkToBtcSwapFee, createArkToBtcSwap, createSubmarineSwap, connected, getApiUrl } =
     useContext(SwapsContext)
-  const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed, validArkToBtc } =
-    useContext(LimitsContext)
+  const {
+    amountIsAboveMaxLimit,
+    amountIsBelowMinLimit,
+    minSwapAllowed,
+    maxSwapAllowed,
+    utxoTxsAllowed,
+    vtxoTxsAllowed,
+    validArkToBtc,
+  } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
   const { assetBalances, assetMetadataCache, balance, setCacheEntry, svcWallet } = useContext(WalletContext)
@@ -85,7 +99,7 @@ export default function SendForm() {
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
   const [scan, setScan] = useState(false)
   const [rawScanData, setRawScanData] = useState('')
-  const [brantaPayment, setBrantaPayment] = useState<Payment | null>(null)
+  const [brantaPayment, setBrantaPayment] = useState<BrantaPayment | null>(null)
   const [brantaLoading, setBrantaLoading] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<AssetOption | null>(null)
   const [showAssetSelector, setShowAssetSelector] = useState(false)
@@ -299,7 +313,7 @@ export default function SendForm() {
     setBrantaLoading(true)
     brantaClient
       .getPaymentsByQRCode(rawScanData)
-      .then((payments: Payment[]) => {
+      .then((payments: BrantaPayment[]) => {
         if (cancelled) return
         const payment = payments?.[0] ?? null
         if (payment) {
@@ -376,6 +390,15 @@ export default function SendForm() {
     // check server limits for offchain transactions
     if (!address && (arkAddress || invoice) && !vtxoTxsAllowed()) {
       return setError('Sending offchain not allowed')
+    }
+    // check swap limits for lightning transactions
+    if (!address && !arkAddress && invoice) {
+      const min = minSwapAllowed()
+      const max = maxSwapAllowed()
+      if (min === 0 && max === 0) return // limits not loaded yet
+      const amountSats = getInvoiceSatoshis(invoice)
+      if (amountSats < min) return setError(`Invoice amount below min of ${prettyNumber(min)} sats`)
+      if (amountSats > max) return setError(`Invoice amount above max of ${prettyNumber(max)} sats`)
     }
     // check if server key is valid
     if (arkAddress && arkAddress.length > 0) {

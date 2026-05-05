@@ -1,4 +1,5 @@
-import { bech32, utf8 } from '@scure/base'
+import { bech32, hex, utf8 } from '@scure/base'
+import { sha256 } from '@noble/hashes/sha2.js'
 
 const emailRegex =
   /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
@@ -96,6 +97,21 @@ export const fetchInvoice = (lnurl: string, sats: number, note: string): Promise
       .then(resolve)
       .catch(reject)
   })
+}
+
+export interface LnurlSessionCredentials {
+  sessionId: string
+  token: string
+}
+
+export const deriveLnurlCredentials = (walletAddress: string): LnurlSessionCredentials => {
+  const encoder = new TextEncoder()
+  const idHash = sha256(encoder.encode('lnurl-session-id:' + walletAddress))
+  const tokenHash = sha256(encoder.encode('lnurl-session-token:' + walletAddress))
+  return {
+    sessionId: hex.encode(idHash).slice(0, 32),
+    token: hex.encode(tokenHash),
+  }
 }
 
 export const fetchArkAddress = (lnurl: string): Promise<ArkMethodResponse> => {

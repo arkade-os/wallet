@@ -45,6 +45,7 @@ export default function AppAssetMintSuccess() {
               icon={icon}
               name={name}
               ticker={ticker}
+              darkPurple
             />
             <FlexCol gap='0.25rem' centered>
               <Text copy={assetInfo.assetId} color='dark50' smaller>
