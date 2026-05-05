@@ -164,7 +164,7 @@ export default function Transaction() {
                     <AssetAvatar icon={icon} ticker={ticker} size={32} assetId={a.assetId} clickable />
                     <FlexCol gap='0'>
                       <Text color={color}>
-                        {prettyAssetAmount(BigInt(a.amount), decimals)} {label}
+                        {prettyAssetAmount(a.amount, decimals)} {label}
                       </Text>
                       {name && ticker ? <TextSecondary>{name}</TextSecondary> : null}
                     </FlexCol>

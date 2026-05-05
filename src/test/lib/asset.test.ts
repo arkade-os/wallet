@@ -235,12 +235,29 @@ describe('asset utilities', () => {
       expect(prettyAssetAmount(0n, 8)).toBe('0')
     })
 
-    // Documents a current logic shortcoming: `centsToUnits` floors before
-    // formatting, so any sub-unit precision is lost. 1.5 units (with 8
-    // decimals) renders as "1", not "1.5".
-    it('drops fractional units due to BigInt floor-division (current behavior)', () => {
-      expect(prettyAssetAmount(150_000_000n, 8)).toBe('1')
-      expect(prettyAssetAmount(99_999_999n, 8)).toBe('0')
+    it('formats fractional units precisely', () => {
+      expect(prettyAssetAmount(150_000_000n, 8)).toBe('1.5')
+      expect(prettyAssetAmount(99_999_999n, 8)).toBe('0.99999999')
+    })
+
+    it('renders smallest representable unit with leading zeros', () => {
+      expect(prettyAssetAmount(1n, 8)).toBe('0.00000001')
+      expect(prettyAssetAmount(10n, 8)).toBe('0.0000001')
+    })
+
+    it('strips trailing zeros from the fractional part', () => {
+      expect(prettyAssetAmount(110_000_000n, 8)).toBe('1.1')
+      expect(prettyAssetAmount(120_000_000n, 8)).toBe('1.2')
+    })
+
+    it('formats negative fractional amounts', () => {
+      expect(prettyAssetAmount(-150_000_000n, 8)).toBe('-1.5')
+      expect(prettyAssetAmount(-1n, 8)).toBe('-0.00000001')
+    })
+
+    it('preserves precision beyond Number.MAX_SAFE_INTEGER', () => {
+      // 9_007_199_254_740_993 is 2^53 + 1 — not representable as a Number.
+      expect(prettyAssetAmount(9_007_199_254_740_993n, 8)).toBe('90,071,992.54740993')
     })
 
     // ---- bad-decimals fallback: format as integer (no throw) ----

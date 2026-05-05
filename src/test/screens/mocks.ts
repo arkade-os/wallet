@@ -35,7 +35,7 @@ export const mockTxInfo = {
 
 export const mockIssuanceTxInfo = {
   amount: 0,
-  assets: [{ assetId: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd', amount: 10000 }],
+  assets: [{ assetId: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd', amount: 10_000n }],
   boardingTxid: '',
   redeemTxid: mockTxId,
   roundTxid: '',
