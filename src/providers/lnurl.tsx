@@ -1,36 +1,31 @@
-import { ReactNode, createContext, useCallback, useRef, useState } from 'react'
+import { ReactNode, createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { lnurlServerUrl as rawLnurlServerUrl } from '../lib/constants'
 import { consoleError } from '../lib/logs'
-import type { LnurlSessionCredentials } from '../lib/lnurl'
+import { deriveLnurlCredentials, type LnurlSessionCredentials } from '../lib/lnurl'
+import { WalletContext } from './wallet'
+import { SwapsContext } from './swaps'
+import { NotificationsContext } from './notifications'
+import type { Identity } from '@arkade-os/sdk'
 
 const lnurlServerBaseUrl = rawLnurlServerUrl?.replace(/\/+$/, '')
-
-interface InvoiceRequest {
-  amountMsat: number
-  comment?: string
-}
-
-type InvoiceRequestHandler = (req: InvoiceRequest) => Promise<string>
 
 interface LnurlContextProps {
   lnurl: string
   active: boolean
   error: string | undefined
-  startSession: (onInvoiceRequest: InvoiceRequestHandler, credentials?: LnurlSessionCredentials) => void
-  stopSession: () => void
-  updateHandler: (handler: InvoiceRequestHandler) => void
 }
 
 export const LnurlContext = createContext<LnurlContextProps>({
   lnurl: '',
   active: false,
   error: undefined,
-  startSession: () => {},
-  stopSession: () => {},
-  updateHandler: () => {},
 })
 
 export const LnurlProvider = ({ children }: { children: ReactNode }) => {
+  const { svcWallet } = useContext(WalletContext)
+  const { arkadeSwaps, connected, swapsInitError, createReverseSwap } = useContext(SwapsContext)
+  const { notifyPaymentReceived } = useContext(NotificationsContext)
+
   const [lnurl, setLnurl] = useState('')
   const [active, setActive] = useState(false)
   const [error, setError] = useState<string | undefined>()
@@ -38,7 +33,19 @@ export const LnurlProvider = ({ children }: { children: ReactNode }) => {
   const sessionIdRef = useRef<string | null>(null)
   const tokenRef = useRef<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
-  const handlerRef = useRef<InvoiceRequestHandler | null>(null)
+
+  const swapsRef = useRef(arkadeSwaps)
+  const createReverseSwapRef = useRef(createReverseSwap)
+  const notifyRef = useRef(notifyPaymentReceived)
+  useEffect(() => {
+    swapsRef.current = arkadeSwaps
+  }, [arkadeSwaps])
+  useEffect(() => {
+    createReverseSwapRef.current = createReverseSwap
+  }, [createReverseSwap])
+  useEffect(() => {
+    notifyRef.current = notifyPaymentReceived
+  }, [notifyPaymentReceived])
 
   const authHeaders = useCallback(
     () => ({
@@ -86,6 +93,20 @@ export const LnurlProvider = ({ children }: { children: ReactNode }) => {
     [authHeaders],
   )
 
+  const handleInvoiceRequest = useCallback(async (amountMsat: number) => {
+    const sats = Math.floor(amountMsat / 1000)
+    const pendingSwap = await createReverseSwapRef.current(sats)
+    if (!pendingSwap) throw new Error('Failed to create reverse swap')
+    const swaps = swapsRef.current
+    if (swaps) {
+      swaps
+        .waitAndClaim(pendingSwap)
+        .then(() => notifyRef.current(pendingSwap.response.onchainAmount ?? 0))
+        .catch((err) => consoleError(err, 'Error claiming LNURL reverse swap'))
+    }
+    return pendingSwap.response.invoice
+  }, [])
+
   const stopSession = useCallback(() => {
     abortRef.current?.abort()
     abortRef.current = null
@@ -97,12 +118,11 @@ export const LnurlProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   const startSession = useCallback(
-    (onInvoiceRequest: InvoiceRequestHandler, credentials?: LnurlSessionCredentials) => {
+    (credentials?: LnurlSessionCredentials) => {
       if (!lnurlServerBaseUrl) return
 
       stopSession()
 
-      handlerRef.current = onInvoiceRequest
       const abort = new AbortController()
       abortRef.current = abort
 
@@ -171,9 +191,7 @@ export const LnurlProvider = ({ children }: { children: ReactNode }) => {
                     continue
                   }
                   try {
-                    const handler = handlerRef.current
-                    if (!handler) throw new Error('No invoice request handler registered')
-                    const pr = await handler({ amountMsat, comment: data.comment as string | undefined })
+                    const pr = await handleInvoiceRequest(amountMsat, abort.signal)
                     await postInvoice(sessionId, pr, abort.signal)
                   } catch (err) {
                     const reason = err instanceof Error ? err.message : 'Failed to create invoice'
@@ -203,16 +221,24 @@ export const LnurlProvider = ({ children }: { children: ReactNode }) => {
 
       connect()
     },
-    [stopSession, postInvoice, postError],
+    [stopSession, postInvoice, postError, handleInvoiceRequest],
   )
 
-  const updateHandler = useCallback((handler: InvoiceRequestHandler) => {
-    handlerRef.current = handler
-  }, [])
+  useEffect(() => {
+    const identity = svcWallet?.identity as Identity | undefined
+    const ready = !!lnurlServerBaseUrl && !!identity && connected && !!arkadeSwaps && !swapsInitError
 
-  return (
-    <LnurlContext.Provider value={{ lnurl, active, error, startSession, stopSession, updateHandler }}>
-      {children}
-    </LnurlContext.Provider>
-  )
+    if (ready) {
+      deriveLnurlCredentials(identity).then((creds) => {
+        if (abortRef.current) return
+        startSession(creds)
+      })
+    } else if (abortRef.current) {
+      stopSession()
+    }
+
+    return () => stopSession()
+  }, [!!svcWallet?.identity, connected, !!arkadeSwaps, swapsInitError])
+
+  return <LnurlContext.Provider value={{ lnurl, active, error }}>{children}</LnurlContext.Provider>
 }

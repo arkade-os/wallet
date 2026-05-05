@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
@@ -38,7 +38,7 @@ import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import Focusable from '../../../components/Focusable'
-import { useLnurlSession } from '../../../hooks/useLnurlSession'
+import { LnurlContext } from '../../../providers/lnurl'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { AssetOption } from '../../../lib/types'
@@ -111,31 +111,8 @@ export default function ReceiveQRCode() {
       })
   }, [svcWallet])
 
-  // LNURL session for amountless Lightning receives
-  const isAmountlessLnurl =
-    !satoshis && !isAssetReceive && !!lnurlServerUrl && connected && !!arkadeSwaps && !swapsInitError
-
-  const handleInvoiceRequest = useCallback(
-    async (req: { amountMsat: number }) => {
-      const sats = Math.floor(req.amountMsat / 1000)
-      const pendingSwap = await createReverseSwap(sats)
-      if (!pendingSwap) throw new Error('Failed to create reverse swap')
-      // Auto-claim in background
-      if (arkadeSwaps) {
-        arkadeSwaps
-          .waitAndClaim(pendingSwap)
-          .then(() => {
-            setRecvInfo({ ...recvInfo, received: true, satoshis: pendingSwap.response.onchainAmount ?? 0 })
-            notifyPaymentReceived(pendingSwap.response.onchainAmount ?? 0)
-            navigate(Pages.ReceiveSuccess)
-          })
-          .catch((err) => consoleError(err, 'Error claiming LNURL reverse swap'))
-      }
-      return pendingSwap.response.invoice
-    },
-    [arkadeSwaps, createReverseSwap, setRecvInfo, recvInfo, navigate, notifyPaymentReceived],
-  )
-  const lnurlSession = useLnurlSession(isAmountlessLnurl, handleInvoiceRequest, svcWallet?.identity)
+  const lnurlSession = useContext(LnurlContext)
+  const isAmountlessLnurl = !satoshis && !isAssetReceive && !!lnurlServerUrl && lnurlSession.active
 
   const createBtcAddress = () => {
     return new Promise((resolve, reject) => {
