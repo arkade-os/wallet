@@ -27,7 +27,7 @@ type LnUrlCallbackResponse = {
 }
 
 const fetchWithCorsProxy = (url: string, options?: RequestInit): Promise<Response> => {
-  const proxyUrl = `https://cors-header-proxy.bordalix.workers.dev/proxy?apiurl=${url}`
+  const proxyUrl = `https://cors-header-proxy.bordalix.workers.dev/proxy?apiurl=${encodeURIComponent(url)}`
   return fetch(proxyUrl, options)
 }
 
