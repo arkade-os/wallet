@@ -106,12 +106,9 @@ export interface LnurlSessionCredentials {
 
 export const deriveLnurlCredentials = (walletAddress: string): LnurlSessionCredentials => {
   const encoder = new TextEncoder()
-  const idHash = sha256(encoder.encode('lnurl-session-id:' + walletAddress))
-  const tokenHash = sha256(encoder.encode('lnurl-session-token:' + walletAddress))
-  return {
-    sessionId: hex.encode(idHash).slice(0, 32),
-    token: hex.encode(tokenHash),
-  }
+  const token = hex.encode(sha256(encoder.encode('lnurl-session:' + walletAddress)))
+  const sessionId = hex.encode(sha256(encoder.encode(token))).slice(0, 32)
+  return { sessionId, token }
 }
 
 export const fetchArkAddress = (lnurl: string): Promise<ArkMethodResponse> => {
