@@ -28,8 +28,10 @@ type LnUrlCallbackResponse = {
 }
 
 const fetchWithCorsProxy = (url: string, options?: RequestInit): Promise<Response> => {
+  console.log('Fetching URL with CORS proxy:', url)
   // don't use proxy in tests to avoid CORS issues with Playwright's request interception
-  const proxyUrl = process.env.PLAYWRIGHT_TEST === '1' ? url : `${corsProxyUrl}${encodeURIComponent(url)}`
+  const isPlaywrightTest = typeof process !== 'undefined' && process?.env?.PLAYWRIGHT_TEST === '1'
+  const proxyUrl = isPlaywrightTest ? url : `${corsProxyUrl}${encodeURIComponent(url)}`
   return fetch(proxyUrl, options)
 }
 
