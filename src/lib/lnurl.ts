@@ -26,6 +26,11 @@ type LnUrlCallbackResponse = {
   pr: string
 }
 
+const fetchWithCorsProxy = (url: string, options?: RequestInit): Promise<Response> => {
+  const proxyUrl = `https://cors-header-proxy.bordalix.workers.dev/proxy?apiurl=${url}`
+  return fetch(proxyUrl, options)
+}
+
 const checkResponse = <T = any>(response: Response): Promise<T> => {
   if (!response.ok) return Promise.reject(response)
   return response.json()
@@ -41,7 +46,7 @@ const checkLnUrlResponse = (amount: number, data: LnUrlResponse) => {
 const fetchLnUrlInvoice = async (amount: number, note: string, data: LnUrlResponse) => {
   let url = `${data.callback}?amount=${amount}`
   if (note) url += `&comment=${note}`
-  const res = await fetch(url).then(checkResponse<LnUrlCallbackResponse>)
+  const res = await fetchWithCorsProxy(url).then(checkResponse<LnUrlCallbackResponse>)
   return res.pr
 }
 
@@ -78,7 +83,7 @@ export const getCallbackUrl = (lnurl: string): string => {
 export const checkLnUrlConditions = (lnurl: string): Promise<LnUrlResponse> => {
   return new Promise<LnUrlResponse>((resolve, reject) => {
     const url = getCallbackUrl(lnurl)
-    fetch(url)
+    fetchWithCorsProxy(url)
       .then(checkResponse<LnUrlResponse>)
       .then(resolve)
       .catch(reject)
@@ -89,7 +94,7 @@ export const fetchInvoice = (lnurl: string, sats: number, note: string): Promise
   return new Promise<string>((resolve, reject) => {
     const url = getCallbackUrl(lnurl)
     const amount = Math.round(sats * 1000) // millisatoshis
-    fetch(url)
+    fetchWithCorsProxy(url)
       .then(checkResponse<LnUrlResponse>)
       .then((data) => checkLnUrlResponse(amount, data))
       .then((data) => fetchLnUrlInvoice(amount, note, data))
@@ -101,7 +106,7 @@ export const fetchInvoice = (lnurl: string, sats: number, note: string): Promise
 export const fetchArkAddress = (lnurl: string): Promise<ArkMethodResponse> => {
   return new Promise<ArkMethodResponse>((resolve, reject) => {
     const url = getCallbackUrl(lnurl) + '?method=ark'
-    fetch(url)
+    fetchWithCorsProxy(url)
       .then(checkResponse<ArkMethodResponse>)
       .then(resolve)
       .catch(reject)
