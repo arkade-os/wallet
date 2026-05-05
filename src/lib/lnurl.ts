@@ -1,6 +1,6 @@
 import { bech32, hex, utf8 } from '@scure/base'
 import { sha256 } from '@noble/hashes/sha2.js'
-import type { Identity } from '@arkade-os/sdk'
+import { hmac } from '@noble/hashes/hmac.js'
 
 const emailRegex =
   /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
@@ -105,10 +105,12 @@ export interface LnurlSessionCredentials {
   token: string
 }
 
-export const deriveLnurlCredentials = async (identity: Identity): Promise<LnurlSessionCredentials> => {
-  const sig = await identity.signMessage(new TextEncoder().encode('lnurl-session'), 'schnorr')
-  const token = hex.encode(sig)
-  const sessionId = hex.encode(sha256(new TextEncoder().encode(token))).slice(0, 32)
+export const deriveLnurlCredentials = (privateKeyHex: string): LnurlSessionCredentials => {
+  const key = hex.decode(privateKeyHex)
+  const tag = new TextEncoder().encode('lnurl-session')
+  const tokenBytes = hmac(sha256, key, tag)
+  const token = hex.encode(tokenBytes)
+  const sessionId = hex.encode(sha256(tokenBytes)).slice(0, 32)
   return { sessionId, token }
 }
 

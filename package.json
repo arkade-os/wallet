@@ -43,7 +43,7 @@
     "test:e2e:ui": "VITE_NOSTR_RELAY_URL=http://localhost:10547 playwright test --ui",
     "test:codegen": "playwright codegen localhost:3002",
     "lint": "eslint \"src/**/*.{ts,tsx,js,jsx}\"",
-    "lint:fix": "eslint 'src/**/*.{ts,tsx,js,jsx}' --fix",
+    "lint:fix": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --fix",
     "format": "prettier --write src",
     "format:check": "prettier --check src",
     "git-info": "node scripts/git-commit-info.js",

@@ -1,11 +1,10 @@
-import { ReactNode, createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { lnurlServerUrl as rawLnurlServerUrl } from '../lib/constants'
 import { consoleError } from '../lib/logs'
 import { deriveLnurlCredentials, type LnurlSessionCredentials } from '../lib/lnurl'
 import { WalletContext } from './wallet'
 import { SwapsContext } from './swaps'
 import { NotificationsContext } from './notifications'
-import type { Identity } from '@arkade-os/sdk'
 
 const lnurlServerBaseUrl = rawLnurlServerUrl?.replace(/\/+$/, '')
 
@@ -191,7 +190,7 @@ export const LnurlProvider = ({ children }: { children: ReactNode }) => {
                     continue
                   }
                   try {
-                    const pr = await handleInvoiceRequest(amountMsat, abort.signal)
+                    const pr = await handleInvoiceRequest(amountMsat)
                     await postInvoice(sessionId, pr, abort.signal)
                   } catch (err) {
                     const reason = err instanceof Error ? err.message : 'Failed to create invoice'
@@ -224,21 +223,23 @@ export const LnurlProvider = ({ children }: { children: ReactNode }) => {
     [stopSession, postInvoice, postError, handleInvoiceRequest],
   )
 
+  const privateKeyHex = (svcWallet?.identity as { toHex?: () => string } | undefined)?.toHex?.()
+  const credentials = useMemo(
+    () => (privateKeyHex ? deriveLnurlCredentials(privateKeyHex) : undefined),
+    [privateKeyHex],
+  )
+
   useEffect(() => {
-    const identity = svcWallet?.identity as Identity | undefined
-    const ready = !!lnurlServerBaseUrl && !!identity && connected && !!arkadeSwaps && !swapsInitError
+    const ready = !!lnurlServerBaseUrl && !!credentials && connected && !!arkadeSwaps && !swapsInitError
 
     if (ready) {
-      deriveLnurlCredentials(identity).then((creds) => {
-        if (abortRef.current) return
-        startSession(creds)
-      })
+      startSession(credentials)
     } else if (abortRef.current) {
       stopSession()
     }
 
     return () => stopSession()
-  }, [!!svcWallet?.identity, connected, !!arkadeSwaps, swapsInitError])
+  }, [credentials, connected, !!arkadeSwaps, swapsInitError])
 
   return <LnurlContext.Provider value={{ lnurl, active, error }}>{children}</LnurlContext.Provider>
 }
