@@ -112,7 +112,7 @@ export default function AppAssetMint() {
         const ctrlMeta: KnownMetadata = { decimals: 0 }
         if (name) ctrlMeta.name = `ctrl-${name}`
         if (ticker) ctrlMeta.ticker = `ctrl-${ticker}`
-        const ctrlRawAmount = BigInt(parseInt(ctrlAmount.toString()))
+        const ctrlRawAmount = BigInt(ctrlAmount)
 
         const ctrlResult = await svcWallet.assetManager.issue({
           amount: ctrlRawAmount,
@@ -369,8 +369,10 @@ export default function AppAssetMint() {
                   <Input
                     label='Control Amount'
                     type='number'
+                    min='0'
+                    step='1'
                     value={ctrlAmount}
-                    onChange={setCtrlAmount}
+                    onChange={(v: number) => setCtrlAmount(Number.isFinite(v) && v >= 0 ? Math.trunc(v) : 0)}
                     placeholder='1'
                     testId='control-asset-amount'
                   />
