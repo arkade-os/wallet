@@ -135,7 +135,7 @@ export default function ReceiveQRCode() {
     },
     [arkadeSwaps, createReverseSwap, setRecvInfo, recvInfo, navigate, notifyPaymentReceived],
   )
-  const lnurlSession = useLnurlSession(isAmountlessLnurl, handleInvoiceRequest, offchainAddr)
+  const lnurlSession = useLnurlSession(isAmountlessLnurl, handleInvoiceRequest, svcWallet?.identity)
 
   const createBtcAddress = () => {
     return new Promise((resolve, reject) => {

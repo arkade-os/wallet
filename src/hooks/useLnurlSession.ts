@@ -1,6 +1,7 @@
-import { useContext, useEffect, useMemo, useRef } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { LnurlContext } from '../providers/lnurl'
-import { deriveLnurlCredentials } from '../lib/lnurl'
+import { deriveLnurlCredentials, LnurlSessionCredentials } from '../lib/lnurl'
+import type { Identity } from '@arkade-os/sdk'
 
 interface InvoiceRequest {
   amountMsat: number
@@ -13,43 +14,36 @@ interface LnurlSession {
   error: string | undefined
 }
 
-/**
- * Hook that manages an LNURL session via the app-level LnurlProvider.
- *
- * The SSE connection lives in the provider, so it survives component
- * unmount/remount (e.g. navigating away from the receive screen and back).
- * The session starts when `enabled` becomes true and persists until
- * `enabled` goes false or `stopSession` is called.
- *
- * When `walletAddress` is provided, session credentials are derived
- * deterministically so the same wallet always gets the same LNURL.
- */
 export function useLnurlSession(
   enabled: boolean,
   onInvoiceRequest: (req: InvoiceRequest) => Promise<string>,
-  walletAddress?: string,
+  identity?: Identity,
 ): LnurlSession {
   const { lnurl, active, error, startSession, stopSession, updateHandler } = useContext(LnurlContext)
   const startedRef = useRef(false)
+  const [credentials, setCredentials] = useState<LnurlSessionCredentials | undefined>()
 
-  const credentials = useMemo(
-    () => (walletAddress ? deriveLnurlCredentials(walletAddress) : undefined),
-    [walletAddress],
-  )
+  useEffect(() => {
+    if (!identity) {
+      setCredentials(undefined)
+      return
+    }
+    deriveLnurlCredentials(identity).then(setCredentials)
+  }, [identity])
 
   useEffect(() => {
     updateHandler(onInvoiceRequest)
   })
 
   useEffect(() => {
-    if (enabled && !startedRef.current && !active) {
+    if (enabled && !startedRef.current && !active && (credentials || !identity)) {
       startedRef.current = true
       startSession(onInvoiceRequest, credentials)
     } else if (!enabled && startedRef.current) {
       startedRef.current = false
       stopSession()
     }
-  }, [enabled])
+  }, [enabled, credentials])
 
   return { lnurl, active, error }
 }

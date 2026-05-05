@@ -1,5 +1,6 @@
 import { bech32, hex, utf8 } from '@scure/base'
 import { sha256 } from '@noble/hashes/sha2.js'
+import type { Identity } from '@arkade-os/sdk'
 
 const emailRegex =
   /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
@@ -104,10 +105,10 @@ export interface LnurlSessionCredentials {
   token: string
 }
 
-export const deriveLnurlCredentials = (walletAddress: string): LnurlSessionCredentials => {
-  const encoder = new TextEncoder()
-  const token = hex.encode(sha256(encoder.encode('lnurl-session:' + walletAddress)))
-  const sessionId = hex.encode(sha256(encoder.encode(token))).slice(0, 32)
+export const deriveLnurlCredentials = async (identity: Identity): Promise<LnurlSessionCredentials> => {
+  const sig = await identity.signMessage(new TextEncoder().encode('lnurl-session'), 'schnorr')
+  const token = hex.encode(sig)
+  const sessionId = hex.encode(sha256(new TextEncoder().encode(token))).slice(0, 32)
   return { sessionId, token }
 }
 
