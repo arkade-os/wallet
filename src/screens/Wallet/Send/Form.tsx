@@ -43,7 +43,7 @@ import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 import { SwapsContext } from '../../../providers/swaps'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -527,7 +527,7 @@ export default function SendForm() {
 
   const handleAmountChange = (sats: number) => {
     if (isAssetSend) {
-      setTextValue(String(centsToUnits(BigInt(sats), selectedAsset?.decimals ?? 8)))
+      setTextValue(prettyAssetAmount(BigInt(sats), selectedAsset?.decimals ?? 8, false))
       if (selectedAsset) {
         setState({ ...sendInfo, assets: [{ assetId: selectedAsset.assetId, amount: BigInt(sats) }], satoshis: 0 })
       }
@@ -624,8 +624,7 @@ export default function SendForm() {
   const applySendAll = () => {
     if (isAssetSend && selectedAsset) {
       const { assetId, balance, decimals } = selectedAsset
-      const units = centsToUnits(balance, decimals)
-      setTextValue(prettyNumber(Number(units), decimals, false))
+      setTextValue(prettyAssetAmount(balance, decimals, false))
       setState({
         ...sendInfo,
         assets: [{ assetId, amount: balance }],

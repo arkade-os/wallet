@@ -48,8 +48,8 @@ export const prettyAssetNumber = (
   }).format(num)
 }
 
-export const prettyAssetAmount = (amount: bigint, decimals: number): string => {
-  if (!isValidDecimals(decimals) || decimals === 0) return prettyAssetNumber(amount, 0)
+export const prettyAssetAmount = (amount: bigint, decimals: number, useGrouping = true): string => {
+  if (!isValidDecimals(decimals) || decimals === 0) return prettyAssetNumber(amount, 0, useGrouping)
 
   const divisor = 10n ** BigInt(decimals)
   const negative = amount < 0n
@@ -58,8 +58,8 @@ export const prettyAssetAmount = (amount: bigint, decimals: number): string => {
   const frac = abs % divisor
   const sign = negative ? '-' : ''
 
-  if (frac === 0n) return `${sign}${prettyAssetNumber(whole, 0)}`
+  if (frac === 0n) return `${sign}${prettyAssetNumber(whole, 0, useGrouping)}`
 
   const fracStr = frac.toString().padStart(decimals, '0').replace(/0+$/, '')
-  return `${sign}${prettyAssetNumber(whole, 0)}.${fracStr}`
+  return `${sign}${prettyAssetNumber(whole, 0, useGrouping)}.${fracStr}`
 }

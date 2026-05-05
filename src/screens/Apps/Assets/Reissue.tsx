@@ -90,7 +90,8 @@ export default function AppAssetReissue() {
                 Confirm Reissue
               </Text>
               <Text centered wrap color='dark50'>
-                You are about to mint {prettyAssetAmount(amount, decimals)} additional {ticker || name}.
+                You are about to mint {prettyAssetAmount(unitsToCents(amount, decimals), decimals)} additional{' '}
+                {ticker || name}.
               </Text>
             </FlexCol>
             <FlexRow>

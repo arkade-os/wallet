@@ -260,6 +260,14 @@ describe('asset utilities', () => {
       expect(prettyAssetAmount(9_007_199_254_740_993n, 8)).toBe('90,071,992.54740993')
     })
 
+    it('omits thousand separators when useGrouping=false', () => {
+      // Required for echoing the value back into a numeric <input>, where
+      // commas would parse as NaN.
+      expect(prettyAssetAmount(9_007_199_254_740_993n, 8, false)).toBe('90071992.54740993')
+      expect(prettyAssetAmount(150_000_000n, 8, false)).toBe('1.5')
+      expect(prettyAssetAmount(1_234_567n, 0, false)).toBe('1234567')
+    })
+
     // ---- bad-decimals fallback: format as integer (no throw) ----
 
     it('falls back to integer format for negative decimals', () => {
