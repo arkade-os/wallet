@@ -4,7 +4,7 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/boltz-swap": "0.3.27",
+    "@arkade-os/boltz-swap": "0.3.28",
     "@arkade-os/sdk": "0.4.24",
     "@branta-ops/branta": "0.0.9",
     "@lendasat/lendasat-wallet-bridge": "^0.0.90",
