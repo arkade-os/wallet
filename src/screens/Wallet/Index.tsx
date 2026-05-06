@@ -26,7 +26,6 @@ import RecentActivitySection from './RecentActivitySection'
 import WalletActionBarOverlay from '../../components/WalletActionBarOverlay'
 import { usePortfolioBalanceDisplay } from '../../hooks/usePortfolioBalanceDisplay'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
-import { hapticLight } from '../../lib/haptics'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
@@ -35,7 +34,7 @@ export default function Wallet() {
   const { setRecvInfo, setSendInfo, setAssetInfo } = useContext(FlowContext)
   const { isInitialLoad, navigate } = useContext(NavigationContext)
   const { balance } = useContext(WalletContext)
-  const { nudge, nudgeVisible, nudgeCheckComplete } = useContext(NudgeContext)
+  const { nudge, nudgeCheckComplete } = useContext(NudgeContext)
 
   const [error, setError] = useState(false)
   const [homeScrolled, setHomeScrolled] = useState(false)
@@ -54,11 +53,6 @@ export default function Wallet() {
     setLogoAnchor(el)
   }, [])
   const balanceRef = useRef<HTMLDivElement | null>(null)
-  const balanceCollapsedRef = useRef(false)
-  const balanceHapticCollapsedRef = useRef(false)
-  const balanceHapticReadyRef = useRef(false)
-  const pendingBalanceHapticRef = useRef<{ collapsed: boolean; time: number } | null>(null)
-  const touchActiveRef = useRef(false)
   useEffect(() => () => setLogoAnchor(null), [])
 
   const pwaInstalled = usePwaInstalled()
@@ -84,26 +78,7 @@ export default function Wallet() {
     if (!scrollEl) return
 
     let frame = 0
-    // Scroll can detect the threshold outside Safari's haptic gesture window,
-    // so queue the crossing and flush it from the next touch event.
-    const flushPendingBalanceHaptic = () => {
-      const pending = pendingBalanceHapticRef.current
-      if (!pending) return
-
-      if (performance.now() - pending.time > 400) {
-        pendingBalanceHapticRef.current = null
-        return
-      }
-
-      if (pending.collapsed !== balanceHapticCollapsedRef.current) {
-        hapticLight()
-        balanceHapticCollapsedRef.current = pending.collapsed
-      }
-
-      pendingBalanceHapticRef.current = null
-    }
-
-    const updateScrolled = (allowHaptic = false) => {
+    const updateScrolled = () => {
       frame = 0
       setHomeScrolled(scrollEl.scrollTop > 2)
 
@@ -121,58 +96,18 @@ export default function Wallet() {
         ? Number(balanceRect.top <= headerBottom)
         : (collapseStart - balanceRect.top) / (collapseStart - collapseEnd)
       const nextProgress = Math.max(0, Math.min(1, progress))
-      const nextCollapsed = nextProgress >= 1
-
-      if (!balanceHapticReadyRef.current) {
-        balanceHapticReadyRef.current = true
-        balanceHapticCollapsedRef.current = nextCollapsed
-        pendingBalanceHapticRef.current = null
-      } else if (nextCollapsed !== balanceHapticCollapsedRef.current) {
-        if (allowHaptic) {
-          hapticLight()
-          balanceHapticCollapsedRef.current = nextCollapsed
-          pendingBalanceHapticRef.current = null
-        } else if (touchActiveRef.current) {
-          pendingBalanceHapticRef.current = {
-            collapsed: nextCollapsed,
-            time: performance.now(),
-          }
-        }
-      }
-
-      balanceCollapsedRef.current = nextCollapsed
       setBalanceCollapseProgress(nextProgress)
     }
     const handleScroll = () => {
       if (frame) return
-      frame = window.requestAnimationFrame(() => updateScrolled(false))
-    }
-    const handleTouchStart = () => {
-      touchActiveRef.current = true
-    }
-    const handleTouchMove = () => {
-      updateScrolled(true)
-      flushPendingBalanceHaptic()
-    }
-    const handleTouchEnd = () => {
-      updateScrolled(true)
-      flushPendingBalanceHaptic()
-      touchActiveRef.current = false
+      frame = window.requestAnimationFrame(updateScrolled)
     }
 
-    updateScrolled(false)
+    updateScrolled()
     scrollEl.addEventListener('scroll', handleScroll, { passive: true })
-    scrollEl.addEventListener('touchstart', handleTouchStart, { passive: true })
-    scrollEl.addEventListener('touchmove', handleTouchMove, { passive: true })
-    scrollEl.addEventListener('touchend', handleTouchEnd, { passive: true })
-    scrollEl.addEventListener('touchcancel', handleTouchEnd, { passive: true })
     return () => {
       if (frame) window.cancelAnimationFrame(frame)
       scrollEl.removeEventListener('scroll', handleScroll)
-      scrollEl.removeEventListener('touchstart', handleTouchStart)
-      scrollEl.removeEventListener('touchmove', handleTouchMove)
-      scrollEl.removeEventListener('touchend', handleTouchEnd)
-      scrollEl.removeEventListener('touchcancel', handleTouchEnd)
     }
   }, [prefersReducedMotion])
 
@@ -216,31 +151,33 @@ export default function Wallet() {
           <WalletStaggerContainer animate={shouldStagger} hold={bootAnimActive}>
             <FlexCol gap='1.5rem'>
               <PortfolioHero ref={balanceRef} collapseProgress={balanceCollapseProgress} />
+              <FlexCol gap='0.75rem'>
+                {nudge}
+                <DismissibleBanner
+                  id='pwa-install'
+                  icon={<HomeIcon />}
+                  title='Add Arkade to your home screen'
+                  description={pwaDescription}
+                  action={
+                    canPromptInstall()
+                      ? {
+                          label: 'Install',
+                          onClick: async () => {
+                            const outcome = await promptPwaInstall().catch(() => null)
+                            if (outcome) dismissPwaBanner()
+                          },
+                        }
+                      : undefined
+                  }
+                  onDismiss={dismissPwaBanner}
+                  visible={Boolean(nudgeCheckComplete && showPwaBanner)}
+                />
+              </FlexCol>
               <ErrorMessage error={error} text='Ark server unreachable' />
               <AssetsSection onCreateClick={handleCreateAsset} />
               <UpsellsSection />
               <RecentActivitySection />
-              {nudge}
               {psaMessage ? <InfoBox html={psaMessage} /> : null}
-              <DismissibleBanner
-                id='pwa-install'
-                icon={<HomeIcon />}
-                title='Add Arkade to your home screen'
-                description={pwaDescription}
-                action={
-                  canPromptInstall()
-                    ? {
-                        label: 'Install',
-                        onClick: async () => {
-                          const outcome = await promptPwaInstall().catch(() => null)
-                          if (outcome) dismissPwaBanner()
-                        },
-                      }
-                    : undefined
-                }
-                onDismiss={dismissPwaBanner}
-                visible={Boolean(nudgeCheckComplete && !nudgeVisible && showPwaBanner)}
-              />
             </FlexCol>
           </WalletStaggerContainer>
         </Padded>

@@ -37,7 +37,7 @@ const mockAnnouncementContextValue = {
   announcement: null,
 }
 
-function renderWallet() {
+function renderWallet(nudgeContextValue = mockNudgeContextValue) {
   return render(
     <NavigationContext.Provider value={mockNavigationContextValue as any}>
       <AspContext.Provider value={mockAspContextValue as any}>
@@ -45,7 +45,7 @@ function renderWallet() {
           <FlowContext.Provider value={mockFlowContextValue as any}>
             <FiatContext.Provider value={mockFiatContextValue as any}>
               <WalletContext.Provider value={{ ...mockWalletContextValue, balance: 0, txs: [] } as any}>
-                <NudgeContext.Provider value={mockNudgeContextValue as any}>
+                <NudgeContext.Provider value={nudgeContextValue as any}>
                   <AnnouncementContext.Provider value={mockAnnouncementContextValue as any}>
                     <OptionsContext.Provider value={mockOptionsContextValue as any}>
                       <Wallet />
@@ -64,11 +64,24 @@ function renderWallet() {
 describe('Wallet screen', () => {
   it('renders the wallet screen with the portfolio hero and sections', () => {
     renderWallet()
-    // PortfolioHero shows "Total" label
-    expect(screen.getByText('Total')).toBeInTheDocument()
+    // PortfolioHero shows the total portfolio balance
+    expect(screen.getByTestId('main-balance')).toBeInTheDocument()
     // Assets section header
     expect(screen.getByText('Assets')).toBeInTheDocument()
     // Recent activity section header
     expect(screen.getByText('Recent activity')).toBeInTheDocument()
+  })
+
+  it('renders dismissible home banners above assets', () => {
+    renderWallet({
+      ...mockNudgeContextValue,
+      nudge: <div data-testid='home-banner'>Home banner</div>,
+      nudgeVisible: true,
+    })
+
+    const banner = screen.getByTestId('home-banner')
+    const assets = screen.getByText('Assets')
+
+    expect(banner.compareDocumentPosition(assets) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })
