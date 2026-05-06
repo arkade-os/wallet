@@ -133,10 +133,7 @@ export const LnurlProvider = ({ children }: { children: ReactNode }) => {
           }
           if (credentials) {
             fetchOptions.headers = { 'Content-Type': 'application/json' }
-            fetchOptions.body = JSON.stringify({
-              sessionId: credentials.sessionId,
-              token: credentials.token,
-            })
+            fetchOptions.body = JSON.stringify({ token: credentials.token })
           }
 
           const response = await fetch(`${lnurlServerBaseUrl}/lnurl/session`, fetchOptions)

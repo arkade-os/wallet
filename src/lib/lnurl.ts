@@ -101,17 +101,14 @@ export const fetchInvoice = (lnurl: string, sats: number, note: string): Promise
 }
 
 export interface LnurlSessionCredentials {
-  sessionId: string
   token: string
 }
 
 export const deriveLnurlCredentials = (privateKeyHex: string): LnurlSessionCredentials => {
   const key = hex.decode(privateKeyHex)
   const tag = new TextEncoder().encode('lnurl-session')
-  const tokenBytes = hmac(sha256, key, tag)
-  const token = hex.encode(tokenBytes)
-  const sessionId = hex.encode(sha256(tokenBytes)).slice(0, 32)
-  return { sessionId, token }
+  const token = hex.encode(hmac(sha256, key, tag))
+  return { token }
 }
 
 export const fetchArkAddress = (lnurl: string): Promise<ArkMethodResponse> => {
