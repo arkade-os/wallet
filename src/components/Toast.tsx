@@ -1,20 +1,22 @@
 import { Toaster, toast } from 'sonner'
+import './Toast.css'
 
-// Re-export toast for direct usage
 export { toast }
 
-// Backward-compat hook - consumers can migrate to importing toast directly
 export const useToast = () => ({ toast })
 
-// Styled Toaster component - replaces ToastProvider
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <>
       {children}
       <Toaster
+        className='arkade-toast-toaster'
         position='top-center'
         richColors
         toastOptions={{
+          classNames: {
+            content: 'arkade-toast-content',
+          },
           style: {
             background: 'var(--toast-bg, #1a1a1a)',
             color: 'var(--toast-color, #fafafa)',
