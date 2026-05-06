@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 /* Dark mode: use html.palette-dark class (matches tokens.css and config.tsx) */
-@variant dark (&:where(html.palette-dark, html.palette-dark *));
+@custom-variant dark (&:where(html.palette-dark, html.palette-dark *));
 
 @theme {
   /* ======================================
@@ -108,7 +108,7 @@
   --color-destructive-foreground: #fff;
   --color-accent: var(--neutral-50);
   --color-accent-foreground: var(--fg);
-  --color-muted: var(--neutral-500);
+  --color-muted: var(--neutral-100);
   --color-muted-foreground: var(--neutral-500);
   --color-popover: var(--bg);
   --color-popover-foreground: var(--fg);
