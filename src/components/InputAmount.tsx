@@ -69,7 +69,7 @@ export default function InputAmount({
     const value = Number(ev.currentTarget.value)
     if (Number.isNaN(value)) return
     if (asset?.assetId) {
-      const integer = value >= 0 ? BigInt(Math.trunc(value)) : 0n
+      const integer = value >= 0 ? BigInt(Math.trunc(value)) : BigInt(0)
       onSats(Number(unitsToCents(integer, asset.decimals)))
       return
     }
