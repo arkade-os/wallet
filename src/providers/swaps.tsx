@@ -24,7 +24,7 @@ import { ArkAddress, RestIndexerProvider } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 
 const BASE_URLS: Record<Network, string | null> = {
-  bitcoin: import.meta.env.VITE_BOLTZ_URL ?? 'https://api.ark.boltz.exchange',
+  bitcoin: import.meta.env.VITE_BOLTZ_URL ?? null,
   mutinynet: 'https://api.boltz.mutinynet.arkade.sh',
   signet: 'https://boltz.signet.arkade.sh',
   regtest: 'http://localhost:9069',
