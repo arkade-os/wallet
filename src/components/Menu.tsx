@@ -21,7 +21,7 @@ export default function Menu({ rows, styled }: MenuProps) {
   const rowStyle = (option: SettingsOptions) => ({
     alignItems: 'center',
     backgroundColor: option === SettingsOptions.Reset ? 'var(--redbg)' : bgColor,
-    borderBottom: '1px solid var(--neutral-100)',
+    borderBottom: '1px solid var(--neutral-200)',
     color: option === SettingsOptions.Reset ? 'white' : 'var(--fg)',
     cursor: 'pointer',
     display: 'flex',
