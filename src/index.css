@@ -423,10 +423,26 @@ input:focus::placeholder {
 }
 
 .label {
+  position: relative;
   align-items: center;
   display: flex;
   gap: 0.25rem;
   flex: 1;
+  &.has-buttons {
+    & > div {
+      right: 0;
+      top: 50%;
+      gap: 4px;
+      display: flex;
+      position: absolute;
+      transform: translateY(-50%);
+    }
+    & > input {
+      width: 100%;
+      padding-right: 36px;
+      box-sizing: border-box;
+    }
+  }
 }
 
 .page {
