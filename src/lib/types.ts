@@ -126,7 +126,7 @@ export interface AssetOption {
   assetId: string
   name: string
   ticker: string
-  balance: number
+  balance: bigint
   decimals: number
   icon?: string
 }

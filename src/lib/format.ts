@@ -1,4 +1,4 @@
-import { centsToUnits } from './assets'
+import { centsToUnits, prettyAssetNumber } from './assets'
 import { fiatDecimalsFor, FIAT_SYMBOLS } from './fiat'
 import { Fiats, Satoshis, Tx } from './types'
 import { Decimal } from 'decimal.js'
@@ -38,7 +38,8 @@ export const prettyAmount = (amount: string | number, suffix?: string, decimals 
 
 export const prettyFiatAmount = (amount: number, currency: Fiats): string => {
   const symbol = FIAT_SYMBOLS[currency]
-  const formatted = prettyNumber(amount, fiatDecimalsFor(currency))
+  const decimals = fiatDecimalsFor(currency)
+  const formatted = prettyNumber(amount, decimals, true, decimals)
   return symbol ? `${symbol}${formatted}` : `${formatted} ${currency}`
 }
 
@@ -118,9 +119,9 @@ export const prettyNumber = (
   }).format(num)
 }
 
-export const formatAssetAmount = (amount: number, decimals: number): string => {
-  if (decimals === 0) return prettyNumber(amount, 0)
-  return prettyNumber(centsToUnits(amount, decimals), decimals)
+export const formatAssetAmount = (amount: bigint, decimals: number): string => {
+  if (decimals === 0) return prettyAssetNumber(amount, 0)
+  return prettyAssetNumber(centsToUnits(amount, decimals), decimals)
 }
 
 export const isIssuance = (tx: Tx): boolean => {

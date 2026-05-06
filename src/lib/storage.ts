@@ -54,12 +54,16 @@ export const saveAssetMetadataToStorage = (cache: Map<string, CachedAssetDetails
     if (now - v.cachedAt >= ASSET_METADATA_TTL_MS) return
     obj[k] = v
   })
-  setStorageItem('assetMetadataCache', JSON.stringify(obj))
+  setStorageItem(
+    'assetMetadataCache',
+    JSON.stringify(obj, (key, value) => (typeof value === 'bigint' ? value.toString() : value)),
+  )
 }
 
 export const readAssetMetadataFromStorage = (): Map<string, CachedAssetDetails> | undefined => {
   return getStorageItem('assetMetadataCache', undefined, (val) => {
     const obj = JSON.parse(val) as Record<string, CachedAssetDetails>
+    Object.values(obj).forEach((x) => (x.supply = BigInt(x.supply)))
     return new Map(Object.entries(obj))
   })
 }
