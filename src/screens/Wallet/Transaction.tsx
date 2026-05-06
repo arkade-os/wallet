@@ -4,7 +4,7 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
-import { formatAssetAmount, isBurn, isIssuance, prettyAgo, prettyDate } from '../../lib/format'
+import { isBurn, isIssuance, prettyAgo, prettyDate } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
 import ErrorMessage from '../../components/Error'
 import { extractError } from '../../lib/error'
@@ -24,6 +24,7 @@ import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { LimitsContext } from '../../providers/limits'
 import { getInputsToSettle } from '../../lib/asp'
+import { prettyAssetAmount } from '../../lib/assets'
 
 export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
@@ -163,7 +164,7 @@ export default function Transaction() {
                     <AssetAvatar icon={icon} ticker={ticker} size={32} assetId={a.assetId} clickable />
                     <FlexCol gap='0'>
                       <Text color={color}>
-                        {formatAssetAmount(a.amount, decimals)} {label}
+                        {prettyAssetAmount(a.amount, decimals)} {label}
                       </Text>
                       {name && ticker ? <TextSecondary>{name}</TextSecondary> : null}
                     </FlexCol>

@@ -24,7 +24,7 @@ import { ArkAddress, RestIndexerProvider } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 
 const BASE_URLS: Record<Network, string | null> = {
-  bitcoin: import.meta.env.VITE_BOLTZ_URL ?? 'https://api.ark.boltz.exchange',
+  bitcoin: import.meta.env.VITE_BOLTZ_URL ?? null,
   mutinynet: 'https://api.boltz.mutinynet.arkade.sh',
   signet: 'https://boltz.signet.arkade.sh',
   regtest: 'http://localhost:9069',
@@ -114,7 +114,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     setApiUrl(baseUrl)
 
     const network = aspInfo.network as Network
-    const swapProvider = new BoltzSwapProvider({ apiUrl: baseUrl, network })
+    const swapProvider = new BoltzSwapProvider({ apiUrl: baseUrl, network, referralId: 'arkade-money' })
 
     let disposeArkadeSwaps: (() => Promise<void>) | null = null
     let cancelled = false
@@ -126,6 +126,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       network,
       arkServerUrl: aspInfo.url,
       swapManager: config.apps.boltz.connected,
+      referralId: 'arkade-money',
     })
       .then((instance) => {
         if (cancelled) {

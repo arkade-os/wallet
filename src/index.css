@@ -250,6 +250,8 @@ button.reminder-button {
   height: 100%;
   display: block;
   position: relative;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   font-family:
     'Geist',
     -apple-system,
@@ -270,12 +272,12 @@ button.reminder-button {
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */
-.content::part(scroll)::-webkit-scrollbar {
+.content::-webkit-scrollbar {
   display: none;
 }
 
 /* Hide scrollbar for IE, Edge and Firefox */
-.content::part(scroll) {
+.content {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
 }
@@ -356,10 +358,26 @@ input:focus::placeholder {
 }
 
 .label {
+  position: relative;
   align-items: center;
   display: flex;
   gap: 0.25rem;
   flex: 1;
+  &.has-buttons {
+    & > div {
+      right: 0;
+      top: 50%;
+      gap: 4px;
+      display: flex;
+      position: absolute;
+      transform: translateY(-50%);
+    }
+    & > input {
+      width: 100%;
+      padding-right: 36px;
+      box-sizing: border-box;
+    }
+  }
 }
 
 .page {
@@ -688,6 +706,7 @@ hr {
 
 .scroll-fade {
   padding-bottom: 4rem;
+  height: 100%;
 }
 
 .pill-base {
