@@ -78,6 +78,7 @@ export enum Pages {
   Unlock,
   Vtxos,
   Wallet,
+  WalletSettings,
 }
 
 export enum Tabs {
@@ -125,6 +126,7 @@ const pageTab = {
   [Pages.Unlock]: Tabs.None,
   [Pages.Vtxos]: Tabs.Settings,
   [Pages.Wallet]: Tabs.Wallet,
+  [Pages.WalletSettings]: Tabs.Wallet,
 }
 
 // Root pages of each tab — tab switches between these get no animation
@@ -221,6 +223,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <Vtxos />
     case Pages.Wallet:
       return <Wallet />
+    case Pages.WalletSettings:
+      return <Settings />
     default:
       return <></>
   }

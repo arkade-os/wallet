@@ -212,6 +212,19 @@ describe('Navbar visibility', () => {
     expect(ionApp.className).toContain('has-pill-navbar')
   })
 
+  it('hides navbar on wallet-pushed settings menu', async () => {
+    renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      screen: Pages.WalletSettings,
+      tab: Tabs.Wallet,
+      option: SettingsOptions.Menu,
+    })
+
+    const ionApp = await screen.findByTestId('app')
+    expect(ionApp.className).not.toContain('has-pill-navbar')
+  })
+
   it('hides navbar on settings sub-page when authenticated and initialized', async () => {
     renderApp({
       authState: 'authenticated',

@@ -21,11 +21,12 @@ import Password from './Password'
 import Delegates from './Delegates'
 import SettingsPageTransition from '../../components/SettingsPageTransition'
 import Haptics from './Haptics'
+import { NavigationContext, Pages } from '../../providers/navigation'
 
-function settingsContent(option: SettingsOptions): JSX.Element {
+function settingsContent(option: SettingsOptions, menuBack?: () => void): JSX.Element {
   switch (option) {
     case SettingsOptions.Menu:
-      return <SettingsMenu />
+      return <SettingsMenu backFunc={menuBack} />
     case SettingsOptions.About:
       return <About />
     case SettingsOptions.Advanced:
@@ -69,10 +70,12 @@ function settingsContent(option: SettingsOptions): JSX.Element {
 
 export default function Settings() {
   const { option, direction } = useContext(OptionsContext)
+  const { goBack, screen } = useContext(NavigationContext)
+  const menuBack = screen === Pages.WalletSettings ? goBack : undefined
 
   return (
     <SettingsPageTransition direction={direction} optionKey={String(option)}>
-      {settingsContent(option)}
+      {settingsContent(option, menuBack)}
     </SettingsPageTransition>
   )
 }

@@ -6,14 +6,18 @@ import Menu from '../../components/Menu'
 import { TextLabel } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
 
-export default function SettingsMenu() {
+interface SettingsMenuProps {
+  backFunc?: () => void
+}
+
+export default function SettingsMenu({ backFunc }: SettingsMenuProps) {
   // get rows for General and Security sections
   const generalRows = options.filter((o) => o.section === SettingsSections.General)
   const securityRows = options.filter((o) => o.section === SettingsSections.Security)
 
   return (
     <>
-      <Header text='Settings' />
+      <Header text='Settings' backFunc={backFunc} />
       <Content>
         <FlexCol gap='1.25rem'>
           <FlexCol gap='0'>

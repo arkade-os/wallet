@@ -105,7 +105,7 @@ export default function AppAssetDetail() {
 
   return (
     <>
-      <Header text={name} back={() => navigate(Pages.AppAssets)} />
+      <Header text={name} back />
       <Content>
         <Padded>
           <FlexCol gap='1rem' centered>

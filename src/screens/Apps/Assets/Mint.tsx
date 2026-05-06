@@ -201,7 +201,7 @@ export default function AppAssetMint() {
 
   return (
     <>
-      <Header text='Mint Asset' back={() => navigate(Pages.AppAssets)} />
+      <Header text='Mint Asset' back />
       <Content>
         <Padded>
           <FlexCol gap='1rem'>

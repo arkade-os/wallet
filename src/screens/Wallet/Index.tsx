@@ -8,7 +8,7 @@ import HomeIcon from '../../icons/Home'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import FlexCol from '../../components/FlexCol'
-import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
+import { FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { NudgeContext } from '../../providers/nudge'
 import { InfoBox } from '../../components/AlertBox'
@@ -23,7 +23,6 @@ import PortfolioHero from './PortfolioHero'
 import AssetsSection from './AssetsSection'
 import UpsellsSection from './UpsellsSection'
 import RecentActivitySection from './RecentActivitySection'
-import WalletActionBarOverlay from '../../components/WalletActionBarOverlay'
 import { usePortfolioBalanceDisplay } from '../../hooks/usePortfolioBalanceDisplay'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 
@@ -31,7 +30,7 @@ export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
   const { announcement } = useContext(AnnouncementContext)
   const { config, updateConfig } = useContext(ConfigContext)
-  const { setRecvInfo, setSendInfo, setAssetInfo } = useContext(FlowContext)
+  const { setAssetInfo } = useContext(FlowContext)
   const { isInitialLoad, navigate } = useContext(NavigationContext)
   const { balance } = useContext(WalletContext)
   const { nudge, nudgeCheckComplete } = useContext(NudgeContext)
@@ -111,23 +110,9 @@ export default function Wallet() {
     }
   }, [prefersReducedMotion])
 
-  const handleReceive = () => {
-    setRecvInfo(emptyRecvInfo)
-    navigate(Pages.ReceiveQRCode)
-  }
-
-  const handleSend = () => {
-    setSendInfo(emptySendInfo)
-    navigate(Pages.SendForm)
-  }
-
-  const handleSwap = () => {
-    navigate(Pages.AppBoltzSwap)
-  }
-
   const handleCreateAsset = () => {
     setAssetInfo({ assetId: '', supply: 0 })
-    navigate(Pages.AppAssetCreate)
+    navigate(Pages.AppAssetMint)
   }
 
   return (
@@ -182,12 +167,6 @@ export default function Wallet() {
           </WalletStaggerContainer>
         </Padded>
       </Content>
-      <WalletActionBarOverlay
-        visible={showActionBar}
-        onSendClick={handleSend}
-        onSwapClick={handleSwap}
-        onReceiveClick={handleReceive}
-      />
     </>
   )
 }

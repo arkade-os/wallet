@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom'
 import { motion, useReducedMotion } from 'framer-motion'
 import WalletActionBar from './WalletActionBar'
+import { EASE_OUT_QUINT_TUPLE } from '../lib/animations'
 
 interface WalletActionBarOverlayProps {
   visible: boolean
@@ -21,14 +22,20 @@ export default function WalletActionBarOverlay({
   onReceiveClick,
 }: WalletActionBarOverlayProps) {
   const prefersReduced = useReducedMotion()
+  const transition = prefersReduced
+    ? { duration: 0 }
+    : visible
+      ? { duration: 0.28, ease: EASE_OUT_QUINT_TUPLE }
+      : { duration: 0.2, ease: EASE_OUT_QUINT_TUPLE }
 
   return createPortal(
     <motion.div
       className={`wallet-action-bar-layer ${!visible ? 'wallet-action-bar-layer--hidden' : ''}`}
-      animate={visible ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+      animate={visible ? { opacity: 1, y: 0 } : { opacity: 0, y: '115%' }}
       initial={false}
-      transition={prefersReduced ? { duration: 0 } : { type: 'spring', duration: 0.5, bounce: 0.25 }}
+      transition={transition}
       {...(!visible && { inert: '' })}
+      style={{ willChange: visible ? 'transform, opacity' : 'auto' }}
     >
       <div className='wallet-action-bar-haze' aria-hidden='true' />
       <div className='wallet-action-bar-dock'>

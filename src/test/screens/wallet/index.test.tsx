@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import Wallet from '../../../screens/Wallet/Index'
@@ -5,11 +6,12 @@ import { WalletContext } from '../../../providers/wallet'
 import { ConfigContext } from '../../../providers/config'
 import { FlowContext } from '../../../providers/flow'
 import { FiatContext } from '../../../providers/fiat'
-import { NavigationContext } from '../../../providers/navigation'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 import { NudgeContext } from '../../../providers/nudge'
 import { AspContext } from '../../../providers/asp'
 import { AnnouncementContext } from '../../../providers/announcements'
 import { OptionsContext } from '../../../providers/options'
+import { SettingsOptions } from '../../../lib/types'
 import {
   mockWalletContextValue,
   mockConfigContextValue,
@@ -38,16 +40,20 @@ const mockAnnouncementContextValue = {
 }
 
 function renderWallet(nudgeContextValue = mockNudgeContextValue) {
-  return render(
-    <NavigationContext.Provider value={mockNavigationContextValue as any}>
+  const navigate = vi.fn()
+  const setAssetInfo = vi.fn()
+  const setOption = vi.fn()
+
+  const utils = render(
+    <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate } as any}>
       <AspContext.Provider value={mockAspContextValue as any}>
         <ConfigContext.Provider value={{ ...mockConfigContextValue, configLoaded: true } as any}>
-          <FlowContext.Provider value={mockFlowContextValue as any}>
+          <FlowContext.Provider value={{ ...mockFlowContextValue, setAssetInfo } as any}>
             <FiatContext.Provider value={mockFiatContextValue as any}>
               <WalletContext.Provider value={{ ...mockWalletContextValue, balance: 0, txs: [] } as any}>
                 <NudgeContext.Provider value={nudgeContextValue as any}>
                   <AnnouncementContext.Provider value={mockAnnouncementContextValue as any}>
-                    <OptionsContext.Provider value={mockOptionsContextValue as any}>
+                    <OptionsContext.Provider value={{ ...mockOptionsContextValue, setOption } as any}>
                       <Wallet />
                     </OptionsContext.Provider>
                   </AnnouncementContext.Provider>
@@ -59,6 +65,8 @@ function renderWallet(nudgeContextValue = mockNudgeContextValue) {
       </AspContext.Provider>
     </NavigationContext.Provider>,
   )
+
+  return { ...utils, navigate, setAssetInfo, setOption }
 }
 
 describe('Wallet screen', () => {
@@ -83,5 +91,25 @@ describe('Wallet screen', () => {
     const assets = screen.getByText('Assets')
 
     expect(banner.compareDocumentPosition(assets) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('navigates create asset to the mint page', async () => {
+    const { navigate, setAssetInfo } = renderWallet()
+
+    await userEvent.click(screen.getByTestId('assets-create'))
+
+    expect(setAssetInfo).toHaveBeenCalledWith({ assetId: '', supply: 0 })
+    expect(navigate).toHaveBeenCalledWith(Pages.AppAssetMint)
+    expect(navigate).not.toHaveBeenCalledWith(undefined)
+  })
+
+  it('opens settings as a wallet detail screen', async () => {
+    const { navigate, setOption } = renderWallet()
+
+    await userEvent.click(screen.getByTestId('top-right-settings'))
+
+    expect(setOption).toHaveBeenCalledWith(SettingsOptions.Menu)
+    expect(navigate).toHaveBeenCalledWith(Pages.WalletSettings)
+    expect(navigate).not.toHaveBeenCalledWith(Pages.Settings)
   })
 })
