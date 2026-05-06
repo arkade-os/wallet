@@ -58,7 +58,7 @@ export default function InputWithScanner({
 
   return (
     <InputContainer label={label} error={error}>
-      <label className='label'>
+      <label className='label has-buttons'>
         <input
           ref={input}
           name={name}
