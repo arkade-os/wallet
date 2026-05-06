@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: file:../boltz-swap
-        version: file:../boltz-swap
+        specifier: 0.3.28
+        version: 0.3.28
       '@arkade-os/sdk':
         specifier: 0.4.24
         version: 0.4.24
@@ -183,8 +183,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@file:../boltz-swap':
-    resolution: {directory: ../boltz-swap, type: directory}
+  '@arkade-os/boltz-swap@0.3.28':
+    resolution: {integrity: sha512-AkEgLXpBn7OTKhGwYaxGLMJw75/Hm2lInOsZ6Aofd94Veqx0wijPkfSOcjY6/qWYDfOGqc8phMgtdFNPjkeapg==}
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
 
   '@arkade-os/sdk@0.4.24':
@@ -2757,7 +2757,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@file:../boltz-swap':
+  '@arkade-os/boltz-swap@0.3.28':
     dependencies:
       '@arkade-os/sdk': 0.4.24
       '@noble/curves': 2.0.1
