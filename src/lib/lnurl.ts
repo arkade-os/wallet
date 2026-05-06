@@ -1,5 +1,6 @@
 import { bech32, utf8 } from '@scure/base'
-import { corsProxyUrl } from './constants'
+
+const corsProxyUrl = 'https://cors-header-proxy.bordalix.workers.dev/proxy?apiurl='
 
 const emailRegex =
   /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
