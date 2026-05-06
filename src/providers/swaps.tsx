@@ -126,6 +126,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       network,
       arkServerUrl: aspInfo.url,
       swapManager: config.apps.boltz.connected,
+      referralId: 'arkade-money',
     })
       .then((instance) => {
         if (cancelled) {
