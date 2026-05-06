@@ -250,6 +250,8 @@ button.reminder-button {
   height: 100%;
   display: block;
   position: relative;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   font-family:
     'Geist',
     -apple-system,
@@ -688,6 +690,7 @@ hr {
 
 .scroll-fade {
   padding-bottom: 4rem;
+  height: 100%;
 }
 
 .pill-base {
