@@ -45,10 +45,6 @@ export default function Backup() {
   const enteredPassword = useRef('')
 
   useEffect(() => {
-    if (import.meta.env.DEV && import.meta.env.VITE_DEV_NSEC) {
-      setNsec(import.meta.env.VITE_DEV_NSEC)
-      return
-    }
     verifyPassword(defaultPassword).then(setNsec)
   }, [])
 

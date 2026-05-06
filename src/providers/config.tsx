@@ -74,7 +74,7 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
 }
 
 const shouldUseDevEnvArkServer = (aspUrl: string) =>
-  import.meta.env.DEV && import.meta.env.VITE_DEV_NSEC && import.meta.env.VITE_ARK_SERVER && aspUrl === devServer
+  import.meta.env.DEV && import.meta.env.VITE_ARK_SERVER && aspUrl === devServer
 
 export const resolveTheme = (theme: Themes): Themes.Dark | Themes.Light => {
   if (theme === Themes.Auto) {
