@@ -104,7 +104,7 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
               <AssetAvatar icon={icon} ticker={ticker} size={16} assetId={a.assetId} clickable />
               <Text color={color} thin>
                 {config.showBalance
-                  ? `${prettyAssetAmount(a.amount, decimals)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
+                  ? `${prettyAssetAmount(a.amount, decimals, true)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
                   : prettyAssetAmountHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}
               </Text>
             </FlexRow>

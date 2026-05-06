@@ -13,7 +13,7 @@ import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
 import SwapIcon from '../icons/Swap'
 import { AssetOption } from '../lib/types'
-import { centsToUnits, prettyAssetAmount, unitsToCents } from '../lib/assets'
+import { centsToUnits, prettyAssetAmount, txtValueToCents } from '../lib/assets'
 
 interface KeyboardProps {
   asset?: AssetOption
@@ -48,15 +48,15 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
   }, [balance])
 
   useEffect(() => {
-    const value = Number(textValue.replaceAll(',', ''))
+    const strValue = textValue.replaceAll(',', '')
+    if (inputMode === 'asset' && asset) {
+      const cents = txtValueToCents(strValue, asset.decimals)
+      setAmountInSats(Number(cents))
+      return
+    }
+    const value = Number(strValue)
     if (Number.isNaN(value)) return
-    setAmountInSats(
-      inputMode === 'fiat'
-        ? fromFiat(value)
-        : inputMode === 'asset'
-          ? Number(unitsToCents(BigInt(value), asset?.decimals ?? 0))
-          : value,
-    )
+    setAmountInSats(inputMode === 'fiat' ? fromFiat(value) : value)
   }, [textValue])
 
   const getMaxDecimals = () => {

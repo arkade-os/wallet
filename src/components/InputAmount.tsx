@@ -6,7 +6,7 @@ import { prettyNumber } from '../lib/format'
 import { FIAT_SYMBOLS } from '../lib/fiat'
 import { LimitsContext } from '../providers/limits'
 import Focusable from './Focusable'
-import { unitsToCents } from '../lib/assets'
+import { txtValueToCents } from '../lib/assets'
 import { AssetOption } from '../lib/types'
 import { TextSecondary } from './Text'
 
@@ -66,13 +66,13 @@ export default function InputAmount({
   }, [sats])
 
   const handleInput: ChangeEventHandler<HTMLInputElement> = (ev) => {
-    const value = Number(ev.currentTarget.value)
-    if (Number.isNaN(value)) return
+    const strValue = ev.currentTarget.value
+    const value = Number(strValue)
     if (asset?.assetId) {
-      const integer = value >= 0 ? BigInt(Math.trunc(value)) : 0n
-      onSats(Number(unitsToCents(integer, asset.decimals)))
+      onSats(Number(txtValueToCents(strValue, asset.decimals)))
       return
     }
+    if (Number.isNaN(value)) return
     onSats(useFiat ? fromFiat(value) : value)
   }
 

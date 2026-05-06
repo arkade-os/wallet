@@ -6,14 +6,20 @@ export function isValidAssetId(id: string) {
 
 export const isValidDecimals = (d: number): boolean => Number.isInteger(d) && d >= 0 && d <= MAX_DECIMALS
 
+export function txtValueToCents(str: string, decimals: number): bigint {
+  const [integer, fraction = ''] = str.split('.')
+  const paddedFraction = fraction.padEnd(decimals, '0').slice(0, decimals)
+  return BigInt(integer + paddedFraction) // string + string
+}
+
 export function unitsToCents(units: bigint, decimals = 8): bigint {
   if (!isValidDecimals(decimals)) return units
-  return units * 10n ** BigInt(decimals)
+  return units * BigInt(10) ** BigInt(decimals)
 }
 
 export function centsToUnits(cents: bigint, decimals = 8): bigint {
   if (!isValidDecimals(decimals)) return cents
-  return cents / 10n ** BigInt(decimals)
+  return cents / BigInt(10) ** BigInt(decimals)
 }
 
 export const truncatedAssetId = (id: string): string => {
@@ -48,18 +54,39 @@ export const prettyAssetNumber = (
   }).format(num)
 }
 
-export const prettyAssetAmount = (amount: bigint, decimals: number, useGrouping = true): string => {
+export const prettyAssetAmountOld = (amount: bigint, decimals: number, useGrouping = true): string => {
   if (!isValidDecimals(decimals) || decimals === 0) return prettyAssetNumber(amount, 0, useGrouping)
 
-  const divisor = 10n ** BigInt(decimals)
-  const negative = amount < 0n
+  const divisor = BigInt(10) ** BigInt(decimals)
+  const negative = amount < BigInt(0)
   const abs = negative ? -amount : amount
   const whole = abs / divisor
   const frac = abs % divisor
   const sign = negative ? '-' : ''
 
-  if (frac === 0n) return `${sign}${prettyAssetNumber(whole, 0, useGrouping)}`
+  if (frac === BigInt(0)) return `${sign}${prettyAssetNumber(whole, 0, useGrouping)}`
 
   const fracStr = frac.toString().padStart(decimals, '0').replace(/0+$/, '')
   return `${sign}${prettyAssetNumber(whole, 0, useGrouping)}.${fracStr}`
+}
+
+export const prettyAssetAmount = (amount: bigint, decimals: number, tidy = false): string => {
+  const realDecimals = isValidDecimals(decimals) ? decimals : 0
+
+  if (!tidy) return prettyAssetAmountOld(amount, realDecimals)
+
+  const million = BigInt(10 ** 6)
+  const thousand = BigInt(10 ** 3)
+  const units = centsToUnits(amount, realDecimals)
+  const absoluteUnits = units < BigInt(0) ? -units : units
+
+  if (absoluteUnits >= million) {
+    return `${prettyAssetNumber(units / million, 2)}M`
+  } else if (absoluteUnits >= thousand) {
+    return `${prettyAssetNumber(units / thousand, 2)}K`
+  } else if (absoluteUnits >= BigInt(1)) {
+    return `${prettyAssetNumber(units, 2)}`
+  } else {
+    return `${prettyAssetNumber(amount, realDecimals)}`
+  }
 }
