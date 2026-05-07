@@ -1,15 +1,13 @@
 import { useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import DismissibleBanner from '../../components/DismissibleBanner'
 import ErrorMessage from '../../components/Error'
-import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
 import { ConfigContext } from '../../providers/config'
 import HomeIcon from '../../icons/Home'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import FlexCol from '../../components/FlexCol'
-import { FlowContext } from '../../providers/flow'
-import { NavigationContext, Pages } from '../../providers/navigation'
+import { NavigationContext } from '../../providers/navigation'
 import { NudgeContext } from '../../providers/nudge'
 import { InfoBox } from '../../components/AlertBox'
 import { psaMessage } from '../../lib/constants'
@@ -20,6 +18,7 @@ import { isIOS, isAndroid } from '../../lib/browser'
 import { setLogoAnchor, getBootAnimActive, subscribeBootAnim } from '../../lib/logoAnchor'
 import HomeHeader from './HomeHeader'
 import PortfolioHero from './PortfolioHero'
+import HomeQuickActions from './HomeQuickActions'
 import AssetsSection from './AssetsSection'
 import UpsellsSection from './UpsellsSection'
 import RecentActivitySection from './RecentActivitySection'
@@ -30,9 +29,7 @@ export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
   const { announcement } = useContext(AnnouncementContext)
   const { config, updateConfig } = useContext(ConfigContext)
-  const { setAssetInfo } = useContext(FlowContext)
-  const { isInitialLoad, navigate } = useContext(NavigationContext)
-  const { balance } = useContext(WalletContext)
+  const { isInitialLoad } = useContext(NavigationContext)
   const { nudge, nudgeCheckComplete } = useContext(NudgeContext)
 
   const [error, setError] = useState(false)
@@ -44,9 +41,6 @@ export default function Wallet() {
   // Capture isInitialLoad at mount — it goes false before boot animation ends,
   // which would switch the stagger container from motion.div to plain div
   const shouldStagger = useRef(isInitialLoad).current
-
-  // Show action bar once we have a balance (wallet loaded)
-  const showActionBar = balance !== undefined
 
   const logoRef = useCallback((el: HTMLDivElement | null) => {
     setLogoAnchor(el)
@@ -110,21 +104,10 @@ export default function Wallet() {
     }
   }, [prefersReducedMotion])
 
-  const handleCreateAsset = () => {
-    setAssetInfo({ assetId: '', supply: 0 })
-    navigate(Pages.AppAssetMint)
-  }
-
   return (
     <>
       {announcement}
-      <Content
-        className={
-          showActionBar
-            ? `wallet-home-content has-wallet-action-bar ${homeScrolled ? 'wallet-home-content--scrolled' : ''}`
-            : `wallet-home-content ${homeScrolled ? 'wallet-home-content--scrolled' : ''}`
-        }
-      >
+      <Content className={homeScrolled ? 'wallet-home-content wallet-home-content--scrolled' : 'wallet-home-content'}>
         <Padded>
           <HomeHeader
             ref={logoRef}
@@ -136,6 +119,7 @@ export default function Wallet() {
           <WalletStaggerContainer animate={shouldStagger} hold={bootAnimActive}>
             <FlexCol gap='1.5rem'>
               <PortfolioHero ref={balanceRef} collapseProgress={balanceCollapseProgress} />
+              <HomeQuickActions />
               <FlexCol gap='0.75rem'>
                 {nudge}
                 <DismissibleBanner
@@ -159,7 +143,7 @@ export default function Wallet() {
                 />
               </FlexCol>
               <ErrorMessage error={error} text='Ark server unreachable' />
-              <AssetsSection onCreateClick={handleCreateAsset} />
+              <AssetsSection />
               <UpsellsSection />
               <RecentActivitySection />
               {psaMessage ? <InfoBox html={psaMessage} /> : null}

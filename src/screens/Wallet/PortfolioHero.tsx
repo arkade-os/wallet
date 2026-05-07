@@ -17,7 +17,7 @@ const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function Po
   const clampedProgress = Math.max(0, Math.min(1, collapseProgress))
 
   return (
-    <div className='mb-6 mt-8 flex w-full flex-col items-center justify-center'>
+    <div className='mb-2 mt-8 flex w-full flex-col items-center justify-center'>
       <div
         ref={ref}
         className='flex items-baseline gap-2'

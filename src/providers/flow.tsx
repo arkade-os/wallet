@@ -42,6 +42,7 @@ export type SendInfo = {
   pendingSwap?: BoltzSwap
   recipient?: string
   satoshis?: number
+  scan?: boolean
   swapId?: string
   total?: number
   text?: string
@@ -95,6 +96,7 @@ export const emptySendInfo: SendInfo = {
   arkAddress: '',
   recipient: '',
   satoshis: 0,
+  scan: false,
   total: 0,
   txid: '',
 }

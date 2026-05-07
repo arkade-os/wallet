@@ -42,13 +42,15 @@ const mockAnnouncementContextValue = {
 function renderWallet(nudgeContextValue = mockNudgeContextValue) {
   const navigate = vi.fn()
   const setAssetInfo = vi.fn()
+  const setRecvInfo = vi.fn()
+  const setSendInfo = vi.fn()
   const setOption = vi.fn()
 
   const utils = render(
     <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate } as any}>
       <AspContext.Provider value={mockAspContextValue as any}>
         <ConfigContext.Provider value={{ ...mockConfigContextValue, configLoaded: true } as any}>
-          <FlowContext.Provider value={{ ...mockFlowContextValue, setAssetInfo } as any}>
+          <FlowContext.Provider value={{ ...mockFlowContextValue, setAssetInfo, setRecvInfo, setSendInfo } as any}>
             <FiatContext.Provider value={mockFiatContextValue as any}>
               <WalletContext.Provider value={{ ...mockWalletContextValue, balance: 0, txs: [] } as any}>
                 <NudgeContext.Provider value={nudgeContextValue as any}>
@@ -66,7 +68,7 @@ function renderWallet(nudgeContextValue = mockNudgeContextValue) {
     </NavigationContext.Provider>,
   )
 
-  return { ...utils, navigate, setAssetInfo, setOption }
+  return { ...utils, navigate, setAssetInfo, setOption, setRecvInfo, setSendInfo }
 }
 
 describe('Wallet screen', () => {
@@ -76,6 +78,12 @@ describe('Wallet screen', () => {
     expect(screen.getByTestId('main-balance')).toBeInTheDocument()
     // Assets section header
     expect(screen.getByText('Assets')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Receive' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Swap' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Scan' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Create asset')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('View all assets')).not.toBeInTheDocument()
     // Recent activity section header
     expect(screen.getByText('Recent activity')).toBeInTheDocument()
   })
@@ -93,16 +101,6 @@ describe('Wallet screen', () => {
     expect(banner.compareDocumentPosition(assets) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('navigates create asset to the mint page', async () => {
-    const { navigate, setAssetInfo } = renderWallet()
-
-    await userEvent.click(screen.getByTestId('assets-create'))
-
-    expect(setAssetInfo).toHaveBeenCalledWith({ assetId: '', supply: 0 })
-    expect(navigate).toHaveBeenCalledWith(Pages.AppAssetMint)
-    expect(navigate).not.toHaveBeenCalledWith(undefined)
-  })
-
   it('opens settings as a wallet detail screen', async () => {
     const { navigate, setOption } = renderWallet()
 
@@ -111,5 +109,14 @@ describe('Wallet screen', () => {
     expect(setOption).toHaveBeenCalledWith(SettingsOptions.Menu)
     expect(navigate).toHaveBeenCalledWith(Pages.WalletSettings)
     expect(navigate).not.toHaveBeenCalledWith(Pages.Settings)
+  })
+
+  it('opens the scanner from the home action row through send', async () => {
+    const { navigate, setSendInfo } = renderWallet()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Scan' }))
+
+    expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ scan: true }))
+    expect(navigate).toHaveBeenCalledWith(Pages.SendForm)
   })
 })

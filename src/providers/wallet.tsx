@@ -5,6 +5,7 @@ import {
   NetworkName,
   SingleKey,
   AssetDetails,
+  KnownMetadata,
   WalletBalance,
   IVtxoManager,
   migrateWalletRepository,
@@ -46,6 +47,20 @@ import { IndexedDbSwapRepository, migrateToSwapRepository, Network } from '@arka
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
 const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
+const DEV_ISSUED_ASSETS = [
+  {
+    name: 'Tether USD',
+    ticker: 'USDT',
+    decimals: 2,
+    amount: 7010,
+  },
+  {
+    name: 'Swiss franc',
+    ticker: 'CHF',
+    decimals: 2,
+    amount: 3047,
+  },
+]
 
 const defaultWallet: Wallet = {
   network: '',
@@ -137,6 +152,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const statusPingInterval = useRef<ReturnType<typeof setInterval>>()
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const swMessageHandlerRef = useRef<(event: MessageEvent) => void>()
+  const devAssetIssueStarted = useRef(false)
 
   const setCacheEntry = (assetId: string, details: AssetDetails): CachedAssetDetails => {
     const hasIcon = !!details.metadata?.icon
@@ -209,6 +225,70 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (svcWallet) reloadWallet().catch(consoleError)
   }, [svcWallet])
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    if (!svcWallet || !dataReady) return
+    if (devAssetIssueStarted.current) return
+    if (window.localStorage.getItem('arkade-dev-issue-reference-assets') === 'off') return
+
+    const issueReferenceAssets = async () => {
+      const existingTickers = new Set<string>()
+
+      for (const assetBalance of assetBalances) {
+        let details = assetMetadataCache.current.get(assetBalance.assetId)
+        if (!details) {
+          try {
+            const fetched = await svcWallet.assetManager.getAssetDetails(assetBalance.assetId)
+            if (fetched) details = setCacheEntry(assetBalance.assetId, fetched)
+          } catch (err) {
+            consoleError(err, `error loading metadata for ${assetBalance.assetId}`)
+          }
+        }
+
+        const ticker = details?.metadata?.ticker?.trim().toUpperCase()
+        if (ticker) existingTickers.add(ticker)
+      }
+
+      const missingAssets = DEV_ISSUED_ASSETS.filter((asset) => !existingTickers.has(asset.ticker))
+      if (!missingAssets.length) return
+
+      devAssetIssueStarted.current = true
+
+      try {
+        const importedAssets = [...config.importedAssets]
+
+        for (const asset of missingAssets) {
+          const metadata: KnownMetadata = {
+            name: asset.name,
+            ticker: asset.ticker,
+            decimals: asset.decimals,
+          }
+          const result = await svcWallet.assetManager.issue({
+            amount: asset.amount,
+            metadata,
+          })
+
+          iconApprovalManager.approve(result.assetId)
+          setCacheEntry(result.assetId, {
+            assetId: result.assetId,
+            supply: asset.amount,
+            metadata,
+          })
+
+          if (!importedAssets.includes(result.assetId)) importedAssets.push(result.assetId)
+        }
+
+        updateConfig({ ...config, importedAssets })
+        await reloadWallet(svcWallet)
+      } catch (err) {
+        devAssetIssueStarted.current = false
+        consoleError(err, 'error issuing dev reference assets')
+      }
+    }
+
+    issueReferenceAssets().catch(consoleError)
+  }, [svcWallet, dataReady, assetBalances, config.importedAssets])
 
   // calculate thresholdMs and next rollover
   useEffect(() => {

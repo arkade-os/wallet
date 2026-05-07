@@ -6,7 +6,7 @@ import { isInAppBrowser } from './lib/browser'
 import { detectJSCapabilities } from './lib/jsCapabilities'
 import { OptionsContext } from './providers/options'
 import { WalletContext } from './providers/wallet'
-import { emptyRecvInfo, emptySendInfo, FlowContext } from './providers/flow'
+import { FlowContext } from './providers/flow'
 import { SettingsOptions } from './lib/types'
 import { AspContext } from './providers/asp'
 import { hapticLight } from './lib/haptics'
@@ -15,7 +15,6 @@ import { PageTransition } from './components/PageTransition'
 import BootError from './components/BootError'
 import LoadingLogo from './components/LoadingLogo'
 import PillNavbarOverlay from './components/PillNavbarOverlay'
-import WalletActionBarOverlay from './components/WalletActionBarOverlay'
 import { useReducedMotion } from './hooks/useReducedMotion'
 import { useLoadingStatus } from './hooks/useLoadingStatus'
 import { defaultPassword } from './lib/constants'
@@ -47,10 +46,9 @@ export default function App() {
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
   const { direction, navigate, screen, tab } = useContext(NavigationContext)
-  const { initInfo, setRecvInfo, setSendInfo } = useContext(FlowContext)
+  const { initInfo } = useContext(FlowContext)
   const { option, setOption } = useContext(OptionsContext)
-  const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError, balance } =
-    useContext(WalletContext)
+  const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError } = useContext(WalletContext)
 
   const loadingStatus = useLoadingStatus()
   const isIAB = useMemo(() => isInAppBrowser(), [])
@@ -122,20 +120,6 @@ export default function App() {
     hapticLight()
     setOption(SettingsOptions.Menu)
     navigate(Pages.Settings)
-  }
-
-  const handleSend = () => {
-    setSendInfo(emptySendInfo)
-    navigate(Pages.SendForm)
-  }
-
-  const handleSwap = () => {
-    navigate(Pages.AppBoltzSwap)
-  }
-
-  const handleReceive = () => {
-    setRecvInfo(emptyRecvInfo)
-    navigate(Pages.ReceiveQRCode)
   }
 
   const prefersReduced = useReducedMotion()
@@ -226,7 +210,6 @@ export default function App() {
   const comp = page === Pages.Loading ? null : pageComponent(page)
   const isSettingsRoot = screen === Pages.Settings && option === SettingsOptions.Menu
   const showNavbar = page === screen && (screen === Pages.Apps || isSettingsRoot)
-  const showWalletActionBar = page === Pages.Wallet && balance !== undefined && !bootAnimActive
 
   return (
     <div className={showNavbar ? 'page has-pill-navbar' : 'page'} data-testid='app'>
@@ -256,12 +239,6 @@ export default function App() {
           />
         )
       ) : null}
-      <WalletActionBarOverlay
-        visible={showWalletActionBar}
-        onSendClick={handleSend}
-        onSwapClick={handleSwap}
-        onReceiveClick={handleReceive}
-      />
     </div>
   )
 }

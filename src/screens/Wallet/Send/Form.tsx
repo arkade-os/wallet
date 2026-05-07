@@ -139,8 +139,12 @@ export default function SendForm() {
 
   // update form with existing send info
   useEffect(() => {
-    const { recipient, satoshis } = sendInfo
+    const { recipient, satoshis, scan } = sendInfo
     setRecipient(recipient ?? '')
+    if (scan) {
+      setKeys(false)
+      setScan(true)
+    }
     if (!satoshis) return
     setTextValue(useFiat ? prettyNumber(fromFiat(satoshis)) : prettyNumber(satoshis, 0, false))
   }, [])

@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App, { appReloader } from '../App'
@@ -190,6 +191,20 @@ describe('Navbar visibility', () => {
 
     const ionApp = await screen.findByTestId('app')
     expect(ionApp.className).not.toContain('has-pill-navbar')
+  })
+
+  it('routes the wallet swap action to the asset swap prototype', async () => {
+    const { navigate } = renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      screen: Pages.Wallet,
+      tab: Tabs.Wallet,
+    })
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Swap' }))
+
+    expect(navigate).toHaveBeenCalledWith(Pages.WalletSwap)
+    expect(navigate).not.toHaveBeenCalledWith(Pages.AppBoltzSwap)
   })
 
   it('shows navbar on apps root when authenticated and initialized', async () => {

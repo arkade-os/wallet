@@ -6,6 +6,7 @@ import { CurrencyDisplay, Fiats, Satoshis } from '../lib/types'
 import { ConfigContext } from './config'
 
 type FiatContextProps = {
+  convertFiat: (amount: number, from: Fiats, to?: Fiats) => number
   toFiat: (satoshis?: Satoshis) => number
   fromFiat: (fiat?: number) => Satoshis
   fiatDecimals: () => number
@@ -15,6 +16,7 @@ type FiatContextProps = {
 const emptyFiatPrices: FiatPrices = { eur: 0, usd: 0, chf: 0, jpy: 0, gbp: 0, cny: 0 }
 
 export const FiatContext = createContext<FiatContextProps>({
+  convertFiat: () => 0,
   toFiat: () => 0,
   fromFiat: () => 0,
   fiatDecimals: () => 2,
@@ -40,6 +42,23 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
   const toJPY = (sats = 0) => Decimal.mul(fromSatoshis(sats), prices.current.jpy).toNumber()
   const toGBP = (sats = 0) => Decimal.mul(fromSatoshis(sats), prices.current.gbp).toNumber()
   const toCNY = (sats = 0) => Decimal.mul(fromSatoshis(sats), prices.current.cny).toNumber()
+
+  const priceFor = (fiat: Fiats): number => {
+    if (fiat === Fiats.EUR) return prices.current.eur
+    if (fiat === Fiats.CHF) return prices.current.chf
+    if (fiat === Fiats.JPY) return prices.current.jpy
+    if (fiat === Fiats.GBP) return prices.current.gbp
+    if (fiat === Fiats.CNY) return prices.current.cny
+    return prices.current.usd
+  }
+
+  const convertFiat = (amount: number, from: Fiats, to = config.fiat): number => {
+    const sourcePrice = priceFor(from)
+    const targetPrice = priceFor(to)
+    if (!sourcePrice || !targetPrice) return 0
+
+    return Decimal.mul(Decimal.div(amount, sourcePrice), targetPrice).toNumber()
+  }
 
   const fromFiat = (fiat = 0) => {
     if (config.fiat === Fiats.EUR) return fromEUR(fiat)
@@ -74,6 +93,8 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   return (
-    <FiatContext.Provider value={{ fromFiat, toFiat, fiatDecimals, updateFiatPrices }}>{children}</FiatContext.Provider>
+    <FiatContext.Provider value={{ convertFiat, fromFiat, toFiat, fiatDecimals, updateFiatPrices }}>
+      {children}
+    </FiatContext.Provider>
   )
 }
