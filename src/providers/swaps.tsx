@@ -31,6 +31,13 @@ const BASE_URLS: Record<Network, string | null> = {
   testnet: null,
 }
 
+const BANCOD_URL = import.meta.env.VITE_BANCOD_URL
+const BOLTZ_INTROSPECTOR_PUBKEY = import.meta.env.VITE_BOLTZ_INTROSPECTOR_PUBKEY
+const offlineReceiveOptions =
+  BANCOD_URL && BOLTZ_INTROSPECTOR_PUBKEY
+    ? { bancodUrl: BANCOD_URL, introspectorPubkey: BOLTZ_INTROSPECTOR_PUBKEY }
+    : undefined
+
 interface SwapsContextProps {
   connected: boolean
   arkadeSwaps: ServiceWorkerArkadeSwaps | null
@@ -212,7 +219,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   const createBtcToArkSwap = async (sats: number): Promise<BtcToArkResponse | null> => {
     if (!arkadeSwaps || !svcWallet) return null
-    return arkadeSwaps.btcToArk({ senderLockAmount: sats })
+    return arkadeSwaps.btcToArk({ senderLockAmount: sats, offlineReceive: offlineReceiveOptions })
   }
 
   const claimArk = async (swap: BoltzChainSwap): Promise<void> => {
@@ -261,7 +268,11 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   const createReverseSwap = async (sats: number): Promise<BoltzReverseSwap | null> => {
     if (!arkadeSwaps) return null
-    return arkadeSwaps.createReverseSwap({ amount: sats, description: 'Lightning Invoice' })
+    return arkadeSwaps.createReverseSwap({
+      amount: sats,
+      description: 'Lightning Invoice',
+      offlineReceive: offlineReceiveOptions,
+    })
   }
 
   const claimVHTLC = async (swap: BoltzReverseSwap): Promise<void> => {
