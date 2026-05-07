@@ -1,96 +1,37 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react'
+import { Toaster, toast } from 'sonner'
+import './Toast.css'
 
-interface ToastItem {
-  id: number
-  message: string
-  leaving: boolean
-}
+export { toast }
 
-interface ToastContextValue {
-  toast: (message: string) => void
-}
+export const useToast = () => ({ toast })
 
-const ToastContext = createContext<ToastContextValue>({ toast: () => {} })
-
-export const useToast = () => useContext(ToastContext)
-
-let nextId = 0
-
-export function ToastProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<ToastItem[]>([])
-  const timers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
-
-  const toast = useCallback((message: string) => {
-    const id = nextId++
-    setItems((prev) => [...prev, { id, message, leaving: false }])
-
-    const dismissTimer = setTimeout(() => {
-      setItems((prev) => prev.map((t) => (t.id === id ? { ...t, leaving: true } : t)))
-      const removeTimer = setTimeout(() => {
-        setItems((prev) => prev.filter((t) => t.id !== id))
-        timers.current.delete(id)
-      }, 200)
-      timers.current.set(id, removeTimer)
-    }, 2000)
-
-    timers.current.set(id, dismissTimer)
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      timers.current.forEach((t) => clearTimeout(t))
-    }
-  }, [])
-
+export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
-    <ToastContext.Provider value={{ toast }}>
+    <>
       {children}
-      <div style={containerStyle}>
-        {items.map((item) => (
-          <ToastMessage key={item.id} message={item.message} leaving={item.leaving} />
-        ))}
-      </div>
-    </ToastContext.Provider>
+      <Toaster
+        className='arkade-toast-toaster'
+        position='top-center'
+        richColors
+        toastOptions={{
+          classNames: {
+            content: 'arkade-toast-content',
+          },
+          style: {
+            background: 'var(--toast-bg, #1a1a1a)',
+            color: 'var(--toast-color, #fafafa)',
+            border: 'none',
+            borderRadius: '12px',
+            padding: '14px 20px',
+            fontSize: '15px',
+            fontWeight: 500,
+            textAlign: 'center' as const,
+            letterSpacing: '-0.01em',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.12)',
+          },
+          duration: 2000,
+        }}
+      />
+    </>
   )
-}
-
-function ToastMessage({ message, leaving }: { message: string; leaving: boolean }) {
-  return (
-    <div
-      style={{
-        ...toastStyle,
-        animation: leaving ? 'toast-out 150ms ease-out forwards' : 'toast-in 250ms ease-out forwards',
-      }}
-    >
-      {message}
-    </div>
-  )
-}
-
-const containerStyle: React.CSSProperties = {
-  position: 'fixed',
-  top: 'calc(12px + env(safe-area-inset-top, 0px))',
-  left: '16px',
-  right: '16px',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  gap: '8px',
-  zIndex: 99999,
-  pointerEvents: 'none',
-}
-
-const toastStyle: React.CSSProperties = {
-  width: '100%',
-  maxWidth: '420px',
-  padding: '14px 20px',
-  borderRadius: '12px',
-  backgroundColor: 'var(--toast-bg)',
-  boxShadow: 'var(--elevation-lg)',
-  color: 'var(--toast-color)',
-  fontSize: '15px',
-  fontWeight: 500,
-  textAlign: 'center',
-  pointerEvents: 'auto',
-  letterSpacing: '-0.01em',
 }
