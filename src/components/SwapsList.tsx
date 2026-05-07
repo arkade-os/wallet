@@ -14,7 +14,7 @@ import { BoltzSwapStatus, BoltzSwap } from '@arkade-os/boltz-swap'
 import { consoleError } from '../lib/logs'
 import Focusable from './Focusable'
 
-const border = '1px solid var(--dark20)'
+const border = '1px solid var(--neutral-200)'
 
 type statusUI = 'Successful' | 'Pending' | 'Failed' | 'Refunded'
 
@@ -42,7 +42,7 @@ const colorDict: Record<statusUI, string> = {
   Failed: 'red',
   Successful: 'green',
   Pending: 'yellow',
-  Refunded: 'dark50',
+  Refunded: 'neutral-500',
 }
 
 const iconDict: Record<statusUI, JSX.Element> = {

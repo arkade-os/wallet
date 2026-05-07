@@ -44,7 +44,7 @@ function BulletPoint({ icon, text }: { icon: ReactElement; text: string }) {
       >
         {icon}
       </div>
-      <Text color='dark80' thin wrap>
+      <Text color='neutral-800' thin wrap>
         {text}
       </Text>
     </div>

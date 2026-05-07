@@ -25,7 +25,7 @@ const Line = ({ row }: { row: CheckListData }) => (
     ) : (
       <FlexRow>
         <UnheckedIcon />
-        <Text small color='dark70'>
+        <Text small color='neutral-700'>
           {row.text}
         </Text>
       </FlexRow>

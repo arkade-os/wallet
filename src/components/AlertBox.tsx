@@ -17,7 +17,7 @@ function AlertBox({ children, icon, onClick, onDismiss }: AlertBoxProps) {
   const style: Record<string, React.CSSProperties> = {
     alert: {
       backgroundColor: 'var(--purple20)',
-      border: '1px solid var(--dark20)',
+      border: '1px solid var(--neutral-200)',
       borderRadius: '0.5rem',
       padding: '0.5rem',
       cursor: onClick ? 'pointer' : 'default',

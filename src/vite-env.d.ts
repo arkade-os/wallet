@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly BASE_URL: string
   readonly VITE_SENTRY_DSN?: string
   readonly VITE_ARK_SERVER?: string
+  readonly VITE_DEV_NSEC?: string
   readonly VITE_BOLTZ_URL?: string
   readonly VITE_DELEGATOR_URL?: string
   readonly VITE_BANCOD_URL?: string
