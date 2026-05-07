@@ -4,7 +4,7 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/boltz-swap": "0.3.29",
+    "@arkade-os/boltz-swap": "github:arkade-os/boltz-swap#offline-receive",
     "@arkade-os/sdk": "0.4.25",
     "@branta-ops/branta": "0.0.9",
     "@lendasat/lendasat-wallet-bridge": "^0.0.90",
@@ -119,7 +119,8 @@
       "esbuild"
     ],
     "onlyBuiltDependencies": [
-      "@arkade-os/sdk"
+      "@arkade-os/sdk",
+      "@arkade-os/boltz-swap"
     ]
   }
 }
