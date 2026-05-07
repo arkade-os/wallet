@@ -8,12 +8,12 @@ export const isValidDecimals = (d: number): boolean => Number.isInteger(d) && d 
 
 export function unitsToCents(units: bigint, decimals = 8): bigint {
   if (!isValidDecimals(decimals)) return units
-  return units * 10n ** BigInt(decimals)
+  return units * BigInt(10) ** BigInt(decimals)
 }
 
 export function centsToUnits(cents: bigint, decimals = 8): bigint {
   if (!isValidDecimals(decimals)) return cents
-  return cents / 10n ** BigInt(decimals)
+  return cents / BigInt(10) ** BigInt(decimals)
 }
 
 export const truncatedAssetId = (id: string): string => {
@@ -51,14 +51,14 @@ export const prettyAssetNumber = (
 export const prettyAssetAmount = (amount: bigint, decimals: number, useGrouping = true): string => {
   if (!isValidDecimals(decimals) || decimals === 0) return prettyAssetNumber(amount, 0, useGrouping)
 
-  const divisor = 10n ** BigInt(decimals)
-  const negative = amount < 0n
+  const divisor = BigInt(10) ** BigInt(decimals)
+  const negative = amount < BigInt(0)
   const abs = negative ? -amount : amount
   const whole = abs / divisor
   const frac = abs % divisor
   const sign = negative ? '-' : ''
 
-  if (frac === 0n) return `${sign}${prettyAssetNumber(whole, 0, useGrouping)}`
+  if (frac === BigInt(0)) return `${sign}${prettyAssetNumber(whole, 0, useGrouping)}`
 
   const fracStr = frac.toString().padStart(decimals, '0').replace(/0+$/, '')
   return `${sign}${prettyAssetNumber(whole, 0, useGrouping)}.${fracStr}`

@@ -10,7 +10,7 @@ import { extractError } from '../lib/error'
 import QrScanner from 'qr-scanner'
 
 const videoStyle: React.CSSProperties = {
-  border: '1px solid var(--dark)',
+  border: '1px solid var(--neutral-300)',
   borderRadius: '0.5rem',
   margin: '0 auto',
 }

@@ -29,7 +29,7 @@ export default function FlexCol({
 }: FlexColProps) {
   const style: any = {
     alignItems: centered ? 'center' : end ? 'end' : strech ? 'strech' : 'start',
-    borderBottom: border ? '1px solid var(--dark20)' : undefined,
+    borderBottom: border ? '1px solid var(--neutral-200)' : undefined,
     display: 'flex',
     flexDirection: 'column',
     gap: gap ?? '1rem',

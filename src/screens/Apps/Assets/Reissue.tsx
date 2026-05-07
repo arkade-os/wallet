@@ -89,7 +89,7 @@ export default function AppAssetReissue() {
               <Text big bold>
                 Confirm Reissue
               </Text>
-              <Text centered wrap color='dark50'>
+              <Text centered wrap color='neutral-500'>
                 You are about to mint {prettyAssetAmount(unitsToCents(amount, decimals), decimals)} additional{' '}
                 {ticker || name}.
               </Text>
@@ -112,7 +112,7 @@ export default function AppAssetReissue() {
                   <AssetAvatar icon={icon} ticker={ticker} size={32} />
                   <FlexCol gap='0'>
                     <Text bold>{name}</Text>
-                    <Text color='dark50' smaller>
+                    <Text color='neutral-500' smaller>
                       {ticker}
                     </Text>
                   </FlexCol>
@@ -129,7 +129,9 @@ export default function AppAssetReissue() {
               min='0'
               step='1'
               value={Number(amount)}
-              onChange={(value) => setAmount(Number.isFinite(value) && value >= 0 ? BigInt(Math.trunc(value)) : 0n)}
+              onChange={(value) =>
+                setAmount(Number.isFinite(value) && value >= 0 ? BigInt(Math.trunc(value)) : BigInt(0))
+              }
               placeholder='1000'
               testId='asset-amount'
             />

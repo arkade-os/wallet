@@ -81,7 +81,7 @@ function BannerContent({ icon, title, description, action, onDismiss }: Dismissi
           </Text>
           {description ? (
             <div style={{ marginTop: '0.25rem' }}>
-              <Text color='dark70' small wrap>
+              <Text color='neutral-700' small wrap>
                 {description}
               </Text>
             </div>

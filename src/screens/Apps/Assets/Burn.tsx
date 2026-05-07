@@ -91,7 +91,7 @@ export default function AppAssetBurn() {
               <Text big bold>
                 Confirm Burn
               </Text>
-              <Text centered wrap color='dark50'>
+              <Text centered wrap color='neutral-500'>
                 You are about to burn {prettyNumber(Number(amount))} {ticker || name}. This action is irreversible.
               </Text>
             </FlexCol>
@@ -126,7 +126,9 @@ export default function AppAssetBurn() {
               min='0'
               step='1'
               value={Number(amount)}
-              onChange={(value) => setAmount(Number.isFinite(value) && value >= 0 ? BigInt(Math.trunc(value)) : 0n)}
+              onChange={(value) =>
+                setAmount(Number.isFinite(value) && value >= 0 ? BigInt(Math.trunc(value)) : BigInt(0))
+              }
               placeholder='0'
             />
           </FlexCol>

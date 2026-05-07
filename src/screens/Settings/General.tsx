@@ -36,7 +36,7 @@ export default function General() {
           {option}
         </Text>
         <FlexRow end>
-          <Text small thin color='dark50'>
+          <Text small thin color='neutral-500'>
             {value}
           </Text>
           <ArrowIcon />
