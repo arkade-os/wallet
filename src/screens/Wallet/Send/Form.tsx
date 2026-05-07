@@ -526,11 +526,17 @@ export default function SendForm() {
   }
 
   const handleAmountChange = (sats: number) => {
+    console.log({
+      isAssetSend,
+      sats,
+      selectedAsset,
+      pretty: prettyAssetAmount(BigInt(sats), selectedAsset?.decimals ?? 8, false),
+    })
     if (isAssetSend) {
-      setTextValue(prettyAssetAmount(BigInt(sats), selectedAsset?.decimals ?? 8, false))
       if (selectedAsset) {
         setState({ ...sendInfo, assets: [{ assetId: selectedAsset.assetId, amount: BigInt(sats) }], satoshis: 0 })
       }
+      setTextValue(prettyAssetAmount(BigInt(sats), selectedAsset?.decimals ?? 8, false))
     } else {
       setTextValue(useFiat ? prettyNumber(toFiat(sats), 2, false) : prettyNumber(sats, 0, false))
       setState({ ...sendInfo, satoshis: sats })

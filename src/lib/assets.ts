@@ -12,6 +12,11 @@ export function txtValueToCents(str: string, decimals: number): bigint {
   return BigInt(integer + paddedFraction) // string + string
 }
 
+export function centsToTxtValue(cents: bigint, decimals = 8): string {
+  if (!isValidDecimals(decimals)) return cents.toString()
+  return (cents / BigInt(10) ** BigInt(decimals)).toString()
+}
+
 export function unitsToCents(units: bigint, decimals = 8): bigint {
   if (!isValidDecimals(decimals)) return units
   return units * BigInt(10) ** BigInt(decimals)
@@ -54,26 +59,11 @@ export const prettyAssetNumber = (
   }).format(num)
 }
 
-export const prettyAssetAmountOld = (amount: bigint, decimals: number, useGrouping = true): string => {
-  if (!isValidDecimals(decimals) || decimals === 0) return prettyAssetNumber(amount, 0, useGrouping)
-
-  const divisor = BigInt(10) ** BigInt(decimals)
-  const negative = amount < BigInt(0)
-  const abs = negative ? -amount : amount
-  const whole = abs / divisor
-  const frac = abs % divisor
-  const sign = negative ? '-' : ''
-
-  if (frac === BigInt(0)) return `${sign}${prettyAssetNumber(whole, 0, useGrouping)}`
-
-  const fracStr = frac.toString().padStart(decimals, '0').replace(/0+$/, '')
-  return `${sign}${prettyAssetNumber(whole, 0, useGrouping)}.${fracStr}`
-}
-
 export const prettyAssetAmount = (amount: bigint, decimals: number, tidy = false): string => {
   const realDecimals = isValidDecimals(decimals) ? decimals : 0
 
-  if (!tidy) return prettyAssetAmountOld(amount, realDecimals)
+  console.log({ amount, decimals, realDecimals })
+  if (!tidy) return prettyAssetNumber(centsToUnits(amount, realDecimals), realDecimals)
 
   const million = BigInt(10 ** 6)
   const thousand = BigInt(10 ** 3)

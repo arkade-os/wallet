@@ -68,8 +68,11 @@ export default function InputAmount({
   const handleInput: ChangeEventHandler<HTMLInputElement> = (ev) => {
     const strValue = ev.currentTarget.value
     const value = Number(strValue)
+    console.log({ strValue, value })
     if (asset?.assetId) {
-      onSats(Number(txtValueToCents(strValue, asset.decimals)))
+      const cents = txtValueToCents(strValue, asset.decimals)
+      console.log({ strValue, cents })
+      onSats(Number(cents))
       return
     }
     if (Number.isNaN(value)) return

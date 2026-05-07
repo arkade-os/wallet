@@ -62,7 +62,7 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   await createWallet(page)
   await fundWallet(page, 5000)
   await enableAssets(page)
-  await mintAsset(page, { amount: 1000, name: 'TestCoin', ticker: 'TST', decimals: 0 })
+  await mintAsset(page, { amount: 1000, name: 'TestCoin', ticker: 'TST', decimals: 2 })
 
   // assert success screen
   await expect(page.getByText('TestCoin')).toBeVisible()
@@ -92,9 +92,9 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   // fill amount
   if (isMobile) {
     await page.locator('input[name="send-amount"]').click()
-    await handleKeyboardInput(page, 200)
+    await handleKeyboardInput(page, 123.45)
   } else {
-    await page.locator('input[name="send-amount"]').fill('200')
+    await page.locator('input[name="send-amount"]').fill('123,45')
   }
 
   // continue to details page
@@ -102,17 +102,17 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
 
   // details page
   await expect(page.getByTestId('send-details-asset-name')).toHaveText('TestCoin (TST)')
-  await expect(page.getByTestId('send-details-asset-amount')).toHaveText('200 TST')
+  await expect(page.getByTestId('send-details-asset-amount')).toHaveText('123.45 TST')
   await expect(page.getByTestId('Network fees')).toHaveText('0 SATS')
   await expect(page.getByTestId('Amount')).toHaveText('0 SATS')
   await expect(page.getByTestId('Total')).toHaveText('0 SATS')
 
   await page.getByText('Tap to Sign').click()
-  await page.waitForSelector('text=200 TST sent successfully', { timeout: 10000 })
+  await page.waitForSelector('text=123.45 TST sent successfully', { timeout: 10000 })
 
   // main page
   await page.getByText('Sounds good').click()
-  await page.waitForSelector('text=-200 TST', { timeout: 10000 })
+  await page.waitForSelector('text=-123.45 TST', { timeout: 10000 })
   await expect(page.getByText('Sent')).toBeVisible()
 
   // go to send page
@@ -133,18 +133,18 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
 
   // details page
   await expect(page.getByTestId('send-details-asset-name')).toHaveText('TestCoin (TST)')
-  await expect(page.getByTestId('send-details-asset-amount')).toHaveText('800 TST')
+  await expect(page.getByTestId('send-details-asset-amount')).toHaveText('876.55 TST')
   await expect(page.getByTestId('Network fees')).toHaveText('0 SATS')
   await expect(page.getByTestId('Amount')).toHaveText('0 SATS')
   await expect(page.getByTestId('Total')).toHaveText('0 SATS')
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector('text=800 TST sent successfully', { timeout: 10000 })
+  await page.waitForSelector('text=876.55 TST sent successfully', { timeout: 10000 })
 
   // main page
   await page.getByText('Sounds good').click()
-  await page.waitForSelector('text=-800 TST', { timeout: 10000 })
+  await page.waitForSelector('text=-876.55 TST', { timeout: 10000 })
 })
 
 // wallet balance is 5000 sats,

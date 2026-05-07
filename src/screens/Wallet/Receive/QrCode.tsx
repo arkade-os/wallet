@@ -330,6 +330,7 @@ export default function ReceiveQRCode() {
   }
 
   const handleAmountChange = (sats: number) => {
+    console.log('handleAmountChange', sats)
     setAmountInput(sats)
     const value = assetMeta ? centsToUnits(BigInt(sats), assetMeta.metadata?.decimals) : useFiat ? toFiat(sats) : sats
     const maximumFractionDigits = useFiat
@@ -337,6 +338,7 @@ export default function ReceiveQRCode() {
       : assetMeta?.metadata?.decimals
         ? assetMeta?.metadata?.decimals
         : 0
+    console.log({ sats, value, maximumFractionDigits, pretty: prettyNumber(Number(value), maximumFractionDigits) })
     setAmountTextValue(prettyNumber(Number(value), maximumFractionDigits, false))
   }
 
@@ -381,6 +383,7 @@ export default function ReceiveQRCode() {
         }}
         hideBalance
         onSave={(sats: number) => {
+          console.log('Keyboard onSave', { sats })
           setShowKeys(false)
           setShowAmountSheet(false)
           handleAmountChange(sats)

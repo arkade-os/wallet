@@ -49,6 +49,7 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
 
   useEffect(() => {
     const strValue = textValue.replaceAll(',', '')
+    console.log({ strValue, inputMode, asset })
     if (inputMode === 'asset' && asset) {
       const cents = txtValueToCents(strValue, asset.decimals)
       setAmountInSats(Number(cents))
@@ -128,6 +129,7 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
       setError('Please enter a valid amount')
       return
     }
+    console.log('Saving amount', { amountInSats })
     onSave(amountInSats)
   }
 
