@@ -40,10 +40,12 @@ export default function AssetAvatar({ icon, ticker, name, size, onError, assetId
     <div
       style={{
         ...avatarStyle,
-        background: 'var(--neutral-200)',
+        background: 'var(--bullet-icon-bg)',
+        color: 'var(--logo-color)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        fontWeight: 500,
       }}
     >
       <Text tiny={size <= 16} smaller={size > 16 && size <= 32} big={size > 32}>

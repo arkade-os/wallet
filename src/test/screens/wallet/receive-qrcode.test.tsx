@@ -141,7 +141,7 @@ const receiveAssetFixture = (): RenderOverrides => ({
         usdtAssetId,
         {
           metadata: {
-            name: 'Tether USD',
+            name: 'USDT',
             ticker: 'USDT',
             decimals: 2,
           },

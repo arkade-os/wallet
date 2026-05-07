@@ -64,8 +64,8 @@ export function usePortfolioFiat(): PortfolioFiat {
 
     rows.push({
       assetId: ab.assetId,
-      name: meta?.name ?? `Asset ${ab.assetId.slice(0, 8)}…`,
-      ticker: meta?.ticker ?? 'TKN',
+      name: displayNameForAsset(meta?.ticker, meta?.name) ?? `Asset ${ab.assetId.slice(0, 8)}…`,
+      ticker: meta?.ticker?.trim().toUpperCase() ?? 'TKN',
       icon: meta?.icon,
       decimals,
       balance: ab.amount,
@@ -94,6 +94,12 @@ function priceAssetFiat(
   return convertFiat(centsToUnits(rawAmount, decimals), sourceFiat)
 }
 
+function displayNameForAsset(ticker: string | undefined, name: string | undefined): string | undefined {
+  const normalizedTicker = ticker?.trim().toUpperCase()
+  if (normalizedTicker === 'USDT' || normalizedTicker === 'USDC') return normalizedTicker
+  return name
+}
+
 function fiatForAssetTicker(ticker: string | undefined): Fiats | undefined {
   const normalized = ticker?.trim().toUpperCase()
 
@@ -111,5 +117,10 @@ function shouldHideDevPrototypeAsset(ticker: string | undefined, name: string | 
   const normalizedTicker = ticker?.trim().toUpperCase()
   const normalizedName = name?.trim().toLowerCase()
 
-  return normalizedTicker === 'POP' || normalizedName === 'poop' || normalizedName === 'hoop'
+  return (
+    normalizedTicker === 'POP' ||
+    normalizedName === 'poop' ||
+    normalizedName === 'hoop' ||
+    (normalizedTicker === 'CHF' && normalizedName === 'swiss franc')
+  )
 }

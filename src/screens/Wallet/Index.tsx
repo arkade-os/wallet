@@ -12,7 +12,7 @@ import { NudgeContext } from '../../providers/nudge'
 import { InfoBox } from '../../components/AlertBox'
 import { psaMessage } from '../../lib/constants'
 import { AnnouncementContext } from '../../providers/announcements'
-import { WalletStaggerContainer } from '../../components/WalletLoadIn'
+import { WalletStaggerChild, WalletStaggerContainer } from '../../components/WalletLoadIn'
 import { pwaCanInstall, usePwaInstalled, canPromptInstall, promptPwaInstall } from '../../lib/pwa'
 import { isIOS, isAndroid } from '../../lib/browser'
 import { setLogoAnchor, getBootAnimActive, subscribeBootAnim } from '../../lib/logoAnchor'
@@ -51,6 +51,8 @@ export default function Wallet() {
   const pwaInstalled = usePwaInstalled()
   const dismissed = (config?.dismissedBanners ?? []).includes('pwa-install')
   const showPwaBanner = pwaCanInstall() && (isIOS() || isAndroid()) && !pwaInstalled && !dismissed
+  const pwaBannerVisible = Boolean(nudgeCheckComplete && showPwaBanner)
+  const hasHomeNotices = Boolean(nudge || pwaBannerVisible)
 
   const pwaDescription = isIOS()
     ? "Tap the share icon in Safari's toolbar, then 'Add to Home Screen'."
@@ -116,38 +118,58 @@ export default function Wallet() {
             balanceUnit={portfolioBalanceUnit}
             logoVisible={!bootAnimActive}
           />
-          <WalletStaggerContainer animate={shouldStagger} hold={bootAnimActive}>
-            <FlexCol gap='1.5rem'>
+          <WalletStaggerContainer animate={shouldStagger} className='home-stack' hold={bootAnimActive}>
+            <WalletStaggerChild animate={shouldStagger} className='home-stack__hero'>
               <PortfolioHero ref={balanceRef} collapseProgress={balanceCollapseProgress} />
+            </WalletStaggerChild>
+            <WalletStaggerChild animate={shouldStagger} className='home-stack__actions'>
               <HomeQuickActions />
-              <FlexCol gap='0.75rem'>
-                {nudge}
-                <DismissibleBanner
-                  id='pwa-install'
-                  icon={<HomeIcon />}
-                  title='Add Arkade to your home screen'
-                  description={pwaDescription}
-                  action={
-                    canPromptInstall()
-                      ? {
-                          label: 'Install',
-                          onClick: async () => {
-                            const outcome = await promptPwaInstall().catch(() => null)
-                            if (outcome) dismissPwaBanner()
-                          },
-                        }
-                      : undefined
-                  }
-                  onDismiss={dismissPwaBanner}
-                  visible={Boolean(nudgeCheckComplete && showPwaBanner)}
-                />
-              </FlexCol>
-              <ErrorMessage error={error} text='Ark server unreachable' />
+            </WalletStaggerChild>
+            {hasHomeNotices ? (
+              <WalletStaggerChild animate={shouldStagger}>
+                <FlexCol gap='0.75rem'>
+                  {nudge}
+                  <DismissibleBanner
+                    id='pwa-install'
+                    icon={<HomeIcon />}
+                    title='Add Arkade to your home screen'
+                    description={pwaDescription}
+                    action={
+                      canPromptInstall()
+                        ? {
+                            label: 'Install',
+                            onClick: async () => {
+                              const outcome = await promptPwaInstall().catch(() => null)
+                              if (outcome) dismissPwaBanner()
+                            },
+                          }
+                        : undefined
+                    }
+                    onDismiss={dismissPwaBanner}
+                    visible={pwaBannerVisible}
+                  />
+                </FlexCol>
+              </WalletStaggerChild>
+            ) : null}
+            {error ? (
+              <WalletStaggerChild animate={shouldStagger}>
+                <ErrorMessage error={error} text='Ark server unreachable' />
+              </WalletStaggerChild>
+            ) : null}
+            <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
               <AssetsSection />
+            </WalletStaggerChild>
+            <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
               <UpsellsSection />
+            </WalletStaggerChild>
+            <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
               <RecentActivitySection />
-              {psaMessage ? <InfoBox html={psaMessage} /> : null}
-            </FlexCol>
+            </WalletStaggerChild>
+            {psaMessage ? (
+              <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
+                <InfoBox html={psaMessage} />
+              </WalletStaggerChild>
+            ) : null}
           </WalletStaggerContainer>
         </Padded>
       </Content>

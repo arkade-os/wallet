@@ -21,19 +21,21 @@ export default function RecentActivitySection() {
 
   if (!txs || txs.length === 0) {
     return (
-      <div className='flex w-full flex-col gap-2'>
+      <section className='home-section'>
         <div className='flex w-full items-center justify-between px-1'>
-          <span className='text-sm text-neutral-500'>Recent activity</span>
+          <span className='home-section-label'>Recent activity</span>
         </div>
-        <EmptyTxList />
-      </div>
+        <div className='home-section__content'>
+          <EmptyTxList />
+        </div>
+      </section>
     )
   }
 
   return (
-    <div className='flex w-full flex-col gap-2'>
+    <section className='home-section'>
       <div className='flex w-full items-center justify-between px-1'>
-        <span className='text-sm text-neutral-500'>Recent activity</span>
+        <span className='home-section-label'>Recent activity</span>
         <button
           type='button'
           onClick={handleViewAll}
@@ -48,7 +50,9 @@ export default function RecentActivitySection() {
           </span>
         </button>
       </div>
-      <TransactionsList title='' mode='static' limit={3} />
-    </div>
+      <div className='home-section__content'>
+        <TransactionsList title='' mode='static' limit={3} />
+      </div>
+    </section>
   )
 }

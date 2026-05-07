@@ -58,7 +58,7 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
             className={actionClassName}
             style={{ WebkitTapHighlightColor: 'transparent' }}
           >
-            <HistoryIcon size={20} />
+            <HistoryIcon size={22} strokeWidth={1.8} />
           </button>
           <button
             type='button'

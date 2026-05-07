@@ -1,5 +1,5 @@
-import { ReactNode } from 'react'
 import AssetAvatar from './AssetAvatar'
+import TokenLogo, { type TokenLogoTicker } from './TokenLogo'
 import { centsToUnits, truncatedAssetId } from '../lib/assets'
 import { prettyNumber } from '../lib/format'
 import { hapticLight } from '../lib/haptics'
@@ -9,12 +9,6 @@ interface AssetCardProps {
   balance: number
   decimals?: number
   icon?: string
-  /** Fully rendered avatar (e.g. a real Bitcoin SVG). Takes precedence over `icon`. */
-  avatar?: ReactNode
-  /** Background color for the avatar circle. */
-  avatarBg?: string
-  /** Foreground color for the avatar content. */
-  avatarColor?: string
   /** Asset name (e.g. "Bitcoin"). */
   name?: string
   /** Asset ticker (e.g. "BTC"). */
@@ -33,9 +27,6 @@ export default function AssetCard({
   balance,
   decimals,
   icon,
-  avatar,
-  avatarBg,
-  avatarColor,
   name,
   ticker,
   fiatText,
@@ -53,39 +44,33 @@ export default function AssetCard({
       }
     : undefined
 
-  const renderedAvatar = avatar ? (
-    <div
-      className='flex size-9 min-h-9 min-w-9 items-center justify-center rounded-full font-semibold'
-      style={{
-        background: avatarBg ?? 'var(--neutral-100)',
-        color: avatarColor ?? 'var(--orange)',
-      }}
-    >
-      {avatar}
-    </div>
+  const tokenLogoTicker = getTokenLogoTicker(tokenTick)
+  const renderedAvatar = tokenLogoTicker ? (
+    <span className='asset-card__logo' aria-hidden='true'>
+      <TokenLogo ticker={tokenLogoTicker} />
+    </span>
   ) : (
     <AssetAvatar icon={icon} name={name} ticker={ticker} size={36} assetId={assetId} />
   )
 
   const content = (
     <>
-      <div className='flex items-center gap-3'>
+      <div className='asset-card__identity'>
         {renderedAvatar}
-        <div className='flex flex-col items-start gap-0.5'>
-          <span className='font-medium'>{assetName}</span>
-          <span className='text-sm text-neutral-500'>{leftSecondary}</span>
+        <div className='asset-card__copy'>
+          <span className='asset-card__name'>{assetName}</span>
+          <span className='asset-card__balance'>{leftSecondary}</span>
         </div>
       </div>
       {fiatText ? (
-        <div className='text-right'>
-          <span className='font-heading text-lg font-medium'>{fiatText}</span>
+        <div className='asset-card__value'>
+          <span>{fiatText}</span>
         </div>
       ) : null}
     </>
   )
 
-  const baseClasses =
-    'flex w-full items-center justify-between rounded-xl border border-neutral-100 bg-[var(--bg)] px-4 py-3.5 text-left text-inherit shadow-sm'
+  const baseClasses = 'asset-card'
 
   // Non-interactive row (e.g. BTC which has no detail screen)
   if (!onClick) {
@@ -102,10 +87,15 @@ export default function AssetCard({
       type='button'
       onClick={handleClick}
       data-testid={`asset-row-${assetId || 'btc'}`}
-      className={`${baseClasses} cursor-pointer transition-transform active:scale-[0.98]`}
+      className={`${baseClasses} asset-card--interactive`}
       style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
     >
       {content}
     </button>
   )
+}
+
+function getTokenLogoTicker(ticker: string): TokenLogoTicker | undefined {
+  const normalized = ticker.trim().toUpperCase()
+  if (normalized === 'BTC' || normalized === 'USDT' || normalized === 'USDC') return normalized
 }

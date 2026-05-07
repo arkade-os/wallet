@@ -1,6 +1,5 @@
 import { useContext } from 'react'
 import AssetCard from '../../components/AssetCard'
-import BitcoinIcon from '../../icons/Bitcoin'
 import { usePortfolioFiat } from '../../hooks/usePortfolioFiat'
 import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
@@ -32,11 +31,11 @@ export default function AssetsSection() {
   }
 
   return (
-    <div className='flex w-full flex-col gap-3'>
+    <section className='home-section'>
       <div className='flex w-full items-center justify-between px-1'>
-        <span className='text-sm text-neutral-500'>Assets</span>
+        <span className='home-section-label'>Assets</span>
       </div>
-      <div className='flex w-full flex-col gap-2'>
+      <div className='home-section__content'>
         {rows.map((row) => {
           const isBtc = row.assetId === 'btc'
           return (
@@ -46,9 +45,6 @@ export default function AssetsSection() {
               name={row.name}
               ticker={row.ticker}
               icon={row.icon}
-              avatar={isBtc ? <BitcoinIcon size={20} /> : undefined}
-              avatarBg={isBtc ? 'var(--orange-100)' : undefined}
-              avatarColor={isBtc ? 'var(--orange)' : undefined}
               decimals={row.decimals}
               balance={row.balance}
               fiatText={row.hasFiatPrice ? fiatLabel(row.fiatAmount) : undefined}
@@ -57,6 +53,6 @@ export default function AssetsSection() {
           )
         })}
       </div>
-    </div>
+    </section>
   )
 }

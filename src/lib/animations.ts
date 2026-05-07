@@ -14,6 +14,7 @@ export const PAGE_TRANSITION_EXIT_DURATION = 0.24 // 20% faster exit
 // Stagger timing for wallet load-in
 export const STAGGER_DELAY = 0.06
 export const STAGGER_DURATION = 0.3
+export const ONBOARD_STAGGER_DELAY = 0.08
 
 // Slide distance (% of container)
 const SLIDE_OFFSET = '20%'
@@ -77,22 +78,36 @@ export const overlaySlideUp: Variants = {
 export const walletLoadInContainer: Variants = {
   initial: {},
   animate: {
-    transition: { staggerChildren: STAGGER_DELAY },
+    transition: { delayChildren: 0.04, staggerChildren: 0.09 },
   },
 }
 
 export const walletLoadInChild: Variants = {
-  initial: { y: -16, x: -2, opacity: 0 },
+  initial: { y: 18, opacity: 0, scale: 0.985 },
   animate: {
     y: 0,
-    x: 0,
     opacity: 1,
-    transition: { duration: STAGGER_DURATION, ease: EASE_OUT_QUINT },
+    scale: 1,
+    transition: { duration: 0.34, ease: EASE_OUT_QUINT },
   },
 }
 
-// Onboarding stagger — fade up, slightly more pronounced for first-time experience
-export const ONBOARD_STAGGER_DELAY = 0.08
+export const homeActionStaggerContainer: Variants = {
+  initial: {},
+  animate: {
+    transition: { delayChildren: 0.04, staggerChildren: 0.045 },
+  },
+}
+
+export const homeActionStaggerChild: Variants = {
+  initial: { y: 10, opacity: 0, scale: 0.96 },
+  animate: {
+    y: 0,
+    opacity: 1,
+    scale: 1,
+    transition: { duration: 0.28, ease: EASE_OUT_QUINT },
+  },
+}
 
 export const onboardStaggerContainer: Variants = {
   initial: {},

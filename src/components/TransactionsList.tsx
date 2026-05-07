@@ -24,8 +24,9 @@ import { FiatContext } from '../providers/fiat'
 import PreconfirmedIcon from '../icons/Preconfirmed'
 import Focusable from './Focusable'
 import { hapticSubtle } from '../lib/haptics'
+import TokenLogo, { type TokenLogoTicker } from './TokenLogo'
 
-const border = '1px solid var(--neutral-200)'
+const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
 const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void; isFirst?: boolean }) => {
   const { config } = useContext(ConfigContext)
@@ -101,7 +102,7 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
           const decimals = meta?.decimals ?? 8
           return (
             <FlexRow key={a.assetId} gap='0.25rem' end>
-              <AssetAvatar icon={icon} ticker={ticker} size={16} assetId={a.assetId} clickable />
+              <TransactionAssetAvatar icon={icon} ticker={ticker} assetId={a.assetId} />
               <Text color={color} thin>
                 {config.showBalance
                   ? `${formatAssetAmount(a.amount, decimals)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
@@ -173,8 +174,9 @@ interface TransactionsListProps {
 export default function TransactionsList({ mode = 'virtual', limit }: TransactionsListProps = {}) {
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { txs: allTxs } = useContext(WalletContext)
-  const txs = mode === 'static' && limit ? allTxs.slice(0, limit) : allTxs
+  const { assetMetadataCache, txs: allTxs } = useContext(WalletContext)
+  const visibleTxs = allTxs.filter((tx) => !shouldHideDevPrototypeTx(tx, assetMetadataCache))
+  const txs = mode === 'static' && limit ? visibleTxs.slice(0, limit) : visibleTxs
 
   const focusedRef = useRef(false)
   const focusedIndexRef = useRef(0)
@@ -296,4 +298,36 @@ export default function TransactionsList({ mode = 'virtual', limit }: Transactio
       </div>
     </Focusable>
   )
+}
+
+function TransactionAssetAvatar({ assetId, icon, ticker }: { assetId: string; icon?: string; ticker?: string }) {
+  const tokenLogoTicker = getTokenLogoTicker(ticker)
+  if (tokenLogoTicker) {
+    return (
+      <span className='transaction-asset-logo' aria-hidden='true'>
+        <TokenLogo ticker={tokenLogoTicker} />
+      </span>
+    )
+  }
+
+  return <AssetAvatar icon={icon} ticker={ticker} size={16} assetId={assetId} clickable />
+}
+
+function getTokenLogoTicker(ticker: string | undefined): TokenLogoTicker | undefined {
+  const normalized = ticker?.trim().toUpperCase()
+  if (normalized === 'BTC' || normalized === 'USDT' || normalized === 'USDC') return normalized
+}
+
+function shouldHideDevPrototypeTx(
+  tx: Tx,
+  assetMetadataCache: Map<string, { metadata?: { name?: string; ticker?: string } }>,
+): boolean {
+  if (!import.meta.env.DEV || !tx.assets?.length) return false
+
+  return tx.assets.every((asset) => {
+    const meta = assetMetadataCache.get(asset.assetId)?.metadata
+    const ticker = meta?.ticker?.trim().toUpperCase()
+    const name = meta?.name?.trim().toLowerCase()
+    return ticker === 'POP' || name === 'poop' || name === 'hoop' || (ticker === 'CHF' && name === 'swiss franc')
+  })
 }

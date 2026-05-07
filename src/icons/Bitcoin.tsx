@@ -5,27 +5,13 @@ interface BitcoinIconProps {
 export default function BitcoinIcon({ size = 24 }: BitcoinIconProps) {
   return (
     <svg width={size} height={size} viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
+      <circle cx='12' cy='12' r='12' fill='var(--orange-500)' />
       <path
-        d='M9.5 5.5V4M9.5 20v-1.5M14.5 5.5V4M14.5 20v-1.5'
-        stroke='currentColor'
-        strokeWidth='1.5'
-        strokeLinecap='round'
+        fill='#FFF'
+        fillRule='evenodd'
+        clipRule='evenodd'
+        d='M17.391 10.515c.236-1.572-.962-2.417-2.598-2.982l.531-2.13-1.296-.323-.517 2.074c-.341-.085-.69-.165-1.039-.244l.521-2.087-1.296-.323-.531 2.129c-.282-.065-.56-.128-.828-.195l.001-.007-1.788-.446-.345 1.385s.962.22.942.234c.525.131.62.479.604.755l-.605 2.426c.036.009.083.022.135.043l-.137-.034-.848 3.399c-.064.159-.227.398-.595.307.014.019-.942-.235-.942-.235l-.643 1.484 1.687.421c.314.079.621.161.923.239l-.536 2.154 1.296.323.531-2.13c.354.095.697.184 1.034.268l-.53 2.121 1.296.322.536-2.15c2.211.419 3.873.25 4.573-1.75.564-1.61-.028-2.539-1.191-3.144.848-.195 1.485-.752 1.656-1.904zm-2.963 4.154c-.4 1.61-3.111.74-3.99.521l.712-2.854c.879.22 3.697.654 3.278 2.333zm.401-4.177c-.365 1.465-2.621.72-3.352.538l.645-2.588c.731.182 3.088.522 2.707 2.05z'
       />
-      <path
-        d='M7 8.5h8.5c1.38 0 2.5 1.12 2.5 2.5s-1.12 2.5-2.5 2.5H7V8.5Z'
-        stroke='currentColor'
-        strokeWidth='1.5'
-        strokeLinecap='round'
-        strokeLinejoin='round'
-      />
-      <path
-        d='M7 13.5h9c1.38 0 2.5 1.12 2.5 2.5s-1.12 2.5-2.5 2.5H7v-5Z'
-        stroke='currentColor'
-        strokeWidth='1.5'
-        strokeLinecap='round'
-        strokeLinejoin='round'
-      />
-      <path d='M7 8.5V5.5M7 18.5v-3' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round' />
     </svg>
   )
 }

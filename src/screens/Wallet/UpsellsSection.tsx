@@ -23,18 +23,13 @@ function UpsellCard({ icon, title, description, testId, onClick }: UpsellCardPro
       type='button'
       onClick={handleClick}
       data-testid={testId}
-      className='flex w-full cursor-pointer items-center gap-3.5 rounded-xl border border-neutral-100 bg-[var(--bg)] px-4 py-3.5 text-left text-inherit shadow-sm transition-transform active:scale-[0.98]'
+      className='home-upsell-card'
       style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
     >
-      <div
-        className='flex size-10 min-w-10 items-center justify-center rounded-full'
-        style={{ background: 'var(--bullet-icon-bg)', color: 'var(--logo-color)' }}
-      >
-        {icon}
-      </div>
-      <div className='flex flex-col items-start gap-0.5'>
-        <span className='font-medium'>{title}</span>
-        <span className='text-sm text-neutral-500'>{description}</span>
+      <div className='home-upsell-card__icon'>{icon}</div>
+      <div className='home-upsell-card__copy'>
+        <span className='home-upsell-card__title'>{title}</span>
+        <span className='home-upsell-card__description'>{description}</span>
       </div>
     </button>
   )
@@ -56,11 +51,11 @@ export default function UpsellsSection() {
   }
 
   return (
-    <div className='flex w-full flex-col gap-3'>
+    <section className='home-section'>
       <div className='px-1'>
-        <span className='text-sm text-neutral-500'>Do more with bitcoin</span>
+        <span className='home-section-label'>Do more with your assets</span>
       </div>
-      <div className='flex w-full flex-col gap-2'>
+      <div className='home-section__content'>
         <UpsellCard
           icon={<LandmarkIcon size={20} />}
           title='Borrow against your bitcoin'
@@ -76,6 +71,6 @@ export default function UpsellsSection() {
           onClick={handleBuySell}
         />
       </div>
-    </div>
+    </section>
   )
 }

@@ -8,8 +8,9 @@ import { Fiats } from '../../lib/types'
 import { mockFiatContextValue, mockWalletContextValue } from '../screens/mocks'
 
 const usdtAssetId = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd'
-const chfAssetId = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdefabcd'
+const usdcAssetId = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdefabcd'
 const popAssetId = '123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdefabcd'
+const chfAssetId = '223456789abcdef0123456789abcdef0123456789abcdef0123456789abcdefabcd'
 
 function wrapper({ children }: PropsWithChildren) {
   const assetMetadataCache = new Map([
@@ -17,18 +18,18 @@ function wrapper({ children }: PropsWithChildren) {
       usdtAssetId,
       {
         metadata: {
-          name: 'Tether USD',
+          name: 'USDT',
           ticker: 'USDT',
           decimals: 2,
         },
       },
     ],
     [
-      chfAssetId,
+      usdcAssetId,
       {
         metadata: {
-          name: 'Swiss franc',
-          ticker: 'CHF',
+          name: 'USDC',
+          ticker: 'USDC',
           decimals: 2,
         },
       },
@@ -40,6 +41,16 @@ function wrapper({ children }: PropsWithChildren) {
           name: 'POOP',
           ticker: 'POP',
           decimals: 0,
+        },
+      },
+    ],
+    [
+      chfAssetId,
+      {
+        metadata: {
+          name: 'Swiss franc',
+          ticker: 'CHF',
+          decimals: 2,
         },
       },
     ],
@@ -64,8 +75,9 @@ function wrapper({ children }: PropsWithChildren) {
             balance: 0,
             assetBalances: [
               { assetId: usdtAssetId, amount: 7010 },
-              { assetId: chfAssetId, amount: 3047 },
+              { assetId: usdcAssetId, amount: 3047 },
               { assetId: popAssetId, amount: 10000 },
+              { assetId: chfAssetId, amount: 3047 },
             ],
             assetMetadataCache,
           } as any
@@ -81,17 +93,17 @@ describe('usePortfolioFiat', () => {
   it('prices fiat-pegged assets through the fiat price feed', () => {
     const { result } = renderHook(() => usePortfolioFiat(), { wrapper })
 
-    expect(result.current.rows.map((row) => row.ticker)).toEqual(['BTC', 'USDT', 'CHF'])
+    expect(result.current.rows.map((row) => row.ticker)).toEqual(['BTC', 'USDT', 'USDC'])
     expect(result.current.rows.find((row) => row.ticker === 'USDT')).toMatchObject({
       balance: 7010,
       fiatAmount: 70.1,
       hasFiatPrice: true,
     })
-    expect(result.current.rows.find((row) => row.ticker === 'CHF')).toMatchObject({
+    expect(result.current.rows.find((row) => row.ticker === 'USDC')).toMatchObject({
       balance: 3047,
-      fiatAmount: 33.8217,
+      fiatAmount: 30.47,
       hasFiatPrice: true,
     })
-    expect(result.current.totalFiat).toBeCloseTo(103.9217)
+    expect(result.current.totalFiat).toBeCloseTo(100.57)
   })
 })

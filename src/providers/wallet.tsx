@@ -49,14 +49,14 @@ const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
 const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
 const DEV_ISSUED_ASSETS = [
   {
-    name: 'Tether USD',
+    name: 'USDT',
     ticker: 'USDT',
     decimals: 2,
     amount: 7010,
   },
   {
-    name: 'Swiss franc',
-    ticker: 'CHF',
+    name: 'USDC',
+    ticker: 'USDC',
     decimals: 2,
     amount: 3047,
   },

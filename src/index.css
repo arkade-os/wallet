@@ -1193,6 +1193,17 @@ hr {
   padding-top: 0;
 }
 
+.home-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.home-stack__section + .home-stack__section {
+  margin-top: 0.25rem;
+}
+
 .home-quick-actions {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1296,16 +1307,247 @@ hr {
 }
 
 .palette-dark .home-quick-action {
-  background: color-mix(in srgb, var(--purple-700) 22%, var(--bg));
-  color: var(--purple-200);
+  background: color-mix(in srgb, var(--purple-500) 26%, var(--neutral-50));
+  color: color-mix(in srgb, var(--purple-100) 92%, var(--fg));
 }
 
 .palette-dark .home-quick-action::before {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--purple-100) 6%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--purple-200) 8%, transparent);
 }
 
 .palette-dark .home-quick-action__label {
-  color: color-mix(in srgb, var(--purple-100) 88%, var(--fg));
+  color: color-mix(in srgb, var(--purple-100) 90%, var(--fg));
+}
+
+.home-section {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.home-section__content {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.home-section-label {
+  color: color-mix(in srgb, var(--fg) 52%, transparent);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: var(--text-sm-line);
+}
+
+.asset-card,
+.home-upsell-card {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--fg) 5%, transparent),
+    0 1px 2px -1px color-mix(in srgb, var(--fg) 7%, transparent),
+    0 2px 4px 0 color-mix(in srgb, var(--fg) 3%, transparent);
+}
+
+.asset-card {
+  justify-content: space-between;
+  gap: 0.875rem;
+  min-height: 4.25rem;
+  padding: 0.875rem 1rem;
+}
+
+.asset-card--interactive {
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    box-shadow 180ms ease,
+    transform 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.asset-card--interactive:active,
+.home-upsell-card:active {
+  transform: scale(0.985);
+}
+
+.asset-card__identity,
+.home-upsell-card {
+  min-width: 0;
+}
+
+.asset-card__identity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.asset-card__logo {
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--neutral-50);
+}
+
+.asset-card__logo svg {
+  width: 100%;
+  height: 100%;
+}
+
+.asset-card__copy,
+.home-upsell-card__copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+}
+
+.asset-card__name,
+.home-upsell-card__title {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--fg);
+  font-size: var(--text-base);
+  font-weight: 500;
+  line-height: var(--text-base-line);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-card__balance,
+.home-upsell-card__description {
+  max-width: 100%;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--fg) 48%, transparent);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  line-height: var(--text-sm-line);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-card__value {
+  flex: 0 0 auto;
+  color: color-mix(in srgb, var(--fg) 76%, transparent);
+  font-size: var(--text-base);
+  font-weight: 500;
+  line-height: var(--text-base-line);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-upsell-card {
+  gap: 0.875rem;
+  min-height: 4.5rem;
+  cursor: pointer;
+  padding: 0.875rem 1rem;
+  transition:
+    box-shadow 180ms ease,
+    transform 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.home-upsell-card__icon {
+  display: flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--purple-100) 78%, var(--bg));
+  color: var(--purple-700);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--purple-700) 5%, transparent);
+}
+
+.home-upsell-card__icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .asset-card--interactive:hover,
+  .home-upsell-card:hover {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--fg) 7%, transparent),
+      0 1px 2px -1px color-mix(in srgb, var(--fg) 9%, transparent),
+      0 2px 4px 0 color-mix(in srgb, var(--fg) 5%, transparent);
+  }
+
+  .palette-dark .asset-card--interactive:hover,
+  .palette-dark .home-upsell-card:hover {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--fg) 5%, transparent),
+      0 1px 2px -1px color-mix(in srgb, #000 44%, transparent),
+      0 4px 10px -8px color-mix(in srgb, #000 76%, transparent);
+  }
+}
+
+.palette-dark .home-section-label {
+  color: color-mix(in srgb, var(--fg) 58%, transparent);
+}
+
+.palette-dark .asset-card,
+.palette-dark .home-upsell-card {
+  background: color-mix(in srgb, var(--neutral-50) 56%, var(--bg));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--fg) 4%, transparent),
+    0 1px 2px -1px color-mix(in srgb, #000 42%, transparent),
+    0 4px 10px -8px color-mix(in srgb, #000 70%, transparent);
+}
+
+.palette-dark .asset-card__balance,
+.palette-dark .home-upsell-card__description {
+  color: color-mix(in srgb, var(--fg) 56%, transparent);
+}
+
+.palette-dark .asset-card__value {
+  color: color-mix(in srgb, var(--fg) 82%, transparent);
+}
+
+.palette-dark .home-upsell-card__icon {
+  background: color-mix(in srgb, var(--purple-500) 26%, var(--neutral-50));
+  color: color-mix(in srgb, var(--purple-100) 92%, var(--fg));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--purple-200) 8%, transparent);
+}
+
+.transaction-asset-logo {
+  display: inline-flex;
+  width: 1rem;
+  height: 1rem;
+  min-width: 1rem;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.transaction-asset-logo svg {
+  width: 100%;
+  height: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .asset-card--interactive,
+  .home-upsell-card {
+    transition-duration: 0.01ms;
+  }
+
+  .asset-card--interactive:active,
+  .home-upsell-card:active {
+    transform: none;
+  }
 }
 
 /* Receive asset picker */
