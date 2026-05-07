@@ -246,7 +246,9 @@ export default function AppAssetMint() {
                   min='0'
                   step='1'
                   value={Number(amount)}
-                  onChange={(value) => setAmount(Number.isFinite(value) && value >= 0 ? BigInt(Math.trunc(value)) : 0n)}
+                  onChange={(value) =>
+                    setAmount(Number.isFinite(value) && value >= 0 ? BigInt(Math.trunc(value)) : BigInt(0))
+                  }
                   placeholder='1000'
                   testId='asset-amount'
                 />
@@ -281,7 +283,7 @@ export default function AppAssetMint() {
             />
 
             <FlexCol gap='0.5rem'>
-              <Text smaller color='dark50'>
+              <Text smaller color='neutral-500'>
                 Control Asset
               </Text>
               <SegmentedControl
@@ -308,10 +310,10 @@ export default function AppAssetMint() {
                                 </Text>
                               </>
                             ) : (
-                              <Text color='dark50'>Select from wallet...</Text>
+                              <Text color='neutral-500'>Select from wallet...</Text>
                             )}
                           </div>
-                          <Text color='dark50' smaller>
+                          <Text color='neutral-500' smaller>
                             {showControlDropdown ? '▲' : '▼'}
                           </Text>
                         </FlexRow>
@@ -327,7 +329,7 @@ export default function AppAssetMint() {
                                 }}
                               >
                                 <FlexRow padding='0.625rem 0.5rem'>
-                                  <Text color='dark50'>None</Text>
+                                  <Text color='neutral-500'>None</Text>
                                 </FlexRow>
                               </Shadow>
                             ) : null}
@@ -363,7 +365,7 @@ export default function AppAssetMint() {
 
               {controlMode === 'New' ? (
                 <FlexCol gap='0.5rem'>
-                  <Text smaller color='dark50'>
+                  <Text smaller color='neutral-500'>
                     {name ? `ctrl-${name}` : 'ctrl-...'} {ticker ? `(ctrl-${ticker})` : ''}
                   </Text>
                   <Input
@@ -384,7 +386,7 @@ export default function AppAssetMint() {
       </Content>
       <ButtonsOnBottom>
         {disabledReason ? (
-          <Text centered smaller color='dark50'>
+          <Text centered smaller color='neutral-500'>
             {disabledReason}
           </Text>
         ) : null}
