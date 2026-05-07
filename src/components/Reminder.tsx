@@ -49,7 +49,7 @@ export default function Reminder({ callback, duration, name, isOpen, startTime }
   const subHeaderStyle: React.CSSProperties = {
     fontSize: '0.8rem',
     fontWeight: 400,
-    color: 'var(--dark50)',
+    color: 'var(--neutral-500)',
   }
 
   return (

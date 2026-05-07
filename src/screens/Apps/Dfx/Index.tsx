@@ -48,7 +48,7 @@ export default function AppDfx() {
         <Padded>
           <FlexCol gap='2rem' between>
             {error ? (
-              <Text color='dark80' small thin wrap centered>
+              <Text color='neutral-800' small thin wrap centered>
                 Failed to connect to DFX. Please go back and try again.
               </Text>
             ) : (
