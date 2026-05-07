@@ -19,29 +19,8 @@ import { FiatContext } from '../../../providers/fiat'
 import { usePortfolioFiat, type PortfolioRow } from '../../../hooks/usePortfolioFiat'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 
-type VariantSource = 'codex' | 'claude'
-type SwapStep = 'compose' | 'select' | 'review'
 type AssetTarget = 'from' | 'to'
 type DrawerState = AssetTarget | 'review' | null
-
-type LayoutKind =
-  | 'stack'
-  | 'focus'
-  | 'route'
-  | 'ticket'
-  | 'balance'
-  | 'split'
-  | 'drawer'
-  | 'timeline'
-  | 'quote'
-  | 'minimal'
-
-interface SwapVariant {
-  id: string
-  title: string
-  intent: string
-  layout: LayoutKind
-}
 
 interface SwapAsset {
   assetId: string
@@ -52,37 +31,6 @@ interface SwapAsset {
   fiatText?: string
   icon?: string
   isBitcoin?: boolean
-}
-
-const codexVariants: SwapVariant[] = [
-  { id: 'c1', title: 'Stacked quote', intent: 'Composer first, quote second', layout: 'stack' },
-  { id: 'c2', title: 'Amount focus', intent: 'One amount owns the screen', layout: 'focus' },
-  { id: 'c3', title: 'Route rail', intent: 'Make the asset path obvious', layout: 'route' },
-  { id: 'c4', title: 'Receipt ticket', intent: 'Feels like preparing an order', layout: 'ticket' },
-  { id: 'c5', title: 'Balance first', intent: 'Start from what the user owns', layout: 'balance' },
-  { id: 'c6', title: 'Split desk', intent: 'Quote and controls side by side', layout: 'split' },
-  { id: 'c7', title: 'Drawer-led', intent: 'Composer is light, sheets do detail', layout: 'drawer' },
-  { id: 'c8', title: 'Step timeline', intent: 'Guided progress through swap', layout: 'timeline' },
-  { id: 'c9', title: 'Quote card', intent: 'Rate and receive amount lead', layout: 'quote' },
-  { id: 'c10', title: 'Minimal trade', intent: 'Fewest objects possible', layout: 'minimal' },
-]
-
-const claudeVariants: SwapVariant[] = [
-  { id: 'h1', title: 'Family flow', intent: 'Large input, quiet receive row', layout: 'focus' },
-  { id: 'h2', title: 'Uniswap sheet', intent: 'Stacked cards with sheet review', layout: 'stack' },
-  { id: 'h3', title: 'Asset chooser', intent: 'Picker state is central', layout: 'drawer' },
-  { id: 'h4', title: 'Confirm-led', intent: 'Preview the irreversible step early', layout: 'ticket' },
-  { id: 'h5', title: 'Keypad native', intent: 'Mobile thumb-entry prototype', layout: 'minimal' },
-  { id: 'h6', title: 'Route map', intent: 'Path and rate are the product', layout: 'route' },
-  { id: 'h7', title: 'Bento quote', intent: 'Dense but calm information blocks', layout: 'split' },
-  { id: 'h8', title: 'Stepper', intent: 'One decision per step', layout: 'timeline' },
-  { id: 'h9', title: 'Portfolio swap', intent: 'Swap starts from holdings', layout: 'balance' },
-  { id: 'h10', title: 'Market slip', intent: 'Compact exchange order slip', layout: 'quote' },
-]
-
-const variantsBySource: Record<VariantSource, SwapVariant[]> = {
-  codex: codexVariants,
-  claude: claudeVariants,
 }
 
 const fallbackAsset: SwapAsset = {
@@ -103,16 +51,11 @@ export default function WalletSwap() {
   const prefersReduced = useReducedMotion()
 
   const assets = useMemo(() => toSwapAssets(rows, config.fiat, fiatDecimals()), [rows, config.fiat, fiatDecimals])
-  const [source, setSource] = useState<VariantSource>('codex')
-  const [variantIndex, setVariantIndex] = useState(0)
-  const [step, setStep] = useState<SwapStep>('compose')
   const [amount, setAmount] = useState('0.01')
   const [fromAssetId, setFromAssetId] = useState(assets[0]?.assetId ?? 'btc')
   const [toAssetId, setToAssetId] = useState(assets[1]?.assetId ?? fallbackAsset.assetId)
   const [drawer, setDrawer] = useState<DrawerState>(null)
 
-  const variants = variantsBySource[source]
-  const variant = variants[variantIndex] ?? variants[0]
   const fromAsset = assets.find((asset) => asset.assetId === fromAssetId) ?? assets[0] ?? fallbackAsset
   const toAsset =
     assets.find((asset) => asset.assetId === toAssetId && asset.assetId !== fromAsset.assetId) ??
@@ -121,17 +64,6 @@ export default function WalletSwap() {
   const quote = useMemo(() => buildQuote(amount, fromAsset, toAsset), [amount, fromAsset, toAsset])
 
   const motionTransition = prefersReduced ? { duration: 0 } : { duration: 0.24, ease: EASE_OUT_QUINT_TUPLE }
-
-  const selectSource = (nextSource: VariantSource) => {
-    hapticLight()
-    setSource(nextSource)
-    setVariantIndex(0)
-  }
-
-  const selectVariant = (index: number) => {
-    hapticLight()
-    setVariantIndex(index)
-  }
 
   const selectAsset = (target: AssetTarget, asset: SwapAsset) => {
     hapticLight()
@@ -164,78 +96,20 @@ export default function WalletSwap() {
     })
   }
 
-  const chooseStep = (nextStep: SwapStep) => {
-    hapticLight()
-    setStep(nextStep)
-    if (nextStep === 'review') setDrawer('review')
-  }
-
   return (
     <>
       <Header text='Swap' back />
       <Content className='asset-swap-content'>
         <Padded>
           <div className='asset-swap-lab'>
-            <section className='swap-lab-controls' aria-label='Swap prototype controls'>
-              <div className='swap-source-switcher' role='tablist' aria-label='Design source'>
-                {(['codex', 'claude'] as const).map((item) => (
-                  <button
-                    key={item}
-                    type='button'
-                    role='tab'
-                    aria-selected={source === item}
-                    className={source === item ? 'swap-source-tab swap-source-tab--active' : 'swap-source-tab'}
-                    onClick={() => selectSource(item)}
-                  >
-                    {item === 'codex' ? 'Codex' : 'Claude'}
-                  </button>
-                ))}
-              </div>
-
-              <div className='swap-variant-strip hide-scrollbar' aria-label={`${source} swap variants`}>
-                {variants.map((item, index) => (
-                  <button
-                    key={item.id}
-                    type='button'
-                    aria-pressed={variant.id === item.id}
-                    className={
-                      variant.id === item.id ? 'swap-variant-chip swap-variant-chip--active' : 'swap-variant-chip'
-                    }
-                    onClick={() => selectVariant(index)}
-                  >
-                    <span>{index + 1}</span>
-                    <span>{item.title}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <div className='swap-step-tabs' role='tablist' aria-label='Swap step preview'>
-              {(['compose', 'select', 'review'] as const).map((item) => (
-                <button
-                  key={item}
-                  type='button'
-                  role='tab'
-                  aria-selected={step === item}
-                  className={step === item ? 'swap-step-tab swap-step-tab--active' : 'swap-step-tab'}
-                  onClick={() => chooseStep(item)}
-                >
-                  {stepLabel(item)}
-                </button>
-              ))}
-            </div>
-
             <motion.section
-              key={`${source}-${variant.id}-${step}`}
-              className='swap-variant-stage'
+              key='stacked-quote'
+              className='swap-flow-stage'
               initial={prefersReduced ? false : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={motionTransition}
             >
-              <VariantHeader source={source} variant={variant} />
-              <VariantBody
-                variant={variant}
-                step={step}
+              <SwapBody
                 amount={amount}
                 quote={quote}
                 fromAsset={fromAsset}
@@ -273,21 +147,7 @@ export default function WalletSwap() {
   )
 }
 
-function VariantHeader({ source, variant }: { source: VariantSource; variant: SwapVariant }) {
-  return (
-    <header className='swap-variant-header'>
-      <div>
-        <p className='swap-eyebrow'>{source === 'codex' ? 'Codex variant' : 'Claude variant'}</p>
-        <h2 className='text-heading-md'>{variant.title}</h2>
-      </div>
-      <p>{variant.intent}</p>
-    </header>
-  )
-}
-
-function VariantBody({
-  variant,
-  step,
+function SwapBody({
   amount,
   quote,
   fromAsset,
@@ -297,8 +157,6 @@ function VariantBody({
   onSwapSides,
   onReview,
 }: {
-  variant: SwapVariant
-  step: SwapStep
   amount: string
   quote: SwapQuote
   fromAsset: SwapAsset
@@ -320,110 +178,14 @@ function VariantBody({
     />
   )
   const details = <QuoteDetails quote={quote} />
-  const review = <ReviewSummary quote={quote} />
 
-  if (step === 'select') {
-    return (
-      <div className='swap-layout swap-layout--drawer'>
-        <AssetSelectionPanel fromAsset={fromAsset} toAsset={toAsset} onOpenAssetDrawer={onOpenAssetDrawer} />
-        {details}
-      </div>
-    )
-  }
-
-  if (step === 'review') {
-    return (
-      <div className='swap-layout swap-layout--ticket'>
-        {review}
-        <Button label='Open review sheet' onClick={onReview} />
-      </div>
-    )
-  }
-
-  switch (variant.layout) {
-    case 'focus':
-      return (
-        <div className='swap-layout swap-layout--focus'>
-          <HeroAmount amount={amount} quote={quote} fromAsset={fromAsset} onAmountChange={onAmountChange} />
-          {composer}
-          <Button label='Review swap' onClick={onReview} />
-        </div>
-      )
-    case 'route':
-      return (
-        <div className='swap-layout swap-layout--route'>
-          <RouteMap fromAsset={fromAsset} toAsset={toAsset} quote={quote} />
-          {composer}
-          {details}
-        </div>
-      )
-    case 'ticket':
-      return (
-        <div className='swap-layout swap-layout--ticket'>
-          {composer}
-          {review}
-          <Button label='Review swap' onClick={onReview} />
-        </div>
-      )
-    case 'balance':
-      return (
-        <div className='swap-layout swap-layout--balance'>
-          <BalanceLedgers fromAsset={fromAsset} toAsset={toAsset} onOpenAssetDrawer={onOpenAssetDrawer} />
-          {composer}
-        </div>
-      )
-    case 'split':
-      return (
-        <div className='swap-layout swap-layout--split'>
-          {composer}
-          <div className='swap-side-panel'>
-            {details}
-            {review}
-          </div>
-        </div>
-      )
-    case 'drawer':
-      return (
-        <div className='swap-layout swap-layout--drawer'>
-          <AssetSelectionPanel fromAsset={fromAsset} toAsset={toAsset} onOpenAssetDrawer={onOpenAssetDrawer} />
-          {composer}
-          <Button label='Review in drawer' onClick={onReview} />
-        </div>
-      )
-    case 'timeline':
-      return (
-        <div className='swap-layout swap-layout--timeline'>
-          <StepRail activeStep={step} />
-          {composer}
-          {details}
-        </div>
-      )
-    case 'quote':
-      return (
-        <div className='swap-layout swap-layout--quote'>
-          {details}
-          {composer}
-          <Button label='Review swap' onClick={onReview} />
-        </div>
-      )
-    case 'minimal':
-      return (
-        <div className='swap-layout swap-layout--minimal'>
-          <HeroAmount amount={amount} quote={quote} fromAsset={fromAsset} onAmountChange={onAmountChange} />
-          <AssetPairLine fromAsset={fromAsset} toAsset={toAsset} onOpenAssetDrawer={onOpenAssetDrawer} />
-          <Button label='Review swap' onClick={onReview} />
-        </div>
-      )
-    case 'stack':
-    default:
-      return (
-        <div className='swap-layout swap-layout--stack'>
-          {composer}
-          {details}
-          <Button label='Review swap' onClick={onReview} />
-        </div>
-      )
-  }
+  return (
+    <div className='swap-layout swap-layout--stack'>
+      {composer}
+      {details}
+      <Button label='Review swap' onClick={onReview} />
+    </div>
+  )
 }
 
 function SwapComposer({
@@ -530,36 +292,6 @@ function TokenAvatar({ asset, size }: { asset: SwapAsset; size: number }) {
   return <AssetAvatar icon={asset.icon} name={asset.name} ticker={asset.ticker} size={size} />
 }
 
-function HeroAmount({
-  amount,
-  quote,
-  fromAsset,
-  onAmountChange,
-}: {
-  amount: string
-  quote: SwapQuote
-  fromAsset: SwapAsset
-  onAmountChange: (value: string) => void
-}) {
-  return (
-    <div className='swap-hero-amount'>
-      <p>You're swapping</p>
-      <div>
-        <input
-          aria-label='Focused swap amount'
-          inputMode='decimal'
-          value={amount}
-          onChange={(event) => onAmountChange(normalizeAmountInput(event.target.value))}
-        />
-        <span>{fromAsset.ticker}</span>
-      </div>
-      <p>
-        {quote.fromFiat} into {quote.toAmount} {quote.toAsset.ticker}
-      </p>
-    </div>
-  )
-}
-
 function QuoteDetails({ quote }: { quote: SwapQuote }) {
   return (
     <div className='swap-detail-card'>
@@ -594,120 +326,6 @@ function MetricRow({ label, value }: { label: string; value: string }) {
       <span>{label}</span>
       <span>{value}</span>
     </div>
-  )
-}
-
-function AssetSelectionPanel({
-  fromAsset,
-  toAsset,
-  onOpenAssetDrawer,
-}: {
-  fromAsset: SwapAsset
-  toAsset: SwapAsset
-  onOpenAssetDrawer: (target: AssetTarget) => void
-}) {
-  return (
-    <div className='swap-selection-panel'>
-      <AssetChoiceButton label='From' asset={fromAsset} onClick={() => onOpenAssetDrawer('from')} />
-      <AssetChoiceButton label='To' asset={toAsset} onClick={() => onOpenAssetDrawer('to')} />
-    </div>
-  )
-}
-
-function AssetChoiceButton({ label, asset, onClick }: { label: string; asset: SwapAsset; onClick: () => void }) {
-  return (
-    <button type='button' className='swap-choice-button' onClick={onClick}>
-      <span>{label}</span>
-      <span>
-        <TokenAvatar asset={asset} size={32} />
-        <span>{asset.ticker}</span>
-      </span>
-    </button>
-  )
-}
-
-function AssetPairLine({
-  fromAsset,
-  toAsset,
-  single,
-  onOpenAssetDrawer,
-}: {
-  fromAsset: SwapAsset
-  toAsset: SwapAsset
-  single?: boolean
-  onOpenAssetDrawer: (target: AssetTarget) => void
-}) {
-  return (
-    <div className='swap-asset-pair-line'>
-      <button type='button' onClick={() => onOpenAssetDrawer('from')}>
-        <TokenAvatar asset={fromAsset} size={32} />
-        <span>{fromAsset.ticker}</span>
-      </button>
-      {!single ? (
-        <>
-          <span className='swap-pair-arrow'>to</span>
-          <button type='button' onClick={() => onOpenAssetDrawer('to')}>
-            <TokenAvatar asset={toAsset} size={32} />
-            <span>{toAsset.ticker}</span>
-          </button>
-        </>
-      ) : null}
-    </div>
-  )
-}
-
-function RouteMap({ fromAsset, toAsset, quote }: { fromAsset: SwapAsset; toAsset: SwapAsset; quote: SwapQuote }) {
-  return (
-    <div className='swap-route-map'>
-      <TokenAvatar asset={fromAsset} size={48} />
-      <div className='swap-route-line'>
-        <span />
-        <p>{quote.rateLabel}</p>
-      </div>
-      <TokenAvatar asset={toAsset} size={48} />
-    </div>
-  )
-}
-
-function BalanceLedgers({
-  fromAsset,
-  toAsset,
-  onOpenAssetDrawer,
-}: {
-  fromAsset: SwapAsset
-  toAsset: SwapAsset
-  onOpenAssetDrawer: (target: AssetTarget) => void
-}) {
-  return (
-    <div className='swap-balance-ledgers'>
-      {[
-        { target: 'from' as const, asset: fromAsset },
-        { target: 'to' as const, asset: toAsset },
-      ].map(({ target, asset }) => (
-        <button key={target} type='button' onClick={() => onOpenAssetDrawer(target)}>
-          <TokenAvatar asset={asset} size={36} />
-          <span>{asset.name}</span>
-          <span>{formatAssetBalance(asset)}</span>
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function StepRail({ activeStep }: { activeStep: SwapStep }) {
-  const steps: SwapStep[] = ['compose', 'select', 'review']
-  return (
-    <ol className='swap-step-rail'>
-      {steps.map((item) => (
-        <li
-          key={item}
-          className={activeStep === item ? 'swap-step-rail-item swap-step-rail-item--active' : 'swap-step-rail-item'}
-        >
-          <span />
-          <p>{stepLabel(item)}</p>
-        </li>
-      ))}
-    </ol>
   )
 }
 
@@ -833,10 +451,6 @@ function normalizeAmountInput(value: string): string {
   const [whole, ...fractionParts] = sanitized.split('.')
   const normalized = fractionParts.length ? `${whole}.${fractionParts.join('')}` : whole
   return normalized.slice(0, 10)
-}
-
-function stepLabel(step: SwapStep): string {
-  return step.charAt(0).toUpperCase() + step.slice(1)
 }
 
 function prototypeRate(fromAsset: SwapAsset, toAsset: SwapAsset): number {

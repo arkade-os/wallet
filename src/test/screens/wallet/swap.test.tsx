@@ -1,5 +1,5 @@
 import userEvent from '@testing-library/user-event'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import WalletSwap from '../../../screens/Wallet/Swap/Index'
 import { ConfigContext } from '../../../providers/config'
@@ -78,17 +78,15 @@ function renderSwap() {
 }
 
 describe('Wallet swap prototype', () => {
-  it('renders the codex and claude structural variant switchers', async () => {
+  it('renders the stacked quote swap flow without prototype controls', () => {
     renderSwap()
 
-    expect(screen.getByRole('heading', { name: 'Stacked quote' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /1 Stacked quote/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /10 Minimal trade/i })).toBeInTheDocument()
-
-    await userEvent.click(screen.getByRole('tab', { name: 'Claude' }))
-
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Family flow' })).toBeInTheDocument())
-    expect(screen.getByRole('button', { name: /10 Market slip/i })).toBeInTheDocument()
+    expect(screen.queryByText('Stacked quote')).not.toBeInTheDocument()
+    expect(screen.queryByText('Composer first, quote second')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Codex/i })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Swap amount')).toBeInTheDocument()
+    expect(screen.getByText('Rate')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Review swap' })).toBeInTheDocument()
   })
 
   it('keeps the screen in the wallet back stack', async () => {

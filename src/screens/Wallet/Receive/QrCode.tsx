@@ -593,7 +593,7 @@ function ReceiveAssetPicker({
         }}
       >
         <ReceiveAssetIcon option={selected} />
-        <span>{selected.ticker}</span>
+        <span>{selected.name}</span>
         <motion.span
           className='receive-asset-chevron'
           animate={prefersReducedMotion ? false : { rotate: open ? 180 : 0 }}
@@ -608,9 +608,17 @@ function ReceiveAssetPicker({
             className='receive-asset-menu'
             role='listbox'
             aria-label='Receive asset'
-            initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.98, y: -4, filter: 'blur(2px)' }}
-            animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
-            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98, y: -3, filter: 'blur(1px)' }}
+            initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.98, x: '-50%', y: -4, filter: 'blur(2px)' }}
+            animate={
+              prefersReducedMotion
+                ? { opacity: 1, x: '-50%' }
+                : { opacity: 1, scale: 1, x: '-50%', y: 0, filter: 'blur(0px)' }
+            }
+            exit={
+              prefersReducedMotion
+                ? { opacity: 0, x: '-50%' }
+                : { opacity: 0, scale: 0.98, x: '-50%', y: -3, filter: 'blur(1px)' }
+            }
             transition={{ duration: 0.18, ease: EASE_OUT_QUINT }}
           >
             {options.map((option) => {
@@ -740,7 +748,7 @@ function buildReceiveAssetOptions(
   }
 
   return [
-    { assetId: '', name: 'bitcoin', ticker: 'BTC' },
+    { assetId: '', name: 'Bitcoin', ticker: 'BTC' },
     assetByTicker.get('USDT') ?? { assetId: '', name: 'USDT', ticker: 'USDT' },
     assetByTicker.get('USDC') ?? { assetId: '', name: 'USDC', ticker: 'USDC' },
   ]
