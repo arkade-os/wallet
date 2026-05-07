@@ -47,7 +47,7 @@ export const consoleLog = (...args: any[]) => {
 export const consoleError = (err: any, msg = '') => {
   const str = (msg ? `${msg}: ` : '') + extractError(err)
   addLog(LogLevel.Error, [str])
-  console.error(str)
+  console.error(str, err)
 }
 
 export const getInfoLogsLength = () => getInfoLogs().length

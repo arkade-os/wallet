@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@arkade-os/boltz-swap':
         specifier: github:arkade-os/boltz-swap#offline-receive
-        version: https://codeload.github.com/arkade-os/boltz-swap/tar.gz/b97bed603ff0edba264a190035fcc49aff1e4414
+        version: https://codeload.github.com/arkade-os/boltz-swap/tar.gz/e9a31ac4a16c89268b4f75c239ed11b39403a053
       '@arkade-os/sdk':
         specifier: 0.4.24
         version: 0.4.24
@@ -183,8 +183,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/b97bed603ff0edba264a190035fcc49aff1e4414':
-    resolution: {tarball: https://codeload.github.com/arkade-os/boltz-swap/tar.gz/b97bed603ff0edba264a190035fcc49aff1e4414}
+  '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/e9a31ac4a16c89268b4f75c239ed11b39403a053':
+    resolution: {tarball: https://codeload.github.com/arkade-os/boltz-swap/tar.gz/e9a31ac4a16c89268b4f75c239ed11b39403a053}
     version: 0.3.28
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
 
@@ -2758,7 +2758,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/b97bed603ff0edba264a190035fcc49aff1e4414':
+  '@arkade-os/boltz-swap@https://codeload.github.com/arkade-os/boltz-swap/tar.gz/e9a31ac4a16c89268b4f75c239ed11b39403a053':
     dependencies:
       '@arkade-os/sdk': 0.4.24
       '@noble/curves': 2.0.1
