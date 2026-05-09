@@ -15,7 +15,6 @@ import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
-import { prettyNumber } from '../../../lib/format'
 import Input from '../../../components/Input'
 import AssetCard from '../../../components/AssetCard'
 import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
@@ -38,15 +37,17 @@ export default function AppAssetBurn() {
   const decimals = assetInfo.metadata?.decimals ?? 8
   const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? BigInt(0)
 
-  const handleMax = () => setAmount(centsToUnits(balance, decimals))
+  const handleAmountChange = (value: string) => {
+    const cents = unitsToCents(value, decimals)
+    setAmount(cents)
+  }
 
   const handleBurnRequest = () => {
-    const parsedAmount = unitsToCents(amount, decimals)
-    if (!parsedAmount || parsedAmount <= 0) {
+    if (!amount || amount <= 0) {
       setError('Amount must be a positive number')
       return
     }
-    if (parsedAmount > balance) {
+    if (amount > balance) {
       setError(`Cannot burn more than your balance (${prettyAssetAmount(balance, decimals)} ${ticker})`)
       return
     }
@@ -56,14 +57,13 @@ export default function AppAssetBurn() {
 
   const handleBurnConfirm = async () => {
     if (!svcWallet) return
-    const parsedAmount = unitsToCents(amount, decimals)
 
     setShowConfirm(false)
     setProcessing(true)
     setError('')
 
     try {
-      await svcWallet.assetManager.burn({ assetId: assetInfo.assetId, amount: parsedAmount })
+      await svcWallet.assetManager.burn({ assetId: assetInfo.assetId, amount })
       await reloadWallet()
       pendingNav.current = () => navigate(Pages.AppAssetDetail)
       setOpDone(true)
@@ -77,6 +77,8 @@ export default function AppAssetBurn() {
   const handleExitComplete = useCallback(() => {
     pendingNav.current?.()
   }, [])
+
+  const handleMax = () => setAmount(balance)
 
   if (processing || opDone)
     return <LoadingLogo text='Burning...' done={opDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
@@ -92,7 +94,8 @@ export default function AppAssetBurn() {
                 Confirm Burn
               </Text>
               <Text centered wrap color='neutral-500'>
-                You are about to burn {prettyNumber(Number(amount))} {ticker || name}. This action is irreversible.
+                You are about to burn {prettyAssetAmount(amount, decimals)} {ticker || name}. This action is
+                irreversible.
               </Text>
             </FlexCol>
             <FlexRow>
@@ -116,20 +119,22 @@ export default function AppAssetBurn() {
               ticker={ticker}
             />
             <Input
-              label='Amount to Burn'
               right={
-                <span onClick={handleMax} style={{ color: 'var(--purpletext)', fontSize: 13, cursor: 'pointer' }}>
+                <span
+                  onClick={handleMax}
+                  data-testid='burn-max-button'
+                  style={{ color: 'var(--purpletext)', fontSize: 13, cursor: 'pointer' }}
+                >
                   Max
                 </span>
               }
-              type='number'
               min='0'
               step='1'
-              value={Number(amount)}
-              onChange={(value) =>
-                setAmount(Number.isFinite(value) && value >= 0 ? BigInt(Math.trunc(value)) : BigInt(0))
-              }
+              type='number'
               placeholder='0'
+              label='Amount to Burn'
+              onChange={handleAmountChange}
+              value={amount ? centsToUnits(amount, decimals) : ''}
             />
           </FlexCol>
         </Padded>

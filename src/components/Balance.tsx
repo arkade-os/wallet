@@ -10,7 +10,7 @@ import EyeIcon from '../icons/Eye'
 import { ConfigContext } from '../providers/config'
 
 interface BalanceProps {
-  amount: Satoshis
+  amount: number
 }
 
 export default function Balance({ amount }: BalanceProps) {

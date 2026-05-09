@@ -3,13 +3,14 @@
 
 import { fromSatoshis, prettyNumber, toSatoshis } from './format'
 import { isArkAddress } from './address'
+import { centsToUnits } from './assets'
 
 export interface Bip21Decoded {
   address?: string
   arkAddress?: string
   satoshis?: number
   /** Raw amount in asset units when assetId is present (not converted to satoshis) */
-  assetAmount?: number
+  assetAmount?: string
   invoice?: string
   lnurl?: string
   assetId?: string
@@ -52,12 +53,13 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
     }
 
     if (params.has('amount')) {
-      const amount = parseFloat(params.get('amount')!)
-      if (isNaN(amount) || amount < 0 || !isFinite(amount)) throw new Error('Invalid amount')
+      const param = params.get('amount')!
       if (result.assetId != null) {
-        result.assetAmount = amount
+        result.assetAmount = param
       } else {
-        result.satoshis = toSatoshis(amount)
+        const amount = Number(param)
+        if (isNaN(amount) || amount < 0 || !isFinite(amount)) throw new Error('Invalid amount')
+        result.satoshis = toSatoshis(Number(amount))
       }
     }
 
@@ -82,8 +84,8 @@ export const encodeBip21 = (address: string, arkAddress: string, invoice: string
   )
 }
 
-export const encodeBip21Asset = (arkAddress: string, assetId: string, amount: number) => {
-  return `bitcoin:?ark=${arkAddress}&assetid=${assetId}&amount=${amount}`
+export const encodeBip21Asset = (arkAddress: string, assetId: string, cents: bigint, decimals?: number) => {
+  return `bitcoin:?ark=${arkAddress}&assetid=${assetId}&amount=${centsToUnits(cents, decimals)}`
 }
 
 export const isBip21 = (data: string): boolean => {

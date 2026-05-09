@@ -1,13 +1,12 @@
-import { centsToUnits, prettyAssetNumber } from './assets'
 import { fiatDecimalsFor, FIAT_SYMBOLS } from './fiat'
 import { Fiats, Satoshis, Tx } from './types'
 import { Decimal } from 'decimal.js'
 
-export const fromSatoshis = (num: Satoshis): number => {
+export const fromSatoshis = (num: number): number => {
   return Decimal.div(num, 100_000_000).toNumber()
 }
 
-export const toSatoshis = (num: number): Satoshis => {
+export const toSatoshis = (num: number): number => {
   return Decimal.mul(num, 100_000_000).floor().toNumber()
 }
 
@@ -27,13 +26,13 @@ export const prettyAgo = (timestamp: number | string, long = false): string => {
   return ''
 }
 
-export const prettyAmount = (amount: string | number, suffix?: string, decimals = 2): string => {
-  const sats = typeof amount === 'string' ? Number(amount) : amount
+export const prettyAmount = (sats: number, suffix?: string, decimals = 2): string => {
   if (suffix) return `${prettyNumber(sats, decimals)} ${suffix}`
+  if (sats >= 100_000_000_000_000) return `${prettyNumber(fromSatoshis(sats), 0)}K BTC`
   if (sats >= 100_000_000_000) return `${prettyNumber(fromSatoshis(sats), 0)} BTC`
   if (sats >= 100_000_000) return `${prettyNumber(fromSatoshis(sats), 3)} BTC`
   if (sats >= 1_000_000) return `${prettyNumber(sats / 1_000_000, 3)}M SATS`
-  return `${prettyNumber(sats)} ${sats === 1 ? 'SAT' : 'SATS'}`
+  return `${prettyNumber(sats, 0)} ${sats === 1 ? 'SAT' : 'SATS'}`
 }
 
 export const prettyFiatAmount = (amount: number, currency: Fiats): string => {
@@ -76,13 +75,13 @@ export const prettyDate = (num: number): string => {
   }).format(date)
 }
 
-const hideDots = (value: string | number): string => {
+const hideDots = (value: string | number | Satoshis): string => {
   const str = typeof value === 'string' ? value : value.toString()
   const length = str.length * 2 > 6 ? str.length * 2 : 6
   return '·'.repeat(length)
 }
 
-export const prettyHide = (value: string | number, suffix = 'SATS'): string => {
+export const prettyHide = (value: string | number | Satoshis, suffix = 'SATS'): string => {
   if (!value) return ''
   const dots = hideDots(value)
   return suffix ? `${dots} ${suffix}` : dots
@@ -117,11 +116,6 @@ export const prettyNumber = (
     minimumFractionDigits,
     useGrouping,
   }).format(num)
-}
-
-export const formatAssetAmount = (amount: bigint, decimals: number): string => {
-  if (decimals === 0) return prettyAssetNumber(amount, 0)
-  return prettyAssetNumber(centsToUnits(amount, decimals), decimals)
 }
 
 export const isIssuance = (tx: Tx): boolean => {

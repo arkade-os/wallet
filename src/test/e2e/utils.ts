@@ -41,7 +41,7 @@ export async function waitForWalletPage(page: Page, timeout = 60000): Promise<vo
 }
 
 interface MintAssetOptions {
-  amount: number
+  amount: string
   name: string
   ticker: string
   decimals?: number
@@ -70,7 +70,7 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
   await page.waitForSelector('text=Mint Asset', { state: 'visible' })
 
   // fill amount
-  await page.getByTestId('asset-amount').fill(opts.amount.toString())
+  await page.getByTestId('asset-amount').fill(opts.amount)
   // fill name
   await page.getByTestId('asset-name').fill(opts.name)
   // fill ticker
@@ -100,7 +100,6 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
 }
 
 export async function createWallet(page: Page): Promise<void> {
-  // await execAsync('nigiri rpc --generate 1')
   await page.goto('/')
   await page.getByText('+ Create wallet').click()
   await waitForWalletPage(page)

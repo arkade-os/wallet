@@ -62,7 +62,7 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   await createWallet(page)
   await fundWallet(page, 5000)
   await enableAssets(page)
-  await mintAsset(page, { amount: 1000, name: 'TestCoin', ticker: 'TST', decimals: 2 })
+  await mintAsset(page, { amount: '1000', name: 'TestCoin', ticker: 'TST', decimals: 2 })
 
   // assert success screen
   await expect(page.getByText('TestCoin')).toBeVisible()
@@ -94,7 +94,7 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
     await page.locator('input[name="send-amount"]').click()
     await handleKeyboardInput(page, 123.45)
   } else {
-    await page.locator('input[name="send-amount"]').fill('123,45')
+    await page.locator('input[name="send-amount"]').fill('123.45')
   }
 
   // continue to details page
