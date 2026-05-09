@@ -1,7 +1,7 @@
 import { useContext } from 'react'
 import { prettyHide, prettyNumber } from '../lib/format'
 import { FIAT_SYMBOLS } from '../lib/fiat'
-import { CurrencyDisplay, Satoshis } from '../lib/types'
+import { CurrencyDisplay } from '../lib/types'
 import { FiatContext } from '../providers/fiat'
 import Text from './Text'
 import FlexCol from './FlexCol'
