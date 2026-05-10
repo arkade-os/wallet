@@ -1,5 +1,5 @@
 import { fiatDecimalsFor, FIAT_SYMBOLS } from './fiat'
-import { Fiats, Satoshis, Tx } from './types'
+import { Fiats, Tx } from './types'
 import { Decimal } from 'decimal.js'
 
 export const fromSatoshis = (num: number): number => {
@@ -75,13 +75,13 @@ export const prettyDate = (num: number): string => {
   }).format(date)
 }
 
-const hideDots = (value: string | number | Satoshis): string => {
+const hideDots = (value: string | number): string => {
   const str = typeof value === 'string' ? value : value.toString()
   const length = str.length * 2 > 6 ? str.length * 2 : 6
   return '·'.repeat(length)
 }
 
-export const prettyHide = (value: string | number | Satoshis, suffix = 'SATS'): string => {
+export const prettyHide = (value: string | number, suffix = 'SATS'): string => {
   if (!value) return ''
   const dots = hideDots(value)
   return suffix ? `${dots} ${suffix}` : dots
