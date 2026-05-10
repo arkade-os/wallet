@@ -28,14 +28,12 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
 
   const prices = useRef<FiatPrices>(emptyFiatPrices)
 
-  const { eur, usd, chf, jpy, gbp, cny } = prices.current
-
-  const fromEUR = (fiat = 0) => (eur ? toSatoshis(Decimal.div(fiat, eur).toNumber()) : 0)
-  const fromUSD = (fiat = 0) => (usd ? toSatoshis(Decimal.div(fiat, usd).toNumber()) : 0)
-  const fromCHF = (fiat = 0) => (chf ? toSatoshis(Decimal.div(fiat, chf).toNumber()) : 0)
-  const fromJPY = (fiat = 0) => (jpy ? toSatoshis(Decimal.div(fiat, jpy).toNumber()) : 0)
-  const fromGBP = (fiat = 0) => (gbp ? toSatoshis(Decimal.div(fiat, gbp).toNumber()) : 0)
-  const fromCNY = (fiat = 0) => (cny ? toSatoshis(Decimal.div(fiat, cny).toNumber()) : 0)
+  const fromEUR = (fiat = 0) => (prices.current.eur ? toSatoshis(Decimal.div(fiat, prices.current.eur).toNumber()) : 0)
+  const fromUSD = (fiat = 0) => (prices.current.usd ? toSatoshis(Decimal.div(fiat, prices.current.usd).toNumber()) : 0)
+  const fromCHF = (fiat = 0) => (prices.current.chf ? toSatoshis(Decimal.div(fiat, prices.current.chf).toNumber()) : 0)
+  const fromJPY = (fiat = 0) => (prices.current.jpy ? toSatoshis(Decimal.div(fiat, prices.current.jpy).toNumber()) : 0)
+  const fromGBP = (fiat = 0) => (prices.current.gbp ? toSatoshis(Decimal.div(fiat, prices.current.gbp).toNumber()) : 0)
+  const fromCNY = (fiat = 0) => (prices.current.cny ? toSatoshis(Decimal.div(fiat, prices.current.cny).toNumber()) : 0)
   const toEUR = (sats = 0) => Decimal.mul(fromSatoshis(sats), prices.current.eur).toNumber()
   const toUSD = (sats = 0) => Decimal.mul(fromSatoshis(sats), prices.current.usd).toNumber()
   const toCHF = (sats = 0) => Decimal.mul(fromSatoshis(sats), prices.current.chf).toNumber()
