@@ -173,7 +173,7 @@ export default function ReceiveQRCode() {
     const ark = vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
     const btc = utxoTxsAllowed() ? swapAddress || recvInfo.boardingAddr : ''
     const bip21 = isAssetReceive
-      ? encodeBip21Asset(ark, assetId, assetAmount)
+      ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals)
       : encodeBip21(btc, ark, invoice, satoshis, lnurlSession.lnurl)
 
     return { ark, btc, bip21 }
