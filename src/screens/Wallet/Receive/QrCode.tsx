@@ -521,7 +521,7 @@ export default function ReceiveQRCode() {
       {/* Amount bottom sheet */}
       <SheetModal isOpen={showAmountSheet} onClose={() => setShowAmountSheet(false)}>
         <FlexCol gap='1rem' padding='0.5rem 0'>
-          <Text big bold>
+          <Text big heading medium>
             Add amount
           </Text>
           <InputAmount
@@ -544,7 +544,7 @@ export default function ReceiveQRCode() {
       {/* Copy address bottom sheet */}
       <SheetModal isOpen={showCopySheet} onClose={() => setShowCopySheet(false)}>
         <FlexCol gap='1rem' padding='0.5rem 0'>
-          <Text big bold>
+          <Text big heading medium>
             Copy address
           </Text>
           <AddressList

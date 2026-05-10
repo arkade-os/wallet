@@ -1,5 +1,6 @@
 import { forwardRef } from 'react'
 import { usePortfolioBalanceDisplay } from '../../hooks/usePortfolioBalanceDisplay'
+import { PrivacyAmount } from '../../components/PrivacyAmount'
 
 interface PortfolioHeroProps {
   collapseProgress?: number
@@ -13,7 +14,7 @@ const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function Po
   { collapseProgress = 0 },
   ref,
 ) {
-  const { balance, unit } = usePortfolioBalanceDisplay()
+  const { balance, maskedBalance, unit } = usePortfolioBalanceDisplay()
   const clampedProgress = Math.max(0, Math.min(1, collapseProgress))
 
   return (
@@ -28,9 +29,9 @@ const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function Po
           willChange: clampedProgress > 0 && clampedProgress < 1 ? 'transform, opacity' : 'auto',
         }}
       >
-        <span className='text-heading-xl' data-testid='main-balance'>
+        <PrivacyAmount className='text-heading-xl' masked={maskedBalance} testId='main-balance'>
           {balance}
-        </span>
+        </PrivacyAmount>
         {unit ? <span className='text-xl'>{unit}</span> : null}
       </div>
     </div>

@@ -77,7 +77,7 @@ export const options: Option[] = [
     section: SettingsSections.General,
   },
   {
-    icon: <></>,
+    icon: <ServerIcon />,
     option: SettingsOptions.Delegates,
     section: SettingsSections.Advanced,
   },
@@ -107,7 +107,7 @@ export const options: Option[] = [
     section: SettingsSections.Config,
   },
   {
-    icon: <></>,
+    icon: <LockIcon />,
     option: SettingsOptions.Password,
     section: SettingsSections.Advanced,
   },

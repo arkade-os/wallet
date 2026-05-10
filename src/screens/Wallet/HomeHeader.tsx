@@ -6,19 +6,21 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import { OptionsContext } from '../../providers/options'
 import { SettingsOptions } from '../../lib/types'
 import { hapticLight } from '../../lib/haptics'
+import { PrivacyAmount, maskedFiat } from '../../components/PrivacyAmount'
 
 interface HomeHeaderProps {
   balance?: string
   balanceProgress?: number
   balanceUnit?: string
   logoVisible?: boolean
+  maskedBalance?: string
 }
 
 /**
  * Home header: logo left, top-right icon cluster (Activity, Settings).
  */
 const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHeader(
-  { balance, balanceProgress = 0, balanceUnit, logoVisible = true },
+  { balance, balanceProgress = 0, balanceUnit, logoVisible = true, maskedBalance = maskedFiat() },
   ref,
 ) {
   const { navigate } = useContext(NavigationContext)
@@ -73,7 +75,7 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
         </div>
         {balance ? (
           <div
-            className='pointer-events-none absolute inset-y-0 left-1/2 flex -translate-x-1/2 items-center justify-center text-center'
+            className='absolute inset-y-0 left-1/2 flex -translate-x-1/2 items-center justify-center text-center'
             aria-hidden={clampedBalanceProgress < 0.5}
             data-testid='sticky-balance'
           >
@@ -86,7 +88,9 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
                 willChange: clampedBalanceProgress > 0 && clampedBalanceProgress < 1 ? 'transform, opacity' : 'auto',
               }}
             >
-              <span className='truncate text-heading-sm'>{balance}</span>
+              <PrivacyAmount className='truncate text-heading-sm' masked={maskedBalance}>
+                {balance}
+              </PrivacyAmount>
               {balanceUnit ? <span className='text-sm text-neutral-500'>{balanceUnit}</span> : null}
             </div>
           </div>

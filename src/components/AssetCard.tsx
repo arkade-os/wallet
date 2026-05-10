@@ -3,6 +3,7 @@ import TokenLogo, { type TokenLogoTicker } from './TokenLogo'
 import { centsToUnits, truncatedAssetId } from '../lib/assets'
 import { prettyNumber } from '../lib/format'
 import { hapticLight } from '../lib/haptics'
+import { PrivacyAmount, maskedFiat } from './PrivacyAmount'
 
 interface AssetCardProps {
   assetId: string
@@ -36,6 +37,8 @@ export default function AssetCard({
   const tokenTick = ticker ?? 'TKN'
   const prettyBalance = prettyNumber(centsToUnits(balance, decimals ?? 8))
   const leftSecondary = `${prettyBalance} ${tokenTick}`
+  const maskedBalance = `•••• ${tokenTick}`
+  const maskedFiatText = fiatText?.trim().startsWith('$') ? maskedFiat('$') : '••••'
 
   const handleClick = onClick
     ? () => {
@@ -59,12 +62,14 @@ export default function AssetCard({
         {renderedAvatar}
         <div className='asset-card__copy'>
           <span className='asset-card__name'>{assetName}</span>
-          <span className='asset-card__balance'>{leftSecondary}</span>
+          <PrivacyAmount className='asset-card__balance' masked={maskedBalance}>
+            {leftSecondary}
+          </PrivacyAmount>
         </div>
       </div>
       {fiatText ? (
         <div className='asset-card__value'>
-          <span>{fiatText}</span>
+          <PrivacyAmount masked={maskedFiatText}>{fiatText}</PrivacyAmount>
         </div>
       ) : null}
     </>

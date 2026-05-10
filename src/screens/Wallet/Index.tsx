@@ -36,7 +36,11 @@ export default function Wallet() {
   const [homeScrolled, setHomeScrolled] = useState(false)
   const [balanceCollapseProgress, setBalanceCollapseProgress] = useState(0)
   const bootAnimActive = useSyncExternalStore(subscribeBootAnim, getBootAnimActive)
-  const { balance: portfolioBalance, unit: portfolioBalanceUnit } = usePortfolioBalanceDisplay()
+  const {
+    balance: portfolioBalance,
+    maskedBalance: maskedPortfolioBalance,
+    unit: portfolioBalanceUnit,
+  } = usePortfolioBalanceDisplay()
   const prefersReducedMotion = useReducedMotion()
   // Capture isInitialLoad at mount — it goes false before boot animation ends,
   // which would switch the stagger container from motion.div to plain div
@@ -117,6 +121,7 @@ export default function Wallet() {
             balanceProgress={balanceCollapseProgress}
             balanceUnit={portfolioBalanceUnit}
             logoVisible={!bootAnimActive}
+            maskedBalance={maskedPortfolioBalance}
           />
           <WalletStaggerContainer animate={shouldStagger} className='home-stack' hold={bootAnimActive}>
             <WalletStaggerChild animate={shouldStagger} className='home-stack__hero'>

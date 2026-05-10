@@ -222,7 +222,15 @@ export default function App() {
   }, [updateBootAnim])
 
   const comp =
-    page === Pages.Loading ? hasDevAutoInit ? <LoadingLogo text={loadingStatus} /> : null : pageComponent(page)
+    page === Pages.Loading ? (
+      loadError ? (
+        <BootError />
+      ) : hasDevAutoInit ? (
+        <LoadingLogo text={loadingStatus} />
+      ) : null
+    ) : (
+      pageComponent(page)
+    )
   const isSettingsRoot = screen === Pages.Settings && option === SettingsOptions.Menu
   const showNavbar = page === screen && (screen === Pages.Apps || isSettingsRoot)
 

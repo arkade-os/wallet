@@ -24,6 +24,7 @@ import PreconfirmedIcon from '../icons/Preconfirmed'
 import Focusable from './Focusable'
 import { hapticSubtle } from '../lib/haptics'
 import TokenLogo, { type TokenLogoTicker } from './TokenLogo'
+import { PrivacyAmount } from './PrivacyAmount'
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
@@ -43,7 +44,6 @@ const TransactionLine = ({
   const { assetMetadataCache } = useContext(WalletContext)
 
   const prefix = tx.type === 'sent' ? '-' : '+'
-  const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount) : prettyHide(tx.amount)}`
   const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
   const asAssets = Boolean(tx.assets?.length)
   const issuance = isIssuance(tx)
@@ -52,11 +52,16 @@ const TransactionLine = ({
   const Fiat = () => {
     if (issuance || burn) return null
     const value = toFiat(tx.amount)
-    const world = config.showBalance ? prettyFiatAmount(value, config.fiat) : prettyFiatHide(value, config.fiat)
     const statusClassName = tx.boardingTxid && tx.preconfirmed ? ' activity-row__amount--pending' : ''
     const secondaryClassName =
       asAssets || config.currencyDisplay === CurrencyDisplay.Both ? ' activity-row__amount--secondary' : ''
-    return <span className={`activity-row__amount${statusClassName}${secondaryClassName}`}>{world}</span>
+    return (
+      <span className={`activity-row__amount${statusClassName}${secondaryClassName}`}>
+        <PrivacyAmount masked={prettyFiatHide(value, config.fiat)}>
+          {prettyFiatAmount(value, config.fiat)}
+        </PrivacyAmount>
+      </span>
+    )
   }
 
   const iconTone = tx.preconfirmed && tx.boardingTxid ? 'pending' : burn ? 'burn' : 'default'
@@ -87,7 +92,9 @@ const TransactionLine = ({
           asAssets ? ' activity-row__amount--secondary' : ''
         }`}
       >
-        {amount}
+        <PrivacyAmount
+          masked={`${prefix} ${prettyHide(tx.amount)}`}
+        >{`${prefix} ${prettyAmount(tx.amount)}`}</PrivacyAmount>
       </span>
     )
 
@@ -104,9 +111,9 @@ const TransactionLine = ({
             <FlexRow key={a.assetId} gap='0.375rem' end>
               <TransactionAssetAvatar icon={icon} ticker={ticker} assetId={a.assetId} />
               <span className='activity-row__amount'>
-                {config.showBalance
-                  ? `${formatAssetAmount(a.amount, decimals)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
-                  : prettyHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}
+                <PrivacyAmount masked={prettyHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}>
+                  {`${formatAssetAmount(a.amount, decimals)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`}
+                </PrivacyAmount>
               </span>
             </FlexRow>
           )

@@ -70,16 +70,14 @@ export default function WalletSwap() {
   const [amount, setAmount] = useState('1')
   const [amountMode, setAmountMode] = useState<AmountMode>('fiat')
   const [fromAssetId, setFromAssetId] = useState(assets[0]?.assetId ?? 'btc')
-  const [toAssetId, setToAssetId] = useState<string | undefined>(
-    assets.find((asset) => asset.assetId !== (assets[0]?.assetId ?? 'btc'))?.assetId,
-  )
+  const [toAssetId, setToAssetId] = useState<string | undefined>()
   const [drawer, setDrawer] = useState<DrawerState>(null)
   const [swapTurn, setSwapTurn] = useState(0)
 
   const fromAsset = assets.find((asset) => asset.assetId === fromAssetId) ?? assets[0] ?? fallbackAsset
-  const toAsset =
-    assets.find((asset) => asset.assetId === toAssetId && asset.assetId !== fromAsset.assetId) ??
-    assets.find((asset) => asset.assetId !== fromAsset.assetId)
+  const toAsset = toAssetId
+    ? assets.find((asset) => asset.assetId === toAssetId && asset.assetId !== fromAsset.assetId)
+    : undefined
   const quote = useMemo(
     () => buildQuote(amount, amountMode, fromAsset, toAsset),
     [amount, amountMode, fromAsset, toAsset],
@@ -97,11 +95,7 @@ export default function WalletSwap() {
   const selectFromAsset = (asset: SwapAsset) => {
     hapticLight()
     setFromAssetId(asset.assetId)
-    const nextToAsset =
-      toAssetId && toAssetId !== asset.assetId
-        ? toAssetId
-        : assets.find((candidate) => candidate.assetId !== asset.assetId)?.assetId
-    setToAssetId(nextToAsset)
+    setToAssetId((current) => (current === asset.assetId ? undefined : current))
     setSearch('')
     setStep('compose')
   }
