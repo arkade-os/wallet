@@ -48,7 +48,8 @@ export default function App() {
   const { direction, navigate, screen, tab } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
   const { option, setOption } = useContext(OptionsContext)
-  const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError } = useContext(WalletContext)
+  const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError, devAutoInitFailed } =
+    useContext(WalletContext)
 
   const loadingStatus = useLoadingStatus()
   const isIAB = useMemo(() => isInAppBrowser(), [])
@@ -66,6 +67,7 @@ export default function App() {
 
   const passwordlessBootAttempted = useRef(false)
   const passwordlessReloadTimer = useRef<ReturnType<typeof setTimeout>>()
+  const hasDevAutoInit = import.meta.env.DEV && Boolean(import.meta.env.VITE_DEV_NSEC) && !devAutoInitFailed
 
   // lock screen orientation to portrait
   // this is a workaround for the issue with the screen orientation API
@@ -101,10 +103,20 @@ export default function App() {
     if (initInfo.password || initInfo.privateKey) return
     if (!walletLoaded) return navigate(Pages.Loading)
     // dev auto-init: stay on loading screen while VITE_DEV_NSEC initializes the wallet
-    if (import.meta.env.DEV && import.meta.env.VITE_DEV_NSEC && !initialized) return
+    if (hasDevAutoInit && !initialized) return
     if (!wallet.pubkey) return navigate(Pages.Init)
     if (authState === 'locked') return navigate(Pages.Unlock)
-  }, [walletLoaded, wallet.pubkey, authState, initInfo, aspInfo.unreachable, jsCapabilitiesChecked, isCapable])
+  }, [
+    walletLoaded,
+    wallet.pubkey,
+    authState,
+    initInfo,
+    aspInfo.unreachable,
+    jsCapabilitiesChecked,
+    isCapable,
+    hasDevAutoInit,
+    initialized,
+  ])
 
   const handleWallet = () => {
     hapticLight()
@@ -124,12 +136,13 @@ export default function App() {
 
   const prefersReduced = useReducedMotion()
   const effectiveDirection = prefersReduced ? 'none' : direction
+  const isDevAutoInitializing = hasDevAutoInit && !initialized
 
   // New users (no wallet in storage) skip straight to Init — the logo morph animation
   // serves as the intro visual while ASP and JS capability checks resolve in the background.
   // Init doesn't need ASP or crypto until "Create wallet" is clicked.
   const aspReady = aspInfo.signerPubkey || aspInfo.unreachable
-  const isNewUser = walletLoaded && !wallet.pubkey
+  const isNewUser = walletLoaded && !wallet.pubkey && !isDevAutoInitializing
   const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
   const hasStoredWallet = walletLoaded && !!wallet.pubkey
   const shouldShowUnlock = hasStoredWallet && authState === 'locked' && !aspInfo.unreachable
@@ -168,19 +181,20 @@ export default function App() {
     })
   }, [allChecksReady, wallet.pubkey, initialized, authState, unlockWallet])
 
-  const page = !(allChecksReady || isNewUser)
-    ? Pages.Loading
-    : shouldHoldOnLoading
+  const page =
+    isDevAutoInitializing || !(allChecksReady || isNewUser)
       ? Pages.Loading
-      : shouldShowUnlock
-        ? Pages.Unlock
-        : screen
+      : shouldHoldOnLoading
+        ? Pages.Loading
+        : shouldShowUnlock
+          ? Pages.Unlock
+          : screen
 
   // Boot animation: persists on Loading, then flies to the LogoIcon position when
   // Wallet is reached. For any other destination (Unlock, Init, etc.), exits with fly-up.
   // Skip in dev with VITE_DEV_NSEC — the fast auto-init races with the animation.
   useEffect(() => {
-    if (import.meta.env.DEV && import.meta.env.VITE_DEV_NSEC) return
+    if (hasDevAutoInit) return
 
     if (page === Pages.Loading && !bootAnimActive) {
       setBootAnimDone(false)
@@ -201,13 +215,14 @@ export default function App() {
       setBootExitMode('fly-up')
       setBootAnimDone(true)
     }
-  }, [page, bootAnimActive, bootAnimDone])
+  }, [page, bootAnimActive, bootAnimDone, hasDevAutoInit])
 
   const handleBootAnimComplete = useCallback(() => {
     updateBootAnim(false)
   }, [updateBootAnim])
 
-  const comp = page === Pages.Loading ? null : pageComponent(page)
+  const comp =
+    page === Pages.Loading ? hasDevAutoInit ? <LoadingLogo text={loadingStatus} /> : null : pageComponent(page)
   const isSettingsRoot = screen === Pages.Settings && option === SettingsOptions.Menu
   const showNavbar = page === screen && (screen === Pages.Apps || isSettingsRoot)
 

@@ -33,6 +33,7 @@ function renderApp({
   screen: screenOverride = Pages.Init,
   tab: tabOverride = Tabs.None,
   option,
+  walletPubkey = 'stored-pubkey',
 }: {
   authState: WalletAuthState
   initialized: boolean
@@ -40,6 +41,7 @@ function renderApp({
   screen?: Pages
   tab?: Tabs
   option?: SettingsOptions
+  walletPubkey?: string
 }) {
   const navigate = vi.fn()
 
@@ -61,7 +63,7 @@ function renderApp({
                   dataReady: initialized,
                   unlockWallet,
                   walletLoaded: true,
-                  wallet: { nextRollover: 0, pubkey: 'stored-pubkey' },
+                  wallet: { nextRollover: 0, pubkey: walletPubkey },
                 }}
               >
                 <App />
@@ -129,6 +131,15 @@ describe('App startup routing', () => {
     await waitFor(() => expect(screen.getByTestId('app')).toBeInTheDocument())
     expect(unlockWallet).not.toHaveBeenCalled()
     expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
+  })
+
+  it('keeps dev auto-init users off onboarding while the wallet starts', async () => {
+    vi.stubEnv('VITE_DEV_NSEC', 'nsec_dev_test_key')
+
+    renderApp({ authState: 'authenticated', initialized: false, walletPubkey: '' })
+
+    expect(await screen.findByTestId('loading-logo')).toBeInTheDocument()
+    expect(screen.queryByText('Welcome to Arkade 👾')).not.toBeInTheDocument()
   })
 
   it('schedules a single reload after passwordless auto-init failure', async () => {

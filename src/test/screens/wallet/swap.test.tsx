@@ -78,14 +78,19 @@ function renderSwap() {
 }
 
 describe('Wallet swap prototype', () => {
-  it('renders the stacked quote swap flow without prototype controls', () => {
+  it('starts with an asset picker, then opens the focused amount step', async () => {
     renderSwap()
 
     expect(screen.queryByText('Stacked quote')).not.toBeInTheDocument()
     expect(screen.queryByText('Composer first, quote second')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Codex/i })).not.toBeInTheDocument()
+    expect(screen.getByText('Choose asset to swap')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Search assets')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /Bitcoin/i }))
+
     expect(screen.getByLabelText('Swap amount')).toBeInTheDocument()
-    expect(screen.getByText('Estimated rate')).toBeInTheDocument()
+    expect(screen.getByLabelText('Swap keypad for 1')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
   })
 

@@ -47,6 +47,8 @@ import { IndexedDbSwapRepository, migrateToSwapRepository, Network } from '@arka
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
 const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
+const DEV_AUTO_INIT_TIMEOUT_MS = 15_000
+const DEV_AUTO_INIT_RELOAD_KEY = 'arkade-dev-auto-init-reload-attempted'
 const DEV_ISSUED_ASSETS = [
   {
     name: 'USDT',
@@ -95,6 +97,7 @@ interface WalletContextProps {
   dismissLoadError: () => void
   authState: WalletAuthState
   initialized?: boolean
+  devAutoInitFailed?: boolean
 }
 
 export const WalletContext = createContext<WalletContextProps>({
@@ -122,6 +125,7 @@ export const WalletContext = createContext<WalletContextProps>({
   authState: 'unknown',
   txs: [],
   vtxos: { spendable: [], spent: [] },
+  devAutoInitFailed: false,
 })
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
@@ -178,18 +182,51 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (initialized) return
     if (!aspInfo.url) return
 
+    let cancelled = false
+    let watchdog: ReturnType<typeof setTimeout> | undefined
+
     const autoInit = async () => {
       try {
+        watchdog = setTimeout(() => {
+          if (cancelled) return
+          consoleError(new Error('Dev wallet auto-init timed out'), 'Dev auto-init watchdog')
+          try {
+            if (sessionStorage.getItem(DEV_AUTO_INIT_RELOAD_KEY)) {
+              setDevAutoInitFailed(true)
+              return
+            }
+            sessionStorage.setItem(DEV_AUTO_INIT_RELOAD_KEY, 'true')
+          } catch {
+            // keep recovering even if session storage is unavailable
+          }
+          navigator.serviceWorker
+            ?.getRegistration()
+            .then((reg) => reg?.unregister())
+            .finally(() => window.location.reload())
+        }, DEV_AUTO_INIT_TIMEOUT_MS)
         const privateKey = nsecToPrivateKey(devNsec)
         await initWallet(privateKey)
+        if (cancelled) return
+        clearTimeout(watchdog)
+        try {
+          sessionStorage.removeItem(DEV_AUTO_INIT_RELOAD_KEY)
+        } catch {
+          // ignore session storage errors
+        }
         setAuthState('authenticated')
       } catch (err) {
+        clearTimeout(watchdog)
+        if (cancelled) return
         consoleError(err, 'Dev auto-init failed')
         setDevAutoInitFailed(true)
       }
     }
 
     autoInit()
+    return () => {
+      cancelled = true
+      clearTimeout(watchdog)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspInfo.url, initialized, devAutoInitFailed])
 
@@ -709,6 +746,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     <WalletContext.Provider
       value={{
         authState,
+        devAutoInitFailed,
         initWallet,
         isLocked,
         initialized,

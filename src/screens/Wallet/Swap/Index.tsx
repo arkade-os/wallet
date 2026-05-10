@@ -10,17 +10,20 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } f
 import ChevronDownIcon from '../../../icons/ChevronDown'
 import SwapIcon from '../../../icons/Swap'
 import { centsToUnits } from '../../../lib/assets'
-import { EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
+import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticTap } from '../../../lib/haptics'
 import { Fiats } from '../../../lib/types'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 import { usePortfolioFiat, type PortfolioRow } from '../../../hooks/usePortfolioFiat'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 
 type AssetTarget = 'from' | 'to'
-type DrawerState = AssetTarget | 'review' | null
+type DrawerState = 'to' | 'review' | null
+type SwapStep = 'select-from' | 'compose'
+type AmountMode = 'asset' | 'fiat'
 
 interface SwapAsset {
   assetId: string
@@ -33,13 +36,23 @@ interface SwapAsset {
   isBitcoin?: boolean
 }
 
+interface SwapQuote {
+  fromAsset: SwapAsset
+  toAsset?: SwapAsset
+  fromAmount: string
+  fromFiat: string
+  toAmount: string
+  toFiat: string
+  rateLabel: string
+}
+
 const fallbackAsset: SwapAsset = {
   assetId: 'prototype-asset',
-  name: 'Arkade USD',
-  ticker: 'AUSD',
+  name: 'USDC',
+  ticker: 'USDC',
   decimals: 2,
-  balance: 125050,
-  fiatText: '$1,250.50',
+  balance: 0,
+  fiatText: '$0.00',
 }
 
 const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'Back']
@@ -47,39 +60,61 @@ const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'Back
 export default function WalletSwap() {
   const { config } = useContext(ConfigContext)
   const { fiatDecimals } = useContext(FiatContext)
+  const { goBack, navigate } = useContext(NavigationContext)
   const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()
 
   const assets = useMemo(() => toSwapAssets(rows, config.fiat, fiatDecimals()), [rows, config.fiat, fiatDecimals])
-  const [amount, setAmount] = useState('0.01')
+  const [step, setStep] = useState<SwapStep>('select-from')
+  const [search, setSearch] = useState('')
+  const [amount, setAmount] = useState('1')
+  const [amountMode, setAmountMode] = useState<AmountMode>('fiat')
   const [fromAssetId, setFromAssetId] = useState(assets[0]?.assetId ?? 'btc')
-  const [toAssetId, setToAssetId] = useState(assets[1]?.assetId ?? fallbackAsset.assetId)
+  const [toAssetId, setToAssetId] = useState<string | undefined>(
+    assets.find((asset) => asset.assetId !== (assets[0]?.assetId ?? 'btc'))?.assetId,
+  )
   const [drawer, setDrawer] = useState<DrawerState>(null)
-  const [keypadOpen, setKeypadOpen] = useState(false)
   const [swapTurn, setSwapTurn] = useState(0)
 
   const fromAsset = assets.find((asset) => asset.assetId === fromAssetId) ?? assets[0] ?? fallbackAsset
   const toAsset =
     assets.find((asset) => asset.assetId === toAssetId && asset.assetId !== fromAsset.assetId) ??
-    assets.find((asset) => asset.assetId !== fromAsset.assetId) ??
-    fallbackAsset
-  const quote = useMemo(() => buildQuote(amount, fromAsset, toAsset), [amount, fromAsset, toAsset])
+    assets.find((asset) => asset.assetId !== fromAsset.assetId)
+  const quote = useMemo(
+    () => buildQuote(amount, amountMode, fromAsset, toAsset),
+    [amount, amountMode, fromAsset, toAsset],
+  )
 
-  const motionTransition = prefersReduced ? { duration: 0 } : { duration: 0.24, ease: EASE_OUT_QUINT_TUPLE }
+  const stageTransition = prefersReduced ? { duration: 0 } : { duration: 0.28, ease: EASE_IN_OUT_QUINT_TUPLE }
 
-  const selectAsset = (target: AssetTarget, asset: SwapAsset) => {
+  const filteredAssets = useMemo(() => filterAssets(assets, search), [assets, search])
+
+  const openDrawer = (nextDrawer: DrawerState) => {
     hapticLight()
-    if (target === 'from') {
-      setFromAssetId(asset.assetId)
-      if (asset.assetId === toAsset.assetId) setToAssetId(fromAsset.assetId)
-    } else {
-      setToAssetId(asset.assetId)
-      if (asset.assetId === fromAsset.assetId) setFromAssetId(toAsset.assetId)
-    }
+    setDrawer(nextDrawer)
+  }
+
+  const selectFromAsset = (asset: SwapAsset) => {
+    hapticLight()
+    setFromAssetId(asset.assetId)
+    const nextToAsset =
+      toAssetId && toAssetId !== asset.assetId
+        ? toAssetId
+        : assets.find((candidate) => candidate.assetId !== asset.assetId)?.assetId
+    setToAssetId(nextToAsset)
+    setSearch('')
+    setStep('compose')
+  }
+
+  const selectToAsset = (_target: AssetTarget, asset: SwapAsset) => {
+    hapticLight()
+    setToAssetId(asset.assetId)
+    if (asset.assetId === fromAsset.assetId) setFromAssetId(toAsset?.assetId ?? fromAsset.assetId)
     setDrawer(null)
   }
 
   const swapSides = () => {
+    if (!toAsset) return
     hapticLight()
     setSwapTurn((current) => current + 1)
     setFromAssetId(toAsset.assetId)
@@ -99,49 +134,87 @@ export default function WalletSwap() {
     })
   }
 
+  const toggleAmountMode = () => {
+    hapticLight()
+    setAmountMode((current) => (current === 'asset' ? 'fiat' : 'asset'))
+  }
+
+  const handleBack = () => {
+    if (step === 'compose') {
+      setStep('select-from')
+      return
+    }
+    goBack()
+  }
+
   return (
     <>
-      <Header text='Swap' back />
+      <Header text='Swap' back={handleBack} />
       <Content className='asset-swap-content'>
         <Padded>
           <div className='asset-swap-lab'>
-            <motion.section
-              key='stacked-quote'
-              className='swap-flow-stage'
-              initial={prefersReduced ? false : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={motionTransition}
-            >
-              <SwapBody
-                amount={amount}
-                quote={quote}
-                fromAsset={fromAsset}
-                toAsset={toAsset}
-                onAmountChange={setAmount}
-                keypadOpen={keypadOpen}
-                onAmountFocus={() => setKeypadOpen(true)}
-                onOpenAssetDrawer={setDrawer}
-                onSwapSides={swapSides}
-                swapTurn={swapTurn}
-                onReview={() => setDrawer('review')}
-              />
-              <AnimatePresence initial={false}>
-                {keypadOpen ? <Keypad amount={amount} onDone={() => setKeypadOpen(false)} onPress={pressKey} /> : null}
-              </AnimatePresence>
-            </motion.section>
+            <AnimatePresence mode='wait' initial={false}>
+              {step === 'select-from' ? (
+                <motion.section
+                  key='select-from'
+                  className='swap-flow-stage'
+                  initial={prefersReduced ? false : { opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={prefersReduced ? undefined : { opacity: 0, x: -16 }}
+                  transition={stageTransition}
+                >
+                  <SwapAssetList
+                    title='Choose asset to swap'
+                    search={search}
+                    assets={filteredAssets}
+                    empty={assets.length === 0}
+                    onSearch={setSearch}
+                    onSelect={selectFromAsset}
+                  />
+                </motion.section>
+              ) : (
+                <motion.section
+                  key='compose'
+                  className='swap-flow-stage'
+                  initial={prefersReduced ? false : { opacity: 0, x: 18 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={prefersReduced ? undefined : { opacity: 0, x: 18 }}
+                  transition={stageTransition}
+                >
+                  <SwapComposer
+                    amount={amount}
+                    amountMode={amountMode}
+                    quote={quote}
+                    fromAsset={fromAsset}
+                    toAsset={toAsset}
+                    onAmountFocus={() => {}}
+                    onModeToggle={toggleAmountMode}
+                    onOpenReceiveDrawer={() => openDrawer('to')}
+                    onSwapSides={swapSides}
+                    swapTurn={swapTurn}
+                  />
+                  <Keypad amount={amount} onPress={pressKey} />
+                  <Button
+                    label='Continue'
+                    disabled={!toAsset || Number(amount) <= 0}
+                    onClick={() => openDrawer('review')}
+                  />
+                </motion.section>
+              )}
+            </AnimatePresence>
           </div>
         </Padded>
       </Content>
 
       <AssetPickerDrawer
-        open={drawer === 'from' || drawer === 'to'}
-        target={drawer === 'from' || drawer === 'to' ? drawer : 'from'}
-        assets={assets}
-        selectedId={drawer === 'to' ? toAsset.assetId : fromAsset.assetId}
+        open={drawer === 'to'}
+        target='to'
+        assets={assets.filter((asset) => asset.assetId !== fromAsset.assetId)}
+        selectedId={toAsset?.assetId}
         onOpenChange={(open) => {
           if (!open) setDrawer(null)
         }}
-        onSelect={selectAsset}
+        onSelect={selectToAsset}
       />
 
       <ReviewDrawer
@@ -150,165 +223,177 @@ export default function WalletSwap() {
         onOpenChange={(open) => {
           if (!open) setDrawer(null)
         }}
+        onConfirm={() => navigate(Pages.Wallet)}
       />
     </>
   )
 }
 
-function SwapBody({
-  amount,
-  quote,
-  fromAsset,
-  toAsset,
-  onAmountChange,
-  keypadOpen,
-  onAmountFocus,
-  onOpenAssetDrawer,
-  onSwapSides,
-  swapTurn,
-  onReview,
+function SwapAssetList({
+  title,
+  search,
+  assets,
+  empty,
+  selectedId,
+  onSearch,
+  onSelect,
 }: {
-  amount: string
-  quote: SwapQuote
-  fromAsset: SwapAsset
-  toAsset: SwapAsset
-  onAmountChange: (value: string) => void
-  keypadOpen: boolean
-  onAmountFocus: () => void
-  onOpenAssetDrawer: (target: AssetTarget) => void
-  onSwapSides: () => void
-  swapTurn: number
-  onReview: () => void
+  title: string
+  search: string
+  assets: SwapAsset[]
+  empty: boolean
+  selectedId?: string
+  onSearch: (value: string) => void
+  onSelect: (asset: SwapAsset) => void
 }) {
-  const composer = (
-    <SwapComposer
-      amount={amount}
-      quote={quote}
-      fromAsset={fromAsset}
-      toAsset={toAsset}
-      onAmountChange={onAmountChange}
-      onAmountFocus={onAmountFocus}
-      onOpenAssetDrawer={onOpenAssetDrawer}
-      onSwapSides={onSwapSides}
-      swapTurn={swapTurn}
-    />
-  )
+  const prefersReduced = useReducedMotion()
 
   return (
-    <div className='swap-layout swap-layout--stack'>
-      {composer}
-      <SwapInlineQuote quote={quote} />
-      {!keypadOpen ? <Button label='Continue' onClick={onReview} /> : null}
+    <div className='swap-asset-list-panel'>
+      <div className='swap-step-heading'>
+        <p>{title}</p>
+        <span>Select the asset you want to trade from.</span>
+      </div>
+      <label className='swap-search-field'>
+        <span>Search assets</span>
+        <input
+          type='search'
+          value={search}
+          placeholder='Search assets'
+          autoComplete='off'
+          spellCheck={false}
+          onChange={(event) => onSearch(event.target.value)}
+        />
+      </label>
+      <div className='swap-token-list swap-token-list--page'>
+        {empty ? (
+          <div className='swap-empty-state'>No assets found</div>
+        ) : (
+          assets.map((asset, index) => (
+            <motion.div
+              key={asset.assetId}
+              initial={prefersReduced ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={
+                prefersReduced ? { duration: 0 } : { duration: 0.22, delay: index * 0.035, ease: EASE_OUT_QUINT_TUPLE }
+              }
+            >
+              <SwapAssetRow asset={asset} active={selectedId === asset.assetId} onClick={() => onSelect(asset)} />
+            </motion.div>
+          ))
+        )}
+      </div>
     </div>
   )
 }
 
 function SwapComposer({
   amount,
+  amountMode,
   quote,
   fromAsset,
   toAsset,
-  onAmountChange,
   onAmountFocus,
-  onOpenAssetDrawer,
+  onModeToggle,
+  onOpenReceiveDrawer,
   onSwapSides,
   swapTurn,
 }: {
   amount: string
+  amountMode: AmountMode
   quote: SwapQuote
   fromAsset: SwapAsset
-  toAsset: SwapAsset
-  onAmountChange: (value: string) => void
+  toAsset?: SwapAsset
   onAmountFocus: () => void
-  onOpenAssetDrawer: (target: AssetTarget) => void
+  onModeToggle: () => void
+  onOpenReceiveDrawer: () => void
   onSwapSides: () => void
   swapTurn: number
 }) {
+  const amountLabel = amountMode === 'fiat' ? prettyFiatAmount(Number(amount) || 0, Fiats.USD) : amount
+  const subAmountLabel = amountMode === 'fiat' ? `${quote.fromAmount} ${fromAsset.ticker}` : quote.fromFiat
+
   return (
     <div className='swap-composer'>
-      <SwapAmountCard
-        label='Swap'
-        amount={amount}
-        fiat={quote.fromFiat}
-        asset={fromAsset}
-        active
-        onAmountChange={onAmountChange}
-        onAmountFocus={onAmountFocus}
-        onAssetClick={() => onOpenAssetDrawer('from')}
-      />
+      <div className='swap-input-card'>
+        <div className='swap-input-card__asset'>
+          <TokenAvatar asset={fromAsset} size={36} />
+          <div>
+            <span>{fromAsset.name}</span>
+            <small>{formatAssetBalance(fromAsset)}</small>
+          </div>
+          <button type='button' onClick={onModeToggle}>
+            {amountMode === 'fiat' ? fromAsset.ticker : 'USD'}
+          </button>
+        </div>
+        <button type='button' className='swap-amount-display' onClick={onAmountFocus} aria-label='Swap amount'>
+          <AnimatePresence mode='wait' initial={false}>
+            <motion.span
+              key={`${amountMode}-${amountLabel}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18, ease: EASE_OUT_QUINT_TUPLE }}
+            >
+              {amountLabel}
+            </motion.span>
+          </AnimatePresence>
+          <small>{subAmountLabel}</small>
+        </button>
+      </div>
+
       <motion.button
         type='button'
         className='swap-flip-button'
         aria-label='Switch swap direction'
         animate={{ rotate: swapTurn * 180 }}
-        transition={{ duration: 0.22, ease: EASE_OUT_QUINT_TUPLE }}
+        transition={{ duration: 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
+        disabled={!toAsset}
         onClick={onSwapSides}
       >
         <SwapIcon />
       </motion.button>
-      <SwapAmountCard
-        label='Receive'
-        amount={quote.toAmount}
-        fiat={quote.toFiat}
-        asset={toAsset}
-        onAssetClick={() => onOpenAssetDrawer('to')}
-      />
+
+      <button type='button' className='swap-receive-card' onClick={onOpenReceiveDrawer}>
+        {toAsset ? (
+          <>
+            <TokenAvatar asset={toAsset} size={36} />
+            <div>
+              <span>Receive {toAsset.ticker}</span>
+              <small>
+                {quote.toAmount} {toAsset.ticker}
+              </small>
+            </div>
+            <strong>{quote.toFiat}</strong>
+          </>
+        ) : (
+          <>
+            <span className='swap-receive-card__empty'>+</span>
+            <div>
+              <span>Receive</span>
+              <small>Choose asset</small>
+            </div>
+            <ChevronDownIcon />
+          </>
+        )}
+      </button>
     </div>
   )
 }
 
-function SwapAmountCard({
-  label,
-  amount,
-  fiat,
-  asset,
-  active,
-  onAmountChange,
-  onAmountFocus,
-  onAssetClick,
-}: {
-  label: string
-  amount: string
-  fiat: string
-  asset: SwapAsset
-  active?: boolean
-  onAmountChange?: (value: string) => void
-  onAmountFocus?: () => void
-  onAssetClick: () => void
-}) {
+function SwapAssetRow({ asset, active, onClick }: { asset: SwapAsset; active?: boolean; onClick: () => void }) {
   return (
-    <div className={active ? 'swap-amount-card swap-amount-card--active' : 'swap-amount-card'}>
-      <div className='swap-card-topline'>
-        <span>{label}</span>
-        <AssetButton asset={asset} onClick={onAssetClick} />
-      </div>
-      {active ? (
-        <input
-          aria-label='Swap amount'
-          inputMode='decimal'
-          readOnly
-          value={amount}
-          onFocus={onAmountFocus}
-          onClick={onAmountFocus}
-          onChange={(event) => onAmountChange?.(normalizeAmountInput(event.target.value))}
-        />
-      ) : (
-        <p className='swap-output-amount'>{amount}</p>
-      )}
-      <div className='swap-card-footer'>
-        <span>{fiat}</span>
-        <span>Balance {formatAssetBalance(asset)}</span>
-      </div>
-    </div>
-  )
-}
-
-function AssetButton({ asset, onClick }: { asset: SwapAsset; onClick: () => void }) {
-  return (
-    <button type='button' className='swap-asset-button' onClick={onClick}>
-      <TokenAvatar asset={asset} size={24} />
-      <span>{asset.ticker}</span>
-      <ChevronDownIcon />
+    <button
+      type='button'
+      className={active ? 'swap-token-row swap-token-row--active' : 'swap-token-row'}
+      onClick={onClick}
+    >
+      <TokenAvatar asset={asset} size={40} />
+      <span className='swap-token-row__copy'>
+        <span>{asset.name}</span>
+        <small>{formatAssetBalance(asset)}</small>
+      </span>
+      {asset.fiatText ? <strong>{asset.fiatText}</strong> : null}
     </button>
   )
 }
@@ -325,74 +410,24 @@ function TokenAvatar({ asset, size }: { asset: SwapAsset; size: number }) {
   return <AssetAvatar icon={asset.icon} name={asset.name} ticker={asset.ticker} size={size} />
 }
 
-function SwapInlineQuote({ quote }: { quote: SwapQuote }) {
-  return (
-    <div className='swap-inline-quote'>
-      <span>Estimated rate</span>
-      <span>
-        1 {quote.fromAsset.ticker} = {quote.rateLabel} {quote.toAsset.ticker}
-      </span>
-    </div>
-  )
-}
-
-function QuoteDetails({ quote }: { quote: SwapQuote }) {
-  return (
-    <div className='swap-detail-card'>
-      <MetricRow label='Rate' value={`1 ${quote.fromAsset.ticker} = ${quote.rateLabel} ${quote.toAsset.ticker}`} />
-      <MetricRow label='Price impact' value='0.04%' />
-      <MetricRow label='Network cost' value='$0.00' />
-      <MetricRow label='Arrival' value='About 12 seconds' />
-    </div>
-  )
-}
-
-function ReviewSummary({ quote }: { quote: SwapQuote }) {
-  return (
-    <div className='swap-review-card'>
-      <div className='swap-review-avatars'>
-        <TokenAvatar asset={quote.fromAsset} size={52} />
-        <TokenAvatar asset={quote.toAsset} size={52} />
-      </div>
-      <h3 className='text-heading-sm'>
-        Review swap of {quote.fromAsset.ticker} to {quote.toAsset.ticker}
-      </h3>
-      <MetricRow label={`Swap ${quote.fromAsset.ticker}`} value={`${quote.fromAmount} ${quote.fromAsset.ticker}`} />
-      <MetricRow label={`Receive ${quote.toAsset.ticker}`} value={`${quote.toAmount} ${quote.toAsset.ticker}`} />
-      <MetricRow label='Total value' value={quote.toFiat} />
-    </div>
-  )
-}
-
-function MetricRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className='swap-metric-row'>
-      <span>{label}</span>
-      <span>{value}</span>
-    </div>
-  )
-}
-
-function Keypad({ amount, onDone, onPress }: { amount: string; onDone: () => void; onPress: (key: string) => void }) {
+function Keypad({ amount, onPress }: { amount: string; onPress: (key: string) => void }) {
   return (
     <motion.div
       className='swap-keypad-shell'
-      aria-label={`Prototype keypad for ${amount || '0'}`}
-      initial={{ opacity: 0, y: 16 }}
+      aria-label={`Swap keypad for ${amount || '0'}`}
+      initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 16 }}
-      transition={{ duration: 0.2, ease: EASE_OUT_QUINT_TUPLE }}
+      transition={{ duration: 0.22, ease: EASE_OUT_QUINT_TUPLE }}
     >
-      <div className='swap-keypad-header'>
-        <span>Enter amount</span>
-        <button type='button' onClick={onDone}>
-          Done
-        </button>
-      </div>
       <div className='swap-keypad'>
         {keypadKeys.map((key) => (
-          <button key={key} type='button' onClick={() => onPress(key)}>
-            {key}
+          <button
+            key={key}
+            type='button'
+            onClick={() => onPress(key)}
+            aria-label={key === 'Back' ? 'Delete digit' : key}
+          >
+            {key === 'Back' ? '<' : key}
           </button>
         ))}
       </div>
@@ -411,35 +446,42 @@ function AssetPickerDrawer({
   open: boolean
   target: AssetTarget
   assets: SwapAsset[]
-  selectedId: string
+  selectedId?: string
   onOpenChange: (open: boolean) => void
   onSelect: (target: AssetTarget, asset: SwapAsset) => void
 }) {
+  const [query, setQuery] = useState('')
+  const filteredAssets = useMemo(() => filterAssets(assets, query), [assets, query])
+
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className='swap-drawer-content'>
+      <DrawerContent className='swap-drawer-content swap-review-drawer-content'>
         <DrawerHeader>
           <DrawerTitle>{target === 'from' ? 'Choose asset to swap' : 'Choose asset to receive'}</DrawerTitle>
-          <DrawerDescription>Available balances in your wallet.</DrawerDescription>
+          <DrawerDescription>Pick the asset for this side of the swap.</DrawerDescription>
         </DrawerHeader>
-        <div className='swap-token-search'>Search assets</div>
-        <div className='swap-token-list'>
-          {assets.map((asset) => (
-            <button
-              key={asset.assetId}
-              type='button'
-              className={selectedId === asset.assetId ? 'swap-token-row swap-token-row--active' : 'swap-token-row'}
-              onClick={() => onSelect(target, asset)}
-            >
-              <TokenAvatar asset={asset} size={40} />
-              <span>
-                <span>{asset.name}</span>
-                <small>
-                  {formatAssetBalance(asset)} {asset.fiatText ? `- ${asset.fiatText}` : ''}
-                </small>
-              </span>
-            </button>
-          ))}
+        <div className='swap-drawer-body'>
+          <label className='swap-search-field'>
+            <span>Search assets</span>
+            <input
+              type='search'
+              value={query}
+              placeholder='Search assets'
+              autoComplete='off'
+              spellCheck={false}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <div className='swap-token-list'>
+            {filteredAssets.map((asset) => (
+              <SwapAssetRow
+                key={asset.assetId}
+                asset={asset}
+                active={selectedId === asset.assetId}
+                onClick={() => onSelect(target, asset)}
+              />
+            ))}
+          </div>
         </div>
       </DrawerContent>
     </Drawer>
@@ -450,52 +492,100 @@ function ReviewDrawer({
   open,
   quote,
   onOpenChange,
+  onConfirm,
 }: {
   open: boolean
   quote: SwapQuote
   onOpenChange: (open: boolean) => void
+  onConfirm: () => void
 }) {
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className='swap-drawer-content'>
-        <DrawerHeader>
+        <DrawerHeader className='swap-review-header'>
           <DrawerTitle>Review swap</DrawerTitle>
-          <DrawerDescription>Confirm the amounts, route, and estimated arrival.</DrawerDescription>
+          <DrawerDescription>Check the route and estimated totals.</DrawerDescription>
         </DrawerHeader>
         <div className='swap-review-drawer-body'>
           <ReviewSummary quote={quote} />
           <QuoteDetails quote={quote} />
-          <Button label='Confirm swap' disabled onClick={() => {}} />
+        </div>
+        <div className='swap-review-action'>
+          <Button label='Confirm swap' disabled onClick={onConfirm} />
         </div>
       </DrawerContent>
     </Drawer>
   )
 }
 
-interface SwapQuote {
-  fromAsset: SwapAsset
-  toAsset: SwapAsset
-  fromAmount: string
-  fromFiat: string
-  toAmount: string
-  toFiat: string
-  rateLabel: string
+function ReviewSummary({ quote }: { quote: SwapQuote }) {
+  return (
+    <div className='swap-review-card'>
+      <div className='swap-review-hero'>
+        <div className='swap-review-avatars'>
+          <TokenAvatar asset={quote.fromAsset} size={48} />
+          {quote.toAsset ? <TokenAvatar asset={quote.toAsset} size={48} /> : null}
+        </div>
+        <div>
+          <span>Swap route</span>
+          <h3 className='text-heading-sm'>
+            {quote.fromAsset.ticker} to {quote.toAsset?.ticker ?? 'asset'}
+          </h3>
+        </div>
+      </div>
+      <div className='swap-review-total'>
+        <span>Estimated receive</span>
+        <strong>{quote.toFiat}</strong>
+      </div>
+      <MetricRow label={`Swap ${quote.fromAsset.ticker}`} value={`${quote.fromAmount} ${quote.fromAsset.ticker}`} />
+      <MetricRow
+        label={`Receive ${quote.toAsset?.ticker ?? 'asset'}`}
+        value={quote.toAsset ? `${quote.toAmount} ${quote.toAsset.ticker}` : 'Choose asset'}
+      />
+      <MetricRow label='Total value' value={quote.toFiat} />
+    </div>
+  )
 }
 
-function buildQuote(amount: string, fromAsset: SwapAsset, toAsset: SwapAsset): SwapQuote {
+function QuoteDetails({ quote }: { quote: SwapQuote }) {
+  return (
+    <div className='swap-detail-card'>
+      <MetricRow
+        label='Rate'
+        value={quote.toAsset ? `1 ${quote.fromAsset.ticker} = ${quote.rateLabel} ${quote.toAsset.ticker}` : 'Pending'}
+      />
+      <MetricRow label='Price impact' value='0.04%' />
+      <MetricRow label='Network cost' value='$0.00' />
+      <MetricRow label='Arrival' value='About 12 seconds' />
+    </div>
+  )
+}
+
+function MetricRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className='swap-metric-row'>
+      <span>{label}</span>
+      <span>{value}</span>
+    </div>
+  )
+}
+
+function buildQuote(amount: string, mode: AmountMode, fromAsset: SwapAsset, toAsset?: SwapAsset): SwapQuote {
   const parsed = Number(amount) || 0
-  const rate = prototypeRate(fromAsset, toAsset)
-  const received = parsed * rate
-  const fromFiatNumber = parsed * prototypeUsd(fromAsset)
-  const toFiatNumber = received * prototypeUsd(toAsset)
+  const fromUsd = prototypeUsd(fromAsset)
+  const toUsd = toAsset ? prototypeUsd(toAsset) : 0
+  const fromUnits = mode === 'fiat' && fromUsd > 0 ? parsed / fromUsd : parsed
+  const fromFiatNumber = mode === 'fiat' ? parsed : fromUnits * fromUsd
+  const received = toUsd > 0 ? fromFiatNumber / toUsd : 0
+  const rate = toUsd > 0 ? fromUsd / toUsd : 0
 
   return {
     fromAsset,
     toAsset,
-    fromAmount: prettyNumber(parsed, swapAmountDecimals(parsed)),
+    fromAmount: prettyNumber(fromUnits, swapAmountDecimals(fromUnits)),
     fromFiat: prettyFiatAmount(fromFiatNumber, Fiats.USD),
     toAmount: prettyNumber(received, swapAmountDecimals(received)),
-    toFiat: prettyFiatAmount(toFiatNumber, Fiats.USD),
+    toFiat: prettyFiatAmount(received * toUsd, Fiats.USD),
     rateLabel: prettyNumber(rate, swapAmountDecimals(rate)),
   }
 }
@@ -504,20 +594,6 @@ function swapAmountDecimals(value: number): number {
   if (value >= 1000) return 2
   if (value >= 1) return 4
   return 8
-}
-
-function normalizeAmountInput(value: string): string {
-  const sanitized = value.replace(/[^0-9.]/g, '')
-  const [whole, ...fractionParts] = sanitized.split('.')
-  const normalized = fractionParts.length ? `${whole}.${fractionParts.join('')}` : whole
-  return normalized.slice(0, 10)
-}
-
-function prototypeRate(fromAsset: SwapAsset, toAsset: SwapAsset): number {
-  const fromUsd = prototypeUsd(fromAsset)
-  const toUsd = prototypeUsd(toAsset)
-  if (!toUsd) return 0
-  return fromUsd / toUsd
 }
 
 function prototypeUsd(asset: SwapAsset): number {
@@ -546,6 +622,14 @@ function toSwapAssets(rows: PortfolioRow[], fiat: Fiats, decimals: number): Swap
 
   if (mapped.length < 2) return [...mapped, fallbackAsset]
   return mapped
+}
+
+function filterAssets(assets: SwapAsset[], query: string): SwapAsset[] {
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) return assets
+  return assets.filter((asset) => {
+    return asset.name.toLowerCase().includes(normalized) || asset.ticker.toLowerCase().includes(normalized)
+  })
 }
 
 function formatAssetBalance(asset: SwapAsset): string {
