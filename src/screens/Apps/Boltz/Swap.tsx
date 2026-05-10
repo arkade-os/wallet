@@ -30,7 +30,7 @@ import { InfoIconDark } from '../../../icons/Info'
 function friendlySwapError(message: string): string {
   const locktimeMatch = message.match(/locktime=(\d+)/)
   if (locktimeMatch) {
-    const date = prettyDate(parseInt(locktimeMatch[1]))
+    const date = prettyDate(parseInt(locktimeMatch[1], 10))
     return `Refund not yet available. Your funds will be recoverable after ${date}.`
   }
   if (message.includes('VHTLC is already spent')) {

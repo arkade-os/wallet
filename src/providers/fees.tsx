@@ -24,7 +24,7 @@ export const FeesProvider = ({ children }: { children: ReactNode }) => {
    * @returns
    */
   const calcOffchainInputFee = (): number => {
-    return parseInt(aspInfo.fees?.intentFee?.offchainInput ?? '0') // TODO
+    return parseInt(aspInfo.fees?.intentFee?.offchainInput ?? '0', 10) // TODO
   }
 
   /**
@@ -32,7 +32,7 @@ export const FeesProvider = ({ children }: { children: ReactNode }) => {
    * @returns
    */
   const calcOffchainOutputFee = (): number => {
-    return parseInt(aspInfo.fees?.intentFee?.offchainOutput ?? '0') // TODO
+    return parseInt(aspInfo.fees?.intentFee?.offchainOutput ?? '0', 10) // TODO
   }
 
   /**
@@ -40,7 +40,7 @@ export const FeesProvider = ({ children }: { children: ReactNode }) => {
    * @returns
    */
   const calcOnchainInputFee = (): number => {
-    return parseInt(aspInfo.fees?.intentFee?.onchainInput ?? '0') // TODO
+    return parseInt(aspInfo.fees?.intentFee?.onchainInput ?? '0', 10) // TODO
   }
 
   /**
@@ -48,7 +48,7 @@ export const FeesProvider = ({ children }: { children: ReactNode }) => {
    * @returns
    */
   const calcOnchainOutputFee = (): number => {
-    return parseInt(aspInfo.fees?.intentFee?.onchainOutput ?? '0') // TODO
+    return parseInt(aspInfo.fees?.intentFee?.onchainOutput ?? '0', 10) // TODO
   }
 
   return (
