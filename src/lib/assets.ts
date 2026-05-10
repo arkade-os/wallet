@@ -9,6 +9,7 @@ export function isValidAssetId(id: string) {
 export const isValidDecimals = (d: number): boolean => Number.isInteger(d) && d >= 0 && d <= MAX_DECIMALS
 
 export function unitsToCents(units: string, decimals = 8): bigint {
+  if (!units || units === '') return BigInt(0)
   if (!isValidDecimals(decimals)) return BigInt(units)
   const [integer, fraction = ''] = units.split('.')
   const paddedFraction = fraction.padEnd(decimals, '0').slice(0, decimals)
