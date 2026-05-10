@@ -2,9 +2,9 @@ export default function ReceivedIcon({ dotted }: { dotted?: boolean }) {
   const strokeDasharray = dotted ? '3' : '0'
   return (
     <svg width='40' height='41' viewBox='0 0 40 41' fill='none' xmlns='http://www.w3.org/2000/svg'>
-      <rect y='0.5' width='40' height='40' rx='20' fill='var(--green)' fillOpacity='0.1' />
+      <rect y='0.5' width='40' height='40' rx='20' fill='currentColor' fillOpacity='0.1' />
       <g
-        stroke='var(--green)'
+        stroke='currentColor'
         strokeDasharray={strokeDasharray}
         strokeWidth='2'
         fill='none'

@@ -85,8 +85,8 @@ describe('Wallet swap prototype', () => {
     expect(screen.queryByText('Composer first, quote second')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Codex/i })).not.toBeInTheDocument()
     expect(screen.getByLabelText('Swap amount')).toBeInTheDocument()
-    expect(screen.getByText('Rate')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Review swap' })).toBeInTheDocument()
+    expect(screen.getByText('Estimated rate')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
   })
 
   it('keeps the screen in the wallet back stack', async () => {

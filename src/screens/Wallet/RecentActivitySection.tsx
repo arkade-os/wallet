@@ -41,13 +41,11 @@ export default function RecentActivitySection() {
           onClick={handleViewAll}
           aria-label='View all activity'
           data-testid='activity-view-all'
-          className='inline-flex cursor-pointer items-center border-none bg-transparent p-0 text-inherit'
+          className='home-section-action'
           style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
         >
-          <span className='inline-flex items-center gap-1 text-sm font-medium leading-none text-purple-700'>
-            View all
-            <ArrowIcon small />
-          </span>
+          View all
+          <ArrowIcon small />
         </button>
       </div>
       <div className='home-section__content'>

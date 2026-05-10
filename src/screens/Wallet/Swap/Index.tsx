@@ -1,12 +1,12 @@
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useContext, useMemo, useState } from 'react'
 import AssetAvatar from '../../../components/AssetAvatar'
 import Button from '../../../components/Button'
 import Content from '../../../components/Content'
 import Header from '../../../components/Header'
 import Padded from '../../../components/Padded'
+import TokenLogo, { type TokenLogoTicker } from '../../../components/TokenLogo'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../../components/ui/drawer'
-import BitcoinIcon from '../../../icons/Bitcoin'
 import ChevronDownIcon from '../../../icons/ChevronDown'
 import SwapIcon from '../../../icons/Swap'
 import { centsToUnits } from '../../../lib/assets'
@@ -55,6 +55,8 @@ export default function WalletSwap() {
   const [fromAssetId, setFromAssetId] = useState(assets[0]?.assetId ?? 'btc')
   const [toAssetId, setToAssetId] = useState(assets[1]?.assetId ?? fallbackAsset.assetId)
   const [drawer, setDrawer] = useState<DrawerState>(null)
+  const [keypadOpen, setKeypadOpen] = useState(false)
+  const [swapTurn, setSwapTurn] = useState(0)
 
   const fromAsset = assets.find((asset) => asset.assetId === fromAssetId) ?? assets[0] ?? fallbackAsset
   const toAsset =
@@ -79,6 +81,7 @@ export default function WalletSwap() {
 
   const swapSides = () => {
     hapticLight()
+    setSwapTurn((current) => current + 1)
     setFromAssetId(toAsset.assetId)
     setToAssetId(fromAsset.assetId)
   }
@@ -115,11 +118,16 @@ export default function WalletSwap() {
                 fromAsset={fromAsset}
                 toAsset={toAsset}
                 onAmountChange={setAmount}
+                keypadOpen={keypadOpen}
+                onAmountFocus={() => setKeypadOpen(true)}
                 onOpenAssetDrawer={setDrawer}
                 onSwapSides={swapSides}
+                swapTurn={swapTurn}
                 onReview={() => setDrawer('review')}
               />
-              <Keypad amount={amount} onPress={pressKey} />
+              <AnimatePresence initial={false}>
+                {keypadOpen ? <Keypad amount={amount} onDone={() => setKeypadOpen(false)} onPress={pressKey} /> : null}
+              </AnimatePresence>
             </motion.section>
           </div>
         </Padded>
@@ -153,8 +161,11 @@ function SwapBody({
   fromAsset,
   toAsset,
   onAmountChange,
+  keypadOpen,
+  onAmountFocus,
   onOpenAssetDrawer,
   onSwapSides,
+  swapTurn,
   onReview,
 }: {
   amount: string
@@ -162,8 +173,11 @@ function SwapBody({
   fromAsset: SwapAsset
   toAsset: SwapAsset
   onAmountChange: (value: string) => void
+  keypadOpen: boolean
+  onAmountFocus: () => void
   onOpenAssetDrawer: (target: AssetTarget) => void
   onSwapSides: () => void
+  swapTurn: number
   onReview: () => void
 }) {
   const composer = (
@@ -173,17 +187,18 @@ function SwapBody({
       fromAsset={fromAsset}
       toAsset={toAsset}
       onAmountChange={onAmountChange}
+      onAmountFocus={onAmountFocus}
       onOpenAssetDrawer={onOpenAssetDrawer}
       onSwapSides={onSwapSides}
+      swapTurn={swapTurn}
     />
   )
-  const details = <QuoteDetails quote={quote} />
 
   return (
     <div className='swap-layout swap-layout--stack'>
       {composer}
-      {details}
-      <Button label='Review swap' onClick={onReview} />
+      <SwapInlineQuote quote={quote} />
+      {!keypadOpen ? <Button label='Continue' onClick={onReview} /> : null}
     </div>
   )
 }
@@ -194,16 +209,20 @@ function SwapComposer({
   fromAsset,
   toAsset,
   onAmountChange,
+  onAmountFocus,
   onOpenAssetDrawer,
   onSwapSides,
+  swapTurn,
 }: {
   amount: string
   quote: SwapQuote
   fromAsset: SwapAsset
   toAsset: SwapAsset
   onAmountChange: (value: string) => void
+  onAmountFocus: () => void
   onOpenAssetDrawer: (target: AssetTarget) => void
   onSwapSides: () => void
+  swapTurn: number
 }) {
   return (
     <div className='swap-composer'>
@@ -214,11 +233,19 @@ function SwapComposer({
         asset={fromAsset}
         active
         onAmountChange={onAmountChange}
+        onAmountFocus={onAmountFocus}
         onAssetClick={() => onOpenAssetDrawer('from')}
       />
-      <button type='button' className='swap-flip-button' aria-label='Switch swap direction' onClick={onSwapSides}>
+      <motion.button
+        type='button'
+        className='swap-flip-button'
+        aria-label='Switch swap direction'
+        animate={{ rotate: swapTurn * 180 }}
+        transition={{ duration: 0.22, ease: EASE_OUT_QUINT_TUPLE }}
+        onClick={onSwapSides}
+      >
         <SwapIcon />
-      </button>
+      </motion.button>
       <SwapAmountCard
         label='Receive'
         amount={quote.toAmount}
@@ -237,6 +264,7 @@ function SwapAmountCard({
   asset,
   active,
   onAmountChange,
+  onAmountFocus,
   onAssetClick,
 }: {
   label: string
@@ -245,6 +273,7 @@ function SwapAmountCard({
   asset: SwapAsset
   active?: boolean
   onAmountChange?: (value: string) => void
+  onAmountFocus?: () => void
   onAssetClick: () => void
 }) {
   return (
@@ -257,7 +286,10 @@ function SwapAmountCard({
         <input
           aria-label='Swap amount'
           inputMode='decimal'
+          readOnly
           value={amount}
+          onFocus={onAmountFocus}
+          onClick={onAmountFocus}
           onChange={(event) => onAmountChange?.(normalizeAmountInput(event.target.value))}
         />
       ) : (
@@ -282,14 +314,26 @@ function AssetButton({ asset, onClick }: { asset: SwapAsset; onClick: () => void
 }
 
 function TokenAvatar({ asset, size }: { asset: SwapAsset; size: number }) {
-  if (asset.isBitcoin) {
+  const tokenLogoTicker = getTokenLogoTicker(asset.ticker)
+  if (tokenLogoTicker) {
     return (
-      <span className='swap-token-avatar swap-token-avatar--bitcoin' style={{ width: size, height: size }}>
-        <BitcoinIcon size={Math.max(16, size - 8)} />
+      <span className='swap-token-avatar' style={{ width: size, height: size }}>
+        <TokenLogo ticker={tokenLogoTicker} />
       </span>
     )
   }
   return <AssetAvatar icon={asset.icon} name={asset.name} ticker={asset.ticker} size={size} />
+}
+
+function SwapInlineQuote({ quote }: { quote: SwapQuote }) {
+  return (
+    <div className='swap-inline-quote'>
+      <span>Estimated rate</span>
+      <span>
+        1 {quote.fromAsset.ticker} = {quote.rateLabel} {quote.toAsset.ticker}
+      </span>
+    </div>
+  )
 }
 
 function QuoteDetails({ quote }: { quote: SwapQuote }) {
@@ -329,15 +373,30 @@ function MetricRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-function Keypad({ amount, onPress }: { amount: string; onPress: (key: string) => void }) {
+function Keypad({ amount, onDone, onPress }: { amount: string; onDone: () => void; onPress: (key: string) => void }) {
   return (
-    <div className='swap-keypad' aria-label={`Prototype keypad for ${amount || '0'}`}>
-      {keypadKeys.map((key) => (
-        <button key={key} type='button' onClick={() => onPress(key)}>
-          {key}
+    <motion.div
+      className='swap-keypad-shell'
+      aria-label={`Prototype keypad for ${amount || '0'}`}
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 16 }}
+      transition={{ duration: 0.2, ease: EASE_OUT_QUINT_TUPLE }}
+    >
+      <div className='swap-keypad-header'>
+        <span>Enter amount</span>
+        <button type='button' onClick={onDone}>
+          Done
         </button>
-      ))}
-    </div>
+      </div>
+      <div className='swap-keypad'>
+        {keypadKeys.map((key) => (
+          <button key={key} type='button' onClick={() => onPress(key)}>
+            {key}
+          </button>
+        ))}
+      </div>
+    </motion.div>
   )
 }
 
@@ -405,6 +464,7 @@ function ReviewDrawer({
         </DrawerHeader>
         <div className='swap-review-drawer-body'>
           <ReviewSummary quote={quote} />
+          <QuoteDetails quote={quote} />
           <Button label='Confirm swap' disabled onClick={() => {}} />
         </div>
       </DrawerContent>
@@ -490,4 +550,9 @@ function toSwapAssets(rows: PortfolioRow[], fiat: Fiats, decimals: number): Swap
 
 function formatAssetBalance(asset: SwapAsset): string {
   return `${prettyNumber(centsToUnits(asset.balance, asset.decimals), asset.decimals)} ${asset.ticker}`
+}
+
+function getTokenLogoTicker(ticker: string | undefined): TokenLogoTicker | undefined {
+  const normalized = ticker?.trim().toUpperCase()
+  if (normalized === 'BTC' || normalized === 'USDT' || normalized === 'USDC') return normalized
 }

@@ -1,7 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useRef } from 'react'
 import { WalletContext } from '../providers/wallet'
-import Text, { TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
 import {
   formatAssetAmount,
@@ -28,7 +27,17 @@ import TokenLogo, { type TokenLogoTicker } from './TokenLogo'
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
-const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void; isFirst?: boolean }) => {
+const TransactionLine = ({
+  tx,
+  onClick,
+  isFirst,
+  mode,
+}: {
+  tx: Tx
+  onClick: () => void
+  isFirst?: boolean
+  mode: 'virtual' | 'static'
+}) => {
   const { config } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
@@ -42,26 +51,17 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
 
   const Fiat = () => {
     if (issuance || burn) return null
-    const color =
-      config.currencyDisplay === CurrencyDisplay.Both
-        ? 'neutral-500'
-        : tx.type === 'received'
-          ? 'green'
-          : tx.boardingTxid && tx.preconfirmed
-            ? 'orange'
-            : ''
     const value = toFiat(tx.amount)
-    const small = asAssets || config.currencyDisplay === CurrencyDisplay.Both
     const world = config.showBalance ? prettyFiatAmount(value, config.fiat) : prettyFiatHide(value, config.fiat)
-    return (
-      <Text color={color} small={small}>
-        {world}
-      </Text>
-    )
+    const statusClassName = tx.boardingTxid && tx.preconfirmed ? ' activity-row__amount--pending' : ''
+    const secondaryClassName =
+      asAssets || config.currencyDisplay === CurrencyDisplay.Both ? ' activity-row__amount--secondary' : ''
+    return <span className={`activity-row__amount${statusClassName}${secondaryClassName}`}>{world}</span>
   }
 
-  const Icon = () =>
-    issuance ? (
+  const iconTone = tx.preconfirmed && tx.boardingTxid ? 'pending' : burn ? 'burn' : 'default'
+  const Icon = () => {
+    const icon = issuance ? (
       <ReceivedIcon />
     ) : burn ? (
       <SentIcon />
@@ -72,27 +72,27 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
     ) : (
       <ReceivedIcon dotted={tx.preconfirmed} />
     )
+    return <span className={`activity-row__icon activity-row__icon--${iconTone}`}>{icon}</span>
+  }
 
-  const Kind = () => (
-    <Text thin>{issuance ? 'Issuance' : burn ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received'}</Text>
-  )
+  const kind = issuance ? 'Issuance' : burn ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received'
+  const Kind = () => <span className='activity-row__kind'>{kind}</span>
 
-  const When = () => <TextSecondary>{date}</TextSecondary>
+  const When = () => <span className='activity-row__meta'>{date}</span>
 
   const Sats = () =>
     issuance || burn ? null : (
-      <Text
-        color={tx.type === 'received' ? (tx.preconfirmed && tx.boardingTxid ? 'orange' : 'green') : ''}
-        smaller={asAssets}
-        thin
+      <span
+        className={`activity-row__amount${tx.preconfirmed && tx.boardingTxid ? ' activity-row__amount--pending' : ''}${
+          asAssets ? ' activity-row__amount--secondary' : ''
+        }`}
       >
         {amount}
-      </Text>
+      </span>
     )
 
   const AssetInfo = () => {
     if (!tx.assets?.length) return null
-    const color = tx.type === 'received' || issuance ? 'green' : ''
     return (
       <>
         {tx.assets.map((a) => {
@@ -101,13 +101,13 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
           const icon = meta?.icon
           const decimals = meta?.decimals ?? 8
           return (
-            <FlexRow key={a.assetId} gap='0.25rem' end>
+            <FlexRow key={a.assetId} gap='0.375rem' end>
               <TransactionAssetAvatar icon={icon} ticker={ticker} assetId={a.assetId} />
-              <Text color={color} thin>
+              <span className='activity-row__amount'>
                 {config.showBalance
                   ? `${formatAssetAmount(a.amount, decimals)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
                   : prettyHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}
-              </Text>
+              </span>
             </FlexRow>
           )
         })}
@@ -115,25 +115,18 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
     )
   }
 
-  const rowStyle = {
-    alignItems: 'center',
-    borderTop: isFirst ? 'none' : border,
-    cursor: 'pointer',
-    padding: '0.5rem 0',
-  }
-
   const Left = () => (
-    <FlexRow>
+    <div className='activity-row__left'>
       <Icon />
-      <div>
+      <div className='activity-row__copy'>
         <Kind />
         <When />
       </div>
-    </FlexRow>
+    </div>
   )
 
   const Right = () => (
-    <div style={{ textAlign: 'right' }}>
+    <div className='activity-row__right'>
       {tx.assets?.length ? (
         <>
           <AssetInfo />
@@ -153,11 +146,13 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
   )
 
   return (
-    <div style={rowStyle} onClick={onClick}>
-      <FlexRow between alignItems='start'>
-        <Left />
-        <Right />
-      </FlexRow>
+    <div
+      className={`activity-row ${isFirst ? 'activity-row--first' : ''} activity-row--${mode}`}
+      style={{ borderTop: isFirst ? 'none' : border }}
+      onClick={onClick}
+    >
+      <Left />
+      <Right />
     </div>
   )
 }
@@ -185,7 +180,7 @@ export default function TransactionsList({ mode = 'virtual', limit }: Transactio
   const virtualizer = useVirtualizer({
     count: txs.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 61,
+    estimateSize: () => 72,
     overscan: 5,
   })
 
@@ -239,9 +234,15 @@ export default function TransactionsList({ mode = 'virtual', limit }: Transactio
   // Static mode: render a simple list without virtualization
   if (mode === 'static') {
     return (
-      <div style={{ width: '100%' }}>
+      <div className='activity-list activity-list--compact'>
         {txs.map((tx, index) => (
-          <TransactionLine key={key(tx, index)} onClick={() => handleClick(tx)} tx={tx} isFirst={index === 0} />
+          <TransactionLine
+            key={key(tx, index)}
+            onClick={() => handleClick(tx)}
+            tx={tx}
+            isFirst={index === 0}
+            mode={mode}
+          />
         ))}
       </div>
     )
@@ -253,7 +254,7 @@ export default function TransactionsList({ mode = 'virtual', limit }: Transactio
       <div
         ref={parentRef}
         onKeyDown={handleListKeyDown}
-        className='hide-scrollbar scroll-fade'
+        className='activity-list activity-list--full hide-scrollbar scroll-fade'
         style={{
           borderBottom: border,
           height: 'calc(100dvh - 260px)',
@@ -289,7 +290,12 @@ export default function TransactionsList({ mode = 'virtual', limit }: Transactio
                   onEscape={focusOnOuterShell}
                   ariaLabel={ariaLabel(tx)}
                 >
-                  <TransactionLine onClick={() => handleClick(tx)} tx={tx} isFirst={virtualItem.index === 0} />
+                  <TransactionLine
+                    onClick={() => handleClick(tx)}
+                    tx={tx}
+                    isFirst={virtualItem.index === 0}
+                    mode={mode}
+                  />
                 </Focusable>
               </div>
             )

@@ -12,12 +12,12 @@ import Header from '../../components/Header'
 import Content from '../../components/Content'
 import Info from '../../components/Info'
 import FlexCol from '../../components/FlexCol'
-import FlexRow from '../../components/FlexRow'
 import WaitingForRound from '../../components/WaitingForRound'
 import { sleep } from '../../lib/sleep'
 import Text, { TextSecondary } from '../../components/Text'
 import AssetAvatar from '../../components/AssetAvatar'
 import Details, { DetailsProps } from '../../components/Details'
+import TokenLogo, { type TokenLogoTicker } from '../../components/TokenLogo'
 import VtxosIcon from '../../icons/Vtxos'
 import CheckMarkIcon from '../../icons/CheckMark'
 import { AspContext } from '../../providers/asp'
@@ -149,30 +149,38 @@ export default function Transaction() {
             </Info>
           ) : null}
           {tx.assets?.length ? (
-            <FlexCol gap='0.5rem'>
+            <div className='transaction-detail__assets'>
               {tx.assets.map((a) => {
                 const meta = assetMetadataCache.get(a.assetId)?.metadata
                 const ticker = meta?.ticker
                 const name = meta?.name
                 const icon = meta?.icon
                 const decimals = meta?.decimals ?? 8
-                const color = tx.type === 'received' || issuanceTx ? 'green' : ''
                 const label = ticker ?? name ?? `${a.assetId.slice(0, 8)}...`
+                const tokenLogoTicker = getTokenLogoTicker(ticker)
                 return (
-                  <FlexRow key={a.assetId} gap='0.5rem'>
-                    <AssetAvatar icon={icon} ticker={ticker} size={32} assetId={a.assetId} clickable />
-                    <FlexCol gap='0'>
-                      <Text color={color}>
+                  <div key={a.assetId} className='transaction-detail-asset'>
+                    <span className='transaction-detail-asset__logo'>
+                      {tokenLogoTicker ? (
+                        <TokenLogo ticker={tokenLogoTicker} />
+                      ) : (
+                        <AssetAvatar icon={icon} ticker={ticker} size={36} assetId={a.assetId} clickable />
+                      )}
+                    </span>
+                    <div className='transaction-detail-asset__copy'>
+                      <span className='transaction-detail-asset__amount'>
                         {formatAssetAmount(a.amount, decimals)} {label}
-                      </Text>
-                      {name && ticker ? <TextSecondary>{name}</TextSecondary> : null}
-                    </FlexCol>
-                  </FlexRow>
+                      </span>
+                      {name && ticker ? <span className='transaction-detail-asset__name'>{name}</span> : null}
+                    </div>
+                  </div>
                 )
               })}
-            </FlexCol>
+            </div>
           ) : null}
-          <Details details={details} />
+          <div className='transaction-detail'>
+            <Details details={details} variant='receipt' />
+          </div>
         </FlexCol>
       </Padded>
     </Content>
@@ -219,4 +227,9 @@ export default function Transaction() {
       <Buttons />
     </>
   )
+}
+
+function getTokenLogoTicker(ticker: string | undefined): TokenLogoTicker | undefined {
+  const normalized = ticker?.trim().toUpperCase()
+  if (normalized === 'BTC' || normalized === 'USDT' || normalized === 'USDC') return normalized
 }
