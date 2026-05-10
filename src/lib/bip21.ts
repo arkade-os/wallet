@@ -55,6 +55,7 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
     if (params.has('amount')) {
       const param = params.get('amount')!
       if (result.assetId != null) {
+        if (!param.match(/^\d+(\.\d+)?$/)) throw new Error('Invalid asset amount')
         result.assetAmount = param
       } else {
         const amount = Number(param)
