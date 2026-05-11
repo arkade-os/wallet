@@ -8,10 +8,10 @@ import { WalletProvider, type LoanAsset, AddressType } from '@lendasat/lendasat-
 import { collaborativeExit, getReceivingAddresses } from '../../../lib/asp'
 import { isArkAddress, isBTCAddress } from '../../../lib/address'
 
-const IFRAME_URL = import.meta.env.VITE_LENDASWAP_IFRAME_URL || 'https://lendaswap.com'
+const IFRAME_URL = import.meta.env.VITE_SATORA_IFRAME_URL || 'https://app.satora.io'
 const DEFAULT_SWAP_PATH = '/arkade:BTC/polygon:USDC'
 
-export default function AppLendaswap() {
+export default function AppSatora() {
   const { svcWallet } = useContext(WalletContext)
   const [arkAddress, setArkAddress] = useState<string | null>(null)
 
@@ -98,12 +98,12 @@ export default function AppLendaswap() {
             case 'UsdcSol':
             case 'UsdtSol':
             case 'UsdtLiquid':
-              throw new Error('Not implemented for Lendaswap')
+              throw new Error('Not implemented for Satora')
             case 'Usd':
             case 'Eur':
             case 'Chf':
             case 'Mxn':
-              throw new Error('Not implemented for Lendaswap')
+              throw new Error('Not implemented for Satora')
           }
         },
       },
@@ -119,15 +119,15 @@ export default function AppLendaswap() {
 
   return (
     <>
-      <Header text='Lendaswap' back />
+      <Header text='Satora' back />
       <Content>
         <Padded>
           <FlexCol gap='2rem' between>
             <iframe
               ref={iframeRef}
               src={`${IFRAME_URL}${DEFAULT_SWAP_PATH}`}
-              title='Lendaswap'
-              className='lendaswap-iframe'
+              title='Satora'
+              className='satora-iframe'
               allow='clipboard-write; clipboard-read'
               style={{ height: '100%' }}
             />

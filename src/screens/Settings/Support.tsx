@@ -84,7 +84,7 @@ export default function Support() {
       ark_server_url: aspInfo.url || config.aspUrl || 'not available',
       app_version: import.meta.env.VITE_APP_VERSION || 'not available',
       lendasat_url: import.meta.env.VITE_LENDASAT_IFRAME_URL || 'not available',
-      lendaswap_url: import.meta.env.VITE_LENDASWAP_IFRAME_URL || 'not available',
+      satora_url: import.meta.env.VITE_SATORA_IFRAME_URL || 'not available',
       explorer_url: wallet.network ? getWebExplorerURL(wallet.network as NetworkName) : 'not available',
       git_commit: gitCommit,
     })

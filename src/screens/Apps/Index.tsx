@@ -11,7 +11,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import { ConfigContext } from '../../providers/config'
 import { Themes } from '../../lib/types'
 import LendasatIcon from './Lendasat/LendasatIcon'
-import LendaswapIcon from './Lendaswap/LendaswapIcon'
+import SatoraIcon from './Satora/SatoraIcon'
 import DfxIcon from './Dfx/DfxIcon'
 import Focusable from '../../components/Focusable'
 import { hapticSubtle } from '../../lib/haptics'
@@ -181,11 +181,11 @@ export default function Apps() {
             />
 
             <App
-              name='LendaSwap'
-              icon={<LendaswapIcon />}
+              name='Satora'
+              icon={<SatoraIcon />}
               desc='Swap Bitcoin to USDC or USDT instantly'
-              link='https://swap.lendasat.com'
-              page={Pages.AppLendaswap}
+              link='https://app.satora.io'
+              page={Pages.AppSatora}
               isDark={isDark}
               live
             />
