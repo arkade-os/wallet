@@ -75,15 +75,16 @@ function Carousel({
 
   const handleKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === 'ArrowLeft') {
+      const isHorizontal = orientation === 'horizontal'
+      if (event.key === 'ArrowLeft' || (!isHorizontal && event.key === 'ArrowUp')) {
         event.preventDefault()
         scrollPrev()
-      } else if (event.key === 'ArrowRight') {
+      } else if (event.key === 'ArrowRight' || (!isHorizontal && event.key === 'ArrowDown')) {
         event.preventDefault()
         scrollNext()
       }
     },
-    [scrollPrev, scrollNext],
+    [orientation, scrollPrev, scrollNext],
   )
 
   React.useEffect(() => {
