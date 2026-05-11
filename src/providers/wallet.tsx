@@ -283,8 +283,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       case 'lendasat':
         navigate(Pages.AppLendasat)
         break
-      case 'lendaswap':
-        navigate(Pages.AppLendaswap)
+      case 'satora':
+        navigate(Pages.AppSatora)
         break
       default:
         navigate(Pages.Wallet)
