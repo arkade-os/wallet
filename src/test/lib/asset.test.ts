@@ -228,9 +228,7 @@ describe('asset utilities', () => {
       expect(prettyAssetAmount(BigInt(9_007_199_254_740_993), 8)).toBe('90,071,992')
     })
 
-    it('omits thousand separators when useGrouping=false', () => {
-      // Required for echoing the value back into a numeric <input>, where
-      // commas would parse as NaN.
+    it('formats when tidy=false (default)', () => {
       expect(prettyAssetAmount(BigInt(9_007_199_254_740_993), 8, false)).toBe('90,071,992')
       expect(prettyAssetAmount(BigInt(150_000_000), 8, false)).toBe('1.5')
       expect(prettyAssetAmount(BigInt(1_234_567), 0, false)).toBe('1,234,567')
