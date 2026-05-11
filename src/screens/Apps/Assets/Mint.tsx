@@ -40,7 +40,7 @@ export default function AppAssetMint() {
   const [amount, setAmount] = useState(BigInt(0))
   const [name, setName] = useState('')
   const [ticker, setTicker] = useState('')
-  const [decimals, setDecimals] = useState<number>()
+  const [decimals, setDecimals] = useState<number | undefined>(0)
   const [iconUrl, setIconUrl] = useState('')
   const [error, setError] = useState('')
   const [minting, setMinting] = useState(false)
