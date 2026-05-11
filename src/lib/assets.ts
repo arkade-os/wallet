@@ -46,12 +46,13 @@ export const prettyAssetNumber = (num?: string | number, maximumFractionDigits =
   if (num === undefined || num === null) return '0'
   if (typeof num === 'number') num = num.toString()
   const [integer, fraction = ''] = num.split('.')
+  const negative = integer === '-0'
   const paddedFraction = fraction
     .padEnd(MAX_DECIMALS, '0') // fill with zeros to ensure consistent formatting
     .slice(0, maximumFractionDigits) // slice to the desired number of decimals
     .replace(/0+$/, '') // remove trailing zeros
     .replace(/\.$/, '') // if the number ends with a dot, remove it
-  return `${BigInt(integer).toLocaleString()}${paddedFraction ? `.${paddedFraction}` : ''}`
+  return `${negative ? '-' : ''}${BigInt(integer).toLocaleString()}${paddedFraction ? `.${paddedFraction}` : ''}`
 }
 
 export const prettyAssetAmount = (cents: bigint, decimals: number, tidy = false): string => {
