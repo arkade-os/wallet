@@ -85,11 +85,14 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart="${CSS.escape(id)}"] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ?? itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
+    // Strip characters that could escape the property declaration
+    const safeKey = key.replace(/[^a-zA-Z0-9_-]/g, '')
+    const safeColor = color?.replace(/[;{}]/g, '')
+    return safeColor ? `  --color-${safeKey}: ${safeColor};` : null
   })
   .join('\n')}
 }
@@ -98,7 +101,6 @@ ${colorConfig
           .join('\n'),
       }}
     />
-  )
 }
 
 const ChartTooltip = RechartsPrimitive.Tooltip
