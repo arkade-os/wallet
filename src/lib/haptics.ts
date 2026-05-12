@@ -1,70 +1,48 @@
-// Cross-platform haptic feedback
-// Android: navigator.vibrate()
-// iOS 18+: hidden <input type="checkbox" switch> hack triggers Taptic Engine
-// Desktop / older iOS: silent no-op
+import { WebHaptics } from 'web-haptics'
 
-let iosLabel: HTMLLabelElement | null = null
+type HapticPattern = 'selection' | 'light' | 'medium'
+
 let enabled = true
+let haptics: WebHaptics | null = null
+
+const nativePatterns: Record<HapticPattern, number | number[]> = {
+  selection: 10,
+  light: 18,
+  medium: 28,
+}
 
 export function setHapticsEnabled(value: boolean): void {
   enabled = value
 }
 
-function getIosHapticLabel(): HTMLLabelElement | null {
-  if (iosLabel) return iosLabel
-  try {
-    const checkbox = document.createElement('input')
-    checkbox.type = 'checkbox'
-    checkbox.setAttribute('switch', '')
-    checkbox.id = 'haptic-switch'
-    checkbox.style.position = 'fixed'
-    checkbox.style.left = '-9999px'
-    checkbox.style.opacity = '0'
-    checkbox.style.pointerEvents = 'none'
-
-    const label = document.createElement('label')
-    label.htmlFor = 'haptic-switch'
-    label.style.position = 'fixed'
-    label.style.left = '-9999px'
-    label.style.opacity = '0'
-    label.style.pointerEvents = 'none'
-
-    document.body.appendChild(checkbox)
-    document.body.appendChild(label)
-    iosLabel = label
-    return label
-  } catch {
-    return null
-  }
+function getHaptics(): WebHaptics | null {
+  if (haptics) return haptics
+  if (typeof window === 'undefined') return null
+  haptics = new WebHaptics()
+  return haptics
 }
 
-function isIos(): boolean {
-  if (typeof navigator === 'undefined') return false
-  const ua = navigator.userAgent
-  const isAppleMobile = /iPhone|iPad|iPod/.test(ua)
-  const isIpadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
-  return isAppleMobile || isIpadOS
-}
-
-function triggerHaptic(durationMs: number): void {
+function triggerHaptic(pattern: HapticPattern): void {
   if (!enabled) return
-  if (typeof navigator === 'undefined') return
-  if (isIos()) {
-    const label = getIosHapticLabel()
-    if (label) label.click()
-  } else if (navigator.vibrate) {
-    navigator.vibrate(durationMs)
+
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    const triggered = navigator.vibrate(nativePatterns[pattern])
+    if (triggered) return
   }
+
+  getHaptics()
+    ?.trigger(pattern)
+    .catch(() => {})
 }
 
 export function hapticTap(): void {
-  triggerHaptic(8)
+  triggerHaptic('selection')
 }
 
 export function hapticLight(): void {
-  triggerHaptic(4)
+  triggerHaptic('light')
 }
 
 export function hapticSubtle(): void {
-  triggerHaptic(2)
+  triggerHaptic('selection')
 }

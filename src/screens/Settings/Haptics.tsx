@@ -19,12 +19,17 @@ export default function Haptics() {
       <Header text='Haptics' back />
       <Content>
         <Padded>
-          <Toggle
-            checked={config.haptics}
-            onClick={handleChange}
-            text='Haptic feedback'
-            subtext='Vibration on button taps and interactions'
-          />
+          <div className='settings-page'>
+            <section className='settings-section'>
+              <p className='settings-section-label'>Feedback</p>
+              <Toggle
+                checked={config.haptics}
+                onClick={handleChange}
+                text='Haptic feedback'
+                subtext='Vibration on button taps and interactions'
+              />
+            </section>
+          </div>
         </Padded>
       </Content>
     </>

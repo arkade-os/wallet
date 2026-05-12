@@ -13,6 +13,7 @@ import {
   prettyNumber,
   isIssuance,
   isBurn,
+  formatFiatAmountParts,
 } from '../../lib/format'
 import { Fiats } from '../../lib/types'
 
@@ -83,6 +84,34 @@ describe('format utilities', () => {
       })
 
       expect(prettyFiatAmount(1.234, Fiats.USD)).toBe('$1.23')
+    })
+
+    it('should support fixed fraction digits for portfolio displays', () => {
+      expect(
+        prettyFiatAmount(2500, Fiats.USD, {
+          maximumFractionDigits: 2,
+          minimumFractionDigits: 2,
+        }),
+      ).toBe('$2,500.00')
+      expect(
+        prettyFiatAmount(2500, Fiats.CHF, {
+          maximumFractionDigits: 2,
+          minimumFractionDigits: 2,
+        }),
+      ).toBe('2,500.00 CHF')
+    })
+  })
+
+  describe('formatFiatAmountParts', () => {
+    it('should split fiat amount and unit for header rendering', () => {
+      expect(formatFiatAmountParts(15.28, Fiats.USD)).toEqual({
+        amount: '$15.28',
+        unit: '',
+      })
+      expect(formatFiatAmountParts(15.28, Fiats.CHF)).toEqual({
+        amount: '15.28',
+        unit: 'CHF',
+      })
     })
   })
 

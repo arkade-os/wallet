@@ -5,6 +5,7 @@ import {
   NetworkName,
   SingleKey,
   AssetDetails,
+  KnownMetadata,
   WalletBalance,
   IVtxoManager,
   migrateWalletRepository,
@@ -46,6 +47,22 @@ import { IndexedDbSwapRepository, migrateToSwapRepository, Network } from '@arka
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
 const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
+const DEV_AUTO_INIT_TIMEOUT_MS = 15_000
+const DEV_AUTO_INIT_RELOAD_KEY = 'arkade-dev-auto-init-reload-attempted'
+const DEV_ISSUED_ASSETS = [
+  {
+    name: 'USDT',
+    ticker: 'USDT',
+    decimals: 2,
+    amount: 7010,
+  },
+  {
+    name: 'USDC',
+    ticker: 'USDC',
+    decimals: 2,
+    amount: 3047,
+  },
+]
 
 const defaultWallet: Wallet = {
   network: '',
@@ -80,6 +97,7 @@ interface WalletContextProps {
   dismissLoadError: () => void
   authState: WalletAuthState
   initialized?: boolean
+  devAutoInitFailed?: boolean
 }
 
 export const WalletContext = createContext<WalletContextProps>({
@@ -107,6 +125,7 @@ export const WalletContext = createContext<WalletContextProps>({
   authState: 'unknown',
   txs: [],
   vtxos: { spendable: [], spent: [] },
+  devAutoInitFailed: false,
 })
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
@@ -137,6 +156,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const statusPingInterval = useRef<ReturnType<typeof setInterval>>()
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const swMessageHandlerRef = useRef<(event: MessageEvent) => void>()
+  const devAssetIssueStarted = useRef(false)
 
   const setCacheEntry = (assetId: string, details: AssetDetails): CachedAssetDetails => {
     const hasIcon = !!details.metadata?.icon
@@ -162,18 +182,51 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (initialized) return
     if (!aspInfo.url) return
 
+    let cancelled = false
+    let watchdog: ReturnType<typeof setTimeout> | undefined
+
     const autoInit = async () => {
       try {
+        watchdog = setTimeout(() => {
+          if (cancelled) return
+          consoleError(new Error('Dev wallet auto-init timed out'), 'Dev auto-init watchdog')
+          try {
+            if (sessionStorage.getItem(DEV_AUTO_INIT_RELOAD_KEY)) {
+              setDevAutoInitFailed(true)
+              return
+            }
+            sessionStorage.setItem(DEV_AUTO_INIT_RELOAD_KEY, 'true')
+          } catch {
+            // keep recovering even if session storage is unavailable
+          }
+          navigator.serviceWorker
+            ?.getRegistration()
+            .then((reg) => reg?.unregister())
+            .finally(() => window.location.reload())
+        }, DEV_AUTO_INIT_TIMEOUT_MS)
         const privateKey = nsecToPrivateKey(devNsec)
         await initWallet(privateKey)
+        if (cancelled) return
+        clearTimeout(watchdog)
+        try {
+          sessionStorage.removeItem(DEV_AUTO_INIT_RELOAD_KEY)
+        } catch {
+          // ignore session storage errors
+        }
         setAuthState('authenticated')
       } catch (err) {
+        clearTimeout(watchdog)
+        if (cancelled) return
         consoleError(err, 'Dev auto-init failed')
         setDevAutoInitFailed(true)
       }
     }
 
     autoInit()
+    return () => {
+      cancelled = true
+      clearTimeout(watchdog)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspInfo.url, initialized, devAutoInitFailed])
 
@@ -209,6 +262,70 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (svcWallet) reloadWallet().catch(consoleError)
   }, [svcWallet])
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    if (!svcWallet || !dataReady) return
+    if (devAssetIssueStarted.current) return
+    if (window.localStorage.getItem('arkade-dev-issue-reference-assets') === 'off') return
+
+    const issueReferenceAssets = async () => {
+      const existingTickers = new Set<string>()
+
+      for (const assetBalance of assetBalances) {
+        let details = assetMetadataCache.current.get(assetBalance.assetId)
+        if (!details) {
+          try {
+            const fetched = await svcWallet.assetManager.getAssetDetails(assetBalance.assetId)
+            if (fetched) details = setCacheEntry(assetBalance.assetId, fetched)
+          } catch (err) {
+            consoleError(err, `error loading metadata for ${assetBalance.assetId}`)
+          }
+        }
+
+        const ticker = details?.metadata?.ticker?.trim().toUpperCase()
+        if (ticker) existingTickers.add(ticker)
+      }
+
+      const missingAssets = DEV_ISSUED_ASSETS.filter((asset) => !existingTickers.has(asset.ticker))
+      if (!missingAssets.length) return
+
+      devAssetIssueStarted.current = true
+
+      try {
+        const importedAssets = [...config.importedAssets]
+
+        for (const asset of missingAssets) {
+          const metadata: KnownMetadata = {
+            name: asset.name,
+            ticker: asset.ticker,
+            decimals: asset.decimals,
+          }
+          const result = await svcWallet.assetManager.issue({
+            amount: asset.amount,
+            metadata,
+          })
+
+          iconApprovalManager.approve(result.assetId)
+          setCacheEntry(result.assetId, {
+            assetId: result.assetId,
+            supply: asset.amount,
+            metadata,
+          })
+
+          if (!importedAssets.includes(result.assetId)) importedAssets.push(result.assetId)
+        }
+
+        updateConfig({ ...config, importedAssets })
+        await reloadWallet(svcWallet)
+      } catch (err) {
+        devAssetIssueStarted.current = false
+        consoleError(err, 'error issuing dev reference assets')
+      }
+    }
+
+    issueReferenceAssets().catch(consoleError)
+  }, [svcWallet, dataReady, assetBalances, config.importedAssets])
 
   // calculate thresholdMs and next rollover
   useEffect(() => {
@@ -629,6 +746,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     <WalletContext.Provider
       value={{
         authState,
+        devAutoInitFailed,
         initWallet,
         isLocked,
         initialized,

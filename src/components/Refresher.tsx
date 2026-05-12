@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
 import { consoleError } from '../lib/logs'
 import SpinnerIcon from '../icons/Spinner'
@@ -9,25 +9,38 @@ export default function Refresher() {
 
   const [showRefresh, setShowRefresh] = useState(false)
 
-  let touchstartY = 0
-  let triggered = false
+  const touchstartY = useRef(0)
+  const startScrollTop = useRef(0)
+  const triggered = useRef(false)
+
+  const getActiveScrollContainer = (target: EventTarget | null): HTMLElement | null => {
+    if (!(target instanceof Element)) return null
+    return target.closest<HTMLElement>('.content')?.querySelector<HTMLElement>('.content-shell') ?? null
+  }
 
   const handleTouchStart = (e: TouchEvent) => {
-    touchstartY = e.touches[0].clientY
+    const scrollEl = getActiveScrollContainer(e.target)
+    touchstartY.current = e.touches[0].clientY
+    startScrollTop.current = scrollEl?.scrollTop ?? 0
+    triggered.current = false
   }
 
   const handleTouchMove = (e: TouchEvent) => {
+    const scrollEl = getActiveScrollContainer(e.target)
+    if (!scrollEl || startScrollTop.current > 0 || scrollEl.scrollTop > 0) return
+
     const touchY = e.touches[0].clientY
-    const touchDiff = touchY - touchstartY
-    if (touchDiff > 50 && window.scrollY === 0) {
+    const touchDiff = touchY - touchstartY.current
+    if (touchDiff > 50) {
       setShowRefresh(true)
       if (e.cancelable) e.preventDefault()
-      triggered = true
+      triggered.current = true
     }
   }
 
   const handleTouchEnd = () => {
-    if (triggered) handleRefresh()
+    if (triggered.current) handleRefresh()
+    triggered.current = false
   }
 
   const handleRefresh = async () => {

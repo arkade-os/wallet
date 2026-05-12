@@ -79,6 +79,7 @@ export const mockConfigContextValue = {
 }
 
 export const mockFiatContextValue = {
+  convertFiat: (amount: number) => amount,
   fiatDecimals: () => 2,
   fromFiat: (amount: number) => amount,
   toFiat: (amount: number) => amount,

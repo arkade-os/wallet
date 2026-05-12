@@ -124,6 +124,43 @@ const tapFixture = (addrs = { off: 'ark1testaddr', bd: 'bc1testaddr' }): RenderO
   wallet: { svcWallet: mockSvcWallet as any },
 })
 
+const usdtAssetId = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd'
+const usdcAssetId = 'bbbbbb0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd'
+
+const receiveAssetFixture = (): RenderOverrides => ({
+  ...tapFixture(),
+  flow: {
+    ...tapFixture().flow,
+    setRecvInfo: vi.fn(),
+  },
+  wallet: {
+    svcWallet: mockSvcWallet as any,
+    assetBalances: [{ assetId: usdtAssetId, amount: 7010 }],
+    assetMetadataCache: new Map([
+      [
+        usdtAssetId,
+        {
+          metadata: {
+            name: 'USDT',
+            ticker: 'USDT',
+            decimals: 2,
+          },
+        },
+      ],
+      [
+        usdcAssetId,
+        {
+          metadata: {
+            name: 'USDC',
+            ticker: 'USDC',
+            decimals: 2,
+          },
+        },
+      ],
+    ]),
+  },
+})
+
 describe('Receive QR Code screen', () => {
   beforeEach(() => {
     copyToClipboardMock.mockClear()
@@ -134,6 +171,7 @@ describe('Receive QR Code screen', () => {
   // findBy* / waitFor polling would otherwise hang. This guards against that.
   afterEach(() => {
     vi.useRealTimers()
+    window.localStorage.removeItem('arkade-receive-asset-ticker')
   })
 
   // UX Constraint 1: When LN is not expected (disconnected), show QR immediately
@@ -338,5 +376,46 @@ describe('Receive QR Code screen', () => {
     expect(second).toContain('ark1BBBBBB')
     expect(second).toContain('bc1BBBBBB')
     expect(second).not.toBe(first)
+  })
+
+  it('lets users choose an available receive asset from the chip menu', async () => {
+    const fixture = receiveAssetFixture()
+    renderReceiveQrCode(fixture)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Bitcoin/i }))
+
+    expect(screen.getByRole('button', { name: /Bitcoin/i })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Bitcoin' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /USDT/i })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /USDC/i })).not.toHaveAttribute('aria-disabled')
+    expect(screen.queryByText('Not in wallet yet')).not.toBeInTheDocument()
+    expect(screen.getAllByTestId('receive-asset-logo-btc')).toHaveLength(2)
+    expect(screen.getByTestId('receive-asset-logo-usdt')).toBeInTheDocument()
+    expect(screen.getByTestId('receive-asset-logo-usdc')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('option', { name: /USDT/i }))
+
+    expect(fixture.flow?.setRecvInfo).toHaveBeenCalledWith(expect.objectContaining({ assetId: usdtAssetId }))
+    expect(window.localStorage.getItem('arkade-receive-asset-ticker')).toBe('USDT')
+  })
+
+  it('lets users choose a known receive asset even without a positive balance', async () => {
+    const fixture = receiveAssetFixture()
+    renderReceiveQrCode(fixture)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Bitcoin/i }))
+    fireEvent.click(screen.getByRole('option', { name: /USDC/i }))
+
+    expect(fixture.flow?.setRecvInfo).toHaveBeenCalledWith(expect.objectContaining({ assetId: usdcAssetId }))
+    expect(window.localStorage.getItem('arkade-receive-asset-ticker')).toBe('USDC')
+  })
+
+  it('defaults to the last selected receive asset when it is available', async () => {
+    window.localStorage.setItem('arkade-receive-asset-ticker', 'USDT')
+    const fixture = receiveAssetFixture()
+    renderReceiveQrCode(fixture)
+
+    expect(await screen.findByRole('button', { name: /USDT/i })).toBeInTheDocument()
+    expect(fixture.flow?.setRecvInfo).toHaveBeenCalledWith(expect.objectContaining({ assetId: usdtAssetId }))
   })
 })

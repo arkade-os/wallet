@@ -3,13 +3,10 @@ import { ConfigContext } from '../../providers/config'
 import Content from '../../components/Content'
 import Padded from '../../components/Padded'
 import Header from './Header'
-import Text from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
-import FlexRow from '../../components/FlexRow'
 import ArrowIcon from '../../icons/Arrow'
 import { SettingsOptions, Themes } from '../../lib/types'
 import { OptionsContext } from '../../providers/options'
-import Focusable from '../../components/Focusable'
 import { hapticSubtle } from '../../lib/haptics'
 
 export default function General() {
@@ -17,32 +14,23 @@ export default function General() {
   const { setOption } = useContext(OptionsContext)
 
   const Row = ({ option, value }: { option: SettingsOptions; value: string }) => (
-    <Focusable
-      ariaLabel={`${option} settings`}
-      onEnter={() => {
+    <button
+      type='button'
+      className='settings-row settings-row--value'
+      aria-label={`${option} settings`}
+      onClick={() => {
         hapticSubtle()
         setOption(option)
       }}
     >
-      <FlexRow
-        between
-        padding='0.8rem 0'
-        onClick={() => {
-          hapticSubtle()
-          setOption(option)
-        }}
-      >
-        <Text capitalize thin>
-          {option}
-        </Text>
-        <FlexRow end>
-          <Text small thin color='neutral-500'>
-            {value}
-          </Text>
+      <span className='settings-row__label'>{option}</span>
+      <span className='settings-row__side'>
+        <span>{value}</span>
+        <span className='settings-row__chevron' aria-hidden='true'>
           <ArrowIcon />
-        </FlexRow>
-      </FlexRow>
-    </Focusable>
+        </span>
+      </span>
+    </button>
   )
 
   return (
@@ -50,17 +38,19 @@ export default function General() {
       <Header text='General' back />
       <Content>
         <Padded>
-          <FlexCol gap='0'>
-            <Row
-              option={SettingsOptions.Theme}
-              value={config.theme === Themes.Auto ? `Auto (${systemTheme})` : config.theme}
-            />
-            <hr />
-            <Row option={SettingsOptions.Fiat} value={config.fiat} />
-            <hr />
-            <Row option={SettingsOptions.Display} value={config.currencyDisplay} />
-            <hr />
-            <Row option={SettingsOptions.Haptics} value={config.haptics ? 'On' : 'Off'} />
+          <FlexCol gap='1rem' className='settings-page'>
+            <section className='settings-section'>
+              <p className='settings-section-label'>Preferences</p>
+              <div className='settings-row-group'>
+                <Row
+                  option={SettingsOptions.Theme}
+                  value={config.theme === Themes.Auto ? `Auto (${systemTheme})` : config.theme}
+                />
+                <Row option={SettingsOptions.Fiat} value={config.fiat} />
+                <Row option={SettingsOptions.Display} value={config.currencyDisplay} />
+                <Row option={SettingsOptions.Haptics} value={config.haptics ? 'On' : 'Off'} />
+              </div>
+            </section>
           </FlexCol>
         </Padded>
       </Content>

@@ -1,4 +1,4 @@
-import { centsToUnits, prettyAssetNumber } from './assets'
+import { centsToUnits } from './assets'
 import { fiatDecimalsFor, FIAT_SYMBOLS } from './fiat'
 import { Fiats, Satoshis, Tx } from './types'
 import { Decimal } from 'decimal.js'
@@ -13,14 +13,14 @@ export const toSatoshis = (num: number): Satoshis => {
 
 export const prettyAgo = (timestamp: number | string, long = false): string => {
   if (!timestamp) return ''
-  const now = Math.floor(Date.now() / 1000)
-  const unixTimestamp =
+  const nowMs = Date.now()
+  const timestampMs =
     typeof timestamp === 'string'
-      ? Math.floor(new Date(timestamp).getTime() / 1000)
+      ? new Date(timestamp).getTime()
       : timestamp > 200_000_000_000
-        ? Math.floor(timestamp / 1000)
-        : timestamp
-  const delta = Math.floor(now - unixTimestamp)
+        ? timestamp
+        : timestamp * 1000
+  const delta = Math.floor((nowMs - timestampMs) / 1000)
   if (delta === 0 || delta === 1) return 'just now'
   if (delta > 1) return `${prettyDelta(delta, long)} ago`
   if (delta < 0) return `in ${prettyDelta(delta, long)}`
@@ -36,11 +36,30 @@ export const prettyAmount = (amount: string | number, suffix?: string, decimals 
   return `${prettyNumber(sats)} ${sats === 1 ? 'SAT' : 'SATS'}`
 }
 
-export const prettyFiatAmount = (amount: number, currency: Fiats): string => {
+type FiatAmountFormatOptions = {
+  maximumFractionDigits?: number
+  minimumFractionDigits?: number
+}
+
+export const formatFiatAmountParts = (
+  amount: number,
+  currency: Fiats,
+  options: FiatAmountFormatOptions = {},
+): { amount: string; unit: string } => {
   const symbol = FIAT_SYMBOLS[currency]
-  const decimals = fiatDecimalsFor(currency)
-  const formatted = prettyNumber(amount, decimals, true, decimals)
-  return symbol ? `${symbol}${formatted}` : `${formatted} ${currency}`
+  const maximumFractionDigits = options.maximumFractionDigits ?? fiatDecimalsFor(currency)
+  const minimumFractionDigits = options.minimumFractionDigits ?? maximumFractionDigits
+  const formatted = prettyNumber(amount, maximumFractionDigits, true, minimumFractionDigits)
+
+  return {
+    amount: symbol ? `${symbol}${formatted}` : formatted,
+    unit: symbol ? '' : currency,
+  }
+}
+
+export const prettyFiatAmount = (amount: number, currency: Fiats, options?: FiatAmountFormatOptions): string => {
+  const parts = formatFiatAmountParts(amount, currency, options)
+  return parts.unit ? `${parts.amount} ${parts.unit}` : parts.amount
 }
 
 export const prettyDelta = (seconds: number, long = true): string => {
@@ -119,9 +138,9 @@ export const prettyNumber = (
   }).format(num)
 }
 
-export const formatAssetAmount = (amount: bigint, decimals: number): string => {
-  if (decimals === 0) return prettyAssetNumber(amount, 0)
-  return prettyAssetNumber(centsToUnits(amount, decimals), decimals)
+export const formatAssetAmount = (amount: number, decimals: number): string => {
+  if (decimals === 0) return prettyNumber(amount, 0)
+  return prettyNumber(centsToUnits(amount, decimals), decimals)
 }
 
 export const isIssuance = (tx: Tx): boolean => {

@@ -54,12 +54,26 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
     setStopped(false)
     cancelled.current = false
 
+    async function startBounceAnimation(definition: Parameters<typeof controlsRef.current.start>[0]) {
+      if (cancelled.current) return
+
+      try {
+        await controlsRef.current.start(definition)
+      } catch (error) {
+        if (cancelled.current) return
+        if (error instanceof Error && error.message.includes('component has mounted')) return
+        throw error
+      }
+    }
+
     async function bounceAndMorph(nextShape: number) {
+      if (cancelled.current) return
+
       setBounceCount((c) => c + 1)
       onBounceRef.current?.()
       setActiveShape(nextShape)
 
-      await controlsRef.current.start({
+      await startBounceAnimation({
         y: 20,
         scaleY: 0.75,
         scaleX: 1.15,
@@ -67,7 +81,7 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
       })
       if (cancelled.current) return
 
-      await controlsRef.current.start({
+      await startBounceAnimation({
         y: 0,
         scaleY: 1,
         scaleX: 1,

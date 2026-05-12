@@ -12,7 +12,7 @@ import ExternalLinkIcon from '../icons/ExternalLink'
 export type TableLine = [string, string | undefined, JSX.Element?, (() => void)?]
 export type TableData = TableLine[]
 
-export default function Table({ data }: { data: TableData }) {
+export default function Table({ data, variant = 'default' }: { data: TableData; variant?: 'default' | 'receipt' }) {
   const [focused, setFocused] = useState(false)
 
   const { toast } = useToast()
@@ -44,7 +44,7 @@ export default function Table({ data }: { data: TableData }) {
 
   return (
     <Focusable id='outer' inactive={focused} onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
-      <FlexCol gap='0.5rem'>
+      <FlexCol gap={variant === 'receipt' ? '0' : '0.5rem'}>
         {data.map(([title, value, icon, onClick]) =>
           value == '' || value === undefined || value === null ? null : (
             <Focusable
@@ -55,24 +55,43 @@ export default function Table({ data }: { data: TableData }) {
               onEscape={focusOnOuterShell}
               ariaLabel={ariaLabel(title, value)}
             >
-              <FlexRow between>
-                <FlexRow color='neutral-500'>
-                  {icon}
-                  <Text small thin>
-                    {title}
-                  </Text>
-                </FlexRow>
-                <FlexRow end gap='0.25rem'>
-                  {onClick ? (
-                    <span onClick={onClick} style={{ cursor: 'pointer', color: 'var(--neutral-500)' }}>
-                      <ExternalLinkIcon />
+              {variant === 'receipt' ? (
+                <div className='details-row'>
+                  <div className='details-row__label'>
+                    <span className='details-row__icon'>{icon}</span>
+                    <span className='details-row__title'>{title}</span>
+                  </div>
+                  <div className='details-row__value-wrap'>
+                    {onClick ? (
+                      <span onClick={onClick} className='details-row__external' aria-hidden='true'>
+                        <ExternalLinkIcon />
+                      </span>
+                    ) : null}
+                    <span className='details-row__value' onClick={() => copy(value)} data-testid={title}>
+                      {prettyLongText(value, onClick ? 8 : undefined)}
                     </span>
-                  ) : null}
-                  <Text color='dark' copy={value} small bold testId={title}>
-                    {prettyLongText(value, onClick ? 8 : undefined)}
-                  </Text>
+                  </div>
+                </div>
+              ) : (
+                <FlexRow between>
+                  <FlexRow color='neutral-500'>
+                    {icon}
+                    <Text small thin>
+                      {title}
+                    </Text>
+                  </FlexRow>
+                  <FlexRow end gap='0.25rem'>
+                    {onClick ? (
+                      <span onClick={onClick} style={{ cursor: 'pointer', color: 'var(--neutral-500)' }}>
+                        <ExternalLinkIcon />
+                      </span>
+                    ) : null}
+                    <Text color='dark' copy={value} small bold testId={title}>
+                      {prettyLongText(value, onClick ? 8 : undefined)}
+                    </Text>
+                  </FlexRow>
                 </FlexRow>
-              </FlexRow>
+              )}
             </Focusable>
           ),
         )}

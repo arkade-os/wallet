@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App, { appReloader } from '../App'
@@ -32,6 +33,7 @@ function renderApp({
   screen: screenOverride = Pages.Init,
   tab: tabOverride = Tabs.None,
   option,
+  walletPubkey = 'stored-pubkey',
 }: {
   authState: WalletAuthState
   initialized: boolean
@@ -39,6 +41,7 @@ function renderApp({
   screen?: Pages
   tab?: Tabs
   option?: SettingsOptions
+  walletPubkey?: string
 }) {
   const navigate = vi.fn()
 
@@ -60,7 +63,7 @@ function renderApp({
                   dataReady: initialized,
                   unlockWallet,
                   walletLoaded: true,
-                  wallet: { nextRollover: 0, pubkey: 'stored-pubkey' },
+                  wallet: { nextRollover: 0, pubkey: walletPubkey },
                 }}
               >
                 <App />
@@ -130,6 +133,15 @@ describe('App startup routing', () => {
     expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
   })
 
+  it('keeps dev auto-init users off onboarding while the wallet starts', async () => {
+    vi.stubEnv('VITE_DEV_NSEC', 'nsec_dev_test_key')
+
+    renderApp({ authState: 'authenticated', initialized: false, walletPubkey: '' })
+
+    expect(await screen.findByTestId('loading-logo')).toBeInTheDocument()
+    expect(screen.queryByText('Welcome to Arkade 👾')).not.toBeInTheDocument()
+  })
+
   it('schedules a single reload after passwordless auto-init failure', async () => {
     vi.useFakeTimers()
     const reloadSpy = vi.spyOn(appReloader, 'reload').mockImplementation(() => {})
@@ -185,11 +197,25 @@ describe('Navbar visibility', () => {
     expect(ionApp.className).not.toContain('has-pill-navbar')
   })
 
-  it('shows navbar on wallet root when authenticated and initialized', async () => {
+  it('hides navbar on wallet root (wallet has its own floating action bar)', async () => {
     renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Wallet, tab: Tabs.Wallet })
 
     const ionApp = await screen.findByTestId('app')
-    expect(ionApp.className).toContain('has-pill-navbar')
+    expect(ionApp.className).not.toContain('has-pill-navbar')
+  })
+
+  it('routes the wallet swap action to the asset swap prototype', async () => {
+    const { navigate } = renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      screen: Pages.Wallet,
+      tab: Tabs.Wallet,
+    })
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Swap' }))
+
+    expect(navigate).toHaveBeenCalledWith(Pages.WalletSwap)
+    expect(navigate).not.toHaveBeenCalledWith(Pages.AppBoltzSwap)
   })
 
   it('shows navbar on apps root when authenticated and initialized', async () => {
@@ -210,6 +236,19 @@ describe('Navbar visibility', () => {
 
     const ionApp = await screen.findByTestId('app')
     expect(ionApp.className).toContain('has-pill-navbar')
+  })
+
+  it('hides navbar on wallet-pushed settings menu', async () => {
+    renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      screen: Pages.WalletSettings,
+      tab: Tabs.Wallet,
+      option: SettingsOptions.Menu,
+    })
+
+    const ionApp = await screen.findByTestId('app')
+    expect(ionApp.className).not.toContain('has-pill-navbar')
   })
 
   it('hides navbar on settings sub-page when authenticated and initialized', async () => {

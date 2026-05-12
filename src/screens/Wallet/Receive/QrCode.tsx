@@ -1,4 +1,5 @@
-import { useCallback, useContext, useEffect, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
@@ -33,7 +34,7 @@ import { useToast } from '../../../components/Toast'
 import { prettyLongText, prettyNumber } from '../../../lib/format'
 import CopyIcon from '../../../icons/Copy'
 import CheckMarkIcon from '../../../icons/CheckMark'
-import { hapticSubtle } from '../../../lib/haptics'
+import { hapticLight, hapticSubtle } from '../../../lib/haptics'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
@@ -43,6 +44,18 @@ import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { AssetOption } from '../../../lib/types'
 import { EASE_OUT_QUINT } from '../../../lib/animations'
+import ChevronDownIcon from '../../../icons/ChevronDown'
+import TokenLogo from '../../../components/TokenLogo'
+
+type ReceiveAssetTicker = 'BTC' | 'USDT' | 'USDC'
+
+const RECEIVE_ASSET_STORAGE_KEY = 'arkade-receive-asset-ticker'
+
+interface ReceiveAssetOption {
+  assetId: string
+  name: string
+  ticker: ReceiveAssetTicker
+}
 
 export default function ReceiveQRCode() {
   const { useFiat } = useContext(ConfigContext)
@@ -51,7 +64,7 @@ export default function ReceiveQRCode() {
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { arkadeSwaps, swapsInitError, connected, createBtcToArkSwap, createReverseSwap } = useContext(SwapsContext)
-  const { assetMetadataCache, svcWallet } = useContext(WalletContext)
+  const { assetBalances, assetMetadataCache, svcWallet } = useContext(WalletContext)
   const { minSwapAllowed, validBtcToArk, validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } =
     useContext(LimitsContext)
 
@@ -70,6 +83,7 @@ export default function ReceiveQRCode() {
   // Copy address sheet state
   const [showCopySheet, setShowCopySheet] = useState(false)
   const [copied, setCopied] = useState('')
+  const [showAssetMenu, setShowAssetMenu] = useState(false)
 
   const prefersReducedMotion = useReducedMotion()
 
@@ -78,6 +92,17 @@ export default function ReceiveQRCode() {
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const isAssetReceive = assetId && assetId !== ''
   const hasError = Boolean(addressError)
+  const receiveAssetOptions = useMemo(
+    () => buildReceiveAssetOptions(assetBalances, assetMetadataCache),
+    [assetBalances, assetMetadataCache],
+  )
+  const [preferredReceiveTicker, setPreferredReceiveTicker] = useState<ReceiveAssetTicker>(() =>
+    readStoredReceiveAssetTicker(),
+  )
+  const selectedReceiveAsset =
+    receiveAssetOptions.find((option) => option.assetId && option.assetId === assetId) ??
+    receiveAssetOptions.find((option) => option.ticker === preferredReceiveTicker) ??
+    receiveAssetOptions[0]
 
   const [noPaymentMethods, setNoPaymentMethods] = useState(false)
   const [arkAddress, setArkAddress] = useState(offchainAddr)
@@ -238,6 +263,15 @@ export default function ReceiveQRCode() {
     })
   }, [satoshis, svcWallet, arkadeSwaps, swapsInitError, addressesLoaded])
 
+  useEffect(() => {
+    if (assetId || selectedReceiveAsset.ticker === 'BTC' || !selectedReceiveAsset.assetId) return
+
+    setInvoice('')
+    setSwapAddress('')
+    setShowQrCode(true)
+    setRecvInfo({ ...recvInfo, assetId: selectedReceiveAsset.assetId, addressError: undefined })
+  }, [assetId, selectedReceiveAsset.assetId, selectedReceiveAsset.ticker])
+
   // Build BIP21 URI
   useEffect(() => {
     if (!addressesLoaded && !showQrCode) return
@@ -261,6 +295,7 @@ export default function ReceiveQRCode() {
     lnurlSession.lnurl,
     lnurlSession.active,
     isAmountlessLnurl,
+    assetId,
   ])
 
   // Payment listener
@@ -327,6 +362,17 @@ export default function ReceiveQRCode() {
     toast('Copied to clipboard')
     setShowCopySheet(false)
     setCopied(value)
+  }
+
+  const handleReceiveAssetSelect = (option: ReceiveAssetOption) => {
+    hapticLight()
+    setStoredReceiveAssetTicker(option.ticker)
+    setPreferredReceiveTicker(option.ticker)
+    setShowAssetMenu(false)
+    setInvoice('')
+    setSwapAddress('')
+    setShowQrCode(true)
+    setRecvInfo({ ...recvInfo, assetId: option.assetId || undefined, addressError: undefined })
   }
 
   const handleAmountChange = (sats: number) => {
@@ -409,6 +455,14 @@ export default function ReceiveQRCode() {
             <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 2rem)', gap: '1rem' }}>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div style={{ textAlign: 'center' }}>
+                  <ReceiveAssetPicker
+                    onOpenChange={setShowAssetMenu}
+                    onSelect={handleReceiveAssetSelect}
+                    open={showAssetMenu}
+                    options={receiveAssetOptions}
+                    prefersReducedMotion={prefersReducedMotion}
+                    selected={selectedReceiveAsset}
+                  />
                   <button
                     type='button'
                     onClick={() => handleCopy(qrCodeValue)}
@@ -471,7 +525,7 @@ export default function ReceiveQRCode() {
       {/* Amount bottom sheet */}
       <SheetModal isOpen={showAmountSheet} onClose={() => setShowAmountSheet(false)}>
         <FlexCol gap='1rem' padding='0.5rem 0'>
-          <Text big bold>
+          <Text big heading medium>
             Add amount
           </Text>
           <InputAmount
@@ -494,7 +548,7 @@ export default function ReceiveQRCode() {
       {/* Copy address bottom sheet */}
       <SheetModal isOpen={showCopySheet} onClose={() => setShowCopySheet(false)}>
         <FlexCol gap='1rem' padding='0.5rem 0'>
-          <Text big bold>
+          <Text big heading medium>
             Copy address
           </Text>
           <AddressList
@@ -514,6 +568,165 @@ export default function ReceiveQRCode() {
       </SheetModal>
     </>
   )
+}
+
+function ReceiveAssetPicker({
+  onOpenChange,
+  onSelect,
+  open,
+  options,
+  prefersReducedMotion,
+  selected,
+}: {
+  onOpenChange: (open: boolean) => void
+  onSelect: (option: ReceiveAssetOption) => void
+  open: boolean
+  options: ReceiveAssetOption[]
+  prefersReducedMotion: boolean
+  selected: ReceiveAssetOption
+}) {
+  return (
+    <div className='receive-asset-picker'>
+      <button
+        type='button'
+        className='receive-asset-trigger'
+        aria-expanded={open}
+        aria-haspopup='listbox'
+        onClick={() => {
+          hapticLight()
+          onOpenChange(!open)
+        }}
+      >
+        <ReceiveAssetIcon option={selected} />
+        <span>{selected.name}</span>
+        <motion.span
+          className='receive-asset-chevron'
+          animate={prefersReducedMotion ? false : { rotate: open ? 180 : 0 }}
+          transition={{ duration: 0.18, ease: EASE_OUT_QUINT }}
+        >
+          <ChevronDownIcon />
+        </motion.span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div
+            className='receive-asset-menu'
+            role='listbox'
+            aria-label='Receive asset'
+            initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.98, x: '-50%', y: -4, filter: 'blur(2px)' }}
+            animate={
+              prefersReducedMotion
+                ? { opacity: 1, x: '-50%' }
+                : { opacity: 1, scale: 1, x: '-50%', y: 0, filter: 'blur(0px)' }
+            }
+            exit={
+              prefersReducedMotion
+                ? { opacity: 0, x: '-50%' }
+                : { opacity: 0, scale: 0.98, x: '-50%', y: -3, filter: 'blur(1px)' }
+            }
+            transition={{ duration: 0.18, ease: EASE_OUT_QUINT }}
+          >
+            {options.map((option) => {
+              const selectedOption = option.ticker === selected.ticker
+              return (
+                <button
+                  key={option.ticker}
+                  type='button'
+                  className='receive-asset-option'
+                  role='option'
+                  aria-selected={selectedOption}
+                  onClick={() => onSelect(option)}
+                >
+                  <ReceiveAssetIcon option={option} />
+                  <span className='receive-asset-option__copy'>{option.name}</span>
+                  <AnimatePresence initial={false}>
+                    {selectedOption ? (
+                      <motion.span
+                        className='receive-asset-option__check'
+                        initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.86 }}
+                        animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
+                        exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.86 }}
+                        transition={{ duration: 0.14, ease: EASE_OUT_QUINT }}
+                      >
+                        <CheckMarkIcon small />
+                      </motion.span>
+                    ) : null}
+                  </AnimatePresence>
+                </button>
+              )
+            })}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function ReceiveAssetIcon({ option }: { option: ReceiveAssetOption }) {
+  return (
+    <span className='receive-asset-icon' data-testid={`receive-asset-logo-${option.ticker.toLowerCase()}`}>
+      <ReceiveAssetLogo ticker={option.ticker} />
+    </span>
+  )
+}
+
+function ReceiveAssetLogo({ ticker }: { ticker: ReceiveAssetTicker }) {
+  return <TokenLogo ticker={ticker} />
+}
+
+function readStoredReceiveAssetTicker(): ReceiveAssetTicker {
+  try {
+    const stored = window.localStorage.getItem(RECEIVE_ASSET_STORAGE_KEY)
+    if (stored === 'USDT' || stored === 'USDC') return stored
+  } catch {
+    // Storage can be unavailable in private browsing or test environments.
+  }
+
+  return 'BTC'
+}
+
+function setStoredReceiveAssetTicker(ticker: ReceiveAssetTicker) {
+  try {
+    window.localStorage.setItem(RECEIVE_ASSET_STORAGE_KEY, ticker)
+  } catch {
+    // Non-critical preference only.
+  }
+}
+
+function buildReceiveAssetOptions(
+  assetBalances: { assetId: string }[],
+  assetMetadataCache: Map<string, { metadata?: { icon?: string; name?: string; ticker?: string } }>,
+): ReceiveAssetOption[] {
+  const assetByTicker = new Map<string, ReceiveAssetOption>()
+
+  for (const [assetId, details] of assetMetadataCache.entries()) {
+    addReceiveAssetOption(assetByTicker, assetId, details.metadata)
+  }
+
+  for (const asset of assetBalances) {
+    addReceiveAssetOption(assetByTicker, asset.assetId, assetMetadataCache.get(asset.assetId)?.metadata)
+  }
+
+  return [
+    { assetId: '', name: 'Bitcoin', ticker: 'BTC' },
+    assetByTicker.get('USDT') ?? { assetId: '', name: 'USDT', ticker: 'USDT' },
+    assetByTicker.get('USDC') ?? { assetId: '', name: 'USDC', ticker: 'USDC' },
+  ]
+}
+
+function addReceiveAssetOption(
+  assetByTicker: Map<string, ReceiveAssetOption>,
+  assetId: string,
+  metadata?: { name?: string; ticker?: string },
+) {
+  const ticker = metadata?.ticker?.trim().toUpperCase()
+  if (ticker !== 'USDT' && ticker !== 'USDC') return
+
+  assetByTicker.set(ticker, {
+    assetId,
+    name: ticker,
+    ticker,
+  })
 }
 
 function AddressList({

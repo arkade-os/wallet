@@ -21,6 +21,28 @@ import { AnnouncementProvider } from './providers/announcements'
 import { ToastProvider } from './components/Toast'
 import ErrorBoundary from './components/ErrorBoundary'
 
+const DEV_SERVICE_WORKER_RESET_KEY = 'arkade-dev-service-worker-reset-attempted'
+
+function resetControlledDevServiceWorker() {
+  if (!import.meta.env.DEV || !import.meta.env.VITE_DEV_NSEC) return false
+  if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) return false
+
+  try {
+    if (sessionStorage.getItem(DEV_SERVICE_WORKER_RESET_KEY)) return false
+    sessionStorage.setItem(DEV_SERVICE_WORKER_RESET_KEY, 'true')
+  } catch {
+    // If sessionStorage is unavailable, prefer one reload over leaving a stale
+    // dev service worker controlling the boot path indefinitely.
+  }
+
+  navigator.serviceWorker
+    .getRegistrations()
+    .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+    .finally(() => window.location.reload())
+
+  return true
+}
+
 // Initialize Sentry only in production and when DSN is provided
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN
 if (shouldInitializeSentry(sentryDsn)) {
@@ -48,7 +70,8 @@ if (shouldInitializeSentry(sentryDsn)) {
 // Pre-register service worker so activation happens in parallel with page
 // bootstrap (ASP fetch, auth check, etc.). On cold starts this saves the
 // full activation wait from the critical path; on warm starts it's a no-op.
-if ('serviceWorker' in navigator) {
+const devServiceWorkerResetting = resetControlledDevServiceWorker()
+if ('serviceWorker' in navigator && !devServiceWorkerResetting) {
   navigator.serviceWorker.register('/wallet-service-worker.mjs').catch(() => {})
 
   // check if there's a service worker controlling the page

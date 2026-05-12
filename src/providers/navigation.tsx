@@ -16,6 +16,8 @@ import Transaction from '../screens/Wallet/Transaction'
 import Unlock from '../screens/Wallet/Unlock'
 import Vtxos from '../screens/Settings/Vtxos'
 import Wallet from '../screens/Wallet/Index'
+import Activity from '../screens/Wallet/Activity'
+import WalletSwap from '../screens/Wallet/Swap/Index'
 import Settings from '../screens/Settings/Index'
 
 import Apps from '../screens/Apps/Index'
@@ -40,6 +42,7 @@ import Unavailable from '../screens/Wallet/Unavailable'
 export type NavigationDirection = 'forward' | 'back' | 'none'
 
 export enum Pages {
+  Activity,
   AppBoltz,
   AppBoltzSettings,
   AppBoltzSwap,
@@ -76,6 +79,8 @@ export enum Pages {
   Unlock,
   Vtxos,
   Wallet,
+  WalletSettings,
+  WalletSwap,
 }
 
 export enum Tabs {
@@ -86,13 +91,14 @@ export enum Tabs {
 }
 
 const pageTab = {
+  [Pages.Activity]: Tabs.Wallet,
   [Pages.AppBoltz]: Tabs.Apps,
   [Pages.AppBoltzSettings]: Tabs.Apps,
   [Pages.AppBoltzSwap]: Tabs.Apps,
   [Pages.AppLendasat]: Tabs.Apps,
   [Pages.AppSatora]: Tabs.Apps,
   [Pages.AppAssets]: Tabs.Apps,
-  [Pages.AppAssetDetail]: Tabs.Apps,
+  [Pages.AppAssetDetail]: Tabs.Wallet,
   [Pages.AppAssetImport]: Tabs.Apps,
   [Pages.AppAssetMint]: Tabs.Apps,
   [Pages.AppAssetMintSuccess]: Tabs.Apps,
@@ -122,6 +128,8 @@ const pageTab = {
   [Pages.Unlock]: Tabs.None,
   [Pages.Vtxos]: Tabs.Settings,
   [Pages.Wallet]: Tabs.Wallet,
+  [Pages.WalletSettings]: Tabs.Wallet,
+  [Pages.WalletSwap]: Tabs.Wallet,
 }
 
 // Root pages of each tab — tab switches between these get no animation
@@ -144,6 +152,8 @@ export const subNavHandler = {
 
 export const pageComponent = (page: Pages): JSX.Element => {
   switch (page) {
+    case Pages.Activity:
+      return <Activity />
     case Pages.AppBoltz:
       return <AppBoltz />
     case Pages.AppBoltzSettings:
@@ -216,6 +226,10 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <Vtxos />
     case Pages.Wallet:
       return <Wallet />
+    case Pages.WalletSettings:
+      return <Settings />
+    case Pages.WalletSwap:
+      return <WalletSwap />
     default:
       return <></>
   }

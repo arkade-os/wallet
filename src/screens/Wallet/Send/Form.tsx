@@ -19,7 +19,7 @@ import InputAmount from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
-import { prettyAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
+import { formatAssetAmount, prettyAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -43,12 +43,20 @@ import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 import { SwapsContext } from '../../../providers/swaps'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { centsToUnits, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
 import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
+import TokenLogo, { TokenLogoTicker } from '../../../components/TokenLogo'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../../components/ui/dropdown-menu'
+import { hapticLight } from '../../../lib/haptics'
 
 // TODO: Replace when SDK is accurate
 type BrantaPayment = Partial<
@@ -139,8 +147,12 @@ export default function SendForm() {
 
   // update form with existing send info
   useEffect(() => {
-    const { recipient, satoshis } = sendInfo
+    const { recipient, satoshis, scan } = sendInfo
     setRecipient(recipient ?? '')
+    if (scan) {
+      setKeys(false)
+      setScan(true)
+    }
     if (!satoshis) return
     setTextValue(useFiat ? prettyNumber(fromFiat(satoshis)) : prettyNumber(satoshis, 0, false))
   }, [])
@@ -225,7 +237,7 @@ export default function SendForm() {
             }
             found = {
               assetId,
-              balance: BigInt(0),
+              balance: 0,
               name: meta?.metadata?.name ?? `${assetId.slice(0, 8)}...`,
               ticker: meta?.metadata?.ticker ?? '',
               icon: meta?.metadata?.icon,
@@ -233,7 +245,7 @@ export default function SendForm() {
             }
           }
           setSelectedAsset(found)
-          const rawAmount = assetAmount != null ? unitsToCents(BigInt(assetAmount), found.decimals) : BigInt(0)
+          const rawAmount = assetAmount != null ? unitsToCents(assetAmount, found.decimals) : 0
           setTextValue(String(assetAmount))
           return setState({
             address,
@@ -527,9 +539,9 @@ export default function SendForm() {
 
   const handleAmountChange = (sats: number) => {
     if (isAssetSend) {
-      setTextValue(prettyAssetAmount(BigInt(sats), selectedAsset?.decimals ?? 8, false))
+      setTextValue(String(centsToUnits(sats, selectedAsset?.decimals ?? 8)))
       if (selectedAsset) {
-        setState({ ...sendInfo, assets: [{ assetId: selectedAsset.assetId, amount: BigInt(sats) }], satoshis: 0 })
+        setState({ ...sendInfo, assets: [{ assetId: selectedAsset.assetId, amount: sats }], satoshis: 0 })
       }
     } else {
       setTextValue(useFiat ? prettyNumber(toFiat(sats), 2, false) : prettyNumber(sats, 0, false))
@@ -547,7 +559,7 @@ export default function SendForm() {
       if (isBTCAddress(recipient)) {
         return setError('Assets can only be sent to Arkade addresses')
       }
-      setState({ ...sendInfo, address: '', assets: [{ assetId: asset.assetId, amount: BigInt(0) }], satoshis: 0 })
+      setState({ ...sendInfo, address: '', assets: [{ assetId: asset.assetId, amount: 0 }], satoshis: 0 })
     } else {
       setState({ ...sendInfo, assets: undefined, satoshis: 0 })
     }
@@ -624,7 +636,8 @@ export default function SendForm() {
   const applySendAll = () => {
     if (isAssetSend && selectedAsset) {
       const { assetId, balance, decimals } = selectedAsset
-      setTextValue(prettyAssetAmount(balance, decimals, false))
+      const units = centsToUnits(balance, decimals)
+      setTextValue(prettyNumber(units, decimals, false))
       setState({
         ...sendInfo,
         assets: [{ assetId, amount: balance }],
@@ -657,7 +670,7 @@ export default function SendForm() {
       return (
         <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
           <Text color='neutral-500' smaller>
-            {`${prettyAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`}
+            {`${formatAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`}
           </Text>
         </div>
       )
@@ -698,26 +711,33 @@ export default function SendForm() {
       satoshis < 1 ||
       processing
 
-  const selectedAssetLabel = selectedAsset ? `${selectedAsset.name} (${selectedAsset.ticker})` : 'Bitcoin (BTC)'
+  const selectedAssetLabel = selectedAsset ? `${selectedAsset.name} (${selectedAsset.ticker})` : 'Bitcoin'
+  const selectedAssetBalance = selectedAsset
+    ? `${formatAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`
+    : `${useFiat ? prettyFiatAmount(toFiat(liquidBalance), config.fiat) : prettyAmount(liquidBalance)} available`
 
-  const btcIcon = (
-    <div
-      style={{
-        width: 24,
-        height: 24,
-        borderRadius: '50%',
-        background: '#f7931a',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'white',
-        fontSize: '14px',
-        fontWeight: 'bold',
-      }}
-    >
-      ₿
-    </div>
-  )
+  const AssetIcon = ({ asset }: { asset: AssetOption | null }) => {
+    const ticker = asset?.ticker?.toUpperCase()
+    const tokenTicker = ticker === 'USDT' || ticker === 'USDC' ? (ticker as TokenLogoTicker) : asset ? null : 'BTC'
+
+    if (tokenTicker) {
+      return (
+        <span className='send-asset-icon' aria-hidden='true'>
+          <TokenLogo ticker={tokenTicker} />
+        </span>
+      )
+    }
+
+    if (asset?.icon) {
+      return <img className='send-asset-icon' src={asset.icon} alt='' />
+    }
+
+    return (
+      <span className='send-asset-icon send-asset-icon--fallback' aria-hidden='true'>
+        {asset?.ticker?.[0] ?? 'A'}
+      </span>
+    )
+  }
 
   const overlayOpen = scan || (keys && !amountIsReadOnly)
   const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
@@ -791,11 +811,15 @@ export default function SendForm() {
   return (
     <>
       {/* @ts-expect-error inert is valid HTML but React types lag behind */}
-      <div inert={overlayOpen || undefined} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div
+        inert={overlayOpen || undefined}
+        className='send-form'
+        style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
+      >
         <Header text='Send' back />
         <Content>
           <Padded>
-            <FlexCol gap='2rem'>
+            <FlexCol gap='1.25rem' className='send-form-stack'>
               <ErrorMessage error={Boolean(error)} text={error} />
               <InputAddress
                 name='send-address'
@@ -836,106 +860,72 @@ export default function SendForm() {
                 </Shadow>
               ) : null}
               {assetOptions.length > 0 ? (
-                <FlexCol gap='0.25rem'>
+                <FlexCol gap='0.5rem' className='send-asset-field'>
                   <Text smaller color='neutral-500'>
                     Asset
                   </Text>
-                  <Shadow border onClick={() => setShowAssetSelector(!showAssetSelector)} testId='asset-selector'>
-                    <FlexRow between padding='0.5rem'>
-                      <FlexRow>
-                        {selectedAsset ? (
-                          selectedAsset.icon ? (
-                            <img
-                              src={selectedAsset.icon}
-                              alt=''
-                              width={24}
-                              height={24}
-                              style={{ borderRadius: '50%' }}
-                            />
-                          ) : (
-                            <div
-                              style={{
-                                width: 24,
-                                height: 24,
-                                borderRadius: '50%',
-                                background: 'var(--neutral-200)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <Text smaller>{selectedAsset.ticker?.[0] ?? 'A'}</Text>
-                            </div>
-                          )
-                        ) : (
-                          btcIcon
-                        )}
-                        <Text>{selectedAssetLabel}</Text>
-                      </FlexRow>
-                      <Text color='neutral-500' smaller>
+                  <DropdownMenu
+                    open={showAssetSelector}
+                    onOpenChange={(open) => {
+                      hapticLight()
+                      setShowAssetSelector(open)
+                    }}
+                    modal={false}
+                  >
+                    <DropdownMenuTrigger className='send-asset-trigger' data-testid='asset-selector'>
+                      <span className='send-asset-trigger__main'>
+                        <AssetIcon asset={selectedAsset} />
+                        <span className='send-asset-trigger__copy'>
+                          <span className='send-asset-trigger__name'>{selectedAssetLabel}</span>
+                          <span className='send-asset-trigger__balance'>{selectedAssetBalance}</span>
+                        </span>
+                      </span>
+                      <span className='send-asset-trigger__chevron' aria-hidden='true'>
                         {showAssetSelector ? '▲' : '▼'}
-                      </Text>
-                    </FlexRow>
-                  </Shadow>
-                  {showAssetSelector ? (
-                    <div style={{ maxHeight: '40vh', overflowY: 'auto', width: '100%' }}>
+                      </span>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className='send-asset-menu' align='start' side='bottom' sideOffset={8}>
                       <FlexCol gap='0.25rem'>
                         {selectedAsset ? (
-                          <Shadow onClick={() => handleSelectAsset(null)}>
-                            <FlexRow between padding='0.5rem'>
-                              <FlexRow>
-                                {btcIcon}
-                                <Text>Bitcoin (BTC)</Text>
-                              </FlexRow>
-                            </FlexRow>
-                          </Shadow>
+                          <DropdownMenuItem className='send-asset-option' onClick={() => handleSelectAsset(null)}>
+                            <span className='send-asset-option__main'>
+                              <AssetIcon asset={null} />
+                              <span>
+                                <span className='send-asset-option__name'>Bitcoin</span>
+                                <span className='send-asset-option__meta'>
+                                  {useFiat
+                                    ? prettyFiatAmount(toFiat(liquidBalance), config.fiat)
+                                    : prettyAmount(liquidBalance)}{' '}
+                                  available
+                                </span>
+                              </span>
+                            </span>
+                          </DropdownMenuItem>
                         ) : null}
                         {assetOptions
                           .filter((asset) => asset.assetId !== selectedAsset?.assetId)
                           .map((asset) => (
-                            <Shadow
+                            <DropdownMenuItem
+                              className='send-asset-option'
                               key={asset.assetId}
                               onClick={() => handleSelectAsset(asset)}
-                              testId={`asset-${asset.ticker.toLowerCase()}-option`}
+                              data-testid={`asset-${asset.ticker.toLowerCase()}-option`}
                             >
-                              <FlexRow between padding='0.5rem'>
-                                <FlexRow>
-                                  {asset.icon ? (
-                                    <img
-                                      src={asset.icon}
-                                      alt=''
-                                      width={24}
-                                      height={24}
-                                      style={{ borderRadius: '50%' }}
-                                    />
-                                  ) : (
-                                    <div
-                                      style={{
-                                        width: 24,
-                                        height: 24,
-                                        borderRadius: '50%',
-                                        background: 'var(--neutral-200)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                      }}
-                                    >
-                                      <Text smaller>{asset.ticker?.[0] ?? 'A'}</Text>
-                                    </div>
-                                  )}
-                                  <Text>
-                                    {asset.name} ({asset.ticker})
-                                  </Text>
-                                </FlexRow>
-                                <Text color='neutral-500' smaller>
-                                  {prettyAssetAmount(asset.balance, asset.decimals)} {asset.ticker}
-                                </Text>
-                              </FlexRow>
-                            </Shadow>
+                              <span className='send-asset-option__main'>
+                                <AssetIcon asset={asset} />
+                                <span>
+                                  <span className='send-asset-option__name'>{asset.ticker}</span>
+                                  <span className='send-asset-option__meta'>{asset.name}</span>
+                                </span>
+                              </span>
+                              <span className='send-asset-option__amount'>
+                                {formatAssetAmount(asset.balance, asset.decimals)} {asset.ticker}
+                              </span>
+                            </DropdownMenuItem>
                           ))}
                       </FlexCol>
-                    </div>
-                  ) : null}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </FlexCol>
               ) : null}
               <FlexCol gap='0.5rem'>

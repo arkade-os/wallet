@@ -3,28 +3,34 @@ import { options } from '../../providers/options'
 import Content from '../../components/Content'
 import { SettingsSections } from '../../lib/types'
 import Menu from '../../components/Menu'
-import { TextLabel } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
+import Padded from '../../components/Padded'
 
-export default function SettingsMenu() {
+interface SettingsMenuProps {
+  backFunc?: () => void
+}
+
+export default function SettingsMenu({ backFunc }: SettingsMenuProps) {
   // get rows for General and Security sections
   const generalRows = options.filter((o) => o.section === SettingsSections.General)
   const securityRows = options.filter((o) => o.section === SettingsSections.Security)
 
   return (
     <>
-      <Header text='Settings' />
+      <Header text='Settings' backFunc={backFunc} />
       <Content>
-        <FlexCol gap='1.25rem'>
-          <FlexCol gap='0'>
-            <TextLabel>General</TextLabel>
-            <Menu rows={generalRows} styled />
+        <Padded>
+          <FlexCol gap='1.25rem' className='settings-page'>
+            <section className='settings-section'>
+              <p className='settings-section-label'>General</p>
+              <Menu rows={generalRows} styled />
+            </section>
+            <section className='settings-section'>
+              <p className='settings-section-label'>Security</p>
+              <Menu rows={securityRows} styled />
+            </section>
           </FlexCol>
-          <FlexCol gap='0'>
-            <TextLabel>Security</TextLabel>
-            <Menu rows={securityRows} styled />
-          </FlexCol>
-        </FlexCol>
+        </Padded>
       </Content>
     </>
   )

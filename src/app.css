@@ -159,52 +159,6 @@
   --text-9xl: var(--text-9xl-size);
   --text-9xl--line-height: var(--text-9xl-line);
 
-  /*
-   * Heading / display scale — TT Firs Neue. Use text-heading-* for actual
-   * headings (h1-h6, hero text). Ships font, line-height, letter-spacing, and
-   * semi-bold weight in one utility so callers don't forget any of them.
-   */
-  --text-heading-sm: var(--heading-sm-size);
-  --text-heading-sm--line-height: var(--heading-sm-line);
-  --text-heading-sm--letter-spacing: var(--heading-sm-tracking);
-  --text-heading-sm--font-family: var(--font-heading);
-  --text-heading-sm--font-weight: 600;
-  --text-heading-md: var(--heading-md-size);
-  --text-heading-md--line-height: var(--heading-md-line);
-  --text-heading-md--letter-spacing: var(--heading-md-tracking);
-  --text-heading-md--font-family: var(--font-heading);
-  --text-heading-md--font-weight: 600;
-  --text-heading-lg: var(--heading-lg-size);
-  --text-heading-lg--line-height: var(--heading-lg-line);
-  --text-heading-lg--letter-spacing: var(--heading-lg-tracking);
-  --text-heading-lg--font-family: var(--font-heading);
-  --text-heading-lg--font-weight: 600;
-  --text-heading-xl: var(--heading-xl-size);
-  --text-heading-xl--line-height: var(--heading-xl-line);
-  --text-heading-xl--letter-spacing: var(--heading-xl-tracking);
-  --text-heading-xl--font-family: var(--font-heading);
-  --text-heading-xl--font-weight: 600;
-  --text-heading-2xl: var(--heading-2xl-size);
-  --text-heading-2xl--line-height: var(--heading-2xl-line);
-  --text-heading-2xl--letter-spacing: var(--heading-2xl-tracking);
-  --text-heading-2xl--font-family: var(--font-heading);
-  --text-heading-2xl--font-weight: 600;
-  --text-heading-3xl: var(--heading-3xl-size);
-  --text-heading-3xl--line-height: var(--heading-3xl-line);
-  --text-heading-3xl--letter-spacing: var(--heading-3xl-tracking);
-  --text-heading-3xl--font-family: var(--font-heading);
-  --text-heading-3xl--font-weight: 600;
-  --text-heading-4xl: var(--heading-4xl-size);
-  --text-heading-4xl--line-height: var(--heading-4xl-line);
-  --text-heading-4xl--letter-spacing: var(--heading-4xl-tracking);
-  --text-heading-4xl--font-family: var(--font-heading);
-  --text-heading-4xl--font-weight: 600;
-  --text-heading-5xl: var(--heading-5xl-size);
-  --text-heading-5xl--line-height: var(--heading-5xl-line);
-  --text-heading-5xl--letter-spacing: var(--heading-5xl-tracking);
-  --text-heading-5xl--font-family: var(--font-heading);
-  --text-heading-5xl--font-weight: 600;
-
   /* ======================================
    * RADIUS — source values live in tokens.css :root; @theme maps them so
    * Tailwind emits `rounded-*` utilities too.
@@ -227,6 +181,74 @@
   --shadow-md: var(--elevation-md);
   --shadow-lg: var(--elevation-lg);
   --shadow-xl: var(--elevation-xl);
+}
+
+@utility font-heading {
+  font-family: var(--font-family-heading);
+}
+
+@utility text-heading-sm {
+  font-family: var(--font-family-heading);
+  font-size: var(--heading-sm-size);
+  font-weight: 500;
+  letter-spacing: var(--heading-sm-tracking);
+  line-height: var(--heading-sm-line);
+}
+
+@utility text-heading-md {
+  font-family: var(--font-family-heading);
+  font-size: var(--heading-md-size);
+  font-weight: 500;
+  letter-spacing: var(--heading-md-tracking);
+  line-height: var(--heading-md-line);
+}
+
+@utility text-heading-lg {
+  font-family: var(--font-family-heading);
+  font-size: var(--heading-lg-size);
+  font-weight: 500;
+  letter-spacing: var(--heading-lg-tracking);
+  line-height: var(--heading-lg-line);
+}
+
+@utility text-heading-xl {
+  font-family: var(--font-family-heading);
+  font-size: var(--heading-xl-size);
+  font-weight: 500;
+  letter-spacing: var(--heading-xl-tracking);
+  line-height: var(--heading-xl-line);
+}
+
+@utility text-heading-2xl {
+  font-family: var(--font-family-heading);
+  font-size: var(--heading-2xl-size);
+  font-weight: 500;
+  letter-spacing: var(--heading-2xl-tracking);
+  line-height: var(--heading-2xl-line);
+}
+
+@utility text-heading-3xl {
+  font-family: var(--font-family-heading);
+  font-size: var(--heading-3xl-size);
+  font-weight: 500;
+  letter-spacing: var(--heading-3xl-tracking);
+  line-height: var(--heading-3xl-line);
+}
+
+@utility text-heading-4xl {
+  font-family: var(--font-family-heading);
+  font-size: var(--heading-4xl-size);
+  font-weight: 500;
+  letter-spacing: var(--heading-4xl-tracking);
+  line-height: var(--heading-4xl-line);
+}
+
+@utility text-heading-5xl {
+  font-family: var(--font-family-heading);
+  font-size: var(--heading-5xl-size);
+  font-weight: 500;
+  letter-spacing: var(--heading-5xl-tracking);
+  line-height: var(--heading-5xl-line);
 }
 
 /* ======================================
@@ -281,8 +303,6 @@
 }
 
 @theme inline {
-  --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

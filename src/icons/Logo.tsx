@@ -6,6 +6,7 @@ import { hapticLight } from '../lib/haptics'
 export default function LogoIcon({ small }: { small?: boolean }) {
   const { settled, reverting, advance, slots } = usePixelMorph()
   const size = small ? 35 : 50
+  const hitSize = small ? 44 : size
   const handleClick = useCallback(() => {
     hapticLight()
     advance()
@@ -35,7 +36,14 @@ export default function LogoIcon({ small }: { small?: boolean }) {
           handleClick()
         }
       }}
-      style={{ cursor: 'pointer', width: size, height: size, padding: 18, margin: -18 }}
+      style={{
+        alignItems: 'center',
+        cursor: 'pointer',
+        display: 'flex',
+        height: hitSize,
+        justifyContent: 'center',
+        width: hitSize,
+      }}
     >
       <svg width={size} height={size} viewBox='0 0 35 35' fill='none' xmlns='http://www.w3.org/2000/svg'>
         {/* Original SVG paths — visible when settled, fading in during revert */}

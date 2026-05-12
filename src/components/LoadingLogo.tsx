@@ -90,42 +90,44 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
       })
 
     async function runExit() {
-      if (mode === 'fly-to-target') {
-        // Wait for anchor to be mounted (may lag behind page render)
-        let target = getLogoAnchor()
-        if (!target) {
-          for (let i = 0; i < ANCHOR_RETRY_FRAMES; i++) {
-            await new Promise<void>((r) => requestAnimationFrame(() => r()))
-            target = getLogoAnchor()
-            if (target) break
+      try {
+        if (mode === 'fly-to-target') {
+          // Wait for anchor to be mounted (may lag behind page render)
+          let target = getLogoAnchor()
+          if (!target) {
+            for (let i = 0; i < ANCHOR_RETRY_FRAMES; i++) {
+              await new Promise<void>((r) => requestAnimationFrame(() => r()))
+              target = getLogoAnchor()
+              if (target) break
+            }
           }
-        }
-        const container = containerRef.current
-        if (target && container) {
-          const targetRect = target.getBoundingClientRect()
-          const containerRect = container.getBoundingClientRect()
+          const container = containerRef.current
+          if (target && container) {
+            const targetRect = target.getBoundingClientRect()
+            const containerRect = container.getBoundingClientRect()
 
-          const dx = targetRect.left + targetRect.width / 2 - (containerRect.left + containerRect.width / 2)
-          const dy = targetRect.top + targetRect.height / 2 - (containerRect.top + containerRect.height / 2)
-          const targetScale = Math.min(targetRect.width, targetRect.height) / LARGE_SIZE
+            const dx = targetRect.left + targetRect.width / 2 - (containerRect.left + containerRect.width / 2)
+            const dy = targetRect.top + targetRect.height / 2 - (containerRect.top + containerRect.height / 2)
+            const targetScale = Math.min(targetRect.width, targetRect.height) / LARGE_SIZE
 
-          // Fly to the logo position (background stays opaque throughout)
-          await flyControlsRef.current.start({
-            x: dx,
-            y: dy,
-            scale: targetScale,
-            opacity: 1,
-            transition: { duration: 0.4, ease: EASE_IN_OUT_QUINT_TUPLE },
-          })
+            // Fly to the logo position (background stays opaque throughout)
+            await flyControlsRef.current.start({
+              x: dx,
+              y: dy,
+              scale: targetScale,
+              opacity: 1,
+              transition: { duration: 0.4, ease: EASE_IN_OUT_QUINT_TUPLE },
+            })
+          } else {
+            await flyUp()
+          }
         } else {
           await flyUp()
         }
-      } else {
-        await flyUp()
+      } finally {
+        setVisible(false)
+        onExitCompleteRef.current?.()
       }
-
-      setVisible(false)
-      onExitCompleteRef.current?.()
     }
 
     runExit()
