@@ -139,7 +139,7 @@ export default function Transaction() {
         <FlexCol>
           <ErrorMessage error={Boolean(error)} text={error} />
           {settling ? (
-            <Info color='purple' icon={<LoadingIcon small />} title='Settling'>
+            <Info color='purpletext' icon={<LoadingIcon small />} title='Settling'>
               <Text wrap>{boardingTx ? 'Processing your boarding transaction...' : 'Settling transaction...'}</Text>
             </Info>
           ) : null}
