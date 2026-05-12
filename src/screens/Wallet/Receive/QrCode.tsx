@@ -458,7 +458,11 @@ export default function ReceiveQRCode() {
 
       <ButtonsOnBottom>
         <FlexRow gap='0.75rem'>
-          <Button label={amountLabel} onClick={() => setShowAmountSheet(true)} secondary />
+          <Button
+            label={amountLabel}
+            onClick={() => (isMobileBrowser ? setShowKeys(true) : setShowAmountSheet(true))}
+            secondary
+          />
           <Button label='Copy' onClick={() => setShowCopySheet(true)} secondary />
         </FlexRow>
         <Button label='Share' onClick={handleShare} disabled={shareDisabled} />

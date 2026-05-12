@@ -170,7 +170,7 @@ iframe {
   &.copy {
     aspect-ratio: 1;
     align-items: center;
-    background: var(--neutral-50);
+    background: var(--neutral-100);
     box-shadow: none;
     color: var(--neutral-300);
     cursor: pointer;
