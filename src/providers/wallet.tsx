@@ -47,6 +47,17 @@ import { IndexedDbSwapRepository, migrateToSwapRepository, Network } from '@arka
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
 const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
 
+interface InitSvcWorkerWalletParams {
+  arkServerUrl: string
+  esploraUrl?: string
+  privateKey?: string
+  identity?: SingleKey
+  skipMigration?: boolean
+  retryCount?: number
+  maxRetries?: number
+  delegatorUrl?: string
+}
+
 const defaultWallet: Wallet = {
   network: '',
   nextRollover: 0,
@@ -137,6 +148,32 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const statusPingInterval = useRef<ReturnType<typeof setInterval>>()
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const swMessageHandlerRef = useRef<(event: MessageEvent) => void>()
+  const reinitInProgress = useRef(false)
+  const walletGeneration = useRef(0)
+  const walletGenerationInvalidatedBy = useRef<'init' | 'lock-reset'>('init')
+  const reinitSvcWalletRef = useRef<((identity: SingleKey) => Promise<void>) | null>(null)
+
+  const bumpWalletGeneration = (reason: 'init' | 'lock-reset') => {
+    walletGenerationInvalidatedBy.current = reason
+    walletGeneration.current = (walletGeneration.current + 1) >>> 0
+    return walletGeneration.current
+  }
+
+  const clearStaleSvcWallet = async (staleSvcWallet: ServiceWorkerWallet, generation: number) => {
+    if (generation === walletGeneration.current) return
+    if (walletGenerationInvalidatedBy.current !== 'lock-reset') return
+    try {
+      await staleSvcWallet.clear()
+    } catch (err) {
+      consoleError(err, 'Error clearing stale service worker wallet')
+    }
+  }
+
+  const removeServiceWorkerMessageHandler = (handler = swMessageHandlerRef.current) => {
+    if (!handler) return
+    navigator.serviceWorker.removeEventListener('message', handler)
+    if (swMessageHandlerRef.current === handler) swMessageHandlerRef.current = undefined
+  }
 
   const setCacheEntry = (assetId: string, details: AssetDetails): CachedAssetDetails => {
     const hasIcon = !!details.metadata?.icon
@@ -339,21 +376,21 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setDataReady(true)
   }
 
-  const initSvcWorkerWallet = async ({
-    arkServerUrl,
-    esploraUrl,
-    privateKey,
-    retryCount = 0,
-    maxRetries = 2,
-    delegatorUrl,
-  }: {
-    arkServerUrl: string
-    esploraUrl?: string
-    privateKey: string
-    retryCount?: number
-    maxRetries?: number
-    delegatorUrl?: string
-  }) => {
+  const initSvcWorkerWallet = async (params: InitSvcWorkerWalletParams): Promise<boolean> => {
+    const identity = params.identity ?? (params.privateKey ? SingleKey.fromHex(params.privateKey) : undefined)
+    if (!identity) throw new Error('initSvcWorkerWallet requires identity or privateKey')
+    const generation = bumpWalletGeneration('init')
+    return runInitAttempt(generation, identity, params)
+  }
+
+  // Retries inherit the generation minted by the top-level call so that a
+  // lock/reset that fires between retries is still detected via the mismatch.
+  const runInitAttempt = async (
+    generation: number,
+    identity: SingleKey,
+    params: InitSvcWorkerWalletParams,
+  ): Promise<boolean> => {
+    const { arkServerUrl, esploraUrl, skipMigration = false, retryCount = 0, maxRetries = 2, delegatorUrl } = params
     try {
       setLoadingStatus('Starting wallet...')
       const walletRepository = new IndexedDBWalletRepository()
@@ -389,7 +426,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setLoadingStatus('Connecting to service worker...')
       const svcWallet = await ServiceWorkerWallet.setup({
         serviceWorkerPath: '/wallet-service-worker.mjs',
-        identity: SingleKey.fromHex(privateKey),
+        identity,
         arkServerUrl,
         esploraUrl,
         delegatorUrl,
@@ -403,32 +440,47 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         settlementConfig: { vtxoThreshold: wallet.thresholdMs ? Math.floor(wallet.thresholdMs / 1000) : 1 },
       })
 
-      // Migration!
-      setLoadingStatus('Migrating data...')
-      try {
-        const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
-        const walletStatus = await getMigrationStatus('wallet', oldStorage)
-        if (walletStatus !== 'not-needed') {
-          if (walletStatus === 'pending' || walletStatus === 'in-progress') {
-            const arkAddress = await svcWallet.getAddress()
-            const boardingAddress = await svcWallet.getBoardingAddress()
-            try {
-              await migrateWalletRepository(oldStorage, svcWallet.walletRepository, {
-                offchain: [arkAddress],
-                onchain: [boardingAddress],
-              })
-            } catch (err) {
-              await rollbackMigration('wallet', oldStorage)
-              throw err
+      if (generation !== walletGeneration.current) {
+        await clearStaleSvcWallet(svcWallet, generation)
+        return false
+      }
+
+      if (!skipMigration) {
+        setLoadingStatus('Migrating data...')
+        try {
+          const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
+          const walletStatus = await getMigrationStatus('wallet', oldStorage)
+          if (walletStatus !== 'not-needed') {
+            if (walletStatus === 'pending' || walletStatus === 'in-progress') {
+              const arkAddress = await svcWallet.getAddress()
+              const boardingAddress = await svcWallet.getBoardingAddress()
+              try {
+                await migrateWalletRepository(oldStorage, svcWallet.walletRepository, {
+                  offchain: [arkAddress],
+                  onchain: [boardingAddress],
+                })
+              } catch (err) {
+                await rollbackMigration('wallet', oldStorage)
+                throw err
+              }
             }
+            await migrateToSwapRepository(oldStorage, new IndexedDbSwapRepository())
           }
-          await migrateToSwapRepository(oldStorage, new IndexedDbSwapRepository())
+        } catch (err) {
+          consoleError(err, 'Error migrating wallet repository')
         }
-      } catch (err) {
-        consoleError(err, 'Error migrating wallet repository')
+      }
+
+      if (generation !== walletGeneration.current) {
+        await clearStaleSvcWallet(svcWallet, generation)
+        return false
       }
 
       const vtxoMgr = await svcWallet.getVtxoManager()
+      if (generation !== walletGeneration.current) {
+        await clearStaleSvcWallet(svcWallet, generation)
+        return false
+      }
       setSvcWallet(svcWallet)
       setVtxoManager(vtxoMgr)
 
@@ -449,23 +501,45 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       // listen for messages from the service worker
       if (swMessageHandlerRef.current) {
-        navigator.serviceWorker.removeEventListener('message', swMessageHandlerRef.current)
+        removeServiceWorkerMessageHandler(swMessageHandlerRef.current)
       }
       navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
       swMessageHandlerRef.current = handleServiceWorkerMessages
 
       // check if the service worker wallet is initialized
       const { walletInitialized } = await svcWallet.getStatus()
+      if (generation !== walletGeneration.current) {
+        removeServiceWorkerMessageHandler(handleServiceWorkerMessages)
+        await clearStaleSvcWallet(svcWallet, generation)
+        return false
+      }
       setInitialized(walletInitialized)
 
       // ping the service worker wallet status every 1 second
       if (statusPingInterval.current) clearInterval(statusPingInterval.current)
+      let consecutivePingFailures = 0
+      let pingInProgress = false
       statusPingInterval.current = setInterval(async () => {
+        if (pingInProgress) return
+        pingInProgress = true
         try {
-          const { walletInitialized } = await svcWallet.getStatus()
-          setInitialized(walletInitialized)
+          const statusTimeout = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('status ping timed out')), 3_000),
+          )
+          const { walletInitialized } = await Promise.race([svcWallet.getStatus(), statusTimeout])
+          consecutivePingFailures = 0
+          if (generation === walletGeneration.current) setInitialized(walletInitialized)
         } catch (err) {
           consoleError(err, 'Error pinging wallet status')
+          consecutivePingFailures++
+          // Guard with generation so a stale in-flight ping from a dead session
+          // cannot clear the new session's interval or trigger a reinit.
+          if (consecutivePingFailures >= 3 && generation === walletGeneration.current) {
+            clearInterval(statusPingInterval.current)
+            reinitSvcWalletRef.current?.(identity)
+          }
+        } finally {
+          pingInProgress = false
         }
       }, 1_000)
 
@@ -475,7 +549,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (!config.delegate) {
         vtxoMgr.renewVtxos().catch(() => {})
       }
+      return true
     } catch (err) {
+      if (generation !== walletGeneration.current) return false
+
       const isTimeoutError =
         err instanceof Error &&
         (err.message.includes('Service worker activation timed out') || err.message.includes('MessageBus timed out'))
@@ -491,14 +568,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           'Service worker activation retry',
         )
         await new Promise((resolve) => setTimeout(resolve, delay))
-        return initSvcWorkerWallet({
-          arkServerUrl,
-          esploraUrl,
-          privateKey,
-          retryCount: retryCount + 1,
-          maxRetries,
-          delegatorUrl,
-        })
+        if (generation !== walletGeneration.current) return false
+        return runInitAttempt(generation, identity, { ...params, retryCount: retryCount + 1 })
       }
 
       // If we are here, either retries are exhausted or it's a different error.
@@ -526,12 +597,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const pubkey = hex.encode(secp.getPublicKey(privateKey))
     updateConfig({ ...config, pubkey })
     const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
-    await initSvcWorkerWallet({
+    const initialized = await initSvcWorkerWallet({
       privateKey: hex.encode(privateKey),
       arkServerUrl,
       esploraUrl,
       delegatorUrl,
     })
+    if (!initialized) return
     updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
   }
@@ -577,13 +649,51 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       arkServerUrl,
       esploraUrl,
       delegatorUrl,
+      skipMigration: true,
     })
   }
 
+  // Self-heal when the SW dies: re-run setup with the existing identity so
+  // SwapsProvider and other consumers re-bind via setSvcWallet, instead of
+  // reloading the page (which would discard FlowProvider state and UI context).
+  // Identity is passed in by the caller because the setInterval that triggers
+  // reinit captures this closure from the render before svcWallet state was
+  // populated.
+  const reinitSvcWallet = async (identity: SingleKey) => {
+    if (reinitInProgress.current) return
+    reinitInProgress.current = true
+    try {
+      const arkServerUrl = aspInfo.url
+      const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
+      const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(aspInfo.network as Network).url : undefined
+      const initialized = await initSvcWorkerWallet({
+        identity,
+        arkServerUrl,
+        esploraUrl,
+        delegatorUrl,
+        skipMigration: true,
+      })
+      if (!initialized) return
+    } catch (err) {
+      consoleError(err, 'SW reinit failed; falling back to full reload')
+      window.location.reload()
+    } finally {
+      reinitInProgress.current = false
+    }
+  }
+
+  useEffect(() => {
+    reinitSvcWalletRef.current = reinitSvcWallet
+  })
+
   const lockWallet = async () => {
+    bumpWalletGeneration('lock-reset')
     if (!svcWallet) throw new Error('Service worker not initialized')
     if (statusPingInterval.current) clearInterval(statusPingInterval.current)
     statusPingInterval.current = undefined
+    clearTimeout(reloadTimerRef.current)
+    reloadTimerRef.current = undefined
+    removeServiceWorkerMessageHandler()
     await svcWallet.clear()
     setAuthState('locked')
     setInitialized(false)
@@ -592,6 +702,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const resetWallet = async () => {
+    bumpWalletGeneration('lock-reset')
+    if (statusPingInterval.current) clearInterval(statusPingInterval.current)
+    statusPingInterval.current = undefined
+    clearTimeout(reloadTimerRef.current)
+    reloadTimerRef.current = undefined
+    removeServiceWorkerMessageHandler()
     if (!svcWallet) throw new Error('Service worker not initialized')
     await clearStorage()
     await svcWallet.clear()
