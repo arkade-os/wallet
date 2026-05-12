@@ -149,21 +149,27 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const swMessageHandlerRef = useRef<(event: MessageEvent) => void>()
   const reinitInProgress = useRef(false)
-  const walletGeneration = useRef(0)
-  const walletGenerationInvalidatedBy = useRef<'init' | 'lock-reset'>('init')
+  const initAbortRef = useRef<AbortController | null>(null)
   const reinitSvcWalletRef = useRef<((identity: SingleKey) => Promise<void>) | null>(null)
 
-  const bumpWalletGeneration = (reason: 'init' | 'lock-reset') => {
-    walletGenerationInvalidatedBy.current = reason
-    walletGeneration.current = (walletGeneration.current + 1) >>> 0
-    return walletGeneration.current
+  // Each init gets its own AbortSignal; lock/reset aborts the current signal
+  // with 'lock-reset' so stale paths can decide whether to tear down the SW.
+  // A new init aborts the previous with 'init', which means "abandon, don't clear".
+  const startInitSession = (): AbortSignal => {
+    initAbortRef.current?.abort('init')
+    initAbortRef.current = new AbortController()
+    return initAbortRef.current.signal
   }
 
-  const clearStaleSvcWallet = async (staleSvcWallet: ServiceWorkerWallet, generation: number) => {
-    if (generation === walletGeneration.current) return
-    if (walletGenerationInvalidatedBy.current !== 'lock-reset') return
+  const abortInitSession = () => {
+    initAbortRef.current?.abort('lock-reset')
+    initAbortRef.current = null
+  }
+
+  const clearIfLockReset = async (svcWallet: ServiceWorkerWallet, signal: AbortSignal) => {
+    if (!signal.aborted || signal.reason !== 'lock-reset') return
     try {
-      await staleSvcWallet.clear()
+      await svcWallet.clear()
     } catch (err) {
       consoleError(err, 'Error clearing stale service worker wallet')
     }
@@ -379,14 +385,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const initSvcWorkerWallet = async (params: InitSvcWorkerWalletParams): Promise<boolean> => {
     const identity = params.identity ?? (params.privateKey ? SingleKey.fromHex(params.privateKey) : undefined)
     if (!identity) throw new Error('initSvcWorkerWallet requires identity or privateKey')
-    const generation = bumpWalletGeneration('init')
-    return runInitAttempt(generation, identity, params)
+    const signal = startInitSession()
+    return runInitAttempt(signal, identity, params)
   }
 
-  // Retries inherit the generation minted by the top-level call so that a
-  // lock/reset that fires between retries is still detected via the mismatch.
+  // Retries inherit the signal minted by the top-level call so a lock/reset
+  // that fires between retries is observable via signal.aborted.
   const runInitAttempt = async (
-    generation: number,
+    signal: AbortSignal,
     identity: SingleKey,
     params: InitSvcWorkerWalletParams,
   ): Promise<boolean> => {
@@ -440,11 +446,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         settlementConfig: { vtxoThreshold: wallet.thresholdMs ? Math.floor(wallet.thresholdMs / 1000) : 1 },
       })
 
-      if (generation !== walletGeneration.current) {
-        await clearStaleSvcWallet(svcWallet, generation)
-        return false
-      }
-
       if (!skipMigration) {
         setLoadingStatus('Migrating data...')
         try {
@@ -471,18 +472,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      if (generation !== walletGeneration.current) {
-        await clearStaleSvcWallet(svcWallet, generation)
+      const vtxoMgr = await svcWallet.getVtxoManager()
+      const { walletInitialized } = await svcWallet.getStatus()
+
+      // Single checkpoint before any state/listener commits. Migration and
+      // getVtxoManager/getStatus are side-effect-free w.r.t. React/DOM, so
+      // running them after an abort is wasteful but safe.
+      if (signal.aborted) {
+        await clearIfLockReset(svcWallet, signal)
         return false
       }
 
-      const vtxoMgr = await svcWallet.getVtxoManager()
-      if (generation !== walletGeneration.current) {
-        await clearStaleSvcWallet(svcWallet, generation)
-        return false
-      }
       setSvcWallet(svcWallet)
       setVtxoManager(vtxoMgr)
+      setInitialized(walletInitialized)
 
       // Cancel any pending reload from a previous wallet instance
       clearTimeout(reloadTimerRef.current)
@@ -499,21 +502,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      // listen for messages from the service worker
       if (swMessageHandlerRef.current) {
         removeServiceWorkerMessageHandler(swMessageHandlerRef.current)
       }
       navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
       swMessageHandlerRef.current = handleServiceWorkerMessages
-
-      // check if the service worker wallet is initialized
-      const { walletInitialized } = await svcWallet.getStatus()
-      if (generation !== walletGeneration.current) {
-        removeServiceWorkerMessageHandler(handleServiceWorkerMessages)
-        await clearStaleSvcWallet(svcWallet, generation)
-        return false
-      }
-      setInitialized(walletInitialized)
 
       // ping the service worker wallet status every 1 second
       if (statusPingInterval.current) clearInterval(statusPingInterval.current)
@@ -528,13 +521,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           )
           const { walletInitialized } = await Promise.race([svcWallet.getStatus(), statusTimeout])
           consecutivePingFailures = 0
-          if (generation === walletGeneration.current) setInitialized(walletInitialized)
+          if (!signal.aborted) setInitialized(walletInitialized)
         } catch (err) {
           consoleError(err, 'Error pinging wallet status')
           consecutivePingFailures++
-          // Guard with generation so a stale in-flight ping from a dead session
+          // Guard with signal so a stale in-flight ping from a dead session
           // cannot clear the new session's interval or trigger a reinit.
-          if (consecutivePingFailures >= 3 && generation === walletGeneration.current) {
+          if (consecutivePingFailures >= 3 && !signal.aborted) {
             clearInterval(statusPingInterval.current)
             reinitSvcWalletRef.current?.(identity)
           }
@@ -551,7 +544,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
       return true
     } catch (err) {
-      if (generation !== walletGeneration.current) return false
+      if (signal.aborted) return false
 
       const isTimeoutError =
         err instanceof Error &&
@@ -568,8 +561,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           'Service worker activation retry',
         )
         await new Promise((resolve) => setTimeout(resolve, delay))
-        if (generation !== walletGeneration.current) return false
-        return runInitAttempt(generation, identity, { ...params, retryCount: retryCount + 1 })
+        if (signal.aborted) return false
+        return runInitAttempt(signal, identity, { ...params, retryCount: retryCount + 1 })
       }
 
       // If we are here, either retries are exhausted or it's a different error.
@@ -687,7 +680,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   })
 
   const lockWallet = async () => {
-    bumpWalletGeneration('lock-reset')
+    abortInitSession()
     if (!svcWallet) throw new Error('Service worker not initialized')
     if (statusPingInterval.current) clearInterval(statusPingInterval.current)
     statusPingInterval.current = undefined
@@ -702,7 +695,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const resetWallet = async () => {
-    bumpWalletGeneration('lock-reset')
+    abortInitSession()
     if (statusPingInterval.current) clearInterval(statusPingInterval.current)
     statusPingInterval.current = undefined
     clearTimeout(reloadTimerRef.current)
