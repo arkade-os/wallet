@@ -165,6 +165,8 @@ const TransactionLine = ({
 }
 
 interface TransactionsListProps {
+  /** Show only transactions for a specific asset. Use 'btc' for bitcoin-only activity. */
+  assetIdFilter?: string
   /** Override the default title. Pass '' to hide it. */
   title?: string
   /** 'virtual' (default) uses virtualization; 'static' renders a simple list. */
@@ -173,11 +175,13 @@ interface TransactionsListProps {
   limit?: number
 }
 
-export default function TransactionsList({ mode = 'virtual', limit }: TransactionsListProps = {}) {
+export default function TransactionsList({ assetIdFilter, mode = 'virtual', limit }: TransactionsListProps = {}) {
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { assetMetadataCache, txs: allTxs } = useContext(WalletContext)
-  const visibleTxs = allTxs.filter((tx) => !shouldHideDevPrototypeTx(tx, assetMetadataCache))
+  const visibleTxs = allTxs
+    .filter((tx) => !shouldHideDevPrototypeTx(tx, assetMetadataCache))
+    .filter((tx) => matchesAssetFilter(tx, assetIdFilter))
   const txs = mode === 'static' && limit ? visibleTxs.slice(0, limit) : visibleTxs
 
   const focusedRef = useRef(false)
@@ -191,8 +195,10 @@ export default function TransactionsList({ mode = 'virtual', limit }: Transactio
     overscan: 5,
   })
 
-  const key = (tx: Tx, index: number) =>
-    [tx.roundTxid, tx.redeemTxid, tx.boardingTxid].filter(Boolean).join('-') || `tx-${index}`
+  const key = (tx: Tx, index: number) => {
+    const txKey = [tx.roundTxid, tx.redeemTxid, tx.boardingTxid].filter(Boolean).join('-') || 'tx'
+    return `${txKey}-${index}`
+  }
 
   const focusRow = (index: number) => {
     if (index < 0 || index >= txs.length) return
@@ -311,6 +317,12 @@ export default function TransactionsList({ mode = 'virtual', limit }: Transactio
       </div>
     </Focusable>
   )
+}
+
+function matchesAssetFilter(tx: Tx, assetIdFilter?: string): boolean {
+  if (!assetIdFilter) return true
+  if (assetIdFilter === 'btc') return !tx.assets?.length && tx.amount !== 0
+  return tx.assets?.some((asset) => asset.assetId === assetIdFilter) ?? false
 }
 
 function TransactionAssetAvatar({ assetId, icon, ticker }: { assetId: string; icon?: string; ticker?: string }) {

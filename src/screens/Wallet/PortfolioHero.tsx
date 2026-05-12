@@ -29,7 +29,7 @@ const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function Po
           willChange: clampedProgress > 0 && clampedProgress < 1 ? 'transform, opacity' : 'auto',
         }}
       >
-        <PrivacyAmount className='text-heading-xl' masked={maskedBalance} testId='main-balance'>
+        <PrivacyAmount className='text-heading-xl' masked={maskedBalance} testId='main-balance' interactive>
           {balance}
         </PrivacyAmount>
         {unit ? <span className='text-xl'>{unit}</span> : null}

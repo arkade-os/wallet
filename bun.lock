@@ -5,7 +5,7 @@
     "": {
       "name": "arkade",
       "dependencies": {
-        "@arkade-os/boltz-swap": "0.3.23",
+        "@arkade-os/boltz-swap": "0.3.24",
         "@arkade-os/sdk": "0.4.22",
         "@base-ui/react": "^1.4.1",
         "@branta-ops/branta": "0.0.9",
@@ -30,6 +30,7 @@
         "framer-motion": "^12.34.3",
         "input-otp": "^1.4.2",
         "light-bolt11-decoder": "^3.2.0",
+        "liveline": "^0.0.7",
         "lucide-react": "^0.575.0",
         "nostr-tools": "^2.12.0",
         "qr": "^0.5.2",
@@ -88,7 +89,7 @@
   "packages": {
     "@adobe/css-tools": ["@adobe/css-tools@4.4.4", "", {}, "sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg=="],
 
-    "@arkade-os/boltz-swap": ["@arkade-os/boltz-swap@0.3.23", "", { "dependencies": { "@arkade-os/sdk": "0.4.22", "@noble/curves": "2.0.1", "@noble/hashes": "2.0.1", "@scure/base": "2.0.0", "@scure/btc-signer": "2.0.1", "bip68": "1.0.4", "light-bolt11-decoder": "3.2.0" } }, "sha512-ZBGUInq0RU88UwVkaDCxmTUST5iQcgTM5UWJqKdihYHXk3Q0+yt/HSCau5j6xHHmfR7TXGwCF0URAGWZkVxxZg=="],
+    "@arkade-os/boltz-swap": ["@arkade-os/boltz-swap@0.3.24", "", { "dependencies": { "@arkade-os/sdk": "0.4.22", "@noble/curves": "^2.0.1", "@noble/hashes": "2.0.1", "@scure/base": "2.0.0", "@scure/btc-signer": "2.0.1", "bip68": "^1.0.4", "light-bolt11-decoder": "3.2.0" } }, "sha512-V8QOK5jYCHKcfEpLQEsHtQWtjjZBHlf0IJSTZUUJdE8PNHetRMeXdnMbo6kGMgy7lpdOev7rvMSRR0+PmMHoMA=="],
 
     "@arkade-os/sdk": ["@arkade-os/sdk@0.4.22", "", { "dependencies": { "@bitcoinerlab/descriptors-scure": "3.1.7", "@marcbachmann/cel-js": "7.3.1", "@noble/curves": "2.0.1", "@noble/secp256k1": "3.0.0", "@scure/base": "2.0.0", "@scure/bip39": "2.0.1", "@scure/btc-signer": "2.0.1", "bip68": "1.0.4", "ws-electrumx-client": "1.0.5" } }, "sha512-MARRLuDN359DYa5Y4BXtC/zakqDmWU3ipalbCEpubSH1i3xp1o7EUjzsAYETLHXTenxyft+NZ0IloQthULMRRg=="],
 
@@ -1243,6 +1244,8 @@
     "lightningcss-win32-x64-msvc": ["lightningcss-win32-x64-msvc@1.32.0", "", { "os": "win32", "cpu": "x64" }, "sha512-Amq9B/SoZYdDi1kFrojnoqPLxYhQ4Wo5XiL8EVJrVsB8ARoC1PWW6VGtT0WKCemjy8aC+louJnjS7U18x3b06Q=="],
 
     "lines-and-columns": ["lines-and-columns@1.2.4", "", {}, "sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg=="],
+
+    "liveline": ["liveline@0.0.7", "", { "peerDependencies": { "react": ">=18" } }, "sha512-S1Weo1kmefiOCNaW/WFXErqJXlV8A/ldIkIthaOeT57I2ZhqhKLKQDJ1wfabtMSK9vJeU8PeMNHd8Sr8TLByWQ=="],
 
     "locate-path": ["locate-path@6.0.0", "", { "dependencies": { "p-locate": "5.0.0" } }, "sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw=="],
 

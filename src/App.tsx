@@ -217,6 +217,16 @@ export default function App() {
     }
   }, [page, bootAnimActive, bootAnimDone, hasDevAutoInit])
 
+  useEffect(() => {
+    if (!bootAnimActive || page === Pages.Loading) return
+
+    const timer = window.setTimeout(() => {
+      updateBootAnim(false)
+    }, 1_500)
+
+    return () => window.clearTimeout(timer)
+  }, [bootAnimActive, page, updateBootAnim])
+
   const handleBootAnimComplete = useCallback(() => {
     updateBootAnim(false)
   }, [updateBootAnim])

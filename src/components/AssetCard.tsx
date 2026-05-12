@@ -88,15 +88,21 @@ export default function AssetCard({
 
   // Interactive row with tap feedback
   return (
-    <button
-      type='button'
+    <div
+      role='button'
+      tabIndex={0}
       onClick={handleClick}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        event.preventDefault()
+        handleClick?.()
+      }}
       data-testid={`asset-row-${assetId || 'btc'}`}
       className={`${baseClasses} asset-card--interactive`}
       style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
     >
       {content}
-    </button>
+    </div>
   )
 }
 

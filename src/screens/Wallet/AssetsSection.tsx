@@ -15,8 +15,6 @@ export default function AssetsSection() {
   const { rows } = usePortfolioFiat()
 
   const handleRowClick = (assetId: string) => () => {
-    // BTC row is non-interactive (no detail screen)
-    if (assetId === 'btc') return
     // Haptic is fired by AssetCard, no need to duplicate here
     setAssetInfo({ assetId, supply: 0 })
     navigate(Pages.AppAssetDetail)
@@ -48,7 +46,7 @@ export default function AssetsSection() {
               decimals={row.decimals}
               balance={row.balance}
               fiatText={row.hasFiatPrice ? fiatLabel(row.fiatAmount) : undefined}
-              onClick={isBtc ? undefined : handleRowClick(row.assetId)}
+              onClick={handleRowClick(row.assetId)}
             />
           )
         })}

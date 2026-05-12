@@ -98,7 +98,7 @@ const pageTab = {
   [Pages.AppLendasat]: Tabs.Apps,
   [Pages.AppLendaswap]: Tabs.Apps,
   [Pages.AppAssets]: Tabs.Apps,
-  [Pages.AppAssetDetail]: Tabs.Apps,
+  [Pages.AppAssetDetail]: Tabs.Wallet,
   [Pages.AppAssetImport]: Tabs.Apps,
   [Pages.AppAssetMint]: Tabs.Apps,
   [Pages.AppAssetMintSuccess]: Tabs.Apps,
