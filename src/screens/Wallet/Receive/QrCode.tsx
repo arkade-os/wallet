@@ -173,7 +173,7 @@ export default function ReceiveQRCode() {
     const ark = validVtxoTx(sats) && vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
     const btc = validUtxoTx(sats) && utxoTxsAllowed() ? swapAddress || recvInfo.boardingAddr : ''
     const bip21 = isAssetReceive
-      ? encodeBip21Asset(ark, assetId, centsToUnits(sats, assetMeta?.metadata?.decimals))
+      ? encodeBip21Asset(ark, assetId, Number(centsToUnits(BigInt(sats), assetMeta?.metadata?.decimals)))
       : encodeBip21(btc, ark, invoice, sats, lnurlSession.lnurl)
 
     return { ark, btc, bip21 }
@@ -331,13 +331,13 @@ export default function ReceiveQRCode() {
 
   const handleAmountChange = (sats: number) => {
     setAmountInput(sats)
-    const value = assetMeta ? centsToUnits(sats, assetMeta.metadata?.decimals) : useFiat ? toFiat(sats) : sats
+    const value = assetMeta ? centsToUnits(BigInt(sats), assetMeta.metadata?.decimals) : useFiat ? toFiat(sats) : sats
     const maximumFractionDigits = useFiat
       ? fiatDecimals()
       : assetMeta?.metadata?.decimals
         ? assetMeta?.metadata?.decimals
         : 0
-    setAmountTextValue(prettyNumber(value, maximumFractionDigits, false))
+    setAmountTextValue(prettyNumber(Number(value), maximumFractionDigits, false))
   }
 
   const handleAmountConfirm = (sats = amountInput) => {
@@ -362,7 +362,7 @@ export default function ReceiveQRCode() {
     assetId: assetId ?? '',
     name: assetMeta?.metadata?.name ?? '',
     ticker: assetMeta?.metadata?.ticker ?? '',
-    balance: 0,
+    balance: BigInt(0),
     decimals: assetMeta?.metadata?.decimals ?? 0,
     icon: assetMeta?.metadata?.icon,
   }
@@ -437,12 +437,12 @@ export default function ReceiveQRCode() {
                     <QrCode value={qrCodeValue} />
                   </button>
                   {satoshis > 0 ? (
-                    <div style={{ fontSize: '14px', color: 'var(--dark50)', marginTop: '0.5rem' }}>
+                    <div style={{ fontSize: '14px', color: 'var(--neutral-500)', marginTop: '0.5rem' }}>
                       Requesting {prettyNumber(satoshis)} {unitLabel}
                     </div>
                   ) : null}
                   {(!satoshis || satoshis < minSwapAllowed()) && !isAssetReceive ? (
-                    <div style={{ fontSize: '13px', color: 'var(--dark50)', marginTop: '0.25rem' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--neutral-500)', marginTop: '0.25rem' }}>
                       {minSwapAllowed()} sats min for Lightning
                     </div>
                   ) : null}
@@ -457,13 +457,11 @@ export default function ReceiveQRCode() {
       </Content>
 
       <ButtonsOnBottom>
-        <FlexCol gap='0.75rem'>
-          <FlexRow gap='0.5rem'>
-            <Button label={amountLabel} onClick={() => setShowAmountSheet(true)} secondary />
-            <Button label='Copy' onClick={() => setShowCopySheet(true)} secondary />
-          </FlexRow>
-          <Button label='Share' onClick={handleShare} disabled={shareDisabled} />
-        </FlexCol>
+        <FlexRow gap='0.75rem'>
+          <Button label={amountLabel} onClick={() => setShowAmountSheet(true)} secondary />
+          <Button label='Copy' onClick={() => setShowCopySheet(true)} secondary />
+        </FlexRow>
+        <Button label='Share' onClick={handleShare} disabled={shareDisabled} />
       </ButtonsOnBottom>
 
       {/* Amount bottom sheet */}
@@ -616,31 +614,17 @@ function AddressLine({
           <TextSecondary>{title}</TextSecondary>
           <Text>{prettyLongText(value, 12)}</Text>
         </FlexCol>
-        <button
-          type='button'
-          aria-label={`Copy ${title}`}
-          data-testid={testId + '-address-copy'}
+        <Button
+          copy
+          ariaLabel={`Copy ${title}`}
+          testId={testId + '-address-copy'}
           onClick={(event) => {
             event.stopPropagation()
             onCopy(value)
           }}
-          style={{
-            alignItems: 'center',
-            background: 'var(--dark05)',
-            border: 'none',
-            borderRadius: '8px',
-            color: 'var(--dark30)',
-            cursor: 'pointer',
-            display: 'flex',
-            justifyContent: 'center',
-            minWidth: '44px',
-            minHeight: '44px',
-            padding: 0,
-            touchAction: 'manipulation',
-          }}
         >
           {copied === value ? <CheckMarkIcon /> : <CopyIcon />}
-        </button>
+        </Button>
       </FlexRow>
     </Focusable>
   )

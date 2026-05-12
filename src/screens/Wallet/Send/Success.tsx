@@ -8,16 +8,15 @@ import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Success from '../../../components/Success'
 import FlexCol from '../../../components/FlexCol'
-import FlexRow from '../../../components/FlexRow'
 import Padded from '../../../components/Padded'
-import Shadow from '../../../components/Shadow'
 import Text from '../../../components/Text'
-import AssetAvatar from '../../../components/AssetAvatar'
 import SuccessIcon from '../../../icons/Success'
-import { formatAssetAmount, prettyAmount, prettyFiatAmount } from '../../../lib/format'
+import { prettyAmount, prettyFiatAmount } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
+import AssetCard from '../../../components/AssetCard'
+import { prettyAssetAmount } from '../../../lib/assets'
 
 export default function SendSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
@@ -33,7 +32,7 @@ export default function SendSuccess() {
   const assetName = assetMeta?.metadata?.name ?? 'Unknown Asset'
   const assetTicker = assetMeta?.metadata?.ticker ?? ''
   const assetIcon = assetMeta?.metadata?.icon
-  const assetAmountValue = sendInfo.assets?.[0]?.amount ?? 0
+  const assetAmountValue = sendInfo.assets?.[0]?.amount ?? BigInt(0)
   const assetDecimals = assetMeta?.metadata?.decimals ?? 8
 
   // Show payment sent notification
@@ -43,12 +42,12 @@ export default function SendSuccess() {
 
   const totalSats = sendInfo.total ?? 0
   const displayAmount = isAssetSend
-    ? `${formatAssetAmount(assetAmountValue, assetDecimals)} ${assetTicker}`
+    ? `${prettyAssetAmount(assetAmountValue, assetDecimals)} ${assetTicker}`
     : useFiat
       ? prettyFiatAmount(toFiat(totalSats), config.fiat)
       : prettyAmount(totalSats)
 
-  if (isAssetSend) {
+  if (isAssetSend && assetId) {
     return (
       <>
         <Header text='Success' />
@@ -59,32 +58,15 @@ export default function SendSuccess() {
               <Text centered big bold>
                 Payment sent!
               </Text>
-
-              <Shadow border>
-                <FlexRow between padding='0.75rem'>
-                  <FlexRow>
-                    <AssetAvatar
-                      icon={assetIcon}
-                      ticker={assetTicker}
-                      name={assetName}
-                      size={32}
-                      assetId={assetId}
-                      clickable
-                    />
-                    <FlexCol gap='0'>
-                      <Text bold>{assetName}</Text>
-                      {assetTicker ? (
-                        <Text color='dark50' smaller>
-                          {assetTicker}
-                        </Text>
-                      ) : null}
-                    </FlexCol>
-                  </FlexRow>
-                  <Text>{formatAssetAmount(assetAmountValue, assetDecimals)}</Text>
-                </FlexRow>
-              </Shadow>
-
-              <Text centered color='dark70' thin small wrap>
+              <AssetCard
+                assetId={assetId}
+                balance={assetAmountValue}
+                decimals={assetDecimals}
+                icon={assetIcon}
+                name={assetName}
+                ticker={assetTicker}
+              />
+              <Text centered color='neutral-700' thin small wrap>
                 {displayAmount} sent successfully
               </Text>
             </FlexCol>

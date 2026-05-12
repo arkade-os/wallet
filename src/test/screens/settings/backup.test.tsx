@@ -46,7 +46,7 @@ describe('Backup screen with legacy private key', () => {
     await screen.findByText('Private key')
 
     expect(screen.getByTestId('toggle-backup')).toBeInTheDocument()
-    expect(screen.getByTestId('toggle-backup').getAttribute('checked')).toBe('true')
+    expect(screen.getByTestId('toggle-backup').getAttribute('data-checked')).toBe('true')
   })
 })
 

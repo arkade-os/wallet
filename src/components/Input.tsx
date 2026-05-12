@@ -1,6 +1,5 @@
 import InputContainer from './InputContainer'
-import { useRef, useEffect } from 'react'
-import { IonInput } from '@ionic/react'
+import { useRef, useEffect, ChangeEventHandler } from 'react'
 
 interface InputProps {
   focus?: boolean
@@ -36,35 +35,36 @@ export default function Input({
   value,
 }: InputProps) {
   const firstRun = useRef(true)
-  const input = useRef<HTMLIonInputElement>(null)
+  const input = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (focus && firstRun.current) {
       firstRun.current = false
-      input.current?.setFocus()
+      input.current?.focus()
     }
   })
 
-  const handleInput = (ev: Event) => {
-    const v = (ev.target as HTMLInputElement).value
+  const handleChange: ChangeEventHandler<HTMLInputElement> = (ev) => {
+    const v = ev.currentTarget.value
     onChange(type === 'number' ? Number(v) : v)
   }
 
   return (
     <InputContainer label={label} right={right}>
-      <IonInput
+      <input
         max={max}
-        maxlength={maxLength}
         min={min}
-        name={name}
-        onIonInput={handleInput}
-        onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
-        placeholder={placeholder}
         ref={input}
         step={step}
         type={type}
         value={value}
+        className='input'
         data-testid={testId}
+        name={name ?? testId}
+        maxLength={maxLength}
+        onChange={handleChange}
+        placeholder={placeholder}
+        onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
       />
     </InputContainer>
   )

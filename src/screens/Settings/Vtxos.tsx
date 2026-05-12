@@ -4,7 +4,7 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import { WalletContext } from '../../providers/wallet'
-import { formatAssetAmount, prettyAgo, prettyDate, prettyDelta, prettyHide, prettyNumber } from '../../lib/format'
+import { prettyAgo, prettyDate, prettyDelta, prettyHide, prettyNumber } from '../../lib/format'
 import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
@@ -23,8 +23,9 @@ import { EmptyCoinsList } from '../../components/Empty'
 import WarningBox from '../../components/Warning'
 import { ExtendedCoin, ExtendedVirtualCoin, isVtxoExpiringSoon } from '@arkade-os/sdk'
 import { consoleError } from '../../lib/logs'
-import { IonCol, IonGrid, IonRow } from '@ionic/react'
 import * as Sentry from '@sentry/react'
+import Grid from '../../components/Grid'
+import { prettyAssetAmount } from '../../lib/assets'
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -163,8 +164,8 @@ export default function Vtxos() {
 
   const Box = ({ children }: { children: ReactNode }) => {
     const style: React.CSSProperties = {
-      backgroundColor: 'var(--dark10)',
-      border: '1px solid var(--dark20)',
+      backgroundColor: 'var(--neutral-100)',
+      border: '1px solid var(--neutral-200)',
       borderRadius: '0.25rem',
       padding: '10px',
       width: '100%',
@@ -216,32 +217,32 @@ export default function Vtxos() {
     expiry: string
   }) => {
     const style: React.CSSProperties = {
-      backgroundColor: 'var(--dark10)',
-      border: '1px solid var(--dark20)',
+      backgroundColor: 'var(--neutral-100)',
+      border: '1px solid var(--neutral-200)',
       borderRadius: '0.25rem',
       padding: '0',
       width: '100%',
     }
     return (
       <div style={style}>
-        <IonGrid>
-          <IonRow className='ion-align-items-start'>
-            <IonCol size='4'>
+        <Grid>
+          <div>
+            <div>
               <FlexCol gap='0.25rem'>
                 <Text>{amount}</Text>
                 {assets?.map((a) => (
-                  <Text key={a} color='dark50' smaller>
+                  <Text key={a} color='neutral-500' smaller>
                     {a}
                   </Text>
                 ))}
               </FlexCol>
-            </IonCol>
-            <IonCol size='4'>{tags}</IonCol>
-            <IonCol size='4'>
+            </div>
+            <div>{tags}</div>
+            <div>
               <Text right>{expiry}</Text>
-            </IonCol>
-          </IonRow>
-        </IonGrid>
+            </div>
+          </div>
+        </Grid>
       </div>
     )
   }
@@ -255,7 +256,7 @@ export default function Vtxos() {
           const meta = assetMetadataCache.get(a.assetId)?.metadata
           const decimals = meta?.decimals ?? 8
           const label = meta?.ticker ?? `${a.assetId.slice(0, 8)}...`
-          return `${formatAssetAmount(a.amount, decimals)} ${label}`
+          return `${prettyAssetAmount(a.amount, decimals)} ${label}`
         })
       : []
     const expiry = vtxo.virtualStatus?.batchExpiry ? prettyAgo(vtxo.virtualStatus.batchExpiry) : 'Unknown'
@@ -309,7 +310,7 @@ export default function Vtxos() {
                   {success ? <WarningBox green text='Coins renewed successfully' /> : null}
                   {listableVtxos.length > 0 ? (
                     <FlexCol gap='0.5rem'>
-                      <Text capitalize color='dark50' smaller>
+                      <Text capitalize color='neutral-500' smaller>
                         Your virtual coins with amount and expiration
                       </Text>
                       {listableVtxos.map((v: ExtendedVirtualCoin) => (
@@ -319,7 +320,7 @@ export default function Vtxos() {
                   ) : null}
                   {!hideUtxos && allUtxos.length > 0 ? (
                     <FlexCol gap='0.5rem'>
-                      <Text capitalize color='dark50' smaller>
+                      <Text capitalize color='neutral-500' smaller>
                         Your boarding utxos with amount and expiration
                       </Text>
                       {allUtxos.map((u: ExtendedCoin) => (
@@ -331,7 +332,7 @@ export default function Vtxos() {
               ) : (
                 <>
                   <FlexCol gap='0.5rem' margin='0 0 1rem 0'>
-                    <Text capitalize color='dark50' smaller>
+                    <Text capitalize color='neutral-500' smaller>
                       Next renewal
                     </Text>
                     <Box>

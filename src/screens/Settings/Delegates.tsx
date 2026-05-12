@@ -20,8 +20,7 @@ import Text, { TextSecondary } from '../../components/Text'
 import { decodeArkAddress, isArkAddress } from '../../lib/address'
 import { Network } from '@arkade-os/boltz-swap'
 import { copyToClipboard } from '../../lib/clipboard'
-import { copiedToClipboard } from '../../lib/toast'
-import { useIonToast } from '@ionic/react'
+import { useToast } from '../../components/Toast'
 
 // format the URL to ensure it has the correct protocol and no trailing slashes
 const formatUrl = (host: string, path: string): string => {
@@ -86,8 +85,8 @@ function Hero() {
             marginTop: '1rem',
             padding: '0.75rem',
             borderRadius: '6px',
-            color: '#040404',
-            background: '#fbfbfb',
+            color: 'var(--fg)',
+            background: 'var(--bg)',
             textTransform: 'uppercase',
             width: 'fit-content',
             cursor: 'pointer',
@@ -124,7 +123,7 @@ function DelegateCard() {
   const { wallet } = useContext(WalletContext)
   const { setOption } = useContext(OptionsContext)
 
-  const [present] = useIonToast()
+  const { toast } = useToast()
 
   const [active, setActive] = useState(false)
   const [delegate, setDelegate] = useState<Delegate>(getDelegateUrlForNetwork(aspInfo.network as Network))
@@ -144,7 +143,7 @@ function DelegateCard() {
 
   const handleCopy = async (value: string) => {
     await copyToClipboard(value)
-    present(copiedToClipboard)
+    toast('Copied to clipboard')
   }
 
   const nextRolloverText = wallet.nextRollover
@@ -157,13 +156,13 @@ function DelegateCard() {
         <FlexRow between>
           <Text>{delegate.name}</Text>
           <FlexRow end onClick={() => setOption(SettingsOptions.Vtxos)}>
-            <Text color='dark50' tiny>
+            <Text color='neutral-500' tiny>
               {nextRolloverText}
             </Text>
             <ArrowIcon small />
           </FlexRow>
         </FlexRow>
-        <hr className='dashed-hr' />
+        <hr className='dashed' />
         <FlexRow between>
           <Shadow flex>
             <Text tiny>{delegate.url}</Text>

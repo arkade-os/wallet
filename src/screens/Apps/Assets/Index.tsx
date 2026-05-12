@@ -19,7 +19,7 @@ import AssetCard from '../../../components/AssetCard'
 
 interface AssetListItem {
   assetId: string
-  balance: number
+  balance: bigint
   name?: string
   ticker?: string
   icon?: string
@@ -63,7 +63,7 @@ export default function AppAssets() {
         const meta = assetMetadataCache.get(assetId)
         return {
           assetId,
-          balance: bal?.amount ?? 0,
+          balance: bal?.amount ?? BigInt(0),
           name: meta?.metadata?.name,
           ticker: meta?.metadata?.ticker,
           icon: meta?.metadata?.icon,
@@ -79,7 +79,7 @@ export default function AppAssets() {
   }, [svcWallet, assetBalances, config.importedAssets])
 
   const handleAssetClick = (assetId: string) => {
-    setAssetInfo({ assetId, supply: 0 })
+    setAssetInfo({ assetId, supply: BigInt(0) })
     navigate(Pages.AppAssetDetail)
   }
 
@@ -112,14 +112,15 @@ export default function AppAssets() {
                     icon={asset.icon}
                     decimals={asset.decimals}
                     onClick={() => handleAssetClick(asset.assetId)}
+                    darkPurple
                   />
                 ))
               )}
             </FlexCol>
           ) : (
             <FlexCol gap='0.5rem'>
-              <Text color='dark50'>Arkade Mint is disabled.</Text>
-              <Text color='dark50'>
+              <Text color='neutral-500'>Arkade Mint is disabled.</Text>
+              <Text color='neutral-500'>
                 <a onClick={goToSettings}>Enable it</a> to view your assets.
               </Text>
             </FlexCol>

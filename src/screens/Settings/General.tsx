@@ -36,7 +36,7 @@ export default function General() {
           {option}
         </Text>
         <FlexRow end>
-          <Text small thin color='dark50'>
+          <Text small thin color='neutral-500'>
             {value}
           </Text>
           <ArrowIcon />
@@ -55,16 +55,11 @@ export default function General() {
               option={SettingsOptions.Theme}
               value={config.theme === Themes.Auto ? `Auto (${systemTheme})` : config.theme}
             />
-            <hr
-              style={{
-                backgroundColor: 'var(--dark20)',
-                width: '100%',
-              }}
-            />
+            <hr />
             <Row option={SettingsOptions.Fiat} value={config.fiat} />
-            <hr style={{ backgroundColor: 'var(--dark20)', width: '100%' }} />
+            <hr />
             <Row option={SettingsOptions.Display} value={config.currencyDisplay} />
-            <hr style={{ backgroundColor: 'var(--dark20)', width: '100%' }} />
+            <hr />
             <Row option={SettingsOptions.Haptics} value={config.haptics ? 'On' : 'Off'} />
           </FlexCol>
         </Padded>

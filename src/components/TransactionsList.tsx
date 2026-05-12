@@ -1,10 +1,9 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useRef } from 'react'
 import { WalletContext } from '../providers/wallet'
-import Text, { TextLabel, TextSecondary } from './Text'
+import Text, { TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
 import {
-  formatAssetAmount,
   isBurn,
   isIssuance,
   prettyAmount,
@@ -24,10 +23,11 @@ import { FiatContext } from '../providers/fiat'
 import PreconfirmedIcon from '../icons/Preconfirmed'
 import Focusable from './Focusable'
 import { hapticSubtle } from '../lib/haptics'
+import { prettyAssetAmount, prettyAssetAmountHide } from '../lib/assets'
 
-const border = '1px solid var(--dark20)'
+const border = '1px solid var(--neutral-200)'
 
-const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
+const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void; isFirst?: boolean }) => {
   const { config } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
@@ -43,7 +43,7 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
     if (issuance || burn) return null
     const color =
       config.currencyDisplay === CurrencyDisplay.Both
-        ? 'dark50'
+        ? 'neutral-500'
         : tx.type === 'received'
           ? 'green'
           : tx.boardingTxid && tx.preconfirmed
@@ -101,12 +101,12 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
           const decimals = meta?.decimals ?? 8
           return (
             <FlexRow key={a.assetId} gap='0.25rem' end>
-              <Text color={color}>
-                {config.showBalance
-                  ? `${formatAssetAmount(a.amount, decimals)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
-                  : prettyHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}
-              </Text>
               <AssetAvatar icon={icon} ticker={ticker} size={16} assetId={a.assetId} clickable />
+              <Text color={color} thin>
+                {config.showBalance
+                  ? `${prettyAssetAmount(a.amount, decimals)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
+                  : prettyAssetAmountHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}
+              </Text>
             </FlexRow>
           )
         })}
@@ -115,7 +115,8 @@ const TransactionLine = ({ tx, onClick }: { tx: Tx; onClick: () => void }) => {
   }
 
   const rowStyle = {
-    borderTop: border,
+    alignItems: 'center',
+    borderTop: isFirst ? 'none' : border,
     cursor: 'pointer',
     padding: '0.5rem 0',
   }
@@ -224,56 +225,53 @@ export default function TransactionsList() {
   }
 
   return (
-    <>
-      <TextLabel>Transaction history</TextLabel>
-      <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
-        <div
-          ref={parentRef}
-          onKeyDown={handleListKeyDown}
-          className='hide-scrollbar scroll-fade'
-          style={{
-            borderBottom: border,
-            height: 'calc(100dvh - 380px)',
-            minHeight: '200px',
-            overflowY: 'auto',
-          }}
-        >
-          <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
-            {virtualizer.getVirtualItems().map((virtualItem) => {
-              const tx = txs[virtualItem.index]
-              const k = key(tx, virtualItem.index)
-              return (
-                <div
-                  key={k}
-                  data-index={virtualItem.index}
-                  data-testid='tx-row'
-                  onFocus={() => {
-                    focusedIndexRef.current = virtualItem.index
-                    focusedRef.current = true
-                  }}
-                  style={{
-                    left: 0,
-                    position: 'absolute',
-                    top: 0,
-                    transform: `translateY(${virtualItem.start}px)`,
-                    width: '100%',
-                  }}
+    <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
+      <div
+        ref={parentRef}
+        onKeyDown={handleListKeyDown}
+        className='hide-scrollbar scroll-fade'
+        style={{
+          borderBottom: border,
+          height: 'calc(100dvh - 260px)',
+          minHeight: '200px',
+          overflowY: 'auto',
+        }}
+      >
+        <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
+          {virtualizer.getVirtualItems().map((virtualItem) => {
+            const tx = txs[virtualItem.index]
+            const k = key(tx, virtualItem.index)
+            return (
+              <div
+                key={k}
+                data-index={virtualItem.index}
+                data-testid='tx-row'
+                onFocus={() => {
+                  focusedIndexRef.current = virtualItem.index
+                  focusedRef.current = true
+                }}
+                style={{
+                  left: 0,
+                  position: 'absolute',
+                  top: 0,
+                  transform: `translateY(${virtualItem.start}px)`,
+                  width: '100%',
+                }}
+              >
+                <Focusable
+                  id={k}
+                  inactive={!focusedRef.current}
+                  onEnter={() => handleClick(tx)}
+                  onEscape={focusOnOuterShell}
+                  ariaLabel={ariaLabel(tx)}
                 >
-                  <Focusable
-                    id={k}
-                    inactive={!focusedRef.current}
-                    onEnter={() => handleClick(tx)}
-                    onEscape={focusOnOuterShell}
-                    ariaLabel={ariaLabel(tx)}
-                  >
-                    <TransactionLine onClick={() => handleClick(tx)} tx={tx} />
-                  </Focusable>
-                </div>
-              )
-            })}
-          </div>
+                  <TransactionLine onClick={() => handleClick(tx)} tx={tx} isFirst={virtualItem.index === 0} />
+                </Focusable>
+              </div>
+            )
+          })}
         </div>
-      </Focusable>
-    </>
+      </div>
+    </Focusable>
   )
 }

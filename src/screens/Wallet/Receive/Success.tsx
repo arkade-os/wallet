@@ -3,23 +3,22 @@ import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import FlexRow from '../../../components/FlexRow'
 import Padded from '../../../components/Padded'
-import Shadow from '../../../components/Shadow'
 import Text from '../../../components/Text'
-import AssetAvatar from '../../../components/AssetAvatar'
 import SuccessIcon from '../../../icons/Success'
 import Success from '../../../components/Success'
 import { NotificationsContext } from '../../../providers/notifications'
 import { FlowContext } from '../../../providers/flow'
 import Header from '../../../components/Header'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import { formatAssetAmount, prettyAmount, prettyFiatAmount } from '../../../lib/format'
+import { prettyAmount, prettyFiatAmount } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import type { AssetDetails } from '@arkade-os/sdk'
+import AssetCard from '../../../components/AssetCard'
+import { prettyAssetAmount } from '../../../lib/assets'
 
 export default function ReceiveSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
@@ -65,7 +64,7 @@ export default function ReceiveSuccess() {
       if (assetDetails.size < receivedAssets.length) return
       const labels = receivedAssets.map((a) => {
         const meta = assetDetails.get(a.assetId)?.metadata
-        const amount = formatAssetAmount(a.amount, meta?.decimals ?? 0)
+        const amount = prettyAssetAmount(a.amount, meta?.decimals ?? 0)
         const ticker = meta?.ticker ?? meta?.name ?? 'assets'
         return `${amount} ${ticker}`
       })
@@ -98,26 +97,18 @@ export default function ReceiveSuccess() {
                 const icon = meta?.icon
 
                 return (
-                  <Shadow border key={a.assetId}>
-                    <FlexRow between padding='0.75rem'>
-                      <FlexRow>
-                        <AssetAvatar icon={icon} ticker={ticker} name={name} size={32} assetId={a.assetId} clickable />
-                        <FlexCol gap='0'>
-                          <Text bold>{name}</Text>
-                          {ticker ? (
-                            <Text color='dark50' smaller>
-                              {ticker}
-                            </Text>
-                          ) : null}
-                        </FlexCol>
-                      </FlexRow>
-                      <Text bold>{formatAssetAmount(a.amount, meta?.decimals ?? 0)}</Text>
-                    </FlexRow>
-                  </Shadow>
+                  <AssetCard
+                    assetId={a.assetId}
+                    balance={a.amount}
+                    decimals={meta?.decimals ?? 0}
+                    icon={icon}
+                    name={name}
+                    ticker={ticker}
+                  />
                 )
               })}
 
-              <Text centered color='dark70' thin small wrap>
+              <Text centered color='neutral-700' thin small wrap>
                 {displayAmount}
               </Text>
             </FlexCol>

@@ -46,7 +46,7 @@ export default function Select({ labels, onChange, options, selected }: SelectPr
             <Text thin>{labels?.[index] ?? option}</Text>
             {option === selected && <GreenStatusIcon small />}
           </FlexRow>
-          {index < options.length - 1 && <hr style={{ backgroundColor: 'var(--dark20)', width: '100%' }} />}
+          {index < options.length - 1 && <hr />}
         </div>
       ))}
     </>

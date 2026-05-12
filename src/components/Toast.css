@@ -1,0 +1,26 @@
+.arkade-toast-toaster {
+  width: fit-content;
+  max-width: calc(100vw - 32px);
+}
+
+[data-sonner-toaster].arkade-toast-toaster[data-x-position='center'] {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+[data-sonner-toaster].arkade-toast-toaster [data-sonner-toast][data-styled='true'] {
+  right: auto;
+  left: 50%;
+  width: max-content;
+  min-width: 0;
+  max-width: calc(100vw - 32px);
+  translate: -50% 0;
+  justify-content: center;
+  text-align: center;
+}
+
+.arkade-toast-content {
+  align-items: center;
+  width: 100%;
+}

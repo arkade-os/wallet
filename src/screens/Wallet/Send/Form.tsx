@@ -19,7 +19,7 @@ import InputAmount from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
-import { formatAssetAmount, prettyAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
+import { prettyAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -43,7 +43,7 @@ import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 import { SwapsContext } from '../../../providers/swaps'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { centsToUnits, unitsToCents } from '../../../lib/assets'
+import { prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -69,8 +69,15 @@ export default function SendForm() {
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { calcSubmarineSwapFee, calcArkToBtcSwapFee, createArkToBtcSwap, createSubmarineSwap, connected, getApiUrl } =
     useContext(SwapsContext)
-  const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed, validArkToBtc } =
-    useContext(LimitsContext)
+  const {
+    amountIsAboveMaxLimit,
+    amountIsBelowMinLimit,
+    minSwapAllowed,
+    maxSwapAllowed,
+    utxoTxsAllowed,
+    vtxoTxsAllowed,
+    validArkToBtc,
+  } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
   const { assetBalances, assetMetadataCache, balance, setCacheEntry, svcWallet } = useContext(WalletContext)
@@ -218,7 +225,7 @@ export default function SendForm() {
             }
             found = {
               assetId,
-              balance: 0,
+              balance: BigInt(0),
               name: meta?.metadata?.name ?? `${assetId.slice(0, 8)}...`,
               ticker: meta?.metadata?.ticker ?? '',
               icon: meta?.metadata?.icon,
@@ -226,7 +233,7 @@ export default function SendForm() {
             }
           }
           setSelectedAsset(found)
-          const rawAmount = assetAmount != null ? unitsToCents(assetAmount, found.decimals) : 0
+          const rawAmount = assetAmount != null ? unitsToCents(BigInt(assetAmount), found.decimals) : BigInt(0)
           setTextValue(String(assetAmount))
           return setState({
             address,
@@ -384,6 +391,15 @@ export default function SendForm() {
     if (!address && (arkAddress || invoice) && !vtxoTxsAllowed()) {
       return setError('Sending offchain not allowed')
     }
+    // check swap limits for lightning transactions
+    if (!address && !arkAddress && invoice) {
+      const min = minSwapAllowed()
+      const max = maxSwapAllowed()
+      if (min === 0 && max === 0) return // limits not loaded yet
+      const amountSats = getInvoiceSatoshis(invoice)
+      if (amountSats < min) return setError(`Invoice amount below min of ${prettyNumber(min)} sats`)
+      if (amountSats > max) return setError(`Invoice amount above max of ${prettyNumber(max)} sats`)
+    }
     // check if server key is valid
     if (arkAddress && arkAddress.length > 0) {
       const { serverPubKey } = decodeArkAddress(arkAddress)
@@ -511,9 +527,9 @@ export default function SendForm() {
 
   const handleAmountChange = (sats: number) => {
     if (isAssetSend) {
-      setTextValue(String(centsToUnits(sats, selectedAsset?.decimals ?? 8)))
+      setTextValue(prettyAssetAmount(BigInt(sats), selectedAsset?.decimals ?? 8, false))
       if (selectedAsset) {
-        setState({ ...sendInfo, assets: [{ assetId: selectedAsset.assetId, amount: sats }], satoshis: 0 })
+        setState({ ...sendInfo, assets: [{ assetId: selectedAsset.assetId, amount: BigInt(sats) }], satoshis: 0 })
       }
     } else {
       setTextValue(useFiat ? prettyNumber(toFiat(sats), 2, false) : prettyNumber(sats, 0, false))
@@ -531,7 +547,7 @@ export default function SendForm() {
       if (isBTCAddress(recipient)) {
         return setError('Assets can only be sent to Arkade addresses')
       }
-      setState({ ...sendInfo, address: '', assets: [{ assetId: asset.assetId, amount: 0 }], satoshis: 0 })
+      setState({ ...sendInfo, address: '', assets: [{ assetId: asset.assetId, amount: BigInt(0) }], satoshis: 0 })
     } else {
       setState({ ...sendInfo, assets: undefined, satoshis: 0 })
     }
@@ -608,8 +624,7 @@ export default function SendForm() {
   const applySendAll = () => {
     if (isAssetSend && selectedAsset) {
       const { assetId, balance, decimals } = selectedAsset
-      const units = centsToUnits(balance, decimals)
-      setTextValue(prettyNumber(units, decimals, false))
+      setTextValue(prettyAssetAmount(balance, decimals, false))
       setState({
         ...sendInfo,
         assets: [{ assetId, amount: balance }],
@@ -641,8 +656,8 @@ export default function SendForm() {
     if (isAssetSend && selectedAsset) {
       return (
         <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
-          <Text color='dark50' smaller>
-            {`${formatAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`}
+          <Text color='neutral-500' smaller>
+            {`${prettyAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`}
           </Text>
         </div>
       )
@@ -653,7 +668,7 @@ export default function SendForm() {
 
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
-        <Text color='dark50' smaller>
+        <Text color='neutral-500' smaller>
           {`${pretty} available`}
         </Text>
       </div>
@@ -795,7 +810,7 @@ export default function SendForm() {
                 value={recipient}
               />
               {brantaLoading ? (
-                <Text color='dark50' smaller>
+                <Text color='neutral-500' smaller>
                   Verifying address...
                 </Text>
               ) : null}
@@ -804,7 +819,7 @@ export default function SendForm() {
                   <FlexRow between padding='0.75rem'>
                     <FlexCol gap='0.1rem'>
                       <Text smaller>{brantaPayment.platform}</Text>
-                      <Text smaller color='dark50'>
+                      <Text smaller color='neutral-500'>
                         {brantaPayment.verify_url?.startsWith('https://') ? (
                           <a href={brantaPayment.verify_url} target='_blank' rel='noreferrer'>
                             Verified by Branta
@@ -822,7 +837,7 @@ export default function SendForm() {
               ) : null}
               {assetOptions.length > 0 ? (
                 <FlexCol gap='0.25rem'>
-                  <Text smaller color='dark50'>
+                  <Text smaller color='neutral-500'>
                     Asset
                   </Text>
                   <Shadow border onClick={() => setShowAssetSelector(!showAssetSelector)} testId='asset-selector'>
@@ -843,7 +858,7 @@ export default function SendForm() {
                                 width: 24,
                                 height: 24,
                                 borderRadius: '50%',
-                                background: 'var(--dark20)',
+                                background: 'var(--neutral-200)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -857,7 +872,7 @@ export default function SendForm() {
                         )}
                         <Text>{selectedAssetLabel}</Text>
                       </FlexRow>
-                      <Text color='dark50' smaller>
+                      <Text color='neutral-500' smaller>
                         {showAssetSelector ? '▲' : '▼'}
                       </Text>
                     </FlexRow>
@@ -899,7 +914,7 @@ export default function SendForm() {
                                         width: 24,
                                         height: 24,
                                         borderRadius: '50%',
-                                        background: 'var(--dark20)',
+                                        background: 'var(--neutral-200)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
@@ -912,8 +927,8 @@ export default function SendForm() {
                                     {asset.name} ({asset.ticker})
                                   </Text>
                                 </FlexRow>
-                                <Text color='dark50' smaller>
-                                  {formatAssetAmount(asset.balance, asset.decimals)} {asset.ticker}
+                                <Text color='neutral-500' smaller>
+                                  {prettyAssetAmount(asset.balance, asset.decimals)} {asset.ticker}
                                 </Text>
                               </FlexRow>
                             </Shadow>
@@ -944,14 +959,14 @@ export default function SendForm() {
               {deductFromAmount ? <InfoLine color='orange' text='Fees will be deducted from the amount sent' /> : null}
               {tryingToSelfSend ? (
                 <div style={{ width: '100%' }}>
-                  <Text centered color='dark50' small>
+                  <Text centered color='neutral-500' small>
                     Did you mean <a onClick={gotoRollover}>roll over your VTXOs</a>?
                   </Text>
                 </div>
               ) : null}
               {nudgeBoltz && getApiUrl() ? (
                 <div style={{ width: '100%' }}>
-                  <Text centered color='dark50' small>
+                  <Text centered color='neutral-500' small>
                     Enable <a onClick={gotoBoltzApp}>Lightning swaps</a> to pay
                   </Text>
                 </div>
@@ -966,7 +981,7 @@ export default function SendForm() {
       <SheetModal isOpen={showReserveModal} onClose={() => setShowReserveModal(false)}>
         <FlexCol gap='1rem'>
           <Text bold>Balance reserve</Text>
-          <Text color='dark50' small>
+          <Text color='neutral-500' small>
             {`${DUST_AMOUNT} sats are kept in reserve to protect your assets. Your max sendable amount is ${prettyNumber(liquidBalance)} sats.`}
           </Text>
           <FlexCol gap='0.5rem'>

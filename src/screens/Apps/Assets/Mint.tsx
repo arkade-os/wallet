@@ -36,7 +36,7 @@ export default function AppAssetMint() {
   const { setAssetInfo } = useContext(FlowContext)
   const { svcWallet, assetBalances, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
 
-  const [amount, setAmount] = useState(0)
+  const [amount, setAmount] = useState(BigInt(0))
   const [name, setName] = useState('')
   const [ticker, setTicker] = useState('')
   const [decimals, setDecimals] = useState('0')
@@ -103,7 +103,7 @@ export default function AppAssetMint() {
       metadata.decimals = parsedDecimals
       if (iconUrl) metadata.icon = iconUrl
 
-      const rawAmount = unitsToCents(parsedUnits, parsedDecimals)
+      const rawAmount = unitsToCents(BigInt(parsedUnits), parsedDecimals)
 
       let resolvedControlAssetId = controlMode === 'Existing' ? controlAssetId : ''
 
@@ -112,7 +112,7 @@ export default function AppAssetMint() {
         const ctrlMeta: KnownMetadata = { decimals: 0 }
         if (name) ctrlMeta.name = `ctrl-${name}`
         if (ticker) ctrlMeta.ticker = `ctrl-${ticker}`
-        const ctrlRawAmount = parseInt(ctrlAmount.toString())
+        const ctrlRawAmount = BigInt(ctrlAmount)
 
         const ctrlResult = await svcWallet.assetManager.issue({
           amount: ctrlRawAmount,
@@ -208,11 +208,12 @@ export default function AppAssetMint() {
             <ErrorMessage error={Boolean(error)} text={error} />
             <AssetCard
               assetId='preview'
-              balance={unitsToCents(parsedUnits, parsedDecimals) || 0}
+              balance={unitsToCents(BigInt(parsedUnits), parsedDecimals) || BigInt(0)}
               name={name}
               ticker={ticker}
               icon={iconUrl && !iconError ? iconUrl : undefined}
               decimals={isNaN(parsedDecimals) ? 0 : parsedDecimals}
+              darkPurple
             />
             <FlexRow gap='0.5rem' alignItems='flex-end'>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -242,8 +243,12 @@ export default function AppAssetMint() {
                 <Input
                   label='Amount *'
                   type='number'
-                  value={amount}
-                  onChange={setAmount}
+                  min='0'
+                  step='1'
+                  value={Number(amount)}
+                  onChange={(value) =>
+                    setAmount(Number.isFinite(value) && value >= 0 ? BigInt(Math.trunc(value)) : BigInt(0))
+                  }
                   placeholder='1000'
                   testId='asset-amount'
                 />
@@ -278,7 +283,7 @@ export default function AppAssetMint() {
             />
 
             <FlexCol gap='0.5rem'>
-              <Text smaller color='dark50'>
+              <Text smaller color='neutral-500'>
                 Control Asset
               </Text>
               <SegmentedControl
@@ -305,10 +310,10 @@ export default function AppAssetMint() {
                                 </Text>
                               </>
                             ) : (
-                              <Text color='dark50'>Select from wallet...</Text>
+                              <Text color='neutral-500'>Select from wallet...</Text>
                             )}
                           </div>
-                          <Text color='dark50' smaller>
+                          <Text color='neutral-500' smaller>
                             {showControlDropdown ? '▲' : '▼'}
                           </Text>
                         </FlexRow>
@@ -324,7 +329,7 @@ export default function AppAssetMint() {
                                 }}
                               >
                                 <FlexRow padding='0.625rem 0.5rem'>
-                                  <Text color='dark50'>None</Text>
+                                  <Text color='neutral-500'>None</Text>
                                 </FlexRow>
                               </Shadow>
                             ) : null}
@@ -360,14 +365,16 @@ export default function AppAssetMint() {
 
               {controlMode === 'New' ? (
                 <FlexCol gap='0.5rem'>
-                  <Text smaller color='dark50'>
+                  <Text smaller color='neutral-500'>
                     {name ? `ctrl-${name}` : 'ctrl-...'} {ticker ? `(ctrl-${ticker})` : ''}
                   </Text>
                   <Input
                     label='Control Amount'
                     type='number'
+                    min='0'
+                    step='1'
                     value={ctrlAmount}
-                    onChange={setCtrlAmount}
+                    onChange={(v: number) => setCtrlAmount(Number.isFinite(v) && v >= 0 ? Math.trunc(v) : 0)}
                     placeholder='1'
                     testId='control-asset-amount'
                   />
@@ -379,7 +386,7 @@ export default function AppAssetMint() {
       </Content>
       <ButtonsOnBottom>
         {disabledReason ? (
-          <Text centered smaller color='dark50'>
+          <Text centered smaller color='neutral-500'>
             {disabledReason}
           </Text>
         ) : null}

@@ -35,7 +35,7 @@ test('should send sats (some and max) to ark address', async ({ page, isMobile }
   await page.getByText('Send').click()
 
   // fill address
-  await page.locator('ion-input[name="send-address"] input').fill(someArkAddress)
+  await page.locator('input[name="send-address"]').fill(someArkAddress)
 
   // click max
   await page.getByTestId('input-amount-max').click()
@@ -83,7 +83,7 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   await page.getByText('Send').click()
 
   // fill address
-  await page.locator('ion-input[name="send-address"] input').fill(someArkAddress)
+  await page.locator('input[name="send-address"]').fill(someArkAddress)
 
   // select asset
   await page.getByTestId('asset-selector').click()
@@ -91,10 +91,10 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
 
   // fill amount
   if (isMobile) {
-    await page.locator('ion-input[name="send-amount"] input').click()
+    await page.locator('input[name="send-amount"]').click()
     await handleKeyboardInput(page, 200)
   } else {
-    await page.locator('ion-input[name="send-amount"] input').fill('200')
+    await page.locator('input[name="send-amount"]').fill('200')
   }
 
   // continue to details page
@@ -119,7 +119,7 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   await page.getByText('Send').click()
 
   // fill address
-  await page.locator('ion-input[name="send-address"] input').fill(someArkAddress)
+  await page.locator('input[name="send-address"]').fill(someArkAddress)
 
   // select asset
   await page.getByTestId('asset-selector').click()
@@ -179,7 +179,7 @@ test('should send sats (some and max) to onchain address with chain swap', async
   await page.getByText('Send').click()
 
   // fill address
-  await page.locator('ion-input[name="send-address"] input').fill(someOnchainAddress)
+  await page.locator('input[name="send-address"]').fill(someOnchainAddress)
 
   // click max
   await page.getByTestId('input-amount-max').click()
@@ -240,7 +240,7 @@ test('should send sats (some and max) to onchain address with collaborative exit
   await page.getByText('Send').click()
 
   // fill address
-  await page.locator('ion-input[name="send-address"] input').fill(someOnchainAddress)
+  await page.locator('input[name="send-address"]').fill(someOnchainAddress)
 
   // click max
   await page.getByTestId('input-amount-max').click()

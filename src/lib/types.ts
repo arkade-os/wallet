@@ -68,7 +68,7 @@ export enum SettingsOptions {
   Advanced = 'advanced',
   Backup = 'backup',
   General = 'general',
-  Haptics = 'haptics feedback',
+  Haptics = 'haptic feedback',
   Lock = 'lock wallet',
   Logs = 'logs',
   Notifications = 'notifications',
@@ -126,7 +126,7 @@ export interface AssetOption {
   assetId: string
   name: string
   ticker: string
-  balance: number
+  balance: bigint
   decimals: number
   icon?: string
 }

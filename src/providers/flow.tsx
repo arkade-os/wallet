@@ -89,7 +89,7 @@ export const emptyRecvInfo: RecvInfo = {
   satoshis: 0,
 }
 
-export const emptyAssetInfo: AssetDetails = { assetId: '', supply: 0 }
+export const emptyAssetInfo: AssetDetails = { assetId: '', supply: BigInt(0) }
 
 export const emptySendInfo: SendInfo = {
   address: '',
