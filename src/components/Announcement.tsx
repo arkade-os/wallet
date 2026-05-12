@@ -11,7 +11,7 @@ import { ConfigContext } from '../providers/config'
 import { OptionsContext } from '../providers/options'
 import { SettingsOptions, Themes } from '../lib/types'
 import LendasatIcon from '../screens/Apps/Lendasat/LendasatIcon'
-import LendaSwapIcon from '../screens/Apps/Lendaswap/LendaswapIcon'
+import SatoraIcon from '../screens/Apps/Satora/SatoraIcon'
 import { NavigationContext, Pages } from '../providers/navigation'
 
 // icon with pretty gradient background
@@ -189,13 +189,13 @@ export function LendaSatAnnouncement({ close }: { close: () => void }) {
   )
 }
 
-export function LendaSwapAnnouncement({ close }: { close: () => void }) {
+export function SatoraAnnouncement({ close }: { close: () => void }) {
   return (
     <Announcement
       close={close}
-      title='LendaSwap'
-      page={Pages.AppLendaswap}
-      icon={<LendaSwapIcon big />}
+      title='Satora'
+      page={Pages.AppSatora}
+      icon={<SatoraIcon big />}
       message='Swap Bitcoin to USDC or USDT instantly.'
       bulletPoints={[
         ['Swap to stablecoins', 'Swap native $BTC for $USDT or $USDC on Ethereum and Polygon.'],
@@ -203,7 +203,7 @@ export function LendaSwapAnnouncement({ close }: { close: () => void }) {
           'Trustless Atomic Swaps',
           'When a swap is started, both parties lock their funds in smart contracts. The swap either completes fully or both parties get refunded.',
         ],
-        ['Self-custodial', 'LendaSwap is fully self-custodial. Your keys, your coins.'],
+        ['Self-custodial', 'Satora is fully self-custodial. Your keys, your coins.'],
       ]}
     />
   )

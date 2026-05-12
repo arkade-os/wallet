@@ -1,6 +1,6 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
 import { clearStorage, readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
-import { defaultArkServer } from '../lib/constants'
+import { defaultArkServer, devServer } from '../lib/constants'
 import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
 import { BackupProvider } from '../lib/backup'
 import { consoleError } from '../lib/logs'
@@ -73,6 +73,9 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
   }
 }
 
+const shouldUseDevEnvArkServer = (aspUrl: string) =>
+  import.meta.env.DEV && import.meta.env.VITE_ARK_SERVER && aspUrl === devServer
+
 export const resolveTheme = (theme: Themes): Themes.Dark | Themes.Light => {
   if (theme === Themes.Auto) {
     return window?.matchMedia?.('(prefers-color-scheme: dark)')?.matches ? Themes.Dark : Themes.Light
@@ -138,6 +141,10 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     let config = readConfigFromStorage() ?? { ...defaultConfig }
     // merge with defaults to ensure all fields are present
     config = updateDefaultConfig(config)
+    const devArkServer = import.meta.env.VITE_ARK_SERVER
+    if (shouldUseDevEnvArkServer(config.aspUrl) && devArkServer) {
+      config.aspUrl = devArkServer
+    }
     updateConfig(config)
     setConfigLoaded(true)
   }, [configLoaded])
