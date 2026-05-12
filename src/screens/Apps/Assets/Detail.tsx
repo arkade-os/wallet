@@ -39,6 +39,8 @@ const CHART_WINDOWS = [
 ]
 
 const MIN_CHART_WINDOW_SECS = 30
+const ALL_CHART_START_TIME = Math.floor(Date.UTC(2015, 0, 1) / 1000)
+const COINBASE_CANDLE_CHUNK_DAYS = 300
 
 export default function AppAssetDetail() {
   const { navigate } = useContext(NavigationContext)
@@ -103,7 +105,7 @@ export default function AppAssetDetail() {
     unitBalance > 0 && fallbackHasFiatValue
       ? (portfolioRow?.fiatAmount ?? toFiat(rawBalance)) / unitBalance
       : estimateUnitPrice(ticker, toFiat, convertFiat)
-  const liveChartData = useMarketChartData(ticker, config.fiat, chartWindow)
+  const liveChartData = useMarketChartData(ticker, config.fiat, chartWindow, convertFiat)
   const unitPrice = liveChartData.at(-1)?.value ?? fallbackUnitPrice
   const hasFiatValue = Boolean(liveChartData.length) || fallbackHasFiatValue
   const fiatValue =
@@ -524,7 +526,12 @@ function useResolvedChartTheme(theme: Themes): 'light' | 'dark' {
   return resolved
 }
 
-function useMarketChartData(ticker: string, fiat: Fiats, windowSecs: number): LivelinePoint[] {
+function useMarketChartData(
+  ticker: string,
+  fiat: Fiats,
+  windowSecs: number,
+  convertFiat: (amount: number, from: Fiats) => number,
+): LivelinePoint[] {
   const [data, setData] = useState<LivelinePoint[]>([])
 
   useEffect(() => {
@@ -536,7 +543,7 @@ function useMarketChartData(ticker: string, fiat: Fiats, windowSecs: number): Li
 
     const controller = new AbortController()
 
-    fetchCoinGeckoMarketChart(coinId, fiat, windowSecs, controller.signal)
+    fetchMarketChart(coinId, ticker, fiat, windowSecs, convertFiat, controller.signal)
       .then((json) => {
         if (controller.signal.aborted) return
         const prices = Array.isArray(json.prices) ? json.prices : []
@@ -559,9 +566,73 @@ function useMarketChartData(ticker: string, fiat: Fiats, windowSecs: number): Li
       })
 
     return () => controller.abort()
-  }, [ticker, fiat, windowSecs])
+  }, [ticker, fiat, windowSecs, convertFiat])
 
   return data
+}
+
+async function fetchMarketChart(
+  coinId: string,
+  ticker: string,
+  fiat: Fiats,
+  windowSecs: number,
+  convertFiat: (amount: number, from: Fiats) => number,
+  signal: AbortSignal,
+): Promise<{ prices?: [number, number][] }> {
+  if (isAllChartWindow(windowSecs) && ticker.trim().toUpperCase() === 'BTC') {
+    const prices = await fetchCoinbaseBitcoinAllChart(fiat, convertFiat, signal)
+    if (prices.length >= 2) return { prices }
+  }
+
+  return fetchCoinGeckoMarketChart(coinId, fiat, windowSecs, signal)
+}
+
+async function fetchCoinbaseBitcoinAllChart(
+  fiat: Fiats,
+  convertFiat: (amount: number, from: Fiats) => number,
+  signal: AbortSignal,
+): Promise<[number, number][]> {
+  const now = Math.floor(Date.now() / 1000)
+  const chunkSecs = COINBASE_CANDLE_CHUNK_DAYS * 86_400
+  const requests: Promise<[number, number][]>[] = []
+
+  for (let start = ALL_CHART_START_TIME; start < now; start += chunkSecs) {
+    const end = Math.min(start + chunkSecs, now)
+    requests.push(fetchCoinbaseBitcoinCandles(start, end, fiat, convertFiat, signal))
+  }
+
+  const chunks = await Promise.all(requests)
+  return chunks
+    .flat()
+    .sort(([a], [b]) => a - b)
+    .filter((point, index, points) => index === 0 || point[0] !== points[index - 1][0])
+}
+
+async function fetchCoinbaseBitcoinCandles(
+  start: number,
+  end: number,
+  fiat: Fiats,
+  convertFiat: (amount: number, from: Fiats) => number,
+  signal: AbortSignal,
+): Promise<[number, number][]> {
+  const params = new URLSearchParams({
+    granularity: '86400',
+    start: new Date(start * 1000).toISOString(),
+    end: new Date(end * 1000).toISOString(),
+  })
+  const response = await fetch(`https://api.exchange.coinbase.com/products/BTC-USD/candles?${params.toString()}`, {
+    signal,
+  })
+
+  if (!response.ok) throw new Error(`Coinbase bitcoin chart failed: ${response.status}`)
+  const candles = (await response.json()) as [number, number, number, number, number, number][]
+
+  return candles
+    .map(
+      ([time, , , , close]) =>
+        [time * 1000, fiat === Fiats.USD ? close : convertFiat(close, Fiats.USD)] as [number, number],
+    )
+    .filter(([, value]) => Number.isFinite(value) && value > 0)
 }
 
 async function fetchCoinGeckoMarketChart(
@@ -618,7 +689,7 @@ function buildStablecoinPegChartData(data: LivelinePoint[], pegValue: number, wi
 }
 
 function smoothChartData(data: LivelinePoint[], windowSecs: number, isInteracting: boolean): LivelinePoint[] {
-  if (isInteracting || data.length < 8 || (!isAllChartWindow(windowSecs) && windowSecs <= 86_400)) return data
+  if (isInteracting || data.length < 8 || (!isAllChartWindow(windowSecs) && windowSecs <= 3_600)) return data
 
   const targetPoints = chartTargetPointCount(windowSecs)
   const bucketed = bucketAveragePoints(data, targetPoints)
@@ -672,6 +743,7 @@ function chartTargetPointCount(windowSecs: number): number {
   if (isAllChartWindow(windowSecs)) return 120
   if (windowSecs >= 31_536_000) return 116
   if (windowSecs >= 2_592_000) return 96
+  if (windowSecs >= 86_400) return 72
   return 84
 }
 
@@ -679,6 +751,7 @@ function chartSmoothingRadius(windowSecs: number): number {
   if (isAllChartWindow(windowSecs)) return 5
   if (windowSecs >= 31_536_000) return 4
   if (windowSecs >= 2_592_000) return 3
+  if (windowSecs >= 86_400) return 2
   return 2
 }
 
