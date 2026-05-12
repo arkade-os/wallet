@@ -4,8 +4,8 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/boltz-swap": "0.3.24",
-    "@arkade-os/sdk": "0.4.22",
+    "@arkade-os/boltz-swap": "0.3.30",
+    "@arkade-os/sdk": "0.4.26",
     "@base-ui/react": "^1.4.1",
     "@branta-ops/branta": "0.0.9",
     "@fontsource-variable/geist": "^5.2.8",
@@ -50,7 +50,7 @@
   "scripts": {
     "prepare": "husky install",
     "start": "pnpm git-info && pnpm build:worker && vite",
-    "start:mainnet": "pnpm git-info && pnpm build:worker && cross-env VITE_ARK_SERVER=https://arkade.computer VITE_BOLTZ_URL=https://api.ark.boltz.exchange vite",
+    "start:mainnet": "pnpm git-info && pnpm build:worker && cross-env VITE_ARK_SERVER=https://arkade.computer VITE_BOLTZ_URL=https://api.boltz.exchange vite",
     "build": "pnpm git-info && pnpm build:worker && vite build",
     "build:worker": "vite build -c vite.worker.config.ts",
     "test": "vitest run",
@@ -115,13 +115,13 @@
     "husky": "^8.0.3",
     "jsdom": "^26.1.0",
     "prettier": "^3.6.2",
+    "shadcn": "^4.6.0",
     "typescript": "^5.8.3",
     "vite": "^7.1.3",
     "vite-plugin-eslint": "^1.8.1",
     "vite-plugin-mkcert": "^1.17.9",
     "vitest": "^3.2.4",
-    "vitest-fetch-mock": "^0.4.5",
-    "shadcn": "^4.6.0"
+    "vitest-fetch-mock": "^0.4.5"
   },
   "packageManager": "pnpm@10.25.0",
   "engines": {

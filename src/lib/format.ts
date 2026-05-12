@@ -13,14 +13,14 @@ export const toSatoshis = (num: number): Satoshis => {
 
 export const prettyAgo = (timestamp: number | string, long = false): string => {
   if (!timestamp) return ''
-  const now = Math.floor(Date.now() / 1000)
-  const unixTimestamp =
+  const nowMs = Date.now()
+  const timestampMs =
     typeof timestamp === 'string'
-      ? Math.floor(new Date(timestamp).getTime() / 1000)
+      ? new Date(timestamp).getTime()
       : timestamp > 200_000_000_000
-        ? Math.floor(timestamp / 1000)
-        : timestamp
-  const delta = Math.floor(now - unixTimestamp)
+        ? timestamp
+        : timestamp * 1000
+  const delta = Math.floor((nowMs - timestampMs) / 1000)
   if (delta === 0 || delta === 1) return 'just now'
   if (delta > 1) return `${prettyDelta(delta, long)} ago`
   if (delta < 0) return `in ${prettyDelta(delta, long)}`
@@ -48,7 +48,8 @@ export const formatFiatAmountParts = (
 ): { amount: string; unit: string } => {
   const symbol = FIAT_SYMBOLS[currency]
   const maximumFractionDigits = options.maximumFractionDigits ?? fiatDecimalsFor(currency)
-  const formatted = prettyNumber(amount, maximumFractionDigits, true, options.minimumFractionDigits)
+  const minimumFractionDigits = options.minimumFractionDigits ?? maximumFractionDigits
+  const formatted = prettyNumber(amount, maximumFractionDigits, true, minimumFractionDigits)
 
   return {
     amount: symbol ? `${symbol}${formatted}` : formatted,

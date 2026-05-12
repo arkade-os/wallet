@@ -1,13 +1,12 @@
 import AssetAvatar from './AssetAvatar'
 import TokenLogo, { type TokenLogoTicker } from './TokenLogo'
-import { centsToUnits, truncatedAssetId } from '../lib/assets'
-import { prettyNumber } from '../lib/format'
+import { prettyAssetAmount, truncatedAssetId } from '../lib/assets'
 import { hapticLight } from '../lib/haptics'
 import { PrivacyAmount, maskedFiat } from './PrivacyAmount'
 
 interface AssetCardProps {
   assetId: string
-  balance: number
+  balance: bigint | number
   decimals?: number
   icon?: string
   /** Asset name (e.g. "Bitcoin"). */
@@ -35,7 +34,8 @@ export default function AssetCard({
 }: AssetCardProps) {
   const assetName = name || truncatedAssetId(assetId) || 'Asset'
   const tokenTick = ticker ?? 'TKN'
-  const prettyBalance = prettyNumber(centsToUnits(balance, decimals ?? 8))
+  const rawBalance = typeof balance === 'bigint' ? balance : BigInt(balance)
+  const prettyBalance = prettyAssetAmount(rawBalance, decimals ?? 8)
   const leftSecondary = `${prettyBalance} ${tokenTick}`
   const maskedBalance = `•••• ${tokenTick}`
   const maskedFiatText = fiatText?.trim().startsWith('$') ? maskedFiat('$') : '••••'

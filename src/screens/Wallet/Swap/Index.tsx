@@ -9,7 +9,7 @@ import TokenLogo, { type TokenLogoTicker } from '../../../components/TokenLogo'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../../components/ui/drawer'
 import ChevronDownIcon from '../../../icons/ChevronDown'
 import SwapIcon from '../../../icons/Swap'
-import { centsToUnits } from '../../../lib/assets'
+import { prettyAssetAmount } from '../../../lib/assets'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticTap } from '../../../lib/haptics'
@@ -30,7 +30,7 @@ interface SwapAsset {
   name: string
   ticker: string
   decimals: number
-  balance: number
+  balance: number | bigint
   fiatText?: string
   icon?: string
   isBitcoin?: boolean
@@ -627,7 +627,8 @@ function filterAssets(assets: SwapAsset[], query: string): SwapAsset[] {
 }
 
 function formatAssetBalance(asset: SwapAsset): string {
-  return `${prettyNumber(centsToUnits(asset.balance, asset.decimals), asset.decimals)} ${asset.ticker}`
+  const rawBalance = typeof asset.balance === 'bigint' ? asset.balance : BigInt(asset.balance)
+  return `${prettyAssetAmount(rawBalance, asset.decimals)} ${asset.ticker}`
 }
 
 function getTokenLogoTicker(ticker: string | undefined): TokenLogoTicker | undefined {

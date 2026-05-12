@@ -4,7 +4,7 @@ import Padded from '../../components/Padded'
 import TransactionsList from '../../components/TransactionsList'
 import { EmptyTxList } from '../../components/Empty'
 import { WalletContext } from '../../providers/wallet'
-import { NavigationContext, Pages } from '../../providers/navigation'
+import { NavigationContext } from '../../providers/navigation'
 import BackIcon from '../../icons/Back'
 import { hapticLight } from '../../lib/haptics'
 
@@ -14,11 +14,11 @@ import { hapticLight } from '../../lib/haptics'
  */
 export default function Activity() {
   const { txs } = useContext(WalletContext)
-  const { navigate } = useContext(NavigationContext)
+  const { goBack } = useContext(NavigationContext)
 
   const handleBack = () => {
     hapticLight()
-    navigate(Pages.Wallet)
+    goBack()
   }
 
   return (
@@ -36,7 +36,7 @@ export default function Activity() {
           </button>
           <span className='activity-page-title'>Activity</span>
         </div>
-        {!txs || txs.length === 0 ? <EmptyTxList /> : <TransactionsList title='' />}
+        {!txs || txs.length === 0 ? <EmptyTxList /> : <TransactionsList />}
       </Padded>
     </Content>
   )

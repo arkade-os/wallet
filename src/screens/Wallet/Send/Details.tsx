@@ -9,7 +9,7 @@ import ErrorMessage from '../../../components/Error'
 import { WalletContext } from '../../../providers/wallet'
 import Header from '../../../components/Header'
 import { defaultFee } from '../../../lib/constants'
-import { formatAssetAmount, prettyNumber } from '../../../lib/format'
+import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { collaborativeExitWithFees, sendOffChain } from '../../../lib/asp'
@@ -21,6 +21,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import Text from '../../../components/Text'
 import { isPendingChainSwap, isPendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { FeesContext } from '../../../providers/fees'
+import { prettyAssetAmount } from '../../../lib/assets'
 
 export default function SendDetails() {
   const { navigate } = useContext(NavigationContext)
@@ -35,7 +36,7 @@ export default function SendDetails() {
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const assetTicker = assetMeta?.metadata?.ticker ?? ''
   const assetName = assetMeta?.metadata?.name ?? 'Asset'
-  const assetAmountValue = sendInfo.assets?.[0]?.amount ?? 0
+  const assetAmountValue = sendInfo.assets?.[0]?.amount ?? BigInt(0)
 
   const [buttonLabel, setButtonLabel] = useState('')
   const [details, setDetails] = useState<DetailsProps>()
@@ -138,10 +139,7 @@ export default function SendDetails() {
     if (isAssetSend && arkAddress) {
       // Asset send via wallet.send()
       const recipients = [{ address: arkAddress, amount: details.satoshis, assets: sendInfo.assets }]
-      svcWallet
-        .send(...recipients)
-        .then(handleTxid)
-        .catch(handleError)
+      svcWallet.send(recipients[0]).then(handleTxid).catch(handleError)
     } else if (arkAddress) {
       if (!details.total) return handleError('Missing total amount')
       sendOffChain(svcWallet, details.total, arkAddress).then(handleTxid).catch(handleError)
@@ -201,7 +199,7 @@ export default function SendDetails() {
                     {assetName} ({assetTicker})
                   </Text>
                   <Text bold testId='send-details-asset-amount'>
-                    {formatAssetAmount(assetAmountValue, assetMeta?.metadata?.decimals ?? 8)} {assetTicker}
+                    {prettyAssetAmount(assetAmountValue, assetMeta?.metadata?.decimals ?? 8)} {assetTicker}
                   </Text>
                 </FlexCol>
               ) : null}

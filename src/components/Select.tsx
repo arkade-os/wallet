@@ -52,7 +52,7 @@ export default function Select({ labels, onChange, options, selected }: SelectPr
             value={option}
             className='!absolute !-m-px !size-px !border-0 !p-0 opacity-0 pointer-events-none'
           />
-          <span className='settings-row__label'>{labels?.[index] ?? option}</span>
+          <p className='settings-row__label'>{labels?.[index] ?? option}</p>
           {option === selected && <GreenStatusIcon small />}
         </label>
       ))}

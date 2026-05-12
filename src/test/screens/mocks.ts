@@ -35,7 +35,7 @@ export const mockTxInfo = {
 
 export const mockIssuanceTxInfo = {
   amount: 0,
-  assets: [{ assetId: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd', amount: 10000 }],
+  assets: [{ assetId: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd', amount: 10_000n }],
   boardingTxid: '',
   redeemTxid: mockTxId,
   roundTxid: '',
@@ -175,7 +175,7 @@ export const mockFlowContextValue = {
   setSendInfo: () => {},
   setSwapInfo: () => {},
   setTxInfo: () => {},
-  assetInfo: { assetId: '', supply: 0 },
+  assetInfo: { assetId: '', supply: BigInt(0) },
   setAssetInfo: () => {},
   deepLinkInfo: undefined,
   setDeepLinkInfo: () => {},

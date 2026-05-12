@@ -19,7 +19,7 @@ import AssetCard from '../../../components/AssetCard'
 
 interface AssetListItem {
   assetId: string
-  balance: number
+  balance: bigint
   name?: string
   ticker?: string
   icon?: string
@@ -63,7 +63,7 @@ export default function AppAssets() {
         const meta = assetMetadataCache.get(assetId)
         return {
           assetId,
-          balance: bal?.amount ?? 0,
+          balance: bal?.amount ?? BigInt(0),
           name: meta?.metadata?.name,
           ticker: meta?.metadata?.ticker,
           icon: meta?.metadata?.icon,
@@ -79,7 +79,7 @@ export default function AppAssets() {
   }, [svcWallet, assetBalances, config.importedAssets])
 
   const handleAssetClick = (assetId: string) => {
-    setAssetInfo({ assetId, supply: 0 })
+    setAssetInfo({ assetId, supply: BigInt(0) })
     navigate(Pages.AppAssetDetail)
   }
 

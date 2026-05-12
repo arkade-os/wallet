@@ -1,7 +1,6 @@
 import { useContext } from 'react'
 import { WalletContext } from '../providers/wallet'
 import { FiatContext } from '../providers/fiat'
-import { centsToUnits } from '../lib/assets'
 import { Fiats } from '../lib/types'
 
 export interface PortfolioRow {
@@ -12,7 +11,7 @@ export interface PortfolioRow {
   icon?: string
   decimals: number
   /** Raw balance in the asset's smallest unit (sats for BTC, minor units otherwise). */
-  balance: number
+  balance: number | bigint
   /** Fiat value in the user's selected currency (0 if no price feed). */
   fiatAmount: number
   /** Equivalent value in satoshis, computed via the live BTC→USD rate. */
@@ -83,7 +82,7 @@ export function usePortfolioFiat(): PortfolioFiat {
 }
 
 function priceAssetFiat(
-  rawAmount: number,
+  rawAmount: number | bigint,
   decimals: number,
   ticker: string | undefined,
   convertFiat: (amount: number, from: Fiats) => number,
@@ -91,7 +90,8 @@ function priceAssetFiat(
   const sourceFiat = fiatForAssetTicker(ticker)
   if (!sourceFiat) return 0
 
-  return convertFiat(centsToUnits(rawAmount, decimals), sourceFiat)
+  const normalizedRawAmount = typeof rawAmount === 'bigint' ? Number(rawAmount) : rawAmount
+  return convertFiat(normalizedRawAmount / 10 ** decimals, sourceFiat)
 }
 
 function displayNameForAsset(ticker: string | undefined, name: string | undefined): string | undefined {

@@ -98,20 +98,24 @@ export default function AppAssetDetail() {
   const name = displayAssetName(meta?.ticker, meta?.name, isBitcoin)
   const ticker = isBitcoin ? 'BTC' : (meta?.ticker?.trim().toUpperCase() ?? 'TKN')
   const decimals = isBitcoin ? 8 : (meta?.decimals ?? 8)
-  const rawBalance = isBitcoin ? btcBalance : (assetBalances.find((a) => a.assetId === assetId)?.amount ?? 0)
-  const unitBalance = centsToUnits(rawBalance, decimals)
+  const assetRawBalance = assetBalances.find((a) => a.assetId === assetId)?.amount ?? BigInt(0)
+  const rawBalance = isBitcoin
+    ? BigInt(btcBalance)
+    : typeof assetRawBalance === 'bigint'
+      ? assetRawBalance
+      : BigInt(assetRawBalance)
+  const unitBalance = Number(centsToUnits(rawBalance, decimals))
   const fallbackHasFiatValue = isBitcoin || Boolean(portfolioRow?.hasFiatPrice)
+  const btcFiatAmount = isBitcoin ? toFiat(Number(rawBalance)) : 0
   const fallbackUnitPrice =
     unitBalance > 0 && fallbackHasFiatValue
-      ? (portfolioRow?.fiatAmount ?? toFiat(rawBalance)) / unitBalance
+      ? (portfolioRow?.fiatAmount ?? btcFiatAmount) / unitBalance
       : estimateUnitPrice(ticker, toFiat, convertFiat)
   const liveChartData = useMarketChartData(ticker, config.fiat, chartWindow, convertFiat)
   const unitPrice = liveChartData.at(-1)?.value ?? fallbackUnitPrice
   const hasFiatValue = Boolean(liveChartData.length) || fallbackHasFiatValue
   const fiatValue =
-    unitBalance > 0 && hasFiatValue
-      ? unitBalance * unitPrice
-      : (portfolioRow?.fiatAmount ?? (isBitcoin ? toFiat(rawBalance) : 0))
+    unitBalance > 0 && hasFiatValue ? unitBalance * unitPrice : (portfolioRow?.fiatAmount ?? btcFiatAmount)
   const formattedFiat = hasFiatValue
     ? prettyFiatAmount(fiatValue, config.fiat, {
         maximumFractionDigits: fiatDecimals(),

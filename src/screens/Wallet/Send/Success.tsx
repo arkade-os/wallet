@@ -11,11 +11,12 @@ import FlexCol from '../../../components/FlexCol'
 import Padded from '../../../components/Padded'
 import Text from '../../../components/Text'
 import SuccessIcon from '../../../icons/Success'
-import { formatAssetAmount, prettyAmount, prettyFiatAmount } from '../../../lib/format'
+import { prettyAmount, prettyFiatAmount } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
 import AssetCard from '../../../components/AssetCard'
+import { prettyAssetAmount } from '../../../lib/assets'
 
 export default function SendSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
@@ -31,7 +32,7 @@ export default function SendSuccess() {
   const assetName = assetMeta?.metadata?.name ?? 'Unknown Asset'
   const assetTicker = assetMeta?.metadata?.ticker ?? ''
   const assetIcon = assetMeta?.metadata?.icon
-  const assetAmountValue = sendInfo.assets?.[0]?.amount ?? 0
+  const assetAmountValue = sendInfo.assets?.[0]?.amount ?? BigInt(0)
   const assetDecimals = assetMeta?.metadata?.decimals ?? 8
 
   // Show payment sent notification
@@ -41,7 +42,7 @@ export default function SendSuccess() {
 
   const totalSats = sendInfo.total ?? 0
   const displayAmount = isAssetSend
-    ? `${formatAssetAmount(assetAmountValue, assetDecimals)} ${assetTicker}`
+    ? `${prettyAssetAmount(assetAmountValue, assetDecimals)} ${assetTicker}`
     : useFiat
       ? prettyFiatAmount(toFiat(totalSats), config.fiat)
       : prettyAmount(totalSats)
