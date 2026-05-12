@@ -3068,6 +3068,10 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   gap: 1.375rem;
   padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
   contain: content;
+  --asset-detail-label-size: 0.8125rem;
+  --asset-detail-control-size: 0.8125rem;
+  --asset-detail-section-size: 1rem;
+  --asset-detail-support-weight: 500;
 }
 
 .asset-detail-hero {
@@ -3110,7 +3114,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   margin: 0;
   color: var(--fg);
   font-family: var(--font-heading);
-  font-size: 1.875rem;
+  font-size: 1.625rem;
   font-weight: 500;
   line-height: 1.1;
   letter-spacing: 0;
@@ -3127,7 +3131,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 .asset-detail-price {
   color: var(--fg);
   font-family: var(--font-heading);
-  font-size: clamp(2.25rem, 11vw, 3rem);
+  font-size: clamp(2.375rem, 10.5vw, 2.875rem);
   font-weight: 500;
   line-height: 0.95;
   letter-spacing: 0;
@@ -3141,13 +3145,13 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   gap: 0.25rem;
   border-radius: 999px;
   padding: 0 0.625rem;
-  font-size: 0.9375rem;
-  font-weight: 500;
+  font-size: var(--asset-detail-control-size);
+  font-weight: var(--asset-detail-support-weight);
   line-height: 1;
   font-variant-numeric: tabular-nums;
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, currentColor 10%, transparent),
-    0 1px 2px -1px color-mix(in srgb, var(--fg) 10%, transparent);
+    inset 0 0 0 1px color-mix(in srgb, currentColor 8%, transparent),
+    0 1px 2px -1px color-mix(in srgb, var(--fg) 8%, transparent);
 }
 
 .asset-detail-delta__arrow {
@@ -3156,7 +3160,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   height: 0.875rem;
   align-items: center;
   justify-content: center;
-  font-size: 0.9375rem;
+  font-size: var(--asset-detail-control-size);
   line-height: 1;
   transform-origin: center;
 }
@@ -3167,8 +3171,8 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 }
 
 .asset-detail-delta--down {
-  background: color-mix(in srgb, var(--fg) 5%, var(--bg));
-  color: color-mix(in srgb, var(--fg) 48%, transparent);
+  background: color-mix(in srgb, var(--neutral-50) 88%, var(--bg));
+  color: color-mix(in srgb, var(--fg) 54%, transparent);
 }
 
 .asset-detail-actions {
@@ -3224,8 +3228,8 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 
 .asset-detail-action small {
   color: color-mix(in srgb, var(--fg) 68%, transparent);
-  font-size: 0.75rem;
-  font-weight: 450;
+  font-size: var(--asset-detail-label-size);
+  font-weight: var(--asset-detail-support-weight);
   line-height: 1;
 }
 
@@ -3234,132 +3238,6 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   flex-direction: column;
   gap: 1rem;
   margin: 0 -1rem;
-}
-
-.asset-chart-dev {
-  margin: 0 1rem -0.75rem;
-}
-
-.asset-chart-dev__trigger {
-  display: flex;
-  width: min(100%, 12rem);
-  min-height: 2.75rem;
-  align-items: center;
-  justify-content: space-between;
-  border: 0;
-  border-radius: 0.875rem;
-  background: color-mix(in srgb, var(--neutral-50) 68%, var(--bg));
-  color: var(--fg);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 5%, transparent);
-  font: inherit;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  line-height: 1;
-  padding: 0 0.875rem;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.asset-chart-dev__trigger span:last-child {
-  color: color-mix(in srgb, var(--fg) 48%, transparent);
-  font-size: 0.75rem;
-}
-
-.asset-chart-dev__panel {
-  position: fixed;
-  right: 1rem;
-  bottom: max(1rem, env(safe-area-inset-bottom));
-  left: 1rem;
-  z-index: 40;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem;
-  max-height: min(20rem, 42svh);
-  margin-top: 0;
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--neutral-50) 90%, var(--bg));
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--fg) 6%, transparent),
-    0 18px 42px -24px color-mix(in srgb, var(--fg) 36%, transparent);
-  overflow: auto;
-  padding: 0.625rem;
-  transform-origin: bottom center;
-  -webkit-overflow-scrolling: touch;
-}
-
-.asset-chart-dev-control {
-  display: flex;
-  min-width: 0;
-  min-height: 2.5rem;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.375rem;
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--bg) 72%, transparent);
-  color: color-mix(in srgb, var(--fg) 56%, transparent);
-  font-size: 0.6875rem;
-  font-weight: 450;
-  line-height: 1;
-  padding: 0.5rem;
-}
-
-.asset-chart-dev-control--toggle {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.asset-chart-dev-control span {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.375rem;
-}
-
-.asset-chart-dev-control strong {
-  color: color-mix(in srgb, var(--fg) 70%, transparent);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-
-.asset-chart-dev-control input[type='checkbox'] {
-  width: 1.125rem;
-  height: 1.125rem;
-  accent-color: var(--purple-700);
-}
-
-.asset-chart-dev-control select,
-.asset-chart-dev-control input[type='range'] {
-  width: 100%;
-}
-
-.asset-chart-dev-control select {
-  min-height: 1.75rem;
-  border: 0;
-  border-radius: 0.5rem;
-  background: var(--bg);
-  color: var(--fg);
-  font: inherit;
-  font-size: 0.75rem;
-  padding: 0 0.375rem;
-}
-
-.asset-chart-dev-control input[type='range'] {
-  accent-color: var(--purple-700);
-}
-
-.asset-chart-dev__reset {
-  grid-column: 1 / -1;
-  min-height: 2.5rem;
-  border: 0;
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--purple-100) 42%, var(--bg));
-  color: var(--purple-700);
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 500;
-  touch-action: manipulation;
 }
 
 .asset-detail-chart {
@@ -3404,8 +3282,8 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   background: transparent;
   color: color-mix(in srgb, var(--fg) 38%, transparent);
   font: inherit;
-  font-size: 0.9375rem;
-  font-weight: 500;
+  font-size: var(--asset-detail-control-size);
+  font-weight: var(--asset-detail-support-weight);
   line-height: 1;
   touch-action: manipulation;
   transition:
@@ -3416,7 +3294,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 }
 
 .asset-detail-range-tab[aria-selected='true'] {
-  background: var(--neutral-100);
+  background: color-mix(in srgb, var(--neutral-100) 74%, var(--bg));
   color: var(--fg);
 }
 
@@ -3426,7 +3304,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 
 .asset-detail-holdings {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
   border-top: 1px solid color-mix(in srgb, var(--fg) 6%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--fg) 6%, transparent);
 }
@@ -3436,8 +3314,8 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   min-width: 0;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  padding: 1rem 0.75rem;
+  gap: 0.625rem;
+  padding: 1rem 0.875rem 1.125rem;
   text-align: center;
 }
 
@@ -3445,10 +3323,10 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   border-left: 1px solid color-mix(in srgb, var(--fg) 6%, transparent);
 }
 
-.asset-detail-holding span {
-  color: color-mix(in srgb, var(--fg) 42%, transparent);
-  font-size: 0.9375rem;
-  font-weight: 450;
+.asset-detail-holding > span {
+  color: color-mix(in srgb, var(--fg) 52%, transparent);
+  font-size: var(--asset-detail-label-size);
+  font-weight: var(--asset-detail-support-weight);
   line-height: 1.1;
 }
 
@@ -3459,23 +3337,45 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   justify-content: center;
   gap: 0.375rem;
   color: var(--fg);
-  font-size: 1.25rem;
+  font-size: clamp(1.375rem, 5.4vw, 1.625rem);
   font-weight: 500;
-  line-height: 1.1;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 
-.asset-detail-holding-logo {
+.asset-detail-holding strong .privacy-amount__value {
   display: inline-flex;
-  width: 1.35rem;
-  height: 1.35rem;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.asset-detail-holding-amount {
+  color: var(--fg);
+  font: inherit;
+}
+
+.asset-detail-holding-unit {
+  color: color-mix(in srgb, var(--fg) 62%, transparent);
+  font-size: var(--asset-detail-label-size);
+  font-weight: var(--asset-detail-support-weight);
+  line-height: 1;
+}
+
+.asset-detail-holding-logo {
+  display: inline-grid;
+  width: 1.375rem;
+  height: 1.375rem;
   flex: 0 0 auto;
+  place-items: center;
+  transform: translateY(-0.01em);
 }
 
 .asset-detail-holding-logo svg {
   display: block;
   width: 100%;
   height: 100%;
+  overflow: visible;
 }
 
 .asset-detail-activity {
@@ -3491,9 +3391,9 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 
 .asset-detail-section-header strong {
   color: var(--fg);
-  font-family: var(--font-heading);
-  font-size: 1.25rem;
-  font-weight: 500;
+  font-family: inherit;
+  font-size: var(--asset-detail-section-size);
+  font-weight: var(--asset-detail-support-weight);
   line-height: 1.1;
   letter-spacing: 0;
 }
@@ -3511,8 +3411,8 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 
 .asset-detail-management__label {
   color: color-mix(in srgb, var(--fg) 52%, transparent);
-  font-size: 0.75rem;
-  font-weight: 450;
+  font-size: var(--asset-detail-label-size);
+  font-weight: var(--asset-detail-support-weight);
   line-height: 1;
 }
 
@@ -3526,32 +3426,14 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   color: color-mix(in srgb, var(--fg) 72%, transparent);
 }
 
-.palette-dark .asset-chart-dev__trigger,
-.palette-dark .asset-chart-dev__panel {
-  background: color-mix(in srgb, var(--neutral-50) 38%, var(--bg));
-}
-
-.palette-dark .asset-chart-dev-control {
-  background: color-mix(in srgb, var(--fg) 5%, transparent);
-}
-
-.palette-dark .asset-chart-dev-control select {
-  background: color-mix(in srgb, var(--fg) 7%, transparent);
-}
-
-.palette-dark .asset-chart-dev__reset {
-  background: color-mix(in srgb, var(--purple-500) 15%, var(--neutral-50));
-  color: color-mix(in srgb, var(--purple-100) 88%, var(--fg));
-}
-
 .palette-dark .asset-detail-delta--up {
   background: color-mix(in srgb, var(--green-500) 15%, var(--bg));
   color: color-mix(in srgb, var(--green-100) 86%, var(--green-500));
 }
 
 .palette-dark .asset-detail-delta--down {
-  background: color-mix(in srgb, var(--fg) 8%, var(--bg));
-  color: color-mix(in srgb, var(--fg) 52%, transparent);
+  background: color-mix(in srgb, var(--neutral-50) 28%, var(--bg));
+  color: color-mix(in srgb, var(--fg) 66%, transparent);
 }
 
 .palette-dark .asset-detail-range-tab[aria-selected='true'] {

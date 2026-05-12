@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Liveline, type LivelinePoint, type Momentum, type ThemeMode, type WindowStyle } from 'liveline'
-import { ReactNode, useContext, useEffect, useMemo, useState } from 'react'
+import { Liveline, type HoverPoint, type LivelinePoint } from 'liveline'
+import { ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import AssetAvatar from '../../../components/AssetAvatar'
 import Button from '../../../components/Button'
 import Content from '../../../components/Content'
@@ -35,56 +35,10 @@ const CHART_WINDOWS = [
   { label: '1W', secs: 604_800 },
   { label: '1M', secs: 2_592_000 },
   { label: '1Y', secs: 31_536_000 },
-  { label: 'All', secs: 157_680_000 },
+  { label: 'All', secs: -1 },
 ]
 
-type ChartDevOptions = {
-  badge: boolean
-  badgeTail: boolean
-  badgeVariant: 'default' | 'minimal'
-  builtInWindows: boolean
-  degen: boolean
-  exaggerate: boolean
-  fill: boolean
-  grid: boolean
-  lerpSpeed: number
-  lineWidth: number
-  momentum: 'off' | 'auto' | Momentum
-  paddingBottom: number
-  paddingLeft: number
-  paddingRight: number
-  paddingTop: number
-  pulse: boolean
-  scrub: boolean
-  showValue: boolean
-  theme: 'auto' | ThemeMode
-  valueMomentumColor: boolean
-  windowStyle: WindowStyle
-}
-
-const DEFAULT_CHART_DEV_OPTIONS: ChartDevOptions = {
-  badge: false,
-  badgeTail: true,
-  badgeVariant: 'minimal',
-  builtInWindows: false,
-  degen: false,
-  exaggerate: false,
-  fill: false,
-  grid: false,
-  lerpSpeed: 0.1,
-  lineWidth: 4,
-  momentum: 'off',
-  paddingBottom: 8,
-  paddingLeft: 12,
-  paddingRight: 12,
-  paddingTop: 8,
-  pulse: false,
-  scrub: false,
-  showValue: false,
-  theme: 'auto',
-  valueMomentumColor: false,
-  windowStyle: 'text',
-}
+const MIN_CHART_WINDOW_SECS = 30
 
 export default function AppAssetDetail() {
   const { navigate } = useContext(NavigationContext)
@@ -106,8 +60,8 @@ export default function AppAssetDetail() {
   const isBitcoin = assetId === 'btc'
   const [loading, setLoading] = useState(!isBitcoin)
   const [chartWindow, setChartWindow] = useState(CHART_WINDOWS[0].secs)
-  const [chartDevOpen, setChartDevOpen] = useState(false)
-  const [chartDevOptions, setChartDevOptions] = useState(DEFAULT_CHART_DEV_OPTIONS)
+  const [chartInteracting, setChartInteracting] = useState(false)
+  const chartHapticState = useRef({ lastPointTime: 0, lastTriggerTime: 0 })
 
   const cachedEntry = isBitcoin ? undefined : assetMetadataCache.get(assetId)
   const hasIcon = cachedEntry?.hasIcon ?? false
@@ -144,27 +98,44 @@ export default function AppAssetDetail() {
   const decimals = isBitcoin ? 8 : (meta?.decimals ?? 8)
   const rawBalance = isBitcoin ? btcBalance : (assetBalances.find((a) => a.assetId === assetId)?.amount ?? 0)
   const unitBalance = centsToUnits(rawBalance, decimals)
-  const fiatValue = portfolioRow?.fiatAmount ?? (isBitcoin ? toFiat(rawBalance) : 0)
-  const hasFiatValue = isBitcoin || Boolean(portfolioRow?.hasFiatPrice)
+  const fallbackHasFiatValue = isBitcoin || Boolean(portfolioRow?.hasFiatPrice)
+  const fallbackUnitPrice =
+    unitBalance > 0 && fallbackHasFiatValue
+      ? (portfolioRow?.fiatAmount ?? toFiat(rawBalance)) / unitBalance
+      : estimateUnitPrice(ticker, toFiat, convertFiat)
+  const liveChartData = useMarketChartData(ticker, config.fiat, chartWindow)
+  const unitPrice = liveChartData.at(-1)?.value ?? fallbackUnitPrice
+  const hasFiatValue = Boolean(liveChartData.length) || fallbackHasFiatValue
+  const fiatValue =
+    unitBalance > 0 && hasFiatValue
+      ? unitBalance * unitPrice
+      : (portfolioRow?.fiatAmount ?? (isBitcoin ? toFiat(rawBalance) : 0))
   const formattedFiat = hasFiatValue
     ? prettyFiatAmount(fiatValue, config.fiat, {
         maximumFractionDigits: fiatDecimals(),
         minimumFractionDigits: fiatDecimals(),
       })
     : undefined
-  const unitPrice =
-    unitBalance > 0 && hasFiatValue ? fiatValue / unitBalance : estimateUnitPrice(ticker, toFiat, convertFiat)
   const chartColor = useTokenColor(chartTokenForTicker(ticker))
   const chartTheme = useResolvedChartTheme(config.theme)
-  const effectiveChartTheme = chartDevOptions.theme === 'auto' ? chartTheme : chartDevOptions.theme
-  const effectiveMomentum =
-    chartDevOptions.momentum === 'off' ? false : chartDevOptions.momentum === 'auto' ? true : chartDevOptions.momentum
+  const stablecoinPegValue = isStablecoinTicker(ticker) ? convertFiat(1, Fiats.USD) : undefined
   const chartData = useMemo(
-    () => buildChartData(assetId, unitPrice, chartWindow, ticker),
-    [assetId, unitPrice, chartWindow, ticker],
+    () => (liveChartData.length ? liveChartData : buildFlatChartData(unitPrice, chartWindow)),
+    [liveChartData, unitPrice, chartWindow],
+  )
+  const chartDisplayData = useMemo(
+    () =>
+      stablecoinPegValue
+        ? buildStablecoinPegChartData(chartData, stablecoinPegValue, chartWindow)
+        : smoothChartData(chartData, chartWindow, chartInteracting),
+    [chartData, chartInteracting, chartWindow, stablecoinPegValue],
+  )
+  const livelineWindow = useMemo(
+    () => getLivelineWindowSecs(chartDisplayData, chartWindow),
+    [chartDisplayData, chartWindow],
   )
   const canRenderChart = typeof ResizeObserver !== 'undefined'
-  const chartDelta = calculateDelta(chartData)
+  const chartDelta = calculateDelta(chartData, stablecoinPegValue)
   const tokenLogoTicker = getTokenLogoTicker(ticker)
   const controlAssetId = isBitcoin ? undefined : assetInfo.controlAssetId
   const holdsControlAsset = controlAssetId
@@ -214,6 +185,35 @@ export default function AppAssetDetail() {
     updateConfig({ ...config, importedAssets: updated })
     navigate(Pages.Wallet)
   }
+
+  const handleChartPress = useCallback(() => {
+    if (prefersReduced) return
+    hapticSubtle()
+  }, [prefersReduced])
+
+  const setChartScrubbing = useCallback((value: boolean) => {
+    setChartInteracting((current) => (current === value ? current : value))
+  }, [])
+
+  const handleChartHover = useCallback(
+    (point: HoverPoint | null) => {
+      if (!point || prefersReduced) return
+
+      const pointTime = Math.round(point.time)
+      const now = performance.now()
+      const state = chartHapticState.current
+
+      if (!pointTime || pointTime === state.lastPointTime) return
+      if (now - state.lastTriggerTime < 120) return
+
+      chartHapticState.current = {
+        lastPointTime: pointTime,
+        lastTriggerTime: now,
+      }
+      hapticSubtle()
+    },
+    [prefersReduced],
+  )
 
   if (loading) return <LoadingLogo text='Loading asset...' />
 
@@ -274,55 +274,49 @@ export default function AppAssetDetail() {
               className='asset-detail-chart-section'
               variants={prefersReduced ? undefined : walletLoadInChild}
             >
-              {import.meta.env.DEV ? (
-                <ChartDevControls
-                  isOpen={chartDevOpen}
-                  options={chartDevOptions}
-                  onOpenChange={setChartDevOpen}
-                  onOptionsChange={setChartDevOptions}
-                />
-              ) : null}
-              <div className='asset-detail-chart'>
+              <div
+                className='asset-detail-chart'
+                onPointerDown={() => {
+                  setChartScrubbing(true)
+                  handleChartPress()
+                }}
+                onPointerEnter={() => setChartScrubbing(true)}
+                onPointerLeave={() => setChartScrubbing(false)}
+                onPointerUp={() => setChartScrubbing(false)}
+                onPointerCancel={() => setChartScrubbing(false)}
+              >
                 {canRenderChart ? (
                   <Liveline
-                    data={chartData}
-                    value={chartData.at(-1)?.value ?? unitPrice}
+                    data={chartDisplayData}
+                    value={chartDisplayData.at(-1)?.value ?? unitPrice}
                     color={chartColor}
-                    theme={effectiveChartTheme}
-                    window={chartWindow}
-                    windows={chartDevOptions.builtInWindows ? CHART_WINDOWS : undefined}
-                    onWindowChange={
-                      chartDevOptions.builtInWindows
-                        ? (secs) => {
-                            hapticSubtle()
-                            setChartWindow(secs)
-                          }
-                        : undefined
-                    }
-                    windowStyle={chartDevOptions.windowStyle}
-                    badge={chartDevOptions.badge}
-                    badgeTail={chartDevOptions.badgeTail}
-                    badgeVariant={chartDevOptions.badgeVariant}
+                    theme={chartTheme}
+                    window={livelineWindow}
+                    badge={false}
+                    badgeTail
+                    badgeVariant='minimal'
                     formatValue={(value) => prettyFiatAmount(value, config.fiat)}
-                    grid={chartDevOptions.grid}
-                    pulse={Boolean(chartDevOptions.pulse && !prefersReduced)}
-                    scrub={Boolean(chartDevOptions.scrub && !prefersReduced)}
-                    momentum={effectiveMomentum}
-                    fill={chartDevOptions.fill}
-                    showValue={chartDevOptions.showValue}
-                    valueMomentumColor={chartDevOptions.valueMomentumColor}
-                    degen={Boolean(chartDevOptions.degen && !prefersReduced)}
-                    exaggerate={chartDevOptions.exaggerate}
-                    lineWidth={chartDevOptions.lineWidth}
+                    grid={false}
+                    pulse={!prefersReduced}
+                    scrub={!prefersReduced}
+                    momentum={false}
+                    fill
+                    showValue={false}
+                    valueMomentumColor={false}
+                    degen={false}
+                    exaggerate={false}
+                    lineWidth={4}
                     padding={{
-                      top: chartDevOptions.paddingTop,
-                      right: chartDevOptions.badge
-                        ? Math.max(chartDevOptions.paddingRight, 88)
-                        : chartDevOptions.paddingRight,
-                      bottom: chartDevOptions.paddingBottom,
-                      left: chartDevOptions.paddingLeft,
+                      top: 8,
+                      right: 32,
+                      bottom: 8,
+                      left: 12,
                     }}
-                    lerpSpeed={prefersReduced ? 1 : chartDevOptions.lerpSpeed}
+                    lerpSpeed={prefersReduced ? 1 : 0.1}
+                    onHover={(point) => {
+                      setChartScrubbing(Boolean(point))
+                      handleChartHover(point)
+                    }}
                     cursor='default'
                   />
                 ) : (
@@ -360,7 +354,8 @@ export default function AppAssetDetail() {
                     </span>
                   ) : null}
                   <PrivacyAmount masked={`•••• ${ticker}`}>
-                    {formatAssetAmount(rawBalance, decimals)} {ticker}
+                    <span className='asset-detail-holding-amount'>{formatAssetAmount(rawBalance, decimals)}</span>
+                    <span className='asset-detail-holding-unit'>{ticker}</span>
                   </PrivacyAmount>
                 </strong>
               </div>
@@ -413,240 +408,6 @@ export default function AppAssetDetail() {
         </Padded>
       </Content>
     </>
-  )
-}
-
-function ChartDevControls({
-  isOpen,
-  onOpenChange,
-  onOptionsChange,
-  options,
-}: {
-  isOpen: boolean
-  onOpenChange: (value: boolean) => void
-  onOptionsChange: (value: ChartDevOptions) => void
-  options: ChartDevOptions
-}) {
-  const setBoolean = (key: keyof ChartDevOptions) => (value: boolean) => {
-    hapticSubtle()
-    onOptionsChange({ ...options, [key]: value })
-  }
-  const setNumber = (key: keyof ChartDevOptions) => (value: number) => {
-    onOptionsChange({ ...options, [key]: value })
-  }
-  const setSelect =
-    <K extends keyof ChartDevOptions>(key: K) =>
-    (value: ChartDevOptions[K]) => {
-      hapticSubtle()
-      onOptionsChange({ ...options, [key]: value })
-    }
-
-  return (
-    <div className='asset-chart-dev'>
-      <button
-        type='button'
-        className='asset-chart-dev__trigger'
-        aria-expanded={isOpen}
-        onClick={() => {
-          hapticLight()
-          onOpenChange(!isOpen)
-        }}
-      >
-        <span>Chart props</span>
-        <span>{isOpen ? 'Hide' : 'Show'}</span>
-      </button>
-      <AnimatePresence initial={false}>
-        {isOpen ? (
-          <motion.div
-            className='asset-chart-dev__panel'
-            initial={{ opacity: 0, y: -8, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.98 }}
-            transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
-          >
-            <DevToggle label='Badge' checked={options.badge} onChange={setBoolean('badge')} />
-            <DevToggle label='Badge tail' checked={options.badgeTail} onChange={setBoolean('badgeTail')} />
-            <DevToggle label='Grid' checked={options.grid} onChange={setBoolean('grid')} />
-            <DevToggle label='Fill' checked={options.fill} onChange={setBoolean('fill')} />
-            <DevToggle label='Pulse' checked={options.pulse} onChange={setBoolean('pulse')} />
-            <DevToggle label='Scrub' checked={options.scrub} onChange={setBoolean('scrub')} />
-            <DevToggle label='Show value' checked={options.showValue} onChange={setBoolean('showValue')} />
-            <DevToggle
-              label='Value color'
-              checked={options.valueMomentumColor}
-              onChange={setBoolean('valueMomentumColor')}
-            />
-            <DevToggle label='Degen' checked={options.degen} onChange={setBoolean('degen')} />
-            <DevToggle label='Exaggerate' checked={options.exaggerate} onChange={setBoolean('exaggerate')} />
-            <DevToggle
-              label='Built-in ranges'
-              checked={options.builtInWindows}
-              onChange={setBoolean('builtInWindows')}
-            />
-
-            <DevSelect
-              label='Momentum'
-              value={options.momentum}
-              options={['off', 'auto', 'up', 'down', 'flat']}
-              onChange={(value) => setSelect('momentum')(value as ChartDevOptions['momentum'])}
-            />
-            <DevSelect
-              label='Badge'
-              value={options.badgeVariant}
-              options={['minimal', 'default']}
-              onChange={(value) => setSelect('badgeVariant')(value as ChartDevOptions['badgeVariant'])}
-            />
-            <DevSelect
-              label='Windows'
-              value={options.windowStyle}
-              options={['text', 'rounded', 'default']}
-              onChange={(value) => setSelect('windowStyle')(value as WindowStyle)}
-            />
-            <DevSelect
-              label='Theme'
-              value={options.theme}
-              options={['auto', 'light', 'dark']}
-              onChange={(value) => setSelect('theme')(value as ChartDevOptions['theme'])}
-            />
-
-            <DevRange
-              label='Line'
-              min={1}
-              max={8}
-              step={0.5}
-              value={options.lineWidth}
-              onChange={setNumber('lineWidth')}
-            />
-            <DevRange
-              label='Lerp'
-              min={0.02}
-              max={0.5}
-              step={0.01}
-              value={options.lerpSpeed}
-              onChange={setNumber('lerpSpeed')}
-            />
-            <DevRange
-              label='Pad top'
-              min={0}
-              max={80}
-              step={1}
-              value={options.paddingTop}
-              onChange={setNumber('paddingTop')}
-            />
-            <DevRange
-              label='Pad right'
-              min={0}
-              max={120}
-              step={1}
-              value={options.paddingRight}
-              onChange={setNumber('paddingRight')}
-            />
-            <DevRange
-              label='Pad bottom'
-              min={0}
-              max={80}
-              step={1}
-              value={options.paddingBottom}
-              onChange={setNumber('paddingBottom')}
-            />
-            <DevRange
-              label='Pad left'
-              min={0}
-              max={120}
-              step={1}
-              value={options.paddingLeft}
-              onChange={setNumber('paddingLeft')}
-            />
-
-            <button
-              type='button'
-              className='asset-chart-dev__reset'
-              onClick={() => {
-                hapticLight()
-                onOptionsChange(DEFAULT_CHART_DEV_OPTIONS)
-              }}
-            >
-              Reset chart props
-            </button>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </div>
-  )
-}
-
-function DevToggle({
-  checked,
-  label,
-  onChange,
-}: {
-  checked: boolean
-  label: string
-  onChange: (value: boolean) => void
-}) {
-  return (
-    <label className='asset-chart-dev-control asset-chart-dev-control--toggle'>
-      <span>{label}</span>
-      <input type='checkbox' checked={checked} onChange={(event) => onChange(event.currentTarget.checked)} />
-    </label>
-  )
-}
-
-function DevSelect({
-  label,
-  onChange,
-  options,
-  value,
-}: {
-  label: string
-  onChange: (value: string) => void
-  options: string[]
-  value: string
-}) {
-  return (
-    <label className='asset-chart-dev-control'>
-      <span>{label}</span>
-      <select value={value} onChange={(event) => onChange(event.currentTarget.value)}>
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
-}
-
-function DevRange({
-  label,
-  max,
-  min,
-  onChange,
-  step,
-  value,
-}: {
-  label: string
-  max: number
-  min: number
-  onChange: (value: number) => void
-  step: number
-  value: number
-}) {
-  return (
-    <label className='asset-chart-dev-control asset-chart-dev-control--range'>
-      <span>
-        {label}
-        <strong>{value}</strong>
-      </span>
-      <input
-        type='range'
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.currentTarget.value))}
-      />
-    </label>
   )
 }
 
@@ -763,6 +524,71 @@ function useResolvedChartTheme(theme: Themes): 'light' | 'dark' {
   return resolved
 }
 
+function useMarketChartData(ticker: string, fiat: Fiats, windowSecs: number): LivelinePoint[] {
+  const [data, setData] = useState<LivelinePoint[]>([])
+
+  useEffect(() => {
+    const coinId = coinGeckoIdForTicker(ticker)
+    if (!coinId) {
+      setData([])
+      return
+    }
+
+    const controller = new AbortController()
+
+    fetchCoinGeckoMarketChart(coinId, fiat, windowSecs, controller.signal)
+      .then((json) => {
+        if (controller.signal.aborted) return
+        const prices = Array.isArray(json.prices) ? json.prices : []
+        const points = prices
+          .map(([timeMs, value]) => ({ time: Math.round(timeMs / 1000), value }))
+          .filter((point) => Number.isFinite(point.time) && Number.isFinite(point.value) && point.value > 0)
+        if (isAllChartWindow(windowSecs)) {
+          setData(points)
+          return
+        }
+
+        const cutoff = Math.floor(Date.now() / 1000) - windowSecs
+        const windowedPoints = points.filter((point) => point.time >= cutoff)
+        setData(windowedPoints.length >= 2 ? windowedPoints : points)
+      })
+      .catch((err) => {
+        if (controller.signal.aborted) return
+        consoleError(err, 'error fetching asset market chart')
+        setData([])
+      })
+
+    return () => controller.abort()
+  }, [ticker, fiat, windowSecs])
+
+  return data
+}
+
+async function fetchCoinGeckoMarketChart(
+  coinId: string,
+  fiat: Fiats,
+  windowSecs: number,
+  signal: AbortSignal,
+): Promise<{ prices?: [number, number][] }> {
+  const requests = coinGeckoDaysForWindow(windowSecs)
+
+  for (const days of requests) {
+    const params = new URLSearchParams({
+      vs_currency: fiat.toLowerCase(),
+      days,
+      precision: 'full',
+    })
+    const response = await fetch(`https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?${params.toString()}`, {
+      signal,
+    })
+
+    if (response.ok) return response.json() as Promise<{ prices?: [number, number][] }>
+    if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
+  }
+
+  throw new Error(`CoinGecko market chart failed for ${coinId}`)
+}
+
 function estimateUnitPrice(
   ticker: string,
   toFiat: (sats?: number) => number,
@@ -774,39 +600,135 @@ function estimateUnitPrice(
   return 1
 }
 
-function buildChartData(assetId: string, latestValue: number, windowSecs: number, ticker: string): LivelinePoint[] {
-  const points = 96
+function buildFlatChartData(latestValue: number, windowSecs: number): LivelinePoint[] {
   const now = Math.floor(Date.now() / 1000)
-  const step = windowSecs / (points - 1)
-  const seed = hashString(`${assetId}-${ticker}-${windowSecs}`)
-  const stable = ticker === 'USDT' || ticker === 'USDC'
-  const amplitude = stable ? 0.0018 : ticker === 'BTC' ? 0.052 : 0.028
-  const drift = stable ? 0.0004 : ((seed % 17) - 8) / 1000
+  const fallbackWindowSecs = isAllChartWindow(windowSecs) ? 86_400 : windowSecs
+  return [
+    { time: now - fallbackWindowSecs, value: latestValue },
+    { time: now, value: latestValue },
+  ]
+}
 
-  return Array.from({ length: points }, (_, index) => {
-    const progress = index / (points - 1)
-    const wave = Math.sin(progress * Math.PI * 3 + seed) * amplitude
-    const smallerWave = Math.sin(progress * Math.PI * 11 + seed / 3) * amplitude * 0.32
-    const value = latestValue * (1 + wave + smallerWave + drift * (progress - 0.5))
+function buildStablecoinPegChartData(data: LivelinePoint[], pegValue: number, windowSecs: number): LivelinePoint[] {
+  const source = data.length >= 2 ? data : buildFlatChartData(pegValue, windowSecs)
+  return source.map((point) => ({
+    time: point.time,
+    value: pegValue,
+  }))
+}
+
+function smoothChartData(data: LivelinePoint[], windowSecs: number, isInteracting: boolean): LivelinePoint[] {
+  if (isInteracting || data.length < 8 || (!isAllChartWindow(windowSecs) && windowSecs <= 86_400)) return data
+
+  const targetPoints = chartTargetPointCount(windowSecs)
+  const bucketed = bucketAveragePoints(data, targetPoints)
+  const radius = chartSmoothingRadius(windowSecs)
+  if (radius <= 0) return bucketed
+
+  return bucketed.map((point, index) => {
+    if (index === 0 || index === bucketed.length - 1) return point
+
+    const start = Math.max(0, index - radius)
+    const end = Math.min(bucketed.length - 1, index + radius)
+    let totalWeight = 0
+    let totalValue = 0
+
+    for (let cursor = start; cursor <= end; cursor += 1) {
+      const distance = Math.abs(cursor - index)
+      const weight = radius + 1 - distance
+      totalWeight += weight
+      totalValue += bucketed[cursor].value * weight
+    }
+
     return {
-      time: Math.round(now - windowSecs + step * index),
-      value: Math.max(value, latestValue * 0.0001),
+      time: point.time,
+      value: totalValue / totalWeight,
     }
   })
 }
 
-function calculateDelta(data: LivelinePoint[]): number {
+function bucketAveragePoints(data: LivelinePoint[], targetPoints: number): LivelinePoint[] {
+  if (data.length <= targetPoints) return data
+
+  const bucketSize = Math.ceil(data.length / targetPoints)
+  const points: LivelinePoint[] = [data[0]]
+
+  for (let index = 1; index < data.length - 1; index += bucketSize) {
+    const bucket = data.slice(index, index + bucketSize)
+    if (!bucket.length) continue
+
+    const time = bucket[Math.floor(bucket.length / 2)].time
+    const value = bucket.reduce((sum, point) => sum + point.value, 0) / bucket.length
+    points.push({ time, value })
+  }
+
+  const last = data.at(-1)
+  if (last && points.at(-1)?.time !== last.time) points.push(last)
+
+  return points
+}
+
+function chartTargetPointCount(windowSecs: number): number {
+  if (isAllChartWindow(windowSecs)) return 120
+  if (windowSecs >= 31_536_000) return 116
+  if (windowSecs >= 2_592_000) return 96
+  return 84
+}
+
+function chartSmoothingRadius(windowSecs: number): number {
+  if (isAllChartWindow(windowSecs)) return 5
+  if (windowSecs >= 31_536_000) return 4
+  if (windowSecs >= 2_592_000) return 3
+  return 2
+}
+
+function getLivelineWindowSecs(data: LivelinePoint[], windowSecs: number): number {
+  if (!isAllChartWindow(windowSecs)) return windowSecs
+
+  const first = data[0]
+  const last = data.at(-1)
+  if (!first || !last) return 86_400
+
+  const now = Math.floor(Date.now() / 1000)
+  const rightEdge = Math.max(now, last.time)
+  return Math.max(MIN_CHART_WINDOW_SECS, rightEdge - first.time)
+}
+
+function calculateDelta(data: LivelinePoint[], stablecoinPegValue?: number): number {
+  if (stablecoinPegValue) {
+    const last = data.at(-1)?.value ?? stablecoinPegValue
+    const deviation = ((last - stablecoinPegValue) / stablecoinPegValue) * 100
+    return Math.abs(deviation) < 0.05 ? 0 : deviation
+  }
+
   const first = data[0]?.value ?? 0
   const last = data.at(-1)?.value ?? first
   if (!first) return 0
   return ((last - first) / first) * 100
 }
 
-function hashString(value: string): number {
-  let hash = 0
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash << 5) - hash + value.charCodeAt(index)
-    hash |= 0
-  }
-  return Math.abs(hash)
+function isStablecoinTicker(ticker: string): boolean {
+  const normalized = ticker.trim().toUpperCase()
+  return normalized === 'USDT' || normalized === 'USDC'
+}
+
+function coinGeckoIdForTicker(ticker: string): string | undefined {
+  const normalized = ticker.trim().toUpperCase()
+  if (normalized === 'BTC') return 'bitcoin'
+  if (normalized === 'USDT') return 'tether'
+  if (normalized === 'USDC') return 'usd-coin'
+}
+
+function coinGeckoDaysForWindow(windowSecs: number): string[] {
+  if (isAllChartWindow(windowSecs)) return ['365']
+  if (windowSecs <= 3_600) return ['1']
+  if (windowSecs <= 86_400) return ['1']
+  if (windowSecs <= 604_800) return ['7']
+  if (windowSecs <= 2_592_000) return ['30']
+  if (windowSecs <= 31_536_000) return ['365']
+  return ['365']
+}
+
+function isAllChartWindow(windowSecs: number): boolean {
+  return windowSecs < 0
 }
