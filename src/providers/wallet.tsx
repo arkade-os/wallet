@@ -54,7 +54,7 @@ interface InitSvcWorkerWalletParams {
   arkServerUrl: string
   esploraUrl?: string
   privateKey?: string
-  identity?: SingleKey
+  identity?: Identity
   skipMigration?: boolean
   retryCount?: number
   maxRetries?: number
@@ -153,7 +153,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const swMessageHandlerRef = useRef<(event: MessageEvent) => void>()
   const reinitInProgress = useRef(false)
   const initAbortRef = useRef<AbortController | null>(null)
-  const reinitSvcWalletRef = useRef<((identity: SingleKey) => Promise<void>) | null>(null)
+  const reinitSvcWalletRef = useRef<((identity: Identity) => Promise<void>) | null>(null)
 
   // Each init gets its own AbortSignal; lock/reset aborts the current signal
   // with 'lock-reset' so stale paths can decide whether to tear down the SW.
@@ -409,7 +409,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // that fires between retries is observable via signal.aborted.
   const runInitAttempt = async (
     signal: AbortSignal,
-    identity: SingleKey,
+    identity: Identity,
     params: InitSvcWorkerWalletParams,
   ): Promise<boolean> => {
     const { arkServerUrl, esploraUrl, skipMigration = false, retryCount = 0, maxRetries = 2, delegatorUrl } = params
@@ -611,36 +611,28 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     let identity: Identity
     let pubkey: string
 
+    const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
+
     if (credentials.mnemonic) {
       const mnemonicIdentity = MnemonicIdentity.fromMnemonic(credentials.mnemonic, { isMainnet: isMainnet(network) })
       identity = mnemonicIdentity
       pubkey = hex.encode(await mnemonicIdentity.compressedPublicKey())
-
       updateConfig({ ...config, pubkey })
-      const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
-      await initSvcWorkerWallet({
-        identity,
-        arkServerUrl,
-        esploraUrl,
-        delegatorUrl,
-      })
     } else if (credentials.privateKey) {
       identity = SingleKey.fromPrivateKey(credentials.privateKey)
       pubkey = hex.encode(secp.getPublicKey(credentials.privateKey))
-
       updateConfig({ ...config, pubkey })
-      const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
-      await initSvcWorkerWallet({
-        identity,
-        arkServerUrl,
-        esploraUrl,
-        delegatorUrl,
-      })
     } else {
       throw new Error('Either mnemonic or privateKey must be provided')
     }
 
-    if (!initialized) return
+    const didInit = await initSvcWorkerWallet({
+      identity,
+      arkServerUrl,
+      esploraUrl,
+      delegatorUrl,
+    })
+    if (!didInit) return
     updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
   }
@@ -690,7 +682,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // Identity is passed in by the caller because the setInterval that triggers
   // reinit captures this closure from the render before svcWallet state was
   // populated.
-  const reinitSvcWallet = async (identity: SingleKey) => {
+  const reinitSvcWallet = async (identity: Identity) => {
     if (reinitInProgress.current) return
     reinitInProgress.current = true
     try {
