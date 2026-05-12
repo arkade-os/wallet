@@ -30,7 +30,7 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
 const worker = new MessageBus(walletRepository, contractRepository, {
   messageHandlers: [new WalletMessageHandler(), new ArkadeSwapsMessageHandler(swapRepository)],
   tickIntervalMs: 5000,
-  messageTimeoutMs: 60_000,
+  messageTimeoutMs: 120_000,
 })
 worker.start().catch(console.error)
 
