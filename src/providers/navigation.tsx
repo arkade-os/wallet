@@ -24,7 +24,7 @@ import AppBoltzSettings from '../screens/Apps/Boltz/Settings'
 import InitSuccess from '../screens/Init/Success'
 import AppBoltzSwap from '../screens/Apps/Boltz/Swap'
 import AppLendasat from '../screens/Apps/Lendasat/Index'
-import AppLendaswap from '../screens/Apps/Lendaswap/Index'
+import AppSatora from '../screens/Apps/Satora/Index'
 import AppAssets from '../screens/Apps/Assets/Index'
 import AppAssetDetail from '../screens/Apps/Assets/Detail'
 import AppAssetImport from '../screens/Apps/Assets/Import'
@@ -44,7 +44,7 @@ export enum Pages {
   AppBoltzSettings,
   AppBoltzSwap,
   AppLendasat,
-  AppLendaswap,
+  AppSatora,
   AppAssets,
   AppAssetDetail,
   AppAssetImport,
@@ -90,7 +90,7 @@ const pageTab = {
   [Pages.AppBoltzSettings]: Tabs.Apps,
   [Pages.AppBoltzSwap]: Tabs.Apps,
   [Pages.AppLendasat]: Tabs.Apps,
-  [Pages.AppLendaswap]: Tabs.Apps,
+  [Pages.AppSatora]: Tabs.Apps,
   [Pages.AppAssets]: Tabs.Apps,
   [Pages.AppAssetDetail]: Tabs.Apps,
   [Pages.AppAssetImport]: Tabs.Apps,
@@ -152,8 +152,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <AppBoltzSwap />
     case Pages.AppLendasat:
       return <AppLendasat />
-    case Pages.AppLendaswap:
-      return <AppLendaswap />
+    case Pages.AppSatora:
+      return <AppSatora />
     case Pages.AppAssets:
       return <AppAssets />
     case Pages.AppAssetDetail:

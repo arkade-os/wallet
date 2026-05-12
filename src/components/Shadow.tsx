@@ -41,11 +41,11 @@ export default function Shadow({
         : red
           ? 'var(--red)'
           : lighter
-            ? 'var(--dark05)'
+            ? 'var(--neutral-50)'
             : inverted
               ? 'var(--magenta)'
-              : 'var(--dark10)',
-    border: border ? `1px solid var(--${borderPurple ? 'purple' : 'dark10'})` : undefined,
+              : 'var(--neutral-100)',
+    border: border ? `1px solid var(--${borderPurple ? 'purple' : 'neutral-100'})` : undefined,
     borderRadius: squared ? undefined : '0.5rem',
     color: purple || darkPurple ? 'white' : '',
     cursor: onClick ? 'pointer' : undefined,
