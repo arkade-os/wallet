@@ -21,7 +21,7 @@ import { extractError } from '../../../lib/error'
 import type { AssetDetails, IssuanceParams, KnownMetadata } from '@arkade-os/sdk'
 import Input from '../../../components/Input'
 import AssetCard from '../../../components/AssetCard'
-import { unitsToCents } from '../../../lib/assets'
+import { MAX_DECIMALS, unitsToCents } from '../../../lib/assets'
 
 interface KnownAssetOption {
   assetId: string
@@ -88,8 +88,8 @@ export default function AppAssetMint() {
       return
     }
     const parsedDecimals = decimals !== '' ? parseInt(decimals) : 0
-    if (!Number.isInteger(parsedDecimals) || parsedDecimals < 0 || parsedDecimals > 8) {
-      setError('Decimals must be an integer between 0 and 8')
+    if (!Number.isInteger(parsedDecimals) || parsedDecimals < 0 || parsedDecimals > MAX_DECIMALS) {
+      setError(`Decimals must be an integer between 0 and ${MAX_DECIMALS}`)
       return
     }
 
@@ -184,8 +184,8 @@ export default function AppAssetMint() {
             ? 'Enter an amount'
             : isNaN(parsedUnits) || parsedUnits <= 0
               ? 'Amount must be a positive number'
-              : isNaN(parsedDecimals) || parsedDecimals < 0 || parsedDecimals > 8
-                ? 'Decimals must be 0–8'
+              : isNaN(parsedDecimals) || parsedDecimals < 0 || parsedDecimals > MAX_DECIMALS
+                ? `Decimals must be 0–${MAX_DECIMALS}`
                 : controlMode === 'New' && !ctrlAmount
                   ? 'Enter control asset amount'
                   : controlMode === 'New' && (isNaN(ctrlAmount) || ctrlAmount <= 0)
