@@ -718,7 +718,12 @@ export default function SendForm() {
 
   const AssetIcon = ({ asset }: { asset: AssetOption | null }) => {
     const ticker = asset?.ticker?.toUpperCase()
-    const tokenTicker = ticker === 'USDT' || ticker === 'USDC' ? (ticker as TokenLogoTicker) : asset ? null : 'BTC'
+    const tokenTicker =
+      ticker === 'USD' || ticker === 'USDT' || ticker === 'USDC' || ticker === 'CHF' || ticker === 'BRL'
+        ? (ticker as TokenLogoTicker)
+        : asset
+          ? null
+          : 'BTC'
 
     if (tokenTicker) {
       return (

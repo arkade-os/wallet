@@ -204,7 +204,7 @@ describe('Navbar visibility', () => {
     expect(ionApp.className).not.toContain('has-pill-navbar')
   })
 
-  it('routes the wallet swap action to the asset swap prototype', async () => {
+  it('routes the wallet swap action to the asset swap flow', async () => {
     const { navigate } = renderApp({
       authState: 'authenticated',
       initialized: true,

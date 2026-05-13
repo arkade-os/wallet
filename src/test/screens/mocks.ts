@@ -165,6 +165,7 @@ export const mockWalletContextValue = {
 export const mockFlowContextValue = {
   txInfo: mockTxInfo,
   swapInfo: undefined,
+  swapFromAssetId: undefined,
   initInfo: emptyInitInfo,
   noteInfo: emptyNoteInfo,
   recvInfo: emptyRecvInfo,
@@ -174,6 +175,7 @@ export const mockFlowContextValue = {
   setRecvInfo: () => {},
   setSendInfo: () => {},
   setSwapInfo: () => {},
+  setSwapFromAssetId: () => {},
   setTxInfo: () => {},
   assetInfo: { assetId: '', supply: BigInt(0) },
   setAssetInfo: () => {},

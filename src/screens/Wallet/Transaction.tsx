@@ -4,7 +4,7 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
-import { formatAssetAmount, isBurn, isIssuance, prettyAgo, prettyDate } from '../../lib/format'
+import { isBurn, isIssuance, prettyAgo, prettyCurrencyAssetAmount, prettyDate } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
 import ErrorMessage from '../../components/Error'
 import { extractError } from '../../lib/error'
@@ -156,8 +156,9 @@ export default function Transaction() {
                 const name = meta?.name
                 const icon = meta?.icon
                 const decimals = meta?.decimals ?? 8
-                const label = ticker ?? name ?? `${a.assetId.slice(0, 8)}...`
-                const tokenLogoTicker = getTokenLogoTicker(ticker)
+                const accountTicker = accountTickerForAssetTicker(ticker)
+                const label = accountTicker ?? name ?? `${a.assetId.slice(0, 8)}...`
+                const tokenLogoTicker = getTokenLogoTicker(accountTicker ?? ticker)
                 return (
                   <div key={a.assetId} className='transaction-detail-asset'>
                     <span className='transaction-detail-asset__logo'>
@@ -169,9 +170,11 @@ export default function Transaction() {
                     </span>
                     <div className='transaction-detail-asset__copy'>
                       <span className='transaction-detail-asset__amount'>
-                        {formatAssetAmount(a.amount, decimals)} {label}
+                        {prettyCurrencyAssetAmount(BigInt(a.amount), decimals, accountTicker ?? ticker)} {label}
                       </span>
-                      {name && ticker ? <span className='transaction-detail-asset__name'>{name}</span> : null}
+                      {name && ticker && !accountTicker ? (
+                        <span className='transaction-detail-asset__name'>{name}</span>
+                      ) : null}
                     </div>
                   </div>
                 )
@@ -231,5 +234,13 @@ export default function Transaction() {
 
 function getTokenLogoTicker(ticker: string | undefined): TokenLogoTicker | undefined {
   const normalized = ticker?.trim().toUpperCase()
-  if (normalized === 'BTC' || normalized === 'USDT' || normalized === 'USDC') return normalized
+  return accountTickerForAssetTicker(normalized)
+}
+
+function accountTickerForAssetTicker(ticker: string | undefined): TokenLogoTicker | undefined {
+  const normalized = ticker?.trim().toUpperCase()
+  if (normalized === 'BTC') return 'BTC'
+  if (normalized === 'USD' || normalized === 'USDT' || normalized === 'USDC' || normalized === 'AUSD') return 'USD'
+  if (normalized === 'CHF') return 'CHF'
+  if (normalized === 'BRL' || normalized === 'DPIX' || normalized === 'DEPIX') return 'BRL'
 }

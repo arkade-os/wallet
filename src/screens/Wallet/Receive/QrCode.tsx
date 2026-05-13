@@ -47,7 +47,7 @@ import { EASE_OUT_QUINT } from '../../../lib/animations'
 import ChevronDownIcon from '../../../icons/ChevronDown'
 import TokenLogo from '../../../components/TokenLogo'
 
-type ReceiveAssetTicker = 'BTC' | 'USDT' | 'USDC'
+type ReceiveAssetTicker = 'BTC' | 'USD' | 'CHF' | 'BRL'
 
 const RECEIVE_ASSET_STORAGE_KEY = 'arkade-receive-asset-ticker'
 
@@ -89,8 +89,8 @@ export default function ReceiveQRCode() {
 
   // Receive methods
   const { boardingAddr, offchainAddr, satoshis, assetId, addressError, received } = recvInfo
-  const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
-  const isAssetReceive = assetId && assetId !== ''
+  const assetMeta = assetId && assetId !== 'btc' ? assetMetadataCache.get(assetId) : undefined
+  const isAssetReceive = assetId && assetId !== '' && assetId !== 'btc'
   const hasError = Boolean(addressError)
   const receiveAssetOptions = useMemo(
     () => buildReceiveAssetOptions(assetBalances, assetMetadataCache),
@@ -99,10 +99,11 @@ export default function ReceiveQRCode() {
   const [preferredReceiveTicker, setPreferredReceiveTicker] = useState<ReceiveAssetTicker>(() =>
     readStoredReceiveAssetTicker(),
   )
+  const bitcoinReceiveAsset = receiveAssetOptions.find((option) => option.ticker === 'BTC')
+  const explicitReceiveAsset = receiveAssetOptions.find((option) => option.assetId && option.assetId === assetId)
+  const preferredReceiveAsset = receiveAssetOptions.find((option) => option.ticker === preferredReceiveTicker)
   const selectedReceiveAsset =
-    receiveAssetOptions.find((option) => option.assetId && option.assetId === assetId) ??
-    receiveAssetOptions.find((option) => option.ticker === preferredReceiveTicker) ??
-    receiveAssetOptions[0]
+    (assetId === 'btc' ? bitcoinReceiveAsset : explicitReceiveAsset) ?? preferredReceiveAsset ?? receiveAssetOptions[0]
 
   const [noPaymentMethods, setNoPaymentMethods] = useState(false)
   const [arkAddress, setArkAddress] = useState(offchainAddr)
@@ -677,7 +678,8 @@ function ReceiveAssetLogo({ ticker }: { ticker: ReceiveAssetTicker }) {
 function readStoredReceiveAssetTicker(): ReceiveAssetTicker {
   try {
     const stored = window.localStorage.getItem(RECEIVE_ASSET_STORAGE_KEY)
-    if (stored === 'USDT' || stored === 'USDC') return stored
+    if (stored === 'USD' || stored === 'CHF' || stored === 'BRL') return stored
+    if (stored === 'USDT' || stored === 'USDC') return 'USD'
   } catch {
     // Storage can be unavailable in private browsing or test environments.
   }
@@ -709,8 +711,9 @@ function buildReceiveAssetOptions(
 
   return [
     { assetId: '', name: 'Bitcoin', ticker: 'BTC' },
-    assetByTicker.get('USDT') ?? { assetId: '', name: 'USDT', ticker: 'USDT' },
-    assetByTicker.get('USDC') ?? { assetId: '', name: 'USDC', ticker: 'USDC' },
+    assetByTicker.get('USD') ?? { assetId: '', name: 'US Dollars', ticker: 'USD' },
+    assetByTicker.get('CHF') ?? { assetId: '', name: 'Swiss Franc', ticker: 'CHF' },
+    assetByTicker.get('BRL') ?? { assetId: '', name: 'Brazilian Real', ticker: 'BRL' },
   ]
 }
 
@@ -720,13 +723,29 @@ function addReceiveAssetOption(
   metadata?: { name?: string; ticker?: string },
 ) {
   const ticker = metadata?.ticker?.trim().toUpperCase()
-  if (ticker !== 'USDT' && ticker !== 'USDC') return
+  const accountTicker = accountTickerForAssetTicker(ticker)
+  if (!accountTicker) return
 
-  assetByTicker.set(ticker, {
+  if (assetByTicker.has(accountTicker)) return
+
+  assetByTicker.set(accountTicker, {
     assetId,
-    name: ticker,
-    ticker,
+    name: accountNameForTicker(accountTicker),
+    ticker: accountTicker,
   })
+}
+
+function accountTickerForAssetTicker(ticker: string | undefined): ReceiveAssetTicker | undefined {
+  if (ticker === 'USDT' || ticker === 'USDC' || ticker === 'USD' || ticker === 'AUSD') return 'USD'
+  if (ticker === 'CHF') return 'CHF'
+  if (ticker === 'BRL' || ticker === 'DPIX' || ticker === 'DEPIX') return 'BRL'
+}
+
+function accountNameForTicker(ticker: ReceiveAssetTicker): string {
+  if (ticker === 'BTC') return 'Bitcoin'
+  if (ticker === 'USD') return 'US Dollars'
+  if (ticker === 'CHF') return 'Swiss Franc'
+  return 'Brazilian Real'
 }
 
 function AddressList({

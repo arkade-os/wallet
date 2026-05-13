@@ -1,4 +1,4 @@
-import { centsToUnits } from './assets'
+import { centsToUnits, prettyAssetAmount } from './assets'
 import { fiatDecimalsFor, FIAT_SYMBOLS } from './fiat'
 import { Fiats, Satoshis, Tx } from './types'
 import { Decimal } from 'decimal.js'
@@ -60,6 +60,31 @@ export const formatFiatAmountParts = (
 export const prettyFiatAmount = (amount: number, currency: Fiats, options?: FiatAmountFormatOptions): string => {
   const parts = formatFiatAmountParts(amount, currency, options)
   return parts.unit ? `${parts.amount} ${parts.unit}` : parts.amount
+}
+
+export const fiatForTicker = (ticker: string | undefined): Fiats | undefined => {
+  const normalized = ticker?.trim().toUpperCase()
+  if (normalized === 'USD' || normalized === 'USDT' || normalized === 'USDC' || normalized === 'AUSD') return Fiats.USD
+  if (normalized === 'CHF') return Fiats.CHF
+  if (normalized === 'BRL' || normalized === 'DPIX' || normalized === 'DEPIX') return Fiats.BRL
+  if (normalized === 'EUR') return Fiats.EUR
+  if (normalized === 'GBP') return Fiats.GBP
+  if (normalized === 'JPY') return Fiats.JPY
+  if (normalized === 'CNY') return Fiats.CNY
+}
+
+export const prettyCurrencyAssetAmount = (
+  amount: bigint,
+  decimals: number,
+  ticker: string | undefined,
+  useGrouping = true,
+): string => {
+  const fiat = fiatForTicker(ticker)
+  if (!fiat) return prettyAssetAmount(amount, decimals, useGrouping)
+
+  const unitAmount = Decimal.div(amount.toString(), Decimal.pow(10, decimals)).toNumber()
+  const fiatDecimals = fiatDecimalsFor(fiat)
+  return prettyNumber(unitAmount, fiatDecimals, useGrouping, fiatDecimals)
 }
 
 export const prettyDelta = (seconds: number, long = true): string => {

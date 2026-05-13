@@ -5,6 +5,7 @@ export interface FiatPrices {
   eur: number
   usd: number
   chf: number
+  brl: number
   jpy: number
   gbp: number
   cny: number
@@ -18,6 +19,7 @@ export const FIAT_SYMBOLS: Partial<Record<Fiats, string>> = {
   [Fiats.EUR]: '€',
   [Fiats.GBP]: '£',
   [Fiats.JPY]: '¥',
+  [Fiats.BRL]: 'R$',
 }
 
 export const fiatDecimalsFor = (currency: Fiats): number => (currency === Fiats.JPY ? 0 : 2)
@@ -30,6 +32,7 @@ export const getPriceFeed = async (): Promise<FiatPrices | undefined> => {
       eur: json.EUR?.last,
       usd: json.USD?.last,
       chf: json.CHF?.last,
+      brl: json.BRL?.last,
       jpy: json.JPY?.last,
       gbp: json.GBP?.last,
       cny: json.CNY?.last,

@@ -31,7 +31,7 @@ export default function AssetsSection() {
   return (
     <section className='home-section'>
       <div className='flex w-full items-center justify-between px-1'>
-        <span className='home-section-label'>Assets</span>
+        <span className='home-section-label'>Accounts</span>
       </div>
       <div className='home-section__content'>
         {rows.map((row) => {

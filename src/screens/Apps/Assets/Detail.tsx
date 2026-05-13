@@ -14,9 +14,8 @@ import ScanIcon from '../../../icons/Scan'
 import SendIcon from '../../../icons/Send'
 import SwapIcon from '../../../icons/Swap'
 import { PrivacyAmount, maskedFiat } from '../../../components/PrivacyAmount'
-import { centsToUnits } from '../../../lib/assets'
 import { walletLoadInChild, walletLoadInContainer } from '../../../lib/animations'
-import { formatAssetAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
+import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle } from '../../../lib/haptics'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
@@ -46,7 +45,7 @@ export default function AppAssetDetail() {
   const { navigate } = useContext(NavigationContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { convertFiat, fiatDecimals, toFiat } = useContext(FiatContext)
-  const { assetInfo, setAssetInfo, setRecvInfo, setSendInfo } = useContext(FlowContext)
+  const { assetInfo, setAssetInfo, setRecvInfo, setSendInfo, setSwapFromAssetId } = useContext(FlowContext)
   const {
     assetBalances,
     balance: btcBalance,
@@ -60,16 +59,17 @@ export default function AppAssetDetail() {
 
   const assetId = assetInfo.assetId || 'btc'
   const isBitcoin = assetId === 'btc'
-  const [loading, setLoading] = useState(!isBitcoin)
+  const isMoneyAccount = assetId.startsWith('account:')
+  const [loading, setLoading] = useState(!isBitcoin && !isMoneyAccount)
   const [chartWindow, setChartWindow] = useState(CHART_WINDOWS[0].secs)
   const [chartInteracting, setChartInteracting] = useState(false)
   const chartHapticState = useRef({ lastPointTime: 0, lastTriggerTime: 0 })
 
-  const cachedEntry = isBitcoin ? undefined : assetMetadataCache.get(assetId)
+  const cachedEntry = isBitcoin || isMoneyAccount ? undefined : assetMetadataCache.get(assetId)
   const hasIcon = cachedEntry?.hasIcon ?? false
 
   const fetchDetails = async (forceRefresh = false) => {
-    if (isBitcoin || !svcWallet || !assetId) return
+    if (isBitcoin || isMoneyAccount || !svcWallet || !assetId) return
 
     let cached: AssetDetails | undefined = forceRefresh ? undefined : assetMetadataCache.get(assetId)
     if (!cached) {
@@ -85,34 +85,47 @@ export default function AppAssetDetail() {
   }
 
   useEffect(() => {
-    if (isBitcoin) {
+    if (isBitcoin || isMoneyAccount) {
       setLoading(false)
       return
     }
     setLoading(true)
     fetchDetails().then(() => setLoading(false))
-  }, [svcWallet, assetId, isBitcoin])
+  }, [svcWallet, assetId, isBitcoin, isMoneyAccount])
 
   const portfolioRow = rows.find((row) => row.assetId === assetId)
-  const meta = isBitcoin ? { name: 'Bitcoin', ticker: 'BTC', decimals: 8, icon: undefined } : assetInfo.metadata
+  const meta =
+    isBitcoin || isMoneyAccount
+      ? {
+          name: portfolioRow?.name ?? (isBitcoin ? 'Bitcoin' : 'Account'),
+          ticker: portfolioRow?.ticker ?? (isBitcoin ? 'BTC' : 'USD'),
+          decimals: portfolioRow?.decimals ?? (isBitcoin ? 8 : 2),
+          icon: portfolioRow?.icon,
+        }
+      : assetInfo.metadata
   const name = displayAssetName(meta?.ticker, meta?.name, isBitcoin)
   const ticker = isBitcoin ? 'BTC' : (meta?.ticker?.trim().toUpperCase() ?? 'TKN')
   const decimals = isBitcoin ? 8 : (meta?.decimals ?? 8)
-  const assetRawBalance = assetBalances.find((a) => a.assetId === assetId)?.amount ?? BigInt(0)
+  const assetRawBalance = isMoneyAccount
+    ? (portfolioRow?.balance ?? BigInt(0))
+    : (assetBalances.find((a) => a.assetId === assetId)?.amount ?? BigInt(0))
   const rawBalance = isBitcoin
     ? BigInt(btcBalance)
     : typeof assetRawBalance === 'bigint'
       ? assetRawBalance
       : BigInt(assetRawBalance)
-  const unitBalance = Number(centsToUnits(rawBalance, decimals))
-  const fallbackHasFiatValue = isBitcoin || Boolean(portfolioRow?.hasFiatPrice)
+  const unitBalance = rawAmountToUnits(rawBalance, decimals)
+  const fallbackHasFiatValue = isBitcoin || isMoneyAccount || Boolean(portfolioRow?.hasFiatPrice)
   const btcFiatAmount = isBitcoin ? toFiat(Number(rawBalance)) : 0
+  const stablecoinPegValue = stablecoinPegForTicker(ticker, convertFiat)
   const fallbackUnitPrice =
-    unitBalance > 0 && fallbackHasFiatValue
+    stablecoinPegValue ??
+    (unitBalance > 0 && fallbackHasFiatValue
       ? (portfolioRow?.fiatAmount ?? btcFiatAmount) / unitBalance
-      : estimateUnitPrice(ticker, toFiat, convertFiat)
+      : estimateUnitPrice(ticker, toFiat, convertFiat))
   const liveChartData = useMarketChartData(ticker, config.fiat, chartWindow, convertFiat)
-  const unitPrice = liveChartData.at(-1)?.value ?? fallbackUnitPrice
+  const usesPortfolioUnitPrice = isBitcoin || isMoneyAccount || Boolean(stablecoinPegValue)
+  const unitPrice = usesPortfolioUnitPrice ? fallbackUnitPrice : (liveChartData.at(-1)?.value ?? fallbackUnitPrice)
   const hasFiatValue = Boolean(liveChartData.length) || fallbackHasFiatValue
   const fiatValue =
     unitBalance > 0 && hasFiatValue ? unitBalance * unitPrice : (portfolioRow?.fiatAmount ?? btcFiatAmount)
@@ -124,9 +137,11 @@ export default function AppAssetDetail() {
     : undefined
   const chartColor = useTokenColor(chartTokenForTicker(ticker))
   const chartTheme = useResolvedChartTheme(config.theme)
-  const stablecoinPegValue = isStablecoinTicker(ticker) ? convertFiat(1, Fiats.USD) : undefined
   const chartData = useMemo(
-    () => (liveChartData.length ? liveChartData : buildFlatChartData(unitPrice, chartWindow)),
+    () =>
+      liveChartData.length
+        ? alignChartDataToLatest(liveChartData, unitPrice)
+        : buildFlatChartData(unitPrice, chartWindow),
     [liveChartData, unitPrice, chartWindow],
   )
   const chartDisplayData = useMemo(
@@ -143,34 +158,47 @@ export default function AppAssetDetail() {
   const canRenderChart = typeof ResizeObserver !== 'undefined'
   const chartDelta = calculateDelta(chartData, stablecoinPegValue)
   const tokenLogoTicker = getTokenLogoTicker(ticker)
-  const controlAssetId = isBitcoin ? undefined : assetInfo.controlAssetId
+  const controlAssetId = isBitcoin || isMoneyAccount ? undefined : assetInfo.controlAssetId
   const holdsControlAsset = controlAssetId
     ? assetBalances.some((a) => a.assetId === controlAssetId && a.amount > 0)
     : false
-  const isImported = !isBitcoin && config.importedAssets.includes(assetId)
-  const canRemove = isImported && rawBalance === 0
+  const isImported = !isBitcoin && !isMoneyAccount && config.importedAssets.includes(assetId)
+  const canRemove = isImported && rawBalance === BigInt(0)
+  const accountRailAssetId = isMoneyAccount ? portfolioRow?.sourceAssetIds?.[0] : undefined
+  const sendAssetId = isMoneyAccount ? accountRailAssetId : assetId
+  const activityAssetFilter = isMoneyAccount ? (portfolioRow?.sourceAssetIds ?? []) : assetId
 
   const handleSend = () => {
     hapticLight()
-    setSendInfo(isBitcoin ? emptySendInfo : { ...emptySendInfo, assets: [{ assetId, amount: 0 }] })
+    setSendInfo(
+      isBitcoin || !sendAssetId
+        ? emptySendInfo
+        : { ...emptySendInfo, assets: [{ assetId: sendAssetId, amount: BigInt(0) }] },
+    )
     navigate(Pages.SendForm)
   }
 
   const handleReceive = () => {
     hapticLight()
-    setRecvInfo(isBitcoin ? emptyRecvInfo : { ...emptyRecvInfo, assetId })
+    setRecvInfo({
+      ...emptyRecvInfo,
+      assetId: isBitcoin ? 'btc' : (accountRailAssetId ?? (isMoneyAccount ? undefined : assetId)),
+    })
     navigate(Pages.ReceiveQRCode)
   }
 
   const handleSwap = () => {
     hapticLight()
+    setSwapFromAssetId(assetId)
     navigate(Pages.WalletSwap)
   }
 
   const handleScan = () => {
     hapticLight()
     setSendInfo(
-      isBitcoin ? { ...emptySendInfo, scan: true } : { ...emptySendInfo, scan: true, assets: [{ assetId, amount: 0 }] },
+      isBitcoin || !sendAssetId
+        ? { ...emptySendInfo, scan: true }
+        : { ...emptySendInfo, scan: true, assets: [{ assetId: sendAssetId, amount: BigInt(0) }] },
     )
     navigate(Pages.SendForm)
   }
@@ -271,7 +299,7 @@ export default function AppAssetDetail() {
 
             <motion.div className='asset-detail-actions' variants={prefersReduced ? undefined : walletLoadInChild}>
               <AssetAction icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
-              <AssetAction icon={<SendIcon />} label='Send' onClick={handleSend} disabled={rawBalance === 0} />
+              <AssetAction icon={<SendIcon />} label='Send' onClick={handleSend} disabled={rawBalance === BigInt(0)} />
               <AssetAction icon={<SwapIcon />} label='Swap' onClick={handleSwap} />
               <AssetAction icon={<ScanIcon />} label='Scan' onClick={handleScan} />
             </motion.div>
@@ -291,7 +319,9 @@ export default function AppAssetDetail() {
                 onPointerUp={() => setChartScrubbing(false)}
                 onPointerCancel={() => setChartScrubbing(false)}
               >
-                {canRenderChart ? (
+                {stablecoinPegValue ? (
+                  <StableAccountChart color={chartColor} />
+                ) : canRenderChart ? (
                   <Liveline
                     data={chartDisplayData}
                     value={chartDisplayData.at(-1)?.value ?? unitPrice}
@@ -360,7 +390,9 @@ export default function AppAssetDetail() {
                     </span>
                   ) : null}
                   <PrivacyAmount masked={`•••• ${ticker}`}>
-                    <span className='asset-detail-holding-amount'>{formatAssetAmount(rawBalance, decimals)}</span>
+                    <span className='asset-detail-holding-amount'>
+                      {prettyCurrencyAssetAmount(rawBalance, decimals, ticker)}
+                    </span>
                     <span className='asset-detail-holding-unit'>{ticker}</span>
                   </PrivacyAmount>
                 </strong>
@@ -381,10 +413,10 @@ export default function AppAssetDetail() {
                   <strong>Recent activity</strong>
                 </div>
               </div>
-              <TransactionsList mode='static' assetIdFilter={assetId} />
+              <TransactionsList mode='static' assetIdFilter={activityAssetFilter} />
             </motion.section>
 
-            {!isBitcoin && (hasIcon || holdsControlAsset || rawBalance > 0 || canRemove) ? (
+            {!isBitcoin && !isMoneyAccount && (hasIcon || holdsControlAsset || rawBalance > BigInt(0) || canRemove) ? (
               <motion.section
                 className='asset-detail-management'
                 variants={prefersReduced ? undefined : walletLoadInChild}
@@ -406,7 +438,7 @@ export default function AppAssetDetail() {
                   />
                 ) : null}
                 {holdsControlAsset ? <Button label='Reissue' onClick={handleReissue} secondary /> : null}
-                {rawBalance > 0 ? <Button label='Burn' onClick={handleBurn} secondary /> : null}
+                {rawBalance > BigInt(0) ? <Button label='Burn' onClick={handleBurn} secondary /> : null}
                 {canRemove ? <Button label='Remove' onClick={handleRemove} secondary /> : null}
               </motion.section>
             ) : null}
@@ -415,6 +447,19 @@ export default function AppAssetDetail() {
       </Content>
     </>
   )
+}
+
+function StableAccountChart({ color }: { color: string }) {
+  return (
+    <div className='asset-detail-stable-chart' style={{ '--asset-detail-chart-color': color }}>
+      <span />
+    </div>
+  )
+}
+
+function rawAmountToUnits(rawAmount: bigint, decimals: number): number {
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 18) return Number(rawAmount)
+  return Number(rawAmount) / 10 ** decimals
 }
 
 function AssetAction({
@@ -486,19 +531,32 @@ function DeltaBadge({ value }: { value: number }) {
 function displayAssetName(ticker: string | undefined, name: string | undefined, isBitcoin: boolean): string {
   const normalizedTicker = ticker?.trim().toUpperCase()
   if (isBitcoin) return 'Bitcoin'
-  if (normalizedTicker === 'USDT' || normalizedTicker === 'USDC') return normalizedTicker
+  if (normalizedTicker === 'USD') return 'US Dollars'
+  if (normalizedTicker === 'CHF') return 'Swiss Franc'
+  if (normalizedTicker === 'BRL') return 'Brazilian Real'
+  if (normalizedTicker === 'USDT' || normalizedTicker === 'USDC') return 'US Dollars'
   return name ?? 'Asset'
 }
 
 function getTokenLogoTicker(ticker: string | undefined): TokenLogoTicker | undefined {
   const normalized = ticker?.trim().toUpperCase()
-  if (normalized === 'BTC' || normalized === 'USDT' || normalized === 'USDC') return normalized
+  if (
+    normalized === 'BTC' ||
+    normalized === 'USD' ||
+    normalized === 'USDT' ||
+    normalized === 'USDC' ||
+    normalized === 'CHF' ||
+    normalized === 'BRL'
+  )
+    return normalized
 }
 
 function chartTokenForTicker(ticker: string): string {
   const normalized = ticker.trim().toUpperCase()
   if (normalized === 'BTC') return '--orange-500'
-  if (normalized === 'USDT') return '--green-500'
+  if (normalized === 'USD' || normalized === 'USDT' || normalized === 'USDC' || normalized === 'BRL')
+    return '--green-500'
+  if (normalized === 'CHF') return '--red-600'
   return '--purple-500'
 }
 
@@ -540,14 +598,15 @@ function useMarketChartData(
 
   useEffect(() => {
     const coinId = coinGeckoIdForTicker(ticker)
-    if (!coinId) {
+    const fxBase = fxBaseForTicker(ticker)
+    if (!coinId && !fxBase) {
       setData([])
       return
     }
 
     const controller = new AbortController()
 
-    fetchMarketChart(coinId, ticker, fiat, windowSecs, convertFiat, controller.signal)
+    fetchMarketChart(coinId, fxBase, ticker, fiat, windowSecs, convertFiat, controller.signal)
       .then((json) => {
         if (controller.signal.aborted) return
         const prices = Array.isArray(json.prices) ? json.prices : []
@@ -576,19 +635,63 @@ function useMarketChartData(
 }
 
 async function fetchMarketChart(
-  coinId: string,
+  coinId: string | undefined,
+  fxBase: Fiats | undefined,
   ticker: string,
   fiat: Fiats,
   windowSecs: number,
   convertFiat: (amount: number, from: Fiats) => number,
   signal: AbortSignal,
 ): Promise<{ prices?: [number, number][] }> {
+  if (fxBase) return { prices: await fetchFiatFxChart(fxBase, fiat, windowSecs, signal) }
+
+  if (!coinId) return {}
+
   if (isAllChartWindow(windowSecs) && ticker.trim().toUpperCase() === 'BTC') {
     const prices = await fetchCoinbaseBitcoinAllChart(fiat, convertFiat, signal)
     if (prices.length >= 2) return { prices }
   }
 
   return fetchCoinGeckoMarketChart(coinId, fiat, windowSecs, signal)
+}
+
+async function fetchFiatFxChart(
+  base: Fiats,
+  fiat: Fiats,
+  windowSecs: number,
+  signal: AbortSignal,
+): Promise<[number, number][]> {
+  if (base === fiat) return []
+
+  const now = new Date()
+  const end = formatIsoDate(now)
+  const start = formatIsoDate(startDateForFxWindow(now, windowSecs))
+  const params = new URLSearchParams({
+    base,
+    symbols: fiat,
+  })
+  const response = await fetch(`https://api.frankfurter.dev/v1/${start}..${end}?${params.toString()}`, { signal })
+
+  if (!response.ok) throw new Error(`Frankfurter FX chart failed: ${response.status}`)
+
+  const json = (await response.json()) as { rates?: Record<string, Record<string, number>> }
+  const rates = json.rates ?? {}
+
+  return Object.entries(rates)
+    .map(([date, values]) => [new Date(`${date}T12:00:00Z`).getTime(), values[fiat]] as [number, number])
+    .filter(([, value]) => Number.isFinite(value) && value > 0)
+    .sort(([a], [b]) => a - b)
+}
+
+function startDateForFxWindow(now: Date, windowSecs: number): Date {
+  const minimumDays = windowSecs <= 86_400 ? 14 : 0
+  const windowDays = isAllChartWindow(windowSecs) ? 3650 : Math.ceil(windowSecs / 86_400)
+  const days = Math.max(minimumDays, windowDays)
+  return new Date(now.getTime() - days * 86_400 * 1000)
+}
+
+function formatIsoDate(date: Date): string {
+  return date.toISOString().slice(0, 10)
 }
 
 async function fetchCoinbaseBitcoinAllChart(
@@ -671,7 +774,9 @@ function estimateUnitPrice(
 ): number {
   const normalized = ticker.trim().toUpperCase()
   if (normalized === 'BTC') return toFiat(100_000_000)
-  if (normalized === 'USDT' || normalized === 'USDC') return convertFiat(1, Fiats.USD)
+  if (normalized === 'USD' || normalized === 'USDT' || normalized === 'USDC') return convertFiat(1, Fiats.USD)
+  if (normalized === 'CHF') return convertFiat(1, Fiats.CHF)
+  if (normalized === 'BRL') return convertFiat(1, Fiats.BRL)
   return 1
 }
 
@@ -684,12 +789,40 @@ function buildFlatChartData(latestValue: number, windowSecs: number): LivelinePo
   ]
 }
 
+function alignChartDataToLatest(data: LivelinePoint[], latestValue: number): LivelinePoint[] {
+  if (!Number.isFinite(latestValue) || data.length === 0) return data
+
+  const latestChartValue = data.at(-1)?.value
+  if (!latestChartValue || !Number.isFinite(latestChartValue)) return data
+
+  const ratio = latestValue / latestChartValue
+  if (!Number.isFinite(ratio) || ratio <= 0) return data
+
+  return data.map((point) => ({ ...point, value: point.value * ratio }))
+}
+
 function buildStablecoinPegChartData(data: LivelinePoint[], pegValue: number, windowSecs: number): LivelinePoint[] {
-  const source = data.length >= 2 ? data : buildFlatChartData(pegValue, windowSecs)
+  const source = data.length >= 8 ? data : buildCalmPegChartData(pegValue, windowSecs)
   return source.map((point) => ({
     time: point.time,
-    value: pegValue,
+    value: point.value,
   }))
+}
+
+function buildCalmPegChartData(pegValue: number, windowSecs: number): LivelinePoint[] {
+  const now = Math.floor(Date.now() / 1000)
+  const fallbackWindowSecs = isAllChartWindow(windowSecs) ? 86_400 : windowSecs
+  const start = now - fallbackWindowSecs
+  const amplitude = pegValue * 0.0015
+
+  return Array.from({ length: 10 }, (_, index) => {
+    const progress = index / 9
+    const value = index === 9 ? pegValue : pegValue + Math.sin(progress * Math.PI * 2) * amplitude
+    return {
+      time: Math.floor(start + fallbackWindowSecs * progress),
+      value,
+    }
+  })
 }
 
 function smoothChartData(data: LivelinePoint[], windowSecs: number, isInteracting: boolean): LivelinePoint[] {
@@ -760,11 +893,15 @@ function chartSmoothingRadius(windowSecs: number): number {
 }
 
 function getLivelineWindowSecs(data: LivelinePoint[], windowSecs: number): number {
-  if (!isAllChartWindow(windowSecs)) return windowSecs
-
   const first = data[0]
   const last = data.at(-1)
   if (!first || !last) return 86_400
+
+  if (!isAllChartWindow(windowSecs)) {
+    const cutoff = last.time - windowSecs
+    const visiblePoints = data.filter((point) => point.time >= cutoff)
+    if (visiblePoints.length >= 2) return windowSecs
+  }
 
   const now = Math.floor(Date.now() / 1000)
   const rightEdge = Math.max(now, last.time)
@@ -784,16 +921,24 @@ function calculateDelta(data: LivelinePoint[], stablecoinPegValue?: number): num
   return ((last - first) / first) * 100
 }
 
-function isStablecoinTicker(ticker: string): boolean {
+function stablecoinPegForTicker(
+  ticker: string,
+  convertFiat: (amount: number, from: Fiats) => number,
+): number | undefined {
   const normalized = ticker.trim().toUpperCase()
-  return normalized === 'USDT' || normalized === 'USDC'
+  if (normalized === 'USD' || normalized === 'USDT' || normalized === 'USDC') return convertFiat(1, Fiats.USD)
 }
 
 function coinGeckoIdForTicker(ticker: string): string | undefined {
   const normalized = ticker.trim().toUpperCase()
   if (normalized === 'BTC') return 'bitcoin'
-  if (normalized === 'USDT') return 'tether'
-  if (normalized === 'USDC') return 'usd-coin'
+  if (normalized === 'USD' || normalized === 'USDT' || normalized === 'USDC') return undefined
+}
+
+function fxBaseForTicker(ticker: string): Fiats | undefined {
+  const normalized = ticker.trim().toUpperCase()
+  if (normalized === 'CHF') return Fiats.CHF
+  if (normalized === 'BRL' || normalized === 'DPIX' || normalized === 'DEPIX') return Fiats.BRL
 }
 
 function coinGeckoDaysForWindow(windowSecs: number): string[] {

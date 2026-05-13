@@ -170,7 +170,7 @@ export function LendaSatAnnouncement({ close }: { close: () => void }) {
       title='LendaSat'
       page={Pages.AppLendasat}
       icon={<LendasatIcon big />}
-      message='Take loans with Bitcoin as collateral. Receive USDC or USDT in 2 minutes.'
+      message='Take loans with Bitcoin as collateral. Receive dollars in 2 minutes.'
       bulletPoints={[
         [
           'Choose a loan',
@@ -182,7 +182,7 @@ export function LendaSatAnnouncement({ close }: { close: () => void }) {
         ],
         [
           'Receive the funds',
-          'Get your loan instantly via your preferred method: bank transfer, stablecoins (USDT/USDC), or VISA card.',
+          'Get your loan instantly via your preferred method: bank transfer, dollars, or VISA card.',
         ],
       ]}
     />
@@ -196,9 +196,9 @@ export function SatoraAnnouncement({ close }: { close: () => void }) {
       title='Satora'
       page={Pages.AppSatora}
       icon={<SatoraIcon big />}
-      message='Swap Bitcoin to USDC or USDT instantly.'
+      message='Swap Bitcoin to dollars instantly.'
       bulletPoints={[
-        ['Swap to stablecoins', 'Swap native $BTC for $USDT or $USDC on Ethereum and Polygon.'],
+        ['Swap to dollars', 'Swap native $BTC for a dollar balance without thinking about the rails.'],
         [
           'Trustless Atomic Swaps',
           'When a swap is started, both parties lock their funds in smart contracts. The swap either completes fully or both parties get refunded.',

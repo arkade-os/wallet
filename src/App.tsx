@@ -136,6 +136,7 @@ export default function App() {
 
   const prefersReduced = useReducedMotion()
   const effectiveDirection = prefersReduced ? 'none' : direction
+  const shouldAnimatePage = !prefersReduced && !hasDevAutoInit
   const isDevAutoInitializing = hasDevAutoInit && !initialized
 
   // New users (no wallet in storage) skip straight to Init — the logo morph animation
@@ -246,7 +247,7 @@ export default function App() {
 
   return (
     <div className={showNavbar ? 'page has-pill-navbar' : 'page'} data-testid='app'>
-      <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
+      <PageAnimWrapper animated={shouldAnimatePage} direction={effectiveDirection}>
         <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
           {comp}
         </PageTransition>

@@ -3,7 +3,7 @@ import Content from './Content'
 import { useContext, useEffect, useState } from 'react'
 import Text, { TextSecondary } from './Text'
 import { FiatContext } from '../providers/fiat'
-import { prettyAmount, prettyFiatAmount, prettyNumber } from '../lib/format'
+import { prettyAmount, prettyCurrencyAssetAmount, prettyFiatAmount, prettyNumber } from '../lib/format'
 import { WalletContext } from '../providers/wallet'
 import { defaultFee } from '../lib/constants'
 import ErrorMessage from './Error'
@@ -13,7 +13,7 @@ import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
 import SwapIcon from '../icons/Swap'
 import { AssetOption } from '../lib/types'
-import { centsToUnits, prettyAssetAmount, unitsToCents } from '../lib/assets'
+import { centsToUnits, unitsToCents } from '../lib/assets'
 
 interface KeyboardProps {
   asset?: AssetOption
@@ -147,7 +147,7 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
           : prettyFiatAmount(toFiat(amountInSats), config.fiat),
     balance:
       inputMode === 'asset'
-        ? `${prettyAssetAmount(asset?.balance ?? BigInt(0), asset?.decimals ?? 0)} ${asset?.ticker}`
+        ? `${prettyCurrencyAssetAmount(asset?.balance ?? BigInt(0), asset?.decimals ?? 0, asset?.ticker)} ${asset?.ticker}`
         : inputMode === 'fiat'
           ? prettyFiatAmount(toFiat(available), config.fiat)
           : prettyAmount(available),

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useContext, useMemo, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import AssetAvatar from '../../../components/AssetAvatar'
 import Button from '../../../components/Button'
 import Content from '../../../components/Content'
@@ -9,13 +9,13 @@ import TokenLogo, { type TokenLogoTicker } from '../../../components/TokenLogo'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../../components/ui/drawer'
 import ChevronDownIcon from '../../../icons/ChevronDown'
 import SwapIcon from '../../../icons/Swap'
-import { prettyAssetAmount } from '../../../lib/assets'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
-import { prettyFiatAmount, prettyNumber } from '../../../lib/format'
+import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticTap } from '../../../lib/haptics'
 import { Fiats } from '../../../lib/types'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
+import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { usePortfolioFiat, type PortfolioRow } from '../../../hooks/usePortfolioFiat'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
@@ -34,6 +34,8 @@ interface SwapAsset {
   fiatText?: string
   icon?: string
   isBitcoin?: boolean
+  sourceAssetIds?: string[]
+  usdPrice?: number
 }
 
 interface SwapQuote {
@@ -47,29 +49,36 @@ interface SwapQuote {
 }
 
 const fallbackAsset: SwapAsset = {
-  assetId: 'prototype-asset',
-  name: 'USDC',
-  ticker: 'USDC',
+  assetId: 'fallback-usd',
+  name: 'US Dollars',
+  ticker: 'USD',
   decimals: 2,
   balance: 0,
   fiatText: '$0.00',
+  usdPrice: 1,
 }
 
 const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'Back']
 
 export default function WalletSwap() {
   const { config } = useContext(ConfigContext)
-  const { fiatDecimals } = useContext(FiatContext)
+  const { convertFiat, fiatDecimals, toFiat } = useContext(FiatContext)
+  const { swapFromAssetId, setSwapFromAssetId } = useContext(FlowContext)
   const { goBack, navigate } = useContext(NavigationContext)
   const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()
 
-  const assets = useMemo(() => toSwapAssets(rows, config.fiat, fiatDecimals()), [rows, config.fiat, fiatDecimals])
-  const [step, setStep] = useState<SwapStep>('select-from')
+  const assets = useMemo(
+    () => toSwapAssets(rows, config.fiat, fiatDecimals(), convertFiat, toFiat),
+    [rows, config.fiat, fiatDecimals, convertFiat, toFiat],
+  )
+  const [step, setStep] = useState<SwapStep>(swapFromAssetId ? 'compose' : 'select-from')
   const [search, setSearch] = useState('')
   const [amount, setAmount] = useState('1')
   const [amountMode, setAmountMode] = useState<AmountMode>('fiat')
-  const [fromAssetId, setFromAssetId] = useState(assets[0]?.assetId ?? 'btc')
+  const [fromAssetId, setFromAssetId] = useState(
+    (swapFromAssetId ? resolveSwapAssetId(assets, swapFromAssetId) : undefined) ?? assets[0]?.assetId ?? 'btc',
+  )
   const [toAssetId, setToAssetId] = useState<string | undefined>()
   const [drawer, setDrawer] = useState<DrawerState>(null)
   const [swapTurn, setSwapTurn] = useState(0)
@@ -87,6 +96,22 @@ export default function WalletSwap() {
 
   const filteredAssets = useMemo(() => filterAssets(assets, search), [assets, search])
 
+  const focusFromAsset = useCallback((assetId: string) => {
+    setFromAssetId(assetId)
+    setToAssetId((current) => (current === assetId ? undefined : current))
+    setSearch('')
+    setStep('compose')
+  }, [])
+
+  useEffect(() => {
+    if (!swapFromAssetId || assets.length === 0) return
+
+    const nextFromAssetId = resolveSwapAssetId(assets, swapFromAssetId) ?? assets[0]?.assetId ?? 'btc'
+
+    focusFromAsset(nextFromAssetId)
+    setSwapFromAssetId(undefined)
+  }, [assets, focusFromAsset, setSwapFromAssetId, swapFromAssetId])
+
   const openDrawer = (nextDrawer: DrawerState) => {
     hapticLight()
     setDrawer(nextDrawer)
@@ -94,10 +119,7 @@ export default function WalletSwap() {
 
   const selectFromAsset = (asset: SwapAsset) => {
     hapticLight()
-    setFromAssetId(asset.assetId)
-    setToAssetId((current) => (current === asset.assetId ? undefined : current))
-    setSearch('')
-    setStep('compose')
+    focusFromAsset(asset.assetId)
   }
 
   const selectToAsset = (_target: AssetTarget, asset: SwapAsset) => {
@@ -566,8 +588,8 @@ function MetricRow({ label, value }: { label: string; value: string }) {
 
 function buildQuote(amount: string, mode: AmountMode, fromAsset: SwapAsset, toAsset?: SwapAsset): SwapQuote {
   const parsed = Number(amount) || 0
-  const fromUsd = prototypeUsd(fromAsset)
-  const toUsd = toAsset ? prototypeUsd(toAsset) : 0
+  const fromUsd = estimateSwapUsd(fromAsset)
+  const toUsd = toAsset ? estimateSwapUsd(toAsset) : 0
   const fromUnits = mode === 'fiat' && fromUsd > 0 ? parsed / fromUsd : parsed
   const fromFiatNumber = mode === 'fiat' ? parsed : fromUnits * fromUsd
   const received = toUsd > 0 ? fromFiatNumber / toUsd : 0
@@ -590,14 +612,17 @@ function swapAmountDecimals(value: number): number {
   return 8
 }
 
-function prototypeUsd(asset: SwapAsset): number {
-  if (asset.isBitcoin || asset.ticker === 'BTC') return 81500
-  if (asset.ticker.toUpperCase().includes('USD')) return 1
-  if (asset.ticker === 'POP') return 0.0042
-  return Math.max(0.01, asset.ticker.length * 0.17)
+function estimateSwapUsd(asset: SwapAsset): number {
+  return Number.isFinite(asset.usdPrice) ? (asset.usdPrice ?? 0) : 0
 }
 
-function toSwapAssets(rows: PortfolioRow[], fiat: Fiats, decimals: number): SwapAsset[] {
+function toSwapAssets(
+  rows: PortfolioRow[],
+  fiat: Fiats,
+  decimals: number,
+  convertFiat: (amount: number, from: Fiats, to?: Fiats) => number,
+  toFiat: (satoshis?: number) => number,
+): SwapAsset[] {
   const mapped = rows.map((row) => ({
     assetId: row.assetId,
     name: row.name,
@@ -612,10 +637,32 @@ function toSwapAssets(rows: PortfolioRow[], fiat: Fiats, decimals: number): Swap
       : undefined,
     icon: row.icon,
     isBitcoin: row.assetId === 'btc',
+    sourceAssetIds: row.sourceAssetIds,
+    usdPrice: estimateRowUsdPrice(row, fiat, convertFiat, toFiat),
   }))
 
   if (mapped.length < 2) return [...mapped, fallbackAsset]
   return mapped
+}
+
+function estimateRowUsdPrice(
+  row: PortfolioRow,
+  fiat: Fiats,
+  convertFiat: (amount: number, from: Fiats, to?: Fiats) => number,
+  toFiat: (satoshis?: number) => number,
+): number {
+  const ticker = row.ticker.trim().toUpperCase()
+  if (row.assetId === 'btc' || ticker === 'BTC') return convertFiat(toFiat(100_000_000), fiat, Fiats.USD)
+  if (ticker === 'USD' || ticker === 'USDT' || ticker === 'USDC' || ticker === 'AUSD')
+    return convertFiat(1, Fiats.USD, Fiats.USD)
+  if (ticker === 'CHF') return convertFiat(1, Fiats.CHF, Fiats.USD)
+  if (ticker === 'BRL' || ticker === 'DPIX' || ticker === 'DEPIX') return convertFiat(1, Fiats.BRL, Fiats.USD)
+
+  const rawBalance = typeof row.balance === 'bigint' ? Number(row.balance) : row.balance
+  const unitBalance = rawBalance / 10 ** row.decimals
+  if (!unitBalance || !row.hasFiatPrice) return 0
+
+  return convertFiat(row.fiatAmount / unitBalance, fiat, Fiats.USD)
 }
 
 function filterAssets(assets: SwapAsset[], query: string): SwapAsset[] {
@@ -626,12 +673,27 @@ function filterAssets(assets: SwapAsset[], query: string): SwapAsset[] {
   })
 }
 
+function resolveSwapAssetId(assets: SwapAsset[], assetId: string): string | undefined {
+  const exact = assets.find((asset) => asset.assetId === assetId)
+  if (exact) return exact.assetId
+
+  return assets.find((asset) => asset.sourceAssetIds?.includes(assetId))?.assetId
+}
+
 function formatAssetBalance(asset: SwapAsset): string {
   const rawBalance = typeof asset.balance === 'bigint' ? asset.balance : BigInt(asset.balance)
-  return `${prettyAssetAmount(rawBalance, asset.decimals)} ${asset.ticker}`
+  return `${prettyCurrencyAssetAmount(rawBalance, asset.decimals, asset.ticker)} ${asset.ticker}`
 }
 
 function getTokenLogoTicker(ticker: string | undefined): TokenLogoTicker | undefined {
   const normalized = ticker?.trim().toUpperCase()
-  if (normalized === 'BTC' || normalized === 'USDT' || normalized === 'USDC') return normalized
+  if (
+    normalized === 'BTC' ||
+    normalized === 'USD' ||
+    normalized === 'USDT' ||
+    normalized === 'USDC' ||
+    normalized === 'CHF' ||
+    normalized === 'BRL'
+  )
+    return normalized
 }

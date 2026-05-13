@@ -23,6 +23,7 @@ import {
 
 const mockFiatContextValue = {
   toFiat: vi.fn((sats: number) => (sats / 100000000) * 50000),
+  convertFiat: vi.fn((amount: number) => amount),
   fiatDecimals: vi.fn(() => 2),
   fromFiat: vi.fn((fiat: number) => (fiat * 100000000) / 50000),
   btcPrice: 50000,
@@ -76,8 +77,8 @@ describe('Wallet screen', () => {
     renderWallet()
     // PortfolioHero shows the total portfolio balance
     expect(screen.getByTestId('main-balance')).toBeInTheDocument()
-    // Assets section header
-    expect(screen.getByText('Assets')).toBeInTheDocument()
+    // Accounts section header
+    expect(screen.getByText('Accounts')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Receive' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Swap' })).toBeInTheDocument()
@@ -96,7 +97,7 @@ describe('Wallet screen', () => {
     })
 
     const banner = screen.getByTestId('home-banner')
-    const assets = screen.getByText('Assets')
+    const assets = screen.getByText('Accounts')
 
     expect(banner.compareDocumentPosition(assets) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })

@@ -1,8 +1,9 @@
-export type TokenLogoTicker = 'BTC' | 'USDT' | 'USDC'
+export type TokenLogoTicker = 'BTC' | 'USD' | 'USDT' | 'USDC' | 'CHF' | 'BRL'
 
 export default function TokenLogo({ ticker }: { ticker: TokenLogoTicker }) {
-  if (ticker === 'USDT') return <TetherLogo />
-  if (ticker === 'USDC') return <UsdcLogo />
+  if (ticker === 'USD' || ticker === 'USDT' || ticker === 'USDC') return <UnitedStatesFlagLogo />
+  if (ticker === 'CHF') return <SwitzerlandFlagLogo />
+  if (ticker === 'BRL') return <BrazilFlagLogo />
   return <BitcoinLogo />
 }
 
@@ -44,6 +45,87 @@ export function UsdcLogo() {
           <path d='M20.022 18.124c0-2.124-1.28-2.852-3.84-3.156-1.828-.243-2.193-.728-2.193-1.578 0-.85.61-1.396 1.828-1.396 1.097 0 1.707.364 2.011 1.275a.458.458 0 00.427.303h.975a.416.416 0 00.427-.425v-.06a3.04 3.04 0 00-2.743-2.489V9.142c0-.243-.183-.425-.487-.486h-.915c-.243 0-.426.182-.487.486v1.396c-1.829.242-2.986 1.456-2.986 2.974 0 2.002 1.218 2.791 3.778 3.095 1.707.303 2.255.668 2.255 1.639 0 .97-.853 1.638-2.011 1.638-1.585 0-2.133-.667-2.316-1.578-.06-.242-.244-.364-.427-.364h-1.036a.416.416 0 00-.426.425v.06c.243 1.518 1.219 2.61 3.23 2.914v1.457c0 .242.183.425.487.485h.915c.243 0 .426-.182.487-.485V21.34c1.829-.303 3.047-1.578 3.047-3.217z' />
           <path d='M12.892 24.497c-4.754-1.7-7.192-6.98-5.424-11.653.914-2.55 2.925-4.491 5.424-5.402.244-.121.365-.303.365-.607v-.85c0-.242-.121-.424-.365-.485-.061 0-.183 0-.244.06a10.895 10.895 0 00-7.13 13.717c1.096 3.4 3.717 6.01 7.13 7.102.244.121.488 0 .548-.243.061-.06.061-.122.061-.243v-.85c0-.182-.182-.424-.365-.546zm6.46-18.936c-.244-.122-.488 0-.548.242-.061.061-.061.122-.061.243v.85c0 .243.182.485.365.607 4.754 1.7 7.192 6.98 5.424 11.653-.914 2.55-2.925 4.491-5.424 5.402-.244.121-.365.303-.365.607v.85c0 .242.121.424.365.485.061 0 .183 0 .244-.06a10.895 10.895 0 007.13-13.717c-1.096-3.46-3.778-6.07-7.13-7.162z' />
         </g>
+      </g>
+    </svg>
+  )
+}
+
+export function UnitedStatesFlagLogo() {
+  return (
+    <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
+      <defs>
+        <clipPath id='us-flag-circle'>
+          <circle cx='16' cy='16' r='16' />
+        </clipPath>
+      </defs>
+      <g clipPath='url(#us-flag-circle)'>
+        <path fill='#FFF' d='M0 0h32v32H0z' />
+        <path
+          fill='#B22234'
+          d='M0 0h32v2.46H0zm0 4.92h32v2.46H0zm0 4.92h32v2.46H0zm0 4.93h32v2.46H0zm0 4.92h32v2.46H0zm0 4.92h32v2.46H0zm0 4.93h32V32H0z'
+        />
+        <path fill='#3C3B6E' d='M0 0h16.8v17.23H0z' />
+        <g fill='#FFF'>
+          <circle cx='2.4' cy='2.15' r='0.55' />
+          <circle cx='5.2' cy='2.15' r='0.55' />
+          <circle cx='8' cy='2.15' r='0.55' />
+          <circle cx='10.8' cy='2.15' r='0.55' />
+          <circle cx='13.6' cy='2.15' r='0.55' />
+          <circle cx='3.8' cy='4.25' r='0.55' />
+          <circle cx='6.6' cy='4.25' r='0.55' />
+          <circle cx='9.4' cy='4.25' r='0.55' />
+          <circle cx='12.2' cy='4.25' r='0.55' />
+          <circle cx='2.4' cy='6.35' r='0.55' />
+          <circle cx='5.2' cy='6.35' r='0.55' />
+          <circle cx='8' cy='6.35' r='0.55' />
+          <circle cx='10.8' cy='6.35' r='0.55' />
+          <circle cx='13.6' cy='6.35' r='0.55' />
+          <circle cx='3.8' cy='8.45' r='0.55' />
+          <circle cx='6.6' cy='8.45' r='0.55' />
+          <circle cx='9.4' cy='8.45' r='0.55' />
+          <circle cx='12.2' cy='8.45' r='0.55' />
+          <circle cx='2.4' cy='10.55' r='0.55' />
+          <circle cx='5.2' cy='10.55' r='0.55' />
+          <circle cx='8' cy='10.55' r='0.55' />
+          <circle cx='10.8' cy='10.55' r='0.55' />
+          <circle cx='13.6' cy='10.55' r='0.55' />
+          <circle cx='3.8' cy='12.65' r='0.55' />
+          <circle cx='6.6' cy='12.65' r='0.55' />
+          <circle cx='9.4' cy='12.65' r='0.55' />
+          <circle cx='12.2' cy='12.65' r='0.55' />
+          <circle cx='2.4' cy='14.75' r='0.55' />
+          <circle cx='5.2' cy='14.75' r='0.55' />
+          <circle cx='8' cy='14.75' r='0.55' />
+          <circle cx='10.8' cy='14.75' r='0.55' />
+          <circle cx='13.6' cy='14.75' r='0.55' />
+        </g>
+      </g>
+    </svg>
+  )
+}
+
+export function SwitzerlandFlagLogo() {
+  return (
+    <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
+      <circle cx='16' cy='16' r='16' fill='#D52B1E' />
+      <path fill='#FFF' d='M13.8 7.5h4.4v6.3h6.3v4.4h-6.3v6.3h-4.4v-6.3H7.5v-4.4h6.3z' />
+    </svg>
+  )
+}
+
+export function BrazilFlagLogo() {
+  return (
+    <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
+      <defs>
+        <clipPath id='br-flag-circle'>
+          <circle cx='16' cy='16' r='16' />
+        </clipPath>
+      </defs>
+      <g clipPath='url(#br-flag-circle)'>
+        <path fill='#009B3A' d='M0 0h32v32H0z' />
+        <path fill='#FFDF00' d='M16 5.25 29 16 16 26.75 3 16z' />
+        <circle cx='16' cy='16' r='6.2' fill='#002776' />
+        <path fill='#FFF' d='M9.95 14.15c4.92-.6 8.85.06 12.01 2.02l-.78 1.22c-2.85-1.76-6.47-2.35-11.06-1.79z' />
       </g>
     </svg>
   )

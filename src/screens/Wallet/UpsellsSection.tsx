@@ -53,7 +53,7 @@ export default function UpsellsSection() {
   return (
     <section className='home-section'>
       <div className='px-1'>
-        <span className='home-section-label'>Do more with your assets</span>
+        <span className='home-section-label'>Do more with your money</span>
       </div>
       <div className='home-section__content'>
         <UpsellCard

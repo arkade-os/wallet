@@ -48,6 +48,7 @@ export enum Fiats {
   EUR = 'EUR',
   USD = 'USD',
   CHF = 'CHF',
+  BRL = 'BRL',
   JPY = 'JPY',
   GBP = 'GBP',
   CNY = 'CNY',

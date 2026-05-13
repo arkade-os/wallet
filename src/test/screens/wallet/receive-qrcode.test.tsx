@@ -386,17 +386,19 @@ describe('Receive QR Code screen', () => {
 
     expect(screen.getByRole('button', { name: /Bitcoin/i })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Bitcoin' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: /USDT/i })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: /USDC/i })).not.toHaveAttribute('aria-disabled')
+    expect(screen.getByRole('option', { name: /US Dollars/i })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Swiss Franc/i })).not.toHaveAttribute('aria-disabled')
+    expect(screen.getByRole('option', { name: /Brazilian Real/i })).not.toHaveAttribute('aria-disabled')
     expect(screen.queryByText('Not in wallet yet')).not.toBeInTheDocument()
     expect(screen.getAllByTestId('receive-asset-logo-btc')).toHaveLength(2)
-    expect(screen.getByTestId('receive-asset-logo-usdt')).toBeInTheDocument()
-    expect(screen.getByTestId('receive-asset-logo-usdc')).toBeInTheDocument()
+    expect(screen.getByTestId('receive-asset-logo-usd')).toBeInTheDocument()
+    expect(screen.getByTestId('receive-asset-logo-chf')).toBeInTheDocument()
+    expect(screen.getByTestId('receive-asset-logo-brl')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('option', { name: /USDT/i }))
+    fireEvent.click(screen.getByRole('option', { name: /US Dollars/i }))
 
     expect(fixture.flow?.setRecvInfo).toHaveBeenCalledWith(expect.objectContaining({ assetId: usdtAssetId }))
-    expect(window.localStorage.getItem('arkade-receive-asset-ticker')).toBe('USDT')
+    expect(window.localStorage.getItem('arkade-receive-asset-ticker')).toBe('USD')
   })
 
   it('lets users choose a known receive asset even without a positive balance', async () => {
@@ -404,10 +406,10 @@ describe('Receive QR Code screen', () => {
     renderReceiveQrCode(fixture)
 
     fireEvent.click(await screen.findByRole('button', { name: /Bitcoin/i }))
-    fireEvent.click(screen.getByRole('option', { name: /USDC/i }))
+    fireEvent.click(screen.getByRole('option', { name: /US Dollars/i }))
 
-    expect(fixture.flow?.setRecvInfo).toHaveBeenCalledWith(expect.objectContaining({ assetId: usdcAssetId }))
-    expect(window.localStorage.getItem('arkade-receive-asset-ticker')).toBe('USDC')
+    expect(fixture.flow?.setRecvInfo).toHaveBeenCalledWith(expect.objectContaining({ assetId: usdtAssetId }))
+    expect(window.localStorage.getItem('arkade-receive-asset-ticker')).toBe('USD')
   })
 
   it('defaults to the last selected receive asset when it is available', async () => {
@@ -415,7 +417,7 @@ describe('Receive QR Code screen', () => {
     const fixture = receiveAssetFixture()
     renderReceiveQrCode(fixture)
 
-    expect(await screen.findByRole('button', { name: /USDT/i })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /US Dollars/i })).toBeInTheDocument()
     expect(fixture.flow?.setRecvInfo).toHaveBeenCalledWith(expect.objectContaining({ assetId: usdtAssetId }))
   })
 })

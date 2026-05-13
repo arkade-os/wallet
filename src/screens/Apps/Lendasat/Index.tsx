@@ -111,13 +111,10 @@ export default function AppLendasat() {
           return bytesToHex(pk)
         },
         onGetDerivationPath: () => {
-          console.log(`Called on get derivation path`)
           // this is just a dummy one as arkade wallet uses a single key
           return "m/84'/0'/0'/0/0"
         },
-        onGetAddress: async (addressType: AddressType, asset?: LoanAsset) => {
-          console.log(`Called on get address: type=${addressType}, asset=${asset}`)
-
+        onGetAddress: async (addressType: AddressType) => {
           switch (addressType) {
             case AddressType.ARK:
               if (!arkAddress) throw new Error('Arkade address not yet loaded')
@@ -135,7 +132,6 @@ export default function AppLendasat() {
           }
         },
         onGetNpub: () => {
-          console.log(`Called on get npub`)
           // Optional - returning null for now
           throw new Error(`NPubs are not supported`)
         },

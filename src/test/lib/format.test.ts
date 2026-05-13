@@ -11,6 +11,7 @@ import {
   prettyDelta,
   prettyLongText,
   prettyNumber,
+  prettyCurrencyAssetAmount,
   isIssuance,
   isBurn,
   formatFiatAmountParts,
@@ -61,6 +62,7 @@ describe('format utilities', () => {
       expect(prettyFiatAmount(12345, Fiats.EUR)).toBe('€12,345.00')
       expect(prettyFiatAmount(1000, Fiats.GBP)).toBe('£1,000.00')
       expect(prettyFiatAmount(1000, Fiats.JPY)).toBe('¥1,000')
+      expect(prettyFiatAmount(1000, Fiats.BRL)).toBe('R$1,000.00')
     })
 
     it('should keep the trailing code for currencies without a symbol', () => {
@@ -73,6 +75,7 @@ describe('format utilities', () => {
         [Fiats.EUR, '€10.00', '€10.80'],
         [Fiats.USD, '$10.00', '$10.80'],
         [Fiats.CHF, '10.00 CHF', '10.80 CHF'],
+        [Fiats.BRL, 'R$10.00', 'R$10.80'],
         [Fiats.JPY, '¥10', '¥11'],
         [Fiats.GBP, '£10.00', '£10.80'],
         [Fiats.CNY, '10.00 CNY', '10.80 CNY'],
@@ -99,6 +102,19 @@ describe('format utilities', () => {
           minimumFractionDigits: 2,
         }),
       ).toBe('2,500.00 CHF')
+    })
+  })
+
+  describe('prettyCurrencyAssetAmount', () => {
+    it('keeps fiat-like asset balances fixed to their currency minor units', () => {
+      expect(prettyCurrencyAssetAmount(10057n, 2, 'USD')).toBe('100.57')
+      expect(prettyCurrencyAssetAmount(3047n, 2, 'CHF')).toBe('30.47')
+      expect(prettyCurrencyAssetAmount(12890n, 2, 'BRL')).toBe('128.90')
+      expect(prettyCurrencyAssetAmount(100n, 2, 'USD')).toBe('1.00')
+    })
+
+    it('preserves flexible decimals for non-fiat assets', () => {
+      expect(prettyCurrencyAssetAmount(110_000_000n, 8, 'BTC')).toBe('1.1')
     })
   })
 
@@ -192,6 +208,7 @@ describe('format utilities', () => {
       expect(prettyFiatHide(100, Fiats.EUR)).toBe('€······')
       expect(prettyFiatHide(100, Fiats.GBP)).toBe('£······')
       expect(prettyFiatHide(100, Fiats.JPY)).toBe('¥······')
+      expect(prettyFiatHide(100, Fiats.BRL)).toBe('R$······')
     })
 
     it('should keep the trailing code when masking fiat without a symbol', () => {

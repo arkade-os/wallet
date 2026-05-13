@@ -3,9 +3,9 @@ import { useContext, useRef } from 'react'
 import { WalletContext } from '../providers/wallet'
 import { CurrencyDisplay, Tx } from '../lib/types'
 import {
-  formatAssetAmount,
   isBurn,
   isIssuance,
+  prettyCurrencyAssetAmount,
   prettyAmount,
   prettyDate,
   prettyFiatAmount,
@@ -107,12 +107,14 @@ const TransactionLine = ({
           const ticker = meta?.ticker
           const icon = meta?.icon
           const decimals = meta?.decimals ?? 8
+          const accountTicker = accountTickerForAssetTicker(ticker)
+          const label = accountTicker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`
           return (
             <FlexRow key={a.assetId} gap='0.375rem' end>
-              <TransactionAssetAvatar icon={icon} ticker={ticker} assetId={a.assetId} />
+              <TransactionAssetAvatar icon={icon} ticker={accountTicker ?? ticker} assetId={a.assetId} />
               <span className='activity-row__amount'>
-                <PrivacyAmount masked={prettyHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}>
-                  {`${formatAssetAmount(a.amount, decimals)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`}
+                <PrivacyAmount masked={prettyHide(a.amount, label)}>
+                  {`${prettyCurrencyAssetAmount(BigInt(a.amount), decimals, accountTicker ?? ticker)} ${label}`}
                 </PrivacyAmount>
               </span>
             </FlexRow>
@@ -166,7 +168,7 @@ const TransactionLine = ({
 
 interface TransactionsListProps {
   /** Show only transactions for a specific asset. Use 'btc' for bitcoin-only activity. */
-  assetIdFilter?: string
+  assetIdFilter?: string | string[]
   /** 'virtual' (default) uses virtualization; 'static' renders a simple list. */
   mode?: 'virtual' | 'static'
   /** Max number of transactions to show (only applies when mode='static'). */
@@ -317,8 +319,12 @@ export default function TransactionsList({ assetIdFilter, mode = 'virtual', limi
   )
 }
 
-function matchesAssetFilter(tx: Tx, assetIdFilter?: string): boolean {
+function matchesAssetFilter(tx: Tx, assetIdFilter?: string | string[]): boolean {
   if (!assetIdFilter) return true
+  if (Array.isArray(assetIdFilter)) {
+    if (!assetIdFilter.length) return false
+    return tx.assets?.some((asset) => assetIdFilter.includes(asset.assetId)) ?? false
+  }
   if (assetIdFilter === 'btc') return !tx.assets?.length && tx.amount !== 0
   return tx.assets?.some((asset) => asset.assetId === assetIdFilter) ?? false
 }
@@ -338,7 +344,15 @@ function TransactionAssetAvatar({ assetId, icon, ticker }: { assetId: string; ic
 
 function getTokenLogoTicker(ticker: string | undefined): TokenLogoTicker | undefined {
   const normalized = ticker?.trim().toUpperCase()
-  if (normalized === 'BTC' || normalized === 'USDT' || normalized === 'USDC') return normalized
+  return accountTickerForAssetTicker(normalized)
+}
+
+function accountTickerForAssetTicker(ticker: string | undefined): TokenLogoTicker | undefined {
+  const normalized = ticker?.trim().toUpperCase()
+  if (normalized === 'BTC') return 'BTC'
+  if (normalized === 'USD' || normalized === 'USDT' || normalized === 'USDC' || normalized === 'AUSD') return 'USD'
+  if (normalized === 'CHF') return 'CHF'
+  if (normalized === 'BRL' || normalized === 'DPIX' || normalized === 'DEPIX') return 'BRL'
 }
 
 function shouldHideDevPrototypeTx(
@@ -351,6 +365,6 @@ function shouldHideDevPrototypeTx(
     const meta = assetMetadataCache.get(asset.assetId)?.metadata
     const ticker = meta?.ticker?.trim().toUpperCase()
     const name = meta?.name?.trim().toLowerCase()
-    return ticker === 'POP' || name === 'poop' || name === 'hoop' || (ticker === 'CHF' && name === 'swiss franc')
+    return ticker === 'POP' || name === 'poop' || name === 'hoop'
   })
 }

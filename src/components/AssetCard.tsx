@@ -1,8 +1,9 @@
 import AssetAvatar from './AssetAvatar'
 import TokenLogo, { type TokenLogoTicker } from './TokenLogo'
-import { prettyAssetAmount, truncatedAssetId } from '../lib/assets'
+import { truncatedAssetId } from '../lib/assets'
 import { hapticLight } from '../lib/haptics'
 import { PrivacyAmount, maskedFiat } from './PrivacyAmount'
+import { prettyCurrencyAssetAmount } from '../lib/format'
 
 interface AssetCardProps {
   assetId: string
@@ -35,7 +36,7 @@ export default function AssetCard({
   const assetName = name || truncatedAssetId(assetId) || 'Asset'
   const tokenTick = ticker ?? 'TKN'
   const rawBalance = typeof balance === 'bigint' ? balance : BigInt(balance)
-  const prettyBalance = prettyAssetAmount(rawBalance, decimals ?? 8)
+  const prettyBalance = prettyCurrencyAssetAmount(rawBalance, decimals ?? 8, tokenTick)
   const leftSecondary = `${prettyBalance} ${tokenTick}`
   const maskedBalance = `•••• ${tokenTick}`
   const maskedFiatText = fiatText?.trim().startsWith('$') ? maskedFiat('$') : '••••'
@@ -108,5 +109,13 @@ export default function AssetCard({
 
 function getTokenLogoTicker(ticker: string): TokenLogoTicker | undefined {
   const normalized = ticker.trim().toUpperCase()
-  if (normalized === 'BTC' || normalized === 'USDT' || normalized === 'USDC') return normalized
+  if (
+    normalized === 'BTC' ||
+    normalized === 'USD' ||
+    normalized === 'USDT' ||
+    normalized === 'USDC' ||
+    normalized === 'CHF' ||
+    normalized === 'BRL'
+  )
+    return normalized
 }

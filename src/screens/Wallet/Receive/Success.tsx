@@ -11,14 +11,13 @@ import { NotificationsContext } from '../../../providers/notifications'
 import { FlowContext } from '../../../providers/flow'
 import Header from '../../../components/Header'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import { prettyAmount, prettyFiatAmount } from '../../../lib/format'
+import { prettyAmount, prettyCurrencyAssetAmount, prettyFiatAmount } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import type { AssetDetails } from '@arkade-os/sdk'
 import AssetCard from '../../../components/AssetCard'
-import { prettyAssetAmount } from '../../../lib/assets'
 
 export default function ReceiveSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
@@ -64,7 +63,7 @@ export default function ReceiveSuccess() {
       if (assetDetails.size < receivedAssets.length) return
       const labels = receivedAssets.map((a) => {
         const meta = assetDetails.get(a.assetId)?.metadata
-        const amount = prettyAssetAmount(a.amount, meta?.decimals ?? 0)
+        const amount = prettyCurrencyAssetAmount(a.amount, meta?.decimals ?? 0, meta?.ticker)
         const ticker = meta?.ticker ?? meta?.name ?? 'assets'
         return `${amount} ${ticker}`
       })

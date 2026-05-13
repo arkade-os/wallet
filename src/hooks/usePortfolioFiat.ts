@@ -18,6 +18,8 @@ export interface PortfolioRow {
   satsEquivalent: number
   /** True if this asset has a price feed and fiatAmount is meaningful. */
   hasFiatPrice: boolean
+  /** IDs of the underlying wallet assets when this is a product-level account row. */
+  sourceAssetIds?: string[]
 }
 
 export interface PortfolioFiat {
@@ -52,12 +54,39 @@ export function usePortfolioFiat(): PortfolioFiat {
     hasFiatPrice: true,
   })
 
+  let usdMinorUnits = BigInt(0)
+  const usdSourceAssetIds: string[] = []
+  let chfMinorUnits = BigInt(0)
+  const chfSourceAssetIds: string[] = []
+  let brlMinorUnits = BigInt(0)
+  const brlSourceAssetIds: string[] = []
+
   // Non-BTC asset rows from real SDK data.
   for (const ab of assetBalances) {
     const meta = assetMetadataCache.get(ab.assetId)?.metadata
     if (shouldHideDevPrototypeAsset(meta?.ticker, meta?.name)) continue
 
     const decimals = meta?.decimals ?? 8
+    const normalizedTicker = meta?.ticker?.trim().toUpperCase()
+
+    if (normalizedTicker === 'USDT' || normalizedTicker === 'USDC') {
+      usdMinorUnits += normalizeMinorUnits(ab.amount, decimals, 2)
+      usdSourceAssetIds.push(ab.assetId)
+      continue
+    }
+
+    if (normalizedTicker === 'CHF') {
+      chfMinorUnits += normalizeMinorUnits(ab.amount, decimals, 2)
+      chfSourceAssetIds.push(ab.assetId)
+      continue
+    }
+
+    if (normalizedTicker === 'BRL' || normalizedTicker === 'DPIX' || normalizedTicker === 'DEPIX') {
+      brlMinorUnits += normalizeMinorUnits(ab.amount, decimals, 2)
+      brlSourceAssetIds.push(ab.assetId)
+      continue
+    }
+
     const pricedFiat = priceAssetFiat(ab.amount, decimals, meta?.ticker, convertFiat)
     assetFiatTotal += pricedFiat
 
@@ -74,11 +103,77 @@ export function usePortfolioFiat(): PortfolioFiat {
     })
   }
 
+  const usdFiatAmount = Number(usdMinorUnits) / 100
+  const usdAccountFiatAmount = convertFiat(usdFiatAmount, Fiats.USD)
+  if (usdFiatAmount > 0 || import.meta.env.DEV) {
+    assetFiatTotal += usdAccountFiatAmount
+    rows.push({
+      assetId: 'account:usd',
+      name: 'US Dollars',
+      ticker: 'USD',
+      decimals: 2,
+      balance: usdMinorUnits,
+      fiatAmount: usdAccountFiatAmount,
+      satsEquivalent: 0,
+      hasFiatPrice: true,
+      sourceAssetIds: usdSourceAssetIds,
+    })
+  }
+
+  const chfAccountMinorUnits = chfMinorUnits > 0 ? chfMinorUnits : import.meta.env.DEV ? 3047n : 0n
+  const brlAccountMinorUnits = brlMinorUnits > 0 ? brlMinorUnits : import.meta.env.DEV ? 12890n : 0n
+
+  const fiatAccounts = [
+    {
+      assetId: 'account:chf',
+      name: 'Swiss Franc',
+      ticker: 'CHF',
+      minorUnits: chfAccountMinorUnits,
+      sourceFiat: Fiats.CHF,
+      sourceAssetIds: chfSourceAssetIds,
+    },
+    {
+      assetId: 'account:brl',
+      name: 'Brazilian Real',
+      ticker: 'BRL',
+      minorUnits: brlAccountMinorUnits,
+      sourceFiat: Fiats.BRL,
+      sourceAssetIds: brlSourceAssetIds,
+    },
+  ]
+
+  for (const account of fiatAccounts) {
+    if (account.minorUnits === 0n) continue
+
+    const amount = Number(account.minorUnits) / 100
+    const fiatAmount = convertFiat(amount, account.sourceFiat)
+    assetFiatTotal += fiatAmount
+
+    rows.push({
+      assetId: account.assetId,
+      name: account.name,
+      ticker: account.ticker,
+      decimals: 2,
+      balance: account.minorUnits,
+      fiatAmount,
+      satsEquivalent: 0,
+      hasFiatPrice: true,
+      sourceAssetIds: account.sourceAssetIds,
+    })
+  }
+
   return {
     totalFiat: toFiat(totalSats) + assetFiatTotal,
     totalSats,
     rows,
   }
+}
+
+function normalizeMinorUnits(rawAmount: number | bigint, fromDecimals: number, toDecimals: number): bigint {
+  const amount = typeof rawAmount === 'bigint' ? rawAmount : BigInt(rawAmount)
+  if (fromDecimals === toDecimals) return amount
+  if (fromDecimals > toDecimals) return amount / 10n ** BigInt(fromDecimals - toDecimals)
+  return amount * 10n ** BigInt(toDecimals - fromDecimals)
 }
 
 function priceAssetFiat(
@@ -96,7 +191,15 @@ function priceAssetFiat(
 
 function displayNameForAsset(ticker: string | undefined, name: string | undefined): string | undefined {
   const normalizedTicker = ticker?.trim().toUpperCase()
-  if (normalizedTicker === 'USDT' || normalizedTicker === 'USDC') return normalizedTicker
+  if (
+    normalizedTicker === 'USDT' ||
+    normalizedTicker === 'USDC' ||
+    normalizedTicker === 'USD' ||
+    normalizedTicker === 'AUSD'
+  )
+    return 'US Dollars'
+  if (normalizedTicker === 'CHF') return 'Swiss Franc'
+  if (normalizedTicker === 'BRL' || normalizedTicker === 'DPIX' || normalizedTicker === 'DEPIX') return 'Brazilian Real'
   return name
 }
 
@@ -105,6 +208,7 @@ function fiatForAssetTicker(ticker: string | undefined): Fiats | undefined {
 
   if (normalized === 'USDT' || normalized === 'USDC' || normalized === 'USD' || normalized === 'AUSD') return Fiats.USD
   if (normalized === 'CHF') return Fiats.CHF
+  if (normalized === 'BRL' || normalized === 'DPIX' || normalized === 'DEPIX') return Fiats.BRL
   if (normalized === 'EUR') return Fiats.EUR
   if (normalized === 'GBP') return Fiats.GBP
   if (normalized === 'JPY') return Fiats.JPY
@@ -117,10 +221,5 @@ function shouldHideDevPrototypeAsset(ticker: string | undefined, name: string | 
   const normalizedTicker = ticker?.trim().toUpperCase()
   const normalizedName = name?.trim().toLowerCase()
 
-  return (
-    normalizedTicker === 'POP' ||
-    normalizedName === 'poop' ||
-    normalizedName === 'hoop' ||
-    (normalizedTicker === 'CHF' && normalizedName === 'swiss franc')
-  )
+  return normalizedTicker === 'POP' || normalizedName === 'poop' || normalizedName === 'hoop'
 }

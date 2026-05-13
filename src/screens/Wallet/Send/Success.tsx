@@ -11,12 +11,11 @@ import FlexCol from '../../../components/FlexCol'
 import Padded from '../../../components/Padded'
 import Text from '../../../components/Text'
 import SuccessIcon from '../../../icons/Success'
-import { prettyAmount, prettyFiatAmount } from '../../../lib/format'
+import { prettyAmount, prettyCurrencyAssetAmount, prettyFiatAmount } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
 import AssetCard from '../../../components/AssetCard'
-import { prettyAssetAmount } from '../../../lib/assets'
 
 export default function SendSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
@@ -42,7 +41,7 @@ export default function SendSuccess() {
 
   const totalSats = sendInfo.total ?? 0
   const displayAmount = isAssetSend
-    ? `${prettyAssetAmount(assetAmountValue, assetDecimals)} ${assetTicker}`
+    ? `${prettyCurrencyAssetAmount(assetAmountValue, assetDecimals, assetTicker)} ${assetTicker}`
     : useFiat
       ? prettyFiatAmount(toFiat(totalSats), config.fiat)
       : prettyAmount(totalSats)

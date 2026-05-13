@@ -17,7 +17,7 @@ import {
 
 const assetId = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd'
 
-function renderSwap() {
+function renderSwap(flowOverrides = {}) {
   const navigate = vi.fn()
   const goBack = vi.fn()
   const assetMetadataCache = new Map([
@@ -25,8 +25,8 @@ function renderSwap() {
       assetId,
       {
         metadata: {
-          name: 'POOP',
-          ticker: 'POP',
+          name: 'USDC',
+          ticker: 'USDC',
           decimals: 2,
         },
       },
@@ -55,7 +55,7 @@ function renderSwap() {
     >
       <ConfigContext.Provider value={{ ...mockConfigContextValue, configLoaded: true } as any}>
         <FiatContext.Provider value={mockFiatContextValue as any}>
-          <FlowContext.Provider value={mockFlowContextValue as any}>
+          <FlowContext.Provider value={{ ...mockFlowContextValue, ...flowOverrides } as any}>
             <WalletContext.Provider
               value={
                 {
@@ -77,7 +77,7 @@ function renderSwap() {
   return { navigate, goBack }
 }
 
-describe('Wallet swap prototype', () => {
+describe('Wallet swap flow', () => {
   it('starts with an asset picker, then opens the focused amount step', async () => {
     renderSwap()
 
@@ -100,5 +100,16 @@ describe('Wallet swap prototype', () => {
     await userEvent.click(screen.getByLabelText('Go back'))
 
     expect(goBack).toHaveBeenCalled()
+  })
+
+  it('opens directly on the amount step when launched from an asset detail page', () => {
+    const setSwapFromAssetId = vi.fn()
+
+    renderSwap({ swapFromAssetId: assetId, setSwapFromAssetId })
+
+    expect(screen.getByLabelText('Swap amount')).toBeInTheDocument()
+    expect(screen.getAllByText('USD').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Choose asset to swap')).not.toBeInTheDocument()
+    expect(setSwapFromAssetId).toHaveBeenCalledWith(undefined)
   })
 })
