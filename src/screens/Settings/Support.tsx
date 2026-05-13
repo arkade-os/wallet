@@ -41,15 +41,22 @@ export default function Support() {
 
   // Wait for Chatwoot to load, show error after 5 seconds if not loaded
   useEffect(() => {
-    if (!hasChatwootVars()) {
-      setError('Support chat is not configured')
+    // If Chatwoot is already loaded, set state immediately
+    if (window.$chatwoot) {
+      window.$chatwoot?.toggleBubbleVisibility('hide')
+      setSupportChatLoaded(true)
       return
     }
 
+    // Not all networks may have Chatwoot configured, check for required vars before waiting
+    if (!hasChatwootVars()) return setError('Support chat is not configured')
+
+    // Timeout to detect if Chatwoot fails to load
     const loadTimeout = setTimeout(() => {
       if (!supportChatLoaded) setError('Failed to load support chat')
     }, 5_000)
 
+    // Listen for Chatwoot ready event to set loaded state
     const eventHandler = () => {
       clearTimeout(loadTimeout)
       setSupportChatLoaded(true)
@@ -58,12 +65,16 @@ export default function Support() {
 
     const event = 'chatwoot:ready'
     window.addEventListener(event, eventHandler)
-    return () => window.removeEventListener(event, eventHandler)
+
+    return () => {
+      clearTimeout(loadTimeout)
+      window.removeEventListener(event, eventHandler)
+    }
   }, [])
 
   // Set Chatwoot user and custom attributes when addresses are available
   useEffect(() => {
-    if (!addresses || !supportChatLoaded || !window.$chatwoot || !wallet.pubkey) return
+    if (!addresses || !window.$chatwoot || !wallet.pubkey) return
 
     // Set user identifier (using wallet pubkey)
     const userIdentifier = wallet.pubkey.substring(0, 16)
@@ -88,7 +99,7 @@ export default function Support() {
       explorer_url: wallet.network ? getWebExplorerURL(wallet.network as NetworkName) : 'not available',
       git_commit: gitCommit,
     })
-  }, [addresses, supportChatLoaded, wallet.pubkey, window.$chatwoot])
+  }, [addresses, wallet.pubkey, supportChatLoaded])
 
   const handleOpenChat = () => {
     if (window.$chatwoot) window.$chatwoot.toggle('open')
