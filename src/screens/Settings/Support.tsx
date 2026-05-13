@@ -42,7 +42,11 @@ export default function Support() {
   // Wait for Chatwoot to load, show error after 5 seconds if not loaded
   useEffect(() => {
     // If Chatwoot is already loaded, set state immediately
-    if (window.$chatwoot) return setSupportChatLoaded(true)
+    if (window.$chatwoot) {
+      window.$chatwoot?.toggleBubbleVisibility('hide')
+      setSupportChatLoaded(true)
+      return
+    }
 
     // Not all networks may have Chatwoot configured, check for required vars before waiting
     if (!hasChatwootVars()) return setError('Support chat is not configured')
@@ -95,7 +99,7 @@ export default function Support() {
       explorer_url: wallet.network ? getWebExplorerURL(wallet.network as NetworkName) : 'not available',
       git_commit: gitCommit,
     })
-  }, [addresses, wallet.pubkey, window.$chatwoot])
+  }, [addresses, wallet.pubkey, supportChatLoaded])
 
   const handleOpenChat = () => {
     if (window.$chatwoot) window.$chatwoot.toggle('open')
