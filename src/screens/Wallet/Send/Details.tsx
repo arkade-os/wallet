@@ -183,7 +183,7 @@ export default function SendDetails() {
             />
           ) : (
             <LoadingLogo
-              text='Paying to Bitcoin'
+              text='Paying to mainnet'
               done={sendDone}
               exitMode='fly-up'
               onExitComplete={handleExitComplete}
