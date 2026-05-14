@@ -1,5 +1,5 @@
 import { ReactElement, useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { generateMnemonic, mnemonicToSeedSync } from '@scure/bip39'
+import { generateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
@@ -11,7 +11,6 @@ import Content from '../../components/Content'
 import Padded from '../../components/Padded'
 import Text from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
-import { deriveKeyFromSeed } from '../../lib/wallet'
 import SheetModal from '../../components/SheetModal'
 import { defaultPassword } from '../../lib/constants'
 import { OnboardStaggerChild } from '../../components/OnboardLoadIn'
@@ -80,9 +79,7 @@ export default function Init() {
 
   const handleNewWallet = () => {
     const mnemonic = generateMnemonic(wordlist)
-    const seed = mnemonicToSeedSync(mnemonic)
-    const privateKey = deriveKeyFromSeed(seed)
-    setInitInfo({ privateKey, password: defaultPassword, restoring: false })
+    setInitInfo({ mnemonic, password: defaultPassword, restoring: false })
     navigate(Pages.InitConnect)
   }
 

@@ -6,6 +6,7 @@ import { Tx } from '../lib/types'
 export interface InitInfo {
   password?: string
   privateKey?: Uint8Array
+  mnemonic?: string
   restoring?: boolean
 }
 

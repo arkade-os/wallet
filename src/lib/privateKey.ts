@@ -55,6 +55,11 @@ export const setPrivateKey = async (privateKey: Uint8Array, password: string): P
 
 export const isValidPassword = async (password: string): Promise<boolean> => {
   try {
+    if (localStorage.getItem('encrypted_mnemonic')) {
+      const { getMnemonic } = await import('./mnemonic')
+      await getMnemonic(password)
+      return true
+    }
     await getPrivateKey(password)
     return true
   } catch {
