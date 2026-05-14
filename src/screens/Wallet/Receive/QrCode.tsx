@@ -329,6 +329,16 @@ export default function ReceiveQRCode() {
     setCopied(value)
   }
 
+  const handleCopyButton = async () => {
+    if (!prefersReducedMotion) hapticSubtle()
+    setShowCopySheet(true)
+    if (qrCodeValue && copied !== qrCodeValue) {
+      await copyToClipboard(qrCodeValue)
+      toast('Copied to clipboard')
+      setCopied(qrCodeValue)
+    }
+  }
+
   const handleAmountChange = (sats: number) => {
     setAmountInput(sats)
     const value = assetMeta ? centsToUnits(BigInt(sats), assetMeta.metadata?.decimals) : useFiat ? toFiat(sats) : sats
@@ -459,7 +469,7 @@ export default function ReceiveQRCode() {
       <ButtonsOnBottom>
         <FlexRow gap='0.75rem'>
           <Button label={amountLabel} onClick={() => setShowAmountSheet(true)} secondary />
-          <Button label='Copy' onClick={() => setShowCopySheet(true)} secondary />
+          <Button label='Copy' onClick={handleCopyButton} secondary />
         </FlexRow>
         <Button label='Share' onClick={handleShare} disabled={shareDisabled} />
       </ButtonsOnBottom>
