@@ -21,6 +21,7 @@ import Password from './Password'
 import Delegates from './Delegates'
 import SettingsPageTransition from '../../components/SettingsPageTransition'
 import Haptics from './Haptics'
+import Contracts from './Contracts'
 
 function settingsContent(option: SettingsOptions): JSX.Element {
   switch (option) {
@@ -52,6 +53,8 @@ function settingsContent(option: SettingsOptions): JSX.Element {
       return <Support />
     case SettingsOptions.Vtxos:
       return <Vtxos />
+    case SettingsOptions.Contracts:
+      return <Contracts />
     case SettingsOptions.Theme:
       return <Theme />
     case SettingsOptions.Fiat:
