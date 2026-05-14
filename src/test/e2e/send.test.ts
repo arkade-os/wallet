@@ -1,5 +1,15 @@
-import { prettyNumber } from '../../lib/format'
-import { test, expect, createWallet, fundWallet, prePay, enableAssets, mintAsset, handleKeyboardInput } from './utils'
+import { prettyAmount, prettyNumber } from '../../lib/format'
+import {
+  test,
+  expect,
+  createWallet,
+  fundWallet,
+  prePay,
+  enableAssets,
+  mintAsset,
+  handleKeyboardInput,
+  createWalletWithFiat,
+} from './utils'
 import { execSync } from 'child_process'
 
 test('should send sats (some and max) to ark address', async ({ page, isMobile }) => {
@@ -55,6 +65,62 @@ test('should send sats (some and max) to ark address', async ({ page, isMobile }
   // main page
   await page.getByText('Sounds good').click()
   await page.waitForSelector('text=- 3,000 SATS', { timeout: 10000 })
+})
+
+test('should send usds (some and max) to ark address', async ({ page, isMobile }) => {
+  // create wallet
+  await createWalletWithFiat(page)
+  const usdsReceived = await fundWallet(page, 5000)
+  const usdsToSend = 2
+  const usdsRemaining = (usdsReceived - usdsToSend).toFixed(2)
+
+  const someArkAddress =
+    'tark1qr340xg400jtxat9hdd0ungyu6s05zjtdf85uj9smyzxshf98nda' +
+    'h6u2nredqtn0cr4p4zqz53gsmhju4l9t7x47kzleesa9dprx7e56xhzlen'
+
+  // send page
+  await prePay(page, someArkAddress, isMobile, usdsToSend)
+
+  // details page
+  await expect(page.getByTestId('Network fees')).toContainText('$0.00')
+  await expect(page.getByTestId('Amount')).toContainText('$2.00')
+  await expect(page.getByTestId('Total')).toContainText('$2.00')
+
+  // finalize payment
+  await page.getByText('Tap to Sign').click()
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
+  await page.waitForSelector('text=Payment sent!', { timeout: 30000 })
+  await expect(page.getByText('$2.00 sent successfully')).toBeVisible()
+
+  // main page
+  await page.getByText('Sounds good').click()
+  await page.waitForSelector('text=- $2.00', { timeout: 10000 })
+  await expect(page.getByText('Sent')).toBeVisible()
+
+  // go to send page
+  await page.getByText('Send').click()
+
+  // fill address
+  await page.locator('input[name="send-address"]').fill(someArkAddress)
+
+  // click max
+  await page.getByTestId('input-amount-max').click()
+
+  // continue to details page
+  await page.getByText('Continue').click()
+
+  // details page
+  await expect(page.getByTestId('Network fees')).toContainText('$0.00')
+  await expect(page.getByTestId('Amount')).toContainText(`$${usdsRemaining}`)
+  await expect(page.getByTestId('Total')).toContainText(`$${usdsRemaining}`)
+
+  await page.getByText('Tap to Sign').click()
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
+  await page.waitForSelector(`text=${usdsRemaining} sent successfully`, { timeout: 10000 })
+
+  // main page
+  await page.getByText('Sounds good').click()
+  await page.waitForSelector(`text=- $${usdsRemaining}`, { timeout: 10000 })
 })
 
 test('should send assets (some and max) to ark address', async ({ page, isMobile }) => {
@@ -199,6 +265,60 @@ test('should send sats (some and max) to onchain address with chain swap', async
   // main page
   await page.getByText('Sounds good').click()
   await page.waitForSelector(`text=- ${prettyNumber(balance)} SATS`, { timeout: 10000 })
+})
+
+test('should send usds (some and max) to onchain address with chain swap', async ({ page, isMobile }) => {
+  // create wallet
+  await createWalletWithFiat(page)
+  const usdsReceived = await fundWallet(page, 5000)
+  const usdsToSend = 2
+
+  const someOnchainAddress = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
+
+  // send page
+  await prePay(page, someOnchainAddress, isMobile, usdsToSend)
+
+  // details page
+  await expect(page.getByTestId('Amount')).toContainText('$2.00')
+
+  await page.getByText('Tap to Sign').click()
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
+  await page.waitForSelector('text=Payment sent!', { timeout: 30000 })
+  await expect(page.getByText(/\$[\d\,\.]+ sent successfully/)).toBeVisible()
+
+  // main page
+  await page.getByText('Sounds good').click()
+  await expect(page.getByText(/\- \$[\d\,\.]+/)).toBeVisible()
+  await expect(page.getByText('Sent')).toBeVisible()
+
+  const balanceText = await page.getByTestId('main-balance').textContent()
+  const balance = Number(balanceText?.replace('$', '') || '0')
+  expect(balance).toBeLessThan(usdsReceived)
+
+  // go to send page
+  await page.getByText('Send').click()
+
+  // fill address
+  await page.locator('input[name="send-address"]').fill(someOnchainAddress)
+
+  // click max
+  await page.getByTestId('input-amount-max').click()
+
+  await page.waitForSelector('text=Fees will be deducted from the amount sent', { timeout: 2000 })
+
+  // continue to send
+  await page.getByText('Continue').click()
+
+  // details page
+  await expect(page.getByTestId('Total')).toContainText(`$${balance.toFixed(2)}`)
+
+  await page.getByText('Tap to Sign').click()
+  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
+  await expect(page.getByText(/\$[\d\,\.]+ sent successfully/)).toBeVisible()
+
+  // main page
+  await page.getByText('Sounds good').click()
+  await expect(page.getByText(`- $${balance.toFixed(2)}`)).toBeVisible()
 })
 
 // wallet balance is 5000 sats,

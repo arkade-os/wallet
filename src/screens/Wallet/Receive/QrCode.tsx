@@ -41,8 +41,8 @@ import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { AssetOption } from '../../../lib/types'
 import { EASE_OUT_QUINT } from '../../../lib/animations'
-import { ConfigContext } from '../../../providers/config'
-import { FiatContext } from '../../../providers/fiat'
+import { ConfigContext } from '@/providers/config'
+import { FiatContext } from '@/providers/fiat'
 
 export default function ReceiveQRCode() {
   const { useFiat } = useContext(ConfigContext)
@@ -352,7 +352,6 @@ export default function ReceiveQRCode() {
       const num = Number(value)
       if (Number.isNaN(num) || !Number.isFinite(num)) throw new Error('Invalid amount')
       const sats = useFiat ? fromFiat(num) : num
-      setRecvInfo({ ...recvInfo, satoshis: sats })
       // if amount was changed, we need to reset invoice and swap address, since they are amount-specific
       // this will also trigger the useEffect to create new ones if needed
       if (sats !== recvInfo.satoshis) {
@@ -360,6 +359,7 @@ export default function ReceiveQRCode() {
         setSwapAddress('')
         setShowQrCode(false)
       }
+      setRecvInfo({ ...recvInfo, satoshis: sats })
     }
   }
 

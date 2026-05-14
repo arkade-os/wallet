@@ -65,7 +65,7 @@ export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
-  const { toFiat, fiatDecimals } = useContext(FiatContext)
+  const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { calcSubmarineSwapFee, calcArkToBtcSwapFee, createArkToBtcSwap, createSubmarineSwap, connected, getApiUrl } =
     useContext(SwapsContext)
@@ -528,8 +528,9 @@ export default function SendForm() {
         })
       }
     } else {
-      const sats = Number(value)
-      if (Number.isNaN(sats) || !Number.isFinite(sats)) return setError('Invalid amount')
+      const num = Number(value)
+      if (Number.isNaN(num) || !Number.isFinite(num)) return setError('Invalid amount')
+      const sats = useFiat ? fromFiat(num) : num
       setState({ ...sendInfo, satoshis: sats })
     }
   }

@@ -2,6 +2,7 @@ import { test as base, type Page } from '@playwright/test'
 import { faucetOffchain } from './fundedWallet'
 import { prettyNumber } from '../../lib/format'
 import { sleep } from '../../lib/sleep'
+import { create } from 'domain'
 
 export const test = base.extend({
   page: async ({ page }, use) => {
@@ -103,6 +104,17 @@ export async function createWallet(page: Page): Promise<void> {
   await page.goto('/')
   await page.getByText('+ Create wallet').click()
   await waitForWalletPage(page)
+}
+
+export async function createWalletWithFiat(page: Page): Promise<void> {
+  await createWallet(page)
+  await page.getByTestId('tab-settings').click()
+  await page.getByText('general', { exact: true }).click()
+  await page.getByText('Display preferences').click()
+  await page.getByTestId('select-option-2').click()
+  await page.getByLabel('Go back').click()
+  await page.getByLabel('Go back').click()
+  await page.getByTestId('tab-wallet').click()
 }
 
 export async function createWalletWithPassword(page: Page, password: string): Promise<void> {
@@ -232,12 +244,18 @@ async function restoreWallet(page: Page, nsec: string): Promise<void> {
   await waitForWalletPage(page)
 }
 
-export async function fundWallet(page: Page, amount: number = 5000): Promise<void> {
+export async function fundWallet(page: Page, amount: number = 5000): Promise<number> {
   const arkAddress = await receiveOffchain(page)
   await faucetOffchain(arkAddress, amount)
   await waitForPaymentReceived(page)
   await page.getByTestId('tab-wallet').click()
-  await page.waitForSelector(`text=+ ${prettyNumber(amount)} SATS`, { timeout: 10000 })
+  await page.getByText('Received').waitFor({ timeout: 10000 })
+  const received = await page
+    .getByText(/[1-9][\d\,\.]+/)
+    .first()
+    .innerText()
+  const num = Number(received.replace(/,/g, '').replace(' SATS', '').replace('$', ''))
+  return num
 }
 
 export async function resetAndRestoreWallet(page: Page): Promise<void> {

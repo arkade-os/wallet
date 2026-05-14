@@ -51,10 +51,11 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
             : ''
     const value = toFiat(tx.amount)
     const small = asAssets || config.currencyDisplay === CurrencyDisplay.Both
-    const world = config.showBalance ? prettyFiatAmount(value, config.fiat) : prettyFiatHide(value, config.fiat)
+    const text = config.showBalance ? prettyFiatAmount(value, config.fiat) : prettyFiatHide(value, config.fiat)
+    const fiatAmount = `${prefix} ${text}`
     return (
       <Text color={color} small={small}>
-        {world}
+        {fiatAmount}
       </Text>
     )
   }
