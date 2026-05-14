@@ -453,6 +453,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         arkServerUrl,
         esploraUrl,
         delegatorUrl,
+        walletMode: 'static',
         storage: { walletRepository, contractRepository },
         serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
         messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
