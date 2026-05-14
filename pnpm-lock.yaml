@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.3.30
-        version: 0.3.30
+        specifier: 0.3.31
+        version: 0.3.31
       '@arkade-os/sdk':
         specifier: 0.4.26
         version: 0.4.26
@@ -237,9 +237,17 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@0.3.30':
-    resolution: {integrity: sha512-U3kmcYER4W8PHYtbCNQoWD8ymiaQ0iFdfokmgxMV+UuEXTLvhooNjv25PADOzXZgXIB4GF7bvYegGmBHHXUB1Q==}
+  '@arkade-os/boltz-swap@0.3.31':
+    resolution: {integrity: sha512-rG+Oi20TieBeamhNF5RLSXN0uI4M8Xr1+cusYl0df1HQ2aZannuVEjaODYmOdia0nIf0m9bo9/laM+5SG3uxqQ==}
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
+    peerDependencies:
+      expo-background-task: '>=0.1.0'
+      expo-task-manager: '>=3.0.0'
+    peerDependenciesMeta:
+      expo-background-task:
+        optional: true
+      expo-task-manager:
+        optional: true
 
   '@arkade-os/sdk@0.4.26':
     resolution: {integrity: sha512-seyc+BdgWPpsFp/PdgcHAyCmK3FYlNP6+DdG/BMbYmARNxqDHFN/y3/IZcwcXMLJjQkcLVBR/iUL1FKFwBgpdQ==}
@@ -4477,7 +4485,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@0.3.30':
+  '@arkade-os/boltz-swap@0.3.31':
     dependencies:
       '@arkade-os/sdk': 0.4.26
       '@noble/curves': 2.0.1
@@ -4494,9 +4502,7 @@ snapshots:
       - bufferutil
       - ecpair
       - expo
-      - expo-background-task
       - expo-sqlite
-      - expo-task-manager
       - utf-8-validate
 
   '@arkade-os/sdk@0.4.26':
