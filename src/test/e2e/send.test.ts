@@ -1,4 +1,4 @@
-import { prettyAmount, prettyNumber } from '../../lib/format'
+import { prettyNumber } from '../../lib/format'
 import {
   test,
   expect,

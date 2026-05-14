@@ -1,8 +1,6 @@
 import { test as base, type Page } from '@playwright/test'
 import { faucetOffchain } from './fundedWallet'
-import { prettyNumber } from '../../lib/format'
 import { sleep } from '../../lib/sleep'
-import { create } from 'domain'
 
 export const test = base.extend({
   page: async ({ page }, use) => {
