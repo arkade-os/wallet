@@ -346,7 +346,7 @@ export default function ReceiveQRCode() {
     setShowAmountSheet(false)
     if (assetMeta) {
       const decimals = assetMeta.metadata?.decimals
-      const cents = unitsToCents(amountTextValue, decimals)
+      const cents = unitsToCents(value, decimals)
       return setAssetAmount(cents)
     } else {
       const num = Number(value)
