@@ -8,6 +8,7 @@ import Padded from '../../../components/Padded'
 import TokenLogo, { type TokenLogoTicker } from '../../../components/TokenLogo'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../../components/ui/drawer'
 import ChevronDownIcon from '../../../icons/ChevronDown'
+import SuccessIcon from '../../../icons/Success'
 import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
@@ -17,6 +18,7 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
+import { WalletContext } from '../../../providers/wallet'
 import { usePortfolioFiat, type PortfolioRow } from '../../../hooks/usePortfolioFiat'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 
@@ -65,6 +67,7 @@ export default function WalletSwap() {
   const { convertFiat, fiatDecimals, toFiat } = useContext(FiatContext)
   const { swapFromAssetId, setSwapFromAssetId } = useContext(FlowContext)
   const { goBack, navigate } = useContext(NavigationContext)
+  const { addPrototypeSwap } = useContext(WalletContext)
   const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()
 
@@ -82,6 +85,8 @@ export default function WalletSwap() {
   const [toAssetId, setToAssetId] = useState<string | undefined>()
   const [drawer, setDrawer] = useState<DrawerState>(null)
   const [swapTurn, setSwapTurn] = useState(0)
+  const [confirming, setConfirming] = useState(false)
+  const [successQuote, setSuccessQuote] = useState<SwapQuote>()
 
   const fromAsset = assets.find((asset) => asset.assetId === fromAssetId) ?? assets[0] ?? fallbackAsset
   const toAsset = toAssetId
@@ -163,6 +168,32 @@ export default function WalletSwap() {
     goBack()
   }
 
+  const handleSuccessDone = useCallback(() => {
+    setSuccessQuote(undefined)
+    navigate(Pages.Wallet)
+  }, [navigate])
+
+  useEffect(() => {
+    if (!successQuote) return
+    const timer = window.setTimeout(handleSuccessDone, 3000)
+    return () => window.clearTimeout(timer)
+  }, [handleSuccessDone, successQuote])
+
+  const confirmPrototypeSwap = () => {
+    if (!toAsset || confirming || Number(amount) <= 0) return
+
+    hapticLight()
+    setConfirming(true)
+    window.setTimeout(() => {
+      const execution = buildPrototypeSwapExecution(amount, amountMode, fromAsset, toAsset)
+      addPrototypeSwap(execution)
+      setConfirming(false)
+      setDrawer(null)
+      setSuccessQuote(quote)
+      hapticLight()
+    }, 850)
+  }
+
   return (
     <>
       <Header text='Swap' back={handleBack} />
@@ -236,11 +267,13 @@ export default function WalletSwap() {
       <ReviewDrawer
         open={drawer === 'review'}
         quote={quote}
+        confirming={confirming}
         onOpenChange={(open) => {
           if (!open) setDrawer(null)
         }}
-        onConfirm={() => navigate(Pages.Wallet)}
+        onConfirm={confirmPrototypeSwap}
       />
+      <SwapSuccessOverlay quote={successQuote} onDone={handleSuccessDone} />
     </>
   )
 }
@@ -507,11 +540,13 @@ function AssetPickerDrawer({
 function ReviewDrawer({
   open,
   quote,
+  confirming,
   onOpenChange,
   onConfirm,
 }: {
   open: boolean
   quote: SwapQuote
+  confirming: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
@@ -527,10 +562,54 @@ function ReviewDrawer({
           <QuoteDetails quote={quote} />
         </div>
         <div className='swap-review-action'>
-          <Button label='Confirm swap' disabled onClick={onConfirm} />
+          <Button
+            label='Confirm swap'
+            disabled={!quote.toAsset || confirming}
+            loading={confirming}
+            onClick={onConfirm}
+          />
         </div>
       </DrawerContent>
     </Drawer>
+  )
+}
+
+function SwapSuccessOverlay({ quote, onDone }: { quote?: SwapQuote; onDone: () => void }) {
+  return (
+    <AnimatePresence>
+      {quote ? (
+        <motion.button
+          type='button'
+          className='swap-success-overlay'
+          onClick={onDone}
+          initial={{ transform: 'translate3d(0, 100%, 0)' }}
+          animate={{ transform: 'translate3d(0, 0%, 0)' }}
+          exit={{ transform: 'translate3d(0, 100%, 0)' }}
+          transition={{ type: 'spring', stiffness: 260, damping: 30, mass: 0.95 }}
+          aria-label='Swap successful. Tap to go home.'
+        >
+          <motion.span
+            className='swap-success-mark'
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.16, type: 'spring', duration: 0.42, bounce: 0.18 }}
+          >
+            <SuccessIcon small />
+          </motion.span>
+          <motion.span
+            className='swap-success-copy'
+            initial={{ opacity: 0, transform: 'translate3d(0, 10px, 0)' }}
+            animate={{ opacity: 1, transform: 'translate3d(0, 0, 0)' }}
+            transition={{ delay: 0.2, duration: 0.24, ease: EASE_OUT_QUINT_TUPLE }}
+          >
+            <strong>Swap successful</strong>
+            <small>
+              {quote.fromAsset.ticker} to {quote.toAsset?.ticker}
+            </small>
+          </motion.span>
+        </motion.button>
+      ) : null}
+    </AnimatePresence>
   )
 }
 
@@ -604,6 +683,32 @@ function buildQuote(amount: string, mode: AmountMode, fromAsset: SwapAsset, toAs
     toFiat: prettyFiatAmount(received * toUsd, Fiats.USD),
     rateLabel: prettyNumber(rate, swapAmountDecimals(rate)),
   }
+}
+
+function buildPrototypeSwapExecution(amount: string, mode: AmountMode, fromAsset: SwapAsset, toAsset: SwapAsset) {
+  const parsed = Number(amount) || 0
+  const fromUsd = estimateSwapUsd(fromAsset)
+  const toUsd = estimateSwapUsd(toAsset)
+  const fromUnits = mode === 'fiat' && fromUsd > 0 ? parsed / fromUsd : parsed
+  const fromFiatNumber = mode === 'fiat' ? parsed : fromUnits * fromUsd
+  const toUnits = toUsd > 0 ? fromFiatNumber / toUsd : 0
+
+  return {
+    fromAssetId: fromAsset.assetId,
+    fromTicker: fromAsset.ticker,
+    fromDecimals: fromAsset.decimals,
+    fromAmount: toRawAmount(fromUnits, fromAsset.decimals),
+    toAssetId: toAsset.assetId,
+    toTicker: toAsset.ticker,
+    toDecimals: toAsset.decimals,
+    toAmount: toRawAmount(toUnits, toAsset.decimals),
+    fiatAmount: fromFiatNumber,
+  }
+}
+
+function toRawAmount(units: number, decimals: number): bigint {
+  if (!Number.isFinite(units) || units <= 0) return 0n
+  return BigInt(Math.max(0, Math.round(units * 10 ** decimals)))
 }
 
 function swapAmountDecimals(value: number): number {

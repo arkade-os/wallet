@@ -102,6 +102,24 @@ export type Tx = {
   roundTxid: string
   settled: boolean
   type: string
+  prototypeSwap?: {
+    fromTicker: string
+    toTicker: string
+  }
+}
+
+export type PrototypeAssetBalanceDeltas = Record<string, bigint>
+
+export type PrototypeSwapInput = {
+  fromAssetId: string
+  fromTicker: string
+  fromDecimals: number
+  fromAmount: bigint
+  toAssetId: string
+  toTicker: string
+  toDecimals: number
+  toAmount: bigint
+  fiatAmount: number
 }
 
 export enum Unit {

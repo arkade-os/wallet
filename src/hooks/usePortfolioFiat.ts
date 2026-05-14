@@ -34,8 +34,9 @@ export interface PortfolioFiat {
  * price feed as the rest of the wallet.
  */
 export function usePortfolioFiat(): PortfolioFiat {
-  const { balance, assetBalances, assetMetadataCache } = useContext(WalletContext)
+  const { balance, assetBalances, assetMetadataCache, prototypeAssetBalanceDeltas } = useContext(WalletContext)
   const { convertFiat, toFiat } = useContext(FiatContext)
+  const prototypeDeltas = prototypeAssetBalanceDeltas ?? {}
 
   const rows: PortfolioRow[] = []
   let totalSats = 0
@@ -103,7 +104,8 @@ export function usePortfolioFiat(): PortfolioFiat {
     })
   }
 
-  const usdFiatAmount = Number(usdMinorUnits) / 100
+  usdMinorUnits += prototypeDeltas['account:usd'] ?? 0n
+  const usdFiatAmount = Math.max(0, Number(usdMinorUnits) / 100)
   const usdAccountFiatAmount = convertFiat(usdFiatAmount, Fiats.USD)
   if (usdFiatAmount > 0 || import.meta.env.DEV) {
     assetFiatTotal += usdAccountFiatAmount
@@ -120,8 +122,10 @@ export function usePortfolioFiat(): PortfolioFiat {
     })
   }
 
-  const chfAccountMinorUnits = chfMinorUnits > 0 ? chfMinorUnits : import.meta.env.DEV ? 3047n : 0n
-  const brlAccountMinorUnits = brlMinorUnits > 0 ? brlMinorUnits : import.meta.env.DEV ? 12890n : 0n
+  const chfAccountMinorUnits =
+    (chfMinorUnits > 0 ? chfMinorUnits : import.meta.env.DEV ? 3047n : 0n) + (prototypeDeltas['account:chf'] ?? 0n)
+  const brlAccountMinorUnits =
+    (brlMinorUnits > 0 ? brlMinorUnits : import.meta.env.DEV ? 12890n : 0n) + (prototypeDeltas['account:brl'] ?? 0n)
 
   const fiatAccounts = [
     {
@@ -143,7 +147,7 @@ export function usePortfolioFiat(): PortfolioFiat {
   ]
 
   for (const account of fiatAccounts) {
-    if (account.minorUnits === 0n) continue
+    if (account.minorUnits <= 0n) continue
 
     const amount = Number(account.minorUnits) / 100
     const fiatAmount = convertFiat(amount, account.sourceFiat)

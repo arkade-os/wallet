@@ -46,11 +46,12 @@ const TransactionLine = ({
   const prefix = tx.type === 'sent' ? '-' : '+'
   const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
   const asAssets = Boolean(tx.assets?.length)
+  const swap = tx.type === 'swap'
   const issuance = isIssuance(tx)
   const burn = isBurn(tx)
 
   const Fiat = () => {
-    if (issuance || burn) return null
+    if (issuance || burn || swap) return null
     const value = toFiat(tx.amount)
     const statusClassName = tx.boardingTxid && tx.preconfirmed ? ' activity-row__amount--pending' : ''
     const secondaryClassName =
@@ -64,9 +65,11 @@ const TransactionLine = ({
     )
   }
 
-  const iconTone = tx.preconfirmed && tx.boardingTxid ? 'pending' : burn ? 'burn' : 'default'
+  const iconTone = tx.preconfirmed && tx.boardingTxid ? 'pending' : burn ? 'burn' : swap ? 'pending' : 'default'
   const Icon = () => {
-    const icon = issuance ? (
+    const icon = swap ? (
+      <SwapRouteIcon fromTicker={tx.prototypeSwap?.fromTicker} toTicker={tx.prototypeSwap?.toTicker} />
+    ) : issuance ? (
       <ReceivedIcon />
     ) : burn ? (
       <SentIcon />
@@ -80,7 +83,7 @@ const TransactionLine = ({
     return <span className={`activity-row__icon activity-row__icon--${iconTone}`}>{icon}</span>
   }
 
-  const kind = issuance ? 'Issuance' : burn ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received'
+  const kind = swap ? 'Swap' : issuance ? 'Issuance' : burn ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received'
   const Kind = () => <span className='activity-row__kind'>{kind}</span>
 
   const When = () => <span className='activity-row__meta'>{date}</span>
@@ -103,12 +106,13 @@ const TransactionLine = ({
     return (
       <>
         {tx.assets.map((a) => {
+          const accountInfo = accountInfoForAssetId(a.assetId)
           const meta = assetMetadataCache.get(a.assetId)?.metadata
-          const ticker = meta?.ticker
+          const ticker = accountInfo?.ticker ?? meta?.ticker
           const icon = meta?.icon
-          const decimals = meta?.decimals ?? 8
+          const decimals = accountInfo?.decimals ?? meta?.decimals ?? 8
           const accountTicker = accountTickerForAssetTicker(ticker)
-          const label = accountTicker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`
+          const label = accountInfo?.label ?? accountTicker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`
           return (
             <FlexRow key={a.assetId} gap='0.375rem' end>
               <TransactionAssetAvatar icon={icon} ticker={accountTicker ?? ticker} assetId={a.assetId} />
@@ -329,6 +333,22 @@ function matchesAssetFilter(tx: Tx, assetIdFilter?: string | string[]): boolean 
   return tx.assets?.some((asset) => asset.assetId === assetIdFilter) ?? false
 }
 
+function SwapRouteIcon({ fromTicker, toTicker }: { fromTicker?: string; toTicker?: string }) {
+  const from = accountTickerForAssetTicker(fromTicker) ?? 'BTC'
+  const to = accountTickerForAssetTicker(toTicker) ?? 'USD'
+
+  return (
+    <span className='activity-swap-route-icon' aria-hidden='true'>
+      <span>
+        <TokenLogo ticker={from} />
+      </span>
+      <span>
+        <TokenLogo ticker={to} />
+      </span>
+    </span>
+  )
+}
+
 function TransactionAssetAvatar({ assetId, icon, ticker }: { assetId: string; icon?: string; ticker?: string }) {
   const tokenLogoTicker = getTokenLogoTicker(ticker)
   if (tokenLogoTicker) {
@@ -353,6 +373,14 @@ function accountTickerForAssetTicker(ticker: string | undefined): TokenLogoTicke
   if (normalized === 'USD' || normalized === 'USDT' || normalized === 'USDC' || normalized === 'AUSD') return 'USD'
   if (normalized === 'CHF') return 'CHF'
   if (normalized === 'BRL' || normalized === 'DPIX' || normalized === 'DEPIX') return 'BRL'
+}
+
+function accountInfoForAssetId(
+  assetId: string,
+): { ticker: TokenLogoTicker; label: string; decimals: number } | undefined {
+  if (assetId === 'account:usd') return { ticker: 'USD', label: 'USD', decimals: 2 }
+  if (assetId === 'account:chf') return { ticker: 'CHF', label: 'CHF', decimals: 2 }
+  if (assetId === 'account:brl') return { ticker: 'BRL', label: 'BRL', decimals: 2 }
 }
 
 function shouldHideDevPrototypeTx(
