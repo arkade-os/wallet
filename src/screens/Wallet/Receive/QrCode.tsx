@@ -332,7 +332,7 @@ export default function ReceiveQRCode() {
   const handleCopyButton = async () => {
     if (!prefersReducedMotion) hapticSubtle()
     setShowCopySheet(true)
-    if (qrCodeValue && !copied) {
+    if (qrCodeValue && copied !== qrCodeValue) {
       await copyToClipboard(qrCodeValue)
       toast('Copied to clipboard')
       setCopied(qrCodeValue)
