@@ -453,7 +453,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         arkServerUrl,
         esploraUrl,
         delegatorUrl,
-        walletMode: 'static',
+        walletMode: 'hd',
         storage: { walletRepository, contractRepository },
         serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
         messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
@@ -623,19 +623,19 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       identity = SingleKey.fromPrivateKey(credentials.privateKey)
       pubkey = hex.encode(secp.getPublicKey(credentials.privateKey))
       updateConfig({ ...config, pubkey })
-      const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
-      const initialized = await initSvcWorkerWallet({
-        identity,
-        arkServerUrl,
-        esploraUrl,
-        delegatorUrl,
-      })
-      if (!initialized) return
-      updateWallet({ ...wallet, network, pubkey })
-      setInitialized(true)
     } else {
       throw new Error('Either mnemonic or privateKey must be provided')
     }
+
+    const didInit = await initSvcWorkerWallet({
+      identity,
+      arkServerUrl,
+      esploraUrl,
+      delegatorUrl,
+    })
+    if (!didInit) return
+    updateWallet({ ...wallet, network, pubkey })
+    setInitialized(true)
   }
 
   const unlockWallet = async (password: string) => {
