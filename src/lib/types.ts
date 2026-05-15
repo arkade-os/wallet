@@ -75,6 +75,7 @@ export enum SettingsOptions {
   Reset = 'reset wallet',
   Server = 'server',
   Support = 'support',
+  Contracts = 'contracts',
   Vtxos = 'coin control',
   Theme = 'theme',
   Fiat = 'fiat currency',
