@@ -116,7 +116,7 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector(`text=${usdsRemaining} sent successfully`, { timeout: 10000 })
+  await page.waitForSelector(`text=$${usdsRemaining} sent successfully`, { timeout: 10000 })
 
   // main page
   await page.getByText('Sounds good').click()
@@ -292,7 +292,7 @@ test('should send usds (some and max) to onchain address with chain swap', async
   await expect(page.getByText('Sent')).toBeVisible()
 
   const balanceText = await page.getByTestId('main-balance').textContent()
-  const balance = Number(balanceText?.replace('$', '') || '0')
+  const balance = Number((balanceText ?? '').replace(/[^\d.-]/g, '') || '0')
   expect(balance).toBeLessThan(usdsReceived)
 
   // go to send page

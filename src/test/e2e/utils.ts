@@ -248,11 +248,10 @@ export async function fundWallet(page: Page, amount: number = 5000): Promise<num
   await waitForPaymentReceived(page)
   await page.getByTestId('tab-wallet').click()
   await page.getByText('Received').waitFor({ timeout: 10000 })
-  const received = await page
-    .getByText(/[1-9][\d\,\.]+/)
-    .first()
-    .innerText()
-  const num = Number(received.replace(/,/g, '').replace(' SATS', '').replace('$', ''))
+  const balanceText = await page.getByTestId('main-balance').innerText()
+  const normalized = balanceText.replace(/[^\d.-]/g, '')
+  const num = Number(normalized)
+  if (!Number.isFinite(num)) throw new Error(`Unable to parse main balance: ${balanceText}`)
   return num
 }
 
