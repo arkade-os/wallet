@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, useAnimationControls } from 'framer-motion'
 import { EASE_OUT_QUINT_TUPLE, EASE_IN_OUT_QUINT_TUPLE } from '../lib/animations'
@@ -9,6 +9,7 @@ import PixelLogoSvg from './PixelLogoSvg'
 import PixelSplash from './PixelSplash'
 import Text from './Text'
 import { gitCommit } from '../_gitCommit'
+import { DevModeContext } from '../providers/devMode'
 
 const LARGE_SIZE = 100
 // Max frames to wait for the header logo anchor to mount before falling back to fly-up
@@ -22,13 +23,11 @@ interface LoadingLogoProps {
 }
 
 export default function LoadingLogo({ text, done, exitMode = 'none', onExitComplete }: LoadingLogoProps) {
+  const { devMode, handleTap } = useContext(DevModeContext)
   const reducedMotion = useReducedMotion()
   const [visible, setVisible] = useState(true)
-  const [statusRevealed, setStatusRevealed] = useState(false)
   const showBackground = exitMode !== 'none'
   const containerRef = useRef<HTMLDivElement>(null)
-  const tapCountRef = useRef(0)
-  const tapTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const flyControls = useAnimationControls()
   const flyControlsRef = useRef(flyControls)
   flyControlsRef.current = flyControls
@@ -41,28 +40,10 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
     reducedMotion,
   })
 
-  const handleLogoTap = useCallback(() => {
-    tapCountRef.current += 1
-    clearTimeout(tapTimerRef.current)
-    if (tapCountRef.current >= 3) {
-      tapCountRef.current = 0
-      setStatusRevealed((v) => !v)
-    } else {
-      tapTimerRef.current = setTimeout(() => {
-        tapCountRef.current = 0
-      }, 600)
-    }
-  }, [])
-
   // When done signal arrives, request the bounce loop to stop
   useEffect(() => {
     if (done) requestStop()
   }, [done, requestStop])
-
-  // Clean up tap timer on unmount
-  useEffect(() => {
-    return () => clearTimeout(tapTimerRef.current)
-  }, [])
 
   // When bounce loop has stopped, play exit animation
   useEffect(() => {
@@ -163,7 +144,7 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
           gap: '1rem',
         }}
       >
-        <div style={{ pointerEvents: 'auto', cursor: 'default' }} onClick={handleLogoTap}>
+        <div style={{ pointerEvents: 'auto', cursor: 'default' }} onClick={handleTap}>
           <motion.div
             ref={containerRef}
             animate={flyControls}
@@ -181,7 +162,7 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
             <PixelSplash bounceCount={bounceCount} reducedMotion={reducedMotion} />
           </motion.div>
         </div>
-        {text && statusRevealed ? (
+        {text && devMode ? (
           <motion.div
             style={{ paddingTop: '0.5rem' }}
             animate={{ opacity: exiting ? 0 : 1 }}
@@ -193,7 +174,7 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
           </motion.div>
         ) : null}
       </div>
-      {showBackground && statusRevealed ? (
+      {showBackground && devMode ? (
         <div
           style={{
             position: 'fixed',

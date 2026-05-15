@@ -21,6 +21,7 @@ import { FeesProvider } from './providers/fees'
 import { AnnouncementProvider } from './providers/announcements'
 import { ToastProvider } from './components/Toast'
 import ErrorBoundary from './components/ErrorBoundary'
+import { DevModeProvider } from './providers/devMode'
 
 // Initialize Sentry only in production and when DSN is provided
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN
@@ -68,38 +69,40 @@ const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 
 root.render(
   // <React.StrictMode>
-  <NavigationProvider>
-    <ConfigProvider>
-      <AspProvider>
-        <NotificationsProvider>
-          <FiatProvider>
-            <FlowProvider>
-              <WalletProvider>
-                <SwapsProvider>
-                  <LnurlProvider>
-                    <LimitsProvider>
-                      <FeesProvider>
-                        <OptionsProvider>
-                          <NudgeProvider>
-                            <AnnouncementProvider>
-                              <ToastProvider>
-                                <ErrorBoundary>
-                                  <App />
-                                </ErrorBoundary>
-                              </ToastProvider>
-                            </AnnouncementProvider>
-                          </NudgeProvider>
-                        </OptionsProvider>
-                      </FeesProvider>
-                    </LimitsProvider>
-                  </LnurlProvider>
-                </SwapsProvider>
-              </WalletProvider>
-            </FlowProvider>
-          </FiatProvider>
-        </NotificationsProvider>
-      </AspProvider>
-    </ConfigProvider>
-  </NavigationProvider>,
+  <DevModeProvider>
+    <NavigationProvider>
+      <ConfigProvider>
+        <AspProvider>
+          <NotificationsProvider>
+            <FiatProvider>
+              <FlowProvider>
+                <WalletProvider>
+                  <SwapsProvider>
+                    <LnurlProvider>
+                      <LimitsProvider>
+                        <FeesProvider>
+                          <OptionsProvider>
+                            <NudgeProvider>
+                              <AnnouncementProvider>
+                                <ToastProvider>
+                                  <ErrorBoundary>
+                                    <App />
+                                  </ErrorBoundary>
+                                </ToastProvider>
+                              </AnnouncementProvider>
+                            </NudgeProvider>
+                          </OptionsProvider>
+                        </FeesProvider>
+                      </LimitsProvider>
+                    </LnurlProvider>
+                  </SwapsProvider>
+                </WalletProvider>
+              </FlowProvider>
+            </FiatProvider>
+          </NotificationsProvider>
+        </AspProvider>
+      </ConfigProvider>
+    </NavigationProvider>
+  </DevModeProvider>,
   // </React.StrictMode>,
 )
