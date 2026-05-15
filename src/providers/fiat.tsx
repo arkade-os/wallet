@@ -2,12 +2,12 @@ import { ReactNode, createContext, useContext, useEffect, useRef, useState } fro
 import { fiatDecimalsFor, FiatPrices, getPriceFeed } from '../lib/fiat'
 import { fromSatoshis, toSatoshis } from '../lib/format'
 import Decimal from 'decimal.js'
-import { CurrencyDisplay, Fiats, Satoshis } from '../lib/types'
+import { CurrencyDisplay, Fiats } from '../lib/types'
 import { ConfigContext } from './config'
 
 type FiatContextProps = {
-  toFiat: (satoshis?: Satoshis) => number
-  fromFiat: (fiat?: number) => Satoshis
+  toFiat: (satoshis?: number) => number
+  fromFiat: (fiat?: number) => number
   fiatDecimals: () => number
   updateFiatPrices: () => void
 }

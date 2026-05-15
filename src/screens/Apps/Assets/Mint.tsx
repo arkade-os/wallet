@@ -36,10 +36,11 @@ export default function AppAssetMint() {
   const { setAssetInfo } = useContext(FlowContext)
   const { svcWallet, assetBalances, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
 
+  const [amountTextValue, setAmountTextValue] = useState('')
   const [amount, setAmount] = useState(BigInt(0))
   const [name, setName] = useState('')
   const [ticker, setTicker] = useState('')
-  const [decimals, setDecimals] = useState('0')
+  const [decimals, setDecimals] = useState<number | undefined>(0)
   const [iconUrl, setIconUrl] = useState('')
   const [error, setError] = useState('')
   const [minting, setMinting] = useState(false)
@@ -80,18 +81,24 @@ export default function AppAssetMint() {
     load()
   }, [svcWallet, assetBalances, assetMetadataCache])
 
+  useEffect(() => {
+    if (decimals === undefined) return
+    const cents = unitsToCents(amountTextValue, decimals)
+    setAmount(cents)
+  }, [amountTextValue, decimals])
+
   const handleMint = async () => {
     if (!svcWallet) return
-    const parsedUnits = amount
-    if (!parsedUnits || parsedUnits <= 0) {
-      setError('Amount must be a positive number')
-      return
+
+    if (!amount || amount <= 0) {
+      return setError('Amount must be a positive number')
     }
-    const parsedDecimals = decimals !== '' ? parseInt(decimals) : 0
-    if (!Number.isInteger(parsedDecimals) || parsedDecimals < 0 || parsedDecimals > 8) {
-      setError('Decimals must be an integer between 0 and 8')
-      return
+
+    if (decimals === undefined || !Number.isInteger(decimals) || decimals < 0 || decimals > 8) {
+      return setError('Decimals must be an integer between 0 and 8')
     }
+
+    const supply = amount
 
     setMinting(true)
     setError('')
@@ -100,10 +107,8 @@ export default function AppAssetMint() {
       const metadata: KnownMetadata = {}
       if (name) metadata.name = name
       if (ticker) metadata.ticker = ticker
-      metadata.decimals = parsedDecimals
+      metadata.decimals = decimals
       if (iconUrl) metadata.icon = iconUrl
-
-      const rawAmount = unitsToCents(BigInt(parsedUnits), parsedDecimals)
 
       let resolvedControlAssetId = controlMode === 'Existing' ? controlAssetId : ''
 
@@ -135,7 +140,7 @@ export default function AppAssetMint() {
       }
 
       setMintingText('Minting asset...')
-      const params: IssuanceParams = { amount: rawAmount, metadata }
+      const params: IssuanceParams = { amount: supply, metadata }
       if (resolvedControlAssetId) params.controlAssetId = resolvedControlAssetId
 
       const result = await svcWallet.assetManager.issue(params)
@@ -153,7 +158,7 @@ export default function AppAssetMint() {
 
       const assetDetails = {
         assetId: newAssetId,
-        supply: rawAmount,
+        supply,
         metadata,
         controlAssetId: resolvedControlAssetId || undefined,
       }
@@ -170,8 +175,6 @@ export default function AppAssetMint() {
 
   const selectedControl = knownAssets.find((a) => a.assetId === controlAssetId) ?? null
 
-  const parsedUnits = parseInt(amount.toString())
-  const parsedDecimals = decimals !== '' ? parseInt(decimals) : NaN
   const disabledReason = !name
     ? 'Enter a name'
     : name.length > 40
@@ -182,10 +185,10 @@ export default function AppAssetMint() {
           ? 'Ticker must be 8 characters or less'
           : !amount
             ? 'Enter an amount'
-            : isNaN(parsedUnits) || parsedUnits <= 0
+            : amount <= 0
               ? 'Amount must be a positive number'
-              : isNaN(parsedDecimals) || parsedDecimals < 0 || parsedDecimals > 8
-                ? 'Decimals must be 0–8'
+              : decimals === undefined || isNaN(decimals) || decimals < 0 || decimals > 8
+                ? 'Decimals must be 0-8'
                 : controlMode === 'New' && !ctrlAmount
                   ? 'Enter control asset amount'
                   : controlMode === 'New' && (isNaN(ctrlAmount) || ctrlAmount <= 0)
@@ -208,32 +211,30 @@ export default function AppAssetMint() {
             <ErrorMessage error={Boolean(error)} text={error} />
             <AssetCard
               assetId='preview'
-              balance={unitsToCents(BigInt(parsedUnits), parsedDecimals) || BigInt(0)}
+              balance={amount}
               name={name}
               ticker={ticker}
               icon={iconUrl && !iconError ? iconUrl : undefined}
-              decimals={isNaN(parsedDecimals) ? 0 : parsedDecimals}
+              decimals={decimals}
               darkPurple
             />
             <FlexRow gap='0.5rem' alignItems='flex-end'>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ flex: 1 }}>
                 <Input
                   label='Name *'
-                  value={name}
-                  onChange={(v: string) => setName(v.slice(0, 40))}
-                  placeholder='My Token'
                   maxLength={40}
                   testId='asset-name'
+                  placeholder='My Token'
+                  onChange={(v: string) => setName(v.slice(0, 40))}
                 />
               </div>
-              <div style={{ width: '6rem', flexShrink: 0 }}>
+              <div style={{ width: '6rem' }}>
                 <Input
-                  label='Ticker *'
-                  value={ticker}
-                  onChange={(v: string) => setTicker(v.slice(0, 8))}
-                  placeholder='TKN'
                   maxLength={8}
+                  label='Ticker *'
+                  placeholder='TKN'
                   testId='asset-ticker'
+                  onChange={(v: string) => setTicker(v.slice(0, 8))}
                 />
               </div>
             </FlexRow>
@@ -241,45 +242,38 @@ export default function AppAssetMint() {
             <FlexRow gap='0.5rem' alignItems='flex-end'>
               <div style={{ flex: 1 }}>
                 <Input
-                  label='Amount *'
-                  type='number'
                   min='0'
-                  step='1'
-                  value={Number(amount)}
-                  onChange={(value) =>
-                    setAmount(Number.isFinite(value) && value >= 0 ? BigInt(Math.trunc(value)) : BigInt(0))
-                  }
+                  type='number'
+                  label='Amount *'
                   placeholder='1000'
                   testId='asset-amount'
+                  onChange={setAmountTextValue}
                 />
               </div>
               <div style={{ minWidth: '6rem' }}>
                 <Input
-                  label='Decimals'
-                  type='number'
                   min='0'
                   max='8'
                   step='1'
-                  value={decimals}
-                  onChange={(v: number) => {
-                    setDecimals(!isNaN(v) && v >= 0 && v <= 8 ? String(v) : '')
-                  }}
+                  type='number'
                   placeholder='0'
+                  label='Decimals'
                   testId='asset-decimals'
+                  onChange={(value: string) => setDecimals(value ? Number(value) : undefined)}
                 />
               </div>
             </FlexRow>
 
             <Input
-              label='Icon URL'
               type='url'
+              label='Icon URL'
               value={iconUrl}
+              testId='asset-icon-url'
+              placeholder='https://...'
               onChange={(v: string) => {
                 setIconUrl(v)
                 setIconError(false)
               }}
-              placeholder='https://...'
-              testId='asset-icon-url'
             />
 
             <FlexCol gap='0.5rem'>
@@ -369,14 +363,12 @@ export default function AppAssetMint() {
                     {name ? `ctrl-${name}` : 'ctrl-...'} {ticker ? `(ctrl-${ticker})` : ''}
                   </Text>
                   <Input
-                    label='Control Amount'
-                    type='number'
                     min='0'
                     step='1'
-                    value={ctrlAmount}
-                    onChange={(v: number) => setCtrlAmount(Number.isFinite(v) && v >= 0 ? Math.trunc(v) : 0)}
-                    placeholder='1'
+                    type='number'
+                    label='Control Amount'
                     testId='control-asset-amount'
+                    onChange={(v: string) => setCtrlAmount(Number(v))}
                   />
                 </FlexCol>
               ) : null}

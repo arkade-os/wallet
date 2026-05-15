@@ -53,8 +53,6 @@ export enum Fiats {
   CNY = 'CNY',
 }
 
-export type Satoshis = number
-
 export enum SettingsSections {
   Advanced = 'Advanced',
   General = 'General',

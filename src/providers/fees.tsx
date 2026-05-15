@@ -12,8 +12,8 @@ interface FeesContextProps {
 export const FeesContext = createContext<FeesContextProps>({
   calcOffchainInputFee: () => 0,
   calcOffchainOutputFee: () => 0,
-  calcOnchainInputFee: () => 0,
   calcOnchainOutputFee: () => 0,
+  calcOnchainInputFee: () => 0,
 })
 
 export const FeesProvider = ({ children }: { children: ReactNode }) => {
@@ -24,7 +24,7 @@ export const FeesProvider = ({ children }: { children: ReactNode }) => {
    * @returns
    */
   const calcOffchainInputFee = (): number => {
-    return Number(aspInfo.fees?.intentFee?.offchainInput ?? 0) // TODO
+    return parseInt(aspInfo.fees?.intentFee?.offchainInput ?? '0', 10) // TODO
   }
 
   /**
@@ -32,7 +32,7 @@ export const FeesProvider = ({ children }: { children: ReactNode }) => {
    * @returns
    */
   const calcOffchainOutputFee = (): number => {
-    return Number(aspInfo.fees?.intentFee?.offchainOutput ?? 0) // TODO
+    return parseInt(aspInfo.fees?.intentFee?.offchainOutput ?? '0', 10) // TODO
   }
 
   /**
@@ -40,7 +40,7 @@ export const FeesProvider = ({ children }: { children: ReactNode }) => {
    * @returns
    */
   const calcOnchainInputFee = (): number => {
-    return Number(aspInfo.fees?.intentFee?.onchainInput ?? 0) // TODO
+    return parseInt(aspInfo.fees?.intentFee?.onchainInput ?? '0', 10) // TODO
   }
 
   /**
@@ -48,7 +48,7 @@ export const FeesProvider = ({ children }: { children: ReactNode }) => {
    * @returns
    */
   const calcOnchainOutputFee = (): number => {
-    return Number(aspInfo.fees?.intentFee?.onchainOutput ?? 0) // TODO
+    return parseInt(aspInfo.fees?.intentFee?.onchainOutput ?? '0', 10) // TODO
   }
 
   return (

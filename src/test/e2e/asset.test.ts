@@ -23,11 +23,11 @@ test('should navigate to assets and see disabled state', async ({ page }) => {
   await expect(page.getByText('Mint', { exact: true })).toBeVisible()
 })
 
-test('should mint an asset, see it in list, view details and burn part of it', async ({ page }) => {
+test('should mint an asset and burn part of it', async ({ page }) => {
   await createWallet(page)
   await fundWallet(page)
   await enableAssets(page)
-  await mintAsset(page, { amount: 1000, name: 'TestCoin', ticker: 'TST', decimals: 0 })
+  await mintAsset(page, { amount: '1000', name: 'TestCoin', ticker: 'TST', decimals: 0 })
 
   // assert success screen
   await expect(page.getByText('TestCoin')).toBeVisible()
@@ -65,13 +65,55 @@ test('should mint an asset, see it in list, view details and burn part of it', a
   await page.waitForSelector('text=500 TST', { timeout: 10000 })
 })
 
+test('should mint asset with fractional supply and burn it all', async ({ page }) => {
+  await createWallet(page)
+  await fundWallet(page)
+  await enableAssets(page)
+  await mintAsset(page, { amount: '123.45', name: 'TestCoin', ticker: 'TST', decimals: 2 })
+
+  // assert success screen
+  await expect(page.getByText('TestCoin')).toBeVisible()
+  await expect(page.getByText('TST')).toBeVisible()
+
+  // go back to asset list
+  await page.getByText('Back to Arkade Mint').click()
+  await expect(page.getByText('TestCoin')).toBeVisible()
+
+  // view asset detail from success screen
+  await page.getByTestId('TST').click()
+
+  // assert detail page
+  await expect(page.getByText('TestCoin').first()).toBeVisible()
+  await expect(page.getByText('TST').first()).toBeVisible()
+  await expect(page.getByText('Supply')).toBeVisible()
+  await expect(page.getByText('Decimals')).toBeVisible()
+  await expect(page.getByText('Send')).toBeVisible()
+  await expect(page.getByText('Receive')).toBeVisible()
+
+  // click burn
+  await page.getByText('Burn', { exact: true }).click()
+  await page.waitForSelector('text=Amount to Burn', { state: 'visible' })
+
+  // fill amount and submit
+  await page.getByTestId('burn-max-button').click()
+  await page.getByText('Burn', { exact: true }).click()
+
+  // confirm modal
+  await page.waitForSelector('text=Confirm Burn', { state: 'visible' })
+  await page.getByText('Burn', { exact: true }).first().click()
+
+  // back on detail page with reduced balance
+  await page.waitForSelector('text=TestCoin', { state: 'visible' })
+  await page.waitForSelector('text=0 TST', { timeout: 10000 })
+})
+
 test('should reissue an asset with control token', async ({ page }) => {
   await createWallet(page)
-  await fundWallet(page, 10000)
+  await fundWallet(page)
   await enableAssets(page)
 
   // mint control token
-  await mintAsset(page, { amount: 100, name: 'CtrlToken', ticker: 'CTL', decimals: 0 })
+  await mintAsset(page, { amount: '100', name: 'CtrlToken', ticker: 'CTL', decimals: 0 })
   await page.getByText('Back to Arkade Mint').click()
 
   // mint asset with control token
@@ -116,11 +158,11 @@ test('should reissue an asset with control token', async ({ page }) => {
 
 test('should mint asset with new control asset', async ({ page }) => {
   await createWallet(page)
-  await fundWallet(page, 10000)
+  await fundWallet(page)
   await enableAssets(page)
 
   await mintAsset(page, {
-    amount: 500,
+    amount: '500',
     name: 'MyCoin',
     ticker: 'MYC',
     decimals: 0,
@@ -141,4 +183,25 @@ test('should mint asset with new control asset', async ({ page }) => {
 
   // reissue should be possible (we hold the control asset)
   await expect(page.getByText('Reissue', { exact: true })).toBeEnabled()
+})
+
+test('should mint asset with huge supply', async ({ page }) => {
+  await createWallet(page)
+  await fundWallet(page)
+  await enableAssets(page)
+
+  await mintAsset(page, {
+    amount: '9' + Number.MAX_SAFE_INTEGER.toString(),
+    name: 'Huge Supply',
+    ticker: 'HS',
+    decimals: 1,
+  })
+
+  // success screen shows main asset
+  await expect(page.getByText('Huge Supply')).toBeVisible()
+  await expect(page.getByText('HS', { exact: true })).toBeVisible()
+
+  // view asset detail
+  await page.getByText('View Asset').click()
+  await page.waitForSelector('text=99,007,199,254,740,991 HS', { timeout: 10000 })
 })

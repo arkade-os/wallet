@@ -45,8 +45,7 @@ export default function Input({
   })
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (ev) => {
-    const v = ev.currentTarget.value
-    onChange(type === 'number' ? Number(v) : v)
+    onChange(ev.currentTarget.value)
   }
 
   return (
