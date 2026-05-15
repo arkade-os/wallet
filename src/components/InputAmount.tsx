@@ -68,7 +68,12 @@ export default function InputAmount({
   const handleInput: ChangeEventHandler<HTMLInputElement> = (ev) => {
     const value = Number(ev.currentTarget.value)
     if (Number.isNaN(value)) return
-    onSats(asset?.assetId ? unitsToCents(value, asset.decimals) : useFiat ? fromFiat(value) : value)
+    if (asset?.assetId) {
+      const integer = value >= 0 ? BigInt(Math.trunc(value)) : BigInt(0)
+      onSats(Number(unitsToCents(integer, asset.decimals)))
+      return
+    }
+    onSats(useFiat ? fromFiat(value) : value)
   }
 
   const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0
@@ -85,7 +90,7 @@ export default function InputAmount({
       : fiatSymbol
         ? `${fiatSymbol}${otherValue}`
         : `${otherValue} ${config.fiat}`
-  const fontStyle = { color: 'var(--dark50)', fontSize: '13px' }
+  const fontStyle = { color: 'var(--neutral-500)', fontSize: '13px' }
   const bottomLeft =
     minimumSats && sats !== undefined && sats < minimumSats
       ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}`

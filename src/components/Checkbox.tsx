@@ -19,7 +19,7 @@ export default function Checkbox({ onChange, text }: CheckboxProps) {
 
   const style: React.CSSProperties = {
     display: 'block',
-    border: '1px solid var(--dark50)',
+    border: '1px solid var(--neutral-500)',
     borderRadius: '0.5rem',
     margin: '0 2px',
     padding: '0.5rem',
@@ -36,7 +36,7 @@ export default function Checkbox({ onChange, text }: CheckboxProps) {
 }
 
 const BoxIcon = ({ checked }: { checked: boolean }) => {
-  const color = checked ? 'var(--red)' : 'var(--dark50)'
+  const color = checked ? 'var(--red)' : 'var(--neutral-500)'
   const svgStyle: React.CSSProperties = {
     background: color,
     borderColor: color,
