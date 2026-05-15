@@ -65,9 +65,9 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
     }
 
     if (params.has('lightning')) {
-      if (params.get('lightning')?.startsWith('lnurl')) {
+      if (params.get('lightning')?.toLowerCase().startsWith('lnurl')) {
         result.lnurl = params.get('lightning')!
-      } else if (params.get('lightning')?.startsWith('ln')) {
+      } else if (params.get('lightning')?.toLowerCase().startsWith('ln')) {
         result.invoice = params.get('lightning')!
       }
     }
