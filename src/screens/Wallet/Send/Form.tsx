@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
-import { V2BrantaClient, BrantaServerBaseUrl } from '@branta-ops/branta'
+import { BrantaServerBaseUrl, PrivacyMode } from '@branta-ops/branta'
+import { BrantaService, type Payment } from '@branta-ops/branta/v2'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
@@ -50,15 +51,9 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 
-// TODO: Replace when SDK is accurate
-type BrantaPayment = Partial<
-  Awaited<ReturnType<V2BrantaClient['addPayment']>>['payment'] & {
-    platform_logo_url: string
-  }
->
-
-const brantaClient = new V2BrantaClient({
+const brantaClient = new BrantaService({
   baseUrl: BrantaServerBaseUrl.Production,
+  privacy: PrivacyMode.Strict,
 })
 
 export default function SendForm() {
@@ -100,7 +95,8 @@ export default function SendForm() {
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
   const [scan, setScan] = useState(false)
   const [rawScanData, setRawScanData] = useState('')
-  const [brantaPayment, setBrantaPayment] = useState<BrantaPayment | null>(null)
+  const [brantaPayment, setBrantaPayment] = useState<Payment | null>(null)
+  const [brantaVerifyUrl, setBrantaVerifyUrl] = useState<string | undefined>(undefined)
   const [brantaLoading, setBrantaLoading] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<AssetOption | null>(null)
   const [showAssetSelector, setShowAssetSelector] = useState(false)
@@ -287,49 +283,42 @@ export default function SendForm() {
     parseRecipient()
   }, [recipient, isAssetSend])
 
-  // fetch branta payment info for ZK QR-scanned addresses only
+  // fetch branta payment info for ZK QR-scanned addresses (SDK strict mode gates non-ZK)
   useEffect(() => {
     if (!rawScanData) {
+      setBrantaPayment(null)
+      setBrantaVerifyUrl(undefined)
       setBrantaLoading(false)
       return
     }
+
     setBrantaPayment(null)
+    setBrantaVerifyUrl(undefined)
+    setBrantaLoading(true)
     let cancelled = false
 
-    let isValidZKCode = false
-    try {
-      const url = new URL(rawScanData.trim())
-      isValidZKCode = url.searchParams.has('branta_id') && url.searchParams.has('branta_secret')
-    } catch {
-      // Invalid URL, not a ZK code
-    }
-
-    if (!isValidZKCode) {
-      setBrantaLoading(false)
-      return
-    }
-
-    setBrantaLoading(true)
     brantaClient
-      .getPaymentsByQRCode(rawScanData)
-      .then((payments: BrantaPayment[]) => {
+      .getPaymentsByQrCode(rawScanData)
+      .then(({ payments, verifyUrl }) => {
         if (cancelled) return
         const payment = payments?.[0] ?? null
-        if (payment) {
-          const isHttpsUrl = (val: unknown): boolean => typeof val === 'string' && val.startsWith('https://')
-          setBrantaPayment({
-            ...payment,
-            verify_url: isHttpsUrl(payment.verify_url) ? payment.verify_url : undefined,
-            platform_logo_url: isHttpsUrl(payment.platform_logo_url) ? payment.platform_logo_url : undefined,
-          })
-        } else {
+        if (!payment) {
           setBrantaPayment(null)
+          setBrantaVerifyUrl(undefined)
+          return
         }
+        const isHttpsUrl = (val: unknown): boolean => typeof val === 'string' && val.startsWith('https://')
+        setBrantaPayment({
+          ...payment,
+          platformLogoUrl: isHttpsUrl(payment.platformLogoUrl) ? payment.platformLogoUrl : undefined,
+        })
+        setBrantaVerifyUrl(isHttpsUrl(verifyUrl) ? verifyUrl : undefined)
       })
       .catch((err) => {
         if (cancelled) return
         consoleError('Branta API error', err)
         setBrantaPayment(null)
+        setBrantaVerifyUrl(undefined)
       })
       .finally(() => {
         if (cancelled) return
@@ -807,8 +796,8 @@ export default function SendForm() {
                     <FlexCol gap='0.1rem'>
                       <Text smaller>{brantaPayment.platform}</Text>
                       <Text smaller color='neutral-500'>
-                        {brantaPayment.verify_url?.startsWith('https://') ? (
-                          <a href={brantaPayment.verify_url} target='_blank' rel='noreferrer'>
+                        {brantaVerifyUrl?.startsWith('https://') ? (
+                          <a href={brantaVerifyUrl} target='_blank' rel='noreferrer'>
                             Verified by Branta
                           </a>
                         ) : (
@@ -816,8 +805,8 @@ export default function SendForm() {
                         )}
                       </Text>
                     </FlexCol>
-                    {brantaPayment.platform_logo_url ? (
-                      <img src={brantaPayment.platform_logo_url} alt={brantaPayment.platform} width={48} height={48} />
+                    {brantaPayment.platformLogoUrl ? (
+                      <img src={brantaPayment.platformLogoUrl} alt={brantaPayment.platform} width={48} height={48} />
                     ) : null}
                   </FlexRow>
                 </Shadow>
