@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 import eslint from 'vite-plugin-eslint'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 import tailwindcss from '@tailwindcss/vite'
+import basicAuth from './plugins/vite-plugin-basic-auth'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -13,6 +14,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    basicAuth(),
     react(),
     tailwindcss(),
     eslint({
