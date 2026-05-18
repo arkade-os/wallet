@@ -1,7 +1,7 @@
 import Text from './Text'
 import FlexRow from './FlexRow'
 import FlexCol from './FlexCol'
-import Focusable from './Focusable'
+import { Switch } from '@/components/ui/switch'
 import { hapticLight } from '../lib/haptics'
 
 interface ToggleProps {
@@ -22,14 +22,13 @@ export default function Toggle({ checked, onClick, text, subtext, testId }: Togg
     <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
       <FlexRow between>
         <Text thin>{text}</Text>
-        <Focusable onEnter={handleChange} fit round>
-          <div className='cl-toggle-switch'>
-            <label className='cl-switch' data-checked={checked} data-testid={testId}>
-              <input type='checkbox' checked={checked} onChange={handleChange} />
-              <span />
-            </label>
-          </div>
-        </Focusable>
+        <Switch
+          checked={checked}
+          onCheckedChange={handleChange}
+          data-testid={testId}
+          data-checked={checked ? 'true' : 'false'}
+          size='lg'
+        />
       </FlexRow>
       {subtext ? (
         <Text color='neutral-500' small thin wrap>

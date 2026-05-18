@@ -3,13 +3,6 @@
   --background-focused: var(--purple20);
   --btn-shadow-color: var(--purple-950);
   --sheet-bg: var(--bg);
-  --danger: #a51515;
-  --warning: #c3730a;
-  --success: #60b18a;
-  --heading-font: 'TT Firs Neue', 'Geist', sans-serif;
-  --animation-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  --bullet-icon-bg: #ede7fb;
-  --pill-navbar-clearance: 64px;
   --toast-bg: #1a1a1a;
   --toast-color: #fafafa;
 }
@@ -177,7 +170,7 @@ iframe {
   &.copy {
     aspect-ratio: 1;
     align-items: center;
-    background: var(--neutral-50);
+    background: var(--neutral-100);
     box-shadow: none;
     color: var(--neutral-300);
     cursor: pointer;

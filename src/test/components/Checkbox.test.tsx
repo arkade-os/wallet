@@ -15,4 +15,13 @@ describe('Checkbox component', () => {
     await userEvent.click(screen.getByText('Click Me'))
     expect(handleChange).toHaveBeenCalledTimes(1)
   })
+
+  it('updates the visual checked state when clicked', async () => {
+    render(<Checkbox text='Click Me' onChange={() => {}} />)
+    const checkbox = screen.getByRole('checkbox')
+
+    expect(checkbox).not.toHaveAttribute('data-checked')
+    await userEvent.click(screen.getByText('Click Me'))
+    expect(checkbox).toHaveAttribute('data-checked')
+  })
 })

@@ -1,6 +1,6 @@
-import FlexRow from './FlexRow'
+import { useId, useState } from 'react'
+import { Checkbox as ShadcnCheckbox } from '@/components/ui/checkbox'
 import { hapticLight } from '../lib/haptics'
-import { useState } from 'react'
 import Text from './Text'
 
 interface CheckboxProps {
@@ -9,50 +9,29 @@ interface CheckboxProps {
 }
 
 export default function Checkbox({ onChange, text }: CheckboxProps) {
+  const checkboxId = useId()
   const [checked, setChecked] = useState(false)
 
-  const handleChange = () => {
-    setChecked(!checked)
+  const handleChange = (nextChecked: boolean) => {
+    if (nextChecked === checked) return
+    setChecked(nextChecked)
     hapticLight()
     onChange()
   }
 
-  const style: React.CSSProperties = {
-    display: 'block',
-    border: '1px solid var(--neutral-500)',
-    borderRadius: '0.5rem',
-    margin: '0 2px',
-    padding: '0.5rem',
-    width: '100%',
-  }
   return (
-    <div style={style} onClick={handleChange} data-testid='checkbox'>
-      <FlexRow gap='0.5rem'>
-        <BoxIcon checked={checked} />
-        <Text small>{text}</Text>
-      </FlexRow>
-    </div>
-  )
-}
-
-const BoxIcon = ({ checked }: { checked: boolean }) => {
-  const color = checked ? 'var(--red)' : 'var(--neutral-500)'
-  const svgStyle: React.CSSProperties = {
-    background: color,
-    borderColor: color,
-    borderRadius: '6px',
-    padding: '2px',
-  }
-  const pathStyle: React.CSSProperties = {
-    fill: 'none',
-    strokeWidth: 2,
-    stroke: '#fff',
-    strokeDasharray: 30,
-    strokeDashoffset: 0,
-  }
-  return (
-    <svg width='24' height='24' viewBox='0 0 24 24' aria-hidden='true' style={svgStyle}>
-      {checked ? <path d='M1.73,12.91 8.1,19.28 22.79,4.59' style={pathStyle} /> : null}
-    </svg>
+    <label
+      htmlFor={checkboxId}
+      className='flex w-full cursor-pointer items-center gap-3 rounded-lg border border-neutral-500 p-3'
+      data-testid='checkbox'
+    >
+      <ShadcnCheckbox
+        id={checkboxId}
+        checked={checked}
+        onCheckedChange={handleChange}
+        className='size-6 rounded-md data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground'
+      />
+      <Text small>{text}</Text>
+    </label>
   )
 }

@@ -1,6 +1,6 @@
 import Decimal from 'decimal.js'
 
-const MAX_DECIMALS = 8 // Arbitrary value to allow at least 1 sat/asset
+export const MAX_DECIMALS = 8 // Arbitrary value to allow at least 1 sat/asset
 
 export function isValidAssetId(id: string) {
   return /^[0-9a-fA-F]{68}$/.test(id)
@@ -8,7 +8,7 @@ export function isValidAssetId(id: string) {
 
 export const isValidDecimals = (d: number): boolean => Number.isInteger(d) && d >= 0 && d <= MAX_DECIMALS
 
-export function unitsToCents(units: string, decimals = 8): bigint {
+export function unitsToCents(units: string, decimals = MAX_DECIMALS): bigint {
   if (!units || units === '') return BigInt(0)
   if (!isValidDecimals(decimals)) return BigInt(units)
   const [integer, fraction = ''] = units.split('.')
@@ -16,7 +16,7 @@ export function unitsToCents(units: string, decimals = 8): bigint {
   return BigInt(integer + paddedFraction) // string + string
 }
 
-export function centsToUnits(cents: bigint, decimals = 8): string {
+export function centsToUnits(cents: bigint, decimals = MAX_DECIMALS): string {
   if (!isValidDecimals(decimals)) return cents.toString()
   if (cents < BigInt(Number.MAX_SAFE_INTEGER) && cents > BigInt(Number.MIN_SAFE_INTEGER)) {
     const str = Decimal.div(cents, Decimal.pow(10, decimals)).toFixed(decimals)

@@ -1,41 +1,17 @@
 import { useEffect } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { EASE_OUT_QUINT_TUPLE } from '../lib/animations'
 
-export default function Modal({ children }: { children: React.ReactNode }) {
-  const overlayStyle = {
-    top: '0',
-    left: '0',
-    zIndex: 21,
-    opacity: 0.5,
-    width: '100%',
-    height: '100%',
-    position: 'absolute' as 'absolute',
-    backgroundColor: 'var(--background-color)',
-  }
+interface ModalProps {
+  children: React.ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  onExitComplete?: () => void
+}
 
-  const containerStyle = {
-    top: '0',
-    left: '0',
-    zIndex: 22, // Higher than overlay
-    width: '100%',
-    height: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'absolute' as 'absolute',
-    pointerEvents: 'none' as 'none', // Allow clicks to pass through to children
-  }
-
-  const innerStyle = {
-    opacity: 1,
-    padding: '1rem',
-    maxWidth: 'min(22rem, 90%)',
-    borderRadius: '0.5rem',
-    border: '1px solid var(--neutral-100)',
-    backgroundColor: 'var(--background-color)',
-    pointerEvents: 'auto' as 'auto', // Enable clicks on the modal content
-  }
-
+export default function Modal({ children, open = true, onOpenChange, onExitComplete }: ModalProps) {
   useEffect(() => {
+    if (!open) return
     const rolesToBlur = ['banner', 'main', 'tablist']
     for (const role of rolesToBlur) {
       const element = document.querySelector(`[role="${role}"]`) as HTMLElement
@@ -47,14 +23,54 @@ export default function Modal({ children }: { children: React.ReactNode }) {
         if (element) element.style.filter = 'none'
       }
     }
-  }, [])
+  }, [open])
 
   return (
-    <>
-      <div style={overlayStyle} />
-      <div style={containerStyle}>
-        <div style={innerStyle}>{children}</div>
-      </div>
-    </>
+    <AnimatePresence onExitComplete={onExitComplete}>
+      {open ? (
+        <motion.div
+          key='modal-overlay'
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2, ease: EASE_OUT_QUINT_TUPLE }}
+          onClick={() => onOpenChange?.(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 50,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          }}
+        />
+      ) : null}
+      {open ? (
+        <motion.div
+          key='modal-content'
+          initial={{ opacity: 0, x: '-50%', y: '-50%', scale: 0.95 }}
+          animate={{ opacity: 1, x: '-50%', y: '-50%', scale: 1 }}
+          exit={{ opacity: 0, x: '-50%', y: '-50%', scale: 0.95 }}
+          transition={{ duration: 0.2, ease: EASE_OUT_QUINT_TUPLE }}
+          style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            zIndex: 51,
+            width: '100%',
+            maxWidth: 'min(22rem, 90%)',
+          }}
+        >
+          <div
+            style={{
+              padding: '1.5rem',
+              borderRadius: '0.75rem',
+              border: '1px solid var(--neutral-100)',
+              backgroundColor: 'var(--background-color)',
+            }}
+          >
+            {children}
+          </div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   )
 }

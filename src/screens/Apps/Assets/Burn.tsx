@@ -29,6 +29,7 @@ export default function AppAssetBurn() {
   const [processing, setProcessing] = useState(false)
   const [opDone, setOpDone] = useState(false)
   const pendingNav = useRef<() => void>()
+  const pendingConfirm = useRef(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
   const name = assetInfo.metadata?.name ?? 'Unknown'
@@ -55,10 +56,9 @@ export default function AppAssetBurn() {
     setShowConfirm(true)
   }
 
-  const handleBurnConfirm = async () => {
+  const processBurn = async () => {
     if (!svcWallet) return
 
-    setShowConfirm(false)
     setProcessing(true)
     setError('')
 
@@ -74,6 +74,17 @@ export default function AppAssetBurn() {
     }
   }
 
+  const handleBurnConfirm = () => {
+    pendingConfirm.current = true
+    setShowConfirm(false)
+  }
+
+  const handleConfirmExitComplete = () => {
+    if (!pendingConfirm.current) return
+    pendingConfirm.current = false
+    void processBurn()
+  }
+
   const handleExitComplete = useCallback(() => {
     pendingNav.current?.()
   }, [])
@@ -86,25 +97,22 @@ export default function AppAssetBurn() {
   return (
     <>
       <Header text={`Burn ${name}`} back={() => navigate(Pages.AppAssetDetail)} />
-      {showConfirm ? (
-        <Modal>
-          <FlexCol gap='1.5rem'>
-            <FlexCol centered gap='0.5rem'>
-              <Text big bold>
-                Confirm Burn
-              </Text>
-              <Text centered wrap color='neutral-500'>
-                You are about to burn {prettyAssetAmount(amount, decimals)} {ticker || name}. This action is
-                irreversible.
-              </Text>
-            </FlexCol>
-            <FlexRow>
-              <Button onClick={() => setShowConfirm(false)} label='Cancel' secondary />
-              <Button onClick={handleBurnConfirm} label='Burn' />
-            </FlexRow>
+      <Modal open={showConfirm} onOpenChange={setShowConfirm} onExitComplete={handleConfirmExitComplete}>
+        <FlexCol gap='1.5rem'>
+          <FlexCol centered gap='0.5rem'>
+            <Text big bold>
+              Confirm Burn
+            </Text>
+            <Text centered wrap color='neutral-500'>
+              You are about to burn {prettyAssetAmount(amount, decimals)} {ticker || name}. This action is irreversible.
+            </Text>
           </FlexCol>
-        </Modal>
-      ) : null}
+          <FlexRow>
+            <Button onClick={() => setShowConfirm(false)} label='Cancel' secondary />
+            <Button onClick={handleBurnConfirm} label='Burn' />
+          </FlexRow>
+        </FlexCol>
+      </Modal>
       <Content>
         <Padded>
           <FlexCol gap='1rem'>
