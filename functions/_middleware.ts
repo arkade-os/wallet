@@ -8,6 +8,12 @@
 //
 // See also: plugins/vite-plugin-basic-auth.ts for the dev server equivalent.
 
+interface EventContext {
+  request: Request
+  env: Record<string, string>
+  next: () => Promise<Response>
+}
+
 function unauthorized() {
   return new Response('Unauthorized', {
     status: 401,
@@ -15,17 +21,23 @@ function unauthorized() {
   })
 }
 
-export const onRequest: PagesFunction = async (context) => {
-  const username = (context.env as Record<string, string>).BASIC_AUTH_USERNAME
-  const password = (context.env as Record<string, string>).BASIC_AUTH_PASSWORD
+export const onRequest = async (context: EventContext) => {
+  const username = context.env.BASIC_AUTH_USERNAME
+  const password = context.env.BASIC_AUTH_PASSWORD
 
   if (!username || !password) return context.next()
 
   const auth = context.request.headers.get('Authorization')
   if (!auth) return unauthorized()
 
-  const expected = 'Basic ' + btoa(`${username}:${password}`)
-  if (auth !== expected) return unauthorized()
+  const encoder = new TextEncoder()
+  const expected = encoder.encode('Basic ' + btoa(`${username}:${password}`))
+  const actual = encoder.encode(auth)
+  if (
+    actual.byteLength !== expected.byteLength ||
+    !crypto.subtle.timingSafeEqual(expected, actual)
+  )
+    return unauthorized()
 
   return context.next()
 }

@@ -4,6 +4,7 @@
 //
 // See also: functions/_middleware.ts for the Cloudflare Pages production equivalent.
 
+import { timingSafeEqual } from 'node:crypto'
 import type { Plugin, Connect } from 'vite'
 
 function basicAuthMiddleware(
@@ -14,8 +15,12 @@ function basicAuthMiddleware(
     'Basic ' + Buffer.from(`${username}:${password}`).toString('base64')
 
   return (req, res, next) => {
-    const auth = req.headers.authorization
-    if (auth === expected) {
+    const actual = Buffer.from(req.headers.authorization ?? '')
+    const exp = Buffer.from(expected)
+    if (
+      actual.byteLength === exp.byteLength &&
+      timingSafeEqual(actual, exp)
+    ) {
       next()
       return
     }
