@@ -52,7 +52,7 @@ interface SwapQuote {
 
 const fallbackAsset: SwapAsset = {
   assetId: 'fallback-usd',
-  name: 'US Dollars',
+  name: 'USD',
   ticker: 'USD',
   decimals: 2,
   balance: 0,

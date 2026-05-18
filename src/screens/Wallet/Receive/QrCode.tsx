@@ -711,9 +711,9 @@ function buildReceiveAssetOptions(
 
   return [
     { assetId: '', name: 'Bitcoin', ticker: 'BTC' },
-    assetByTicker.get('USD') ?? { assetId: '', name: 'US Dollars', ticker: 'USD' },
-    assetByTicker.get('CHF') ?? { assetId: '', name: 'Swiss Franc', ticker: 'CHF' },
-    assetByTicker.get('BRL') ?? { assetId: '', name: 'Brazilian Real', ticker: 'BRL' },
+    assetByTicker.get('USD') ?? { assetId: '', name: 'USD', ticker: 'USD' },
+    assetByTicker.get('CHF') ?? { assetId: '', name: 'CHF', ticker: 'CHF' },
+    assetByTicker.get('BRL') ?? { assetId: '', name: 'BRL', ticker: 'BRL' },
   ]
 }
 
@@ -743,9 +743,9 @@ function accountTickerForAssetTicker(ticker: string | undefined): ReceiveAssetTi
 
 function accountNameForTicker(ticker: ReceiveAssetTicker): string {
   if (ticker === 'BTC') return 'Bitcoin'
-  if (ticker === 'USD') return 'US Dollars'
-  if (ticker === 'CHF') return 'Swiss Franc'
-  return 'Brazilian Real'
+  if (ticker === 'USD') return 'USD'
+  if (ticker === 'CHF') return 'CHF'
+  return 'BRL'
 }
 
 function AddressList({

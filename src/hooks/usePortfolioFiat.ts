@@ -111,7 +111,7 @@ export function usePortfolioFiat(): PortfolioFiat {
     assetFiatTotal += usdAccountFiatAmount
     rows.push({
       assetId: 'account:usd',
-      name: 'US Dollars',
+      name: 'USD',
       ticker: 'USD',
       decimals: 2,
       balance: usdMinorUnits,
@@ -130,7 +130,7 @@ export function usePortfolioFiat(): PortfolioFiat {
   const fiatAccounts = [
     {
       assetId: 'account:chf',
-      name: 'Swiss Franc',
+      name: 'CHF',
       ticker: 'CHF',
       minorUnits: chfAccountMinorUnits,
       sourceFiat: Fiats.CHF,
@@ -138,7 +138,7 @@ export function usePortfolioFiat(): PortfolioFiat {
     },
     {
       assetId: 'account:brl',
-      name: 'Brazilian Real',
+      name: 'BRL',
       ticker: 'BRL',
       minorUnits: brlAccountMinorUnits,
       sourceFiat: Fiats.BRL,
@@ -201,9 +201,9 @@ function displayNameForAsset(ticker: string | undefined, name: string | undefine
     normalizedTicker === 'USD' ||
     normalizedTicker === 'AUSD'
   )
-    return 'US Dollars'
-  if (normalizedTicker === 'CHF') return 'Swiss Franc'
-  if (normalizedTicker === 'BRL' || normalizedTicker === 'DPIX' || normalizedTicker === 'DEPIX') return 'Brazilian Real'
+    return 'USD'
+  if (normalizedTicker === 'CHF') return 'CHF'
+  if (normalizedTicker === 'BRL' || normalizedTicker === 'DPIX' || normalizedTicker === 'DEPIX') return 'BRL'
   return name
 }
 

@@ -531,10 +531,10 @@ function DeltaBadge({ value }: { value: number }) {
 function displayAssetName(ticker: string | undefined, name: string | undefined, isBitcoin: boolean): string {
   const normalizedTicker = ticker?.trim().toUpperCase()
   if (isBitcoin) return 'Bitcoin'
-  if (normalizedTicker === 'USD') return 'US Dollars'
-  if (normalizedTicker === 'CHF') return 'Swiss Franc'
-  if (normalizedTicker === 'BRL') return 'Brazilian Real'
-  if (normalizedTicker === 'USDT' || normalizedTicker === 'USDC') return 'US Dollars'
+  if (normalizedTicker === 'USD') return 'USD'
+  if (normalizedTicker === 'CHF') return 'CHF'
+  if (normalizedTicker === 'BRL') return 'BRL'
+  if (normalizedTicker === 'USDT' || normalizedTicker === 'USDC') return 'USD'
   return name ?? 'Asset'
 }
 

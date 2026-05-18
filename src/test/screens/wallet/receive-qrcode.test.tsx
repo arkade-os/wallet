@@ -386,16 +386,16 @@ describe('Receive QR Code screen', () => {
 
     expect(screen.getByRole('button', { name: /Bitcoin/i })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Bitcoin' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: /US Dollars/i })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: /Swiss Franc/i })).not.toHaveAttribute('aria-disabled')
-    expect(screen.getByRole('option', { name: /Brazilian Real/i })).not.toHaveAttribute('aria-disabled')
+    expect(screen.getByRole('option', { name: 'USD' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'CHF' })).not.toHaveAttribute('aria-disabled')
+    expect(screen.getByRole('option', { name: 'BRL' })).not.toHaveAttribute('aria-disabled')
     expect(screen.queryByText('Not in wallet yet')).not.toBeInTheDocument()
     expect(screen.getAllByTestId('receive-asset-logo-btc')).toHaveLength(2)
     expect(screen.getByTestId('receive-asset-logo-usd')).toBeInTheDocument()
     expect(screen.getByTestId('receive-asset-logo-chf')).toBeInTheDocument()
     expect(screen.getByTestId('receive-asset-logo-brl')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('option', { name: /US Dollars/i }))
+    fireEvent.click(screen.getByRole('option', { name: 'USD' }))
 
     expect(fixture.flow?.setRecvInfo).toHaveBeenCalledWith(expect.objectContaining({ assetId: usdtAssetId }))
     expect(window.localStorage.getItem('arkade-receive-asset-ticker')).toBe('USD')
@@ -406,7 +406,7 @@ describe('Receive QR Code screen', () => {
     renderReceiveQrCode(fixture)
 
     fireEvent.click(await screen.findByRole('button', { name: /Bitcoin/i }))
-    fireEvent.click(screen.getByRole('option', { name: /US Dollars/i }))
+    fireEvent.click(screen.getByRole('option', { name: 'USD' }))
 
     expect(fixture.flow?.setRecvInfo).toHaveBeenCalledWith(expect.objectContaining({ assetId: usdtAssetId }))
     expect(window.localStorage.getItem('arkade-receive-asset-ticker')).toBe('USD')
@@ -417,7 +417,7 @@ describe('Receive QR Code screen', () => {
     const fixture = receiveAssetFixture()
     renderReceiveQrCode(fixture)
 
-    expect(await screen.findByRole('button', { name: /US Dollars/i })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'USD' })).toBeInTheDocument()
     expect(fixture.flow?.setRecvInfo).toHaveBeenCalledWith(expect.objectContaining({ assetId: usdtAssetId }))
   })
 })
