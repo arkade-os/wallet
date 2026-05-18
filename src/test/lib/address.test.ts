@@ -8,6 +8,7 @@ import {
   isURLWithLightningQueryString,
 } from '../../lib/address'
 import fixtures from '../fixtures.json'
+import { isValidLnUrl } from '../../lib/lnurl'
 
 describe('address utilities', () => {
   describe('decodeAddress', () => {
@@ -76,6 +77,35 @@ describe('address utilities', () => {
 
     it('should return false for an invalid email address', () => {
       expect(isEmailAddress('invalidEmail')).toBe(false)
+    })
+  })
+
+  describe('isValidLnUrl', () => {
+    const lnurl =
+      'LNURL1DP68GUP69UHKCMMRV9KXSMMNWSARJV' +
+      'PEXQHKCMN4WFKZ7DPEX93NWEF4XVUNVDMRXG' +
+      'MN2VFKXQMRJEP4XF3K2D33XEJN2EFSG25472'
+
+    it('should return true for a valid email address', () => {
+      expect(isValidLnUrl('test@example.com')).toBe(true)
+    })
+
+    it('should return false for an invalid email address', () => {
+      expect(isValidLnUrl('invalidEmail')).toBe(false)
+    })
+
+    it('should return true for a valid lnurl', () => {
+      expect(isValidLnUrl(lnurl.toLowerCase())).toBe(true)
+      expect(isValidLnUrl(lnurl)).toBe(true)
+    })
+
+    it('should return false for an invalid lnurl', () => {
+      expect(isValidLnUrl('invalidLnurl')).toBe(false)
+    })
+
+    it('should return false for a mix cased lnurl', () => {
+      const mixedCaseLnurl = lnurl.replace('LNURL', 'LnUrL')
+      expect(isValidLnUrl(mixedCaseLnurl)).toBe(false)
     })
   })
 })

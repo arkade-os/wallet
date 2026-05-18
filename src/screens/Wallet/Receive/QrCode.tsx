@@ -41,8 +41,8 @@ import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { AssetOption } from '../../../lib/types'
 import { EASE_OUT_QUINT } from '../../../lib/animations'
-import { ConfigContext } from '@/providers/config'
-import { FiatContext } from '@/providers/fiat'
+import { ConfigContext } from '../../../providers/config'
+import { FiatContext } from '../../../providers/fiat'
 
 export default function ReceiveQRCode() {
   const { useFiat } = useContext(ConfigContext)

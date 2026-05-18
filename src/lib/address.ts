@@ -67,6 +67,6 @@ export const isURLWithLightningQueryString = (data: string): boolean => {
 }
 
 export const isEmailAddress = (data: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i
   return emailRegex.test(data)
 }

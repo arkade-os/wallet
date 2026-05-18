@@ -1,8 +1,8 @@
 import { test, expect, createWallet, readClipboard, handleKeyboardInput } from './utils'
 import { decodeInvoice } from '../../lib/bolt11'
 import { Page } from '@playwright/test'
-import { decodeBip21, isBip21 } from '@/lib/bip21'
-import { sleep } from '@/lib/sleep'
+import { decodeBip21, isBip21 } from '../../lib/bip21'
+import { sleep } from '../../lib/sleep'
 
 const createWalletAndGetBIP21 = async (page: Page): Promise<string> => {
   await createWallet(page)
