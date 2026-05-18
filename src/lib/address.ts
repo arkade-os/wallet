@@ -70,8 +70,3 @@ export const isEmailAddress = (data: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i
   return emailRegex.test(data)
 }
-
-export const isLNURL = (data: string): boolean => {
-  const lnurlRegex = /^(lnurl1)[02-9ac-hj-np-z]+$/i // bech32
-  return lnurlRegex.test(data)
-}
