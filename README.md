@@ -95,7 +95,7 @@ pnpm install
 
 ## Development
 
-### `pnpm run start`
+### `pnpm start`
 
 Runs the app in the development mode.\
 Open [http://localhost:3002](http://localhost:3002) to view it in the browser.
@@ -103,7 +103,7 @@ Open [http://localhost:3002](http://localhost:3002) to view it in the browser.
 The page will reload if you make edits.\
 You will also see any lint errors in the console.
 
-### `pnpm run build`
+### `pnpm build`
 
 Builds the app for production to the `dist` folder.\
 It correctly bundles React in production mode and optimizes the build for the best performance.
@@ -111,7 +111,7 @@ It correctly bundles React in production mode and optimizes the build for the be
 The build is minified and the filenames include the hashes.\
 Your app is ready to be deployed!
 
-### `pnpm run regtest`
+### `pnpm regtest`
 
 Starts the regtest environment and sets up the arkd instance.\
 Requires Docker to be installed and [Nigiri](https://nigiri.vulpem.com/) to be running with `--ln` flag.
@@ -128,7 +128,7 @@ nigiri faucet <bcrt-address>
 ### e2e tests
 
 > note: e2e tests require a regtest environment to be running.
-> `pnpm run regtest` to start and setup the regtest environment.
+> `pnpm regtest` to start and setup the regtest environment.
 
 > note: e2e tests use playwright for ui testing, you may need to run
 > `pnpm exec playwright install` once to download new browsers.
@@ -136,19 +136,19 @@ nigiri faucet <bcrt-address>
 Run the tests with:
 
 ```bash
-pnpm run test:e2e
+pnpm test:e2e
 ```
 
 Run the tests in interactive mode with:
 
 ```bash
-pnpm run test:e2e --ui
+pnpm test:e2e --ui
 ```
 
 Access the playwright code generator tool with:
 
 ```bash
-pnpm run test:codegen
+pnpm test:codegen
 ```
 
 ## Troubleshooting
