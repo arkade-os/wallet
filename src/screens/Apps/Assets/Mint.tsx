@@ -188,7 +188,7 @@ export default function AppAssetMint() {
             : amount <= 0
               ? 'Amount must be a positive number'
               : decimals === undefined || isNaN(decimals) || decimals < 0 || decimals > MAX_DECIMALS
-                ? 'Decimals must be 0-8'
+                ? `Decimals must be 0-${MAX_DECIMALS}`
                 : controlMode === 'New' && !ctrlAmount
                   ? 'Enter control asset amount'
                   : controlMode === 'New' && (isNaN(ctrlAmount) || ctrlAmount <= 0)
