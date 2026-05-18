@@ -6,7 +6,7 @@ import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
 import Toggle from '../../../components/Toggle'
-import Text, { TextLabel } from '../../../components/Text'
+import Text from '../../../components/Text'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import WarningBox from '../../../components/Warning'
@@ -203,8 +203,8 @@ function RecoverSection({
 
   return (
     <FlexCol gap='1rem'>
-      <TextLabel>Recover stranded funds</TextLabel>
-      <Text color='dark50' small thin wrap>
+      <Text thin>Recover stranded funds</Text>
+      <Text color='neutral-500' small thin wrap>
         Scan your local swap history for funds still locked at submarine swap addresses. This includes failed swaps that
         were never refunded and successful swaps that received an extra deposit. Boltz is not contacted; only swaps
         recorded on this device are checked.
@@ -338,8 +338,6 @@ function RecoveryRow({ info, recovering, error, onRecover, disabled }: RecoveryR
   if (info.refundLocktime !== undefined) {
     if (info.refundLocktime >= LOCKTIME_THRESHOLD) {
       secondsAway = Math.max(0, info.refundLocktime - nowUnixSeconds)
-    } else if (info.currentBlockHeight !== undefined) {
-      blocksAway = Math.max(0, info.refundLocktime - info.currentBlockHeight)
     }
   }
 
