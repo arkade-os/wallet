@@ -338,8 +338,6 @@ function RecoveryRow({ info, recovering, error, onRecover, disabled }: RecoveryR
   if (info.refundLocktime !== undefined) {
     if (info.refundLocktime >= LOCKTIME_THRESHOLD) {
       secondsAway = Math.max(0, info.refundLocktime - nowUnixSeconds)
-    } else if (info.currentBlockHeight !== undefined) {
-      blocksAway = Math.max(0, info.refundLocktime - info.currentBlockHeight)
     }
   }
 
