@@ -1,4 +1,4 @@
-import { isValidLnUrl } from '@/lib/lnurl'
+import { isValidLnUrl } from '../lib/lnurl'
 import {
   isArkAddress,
   isBTCAddress,
