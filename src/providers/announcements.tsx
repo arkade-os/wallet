@@ -3,7 +3,7 @@ import { ReactNode, createContext, useContext, useEffect, useRef, useState } fro
 import {
   BoltzAnnouncement,
   LendaSatAnnouncement,
-  LendaSwapAnnouncement,
+  SatoraAnnouncement,
   NostrBackupsAnnouncement,
 } from '../components/Announcement'
 
@@ -16,7 +16,7 @@ interface AnnouncementItem {
 const announcements: AnnouncementItem[] = [
   { id: 'boltz', component: BoltzAnnouncement, inactive: true },
   { id: 'nostr backups', component: NostrBackupsAnnouncement, inactive: true },
-  { id: 'lendaswap', component: LendaSwapAnnouncement, inactive: true },
+  { id: 'satora', component: SatoraAnnouncement, inactive: true },
   { id: 'lendasat', component: LendaSatAnnouncement, inactive: true },
 ]
 

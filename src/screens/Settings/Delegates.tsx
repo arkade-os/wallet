@@ -51,8 +51,8 @@ const testConnection = (aspInfo: AspInfo): Promise<Delegate> => {
           .then((data: { delegatorAddress: string; pubkey: string; fee: string }) => {
             if (!data) return reject(new Error('Invalid delegate response'))
             if (!data.fee) return reject(new Error('Missing delegate fee'))
-            if (isNaN(parseInt(data.fee))) return reject(new Error('Invalid delegate fee'))
-            if (parseInt(data.fee) < 0) return reject(new Error("Delegate fee can't be negative"))
+            if (isNaN(parseInt(data.fee, 10))) return reject(new Error('Invalid delegate fee'))
+            if (parseInt(data.fee, 10) < 0) return reject(new Error("Delegate fee can't be negative"))
             if (!data.pubkey) return reject(new Error('Missing delegate pubkey'))
             if (data.pubkey.length !== 66) return reject(new Error('Invalid delegate pubkey size'))
             if (!/^[0-9a-fA-F]{66}$/.test(data.pubkey)) return reject(new Error('Invalid delegate pubkey hex'))
@@ -60,7 +60,7 @@ const testConnection = (aspInfo: AspInfo): Promise<Delegate> => {
             if (!isArkAddress(data.delegatorAddress)) return reject(new Error('Invalid delegate address'))
             const { serverPubKey } = decodeArkAddress(data.delegatorAddress)
             if (serverPubKey !== expectedPubKey) return reject(new Error('Invalid delegate server key'))
-            resolve({ ...delegate, address: data.delegatorAddress, pubkey: data.pubkey, fee: parseInt(data.fee) })
+            resolve({ ...delegate, address: data.delegatorAddress, pubkey: data.pubkey, fee: parseInt(data.fee, 10) })
           })
           .catch(() => reject(new Error('Invalid json in delegate response')))
       })
@@ -85,8 +85,8 @@ function Hero() {
             marginTop: '1rem',
             padding: '0.75rem',
             borderRadius: '6px',
-            color: '#040404',
-            background: '#fbfbfb',
+            color: 'var(--fg)',
+            background: 'var(--bg)',
             textTransform: 'uppercase',
             width: 'fit-content',
             cursor: 'pointer',
@@ -156,7 +156,7 @@ function DelegateCard() {
         <FlexRow between>
           <Text>{delegate.name}</Text>
           <FlexRow end onClick={() => setOption(SettingsOptions.Vtxos)}>
-            <Text color='dark50' tiny>
+            <Text color='neutral-500' tiny>
               {nextRolloverText}
             </Text>
             <ArrowIcon small />

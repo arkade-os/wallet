@@ -11,7 +11,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import { ConfigContext } from '../../providers/config'
 import { Themes } from '../../lib/types'
 import LendasatIcon from './Lendasat/LendasatIcon'
-import LendaswapIcon from './Lendaswap/LendaswapIcon'
+import SatoraIcon from './Satora/SatoraIcon'
 import DfxIcon from './Dfx/DfxIcon'
 import Focusable from '../../components/Focusable'
 import { hapticSubtle } from '../../lib/haptics'
@@ -25,7 +25,7 @@ const Middot = () => (
 const Tag = ({ kind }: { kind: 'new' | 'coming soon' }) => {
   const style: React.CSSProperties = {
     borderRadius: '4px',
-    background: kind === 'coming soon' ? 'rgba(96, 177, 138, 0.10)' : 'rgba(57, 25, 152, 1)',
+    background: kind === 'coming soon' ? 'var(--green-50)' : 'var(--purple-700)',
     color: kind === 'coming soon' ? 'var(--green)' : 'var(--white)',
     fontFamily: 'Geist Mono',
     fontSize: '12px',
@@ -116,10 +116,10 @@ function App({ desc, icon, link, name, live, page, isDark }: AppProps) {
                   <Text bold>{name}</Text>
                   <Tag kind={live ? 'new' : 'coming soon'} />
                 </FlexRow>
-                <Text color='dark80' small thin wrap>
+                <Text color='neutral-800' small thin wrap>
                   {link}
                 </Text>
-                <Text color='dark80' small thin wrap>
+                <Text color='neutral-800' small thin wrap>
                   {desc}
                 </Text>
               </FlexCol>
@@ -181,11 +181,11 @@ export default function Apps() {
             />
 
             <App
-              name='LendaSwap'
-              icon={<LendaswapIcon />}
+              name='Satora'
+              icon={<SatoraIcon />}
               desc='Swap Bitcoin to USDC or USDT instantly'
-              link='https://swap.lendasat.com'
-              page={Pages.AppLendaswap}
+              link='https://app.satora.io'
+              page={Pages.AppSatora}
               isDark={isDark}
               live
             />

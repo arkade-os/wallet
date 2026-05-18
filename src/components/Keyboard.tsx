@@ -3,7 +3,7 @@ import Content from './Content'
 import { useContext, useEffect, useState } from 'react'
 import Text, { TextSecondary } from './Text'
 import { FiatContext } from '../providers/fiat'
-import { formatAssetAmount, prettyAmount, prettyFiatAmount, prettyNumber } from '../lib/format'
+import { prettyAmount, prettyFiatAmount, prettyNumber } from '../lib/format'
 import { WalletContext } from '../providers/wallet'
 import { defaultFee } from '../lib/constants'
 import ErrorMessage from './Error'
@@ -13,21 +13,21 @@ import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
 import SwapIcon from '../icons/Swap'
 import { AssetOption } from '../lib/types'
-import { centsToUnits, unitsToCents } from '../lib/assets'
+import { prettyAssetAmount, unitsToCents } from '../lib/assets'
 
 interface KeyboardProps {
   asset?: AssetOption
   back: () => void
   hideBalance?: boolean
-  onSave: (sats: number) => void
-  value: number | undefined
+  onSave: (value: string) => void
 }
 
-export default function Keyboard({ asset, back, hideBalance, onSave, value }: KeyboardProps) {
+export default function Keyboard({ asset, back, hideBalance, onSave }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
   const { balance, svcWallet } = useContext(WalletContext)
 
+  const [assetInCents, setAssetInCents] = useState(BigInt(0))
   const [amountInSats, setAmountInSats] = useState(0)
   const [available, setAvailable] = useState(0)
   const [error, setError] = useState('')
@@ -37,26 +37,17 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
   const [textValue, setTextValue] = useState('')
 
   useEffect(() => {
-    if (!value) return setTextValue('')
-    const amount = inputMode === 'fiat' ? toFiat(value) : value
-    setTextValue(prettyNumber(amount, getMaxDecimals()))
-  }, [value])
-
-  useEffect(() => {
     if (!svcWallet) return
     svcWallet.getBalance().then((bal) => setAvailable(bal.available))
   }, [balance])
 
   useEffect(() => {
-    const value = Number(textValue.replaceAll(',', ''))
-    if (Number.isNaN(value)) return
-    setAmountInSats(
-      inputMode === 'fiat'
-        ? fromFiat(value)
-        : inputMode === 'asset'
-          ? unitsToCents(value, asset?.decimals ?? 0)
-          : value,
-    )
+    const strValue = textValue.replaceAll(',', '')
+    if (inputMode === 'asset' && asset) {
+      setAssetInCents(unitsToCents(strValue, asset.decimals))
+    } else {
+      setAmountInSats(inputMode === 'fiat' ? fromFiat(Number(strValue)) : Number(strValue))
+    }
   }, [textValue])
 
   const getMaxDecimals = () => {
@@ -99,11 +90,10 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
   }
 
   const handleMaxPress = () => {
-    if (available < defaultFee) return setError('Total balance is below fee')
     if (asset) {
       const { balance, decimals } = asset
-      const units = centsToUnits(balance, decimals)
-      setTextValue(prettyNumber(units, decimals, false))
+      setTextValue(prettyAssetAmount(balance, decimals, false))
+      return
     } else {
       const maxSats = available - defaultFee
       const maxTextValue = inputMode === 'fiat' ? toFiat(maxSats) : maxSats
@@ -124,11 +114,17 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
   }
 
   const handleSave = () => {
-    if (!amountInSats || Number.isNaN(amountInSats)) {
+    if (!textValue || Number.isNaN(Number(textValue))) {
       setError('Please enter a valid amount')
       return
     }
-    onSave(amountInSats)
+    if (inputMode === 'asset') {
+      onSave(textValue)
+    } else if (inputMode === 'fiat') {
+      onSave(useFiat ? textValue : toFiat(Number(textValue)).toString())
+    } else {
+      onSave(useFiat ? toFiat(Number(textValue)).toString() : textValue)
+    }
   }
 
   // Display amounts based on input mode
@@ -147,16 +143,16 @@ export default function Keyboard({ asset, back, hideBalance, onSave, value }: Ke
           : prettyFiatAmount(toFiat(amountInSats), config.fiat),
     balance:
       inputMode === 'asset'
-        ? `${formatAssetAmount(asset?.balance ?? 0, asset?.decimals ?? 0)} ${asset?.ticker}`
+        ? `${prettyAssetAmount(asset?.balance ?? BigInt(0), asset?.decimals ?? 0)} ${asset?.ticker}`
         : inputMode === 'fiat'
           ? prettyFiatAmount(toFiat(available), config.fiat)
           : prettyAmount(available),
   }
 
-  const disabled = !amountInSats || Number.isNaN(amountInSats)
+  const disabled = !amountInSats && !assetInCents
 
   const gridStyle = {
-    borderTop: '1px solid var(--dark50)',
+    borderTop: '1px solid var(--neutral-500)',
     marginTop: '0.5rem',
     width: '100%',
   }

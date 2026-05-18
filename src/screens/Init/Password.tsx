@@ -63,7 +63,7 @@ export default function InitPassword() {
                   </Text>
                 </OnboardStaggerChild>
                 <OnboardStaggerChild>
-                  <Text centered color='dark50' small wrap>
+                  <Text centered color='neutral-500' small wrap>
                     This will allow you to log in easily through biometrics without a need to remember the password.
                   </Text>
                 </OnboardStaggerChild>

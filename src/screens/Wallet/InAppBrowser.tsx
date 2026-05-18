@@ -38,7 +38,7 @@ function NumberedBullet({ number, text }: { number: number; text: string }) {
       >
         {number}
       </div>
-      <Text color='dark80' thin wrap>
+      <Text color='neutral-800' thin wrap>
         {text}
       </Text>
     </div>
@@ -181,7 +181,7 @@ export default function InAppBrowser() {
                   transition={{ duration: 0.3, ease: EASE_OUT_QUINT_TUPLE }}
                 >
                   <h1 style={{ ...titleStyle, paddingLeft: 4 }}>Welcome to Arkade 👾</h1>
-                  <Text color='dark50' thin wrap>
+                  <Text color='neutral-500' thin wrap>
                     Won't work in this browser.
                   </Text>
                 </motion.div>
@@ -239,8 +239,8 @@ export default function InAppBrowser() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              backgroundColor: 'var(--dark05)',
-              boxShadow: '0 0 0 1px var(--dark10)',
+              backgroundColor: 'var(--neutral-50)',
+              boxShadow: '0 0 0 1px var(--neutral-100)',
               borderRadius: '0.75rem',
               minHeight: 48,
               padding: '0 0.25rem 0 0.875rem',
@@ -252,7 +252,7 @@ export default function InAppBrowser() {
               style={{
                 flex: 1,
                 fontSize: '14px',
-                color: 'var(--dark50)',
+                color: 'var(--neutral-500)',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -279,7 +279,7 @@ export default function InAppBrowser() {
                 border: 'none',
                 padding: 0,
                 cursor: 'pointer',
-                color: 'var(--dark50)',
+                color: 'var(--neutral-500)',
                 touchAction: 'manipulation',
                 position: 'relative',
               }}

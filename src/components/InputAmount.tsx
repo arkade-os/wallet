@@ -1,4 +1,4 @@
-import { ChangeEventHandler, useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { FiatContext } from '../providers/fiat'
 import InputContainer from './InputContainer'
 import { ConfigContext } from '../providers/config'
@@ -6,7 +6,6 @@ import { prettyNumber } from '../lib/format'
 import { FIAT_SYMBOLS } from '../lib/fiat'
 import { LimitsContext } from '../providers/limits'
 import Focusable from './Focusable'
-import { unitsToCents } from '../lib/assets'
 import { AssetOption } from '../lib/types'
 import { TextSecondary } from './Text'
 
@@ -18,14 +17,13 @@ interface InputAmountProps {
   min?: number
   max?: number
   name?: string
+  onChange: (value: string) => void
   onEnter?: () => void
   onFocus?: () => void
   onMax?: () => void
-  onSats: (sats: number) => void
   readOnly?: boolean
   right?: JSX.Element
-  value?: number
-  sats?: number
+  value?: string
 }
 
 export default function InputAmount({
@@ -36,21 +34,21 @@ export default function InputAmount({
   min,
   max,
   name,
+  onChange,
   onEnter,
   onFocus,
   onMax,
-  onSats,
   readOnly,
   right,
   value,
-  sats,
 }: InputAmountProps) {
   const { config, useFiat } = useContext(ConfigContext)
-  const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
+  const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
   const { minSwapAllowed, maxSwapAllowed } = useContext(LimitsContext)
 
   const [error, setError] = useState('')
   const [otherValue, setOtherValue] = useState('')
+  const [satsValue, setSatsValue] = useState(0)
 
   const input = useRef<HTMLInputElement>(null)
 
@@ -59,16 +57,18 @@ export default function InputAmount({
     if (focus && input.current) input.current.focus()
   }, [focus])
 
+  // update other value when sats change
   useEffect(() => {
-    if (asset?.assetId) return
-    setOtherValue(useFiat ? prettyNumber(sats) : prettyNumber(toFiat(sats), fiatDecimals()))
-    setError(sats ? (sats < 0 ? 'Invalid amount' : '') : '')
-  }, [sats])
+    setError(satsValue ? (satsValue < 0 ? 'Invalid amount' : '') : '')
+    setOtherValue(useFiat ? prettyNumber(satsValue, 0) : prettyNumber(toFiat(satsValue), fiatDecimals()))
+  }, [satsValue])
 
-  const handleInput: ChangeEventHandler<HTMLInputElement> = (ev) => {
-    const value = Number(ev.currentTarget.value)
-    if (Number.isNaN(value)) return
-    onSats(asset?.assetId ? unitsToCents(value, asset.decimals) : useFiat ? fromFiat(value) : value)
+  const handleAmountChange = (ev: React.ChangeEvent<HTMLInputElement>) => {
+    const textValue = ev.currentTarget.value
+    onChange(textValue)
+    if (asset?.assetId) return
+    const value = Number(textValue)
+    setSatsValue(useFiat ? fromFiat(value) : value)
   }
 
   const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0
@@ -85,13 +85,13 @@ export default function InputAmount({
       : fiatSymbol
         ? `${fiatSymbol}${otherValue}`
         : `${otherValue} ${config.fiat}`
-  const fontStyle = { color: 'var(--dark50)', fontSize: '13px' }
+  const fontStyle = { color: 'var(--neutral-500)', fontSize: '13px' }
   const bottomLeft =
-    minimumSats && sats !== undefined && sats < minimumSats
+    minimumSats && satsValue !== undefined && satsValue < minimumSats
       ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}`
       : ''
   const bottomRight =
-    maximumSats && sats !== undefined && sats > maximumSats
+    maximumSats && satsValue !== undefined && satsValue > maximumSats
       ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'SAT' : 'SATS'}`
       : ''
 
@@ -106,10 +106,10 @@ export default function InputAmount({
           onFocus={onFocus}
           className='input'
           inputMode='decimal'
-          value={value || ''}
           disabled={disabled}
           readOnly={readOnly}
-          onChange={handleInput}
+          onChange={handleAmountChange}
+          value={value ? Number(value) : ''}
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
         />
         <TextSecondary>{rightLabel}</TextSecondary>

@@ -9,6 +9,7 @@ import {
   WalletBalance,
   DelegateContractHandler,
   IVtxoManager,
+  Asset,
 } from '@arkade-os/sdk'
 import { Addresses, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
@@ -235,6 +236,11 @@ export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<voi
     })
     throw error
   }
+}
+
+export const sendAssets = async (wallet: IWallet, address: string, assets: Asset[]): Promise<string> => {
+  const recipients = [{ address, amount: 0, assets }]
+  return wallet.send(recipients[0])
 }
 
 export const sendOffChain = async (wallet: IWallet, amount: number, address: string): Promise<string> => {

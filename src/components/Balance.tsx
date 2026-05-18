@@ -1,7 +1,7 @@
 import { useContext } from 'react'
 import { prettyHide, prettyNumber } from '../lib/format'
 import { FIAT_SYMBOLS } from '../lib/fiat'
-import { CurrencyDisplay, Satoshis } from '../lib/types'
+import { CurrencyDisplay } from '../lib/types'
 import { FiatContext } from '../providers/fiat'
 import Text from './Text'
 import FlexCol from './FlexCol'
@@ -10,7 +10,7 @@ import EyeIcon from '../icons/Eye'
 import { ConfigContext } from '../providers/config'
 
 interface BalanceProps {
-  amount: Satoshis
+  amount: number
 }
 
 export default function Balance({ amount }: BalanceProps) {
@@ -67,7 +67,7 @@ export default function Balance({ amount }: BalanceProps) {
       </FlexRow>
       {showBoth ? (
         <FlexRow alignItems='baseline'>
-          <Text color='dark80'>{otherBalance}</Text>
+          <Text color='neutral-800'>{otherBalance}</Text>
           <Text small>{otherUnit}</Text>
         </FlexRow>
       ) : null}

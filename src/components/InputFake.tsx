@@ -2,9 +2,9 @@ import { TextSecondary } from './Text'
 
 export default function InputFake({ text, testId }: { text: string; testId: string }) {
   const style: React.CSSProperties = {
-    backgroundColor: 'var(--dark10)',
+    backgroundColor: 'var(--neutral-100)',
     borderRadius: '0.5rem',
-    color: 'var(--dark50)',
+    color: 'var(--neutral-500)',
     alignItems: 'center',
     padding: '0.5rem',
     minHeight: '40px',

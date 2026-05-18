@@ -17,16 +17,15 @@ import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
-import { formatAssetAmount } from '../../../lib/format'
 import Input from '../../../components/Input'
-import { unitsToCents } from '../../../lib/assets'
+import { prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 
 export default function AppAssetReissue() {
   const { navigate } = useContext(NavigationContext)
   const { assetInfo } = useContext(FlowContext)
   const { assetBalances, svcWallet, reloadWallet } = useContext(WalletContext)
 
-  const [amount, setAmount] = useState(0)
+  const [amount, setAmount] = useState(BigInt(0))
   const [error, setError] = useState('')
   const [processing, setProcessing] = useState(false)
   const [opDone, setOpDone] = useState(false)
@@ -37,15 +36,19 @@ export default function AppAssetReissue() {
   const ticker = assetInfo.metadata?.ticker ?? ''
   const icon = assetInfo.metadata?.icon
   const decimals = assetInfo.metadata?.decimals ?? 8
-  const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? 0
+  const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? BigInt(0)
+
+  const handleAmountChange = (value: string) => {
+    const cents = unitsToCents(value, decimals)
+    setAmount(cents)
+  }
 
   const handleReissueRequest = () => {
     if (!assetInfo.assetId) {
       setError('Asset ID is required')
       return
     }
-    const parsedAmount = unitsToCents(amount, decimals)
-    if (!parsedAmount || parsedAmount <= 0) {
+    if (!amount || amount <= 0) {
       setError('Amount must be a positive number')
       return
     }
@@ -55,14 +58,12 @@ export default function AppAssetReissue() {
 
   const handleReissueConfirm = async () => {
     if (!svcWallet) return
-    const parsedAmount = unitsToCents(amount, decimals)
-
     setShowConfirm(false)
     setProcessing(true)
     setError('')
 
     try {
-      await svcWallet.assetManager.reissue({ assetId: assetInfo.assetId, amount: parsedAmount })
+      await svcWallet.assetManager.reissue({ assetId: assetInfo.assetId, amount })
       await reloadWallet()
       pendingNav.current = () => navigate(Pages.AppAssetDetail)
       setOpDone(true)
@@ -90,8 +91,8 @@ export default function AppAssetReissue() {
               <Text big bold>
                 Confirm Reissue
               </Text>
-              <Text centered wrap color='dark50'>
-                You are about to mint {amount} additional {ticker || name}.
+              <Text centered wrap color='neutral-500'>
+                You are about to mint {prettyAssetAmount(amount, decimals)} additional {ticker || name}.
               </Text>
             </FlexCol>
             <FlexRow>
@@ -105,31 +106,29 @@ export default function AppAssetReissue() {
         <Padded>
           <FlexCol gap='1rem'>
             <ErrorMessage error={Boolean(error)} text={error} />
-
             <Shadow border>
               <FlexRow between padding='0.75rem'>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
                   <AssetAvatar icon={icon} ticker={ticker} size={32} />
                   <FlexCol gap='0'>
                     <Text bold>{name}</Text>
-                    <Text color='dark50' smaller>
+                    <Text color='neutral-500' smaller>
                       {ticker}
                     </Text>
                   </FlexCol>
                 </div>
                 <Text>
-                  {formatAssetAmount(balance, decimals)} {ticker}
+                  {prettyAssetAmount(balance, decimals)} {ticker}
                 </Text>
               </FlexRow>
             </Shadow>
-
             <Input
-              label='Additional Amount'
+              min='0'
               type='number'
-              value={amount}
-              onChange={setAmount}
               placeholder='1000'
               testId='asset-amount'
+              label='Additional Amount'
+              onChange={handleAmountChange}
             />
           </FlexCol>
         </Padded>

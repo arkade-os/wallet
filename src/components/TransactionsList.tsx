@@ -4,7 +4,6 @@ import { WalletContext } from '../providers/wallet'
 import Text, { TextSecondary } from './Text'
 import { CurrencyDisplay, Tx } from '../lib/types'
 import {
-  formatAssetAmount,
   isBurn,
   isIssuance,
   prettyAmount,
@@ -24,8 +23,9 @@ import { FiatContext } from '../providers/fiat'
 import PreconfirmedIcon from '../icons/Preconfirmed'
 import Focusable from './Focusable'
 import { hapticSubtle } from '../lib/haptics'
+import { prettyAssetAmount, prettyAssetAmountHide } from '../lib/assets'
 
-const border = '1px solid var(--dark10)'
+const border = '1px solid var(--neutral-200)'
 
 const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void; isFirst?: boolean }) => {
   const { config } = useContext(ConfigContext)
@@ -43,7 +43,7 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
     if (issuance || burn) return null
     const color =
       config.currencyDisplay === CurrencyDisplay.Both
-        ? 'dark50'
+        ? 'neutral-500'
         : tx.type === 'received'
           ? 'green'
           : tx.boardingTxid && tx.preconfirmed
@@ -51,10 +51,11 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
             : ''
     const value = toFiat(tx.amount)
     const small = asAssets || config.currencyDisplay === CurrencyDisplay.Both
-    const world = config.showBalance ? prettyFiatAmount(value, config.fiat) : prettyFiatHide(value, config.fiat)
+    const text = config.showBalance ? prettyFiatAmount(value, config.fiat) : prettyFiatHide(value, config.fiat)
+    const fiatAmount = `${prefix} ${text}`
     return (
       <Text color={color} small={small}>
-        {world}
+        {fiatAmount}
       </Text>
     )
   }
@@ -104,8 +105,8 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
               <AssetAvatar icon={icon} ticker={ticker} size={16} assetId={a.assetId} clickable />
               <Text color={color} thin>
                 {config.showBalance
-                  ? `${formatAssetAmount(a.amount, decimals)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
-                  : prettyHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}
+                  ? `${prettyAssetAmount(a.amount, decimals, true)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
+                  : prettyAssetAmountHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}
               </Text>
             </FlexRow>
           )

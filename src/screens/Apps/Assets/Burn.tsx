@@ -15,17 +15,16 @@ import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
-import { formatAssetAmount, prettyNumber } from '../../../lib/format'
 import Input from '../../../components/Input'
 import AssetCard from '../../../components/AssetCard'
-import { centsToUnits, unitsToCents } from '../../../lib/assets'
+import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 
 export default function AppAssetBurn() {
   const { navigate } = useContext(NavigationContext)
   const { assetInfo } = useContext(FlowContext)
   const { assetBalances, svcWallet, reloadWallet } = useContext(WalletContext)
 
-  const [amount, setAmount] = useState(0)
+  const [amount, setAmount] = useState(BigInt(0))
   const [error, setError] = useState('')
   const [processing, setProcessing] = useState(false)
   const [opDone, setOpDone] = useState(false)
@@ -36,18 +35,20 @@ export default function AppAssetBurn() {
   const ticker = assetInfo.metadata?.ticker ?? assetInfo.assetId.slice(0, 8)
   const icon = assetInfo.metadata?.icon
   const decimals = assetInfo.metadata?.decimals ?? 8
-  const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? 0
+  const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? BigInt(0)
 
-  const handleMax = () => setAmount(centsToUnits(balance, decimals))
+  const handleAmountChange = (value: string) => {
+    const cents = unitsToCents(value, decimals)
+    setAmount(cents)
+  }
 
   const handleBurnRequest = () => {
-    const parsedAmount = unitsToCents(amount, decimals)
-    if (!parsedAmount || parsedAmount <= 0) {
+    if (!amount || amount <= 0) {
       setError('Amount must be a positive number')
       return
     }
-    if (parsedAmount > balance) {
-      setError(`Cannot burn more than your balance (${formatAssetAmount(balance, decimals)} ${ticker})`)
+    if (amount > balance) {
+      setError(`Cannot burn more than your balance (${prettyAssetAmount(balance, decimals)} ${ticker})`)
       return
     }
     setError('')
@@ -56,14 +57,13 @@ export default function AppAssetBurn() {
 
   const handleBurnConfirm = async () => {
     if (!svcWallet) return
-    const parsedAmount = unitsToCents(amount, decimals)
 
     setShowConfirm(false)
     setProcessing(true)
     setError('')
 
     try {
-      await svcWallet.assetManager.burn({ assetId: assetInfo.assetId, amount: parsedAmount })
+      await svcWallet.assetManager.burn({ assetId: assetInfo.assetId, amount })
       await reloadWallet()
       pendingNav.current = () => navigate(Pages.AppAssetDetail)
       setOpDone(true)
@@ -78,6 +78,8 @@ export default function AppAssetBurn() {
     pendingNav.current?.()
   }, [])
 
+  const handleMax = () => setAmount(balance)
+
   if (processing || opDone)
     return <LoadingLogo text='Burning...' done={opDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
 
@@ -91,8 +93,9 @@ export default function AppAssetBurn() {
               <Text big bold>
                 Confirm Burn
               </Text>
-              <Text centered wrap color='dark50'>
-                You are about to burn {prettyNumber(amount)} {ticker || name}. This action is irreversible.
+              <Text centered wrap color='neutral-500'>
+                You are about to burn {prettyAssetAmount(amount, decimals)} {ticker || name}. This action is
+                irreversible.
               </Text>
             </FlexCol>
             <FlexRow>
@@ -116,22 +119,28 @@ export default function AppAssetBurn() {
               ticker={ticker}
             />
             <Input
-              label='Amount to Burn'
               right={
-                <span onClick={handleMax} style={{ color: 'var(--purpletext)', fontSize: 13, cursor: 'pointer' }}>
+                <span
+                  onClick={handleMax}
+                  data-testid='burn-max-button'
+                  style={{ color: 'var(--purpletext)', fontSize: 13, cursor: 'pointer' }}
+                >
                   Max
                 </span>
               }
+              min='0'
+              step='1'
               type='number'
-              value={amount}
-              onChange={setAmount}
               placeholder='0'
+              label='Amount to Burn'
+              onChange={handleAmountChange}
+              value={amount ? centsToUnits(amount, decimals) : ''}
             />
           </FlexCol>
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button label='Burn' onClick={handleBurnRequest} disabled={!amount} />
+        <Button label='Burn' onClick={handleBurnRequest} disabled={amount <= 0} />
       </ButtonsOnBottom>
     </>
   )
