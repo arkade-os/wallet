@@ -1,3 +1,4 @@
+import { isValidLnUrl } from '../lib/lnurl'
 import {
   isArkAddress,
   isBTCAddress,
@@ -40,6 +41,7 @@ export default function InputAddress({
       isLightningInvoice(data.toLowerCase()) ||
       isURLWithLightningQueryString(data.toLowerCase()) ||
       isEmailAddress(data) ||
+      isValidLnUrl(data) ||
       isArkNote(data) // easter egg :)
     )
   }

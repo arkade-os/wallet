@@ -163,11 +163,11 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       .catch((err) => consoleError(err, 'Failed to fetch fees'))
     arkadeSwaps
       .getFees('ARK', 'BTC')
-      .then(setArkToBtcFees)
+      .then((res) => setArkToBtcFees(res))
       .catch((err) => consoleError(err, 'Failed to fetch ARK to BTC fees'))
     arkadeSwaps
       .getFees('BTC', 'ARK')
-      .then(setBtcToArkFees)
+      .then((res) => setBtcToArkFees(res))
       .catch((err) => consoleError(err, 'Failed to fetch BTC to ARK fees'))
   }, [arkadeSwaps])
 
@@ -180,24 +180,28 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   const calcArkToBtcSwapFee = (satoshis: number): number => {
     if (!satoshis || !arkToBtcFees) return 0
+    if (satoshis > Number.MAX_SAFE_INTEGER) throw new Error('Amount exceeds maximum allowed value')
     const { percentage, minerFees } = arkToBtcFees
     return Math.ceil((satoshis * percentage) / 100 + minerFees.server + minerFees.user.claim)
   }
 
   const calcBtcToArkSwapFee = (satoshis: number): number => {
     if (!satoshis || !btcToArkFees) return 0
+    if (satoshis > Number.MAX_SAFE_INTEGER) throw new Error('Amount exceeds maximum allowed value')
     const { percentage, minerFees } = btcToArkFees
     return Math.ceil((satoshis * percentage) / 100 + minerFees.server + minerFees.user.claim)
   }
 
   const calcReverseSwapFee = (satoshis: number): number => {
     if (!satoshis || !fees) return 0
+    if (satoshis > Number.MAX_SAFE_INTEGER) throw new Error('Amount exceeds maximum allowed value')
     const { percentage, minerFees } = fees.reverse
     return Math.ceil((satoshis * percentage) / 100 + minerFees.claim + minerFees.lockup)
   }
 
   const calcSubmarineSwapFee = (satoshis: number): number => {
     if (!satoshis || !fees) return 0
+    if (satoshis > Number.MAX_SAFE_INTEGER) throw new Error('Amount exceeds maximum allowed value')
     const { percentage, minerFees } = fees.submarine
     return Math.ceil((satoshis * percentage) / 100 + minerFees)
   }
@@ -206,7 +210,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   // Helper methods that delegate to arkadeSwaps
   const createArkToBtcSwap = async (btcAddress: string, sats: number): Promise<ArkToBtcResponse | null> => {
-    if (!arkadeSwaps) return null
+    if (!arkadeSwaps || !svcWallet) return null
     return arkadeSwaps.arkToBtc({ btcAddress, receiverLockAmount: sats })
   }
 

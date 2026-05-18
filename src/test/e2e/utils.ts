@@ -1,6 +1,5 @@
 import { test as base, type Page } from '@playwright/test'
 import { faucetOffchain } from './fundedWallet'
-import { prettyNumber } from '../../lib/format'
 import { sleep } from '../../lib/sleep'
 
 export const test = base.extend({
@@ -41,7 +40,7 @@ export async function waitForWalletPage(page: Page, timeout = 60000): Promise<vo
 }
 
 interface MintAssetOptions {
-  amount: number
+  amount: string
   name: string
   ticker: string
   decimals?: number
@@ -70,7 +69,7 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
   await page.waitForSelector('text=Mint Asset', { state: 'visible' })
 
   // fill amount
-  await page.getByTestId('asset-amount').fill(opts.amount.toString())
+  await page.getByTestId('asset-amount').fill(opts.amount)
   // fill name
   await page.getByTestId('asset-name').fill(opts.name)
   // fill ticker
@@ -100,10 +99,20 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
 }
 
 export async function createWallet(page: Page): Promise<void> {
-  // await execAsync('nigiri rpc --generate 1')
   await page.goto('/')
   await page.getByText('+ Create wallet').click()
   await waitForWalletPage(page)
+}
+
+export async function createWalletWithFiat(page: Page): Promise<void> {
+  await createWallet(page)
+  await page.getByTestId('tab-settings').click()
+  await page.getByText('general', { exact: true }).click()
+  await page.getByText('Display preferences').click()
+  await page.getByTestId('select-option-2').click()
+  await page.getByLabel('Go back').click()
+  await page.getByLabel('Go back').click()
+  await page.getByTestId('tab-wallet').click()
 }
 
 export async function createWalletWithPassword(page: Page, password: string): Promise<void> {
@@ -233,12 +242,17 @@ async function restoreWallet(page: Page, nsec: string): Promise<void> {
   await waitForWalletPage(page)
 }
 
-export async function fundWallet(page: Page, amount: number = 5000): Promise<void> {
+export async function fundWallet(page: Page, amount: number = 5000): Promise<number> {
   const arkAddress = await receiveOffchain(page)
   await faucetOffchain(arkAddress, amount)
   await waitForPaymentReceived(page)
   await page.getByTestId('tab-wallet').click()
-  await page.waitForSelector(`text=+ ${prettyNumber(amount)} SATS`, { timeout: 10000 })
+  await page.getByText('Received').waitFor({ timeout: 10000 })
+  const balanceText = await page.getByTestId('main-balance').innerText()
+  const normalized = balanceText.replace(/[^\d.-]/g, '')
+  const num = Number(normalized)
+  if (!Number.isFinite(num)) throw new Error(`Unable to parse main balance: ${balanceText}`)
+  return num
 }
 
 export async function resetAndRestoreWallet(page: Page): Promise<void> {

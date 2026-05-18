@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
@@ -19,7 +19,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
 import { BoltzChainSwap, BoltzReverseSwap } from '@arkade-os/boltz-swap'
 import { enableChainSwapsReceive, lnurlServerUrl } from '../../../lib/constants'
-import { centsToUnits } from '../../../lib/assets'
+import { unitsToCents } from '../../../lib/assets'
 import WarningBox from '../../../components/Warning'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
@@ -35,27 +35,29 @@ import CopyIcon from '../../../icons/Copy'
 import CheckMarkIcon from '../../../icons/CheckMark'
 import { hapticSubtle } from '../../../lib/haptics'
 import { isMobileBrowser } from '../../../lib/browser'
-import { ConfigContext } from '../../../providers/config'
-import { FiatContext } from '../../../providers/fiat'
 import Focusable from '../../../components/Focusable'
-import { useLnurlSession } from '../../../hooks/useLnurlSession'
+import { LnurlContext } from '../../../providers/lnurl'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { AssetOption } from '../../../lib/types'
 import { EASE_OUT_QUINT } from '../../../lib/animations'
+import { ConfigContext } from '../../../providers/config'
+import { FiatContext } from '../../../providers/fiat'
 
 export default function ReceiveQRCode() {
   const { useFiat } = useContext(ConfigContext)
-  const { toFiat, fiatDecimals } = useContext(FiatContext)
+  const { fromFiat } = useContext(FiatContext)
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { arkadeSwaps, swapsInitError, connected, createBtcToArkSwap, createReverseSwap } = useContext(SwapsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
-  const { minSwapAllowed, validBtcToArk, validLnSwap, validUtxoTx, validVtxoTx, utxoTxsAllowed, vtxoTxsAllowed } =
-    useContext(LimitsContext)
+  const { minSwapAllowed, validBtcToArk, validLnSwap, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
 
   const { toast } = useToast()
+
+  const [assetAmount, setAssetAmount] = useState(BigInt(0))
+  const [amountTextValue, setAmountTextValue] = useState('')
 
   const [sharing, setSharing] = useState(false)
   const [addressesLoaded, setAddressesLoaded] = useState(false)
@@ -64,8 +66,6 @@ export default function ReceiveQRCode() {
   // Amount sheet state
   const [showAmountSheet, setShowAmountSheet] = useState(false)
   const [showKeys, setShowKeys] = useState(false)
-  const [amountInput, setAmountInput] = useState(0)
-  const [amountTextValue, setAmountTextValue] = useState('')
 
   // Copy address sheet state
   const [showCopySheet, setShowCopySheet] = useState(false)
@@ -111,31 +111,8 @@ export default function ReceiveQRCode() {
       })
   }, [svcWallet])
 
-  // LNURL session for amountless Lightning receives
-  const isAmountlessLnurl =
-    !satoshis && !isAssetReceive && !!lnurlServerUrl && connected && !!arkadeSwaps && !swapsInitError
-
-  const handleInvoiceRequest = useCallback(
-    async (req: { amountMsat: number }) => {
-      const sats = Math.floor(req.amountMsat / 1000)
-      const pendingSwap = await createReverseSwap(sats)
-      if (!pendingSwap) throw new Error('Failed to create reverse swap')
-      // Auto-claim in background
-      if (arkadeSwaps) {
-        arkadeSwaps
-          .waitAndClaim(pendingSwap)
-          .then(() => {
-            setRecvInfo({ ...recvInfo, received: true, satoshis: pendingSwap.response.onchainAmount ?? 0 })
-            notifyPaymentReceived(pendingSwap.response.onchainAmount ?? 0)
-            navigate(Pages.ReceiveSuccess)
-          })
-          .catch((err) => consoleError(err, 'Error claiming LNURL reverse swap'))
-      }
-      return pendingSwap.response.invoice
-    },
-    [arkadeSwaps, createReverseSwap, setRecvInfo, recvInfo, navigate, notifyPaymentReceived],
-  )
-  const lnurlSession = useLnurlSession(isAmountlessLnurl, handleInvoiceRequest)
+  const lnurlSession = useContext(LnurlContext)
+  const isAmountlessLnurl = !satoshis && !isAssetReceive && !!lnurlServerUrl && lnurlSession.active
 
   const createBtcAddress = () => {
     return new Promise((resolve, reject) => {
@@ -169,16 +146,17 @@ export default function ReceiveQRCode() {
     })
   }
 
-  const createBip21 = (sats = satoshis): { ark: string; btc: string; bip21: string } => {
-    const ark = validVtxoTx(sats) && vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
-    const btc = validUtxoTx(sats) && utxoTxsAllowed() ? swapAddress || recvInfo.boardingAddr : ''
+  const createBip21 = (): { ark: string; btc: string; bip21: string } => {
+    const ark = vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
+    const btc = utxoTxsAllowed() ? swapAddress || recvInfo.boardingAddr : ''
     const bip21 = isAssetReceive
-      ? encodeBip21Asset(ark, assetId, Number(centsToUnits(BigInt(sats), assetMeta?.metadata?.decimals)))
-      : encodeBip21(btc, ark, invoice, sats, lnurlSession.lnurl)
+      ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals)
+      : encodeBip21(btc, ark, invoice, satoshis, lnurlSession.lnurl)
 
     return { ark, btc, bip21 }
   }
 
+  // Create swaps when amount is set, then show QR code once ready
   useEffect(() => {
     if (isAssetReceive) return setShowQrCode(true)
     if (!satoshis || !svcWallet) return
@@ -251,16 +229,17 @@ export default function ReceiveQRCode() {
     setBip21Uri(bip21)
     setQrCodeValue(bip21)
   }, [
-    showQrCode,
-    swapAddress,
     invoice,
+    assetAmount,
     addressesLoaded,
-    recvInfo.offchainAddr,
-    recvInfo.boardingAddr,
-    satoshis,
+    isAmountlessLnurl,
     lnurlSession.lnurl,
     lnurlSession.active,
-    isAmountlessLnurl,
+    recvInfo.offchainAddr,
+    recvInfo.boardingAddr,
+    recvInfo.satoshis,
+    swapAddress,
+    showQrCode,
   ])
 
   // Payment listener
@@ -339,33 +318,32 @@ export default function ReceiveQRCode() {
     }
   }
 
-  const handleAmountChange = (sats: number) => {
-    setAmountInput(sats)
-    const value = assetMeta ? centsToUnits(BigInt(sats), assetMeta.metadata?.decimals) : useFiat ? toFiat(sats) : sats
-    const maximumFractionDigits = useFiat
-      ? fiatDecimals()
-      : assetMeta?.metadata?.decimals
-        ? assetMeta?.metadata?.decimals
-        : 0
-    setAmountTextValue(prettyNumber(Number(value), maximumFractionDigits, false))
-  }
-
-  const handleAmountConfirm = (sats = amountInput) => {
+  const handleAmountConfirm = (value = amountTextValue) => {
     setShowKeys(false)
     setShowAmountSheet(false)
-    // if amount was changed, we need to reset invoice and swap address, since they are amount-specific
-    // this will also trigger the useEffect to create new ones if needed
-    if (sats !== satoshis) {
-      setInvoice('')
-      setSwapAddress('')
-      setShowQrCode(false)
+    if (assetMeta) {
+      const decimals = assetMeta.metadata?.decimals
+      const cents = unitsToCents(value, decimals)
+      return setAssetAmount(cents)
+    } else {
+      const num = Number(value)
+      if (Number.isNaN(num) || !Number.isFinite(num)) throw new Error('Invalid amount')
+      const sats = useFiat ? fromFiat(num) : num
+      // if amount was changed, we need to reset invoice and swap address, since they are amount-specific
+      // this will also trigger the useEffect to create new ones if needed
+      if (sats !== recvInfo.satoshis) {
+        setInvoice('')
+        setSwapAddress('')
+        setShowQrCode(false)
+      }
+      setRecvInfo({ ...recvInfo, satoshis: sats })
     }
-    setRecvInfo({ ...recvInfo, satoshis: sats })
   }
 
   const handleAmountClear = () => {
-    handleAmountChange(0)
-    handleAmountConfirm(0)
+    setAmountTextValue('')
+    if (assetMeta) setAssetAmount(BigInt(0))
+    else setRecvInfo({ ...recvInfo, satoshis: 0 })
   }
 
   const assetOption: AssetOption = {
@@ -384,19 +362,17 @@ export default function ReceiveQRCode() {
   if (showKeys) {
     return (
       <Keyboard
+        hideBalance
         asset={assetOption}
         back={() => {
           setShowKeys(false)
           setShowAmountSheet(false)
         }}
-        hideBalance
-        onSave={(sats: number) => {
+        onSave={(value: string) => {
           setShowKeys(false)
           setShowAmountSheet(false)
-          handleAmountChange(sats)
-          handleAmountConfirm(sats)
+          handleAmountConfirm(value)
         }}
-        value={amountInput}
       />
     )
   }
@@ -448,7 +424,7 @@ export default function ReceiveQRCode() {
                   </button>
                   {satoshis > 0 ? (
                     <div style={{ fontSize: '14px', color: 'var(--neutral-500)', marginTop: '0.5rem' }}>
-                      Requesting {prettyNumber(satoshis)} {unitLabel}
+                      Requesting {prettyNumber(satoshis, 0)} {unitLabel}
                     </div>
                   ) : null}
                   {(!satoshis || satoshis < minSwapAllowed()) && !isAssetReceive ? (
@@ -485,18 +461,17 @@ export default function ReceiveQRCode() {
             Add amount
           </Text>
           <InputAmount
-            asset={assetOption}
-            name='receive-amount-sheet'
-            focus={!isMobileBrowser}
             label='Amount'
-            onSats={handleAmountChange}
-            onFocus={() => setShowKeys(isMobileBrowser)}
+            asset={assetOption}
+            value={amountTextValue}
+            focus={!isMobileBrowser}
             readOnly={isMobileBrowser}
-            value={amountTextValue ? Number(amountTextValue) : undefined}
-            sats={amountInput}
+            name='receive-amount-sheet'
+            onChange={setAmountTextValue}
             onEnter={handleAmountConfirm}
+            onFocus={() => setShowKeys(isMobileBrowser)}
           />
-          <Button label='Set amount' onClick={() => handleAmountConfirm()} disabled={!amountInput} />
+          <Button label='Set amount' onClick={() => handleAmountConfirm()} disabled={!amountTextValue} />
           {satoshis > 0 ? <Button label='Clear amount' onClick={handleAmountClear} secondary /> : null}
         </FlexCol>
       </SheetModal>

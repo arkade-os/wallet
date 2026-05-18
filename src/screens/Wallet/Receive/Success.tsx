@@ -98,12 +98,13 @@ export default function ReceiveSuccess() {
 
                 return (
                   <AssetCard
-                    assetId={a.assetId}
-                    balance={a.amount}
-                    decimals={meta?.decimals ?? 0}
                     icon={icon}
                     name={name}
                     ticker={ticker}
+                    key={a.assetId}
+                    assetId={a.assetId}
+                    balance={a.amount}
+                    decimals={meta?.decimals ?? 0}
                   />
                 )
               })}

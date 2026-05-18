@@ -43,7 +43,7 @@ import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 import { SwapsContext } from '../../../providers/swaps'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -65,7 +65,7 @@ export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
-  const { fromFiat, toFiat } = useContext(FiatContext)
+  const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { calcSubmarineSwapFee, calcArkToBtcSwapFee, createArkToBtcSwap, createSubmarineSwap, connected, getApiUrl } =
     useContext(SwapsContext)
@@ -83,6 +83,7 @@ export default function SendForm() {
   const { assetBalances, assetMetadataCache, balance, setCacheEntry, svcWallet } = useContext(WalletContext)
 
   const [amount, setAmount] = useState<number>()
+  const [amountTextValue, setAmountTextValue] = useState('')
   const [amountIsReadOnly, setAmountIsReadOnly] = useState(false)
   const [assetOptions, setAssetOptions] = useState<AssetOption[]>([])
   const [availableBalance, setAvailableBalance] = useState(0)
@@ -103,7 +104,6 @@ export default function SendForm() {
   const [brantaLoading, setBrantaLoading] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<AssetOption | null>(null)
   const [showAssetSelector, setShowAssetSelector] = useState(false)
-  const [textValue, setTextValue] = useState('')
   const [showReserveModal, setShowReserveModal] = useState(false)
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
 
@@ -122,6 +122,16 @@ export default function SendForm() {
   const setState = (info: SendInfo) => {
     setScan(false)
     setSendInfo(info)
+    if (info.satoshis) {
+      if (isAssetSend && info.assets) {
+        const cents = info.assets[0].amount
+        const units = centsToUnits(cents, selectedAsset.decimals)
+        setAmountTextValue(units)
+      } else {
+        const units = useFiat ? prettyNumber(toFiat(info.satoshis), fiatDecimals()) : info.satoshis
+        setAmountTextValue(units.toString())
+      }
+    }
   }
 
   // get receiving addresses
@@ -135,14 +145,6 @@ export default function SendForm() {
         setReceivingAddresses({ boardingAddr, offchainAddr })
       })
       .catch(smartSetError)
-  }, [])
-
-  // update form with existing send info
-  useEffect(() => {
-    const { recipient, satoshis } = sendInfo
-    setRecipient(recipient ?? '')
-    if (!satoshis) return
-    setTextValue(useFiat ? prettyNumber(fromFiat(satoshis)) : prettyNumber(satoshis, 0, false))
   }, [])
 
   // build asset options from balances + metadata
@@ -233,8 +235,7 @@ export default function SendForm() {
             }
           }
           setSelectedAsset(found)
-          const rawAmount = assetAmount != null ? unitsToCents(BigInt(assetAmount), found.decimals) : BigInt(0)
-          setTextValue(String(assetAmount))
+          const rawAmount = assetAmount ? unitsToCents(assetAmount, found.decimals) : BigInt(0)
           return setState({
             address,
             arkAddress,
@@ -244,7 +245,6 @@ export default function SendForm() {
             assets: [{ assetId, amount: rawAmount }],
           })
         }
-        setAmount(satoshis)
         return setState({ address, arkAddress, invoice, recipient, satoshis, assets: sendInfo.assets })
       }
       if (isArkAddress(lowerCaseData)) {
@@ -262,7 +262,6 @@ export default function SendForm() {
         if (!satoshis) return setError('Invoice must have amount defined')
         setState({ ...base, invoice: lowerCaseData, satoshis })
         setAmountIsReadOnly(true)
-        setAmount(satoshis)
         return
       }
       if (isBTCAddress(recipient)) {
@@ -351,7 +350,7 @@ export default function SendForm() {
     if (satoshis && satoshis < min) return setError(`Amount below LNURL min limit`)
     if (satoshis && satoshis > max) return setError(`Amount above LNURL max limit`)
     if (min === max) {
-      setAmount(useFiat ? toFiat(min) : min) // set fixed amount automatically
+      setAmount(min) // set fixed amount automatically
       setAmountIsReadOnly(true)
     } else {
       setAmountIsReadOnly(false)
@@ -422,15 +421,6 @@ export default function SendForm() {
     // everything is ok, clean error
     setError('')
   }, [receivingAddresses, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
-
-  // set text value from satoshis
-  useEffect(() => {
-    if (!sendInfo.satoshis) return
-    const sats = sendInfo.satoshis
-    const value = useFiat ? toFiat(sats) : sats
-    const maximumFractionDigits = useFiat ? 2 : 0
-    setTextValue(prettyNumber(value, maximumFractionDigits, false))
-  }, [sendInfo.satoshis])
 
   // manage button label and errors
   useEffect(() => {
@@ -525,29 +515,39 @@ export default function SendForm() {
     setProcessing(false)
   }
 
-  const handleAmountChange = (sats: number) => {
+  const handleAmountChange = (value: string) => {
+    setAmountTextValue(value)
     if (isAssetSend) {
-      setTextValue(prettyAssetAmount(BigInt(sats), selectedAsset?.decimals ?? 8, false))
       if (selectedAsset) {
-        setState({ ...sendInfo, assets: [{ assetId: selectedAsset.assetId, amount: BigInt(sats) }], satoshis: 0 })
+        const decimals = selectedAsset?.decimals
+        const cents = unitsToCents(value, decimals)
+        setState({
+          ...sendInfo,
+          assets: [{ assetId: selectedAsset.assetId, amount: cents }],
+          satoshis: 0,
+        })
       }
     } else {
-      setTextValue(useFiat ? prettyNumber(toFiat(sats), 2, false) : prettyNumber(sats, 0, false))
+      const num = Number(value)
+      if (Number.isNaN(num) || !Number.isFinite(num)) return setError('Invalid amount')
+      const sats = useFiat ? fromFiat(num) : num
       setState({ ...sendInfo, satoshis: sats })
     }
-    setAmount(sats)
   }
 
   const handleSelectAsset = (asset: AssetOption | null) => {
     setShowAssetSelector(false)
     setSelectedAsset(asset)
-    setAmount(undefined)
-    setTextValue('')
     if (asset) {
       if (isBTCAddress(recipient)) {
         return setError('Assets can only be sent to Arkade addresses')
       }
-      setState({ ...sendInfo, address: '', assets: [{ assetId: asset.assetId, amount: BigInt(0) }], satoshis: 0 })
+      setState({
+        ...sendInfo,
+        address: '',
+        assets: [{ assetId: asset.assetId, amount: BigInt(0) }],
+        satoshis: 0,
+      })
     } else {
       setState({ ...sendInfo, assets: undefined, satoshis: 0 })
     }
@@ -572,10 +572,6 @@ export default function SendForm() {
   const handleRecipientChange = (recipient: string) => {
     setRawScanData('')
     resetDerivedState(recipient)
-    if (!recipient) {
-      setAmount(undefined)
-      setTextValue('')
-    }
   }
 
   const handleContinue = async () => {
@@ -599,7 +595,8 @@ export default function SendForm() {
           // Fallback to Lightning invoice
           const amountForInvoice = deductFromAmount ? satoshis - calcSubmarineSwapFee(satoshis) : satoshis
           if (amountForInvoice < 1) return handleError('Amount too low to cover fees')
-          const invoice = await fetchInvoice(sendInfo.lnUrl, amountForInvoice, '')
+          if (amountForInvoice > BigInt(Number.MAX_SAFE_INTEGER)) return handleError('Amount too large')
+          const invoice = await fetchInvoice(sendInfo.lnUrl, Number(amountForInvoice), '')
           setState({ ...sendInfo, invoice, arkAddress: undefined })
         }
       } else {
@@ -624,27 +621,19 @@ export default function SendForm() {
   const applySendAll = () => {
     if (isAssetSend && selectedAsset) {
       const { assetId, balance, decimals } = selectedAsset
-      setTextValue(prettyAssetAmount(balance, decimals, false))
-      setState({
-        ...sendInfo,
-        assets: [{ assetId, amount: balance }],
-        satoshis: 0,
-      })
-      return
+      const assets = [{ assetId, amount: balance }]
+      setState({ ...sendInfo, assets, satoshis: 0 })
+      setAmountTextValue(centsToUnits(balance, decimals))
+    } else {
+      setState({ ...sendInfo, satoshis: liquidBalance })
+      setAmountTextValue(liquidBalance.toString())
+      setAmount(liquidBalance)
     }
-    const maximumFractionDigits = useFiat ? 2 : 0
-    const value = useFiat ? toFiat(liquidBalance) : liquidBalance
-    setTextValue(prettyNumber(value, maximumFractionDigits, false))
-    setState({ ...sendInfo, satoshis: liquidBalance })
-    setAmount(liquidBalance)
   }
 
   const handleSendAll = () => {
-    if (reserveApplied) {
-      setShowReserveModal(true)
-      return
-    }
-    applySendAll()
+    if (reserveApplied) setShowReserveModal(true)
+    else applySendAll()
   }
 
   const confirmSendAll = () => {
@@ -663,8 +652,7 @@ export default function SendForm() {
       )
     }
 
-    const amount = useFiat ? toFiat(liquidBalance) : liquidBalance
-    const pretty = useFiat ? prettyFiatAmount(amount, config.fiat) : prettyAmount(amount)
+    const pretty = useFiat ? prettyFiatAmount(toFiat(liquidBalance), config.fiat) : prettyAmount(liquidBalance)
 
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
@@ -677,7 +665,7 @@ export default function SendForm() {
 
   const { address, arkAddress, lnUrl, invoice, satoshis } = sendInfo
 
-  const assetAmt = sendInfo.assets?.[0]?.amount ?? 0
+  const assetAmt = sendInfo.assets?.[0]?.amount ?? BigInt(0)
 
   const buttonDisabled = isAssetSend
     ? !(arkAddress && assetAmt > 0) ||
@@ -724,13 +712,12 @@ export default function SendForm() {
 
   const Keys = () => (
     <Keyboard
+      asset={selectedAsset ?? undefined}
       back={() => setKeys(false)}
-      onSave={(sats) => {
-        handleAmountChange(sats)
+      onSave={(value: string) => {
+        handleAmountChange(value)
         setKeys(false)
       }}
-      value={amount}
-      asset={selectedAsset ?? undefined}
     />
   )
 
@@ -940,20 +927,19 @@ export default function SendForm() {
               ) : null}
               <FlexCol gap='0.5rem'>
                 <InputAmount
-                  asset={selectedAsset ?? undefined}
-                  name='send-amount'
-                  focus={focus === 'amount' && !isMobileBrowser}
                   label='Amount'
+                  name='send-amount'
+                  right={<Available />}
                   min={lnUrlLimits.min}
                   max={lnUrlLimits.max}
-                  onSats={handleAmountChange}
                   onEnter={handleEnter}
                   onFocus={handleFocus}
                   onMax={handleSendAll}
+                  onChange={handleAmountChange}
+                  asset={selectedAsset ?? undefined}
+                  focus={focus === 'amount' && !isMobileBrowser}
                   readOnly={amountIsReadOnly}
-                  right={<Available />}
-                  sats={amount}
-                  value={textValue ? Number(textValue) : undefined}
+                  value={amountTextValue}
                 />
               </FlexCol>
               {deductFromAmount ? <InfoLine color='orange' text='Fees will be deducted from the amount sent' /> : null}

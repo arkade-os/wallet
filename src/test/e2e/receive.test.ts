@@ -7,6 +7,7 @@ import {
   waitForPaymentReceived,
   handleKeyboardInput,
   readClipboard,
+  createWalletWithFiat,
 } from './utils'
 import { exec } from 'child_process'
 import { faucetOffchain } from './fundedWallet'
@@ -46,7 +47,7 @@ test('should receive offchain funds', async ({ page }) => {
   await page.waitForSelector('text=+ 10,000 SATS', { timeout: 10000 })
 })
 
-test('changing amount should update the invoice', async ({ page, isMobile }) => {
+test('changing amount should update the invoice (sats mode)', async ({ page, isMobile }) => {
   const sats = 2000
 
   // create wallet
@@ -91,6 +92,64 @@ test('changing amount should update the invoice', async ({ page, isMobile }) => 
   }
 
   // copy invoice
+  await page.getByText('Copy').click()
+  await page.getByTestId('invoice-address-copy').click()
+  const newInvoice = await readClipboard(page)
+
+  expect(newInvoice).toBeDefined()
+  expect(newInvoice).toBeTruthy()
+  expect(newInvoice).toContain('lnbcrt')
+
+  // invoices should be different
+  expect(invoice).not.toEqual(newInvoice)
+})
+
+test('changing amount should update the invoice (fiat mode)', async ({ page, isMobile }) => {
+  const usds = 2
+
+  // create wallet
+  await createWalletWithFiat(page)
+
+  // go to receive page
+  await page.getByTestId('tab-wallet').click()
+  await page.getByText('Receive', { exact: true }).click()
+
+  // fill amount to receive if provided
+  await page.getByText('Add amount').click()
+  if (isMobile) {
+    await handleKeyboardInput(page, usds)
+  } else {
+    await page.locator('input[name="receive-amount-sheet"]').fill(usds.toString())
+    await page.getByText('Set amount').click()
+  }
+
+  // copy invoice
+  await sleep(1000)
+  await page.getByText('Copy').click()
+  await page.getByTestId('invoice-address-copy').click()
+  const invoice = await readClipboard(page)
+
+  expect(invoice).toBeDefined()
+  expect(invoice).toBeTruthy()
+  expect(invoice).toContain('lnbcrt')
+
+  // change amount to receive
+  const newUsds = 3
+
+  await page.getByText('Edit amount').click()
+  if (isMobile) {
+    // delete previous amount
+    for (let i = 0; i < usds.toString().length + 1; i++) {
+      await page.getByTestId('keyboard-x').click()
+    }
+    await handleKeyboardInput(page, newUsds)
+  } else {
+    await page.locator('input[name="receive-amount-sheet"]').fill(newUsds.toString())
+    await page.getByText('Set amount').click()
+  }
+
+  // copy invoice
+  await sleep(1000)
   await page.getByText('Copy').click()
   await page.getByTestId('invoice-address-copy').click()
   const newInvoice = await readClipboard(page)

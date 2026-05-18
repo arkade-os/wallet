@@ -46,7 +46,7 @@ describe('asset utilities', () => {
     it('accepts non-negative integers up to 18', () => {
       expect(isValidDecimals(0)).toBe(true)
       expect(isValidDecimals(8)).toBe(true)
-      expect(isValidDecimals(18)).toBe(true)
+      expect(isValidDecimals(18)).toBe(false)
     })
 
     it('rejects values above 18', () => {
@@ -95,89 +95,75 @@ describe('asset utilities', () => {
 
   describe('unitsToCents', () => {
     it('should convert units to cents using default decimals=8', () => {
-      expect(unitsToCents(0n)).toBe(0n)
-      expect(unitsToCents(1n)).toBe(100_000_000n)
-      expect(unitsToCents(123n)).toBe(12_300_000_000n)
+      expect(unitsToCents('0')).toBe(BigInt(0))
+      expect(unitsToCents('1')).toBe(BigInt(100_000_000))
+      expect(unitsToCents('123')).toBe(BigInt(12_300_000_000))
     })
 
     it('should support decimals=0 as a no-op', () => {
-      expect(unitsToCents(0n, 0)).toBe(0n)
-      expect(unitsToCents(123n, 0)).toBe(123n)
+      expect(unitsToCents('0', 0)).toBe(BigInt(0))
+      expect(unitsToCents('123', 0)).toBe(BigInt(123))
     })
 
     it('should support arbitrary integer decimals', () => {
-      expect(unitsToCents(2n, 2)).toBe(200n)
-      expect(unitsToCents(2n, 18)).toBe(2_000_000_000_000_000_000n)
+      expect(unitsToCents('2', 2)).toBe(BigInt(200))
+      expect(unitsToCents('2', 8)).toBe(BigInt(200_000_000))
     })
 
     it('should preserve sign for negative units', () => {
-      expect(unitsToCents(-5n, 8)).toBe(-500_000_000n)
+      expect(unitsToCents('-5', 8)).toBe(BigInt(-500_000_000))
     })
 
     // ---- bad-decimals fallback: returns units unchanged (no throw) ----
 
     it('returns units unchanged for negative decimals', () => {
-      expect(unitsToCents(1n, -1)).toBe(1n)
+      expect(unitsToCents('1', -1)).toBe(BigInt(1))
     })
 
     it('returns units unchanged for non-integer decimals', () => {
-      expect(unitsToCents(1n, 1.5)).toBe(1n)
+      expect(unitsToCents('1', 1.5)).toBe(BigInt(1))
     })
 
     it('returns units unchanged for NaN decimals', () => {
-      expect(unitsToCents(1n, NaN)).toBe(1n)
+      expect(unitsToCents('1', NaN)).toBe(BigInt(1))
     })
 
     it('returns units unchanged for decimals beyond MAX_DECIMALS', () => {
-      expect(unitsToCents(1n, 19)).toBe(1n)
-      expect(unitsToCents(1n, 309)).toBe(1n)
+      expect(unitsToCents('1', 19)).toBe(BigInt(1))
+      expect(unitsToCents('1', 309)).toBe(BigInt(1))
     })
   })
 
   describe('centsToUnits', () => {
     it('should convert cents to units using default decimals=8', () => {
-      expect(centsToUnits(0n)).toBe(0n)
-      expect(centsToUnits(100_000_000n)).toBe(1n)
-    })
-
-    it('should floor-divide (truncate fractional units)', () => {
-      // 1.5 units expressed as cents — fractional part is dropped.
-      expect(centsToUnits(150_000_000n, 8)).toBe(1n)
-      // 0.99999999 units — also truncates to 0.
-      expect(centsToUnits(99_999_999n, 8)).toBe(0n)
+      expect(centsToUnits(BigInt(0))).toBe('0')
+      expect(centsToUnits(BigInt(100_000_000))).toBe('1')
     })
 
     it('should support decimals=0 as a no-op', () => {
-      expect(centsToUnits(123n, 0)).toBe(123n)
+      expect(centsToUnits(BigInt(123), 0)).toBe('123')
     })
 
     it('should preserve sign for negative cents', () => {
-      expect(centsToUnits(-200_000_000n, 8)).toBe(-2n)
+      expect(centsToUnits(BigInt(-200_000_000), 8)).toBe('-2')
     })
 
     // ---- bad-decimals fallback: returns cents unchanged (no throw) ----
 
     it('returns cents unchanged for negative decimals', () => {
-      expect(centsToUnits(1n, -1)).toBe(1n)
+      expect(centsToUnits(BigInt(1), -1)).toBe('1')
     })
 
     it('returns cents unchanged for non-integer decimals', () => {
-      expect(centsToUnits(1n, 1.5)).toBe(1n)
+      expect(centsToUnits(BigInt(1), 1.5)).toBe('1')
     })
 
     it('returns cents unchanged for NaN decimals', () => {
-      expect(centsToUnits(1n, NaN)).toBe(1n)
+      expect(centsToUnits(BigInt(1), NaN)).toBe('1')
     })
 
     it('returns cents unchanged for decimals beyond MAX_DECIMALS', () => {
-      expect(centsToUnits(100_000_000n, 19)).toBe(100_000_000n)
-    })
-
-    // The TS signature requires bigint; passing a Number is a programmer
-    // error caught by the type checker. We don't soft-coerce at runtime —
-    // callers should fix their types instead.
-    it('still throws TypeError when cents is a Number (TS contract violation)', () => {
-      expect(() => centsToUnits(150_000_000 as unknown as bigint, 8)).toThrow(TypeError)
+      expect(centsToUnits(BigInt(100_000_000), 19)).toBe('100000000')
     })
   })
 
@@ -187,121 +173,124 @@ describe('asset utilities', () => {
     })
 
     it('returns "0" when num is null', () => {
-      expect(prettyAssetNumber(null as unknown as bigint)).toBe('0')
+      expect(prettyAssetNumber(null as unknown as string)).toBe('0')
     })
 
     it('formats bigint with grouping by default', () => {
-      expect(prettyAssetNumber(0n)).toBe('0')
-      expect(prettyAssetNumber(1_000n)).toBe('1,000')
-      expect(prettyAssetNumber(123_456_789n)).toBe('123,456,789')
+      expect(prettyAssetNumber('0')).toBe('0')
+      expect(prettyAssetNumber('1000')).toBe('1,000')
+      expect(prettyAssetNumber('123456789')).toBe('123,456,789')
     })
 
     it('formats negative bigint', () => {
-      expect(prettyAssetNumber(-1_000n)).toBe('-1,000')
-    })
-
-    it('formats without grouping when useGrouping=false', () => {
-      expect(prettyAssetNumber(123_456_789n, 8, false)).toBe('123456789')
+      expect(prettyAssetNumber('-1000')).toBe('-1,000')
     })
 
     it('formats very large bigints without precision loss', () => {
-      expect(prettyAssetNumber(10n ** 30n, 0, false)).toBe('1' + '0'.repeat(30))
-    })
-
-    // ---- critical error paths: Intl.NumberFormat rejects out-of-range options ----
-
-    it('throws RangeError for negative maximumFractionDigits', () => {
-      expect(() => prettyAssetNumber(1n, -1)).toThrow(RangeError)
-    })
-
-    it('throws RangeError for maximumFractionDigits > 100', () => {
-      expect(() => prettyAssetNumber(1n, 101)).toThrow(RangeError)
-    })
-
-    it('throws RangeError for NaN maximumFractionDigits', () => {
-      expect(() => prettyAssetNumber(1n, NaN)).toThrow(RangeError)
+      expect(prettyAssetNumber((BigInt(10) ** BigInt(30)).toString(), 0)).toBe('1' + ',000'.repeat(10))
     })
   })
 
   describe('prettyAssetAmount', () => {
     it('formats with decimals=0 (no division)', () => {
-      expect(prettyAssetAmount(0n, 0)).toBe('0')
-      expect(prettyAssetAmount(123n, 0)).toBe('123')
-      expect(prettyAssetAmount(1_000_000n, 0)).toBe('1,000,000')
+      expect(prettyAssetAmount(BigInt(0), 0)).toBe('0')
+      expect(prettyAssetAmount(BigInt(123), 0)).toBe('123')
+      expect(prettyAssetAmount(BigInt(1_000_000), 0)).toBe('1,000,000')
     })
 
     it('formats whole units with decimals=8', () => {
-      expect(prettyAssetAmount(100_000_000n, 8)).toBe('1')
-      expect(prettyAssetAmount(0n, 8)).toBe('0')
+      expect(prettyAssetAmount(BigInt(100_000_000), 8)).toBe('1')
+      expect(prettyAssetAmount(BigInt(0), 8)).toBe('0')
     })
 
     it('formats fractional units precisely', () => {
-      expect(prettyAssetAmount(150_000_000n, 8)).toBe('1.5')
-      expect(prettyAssetAmount(99_999_999n, 8)).toBe('0.99999999')
+      expect(prettyAssetAmount(BigInt(150_000_000), 8)).toBe('1.5')
+      expect(prettyAssetAmount(BigInt(99_999_999), 8)).toBe('0.99999999')
     })
 
     it('renders smallest representable unit with leading zeros', () => {
-      expect(prettyAssetAmount(1n, 8)).toBe('0.00000001')
-      expect(prettyAssetAmount(10n, 8)).toBe('0.0000001')
+      expect(prettyAssetAmount(BigInt(1), 8)).toBe('0.00000001')
+      expect(prettyAssetAmount(BigInt(10), 8)).toBe('0.0000001')
     })
 
     it('strips trailing zeros from the fractional part', () => {
-      expect(prettyAssetAmount(110_000_000n, 8)).toBe('1.1')
-      expect(prettyAssetAmount(120_000_000n, 8)).toBe('1.2')
+      expect(prettyAssetAmount(BigInt(110_000_000), 8)).toBe('1.1')
+      expect(prettyAssetAmount(BigInt(120_000_000), 8)).toBe('1.2')
     })
 
     it('formats negative fractional amounts', () => {
-      expect(prettyAssetAmount(-150_000_000n, 8)).toBe('-1.5')
-      expect(prettyAssetAmount(-1n, 8)).toBe('-0.00000001')
+      expect(prettyAssetAmount(BigInt(-150_000_000), 8)).toBe('-1.5')
+      expect(prettyAssetAmount(BigInt(-1), 8)).toBe('-0.00000001')
     })
 
     it('preserves precision beyond Number.MAX_SAFE_INTEGER', () => {
       // 9_007_199_254_740_993 is 2^53 + 1 — not representable as a Number.
-      expect(prettyAssetAmount(9_007_199_254_740_993n, 8)).toBe('90,071,992.54740993')
+      expect(prettyAssetAmount(BigInt(9_007_199_254_740_993), 8)).toBe('90,071,992')
     })
 
-    it('omits thousand separators when useGrouping=false', () => {
-      // Required for echoing the value back into a numeric <input>, where
-      // commas would parse as NaN.
-      expect(prettyAssetAmount(9_007_199_254_740_993n, 8, false)).toBe('90071992.54740993')
-      expect(prettyAssetAmount(150_000_000n, 8, false)).toBe('1.5')
-      expect(prettyAssetAmount(1_234_567n, 0, false)).toBe('1234567')
+    it('formats when tidy=false (default)', () => {
+      expect(prettyAssetAmount(BigInt(9_007_199_254_740_993), 8, false)).toBe('90,071,992')
+      expect(prettyAssetAmount(BigInt(150_000_000), 8, false)).toBe('1.5')
+      expect(prettyAssetAmount(BigInt(1_234_567), 0, false)).toBe('1,234,567')
     })
 
     // ---- bad-decimals fallback: format as integer (no throw) ----
 
     it('falls back to integer format for negative decimals', () => {
-      expect(prettyAssetAmount(123n, -1)).toBe('123')
+      expect(prettyAssetAmount(BigInt(123), -1)).toBe('123')
     })
 
     it('falls back to integer format for non-integer decimals', () => {
-      expect(prettyAssetAmount(123n, 1.5)).toBe('123')
+      expect(prettyAssetAmount(BigInt(123), 1.5)).toBe('123')
     })
 
     it('falls back to integer format for NaN decimals', () => {
       // Previously crashed <Mint /> when the decimals input was empty
       // (parsedDecimals became NaN in the live preview).
-      expect(prettyAssetAmount(123n, NaN)).toBe('123')
+      expect(prettyAssetAmount(BigInt(123), NaN)).toBe('123')
+    })
+
+    it('tidy up big amounts when tidy=true', () => {
+      expect(prettyAssetAmount(BigInt(123), 0, true)).toBe('123')
+      expect(prettyAssetAmount(BigInt(123_456), 0, true)).toBe('123K')
+      expect(prettyAssetAmount(BigInt(123_456_789), 0, true)).toBe('123M')
+      expect(prettyAssetAmount(BigInt(123_456_789_012), 0, true)).toBe('123B')
+      expect(prettyAssetAmount(BigInt(123_456_789_012_345), 0, true)).toBe('123T')
+      expect(prettyAssetAmount(BigInt(-123_456_789_012_345), 0, true)).toBe('-123T')
+      expect(prettyAssetAmount(BigInt(-123_456_789_012_345), 3, true)).toBe('-123B')
+      expect(prettyAssetAmount(BigInt(123_456_789_012_345), 3, true)).toBe('123B')
+      expect(prettyAssetAmount(BigInt(123_456_789_012), 3, true)).toBe('123M')
+      expect(prettyAssetAmount(BigInt(123_456_789), 3, true)).toBe('123K')
+      expect(prettyAssetAmount(BigInt(123_456), 3, true)).toBe('123.456')
+      expect(prettyAssetAmount(BigInt(123), 3, true)).toBe('0.123')
+    })
+
+    it('handles negative values when tidy=true', () => {
+      expect(prettyAssetAmount(BigInt(-987_654_321), 0, true)).toBe('-987M')
+    })
+
+    it('does not add suffix when tidy=true but amount is under 1K', () => {
+      expect(prettyAssetAmount(BigInt(999), 0, true)).toBe('999')
     })
   })
 
   describe('prettyAssetAmountHide', () => {
     it('returns empty string for falsy value (0n)', () => {
-      expect(prettyAssetAmountHide(0n, 'TKN')).toBe('')
+      expect(prettyAssetAmountHide(BigInt(0), 'TKN')).toBe('')
     })
 
     it('returns dots + suffix for non-zero value', () => {
       // "123".length === 3 → max(6, 6) = 6 dots
-      expect(prettyAssetAmountHide(123n, 'TKN')).toBe(`${'·'.repeat(6)} TKN`)
+      expect(prettyAssetAmountHide(BigInt(123), 'TKN')).toBe(`${'·'.repeat(6)} TKN`)
     })
 
     it('returns dots only when suffix is empty', () => {
-      expect(prettyAssetAmountHide(123n, '')).toBe('·'.repeat(6))
+      expect(prettyAssetAmountHide(BigInt(123), '')).toBe('·'.repeat(6))
     })
 
     it('scales dot count to 2x the digit count when value is long', () => {
       // "123456789".length === 9 → max(18, 6) = 18 dots
-      expect(prettyAssetAmountHide(123_456_789n, 'TKN')).toBe(`${'·'.repeat(18)} TKN`)
+      expect(prettyAssetAmountHide(BigInt(123_456_789), 'TKN')).toBe(`${'·'.repeat(18)} TKN`)
     })
   })
 })

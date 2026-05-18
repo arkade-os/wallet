@@ -28,7 +28,7 @@ export interface RecvInfo {
   txid?: string
   addressError?: string
   assetId?: string
-  assetAmount?: number
+  assetAmount?: bigint
   receivedAssets?: Asset[]
   received: boolean
 }
