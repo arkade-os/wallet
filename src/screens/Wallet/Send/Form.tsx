@@ -283,9 +283,10 @@ export default function SendForm() {
     parseRecipient()
   }, [recipient, isAssetSend])
 
-  // fetch branta payment info for ZK QR-scanned addresses (SDK strict mode gates non-ZK)
+  // fetch branta payment info for the current recipient (SDK strict mode gates non-ZK)
   useEffect(() => {
-    if (!rawScanData) {
+    const typed = recipient.trim()
+    if (!rawScanData && !typed) {
       setBrantaPayment(null)
       setBrantaVerifyUrl(undefined)
       setBrantaLoading(false)
@@ -297,8 +298,11 @@ export default function SendForm() {
     setBrantaLoading(true)
     let cancelled = false
 
-    brantaClient
-      .getPaymentsByQrCode(rawScanData)
+    const lookup = rawScanData
+      ? brantaClient.getPaymentsByQrCode(rawScanData)
+      : brantaClient.getPayments(typed)
+
+    lookup
       .then(({ payments, verifyUrl }) => {
         if (cancelled) return
         const payment = payments?.[0] ?? null
@@ -328,7 +332,7 @@ export default function SendForm() {
     return () => {
       cancelled = true
     }
-  }, [rawScanData])
+  }, [rawScanData, recipient])
 
   // check lnurl limits
   useEffect(() => {
