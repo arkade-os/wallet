@@ -1,10 +1,11 @@
-import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { ReactNode, createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { lnurlServerUrl as rawLnurlServerUrl } from '../lib/constants'
 import { consoleError } from '../lib/logs'
 import { deriveLnurlCredentials, type LnurlSessionCredentials } from '../lib/lnurl'
 import { WalletContext } from './wallet'
 import { SwapsContext } from './swaps'
 import { NotificationsContext } from './notifications'
+import { hex } from '@scure/base'
 
 const lnurlServerBaseUrl = rawLnurlServerUrl?.replace(/\/+$/, '')
 
@@ -28,6 +29,7 @@ export const LnurlProvider = ({ children }: { children: ReactNode }) => {
   const [lnurl, setLnurl] = useState('')
   const [active, setActive] = useState(false)
   const [error, setError] = useState<string | undefined>()
+  const [credentials, setCredentials] = useState<LnurlSessionCredentials | undefined>()
 
   const sessionIdRef = useRef<string | null>(null)
   const tokenRef = useRef<string | null>(null)
@@ -220,11 +222,15 @@ export const LnurlProvider = ({ children }: { children: ReactNode }) => {
     [stopSession, postInvoice, postError, handleInvoiceRequest],
   )
 
-  const privateKeyHex = (svcWallet?.identity as { toHex?: () => string } | undefined)?.toHex?.()
-  const credentials = useMemo(
-    () => (privateKeyHex ? deriveLnurlCredentials(privateKeyHex) : undefined),
-    [privateKeyHex],
-  )
+  useEffect(() => {
+    if (!svcWallet) return
+    svcWallet.identity.xOnlyPublicKey().then((xOnlyPublicKey) => {
+      if (xOnlyPublicKey) {
+        const credentials = deriveLnurlCredentials(hex.encode(xOnlyPublicKey))
+        setCredentials(credentials)
+      }
+    })
+  }, [svcWallet])
 
   useEffect(() => {
     const ready = !!lnurlServerBaseUrl && !!credentials && connected && !!arkadeSwaps && !swapsInitError
