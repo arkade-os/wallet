@@ -35,7 +35,7 @@ import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
-import { hasMnemonic, getMnemonic } from '../lib/mnemonic'
+import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
@@ -127,7 +127,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
-  const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
+  const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo, setLnurlInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
 
   const [txs, setTxs] = useState<Tx[]>([])
@@ -618,10 +618,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const mnemonicIdentity = MnemonicIdentity.fromMnemonic(credentials.mnemonic, { isMainnet: isMainnet(network) })
       identity = mnemonicIdentity
       pubkey = hex.encode(await mnemonicIdentity.compressedPublicKey())
+      const secret = deriveNostrKeyFromMnemonic(credentials.mnemonic, isMainnet(network))
+      setLnurlInfo(secret)
       updateConfig({ ...config, pubkey })
     } else if (credentials.privateKey) {
       identity = SingleKey.fromPrivateKey(credentials.privateKey)
       pubkey = hex.encode(secp.getPublicKey(credentials.privateKey))
+      setLnurlInfo(credentials.privateKey)
       updateConfig({ ...config, pubkey })
     } else {
       throw new Error('Either mnemonic or privateKey must be provided')

@@ -53,6 +53,8 @@ export type SwapInfo = BoltzSwap | undefined
 
 export type TxInfo = Tx | undefined
 
+export type LnUrlInfo = Uint8Array | undefined
+
 interface FlowContextProps {
   initInfo: InitInfo
   noteInfo: NoteInfo
@@ -70,6 +72,8 @@ interface FlowContextProps {
   setTxInfo: (arg0: TxInfo) => void
   assetInfo: AssetDetails
   setAssetInfo: (arg0: AssetDetails) => void
+  lnurlInfo: LnUrlInfo
+  setLnurlInfo: (arg0: LnUrlInfo) => void
 }
 
 export const emptyInitInfo: InitInfo = {
@@ -117,6 +121,8 @@ export const FlowContext = createContext<FlowContextProps>({
   setTxInfo: () => {},
   assetInfo: emptyAssetInfo,
   setAssetInfo: () => {},
+  lnurlInfo: undefined,
+  setLnurlInfo: () => {},
 })
 
 export const FlowProvider = ({ children }: { children: ReactNode }) => {
@@ -128,6 +134,7 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
   const [swapInfo, setSwapInfo] = useState<SwapInfo>()
   const [txInfo, setTxInfo] = useState<TxInfo>()
   const [assetInfo, setAssetInfo] = useState<AssetDetails>(emptyAssetInfo)
+  const [lnurlInfo, setLnurlInfo] = useState<LnUrlInfo>()
 
   return (
     <FlowContext.Provider
@@ -135,6 +142,7 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
         initInfo,
         noteInfo,
         deepLinkInfo,
+        lnurlInfo,
         recvInfo,
         sendInfo,
         swapInfo,
@@ -148,6 +156,7 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
         setTxInfo,
         assetInfo,
         setAssetInfo,
+        setLnurlInfo,
       }}
     >
       {children}

@@ -2,10 +2,10 @@ import { ReactNode, createContext, useCallback, useContext, useEffect, useRef, u
 import { lnurlServerUrl as rawLnurlServerUrl } from '../lib/constants'
 import { consoleError } from '../lib/logs'
 import { deriveLnurlCredentials, type LnurlSessionCredentials } from '../lib/lnurl'
-import { WalletContext } from './wallet'
 import { SwapsContext } from './swaps'
 import { NotificationsContext } from './notifications'
 import { hex } from '@scure/base'
+import { FlowContext } from './flow'
 
 const lnurlServerBaseUrl = rawLnurlServerUrl?.replace(/\/+$/, '')
 
@@ -22,7 +22,7 @@ export const LnurlContext = createContext<LnurlContextProps>({
 })
 
 export const LnurlProvider = ({ children }: { children: ReactNode }) => {
-  const { svcWallet } = useContext(WalletContext)
+  const { lnurlInfo, setLnurlInfo } = useContext(FlowContext)
   const { arkadeSwaps, connected, swapsInitError, createReverseSwap } = useContext(SwapsContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
 
@@ -223,16 +223,6 @@ export const LnurlProvider = ({ children }: { children: ReactNode }) => {
   )
 
   useEffect(() => {
-    if (!svcWallet) return
-    svcWallet.identity.xOnlyPublicKey().then((xOnlyPublicKey) => {
-      if (xOnlyPublicKey) {
-        const credentials = deriveLnurlCredentials(hex.encode(xOnlyPublicKey))
-        setCredentials(credentials)
-      }
-    })
-  }, [svcWallet])
-
-  useEffect(() => {
     const ready = !!lnurlServerBaseUrl && !!credentials && connected && !!arkadeSwaps && !swapsInitError
 
     if (ready) {
@@ -243,6 +233,14 @@ export const LnurlProvider = ({ children }: { children: ReactNode }) => {
 
     return () => stopSession()
   }, [credentials, connected, !!arkadeSwaps, swapsInitError])
+
+  useEffect(() => {
+    if (!lnurlInfo) return
+    const seckey = hex.encode(lnurlInfo)
+    const credentials = deriveLnurlCredentials(seckey)
+    setCredentials(credentials)
+    setLnurlInfo(undefined)
+  }, [lnurlInfo])
 
   return <LnurlContext.Provider value={{ lnurl, active, error }}>{children}</LnurlContext.Provider>
 }
