@@ -42,8 +42,14 @@ export default function InitRestore() {
   const [someKey, setSomeKey] = useState<string>()
 
   useEffect(() => {
-    if (!someKey) return
-    const trimmed = someKey.trim()
+    const trimmed = someKey?.trim() ?? ''
+    if (!trimmed) {
+      setMnemonic(undefined)
+      setPrivateKey(undefined)
+      setLabel(buttonLabel)
+      setError('')
+      return
+    }
 
     // Detect mnemonic (input contains spaces)
     if (trimmed.includes(' ')) {
