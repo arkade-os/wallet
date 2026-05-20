@@ -1,13 +1,21 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import Wallet from '../../../screens/Wallet/Index'
 
 describe('Wallet screen', () => {
-  it('renders the wallet screen with the correct elements', () => {
+  it('renders the wallet screen with the correct elements', async () => {
+    const user = userEvent.setup()
+
     render(<Wallet />)
-    expect(screen.getByText('$0.00')).toBeInTheDocument()
+    expect(screen.getAllByText('$0.00').length).toBeGreaterThan(0)
     expect(screen.getByText('Send')).toBeInTheDocument()
     expect(screen.getByText('Receive')).toBeInTheDocument()
+    expect(screen.getByTestId('home-action-swap')).toBeEnabled()
+    await user.click(screen.getByTestId('home-action-swap'))
+    expect(screen.getByTestId('swap-coming-soon-sheet')).toBeInTheDocument()
+    expect(screen.getByText('Assets')).toBeInTheDocument()
+    expect(screen.getByText('Bitcoin')).toBeInTheDocument()
     expect(screen.getByText('No transactions yet')).toBeInTheDocument()
   })
 })

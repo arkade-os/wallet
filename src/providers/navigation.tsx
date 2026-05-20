@@ -14,6 +14,7 @@ import SendDetails from '../screens/Wallet/Send/Details'
 import SendSuccess from '../screens/Wallet/Send/Success'
 import Transaction from '../screens/Wallet/Transaction'
 import Unlock from '../screens/Wallet/Unlock'
+import Activity from '../screens/Wallet/Activity'
 import Vtxos from '../screens/Settings/Vtxos'
 import Wallet from '../screens/Wallet/Index'
 import Settings from '../screens/Settings/Index'
@@ -40,6 +41,7 @@ import Unavailable from '../screens/Wallet/Unavailable'
 export type NavigationDirection = 'forward' | 'back' | 'none'
 
 export enum Pages {
+  Activity,
   AppBoltz,
   AppBoltzSettings,
   AppBoltzSwap,
@@ -76,6 +78,7 @@ export enum Pages {
   Unlock,
   Vtxos,
   Wallet,
+  WalletSettings,
 }
 
 export enum Tabs {
@@ -86,6 +89,7 @@ export enum Tabs {
 }
 
 const pageTab = {
+  [Pages.Activity]: Tabs.Wallet,
   [Pages.AppBoltz]: Tabs.Apps,
   [Pages.AppBoltzSettings]: Tabs.Apps,
   [Pages.AppBoltzSwap]: Tabs.Apps,
@@ -122,6 +126,7 @@ const pageTab = {
   [Pages.Unlock]: Tabs.None,
   [Pages.Vtxos]: Tabs.Settings,
   [Pages.Wallet]: Tabs.Wallet,
+  [Pages.WalletSettings]: Tabs.Wallet,
 }
 
 // Root pages of each tab — tab switches between these get no animation
@@ -144,6 +149,8 @@ export const subNavHandler = {
 
 export const pageComponent = (page: Pages): JSX.Element => {
   switch (page) {
+    case Pages.Activity:
+      return <Activity />
     case Pages.AppBoltz:
       return <AppBoltz />
     case Pages.AppBoltzSettings:
@@ -216,6 +223,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <Vtxos />
     case Pages.Wallet:
       return <Wallet />
+    case Pages.WalletSettings:
+      return <Settings />
     default:
       return <></>
   }

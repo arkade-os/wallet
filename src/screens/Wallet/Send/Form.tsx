@@ -119,6 +119,16 @@ export default function SendForm() {
     setError(str === '' ? (aspInfo.unreachable ? 'Ark server unreachable' : '') : str)
   }
 
+  useEffect(() => {
+    if (!sendInfo.scan) return
+
+    const nextSendInfo = { ...sendInfo }
+    delete nextSendInfo.scan
+    setKeys(false)
+    setScan(true)
+    setSendInfo(nextSendInfo)
+  }, [sendInfo.scan])
+
   const setState = (info: SendInfo) => {
     setScan(false)
     setSendInfo(info)

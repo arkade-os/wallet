@@ -1,3 +1,4 @@
+import { centsToUnits, prettyAssetAmount } from './assets'
 import { fiatDecimalsFor, FIAT_SYMBOLS } from './fiat'
 import { Fiats, Tx } from './types'
 import { Decimal } from 'decimal.js'
@@ -35,11 +36,54 @@ export const prettyAmount = (sats: number, suffix?: string, decimals = 2): strin
   return `${prettyNumber(sats, 0)} ${sats === 1 ? 'SAT' : 'SATS'}`
 }
 
-export const prettyFiatAmount = (amount: number, currency: Fiats): string => {
+type FiatAmountFormatOptions = {
+  maximumFractionDigits?: number
+  minimumFractionDigits?: number
+}
+
+export const formatFiatAmountParts = (
+  amount: number,
+  currency: Fiats,
+  options: FiatAmountFormatOptions = {},
+): { amount: string; unit: string } => {
   const symbol = FIAT_SYMBOLS[currency]
-  const decimals = fiatDecimalsFor(currency)
-  const formatted = prettyNumber(amount, decimals, true, decimals)
-  return symbol ? `${symbol}${formatted}` : `${formatted} ${currency}`
+  const maximumFractionDigits = options.maximumFractionDigits ?? fiatDecimalsFor(currency)
+  const minimumFractionDigits = options.minimumFractionDigits ?? maximumFractionDigits
+  const formatted = prettyNumber(amount, maximumFractionDigits, true, minimumFractionDigits)
+
+  return {
+    amount: symbol ? `${symbol}${formatted}` : formatted,
+    unit: symbol ? '' : currency,
+  }
+}
+
+export const prettyFiatAmount = (amount: number, currency: Fiats, options?: FiatAmountFormatOptions): string => {
+  const parts = formatFiatAmountParts(amount, currency, options)
+  return parts.unit ? `${parts.amount} ${parts.unit}` : parts.amount
+}
+
+export const fiatForTicker = (ticker: string | undefined): Fiats | undefined => {
+  const normalized = ticker?.trim().toUpperCase()
+  if (normalized === 'USD' || normalized === 'USDT' || normalized === 'USDC' || normalized === 'AUSD') return Fiats.USD
+  if (normalized === 'CHF') return Fiats.CHF
+  if (normalized === 'EUR') return Fiats.EUR
+  if (normalized === 'GBP') return Fiats.GBP
+  if (normalized === 'JPY') return Fiats.JPY
+  if (normalized === 'CNY') return Fiats.CNY
+}
+
+export const prettyCurrencyAssetAmount = (
+  amount: bigint,
+  decimals: number,
+  ticker: string | undefined,
+  useGrouping = true,
+): string => {
+  const fiat = fiatForTicker(ticker)
+  if (!fiat) return prettyAssetAmount(amount, decimals, useGrouping)
+
+  const unitAmount = Decimal.div(amount.toString(), Decimal.pow(10, decimals)).toNumber()
+  const fiatDecimals = fiatDecimalsFor(fiat)
+  return prettyNumber(unitAmount, fiatDecimals, useGrouping, fiatDecimals)
 }
 
 export const prettyDelta = (seconds: number, long = true): string => {
@@ -116,6 +160,11 @@ export const prettyNumber = (
     minimumFractionDigits,
     useGrouping,
   }).format(num)
+}
+
+export const formatAssetAmount = (amount: bigint, decimals: number): string => {
+  if (decimals === 0) return prettyNumber(Number(amount), 0)
+  return prettyNumber(Number(centsToUnits(amount, decimals)), decimals)
 }
 
 export const isIssuance = (tx: Tx): boolean => {

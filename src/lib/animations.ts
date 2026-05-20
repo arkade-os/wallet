@@ -77,17 +77,34 @@ export const overlaySlideUp: Variants = {
 export const walletLoadInContainer: Variants = {
   initial: {},
   animate: {
-    transition: { staggerChildren: STAGGER_DELAY },
+    transition: { delayChildren: 0.04, staggerChildren: 0.09 },
   },
 }
 
 export const walletLoadInChild: Variants = {
-  initial: { y: -16, x: -2, opacity: 0 },
+  initial: { y: 18, opacity: 0, scale: 0.985 },
   animate: {
     y: 0,
-    x: 0,
     opacity: 1,
-    transition: { duration: STAGGER_DURATION, ease: EASE_OUT_QUINT },
+    scale: 1,
+    transition: { duration: 0.34, ease: EASE_OUT_QUINT },
+  },
+}
+
+export const homeActionStaggerContainer: Variants = {
+  initial: {},
+  animate: {
+    transition: { delayChildren: 0.04, staggerChildren: 0.045 },
+  },
+}
+
+export const homeActionStaggerChild: Variants = {
+  initial: { y: 10, opacity: 0, scale: 0.96 },
+  animate: {
+    y: 0,
+    opacity: 1,
+    scale: 1,
+    transition: { duration: 0.28, ease: EASE_OUT_QUINT },
   },
 }
 

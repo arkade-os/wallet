@@ -43,6 +43,7 @@ export type SendInfo = {
   pendingSwap?: BoltzSwap
   recipient?: string
   satoshis?: number
+  scan?: boolean
   swapId?: string
   total?: number
   text?: string
