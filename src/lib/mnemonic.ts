@@ -22,6 +22,9 @@ export const getMnemonic = async (password: string): Promise<string> => {
 /**
  * Derives a 32-byte private key from a mnemonic using BIP86 Taproot path.
  * Used for Nostr backup operations (NIP-44 encryption needs raw seckey).
+ * Note: this path (m/86'/coinType'/0'/0/0) matches MnemonicIdentity — the Nostr
+ * backup key IS the wallet signing key, a deliberate tradeoff matching legacy
+ * raw-privkey behavior where the same key served both purposes.
  */
 export const deriveNostrKeyFromMnemonic = (mnemonic: string, isMainnet: boolean): Uint8Array => {
   if (!validateMnemonic(mnemonic, wordlist)) {
