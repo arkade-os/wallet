@@ -179,11 +179,23 @@ describe('asset utilities', () => {
     it('formats bigint with grouping by default', () => {
       expect(prettyAssetNumber('0')).toBe('0')
       expect(prettyAssetNumber('1000')).toBe('1,000')
+      expect(prettyAssetNumber('-1000')).toBe('-1,000')
       expect(prettyAssetNumber('123456789')).toBe('123,456,789')
+      expect(prettyAssetNumber('-123456789')).toBe('-123,456,789')
     })
 
     it('formats negative bigint', () => {
       expect(prettyAssetNumber('-1000')).toBe('-1,000')
+    })
+
+    it('formats very small number', () => {
+      expect(prettyAssetNumber('0.00000001')).toBe('0.00000001')
+      expect(prettyAssetNumber('-0.00000001')).toBe('-0.00000001')
+    })
+
+    it('formats number with grouping', () => {
+      expect(prettyAssetNumber('123,456.789')).toBe('123,456.789')
+      expect(prettyAssetNumber('-123,456.789')).toBe('-123,456.789')
     })
 
     it('formats very large bigints without precision loss', () => {

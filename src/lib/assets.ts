@@ -42,10 +42,11 @@ export const prettyAssetAmountHide = (value: bigint, suffix: string): string => 
   return suffix ? `${dots} ${suffix}` : dots
 }
 
-export const prettyAssetNumber = (num?: string | number, maximumFractionDigits = 8): string => {
+export const prettyAssetNumber = (num?: string | number, maximumFractionDigits = MAX_DECIMALS): string => {
   if (num === undefined || num === null) return '0'
   if (typeof num === 'number') num = num.toString()
-  const [integer, fraction = ''] = num.split('.')
+  let [integer, fraction = ''] = num.split('.')
+  integer = integer.replace(/[^0-9-]+/g, '') // remove non-digit and non-negative sign characters
   const negative = integer === '-0'
   const paddedFraction = fraction
     .padEnd(MAX_DECIMALS, '0') // fill with zeros to ensure consistent formatting
