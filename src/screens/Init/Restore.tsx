@@ -139,8 +139,8 @@ export default function InitRestore() {
                   <ErrorMessage error={Boolean(error)} text={error} />
                 </FlexCol>
                 <TextSecondary wrap>
-                  Enter your 12-word recovery phrase, or a private key starting with 'nsec'. Do not share it with
-                  anyone.
+                  Enter your 12-word recovery phrase, or a private key starting with 'nsec' or a raw hex key. Do not
+                  share it with anyone.
                 </TextSecondary>
               </FlexCol>
             </OnboardStaggerChild>
