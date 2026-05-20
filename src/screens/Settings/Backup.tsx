@@ -80,8 +80,12 @@ export default function Backup() {
         : enteredPassword.current
       if (!password) return
       const result = await verifyPassword(password)
-      setError(result ? '' : 'Invalid password')
-      setSecret(result ?? '')
+      if (!result) {
+        setError('Invalid password')
+        return
+      }
+      setError('')
+      setSecret(result)
     }
     setShowSecret(true)
     setDialog(false)
