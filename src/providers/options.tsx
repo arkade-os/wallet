@@ -13,6 +13,8 @@ import { isButtonBack, subNavHandler } from './navigation'
 import CogIcon from '../icons/Cog'
 import LockIcon from '../icons/Lock'
 import PuzzleIcon from '../icons/Puzzle'
+import CoinsIcon from '../icons/Coins'
+import HashIcon from '../icons/Hash'
 
 export interface Option {
   icon: ReactElement
@@ -39,6 +41,11 @@ export const options: Option[] = [
   {
     icon: <CogIcon />,
     option: SettingsOptions.General,
+    section: SettingsSections.General,
+  },
+  {
+    icon: <CoinsIcon />,
+    option: SettingsOptions.ArkadeMint,
     section: SettingsSections.General,
   },
   {
@@ -77,7 +84,7 @@ export const options: Option[] = [
     section: SettingsSections.General,
   },
   {
-    icon: <></>,
+    icon: <ServerIcon />,
     option: SettingsOptions.Delegates,
     section: SettingsSections.Advanced,
   },
@@ -87,7 +94,7 @@ export const options: Option[] = [
     section: SettingsSections.Advanced,
   },
   {
-    icon: <></>,
+    icon: <HashIcon />,
     option: SettingsOptions.Contracts,
     section: SettingsSections.Advanced,
   },
@@ -112,7 +119,7 @@ export const options: Option[] = [
     section: SettingsSections.Config,
   },
   {
-    icon: <></>,
+    icon: <LockIcon />,
     option: SettingsOptions.Password,
     section: SettingsSections.Advanced,
   },

@@ -4,6 +4,7 @@ import ReceiveIcon from '../../icons/Receive'
 import ScanIcon from '../../icons/Scan'
 import SendIcon from '../../icons/Send'
 import SwapIcon from '../../icons/Swap'
+import Button from '../../components/Button'
 import SheetModal from '../../components/SheetModal'
 import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
@@ -130,9 +131,7 @@ function SwapComingSoonSheet({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             We are polishing the swap experience before turning it on here.
           </p>
         </div>
-        <button type='button' className='swap-coming-soon__button' onClick={onClose}>
-          Got it
-        </button>
+        <Button label='Got it' onClick={onClose} />
       </div>
     </SheetModal>
   )

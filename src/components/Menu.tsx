@@ -1,12 +1,10 @@
 import { useContext } from 'react'
 import ArrowIcon from '../icons/Arrow'
 import { Option, OptionsContext } from '../providers/options'
-import Text from './Text'
-import FlexRow from './FlexRow'
 import { SettingsOptions } from '../lib/types'
 import FlexCol from './FlexCol'
-import Focusable from './Focusable'
 import { hapticSubtle } from '../lib/haptics'
+import { cn } from '@/lib/utils'
 
 interface MenuProps {
   rows: Option[]
@@ -16,46 +14,28 @@ interface MenuProps {
 export default function Menu({ rows, styled }: MenuProps) {
   const { setOption } = useContext(OptionsContext)
 
-  const bgColor = styled ? 'var(--neutral-100)' : 'transparent'
-
-  const rowStyle = (option: SettingsOptions) => ({
-    alignItems: 'center',
-    backgroundColor: option === SettingsOptions.Reset ? 'var(--redbg)' : bgColor,
-    borderBottom: '1px solid var(--neutral-200)',
-    color: option === SettingsOptions.Reset ? 'white' : 'var(--fg)',
-    cursor: 'pointer',
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: '0.7rem 1rem',
-    width: '100%',
-  })
+  const selectOption = (option: SettingsOptions) => {
+    hapticSubtle()
+    setOption(option)
+  }
 
   return (
-    <FlexCol gap='0'>
+    <FlexCol gap='0' className={styled ? 'settings-row-group' : 'settings-row-group settings-row-group--plain'}>
       {rows.map(({ icon, option }) => (
-        <Focusable
-          onEnter={() => {
-            hapticSubtle()
-            setOption(option)
-          }}
+        <button
+          type='button'
+          onClick={() => selectOption(option)}
+          className={cn('settings-row', option === SettingsOptions.Reset && 'settings-row--danger')}
           key={option}
         >
-          <FlexRow between>
-            <div
-              onClick={() => {
-                hapticSubtle()
-                setOption(option)
-              }}
-              style={rowStyle(option)}
-            >
-              <FlexRow>
-                {styled ? icon : null}
-                <Text capitalize>{option}</Text>
-              </FlexRow>
-              <ArrowIcon />
-            </div>
-          </FlexRow>
-        </Focusable>
+          <span className='settings-row__main'>
+            {styled ? <span className='settings-row__icon'>{icon}</span> : null}
+            <span className='settings-row__label'>{option}</span>
+          </span>
+          <span className='settings-row__chevron' aria-hidden='true'>
+            <ArrowIcon />
+          </span>
+        </button>
       ))}
     </FlexCol>
   )

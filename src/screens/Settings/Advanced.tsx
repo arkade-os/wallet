@@ -5,6 +5,7 @@ import Content from '../../components/Content'
 import { SettingsOptions, SettingsSections } from '../../lib/types'
 import Menu from '../../components/Menu'
 import { DevModeContext } from '../../providers/devMode'
+import Padded from '../../components/Padded'
 
 export default function Advanced() {
   const { devMode } = useContext(DevModeContext)
@@ -16,7 +17,14 @@ export default function Advanced() {
     <>
       <Header text='Advanced' back />
       <Content>
-        <Menu rows={rows} />
+        <Padded>
+          <div className='settings-page'>
+            <section className='settings-section'>
+              <p className='settings-section-label'>Advanced</p>
+              <Menu rows={rows} styled />
+            </section>
+          </div>
+        </Padded>
       </Content>
     </>
   )

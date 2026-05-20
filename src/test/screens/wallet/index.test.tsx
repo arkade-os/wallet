@@ -16,6 +16,7 @@ describe('Wallet screen', () => {
     expect(screen.getByTestId('swap-coming-soon-sheet')).toBeInTheDocument()
     expect(screen.getByText('Assets')).toBeInTheDocument()
     expect(screen.getByText('Bitcoin')).toBeInTheDocument()
-    expect(screen.getByText('No transactions yet')).toBeInTheDocument()
+    expect(screen.queryByText('Recent activity')).not.toBeInTheDocument()
+    expect(screen.queryByText('No transactions yet')).not.toBeInTheDocument()
   })
 })

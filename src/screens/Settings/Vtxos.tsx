@@ -13,8 +13,7 @@ import FlexRow from '../../components/FlexRow'
 import { ConfigContext } from '../../providers/config'
 import { extractError } from '../../lib/error'
 import ErrorMessage from '../../components/Error'
-import Info from '../../components/Info'
-import LoadingIcon from '../../icons/Loading'
+import WaitingForRound from '../../components/WaitingForRound'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { getInputsToSettle, settleVtxos } from '../../lib/asp'
@@ -298,74 +297,73 @@ export default function Vtxos() {
         text={showList ? 'Virtual Coins' : 'Next Renewal'}
       />
       <Content>
-        <Padded>
-          <FlexCol className='scroll-fade'>
-            <ErrorMessage error={Boolean(error)} text={error} />
-            {rollingover ? (
-              <Info color='purple' icon={<LoadingIcon small />} title='Renewing'>
-                <Text wrap>Renewing your virtual coins. This may take a few moments.</Text>
-              </Info>
-            ) : null}
-            {listableVtxos.length + allUtxos.length === 0 ? (
-              <EmptyCoinsList />
-            ) : showList ? (
-              <FlexCol gap='2rem'>
-                {success ? <WarningBox green text='Coins renewed successfully' /> : null}
-                {listableVtxos.length > 0 ? (
-                  <FlexCol gap='0.5rem'>
-                    <Text capitalize color='neutral-500' smaller>
-                      Your virtual coins with amount and expiration
-                    </Text>
-                    {listableVtxos.map((v: ExtendedVirtualCoin) => (
-                      <VtxoLine key={v.txid} vtxo={v} />
-                    ))}
-                  </FlexCol>
-                ) : null}
-                {!hideUtxos && allUtxos.length > 0 ? (
-                  <FlexCol gap='0.5rem'>
-                    <Text capitalize color='neutral-500' smaller>
-                      Your boarding utxos with amount and expiration
-                    </Text>
-                    {allUtxos.map((u: ExtendedCoin) => (
-                      <UtxoLine key={u.txid} utxo={u} />
-                    ))}
-                  </FlexCol>
-                ) : null}
-              </FlexCol>
-            ) : (
-              <>
-                <FlexCol gap='0.5rem' margin='0 0 1rem 0'>
-                  <Text capitalize color='neutral-500' smaller>
-                    Next renewal
-                  </Text>
-                  <Box>
-                    <Text>{prettyDate(wallet.nextRollover)}</Text>
-                    <Text>{prettyAgo(wallet.nextRollover)}</Text>
-                  </Box>
+        {rollingover ? (
+          <WaitingForRound rollover />
+        ) : (
+          <Padded>
+            <FlexCol className='scroll-fade'>
+              <ErrorMessage error={Boolean(error)} text={error} />
+              {listableVtxos.length + allUtxos.length === 0 ? (
+                <EmptyCoinsList />
+              ) : showList ? (
+                <FlexCol gap='2rem'>
                   {success ? <WarningBox green text='Coins renewed successfully' /> : null}
-                </FlexCol>
-                <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
-                  <TextSecondary>First virtual coin expiration: {prettyAgo(wallet.nextRollover)}.</TextSecondary>
-                  {wallet.thresholdMs ? (
-                    <TextSecondary>
-                      Automatic renewal occurs for virtual coins expiring within{' '}
-                      {prettyDelta(Math.floor(wallet.thresholdMs / 1_000))}.
-                    </TextSecondary>
+                  {listableVtxos.length > 0 ? (
+                    <FlexCol gap='0.5rem'>
+                      <Text capitalize color='neutral-500' smaller>
+                        Your virtual coins with amount and expiration
+                      </Text>
+                      {listableVtxos.map((v: ExtendedVirtualCoin) => (
+                        <VtxoLine key={v.txid} vtxo={v} />
+                      ))}
+                    </FlexCol>
                   ) : null}
-                  {startTime && duration ? (
-                    <>
-                      <TextSecondary>Settlement during market hours offers lower fees.</TextSecondary>
+                  {!hideUtxos && allUtxos.length > 0 ? (
+                    <FlexCol gap='0.5rem'>
+                      <Text capitalize color='neutral-500' smaller>
+                        Your boarding utxos with amount and expiration
+                      </Text>
+                      {allUtxos.map((u: ExtendedCoin) => (
+                        <UtxoLine key={u.txid} utxo={u} />
+                      ))}
+                    </FlexCol>
+                  ) : null}
+                </FlexCol>
+              ) : (
+                <>
+                  <FlexCol gap='0.5rem' margin='0 0 1rem 0'>
+                    <Text capitalize color='neutral-500' smaller>
+                      Next renewal
+                    </Text>
+                    <Box>
+                      <Text>{prettyDate(wallet.nextRollover)}</Text>
+                      <Text>{prettyAgo(wallet.nextRollover)}</Text>
+                    </Box>
+                    {success ? <WarningBox green text='Coins renewed successfully' /> : null}
+                  </FlexCol>
+                  <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
+                    <TextSecondary>First virtual coin expiration: {prettyAgo(wallet.nextRollover)}.</TextSecondary>
+                    {wallet.thresholdMs ? (
                       <TextSecondary>
-                        Next market hour: {prettyDate(startTime)} ({prettyAgo(startTime, true)}) for{' '}
-                        {prettyDelta(duration)}.
+                        Automatic renewal occurs for virtual coins expiring within{' '}
+                        {prettyDelta(Math.floor(wallet.thresholdMs / 1_000))}.
                       </TextSecondary>
-                    </>
-                  ) : null}
-                </FlexCol>
-              </>
-            )}
-          </FlexCol>
-        </Padded>
+                    ) : null}
+                    {startTime && duration ? (
+                      <>
+                        <TextSecondary>Settlement during market hours offers lower fees.</TextSecondary>
+                        <TextSecondary>
+                          Next market hour: {prettyDate(startTime)} ({prettyAgo(startTime, true)}) for{' '}
+                          {prettyDelta(duration)}.
+                        </TextSecondary>
+                      </>
+                    ) : null}
+                  </FlexCol>
+                </>
+              )}
+            </FlexCol>
+          </Padded>
+        )}
       </Content>
       {utxoTxsAllowed() && vtxoTxsAllowed() ? (
         <>

@@ -64,6 +64,7 @@ export enum SettingsOptions {
   Menu = 'menu',
   About = 'about',
   Advanced = 'advanced',
+  ArkadeMint = 'Arkade Mint',
   Backup = 'backup',
   General = 'general',
   Haptics = 'haptic feedback',

@@ -1,20 +1,16 @@
 import { AnimatePresence } from 'framer-motion'
 import { ConfigContext } from './providers/config'
-import { NavigationContext, pageComponent, Pages, Tabs, type NavigationDirection } from './providers/navigation'
+import { NavigationContext, pageComponent, Pages, type NavigationDirection } from './providers/navigation'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { isInAppBrowser } from './lib/browser'
 import { detectJSCapabilities } from './lib/jsCapabilities'
-import { OptionsContext } from './providers/options'
 import { WalletContext } from './providers/wallet'
 import { FlowContext } from './providers/flow'
-import { SettingsOptions } from './lib/types'
 import { AspContext } from './providers/asp'
-import { hapticLight } from './lib/haptics'
 import { setBootAnimActive as syncBootAnimFlag } from './lib/logoAnchor'
 import { PageTransition } from './components/PageTransition'
 import BootError from './components/BootError'
 import LoadingLogo from './components/LoadingLogo'
-import PillNavbarOverlay from './components/PillNavbarOverlay'
 import { useReducedMotion } from './hooks/useReducedMotion'
 import { useLoadingStatus } from './hooks/useLoadingStatus'
 import { defaultPassword } from './lib/constants'
@@ -45,9 +41,8 @@ function PageAnimWrapper({
 export default function App() {
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
-  const { direction, navigate, screen, tab } = useContext(NavigationContext)
+  const { direction, navigate, screen } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
-  const { option, setOption } = useContext(OptionsContext)
   const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError, devAutoInitFailed } =
     useContext(WalletContext)
 
@@ -122,22 +117,6 @@ export default function App() {
     hasDevAutoInit,
     initialized,
   ])
-
-  const handleWallet = () => {
-    hapticLight()
-    navigate(Pages.Wallet)
-  }
-
-  const handleApps = () => {
-    hapticLight()
-    navigate(Pages.Apps)
-  }
-
-  const handleSettings = () => {
-    hapticLight()
-    setOption(SettingsOptions.Menu)
-    navigate(Pages.Settings)
-  }
 
   const prefersReduced = useReducedMotion()
   const effectiveDirection = prefersReduced ? 'none' : direction
@@ -249,26 +228,14 @@ export default function App() {
     ) : (
       pageComponent(page)
     )
-  const isSettingsRoot = screen === Pages.Settings && option === SettingsOptions.Menu
-  const showNavbar = page === screen && (screen === Pages.Apps || isSettingsRoot)
-  const shouldRenderNavbar = showNavbar && tab !== Tabs.None && !bootAnimActive
 
   return (
-    <div className={showNavbar ? 'page has-pill-navbar' : 'page'} data-testid='app'>
+    <div className='page' data-testid='app'>
       <PageAnimWrapper animated={shouldAnimatePage} direction={effectiveDirection}>
         <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
           {comp}
         </PageTransition>
       </PageAnimWrapper>
-      {shouldRenderNavbar ? (
-        <PillNavbarOverlay
-          visible={showNavbar}
-          activeTab={tab}
-          onWalletClick={handleWallet}
-          onAppsClick={handleApps}
-          onSettingsClick={handleSettings}
-        />
-      ) : null}
       {bootAnimActive ? (
         loadError ? (
           <BootError />

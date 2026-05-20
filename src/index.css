@@ -181,15 +181,21 @@ iframe {
   &.copy {
     aspect-ratio: 1;
     align-items: center;
-    background: var(--neutral-100);
-    box-shadow: none;
-    color: var(--neutral-300);
+    background: var(--control-secondary-bg);
+    box-shadow:
+      inset 0 0 0 1px var(--control-secondary-ring),
+      0 3px 0 0 var(--control-secondary-shadow);
+    color: var(--control-secondary-fg);
     cursor: pointer;
     display: flex;
     justify-content: center;
     padding: 0;
     touch-action: manipulation;
     width: auto;
+    &.pressed {
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 7%, transparent);
+      transform: translateY(3px);
+    }
   }
   &.dark {
     background: var(--purple);
@@ -212,10 +218,15 @@ iframe {
     color: white;
   }
   &.secondary {
-    background: var(--neutral-200);
-    border-color: var(--black);
-    box-shadow: 0 4px 0 0 rgba(0, 0, 0, 0.1);
-    color: var(--black);
+    background: var(--control-secondary-bg);
+    box-shadow:
+      inset 0 0 0 1px var(--control-secondary-ring),
+      0 4px 0 0 var(--control-secondary-shadow);
+    color: var(--control-secondary-fg);
+    &.pressed {
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
+      transform: translateY(4px);
+    }
   }
   &[size='small'] {
     min-height: 16px;
@@ -555,31 +566,6 @@ button.reminder-button {
   font-size: var(--text-base);
   font-weight: 400;
   line-height: var(--text-base-line);
-}
-
-.swap-coming-soon__button {
-  display: inline-flex;
-  width: 100%;
-  min-height: 3rem;
-  cursor: pointer;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  border-radius: var(--radius-lg);
-  background: var(--fg);
-  color: var(--bg);
-  font-family: var(--font-body);
-  font-size: var(--text-base);
-  font-weight: 500;
-  line-height: 1;
-  touch-action: manipulation;
-  transition:
-    opacity 160ms ease,
-    transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-.swap-coming-soon__button:active {
-  transform: scale(0.985);
 }
 
 .palette-dark .swap-coming-soon__icon {
@@ -1121,7 +1107,8 @@ button.reminder-button {
 
 .header {
   align-items: center;
-  border-bottom: 1px solid var(--neutral-100);
+  border-bottom: 0;
+  box-shadow: 0 1px 0 0 var(--header-divider);
   display: flex;
   min-height: 4rem;
 }
@@ -1649,4 +1636,239 @@ hr {
 
 .cl-switch > input:checked:disabled + span::after {
   background-color: #61b5b4;
+}
+
+/* ================================================
+   Settings
+   ================================================ */
+
+.settings-page {
+  padding: 0.75rem 0 var(--pill-navbar-footer-clearance);
+}
+
+.settings-section {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.settings-section-label {
+  margin: 0;
+  padding: 0 0.125rem;
+  color: color-mix(in srgb, var(--fg) 52%, transparent);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: var(--text-xs-line);
+  text-transform: none;
+}
+
+.settings-row-group {
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  background: var(--bg);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--fg) 5%, transparent),
+    0 1px 2px -1px color-mix(in srgb, var(--fg) 7%, transparent),
+    0 2px 4px 0 color-mix(in srgb, var(--fg) 3%, transparent);
+}
+
+.settings-row-group--plain {
+  background: transparent;
+  box-shadow: none;
+}
+
+.settings-row {
+  width: 100%;
+  min-height: 4rem;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--fg) 5%, transparent);
+  appearance: none;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font: inherit;
+  padding: 0.75rem;
+  text-align: left;
+  touch-action: manipulation;
+  transition:
+    background-color 160ms ease,
+    transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.settings-row-group > .settings-row:first-child,
+.settings-row-group > div:first-child .settings-row {
+  border-top: 0;
+}
+
+.settings-row:focus-visible {
+  background: var(--background-focused);
+}
+
+.settings-row:active {
+  background: color-mix(in srgb, var(--fg) 3.5%, transparent);
+  transform: scale(0.99);
+}
+
+.settings-row__main,
+.settings-row__side {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.settings-row__main {
+  flex: 1;
+}
+
+.settings-row__icon {
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 4%, var(--bg));
+  color: color-mix(in srgb, var(--fg) 54%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 5%, transparent);
+}
+
+.settings-row__icon svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.settings-row__label {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg);
+  font-size: var(--text-base-size);
+  font-weight: 400;
+  line-height: var(--text-base-line);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-row__label::first-letter {
+  text-transform: uppercase;
+}
+
+.settings-row__side {
+  flex: 0 1 auto;
+  justify-content: flex-end;
+  color: color-mix(in srgb, var(--fg) 48%, transparent);
+  font-size: var(--text-sm-size);
+  font-weight: 400;
+  line-height: var(--text-sm-line);
+}
+
+.settings-row__side > span:first-child {
+  max-width: 9.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-row__chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: color-mix(in srgb, var(--fg) 34%, transparent);
+}
+
+.settings-row__chevron svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.settings-select-row {
+  min-height: 3.25rem;
+}
+
+.settings-select-row--first {
+  border-top: 0;
+}
+
+.settings-select-row--selected .settings-row__label {
+  font-weight: 500;
+}
+
+.settings-toggle-card {
+  padding: 0.875rem;
+}
+
+.settings-toggle-card__main {
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.settings-toggle-card__main > span {
+  display: grid;
+  min-width: 0;
+  gap: 0.1875rem;
+}
+
+.settings-toggle-card__subtext {
+  color: color-mix(in srgb, var(--fg) 52%, transparent);
+  font-size: var(--text-sm-size);
+  font-weight: 400;
+  line-height: var(--text-sm-line);
+}
+
+.settings-row--danger {
+  color: color-mix(in srgb, var(--red-700) 82%, var(--fg));
+}
+
+.settings-row--danger .settings-row__icon {
+  background: color-mix(in srgb, var(--red-100) 72%, var(--bg));
+  color: color-mix(in srgb, var(--red-700) 90%, var(--fg));
+}
+
+.settings-row--danger .settings-row__label,
+.settings-row--danger .settings-row__chevron {
+  color: color-mix(in srgb, var(--red-700) 82%, var(--fg));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .settings-row:hover {
+    background: color-mix(in srgb, var(--fg) 3%, transparent);
+  }
+}
+
+html.palette-dark .settings-row-group {
+  background: color-mix(in oklab, var(--fg) 4%, var(--bg));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--fg) 5%, transparent),
+    0 1px 2px -1px color-mix(in srgb, var(--bg) 42%, transparent),
+    0 4px 10px -8px color-mix(in srgb, var(--bg) 70%, transparent);
+}
+
+html.palette-dark .settings-row__icon {
+  background: color-mix(in srgb, var(--fg) 6%, var(--neutral-50));
+  color: color-mix(in srgb, var(--fg) 62%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 5%, transparent);
+}
+
+html.palette-dark .settings-row--danger {
+  color: color-mix(in srgb, var(--red-400) 82%, var(--fg));
+}
+
+html.palette-dark .settings-row--danger .settings-row__icon {
+  background: color-mix(in srgb, var(--red-500) 18%, var(--neutral-50));
+  color: color-mix(in srgb, var(--red-100) 90%, var(--fg));
+}
+
+html.palette-dark .settings-row--danger .settings-row__label,
+html.palette-dark .settings-row--danger .settings-row__chevron {
+  color: color-mix(in srgb, var(--red-400) 82%, var(--fg));
 }

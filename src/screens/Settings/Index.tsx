@@ -22,15 +22,19 @@ import Delegates from './Delegates'
 import SettingsPageTransition from '../../components/SettingsPageTransition'
 import Haptics from './Haptics'
 import Contracts from './Contracts'
+import { NavigationContext, Pages } from '../../providers/navigation'
+import AppAssets from '../Apps/Assets/Index'
 
-function settingsContent(option: SettingsOptions): JSX.Element {
+function settingsContent(option: SettingsOptions, menuBack?: () => void, settingsMenuBack?: () => void): JSX.Element {
   switch (option) {
     case SettingsOptions.Menu:
-      return <SettingsMenu />
+      return <SettingsMenu backFunc={menuBack} />
     case SettingsOptions.About:
       return <About />
     case SettingsOptions.Advanced:
       return <Advanced />
+    case SettingsOptions.ArkadeMint:
+      return <AppAssets back={settingsMenuBack} />
     case SettingsOptions.Backup:
       return <Backup />
     case SettingsOptions.Delegates:
@@ -71,11 +75,14 @@ function settingsContent(option: SettingsOptions): JSX.Element {
 }
 
 export default function Settings() {
-  const { option, direction } = useContext(OptionsContext)
+  const { option, direction, setOption } = useContext(OptionsContext)
+  const { goBack: navigationBack, screen } = useContext(NavigationContext)
+  const menuBack = screen === Pages.WalletSettings ? navigationBack : undefined
+  const settingsMenuBack = () => setOption(SettingsOptions.Menu)
 
   return (
     <SettingsPageTransition direction={direction} optionKey={String(option)}>
-      {settingsContent(option)}
+      {settingsContent(option, menuBack, settingsMenuBack)}
     </SettingsPageTransition>
   )
 }
