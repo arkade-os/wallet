@@ -103,13 +103,12 @@ const TransactionLine = ({
     return (
       <>
         {tx.assets.map((a) => {
-          const accountInfo = accountInfoForAssetId(a.assetId)
           const meta = assetMetadataCache.get(a.assetId)?.metadata
-          const ticker = accountInfo?.ticker ?? meta?.ticker
+          const ticker = meta?.ticker
           const icon = meta?.icon
-          const decimals = accountInfo?.decimals ?? meta?.decimals ?? 8
+          const decimals = meta?.decimals ?? 8
           const accountTicker = accountTickerForAssetTicker(ticker)
-          const label = accountInfo?.label ?? accountTicker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`
+          const label = accountTicker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`
           return (
             <FlexRow key={a.assetId} gap='0.375rem' end>
               <TransactionAssetAvatar icon={icon} ticker={accountTicker ?? ticker} assetId={a.assetId} />
@@ -181,10 +180,8 @@ export default function TransactionsList({ assetIdFilter, mode = 'virtual', limi
   const normalizedMode = mode === 'virtualized' ? 'virtual' : mode
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { assetMetadataCache, txs: allTxs } = useContext(WalletContext)
-  const visibleTxs = allTxs
-    .filter((tx) => !shouldHideDevPrototypeTx(tx, assetMetadataCache))
-    .filter((tx) => matchesAssetFilter(tx, assetIdFilter))
+  const { txs: allTxs } = useContext(WalletContext)
+  const visibleTxs = allTxs.filter((tx) => matchesAssetFilter(tx, assetIdFilter))
   const txs = normalizedMode === 'static' && limit ? visibleTxs.slice(0, limit) : visibleTxs
 
   const focusedRef = useRef(false)
@@ -356,26 +353,4 @@ function accountTickerForAssetTicker(ticker: string | undefined): TokenLogoTicke
   if (normalized === 'USD' || normalized === 'USDT' || normalized === 'USDC' || normalized === 'AUSD') return 'USD'
   if (normalized === 'CHF') return 'CHF'
   if (normalized === 'BRL' || normalized === 'DPIX' || normalized === 'DEPIX') return 'BRL'
-}
-
-function accountInfoForAssetId(
-  assetId: string,
-): { ticker: TokenLogoTicker; label: string; decimals: number } | undefined {
-  if (assetId === 'account:usd') return { ticker: 'USD', label: 'USD', decimals: 2 }
-  if (assetId === 'account:chf') return { ticker: 'CHF', label: 'CHF', decimals: 2 }
-  if (assetId === 'account:brl') return { ticker: 'BRL', label: 'BRL', decimals: 2 }
-}
-
-function shouldHideDevPrototypeTx(
-  tx: Tx,
-  assetMetadataCache: Map<string, { metadata?: { name?: string; ticker?: string } }>,
-): boolean {
-  if (!import.meta.env.DEV || !tx.assets?.length) return false
-
-  return tx.assets.every((asset) => {
-    const meta = assetMetadataCache.get(asset.assetId)?.metadata
-    const ticker = meta?.ticker?.trim().toUpperCase()
-    const name = meta?.name?.trim().toLowerCase()
-    return ticker === 'POP' || name === 'poop' || name === 'hoop'
-  })
 }

@@ -1,6 +1,7 @@
 import { useContext } from 'react'
 import { FiatContext } from '../providers/fiat'
 import { WalletContext } from '../providers/wallet'
+import { truncatedAssetId } from '../lib/assets'
 
 export interface PortfolioRow {
   /** 'btc' for the native bitcoin row. */
@@ -28,9 +29,25 @@ export interface PortfolioFiat {
 }
 
 export function usePortfolioFiat(): PortfolioFiat {
-  const { balance } = useContext(WalletContext)
+  const { assetBalances, assetMetadataCache, balance } = useContext(WalletContext)
   const { toFiat } = useContext(FiatContext)
   const totalFiat = toFiat(balance)
+  const assetRows = assetBalances.map((asset) => {
+    const meta = assetMetadataCache.get(asset.assetId)?.metadata
+    const decimals = meta?.decimals ?? 8
+
+    return {
+      assetId: asset.assetId,
+      name: meta?.name ?? truncatedAssetId(asset.assetId) ?? 'Asset',
+      ticker: meta?.ticker ?? 'TKN',
+      icon: meta?.icon,
+      decimals,
+      balance: asset.amount,
+      fiatAmount: 0,
+      satsEquivalent: 0,
+      hasFiatPrice: false,
+    } satisfies PortfolioRow
+  })
 
   return {
     totalFiat,
@@ -46,6 +63,7 @@ export function usePortfolioFiat(): PortfolioFiat {
         satsEquivalent: balance,
         hasFiatPrice: true,
       },
+      ...assetRows,
     ],
   }
 }

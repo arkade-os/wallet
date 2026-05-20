@@ -67,6 +67,7 @@ export default function App() {
 
   const passwordlessBootAttempted = useRef(false)
   const passwordlessReloadTimer = useRef<ReturnType<typeof setTimeout>>()
+  const devAutoInitHomeRedirected = useRef(false)
   const hasDevAutoInit =
     import.meta.env.DEV &&
     Boolean(import.meta.env.VITE_DEV_NSEC) &&
@@ -187,8 +188,14 @@ export default function App() {
   }, [allChecksReady, wallet.pubkey, initialized, authState, unlockWallet])
 
   useEffect(() => {
+    if (!hasDevAutoInit) devAutoInitHomeRedirected.current = false
+  }, [hasDevAutoInit])
+
+  useEffect(() => {
     if (!hasDevAutoInit) return
     if (!initialized || !dataReady || !wallet.pubkey || authState !== 'authenticated') return
+    if (devAutoInitHomeRedirected.current) return
+    devAutoInitHomeRedirected.current = true
     if (screen !== Pages.Wallet) navigate(Pages.Wallet)
   }, [hasDevAutoInit, initialized, dataReady, wallet.pubkey, authState, screen, navigate])
 
