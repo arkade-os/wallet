@@ -26,7 +26,10 @@ export default function InitConnect() {
   const { password, privateKey, mnemonic } = initInfo
 
   useEffect(() => {
-    if (!password) return
+    if (!password || (!mnemonic && !privateKey)) {
+      abortConnectionWithError(new Error('Missing credentials'))
+      return
+    }
     if (mnemonic) {
       setMnemonic(mnemonic, password)
         .then(() => initWallet({ mnemonic }))
