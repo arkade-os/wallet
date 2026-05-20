@@ -53,8 +53,7 @@ const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
 interface InitSvcWorkerWalletParams {
   arkServerUrl: string
   esploraUrl?: string
-  privateKey?: string
-  identity?: Identity
+  identity: Identity
   skipMigration?: boolean
   retryCount?: number
   maxRetries?: number
@@ -399,10 +398,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const initSvcWorkerWallet = async (params: InitSvcWorkerWalletParams): Promise<boolean> => {
-    const identity = params.identity ?? (params.privateKey ? SingleKey.fromHex(params.privateKey) : undefined)
-    if (!identity) throw new Error('initSvcWorkerWallet requires identity or privateKey')
     const signal = startInitSession()
-    return runInitAttempt(signal, identity, params)
+    return runInitAttempt(signal, params.identity, params)
   }
 
   // Retries inherit the signal minted by the top-level call so a lock/reset
