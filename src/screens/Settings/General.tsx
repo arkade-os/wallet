@@ -17,7 +17,6 @@ export default function General() {
     <button
       type='button'
       className='settings-row settings-row--value'
-      aria-label={`${option} settings`}
       onClick={() => {
         hapticSubtle()
         setOption(option)
