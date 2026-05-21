@@ -1,5 +1,5 @@
 import AssetAvatar from './AssetAvatar'
-import TokenLogo, { type TokenLogoTicker } from './TokenLogo'
+import TokenLogo, { tokenLogoTickerForTicker } from './TokenLogo'
 import { truncatedAssetId } from '../lib/assets'
 import { hapticLight } from '../lib/haptics'
 import { PrivacyAmount, maskedFiat } from './PrivacyAmount'
@@ -53,7 +53,7 @@ export default function AssetCard({
       }
     : undefined
 
-  const tokenLogoTicker = getTokenLogoTicker(tokenTick)
+  const tokenLogoTicker = tokenLogoTickerForTicker(tokenTick)
   const renderedAvatar = tokenLogoTicker ? (
     <span className='asset-card__logo' aria-hidden='true'>
       <TokenLogo ticker={tokenLogoTicker} />
@@ -110,17 +110,4 @@ export default function AssetCard({
       {content}
     </div>
   )
-}
-
-function getTokenLogoTicker(ticker: string): TokenLogoTicker | undefined {
-  const normalized = ticker.trim().toUpperCase()
-  if (
-    normalized === 'BTC' ||
-    normalized === 'USD' ||
-    normalized === 'USDT' ||
-    normalized === 'USDC' ||
-    normalized === 'CHF' ||
-    normalized === 'BRL'
-  )
-    return normalized
 }

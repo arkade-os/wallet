@@ -66,7 +66,6 @@ export const fiatForTicker = (ticker: string | undefined): Fiats | undefined => 
   const normalized = ticker?.trim().toUpperCase()
   if (normalized === 'USD' || normalized === 'USDT' || normalized === 'USDC' || normalized === 'AUSD') return Fiats.USD
   if (normalized === 'CHF') return Fiats.CHF
-  if (normalized === 'BRL' || normalized === 'DPIX' || normalized === 'DEPIX') return Fiats.BRL
   if (normalized === 'EUR') return Fiats.EUR
   if (normalized === 'GBP') return Fiats.GBP
   if (normalized === 'JPY') return Fiats.JPY

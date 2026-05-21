@@ -22,12 +22,19 @@ export default function WaitingForRound({ rollover, settle, done, exitMode, onEx
 
   useEffect(() => {
     let interval: NodeJS.Timeout
+    let cancelled = false
+
     sleep(2000).then(() => {
+      if (cancelled) return
       interval = setInterval(() => {
         setLogLength(getInfoLogsLength())
       }, 500)
     })
-    return () => clearInterval(interval)
+
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
   }, [])
 
   useEffect(() => {
@@ -35,7 +42,7 @@ export default function WaitingForRound({ rollover, settle, done, exitMode, onEx
       firstRun.current = false
       return
     }
-    setLogMessage(getInfoLogLineMsg(logLength - 1))
+    if (logLength > 0) setLogMessage(getInfoLogLineMsg(logLength - 1))
   }, [logLength])
 
   return <LoadingLogo text={logMessage} done={done} exitMode={exitMode} onExitComplete={onExitComplete} />

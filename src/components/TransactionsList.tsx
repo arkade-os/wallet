@@ -23,7 +23,7 @@ import { FiatContext } from '../providers/fiat'
 import PreconfirmedIcon from '../icons/Preconfirmed'
 import Focusable from './Focusable'
 import { hapticSubtle } from '../lib/haptics'
-import TokenLogo, { type TokenLogoTicker } from './TokenLogo'
+import TokenLogo, { accountTickerForAssetTicker, tokenLogoTickerForTicker, type TokenLogoTicker } from './TokenLogo'
 import { PrivacyAmount } from './PrivacyAmount'
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
@@ -352,7 +352,7 @@ function SwapRouteIcon({ fromTicker, toTicker }: { fromTicker?: string; toTicker
 }
 
 function TransactionAssetAvatar({ assetId, icon, ticker }: { assetId: string; icon?: string; ticker?: string }) {
-  const tokenLogoTicker = getTokenLogoTicker(ticker)
+  const tokenLogoTicker = tokenLogoTickerForTicker(accountTickerForAssetTicker(ticker) ?? ticker)
   if (tokenLogoTicker) {
     return (
       <span className='transaction-asset-logo' aria-hidden='true'>
@@ -362,19 +362,6 @@ function TransactionAssetAvatar({ assetId, icon, ticker }: { assetId: string; ic
   }
 
   return <AssetAvatar icon={icon} ticker={ticker} size={16} assetId={assetId} clickable />
-}
-
-function getTokenLogoTicker(ticker: string | undefined): TokenLogoTicker | undefined {
-  const normalized = ticker?.trim().toUpperCase()
-  return accountTickerForAssetTicker(normalized)
-}
-
-function accountTickerForAssetTicker(ticker: string | undefined): TokenLogoTicker | undefined {
-  const normalized = ticker?.trim().toUpperCase()
-  if (normalized === 'BTC') return 'BTC'
-  if (normalized === 'USD' || normalized === 'USDT' || normalized === 'USDC' || normalized === 'AUSD') return 'USD'
-  if (normalized === 'CHF') return 'CHF'
-  if (normalized === 'BRL' || normalized === 'DPIX' || normalized === 'DEPIX') return 'BRL'
 }
 
 function accountInfoForAssetId(

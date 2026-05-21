@@ -17,7 +17,7 @@ import { sleep } from '../../lib/sleep'
 import Text, { TextSecondary } from '../../components/Text'
 import AssetAvatar from '../../components/AssetAvatar'
 import Details, { DetailsProps } from '../../components/Details'
-import TokenLogo, { type TokenLogoTicker } from '../../components/TokenLogo'
+import TokenLogo, { accountTickerForAssetTicker, tokenLogoTickerForTicker } from '../../components/TokenLogo'
 import VtxosIcon from '../../icons/Vtxos'
 import CheckMarkIcon from '../../icons/CheckMark'
 import { AspContext } from '../../providers/asp'
@@ -27,7 +27,7 @@ import { getInputsToSettle } from '../../lib/asp'
 
 export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { txInfo, setTxInfo } = useContext(FlowContext)
+  const { txInfo } = useContext(FlowContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { assetMetadataCache, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } = useContext(WalletContext)
 
@@ -93,7 +93,6 @@ export default function Transaction() {
       await settlePreconfirmed()
       await sleep(2000) // give time to read last message
       setSettleSuccess(true)
-      if (tx) setTxInfo({ ...tx, preconfirmed: false, settled: true })
     } catch (err) {
       setError(extractError(err))
     }
@@ -112,7 +111,7 @@ export default function Transaction() {
         ? 'Unconfirmed'
         : boardingTx && tx.preconfirmed
           ? 'Pending boarding'
-          : tx.settled
+          : settleSuccess || tx.settled
             ? 'Settled'
             : 'Preconfirmed',
     type: boardingTx ? 'Boarding' : 'Offchain',
@@ -158,7 +157,7 @@ export default function Transaction() {
                 const decimals = meta?.decimals ?? 8
                 const accountTicker = accountTickerForAssetTicker(ticker)
                 const label = accountTicker ?? name ?? `${a.assetId.slice(0, 8)}...`
-                const tokenLogoTicker = getTokenLogoTicker(accountTicker ?? ticker)
+                const tokenLogoTicker = tokenLogoTickerForTicker(accountTicker ?? ticker)
                 return (
                   <div key={a.assetId} className='transaction-detail-asset'>
                     <span className='transaction-detail-asset__logo'>
@@ -230,17 +229,4 @@ export default function Transaction() {
       <Buttons />
     </>
   )
-}
-
-function getTokenLogoTicker(ticker: string | undefined): TokenLogoTicker | undefined {
-  const normalized = ticker?.trim().toUpperCase()
-  return accountTickerForAssetTicker(normalized)
-}
-
-function accountTickerForAssetTicker(ticker: string | undefined): TokenLogoTicker | undefined {
-  const normalized = ticker?.trim().toUpperCase()
-  if (normalized === 'BTC') return 'BTC'
-  if (normalized === 'USD' || normalized === 'USDT' || normalized === 'USDC' || normalized === 'AUSD') return 'USD'
-  if (normalized === 'CHF') return 'CHF'
-  if (normalized === 'BRL' || normalized === 'DPIX' || normalized === 'DEPIX') return 'BRL'
 }
