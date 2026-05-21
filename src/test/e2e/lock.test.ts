@@ -1,4 +1,4 @@
-import { test, expect, createWallet, createWalletWithPassword, navigateHome, navigateToSettings } from './utils'
+import { test, expect, createWallet, createWalletWithPassword, navigateToSettings } from './utils'
 
 test('should have lock wallet option', async ({ page }) => {
   // Create wallet

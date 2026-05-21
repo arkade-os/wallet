@@ -235,6 +235,7 @@ interface NavigationContextProps {
   goBack: () => void
   isInitialLoad: boolean
   navigate: (arg0: Pages) => void
+  replace: (page: Pages, backTo?: Pages | Pages[]) => void
   screen: Pages
   tab: Tabs
 }
@@ -244,6 +245,7 @@ export const NavigationContext = createContext<NavigationContextProps>({
   goBack: () => {},
   isInitialLoad: false,
   navigate: () => {},
+  replace: () => {},
   screen: Pages.Init,
   tab: Tabs.None,
 })
@@ -338,6 +340,23 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     setTab(pageTab[page])
   }, [])
 
+  const replace = useCallback((page: Pages, backTo?: Pages | Pages[]) => {
+    previousPage.current = screenRef.current
+
+    if (backTo !== undefined) {
+      const targets = Array.isArray(backTo) ? backTo : [backTo]
+      const targetIndex = Math.max(...targets.map((target) => backStack.current.lastIndexOf(target)))
+      if (targetIndex >= 0) {
+        backStack.current = backStack.current.slice(0, targetIndex + 1)
+      }
+    }
+
+    screenRef.current = page
+    setScreen(page)
+    setTab(pageTab[page])
+    setDirection('back')
+  }, [])
+
   useEffect(() => {
     if (!import.meta.env.DEV) return
 
@@ -352,7 +371,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   }, [navigate])
 
   return (
-    <NavigationContext.Provider value={{ direction, goBack, isInitialLoad, navigate, screen, tab }}>
+    <NavigationContext.Provider value={{ direction, goBack, isInitialLoad, navigate, replace, screen, tab }}>
       {children}
     </NavigationContext.Provider>
   )

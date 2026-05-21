@@ -128,6 +128,7 @@ export const mockNavigationContextValue = {
   goBack: () => {},
   isInitialLoad: false,
   navigate: () => {},
+  replace: () => {},
   screen: Pages.Init,
   tab: Tabs.None,
 }

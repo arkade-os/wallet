@@ -33,7 +33,7 @@ export default function AssetCard({
   fiatText,
   onClick,
 }: AssetCardProps) {
-  const assetName = name || truncatedAssetId(assetId) || 'Asset'
+  const assetName = ticker && ticker !== 'BTC' ? ticker : name || truncatedAssetId(assetId) || 'Asset'
   const tokenTick = ticker ?? 'TKN'
   const rawBalance =
     typeof balance === 'bigint'

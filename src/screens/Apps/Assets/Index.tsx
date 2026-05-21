@@ -26,11 +26,7 @@ interface AssetListItem {
   decimals?: number
 }
 
-interface AppAssetsProps {
-  back?: () => void
-}
-
-export default function AppAssets({ back }: AppAssetsProps = {}) {
+export default function AppAssets() {
   const { goBack, navigate } = useContext(NavigationContext)
   const { assetBalances, balance, svcWallet, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
   const { config } = useContext(ConfigContext)
@@ -93,7 +89,7 @@ export default function AppAssets({ back }: AppAssetsProps = {}) {
 
   return (
     <>
-      <Header text='Arkade Mint' back={back ?? goBack} auxFunc={goToSettings} auxIcon={<SettingsIconLight />} />
+      <Header text='Arkade Mint' back={goBack} auxFunc={goToSettings} auxIcon={<SettingsIconLight />} />
       <Content>
         <Padded>
           {config.apps.assets.enabled ? (

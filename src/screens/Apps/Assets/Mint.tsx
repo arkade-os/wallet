@@ -31,7 +31,7 @@ interface KnownAssetOption {
 }
 
 export default function AppAssetMint() {
-  const { navigate } = useContext(NavigationContext)
+  const { replace } = useContext(NavigationContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
   const { svcWallet, assetBalances, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
@@ -164,7 +164,7 @@ export default function AppAssetMint() {
       }
       setCacheEntry(newAssetId, assetDetails)
       setAssetInfo(assetDetails)
-      pendingNav.current = () => navigate(Pages.AppAssetMintSuccess)
+      pendingNav.current = () => replace(Pages.AppAssetMintSuccess)
       setMintDone(true)
     } catch (err) {
       consoleError(err, 'error minting asset')
@@ -204,7 +204,7 @@ export default function AppAssetMint() {
 
   return (
     <>
-      <Header text='Mint Asset' back={() => navigate(Pages.AppAssets)} />
+      <Header text='Mint Asset' back />
       <Content>
         <Padded>
           <FlexCol gap='1rem'>

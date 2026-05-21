@@ -5,6 +5,7 @@ import { SettingsOptions } from '../lib/types'
 import FlexCol from './FlexCol'
 import { hapticSubtle } from '../lib/haptics'
 import { cn } from '@/lib/utils'
+import { NavigationContext, Pages } from '../providers/navigation'
 
 interface MenuProps {
   rows: Option[]
@@ -13,9 +14,14 @@ interface MenuProps {
 
 export default function Menu({ rows, styled }: MenuProps) {
   const { setOption } = useContext(OptionsContext)
+  const { navigate } = useContext(NavigationContext)
 
   const selectOption = (option: SettingsOptions) => {
     hapticSubtle()
+    if (option === SettingsOptions.ArkadeMint) {
+      navigate(Pages.AppAssets)
+      return
+    }
     setOption(option)
   }
 
