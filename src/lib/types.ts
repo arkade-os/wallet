@@ -48,6 +48,7 @@ export enum Fiats {
   EUR = 'EUR',
   USD = 'USD',
   CHF = 'CHF',
+  BRL = 'BRL',
   JPY = 'JPY',
   GBP = 'GBP',
   CNY = 'CNY',
@@ -101,6 +102,10 @@ export type Tx = {
   roundTxid: string
   settled: boolean
   type: string
+  prototypeSwap?: {
+    fromTicker: string
+    toTicker: string
+  }
 }
 
 export enum Unit {
