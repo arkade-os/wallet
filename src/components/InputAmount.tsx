@@ -5,9 +5,9 @@ import { ConfigContext } from '../providers/config'
 import { prettyNumber } from '../lib/format'
 import { FIAT_SYMBOLS } from '../lib/fiat'
 import { LimitsContext } from '../providers/limits'
-import Focusable from './Focusable'
 import { AssetOption } from '../lib/types'
 import { TextSecondary } from './Text'
+import { hapticLight } from '../lib/haptics'
 
 interface InputAmountProps {
   asset?: AssetOption
@@ -85,7 +85,6 @@ export default function InputAmount({
       : fiatSymbol
         ? `${fiatSymbol}${otherValue}`
         : `${otherValue} ${config.fiat}`
-  const fontStyle = { color: 'var(--neutral-500)', fontSize: '13px' }
   const bottomLeft =
     minimumSats && satsValue !== undefined && satsValue < minimumSats
       ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}`
@@ -109,23 +108,24 @@ export default function InputAmount({
           disabled={disabled}
           readOnly={readOnly}
           onChange={handleAmountChange}
-          value={value ? Number(value) : ''}
+          value={value ?? ''}
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
         />
         <TextSecondary>{rightLabel}</TextSecondary>
       </label>
       {onMax && !disabled && !readOnly ? (
-        <Focusable onEnter={onMax} fit>
-          <p
-            role='button'
-            onClick={onMax}
-            aria-label='Set maximum amount'
-            data-testid='input-amount-max'
-            style={{ ...fontStyle, color: 'var(--purpletext)', cursor: 'pointer' }}
-          >
-            Max
-          </p>
-        </Focusable>
+        <button
+          type='button'
+          className='pill-base'
+          onClick={() => {
+            hapticLight()
+            onMax()
+          }}
+          aria-label='Set maximum amount'
+          data-testid='input-amount-max'
+        >
+          Max
+        </button>
       ) : null}
     </InputContainer>
   )
