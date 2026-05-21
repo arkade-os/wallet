@@ -35,7 +35,12 @@ export default function AssetCard({
 }: AssetCardProps) {
   const assetName = name || truncatedAssetId(assetId) || 'Asset'
   const tokenTick = ticker ?? 'TKN'
-  const rawBalance = typeof balance === 'bigint' ? balance : BigInt(balance)
+  const rawBalance =
+    typeof balance === 'bigint'
+      ? balance
+      : Number.isFinite(balance) && Number.isInteger(balance)
+        ? BigInt(balance)
+        : BigInt(0)
   const prettyBalance = prettyCurrencyAssetAmount(rawBalance, decimals ?? 8, tokenTick)
   const leftSecondary = `${prettyBalance} ${tokenTick}`
   const maskedBalance = `•••• ${tokenTick}`
