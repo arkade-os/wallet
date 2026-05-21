@@ -26,7 +26,7 @@ import { DevModeProvider } from './providers/devMode'
 const DEV_SERVICE_WORKER_RESET_KEY = 'arkade-dev-service-worker-reset-attempted'
 
 function resetControlledDevServiceWorker() {
-  if (!import.meta.env.DEV || !import.meta.env.VITE_DEV_NSEC) return false
+  if (!import.meta.env.DEV || !(import.meta.env.VITE_DEV_NSEC || import.meta.env.VITE_DEV_MNEMONIC)) return false
   if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) return false
 
   try {
