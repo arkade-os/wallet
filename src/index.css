@@ -1643,7 +1643,7 @@ hr {
    ================================================ */
 
 .settings-page {
-  padding: 0.75rem 0 var(--pill-navbar-footer-clearance);
+  padding: 0.75rem 0 var(--pill-navbar-footer-clearance, env(safe-area-inset-bottom, 0px));
 }
 
 .settings-section {
