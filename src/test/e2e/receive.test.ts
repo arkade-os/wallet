@@ -8,6 +8,8 @@ import {
   handleKeyboardInput,
   readClipboard,
   createWalletWithFiat,
+  navigateHome,
+  navigateToBoltz,
 } from './utils'
 import { exec } from 'child_process'
 import { faucetOffchain } from './fundedWallet'
@@ -54,7 +56,7 @@ test('changing amount should update the invoice (sats mode)', async ({ page, isM
   await createWallet(page)
 
   // go to receive page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.getByText('Receive', { exact: true }).click()
 
   // fill amount to receive if provided
@@ -111,7 +113,7 @@ test('changing amount should update the invoice (fiat mode)', async ({ page, isM
   await createWalletWithFiat(page)
 
   // go to receive page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.getByText('Receive', { exact: true }).click()
 
   // fill amount to receive if provided
@@ -175,7 +177,6 @@ test('receive without amount should not create swaps', async ({ page }) => {
   await waitForPaymentReceived(page)
 
   // check that no swap was created
-  await page.getByTestId('tab-apps').click()
-  await page.getByTestId('app-boltz').click()
+  await navigateToBoltz(page)
   await expect(page.getByTestId('empty-template')).toBeVisible()
 })

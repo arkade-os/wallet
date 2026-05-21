@@ -49,9 +49,32 @@ interface MintAssetOptions {
 }
 
 export async function navigateToAssets(page: Page): Promise<void> {
-  await page.getByTestId('tab-apps').click()
-  await page.getByTestId('app-arkade-mint').click()
+  await navigateToSettings(page)
+  await page.getByText('Arkade Mint', { exact: true }).click()
   await page.waitForSelector('text=Arkade Mint', { state: 'visible' })
+}
+
+export async function navigateHome(page: Page): Promise<void> {
+  const homeReceive = page.getByTestId('home-action-receive')
+  if (await homeReceive.isVisible().catch(() => false)) return
+
+  const backBtn = page.getByLabel('Go back')
+  for (let i = 0; i < 8; i++) {
+    if (await homeReceive.isVisible().catch(() => false)) return
+    if (!(await backBtn.isVisible({ timeout: 300 }).catch(() => false))) break
+    await backBtn.click()
+    await page.waitForTimeout(200)
+  }
+
+  if (!(await homeReceive.isVisible().catch(() => false))) {
+    await page.goto('/')
+  }
+  await homeReceive.waitFor({ state: 'visible', timeout: 30000 })
+}
+
+export async function navigateToBoltz(page: Page): Promise<void> {
+  await page.goto('/#app+boltz')
+  await page.waitForSelector('text=Boltz', { state: 'visible', timeout: 60000 })
 }
 
 export async function enableAssets(page: Page): Promise<void> {
@@ -106,18 +129,18 @@ export async function createWallet(page: Page): Promise<void> {
 
 export async function createWalletWithFiat(page: Page): Promise<void> {
   await createWallet(page)
-  await page.getByTestId('tab-settings').click()
+  await navigateToSettings(page)
   await page.getByText('general', { exact: true }).click()
   await page.getByText('Display preferences').click()
   await page.getByTestId('select-option-2').click()
   await page.getByLabel('Go back').click()
   await page.getByLabel('Go back').click()
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
 }
 
 export async function createWalletWithPassword(page: Page, password: string): Promise<void> {
   await createWallet(page)
-  await page.getByTestId('tab-settings').click()
+  await navigateToSettings(page)
   await page.getByText('Advanced').click()
   await page.getByText('Change password').click()
   await page.locator('div[data-testid="new-password"] input').fill(password)
@@ -126,12 +149,12 @@ export async function createWalletWithPassword(page: Page, password: string): Pr
   // go back from Password → Advanced → Menu, then close settings
   await page.getByLabel('Go back').click()
   await page.getByLabel('Go back').click()
-  await page.getByTestId('tab-settings').click()
+  await page.getByLabel('Go back').click()
 }
 
 export async function prePay(page: Page, address: string, isMobile = false, sats = 0): Promise<void> {
   // go to send page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.getByText('Send').click()
 
   // fill address
@@ -164,7 +187,7 @@ export async function pay(page: Page, address: string, isMobile = false, sats = 
 
 async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = false, sats = 0): Promise<string> {
   // go to receive page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.getByText('Receive', { exact: true }).click()
 
   // fill amount to receive if provided
@@ -196,26 +219,17 @@ export async function receiveLightning(page: Page, isMobile: boolean, sats: numb
   return receive(page, 'invoice', isMobile, sats)
 }
 
-async function navigateToSettings(page: Page): Promise<void> {
-  // If on a settings sub-page, go back until we reach the settings menu
-  const backBtn = page.getByLabel('Go back')
-  while (await backBtn.isVisible({ timeout: 300 }).catch(() => false)) {
-    await backBtn.click()
-    await page.waitForTimeout(200)
-  }
-  // If on wallet/apps sub-page, go to wallet root first (settings btn may be hidden)
-  const walletTab = page.getByTestId('tab-wallet')
-  if (await walletTab.isVisible().catch(() => false)) {
-    await walletTab.click()
-  }
-  // Open settings if visible and not already on settings menu
-  const settingsBtn = page.getByTestId('tab-settings')
-  if (await settingsBtn.isVisible().catch(() => false)) {
-    const label = await settingsBtn.getAttribute('aria-label').catch(() => '')
-    if (label === 'Settings') {
-      await settingsBtn.click()
-    }
-  }
+export async function navigateToSettings(page: Page): Promise<void> {
+  if (
+    await page
+      .getByRole('heading', { name: 'Settings' })
+      .isVisible()
+      .catch(() => false)
+  )
+    return
+  await navigateHome(page)
+  await page.getByTestId('top-right-settings').click()
+  await page.getByRole('heading', { name: 'Settings' }).waitFor({ state: 'visible', timeout: 30000 })
 }
 
 async function getSecret(page: Page): Promise<string> {
@@ -248,7 +262,7 @@ export async function fundWallet(page: Page, amount: number = 5000): Promise<num
   const arkAddress = await receiveOffchain(page)
   await faucetOffchain(arkAddress, amount)
   await waitForPaymentReceived(page)
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.getByText('Received').waitFor({ timeout: 10000 })
   const balanceText = await page.getByTestId('main-balance').innerText()
   const normalized = balanceText.replace(/[^\d.-]/g, '')

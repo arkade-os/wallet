@@ -1,4 +1,4 @@
-import { test, expect, createWallet, readClipboard, waitForPaymentReceived } from './utils'
+import { test, expect, createWallet, readClipboard, waitForPaymentReceived, navigateHome } from './utils'
 import { isValidLnUrl, checkLnUrlConditions, fetchInvoice } from '../../lib/lnurl'
 import { decodeInvoice } from '../../lib/bolt11'
 import { exec } from 'child_process'
@@ -11,7 +11,7 @@ test('should have lnurl with no amount', async ({ page }) => {
   await createWallet(page)
 
   // go to receive page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.getByText('Receive', { exact: true }).click()
 
   // copy lnurl
@@ -29,7 +29,7 @@ test('should check conditions from lnurl', async ({ page }) => {
   await createWallet(page)
 
   // go to receive page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.getByText('Receive', { exact: true }).click()
 
   // copy lnurl
@@ -56,7 +56,7 @@ test('should fetch invoice from lnurl', async ({ page }) => {
   await createWallet(page)
 
   // go to receive page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.getByText('Receive', { exact: true }).click()
 
   // copy lnurl
@@ -86,7 +86,7 @@ test('should receive payment', async ({ page }) => {
   await createWallet(page)
 
   // go to receive page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.getByText('Receive', { exact: true }).click()
 
   // copy lnurl
@@ -109,7 +109,7 @@ test('should receive payment', async ({ page }) => {
   await waitForPaymentReceived(page)
 
   // transaction should be visible on main page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.waitForSelector('text=Received', { timeout: 10000 })
   await expect(page.getByText('1,992', { exact: true })).toBeVisible()
 })

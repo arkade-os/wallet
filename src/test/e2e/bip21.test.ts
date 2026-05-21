@@ -1,4 +1,4 @@
-import { test, expect, createWallet, readClipboard, handleKeyboardInput } from './utils'
+import { test, expect, createWallet, readClipboard, handleKeyboardInput, navigateHome } from './utils'
 import { decodeInvoice } from '../../lib/bolt11'
 import { Page } from '@playwright/test'
 import { decodeBip21, isBip21 } from '../../lib/bip21'
@@ -6,7 +6,7 @@ import { sleep } from '../../lib/sleep'
 
 const createWalletAndGetBIP21 = async (page: Page): Promise<string> => {
   await createWallet(page)
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.getByText('Receive', { exact: true }).click()
   await sleep(1000) // wait for the receive page to load
   await page.getByText('Copy').click()

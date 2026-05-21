@@ -1,10 +1,10 @@
 import { Fiats } from '../../lib/types'
-import { test, expect, createWallet } from './utils'
+import { test, expect, createWallet, navigateHome, navigateToSettings } from './utils'
 import type { Page } from '@playwright/test'
 
 // helper function to navigate to keyboard
 async function openKeyboard(page: Page) {
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.getByText('Receive').click()
   await page.getByText('Add amount').click()
   await page.waitForSelector('text=Save', { state: 'visible' })
@@ -12,13 +12,13 @@ async function openKeyboard(page: Page) {
 
 // helper function to setup wallet and navigate to keyboard
 async function changeToFiat(page: Page, fiat: Fiats) {
-  await page.getByTestId('tab-settings').click()
+  await navigateToSettings(page)
   await page.getByText('general', { exact: true }).click()
   await page.getByText('fiat currency').click()
   await page.getByText(fiat).click()
   await page.getByLabel('Go back').click()
   await page.getByLabel('Go back').click()
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
 }
 
 // helper function to clear the amount on keyboard

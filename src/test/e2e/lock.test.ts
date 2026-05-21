@@ -1,11 +1,11 @@
-import { test, expect, createWallet, createWalletWithPassword } from './utils'
+import { test, expect, createWallet, createWalletWithPassword, navigateHome, navigateToSettings } from './utils'
 
 test('should have lock wallet option', async ({ page }) => {
   // Create wallet
   await createWallet(page)
 
   // Go to settings and check for lock wallet option
-  await page.getByTestId('tab-settings').click()
+  await navigateToSettings(page)
   await page.getByText('lock wallet', { exact: true }).click()
   await expect(page.getByText('No password defined')).toBeVisible()
   await expect(page.getByText('You need to set a password to lock.')).toBeVisible()
@@ -17,7 +17,7 @@ test('should set and verify password', async ({ page }) => {
   await createWallet(page)
 
   // Go to settings and set password
-  await page.getByTestId('tab-settings').click()
+  await navigateToSettings(page)
   await page.getByText('lock wallet', { exact: true }).click()
   await page.getByText('Set password').click()
   await page.locator('div[data-testid="new-password"] input').fill('testpassword')
@@ -33,7 +33,7 @@ test('should lock and unlock wallet without previous password', async ({ page })
   await createWallet(page)
 
   // Set password
-  await page.getByTestId('tab-settings').click()
+  await navigateToSettings(page)
   await page.getByText('lock wallet', { exact: true }).click()
   await page.getByText('Set password').click()
   await page.locator('div[data-testid="new-password"] input').fill('testpassword')
@@ -43,7 +43,7 @@ test('should lock and unlock wallet without previous password', async ({ page })
   await page.getByLabel('Go back').click()
 
   // Lock wallet
-  await page.getByTestId('tab-settings').click()
+  await navigateToSettings(page)
   await page.getByText('lock wallet', { exact: true }).click()
   await page.getByText('Lock wallet').click()
 
@@ -55,7 +55,7 @@ test('should lock and unlock wallet without previous password', async ({ page })
   await page.getByText('Unlock wallet').click()
 
   // Verify wallet is unlocked
-  await expect(page.getByTestId('tab-wallet')).toBeVisible()
+  await navigateHome(page)
 })
 
 test('should lock and unlock wallet with previous password', async ({ page }) => {
@@ -63,7 +63,7 @@ test('should lock and unlock wallet with previous password', async ({ page }) =>
   await createWalletWithPassword(page, 'testpassword')
 
   // Lock wallet
-  await page.getByTestId('tab-settings').click()
+  await navigateToSettings(page)
   await page.getByText('lock wallet', { exact: true }).click()
   await page.getByText('Lock wallet').click()
 
@@ -75,5 +75,5 @@ test('should lock and unlock wallet with previous password', async ({ page }) =>
   await page.getByText('Unlock wallet').click()
 
   // Verify wallet is unlocked
-  await expect(page.getByTestId('tab-wallet')).toBeVisible()
+  await navigateHome(page)
 })

@@ -9,6 +9,7 @@ import {
   mintAsset,
   handleKeyboardInput,
   createWalletWithFiat,
+  navigateHome,
 } from './utils'
 import { execSync } from 'child_process'
 
@@ -133,11 +134,11 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   // assert success screen
   await expect(page.getByText('TestCoin')).toBeVisible()
   await expect(page.getByText('TST')).toBeVisible()
-  await page.getByText('Back to arkade mint').click()
+  await page.getByText('Back to Arkade Mint').click()
   await page.getByLabel('Go back').click()
 
   // main page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.waitForSelector('text=Issuance', { timeout: 10000 })
 
   // send page

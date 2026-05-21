@@ -1,4 +1,14 @@
-import { test, expect, createWallet, pay, receiveLightning, waitForPaymentReceived, fundWallet } from './utils'
+import {
+  test,
+  expect,
+  createWallet,
+  pay,
+  receiveLightning,
+  waitForPaymentReceived,
+  fundWallet,
+  navigateHome,
+  navigateToBoltz,
+} from './utils'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 
@@ -6,10 +16,7 @@ const execAsync = promisify(exec)
 
 test('should be connected to Boltz app', async ({ page }) => {
   await createWallet(page)
-
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
+  await navigateToBoltz(page)
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Connection status')).toBeVisible()
   await expect(page.getByText('http://localhost:')).toBeVisible()
@@ -33,15 +40,13 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   await waitForPaymentReceived(page)
 
   // main page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.waitForSelector('text=Received', { timeout: 10000 })
   await expect(page.getByText('1,992', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 1,992 SATS')).toBeVisible()
 
   // should be visible in Boltz app
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
+  await navigateToBoltz(page)
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Successful')).toBeVisible()
   await expect(page.getByText('+ 1,992')).toBeVisible()
@@ -80,7 +85,7 @@ test('should raise error when trying to pay invoice with little amount', async (
   expect(invoice).toContain('lnbcrt')
 
   // go to send page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.getByText('Send').click()
 
   // fill invoice
@@ -107,9 +112,7 @@ test('should send funds to Lightning', async ({ page }) => {
   await pay(page, invoice)
 
   // should be visible in Boltz app
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
+  await navigateToBoltz(page)
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Successful')).toBeVisible()
   await page.waitForSelector('text=- 1,001', { timeout: 10000 })
@@ -147,9 +150,7 @@ test('should send funds to Bitcoin', async ({ page, isMobile }) => {
   await pay(page, someOnchainAddress, isMobile, 2000)
 
   // should be visible in Boltz app
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
+  await navigateToBoltz(page)
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Successful')).toBeVisible()
   await expect(page.getByText('Arkade to Bitcoin')).toBeVisible()
@@ -206,9 +207,7 @@ test('should refund failing swap', async ({ page }) => {
   await page.getByLabel('Go back').click()
 
   // should be visible in Boltz app
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
+  await navigateToBoltz(page)
   await expect(page.getByText('Boltz')).toBeVisible()
   await page.waitForSelector('text=Refunded', { timeout: 10000 })
   await expect(page.getByText('- 1,001')).toBeVisible()
