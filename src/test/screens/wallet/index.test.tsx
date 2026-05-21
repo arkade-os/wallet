@@ -1,7 +1,9 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import Wallet from '../../../screens/Wallet/Index'
+import { NavigationContext, Pages } from '../../../providers/navigation'
+import { mockNavigationContextValue } from '../mocks'
 
 describe('Wallet screen', () => {
   it('renders the wallet screen with the correct elements', async () => {
@@ -18,5 +20,19 @@ describe('Wallet screen', () => {
     expect(screen.getByText('Bitcoin')).toBeInTheDocument()
     expect(screen.queryByText('Recent activity')).not.toBeInTheDocument()
     expect(screen.queryByText('No transactions yet')).not.toBeInTheDocument()
+  })
+
+  it('opens the bitcoin detail page from the bitcoin asset row', async () => {
+    const user = userEvent.setup()
+    const navigate = vi.fn()
+
+    render(
+      <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
+        <Wallet />
+      </NavigationContext.Provider>,
+    )
+
+    await user.click(screen.getByTestId('asset-row-BTC'))
+    expect(navigate).toHaveBeenCalledWith(Pages.BitcoinDetail)
   })
 })

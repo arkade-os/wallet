@@ -17,6 +17,7 @@ import Unlock from '../screens/Wallet/Unlock'
 import Activity from '../screens/Wallet/Activity'
 import Vtxos from '../screens/Settings/Vtxos'
 import Wallet from '../screens/Wallet/Index'
+import BitcoinDetail from '../screens/Wallet/BitcoinDetail'
 import Settings from '../screens/Settings/Index'
 
 import Apps from '../screens/Apps/Index'
@@ -42,6 +43,7 @@ export type NavigationDirection = 'forward' | 'back' | 'none'
 
 export enum Pages {
   Activity,
+  BitcoinDetail,
   AppBoltz,
   AppBoltzSettings,
   AppBoltzSwap,
@@ -90,6 +92,7 @@ export enum Tabs {
 
 const pageTab = {
   [Pages.Activity]: Tabs.Wallet,
+  [Pages.BitcoinDetail]: Tabs.Wallet,
   [Pages.AppBoltz]: Tabs.Apps,
   [Pages.AppBoltzSettings]: Tabs.Apps,
   [Pages.AppBoltzSwap]: Tabs.Apps,
@@ -151,6 +154,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
   switch (page) {
     case Pages.Activity:
       return <Activity />
+    case Pages.BitcoinDetail:
+      return <BitcoinDetail />
     case Pages.AppBoltz:
       return <AppBoltz />
     case Pages.AppBoltzSettings:
