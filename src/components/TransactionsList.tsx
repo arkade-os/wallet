@@ -25,6 +25,7 @@ import Focusable from './Focusable'
 import { hapticSubtle } from '../lib/haptics'
 import TokenLogo, { type TokenLogoTicker } from './TokenLogo'
 import { PrivacyAmount } from './PrivacyAmount'
+import { prettyAssetAmountHide } from '@/lib/assets'
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
@@ -113,7 +114,7 @@ const TransactionLine = ({
             <FlexRow key={a.assetId} gap='0.375rem' end>
               <TransactionAssetAvatar icon={icon} ticker={accountTicker ?? ticker} assetId={a.assetId} />
               <span className='activity-row__amount'>
-                <PrivacyAmount masked={prettyHide(a.amount, label)}>
+                <PrivacyAmount masked={prettyAssetAmountHide(a.amount, label)}>
                   {`${prettyCurrencyAssetAmount(BigInt(a.amount), decimals, accountTicker ?? ticker)} ${label}`}
                 </PrivacyAmount>
               </span>
@@ -182,7 +183,7 @@ export default function TransactionsList({ assetIdFilter, mode = 'virtual', limi
   const { navigate } = useContext(NavigationContext)
   const { txs: allTxs } = useContext(WalletContext)
   const visibleTxs = allTxs.filter((tx) => matchesAssetFilter(tx, assetIdFilter))
-  const txs = normalizedMode === 'static' && limit ? visibleTxs.slice(0, limit) : visibleTxs
+  const txs = normalizedMode === 'static' && limit !== undefined ? visibleTxs.slice(0, limit) : visibleTxs
 
   const focusedRef = useRef(false)
   const focusedIndexRef = useRef(0)
