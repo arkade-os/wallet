@@ -36,10 +36,11 @@ const CHART_WINDOWS = [
 const ALL_CHART_START_TIME = Math.floor(Date.UTC(2015, 0, 1) / 1000)
 const COINBASE_CANDLE_CHUNK_DAYS = 300
 const MIN_CHART_WINDOW_SECS = 30
+const bitcoinChartCache = new Map<string, LivelinePoint[]>()
 
 export default function BitcoinDetail() {
   const { config } = useContext(ConfigContext)
-  const { convertFiat, fiatDecimals, toFiat } = useContext(FiatContext)
+  const { fiatDecimals, toFiat } = useContext(FiatContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { balance } = useContext(WalletContext)
@@ -51,15 +52,16 @@ export default function BitcoinDetail() {
   const chartHapticState = useRef({ lastPointTime: 0, lastTriggerTime: 0 })
 
   const fallbackUnitPrice = toFiat(100_000_000)
-  const liveChartData = useBitcoinMarketChartData(config.fiat, chartWindow, convertFiat)
+  const liveChartData = useBitcoinMarketChartData(config.fiat, chartWindow)
   const unitPrice = liveChartData.at(-1)?.value ?? fallbackUnitPrice
   const fiatValue = (balance / 100_000_000) * unitPrice
   const formattedFiat = prettyFiatAmount(fiatValue, config.fiat, {
     maximumFractionDigits: fiatDecimals(),
     minimumFractionDigits: fiatDecimals(),
   })
-  const chartColor = useTokenColor('--orange-500')
+  const chartColor = useTokenColor('--orange-500', config.theme)
   const chartTheme = useResolvedChartTheme(config.theme)
+  const safeBalance = Number.isFinite(balance) ? Math.max(0, Math.floor(balance)) : 0
   const chartData = useMemo(
     () => (liveChartData.length ? liveChartData : buildFlatChartData(unitPrice, chartWindow)),
     [chartWindow, liveChartData, unitPrice],
@@ -253,7 +255,7 @@ export default function BitcoinDetail() {
                     <TokenLogo ticker='BTC' />
                   </span>
                   <PrivacyAmount masked='•••• BTC'>
-                    <span className='asset-detail-holding-amount'>{formatAssetAmount(BigInt(balance), 8)}</span>
+                    <span className='asset-detail-holding-amount'>{formatAssetAmount(BigInt(safeBalance), 8)}</span>
                     <span className='asset-detail-holding-unit'>BTC</span>
                   </PrivacyAmount>
                 </strong>
@@ -347,14 +349,14 @@ function DeltaBadge({ value }: { value: number }) {
   )
 }
 
-function useTokenColor(token: string): string {
+function useTokenColor(token: string, theme: Themes): string {
   const [color, setColor] = useState(`var(${token})`)
 
   useEffect(() => {
     const root = getComputedStyle(document.documentElement)
     const next = root.getPropertyValue(token).trim()
     if (next) setColor(next)
-  }, [token])
+  }, [theme, token])
 
   return color
 }
@@ -375,17 +377,20 @@ function useResolvedChartTheme(theme: Themes): 'light' | 'dark' {
   return resolved
 }
 
-function useBitcoinMarketChartData(
-  fiat: Fiats,
-  windowSecs: number,
-  convertFiat: (amount: number, from: Fiats) => number,
-): LivelinePoint[] {
+function useBitcoinMarketChartData(fiat: Fiats, windowSecs: number): LivelinePoint[] {
   const [data, setData] = useState<LivelinePoint[]>([])
 
   useEffect(() => {
     const controller = new AbortController()
+    const cacheKey = bitcoinChartCacheKey(fiat, windowSecs)
+    const cached = bitcoinChartCache.get(cacheKey)
 
-    fetchBitcoinMarketChart(fiat, windowSecs, convertFiat, controller.signal)
+    if (cached) {
+      setData(cached)
+      return () => controller.abort()
+    }
+
+    fetchBitcoinMarketChart(fiat, windowSecs, controller.signal)
       .then((json) => {
         if (controller.signal.aborted) return
         const prices = Array.isArray(json.prices) ? json.prices : []
@@ -394,13 +399,16 @@ function useBitcoinMarketChartData(
           .filter((point) => Number.isFinite(point.time) && Number.isFinite(point.value) && point.value > 0)
 
         if (isAllChartWindow(windowSecs)) {
+          bitcoinChartCache.set(cacheKey, points)
           setData(points)
           return
         }
 
         const cutoff = Math.floor(Date.now() / 1000) - windowSecs
         const windowedPoints = points.filter((point) => point.time >= cutoff)
-        setData(windowedPoints.length >= 2 ? windowedPoints : points)
+        const nextData = windowedPoints.length >= 2 ? windowedPoints : points
+        bitcoinChartCache.set(cacheKey, nextData)
+        setData(nextData)
       })
       .catch((err) => {
         if (controller.signal.aborted) return
@@ -409,7 +417,7 @@ function useBitcoinMarketChartData(
       })
 
     return () => controller.abort()
-  }, [fiat, windowSecs, convertFiat])
+  }, [fiat, windowSecs])
 
   return data
 }
@@ -417,32 +425,26 @@ function useBitcoinMarketChartData(
 async function fetchBitcoinMarketChart(
   fiat: Fiats,
   windowSecs: number,
-  convertFiat: (amount: number, from: Fiats) => number,
   signal: AbortSignal,
 ): Promise<{ prices?: [number, number][] }> {
-  if (isAllChartWindow(windowSecs)) {
-    const prices = await fetchCoinbaseBitcoinAllChart(fiat, convertFiat, signal)
+  if (isAllChartWindow(windowSecs) && fiat === Fiats.USD) {
+    const prices = await fetchCoinbaseBitcoinAllChart(signal)
     if (prices.length >= 2) return { prices }
   }
 
   return fetchCoinGeckoBitcoinChart(fiat, windowSecs, signal)
 }
 
-async function fetchCoinbaseBitcoinAllChart(
-  fiat: Fiats,
-  convertFiat: (amount: number, from: Fiats) => number,
-  signal: AbortSignal,
-): Promise<[number, number][]> {
+async function fetchCoinbaseBitcoinAllChart(signal: AbortSignal): Promise<[number, number][]> {
   const now = Math.floor(Date.now() / 1000)
   const chunkSecs = COINBASE_CANDLE_CHUNK_DAYS * 86_400
-  const requests: Promise<[number, number][]>[] = []
+  const chunks: [number, number][][] = []
 
   for (let start = ALL_CHART_START_TIME; start < now; start += chunkSecs) {
     const end = Math.min(start + chunkSecs, now)
-    requests.push(fetchCoinbaseBitcoinCandles(start, end, fiat, convertFiat, signal))
+    chunks.push(await fetchCoinbaseBitcoinCandles(start, end, signal))
   }
 
-  const chunks = await Promise.all(requests)
   return chunks
     .flat()
     .sort(([a], [b]) => a - b)
@@ -452,8 +454,6 @@ async function fetchCoinbaseBitcoinAllChart(
 async function fetchCoinbaseBitcoinCandles(
   start: number,
   end: number,
-  fiat: Fiats,
-  convertFiat: (amount: number, from: Fiats) => number,
   signal: AbortSignal,
 ): Promise<[number, number][]> {
   const params = new URLSearchParams({
@@ -469,10 +469,7 @@ async function fetchCoinbaseBitcoinCandles(
   const candles = (await response.json()) as [number, number, number, number, number, number][]
 
   return candles
-    .map(
-      ([time, , , , close]) =>
-        [time * 1000, fiat === Fiats.USD ? close : convertFiat(close, Fiats.USD)] as [number, number],
-    )
+    .map(([time, , , , close]) => [time * 1000, close] as [number, number])
     .filter(([, value]) => Number.isFinite(value) && value > 0)
 }
 
@@ -595,8 +592,12 @@ function calculateDelta(data: LivelinePoint[]): number {
   return ((last - first) / first) * 100
 }
 
+function bitcoinChartCacheKey(fiat: Fiats, windowSecs: number): string {
+  return `${fiat}:${windowSecs}`
+}
+
 function coinGeckoDaysForWindow(windowSecs: number): string[] {
-  if (isAllChartWindow(windowSecs)) return ['365']
+  if (isAllChartWindow(windowSecs)) return ['max']
   if (windowSecs <= 3_600) return ['1']
   if (windowSecs <= 86_400) return ['1']
   if (windowSecs <= 604_800) return ['7']
