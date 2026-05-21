@@ -55,7 +55,7 @@ test('should lock and unlock wallet without previous password', async ({ page })
   await page.getByText('Unlock wallet').click()
 
   // Verify wallet is unlocked
-  await navigateHome(page)
+  await page.waitForSelector('text=Receive', { state: 'visible', timeout: 5000 })
 })
 
 test('should lock and unlock wallet with previous password', async ({ page }) => {
@@ -75,5 +75,5 @@ test('should lock and unlock wallet with previous password', async ({ page }) =>
   await page.getByText('Unlock wallet').click()
 
   // Verify wallet is unlocked
-  await navigateHome(page)
+  await page.waitForSelector('text=Receive', { state: 'visible', timeout: 5000 })
 })

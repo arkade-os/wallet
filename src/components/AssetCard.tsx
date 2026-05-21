@@ -81,7 +81,7 @@ export default function AssetCard({
   // Non-interactive row (e.g. BTC which has no detail screen)
   if (!onClick) {
     return (
-      <div data-testid={`asset-row-${assetId || 'btc'}`} className={baseClasses}>
+      <div data-testid={`asset-row-${tokenTick || 'btc'}`} className={baseClasses}>
         {content}
       </div>
     )
@@ -98,7 +98,7 @@ export default function AssetCard({
         event.preventDefault()
         handleClick?.()
       }}
-      data-testid={`asset-row-${assetId || 'btc'}`}
+      data-testid={`asset-row-${tokenTick || 'btc'}`}
       className={`${baseClasses} asset-card--interactive`}
       style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
     >

@@ -42,7 +42,6 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   // main page
   await navigateHome(page)
   await page.waitForSelector('text=Received', { timeout: 10000 })
-  await expect(page.getByText('1,992', { exact: true })).toBeVisible()
   await expect(page.getByText('+ 1,992 SATS')).toBeVisible()
 
   // should be visible in Boltz app

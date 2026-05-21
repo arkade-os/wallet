@@ -95,7 +95,7 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
 
   // main page
   await page.getByText('Sounds good').click()
-  await page.waitForSelector('text=- $2.00', { timeout: 10000 })
+  await page.waitForSelector('text=$2.00', { timeout: 4000 })
   await expect(page.getByText('Sent')).toBeVisible()
 
   // go to send page

@@ -111,7 +111,6 @@ export default function AppAssets({ back }: AppAssetsProps = {}) {
                     icon={asset.icon}
                     decimals={asset.decimals}
                     onClick={() => handleAssetClick(asset.assetId)}
-                    darkPurple
                   />
                 ))
               )}
