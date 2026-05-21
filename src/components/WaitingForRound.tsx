@@ -21,14 +21,20 @@ export default function WaitingForRound({ rollover, settle, done, exitMode, onEx
   const firstRun = useRef(true)
 
   useEffect(() => {
-    let interval: NodeJS.Timeout
-    // give 2 seconds to read initial message
-    sleep(2000).then(() => {
+    let cancelled = false
+    let interval: ReturnType<typeof setInterval> | undefined
+    const timeout = setTimeout(() => {
+      if (cancelled) return
       interval = setInterval(() => {
         setLogLength(getInfoLogsLength())
       }, 500)
-    })
-    return () => clearInterval(interval)
+    }, 2000)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timeout)
+      if (interval) clearInterval(interval)
+    }
   }, [])
 
   useEffect(() => {
