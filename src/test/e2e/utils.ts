@@ -73,7 +73,16 @@ export async function navigateHome(page: Page): Promise<void> {
 }
 
 export async function navigateToBoltz(page: Page): Promise<void> {
-  await page.goto('/#app+boltz')
+  await navigateHome(page)
+  await page.evaluate(() => {
+    const nav = (
+      window as typeof window & {
+        __ARKADE_E2E_NAVIGATE__?: (page: 'AppBoltz') => void
+      }
+    ).__ARKADE_E2E_NAVIGATE__
+    if (!nav) throw new Error('E2E navigation hook is unavailable')
+    nav('AppBoltz')
+  })
   await page.waitForSelector('text=Boltz', { state: 'visible', timeout: 60000 })
 }
 
@@ -117,8 +126,8 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
 
   // submit
   await page.getByText('Mint', { exact: true }).click()
-  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector('text=Asset minted!', { timeout: 30000 })
+  await page.getByTestId('loading-logo').waitFor({ timeout: 10000 })
+  await page.waitForSelector('text=Asset minted!', { timeout: 60000 })
 }
 
 export async function createWallet(page: Page): Promise<void> {

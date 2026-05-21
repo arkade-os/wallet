@@ -307,7 +307,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [])
 
-  const navigate = (page: Pages) => {
+  const navigate = useCallback((page: Pages) => {
     const isRootNavigation = ROOT_PAGES.has(page)
 
     previousPage.current = screenRef.current
@@ -336,7 +336,20 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     screenRef.current = page
     setScreen(page)
     setTab(pageTab[page])
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+
+    const navWindow = window as typeof window & {
+      __ARKADE_E2E_NAVIGATE__?: (page: keyof typeof Pages) => void
+    }
+    navWindow.__ARKADE_E2E_NAVIGATE__ = (page) => navigate(Pages[page])
+
+    return () => {
+      delete navWindow.__ARKADE_E2E_NAVIGATE__
+    }
+  }, [navigate])
 
   return (
     <NavigationContext.Provider value={{ direction, goBack, isInitialLoad, navigate, screen, tab }}>
