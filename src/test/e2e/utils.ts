@@ -222,14 +222,14 @@ export async function receiveLightning(page: Page, isMobile: boolean, sats: numb
 export async function navigateToSettings(page: Page): Promise<void> {
   if (
     await page
-      .getByRole('heading', { name: 'Settings' })
+      .getByText('Settings', { exact: true })
       .isVisible()
       .catch(() => false)
   )
     return
   await navigateHome(page)
   await page.getByTestId('top-right-settings').click()
-  await page.getByRole('heading', { name: 'Settings' }).waitFor({ state: 'visible', timeout: 30000 })
+  await page.getByText('Settings', { exact: true }).waitFor({ state: 'visible', timeout: 30000 })
 }
 
 async function getSecret(page: Page): Promise<string> {
