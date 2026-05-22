@@ -1,4 +1,3 @@
-import { wait } from '@testing-library/user-event/dist/cjs/utils/index.js'
 import { prettyNumber } from '../../lib/format'
 import {
   test,
@@ -303,7 +302,7 @@ test('should send usds (some and max) to onchain address with chain swap', async
 
   const balanceText = await page.getByTestId('main-balance').textContent()
   const balance = Number((balanceText ?? '').replace(/[^\d.-]/g, '') || '0')
-  expect(balance).toBe(usdsReceived - totalSent)
+  expect(balance.toFixed(2)).toBe((usdsReceived - totalSent).toFixed(2))
 
   // go to send page
   await page.getByText('Send').click()
@@ -324,7 +323,7 @@ test('should send usds (some and max) to onchain address with chain swap', async
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await expect(page.getByText(`${balance.toFixed(2)} sent successfully`)).toBeVisible()
+  await expect(page.getByText(`$${balance.toFixed(2)} sent successfully`)).toBeVisible()
 
   // main page
   await page.getByText('Sounds good').click()
