@@ -112,13 +112,13 @@ const TransactionLine = ({
           const icon = meta?.icon
           const decimals = accountInfo?.decimals ?? meta?.decimals ?? 8
           const accountTicker = accountTickerForAssetTicker(ticker)
-          const label = accountInfo?.label ?? accountTicker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`
+          const label = accountInfo?.label ?? accountTicker ?? ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`
           return (
             <FlexRow key={a.assetId} gap='0.375rem' end>
               <TransactionAssetAvatar icon={icon} ticker={accountTicker ?? ticker} assetId={a.assetId} />
               <span className='activity-row__amount'>
                 <PrivacyAmount masked={prettyHide(a.amount, label)}>
-                  {`${prettyCurrencyAssetAmount(BigInt(a.amount), decimals, accountTicker ?? ticker)} ${label}`}
+                  {`${prettyCurrencyAssetAmount(a.amount, decimals, accountTicker ?? ticker)} ${label}`}
                 </PrivacyAmount>
               </span>
             </FlexRow>
