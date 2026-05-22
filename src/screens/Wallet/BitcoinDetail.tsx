@@ -205,6 +205,7 @@ export default function BitcoinDetail() {
                     badgeVariant='minimal'
                     formatValue={(value) => prettyFiatAmount(value, config.fiat)}
                     grid={false}
+                    paused={chartInteracting}
                     pulse={!prefersReduced}
                     scrub={!prefersReduced}
                     momentum={false}
