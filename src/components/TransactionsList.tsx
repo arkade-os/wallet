@@ -109,7 +109,7 @@ const TransactionLine = ({
           const icon = meta?.icon
           const decimals = meta?.decimals ?? 8
           const accountTicker = accountTickerForAssetTicker(ticker)
-          const label = accountTicker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`
+          const label = accountTicker ?? ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`
           return (
             <FlexRow key={a.assetId} gap='0.375rem' end>
               <TransactionAssetAvatar icon={icon} ticker={accountTicker ?? ticker} assetId={a.assetId} />
