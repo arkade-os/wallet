@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.3.32
-        version: 0.3.32
+        specifier: 0.3.33
+        version: 0.3.33
       '@arkade-os/sdk':
-        specifier: 0.4.27
-        version: 0.4.27
+        specifier: 0.4.28
+        version: 0.4.28
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -237,9 +237,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@0.3.32':
-    resolution: {integrity: sha512-FDswISD+kROvZXU2hzz8sExBlBdzit4njAdXol6xqN/v99L3tY48cKeHKqFesWz3Bo5Ckk/kDDrabDuk7AyLAA==}
-    engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
+  '@arkade-os/boltz-swap@0.3.33':
+    resolution: {integrity: sha512-qjKixB2ZT3LFnu8TgS4si7NlfvHd00NL5yD6sdCGUOMcEfY/NGwIEhBqMbcaA0ckoX9f1ZyMGg+AC1CAHzKUSQ==}
     peerDependencies:
       expo-background-task: '>=0.1.0'
       expo-task-manager: '>=3.0.0'
@@ -249,9 +248,9 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/sdk@0.4.27':
-    resolution: {integrity: sha512-LzfvXFAWcl7O6Jl/uljecs8uXovhHVJQKuh9U/DlK657T/sfRcDWlD/Eq1596mm509p3bBNJvIt4uRh133Lq+A==}
-    engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
+  '@arkade-os/sdk@0.4.28':
+    resolution: {integrity: sha512-3sndSz69QLAxY2I7lkaaFGX761B+sPR/XGtbsCmZGI1PPVO6aZqN7YnlKDgagcxg8Q1h/msuNGe0HyajkcLujg==}
+    engines: {node: '>=22.12.0 <25'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
       expo: '>=54.0.0'
@@ -4233,9 +4232,9 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@0.3.32':
+  '@arkade-os/boltz-swap@0.3.33':
     dependencies:
-      '@arkade-os/sdk': 0.4.27
+      '@arkade-os/sdk': 0.4.28
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
@@ -4253,7 +4252,7 @@ snapshots:
       - expo-sqlite
       - utf-8-validate
 
-  '@arkade-os/sdk@0.4.27':
+  '@arkade-os/sdk@0.4.28':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 7.3.1
