@@ -3,11 +3,13 @@ import AssetCard from '../../components/AssetCard'
 import { usePortfolioFiat } from '../../hooks/usePortfolioFiat'
 import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
+import { NavigationContext, Pages } from '../../providers/navigation'
 import { prettyFiatAmount } from '../../lib/format'
 
 export default function AssetsSection() {
   const { config } = useContext(ConfigContext)
   const { fiatDecimals } = useContext(FiatContext)
+  const { navigate } = useContext(NavigationContext)
   const { rows } = usePortfolioFiat()
 
   const fiatLabel = (amount: number) => {
@@ -34,6 +36,7 @@ export default function AssetsSection() {
             decimals={row.decimals}
             balance={row.balance}
             fiatText={row.hasFiatPrice ? fiatLabel(row.fiatAmount) : undefined}
+            onClick={row.assetId === 'btc' ? () => navigate(Pages.BitcoinDetail) : undefined}
           />
         ))}
       </div>

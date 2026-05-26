@@ -101,6 +101,10 @@ export type Tx = {
   roundTxid: string
   settled: boolean
   type: string
+  prototypeSwap?: {
+    fromTicker: string
+    toTicker: string
+  }
 }
 
 export enum Unit {

@@ -57,6 +57,7 @@ import {
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
+import { fiatDecimalsFor } from '../../../lib/fiat'
 
 // TODO: Replace when SDK is accurate
 type BrantaPayment = Partial<
@@ -672,7 +673,9 @@ export default function SendForm() {
       setAmountTextValue(centsToUnits(balance, decimals))
     } else {
       setState({ ...sendInfo, satoshis: liquidBalance })
-      setAmountTextValue(liquidBalance.toString())
+      setAmountTextValue(
+        useFiat ? toFiat(liquidBalance).toFixed(fiatDecimalsFor(config.fiat)) : liquidBalance.toString(),
+      )
       setAmount(liquidBalance)
     }
   }
@@ -807,8 +810,8 @@ export default function SendForm() {
 
   return (
     <>
-      {/* @ts-expect-error inert is valid HTML but React types lag behind */}
       <div
+        /* @ts-expect-error inert is valid HTML but React types lag behind */
         inert={overlayOpen || undefined}
         className='send-form'
         style={{ display: 'flex', flexDirection: 'column', height: '100%' }}

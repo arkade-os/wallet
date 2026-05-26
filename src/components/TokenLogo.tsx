@@ -1,5 +1,27 @@
 export type TokenLogoTicker = 'BTC' | 'USD' | 'USDT' | 'USDC' | 'CHF' | 'BRL'
 
+export function tokenLogoTickerForTicker(ticker: string | undefined): TokenLogoTicker | undefined {
+  const normalized = ticker?.trim().toUpperCase()
+  if (
+    normalized === 'BTC' ||
+    normalized === 'USD' ||
+    normalized === 'USDT' ||
+    normalized === 'USDC' ||
+    normalized === 'CHF' ||
+    normalized === 'BRL'
+  ) {
+    return normalized
+  }
+}
+
+export function accountTickerForAssetTicker(ticker: string | undefined): TokenLogoTicker | undefined {
+  const normalized = ticker?.trim().toUpperCase()
+  if (normalized === 'BTC') return 'BTC'
+  if (normalized === 'USD' || normalized === 'USDT' || normalized === 'USDC' || normalized === 'AUSD') return 'USD'
+  if (normalized === 'CHF') return 'CHF'
+  if (normalized === 'BRL' || normalized === 'DPIX' || normalized === 'DEPIX') return 'BRL'
+}
+
 export default function TokenLogo({ ticker }: { ticker: TokenLogoTicker }) {
   if (ticker === 'USD' || ticker === 'USDT' || ticker === 'USDC') return <UnitedStatesFlagLogo />
   if (ticker === 'CHF') return <SwitzerlandFlagLogo />

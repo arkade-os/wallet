@@ -65,7 +65,7 @@ export default function App() {
   const devAutoInitHomeRedirected = useRef(false)
   const hasDevAutoInit =
     import.meta.env.DEV &&
-    Boolean(import.meta.env.VITE_DEV_MNEMONIC || import.meta.env.VITE_DEV_NSEC) &&
+    Boolean(import.meta.env.VITE_DEV_NSEC || import.meta.env.VITE_DEV_MNEMONIC) &&
     import.meta.env.VITE_DEV_AUTO_INIT !== 'false' &&
     !devAutoInitFailed
 
@@ -102,7 +102,7 @@ export default function App() {
     // avoid redirect if the user is still setting up the wallet
     if (initInfo.password || initInfo.privateKey) return
     if (!walletLoaded) return navigate(Pages.Loading)
-    // dev auto-init: stay on loading screen while the configured dev seed initializes the wallet
+    // dev auto-init: stay on loading screen while local credentials initialize the wallet
     if (hasDevAutoInit && !initialized) return
     if (!wallet.pubkey) return navigate(Pages.Init)
     if (authState === 'locked') return navigate(Pages.Unlock)
@@ -189,7 +189,7 @@ export default function App() {
 
   // Boot animation: persists on Loading, then flies to the LogoIcon position when
   // Wallet is reached. For any other destination (Unlock, Init, etc.), exits with fly-up.
-  // Skip in dev auto-init — the fast seed restore races with the animation.
+  // Skip in dev with local credentials — the fast auto-init races with the animation.
   useEffect(() => {
     if (hasDevAutoInit) return
 
