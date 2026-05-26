@@ -390,7 +390,7 @@ function useBitcoinMarketChartData(fiat: Fiats, windowSecs: number): LivelinePoi
       return () => controller.abort()
     }
 
-    fetchHistoricalMarketData(windowSecs, fiat)
+    fetchHistoricalMarketData(windowSecs, fiat, controller.signal)
       .then((points) => {
         if (controller.signal.aborted) return
         bitcoinChartCache.set(cacheKey, points)
