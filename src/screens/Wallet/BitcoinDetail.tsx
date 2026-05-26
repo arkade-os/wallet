@@ -45,7 +45,7 @@ export default function BitcoinDetail() {
   const { balance } = useContext(WalletContext)
   const prefersReduced = useReducedMotion()
 
-  const [chartWindow, setChartWindow] = useState(CHART_WINDOWS[0].secs)
+  const [chartWindow, setChartWindow] = useState(CHART_WINDOWS[2].secs)
   const [chartInteracting, setChartInteracting] = useState(false)
   const [swapSheetOpen, setSwapSheetOpen] = useState(false)
   const chartHapticState = useRef({ lastPointTime: 0, lastTriggerTime: 0 })
