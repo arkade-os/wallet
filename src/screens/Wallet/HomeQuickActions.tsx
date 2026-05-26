@@ -4,8 +4,7 @@ import ReceiveIcon from '../../icons/Receive'
 import ScanIcon from '../../icons/Scan'
 import SendIcon from '../../icons/Send'
 import SwapIcon from '../../icons/Swap'
-import Button from '../../components/Button'
-import SheetModal from '../../components/SheetModal'
+import SwapComingSoonSheet from '../../components/SwapComingSoonSheet'
 import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { homeActionStaggerChild, homeActionStaggerContainer } from '../../lib/animations'
@@ -115,24 +114,5 @@ export default function HomeQuickActions() {
       </motion.div>
       <SwapComingSoonSheet isOpen={swapSheetOpen} onClose={() => setSwapSheetOpen(false)} />
     </>
-  )
-}
-
-function SwapComingSoonSheet({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  return (
-    <SheetModal isOpen={isOpen} onClose={onClose}>
-      <div className='swap-coming-soon' data-testid='swap-coming-soon-sheet'>
-        <div className='swap-coming-soon__icon' aria-hidden='true'>
-          <SwapIcon />
-        </div>
-        <div className='swap-coming-soon__copy'>
-          <h2 className='swap-coming-soon__title'>Swaps are coming soon</h2>
-          <p className='swap-coming-soon__description'>
-            We are polishing the swap experience before turning it on here.
-          </p>
-        </div>
-        <Button label='Got it' onClick={onClose} />
-      </div>
-    </SheetModal>
   )
 }
