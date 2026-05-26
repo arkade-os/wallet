@@ -254,13 +254,14 @@ export default function TransactionsList({ assetIdFilter, mode = 'virtual', limi
     return (
       <div className='activity-list activity-list--compact'>
         {txs.map((tx, index) => (
-          <TransactionLine
+          <Focusable
             key={key(tx, index)}
-            onClick={() => handleClick(tx)}
-            tx={tx}
-            isFirst={index === 0}
-            mode={mode}
-          />
+            id={`tx-static-${key(tx, index)}`}
+            onEnter={() => handleClick(tx)}
+            ariaLabel={ariaLabel(tx)}
+          >
+            <TransactionLine onClick={() => handleClick(tx)} tx={tx} isFirst={index === 0} mode={mode} />
+          </Focusable>
         ))}
       </div>
     )

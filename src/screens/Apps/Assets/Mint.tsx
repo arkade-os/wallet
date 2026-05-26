@@ -164,7 +164,7 @@ export default function AppAssetMint() {
       }
       setCacheEntry(newAssetId, assetDetails)
       setAssetInfo(assetDetails)
-      pendingNav.current = () => replace(Pages.AppAssetMintSuccess)
+      pendingNav.current = () => replace(Pages.AppAssetMintSuccess, Pages.AppAssets)
       setMintDone(true)
     } catch (err) {
       consoleError(err, 'error minting asset')

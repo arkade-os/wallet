@@ -44,7 +44,7 @@ export default function AssetCard({
   const prettyBalance = prettyCurrencyAssetAmount(rawBalance, decimals ?? 8, tokenTick)
   const leftSecondary = `${prettyBalance} ${tokenTick}`
   const maskedBalance = `•••• ${tokenTick}`
-  const maskedFiatText = fiatText?.trim().startsWith('$') ? maskedFiat('$') : '••••'
+  const maskedFiatText = maskedFiatUnit(fiatText)
 
   const handleClick = onClick
     ? () => {
@@ -86,7 +86,7 @@ export default function AssetCard({
   // Non-interactive row (e.g. asset which has no detail screen)
   if (!onClick) {
     return (
-      <div data-testid={`asset-row-${tokenTick || 'btc'}`} className={baseClasses}>
+      <div data-testid={assetRowTestId(tokenTick, assetId)} className={baseClasses}>
         {content}
       </div>
     )
@@ -103,11 +103,28 @@ export default function AssetCard({
         event.preventDefault()
         handleClick?.()
       }}
-      data-testid={`asset-row-${tokenTick || 'btc'}`}
+      data-testid={assetRowTestId(tokenTick, assetId)}
       className={`${baseClasses} asset-card--interactive`}
       style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
     >
       {content}
     </div>
   )
+}
+
+function assetRowTestId(ticker: string, assetId: string) {
+  return `asset-row-${ticker || 'btc'}-${assetId || 'btc'}`
+}
+
+function maskedFiatUnit(fiatText?: string) {
+  const trimmed = fiatText?.trim()
+  if (!trimmed) return '••••'
+
+  const leadingUnit = trimmed.match(/^[^\d\s.,+-]+/)
+  if (leadingUnit) return maskedFiat(leadingUnit[0])
+
+  const trailingCode = trimmed.match(/\b[A-Z]{3}$/)
+  if (trailingCode) return `•••• ${trailingCode[0]}`
+
+  return '••••'
 }

@@ -31,7 +31,7 @@ describe('Wallet screen', () => {
       </NavigationContext.Provider>,
     )
 
-    await user.click(screen.getByTestId('asset-row-BTC'))
+    await user.click(screen.getByTestId(/^asset-row-BTC-/))
     expect(navigate).toHaveBeenCalledWith(Pages.BitcoinDetail)
   })
 })

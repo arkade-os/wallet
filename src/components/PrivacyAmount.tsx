@@ -49,7 +49,7 @@ export function PrivacyAmount({ children, className, interactive = false, masked
     <button
       type='button'
       aria-label={visible ? 'Hide balances' : 'Show balances'}
-      aria-pressed={!visible}
+      aria-pressed={visible}
       className={cn('privacy-amount privacy-amount--interactive', className)}
       data-testid={testId}
       onClick={handleClick}

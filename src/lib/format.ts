@@ -81,7 +81,7 @@ export const prettyCurrencyAssetAmount = (
   const fiat = fiatForTicker(ticker)
   if (!fiat) return prettyAssetAmount(amount, decimals, useGrouping)
 
-  const unitAmount = Decimal.div(amount.toString(), Decimal.pow(10, decimals)).toNumber()
+  const unitAmount = Decimal.div(amount.toString(), Decimal.pow(10, decimals))
   const fiatDecimals = fiatDecimalsFor(fiat)
   return prettyNumber(unitAmount, fiatDecimals, useGrouping, fiatDecimals)
 }
@@ -147,24 +147,51 @@ export const prettyLongText = (str?: string, showChars = 11): string => {
   return `${left}...${right}`
 }
 
+type PrettyNumberInput = number | string | bigint | Decimal
+
 export const prettyNumber = (
-  num?: number,
+  num?: PrettyNumberInput,
   maximumFractionDigits = 8,
   useGrouping = true,
   minimumFractionDigits?: number,
 ): string => {
-  if (num === undefined || num === null || Number.isNaN(num)) return '0'
-  return new Intl.NumberFormat('en', {
-    style: 'decimal',
-    maximumFractionDigits,
-    minimumFractionDigits,
-    useGrouping,
-  }).format(num)
+  if (num === undefined || num === null) return '0'
+  if (typeof num === 'number') {
+    if (Number.isNaN(num)) return '0'
+    return new Intl.NumberFormat('en', {
+      style: 'decimal',
+      maximumFractionDigits,
+      minimumFractionDigits,
+      useGrouping,
+    }).format(num)
+  }
+
+  return formatDecimalText(num, maximumFractionDigits, useGrouping, minimumFractionDigits)
+}
+
+function formatDecimalText(
+  value: Exclude<PrettyNumberInput, number>,
+  maximumFractionDigits: number,
+  useGrouping: boolean,
+  minimumFractionDigits = 0,
+): string {
+  const fixed = new Decimal(value.toString()).toFixed(maximumFractionDigits)
+  const [rawInteger, rawFraction = ''] = fixed.split('.')
+  const negative = rawInteger.startsWith('-')
+  const integer = negative ? rawInteger.slice(1) : rawInteger
+  const groupedInteger = useGrouping ? integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : integer
+  const trimmedFraction = rawFraction.replace(/0+$/, '')
+  const fraction =
+    trimmedFraction.length < minimumFractionDigits
+      ? trimmedFraction.padEnd(minimumFractionDigits, '0')
+      : trimmedFraction
+
+  return `${negative ? '-' : ''}${groupedInteger}${fraction ? `.${fraction}` : ''}`
 }
 
 export const formatAssetAmount = (amount: bigint, decimals: number): string => {
-  if (decimals === 0) return prettyNumber(Number(amount), 0)
-  return prettyNumber(Number(centsToUnits(amount, decimals)), decimals)
+  if (decimals === 0) return prettyNumber(amount, 0)
+  return prettyNumber(centsToUnits(amount, decimals), decimals)
 }
 
 export const isIssuance = (tx: Tx): boolean => {

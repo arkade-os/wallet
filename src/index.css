@@ -619,6 +619,12 @@ button.reminder-button {
   padding: 0;
 }
 
+.home-section-action:focus-visible {
+  border-radius: var(--radius-sm);
+  outline: 2px solid var(--purple-700);
+  outline-offset: 3px;
+}
+
 .asset-card,
 .home-upsell-card {
   display: flex;
@@ -655,6 +661,12 @@ button.reminder-button {
 .asset-card--interactive:active,
 .home-upsell-card:active {
   transform: scale(0.985);
+}
+
+.asset-card--interactive:focus-visible,
+.home-upsell-card:focus-visible {
+  outline: 2px solid var(--purple-700);
+  outline-offset: 3px;
 }
 
 .asset-card__identity,
@@ -889,6 +901,13 @@ button.reminder-button {
 
 .activity-row:active {
   transform: scale(0.99);
+}
+
+.activity-row:focus-visible,
+.focusable:focus-visible .activity-row {
+  border-radius: var(--radius-md);
+  outline: 2px solid var(--purple-700);
+  outline-offset: 3px;
 }
 
 .activity-row__left {
@@ -1924,14 +1943,6 @@ hr {
   display: none;
 }
 
-/* Hide scrollbar while keeping scroll functionality */
-.hide-scrollbar {
-  scrollbar-width: none;
-}
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
 .scroll-fade {
   padding-bottom: 4rem;
   height: 100%;
@@ -1957,7 +1968,6 @@ hr {
 }
 
 .hit-area {
-  content: '""';
   position: absolute;
   inset: -4px;
 }
