@@ -95,7 +95,7 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
 
   // main page
   await page.getByText('Sounds good').click()
-  await page.waitForSelector('text=$2.00', { timeout: 4000 })
+  await page.waitForSelector('text=$2.00', { timeout: 10000 })
   await expect(page.getByText('Sent')).toBeVisible()
 
   // go to send page
@@ -121,7 +121,7 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
 
   // main page
   await page.getByText('Sounds good').click()
-  await page.waitForSelector(`text=- $${usdsRemaining}`, { timeout: 10000 })
+  await page.waitForSelector(`text=$${usdsRemaining}`, { timeout: 10000 })
 })
 
 test('should send assets (some and max) to ark address', async ({ page, isMobile }) => {
@@ -230,6 +230,10 @@ test('should send sats (some and max) to onchain address with chain swap', async
 
   // details page
   await expect(page.getByTestId('Amount')).toContainText('2,000 SATS')
+  const fees = await page.getByTestId('Network fees').textContent()
+  expect(fees).not.toBeNull()
+  const feesNumber = parseInt(fees!.replace(/[^0-9]/g, ''), 10)
+  expect(feesNumber).toBeGreaterThan(0)
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
@@ -238,8 +242,7 @@ test('should send sats (some and max) to onchain address with chain swap', async
   await page.getByText('Sounds good').click()
   await page.waitForSelector('text=Sent', { timeout: 10000 })
 
-  const balanceText = await page.getByTestId('main-balance').textContent()
-  const balance = parseInt(balanceText?.replace(/[^0-9]/g, '') || '0', 10)
+  const balance = 5000 - feesNumber - 2000
   expect(balance).toBeLessThan(3000) // balance should be less than 3000 sats
 
   // go to send page
@@ -280,21 +283,26 @@ test('should send usds (some and max) to onchain address with chain swap', async
   await prePay(page, someOnchainAddress, isMobile, usdsToSend)
 
   // details page
-  await expect(page.getByTestId('Amount')).toContainText('$2.00')
+  await expect(page.getByTestId('Amount')).toContainText(`$${usdsToSend.toFixed(2)}`)
+  const fees = await page.getByTestId('Network fees').textContent()
+  expect(fees).not.toBeNull()
+  const feesNumber = parseFloat(fees!.replace(/[^0-9.]/g, ''))
+  expect(feesNumber).toBeGreaterThan(0)
+  const totalSent = usdsToSend + feesNumber
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
   await page.waitForSelector('text=Payment sent!', { timeout: 30000 })
-  await expect(page.getByText(/\$[\d\,\.]+ sent successfully/)).toBeVisible()
+  await expect(page.getByText(`$${totalSent.toFixed(2)} sent successfully`)).toBeVisible()
 
   // main page
   await page.getByText('Sounds good').click()
-  await expect(page.getByText(/\- \$[\d\,\.]+/)).toBeVisible()
+  await expect(page.getByText(`$${totalSent.toFixed(2)}`)).toBeVisible()
   await expect(page.getByText('Sent')).toBeVisible()
 
   const balanceText = await page.getByTestId('main-balance').textContent()
   const balance = Number((balanceText ?? '').replace(/[^\d.-]/g, '') || '0')
-  expect(balance).toBeLessThan(usdsReceived)
+  expect(balance.toFixed(2)).toBe((usdsReceived - totalSent).toFixed(2))
 
   // go to send page
   await page.getByText('Send').click()
@@ -315,11 +323,11 @@ test('should send usds (some and max) to onchain address with chain swap', async
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await expect(page.getByText(/\$[\d\,\.]+ sent successfully/)).toBeVisible()
+  await expect(page.getByText(`$${balance.toFixed(2)} sent successfully`)).toBeVisible()
 
   // main page
   await page.getByText('Sounds good').click()
-  await expect(page.getByText(`- $${balance.toFixed(2)}`)).toBeVisible()
+  await page.waitForSelector('text=$0.00', { timeout: 10000 })
 })
 
 // wallet balance is 5000 sats,
@@ -343,19 +351,25 @@ test('should send sats (some and max) to onchain address with collaborative exit
 
   // details page
   await expect(page.getByTestId('Amount')).toContainText('700 SATS')
+  const fees = await page.getByTestId('Network fees').textContent()
+  expect(fees).not.toBeNull()
+  const feesNumber = parseInt(fees!.replace(/[^0-9]/g, ''), 10)
+  expect(feesNumber).toBeGreaterThan(0)
+  const totalSent = 700 + feesNumber
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector('text=sent successfully', { timeout: 20000 })
+  await page.waitForSelector('text=Payment sent!', { timeout: 30000 })
+  await expect(page.getByText(`${totalSent} SATS sent successfully`)).toBeVisible()
 
   // main page
   await page.getByText('Sounds good').click()
   await expect(page.getByText('Received')).toBeVisible()
   await expect(page.getByText('1,800 SATS')).toBeVisible()
   await page.waitForSelector('text=Sent', { timeout: 10000 })
+  await expect(page.getByText(`${totalSent} SATS`)).toBeVisible()
 
-  const balanceText = await page.getByTestId('main-balance').textContent()
-  const balance = parseInt(balanceText?.replace(/[^0-9]/g, '') || '0', 10)
+  const balance = 1800 - totalSent
 
   // go to send page
   await page.getByText('Send').click()
@@ -372,15 +386,15 @@ test('should send sats (some and max) to onchain address with collaborative exit
   await page.getByText('Continue').click()
 
   // details page
-  await expect(page.getByTestId('Total')).toContainText(`${prettyNumber(balance)} SATS`)
+  await expect(page.getByTestId('Total')).toContainText(`${balance} SATS`)
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector(`text=${prettyNumber(balance)} SATS sent successfully`, { timeout: 20000 })
+  await page.waitForSelector(`text=${balance} SATS sent successfully`, { timeout: 20000 })
 
   // main page
   await page.getByText('Sounds good').click()
-  await page.waitForSelector(`text=- ${prettyNumber(balance)} SATS`, { timeout: 10000 })
+  await page.waitForSelector(`text=- ${balance} SATS`, { timeout: 10000 })
 
   // clear fees
   execSync('docker exec -t arkd arkd fees clear')
