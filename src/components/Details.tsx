@@ -44,7 +44,7 @@ export interface DetailsProps {
   when?: string
 }
 
-export default function Details({ details }: { details?: DetailsProps }) {
+export default function Details({ details, variant }: { details?: DetailsProps; variant?: 'default' | 'receipt' }) {
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
 
@@ -121,5 +121,5 @@ export default function Details({ details }: { details?: DetailsProps }) {
     ['Total', formatAmount(total), <TotalIcon key='total-icon' />],
   ]
 
-  return <Table data={data} />
+  return <Table data={data} variant={variant} />
 }

@@ -203,12 +203,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // wallet is read synchronously in useState initializer above
 
   const devNsec = import.meta.env.VITE_DEV_NSEC as string | undefined
-  const isDevAutoInit = import.meta.env.DEV && Boolean(devNsec) && import.meta.env.VITE_DEV_AUTO_INIT !== 'false'
+  const devMnemonic = import.meta.env.VITE_DEV_MNEMONIC as string | undefined
+  const isDevAutoInit =
+    import.meta.env.DEV && Boolean(devNsec || devMnemonic) && import.meta.env.VITE_DEV_AUTO_INIT !== 'false'
   const [devAutoInitFailed, setDevAutoInitFailed] = useState(false)
 
-  // dev-only: auto-initialize wallet from VITE_DEV_NSEC, bypassing onboarding and unlock
+  // dev-only: auto-initialize wallet from local credentials, bypassing onboarding and unlock
   useEffect(() => {
-    if (!isDevAutoInit || !devNsec || devAutoInitFailed) return
+    if (!isDevAutoInit || (!devNsec && !devMnemonic) || devAutoInitFailed) return
     if (initialized) return
     if (!aspInfo.url) return
 
@@ -234,8 +236,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
             .then((reg) => reg?.unregister())
             .finally(() => window.location.reload())
         }, DEV_AUTO_INIT_TIMEOUT_MS)
-        const privateKey = nsecToPrivateKey(devNsec)
-        await initWallet({ privateKey })
+        if (devMnemonic) {
+          await initWallet({ mnemonic: devMnemonic })
+        } else if (devNsec) {
+          const privateKey = nsecToPrivateKey(devNsec)
+          await initWallet({ privateKey })
+        }
         if (cancelled) return
         clearTimeout(watchdog)
         try {
