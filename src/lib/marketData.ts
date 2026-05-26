@@ -9,7 +9,7 @@ interface HistoricalMarketDataResponse {
   data: LivelinePoint[]
 }
 
-const CHART_WINDOWS = [
+const PERIOD_WINDOWS = [
   { label: 'oneHour', secs: 3_600 },
   { label: 'oneDay', secs: 86_400 },
   { label: 'oneWeek', secs: 604_800 },
@@ -19,14 +19,19 @@ const CHART_WINDOWS = [
 ]
 
 const secsToPeriod = (secs: number): string => {
-  const window = CHART_WINDOWS.find((w) => w.secs === secs)
+  const window = PERIOD_WINDOWS.find((w) => w.secs === secs)
   return window ? window.label : 'oneDay'
 }
 
-export const fetchHistoricalMarketData = async (secs: number, fiat: Fiats): Promise<LivelinePoint[]> => {
+export const fetchHistoricalMarketData = async (
+  secs: number,
+  fiat: Fiats,
+  signal?: AbortSignal,
+): Promise<LivelinePoint[]> => {
   const period = secsToPeriod(secs)
   const params = new URLSearchParams({ period, fiat })
-  const resp = await fetch(`${host}?${params.toString()}`)
+  const resp = await fetch(`${host}?${params.toString()}`, { signal })
+  if (!resp.ok) throw new Error(`Market data fetch failed: ${resp.status}`)
   const data = await resp.json()
   return isValidHistoricalMarketDataResponse(data) ? data.data : []
 }
