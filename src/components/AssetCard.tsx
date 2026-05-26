@@ -83,7 +83,7 @@ export default function AssetCard({
 
   const baseClasses = 'asset-card'
 
-  // Non-interactive row (e.g. BTC which has no detail screen)
+  // Non-interactive row (e.g. asset which has no detail screen)
   if (!onClick) {
     return (
       <div data-testid={`asset-row-${tokenTick || 'btc'}`} className={baseClasses}>
