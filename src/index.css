@@ -1296,6 +1296,8 @@ button.reminder-button {
   background-color: transparent;
   caret-color: var(--black);
   color: var(--black);
+  outline: none;
+  min-width: 0;
 }
 
 input:focus::placeholder {
@@ -1308,26 +1310,299 @@ input:focus::placeholder {
 }
 
 .label {
-  position: relative;
   align-items: center;
   display: flex;
   gap: 0.25rem;
   flex: 1;
-  &.has-buttons {
-    & > div {
-      right: 0;
-      top: 50%;
-      gap: 4px;
-      display: flex;
-      position: absolute;
-      transform: translateY(-50%);
-    }
-    & > input {
-      width: 100%;
-      padding-right: 36px;
-      box-sizing: border-box;
-    }
+}
+
+.input-container {
+  gap: 0.375rem !important;
+}
+
+.input-shell {
+  width: 100%;
+  min-height: 3.5rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--fg) 3.5%, var(--bg));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--fg) 5%, transparent),
+    inset 0 1px 2px color-mix(in srgb, var(--fg) 4%, transparent);
+  padding: 0.75rem;
+  transition:
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.input-shell:focus-within {
+  background: color-mix(in srgb, var(--purple-100) 18%, var(--bg));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--purple-700) 24%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--purple-700) 8%, transparent);
+}
+
+.input-shell .input {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+.input-shell .label {
+  gap: 0.625rem;
+}
+
+html.palette-dark .input-shell {
+  background: var(--neutral-50) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--fg) 6%, transparent),
+    inset 0 1px 2px color-mix(in srgb, var(--bg) 28%, transparent);
+}
+
+html.palette-dark .input-shell:focus-within {
+  background: color-mix(in oklab, var(--purple-700) 18%, var(--neutral-50)) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--purple-200) 22%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--purple-500) 14%, transparent);
+}
+
+.send-form {
+  width: 100%;
+  height: 100%;
+}
+
+.send-form .content-shell {
+  padding-top: 0.75rem;
+}
+
+.send-form-stack {
+  padding-bottom: 1.5rem;
+}
+
+.send-form .input-container > div:first-child > div:first-child p,
+.send-asset-field > p {
+  color: color-mix(in srgb, var(--fg) 52%, transparent) !important;
+  font-size: 0.8125rem !important;
+  line-height: 1.125rem !important;
+}
+
+.send-form .input {
+  color: var(--fg);
+  font-weight: 400;
+}
+
+.send-form .input::placeholder {
+  color: color-mix(in srgb, var(--fg) 36%, transparent);
+}
+
+.send-form .input-shell p {
+  color: color-mix(in srgb, var(--fg) 54%, transparent) !important;
+}
+
+.send-form .input-shell [role='button'] {
+  color: color-mix(in srgb, var(--purple-700) 80%, var(--fg)) !important;
+  font-weight: 500;
+}
+
+.send-asset-trigger,
+.send-asset-option {
+  width: 100%;
+  border: 0;
+  appearance: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.send-asset-trigger {
+  min-height: 4.25rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--fg) 3.5%, var(--bg));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--fg) 5%, transparent),
+    inset 0 1px 2px color-mix(in srgb, var(--fg) 4%, transparent);
+  color: var(--fg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  transition:
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.send-asset-trigger:active {
+  transform: scale(0.99);
+}
+
+.send-asset-trigger[aria-expanded='true'] {
+  background: color-mix(in srgb, var(--purple-100) 18%, var(--bg));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--purple-700) 24%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--purple-700) 8%, transparent);
+}
+
+.send-asset-trigger__main,
+.send-asset-option__main {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.send-asset-trigger__copy,
+.send-asset-option__main > span {
+  min-width: 0;
+  display: grid;
+  gap: 0.125rem;
+}
+
+.send-asset-trigger__name,
+.send-asset-option__name {
+  color: var(--fg);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+}
+
+.send-asset-trigger__balance,
+.send-asset-option__meta,
+.send-asset-option__amount {
+  color: color-mix(in srgb, var(--fg) 52%, transparent);
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+}
+
+.send-asset-trigger__chevron {
+  color: color-mix(in srgb, var(--fg) 42%, transparent);
+  font-size: 0.6875rem;
+  line-height: 1;
+}
+
+.send-asset-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.send-asset-icon svg,
+.send-asset-icon img {
+  width: 100%;
+  height: 100%;
+}
+
+.send-asset-icon--fallback {
+  background: color-mix(in srgb, var(--purple-100) 58%, var(--bg));
+  color: color-mix(in srgb, var(--purple-700) 86%, var(--fg));
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.send-asset-menu {
+  width: var(--anchor-width);
+  max-width: min(var(--available-width), calc(100vw - 2rem));
+  min-width: min(var(--anchor-width), calc(100vw - 2rem));
+  max-height: min(18rem, 40vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 0.875rem;
+  background: var(--bg);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--fg) 6%, transparent),
+    0 10px 20px -16px color-mix(in srgb, var(--fg) 28%, transparent);
+  padding: 0.25rem;
+  transform-origin: var(--transform-origin);
+  will-change: opacity, transform;
+}
+
+.send-asset-menu[data-open] {
+  animation: send-asset-menu-in 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.send-asset-menu[data-closed] {
+  animation: send-asset-menu-out 120ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+.send-asset-option {
+  min-height: 3.75rem;
+  border-radius: 0.625rem;
+  background: transparent;
+  color: var(--fg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem;
+  transition:
+    background-color 160ms ease,
+    transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.send-asset-option:active {
+  transform: scale(0.99);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .send-asset-option:hover {
+    background: color-mix(in srgb, var(--fg) 4%, transparent);
   }
+}
+
+@keyframes send-asset-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.375rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes send-asset-menu-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-0.25rem) scale(0.985);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .send-asset-menu[data-open],
+  .send-asset-menu[data-closed] {
+    animation-duration: 0.01ms;
+  }
+}
+
+html.palette-dark .send-asset-trigger {
+  background: var(--neutral-50) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--fg) 6%, transparent),
+    inset 0 1px 2px color-mix(in srgb, var(--bg) 28%, transparent);
+}
+
+html.palette-dark .send-asset-trigger[aria-expanded='true'] {
+  background: color-mix(in oklab, var(--purple-700) 18%, var(--neutral-50)) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--purple-200) 22%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--purple-500) 14%, transparent);
+}
+
+html.palette-dark .send-asset-menu {
+  background: var(--neutral-50) !important;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--fg) 6%, transparent),
+    0 10px 20px -16px color-mix(in srgb, var(--bg) 72%, transparent);
 }
 
 .page {
