@@ -393,7 +393,6 @@ function useBitcoinMarketChartData(fiat: Fiats, windowSecs: number): LivelinePoi
     fetchHistoricalMarketData(windowSecs, fiat)
       .then((points) => {
         if (controller.signal.aborted) return
-        console.log('point', points)
         bitcoinChartCache.set(cacheKey, points)
         setData(points)
       })
