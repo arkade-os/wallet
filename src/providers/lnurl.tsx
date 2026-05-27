@@ -1,10 +1,11 @@
-import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { ReactNode, createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { lnurlServerUrl as rawLnurlServerUrl } from '../lib/constants'
 import { consoleError } from '../lib/logs'
 import { deriveLnurlCredentials, type LnurlSessionCredentials } from '../lib/lnurl'
-import { WalletContext } from './wallet'
 import { SwapsContext } from './swaps'
 import { NotificationsContext } from './notifications'
+import { hex } from '@scure/base'
+import { FlowContext } from './flow'
 
 const lnurlServerBaseUrl = rawLnurlServerUrl?.replace(/\/+$/, '')
 
@@ -21,13 +22,14 @@ export const LnurlContext = createContext<LnurlContextProps>({
 })
 
 export const LnurlProvider = ({ children }: { children: ReactNode }) => {
-  const { svcWallet } = useContext(WalletContext)
+  const { lnurlInfo, setLnurlInfo } = useContext(FlowContext)
   const { arkadeSwaps, connected, swapsInitError, createReverseSwap } = useContext(SwapsContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
 
   const [lnurl, setLnurl] = useState('')
   const [active, setActive] = useState(false)
   const [error, setError] = useState<string | undefined>()
+  const [credentials, setCredentials] = useState<LnurlSessionCredentials | undefined>()
 
   const sessionIdRef = useRef<string | null>(null)
   const tokenRef = useRef<string | null>(null)
@@ -220,12 +222,6 @@ export const LnurlProvider = ({ children }: { children: ReactNode }) => {
     [stopSession, postInvoice, postError, handleInvoiceRequest],
   )
 
-  const privateKeyHex = (svcWallet?.identity as { toHex?: () => string } | undefined)?.toHex?.()
-  const credentials = useMemo(
-    () => (privateKeyHex ? deriveLnurlCredentials(privateKeyHex) : undefined),
-    [privateKeyHex],
-  )
-
   useEffect(() => {
     const ready = !!lnurlServerBaseUrl && !!credentials && connected && !!arkadeSwaps && !swapsInitError
 
@@ -237,6 +233,14 @@ export const LnurlProvider = ({ children }: { children: ReactNode }) => {
 
     return () => stopSession()
   }, [credentials, connected, !!arkadeSwaps, swapsInitError])
+
+  useEffect(() => {
+    if (!lnurlInfo) return
+    const seckey = hex.encode(lnurlInfo)
+    const credentials = deriveLnurlCredentials(seckey)
+    setCredentials(credentials)
+    setLnurlInfo(undefined)
+  }, [lnurlInfo])
 
   return <LnurlContext.Provider value={{ lnurl, active, error }}>{children}</LnurlContext.Provider>
 }
