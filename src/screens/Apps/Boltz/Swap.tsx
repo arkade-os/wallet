@@ -98,9 +98,7 @@ export default function AppBoltzSwap() {
     const sentSats = swapInfo.response.lockupDetails?.amount
     const rcvdSats = swapInfo.response.claimDetails?.amount
     const btcAddress =
-      swapInfo.request.from === 'ARK'
-        ? swapInfo.response.lockupDetails?.lockupAddress
-        : swapInfo.response.claimDetails?.lockupAddress
+      swapInfo.request.from === 'ARK' ? swapInfo.toAddress : swapInfo.response.claimDetails?.lockupAddress
 
     tableData = [
       ['When', when],
