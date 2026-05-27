@@ -13,6 +13,7 @@ import { hmac } from '@noble/hashes/hmac.js'
 import { collaborativeExit, getReceivingAddresses } from '../../../lib/asp'
 import { Transaction } from '@arkade-os/sdk'
 import { isArkAddress, isBTCAddress } from '../../../lib/address'
+import { NavigationContext, Pages } from '@/providers/navigation'
 
 const { bytesToHex, hexToBytes } = utils
 
@@ -22,6 +23,7 @@ secp.hashes.hmacSha256 = (key, msg) => hmac(sha256, key, msg)
 
 export default function AppLendasat() {
   const { wallet, svcWallet } = useContext(WalletContext)
+  const { navigate } = useContext(NavigationContext)
 
   const [arkAddress, setArkAddress] = useState<string | null>(null)
   const [boardingAddress, setBoardingAddress] = useState<string | null>(null)
@@ -177,7 +179,7 @@ export default function AppLendasat() {
 
   return (
     <>
-      <Header text='Lendasat' back />
+      <Header text='Lendasat' back={() => navigate(Pages.Wallet)} />
       <Content>
         <Padded>
           <FlexCol gap='2rem' between>
