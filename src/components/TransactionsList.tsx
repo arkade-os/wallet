@@ -40,7 +40,7 @@ const TransactionLine = ({
   mode: 'virtual' | 'static'
 }) => {
   const { config } = useContext(ConfigContext)
-  const { toFiat } = useContext(FiatContext)
+  const { convertFiat, toFiat } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
 
   const prefix = tx.type === 'sent' ? '-' : '+'
@@ -162,7 +162,7 @@ const TransactionLine = ({
   const Right = () => (
     <div className='activity-row__right'>
       {swap ? (
-        <SwapAmountInfo tx={tx} />
+        <SwapAmountInfo configFiat={config.fiat} convertFiat={convertFiat} tx={tx} />
       ) : tx.assets?.length ? (
         <>
           <AssetInfo />
@@ -193,7 +193,15 @@ const TransactionLine = ({
   )
 }
 
-function SwapAmountInfo({ tx }: { tx: Tx }) {
+function SwapAmountInfo({
+  configFiat,
+  convertFiat,
+  tx,
+}: {
+  configFiat: Fiats
+  convertFiat: (amount: number, from: Fiats, to?: Fiats) => number
+  tx: Tx
+}) {
   const status = swapStatusForTx(tx)
   const from = formatPrototypeSwapAmount(tx, 'from')
   const to = formatPrototypeSwapAmount(tx, 'to')
@@ -211,7 +219,7 @@ function SwapAmountInfo({ tx }: { tx: Tx }) {
         {to ? `+ ${to}` : status === 'pending' ? 'Pending' : 'Completed'}
       </span>
       <span className='activity-row__amount activity-row__amount--secondary'>
-        {from ? `- ${from}` : fiat ? prettyFiatAmount(fiat, Fiats.USD) : ''}
+        {from ? `- ${from}` : fiat ? prettyFiatAmount(convertFiat(fiat, Fiats.USD, configFiat), configFiat) : ''}
       </span>
     </>
   )
@@ -391,6 +399,11 @@ export default function TransactionsList({ assetIdFilter, mode = 'virtual', limi
 
 function matchesAssetFilter(tx: Tx, assetIdFilter?: string | string[]): boolean {
   if (!assetIdFilter) return true
+  if (tx.type === 'swap' && tx.prototypeSwap) {
+    const swapAssetIds = [tx.prototypeSwap.fromAssetId, tx.prototypeSwap.toAssetId].filter(Boolean)
+    if (Array.isArray(assetIdFilter)) return swapAssetIds.some((assetId) => assetIdFilter.includes(assetId))
+    return swapAssetIds.includes(assetIdFilter)
+  }
   if (Array.isArray(assetIdFilter)) {
     if (!assetIdFilter.length) return false
     return tx.assets?.some((asset) => assetIdFilter.includes(asset.assetId)) ?? false

@@ -88,6 +88,7 @@ export default function Transaction() {
   }
 
   const handleSettle = async () => {
+    if (tx?.isPrototype) return
     setError('')
     setSettling(true)
     try {
@@ -213,6 +214,7 @@ export default function Transaction() {
   const showSettleButtons =
     utxoTxsAllowed() &&
     vtxoTxsAllowed() &&
+    !tx.isPrototype &&
     !unconfirmedBoardingTx &&
     !expiredBoardingTx &&
     hasInputsToSettle &&

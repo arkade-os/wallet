@@ -911,9 +911,6 @@ function QuoteDetails({ quote, loading }: { quote: SwapQuote; loading: boolean }
         value={quote.toAsset ? `1 ${quote.fromAsset.ticker} = ${quote.rateLabel} ${quote.toAsset.ticker}` : 'Pending'}
         loading={loading}
       />
-      <MetricRow label='Price impact' value='0.04%' loading={loading} />
-      <MetricRow label='Network cost' value='$0.00' loading={loading} />
-      <MetricRow label='Arrival' value='About 12 seconds' loading={loading} />
     </div>
   )
 }

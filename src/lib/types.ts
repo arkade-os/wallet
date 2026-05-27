@@ -101,10 +101,13 @@ export type Tx = {
   roundTxid: string
   settled: boolean
   type: string
+  isPrototype?: boolean
   prototypeSwap?: {
+    fromAssetId?: string
     fromTicker: string
     fromDecimals?: number
     fromAmount?: bigint
+    toAssetId?: string
     toTicker: string
     toDecimals?: number
     toAmount?: bigint

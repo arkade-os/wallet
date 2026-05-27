@@ -832,26 +832,27 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const addPrototypeSwap = (swap: PrototypeSwapInput) => {
     const createdAt = Math.floor(Date.now() / 1000)
+    const prototypeId =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`
     const prototypeTx: Tx = {
       amount: 0,
-      assets: [
-        {
-          assetId: swap.toAssetId,
-          amount: swap.toAmount,
-        } as any,
-      ],
       boardingTxid: '',
       createdAt,
       explorable: undefined,
       preconfirmed: false,
       redeemTxid: '',
-      roundTxid: `prototype-swap-${createdAt}`,
+      roundTxid: `prototype-swap-${prototypeId}`,
       settled: true,
       type: 'swap',
+      isPrototype: true,
       prototypeSwap: {
+        fromAssetId: swap.fromAssetId,
         fromTicker: swap.fromTicker,
         fromDecimals: swap.fromDecimals,
         fromAmount: swap.fromAmount,
+        toAssetId: swap.toAssetId,
         toTicker: swap.toTicker,
         toDecimals: swap.toDecimals,
         toAmount: swap.toAmount,
