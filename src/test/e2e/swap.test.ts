@@ -9,6 +9,7 @@ import {
   navigateHome,
   navigateToBoltz,
 } from './utils'
+import { prettyLongText } from '../../lib/format'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 
@@ -168,6 +169,7 @@ test('should send funds to Bitcoin', async ({ page, isMobile }) => {
 
   expect(await page.getByTestId('Kind').textContent()).toBe('Chain Swap')
   expect(await page.getByTestId('Direction').textContent()).toBe('Arkade to BTC')
+  expect(await page.getByTestId('BTC Address').textContent()).toBe(prettyLongText(someOnchainAddress))
   expect(await page.getByTestId('Status').textContent()).toBe('transaction.claimed')
   expect(await page.getByTestId('Amount').textContent()).toBe('2,111 SATS')
   expect(await page.getByTestId('Fees').textContent()).toBe('164 SATS')
