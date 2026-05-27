@@ -298,9 +298,7 @@ export default function SendForm() {
     setBrantaLoading(true)
     let cancelled = false
 
-    const lookup = rawScanData
-      ? brantaClient.getPaymentsByQrCode(rawScanData)
-      : brantaClient.getPayments(typed)
+    const lookup = rawScanData ? brantaClient.getPaymentsByQrCode(rawScanData) : brantaClient.getPayments(typed)
 
     lookup
       .then(({ payments, verifyUrl }) => {
