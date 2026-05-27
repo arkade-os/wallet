@@ -850,7 +850,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       type: 'swap',
       prototypeSwap: {
         fromTicker: swap.fromTicker,
+        fromDecimals: swap.fromDecimals,
+        fromAmount: swap.fromAmount,
         toTicker: swap.toTicker,
+        toDecimals: swap.toDecimals,
+        toAmount: swap.toAmount,
+        fiatAmount: swap.fiatAmount,
+        status: 'completed',
       },
     }
 

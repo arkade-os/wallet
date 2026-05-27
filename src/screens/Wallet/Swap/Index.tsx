@@ -13,7 +13,7 @@ import ChevronDownIcon from '../../../icons/ChevronDown'
 import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
-import { hapticLight, hapticTap } from '../../../lib/haptics'
+import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
 import { Fiats } from '../../../lib/types'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
@@ -28,6 +28,7 @@ type AssetTarget = 'from' | 'to'
 type DrawerState = 'to' | 'review' | null
 type SwapStep = 'select-from' | 'compose'
 type AmountMode = 'asset' | 'fiat'
+type SwapValidationState = 'idle' | 'insufficient-balance' | 'quote-unavailable'
 
 interface SwapAsset {
   assetId: string
@@ -37,7 +38,6 @@ interface SwapAsset {
   balance: number | bigint
   fiatText?: string
   icon?: string
-  isBitcoin?: boolean
   sourceAssetIds?: string[]
   usdPrice?: number
 }
@@ -52,7 +52,21 @@ interface SwapQuote {
   rateLabel: string
 }
 
+interface ExitingAmountCharacter {
+  character: string
+  id: number
+  slotClassName: string
+}
+
 const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'Back']
+const emptySwapAsset: SwapAsset = {
+  assetId: 'swap-empty',
+  name: 'Asset',
+  ticker: 'ASSET',
+  decimals: 0,
+  balance: BigInt(0),
+  usdPrice: 0,
+}
 
 export default function WalletSwap() {
   const { config } = useContext(ConfigContext)
@@ -71,20 +85,26 @@ export default function WalletSwap() {
     () => (containsDevSwapTestAssets(rows) ? assets.filter((asset) => isDevSwapTestAssetId(asset.assetId)) : assets),
     [assets, rows],
   )
-  const [step, setStep] = useState<SwapStep>(swapFromAssetId ? 'compose' : 'select-from')
+  const initialFromAssetId = resolveInitialFromAssetId(swapAssets, swapFromAssetId)
+  const [step, setStep] = useState<SwapStep>(swapFromAssetId && initialFromAssetId ? 'compose' : 'select-from')
   const [search, setSearch] = useState('')
-  const [amount, setAmount] = useState('1')
+  const [amount, setAmount] = useState('0')
   const [amountMode, setAmountMode] = useState<AmountMode>('fiat')
-  const [fromAssetId, setFromAssetId] = useState(
-    (swapFromAssetId ? resolveSwapAssetId(swapAssets, swapFromAssetId) : undefined) ?? swapAssets[0]?.assetId ?? 'btc',
-  )
+  const [fromAssetId, setFromAssetId] = useState(initialFromAssetId ?? swapAssets[0]?.assetId ?? 'btc')
   const [toAssetId, setToAssetId] = useState<string | undefined>()
   const [drawer, setDrawer] = useState<DrawerState>(null)
   const [swapTurn, setSwapTurn] = useState(0)
+  const [invalidPulse, setInvalidPulse] = useState(0)
   const [confirming, setConfirming] = useState(false)
+  const [confirmError, setConfirmError] = useState('')
+  const [quoteLoading, setQuoteLoading] = useState(false)
   const [successQuote, setSuccessQuote] = useState<SwapQuote>()
 
-  const fromAsset = swapAssets.find((asset) => asset.assetId === fromAssetId) ?? swapAssets[0]
+  const fromAsset =
+    swapAssets.find((asset) => asset.assetId === fromAssetId) ??
+    firstPositiveBalanceAsset(swapAssets) ??
+    swapAssets[0] ??
+    emptySwapAsset
   const toAsset = toAssetId
     ? swapAssets.find((asset) => asset.assetId === toAssetId && asset.assetId !== fromAsset.assetId)
     : undefined
@@ -92,11 +112,26 @@ export default function WalletSwap() {
     () => buildQuote(amount, amountMode, fromAsset, toAsset),
     [amount, amountMode, fromAsset, toAsset],
   )
-  const canContinue = Boolean(toAsset) && Number(amount) > 0 && canSpendSwapAmount(amount, amountMode, fromAsset)
+  const quoteAvailable = !toAsset || isQuoteAvailable(fromAsset, toAsset)
+  const hasPositiveAmount = Number(amount) > 0
+  const hasSufficientBalance = canSpendSwapAmount(amount, amountMode, fromAsset)
+  const validationState: SwapValidationState = !quoteAvailable
+    ? 'quote-unavailable'
+    : hasPositiveAmount && !hasSufficientBalance
+      ? 'insufficient-balance'
+      : 'idle'
+  const canContinue = Boolean(toAsset) && hasPositiveAmount && hasSufficientBalance && quoteAvailable && !quoteLoading
 
   const stageTransition = prefersReduced ? { duration: 0 } : { duration: 0.28, ease: EASE_IN_OUT_QUINT_TUPLE }
 
   const filteredAssets = useMemo(() => filterAssets(swapAssets, search), [search, swapAssets])
+
+  useEffect(() => {
+    if (swapAssets.length === 0) return
+    const currentAssetStillAvailable = swapAssets.some((asset) => asset.assetId === fromAssetId)
+    if (currentAssetStillAvailable) return
+    setFromAssetId(resolveInitialFromAssetId(swapAssets, swapFromAssetId) ?? swapAssets[0]?.assetId ?? 'btc')
+  }, [fromAssetId, swapAssets, swapFromAssetId])
 
   const focusFromAsset = useCallback((assetId: string) => {
     setFromAssetId(assetId)
@@ -108,14 +143,32 @@ export default function WalletSwap() {
   useEffect(() => {
     if (!swapFromAssetId || swapAssets.length === 0) return
 
-    const nextFromAssetId = resolveSwapAssetId(swapAssets, swapFromAssetId) ?? swapAssets[0]?.assetId ?? 'btc'
+    const nextFromAssetId = resolveInitialFromAssetId(swapAssets, swapFromAssetId) ?? swapAssets[0]?.assetId ?? 'btc'
 
     focusFromAsset(nextFromAssetId)
     setSwapFromAssetId(undefined)
   }, [focusFromAsset, setSwapFromAssetId, swapAssets, swapFromAssetId])
 
+  useEffect(() => {
+    if (!toAsset || !hasPositiveAmount || !quoteAvailable) {
+      setQuoteLoading(false)
+      return
+    }
+
+    setQuoteLoading(true)
+    const timer = window.setTimeout(() => setQuoteLoading(false), 360)
+    return () => window.clearTimeout(timer)
+  }, [amount, amountMode, fromAsset.assetId, hasPositiveAmount, quoteAvailable, toAsset?.assetId])
+
+  useEffect(() => {
+    if (validationState === 'idle') return
+    hapticSubtle()
+    setInvalidPulse((current) => current + 1)
+  }, [validationState])
+
   const openDrawer = (nextDrawer: DrawerState) => {
     hapticLight()
+    if (nextDrawer === 'review') setConfirmError('')
     setDrawer(nextDrawer)
   }
 
@@ -126,6 +179,7 @@ export default function WalletSwap() {
 
   const selectToAsset = (_target: AssetTarget, asset: SwapAsset) => {
     hapticLight()
+    setConfirmError('')
     setToAssetId(asset.assetId)
     if (asset.assetId === fromAsset.assetId) setFromAssetId(toAsset?.assetId ?? fromAsset.assetId)
     setDrawer(null)
@@ -140,6 +194,7 @@ export default function WalletSwap() {
   }
 
   const pressKey = (key: string) => {
+    setConfirmError('')
     const maxDecimals = amountMode === 'fiat' ? 2 : fromAsset.decimals
     const canApplyKey = (current: string) => {
       if (key === 'Back') return current !== '0'
@@ -192,15 +247,35 @@ export default function WalletSwap() {
   const confirmPrototypeSwap = () => {
     if (!toAsset || confirming || !canContinue) return
 
+    setConfirmError('')
     setConfirming(true)
     window.setTimeout(() => {
-      const execution = buildPrototypeSwapExecution(amount, amountMode, fromAsset, toAsset)
-      addPrototypeSwap(execution)
-      setConfirming(false)
-      setDrawer(null)
-      setSuccessQuote(quote)
-      hapticLight()
+      try {
+        const execution = buildPrototypeSwapExecution(amount, amountMode, fromAsset, toAsset)
+        addPrototypeSwap(execution)
+        setConfirming(false)
+        setDrawer(null)
+        setSuccessQuote(quote)
+        hapticLight()
+      } catch {
+        setConfirming(false)
+        setConfirmError('Swap failed. Check the route and try again.')
+        hapticLight()
+      }
     }, 850)
+  }
+
+  if (swapAssets.length < 2) {
+    return (
+      <>
+        <Header text='Swap' back={goBack} />
+        <Content className='asset-swap-content'>
+          <Padded>
+            <SwapUnavailableState />
+          </Padded>
+        </Content>
+      </>
+    )
   }
 
   return (
@@ -223,7 +298,7 @@ export default function WalletSwap() {
                     title='Choose asset to swap'
                     search={search}
                     assets={filteredAssets}
-                    empty={swapAssets.length === 0}
+                    empty={filteredAssets.length === 0}
                     onSearch={setSearch}
                     onSelect={selectFromAsset}
                   />
@@ -247,10 +322,13 @@ export default function WalletSwap() {
                     onModeToggle={toggleAmountMode}
                     onOpenReceiveDrawer={() => openDrawer('to')}
                     onSwapSides={swapSides}
+                    validationState={validationState}
+                    invalidPulse={invalidPulse}
+                    quoteLoading={quoteLoading}
                     swapTurn={swapTurn}
                   />
                   <Keypad amount={amount} onPress={pressKey} />
-                  <Button label='Continue' disabled={!canContinue} onClick={() => setDrawer('review')} />
+                  <Button label='Continue' disabled={!canContinue} onClick={() => openDrawer('review')} />
                 </motion.section>
               )}
             </AnimatePresence>
@@ -274,6 +352,8 @@ export default function WalletSwap() {
         quote={quote}
         canConfirm={canContinue}
         confirming={confirming}
+        error={confirmError}
+        quoteLoading={quoteLoading}
         onOpenChange={(open) => {
           if (!open) setDrawer(null)
         }}
@@ -281,6 +361,20 @@ export default function WalletSwap() {
       />
       <SwapSuccessOverlay quote={successQuote} onDone={handleSuccessDone} />
     </>
+  )
+}
+
+function SwapUnavailableState() {
+  return (
+    <div className='swap-unavailable-state'>
+      <span className='swap-unavailable-state__icon'>
+        <SwapIcon />
+      </span>
+      <div>
+        <p>Swaps are unavailable</p>
+        <span>Add another supported asset to swap between balances.</span>
+      </div>
+    </div>
   )
 }
 
@@ -322,7 +416,7 @@ function SwapAssetList({
       </label>
       <div className='swap-token-list swap-token-list--page'>
         {empty ? (
-          <div className='swap-empty-state'>No assets found</div>
+          <div className='swap-empty-state'>No assets match this search</div>
         ) : (
           assets.map((asset, index) => (
             <motion.div
@@ -352,6 +446,9 @@ function SwapComposer({
   onModeToggle,
   onOpenReceiveDrawer,
   onSwapSides,
+  validationState,
+  invalidPulse,
+  quoteLoading,
   swapTurn,
 }: {
   amount: string
@@ -363,12 +460,21 @@ function SwapComposer({
   onModeToggle: () => void
   onOpenReceiveDrawer: () => void
   onSwapSides: () => void
+  validationState: SwapValidationState
+  invalidPulse: number
+  quoteLoading: boolean
   swapTurn: number
 }) {
   const prefersReduced = useReducedMotion()
   const amountLabel = amountMode === 'fiat' ? formatFiatInputAmount(amount) : `${amount} ${fromAsset.ticker}`
   const subAmountLabel = amountMode === 'fiat' ? `${quote.fromAmount} ${fromAsset.ticker}` : quote.fromFiat
   const nextAmountModeLabel = amountMode === 'fiat' ? 'asset amount' : 'fiat amount'
+  const validationMessage =
+    validationState === 'insufficient-balance'
+      ? 'Insufficient balance'
+      : validationState === 'quote-unavailable'
+        ? 'Swap unavailable for this pair'
+        : ''
 
   return (
     <div className='swap-composer'>
@@ -380,9 +486,37 @@ function SwapComposer({
             <small>{formatAssetBalance(fromAsset)}</small>
           </div>
         </div>
-        <button type='button' className='swap-amount-display' onClick={onAmountFocus} aria-label='Swap amount'>
-          <AnimatedAmountValue value={amountLabel} reducedMotion={prefersReduced} />
-        </button>
+        <div className='swap-amount-stack'>
+          <motion.button
+            key={invalidPulse}
+            type='button'
+            className={
+              validationState === 'idle' ? 'swap-amount-display' : 'swap-amount-display swap-amount-display--invalid'
+            }
+            onClick={onAmountFocus}
+            aria-label='Swap amount'
+            animate={prefersReduced || validationState === 'idle' ? undefined : { x: [0, -7, 6, -4, 2, 0] }}
+            transition={
+              prefersReduced || validationState === 'idle' ? undefined : { duration: 0.32, ease: EASE_OUT_QUINT_TUPLE }
+            }
+          >
+            <AnimatedAmountValue value={amountLabel} reducedMotion={prefersReduced} />
+          </motion.button>
+          <AnimatePresence initial={false}>
+            {validationMessage ? (
+              <motion.p
+                key={validationMessage}
+                className='swap-input-error'
+                initial={prefersReduced ? false : { opacity: 0, y: 4, scale: 0.96 }}
+                animate={prefersReduced ? undefined : { opacity: 1, y: 0, scale: 1 }}
+                exit={prefersReduced ? undefined : { opacity: 0, y: 4, scale: 0.96 }}
+                transition={{ duration: prefersReduced ? 0 : 0.16, ease: EASE_OUT_QUINT_TUPLE }}
+              >
+                {validationMessage}
+              </motion.p>
+            ) : null}
+          </AnimatePresence>
+        </div>
         <motion.button
           type='button'
           className='swap-amount-secondary'
@@ -423,10 +557,10 @@ function SwapComposer({
             <div>
               <span>Receive {toAsset.ticker}</span>
               <small>
-                {quote.toAmount} {toAsset.ticker}
+                {quoteLoading ? <SwapSkeletonText width='5.75rem' /> : `${quote.toAmount} ${toAsset.ticker}`}
               </small>
             </div>
-            <strong>{quote.toFiat}</strong>
+            <strong>{quoteLoading ? <SwapSkeletonText width='3.75rem' /> : quote.toFiat}</strong>
           </>
         ) : (
           <>
@@ -443,39 +577,107 @@ function SwapComposer({
   )
 }
 
+function SwapSkeletonText({ width }: { width: string }) {
+  return <span className='swap-skeleton-text' style={{ width }} aria-hidden='true' />
+}
+
 function AnimatedAmountValue({ value, reducedMotion }: { value: string; reducedMotion: boolean }) {
-  const characters = Array.from(value).map((character, _index, source) => {
-    const occurrence = source.slice(0, _index + 1).filter((candidate) => candidate === character).length
-    return { character, key: `${character}-${occurrence}` }
-  })
   const previousValueRef = useRef(value)
+  const exitingIdRef = useRef(0)
+  const [exitingCharacters, setExitingCharacters] = useState<ExitingAmountCharacter[]>([])
+  const characters = Array.from(value)
+  const previousCharacters = Array.from(previousValueRef.current)
+  const shouldAnimate = previousValueRef.current !== value
   const isAdding = value.length > previousValueRef.current.length
 
   useEffect(() => {
+    const previousCharactersForExit = Array.from(previousValueRef.current)
+    const nextCharacters = Array.from(value)
+    const isDeleting = nextCharacters.length < previousCharactersForExit.length
+
+    if (isDeleting) {
+      const removedCharacters = previousCharactersForExit.slice(nextCharacters.length).map((character) => ({
+        character,
+        id: exitingIdRef.current++,
+        slotClassName: amountCharacterSlotClassName(character),
+      }))
+      setExitingCharacters(removedCharacters)
+      const timer = window.setTimeout(() => setExitingCharacters([]), 180)
+      previousValueRef.current = value
+      return () => window.clearTimeout(timer)
+    }
+
+    setExitingCharacters([])
     previousValueRef.current = value
   }, [value])
 
   return (
     <span className='swap-amount-value' aria-label={value}>
       <AnimatePresence initial={false}>
-        {characters.map(({ character, key }) => (
-          <motion.span
-            key={key}
-            className='swap-amount-character'
-            initial={reducedMotion ? false : { opacity: 0, y: isAdding ? 10 : 6 }}
-            animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
-            exit={reducedMotion ? undefined : { opacity: 0, y: -6 }}
-            transition={
-              reducedMotion ? { duration: 0 } : { duration: isAdding ? 0.24 : 0.16, ease: EASE_OUT_QUINT_TUPLE }
-            }
-            aria-hidden='true'
-          >
-            {character === ' ' ? '\u00a0' : character}
-          </motion.span>
-        ))}
+        {characters.map((character, characterIndex) => {
+          const characterChanged = previousCharacters[characterIndex] !== character
+          const entering = shouldAnimate && (characterChanged || characterIndex >= previousCharacters.length)
+          return (
+            <motion.span
+              key={amountCharacterSlotKey(character, characterIndex, characters)}
+              className={amountCharacterSlotClassName(character)}
+              initial={reducedMotion ? false : { opacity: 0, y: isAdding ? 12 : 7 }}
+              animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+              exit={reducedMotion ? undefined : { opacity: 0, y: -7 }}
+              transition={
+                reducedMotion ? { duration: 0 } : { duration: isAdding ? 0.28 : 0.16, ease: EASE_OUT_QUINT_TUPLE }
+              }
+            >
+              <AnimatePresence mode='popLayout' initial={shouldAnimate}>
+                <motion.span
+                  key={character}
+                  className={
+                    entering && !reducedMotion
+                      ? 'swap-amount-character swap-amount-character--entering'
+                      : 'swap-amount-character'
+                  }
+                  initial={reducedMotion ? false : { opacity: 0, y: isAdding ? 12 : 7 }}
+                  animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+                  exit={reducedMotion ? undefined : { opacity: 0, y: -6 }}
+                  transition={
+                    reducedMotion ? { duration: 0 } : { duration: isAdding ? 0.28 : 0.16, ease: EASE_OUT_QUINT_TUPLE }
+                  }
+                  aria-hidden='true'
+                >
+                  {character === ' ' ? '\u00a0' : character}
+                </motion.span>
+              </AnimatePresence>
+            </motion.span>
+          )
+        })}
       </AnimatePresence>
+      {exitingCharacters.map(({ character, id, slotClassName }) => (
+        <span key={`exiting-${id}`} className={`${slotClassName} swap-amount-character-slot--exiting`}>
+          <span className='swap-amount-character swap-amount-character--exiting' aria-hidden='true'>
+            {character === ' ' ? '\u00a0' : character}
+          </span>
+        </span>
+      ))}
     </span>
   )
+}
+
+function amountCharacterSlotKey(character: string, characterIndex: number, source: string[]): string {
+  if (/\d/.test(character)) {
+    const digitPosition = source.slice(0, characterIndex).filter((candidate) => /\d/.test(candidate)).length
+    return `digit-${digitPosition}`
+  }
+
+  if (character === '.') return 'decimal-point'
+  if (character === ' ')
+    return `space-${source.slice(0, characterIndex).filter((candidate) => candidate === ' ').length}`
+  return `symbol-${character}`
+}
+
+function amountCharacterSlotClassName(character: string): string {
+  if (character === ' ') return 'swap-amount-character-slot swap-amount-character-slot--space'
+  if (/\d/.test(character)) return 'swap-amount-character-slot swap-amount-character-slot--digit'
+  return 'swap-amount-character-slot'
 }
 
 function AnimatedSecondaryAmountValue({ value, reducedMotion }: { value: string; reducedMotion: boolean }) {
@@ -609,6 +811,8 @@ function ReviewDrawer({
   quote,
   canConfirm,
   confirming,
+  error,
+  quoteLoading,
   onOpenChange,
   onConfirm,
 }: {
@@ -616,6 +820,8 @@ function ReviewDrawer({
   quote: SwapQuote
   canConfirm: boolean
   confirming: boolean
+  error: string
+  quoteLoading: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
@@ -627,10 +833,23 @@ function ReviewDrawer({
           <DrawerDescription>Check the route and estimated totals.</DrawerDescription>
         </DrawerHeader>
         <div className='swap-review-drawer-body'>
-          <ReviewSummary quote={quote} />
-          <QuoteDetails quote={quote} />
+          <ReviewSummary quote={quote} loading={quoteLoading} />
+          <QuoteDetails quote={quote} loading={quoteLoading} />
         </div>
         <div className='swap-review-action'>
+          <AnimatePresence initial={false}>
+            {error ? (
+              <motion.p
+                className='swap-confirm-error'
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                transition={{ duration: 0.2, ease: EASE_OUT_QUINT_TUPLE }}
+              >
+                {error}
+              </motion.p>
+            ) : null}
+          </AnimatePresence>
           <Button label='Confirm swap' disabled={!canConfirm || confirming} loading={confirming} onClick={onConfirm} />
         </div>
       </DrawerContent>
@@ -650,7 +869,7 @@ function SwapSuccessOverlay({ quote, onDone }: { quote?: SwapQuote; onDone: () =
   )
 }
 
-function ReviewSummary({ quote }: { quote: SwapQuote }) {
+function ReviewSummary({ quote, loading }: { quote: SwapQuote; loading: boolean }) {
   return (
     <div className='swap-review-card'>
       <div className='swap-review-hero'>
@@ -667,37 +886,43 @@ function ReviewSummary({ quote }: { quote: SwapQuote }) {
       </div>
       <div className='swap-review-total'>
         <span>Estimated receive</span>
-        <strong>{quote.toFiat}</strong>
+        <strong>{loading ? <SwapSkeletonText width='5rem' /> : quote.toFiat}</strong>
       </div>
-      <MetricRow label={`Swap ${quote.fromAsset.ticker}`} value={`${quote.fromAmount} ${quote.fromAsset.ticker}`} />
+      <MetricRow
+        label={`Swap ${quote.fromAsset.ticker}`}
+        value={`${quote.fromAmount} ${quote.fromAsset.ticker}`}
+        loading={loading}
+      />
       <MetricRow
         label={`Receive ${quote.toAsset?.ticker ?? 'asset'}`}
         value={quote.toAsset ? `${quote.toAmount} ${quote.toAsset.ticker}` : 'Choose asset'}
+        loading={loading}
       />
-      <MetricRow label='Total value' value={quote.toFiat} />
+      <MetricRow label='Total value' value={quote.toFiat} loading={loading} />
     </div>
   )
 }
 
-function QuoteDetails({ quote }: { quote: SwapQuote }) {
+function QuoteDetails({ quote, loading }: { quote: SwapQuote; loading: boolean }) {
   return (
     <div className='swap-detail-card'>
       <MetricRow
         label='Rate'
         value={quote.toAsset ? `1 ${quote.fromAsset.ticker} = ${quote.rateLabel} ${quote.toAsset.ticker}` : 'Pending'}
+        loading={loading}
       />
-      <MetricRow label='Price impact' value='0.04%' />
-      <MetricRow label='Network cost' value='$0.00' />
-      <MetricRow label='Arrival' value='About 12 seconds' />
+      <MetricRow label='Price impact' value='0.04%' loading={loading} />
+      <MetricRow label='Network cost' value='$0.00' loading={loading} />
+      <MetricRow label='Arrival' value='About 12 seconds' loading={loading} />
     </div>
   )
 }
 
-function MetricRow({ label, value }: { label: string; value: string }) {
+function MetricRow({ label, value, loading }: { label: string; value: string; loading?: boolean }) {
   return (
     <div className='swap-metric-row'>
       <span>{label}</span>
-      <span>{value}</span>
+      <span>{loading ? <SwapSkeletonText width='7rem' /> : value}</span>
     </div>
   )
 }
@@ -774,6 +999,10 @@ function estimateSwapUsd(asset: SwapAsset): number {
   return Number.isFinite(asset.usdPrice) ? (asset.usdPrice ?? 0) : 0
 }
 
+function isQuoteAvailable(fromAsset: SwapAsset, toAsset: SwapAsset): boolean {
+  return estimateSwapUsd(fromAsset) > 0 && estimateSwapUsd(toAsset) > 0
+}
+
 function toSwapAssets(
   rows: PortfolioRow[],
   fiat: Fiats,
@@ -794,7 +1023,6 @@ function toSwapAssets(
         })
       : undefined,
     icon: row.icon,
-    isBitcoin: row.assetId === 'btc',
     sourceAssetIds: row.sourceAssetIds,
     usdPrice: estimateRowUsdPrice(row, fiat, convertFiat, toFiat),
   }))
@@ -834,6 +1062,18 @@ function resolveSwapAssetId(assets: SwapAsset[], assetId: string): string | unde
   if (exact) return exact.assetId
 
   return assets.find((asset) => asset.sourceAssetIds?.includes(assetId))?.assetId
+}
+
+function resolveInitialFromAssetId(assets: SwapAsset[], requestedAssetId?: string): string | undefined {
+  if (requestedAssetId) return resolveSwapAssetId(assets, requestedAssetId)
+  return firstPositiveBalanceAsset(assets)?.assetId ?? assets[0]?.assetId
+}
+
+function firstPositiveBalanceAsset(assets: SwapAsset[]): SwapAsset | undefined {
+  return assets.find((asset) => {
+    const balance = typeof asset.balance === 'bigint' ? asset.balance : BigInt(asset.balance)
+    return balance > BigInt(0)
+  })
 }
 
 function formatAssetBalance(asset: SwapAsset): string {

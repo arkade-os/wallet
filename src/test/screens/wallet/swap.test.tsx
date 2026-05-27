@@ -91,7 +91,7 @@ describe('Wallet swap flow', () => {
     await userEvent.click(screen.getByRole('button', { name: /Bitcoin/i }))
 
     expect(screen.getByLabelText('Swap amount')).toBeInTheDocument()
-    expect(screen.getByLabelText('Swap keypad for 1')).toBeInTheDocument()
+    expect(screen.getByLabelText('Swap keypad for 0')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
   })
 

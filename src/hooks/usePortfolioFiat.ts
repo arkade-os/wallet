@@ -5,7 +5,7 @@ import { Fiats } from '../lib/types'
 import { areDevSwapTestAssetsEnabled, getDevSwapTestAssetRows, isDevSwapTestAssetId } from '../lib/devSwapTestAssets'
 
 export interface PortfolioRow {
-  /** 'btc' for the native Bitcoin row, otherwise the asset's on-chain id. */
+  /** 'btc' for the native bitcoin row, otherwise the asset's on-chain id. */
   assetId: string
   name: string
   ticker: string
@@ -43,7 +43,7 @@ export function usePortfolioFiat(): PortfolioFiat {
   let totalSats = 0
   let assetFiatTotal = 0
 
-  // BTC row first — always present.
+  // bitcoin row first, always present.
   totalSats += balance
   rows.push({
     assetId: 'btc',
@@ -61,7 +61,7 @@ export function usePortfolioFiat(): PortfolioFiat {
   let chfMinorUnits = BigInt(0)
   const chfSourceAssetIds: string[] = []
 
-  // Non-BTC asset rows from real SDK data.
+  // Non-bitcoin asset rows from real SDK data.
   for (const ab of assetBalances) {
     const meta = assetMetadataCache.get(ab.assetId)?.metadata
     const decimals = meta?.decimals ?? 8

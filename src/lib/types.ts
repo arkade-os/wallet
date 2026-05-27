@@ -103,7 +103,13 @@ export type Tx = {
   type: string
   prototypeSwap?: {
     fromTicker: string
+    fromDecimals?: number
+    fromAmount?: bigint
     toTicker: string
+    toDecimals?: number
+    toAmount?: bigint
+    fiatAmount?: number
+    status?: 'pending' | 'failed' | 'completed'
   }
 }
 

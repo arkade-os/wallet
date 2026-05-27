@@ -1017,6 +1017,10 @@ button.reminder-button {
   color: var(--orange-500);
 }
 
+.activity-row__amount--failed {
+  color: color-mix(in srgb, var(--red-700) 76%, var(--fg));
+}
+
 .palette-dark .home-section-action {
   color: color-mix(in srgb, var(--purple-200) 86%, var(--fg));
 }
@@ -1047,6 +1051,10 @@ button.reminder-button {
 
 .palette-dark .activity-row__amount--pending {
   color: var(--orange-400);
+}
+
+.palette-dark .activity-row__amount--failed {
+  color: color-mix(in srgb, var(--red-400) 78%, var(--fg));
 }
 
 .transaction-asset-logo {
@@ -1707,6 +1715,50 @@ html.palette-dark .send-asset-menu {
   gap: 0.875rem;
 }
 
+.swap-unavailable-state {
+  display: flex;
+  min-height: calc(100dvh - 10rem);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.swap-unavailable-state__icon {
+  display: inline-flex;
+  width: 4rem;
+  height: 4rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--purple-700) 8%, var(--bg));
+  color: var(--purple-700);
+}
+
+.swap-unavailable-state__icon svg {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.swap-unavailable-state p {
+  margin: 0;
+  color: var(--fg);
+  font-family: var(--font-family-heading);
+  font-size: var(--heading-sm-size);
+  font-weight: 500;
+  letter-spacing: var(--heading-sm-tracking);
+  line-height: var(--heading-sm-line);
+}
+
+.swap-unavailable-state span:not(.swap-unavailable-state__icon) {
+  display: block;
+  max-width: 18rem;
+  color: color-mix(in srgb, var(--fg) 52%, transparent);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm-line);
+}
+
 .swap-asset-list-panel {
   display: flex;
   flex-direction: column;
@@ -1861,6 +1913,15 @@ html.palette-dark .send-asset-menu {
   padding: 0 0.75rem;
 }
 
+.swap-amount-stack {
+  position: relative;
+  display: flex;
+  min-height: 5.875rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
 .swap-amount-display {
   width: 100%;
   display: flex;
@@ -1883,6 +1944,31 @@ html.palette-dark .send-asset-menu {
   font-variant-numeric: tabular-nums;
 }
 
+.swap-amount-display--invalid > .swap-amount-value {
+  color: color-mix(in srgb, var(--red-700) 84%, var(--fg));
+}
+
+.swap-input-error {
+  position: absolute;
+  bottom: calc(50% + 2.375rem);
+  left: 0;
+  right: 0;
+  width: max-content;
+  max-width: 100%;
+  min-height: var(--text-sm-line);
+  margin: 0 auto;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--red-700) 10%, var(--bg));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red-700) 14%, transparent);
+  color: color-mix(in srgb, var(--red-700) 84%, var(--fg));
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: var(--text-xs-line);
+  padding: 0.25rem 0.625rem;
+  text-align: center;
+  transform-origin: center bottom;
+}
+
 .swap-amount-value {
   display: inline-flex;
   align-items: baseline;
@@ -1890,16 +1976,63 @@ html.palette-dark .send-asset-menu {
   white-space: nowrap;
 }
 
+.swap-amount-character-slot {
+  display: inline-grid;
+  place-items: center;
+  min-width: 0.36em;
+}
+
+.swap-amount-character-slot--digit {
+  min-width: 0.58em;
+}
+
+.swap-amount-character-slot--space {
+  min-width: 0.32em;
+}
+
+.swap-amount-character-slot--exiting {
+  pointer-events: none;
+}
+
 .swap-amount-character {
+  grid-area: 1 / 1;
   display: inline-block;
   white-space: pre;
   will-change: transform, opacity;
+}
+
+.swap-amount-character--entering {
+  animation: swap-amount-character-in 280ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.swap-amount-character--exiting {
+  animation: swap-amount-character-out 170ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
 .swap-amount-value--secondary {
   color: inherit;
   font: inherit;
   line-height: inherit;
+}
+
+.swap-skeleton-text {
+  position: relative;
+  display: inline-flex;
+  height: 0.875rem;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+  vertical-align: middle;
+}
+
+.swap-skeleton-text::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--bg) 72%, transparent), transparent);
+  transform: translateX(-100%);
+  animation: swap-skeleton-shimmer 1050ms cubic-bezier(0.23, 1, 0.32, 1) infinite;
 }
 
 .swap-amount-secondary {
@@ -2051,15 +2184,15 @@ html.palette-dark .send-asset-menu {
 }
 
 .swap-metric-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 1rem;
   min-height: 3.125rem;
   color: color-mix(in srgb, var(--fg) 52%, transparent);
   font-size: var(--text-sm);
   font-weight: 400;
-  line-height: var(--text-sm-line);
+  line-height: 1;
   border-top: 1px solid color-mix(in srgb, var(--fg) 5%, transparent);
 }
 
@@ -2067,7 +2200,18 @@ html.palette-dark .send-asset-menu {
   border-top: 0;
 }
 
+.swap-metric-row span {
+  display: flex;
+  align-items: center;
+  min-height: var(--text-sm-line);
+}
+
+.swap-metric-row span:first-child {
+  min-width: 0;
+}
+
 .swap-metric-row span:last-child {
+  justify-content: flex-end;
   color: color-mix(in srgb, var(--fg) 82%, transparent);
   font-weight: 500;
   text-align: right;
@@ -2245,6 +2389,15 @@ html.palette-dark .send-asset-menu {
   box-shadow: 0 -12px 24px -18px color-mix(in srgb, var(--fg) 22%, transparent);
 }
 
+.swap-confirm-error {
+  margin: 0 0 0.625rem;
+  color: color-mix(in srgb, var(--red-700) 84%, var(--fg));
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: var(--text-sm-line);
+  text-align: center;
+}
+
 .swap-token-list--page {
   padding-top: 0.125rem;
 }
@@ -2308,6 +2461,36 @@ html.palette-dark .send-asset-menu {
   color: color-mix(in srgb, var(--fg) 46%, transparent);
   font-size: var(--text-sm);
   line-height: var(--text-sm-line);
+}
+
+@keyframes swap-skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes swap-amount-character-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.32em);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes swap-amount-character-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-0.28em);
+  }
 }
 
 .wallet-success-splash {
