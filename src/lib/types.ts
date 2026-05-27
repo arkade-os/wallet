@@ -107,6 +107,20 @@ export type Tx = {
   }
 }
 
+export type PrototypeAssetBalanceDeltas = Record<string, bigint>
+
+export type PrototypeSwapInput = {
+  fromAssetId: string
+  fromTicker: string
+  fromDecimals: number
+  fromAmount: bigint
+  toAssetId: string
+  toTicker: string
+  toDecimals: number
+  toAmount: bigint
+  fiatAmount: number
+}
+
 export enum Unit {
   BTC = 'btc',
   EUR = 'eur',

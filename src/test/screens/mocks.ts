@@ -79,6 +79,7 @@ export const mockConfigContextValue = {
 }
 
 export const mockFiatContextValue = {
+  convertFiat: (amount: number) => amount,
   fiatDecimals: () => 2,
   fromFiat: (amount: number) => amount,
   toFiat: (amount: number) => amount,
@@ -155,16 +156,19 @@ export const mockWalletContextValue = {
   assetMetadataCache: new Map(),
   setCacheEntry: () => ({ cachedAt: 0 }) as any,
   txs: [mockTxInfo],
+  prototypeAssetBalanceDeltas: {},
   vtxos: { spendable: [], spent: [] },
   iconApprovalManager: new AssetIconApprovalManager(),
   dataReady: false,
   loadError: null,
   dismissLoadError: () => {},
+  addPrototypeSwap: () => {},
 }
 
 export const mockFlowContextValue = {
   txInfo: mockTxInfo,
   swapInfo: undefined,
+  swapFromAssetId: undefined,
   initInfo: emptyInitInfo,
   noteInfo: emptyNoteInfo,
   recvInfo: emptyRecvInfo,
@@ -174,6 +178,7 @@ export const mockFlowContextValue = {
   setRecvInfo: () => {},
   setSendInfo: () => {},
   setSwapInfo: () => {},
+  setSwapFromAssetId: () => {},
   setTxInfo: () => {},
   assetInfo: { assetId: '', supply: BigInt(0) },
   setAssetInfo: () => {},

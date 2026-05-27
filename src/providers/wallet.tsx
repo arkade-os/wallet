@@ -33,7 +33,7 @@ import { FlowContext } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
-import { Tx, Vtxo, Wallet } from '../lib/types'
+import { PrototypeAssetBalanceDeltas, PrototypeSwapInput, Tx, Vtxo, Wallet } from '../lib/types'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
@@ -85,6 +85,7 @@ interface WalletContextProps {
   svcWallet: ServiceWorkerWallet | undefined
   vtxoManager: IVtxoManager | undefined
   txs: Tx[]
+  prototypeAssetBalanceDeltas: PrototypeAssetBalanceDeltas
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: WalletBalance['total']
   assetBalances: WalletBalance['assets']
@@ -97,6 +98,7 @@ interface WalletContextProps {
   authState: WalletAuthState
   initialized?: boolean
   devAutoInitFailed?: boolean
+  addPrototypeSwap: (swap: PrototypeSwapInput) => void
 }
 
 export const WalletContext = createContext<WalletContextProps>({
@@ -123,8 +125,10 @@ export const WalletContext = createContext<WalletContextProps>({
   dismissLoadError: () => {},
   authState: 'unknown',
   txs: [],
+  prototypeAssetBalanceDeltas: {},
   vtxos: { spendable: [], spent: [] },
   devAutoInitFailed: false,
+  addPrototypeSwap: () => {},
 })
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
@@ -135,6 +139,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { notifyTxSettled } = useContext(NotificationsContext)
 
   const [txs, setTxs] = useState<Tx[]>([])
+  const [prototypeTxs, setPrototypeTxs] = useState<Tx[]>([])
+  const [prototypeAssetBalanceDeltas, setPrototypeAssetBalanceDeltas] = useState<PrototypeAssetBalanceDeltas>({})
   const [balance, setBalance] = useState(0)
   const [wallet, setWallet] = useState(() => readWalletFromStorage() ?? defaultWallet)
   const walletLoaded = true
@@ -824,6 +830,39 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
+  const addPrototypeSwap = (swap: PrototypeSwapInput) => {
+    const createdAt = Math.floor(Date.now() / 1000)
+    const prototypeTx: Tx = {
+      amount: 0,
+      assets: [
+        {
+          assetId: swap.toAssetId,
+          amount: swap.toAmount,
+        } as any,
+      ],
+      boardingTxid: '',
+      createdAt,
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: '',
+      roundTxid: `prototype-swap-${createdAt}`,
+      settled: true,
+      type: 'swap',
+      prototypeSwap: {
+        fromTicker: swap.fromTicker,
+        toTicker: swap.toTicker,
+      },
+    }
+
+    setPrototypeTxs((current) => [prototypeTx, ...current].slice(0, 12))
+    setPrototypeAssetBalanceDeltas((current) => {
+      const next = { ...current }
+      if (swap.fromAssetId !== 'btc') next[swap.fromAssetId] = (next[swap.fromAssetId] ?? BigInt(0)) - swap.fromAmount
+      if (swap.toAssetId !== 'btc') next[swap.toAssetId] = (next[swap.toAssetId] ?? BigInt(0)) + swap.toAmount
+      return next
+    })
+  }
+
   return (
     <WalletContext.Provider
       value={{
@@ -841,7 +880,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         vtxoManager,
         lockWallet,
         restartWallet,
-        txs,
+        txs: [...prototypeTxs, ...txs],
+        prototypeAssetBalanceDeltas,
         balance,
         assetBalances,
         assetMetadataCache: assetMetadataCache.current,
@@ -852,6 +892,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         dismissLoadError,
         reloadWallet,
         devAutoInitFailed,
+        addPrototypeSwap,
         vtxos: vtxos ?? { spendable: [], spent: [] },
       }}
     >

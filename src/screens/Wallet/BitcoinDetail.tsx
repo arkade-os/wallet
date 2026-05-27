@@ -5,7 +5,6 @@ import Content from '../../components/Content'
 import Header from '../../components/Header'
 import Padded from '../../components/Padded'
 import { PrivacyAmount, maskedFiat } from '../../components/PrivacyAmount'
-import SwapComingSoonSheet from '../../components/SwapComingSoonSheet'
 import TokenLogo from '../../components/TokenLogo'
 import TransactionsList from '../../components/TransactionsList'
 import ReceiveIcon from '../../icons/Receive'
@@ -40,14 +39,13 @@ const bitcoinChartCache = new Map<string, LivelinePoint[]>()
 export default function BitcoinDetail() {
   const { config } = useContext(ConfigContext)
   const { fiatDecimals, toFiat } = useContext(FiatContext)
-  const { setRecvInfo, setSendInfo } = useContext(FlowContext)
+  const { setRecvInfo, setSendInfo, setSwapFromAssetId } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { balance } = useContext(WalletContext)
   const prefersReduced = useReducedMotion()
 
   const [chartWindow, setChartWindow] = useState(CHART_WINDOWS[2].secs)
   const [chartInteracting, setChartInteracting] = useState(false)
-  const [swapSheetOpen, setSwapSheetOpen] = useState(false)
   const chartHapticState = useRef({ lastPointTime: 0, lastTriggerTime: 0 })
 
   const fallbackUnitPrice = toFiat(100_000_000)
@@ -96,7 +94,8 @@ export default function BitcoinDetail() {
 
   const handleSwap = () => {
     hapticLight()
-    setSwapSheetOpen(true)
+    setSwapFromAssetId('btc')
+    navigate(Pages.WalletSwap)
   }
 
   const handleChartPress = useCallback(() => {
@@ -277,7 +276,6 @@ export default function BitcoinDetail() {
           </motion.div>
         </Padded>
       </Content>
-      <SwapComingSoonSheet isOpen={swapSheetOpen} onClose={() => setSwapSheetOpen(false)} />
     </>
   )
 }
