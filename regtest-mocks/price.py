@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Tiny mock CoinGecko-format price feed for bancod regtest.
+"""Tiny mock CoinGecko-format price feed for solver regtest.
 
 GET /price?p=<float> → {"x":{"y": <float>}}
 
-bancod's CoinGecko adapter parses the first nested float from the JSON, so any
-two-level wrapping with the price as the inner value works.
+The solver's CoinGecko adapter parses the first nested float from the JSON, so
+any two-level wrapping with the price as the inner value works.
 """
 import json
 from http.server import BaseHTTPRequestHandler, HTTPServer

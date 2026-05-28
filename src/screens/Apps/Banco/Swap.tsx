@@ -16,10 +16,10 @@ import { FlowContext } from '../../../providers/flow'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
 import { BancoContext } from '../../../providers/banco'
+import { ConfigContext } from '../../../providers/config'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 
-const INTROSPECTOR_URL = import.meta.env.VITE_INTROSPECTOR_URL
 const CANCEL_DELAY_SECONDS = 300
 
 type SwapPhase = 'creating' | 'funding' | 'done' | 'error'
@@ -37,6 +37,7 @@ export default function AppBancoSwap() {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet } = useContext(WalletContext)
   const { addSwap, setSelectedSwapId } = useContext(BancoContext)
+  const { config } = useContext(ConfigContext)
 
   const [phase, setPhase] = useState<SwapPhase>('creating')
   const [error, setError] = useState('')
@@ -46,7 +47,7 @@ export default function AppBancoSwap() {
     if (started.current) return
     started.current = true
 
-    if (!svcWallet || !aspInfo.url || !INTROSPECTOR_URL) {
+    if (!svcWallet || !aspInfo.url || !config.emulatorUrl) {
       setError('Missing configuration')
       setPhase('error')
       return
@@ -57,7 +58,7 @@ export default function AppBancoSwap() {
         // Phase 1: Create offer
         setPhase('creating')
         const serverUrl = aspInfo.url.startsWith('http') ? aspInfo.url : 'http://' + aspInfo.url
-        const maker = new Maker(svcWallet, serverUrl, INTROSPECTOR_URL)
+        const maker = new Maker(svcWallet, serverUrl, config.emulatorUrl)
         console.log('banco: calling createOffer with', {
           wantAmount: bancoInfo.receiveAmount,
           wantAsset: bancoInfo.receiveAsset || '(BTC)',

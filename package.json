@@ -6,7 +6,7 @@
   "dependencies": {
     "@arkade-os/banco": "github:arkade-os/banco",
     "@arkade-os/boltz-swap": "0.3.24",
-    "@arkade-os/sdk": "github:arkade-os/ts-sdk#arkade-script-final",
+    "@arkade-os/sdk": "github:arkade-os/ts-sdk#arkade-script-final&path:/packages/ts-sdk",
     "@branta-ops/branta": "0.0.9",
     "@lendasat/lendasat-wallet-bridge": "^0.0.90",
     "@noble/curves": "^2.0.1",
@@ -48,9 +48,9 @@
     "format": "prettier --write src",
     "format:check": "prettier --check src",
     "git-info": "node scripts/git-commit-info.js",
-    "regtest:start": "./regtest/start-env.sh && docker compose -f docker-compose.nak.yml up -d && docker compose -f docker-compose.bancod.yml up -d",
-    "regtest:stop": "docker compose -f docker-compose.bancod.yml down && docker compose -f docker-compose.nak.yml down && ./regtest/stop-env.sh",
-    "regtest:clean": "docker compose -f docker-compose.bancod.yml down -v && docker compose -f docker-compose.nak.yml down -v && ./regtest/clean-env.sh",
+    "regtest:start": "./regtest/start-env.sh && docker compose -f docker-compose.nak.yml up -d && docker compose -f docker-compose.solver.yml up -d",
+    "regtest:stop": "docker compose -f docker-compose.solver.yml down && docker compose -f docker-compose.nak.yml down && ./regtest/stop-env.sh",
+    "regtest:clean": "docker compose -f docker-compose.solver.yml down -v && docker compose -f docker-compose.nak.yml down -v && ./regtest/clean-env.sh",
     "regtest:setup": "node src/test/setup.mjs"
   },
   "eslintConfig": {

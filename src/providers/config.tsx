@@ -1,6 +1,6 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
 import { clearStorage, readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
-import { defaultArkServer } from '../lib/constants'
+import { defaultArkServer, defaultEmulatorUrl } from '../lib/constants'
 import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
 import { BackupProvider } from '../lib/backup'
 import { consoleError } from '../lib/logs'
@@ -14,6 +14,7 @@ const defaultConfig: Config = {
   dismissedBanners: [],
   currencyDisplay: CurrencyDisplay.Fiat,
   delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
+  emulatorUrl: defaultEmulatorUrl,
   fiat: Fiats.USD,
   importedAssets: [],
   haptics: true,

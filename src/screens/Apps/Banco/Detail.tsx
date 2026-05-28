@@ -12,6 +12,7 @@ import { NavigationContext, Pages } from '../../../providers/navigation'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
 import { BancoContext } from '../../../providers/banco'
+import { ConfigContext } from '../../../providers/config'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 import { formatAssetAmount, prettyDate } from '../../../lib/format'
@@ -19,7 +20,6 @@ import type { BancoSwap } from '../../../lib/banco'
 import { SwapCard } from './SwapCard'
 import { getOffchainTxURL } from '../../../lib/explorers'
 
-const INTROSPECTOR_URL = import.meta.env.VITE_INTROSPECTOR_URL
 // Polling is now handled globally by BancoProvider
 
 function statusColor(status: BancoSwap['status']): string {
@@ -97,6 +97,7 @@ export default function AppBancoDetail() {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet, assetMetadataCache, wallet } = useContext(WalletContext)
   const { swaps, updateSwap, selectedSwapId } = useContext(BancoContext)
+  const { config } = useContext(ConfigContext)
 
   function displayAsset(assetId: string): string {
     if (!assetId) return 'BTC'
@@ -130,12 +131,12 @@ export default function AppBancoDetail() {
   const cancelCountdown = swap && swap.cancelAt > 0 ? Math.max(0, swap.cancelAt - now) : 0
 
   const handleCancel = useCallback(async () => {
-    if (!swap || !svcWallet || !aspInfo.url || !INTROSPECTOR_URL) return
+    if (!swap || !svcWallet || !aspInfo.url || !config.emulatorUrl) return
     setCancelling(true)
     setCancelError('')
     try {
       const serverUrl = aspInfo.url.startsWith('http') ? aspInfo.url : 'http://' + aspInfo.url
-      const maker = new Maker(svcWallet, serverUrl, INTROSPECTOR_URL)
+      const maker = new Maker(svcWallet, serverUrl, config.emulatorUrl)
       await maker.cancelOffer(swap.offerHex)
       updateSwap(swap.id, { status: 'cancelled' })
     } catch (err) {
@@ -144,7 +145,7 @@ export default function AppBancoDetail() {
     } finally {
       setCancelling(false)
     }
-  }, [swap, svcWallet, aspInfo.url])
+  }, [swap, svcWallet, aspInfo.url, config.emulatorUrl])
 
   if (!swap) {
     return (

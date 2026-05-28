@@ -1,0 +1,55 @@
+name: nigiri
+services:
+  price-mock:
+    image: python:3.12-alpine
+    container_name: price-mock
+    restart: unless-stopped
+    command: ['python', '/app/price.py']
+    volumes:
+      - ./regtest-mocks/price.py:/app/price.py:ro
+    ports:
+      - '9099:9099'
+
+  emulator:
+    image: ghcr.io/arkade-os/emulator:v0.0.1
+    container_name: emulator
+    restart: unless-stopped
+    ports:
+      - '7073:7073'
+    environment:
+      # Public key has odd y; matches the solver e2e default.
+      - EMULATOR_SECRET_KEY=5646b2e23bbb82491fb4ef262079ff17594d5e873fc6bcea5f1453edbe1029b1
+      - EMULATOR_NO_TLS=true
+      - EMULATOR_LOG_LEVEL=5
+      - EMULATOR_ARKD_URL=arkd:7070
+    volumes:
+      - type: tmpfs
+        target: /app/data
+
+  solver:
+    image: ghcr.io/arkade-os/solver:v0.0.1-rc.2
+    container_name: solver
+    restart: unless-stopped
+    depends_on:
+      - emulator
+    ports:
+      - '7090:7090'
+      - '7091:7091'
+    environment:
+      - SOLVER_ARK_URL=arkd:7070
+      - SOLVER_EMULATOR_URL=emulator:7073
+      # Deterministic regtest seed — never reuse outside regtest.
+      - SOLVER_WALLET_SEED=2d97a96b78ea1e90c4cf2b9b7e3d8b94b1d24b6d4c0f9f0b6c1f4aa7c0e1de23
+      - SOLVER_WALLET_PASSWORD=password
+      - SOLVER_GRPC_PORT=7090
+      - SOLVER_HTTP_PORT=7091
+      - SOLVER_LOG_LEVEL=5
+      - SOLVER_BANCO_ENABLED=true
+    volumes:
+      - type: tmpfs
+        target: /app/data
+
+networks:
+  default:
+    name: nigiri
+    external: true

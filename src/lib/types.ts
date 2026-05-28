@@ -18,6 +18,7 @@ export type Config = {
   aspUrl: string
   currencyDisplay: CurrencyDisplay
   delegate: boolean
+  emulatorUrl: string
   fiat: Fiats
   importedAssets: string[]
   haptics: boolean

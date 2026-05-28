@@ -1,8 +1,8 @@
 /**
  * Banco e2e test helpers.
  *
- * Provides functions to configure bancod's solver bot, issue assets,
- * and fund bancod with assets — all from the Node.js test process.
+ * Provides functions to configure the solver bot, issue assets,
+ * and fund the solver with assets — all from the Node.js test process.
  */
 import {
   ArkNote,
@@ -20,7 +20,7 @@ import { promisify } from 'util'
 const execAsync = promisify(exec)
 
 const ARK_URL = 'http://localhost:7070'
-const BANCOD_URL = 'http://localhost:7091'
+const SOLVER_URL = 'http://localhost:7091'
 
 // ── SDK wallet helpers ──
 
@@ -80,7 +80,7 @@ export async function createFundedWallet(amount = 100_000): Promise<Wallet> {
 /**
  * Issue an asset from a funded wallet. Returns the asset ID string.
  *
- * Sets `decimals: 0` metadata — bancod's pair validation requires the asset
+ * Sets `decimals: 0` metadata — the solver's pair validation requires the asset
  * to publish a `decimals` value via the indexer.
  */
 export async function issueAsset(wallet: Wallet, supply: number): Promise<string> {
@@ -106,29 +106,29 @@ export async function sendAsset(
   })
 }
 
-// ── bancod solver bot helpers ──
+// ── solver bot helpers ──
 
-/** Get bancod's offchain ark address. */
-export async function getBancodAddress(): Promise<string> {
-  const resp = await fetch(`${BANCOD_URL}/v1/address`)
+/** Get the solver's offchain ark address. */
+export async function getSolverAddress(): Promise<string> {
+  const resp = await fetch(`${SOLVER_URL}/v1/address`)
   if (!resp.ok) {
-    throw new Error(`Failed to get bancod address: ${resp.status} ${await resp.text()}`)
+    throw new Error(`Failed to get solver address: ${resp.status} ${await resp.text()}`)
   }
   const data = (await resp.json()) as { offchain_address?: string; offchainAddress?: string }
   const addr = data.offchain_address ?? data.offchainAddress
-  if (!addr) throw new Error(`Unexpected bancod address response: ${JSON.stringify(data)}`)
+  if (!addr) throw new Error(`Unexpected solver address response: ${JSON.stringify(data)}`)
   return addr
 }
 
 /**
- * Add a trading pair on bancod.
+ * Add a trading pair on the solver.
  *
  * The pair name encodes both sides of the swap: each side is either `BTC` for
  * native bitcoin or the hex asset id. To want BTC, leave the quote side empty
  * (e.g. `<asset_id>/`).
  */
 export async function addBancoPair(pair: string, priceFeed: string): Promise<void> {
-  const resp = await fetch(`${BANCOD_URL}/v1/pair`, {
+  const resp = await fetch(`${SOLVER_URL}/v1/pair`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -146,32 +146,32 @@ export async function addBancoPair(pair: string, priceFeed: string): Promise<voi
   }
 }
 
-/** Remove a trading pair from bancod. */
+/** Remove a trading pair from the solver. */
 export async function removeBancoPair(pair: string): Promise<void> {
-  await fetch(`${BANCOD_URL}/v1/pair/${encodeURIComponent(pair)}`, {
+  await fetch(`${SOLVER_URL}/v1/pair/${encodeURIComponent(pair)}`, {
     method: 'DELETE',
   })
 }
 
-/** Fund bancod's wallet with an asset by sending from a helper wallet. */
-export async function fundBancodWithAsset(supply: number): Promise<string> {
+/** Fund the solver's wallet with an asset by sending from a helper wallet. */
+export async function fundSolverWithAsset(supply: number): Promise<string> {
   const helperWallet = await createFundedWallet(100_000)
   const assetId = await issueAsset(helperWallet, supply)
   // The wallet's coin view lags issuance by an arkd round; wait for the asset
   // VTXO to materialize before trying to send it.
   await waitForAssetVtxo(helperWallet, assetId)
-  const bancodAddr = await getBancodAddress()
-  await sendAsset(helperWallet, bancodAddr, assetId, supply)
-  // Give bancod time to see the incoming VTXO
+  const solverAddr = await getSolverAddress()
+  await sendAsset(helperWallet, solverAddr, assetId, supply)
+  // Give the solver time to see the incoming VTXO
   await new Promise((r) => setTimeout(r, 3000))
   return assetId
 }
 
-/** Fund bancod with BTC by sending offchain from a helper wallet. */
-export async function fundBancodWithBtc(amount = 50_000): Promise<void> {
+/** Fund the solver with BTC by sending offchain from a helper wallet. */
+export async function fundSolverWithBtc(amount = 50_000): Promise<void> {
   const helperWallet = await createFundedWallet(200_000)
-  const bancodAddr = await getBancodAddress()
-  await helperWallet.send({ address: bancodAddr, amount })
+  const solverAddr = await getSolverAddress()
+  await helperWallet.send({ address: solverAddr, amount })
   await new Promise((r) => setTimeout(r, 3000))
 }
 

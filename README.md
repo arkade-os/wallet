@@ -113,7 +113,7 @@ Your app is ready to be deployed!
 
 ### `pnpm regtest:start`
 
-Boots the full regtest stack: Nigiri (Bitcoin + LND + arkd) via the `regtest/` git submodule, the Nostr relay (`docker-compose.nak.yml`), and the banco solver stack (`docker-compose.bancod.yml`, which provides the introspector and bancod).
+Boots the full regtest stack: Nigiri (Bitcoin + LND + arkd) via the `regtest/` git submodule, the Nostr relay (`docker-compose.nak.yml`), and the solver stack (`docker-compose.solver.yml`, which provides the emulator and solver).
 
 Requires Docker and Go (the regtest scripts build a pinned Nigiri from source). On a fresh checkout, run `git submodule update --init` first.
 

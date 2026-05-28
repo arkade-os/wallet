@@ -39,11 +39,11 @@ async function setup() {
     // Verify nostr relay (nak is a WebSocket server, check container is running)
     await waitForService('nak', 'docker exec nak nak --version', 10, 1000)
 
-    // Verify introspector is responding
-    await waitForService('introspector', 'curl -sf http://localhost:7073/v1/info')
+    // Verify emulator is responding
+    await waitForService('emulator', 'curl -sf http://localhost:7073/v1/info')
 
-    // Verify bancod is responding
-    await waitForService('bancod', 'curl -sf http://localhost:7091/v1/status')
+    // Verify solver is responding
+    await waitForService('solver', 'curl -sf http://localhost:7091/v1/status')
 
     console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('  ✓ regtest environment verified')

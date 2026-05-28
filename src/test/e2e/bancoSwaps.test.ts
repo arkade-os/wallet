@@ -4,7 +4,7 @@
  * These tests exercise the complete swap flow using the SDK directly:
  * create offer → fund → verify status → (taker auto-fulfills) → verify.
  *
- * Requirements: arkd (7070), introspector (7073), bancod (7091).
+ * Requirements: arkd (7070), emulator (7073), solver (7091).
  *
  * Note: These are NOT UI tests. The wallet UI form is tested separately in
  * banco.test.ts. These test the underlying banco mechanics end-to-end.
@@ -15,24 +15,24 @@ import { asset, Wallet } from '@arkade-os/sdk'
 import {
   createFundedWallet,
   issueAsset,
-  fundBancodWithAsset,
-  fundBancodWithBtc,
+  fundSolverWithAsset,
+  fundSolverWithBtc,
   addBancoPair,
   removeBancoPair,
   swapPkScriptToAddress,
 } from './bancoHelpers'
 
 const ARK_URL = 'http://localhost:7070'
-const INTROSPECTOR_URL = 'http://localhost:7073'
+const EMULATOR_URL = 'http://localhost:7073'
 
 /**
  * Build a price-feed URL backed by the local mock that returns the requested
- * price as `{"x":{"y": <price>}}`. bancod is in the nigiri network so it
+ * price as `{"x":{"y": <price>}}`. The solver is in the nigiri network so it
  * reaches the mock by container name; we point at it on the host network for
  * sanity checks.
  *
  * The price is computed as `depositAmount / wantAmount` (with default decimal
- * adjustments: BTC=8, asset=0). bancod accepts offers within 1% of this feed,
+ * adjustments: BTC=8, asset=0). The solver accepts offers within 1% of this feed,
  * so encoding the exact ratio always passes validation.
  */
 function priceFeedURL(depositAmount: number, wantAmount: number, depositDecimals = 8, wantDecimals = 0): string {
@@ -64,7 +64,7 @@ test.describe('Banco offer lifecycle', () => {
 
   test('Create offer and verify it appears as spendable', async () => {
     const makerWallet = await createFundedWallet(100_000)
-    const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
+    const maker = new Maker(makerWallet, ARK_URL, EMULATOR_URL)
 
     // Create offer
     const { offer, packet, swapPkScript } = await maker.createOffer({
@@ -99,7 +99,7 @@ test.describe('Banco offer lifecycle', () => {
   test('Create asset offer and verify funding', async () => {
     const makerWallet = await createFundedWallet(100_000)
     const assetId = await issueAsset(makerWallet, 500)
-    const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
+    const maker = new Maker(makerWallet, ARK_URL, EMULATOR_URL)
 
     // Create offer: deposit asset, want BTC
     const { offer, packet, swapPkScript } = await maker.createOffer({
@@ -131,7 +131,7 @@ test.describe('Banco offer lifecycle', () => {
     const assetId = await issueAsset(helperWallet, 100)
 
     const makerWallet = await createFundedWallet(100_000)
-    const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
+    const maker = new Maker(makerWallet, ARK_URL, EMULATOR_URL)
 
     // Create offer: deposit BTC, want specific asset
     const wantAssetId = asset.AssetId.fromString(assetId)
@@ -164,7 +164,7 @@ test.describe('Banco offer lifecycle', () => {
     const helperWallet = await createFundedWallet(100_000)
     const assetB = await issueAsset(helperWallet, 100)
 
-    const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
+    const maker = new Maker(makerWallet, ARK_URL, EMULATOR_URL)
 
     // Create offer: deposit assetA, want assetB
     const { offer, packet, swapPkScript } = await maker.createOffer({
@@ -192,7 +192,7 @@ test.describe('Banco offer lifecycle', () => {
 
   test('Offer hex roundtrips correctly', async () => {
     const makerWallet = await createFundedWallet(100_000)
-    const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
+    const maker = new Maker(makerWallet, ARK_URL, EMULATOR_URL)
 
     const { offer } = await maker.createOffer({
       wantAmount: BigInt(1000),
@@ -203,7 +203,7 @@ test.describe('Banco offer lifecycle', () => {
     const decoded = Offer.fromHex(offer)
     expect(decoded.wantAmount).toBe(BigInt(1000))
     expect(decoded.makerPkScript.length).toBe(34)
-    expect(decoded.introspectorPubkey.length).toBe(32)
+    expect(decoded.emulatorPubkey.length).toBe(32)
     expect(decoded.cancelDelay).toBeDefined()
 
     const reEncoded = Offer.toHex(decoded)
@@ -212,8 +212,8 @@ test.describe('Banco offer lifecycle', () => {
 })
 
 // ── Taker-fulfilled swap tests ──
-// These require bancod with the banco plugin enabled (BANCOD_BANCO_ENABLED=true)
-// and a configured BANCOD_INTROSPECTOR_URL.
+// These require the solver with the banco plugin enabled (SOLVER_BANCO_ENABLED=true)
+// and a configured SOLVER_EMULATOR_URL.
 
 test.describe('Banco taker-fulfilled swaps', () => {
   // SDK-only tests: run on a single project to avoid depleting the taker's funds
@@ -223,20 +223,20 @@ test.describe('Banco taker-fulfilled swaps', () => {
   test.setTimeout(120_000)
 
   test('BTC → Asset swap (taker fulfills)', async () => {
-    // 1. Fund bancod taker with an asset
-    const assetId = await fundBancodWithAsset(1000)
+    // 1. Fund the solver taker with an asset
+    const assetId = await fundSolverWithAsset(1000)
     const pairName = `BTC/${assetId}`
 
     const wantAmount = 500
     const fundingAmount = 10_000
 
-    // 2. Configure the pair on bancod with a feed price matching the offer ratio
+    // 2. Configure the pair on the solver with a feed price matching the offer ratio
     await addBancoPair(pairName, priceFeedURL(fundingAmount, wantAmount))
 
     try {
       // 3. Create a maker wallet with BTC
       const makerWallet = await createFundedWallet(100_000)
-      const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
+      const maker = new Maker(makerWallet, ARK_URL, EMULATOR_URL)
 
       // 4. Create offer: deposit BTC, want 500 of asset
       const wantAssetId = asset.AssetId.fromString(assetId)
@@ -278,8 +278,8 @@ test.describe('Banco taker-fulfilled swaps', () => {
   })
 
   test('Asset → BTC swap (taker fulfills)', async () => {
-    // 1. Fund bancod taker with BTC
-    await fundBancodWithBtc(50_000)
+    // 1. Fund the solver taker with BTC
+    await fundSolverWithBtc(50_000)
 
     // 2. Create a maker wallet, fund and issue an asset
     const makerWallet = await createFundedWallet(100_000)
@@ -293,7 +293,7 @@ test.describe('Banco taker-fulfilled swaps', () => {
     await addBancoPair(pairName, priceFeedURL(depositAmount, wantAmount, 0, 8))
 
     try {
-      const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
+      const maker = new Maker(makerWallet, ARK_URL, EMULATOR_URL)
 
       // 4. Create offer: deposit asset, want BTC
       const { packet, swapPkScript } = await maker.createOffer({
@@ -330,8 +330,8 @@ test.describe('Banco taker-fulfilled swaps', () => {
     const makerWallet = await createFundedWallet(100_000)
     const assetA = await issueAsset(makerWallet, 500)
 
-    // 2. Fund bancod taker with assetB
-    const assetB = await fundBancodWithAsset(1000)
+    // 2. Fund the solver taker with assetB
+    const assetB = await fundSolverWithAsset(1000)
     const pairName = `${assetA}/${assetB}`
 
     const wantAmount = 500
@@ -341,7 +341,7 @@ test.describe('Banco taker-fulfilled swaps', () => {
     await addBancoPair(pairName, priceFeedURL(depositAmount, wantAmount, 0, 0))
 
     try {
-      const maker = new Maker(makerWallet, ARK_URL, INTROSPECTOR_URL)
+      const maker = new Maker(makerWallet, ARK_URL, EMULATOR_URL)
 
       // 4. Create offer: deposit assetA, want 500 of assetB
       const { packet, swapPkScript } = await maker.createOffer({

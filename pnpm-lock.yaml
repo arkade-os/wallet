@@ -10,13 +10,13 @@ importers:
     dependencies:
       '@arkade-os/banco':
         specifier: github:arkade-os/banco
-        version: https://codeload.github.com/arkade-os/banco/tar.gz/aab5d0e5f3da17b4f7efecc3c00d3044b51bc360
+        version: https://codeload.github.com/arkade-os/banco/tar.gz/b928526a08526ff69cc16b21487794ede5b1b7e9
       '@arkade-os/boltz-swap':
         specifier: 0.3.24
         version: 0.3.24
       '@arkade-os/sdk':
-        specifier: github:arkade-os/ts-sdk#arkade-script-final
-        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/1673ce4d5bc17868fcafb7b2482acf686a408ca0
+        specifier: github:arkade-os/ts-sdk#arkade-script-final&path:/packages/ts-sdk
+        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/5a24cbf2d0e21a03e26552bd67cb85f87f687fc1#path:/packages/ts-sdk
       '@branta-ops/branta':
         specifier: 0.0.9
         version: 0.0.9
@@ -186,8 +186,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/banco@https://codeload.github.com/arkade-os/banco/tar.gz/aab5d0e5f3da17b4f7efecc3c00d3044b51bc360':
-    resolution: {tarball: https://codeload.github.com/arkade-os/banco/tar.gz/aab5d0e5f3da17b4f7efecc3c00d3044b51bc360}
+  '@arkade-os/banco@https://codeload.github.com/arkade-os/banco/tar.gz/b928526a08526ff69cc16b21487794ede5b1b7e9':
+    resolution: {tarball: https://codeload.github.com/arkade-os/banco/tar.gz/b928526a08526ff69cc16b21487794ede5b1b7e9}
     version: 0.0.1
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
 
@@ -216,16 +216,16 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/1673ce4d5bc17868fcafb7b2482acf686a408ca0':
-    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/1673ce4d5bc17868fcafb7b2482acf686a408ca0}
-    version: 0.4.19
-    engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/5a24cbf2d0e21a03e26552bd67cb85f87f687fc1#path:/packages/ts-sdk':
+    resolution: {path: /packages/ts-sdk, tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/5a24cbf2d0e21a03e26552bd67cb85f87f687fc1}
+    version: 0.4.28
+    engines: {node: '>=22.12.0 <25'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
       expo: '>=54.0.0'
-      expo-background-task: ~1.0.10
-      expo-sqlite: ~16.0.10
-      expo-task-manager: ~14.0.9
+      expo-background-task: ~1.0.10 || >=55.0.0
+      expo-sqlite: ~16.0.10 || >=55.0.0
+      expo-task-manager: ~14.0.9 || >=55.0.0
     peerDependenciesMeta:
       '@react-native-async-storage/async-storage':
         optional: true
@@ -238,16 +238,16 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/sdk@https://codeload.github.com/louisinger/wallet-sdk/tar.gz/1673ce4d5bc17868fcafb7b2482acf686a408ca0':
-    resolution: {tarball: https://codeload.github.com/louisinger/wallet-sdk/tar.gz/1673ce4d5bc17868fcafb7b2482acf686a408ca0}
-    version: 0.4.19
-    engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
+  '@arkade-os/sdk@https://codeload.github.com/louisinger/wallet-sdk/tar.gz/5a24cbf2d0e21a03e26552bd67cb85f87f687fc1#path:/packages/ts-sdk':
+    resolution: {path: /packages/ts-sdk, tarball: https://codeload.github.com/louisinger/wallet-sdk/tar.gz/5a24cbf2d0e21a03e26552bd67cb85f87f687fc1}
+    version: 0.4.28
+    engines: {node: '>=22.12.0 <25'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
       expo: '>=54.0.0'
-      expo-background-task: ~1.0.10
-      expo-sqlite: ~16.0.10
-      expo-task-manager: ~14.0.9
+      expo-background-task: ~1.0.10 || >=55.0.0
+      expo-sqlite: ~16.0.10 || >=55.0.0
+      expo-task-manager: ~14.0.9 || >=55.0.0
     peerDependenciesMeta:
       '@react-native-async-storage/async-storage':
         optional: true
@@ -267,8 +267,8 @@ packages:
     resolution: {integrity: sha512-cjQ7ZlQ0Mv3b47hABuTevyTuYN4i+loJKGeV9flcCgIK37cCXRh+L1bd3iBHlynerhQ7BhCkn2BPbQUL+rGqFg==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/code-frame@7.29.0':
-    resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
+  '@babel/code-frame@7.29.7':
+    resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
     engines: {node: '>=6.9.0'}
 
   '@babel/compat-data@7.28.5':
@@ -313,6 +313,10 @@ packages:
     resolution: {integrity: sha512-qSs4ifwzKJSV39ucNjsvc6WVHs6b7S03sOh2OcHF9UHfVPqWWALUsNUVzhSBiItjRZoLHx7nIarVjqKVusUZ1Q==}
     engines: {node: '>=6.9.0'}
 
+  '@babel/helper-validator-identifier@7.29.7':
+    resolution: {integrity: sha512-qehxGkRj55h/ff8EMaJ+cYhyaKlHIxqYDn682wQD7RNp9UujOQsHog2uS0r2vzr4pW+sXf90NeeayjcNaX3fFg==}
+    engines: {node: '>=6.9.0'}
+
   '@babel/helper-validator-option@7.27.1':
     resolution: {integrity: sha512-YvjJow9FxbhFFKDSuFnVCe2WxXk1zWc22fFePVNEaWJEu8IrZVlda6N0uHwzZrUM1il7NC9Mlp4MaJYbYd9JSg==}
     engines: {node: '>=6.9.0'}
@@ -344,6 +348,10 @@ packages:
 
   '@babel/runtime@7.29.2':
     resolution: {integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/runtime@7.29.7':
+    resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
     engines: {node: '>=6.9.0'}
 
   '@babel/template@7.27.2':
@@ -2832,9 +2840,9 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/banco@https://codeload.github.com/arkade-os/banco/tar.gz/aab5d0e5f3da17b4f7efecc3c00d3044b51bc360':
+  '@arkade-os/banco@https://codeload.github.com/arkade-os/banco/tar.gz/b928526a08526ff69cc16b21487794ede5b1b7e9':
     dependencies:
-      '@arkade-os/sdk': https://codeload.github.com/louisinger/wallet-sdk/tar.gz/1673ce4d5bc17868fcafb7b2482acf686a408ca0
+      '@arkade-os/sdk': https://codeload.github.com/louisinger/wallet-sdk/tar.gz/5a24cbf2d0e21a03e26552bd67cb85f87f687fc1#path:/packages/ts-sdk
       '@scure/base': 2.0.0
     transitivePeerDependencies:
       - '@ledgerhq/ledger-bitcoin'
@@ -2890,7 +2898,7 @@ snapshots:
       - ecpair
       - utf-8-validate
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/1673ce4d5bc17868fcafb7b2482acf686a408ca0':
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/5a24cbf2d0e21a03e26552bd67cb85f87f687fc1#path:/packages/ts-sdk':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 7.3.1
@@ -2909,7 +2917,7 @@ snapshots:
       - ecpair
       - utf-8-validate
 
-  '@arkade-os/sdk@https://codeload.github.com/louisinger/wallet-sdk/tar.gz/1673ce4d5bc17868fcafb7b2482acf686a408ca0':
+  '@arkade-os/sdk@https://codeload.github.com/louisinger/wallet-sdk/tar.gz/5a24cbf2d0e21a03e26552bd67cb85f87f687fc1#path:/packages/ts-sdk':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 7.3.1
@@ -2942,9 +2950,9 @@ snapshots:
       js-tokens: 4.0.0
       picocolors: 1.1.1
 
-  '@babel/code-frame@7.29.0':
+  '@babel/code-frame@7.29.7':
     dependencies:
-      '@babel/helper-validator-identifier': 7.28.5
+      '@babel/helper-validator-identifier': 7.29.7
       js-tokens: 4.0.0
       picocolors: 1.1.1
 
@@ -3010,6 +3018,8 @@ snapshots:
 
   '@babel/helper-validator-identifier@7.28.5': {}
 
+  '@babel/helper-validator-identifier@7.29.7': {}
+
   '@babel/helper-validator-option@7.27.1': {}
 
   '@babel/helpers@7.28.4':
@@ -3035,6 +3045,8 @@ snapshots:
 
   '@babel/runtime@7.29.2': {}
 
+  '@babel/runtime@7.29.7': {}
+
   '@babel/template@7.27.2':
     dependencies:
       '@babel/code-frame': 7.27.1
@@ -3058,24 +3070,24 @@ snapshots:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
 
-  '@bitcoinerlab/descriptors-core@3.1.7(@noble/curves@2.0.1)(@noble/hashes@2.0.1)(@scure/base@2.0.0)(@scure/bip32@2.2.0)(@scure/btc-signer@2.0.1)':
+  '@bitcoinerlab/descriptors-core@3.1.7(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@scure/base@2.0.0)(@scure/bip32@2.2.0)(@scure/btc-signer@2.0.1)':
     dependencies:
       '@bitcoinerlab/miniscript': 2.0.0
       lodash.memoize: 4.1.2
       uint8array-tools: 0.0.9
       varuint-bitcoin: 2.0.0
     optionalDependencies:
-      '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
+      '@noble/curves': 2.2.0
+      '@noble/hashes': 2.2.0
       '@scure/base': 2.0.0
       '@scure/bip32': 2.2.0
       '@scure/btc-signer': 2.0.1
 
   '@bitcoinerlab/descriptors-scure@3.1.7':
     dependencies:
-      '@bitcoinerlab/descriptors-core': 3.1.7(@noble/curves@2.0.1)(@noble/hashes@2.0.1)(@scure/base@2.0.0)(@scure/bip32@2.2.0)(@scure/btc-signer@2.0.1)
-      '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
+      '@bitcoinerlab/descriptors-core': 3.1.7(@noble/curves@2.2.0)(@noble/hashes@2.2.0)(@scure/base@2.0.0)(@scure/bip32@2.2.0)(@scure/btc-signer@2.0.1)
+      '@noble/curves': 2.2.0
+      '@noble/hashes': 2.2.0
       '@scure/base': 2.0.0
       '@scure/bip32': 2.2.0
       '@scure/btc-signer': 2.0.1
@@ -3493,8 +3505,8 @@ snapshots:
 
   '@testing-library/dom@10.4.1':
     dependencies:
-      '@babel/code-frame': 7.29.0
-      '@babel/runtime': 7.29.2
+      '@babel/code-frame': 7.29.7
+      '@babel/runtime': 7.29.7
       '@types/aria-query': 5.0.4
       aria-query: 5.3.0
       dom-accessibility-api: 0.5.16

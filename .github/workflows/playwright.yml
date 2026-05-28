@@ -35,8 +35,8 @@ jobs:
       run: echo "${{ github.workspace }}/regtest/_build/nigiri/build" >> $GITHUB_PATH
     - name: Start nostr relay
       run: docker compose -f docker-compose.nak.yml up -d --build
-    - name: Start bancod stack (introspector + bancod)
-      run: docker compose -f docker-compose.bancod.yml up -d
+    - name: Start solver stack (emulator + solver)
+      run: docker compose -f docker-compose.solver.yml up -d
     - name: Verify environment
       run: pnpm regtest:setup
     - name: Run Playwright tests
@@ -52,13 +52,13 @@ jobs:
         docker logs boltz 2>&1 | tail -50 || true
         echo "=== arkd logs (last 50) ==="
         docker logs arkd 2>&1 | tail -50 || true
-        echo "=== introspector logs (last 50) ==="
-        docker logs introspector 2>&1 | tail -50 || true
-        echo "=== bancod logs (last 50) ==="
-        docker logs bancod 2>&1 | tail -50 || true
+        echo "=== emulator logs (last 50) ==="
+        docker logs emulator 2>&1 | tail -50 || true
+        echo "=== solver logs (last 50) ==="
+        docker logs solver 2>&1 | tail -50 || true
     - name: Cleanup
       if: always()
       run: |
-        docker compose -f docker-compose.bancod.yml down -v 2>/dev/null || true
+        docker compose -f docker-compose.solver.yml down -v 2>/dev/null || true
         docker compose -f docker-compose.nak.yml down -v 2>/dev/null || true
         chmod +x regtest/*.sh regtest/helpers/*.sh 2>/dev/null; ./regtest/clean-env.sh

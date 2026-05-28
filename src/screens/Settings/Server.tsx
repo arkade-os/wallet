@@ -11,6 +11,7 @@ import Header from './Header'
 import WarningBox from '../../components/Warning'
 import InputUrl from '../../components/InputUrl'
 import FlexCol from '../../components/FlexCol'
+import Text from '../../components/Text'
 import Scanner from '../../components/Scanner'
 import { AspContext, AspInfo } from '../../providers/asp'
 import { consoleError } from '../../lib/logs'
@@ -26,6 +27,11 @@ export default function Server() {
   const [info, setInfo] = useState<AspInfo>()
   const [scan, setScan] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  const [emulatorUrl, setEmulatorUrl] = useState('')
+  const [emulatorError, setEmulatorError] = useState('')
+  const [emulatorScan, setEmulatorScan] = useState(false)
+  const [emulatorSaved, setEmulatorSaved] = useState(false)
 
   const isValidUrl = (url: string) => {
     if (url.startsWith('localhost') || url.startsWith('http://localhost')) return true
@@ -72,26 +78,76 @@ export default function Server() {
     handleConnect()
   }
 
+  const normalizeUrl = (url: string) => {
+    if (url.startsWith('http://') || url.startsWith('https://')) return url
+    const local = url.startsWith('localhost') || url.startsWith('127.0.0.1')
+    return (local ? 'http://' : 'https://') + url
+  }
+
+  const onChangeEmulator = (value: string) => {
+    setEmulatorUrl(value)
+    setEmulatorError('')
+    setEmulatorSaved(false)
+  }
+
+  const handleSaveEmulator = async () => {
+    const trimmed = emulatorUrl.trim()
+    if (!isValidUrl(trimmed)) return setEmulatorError('Invalid URL')
+    const newConfig = { ...config, emulatorUrl: normalizeUrl(trimmed) }
+    if (config.nostrBackup) await backupConfig(newConfig)
+    updateConfig(newConfig)
+    setEmulatorSaved(true)
+    setEmulatorUrl('')
+  }
+
   if (scan) return <Scanner close={() => setScan(false)} label='Server URL' onData={setAspUrl} onError={setError} />
+
+  if (emulatorScan)
+    return (
+      <Scanner
+        close={() => setEmulatorScan(false)}
+        label='Emulator URL'
+        onData={onChangeEmulator}
+        onError={setEmulatorError}
+      />
+    )
 
   return (
     <>
       <Header text='Server' back />
       <Content>
         <Padded>
-          <FlexCol>
-            <InputUrl
-              focus
-              label='Server URL'
-              onChange={setAspUrl}
-              onEnter={handleEnter}
-              openScan={() => setScan(true)}
-              placeholder={config.aspUrl}
-              value={aspUrl}
-            />
-            <ErrorMessage error={Boolean(error)} text={error} />
-            {info && !error ? <WarningBox green text='Server found' /> : null}
-            <WarningBox text='Your wallet will be reset. Make sure you backup your wallet first.' />
+          <FlexCol gap='2rem'>
+            <FlexCol>
+              <InputUrl
+                focus
+                label='Server URL'
+                onChange={setAspUrl}
+                onEnter={handleEnter}
+                openScan={() => setScan(true)}
+                placeholder={config.aspUrl}
+                value={aspUrl}
+              />
+              <ErrorMessage error={Boolean(error)} text={error} />
+              {info && !error ? <WarningBox green text='Server found' /> : null}
+              <WarningBox text='Your wallet will be reset. Make sure you backup your wallet first.' />
+            </FlexCol>
+            <FlexCol gap='0.5rem'>
+              <InputUrl
+                label='Emulator URL'
+                onChange={onChangeEmulator}
+                onEnter={handleSaveEmulator}
+                openScan={() => setEmulatorScan(true)}
+                placeholder={config.emulatorUrl || 'http://localhost:7073'}
+                value={emulatorUrl}
+              />
+              <Text color='dark50' small thin>
+                Used for Banco asset swaps. Changing it does not reset your wallet.
+              </Text>
+              <ErrorMessage error={Boolean(emulatorError)} text={emulatorError} />
+              {emulatorSaved ? <WarningBox green text='Emulator URL saved' /> : null}
+              <Button secondary label='Save emulator URL' onClick={handleSaveEmulator} disabled={!emulatorUrl.trim()} />
+            </FlexCol>
           </FlexCol>
         </Padded>
       </Content>
