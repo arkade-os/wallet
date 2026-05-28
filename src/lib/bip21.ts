@@ -26,9 +26,9 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
   }
 
   // use lowercase for consistency
-  const bip21Url = uri.trim()
+  const bip21Url = uri.toLowerCase().trim()
 
-  if (!bip21Url.toLowerCase().startsWith('bitcoin:')) {
+  if (!bip21Url.startsWith('bitcoin:')) {
     throw new Error('Invalid BIP21 URI')
   }
 
