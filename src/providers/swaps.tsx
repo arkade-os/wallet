@@ -15,6 +15,7 @@ import {
   BoltzSwap,
   ServiceWorkerArkadeSwaps,
   setLogger,
+  SolverProvider,
   SwapManagerClient,
 } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
@@ -22,6 +23,7 @@ import { consoleError, consoleLog } from '../lib/logs'
 import { sendOffChain } from '../lib/asp'
 import { ArkAddress, RestIndexerProvider } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
+import { solverUrl } from '../lib/constants'
 
 const BASE_URLS: Record<Network, string | null> = {
   bitcoin: import.meta.env.VITE_BOLTZ_URL ?? null,
@@ -115,6 +117,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
     const network = aspInfo.network as Network
     const swapProvider = new BoltzSwapProvider({ apiUrl: baseUrl, network, referralId: 'arkade-money' })
+    const solverProvider = solverUrl ? new SolverProvider({ apiUrl: solverUrl }) : undefined
 
     let disposeArkadeSwaps: (() => Promise<void>) | null = null
     let cancelled = false
@@ -127,6 +130,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       arkServerUrl: aspInfo.url,
       swapManager: config.apps.boltz.connected,
       referralId: 'arkade-money',
+      solverProvider,
     })
       .then((instance) => {
         if (cancelled) {
