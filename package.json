@@ -125,13 +125,5 @@
   "engines": {
     "node": ">=20.19.0 || >=22.12.0",
     "pnpm": ">=8"
-  },
-  "pnpm": {
-    "ignoredBuiltDependencies": [
-      "esbuild"
-    ],
-    "onlyBuiltDependencies": [
-      "@arkade-os/sdk"
-    ]
   }
 }
