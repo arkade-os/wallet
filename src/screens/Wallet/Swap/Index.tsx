@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import AssetAvatar from '../../../components/AssetAvatar'
 import Button from '../../../components/Button'
 import Content from '../../../components/Content'
@@ -10,6 +10,7 @@ import WalletSuccessSplash from '../../../components/WalletSuccessSplash'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../../components/ui/drawer'
 import ArrowUpDownIcon from '../../../icons/ArrowUpDown'
 import ChevronDownIcon from '../../../icons/ChevronDown'
+import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
@@ -20,8 +21,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
-import { containsDevSwapTestAssets, usePortfolioFiat, type PortfolioRow } from '../../../hooks/usePortfolioFiat'
-import { isDevSwapTestAssetId } from '../../../lib/devSwapTestAssets'
+import { usePortfolioFiat, type PortfolioRow } from '../../../hooks/usePortfolioFiat'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 
 type AssetTarget = 'from' | 'to'
@@ -59,6 +59,8 @@ interface ExitingAmountCharacter {
 }
 
 const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'Back']
+const rateNote = 'Rates are dynamic and may update before you confirm.'
+const rateNoteAutoDismissMs = 2400
 const emptySwapAsset: SwapAsset = {
   assetId: 'swap-empty',
   name: 'Asset',
@@ -81,10 +83,7 @@ export default function WalletSwap() {
     () => toSwapAssets(rows, config.fiat, fiatDecimals(), convertFiat, toFiat),
     [rows, config.fiat, fiatDecimals, convertFiat, toFiat],
   )
-  const swapAssets = useMemo(
-    () => (containsDevSwapTestAssets(rows) ? assets.filter((asset) => isDevSwapTestAssetId(asset.assetId)) : assets),
-    [assets, rows],
-  )
+  const swapAssets = assets
   const initialFromAssetId = resolveInitialFromAssetId(swapAssets, swapFromAssetId)
   const [step, setStep] = useState<SwapStep>(swapFromAssetId && initialFromAssetId ? 'compose' : 'select-from')
   const [search, setSearch] = useState('')
@@ -907,7 +906,7 @@ function QuoteDetails({ quote, loading }: { quote: SwapQuote; loading: boolean }
   return (
     <div className='swap-detail-card'>
       <MetricRow
-        label='Rate'
+        label={<RateLabel />}
         value={quote.toAsset ? `1 ${quote.fromAsset.ticker} = ${quote.rateLabel} ${quote.toAsset.ticker}` : 'Pending'}
         loading={loading}
       />
@@ -915,7 +914,80 @@ function QuoteDetails({ quote, loading }: { quote: SwapQuote; loading: boolean }
   )
 }
 
-function MetricRow({ label, value, loading }: { label: string; value: string; loading?: boolean }) {
+function RateLabel() {
+  const tooltipId = useId()
+  const prefersReduced = useReducedMotion()
+  const dismissTimer = useRef<number>()
+  const [tooltipOpen, setTooltipOpen] = useState(false)
+
+  const clearDismissTimer = useCallback(() => {
+    if (!dismissTimer.current) return
+    window.clearTimeout(dismissTimer.current)
+    dismissTimer.current = undefined
+  }, [])
+
+  const showTooltip = useCallback(
+    (autoDismiss: boolean) => {
+      clearDismissTimer()
+      setTooltipOpen(true)
+      if (!autoDismiss) return
+      dismissTimer.current = window.setTimeout(() => {
+        setTooltipOpen(false)
+        dismissTimer.current = undefined
+      }, rateNoteAutoDismissMs)
+    },
+    [clearDismissTimer],
+  )
+
+  const hideTooltip = useCallback(() => {
+    clearDismissTimer()
+    setTooltipOpen(false)
+  }, [clearDismissTimer])
+
+  useEffect(() => clearDismissTimer, [clearDismissTimer])
+
+  return (
+    <div className='swap-rate-label'>
+      Rate
+      <span className='swap-rate-disclosure'>
+        <button
+          type='button'
+          aria-label={rateNote}
+          aria-describedby={tooltipOpen ? tooltipId : undefined}
+          title={rateNote}
+          className='swap-rate-info'
+          onClick={() => showTooltip(true)}
+          onBlur={hideTooltip}
+          onPointerEnter={(event) => {
+            if (event.pointerType === 'mouse') showTooltip(false)
+          }}
+          onPointerLeave={(event) => {
+            if (event.pointerType === 'mouse') hideTooltip()
+          }}
+        >
+          <InfoIcon />
+        </button>
+        <AnimatePresence>
+          {tooltipOpen ? (
+            <motion.div
+              id={tooltipId}
+              role='tooltip'
+              className='swap-rate-tooltip'
+              initial={prefersReduced ? false : { opacity: 0, y: 4, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 2, scale: 0.98 }}
+              transition={prefersReduced ? { duration: 0 } : { duration: 0.18, ease: EASE_OUT_QUINT_TUPLE }}
+            >
+              {rateNote}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </span>
+    </div>
+  )
+}
+
+function MetricRow({ label, value, loading }: { label: ReactNode; value: string; loading?: boolean }) {
   return (
     <div className='swap-metric-row'>
       <span>{label}</span>

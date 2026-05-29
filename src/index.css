@@ -2210,6 +2210,65 @@ html.palette-dark .send-asset-menu {
   min-width: 0;
 }
 
+.swap-rate-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.swap-rate-disclosure {
+  position: relative;
+  display: inline-flex;
+}
+
+.swap-rate-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin: -0.75rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: color-mix(in srgb, var(--fg) 44%, transparent);
+  cursor: pointer;
+  font: inherit;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.swap-rate-info svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.swap-rate-info:focus-visible {
+  outline: 2px solid var(--purple-700);
+  outline-offset: 2px;
+}
+
+.swap-rate-tooltip {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 0.5rem);
+  z-index: 2;
+  max-width: 14rem;
+  width: max-content;
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--radius-md);
+  background: var(--fg);
+  color: var(--bg);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-xs);
+  white-space: normal;
+  line-height: var(--text-xs-line);
+  text-align: left;
+  pointer-events: none;
+  transform-origin: left bottom;
+}
+
 .swap-metric-row span:last-child {
   justify-content: flex-end;
   color: color-mix(in srgb, var(--fg) 82%, transparent);

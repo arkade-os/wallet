@@ -2,7 +2,6 @@ import { useContext } from 'react'
 import { WalletContext } from '../providers/wallet'
 import { FiatContext } from '../providers/fiat'
 import { Fiats } from '../lib/types'
-import { areDevSwapTestAssetsEnabled, getDevSwapTestAssetRows, isDevSwapTestAssetId } from '../lib/devSwapTestAssets'
 
 export interface PortfolioRow {
   /** 'btc' for the native bitcoin row, otherwise the asset's on-chain id. */
@@ -147,32 +146,11 @@ export function usePortfolioFiat(): PortfolioFiat {
     })
   }
 
-  if (areDevSwapTestAssetsEnabled()) {
-    for (const devRow of getDevSwapTestAssetRows(convertFiat)) {
-      const delta = prototypeDeltas[devRow.assetId] ?? BigInt(0)
-      const seededBalance = BigInt(devRow.balance) + delta
-      const sourceFiat = devRow.ticker === 'CHF' ? Fiats.CHF : Fiats.USD
-      const sourceAmount = Math.max(0, Number(seededBalance) / 100)
-      const fiatAmount = convertFiat(sourceAmount, sourceFiat)
-
-      assetFiatTotal += fiatAmount
-      rows.push({
-        ...devRow,
-        balance: seededBalance,
-        fiatAmount,
-      })
-    }
-  }
-
   return {
     totalFiat: toFiat(totalSats) + assetFiatTotal,
     totalSats,
     rows,
   }
-}
-
-export function containsDevSwapTestAssets(rows: PortfolioRow[]): boolean {
-  return rows.some((row) => isDevSwapTestAssetId(row.assetId))
 }
 
 function normalizeMinorUnits(rawAmount: number | bigint, fromDecimals: number, toDecimals: number): bigint {

@@ -1,5 +1,5 @@
 import userEvent from '@testing-library/user-event'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import WalletSwap from '../../../screens/Wallet/Swap/Index'
 import { ConfigContext } from '../../../providers/config'
@@ -18,7 +18,6 @@ import {
 const assetId = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd'
 
 function renderSwap(flowOverrides = {}) {
-  vi.stubEnv('VITE_DEV_SWAP_TEST_ASSETS', 'false')
   const navigate = vi.fn()
   const goBack = vi.fn()
   const assetMetadataCache = new Map([
@@ -112,5 +111,50 @@ describe('Wallet swap flow', () => {
     expect(screen.getAllByText('USD').length).toBeGreaterThan(0)
     expect(screen.queryByText('Choose asset to swap')).not.toBeInTheDocument()
     expect(setSwapFromAssetId).toHaveBeenCalledWith(undefined)
+  })
+
+  it('explains that the review rate can update', async () => {
+    const setSwapFromAssetId = vi.fn()
+
+    renderSwap({ swapFromAssetId: assetId, setSwapFromAssetId })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Bitcoin/i }))
+    fireEvent.click(screen.getByRole('button', { name: '1' }))
+
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).toBeEnabled())
+    fireEvent.click(continueButton)
+
+    expect(screen.getByText('Rate')).toBeInTheDocument()
+    const rateInfo = screen.getByLabelText('Rates are dynamic and may update before you confirm.')
+    expect(rateInfo).toBeInTheDocument()
+
+    fireEvent.click(rateInfo)
+
+    expect(screen.getByRole('tooltip')).toBeVisible()
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Rates are dynamic and may update before you confirm.')
+  })
+
+  it('auto-dismisses the review rate note after tapping it', async () => {
+    const setSwapFromAssetId = vi.fn()
+
+    renderSwap({ swapFromAssetId: assetId, setSwapFromAssetId })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Bitcoin/i }))
+    fireEvent.click(screen.getByRole('button', { name: '1' }))
+
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).toBeEnabled())
+    fireEvent.click(continueButton)
+
+    const rateInfo = screen.getByLabelText('Rates are dynamic and may update before you confirm.')
+
+    fireEvent.click(rateInfo)
+
+    expect(screen.getByRole('tooltip')).toBeVisible()
+
+    await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument(), { timeout: 3500 })
   })
 })
