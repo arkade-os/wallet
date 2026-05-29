@@ -30,7 +30,7 @@ import Shadow from '../../../components/Shadow'
 import Scanner from '../../../components/Scanner'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
-import { Addresses, AssetOption, SettingsOptions } from '../../../lib/types'
+import { Addresses, AssetOption, SettingsOptions, Themes } from '../../../lib/types'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
@@ -50,15 +50,18 @@ import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
 import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
+import { testDomains } from '../../../lib/constants'
+
+const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
 const brantaClient = new BrantaService({
-  baseUrl: BrantaServerBaseUrl.Production,
+  baseUrl: isProductionEnv ? BrantaServerBaseUrl.Production : BrantaServerBaseUrl.Staging,
   privacy: PrivacyMode.Strict,
 })
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
-  const { config, useFiat } = useContext(ConfigContext)
+  const { config, effectiveTheme, useFiat } = useContext(ConfigContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
@@ -313,6 +316,7 @@ export default function SendForm() {
         setBrantaPayment({
           ...payment,
           platformLogoUrl: isHttpsUrl(payment.platformLogoUrl) ? payment.platformLogoUrl : undefined,
+          platformLogoLightUrl: isHttpsUrl(payment.platformLogoLightUrl) ? payment.platformLogoLightUrl : undefined,
         })
         setBrantaVerifyUrl(isHttpsUrl(verifyUrl) ? verifyUrl : undefined)
       })
@@ -793,25 +797,37 @@ export default function SendForm() {
                 </Text>
               ) : null}
               {brantaPayment ? (
-                <Shadow>
-                  <FlexRow between padding='0.75rem'>
-                    <FlexCol gap='0.1rem'>
-                      <Text smaller>{brantaPayment.platform}</Text>
-                      <Text smaller color='neutral-500'>
-                        {brantaVerifyUrl?.startsWith('https://') ? (
-                          <a href={brantaVerifyUrl} target='_blank' rel='noreferrer'>
-                            Verified by Branta
-                          </a>
-                        ) : (
-                          'Verified by Branta'
-                        )}
-                      </Text>
-                    </FlexCol>
-                    {brantaPayment.platformLogoUrl ? (
-                      <img src={brantaPayment.platformLogoUrl} alt={brantaPayment.platform} width={48} height={48} />
-                    ) : null}
-                  </FlexRow>
-                </Shadow>
+                <a
+                  href={brantaVerifyUrl}
+                  target={brantaVerifyUrl ? '_blank' : undefined}
+                  rel={brantaVerifyUrl ? 'noreferrer' : undefined}
+                  style={{ textDecoration: 'none', display: 'block', cursor: brantaVerifyUrl ? 'pointer' : 'default' }}
+                >
+                  <Shadow>
+                    <FlexRow between padding='0.75rem'>
+                      <FlexCol gap='0.1rem'>
+                        <Text smaller>{brantaPayment.platform}</Text>
+                        {brantaPayment.description ? (
+                          <Text smaller color='neutral-500'>
+                            {brantaPayment.description}
+                          </Text>
+                        ) : null}
+                        <Text smaller color='neutral-500'>
+                          Verified by Branta
+                        </Text>
+                      </FlexCol>
+                      {(() => {
+                        const logoUrl =
+                          effectiveTheme === Themes.Light
+                            ? (brantaPayment.platformLogoLightUrl ?? brantaPayment.platformLogoUrl)
+                            : brantaPayment.platformLogoUrl
+                        return logoUrl ? (
+                          <img src={logoUrl} alt={brantaPayment.platform} width={48} height={48} />
+                        ) : null
+                      })()}
+                    </FlexRow>
+                  </Shadow>
+                </a>
               ) : null}
               {assetOptions.length > 0 ? (
                 <FlexCol gap='0.25rem'>
