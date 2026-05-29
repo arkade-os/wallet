@@ -10,6 +10,21 @@ describe('bip21 utilities', () => {
       expect(decodeBip21(bip21)).toEqual({ arkAddress, address, invoice, satoshis, lnurl: undefined })
     })
 
+    it('should decode a valid bip21 URI with uppercase', () => {
+      const bip21 =
+        'BITCOIN:?ARK=ARK1QQ4HFSSPRTCGNJZF8QLW2F78YVJAU5KLDFUGG29K34Y7J96Q2W4T4USH2JZ072D0ALD83VLWZRKDG24R40WRCM8XJW6AX7YPNJHTEZGU4A9R8D&LIGHTNING=LNURL1DP68GURN8GHJ7MRWW4EXCTNPWF4KZER99EEKSTMVDE6HYMP0VG6N2VMXX4SKXC33XYEXVVTYXUMNXEFCXQCXYEP5X9JKZCMZXVESU28Y7U'
+      const { address, arkAddress, invoice, lnurl, satoshis } = decodeBip21(bip21)
+      expect(address).toBeUndefined()
+      expect(arkAddress).toBe(
+        'ARK1QQ4HFSSPRTCGNJZF8QLW2F78YVJAU5KLDFUGG29K34Y7J96Q2W4T4USH2JZ072D0ALD83VLWZRKDG24R40WRCM8XJW6AX7YPNJHTEZGU4A9R8D',
+      )
+      expect(invoice).toBeUndefined()
+      expect(lnurl).toBe(
+        'LNURL1DP68GURN8GHJ7MRWW4EXCTNPWF4KZER99EEKSTMVDE6HYMP0VG6N2VMXX4SKXC33XYEXVVTYXUMNXEFCXQCXYEP5X9JKZCMZXVESU28Y7U',
+      )
+      expect(satoshis).toBeUndefined()
+    })
+
     it('should throw an error for an invalid address', () => {
       expect(() => decodeBip21('invalidBip21')).toThrow('Invalid BIP21 URI')
     })
