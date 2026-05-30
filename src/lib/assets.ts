@@ -2,14 +2,15 @@ export function isValidAssetId(id: string) {
   return /^[0-9a-fA-F]{68}$/.test(id)
 }
 
-export function unitsToCents(units: number, decimals?: number): number {
+// Accepts `bigint` because SDK `Asset.amount` is bigint; we render in number-space.
+export function unitsToCents(units: number | bigint, decimals?: number): number {
   decimals = decimals ?? 8
-  return Math.round(units * 10 ** decimals)
+  return Math.round(Number(units) * 10 ** decimals)
 }
 
-export function centsToUnits(cents: number, decimals?: number): number {
+export function centsToUnits(cents: number | bigint, decimals?: number): number {
   decimals = decimals ?? 8
-  return Number((cents / 10 ** decimals).toFixed(decimals))
+  return Number((Number(cents) / 10 ** decimals).toFixed(decimals))
 }
 
 export const truncatedAssetId = (id: string): string => {

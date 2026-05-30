@@ -118,8 +118,9 @@ export const prettyNumber = (
   }).format(num)
 }
 
-export const formatAssetAmount = (amount: number, decimals: number): string => {
-  if (decimals === 0) return prettyNumber(amount, 0)
+// Accepts `bigint` because SDK `Asset.amount` is bigint; we render in number-space.
+export const formatAssetAmount = (amount: number | bigint, decimals: number): string => {
+  if (decimals === 0) return prettyNumber(Number(amount), 0)
   return prettyNumber(centsToUnits(amount, decimals), decimals)
 }
 
