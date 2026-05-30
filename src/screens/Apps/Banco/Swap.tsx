@@ -94,7 +94,9 @@ export default function AppBancoSwap() {
         const fundingTxid = await svcWallet.send({
           address: finalAddress,
           amount: isPayingAsset ? undefined : (bancoInfo.payAmount ?? 0),
-          assets: isPayingAsset ? [{ assetId: bancoInfo.payAsset!, amount: bancoInfo.payAmount ?? 0 }] : undefined,
+          assets: isPayingAsset
+            ? [{ assetId: bancoInfo.payAsset!, amount: BigInt(bancoInfo.payAmount ?? 0) }]
+            : undefined,
           extensions: [{ type: packet.type(), payload: packet.serialize() }],
         })
 
