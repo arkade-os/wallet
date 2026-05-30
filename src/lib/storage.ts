@@ -46,6 +46,21 @@ export const ASSET_METADATA_TTL_MS = 24 * 60 * 60 * 1000
 
 export type CachedAssetDetails = AssetDetails & { cachedAt: number; hasIcon?: boolean }
 
+// AssetDetails.supply is bigint; vanilla JSON.stringify throws on bigint and
+// JSON.parse returns string. Tag/untag bigints to round-trip them safely.
+const bigintReplacer = (_key: string, value: unknown): unknown =>
+  typeof value === 'bigint' ? { __bigint: value.toString() } : value
+
+const bigintReviver = (_key: string, value: unknown): unknown => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const obj = value as Record<string, unknown>
+    if (typeof obj.__bigint === 'string' && Object.keys(obj).length === 1) {
+      return BigInt(obj.__bigint)
+    }
+  }
+  return value
+}
+
 export const saveAssetMetadataToStorage = (cache: Map<string, CachedAssetDetails>): void => {
   const now = Date.now()
   const obj: Record<string, CachedAssetDetails> = {}
@@ -54,12 +69,12 @@ export const saveAssetMetadataToStorage = (cache: Map<string, CachedAssetDetails
     if (now - v.cachedAt >= ASSET_METADATA_TTL_MS) return
     obj[k] = v
   })
-  setStorageItem('assetMetadataCache', JSON.stringify(obj))
+  setStorageItem('assetMetadataCache', JSON.stringify(obj, bigintReplacer))
 }
 
 export const readAssetMetadataFromStorage = (): Map<string, CachedAssetDetails> | undefined => {
   return getStorageItem('assetMetadataCache', undefined, (val) => {
-    const obj = JSON.parse(val) as Record<string, CachedAssetDetails>
+    const obj = JSON.parse(val, bigintReviver) as Record<string, CachedAssetDetails>
     return new Map(Object.entries(obj))
   })
 }
