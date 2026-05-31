@@ -212,7 +212,6 @@ export default function SendForm() {
       }
       if (isBip21(lowerCaseData)) {
         const { address, arkAddress, invoice, lnUrl, satoshis, assetId, assetAmount } = decodeBip21(recipient.trim())
-        console.log({ address, arkAddress, invoice, lnUrl, satoshis, assetId, assetAmount })
         if (!address && !arkAddress && !invoice && !lnUrl) return setError('Unable to parse bip21')
         if (assetId) {
           let found = assetOptions.find((a) => a.assetId === assetId)
@@ -361,7 +360,6 @@ export default function SendForm() {
 
   // check lnurl conditions
   useEffect(() => {
-    console.log('Checking LNURL conditions for', sendInfo.lnUrl)
     if (!sendInfo.lnUrl) return
     if (sendInfo.lnUrl && sendInfo.invoice) return
     checkLnUrlConditions(sendInfo.lnUrl)
@@ -393,7 +391,7 @@ export default function SendForm() {
       return setError('Sending onchain not allowed')
     }
     // check server limits for offchain transactions
-    if (!address && !vtxoTxsAllowed()) {
+    if (!address && (arkAddress || invoice || lnUrl) && !vtxoTxsAllowed()) {
       return setError('Sending offchain not allowed')
     }
     // check swap limits for lightning transactions
@@ -584,9 +582,9 @@ export default function SendForm() {
     setProcessing(true)
     const satoshis = sendInfo.satoshis ?? 0
     try {
-      if (sendInfo.lnUrl) {
+      if (sendInfo.lnUrl && lnUrlResponse) {
         // Check if Ark method is available
-        const arkMethod = lnUrlResponse!.transferAmounts?.find((method) => method.method === 'Ark' && method.available)
+        const arkMethod = lnUrlResponse.transferAmounts?.find((method) => method.method === 'Ark' && method.available)
 
         if (arkMethod) {
           // Fetch Ark address instead of Lightning invoice
