@@ -370,7 +370,7 @@ export default function SendForm() {
         const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
         const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
         if (min === max) setSendInfo({ ...sendInfo, satoshis: min }) // set amount automatically
-        return setLnUrlResponse(conditions)
+        return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
       })
       .catch((e) => {
         consoleError(e, 'Error checking LNURL conditions')
