@@ -5,7 +5,7 @@ import { hmac } from '@noble/hashes/hmac.js'
 const emailRegex =
   /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
 
-type LnUrlResponse = {
+export type LnUrlResponse = {
   commentAllowed?: number
   callback: string
   minSendable: number
@@ -28,9 +28,11 @@ type LnUrlCallbackResponse = {
   pr: string
 }
 
-const checkResponse = <T = any>(response: Response): Promise<T> => {
+const checkResponse = async <T = any>(response: Response): Promise<T> => {
   if (!response.ok) return Promise.reject(response)
-  return response.json()
+  const data = await response.json()
+  if (data.status === 'ERROR') return Promise.reject(data.reason || 'LNURL error')
+  return data
 }
 
 const checkLnUrlResponse = (amount: number, data: LnUrlResponse) => {
