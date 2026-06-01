@@ -12,7 +12,7 @@ export interface Bip21Decoded {
   /** Raw amount in asset units when assetId is present (not converted to satoshis) */
   assetAmount?: string
   invoice?: string
-  lnurl?: string
+  lnUrl?: string
   assetId?: string
 }
 
@@ -22,7 +22,7 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
     address: undefined,
     satoshis: undefined,
     invoice: undefined,
-    lnurl: undefined,
+    lnUrl: undefined,
     assetId: undefined,
     assetAmount: undefined,
     arkAddress: undefined,
@@ -70,7 +70,7 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
     if (params.has('lightning') || params.has('LIGHTNING')) {
       const lightning = params.get('lightning') ?? params.get('LIGHTNING')!
       if (lightning.toLowerCase().startsWith('lnurl')) {
-        result.lnurl = lightning
+        result.lnUrl = lightning
       } else if (lightning.toLowerCase().startsWith('ln')) {
         result.invoice = lightning
       }
