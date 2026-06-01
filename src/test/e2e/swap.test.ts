@@ -1,5 +1,14 @@
 import { prettyLongText } from '../../lib/format'
-import { test, expect, createWallet, pay, receiveLightning, waitForPaymentReceived, fundWallet } from './utils'
+import {
+  test,
+  expect,
+  createWallet,
+  pay,
+  receiveLightning,
+  waitForPaymentReceived,
+  fundWallet,
+  getInvoiceFromLND,
+} from './utils'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 
@@ -73,9 +82,7 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
 test('should raise error when trying to pay invoice with little amount', async ({ page }) => {
   await createWallet(page)
 
-  const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 21`)
-  const outputJSON = JSON.parse(stdout.trim())
-  const invoice = outputJSON.payment_request
+  const invoice = await getInvoiceFromLND(21)
   expect(invoice).toBeDefined()
   expect(invoice).toBeTruthy()
   expect(invoice).toContain('lnbcrt')
@@ -93,13 +100,7 @@ test('should send funds to Lightning', async ({ page }) => {
   await createWallet(page)
   await fundWallet(page, 5000)
 
-  const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
-  const output = stdout.trim()
-  expect(output).toBeDefined()
-  expect(output).toBeTruthy()
-  const outputJSON = JSON.parse(output)
-  expect('payment_request' in outputJSON).toBeTruthy()
-  const invoice = outputJSON.payment_request
+  const invoice = await getInvoiceFromLND(1000)
   expect(invoice).toBeDefined()
   expect(invoice).toBeTruthy()
   expect(invoice).toContain('lnbcrt')

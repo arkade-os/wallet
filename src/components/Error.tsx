@@ -12,7 +12,7 @@ export default function ErrorMessage({ error, text }: ErrorProps) {
   return (
     <Shadow red>
       <Padded>
-        <Text bold centered color='white' small wrap>
+        <Text bold centered color='white' small wrap testId='error-message'>
           {text}
         </Text>
       </Padded>

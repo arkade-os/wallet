@@ -8,6 +8,7 @@ import {
   receiveLightning,
   resetAndRestoreWallet,
   waitForPaymentReceived,
+  getInvoiceFromLND,
 } from './utils'
 import { sleep } from '../../lib/sleep'
 
@@ -63,13 +64,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
    */
 
   // create invoice with lnd
-  const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
-  const output = stdout.trim()
-  expect(output).toBeDefined()
-  expect(output).toBeTruthy()
-  const outputJSON = JSON.parse(output)
-  expect('payment_request' in outputJSON).toBeTruthy()
-  const paymentRequest = outputJSON.payment_request
+  const paymentRequest = await getInvoiceFromLND(1000)
   expect(paymentRequest).toBeDefined()
   expect(paymentRequest).toBeTruthy()
   expect(paymentRequest).toContain('lnbcrt')

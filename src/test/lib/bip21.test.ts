@@ -25,6 +25,19 @@ describe('bip21 utilities', () => {
       expect(satoshis).toBeUndefined()
     })
 
+    it('should decode a valid bip21 without ark address', () => {
+      const bip21 =
+        'BITCOIN:bcrt1pq6gt72nxevsxk5fwl3h2sx56jeah6qfzh98mksxyakkg5l0q65gsa27khh?LIGHTNING=LNURL1DP68GURN8GHJ7MRWW4EXCTNPWF4KZER99EEKSTMVDE6HYMP0VG6N2VMXX4SKXC33XYEXVVTYXUMNXEFCXQCXYEP5X9JKZCMZXVESU28Y7U'
+      const { address, arkAddress, invoice, lnUrl, satoshis } = decodeBip21(bip21)
+      expect(address).toBe('bcrt1pq6gt72nxevsxk5fwl3h2sx56jeah6qfzh98mksxyakkg5l0q65gsa27khh')
+      expect(arkAddress).toBeUndefined()
+      expect(invoice).toBeUndefined()
+      expect(lnUrl).toBe(
+        'LNURL1DP68GURN8GHJ7MRWW4EXCTNPWF4KZER99EEKSTMVDE6HYMP0VG6N2VMXX4SKXC33XYEXVVTYXUMNXEFCXQCXYEP5X9JKZCMZXVESU28Y7U',
+      )
+      expect(satoshis).toBeUndefined()
+    })
+
     it('should throw an error for an invalid address', () => {
       expect(() => decodeBip21('invalidBip21')).toThrow('Invalid BIP21 URI')
     })
@@ -34,6 +47,12 @@ describe('bip21 utilities', () => {
     it('should encode a valid bip21 URI', () => {
       const { address, bip21, arkAddress, invoice, satoshis } = fixtures.lib.bip21
       expect(encodeBip21(address, arkAddress, invoice, satoshis)).toEqual(bip21)
+    })
+
+    it('should encode a valid bip21 URI without ark address', () => {
+      const { address, bip21, invoice, satoshis } = fixtures.lib.bip21
+      const bip21WithoutArk = bip21.replace(/([?&])ark=[^&]+(&|$)/i, '$1').replace(/&$/, '')
+      expect(encodeBip21(address!, '', invoice!, satoshis!)).toEqual(bip21WithoutArk)
     })
   })
 

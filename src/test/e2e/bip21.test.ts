@@ -1,19 +1,7 @@
-import { test, expect, createWallet, readClipboard, handleKeyboardInput } from './utils'
+import { test, expect, readClipboard, handleKeyboardInput, createWalletAndGetBIP21 } from './utils'
 import { decodeInvoice } from '../../lib/bolt11'
-import { Page } from '@playwright/test'
 import { decodeBip21, isBip21 } from '../../lib/bip21'
 import { sleep } from '../../lib/sleep'
-
-const createWalletAndGetBIP21 = async (page: Page): Promise<string> => {
-  await createWallet(page)
-  await page.getByTestId('tab-wallet').click()
-  await page.getByText('Receive', { exact: true }).click()
-  await sleep(1000) // wait for the receive page to load
-  await page.getByText('Copy').click()
-  await page.getByTestId('bip21-address-copy').click()
-  const bip21 = await readClipboard(page)
-  return bip21
-}
 
 test('should generate valid BIP21 out of the box', async ({ page }) => {
   // create wallet
