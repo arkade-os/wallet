@@ -376,7 +376,7 @@ export default function SendForm() {
         consoleError(e, 'Error checking LNURL conditions')
         setError(extractError(e))
       })
-  }, [sendInfo.lnUrl])
+  }, [sendInfo.arkAddress, sendInfo.lnUrl])
 
   // check if user wants to send all funds
   useEffect(() => {
