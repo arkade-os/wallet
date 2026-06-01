@@ -49,6 +49,7 @@ import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
 import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
+import { fiatDecimalsFor } from '@/lib/fiat'
 
 // TODO: Replace when SDK is accurate
 type BrantaPayment = Partial<
@@ -629,7 +630,9 @@ export default function SendForm() {
       setAmountTextValue(centsToUnits(balance, decimals))
     } else {
       setState({ ...sendInfo, satoshis: liquidBalance })
-      setAmountTextValue(liquidBalance.toString())
+      setAmountTextValue(
+        useFiat ? toFiat(liquidBalance).toFixed(fiatDecimalsFor(config.fiat)) : liquidBalance.toString(),
+      )
       setAmount(liquidBalance)
     }
   }
