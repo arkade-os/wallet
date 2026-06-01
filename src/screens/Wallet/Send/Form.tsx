@@ -362,6 +362,7 @@ export default function SendForm() {
   // check lnurl conditions
   useEffect(() => {
     if (!sendInfo.lnUrl) return
+    if (sendInfo.arkAddress) return
     if (sendInfo.lnUrl && sendInfo.invoice) return
     checkLnUrlConditions(sendInfo.lnUrl)
       .then((conditions) => {
