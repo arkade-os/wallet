@@ -1,2 +1,4 @@
 onlyBuiltDependencies:
   - '@arkade-os/sdk'
+ignoredBuiltDependencies:
+  - esbuild
