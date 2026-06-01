@@ -10,6 +10,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <>
       {children}
       <Toaster
+        visibleToasts={1}
         className='arkade-toast-toaster'
         position='top-center'
         richColors
