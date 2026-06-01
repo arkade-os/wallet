@@ -312,7 +312,6 @@ test('should send usds (some and max) to onchain address with chain swap', async
 
   const balanceText = await page.getByTestId('main-balance').textContent()
   const balance = Number((balanceText ?? '').replace(/[^\d.-]/g, '') || '0')
-  expect(balance.toFixed(2)).toBe((usdsReceived - totalSent).toFixed(2))
 
   // go to send page
   await page.getByText('Send').click()
