@@ -111,24 +111,27 @@ It correctly bundles React in production mode and optimizes the build for the be
 The build is minified and the filenames include the hashes.\
 Your app is ready to be deployed!
 
-### `pnpm run regtest`
+### `pnpm run regtest:start`
 
 Starts the regtest environment and sets up the arkd instance.\
-Requires Docker to be installed and [Nigiri](https://nigiri.vulpem.com/) to be running with `--ln` flag.
+Requires Docker and Node.js >= 18. The stack is driven by the in-house
+`arkade-regtest` Node CLI (`regtest/regtest.mjs`) — no Nigiri required.
+
+Use `pnpm run regtest:stop` to stop it and `pnpm run regtest:clean` to tear it down.
 
 ### Funding your local wallet
 To interact with Ark features, you need Regtest coins.
 1. Copy your address from the wallet's **Receive** screen (ensure it starts with bcrt1 for Regtest).
-2. Run the Nigiri faucet command: 
+2. Run the faucet command (the `--confirm` flag mines a block so the deposit confirms):
 ```bash
-nigiri faucet <bcrt-address>
+node regtest/regtest.mjs faucet <bcrt-address> <btc> --confirm
 ```
 
 
 ### e2e tests
 
 > note: e2e tests require a regtest environment to be running.
-> `pnpm run regtest` to start and setup the regtest environment.
+> `pnpm run regtest:start` to start and setup the regtest environment.
 
 > note: e2e tests use playwright for ui testing, you may need to run
 > `pnpm exec playwright install` once to download new browsers.
@@ -153,6 +156,6 @@ pnpm run test:codegen
 
 ## Troubleshooting
 ### `address already in use` (Port 5000) on macOS
-macOS AirPlay Receiver uses port 5000 by default, which conflicts with Nigiri.
+macOS AirPlay Receiver uses port 5000 by default, which conflicts with the regtest stack.
 - **Fix:** Go to `System Settings > General > AirDrop & Handoff` and disable **AirPlay Receiver**.
 
