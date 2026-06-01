@@ -19,7 +19,7 @@ export default function Refresher() {
   const handleTouchMove = (e: TouchEvent) => {
     const touchY = e.touches[0].clientY
     const touchDiff = touchY - touchstartY
-    if (touchDiff > 50 && window.scrollY === 0) {
+    if (touchDiff > 100 && window.scrollY === 0) {
       setShowRefresh(true)
       if (e.cancelable) e.preventDefault()
       triggered = true
