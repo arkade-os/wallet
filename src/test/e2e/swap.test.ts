@@ -188,7 +188,7 @@ test('should refund failing swap', async ({ page }) => {
   expect(output).toBeTruthy()
   const outputJSON = JSON.parse(output)
   expect('payment_request' in outputJSON).toBeTruthy()
-  const invoice = await getInvoiceFromLND(1000)
+  const invoice = outputJSON.payment_request
   expect(invoice).toBeDefined()
   expect(invoice).toBeTruthy()
   expect(invoice).toContain('lnbcrt')
