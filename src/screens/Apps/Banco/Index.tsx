@@ -9,6 +9,7 @@ import Text from '../../../components/Text'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext, emptyBancoInfo } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
+import { AspContext } from '../../../providers/asp'
 import { consoleError } from '../../../lib/logs'
 import { prettyNumber, prettyAgo } from '../../../lib/format'
 import { BancoContext } from '../../../providers/banco'
@@ -94,6 +95,7 @@ export default function AppBanco() {
   const { setBancoInfo } = useContext(FlowContext)
   const { balance, assetBalances, svcWallet } = useContext(WalletContext)
   const { swaps, setSelectedSwapId } = useContext(BancoContext)
+  const { aspInfo } = useContext(AspContext)
 
   const [selectedTab, setSelectedTab] = useState(0)
   const [flipped, setFlipped] = useState(false)
@@ -319,7 +321,15 @@ export default function AppBanco() {
   const hasValidPay = Number.isFinite(payUnitsEntered) && payUnitsEntered > 0
   const insufficientBalance = hasValidPay && payUnitsEntered > payBalanceRaw
 
-  type ButtonState = 'loading' | 'error' | 'no-pairs' | 'enter-amount' | 'insufficient' | 'ready'
+  // BTC amount of the swap in sats. BTC is the pay side unless flipped, in
+  // which case it is the receive side. A swap whose BTC leg is below the
+  // server dust threshold cannot settle, so it must be blocked.
+  const btcUnitsEntered = flipped ? toSmallestUnit(receiveAmount, BTC_DECIMALS) : payUnitsEntered
+  const dustSats = Number(aspInfo.dust)
+  const isSubdust =
+    hasValidPay && dustSats > 0 && Number.isFinite(btcUnitsEntered) && btcUnitsEntered > 0 && btcUnitsEntered < dustSats
+
+  type ButtonState = 'loading' | 'error' | 'no-pairs' | 'enter-amount' | 'insufficient' | 'subdust' | 'ready'
   const buttonState: ButtonState =
     totalTabs === 0
       ? 'no-pairs'
@@ -331,9 +341,11 @@ export default function AppBanco() {
             ? 'no-pairs'
             : !hasValidPay
               ? 'enter-amount'
-              : insufficientBalance
-                ? 'insufficient'
-                : 'ready'
+              : isSubdust
+                ? 'subdust'
+                : insufficientBalance
+                  ? 'insufficient'
+                  : 'ready'
 
   const buttonLabel: Record<ButtonState, string> = {
     'no-pairs': 'No swap pairs available',
@@ -341,6 +353,7 @@ export default function AppBanco() {
     error: error || 'Unable to fetch price',
     'enter-amount': 'Enter an amount',
     insufficient: `Insufficient ${payLabel} balance`,
+    subdust: `BTC amount below dust limit (${dustSats} sats)`,
     ready: 'Swap',
   }
 
