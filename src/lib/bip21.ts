@@ -81,12 +81,12 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
 }
 
 export const encodeBip21 = (address: string, arkAddress: string, invoice: string, sats: number, lnurl?: string) => {
-  return (
-    `bitcoin:${address}` +
-    `?ark=${arkAddress}` +
-    (invoice ? `&lightning=${invoice}` : lnurl ? `&lightning=${lnurl}` : '') +
-    (sats ? `&amount=${prettyNumber(fromSatoshis(sats))}` : '')
-  )
+  const bip21 =
+    `bitcoin:${address}?` +
+    (arkAddress ? `ark=${arkAddress}&` : '') +
+    (invoice ? `lightning=${invoice}&` : lnurl ? `lightning=${lnurl}&` : '') +
+    (sats ? `amount=${prettyNumber(fromSatoshis(sats))}` : '')
+  return bip21.endsWith('&') || bip21.endsWith('?') ? bip21.slice(0, -1) : bip21
 }
 
 export const encodeBip21Asset = (arkAddress: string, assetId: string, cents: bigint, decimals?: number) => {

@@ -9,6 +9,7 @@ import {
   navigateHome,
   navigateToBoltz,
   navigateToSettings,
+  getInvoiceFromLND,
 } from './utils'
 import { exec } from 'child_process'
 import { promisify } from 'util'
@@ -108,13 +109,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await sleep(3000)
 
   // generate lightning invoice to pay
-  const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
-  const output = stdout.trim()
-  expect(output).toBeDefined()
-  expect(output).toBeTruthy()
-  const outputJSON = JSON.parse(output)
-  expect('payment_request' in outputJSON).toBeTruthy()
-  const sendInvoice = outputJSON.payment_request
+  const sendInvoice = await getInvoiceFromLND(1000)
   expect(sendInvoice).toBeDefined()
   expect(sendInvoice).toBeTruthy()
   expect(sendInvoice).toContain('lnbcrt')

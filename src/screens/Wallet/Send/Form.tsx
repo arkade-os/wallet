@@ -408,6 +408,7 @@ export default function SendForm() {
   // check lnurl conditions
   useEffect(() => {
     if (!sendInfo.lnUrl) return
+    if (sendInfo.arkAddress) return
     if (sendInfo.lnUrl && sendInfo.invoice) return
     checkLnUrlConditions(sendInfo.lnUrl)
       .then((conditions) => {
@@ -421,7 +422,7 @@ export default function SendForm() {
         consoleError(e, 'Error checking LNURL conditions')
         setError(extractError(e))
       })
-  }, [sendInfo.lnUrl])
+  }, [sendInfo.arkAddress, sendInfo.lnUrl])
 
   // check if user wants to send all funds
   useEffect(() => {
@@ -869,7 +870,7 @@ export default function SendForm() {
                   </Text>
                   <DropdownMenu
                     open={showAssetSelector}
-                    onOpenChange={(open) => {
+                    onOpenChange={(open: any) => {
                       if (open) hapticLight()
                       setShowAssetSelector(open)
                     }}
