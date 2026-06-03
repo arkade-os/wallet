@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react'
-import { Contract, ContractManager, encodeArkContract } from '@arkade-os/sdk'
+import { Contract, encodeArkContract } from '@arkade-os/sdk'
 import Header from './Header'
 import Content from '../../components/Content'
 import Padded from '../../components/Padded'
