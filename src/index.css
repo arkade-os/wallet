@@ -289,7 +289,6 @@ button.reminder-button {
     sans-serif;
   & > .content-shell {
     padding-top: 2rem;
-    padding-bottom: var(--padding-bottom, 0px);
     height: 100%;
   }
 }
