@@ -11,12 +11,16 @@ const mockContracts: Contract[] = [
     state: 'inactive',
     address: 'ark1qinactive000000000000000000000000',
     script: 'abcdef1234567890inactive',
+    params: {},
+    createdAt: 1717000000000,
   },
   {
     type: 'default',
     state: 'active',
     address: 'ark1qactive0000000000000000000000000',
     script: 'abcdef1234567890active00',
+    params: {},
+    createdAt: 1717000000000,
   },
 ]
 
@@ -33,6 +37,20 @@ describe('Contracts screen', () => {
     renderContracts(undefined)
     // Loading logo renders — no crash, no contract content
     expect(screen.queryByText('Contracts')).not.toBeInTheDocument()
+  })
+
+  it('renders empty state when there are no contracts', async () => {
+    const svcWalletWithContracts = {
+      ...mockSvcWallet,
+      getContractManager: () =>
+        Promise.resolve({
+          getContracts: () => Promise.resolve([]),
+        }),
+    }
+    renderContracts(svcWalletWithContracts as any)
+
+    await screen.findByText('Contracts')
+    expect(screen.getByText('No contracts found.')).toBeInTheDocument()
   })
 
   it('renders contract cards with type and state', async () => {
