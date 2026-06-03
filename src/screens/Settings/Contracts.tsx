@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react'
-import type { Contract } from '@arkade-os/sdk'
+import { Contract, ContractManager, encodeArkContract } from '@arkade-os/sdk'
 import Header from './Header'
 import Content from '../../components/Content'
 import Padded from '../../components/Padded'
@@ -65,6 +65,7 @@ function ContractCard({ contract }: { contract: Contract }) {
         <hr className='dashed' />
         <CopyRow label='address' value={contract.address} />
         <CopyRow label='script' value={contract.script} />
+        <CopyRow label='parameters' value={encodeArkContract(contract)} />
       </FlexCol>
     </div>
   )
