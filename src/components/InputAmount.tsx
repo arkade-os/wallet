@@ -112,21 +112,21 @@ export default function InputAmount({
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
         />
         <TextSecondary>{rightLabel}</TextSecondary>
+        {onMax && !disabled && !readOnly ? (
+          <button
+            type='button'
+            className='pill-base'
+            onClick={() => {
+              hapticLight()
+              onMax()
+            }}
+            aria-label='Set maximum amount'
+            data-testid='input-amount-max'
+          >
+            Max
+          </button>
+        ) : null}
       </label>
-      {onMax && !disabled && !readOnly ? (
-        <button
-          type='button'
-          className='pill-base'
-          onClick={() => {
-            hapticLight()
-            onMax()
-          }}
-          aria-label='Set maximum amount'
-          data-testid='input-amount-max'
-        >
-          Max
-        </button>
-      ) : null}
     </InputContainer>
   )
 }

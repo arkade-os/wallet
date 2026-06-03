@@ -1367,6 +1367,7 @@ input:focus::placeholder {
 
 .input-shell .label {
   gap: 0.625rem;
+  max-width: 100%;
 }
 
 html.palette-dark .input-shell {
