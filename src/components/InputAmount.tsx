@@ -57,6 +57,12 @@ export default function InputAmount({
     if (focus && input.current) input.current.focus()
   }, [focus])
 
+  // update sats when value change
+  useEffect(() => {
+    if (!value || isNaN(Number(value))) return
+    setSatsValue(useFiat ? fromFiat(Number(value)) : Number(value))
+  }, [value])
+
   // update other value when sats change
   useEffect(() => {
     setError(satsValue ? (satsValue < 0 ? 'Invalid amount' : '') : '')
