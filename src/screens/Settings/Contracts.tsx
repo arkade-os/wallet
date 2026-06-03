@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Contract, encodeArkContract } from '@arkade-os/sdk'
 import Header from './Header'
 import Content from '../../components/Content'
@@ -45,6 +45,14 @@ function CopyRow({ label, value }: { label: string; value: string }) {
 }
 
 function ContractCard({ contract }: { contract: Contract }) {
+  const encoded = useMemo(() => {
+    try {
+      return encodeArkContract(contract)
+    } catch {
+      return ''
+    }
+  }, [contract])
+
   return (
     <Shadow border>
       <FlexCol gap='0.5rem'>
@@ -60,14 +68,14 @@ function ContractCard({ contract }: { contract: Contract }) {
               {contract.state}
             </Text>
             <Text tiny color='neutral-500'>
-              {prettyAgo(contract.createdAt)}
+              {contract.createdAt ? prettyAgo(contract.createdAt) : 'Unknown'}
             </Text>
           </FlexCol>
         </FlexRow>
         <hr className='dashed' />
         <CopyRow label='address' value={contract.address} />
         <CopyRow label='script' value={contract.script} />
-        <CopyRow label='parameters' value={encodeArkContract(contract)} />
+        {encoded ? <CopyRow label='parameters' value={encoded} /> : null}
       </FlexCol>
     </Shadow>
   )
@@ -81,7 +89,7 @@ function Section({ title, contracts }: { title: string; contracts: Contract[] })
         {title}
       </Text>
       {contracts.map((c) => (
-        <ContractCard key={c.script} contract={c} />
+        <ContractCard key={c.address} contract={c} />
       ))}
     </FlexCol>
   )
