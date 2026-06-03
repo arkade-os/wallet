@@ -33,10 +33,8 @@ export const onRequest = async (context: EventContext) => {
   const encoder = new TextEncoder()
   const expected = encoder.encode('Basic ' + btoa(`${username}:${password}`))
   const actual = encoder.encode(auth)
-  if (
-    actual.byteLength !== expected.byteLength ||
-    !crypto.subtle.timingSafeEqual(expected, actual)
-  )
+  // @ts-expect-error Cloudflare runtime extension is not part of SubtleCrypto typings.
+  if (actual.byteLength !== expected.byteLength || !crypto.subtle.timingSafeEqual(expected, actual))
     return unauthorized()
 
   return context.next()

@@ -118,11 +118,11 @@ export const prettyNumber = (
   }).format(num)
 }
 
-export const isIssuance = (tx: Tx): boolean => {
+export const isIssuance = (tx: Partial<Tx>): boolean => {
   return tx.type === 'sent' && tx.amount === 0 && (tx.assets ?? []).some((a) => a.amount > 0)
 }
 
-export const isBurn = (tx: Tx): boolean => {
+export const isBurn = (tx: Partial<Tx>): boolean => {
   return tx.type === 'sent' && tx.amount === 0 && (tx.assets ?? []).some((a) => a.amount < 0)
 }
 
