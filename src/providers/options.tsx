@@ -25,16 +25,6 @@ export interface Option {
 
 export const options: Option[] = [
   {
-    icon: <InfoIcon />,
-    option: SettingsOptions.About,
-    section: SettingsSections.Display,
-  },
-  {
-    icon: <BackupIcon />,
-    option: SettingsOptions.Backup,
-    section: SettingsSections.Security,
-  },
-  {
     icon: <CoinsIcon />,
     option: SettingsOptions.ArkadeMint,
     section: SettingsSections.Advanced,
@@ -45,53 +35,8 @@ export const options: Option[] = [
     section: SettingsSections.Advanced,
   },
   {
-    icon: <CogIcon />,
-    option: SettingsOptions.DisplayMenu,
-    section: SettingsSections.Display,
-  },
-  {
     icon: <LockIcon />,
-    option: SettingsOptions.Lock,
-    section: SettingsSections.Security,
-  },
-  {
-    icon: <LogsIcon />,
-    option: SettingsOptions.Logs,
-    section: SettingsSections.Advanced,
-  },
-  {
-    icon: <NotesIcon />,
-    option: SettingsOptions.Notes,
-    section: SettingsSections.Display,
-  },
-  {
-    icon: <NotificationIcon />,
-    option: SettingsOptions.Notifications,
-    section: SettingsSections.Display,
-  },
-  {
-    icon: <PuzzleIcon />,
-    option: SettingsOptions.Advanced,
-    section: SettingsSections.Display,
-  },
-  {
-    icon: <ResetIcon />,
-    option: SettingsOptions.Reset,
-    section: SettingsSections.Security,
-  },
-  {
-    icon: <ServerIcon />,
-    option: SettingsOptions.Server,
-    section: SettingsSections.Advanced,
-  },
-  {
-    icon: <SupportIcon />,
-    option: SettingsOptions.Support,
-    section: SettingsSections.Display,
-  },
-  {
-    icon: <ServerIcon />,
-    option: SettingsOptions.Delegates,
+    option: SettingsOptions.Password,
     section: SettingsSections.Advanced,
   },
   {
@@ -105,8 +50,68 @@ export const options: Option[] = [
     section: SettingsSections.Advanced,
   },
   {
+    icon: <ServerIcon />,
+    option: SettingsOptions.Delegates,
+    section: SettingsSections.Advanced,
+  },
+  {
+    icon: <LogsIcon />,
+    option: SettingsOptions.Logs,
+    section: SettingsSections.Advanced,
+  },
+  {
+    icon: <ServerIcon />,
+    option: SettingsOptions.Server,
+    section: SettingsSections.Advanced,
+  },
+  {
+    icon: <InfoIcon />,
+    option: SettingsOptions.About,
+    section: SettingsSections.Display,
+  },
+  {
+    icon: <PuzzleIcon />,
+    option: SettingsOptions.Advanced,
+    section: SettingsSections.Display,
+  },
+  {
+    icon: <CogIcon />,
+    option: SettingsOptions.DisplayMenu,
+    section: SettingsSections.Display,
+  },
+  {
+    icon: <NotesIcon />,
+    option: SettingsOptions.Notes,
+    section: SettingsSections.Display,
+  },
+  {
+    icon: <NotificationIcon />,
+    option: SettingsOptions.Notifications,
+    section: SettingsSections.Display,
+  },
+  {
+    icon: <SupportIcon />,
+    option: SettingsOptions.Support,
+    section: SettingsSections.Display,
+  },
+  {
+    icon: <BackupIcon />,
+    option: SettingsOptions.Backup,
+    section: SettingsSections.Security,
+  },
+  {
+    icon: <LockIcon />,
+    option: SettingsOptions.Lock,
+    section: SettingsSections.Security,
+  },
+  {
+    icon: <ResetIcon />,
+    option: SettingsOptions.Reset,
+    section: SettingsSections.Security,
+  },
+  {
     icon: <></>,
-    option: SettingsOptions.Theme,
+    option: SettingsOptions.Display,
     section: SettingsSections.Config,
   },
   {
@@ -116,18 +121,13 @@ export const options: Option[] = [
   },
   {
     icon: <></>,
-    option: SettingsOptions.Display,
-    section: SettingsSections.Config,
-  },
-  {
-    icon: <></>,
     option: SettingsOptions.Haptics,
     section: SettingsSections.Config,
   },
   {
-    icon: <LockIcon />,
-    option: SettingsOptions.Password,
-    section: SettingsSections.Advanced,
+    icon: <></>,
+    option: SettingsOptions.Theme,
+    section: SettingsSections.Config,
   },
 ]
 

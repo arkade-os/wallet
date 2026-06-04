@@ -41,13 +41,13 @@ export default function General() {
             <section className='settings-section'>
               <p className='settings-section-label'>Preferences</p>
               <div className='settings-row-group'>
+                <Row option={SettingsOptions.Display} value={config.currencyDisplay} />
+                <Row option={SettingsOptions.Fiat} value={config.fiat} />
+                <Row option={SettingsOptions.Haptics} value={config.haptics ? 'On' : 'Off'} />
                 <Row
                   option={SettingsOptions.Theme}
                   value={config.theme === Themes.Auto ? `Auto (${systemTheme})` : config.theme}
                 />
-                <Row option={SettingsOptions.Fiat} value={config.fiat} />
-                <Row option={SettingsOptions.Display} value={config.currencyDisplay} />
-                <Row option={SettingsOptions.Haptics} value={config.haptics ? 'On' : 'Off'} />
               </div>
             </section>
           </FlexCol>

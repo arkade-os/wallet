@@ -67,7 +67,11 @@ export enum SettingsOptions {
   ArkadeMint = 'Arkade Mint',
   Backup = 'backup',
   Boltz = 'Boltz',
+  Contracts = 'contracts',
+  Delegates = 'delegates',
+  Display = 'display preferences',
   DisplayMenu = 'display',
+  Fiat = 'fiat currency',
   Haptics = 'haptic feedback',
   Lock = 'lock wallet',
   Logs = 'logs',
@@ -77,12 +81,8 @@ export enum SettingsOptions {
   Reset = 'reset wallet',
   Server = 'server',
   Support = 'support',
-  Contracts = 'contracts',
-  Vtxos = 'coin control',
   Theme = 'theme',
-  Fiat = 'fiat currency',
-  Display = 'display preferences',
-  Delegates = 'delegates',
+  Vtxos = 'coin control',
 }
 
 export enum Themes {
