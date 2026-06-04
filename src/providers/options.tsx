@@ -15,6 +15,7 @@ import LockIcon from '../icons/Lock'
 import PuzzleIcon from '../icons/Puzzle'
 import CoinsIcon from '../icons/Coins'
 import HashIcon from '../icons/Hash'
+import SwapIcon from '../icons/Swap'
 
 export interface Option {
   icon: ReactElement
@@ -26,12 +27,7 @@ export const options: Option[] = [
   {
     icon: <InfoIcon />,
     option: SettingsOptions.About,
-    section: SettingsSections.General,
-  },
-  {
-    icon: <PuzzleIcon />,
-    option: SettingsOptions.Advanced,
-    section: SettingsSections.Security,
+    section: SettingsSections.Display,
   },
   {
     icon: <BackupIcon />,
@@ -39,14 +35,19 @@ export const options: Option[] = [
     section: SettingsSections.Security,
   },
   {
-    icon: <CogIcon />,
-    option: SettingsOptions.General,
-    section: SettingsSections.General,
-  },
-  {
     icon: <CoinsIcon />,
     option: SettingsOptions.ArkadeMint,
-    section: SettingsSections.General,
+    section: SettingsSections.Advanced,
+  },
+  {
+    icon: <SwapIcon />,
+    option: SettingsOptions.Boltz,
+    section: SettingsSections.Advanced,
+  },
+  {
+    icon: <CogIcon />,
+    option: SettingsOptions.DisplayMenu,
+    section: SettingsSections.Display,
   },
   {
     icon: <LockIcon />,
@@ -61,12 +62,17 @@ export const options: Option[] = [
   {
     icon: <NotesIcon />,
     option: SettingsOptions.Notes,
-    section: SettingsSections.General,
+    section: SettingsSections.Display,
   },
   {
     icon: <NotificationIcon />,
     option: SettingsOptions.Notifications,
-    section: SettingsSections.General,
+    section: SettingsSections.Display,
+  },
+  {
+    icon: <PuzzleIcon />,
+    option: SettingsOptions.Advanced,
+    section: SettingsSections.Display,
   },
   {
     icon: <ResetIcon />,
@@ -81,7 +87,7 @@ export const options: Option[] = [
   {
     icon: <SupportIcon />,
     option: SettingsOptions.Support,
-    section: SettingsSections.General,
+    section: SettingsSections.Display,
   },
   {
     icon: <ServerIcon />,
@@ -130,7 +136,7 @@ export interface SectionResponse {
   options: Option[]
 }
 
-const allOptions: SectionResponse[] = [SettingsSections.General, SettingsSections.Security].map((section) => {
+const allOptions: SectionResponse[] = [SettingsSections.Display, SettingsSections.Security].map((section) => {
   return {
     section,
     options: options.filter((o) => o.section === section),
@@ -165,7 +171,7 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
   const historyDepth = useRef(0)
 
   const optionSection = (opt: SettingsOptions): SettingsSections => {
-    return options.find((o) => o.option === opt)?.section || SettingsSections.General
+    return options.find((o) => o.option === opt)?.section || SettingsSections.Display
   }
 
   const getParentOption = (current: SettingsOptions): SettingsOptions => {
@@ -173,7 +179,7 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
     return section === SettingsSections.Advanced
       ? SettingsOptions.Advanced
       : section === SettingsSections.Config
-        ? SettingsOptions.General
+        ? SettingsOptions.DisplayMenu
         : SettingsOptions.Menu
   }
 

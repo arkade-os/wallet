@@ -6,7 +6,6 @@ interface PillNavbarOverlayProps {
   visible: boolean
   activeTab: string
   onWalletClick: () => void
-  onAppsClick: () => void
   onSettingsClick: () => void
 }
 
@@ -14,7 +13,6 @@ export default function PillNavbarOverlay({
   visible,
   activeTab,
   onWalletClick,
-  onAppsClick,
   onSettingsClick,
 }: PillNavbarOverlayProps) {
   const prefersReduced = useReducedMotion()
@@ -28,12 +26,7 @@ export default function PillNavbarOverlay({
       {...(!visible && { inert: '' })}
     >
       <div className='pill-navbar-haze' aria-hidden='true' />
-      <PillNavbar
-        activeTab={activeTab}
-        onWalletClick={onWalletClick}
-        onAppsClick={onAppsClick}
-        onSettingsClick={onSettingsClick}
-      />
+      <PillNavbar activeTab={activeTab} onWalletClick={onWalletClick} onSettingsClick={onSettingsClick} />
     </motion.div>,
     document.body,
   )

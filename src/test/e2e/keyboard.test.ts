@@ -13,7 +13,7 @@ async function openKeyboard(page: Page) {
 // helper function to setup wallet and navigate to keyboard
 async function changeToFiat(page: Page, fiat: Fiats) {
   await navigateToSettings(page)
-  await page.getByText('general', { exact: true }).click()
+  await page.getByText('display', { exact: true }).click()
   await page.getByText('fiat currency').click()
   await page.getByText(fiat).click()
   await page.getByLabel('Go back').click()

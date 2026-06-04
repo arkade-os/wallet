@@ -34,7 +34,7 @@ export default function General() {
 
   return (
     <>
-      <Header text='General' back />
+      <Header text='Display' back />
       <Content>
         <Padded>
           <FlexCol gap='1rem' className='settings-page'>

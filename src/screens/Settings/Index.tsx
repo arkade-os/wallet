@@ -36,7 +36,7 @@ function settingsContent(option: SettingsOptions, menuBack?: () => void): JSX.El
       return <Backup />
     case SettingsOptions.Delegates:
       return <Delegates />
-    case SettingsOptions.General:
+    case SettingsOptions.DisplayMenu:
       return <General />
     case SettingsOptions.Lock:
       return <Lock />

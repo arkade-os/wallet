@@ -55,7 +55,7 @@ export enum Fiats {
 
 export enum SettingsSections {
   Advanced = 'Advanced',
-  General = 'General',
+  Display = 'Display',
   Security = 'Security',
   Config = 'Config',
 }
@@ -66,7 +66,8 @@ export enum SettingsOptions {
   Advanced = 'advanced',
   ArkadeMint = 'Arkade Mint',
   Backup = 'backup',
-  General = 'general',
+  Boltz = 'Boltz',
+  DisplayMenu = 'display',
   Haptics = 'haptic feedback',
   Lock = 'lock wallet',
   Logs = 'logs',

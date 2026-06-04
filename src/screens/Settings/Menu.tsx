@@ -11,8 +11,7 @@ interface SettingsMenuProps {
 }
 
 export default function SettingsMenu({ backFunc }: SettingsMenuProps) {
-  // get rows for General and Security sections
-  const generalRows = options.filter((o) => o.section === SettingsSections.General)
+  const displayRows = options.filter((o) => o.section === SettingsSections.Display)
   const securityRows = options.filter((o) => o.section === SettingsSections.Security)
 
   return (
@@ -22,8 +21,8 @@ export default function SettingsMenu({ backFunc }: SettingsMenuProps) {
         <Padded>
           <FlexCol gap='1.25rem' className='settings-page'>
             <section className='settings-section'>
-              <p className='settings-section-label'>General</p>
-              <Menu rows={generalRows} styled />
+              <p className='settings-section-label'>Display</p>
+              <Menu rows={displayRows} styled />
             </section>
             <section className='settings-section'>
               <p className='settings-section-label'>Security</p>
