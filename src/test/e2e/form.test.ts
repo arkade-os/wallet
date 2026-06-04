@@ -77,8 +77,6 @@ test('should prioritize lnurl if no invoice or ark address are present', async (
   await fundWallet(page, 5000)
 
   // send page
-  // go to send page
-  await page.getByTestId('tab-wallet').click()
   await page.getByText('Send').click()
 
   // fill address
