@@ -215,7 +215,6 @@ export default function AppAssetMint() {
                       ? 'Invalid icon URL'
                       : ''
 
-  console.log({ disabledReason, decimals, amount, iconUrl })
   const handleExitComplete = useCallback(() => {
     pendingNav.current?.()
   }, [])
