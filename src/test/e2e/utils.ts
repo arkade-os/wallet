@@ -54,6 +54,7 @@ interface MintAssetOptions {
 
 export async function navigateToAssets(page: Page): Promise<void> {
   await navigateToSettings(page)
+  await page.getByText('advanced', { exact: true }).click()
   await page.getByText('Arkade Mint', { exact: true }).click()
   await page.waitForSelector('text=Arkade Mint', { state: 'visible' })
 }
@@ -143,7 +144,7 @@ export async function createWallet(page: Page): Promise<void> {
 export async function createWalletWithFiat(page: Page): Promise<void> {
   await createWallet(page)
   await navigateToSettings(page)
-  await page.getByText('general', { exact: true }).click()
+  await page.getByText('display', { exact: true }).click()
   await page.getByText('Display preferences').click()
   await page.getByTestId('select-option-2').click()
   await page.getByLabel('Go back').click()

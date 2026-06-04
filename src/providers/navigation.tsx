@@ -20,7 +20,6 @@ import Wallet from '../screens/Wallet/Index'
 import BitcoinDetail from '../screens/Wallet/BitcoinDetail'
 import Settings from '../screens/Settings/Index'
 
-import Apps from '../screens/Apps/Index'
 import AppBoltz from '../screens/Apps/Boltz/Index'
 import AppBoltzSettings from '../screens/Apps/Boltz/Settings'
 import InitSuccess from '../screens/Init/Success'
@@ -58,7 +57,6 @@ export enum Pages {
   AppAssetBurn,
   AppAssetsSettings,
   AppDfx,
-  Apps,
   Init,
   InitRestore,
   InitPassword,
@@ -84,7 +82,6 @@ export enum Pages {
 }
 
 export enum Tabs {
-  Apps = 'apps',
   None = 'none',
   Settings = 'settings',
   Wallet = 'wallet',
@@ -93,21 +90,20 @@ export enum Tabs {
 const pageTab = {
   [Pages.Activity]: Tabs.Wallet,
   [Pages.BitcoinDetail]: Tabs.Wallet,
-  [Pages.AppBoltz]: Tabs.Apps,
-  [Pages.AppBoltzSettings]: Tabs.Apps,
-  [Pages.AppBoltzSwap]: Tabs.Apps,
-  [Pages.AppLendasat]: Tabs.Apps,
-  [Pages.AppSatora]: Tabs.Apps,
-  [Pages.AppAssets]: Tabs.Apps,
-  [Pages.AppAssetDetail]: Tabs.Apps,
-  [Pages.AppAssetImport]: Tabs.Apps,
-  [Pages.AppAssetMint]: Tabs.Apps,
-  [Pages.AppAssetMintSuccess]: Tabs.Apps,
-  [Pages.AppAssetReissue]: Tabs.Apps,
-  [Pages.AppAssetBurn]: Tabs.Apps,
-  [Pages.AppAssetsSettings]: Tabs.Apps,
-  [Pages.AppDfx]: Tabs.Apps,
-  [Pages.Apps]: Tabs.Apps,
+  [Pages.AppBoltz]: Tabs.Settings,
+  [Pages.AppBoltzSettings]: Tabs.Settings,
+  [Pages.AppBoltzSwap]: Tabs.Settings,
+  [Pages.AppLendasat]: Tabs.Wallet,
+  [Pages.AppSatora]: Tabs.Wallet,
+  [Pages.AppAssets]: Tabs.Settings,
+  [Pages.AppAssetDetail]: Tabs.Settings,
+  [Pages.AppAssetImport]: Tabs.Settings,
+  [Pages.AppAssetMint]: Tabs.Settings,
+  [Pages.AppAssetMintSuccess]: Tabs.Settings,
+  [Pages.AppAssetReissue]: Tabs.Settings,
+  [Pages.AppAssetBurn]: Tabs.Settings,
+  [Pages.AppAssetsSettings]: Tabs.Settings,
+  [Pages.AppDfx]: Tabs.Wallet,
   [Pages.Init]: Tabs.None,
   [Pages.InitRestore]: Tabs.None,
   [Pages.InitPassword]: Tabs.None,
@@ -133,7 +129,7 @@ const pageTab = {
 }
 
 // Root pages of each tab — tab switches between these get no animation
-const ROOT_PAGES = new Set([Pages.Wallet, Pages.Apps, Pages.Settings])
+const ROOT_PAGES = new Set([Pages.Wallet, Pages.Settings])
 
 // Coordination point for sub-navigation (e.g., Settings options)
 // Sub-navigation providers register here so the main popstate handler can delegate
@@ -184,8 +180,6 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <AppAssetsSettings />
     case Pages.AppDfx:
       return <AppDfx />
-    case Pages.Apps:
-      return <Apps />
     case Pages.Init:
       return <Init />
     case Pages.InitConnect:
@@ -277,7 +271,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     }
 
     // delegate to sub-navigation (e.g., Settings options) if it can handle this
-    if (subNavHandler.canGoBack()) {
+    if ([Pages.Settings, Pages.WalletSettings].includes(screenRef.current) && subNavHandler.canGoBack()) {
       subNavHandler.goBack(fromButton)
       return
     }
