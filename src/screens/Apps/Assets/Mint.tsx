@@ -22,7 +22,7 @@ import type { AssetDetails, IssuanceParams, KnownMetadata } from '@arkade-os/sdk
 import Input from '../../../components/Input'
 import AssetCard from '../../../components/AssetCard'
 import { MAX_DECIMALS, unitsToCents } from '../../../lib/assets'
-import { isInvalidMintAmount } from '../../../lib/amount'
+import { isInvalidDecimals, isInvalidMintAmount, isValidUrl } from '../../../lib/validators'
 
 interface KnownAssetOption {
   assetId: string
@@ -41,7 +41,7 @@ export default function AppAssetMint() {
   const [amount, setAmount] = useState(BigInt(0))
   const [name, setName] = useState('')
   const [ticker, setTicker] = useState('')
-  const [decimals, setDecimals] = useState<number | undefined>(0)
+  const [decimals, setDecimals] = useState<number>(0)
   const [iconUrl, setIconUrl] = useState('')
   const [error, setError] = useState('')
   const [minting, setMinting] = useState(false)
@@ -83,13 +83,25 @@ export default function AppAssetMint() {
   }, [svcWallet, assetBalances, assetMetadataCache])
 
   useEffect(() => {
-    if (decimals === undefined) return
+    // validate amount
+    const invalidAmountReason = isInvalidMintAmount(amountTextValue)
+    if (invalidAmountReason) return setError(invalidAmountReason)
+    // validate decimals
+    const invalidDecimalsReason = isInvalidDecimals(decimals)
+    if (invalidDecimalsReason) return setError(invalidDecimalsReason)
+    // convert amount to cents and validate
     const cents = unitsToCents(amountTextValue, decimals)
-    const reason = isInvalidMintAmount(cents)
-    if (reason) return setError(reason)
+    const invalidCentsReason = isInvalidMintAmount(cents)
+    if (invalidCentsReason) return setError(invalidCentsReason)
+    // all validations passed
+    setError(iconUrl ? 'Invalid icon URL' : '')
     setAmount(cents)
-    setError('')
-  }, [amountTextValue, decimals])
+  }, [amountTextValue, decimals, iconUrl])
+
+  // validate icon URL
+  useEffect(() => {
+    setIconError(iconUrl ? !isValidUrl(iconUrl) : false)
+  }, [iconUrl])
 
   const handleMint = async () => {
     if (!svcWallet) return
@@ -101,6 +113,8 @@ export default function AppAssetMint() {
     if (decimals === undefined || !Number.isInteger(decimals) || decimals < 0 || decimals > MAX_DECIMALS) {
       return setError(`Decimals must be an integer between 0 and ${MAX_DECIMALS}`)
     }
+
+    if (iconUrl && !isValidUrl(iconUrl)) return setError('Invalid icon URL')
 
     const supply = amount
 
@@ -262,7 +276,7 @@ export default function AppAssetMint() {
                   placeholder='0'
                   label='Decimals'
                   testId='asset-decimals'
-                  onChange={(value: string) => setDecimals(value ? Number(value) : undefined)}
+                  onChange={(value: string) => setDecimals(value ? Number(value) : 0)}
                 />
               </div>
             </FlexRow>
