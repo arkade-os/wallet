@@ -167,7 +167,7 @@ export async function createWalletWithPassword(page: Page, password: string): Pr
 
 export async function createWalletAndGetBIP21(page: Page, isMobile?: boolean, sats?: number): Promise<string> {
   await createWallet(page)
-  await page.getByTestId('tab-wallet').click()
+  await sleep(1000)
   await page.getByText('Receive', { exact: true }).click()
 
   if (sats) {

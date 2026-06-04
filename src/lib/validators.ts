@@ -13,11 +13,13 @@ const isSafeQuantity = (amount: string | number | bigint): boolean => {
 
 const isPositive = (amount: string | number | bigint): boolean => {
   if (amount === undefined || amount === null) return true
-  try {
-    return BigInt(amount) >= BigInt(0)
-  } catch {
-    return false
+  if (typeof amount === 'number' && amount < 0) return false
+  if (typeof amount === 'bigint' && amount < BigInt(0)) return false
+  if (typeof amount === 'string') {
+    if (amount.trim() === '') return true
+    if (isNaN(Number(amount))) return false
   }
+  return true
 }
 
 export const isInvalidMintAmount = (amount: string | number | bigint): string | void => {
