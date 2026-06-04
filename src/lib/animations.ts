@@ -109,6 +109,23 @@ export const homeActionStaggerChild: Variants = {
   },
 }
 
+export const homeActionStaggerContainer: Variants = {
+  initial: {},
+  animate: {
+    transition: { delayChildren: 0.04, staggerChildren: 0.045 },
+  },
+}
+
+export const homeActionStaggerChild: Variants = {
+  initial: { y: 10, opacity: 0, scale: 0.96 },
+  animate: {
+    y: 0,
+    opacity: 1,
+    scale: 1,
+    transition: { duration: 0.28, ease: EASE_OUT_QUINT_TUPLE },
+  },
+}
+
 // Onboarding stagger — fade up, slightly more pronounced for first-time experience
 export const ONBOARD_STAGGER_DELAY = 0.08
 
