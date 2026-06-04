@@ -88,12 +88,6 @@ export const mockFiatContextValue = {
   fromFiat: (fiat?: number) => fiat ?? 0,
   updateFiatPrices: () => {},
   fiatDecimals: () => 2,
-<<<<<<< HEAD
-  fromFiat: (amount?: number) => amount ?? 0,
-  toFiat: (amount?: number) => amount ?? 0,
-  updateFiatPrices: () => Promise.resolve(),
-=======
->>>>>>> 972bac3d (build fixes)
 }
 
 export const mockSwapsContextValue = {
