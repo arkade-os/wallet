@@ -22,6 +22,7 @@ import type { AssetDetails, IssuanceParams, KnownMetadata } from '@arkade-os/sdk
 import Input from '../../../components/Input'
 import AssetCard from '../../../components/AssetCard'
 import { MAX_DECIMALS, unitsToCents } from '../../../lib/assets'
+import { isInvalidMintAmount } from '../../../lib/amount'
 
 interface KnownAssetOption {
   assetId: string
@@ -84,7 +85,8 @@ export default function AppAssetMint() {
   useEffect(() => {
     if (decimals === undefined) return
     const cents = unitsToCents(amountTextValue, decimals)
-    if (cents.toString().length > 19) return setError('Amount is too large')
+    const reason = isInvalidMintAmount(cents)
+    if (reason) return setError(reason)
     setAmount(cents)
     setError('')
   }, [amountTextValue, decimals])
