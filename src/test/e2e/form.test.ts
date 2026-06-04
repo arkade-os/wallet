@@ -39,9 +39,9 @@ test('should prioritize Arkade addresses over others', async ({ page, isMobile }
 
   // details page
   await expect(page.getByTestId('Direction')).toContainText('Paying inside Arkade')
-  await expect(page.getByTestId('Network fees')).toContainText('0 SATS')
-  await expect(page.getByTestId('Amount')).toContainText('2,000 SATS')
-  await expect(page.getByTestId('Total')).toContainText('2,000 SATS')
+  await expect(page.getByTestId('Network fees')).toContainText('0 sats')
+  await expect(page.getByTestId('Amount')).toContainText('2,000 sats')
+  await expect(page.getByTestId('Total')).toContainText('2,000 sats')
 })
 
 test('should prioritize lightning invoice if no ark address present', async ({ page }) => {
@@ -58,9 +58,9 @@ test('should prioritize lightning invoice if no ark address present', async ({ p
 
   // details page
   await expect(page.getByTestId('Direction')).toContainText('Swapping to Lightning')
-  await expect(page.getByTestId('Network fees')).toContainText('1 SAT')
-  await expect(page.getByTestId('Amount')).toContainText('2,100 SATS')
-  await expect(page.getByTestId('Total')).toContainText('2,101 SATS')
+  await expect(page.getByTestId('Network fees')).toContainText('1 sat')
+  await expect(page.getByTestId('Amount')).toContainText('2,100 sats')
+  await expect(page.getByTestId('Total')).toContainText('2,101 sats')
 })
 
 test('should prioritize lnurl if no invoice or ark address are present', async ({ page, isMobile }) => {

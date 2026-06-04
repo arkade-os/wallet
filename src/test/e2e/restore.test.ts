@@ -38,7 +38,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
    * reverse swap
    */
 
-  // define amount 5000 SATS
+  // define amount 5000 sats
   const invoice = await receiveLightning(page, isMobile, 5000)
   expect(invoice).toBeDefined()
   expect(invoice).toBeTruthy()
@@ -51,7 +51,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
 
   // should be visible in Boltz app
   await navigateToBoltz(page)
-  await expect(page.getByText('+ 4,980 SATS', { exact: true })).toBeVisible()
+  await expect(page.getByText('+ 4,980 sats', { exact: true })).toBeVisible()
   await page.getByLabel('Go back').click()
 
   // navigate to wallet tab and verify balance before proceeding
@@ -74,7 +74,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
 
   // should be visible in Boltz app
   await navigateToBoltz(page)
-  await expect(page.getByText('- 1,001 SATS', { exact: true })).toBeVisible()
+  await expect(page.getByText('- 1,001 sats', { exact: true })).toBeVisible()
   await page.getByLabel('Go back').click()
 
   /**

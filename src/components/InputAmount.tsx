@@ -5,7 +5,7 @@ import { ConfigContext } from '../providers/config'
 import { prettyNumber } from '../lib/format'
 import { FIAT_SYMBOLS } from '../lib/fiat'
 import { LimitsContext } from '../providers/limits'
-import { AssetOption } from '../lib/types'
+import { AssetOption, Fiats } from '../lib/types'
 import { TextSecondary } from './Text'
 import { hapticLight } from '../lib/haptics'
 
@@ -81,23 +81,25 @@ export default function InputAmount({
   const maximumSats = max ? Math.min(max, maxSwapAllowed()) : 0
 
   const fiatSymbol = FIAT_SYMBOLS[config.fiat]
-  const fiatLabel = fiatSymbol ?? config.fiat
+  const fiatLabel = config.fiat === Fiats.BTC ? config.currencyDisplay : (fiatSymbol ?? config.fiat)
 
-  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? fiatLabel : 'SATS'
+  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? fiatLabel : 'sats'
   const rightLabel = asset?.assetId
     ? ''
-    : useFiat
-      ? `${otherValue} SATS`
-      : fiatSymbol
-        ? `${fiatSymbol}${otherValue}`
-        : `${otherValue} ${config.fiat}`
+    : useFiat && config.fiat === Fiats.BTC
+      ? ''
+      : useFiat
+        ? `${otherValue} sats`
+        : fiatSymbol
+          ? `${fiatSymbol}${otherValue}`
+          : `${otherValue} ${config.fiat}`
   const bottomLeft =
     minimumSats && satsValue !== undefined && satsValue < minimumSats
-      ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}`
+      ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'sat' : 'sats'}`
       : ''
   const bottomRight =
     maximumSats && satsValue !== undefined && satsValue > maximumSats
-      ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'SAT' : 'SATS'}`
+      ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'sat' : 'sats'}`
       : ''
 
   return (

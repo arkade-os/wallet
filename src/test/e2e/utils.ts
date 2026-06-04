@@ -9,12 +9,12 @@ const execAsync = promisify(exec)
 export const test = base.extend({
   page: async ({ page }, use) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    // Pre-set currency display to "Show both" so e2e tests see SATS amounts.
-    // The default changed to "Fiat only" in PR #473 which hides SATS from the balance.
+    // Pre-set currency to BTC/sats so e2e tests see sats amounts.
     await page.addInitScript(() => {
       const raw = localStorage.getItem('config')
       const config = raw ? JSON.parse(raw) : {}
-      config.currencyDisplay = 'Show both'
+      config.fiat = 'BTC'
+      config.currencyDisplay = 'sats'
       localStorage.setItem('config', JSON.stringify(config))
     })
     await use(page)
@@ -144,8 +144,8 @@ export async function createWalletWithFiat(page: Page): Promise<void> {
   await createWallet(page)
   await navigateToSettings(page)
   await page.getByText('general', { exact: true }).click()
-  await page.getByText('Display preferences').click()
-  await page.getByTestId('select-option-2').click()
+  await page.getByText('currency').click()
+  await page.getByText('USD').click()
   await page.getByLabel('Go back').click()
   await page.getByLabel('Go back').click()
   await navigateHome(page)
@@ -350,5 +350,5 @@ export async function handleKeyboardInput(page: Page, sats: number): Promise<voi
 
 export async function getFeesFromDetails(page: Page): Promise<number> {
   const txtValue = await page.getByTestId('Network fees').textContent()
-  return parseInt(txtValue?.replace(' SATS', '').replaceAll(',', '') || '0')
+  return parseInt(txtValue?.replace(' sats', '').replaceAll(',', '') || '0')
 }

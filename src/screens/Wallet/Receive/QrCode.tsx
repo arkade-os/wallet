@@ -25,7 +25,7 @@ import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
 import InputAmount from '../../../components/InputAmount'
-import Keyboard from '../../../components/Keyboard'
+import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
 import Text, { TextSecondary } from '../../../components/Text'
 import { copyToClipboard } from '../../../lib/clipboard'
@@ -318,7 +318,7 @@ export default function ReceiveQRCode() {
     }
   }
 
-  const handleAmountConfirm = (value = amountTextValue) => {
+  const handleAmountConfirm = (value = amountTextValue, inputMode?: KeyboardInputMode) => {
     setShowKeys(false)
     setShowAmountSheet(false)
     if (assetMeta) {
@@ -328,7 +328,7 @@ export default function ReceiveQRCode() {
     } else {
       const num = Number(value)
       if (Number.isNaN(num) || !Number.isFinite(num)) throw new Error('Invalid amount')
-      const sats = useFiat ? fromFiat(num) : num
+      const sats = inputMode === 'sats' ? num : useFiat || inputMode === 'fiat' ? fromFiat(num) : num
       // if amount was changed, we need to reset invoice and swap address, since they are amount-specific
       // this will also trigger the useEffect to create new ones if needed
       if (sats !== recvInfo.satoshis) {
@@ -368,10 +368,10 @@ export default function ReceiveQRCode() {
           setShowKeys(false)
           setShowAmountSheet(false)
         }}
-        onSave={(value: string) => {
+        onSave={(value: string, inputMode: KeyboardInputMode) => {
           setShowKeys(false)
           setShowAmountSheet(false)
-          handleAmountConfirm(value)
+          handleAmountConfirm(value, inputMode)
         }}
       />
     )

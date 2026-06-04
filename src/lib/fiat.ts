@@ -1,5 +1,5 @@
 import { consoleError } from './logs'
-import { Fiats } from './types'
+import { Fiats, Unit } from './types'
 
 export interface FiatPrices {
   eur: number
@@ -20,7 +20,10 @@ export const FIAT_SYMBOLS: Partial<Record<Fiats, string>> = {
   [Fiats.JPY]: '¥',
 }
 
-export const fiatDecimalsFor = (currency: Fiats): number => (currency === Fiats.JPY ? 0 : 2)
+export const fiatDecimalsFor = (currency: Fiats, bitcoinUnit = Unit.BTC): number => {
+  if (currency === Fiats.BTC) return bitcoinUnit === Unit.BTC ? 8 : 0
+  return currency === Fiats.JPY ? 0 : 2
+}
 
 export const getPriceFeed = async (): Promise<FiatPrices | undefined> => {
   try {

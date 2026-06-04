@@ -23,13 +23,13 @@ import { prettyAmount, prettyFiatAmount, prettyNumber } from '../../../lib/forma
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
-import Keyboard from '../../../components/Keyboard'
+import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import Text from '../../../components/Text'
 import Shadow from '../../../components/Shadow'
 import Scanner from '../../../components/Scanner'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
-import { Addresses, AssetOption, SettingsOptions } from '../../../lib/types'
+import { Addresses, AssetOption, SettingsOptions, Unit } from '../../../lib/types'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
@@ -587,6 +587,15 @@ export default function SendForm() {
     }
   }
 
+  const handleKeyboardAmountSave = (value: string, inputMode: KeyboardInputMode) => {
+    if (inputMode === 'asset' || isAssetSend) return handleAmountChange(value)
+
+    const num = Number(value)
+    if (Number.isNaN(num) || !Number.isFinite(num)) return setError('Invalid amount')
+    const sats = inputMode === 'sats' ? num : fromFiat(num)
+    setState({ ...sendInfo, satoshis: sats })
+  }
+
   const handleSelectAsset = (asset: AssetOption | null) => {
     setShowAssetSelector(false)
     setSelectedAsset(asset)
@@ -678,7 +687,9 @@ export default function SendForm() {
     } else {
       setState({ ...sendInfo, satoshis: liquidBalance })
       setAmountTextValue(
-        useFiat ? toFiat(liquidBalance).toFixed(fiatDecimalsFor(config.fiat)) : liquidBalance.toString(),
+        useFiat
+          ? toFiat(liquidBalance).toFixed(fiatDecimalsFor(config.fiat, config.currencyDisplay as unknown as Unit))
+          : liquidBalance.toString(),
       )
       setAmount(liquidBalance)
     }
@@ -705,7 +716,9 @@ export default function SendForm() {
       )
     }
 
-    const pretty = useFiat ? prettyFiatAmount(toFiat(liquidBalance), config.fiat) : prettyAmount(liquidBalance)
+    const pretty = useFiat
+      ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, { bitcoinUnit: config.currencyDisplay })
+      : prettyAmount(liquidBalance)
 
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
@@ -742,7 +755,11 @@ export default function SendForm() {
   const selectedAssetLabel = selectedAsset ? `${selectedAsset.name} (${selectedAsset.ticker})` : 'Bitcoin'
   const selectedAssetBalance = selectedAsset
     ? `${prettyAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`
-    : `${useFiat ? prettyFiatAmount(toFiat(liquidBalance), config.fiat) : prettyAmount(liquidBalance)} available`
+    : `${
+        useFiat
+          ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, { bitcoinUnit: config.currencyDisplay })
+          : prettyAmount(liquidBalance)
+      } available`
 
   const overlayOpen = scan || (keys && !amountIsReadOnly)
   const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
@@ -751,8 +768,8 @@ export default function SendForm() {
     <Keyboard
       asset={selectedAsset ?? undefined}
       back={() => setKeys(false)}
-      onSave={(value: string) => {
-        handleAmountChange(value)
+      onSave={(value: string, inputMode: KeyboardInputMode) => {
+        handleKeyboardAmountSave(value, inputMode)
         setKeys(false)
       }}
     />
@@ -902,7 +919,9 @@ export default function SendForm() {
                                 <span className='send-asset-option__name'>Bitcoin</span>
                                 <span className='send-asset-option__meta'>
                                   {useFiat
-                                    ? prettyFiatAmount(toFiat(liquidBalance), config.fiat)
+                                    ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, {
+                                        bitcoinUnit: config.currencyDisplay,
+                                      })
                                     : prettyAmount(liquidBalance)}{' '}
                                   available
                                 </span>

@@ -17,7 +17,7 @@ export default function Fiat() {
 
   return (
     <>
-      <Header text='Fiat' back />
+      <Header text='Currency' back />
       <Content>
         <Padded>
           <div className='settings-page'>
@@ -25,7 +25,7 @@ export default function Fiat() {
               <p className='settings-section-label'>Currency</p>
               <Select
                 onChange={handleChange}
-                options={[Fiats.EUR, Fiats.USD, Fiats.CHF, Fiats.GBP, Fiats.JPY, Fiats.CNY]}
+                options={[Fiats.USD, Fiats.EUR, Fiats.CHF, Fiats.GBP, Fiats.JPY, Fiats.CNY, Fiats.BTC]}
                 selected={config.fiat}
               />
             </section>

@@ -3,7 +3,10 @@ import TokenLogo, { tokenLogoTickerForTicker } from './TokenLogo'
 import { truncatedAssetId } from '../lib/assets'
 import { hapticLight } from '../lib/haptics'
 import { PrivacyAmount, maskedFiat } from './PrivacyAmount'
-import { prettyCurrencyAssetAmount } from '../lib/format'
+import { prettyBitcoinAmount, prettyBitcoinHide, prettyCurrencyAssetAmount } from '../lib/format'
+import { useContext } from 'react'
+import { ConfigContext } from '../providers/config'
+import { Unit } from '../lib/types'
 
 interface AssetCardProps {
   assetId: string
@@ -33,6 +36,7 @@ export default function AssetCard({
   fiatText,
   onClick,
 }: AssetCardProps) {
+  const { config } = useContext(ConfigContext)
   const assetName = name || truncatedAssetId(assetId) || 'Asset'
   const tokenTick = ticker ?? 'TKN'
   const rawBalance =
@@ -41,9 +45,13 @@ export default function AssetCard({
       : Number.isFinite(balance) && Number.isInteger(balance)
         ? BigInt(balance)
         : BigInt(0)
-  const prettyBalance = prettyCurrencyAssetAmount(rawBalance, decimals ?? 8, tokenTick)
-  const leftSecondary = `${prettyBalance} ${tokenTick}`
-  const maskedBalance = `•••• ${tokenTick}`
+  const bitcoinUnit = config.currencyDisplay as unknown as Unit
+  const isBitcoin = tokenTick.toUpperCase() === 'BTC'
+  const prettyBalance = isBitcoin
+    ? prettyBitcoinAmount(Number(rawBalance), bitcoinUnit)
+    : prettyCurrencyAssetAmount(rawBalance, decimals ?? 8, tokenTick)
+  const leftSecondary = isBitcoin ? prettyBalance : `${prettyBalance} ${tokenTick}`
+  const maskedBalance = isBitcoin ? prettyBitcoinHide(Number(rawBalance), bitcoinUnit) : `•••• ${tokenTick}`
   const maskedFiatText = maskedFiatUnit(fiatText)
 
   const handleClick = onClick

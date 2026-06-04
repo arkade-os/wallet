@@ -13,8 +13,9 @@ import {
   prettyNumber,
   isIssuance,
   isBurn,
+  prettyBitcoinAmount,
 } from '../../lib/format'
-import { Fiats, Tx } from '../../lib/types'
+import { Fiats, Tx, Unit } from '../../lib/types'
 import { Asset } from '@arkade-os/sdk'
 
 describe('format utilities', () => {
@@ -38,13 +39,13 @@ describe('format utilities', () => {
 
   describe('prettyAmount', () => {
     it('should format small amounts correctly', () => {
-      expect(prettyAmount(0)).toBe('0 SATS')
-      expect(prettyAmount(100)).toBe('100 SATS')
-      expect(prettyAmount(999)).toBe('999 SATS')
+      expect(prettyAmount(0)).toBe('0 sats')
+      expect(prettyAmount(100)).toBe('100 sats')
+      expect(prettyAmount(999)).toBe('999 sats')
     })
 
     it('should format amounts in BTC for large values', () => {
-      expect(prettyAmount(50000000)).toBe('50M SATS')
+      expect(prettyAmount(50000000)).toBe('50M sats')
       expect(prettyAmount(100000000)).toBe('1 BTC')
       expect(prettyAmount(150000000)).toBe('1.5 BTC')
     })
@@ -84,6 +85,20 @@ describe('format utilities', () => {
       })
 
       expect(prettyFiatAmount(1.234, Fiats.USD)).toBe('$1.23')
+    })
+
+    it('should format BTC currency using the selected bitcoin unit', () => {
+      expect(prettyFiatAmount(0.000021, Fiats.BTC, { bitcoinUnit: Unit.BTC })).toBe('0.000021 BTC')
+      expect(prettyFiatAmount(2100, Fiats.BTC, { bitcoinUnit: Unit.SATS })).toBe('2,100 sats')
+      expect(prettyFiatAmount(2100, Fiats.BTC, { bitcoinUnit: Unit.BIP177 })).toBe('₿2,100')
+    })
+  })
+
+  describe('prettyBitcoinAmount', () => {
+    it('should format satoshi amounts in the selected bitcoin unit', () => {
+      expect(prettyBitcoinAmount(2100, Unit.BTC)).toBe('0.000021 BTC')
+      expect(prettyBitcoinAmount(2100, Unit.SATS)).toBe('2,100 sats')
+      expect(prettyBitcoinAmount(2100, Unit.BIP177)).toBe('₿2,100')
     })
   })
 
@@ -153,8 +168,8 @@ describe('format utilities', () => {
   describe('prettyHide', () => {
     it('should return masked value', () => {
       expect(prettyHide(0)).toBe('')
-      expect(prettyHide(12345)).toBe('·········· SATS')
-      expect(prettyHide(999999999)).toBe('·················· SATS')
+      expect(prettyHide(12345)).toBe('·········· sats')
+      expect(prettyHide(999999999)).toBe('·················· sats')
     })
   })
 
