@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.3.37
-        version: 0.3.37
+        specifier: 0.3.38
+        version: 0.3.38
       '@arkade-os/sdk':
-        specifier: 0.4.32
-        version: 0.4.32
+        specifier: 0.4.33
+        version: 0.4.33
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -237,8 +237,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@0.3.37':
-    resolution: {integrity: sha512-wP4daP/sDpUahmivaIZC8Lfvqz4lhQMWM1R8/Ib5x7NMS6k++FSs4KKQ6wjPKpweF8ULilsJdorhmLpNlEba6A==}
+  '@arkade-os/boltz-swap@0.3.38':
+    resolution: {integrity: sha512-BVbyw9Fj+1eQn771t0ZO9uW7E1BgViAPLFddb4pnW9p3rM9fCIdWEs2ZrjPnq70leDdhrUxRy++cJuK7zFThuA==}
     peerDependencies:
       expo-background-task: '>=0.1.0'
       expo-task-manager: '>=3.0.0'
@@ -248,8 +248,8 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/sdk@0.4.32':
-    resolution: {integrity: sha512-we7eNPuuW9PWRS/B4Nlw5MHXTgJ7CuQzbdSrisH0u3P2PPQd/0FbSspEW/OQRNjMrJl+29zAEKN5kswy9MTjxA==}
+  '@arkade-os/sdk@0.4.33':
+    resolution: {integrity: sha512-EvfmDhSyAiZ7DW89o5D1N4woDEFMfZLHXi/zh9C1xKlPHB2PCezEkHpVe51lNF0Vx3rgkf6bx54QXoGOvg1p9A==}
     engines: {node: '>=22.12.0 <25'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -4232,9 +4232,9 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@0.3.37':
+  '@arkade-os/boltz-swap@0.3.38':
     dependencies:
-      '@arkade-os/sdk': 0.4.32
+      '@arkade-os/sdk': 0.4.33
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
@@ -4252,7 +4252,7 @@ snapshots:
       - expo-sqlite
       - utf-8-validate
 
-  '@arkade-os/sdk@0.4.32':
+  '@arkade-os/sdk@0.4.33':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 7.3.1
