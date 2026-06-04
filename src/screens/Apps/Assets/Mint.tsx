@@ -84,7 +84,9 @@ export default function AppAssetMint() {
   useEffect(() => {
     if (decimals === undefined) return
     const cents = unitsToCents(amountTextValue, decimals)
+    if (cents.toString().length > 19) return setError('Amount is too large')
     setAmount(cents)
+    setError('')
   }, [amountTextValue, decimals])
 
   const handleMint = async () => {
