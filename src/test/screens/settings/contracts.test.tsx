@@ -11,16 +11,16 @@ const mockContracts: Contract[] = [
     state: 'inactive',
     address: 'ark1qinactive000000000000000000000000',
     script: 'abcdef1234567890inactive',
-    params: {},
     createdAt: 1717000000000,
+    params: {},
   },
   {
     type: 'default',
     state: 'active',
     address: 'ark1qactive0000000000000000000000000',
     script: 'abcdef1234567890active00',
-    params: {},
     createdAt: 1717000000000,
+    params: {},
   },
 ]
 

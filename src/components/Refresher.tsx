@@ -14,7 +14,6 @@ export default function Refresher() {
 
   const handleTouchStart = (e: TouchEvent) => {
     touchstartY = e.touches[0].clientY
-    console.log('touchstart', touchstartY)
   }
 
   const handleTouchMove = (e: TouchEvent) => {

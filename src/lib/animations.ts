@@ -30,7 +30,8 @@ export const pageTransitionVariants: Variants = {
   animate: (direction: string) => ({
     x: '0%',
     opacity: 1,
-    transition: direction === 'none' ? { duration: 0 } : { duration: PAGE_TRANSITION_DURATION, ease: EASE_OUT_QUINT },
+    transition:
+      direction === 'none' ? { duration: 0 } : { duration: PAGE_TRANSITION_DURATION, ease: EASE_OUT_QUINT_TUPLE },
   }),
   exit: (direction: string) => {
     if (direction === 'forward')
@@ -38,14 +39,14 @@ export const pageTransitionVariants: Variants = {
         x: `-${SLIDE_OFFSET}`,
         opacity: 0,
         pointerEvents: 'none' as const,
-        transition: { duration: PAGE_TRANSITION_EXIT_DURATION, ease: EASE_OUT_QUINT },
+        transition: { duration: PAGE_TRANSITION_EXIT_DURATION, ease: EASE_OUT_QUINT_TUPLE },
       }
     if (direction === 'back')
       return {
         x: SLIDE_OFFSET,
         opacity: 0,
         pointerEvents: 'none' as const,
-        transition: { duration: PAGE_TRANSITION_EXIT_DURATION, ease: EASE_OUT_QUINT },
+        transition: { duration: PAGE_TRANSITION_EXIT_DURATION, ease: EASE_OUT_QUINT_TUPLE },
       }
     return { opacity: 0, pointerEvents: 'none' as const, transition: { duration: 0 } }
   },
@@ -66,11 +67,11 @@ export const overlaySlideUp: Variants = {
   initial: { y: '100%' },
   animate: {
     y: '0%',
-    transition: { duration: PAGE_TRANSITION_DURATION, ease: EASE_OUT_QUINT },
+    transition: { duration: PAGE_TRANSITION_DURATION, ease: EASE_OUT_QUINT_TUPLE },
   },
   exit: {
     y: '100%',
-    transition: { duration: PAGE_TRANSITION_EXIT_DURATION, ease: EASE_OUT_QUINT },
+    transition: { duration: PAGE_TRANSITION_EXIT_DURATION, ease: EASE_OUT_QUINT_TUPLE },
   },
 }
 
@@ -87,7 +88,7 @@ export const walletLoadInChild: Variants = {
     y: 0,
     opacity: 1,
     scale: 1,
-    transition: { duration: 0.34, ease: EASE_OUT_QUINT },
+    transition: { duration: 0.34, ease: EASE_OUT_QUINT_TUPLE },
   },
 }
 
@@ -104,7 +105,7 @@ export const homeActionStaggerChild: Variants = {
     y: 0,
     opacity: 1,
     scale: 1,
-    transition: { duration: 0.28, ease: EASE_OUT_QUINT },
+    transition: { duration: STAGGER_DURATION, ease: EASE_OUT_QUINT_TUPLE },
   },
 }
 
@@ -123,6 +124,6 @@ export const onboardStaggerChild: Variants = {
   animate: {
     y: 0,
     opacity: 1,
-    transition: { duration: STAGGER_DURATION, ease: EASE_OUT_QUINT },
+    transition: { duration: STAGGER_DURATION, ease: EASE_OUT_QUINT_TUPLE },
   },
 }
