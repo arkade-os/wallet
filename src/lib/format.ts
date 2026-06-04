@@ -119,13 +119,13 @@ export const prettyDate = (num: number): string => {
   }).format(date)
 }
 
-const hideDots = (value: string | number): string => {
+const hideDots = (value: string | number | bigint): string => {
   const str = typeof value === 'string' ? value : value.toString()
   const length = str.length * 2 > 6 ? str.length * 2 : 6
   return '·'.repeat(length)
 }
 
-export const prettyHide = (value: string | number, suffix = 'SATS'): string => {
+export const prettyHide = (value: string | number | bigint, suffix = 'SATS'): string => {
   if (!value) return ''
   const dots = hideDots(value)
   return suffix ? `${dots} ${suffix}` : dots
