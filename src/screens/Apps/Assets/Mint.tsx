@@ -23,6 +23,8 @@ import Input from '../../../components/Input'
 import AssetCard from '../../../components/AssetCard'
 import { MAX_DECIMALS, unitsToCents } from '../../../lib/assets'
 import { isInvalidDecimals, isInvalidMintAmount, isValidUrl } from '../../../lib/validators'
+import InputAssetAmount from '@/components/InputAssetAmount'
+import InputAssetDecimals from '@/components/InputAssetDecimals'
 
 interface KnownAssetOption {
   assetId: string
@@ -41,11 +43,11 @@ export default function AppAssetMint() {
   const [amount, setAmount] = useState(BigInt(0))
   const [name, setName] = useState('')
   const [ticker, setTicker] = useState('')
+  const [decimalsText, setDecimalsText] = useState<string>('0')
   const [decimals, setDecimals] = useState<number>(0)
   const [iconUrl, setIconUrl] = useState('')
   const [error, setError] = useState('')
   const [minting, setMinting] = useState(false)
-  const [iconError, setIconError] = useState(false)
 
   const [controlAssetId, setControlAssetId] = useState('')
   const [showControlDropdown, setShowControlDropdown] = useState(false)
@@ -87,21 +89,19 @@ export default function AppAssetMint() {
     const invalidAmountReason = isInvalidMintAmount(amountTextValue)
     if (invalidAmountReason) return setError(invalidAmountReason)
     // validate decimals
-    const invalidDecimalsReason = isInvalidDecimals(decimals)
+    const invalidDecimalsReason = isInvalidDecimals(decimalsText)
     if (invalidDecimalsReason) return setError(invalidDecimalsReason)
     // convert amount to cents and validate
-    const cents = unitsToCents(amountTextValue, decimals)
+    const cents = unitsToCents(amountTextValue, Number(decimalsText))
     const invalidCentsReason = isInvalidMintAmount(cents)
     if (invalidCentsReason) return setError(invalidCentsReason)
+    // validate icon URL
+    if (iconUrl && !isValidUrl(iconUrl)) return setError('Invalid icon URL')
     // all validations passed
-    setError(iconUrl ? 'Invalid icon URL' : '')
+    setError('')
     setAmount(cents)
-  }, [amountTextValue, decimals, iconUrl])
-
-  // validate icon URL
-  useEffect(() => {
-    setIconError(iconUrl ? !isValidUrl(iconUrl) : false)
-  }, [iconUrl])
+    setDecimals(Number(decimalsText))
+  }, [amountTextValue, decimalsText, iconUrl])
 
   const handleMint = async () => {
     if (!svcWallet) return
@@ -211,7 +211,9 @@ export default function AppAssetMint() {
                   ? 'Enter control asset amount'
                   : controlMode === 'New' && (isNaN(ctrlAmount) || ctrlAmount <= 0)
                     ? 'Control amount must be positive'
-                    : ''
+                    : !isValidUrl(iconUrl)
+                      ? 'Invalid icon URL'
+                      : ''
 
   const handleExitComplete = useCallback(() => {
     pendingNav.current?.()
@@ -232,7 +234,7 @@ export default function AppAssetMint() {
               balance={amount}
               name={name}
               ticker={ticker}
-              icon={iconUrl && !iconError ? iconUrl : undefined}
+              icon={iconUrl && isValidUrl(iconUrl) ? iconUrl : undefined}
               decimals={decimals}
             />
             <FlexRow gap='0.5rem' alignItems='flex-end'>
@@ -258,25 +260,19 @@ export default function AppAssetMint() {
 
             <FlexRow gap='0.5rem' alignItems='flex-end'>
               <div style={{ flex: 1 }}>
-                <Input
-                  min='0'
-                  type='number'
+                <InputAssetAmount
                   label='Amount *'
                   placeholder='1000'
                   testId='asset-amount'
                   onChange={setAmountTextValue}
                 />
               </div>
-              <div style={{ minWidth: '6rem' }}>
-                <Input
-                  min='0'
-                  max='8'
-                  step='1'
-                  type='number'
+              <div style={{ width: '6rem' }}>
+                <InputAssetDecimals
                   placeholder='0'
                   label='Decimals'
                   testId='asset-decimals'
-                  onChange={(value: string) => setDecimals(value ? Number(value) : 0)}
+                  onChange={setDecimalsText}
                 />
               </div>
             </FlexRow>
@@ -287,10 +283,7 @@ export default function AppAssetMint() {
               value={iconUrl}
               testId='asset-icon-url'
               placeholder='https://...'
-              onChange={(v: string) => {
-                setIconUrl(v)
-                setIconError(false)
-              }}
+              onChange={setIconUrl}
             />
 
             <FlexCol gap='0.5rem'>

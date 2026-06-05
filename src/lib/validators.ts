@@ -13,17 +13,18 @@ const isSafeQuantity = (amount: string | number | bigint): boolean => {
 
 const isPositive = (amount: string | number | bigint): boolean => {
   if (amount === undefined || amount === null) return true
-  try {
-    return BigInt(amount) >= BigInt(0)
-  } catch {
-    return false
+  if (typeof amount === 'number' && amount < 0) return false
+  if (typeof amount === 'bigint' && amount < BigInt(0)) return false
+  if (typeof amount === 'string') {
+    if (amount.trim() === '') return true
+    if (isNaN(Number(amount))) return false
   }
+  return true
 }
 
 export const isInvalidMintAmount = (amount: string | number | bigint): string | void => {
-  console.log('validating mint amount', amount) // DEBUG
-  if (!isPositive(amount)) return 'Amount must be a positive number'
   if (!onlyHasDigits(amount)) return 'Invalid amount format'
+  if (!isPositive(amount)) return 'Amount must be positive'
   if (!isSafeQuantity(amount)) return 'Amount too large'
 }
 
@@ -35,8 +36,10 @@ export const isValidUrl = (url: string) => {
   return urlPattern.test(url)
 }
 
-export const isInvalidDecimals = (decimals: number): string | void => {
-  if (decimals > MAX_DECIMALS) return `Decimals cannot exceed ${MAX_DECIMALS}`
-  if (!Number.isInteger(decimals)) return 'Decimals must be an integer'
-  if (decimals < 0) return 'Decimals cannot be negative'
+export const isInvalidDecimals = (decimals: string | number): string | void => {
+  const decimalsNumber = Number(decimals)
+  if (isNaN(decimalsNumber)) return 'Decimals must be a number'
+  if (decimalsNumber > MAX_DECIMALS) return `Decimals cannot exceed ${MAX_DECIMALS}`
+  if (!Number.isInteger(decimalsNumber)) return 'Decimals must be an integer'
+  if (decimalsNumber < 0) return 'Decimals must be positive'
 }

@@ -14,7 +14,7 @@ describe('usePortfolioFiat', () => {
         value={{
           ...mockFiatContextValue,
           fromFiatAmount: (amount: number, currency: Fiats) => (currency === Fiats.CHF ? amount * 2000 : 0),
-          toFiat: (sats: number) => sats,
+          toFiat: (sats?: number) => sats ?? 0,
         }}
       >
         <WalletContext.Provider
@@ -31,6 +31,9 @@ describe('usePortfolioFiat', () => {
                     name: 'Swiss franc',
                     ticker: 'CHF',
                   },
+                  assetId: 'chf-asset',
+                  supply: BigInt(1000000),
+                  cachedAt: Date.now(),
                 },
               ],
             ]),

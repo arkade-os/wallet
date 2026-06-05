@@ -54,6 +54,7 @@ interface MintAssetOptions {
 
 export async function navigateToAssets(page: Page): Promise<void> {
   await navigateToSettings(page)
+  await page.getByText('advanced', { exact: true }).click()
   await page.getByText('Arkade Mint', { exact: true }).click()
   await page.waitForSelector('text=Arkade Mint', { state: 'visible' })
 }
@@ -167,7 +168,7 @@ export async function createWalletWithPassword(page: Page, password: string): Pr
 
 export async function createWalletAndGetBIP21(page: Page, isMobile?: boolean, sats?: number): Promise<string> {
   await createWallet(page)
-  await page.getByTestId('tab-wallet').click()
+  await sleep(1000)
   await page.getByText('Receive', { exact: true }).click()
 
   if (sats) {

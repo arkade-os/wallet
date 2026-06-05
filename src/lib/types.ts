@@ -56,7 +56,7 @@ export enum Fiats {
 
 export enum SettingsSections {
   Advanced = 'Advanced',
-  General = 'General',
+  Display = 'Display',
   Security = 'Security',
   Config = 'Config',
 }
@@ -67,7 +67,12 @@ export enum SettingsOptions {
   Advanced = 'advanced',
   ArkadeMint = 'Arkade Mint',
   Backup = 'backup',
-  General = 'general',
+  Boltz = 'Boltz',
+  Contracts = 'contracts',
+  Delegates = 'delegates',
+  Display = 'display preferences',
+  DisplayMenu = 'display',
+  Fiat = 'Currency',
   Haptics = 'haptic feedback',
   Lock = 'lock wallet',
   Logs = 'logs',
@@ -77,12 +82,8 @@ export enum SettingsOptions {
   Reset = 'reset wallet',
   Server = 'server',
   Support = 'support',
-  Contracts = 'contracts',
-  Vtxos = 'coin control',
   Theme = 'theme',
-  Fiat = 'currency',
-  Display = 'bitcoin unit',
-  Delegates = 'delegates',
+  Vtxos = 'coin control',
 }
 
 export enum Themes {
