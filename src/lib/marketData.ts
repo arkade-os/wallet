@@ -1,5 +1,5 @@
 import { LivelinePoint } from 'liveline'
-import { Fiats } from './types'
+import { Currencies } from './types'
 
 const host = 'https://fetch-json.bordalix.workers.dev' // TODO: move to final worker URL
 
@@ -25,7 +25,7 @@ const secsToPeriod = (secs: number): string => {
 
 export const fetchHistoricalMarketData = async (
   secs: number,
-  fiat: Fiats,
+  fiat: Currencies,
   signal?: AbortSignal,
 ): Promise<LivelinePoint[]> => {
   const period = secsToPeriod(secs)

@@ -1,6 +1,6 @@
 import { useContext } from 'react'
 import { prettyBitcoinAmount, prettyFiatAmount, prettyFiatHide } from '../lib/format'
-import { Fiats, Unit } from '../lib/types'
+import { Currencies, Unit } from '../lib/types'
 import { FiatContext } from '../providers/fiat'
 import Text from './Text'
 import FlexCol from './FlexCol'
@@ -18,7 +18,7 @@ export default function Balance({ amount }: BalanceProps) {
 
   const currencyAmount = toFiat(amount)
   const mainValue = config.showBalance
-    ? config.fiat === Fiats.BTC
+    ? config.fiat === Currencies.BTC
       ? prettyBitcoinAmount(amount, config.currencyDisplay as unknown as Unit)
       : prettyFiatAmount(currencyAmount, config.fiat, {
           maximumFractionDigits: fiatDecimals(),

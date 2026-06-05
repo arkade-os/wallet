@@ -38,11 +38,11 @@ function settingsContent(option: SettingsOptions, menuBack?: () => void): JSX.El
       return <Contracts />
     case SettingsOptions.Delegates:
       return <Delegates />
-    case SettingsOptions.Display:
+    case SettingsOptions.BitcoinUnit:
       return <Display />
-    case SettingsOptions.DisplayMenu:
+    case SettingsOptions.Display:
       return <General />
-    case SettingsOptions.Fiat:
+    case SettingsOptions.Currency:
       return <Fiat />
     case SettingsOptions.Haptics:
       return <Haptics />

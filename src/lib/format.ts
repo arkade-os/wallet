@@ -1,6 +1,6 @@
 import { centsToUnits, prettyAssetAmount } from './assets'
 import { fiatDecimalsFor, FIAT_SYMBOLS } from './fiat'
-import { Fiats, Tx, Unit } from './types'
+import { Currencies, Tx, Unit } from './types'
 import { Decimal } from 'decimal.js'
 
 export const BITCOIN_SYMBOL = '₿'
@@ -90,10 +90,10 @@ export const prettyBitcoinAmount = (sats: number, unit: Unit, options?: FiatAmou
 
 export const formatFiatAmountParts = (
   amount: number,
-  currency: Fiats,
+  currency: Currencies,
   options: FiatAmountFormatOptions = {},
 ): { amount: string; unit: string } => {
-  if (currency === Fiats.BTC)
+  if (currency === Currencies.BTC)
     return formatBitcoinUnitAmountParts(amount, normalizeBitcoinUnit(options.bitcoinUnit), options)
 
   const symbol = FIAT_SYMBOLS[currency]
@@ -108,19 +108,20 @@ export const formatFiatAmountParts = (
   }
 }
 
-export const prettyFiatAmount = (amount: number, currency: Fiats, options?: FiatAmountFormatOptions): string => {
+export const prettyFiatAmount = (amount: number, currency: Currencies, options?: FiatAmountFormatOptions): string => {
   const parts = formatFiatAmountParts(amount, currency, options)
   return parts.unit ? `${parts.amount} ${parts.unit}` : parts.amount
 }
 
-export const fiatForTicker = (ticker: string | undefined): Fiats | undefined => {
+export const fiatForTicker = (ticker: string | undefined): Currencies | undefined => {
   const normalized = ticker?.trim().toUpperCase()
-  if (normalized === 'USD' || normalized === 'USDT' || normalized === 'USDC' || normalized === 'AUSD') return Fiats.USD
-  if (normalized === 'CHF') return Fiats.CHF
-  if (normalized === 'EUR') return Fiats.EUR
-  if (normalized === 'GBP') return Fiats.GBP
-  if (normalized === 'JPY') return Fiats.JPY
-  if (normalized === 'CNY') return Fiats.CNY
+  if (normalized === 'USD' || normalized === 'USDT' || normalized === 'USDC' || normalized === 'AUSD')
+    return Currencies.USD
+  if (normalized === 'CHF') return Currencies.CHF
+  if (normalized === 'EUR') return Currencies.EUR
+  if (normalized === 'GBP') return Currencies.GBP
+  if (normalized === 'JPY') return Currencies.JPY
+  if (normalized === 'CNY') return Currencies.CNY
 }
 
 export const prettyCurrencyAssetAmount = (
@@ -182,10 +183,10 @@ export const prettyHide = (value: string | number | bigint, suffix = 'sats'): st
   return suffix ? `${dots} ${suffix}` : dots
 }
 
-export const prettyFiatHide = (value: number, currency: Fiats, options: FiatAmountFormatOptions = {}): string => {
+export const prettyFiatHide = (value: number, currency: Currencies, options: FiatAmountFormatOptions = {}): string => {
   if (!value) return ''
   const dots = hideDots(value)
-  if (currency === Fiats.BTC) {
+  if (currency === Currencies.BTC) {
     const bitcoinUnit = normalizeBitcoinUnit(options.bitcoinUnit)
     if (bitcoinUnit === Unit.BIP177) return `${BITCOIN_SYMBOL}${dots}`
     return `${dots} ${bitcoinUnit}`
@@ -195,7 +196,7 @@ export const prettyFiatHide = (value: number, currency: Fiats, options: FiatAmou
 }
 
 export const prettyBitcoinHide = (value: number, unit: Unit | CurrencyDisplayUnit): string => {
-  return prettyFiatHide(value, Fiats.BTC, { bitcoinUnit: unit })
+  return prettyFiatHide(value, Currencies.BTC, { bitcoinUnit: unit })
 }
 
 export const prettyLongText = (str?: string, showChars = 11): string => {

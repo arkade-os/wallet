@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react'
 import { ReactNode } from 'react'
 import { describe, expect, it } from 'vitest'
-import { Fiats } from '../../lib/types'
+import { Currencies } from '../../lib/types'
 import { FiatContext } from '../../providers/fiat'
 import { WalletContext } from '../../providers/wallet'
 import { usePortfolioFiat } from '../../hooks/usePortfolioFiat'
@@ -13,7 +13,7 @@ describe('usePortfolioFiat', () => {
       <FiatContext.Provider
         value={{
           ...mockFiatContextValue,
-          fromFiatAmount: (amount: number, currency: Fiats) => (currency === Fiats.CHF ? amount * 2000 : 0),
+          fromFiatAmount: (amount: number, currency: Currencies) => (currency === Currencies.CHF ? amount * 2000 : 0),
           toFiat: (sats?: number) => sats ?? 0,
         }}
       >

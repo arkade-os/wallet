@@ -1,7 +1,7 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
 import { clearStorage, readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
 import { defaultArkServer, devServer } from '../lib/constants'
-import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
+import { Config, CurrencyDisplay, Currencies, Themes, Unit } from '../lib/types'
 import { normalizeBitcoinUnit } from '../lib/format'
 import { BackupProvider } from '../lib/backup'
 import { consoleError } from '../lib/logs'
@@ -15,7 +15,7 @@ const defaultConfig: Config = {
   dismissedBanners: [],
   currencyDisplay: CurrencyDisplay.BTC,
   delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
-  fiat: Fiats.USD,
+  fiat: Currencies.USD,
   importedAssets: [],
   haptics: true,
   nostrBackup: false,
@@ -72,7 +72,7 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
       boltz: { connected: config.apps?.boltz?.connected ?? defaultConfig.apps.boltz.connected },
     },
     currencyDisplay: normalizeBitcoinUnit(config.currencyDisplay as `${CurrencyDisplay}`) as unknown as CurrencyDisplay,
-    fiat: config.fiat === Fiats.BTC ? Fiats.BTC : (config.fiat ?? defaultConfig.fiat),
+    fiat: config.fiat === Currencies.BTC ? Currencies.BTC : (config.fiat ?? defaultConfig.fiat),
     unit: normalizeBitcoinUnit(config.unit as `${Unit}`),
   }
 }
@@ -164,7 +164,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     return () => mediaQuery.removeEventListener('change', handler)
   }, [config.theme])
 
-  const useFiat = config.fiat !== Fiats.BTC
+  const useFiat = config.fiat !== Currencies.BTC
 
   return (
     <ConfigContext.Provider

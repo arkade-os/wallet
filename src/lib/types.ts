@@ -18,7 +18,7 @@ export type Config = {
   aspUrl: string
   currencyDisplay: CurrencyDisplay
   delegate: boolean
-  fiat: Fiats
+  fiat: Currencies
   importedAssets: string[]
   haptics: boolean
   nostrBackup: boolean
@@ -44,7 +44,7 @@ export type Delegate = {
   address: string
 }
 
-export enum Fiats {
+export enum Currencies {
   USD = 'USD',
   EUR = 'EUR',
   CHF = 'CHF',
@@ -70,9 +70,9 @@ export enum SettingsOptions {
   Boltz = 'Boltz',
   Contracts = 'contracts',
   Delegates = 'delegates',
-  Display = 'display preferences',
-  DisplayMenu = 'display',
-  Fiat = 'Currency',
+  BitcoinUnit = 'bitcoin unit',
+  Display = 'display',
+  Currency = 'Currency',
   Haptics = 'haptic feedback',
   Lock = 'lock wallet',
   Logs = 'logs',

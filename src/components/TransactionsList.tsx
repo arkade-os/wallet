@@ -1,7 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useRef } from 'react'
 import { WalletContext } from '../providers/wallet'
-import { Fiats, Tx, Unit } from '../lib/types'
+import { Currencies, Tx, Unit } from '../lib/types'
 import {
   isBurn,
   isIssuance,
@@ -142,10 +142,10 @@ const TransactionLine = ({
       {tx.assets?.length ? (
         <>
           <AssetInfo />
-          {config.fiat === Fiats.BTC ? <Bitcoin /> : <Currency />}
+          {config.fiat === Currencies.BTC ? <Bitcoin /> : <Currency />}
         </>
       ) : (
-        <>{config.fiat === Fiats.BTC ? <Bitcoin /> : <Currency />}</>
+        <>{config.fiat === Currencies.BTC ? <Bitcoin /> : <Currency />}</>
       )}
     </div>
   )

@@ -76,7 +76,7 @@ export const options: Option[] = [
   },
   {
     icon: <CogIcon />,
-    option: SettingsOptions.DisplayMenu,
+    option: SettingsOptions.Display,
     section: SettingsSections.Display,
   },
   {
@@ -111,12 +111,12 @@ export const options: Option[] = [
   },
   {
     icon: <></>,
-    option: SettingsOptions.Display,
+    option: SettingsOptions.BitcoinUnit,
     section: SettingsSections.Config,
   },
   {
     icon: <></>,
-    option: SettingsOptions.Fiat,
+    option: SettingsOptions.Currency,
     section: SettingsSections.Config,
   },
   {
@@ -179,7 +179,7 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
     return section === SettingsSections.Advanced
       ? SettingsOptions.Advanced
       : section === SettingsSections.Config
-        ? SettingsOptions.DisplayMenu
+        ? SettingsOptions.Display
         : SettingsOptions.Menu
   }
 

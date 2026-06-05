@@ -12,7 +12,7 @@ import ButtonsOnBottom from './ButtonsOnBottom'
 import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
 import SwapIcon from '../icons/Swap'
-import { AssetOption, Fiats } from '../lib/types'
+import { AssetOption, Currencies } from '../lib/types'
 import { prettyAssetAmount, unitsToCents } from '../lib/assets'
 
 export type KeyboardInputMode = 'sats' | 'fiat' | 'asset'
@@ -175,7 +175,7 @@ export default function Keyboard({ asset, back, hideBalance, onSave }: KeyboardP
     ['.', '0', 'x'],
   ]
 
-  const showSecondaryValue = !asset?.assetId && config.fiat !== Fiats.BTC
+  const showSecondaryValue = !asset?.assetId && config.fiat !== Currencies.BTC
 
   return (
     <>

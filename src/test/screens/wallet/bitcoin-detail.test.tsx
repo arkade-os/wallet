@@ -13,7 +13,7 @@ import {
   mockNavigationContextValue,
   mockWalletContextValue,
 } from '../mocks'
-import { CurrencyDisplay, Fiats } from '../../../lib/types'
+import { CurrencyDisplay, Currencies } from '../../../lib/types'
 
 vi.mock('liveline', () => ({
   Liveline: ({ paused }: { paused?: boolean }) => <div data-testid='liveline-chart' data-paused={String(paused)} />,
@@ -83,15 +83,15 @@ describe('Bitcoin detail screen', () => {
           config: {
             ...mockConfigContextValue.config,
             currencyDisplay: CurrencyDisplay.Bip177,
-            fiat: Fiats.BTC,
+            fiat: Currencies.BTC,
           },
         }}
       >
         <FiatContext.Provider
           value={{
             ...mockFiatContextValue,
-            toFiatAmount: (sats: number, currency: Fiats) =>
-              currency === Fiats.USD ? (sats / 100_000_000) * 64000 : sats,
+            toFiatAmount: (sats: number, currency: Currencies) =>
+              currency === Currencies.USD ? (sats / 100_000_000) * 64000 : sats,
           }}
         >
           <FlowContext.Provider value={mockFlowContextValue}>

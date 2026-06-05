@@ -1,4 +1,4 @@
-import { Fiats } from '../../lib/types'
+import { Currencies } from '../../lib/types'
 import { test, expect, createWallet, navigateHome, navigateToSettings } from './utils'
 import type { Page } from '@playwright/test'
 
@@ -11,7 +11,7 @@ async function openKeyboard(page: Page) {
 }
 
 // helper function to setup wallet and navigate to keyboard
-async function changeToFiat(page: Page, fiat: Fiats) {
+async function changeToFiat(page: Page, fiat: Currencies) {
   await navigateToSettings(page)
   await page.getByText('display', { exact: true }).click()
   await page.getByText('currency').click()
@@ -35,7 +35,7 @@ test('should toggle between sats and FIAT on mobile keyboard', async ({ page, is
 
   // setup wallet and open keyboard
   await createWallet(page)
-  await changeToFiat(page, Fiats.USD)
+  await changeToFiat(page, Currencies.USD)
   await openKeyboard(page)
 
   // verify keyboard is visible
@@ -104,7 +104,7 @@ test('should limit FIAT decimals to 2 places', async ({ page, isMobile }) => {
 
   // setup wallet and open keyboard
   await createWallet(page)
-  await changeToFiat(page, Fiats.USD)
+  await changeToFiat(page, Currencies.USD)
   await openKeyboard(page)
 
   // enter 1.99 (valid)
@@ -125,7 +125,7 @@ test('should limit JPY decimals to 0 places', async ({ page, isMobile }) => {
 
   // setup wallet and open keyboard
   await createWallet(page)
-  await changeToFiat(page, Fiats.JPY)
+  await changeToFiat(page, Currencies.JPY)
   await openKeyboard(page)
 
   // clear any existing amount

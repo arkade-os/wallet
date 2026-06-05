@@ -15,7 +15,7 @@ import {
   isBurn,
   prettyBitcoinAmount,
 } from '../../lib/format'
-import { Fiats, Tx, Unit } from '../../lib/types'
+import { Currencies, Tx, Unit } from '../../lib/types'
 import { Asset } from '@arkade-os/sdk'
 
 describe('format utilities', () => {
@@ -58,25 +58,25 @@ describe('format utilities', () => {
 
   describe('prettyFiatAmount', () => {
     it('should prepend the symbol for currencies with one', () => {
-      expect(prettyFiatAmount(2500, Fiats.USD)).toBe('$2,500.00')
-      expect(prettyFiatAmount(12345, Fiats.EUR)).toBe('€12,345.00')
-      expect(prettyFiatAmount(1000, Fiats.GBP)).toBe('£1,000.00')
-      expect(prettyFiatAmount(1000, Fiats.JPY)).toBe('¥1,000')
+      expect(prettyFiatAmount(2500, Currencies.USD)).toBe('$2,500.00')
+      expect(prettyFiatAmount(12345, Currencies.EUR)).toBe('€12,345.00')
+      expect(prettyFiatAmount(1000, Currencies.GBP)).toBe('£1,000.00')
+      expect(prettyFiatAmount(1000, Currencies.JPY)).toBe('¥1,000')
     })
 
     it('should keep the trailing code for currencies without a symbol', () => {
-      expect(prettyFiatAmount(2500, Fiats.CHF)).toBe('2,500.00 CHF')
-      expect(prettyFiatAmount(12345, Fiats.CNY)).toBe('12,345.00 CNY')
+      expect(prettyFiatAmount(2500, Currencies.CHF)).toBe('2,500.00 CHF')
+      expect(prettyFiatAmount(12345, Currencies.CNY)).toBe('12,345.00 CNY')
     })
 
     it('should format fiat currencies with their standard minor units', () => {
-      const cases: [Fiats, string, string][] = [
-        [Fiats.EUR, '€10.00', '€10.80'],
-        [Fiats.USD, '$10.00', '$10.80'],
-        [Fiats.CHF, '10.00 CHF', '10.80 CHF'],
-        [Fiats.JPY, '¥10', '¥11'],
-        [Fiats.GBP, '£10.00', '£10.80'],
-        [Fiats.CNY, '10.00 CNY', '10.80 CNY'],
+      const cases: [Currencies, string, string][] = [
+        [Currencies.EUR, '€10.00', '€10.80'],
+        [Currencies.USD, '$10.00', '$10.80'],
+        [Currencies.CHF, '10.00 CHF', '10.80 CHF'],
+        [Currencies.JPY, '¥10', '¥11'],
+        [Currencies.GBP, '£10.00', '£10.80'],
+        [Currencies.CNY, '10.00 CNY', '10.80 CNY'],
       ]
 
       cases.forEach(([currency, wholeAmount, fractionalAmount]) => {
@@ -84,13 +84,13 @@ describe('format utilities', () => {
         expect(prettyFiatAmount(10.8, currency)).toBe(fractionalAmount)
       })
 
-      expect(prettyFiatAmount(1.234, Fiats.USD)).toBe('$1.23')
+      expect(prettyFiatAmount(1.234, Currencies.USD)).toBe('$1.23')
     })
 
     it('should format BTC currency using the selected bitcoin unit', () => {
-      expect(prettyFiatAmount(0.000021, Fiats.BTC, { bitcoinUnit: Unit.BTC })).toBe('0.000021 BTC')
-      expect(prettyFiatAmount(2100, Fiats.BTC, { bitcoinUnit: Unit.SATS })).toBe('2,100 sats')
-      expect(prettyFiatAmount(2100, Fiats.BTC, { bitcoinUnit: Unit.BIP177 })).toBe('₿2,100')
+      expect(prettyFiatAmount(0.000021, Currencies.BTC, { bitcoinUnit: Unit.BTC })).toBe('0.000021 BTC')
+      expect(prettyFiatAmount(2100, Currencies.BTC, { bitcoinUnit: Unit.SATS })).toBe('2,100 sats')
+      expect(prettyFiatAmount(2100, Currencies.BTC, { bitcoinUnit: Unit.BIP177 })).toBe('₿2,100')
     })
   })
 
@@ -175,20 +175,20 @@ describe('format utilities', () => {
 
   describe('prettyFiatHide', () => {
     it('should prepend the symbol when masking fiat with a symbol', () => {
-      expect(prettyFiatHide(100, Fiats.USD)).toBe('$······')
-      expect(prettyFiatHide(100, Fiats.EUR)).toBe('€······')
-      expect(prettyFiatHide(100, Fiats.GBP)).toBe('£······')
-      expect(prettyFiatHide(100, Fiats.JPY)).toBe('¥······')
+      expect(prettyFiatHide(100, Currencies.USD)).toBe('$······')
+      expect(prettyFiatHide(100, Currencies.EUR)).toBe('€······')
+      expect(prettyFiatHide(100, Currencies.GBP)).toBe('£······')
+      expect(prettyFiatHide(100, Currencies.JPY)).toBe('¥······')
     })
 
     it('should keep the trailing code when masking fiat without a symbol', () => {
-      expect(prettyFiatHide(100, Fiats.CHF)).toBe('······ CHF')
-      expect(prettyFiatHide(100, Fiats.CNY)).toBe('······ CNY')
+      expect(prettyFiatHide(100, Currencies.CHF)).toBe('······ CHF')
+      expect(prettyFiatHide(100, Currencies.CNY)).toBe('······ CNY')
     })
 
     it('should return empty string for zero', () => {
-      expect(prettyFiatHide(0, Fiats.USD)).toBe('')
-      expect(prettyFiatHide(0, Fiats.CHF)).toBe('')
+      expect(prettyFiatHide(0, Currencies.USD)).toBe('')
+      expect(prettyFiatHide(0, Currencies.CHF)).toBe('')
     })
   })
 
