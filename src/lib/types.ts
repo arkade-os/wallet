@@ -31,9 +31,9 @@ export type Config = {
 }
 
 export enum CurrencyDisplay {
-  Both = 'Show both',
-  Fiat = 'Fiat only',
-  Sats = 'Sats only',
+  BTC = 'BTC',
+  Sats = 'sats',
+  Bip177 = '₿',
 }
 
 export type Delegate = {
@@ -45,12 +45,13 @@ export type Delegate = {
 }
 
 export enum Fiats {
-  EUR = 'EUR',
   USD = 'USD',
+  EUR = 'EUR',
   CHF = 'CHF',
-  JPY = 'JPY',
   GBP = 'GBP',
+  JPY = 'JPY',
   CNY = 'CNY',
+  BTC = 'BTC',
 }
 
 export enum SettingsSections {
@@ -71,7 +72,7 @@ export enum SettingsOptions {
   Delegates = 'delegates',
   Display = 'display preferences',
   DisplayMenu = 'display',
-  Fiat = 'fiat currency',
+  Fiat = 'Currency',
   Haptics = 'haptic feedback',
   Lock = 'lock wallet',
   Logs = 'logs',
@@ -109,11 +110,9 @@ export type Tx = {
 }
 
 export enum Unit {
-  BTC = 'btc',
-  EUR = 'eur',
-  USD = 'usd',
-  CHF = 'chf',
-  SAT = 'sat',
+  BTC = 'BTC',
+  SATS = 'sats',
+  BIP177 = '₿',
 }
 
 export type Vtxo = ExtendedVirtualCoin

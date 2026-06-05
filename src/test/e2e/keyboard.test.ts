@@ -14,7 +14,7 @@ async function openKeyboard(page: Page) {
 async function changeToFiat(page: Page, fiat: Fiats) {
   await navigateToSettings(page)
   await page.getByText('display', { exact: true }).click()
-  await page.getByText('fiat currency').click()
+  await page.getByText('currency').click()
   await page.getByText(fiat).click()
   await page.getByLabel('Go back').click()
   await page.getByLabel('Go back').click()
@@ -30,34 +30,17 @@ async function clearAmount(page: Page, maxClicks = 10) {
   }
 }
 
-test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, isMobile }) => {
+test('should toggle between sats and FIAT on mobile keyboard', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'This test is only for mobile')
 
   // setup wallet and open keyboard
   await createWallet(page)
+  await changeToFiat(page, Fiats.USD)
   await openKeyboard(page)
 
   // verify keyboard is visible
   await expect(page.getByText('Amount')).toBeVisible()
   await expect(page.getByTestId('keyboard-1')).toBeVisible()
-
-  // initially should be in SATS mode - enter 100 sats
-  await page.getByTestId('keyboard-1').click()
-  await page.getByTestId('keyboard-0').click()
-  await page.getByTestId('keyboard-0').click()
-
-  // verify SATS amount is displayed
-  await expect(page.getByText('100 SATS')).toBeVisible()
-
-  // the secondary amount should be converted to FIAT
-  // the exact USD amount will depend on the exchange rate, but we can verify the format
-  await page.waitForSelector('text=/[\\$€][0-9.]+/', { timeout: 2000 })
-
-  // test decimal input in FIAT mode
-  await page.locator('[aria-label="Toggle currency"]').click()
-
-  // clear the amount
-  await clearAmount(page)
 
   // enter a FIAT amount with decimals (e.g., 1.50)
   await page.getByTestId('keyboard-1').click()
@@ -66,10 +49,28 @@ test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, is
   await page.getByTestId('keyboard-0').click()
 
   // verify decimal amount is displayed in FIAT
-  await expect(page.locator('text=/[\\$€]1\\.5/')).toBeVisible()
+  await expect(page.locator('text=$1.50')).toBeVisible()
 
-  // verify SATS conversion
-  await page.waitForSelector('text=/[0-9][0-9]+ SATS/', { timeout: 2000 })
+  // the secondary amount should be converted to sats
+  // the exact sats amount will depend on the exchange rate, but we can verify the format
+  await page.waitForSelector('text=/[0-9][0-9]+ sats/', { timeout: 2000 })
+
+  // test decimal input in FIAT mode
+  await page.locator('[aria-label="Toggle currency"]').click()
+
+  // clear the amount
+  await clearAmount(page)
+
+  // initially should be in sats mode - enter 100 sats
+  await page.getByTestId('keyboard-1').click()
+  await page.getByTestId('keyboard-0').click()
+  await page.getByTestId('keyboard-0').click()
+
+  // verify sats amount is displayed
+  await expect(page.getByText('100 sats')).toBeVisible()
+
+  // verify sats conversion
+  await page.waitForSelector('text=/[\\$€][0-9.]+/', { timeout: 2000 })
 
   // save the amount
   await page.getByText('Save').click()
@@ -78,24 +79,24 @@ test('should toggle between SATS and FIAT on mobile keyboard', async ({ page, is
   await expect(page.getByText('Edit amount')).toBeVisible()
 })
 
-test('should prevent decimal input in SATS mode', async ({ page, isMobile }) => {
+test('should prevent decimal input in sats mode', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'This test is only for mobile')
 
   // setup wallet and open keyboard
   await createWallet(page)
   await openKeyboard(page)
 
-  // initially should be in SATS mode - enter decimal
+  // initially should be in sats mode - enter decimal
   await page.getByTestId('keyboard-5').click()
 
-  // try to enter a decimal point - should be ignored in SATS mode
+  // try to enter a decimal point - should be ignored in sats mode
   await page.getByTestId('keyboard-.').click()
 
   // try to enter another number
   await page.getByTestId('keyboard-0').click()
 
-  // should show 50 SATS (decimal point ignored)
-  await expect(page.getByText('50 SATS')).toBeVisible()
+  // should show 50 sats (decimal point ignored)
+  await expect(page.getByText('50 sats')).toBeVisible()
 })
 
 test('should limit FIAT decimals to 2 places', async ({ page, isMobile }) => {
@@ -105,12 +106,6 @@ test('should limit FIAT decimals to 2 places', async ({ page, isMobile }) => {
   await createWallet(page)
   await changeToFiat(page, Fiats.USD)
   await openKeyboard(page)
-
-  // clear any existing amount
-  await clearAmount(page)
-
-  // initially should be in SATS mode - switch to fiat
-  await page.locator('[aria-label="Toggle currency"]').click()
 
   // enter 1.99 (valid)
   await page.getByTestId('keyboard-1').click()
@@ -136,18 +131,15 @@ test('should limit JPY decimals to 0 places', async ({ page, isMobile }) => {
   // clear any existing amount
   await clearAmount(page)
 
-  // initially should be in SATS mode - switch to fiat
-  await page.locator('[aria-label="Toggle currency"]').click()
-
   // enter some number
   await page.getByTestId('keyboard-5').click()
 
-  // try to enter a decimal point - should be ignored in SATS mode
+  // try to enter a decimal point - should be ignored in sats mode
   await page.getByTestId('keyboard-.').click()
 
   // try to enter another number
   await page.getByTestId('keyboard-0').click()
 
-  // should show 50 SATS (decimal point ignored)
+  // should show 50 sats (decimal point ignored)
   await expect(page.getByText('¥50')).toBeVisible()
 })

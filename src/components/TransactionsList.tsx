@@ -1,12 +1,12 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useRef } from 'react'
 import { WalletContext } from '../providers/wallet'
-import { CurrencyDisplay, Tx } from '../lib/types'
+import { Fiats, Tx, Unit } from '../lib/types'
 import {
   isBurn,
   isIssuance,
   prettyCurrencyAssetAmount,
-  prettyAmount,
+  prettyBitcoinAmount,
   prettyDate,
   prettyFiatAmount,
   prettyFiatHide,
@@ -50,16 +50,15 @@ const TransactionLine = ({
   const issuance = isIssuance(tx)
   const burn = isBurn(tx)
 
-  const Fiat = () => {
+  const Currency = () => {
     if (issuance || burn || swap) return null
     const value = toFiat(tx.amount)
     const statusClassName = tx.boardingTxid && tx.preconfirmed ? ' activity-row__amount--pending' : ''
-    const secondaryClassName =
-      asAssets || config.currencyDisplay === CurrencyDisplay.Both ? ' activity-row__amount--secondary' : ''
+    const secondaryClassName = asAssets ? ' activity-row__amount--secondary' : ''
     return (
       <span className={`activity-row__amount${statusClassName}${secondaryClassName}`}>
-        <PrivacyAmount masked={prettyFiatHide(value, config.fiat)}>
-          {prettyFiatAmount(value, config.fiat)}
+        <PrivacyAmount masked={prettyFiatHide(value, config.fiat, { bitcoinUnit: config.currencyDisplay })}>
+          {prettyFiatAmount(value, config.fiat, { bitcoinUnit: config.currencyDisplay })}
         </PrivacyAmount>
       </span>
     )
@@ -88,7 +87,7 @@ const TransactionLine = ({
 
   const When = () => <span className='activity-row__meta'>{date}</span>
 
-  const Sats = () =>
+  const Bitcoin = () =>
     issuance || burn ? null : (
       <span
         className={`activity-row__amount${tx.preconfirmed && tx.boardingTxid ? ' activity-row__amount--pending' : ''}${
@@ -96,8 +95,8 @@ const TransactionLine = ({
         }`}
       >
         <PrivacyAmount
-          masked={`${prefix} ${prettyHide(tx.amount)}`}
-        >{`${prefix} ${prettyAmount(tx.amount)}`}</PrivacyAmount>
+          masked={`${prefix} ${prettyFiatHide(toFiat(tx.amount), config.fiat, { bitcoinUnit: config.currencyDisplay })}`}
+        >{`${prefix} ${prettyBitcoinAmount(tx.amount, config.currencyDisplay as unknown as Unit)}`}</PrivacyAmount>
       </span>
     )
 
@@ -143,17 +142,10 @@ const TransactionLine = ({
       {tx.assets?.length ? (
         <>
           <AssetInfo />
-          {config.currencyDisplay === CurrencyDisplay.Fiat ? <Fiat /> : <Sats />}
+          {config.fiat === Fiats.BTC ? <Bitcoin /> : <Currency />}
         </>
-      ) : config.currencyDisplay === CurrencyDisplay.Fiat ? (
-        <Fiat />
-      ) : config.currencyDisplay === CurrencyDisplay.Sats ? (
-        <Sats />
       ) : (
-        <>
-          <Sats />
-          <Fiat />
-        </>
+        <>{config.fiat === Fiats.BTC ? <Bitcoin /> : <Currency />}</>
       )}
     </div>
   )

@@ -111,5 +111,5 @@ test('should receive payment', async ({ page }) => {
   // transaction should be visible on main page
   await navigateHome(page)
   await page.waitForSelector('text=Received', { timeout: 10000 })
-  await expect(page.getByText('+ 1,992 SATS', { exact: true })).toBeVisible()
+  await expect(page.getByText('+ 1,992 sats', { exact: true })).toBeVisible()
 })

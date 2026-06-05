@@ -56,10 +56,10 @@ export const mockAspContextValue = {
 export const mockConfigContextValue = {
   config: {
     announcementsSeen: [],
-    apps: { assets: { enabled: false }, boltz: { connected: true } },
+    apps: { assets: { enabled: true }, boltz: { connected: true } },
     aspUrl: 'http://asp.local',
     dismissedBanners: [],
-    currencyDisplay: CurrencyDisplay.Both,
+    currencyDisplay: CurrencyDisplay.BTC,
     delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
     fiat: Fiats.EUR,
     importedAssets: [],
@@ -74,7 +74,7 @@ export const mockConfigContextValue = {
   updateConfig: () => {},
   effectiveTheme: Themes.Dark as const,
   systemTheme: Themes.Dark as const,
-  useFiat: false,
+  useFiat: true,
   backupConfig: () => Promise.resolve(),
   configLoaded: true,
   resetConfig: () => {},
@@ -88,6 +88,8 @@ export const mockFiatContextValue = {
   fromFiat: (fiat?: number) => fiat ?? 0,
   updateFiatPrices: () => {},
   fiatDecimals: () => 2,
+  fromFiatAmount: (amount: number) => amount,
+  toFiatAmount: (amount: number) => amount,
 }
 
 export const mockSwapsContextValue = {
