@@ -36,7 +36,7 @@ interface ConfigContextProps {
   showConfig: boolean
   systemTheme: Themes.Dark | Themes.Light
   toggleShowConfig: () => void
-  updateConfig: (c: Config) => void
+  updateConfig: (c: Config, save?: boolean) => void
   useFiat: boolean
 }
 
@@ -117,7 +117,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute('content', themeColor)
   }
 
-  const updateConfig = async (incoming: Config) => {
+  const updateConfig = async (incoming: Config, save = true) => {
     // merge with defaults so newly added fields are always present
     const config = updateDefaultConfig(incoming)
     // add protocol to aspUrl if missing
@@ -128,7 +128,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     setConfig(config)
     applyTheme(config.theme)
     setHapticsEnabled(config.haptics)
-    saveConfigToStorage(config)
+    if (save) saveConfigToStorage(config)
   }
 
   const resetConfig = async () => {

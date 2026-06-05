@@ -26,7 +26,7 @@ export const FiatContext = createContext<FiatContextProps>({
 })
 
 export const FiatProvider = ({ children }: { children: ReactNode }) => {
-  const { config } = useContext(ConfigContext)
+  const { config, updateConfig } = useContext(ConfigContext)
 
   const [loading, setLoading] = useState(false)
 
@@ -76,6 +76,7 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true)
     const pf = await getPriceFeed()
     if (pf) prices.current = pf
+    else updateConfig({ ...config, fiat: Fiats.BTC }, false) // fallback to BTC if price feed fails
     setLoading(false)
   }
 
