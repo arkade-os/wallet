@@ -61,13 +61,13 @@ export default function InputAmount({
   useEffect(() => {
     if (!value || isNaN(Number(value))) return
     setSatsValue(useFiat ? fromFiat(Number(value)) : Number(value))
-  }, [value])
+  }, [value, fromFiat, useFiat])
 
   // update other value when sats change
   useEffect(() => {
     setError(satsValue ? (satsValue < 0 ? 'Invalid amount' : '') : '')
     setOtherValue(useFiat ? prettyNumber(satsValue, 0) : prettyNumber(toFiat(satsValue), fiatDecimals()))
-  }, [satsValue])
+  }, [satsValue, toFiat, fiatDecimals, useFiat])
 
   const handleAmountChange = (ev: React.ChangeEvent<HTMLInputElement>) => {
     const textValue = ev.currentTarget.value
