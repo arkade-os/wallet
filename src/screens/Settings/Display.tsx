@@ -17,7 +17,7 @@ export default function Display() {
 
   return (
     <>
-      <Header text='bitcoin unit' back />
+      <Header text='Bitcoin unit' back />
       <Content>
         <Padded>
           <div className='settings-page'>

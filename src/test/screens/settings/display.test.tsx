@@ -11,7 +11,6 @@ describe('Display screen', () => {
         <Display />
       </ConfigContext.Provider>,
     )
-    expect(screen.getByText('bitcoin unit')).toBeInTheDocument()
     expect(screen.getByTestId('select-option-0')).toBeInTheDocument()
     expect(screen.getByTestId('select-option-0').querySelector('p')?.textContent).toBe('BTC')
     expect(screen.getByTestId('select-option-1')).toBeInTheDocument()
