@@ -57,7 +57,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   // navigate to wallet tab and verify balance before proceeding
   await navigateHome(page)
   await page.waitForSelector('text=Received', { timeout: 10000 })
-  await expect(page.getByText('4,980')).toBeVisible()
+  await expect(page.getByTestId('main-balance')).toHaveText('4,980')
 
   /**
    * submarine swap
