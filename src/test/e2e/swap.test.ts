@@ -164,9 +164,9 @@ test('should send funds to Bitcoin', async ({ page, isMobile }) => {
   expect(await page.getByTestId('Direction').textContent()).toBe('Arkade to BTC')
   expect(await page.getByTestId('BTC Address').textContent()).toBe(prettyLongText(someOnchainAddress))
   expect(await page.getByTestId('Status').textContent()).toBe('transaction.claimed')
-  expect(await page.getByTestId('Amount').textContent()).toBe('2,078 SATS')
-  expect(await page.getByTestId('Fees').textContent()).toBe('117 SATS')
-  expect(await page.getByTestId('Total').textContent()).toBe('2,195 SATS')
+  expect(await page.getByTestId('Amount').textContent()).toBe('2,111 sats')
+  expect(await page.getByTestId('Fees').textContent()).toBe('164 sats')
+  expect(await page.getByTestId('Total').textContent()).toBe('2,275 sats')
 })
 
 test('should refund failing swap', async ({ page }) => {

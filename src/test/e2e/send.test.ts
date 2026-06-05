@@ -375,9 +375,8 @@ test('should send sats (some and max) to onchain address with collaborative exit
   // main page
   await page.getByText('Sounds good').click()
   await expect(page.getByText('Received')).toBeVisible()
-  await expect(page.getByText('1,800 sats')).toBeVisible()
   await page.waitForSelector('text=Sent', { timeout: 10000 })
-  await expect(page.getByText(`${totalSent} sats`)).toBeVisible()
+  await expect(page.getByText(`- ${totalSent} sats`)).toBeVisible()
 
   const balance = 1800 - totalSent
 

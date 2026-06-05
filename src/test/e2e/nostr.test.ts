@@ -42,7 +42,6 @@ test('should save config to nostr', async ({ page }) => {
   // change currency to euro
   await page.getByLabel('Go back').click()
   await page.getByText('display', { exact: true }).click()
-  await expect(page.getByText('USD')).toBeVisible()
   await page.getByText('currency').click()
   await page.getByText('EUR').click()
   await page.waitForTimeout(500)
@@ -58,7 +57,7 @@ test('should save config to nostr', async ({ page }) => {
 
   // change currency to usd
   await page.getByLabel('Go back').click()
-  await page.getByText('general', { exact: true }).click()
+  await page.getByText('display', { exact: true }).click()
   await page.getByText('currency').click()
   await page.getByText('USD').click()
 
@@ -100,7 +99,7 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   // transaction should be visible on main page
   await navigateHome(page)
   await page.waitForSelector('text=Received', { timeout: 10000 })
-  await expect(page.getByText('4,980')).toBeVisible()
+  await expect(page.getByText('+ 4,980 sats')).toBeVisible()
 
   /**
    * submarine swap

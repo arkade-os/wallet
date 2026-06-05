@@ -164,7 +164,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     return () => mediaQuery.removeEventListener('change', handler)
   }, [config.theme])
 
-  const useFiat = true
+  const useFiat = config.fiat !== Fiats.BTC
 
   return (
     <ConfigContext.Provider

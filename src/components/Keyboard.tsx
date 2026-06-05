@@ -12,7 +12,7 @@ import ButtonsOnBottom from './ButtonsOnBottom'
 import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
 import SwapIcon from '../icons/Swap'
-import { AssetOption } from '../lib/types'
+import { AssetOption, Fiats } from '../lib/types'
 import { prettyAssetAmount, unitsToCents } from '../lib/assets'
 
 export type KeyboardInputMode = 'sats' | 'fiat' | 'asset'
@@ -121,6 +121,8 @@ export default function Keyboard({ asset, back, hideBalance, onSave }: KeyboardP
     onSave(textValue, inputMode)
   }
 
+  console.log({ inputMode, textValue, amountInSats, assetInCents })
+
   // Display amounts based on input mode
   const amount = {
     primary:
@@ -173,6 +175,8 @@ export default function Keyboard({ asset, back, hideBalance, onSave }: KeyboardP
     ['.', '0', 'x'],
   ]
 
+  const showSecondaryValue = !asset?.assetId && config.fiat !== Fiats.BTC
+
   return (
     <>
       <Header
@@ -188,7 +192,7 @@ export default function Keyboard({ asset, back, hideBalance, onSave }: KeyboardP
           <Text big centered heading>
             {amount.primary}
           </Text>
-          {asset?.assetId ? null : <TextSecondary centered>≈ {amount.secondary}</TextSecondary>}
+          {showSecondaryValue ? <TextSecondary centered>≈ {amount.secondary}</TextSecondary> : null}
           {hideBalance ? null : (
             <div onClick={handleMaxPress}>
               <TextSecondary centered>{amount.balance}</TextSecondary>
