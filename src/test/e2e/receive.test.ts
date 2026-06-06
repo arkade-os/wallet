@@ -46,7 +46,7 @@ test('should receive offchain funds', async ({ page }) => {
 
   // wait for payment received
   await waitForPaymentReceived(page)
-  await page.waitForSelector('text=+ 10,000 SATS', { timeout: 10000 })
+  await page.waitForSelector('text=+ 10,000 sats', { timeout: 10000 })
 })
 
 test('changing amount should update the invoice (sats mode)', async ({ page, isMobile }) => {

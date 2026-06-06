@@ -12,14 +12,16 @@ import ButtonsOnBottom from './ButtonsOnBottom'
 import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
 import SwapIcon from '../icons/Swap'
-import { AssetOption } from '../lib/types'
+import { AssetOption, Currencies } from '../lib/types'
 import { prettyAssetAmount, unitsToCents } from '../lib/assets'
+
+export type KeyboardInputMode = 'sats' | 'fiat' | 'asset'
 
 interface KeyboardProps {
   asset?: AssetOption
   back: () => void
   hideBalance?: boolean
-  onSave: (value: string) => void
+  onSave: (value: string, inputMode: KeyboardInputMode) => void
 }
 
 export default function Keyboard({ asset, back, hideBalance, onSave }: KeyboardProps) {
@@ -31,9 +33,7 @@ export default function Keyboard({ asset, back, hideBalance, onSave }: KeyboardP
   const [amountInSats, setAmountInSats] = useState(0)
   const [available, setAvailable] = useState(0)
   const [error, setError] = useState('')
-  const [inputMode, setInputMode] = useState<'sats' | 'fiat' | 'asset'>(
-    asset?.assetId ? 'asset' : useFiat ? 'fiat' : 'sats',
-  )
+  const [inputMode, setInputMode] = useState<KeyboardInputMode>(asset?.assetId ? 'asset' : useFiat ? 'fiat' : 'sats')
   const [textValue, setTextValue] = useState('')
 
   useEffect(() => {
@@ -118,34 +118,32 @@ export default function Keyboard({ asset, back, hideBalance, onSave }: KeyboardP
       setError('Please enter a valid amount')
       return
     }
-    if (inputMode === 'asset') {
-      onSave(textValue)
-    } else if (inputMode === 'fiat') {
-      onSave(useFiat ? textValue : toFiat(Number(textValue)).toString())
-    } else {
-      onSave(useFiat ? toFiat(Number(textValue)).toString() : textValue)
-    }
+    onSave(textValue, inputMode)
   }
+
+  console.log({ inputMode, textValue, amountInSats, assetInCents })
 
   // Display amounts based on input mode
   const amount = {
     primary:
       inputMode === 'fiat'
-        ? prettyFiatAmount(amountInSats ? toFiat(amountInSats) : 0, config.fiat)
+        ? prettyFiatAmount(amountInSats ? toFiat(amountInSats) : 0, config.fiat, {
+            bitcoinUnit: config.currencyDisplay,
+          })
         : inputMode === 'asset'
           ? `${textValue || '0'} ${asset?.ticker}`
-          : `${textValue || '0'} SATS`,
+          : `${textValue || '0'} sats`,
     secondary:
       inputMode === 'fiat'
         ? prettyAmount(amountInSats)
         : inputMode === 'asset'
           ? prettyAmount(amountInSats, asset?.ticker)
-          : prettyFiatAmount(toFiat(amountInSats), config.fiat),
+          : prettyFiatAmount(toFiat(amountInSats), config.fiat, { bitcoinUnit: config.currencyDisplay }),
     balance:
       inputMode === 'asset'
         ? `${prettyAssetAmount(asset?.balance ?? BigInt(0), asset?.decimals ?? 0)} ${asset?.ticker}`
         : inputMode === 'fiat'
-          ? prettyFiatAmount(toFiat(available), config.fiat)
+          ? prettyFiatAmount(toFiat(available), config.fiat, { bitcoinUnit: config.currencyDisplay })
           : prettyAmount(available),
   }
 
@@ -177,6 +175,8 @@ export default function Keyboard({ asset, back, hideBalance, onSave }: KeyboardP
     ['.', '0', 'x'],
   ]
 
+  const showSecondaryValue = !asset?.assetId && config.fiat !== Currencies.BTC
+
   return (
     <>
       <Header
@@ -192,7 +192,7 @@ export default function Keyboard({ asset, back, hideBalance, onSave }: KeyboardP
           <Text big centered heading>
             {amount.primary}
           </Text>
-          {asset?.assetId ? null : <TextSecondary centered>≈ {amount.secondary}</TextSecondary>}
+          {showSecondaryValue ? <TextSecondary centered>≈ {amount.secondary}</TextSecondary> : null}
           {hideBalance ? null : (
             <div onClick={handleMaxPress}>
               <TextSecondary centered>{amount.balance}</TextSecondary>

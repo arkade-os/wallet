@@ -34,10 +34,18 @@ function settingsContent(option: SettingsOptions, menuBack?: () => void): JSX.El
       return <Advanced />
     case SettingsOptions.Backup:
       return <Backup />
+    case SettingsOptions.Contracts:
+      return <Contracts />
     case SettingsOptions.Delegates:
       return <Delegates />
-    case SettingsOptions.General:
+    case SettingsOptions.BitcoinUnit:
+      return <Display />
+    case SettingsOptions.Display:
       return <General />
+    case SettingsOptions.Currency:
+      return <Fiat />
+    case SettingsOptions.Haptics:
+      return <Haptics />
     case SettingsOptions.Lock:
       return <Lock />
     case SettingsOptions.Logs:
@@ -46,26 +54,18 @@ function settingsContent(option: SettingsOptions, menuBack?: () => void): JSX.El
       return <NotesForm />
     case SettingsOptions.Notifications:
       return <Notifications />
+    case SettingsOptions.Password:
+      return <Password />
     case SettingsOptions.Reset:
       return <Reset />
     case SettingsOptions.Server:
       return <Server />
     case SettingsOptions.Support:
       return <Support />
-    case SettingsOptions.Vtxos:
-      return <Vtxos />
-    case SettingsOptions.Contracts:
-      return <Contracts />
     case SettingsOptions.Theme:
       return <Theme />
-    case SettingsOptions.Fiat:
-      return <Fiat />
-    case SettingsOptions.Display:
-      return <Display />
-    case SettingsOptions.Password:
-      return <Password />
-    case SettingsOptions.Haptics:
-      return <Haptics />
+    case SettingsOptions.Vtxos:
+      return <Vtxos />
     default:
       return <></>
   }

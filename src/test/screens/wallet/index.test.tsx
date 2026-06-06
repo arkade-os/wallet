@@ -8,14 +8,19 @@ import { mockNavigationContextValue } from '../mocks'
 describe('Wallet screen', () => {
   it('renders the wallet screen with the correct elements', async () => {
     const user = userEvent.setup()
+    const navigate = vi.fn()
 
-    render(<Wallet />)
+    render(
+      <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
+        <Wallet />
+      </NavigationContext.Provider>,
+    )
     expect(screen.getAllByText('$0.00').length).toBeGreaterThan(0)
     expect(screen.getByText('Send')).toBeInTheDocument()
     expect(screen.getByText('Receive')).toBeInTheDocument()
     expect(screen.getByTestId('home-action-swap')).toBeEnabled()
     await user.click(screen.getByTestId('home-action-swap'))
-    expect(screen.getByTestId('swap-coming-soon-sheet')).toBeInTheDocument()
+    expect(navigate).toHaveBeenCalledWith(Pages.WalletSwap)
     expect(screen.getByText('Assets')).toBeInTheDocument()
     expect(screen.getByText('Bitcoin')).toBeInTheDocument()
     expect(screen.getByText('Recent activity')).toBeInTheDocument()
@@ -31,7 +36,7 @@ describe('Wallet screen', () => {
       </NavigationContext.Provider>,
     )
 
-    await user.click(screen.getByTestId('asset-row-BTC'))
+    await user.click(screen.getByTestId(/^asset-row-BTC-/))
     expect(navigate).toHaveBeenCalledWith(Pages.BitcoinDetail)
   })
 })

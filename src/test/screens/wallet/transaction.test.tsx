@@ -42,7 +42,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('When')).toBeInTheDocument()
     // right side of the table
     expect(await screen.findByText('Received')).toBeInTheDocument()
-    expect(await screen.findByText('0 SATS')).toBeInTheDocument()
+    expect(await screen.findByText('0 BTC')).toBeInTheDocument()
   })
 
   it('renders the preconfirmed transaction screen correctly', async () => {
@@ -80,7 +80,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('When')).toBeInTheDocument()
     // right side of the table
     expect(screen.getByText('Received')).toBeInTheDocument()
-    expect(screen.getByText('0 SATS')).toBeInTheDocument()
+    expect(screen.getByText('0 BTC')).toBeInTheDocument()
     // buttons
     expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
     expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
@@ -115,7 +115,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('When')).toBeInTheDocument()
     // right side of the table
     expect(screen.getByText('Received')).toBeInTheDocument()
-    expect(screen.getByText('0 SATS')).toBeInTheDocument()
+    expect(screen.getByText('0 BTC')).toBeInTheDocument()
     // buttons should not be present
     expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
     expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
@@ -150,7 +150,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('When')).toBeInTheDocument()
     // right side of the table
     expect(screen.getByText('Received')).toBeInTheDocument()
-    expect(screen.getByText('0 SATS')).toBeInTheDocument()
+    expect(screen.getByText('0 BTC')).toBeInTheDocument()
     // buttons should be present
     expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
     expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
@@ -185,7 +185,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('When')).toBeInTheDocument()
     // right side of the table
     // expect(screen.getByText('Received')).toBeInTheDocument()
-    expect(screen.getByText('0 SATS')).toBeInTheDocument()
+    expect(screen.getByText('0 BTC')).toBeInTheDocument()
     // buttons should be present
     expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
     expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
@@ -222,7 +222,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('When')).toBeInTheDocument()
     // right side of the table
     expect(screen.getByText('Received')).toBeInTheDocument()
-    expect(screen.getByText('0 SATS')).toBeInTheDocument()
+    expect(screen.getByText('0 BTC')).toBeInTheDocument()
     // buttons should not be present
     expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
     expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
@@ -254,7 +254,9 @@ describe('Transaction screen', () => {
   it('renders burn transaction with correct direction', async () => {
     const mockBurnTxInfo = {
       ...mockIssuanceTxInfo,
-      assets: [{ assetId: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd', amount: -5_000n }],
+      assets: [
+        { assetId: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd', amount: BigInt(-5_000) },
+      ],
     }
     const localFlowContextValue = { ...mockFlowContextValue, txInfo: mockBurnTxInfo }
     const localWalletContextValue = { ...mockWalletContextValue, txs: [mockBurnTxInfo] }

@@ -18,7 +18,7 @@ export type Config = {
   aspUrl: string
   currencyDisplay: CurrencyDisplay
   delegate: boolean
-  fiat: Fiats
+  fiat: Currencies
   importedAssets: string[]
   haptics: boolean
   nostrBackup: boolean
@@ -31,9 +31,9 @@ export type Config = {
 }
 
 export enum CurrencyDisplay {
-  Both = 'Show both',
-  Fiat = 'Fiat only',
-  Sats = 'Sats only',
+  BTC = 'BTC',
+  Sats = 'sats',
+  Bip177 = '₿',
 }
 
 export type Delegate = {
@@ -44,18 +44,19 @@ export type Delegate = {
   address: string
 }
 
-export enum Fiats {
-  EUR = 'EUR',
+export enum Currencies {
   USD = 'USD',
+  EUR = 'EUR',
   CHF = 'CHF',
-  JPY = 'JPY',
   GBP = 'GBP',
+  JPY = 'JPY',
   CNY = 'CNY',
+  BTC = 'BTC',
 }
 
 export enum SettingsSections {
   Advanced = 'Advanced',
-  General = 'General',
+  Display = 'Display',
   Security = 'Security',
   Config = 'Config',
 }
@@ -66,7 +67,12 @@ export enum SettingsOptions {
   Advanced = 'advanced',
   ArkadeMint = 'Arkade Mint',
   Backup = 'backup',
-  General = 'general',
+  Boltz = 'Boltz',
+  Contracts = 'contracts',
+  Delegates = 'delegates',
+  BitcoinUnit = 'bitcoin unit',
+  Display = 'display',
+  Currency = 'Currency',
   Haptics = 'haptic feedback',
   Lock = 'lock wallet',
   Logs = 'logs',
@@ -76,12 +82,8 @@ export enum SettingsOptions {
   Reset = 'reset wallet',
   Server = 'server',
   Support = 'support',
-  Contracts = 'contracts',
-  Vtxos = 'coin control',
   Theme = 'theme',
-  Fiat = 'fiat currency',
-  Display = 'display preferences',
-  Delegates = 'delegates',
+  Vtxos = 'coin control',
 }
 
 export enum Themes {
@@ -131,11 +133,9 @@ export type PrototypeSwapInput = {
 }
 
 export enum Unit {
-  BTC = 'btc',
-  EUR = 'eur',
-  USD = 'usd',
-  CHF = 'chf',
-  SAT = 'sat',
+  BTC = 'BTC',
+  SATS = 'sats',
+  BIP177 = '₿',
 }
 
 export type Vtxo = ExtendedVirtualCoin

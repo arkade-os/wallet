@@ -15,6 +15,7 @@ import LockIcon from '../icons/Lock'
 import PuzzleIcon from '../icons/Puzzle'
 import CoinsIcon from '../icons/Coins'
 import HashIcon from '../icons/Hash'
+import SwapIcon from '../icons/Swap'
 
 export interface Option {
   icon: ReactElement
@@ -24,68 +25,18 @@ export interface Option {
 
 export const options: Option[] = [
   {
-    icon: <InfoIcon />,
-    option: SettingsOptions.About,
-    section: SettingsSections.General,
-  },
-  {
-    icon: <PuzzleIcon />,
-    option: SettingsOptions.Advanced,
-    section: SettingsSections.Security,
-  },
-  {
-    icon: <BackupIcon />,
-    option: SettingsOptions.Backup,
-    section: SettingsSections.Security,
-  },
-  {
-    icon: <CogIcon />,
-    option: SettingsOptions.General,
-    section: SettingsSections.General,
-  },
-  {
     icon: <CoinsIcon />,
     option: SettingsOptions.ArkadeMint,
-    section: SettingsSections.General,
+    section: SettingsSections.Advanced,
+  },
+  {
+    icon: <SwapIcon />,
+    option: SettingsOptions.Boltz,
+    section: SettingsSections.Advanced,
   },
   {
     icon: <LockIcon />,
-    option: SettingsOptions.Lock,
-    section: SettingsSections.Security,
-  },
-  {
-    icon: <LogsIcon />,
-    option: SettingsOptions.Logs,
-    section: SettingsSections.Advanced,
-  },
-  {
-    icon: <NotesIcon />,
-    option: SettingsOptions.Notes,
-    section: SettingsSections.General,
-  },
-  {
-    icon: <NotificationIcon />,
-    option: SettingsOptions.Notifications,
-    section: SettingsSections.General,
-  },
-  {
-    icon: <ResetIcon />,
-    option: SettingsOptions.Reset,
-    section: SettingsSections.Security,
-  },
-  {
-    icon: <ServerIcon />,
-    option: SettingsOptions.Server,
-    section: SettingsSections.Advanced,
-  },
-  {
-    icon: <SupportIcon />,
-    option: SettingsOptions.Support,
-    section: SettingsSections.General,
-  },
-  {
-    icon: <ServerIcon />,
-    option: SettingsOptions.Delegates,
+    option: SettingsOptions.Password,
     section: SettingsSections.Advanced,
   },
   {
@@ -99,18 +50,73 @@ export const options: Option[] = [
     section: SettingsSections.Advanced,
   },
   {
-    icon: <></>,
-    option: SettingsOptions.Theme,
-    section: SettingsSections.Config,
+    icon: <ServerIcon />,
+    option: SettingsOptions.Delegates,
+    section: SettingsSections.Advanced,
   },
   {
-    icon: <></>,
-    option: SettingsOptions.Fiat,
-    section: SettingsSections.Config,
+    icon: <LogsIcon />,
+    option: SettingsOptions.Logs,
+    section: SettingsSections.Advanced,
   },
   {
-    icon: <></>,
+    icon: <ServerIcon />,
+    option: SettingsOptions.Server,
+    section: SettingsSections.Advanced,
+  },
+  {
+    icon: <InfoIcon />,
+    option: SettingsOptions.About,
+    section: SettingsSections.Display,
+  },
+  {
+    icon: <PuzzleIcon />,
+    option: SettingsOptions.Advanced,
+    section: SettingsSections.Display,
+  },
+  {
+    icon: <CogIcon />,
     option: SettingsOptions.Display,
+    section: SettingsSections.Display,
+  },
+  {
+    icon: <NotesIcon />,
+    option: SettingsOptions.Notes,
+    section: SettingsSections.Display,
+  },
+  {
+    icon: <NotificationIcon />,
+    option: SettingsOptions.Notifications,
+    section: SettingsSections.Display,
+  },
+  {
+    icon: <SupportIcon />,
+    option: SettingsOptions.Support,
+    section: SettingsSections.Display,
+  },
+  {
+    icon: <BackupIcon />,
+    option: SettingsOptions.Backup,
+    section: SettingsSections.Security,
+  },
+  {
+    icon: <LockIcon />,
+    option: SettingsOptions.Lock,
+    section: SettingsSections.Security,
+  },
+  {
+    icon: <ResetIcon />,
+    option: SettingsOptions.Reset,
+    section: SettingsSections.Security,
+  },
+  {
+    icon: <></>,
+    option: SettingsOptions.BitcoinUnit,
+    section: SettingsSections.Config,
+  },
+  {
+    icon: <></>,
+    option: SettingsOptions.Currency,
     section: SettingsSections.Config,
   },
   {
@@ -119,9 +125,9 @@ export const options: Option[] = [
     section: SettingsSections.Config,
   },
   {
-    icon: <LockIcon />,
-    option: SettingsOptions.Password,
-    section: SettingsSections.Advanced,
+    icon: <></>,
+    option: SettingsOptions.Theme,
+    section: SettingsSections.Config,
   },
 ]
 
@@ -130,7 +136,7 @@ export interface SectionResponse {
   options: Option[]
 }
 
-const allOptions: SectionResponse[] = [SettingsSections.General, SettingsSections.Security].map((section) => {
+const allOptions: SectionResponse[] = [SettingsSections.Display, SettingsSections.Security].map((section) => {
   return {
     section,
     options: options.filter((o) => o.section === section),
@@ -165,7 +171,7 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
   const historyDepth = useRef(0)
 
   const optionSection = (opt: SettingsOptions): SettingsSections => {
-    return options.find((o) => o.option === opt)?.section || SettingsSections.General
+    return options.find((o) => o.option === opt)?.section || SettingsSections.Display
   }
 
   const getParentOption = (current: SettingsOptions): SettingsOptions => {
@@ -173,7 +179,7 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
     return section === SettingsSections.Advanced
       ? SettingsOptions.Advanced
       : section === SettingsSections.Config
-        ? SettingsOptions.General
+        ? SettingsOptions.Display
         : SettingsOptions.Menu
   }
 

@@ -3,7 +3,10 @@ import TokenLogo, { tokenLogoTickerForTicker } from './TokenLogo'
 import { truncatedAssetId } from '../lib/assets'
 import { hapticLight } from '../lib/haptics'
 import { PrivacyAmount, maskedFiat } from './PrivacyAmount'
-import { prettyCurrencyAssetAmount } from '../lib/format'
+import { prettyBitcoinAmount, prettyBitcoinHide, prettyCurrencyAssetAmount } from '../lib/format'
+import { useContext } from 'react'
+import { ConfigContext } from '../providers/config'
+import { Unit } from '../lib/types'
 
 interface AssetCardProps {
   assetId: string
@@ -33,6 +36,7 @@ export default function AssetCard({
   fiatText,
   onClick,
 }: AssetCardProps) {
+  const { config } = useContext(ConfigContext)
   const assetName = name || truncatedAssetId(assetId) || 'Asset'
   const tokenTick = ticker ?? 'TKN'
   const rawBalance =
@@ -41,10 +45,14 @@ export default function AssetCard({
       : Number.isFinite(balance) && Number.isInteger(balance)
         ? BigInt(balance)
         : BigInt(0)
-  const prettyBalance = prettyCurrencyAssetAmount(rawBalance, decimals ?? 8, tokenTick)
-  const leftSecondary = `${prettyBalance} ${tokenTick}`
-  const maskedBalance = `•••• ${tokenTick}`
-  const maskedFiatText = fiatText?.trim().startsWith('$') ? maskedFiat('$') : '••••'
+  const bitcoinUnit = config.currencyDisplay as unknown as Unit
+  const isBitcoin = tokenTick.toUpperCase() === 'BTC'
+  const prettyBalance = isBitcoin
+    ? prettyBitcoinAmount(Number(rawBalance), bitcoinUnit)
+    : prettyCurrencyAssetAmount(rawBalance, decimals ?? 8, tokenTick)
+  const leftSecondary = isBitcoin ? prettyBalance : `${prettyBalance} ${tokenTick}`
+  const maskedBalance = isBitcoin ? prettyBitcoinHide(Number(rawBalance), bitcoinUnit) : `•••• ${tokenTick}`
+  const maskedFiatText = maskedFiatUnit(fiatText)
 
   const handleClick = onClick
     ? () => {
@@ -86,7 +94,7 @@ export default function AssetCard({
   // Non-interactive row (e.g. asset which has no detail screen)
   if (!onClick) {
     return (
-      <div data-testid={`asset-row-${tokenTick || 'btc'}`} className={baseClasses}>
+      <div data-testid={assetRowTestId(tokenTick, assetId)} className={baseClasses}>
         {content}
       </div>
     )
@@ -103,11 +111,28 @@ export default function AssetCard({
         event.preventDefault()
         handleClick?.()
       }}
-      data-testid={`asset-row-${tokenTick || 'btc'}`}
+      data-testid={assetRowTestId(tokenTick, assetId)}
       className={`${baseClasses} asset-card--interactive`}
       style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
     >
       {content}
     </div>
   )
+}
+
+function assetRowTestId(ticker: string, assetId: string) {
+  return `asset-row-${ticker || 'btc'}-${assetId || 'btc'}`
+}
+
+function maskedFiatUnit(fiatText?: string) {
+  const trimmed = fiatText?.trim()
+  if (!trimmed) return '••••'
+
+  const leadingUnit = trimmed.match(/^[^\d\s.,+-]+/)
+  if (leadingUnit) return maskedFiat(leadingUnit[0])
+
+  const trailingCode = trimmed.match(/\b[A-Z]{3}$/)
+  if (trailingCode) return `•••• ${trailingCode[0]}`
+
+  return '••••'
 }

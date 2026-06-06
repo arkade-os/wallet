@@ -38,7 +38,7 @@ test('should mint an asset and burn part of it', async ({ page }) => {
   await expect(page.getByText('TestCoin')).toBeVisible()
 
   // view asset detail from success screen
-  await page.getByTestId('asset-row-TST').click()
+  await page.getByTestId(/^asset-row-TST-/).click()
 
   // assert detail page
   await expect(page.getByText('TestCoin').first()).toBeVisible()
@@ -80,7 +80,7 @@ test('should mint asset with fractional supply and burn it all', async ({ page }
   await expect(page.getByText('TestCoin')).toBeVisible()
 
   // view asset detail from success screen
-  await page.getByTestId('asset-row-TST').click()
+  await page.getByTestId(/^asset-row-TST-/).click()
 
   // assert detail page
   await expect(page.getByText('TestCoin').first()).toBeVisible()

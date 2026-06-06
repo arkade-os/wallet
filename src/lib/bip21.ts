@@ -12,7 +12,7 @@ export interface Bip21Decoded {
   /** Raw amount in asset units when assetId is present (not converted to satoshis) */
   assetAmount?: string
   invoice?: string
-  lnurl?: string
+  lnUrl?: string
   assetId?: string
 }
 
@@ -22,10 +22,12 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
     address: undefined,
     satoshis: undefined,
     invoice: undefined,
-    lnurl: undefined,
+    lnUrl: undefined,
+    assetId: undefined,
+    assetAmount: undefined,
+    arkAddress: undefined,
   }
 
-  // use lowercase for consistency
   const bip21Url = uri.trim()
 
   if (!bip21Url.toLowerCase().startsWith('bitcoin:')) {
@@ -38,22 +40,23 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
   // split address and query parameters
   const [address, queryString] = urlWithoutPrefix.split('?')
 
-  result.address = address
+  if (address) result.address = address
 
   if (queryString) {
     const params = new URLSearchParams(queryString)
 
-    if (params.has('ark')) {
-      const arkAddress = params.get('ark') ?? ''
+    if (params.has('ark') || params.has('ARK')) {
+      const arkAddress = params.get('ark') ?? params.get('ARK')!
       if (isArkAddress(arkAddress)) result.arkAddress = arkAddress
     }
 
-    if (params.has('assetid')) {
-      result.assetId = params.get('assetid')!
+    if (params.has('assetid') || params.has('ASSETID')) {
+      const param = params.get('assetid') ?? params.get('ASSETID')!
+      if (param) result.assetId = param
     }
 
-    if (params.has('amount')) {
-      const param = params.get('amount')!
+    if (params.has('amount') || params.has('AMOUNT')) {
+      const param = params.get('amount') ?? params.get('AMOUNT')!
       if (result.assetId != null) {
         if (!param.match(/^\d+(\.\d+)?$/)) throw new Error('Invalid asset amount')
         result.assetAmount = param
@@ -64,11 +67,12 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
       }
     }
 
-    if (params.has('lightning')) {
-      if (params.get('lightning')?.toLowerCase().startsWith('lnurl')) {
-        result.lnurl = params.get('lightning')!
-      } else if (params.get('lightning')?.toLowerCase().startsWith('ln')) {
-        result.invoice = params.get('lightning')!
+    if (params.has('lightning') || params.has('LIGHTNING')) {
+      const lightning = params.get('lightning') ?? params.get('LIGHTNING')!
+      if (lightning.toLowerCase().startsWith('lnurl')) {
+        result.lnUrl = lightning
+      } else if (lightning.toLowerCase().startsWith('ln')) {
+        result.invoice = lightning
       }
     }
   }
@@ -77,12 +81,12 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
 }
 
 export const encodeBip21 = (address: string, arkAddress: string, invoice: string, sats: number, lnurl?: string) => {
-  return (
-    `bitcoin:${address}` +
-    `?ark=${arkAddress}` +
-    (invoice ? `&lightning=${invoice}` : lnurl ? `&lightning=${lnurl}` : '') +
-    (sats ? `&amount=${prettyNumber(fromSatoshis(sats))}` : '')
-  )
+  const bip21 =
+    `bitcoin:${address}?` +
+    (arkAddress ? `ark=${arkAddress}&` : '') +
+    (invoice ? `lightning=${invoice}&` : lnurl ? `lightning=${lnurl}&` : '') +
+    (sats ? `amount=${prettyNumber(fromSatoshis(sats))}` : '')
+  return bip21.endsWith('&') || bip21.endsWith('?') ? bip21.slice(0, -1) : bip21
 }
 
 export const encodeBip21Asset = (arkAddress: string, assetId: string, cents: bigint, decimals?: number) => {

@@ -1,5 +1,5 @@
-import { useContext, useEffect, useRef, useState } from 'react'
-import type { Contract } from '@arkade-os/sdk'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Contract, encodeArkContract } from '@arkade-os/sdk'
 import Header from './Header'
 import Content from '../../components/Content'
 import Padded from '../../components/Padded'
@@ -11,19 +11,11 @@ import LoadingLogo from '../../components/LoadingLogo'
 import CopyIcon from '../../icons/Copy'
 import CheckMarkIcon from '../../icons/CheckMark'
 import { WalletContext } from '../../providers/wallet'
-import { prettyLongText } from '../../lib/format'
+import { prettyAgo, prettyLongText } from '../../lib/format'
 import { copyToClipboard } from '../../lib/clipboard'
 import { hapticSubtle } from '../../lib/haptics'
 import { useToast } from '../../components/Toast'
 import { consoleError } from '../../lib/logs'
-
-const cardStyle: React.CSSProperties = {
-  backgroundColor: 'var(--neutral-100)',
-  border: '1px solid var(--neutral-200)',
-  borderRadius: '0.25rem',
-  padding: '10px',
-  width: '100%',
-}
 
 function CopyRow({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false)
@@ -53,20 +45,53 @@ function CopyRow({ label, value }: { label: string; value: string }) {
 }
 
 function ContractCard({ contract }: { contract: Contract }) {
+  const encoded = useMemo(() => {
+    try {
+      return encodeArkContract(contract)
+    } catch {
+      return ''
+    }
+  }, [contract])
+
   return (
-    <div style={cardStyle}>
+    <Shadow border>
       <FlexCol gap='0.5rem'>
         <FlexRow between>
-          <Text>{contract.type}</Text>
-          <Text tiny color={contract.state === 'active' ? 'green' : 'neutral-500'}>
-            {contract.state}
-          </Text>
+          <FlexCol gap='0'>
+            {contract.label ? <Text small>{contract.label}</Text> : null}
+            <Text tiny color='neutral-500'>
+              {contract.type}
+            </Text>
+          </FlexCol>
+          <FlexCol gap='0' end>
+            <Text tiny color={contract.state === 'active' ? 'green' : 'neutral-500'}>
+              {contract.state}
+            </Text>
+            <Text tiny color='neutral-500'>
+              {contract.createdAt ? prettyAgo(contract.createdAt) : 'Unknown'}
+            </Text>
+          </FlexCol>
         </FlexRow>
         <hr className='dashed' />
         <CopyRow label='address' value={contract.address} />
         <CopyRow label='script' value={contract.script} />
+        {encoded ? <CopyRow label='parameters' value={encoded} /> : null}
       </FlexCol>
-    </div>
+    </Shadow>
+  )
+}
+
+function Section({ title, contracts }: { title: string; contracts: Contract[] }) {
+  if (contracts.length === 0) return null
+  return (
+    <FlexCol gap='0.5rem'>
+      <Text capitalize color='neutral-500' smaller>
+        {title}
+      </Text>
+      {contracts.map((c) => (
+        <ContractCard key={c.address} contract={c} />
+      ))}
+    </FlexCol>
   )
 }
 
@@ -93,17 +118,23 @@ export default function Contracts() {
 
   if (!svcWallet || loading) return <LoadingLogo text='Loading...' />
 
+  const active = contracts.filter((c) => c.state === 'active')
+  const inactive = contracts.filter((c) => c.state !== 'active')
+
   return (
     <>
       <Header text='Contracts' back />
       <Content noRefresh>
         <Padded>
           <FlexCol className='scroll-fade'>
-            <FlexCol gap='0.5rem'>
-              {contracts.map((c) => (
-                <ContractCard key={c.script} contract={c} />
-              ))}
-            </FlexCol>
+            {contracts.length === 0 ? (
+              <TextSecondary>No contracts found.</TextSecondary>
+            ) : (
+              <FlexCol gap='2rem'>
+                <Section title='Active' contracts={active} />
+                <Section title='Inactive' contracts={inactive} />
+              </FlexCol>
+            )}
           </FlexCol>
         </Padded>
       </Content>
