@@ -121,8 +121,6 @@ export default function Keyboard({ asset, back, hideBalance, onSave }: KeyboardP
     onSave(textValue, inputMode)
   }
 
-  console.log({ inputMode, textValue, amountInSats, assetInCents })
-
   // Display amounts based on input mode
   const amount = {
     primary:

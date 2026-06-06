@@ -328,7 +328,8 @@ export default function ReceiveQRCode() {
     } else {
       const num = Number(value)
       if (Number.isNaN(num) || !Number.isFinite(num)) throw new Error('Invalid amount')
-      const sats = inputMode === 'sats' ? num : useFiat || inputMode === 'fiat' ? fromFiat(num) : num
+      const shouldConvertFromFiat = useFiat || inputMode === 'fiat'
+      const sats = inputMode === 'sats' ? num : shouldConvertFromFiat ? fromFiat(num) : num
       // if amount was changed, we need to reset invoice and swap address, since they are amount-specific
       // this will also trigger the useEffect to create new ones if needed
       if (sats !== recvInfo.satoshis) {

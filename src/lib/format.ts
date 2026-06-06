@@ -171,11 +171,7 @@ export const prettyDate = (num: number): string => {
   }).format(date)
 }
 
-const hideDots = (value: string | number | bigint): string => {
-  const str = typeof value === 'string' ? value : value.toString()
-  const length = str.length * 2 > 6 ? str.length * 2 : 6
-  return '·'.repeat(length)
-}
+const hideDots = (): string => '·'.repeat(8)
 
 export const prettyHide = (value: string | number | bigint, suffix = 'sats'): string => {
   if (!value) return ''

@@ -168,22 +168,22 @@ describe('format utilities', () => {
   describe('prettyHide', () => {
     it('should return masked value', () => {
       expect(prettyHide(0)).toBe('')
-      expect(prettyHide(12345)).toBe('·········· sats')
-      expect(prettyHide(999999999)).toBe('·················· sats')
+      expect(prettyHide(12345)).toBe('········ sats')
+      expect(prettyHide(999999999)).toBe('········ sats')
     })
   })
 
   describe('prettyFiatHide', () => {
     it('should prepend the symbol when masking fiat with a symbol', () => {
-      expect(prettyFiatHide(100, Currencies.USD)).toBe('$······')
-      expect(prettyFiatHide(100, Currencies.EUR)).toBe('€······')
-      expect(prettyFiatHide(100, Currencies.GBP)).toBe('£······')
-      expect(prettyFiatHide(100, Currencies.JPY)).toBe('¥······')
+      expect(prettyFiatHide(100, Currencies.USD)).toBe('$········')
+      expect(prettyFiatHide(100, Currencies.EUR)).toBe('€········')
+      expect(prettyFiatHide(100, Currencies.GBP)).toBe('£········')
+      expect(prettyFiatHide(100, Currencies.JPY)).toBe('¥········')
     })
 
     it('should keep the trailing code when masking fiat without a symbol', () => {
-      expect(prettyFiatHide(100, Currencies.CHF)).toBe('······ CHF')
-      expect(prettyFiatHide(100, Currencies.CNY)).toBe('······ CNY')
+      expect(prettyFiatHide(100, Currencies.CHF)).toBe('········ CHF')
+      expect(prettyFiatHide(100, Currencies.CNY)).toBe('········ CNY')
     })
 
     it('should return empty string for zero', () => {
