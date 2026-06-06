@@ -2,26 +2,12 @@ import ReactDOM from 'react-dom/client'
 import './tokens.css'
 import './app.css'
 import './index.css'
-import App from './App'
-import { AspProvider } from './providers/asp'
-import { ConfigProvider } from './providers/config'
-import { FiatProvider } from './providers/fiat'
-import { FlowProvider } from './providers/flow'
-import { NavigationProvider } from './providers/navigation'
-import { NotificationsProvider } from './providers/notifications'
-import { WalletProvider } from './providers/wallet'
-import { OptionsProvider } from './providers/options'
-import { LimitsProvider } from './providers/limits'
-import { NudgeProvider } from './providers/nudge'
 import * as Sentry from '@sentry/react'
-import { SwapsProvider } from './providers/swaps'
-import { LnurlProvider } from './providers/lnurl'
 import { shouldInitializeSentry } from './lib/sentry'
-import { FeesProvider } from './providers/fees'
-import { AnnouncementProvider } from './providers/announcements'
-import { ToastProvider } from './components/Toast'
-import ErrorBoundary from './components/ErrorBoundary'
-import { DevModeProvider } from './providers/devMode'
+import AppProviders from './AppProviders'
+import { RUNTIME_KIND } from './runtime/runtime'
+import { PwaAppShell } from './runtime/PwaAppShell'
+import { CapacitorAppShell } from './runtime/CapacitorAppShell'
 
 // Initialize Sentry only in production and when DSN is provided
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN
@@ -47,62 +33,17 @@ if (shouldInitializeSentry(sentryDsn)) {
   })
 }
 
-// Pre-register service worker so activation happens in parallel with page
-// bootstrap (ASP fetch, auth check, etc.). On cold starts this saves the
-// full activation wait from the critical path; on warm starts it's a no-op.
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/wallet-service-worker.mjs').catch(() => {})
-
-  // check if there's a service worker controlling the page
-  const previousSW = navigator.serviceWorker.controller
-
-  // This fires when the service worker controlling this page changes,
-  // eg a new worker has skipped waiting and become the new active worker.
-  // We reload the page to have the new service worker properly initialized.
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    // don't reload on fresh install, only when the service worker changes (eg update)
-    if (previousSW) window.location.reload()
-  })
-}
+// The top-level shell is selected at build time, not by user-agent or runtime
+// guessing (see CAPACITOR.plan.md § Architecture). The PWA shell owns service
+// worker registration and other browser-only startup; the Capacitor shell boots
+// the native runtime without touching `navigator.serviceWorker`. Both render the
+// same shared app tree (`AppProviders`).
+const AppShell = RUNTIME_KIND === 'native-capacitor' ? CapacitorAppShell : PwaAppShell
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 
 root.render(
-  // <React.StrictMode>
-  <DevModeProvider>
-    <NavigationProvider>
-      <ConfigProvider>
-        <AspProvider>
-          <NotificationsProvider>
-            <FiatProvider>
-              <FlowProvider>
-                <WalletProvider>
-                  <SwapsProvider>
-                    <LnurlProvider>
-                      <LimitsProvider>
-                        <FeesProvider>
-                          <OptionsProvider>
-                            <NudgeProvider>
-                              <AnnouncementProvider>
-                                <ToastProvider>
-                                  <ErrorBoundary>
-                                    <App />
-                                  </ErrorBoundary>
-                                </ToastProvider>
-                              </AnnouncementProvider>
-                            </NudgeProvider>
-                          </OptionsProvider>
-                        </FeesProvider>
-                      </LimitsProvider>
-                    </LnurlProvider>
-                  </SwapsProvider>
-                </WalletProvider>
-              </FlowProvider>
-            </FiatProvider>
-          </NotificationsProvider>
-        </AspProvider>
-      </ConfigProvider>
-    </NavigationProvider>
-  </DevModeProvider>,
-  // </React.StrictMode>,
+  <AppShell>
+    <AppProviders />
+  </AppShell>,
 )

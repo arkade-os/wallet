@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Arkade Wallet</string>
+    <string name="title_activity_main">Arkade Wallet</string>
+    <string name="package_name">money.arkade.app</string>
+    <string name="custom_url_scheme">money.arkade.app</string>
+</resources>

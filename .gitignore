@@ -13,6 +13,7 @@
 
 # production
 /dist
+/dist-capacitor
 
 # misc
 .DS_Store

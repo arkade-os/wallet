@@ -1,3 +1,5 @@
+import { isNativeRuntime } from '../runtime/runtime'
+
 export const isMobileBrowser: boolean = 'ontouchstart' in window || Boolean(navigator.maxTouchPoints)
 
 export const isIOS = (): boolean => {
@@ -11,6 +13,12 @@ export const isAndroid = (): boolean => {
 }
 
 export const isInAppBrowser = (): boolean => {
+  // The native Capacitor shell runs in a WKWebView/Android WebView whose UA
+  // omits "Safari" / carries the generic `; wv)` marker, which the heuristics
+  // below would misread as an in-app browser and bounce the user to the
+  // "open in a real browser" interstitial. Native is never an in-app browser.
+  if (isNativeRuntime()) return false
+
   const ua = navigator.userAgent || navigator.vendor || (window as any).opera || ''
 
   // Known in-app browser tokens (sorted by global user base)

@@ -1,5 +1,6 @@
 import { Delegate } from './types'
 import { Network } from '@arkade-os/boltz-swap'
+import { isNativeRuntime } from '../runtime/runtime'
 
 export const arknoteHRP = 'arknote'
 export const defaultFee = 0
@@ -16,6 +17,10 @@ export const lnurlServerUrl: string | undefined = import.meta.env.VITE_LNURL_SER
 
 export const defaultArkServer = () => {
   if (import.meta.env.VITE_ARK_SERVER) return import.meta.env.VITE_ARK_SERVER
+  // Under Capacitor the WebView hostname is `localhost`, which would otherwise
+  // match `testDomains` and pin the native app to a local dev server. Native
+  // defaults to mainnet (matching the PWA); beta builds set VITE_ARK_SERVER.
+  if (isNativeRuntime()) return mainServer
   for (const domain of testDomains) {
     if (window.location.hostname.includes(domain)) {
       return window.location.hostname.includes('localhost') ? devServer : testServer
