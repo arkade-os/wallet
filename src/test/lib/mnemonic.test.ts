@@ -10,13 +10,13 @@ describe('mnemonic storage', () => {
   })
 
   describe('hasMnemonic', () => {
-    it('should return false when no mnemonic is stored', () => {
-      expect(hasMnemonic()).toBe(false)
+    it('should return false when no mnemonic is stored', async () => {
+      expect(await hasMnemonic()).toBe(false)
     })
 
     it('should return true after storing a mnemonic', async () => {
       await setMnemonic(testMnemonic, testPassword)
-      expect(hasMnemonic()).toBe(true)
+      expect(await hasMnemonic()).toBe(true)
     })
   })
 

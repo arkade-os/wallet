@@ -38,7 +38,7 @@ export default function Backup() {
 
   const { toast } = useToast()
 
-  const isMnemonicWallet = hasMnemonic()
+  const [isMnemonicWallet, setIsMnemonicWallet] = useState(false)
 
   const [secret, setSecret] = useState('')
   const [error, setError] = useState('')
@@ -48,12 +48,13 @@ export default function Backup() {
   const enteredPassword = useRef('')
 
   useEffect(() => {
+    hasMnemonic().then(setIsMnemonicWallet)
     verifyPassword(defaultPassword).then(setSecret)
   }, [])
 
   const verifyPassword = async (password: string): Promise<string> => {
     try {
-      if (isMnemonicWallet) {
+      if (await hasMnemonic()) {
         return await getMnemonic(password)
       }
       const privateKey = await getPrivateKey(password)

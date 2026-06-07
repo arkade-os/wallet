@@ -10,7 +10,6 @@ import * as utils from '@noble/hashes/utils.js'
 import * as secp from '@noble/secp256k1'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { hmac } from '@noble/hashes/hmac.js'
-import { collaborativeExit, getReceivingAddresses } from '../../../lib/asp'
 import { Transaction } from '@arkade-os/sdk'
 import { isArkAddress, isBTCAddress } from '../../../lib/address'
 import { NavigationContext, Pages } from '../../../providers/navigation'
@@ -23,21 +22,23 @@ secp.hashes.hmacSha256 = (key, msg) => hmac(sha256, key, msg)
 
 export default function AppLendasat() {
   const { navigate } = useContext(NavigationContext)
-  const { wallet, svcWallet } = useContext(WalletContext)
+  const { wallet, walletReady, getReceivingAddresses, sendOffchain, collaborativeExit, bridge } =
+    useContext(WalletContext)
 
   const [arkAddress, setArkAddress] = useState<string | null>(null)
   const [boardingAddress, setBoardingAddress] = useState<string | null>(null)
 
   useEffect(() => {
     const loadAddress = async () => {
-      if (svcWallet) {
-        const addresses = await getReceivingAddresses(svcWallet)
+      if (walletReady) {
+        const addresses = await getReceivingAddresses()
         setArkAddress(addresses.offchainAddr)
         setBoardingAddress(addresses.boardingAddr)
       }
     }
     loadAddress()
-  }, [svcWallet])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletReady])
 
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
@@ -67,21 +68,21 @@ export default function AppLendasat() {
           }
         },
         async onSendToAddress(address: string, amount: number, asset: 'bitcoin' | LoanAsset): Promise<string> {
-          if (!svcWallet) {
+          if (!walletReady) {
             throw Error('Wallet not initialized')
           }
 
           switch (asset) {
             case 'bitcoin':
               if (isArkAddress(address)) {
-                const txId = await svcWallet?.send({ amount, address })
+                const txId = await sendOffchain(amount, address)
                 if (txId) {
                   return txId
                 } else {
                   throw new Error('Unable to send bitcoin')
                 }
               } else if (isBTCAddress(address)) {
-                return await collaborativeExit(svcWallet, amount, address)
+                return await collaborativeExit(amount, address)
               } else {
                 throw Error(`Unsupported address ${address}`)
               }
@@ -103,11 +104,11 @@ export default function AppLendasat() {
           }
         },
         onGetPublicKey: async () => {
-          if (!svcWallet) {
+          if (!walletReady) {
             throw new Error('Wallet not initialized')
           }
 
-          const pk = await svcWallet.identity.compressedPublicKey()
+          const pk = await bridge.getCompressedPublicKey()
           return bytesToHex(pk)
         },
         onGetDerivationPath: () => {
@@ -140,18 +141,18 @@ export default function AppLendasat() {
           throw new Error(`NPubs are not supported`)
         },
         onSignPsbt: async (psbt: string) => {
-          if (!svcWallet) {
+          if (!walletReady) {
             throw Error('Wallet not initialized')
           }
           const psbtBytes = hexToBytes(psbt)
           const tx = Transaction.fromPSBT(psbtBytes)
-          const signedTx = await svcWallet.identity.sign(tx)
+          const signedTx = await bridge.signTransaction(tx)
           const signedTxBytes = signedTx.toPSBT()
 
           return bytesToHex(signedTxBytes)
         },
         async onSignMessage(message: string): Promise<string> {
-          if (!svcWallet) {
+          if (!walletReady) {
             throw new Error('Wallet not initialized')
           }
 
@@ -159,7 +160,7 @@ export default function AppLendasat() {
           const messageHash = sha256(new TextEncoder().encode(message))
 
           // Get signature in compact format (64 bytes: r + s)
-          const signatureBytes = await svcWallet.identity.signMessage(messageHash, 'ecdsa')
+          const signatureBytes = await bridge.signMessage(messageHash, 'ecdsa')
 
           // Convert compact signature to DER format using @noble/curves/secp256k1
           // The Signature class from @noble/curves supports DER encoding
@@ -175,7 +176,8 @@ export default function AppLendasat() {
     return () => {
       provider.destroy()
     }
-  }, [wallet.pubkey, svcWallet, arkAddress, boardingAddress])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallet.pubkey, walletReady, arkAddress, boardingAddress])
 
   return (
     <>

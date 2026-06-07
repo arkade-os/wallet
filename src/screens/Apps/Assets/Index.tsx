@@ -28,7 +28,8 @@ interface AssetListItem {
 
 export default function AppAssets() {
   const { navigate } = useContext(NavigationContext)
-  const { assetBalances, balance, svcWallet, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
+  const { assetBalances, balance, walletReady, assetManager, assetMetadataCache, setCacheEntry } =
+    useContext(WalletContext)
   const { config } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
   const { aspInfo } = useContext(AspContext)
@@ -38,7 +39,7 @@ export default function AppAssets() {
 
   useEffect(() => {
     const loadAssets = async () => {
-      if (!svcWallet) {
+      if (!walletReady) {
         setLoading(false)
         return
       }
@@ -48,7 +49,7 @@ export default function AppAssets() {
       for (const id of config.importedAssets) allIds.add(id)
 
       const missingIds = [...allIds].filter((id) => !assetMetadataCache.get(id))
-      const results = await Promise.allSettled(missingIds.map((id) => svcWallet.assetManager.getAssetDetails(id)))
+      const results = await Promise.allSettled(missingIds.map((id) => assetManager.getAssetDetails(id)))
       for (let i = 0; i < missingIds.length; i++) {
         const r = results[i]
         if (r.status === 'fulfilled' && r.value) {
@@ -76,7 +77,8 @@ export default function AppAssets() {
     }
 
     loadAssets()
-  }, [svcWallet, assetBalances, config.importedAssets])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletReady, assetBalances, config.importedAssets])
 
   const handleAssetClick = (assetId: string) => {
     setAssetInfo({ assetId, supply: BigInt(0) })

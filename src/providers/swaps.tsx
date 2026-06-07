@@ -1,27 +1,25 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
 import { AspContext } from './asp'
-import { WalletContext } from './wallet'
+import { WalletContext, useWalletRuntime } from './wallet'
 import {
   ArkToBtcResponse,
-  BoltzSwapProvider,
   BtcToArkResponse,
   ChainFeesResponse,
   FeesResponse,
-  IndexedDbSwapRepository,
   Network,
   BoltzChainSwap,
   BoltzReverseSwap,
   BoltzSubmarineSwap,
   BoltzSwap,
-  ServiceWorkerArkadeSwaps,
   setLogger,
   SwapManagerClient,
 } from '@arkade-os/boltz-swap'
 import { ConfigContext } from './config'
 import { consoleError, consoleLog } from '../lib/logs'
-import { sendOffChain } from '../lib/asp'
 import { ArkAddress, RestIndexerProvider } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
+import { useRuntime } from '../runtime/RuntimeContext'
+import { SwapRuntimeClient } from '../runtime/types'
 
 const BASE_URLS: Record<Network, string | null> = {
   bitcoin: import.meta.env.VITE_BOLTZ_URL ?? null,
@@ -33,7 +31,7 @@ const BASE_URLS: Record<Network, string | null> = {
 
 interface SwapsContextProps {
   connected: boolean
-  arkadeSwaps: ServiceWorkerArkadeSwaps | null
+  arkadeSwaps: SwapRuntimeClient | null
   swapManager: SwapManagerClient | null
   swapsInitError: string | null
   toggleConnection: () => void
@@ -91,22 +89,24 @@ export const SwapsContext = createContext<SwapsContextProps>({
 })
 
 export const SwapsProvider = ({ children }: { children: ReactNode }) => {
+  const runtime = useRuntime()
   const { aspInfo } = useContext(AspContext)
-  const { svcWallet } = useContext(WalletContext)
+  const { sendOffchain } = useContext(WalletContext)
+  const walletRuntime = useWalletRuntime()
   const { config, updateConfig, backupConfig } = useContext(ConfigContext)
 
   const [arkToBtcFees, setArkToBtcFees] = useState<ChainFeesResponse | null>(null)
   const [btcToArkFees, setBtcToArkFees] = useState<ChainFeesResponse | null>(null)
-  const [arkadeSwaps, setArkadeSwaps] = useState<ServiceWorkerArkadeSwaps | null>(null)
+  const [arkadeSwaps, setArkadeSwaps] = useState<SwapRuntimeClient | null>(null)
   const [swapsInitError, setSwapsInitError] = useState<string | null>(null)
   const [fees, setFees] = useState<FeesResponse | null>(null)
   const [apiUrl, setApiUrl] = useState<string | null>(null)
 
   const connected = config.apps.boltz.connected
 
-  // create ArkadeSwaps with SwapManager on first run with svcWallet
+  // create the swap client on first run with the runtime wallet
   useEffect(() => {
-    if (!aspInfo.network || !svcWallet) return
+    if (!aspInfo.network || !walletRuntime) return
 
     const baseUrl = BASE_URLS[aspInfo.network as Network]
     if (!baseUrl) return // No boltz server for this network
@@ -114,20 +114,19 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     setApiUrl(baseUrl)
 
     const network = aspInfo.network as Network
-    const swapProvider = new BoltzSwapProvider({ apiUrl: baseUrl, network, referralId: 'arkade-money' })
 
     let disposeArkadeSwaps: (() => Promise<void>) | null = null
     let cancelled = false
 
-    ServiceWorkerArkadeSwaps.create({
-      serviceWorker: svcWallet.serviceWorker,
-      swapRepository: new IndexedDbSwapRepository(),
-      swapProvider,
-      network,
-      arkServerUrl: aspInfo.url,
-      swapManager: config.apps.boltz.connected,
-      referralId: 'arkade-money',
-    })
+    runtime.swaps
+      .create({
+        wallet: walletRuntime.wallet,
+        serviceWorker: walletRuntime.serviceWorker,
+        network,
+        arkServerUrl: aspInfo.url,
+        apiUrl: baseUrl,
+        swapManager: config.apps.boltz.connected,
+      })
       .then((instance) => {
         if (cancelled) {
           instance.dispose().catch(consoleError)
@@ -152,7 +151,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       cancelled = true
       if (disposeArkadeSwaps) disposeArkadeSwaps().catch(consoleError)
     }
-  }, [aspInfo, svcWallet, config.apps.boltz.connected])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aspInfo, walletRuntime, config.apps.boltz.connected])
 
   // fetch fees when arkadeSwaps is ready
   useEffect(() => {
@@ -210,12 +210,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   // Helper methods that delegate to arkadeSwaps
   const createArkToBtcSwap = async (btcAddress: string, sats: number): Promise<ArkToBtcResponse | null> => {
-    if (!arkadeSwaps || !svcWallet) return null
+    if (!arkadeSwaps || !walletRuntime) return null
     return arkadeSwaps.arkToBtc({ btcAddress, receiverLockAmount: sats })
   }
 
   const createBtcToArkSwap = async (sats: number): Promise<BtcToArkResponse | null> => {
-    if (!arkadeSwaps || !svcWallet) return null
+    if (!arkadeSwaps || !walletRuntime) return null
     return arkadeSwaps.btcToArk({ senderLockAmount: sats })
   }
 
@@ -235,7 +235,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const payBtc = async (pendingSwap: BoltzChainSwap): Promise<{ txid: string }> => {
-    if (!arkadeSwaps || !svcWallet) throw new Error('Chain swap not initialized')
+    if (!arkadeSwaps || !walletRuntime) throw new Error('Chain swap not initialized')
     if (!pendingSwap) throw new Error('No pending swap found')
     if (!pendingSwap.response.lockupDetails.lockupAddress) throw new Error('No swap address found')
     if (!pendingSwap.response.lockupDetails.amount) throw new Error('No swap amount found')
@@ -246,7 +246,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     // Prevent double-funding: check that the swap address has no existing VTXOs
     await assertSwapAddressUnfunded(aspInfo.url, swapAddress)
 
-    const txid = await sendOffChain(svcWallet, satoshis, swapAddress)
+    const txid = await sendOffchain(satoshis, swapAddress)
     if (!txid) throw new Error('Failed to send offchain payment')
 
     try {
@@ -279,7 +279,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const payInvoice = async (pendingSwap: BoltzSubmarineSwap): Promise<{ txid: string; preimage: string }> => {
-    if (!arkadeSwaps || !svcWallet) throw new Error('Lightning not initialized')
+    if (!arkadeSwaps || !walletRuntime) throw new Error('Lightning not initialized')
     if (!pendingSwap) throw new Error('No pending swap found')
     if (!pendingSwap.response.address) throw new Error('No swap address found')
     if (!pendingSwap.response.expectedAmount) throw new Error('No swap amount found')
@@ -290,7 +290,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     // Prevent double-funding: check that the swap address has no existing VTXOs before paying
     await assertSwapAddressUnfunded(aspInfo.url, swapAddress)
 
-    const txid = await sendOffChain(svcWallet, satoshis, swapAddress)
+    const txid = await sendOffchain(satoshis, swapAddress)
     if (!txid) throw new Error('Failed to send offchain payment')
 
     try {

@@ -21,7 +21,7 @@ export default function AppAssetImport() {
   const { navigate } = useContext(NavigationContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
-  const { svcWallet, setCacheEntry } = useContext(WalletContext)
+  const { walletReady, assetManager, setCacheEntry } = useContext(WalletContext)
 
   const [assetId, setAssetId] = useState('')
   const [error, setError] = useState('')
@@ -29,7 +29,7 @@ export default function AppAssetImport() {
   const [scan, setScan] = useState(false)
 
   const handleImport = async () => {
-    if (!svcWallet) return
+    if (!walletReady) return
     if (!isValidAssetId(assetId)) {
       setError('Asset ID must be a 68-character hex string')
       return
@@ -39,7 +39,7 @@ export default function AppAssetImport() {
     setError('')
 
     try {
-      const details = await svcWallet.assetManager.getAssetDetails(assetId)
+      const details = await assetManager.getAssetDetails(assetId)
       if (!details) throw new Error('Asset not found')
 
       const moderated = setCacheEntry(assetId, details)

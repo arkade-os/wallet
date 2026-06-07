@@ -23,14 +23,14 @@ import LoadingIcon from '../../icons/Loading'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { LimitsContext } from '../../providers/limits'
-import { getInputsToSettle } from '../../lib/asp'
 import { prettyAssetAmount } from '../../lib/assets'
 
 export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo } = useContext(FlowContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { assetMetadataCache, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, settlePreconfirmed, vtxos, vtxoManager, wallet, walletReady, advanced } =
+    useContext(WalletContext)
 
   const tx = txInfo
   const issuanceTx = tx ? isIssuance(tx) : false
@@ -73,13 +73,14 @@ export default function Transaction() {
   }, [wallet.nextRollover])
 
   useEffect(() => {
-    if (!aspInfo || !svcWallet || !vtxoManager) return
-    getInputsToSettle(svcWallet, vtxoManager, wallet.thresholdMs).then(({ inputs }) => {
+    if (!aspInfo || !walletReady || !vtxoManager) return
+    advanced.getInputsToSettle().then(({ inputs }) => {
       setHasInputsToSettle(inputs.length > 0)
       const totalAmount = inputs.reduce((a, v) => a + v.value, 0) || 0
       setAmountAboveDust(totalAmount > aspInfo.dust)
     })
-  }, [aspInfo, vtxos, svcWallet, vtxoManager, wallet.thresholdMs])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aspInfo, vtxos, walletReady, vtxoManager, wallet.thresholdMs])
 
   // TODO implement resend
   //  - create new boarding tx

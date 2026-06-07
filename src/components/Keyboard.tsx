@@ -25,7 +25,7 @@ interface KeyboardProps {
 export default function Keyboard({ asset, back, hideBalance, onSave }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
-  const { balance, svcWallet } = useContext(WalletContext)
+  const { balance, walletReady, getAvailableBalance } = useContext(WalletContext)
 
   const [assetInCents, setAssetInCents] = useState(BigInt(0))
   const [amountInSats, setAmountInSats] = useState(0)
@@ -37,9 +37,10 @@ export default function Keyboard({ asset, back, hideBalance, onSave }: KeyboardP
   const [textValue, setTextValue] = useState('')
 
   useEffect(() => {
-    if (!svcWallet) return
-    svcWallet.getBalance().then((bal) => setAvailable(bal.available))
-  }, [balance])
+    if (!walletReady) return
+    getAvailableBalance().then(setAvailable)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [balance, walletReady])
 
   useEffect(() => {
     const strValue = textValue.replaceAll(',', '')

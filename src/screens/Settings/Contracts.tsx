@@ -96,15 +96,15 @@ function Section({ title, contracts }: { title: string; contracts: Contract[] })
 }
 
 export default function Contracts() {
-  const { svcWallet } = useContext(WalletContext)
+  const { walletReady, advanced } = useContext(WalletContext)
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!svcWallet) return
+    if (!walletReady) return
     const fetchContracts = async () => {
       try {
-        const cm = await svcWallet.getContractManager()
+        const cm = await advanced.getContractManager()
         const data = await cm.getContracts()
         setContracts(data.slice().sort((a, b) => (a.state === b.state ? 0 : a.state === 'active' ? -1 : 1)))
       } catch (err) {
@@ -114,9 +114,10 @@ export default function Contracts() {
       }
     }
     fetchContracts()
-  }, [svcWallet])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletReady])
 
-  if (!svcWallet || loading) return <LoadingLogo text='Loading...' />
+  if (!walletReady || loading) return <LoadingLogo text='Loading...' />
 
   const active = contracts.filter((c) => c.state === 'active')
   const inactive = contracts.filter((c) => c.state !== 'active')

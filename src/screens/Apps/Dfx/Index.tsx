@@ -6,27 +6,26 @@ import FlexCol from '../../../components/FlexCol'
 import LoadingLogo from '../../../components/LoadingLogo'
 import Text from '../../../components/Text'
 import { WalletContext } from '../../../providers/wallet'
-import { getReceivingAddresses } from '../../../lib/asp'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 
 export default function AppDfx() {
   const { navigate } = useContext(NavigationContext)
-  const { svcWallet } = useContext(WalletContext)
+  const { walletReady, getReceivingAddresses, bridge } = useContext(WalletContext)
   const [dfxUrl, setDfxUrl] = useState<string | null>(null)
   const [error, setError] = useState(false)
 
   useEffect(() => {
     const authenticate = async () => {
-      if (!svcWallet) return
+      if (!walletReady) return
 
       try {
-        const { offchainAddr } = await getReceivingAddresses(svcWallet)
+        const { offchainAddr } = await getReceivingAddresses()
 
         const message = `By_signing_this_message,_you_confirm_that_you_are_the_sole_owner_of_the_provided_Blockchain_address._Your_ID:_${offchainAddr}`
         const messageHash = sha256(new TextEncoder().encode(message))
-        const signatureBytes = await svcWallet.identity.signMessage(messageHash, 'ecdsa')
+        const signatureBytes = await bridge.signMessage(messageHash, 'ecdsa')
         const signature = bytesToHex(signatureBytes)
 
         setDfxUrl(
@@ -37,7 +36,8 @@ export default function AppDfx() {
       }
     }
     authenticate()
-  }, [svcWallet])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletReady])
 
   if (!dfxUrl && !error) return <LoadingLogo text='Connecting to DFX...' />
 

@@ -25,7 +25,7 @@ export default function ReceiveSuccess() {
   const { toFiat } = useContext(FiatContext)
   const { recvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { assetMetadataCache, setCacheEntry, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, setCacheEntry, walletReady, assetManager } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
 
   const receivedAssets = recvInfo.receivedAssets ?? []
@@ -42,11 +42,11 @@ export default function ReceiveSuccess() {
 
   // Fetch and cache asset metadata if not already cached
   useEffect(() => {
-    if (!receivedAssets.length || !svcWallet || assetDetails.size === receivedAssets.length) return
+    if (!receivedAssets.length || !walletReady || assetDetails.size === receivedAssets.length) return
 
     for (const a of receivedAssets) {
       if (assetDetails.has(a.assetId)) continue
-      svcWallet.assetManager
+      assetManager
         .getAssetDetails(a.assetId)
         .then((details) => {
           if (details) {
@@ -56,7 +56,8 @@ export default function ReceiveSuccess() {
         })
         .catch((err) => consoleError(err, 'error fetching asset details'))
     }
-  }, [receivedAssets, svcWallet])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [receivedAssets, walletReady])
 
   // Notify once all metadata is loaded (or immediately for non-asset receives)
   useEffect(() => {

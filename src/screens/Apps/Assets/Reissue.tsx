@@ -23,7 +23,7 @@ import { prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 export default function AppAssetReissue() {
   const { navigate } = useContext(NavigationContext)
   const { assetInfo } = useContext(FlowContext)
-  const { assetBalances, svcWallet, reloadWallet } = useContext(WalletContext)
+  const { assetBalances, walletReady, assetManager, reloadWallet } = useContext(WalletContext)
 
   const [amount, setAmount] = useState(BigInt(0))
   const [error, setError] = useState('')
@@ -58,13 +58,13 @@ export default function AppAssetReissue() {
   }
 
   const processReissue = async () => {
-    if (!svcWallet) return
+    if (!walletReady) return
     setShowConfirm(false)
     setProcessing(true)
     setError('')
 
     try {
-      await svcWallet.assetManager.reissue({ assetId: assetInfo.assetId, amount })
+      await assetManager.reissue({ assetId: assetInfo.assetId, amount })
       await reloadWallet()
       pendingNav.current = () => navigate(Pages.AppAssetDetail)
       setOpDone(true)

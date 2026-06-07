@@ -5,7 +5,7 @@ import SpinnerIcon from '../icons/Spinner'
 import { sleep } from '../lib/sleep'
 
 export default function Refresher() {
-  const { reloadWallet, svcWallet } = useContext(WalletContext)
+  const { reloadWallet } = useContext(WalletContext)
 
   const [showRefresh, setShowRefresh] = useState(false)
 
@@ -32,8 +32,7 @@ export default function Refresher() {
 
   const handleRefresh = async () => {
     try {
-      await svcWallet?.reload()
-      await reloadWallet()
+      await reloadWallet({ forceRuntimeReload: true })
     } catch (err) {
       consoleError(err, 'Failed to reload wallet')
     } finally {

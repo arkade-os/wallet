@@ -17,7 +17,7 @@ const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon ab
 describe('Backup screen with legacy private key', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    vi.spyOn(mnemonicModule, 'hasMnemonic').mockReturnValue(false)
+    vi.spyOn(mnemonicModule, 'hasMnemonic').mockResolvedValue(false)
     vi.spyOn(privateKeyModule, 'getPrivateKey').mockResolvedValue(hex.decode(seckey.hex))
   })
 
@@ -53,7 +53,7 @@ describe('Backup screen with legacy private key', () => {
 describe('Backup screen with mnemonic wallet', () => {
   beforeEach(() => {
     vi.resetAllMocks()
-    vi.spyOn(mnemonicModule, 'hasMnemonic').mockReturnValue(true)
+    vi.spyOn(mnemonicModule, 'hasMnemonic').mockResolvedValue(true)
     vi.spyOn(mnemonicModule, 'getMnemonic').mockResolvedValue(testMnemonic)
   })
 

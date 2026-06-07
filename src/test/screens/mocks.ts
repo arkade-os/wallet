@@ -5,6 +5,60 @@ import { AspInfo } from '../../providers/asp'
 import { SingleKey, IVtxoManager } from '@arkade-os/sdk'
 import { CurrencyDisplay, Fiats, SettingsOptions, Themes } from '../../lib/types'
 import { AssetIconApprovalManager } from '../../lib/assetIconApproval'
+import { RuntimeContextValue } from '../../runtime/types'
+
+// Minimal runtime context for screens that consume `useRuntime()` directly
+// (e.g. Settings/Notifications). Adapters are no-op stubs; capability flags
+// default to the PWA-like set used by the hosted app.
+export const mockRuntimeContextValue: RuntimeContextValue = {
+  kind: 'web-pwa',
+  capabilities: {
+    serviceWorker: true,
+    nativeBiometrics: false,
+    webAuthn: false,
+    localNotifications: false,
+    pushNotifications: true,
+    notificationsSupported: true,
+    nativeScanner: false,
+    browserScanner: true,
+    nativeShare: false,
+    nativeClipboard: false,
+    hardwareBackButton: false,
+    appUrlOpen: false,
+  },
+  walletFactory: { create: async () => ({}) as any },
+  walletEvents: {
+    subscribe: () => () => {},
+    waitForNextUpdate: async () => ({ type: 'reload-needed', reason: 'manual' }),
+  },
+  swaps: { create: async () => ({}) as any },
+  secretStorage: {
+    getItem: async () => null,
+    setItem: async () => {},
+    removeItem: async () => {},
+  },
+  links: { getInitialLink: async () => undefined, subscribe: () => () => {} },
+  lifecycle: { onResume: () => () => {}, onPause: () => () => {}, onBackButton: () => () => {} },
+  device: {
+    copyToClipboard: async () => {},
+    share: async () => {},
+    haptic: async () => {},
+    openExternal: async () => {},
+  },
+  notifications: {
+    requestPermission: async () => true,
+    send: async () => {},
+    notifyPaymentReceived: async () => {},
+    notifyTxSettled: async () => {},
+    notifyNewUpdateAvailable: async () => {},
+  },
+  security: {
+    isBiometricUnlockAvailable: async () => false,
+    saveBiometricUnlockSecret: async () => {},
+    getBiometricUnlockSecret: async () => undefined,
+    clearBiometricUnlockSecret: async () => {},
+  },
+}
 
 const mockAspInfo: AspInfo = {
   ...emptyAspInfo,
@@ -132,6 +186,30 @@ export const mockNavigationContextValue = {
   tab: Tabs.None,
 }
 
+const mockAssetManager = {
+  getAssetDetails: async () => undefined,
+  issue: async () => ({}) as any,
+  reissue: async () => '',
+  burn: async () => '',
+  waitForAssetUpdate: async () => {},
+}
+
+const mockAdvanced = {
+  getAllVtxos: async () => [],
+  getBoardingUtxos: async () => [],
+  getVtxoManager: async () => ({}) as IVtxoManager,
+  getContractManager: async () => ({ getContracts: async () => [] }) as any,
+  getDelegateManager: async () => undefined,
+  getInputsToSettle: async () => ({ inputs: [], vtxos: [], boardingUtxos: [] }),
+  settleInputs: async () => {},
+}
+
+const mockBridge = {
+  getCompressedPublicKey: async () => new Uint8Array(),
+  signTransaction: async (tx: any) => tx,
+  signMessage: async () => new Uint8Array(),
+}
+
 export const mockWalletContextValue = {
   authState: 'authenticated' as const,
   initWallet: () => Promise.resolve(),
@@ -147,7 +225,7 @@ export const mockWalletContextValue = {
     nextRollover: 0,
   },
   walletLoaded: false,
-  svcWallet: undefined,
+  walletReady: false,
   isLocked: () => Promise.resolve(true),
   balance: 0,
   assetBalances: [],
@@ -159,6 +237,17 @@ export const mockWalletContextValue = {
   dataReady: false,
   loadError: null,
   dismissLoadError: () => {},
+  getReceivingAddresses: async () => ({ boardingAddr: 'bcrt1qmockboarding', offchainAddr: 'ark1qmockoffchain' }),
+  getAvailableBalance: async () => 0,
+  sendOffchain: async () => '',
+  sendAssets: async () => '',
+  collaborativeExit: async () => '',
+  collaborativeExitWithFees: async () => '',
+  redeemNotes: async () => {},
+  assetManager: mockAssetManager,
+  advanced: mockAdvanced,
+  bridge: mockBridge,
+  subscribeWalletEvents: () => () => {},
 }
 
 export const mockFlowContextValue = {

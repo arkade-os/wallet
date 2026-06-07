@@ -19,7 +19,7 @@ import LoadingLogo from '../../components/LoadingLogo'
 export default function Server() {
   const { aspInfo } = useContext(AspContext)
   const { backupConfig, config, updateConfig } = useContext(ConfigContext)
-  const { svcWallet, resetWallet } = useContext(WalletContext)
+  const { walletReady, resetWallet } = useContext(WalletContext)
 
   const [aspUrl, setAspUrl] = useState('')
   const [error, setError] = useState('')
@@ -49,7 +49,7 @@ export default function Server() {
     })
   }, [aspUrl])
 
-  if (!svcWallet) return <LoadingLogo text='Loading...' />
+  if (!walletReady) return <LoadingLogo text='Loading...' />
 
   const handleConnect = async () => {
     setLoading(true)

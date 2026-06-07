@@ -10,7 +10,6 @@ import {
   mockSwapsContextValue,
   mockLimitsContextValue,
   mockNavigationContextValue,
-  mockSvcWallet,
   mockWalletContextValue,
 } from '../mocks'
 import { AspContext } from '../../../providers/asp'
@@ -121,7 +120,7 @@ const tapFixture = (addrs = { off: 'ark1testaddr', bd: 'bc1testaddr' }): RenderO
       boardingAddr: addrs.bd,
     },
   },
-  wallet: { svcWallet: mockSvcWallet as any },
+  wallet: { walletReady: true },
 })
 
 describe('Receive QR Code screen', () => {
@@ -149,7 +148,7 @@ describe('Receive QR Code screen', () => {
           boardingAddr: 'bc1testaddr',
         },
       },
-      wallet: { svcWallet: mockSvcWallet as any },
+      wallet: { walletReady: true },
     })
 
     // Should show QR immediately, not the loader
@@ -178,7 +177,7 @@ describe('Receive QR Code screen', () => {
           boardingAddr: 'bc1testaddr',
         },
       },
-      wallet: { svcWallet: mockSvcWallet as any },
+      wallet: { walletReady: true },
     })
 
     // Should show QR immediately (not loader), because error is already known
@@ -216,7 +215,7 @@ describe('Receive QR Code screen', () => {
           boardingAddr: 'bc1testaddr',
         },
       },
-      wallet: { svcWallet: mockSvcWallet as any },
+      wallet: { walletReady: true },
     })
 
     // Should show the loader while waiting for swaps to initialize
@@ -243,7 +242,7 @@ describe('Receive QR Code screen', () => {
           boardingAddr: 'bc1testaddr',
         },
       },
-      wallet: { svcWallet: mockSvcWallet as any },
+      wallet: { walletReady: true },
     })
 
     // Initially should show loader
@@ -278,7 +277,7 @@ describe('Receive QR Code screen', () => {
           boardingAddr: 'bc1testaddr',
         },
       },
-      wallet: { svcWallet: mockSvcWallet as any },
+      wallet: { walletReady: true },
     })
 
     // No amount means no swaps needed, QR should show immediately

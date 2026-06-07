@@ -12,7 +12,6 @@ import { defaultFee } from '../../../lib/constants'
 import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { collaborativeExitWithFees, sendAssets, sendOffChain } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
@@ -30,7 +29,8 @@ export default function SendDetails() {
   const isAssetSend = Boolean(sendInfo.assets?.length)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { payInvoice, payBtc } = useContext(SwapsContext)
-  const { assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, balance, walletReady, sendAssets, sendOffchain, collaborativeExitWithFees } =
+    useContext(WalletContext)
 
   const assetId = sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
@@ -129,7 +129,7 @@ export default function SendDetails() {
   }
 
   const handleContinue = async () => {
-    if (!details || !svcWallet) return
+    if (!details || !walletReady) return
     if (!isAssetSend && (!details.total || !details.satoshis)) return
     if (isAssetSend && !arkAddress) {
       setError('Assets can only be sent to Arkade addresses')
@@ -141,12 +141,12 @@ export default function SendDetails() {
     if (isAssetSend && arkAddress) {
       // Asset send via wallet.send()
       if (!sendInfo.assets || sendInfo.assets.length === 0) return handleError('Missing assets list')
-      sendAssets(svcWallet, arkAddress, sendInfo.assets)
+      sendAssets(arkAddress, sendInfo.assets)
         .then((txId: string) => handleTxid(txId))
         .catch(handleError)
     } else if (arkAddress) {
       if (!details.total) return handleError('Missing total amount')
-      sendOffChain(svcWallet, details.total, arkAddress)
+      sendOffchain(details.total, arkAddress)
         .then((txId: string) => handleTxid(txId))
         .catch(handleError)
     } else if (invoice && pendingSwap && isPendingSubmarineSwap(pendingSwap)) {
@@ -163,7 +163,7 @@ export default function SendDetails() {
       } else {
         if (!details.total) return handleError('Missing total amount')
         if (!details.satoshis) return handleError('Missing satoshis amount')
-        collaborativeExitWithFees(svcWallet, details.total, details.satoshis, address)
+        collaborativeExitWithFees(details.total, details.satoshis, address)
           .then((txId: string) => handleTxid(txId))
           .catch(handleError)
       }

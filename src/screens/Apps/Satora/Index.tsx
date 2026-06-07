@@ -5,23 +5,22 @@ import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { WalletContext } from '../../../providers/wallet'
 import { WalletProvider, type LoanAsset, AddressType } from '@lendasat/lendasat-wallet-bridge'
-import { collaborativeExit, getReceivingAddresses } from '../../../lib/asp'
 import { isArkAddress, isBTCAddress } from '../../../lib/address'
 
 const IFRAME_URL = import.meta.env.VITE_SATORA_IFRAME_URL || 'https://app.satora.io'
 const DEFAULT_SWAP_PATH = '/arkade:BTC/polygon:USDC'
 
 export default function AppSatora() {
-  const { svcWallet } = useContext(WalletContext)
+  const { walletReady, getReceivingAddresses, sendOffchain, collaborativeExit } = useContext(WalletContext)
   const [arkAddress, setArkAddress] = useState<string | null>(null)
 
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
     const loadAddress = async () => {
-      if (svcWallet) {
+      if (walletReady) {
         try {
-          const addresses = await getReceivingAddresses(svcWallet)
+          const addresses = await getReceivingAddresses()
           setArkAddress(addresses.offchainAddr)
         } catch (error) {
           console.error('Failed to load Arkade address:', error)
@@ -29,7 +28,8 @@ export default function AppSatora() {
       }
     }
     loadAddress()
-  }, [svcWallet])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletReady])
 
   useEffect(() => {
     if (!iframeRef.current) return
@@ -67,7 +67,7 @@ export default function AppSatora() {
           }
         },
         async onSendToAddress(address: string, amount: number, asset: 'bitcoin' | LoanAsset): Promise<string> {
-          if (!svcWallet) {
+          if (!walletReady) {
             throw Error('Wallet not initialized')
           }
 
@@ -78,14 +78,14 @@ export default function AppSatora() {
           switch (asset) {
             case 'bitcoin':
               if (isArkAddress(address)) {
-                const txId = await svcWallet?.send({ amount, address })
+                const txId = await sendOffchain(amount, address)
                 if (txId) {
                   return txId
                 } else {
                   throw new Error('Unable to send bitcoin')
                 }
               } else if (isBTCAddress(address)) {
-                return await collaborativeExit(svcWallet, amount, address)
+                return await collaborativeExit(amount, address)
               } else {
                 throw Error(`Unsupported address ${address}`)
               }
@@ -115,7 +115,8 @@ export default function AppSatora() {
     return () => {
       provider.destroy()
     }
-  }, [svcWallet, arkAddress])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletReady, arkAddress])
 
   return (
     <>

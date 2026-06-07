@@ -22,7 +22,8 @@ export default function AppAssetDetail() {
   const { navigate } = useContext(NavigationContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { assetInfo, setAssetInfo, setRecvInfo, setSendInfo } = useContext(FlowContext)
-  const { assetBalances, svcWallet, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
+  const { assetBalances, walletReady, assetManager, assetMetadataCache, setCacheEntry, iconApprovalManager } =
+    useContext(WalletContext)
 
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -33,12 +34,12 @@ export default function AppAssetDetail() {
   const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? BigInt(0)
 
   const fetchDetails = async (forceRefresh = false) => {
-    if (!svcWallet || !assetInfo.assetId) return
+    if (!walletReady || !assetInfo.assetId) return
 
     let cached: AssetDetails | undefined = forceRefresh ? undefined : assetMetadataCache.get(assetInfo.assetId)
     if (!cached) {
       try {
-        const fetched = await svcWallet.assetManager.getAssetDetails(assetInfo.assetId)
+        const fetched = await assetManager.getAssetDetails(assetInfo.assetId)
         if (fetched) {
           cached = setCacheEntry(assetInfo.assetId, fetched)
         }
@@ -53,7 +54,8 @@ export default function AppAssetDetail() {
 
   useEffect(() => {
     fetchDetails().then(() => setLoading(false))
-  }, [svcWallet, assetInfo.assetId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletReady, assetInfo.assetId])
 
   const handleRefresh = async () => {
     setRefreshing(true)

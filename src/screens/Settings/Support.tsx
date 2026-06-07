@@ -9,7 +9,6 @@ import { WalletContext } from '../../providers/wallet'
 import { ConfigContext } from '../../providers/config'
 import { AspContext } from '../../providers/asp'
 import { SwapsContext } from '../../providers/swaps'
-import { getReceivingAddresses } from '../../lib/asp'
 import { Addresses } from '../../lib/types'
 import { getWebExplorerURL } from '../../lib/explorers'
 import { NetworkName } from '@arkade-os/sdk'
@@ -24,7 +23,7 @@ export default function Support() {
   const { aspInfo } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
   const { getApiUrl } = useContext(SwapsContext)
-  const { wallet, svcWallet } = useContext(WalletContext)
+  const { wallet, walletReady, getReceivingAddresses } = useContext(WalletContext)
 
   const [error, setError] = useState('')
   const [addresses, setAddresses] = useState<Addresses>()
@@ -32,12 +31,13 @@ export default function Support() {
 
   // Fetch wallet addresses
   useEffect(() => {
-    if (svcWallet) {
-      getReceivingAddresses(svcWallet)
+    if (walletReady) {
+      getReceivingAddresses()
         .then(setAddresses)
         .catch((err) => console.error('Failed to get addresses:', err))
     }
-  }, [svcWallet])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletReady])
 
   // Wait for Chatwoot to load, show error after 5 seconds if not loaded
   useEffect(() => {

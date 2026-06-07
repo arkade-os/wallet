@@ -1,11 +1,8 @@
-import {
-  BoltzChainSwap,
-  BoltzReverseSwap,
-  BoltzSubmarineSwap,
-  ServiceWorkerArkadeSwaps,
-  SwapRepository,
-} from '@arkade-os/boltz-swap'
+import { BoltzChainSwap, BoltzReverseSwap, BoltzSubmarineSwap, BoltzSwap, SwapRepository } from '@arkade-os/boltz-swap'
 import { getPublicKey } from 'nostr-tools/pure'
+
+/** Minimal swap-history surface needed for backup; satisfied by the runtime swap client. */
+type SwapHistorySource = { getSwapHistory(): Promise<BoltzSwap[]> }
 import { NostrStorage } from './nostr'
 import { Config } from './types'
 import { consoleError } from './logs'
@@ -87,7 +84,7 @@ export class BackupProvider {
    * If data size is larger than 65kb, splits into multiple events
    * @param config
    */
-  fullBackup = async (config: Config, arkadeSwaps?: ServiceWorkerArkadeSwaps) => {
+  fullBackup = async (config: Config, arkadeSwaps?: SwapHistorySource) => {
     if (!arkadeSwaps) return this.backupConfig(config)
 
     const allSwaps = await arkadeSwaps.getSwapHistory()

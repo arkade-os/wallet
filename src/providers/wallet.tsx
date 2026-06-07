@@ -1,18 +1,14 @@
-import { ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react'
+import { ReactNode, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArkNote,
-  ServiceWorkerWallet,
   NetworkName,
   SingleKey,
   MnemonicIdentity,
   AssetDetails,
   WalletBalance,
   IVtxoManager,
-  migrateWalletRepository,
-  getMigrationStatus,
-  rollbackMigration,
-  IndexedDBWalletRepository,
-  IndexedDBContractRepository,
+  IWallet,
+  Asset,
   type Identity,
 } from '@arkade-os/sdk'
 import {
@@ -26,14 +22,26 @@ import {
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
-import { getBalance, getTxHistory, getVtxos, settleVtxos } from '../lib/asp'
+import {
+  getBalance,
+  getTxHistory,
+  getVtxos,
+  settleVtxos,
+  getReceivingAddresses as getReceivingAddressesFor,
+  sendOffChain,
+  sendAssets as sendAssetsFor,
+  collaborativeExit as collaborativeExitFor,
+  collaborativeExitWithFees as collaborativeExitWithFeesFor,
+  redeemNotes as redeemNotesFor,
+  getInputsToSettle,
+} from '../lib/asp'
 import { AspContext } from './asp'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
-import { Tx, Vtxo, Wallet } from '../lib/types'
+import { Addresses, Tx, Vtxo, Wallet } from '../lib/types'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
@@ -43,22 +51,18 @@ import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
 import { defaultPassword, getDelegateUrlForNetwork, maxPercentage } from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
-import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { Indexer } from '../lib/indexer'
-import { IndexedDbSwapRepository, migrateToSwapRepository, Network } from '@arkade-os/boltz-swap'
-
-const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
-const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
-
-interface InitSvcWorkerWalletParams {
-  arkServerUrl: string
-  esploraUrl?: string
-  identity: Identity
-  skipMigration?: boolean
-  retryCount?: number
-  maxRetries?: number
-  delegatorUrl?: string
-}
+import { Network } from '@arkade-os/boltz-swap'
+import { useRuntime } from '../runtime/RuntimeContext'
+import {
+  Unsubscribe,
+  WalletAdvancedActions,
+  WalletAssetActions,
+  WalletBridgeActions,
+  WalletRuntimeCreateParams,
+  WalletRuntimeEvent,
+  WalletRuntimeInstance,
+} from '../runtime/types'
 
 const defaultWallet: Wallet = {
   network: '',
@@ -75,11 +79,11 @@ interface WalletContextProps {
   unlockWallet: (password: string) => Promise<void>
   updateWallet: (w: Wallet | ((prev: Wallet) => Wallet)) => void
   isLocked: () => Promise<boolean>
-  reloadWallet: (svcWallet?: ServiceWorkerWallet) => Promise<void>
+  reloadWallet: (options?: { forceRuntimeReload?: boolean }) => Promise<void>
   restartWallet: (delegateEnabled?: boolean) => Promise<void>
   wallet: Wallet
   walletLoaded: boolean
-  svcWallet: ServiceWorkerWallet | undefined
+  walletReady: boolean
   vtxoManager: IVtxoManager | undefined
   txs: Tx[]
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
@@ -93,6 +97,49 @@ interface WalletContextProps {
   dismissLoadError: () => void
   authState: WalletAuthState
   initialized?: boolean
+  // Runtime-neutral wallet helpers (replace direct svcWallet calls in screens).
+  getReceivingAddresses: () => Promise<Addresses>
+  getAvailableBalance: () => Promise<number>
+  sendOffchain: (amount: number, address: string) => Promise<string>
+  sendAssets: (address: string, assets: Asset[]) => Promise<string>
+  collaborativeExit: (amount: number, address: string) => Promise<string>
+  collaborativeExitWithFees: (inputAmount: number, outputAmount: number, address: string) => Promise<string>
+  redeemNotes: (notes: string[]) => Promise<void>
+  // Capability groups for parity-heavy screens and integrations.
+  assetManager: WalletAssetActions
+  advanced: WalletAdvancedActions
+  bridge: WalletBridgeActions
+  // Subscribe to runtime wallet update events (replaces direct service-worker
+  // message listeners in screens, e.g. the receive payment listener).
+  subscribeWalletEvents: (handler: (event: WalletRuntimeEvent) => void) => Unsubscribe
+}
+
+const notReady = (): never => {
+  throw new Error('Wallet not initialized')
+}
+
+const defaultAssetManager: WalletAssetActions = {
+  getAssetDetails: () => notReady(),
+  issue: () => notReady(),
+  reissue: () => notReady(),
+  burn: () => notReady(),
+  waitForAssetUpdate: () => notReady(),
+}
+
+const defaultAdvanced: WalletAdvancedActions = {
+  getAllVtxos: () => notReady(),
+  getBoardingUtxos: () => notReady(),
+  getVtxoManager: () => notReady(),
+  getContractManager: () => notReady(),
+  getDelegateManager: () => notReady(),
+  getInputsToSettle: () => notReady(),
+  settleInputs: () => notReady(),
+}
+
+const defaultBridge: WalletBridgeActions = {
+  getCompressedPublicKey: () => notReady(),
+  signTransaction: () => notReady(),
+  signMessage: () => notReady(),
 }
 
 export const WalletContext = createContext<WalletContextProps>({
@@ -106,7 +153,7 @@ export const WalletContext = createContext<WalletContextProps>({
   restartWallet: () => Promise.resolve(),
   wallet: defaultWallet,
   walletLoaded: false,
-  svcWallet: undefined,
+  walletReady: false,
   vtxoManager: undefined,
   isLocked: () => Promise.resolve(true),
   balance: 0,
@@ -120,9 +167,32 @@ export const WalletContext = createContext<WalletContextProps>({
   authState: 'unknown',
   txs: [],
   vtxos: { spendable: [], spent: [] },
+  getReceivingAddresses: () => notReady(),
+  getAvailableBalance: () => notReady(),
+  sendOffchain: () => notReady(),
+  sendAssets: () => notReady(),
+  collaborativeExit: () => notReady(),
+  collaborativeExitWithFees: () => notReady(),
+  redeemNotes: () => notReady(),
+  assetManager: defaultAssetManager,
+  advanced: defaultAdvanced,
+  bridge: defaultBridge,
+  subscribeWalletEvents: () => () => {},
 })
 
+/**
+ * Provider-level access to the raw runtime wallet instance.
+ *
+ * Per CAPACITOR.plan.md § Wallet Exposure Decision, the raw `IWallet` stays
+ * internal to `WalletProvider` and is handed only to provider-level adapters
+ * that genuinely need it — in practice the swap factory in `SwapsProvider`.
+ * Screens must use {@link WalletContext} helpers and capability groups instead.
+ */
+const WalletRuntimeContext = createContext<WalletRuntimeInstance | undefined>(undefined)
+export const useWalletRuntime = (): WalletRuntimeInstance | undefined => useContext(WalletRuntimeContext)
+
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
+  const runtime = useRuntime()
   const { aspInfo } = useContext(AspContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
@@ -134,7 +204,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [wallet, setWallet] = useState(() => readWalletFromStorage() ?? defaultWallet)
   const walletLoaded = true
   const [initialized, setInitialized] = useState<boolean>(false)
-  const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
+  const [walletRuntime, setWalletRuntime] = useState<WalletRuntimeInstance>()
   const [dataReady, setDataReady] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [authState, setAuthState] = useState<WalletAuthState>('unknown')
@@ -147,15 +217,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
   const iconApprovalManager = useRef(new AssetIconApprovalManager()).current
   const verifiedAssetsFetched = useRef(false)
-  const statusPingInterval = useRef<ReturnType<typeof setInterval>>()
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout>>()
-  const swMessageHandlerRef = useRef<(event: MessageEvent) => void>()
   const reinitInProgress = useRef(false)
   const initAbortRef = useRef<AbortController | null>(null)
-  const reinitSvcWalletRef = useRef<((identity: Identity) => Promise<void>) | null>(null)
+  const reinitWalletRef = useRef<(() => Promise<void>) | null>(null)
 
   // Each init gets its own AbortSignal; lock/reset aborts the current signal
-  // with 'lock-reset' so stale paths can decide whether to tear down the SW.
+  // with 'lock-reset' so stale paths can decide whether to tear down the wallet.
   // A new init aborts the previous with 'init', which means "abandon, don't clear".
   const startInitSession = (): AbortSignal => {
     initAbortRef.current?.abort('init')
@@ -166,21 +234,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const abortInitSession = () => {
     initAbortRef.current?.abort('lock-reset')
     initAbortRef.current = null
-  }
-
-  const clearIfLockReset = async (svcWallet: ServiceWorkerWallet, signal: AbortSignal) => {
-    if (!signal.aborted || signal.reason !== 'lock-reset') return
-    try {
-      await svcWallet.clear()
-    } catch (err) {
-      consoleError(err, 'Error clearing stale service worker wallet')
-    }
-  }
-
-  const removeServiceWorkerMessageHandler = (handler = swMessageHandlerRef.current) => {
-    if (!handler) return
-    navigator.serviceWorker.removeEventListener('message', handler)
-    if (swMessageHandlerRef.current === handler) swMessageHandlerRef.current = undefined
   }
 
   const setCacheEntry = (assetId: string, details: AssetDetails): CachedAssetDetails => {
@@ -239,7 +292,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setAuthState('unknown')
 
     const detectPasswordState = async () => {
-      if (hasMnemonic()) {
+      if (await hasMnemonic()) {
         try {
           await getMnemonic(defaultPassword)
           return true // passwordless
@@ -263,27 +316,55 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [wallet.pubkey])
 
-  // reload wallet as soon as we have a service worker wallet available
+  // reload wallet as soon as the runtime wallet becomes available
   useEffect(() => {
-    if (svcWallet) reloadWallet().catch(consoleError)
-  }, [svcWallet])
+    if (walletRuntime) reloadWallet().catch(consoleError)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletRuntime])
+
+  // Subscribe to runtime wallet events: PWA maps service-worker messages/status;
+  // native maps SDK/resume events. Replaces the inline SW message listener,
+  // status ping, and reinit-on-dead logic that used to live in this provider.
+  useEffect(() => {
+    if (!walletRuntime) return
+    const unsubscribe = runtime.walletEvents.subscribe(walletRuntime, (event) => {
+      switch (event.type) {
+        case 'vtxo-update':
+        case 'utxo-update':
+        case 'reload-needed':
+          // Debounced reload: short delay lets the indexer update its cache.
+          clearTimeout(reloadTimerRef.current)
+          reloadTimerRef.current = setTimeout(() => reloadWallet().catch(consoleError), 1000)
+          break
+        case 'status':
+          setInitialized(event.walletInitialized)
+          break
+        case 'runtime-dead':
+          reinitWalletRef.current?.()
+          break
+      }
+    })
+    return unsubscribe
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletRuntime])
 
   // calculate thresholdMs and next rollover
   useEffect(() => {
-    if (!initialized || !vtxos || !svcWallet) return
+    if (!initialized || !vtxos || !walletRuntime) return
+    const w = walletRuntime.wallet
     const computeThresholds = async () => {
       try {
-        const allVtxos = await svcWallet.getVtxos({ withRecoverable: true })
+        const allVtxos = await w.getVtxos({ withRecoverable: true })
         const batchLifetimeMs = await calcBatchLifetimeMs(allVtxos, new Indexer(aspInfo))
         const thresholdMs = Math.floor((batchLifetimeMs * maxPercentage) / 100)
-        const nextRollover = await calcNextRollover(vtxos.spendable, svcWallet, aspInfo)
+        const nextRollover = await calcNextRollover(vtxos.spendable, w, aspInfo)
         updateWallet((prev) => ({ ...prev, nextRollover, thresholdMs }))
       } catch (err) {
         consoleError(err, 'Error computing rollover thresholds')
       }
     }
     computeThresholds()
-  }, [initialized, vtxos, svcWallet, aspInfo])
+  }, [initialized, vtxos, walletRuntime, aspInfo])
 
   // fetch verified assets list once on startup
   useEffect(() => {
@@ -349,8 +430,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [initialized, dataReady, noteInfo.satoshis, deepLinkInfo])
 
-  const reloadWallet = async (swWallet = svcWallet) => {
-    if (!swWallet) return
+  const reloadWallet = async (options?: { forceRuntimeReload?: boolean }) => {
+    const instance = walletRuntime
+    if (!instance) return
+    const swWallet = instance.wallet
+    if (options?.forceRuntimeReload) {
+      try {
+        await instance.reload()
+      } catch (err) {
+        consoleError(err, 'Error forcing runtime reload')
+      }
+    }
     const isFirstLoad = !hasLoadedOnce.current
     if (isFirstLoad) setLoadError(null)
     try {
@@ -397,205 +487,55 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setDataReady(true)
   }
 
-  const initSvcWorkerWallet = async (params: InitSvcWorkerWalletParams): Promise<boolean> => {
+  const buildSettlementConfig = (): WalletRuntimeCreateParams['settlementConfig'] => ({
+    vtxoThreshold: wallet.thresholdMs ? Math.floor(wallet.thresholdMs / 1000) : 1,
+  })
+
+  /**
+   * Create the runtime wallet via the shell-provided factory and commit it to
+   * provider state. Keeps the abort-session semantics that let a lock/reset
+   * happening mid-init tear the wallet down (lock-reset) or simply abandon a
+   * superseded init (init).
+   */
+  const initRuntimeWallet = async (params: WalletRuntimeCreateParams): Promise<boolean> => {
     const signal = startInitSession()
-    return runInitAttempt(signal, params.identity, params)
-  }
 
-  // Retries inherit the signal minted by the top-level call so a lock/reset
-  // that fires between retries is observable via signal.aborted.
-  const runInitAttempt = async (
-    signal: AbortSignal,
-    identity: Identity,
-    params: InitSvcWorkerWalletParams,
-  ): Promise<boolean> => {
-    const { arkServerUrl, esploraUrl, skipMigration = false, retryCount = 0, maxRetries = 2, delegatorUrl } = params
+    let instance: WalletRuntimeInstance
     try {
-      setLoadingStatus('Starting wallet...')
-      const walletRepository = new IndexedDBWalletRepository()
-      const contractRepository = new IndexedDBContractRepository()
-
-      // Zombie SW detection and IndexedDB warmup are independent — run them
-      // concurrently. The zombie ping timeout is 500ms: alive workers respond
-      // in <10ms, so anything slower is dead.
-      const zombieCheck = (async () => {
-        const existingReg = await navigator.serviceWorker.getRegistration()
-        const active = existingReg?.active
-        if (active) {
-          const alive = await new Promise<boolean>((resolve) => {
-            const channel = new MessageChannel()
-            const timer = setTimeout(() => {
-              channel.port1.close()
-              resolve(false)
-            }, 500)
-            channel.port1.onmessage = (event) => {
-              clearTimeout(timer)
-              channel.port1.close()
-              resolve(event.data?.type === 'PONG')
-            }
-            active.postMessage({ type: 'PING' }, [channel.port2])
-          })
-          if (!alive) {
-            await existingReg.unregister()
-          }
-        }
-      })()
-
-      await Promise.all([walletRepository.getWalletState(), zombieCheck])
-      setLoadingStatus('Connecting to service worker...')
-
-      const svcWallet = await ServiceWorkerWallet.setup({
-        serviceWorkerPath: '/wallet-service-worker.mjs',
-        identity,
-        arkServerUrl,
-        esploraUrl,
-        delegatorUrl,
-        walletMode: 'static',
-        storage: { walletRepository, contractRepository },
-        serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
-        messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
-        messageTimeouts: {
-          SETTLE: 60_000,
-          SEND: 60_000,
-        },
-        settlementConfig: { vtxoThreshold: wallet.thresholdMs ? Math.floor(wallet.thresholdMs / 1000) : 1 },
-      })
-
-      if (!skipMigration) {
-        setLoadingStatus('Migrating data...')
-        try {
-          const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
-          const walletStatus = await getMigrationStatus('wallet', oldStorage)
-          if (walletStatus !== 'not-needed') {
-            if (walletStatus === 'pending' || walletStatus === 'in-progress') {
-              const arkAddress = await svcWallet.getAddress()
-              const boardingAddress = await svcWallet.getBoardingAddress()
-              try {
-                await migrateWalletRepository(oldStorage, svcWallet.walletRepository, {
-                  offchain: [arkAddress],
-                  onchain: [boardingAddress],
-                })
-              } catch (err) {
-                await rollbackMigration('wallet', oldStorage)
-                throw err
-              }
-            }
-            await migrateToSwapRepository(oldStorage, new IndexedDbSwapRepository())
-          }
-        } catch (err) {
-          consoleError(err, 'Error migrating wallet repository')
-        }
-      }
-
-      const vtxoMgr = await svcWallet.getVtxoManager()
-      const { walletInitialized } = await svcWallet.getStatus()
-
-      // Single checkpoint before any state/listener commits. Migration and
-      // getVtxoManager/getStatus are side-effect-free w.r.t. React/DOM, so
-      // running them after an abort is wasteful but safe.
-      if (signal.aborted) {
-        await clearIfLockReset(svcWallet, signal)
-        return false
-      }
-
-      setSvcWallet(svcWallet)
-      setVtxoManager(vtxoMgr)
-      setInitialized(walletInitialized)
-
-      // Cancel any pending reload from a previous wallet instance
-      clearTimeout(reloadTimerRef.current)
-
-      // handle messages from the service worker
-      // we listen for UTXO/VTXO updates to refresh the tx history and balance
-      const handleServiceWorkerMessages = (event: MessageEvent) => {
-        if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
-          // Debounced reload: short delay lets the indexer update its cache.
-          // If multiple updates arrive in quick succession, only the last
-          // one triggers a reload (avoids redundant fetches).
-          clearTimeout(reloadTimerRef.current)
-          reloadTimerRef.current = setTimeout(() => reloadWallet(svcWallet), 1000)
-        }
-      }
-
-      if (swMessageHandlerRef.current) {
-        removeServiceWorkerMessageHandler(swMessageHandlerRef.current)
-      }
-      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
-      swMessageHandlerRef.current = handleServiceWorkerMessages
-
-      // ping the service worker wallet status every 1 second
-      if (statusPingInterval.current) clearInterval(statusPingInterval.current)
-      let consecutivePingFailures = 0
-      let pingInProgress = false
-      statusPingInterval.current = setInterval(async () => {
-        if (pingInProgress) return
-        pingInProgress = true
-        try {
-          const statusTimeout = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('status ping timed out')), 3_000),
-          )
-          const { walletInitialized } = await Promise.race([svcWallet.getStatus(), statusTimeout])
-          consecutivePingFailures = 0
-          if (!signal.aborted) setInitialized(walletInitialized)
-        } catch (err) {
-          consoleError(err, 'Error pinging wallet status')
-          consecutivePingFailures++
-          // Guard with signal so a stale in-flight ping from a dead session
-          // cannot clear the new session's interval or trigger a reinit.
-          if (consecutivePingFailures >= 3 && !signal.aborted) {
-            clearInterval(statusPingInterval.current)
-            reinitSvcWalletRef.current?.(identity)
-          }
-        } finally {
-          pingInProgress = false
-        }
-      }, 1_000)
-
-      // Renew expiring coins on startup (non-delegate mode only).
-      // When delegation is enabled, the SDK's VtxoManager auto-delegates
-      // via onContractEvent, so no wallet-side call is needed.
-      if (!config.delegate) {
-        vtxoMgr.renewVtxos().catch(() => {})
-      }
-      return true
+      instance = await runtime.walletFactory.create(params)
     } catch (err) {
       if (signal.aborted) return false
-
-      const isTimeoutError =
-        err instanceof Error &&
-        (err.message.includes('Service worker activation timed out') || err.message.includes('MessageBus timed out'))
-
-      if (isTimeoutError && retryCount < maxRetries) {
-        // exponential backoff: wait 1s, 2s, 4s, 8s, 16s for each retry
-        const delay = Math.pow(2, retryCount) * 1000
-        setLoadingStatus('Retrying connection...')
-        consoleError(
-          new Error(
-            `Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,
-          ),
-          'Service worker activation retry',
-        )
-        await new Promise((resolve) => setTimeout(resolve, delay))
-        if (signal.aborted) return false
-        return runInitAttempt(signal, identity, { ...params, retryCount: retryCount + 1 })
-      }
-
-      // If we are here, either retries are exhausted or it's a different error.
-      // When the SW is permanently unresponsive (all retries exhausted), unregister
-      // it so the next page load gets a fresh registration instead of reusing the
-      // broken activation. This makes the one-time reload recovery effective.
-      if (isTimeoutError && retryCount >= maxRetries) {
-        try {
-          const reg = await navigator.serviceWorker.getRegistration()
-          if (reg) await reg.unregister()
-        } catch {
-          // best-effort cleanup
-        }
-      }
-
-      // Surface the failure so the unlock flow cannot proceed silently without an initialized wallet.
       throw err
     }
+
+    // Single checkpoint before any state/listener commits.
+    if (signal.aborted) {
+      try {
+        if (signal.reason === 'lock-reset') await instance.clear()
+        else await instance.dispose()
+      } catch (err) {
+        consoleError(err, 'Error tearing down aborted wallet init')
+      }
+      return false
+    }
+
+    const { walletInitialized } = await instance.getStatus()
+
+    setWalletRuntime(instance)
+    setVtxoManager(instance.vtxoManager)
+    setInitialized(walletInitialized)
+
+    // Cancel any pending reload from a previous wallet instance
+    clearTimeout(reloadTimerRef.current)
+
+    // Renew expiring coins on startup (non-delegate mode only).
+    // When delegation is enabled, the SDK's VtxoManager auto-delegates
+    // via onContractEvent, so no wallet-side call is needed.
+    if (!config.delegate) {
+      instance.vtxoManager.renewVtxos().catch(() => {})
+    }
+
+    return true
   }
 
   const isMainnet = (network: NetworkName | string): boolean =>
@@ -627,11 +567,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       throw new Error('Either mnemonic or privateKey must be provided')
     }
 
-    const didInit = await initSvcWorkerWallet({
+    const didInit = await initRuntimeWallet({
       identity,
       arkServerUrl,
       esploraUrl,
       delegatorUrl,
+      settlementConfig: buildSettlementConfig(),
     })
     if (!didInit) return
     updateWallet({ ...wallet, network, pubkey })
@@ -640,7 +581,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const unlockWallet = async (password: string) => {
     try {
-      if (hasMnemonic()) {
+      if (await hasMnemonic()) {
         const mnemonic = await getMnemonic(password)
         setAuthState('authenticated')
         await initWallet({ mnemonic })
@@ -657,49 +598,53 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   /**
-   * Reinitialize the service-worker wallet in-place so runtime config changes
+   * Reinitialize the runtime wallet in-place so runtime config changes
    * (e.g., delegate on/off) take effect without forcing a lock/unlock cycle.
-   * Keeps local tx/balance state; just rebuilds the SW wallet with the current
+   * Keeps local tx/balance state; just rebuilds the wallet with the current
    * delegatorUrl flag.
    */
   const restartWallet = async (delegateEnabled = config.delegate) => {
-    if (!svcWallet) return
-    const identity = svcWallet.identity as Identity
+    const instance = walletRuntime
+    if (!instance) return
+    const identity = instance.wallet.identity
     const arkServerUrl = aspInfo.url
     const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
     const delegatorUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as Network).url : undefined
-    await initSvcWorkerWallet({
+    await initRuntimeWallet({
       identity,
       arkServerUrl,
       esploraUrl,
       delegatorUrl,
+      settlementConfig: buildSettlementConfig(),
       skipMigration: true,
     })
   }
 
-  // Self-heal when the SW dies: re-run setup with the existing identity so
-  // SwapsProvider and other consumers re-bind via setSvcWallet, instead of
-  // reloading the page (which would discard FlowProvider state and UI context).
-  // Identity is passed in by the caller because the setInterval that triggers
-  // reinit captures this closure from the render before svcWallet state was
-  // populated.
-  const reinitSvcWallet = async (identity: Identity) => {
+  // Self-heal when the runtime wallet dies (PWA: service worker became
+  // unresponsive): re-run setup with the existing identity so SwapsProvider and
+  // other consumers re-bind via setWalletRuntime, instead of reloading the page
+  // (which would discard FlowProvider state and UI context).
+  const reinitWallet = async () => {
     if (reinitInProgress.current) return
     reinitInProgress.current = true
     try {
+      const instance = walletRuntime
+      if (!instance) return
+      const identity = instance.wallet.identity
       const arkServerUrl = aspInfo.url
       const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
       const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(aspInfo.network as Network).url : undefined
-      const initialized = await initSvcWorkerWallet({
+      const ok = await initRuntimeWallet({
         identity,
         arkServerUrl,
         esploraUrl,
         delegatorUrl,
+        settlementConfig: buildSettlementConfig(),
         skipMigration: true,
       })
-      if (!initialized) return
+      if (!ok) return
     } catch (err) {
-      consoleError(err, 'SW reinit failed; falling back to full reload')
+      consoleError(err, 'Wallet reinit failed; falling back to full reload')
       window.location.reload()
     } finally {
       reinitInProgress.current = false
@@ -707,18 +652,18 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   useEffect(() => {
-    reinitSvcWalletRef.current = reinitSvcWallet
+    reinitWalletRef.current = reinitWallet
   })
 
   const lockWallet = async () => {
     abortInitSession()
-    if (!svcWallet) throw new Error('Service worker not initialized')
-    if (statusPingInterval.current) clearInterval(statusPingInterval.current)
-    statusPingInterval.current = undefined
+    const instance = walletRuntime
+    if (!instance) throw new Error('Wallet not initialized')
     clearTimeout(reloadTimerRef.current)
     reloadTimerRef.current = undefined
-    removeServiceWorkerMessageHandler()
-    await svcWallet.clear()
+    await instance.clear()
+    setWalletRuntime(undefined)
+    setVtxoManager(undefined)
     setAuthState('locked')
     setInitialized(false)
     setDataReady(false)
@@ -727,23 +672,23 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const resetWallet = async () => {
     abortInitSession()
-    if (statusPingInterval.current) clearInterval(statusPingInterval.current)
-    statusPingInterval.current = undefined
     clearTimeout(reloadTimerRef.current)
     reloadTimerRef.current = undefined
-    removeServiceWorkerMessageHandler()
-    if (!svcWallet) throw new Error('Service worker not initialized')
+    const instance = walletRuntime
+    if (!instance) throw new Error('Wallet not initialized')
     await clearStorage()
-    await svcWallet.clear()
-    await svcWallet.walletRepository.clear()
-    await svcWallet.contractRepository.clear()
+    await instance.clear()
+    await instance.resetStorage()
+    setWalletRuntime(undefined)
+    setVtxoManager(undefined)
     setDataReady(false)
     hasLoadedOnce.current = false
   }
 
   const settlePreconfirmed = async () => {
-    if (!svcWallet || !vtxoManager) throw new Error('Service worker not initialized')
-    await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs)
+    const instance = walletRuntime
+    if (!instance || !vtxoManager) throw new Error('Wallet not initialized')
+    await settleVtxos(instance.wallet, vtxoManager, aspInfo.dust, wallet.thresholdMs)
     notifyTxSettled()
   }
 
@@ -756,14 +701,81 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const isLocked = async () => {
-    if (!svcWallet) return true
+    const instance = walletRuntime
+    if (!instance) return true
     try {
-      const { walletInitialized } = await svcWallet.getStatus()
+      const { walletInitialized } = await instance.getStatus()
       return !walletInitialized
     } catch {
       return true
     }
   }
+
+  // Runtime-neutral helpers. They throw if called before the wallet is ready;
+  // screens gate on `walletReady`/`dataReady` before invoking them.
+  const requireWallet = (): IWallet => {
+    if (!walletRuntime) return notReady()
+    return walletRuntime.wallet
+  }
+  const requireVtxoManager = (): IVtxoManager => {
+    if (!vtxoManager) return notReady()
+    return vtxoManager
+  }
+
+  const getReceivingAddresses = () => getReceivingAddressesFor(requireWallet())
+  const getAvailableBalance = async () => (await requireWallet().getBalance()).available
+  const sendOffchain = (amount: number, address: string) => sendOffChain(requireWallet(), amount, address)
+  const sendAssets = (address: string, assets: Asset[]) => sendAssetsFor(requireWallet(), address, assets)
+  const collaborativeExit = (amount: number, address: string) => collaborativeExitFor(requireWallet(), amount, address)
+  const collaborativeExitWithFees = (inputAmount: number, outputAmount: number, address: string) =>
+    collaborativeExitWithFeesFor(requireWallet(), inputAmount, outputAmount, address)
+  const redeemNotes = (notes: string[]) => redeemNotesFor(requireWallet(), notes)
+
+  const assetManager = useMemo<WalletAssetActions>(
+    () => ({
+      getAssetDetails: (assetId) => requireWallet().assetManager.getAssetDetails(assetId),
+      issue: (params) => requireWallet().assetManager.issue(params),
+      reissue: (params) => requireWallet().assetManager.reissue(params),
+      burn: (params) => requireWallet().assetManager.burn(params),
+      waitForAssetUpdate: async (options) => {
+        if (!walletRuntime) return notReady()
+        await runtime.walletEvents.waitForNextUpdate(walletRuntime, options)
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [walletRuntime],
+  )
+
+  const advanced = useMemo<WalletAdvancedActions>(
+    () => ({
+      getAllVtxos: (filter) => requireWallet().getVtxos(filter),
+      getBoardingUtxos: () => requireWallet().getBoardingUtxos(),
+      getVtxoManager: async () => requireVtxoManager(),
+      getContractManager: () => requireWallet().getContractManager(),
+      getDelegateManager: () => requireWallet().getDelegateManager(),
+      getInputsToSettle: () => getInputsToSettle(requireWallet(), requireVtxoManager(), wallet.thresholdMs),
+      settleInputs: async () => {
+        await settleVtxos(requireWallet(), requireVtxoManager(), aspInfo.dust, wallet.thresholdMs)
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [walletRuntime, vtxoManager, wallet.thresholdMs, aspInfo.dust],
+  )
+
+  const subscribeWalletEvents = (handler: (event: WalletRuntimeEvent) => void): Unsubscribe => {
+    if (!walletRuntime) return () => {}
+    return runtime.walletEvents.subscribe(walletRuntime, handler)
+  }
+
+  const bridge = useMemo<WalletBridgeActions>(
+    () => ({
+      getCompressedPublicKey: () => requireWallet().identity.compressedPublicKey(),
+      signTransaction: (tx) => requireWallet().identity.sign(tx),
+      signMessage: (messageHash, type) => requireWallet().identity.signMessage(messageHash, type),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [walletRuntime],
+  )
 
   return (
     <WalletContext.Provider
@@ -778,7 +790,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         updateWallet,
         wallet,
         walletLoaded,
-        svcWallet,
+        walletReady: !!walletRuntime,
         vtxoManager,
         lockWallet,
         restartWallet,
@@ -793,9 +805,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         dismissLoadError,
         reloadWallet,
         vtxos: vtxos ?? { spendable: [], spent: [] },
+        getReceivingAddresses,
+        getAvailableBalance,
+        sendOffchain,
+        sendAssets,
+        collaborativeExit,
+        collaborativeExitWithFees,
+        redeemNotes,
+        assetManager,
+        advanced,
+        bridge,
+        subscribeWalletEvents,
       }}
     >
-      {children}
+      <WalletRuntimeContext.Provider value={walletRuntime}>{children}</WalletRuntimeContext.Provider>
     </WalletContext.Provider>
   )
 }

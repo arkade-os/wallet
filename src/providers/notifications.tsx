@@ -1,8 +1,9 @@
 import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
 import { ConfigContext } from './config'
-import { sendNotification } from '../lib/notifications'
 import { prettyNumber } from '../lib/format'
 import { Relay } from 'nostr-tools'
+import { useRuntime } from '../runtime/RuntimeContext'
+import { consoleError } from '../lib/logs'
 
 interface NotificationsContextProps {
   notifyPaymentReceived: (s: number, assetLabel?: string) => void
@@ -19,6 +20,7 @@ export const NotificationsContext = createContext<NotificationsContextProps>({
 })
 
 export const NotificationsProvider = ({ children }: { children: ReactNode }) => {
+  const runtime = useRuntime()
   const { config } = useContext(ConfigContext)
   const relay = useRef<Relay>()
 
@@ -28,7 +30,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
 
   const sendSystemNotification = (title: string, body: string) => {
     if (!config.notifications) return
-    sendNotification(title, body)
+    runtime.notifications.send(title, body).catch((err) => consoleError(err, 'Failed to send notification'))
   }
 
   const notifyPaymentReceived = (sats: number, assetLabel?: string) => {

@@ -3,7 +3,6 @@ import {
   ArkNote,
   RestArkProvider,
   ExtendedCoin,
-  ServiceWorkerWallet,
   ExtendedVirtualCoin,
   FeeInfo,
   WalletBalance,
@@ -195,7 +194,7 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
   return txs
 }
 
-export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable: Vtxo[]; spent: Vtxo[] }> => {
+export const getVtxos = async (wallet: IWallet): Promise<{ spendable: Vtxo[]; spent: Vtxo[] }> => {
   const vtxos = await wallet.getVtxos()
   const spendable: Vtxo[] = []
   const spent: Vtxo[] = []
@@ -301,7 +300,7 @@ export const renewCoins = async (
   if (inputs.length > 0) await settleVtxos(wallet, vtxoManager, dustAmount, thresholdMs)
 }
 
-export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> => {
+export const delegateVtxos = async (wallet: IWallet): Promise<void> => {
   const cm = await wallet.getContractManager()
   const contractWithVtxos = await cm.getContractsWithVtxos({ type: 'delegate' })
   const dm = await wallet.getDelegatorManager()

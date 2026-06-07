@@ -13,7 +13,7 @@ import { canBrowserShareData, shareData } from '../../../lib/share'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
 import { LimitsContext } from '../../../providers/limits'
-import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { Asset } from '@arkade-os/sdk'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { SwapsContext } from '../../../providers/swaps'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
@@ -22,7 +22,6 @@ import { enableChainSwapsReceive, lnurlServerUrl } from '../../../lib/constants'
 import { unitsToCents } from '../../../lib/assets'
 import WarningBox from '../../../components/Warning'
 import ErrorMessage from '../../../components/Error'
-import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
 import InputAmount from '../../../components/InputAmount'
 import Keyboard from '../../../components/Keyboard'
@@ -51,7 +50,7 @@ export default function ReceiveQRCode() {
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { arkadeSwaps, swapsInitError, connected, createBtcToArkSwap, createReverseSwap } = useContext(SwapsContext)
-  const { assetMetadataCache, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, walletReady, getReceivingAddresses, subscribeWalletEvents } = useContext(WalletContext)
   const { minSwapAllowed, validBtcToArk, validLnSwap, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
 
   const { toast } = useToast()
@@ -91,12 +90,12 @@ export default function ReceiveQRCode() {
 
   // Fetch addresses on mount
   useEffect(() => {
-    if (!svcWallet) return
+    if (!walletReady) return
     if (boardingAddr && offchainAddr) {
       setAddressesLoaded(true)
       return
     }
-    getReceivingAddresses(svcWallet)
+    getReceivingAddresses()
       .then(({ offchainAddr, boardingAddr }) => {
         if (!offchainAddr) throw 'Unable to get offchain address'
         if (!boardingAddr) throw 'Unable to get boarding address'
@@ -109,7 +108,8 @@ export default function ReceiveQRCode() {
         setRecvInfo({ ...recvInfo, addressError: error })
         setAddressesLoaded(true)
       })
-  }, [svcWallet])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletReady])
 
   const lnurlSession = useContext(LnurlContext)
   const isAmountlessLnurl = !satoshis && !isAssetReceive && !!lnurlServerUrl && lnurlSession.active
@@ -159,7 +159,7 @@ export default function ReceiveQRCode() {
   // Create swaps when amount is set, then show QR code once ready
   useEffect(() => {
     if (isAssetReceive) return setShowQrCode(true)
-    if (!satoshis || !svcWallet) return
+    if (!satoshis || !walletReady) return
     if (!addressesLoaded) return
     if (received) return
 
@@ -214,7 +214,8 @@ export default function ReceiveQRCode() {
       }
       setShowQrCode(true)
     })
-  }, [satoshis, svcWallet, arkadeSwaps, swapsInitError, addressesLoaded])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [satoshis, walletReady, arkadeSwaps, swapsInitError, addressesLoaded])
 
   // Build BIP21 URI
   useEffect(() => {
@@ -242,23 +243,24 @@ export default function ReceiveQRCode() {
     showQrCode,
   ])
 
-  // Payment listener
+  // Payment listener — routed through the runtime wallet-event adapter so native
+  // (no service-worker messages) maps the same updates via its own adapter.
   useEffect(() => {
-    if (!svcWallet) return
+    if (!walletReady) return
 
-    const listenForPayments = (event: MessageEvent) => {
+    const unsubscribe = subscribeWalletEvents((event) => {
       let sats = 0
       let receivedAssets: Asset[] = []
 
-      if (event.data && event.data.type === 'VTXO_UPDATE') {
-        const newVtxos = event.data.payload?.newVtxos
+      if (event.type === 'vtxo-update') {
+        const newVtxos = event.newVtxos
         if (Array.isArray(newVtxos)) {
-          sats = (newVtxos as ExtendedVirtualCoin[]).reduce((acc, v) => acc + v.value, 0)
-          for (const v of newVtxos as ExtendedVirtualCoin[]) {
+          sats = newVtxos.reduce((acc, v) => acc + v.value, 0)
+          for (const v of newVtxos) {
             receivedAssets.push(...(v.assets ?? []))
           }
         } else {
-          consoleError('VTXO_UPDATE message has unexpected payload shape:', event.data.payload)
+          consoleError('vtxo-update event has unexpected payload shape:', newVtxos)
         }
       }
 
@@ -272,12 +274,12 @@ export default function ReceiveQRCode() {
         return acc
       }, [] as Asset[])
 
-      if (event.data && event.data.type === 'UTXO_UPDATE') {
-        const coins = event.data.payload?.coins
+      if (event.type === 'utxo-update') {
+        const coins = event.coins
         if (Array.isArray(coins)) {
-          sats = (coins as Coin[]).reduce((acc, v) => acc + v.value, 0)
+          sats = coins.reduce((acc, v) => acc + v.value, 0)
         } else {
-          consoleError('UTXO_UPDATE message has unexpected payload shape:', event.data.payload)
+          consoleError('utxo-update event has unexpected payload shape:', coins)
         }
       }
 
@@ -286,11 +288,10 @@ export default function ReceiveQRCode() {
         if (!isAssetReceive) notifyPaymentReceived(sats)
         navigate(Pages.ReceiveSuccess)
       }
-    }
-
-    navigator.serviceWorker.addEventListener('message', listenForPayments)
-    return () => navigator.serviceWorker.removeEventListener('message', listenForPayments)
-  }, [svcWallet])
+    })
+    return unsubscribe
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletReady])
 
   // Handlers
   const handleShare = () => {

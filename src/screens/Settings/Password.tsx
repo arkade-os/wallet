@@ -45,7 +45,7 @@ export default function Password() {
     const finalPassword = nextPassword === '' ? defaultPassword : nextPassword
     try {
       setSaving(true)
-      if (hasMnemonic()) {
+      if (await hasMnemonic()) {
         const mnemonic = await getMnemonic(oldPassword)
         await setMnemonic(mnemonic, finalPassword)
       } else {

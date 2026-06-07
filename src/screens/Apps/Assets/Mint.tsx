@@ -34,7 +34,8 @@ export default function AppAssetMint() {
   const { navigate } = useContext(NavigationContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
-  const { svcWallet, assetBalances, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
+  const { walletReady, assetManager, assetBalances, assetMetadataCache, setCacheEntry, iconApprovalManager } =
+    useContext(WalletContext)
 
   const [amountTextValue, setAmountTextValue] = useState('')
   const [amount, setAmount] = useState(BigInt(0))
@@ -57,13 +58,13 @@ export default function AppAssetMint() {
 
   useEffect(() => {
     const load = async () => {
-      if (!svcWallet) return
+      if (!walletReady) return
       const options: KnownAssetOption[] = []
       for (const ab of assetBalances) {
         let meta = assetMetadataCache.get(ab.assetId) as AssetDetails | undefined
         if (!meta) {
           try {
-            const fetched = await svcWallet.assetManager.getAssetDetails(ab.assetId)
+            const fetched = await assetManager.getAssetDetails(ab.assetId)
             if (fetched) meta = setCacheEntry(ab.assetId, fetched)
           } catch {
             // skip assets we can't fetch metadata for
@@ -79,7 +80,8 @@ export default function AppAssetMint() {
       setKnownAssets(options)
     }
     load()
-  }, [svcWallet, assetBalances, assetMetadataCache])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletReady, assetBalances, assetMetadataCache])
 
   useEffect(() => {
     if (decimals === undefined) return
@@ -88,7 +90,7 @@ export default function AppAssetMint() {
   }, [amountTextValue, decimals])
 
   const handleMint = async () => {
-    if (!svcWallet) return
+    if (!walletReady) return
 
     if (!amount || amount <= 0) {
       return setError('Amount must be a positive number')
@@ -119,7 +121,7 @@ export default function AppAssetMint() {
         if (ticker) ctrlMeta.ticker = `ctrl-${ticker}`
         const ctrlRawAmount = BigInt(ctrlAmount)
 
-        const ctrlResult = await svcWallet.assetManager.issue({
+        const ctrlResult = await assetManager.issue({
           amount: ctrlRawAmount,
           metadata: ctrlMeta,
         })
@@ -131,19 +133,17 @@ export default function AppAssetMint() {
           supply: ctrlRawAmount,
           metadata: ctrlMeta,
         })
-        await new Promise<boolean>((resolve) => {
-          const listenNewVtxos = (event: MessageEvent) => {
-            if (event.data && event.data.type === 'VTXO_UPDATE') resolve(true)
-          }
-          navigator.serviceWorker.addEventListener('message', listenNewVtxos)
-        })
+        // Wait for the control asset's VTXO to land before issuing the asset it
+        // controls. Routed through the runtime wallet-event adapter so native
+        // (no service-worker messages) gets an equivalent wait.
+        await assetManager.waitForAssetUpdate().catch(() => {})
       }
 
       setMintingText('Minting asset...')
       const params: IssuanceParams = { amount: supply, metadata }
       if (resolvedControlAssetId) params.controlAssetId = resolvedControlAssetId
 
-      const result = await svcWallet.assetManager.issue(params)
+      const result = await assetManager.issue(params)
       const newAssetId = result.assetId
       iconApprovalManager.approve(newAssetId)
 

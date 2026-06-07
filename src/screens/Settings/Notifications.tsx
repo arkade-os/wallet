@@ -1,21 +1,23 @@
 import { useContext } from 'react'
 import { ConfigContext } from '../../providers/config'
 import Padded from '../../components/Padded'
-import { notificationApiSupport, requestPermission, sendTestNotification } from '../../lib/notifications'
 import Header from './Header'
 import Content from '../../components/Content'
 import Toggle from '../../components/Toggle'
+import { useRuntime } from '../../runtime/RuntimeContext'
 
 export default function Notifications() {
   const { backupConfig, config, updateConfig } = useContext(ConfigContext)
+  const runtime = useRuntime()
+  const notificationsSupported = runtime.capabilities.notificationsSupported
 
   const handleChange = async () => {
-    if (!notificationApiSupport) return
+    if (!notificationsSupported) return
     if (!config.notifications) {
-      requestPermission().then(async (notifications) => {
+      runtime.notifications.requestPermission().then(async (notifications) => {
         const newConfig = { ...config, notifications }
         if (config.nostrBackup) await backupConfig(newConfig)
-        if (notifications) sendTestNotification()
+        if (notifications) await runtime.notifications.send('Test notification', 'If you read this, everything is ok')
         updateConfig(newConfig)
       })
     } else {
@@ -25,9 +27,11 @@ export default function Notifications() {
     }
   }
 
-  const subText = notificationApiSupport
+  const subText = notificationsSupported
     ? "Get notified when an update is available or a payment is received. You'll need to grant permission if asked."
-    : "Your browser does not support the Notifications API. If on iOS you'll need to 'Add to homescreen' and be running iOS 16.4 or higher."
+    : runtime.kind === 'native-capacitor'
+      ? 'Notifications are not available on this device.'
+      : "Your browser does not support the Notifications API. If on iOS you'll need to 'Add to homescreen' and be running iOS 16.4 or higher."
 
   return (
     <>

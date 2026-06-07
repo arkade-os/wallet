@@ -1,3 +1,20 @@
+import {
+  AssetDetails,
+  BurnParams,
+  ExtendedCoin,
+  ExtendedVirtualCoin,
+  GetVtxosFilter,
+  IContractManager,
+  IDelegateManager,
+  IVtxoManager,
+  IWallet,
+  Identity,
+  IssuanceParams,
+  IssuanceResult,
+  ReissuanceParams,
+  Transaction,
+} from '@arkade-os/sdk'
+import { ArkadeSwaps, Network } from '@arkade-os/boltz-swap'
 import { RuntimeKind } from './runtime'
 
 /**
@@ -8,10 +25,10 @@ import { RuntimeKind } from './runtime'
  * through {@link RuntimeContextValue}; screens and providers consume the
  * interfaces rather than concrete Capacitor or browser APIs.
  *
- * Phase 1 scope: capability flags plus the device/lifecycle/link/notification/
- * security adapters. The wallet runtime boundary (`walletFactory`,
- * `walletEvents`) is introduced in Phase 2 alongside the wallet provider
- * changes, and will be added to {@link RuntimeContextValue} then.
+ * Phase 2 added the wallet runtime boundary (`walletFactory`, `walletEvents`),
+ * the swap factory (`swaps`), and the encrypted-secret storage adapter
+ * (`secretStorage`) alongside the device/lifecycle/link/notification/security
+ * adapters introduced in Phase 1.
  */
 
 export type Unsubscribe = () => void
@@ -22,6 +39,8 @@ export interface RuntimeCapabilities {
   webAuthn: boolean
   localNotifications: boolean
   pushNotifications: boolean
+  /** Whether system notifications can be shown at all on this runtime. */
+  notificationsSupported: boolean
   nativeScanner: boolean
   browserScanner: boolean
   nativeShare: boolean
@@ -73,12 +92,157 @@ export interface NotificationRuntimeAdapter {
 }
 
 /**
+ * Persists the encrypted (AES-GCM-256 + PBKDF2) mnemonic / private-key blob.
+ *
+ * The encryption scheme is unchanged across runtimes — only the persistence
+ * substrate differs (see CAPACITOR.plan.md § Storage and Secrets): the PWA
+ * keeps `localStorage`; native will use iOS Keychain / Android Keystore via a
+ * secure-storage plugin (deferred — see `src/runtime/secretStorage.ts`).
+ */
+export interface SecretStorageAdapter {
+  getItem(key: string): Promise<string | null>
+  setItem(key: string, value: string): Promise<void>
+  removeItem(key: string): Promise<void>
+}
+
+/**
+ * Parameters required to create the runtime wallet, known only after identity,
+ * config, and unlock state are resolved inside `WalletProvider`.
+ */
+export interface WalletRuntimeCreateParams {
+  identity: Identity
+  arkServerUrl: string
+  esploraUrl?: string
+  delegatorUrl?: string
+  /** vtxoThreshold in seconds, mirroring the SDK SettlementConfig. */
+  settlementConfig: { vtxoThreshold: number }
+  skipMigration?: boolean
+}
+
+/**
+ * Runtime-neutral wallet handle. Wraps the SW wallet on PWA and the in-process
+ * SDK wallet on native. `wallet` (raw `IWallet`) stays internal to
+ * `WalletProvider` and provider-level adapters (swaps); screens never receive it.
+ */
+export interface WalletRuntimeInstance {
+  wallet: IWallet
+  vtxoManager: IVtxoManager
+  /** PWA-only: the controlling service worker, used by the PWA swap factory. */
+  serviceWorker?: ServiceWorker
+  getStatus(): Promise<{ walletInitialized: boolean }>
+  reload(): Promise<void>
+  clear(): Promise<void>
+  resetStorage(): Promise<void>
+  dispose(): Promise<void>
+}
+
+export interface WalletRuntimeFactory {
+  create(params: WalletRuntimeCreateParams): Promise<WalletRuntimeInstance>
+}
+
+export type WalletRuntimeEvent =
+  | { type: 'vtxo-update'; newVtxos?: ExtendedVirtualCoin[] }
+  | { type: 'utxo-update'; coins?: ExtendedCoin[] }
+  | { type: 'status'; walletInitialized: boolean }
+  | { type: 'reload-needed'; reason: 'resume' | 'manual' | 'transaction' | 'subscription' }
+  /** PWA-only: the service-worker wallet became unresponsive; provider re-inits. */
+  | { type: 'runtime-dead' }
+
+export interface WalletEventAdapter {
+  subscribe(instance: WalletRuntimeInstance, handler: (event: WalletRuntimeEvent) => void): Unsubscribe
+  waitForNextUpdate(instance: WalletRuntimeInstance, options?: { timeoutMs?: number }): Promise<WalletRuntimeEvent>
+}
+
+/**
+ * Swap client surface shared by the service-worker swap client
+ * (`ServiceWorkerArkadeSwaps`, PWA) and the in-process client (`ArkadeSwaps`,
+ * native). Both classes `implements IArkadeSwaps`, but that interface is not
+ * exported from the package root, so the surface is derived structurally from
+ * `ArkadeSwaps` via `Pick` (which also preserves the overloaded `getFees`
+ * signatures). `ServiceWorkerArkadeSwaps` is structurally assignable to it.
+ * Covers every method consumed across providers and screens (swaps provider,
+ * receive QR, Boltz settings, reset).
+ */
+export type SwapRuntimeClient = Pick<
+  ArkadeSwaps,
+  | 'arkToBtc'
+  | 'btcToArk'
+  | 'claimArk'
+  | 'claimBtc'
+  | 'refundArk'
+  | 'waitAndClaim'
+  | 'waitAndClaimArk'
+  | 'waitAndClaimBtc'
+  | 'createSubmarineSwap'
+  | 'createReverseSwap'
+  | 'claimVHTLC'
+  | 'refundVHTLC'
+  | 'waitForSwapSettlement'
+  | 'getFees'
+  | 'getLimits'
+  | 'getSwapHistory'
+  | 'restoreSwaps'
+  | 'scanRecoverableSubmarineSwaps'
+  | 'recoverSubmarineFunds'
+  | 'reset'
+  | 'getSwapManager'
+  | 'swapRepository'
+  | 'dispose'
+>
+
+export interface SwapRuntimeCreateParams {
+  wallet: IWallet
+  /** PWA-only: the controlling service worker (from the wallet runtime instance). */
+  serviceWorker?: ServiceWorker
+  network: Network
+  arkServerUrl: string
+  apiUrl: string
+  swapManager: boolean
+}
+
+export interface SwapRuntimeFactory {
+  create(params: SwapRuntimeCreateParams): Promise<SwapRuntimeClient>
+}
+
+/** Asset operations, routed through `WalletContext.assetManager`. */
+export interface WalletAssetActions {
+  getAssetDetails(assetId: string): Promise<AssetDetails | undefined>
+  issue(params: IssuanceParams): Promise<IssuanceResult>
+  reissue(params: ReissuanceParams): Promise<string>
+  burn(params: BurnParams): Promise<string>
+  /** Resolve once a wallet update lands (replaces the SW `VTXO_UPDATE` wait in minting). */
+  waitForAssetUpdate(options?: { timeoutMs?: number }): Promise<void>
+}
+
+/** Advanced VTXO / contract / settlement operations, routed through `WalletContext.advanced`. */
+export interface WalletAdvancedActions {
+  getAllVtxos(filter?: GetVtxosFilter): Promise<ExtendedVirtualCoin[]>
+  getBoardingUtxos(): Promise<ExtendedCoin[]>
+  getVtxoManager(): Promise<IVtxoManager>
+  getContractManager(): Promise<IContractManager>
+  getDelegateManager(): Promise<IDelegateManager | undefined>
+  getInputsToSettle(): Promise<{ inputs: ExtendedCoin[]; vtxos: ExtendedVirtualCoin[]; boardingUtxos: ExtendedCoin[] }>
+  settleInputs(): Promise<void>
+}
+
+/** Minimal signing/address surface for embedded app bridges (`WalletContext.bridge`). */
+export interface WalletBridgeActions {
+  getCompressedPublicKey(): Promise<Uint8Array>
+  signTransaction(tx: Transaction): Promise<Transaction>
+  signMessage(messageHash: Uint8Array, type: 'ecdsa' | 'schnorr'): Promise<Uint8Array>
+}
+
+/**
  * Runtime services provided by the active app shell. Consumed via
  * `useRuntime()` from `src/runtime/RuntimeContext`.
  */
 export interface RuntimeContextValue {
   kind: RuntimeKind
   capabilities: RuntimeCapabilities
+  walletFactory: WalletRuntimeFactory
+  walletEvents: WalletEventAdapter
+  swaps: SwapRuntimeFactory
+  secretStorage: SecretStorageAdapter
   links: LinkRuntimeAdapter
   lifecycle: LifecycleRuntimeAdapter
   device: DeviceRuntimeAdapter

@@ -30,7 +30,6 @@ import Scanner from '../../../components/Scanner'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
 import { Addresses, AssetOption, SettingsOptions } from '../../../lib/types'
-import { getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
@@ -81,7 +80,16 @@ export default function SendForm() {
   } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
-  const { assetBalances, assetMetadataCache, balance, setCacheEntry, svcWallet } = useContext(WalletContext)
+  const {
+    assetBalances,
+    assetMetadataCache,
+    balance,
+    setCacheEntry,
+    walletReady,
+    assetManager,
+    getReceivingAddresses,
+    getAvailableBalance,
+  } = useContext(WalletContext)
 
   const [amount, setAmount] = useState<number>()
   const [amountTextValue, setAmountTextValue] = useState('')
@@ -137,8 +145,8 @@ export default function SendForm() {
 
   // get receiving addresses
   useEffect(() => {
-    if (!svcWallet) return
-    getReceivingAddresses(svcWallet)
+    if (!walletReady) return
+    getReceivingAddresses()
       .then(({ boardingAddr, offchainAddr }) => {
         if (!boardingAddr || !offchainAddr) {
           throw new Error('unable to get receiving addresses')
@@ -146,19 +154,20 @@ export default function SendForm() {
         setReceivingAddresses({ boardingAddr, offchainAddr })
       })
       .catch(smartSetError)
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletReady])
 
   // build asset options from balances + metadata
   useEffect(() => {
     if (!config.apps.assets.enabled) return
     const loadOptions = async () => {
-      if (!svcWallet) return
+      if (!walletReady) return
       const options: AssetOption[] = []
       for (const ab of assetBalances) {
         let meta: AssetDetails | undefined = assetMetadataCache.get(ab.assetId)
         if (!meta) {
           try {
-            const fetched = await svcWallet.assetManager.getAssetDetails(ab.assetId)
+            const fetched = await assetManager.getAssetDetails(ab.assetId)
             if (fetched) meta = setCacheEntry(ab.assetId, fetched)
           } catch (err) {
             consoleError(err, `error fetching metadata for ${ab.assetId}`)
@@ -176,7 +185,8 @@ export default function SendForm() {
       setAssetOptions(options)
     }
     loadOptions()
-  }, [svcWallet, assetBalances, config.apps.assets.enabled])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletReady, assetBalances, config.apps.assets.enabled])
 
   // initialize selected asset from pre-set sendInfo.assets (e.g. from Asset Detail page)
   useEffect(() => {
@@ -188,12 +198,10 @@ export default function SendForm() {
 
   // update available balance
   useEffect(() => {
-    if (!svcWallet) return
-    svcWallet
-      .getBalance()
-      .then((bal) => setAvailableBalance(bal.available))
-      .catch(smartSetError)
-  }, [balance])
+    if (!walletReady) return
+    getAvailableBalance().then(setAvailableBalance).catch(smartSetError)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [balance, walletReady])
 
   // parse recipient data
   // repeat when asset changes to re-validate addresses (e.g. if user
@@ -218,9 +226,9 @@ export default function SendForm() {
           let found = assetOptions.find((a) => a.assetId === assetId)
           if (!found) {
             let meta: AssetDetails | undefined = assetMetadataCache.get(assetId)
-            if (!meta && svcWallet) {
+            if (!meta && walletReady) {
               try {
-                const fetched = await svcWallet.assetManager.getAssetDetails(assetId)
+                const fetched = await assetManager.getAssetDetails(assetId)
                 if (fetched) meta = setCacheEntry(assetId, fetched)
               } catch (err) {
                 consoleError(err, `error fetching metadata for ${assetId}`)
@@ -504,7 +512,7 @@ export default function SendForm() {
     }
   }, [liquidBalance, sendInfo.satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl])
 
-  if (!svcWallet) return <LoadingLogo text='Loading...' />
+  if (!walletReady) return <LoadingLogo text='Loading...' />
 
   const gotoBoltzApp = () => {
     navigate(Pages.AppBoltzSettings)

@@ -22,7 +22,7 @@ import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/asse
 export default function AppAssetBurn() {
   const { navigate } = useContext(NavigationContext)
   const { assetInfo } = useContext(FlowContext)
-  const { assetBalances, svcWallet, reloadWallet } = useContext(WalletContext)
+  const { assetBalances, walletReady, assetManager, reloadWallet } = useContext(WalletContext)
 
   const [amount, setAmount] = useState(BigInt(0))
   const [error, setError] = useState('')
@@ -57,13 +57,13 @@ export default function AppAssetBurn() {
   }
 
   const processBurn = async () => {
-    if (!svcWallet) return
+    if (!walletReady) return
 
     setProcessing(true)
     setError('')
 
     try {
-      await svcWallet.assetManager.burn({ assetId: assetInfo.assetId, amount })
+      await assetManager.burn({ assetId: assetInfo.assetId, amount })
       await reloadWallet()
       pendingNav.current = () => navigate(Pages.AppAssetDetail)
       setOpDone(true)

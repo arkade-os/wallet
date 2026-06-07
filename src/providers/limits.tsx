@@ -55,7 +55,7 @@ export const LimitsContext = createContext<LimitsContextProps>({
 
 export const LimitsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { svcWallet } = useContext(WalletContext)
+  const { walletReady } = useContext(WalletContext)
   const { arkadeSwaps, connected } = useContext(SwapsContext)
 
   const limits = useRef<LimitTxTypes>({
@@ -66,9 +66,9 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
     vtxo: { min: 0, max: -1 },
   })
 
-  // update limits when aspInfo or svcWallet changes
+  // update limits when aspInfo or wallet readiness changes
   useEffect(() => {
-    if (!aspInfo.network || !svcWallet || !connected) return
+    if (!aspInfo.network || !walletReady || !connected) return
 
     limits.current.utxo = {
       min: Number(import.meta.env.VITE_UTXO_MIN_AMOUNT || aspInfo.utxoMinAmount || aspInfo.dust || -1),
@@ -79,7 +79,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
       min: Number(import.meta.env.VITE_VTXO_MIN_AMOUNT || aspInfo.vtxoMinAmount || aspInfo.dust || -1),
       max: Number(import.meta.env.VITE_VTXO_MAX_AMOUNT || aspInfo.vtxoMaxAmount || -1),
     }
-  }, [aspInfo.network, svcWallet, connected])
+  }, [aspInfo.network, walletReady, connected])
 
   // update limits when arkadeSwaps or connected changes
   useEffect(() => {

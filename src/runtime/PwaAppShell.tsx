@@ -9,6 +9,10 @@ import {
   RuntimeContextValue,
   SecurityRuntimeAdapter,
 } from './types'
+import { serviceWorkerWalletEvents, serviceWorkerWalletFactory } from './wallet/serviceWorkerWallet'
+import { serviceWorkerSwapFactory } from './swaps/serviceWorkerSwaps'
+import { localStorageSecretStorage } from './secretStorage'
+import { setSecretStore } from '../lib/secretStore'
 
 /**
  * Registers the wallet service worker and reloads on controller change.
@@ -42,6 +46,7 @@ const pwaCapabilities: RuntimeCapabilities = {
   webAuthn: typeof window.PublicKeyCredential !== 'undefined',
   localNotifications: false,
   pushNotifications: 'PushManager' in window,
+  notificationsSupported: 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window,
   nativeScanner: false,
   browserScanner: true,
   nativeShare: typeof navigator.share === 'function',
@@ -106,7 +111,16 @@ const pwaNotifications: NotificationRuntimeAdapter = {
   },
   send: async (title, body, options) => {
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
-    new Notification(title, { body, icon: options?.icon })
+    const notificationOptions = { body, icon: options?.icon ?? '/arkade-icon.svg' }
+    try {
+      new Notification(title, notificationOptions)
+    } catch {
+      // Some browsers (notably installed PWAs) only allow notifications via the
+      // service worker registration. Fall back to that — PWA-only code path.
+      navigator.serviceWorker.ready
+        .then((registration) => registration.showNotification(title, notificationOptions))
+        .catch(() => {})
+    }
   },
   notifyPaymentReceived: async (sats) => {
     await pwaNotifications.send('Payment received', `You received ${sats} sats`)
@@ -133,6 +147,11 @@ const pwaSecurity: SecurityRuntimeAdapter = {
  * registration + controller-change reload) and exposes browser-backed runtime
  * services. Renders the shared app tree passed as `children`.
  */
+// Route encrypted-secret persistence through localStorage on the PWA (the
+// original substrate). Set eagerly at module load so any secret access during
+// bootstrap, before the shell effect runs, uses the right store.
+setSecretStore(localStorageSecretStorage)
+
 export function PwaAppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     registerServiceWorker()
@@ -142,6 +161,10 @@ export function PwaAppShell({ children }: { children: ReactNode }) {
     () => ({
       kind: 'web-pwa',
       capabilities: pwaCapabilities,
+      walletFactory: serviceWorkerWalletFactory,
+      walletEvents: serviceWorkerWalletEvents,
+      swaps: serviceWorkerSwapFactory,
+      secretStorage: localStorageSecretStorage,
       links: pwaLinks,
       lifecycle: pwaLifecycle,
       device: pwaDevice,

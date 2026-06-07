@@ -9,6 +9,10 @@ import {
   RuntimeContextValue,
   SecurityRuntimeAdapter,
 } from './types'
+import { nativeWalletEvents, nativeWalletFactory } from './wallet/nativeWallet'
+import { nativeSwapFactory } from './swaps/nativeSwaps'
+import { nativeSecretStorage } from './secretStorage'
+import { setSecretStore } from '../lib/secretStore'
 
 /**
  * Phase 1 native shell.
@@ -30,6 +34,7 @@ const nativeCapabilities: RuntimeCapabilities = {
   webAuthn: false,
   localNotifications: true,
   pushNotifications: false,
+  notificationsSupported: true,
   nativeScanner: true,
   browserScanner: false,
   nativeShare: true,
@@ -77,11 +82,20 @@ const nativeSecurity: SecurityRuntimeAdapter = {
  * service-worker dependency and exposes (currently placeholder) native runtime
  * services.
  */
+// Route encrypted-secret persistence through the native adapter (see
+// CAPACITOR.plan.md § Storage and Secrets). Set eagerly at module load so any
+// secret access during bootstrap uses the right store.
+setSecretStore(nativeSecretStorage)
+
 export function CapacitorAppShell({ children }: { children: ReactNode }) {
   const value = useMemo<RuntimeContextValue>(
     () => ({
       kind: 'native-capacitor',
       capabilities: nativeCapabilities,
+      walletFactory: nativeWalletFactory,
+      walletEvents: nativeWalletEvents,
+      swaps: nativeSwapFactory,
+      secretStorage: nativeSecretStorage,
       links: nativeLinks,
       lifecycle: nativeLifecycle,
       device: nativeDevice,

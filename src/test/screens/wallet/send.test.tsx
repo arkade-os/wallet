@@ -11,7 +11,6 @@ import {
   mockLimitsContextValue,
   mockNavigationContextValue,
   mockOptionsContextValue,
-  mockSvcWallet,
   mockWalletContextValue,
 } from '../mocks'
 import { AspContext } from '../../../providers/asp'
@@ -46,7 +45,7 @@ describe('Send screen', () => {
         </AspContext.Provider>
       </NavigationContext.Provider>,
     )
-    // should be loading because svcWallet is undefined
+    // should be loading because the wallet is not ready (walletReady=false)
     expect(screen.getByTestId('loading-logo')).toBeInTheDocument()
   })
   it('renders the send screen correctly', async () => {
@@ -58,7 +57,7 @@ describe('Send screen', () => {
               <SwapsContext.Provider value={mockSwapsContextValue as any}>
                 <OptionsContext.Provider value={mockOptionsContextValue as any}>
                   <FlowContext.Provider value={mockFlowContextValue as any}>
-                    <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: mockSvcWallet as any }}>
+                    <WalletContext.Provider value={{ ...mockWalletContextValue, walletReady: true }}>
                       <LimitsContext.Provider value={mockLimitsContextValue}>
                         <SendForm />
                       </LimitsContext.Provider>

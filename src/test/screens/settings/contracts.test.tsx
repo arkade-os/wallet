@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import Contracts from '../../../screens/Settings/Contracts'
 import { WalletContext } from '../../../providers/wallet'
-import { mockWalletContextValue, mockSvcWallet } from '../mocks'
+import { mockWalletContextValue } from '../mocks'
 import type { Contract } from '@arkade-os/sdk'
 
 const mockContracts: Contract[] = [
@@ -24,44 +24,37 @@ const mockContracts: Contract[] = [
   },
 ]
 
-function renderContracts(svcWallet: typeof mockSvcWallet | undefined) {
+// Builds an `advanced` capability group whose getContractManager returns the
+// given contracts, mirroring how the wallet provider exposes them.
+const advancedWithContracts = (contracts: Contract[]) => ({
+  ...mockWalletContextValue.advanced,
+  getContractManager: async () => ({ getContracts: async () => contracts }) as any,
+})
+
+function renderContracts(value: Partial<typeof mockWalletContextValue>) {
   return render(
-    <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as any}>
+    <WalletContext.Provider value={{ ...mockWalletContextValue, ...value } as any}>
       <Contracts />
     </WalletContext.Provider>,
   )
 }
 
 describe('Contracts screen', () => {
-  it('renders a loading state when svcWallet is undefined', () => {
-    renderContracts(undefined)
+  it('renders a loading state when the wallet is not ready', () => {
+    renderContracts({ walletReady: false })
     // Loading logo renders — no crash, no contract content
     expect(screen.queryByText('Contracts')).not.toBeInTheDocument()
   })
 
   it('renders empty state when there are no contracts', async () => {
-    const svcWalletWithContracts = {
-      ...mockSvcWallet,
-      getContractManager: () =>
-        Promise.resolve({
-          getContracts: () => Promise.resolve([]),
-        }),
-    }
-    renderContracts(svcWalletWithContracts as any)
+    renderContracts({ walletReady: true, advanced: advancedWithContracts([]) })
 
     await screen.findByText('Contracts')
     expect(screen.getByText('No contracts found.')).toBeInTheDocument()
   })
 
   it('renders contract cards with type and state', async () => {
-    const svcWalletWithContracts = {
-      ...mockSvcWallet,
-      getContractManager: () =>
-        Promise.resolve({
-          getContracts: () => Promise.resolve(mockContracts),
-        }),
-    }
-    renderContracts(svcWalletWithContracts as any)
+    renderContracts({ walletReady: true, advanced: advancedWithContracts(mockContracts) })
 
     await screen.findByText('Contracts')
     expect(screen.getByText('default')).toBeInTheDocument()
@@ -71,14 +64,7 @@ describe('Contracts screen', () => {
   })
 
   it('sorts active contracts before inactive ones', async () => {
-    const svcWalletWithContracts = {
-      ...mockSvcWallet,
-      getContractManager: () =>
-        Promise.resolve({
-          getContracts: () => Promise.resolve(mockContracts),
-        }),
-    }
-    renderContracts(svcWalletWithContracts as any)
+    renderContracts({ walletReady: true, advanced: advancedWithContracts(mockContracts) })
 
     await screen.findByText('Contracts')
     const cards = screen.getAllByText(/^(active|inactive)$/)
