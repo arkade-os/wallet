@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@aparajita/capacitor-secure-storage':
+        specifier: ^8.0.0
+        version: 8.0.0
       '@arkade-os/boltz-swap':
         specifier: 0.3.37
         version: 0.3.37
@@ -248,6 +251,10 @@ packages:
 
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
+
+  '@aparajita/capacitor-secure-storage@8.0.0':
+    resolution: {integrity: sha512-oYnwSjdIh23aRNgz8982+TmFvQH/2yZkEdw1iIg+H2ziFJoOVELPTc7u6Ez2HwOuDIW5AGqBX75GvrzQ+D70Qg==}
+    engines: {node: '>=20.0.0'}
 
   '@arkade-os/boltz-swap@0.3.37':
     resolution: {integrity: sha512-wP4daP/sDpUahmivaIZC8Lfvqz4lhQMWM1R8/Ib5x7NMS6k++FSs4KKQ6wjPKpweF8ULilsJdorhmLpNlEba6A==}
@@ -552,6 +559,11 @@ packages:
     peerDependencies:
       '@capacitor/core': ^8.4.0
 
+  '@capacitor/app@8.1.0':
+    resolution: {integrity: sha512-MlmttTOWHDedr/G4SrhNRxsXMqY+R75S4MM4eIgzsgCzOYhb/MpCkA5Q3nuOCfL1oHm26xjUzqZ5aupbOwdfYg==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
+
   '@capacitor/cli@8.4.0':
     resolution: {integrity: sha512-5Z9RKHxiqJYRTLrfMeZmzR4qrlg5B85MxsWZ5goyXsLkO3bgpW9a1qV/6fR1SX9s5gwLza5y7PZVwITl/hDJ7g==}
     engines: {node: '>=22.0.0'}
@@ -564,6 +576,11 @@ packages:
     resolution: {integrity: sha512-tnwstEdbTJ2nHAfoAwnurXgYRscWeLY+IIGdz69o24gN2Crfj9Xc0TWo8L5uFLF1LmpbUywH1IT0U1oHV8c+CA==}
     peerDependencies:
       '@capacitor/core': ^8.4.0
+
+  '@capacitor/keyboard@8.0.3':
+    resolution: {integrity: sha512-27Bv5/2w1Ss2njguBgTS98O0Bb8DRJhAARyzXYib0JlT/n6BrJw/EZ0CokM4C8GFUjFDjJnEKF1Ie01buTMEXQ==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
 
   '@csstools/color-helpers@5.1.0':
     resolution: {integrity: sha512-S11EXWJyy0Mz5SYvRmY8nJYTFFd1LCNV+7cXyAgQtOOuzb4EsgfqDufL+9esx72/eLhsRdGZwaldu/h+E4t4BA==}
@@ -4469,6 +4486,14 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
+  '@aparajita/capacitor-secure-storage@8.0.0':
+    dependencies:
+      '@capacitor/android': 8.4.0(@capacitor/core@8.4.0)
+      '@capacitor/app': 8.1.0(@capacitor/core@8.4.0)
+      '@capacitor/core': 8.4.0
+      '@capacitor/ios': 8.4.0(@capacitor/core@8.4.0)
+      '@capacitor/keyboard': 8.0.3(@capacitor/core@8.4.0)
+
   '@arkade-os/boltz-swap@0.3.37':
     dependencies:
       '@arkade-os/sdk': 0.4.32
@@ -4836,6 +4861,10 @@ snapshots:
     dependencies:
       '@capacitor/core': 8.4.0
 
+  '@capacitor/app@8.1.0(@capacitor/core@8.4.0)':
+    dependencies:
+      '@capacitor/core': 8.4.0
+
   '@capacitor/cli@8.4.0':
     dependencies:
       '@ionic/cli-framework-output': 2.2.8
@@ -4863,6 +4892,10 @@ snapshots:
       tslib: 2.8.1
 
   '@capacitor/ios@8.4.0(@capacitor/core@8.4.0)':
+    dependencies:
+      '@capacitor/core': 8.4.0
+
+  '@capacitor/keyboard@8.0.3(@capacitor/core@8.4.0)':
     dependencies:
       '@capacitor/core': 8.4.0
 

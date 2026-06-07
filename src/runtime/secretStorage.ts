@@ -22,22 +22,33 @@ export const localStorageSecretStorage: SecretStorageAdapter = {
 }
 
 /**
- * Native secret storage.
+ * Native secret storage: iOS Keychain / Android Keystore-backed.
  *
- * TODO(capacitor, Phase 2/3 device work): back this with the iOS Keychain /
- * Android Keystore via `@aparajita/capacitor-secure-storage` (see
- * CAPACITOR.plan.md § Storage and Secrets and the Phase 0 plugin baseline).
- * Installing the plugin requires `cap sync` and on-device validation, which is
- * out of scope for the boundary pass; until then the native runtime uses the
- * WebView `localStorage` substrate so the encrypted blob still persists. This is
- * the single deferred native-plugin item tracked in the parity map.
+ * Backed by `@aparajita/capacitor-secure-storage`. We use its low-level
+ * string methods (`getItem`/`setItem`/`removeItem`), which store/return the raw
+ * base64 blob with no JSON/date coercion and resolve `null` for a missing key —
+ * matching {@link SecretStorageAdapter} exactly. The encryption scheme stays in
+ * `mnemonic.ts`/`privateKey.ts`; only the substrate changes from `localStorage`.
+ *
+ * The plugin is loaded via a memoized dynamic import so it stays out of the PWA
+ * bundle's eager graph (this module is also imported by `PwaAppShell` for
+ * `localStorageSecretStorage`); the native chunk loads on first secret access.
+ *
+ * Note: requires `cap sync` (+ `pod install` on iOS) to register the native
+ * plugin — done as part of Phase 3 device setup. No migration from the prior
+ * localStorage fallback: native is pre-release and the spike is password-only,
+ * so a wallet whose blob lived in WebView localStorage simply re-onboards.
  */
+let securePlugin: Promise<typeof import('@aparajita/capacitor-secure-storage').SecureStorage> | undefined
+const secureStorage = () =>
+  (securePlugin ??= import('@aparajita/capacitor-secure-storage').then((m) => m.SecureStorage))
+
 export const nativeSecretStorage: SecretStorageAdapter = {
-  getItem: async (key) => localStorage.getItem(key),
+  getItem: async (key) => (await secureStorage()).getItem(key),
   setItem: async (key, value) => {
-    localStorage.setItem(key, value)
+    await (await secureStorage()).setItem(key, value)
   },
   removeItem: async (key) => {
-    localStorage.removeItem(key)
+    await (await secureStorage()).removeItem(key)
   },
 }
