@@ -186,6 +186,8 @@ export type SwapRuntimeClient = Pick<
   | 'recoverSubmarineFunds'
   | 'reset'
   | 'getSwapManager'
+  | 'startSwapManager'
+  | 'stopSwapManager'
   | 'swapRepository'
   | 'dispose'
 >

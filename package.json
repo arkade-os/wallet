@@ -10,6 +10,7 @@
     "@base-ui/react": "^1.4.1",
     "@branta-ops/branta": "0.0.9",
     "@capacitor/android": "^8.4.0",
+    "@capacitor/app": "^8.1.0",
     "@capacitor/cli": "^8.4.0",
     "@capacitor/core": "^8.4.0",
     "@capacitor/ios": "^8.4.0",

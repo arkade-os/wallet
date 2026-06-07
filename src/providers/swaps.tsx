@@ -171,6 +171,34 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       .catch((err) => consoleError(err, 'Failed to fetch BTC to ARK fees'))
   }, [arkadeSwaps])
 
+  // Native-only: nudge the SDK SwapManager back to life on app resume.
+  //
+  // The SwapManager (WebSocket + polling + auto-claim/refund) is the claim
+  // engine and runs independently of any screen, but it has no app-lifecycle
+  // awareness — when a native app is suspended the WebView freezes its socket
+  // and timers. On resume we restart it *only if its socket is actually stale*,
+  // so we never interrupt a healthy session or an in-flight claim. All claiming
+  // stays in the SDK; this just reconnects it promptly. The PWA is untouched
+  // (its service worker already handles background claims).
+  useEffect(() => {
+    if (runtime.kind !== 'native-capacitor' || !arkadeSwaps) return
+    const reconnectIfStale = async () => {
+      try {
+        const manager = arkadeSwaps.getSwapManager()
+        if (!manager) return
+        const { websocketConnected } = await manager.getStats()
+        if (websocketConnected) return
+        await arkadeSwaps.stopSwapManager()
+        await arkadeSwaps.startSwapManager()
+      } catch (err) {
+        consoleError(err, 'Failed to refresh swap manager on resume')
+      }
+    }
+    return runtime.lifecycle.onResume(() => {
+      reconnectIfStale()
+    })
+  }, [runtime, arkadeSwaps])
+
   const setConnected = (value: boolean, backup: boolean) => {
     const newConfig = { ...config }
     newConfig.apps.boltz.connected = value

@@ -26,6 +26,9 @@ importers:
       '@capacitor/android':
         specifier: ^8.4.0
         version: 8.4.0(@capacitor/core@8.4.0)
+      '@capacitor/app':
+        specifier: ^8.1.0
+        version: 8.1.0(@capacitor/core@8.4.0)
       '@capacitor/cli':
         specifier: ^8.4.0
         version: 8.4.0

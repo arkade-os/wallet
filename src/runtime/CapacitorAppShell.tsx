@@ -1,4 +1,5 @@
 import { ReactNode, useMemo } from 'react'
+import type { PluginListenerHandle } from '@capacitor/core'
 import { RuntimeContext } from './RuntimeContext'
 import {
   DeviceRuntimeAdapter,
@@ -8,6 +9,7 @@ import {
   RuntimeCapabilities,
   RuntimeContextValue,
   SecurityRuntimeAdapter,
+  Unsubscribe,
 } from './types'
 import { nativeWalletEvents, nativeWalletFactory } from './wallet/nativeWallet'
 import { nativeSwapFactory } from './swaps/nativeSwaps'
@@ -48,10 +50,33 @@ const nativeLinks: LinkRuntimeAdapter = {
   subscribe: () => () => {},
 }
 
+// Bridge a @capacitor/app event to a runtime lifecycle handler. The plugin is
+// loaded via dynamic import so it stays out of the PWA bundle's eager graph
+// (this shell module is statically reachable from both builds). addListener is
+// async, so we hold the handle and remove it on unsubscribe (handling the case
+// where unsubscribe runs before the listener finished attaching).
+const subscribeAppEvent = (
+  attach: (app: typeof import('@capacitor/app').App) => Promise<PluginListenerHandle>,
+): Unsubscribe => {
+  let handle: PluginListenerHandle | undefined
+  let cancelled = false
+  import('@capacitor/app')
+    .then(({ App }) => attach(App))
+    .then((h) => {
+      if (cancelled) h.remove()
+      else handle = h
+    })
+    .catch(() => {})
+  return () => {
+    cancelled = true
+    handle?.remove()
+  }
+}
+
 const nativeLifecycle: LifecycleRuntimeAdapter = {
-  onResume: () => () => {},
-  onPause: () => () => {},
-  onBackButton: () => () => {},
+  onResume: (handler) => subscribeAppEvent((App) => App.addListener('resume', handler)),
+  onPause: (handler) => subscribeAppEvent((App) => App.addListener('pause', handler)),
+  onBackButton: (handler) => subscribeAppEvent((App) => App.addListener('backButton', () => handler())),
 }
 
 const nativeDevice: DeviceRuntimeAdapter = {
