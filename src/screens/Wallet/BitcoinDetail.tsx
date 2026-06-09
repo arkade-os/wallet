@@ -4,7 +4,7 @@ import { ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useStat
 import Content from '../../components/Content'
 import Header from '../../components/Header'
 import Padded from '../../components/Padded'
-import { PrivacyAmount, maskedFiat } from '../../components/PrivacyAmount'
+import { PrivacyAmount } from '../../components/PrivacyAmount'
 import TokenLogo from '../../components/TokenLogo'
 import TransactionsList from '../../components/TransactionsList'
 import ReceiveIcon from '../../icons/Receive'
@@ -12,10 +12,17 @@ import ScanIcon from '../../icons/Scan'
 import SendIcon from '../../icons/Send'
 import SwapIcon from '../../icons/Swap'
 import { walletLoadInChild, walletLoadInContainer } from '../../lib/animations'
-import { formatAssetAmount, prettyFiatAmount, prettyNumber } from '../../lib/format'
+import {
+  prettyBitcoinAmount,
+  prettyBitcoinHide,
+  prettyFiatAmount,
+  prettyFiatHide,
+  prettyNumber,
+} from '../../lib/format'
+import { fiatDecimalsFor } from '../../lib/fiat'
 import { hapticLight, hapticSubtle } from '../../lib/haptics'
 import { consoleError } from '../../lib/logs'
-import { Fiats, Themes } from '../../lib/types'
+import { Currencies, Themes, Unit } from '../../lib/types'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
@@ -38,7 +45,7 @@ const bitcoinChartCache = new Map<string, LivelinePoint[]>()
 
 export default function BitcoinDetail() {
   const { config } = useContext(ConfigContext)
-  const { fiatDecimals, toFiat } = useContext(FiatContext)
+  const { toFiatAmount } = useContext(FiatContext)
   const { setRecvInfo, setSendInfo, setSwapFromAssetId } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { balance } = useContext(WalletContext)
@@ -48,13 +55,16 @@ export default function BitcoinDetail() {
   const [chartInteracting, setChartInteracting] = useState(false)
   const chartHapticState = useRef({ lastPointTime: 0, lastTriggerTime: 0 })
 
-  const fallbackUnitPrice = toFiat(100_000_000)
-  const liveChartData = useBitcoinMarketChartData(config.fiat, chartWindow)
+  const marketFiat = config.fiat === Currencies.BTC ? Currencies.USD : config.fiat
+  const marketDecimals = fiatDecimalsFor(marketFiat)
+  const bitcoinUnit = config.currencyDisplay as unknown as Unit
+  const fallbackUnitPrice = toFiatAmount(100_000_000, marketFiat)
+  const liveChartData = useBitcoinMarketChartData(marketFiat, chartWindow)
   const unitPrice = liveChartData.at(-1)?.value ?? fallbackUnitPrice
   const fiatValue = (balance / 100_000_000) * unitPrice
-  const formattedFiat = prettyFiatAmount(fiatValue, config.fiat, {
-    maximumFractionDigits: fiatDecimals(),
-    minimumFractionDigits: fiatDecimals(),
+  const formattedFiat = prettyFiatAmount(fiatValue, marketFiat, {
+    maximumFractionDigits: marketDecimals,
+    minimumFractionDigits: marketDecimals,
   })
   const chartColor = useTokenColor('--orange-500', config.theme)
   const chartTheme = useResolvedChartTheme(config.theme)
@@ -144,7 +154,7 @@ export default function BitcoinDetail() {
                   <TokenLogo ticker='BTC' />
                 </span>
                 <div>
-                  <h1 className='asset-detail-name'>bitcoin</h1>
+                  <h1 className='asset-detail-name'>Bitcoin</h1>
                 </div>
               </motion.div>
 
@@ -155,14 +165,14 @@ export default function BitcoinDetail() {
               >
                 <AnimatePresence mode='popLayout' initial={false}>
                   <motion.div
-                    key={`${unitPrice}-${config.fiat}`}
+                    key={`${unitPrice}-${marketFiat}`}
                     className='asset-detail-price'
                     initial={prefersReduced ? false : { opacity: 0, y: 8, filter: 'blur(2px)' }}
                     animate={prefersReduced ? undefined : { opacity: 1, y: 0, filter: 'blur(0px)' }}
                     exit={prefersReduced ? undefined : { opacity: 0, y: -8, filter: 'blur(2px)' }}
                     transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
                   >
-                    {prettyFiatAmount(unitPrice, config.fiat)}
+                    {prettyFiatAmount(unitPrice, marketFiat)}
                   </motion.div>
                 </AnimatePresence>
                 <DeltaBadge value={chartDelta} />
@@ -201,7 +211,7 @@ export default function BitcoinDetail() {
                     badge={false}
                     badgeTail
                     badgeVariant='minimal'
-                    formatValue={(value) => prettyFiatAmount(value, config.fiat)}
+                    formatValue={(value) => prettyFiatAmount(value, marketFiat)}
                     grid={false}
                     paused={chartInteracting}
                     pulse={!prefersReduced}
@@ -253,16 +263,15 @@ export default function BitcoinDetail() {
                   <span className='asset-detail-holding-logo'>
                     <TokenLogo ticker='BTC' />
                   </span>
-                  <PrivacyAmount masked='•••• BTC'>
-                    <span className='asset-detail-holding-amount'>{formatAssetAmount(BigInt(safeBalance), 8)}</span>
-                    <span className='asset-detail-holding-unit'>BTC</span>
+                  <PrivacyAmount masked={prettyBitcoinHide(safeBalance, bitcoinUnit)}>
+                    <span className='asset-detail-holding-amount'>{prettyBitcoinAmount(safeBalance, bitcoinUnit)}</span>
                   </PrivacyAmount>
                 </strong>
               </div>
               <div className='asset-detail-holding'>
                 <span>Value</span>
                 <strong>
-                  <PrivacyAmount masked={maskedFiat()}>{formattedFiat}</PrivacyAmount>
+                  <PrivacyAmount masked={prettyFiatHide(fiatValue, marketFiat)}>{formattedFiat}</PrivacyAmount>
                 </strong>
               </div>
             </motion.section>
@@ -375,13 +384,18 @@ function useResolvedChartTheme(theme: Themes): 'light' | 'dark' {
   return resolved
 }
 
-function useBitcoinMarketChartData(fiat: Fiats, windowSecs: number): LivelinePoint[] {
+function useBitcoinMarketChartData(fiat: Currencies, windowSecs: number): LivelinePoint[] {
   const [data, setData] = useState<LivelinePoint[]>([])
 
   useEffect(() => {
     const controller = new AbortController()
     const cacheKey = bitcoinChartCacheKey(fiat, windowSecs)
     const cached = bitcoinChartCache.get(cacheKey)
+
+    if (fiat === Currencies.BTC) {
+      setData([])
+      return () => controller.abort()
+    }
 
     if (cached) {
       setData(cached)
@@ -501,7 +515,7 @@ function calculateDelta(data: LivelinePoint[]): number {
   return ((last - first) / first) * 100
 }
 
-function bitcoinChartCacheKey(fiat: Fiats, windowSecs: number): string {
+function bitcoinChartCacheKey(fiat: Currencies, windowSecs: number): string {
   return `${fiat}:${windowSecs}`
 }
 

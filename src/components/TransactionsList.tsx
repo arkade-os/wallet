@@ -1,12 +1,12 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useRef } from 'react'
 import { WalletContext } from '../providers/wallet'
-import { CurrencyDisplay, Fiats, Tx } from '../lib/types'
+import { Currencies, Tx, Unit } from '../lib/types'
 import {
   isBurn,
   isIssuance,
   prettyCurrencyAssetAmount,
-  prettyAmount,
+  prettyBitcoinAmount,
   prettyDate,
   prettyFiatAmount,
   prettyFiatHide,
@@ -40,7 +40,7 @@ const TransactionLine = ({
   mode: 'virtual' | 'static'
 }) => {
   const { config } = useContext(ConfigContext)
-  const { convertFiat, toFiat } = useContext(FiatContext)
+  const { fromFiatAmount, toFiat, toFiatAmount } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
 
   const prefix = tx.type === 'sent' ? '-' : '+'
@@ -51,16 +51,15 @@ const TransactionLine = ({
   const issuance = isIssuance(tx)
   const burn = isBurn(tx)
 
-  const Fiat = () => {
+  const Currency = () => {
     if (issuance || burn || swap) return null
     const value = toFiat(tx.amount)
     const statusClassName = tx.boardingTxid && tx.preconfirmed ? ' activity-row__amount--pending' : ''
-    const secondaryClassName =
-      asAssets || config.currencyDisplay === CurrencyDisplay.Both ? ' activity-row__amount--secondary' : ''
+    const secondaryClassName = asAssets ? ' activity-row__amount--secondary' : ''
     return (
       <span className={`activity-row__amount${statusClassName}${secondaryClassName}`}>
-        <PrivacyAmount masked={prettyFiatHide(value, config.fiat)}>
-          {prettyFiatAmount(value, config.fiat)}
+        <PrivacyAmount masked={prettyFiatHide(value, config.fiat, { bitcoinUnit: config.currencyDisplay })}>
+          {prettyFiatAmount(value, config.fiat, { bitcoinUnit: config.currencyDisplay })}
         </PrivacyAmount>
       </span>
     )
@@ -109,7 +108,7 @@ const TransactionLine = ({
   const swapRoute = swap ? [tx.prototypeSwap?.fromTicker, tx.prototypeSwap?.toTicker].filter(Boolean).join(' to ') : ''
   const When = () => <span className='activity-row__meta'>{swapRoute ? `${swapRoute} · ${date}` : date}</span>
 
-  const Sats = () =>
+  const Bitcoin = () =>
     issuance || burn ? null : (
       <span
         className={`activity-row__amount${tx.preconfirmed && tx.boardingTxid ? ' activity-row__amount--pending' : ''}${
@@ -117,8 +116,8 @@ const TransactionLine = ({
         }`}
       >
         <PrivacyAmount
-          masked={`${prefix} ${prettyHide(tx.amount)}`}
-        >{`${prefix} ${prettyAmount(tx.amount)}`}</PrivacyAmount>
+          masked={`${prefix} ${prettyFiatHide(toFiat(tx.amount), config.fiat, { bitcoinUnit: config.currencyDisplay })}`}
+        >{`${prefix} ${prettyBitcoinAmount(tx.amount, config.currencyDisplay as unknown as Unit)}`}</PrivacyAmount>
       </span>
     )
 
@@ -162,21 +161,20 @@ const TransactionLine = ({
   const Right = () => (
     <div className='activity-row__right'>
       {swap ? (
-        <SwapAmountInfo configFiat={config.fiat} convertFiat={convertFiat} tx={tx} />
+        <SwapAmountInfo
+          bitcoinUnit={config.currencyDisplay as unknown as Unit}
+          configFiat={config.fiat}
+          fromFiatAmount={fromFiatAmount}
+          toFiatAmount={toFiatAmount}
+          tx={tx}
+        />
       ) : tx.assets?.length ? (
         <>
           <AssetInfo />
-          {config.currencyDisplay === CurrencyDisplay.Fiat ? <Fiat /> : <Sats />}
+          {config.fiat === Currencies.BTC ? <Bitcoin /> : <Currency />}
         </>
-      ) : config.currencyDisplay === CurrencyDisplay.Fiat ? (
-        <Fiat />
-      ) : config.currencyDisplay === CurrencyDisplay.Sats ? (
-        <Sats />
       ) : (
-        <>
-          <Sats />
-          <Fiat />
-        </>
+        <>{config.fiat === Currencies.BTC ? <Bitcoin /> : <Currency />}</>
       )}
     </div>
   )
@@ -194,12 +192,16 @@ const TransactionLine = ({
 }
 
 function SwapAmountInfo({
+  bitcoinUnit,
   configFiat,
-  convertFiat,
+  fromFiatAmount,
+  toFiatAmount,
   tx,
 }: {
-  configFiat: Fiats
-  convertFiat: (amount: number, from: Fiats, to?: Fiats) => number
+  bitcoinUnit: Unit
+  configFiat: Currencies
+  fromFiatAmount: (amount: number, currency: Currencies) => number
+  toFiatAmount: (satoshis: number, currency: Currencies) => number
   tx: Tx
 }) {
   const status = swapStatusForTx(tx)
@@ -219,7 +221,13 @@ function SwapAmountInfo({
         {to ? `+ ${to}` : status === 'pending' ? 'Pending' : 'Completed'}
       </span>
       <span className='activity-row__amount activity-row__amount--secondary'>
-        {from ? `- ${from}` : fiat ? prettyFiatAmount(convertFiat(fiat, Fiats.USD, configFiat), configFiat) : ''}
+        {from
+          ? `- ${from}`
+          : fiat
+            ? prettyFiatAmount(toFiatAmount(fromFiatAmount(fiat, Currencies.USD), configFiat), configFiat, {
+                bitcoinUnit,
+              })
+            : ''}
       </span>
     </>
   )
@@ -326,13 +334,14 @@ export default function TransactionsList({ assetIdFilter, mode = 'virtual', limi
     return (
       <div className='activity-list activity-list--compact'>
         {txs.map((tx, index) => (
-          <TransactionLine
+          <Focusable
             key={key(tx, index)}
-            onClick={() => handleClick(tx)}
-            tx={tx}
-            isFirst={index === 0}
-            mode={mode}
-          />
+            id={`tx-static-${key(tx, index)}`}
+            onEnter={() => handleClick(tx)}
+            ariaLabel={ariaLabel(tx)}
+          >
+            <TransactionLine onClick={() => handleClick(tx)} tx={tx} isFirst={index === 0} mode={mode} />
+          </Focusable>
         ))}
       </div>
     )

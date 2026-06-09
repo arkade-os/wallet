@@ -1,19 +1,7 @@
-import { test, expect, createWallet, readClipboard, handleKeyboardInput, navigateHome } from './utils'
+import { test, expect, readClipboard, handleKeyboardInput, createWalletAndGetBIP21 } from './utils'
 import { decodeInvoice } from '../../lib/bolt11'
-import { Page } from '@playwright/test'
 import { decodeBip21, isBip21 } from '../../lib/bip21'
 import { sleep } from '../../lib/sleep'
-
-const createWalletAndGetBIP21 = async (page: Page): Promise<string> => {
-  await createWallet(page)
-  await navigateHome(page)
-  await page.getByText('Receive', { exact: true }).click()
-  await sleep(1000) // wait for the receive page to load
-  await page.getByText('Copy').click()
-  await page.getByTestId('bip21-address-copy').click()
-  const bip21 = await readClipboard(page)
-  return bip21
-}
 
 test('should generate valid BIP21 out of the box', async ({ page }) => {
   // create wallet
@@ -21,7 +9,7 @@ test('should generate valid BIP21 out of the box', async ({ page }) => {
   expect(isBip21(bip21)).toBe(true)
   const decoded = decodeBip21(bip21)
 
-  expect(decoded.lnurl).toBeDefined()
+  expect(decoded.lnUrl).toBeDefined()
   expect(decoded.address).toBeDefined()
   expect(decoded.arkAddress).toBeDefined()
   expect(decoded.invoice).toBeUndefined()
@@ -36,9 +24,9 @@ test('should have lnurl with no amount', async ({ page }) => {
   expect(isBip21(bip21)).toBe(true)
   const decoded = decodeBip21(bip21)
 
-  expect(decoded.lnurl).toBeDefined()
-  expect(decoded.lnurl?.length).toBeGreaterThan(20)
-  expect(decoded.lnurl?.toLowerCase()).toContain('lnurl')
+  expect(decoded.lnUrl).toBeDefined()
+  expect(decoded.lnUrl?.length).toBeGreaterThan(20)
+  expect(decoded.lnUrl?.toLowerCase()).toContain('lnurl')
 })
 
 test('should change from lnurl to bolt11 with amount', async ({ page, isMobile }) => {
@@ -48,7 +36,7 @@ test('should change from lnurl to bolt11 with amount', async ({ page, isMobile }
   expect(isBip21(bip21)).toBe(true)
   const decoded = decodeBip21(bip21)
 
-  expect(decoded.lnurl).toBeDefined()
+  expect(decoded.lnUrl).toBeDefined()
   expect(decoded.invoice).toBeUndefined()
 
   // fill amount to receive if provided

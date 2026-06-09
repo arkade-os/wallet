@@ -1,16 +1,20 @@
 import { test as base, type Page } from '@playwright/test'
 import { faucetOffchain } from './fundedWallet'
 import { sleep } from '../../lib/sleep'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+
+const execAsync = promisify(exec)
 
 export const test = base.extend({
   page: async ({ page }, use) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    // Pre-set currency display to "Show both" so e2e tests see SATS amounts.
-    // The default changed to "Fiat only" in PR #473 which hides SATS from the balance.
+    // Pre-set currency to BTC/sats so e2e tests see sats amounts.
     await page.addInitScript(() => {
       const raw = localStorage.getItem('config')
       const config = raw ? JSON.parse(raw) : {}
-      config.currencyDisplay = 'Show both'
+      config.fiat = 'BTC'
+      config.currencyDisplay = 'sats'
       localStorage.setItem('config', JSON.stringify(config))
     })
     await use(page)
@@ -50,6 +54,7 @@ interface MintAssetOptions {
 
 export async function navigateToAssets(page: Page): Promise<void> {
   await navigateToSettings(page)
+  await page.getByText('advanced', { exact: true }).click()
   await page.getByText('Arkade Mint', { exact: true }).click()
   await page.waitForSelector('text=Arkade Mint', { state: 'visible' })
 }
@@ -139,9 +144,9 @@ export async function createWallet(page: Page): Promise<void> {
 export async function createWalletWithFiat(page: Page): Promise<void> {
   await createWallet(page)
   await navigateToSettings(page)
-  await page.getByText('general', { exact: true }).click()
-  await page.getByText('Display preferences').click()
-  await page.getByTestId('select-option-2').click()
+  await page.getByText('display', { exact: true }).click()
+  await page.getByText('currency').click()
+  await page.getByText('USD').click()
   await page.getByLabel('Go back').click()
   await page.getByLabel('Go back').click()
   await navigateHome(page)
@@ -159,6 +164,36 @@ export async function createWalletWithPassword(page: Page, password: string): Pr
   await page.getByLabel('Go back').click()
   await page.getByLabel('Go back').click()
   await page.getByLabel('Go back').click()
+}
+
+export async function createWalletAndGetBIP21(page: Page, isMobile?: boolean, sats?: number): Promise<string> {
+  await createWallet(page)
+  await sleep(1000)
+  await page.getByText('Receive', { exact: true }).click()
+
+  if (sats) {
+    await page.getByText('Edit amount').click()
+    if (isMobile) {
+      await handleKeyboardInput(page, sats)
+    } else {
+      await page.locator('input[name="receive-amount-sheet"]').fill(sats.toString())
+      await page.getByText('Set amount').click()
+    }
+  }
+
+  await page.waitForSelector('text=Copy', { state: 'visible' })
+  await page.getByText('Copy').click()
+  await page.getByTestId('bip21-address-copy').click()
+  const bip21 = await readClipboard(page)
+  return bip21
+}
+
+export async function getInvoiceFromLND(amount = 2100): Promise<string> {
+  const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt ${amount}`)
+  const output = stdout.trim()
+  const outputJSON = JSON.parse(output)
+  const invoice = outputJSON.payment_request
+  return invoice
 }
 
 export async function prePay(page: Page, address: string, isMobile = false, sats = 0): Promise<void> {
@@ -241,6 +276,13 @@ export async function navigateToSettings(page: Page): Promise<void> {
   await page.getByText('Settings', { exact: true }).waitFor({ state: 'visible', timeout: 30000 })
 }
 
+export async function resetWallet(page: Page): Promise<void> {
+  await navigateToSettings(page)
+  await page.getByText('Reset wallet').click()
+  await page.getByTestId('checkbox').click()
+  await page.getByRole('contentinfo').getByText('Reset wallet').click()
+}
+
 async function getSecret(page: Page): Promise<string> {
   await navigateToSettings(page)
   await page.getByText('backup', { exact: true }).click()
@@ -250,13 +292,6 @@ async function getSecret(page: Page): Promise<string> {
   await page.getByText('Confirm').click()
   const secret = await page.getByTestId('private-key').innerText()
   return secret
-}
-
-async function resetWallet(page: Page): Promise<void> {
-  await navigateToSettings(page)
-  await page.getByText('Reset wallet').click()
-  await page.getByTestId('checkbox').click()
-  await page.getByRole('contentinfo').getByText('Reset wallet').click()
 }
 
 async function restoreWallet(page: Page, nsec: string): Promise<void> {
@@ -316,5 +351,5 @@ export async function handleKeyboardInput(page: Page, sats: number): Promise<voi
 
 export async function getFeesFromDetails(page: Page): Promise<number> {
   const txtValue = await page.getByTestId('Network fees').textContent()
-  return parseInt(txtValue?.replace(' SATS', '').replaceAll(',', '') || '0')
+  return parseInt(txtValue?.replace(' sats', '').replaceAll(',', '') || '0')
 }

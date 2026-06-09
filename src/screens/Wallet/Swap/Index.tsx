@@ -15,7 +15,7 @@ import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
-import { Fiats } from '../../../lib/types'
+import { Currencies } from '../../../lib/types'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { FlowContext } from '../../../providers/flow'
@@ -72,7 +72,7 @@ const emptySwapAsset: SwapAsset = {
 
 export default function WalletSwap() {
   const { config } = useContext(ConfigContext)
-  const { convertFiat, fiatDecimals, toFiat } = useContext(FiatContext)
+  const { fiatDecimals, fromFiatAmount, toFiat, toFiatAmount } = useContext(FiatContext)
   const { swapFromAssetId, setSwapFromAssetId } = useContext(FlowContext)
   const { goBack, navigate } = useContext(NavigationContext)
   const { addPrototypeSwap } = useContext(WalletContext)
@@ -80,8 +80,8 @@ export default function WalletSwap() {
   const prefersReduced = useReducedMotion()
 
   const assets = useMemo(
-    () => toSwapAssets(rows, config.fiat, fiatDecimals(), convertFiat, toFiat),
-    [rows, config.fiat, fiatDecimals, convertFiat, toFiat],
+    () => toSwapAssets(rows, config.fiat, fiatDecimals(), fromFiatAmount, toFiat, toFiatAmount),
+    [rows, config.fiat, fiatDecimals, fromFiatAmount, toFiat, toFiatAmount],
   )
   const swapAssets = assets
   const initialFromAssetId = resolveInitialFromAssetId(swapAssets, swapFromAssetId)
@@ -1009,9 +1009,9 @@ function buildQuote(amount: string, mode: AmountMode, fromAsset: SwapAsset, toAs
     fromAsset,
     toAsset,
     fromAmount: prettyNumber(fromUnits, swapAmountDecimals(fromUnits)),
-    fromFiat: prettyFiatAmount(fromFiatNumber, Fiats.USD),
+    fromFiat: prettyFiatAmount(fromFiatNumber, Currencies.USD),
     toAmount: prettyNumber(received, swapAmountDecimals(received)),
-    toFiat: prettyFiatAmount(received * toUsd, Fiats.USD),
+    toFiat: prettyFiatAmount(received * toUsd, Currencies.USD),
     rateLabel: prettyNumber(rate, swapAmountDecimals(rate)),
   }
 }
@@ -1074,11 +1074,14 @@ function isQuoteAvailable(fromAsset: SwapAsset, toAsset: SwapAsset): boolean {
 
 function toSwapAssets(
   rows: PortfolioRow[],
-  fiat: Fiats,
+  fiat: Currencies,
   decimals: number,
-  convertFiat: (amount: number, from: Fiats, to?: Fiats) => number,
+  fromFiatAmount: (amount: number, currency: Currencies) => number,
   toFiat: (satoshis?: number) => number,
+  toFiatAmount: (satoshis: number, currency: Currencies) => number,
 ): SwapAsset[] {
+  const convertFiatAmount = (amount: number, from: Currencies, to: Currencies) =>
+    toFiatAmount(fromFiatAmount(amount, from), to)
   const mapped = rows.map((row) => ({
     assetId: row.assetId,
     name: row.name,
@@ -1093,7 +1096,7 @@ function toSwapAssets(
       : undefined,
     icon: row.icon,
     sourceAssetIds: row.sourceAssetIds,
-    usdPrice: estimateRowUsdPrice(row, fiat, convertFiat, toFiat),
+    usdPrice: estimateRowUsdPrice(row, fiat, convertFiatAmount, toFiat),
   }))
 
   return mapped
@@ -1101,21 +1104,21 @@ function toSwapAssets(
 
 function estimateRowUsdPrice(
   row: PortfolioRow,
-  fiat: Fiats,
-  convertFiat: (amount: number, from: Fiats, to?: Fiats) => number,
+  fiat: Currencies,
+  convertFiatAmount: (amount: number, from: Currencies, to: Currencies) => number,
   toFiat: (satoshis?: number) => number,
 ): number {
   const ticker = row.ticker.trim().toUpperCase()
-  if (row.assetId === 'btc' || ticker === 'BTC') return convertFiat(toFiat(100_000_000), fiat, Fiats.USD)
+  if (row.assetId === 'btc' || ticker === 'BTC') return convertFiatAmount(toFiat(100_000_000), fiat, Currencies.USD)
   if (ticker === 'USD' || ticker === 'USDT' || ticker === 'USDC' || ticker === 'AUSD')
-    return convertFiat(1, Fiats.USD, Fiats.USD)
-  if (ticker === 'CHF') return convertFiat(1, Fiats.CHF, Fiats.USD)
+    return convertFiatAmount(1, Currencies.USD, Currencies.USD)
+  if (ticker === 'CHF') return convertFiatAmount(1, Currencies.CHF, Currencies.USD)
 
   const rawBalance = typeof row.balance === 'bigint' ? Number(row.balance) : row.balance
   const unitBalance = rawBalance / 10 ** row.decimals
   if (!unitBalance || !row.hasFiatPrice) return 0
 
-  return convertFiat(row.fiatAmount / unitBalance, fiat, Fiats.USD)
+  return convertFiatAmount(row.fiatAmount / unitBalance, fiat, Currencies.USD)
 }
 
 function filterAssets(assets: SwapAsset[], query: string): SwapAsset[] {

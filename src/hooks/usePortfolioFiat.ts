@@ -1,7 +1,8 @@
+import Decimal from 'decimal.js'
 import { useContext } from 'react'
-import { WalletContext } from '../providers/wallet'
+import { Currencies } from '../lib/types'
 import { FiatContext } from '../providers/fiat'
-import { Fiats } from '../lib/types'
+import { WalletContext } from '../providers/wallet'
 
 export interface PortfolioRow {
   /** 'btc' for the native bitcoin row, otherwise the asset's on-chain id. */
@@ -14,7 +15,7 @@ export interface PortfolioRow {
   balance: number | bigint
   /** Fiat value in the user's selected currency (0 if no price feed). */
   fiatAmount: number
-  /** Equivalent value in satoshis, computed via the live BTC→USD rate. */
+  /** Equivalent value in satoshis, computed via the live BTC price feed. */
   satsEquivalent: number
   /** True if this asset has a price feed and fiatAmount is meaningful. */
   hasFiatPrice: boolean
@@ -35,12 +36,12 @@ export interface PortfolioFiat {
  */
 export function usePortfolioFiat(): PortfolioFiat {
   const { balance, assetBalances, assetMetadataCache, prototypeAssetBalanceDeltas } = useContext(WalletContext)
-  const { convertFiat, toFiat } = useContext(FiatContext)
+  const { fromFiatAmount, toFiat } = useContext(FiatContext)
   const prototypeDeltas = prototypeAssetBalanceDeltas ?? {}
+  const convertToSelectedFiat = (amount: number, from: Currencies) => toFiat(fromFiatAmount(amount, from))
 
   const rows: PortfolioRow[] = []
   let totalSats = 0
-  let assetFiatTotal = 0
 
   // bitcoin row first, always present.
   totalSats += balance
@@ -78,27 +79,30 @@ export function usePortfolioFiat(): PortfolioFiat {
       continue
     }
 
-    const pricedFiat = priceAssetFiat(ab.amount, decimals, meta?.ticker, convertFiat)
-    assetFiatTotal += pricedFiat
-
+    const pricedFiat = priceAssetFiat(ab.amount, decimals, meta?.ticker, convertToSelectedFiat)
+    const sourceFiat = fiatForAssetTicker(meta?.ticker)
+    const fiatUnits = Decimal.div(ab.amount.toString(), Decimal.pow(10, decimals)).toNumber()
+    const satsEquivalent = sourceFiat ? fromFiatAmount(fiatUnits, sourceFiat) : 0
+    totalSats += satsEquivalent
     rows.push({
       assetId: ab.assetId,
-      name: displayNameForAsset(meta?.ticker, meta?.name) ?? `Asset ${ab.assetId.slice(0, 8)}…`,
+      name: displayNameForAsset(meta?.ticker, meta?.name) ?? `Asset ${ab.assetId.slice(0, 8)}...`,
       ticker: meta?.ticker?.trim().toUpperCase() ?? 'TKN',
       icon: meta?.icon,
       decimals,
       balance: ab.amount,
       fiatAmount: pricedFiat,
-      satsEquivalent: 0,
+      satsEquivalent,
       hasFiatPrice: pricedFiat > 0,
     })
   }
 
   usdMinorUnits += prototypeDeltas['account:usd'] ?? BigInt(0)
   const usdFiatAmount = Math.max(0, Number(usdMinorUnits) / 100)
-  const usdAccountFiatAmount = convertFiat(usdFiatAmount, Fiats.USD)
+  const usdAccountFiatAmount = convertToSelectedFiat(usdFiatAmount, Currencies.USD)
   if (usdFiatAmount > 0) {
-    assetFiatTotal += usdAccountFiatAmount
+    const satsEquivalent = fromFiatAmount(usdFiatAmount, Currencies.USD)
+    totalSats += satsEquivalent
     rows.push({
       assetId: 'account:usd',
       name: 'USD',
@@ -106,7 +110,7 @@ export function usePortfolioFiat(): PortfolioFiat {
       decimals: 2,
       balance: usdMinorUnits,
       fiatAmount: usdAccountFiatAmount,
-      satsEquivalent: 0,
+      satsEquivalent,
       hasFiatPrice: true,
       sourceAssetIds: usdSourceAssetIds,
     })
@@ -121,7 +125,7 @@ export function usePortfolioFiat(): PortfolioFiat {
       name: 'CHF',
       ticker: 'CHF',
       minorUnits: chfAccountMinorUnits,
-      sourceFiat: Fiats.CHF,
+      sourceFiat: Currencies.CHF,
       sourceAssetIds: chfSourceAssetIds,
     },
   ]
@@ -130,9 +134,9 @@ export function usePortfolioFiat(): PortfolioFiat {
     if (account.minorUnits <= BigInt(0)) continue
 
     const amount = Number(account.minorUnits) / 100
-    const fiatAmount = convertFiat(amount, account.sourceFiat)
-    assetFiatTotal += fiatAmount
-
+    const fiatAmount = convertToSelectedFiat(amount, account.sourceFiat)
+    const satsEquivalent = fromFiatAmount(amount, account.sourceFiat)
+    totalSats += satsEquivalent
     rows.push({
       assetId: account.assetId,
       name: account.name,
@@ -140,14 +144,14 @@ export function usePortfolioFiat(): PortfolioFiat {
       decimals: 2,
       balance: account.minorUnits,
       fiatAmount,
-      satsEquivalent: 0,
+      satsEquivalent,
       hasFiatPrice: true,
       sourceAssetIds: account.sourceAssetIds,
     })
   }
 
   return {
-    totalFiat: toFiat(totalSats) + assetFiatTotal,
+    totalFiat: toFiat(totalSats),
     totalSats,
     rows,
   }
@@ -164,13 +168,13 @@ function priceAssetFiat(
   rawAmount: number | bigint,
   decimals: number,
   ticker: string | undefined,
-  convertFiat: (amount: number, from: Fiats) => number,
+  convertToSelectedFiat: (amount: number, from: Currencies) => number,
 ): number {
   const sourceFiat = fiatForAssetTicker(ticker)
   if (!sourceFiat) return 0
 
-  const normalizedRawAmount = typeof rawAmount === 'bigint' ? Number(rawAmount) : rawAmount
-  return convertFiat(normalizedRawAmount / 10 ** decimals, sourceFiat)
+  const fiatAmount = Decimal.div(rawAmount.toString(), Decimal.pow(10, decimals)).toNumber()
+  return convertToSelectedFiat(fiatAmount, sourceFiat)
 }
 
 function displayNameForAsset(ticker: string | undefined, name: string | undefined): string | undefined {
@@ -186,13 +190,14 @@ function displayNameForAsset(ticker: string | undefined, name: string | undefine
   return name
 }
 
-function fiatForAssetTicker(ticker: string | undefined): Fiats | undefined {
+function fiatForAssetTicker(ticker: string | undefined): Currencies | undefined {
   const normalized = ticker?.trim().toUpperCase()
 
-  if (normalized === 'USDT' || normalized === 'USDC' || normalized === 'USD' || normalized === 'AUSD') return Fiats.USD
-  if (normalized === 'CHF') return Fiats.CHF
-  if (normalized === 'EUR') return Fiats.EUR
-  if (normalized === 'GBP') return Fiats.GBP
-  if (normalized === 'JPY') return Fiats.JPY
-  if (normalized === 'CNY') return Fiats.CNY
+  if (normalized === 'USDT' || normalized === 'USDC' || normalized === 'USD' || normalized === 'AUSD')
+    return Currencies.USD
+  if (normalized === 'CHF') return Currencies.CHF
+  if (normalized === 'EUR') return Currencies.EUR
+  if (normalized === 'GBP') return Currencies.GBP
+  if (normalized === 'JPY') return Currencies.JPY
+  if (normalized === 'CNY') return Currencies.CNY
 }

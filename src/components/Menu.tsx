@@ -22,6 +22,10 @@ export default function Menu({ rows, styled }: MenuProps) {
       navigate(Pages.AppAssets)
       return
     }
+    if (option === SettingsOptions.Boltz) {
+      navigate(Pages.AppBoltz)
+      return
+    }
     setOption(option)
   }
 

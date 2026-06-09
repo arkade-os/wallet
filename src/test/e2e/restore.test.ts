@@ -10,6 +10,7 @@ import {
   waitForPaymentReceived,
   navigateHome,
   navigateToBoltz,
+  getInvoiceFromLND,
 } from './utils'
 import { sleep } from '../../lib/sleep'
 
@@ -37,7 +38,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
    * reverse swap
    */
 
-  // define amount 5000 SATS
+  // define amount 5000 sats
   const invoice = await receiveLightning(page, isMobile, 5000)
   expect(invoice).toBeDefined()
   expect(invoice).toBeTruthy()
@@ -50,26 +51,20 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
 
   // should be visible in Boltz app
   await navigateToBoltz(page)
-  await expect(page.getByText('+ 4,980 SATS', { exact: true })).toBeVisible()
+  await expect(page.getByText('+ 4,980 sats', { exact: true })).toBeVisible()
   await page.getByLabel('Go back').click()
 
   // navigate to wallet tab and verify balance before proceeding
   await navigateHome(page)
   await page.waitForSelector('text=Received', { timeout: 10000 })
-  await expect(page.getByText('4,980')).toBeVisible()
+  await expect(page.getByTestId('main-balance')).toHaveText('4,980')
 
   /**
    * submarine swap
    */
 
   // create invoice with lnd
-  const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
-  const output = stdout.trim()
-  expect(output).toBeDefined()
-  expect(output).toBeTruthy()
-  const outputJSON = JSON.parse(output)
-  expect('payment_request' in outputJSON).toBeTruthy()
-  const paymentRequest = outputJSON.payment_request
+  const paymentRequest = await getInvoiceFromLND(1000)
   expect(paymentRequest).toBeDefined()
   expect(paymentRequest).toBeTruthy()
   expect(paymentRequest).toContain('lnbcrt')
@@ -79,7 +74,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
 
   // should be visible in Boltz app
   await navigateToBoltz(page)
-  await expect(page.getByText('- 1,001 SATS', { exact: true })).toBeVisible()
+  await expect(page.getByText('- 1,001 sats', { exact: true })).toBeVisible()
   await page.getByLabel('Go back').click()
 
   /**

@@ -23,13 +23,13 @@ import { prettyAmount, prettyFiatAmount, prettyNumber } from '../../../lib/forma
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
-import Keyboard from '../../../components/Keyboard'
+import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import Text from '../../../components/Text'
 import Shadow from '../../../components/Shadow'
 import Scanner from '../../../components/Scanner'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
-import { Addresses, AssetOption, SettingsOptions } from '../../../lib/types'
+import { Addresses, AssetOption, SettingsOptions, Unit } from '../../../lib/types'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
@@ -37,7 +37,7 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { ArkNote, AssetDetails } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
-import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl } from '../../../lib/lnurl'
+import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUrlResponse } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 import { SwapsContext } from '../../../providers/swaps'
@@ -128,7 +128,7 @@ export default function SendForm() {
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
   const [label, setLabel] = useState('')
-  const [lnUrlLimits, setLnUrlLimits] = useState<{ min: number; max: number }>({ min: 0, max: 0 })
+  const [lnUrlResponse, setLnUrlResponse] = useState<LnUrlResponse>()
   const [keys, setKeys] = useState(false)
   const [nudgeBoltz, setNudgeBoltz] = useState(false)
   const [proceed, setProceed] = useState(false)
@@ -258,8 +258,8 @@ export default function SendForm() {
         return setRecipient(url.searchParams.get('lightning')!)
       }
       if (isBip21(lowerCaseData)) {
-        const { address, arkAddress, invoice, satoshis, assetId, assetAmount } = decodeBip21(recipient.trim())
-        if (!address && !arkAddress && !invoice) return setError('Unable to parse bip21')
+        const { address, arkAddress, invoice, lnUrl, satoshis, assetId, assetAmount } = decodeBip21(recipient.trim())
+        if (!address && !arkAddress && !invoice && !lnUrl) return setError('Unable to parse bip21')
         if (assetId) {
           let found = assetOptions.find((a) => a.assetId === assetId)
           if (!found) {
@@ -292,7 +292,7 @@ export default function SendForm() {
             assets: [{ assetId, amount: rawAmount }],
           })
         }
-        return setState({ address, arkAddress, invoice, recipient, satoshis, assets: sendInfo.assets })
+        return setState({ address, arkAddress, invoice, lnUrl, recipient, satoshis, assets: sendInfo.assets })
       }
       if (isArkAddress(lowerCaseData)) {
         return setState({ ...base, arkAddress: lowerCaseData })
@@ -390,8 +390,9 @@ export default function SendForm() {
 
   // check lnurl limits
   useEffect(() => {
+    if (!lnUrlResponse) return
     const { satoshis } = sendInfo
-    const { min, max } = lnUrlLimits
+    const { minSendable: min, maxSendable: max } = lnUrlResponse
     if (!min || !max) return
     if (min > balance) return setError('Insufficient funds for LNURL')
     if (satoshis && satoshis < min) return setError(`Amount below LNURL min limit`)
@@ -402,11 +403,12 @@ export default function SendForm() {
     } else {
       setAmountIsReadOnly(false)
     }
-  }, [lnUrlLimits.min, lnUrlLimits.max])
+  }, [lnUrlResponse])
 
   // check lnurl conditions
   useEffect(() => {
     if (!sendInfo.lnUrl) return
+    if (sendInfo.arkAddress) return
     if (sendInfo.lnUrl && sendInfo.invoice) return
     checkLnUrlConditions(sendInfo.lnUrl)
       .then((conditions) => {
@@ -414,10 +416,13 @@ export default function SendForm() {
         const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
         const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
         if (min === max) setSendInfo({ ...sendInfo, satoshis: min }) // set amount automatically
-        return setLnUrlLimits({ min, max })
+        return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
       })
-      .catch(() => setError('Invalid address or LNURL'))
-  }, [sendInfo.lnUrl])
+      .catch((e) => {
+        consoleError(e, 'Error checking LNURL conditions')
+        setError(extractError(e))
+      })
+  }, [sendInfo.arkAddress, sendInfo.lnUrl])
 
   // check if user wants to send all funds
   useEffect(() => {
@@ -428,13 +433,13 @@ export default function SendForm() {
   useEffect(() => {
     if (!receivingAddresses) return
     const { boardingAddr, offchainAddr } = receivingAddresses
-    const { address, arkAddress, invoice } = sendInfo
+    const { address, arkAddress, invoice, lnUrl } = sendInfo
     // check server limits for onchain transactions
-    if (address && !arkAddress && !invoice && !utxoTxsAllowed()) {
+    if (address && !arkAddress && !invoice && !lnUrl && !utxoTxsAllowed()) {
       return setError('Sending onchain not allowed')
     }
     // check server limits for offchain transactions
-    if (!address && (arkAddress || invoice) && !vtxoTxsAllowed()) {
+    if (!address && (arkAddress || invoice || lnUrl) && !vtxoTxsAllowed()) {
       return setError('Sending offchain not allowed')
     }
     // check swap limits for lightning transactions
@@ -467,7 +472,7 @@ export default function SendForm() {
     }
     // everything is ok, clean error
     setError('')
-  }, [receivingAddresses, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice])
+  }, [receivingAddresses, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl])
 
   // manage button label and errors
   useEffect(() => {
@@ -480,9 +485,9 @@ export default function SendForm() {
     setLabel(
       satoshis > liquidBalance
         ? 'Insufficient funds'
-        : lnUrlLimits.min && satoshis < lnUrlLimits.min
+        : lnUrlResponse?.minSendable && satoshis < lnUrlResponse.minSendable
           ? 'Amount below LNURL min limit'
-          : lnUrlLimits.max && satoshis > lnUrlLimits.max
+          : lnUrlResponse?.maxSendable && satoshis > lnUrlResponse.maxSendable
             ? 'Amount above LNURL max limit'
             : satoshis && satoshis < 1
               ? 'Amount below 1 satoshi'
@@ -582,6 +587,15 @@ export default function SendForm() {
     }
   }
 
+  const handleKeyboardAmountSave = (value: string, inputMode: KeyboardInputMode) => {
+    if (inputMode === 'asset' || isAssetSend) return handleAmountChange(value)
+
+    const num = Number(value)
+    if (Number.isNaN(num) || !Number.isFinite(num)) return setError('Invalid amount')
+    const sats = inputMode === 'sats' ? num : fromFiat(num)
+    setState({ ...sendInfo, satoshis: sats })
+  }
+
   const handleSelectAsset = (asset: AssetOption | null) => {
     setShowAssetSelector(false)
     setSelectedAsset(asset)
@@ -613,7 +627,7 @@ export default function SendForm() {
     })
     setRecipient(newRecipient)
     setAmountIsReadOnly(false)
-    setLnUrlLimits({ min: 0, max: 0 })
+    setLnUrlResponse(undefined)
   }
 
   const handleRecipientChange = (recipient: string) => {
@@ -625,10 +639,9 @@ export default function SendForm() {
     setProcessing(true)
     const satoshis = sendInfo.satoshis ?? 0
     try {
-      if (sendInfo.lnUrl) {
+      if (sendInfo.lnUrl && lnUrlResponse) {
         // Check if Ark method is available
-        const conditions = await checkLnUrlConditions(sendInfo.lnUrl)
-        const arkMethod = conditions.transferAmounts?.find((method) => method.method === 'Ark' && method.available)
+        const arkMethod = lnUrlResponse.transferAmounts?.find((method) => method.method === 'Ark' && method.available)
 
         if (arkMethod) {
           // Fetch Ark address instead of Lightning invoice
@@ -674,7 +687,9 @@ export default function SendForm() {
     } else {
       setState({ ...sendInfo, satoshis: liquidBalance })
       setAmountTextValue(
-        useFiat ? toFiat(liquidBalance).toFixed(fiatDecimalsFor(config.fiat)) : liquidBalance.toString(),
+        useFiat
+          ? toFiat(liquidBalance).toFixed(fiatDecimalsFor(config.fiat, config.currencyDisplay as unknown as Unit))
+          : liquidBalance.toString(),
       )
       setAmount(liquidBalance)
     }
@@ -701,7 +716,9 @@ export default function SendForm() {
       )
     }
 
-    const pretty = useFiat ? prettyFiatAmount(toFiat(liquidBalance), config.fiat) : prettyAmount(liquidBalance)
+    const pretty = useFiat
+      ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, { bitcoinUnit: config.currencyDisplay })
+      : prettyAmount(liquidBalance)
 
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
@@ -724,8 +741,8 @@ export default function SendForm() {
       Boolean(error) ||
       processing
     : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
-      (lnUrlLimits.max && satoshis > lnUrlLimits.max) ||
-      (lnUrlLimits.min && satoshis < lnUrlLimits.min) ||
+      (lnUrlResponse?.maxSendable && satoshis > lnUrlResponse.maxSendable) ||
+      (lnUrlResponse?.minSendable && satoshis < lnUrlResponse.minSendable) ||
       amountIsAboveMaxLimit(satoshis) ||
       amountIsBelowMinLimit(satoshis) ||
       satoshis > liquidBalance ||
@@ -738,7 +755,11 @@ export default function SendForm() {
   const selectedAssetLabel = selectedAsset ? `${selectedAsset.name} (${selectedAsset.ticker})` : 'Bitcoin'
   const selectedAssetBalance = selectedAsset
     ? `${prettyAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`
-    : `${useFiat ? prettyFiatAmount(toFiat(liquidBalance), config.fiat) : prettyAmount(liquidBalance)} available`
+    : `${
+        useFiat
+          ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, { bitcoinUnit: config.currencyDisplay })
+          : prettyAmount(liquidBalance)
+      } available`
 
   const overlayOpen = scan || (keys && !amountIsReadOnly)
   const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
@@ -747,8 +768,8 @@ export default function SendForm() {
     <Keyboard
       asset={selectedAsset ?? undefined}
       back={() => setKeys(false)}
-      onSave={(value: string) => {
-        handleAmountChange(value)
+      onSave={(value: string, inputMode: KeyboardInputMode) => {
+        handleKeyboardAmountSave(value, inputMode)
         setKeys(false)
       }}
     />
@@ -866,7 +887,7 @@ export default function SendForm() {
                   </Text>
                   <DropdownMenu
                     open={showAssetSelector}
-                    onOpenChange={(open) => {
+                    onOpenChange={(open: any) => {
                       if (open) hapticLight()
                       setShowAssetSelector(open)
                     }}
@@ -898,7 +919,9 @@ export default function SendForm() {
                                 <span className='send-asset-option__name'>Bitcoin</span>
                                 <span className='send-asset-option__meta'>
                                   {useFiat
-                                    ? prettyFiatAmount(toFiat(liquidBalance), config.fiat)
+                                    ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, {
+                                        bitcoinUnit: config.currencyDisplay,
+                                      })
                                     : prettyAmount(liquidBalance)}{' '}
                                   available
                                 </span>
@@ -939,16 +962,16 @@ export default function SendForm() {
                   label='Amount'
                   name='send-amount'
                   right={<Available />}
-                  min={lnUrlLimits.min}
-                  max={lnUrlLimits.max}
                   onEnter={handleEnter}
                   onFocus={handleFocus}
                   onMax={handleSendAll}
+                  value={amountTextValue}
+                  readOnly={amountIsReadOnly}
                   onChange={handleAmountChange}
+                  min={lnUrlResponse?.minSendable}
+                  max={lnUrlResponse?.maxSendable}
                   asset={selectedAsset ?? undefined}
                   focus={focus === 'amount' && !isMobileBrowser}
-                  readOnly={amountIsReadOnly}
-                  value={amountTextValue}
                 />
               </FlexCol>
               {deductFromAmount ? <InfoLine color='orange' text='Fees will be deducted from the amount sent' /> : null}

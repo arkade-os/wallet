@@ -29,7 +29,7 @@ vi.mock('qr', () => ({
 }))
 
 // Mock clipboard helper so we can assert it was called with the QR value
-const copyToClipboardMock = vi.fn(() => Promise.resolve())
+const copyToClipboardMock = vi.fn((v) => Promise.resolve(v))
 vi.mock('../../../lib/clipboard', () => ({
   copyToClipboard: (v: string) => copyToClipboardMock(v),
 }))

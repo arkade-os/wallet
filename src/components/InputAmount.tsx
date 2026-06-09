@@ -5,7 +5,7 @@ import { ConfigContext } from '../providers/config'
 import { prettyNumber } from '../lib/format'
 import { FIAT_SYMBOLS } from '../lib/fiat'
 import { LimitsContext } from '../providers/limits'
-import { AssetOption } from '../lib/types'
+import { AssetOption, Currencies } from '../lib/types'
 import { TextSecondary } from './Text'
 import { hapticLight } from '../lib/haptics'
 
@@ -57,11 +57,17 @@ export default function InputAmount({
     if (focus && input.current) input.current.focus()
   }, [focus])
 
+  // update sats when value change
+  useEffect(() => {
+    if (!value || isNaN(Number(value))) return
+    setSatsValue(useFiat ? fromFiat(Number(value)) : Number(value))
+  }, [value, fromFiat, useFiat])
+
   // update other value when sats change
   useEffect(() => {
     setError(satsValue ? (satsValue < 0 ? 'Invalid amount' : '') : '')
     setOtherValue(useFiat ? prettyNumber(satsValue, 0) : prettyNumber(toFiat(satsValue), fiatDecimals()))
-  }, [satsValue])
+  }, [satsValue, toFiat, fiatDecimals, useFiat])
 
   const handleAmountChange = (ev: React.ChangeEvent<HTMLInputElement>) => {
     const textValue = ev.currentTarget.value
@@ -75,23 +81,25 @@ export default function InputAmount({
   const maximumSats = max ? Math.min(max, maxSwapAllowed()) : 0
 
   const fiatSymbol = FIAT_SYMBOLS[config.fiat]
-  const fiatLabel = fiatSymbol ?? config.fiat
+  const fiatLabel = config.fiat === Currencies.BTC ? config.currencyDisplay : (fiatSymbol ?? config.fiat)
 
-  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? fiatLabel : 'SATS'
+  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? fiatLabel : 'sats'
   const rightLabel = asset?.assetId
     ? ''
-    : useFiat
-      ? `${otherValue} SATS`
-      : fiatSymbol
-        ? `${fiatSymbol}${otherValue}`
-        : `${otherValue} ${config.fiat}`
+    : useFiat && config.fiat === Currencies.BTC
+      ? ''
+      : useFiat
+        ? `${otherValue} sats`
+        : fiatSymbol
+          ? `${fiatSymbol}${otherValue}`
+          : `${otherValue} ${config.fiat}`
   const bottomLeft =
     minimumSats && satsValue !== undefined && satsValue < minimumSats
-      ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}`
+      ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'sat' : 'sats'}`
       : ''
   const bottomRight =
     maximumSats && satsValue !== undefined && satsValue > maximumSats
-      ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'SAT' : 'SATS'}`
+      ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'sat' : 'sats'}`
       : ''
 
   return (
@@ -112,21 +120,21 @@ export default function InputAmount({
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
         />
         <TextSecondary>{rightLabel}</TextSecondary>
+        {onMax && !disabled && !readOnly ? (
+          <button
+            type='button'
+            className='pill-base'
+            onClick={() => {
+              hapticLight()
+              onMax()
+            }}
+            aria-label='Set maximum amount'
+            data-testid='input-amount-max'
+          >
+            Max
+          </button>
+        ) : null}
       </label>
-      {onMax && !disabled && !readOnly ? (
-        <button
-          type='button'
-          className='pill-base'
-          onClick={() => {
-            hapticLight()
-            onMax()
-          }}
-          aria-label='Set maximum amount'
-          data-testid='input-amount-max'
-        >
-          Max
-        </button>
-      ) : null}
     </InputContainer>
   )
 }

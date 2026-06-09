@@ -13,6 +13,7 @@ import {
   mockNavigationContextValue,
   mockWalletContextValue,
 } from '../mocks'
+import { CurrencyDisplay, Currencies } from '../../../lib/types'
 
 vi.mock('liveline', () => ({
   Liveline: ({ paused }: { paused?: boolean }) => <div data-testid='liveline-chart' data-paused={String(paused)} />,
@@ -70,5 +71,43 @@ describe('Bitcoin detail screen', () => {
     await waitFor(() => {
       expect(screen.getByTestId('liveline-chart')).toHaveAttribute('data-paused', 'false')
     })
+  })
+
+  it('keeps the market price in USD and formats the balance with BIP-177 when currency is BTC', async () => {
+    vi.stubGlobal('ResizeObserver', undefined)
+
+    render(
+      <ConfigContext.Provider
+        value={{
+          ...mockConfigContextValue,
+          config: {
+            ...mockConfigContextValue.config,
+            currencyDisplay: CurrencyDisplay.Bip177,
+            fiat: Currencies.BTC,
+          },
+        }}
+      >
+        <FiatContext.Provider
+          value={{
+            ...mockFiatContextValue,
+            toFiatAmount: (sats: number, currency: Currencies) =>
+              currency === Currencies.USD ? (sats / 100_000_000) * 64000 : sats,
+          }}
+        >
+          <FlowContext.Provider value={mockFlowContextValue}>
+            <NavigationContext.Provider value={mockNavigationContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, balance: 14511 }}>
+                <BitcoinDetail />
+              </WalletContext.Provider>
+            </NavigationContext.Provider>
+          </FlowContext.Provider>
+        </FiatContext.Provider>
+      </ConfigContext.Provider>,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Bitcoin' })).toBeInTheDocument()
+    expect(screen.getByText('$64,000.00')).toBeInTheDocument()
+    expect(screen.getByText('₿14,511')).toBeInTheDocument()
+    expect(screen.getByText('$9.29')).toBeInTheDocument()
   })
 })

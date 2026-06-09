@@ -8,6 +8,7 @@ import {
   fundWallet,
   navigateHome,
   navigateToBoltz,
+  getInvoiceFromLND,
 } from './utils'
 import { prettyLongText } from '../../lib/format'
 import { exec } from 'child_process'
@@ -43,7 +44,7 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   // main page
   await navigateHome(page)
   await page.waitForSelector('text=Received', { timeout: 10000 })
-  await expect(page.getByText('+ 1,992 SATS')).toBeVisible()
+  await expect(page.getByText('+ 1,992 sats')).toBeVisible()
 
   // should be visible in Boltz app
   await navigateToBoltz(page)
@@ -69,17 +70,15 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   expect(await page.getByTestId('Kind').textContent()).toBe('Reverse Swap')
   expect(await page.getByTestId('Direction').textContent()).toBe('Lightning to Arkade')
   expect(await page.getByTestId('Status').textContent()).toBe('invoice.settled')
-  expect(await page.getByTestId('Amount').textContent()).toBe('1,992 SATS')
-  expect(await page.getByTestId('Fees').textContent()).toBe('8 SATS')
-  expect(await page.getByTestId('Total').textContent()).toBe('2,000 SATS')
+  expect(await page.getByTestId('Amount').textContent()).toBe('1,992 sats')
+  expect(await page.getByTestId('Fees').textContent()).toBe('8 sats')
+  expect(await page.getByTestId('Total').textContent()).toBe('2,000 sats')
 })
 
 test('should raise error when trying to pay invoice with little amount', async ({ page }) => {
   await createWallet(page)
 
-  const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 21`)
-  const outputJSON = JSON.parse(stdout.trim())
-  const invoice = outputJSON.payment_request
+  const invoice = await getInvoiceFromLND(21)
   expect(invoice).toBeDefined()
   expect(invoice).toBeTruthy()
   expect(invoice).toContain('lnbcrt')
@@ -97,13 +96,7 @@ test('should send funds to Lightning', async ({ page }) => {
   await createWallet(page)
   await fundWallet(page, 5000)
 
-  const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
-  const output = stdout.trim()
-  expect(output).toBeDefined()
-  expect(output).toBeTruthy()
-  const outputJSON = JSON.parse(output)
-  expect('payment_request' in outputJSON).toBeTruthy()
-  const invoice = outputJSON.payment_request
+  const invoice = await getInvoiceFromLND(1000)
   expect(invoice).toBeDefined()
   expect(invoice).toBeTruthy()
   expect(invoice).toContain('lnbcrt')
@@ -135,9 +128,9 @@ test('should send funds to Lightning', async ({ page }) => {
   expect(await page.getByTestId('Kind').textContent()).toBe('Submarine Swap')
   expect(await page.getByTestId('Direction').textContent()).toBe('Arkade to Lightning')
   expect(await page.getByTestId('Status').textContent()).toBe('transaction.claimed')
-  expect(await page.getByTestId('Amount').textContent()).toBe('1,000 SATS')
-  expect(await page.getByTestId('Fees').textContent()).toBe('1 SAT')
-  expect(await page.getByTestId('Total').textContent()).toBe('1,001 SATS')
+  expect(await page.getByTestId('Amount').textContent()).toBe('1,000 sats')
+  expect(await page.getByTestId('Fees').textContent()).toBe('1 sat')
+  expect(await page.getByTestId('Total').textContent()).toBe('1,001 sats')
 })
 
 test('should send funds to Bitcoin', async ({ page, isMobile }) => {
@@ -171,9 +164,9 @@ test('should send funds to Bitcoin', async ({ page, isMobile }) => {
   expect(await page.getByTestId('Direction').textContent()).toBe('Arkade to BTC')
   expect(await page.getByTestId('BTC Address').textContent()).toBe(prettyLongText(someOnchainAddress))
   expect(await page.getByTestId('Status').textContent()).toBe('transaction.claimed')
-  expect(await page.getByTestId('Amount').textContent()).toBe('2,111 SATS')
-  expect(await page.getByTestId('Fees').textContent()).toBe('164 SATS')
-  expect(await page.getByTestId('Total').textContent()).toBe('2,275 SATS')
+  expect(await page.getByTestId('Amount').textContent()).toBe('2,111 sats')
+  expect(await page.getByTestId('Fees').textContent()).toBe('164 sats')
+  expect(await page.getByTestId('Total').textContent()).toBe('2,275 sats')
 })
 
 test('should refund failing swap', async ({ page }) => {
