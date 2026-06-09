@@ -1,0 +1,18 @@
+appId: com.android.chrome
+name: Home — scroll Assets section
+tags:
+  - smoke
+  - home-redesign
+---
+- runFlow: ../subflows/ensure_on_wallet_home.yaml
+- swipe:
+    start: "50%, 70%"
+    end: "50%, 30%"
+    duration: 500
+- runFlow: ../../subflows/wait_2s.yaml
+- swipe:
+    direction: UP
+    duration: 400
+- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/tap_home_receive.yaml
+- runFlow: ../../subflows/wait_1s.yaml

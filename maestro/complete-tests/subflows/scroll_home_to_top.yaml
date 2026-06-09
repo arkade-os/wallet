@@ -1,0 +1,8 @@
+appId: com.android.chrome
+---
+# Pull content down so quick actions (Receive) are on screen — avoids hitting upsell / DFX cards.
+- swipe:
+    start: "50%, 32%"
+    end: "50%, 72%"
+    duration: 450
+- runFlow: ../../subflows/wait_1s.yaml

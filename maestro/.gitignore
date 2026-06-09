@@ -1,0 +1,6 @@
+config.yaml
+debug/
+reports/
+recordings/raw-*.log
+recordings/taps-*.txt
+.DS_Store

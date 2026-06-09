@@ -1,0 +1,4 @@
+appId: com.android.chrome
+---
+- runFlow: reset_to_wallet_home.yaml
+- runFlow: ../../subflows/wait_2s.yaml

@@ -1,0 +1,96 @@
+appId: com.android.chrome
+name: Home — tabs, Activity/Settings and asset filters
+tags:
+  - smoke
+  - home-redesign
+---
+# recordings/taps-20260609-163926.log — 14 tap + 3 swipe
+
+- runFlow: ../subflows/ensure_on_wallet_home.yaml
+# gesture 1
+- tapOn:
+    point: "45%, 24%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../../subflows/wait_2s.yaml
+# gesture 2
+- tapOn:
+    point: "52%, 24%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../../subflows/wait_3s.yaml
+# gesture 3
+- tapOn:
+    point: "72%, 66%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../../subflows/wait_3s.yaml
+# gesture 4
+- tapOn:
+    point: "6%, 14%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../../subflows/wait_2s.yaml
+# gesture 5
+- tapOn:
+    point: "75%, 76%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../../subflows/wait_5s.yaml
+# gesture 6
+- tapOn:
+    point: "6%, 14%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../../subflows/wait_3s.yaml
+# gesture 7
+- tapOn:
+    point: "20%, 50%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../../subflows/wait_4s.yaml
+# gesture 8: swipe
+- swipe:
+    start: "8%, 68%"
+    end: "90%, 86%"
+    duration: 900
+- runFlow: ../../subflows/wait_1s.yaml
+# gesture 9: swipe
+- swipe:
+    start: "8%, 80%"
+    end: "5%, 58%"
+    duration: 658
+- runFlow: ../../subflows/wait_1s.yaml
+# gesture 10: swipe
+- swipe:
+    start: "90%, 91%"
+    end: "94%, 56%"
+    duration: 773
+- runFlow: ../../subflows/wait_1s.yaml
+# gesture 11
+- tapOn:
+    point: "10%, 72%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../../subflows/wait_2s.yaml
+# gesture 12
+- tapOn:
+    point: "28%, 72%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../../subflows/wait_2s.yaml
+# gesture 13
+- tapOn:
+    point: "42%, 72%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../../subflows/wait_2s.yaml
+# gesture 14
+- tapOn:
+    point: "57%, 73%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../../subflows/wait_2s.yaml
+# gesture 15
+- tapOn:
+    point: "72%, 72%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../../subflows/wait_2s.yaml
+# gesture 16
+- tapOn:
+    point: "89%, 73%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../../subflows/wait_4s.yaml
+# gesture 17
+- tapOn:
+    point: "6%, 14%"
+    waitToSettleTimeoutMs: 800

@@ -1,0 +1,28 @@
+appId: com.android.chrome
+---
+# Chrome OS dialog — text optional; coordinate fallback for Allow (right side).
+
+- runFlow:
+    when:
+      visible: ".*wants to see.*"
+    commands:
+      - tapOn:
+          text: "Allow"
+          optional: true
+      - tapOn:
+          text: "Consenti"
+          optional: true
+      - tapOn:
+          text: "While using the app"
+          optional: true
+      - tapOn:
+          text: "Only this time"
+          optional: true
+      - tapOn:
+          text: "Solo questa volta"
+          optional: true
+      - tapOn:
+          point: "75%, 62%"
+          optional: true
+          waitToSettleTimeoutMs: 800
+      - runFlow: ../../subflows/wait_1s.yaml

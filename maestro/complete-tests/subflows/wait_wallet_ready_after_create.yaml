@@ -1,0 +1,12 @@
+appId: com.android.chrome
+---
+- runFlow:
+    when:
+      visible: "Continue anyway"
+    commands:
+      - tapOn:
+          point: "50%, 88%"
+          waitToSettleTimeoutMs: 800
+      - runFlow: ../../subflows/wait_2s.yaml
+
+- runFlow: ../../subflows/wait_5s.yaml

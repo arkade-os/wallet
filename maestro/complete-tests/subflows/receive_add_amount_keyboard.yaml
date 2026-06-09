@@ -1,0 +1,20 @@
+appId: com.android.chrome
+---
+# Add amount keyboard — recordings/taps-20260609-152620.log taps 16–19
+
+- tapOn:
+    point: "19%, 82%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../../subflows/wait_1s.yaml
+- tapOn:
+    point: "21%, 59%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../../subflows/wait_1s.yaml
+- tapOn:
+    point: "73%, 90%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../../subflows/wait_4s.yaml
+- tapOn:
+    point: "58%, 91%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../../subflows/wait_3s.yaml
