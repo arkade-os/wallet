@@ -4,9 +4,8 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/banco": "github:arkade-os/banco",
     "@arkade-os/boltz-swap": "0.3.24",
-    "@arkade-os/sdk": "github:arkade-os/ts-sdk#arkade-script-final&path:/packages/ts-sdk",
+    "@arkade-os/sdk": "github:arkade-os/ts-sdk#4906445f343042a109a0059336b1084d0040a585&path:/packages/ts-sdk",
     "@branta-ops/branta": "0.0.9",
     "@lendasat/lendasat-wallet-bridge": "^0.0.90",
     "@noble/curves": "^2.0.1",

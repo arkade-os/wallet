@@ -1,6 +1,5 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Maker } from '@arkade-os/banco'
 import { ArrowDown, Check, X, Loader2, Copy, ExternalLink, AlertTriangle } from 'lucide-react'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
@@ -19,6 +18,7 @@ import { formatAssetAmount, prettyDate } from '../../../lib/format'
 import type { BancoSwap } from '../../../lib/banco'
 import { SwapCard } from './SwapCard'
 import { getOffchainTxURL } from '../../../lib/explorers'
+import { Maker } from '../../../lib/banco/maker'
 
 // Polling is now handled globally by BancoProvider
 

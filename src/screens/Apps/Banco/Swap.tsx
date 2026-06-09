@@ -1,7 +1,6 @@
 // src/screens/Apps/Banco/Swap.tsx
 import { useContext, useEffect, useRef, useState } from 'react'
 import { hex } from '@scure/base'
-import { Maker } from '@arkade-os/banco'
 import { ArkAddress, asset } from '@arkade-os/sdk'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
@@ -19,6 +18,7 @@ import { BancoContext } from '../../../providers/banco'
 import { ConfigContext } from '../../../providers/config'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
+import { Maker } from '../../../lib/banco/maker'
 
 const CANCEL_DELAY_SECONDS = 300
 

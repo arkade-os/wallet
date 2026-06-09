@@ -8,15 +8,12 @@ importers:
 
   .:
     dependencies:
-      '@arkade-os/banco':
-        specifier: github:arkade-os/banco
-        version: https://codeload.github.com/arkade-os/banco/tar.gz/b928526a08526ff69cc16b21487794ede5b1b7e9
       '@arkade-os/boltz-swap':
         specifier: 0.3.24
         version: 0.3.24
       '@arkade-os/sdk':
-        specifier: github:arkade-os/ts-sdk#arkade-script-final&path:/packages/ts-sdk
-        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/5a24cbf2d0e21a03e26552bd67cb85f87f687fc1#path:/packages/ts-sdk
+        specifier: github:arkade-os/ts-sdk#4906445f343042a109a0059336b1084d0040a585&path:/packages/ts-sdk
+        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/4906445f343042a109a0059336b1084d0040a585#path:/packages/ts-sdk
       '@branta-ops/branta':
         specifier: 0.0.9
         version: 0.0.9
@@ -186,11 +183,6 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/banco@https://codeload.github.com/arkade-os/banco/tar.gz/b928526a08526ff69cc16b21487794ede5b1b7e9':
-    resolution: {tarball: https://codeload.github.com/arkade-os/banco/tar.gz/b928526a08526ff69cc16b21487794ede5b1b7e9}
-    version: 0.0.1
-    engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
-
   '@arkade-os/boltz-swap@0.3.24':
     resolution: {integrity: sha512-V8QOK5jYCHKcfEpLQEsHtQWtjjZBHlf0IJSTZUUJdE8PNHetRMeXdnMbo6kGMgy7lpdOev7rvMSRR0+PmMHoMA==}
     engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
@@ -216,31 +208,9 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/5a24cbf2d0e21a03e26552bd67cb85f87f687fc1#path:/packages/ts-sdk':
-    resolution: {path: /packages/ts-sdk, tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/5a24cbf2d0e21a03e26552bd67cb85f87f687fc1}
-    version: 0.4.28
-    engines: {node: '>=22.12.0 <25'}
-    peerDependencies:
-      '@react-native-async-storage/async-storage': '>=1.0.0'
-      expo: '>=54.0.0'
-      expo-background-task: ~1.0.10 || >=55.0.0
-      expo-sqlite: ~16.0.10 || >=55.0.0
-      expo-task-manager: ~14.0.9 || >=55.0.0
-    peerDependenciesMeta:
-      '@react-native-async-storage/async-storage':
-        optional: true
-      expo:
-        optional: true
-      expo-background-task:
-        optional: true
-      expo-sqlite:
-        optional: true
-      expo-task-manager:
-        optional: true
-
-  '@arkade-os/sdk@https://codeload.github.com/louisinger/wallet-sdk/tar.gz/5a24cbf2d0e21a03e26552bd67cb85f87f687fc1#path:/packages/ts-sdk':
-    resolution: {path: /packages/ts-sdk, tarball: https://codeload.github.com/louisinger/wallet-sdk/tar.gz/5a24cbf2d0e21a03e26552bd67cb85f87f687fc1}
-    version: 0.4.28
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/4906445f343042a109a0059336b1084d0040a585#path:/packages/ts-sdk':
+    resolution: {path: /packages/ts-sdk, tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/4906445f343042a109a0059336b1084d0040a585}
+    version: 0.4.33
     engines: {node: '>=22.12.0 <25'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -2840,23 +2810,6 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/banco@https://codeload.github.com/arkade-os/banco/tar.gz/b928526a08526ff69cc16b21487794ede5b1b7e9':
-    dependencies:
-      '@arkade-os/sdk': https://codeload.github.com/louisinger/wallet-sdk/tar.gz/5a24cbf2d0e21a03e26552bd67cb85f87f687fc1#path:/packages/ts-sdk
-      '@scure/base': 2.0.0
-    transitivePeerDependencies:
-      - '@ledgerhq/ledger-bitcoin'
-      - '@react-native-async-storage/async-storage'
-      - bip32
-      - bitcoinjs-lib
-      - bufferutil
-      - ecpair
-      - expo
-      - expo-background-task
-      - expo-sqlite
-      - expo-task-manager
-      - utf-8-validate
-
   '@arkade-os/boltz-swap@0.3.24':
     dependencies:
       '@arkade-os/sdk': 0.4.22
@@ -2898,26 +2851,7 @@ snapshots:
       - ecpair
       - utf-8-validate
 
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/5a24cbf2d0e21a03e26552bd67cb85f87f687fc1#path:/packages/ts-sdk':
-    dependencies:
-      '@bitcoinerlab/descriptors-scure': 3.1.7
-      '@marcbachmann/cel-js': 7.3.1
-      '@noble/curves': 2.0.1
-      '@noble/secp256k1': 3.0.0
-      '@scure/base': 2.0.0
-      '@scure/bip39': 2.0.1
-      '@scure/btc-signer': 2.0.1
-      bip68: 1.0.4
-      ws-electrumx-client: 1.0.5
-    transitivePeerDependencies:
-      - '@ledgerhq/ledger-bitcoin'
-      - bip32
-      - bitcoinjs-lib
-      - bufferutil
-      - ecpair
-      - utf-8-validate
-
-  '@arkade-os/sdk@https://codeload.github.com/louisinger/wallet-sdk/tar.gz/5a24cbf2d0e21a03e26552bd67cb85f87f687fc1#path:/packages/ts-sdk':
+  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/4906445f343042a109a0059336b1084d0040a585#path:/packages/ts-sdk':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 7.3.1

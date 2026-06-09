@@ -10,17 +10,18 @@
  * banco.test.ts. These test the underlying banco mechanics end-to-end.
  */
 import { test, expect } from '@playwright/test'
-import { Maker, Offer } from '@arkade-os/banco'
 import { asset, Wallet } from '@arkade-os/sdk'
 import {
   createFundedWallet,
   issueAsset,
-  fundSolverWithAsset,
+  fundSolverWithAsset as fundClaimBotWithAsset,
   fundSolverWithBtc,
   addBancoPair,
   removeBancoPair,
   swapPkScriptToAddress,
 } from './bancoHelpers'
+import { Maker } from '../../lib/banco/maker'
+import { Offer } from '../../lib/banco/offer'
 
 const ARK_URL = 'http://localhost:7070'
 const EMULATOR_URL = 'http://localhost:7073'
@@ -115,7 +116,7 @@ test.describe('Banco offer lifecycle', () => {
     await makerWallet.send({
       address: swapAddress,
       amount: 450,
-      assets: [{ assetId, amount: 500 }],
+      assets: [{ assetId, amount: BigInt(500) }],
       extensions: [{ type: packet.type(), payload: packet.serialize() }],
     })
 
@@ -181,7 +182,7 @@ test.describe('Banco offer lifecycle', () => {
     await makerWallet.send({
       address: swapAddress,
       amount: 450,
-      assets: [{ assetId: assetA, amount: 500 }],
+      assets: [{ assetId: assetA, amount: BigInt(500) }],
       extensions: [{ type: packet.type(), payload: packet.serialize() }],
     })
 
@@ -224,7 +225,7 @@ test.describe('Banco taker-fulfilled swaps', () => {
 
   test('BTC → Asset swap (taker fulfills)', async () => {
     // 1. Fund the solver taker with an asset
-    const assetId = await fundSolverWithAsset(1000)
+    const assetId = await fundClaimBotWithAsset(1000)
     const pairName = `BTC/${assetId}`
 
     const wantAmount = 500
@@ -269,7 +270,7 @@ test.describe('Banco taker-fulfilled swaps', () => {
 
       const totalReceived = assetVtxos.reduce((sum, v) => {
         const assetMatch = v.assets!.find((a) => a.assetId === assetId)
-        return sum + (assetMatch?.amount ?? 0)
+        return sum + Number(assetMatch?.amount ?? 0)
       }, 0)
       expect(totalReceived).toBeGreaterThanOrEqual(wantAmount)
     } finally {
@@ -310,7 +311,7 @@ test.describe('Banco taker-fulfilled swaps', () => {
       await makerWallet.send({
         address: swapAddress,
         amount: 450,
-        assets: [{ assetId, amount: depositAmount }],
+        assets: [{ assetId, amount: BigInt(depositAmount) }],
         extensions: [{ type: packet.type(), payload: packet.serialize() }],
       })
 
@@ -331,7 +332,7 @@ test.describe('Banco taker-fulfilled swaps', () => {
     const assetA = await issueAsset(makerWallet, 500)
 
     // 2. Fund the solver taker with assetB
-    const assetB = await fundSolverWithAsset(1000)
+    const assetB = await fundClaimBotWithAsset(1000)
     const pairName = `${assetA}/${assetB}`
 
     const wantAmount = 500
@@ -359,7 +360,7 @@ test.describe('Banco taker-fulfilled swaps', () => {
       await makerWallet.send({
         address: swapAddress,
         amount: 450,
-        assets: [{ assetId: assetA, amount: depositAmount }],
+        assets: [{ assetId: assetA, amount: BigInt(depositAmount) }],
         extensions: [{ type: packet.type(), payload: packet.serialize() }],
       })
 
@@ -373,7 +374,7 @@ test.describe('Banco taker-fulfilled swaps', () => {
 
       const totalAssetB = assetBVtxos.reduce((sum, v) => {
         const match = v.assets!.find((a) => a.assetId === assetB)
-        return sum + (match?.amount ?? 0)
+        return sum + Number(match?.amount ?? 0)
       }, 0)
       expect(totalAssetB).toBeGreaterThanOrEqual(wantAmount)
     } finally {
