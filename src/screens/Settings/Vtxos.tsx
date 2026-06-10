@@ -370,9 +370,9 @@ export default function Vtxos() {
       {utxoTxsAllowed() && vtxoTxsAllowed() ? (
         <>
           <ButtonsOnBottom>
-            {hasInputsToSettle && !hideUtxos ? (
-              <Button onClick={handleRollover} label={label} disabled={rollingover || !aboveDust} />
-            ) : null}
+            {/* {hasInputsToSettle && !hideUtxos ? ( */}
+            <Button onClick={handleRollover} label={label} disabled={rollingover || !aboveDust} />
+            {/* ) : null} */}
             {wallet.nextRollover ? (
               <Button onClick={() => setReminderIsOpen(true)} label='Add reminder' secondary />
             ) : null}
