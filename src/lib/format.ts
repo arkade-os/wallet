@@ -175,13 +175,13 @@ const hideDots = (): string => '·'.repeat(8)
 
 export const prettyHide = (value: string | number | bigint, suffix = 'sats'): string => {
   if (!value) return ''
-  const dots = hideDots(value)
+  const dots = hideDots()
   return suffix ? `${dots} ${suffix}` : dots
 }
 
 export const prettyFiatHide = (value: number, currency: Currencies, options: FiatAmountFormatOptions = {}): string => {
   if (!value) return ''
-  const dots = hideDots(value)
+  const dots = hideDots()
   if (currency === Currencies.BTC) {
     const bitcoinUnit = normalizeBitcoinUnit(options.bitcoinUnit)
     if (bitcoinUnit === Unit.BIP177) return `${BITCOIN_SYMBOL}${dots}`
