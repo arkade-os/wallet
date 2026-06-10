@@ -2,7 +2,7 @@
 
 End-to-end tests for the Arkade Wallet web app, run on a **physical Android device** via **Google Chrome** and [Maestro](https://maestro.mobile.dev/).
 
-Flows use **percentage-based coordinates** recorded from real taps (not CSS selectors). They are reliable on the [reference device](#reference-device) below; other phones or navigation modes usually require re-recording.
+Flows use **percentage-based coordinates** recorded from real taps (not CSS selectors). They are calibrated for the [reference device](#reference-device); use [adapting flows](#adapting-flows-to-another-device) or re-recording for other phones.
 
 ## Prerequisites
 
@@ -12,6 +12,7 @@ Flows use **percentage-based coordinates** recorded from real taps (not CSS sele
 | Android platform tools | `adb devices` shows your phone as `device` |
 | Google Chrome | `com.android.chrome` on the device |
 | USB debugging | Enabled; authorize the host machine |
+| PyYAML | `pip install pyyaml` — for `adapt-device.py` |
 
 ## Quick start
 
@@ -103,6 +104,64 @@ python3 maestro/scripts/parse-taps.py maestro/recordings/raw-*.log
 
 Turn the parsed output into subflows under `complete-tests/subflows/` or update flows directly.
 
+## Adapting flows to another device
+
+Flows are percentage-based but still depend on **viewport insets** (status bar, Chrome toolbar, navigation mode). The reference suite targets **Xiaomi 13T Pro, 1220×2712, 3-button navigation**.
+
+`adapt-device.py` remaps every `point`, `start`, and `end` coordinate from the source profile to a target profile defined in [`device-profiles.yaml`](device-profiles.yaml).
+
+### Quick adapt
+
+1. Connect the target phone (`adb devices`).
+
+2. Create a profile from the connected device:
+
+   ```bash
+   ./maestro/scripts/adapt-device.sh --init-profile my-device --write-profile
+   ```
+
+3. Preview changes (no files modified):
+
+   ```bash
+   ./maestro/scripts/adapt-device.sh --to-profile my-device --dry-run
+   ```
+
+4. Apply (optionally keep `.bak` copies):
+
+   ```bash
+   ./maestro/scripts/adapt-device.sh --to-profile my-device --write --backup
+   ```
+
+5. Run smoke on the device:
+
+   ```bash
+   ./maestro/scripts/run-scenario.sh smoke
+   ```
+
+### Other commands
+
+```bash
+./maestro/scripts/adapt-device.sh --list-profiles
+./maestro/scripts/adapt-device.sh --detect
+./maestro/scripts/adapt-device.sh --to-profile example-gesture-1220x2712 --dry-run
+```
+
+### Navigation mode (Android 16)
+
+Android 16 defaults to **gesture navigation**. This suite was recorded with the **3-button bar enabled**. Either:
+
+- enable 3-button navigation on the test phone, **or**
+- adapt flows to a `gesture` profile (see `example-gesture-1220x2712` in `device-profiles.yaml`).
+
+```bash
+adb shell settings get secure navigation_mode
+# 0 = 3-button, 2 = gesture
+```
+
+### When adaptation is not enough
+
+Different **aspect ratio**, keyboard layout, or a major UI redesign → re-record with `./maestro/record-taps.sh` and update flows manually. Tune `viewport` / `chrome` in `device-profiles.yaml` if taps are close but slightly off.
+
 ## Configuration
 
 | File | Purpose |
@@ -110,11 +169,12 @@ Turn the parsed output into subflows under `complete-tests/subflows/` or update 
 | `config.yaml.example` | Template committed to git |
 | `config.yaml` | Your local copy (gitignored) — **required** to run tests |
 | `env.WALLET_PASSWORD` | Used by `ensure_on_wallet_home` when the wallet is locked (empty = skip unlock input) |
+| `device-profiles.yaml` | Source/target device specs for `adapt-device.py` |
 
 ## Reference device
 
 **All coordinates in this suite were recorded on this setup.**  
-Another resolution, navigation mode, or Chrome layout will likely mis-tap until you re-record.
+Use `adapt-device.sh` for another navigation mode or similar resolution; re-record for very different layouts.
 
 | Property | Value |
 |----------|--------|
@@ -151,7 +211,7 @@ export ADB_DEVICE=INBIJVCASW5HS4YX
 | `error: create maestro/config.yaml from config.yaml.example` | Missing local config | `cp maestro/config.yaml.example maestro/config.yaml` |
 | No taps on phone; log shows `chromium` / `platform=WEB` | Desktop browser used | Use `run.sh` / `studio.sh` / `run-scenario.sh` (they pass `-p android`) |
 | Opens **DFX** (“Buy or sell bitcoin”) | Wrong tab or scrolled home | Flows call `open_wallet_url` + scroll-to-top; check `WALLET_URL` |
-| Taps miss buttons | Different device or nav mode | Re-record; enable 3-button nav or update coordinates |
+| Taps miss buttons | Different device or nav mode | `./maestro/scripts/adapt-device.sh --to-profile … --write` or re-record |
 | `no adb device` | USB / debugging | Reconnect, `adb devices`, accept RSA prompt |
 | Recording exits with code 255 | ADB disconnect or killed `getevent` | Replug phone; stop recording with **Ctrl+C** |
 
