@@ -18,7 +18,7 @@ Set these values under `env:` in [`config.yaml`](config.yaml):
 |----------|--------------|---------|
 | `WALLET_URL` | All flows | Wallet URL opened in Chrome (`open_wallet_url` subflow) |
 | `WALLET_NSEC` | `onboarding`, `reset-restore`, `prerelease` | Throwaway test wallet restore key |
-| `WALLET_PASSWORD` | `unlock`, `prerelease`, smoke when wallet is locked | Password for locked-wallet flows |
+| `WALLET_PASSWORD` | `unlock`, `prerelease`; smoke only if wallet is locked | Password for locked-wallet flows |
 
 **Do not** put `nsec` or password directly in flow YAML files. Maestro Studio does not reliably resolve `${WALLET_NSEC}` / `${WALLET_PASSWORD}` from env exports, so secrets are injected via generated subflows instead.
 
@@ -52,6 +52,13 @@ python3 maestro/scripts/sync-secret-subflows.py
 ```
 
 Use a **throwaway test wallet** only — never commit a real or funded `nsec`.
+
+### Locked wallet and empty `WALLET_PASSWORD`
+
+- **`smoke`** and most flows 03–12 call [`ensure_on_wallet_home.yaml`](complete-tests/subflows/ensure_on_wallet_home.yaml), which runs `_input_wallet_password.yaml` only when the **Unlock wallet** screen is visible.
+- If the wallet is **locked** and `WALLET_PASSWORD` is empty in `config.yaml`, the generated subflow types an empty string and the run will **fail to unlock** (no clear Maestro error — the flow stalls or times out on home).
+- **`run-scenario.sh`** enforces a non-empty password only for `unlock` and `prerelease`, not for `smoke`.
+- **Practical default:** keep the test wallet **unlocked** for smoke, or set `WALLET_PASSWORD` in `config.yaml` before any scenario that may hit a lock screen.
 
 ## New approach: record manual taps first
 

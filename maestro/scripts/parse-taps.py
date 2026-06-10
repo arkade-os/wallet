@@ -70,7 +70,7 @@ def parse(
                 seconds = max(1, round(delay_ms / 1000))
                 out.append(f"- runFlow: wait_{seconds}s.yaml")
         cx, cy = pct(px, py)
-        out.append(f"- tapOn:")
+        out.append("- tapOn:")
         out.append(f'    point: "{cx}%, {cy}%"')
 
     out.append("")
@@ -84,9 +84,15 @@ def main() -> None:
             file=sys.stderr,
         )
         sys.exit(1)
-    touch_x = int(sys.argv[4]) if len(sys.argv) == 6 else DEFAULT_TOUCH_MAX_X
-    touch_y = int(sys.argv[5]) if len(sys.argv) == 6 else DEFAULT_TOUCH_MAX_Y
-    print(parse(Path(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3]), touch_x, touch_y))
+    try:
+        screen_w = int(sys.argv[2])
+        screen_h = int(sys.argv[3])
+        touch_x = int(sys.argv[4]) if len(sys.argv) == 6 else DEFAULT_TOUCH_MAX_X
+        touch_y = int(sys.argv[5]) if len(sys.argv) == 6 else DEFAULT_TOUCH_MAX_Y
+    except ValueError as exc:
+        print(f"error: all numeric arguments must be integers: {exc}", file=sys.stderr)
+        sys.exit(1)
+    print(parse(Path(sys.argv[1]), screen_w, screen_h, touch_x, touch_y))
 
 
 if __name__ == "__main__":

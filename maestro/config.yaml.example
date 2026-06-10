@@ -22,5 +22,6 @@ env:
   WALLET_URL: "https://your-preview-or-production-wallet-url"
   # Throwaway test wallet only — never commit a real or funded nsec.
   WALLET_NSEC: "nsec1your-test-restore-key-here"
-  # Used by unlock tests (13) and ensure_on_wallet_home when wallet is locked.
+  # Used by unlock (13), prerelease, and ensure_on_wallet_home when wallet is locked.
+  # Smoke assumes wallet is unlocked unless you set this (empty = blank unlock attempt).
   WALLET_PASSWORD: ""

@@ -20,6 +20,11 @@ WM="$(adb -s "$DEVICE" shell wm size 2>/dev/null | tr -d '\r' | awk '{print $NF}
 W="${WM%x*}"
 H="${WM#*x}"
 
+if [[ -z "$W" || -z "$H" || ! "$W" =~ ^[0-9]+$ || ! "$H" =~ ^[0-9]+$ ]]; then
+  echo "error: could not parse screen dimensions from 'wm size' (got: ${WM:-empty})" >&2
+  exit 1
+fi
+
 echo "Device: ${DEVICE}"
 echo "Screen: ${W} x ${H}"
 echo "Raw log: ${RAW}"

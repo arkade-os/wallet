@@ -28,6 +28,15 @@ config.yaml
         subflows/ensure_on_wallet_home.yaml    → _input_wallet_password.yaml (when locked)
 ```
 
+### Locked wallet during smoke
+
+`ensure_on_wallet_home` unlocks via `_input_wallet_password.yaml` when **Unlock wallet** is visible. If `WALLET_PASSWORD` is empty in `config.yaml`, that step submits a blank password and smoke flows will not reach home. Either:
+
+- run smoke with the wallet **already unlocked**, or
+- set `WALLET_PASSWORD` in `config.yaml` before smoke / prerelease.
+
+The `unlock` scenario fails fast via `run-scenario.sh` when the password is missing; **`smoke` does not**.
+
 After changing `config.yaml`:
 
 ```bash
