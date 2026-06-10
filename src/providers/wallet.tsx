@@ -36,15 +36,14 @@ import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
-import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
+import { calcNextRollover } from '../lib/wallet'
 import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
-import { defaultPassword, getDelegateUrlForNetwork, maxPercentage } from '../lib/constants'
+import { defaultPassword, getDelegateUrlForNetwork } from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
-import { Indexer } from '../lib/indexer'
 import { IndexedDbSwapRepository, migrateToSwapRepository, Network } from '@arkade-os/boltz-swap'
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
@@ -273,9 +272,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!initialized || !vtxos || !svcWallet) return
     const computeThresholds = async () => {
       try {
-        const allVtxos = await svcWallet.getVtxos({ withRecoverable: true })
-        const batchLifetimeMs = await calcBatchLifetimeMs(allVtxos, new Indexer(aspInfo))
-        const thresholdMs = Math.floor((batchLifetimeMs * maxPercentage) / 100)
+        // hardcoded to 1 minute for testing; original derived from batch lifetime:
+        // const allVtxos = await svcWallet.getVtxos({ withRecoverable: true })
+        // const batchLifetimeMs = await calcBatchLifetimeMs(allVtxos, new Indexer(aspInfo))
+        // const thresholdMs = Math.floor((batchLifetimeMs * maxPercentage) / 100)
+        const thresholdMs = 60_000 // 1 minute
         const nextRollover = await calcNextRollover(vtxos.spendable, svcWallet, aspInfo)
         updateWallet((prev) => ({ ...prev, nextRollover, thresholdMs }))
       } catch (err) {
