@@ -1,7 +1,0 @@
-appId: com.android.chrome
----
-# App back arrow below Chrome URL bar — do not tap top-left (browser back).
-
-- tapOn:
-    point: "12%, 18%"
-    waitToSettleTimeoutMs: 1000

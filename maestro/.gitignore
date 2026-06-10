@@ -1,4 +1,6 @@
 config.yaml
+complete-tests/subflows/_input_wallet_nsec.yaml
+complete-tests/subflows/_input_wallet_password.yaml
 debug/
 reports/
 recordings/raw-*.log

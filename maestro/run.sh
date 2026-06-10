@@ -10,6 +10,8 @@ CONFIG="$(require_maestro_config "$DIR")"
 export_maestro_env "$CONFIG"
 require_wallet_url "$WALLET_URL"
 
+python3 "$SCRIPTS/sync-secret-subflows.py"
+
 # shellcheck source=scripts/maestro-device.sh
 source "$SCRIPTS/maestro-device.sh"
 DEVICE="$(require_android_device)"

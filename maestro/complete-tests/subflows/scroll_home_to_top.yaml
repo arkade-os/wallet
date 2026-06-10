@@ -5,4 +5,4 @@ appId: com.android.chrome
     start: "50%, 32%"
     end: "50%, 72%"
     duration: 450
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: wait_1s.yaml

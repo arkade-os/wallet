@@ -8,8 +8,8 @@ require_maestro_config() {
     echo "$dir/config.yaml"
     return
   fi
-  echo "error: missing maestro/config.yaml" >&2
-  echo "  cp maestro/config.yaml.example maestro/config.yaml" >&2
+  echo "error: missing Maestro/config.yaml" >&2
+  echo "  cp Maestro/config.yaml.example Maestro/config.yaml" >&2
   echo "  then set env.WALLET_URL (and WALLET_NSEC / WALLET_PASSWORD as needed)" >&2
   exit 1
 }
@@ -41,12 +41,16 @@ export_maestro_env() {
   export WALLET_URL="$(read_config_env "$config" WALLET_URL)"
   export WALLET_PASSWORD="$(read_config_env "$config" WALLET_PASSWORD)"
   export WALLET_NSEC="$(read_config_env "$config" WALLET_NSEC)"
+  # Maestro Studio reads MAESTRO_* from the shell (not only CLI -e).
+  export MAESTRO_WALLET_URL="$WALLET_URL"
+  export MAESTRO_WALLET_PASSWORD="$WALLET_PASSWORD"
+  export MAESTRO_WALLET_NSEC="$WALLET_NSEC"
 }
 
 require_wallet_url() {
   local url="$1"
   if [[ -z "${url}" || "$url" == "https://your-preview-or-production-wallet-url" ]]; then
-    echo "error: set a real WALLET_URL in maestro/config.yaml" >&2
+    echo "error: set a real WALLET_URL in Maestro/config.yaml" >&2
     exit 1
   fi
 }
@@ -54,7 +58,7 @@ require_wallet_url() {
 require_wallet_nsec() {
   local nsec="$1"
   if [[ -z "${nsec}" || "$nsec" == "nsec1your-test-restore-key-here" ]]; then
-    echo "error: set WALLET_NSEC in maestro/config.yaml (throwaway test key, never funded)" >&2
+    echo "error: set WALLET_NSEC in Maestro/config.yaml (throwaway test key, never funded)" >&2
     exit 1
   fi
 }
@@ -62,7 +66,7 @@ require_wallet_nsec() {
 require_wallet_password() {
   local password="$1"
   if [[ -z "${password}" ]]; then
-    echo "error: set WALLET_PASSWORD in maestro/config.yaml (needed for unlock / lock tests)" >&2
+    echo "error: set WALLET_PASSWORD in Maestro/config.yaml (needed for unlock / lock tests)" >&2
     exit 1
   fi
 }

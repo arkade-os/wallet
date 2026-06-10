@@ -68,7 +68,7 @@ def parse(
             delay_ms = int((t - taps[i - 2][0]) * 1000)
             if delay_ms >= 500:
                 seconds = max(1, round(delay_ms / 1000))
-                out.append(f"- runFlow: ../subflows/wait_{seconds}s.yaml")
+                out.append(f"- runFlow: wait_{seconds}s.yaml")
         cx, cy = pct(px, py)
         out.append(f"- tapOn:")
         out.append(f'    point: "{cx}%, {cy}%"')

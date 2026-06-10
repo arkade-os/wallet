@@ -6,8 +6,8 @@ tags:
 ---
 - runFlow: ../subflows/ensure_on_wallet_home.yaml
 - runFlow: ../subflows/tap_home_swap.yaml
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 - tapOn:
     point: "50%, 88%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml

@@ -1,3 +1,3 @@
 appId: com.android.chrome
 ---
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: wait_1s.yaml

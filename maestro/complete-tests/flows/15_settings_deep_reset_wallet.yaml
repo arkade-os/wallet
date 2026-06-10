@@ -12,325 +12,325 @@ tags:
 - tapOn:
     point: "89%, 15%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 2
 - tapOn:
     point: "19%, 28%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 3
 - tapOn:
     point: "87%, 29%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 4
 - tapOn:
     point: "7%, 15%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 5
 - tapOn:
     point: "22%, 36%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: ../subflows/wait_1s.yaml
 # gesture 6
 - tapOn:
     point: "22%, 28%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_3s.yaml
+- runFlow: ../subflows/wait_3s.yaml
 # gesture 7
 - tapOn:
     point: "13%, 27%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 8
 - tapOn:
     point: "87%, 26%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 9
 - tapOn:
     point: "7%, 14%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 10
 - tapOn:
     point: "23%, 36%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_3s.yaml
+- runFlow: ../subflows/wait_3s.yaml
 # gesture 11
 - tapOn:
     point: "7%, 14%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 12
 - tapOn:
     point: "23%, 44%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 13
 - tapOn:
     point: "8%, 13%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: ../subflows/wait_1s.yaml
 # gesture 14
 - tapOn:
     point: "23%, 50%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_3s.yaml
+- runFlow: ../subflows/wait_3s.yaml
 # gesture 15
 - tapOn:
     point: "88%, 14%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 16
 - tapOn:
     point: "92%, 14%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 17
 - tapOn:
     point: "8%, 14%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: ../subflows/wait_1s.yaml
 # gesture 18
 - tapOn:
     point: "23%, 58%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_3s.yaml
+- runFlow: ../subflows/wait_3s.yaml
 # gesture 19
 - tapOn:
     point: "9%, 13%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 20
 - tapOn:
     point: "24%, 64%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_3s.yaml
+- runFlow: ../subflows/wait_3s.yaml
 # gesture 21
 - tapOn:
     point: "90%, 14%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: ../subflows/wait_1s.yaml
 # gesture 22
 - tapOn:
     point: "6%, 14%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 23
 - tapOn:
     point: "79%, 73%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 24
 - tapOn:
     point: "7%, 14%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: ../subflows/wait_1s.yaml
 # gesture 25
 - tapOn:
     point: "7%, 14%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 26
 - tapOn:
     point: "22%, 43%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 27
 - tapOn:
     point: "17%, 30%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 28
 - tapOn:
     point: "14%, 49%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: ../subflows/wait_1s.yaml
 # gesture 29
 - tapOn:
     point: "8%, 14%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 30
 - tapOn:
     point: "16%, 37%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 31
 - tapOn:
     point: "13%, 36%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 32
 - tapOn:
     point: "6%, 14%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 33
 - tapOn:
     point: "12%, 43%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 34
 - tapOn:
     point: "87%, 29%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 35
 - tapOn:
     point: "88%, 29%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 36
 - tapOn:
     point: "6%, 14%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 37
 - tapOn:
     point: "12%, 50%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: ../subflows/wait_1s.yaml
 # gesture 38
 - tapOn:
     point: "17%, 43%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_3s.yaml
+- runFlow: ../subflows/wait_3s.yaml
 # gesture 39
 - tapOn:
     point: "16%, 29%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 40
 - tapOn:
     point: "6%, 14%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_3s.yaml
+- runFlow: ../subflows/wait_3s.yaml
 # gesture 41
 - tapOn:
     point: "7%, 13%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 42
 - tapOn:
     point: "18%, 50%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: ../subflows/wait_1s.yaml
 # gesture 43
 - tapOn:
     point: "6%, 14%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 44
 - tapOn:
     point: "21%, 57%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 45
 - tapOn:
     point: "87%, 28%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 46
 - tapOn:
     point: "6%, 13%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 47
 - tapOn:
     point: "24%, 65%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 48
 - tapOn:
     point: "54%, 91%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_3s.yaml
+- runFlow: ../subflows/wait_3s.yaml
 # gesture 49
 - tapOn:
     point: "93%, 15%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 50
 - tapOn:
     point: "5%, 14%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: ../subflows/wait_1s.yaml
 # gesture 51: swipe
 - swipe:
     start: "10%, 60%"
     end: "6%, 43%"
     duration: 866
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 52
 - tapOn:
     point: "26%, 66%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 53
 - tapOn:
     point: "16%, 37%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 54
 - tapOn:
     point: "26%, 64%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 55
 - tapOn:
     point: "12%, 37%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 56
 - tapOn:
     point: "72%, 64%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_3s.yaml
+- runFlow: ../subflows/wait_3s.yaml
 # gesture 57
 - tapOn:
     point: "86%, 68%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 58
 - tapOn:
     point: "7%, 14%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_3s.yaml
+- runFlow: ../subflows/wait_3s.yaml
 # gesture 59
 - tapOn:
     point: "24%, 84%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 60
 - tapOn:
     point: "33%, 90%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 61
 - tapOn:
     point: "6%, 12%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 62
 - tapOn:
     point: "8%, 13%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_3s.yaml
+- runFlow: ../subflows/wait_3s.yaml
 # gesture 63
 - tapOn:
     point: "86%, 91%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 64
 - tapOn:
     point: "12%, 84%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 # gesture 65
 - tapOn:
     point: "57%, 90%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_5s.yaml
+- runFlow: ../subflows/wait_5s.yaml

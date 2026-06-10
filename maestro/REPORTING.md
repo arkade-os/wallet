@@ -1,11 +1,8 @@
-# Maestro — pass / fail reports
+# Maestro — pass / fail
 
 See [README.md](README.md) for setup.
 
-- **Studio:** `./maestro/studio.sh`
-- **CLI:** `./maestro/run.sh flows/01_startup_restore.yaml`
-- **Scenarios:** `./maestro/scripts/run-scenario.sh smoke`
+- **Studio:** `./Maestro/studio.sh` (Chrome on Arkade already open on device)
+- **CLI:** `./Maestro/run.sh complete-tests/flows/02_startup_restore.yaml`
 
-Copy `config.yaml.example` to `config.yaml` and set `WALLET_URL` before running.
-
-Reports and debug output are gitignored under `maestro/reports/` and `maestro/debug/`.
+`WALLET_URL` lives only in `config.yaml`.

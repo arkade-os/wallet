@@ -34,8 +34,6 @@ MAESTRO_DIR = Path(__file__).resolve().parents[1]
 PROFILES_PATH = MAESTRO_DIR / "device-profiles.yaml"
 FLOW_DIRS = [
     MAESTRO_DIR / "complete-tests",
-    MAESTRO_DIR / "flows",
-    MAESTRO_DIR / "subflows",
 ]
 
 PCT_RE = re.compile(r'^(\d+)%$')

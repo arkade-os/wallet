@@ -29,6 +29,8 @@ case "$SCENARIO" in
     ;;
 esac
 
+python3 "$SCRIPTS/sync-secret-subflows.py"
+
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 DEBUG_DIR="$DIR/debug/${SCENARIO}-${TIMESTAMP}"
 JUNIT="$REPORTS/${SCENARIO}-${TIMESTAMP}.junit.xml"

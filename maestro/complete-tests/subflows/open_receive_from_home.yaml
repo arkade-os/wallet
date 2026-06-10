@@ -2,4 +2,4 @@ appId: com.android.chrome
 ---
 - runFlow: ensure_on_wallet_home.yaml
 - runFlow: tap_home_receive.yaml
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: wait_2s.yaml

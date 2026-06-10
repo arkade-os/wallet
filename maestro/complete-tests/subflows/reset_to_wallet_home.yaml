@@ -1,6 +1,6 @@
 appId: com.android.chrome
 ---
-# Return to wallet home. No evalScript — device Chrome (see flows/01_startup_restore.yaml).
+# Return to wallet home. No evalScript — device Chrome (see flows/02_startup_restore.yaml).
 
 - runFlow: dismiss_clipboard_permission.yaml
 
@@ -9,14 +9,14 @@ appId: com.android.chrome
       visible: "DFX"
     commands:
       - runFlow: tap_header_back.yaml
-      - runFlow: ../../subflows/wait_2s.yaml
+      - runFlow: wait_2s.yaml
 
 - runFlow:
     when:
       visible: "Connecting to DFX"
     commands:
       - runFlow: tap_header_back.yaml
-      - runFlow: ../../subflows/wait_2s.yaml
+      - runFlow: wait_2s.yaml
 
 - runFlow:
     when:
@@ -31,50 +31,50 @@ appId: com.android.chrome
       - tapOn:
           point: "50%, 88%"
           waitToSettleTimeoutMs: 800
-      - runFlow: ../../subflows/wait_1s.yaml
+      - runFlow: wait_1s.yaml
 
 - runFlow:
     when:
       visible: "Recipient address"
     commands:
       - runFlow: tap_header_back.yaml
-      - runFlow: ../../subflows/wait_1s.yaml
+      - runFlow: wait_1s.yaml
 
 - runFlow:
     when:
       visible: "Add amount"
     commands:
       - runFlow: tap_header_back.yaml
-      - runFlow: ../../subflows/wait_1s.yaml
+      - runFlow: wait_1s.yaml
 
 - runFlow:
     when:
       visible: "Activity"
     commands:
       - runFlow: tap_header_back.yaml
-      - runFlow: ../../subflows/wait_1s.yaml
+      - runFlow: wait_1s.yaml
 
 - runFlow:
     when:
       visible: "Settings"
     commands:
       - runFlow: tap_header_back.yaml
-      - runFlow: ../../subflows/wait_1s.yaml
+      - runFlow: wait_1s.yaml
 
 - runFlow:
     when:
       visible: "Balance display"
     commands:
       - runFlow: tap_header_back.yaml
-      - runFlow: ../../subflows/wait_1s.yaml
+      - runFlow: wait_1s.yaml
       - runFlow: tap_header_back.yaml
-      - runFlow: ../../subflows/wait_1s.yaml
+      - runFlow: wait_1s.yaml
 
 - runFlow:
     when:
       notVisible: "^Receive$"
     commands:
       - runFlow: tap_header_back.yaml
-      - runFlow: ../../subflows/wait_2s.yaml
+      - runFlow: wait_2s.yaml
 
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: wait_2s.yaml

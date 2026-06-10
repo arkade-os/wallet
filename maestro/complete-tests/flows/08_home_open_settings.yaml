@@ -8,66 +8,66 @@ tags:
 
 - runFlow: ../subflows/ensure_on_wallet_home.yaml
 - runFlow: ../subflows/tap_header_settings.yaml
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 
 # Scroll settings list
 - runFlow: ../subflows/scroll_settings_down_1.yaml
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: ../subflows/wait_1s.yaml
 - runFlow: ../subflows/scroll_settings_down_2.yaml
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: ../subflows/wait_1s.yaml
 
 # Item 1 → sub-screen → back
 - runFlow: ../subflows/tap_settings_menu_row_28.yaml
-- runFlow: ../../subflows/wait_4s.yaml
+- runFlow: ../subflows/wait_4s.yaml
 - runFlow: ../subflows/tap_settings_sub_21.yaml
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: ../subflows/wait_1s.yaml
 - runFlow: ../subflows/tap_settings_sub_63.yaml
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 - runFlow: ../subflows/tap_settings_back.yaml
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 
 # Item 2 → back
 - runFlow: ../subflows/tap_settings_menu_row_36.yaml
-- runFlow: ../../subflows/wait_4s.yaml
+- runFlow: ../subflows/wait_4s.yaml
 - runFlow: ../subflows/tap_settings_back.yaml
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: ../subflows/wait_1s.yaml
 
 # Item 3 → back
 - runFlow: ../subflows/tap_settings_menu_row_43.yaml
-- runFlow: ../../subflows/wait_3s.yaml
+- runFlow: ../subflows/wait_3s.yaml
 - runFlow: ../subflows/tap_settings_back.yaml
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: ../subflows/wait_1s.yaml
 
 # Item 4 → back
 - runFlow: ../subflows/tap_settings_menu_row_51.yaml
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: ../subflows/wait_1s.yaml
 - runFlow: ../subflows/tap_settings_back.yaml
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 
 # Item 5 → back
 - runFlow: ../subflows/tap_settings_menu_row_58.yaml
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 - runFlow: ../subflows/tap_settings_back.yaml
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: ../subflows/wait_1s.yaml
 
 # Item 6 → back
 - runFlow: ../subflows/tap_settings_menu_row_66.yaml
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 - runFlow: ../subflows/tap_settings_back.yaml
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 
 # Scroll + lower menu items
 - runFlow: ../subflows/scroll_settings_down_3.yaml
-- runFlow: ../../subflows/wait_1s.yaml
+- runFlow: ../subflows/wait_1s.yaml
 
 # Item 7 → back
 - runFlow: ../subflows/tap_settings_menu_row_69.yaml
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 - runFlow: ../subflows/tap_settings_back.yaml
-- runFlow: ../../subflows/wait_3s.yaml
+- runFlow: ../subflows/wait_3s.yaml
 
 # Item 8 → back to home
 - runFlow: ../subflows/tap_settings_menu_row_83.yaml
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 - runFlow: ../subflows/tap_settings_back.yaml
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml

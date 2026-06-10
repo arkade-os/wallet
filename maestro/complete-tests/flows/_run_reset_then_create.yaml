@@ -7,5 +7,5 @@ tags:
 # Deep settings + reset, then startup restore.
 
 - runFlow: 15_settings_deep_reset_wallet.yaml
-- runFlow: ../../subflows/wait_4s.yaml
+- runFlow: ../subflows/wait_4s.yaml
 - runFlow: 02_startup_restore.yaml

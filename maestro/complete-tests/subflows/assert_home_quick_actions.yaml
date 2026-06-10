@@ -2,4 +2,4 @@ appId: com.android.chrome
 ---
 # Text asserts hang on device Chrome — settle after navigation instead.
 
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: wait_2s.yaml

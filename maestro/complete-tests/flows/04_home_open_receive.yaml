@@ -8,8 +8,8 @@ tags:
 
 - runFlow: ../subflows/ensure_on_wallet_home.yaml
 - runFlow: ../subflows/tap_home_receive.yaml
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 - runFlow: ../subflows/tap_receive_qr.yaml
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 - runFlow: ../subflows/tap_receive_back.yaml
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml

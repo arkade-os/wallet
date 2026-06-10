@@ -11,8 +11,8 @@
 # Scenarios: ./maestro/scripts/run-scenario.sh smoke|onboarding|...
 
 flows:
-  - flows/**
   - complete-tests/flows/**
+  - complete-tests/subflows/**
 
 platform:
   android:

@@ -5,4 +5,4 @@ appId: com.android.chrome
 - tapOn:
     point: "53%, 91%"
     waitToSettleTimeoutMs: 800
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: wait_2s.yaml

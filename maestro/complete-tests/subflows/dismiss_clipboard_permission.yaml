@@ -25,4 +25,4 @@ appId: com.android.chrome
           point: "75%, 62%"
           optional: true
           waitToSettleTimeoutMs: 800
-      - runFlow: ../../subflows/wait_1s.yaml
+      - runFlow: wait_1s.yaml

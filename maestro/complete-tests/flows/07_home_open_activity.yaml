@@ -6,6 +6,6 @@ tags:
 ---
 - runFlow: ../subflows/ensure_on_wallet_home.yaml
 - runFlow: ../subflows/tap_header_activity.yaml
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: ../subflows/wait_2s.yaml
 - runFlow: ../subflows/tap_header_back.yaml
 - runFlow: ../subflows/go_back_to_home.yaml

@@ -2,7 +2,7 @@ appId: com.android.chrome
 ---
 # Bootstrap home — open WALLET_URL, scroll to top, then coordinate taps + shared waits.
 
-- runFlow: ../../subflows/open_wallet_url.yaml
+- runFlow: open_wallet_url.yaml
 
 - runFlow:
     when:
@@ -11,7 +11,7 @@ appId: com.android.chrome
       - tapOn:
           point: "50%, 88%"
           waitToSettleTimeoutMs: 800
-      - runFlow: ../../subflows/wait_2s.yaml
+      - runFlow: wait_2s.yaml
 
 - runFlow:
     when:
@@ -20,12 +20,12 @@ appId: com.android.chrome
       - tapOn:
           point: "50%, 50%"
           waitToSettleTimeoutMs: 800
-      - inputText: ${WALLET_PASSWORD}
-      - runFlow: ../../subflows/wait_1s.yaml
+      - runFlow: _input_wallet_password.yaml
+      - runFlow: wait_1s.yaml
       - tapOn:
           point: "50%, 88%"
           waitToSettleTimeoutMs: 800
-      - runFlow: ../../subflows/wait_5s.yaml
+      - runFlow: wait_5s.yaml
 
 - runFlow:
     when:
@@ -42,4 +42,4 @@ appId: com.android.chrome
     file: reset_to_wallet_home.yaml
 
 - runFlow: scroll_home_to_top.yaml
-- runFlow: ../../subflows/wait_2s.yaml
+- runFlow: wait_2s.yaml
