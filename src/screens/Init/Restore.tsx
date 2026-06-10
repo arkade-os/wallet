@@ -16,7 +16,9 @@ import Button from '../../components/Button'
 import Header from '../../components/Header'
 import Padded from '../../components/Padded'
 import Input from '../../components/Input'
-import { TextSecondary } from '../../components/Text'
+import Text, { TextSecondary } from '../../components/Text'
+import SegmentedControl from '../../components/SegmentedControl'
+import { DevModeContext } from '../../providers/devMode'
 import { hex } from '@scure/base'
 import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
 import { OnboardStaggerContainer, OnboardStaggerChild } from '../../components/OnboardLoadIn'
@@ -25,11 +27,14 @@ import { wordlist } from '@scure/bip39/wordlists/english'
 import { deriveNostrKeyFromMnemonic } from '../../lib/mnemonic'
 import { AspContext } from '../../providers/asp'
 
+type RotationChoice = 'Inherit' | 'Static' | 'HD'
+
 export default function InitRestore() {
   const { updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
   const { setInitInfo } = useContext(FlowContext)
   const { aspInfo } = useContext(AspContext)
+  const { devMode } = useContext(DevModeContext)
 
   const buttonLabel = 'Continue'
 
@@ -40,6 +45,7 @@ export default function InitRestore() {
   const [restoring, setRestoring] = useState(false)
   const [restoreDone, setRestoreDone] = useState(false)
   const [someKey, setSomeKey] = useState<string>()
+  const [rotationChoice, setRotationChoice] = useState<RotationChoice>('Inherit')
 
   useEffect(() => {
     const trimmed = someKey?.trim() ?? ''
@@ -89,7 +95,8 @@ export default function InitRestore() {
     setRestoring(true)
     let seckey: Uint8Array
     if (mnemonic) {
-      setInitInfo({ mnemonic, password: defaultPassword, restoring: true })
+      const walletMode = rotationChoice === 'Inherit' ? undefined : rotationChoice === 'HD' ? 'hd' : 'static'
+      setInitInfo({ mnemonic, password: defaultPassword, restoring: true, walletMode })
       const isNet =
         aspInfo.network !== 'testnet' &&
         aspInfo.network !== 'mutinynet' &&
@@ -137,6 +144,20 @@ export default function InitRestore() {
                 <FlexCol>
                   <Input name='private-key' label='Recovery phrase or private key' onChange={setSomeKey} />
                   <ErrorMessage error={Boolean(error)} text={error} />
+                  {devMode && mnemonic ? (
+                    <FlexCol gap='0.5rem'>
+                      <Text thin>Address rotation</Text>
+                      <SegmentedControl
+                        options={['Inherit', 'Static', 'HD']}
+                        selected={rotationChoice}
+                        onChange={(v) => setRotationChoice(v as RotationChoice)}
+                      />
+                      <TextSecondary wrap>
+                        Inherit uses your backup's setting. Pick HD if this wallet rotated receive addresses — required
+                        to recover them when you have no Nostr backup.
+                      </TextSecondary>
+                    </FlexCol>
+                  ) : null}
                 </FlexCol>
                 <TextSecondary wrap>
                   Enter your 12-word recovery phrase, or a private key starting with 'nsec' or a raw hex key. Do not

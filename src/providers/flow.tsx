@@ -1,6 +1,6 @@
 import { BoltzSwap } from '@arkade-os/boltz-swap'
 import { ReactNode, createContext, useState } from 'react'
-import type { Asset, AssetDetails } from '@arkade-os/sdk'
+import type { Asset, AssetDetails, ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import { Tx } from '../lib/types'
 
 export interface InitInfo {
@@ -8,6 +8,7 @@ export interface InitInfo {
   privateKey?: Uint8Array
   mnemonic?: string
   restoring?: boolean
+  walletMode?: ServiceWorkerWalletMode // create-from-mnemonic only; undefined → resolve from config
 }
 
 export interface NoteInfo {

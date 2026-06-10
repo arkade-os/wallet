@@ -23,7 +23,7 @@ export default function InitConnect() {
   const [initialized, setInitialized] = useState(false)
   const [connectDone, setConnectDone] = useState(false)
 
-  const { password, privateKey, mnemonic } = initInfo
+  const { password, privateKey, mnemonic, walletMode } = initInfo
 
   useEffect(() => {
     if (!password || (!mnemonic && !privateKey)) {
@@ -32,7 +32,7 @@ export default function InitConnect() {
     }
     if (mnemonic) {
       setMnemonic(mnemonic, password)
-        .then(() => initWallet({ mnemonic }))
+        .then(() => initWallet({ mnemonic, walletMode }))
         .then(() => setInitialized(true))
         .catch(abortConnectionWithError)
     } else if (privateKey) {
@@ -54,7 +54,7 @@ export default function InitConnect() {
   }, [arkadeSwaps, initialized, initInfo.restoring])
 
   const handleExitComplete = () => {
-    setInitInfo({ ...initInfo, password: undefined, privateKey: undefined, mnemonic: undefined })
+    setInitInfo({ ...initInfo, password: undefined, privateKey: undefined, mnemonic: undefined, walletMode: undefined })
     navigate(error ? Pages.Init : Pages.Wallet)
   }
 
