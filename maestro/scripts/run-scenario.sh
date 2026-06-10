@@ -15,12 +15,19 @@ EXTRA="${2:-}"
 # shellcheck source=maestro-config.sh
 source "$SCRIPTS/maestro-config.sh"
 CONFIG="$(require_maestro_config "$DIR")"
-WALLET_URL="$(read_wallet_url "$CONFIG")"
-if [[ -z "${WALLET_URL}" || "$WALLET_URL" == "https://your-preview-or-production-wallet-url" ]]; then
-  echo "error: set a real WALLET_URL in maestro/config.yaml" >&2
-  exit 1
-fi
-export WALLET_URL
+export_maestro_env "$CONFIG"
+require_wallet_url "$WALLET_URL"
+
+case "$SCENARIO" in
+  onboarding|reset-restore|reset_restore|prerelease|pre-release)
+    require_wallet_nsec "$WALLET_NSEC"
+    ;;
+esac
+case "$SCENARIO" in
+  unlock|prerelease|pre-release)
+    require_wallet_password "$WALLET_PASSWORD"
+    ;;
+esac
 
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 DEBUG_DIR="$DIR/debug/${SCENARIO}-${TIMESTAMP}"
@@ -97,11 +104,12 @@ echo ""
 START_EPOCH="$(date +%s)"
 set +e
 cd "$DIR"
+mapfile -t MAESTRO_ENV < <(maestro_env_args "$CONFIG")
 maestro test \
   -p android \
   --device "$DEVICE" \
   --config "$CONFIG" \
-  -e "WALLET_URL=$WALLET_URL" \
+  "${MAESTRO_ENV[@]}" \
   --format JUNIT \
   --output "$JUNIT" \
   --debug-output "$DEBUG_DIR" \

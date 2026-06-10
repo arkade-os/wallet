@@ -4,7 +4,7 @@ tags:
   - unlock
 ---
 # recordings/taps-20260609-164837.log — nav taps from recording; password via inputText.
-# Fixed password for lock/unlock in this test.
+# Uses WALLET_PASSWORD from maestro/config.yaml (gitignored).
 
 - runFlow: ../../subflows/open_wallet_url.yaml
 - runFlow: ../subflows/scroll_home_to_top.yaml
@@ -22,7 +22,7 @@ tags:
     point: "64%, 92%"
     waitToSettleTimeoutMs: 800
 - runFlow: ../../subflows/wait_2s.yaml
-- inputText: "123qwerty."
+- inputText: ${WALLET_PASSWORD}
 - runFlow: ../../subflows/wait_1s.yaml
 - tapOn:
     point: "76%, 92%"
@@ -34,7 +34,7 @@ tags:
     point: "12%, 57%"
     waitToSettleTimeoutMs: 800
 - runFlow: ../../subflows/wait_1s.yaml
-- inputText: "123qwerty."
+- inputText: ${WALLET_PASSWORD}
 - runFlow: ../../subflows/wait_1s.yaml
 - tapOn:
     point: "78%, 92%"
@@ -72,7 +72,7 @@ tags:
     point: "59%, 90%"
     waitToSettleTimeoutMs: 800
 - runFlow: ../../subflows/wait_2s.yaml
-- inputText: "123qwerty."
+- inputText: ${WALLET_PASSWORD}
 - runFlow: ../../subflows/wait_1s.yaml
 - tapOn:
     point: "79%, 94%"

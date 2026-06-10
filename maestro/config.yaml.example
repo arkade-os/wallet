@@ -1,6 +1,6 @@
 # Arkade Wallet — Maestro workspace
 #
-# Copy to config.yaml and set WALLET_URL:
+# Copy to config.yaml and fill in secrets locally (config.yaml is gitignored):
 #   cp config.yaml.example config.yaml
 #
 # WALLET_URL is opened automatically via the open_wallet_url subflow (Chrome on Android).
@@ -18,7 +18,10 @@ platform:
   android:
     disableAnimations: false
 
-# Parsed by run.sh / run-scenario.sh (not Maestro env):
+# Parsed by run.sh / run-scenario.sh (passed to Maestro via -e):
 env:
   WALLET_URL: "https://your-preview-or-production-wallet-url"
+  # Throwaway test wallet only — never commit a real or funded nsec.
+  WALLET_NSEC: "nsec1your-test-restore-key-here"
+  # Used by unlock tests (13) and ensure_on_wallet_home when wallet is locked.
   WALLET_PASSWORD: ""

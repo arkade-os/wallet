@@ -24,7 +24,7 @@ Flows use **percentage-based coordinates** recorded from real taps (not CSS sele
    cp maestro/config.yaml.example maestro/config.yaml
    ```
 
-   Edit `maestro/config.yaml` and set `env.WALLET_URL` to your preview or production wallet URL.
+   Edit `maestro/config.yaml`: set `WALLET_URL`, and `WALLET_NSEC` / `WALLET_PASSWORD` for restore and unlock scenarios (see [Configuration](#configuration)).
 
 3. Connect the reference device (or re-record taps on yours — see [Reference device](#reference-device)).
 
@@ -69,7 +69,7 @@ Studio uses `-p android` and your connected device. Flows open Arkade via `openL
 | 01 | `01_fresh_wallet.yaml` | Create a new wallet (onboarding) |
 | 02 | `02_startup_restore.yaml` | Restore from nsec (onboarding) |
 | 03–12 | smoke flows | Home, receive, send, swap, activity, settings, tabs, copy, scan |
-| 13 | `13_unlock_wallet.yaml` | Lock / unlock (fixed test password in flow) |
+| 13 | `13_unlock_wallet.yaml` | Lock / unlock (`WALLET_PASSWORD` in config) |
 | 14 | `14_home_scroll_balance_sticky.yaml` | Scroll / sticky balance |
 | 15 | `15_settings_deep_reset_wallet.yaml` | Deep settings + wallet reset |
 
@@ -168,7 +168,8 @@ Different **aspect ratio**, keyboard layout, or a major UI redesign → re-recor
 |------|---------|
 | `config.yaml.example` | Template committed to git |
 | `config.yaml` | Your local copy (gitignored) — **required** to run tests |
-| `env.WALLET_PASSWORD` | Used by `ensure_on_wallet_home` when the wallet is locked (empty = skip unlock input) |
+| `env.WALLET_NSEC` | Throwaway test nsec for restore flows (02) — **never commit a real key** |
+| `env.WALLET_PASSWORD` | Unlock / lock tests (13) and `ensure_on_wallet_home` when wallet is locked |
 | `device-profiles.yaml` | Source/target device specs for `adapt-device.py` |
 
 ## Reference device

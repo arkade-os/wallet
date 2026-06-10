@@ -49,7 +49,7 @@ tags:
     point: "16%, 28%"
 - runFlow: ../subflows/wait_2s.yaml
 # Taps 12–17 were manual entry on Gboard — automated below.
-- inputText: "nsec197q5zzwnj5569azegmgwjnkzn5za3y0nm4y3khkyf2u84wgud28q562vpm"
+- inputText: ${WALLET_NSEC}
 - runFlow: ../subflows/wait_2s.yaml
 - tapOn:
     point: "73%, 96%"
