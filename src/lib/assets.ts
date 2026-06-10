@@ -45,6 +45,7 @@ export const prettyAssetAmountHide = (value: bigint, suffix: string): string => 
 export const prettyAssetNumber = (num?: string | number, maximumFractionDigits = MAX_DECIMALS): string => {
   if (num === undefined || num === null) return '0'
   if (typeof num === 'number') num = num.toString()
+  if (/e/i.test(num)) num = new Decimal(num).toFixed()
   let [integer, fraction = ''] = num.split('.')
   integer = integer.replace(/[^0-9-]+/g, '') // remove non-digit and non-negative sign characters
   const negative = integer === '-0'
