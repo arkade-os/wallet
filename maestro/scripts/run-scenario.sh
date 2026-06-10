@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run a Maestro E2E scenario and produce a Markdown report.
-# Usage: ./Maestro/scripts/run-scenario.sh <scenario> [extra-flow-or-number]
+# Usage: ./maestro/scripts/run-scenario.sh <scenario> [extra-flow-or-number]
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

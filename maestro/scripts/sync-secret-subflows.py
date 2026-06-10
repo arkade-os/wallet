@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate gitignored subflows with secrets from Maestro/config.yaml.
+"""Generate gitignored subflows with secrets from maestro/config.yaml.
 
 Maestro Studio does not reliably resolve ${WALLET_NSEC} / ${WALLET_PASSWORD}
 from CLI -e or MAESTRO_* shell exports. This script materialises them into
@@ -64,7 +64,7 @@ def main() -> None:
     password = env.get("WALLET_PASSWORD", "")
 
     if not nsec or nsec == "nsec1your-test-restore-key-here":
-        sys.exit("error: set WALLET_NSEC in Maestro/config.yaml")
+        sys.exit("error: set WALLET_NSEC in maestro/config.yaml")
 
     SUBFLOWS.mkdir(parents=True, exist_ok=True)
     write_input_subflow(SUBFLOWS / "_input_wallet_nsec.yaml", nsec, "WALLET_NSEC")
