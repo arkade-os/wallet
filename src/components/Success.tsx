@@ -1,5 +1,7 @@
 import { OnboardStaggerContainer, OnboardStaggerChild } from '../components/OnboardLoadIn'
 import SuccessIcon from '../icons/Success'
+import Button from './Button'
+import ButtonsOnBottom from './ButtonsOnBottom'
 import CenterScreen from './CenterScreen'
 import FlexCol from './FlexCol'
 import Text from './Text'
@@ -7,6 +9,14 @@ import Text from './Text'
 interface SuccessProps {
   headline?: string
   text?: string
+}
+
+export function SuccessDoneButton({ onClick }: { onClick: () => void }) {
+  return (
+    <ButtonsOnBottom>
+      <Button onClick={onClick} label='Done' />
+    </ButtonsOnBottom>
+  )
 }
 
 export default function Success({ headline, text }: SuccessProps) {
