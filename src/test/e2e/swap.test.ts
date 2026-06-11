@@ -204,9 +204,10 @@ test('should refund failing swap', async ({ page }) => {
   await page.getByText('Continue').click()
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector('text=Swap failed', { timeout: 30000 })
-  await page.getByLabel('Go back').click()
-  await page.getByLabel('Go back').click()
+  // optimistic send: lands on the success screen once the swap is funded,
+  // then the failure surfaces there when the swap fails in the background
+  await page.waitForSelector('text=Payment failed', { timeout: 30000 })
+  await page.getByText('Sounds good').click()
 
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
