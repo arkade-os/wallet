@@ -4,6 +4,7 @@ interface ShadowProps {
   border?: boolean
   borderPurple?: boolean
   children: ReactNode
+  dangerBorder?: boolean
   darkPurple?: boolean
   fat?: boolean
   flex?: boolean
@@ -21,6 +22,7 @@ export default function Shadow({
   border,
   borderPurple,
   children,
+  dangerBorder,
   darkPurple,
   fat,
   flex,
@@ -45,12 +47,18 @@ export default function Shadow({
             : inverted
               ? 'var(--magenta)'
               : 'var(--neutral-100)',
-    border: border ? `1px solid var(--${borderPurple ? 'purple' : 'neutral-100'})` : undefined,
+    border: dangerBorder
+      ? '1px solid var(--danger)'
+      : border
+        ? `1px solid var(--${borderPurple ? 'purple' : 'neutral-100'})`
+        : undefined,
     borderRadius: squared ? undefined : '0.5rem',
+    boxShadow: dangerBorder ? '0 0 0 1px color-mix(in srgb, var(--danger) 20%, transparent)' : undefined,
     color: purple || darkPurple ? 'white' : '',
     cursor: onClick ? 'pointer' : undefined,
     overflow: 'hidden',
     padding: slim ? '0.25rem' : fat ? '1rem' : '0.5rem',
+    transition: dangerBorder ? 'border-color 150ms ease, box-shadow 150ms ease' : undefined,
     width: flex ? undefined : '100%',
   }
 
