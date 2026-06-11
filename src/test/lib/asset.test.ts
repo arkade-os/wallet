@@ -191,6 +191,7 @@ describe('asset utilities', () => {
     it('formats very small number', () => {
       expect(prettyAssetNumber('0.00000001')).toBe('0.00000001')
       expect(prettyAssetNumber('-0.00000001')).toBe('-0.00000001')
+      expect(prettyAssetNumber('-8e-8')).toBe('-0.00000008')
     })
 
     it('formats number with grouping', () => {
@@ -279,6 +280,12 @@ describe('asset utilities', () => {
 
     it('handles negative values when tidy=true', () => {
       expect(prettyAssetAmount(BigInt(-987_654_321), 0, true)).toBe('-987M')
+    })
+
+    it('handles tiny negative fractional amounts when tidy=true', () => {
+      // centsToUnits → Number() produces -8e-8; prettyAssetNumber must convert it before regex-stripping 'e'
+      expect(prettyAssetAmount(BigInt(-8), 8, true)).toBe('-0.00000008')
+      expect(prettyAssetAmount(BigInt(-1), 8, true)).toBe('-0.00000001')
     })
 
     it('does not add suffix when tidy=true but amount is under 1K', () => {
