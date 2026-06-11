@@ -1,7 +1,7 @@
 import fixtures from '../fixtures.json'
 import createFetchMock from 'vitest-fetch-mock'
 import { describe, expect, it, vi } from 'vitest'
-import { checkLnUrlConditions, fetchInvoice, getCallbackUrl, isValidLnUrl, isLnAddress } from '../../lib/lnurl'
+import { checkLnUrlConditions, fetchInvoice, getCallbackUrl, isValidLnUrl } from '../../lib/lnurl'
 
 const fetchMocker = createFetchMock(vi)
 
@@ -41,7 +41,7 @@ describe('lnurl utilities', () => {
   })
 })
 
-describe('isLnAddress / isValidLnUrl edge cases', () => {
+describe('isValidLnUrl edge cases', () => {
   it('accepts valid lightning addresses', () => {
     expect(isValidLnUrl('user@example.com')).toBe(true)
     expect(isValidLnUrl('user@example.org')).toBe(true)
@@ -61,12 +61,12 @@ describe('isLnAddress / isValidLnUrl edge cases', () => {
     expect(isValidLnUrl('lnurlblah')).toBe(false)
   })
 
-  it('isLnAddress rejects partial inputs', () => {
-    expect(isLnAddress('user@ex')).toBe(false)
-    expect(isLnAddress('user@ex.a')).toBe(false) // single-char TLD
+  it('rejects partial lightning addresses', () => {
+    expect(isValidLnUrl('user@ex')).toBe(false)
+    expect(isValidLnUrl('user@ex.a')).toBe(false) // single-char TLD
   })
 
-  it('isLnAddress accepts 2+ char TLD', () => {
-    expect(isLnAddress('user@ex.am')).toBe(true) // 'am' is 2 chars, passes {2,}
+  it('accepts lightning addresses with 2+ char TLD', () => {
+    expect(isValidLnUrl('user@ex.am')).toBe(true)
   })
 })

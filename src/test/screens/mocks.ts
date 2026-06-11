@@ -255,3 +255,16 @@ export const mockSvcWallet = {
   getStatus: undefined,
   reload: undefined,
 }
+
+export const mockFeesContextValue = {
+  calcOnchainOutputFee: () => 0,
+  calcOnchainInputFee: () => 0,
+}
+
+// Wallet mock with valid addresses to avoid getReceivingAddresses throwing
+export const mockSvcWalletWithAddresses = {
+  ...mockSvcWallet,
+  getAddress: () => Promise.resolve('tark1mock_offchain_address'),
+  getBoardingAddress: () => Promise.resolve('bcrt1mock_boarding_address'),
+  getBalance: () => Promise.resolve({ available: 100000 }),
+}

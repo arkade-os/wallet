@@ -5,6 +5,7 @@ import { LimitsContext } from '../../../providers/limits'
 import {
   mockAspContextValue,
   mockConfigContextValue,
+  mockFeesContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
   mockSwapsContextValue,
@@ -12,6 +13,7 @@ import {
   mockNavigationContextValue,
   mockOptionsContextValue,
   mockSvcWallet,
+  mockSvcWalletWithAddresses,
   mockWalletContextValue,
 } from '../mocks'
 import { AspContext } from '../../../providers/asp'
@@ -23,11 +25,6 @@ import { FiatContext } from '../../../providers/fiat'
 import { SwapsContext } from '../../../providers/swaps'
 import { OptionsContext } from '../../../providers/options'
 import { FeesContext } from '../../../providers/fees'
-
-const mockFeesContextValue = {
-  calcOnchainOutputFee: () => 0,
-  calcOnchainInputFee: () => 0,
-}
 
 // Mock lnurl module so we can spy on isValidLnUrl
 vi.mock('../../../lib/lnurl', async (importOriginal) => {
@@ -44,15 +41,7 @@ vi.mock('../../../lib/lnurl', async (importOriginal) => {
   }
 })
 
-// Wallet mock with valid addresses to avoid getReceivingAddresses throwing
-const mockSvcWalletWithAddresses = {
-  ...mockSvcWallet,
-  getAddress: () => Promise.resolve('tark1mock_offchain_address'),
-  getBoardingAddress: () => Promise.resolve('bcrt1mock_boarding_address'),
-  getBalance: () => Promise.resolve({ available: 100000 }),
-}
-
-function renderSendForm() {
+function renderSendForm(svcWallet: unknown = mockSvcWallet) {
   return render(
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <AspContext.Provider value={mockAspContextValue}>
@@ -61,7 +50,7 @@ function renderSendForm() {
             <SwapsContext.Provider value={mockSwapsContextValue as any}>
               <OptionsContext.Provider value={mockOptionsContextValue as any}>
                 <FlowContext.Provider value={mockFlowContextValue as any}>
-                  <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: mockSvcWallet as any }}>
+                  <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: svcWallet as any }}>
                     <LimitsContext.Provider value={mockLimitsContextValue}>
                       <FeesContext.Provider value={mockFeesContextValue as any}>
                         <SendForm />
@@ -110,7 +99,7 @@ describe('Send screen', () => {
     expect(screen.getByText('Max')).toBeInTheDocument()
     expect(screen.getByText('Send')).toBeInTheDocument()
     expect(screen.getByText('Amount')).toBeInTheDocument()
-    expect(screen.getByText('€0.00 available')).toBeInTheDocument()
+    expect(screen.getByText('0 SATS available')).toBeInTheDocument()
     expect(screen.getByText('Recipient address')).toBeInTheDocument()
     expect(screen.getByText('Continue')).toBeInTheDocument()
   })
@@ -132,31 +121,7 @@ describe('Send form debounce', () => {
     const mockIsValidLnUrl = vi.mocked(lnurl.isValidLnUrl)
     mockIsValidLnUrl.mockClear()
 
-    render(
-      <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
-          <ConfigContext.Provider value={mockConfigContextValue as any}>
-            <FiatContext.Provider value={mockFiatContextValue as any}>
-              <SwapsContext.Provider value={mockSwapsContextValue as any}>
-                <OptionsContext.Provider value={mockOptionsContextValue as any}>
-                  <FlowContext.Provider value={mockFlowContextValue as any}>
-                    <WalletContext.Provider
-                      value={{ ...mockWalletContextValue, svcWallet: mockSvcWalletWithAddresses as any }}
-                    >
-                      <LimitsContext.Provider value={mockLimitsContextValue}>
-                        <FeesContext.Provider value={mockFeesContextValue as any}>
-                          <SendForm />
-                        </FeesContext.Provider>
-                      </LimitsContext.Provider>
-                    </WalletContext.Provider>
-                  </FlowContext.Provider>
-                </OptionsContext.Provider>
-              </SwapsContext.Provider>
-            </FiatContext.Provider>
-          </ConfigContext.Provider>
-        </AspContext.Provider>
-      </NavigationContext.Provider>,
-    )
+    renderSendForm(mockSvcWalletWithAddresses)
 
     const input = document.querySelector('input[name="send-address"]') as HTMLInputElement
     expect(input).not.toBeNull()
@@ -177,6 +142,30 @@ describe('Send form debounce', () => {
     })
 
     // After debounce fires, parseRecipient runs once and reaches isValidLnUrl check
+    expect(mockIsValidLnUrl).toHaveBeenCalledTimes(1)
+    expect(mockIsValidLnUrl).toHaveBeenCalledWith('user@example.com')
+  }, 10000)
+
+  it('native paste bypasses the debounce: isValidLnUrl called without waiting 400ms', async () => {
+    const lnurl = await import('../../../lib/lnurl')
+    const mockIsValidLnUrl = vi.mocked(lnurl.isValidLnUrl)
+    mockIsValidLnUrl.mockClear()
+
+    renderSendForm(mockSvcWalletWithAddresses)
+
+    const input = document.querySelector('input[name="send-address"]') as HTMLInputElement
+    expect(input).not.toBeNull()
+
+    // Simulate a native paste (Ctrl+V): paste event followed by the change event
+    const address = 'user@example.com'
+    fireEvent.paste(input)
+    fireEvent.change(input, { target: { value: address } })
+
+    // The paste path schedules parseRecipient with 0ms delay — no 400ms wait
+    act(() => {
+      vi.advanceTimersByTime(0)
+    })
+
     expect(mockIsValidLnUrl).toHaveBeenCalledTimes(1)
     expect(mockIsValidLnUrl).toHaveBeenCalledWith('user@example.com')
   }, 10000)

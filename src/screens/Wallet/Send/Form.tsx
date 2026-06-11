@@ -593,16 +593,11 @@ export default function SendForm() {
     setLnUrlResponse(undefined)
   }
 
-  const handlePasteRecipient = (data: string) => {
-    isPasteRef.current = true
+  // atomic inputs (paste, scan) skip the typing debounce
+  const handleRecipientInput = (data: string, isPaste = false) => {
+    isPasteRef.current = isPaste
     setRawScanData('')
     resetDerivedState(data)
-  }
-
-  const handleRecipientChange = (recipient: string) => {
-    isPasteRef.current = false
-    setRawScanData('')
-    resetDerivedState(recipient)
   }
 
   const handleContinue = async () => {
@@ -779,6 +774,7 @@ export default function SendForm() {
       close={() => setScan(false)}
       label='Recipient address'
       onData={(data) => {
+        isPasteRef.current = true // scanned data is complete; skip the typing debounce
         setRawScanData(data)
         resetDerivedState(data)
       }}
@@ -820,9 +816,9 @@ export default function SendForm() {
                 name='send-address'
                 focus={focus === 'recipient'}
                 label='Recipient address'
-                onChange={handleRecipientChange}
+                onChange={(data: string) => handleRecipientInput(data)}
                 onEnter={handleEnter}
-                onPaste={handlePasteRecipient}
+                onPaste={(data: string) => handleRecipientInput(data, true)}
                 openScan={() => {
                   setKeys(false)
                   setScan(true)

@@ -33,22 +33,27 @@ export default function InputWithScanner({
   value,
 }: InputWithScannerProps) {
   const input = useRef<HTMLInputElement>(null)
+  const nativePasteRef = useRef(false)
 
   useEffect(() => {
     if (focus && input.current) input.current.focus()
   }, [focus, input.current])
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (ev) => {
-    onChange(ev.currentTarget.value)
+    const wasPaste = nativePasteRef.current
+    nativePasteRef.current = false
+    if (wasPaste && onPaste) onPaste(ev.currentTarget.value)
+    else onChange(ev.currentTarget.value)
   }
 
-  const handlePaste = (data: string) => {
-    if (onPaste) {
-      onPaste(data)
-    } else {
-      onChange(data)
-    }
+  const handleNativePaste = () => {
+    nativePasteRef.current = true
+    // the change event fires synchronously after the paste is applied;
+    // if the value didn't change (no change event), don't leak the flag
+    setTimeout(() => (nativePasteRef.current = false), 0)
   }
+
+  const handlePaste = (data: string) => (onPaste ?? onChange)(data)
 
   const handleClear = () => {
     hapticLight()
@@ -71,6 +76,7 @@ export default function InputWithScanner({
           value={value}
           className='input'
           onChange={handleChange}
+          onPaste={handleNativePaste}
           placeholder={placeholder}
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
         />
