@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { V2BrantaClient, BrantaServerBaseUrl } from '@branta-ops/branta'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
@@ -107,18 +107,26 @@ export default function SendForm() {
   const [showAssetSelector, setShowAssetSelector] = useState(false)
   const [showReserveModal, setShowReserveModal] = useState(false)
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
-  // bumped to request a parse of the recipient (on blur, paste, scan or clear)
+  // bumped to request an immediate parse of the recipient (blur, scan, Enter)
   const [parseTick, setParseTick] = useState(0)
+
+  const immediateParseRef = useRef(false) // skip the typing debounce
+  const recipientFocusRef = useRef(false)
+  const satoshisRef = useRef(0) // latest amount, readable from async parse
 
   const prefersReducedMotion = useReducedMotion()
   const isAssetSend = selectedAsset !== null
+
+  satoshisRef.current = sendInfo.satoshis ?? 0
 
   const DUST_AMOUNT = 330
   const hasAssets = assetBalances.length > 0
   const reserveApplied = !isAssetSend && hasAssets
   const liquidBalance = availableBalance - (reserveApplied ? DUST_AMOUNT : 0)
 
-  const smartSetError = (str: string) => {
+  // also receives Error objects from promise .catch handlers
+  const smartSetError = (err: unknown) => {
+    const str = err instanceof Error ? err.message : String(err ?? '')
     setError(str === '' ? (aspInfo.unreachable ? 'Ark server unreachable' : '') : str)
   }
 
@@ -197,19 +205,23 @@ export default function SendForm() {
       .catch(smartSetError)
   }, [balance])
 
-  // parse recipient data on explicit triggers only (parseTick: blur, paste,
-  // scan or clear) so validation never interrupts the user while typing.
+  // parse recipient data, debounced while typing so network calls don't fire
+  // on every keystroke; immediate on paste, scan, blur, Enter (parseTick).
+  // The catch-all invalid error only shows once the field loses focus.
   // repeat when asset changes to re-validate addresses (e.g. if user
   // selects an asset and the address is not compatible with it)
   useEffect(() => {
     smartSetError('')
 
     const parseRecipient = async () => {
+      immediateParseRef.current = false // reset after we consume the flag
       setNudgeBoltz(false)
       if (!recipient) return
-      // Clean base — only carry forward asset selection; all parsed targets
-      // start empty so switching recipient types never leaks stale state.
-      const base: SendInfo = { recipient, assets: sendInfo.assets }
+      // Clean base — carry forward asset selection and any amount the user
+      // already typed; all parsed targets start empty so switching recipient
+      // types never leaks stale state. Branches that derive an amount from
+      // the recipient (invoice, bip21) override satoshis explicitly.
+      const base: SendInfo = { recipient, assets: sendInfo.assets, satoshis: satoshisRef.current }
       const lowerCaseData = recipient.toLowerCase().replace(/^lightning:/, '')
       if (isURLWithLightningQueryString(recipient)) {
         const url = new URL(recipient)
@@ -251,7 +263,15 @@ export default function SendForm() {
             assets: [{ assetId, amount: rawAmount }],
           })
         }
-        return setState({ address, arkAddress, invoice, lnUrl, recipient, satoshis, assets: sendInfo.assets })
+        return setState({
+          address,
+          arkAddress,
+          invoice,
+          lnUrl,
+          recipient,
+          satoshis: satoshis || satoshisRef.current,
+          assets: sendInfo.assets,
+        })
       }
       if (isArkAddress(lowerCaseData)) {
         return setState({ ...base, arkAddress: lowerCaseData })
@@ -288,11 +308,21 @@ export default function SendForm() {
       if (isValidLnUrl(lowerCaseData)) {
         return setState({ ...base, lnUrl: lowerCaseData })
       }
-      setError('Invalid recipient address')
+      // partial input is expected while the field has focus; the blur
+      // handler re-parses so the error appears once the user is done
+      if (!recipientFocusRef.current) setError('Invalid recipient address')
     }
 
-    parseRecipient()
-  }, [parseTick, isAssetSend])
+    if (!recipient) {
+      parseRecipient()
+      return
+    }
+
+    const delay = immediateParseRef.current ? 0 : 400
+    const timer = setTimeout(parseRecipient, delay)
+
+    return () => clearTimeout(timer)
+  }, [recipient, parseTick, isAssetSend])
 
   // fetch branta payment info for ZK QR-scanned addresses only
   useEffect(() => {
@@ -581,14 +611,26 @@ export default function SendForm() {
     setLnUrlResponse(undefined)
   }
 
-  const requestParse = () => setParseTick((tick) => tick + 1)
+  const requestParse = () => {
+    immediateParseRef.current = true
+    setParseTick((tick) => tick + 1)
+  }
 
-  // typing only updates state; parsing waits for blur, paste or clear
-  const handleRecipientInput = (data: string, parseNow = false) => {
-    smartSetError('')
+  // typing parses after a 400ms debounce; paste parses right away
+  const handleRecipientInput = (data: string, isPaste = false) => {
     setRawScanData('')
     resetDerivedState(data)
-    if (parseNow || !data) requestParse()
+    if (isPaste) requestParse()
+    else immediateParseRef.current = false
+  }
+
+  const handleRecipientBlur = () => {
+    recipientFocusRef.current = false
+    requestParse()
+  }
+
+  const handleRecipientFocus = () => {
+    recipientFocusRef.current = true
   }
 
   const handleContinue = async () => {
@@ -810,9 +852,10 @@ export default function SendForm() {
                 name='send-address'
                 focus={focus === 'recipient'}
                 label='Recipient address'
-                onBlur={requestParse}
+                onBlur={handleRecipientBlur}
                 onChange={(data: string) => handleRecipientInput(data)}
                 onEnter={handleEnter}
+                onFocus={handleRecipientFocus}
                 onPaste={(data: string) => handleRecipientInput(data, true)}
                 openScan={() => {
                   setKeys(false)

@@ -17,6 +17,7 @@ interface InputAddressProps {
   onBlur?: () => void
   onChange: (arg0: any) => void
   onEnter?: () => void
+  onFocus?: () => void
   onPaste?: (data: string) => void
   openScan: () => void
   placeholder?: string
@@ -31,6 +32,7 @@ export default function InputAddress({
   onBlur,
   onChange,
   onEnter,
+  onFocus,
   onPaste,
   openScan,
   placeholder,
@@ -60,6 +62,7 @@ export default function InputAddress({
       onBlur={onBlur}
       onChange={onChange}
       onEnter={onEnter}
+      onFocus={onFocus}
       onPaste={onPaste}
       openScan={openScan}
       placeholder={placeholder}

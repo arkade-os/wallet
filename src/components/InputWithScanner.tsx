@@ -13,6 +13,7 @@ interface InputWithScannerProps {
   onBlur?: () => void
   onChange: (arg0: any) => void
   onEnter?: () => void
+  onFocus?: () => void
   onPaste?: (data: string) => void
   openScan: () => void
   placeholder?: string
@@ -28,6 +29,7 @@ export default function InputWithScanner({
   onBlur,
   onChange,
   onEnter,
+  onFocus,
   onPaste,
   openScan,
   placeholder,
@@ -79,6 +81,7 @@ export default function InputWithScanner({
           className='input'
           onBlur={onBlur}
           onChange={handleChange}
+          onFocus={onFocus}
           onPaste={handleNativePaste}
           placeholder={placeholder}
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}

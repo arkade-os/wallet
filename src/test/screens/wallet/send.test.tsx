@@ -116,7 +116,7 @@ describe('Send form recipient validation timing', () => {
     vi.clearAllMocks()
   })
 
-  it('does not validate while typing; validates once on blur', async () => {
+  it('debounces validation while typing and hides the invalid error until blur', async () => {
     const lnurl = await import('../../../lib/lnurl')
     const mockIsValidLnUrl = vi.mocked(lnurl.isValidLnUrl)
     mockIsValidLnUrl.mockClear()
@@ -125,27 +125,36 @@ describe('Send form recipient validation timing', () => {
 
     const input = document.querySelector('input[name="send-address"]') as HTMLInputElement
     expect(input).not.toBeNull()
+    fireEvent.focus(input)
 
-    // Simulate typing 'user@example.com' character by character using fireEvent
-    const address = 'user@example.com'
+    // Simulate typing an invalid address character by character
+    const address = 'user@bad'
     for (const char of address) {
       const nextValue = input.value + char
       fireEvent.change(input, { target: { value: nextValue } })
     }
 
-    // typing never triggers parseRecipient, no matter how long the user pauses
-    act(() => {
-      vi.advanceTimersByTime(1000)
-    })
+    // isValidLnUrl should NOT have been called yet (debounce suppresses parseRecipient)
     expect(mockIsValidLnUrl).not.toHaveBeenCalled()
 
-    // leaving the field triggers parseRecipient once with the full value
-    fireEvent.blur(input)
+    // After the debounce, parseRecipient runs once — but the catch-all error
+    // stays hidden while the field has focus
+    act(() => {
+      vi.advanceTimersByTime(400)
+    })
     expect(mockIsValidLnUrl).toHaveBeenCalledTimes(1)
-    expect(mockIsValidLnUrl).toHaveBeenCalledWith('user@example.com')
+    expect(mockIsValidLnUrl).toHaveBeenCalledWith('user@bad')
+    expect(screen.queryByText('Invalid recipient address')).toBeNull()
+
+    // Leaving the field re-parses immediately and surfaces the error
+    fireEvent.blur(input)
+    act(() => {
+      vi.advanceTimersByTime(0)
+    })
+    expect(screen.queryByText('Invalid recipient address')).not.toBeNull()
   }, 10000)
 
-  it('native paste validates immediately, without waiting for blur', async () => {
+  it('native paste validates immediately, without waiting for the debounce', async () => {
     const lnurl = await import('../../../lib/lnurl')
     const mockIsValidLnUrl = vi.mocked(lnurl.isValidLnUrl)
     mockIsValidLnUrl.mockClear()
@@ -160,6 +169,10 @@ describe('Send form recipient validation timing', () => {
     fireEvent.paste(input)
     fireEvent.change(input, { target: { value: address } })
 
+    // 0ms tick — no 400ms debounce wait
+    act(() => {
+      vi.advanceTimersByTime(0)
+    })
     expect(mockIsValidLnUrl).toHaveBeenCalledTimes(1)
     expect(mockIsValidLnUrl).toHaveBeenCalledWith('user@example.com')
   }, 10000)
