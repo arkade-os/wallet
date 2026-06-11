@@ -16,6 +16,7 @@ interface InputAddressProps {
   name?: string
   onChange: (arg0: any) => void
   onEnter?: () => void
+  onPaste?: (data: string) => void
   openScan: () => void
   placeholder?: string
   value?: string
@@ -28,6 +29,7 @@ export default function InputAddress({
   name,
   onChange,
   onEnter,
+  onPaste,
   openScan,
   placeholder,
   value,
@@ -55,6 +57,7 @@ export default function InputAddress({
       name={name}
       onChange={onChange}
       onEnter={onEnter}
+      onPaste={onPaste}
       openScan={openScan}
       placeholder={placeholder}
       validator={validator ?? isAddress}

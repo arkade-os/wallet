@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { V2BrantaClient, BrantaServerBaseUrl } from '@branta-ops/branta'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
@@ -111,6 +111,9 @@ export default function SendForm() {
   const prefersReducedMotion = useReducedMotion()
   const isAssetSend = selectedAsset !== null
 
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isPasteRef = useRef(false)
+
   const DUST_AMOUNT = 330
   const hasAssets = assetBalances.length > 0
   const reserveApplied = !isAssetSend && hasAssets
@@ -200,7 +203,11 @@ export default function SendForm() {
   // selects an asset and the address is not compatible with it)
   useEffect(() => {
     smartSetError('')
+
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+
     const parseRecipient = async () => {
+      isPasteRef.current = false // reset after we consume the paste flag
       setNudgeBoltz(false)
       if (!recipient) return
       // Clean base — only carry forward asset selection; all parsed targets
@@ -285,7 +292,18 @@ export default function SendForm() {
       }
       setError('Invalid recipient address')
     }
-    parseRecipient()
+
+    if (!recipient) {
+      parseRecipient()
+      return
+    }
+
+    const delay = isPasteRef.current ? 0 : 400
+    debounceRef.current = setTimeout(parseRecipient, delay)
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
   }, [recipient, isAssetSend])
 
   // fetch branta payment info for ZK QR-scanned addresses only
@@ -575,7 +593,14 @@ export default function SendForm() {
     setLnUrlResponse(undefined)
   }
 
+  const handlePasteRecipient = (data: string) => {
+    isPasteRef.current = true
+    setRawScanData('')
+    resetDerivedState(data)
+  }
+
   const handleRecipientChange = (recipient: string) => {
+    isPasteRef.current = false
     setRawScanData('')
     resetDerivedState(recipient)
   }
@@ -797,6 +822,7 @@ export default function SendForm() {
                 label='Recipient address'
                 onChange={handleRecipientChange}
                 onEnter={handleEnter}
+                onPaste={handlePasteRecipient}
                 openScan={() => {
                   setKeys(false)
                   setScan(true)

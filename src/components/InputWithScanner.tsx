@@ -12,6 +12,7 @@ interface InputWithScannerProps {
   name?: string
   onChange: (arg0: any) => void
   onEnter?: () => void
+  onPaste?: (data: string) => void
   openScan: () => void
   placeholder?: string
   validator?: (arg0: string) => boolean
@@ -25,6 +26,7 @@ export default function InputWithScanner({
   name,
   onChange,
   onEnter,
+  onPaste,
   openScan,
   placeholder,
   validator,
@@ -41,7 +43,11 @@ export default function InputWithScanner({
   }
 
   const handlePaste = (data: string) => {
-    onChange(data)
+    if (onPaste) {
+      onPaste(data)
+    } else {
+      onChange(data)
+    }
   }
 
   const handleClear = () => {

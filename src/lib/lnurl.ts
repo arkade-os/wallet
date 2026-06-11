@@ -62,7 +62,8 @@ const isLnUrl = (data: string) => {
   return data.toLowerCase().startsWith('lnurl') && isValidBech32(data)
 }
 
-const isLnAddress = (data: string) => {
+// Exported for testing. Requires a valid email-like address with TLD (2+ chars after the last dot).
+export const isLnAddress = (data: string) => {
   return data.includes('@') && emailRegex.test(data)
 }
 
