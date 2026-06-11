@@ -14,6 +14,7 @@ interface InputAddressProps {
   focus?: boolean
   label?: string
   name?: string
+  onBlur?: () => void
   onChange: (arg0: any) => void
   onEnter?: () => void
   onPaste?: (data: string) => void
@@ -27,6 +28,7 @@ export default function InputAddress({
   focus,
   label,
   name,
+  onBlur,
   onChange,
   onEnter,
   onPaste,
@@ -55,6 +57,7 @@ export default function InputAddress({
       focus={focus}
       label={label}
       name={name}
+      onBlur={onBlur}
       onChange={onChange}
       onEnter={onEnter}
       onPaste={onPaste}

@@ -10,6 +10,7 @@ interface InputWithScannerProps {
   focus?: boolean
   label?: string
   name?: string
+  onBlur?: () => void
   onChange: (arg0: any) => void
   onEnter?: () => void
   onPaste?: (data: string) => void
@@ -24,6 +25,7 @@ export default function InputWithScanner({
   focus,
   label,
   name,
+  onBlur,
   onChange,
   onEnter,
   onPaste,
@@ -75,6 +77,7 @@ export default function InputWithScanner({
           name={name}
           value={value}
           className='input'
+          onBlur={onBlur}
           onChange={handleChange}
           onPaste={handleNativePaste}
           placeholder={placeholder}

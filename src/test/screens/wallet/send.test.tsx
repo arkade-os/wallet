@@ -105,7 +105,7 @@ describe('Send screen', () => {
   })
 })
 
-describe('Send form debounce', () => {
+describe('Send form recipient validation timing', () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
@@ -116,7 +116,7 @@ describe('Send form debounce', () => {
     vi.clearAllMocks()
   })
 
-  it('debounces parseRecipient: isValidLnUrl not called immediately while typing, called once after 400ms', async () => {
+  it('does not validate while typing; validates once on blur', async () => {
     const lnurl = await import('../../../lib/lnurl')
     const mockIsValidLnUrl = vi.mocked(lnurl.isValidLnUrl)
     mockIsValidLnUrl.mockClear()
@@ -133,20 +133,19 @@ describe('Send form debounce', () => {
       fireEvent.change(input, { target: { value: nextValue } })
     }
 
-    // isValidLnUrl should NOT have been called yet (debounce suppresses parseRecipient)
+    // typing never triggers parseRecipient, no matter how long the user pauses
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
     expect(mockIsValidLnUrl).not.toHaveBeenCalled()
 
-    // Advance timers by 400ms to trigger the debounce
-    act(() => {
-      vi.advanceTimersByTime(400)
-    })
-
-    // After debounce fires, parseRecipient runs once and reaches isValidLnUrl check
+    // leaving the field triggers parseRecipient once with the full value
+    fireEvent.blur(input)
     expect(mockIsValidLnUrl).toHaveBeenCalledTimes(1)
     expect(mockIsValidLnUrl).toHaveBeenCalledWith('user@example.com')
   }, 10000)
 
-  it('native paste bypasses the debounce: isValidLnUrl called without waiting 400ms', async () => {
+  it('native paste validates immediately, without waiting for blur', async () => {
     const lnurl = await import('../../../lib/lnurl')
     const mockIsValidLnUrl = vi.mocked(lnurl.isValidLnUrl)
     mockIsValidLnUrl.mockClear()
@@ -160,11 +159,6 @@ describe('Send form debounce', () => {
     const address = 'user@example.com'
     fireEvent.paste(input)
     fireEvent.change(input, { target: { value: address } })
-
-    // The paste path schedules parseRecipient with 0ms delay — no 400ms wait
-    act(() => {
-      vi.advanceTimersByTime(0)
-    })
 
     expect(mockIsValidLnUrl).toHaveBeenCalledTimes(1)
     expect(mockIsValidLnUrl).toHaveBeenCalledWith('user@example.com')

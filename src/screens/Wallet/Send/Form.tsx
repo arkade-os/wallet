@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { V2BrantaClient, BrantaServerBaseUrl } from '@branta-ops/branta'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
@@ -107,12 +107,11 @@ export default function SendForm() {
   const [showAssetSelector, setShowAssetSelector] = useState(false)
   const [showReserveModal, setShowReserveModal] = useState(false)
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
+  // bumped to request a parse of the recipient (on blur, paste, scan or clear)
+  const [parseTick, setParseTick] = useState(0)
 
   const prefersReducedMotion = useReducedMotion()
   const isAssetSend = selectedAsset !== null
-
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const isPasteRef = useRef(false)
 
   const DUST_AMOUNT = 330
   const hasAssets = assetBalances.length > 0
@@ -198,16 +197,14 @@ export default function SendForm() {
       .catch(smartSetError)
   }, [balance])
 
-  // parse recipient data
+  // parse recipient data on explicit triggers only (parseTick: blur, paste,
+  // scan or clear) so validation never interrupts the user while typing.
   // repeat when asset changes to re-validate addresses (e.g. if user
   // selects an asset and the address is not compatible with it)
   useEffect(() => {
     smartSetError('')
 
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-
     const parseRecipient = async () => {
-      isPasteRef.current = false // reset after we consume the paste flag
       setNudgeBoltz(false)
       if (!recipient) return
       // Clean base — only carry forward asset selection; all parsed targets
@@ -216,7 +213,8 @@ export default function SendForm() {
       const lowerCaseData = recipient.toLowerCase().replace(/^lightning:/, '')
       if (isURLWithLightningQueryString(recipient)) {
         const url = new URL(recipient)
-        return setRecipient(url.searchParams.get('lightning')!)
+        setRecipient(url.searchParams.get('lightning')!)
+        return requestParse()
       }
       if (isBip21(lowerCaseData)) {
         const { address, arkAddress, invoice, lnUrl, satoshis, assetId, assetAmount } = decodeBip21(recipient.trim())
@@ -293,18 +291,8 @@ export default function SendForm() {
       setError('Invalid recipient address')
     }
 
-    if (!recipient) {
-      parseRecipient()
-      return
-    }
-
-    const delay = isPasteRef.current ? 0 : 400
-    debounceRef.current = setTimeout(parseRecipient, delay)
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-    }
-  }, [recipient, isAssetSend])
+    parseRecipient()
+  }, [parseTick, isAssetSend])
 
   // fetch branta payment info for ZK QR-scanned addresses only
   useEffect(() => {
@@ -593,11 +581,14 @@ export default function SendForm() {
     setLnUrlResponse(undefined)
   }
 
-  // atomic inputs (paste, scan) skip the typing debounce
-  const handleRecipientInput = (data: string, isPaste = false) => {
-    isPasteRef.current = isPaste
+  const requestParse = () => setParseTick((tick) => tick + 1)
+
+  // typing only updates state; parsing waits for blur, paste or clear
+  const handleRecipientInput = (data: string, parseNow = false) => {
+    smartSetError('')
     setRawScanData('')
     resetDerivedState(data)
+    if (parseNow || !data) requestParse()
   }
 
   const handleContinue = async () => {
@@ -635,6 +626,9 @@ export default function SendForm() {
 
   const handleEnter = () => {
     if (!buttonDisabled) return handleContinue()
+    // Enter signals input is complete; parse if no target was derived yet
+    const hasParsedTarget = Boolean(sendInfo.address || sendInfo.arkAddress || sendInfo.invoice || sendInfo.lnUrl)
+    if (recipient && !hasParsedTarget) requestParse()
     if (!amount && focus === 'recipient') setFocus('amount')
     if (!recipient && focus === 'amount') setFocus('recipient')
   }
@@ -774,9 +768,9 @@ export default function SendForm() {
       close={() => setScan(false)}
       label='Recipient address'
       onData={(data) => {
-        isPasteRef.current = true // scanned data is complete; skip the typing debounce
         setRawScanData(data)
         resetDerivedState(data)
+        requestParse()
       }}
       onError={smartSetError}
     />
@@ -816,6 +810,7 @@ export default function SendForm() {
                 name='send-address'
                 focus={focus === 'recipient'}
                 label='Recipient address'
+                onBlur={requestParse}
                 onChange={(data: string) => handleRecipientInput(data)}
                 onEnter={handleEnter}
                 onPaste={(data: string) => handleRecipientInput(data, true)}
