@@ -4,7 +4,7 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/boltz-swap": "0.3.39",
+    "@arkade-os/boltz-swap": "file:vendor/arkade-os-boltz-swap-0.3.39-pr556-10c3898.tgz",
     "@arkade-os/sdk": "0.4.34",
     "@base-ui/react": "^1.4.1",
     "@branta-ops/branta": "0.0.9",

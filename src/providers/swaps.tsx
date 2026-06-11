@@ -53,7 +53,7 @@ interface SwapsContextProps {
   createReverseSwap: (sats: number) => Promise<BoltzReverseSwap | null>
   claimVHTLC: (swap: BoltzReverseSwap) => Promise<void>
   refundVHTLC: (swap: BoltzSubmarineSwap) => Promise<void>
-  payInvoice: (swap: BoltzSubmarineSwap) => Promise<{ txid: string; preimage: string }>
+  payInvoice: (swap: BoltzSubmarineSwap) => Promise<{ txid: string }>
   // Other helper methods
   getSwapHistory: () => Promise<BoltzSwap[]>
   restoreSwaps: () => Promise<number>
@@ -278,7 +278,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     await arkadeSwaps.refundVHTLC(swap)
   }
 
-  const payInvoice = async (pendingSwap: BoltzSubmarineSwap): Promise<{ txid: string; preimage: string }> => {
+  const payInvoice = async (pendingSwap: BoltzSubmarineSwap): Promise<{ txid: string }> => {
     if (!arkadeSwaps || !svcWallet) throw new Error('Lightning not initialized')
     if (!pendingSwap) throw new Error('No pending swap found')
     if (!pendingSwap.response.address) throw new Error('No swap address found')
@@ -294,8 +294,11 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     if (!txid) throw new Error('Failed to send offchain payment')
 
     try {
-      const { preimage } = await arkadeSwaps.waitForSwapSettlement(pendingSwap)
-      return { txid, preimage }
+      // Optimistic resolution: resolves as soon as the lockup transaction is
+      // observed (funds committed, swap refundable from here). Settlement keeps
+      // being monitored in the background and the stored swap stays up to date.
+      await arkadeSwaps.waitForSwapFunded(pendingSwap)
+      return { txid }
     } catch (e: unknown) {
       consoleError(e, 'Swap failed')
       throw new Error('Swap failed')
