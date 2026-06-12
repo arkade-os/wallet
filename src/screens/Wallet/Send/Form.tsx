@@ -143,6 +143,7 @@ export default function SendForm() {
   const [showAssetSelector, setShowAssetSelector] = useState(false)
   const [showReserveModal, setShowReserveModal] = useState(false)
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
+  const [valueSats, setValueSats] = useState<number | undefined>(undefined)
 
   const prefersReducedMotion = useReducedMotion()
   const isAssetSend = selectedAsset !== null
@@ -568,6 +569,7 @@ export default function SendForm() {
   }
 
   const handleAmountChange = (value: string) => {
+    setValueSats(undefined)
     setAmountTextValue(value)
     if (isAssetSend) {
       if (selectedAsset) {
@@ -588,8 +590,8 @@ export default function SendForm() {
   }
 
   const handleKeyboardAmountSave = (value: string, inputMode: KeyboardInputMode) => {
+    setValueSats(undefined)
     if (inputMode === 'asset' || isAssetSend) return handleAmountChange(value)
-
     const num = Number(value)
     if (Number.isNaN(num) || !Number.isFinite(num)) return setError('Invalid amount')
     const sats = inputMode === 'sats' ? num : fromFiat(num)
@@ -692,6 +694,7 @@ export default function SendForm() {
           : liquidBalance.toString(),
       )
       setAmount(liquidBalance)
+      setValueSats(liquidBalance)
     }
   }
 
@@ -961,6 +964,7 @@ export default function SendForm() {
                 <InputAmount
                   label='Amount'
                   name='send-amount'
+                  valueSats={valueSats}
                   right={<Available />}
                   onEnter={handleEnter}
                   onFocus={handleFocus}

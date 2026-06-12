@@ -66,8 +66,8 @@ describe('Contracts screen', () => {
     await screen.findByText('Contracts')
     expect(screen.getByText('default')).toBeInTheDocument()
     expect(screen.getByText('vhtlc')).toBeInTheDocument()
-    expect(screen.getByText('active')).toBeInTheDocument()
-    expect(screen.getByText('inactive')).toBeInTheDocument()
+    expect(screen.getAllByText('Active').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Inactive').length).toBeGreaterThan(0)
   })
 
   it('sorts active contracts before inactive ones', async () => {
@@ -81,8 +81,26 @@ describe('Contracts screen', () => {
     renderContracts(svcWalletWithContracts as any)
 
     await screen.findByText('Contracts')
-    const cards = screen.getAllByText(/^(active|inactive)$/)
-    expect(cards[0].textContent).toBe('active')
-    expect(cards[1].textContent).toBe('inactive')
+    const cards = screen
+      .getAllByText(/^(Active|Inactive)$/)
+      .filter((node) => node.className.includes('contract-card__status'))
+    expect(cards[0].textContent).toBe('Active')
+    expect(cards[1].textContent).toBe('Inactive')
+  })
+
+  it('renders the contracts summary and metadata', async () => {
+    const svcWalletWithContracts = {
+      ...mockSvcWallet,
+      getContractManager: () =>
+        Promise.resolve({
+          getContracts: () => Promise.resolve(mockContracts),
+        }),
+    }
+    renderContracts(svcWalletWithContracts as any)
+
+    await screen.findByText('Contracts')
+
+    expect(screen.getByLabelText('Contract summary')).toBeInTheDocument()
+    expect(screen.getAllByText('Script bytes').length).toBeGreaterThan(0)
   })
 })

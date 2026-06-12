@@ -24,6 +24,7 @@ interface InputAmountProps {
   readOnly?: boolean
   right?: JSX.Element
   value?: string
+  valueSats?: number
 }
 
 export default function InputAmount({
@@ -41,6 +42,7 @@ export default function InputAmount({
   readOnly,
   right,
   value,
+  valueSats,
 }: InputAmountProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
@@ -57,13 +59,20 @@ export default function InputAmount({
     if (focus && input.current) input.current.focus()
   }, [focus])
 
-  // update sats when value change
+  // valueSats prop has priority over value prop, so update value when valueSats changes
   useEffect(() => {
+    if (valueSats === undefined) return
+    setSatsValue(valueSats)
+  }, [valueSats])
+
+  // update satsValue when value change
+  useEffect(() => {
+    if (valueSats !== undefined) return
     if (!value || isNaN(Number(value))) return
     setSatsValue(useFiat ? fromFiat(Number(value)) : Number(value))
-  }, [value, fromFiat, useFiat])
+  }, [value, fromFiat, useFiat, valueSats])
 
-  // update other value when sats change
+  // update other value when satsValue change
   useEffect(() => {
     setError(satsValue ? (satsValue < 0 ? 'Invalid amount' : '') : '')
     setOtherValue(useFiat ? prettyNumber(satsValue, 0) : prettyNumber(toFiat(satsValue), fiatDecimals()))

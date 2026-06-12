@@ -1,7 +1,7 @@
 import { LivelinePoint } from 'liveline'
 import { Currencies } from './types'
 
-const host = 'https://fetch-json.bordalix.workers.dev' // TODO: move to final worker URL
+const host = 'https://price-chart-proxy.arkade.money'
 
 interface HistoricalMarketDataResponse {
   when: number

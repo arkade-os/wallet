@@ -119,7 +119,7 @@ export default function Transaction() {
               ? 'Settled'
               : 'Preconfirmed',
     type: swapTx ? 'Asset swap' : boardingTx ? 'Boarding' : 'Offchain',
-    txid: tx.boardingTxid || tx.redeemTxid || '',
+    txid: tx.boardingTxid || tx.redeemTxid || tx.roundTxid || '',
     isOffchainTx: !tx.boardingTxid && Boolean(tx.redeemTxid),
     assetId: tx.assets?.[0]?.assetId,
     wallet: wallet,

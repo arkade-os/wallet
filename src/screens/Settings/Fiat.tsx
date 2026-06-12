@@ -5,6 +5,7 @@ import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import { ConfigContext } from '../../providers/config'
 import Header from './Header'
+import TokenLogo, { tokenLogoTickerForTicker } from '../../components/TokenLogo'
 
 export default function Fiat() {
   const { backupConfig, config, updateConfig } = useContext(ConfigContext)
@@ -34,6 +35,10 @@ export default function Fiat() {
                   Currencies.JPY,
                   Currencies.USD,
                 ]}
+                renderStart={(currency) => {
+                  const ticker = tokenLogoTickerForTicker(currency)
+                  return ticker ? <TokenLogo ticker={ticker} /> : null
+                }}
                 selected={config.fiat}
               />
             </section>

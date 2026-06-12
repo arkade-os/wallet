@@ -1,4 +1,4 @@
-export type TokenLogoTicker = 'BTC' | 'USD' | 'USDT' | 'USDC' | 'CHF' | 'BRL'
+export type TokenLogoTicker = 'BTC' | 'USD' | 'USDT' | 'USDC' | 'CHF' | 'BRL' | 'CNY' | 'EUR' | 'GBP' | 'JPY'
 
 export function tokenLogoTickerForTicker(ticker: string | undefined): TokenLogoTicker | undefined {
   const normalized = ticker?.trim().toUpperCase()
@@ -8,7 +8,11 @@ export function tokenLogoTickerForTicker(ticker: string | undefined): TokenLogoT
     normalized === 'USDT' ||
     normalized === 'USDC' ||
     normalized === 'CHF' ||
-    normalized === 'BRL'
+    normalized === 'BRL' ||
+    normalized === 'CNY' ||
+    normalized === 'EUR' ||
+    normalized === 'GBP' ||
+    normalized === 'JPY'
   ) {
     return normalized
   }
@@ -30,6 +34,10 @@ export default function TokenLogo({ ticker }: { ticker: TokenLogoTicker }) {
   if (ticker === 'USDC') return <UsdcLogo />
   if (ticker === 'CHF') return <SwitzerlandFlagLogo />
   if (ticker === 'BRL') return <BrazilFlagLogo />
+  if (ticker === 'CNY') return <ChinaFlagLogo />
+  if (ticker === 'EUR') return <EuropeanUnionFlagLogo />
+  if (ticker === 'GBP') return <UnitedKingdomFlagLogo />
+  if (ticker === 'JPY') return <JapanFlagLogo />
   return <BitcoinLogo />
 }
 
@@ -152,6 +160,65 @@ export function BrazilFlagLogo() {
         <path fill='#FFDF00' d='M16 5.25 29 16 16 26.75 3 16z' />
         <circle cx='16' cy='16' r='6.2' fill='#002776' />
         <path fill='#FFF' d='M9.95 14.15c4.92-.6 8.85.06 12.01 2.02l-.78 1.22c-2.85-1.76-6.47-2.35-11.06-1.79z' />
+      </g>
+    </svg>
+  )
+}
+
+export function ChinaFlagLogo() {
+  return (
+    <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
+      <circle cx='16' cy='16' r='16' fill='#DE2910' />
+      <g fill='#FFDE00'>
+        <path d='m7.2 5.5 1.08 3.3h3.47l-2.8 2.04 1.07 3.3-2.82-2.04-2.8 2.04 1.07-3.3-2.82-2.04h3.48z' />
+        <path d='m14.35 5.3.18 1.14 1.04-.51-.8.82.8.81-1.04-.5-.18 1.14-.18-1.14-1.04.5.8-.81-.8-.82 1.04.51z' />
+        <path d='m17.1 8.2-.18 1.14 1.04.51-1.14.18-.18 1.14-.52-1.04-1.14.18.81-.82-.51-1.04 1.04.51z' />
+        <path d='m17 12.15-.7.91 1.08.4-1.14.16-.05 1.15-.69-.92-1.1.32.66-.94-.65-.95 1.1.33.7-.92.04 1.15z' />
+        <path d='m14.25 15.35.18 1.14 1.04-.51-.8.82.8.81-1.04-.5-.18 1.14-.18-1.14-1.04.5.8-.81-.8-.82 1.04.51z' />
+      </g>
+    </svg>
+  )
+}
+
+export function EuropeanUnionFlagLogo() {
+  const stars = Array.from({ length: 12 }, (_, index) => {
+    const angle = (index * Math.PI) / 6 - Math.PI / 2
+    const x = 16 + Math.cos(angle) * 7
+    const y = 16 + Math.sin(angle) * 7
+    return <circle key={index} cx={x} cy={y} r='0.9' />
+  })
+
+  return (
+    <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
+      <circle cx='16' cy='16' r='16' fill='#003399' />
+      <g fill='#FFCC00'>{stars}</g>
+    </svg>
+  )
+}
+
+export function JapanFlagLogo() {
+  return (
+    <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
+      <circle cx='16' cy='16' r='16' fill='#FFF' />
+      <circle cx='16' cy='16' r='7.3' fill='#BC002D' />
+    </svg>
+  )
+}
+
+export function UnitedKingdomFlagLogo() {
+  return (
+    <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
+      <defs>
+        <clipPath id='gb-flag-circle'>
+          <circle cx='16' cy='16' r='16' />
+        </clipPath>
+      </defs>
+      <g clipPath='url(#gb-flag-circle)'>
+        <path fill='#012169' d='M0 0h32v32H0z' />
+        <path stroke='#FFF' strokeWidth='6.4' d='m0 0 32 32M32 0 0 32' />
+        <path stroke='#C8102E' strokeWidth='3.8' d='m0 0 32 32M32 0 0 32' />
+        <path fill='#FFF' d='M13.2 0h5.6v32h-5.6zM0 13.2h32v5.6H0z' />
+        <path fill='#C8102E' d='M14.4 0h3.2v32h-3.2zM0 14.4h32v3.2H0z' />
       </g>
     </svg>
   )
