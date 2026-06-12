@@ -8,6 +8,7 @@ import Text from './Text'
 interface InputContainerProps {
   children: ReactNode
   error?: string
+  errorVariant?: 'banner' | 'inline'
   label?: string
   right?: JSX.Element
   bottomLeft?: string
@@ -17,6 +18,7 @@ interface InputContainerProps {
 export default function InputContainer({
   children,
   error,
+  errorVariant = 'banner',
   label,
   right,
   bottomLeft,
@@ -42,16 +44,27 @@ export default function InputContainer({
     </FlexRow>
   )
 
+  const hasError = Boolean(error)
+  const inlineError = errorVariant === 'inline' && hasError
+
   return (
-    <FlexCol>
+    <FlexCol gap={inlineError ? '0.375rem' : undefined}>
       <FlexCol gap='0.5rem'>
         {label || right ? <TopLabel /> : null}
-        <Shadow>
+        <Shadow dangerBorder={inlineError}>
           <FlexRow between>{children}</FlexRow>
         </Shadow>
         {bottomLeft || bottomRight ? <BottomLabel /> : null}
       </FlexCol>
-      <ErrorMessage error={Boolean(error)} text={error ?? ''} />
+      {inlineError ? (
+        <div className='field-error' role='alert'>
+          <Text color='danger' small wrap>
+            {error}
+          </Text>
+        </div>
+      ) : (
+        <ErrorMessage error={hasError} text={error ?? ''} />
+      )}
     </FlexCol>
   )
 }

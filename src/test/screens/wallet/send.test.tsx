@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, act, fireEvent, cleanup } from '@testing-library/react'
+import { useState } from 'react'
+import { render, screen, act, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import {
@@ -25,6 +26,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { SwapsContext } from '../../../providers/swaps'
 import { OptionsContext } from '../../../providers/options'
 import { FeesContext } from '../../../providers/fees'
+import fixtures from '../../fixtures.json'
 
 // Mock lnurl module so we can spy on isValidLnUrl
 vi.mock('../../../lib/lnurl', async (importOriginal) => {
@@ -41,7 +43,60 @@ vi.mock('../../../lib/lnurl', async (importOriginal) => {
   }
 })
 
-function renderSendForm(svcWallet: unknown = mockSvcWallet) {
+function renderSendForm(
+  svcWallet: unknown = mockSvcWallet,
+  overrides: {
+    config?: Record<string, any>
+    wallet?: Record<string, any>
+  } = {},
+) {
+  function SendFormWithState() {
+    const [sendInfo, setSendInfo] = useState(mockFlowContextValue.sendInfo)
+
+    const config = {
+      ...mockConfigContextValue.config,
+      ...overrides.config,
+      apps: {
+        ...mockConfigContextValue.config.apps,
+        ...overrides.config?.apps,
+      },
+    }
+
+    const wallet = {
+      ...mockWalletContextValue,
+      ...overrides.wallet,
+      svcWallet: svcWallet as any,
+    }
+
+    return (
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <ConfigContext.Provider value={{ ...mockConfigContextValue, config } as any}>
+            <FiatContext.Provider value={mockFiatContextValue as any}>
+              <SwapsContext.Provider value={mockSwapsContextValue as any}>
+                <OptionsContext.Provider value={mockOptionsContextValue as any}>
+                  <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo, setSendInfo } as any}>
+                    <WalletContext.Provider value={wallet as any}>
+                      <LimitsContext.Provider value={mockLimitsContextValue}>
+                        <FeesContext.Provider value={mockFeesContextValue as any}>
+                          <SendForm />
+                        </FeesContext.Provider>
+                      </LimitsContext.Provider>
+                    </WalletContext.Provider>
+                  </FlowContext.Provider>
+                </OptionsContext.Provider>
+              </SwapsContext.Provider>
+            </FiatContext.Provider>
+          </ConfigContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>
+    )
+  }
+
+  return render(<SendFormWithState />)
+}
+
+function renderLoadingSendForm() {
   return render(
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <AspContext.Provider value={mockAspContextValue}>
@@ -50,7 +105,7 @@ function renderSendForm(svcWallet: unknown = mockSvcWallet) {
             <SwapsContext.Provider value={mockSwapsContextValue as any}>
               <OptionsContext.Provider value={mockOptionsContextValue as any}>
                 <FlowContext.Provider value={mockFlowContextValue as any}>
-                  <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: svcWallet as any }}>
+                  <WalletContext.Provider value={mockWalletContextValue}>
                     <LimitsContext.Provider value={mockLimitsContextValue}>
                       <FeesContext.Provider value={mockFeesContextValue as any}>
                         <SendForm />
@@ -69,27 +124,7 @@ function renderSendForm(svcWallet: unknown = mockSvcWallet) {
 
 describe('Send screen', () => {
   it('renders the loading send screen correctly', async () => {
-    render(
-      <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
-          <ConfigContext.Provider value={mockConfigContextValue as any}>
-            <FiatContext.Provider value={mockFiatContextValue as any}>
-              <SwapsContext.Provider value={mockSwapsContextValue as any}>
-                <OptionsContext.Provider value={mockOptionsContextValue as any}>
-                  <FlowContext.Provider value={mockFlowContextValue as any}>
-                    <WalletContext.Provider value={mockWalletContextValue}>
-                      <LimitsContext.Provider value={mockLimitsContextValue}>
-                        <SendForm />
-                      </LimitsContext.Provider>
-                    </WalletContext.Provider>
-                  </FlowContext.Provider>
-                </OptionsContext.Provider>
-              </SwapsContext.Provider>
-            </FiatContext.Provider>
-          </ConfigContext.Provider>
-        </AspContext.Provider>
-      </NavigationContext.Provider>,
-    )
+    renderLoadingSendForm()
     // should be loading because svcWallet is undefined
     expect(screen.getByTestId('loading-logo')).toBeInTheDocument()
   })
@@ -143,6 +178,60 @@ describe('Send form recipient validation timing', () => {
     fireEvent.blur(input)
     expect(mockIsValidLnUrl).toHaveBeenCalledTimes(1)
     expect(mockIsValidLnUrl).toHaveBeenCalledWith('user@example.com')
+  }, 10000)
+
+  it('shows invalid recipients inline instead of in the global error banner', async () => {
+    renderSendForm(mockSvcWalletWithAddresses)
+
+    const input = document.querySelector('input[name="send-address"]') as HTMLInputElement
+    expect(input).not.toBeNull()
+
+    fireEvent.change(input, { target: { value: 'tiero94@tet' } })
+    expect(screen.queryByText('Invalid recipient address')).not.toBeInTheDocument()
+
+    fireEvent.blur(input)
+
+    expect(screen.getByText('Invalid recipient address')).toBeInTheDocument()
+    expect(screen.queryByTestId('error-message')).not.toBeInTheDocument()
+  }, 10000)
+
+  it('keeps continue disabled when recipient compatibility errors are inline', async () => {
+    vi.useRealTimers()
+
+    const assetId = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd'
+    const svcWallet = {
+      ...mockSvcWalletWithAddresses,
+      assetManager: {
+        getAssetDetails: vi.fn().mockResolvedValue({
+          metadata: { name: 'Test token', ticker: 'TST', decimals: 8 },
+        }),
+      },
+    }
+
+    renderSendForm(svcWallet, {
+      config: { apps: { assets: { enabled: true } } },
+      wallet: {
+        assetBalances: [{ assetId, amount: BigInt(100_000_000) }],
+        setCacheEntry: (_assetId: string, details: unknown) => details,
+      },
+    })
+
+    const recipientInput = document.querySelector('input[name="send-address"]') as HTMLInputElement
+    const amountInput = document.querySelector('input[name="send-amount"]') as HTMLInputElement
+
+    fireEvent.change(recipientInput, { target: { value: fixtures.lib.address.btc[0] } })
+    fireEvent.blur(recipientInput)
+    fireEvent.change(amountInput, { target: { value: '1' } })
+
+    const continueButton = await screen.findByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).not.toBeDisabled())
+
+    fireEvent.click(await screen.findByTestId('asset-selector'))
+    fireEvent.click(await screen.findByTestId('asset-tst-option'))
+
+    expect(screen.getByText('Assets can only be sent to Arkade addresses')).toBeInTheDocument()
+    expect(screen.queryByTestId('error-message')).not.toBeInTheDocument()
+    expect(continueButton).toBeDisabled()
   }, 10000)
 
   it('native paste validates immediately, without waiting for blur', async () => {
