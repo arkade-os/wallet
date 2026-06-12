@@ -7,6 +7,7 @@ import FlexRow from './FlexRow'
 
 interface InputWithScannerProps {
   error?: string
+  errorVariant?: 'banner' | 'inline'
   focus?: boolean
   label?: string
   name?: string
@@ -23,6 +24,7 @@ interface InputWithScannerProps {
 
 export default function InputWithScanner({
   error,
+  errorVariant,
   focus,
   label,
   name,
@@ -72,7 +74,7 @@ export default function InputWithScanner({
   const hasValue = Boolean(value && value.length > 0)
 
   return (
-    <InputContainer label={label} error={error}>
+    <InputContainer label={label} error={error} errorVariant={errorVariant}>
       <label className='label has-buttons'>
         <input
           ref={input}

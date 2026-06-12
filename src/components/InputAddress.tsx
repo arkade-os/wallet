@@ -11,6 +11,8 @@ import { isBip21 } from '../lib/bip21'
 import InputWithScanner from './InputWithScanner'
 
 interface InputAddressProps {
+  error?: string
+  errorVariant?: 'banner' | 'inline'
   focus?: boolean
   label?: string
   name?: string
@@ -26,6 +28,8 @@ interface InputAddressProps {
 }
 
 export default function InputAddress({
+  error,
+  errorVariant,
   focus,
   label,
   name,
@@ -56,6 +60,8 @@ export default function InputAddress({
 
   return (
     <InputWithScanner
+      error={error}
+      errorVariant={errorVariant}
       focus={focus}
       label={label}
       name={name}
