@@ -1,6 +1,6 @@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { GreenStatusIcon } from '../icons/Status'
-import { useEffect } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { hapticSubtle } from '../lib/haptics'
 import { cn } from '@/lib/utils'
 
@@ -8,10 +8,11 @@ interface SelectProps {
   labels?: string[]
   onChange: (value: string) => void
   options: string[]
+  renderStart?: (option: string) => ReactNode
   selected: string
 }
 
-export default function Select({ labels, onChange, options, selected }: SelectProps) {
+export default function Select({ labels, onChange, options, renderStart, selected }: SelectProps) {
   useEffect(() => {
     const handleKeyDown = (event: { key: string; keyCode: number }) => {
       const selectedIndex = options.indexOf(selected)
@@ -52,7 +53,10 @@ export default function Select({ labels, onChange, options, selected }: SelectPr
             value={option}
             className='!absolute !-m-px !size-px !border-0 !p-0 opacity-0 pointer-events-none'
           />
-          <p className='settings-row__label'>{labels?.[index] ?? option}</p>
+          <span className='settings-select-row__content'>
+            {renderStart ? <span className='settings-select-row__icon'>{renderStart(option)}</span> : null}
+            <p className='settings-row__label'>{labels?.[index] ?? option}</p>
+          </span>
           {option === selected && <GreenStatusIcon small />}
         </label>
       ))}
