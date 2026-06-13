@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 import Contracts from '../../../screens/Settings/Contracts'
 import { WalletContext } from '../../../providers/wallet'
 import { mockWalletContextValue, mockSvcWallet } from '../mocks'
+import { AspContext } from '../../../providers/asp'
+import { emptyAspInfo } from '../../../lib/asp'
 import type { Contract } from '@arkade-os/sdk'
 
 const mockContracts: Contract[] = [
@@ -84,5 +86,60 @@ describe('Contracts screen', () => {
     const cards = screen.getAllByText(/^(active|inactive)$/)
     expect(cards[0].textContent).toBe('active')
     expect(cards[1].textContent).toBe('inactive')
+  })
+})
+
+// x-only (32-byte) signer pubkeys for classifying contract.params.serverPubKey.
+const ACTIVE_SIGNER = 'aa'.repeat(32)
+const DEPRECATED_SIGNER = 'bb'.repeat(32)
+
+function contractUnder(serverPubKey: string, address: string): Contract {
+  return {
+    type: 'vhtlc',
+    state: 'active',
+    address,
+    script: address,
+    createdAt: 1717000000000,
+    params: { serverPubKey },
+  }
+}
+
+function renderWithSigners(contracts: Contract[], deprecatedCutoff: bigint) {
+  const svcWallet = {
+    ...mockSvcWallet,
+    getContractManager: () => Promise.resolve({ getContracts: () => Promise.resolve(contracts) }),
+  }
+  const aspInfo = {
+    ...emptyAspInfo,
+    signerPubkey: ACTIVE_SIGNER,
+    deprecatedSigners: [{ pubkey: DEPRECATED_SIGNER, cutoffDate: deprecatedCutoff }],
+  }
+  return render(
+    <AspContext.Provider value={{ aspInfo, setAspInfo: () => {} } as any}>
+      <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as any}>
+        <Contracts />
+      </WalletContext.Provider>
+    </AspContext.Provider>,
+  )
+}
+
+describe('Contracts screen — deprecated signer badges', () => {
+  it('flags a contract whose signer is deprecated and past its cutoff', async () => {
+    renderWithSigners([contractUnder(DEPRECATED_SIGNER, 'ark1qdeprecated')], 1n) // cutoff in 1970 → EXPIRED
+    await screen.findByText('Contracts')
+    expect(screen.getByText('deprecated signer · past cutoff')).toBeInTheDocument()
+  })
+
+  it('flags a contract whose signer is deprecated but before its cutoff', async () => {
+    renderWithSigners([contractUnder(DEPRECATED_SIGNER, 'ark1qdeprecated')], 99999999999n) // far future → MIGRATABLE
+    await screen.findByText('Contracts')
+    expect(screen.getByText('deprecated signer')).toBeInTheDocument()
+    expect(screen.queryByText('deprecated signer · past cutoff')).not.toBeInTheDocument()
+  })
+
+  it('does not flag a contract under the active signer', async () => {
+    renderWithSigners([contractUnder(ACTIVE_SIGNER, 'ark1qcurrent')], 1n)
+    await screen.findByText('Contracts')
+    expect(screen.queryByText(/deprecated signer/)).not.toBeInTheDocument()
   })
 })

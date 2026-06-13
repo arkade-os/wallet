@@ -1,5 +1,12 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { Contract, encodeArkContract } from '@arkade-os/sdk'
+import {
+  Contract,
+  encodeArkContract,
+  signerSetFromInfo,
+  classifyAgainstSignerSet,
+  type SignerSet,
+  type SignerStatus,
+} from '@arkade-os/sdk'
 import Header from './Header'
 import Content from '../../components/Content'
 import Padded from '../../components/Padded'
@@ -11,6 +18,7 @@ import LoadingLogo from '../../components/LoadingLogo'
 import CopyIcon from '../../icons/Copy'
 import CheckMarkIcon from '../../icons/CheckMark'
 import { WalletContext } from '../../providers/wallet'
+import { AspContext } from '../../providers/asp'
 import { prettyAgo, prettyLongText } from '../../lib/format'
 import { copyToClipboard } from '../../lib/clipboard'
 import { hapticSubtle } from '../../lib/haptics'
@@ -44,7 +52,37 @@ function CopyRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-function ContractCard({ contract }: { contract: Contract }) {
+// Classifies a contract's server signer against the operator's advertised
+// signer set, so the list can flag contracts still locked to a deprecated
+// signer (and whether their cooperative-migration cutoff has already passed).
+function contractSignerStatus(contract: Contract, signerSet: SignerSet | null): SignerStatus | null {
+  if (!signerSet) return null
+  const serverPubKey = contract.params?.serverPubKey
+  if (!serverPubKey) return null
+  try {
+    return classifyAgainstSignerSet(serverPubKey, signerSet).status
+  } catch {
+    return null
+  }
+}
+
+function DeprecatedSignerBadge({ status }: { status: SignerStatus | null }) {
+  if (status === 'EXPIRED')
+    return (
+      <Text tiny color='red'>
+        deprecated signer · past cutoff
+      </Text>
+    )
+  if (status === 'MIGRATABLE' || status === 'DUE_NOW')
+    return (
+      <Text tiny color='orange'>
+        deprecated signer
+      </Text>
+    )
+  return null
+}
+
+function ContractCard({ contract, signerSet }: { contract: Contract; signerSet: SignerSet | null }) {
   const encoded = useMemo(() => {
     try {
       return encodeArkContract(contract)
@@ -52,6 +90,8 @@ function ContractCard({ contract }: { contract: Contract }) {
       return ''
     }
   }, [contract])
+
+  const signerStatus = useMemo(() => contractSignerStatus(contract, signerSet), [contract, signerSet])
 
   return (
     <Shadow border>
@@ -72,6 +112,7 @@ function ContractCard({ contract }: { contract: Contract }) {
             </Text>
           </FlexCol>
         </FlexRow>
+        <DeprecatedSignerBadge status={signerStatus} />
         <hr className='dashed' />
         <CopyRow label='address' value={contract.address} />
         <CopyRow label='script' value={contract.script} />
@@ -81,7 +122,15 @@ function ContractCard({ contract }: { contract: Contract }) {
   )
 }
 
-function Section({ title, contracts }: { title: string; contracts: Contract[] }) {
+function Section({
+  title,
+  contracts,
+  signerSet,
+}: {
+  title: string
+  contracts: Contract[]
+  signerSet: SignerSet | null
+}) {
   if (contracts.length === 0) return null
   return (
     <FlexCol gap='0.5rem'>
@@ -89,7 +138,7 @@ function Section({ title, contracts }: { title: string; contracts: Contract[] })
         {title}
       </Text>
       {contracts.map((c) => (
-        <ContractCard key={c.address} contract={c} />
+        <ContractCard key={c.address} contract={c} signerSet={signerSet} />
       ))}
     </FlexCol>
   )
@@ -97,8 +146,21 @@ function Section({ title, contracts }: { title: string; contracts: Contract[] })
 
 export default function Contracts() {
   const { svcWallet } = useContext(WalletContext)
+  const { aspInfo } = useContext(AspContext)
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Build the operator's signer set once; each ContractCard classifies against
+  // it. Guard the empty/unreachable default — signerSetFromInfo throws on a
+  // blank signer pubkey.
+  const signerSet = useMemo<SignerSet | null>(() => {
+    if (!aspInfo?.signerPubkey) return null
+    try {
+      return signerSetFromInfo(aspInfo)
+    } catch {
+      return null
+    }
+  }, [aspInfo])
 
   useEffect(() => {
     if (!svcWallet) return
@@ -131,8 +193,8 @@ export default function Contracts() {
               <TextSecondary>No contracts found.</TextSecondary>
             ) : (
               <FlexCol gap='2rem'>
-                <Section title='Active' contracts={active} />
-                <Section title='Inactive' contracts={inactive} />
+                <Section title='Active' contracts={active} signerSet={signerSet} />
+                <Section title='Inactive' contracts={inactive} signerSet={signerSet} />
               </FlexCol>
             )}
           </FlexCol>

@@ -4,8 +4,8 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/boltz-swap": "0.3.39",
-    "@arkade-os/sdk": "0.4.34",
+    "@arkade-os/boltz-swap": "file:./vendor/arkade-os-boltz-swap.tgz",
+    "@arkade-os/sdk": "file:./vendor/arkade-os-sdk.tgz",
     "@base-ui/react": "^1.4.1",
     "@branta-ops/branta": "0.0.9",
     "@fontsource-variable/geist": "^5.2.8",
@@ -63,6 +63,7 @@
     "format": "prettier --write src",
     "format:check": "prettier --check src",
     "git-info": "node scripts/git-commit-info.js",
+    "prepare:sdk": "node scripts/prepare-arkade-sdk.js",
     "regtest:start": "./regtest/start-env.sh && docker compose -f docker-compose.nak.yml up -d",
     "regtest:stop": "./regtest/stop-env.sh && docker compose -f docker-compose.nak.yml down",
     "regtest:clean": "./regtest/clean-env.sh && docker compose -f docker-compose.nak.yml down -v",
@@ -125,5 +126,15 @@
   "engines": {
     "node": ">=20.19.0 || >=22.12.0",
     "pnpm": ">=8"
+  },
+  "arkadeSdk": {
+    "repo": "https://github.com/arkade-os/ts-sdk.git",
+    "ref": "d748a5c08f8ca01112efd3af37881e3d9f786761",
+    "comment": "Temporary: builds @arkade-os/sdk + @arkade-os/boltz-swap from arkade-os/ts-sdk PR #554 (arkd signer-rotation support) into vendor/*.tgz. Remove once published to npm. See scripts/prepare-arkade-sdk.js."
+  },
+  "pnpm": {
+    "overrides": {
+      "@arkade-os/sdk": "file:./vendor/arkade-os-sdk.tgz"
+    }
   }
 }

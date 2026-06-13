@@ -17,7 +17,9 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '22'
+        # 24 satisfies the wallet engines (>=22.12) and the arkade-os/ts-sdk
+        # monorepo's build engine (>=24.15 <25), which we build from source below.
+        node-version: '24'
 
     - name: Install pnpm
       uses: pnpm/action-setup@v4
@@ -34,6 +36,13 @@ jobs:
         key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
+
+    # Temporary: the wallet consumes an unpublished @arkade-os/sdk +
+    # @arkade-os/boltz-swap (arkade-os/ts-sdk PR #554). Build them from the ref
+    # pinned in package.json (arkadeSdk) into vendor/*.tgz, which the file:
+    # dependencies below resolve. Remove this step once the SDK is published.
+    - name: Build Arkade SDK from pinned git ref
+      run: node scripts/prepare-arkade-sdk.js
 
     - name: Install dependencies
       run: pnpm install

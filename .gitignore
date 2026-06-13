@@ -14,6 +14,11 @@
 # production
 /dist
 
+# Arkade SDK built from a pinned git ref (see scripts/prepare-arkade-sdk.js).
+# Tarballs and the SDK checkout are produced on demand, never committed.
+/vendor/
+/.arkade-sdk-src/
+
 # misc
 .DS_Store
 .env.local

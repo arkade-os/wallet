@@ -4,16 +4,19 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@arkade-os/sdk': file:./vendor/arkade-os-sdk.tgz
+
 importers:
 
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.3.39
-        version: 0.3.39
+        specifier: file:./vendor/arkade-os-boltz-swap.tgz
+        version: file:vendor/arkade-os-boltz-swap.tgz
       '@arkade-os/sdk':
-        specifier: 0.4.34
-        version: 0.4.34
+        specifier: file:vendor/arkade-os-sdk.tgz
+        version: file:vendor/arkade-os-sdk.tgz
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -237,8 +240,9 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@0.3.39':
-    resolution: {integrity: sha512-KOKUjmTm6YbLWDOOCLMeckh4U0a9myv+OW5Nu/hz4rJlSFfRd7/LA9a+WjfneRZKW4DZzTTbrgPpi//crOztHw==}
+  '@arkade-os/boltz-swap@file:vendor/arkade-os-boltz-swap.tgz':
+    resolution: {integrity: sha512-ocBak+y2r8vhR9rJB5XddCi85JlqmfOvOJmvmWTwNQGgmyWKNGGof/Y9mRHXM3Q0XXf1CkgbOzU/ad9PcwSAPA==, tarball: file:vendor/arkade-os-boltz-swap.tgz}
+    version: 0.3.39
     peerDependencies:
       expo-background-task: '>=0.1.0'
       expo-task-manager: '>=3.0.0'
@@ -248,8 +252,9 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/sdk@0.4.34':
-    resolution: {integrity: sha512-tdr3Lmy9MZsh49Y3QV2UY1IYWiOmsHjEwKE8/86cqL9dr/GquGE8Sm6wwJSOQSWWaglp3YuuOMjAkSms+eSESw==}
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk.tgz':
+    resolution: {integrity: sha512-dBUGUpMahfUPCB/XZfLf7WKWW41b2YzuAIZ8DqSGaaCXvLEtHKG5z0oIcYmR71JTrUDzKFNEsg5aBISUlg/Zow==, tarball: file:vendor/arkade-os-sdk.tgz}
+    version: 0.4.34
     engines: {node: '>=22.12.0 <25'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -4244,9 +4249,9 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@0.3.39':
+  '@arkade-os/boltz-swap@file:vendor/arkade-os-boltz-swap.tgz':
     dependencies:
-      '@arkade-os/sdk': 0.4.34
+      '@arkade-os/sdk': file:vendor/arkade-os-sdk.tgz
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
@@ -4264,7 +4269,7 @@ snapshots:
       - expo-sqlite
       - utf-8-validate
 
-  '@arkade-os/sdk@0.4.34':
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk.tgz':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 7.3.1
