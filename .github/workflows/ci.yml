@@ -37,14 +37,16 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
 
-    # Temporary: the wallet consumes an unpublished @arkade-os/sdk +
-    # @arkade-os/boltz-swap (arkade-os/ts-sdk PR #554). Build them from the ref
-    # pinned in package.json (arkadeSdk) into vendor/*.tgz, which the file:
-    # dependencies below resolve. Remove this step once the SDK is published.
+    # Temporary: build @arkade-os/sdk + @arkade-os/boltz-swap from the git ref
+    # pinned in package.json ("arkadeSdk") into vendor/*.tgz before install, so
+    # the file: dependencies resolve. Remove once the SDK is published to npm.
     - name: Build Arkade SDK from pinned git ref
       run: node scripts/prepare-arkade-sdk.js
 
     - name: Install dependencies
+      # .npmrc sets frozen-lockfile=false: the vendor/*.tgz above are rebuilt
+      # from source and are not byte-reproducible, so their lockfile integrity
+      # is not stable.
       run: pnpm install
     
     - name: Run formatter
