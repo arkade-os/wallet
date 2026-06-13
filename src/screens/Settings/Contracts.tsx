@@ -108,7 +108,7 @@ function CopyRow({ label, value, link }: { label: string; value: string; link?: 
         <TextSecondary>{label}</TextSecondary>
         <Text small>{prettyLongText(value)}</Text>
       </FlexCol>
-      <FlexRow gap='0.5rem'>
+      <FlexRow end gap='0.5rem'>
         {link ? (
           <Shadow flex>
             <span
