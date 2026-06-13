@@ -82,14 +82,14 @@ describe('Contracts screen', () => {
   it('filters by search query (matches across fields)', async () => {
     renderScreen(
       withContracts([
-        contract({ type: 'delegate', address: 'ark1qdelegateaddr' }),
-        contract({ type: 'default', address: 'ark1qdefaultaddr' }),
+        contract({ type: 'delegate', address: 'ark1qdelegateaddr', script: 'aa11' }),
+        contract({ type: 'default', address: 'ark1qdefaultaddr', script: 'bb22' }),
       ]) as any,
     )
     await screen.findByText('Contracts')
-    expect(screen.getByText('2 contracts')).toBeInTheDocument()
+    expect(screen.getByText('· 2')).toBeInTheDocument()
     fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'delegateaddr' } })
-    expect(screen.getByText('1 contract')).toBeInTheDocument()
+    expect(screen.getByText('· 1')).toBeInTheDocument()
   })
 
   it('shows the on-chain Taproot address for boarding contracts', async () => {

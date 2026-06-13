@@ -7,6 +7,7 @@ import {
   classifyAgainstSignerSet,
   type SignerSet,
   type SignerStatus,
+  type NetworkName,
 } from '@arkade-os/sdk'
 import { bech32m, hex } from '@scure/base'
 import Header from './Header'
@@ -17,15 +18,16 @@ import FlexRow from '../../components/FlexRow'
 import Shadow from '../../components/Shadow'
 import Text, { TextSecondary } from '../../components/Text'
 import LoadingLogo from '../../components/LoadingLogo'
-import Input from '../../components/Input'
-import SegmentedControl from '../../components/SegmentedControl'
 import CopyIcon from '../../icons/Copy'
 import CheckMarkIcon from '../../icons/CheckMark'
 import ChevronDownIcon from '../../icons/ChevronDown'
 import ChevronUpIcon from '../../icons/ChevronUp'
+import ExternalLinkIcon from '../../icons/ExternalLink'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
 import { prettyAgo, prettyLongText } from '../../lib/format'
+import { getVmempoolURL, getWebExplorerURL } from '../../lib/explorers'
+import { isBTCAddress } from '../../lib/address'
 import { copyToClipboard } from '../../lib/clipboard'
 import { hapticSubtle } from '../../lib/haptics'
 import { useToast } from '../../components/Toast'
@@ -51,6 +53,14 @@ function displayAddress(contract: Contract, network: string): string {
   return contract.address
 }
 
+// Block-explorer link for an address: the Arkade explorer for ark addresses,
+// the on-chain (mempool) explorer for boarding Bitcoin Taproot addresses.
+function explorerUrl(address: string, network: string): string {
+  const net = network as NetworkName
+  const base = isBTCAddress(address) ? getWebExplorerURL(net) : getVmempoolURL(net)
+  return base ? `${base}/address/${address}` : ''
+}
+
 // Classifies a contract's server signer against the operator's advertised
 // signer set, so the list can flag contracts still locked to a deprecated
 // signer (and whether their cooperative-migration cutoff has already passed).
@@ -65,17 +75,18 @@ function contractSignerStatus(contract: Contract, signerSet: SignerSet | null): 
   }
 }
 
-// Pre-computed view model for one contract: display address, encoded params,
-// signer status, and a lowercased haystack for the search box.
+// Pre-computed view model for one contract: display address, explorer link,
+// encoded params, signer status, and a lowercased haystack for the search box.
 interface ContractView {
   contract: Contract
   address: string
+  explorer: string
   encoded: string
   status: SignerStatus | null
   search: string
 }
 
-function CopyRow({ label, value }: { label: string; value: string }) {
+function CopyRow({ label, value, link }: { label: string; value: string; link?: string }) {
   const [copied, setCopied] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout>>()
   const { toast } = useToast()
@@ -97,7 +108,22 @@ function CopyRow({ label, value }: { label: string; value: string }) {
         <TextSecondary>{label}</TextSecondary>
         <Text small>{prettyLongText(value)}</Text>
       </FlexCol>
-      <Shadow flex>{copied ? <CheckMarkIcon /> : <CopyIcon />}</Shadow>
+      <FlexRow gap='0.5rem'>
+        {link ? (
+          <Shadow flex>
+            <span
+              style={{ display: 'flex' }}
+              onClick={(e) => {
+                e.stopPropagation()
+                window.open(link, '_blank', 'noreferrer')
+              }}
+            >
+              <ExternalLinkIcon />
+            </span>
+          </Shadow>
+        ) : null}
+        <Shadow flex>{copied ? <CheckMarkIcon /> : <CopyIcon />}</Shadow>
+      </FlexRow>
     </FlexRow>
   )
 }
@@ -123,7 +149,7 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
     <div
       onClick={onClick}
       style={{
-        padding: '0.3rem 0.7rem',
+        padding: '0.25rem 0.6rem',
         borderRadius: '999px',
         cursor: 'pointer',
         border: '1px solid var(--neutral-100)',
@@ -140,7 +166,7 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
 }
 
 function ContractCard({ item, open, onToggle }: { item: ContractView; open: boolean; onToggle: () => void }) {
-  const { contract, address, encoded, status } = item
+  const { contract, address, explorer, encoded, status } = item
 
   return (
     <Shadow border>
@@ -169,7 +195,7 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
         {open ? (
           <>
             <hr className='dashed' />
-            <CopyRow label='address' value={address} />
+            <CopyRow label='address' value={address} link={explorer || undefined} />
             <CopyRow label='script' value={contract.script} />
             {encoded ? <CopyRow label='parameters' value={encoded} /> : null}
           </>
@@ -220,8 +246,8 @@ export default function Contracts() {
     fetchContracts()
   }, [svcWallet])
 
-  // Enrich once per data/signer change: display address, encoded params, signer
-  // status, and a search haystack.
+  // Enrich once per data/signer change: display address, explorer link, encoded
+  // params, signer status, and a search haystack.
   const views = useMemo<ContractView[]>(
     () =>
       contracts.map((contract) => {
@@ -237,7 +263,7 @@ export default function Contracts() {
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
-        return { contract, address, encoded, status, search }
+        return { contract, address, explorer: explorerUrl(address, network), encoded, status, search }
       }),
     [contracts, network, signerSet],
   )
@@ -263,14 +289,16 @@ export default function Contracts() {
     getScrollElement: () => parentRef.current,
     estimateSize: () => 84,
     overscan: 8,
-    getItemKey: (i) => filtered[i].contract.address,
+    // Key by script: it's the contract primary key. address can collide across
+    // contracts (e.g. boarding), which would expand/scroll them together.
+    getItemKey: (i) => filtered[i].contract.script,
   })
 
-  const toggleOpen = (address: string) =>
+  const toggleOpen = (key: string) =>
     setOpenSet((prev) => {
       const next = new Set(prev)
-      if (next.has(address)) next.delete(address)
-      else next.add(address)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
       return next
     })
 
@@ -286,31 +314,46 @@ export default function Contracts() {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'stretch',
-              gap: '0.75rem',
+              gap: '0.5rem',
               height: '100%',
               width: '100%',
             }}
           >
-            <Input placeholder='Search type, address, script…' value={query} onChange={setQuery} />
-            <SegmentedControl options={['Active', 'Inactive']} selected={tab} onChange={setTab} />
-            {types.length > 2 ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                {types.map((t) => (
-                  <Chip key={t} label={t} active={typeFilter === t} onClick={() => setTypeFilter(t)} />
-                ))}
-              </div>
-            ) : null}
-            <TextSecondary>
-              {filtered.length} {filtered.length === 1 ? 'contract' : 'contracts'}
-            </TextSecondary>
+            {/* Compact filter bar: a short search input + one chip row (status, type, count). */}
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder='Search type, address, script…'
+              spellCheck={false}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: '0.45rem 0.7rem',
+                borderRadius: '0.5rem',
+                border: '1px solid var(--neutral-100)',
+                background: 'transparent',
+                color: 'var(--text)',
+                fontSize: 14,
+                outline: 'none',
+              }}
+            />
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem' }}>
+              <Chip label='Active' active={tab === 'Active'} onClick={() => setTab('Active')} />
+              <Chip label='Inactive' active={tab === 'Inactive'} onClick={() => setTab('Inactive')} />
+              {types.length > 2 ? (
+                <>
+                  <div style={{ width: 1, height: 18, background: 'var(--neutral-100)', margin: '0 0.15rem' }} />
+                  {types.map((t) => (
+                    <Chip key={t} label={t} active={typeFilter === t} onClick={() => setTypeFilter(t)} />
+                  ))}
+                </>
+              ) : null}
+              <Text tiny color='neutral-500'>{`· ${filtered.length}`}</Text>
+            </div>
             {filtered.length === 0 ? (
               <TextSecondary>No contracts found.</TextSecondary>
             ) : (
-              <div
-                ref={parentRef}
-                className='hide-scrollbar'
-                style={{ flex: 1, minHeight: '120px', overflowY: 'auto' }}
-              >
+              <div ref={parentRef} className='hide-scrollbar' style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
                 <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
                   {virtualizer.getVirtualItems().map((vi) => {
                     const item = filtered[vi.index]
@@ -330,8 +373,8 @@ export default function Contracts() {
                       >
                         <ContractCard
                           item={item}
-                          open={openSet.has(item.contract.address)}
-                          onToggle={() => toggleOpen(item.contract.address)}
+                          open={openSet.has(item.contract.script)}
+                          onToggle={() => toggleOpen(item.contract.script)}
                         />
                       </div>
                     )
