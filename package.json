@@ -129,7 +129,7 @@
   },
   "arkadeSdk": {
     "repo": "https://github.com/arkade-os/ts-sdk.git",
-    "ref": "84267a378091d9051b0732b97fa723b0b7e32c74",
+    "ref": "6c86a52a1e32529ea8e4c96fbda12520b6866aa2",
     "comment": "Temporary: builds @arkade-os/sdk + @arkade-os/boltz-swap from arkade-os/ts-sdk PR #554 (arkd signer-rotation support) into vendor/*.tgz. Remove once published to npm. See scripts/prepare-arkade-sdk.js."
   },
   "pnpm": {
