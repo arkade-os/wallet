@@ -125,20 +125,20 @@ function renderWithSigners(contracts: Contract[], deprecatedCutoff: bigint) {
 
 describe('Contracts screen — deprecated signer badges', () => {
   it('flags a contract whose signer is deprecated and past its cutoff', async () => {
-    renderWithSigners([contractUnder(DEPRECATED_SIGNER, 'ark1qdeprecated')], 1n) // cutoff in 1970 → EXPIRED
+    renderWithSigners([contractUnder(DEPRECATED_SIGNER, 'ark1qdeprecated')], BigInt(1)) // cutoff in 1970 → EXPIRED
     await screen.findByText('Contracts')
     expect(screen.getByText('deprecated signer · past cutoff')).toBeInTheDocument()
   })
 
   it('flags a contract whose signer is deprecated but before its cutoff', async () => {
-    renderWithSigners([contractUnder(DEPRECATED_SIGNER, 'ark1qdeprecated')], 99999999999n) // far future → MIGRATABLE
+    renderWithSigners([contractUnder(DEPRECATED_SIGNER, 'ark1qdeprecated')], BigInt(99999999999)) // far future → MIGRATABLE
     await screen.findByText('Contracts')
     expect(screen.getByText('deprecated signer')).toBeInTheDocument()
     expect(screen.queryByText('deprecated signer · past cutoff')).not.toBeInTheDocument()
   })
 
   it('does not flag a contract under the active signer', async () => {
-    renderWithSigners([contractUnder(ACTIVE_SIGNER, 'ark1qcurrent')], 1n)
+    renderWithSigners([contractUnder(ACTIVE_SIGNER, 'ark1qcurrent')], BigInt(1))
     await screen.findByText('Contracts')
     expect(screen.queryByText(/deprecated signer/)).not.toBeInTheDocument()
   })
