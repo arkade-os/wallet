@@ -14,9 +14,9 @@
 # production
 /dist
 
-# Arkade SDK built from a pinned git ref (see scripts/prepare-arkade-sdk.js).
-# Tarballs and the SDK checkout are produced on demand, never committed.
-/vendor/
+# Scratch checkout used to (re)build the vendored SDK tarballs from the pinned
+# ref (see scripts/prepare-arkade-sdk.js). The vendor/*.tgz tarballs themselves
+# ARE committed; this checkout is not.
 /.arkade-sdk-src/
 
 # misc

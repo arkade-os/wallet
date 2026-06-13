@@ -25,11 +25,6 @@ jobs:
         node-version: lts/*
     - name: Install pnpm
       uses: pnpm/action-setup@v4
-    # Temporary: build @arkade-os/sdk + @arkade-os/boltz-swap from the git ref
-    # pinned in package.json ("arkadeSdk") into vendor/*.tgz before install, so
-    # the file: dependencies resolve. Remove once the SDK is published to npm.
-    - name: Build Arkade SDK from pinned git ref
-      run: node scripts/prepare-arkade-sdk.js
     - name: Install dependencies
       run: pnpm install
     - name: Install Playwright Browsers
