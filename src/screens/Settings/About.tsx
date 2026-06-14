@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
 import { AspContext } from '../../providers/asp'
+import { aspErrorText } from '../../lib/asp'
 import Header from './Header'
 import Table, { TableData } from '../../components/Table'
 import Padded from '../../components/Padded'
@@ -36,7 +37,7 @@ export default function About() {
       <Content>
         <Padded>
           <FlexCol>
-            <ErrorMessage error={error} text='Ark server unreachable' />
+            <ErrorMessage error={error} text={aspErrorText(aspInfo, 'Ark server unreachable')} />
             <Table data={data} />
           </FlexCol>
         </Padded>

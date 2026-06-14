@@ -5,6 +5,7 @@ import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { AspContext } from '../../providers/asp'
+import { aspErrorText } from '../../lib/asp'
 import ErrorMessage from '../../components/Error'
 import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
@@ -188,7 +189,7 @@ export default function Init() {
                 </OnboardStaggerChild>
 
                 <OnboardStaggerChild>
-                  <ErrorMessage error={error} text='Ark server unreachable' />
+                  <ErrorMessage error={error} text={aspErrorText(aspInfo, 'Ark server unreachable')} />
                 </OnboardStaggerChild>
               </motion.div>
             </div>
