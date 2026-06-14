@@ -9,6 +9,11 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => {
     RestArkProvider: class {
       constructor(public url: string) {}
       async getInfo() {
+        // arkd's real guard error reaches us WITHOUT metadata (empty details[]),
+        // with the min only in the message — exercise that path explicitly.
+        if (this.url.includes('nometa')) {
+          throw new actual.ArkError(48, 'server requires build version header >= 0.9.10', 'BUILD_VERSION_TOO_OLD')
+        }
         if (this.url.includes('too-old')) {
           throw new actual.ArkError(3, 'server requires build version header >= 0.9.10', 'BUILD_VERSION_TOO_OLD', {
             min_version: '0.9.10',
@@ -46,6 +51,12 @@ describe('getAspInfo', () => {
   it('flags outdated (not just unreachable) on BUILD_VERSION_TOO_OLD', async () => {
     const info = await getAspInfo('too-old.example.com')
     expect(info.unreachable).toBe(true)
+    expect(info.outdated).toBe(true)
+    expect(info.minBuildVersion).toBe('0.9.10')
+  })
+
+  it('extracts the min version from the message when metadata is absent', async () => {
+    const info = await getAspInfo('nometa.example.com')
     expect(info.outdated).toBe(true)
     expect(info.minBuildVersion).toBe('0.9.10')
   })

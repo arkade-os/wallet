@@ -170,7 +170,10 @@ export const getAspInfo = async (url: string): Promise<AspInfo> => {
     // (handleError in the SDK surfaces it as a typed ArkError). Surface it as an
     // actionable "update your wallet" state instead of a generic unreachable.
     if (err instanceof ArkError && err.name === BUILD_VERSION_TOO_OLD) {
-      const minBuildVersion = err.metadata?.min_version ?? err.metadata?.minVersion
+      // Prefer structured metadata; fall back to the ">= X" in the message,
+      // since arkd's guard error reaches us without populated metadata.
+      const minBuildVersion =
+        err.metadata?.min_version ?? err.metadata?.minVersion ?? err.message.match(/>=\s*v?([\d.]+)/)?.[1]
       return { ...emptyAspInfo, unreachable: true, outdated: true, minBuildVersion, url }
     }
     return { ...emptyAspInfo, unreachable: true, url }
