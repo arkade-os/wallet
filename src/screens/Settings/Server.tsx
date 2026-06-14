@@ -35,7 +35,7 @@ export default function Server() {
   }
 
   useEffect(() => {
-    setError(aspInfo.unreachable ? aspErrorText(aspInfo, 'Ark server unreachable') : '')
+    setError(aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '')
   }, [aspInfo.unreachable, aspInfo.outdated])
 
   useEffect(() => {

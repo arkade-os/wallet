@@ -37,7 +37,7 @@ export default function About() {
       <Content>
         <Padded>
           <FlexCol>
-            <ErrorMessage error={error} text={aspErrorText(aspInfo, 'Ark server unreachable')} />
+            <ErrorMessage error={error} text={aspErrorText(aspInfo, 'Arkade server unreachable')} />
             <Table data={data} />
           </FlexCol>
         </Padded>

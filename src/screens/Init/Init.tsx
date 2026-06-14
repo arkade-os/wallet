@@ -189,7 +189,7 @@ export default function Init() {
                 </OnboardStaggerChild>
 
                 <OnboardStaggerChild>
-                  <ErrorMessage error={error} text={aspErrorText(aspInfo, 'Ark server unreachable')} />
+                  <ErrorMessage error={error} text={aspErrorText(aspInfo, 'Arkade server unreachable')} />
                 </OnboardStaggerChild>
               </motion.div>
             </div>

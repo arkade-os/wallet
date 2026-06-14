@@ -117,7 +117,7 @@ export default function SendForm() {
   const liquidBalance = availableBalance - (reserveApplied ? DUST_AMOUNT : 0)
 
   const smartSetError = (str: string) => {
-    setError(str === '' ? (aspInfo.unreachable ? 'Ark server unreachable' : '') : str)
+    setError(str === '' ? (aspInfo.unreachable ? 'Arkade server unreachable' : '') : str)
   }
 
   const setState = (info: SendInfo) => {
@@ -411,7 +411,7 @@ export default function SendForm() {
       const { serverPubKey: expectedServerPubKey } = decodeArkAddress(offchainAddr)
       if (serverPubKey !== expectedServerPubKey) {
         // if there's no other way to pay, show error
-        if (!address && !invoice) return setError('Ark server key mismatch')
+        if (!address && !invoice) return setError('Arkade server key mismatch')
         // remove ark address from possibilities to send and continue
         // we will try to pay to lightning or mainnet instead
         setSendInfo({ ...sendInfo, arkAddress: '' })
@@ -455,7 +455,7 @@ export default function SendForm() {
 
   // manage server unreachable error
   useEffect(() => {
-    const errTxt = 'Ark server unreachable'
+    const errTxt = 'Arkade server unreachable'
     if (!aspInfo.unreachable) {
       setError((prev) => (prev === errTxt ? '' : prev))
       return

@@ -29,7 +29,7 @@ export default function NotesForm() {
   const [scan, setScan] = useState(false)
 
   useEffect(() => {
-    setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
+    setError(aspInfo.unreachable ? 'Arkade server unreachable' : '')
   }, [aspInfo.unreachable])
 
   useEffect(() => {

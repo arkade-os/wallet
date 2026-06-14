@@ -27,8 +27,8 @@ import { getAspInfo, aspErrorText, emptyAspInfo } from '../../lib/asp'
 
 describe('aspErrorText', () => {
   it('returns the caller fallback when not outdated', () => {
-    expect(aspErrorText({ ...emptyAspInfo, outdated: false }, 'Ark server unreachable')).toBe(
-      'Ark server unreachable',
+    expect(aspErrorText({ ...emptyAspInfo, outdated: false }, 'Arkade server unreachable')).toBe(
+      'Arkade server unreachable',
     )
   })
 

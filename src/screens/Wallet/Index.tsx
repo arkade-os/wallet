@@ -91,7 +91,7 @@ export default function Wallet() {
                   <Balance amount={balance} />
                 </WalletStaggerChild>
                 <WalletStaggerChild animate={shouldStagger}>
-                  <ErrorMessage error={error} text='Ark server unreachable' />
+                  <ErrorMessage error={error} text='Arkade server unreachable' />
                 </WalletStaggerChild>
                 <WalletStaggerChild animate={shouldStagger}>
                   <FlexRow padding='0 0 0.5rem 0'>
