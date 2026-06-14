@@ -34,15 +34,9 @@ describe('aspErrorText', () => {
     )
   })
 
-  it('returns an actionable update message with the min version when outdated', () => {
+  it('returns the update-required message when outdated', () => {
     expect(aspErrorText({ ...emptyAspInfo, outdated: true, minBuildVersion: '0.9.10' }, 'x')).toBe(
-      'Your wallet is out of date. Please update to version 0.9.10 or newer.',
-    )
-  })
-
-  it('returns a generic update message when outdated without a min version', () => {
-    expect(aspErrorText({ ...emptyAspInfo, outdated: true }, 'x')).toBe(
-      'Your wallet is out of date. Please update to continue.',
+      'Your wallet is outdated and needs to be updated to be compatible with the latest Arkade version.',
     )
   })
 })
