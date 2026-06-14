@@ -10,12 +10,9 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => {
       constructor(public url: string) {}
       async getInfo() {
         if (this.url.includes('too-old')) {
-          throw new actual.ArkError(
-            3,
-            'server requires build version header >= 0.9.10',
-            'BUILD_VERSION_TOO_OLD',
-            { min_version: '0.9.10' },
-          )
+          throw new actual.ArkError(3, 'server requires build version header >= 0.9.10', 'BUILD_VERSION_TOO_OLD', {
+            min_version: '0.9.10',
+          })
         }
         throw new Error('network down')
       }
