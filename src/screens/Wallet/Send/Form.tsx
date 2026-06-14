@@ -352,7 +352,6 @@ export default function SendForm() {
     if (satoshis && satoshis < min) return setError(`Amount below LNURL min limit`)
     if (satoshis && satoshis > max) return setError(`Amount above LNURL max limit`)
     if (min === max) {
-      setAmount(min) // set fixed amount automatically
       setAmountIsReadOnly(true)
     } else {
       setAmountIsReadOnly(false)
@@ -369,7 +368,9 @@ export default function SendForm() {
         if (!conditions) return setError('Unable to fetch LNURL conditions')
         const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
         const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
-        if (min === max) setSendInfo({ ...sendInfo, satoshis: min }) // set amount automatically
+        // when the LNURL resolves to a fixed amount, set it via setState so the
+        // amount input (bound to amountTextValue) reflects it instead of staying blank
+        if (min === max) setState({ ...sendInfo, satoshis: min })
         return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
       })
       .catch((e) => {
