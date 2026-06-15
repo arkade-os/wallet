@@ -4,8 +4,8 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/boltz-swap": "file:./vendor/arkade-os-boltz-swap.tgz",
-    "@arkade-os/sdk": "file:./vendor/arkade-os-sdk.tgz",
+    "@arkade-os/boltz-swap": "0.3.40",
+    "@arkade-os/sdk": "0.4.35",
     "@base-ui/react": "^1.4.1",
     "@branta-ops/branta": "0.0.9",
     "@fontsource-variable/geist": "^5.2.8",
