@@ -30,7 +30,7 @@ import Scanner from '../../../components/Scanner'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
 import { Addresses, AssetOption, SettingsOptions } from '../../../lib/types'
-import { getReceivingAddresses } from '../../../lib/asp'
+import { aspErrorText, getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
@@ -117,7 +117,7 @@ export default function SendForm() {
   const liquidBalance = availableBalance - (reserveApplied ? DUST_AMOUNT : 0)
 
   const smartSetError = (str: string) => {
-    setError(str === '' ? (aspInfo.unreachable ? 'Arkade server unreachable' : '') : str)
+    setError(str === '' ? (aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '') : str)
   }
 
   const setState = (info: SendInfo) => {
@@ -455,14 +455,14 @@ export default function SendForm() {
 
   // manage server unreachable error
   useEffect(() => {
-    const errTxt = 'Arkade server unreachable'
+    const errTxt = aspErrorText(aspInfo, 'Arkade server unreachable')
     if (!aspInfo.unreachable) {
       setError((prev) => (prev === errTxt ? '' : prev))
       return
     }
     setError(errTxt)
     setLabel('Server unreachable')
-  }, [aspInfo.unreachable])
+  }, [aspInfo.unreachable, aspInfo.outdated])
 
   // proceed to next step
   useEffect(() => {
