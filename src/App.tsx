@@ -102,8 +102,9 @@ export default function App() {
     // avoid redirect if the user is still setting up the wallet
     if (initInfo.password || initInfo.privateKey) return
     if (!walletLoaded) return navigate(Pages.Loading)
-    // dev auto-init: stay on loading screen while local credentials initialize the wallet
-    if (hasDevAutoInit && !initialized) return
+    // dev auto-init: stay on loading screen while VITE_DEV_NSEC/MNEMONIC initializes the wallet
+    if (import.meta.env.DEV && (import.meta.env.VITE_DEV_NSEC || import.meta.env.VITE_DEV_MNEMONIC) && !initialized)
+      return
     if (!wallet.pubkey) return navigate(Pages.Init)
     if (authState === 'locked') return navigate(Pages.Unlock)
   }, [
@@ -189,9 +190,9 @@ export default function App() {
 
   // Boot animation: persists on Loading, then flies to the LogoIcon position when
   // Wallet is reached. For any other destination (Unlock, Init, etc.), exits with fly-up.
-  // Skip in dev with local credentials — the fast auto-init races with the animation.
+  // Skip in dev with VITE_DEV_NSEC/MNEMONIC — the fast auto-init races with the animation.
   useEffect(() => {
-    if (hasDevAutoInit) return
+    if (import.meta.env.DEV && (import.meta.env.VITE_DEV_NSEC || import.meta.env.VITE_DEV_MNEMONIC)) return
 
     if (page === Pages.Loading && !bootAnimActive) {
       setBootAnimDone(false)

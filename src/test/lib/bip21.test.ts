@@ -38,6 +38,23 @@ describe('bip21 utilities', () => {
       expect(satoshis).toBeUndefined()
     })
 
+    it('should decode mixed-case query parameter keys', () => {
+      const bip21 =
+        'bitcoin:?Ark=ARK1QQ4HFSSPRTCGNJZF8QLW2F78YVJAU5KLDFUGG29K34Y7J96Q2W4T4USH2JZ072D0ALD83VLWZRKDG24R40WRCM8XJW6AX7YPNJHTEZGU4A9R8D&Lightning=LNURL1DP68GURN8GHJ7MRWW4EXCTNPWF4KZER99EEKSTMVDE6HYMP0VG6N2VMXX4SKXC33XYEXVVTYXUMNXEFCXQCXYEP5X9JKZCMZXVESU28Y7U'
+      const { arkAddress, lnUrl } = decodeBip21(bip21)
+      expect(arkAddress).toBe(
+        'ARK1QQ4HFSSPRTCGNJZF8QLW2F78YVJAU5KLDFUGG29K34Y7J96Q2W4T4USH2JZ072D0ALD83VLWZRKDG24R40WRCM8XJW6AX7YPNJHTEZGU4A9R8D',
+      )
+      expect(lnUrl).toBe(
+        'LNURL1DP68GURN8GHJ7MRWW4EXCTNPWF4KZER99EEKSTMVDE6HYMP0VG6N2VMXX4SKXC33XYEXVVTYXUMNXEFCXQCXYEP5X9JKZCMZXVESU28Y7U',
+      )
+    })
+
+    it('should decode a mixed-case amount key', () => {
+      const { satoshis } = decodeBip21('bitcoin:bc1qexampleaddr?Amount=0.0005')
+      expect(satoshis).toBe(50_000)
+    })
+
     it('should throw an error for an invalid address', () => {
       expect(() => decodeBip21('invalidBip21')).toThrow('Invalid BIP21 URI')
     })
@@ -53,6 +70,13 @@ describe('bip21 utilities', () => {
       const { address, bip21, invoice, satoshis } = fixtures.lib.bip21
       const bip21WithoutArk = bip21.replace(/([?&])ark=[^&]+(&|$)/i, '$1').replace(/&$/, '')
       expect(encodeBip21(address!, '', invoice!, satoshis!)).toEqual(bip21WithoutArk)
+    })
+
+    it('should not group the amount with thousands separators', () => {
+      // 1000 BTC — large enough that Intl number formatting would insert a comma
+      const uri = encodeBip21('bc1qexampleaddr', '', '', 100_000_000_000)
+      expect(uri).not.toContain(',')
+      expect(uri).toContain('amount=1000')
     })
   })
 

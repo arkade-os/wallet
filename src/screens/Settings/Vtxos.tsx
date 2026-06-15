@@ -17,7 +17,7 @@ import Info from '../../components/Info'
 import LoadingIcon from '../../icons/Loading'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
-import { getInputsToSettle, settleVtxos } from '../../lib/asp'
+import { aspErrorText, getInputsToSettle, settleVtxos } from '../../lib/asp'
 import LoadingLogo from '../../components/LoadingLogo'
 import { LimitsContext } from '../../providers/limits'
 import { EmptyCoinsList } from '../../components/Empty'
@@ -55,8 +55,8 @@ export default function Vtxos() {
 
   // Update error state if aspInfo.unreachable changes
   useEffect(() => {
-    setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
-  }, [aspInfo.unreachable])
+    setError(aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '')
+  }, [aspInfo.unreachable, aspInfo.outdated])
 
   // Update label based on rolling over state and dust status
   useEffect(() => {
