@@ -44,6 +44,21 @@ import { EASE_OUT_QUINT } from '../../../lib/animations'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 
+/**
+ * Decide which value the QR should encode. Honours an explicit copy-sheet
+ * selection, but only while that value is still one we currently offer — once
+ * the selected address is regenerated or removed (e.g. a new invoice, an amount
+ * change), fall back to the unified BIP21 URI. This stops async rebuilds from
+ * silently reverting the user's pick and copying the wrong thing.
+ */
+export const resolveQrValue = (
+  selected: string,
+  options: { bip21: string; btc: string; ark: string; invoice: string; lnurl: string },
+): string => {
+  const candidates = [options.bip21, options.btc, options.ark, options.invoice, options.lnurl].filter(Boolean)
+  return selected && candidates.includes(selected) ? selected : options.bip21
+}
+
 export default function ReceiveQRCode() {
   const { useFiat } = useContext(ConfigContext)
   const { fromFiat } = useContext(FiatContext)
@@ -86,6 +101,7 @@ export default function ReceiveQRCode() {
   const [swapsTimedOut, setSwapsTimedOut] = useState(false)
   const [swapAddress, setSwapAddress] = useState('')
   const [qrCodeValue, setQrCodeValue] = useState('')
+  const [selectedValue, setSelectedValue] = useState('')
   const [bip21Uri, setBip21Uri] = useState('')
   const [invoice, setInvoice] = useState('')
 
@@ -113,6 +129,9 @@ export default function ReceiveQRCode() {
 
   const lnurlSession = useContext(LnurlContext)
   const isAmountlessLnurl = !satoshis && !isAssetReceive && !!lnurlServerUrl && lnurlSession.active
+  // LNURL is amountless by nature: only surface it when no amount is set. The
+  // session keeps running underneath — we just hide it from the QR + copy list.
+  const displayLnurl = isAmountlessLnurl ? lnurlSession.lnurl : ''
 
   const createBtcAddress = () => {
     return new Promise((resolve, reject) => {
@@ -151,7 +170,7 @@ export default function ReceiveQRCode() {
     const btc = utxoTxsAllowed() ? swapAddress || recvInfo.boardingAddr : ''
     const bip21 = isAssetReceive
       ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals)
-      : encodeBip21(btc, ark, invoice, satoshis, lnurlSession.lnurl)
+      : encodeBip21(btc, ark, invoice, satoshis, displayLnurl)
 
     return { ark, btc, bip21 }
   }
@@ -221,18 +240,22 @@ export default function ReceiveQRCode() {
     if (!addressesLoaded && !showQrCode) return
 
     const { ark, btc, bip21 } = createBip21()
-    const hasLnurl = isAmountlessLnurl && lnurlSession.active
+    const hasLnurl = !!displayLnurl
 
     setNoPaymentMethods(!ark && !btc && !invoice && !hasLnurl && !isAssetReceive)
     setArkAddress(ark)
     setBtcAddress(btc)
     setBip21Uri(bip21)
-    setQrCodeValue(bip21)
+    // Preserve an explicit copy-sheet selection across rebuilds; only fall back
+    // to the unified URI when the selected value is no longer one we offer.
+    setQrCodeValue(resolveQrValue(selectedValue, { bip21, btc, ark, invoice, lnurl: displayLnurl }))
   }, [
     invoice,
     assetAmount,
     addressesLoaded,
     isAmountlessLnurl,
+    displayLnurl,
+    selectedValue,
     lnurlSession.lnurl,
     lnurlSession.active,
     recvInfo.offchainAddr,
@@ -486,12 +509,13 @@ export default function ReceiveQRCode() {
             bip21Uri={bip21Uri}
             btcAddress={btcAddress}
             arkAddress={arkAddress}
-            lnurl={lnurlSession.lnurl}
+            lnurl={displayLnurl}
             invoice={invoice}
             onCopy={handleCopy}
             onSelect={(v) => {
+              setSelectedValue(v)
               setQrCodeValue(v)
-              setShowCopySheet(false)
+              handleCopy(v)
             }}
             copied={copied}
           />
@@ -594,7 +618,7 @@ function AddressLine({
   return (
     <Focusable
       onEnter={() => {
-        onCopy(value)
+        // onSelect copies + switches the QR; avoid copying twice
         onSelect(value)
       }}
     >
