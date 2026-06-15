@@ -299,41 +299,49 @@ export default function SendForm() {
 
     setBrantaPayment(null)
     setBrantaVerifyUrl(undefined)
-    setBrantaLoading(true)
     let cancelled = false
 
-    const lookup = rawScanData ? brantaClient.getPaymentsByQrCode(rawScanData) : brantaClient.getPayments(typed)
+    const runLookup = () => {
+      if (cancelled) return
+      setBrantaLoading(true)
+      const lookup = rawScanData ? brantaClient.getPaymentsByQrCode(rawScanData) : brantaClient.getPayments(typed)
 
-    lookup
-      .then(({ payments, verifyUrl }) => {
-        if (cancelled) return
-        const payment = payments?.[0] ?? null
-        if (!payment) {
+      lookup
+        .then(({ payments, verifyUrl }) => {
+          if (cancelled) return
+          const payment = payments?.[0] ?? null
+          if (!payment) {
+            setBrantaPayment(null)
+            setBrantaVerifyUrl(undefined)
+            return
+          }
+          const isHttpsUrl = (val: unknown): boolean => typeof val === 'string' && val.startsWith('https://')
+          setBrantaPayment({
+            ...payment,
+            platformLogoUrl: isHttpsUrl(payment.platformLogoUrl) ? payment.platformLogoUrl : undefined,
+            platformLogoLightUrl: isHttpsUrl(payment.platformLogoLightUrl) ? payment.platformLogoLightUrl : undefined,
+          })
+          setBrantaVerifyUrl(isHttpsUrl(verifyUrl) ? verifyUrl : undefined)
+        })
+        .catch((err) => {
+          if (cancelled) return
+          consoleError('Branta API error', err)
           setBrantaPayment(null)
           setBrantaVerifyUrl(undefined)
-          return
-        }
-        const isHttpsUrl = (val: unknown): boolean => typeof val === 'string' && val.startsWith('https://')
-        setBrantaPayment({
-          ...payment,
-          platformLogoUrl: isHttpsUrl(payment.platformLogoUrl) ? payment.platformLogoUrl : undefined,
-          platformLogoLightUrl: isHttpsUrl(payment.platformLogoLightUrl) ? payment.platformLogoLightUrl : undefined,
         })
-        setBrantaVerifyUrl(isHttpsUrl(verifyUrl) ? verifyUrl : undefined)
-      })
-      .catch((err) => {
-        if (cancelled) return
-        consoleError('Branta API error', err)
-        setBrantaPayment(null)
-        setBrantaVerifyUrl(undefined)
-      })
-      .finally(() => {
-        if (cancelled) return
-        setBrantaLoading(false)
-      })
+        .finally(() => {
+          if (cancelled) return
+          setBrantaLoading(false)
+        })
+    }
+
+    // QR scans verify immediately; typed input is debounced to avoid one request per keystroke
+    const timer = rawScanData ? null : setTimeout(runLookup, 400)
+    if (rawScanData) runLookup()
 
     return () => {
       cancelled = true
+      if (timer) clearTimeout(timer)
     }
   }, [rawScanData, recipient])
 
@@ -804,39 +812,50 @@ export default function SendForm() {
                   Verifying address...
                 </Text>
               ) : null}
-              {brantaPayment ? (
-                <a
-                  href={brantaVerifyUrl}
-                  target={brantaVerifyUrl ? '_blank' : undefined}
-                  rel={brantaVerifyUrl ? 'noreferrer' : undefined}
-                  style={{ textDecoration: 'none', display: 'block', cursor: brantaVerifyUrl ? 'pointer' : 'default' }}
-                >
-                  <Shadow>
-                    <FlexRow between padding='0.75rem'>
-                      <FlexCol gap='0.1rem'>
-                        <Text smaller>{brantaPayment.platform}</Text>
-                        {brantaPayment.description ? (
-                          <Text smaller color='neutral-500'>
-                            {brantaPayment.description}
-                          </Text>
-                        ) : null}
-                        <Text smaller color='neutral-500'>
-                          Verified by Branta
-                        </Text>
-                      </FlexCol>
-                      {(() => {
-                        const logoUrl =
-                          effectiveTheme === Themes.Light
-                            ? (brantaPayment.platformLogoLightUrl ?? brantaPayment.platformLogoUrl)
-                            : brantaPayment.platformLogoUrl
-                        return logoUrl ? (
-                          <img src={logoUrl} alt={brantaPayment.platform} width={48} height={48} />
-                        ) : null
-                      })()}
-                    </FlexRow>
-                  </Shadow>
-                </a>
-              ) : null}
+              {brantaPayment
+                ? (() => {
+                    const card = (
+                      <Shadow>
+                        <FlexRow between padding='0.75rem'>
+                          <FlexCol gap='0.1rem'>
+                            <Text smaller>{brantaPayment.platform}</Text>
+                            {brantaPayment.description ? (
+                              <Text smaller color='neutral-500'>
+                                {brantaPayment.description}
+                              </Text>
+                            ) : null}
+                            <Text smaller color='neutral-500'>
+                              Verified by Branta
+                            </Text>
+                          </FlexCol>
+                          {(() => {
+                            const logoUrl =
+                              effectiveTheme === Themes.Light
+                                ? (brantaPayment.platformLogoLightUrl ?? brantaPayment.platformLogoUrl)
+                                : brantaPayment.platformLogoUrl
+                            return logoUrl ? (
+                              <img src={logoUrl} alt={brantaPayment.platform} width={48} height={48} />
+                            ) : null
+                          })()}
+                        </FlexRow>
+                      </Shadow>
+                    )
+                    // Only wrap in an anchor when there's a real verify URL; an <a> without href is a
+                    // placeholder link that screen readers may still announce.
+                    return brantaVerifyUrl ? (
+                      <a
+                        href={brantaVerifyUrl}
+                        target='_blank'
+                        rel='noreferrer'
+                        style={{ textDecoration: 'none', display: 'block', cursor: 'pointer' }}
+                      >
+                        {card}
+                      </a>
+                    ) : (
+                      card
+                    )
+                  })()
+                : null}
               {assetOptions.length > 0 ? (
                 <FlexCol gap='0.25rem'>
                   <Text smaller color='neutral-500'>
