@@ -1,7 +1,6 @@
 import Decimal from 'decimal.js'
 import { useContext } from 'react'
 import { Currencies } from '../lib/types'
-import { areDevSwapTestAssetsEnabled, getDevSwapTestAssetRows, isDevSwapTestAssetId } from '../lib/devSwapTestAssets'
 import { FiatContext } from '../providers/fiat'
 import { WalletContext } from '../providers/wallet'
 
@@ -37,11 +36,9 @@ export interface PortfolioFiat {
  */
 export function usePortfolioFiat(): PortfolioFiat {
   const { balance, assetBalances, assetMetadataCache, prototypeAssetBalanceDeltas } = useContext(WalletContext)
-  const { fromFiatAmount, toFiat, toFiatAmount } = useContext(FiatContext)
+  const { fromFiatAmount, toFiat } = useContext(FiatContext)
   const prototypeDeltas = prototypeAssetBalanceDeltas ?? {}
   const convertToSelectedFiat = (amount: number, from: Currencies) => toFiat(fromFiatAmount(amount, from))
-  const convertFiatAmount = (amount: number, from: Currencies, to: Currencies) =>
-    toFiatAmount(fromFiatAmount(amount, from), to)
 
   const rows: PortfolioRow[] = []
   let totalSats = 0
@@ -153,34 +150,11 @@ export function usePortfolioFiat(): PortfolioFiat {
     })
   }
 
-  if (areDevSwapTestAssetsEnabled()) {
-    for (const devRow of getDevSwapTestAssetRows(convertToSelectedFiat, convertFiatAmount)) {
-      const delta = prototypeDeltas[devRow.assetId] ?? BigInt(0)
-      const seededBalance = BigInt(devRow.balance) + delta
-      const sourceFiat = devRow.ticker === 'CHF' ? Currencies.CHF : Currencies.USD
-      const sourceAmount = Math.max(0, Number(seededBalance) / 100)
-      const fiatAmount = convertToSelectedFiat(sourceAmount, sourceFiat)
-      const satsEquivalent = fromFiatAmount(sourceAmount, sourceFiat)
-
-      totalSats += satsEquivalent
-      rows.push({
-        ...devRow,
-        balance: seededBalance,
-        fiatAmount,
-        satsEquivalent,
-      })
-    }
-  }
-
   return {
     totalFiat: toFiat(totalSats),
     totalSats,
     rows,
   }
-}
-
-export function containsDevSwapTestAssets(rows: PortfolioRow[]): boolean {
-  return rows.some((row) => isDevSwapTestAssetId(row.assetId))
 }
 
 function normalizeMinorUnits(rawAmount: number | bigint, fromDecimals: number, toDecimals: number): bigint {

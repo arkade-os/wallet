@@ -1,6 +1,5 @@
 import { useContext, ReactNode } from 'react'
 import CoinsIcon from '../../icons/Coins'
-import LandmarkIcon from '../../icons/Landmark'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { hapticLight } from '../../lib/haptics'
 
@@ -36,15 +35,10 @@ function UpsellCard({ icon, title, description, testId, onClick }: UpsellCardPro
 }
 
 /**
- * Homepage product upsells. These are inline entry points to LendaSat loans
- * and DFX buy/sell.
+ * Homepage product upsells. These are inline entry points to buy/sell.
  */
 export default function UpsellsSection() {
   const { navigate } = useContext(NavigationContext)
-
-  const handleLoans = () => {
-    navigate(Pages.AppLendasat)
-  }
 
   const handleBuySell = () => {
     navigate(Pages.AppDfx)
@@ -56,13 +50,6 @@ export default function UpsellsSection() {
         <span className='home-section-label'>Do more with your money</span>
       </div>
       <div className='home-section__content'>
-        <UpsellCard
-          icon={<LandmarkIcon size={20} />}
-          title='Borrow against your bitcoin'
-          description='Get a loan without selling. Self-custodial, no paperwork.'
-          testId='upsell-loans'
-          onClick={handleLoans}
-        />
         <UpsellCard
           icon={<CoinsIcon size={20} />}
           title='Buy or sell bitcoin'
