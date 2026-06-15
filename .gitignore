@@ -14,10 +14,9 @@
 # production
 /dist
 
-# Scratch checkout used to (re)build the vendored SDK tarballs from the pinned
-# ref (see scripts/prepare-arkade-sdk.js). The vendor/*.tgz tarballs themselves
-# ARE committed; this checkout is not.
+# Scratch checkout and output used by scripts/prepare-arkade-sdk.js.
 /.arkade-sdk-src/
+/vendor/
 
 # misc
 .DS_Store
