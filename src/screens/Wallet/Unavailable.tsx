@@ -25,7 +25,7 @@ export default function Unavailable() {
       .catch(() => {
         setError(getRestrictedEnvironmentMessage(isIOS()))
       })
-  }, [])
+  }, [aspInfo.unreachable, aspInfo.outdated])
 
   return (
     <CenterScreen>

@@ -31,7 +31,7 @@ export default function NotesForm() {
 
   useEffect(() => {
     setError(aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '')
-  }, [aspInfo.unreachable])
+  }, [aspInfo.unreachable, aspInfo.outdated])
 
   useEffect(() => {
     if (!note) return

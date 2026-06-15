@@ -14,10 +14,6 @@
 # production
 /dist
 
-# Scratch checkout and output used by scripts/prepare-arkade-sdk.js.
-/.arkade-sdk-src/
-/vendor/
-
 # misc
 .DS_Store
 .env.local

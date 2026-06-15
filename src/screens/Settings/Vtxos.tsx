@@ -56,7 +56,7 @@ export default function Vtxos() {
   // Update error state if aspInfo.unreachable changes
   useEffect(() => {
     setError(aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '')
-  }, [aspInfo.unreachable])
+  }, [aspInfo.unreachable, aspInfo.outdated])
 
   // Update label based on rolling over state and dust status
   useEffect(() => {

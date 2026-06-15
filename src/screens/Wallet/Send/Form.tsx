@@ -457,7 +457,11 @@ export default function SendForm() {
   useEffect(() => {
     const errTxt = aspErrorText(aspInfo, 'Arkade server unreachable')
     if (!aspInfo.unreachable) {
-      setError((prev) => (prev === errTxt ? '' : prev))
+      // Server reachable again: clear either unavailable variant we may have
+      // shown (generic unreachable or the outdated-client message) without
+      // clobbering unrelated errors.
+      const outdatedTxt = aspErrorText({ ...aspInfo, outdated: true }, errTxt)
+      setError((prev) => (prev === errTxt || prev === outdatedTxt ? '' : prev))
       return
     }
     setError(errTxt)

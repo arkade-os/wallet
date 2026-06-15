@@ -147,7 +147,15 @@ function DeprecatedSignerBadge({ status }: { status: SignerStatus | null }) {
 function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <div
+      role='button'
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick()
+        }
+      }}
       style={{
         padding: '0.25rem 0.6rem',
         borderRadius: '999px',

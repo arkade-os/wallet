@@ -13,8 +13,6 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
-    // .arkade-sdk-src is the temporary arkade-os/ts-sdk checkout produced by
-    // scripts/prepare-arkade-sdk.js; don't run the SDK's own test suite here.
-    exclude: ['**/e2e/**', '**/node_modules/**', '**/.arkade-sdk-src/**', '**/vendor/**'],
+    exclude: ['**/e2e/**', '**/node_modules/**'],
   },
 })
