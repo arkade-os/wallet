@@ -64,7 +64,7 @@ export default function Table({ data, variant = 'default' }: { data: TableData; 
                   <div className='details-row__value-wrap'>
                     {onClick ? (
                       <span onClick={onClick} className='details-row__external' aria-hidden='true'>
-                        <ExternalLinkIcon />
+                        <ExternalLinkIcon small />
                       </span>
                     ) : null}
                     <span className='details-row__value' onClick={() => copy(value)} data-testid={title}>
@@ -83,7 +83,7 @@ export default function Table({ data, variant = 'default' }: { data: TableData; 
                   <FlexRow end gap='0.25rem'>
                     {onClick ? (
                       <span onClick={onClick} style={{ cursor: 'pointer', color: 'var(--neutral-500)' }}>
-                        <ExternalLinkIcon />
+                        <ExternalLinkIcon small />
                       </span>
                     ) : null}
                     <Text color='dark' copy={value} small bold testId={title}>

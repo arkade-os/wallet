@@ -118,11 +118,11 @@ function CopyRow({ label, value, link }: { label: string; value: string; link?: 
                 window.open(link, '_blank', 'noreferrer')
               }}
             >
-              <ExternalLinkIcon />
+              <ExternalLinkIcon small />
             </span>
           </Shadow>
         ) : null}
-        <Shadow flex>{copied ? <CheckMarkIcon /> : <CopyIcon />}</Shadow>
+        <Shadow flex>{copied ? <CheckMarkIcon small /> : <CopyIcon small />}</Shadow>
       </FlexRow>
     </FlexRow>
   )
@@ -181,15 +181,15 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
       <FlexCol gap={open ? '0.5rem' : '0'}>
         {/* Compact, tappable summary — expands to the full address/script/parameters. */}
         <FlexRow between onClick={onToggle}>
-          <FlexCol gap='0'>
+          <FlexCol gap='0.5rem'>
             <Text small>{contract.label || contract.type}</Text>
             <Text tiny color='neutral-500'>
               {prettyLongText(address)}
             </Text>
             <DeprecatedSignerBadge status={status} />
           </FlexCol>
-          <FlexRow gap='0.5rem'>
-            <FlexCol gap='0' end>
+          <FlexRow>
+            <FlexCol gap='0.5rem' end>
               <Text tiny color={contract.state === 'active' ? 'green' : 'neutral-500'}>
                 {contract.state}
               </Text>
@@ -322,7 +322,7 @@ export default function Contracts() {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'stretch',
-              gap: '0.5rem',
+              gap: '1rem',
               height: '100%',
               width: '100%',
             }}

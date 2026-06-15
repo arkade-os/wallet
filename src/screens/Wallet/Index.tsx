@@ -159,7 +159,7 @@ export default function Wallet() {
             ) : null}
             {error ? (
               <WalletStaggerChild animate={shouldStagger}>
-                <ErrorMessage error={error} text='Ark server unreachable' />
+                <ErrorMessage error={error} text={aspErrorText(aspInfo, 'Arkade server unreachable')} />
               </WalletStaggerChild>
             ) : null}
             <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>

@@ -1,5 +1,4 @@
 import { useContext, useEffect, useState } from 'react'
-import { BrantaServerBaseUrl, PrivacyMode } from '@branta-ops/branta'
 import { BrantaService, type Payment } from '@branta-ops/branta/v2'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
@@ -64,8 +63,8 @@ import { testDomains } from '../../../lib/constants'
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
 const brantaClient = new BrantaService({
-  baseUrl: isProductionEnv ? BrantaServerBaseUrl.Production : BrantaServerBaseUrl.Staging,
-  privacy: PrivacyMode.Strict,
+  baseUrl: isProductionEnv ? 'Production' : 'Staging',
+  privacy: 'strict',
 })
 
 function AssetIcon({ asset }: { asset: AssetOption | null }) {
