@@ -70,7 +70,6 @@ test.describe('Banco offer lifecycle', () => {
     // Create offer
     const { offer, packet, swapPkScript } = await maker.createOffer({
       wantAmount: BigInt(500),
-      cancelDelay: 300,
     })
 
     expect(offer).toBeTruthy()
@@ -106,7 +105,6 @@ test.describe('Banco offer lifecycle', () => {
     const { offer, packet, swapPkScript } = await maker.createOffer({
       wantAmount: BigInt(5000),
       offerAsset: asset.AssetId.fromString(assetId),
-      cancelDelay: 300,
     })
 
     expect(offer).toBeTruthy()
@@ -139,7 +137,6 @@ test.describe('Banco offer lifecycle', () => {
     const { offer, packet, swapPkScript } = await maker.createOffer({
       wantAmount: BigInt(50),
       wantAsset: wantAssetId,
-      cancelDelay: 300,
     })
 
     expect(offer).toBeTruthy()
@@ -172,7 +169,6 @@ test.describe('Banco offer lifecycle', () => {
       wantAmount: BigInt(50),
       wantAsset: asset.AssetId.fromString(assetB),
       offerAsset: asset.AssetId.fromString(assetA),
-      cancelDelay: 300,
     })
 
     expect(offer).toBeTruthy()
@@ -197,7 +193,6 @@ test.describe('Banco offer lifecycle', () => {
 
     const { offer } = await maker.createOffer({
       wantAmount: BigInt(1000),
-      cancelDelay: 300,
     })
 
     // Verify offer hex can be decoded and re-encoded
@@ -205,7 +200,7 @@ test.describe('Banco offer lifecycle', () => {
     expect(decoded.wantAmount).toBe(BigInt(1000))
     expect(decoded.makerPkScript.length).toBe(34)
     expect(decoded.emulatorPubkey.length).toBe(32)
-    expect(decoded.cancelDelay).toBeDefined()
+    expect(decoded.makerPublicKey).toBeDefined()
 
     const reEncoded = Offer.toHex(decoded)
     expect(reEncoded).toBe(offer)
@@ -244,7 +239,6 @@ test.describe('Banco taker-fulfilled swaps', () => {
       const { offer, packet, swapPkScript } = await maker.createOffer({
         wantAmount: BigInt(wantAmount),
         wantAsset: wantAssetId,
-        cancelDelay: 300,
       })
 
       expect(offer).toBeTruthy()
@@ -300,7 +294,6 @@ test.describe('Banco taker-fulfilled swaps', () => {
       const { packet, swapPkScript } = await maker.createOffer({
         wantAmount: BigInt(wantAmount),
         offerAsset: asset.AssetId.fromString(assetId),
-        cancelDelay: 300,
       })
 
       // 5. Snapshot VTXO count before funding
@@ -349,7 +342,6 @@ test.describe('Banco taker-fulfilled swaps', () => {
         wantAmount: BigInt(wantAmount),
         wantAsset: asset.AssetId.fromString(assetB),
         offerAsset: asset.AssetId.fromString(assetA),
-        cancelDelay: 300,
       })
 
       // 5. Snapshot VTXO count before funding

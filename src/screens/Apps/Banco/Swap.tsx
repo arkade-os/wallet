@@ -20,8 +20,6 @@ import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 import { Maker } from '../../../lib/banco/maker'
 
-const CANCEL_DELAY_SECONDS = 300
-
 type SwapPhase = 'creating' | 'funding' | 'done' | 'error'
 
 const phaseText: Record<SwapPhase, string> = {
@@ -70,7 +68,6 @@ export default function AppBancoSwap() {
             wantAmount: BigInt(bancoInfo.receiveAmount ?? 0),
             wantAsset: bancoInfo.receiveAsset ? asset.AssetId.fromString(bancoInfo.receiveAsset) : undefined,
             offerAsset: bancoInfo.payAsset ? asset.AssetId.fromString(bancoInfo.payAsset) : undefined,
-            cancelDelay: CANCEL_DELAY_SECONDS,
           })
         } catch (offerErr) {
           console.error('banco: createOffer threw:', offerErr)
@@ -101,7 +98,6 @@ export default function AppBancoSwap() {
         })
 
         // Save to store
-        const cancelAt = Math.floor(Date.now() / 1000) + CANCEL_DELAY_SECONDS
         addSwap({
           id: fundingTxid,
           pair: bancoInfo.pair ?? '',
@@ -115,7 +111,6 @@ export default function AppBancoSwap() {
           fundingTxid,
           status: 'pending',
           createdAt: Date.now(),
-          cancelAt,
         })
 
         setSelectedSwapId(fundingTxid)

@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowDown, Check, X, Loader2, Copy, ExternalLink, AlertTriangle } from 'lucide-react'
 import Button from '../../../components/Button'
@@ -47,12 +47,6 @@ function StatusIcon({ status }: { status: BancoSwap['status'] }) {
 function truncate(s: string, start = 12, end = 8): string {
   if (s.length <= start + end + 3) return s
   return s.slice(0, start) + '…' + s.slice(-end)
-}
-
-function formatCountdown(secs: number): string {
-  const m = Math.floor(secs / 60)
-  const s = secs % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
 }
 
 function CopyableRow({ label, value, href }: { label: string; value: string; href?: string }) {
@@ -116,19 +110,10 @@ export default function AppBancoDetail() {
   const swap = swaps.find((s) => s.id === selectedSwapId)
   const [cancelling, setCancelling] = useState(false)
   const [cancelError, setCancelError] = useState('')
-  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000))
-  const tickRef = useRef<ReturnType<typeof setInterval>>()
 
-  // Tick every second for countdown
-  useEffect(() => {
-    tickRef.current = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000)
-    return () => clearInterval(tickRef.current)
-  }, [])
-
-  // Polling is handled globally by BancoProvider
-
-  const canCancel = swap && swap.status === 'pending' && swap.cancelAt > 0 && now >= swap.cancelAt
-  const cancelCountdown = swap && swap.cancelAt > 0 ? Math.max(0, swap.cancelAt - now) : 0
+  // Polling is handled globally by BancoProvider.
+  // The cancel path is a cooperative maker+server multisig with no timelock,
+  // so a pending swap can be cancelled at any time (see isPending below).
 
   const handleCancel = useCallback(async () => {
     if (!swap || !svcWallet || !aspInfo.url || !config.emulatorUrl) return
@@ -300,14 +285,6 @@ export default function AppBancoDetail() {
                     {prettyDate(Math.floor(swap.createdAt / 1000))}
                   </span>
                 </div>
-                {isPending && swap.cancelAt > 0 ? (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.375rem 0' }}>
-                    <span style={{ fontSize: 13, color: 'var(--dark50)' }}>Cancel available</span>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: canCancel ? '#4ade80' : '#facc15' }}>
-                      {canCancel ? 'Now' : `in ${formatCountdown(cancelCountdown)}`}
-                    </span>
-                  </div>
-                ) : null}
               </div>
             </SwapCard>
 
@@ -346,11 +323,7 @@ export default function AppBancoDetail() {
       </Content>
       <ButtonsOnBottom>
         {isPending ? (
-          canCancel ? (
-            <Button label='Cancel Swap' onClick={handleCancel} disabled={cancelling} loading={cancelling} red />
-          ) : (
-            <Button label={`Cancel Swap (${formatCountdown(cancelCountdown)})`} onClick={() => {}} disabled secondary />
-          )
+          <Button label='Cancel Swap' onClick={handleCancel} disabled={cancelling} loading={cancelling} red />
         ) : (
           <Button label='Done' onClick={() => navigate(Pages.Swaps)} />
         )}

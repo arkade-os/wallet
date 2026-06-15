@@ -2,7 +2,6 @@ import { hex } from '@scure/base'
 import {
   asset,
   arkade,
-  CLTVMultisigTapscript,
   CSVMultisigTapscript,
   MultisigTapscript,
   VtxoScript,
@@ -16,7 +15,6 @@ const { ArkadeScript } = arkade
 const TLV_SWAP_PK_SCRIPT = 0x01
 const TLV_WANT_AMOUNT = 0x02
 const TLV_WANT_ASSET = 0x03
-const TLV_CANCEL_DELAY = 0x04
 const TLV_MAKER_PK_SCRIPT = 0x05
 const TLV_MAKER_PUBLIC_KEY = 0x07
 const TLV_EMULATOR_PUBKEY = 0x08
@@ -29,7 +27,6 @@ const KNOWN_TYPES = new Set([
   TLV_SWAP_PK_SCRIPT,
   TLV_WANT_AMOUNT,
   TLV_WANT_ASSET,
-  TLV_CANCEL_DELAY,
   TLV_MAKER_PK_SCRIPT,
   TLV_MAKER_PUBLIC_KEY,
   TLV_EMULATOR_PUBKEY,
@@ -73,7 +70,6 @@ function readUint64BE(buf: Uint8Array): bigint {
  * | `0x01` | swapPkScript       | raw bytes                            |
  * | `0x02` | wantAmount         | 8-byte big-endian uint64             |
  * | `0x03` | wantAsset          | UTF-8 `"txid:vout"` (optional)       |
- * | `0x04` | cancelDelay        | 8-byte big-endian uint64 (optional)  |
  * | `0x05` | makerPkScript      | raw bytes (34)                       |
  * | `0x07` | makerPublicKey     | raw bytes (32)                       |
  * | `0x08` | emulatorPubkey | raw bytes (32)                       |
@@ -100,11 +96,9 @@ export namespace Offer {
     ratioDen?: bigint
     /** Asset the maker is offering (locked in the VTXO). Omitted when offering BTC. */
     offerAsset?: asset.AssetId
-    /** CLTV unix timestamp after which the maker can cancel. */
-    cancelDelay?: bigint
     /** Maker's full taproot scriptPubKey (34 bytes). */
     makerPkScript: Uint8Array
-    /** Maker's x-only taproot internal key (32 bytes). Required when cancel or exit paths are present. */
+    /** Maker's x-only taproot internal key (32 bytes). Required for the cancel and exit paths. */
     makerPublicKey?: Uint8Array
     /** Emulator's x-only public key (32 bytes). */
     emulatorPubkey: Uint8Array
@@ -129,9 +123,6 @@ export namespace Offer {
     }
     if (offer.offerAsset !== undefined) {
       records.push(writeTLV(TLV_OFFER_ASSET, offer.offerAsset.serialize()))
-    }
-    if (offer.cancelDelay !== undefined) {
-      records.push(writeTLV(TLV_CANCEL_DELAY, writeUint64BE(offer.cancelDelay)))
     }
     records.push(writeTLV(TLV_MAKER_PK_SCRIPT, offer.makerPkScript))
     if (offer.makerPublicKey !== undefined) {
@@ -166,7 +157,6 @@ export namespace Offer {
     let ratioNum: bigint | undefined
     let ratioDen: bigint | undefined
     let offerAsset: asset.AssetId | undefined
-    let cancelDelay: bigint | undefined
     let makerPkScript: Uint8Array | undefined
     let makerPublicKey: Uint8Array | undefined
     let emulatorPubkey: Uint8Array | undefined
@@ -212,9 +202,6 @@ export namespace Offer {
         case TLV_OFFER_ASSET:
           offerAsset = AssetId.fromBytes(value)
           break
-        case TLV_CANCEL_DELAY:
-          cancelDelay = readUint64BE(value)
-          break
         case TLV_MAKER_PK_SCRIPT:
           makerPkScript = value
           break
@@ -255,7 +242,6 @@ export namespace Offer {
       ...(ratioNum !== undefined && { ratioNum }),
       ...(ratioDen !== undefined && { ratioDen }),
       ...(offerAsset !== undefined && { offerAsset }),
-      ...(cancelDelay !== undefined && { cancelDelay }),
       ...(exitTimelock !== undefined && { exitTimelock }),
       ...(makerPublicKey !== undefined && { makerPublicKey }),
       makerPkScript,
@@ -304,7 +290,11 @@ export namespace Offer {
     return isPartialFill(offer) ? partialFillScript(offer) : fulfillScript(offer)
   }
 
-  /** Builds the full VTXO taptree (fulfill + optional cancel + exit). */
+  /**
+   * Builds the full VTXO taptree (fulfill + optional cancel + exit).
+   * The cancel leaf is an unconditional maker+server multisig (no timelock);
+   * it is added whenever makerPublicKey is set.
+   */
   export function vtxoScript(offer: Omit<Data, 'swapPkScript'>, serverPubkey: Uint8Array): VtxoScript {
     // Fulfill leaf: server + emulator key tweaked by the covenant script.
     const leaves: Uint8Array[] = [
@@ -313,14 +303,10 @@ export namespace Offer {
       }).script,
     ]
 
-    if (offer.cancelDelay !== undefined) {
-      if (!offer.makerPublicKey) {
-        throw new Error('makerPublicKey is required when cancelDelay is set')
-      }
+    if (offer.makerPublicKey) {
       leaves.push(
-        CLTVMultisigTapscript.encode({
+        MultisigTapscript.encode({
           pubkeys: [offer.makerPublicKey, serverPubkey],
-          absoluteTimelock: offer.cancelDelay,
         }).script,
       )
     }

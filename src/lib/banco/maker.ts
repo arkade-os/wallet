@@ -4,8 +4,8 @@ import {
   RestArkProvider,
   RestIndexerProvider,
   RestEmulatorProvider,
-  CLTVMultisigTapscript,
   CSVMultisigTapscript,
+  MultisigTapscript,
   Transaction,
   buildOffchainTx,
   asset,
@@ -44,8 +44,6 @@ export interface CreateOfferParams {
    * Must be provided together with `ratioNum`. Both must be positive.
    */
   ratioDen?: bigint
-  /** Seconds from now after which the maker can cancel. */
-  cancelDelay?: number
 }
 
 /** Status of a VTXO at a swap address. */
@@ -115,8 +113,6 @@ export class Maker {
       type: exitDelay < BigInt(512) ? 'blocks' : 'seconds',
     }
 
-    const cancelTimestamp = params.cancelDelay ? BigInt(Math.floor(Date.now() / 1000) + params.cancelDelay) : undefined
-
     let ratioNum: bigint | undefined
     let ratioDen: bigint | undefined
     const hasNum = params.ratioNum !== undefined
@@ -140,7 +136,6 @@ export class Maker {
       offerAsset: params.offerAsset,
       ratioNum,
       ratioDen,
-      cancelDelay: cancelTimestamp,
       exitTimelock,
       makerPkScript,
       makerPublicKey,
@@ -180,14 +175,15 @@ export class Maker {
   }
 
   /**
-   * Cancel an offer by spending the swap VTXO back to the maker via the CLTV cancel path.
+   * Cancel an offer by spending the swap VTXO back to the maker via the
+   * maker+server cancel multisig (cooperative, no timelock).
    * @param offerHex - The hex-encoded TLV offer.
    * @returns The ark transaction id.
-   * @throws If the offer has no cancel path or the CLTV timelock hasn't expired.
+   * @throws If the offer has no cancel path.
    */
   async cancelOffer(offerHex: string): Promise<string> {
     const offer = Offer.fromHex(offerHex)
-    if (offer.cancelDelay === undefined) {
+    if (offer.makerPublicKey === undefined) {
       throw new Error('Offer does not have a cancel path')
     }
 
@@ -196,9 +192,8 @@ export class Maker {
     const checkpointUnrollClosure = CSVMultisigTapscript.decode(hex.decode(info.checkpointTapscript))
 
     const offerVtxoScript = Offer.vtxoScript(offer, serverPubKey)
-    const cancelTapscript = CLTVMultisigTapscript.encode({
-      pubkeys: [offer.makerPublicKey!, serverPubKey],
-      absoluteTimelock: offer.cancelDelay,
+    const cancelTapscript = MultisigTapscript.encode({
+      pubkeys: [offer.makerPublicKey, serverPubKey],
     })
     const cancelLeaf = offerVtxoScript.findLeaf(hex.encode(cancelTapscript.script))
 

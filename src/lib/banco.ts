@@ -15,7 +15,6 @@ export interface BancoSwap {
   spentTxid?: string
   status: BancoSwapStatus
   createdAt: number
-  cancelAt: number
 }
 
 const STORAGE_KEY = 'banco-swaps'
