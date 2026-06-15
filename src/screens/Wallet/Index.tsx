@@ -5,6 +5,7 @@ import ErrorMessage from '../../components/Error'
 import TransactionsList from '../../components/TransactionsList'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
+import { aspErrorText } from '../../lib/asp'
 import { ConfigContext } from '../../providers/config'
 import LogoIcon from '../../icons/Logo'
 import HomeIcon from '../../icons/Home'
@@ -91,7 +92,7 @@ export default function Wallet() {
                   <Balance amount={balance} />
                 </WalletStaggerChild>
                 <WalletStaggerChild animate={shouldStagger}>
-                  <ErrorMessage error={error} text='Ark server unreachable' />
+                  <ErrorMessage error={error} text={aspErrorText(aspInfo, 'Arkade server unreachable')} />
                 </WalletStaggerChild>
                 <WalletStaggerChild animate={shouldStagger}>
                   <FlexRow padding='0 0 0.5rem 0'>
