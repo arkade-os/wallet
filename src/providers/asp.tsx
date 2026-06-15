@@ -3,7 +3,15 @@ import { ArkInfo, ScheduledSession } from '@arkade-os/sdk'
 import { emptyAspInfo, getAspInfo } from '../lib/asp'
 import { ConfigContext } from './config'
 
-export type AspInfo = ArkInfo & { unreachable: boolean; url: string }
+export type AspInfo = ArkInfo & {
+  unreachable: boolean
+  url: string
+  // Set when the server rejected us with BUILD_VERSION_TOO_OLD: the client is
+  // too old to talk to this server (it fails even getInfo, so it also reads as
+  // `unreachable`). `minBuildVersion` is the server's advertised minimum, if any.
+  outdated?: boolean
+  minBuildVersion?: string
+}
 
 interface AspContextProps {
   aspInfo: AspInfo

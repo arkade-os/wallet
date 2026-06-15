@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
-import { V2BrantaClient, BrantaServerBaseUrl } from '@branta-ops/branta'
+import { BrantaServerBaseUrl, PrivacyMode } from '@branta-ops/branta'
+import { BrantaService, type Payment } from '@branta-ops/branta/v2'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
@@ -29,8 +30,8 @@ import Shadow from '../../../components/Shadow'
 import Scanner from '../../../components/Scanner'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
-import { Addresses, AssetOption, SettingsOptions, Unit } from '../../../lib/types'
-import { getReceivingAddresses } from '../../../lib/asp'
+import { Addresses, AssetOption, SettingsOptions, Themes, Unit } from '../../../lib/types'
+import { aspErrorText, getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
@@ -58,16 +59,13 @@ import {
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
 import { fiatDecimalsFor } from '../../../lib/fiat'
+import { testDomains } from '../../../lib/constants'
 
-// TODO: Replace when SDK is accurate
-type BrantaPayment = Partial<
-  Awaited<ReturnType<V2BrantaClient['addPayment']>>['payment'] & {
-    platform_logo_url: string
-  }
->
+const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
-const brantaClient = new V2BrantaClient({
-  baseUrl: BrantaServerBaseUrl.Production,
+const brantaClient = new BrantaService({
+  baseUrl: isProductionEnv ? BrantaServerBaseUrl.Production : BrantaServerBaseUrl.Staging,
+  privacy: PrivacyMode.Strict,
 })
 
 function AssetIcon({ asset }: { asset: AssetOption | null }) {
@@ -100,7 +98,7 @@ function AssetIcon({ asset }: { asset: AssetOption | null }) {
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
-  const { config, useFiat } = useContext(ConfigContext)
+  const { config, effectiveTheme, useFiat } = useContext(ConfigContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
@@ -137,7 +135,8 @@ export default function SendForm() {
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
   const [scan, setScan] = useState(false)
   const [rawScanData, setRawScanData] = useState('')
-  const [brantaPayment, setBrantaPayment] = useState<BrantaPayment | null>(null)
+  const [brantaPayment, setBrantaPayment] = useState<Payment | null>(null)
+  const [brantaVerifyUrl, setBrantaVerifyUrl] = useState<string | undefined>(undefined)
   const [brantaLoading, setBrantaLoading] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<AssetOption | null>(null)
   const [showAssetSelector, setShowAssetSelector] = useState(false)
@@ -154,7 +153,7 @@ export default function SendForm() {
   const liquidBalance = availableBalance - (reserveApplied ? DUST_AMOUNT : 0)
 
   const smartSetError = (str: string) => {
-    setError(str === '' ? (aspInfo.unreachable ? 'Ark server unreachable' : '') : str)
+    setError(str === '' ? (aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '') : str)
   }
 
   useEffect(() => {
@@ -335,59 +334,63 @@ export default function SendForm() {
     parseRecipient()
   }, [recipient, isAssetSend])
 
-  // fetch branta payment info for ZK QR-scanned addresses only
+  // fetch branta payment info for the current recipient (SDK strict mode gates non-ZK)
   useEffect(() => {
-    if (!rawScanData) {
+    const typed = recipient.trim()
+    if (!rawScanData && !typed) {
+      setBrantaPayment(null)
+      setBrantaVerifyUrl(undefined)
       setBrantaLoading(false)
       return
     }
+
     setBrantaPayment(null)
+    setBrantaVerifyUrl(undefined)
     let cancelled = false
 
-    let isValidZKCode = false
-    try {
-      const url = new URL(rawScanData.trim())
-      isValidZKCode = url.searchParams.has('branta_id') && url.searchParams.has('branta_secret')
-    } catch {
-      // Invalid URL, not a ZK code
-    }
+    const runLookup = () => {
+      if (cancelled) return
+      setBrantaLoading(true)
+      const lookup = rawScanData ? brantaClient.getPaymentsByQrCode(rawScanData) : brantaClient.getPayments(typed)
 
-    if (!isValidZKCode) {
-      setBrantaLoading(false)
-      return
-    }
-
-    setBrantaLoading(true)
-    brantaClient
-      .getPaymentsByQRCode(rawScanData)
-      .then((payments: BrantaPayment[]) => {
-        if (cancelled) return
-        const payment = payments?.[0] ?? null
-        if (payment) {
+      lookup
+        .then(({ payments, verifyUrl }) => {
+          if (cancelled) return
+          const payment = payments?.[0] ?? null
+          if (!payment) {
+            setBrantaPayment(null)
+            setBrantaVerifyUrl(undefined)
+            return
+          }
           const isHttpsUrl = (val: unknown): boolean => typeof val === 'string' && val.startsWith('https://')
           setBrantaPayment({
             ...payment,
-            verify_url: isHttpsUrl(payment.verify_url) ? payment.verify_url : undefined,
-            platform_logo_url: isHttpsUrl(payment.platform_logo_url) ? payment.platform_logo_url : undefined,
+            platformLogoUrl: isHttpsUrl(payment.platformLogoUrl) ? payment.platformLogoUrl : undefined,
+            platformLogoLightUrl: isHttpsUrl(payment.platformLogoLightUrl) ? payment.platformLogoLightUrl : undefined,
           })
-        } else {
+          setBrantaVerifyUrl(isHttpsUrl(verifyUrl) ? verifyUrl : undefined)
+        })
+        .catch((err) => {
+          if (cancelled) return
+          consoleError('Branta API error', err)
           setBrantaPayment(null)
-        }
-      })
-      .catch((err) => {
-        if (cancelled) return
-        consoleError('Branta API error', err)
-        setBrantaPayment(null)
-      })
-      .finally(() => {
-        if (cancelled) return
-        setBrantaLoading(false)
-      })
+          setBrantaVerifyUrl(undefined)
+        })
+        .finally(() => {
+          if (cancelled) return
+          setBrantaLoading(false)
+        })
+    }
+
+    // QR scans verify immediately; typed input is debounced to avoid one request per keystroke
+    const timer = rawScanData ? null : setTimeout(runLookup, 400)
+    if (rawScanData) runLookup()
 
     return () => {
       cancelled = true
+      if (timer) clearTimeout(timer)
     }
-  }, [rawScanData])
+  }, [rawScanData, recipient])
 
   // check lnurl limits
   useEffect(() => {
@@ -399,7 +402,6 @@ export default function SendForm() {
     if (satoshis && satoshis < min) return setError(`Amount below LNURL min limit`)
     if (satoshis && satoshis > max) return setError(`Amount above LNURL max limit`)
     if (min === max) {
-      setAmount(min) // set fixed amount automatically
       setAmountIsReadOnly(true)
     } else {
       setAmountIsReadOnly(false)
@@ -416,7 +418,9 @@ export default function SendForm() {
         if (!conditions) return setError('Unable to fetch LNURL conditions')
         const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
         const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
-        if (min === max) setSendInfo({ ...sendInfo, satoshis: min }) // set amount automatically
+        // when the LNURL resolves to a fixed amount, set it via setState so the
+        // amount input (bound to amountTextValue) reflects it instead of staying blank
+        if (min === max) setState({ ...sendInfo, satoshis: min })
         return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
       })
       .catch((e) => {
@@ -458,7 +462,7 @@ export default function SendForm() {
       const { serverPubKey: expectedServerPubKey } = decodeArkAddress(offchainAddr)
       if (serverPubKey !== expectedServerPubKey) {
         // if there's no other way to pay, show error
-        if (!address && !invoice) return setError('Ark server key mismatch')
+        if (!address && !invoice) return setError('Arkade server key mismatch')
         // remove ark address from possibilities to send and continue
         // we will try to pay to lightning or mainnet instead
         setSendInfo({ ...sendInfo, arkAddress: '' })
@@ -502,14 +506,18 @@ export default function SendForm() {
 
   // manage server unreachable error
   useEffect(() => {
-    const errTxt = 'Ark server unreachable'
+    const errTxt = aspErrorText(aspInfo, 'Arkade server unreachable')
     if (!aspInfo.unreachable) {
-      setError((prev) => (prev === errTxt ? '' : prev))
+      // Server reachable again: clear either unavailable variant we may have
+      // shown (generic unreachable or the outdated-client message) without
+      // clobbering unrelated errors.
+      const outdatedTxt = aspErrorText({ ...aspInfo, outdated: true }, errTxt)
+      setError((prev) => (prev === errTxt || prev === outdatedTxt ? '' : prev))
       return
     }
     setError(errTxt)
     setLabel('Server unreachable')
-  }, [aspInfo.unreachable])
+  }, [aspInfo.unreachable, aspInfo.outdated])
 
   // proceed to next step
   useEffect(() => {
@@ -862,27 +870,50 @@ export default function SendForm() {
                   Verifying address...
                 </Text>
               ) : null}
-              {brantaPayment ? (
-                <Shadow>
-                  <FlexRow between padding='0.75rem'>
-                    <FlexCol gap='0.1rem'>
-                      <Text smaller>{brantaPayment.platform}</Text>
-                      <Text smaller color='neutral-500'>
-                        {brantaPayment.verify_url?.startsWith('https://') ? (
-                          <a href={brantaPayment.verify_url} target='_blank' rel='noreferrer'>
-                            Verified by Branta
-                          </a>
-                        ) : (
-                          'Verified by Branta'
-                        )}
-                      </Text>
-                    </FlexCol>
-                    {brantaPayment.platform_logo_url ? (
-                      <img src={brantaPayment.platform_logo_url} alt={brantaPayment.platform} width={48} height={48} />
-                    ) : null}
-                  </FlexRow>
-                </Shadow>
-              ) : null}
+              {brantaPayment
+                ? (() => {
+                    const card = (
+                      <Shadow>
+                        <FlexRow between padding='0.75rem'>
+                          <FlexCol gap='0.1rem'>
+                            <Text smaller>{brantaPayment.platform}</Text>
+                            {brantaPayment.description ? (
+                              <Text smaller color='neutral-500'>
+                                {brantaPayment.description}
+                              </Text>
+                            ) : null}
+                            <Text smaller color='neutral-500'>
+                              Verified by Branta
+                            </Text>
+                          </FlexCol>
+                          {(() => {
+                            const logoUrl =
+                              effectiveTheme === Themes.Light
+                                ? (brantaPayment.platformLogoLightUrl ?? brantaPayment.platformLogoUrl)
+                                : brantaPayment.platformLogoUrl
+                            return logoUrl ? (
+                              <img src={logoUrl} alt={brantaPayment.platform} width={48} height={48} />
+                            ) : null
+                          })()}
+                        </FlexRow>
+                      </Shadow>
+                    )
+                    // Only wrap in an anchor when there's a real verify URL; an <a> without href is a
+                    // placeholder link that screen readers may still announce.
+                    return brantaVerifyUrl ? (
+                      <a
+                        href={brantaVerifyUrl}
+                        target='_blank'
+                        rel='noreferrer'
+                        style={{ textDecoration: 'none', display: 'block', cursor: 'pointer' }}
+                      >
+                        {card}
+                      </a>
+                    ) : (
+                      card
+                    )
+                  })()
+                : null}
               {assetOptions.length > 0 ? (
                 <FlexCol gap='0.5rem' className='send-asset-field'>
                   <Text smaller color='neutral-500'>
