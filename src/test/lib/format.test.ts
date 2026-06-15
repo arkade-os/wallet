@@ -14,7 +14,8 @@ import {
   isIssuance,
   isBurn,
 } from '../../lib/format'
-import { Fiats } from '../../lib/types'
+import { Fiats, Tx } from '../../lib/types'
+import { Asset } from '@arkade-os/sdk'
 
 describe('format utilities', () => {
   describe('fromSatoshis', () => {
@@ -221,47 +222,59 @@ describe('format utilities', () => {
 
   describe('isIssuance', () => {
     it('should return true for sent tx with amount 0 and positive assets', () => {
-      expect(isIssuance({ type: 'sent', amount: 0, assets: [{ assetId: 'abc', amount: 100 }] })).toBe(true)
+      expect(isIssuance({ type: 'sent', amount: 0, assets: [{ assetId: 'abc', amount: BigInt(100) }] } as Tx)).toBe(
+        true,
+      )
     })
 
     it('should return false for sent tx with non-zero amount', () => {
-      expect(isIssuance({ type: 'sent', amount: 1000, assets: [{ assetId: 'abc', amount: 100 }] })).toBe(false)
+      expect(isIssuance({ type: 'sent', amount: 1000, assets: [{ assetId: 'abc', amount: BigInt(100) }] } as Tx)).toBe(
+        false,
+      )
     })
 
     it('should return false for received tx with amount 0 and assets', () => {
-      expect(isIssuance({ type: 'received', amount: 0, assets: [{ assetId: 'abc', amount: 100 }] })).toBe(false)
+      expect(isIssuance({ type: 'received', amount: 0, assets: [{ assetId: 'abc', amount: BigInt(100) }] } as Tx)).toBe(
+        false,
+      )
     })
 
     it('should return false for sent tx with amount 0 but no assets', () => {
-      expect(isIssuance({ type: 'sent', amount: 0 })).toBe(false)
-      expect(isIssuance({ type: 'sent', amount: 0, assets: [] })).toBe(false)
+      expect(isIssuance({ type: 'sent', amount: 0 } as Tx)).toBe(false)
+      expect(isIssuance({ type: 'sent', amount: 0, assets: [{} as Asset] } as Tx)).toBe(false)
     })
 
     it('should return false for burn tx (negative asset amount)', () => {
-      expect(isIssuance({ type: 'sent', amount: 0, assets: [{ assetId: 'abc', amount: -100 }] })).toBe(false)
+      expect(isIssuance({ type: 'sent', amount: 0, assets: [{ assetId: 'abc', amount: BigInt(-100) }] } as Tx)).toBe(
+        false,
+      )
     })
   })
 
   describe('isBurn', () => {
     it('should return true for sent tx with amount 0 and negative assets', () => {
-      expect(isBurn({ type: 'sent', amount: 0, assets: [{ assetId: 'abc', amount: -100 }] })).toBe(true)
+      expect(isBurn({ type: 'sent', amount: 0, assets: [{ assetId: 'abc', amount: BigInt(-100) }] } as Tx)).toBe(true)
     })
 
     it('should return false for sent tx with non-zero amount', () => {
-      expect(isBurn({ type: 'sent', amount: 1000, assets: [{ assetId: 'abc', amount: -100 }] })).toBe(false)
+      expect(isBurn({ type: 'sent', amount: 1000, assets: [{ assetId: 'abc', amount: BigInt(-100) }] } as Tx)).toBe(
+        false,
+      )
     })
 
     it('should return false for received tx', () => {
-      expect(isBurn({ type: 'received', amount: 0, assets: [{ assetId: 'abc', amount: -100 }] })).toBe(false)
+      expect(isBurn({ type: 'received', amount: 0, assets: [{ assetId: 'abc', amount: BigInt(-100) }] } as Tx)).toBe(
+        false,
+      )
     })
 
     it('should return false for sent tx with amount 0 but no assets', () => {
-      expect(isBurn({ type: 'sent', amount: 0 })).toBe(false)
-      expect(isBurn({ type: 'sent', amount: 0, assets: [] })).toBe(false)
+      expect(isBurn({ type: 'sent', amount: 0 } as Tx)).toBe(false)
+      expect(isBurn({ type: 'sent', amount: 0, assets: [{} as Asset] } as Tx)).toBe(false)
     })
 
     it('should return false for issuance tx (positive asset amount)', () => {
-      expect(isBurn({ type: 'sent', amount: 0, assets: [{ assetId: 'abc', amount: 100 }] })).toBe(false)
+      expect(isBurn({ type: 'sent', amount: 0, assets: [{ assetId: 'abc', amount: BigInt(100) }] } as Tx)).toBe(false)
     })
   })
 })

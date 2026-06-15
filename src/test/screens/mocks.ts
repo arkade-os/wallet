@@ -3,7 +3,7 @@ import { Pages, Tabs } from '../../providers/navigation'
 import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { AspInfo } from '../../providers/asp'
 import { SingleKey, IVtxoManager } from '@arkade-os/sdk'
-import { CurrencyDisplay, Fiats, SettingsOptions, Themes } from '../../lib/types'
+import { CurrencyDisplay, Fiats, SettingsOptions, Themes, Unit } from '../../lib/types'
 import { AssetIconApprovalManager } from '../../lib/assetIconApproval'
 
 const mockAspInfo: AspInfo = {
@@ -55,27 +55,32 @@ export const mockAspContextValue = {
 
 export const mockConfigContextValue = {
   config: {
-    apps: {
-      assets: {
-        enabled: true,
-      },
-      boltz: {
-        connected: true,
-      },
-    },
+    announcementsSeen: [],
+    apps: { assets: { enabled: false }, boltz: { connected: true } },
+    aspUrl: 'http://asp.local',
+    dismissedBanners: [],
     currencyDisplay: CurrencyDisplay.Both,
-    delegate: false,
+    delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
     fiat: Fiats.EUR,
     importedAssets: [],
+    haptics: true,
     nostrBackup: true,
     notifications: true,
+    pubkey: '',
     showBalance: true,
     theme: Themes.Dark,
+    unit: Unit.BTC,
   },
   updateConfig: () => {},
-  effectiveTheme: Themes.Dark,
-  systemTheme: Themes.Dark,
+  effectiveTheme: Themes.Dark as const,
+  systemTheme: Themes.Dark as const,
   useFiat: false,
+  backupConfig: () => Promise.resolve(),
+  configLoaded: true,
+  resetConfig: () => {},
+  setConfig: () => {},
+  showConfig: false,
+  toggleShowConfig: () => {},
 }
 
 export const mockFiatContextValue = {
@@ -178,6 +183,8 @@ export const mockFlowContextValue = {
   setAssetInfo: () => {},
   deepLinkInfo: undefined,
   setDeepLinkInfo: () => {},
+  lnurlInfo: undefined,
+  setLnurlInfo: () => {},
 }
 
 export const mockLimitsContextValue = {

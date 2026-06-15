@@ -254,7 +254,9 @@ describe('Transaction screen', () => {
   it('renders burn transaction with correct direction', async () => {
     const mockBurnTxInfo = {
       ...mockIssuanceTxInfo,
-      assets: [{ assetId: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd', amount: -5_000n }],
+      assets: [
+        { assetId: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd', amount: BigInt(-5_000) },
+      ],
     }
     const localFlowContextValue = { ...mockFlowContextValue, txInfo: mockBurnTxInfo }
     const localWalletContextValue = { ...mockWalletContextValue, txs: [mockBurnTxInfo] }
