@@ -9,7 +9,7 @@ interface ImportMetaEnv {
   readonly VITE_DEV_NSEC?: string
   readonly VITE_DEV_RESET_WALLET_ON_BOOT?: string
   readonly VITE_DEV_AUTO_INIT?: string
-  readonly VITE_DEV_MNEMONIC?: string
+  readonly VITE_DEV_SWAP_TEST_ASSETS?: string
   readonly VITE_BOLTZ_URL?: string
   readonly VITE_DELEGATOR_URL?: string
   // Add other env variables as needed

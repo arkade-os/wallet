@@ -4,6 +4,7 @@ import { useAnimationControls } from 'framer-motion'
 const EASE_IN = [0.55, 0, 1, 0.45] as [number, number, number, number]
 
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
 
 // Shape indices: 0=Arcade, 1=Invader, 2=Heart
 // Sequence: Arcade → Invader → Heart → Arcade (loop or stop)
@@ -54,20 +55,34 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
     setStopped(false)
     cancelled.current = false
 
+    async function startBounceAnimation(definition: Parameters<typeof bounceControls.start>[0]) {
+      if (cancelled.current) return false
+      try {
+        await controlsRef.current.start(definition)
+        return !cancelled.current
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        if (cancelled.current || message.includes('after a component has mounted')) {
+          return false
+        }
+        throw err
+      }
+    }
+
     async function bounceAndMorph(nextShape: number) {
       setBounceCount((c) => c + 1)
       onBounceRef.current?.()
       setActiveShape(nextShape)
 
-      await controlsRef.current.start({
+      const compressed = await startBounceAnimation({
         y: 20,
         scaleY: 0.75,
         scaleX: 1.15,
         transition: { duration: 0.06, ease: EASE_IN },
       })
-      if (cancelled.current) return
+      if (!compressed) return
 
-      await controlsRef.current.start({
+      await startBounceAnimation({
         y: 0,
         scaleY: 1,
         scaleX: 1,
@@ -76,6 +91,9 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
     }
 
     async function runLoop() {
+      await nextFrame()
+      if (cancelled.current) return
+
       await delay(180)
       if (cancelled.current) return
 

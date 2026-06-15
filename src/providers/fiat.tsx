@@ -1,7 +1,7 @@
 import { ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react'
+import Decimal from 'decimal.js'
 import { fiatDecimalsFor, FiatPrices, getPriceFeed } from '../lib/fiat'
 import { fromSatoshis, toSatoshis } from '../lib/format'
-import Decimal from 'decimal.js'
 import { Currencies, Unit } from '../lib/types'
 import { ConfigContext } from './config'
 
