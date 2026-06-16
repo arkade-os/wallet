@@ -164,7 +164,7 @@ export default function SendSuccess() {
     const headline = failed ? 'Payment failed' : 'Payment sent!'
     const text =
       lnStatus === 'processing'
-        ? `${displayAmount} is on its way. Settlement continues in the background, so it's safe to leave this screen.`
+        ? `${displayAmount} is on its way.`
         : lnStatus === 'completed'
           ? `${displayAmount} sent successfully`
           : lnStatus === 'refunded'
@@ -176,7 +176,7 @@ export default function SendSuccess() {
         <Header text={failed ? 'Payment failed' : 'Success'} />
         <Content>
           <CenterScreen>
-            {lnStatus === 'processing' ? <SpinnerIcon /> : failed ? null : <SuccessIcon small />}
+            {lnStatus === 'processing' ? <SpinnerIcon /> : failed ? null : <SuccessIcon />}
             <Text centered big medium heading wrap testId='ln-send-headline'>
               {headline}
             </Text>
