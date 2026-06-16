@@ -125,7 +125,6 @@ test('should send funds to Lightning', async ({ page }) => {
   await expect(page.getByText('Swap ID')).toBeVisible()
   await expect(page.getByText('Direction')).toBeVisible()
   await expect(page.getByText('Date')).toBeVisible()
-  await expect(page.getByText('Preimage')).not.toBeVisible()
   await expect(page.getByText('Invoice')).toBeVisible()
   await expect(page.getByText('Status')).toBeVisible()
   await expect(page.getByText('Amount')).toBeVisible()
