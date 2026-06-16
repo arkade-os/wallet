@@ -1,9 +1,7 @@
 import { HDKey } from '@scure/bip32'
 import { mnemonicToSeedSync, validateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
-import { NSEC_STORAGE_KEY } from './privateKey'
-
-export const MNEMONIC_STORAGE_KEY = 'encrypted_mnemonic'
+import { MNEMONIC_STORAGE_KEY, NSEC_STORAGE_KEY } from './storageKeys'
 
 export const hasMnemonic = (): boolean => {
   return localStorage.getItem(MNEMONIC_STORAGE_KEY) !== null

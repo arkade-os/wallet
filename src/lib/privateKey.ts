@@ -1,8 +1,6 @@
 import { getPublicKey, nip19 } from 'nostr-tools'
 import { defaultPassword } from './constants'
-import { MNEMONIC_STORAGE_KEY } from './mnemonic'
-
-export const NSEC_STORAGE_KEY = 'encrypted_private_key'
+import { MNEMONIC_STORAGE_KEY, NSEC_STORAGE_KEY } from './storageKeys'
 
 export const invalidPrivateKey = (key: Uint8Array): string => {
   if (key.length === 0) return ''
