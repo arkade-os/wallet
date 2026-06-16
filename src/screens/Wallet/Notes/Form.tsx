@@ -15,6 +15,7 @@ import { extractError } from '../../../lib/error'
 import FlexCol from '../../../components/FlexCol'
 import { consoleError } from '../../../lib/logs'
 import { SettingsOptions } from '../../../lib/types'
+import { aspErrorText } from '../../../lib/asp'
 import { AspContext } from '../../../providers/asp'
 
 export default function NotesForm() {
@@ -29,8 +30,8 @@ export default function NotesForm() {
   const [scan, setScan] = useState(false)
 
   useEffect(() => {
-    setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
-  }, [aspInfo.unreachable])
+    setError(aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '')
+  }, [aspInfo.unreachable, aspInfo.outdated])
 
   useEffect(() => {
     if (!note) return
