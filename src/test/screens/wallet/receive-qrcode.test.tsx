@@ -21,12 +21,19 @@ import { FiatContext } from '../../../providers/fiat'
 import { SwapsContext } from '../../../providers/swaps'
 import { NotificationsContext } from '../../../providers/notifications'
 import { ToastProvider } from '../../../components/Toast'
-import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
+import { LnurlContext } from '../../../providers/lnurl'
+import ReceiveQRCode, { resolveQrValue } from '../../../screens/Wallet/Receive/QrCode'
 
 // Mock qr module used by QrCode component
 vi.mock('qr', () => ({
   default: () => Array.from({ length: 21 }, () => new Uint8Array(21).fill(1)),
 }))
+
+// Provide a configured LNURL server URL so the amountless-LNURL path activates
+vi.mock('../../../lib/constants', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../lib/constants')>()
+  return { ...actual, lnurlServerUrl: 'https://lnurl.test' }
+})
 
 // Mock clipboard helper so we can assert it was called with the QR value
 const copyToClipboardMock = vi.fn((v) => Promise.resolve(v))
@@ -67,11 +74,14 @@ const mockNotificationsContextValue = {
   requestPermission: () => Promise.resolve(),
 }
 
+type LnurlValue = { lnurl: string; active: boolean; error: string | undefined }
+
 type RenderOverrides = {
   swaps?: Partial<typeof mockSwapsContextValue>
   flow?: Partial<typeof mockFlowContextValue>
   wallet?: Partial<typeof mockWalletContextValue>
   config?: Partial<typeof mockConfigContextValue>
+  lnurl?: Partial<LnurlValue>
 }
 
 function buildTree(overrides?: RenderOverrides) {
@@ -79,6 +89,7 @@ function buildTree(overrides?: RenderOverrides) {
   const flow = { ...mockFlowContextValue, ...overrides?.flow }
   const wallet = { ...mockWalletContextValue, ...overrides?.wallet }
   const config = { ...mockConfigContextValue, ...overrides?.config }
+  const lnurl: LnurlValue = { lnurl: '', active: false, error: undefined, ...overrides?.lnurl }
 
   return (
     <ToastProvider>
@@ -91,7 +102,9 @@ function buildTree(overrides?: RenderOverrides) {
                   <FlowContext.Provider value={flow as any}>
                     <WalletContext.Provider value={wallet as any}>
                       <LimitsContext.Provider value={mockLimitsContextValue}>
-                        <ReceiveQRCode />
+                        <LnurlContext.Provider value={lnurl}>
+                          <ReceiveQRCode />
+                        </LnurlContext.Provider>
                       </LimitsContext.Provider>
                     </WalletContext.Provider>
                   </FlowContext.Provider>
@@ -352,5 +365,61 @@ describe('Receive QR Code screen', () => {
     const copied = copyToClipboardMock.mock.calls[0][0]
     expect(copied).toMatch(/^bitcoin:/)
     expect(copied).toContain('ark1testaddr')
+  })
+
+  // Bug 2: amountless LNURL belongs in the QR; with an amount it must not.
+  it('includes the LNURL in the QR when no amount is set', async () => {
+    renderReceiveQrCode({ ...tapFixture(), lnurl: { lnurl: 'LNURL1TESTXYZ', active: true } })
+
+    const qrButton = await screen.findByRole('button', { name: 'Copy QR code' })
+    await act(async () => {
+      fireEvent.click(qrButton)
+    })
+
+    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toContain('LNURL1TESTXYZ')
+  })
+
+  it('drops the LNURL from the QR once an amount is set', async () => {
+    renderReceiveQrCode({
+      swaps: { connected: false, arkadeSwaps: null },
+      flow: {
+        recvInfo: {
+          ...mockFlowContextValue.recvInfo,
+          satoshis: 50_000,
+          offchainAddr: 'ark1testaddr',
+          boardingAddr: 'bc1testaddr',
+        },
+      },
+      wallet: { svcWallet: mockSvcWallet as any },
+      lnurl: { lnurl: 'LNURL1TESTXYZ', active: true },
+    })
+
+    const qrButton = await screen.findByRole('button', { name: 'Copy QR code' })
+    await act(async () => {
+      fireEvent.click(qrButton)
+    })
+
+    const copied = copyToClipboardMock.mock.calls.at(-1)?.[0]
+    expect(copied).not.toContain('LNURL1TESTXYZ')
+    expect(copied).toContain('amount=')
+  })
+})
+
+describe('resolveQrValue', () => {
+  const opts = { bip21: 'bitcoin:unified', btc: 'bc1addr', ark: 'ark1addr', invoice: 'lnbc1inv', lnurl: 'LNURL1x' }
+
+  it('defaults to the unified BIP21 URI when nothing is selected', () => {
+    expect(resolveQrValue('', opts)).toBe('bitcoin:unified')
+  })
+
+  it('keeps an explicit selection that is still on offer', () => {
+    expect(resolveQrValue('ark1addr', opts)).toBe('ark1addr')
+    expect(resolveQrValue('lnbc1inv', opts)).toBe('lnbc1inv')
+  })
+
+  it('falls back to the unified URI when the selection is no longer offered', () => {
+    // e.g. the previously-selected invoice was regenerated / cleared
+    expect(resolveQrValue('lnbc1stale', opts)).toBe('bitcoin:unified')
+    expect(resolveQrValue('ark1addr', { ...opts, ark: '' })).toBe('bitcoin:unified')
   })
 })

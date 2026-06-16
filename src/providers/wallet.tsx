@@ -204,14 +204,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const devMnemonic = import.meta.env.VITE_DEV_MNEMONIC as string | undefined
   const devNsec = import.meta.env.VITE_DEV_NSEC as string | undefined
-  const devAutoInitCredential = devMnemonic || devNsec
-  const isDevAutoInit =
-    import.meta.env.DEV && Boolean(devAutoInitCredential) && import.meta.env.VITE_DEV_AUTO_INIT !== 'false'
+  const isDevAutoInit = import.meta.env.DEV && (Boolean(devMnemonic) || Boolean(devNsec))
   const [devAutoInitFailed, setDevAutoInitFailed] = useState(false)
 
-  // dev-only: auto-initialize wallet from VITE_DEV_MNEMONIC or VITE_DEV_NSEC, bypassing onboarding and unlock
+  // dev-only: auto-initialize wallet from VITE_DEV_MNEMONIC / VITE_DEV_NSEC, bypassing onboarding and unlock
   useEffect(() => {
-    if (!isDevAutoInit || !devAutoInitCredential || devAutoInitFailed) return
+    if (!isDevAutoInit || devAutoInitFailed) return
     if (initialized) return
     if (!aspInfo.url) return
 
@@ -250,6 +248,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         } catch {
           // ignore session storage errors
         }
+        if (devMnemonic) await initWallet({ mnemonic: devMnemonic })
+        else if (devNsec) await initWallet({ privateKey: nsecToPrivateKey(devNsec) })
         setAuthState('authenticated')
       } catch (err) {
         clearTimeout(watchdog)
@@ -265,7 +265,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       clearTimeout(watchdog)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspInfo.url, initialized, devAutoInitFailed, isDevAutoInit, devAutoInitCredential, devMnemonic, devNsec])
+  }, [aspInfo.url, initialized, devAutoInitFailed, isDevAutoInit, devMnemonic, devNsec])
 
   useEffect(() => {
     // skip auth check when dev auto-init will handle it
