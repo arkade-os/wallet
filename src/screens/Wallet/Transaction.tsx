@@ -35,7 +35,7 @@ export default function Transaction() {
   const issuanceTx = tx ? isIssuance(tx) : false
   const burnTx = tx ? isBurn(tx) : false
   const boardingTx = Boolean(tx?.boardingTxid)
-  const defaultButtonLabel = boardingTx ? 'Complete boarding' : 'Settle transaction'
+  const defaultButtonLabel = 'Settle transaction'
   const boardingExitDelay = Number(aspInfo?.boardingExitDelay || 0)
   const unconfirmedBoardingTx = boardingTx && !tx?.createdAt
   const expiredBoardingTx =
@@ -48,7 +48,6 @@ export default function Transaction() {
   const [hasInputsToSettle, setHasInputsToSettle] = useState(false)
   const [reminderIsOpen, setReminderIsOpen] = useState(false)
   const [settleSuccess, setSettleSuccess] = useState(false)
-  const [resending, setResending] = useState(false)
   const [settling, setSettling] = useState(false)
   const [startTime, setStartTime] = useState(0)
 
@@ -77,15 +76,6 @@ export default function Transaction() {
     })
   }, [aspInfo, vtxos, svcWallet, vtxoManager, wallet.thresholdMs])
 
-  // TODO implement resend
-  //  - create new boarding tx
-  //  - update txInfo with new boarding txid
-  //  - show message that new boarding tx has been created
-  //  - if error, show error message
-  const handleResend = async () => {
-    setResending(true)
-  }
-
   const handleSettle = async () => {
     setError('')
     setSettling(true)
@@ -101,19 +91,21 @@ export default function Transaction() {
 
   if (!tx) return <></>
 
+  const status = expiredBoardingTx
+    ? 'Expired'
+    : unconfirmedBoardingTx
+      ? 'Unconfirmed'
+      : boardingTx && tx.preconfirmed
+        ? 'Pending boarding'
+        : settleSuccess || tx.settled
+          ? 'Settled'
+          : 'Preconfirmed'
+
   const details: DetailsProps = {
     direction: issuanceTx ? 'Issuance' : burnTx ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received',
     when: tx.createdAt ? prettyAgo(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
     date: tx.createdAt ? prettyDate(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
-    status: expiredBoardingTx
-      ? 'Expired'
-      : unconfirmedBoardingTx
-        ? 'Unconfirmed'
-        : boardingTx && tx.preconfirmed
-          ? 'Pending boarding'
-          : settleSuccess || tx.settled
-            ? 'Settled'
-            : 'Preconfirmed',
+    status,
     type: boardingTx ? 'Boarding' : 'Offchain',
     txid: tx.boardingTxid || tx.redeemTxid || tx.roundTxid || '',
     isOffchainTx: !tx.boardingTxid && Boolean(tx.redeemTxid),
@@ -189,22 +181,15 @@ export default function Transaction() {
   // if server defines that UTXO transactions are not allowed,
   // don't allow settlement since it is a UTXO transaction.
   const showSettleButtons =
+    status === 'Preconfirmed' &&
+    hasInputsToSettle &&
     utxoTxsAllowed() &&
     vtxoTxsAllowed() &&
-    !unconfirmedBoardingTx &&
-    !expiredBoardingTx &&
-    hasInputsToSettle &&
     amountAboveDust &&
-    !settleSuccess &&
-    !tx.settled &&
     !settling
 
   const Buttons = () =>
-    expiredBoardingTx ? (
-      <ButtonsOnBottom>
-        <Button onClick={handleResend} label='Resend' disabled={resending || true} />
-      </ButtonsOnBottom>
-    ) : showSettleButtons ? (
+    showSettleButtons ? (
       <>
         <ButtonsOnBottom>
           <Button onClick={handleSettle} label={buttonLabel} disabled={settling} />

@@ -5,11 +5,11 @@ export default function ExternalLinkIcon({ small }: { small?: boolean }) {
       fill='none'
       width={size}
       height={size}
-      stroke-width='2'
+      strokeWidth='2'
       viewBox='0 0 24 24'
       stroke='currentColor'
-      stroke-linecap='round'
-      stroke-linejoin='round'
+      strokeLinecap='round'
+      strokeLinejoin='round'
       xmlns='http://www.w3.org/2000/svg'
     >
       <path d='M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6' />
