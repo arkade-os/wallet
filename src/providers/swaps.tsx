@@ -107,7 +107,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // create ArkadeSwaps with SwapManager on first run with svcWallet
   useEffect(() => {
     if (!aspInfo.network || !svcWallet) return
-
+    console.log('Initializing swaps with ASP network:', aspInfo.network, BASE_URLS)
     const baseUrl = BASE_URLS[aspInfo.network as Network]
     if (!baseUrl) return // No boltz server for this network
 
