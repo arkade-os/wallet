@@ -16,10 +16,11 @@ export default function WarningBox({ green, red, text }: WarningProps) {
 
   const style: React.CSSProperties = {
     color,
-    width: '100%',
+    maxWidth: '400px',
     backgroundColor,
     borderRadius: '0.5rem',
     padding: '0.75rem 1rem',
+    margin: '0 auto',
   }
 
   return (
