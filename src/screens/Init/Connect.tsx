@@ -32,7 +32,7 @@ export default function InitConnect() {
     }
     if (mnemonic) {
       setMnemonic(mnemonic, password)
-        .then(() => initWallet({ mnemonic, walletMode }))
+        .then(() => initWallet({ mnemonic, walletMode, restoring: initInfo.restoring }))
         .then(() => setInitialized(true))
         .catch(abortConnectionWithError)
     } else if (privateKey) {

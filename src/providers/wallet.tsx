@@ -61,6 +61,7 @@ interface InitSvcWorkerWalletParams {
   maxRetries?: number
   delegatorUrl?: string
   walletMode?: ServiceWorkerWalletMode
+  restoring?: boolean
 }
 
 const defaultWallet: Wallet = {
@@ -75,6 +76,7 @@ interface WalletContextProps {
     mnemonic?: string
     privateKey?: Uint8Array
     walletMode?: ServiceWorkerWalletMode
+    restoring?: boolean
   }) => Promise<void>
   lockWallet: () => Promise<void>
   resetWallet: () => Promise<void>
@@ -425,6 +427,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       maxRetries = 2,
       delegatorUrl,
       walletMode,
+      restoring = false,
     } = params
     try {
       setLoadingStatus('Starting wallet...')
@@ -500,6 +503,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           }
         } catch (err) {
           consoleError(err, 'Error migrating wallet repository')
+        }
+      }
+
+      // On restore the local repo is empty, so the wallet only knows its
+      // index-0 baseline contract. For HD wallets that rotated receive
+      // addresses, the funds on rotated indices are invisible until we run a
+      // gap-limit scan to rediscover them. Non-fatal: a transient scan failure
+      // must not block access to the contracts we already have.
+      if (restoring) {
+        setLoadingStatus('Recovering addresses...')
+        try {
+          await svcWallet.restore()
+        } catch (err) {
+          consoleError(err, 'Error scanning for rotated addresses on restore')
         }
       }
 
@@ -621,6 +638,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     mnemonic?: string
     privateKey?: Uint8Array
     walletMode?: ServiceWorkerWalletMode
+    restoring?: boolean
   }) => {
     const arkServerUrl = aspInfo.url
     const network = aspInfo.network as NetworkName
@@ -662,6 +680,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       esploraUrl,
       delegatorUrl,
       walletMode,
+      restoring: credentials.restoring,
     })
     if (!didInit) return
     updateWallet({ ...wallet, network, pubkey })
