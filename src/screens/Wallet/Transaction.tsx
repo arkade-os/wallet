@@ -91,19 +91,21 @@ export default function Transaction() {
 
   if (!tx) return <></>
 
+  const status = expiredBoardingTx
+    ? 'Expired'
+    : unconfirmedBoardingTx
+      ? 'Unconfirmed'
+      : boardingTx && tx.preconfirmed
+        ? 'Pending boarding'
+        : settleSuccess || tx.settled
+          ? 'Settled'
+          : 'Preconfirmed'
+
   const details: DetailsProps = {
     direction: issuanceTx ? 'Issuance' : burnTx ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received',
     when: tx.createdAt ? prettyAgo(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
     date: tx.createdAt ? prettyDate(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
-    status: expiredBoardingTx
-      ? 'Expired'
-      : unconfirmedBoardingTx
-        ? 'Unconfirmed'
-        : boardingTx && tx.preconfirmed
-          ? 'Pending boarding'
-          : settleSuccess || tx.settled
-            ? 'Settled'
-            : 'Preconfirmed',
+    status,
     type: boardingTx ? 'Boarding' : 'Offchain',
     txid: tx.boardingTxid || tx.redeemTxid || tx.roundTxid || '',
     isOffchainTx: !tx.boardingTxid && Boolean(tx.redeemTxid),
@@ -179,14 +181,11 @@ export default function Transaction() {
   // if server defines that UTXO transactions are not allowed,
   // don't allow settlement since it is a UTXO transaction.
   const showSettleButtons =
+    status === 'Preconfirmed' &&
+    hasInputsToSettle &&
     utxoTxsAllowed() &&
     vtxoTxsAllowed() &&
-    !unconfirmedBoardingTx &&
-    !expiredBoardingTx &&
-    hasInputsToSettle &&
     amountAboveDust &&
-    !settleSuccess &&
-    !tx.settled &&
     !settling
 
   const Buttons = () =>
