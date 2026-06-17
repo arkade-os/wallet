@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { setMnemonic, getMnemonic, hasMnemonic, deriveNostrKeyFromMnemonic } from '../../lib/mnemonic'
+import { NSEC_STORAGE_KEY } from '@/lib/storageKeys'
 
 const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
 const testPassword = 'testpassword'
@@ -34,6 +35,13 @@ describe('mnemonic storage', () => {
 
     it('should throw when no mnemonic is stored', async () => {
       await expect(getMnemonic(testPassword)).rejects.toThrow('No encrypted mnemonic found')
+    })
+
+    it('should remove private key when setting a new mnemonic', async () => {
+      localStorage.setItem(NSEC_STORAGE_KEY, 'somekey')
+      expect(localStorage.getItem(NSEC_STORAGE_KEY)).toBe('somekey')
+      await setMnemonic(testMnemonic, testPassword)
+      expect(localStorage.getItem(NSEC_STORAGE_KEY)).toBeNull()
     })
   })
 
