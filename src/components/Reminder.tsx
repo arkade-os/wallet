@@ -48,7 +48,9 @@ export default function Reminder({ callback, duration, name, isOpen, startTime }
       <FlexCol gap='2rem'>
         <FlexCol centered gap='0.5rem'>
           <Text bold>{name}</Text>
-          <Text small>{prettyDate(startTime)}</Text>
+          <Text small color='neutral-500'>
+            {prettyDate(startTime)}
+          </Text>
         </FlexCol>
         <FlexCol>
           <Button outline onClick={handleGoogle}>
