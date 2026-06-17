@@ -6,10 +6,10 @@ export default function CopyIcon({ small }: { small?: boolean }) {
       width={size}
       height={size}
       viewBox='0 0 24 24'
-      stroke-width='2'
+      strokeWidth='2'
       stroke='currentColor'
-      stroke-linecap='round'
-      stroke-linejoin='round'
+      strokeLinecap='round'
+      strokeLinejoin='round'
       xmlns='http://www.w3.org/2000/svg'
     >
       <rect width='14' height='14' x='8' y='8' rx='2' ry='2' />
