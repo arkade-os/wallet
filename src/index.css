@@ -235,25 +235,6 @@ iframe {
   }
 }
 
-button.reminder-button {
-  width: 100%;
-  margin: 1rem;
-  padding: 1rem;
-  border: 1px solid var(--neutral-500);
-  border-radius: 0.25rem;
-  background-color: var(--background-color);
-  color: var(--color);
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  & span {
-    justify-content: center;
-  }
-}
-
 .buttons-on-bottom {
   padding: 1rem;
 }
@@ -1293,11 +1274,6 @@ button.reminder-button {
 
 input:focus::placeholder {
   color: transparent; /* Hide placeholder on focus */
-}
-
-.palette-dark button.reminder-button.action-sheet-button {
-  background-color: var(--neutral-200);
-  color: var(--fg);
 }
 
 .label {
