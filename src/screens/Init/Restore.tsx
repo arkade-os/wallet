@@ -153,8 +153,9 @@ export default function InitRestore() {
                         onChange={(v) => setRotationChoice(v as RotationChoice)}
                       />
                       <TextSecondary wrap>
-                        Inherit uses your backup's setting. Pick HD if this wallet rotated receive addresses — required
-                        to recover them when you have no Nostr backup.
+                        Inherit uses your saved wallet setting (typically restored from backup). If backup restore is
+                        unavailable, it falls back to your local/default setting. Pick HD if this wallet rotated
+                        receive addresses and you need to force HD recovery.
                       </TextSecondary>
                     </FlexCol>
                   ) : null}
