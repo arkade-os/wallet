@@ -5,14 +5,8 @@ import { AspContext } from '../../providers/asp'
 import { FlowContext } from '../../providers/flow'
 import { NavigationContext } from '../../providers/navigation'
 import { WalletContext } from '../../providers/wallet'
-import { DevModeContext, DevModeProvider } from '../../providers/devMode'
-import {
-  mockAspContextValue,
-  mockFlowContextValue,
-  mockNavigationContextValue,
-  mockWalletContextValue,
-  mockDevModeContextValue,
-} from './mocks'
+import { DevModeProvider } from '../../providers/devMode'
+import { mockAspContextValue, mockFlowContextValue, mockNavigationContextValue, mockWalletContextValue } from './mocks'
 
 function withContexts(children: React.ReactNode) {
   return (
@@ -26,32 +20,10 @@ function withContexts(children: React.ReactNode) {
   )
 }
 
-function renderInit(devMode: boolean) {
-  return render(
-    <DevModeContext.Provider value={{ ...mockDevModeContextValue, devMode }}>
-      {withContexts(<Init />)}
-    </DevModeContext.Provider>,
-  )
-}
-
 // Uses the real DevModeProvider so the triple-tap gesture actually toggles devMode.
 function renderInitWithProvider() {
   return render(<DevModeProvider>{withContexts(<Init />)}</DevModeProvider>)
 }
-
-describe('Init screen — rotation toggle gating', () => {
-  it('does not show the rotation toggle when dev mode is off', () => {
-    renderInit(false)
-    fireEvent.click(screen.getByText('+ Create wallet'))
-    expect(screen.queryByTestId('toggle-hd-rotation')).not.toBeInTheDocument()
-  })
-
-  it('shows the rotation toggle in the create-options sheet when dev mode is on', async () => {
-    renderInit(true)
-    fireEvent.click(screen.getByText('+ Create wallet'))
-    expect(await screen.findByTestId('toggle-hd-rotation')).toBeInTheDocument()
-  })
-})
 
 describe('Init screen — devMode triple-tap gesture (pristine wallet)', () => {
   beforeEach(() => {

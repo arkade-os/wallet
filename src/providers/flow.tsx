@@ -8,7 +8,7 @@ export interface InitInfo {
   privateKey?: Uint8Array
   mnemonic?: string
   restoring?: boolean
-  walletMode?: ServiceWorkerWalletMode // create-from-mnemonic only; undefined → resolve from config
+  walletMode?: ServiceWorkerWalletMode
 }
 
 export interface NoteInfo {

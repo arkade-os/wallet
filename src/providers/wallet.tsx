@@ -506,11 +506,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      // On restore the local repo is empty, so the wallet only knows its
-      // index-0 baseline contract. For HD wallets that rotated receive
-      // addresses, the funds on rotated indices are invisible until we run a
-      // gap-limit scan to rediscover them. Non-fatal: a transient scan failure
-      // must not block access to the contracts we already have.
       if (restoring) {
         setLoadingStatus('Recovering addresses...')
         try {
@@ -646,7 +641,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
     let identity: Identity
     let pubkey: string
-    let walletMode: ServiceWorkerWalletMode = 'static'
+    let walletMode: ServiceWorkerWalletMode
 
     const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
 
@@ -666,7 +661,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     } else if (credentials.privateKey) {
       identity = SingleKey.fromPrivateKey(credentials.privateKey)
       pubkey = hex.encode(secp.getPublicKey(credentials.privateKey))
-      // SingleKey is not HD-capable; 'hd' would throw in the SDK → force static
       walletMode = 'static'
       setLnurlInfo(credentials.privateKey)
       updateConfig({ ...config, pubkey, walletMode })

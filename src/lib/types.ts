@@ -28,7 +28,7 @@ export type Config = {
   dismissedBanners: string[]
   theme: Themes
   unit: Unit
-  walletMode: ServiceWorkerWalletMode // 'static' (default) | 'hd'; address rotation, set at creation
+  walletMode: ServiceWorkerWalletMode
 }
 
 export enum CurrencyDisplay {
