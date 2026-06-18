@@ -45,30 +45,35 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
   if (queryString) {
     const params = new URLSearchParams(queryString)
 
-    if (params.has('ark') || params.has('ARK')) {
-      const arkAddress = params.get('ark') ?? params.get('ARK')!
-      if (isArkAddress(arkAddress)) result.arkAddress = arkAddress
+    // BIP21 query keys are case-insensitive — match them regardless of case
+    // (e.g. 'ark', 'ARK', 'Ark'), so QR codes and mixed-case URIs all parse.
+    const getParam = (name: string): string | null => {
+      for (const [key, value] of params) {
+        if (key.toLowerCase() === name) return value
+      }
+      return null
     }
 
-    if (params.has('assetid') || params.has('ASSETID')) {
-      const param = params.get('assetid') ?? params.get('ASSETID')!
-      if (param) result.assetId = param
-    }
+    const arkAddress = getParam('ark')
+    if (arkAddress && isArkAddress(arkAddress)) result.arkAddress = arkAddress
 
-    if (params.has('amount') || params.has('AMOUNT')) {
-      const param = params.get('amount') ?? params.get('AMOUNT')!
+    const assetId = getParam('assetid')
+    if (assetId) result.assetId = assetId
+
+    const amountParam = getParam('amount')
+    if (amountParam != null) {
       if (result.assetId != null) {
-        if (!param.match(/^\d+(\.\d+)?$/)) throw new Error('Invalid asset amount')
-        result.assetAmount = param
+        if (!amountParam.match(/^\d+(\.\d+)?$/)) throw new Error('Invalid asset amount')
+        result.assetAmount = amountParam
       } else {
-        const amount = Number(param)
+        const amount = Number(amountParam)
         if (isNaN(amount) || amount < 0 || !isFinite(amount)) throw new Error('Invalid amount')
         result.satoshis = toSatoshis(Number(amount))
       }
     }
 
-    if (params.has('lightning') || params.has('LIGHTNING')) {
-      const lightning = params.get('lightning') ?? params.get('LIGHTNING')!
+    const lightning = getParam('lightning')
+    if (lightning) {
       if (lightning.toLowerCase().startsWith('lnurl')) {
         result.lnUrl = lightning
       } else if (lightning.toLowerCase().startsWith('ln')) {
@@ -85,7 +90,8 @@ export const encodeBip21 = (address: string, arkAddress: string, invoice: string
     `bitcoin:${address}?` +
     (arkAddress ? `ark=${arkAddress}&` : '') +
     (invoice ? `lightning=${invoice}&` : lnurl ? `lightning=${lnurl}&` : '') +
-    (sats ? `amount=${prettyNumber(fromSatoshis(sats))}` : '')
+    // useGrouping=false: BIP21 amounts must be plain decimals, never '1,000'
+    (sats ? `amount=${prettyNumber(fromSatoshis(sats), 8, false)}` : '')
   return bip21.endsWith('&') || bip21.endsWith('?') ? bip21.slice(0, -1) : bip21
 }
 

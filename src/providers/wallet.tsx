@@ -197,20 +197,21 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   // wallet is read synchronously in useState initializer above
 
+  const devMnemonic = import.meta.env.VITE_DEV_MNEMONIC as string | undefined
   const devNsec = import.meta.env.VITE_DEV_NSEC as string | undefined
-  const isDevAutoInit = import.meta.env.DEV && Boolean(devNsec)
+  const isDevAutoInit = import.meta.env.DEV && (Boolean(devMnemonic) || Boolean(devNsec))
   const [devAutoInitFailed, setDevAutoInitFailed] = useState(false)
 
-  // dev-only: auto-initialize wallet from VITE_DEV_NSEC, bypassing onboarding and unlock
+  // dev-only: auto-initialize wallet from VITE_DEV_MNEMONIC / VITE_DEV_NSEC, bypassing onboarding and unlock
   useEffect(() => {
-    if (!isDevAutoInit || !devNsec || devAutoInitFailed) return
+    if (!isDevAutoInit || devAutoInitFailed) return
     if (initialized) return
     if (!aspInfo.url) return
 
     const autoInit = async () => {
       try {
-        const privateKey = nsecToPrivateKey(devNsec)
-        await initWallet({ privateKey })
+        if (devMnemonic) await initWallet({ mnemonic: devMnemonic })
+        else if (devNsec) await initWallet({ privateKey: nsecToPrivateKey(devNsec) })
         setAuthState('authenticated')
       } catch (err) {
         consoleError(err, 'Dev auto-init failed')

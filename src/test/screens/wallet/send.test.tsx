@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, act, fireEvent, cleanup } from '@testing-library/react'
-import { FlowContext } from '../../../providers/flow'
+import { render, screen, act, fireEvent, cleanup, waitFor } from '@testing-library/react'
+import createFetchMock from 'vitest-fetch-mock'
+import { emptySendInfo, FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import {
   mockAspContextValue,
@@ -102,6 +103,58 @@ describe('Send screen', () => {
     expect(screen.getByText('0 SATS available')).toBeInTheDocument()
     expect(screen.getByText('Recipient address')).toBeInTheDocument()
     expect(screen.getByText('Continue')).toBeInTheDocument()
+  })
+  it('fills the amount field when an LNURL resolves to a fixed amount', async () => {
+    // regression: a fixed-amount LNURL (minSendable === maxSendable) must
+    // populate the read-only amount input instead of leaving it blank
+    const fetchMocker = createFetchMock(vi)
+    fetchMocker.enableMocks()
+    fetchMocker.mockResponseOnce(
+      JSON.stringify({
+        callback: 'https://pay.staging.galoy.io/.well-known/lnurlp/testing',
+        minSendable: 21000, // millisatoshis -> 21 sats
+        maxSendable: 21000,
+        metadata: 'mock-metadata',
+      }),
+    )
+    const lnUrl = 'lnurl1dp68gurn8ghj7urp0yh8xarpva5kueewvaskcmme9e5k7tewwajkcmpdddhx7amw9akxuatjd3cz7ar9wd6xjmn8h9qlv7'
+    const flowValue = { ...mockFlowContextValue, sendInfo: { ...emptySendInfo, lnUrl, recipient: lnUrl } }
+    const walletValue = {
+      ...mockWalletContextValue,
+      balance: 1_000_000,
+      svcWallet: {
+        ...mockSvcWallet,
+        getAddress: () => 'tark1mockoffchain',
+        getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        getBalance: () => Promise.resolve({ available: 1_000_000 }),
+      } as any,
+    }
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <ConfigContext.Provider value={mockConfigContextValue as any}>
+            <FiatContext.Provider value={mockFiatContextValue as any}>
+              <SwapsContext.Provider value={mockSwapsContextValue as any}>
+                <OptionsContext.Provider value={mockOptionsContextValue as any}>
+                  <FlowContext.Provider value={flowValue as any}>
+                    <WalletContext.Provider value={walletValue}>
+                      <LimitsContext.Provider value={mockLimitsContextValue}>
+                        <SendForm />
+                      </LimitsContext.Provider>
+                    </WalletContext.Provider>
+                  </FlowContext.Provider>
+                </OptionsContext.Provider>
+              </SwapsContext.Provider>
+            </FiatContext.Provider>
+          </ConfigContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
+    )
+    // amount input is bound to amountTextValue; before the fix it stayed empty
+    const amountInput = await waitFor(() => screen.getByDisplayValue('21'))
+    expect(amountInput).toHaveAttribute('name', 'send-amount')
+    expect(amountInput).toHaveAttribute('readonly')
+    fetchMocker.disableMocks()
   })
 })
 
