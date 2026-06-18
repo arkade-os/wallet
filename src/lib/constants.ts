@@ -12,16 +12,19 @@ export const minSatsToNudge = 100_000
 export const maxPercentage = import.meta.env.VITE_MAX_PERCENTAGE ?? 10
 export const psaMessage = import.meta.env.VITE_PSA_MESSAGE ?? ''
 export const enableChainSwapsReceive = import.meta.env.VITE_CHAIN_SWAPS_RECEIVE_ENABLED === 'true'
-// Configured via the Docker image's __VITE_LNURL_SERVER_URL__ placeholder,
-// substituted at container startup. When a deployment doesn't set it, the
-// unsubstituted placeholder must be treated as "unset" — otherwise the truthy
-// placeholder string would wrongly enable the LNURL flow with a bogus URL.
-const rawLnurlServerUrl = import.meta.env.VITE_LNURL_SERVER_URL
-export const lnurlServerUrl: string | undefined =
-  rawLnurlServerUrl && !rawLnurlServerUrl.startsWith('__VITE_') ? rawLnurlServerUrl : undefined
+// Vite bakes __VITE_FOO__ placeholders into the bundle at build time; the
+// Docker entrypoint substitutes them with real values at container startup.
+// A deployment that doesn't set a given var leaves the literal placeholder,
+// which must be treated as "unset" rather than used as a real value (e.g. a
+// truthy "__VITE_ARK_SERVER__" string being used as a server URL).
+export const fromRuntimeEnv = (value: string | undefined): string | undefined =>
+  value && !value.startsWith('__VITE_') ? value : undefined
+
+export const lnurlServerUrl: string | undefined = fromRuntimeEnv(import.meta.env.VITE_LNURL_SERVER_URL)
 
 export const defaultArkServer = () => {
-  if (import.meta.env.VITE_ARK_SERVER) return import.meta.env.VITE_ARK_SERVER
+  const arkServer = fromRuntimeEnv(import.meta.env.VITE_ARK_SERVER)
+  if (arkServer) return arkServer
   for (const domain of testDomains) {
     if (window.location.hostname.includes(domain)) {
       return window.location.hostname.includes('localhost') ? devServer : testServer
