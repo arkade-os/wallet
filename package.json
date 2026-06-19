@@ -63,9 +63,9 @@
     "format": "prettier --write src",
     "format:check": "prettier --check src",
     "git-info": "node scripts/git-commit-info.js",
-    "regtest:start": "./regtest/start-env.sh && docker compose -f docker-compose.nak.yml up -d",
-    "regtest:stop": "./regtest/stop-env.sh && docker compose -f docker-compose.nak.yml down",
-    "regtest:clean": "./regtest/clean-env.sh && docker compose -f docker-compose.nak.yml down -v",
+    "regtest:start": "node regtest/regtest.mjs start --env .env.regtest && docker compose -f docker-compose.nak.yml up -d",
+    "regtest:stop": "docker compose -f docker-compose.nak.yml down && node regtest/regtest.mjs stop --env .env.regtest",
+    "regtest:clean": "docker compose -f docker-compose.nak.yml down -v && node regtest/regtest.mjs clean --env .env.regtest",
     "regtest:setup": "node src/test/setup.mjs"
   },
   "eslintConfig": {
