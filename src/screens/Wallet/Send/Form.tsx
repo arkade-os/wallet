@@ -1,5 +1,4 @@
 import { useContext, useEffect, useRef, useState } from 'react'
-import { BrantaServerBaseUrl, PrivacyMode } from '@branta-ops/branta'
 import { BrantaService, type Payment } from '@branta-ops/branta/v2'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
@@ -56,8 +55,8 @@ import { fiatDecimalsFor } from '@/lib/fiat'
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
 const brantaClient = new BrantaService({
-  baseUrl: isProductionEnv ? BrantaServerBaseUrl.Production : BrantaServerBaseUrl.Staging,
-  privacy: PrivacyMode.Strict,
+  baseUrl: isProductionEnv ? 'Production' : 'Staging',
+  privacy: 'strict',
 })
 
 export default function SendForm() {

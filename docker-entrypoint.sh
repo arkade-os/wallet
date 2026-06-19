@@ -3,29 +3,20 @@ set -e
 
 # Runtime env var substitution for Vite build output.
 # At build time, placeholders like __VITE_ARK_SERVER__ are baked into the JS
-# bundle. At container startup, this script replaces them with actual env var
-# values, allowing one image to serve multiple environments.
+# bundle (one ARG per var in the Dockerfile). At container startup each
+# placeholder is replaced with the matching VITE_* env var, so one image can
+# serve multiple environments. Iterating over the environment means a new
+# VITE_* var only needs its ARG in the Dockerfile — no matching line here.
 
 JS_DIR="/usr/share/nginx/html/assets"
 
-substitute() {
-  local placeholder="$1"
-  local value="$2"
-  if [ -n "$value" ]; then
-    escaped_value=$(printf '%s' "$value" | sed 's/[&|\\]/\\&/g')
-    find "$JS_DIR" -name '*.js' -exec sed -i "s|${placeholder}|${escaped_value}|g" {} +
-  fi
-}
-
-substitute "__VITE_ARK_SERVER__"                "$VITE_ARK_SERVER"
-substitute "__VITE_BOLTZ_URL__"                 "$VITE_BOLTZ_URL"
-substitute "__VITE_SENTRY_DSN__"                "$VITE_SENTRY_DSN"
-substitute "__VITE_NOSTR_RELAY_URL__"           "$VITE_NOSTR_RELAY_URL"
-substitute "__VITE_CHATWOOT_WEBSITE_TOKEN__"    "$VITE_CHATWOOT_WEBSITE_TOKEN"
-substitute "__VITE_CHATWOOT_BASE_URL__"         "$VITE_CHATWOOT_BASE_URL"
-substitute "__VITE_LENDASAT_IFRAME_URL__"       "$VITE_LENDASAT_IFRAME_URL"
-substitute "__VITE_SATORA_IFRAME_URL__"         "$VITE_SATORA_IFRAME_URL"
-substitute "__VITE_VERIFIED_ASSETS_URL__"       "$VITE_VERIFIED_ASSETS_URL"
-substitute "__VITE_APP_VERSION__"               "$VITE_APP_VERSION"
+for name in $(printenv | sed -n 's/^\(VITE_[A-Za-z0-9_]*\)=.*/\1/p'); do
+  value=$(printenv "$name")
+  # Skip empties so an unset var leaves its __VITE_*__ placeholder in place;
+  # the app treats a leftover placeholder as "unset" (see fromRuntimeEnv).
+  [ -n "$value" ] || continue
+  escaped_value=$(printf '%s' "$value" | sed 's/[&|\\]/\\&/g')
+  find "$JS_DIR" -name '*.js' -exec sed -i "s|__${name}__|${escaped_value}|g" {} +
+done
 
 exec "$@"
