@@ -2,6 +2,7 @@ import { hex } from '@scure/base'
 import { isValidInvoice } from './bolt11'
 import { ArkAddress, DefaultVtxo } from '@arkade-os/sdk'
 import { AspInfo } from '../providers/asp'
+import { isValidLnUrl } from './lnurl'
 
 export const decodeArkAddress = (addr: string) => {
   const decoded = ArkAddress.decode(addr)
@@ -56,11 +57,12 @@ export const isLightningInvoice = (data: string): boolean => {
 }
 
 export const isURLWithLightningQueryString = (data: string): boolean => {
+  const lowercaseData = data.toLowerCase()
   try {
-    if (!data.startsWith('http://') && !data.startsWith('https://')) return false
-    // Check if the URL has a 'lightning' query parameter
-    const url = new URL(data)
-    return url.searchParams.has('lightning')
+    if (!lowercaseData.match(/^https?:\/\//)) return false
+    const url = new URL(lowercaseData)
+    const val = url.searchParams.get('lightning') ?? ''
+    return isValidInvoice(val) || isValidLnUrl(val)
   } catch {
     return false
   }

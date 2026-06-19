@@ -68,6 +68,16 @@ describe('address utilities', () => {
       const url = 'invalidURL'
       expect(isURLWithLightningQueryString(url)).toBe(false)
     })
+
+    it('should return false for an invalid lightning query string', () => {
+      const url = 'http://example.com?lightning=invalidInvoice'
+      expect(isURLWithLightningQueryString(url)).toBe(false)
+    })
+
+    it('should return false for an empty lightning query string', () => {
+      const url = 'http://example.com?lightning='
+      expect(isURLWithLightningQueryString(url)).toBe(false)
+    })
   })
 
   describe('isEmailAddress', () => {
