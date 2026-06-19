@@ -22,7 +22,7 @@ jobs:
         key: nigiri-${{ hashFiles('regtest/.env.defaults', '.env.regtest') }}
     - uses: actions/setup-node@v4
       with:
-        node-version: lts/*
+        node-version-file: '.nvmrc'
     - name: Install pnpm
       uses: pnpm/action-setup@v4
     - name: Install dependencies

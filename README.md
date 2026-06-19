@@ -82,7 +82,7 @@ docker build \
 
 ### Prerequisites
 
-- Node.js v20.19+ or v22.12+ (Required by Vite 7)
+- Node.js v24.15.0 (see `.nvmrc`)
 - PNPM >=8
 
 ### Installation
