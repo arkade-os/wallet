@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useState } from 'react'
 import type { BoltzSubmarineSwap, SubmarineRecoveryInfo } from '@arkade-os/boltz-swap'
 import Padded from '../../../components/Padded'
 import Header from '../../../components/Header'
@@ -11,6 +11,7 @@ import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import WarningBox from '../../../components/Warning'
 import { SwapsContext } from '../../../providers/swaps'
+import { DevModeContext } from '../../../providers/devMode'
 import { useToast } from '../../../components/Toast'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
@@ -18,10 +19,10 @@ import { prettyAmount } from '../../../lib/format'
 
 export default function AppBoltzSettings() {
   const { arkadeSwaps, connected, getApiUrl, restoreSwaps, toggleConnection } = useContext(SwapsContext)
+  const { devMode } = useContext(DevModeContext)
   const { toast } = useToast()
 
-  // Boltz API URL hidden tap counter (preserved from previous behaviour)
-  const [counter, setCounter] = useState(0)
+  const [restoring, setRestoring] = useState(false)
   const [restoreResults, setRestoreResults] = useState('')
 
   // Recovery state
@@ -31,21 +32,25 @@ export default function AppBoltzSettings() {
   const [recoveringIds, setRecoveringIds] = useState<Set<string>>(new Set())
   const [rowErrors, setRowErrors] = useState<Record<string, RowError>>({})
 
-  useEffect(() => {
-    if (counter !== 5) return
-    restoreSwaps()
-      .then((numSwapsRestored) => {
-        setRestoreResults(
-          numSwapsRestored === 0
-            ? 'Unable to find swaps available to restore'
-            : `Successfully restored ${numSwapsRestored} swaps`,
-        )
-      })
-      .catch((error) => {
-        consoleError(error, 'Error restoring swaps')
-        setRestoreResults(`Error restoring swaps: ${extractError(error)}`)
-      })
-  }, [counter, restoreSwaps])
+  const handleRestoreAll = async () => {
+    if (!arkadeSwaps) {
+      setRestoreResults('Boltz integration is not ready yet. Try again in a moment.')
+      return
+    }
+    setRestoring(true)
+    setRestoreResults('')
+    try {
+      const n = await restoreSwaps()
+      setRestoreResults(
+        n === 0 ? 'Unable to find swaps available to restore' : `Successfully restored ${n} swap${n === 1 ? '' : 's'}`,
+      )
+    } catch (error) {
+      consoleError(error, 'Error restoring swaps')
+      setRestoreResults(`Error restoring swaps: ${extractError(error)}`)
+    } finally {
+      setRestoring(false)
+    }
+  }
 
   const recoverable = scanned?.filter((s) => s.status === 'recoverable') ?? []
   const preCltv = scanned?.filter((s) => s.status === 'pre_cltv') ?? []
@@ -134,17 +139,31 @@ export default function AppBoltzSettings() {
               subtext='Turn Boltz integration on or off'
             />
             <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
-              <div onClick={() => setCounter((c) => (c += 1))}>
-                <Text thin>Boltz API URL</Text>
-              </div>
+              <Text thin>Boltz API URL</Text>
               <Text color='neutral-500' small thin>
                 {getApiUrl() ?? 'No server available'}
               </Text>
             </FlexCol>
-            {restoreResults ? (
-              <Text small thin>
-                {restoreResults}
-              </Text>
+            {devMode ? (
+              <FlexCol gap='1rem'>
+                <Text thin>Restore all swaps from Boltz</Text>
+                <Text color='neutral-500' small thin wrap>
+                  Ask Boltz for every swap on record for this wallet and merge any that are missing into your local
+                  history. Existing swaps are never overwritten, so stored preimages and refund secrets are kept. Useful
+                  after restoring this wallet on a new device.
+                </Text>
+                {restoreResults ? (
+                  <Text small thin>
+                    {restoreResults}
+                  </Text>
+                ) : null}
+                <Button
+                  onClick={handleRestoreAll}
+                  loading={restoring}
+                  disabled={!arkadeSwaps || restoring}
+                  label='Restore all swaps from Boltz'
+                />
+              </FlexCol>
             ) : null}
 
             <RecoverSection
