@@ -1,3 +1,4 @@
+import type { ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import { invalidPrivateKey, nsecToPrivateKey } from '../../lib/privateKey'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
@@ -28,6 +29,15 @@ import { deriveNostrKeyFromMnemonic } from '../../lib/mnemonic'
 import { AspContext } from '../../providers/asp'
 
 type RotationChoice = 'Inherit' | 'Static' | 'HD'
+
+// Maps the user's rotation choice to the wallet mode passed into initWallet.
+// `undefined` (Inherit) makes resolveWalletMode fall back to config.walletMode,
+// which the Nostr backup restored just before navigation (see handleProceed).
+const ROTATION_TO_MODE: Record<RotationChoice, ServiceWorkerWalletMode | undefined> = {
+  Inherit: undefined,
+  Static: 'static',
+  HD: 'hd',
+}
 
 export default function InitRestore() {
   const { updateConfig } = useContext(ConfigContext)
@@ -95,8 +105,12 @@ export default function InitRestore() {
     setRestoring(true)
     let seckey: Uint8Array
     if (mnemonic) {
-      const walletMode = rotationChoice === 'Inherit' ? undefined : rotationChoice === 'HD' ? 'hd' : 'static'
-      setInitInfo({ mnemonic, password: defaultPassword, restoring: true, walletMode })
+      setInitInfo({
+        mnemonic,
+        password: defaultPassword,
+        restoring: true,
+        walletMode: ROTATION_TO_MODE[rotationChoice],
+      })
       const isNet =
         aspInfo.network !== 'testnet' &&
         aspInfo.network !== 'mutinynet' &&
@@ -154,8 +168,8 @@ export default function InitRestore() {
                       />
                       <TextSecondary wrap>
                         Inherit uses your saved wallet setting (typically restored from backup). If backup restore is
-                        unavailable, it falls back to your local/default setting. Pick HD if this wallet rotated
-                        receive addresses and you need to force HD recovery.
+                        unavailable, it falls back to your local/default setting. Pick HD if this wallet rotated receive
+                        addresses and you need to force HD recovery.
                       </TextSecondary>
                     </FlexCol>
                   ) : null}
