@@ -235,12 +235,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
             .then((reg) => reg?.unregister())
             .finally(() => window.location.reload())
         }, DEV_AUTO_INIT_TIMEOUT_MS)
-        if (devMnemonic) {
-          await initWallet({ mnemonic: devMnemonic })
-        } else if (devNsec) {
-          const privateKey = nsecToPrivateKey(devNsec)
-          await initWallet({ privateKey })
-        }
         if (cancelled) return
         clearTimeout(watchdog)
         try {
