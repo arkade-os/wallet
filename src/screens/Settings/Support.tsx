@@ -13,6 +13,7 @@ import { getReceivingAddresses } from '../../lib/asp'
 import { Addresses } from '../../lib/types'
 import { getWebExplorerURL } from '../../lib/explorers'
 import { buildVersion, sdkVersion, NetworkName } from '@arkade-os/sdk'
+import { sdkVersion as boltzSwapVersion } from '@arkade-os/boltz-swap'
 import ChatwootWidget from '../../components/ChatWoot'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import ErrorMessage from '../../components/Error'
@@ -99,6 +100,7 @@ export default function Support() {
       explorer_url: wallet.network ? getWebExplorerURL(wallet.network as NetworkName) : 'not available',
       build_version: buildVersion,
       sdk_version: sdkVersion,
+      boltz_swap_version: boltzSwapVersion,
       git_commit: gitCommit,
     })
   }, [addresses, wallet.pubkey, supportChatLoaded])
