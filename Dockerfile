@@ -1,4 +1,4 @@
-FROM node:22-alpine AS builder
+FROM node:24.15.0-alpine AS builder
 
 ARG GIT_COMMIT=unknown
 ARG VITE_ARK_SERVER=__VITE_ARK_SERVER__
