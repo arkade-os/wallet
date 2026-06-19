@@ -1,223 +1,125 @@
 # Swaps
 
-The purpose of this guide is to make you able to test Ark/LN submarine and reverse submarine swaps and walks you through setting a full stack on regtest that includes:
+This guide walks you through testing Ark/Lightning **submarine** and **reverse
+submarine** swaps against a full local regtest stack.
 
-- Ark stack
-  - Bitcoind
-  - Arkd
-- Boltz stack
-  - Bitcoind
-  - LND
-  - Fulmine
-  - Boltz backend
-- User stack
-  - Bitcoind
-  - LND
-  - Arkade
+The stack is orchestrated end-to-end by the in-house `arkade-regtest` Node CLI
+(`regtest/regtest.mjs`, vendored as the `regtest` git submodule) — there is no
+Nigiri and no manual service wiring. A single `pnpm run regtest:start` brings up
+**and provisions** everything:
 
-NOTE: _For sake of simplicity, all stacks use the same Bitcoind instance._
+- **Ark** — Bitcoin Core + `arkd`/`arkd-wallet` (the server wallet is created,
+  unlocked and funded automatically).
+- **Boltz** — the Boltz backend, its Lightning node (`boltz-lnd`) and Fulmine
+  (`boltz-fulmine`). The `boltz-lnd ⇄ lnd` channel is opened and balanced, Boltz's
+  Bitcoin Core wallet is funded, and the ARK/BTC pairs are verified.
+- **Counterparty Lightning** — a second LND node (`lnd`) that you drive with
+  `lncli` to play the remote side of each swap.
+- **Arkade wallet** — the app under test (run with `pnpm start`).
+
+> Everything the earlier (Nigiri-based) edition of this guide did by hand —
+> `nigiri start --ln`, manual `arkd wallet` create/unlock, opening LND channels,
+> wiring Fulmine — is now automatic. Funding is done with the CLI faucet:
+> `node regtest/regtest.mjs faucet <address> <btc> --confirm`.
 
 ## Requirements
 
 - [Docker](https://docs.docker.com/engine/install/)
 - [Node.js](https://nodejs.org/) v20.19+ or v22.12+ (drives the `arkade-regtest` stack via `regtest/regtest.mjs`)
-- [jq](https://formulae.brew.sh/formula/jq)
+- [jq](https://formulae.brew.sh/formula/jq) (optional — used below to pull fields out of `lncli` JSON)
 
-> **Note:** This guide predates the migration of `arkade-regtest` off Nigiri and still
-> describes a manual Nigiri/`test.docker-compose.yml` based flow that no longer matches the
-> in-house Node CLI stack. The `nigiri faucet` calls below have been updated to the new CLI,
-> but the `nigiri start --ln`, `nigiri lnd …` and `nigiri rpc …` LN helper steps do not have
-> direct 1:1 equivalents in the Node CLI and need a manual rewrite — see the PR open questions.
+## 1. Start the regtest stack
 
-## Setup regtest environment
-
-Start regtest environment with Bitcoin and LND:
+From the repo root:
 
 ```sh
-nigiri start --ln
+pnpm run regtest:start
 ```
 
-Fund LND wallet:
+This runs `node regtest/regtest.mjs start --env .env.regtest` (the full stack,
+including the `boltz` profile) and the local nostr relay. The first run pulls
+images and can take a few minutes; it's ready when the CLI prints the service
+URLs (arkd on `http://localhost:7070`, Fulmine on `http://localhost:7003`, the
+Boltz CORS proxy on `http://localhost:9069`, …).
+
+A handy alias for the counterparty Lightning node:
 
 ```sh
-# Faucet 1 BTC
-nigiri faucet lnd
+alias lncli="docker exec -i lnd lncli --network=regtest"
 ```
 
-Start LND used by boltz:
+## 2. Start the wallet
 
 ```sh
-docker compose -f test.docker-compose.yml up -d boltz-lnd
-# Create an alias for lncli
-alias lncli="docker exec -i boltz-lnd lncli --network=regtest"
+pnpm start
 ```
 
-Fund LND wallet:
+Open <http://localhost:3002> and create/unlock a wallet. On `localhost` the app
+automatically targets the local `arkd` (`http://localhost:7070`) and its regtest
+network — no `VITE_ARK_SERVER` needed. The regtest Boltz endpoint
+(`http://localhost:9069`) is likewise built in.
+
+> To exercise the LNURL / nostr-backup features as well, start with:
+> `VITE_LNURL_SERVER_URL=http://localhost:9090 VITE_NOSTR_RELAY_URL=ws://localhost:10547 pnpm start`
+
+## 3. Fund the wallet
+
+On the wallet's **Receive** screen, copy the on-chain (boarding) address — the
+`bcrt1…` one — and faucet it:
 
 ```sh
-lncli newaddress p2wkh
-# Faucet 1 BTC
-node regtest/regtest.mjs faucet <address> 1 --confirm
-```
-
-Connect the LND instances:
-
-```sh
-lncli connect `nigiri lnd getinfo | jq -r .identity_pubkey`@lnd:9735
-# Check the list of peers contains exactly one peer on both sides
-lncli listpeers | jq .peers | jq length
-nigiri lnd listpeers | jq .peers | jq length
-```
-
-Open and fund channel between the LND instances:
-
-```sh
-# 100k sats channel Boltz <> User
-lncli openchannel --node_key=`nigiri lnd getinfo | jq -r .identity_pubkey` --local_amt=100000
-# Make the channel mature by mining 10 blocks
-nigiri rpc --generate 10
-# Send 50k sats to the other side to balance the channel
-nigiri lnd addinvoice --amt 50000
-# Type 'yes' if asked
-lncli payinvoice --force <invoice aka payment_request>
-```
-
-Start and provision Arkd:
-
-```sh
-docker compose -f test.docker-compose.yml up -d arkd
-# Create an alias for arkd
-alias arkd="docker exec arkd arkd"
-# Initialize the wallet
-arkd wallet create --password password
-# Unlock the service
-arkd wallet unlock --password password
-# Get an address to deposit funds.
-# If it returns error, just wait a few seconds and retry.
-arkd wallet address
-# Faucet 1 BTC (better if you repeat a few times)
-node regtest/regtest.mjs faucet <address> 1 --confirm
-```
-
-NOTE: _The Docker services in `test.docker-compose.yml` use temporary volumes; restarting them wipes all state._ **AVOID RESTARTING.**
-
-## Setup Fulmine used by Boltz
-
-Start Fulmine used by Boltz:
-
-```sh
-docker compose -f test.docker-compose.yml up -d boltz-fulmine
-```
-
-Open [http://localhost:7003](http://localhost:7003) in your browser and initialise/unlock Fulmine — the Arkd URL field is pre-filled.
-
-Go to the receive page, copy the bitcoin address (the second one) and send it some funds:
-
-```sh
-# Faucet 100k sats
+# 0.001 BTC; --confirm mines a block so the deposit confirms
 node regtest/regtest.mjs faucet <address> 0.001 --confirm
 ```
 
-On your browser, go back to homepage of Fulmine, click on the pending tx and settle - click on the action menu, three dots on the top-right.
+Back on the wallet home, open the pending transaction and **settle** it. You're
+now ready to test swaps.
 
-Lastly, connect Fulmine with Boltz's LND instance. For this, you need an lndconnect URL that you can generate with:
+## Test Submarine Swap (Ark → Lightning)
+
+Create a 5,000-sat invoice on the counterparty node and pay it from the wallet:
 
 ```sh
-docker exec boltz-lnd bash -c \
-  'echo -n "lndconnect://boltz-lnd:10009?cert=$(grep -v CERTIFICATE /root/.lnd/tls.cert \
-     | tr -d = | tr "/+" "_-")&macaroon=$(base64 /root/.lnd/data/chain/bitcoin/regtest/admin.macaroon \
-     | tr -d = | tr "/+" "_-")"' | tr -d '\n'
+lncli addinvoice --amt 5000 | jq -r .payment_request
 ```
 
-Copy the generated URL to the clipboard. On Fulmine's tab of your browser, go to Settings > Lightning, paste the URL and click the Connect button.
+Copy the `payment_request` and pay it in Arkade. After payment your transaction
+history shows the outgoing swap (amount + Boltz fee), and Fulmine's history
+(<http://localhost:7003>) shows the matching incoming movement.
 
-## Start Boltz backend
+> The exact sat split (amount vs. fee) depends on the Boltz release and on-chain
+> fee rate, so don't expect fixed numbers — just that `amount + fees` reconciles.
 
-Start Boltz backend with:
+## Test Reverse Swap (Lightning → Ark)
+
+In Arkade go to **Receive**, enter an amount (e.g. 4,000 sats) and continue to get
+a Lightning invoice. Pay it from the counterparty node:
 
 ```sh
-docker compose -f test.docker-compose.yml up -d boltz-postgres boltz
+lncli payinvoice --force <invoice>
 ```
 
-## Start CORS proxy
+The wallet should show the received funds a moment later.
 
-Start CORS proxy with:
-
-```sh
-docker compose -f test.docker-compose.yml up -d cors
-```
-
-## Setup Arkade used by end user
-
-Start Arkade:
+## Teardown
 
 ```sh
-VITE_ARK_SERVER=http://localhost:7070 pnpm start
-```
-
-Open [http://localhost:3002](http://localhost:3002) in a new browser tab and initialise/unlock the service.
-
-Go then to the receive page, click Skip, copy the boarding address - the second one - and send it some funds:
-
-```sh
-nigiri faucet <address> 0.001
-```
-
-On your browser, go back to homepage of Arkade, click on the pending tx and settle.
-
-You're good to go to test submarine and reverse submarine swaps on Ark!
-
-## Test Submarine Swap (Ark => Lightning)
-
-Generate a 5000 sats Lightning invoice:
-
-```sh
-nigiri lnd addinvoice --amt 5000
-```
-
-Copy the invoice (aka payment_request) and try to pay it on Arkade
-
-After payment, your [transaction history](http://localhost:3002/) should have a new movement of -5001 sats
-
-Boltz Fulmine's [transaction history](http://localhost:7003/) should have a new movement of +5001 sats
-
-Your LND channel balance should be 55000 sats
-
-```sh
-nigiri lnd channelbalance | jq .balance
-```
-
-## Test Reverse Swap (Lightning => Ark)
-
-In Arkade go to Receive, define an amount of 4000 sats and click Continue
-
-Copy the Lightning invoice, the fourth one.
-
-Pay the invoice with LND:
-
-```sh
-nigiri lnd payinvoice <invoice>
-```
-
-Check if you receive the payment on Arkade
-
-After payment, your [transaction history](http://localhost:3002/) should have a new movement of +3984 sats
-
-Boltz Fulmine's [transaction history](http://localhost:7003/) should have a new movement of -3984 sats
-
-Your LND channel balance should be 51000 sats
-
-```sh
-nigiri lnd channelbalance | jq .balance
+pnpm run regtest:stop     # stop the stack
+pnpm run regtest:clean    # stop and wipe all volumes/state
 ```
 
 ## Troubleshooting
 
-- If you're on Mac M-family, you have to build the boltz-backend docker image locally:
+- On Apple Silicon (M-family) you may need to build the boltz-backend image
+  locally and point the stack at it:
 
-```sh
-# Clone boltz-backend locally
-git clone git@github.com:BoltzExchange/boltz-backend.git && cd boltz-backend
-# Build the image, the VERSION=ark makes sure that the ark branch of the repo is built.
-docker build --build-arg NODE_VERSION=lts-bookworm-slim --build-arg VERSION=ark -t boltz/boltz:ark -f docker/boltz/Dockerfile .
-```
+  ```sh
+  # Clone boltz-backend locally
+  git clone git@github.com:BoltzExchange/boltz-backend.git && cd boltz-backend
+  # Build the image; VERSION=ark builds the ark branch.
+  docker build --build-arg NODE_VERSION=lts-bookworm-slim --build-arg VERSION=ark \
+    -t boltz/boltz:ark -f docker/boltz/Dockerfile .
+  ```
+
+  Then set `BOLTZ_IMAGE=boltz/boltz:ark` in `.env.regtest` and re-run
+  `pnpm run regtest:start`.
