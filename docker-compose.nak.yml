@@ -1,4 +1,4 @@
-name: nigiri
+name: wallet-nak
 services:
   nak:
     build:
@@ -11,5 +11,7 @@ services:
 
 networks:
   default:
-    name: nigiri
+    # Join the arkade-regtest base stack network (started before this in CI) so
+    # the relay sits alongside the regtest services, as it did on nigiri's network.
+    name: arkade-regtest_default
     external: true

@@ -20,8 +20,14 @@ NOTE: _For sake of simplicity, all stacks use the same Bitcoind instance._
 ## Requirements
 
 - [Docker](https://docs.docker.com/engine/install/)
-- [Nigiri](https://nigiri.vulpem.com/)
+- [Node.js](https://nodejs.org/) >= 18 (drives the `arkade-regtest` stack via `regtest/regtest.mjs`)
 - [jq](https://formulae.brew.sh/formula/jq)
+
+> **Note:** This guide predates the migration of `arkade-regtest` off Nigiri and still
+> describes a manual Nigiri/`test.docker-compose.yml` based flow that no longer matches the
+> in-house Node CLI stack. The `nigiri faucet` calls below have been updated to the new CLI,
+> but the `nigiri start --ln`, `nigiri lnd …` and `nigiri rpc …` LN helper steps do not have
+> direct 1:1 equivalents in the Node CLI and need a manual rewrite — see the PR open questions.
 
 ## Setup regtest environment
 
@@ -51,7 +57,7 @@ Fund LND wallet:
 ```sh
 lncli newaddress p2wkh
 # Faucet 1 BTC
-nigiri faucet <address>
+node regtest/regtest.mjs faucet <address> 1 --confirm
 ```
 
 Connect the LND instances:
@@ -90,7 +96,7 @@ arkd wallet unlock --password password
 # If it returns error, just wait a few seconds and retry.
 arkd wallet address
 # Faucet 1 BTC (better if you repeat a few times)
-nigiri faucet <address>
+node regtest/regtest.mjs faucet <address> 1 --confirm
 ```
 
 NOTE: _The Docker services in `test.docker-compose.yml` use temporary volumes; restarting them wipes all state._ **AVOID RESTARTING.**
@@ -109,7 +115,7 @@ Go to the receive page, copy the bitcoin address (the second one) and send it so
 
 ```sh
 # Faucet 100k sats
-nigiri faucet <address> 0.001
+node regtest/regtest.mjs faucet <address> 0.001 --confirm
 ```
 
 On your browser, go back to homepage of Fulmine, click on the pending tx and settle - click on the action menu, three dots on the top-right.

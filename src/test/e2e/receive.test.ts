@@ -23,8 +23,8 @@ test('should receive onchain funds', async ({ page }) => {
   expect(boardingAddress).toBeDefined()
   expect(boardingAddress).toBeTruthy()
 
-  // faucet
-  exec(`nigiri faucet ${boardingAddress} 0.0001`)
+  // faucet (--confirm mines a block so the deposit confirms, matching old nigiri auto-mine)
+  exec(`node regtest/regtest.mjs faucet ${boardingAddress} 0.0001 --confirm`)
 
   // wait for payment received
   await waitForPaymentReceived(page)
