@@ -59,6 +59,13 @@ describe('address utilities', () => {
       expect(isURLWithLightningQueryString(url)).toBe(true)
     })
 
+    it('should return true for a valid URL with lightning query string', () => {
+      for (const entry of fixtures.lib.lnurl) {
+        const url = `http://example.com?lightning=${entry.lnUrlOrAddress}`
+        expect(isURLWithLightningQueryString(url)).toBe(true)
+      }
+    })
+
     it('should return false for a URL without lightning query string', () => {
       const url = 'http://example.com'
       expect(isURLWithLightningQueryString(url)).toBe(false)

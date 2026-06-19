@@ -57,10 +57,9 @@ export const isLightningInvoice = (data: string): boolean => {
 }
 
 export const isURLWithLightningQueryString = (data: string): boolean => {
-  const lowercaseData = data.toLowerCase()
   try {
-    if (!lowercaseData.match(/^https?:\/\//)) return false
-    const url = new URL(lowercaseData)
+    if (!data.match(/^https?:\/\//i)) return false
+    const url = new URL(data)
     const val = url.searchParams.get('lightning') ?? ''
     return isValidInvoice(val) || isValidLnUrl(val)
   } catch {

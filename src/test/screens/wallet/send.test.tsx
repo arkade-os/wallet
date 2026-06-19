@@ -32,12 +32,6 @@ vi.mock('../../../lib/lnurl', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../lib/lnurl')>()
   return {
     ...actual,
-    checkLnUrlConditions: vi.fn().mockResolvedValue({
-      callback: 'https://example.com/callback',
-      minSendable: 1000,
-      maxSendable: 100000000000,
-      metadata: '[]',
-    }),
     isValidLnUrl: vi.fn().mockImplementation(actual.isValidLnUrl),
   }
 })
