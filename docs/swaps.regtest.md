@@ -20,7 +20,7 @@ NOTE: _For sake of simplicity, all stacks use the same Bitcoind instance._
 ## Requirements
 
 - [Docker](https://docs.docker.com/engine/install/)
-- [Node.js](https://nodejs.org/) >= 18 (drives the `arkade-regtest` stack via `regtest/regtest.mjs`)
+- [Node.js](https://nodejs.org/) v20.19+ or v22.12+ (drives the `arkade-regtest` stack via `regtest/regtest.mjs`)
 - [jq](https://formulae.brew.sh/formula/jq)
 
 > **Note:** This guide predates the migration of `arkade-regtest` off Nigiri and still

@@ -114,7 +114,7 @@ Your app is ready to be deployed!
 ### `pnpm run regtest:start`
 
 Starts the regtest environment and sets up the arkd instance.\
-Requires Docker and Node.js >= 18. The stack is driven by the in-house
+Requires Docker and Node.js v20.19+ or v22.12+. The stack is driven by the in-house
 `arkade-regtest` Node CLI (`regtest/regtest.mjs`) — no Nigiri required.
 
 Use `pnpm run regtest:stop` to stop it and `pnpm run regtest:clean` to tear it down.
