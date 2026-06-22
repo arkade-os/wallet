@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { BrantaService, type Payment } from '@branta-ops/branta/v2'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
@@ -94,6 +94,7 @@ export default function SendForm() {
   const [nudgeBoltz, setNudgeBoltz] = useState(false)
   const [proceed, setProceed] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [readyToParse, setReadyToParse] = useState(false)
   const [recipient, setRecipient] = useState('')
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
   const [scan, setScan] = useState(false)
@@ -106,10 +107,13 @@ export default function SendForm() {
   const [showReserveModal, setShowReserveModal] = useState(false)
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
 
+  const timeoutRef = useRef<NodeJS.Timeout>()
+
   const prefersReducedMotion = useReducedMotion()
   const isAssetSend = selectedAsset !== null
 
   const DUST_AMOUNT = 330
+  const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
   const reserveApplied = !isAssetSend && hasAssets
   const liquidBalance = availableBalance - (reserveApplied ? DUST_AMOUNT : 0)
@@ -197,6 +201,7 @@ export default function SendForm() {
   // repeat when asset changes to re-validate addresses (e.g. if user
   // selects an asset and the address is not compatible with it)
   useEffect(() => {
+    if (!readyToParse) return
     smartSetError('')
     const parseRecipient = async () => {
       setNudgeBoltz(false)
@@ -244,7 +249,15 @@ export default function SendForm() {
             assets: [{ assetId, amount: rawAmount }],
           })
         }
-        return setState({ address, arkAddress, invoice, lnUrl, recipient, satoshis, assets: sendInfo.assets })
+        return setState({
+          address,
+          arkAddress,
+          assets: sendInfo.assets,
+          invoice,
+          lnUrl,
+          recipient,
+          satoshis: satoshis ?? sendInfo.satoshis,
+        })
       }
       if (isArkAddress(lowerCaseData)) {
         return setState({ ...base, arkAddress: lowerCaseData })
@@ -282,9 +295,10 @@ export default function SendForm() {
         return setState({ ...base, lnUrl: lowerCaseData })
       }
       setError('Invalid recipient address')
+      setReadyToParse(false)
     }
     parseRecipient()
-  }, [recipient, isAssetSend])
+  }, [recipient, isAssetSend, readyToParse])
 
   // fetch branta payment info for the current recipient (SDK strict mode gates non-ZK)
   useEffect(() => {
@@ -376,6 +390,11 @@ export default function SendForm() {
         return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
       })
       .catch((e) => {
+        if (e.status === 404) {
+          consoleError(e, 'LNURL not found')
+          setError('LNURL not found')
+          return
+        }
         consoleError(e, 'Error checking LNURL conditions')
         setError(extractError(e))
       })
@@ -583,8 +602,10 @@ export default function SendForm() {
   }
 
   const handleRecipientChange = (recipient: string) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current)
     setRawScanData('')
     resetDerivedState(recipient)
+    timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
   }
 
   const handleContinue = async () => {
