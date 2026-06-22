@@ -11,9 +11,12 @@ import {
   navigateHome,
   navigateToBoltz,
 } from './utils'
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
 import { faucetOffchain } from './fundedWallet'
 import { sleep } from '../../lib/sleep'
+
+const execFileAsync = promisify(execFile)
 
 test('should receive onchain funds', async ({ page }) => {
   test.setTimeout(60000)
@@ -25,8 +28,10 @@ test('should receive onchain funds', async ({ page }) => {
   expect(boardingAddress).toBeDefined()
   expect(boardingAddress).toBeTruthy()
 
-  // faucet
-  exec(`nigiri faucet ${boardingAddress} 0.0001`)
+  // faucet (--confirm mines a block so the deposit confirms, matching old nigiri auto-mine).
+  // Await it (and pass args, not a shell string) so the deposit is sent+confirmed
+  // before we wait — a fire-and-forget exec races waitForPaymentReceived.
+  await execFileAsync('node', ['regtest/regtest.mjs', 'faucet', boardingAddress, '0.0001', '--confirm'])
 
   // wait for payment received
   await waitForPaymentReceived(page)
