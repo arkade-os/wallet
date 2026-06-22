@@ -137,6 +137,13 @@ export default function SendForm() {
     }
   }
 
+  // cleanup debounce timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    }
+  }, [])
+
   // get receiving addresses
   useEffect(() => {
     if (!svcWallet) return
@@ -784,6 +791,7 @@ export default function SendForm() {
       onData={(data) => {
         setRawScanData(data)
         resetDerivedState(data)
+        setReadyToParse(true)
       }}
       onError={smartSetError}
     />
