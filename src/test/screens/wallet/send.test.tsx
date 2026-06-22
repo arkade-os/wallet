@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import createFetchMock from 'vitest-fetch-mock'
 import { emptySendInfo, FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
@@ -131,5 +131,69 @@ describe('Send screen', () => {
     expect(amountInput).toHaveAttribute('name', 'send-amount')
     expect(amountInput).toHaveAttribute('readonly')
     fetchMocker.disableMocks()
+  })
+
+  it('keeps previously entered satoshis when parsing a BIP-21 URI without amount', async () => {
+    vi.useFakeTimers()
+    try {
+      const setSendInfo = vi.fn()
+      const initialSatoshis = 1234
+      const onchainAddress = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
+      const bip21WithoutAmount = `bitcoin:${onchainAddress}`
+      const flowValue = {
+        ...mockFlowContextValue,
+        sendInfo: { ...emptySendInfo, satoshis: initialSatoshis },
+        setSendInfo,
+      }
+      const walletValue = {
+        ...mockWalletContextValue,
+        svcWallet: {
+          ...mockSvcWallet,
+          getAddress: () => 'tark1mockoffchain',
+          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+          getBalance: () => Promise.resolve({ available: 1_000_000 }),
+        } as any,
+      }
+
+      render(
+        <NavigationContext.Provider value={mockNavigationContextValue}>
+          <AspContext.Provider value={mockAspContextValue}>
+            <ConfigContext.Provider value={mockConfigContextValue as any}>
+              <FiatContext.Provider value={mockFiatContextValue as any}>
+                <SwapsContext.Provider value={mockSwapsContextValue as any}>
+                  <OptionsContext.Provider value={mockOptionsContextValue as any}>
+                    <FlowContext.Provider value={flowValue as any}>
+                      <WalletContext.Provider value={walletValue}>
+                        <LimitsContext.Provider value={mockLimitsContextValue}>
+                          <SendForm />
+                        </LimitsContext.Provider>
+                      </WalletContext.Provider>
+                    </FlowContext.Provider>
+                  </OptionsContext.Provider>
+                </SwapsContext.Provider>
+              </FiatContext.Provider>
+            </ConfigContext.Provider>
+          </AspContext.Provider>
+        </NavigationContext.Provider>,
+      )
+
+      const recipientInput = document.querySelector('input[name="send-address"]') as HTMLInputElement
+      fireEvent.change(recipientInput, { target: { value: bip21WithoutAmount } })
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000)
+      })
+
+      expect(
+        setSendInfo.mock.calls.some(
+          ([payload]) =>
+            payload?.address === onchainAddress &&
+            payload?.recipient === bip21WithoutAmount &&
+            payload?.satoshis === initialSatoshis,
+        ),
+      ).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
