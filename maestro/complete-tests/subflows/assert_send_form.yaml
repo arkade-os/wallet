@@ -1,0 +1,3 @@
+appId: com.android.chrome
+---
+- runFlow: wait_2s.yaml
