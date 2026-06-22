@@ -1,3 +1,4 @@
+import { sleep } from '../../lib/sleep'
 import { prettyLongText } from '../../lib/format'
 import {
   test,
@@ -124,7 +125,6 @@ test('should send funds to Lightning', async ({ page }) => {
   await expect(page.getByText('Swap ID')).toBeVisible()
   await expect(page.getByText('Direction')).toBeVisible()
   await expect(page.getByText('Date')).toBeVisible()
-  await expect(page.getByText('Preimage')).toBeVisible()
   await expect(page.getByText('Invoice')).toBeVisible()
   await expect(page.getByText('Status')).toBeVisible()
   await expect(page.getByText('Amount')).toBeVisible()
@@ -137,6 +137,12 @@ test('should send funds to Lightning', async ({ page }) => {
   expect(await page.getByTestId('Amount').textContent()).toBe('1,000 SATS')
   expect(await page.getByTestId('Fees').textContent()).toBe('1 SAT')
   expect(await page.getByTestId('Total').textContent()).toBe('1,001 SATS')
+
+  // go back, await for swap to settle and preimage to be visible
+  await page.getByLabel('Go back').click()
+  await sleep(3000) // wait for swap to settle
+  await page.getByText('Arkade to Lightning').click()
+  await expect(page.getByText('Preimage')).toBeVisible()
 })
 
 test('should send funds to Bitcoin', async ({ page, isMobile }) => {
@@ -214,9 +220,10 @@ test('should refund failing swap', async ({ page }) => {
   await page.getByText('Continue').click()
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector('text=Swap failed', { timeout: 30000 })
-  await page.getByLabel('Go back').click()
-  await page.getByLabel('Go back').click()
+  // optimistic send: lands on the success screen once the swap is funded,
+  // then the failure surfaces there when the swap fails in the background
+  await page.waitForSelector('text=Payment failed', { timeout: 30000 })
+  await page.getByText('Sounds good').click()
 
   // should be visible in Boltz app
   await page.getByTestId('tab-apps').click()
