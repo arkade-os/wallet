@@ -1,13 +1,16 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import {
+  getPrivateKey,
   invalidNpub,
   invalidPrivateKey,
   nsecToPrivateKey,
   privateKeyToNpub,
   privateKeyToNsec,
+  setPrivateKey,
 } from '../../lib/privateKey'
 import fixtures from '../fixtures.json'
 import { hex } from '@scure/base'
+import { MNEMONIC_STORAGE_KEY } from '@/lib/storageKeys'
 
 describe('privatekey utilities', () => {
   const npub = fixtures.lib.privatekey.public.npub
@@ -83,6 +86,38 @@ describe('privatekey utilities', () => {
 
     it('should throw on invalid private key', () => {
       expect(() => privateKeyToNpub(Uint8Array.from([1]))).toThrow('Invalid private key')
+    })
+  })
+
+  describe('setPrivateKey / getPrivateKey', () => {
+    const bytesKey = nsecToPrivateKey(fixtures.lib.privatekey.secret.nsec)
+    const mnemonic = 'abandon '.repeat(11) + 'about'
+    const password = 'password'
+
+    beforeEach(() => {
+      localStorage.clear()
+    })
+
+    it('should encrypt, store, and decrypt a private key', async () => {
+      await setPrivateKey(bytesKey, password)
+      const result = await getPrivateKey(password)
+      expect(result).toStrictEqual(bytesKey)
+    })
+
+    it('should throw on wrong password', async () => {
+      await setPrivateKey(bytesKey, password)
+      await expect(getPrivateKey('wrongpassword')).rejects.toThrow()
+    })
+
+    it('should throw when no private key is stored', async () => {
+      await expect(getPrivateKey(password)).rejects.toThrow('No encrypted private key found')
+    })
+
+    it('should remove mnemonic when setting a new private key', async () => {
+      localStorage.setItem(MNEMONIC_STORAGE_KEY, mnemonic)
+      expect(localStorage.getItem(MNEMONIC_STORAGE_KEY)).toBe(mnemonic)
+      await setPrivateKey(bytesKey, password)
+      expect(localStorage.getItem(MNEMONIC_STORAGE_KEY)).toBeNull()
     })
   })
 })

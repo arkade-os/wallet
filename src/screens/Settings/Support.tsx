@@ -12,7 +12,8 @@ import { SwapsContext } from '../../providers/swaps'
 import { getReceivingAddresses } from '../../lib/asp'
 import { Addresses } from '../../lib/types'
 import { getWebExplorerURL } from '../../lib/explorers'
-import { NetworkName } from '@arkade-os/sdk'
+import { buildVersion, sdkVersion, NetworkName } from '@arkade-os/sdk'
+import { sdkVersion as boltzSwapVersion } from '@arkade-os/boltz-swap'
 import ChatwootWidget from '../../components/ChatWoot'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import ErrorMessage from '../../components/Error'
@@ -97,6 +98,9 @@ export default function Support() {
       lendasat_url: import.meta.env.VITE_LENDASAT_IFRAME_URL || 'not available',
       satora_url: import.meta.env.VITE_SATORA_IFRAME_URL || 'not available',
       explorer_url: wallet.network ? getWebExplorerURL(wallet.network as NetworkName) : 'not available',
+      build_version: buildVersion,
+      sdk_version: sdkVersion,
+      boltz_swap_version: boltzSwapVersion,
       git_commit: gitCommit,
     })
   }, [addresses, wallet.pubkey, supportChatLoaded])
