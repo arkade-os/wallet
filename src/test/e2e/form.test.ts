@@ -102,7 +102,6 @@ test('should keep entered amount when BIP-21 has no amount parameter', async ({ 
   await fundWallet(page, 5000)
 
   // go to send page
-  await page.getByTestId('tab-wallet').click()
   await page.getByText('Send').click()
 
   // enter amount before parsing BIP-21 recipient
@@ -121,5 +120,5 @@ test('should keep entered amount when BIP-21 has no amount parameter', async ({ 
   const continueBtn = page.getByRole('button', { name: 'Continue' })
   await expect(continueBtn).toBeEnabled()
   await continueBtn.click()
-  await expect(page.getByTestId('Amount')).toContainText('2,100 SATS')
+  await expect(page.getByTestId('Amount')).toContainText('2,100 sats')
 })
