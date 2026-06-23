@@ -286,7 +286,7 @@ export default function ReceiveQRCode() {
       }
 
       receivedAssets = receivedAssets.reduce((acc, v) => {
-        const existing = acc.find((a) => a.assetId === v.assetId)
+        const existing = acc.find((a: Asset) => a.assetId === v.assetId)
         if (existing) {
           existing.amount += v.amount
         } else {
@@ -456,7 +456,10 @@ export default function ReceiveQRCode() {
                 </Text>
               ) : null}
               {swapsTimedOut && !invoice && !isAssetReceive ? (
-                <WarningBox text='Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.' />
+                <WarningBox
+                  small
+                  text='Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.'
+                />
               ) : null}
             </FlexCol>
           )}

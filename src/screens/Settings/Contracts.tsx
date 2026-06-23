@@ -177,7 +177,7 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
   const { contract, address, explorer, encoded, status } = item
 
   return (
-    <Shadow border>
+    <Shadow lighter border>
       <FlexCol gap={open ? '0.5rem' : '0'}>
         {/* Compact, tappable summary — expands to the full address/script/parameters. */}
         <FlexRow between onClick={onToggle}>
