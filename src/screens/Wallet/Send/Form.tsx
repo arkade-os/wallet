@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { BrantaService, type Payment } from '@branta-ops/branta/v2'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
@@ -130,6 +130,7 @@ export default function SendForm() {
   const [nudgeBoltz, setNudgeBoltz] = useState(false)
   const [proceed, setProceed] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [readyToParse, setReadyToParse] = useState(false)
   const [recipient, setRecipient] = useState('')
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
   const [scan, setScan] = useState(false)
@@ -143,10 +144,13 @@ export default function SendForm() {
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
   const [valueSats, setValueSats] = useState<number | undefined>(undefined)
 
+  const timeoutRef = useRef<NodeJS.Timeout>()
+
   const prefersReducedMotion = useReducedMotion()
   const isAssetSend = selectedAsset !== null
 
   const DUST_AMOUNT = 330
+  const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
   const reserveApplied = !isAssetSend && hasAssets
   const liquidBalance = availableBalance - (reserveApplied ? DUST_AMOUNT : 0)
@@ -179,6 +183,13 @@ export default function SendForm() {
       }
     }
   }
+
+  // cleanup debounce timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    }
+  }, [])
 
   // get receiving addresses
   useEffect(() => {
@@ -244,13 +255,11 @@ export default function SendForm() {
   // repeat when asset changes to re-validate addresses (e.g. if user
   // selects an asset and the address is not compatible with it)
   useEffect(() => {
+    if (!readyToParse) return
     smartSetError('')
     const parseRecipient = async () => {
       setNudgeBoltz(false)
       if (!recipient) return
-      // Clean base — only carry forward asset selection; all parsed targets
-      // start empty so switching recipient types never leaks stale state.
-      const base: SendInfo = { recipient, assets: sendInfo.assets }
       const lowerCaseData = recipient.toLowerCase().replace(/^lightning:/, '')
       if (isURLWithLightningQueryString(recipient)) {
         const url = new URL(recipient)
@@ -291,10 +300,18 @@ export default function SendForm() {
             assets: [{ assetId, amount: rawAmount }],
           })
         }
-        return setState({ address, arkAddress, invoice, lnUrl, recipient, satoshis, assets: sendInfo.assets })
+        return setState({
+          address,
+          arkAddress,
+          assets: sendInfo.assets,
+          invoice,
+          lnUrl,
+          recipient,
+          satoshis: satoshis ?? sendInfo.satoshis,
+        })
       }
       if (isArkAddress(lowerCaseData)) {
-        return setState({ ...base, arkAddress: lowerCaseData })
+        return setState({ ...sendInfo, arkAddress: lowerCaseData })
       }
       if (isLightningInvoice(lowerCaseData)) {
         if (isAssetSend) {
@@ -306,7 +323,7 @@ export default function SendForm() {
         }
         const satoshis = getInvoiceSatoshis(lowerCaseData)
         if (!satoshis) return setError('Invoice must have amount defined')
-        setState({ ...base, invoice: lowerCaseData, satoshis })
+        setState({ ...sendInfo, invoice: lowerCaseData, satoshis })
         setAmountIsReadOnly(true)
         return
       }
@@ -314,7 +331,7 @@ export default function SendForm() {
         if (isAssetSend) {
           return setError('Assets can only be sent to Arkade addresses')
         }
-        return setState({ ...base, address: recipient })
+        return setState({ ...sendInfo, address: recipient })
       }
       if (isArkNote(lowerCaseData)) {
         try {
@@ -326,12 +343,13 @@ export default function SendForm() {
         }
       }
       if (isValidLnUrl(lowerCaseData)) {
-        return setState({ ...base, lnUrl: lowerCaseData })
+        return setState({ ...sendInfo, lnUrl: lowerCaseData })
       }
       setError('Invalid recipient address')
+      setReadyToParse(false)
     }
     parseRecipient()
-  }, [recipient, isAssetSend])
+  }, [recipient, isAssetSend, readyToParse])
 
   // fetch branta payment info for the current recipient (SDK strict mode gates non-ZK)
   useEffect(() => {
@@ -423,6 +441,11 @@ export default function SendForm() {
         return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
       })
       .catch((e) => {
+        if (e.status === 404) {
+          consoleError(e, 'LNURL not found')
+          setError('LNURL not found')
+          return
+        }
         consoleError(e, 'Error checking LNURL conditions')
         setError(extractError(e))
       })
@@ -623,25 +646,12 @@ export default function SendForm() {
     }
   }
 
-  const resetDerivedState = (newRecipient: string) => {
-    setBrantaPayment(null)
-    setState({
-      address: '',
-      arkAddress: '',
-      invoice: '',
-      lnUrl: '',
-      recipient: newRecipient,
-      satoshis: 0,
-      assets: sendInfo.assets,
-    })
-    setRecipient(newRecipient)
-    setAmountIsReadOnly(false)
-    setLnUrlResponse(undefined)
-  }
-
   const handleRecipientChange = (recipient: string) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    setRecipient(recipient)
+    setReadyToParse(false)
     setRawScanData('')
-    resetDerivedState(recipient)
+    timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
   }
 
   const handleContinue = async () => {
@@ -811,8 +821,9 @@ export default function SendForm() {
       close={() => setScan(false)}
       label='Recipient address'
       onData={(data) => {
+        setRecipient(data)
         setRawScanData(data)
-        resetDerivedState(data)
+        setReadyToParse(true)
       }}
       onError={smartSetError}
     />
