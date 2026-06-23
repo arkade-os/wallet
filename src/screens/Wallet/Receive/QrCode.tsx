@@ -365,6 +365,8 @@ export default function ReceiveQRCode() {
   }
 
   const handleAmountClear = () => {
+    setShowKeys(false)
+    setShowAmountSheet(false)
     setAmountTextValue('')
     if (assetMeta) setAssetAmount(BigInt(0))
     else setRecvInfo({ ...recvInfo, satoshis: 0 })
@@ -382,6 +384,10 @@ export default function ReceiveQRCode() {
   const data = { title: 'Receive', text: qrCodeValue }
   const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods
 
+  // Whether an amount is currently requested. Keyed off assetMeta to match how
+  // handleAmountConfirm/handleAmountClear decide between asset units and sats.
+  const hasAmount = assetMeta ? assetAmount > BigInt(0) : satoshis > 0
+
   // Mobile keyboard — bypass sheet on save, go straight to QR
   if (showKeys) {
     return (
@@ -392,6 +398,7 @@ export default function ReceiveQRCode() {
           setShowKeys(false)
           setShowAmountSheet(false)
         }}
+        onClear={hasAmount ? handleAmountClear : undefined}
         onSave={(value: string, inputMode: KeyboardInputMode) => {
           setShowKeys(false)
           setShowAmountSheet(false)
@@ -496,7 +503,7 @@ export default function ReceiveQRCode() {
             onFocus={() => setShowKeys(isMobileBrowser)}
           />
           <Button label='Set amount' onClick={() => handleAmountConfirm()} disabled={!amountTextValue} />
-          {satoshis > 0 ? <Button label='Clear amount' onClick={handleAmountClear} secondary /> : null}
+          {hasAmount ? <Button label='Clear amount' onClick={handleAmountClear} secondary /> : null}
         </FlexCol>
       </SheetModal>
 

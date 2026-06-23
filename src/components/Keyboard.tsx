@@ -22,9 +22,10 @@ interface KeyboardProps {
   back: () => void
   hideBalance?: boolean
   onSave: (value: string, inputMode: KeyboardInputMode) => void
+  onClear?: () => void
 }
 
-export default function Keyboard({ asset, back, hideBalance, onSave }: KeyboardProps) {
+export default function Keyboard({ asset, back, hideBalance, onClear, onSave }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
   const { balance, svcWallet } = useContext(WalletContext)
@@ -211,6 +212,7 @@ export default function Keyboard({ asset, back, hideBalance, onSave }: KeyboardP
       </div>
       <ButtonsOnBottom>
         <Button label='Save' disabled={disabled} onClick={handleSave} />
+        {onClear ? <Button label='Clear amount' onClick={onClear} secondary /> : null}
       </ButtonsOnBottom>
     </>
   )
