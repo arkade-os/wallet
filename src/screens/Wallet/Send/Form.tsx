@@ -591,8 +591,9 @@ export default function SendForm() {
 
   const handleRecipientChange = (recipient: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    setRawScanData('')
     setRecipient(recipient)
+    setReadyToParse(false)
+    setRawScanData('')
     timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
   }
 
