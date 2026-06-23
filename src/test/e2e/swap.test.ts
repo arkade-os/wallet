@@ -128,9 +128,9 @@ test('should send funds to Lightning', async ({ page }) => {
   expect(await page.getByTestId('Kind').textContent()).toBe('Submarine Swap')
   expect(await page.getByTestId('Direction').textContent()).toBe('Arkade to Lightning')
   expect(await page.getByTestId('Status').textContent()).toBe('transaction.claimed')
-  expect(await page.getByTestId('Amount').textContent()).toBe('1,000 SATS')
-  expect(await page.getByTestId('Fees').textContent()).toBe('1 SAT')
-  expect(await page.getByTestId('Total').textContent()).toBe('1,001 SATS')
+  expect(await page.getByTestId('Amount').textContent()).toBe('1,000 sats')
+  expect(await page.getByTestId('Fees').textContent()).toBe('1 sat')
+  expect(await page.getByTestId('Total').textContent()).toBe('1,001 sats')
 
   // go back, await for swap to settle and preimage to be visible
   await page.getByLabel('Go back').click()
