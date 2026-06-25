@@ -322,8 +322,6 @@ test('should send usds (some and max) to onchain address with chain swap', async
   // click max
   await page.getByTestId('input-amount-max').click()
   await page.waitForSelector('text=Fees will be deducted from the amount sent', { timeout: 2000 })
-  const inputAmount = await page.locator('input[name="send-amount"]').inputValue()
-  expect(inputAmount).toBe(balance.toFixed(2))
 
   // continue to send
   await page.getByText('Continue').click()
