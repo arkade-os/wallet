@@ -108,7 +108,7 @@ export default function Transaction() {
     status,
     type: boardingTx ? 'Boarding' : 'Offchain',
     txid: tx.boardingTxid || tx.redeemTxid || tx.roundTxid || '',
-    isOffchainTx: !tx.boardingTxid && Boolean(tx.redeemTxid),
+    isOffchainTx: !tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
     assetId: tx.assets?.[0]?.assetId,
     wallet: wallet,
     satoshis: tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
