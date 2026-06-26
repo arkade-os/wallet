@@ -1,5 +1,4 @@
 import InputWithScanner from './InputWithScanner'
-import { isValidAssetId } from '../lib/assets'
 
 interface InputAssetIdProps {
   focus?: boolean
@@ -20,7 +19,6 @@ export default function InputAssetId({ focus, label, name, onChange, onEnter, op
       onChange={onChange}
       onEnter={onEnter}
       openScan={openScan}
-      validator={isValidAssetId}
       value={value}
     />
   )

@@ -14,7 +14,6 @@ interface InputWithScannerProps {
   onEnter?: () => void
   openScan: () => void
   placeholder?: string
-  validator?: (arg0: string) => boolean
   value?: string
 }
 
@@ -27,7 +26,6 @@ export default function InputWithScanner({
   onEnter,
   openScan,
   placeholder,
-  validator,
   value,
 }: InputWithScannerProps) {
   const input = useRef<HTMLInputElement>(null)
@@ -73,7 +71,7 @@ export default function InputWithScanner({
             <ClearButtonOnInput onClick={handleClear} />
           ) : (
             <FlexRow gap='0.25rem'>
-              <Paste validator={validator} onPaste={handlePaste} />
+              <Paste onPaste={handlePaste} />
               <ScanButtonOnInput onClick={handleScan} />
             </FlexRow>
           )}
