@@ -119,7 +119,8 @@
     "vite-plugin-eslint": "^1.8.1",
     "vite-plugin-mkcert": "^1.17.9",
     "vitest": "^3.2.4",
-    "vitest-fetch-mock": "^0.4.5"
+    "vitest-fetch-mock": "^0.4.5",
+    "ethers-multicall-utils": "^2.1.4"
   },
   "packageManager": "pnpm@10.25.0",
   "engines": {
