@@ -107,10 +107,6 @@ export default function SendDetails() {
     }
   }, [sendInfo])
 
-  const handlePreimage = ({ txid }: { preimage: string; txid: string }) => {
-    handleTxid(txid)
-  }
-
   const handleTxid = (txid: string) => {
     if (!txid) return handleError('Error sending transaction')
     setSendInfo({ ...sendInfo, total: details?.total, txid })
@@ -152,8 +148,10 @@ export default function SendDetails() {
     } else if (invoice && pendingSwap && isPendingSubmarineSwap(pendingSwap)) {
       const swapAddress = pendingSwap.response.address
       if (!swapAddress) return handleError('Swap address not available')
+      // Resolves optimistically once the swap is funded; settlement is
+      // monitored in the background and surfaced on the success screen.
       payInvoice(pendingSwap)
-        .then(({ preimage, txid }) => handlePreimage({ preimage, txid }))
+        .then(({ txid }) => handleTxid(txid))
         .catch(handleError)
     } else if (address) {
       if (pendingSwap && isPendingChainSwap(pendingSwap)) {
