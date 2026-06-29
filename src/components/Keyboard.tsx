@@ -23,9 +23,10 @@ interface KeyboardProps {
   hideBalance?: boolean
   onSave: (value: string, inputMode: KeyboardInputMode) => void
   onClear?: () => void
+  initialValue?: bigint | number
 }
 
-export default function Keyboard({ asset, back, hideBalance, onClear, onSave }: KeyboardProps) {
+export default function Keyboard({ asset, back, hideBalance, onClear, onSave, initialValue }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
   const { balance, svcWallet } = useContext(WalletContext)
@@ -36,6 +37,18 @@ export default function Keyboard({ asset, back, hideBalance, onClear, onSave }: 
   const [error, setError] = useState('')
   const [inputMode, setInputMode] = useState<KeyboardInputMode>(asset?.assetId ? 'asset' : useFiat ? 'fiat' : 'sats')
   const [textValue, setTextValue] = useState('')
+
+  useEffect(() => {
+    if (initialValue && inputMode && toFiat && fiatDecimals) {
+      if (inputMode === 'asset') {
+        setTextValue(prettyAssetAmount(BigInt(initialValue), asset?.decimals ?? 0, false))
+      } else if (inputMode === 'fiat') {
+        setTextValue(prettyNumber(toFiat(Number(initialValue)), fiatDecimals(), false))
+      } else {
+        setTextValue(prettyNumber(Number(initialValue), 0, false))
+      }
+    }
+  }, [initialValue, inputMode, asset, toFiat, fiatDecimals])
 
   useEffect(() => {
     if (!svcWallet) return
@@ -179,9 +192,9 @@ export default function Keyboard({ asset, back, hideBalance, onClear, onSave }: 
   return (
     <>
       <Header
-        auxAriaLabel='Toggle currency'
-        auxFunc={inputMode !== 'asset' ? handleToggleCurrency : undefined}
-        auxIcon={inputMode !== 'asset' ? <SwapIcon /> : undefined}
+        auxAriaLabel={showSecondaryValue ? 'Toggle currency' : undefined}
+        auxFunc={showSecondaryValue ? handleToggleCurrency : undefined}
+        auxIcon={showSecondaryValue ? <SwapIcon /> : undefined}
         back={back}
         text='Amount'
       />
@@ -211,8 +224,8 @@ export default function Keyboard({ asset, back, hideBalance, onClear, onSave }: 
         ))}
       </div>
       <ButtonsOnBottom>
-        <Button label='Save' disabled={disabled} onClick={handleSave} />
-        {onClear ? <Button label='Clear amount' onClick={onClear} secondary /> : null}
+        <Button label='Save' disabled={disabled} onClick={handleSave} testId='save-amount' />
+        {onClear ? <Button label='Clear amount' onClick={onClear} secondary testId='clear-amount' /> : null}
       </ButtonsOnBottom>
     </>
   )

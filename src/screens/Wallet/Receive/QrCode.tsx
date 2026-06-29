@@ -398,6 +398,7 @@ export default function ReceiveQRCode() {
           setShowKeys(false)
           setShowAmountSheet(false)
         }}
+        initialValue={assetAmount || satoshis}
         onClear={hasAmount ? handleAmountClear : undefined}
         onSave={(value: string, inputMode: KeyboardInputMode) => {
           setShowKeys(false)
