@@ -140,7 +140,12 @@ function DelegateCard() {
         setDelegate(delegate)
         setActive(true)
       })
-      .catch(() => setActive(false))
+      .catch((err) => {
+        // surface why the delegate is considered inactive so a reachable-but-rejected
+        // delegate (e.g. an unexpected response shape) can be diagnosed instead of failing silently
+        console.error('Delegate connection test failed:', err)
+        setActive(false)
+      })
   }, [config.delegate, aspInfo.signerPubkey])
 
   if (!config.delegate) return null
