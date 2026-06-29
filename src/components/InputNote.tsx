@@ -1,4 +1,3 @@
-import { isArkNote } from '../lib/arknote'
 import InputWithScanner from './InputWithScanner'
 
 interface InputNoteProps {
@@ -9,7 +8,5 @@ interface InputNoteProps {
 }
 
 export default function InputNote({ label, onChange, openScan, value }: InputNoteProps) {
-  return (
-    <InputWithScanner focus label={label} onChange={onChange} openScan={openScan} validator={isArkNote} value={value} />
-  )
+  return <InputWithScanner focus label={label} onChange={onChange} openScan={openScan} value={value} />
 }

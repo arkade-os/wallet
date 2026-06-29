@@ -408,7 +408,7 @@ export default function ReceiveQRCode() {
     )
   }
 
-  const amountLabel = satoshis ? 'Edit amount' : 'Add amount'
+  const amountLabel = hasAmount ? 'Edit amount' : 'Add amount'
   const unitLabel = assetMeta?.metadata?.ticker ?? 'sats'
 
   return (
