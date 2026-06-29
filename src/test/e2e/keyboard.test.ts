@@ -1,5 +1,5 @@
 import { Currencies } from '../../lib/types'
-import { test, expect, createWallet, navigateHome, navigateToSettings } from './utils'
+import { test, expect, createWallet, navigateHome, navigateToSettings, createWalletWithFiat } from './utils'
 import type { Page } from '@playwright/test'
 
 // helper function to navigate to keyboard
@@ -10,7 +10,7 @@ async function openKeyboard(page: Page) {
   await page.waitForSelector('text=Save', { state: 'visible' })
 }
 
-// helper function to setup wallet and navigate to keyboard
+// helper function to change the display currency in settings
 async function changeToFiat(page: Page, fiat: Currencies) {
   await navigateToSettings(page)
   await page.getByText('display', { exact: true }).click()
@@ -28,6 +28,11 @@ async function clearAmount(page: Page, maxClicks = 10) {
   for (let i = 0; i < maxClicks; i++) {
     await backspaceBtn.click()
   }
+}
+
+// helper function to toggle currency on keyboard
+async function toggleCurrency(page: Page) {
+  await page.locator('[aria-label="Toggle currency"]').click()
 }
 
 test('should toggle between sats and FIAT on mobile keyboard', async ({ page, isMobile }) => {
@@ -56,7 +61,7 @@ test('should toggle between sats and FIAT on mobile keyboard', async ({ page, is
   await page.waitForSelector('text=/[0-9][0-9]+ sats/', { timeout: 2000 })
 
   // test decimal input in FIAT mode
-  await page.locator('[aria-label="Toggle currency"]').click()
+  await toggleCurrency(page)
 
   // clear the amount
   await clearAmount(page)
@@ -142,4 +147,73 @@ test('should limit JPY decimals to 0 places', async ({ page, isMobile }) => {
 
   // should show 50 sats (decimal point ignored)
   await expect(page.getByText('¥50')).toBeVisible()
+})
+
+test('should insert sats in a fiat wallet', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'This test is only for mobile')
+
+  // setup wallet and open keyboard
+  await createWalletWithFiat(page)
+  await openKeyboard(page)
+
+  // move locally to sats mode
+  await toggleCurrency(page)
+
+  // enter some number
+  await page.getByTestId('keyboard-5').click()
+  await page.getByTestId('keyboard-0').click()
+  await page.getByTestId('keyboard-0').click()
+  await page.getByTestId('keyboard-0').click()
+  await expect(page.locator('text=5000 sats')).toBeVisible()
+
+  await page.getByTestId('save-amount').click()
+
+  await page.waitForSelector('text=Edit amount', { state: 'visible' })
+  await expect(page.locator('text=Requesting 5,000 sats')).toBeVisible()
+})
+
+test('should persist sats in a sats wallet', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'This test is only for mobile')
+
+  // setup wallet and open keyboard
+  await createWallet(page)
+  await openKeyboard(page)
+
+  // toggle currency shouldn't be there
+  await expect(page.locator('[aria-label="Toggle currency"]')).toHaveCount(0)
+
+  // enter some number
+  await page.getByTestId('keyboard-5').click()
+  await page.getByTestId('keyboard-0').click()
+  await page.getByTestId('keyboard-0').click()
+  await page.getByTestId('keyboard-0').click()
+  await expect(page.locator('text=5000 sats')).toBeVisible()
+
+  await page.getByTestId('save-amount').click()
+
+  await page.waitForSelector('text=Edit amount', { state: 'visible' })
+  await expect(page.locator('text=Requesting 5,000 sats')).toBeVisible()
+  await page.locator('text=Edit amount').click()
+  await expect(page.locator('text=5000 sats')).toBeVisible()
+})
+
+test('should persist fiat in a fiat wallet', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'This test is only for mobile')
+
+  // setup wallet and open keyboard
+  await createWalletWithFiat(page)
+  await openKeyboard(page)
+
+  // toggle currency should be there
+  await expect(page.locator('[aria-label="Toggle currency"]')).toHaveCount(1)
+
+  // enter some number
+  await page.getByTestId('keyboard-5').click()
+  await expect(page.locator('text=$5.00')).toBeVisible()
+
+  await page.getByTestId('save-amount').click()
+
+  await page.waitForSelector('text=Edit amount', { state: 'visible' })
+  await page.locator('text=Edit amount').click()
+  await expect(page.locator('text=$5.00')).toBeVisible()
 })
