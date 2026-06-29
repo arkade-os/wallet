@@ -48,11 +48,15 @@ const testConnection = (aspInfo: AspInfo): Promise<Delegate> => {
         if (!res.ok) return reject(new Error('Unable to connect'))
         res
           .json()
-          .then((data: { delegatorAddress: string; pubkey: string; fee: string }) => {
+          .then((data: { delegatorAddress: string; pubkey: string; fee: string | number }) => {
             if (!data) return reject(new Error('Invalid delegate response'))
-            if (!data.fee) return reject(new Error('Missing delegate fee'))
-            if (isNaN(parseInt(data.fee, 10))) return reject(new Error('Invalid delegate fee'))
-            if (parseInt(data.fee, 10) < 0) return reject(new Error("Delegate fee can't be negative"))
+            // a fee of 0 is valid (e.g. the free Arkade default delegate), so only reject when the
+            // field is actually absent rather than treating a falsy 0 as missing
+            if (data.fee === undefined || data.fee === null || data.fee === '')
+              return reject(new Error('Missing delegate fee'))
+            const fee = typeof data.fee === 'number' ? data.fee : parseInt(data.fee, 10)
+            if (isNaN(fee)) return reject(new Error('Invalid delegate fee'))
+            if (fee < 0) return reject(new Error("Delegate fee can't be negative"))
             if (!data.pubkey) return reject(new Error('Missing delegate pubkey'))
             if (data.pubkey.length !== 66) return reject(new Error('Invalid delegate pubkey size'))
             if (!/^[0-9a-fA-F]{66}$/.test(data.pubkey)) return reject(new Error('Invalid delegate pubkey hex'))
@@ -60,7 +64,7 @@ const testConnection = (aspInfo: AspInfo): Promise<Delegate> => {
             if (!isArkAddress(data.delegatorAddress)) return reject(new Error('Invalid delegate address'))
             const { serverPubKey } = decodeArkAddress(data.delegatorAddress)
             if (serverPubKey !== expectedPubKey) return reject(new Error('Invalid delegate server key'))
-            resolve({ ...delegate, address: data.delegatorAddress, pubkey: data.pubkey, fee: parseInt(data.fee, 10) })
+            resolve({ ...delegate, address: data.delegatorAddress, pubkey: data.pubkey, fee })
           })
           .catch(() => reject(new Error('Invalid json in delegate response')))
       })
