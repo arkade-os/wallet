@@ -23,9 +23,12 @@ export const pasteFromClipboard = async (): Promise<string> => {
 
 export const queryPastePermission = async (): Promise<PermissionState> => {
   try {
+    // Chrome and Edge will handle this perfectly
     return (await navigator.permissions.query({ name: 'clipboard-read' as PermissionName })).state
   } catch (err) {
+    // Safari and Firefox land here because 'clipboard-read' is unsupported in query()
     consoleError(err, 'error querying clipboard-read permission')
-    return 'denied'
+    // we assume 'prompt' status and proceed directly
+    return 'prompt'
   }
 }

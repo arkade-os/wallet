@@ -10,10 +10,6 @@ interface InputNpubProps {
 }
 
 export default function InputNpub({ focus, label, onChange, openScan, placeholder, value }: InputNpubProps) {
-  const isNpub = (data: string): boolean => {
-    return /^npub/.test(data.toLowerCase())
-  }
-
   return (
     <InputWithScanner
       focus={focus}
@@ -21,7 +17,6 @@ export default function InputNpub({ focus, label, onChange, openScan, placeholde
       onChange={onChange}
       openScan={openScan}
       placeholder={placeholder}
-      validator={isNpub}
       value={value}
     />
   )
