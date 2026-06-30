@@ -91,7 +91,7 @@ test('should prioritize lnurl if no invoice or ark address are present', async (
   }
 
   // lnurl error because the wallet that used this lnurl is no longer running
-  await expect(page.getByTestId('error-message')).toContainText('This LNURL is no longer active')
+  await expect(page.locator('text=This LNURL is no longer active')).toBeVisible()
 })
 
 test('should keep entered amount when BIP-21 has no amount parameter', async ({ page, isMobile }) => {
