@@ -132,6 +132,7 @@ export default function SendForm() {
   const [processing, setProcessing] = useState(false)
   const [readyToParse, setReadyToParse] = useState(false)
   const [recipient, setRecipient] = useState('')
+  const [recipientError, setRecipientError] = useState('')
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
   const [scan, setScan] = useState(false)
   const [rawScanData, setRawScanData] = useState('')
@@ -256,7 +257,7 @@ export default function SendForm() {
   // selects an asset and the address is not compatible with it)
   useEffect(() => {
     if (!readyToParse) return
-    smartSetError('')
+    setRecipientError('')
     const parseRecipient = async () => {
       setNudgeBoltz(false)
       if (!recipient) return
@@ -267,7 +268,7 @@ export default function SendForm() {
       }
       if (isBip21(lowerCaseData)) {
         const { address, arkAddress, invoice, lnUrl, satoshis, assetId, assetAmount } = decodeBip21(recipient.trim())
-        if (!address && !arkAddress && !invoice && !lnUrl) return setError('Unable to parse bip21')
+        if (!address && !arkAddress && !invoice && !lnUrl) return setRecipientError('Unable to parse bip21')
         if (assetId) {
           let found = assetOptions.find((a) => a.assetId === assetId)
           if (!found) {
@@ -315,21 +316,21 @@ export default function SendForm() {
       }
       if (isLightningInvoice(lowerCaseData)) {
         if (isAssetSend) {
-          return setError('Assets can only be sent to Arkade addresses')
+          return setRecipientError('Assets can only be sent to Arkade addresses')
         }
         if (!connected) {
-          setError('Lightning swaps not enabled')
+          setRecipientError('Lightning swaps not enabled')
           return setNudgeBoltz(true)
         }
         const satoshis = getInvoiceSatoshis(lowerCaseData)
-        if (!satoshis) return setError('Invoice must have amount defined')
+        if (!satoshis) return setRecipientError('Invoice must have amount defined')
         setState({ ...sendInfo, invoice: lowerCaseData, satoshis })
         setAmountIsReadOnly(true)
         return
       }
       if (isBTCAddress(recipient)) {
         if (isAssetSend) {
-          return setError('Assets can only be sent to Arkade addresses')
+          return setRecipientError('Assets can only be sent to Arkade addresses')
         }
         return setState({ ...sendInfo, address: recipient })
       }
@@ -345,7 +346,7 @@ export default function SendForm() {
       if (isValidLnUrl(lowerCaseData)) {
         return setState({ ...sendInfo, lnUrl: lowerCaseData })
       }
-      setError('Invalid recipient address')
+      setRecipientError('Invalid recipient address')
       setReadyToParse(false)
     }
     parseRecipient()
@@ -432,7 +433,7 @@ export default function SendForm() {
     if (sendInfo.lnUrl && sendInfo.invoice) return
     checkLnUrlConditions(sendInfo.lnUrl)
       .then((conditions) => {
-        if (!conditions) return setError('Unable to fetch LNURL conditions')
+        if (!conditions) return setRecipientError('Unable to fetch LNURL conditions')
         const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
         const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
         // when the LNURL resolves to a fixed amount, set it via setState so the
@@ -443,11 +444,11 @@ export default function SendForm() {
       .catch((e) => {
         if (e.status === 404) {
           consoleError(e, 'LNURL not found')
-          setError('LNURL not found')
+          setRecipientError('LNURL not found')
           return
         }
         consoleError(e, 'Error checking LNURL conditions')
-        setError(extractError(e))
+        setRecipientError(extractError(e))
       })
   }, [sendInfo.arkAddress, sendInfo.lnUrl])
 
@@ -463,11 +464,11 @@ export default function SendForm() {
     const { address, arkAddress, invoice, lnUrl } = sendInfo
     // check server limits for onchain transactions
     if (address && !arkAddress && !invoice && !lnUrl && !utxoTxsAllowed()) {
-      return setError('Sending onchain not allowed')
+      return setRecipientError('Sending onchain not allowed')
     }
     // check server limits for offchain transactions
     if (!address && (arkAddress || invoice || lnUrl) && !vtxoTxsAllowed()) {
-      return setError('Sending offchain not allowed')
+      return setRecipientError('Sending offchain not allowed')
     }
     // check swap limits for lightning transactions
     if (!address && !arkAddress && invoice) {
@@ -475,8 +476,8 @@ export default function SendForm() {
       const max = maxSwapAllowed()
       if (min === 0 && max === 0) return // limits not loaded yet
       const amountSats = getInvoiceSatoshis(invoice)
-      if (amountSats < min) return setError(`Invoice amount below min of ${prettyNumber(min)} sats`)
-      if (amountSats > max) return setError(`Invoice amount above max of ${prettyNumber(max)} sats`)
+      if (amountSats < min) return setRecipientError(`Invoice amount below min of ${prettyNumber(min)} sats`)
+      if (amountSats > max) return setRecipientError(`Invoice amount above max of ${prettyNumber(max)} sats`)
     }
     // check if server key is valid
     if (arkAddress && arkAddress.length > 0) {
@@ -484,7 +485,7 @@ export default function SendForm() {
       const { serverPubKey: expectedServerPubKey } = decodeArkAddress(offchainAddr)
       if (serverPubKey !== expectedServerPubKey) {
         // if there's no other way to pay, show error
-        if (!address && !invoice) return setError('Arkade server key mismatch')
+        if (!address && !invoice) return setRecipientError('Arkade server key mismatch')
         // remove ark address from possibilities to send and continue
         // we will try to pay to lightning or mainnet instead
         setSendInfo({ ...sendInfo, arkAddress: '' })
@@ -493,12 +494,12 @@ export default function SendForm() {
     // check if is trying to self send
     if (address === boardingAddr || arkAddress === offchainAddr) {
       setTryingToSelfSend(true) // nudge user to rollover
-      return setError('Cannot send to yourself')
+      return setRecipientError('Cannot send to yourself')
     } else {
       setTryingToSelfSend(false)
     }
     // everything is ok, clean error
-    setError('')
+    setRecipientError('')
   }, [receivingAddresses, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl])
 
   // manage button label and errors
@@ -756,6 +757,7 @@ export default function SendForm() {
   const buttonDisabled = isAssetSend
     ? !(arkAddress && assetAmt > 0) ||
       (selectedAsset ? assetAmt > selectedAsset.balance : true) ||
+      Boolean(recipientError) ||
       aspInfo.unreachable ||
       tryingToSelfSend ||
       Boolean(error) ||
@@ -864,9 +866,10 @@ export default function SendForm() {
             <FlexCol gap='1.25rem' className='send-form-stack'>
               <ErrorMessage error={Boolean(error)} text={error} />
               <InputAddress
-                name='send-address'
+                error={recipientError}
                 focus={focus === 'recipient'}
                 label='Recipient address'
+                name='send-address'
                 onChange={handleRecipientChange}
                 onEnter={handleEnter}
                 openScan={() => {

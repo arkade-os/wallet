@@ -1,6 +1,7 @@
 import InputWithScanner from './InputWithScanner'
 
 interface InputAssetIdProps {
+  error?: string
   focus?: boolean
   label: string
   name: string
@@ -10,9 +11,19 @@ interface InputAssetIdProps {
   value: string
 }
 
-export default function InputAssetId({ focus, label, name, onChange, onEnter, openScan, value }: InputAssetIdProps) {
+export default function InputAssetId({
+  error,
+  focus,
+  label,
+  name,
+  onChange,
+  onEnter,
+  openScan,
+  value,
+}: InputAssetIdProps) {
   return (
     <InputWithScanner
+      error={error}
       focus={focus}
       label={label}
       name={name}

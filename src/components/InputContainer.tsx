@@ -1,5 +1,4 @@
 import { ReactNode } from 'react'
-import ErrorMessage from './Error'
 import FlexRow from './FlexRow'
 import FlexCol from './FlexCol'
 import Text from './Text'
@@ -50,7 +49,11 @@ export default function InputContainer({
         </div>
         {bottomLeft || bottomRight ? <BottomLabel /> : null}
       </FlexCol>
-      <ErrorMessage error={Boolean(error)} text={error ?? ''} />
+      {Boolean(error) ? (
+        <Text capitalize color='red-500' smaller>
+          {error}
+        </Text>
+      ) : null}
     </FlexCol>
   )
 }

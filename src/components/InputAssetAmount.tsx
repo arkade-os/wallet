@@ -3,6 +3,7 @@ import { ChangeEventHandler } from 'react'
 import { cn } from '../lib/utils'
 
 interface InputAssetAmountProps {
+  error?: string
   label?: string
   onChange: (arg0: string) => void
   placeholder?: string
@@ -10,13 +11,20 @@ interface InputAssetAmountProps {
   value?: string | number
 }
 
-export default function InputAssetAmount({ label, onChange, placeholder, testId, value }: InputAssetAmountProps) {
+export default function InputAssetAmount({
+  error,
+  label,
+  onChange,
+  placeholder,
+  testId,
+  value,
+}: InputAssetAmountProps) {
   const handleChange: ChangeEventHandler<HTMLInputElement> = (ev) => {
     onChange(ev.currentTarget.value)
   }
 
   return (
-    <InputContainer label={label}>
+    <InputContainer error={error} label={label}>
       <input
         className={cn('input')}
         data-testid={testId}

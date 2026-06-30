@@ -1,6 +1,7 @@
 import InputWithScanner from './InputWithScanner'
 
 interface InputUrlProps {
+  error?: string
   focus?: boolean
   label?: string
   onChange: (arg0: any) => void
@@ -10,9 +11,19 @@ interface InputUrlProps {
   value?: string
 }
 
-export default function InputUrl({ focus, label, onChange, onEnter, openScan, placeholder, value }: InputUrlProps) {
+export default function InputUrl({
+  error,
+  focus,
+  label,
+  onChange,
+  onEnter,
+  openScan,
+  placeholder,
+  value,
+}: InputUrlProps) {
   return (
     <InputWithScanner
+      error={error}
       focus={focus}
       label={label}
       name='input-url'

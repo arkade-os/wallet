@@ -15,7 +15,6 @@ import { consoleError } from '../../lib/logs'
 import Button from '../../components/Button'
 import Header from '../../components/Header'
 import Padded from '../../components/Padded'
-import Input from '../../components/Input'
 import { TextSecondary } from '../../components/Text'
 import { hex } from '@scure/base'
 import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
@@ -24,6 +23,7 @@ import { validateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import { deriveNostrKeyFromMnemonic } from '../../lib/mnemonic'
 import { AspContext } from '../../providers/asp'
+import InputNsec from '@/components/InputNsec'
 
 export default function InitRestore() {
   const { updateConfig } = useContext(ConfigContext)
@@ -135,7 +135,7 @@ export default function InitRestore() {
             <OnboardStaggerChild>
               <FlexCol between>
                 <FlexCol>
-                  <Input name='private-key' label='Recovery phrase or private key' onChange={setSomeKey} />
+                  <InputNsec onChange={setSomeKey} />
                   <ErrorMessage error={Boolean(error)} text={error} />
                 </FlexCol>
                 <TextSecondary wrap>
