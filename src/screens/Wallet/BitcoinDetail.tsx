@@ -261,9 +261,6 @@ export default function BitcoinDetail() {
               <div className='asset-detail-holding'>
                 <span>Balance</span>
                 <strong>
-                  <span className='asset-detail-holding-logo'>
-                    <TokenLogo ticker='BTC' />
-                  </span>
                   <PrivacyAmount masked={prettyBitcoinHide(safeBalance, bitcoinUnit)}>
                     <span className='asset-detail-holding-amount'>{prettyBitcoinAmount(safeBalance, bitcoinUnit)}</span>
                   </PrivacyAmount>
