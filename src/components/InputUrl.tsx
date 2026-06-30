@@ -15,6 +15,7 @@ export default function InputUrl({ focus, label, onChange, onEnter, openScan, pl
     <InputWithScanner
       focus={focus}
       label={label}
+      name='input-url'
       onChange={onChange}
       onEnter={onEnter}
       openScan={openScan}

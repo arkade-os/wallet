@@ -1272,10 +1272,6 @@ iframe {
   min-width: 0;
 }
 
-input:focus::placeholder {
-  color: transparent; /* Hide placeholder on focus */
-}
-
 .label {
   align-items: center;
   display: flex;
