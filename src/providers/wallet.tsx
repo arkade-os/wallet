@@ -14,6 +14,7 @@ import {
   IndexedDBWalletRepository,
   IndexedDBContractRepository,
   type Identity,
+  type ServiceWorkerWalletMode,
 } from '@arkade-os/sdk'
 import {
   clearStorage,
@@ -36,6 +37,7 @@ import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
+import { resolveWalletMode } from '../lib/walletMode'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
@@ -61,6 +63,8 @@ interface InitSvcWorkerWalletParams {
   retryCount?: number
   maxRetries?: number
   delegatorUrl?: string
+  walletMode?: ServiceWorkerWalletMode
+  restoring?: boolean
 }
 
 const defaultWallet: Wallet = {
@@ -71,7 +75,12 @@ const defaultWallet: Wallet = {
 export type WalletAuthState = 'unknown' | 'passwordless' | 'locked' | 'authenticated'
 
 interface WalletContextProps {
-  initWallet: (credentials: { mnemonic?: string; privateKey?: Uint8Array }) => Promise<void>
+  initWallet: (credentials: {
+    mnemonic?: string
+    privateKey?: Uint8Array
+    walletMode?: ServiceWorkerWalletMode
+    restoring?: boolean
+  }) => Promise<void>
   lockWallet: () => Promise<void>
   resetWallet: () => Promise<void>
   settlePreconfirmed: () => Promise<void>
@@ -462,7 +471,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     identity: Identity,
     params: InitSvcWorkerWalletParams,
   ): Promise<boolean> => {
-    const { arkServerUrl, esploraUrl, skipMigration = false, retryCount = 0, maxRetries = 2, delegatorUrl } = params
+    const {
+      arkServerUrl,
+      esploraUrl,
+      skipMigration = false,
+      retryCount = 0,
+      maxRetries = 2,
+      delegatorUrl,
+      walletMode,
+      restoring = false,
+    } = params
     try {
       setLoadingStatus('Starting wallet...')
       const walletRepository = new IndexedDBWalletRepository()
@@ -503,7 +521,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         arkServerUrl,
         esploraUrl,
         delegatorUrl,
-        walletMode: 'static',
+        walletMode: walletMode ?? config.walletMode ?? 'static',
         storage: { walletRepository, contractRepository },
         serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
         messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
@@ -537,6 +555,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           }
         } catch (err) {
           consoleError(err, 'Error migrating wallet repository')
+        }
+      }
+
+      if (restoring) {
+        setLoadingStatus('Recovering addresses...')
+        try {
+          await svcWallet.restore()
+        } catch (err) {
+          consoleError(err, 'Error scanning for rotated addresses on restore')
         }
       }
 
@@ -654,13 +681,19 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const isMainnet = (network: NetworkName | string): boolean =>
     network !== 'testnet' && network !== 'mutinynet' && network !== 'signet' && network !== 'regtest'
 
-  const initWallet = async (credentials: { mnemonic?: string; privateKey?: Uint8Array }) => {
+  const initWallet = async (credentials: {
+    mnemonic?: string
+    privateKey?: Uint8Array
+    walletMode?: ServiceWorkerWalletMode
+    restoring?: boolean
+  }) => {
     const arkServerUrl = aspInfo.url
     const network = aspInfo.network as NetworkName
     const esploraUrl = getRestApiExplorerURL(network)
 
     let identity: Identity
     let pubkey: string
+    let walletMode: ServiceWorkerWalletMode
 
     const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
 
@@ -668,14 +701,21 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const mnemonicIdentity = MnemonicIdentity.fromMnemonic(credentials.mnemonic, { isMainnet: isMainnet(network) })
       identity = mnemonicIdentity
       pubkey = hex.encode(await mnemonicIdentity.compressedPublicKey())
+      // HD-capable: honor the requested mode (creation) or the persisted mode (unlock)
+      walletMode = resolveWalletMode({
+        hasMnemonic: true,
+        requested: credentials.walletMode,
+        persisted: config.walletMode,
+      })
       const secret = deriveNostrKeyFromMnemonic(credentials.mnemonic, isMainnet(network))
       setLnurlInfo(secret)
-      updateConfig({ ...config, pubkey })
+      updateConfig({ ...config, pubkey, walletMode })
     } else if (credentials.privateKey) {
       identity = SingleKey.fromPrivateKey(credentials.privateKey)
       pubkey = hex.encode(secp.getPublicKey(credentials.privateKey))
+      walletMode = 'static'
       setLnurlInfo(credentials.privateKey)
-      updateConfig({ ...config, pubkey })
+      updateConfig({ ...config, pubkey, walletMode })
     } else {
       throw new Error('Either mnemonic or privateKey must be provided')
     }
@@ -685,6 +725,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       arkServerUrl,
       esploraUrl,
       delegatorUrl,
+      walletMode,
+      restoring: credentials.restoring,
     })
     if (!didInit) return
     updateWallet({ ...wallet, network, pubkey })

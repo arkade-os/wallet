@@ -1,4 +1,4 @@
-import { Asset, NetworkName, type ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { Asset, NetworkName, type ExtendedVirtualCoin, type ServiceWorkerWalletMode } from '@arkade-os/sdk'
 
 export type Addresses = {
   boardingAddr: string
@@ -28,6 +28,7 @@ export type Config = {
   dismissedBanners: string[]
   theme: Themes
   unit: Unit
+  walletMode: ServiceWorkerWalletMode
 }
 
 export enum CurrencyDisplay {

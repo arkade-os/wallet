@@ -70,6 +70,7 @@ export const mockConfigContextValue = {
     showBalance: true,
     theme: Themes.Dark,
     unit: Unit.BTC,
+    walletMode: 'static' as const,
   },
   updateConfig: () => {},
   effectiveTheme: Themes.Dark as const,
@@ -81,6 +82,11 @@ export const mockConfigContextValue = {
   setConfig: () => {},
   showConfig: false,
   toggleShowConfig: () => {},
+}
+
+export const mockDevModeContextValue = {
+  devMode: false,
+  handleTap: () => {},
 }
 
 export const mockFiatContextValue = {

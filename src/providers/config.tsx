@@ -24,6 +24,7 @@ const defaultConfig: Config = {
   showBalance: true,
   theme: Themes.Auto,
   unit: Unit.BTC,
+  walletMode: 'static',
 }
 
 interface ConfigContextProps {

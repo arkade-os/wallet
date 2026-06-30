@@ -1,6 +1,7 @@
 import { ReactElement, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { generateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
+import type { ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../providers/navigation'
@@ -25,6 +26,8 @@ import BoltOutlineIcon from '../../icons/BoltOutline'
 import GlobeOutlineIcon from '../../icons/GlobeOutline'
 import ShieldCheckOutlineIcon from '../../icons/ShieldCheckOutline'
 import { WalletContext } from '../../providers/wallet'
+import { DevModeContext } from '../../providers/devMode'
+import Toggle from '../../components/Toggle'
 
 function BulletPoint({ icon, text }: { icon: ReactElement; text: string }) {
   return (
@@ -56,10 +59,13 @@ export default function Init() {
   const { setInitInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { authState, wallet } = useContext(WalletContext)
+  const { devMode, handleTap } = useContext(DevModeContext)
 
   const prefersReduced = useReducedMotion()
   const [error, setError] = useState(false)
   const [showOptions, setShowOptions] = useState(false)
+  const [showCreateOptions, setShowCreateOptions] = useState(false)
+  const [hdRotation, setHdRotation] = useState(false)
   const [contentReady, setContentReady] = useState(prefersReduced)
   const [sunriseVisible, setSunriseVisible] = useState(prefersReduced)
   const logoTargetRef = useRef<HTMLDivElement>(null)
@@ -78,10 +84,15 @@ export default function Init() {
     setError(aspInfo.unreachable)
   }, [aspInfo.unreachable])
 
-  const handleNewWallet = () => {
+  const createWallet = (mode: ServiceWorkerWalletMode) => {
     const mnemonic = generateMnemonic(wordlist)
-    setInitInfo({ mnemonic, password: defaultPassword, restoring: false })
+    setInitInfo({ mnemonic, password: defaultPassword, restoring: false, walletMode: mode })
     navigate(Pages.InitConnect)
+  }
+
+  const handleNewWallet = () => {
+    if (devMode) return setShowCreateOptions(true)
+    createWallet('static')
   }
 
   const handleOldWallet = () => navigate(Pages.InitRestore)
@@ -154,7 +165,14 @@ export default function Init() {
                   }
                   transition={{ duration: 0.3, ease: EASE_OUT_QUINT_TUPLE }}
                 >
-                  <h1 style={{ ...titleStyle, paddingLeft: 4 }}>Welcome to Arkade 👾</h1>
+                  {/* Triple-tap the welcome heading to toggle devMode (hidden gesture) */}
+                  <h1
+                    onClick={handleTap}
+                    data-testid='onboarding-devmode-tap'
+                    style={{ ...titleStyle, paddingLeft: 4, cursor: 'default' }}
+                  >
+                    Welcome to Arkade 👾
+                  </h1>
                 </motion.div>
               </div>
 
@@ -227,6 +245,19 @@ export default function Init() {
         <FlexCol gap='1rem'>
           <Text>Other login options</Text>
           <Button fancy disabled={error} onClick={handleOldWallet} label='Restore wallet' secondary />
+        </FlexCol>
+      </SheetModal>
+      <SheetModal isOpen={showCreateOptions} onClose={() => setShowCreateOptions(false)}>
+        <FlexCol gap='1rem'>
+          <Text>Create wallet</Text>
+          <Toggle
+            checked={hdRotation}
+            onClick={() => setHdRotation((v) => !v)}
+            text='Rotate receive addresses'
+            subtext='Derive a fresh address for every incoming payment (HD wallet). Improves on-chain privacy. Best used with Nostr backup enabled so rotated addresses are recoverable on restore. For advanced users.'
+            testId='toggle-hd-rotation'
+          />
+          <Button label='Create wallet' onClick={() => createWallet(hdRotation ? 'hd' : 'static')} />
         </FlexCol>
       </SheetModal>
     </>
