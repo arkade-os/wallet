@@ -5,7 +5,7 @@ import { ConfigContext } from '../providers/config'
 import { prettyNumber } from '../lib/format'
 import { FIAT_SYMBOLS } from '../lib/fiat'
 import { LimitsContext } from '../providers/limits'
-import { AssetOption, Currencies } from '../lib/types'
+import { AssetOption } from '../lib/types'
 import { TextSecondary } from './Text'
 import { hapticLight } from '../lib/haptics'
 
@@ -90,18 +90,10 @@ export default function InputAmount({
   const maximumSats = max ? Math.min(max, maxSwapAllowed()) : 0
 
   const fiatSymbol = FIAT_SYMBOLS[config.fiat]
-  const fiatLabel = config.fiat === Currencies.BTC ? config.currencyDisplay : (fiatSymbol ?? config.fiat)
+  const fiatLabel = useFiat ? (fiatSymbol ?? config.fiat) : config.currencyDisplay
 
   const leftLabel = asset?.assetId ? asset.ticker : useFiat ? fiatLabel : 'sats'
-  const rightLabel = asset?.assetId
-    ? ''
-    : useFiat && config.fiat === Currencies.BTC
-      ? ''
-      : useFiat
-        ? `${otherValue} sats`
-        : fiatSymbol
-          ? `${fiatSymbol}${otherValue}`
-          : `${otherValue} ${config.fiat}`
+  const rightLabel = !asset?.assetId && useFiat ? `${otherValue} sats` : ''
   const bottomLeft =
     minimumSats && satsValue !== undefined && satsValue < minimumSats
       ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'sat' : 'sats'}`
