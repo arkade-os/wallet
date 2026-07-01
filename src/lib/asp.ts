@@ -11,6 +11,7 @@ import {
   IVtxoManager,
   Asset,
   ArkError,
+  DelegateInfo,
 } from '@arkade-os/sdk'
 import { Addresses, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
@@ -335,7 +336,14 @@ export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> 
     throw new Error('Delegator manager not found')
   }
 
-  const delegateInfo = await dm.getDelegateInfo()
+  let delegateInfo: DelegateInfo
+  try {
+    delegateInfo = await dm.getDelegateInfo()
+  } catch (error) {
+    consoleError(error, 'Error fetching delegate info')
+    return
+  }
+
   const vtxosToDelegate = contractWithVtxos
     .filter(({ contract, vtxos }) => {
       if (vtxos.length === 0) return false
@@ -350,8 +358,7 @@ export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> 
   const destination = await wallet.getAddress()
   const result = await dm.delegate(vtxosToDelegate, destination)
   if (result.failed.length > 0) {
-    // eslint-disable-next-line no-console
-    console.warn('Delegation partial failure:', result.failed)
+    consoleError(result.failed, 'Delegation partial failure:')
   }
 }
 
