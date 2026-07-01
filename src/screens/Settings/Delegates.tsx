@@ -144,7 +144,7 @@ function DelegateCard() {
         setActive(true)
       })
       .catch((error) => {
-        consoleError('Error testing delegate connection:', error)
+        consoleError(error, 'Error testing delegate connection:')
         setActive(false)
       })
   }, [config.delegate, aspInfo.signerPubkey])
