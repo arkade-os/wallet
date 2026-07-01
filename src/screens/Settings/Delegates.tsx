@@ -21,6 +21,7 @@ import { decodeArkAddress, isArkAddress } from '../../lib/address'
 import { Network } from '@arkade-os/boltz-swap'
 import { copyToClipboard } from '../../lib/clipboard'
 import { useToast } from '../../components/Toast'
+import { consoleError } from '../../lib/logs'
 
 // format the URL to ensure it has the correct protocol and no trailing slashes
 const formatUrl = (host: string, path: string): string => {
@@ -38,9 +39,12 @@ const formatUrl = (host: string, path: string): string => {
 // test connection to delegate by fetching delegate info and validating the response
 const testConnection = (aspInfo: AspInfo): Promise<Delegate> => {
   return new Promise((resolve, reject) => {
-    // ensure expected pubkey is in xonly format
-    const expectedPubKey = aspInfo.signerPubkey.length === 66 ? aspInfo.signerPubkey.slice(2) : aspInfo.signerPubkey
-    if (expectedPubKey.length !== 64) return reject(new Error('Invalid expected server pubkey'))
+    // ensure expected pubkeys are in xonly format
+    const deprecatedSignerPubkeys = (aspInfo.deprecatedSigners || []).map((ds) => ds.pubkey)
+    const possibleXOnlyPubkeys = [...deprecatedSignerPubkeys, aspInfo.signerPubkey].map((pk) =>
+      pk.length === 66 ? pk.slice(2) : pk,
+    )
+    if (possibleXOnlyPubkeys.some((pk) => pk.length !== 64)) return reject(new Error('Invalid expected server pubkey'))
     const delegate = getDelegateUrlForNetwork(aspInfo.network as Network)
     // fetch delegate info from the delegate server
     fetch(formatUrl(delegate.url, '/v1/delegator/info'))
@@ -59,7 +63,7 @@ const testConnection = (aspInfo: AspInfo): Promise<Delegate> => {
             if (!data.delegatorAddress) return reject(new Error('Missing delegate address'))
             if (!isArkAddress(data.delegatorAddress)) return reject(new Error('Invalid delegate address'))
             const { serverPubKey } = decodeArkAddress(data.delegatorAddress)
-            if (serverPubKey !== expectedPubKey) return reject(new Error('Invalid delegate server key'))
+            if (!possibleXOnlyPubkeys.includes(serverPubKey)) return reject(new Error('Invalid delegate server key'))
             resolve({ ...delegate, address: data.delegatorAddress, pubkey: data.pubkey, fee: parseInt(data.fee, 10) })
           })
           .catch(() => reject(new Error('Invalid json in delegate response')))
@@ -136,7 +140,10 @@ function DelegateCard() {
         setDelegate(delegate)
         setActive(true)
       })
-      .catch(() => setActive(false))
+      .catch((error) => {
+        consoleError('Error testing delegate connection:', error)
+        setActive(false)
+      })
   }, [config.delegate, aspInfo.signerPubkey])
 
   if (!config.delegate) return null
