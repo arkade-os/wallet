@@ -40,7 +40,10 @@ const formatUrl = (host: string, path: string): string => {
 const testConnection = (aspInfo: AspInfo): Promise<Delegate> => {
   return new Promise((resolve, reject) => {
     // ensure expected pubkeys are in xonly format
-    const deprecatedSignerPubkeys = (aspInfo.deprecatedSigners || []).map((ds) => ds.pubkey)
+    const now = Math.floor(Date.now() / 1000)
+    const deprecatedSignerPubkeys = (aspInfo.deprecatedSigners || [])
+      .filter((ds) => ds.cutoffDate > now)
+      .map((ds) => ds.pubkey)
     const possibleXOnlyPubkeys = [...deprecatedSignerPubkeys, aspInfo.signerPubkey].map((pk) =>
       pk.length === 66 ? pk.slice(2) : pk,
     )
