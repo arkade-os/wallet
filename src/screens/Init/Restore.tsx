@@ -26,7 +26,7 @@ import { validateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import { deriveNostrKeyFromMnemonic } from '../../lib/mnemonic'
 import { AspContext } from '../../providers/asp'
-import InputNsec from '@/components/InputNsec'
+import InputNsec from '../../components/InputNsec'
 
 type RotationChoice = 'Inherit' | 'Static' | 'HD'
 
