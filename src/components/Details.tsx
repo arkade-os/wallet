@@ -1,5 +1,5 @@
 import { useContext } from 'react'
-import { prettyAmount, prettyFiatAmount, prettyFiatHide, prettyHide } from '../lib/format'
+import { prettyBitcoinAmount, prettyBitcoinHide, prettyFiatAmount, prettyFiatHide } from '../lib/format'
 import { ConfigContext } from '../providers/config'
 import { FiatContext } from '../providers/fiat'
 import FeesIcon from '../icons/Fees'
@@ -14,7 +14,7 @@ import Table, { TableData } from './Table'
 import StatusIcon from '../icons/Status'
 import HashIcon from '../icons/Hash'
 import InfoIcon from '../icons/Info'
-import { Wallet } from '../lib/types'
+import { Unit, Wallet } from '../lib/types'
 import {
   openInNewTab,
   openOffchainTxInNewTab,
@@ -44,7 +44,7 @@ export interface DetailsProps {
   when?: string
 }
 
-export default function Details({ details }: { details?: DetailsProps }) {
+export default function Details({ details, variant }: { details?: DetailsProps; variant?: 'default' | 'receipt' }) {
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
 
@@ -75,9 +75,13 @@ export default function Details({ details }: { details?: DetailsProps }) {
     if (amount === undefined) return ''
     if (useFiat) {
       const fiat = toFiat(amount)
-      return config.showBalance ? prettyFiatAmount(fiat, config.fiat) : prettyFiatHide(fiat, config.fiat)
+      return config.showBalance
+        ? prettyFiatAmount(fiat, config.fiat, { bitcoinUnit: config.currencyDisplay })
+        : prettyFiatHide(fiat, config.fiat, { bitcoinUnit: config.currencyDisplay })
     }
-    return config.showBalance ? prettyAmount(amount) : prettyHide(amount)
+    return config.showBalance
+      ? prettyBitcoinAmount(amount, config.currencyDisplay as unknown as Unit)
+      : prettyBitcoinHide(amount, config.currencyDisplay)
   }
 
   // Only show explorer link if URL is available (e.g., mainnet for vmempool)
@@ -121,5 +125,5 @@ export default function Details({ details }: { details?: DetailsProps }) {
     ['Total', formatAmount(total), <TotalIcon key='total-icon' />],
   ]
 
-  return <Table data={data} />
+  return <Table data={data} variant={variant} />
 }

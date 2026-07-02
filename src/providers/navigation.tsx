@@ -14,11 +14,12 @@ import SendDetails from '../screens/Wallet/Send/Details'
 import SendSuccess from '../screens/Wallet/Send/Success'
 import Transaction from '../screens/Wallet/Transaction'
 import Unlock from '../screens/Wallet/Unlock'
+import Activity from '../screens/Wallet/Activity'
 import Vtxos from '../screens/Settings/Vtxos'
 import Wallet from '../screens/Wallet/Index'
+import BitcoinDetail from '../screens/Wallet/BitcoinDetail'
 import Settings from '../screens/Settings/Index'
 
-import Apps from '../screens/Apps/Index'
 import AppBoltz from '../screens/Apps/Boltz/Index'
 import AppBoltzSettings from '../screens/Apps/Boltz/Settings'
 import InitSuccess from '../screens/Init/Success'
@@ -40,6 +41,8 @@ import Unavailable from '../screens/Wallet/Unavailable'
 export type NavigationDirection = 'forward' | 'back' | 'none'
 
 export enum Pages {
+  Activity,
+  BitcoinDetail,
   AppBoltz,
   AppBoltzSettings,
   AppBoltzSwap,
@@ -54,7 +57,6 @@ export enum Pages {
   AppAssetBurn,
   AppAssetsSettings,
   AppDfx,
-  Apps,
   Init,
   InitRestore,
   InitPassword,
@@ -76,31 +78,32 @@ export enum Pages {
   Unlock,
   Vtxos,
   Wallet,
+  WalletSettings,
 }
 
 export enum Tabs {
-  Apps = 'apps',
   None = 'none',
   Settings = 'settings',
   Wallet = 'wallet',
 }
 
 const pageTab = {
-  [Pages.AppBoltz]: Tabs.Apps,
-  [Pages.AppBoltzSettings]: Tabs.Apps,
-  [Pages.AppBoltzSwap]: Tabs.Apps,
-  [Pages.AppLendasat]: Tabs.Apps,
-  [Pages.AppSatora]: Tabs.Apps,
-  [Pages.AppAssets]: Tabs.Apps,
-  [Pages.AppAssetDetail]: Tabs.Apps,
-  [Pages.AppAssetImport]: Tabs.Apps,
-  [Pages.AppAssetMint]: Tabs.Apps,
-  [Pages.AppAssetMintSuccess]: Tabs.Apps,
-  [Pages.AppAssetReissue]: Tabs.Apps,
-  [Pages.AppAssetBurn]: Tabs.Apps,
-  [Pages.AppAssetsSettings]: Tabs.Apps,
-  [Pages.AppDfx]: Tabs.Apps,
-  [Pages.Apps]: Tabs.Apps,
+  [Pages.Activity]: Tabs.Wallet,
+  [Pages.BitcoinDetail]: Tabs.Wallet,
+  [Pages.AppBoltz]: Tabs.Settings,
+  [Pages.AppBoltzSettings]: Tabs.Settings,
+  [Pages.AppBoltzSwap]: Tabs.Settings,
+  [Pages.AppLendasat]: Tabs.Wallet,
+  [Pages.AppSatora]: Tabs.Wallet,
+  [Pages.AppAssets]: Tabs.Settings,
+  [Pages.AppAssetDetail]: Tabs.Settings,
+  [Pages.AppAssetImport]: Tabs.Settings,
+  [Pages.AppAssetMint]: Tabs.Settings,
+  [Pages.AppAssetMintSuccess]: Tabs.Settings,
+  [Pages.AppAssetReissue]: Tabs.Settings,
+  [Pages.AppAssetBurn]: Tabs.Settings,
+  [Pages.AppAssetsSettings]: Tabs.Settings,
+  [Pages.AppDfx]: Tabs.Wallet,
   [Pages.Init]: Tabs.None,
   [Pages.InitRestore]: Tabs.None,
   [Pages.InitPassword]: Tabs.None,
@@ -122,10 +125,11 @@ const pageTab = {
   [Pages.Unlock]: Tabs.None,
   [Pages.Vtxos]: Tabs.Settings,
   [Pages.Wallet]: Tabs.Wallet,
+  [Pages.WalletSettings]: Tabs.Wallet,
 }
 
 // Root pages of each tab — tab switches between these get no animation
-const ROOT_PAGES = new Set([Pages.Wallet, Pages.Apps, Pages.Settings])
+const ROOT_PAGES = new Set([Pages.Wallet, Pages.Settings])
 
 // Coordination point for sub-navigation (e.g., Settings options)
 // Sub-navigation providers register here so the main popstate handler can delegate
@@ -144,6 +148,10 @@ export const subNavHandler = {
 
 export const pageComponent = (page: Pages): JSX.Element => {
   switch (page) {
+    case Pages.Activity:
+      return <Activity />
+    case Pages.BitcoinDetail:
+      return <BitcoinDetail />
     case Pages.AppBoltz:
       return <AppBoltz />
     case Pages.AppBoltzSettings:
@@ -172,8 +180,6 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <AppAssetsSettings />
     case Pages.AppDfx:
       return <AppDfx />
-    case Pages.Apps:
-      return <Apps />
     case Pages.Init:
       return <Init />
     case Pages.InitConnect:
@@ -216,6 +222,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <Vtxos />
     case Pages.Wallet:
       return <Wallet />
+    case Pages.WalletSettings:
+      return <Settings />
     default:
       return <></>
   }
@@ -226,6 +234,7 @@ interface NavigationContextProps {
   goBack: () => void
   isInitialLoad: boolean
   navigate: (arg0: Pages) => void
+  replace: (page: Pages, backTo?: Pages | Pages[]) => void
   screen: Pages
   tab: Tabs
 }
@@ -235,6 +244,7 @@ export const NavigationContext = createContext<NavigationContextProps>({
   goBack: () => {},
   isInitialLoad: false,
   navigate: () => {},
+  replace: () => {},
   screen: Pages.Init,
   tab: Tabs.None,
 })
@@ -261,7 +271,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     }
 
     // delegate to sub-navigation (e.g., Settings options) if it can handle this
-    if (subNavHandler.canGoBack()) {
+    if ([Pages.Settings, Pages.WalletSettings].includes(screenRef.current) && subNavHandler.canGoBack()) {
       subNavHandler.goBack(fromButton)
       return
     }
@@ -298,7 +308,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [])
 
-  const navigate = (page: Pages) => {
+  const navigate = useCallback((page: Pages) => {
     const isRootNavigation = ROOT_PAGES.has(page)
 
     previousPage.current = screenRef.current
@@ -327,10 +337,40 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     screenRef.current = page
     setScreen(page)
     setTab(pageTab[page])
-  }
+  }, [])
+
+  const replace = useCallback((page: Pages, backTo?: Pages | Pages[]) => {
+    previousPage.current = screenRef.current
+
+    if (backTo !== undefined) {
+      const targets = Array.isArray(backTo) ? backTo : [backTo]
+      const targetIndex = Math.max(...targets.map((target) => backStack.current.lastIndexOf(target)))
+      if (targetIndex >= 0) {
+        backStack.current = backStack.current.slice(0, targetIndex + 1)
+      }
+    }
+
+    screenRef.current = page
+    setScreen(page)
+    setTab(pageTab[page])
+    setDirection('back')
+  }, [])
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+
+    const navWindow = window as typeof window & {
+      __ARKADE_E2E_NAVIGATE__?: (page: keyof typeof Pages) => void
+    }
+    navWindow.__ARKADE_E2E_NAVIGATE__ = (page) => navigate(Pages[page])
+
+    return () => {
+      delete navWindow.__ARKADE_E2E_NAVIGATE__
+    }
+  }, [navigate])
 
   return (
-    <NavigationContext.Provider value={{ direction, goBack, isInitialLoad, navigate, screen, tab }}>
+    <NavigationContext.Provider value={{ direction, goBack, isInitialLoad, navigate, replace, screen, tab }}>
       {children}
     </NavigationContext.Provider>
   )

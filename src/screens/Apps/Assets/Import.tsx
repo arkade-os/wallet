@@ -18,7 +18,7 @@ import Scanner from '../../../components/Scanner'
 import { isValidAssetId } from '../../../lib/assets'
 
 export default function AppAssetImport() {
-  const { navigate } = useContext(NavigationContext)
+  const { replace } = useContext(NavigationContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
   const { svcWallet, setCacheEntry } = useContext(WalletContext)
@@ -50,7 +50,7 @@ export default function AppAssetImport() {
       }
 
       setAssetInfo(moderated)
-      navigate(Pages.AppAssetDetail)
+      replace(Pages.AppAssetDetail, Pages.AppAssets)
     } catch (err) {
       consoleError(err, 'error importing asset')
       setError(extractError(err))
@@ -65,7 +65,7 @@ export default function AppAssetImport() {
 
   return (
     <>
-      <Header text='Import Asset' back={() => navigate(Pages.AppAssets)} />
+      <Header text='Import Asset' back />
       <Content>
         <Padded>
           <FlexCol>

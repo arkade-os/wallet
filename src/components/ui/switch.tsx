@@ -27,7 +27,7 @@ function Switch({
         'data-[size=sm]:h-[14px] data-[size=sm]:w-[24px]',
         'data-[size=lg]:h-[24px] data-[size=lg]:w-[44px]',
         // Track colors + inner shadow for depth
-        'data-checked:bg-primary data-unchecked:bg-neutral-300 dark:data-unchecked:bg-neutral-600',
+        'data-checked:bg-purple-700 data-unchecked:bg-neutral-300 dark:data-unchecked:bg-neutral-600',
         'shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]',
         // Disabled
         'data-disabled:cursor-not-allowed data-disabled:opacity-50',

@@ -4,6 +4,7 @@ import { StrengthLabel } from './Strength'
 import PasswordIcon from '../icons/Password'
 
 interface InputPasswordProps {
+  error?: string
   focus?: boolean
   label?: string
   onChange: (arg0: any) => void
@@ -12,7 +13,15 @@ interface InputPasswordProps {
   strength?: number
 }
 
-export default function InputPassword({ focus, label, onChange, onEnter, strength, placeholder }: InputPasswordProps) {
+export default function InputPassword({
+  error,
+  focus,
+  label,
+  onChange,
+  onEnter,
+  strength,
+  placeholder,
+}: InputPasswordProps) {
   const [visible, setVisible] = useState(false)
 
   const input = useRef<HTMLInputElement>(null)
@@ -25,7 +34,7 @@ export default function InputPassword({ focus, label, onChange, onEnter, strengt
   const right = strength ? <StrengthLabel strength={strength} /> : undefined
 
   return (
-    <InputContainer label={label} right={right}>
+    <InputContainer error={error} label={label} right={right}>
       <label className='label'>
         <input
           ref={input}

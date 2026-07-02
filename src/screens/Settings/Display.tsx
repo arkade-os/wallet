@@ -17,14 +17,19 @@ export default function Display() {
 
   return (
     <>
-      <Header text='Display preferences' back />
+      <Header text='Bitcoin unit' back />
       <Content>
         <Padded>
-          <Select
-            onChange={handleChange}
-            options={[CurrencyDisplay.Both, CurrencyDisplay.Sats, CurrencyDisplay.Fiat]}
-            selected={config.currencyDisplay}
-          />
+          <div className='settings-page'>
+            <section className='settings-section'>
+              <p className='settings-section-label'>Bitcoin unit</p>
+              <Select
+                onChange={handleChange}
+                options={[CurrencyDisplay.BTC, CurrencyDisplay.Sats, CurrencyDisplay.Bip177]}
+                selected={config.currencyDisplay}
+              />
+            </section>
+          </div>
         </Padded>
       </Content>
     </>

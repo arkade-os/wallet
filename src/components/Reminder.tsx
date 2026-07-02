@@ -7,6 +7,8 @@ import {
 } from '../lib/calendar'
 import SheetModal from './SheetModal'
 import FlexCol from './FlexCol'
+import Button from './Button'
+import Text from './Text'
 interface ReminderProps {
   callback: () => void
   duration: number
@@ -41,34 +43,25 @@ export default function Reminder({ callback, duration, name, isOpen, startTime }
     callback()
   }
 
-  const headerStyle: React.CSSProperties = {
-    fontSize: '1rem',
-    fontWeight: 700,
-  }
-
-  const subHeaderStyle: React.CSSProperties = {
-    fontSize: '0.8rem',
-    fontWeight: 400,
-    color: 'var(--neutral-500)',
-  }
-
   return (
     <SheetModal isOpen={isOpen} onClose={callback}>
       <FlexCol gap='2rem'>
-        <FlexCol centered>
-          <p style={headerStyle}>{name}</p>
-          <p style={subHeaderStyle}>{prettyDate(startTime)}</p>
+        <FlexCol centered gap='0.5rem'>
+          <Text bold>{name}</Text>
+          <Text small color='neutral-500'>
+            {prettyDate(startTime)}
+          </Text>
         </FlexCol>
         <FlexCol>
-          <button className='reminder-button' onClick={handleGoogle}>
+          <Button outline onClick={handleGoogle}>
             Google Calendar
-          </button>
-          <button className='reminder-button' onClick={handleApple}>
+          </Button>
+          <Button outline onClick={handleApple}>
             Apple Calendar
-          </button>
-          <button className='reminder-button' onClick={handleOutlook}>
+          </Button>
+          <Button outline onClick={handleOutlook}>
             Outlook
-          </button>
+          </Button>
         </FlexCol>
       </FlexCol>
     </SheetModal>

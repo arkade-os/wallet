@@ -25,7 +25,7 @@ import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
 import InputAmount from '../../../components/InputAmount'
-import Keyboard from '../../../components/Keyboard'
+import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
 import Text, { TextSecondary } from '../../../components/Text'
 import { copyToClipboard } from '../../../lib/clipboard'
@@ -286,7 +286,7 @@ export default function ReceiveQRCode() {
       }
 
       receivedAssets = receivedAssets.reduce((acc, v) => {
-        const existing = acc.find((a) => a.assetId === v.assetId)
+        const existing = acc.find((a: Asset) => a.assetId === v.assetId)
         if (existing) {
           existing.amount += v.amount
         } else {
@@ -341,7 +341,7 @@ export default function ReceiveQRCode() {
     }
   }
 
-  const handleAmountConfirm = (value = amountTextValue) => {
+  const handleAmountConfirm = (value = amountTextValue, inputMode?: KeyboardInputMode) => {
     setShowKeys(false)
     setShowAmountSheet(false)
     if (assetMeta) {
@@ -351,7 +351,8 @@ export default function ReceiveQRCode() {
     } else {
       const num = Number(value)
       if (Number.isNaN(num) || !Number.isFinite(num)) throw new Error('Invalid amount')
-      const sats = useFiat ? fromFiat(num) : num
+      const shouldConvertFromFiat = useFiat || inputMode === 'fiat'
+      const sats = inputMode === 'sats' ? num : shouldConvertFromFiat ? fromFiat(num) : num
       // if amount was changed, we need to reset invoice and swap address, since they are amount-specific
       // this will also trigger the useEffect to create new ones if needed
       if (sats !== recvInfo.satoshis) {
@@ -397,11 +398,12 @@ export default function ReceiveQRCode() {
           setShowKeys(false)
           setShowAmountSheet(false)
         }}
+        initialValue={assetAmount || satoshis}
         onClear={hasAmount ? handleAmountClear : undefined}
-        onSave={(value: string) => {
+        onSave={(value: string, inputMode: KeyboardInputMode) => {
           setShowKeys(false)
           setShowAmountSheet(false)
-          handleAmountConfirm(value)
+          handleAmountConfirm(value, inputMode)
         }}
       />
     )
@@ -420,54 +422,54 @@ export default function ReceiveQRCode() {
           ) : !addressesLoaded || (!qrCodeValue && !noPaymentMethods) ? (
             <LoadingLogo text='Loading...' />
           ) : noPaymentMethods ? (
-            <div>No valid payment methods available for this amount</div>
+            <p>No valid payment methods available for this amount</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 2rem)', gap: '1rem' }}>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ textAlign: 'center' }}>
-                  <button
-                    type='button'
-                    onClick={() => handleCopy(qrCodeValue)}
-                    onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
-                    onPointerUp={() => setQrTransform('')}
-                    onPointerLeave={() => setQrTransform('')}
-                    onPointerCancel={() => setQrTransform('')}
-                    aria-label='Copy QR code'
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      padding: 0,
-                      margin: '0 auto',
-                      display: 'block',
-                      width: '100%',
-                      maxWidth: '340px',
-                      cursor: 'pointer',
-                      transition: prefersReducedMotion
-                        ? 'none'
-                        : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
-                      WebkitTapHighlightColor: 'transparent',
-                      touchAction: 'manipulation',
-                      transform: qrTransform,
-                    }}
-                  >
-                    <QrCode value={qrCodeValue} />
-                  </button>
-                  {satoshis > 0 ? (
-                    <div style={{ fontSize: '14px', color: 'var(--neutral-500)', marginTop: '0.5rem' }}>
-                      Requesting {prettyNumber(satoshis, 0)} {unitLabel}
-                    </div>
-                  ) : null}
-                  {(!satoshis || satoshis < minSwapAllowed()) && !isAssetReceive ? (
-                    <div style={{ fontSize: '13px', color: 'var(--neutral-500)', marginTop: '0.25rem' }}>
-                      {minSwapAllowed()} sats min for Lightning
-                    </div>
-                  ) : null}
-                  {swapsTimedOut && !invoice && !isAssetReceive ? (
-                    <WarningBox text='Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.' />
-                  ) : null}
-                </div>
-              </div>
-            </div>
+            <FlexCol gap='0.5rem' centered>
+              <button
+                type='button'
+                onClick={() => handleCopy(qrCodeValue)}
+                onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
+                onPointerUp={() => setQrTransform('')}
+                onPointerLeave={() => setQrTransform('')}
+                onPointerCancel={() => setQrTransform('')}
+                aria-label='Copy QR code'
+                style={{
+                  padding: 0,
+                  width: '100%',
+                  border: 'none',
+                  margin: '0 auto',
+                  display: 'block',
+                  marginTop: '5rem',
+                  maxWidth: '340px',
+                  cursor: 'pointer',
+                  background: 'none',
+                  transition: prefersReducedMotion
+                    ? 'none'
+                    : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
+                  WebkitTapHighlightColor: 'transparent',
+                  touchAction: 'manipulation',
+                  transform: qrTransform,
+                }}
+              >
+                <QrCode value={qrCodeValue} />
+              </button>
+              {satoshis > 0 ? (
+                <Text small color='neutral-500'>
+                  Requesting {prettyNumber(satoshis, 0)} {unitLabel}
+                </Text>
+              ) : null}
+              {(!satoshis || satoshis < minSwapAllowed()) && !isAssetReceive ? (
+                <Text small color='neutral-500'>
+                  {minSwapAllowed()} sats min for Lightning
+                </Text>
+              ) : null}
+              {swapsTimedOut && !invoice && !isAssetReceive ? (
+                <WarningBox
+                  small
+                  text='Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.'
+                />
+              ) : null}
+            </FlexCol>
           )}
         </Padded>
       </Content>

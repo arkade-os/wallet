@@ -1,7 +1,6 @@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { GreenStatusIcon } from '../icons/Status'
-import { useEffect } from 'react'
-import Text from './Text'
+import { useEffect, type ReactNode } from 'react'
 import { hapticSubtle } from '../lib/haptics'
 import { cn } from '@/lib/utils'
 
@@ -9,10 +8,11 @@ interface SelectProps {
   labels?: string[]
   onChange: (value: string) => void
   options: string[]
+  renderStart?: (option: string) => ReactNode
   selected: string
 }
 
-export default function Select({ labels, onChange, options, selected }: SelectProps) {
+export default function Select({ labels, onChange, options, renderStart, selected }: SelectProps) {
   useEffect(() => {
     const handleKeyDown = (event: { key: string; keyCode: number }) => {
       const selectedIndex = options.indexOf(selected)
@@ -34,7 +34,7 @@ export default function Select({ labels, onChange, options, selected }: SelectPr
   }
 
   return (
-    <RadioGroup value={selected} onValueChange={handleChange} className='flex flex-col !gap-0 !p-0 !m-0'>
+    <RadioGroup value={selected} onValueChange={handleChange} className='settings-row-group'>
       {options.map((option, index) => (
         <label
           key={option}
@@ -44,16 +44,19 @@ export default function Select({ labels, onChange, options, selected }: SelectPr
             handleChange(option)
           }}
           className={cn(
-            'flex w-full cursor-pointer items-center justify-between',
-            'py-[0.8rem] px-0',
-            index < options.length - 1 && 'border-b border-neutral-100',
+            'settings-row settings-select-row',
+            option === selected && 'settings-select-row--selected',
+            index === 0 && 'settings-select-row--first',
           )}
         >
           <RadioGroupItem
             value={option}
             className='!absolute !-m-px !size-px !border-0 !p-0 opacity-0 pointer-events-none'
           />
-          <Text thin>{labels?.[index] ?? option}</Text>
+          <span className='settings-select-row__content'>
+            {renderStart ? <span className='settings-select-row__icon'>{renderStart(option)}</span> : null}
+            <p className='settings-row__label'>{labels?.[index] ?? option}</p>
+          </span>
           {option === selected && <GreenStatusIcon small />}
         </label>
       ))}

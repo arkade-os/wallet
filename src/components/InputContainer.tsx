@@ -1,8 +1,6 @@
 import { ReactNode } from 'react'
-import ErrorMessage from './Error'
 import FlexRow from './FlexRow'
 import FlexCol from './FlexCol'
-import Shadow from './Shadow'
 import Text from './Text'
 
 interface InputContainerProps {
@@ -43,15 +41,19 @@ export default function InputContainer({
   )
 
   return (
-    <FlexCol>
+    <FlexCol className='input-container'>
       <FlexCol gap='0.5rem'>
         {label || right ? <TopLabel /> : null}
-        <Shadow>
+        <div className='input-shell'>
           <FlexRow between>{children}</FlexRow>
-        </Shadow>
+        </div>
         {bottomLeft || bottomRight ? <BottomLabel /> : null}
       </FlexCol>
-      <ErrorMessage error={Boolean(error)} text={error ?? ''} />
+      {Boolean(error) ? (
+        <Text capitalize color='red-500' smaller>
+          {error}
+        </Text>
+      ) : null}
     </FlexCol>
   )
 }

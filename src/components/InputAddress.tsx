@@ -1,6 +1,7 @@
 import InputWithScanner from './InputWithScanner'
 
 interface InputAddressProps {
+  error?: string
   focus?: boolean
   label?: string
   name?: string
@@ -12,6 +13,7 @@ interface InputAddressProps {
 }
 
 export default function InputAddress({
+  error,
   focus,
   label,
   name,
@@ -23,6 +25,7 @@ export default function InputAddress({
 }: InputAddressProps) {
   return (
     <InputWithScanner
+      error={error}
       focus={focus}
       label={label}
       name={name}

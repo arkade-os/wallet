@@ -1,11 +1,11 @@
-import { test, expect, createWallet, createWalletWithPassword } from './utils'
+import { test, expect, createWallet, createWalletWithPassword, navigateToSettings } from './utils'
 
 test('should be able to get recovery phrase without password', async ({ page }) => {
   // Create wallet (mnemonic-based by default)
   await createWallet(page)
 
   // Go to Settings > Backup
-  await page.getByTestId('tab-settings').click()
+  await navigateToSettings(page)
   await page.getByText('Backup').click()
   await expect(page.getByText('This is enough to restore your wallet')).toBeVisible()
 
@@ -28,7 +28,7 @@ test('should be able to get recovery phrase with password', async ({ page }) => 
   await createWalletWithPassword(page, 'testpassword')
 
   // Go to Settings > Backup
-  await page.getByTestId('tab-settings').click()
+  await navigateToSettings(page)
   await page.getByText('Backup').click()
   await expect(page.getByText('This is enough to restore your wallet')).toBeVisible()
 

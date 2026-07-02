@@ -3,7 +3,7 @@ import { Pages, Tabs } from '../../providers/navigation'
 import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { AspInfo } from '../../providers/asp'
 import { SingleKey, IVtxoManager } from '@arkade-os/sdk'
-import { CurrencyDisplay, Fiats, SettingsOptions, Themes, Unit } from '../../lib/types'
+import { CurrencyDisplay, Currencies, SettingsOptions, Themes, Unit } from '../../lib/types'
 import { AssetIconApprovalManager } from '../../lib/assetIconApproval'
 
 const mockAspInfo: AspInfo = {
@@ -56,12 +56,12 @@ export const mockAspContextValue = {
 export const mockConfigContextValue = {
   config: {
     announcementsSeen: [],
-    apps: { assets: { enabled: false }, boltz: { connected: true } },
+    apps: { assets: { enabled: true }, boltz: { connected: true } },
     aspUrl: 'http://asp.local',
     dismissedBanners: [],
-    currencyDisplay: CurrencyDisplay.Both,
+    currencyDisplay: CurrencyDisplay.BTC,
     delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
-    fiat: Fiats.EUR,
+    fiat: Currencies.EUR,
     importedAssets: [],
     haptics: true,
     nostrBackup: true,
@@ -75,11 +75,9 @@ export const mockConfigContextValue = {
   updateConfig: () => {},
   effectiveTheme: Themes.Dark as const,
   systemTheme: Themes.Dark as const,
-  useFiat: false,
+  useFiat: true,
   backupConfig: () => Promise.resolve(),
   configLoaded: true,
-  resetConfig: () => {},
-  setConfig: () => {},
   showConfig: false,
   toggleShowConfig: () => {},
 }
@@ -90,9 +88,12 @@ export const mockDevModeContextValue = {
 }
 
 export const mockFiatContextValue = {
+  toFiat: (satoshis?: number) => satoshis ?? 0,
+  fromFiat: (fiat?: number) => fiat ?? 0,
+  updateFiatPrices: () => {},
   fiatDecimals: () => 2,
-  fromFiat: (amount: number) => amount,
-  toFiat: (amount: number) => amount,
+  fromFiatAmount: (amount: number) => amount,
+  toFiatAmount: (amount: number) => amount,
 }
 
 export const mockSwapsContextValue = {
@@ -139,6 +140,7 @@ export const mockNavigationContextValue = {
   goBack: () => {},
   isInitialLoad: false,
   navigate: () => {},
+  replace: () => {},
   screen: Pages.Init,
   tab: Tabs.None,
 }

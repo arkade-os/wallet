@@ -5,9 +5,9 @@ import { ConfigContext } from '../providers/config'
 import { prettyNumber } from '../lib/format'
 import { FIAT_SYMBOLS } from '../lib/fiat'
 import { LimitsContext } from '../providers/limits'
-import Focusable from './Focusable'
 import { AssetOption } from '../lib/types'
 import { TextSecondary } from './Text'
+import { hapticLight } from '../lib/haptics'
 
 interface InputAmountProps {
   asset?: AssetOption
@@ -24,6 +24,7 @@ interface InputAmountProps {
   readOnly?: boolean
   right?: JSX.Element
   value?: string
+  valueSats?: number
 }
 
 export default function InputAmount({
@@ -41,6 +42,7 @@ export default function InputAmount({
   readOnly,
   right,
   value,
+  valueSats,
 }: InputAmountProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
@@ -57,11 +59,24 @@ export default function InputAmount({
     if (focus && input.current) input.current.focus()
   }, [focus])
 
-  // update other value when sats change
+  // valueSats prop has priority over value prop, so update value when valueSats changes
+  useEffect(() => {
+    if (valueSats === undefined) return
+    setSatsValue(valueSats)
+  }, [valueSats])
+
+  // update satsValue when value change
+  useEffect(() => {
+    if (valueSats !== undefined) return
+    if (!value || isNaN(Number(value))) return
+    setSatsValue(useFiat ? fromFiat(Number(value)) : Number(value))
+  }, [value, fromFiat, useFiat, valueSats])
+
+  // update other value when satsValue change
   useEffect(() => {
     setError(satsValue ? (satsValue < 0 ? 'Invalid amount' : '') : '')
     setOtherValue(useFiat ? prettyNumber(satsValue, 0) : prettyNumber(toFiat(satsValue), fiatDecimals()))
-  }, [satsValue])
+  }, [satsValue, toFiat, fiatDecimals, useFiat])
 
   const handleAmountChange = (ev: React.ChangeEvent<HTMLInputElement>) => {
     const textValue = ev.currentTarget.value
@@ -75,24 +90,17 @@ export default function InputAmount({
   const maximumSats = max ? Math.min(max, maxSwapAllowed()) : 0
 
   const fiatSymbol = FIAT_SYMBOLS[config.fiat]
-  const fiatLabel = fiatSymbol ?? config.fiat
+  const fiatLabel = useFiat ? (fiatSymbol ?? config.fiat) : config.currencyDisplay
 
-  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? fiatLabel : 'SATS'
-  const rightLabel = asset?.assetId
-    ? ''
-    : useFiat
-      ? `${otherValue} SATS`
-      : fiatSymbol
-        ? `${fiatSymbol}${otherValue}`
-        : `${otherValue} ${config.fiat}`
-  const fontStyle = { color: 'var(--neutral-500)', fontSize: '13px' }
+  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? fiatLabel : 'sats'
+  const rightLabel = !asset?.assetId && useFiat ? `${otherValue} sats` : ''
   const bottomLeft =
     minimumSats && satsValue !== undefined && satsValue < minimumSats
-      ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'SAT' : 'SATS'}`
+      ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'sat' : 'sats'}`
       : ''
   const bottomRight =
     maximumSats && satsValue !== undefined && satsValue > maximumSats
-      ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'SAT' : 'SATS'}`
+      ? `Max: ${prettyNumber(maximumSats)} ${maximumSats === 1 ? 'sat' : 'sats'}`
       : ''
 
   return (
@@ -109,24 +117,25 @@ export default function InputAmount({
           disabled={disabled}
           readOnly={readOnly}
           onChange={handleAmountChange}
-          value={value ? Number(value) : ''}
+          value={value ?? ''}
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
         />
         <TextSecondary>{rightLabel}</TextSecondary>
-      </label>
-      {onMax && !disabled && !readOnly ? (
-        <Focusable onEnter={onMax} fit>
-          <p
-            role='button'
-            onClick={onMax}
+        {onMax && !disabled && !readOnly ? (
+          <button
+            type='button'
+            className='pill-base'
+            onClick={() => {
+              hapticLight()
+              onMax()
+            }}
             aria-label='Set maximum amount'
             data-testid='input-amount-max'
-            style={{ ...fontStyle, color: 'var(--purpletext)', cursor: 'pointer' }}
           >
             Max
-          </p>
-        </Focusable>
-      ) : null}
+          </button>
+        ) : null}
+      </label>
     </InputContainer>
   )
 }

@@ -23,6 +23,34 @@ test('should navigate to assets and see disabled state', async ({ page }) => {
   await expect(page.getByText('Mint', { exact: true })).toBeVisible()
 })
 
+test('should mint an asset and it should appear on home', async ({ page }) => {
+  await createWallet(page)
+  await fundWallet(page)
+  await enableAssets(page)
+  await mintAsset(page, { amount: '1000', name: 'TestCoin', ticker: 'TST', decimals: 0 })
+
+  // assert success screen
+  await expect(page.getByText('TestCoin')).toBeVisible()
+  await expect(page.getByText('TST')).toBeVisible()
+
+  // go back to asset list
+  await page.getByText('Back to Arkade Mint').click()
+
+  // go back to homepage
+  await page.getByLabel('Go back').click()
+  await page.getByLabel('Go back').click()
+  await page.getByLabel('Go back').click()
+
+  // assert home page
+  await page.waitForSelector('text=TestCoin', { state: 'visible' })
+  await expect(page.getByText('TST').first()).toBeVisible()
+
+  // click asset card to go to detail page
+  await page.getByTestId(/^asset-row-TST-/).click()
+  await page.waitForSelector('text=TestCoin', { state: 'visible' })
+  await expect(page.getByText('Asset ID (tap to copy)').first()).toBeVisible()
+})
+
 test('should mint an asset and burn part of it', async ({ page }) => {
   await createWallet(page)
   await fundWallet(page)
@@ -38,7 +66,7 @@ test('should mint an asset and burn part of it', async ({ page }) => {
   await expect(page.getByText('TestCoin')).toBeVisible()
 
   // view asset detail from success screen
-  await page.getByTestId('TST').click()
+  await page.getByTestId(/^asset-row-TST-/).click()
 
   // assert detail page
   await expect(page.getByText('TestCoin').first()).toBeVisible()
@@ -80,7 +108,7 @@ test('should mint asset with fractional supply and burn it all', async ({ page }
   await expect(page.getByText('TestCoin')).toBeVisible()
 
   // view asset detail from success screen
-  await page.getByTestId('TST').click()
+  await page.getByTestId(/^asset-row-TST-/).click()
 
   // assert detail page
   await expect(page.getByText('TestCoin').first()).toBeVisible()
@@ -172,7 +200,7 @@ test('should mint asset with new control asset', async ({ page }) => {
 
   // success screen shows main asset
   await expect(page.getByText('MyCoin')).toBeVisible()
-  await expect(page.getByText('MYC', { exact: true })).toBeVisible()
+  await expect(page.getByText('500 MYC')).toBeVisible()
 
   // view asset detail
   await page.getByText('View Asset').click()
@@ -199,7 +227,7 @@ test('should mint asset with huge supply', async ({ page }) => {
 
   // success screen shows main asset
   await expect(page.getByText('Huge Supply')).toBeVisible()
-  await expect(page.getByText('HS', { exact: true })).toBeVisible()
+  await expect(page.getByText('99,007T HS', { exact: true })).toBeVisible()
 
   // view asset detail
   await page.getByText('View Asset').click()

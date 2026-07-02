@@ -1,29 +1,19 @@
 import { useEffect, useRef } from 'react'
 import WalletIcon from '../icons/Wallet'
-import AppsIcon from '../icons/Apps'
 import SettingsIcon from '../icons/Settings'
 
 interface PillNavbarProps {
   activeTab: string
   onWalletClick: () => void
-  onAppsClick: () => void
   onSettingsClick: () => void
 }
 
-export default function PillNavbar({ activeTab, onWalletClick, onAppsClick, onSettingsClick }: PillNavbarProps) {
+export default function PillNavbar({ activeTab, onWalletClick, onSettingsClick }: PillNavbarProps) {
   const walletRef = useRef<HTMLDivElement>(null)
-  const appsRef = useRef<HTMLDivElement>(null)
   const settingsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const ref =
-      activeTab === 'wallet'
-        ? walletRef
-        : activeTab === 'apps'
-          ? appsRef
-          : activeTab === 'settings'
-            ? settingsRef
-            : null
+    const ref = activeTab === 'wallet' ? walletRef : activeTab === 'settings' ? settingsRef : null
     if (!ref?.current) return
     const el = ref.current
     el.classList.remove('pill-icon-pop')
@@ -48,19 +38,6 @@ export default function PillNavbar({ activeTab, onWalletClick, onAppsClick, onSe
           <WalletIcon />
         </div>
         <span className='pill-nav-label'>Wallet</span>
-      </button>
-      <button
-        className={`pill-nav-btn ${activeTab === 'apps' ? 'pill-nav-btn--active' : ''}`}
-        onClick={onAppsClick}
-        role='tab'
-        aria-selected={activeTab === 'apps'}
-        aria-label='Apps'
-        data-testid='tab-apps'
-      >
-        <div ref={appsRef} className='pill-nav-icon'>
-          <AppsIcon />
-        </div>
-        <span className='pill-nav-label'>Apps</span>
       </button>
       <button
         className={`pill-nav-btn ${activeTab === 'settings' ? 'pill-nav-btn--active' : ''}`}
