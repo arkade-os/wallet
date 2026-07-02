@@ -14,6 +14,8 @@ import {
   isIssuance,
   isBurn,
   prettyBitcoinAmount,
+  bitcoinUnitToSats,
+  satsToBitcoinUnit,
 } from '../../lib/format'
 import { Currencies, Tx, Unit } from '../../lib/types'
 import { Asset } from '@arkade-os/sdk'
@@ -34,6 +36,20 @@ describe('format utilities', () => {
       expect(toSatoshis(0.000001)).toBe(100)
       expect(toSatoshis(0.00000999)).toBe(999)
       expect(toSatoshis(1)).toBe(100_000_000)
+    })
+  })
+
+  describe('bitcoin unit conversions', () => {
+    it('converts display bitcoin units to satoshis', () => {
+      expect(bitcoinUnitToSats(0.0001, Unit.BTC)).toBe(10000)
+      expect(bitcoinUnitToSats(10000, Unit.SATS)).toBe(10000)
+      expect(bitcoinUnitToSats(10000, Unit.BIP177)).toBe(10000)
+    })
+
+    it('converts satoshis to display bitcoin units', () => {
+      expect(satsToBitcoinUnit(10000, Unit.BTC)).toBe(0.0001)
+      expect(satsToBitcoinUnit(10000, Unit.SATS)).toBe(10000)
+      expect(satsToBitcoinUnit(10000, Unit.BIP177)).toBe(10000)
     })
   })
 
