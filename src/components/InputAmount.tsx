@@ -2,10 +2,10 @@ import { useContext, useEffect, useRef, useState } from 'react'
 import { FiatContext } from '../providers/fiat'
 import InputContainer from './InputContainer'
 import { ConfigContext } from '../providers/config'
-import { prettyNumber } from '../lib/format'
+import { bitcoinUnitToSats, formatBitcoinAmountParts, prettyBitcoinAmount, prettyNumber } from '../lib/format'
 import { FIAT_SYMBOLS } from '../lib/fiat'
 import { LimitsContext } from '../providers/limits'
-import { AssetOption } from '../lib/types'
+import { AssetOption, Unit } from '../lib/types'
 import { TextSecondary } from './Text'
 import { hapticLight } from '../lib/haptics'
 
@@ -45,14 +45,14 @@ export default function InputAmount({
   valueSats,
 }: InputAmountProps) {
   const { config, useFiat } = useContext(ConfigContext)
-  const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
+  const { fromFiat } = useContext(FiatContext)
   const { minSwapAllowed, maxSwapAllowed } = useContext(LimitsContext)
 
   const [error, setError] = useState('')
-  const [otherValue, setOtherValue] = useState('')
   const [satsValue, setSatsValue] = useState(0)
 
   const input = useRef<HTMLInputElement>(null)
+  const bitcoinUnit = config.currencyDisplay as unknown as Unit
 
   // focus input when focus prop changes
   useEffect(() => {
@@ -69,21 +69,20 @@ export default function InputAmount({
   useEffect(() => {
     if (valueSats !== undefined) return
     if (!value || isNaN(Number(value))) return
-    setSatsValue(useFiat ? fromFiat(Number(value)) : Number(value))
-  }, [value, fromFiat, useFiat, valueSats])
+    setSatsValue(useFiat ? fromFiat(Number(value)) : bitcoinUnitToSats(Number(value), bitcoinUnit))
+  }, [value, fromFiat, useFiat, valueSats, bitcoinUnit])
 
   // update other value when satsValue change
   useEffect(() => {
     setError(satsValue ? (satsValue < 0 ? 'Invalid amount' : '') : '')
-    setOtherValue(useFiat ? prettyNumber(satsValue, 0) : prettyNumber(toFiat(satsValue), fiatDecimals()))
-  }, [satsValue, toFiat, fiatDecimals, useFiat])
+  }, [satsValue])
 
   const handleAmountChange = (ev: React.ChangeEvent<HTMLInputElement>) => {
     const textValue = ev.currentTarget.value
     onChange(textValue)
     if (asset?.assetId) return
     const value = Number(textValue)
-    setSatsValue(useFiat ? fromFiat(value) : value)
+    setSatsValue(useFiat ? fromFiat(value) : bitcoinUnitToSats(value, bitcoinUnit))
   }
 
   const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0
@@ -91,9 +90,10 @@ export default function InputAmount({
 
   const fiatSymbol = FIAT_SYMBOLS[config.fiat]
   const fiatLabel = useFiat ? (fiatSymbol ?? config.fiat) : config.currencyDisplay
+  const bitcoinUnitLabel = formatBitcoinAmountParts(0, bitcoinUnit).unit || config.currencyDisplay
 
-  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? fiatLabel : 'sats'
-  const rightLabel = !asset?.assetId && useFiat ? `${otherValue} sats` : ''
+  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? fiatLabel : bitcoinUnitLabel
+  const rightLabel = !asset?.assetId && useFiat ? prettyBitcoinAmount(satsValue, bitcoinUnit) : ''
   const bottomLeft =
     minimumSats && satsValue !== undefined && satsValue < minimumSats
       ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'sat' : 'sats'}`

@@ -19,7 +19,7 @@ import InputAmount from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
-import { prettyAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
+import { bitcoinUnitToSats, prettyBitcoinAmount, prettyFiatAmount, prettyNumber, satsToBitcoinUnit } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -155,6 +155,7 @@ export default function SendForm() {
   const hasAssets = assetBalances.length > 0
   const reserveApplied = !isAssetSend && hasAssets
   const liquidBalance = availableBalance - (reserveApplied ? DUST_AMOUNT : 0)
+  const bitcoinUnit = config.currencyDisplay as unknown as Unit
 
   const smartSetError = (str: string) => {
     setError(str === '' ? (aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '') : str)
@@ -179,7 +180,7 @@ export default function SendForm() {
         const units = centsToUnits(cents, selectedAsset.decimals)
         setAmountTextValue(units)
       } else {
-        const units = useFiat ? prettyNumber(toFiat(info.satoshis), fiatDecimals()) : info.satoshis
+        const units = useFiat ? prettyNumber(toFiat(info.satoshis), fiatDecimals()) : satsToBitcoinUnit(info.satoshis, bitcoinUnit)
         setAmountTextValue(units.toString())
       }
     }
@@ -615,7 +616,7 @@ export default function SendForm() {
     } else {
       const num = Number(value)
       if (Number.isNaN(num) || !Number.isFinite(num)) return setError('Invalid amount')
-      const sats = useFiat ? fromFiat(num) : num
+      const sats = useFiat ? fromFiat(num) : bitcoinUnitToSats(num, bitcoinUnit)
       setState({ ...sendInfo, satoshis: sats })
     }
   }
@@ -625,7 +626,7 @@ export default function SendForm() {
     if (inputMode === 'asset' || isAssetSend) return handleAmountChange(value)
     const num = Number(value)
     if (Number.isNaN(num) || !Number.isFinite(num)) return setError('Invalid amount')
-    const sats = inputMode === 'sats' ? num : fromFiat(num)
+    const sats = inputMode === 'sats' ? bitcoinUnitToSats(num, bitcoinUnit) : fromFiat(num)
     setState({ ...sendInfo, satoshis: sats })
   }
 
@@ -708,8 +709,8 @@ export default function SendForm() {
       setState({ ...sendInfo, satoshis: liquidBalance })
       setAmountTextValue(
         useFiat
-          ? toFiat(liquidBalance).toFixed(fiatDecimalsFor(config.fiat, config.currencyDisplay as unknown as Unit))
-          : liquidBalance.toString(),
+          ? toFiat(liquidBalance).toFixed(fiatDecimalsFor(config.fiat, bitcoinUnit))
+          : satsToBitcoinUnit(liquidBalance, bitcoinUnit).toString(),
       )
       setAmount(liquidBalance)
       setValueSats(liquidBalance)
@@ -739,7 +740,7 @@ export default function SendForm() {
 
     const pretty = useFiat
       ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, { bitcoinUnit: config.currencyDisplay })
-      : prettyAmount(liquidBalance)
+      : prettyBitcoinAmount(liquidBalance, bitcoinUnit)
 
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
@@ -780,7 +781,7 @@ export default function SendForm() {
     : `${
         useFiat
           ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, { bitcoinUnit: config.currencyDisplay })
-          : prettyAmount(liquidBalance)
+          : prettyBitcoinAmount(liquidBalance, bitcoinUnit)
       } available`
 
   const overlayOpen = scan || (keys && !amountIsReadOnly)
@@ -969,7 +970,7 @@ export default function SendForm() {
                                     ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, {
                                         bitcoinUnit: config.currencyDisplay,
                                       })
-                                    : prettyAmount(liquidBalance)}{' '}
+                                    : prettyBitcoinAmount(liquidBalance, bitcoinUnit)}{' '}
                                   available
                                 </span>
                               </span>

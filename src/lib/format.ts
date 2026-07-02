@@ -13,6 +13,16 @@ export const toSatoshis = (num: number): number => {
   return Decimal.mul(num, 100_000_000).floor().toNumber()
 }
 
+export const bitcoinUnitToSats = (amount: number, unit: Unit): number => {
+  if (unit === Unit.BTC) return toSatoshis(amount)
+  return Math.floor(amount)
+}
+
+export const satsToBitcoinUnit = (sats: number, unit: Unit): number => {
+  if (unit === Unit.BTC) return fromSatoshis(sats)
+  return sats
+}
+
 export const prettyAgo = (timestamp: number | string, long = false): string => {
   if (!timestamp) return ''
   const now = Math.floor(Date.now() / 1000)
