@@ -5,10 +5,12 @@ import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { prettyFiatAmount } from '../../lib/format'
+import { FlowContext } from '../../providers/flow'
 
 export default function AssetsSection() {
   const { config } = useContext(ConfigContext)
   const { fiatDecimals } = useContext(FiatContext)
+  const { setAssetInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { rows } = usePortfolioFiat()
 
@@ -19,6 +21,15 @@ export default function AssetsSection() {
       maximumFractionDigits: decimals,
       minimumFractionDigits: decimals,
     })
+  }
+
+  const handleAssetClick = (assetId: string) => {
+    if (assetId === 'btc') {
+      navigate(Pages.BitcoinDetail)
+    } else {
+      setAssetInfo({ assetId, supply: BigInt(0) })
+      navigate(Pages.AppAssetDetail)
+    }
   }
 
   return (
@@ -37,7 +48,7 @@ export default function AssetsSection() {
             decimals={row.decimals}
             balance={row.balance}
             fiatText={row.hasFiatPrice ? fiatLabel(row.fiatAmount) : undefined}
-            onClick={row.assetId === 'btc' ? () => navigate(Pages.BitcoinDetail) : undefined}
+            onClick={() => handleAssetClick(row.assetId)}
           />
         ))}
       </div>
