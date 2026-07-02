@@ -13,13 +13,12 @@ interface PrivacyAmountProps {
 }
 
 export function PrivacyAmount({ children, className, interactive = false, masked, testId }: PrivacyAmountProps) {
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { config } = useContext(ConfigContext)
   const visible = config.showBalance
 
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
     hapticLight()
-    updateConfig({ ...config, showBalance: !visible })
   }
 
   const value = (
