@@ -1,5 +1,5 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
-import { clearStorage, readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
+import { readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
 import { defaultArkServer, devServer } from '../lib/constants'
 import { Config, CurrencyDisplay, Currencies, Themes, Unit } from '../lib/types'
 import { normalizeBitcoinUnit } from '../lib/format'
@@ -32,8 +32,6 @@ interface ConfigContextProps {
   config: Config
   configLoaded: boolean
   effectiveTheme: Themes.Dark | Themes.Light
-  resetConfig: () => void
-  setConfig: (c: Config) => void
   showConfig: boolean
   systemTheme: Themes.Dark | Themes.Light
   toggleShowConfig: () => void
@@ -46,8 +44,6 @@ export const ConfigContext = createContext<ConfigContextProps>({
   config: defaultConfig,
   configLoaded: false,
   effectiveTheme: Themes.Dark,
-  resetConfig: () => {},
-  setConfig: () => {},
   showConfig: false,
   systemTheme: Themes.Dark,
   toggleShowConfig: () => {},
@@ -132,11 +128,6 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     if (save) saveConfigToStorage(config)
   }
 
-  const resetConfig = async () => {
-    await clearStorage()
-    updateConfig(defaultConfig)
-  }
-
   useEffect(() => {
     if (configLoaded) return
     if (window.location.hash === '#localhost') {
@@ -174,8 +165,6 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
         config,
         configLoaded,
         effectiveTheme,
-        resetConfig,
-        setConfig,
         showConfig,
         systemTheme,
         toggleShowConfig,

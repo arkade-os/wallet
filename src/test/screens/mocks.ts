@@ -78,8 +78,6 @@ export const mockConfigContextValue = {
   useFiat: true,
   backupConfig: () => Promise.resolve(),
   configLoaded: true,
-  resetConfig: () => {},
-  setConfig: () => {},
   showConfig: false,
   toggleShowConfig: () => {},
 }
