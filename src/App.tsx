@@ -149,6 +149,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (!aspInfo.url) return
     if (!allChecksReady) return
     if (!wallet.pubkey || initialized) return
     if (authState !== 'passwordless') return
@@ -165,7 +166,7 @@ export default function App() {
         // ignore session storage errors; keep the app on loading instead of retry-looping
       }
     })
-  }, [allChecksReady, wallet.pubkey, initialized, authState, unlockWallet])
+  }, [allChecksReady, wallet.pubkey, initialized, authState, unlockWallet, aspInfo.url])
 
   useEffect(() => {
     if (!hasDevAutoInit) devAutoInitHomeRedirected.current = false
