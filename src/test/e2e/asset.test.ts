@@ -23,6 +23,34 @@ test('should navigate to assets and see disabled state', async ({ page }) => {
   await expect(page.getByText('Mint', { exact: true })).toBeVisible()
 })
 
+test('should mint an asset and it should appear on home', async ({ page }) => {
+  await createWallet(page)
+  await fundWallet(page)
+  await enableAssets(page)
+  await mintAsset(page, { amount: '1000', name: 'TestCoin', ticker: 'TST', decimals: 0 })
+
+  // assert success screen
+  await expect(page.getByText('TestCoin')).toBeVisible()
+  await expect(page.getByText('TST')).toBeVisible()
+
+  // go back to asset list
+  await page.getByText('Back to Arkade Mint').click()
+
+  // go back to homepage
+  await page.getByLabel('Go back').click()
+  await page.getByLabel('Go back').click()
+  await page.getByLabel('Go back').click()
+
+  // assert home page
+  await page.waitForSelector('text=TestCoin', { state: 'visible' })
+  await expect(page.getByText('TST').first()).toBeVisible()
+
+  // click asset card to go to detail page
+  await page.getByTestId(/^asset-row-TST-/).click()
+  await page.waitForSelector('text=TestCoin', { state: 'visible' })
+  await expect(page.getByText('Asset ID (tap to copy)').first()).toBeVisible()
+})
+
 test('should mint an asset and burn part of it', async ({ page }) => {
   await createWallet(page)
   await fundWallet(page)
