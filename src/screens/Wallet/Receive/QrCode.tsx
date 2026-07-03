@@ -349,7 +349,6 @@ export default function ReceiveQRCode() {
   const handleAmountConfirm = (value = amountTextValue, inputMode?: KeyboardInputMode) => {
     setShowKeys(false)
     setShowAmountSheet(false)
-    console.log('handleAmountConfirm', { value, inputMode, useFiat, isAssetReceive })
     if (assetMeta) {
       const decimals = assetMeta.metadata?.decimals
       const cents = unitsToCents(value, decimals)
@@ -357,8 +356,8 @@ export default function ReceiveQRCode() {
     } else {
       const num = Number(value)
       if (Number.isNaN(num) || !Number.isFinite(num)) throw new Error('Invalid amount')
-      const shouldConvertFromFiat = useFiat || inputMode === 'fiat'
-      const shouldConvertToSats = !useFiat && (inputMode === 'btc' || config.currencyDisplay === 'BTC')
+      const shouldConvertFromFiat = inputMode === 'fiat' || (useFiat && inputMode === undefined)
+      const shouldConvertToSats = inputMode === 'btc' || (!useFiat && config.currencyDisplay === 'BTC')
       const sats = shouldConvertFromFiat ? fromFiat(num) : shouldConvertToSats ? toSatoshis(num) : num
       // if amount was changed, we need to reset invoice and swap address, since they are amount-specific
       // this will also trigger the useEffect to create new ones if needed
