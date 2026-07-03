@@ -14,7 +14,7 @@ import Table, { TableData } from './Table'
 import StatusIcon from '../icons/Status'
 import HashIcon from '../icons/Hash'
 import InfoIcon from '../icons/Info'
-import { Unit, Wallet } from '../lib/types'
+import { Wallet } from '../lib/types'
 import {
   openInNewTab,
   openOffchainTxInNewTab,
@@ -76,12 +76,10 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     if (useFiat) {
       const fiat = toFiat(amount)
       return config.showBalance
-        ? prettyFiatAmount(fiat, config.fiat, { bitcoinUnit: config.currencyDisplay })
-        : prettyFiatHide(fiat, config.fiat, { bitcoinUnit: config.currencyDisplay })
+        ? prettyFiatAmount(fiat, config.fiat, { bitcoinUnit: config.unit })
+        : prettyFiatHide(fiat, config.fiat, { bitcoinUnit: config.unit })
     }
-    return config.showBalance
-      ? prettyBitcoinAmount(amount, config.currencyDisplay as unknown as Unit)
-      : prettyBitcoinHide(amount, config.currencyDisplay)
+    return config.showBalance ? prettyBitcoinAmount(amount, config.unit) : prettyBitcoinHide(amount, config.unit)
   }
 
   // Only show explorer link if URL is available (e.g., mainnet for vmempool)

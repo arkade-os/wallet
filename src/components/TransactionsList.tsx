@@ -1,7 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useRef } from 'react'
 import { WalletContext } from '../providers/wallet'
-import { Currencies, Tx, Unit } from '../lib/types'
+import { Currencies, Tx } from '../lib/types'
 import {
   isBurn,
   isIssuance,
@@ -57,8 +57,8 @@ const TransactionLine = ({
     const secondaryClassName = asAssets ? ' activity-row__amount--secondary' : ''
     return (
       <span className={`activity-row__amount${statusClassName}${secondaryClassName}`}>
-        <PrivacyAmount masked={prettyFiatHide(value, config.fiat, { bitcoinUnit: config.currencyDisplay })}>
-          {prettyFiatAmount(value, config.fiat, { bitcoinUnit: config.currencyDisplay })}
+        <PrivacyAmount masked={prettyFiatHide(value, config.fiat, { bitcoinUnit: config.unit })}>
+          {prettyFiatAmount(value, config.fiat, { bitcoinUnit: config.unit })}
         </PrivacyAmount>
       </span>
     )
@@ -95,8 +95,8 @@ const TransactionLine = ({
         }`}
       >
         <PrivacyAmount
-          masked={`${prefix} ${prettyFiatHide(toFiat(tx.amount), config.fiat, { bitcoinUnit: config.currencyDisplay })}`}
-        >{`${prefix} ${prettyBitcoinAmount(tx.amount, config.currencyDisplay as unknown as Unit)}`}</PrivacyAmount>
+          masked={`${prefix} ${prettyFiatHide(toFiat(tx.amount), config.fiat, { bitcoinUnit: config.unit })}`}
+        >{`${prefix} ${prettyBitcoinAmount(tx.amount, config.unit)}`}</PrivacyAmount>
       </span>
     )
 

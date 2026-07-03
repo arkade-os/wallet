@@ -6,7 +6,6 @@ import { PrivacyAmount, maskedFiat } from './PrivacyAmount'
 import { prettyBitcoinAmount, prettyBitcoinHide, prettyCurrencyAssetAmount } from '../lib/format'
 import { useContext } from 'react'
 import { ConfigContext } from '../providers/config'
-import { Unit } from '../lib/types'
 
 interface AssetCardProps {
   assetId: string
@@ -45,7 +44,7 @@ export default function AssetCard({
       : Number.isFinite(balance) && Number.isInteger(balance)
         ? BigInt(balance)
         : BigInt(0)
-  const bitcoinUnit = config.currencyDisplay as unknown as Unit
+  const bitcoinUnit = config.unit
   const isBitcoin = tokenTick.toUpperCase() === 'BTC'
   const prettyBalance = isBitcoin
     ? prettyBitcoinAmount(Number(rawBalance), bitcoinUnit)

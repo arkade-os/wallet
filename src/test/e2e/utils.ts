@@ -3,6 +3,7 @@ import { faucetOffchain } from './fundedWallet'
 import { sleep } from '../../lib/sleep'
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import { Currencies, Unit } from '@/lib/types'
 
 const execAsync = promisify(exec)
 
@@ -13,8 +14,8 @@ export const test = base.extend({
     await page.addInitScript(() => {
       const raw = localStorage.getItem('config')
       const config = raw ? JSON.parse(raw) : {}
-      config.fiat = 'BTC'
-      config.currencyDisplay = 'sats'
+      config.fiat = Currencies.BTC
+      config.unit = Unit.SATS
       localStorage.setItem('config', JSON.stringify(config))
     })
     await use(page)

@@ -42,7 +42,7 @@ export default function General() {
               <p className='settings-section-label'>Preferences</p>
               <div className='settings-row-group'>
                 <Row option={SettingsOptions.Currency} value={config.fiat} />
-                <Row option={SettingsOptions.BitcoinUnit} value={config.currencyDisplay} />
+                <Row option={SettingsOptions.BitcoinUnit} value={config.unit} />
                 <Row option={SettingsOptions.Haptics} value={config.haptics ? 'On' : 'Off'} />
                 <Row
                   option={SettingsOptions.Theme}

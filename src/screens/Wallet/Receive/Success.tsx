@@ -75,7 +75,7 @@ export default function ReceiveSuccess() {
   }, [assetDetails])
 
   const displayAmount = useFiat
-    ? prettyFiatAmount(toFiat(recvInfo.satoshis), config.fiat, { bitcoinUnit: config.currencyDisplay })
+    ? prettyFiatAmount(toFiat(recvInfo.satoshis), config.fiat, { bitcoinUnit: config.unit })
     : prettyAmount(recvInfo.satoshis)
 
   if (isAssetReceive) {

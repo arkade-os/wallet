@@ -39,14 +39,12 @@ export const prettyAmount = (sats: number, suffix?: string, decimals = 2): strin
 }
 
 type FiatAmountFormatOptions = {
-  bitcoinUnit?: Unit | CurrencyDisplayUnit
+  bitcoinUnit?: Unit
   maximumFractionDigits?: number
   minimumFractionDigits?: number
 }
 
-type CurrencyDisplayUnit = `${Unit}` | 'SATS' | 'btc' | 'sat' | 'Sats only' | 'Fiat only' | 'Show both'
-
-export const normalizeBitcoinUnit = (unit?: CurrencyDisplayUnit): Unit => {
+export const normalizeBitcoinUnit = (unit?: Unit | string): Unit => {
   if (unit === Unit.SATS || unit === 'SATS' || unit === 'sat' || unit === 'Sats only') return Unit.SATS
   if (unit === Unit.BIP177) return Unit.BIP177
   return Unit.BTC
@@ -191,7 +189,7 @@ export const prettyFiatHide = (value: number, currency: Currencies, options: Fia
   return symbol ? `${symbol}${dots}` : `${dots} ${currency}`
 }
 
-export const prettyBitcoinHide = (value: number, unit: Unit | CurrencyDisplayUnit): string => {
+export const prettyBitcoinHide = (value: number, unit: Unit): string => {
   return prettyFiatHide(value, Currencies.BTC, { bitcoinUnit: unit })
 }
 

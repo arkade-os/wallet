@@ -12,7 +12,7 @@ import ButtonsOnBottom from './ButtonsOnBottom'
 import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
 import SwapIcon from '../icons/Swap'
-import { AssetOption, Currencies } from '../lib/types'
+import { AssetOption, Currencies, Unit } from '../lib/types'
 import { prettyAssetAmount, unitsToCents } from '../lib/assets'
 
 export type KeyboardInputMode = 'sats' | 'fiat' | 'asset' | 'btc'
@@ -39,8 +39,8 @@ export default function Keyboard({ asset, back, hideBalance, onClear, onSave, in
   const [textValue, setTextValue] = useState('')
 
   useEffect(() => {
-    setInputMode(asset?.assetId ? 'asset' : useFiat ? 'fiat' : config.currencyDisplay === 'BTC' ? 'btc' : 'sats')
-  }, [asset, useFiat, config.currencyDisplay])
+    setInputMode(asset?.assetId ? 'asset' : useFiat ? 'fiat' : config.unit === Unit.BTC ? 'btc' : 'sats')
+  }, [asset, useFiat, config.unit])
 
   useEffect(() => {
     if (initialValue && inputMode && toFiat && fiatDecimals) {
@@ -138,7 +138,7 @@ export default function Keyboard({ asset, back, hideBalance, onClear, onSave, in
       setInputMode('fiat')
     } else {
       setTextValue(amountInSats ? prettyNumber(amountInSats, 0, false) : '')
-      setInputMode(config.currencyDisplay === 'BTC' ? 'btc' : 'sats')
+      setInputMode(config.unit === Unit.BTC ? 'btc' : 'sats')
     }
   }
 
@@ -151,9 +151,9 @@ export default function Keyboard({ asset, back, hideBalance, onClear, onSave, in
   }
 
   const prettyBitcoinAmount = (sats: number) => {
-    return config.currencyDisplay === 'BTC'
-      ? prettyAmount(fromSatoshis(sats), config.currencyDisplay, 8)
-      : prettyAmount(sats, config.currencyDisplay, 0)
+    return config.unit === Unit.BTC
+      ? prettyAmount(fromSatoshis(sats), config.unit, 8)
+      : prettyAmount(sats, config.unit, 0)
   }
 
   // Display amounts based on input mode
@@ -163,21 +163,21 @@ export default function Keyboard({ asset, back, hideBalance, onClear, onSave, in
         ? `${textValue || '0'} ${asset?.ticker}`
         : inputMode === 'fiat'
           ? prettyFiatAmount(amountInSats ? toFiat(amountInSats) : 0, config.fiat, {
-              bitcoinUnit: config.currencyDisplay,
+              bitcoinUnit: config.unit,
             })
-          : `${textValue || '0'} ${config.currencyDisplay}`,
+          : `${textValue || '0'} ${config.unit}`,
     secondary: !useFiat
       ? ''
       : inputMode === 'fiat'
         ? prettyBitcoinAmount(amountInSats)
         : prettyFiatAmount(amountInSats ? toFiat(amountInSats) : 0, config.fiat, {
-            bitcoinUnit: config.currencyDisplay,
+            bitcoinUnit: config.unit,
           }),
     balance:
       inputMode === 'asset'
         ? `${prettyAssetAmount(asset?.balance ?? BigInt(0), asset?.decimals ?? 0)} ${asset?.ticker}`
         : inputMode === 'fiat'
-          ? prettyFiatAmount(toFiat(available), config.fiat, { bitcoinUnit: config.currencyDisplay })
+          ? prettyFiatAmount(toFiat(available), config.fiat, { bitcoinUnit: config.unit })
           : prettyBitcoinAmount(available),
   }
 

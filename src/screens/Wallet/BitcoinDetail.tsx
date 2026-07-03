@@ -23,7 +23,7 @@ import {
 import { fiatDecimalsFor } from '../../lib/fiat'
 import { hapticLight, hapticSubtle } from '../../lib/haptics'
 import { consoleError } from '../../lib/logs'
-import { Currencies, Themes, Unit } from '../../lib/types'
+import { Currencies, Themes } from '../../lib/types'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
@@ -59,7 +59,7 @@ export default function BitcoinDetail() {
 
   const marketFiat = config.fiat === Currencies.BTC ? Currencies.USD : config.fiat
   const marketDecimals = fiatDecimalsFor(marketFiat)
-  const bitcoinUnit = config.currencyDisplay as unknown as Unit
+  const bitcoinUnit = config.unit
   const fallbackUnitPrice = toFiatAmount(100_000_000, marketFiat)
   const liveChartData = useBitcoinMarketChartData(marketFiat, chartWindow)
   const unitPrice = liveChartData.at(-1)?.value ?? fallbackUnitPrice

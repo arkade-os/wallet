@@ -5,7 +5,7 @@ import { ConfigContext } from '../providers/config'
 import { fromSatoshis, prettyNumber, toSatoshis } from '../lib/format'
 import { FIAT_SYMBOLS } from '../lib/fiat'
 import { LimitsContext } from '../providers/limits'
-import { AssetOption } from '../lib/types'
+import { AssetOption, Unit } from '../lib/types'
 import { TextSecondary } from './Text'
 import { hapticLight } from '../lib/haptics'
 
@@ -55,7 +55,7 @@ export default function InputAmount({
   const input = useRef<HTMLInputElement>(null)
 
   const toSats = (value: number): number => {
-    return config.currencyDisplay === 'BTC' ? toSatoshis(value) : value
+    return config.unit === Unit.BTC ? toSatoshis(value) : value
   }
 
   // focus input when focus prop changes
@@ -79,7 +79,7 @@ export default function InputAmount({
   // update other value when satsValue change
   useEffect(() => {
     setError(satsValue ? (satsValue < 0 ? 'Invalid amount' : '') : '')
-    const useBTC = config.currencyDisplay === 'BTC'
+    const useBTC = config.unit === Unit.BTC
     const btcValue = useBTC ? fromSatoshis(satsValue) : satsValue
     const decimals = useBTC ? 8 : 0
     setOtherValue(useFiat ? prettyNumber(btcValue, decimals) : prettyNumber(toFiat(satsValue), fiatDecimals()))
@@ -97,10 +97,10 @@ export default function InputAmount({
   const maximumSats = max ? Math.min(max, maxSwapAllowed()) : 0
 
   const fiatSymbol = FIAT_SYMBOLS[config.fiat]
-  const fiatLabel = useFiat ? (fiatSymbol ?? config.fiat) : config.currencyDisplay
+  const fiatLabel = useFiat ? (fiatSymbol ?? config.fiat) : config.unit
 
-  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? fiatLabel : config.currencyDisplay
-  const rightLabel = !asset?.assetId && useFiat ? `${otherValue} ${config.currencyDisplay}` : ''
+  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? fiatLabel : config.unit
+  const rightLabel = !asset?.assetId && useFiat ? `${otherValue} ${config.unit}` : ''
   const bottomLeft =
     minimumSats && satsValue !== undefined && satsValue < minimumSats
       ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'sat' : 'sats'}`

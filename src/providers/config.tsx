@@ -1,7 +1,7 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
 import { readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
 import { defaultArkServer, devServer } from '../lib/constants'
-import { Config, CurrencyDisplay, Currencies, Themes, Unit } from '../lib/types'
+import { Config, Currencies, Themes, Unit } from '../lib/types'
 import { normalizeBitcoinUnit } from '../lib/format'
 import { BackupProvider } from '../lib/backup'
 import { consoleError } from '../lib/logs'
@@ -13,7 +13,6 @@ const defaultConfig: Config = {
   apps: { assets: { enabled: false }, boltz: { connected: true } },
   aspUrl: defaultArkServer(),
   dismissedBanners: [],
-  currencyDisplay: CurrencyDisplay.BTC,
   delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
   fiat: Currencies.USD,
   importedAssets: [],
@@ -68,7 +67,6 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
       assets: { enabled: config.apps?.assets?.enabled ?? defaultConfig.apps.assets.enabled },
       boltz: { connected: config.apps?.boltz?.connected ?? defaultConfig.apps.boltz.connected },
     },
-    currencyDisplay: normalizeBitcoinUnit(config.currencyDisplay as `${CurrencyDisplay}`) as unknown as CurrencyDisplay,
     fiat: config.fiat === Currencies.BTC ? Currencies.BTC : (config.fiat ?? defaultConfig.fiat),
     unit: normalizeBitcoinUnit(config.unit as `${Unit}`),
   }
