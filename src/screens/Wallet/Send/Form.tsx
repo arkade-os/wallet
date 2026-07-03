@@ -419,9 +419,12 @@ export default function SendForm() {
         if (!conditions) return setRecipientError('Unable to fetch LNURL conditions')
         const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
         const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
-        // when the LNURL resolves to a fixed amount, set it via setState so the
-        // amount input (bound to amountTextValue) reflects it instead of staying blank
-        if (min === max) setSendInfo({ ...sendInfo, satoshis: min })
+        // when the LNURL resolves to a fixed amount, set amountTextValue
+        if (min === max) {
+          const textValue = useFiat ? toFiat(min) : config.unit === 'BTC' ? fromSatoshis(min) : min
+          setSendInfo({ ...sendInfo, satoshis: min })
+          setAmountTextValue(textValue.toString())
+        }
         return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
       })
       .catch((e) => {
