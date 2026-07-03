@@ -41,6 +41,10 @@ export async function waitForWalletPage(page: Page, timeout = 60000): Promise<vo
     await continueBtn.click()
     await sendBtn.waitFor({ state: 'visible', timeout: 30000 })
   }
+  const dismissButton = page.getByText('Dismiss')
+  if (await dismissButton.isVisible().catch(() => false)) {
+    await dismissButton.click()
+  }
 }
 
 interface MintAssetOptions {

@@ -30,7 +30,7 @@ import SheetModal from '../../../components/SheetModal'
 import Text, { TextSecondary } from '../../../components/Text'
 import { copyToClipboard } from '../../../lib/clipboard'
 import { useToast } from '../../../components/Toast'
-import { prettyLongText, prettyNumber } from '../../../lib/format'
+import { prettyLongText, prettyNumber, toSatoshis } from '../../../lib/format'
 import CopyIcon from '../../../icons/Copy'
 import CheckMarkIcon from '../../../icons/CheckMark'
 import { hapticSubtle } from '../../../lib/haptics'
@@ -60,7 +60,7 @@ export const resolveQrValue = (
 }
 
 export default function ReceiveQRCode() {
-  const { useFiat } = useContext(ConfigContext)
+  const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat } = useContext(FiatContext)
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
@@ -178,9 +178,14 @@ export default function ReceiveQRCode() {
   // Create swaps when amount is set, then show QR code once ready
   useEffect(() => {
     if (isAssetReceive) return setShowQrCode(true)
-    if (!satoshis || !svcWallet) return
     if (!addressesLoaded) return
+    if (!svcWallet) return
     if (received) return
+
+    if (!satoshis) {
+      if (invoice) setInvoice('')
+      return
+    }
 
     const lnExpected = connected && !isAssetReceive
 
@@ -344,6 +349,7 @@ export default function ReceiveQRCode() {
   const handleAmountConfirm = (value = amountTextValue, inputMode?: KeyboardInputMode) => {
     setShowKeys(false)
     setShowAmountSheet(false)
+    console.log('handleAmountConfirm', { value, inputMode, useFiat, isAssetReceive })
     if (assetMeta) {
       const decimals = assetMeta.metadata?.decimals
       const cents = unitsToCents(value, decimals)
@@ -352,7 +358,8 @@ export default function ReceiveQRCode() {
       const num = Number(value)
       if (Number.isNaN(num) || !Number.isFinite(num)) throw new Error('Invalid amount')
       const shouldConvertFromFiat = useFiat || inputMode === 'fiat'
-      const sats = inputMode === 'sats' ? num : shouldConvertFromFiat ? fromFiat(num) : num
+      const shouldConvertToSats = !useFiat && (inputMode === 'btc' || config.currencyDisplay === 'BTC')
+      const sats = shouldConvertFromFiat ? fromFiat(num) : shouldConvertToSats ? toSatoshis(num) : num
       // if amount was changed, we need to reset invoice and swap address, since they are amount-specific
       // this will also trigger the useEffect to create new ones if needed
       if (sats !== recvInfo.satoshis) {
@@ -365,11 +372,8 @@ export default function ReceiveQRCode() {
   }
 
   const handleAmountClear = () => {
-    setShowKeys(false)
-    setShowAmountSheet(false)
+    handleAmountConfirm('0')
     setAmountTextValue('')
-    if (assetMeta) setAssetAmount(BigInt(0))
-    else setRecvInfo({ ...recvInfo, satoshis: 0 })
   }
 
   const assetOption: AssetOption = {

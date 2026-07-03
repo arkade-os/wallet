@@ -4,7 +4,7 @@ import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import { FlowContext, SendInfo } from '../../../providers/flow'
+import { FlowContext } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
 import {
   isArkAddress,
@@ -19,7 +19,7 @@ import InputAmount from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
-import { prettyAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
+import { fromSatoshis, prettyAmount, prettyFiatAmount, prettyNumber, toSatoshis } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -29,7 +29,7 @@ import Shadow from '../../../components/Shadow'
 import Scanner from '../../../components/Scanner'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
-import { Addresses, AssetOption, SettingsOptions, Themes, Unit } from '../../../lib/types'
+import { Addresses, AssetOption, SettingsOptions, Themes } from '../../../lib/types'
 import { aspErrorText, getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
@@ -57,7 +57,6 @@ import {
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
-import { fiatDecimalsFor } from '../../../lib/fiat'
 import { testDomains } from '../../../lib/constants'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
@@ -162,28 +161,12 @@ export default function SendForm() {
 
   useEffect(() => {
     if (!sendInfo.scan) return
-
     const nextSendInfo = { ...sendInfo }
     delete nextSendInfo.scan
     setKeys(false)
     setScan(true)
     setSendInfo(nextSendInfo)
   }, [sendInfo.scan])
-
-  const setState = (info: SendInfo) => {
-    setScan(false)
-    setSendInfo(info)
-    if (info.satoshis) {
-      if (isAssetSend && info.assets) {
-        const cents = info.assets[0].amount
-        const units = centsToUnits(cents, selectedAsset.decimals)
-        setAmountTextValue(units)
-      } else {
-        const units = useFiat ? prettyNumber(toFiat(info.satoshis), fiatDecimals()) : info.satoshis
-        setAmountTextValue(units.toString())
-      }
-    }
-  }
 
   // cleanup debounce timeout on unmount
   useEffect(() => {
@@ -292,7 +275,7 @@ export default function SendForm() {
           }
           setSelectedAsset(found)
           const rawAmount = assetAmount ? unitsToCents(assetAmount, found.decimals) : BigInt(0)
-          return setState({
+          return setSendInfo({
             address,
             arkAddress,
             invoice,
@@ -301,7 +284,7 @@ export default function SendForm() {
             assets: [{ assetId, amount: rawAmount }],
           })
         }
-        return setState({
+        return setSendInfo({
           address,
           arkAddress,
           assets: sendInfo.assets,
@@ -312,7 +295,7 @@ export default function SendForm() {
         })
       }
       if (isArkAddress(lowerCaseData)) {
-        return setState({ ...sendInfo, arkAddress: lowerCaseData })
+        return setSendInfo({ ...sendInfo, arkAddress: lowerCaseData })
       }
       if (isLightningInvoice(lowerCaseData)) {
         if (isAssetSend) {
@@ -324,7 +307,7 @@ export default function SendForm() {
         }
         const satoshis = getInvoiceSatoshis(lowerCaseData)
         if (!satoshis) return setRecipientError('Invoice must have amount defined')
-        setState({ ...sendInfo, invoice: lowerCaseData, satoshis })
+        setSendInfo({ ...sendInfo, invoice: lowerCaseData, satoshis })
         setAmountIsReadOnly(true)
         return
       }
@@ -332,7 +315,7 @@ export default function SendForm() {
         if (isAssetSend) {
           return setRecipientError('Assets can only be sent to Arkade addresses')
         }
-        return setState({ ...sendInfo, address: recipient })
+        return setSendInfo({ ...sendInfo, address: recipient })
       }
       if (isArkNote(lowerCaseData)) {
         try {
@@ -344,7 +327,7 @@ export default function SendForm() {
         }
       }
       if (isValidLnUrl(lowerCaseData)) {
-        return setState({ ...sendInfo, lnUrl: lowerCaseData })
+        return setSendInfo({ ...sendInfo, lnUrl: lowerCaseData })
       }
       setRecipientError('Invalid recipient address')
       setReadyToParse(false)
@@ -438,7 +421,7 @@ export default function SendForm() {
         const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
         // when the LNURL resolves to a fixed amount, set it via setState so the
         // amount input (bound to amountTextValue) reflects it instead of staying blank
-        if (min === max) setState({ ...sendInfo, satoshis: min })
+        if (min === max) setSendInfo({ ...sendInfo, satoshis: min })
         return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
       })
       .catch((e) => {
@@ -551,7 +534,7 @@ export default function SendForm() {
       createSubmarineSwap(sendInfo.invoice)
         .then((pendingSwap) => {
           if (!pendingSwap) return handleError('Unable to create swap')
-          setState({ ...sendInfo, pendingSwap })
+          setSendInfo({ ...sendInfo, pendingSwap })
         })
         .catch(handleError)
     } else if (satoshis && sendInfo.address) {
@@ -561,7 +544,7 @@ export default function SendForm() {
       createArkToBtcSwap(sendInfo.address, amountForSwap)
         .then((result) => {
           if (!result) return navigate(Pages.SendDetails)
-          setState({ ...sendInfo, pendingSwap: result.pendingSwap })
+          setSendInfo({ ...sendInfo, pendingSwap: result.pendingSwap })
         })
         .catch(() => navigate(Pages.SendDetails))
     }
@@ -606,7 +589,7 @@ export default function SendForm() {
       if (selectedAsset) {
         const decimals = selectedAsset?.decimals
         const cents = unitsToCents(value, decimals)
-        setState({
+        setSendInfo({
           ...sendInfo,
           assets: [{ assetId: selectedAsset.assetId, amount: cents }],
           satoshis: 0,
@@ -615,18 +598,20 @@ export default function SendForm() {
     } else {
       const num = Number(value)
       if (Number.isNaN(num) || !Number.isFinite(num)) return setError('Invalid amount')
-      const sats = useFiat ? fromFiat(num) : num
-      setState({ ...sendInfo, satoshis: sats })
+      const sats = useFiat ? fromFiat(num) : config.currencyDisplay === 'BTC' ? toSatoshis(num) : Math.floor(num)
+      setSendInfo({ ...sendInfo, satoshis: sats })
     }
   }
 
   const handleKeyboardAmountSave = (value: string, inputMode: KeyboardInputMode) => {
-    setValueSats(undefined)
-    if (inputMode === 'asset' || isAssetSend) return handleAmountChange(value)
-    const num = Number(value)
-    if (Number.isNaN(num) || !Number.isFinite(num)) return setError('Invalid amount')
-    const sats = inputMode === 'sats' ? num : fromFiat(num)
-    setState({ ...sendInfo, satoshis: sats })
+    setKeys(false)
+    if (inputMode === 'asset') return handleAmountChange(value)
+    if (useFiat && inputMode !== 'fiat') {
+      const sats = inputMode === 'sats' ? Number(value) : toSatoshis(Number(value))
+      handleAmountChange(prettyNumber(toFiat(sats), fiatDecimals(), false))
+      return
+    }
+    handleAmountChange(value)
   }
 
   const handleSelectAsset = (asset: AssetOption | null) => {
@@ -636,15 +621,16 @@ export default function SendForm() {
       if (isBTCAddress(recipient)) {
         return setError('Assets can only be sent to Arkade addresses')
       }
-      setState({
+      setSendInfo({
         ...sendInfo,
         address: '',
         assets: [{ assetId: asset.assetId, amount: BigInt(0) }],
         satoshis: 0,
       })
     } else {
-      setState({ ...sendInfo, assets: undefined, satoshis: 0 })
+      setSendInfo({ ...sendInfo, assets: undefined, satoshis: 0 })
     }
+    setAmountTextValue('')
   }
 
   const handleRecipientChange = (recipient: string) => {
@@ -670,17 +656,17 @@ export default function SendForm() {
             handleError('Invalid Arkade address received from LNURL')
             return
           }
-          setState({ ...sendInfo, arkAddress: arkResponse.address, invoice: undefined })
+          setSendInfo({ ...sendInfo, arkAddress: arkResponse.address, invoice: undefined })
         } else {
           // Fallback to Lightning invoice
           const amountForInvoice = deductFromAmount ? satoshis - calcSubmarineSwapFee(satoshis) : satoshis
           if (amountForInvoice < 1) return handleError('Amount too low to cover fees')
           if (amountForInvoice > BigInt(Number.MAX_SAFE_INTEGER)) return handleError('Amount too large')
           const invoice = await fetchInvoice(sendInfo.lnUrl, Number(amountForInvoice), '')
-          setState({ ...sendInfo, invoice, arkAddress: undefined })
+          setSendInfo({ ...sendInfo, invoice, arkAddress: undefined })
         }
       } else {
-        setState({ ...sendInfo, satoshis })
+        setSendInfo({ ...sendInfo, satoshis })
       }
       setProceed(true)
     } catch (error) {
@@ -702,17 +688,19 @@ export default function SendForm() {
     if (isAssetSend && selectedAsset) {
       const { assetId, balance, decimals } = selectedAsset
       const assets = [{ assetId, amount: balance }]
-      setState({ ...sendInfo, assets, satoshis: 0 })
+      setSendInfo({ ...sendInfo, assets, satoshis: 0 })
       setAmountTextValue(centsToUnits(balance, decimals))
     } else {
-      setState({ ...sendInfo, satoshis: liquidBalance })
-      setAmountTextValue(
-        useFiat
-          ? toFiat(liquidBalance).toFixed(fiatDecimalsFor(config.fiat, config.currencyDisplay as unknown as Unit))
-          : liquidBalance.toString(),
-      )
       setAmount(liquidBalance)
       setValueSats(liquidBalance)
+      setSendInfo({ ...sendInfo, satoshis: liquidBalance })
+      setAmountTextValue(
+        useFiat
+          ? prettyNumber(toFiat(liquidBalance), fiatDecimals(), false)
+          : config.currencyDisplay === 'BTC'
+            ? prettyNumber(fromSatoshis(liquidBalance), 8, false)
+            : prettyNumber(liquidBalance, 0, false),
+      )
     }
   }
 
@@ -739,7 +727,9 @@ export default function SendForm() {
 
     const pretty = useFiat
       ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, { bitcoinUnit: config.currencyDisplay })
-      : prettyAmount(liquidBalance)
+      : config.currencyDisplay === 'BTC'
+        ? prettyAmount(fromSatoshis(liquidBalance), config.currencyDisplay, 8)
+        : prettyAmount(liquidBalance)
 
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
@@ -787,14 +777,7 @@ export default function SendForm() {
   const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
 
   const Keys = () => (
-    <Keyboard
-      asset={selectedAsset ?? undefined}
-      back={() => setKeys(false)}
-      onSave={(value: string, inputMode: KeyboardInputMode) => {
-        handleKeyboardAmountSave(value, inputMode)
-        setKeys(false)
-      }}
-    />
+    <Keyboard asset={selectedAsset ?? undefined} back={() => setKeys(false)} onSave={handleKeyboardAmountSave} />
   )
 
   if (keys && !amountIsReadOnly) {
