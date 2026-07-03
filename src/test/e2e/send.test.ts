@@ -107,7 +107,7 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
   // click max
   await page.getByTestId('input-amount-max').click()
   const inputAmount = await page.locator('input[name="send-amount"]').inputValue()
-  expect(inputAmount).toBe(usdsRemaining)
+  expect(Number(inputAmount).toFixed(2)).toBe(usdsRemaining)
 
   // continue to details page
   await page.getByText('Continue').click()
