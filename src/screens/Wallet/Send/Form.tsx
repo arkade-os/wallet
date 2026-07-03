@@ -421,7 +421,7 @@ export default function SendForm() {
         const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
         // when the LNURL resolves to a fixed amount, set amountTextValue
         if (min === max) {
-          const textValue = useFiat ? toFiat(min) : config.unit === 'BTC' ? fromSatoshis(min) : min
+          const textValue = useFiat ? toFiat(min) : config.unit === Unit.BTC ? fromSatoshis(min) : min
           setSendInfo({ ...sendInfo, satoshis: min })
           setAmountTextValue(textValue.toString())
           setAmountIsReadOnly(true)

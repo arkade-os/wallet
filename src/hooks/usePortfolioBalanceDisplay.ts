@@ -5,6 +5,7 @@ import { formatFiatAmountParts } from '../lib/format'
 import { usePortfolioFiat } from './usePortfolioFiat'
 import { FIAT_SYMBOLS } from '../lib/fiat'
 import { maskedFiat } from '../components/PrivacyAmount'
+import { Currencies, Unit } from '../lib/types'
 
 export function usePortfolioBalanceDisplay() {
   const { config } = useContext(ConfigContext)
@@ -19,9 +20,9 @@ export function usePortfolioBalanceDisplay() {
   })
 
   const maskedBalance =
-    config.fiat === 'BTC'
-      ? config.unit === '₿'
-        ? '₿••••'
+    config.fiat === Currencies.BTC
+      ? config.unit === Unit.BIP177
+        ? `${config.unit}••••`
         : `•••• ${config.unit}`
       : FIAT_SYMBOLS[config.fiat]
         ? maskedFiat(FIAT_SYMBOLS[config.fiat])
