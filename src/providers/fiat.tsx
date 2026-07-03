@@ -31,6 +31,7 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(false)
 
   const prices = useRef<FiatPrices>(emptyFiatPrices)
+  const selectedBitcoinUnit = config.unit
 
   const fromEUR = (fiat = 0) => (prices.current.eur ? toSatoshis(Decimal.div(fiat, prices.current.eur).toNumber()) : 0)
   const fromUSD = (fiat = 0) => (prices.current.usd ? toSatoshis(Decimal.div(fiat, prices.current.usd).toNumber()) : 0)
@@ -38,7 +39,6 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
   const fromJPY = (fiat = 0) => (prices.current.jpy ? toSatoshis(Decimal.div(fiat, prices.current.jpy).toNumber()) : 0)
   const fromGBP = (fiat = 0) => (prices.current.gbp ? toSatoshis(Decimal.div(fiat, prices.current.gbp).toNumber()) : 0)
   const fromCNY = (fiat = 0) => (prices.current.cny ? toSatoshis(Decimal.div(fiat, prices.current.cny).toNumber()) : 0)
-  const selectedBitcoinUnit = config.currencyDisplay as unknown as Unit
   const fromBTC = (amount = 0) => (selectedBitcoinUnit === Unit.BTC ? toSatoshis(amount) : Math.floor(amount))
   const toEUR = (sats = 0) => Decimal.mul(fromSatoshis(sats), prices.current.eur).toNumber()
   const toUSD = (sats = 0) => Decimal.mul(fromSatoshis(sats), prices.current.usd).toNumber()
@@ -69,7 +69,7 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
   }
   const toFiat = (sats = 0) => toFiatAmount(sats, config.fiat)
 
-  const fiatDecimals = () => fiatDecimalsFor(config.fiat, config.currencyDisplay as unknown as Unit)
+  const fiatDecimals = () => fiatDecimalsFor(config.fiat, config.unit)
 
   const updateFiatPrices = async () => {
     if (loading) return

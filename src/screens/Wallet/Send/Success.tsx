@@ -123,7 +123,7 @@ export default function SendSuccess() {
   const displayAmount = isAssetSend
     ? `${prettyAssetAmount(assetAmountValue, assetDecimals)} ${assetTicker}`
     : useFiat
-      ? prettyFiatAmount(toFiat(totalSats), config.fiat, { bitcoinUnit: config.currencyDisplay })
+      ? prettyFiatAmount(toFiat(totalSats), config.fiat, { bitcoinUnit: config.unit })
       : prettyAmount(totalSats)
 
   if (isAssetSend && assetId) {

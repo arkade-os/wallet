@@ -14,7 +14,7 @@ export const test = base.extend({
       const raw = localStorage.getItem('config')
       const config = raw ? JSON.parse(raw) : {}
       config.fiat = 'BTC'
-      config.currencyDisplay = 'sats'
+      config.unit = 'sats'
       localStorage.setItem('config', JSON.stringify(config))
     })
     await use(page)

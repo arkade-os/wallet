@@ -29,7 +29,7 @@ import Shadow from '../../../components/Shadow'
 import Scanner from '../../../components/Scanner'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
-import { Addresses, AssetOption, SettingsOptions, Themes } from '../../../lib/types'
+import { Addresses, AssetOption, SettingsOptions, Themes, Unit } from '../../../lib/types'
 import { aspErrorText, getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
@@ -424,6 +424,7 @@ export default function SendForm() {
           const textValue = useFiat ? toFiat(min) : config.unit === 'BTC' ? fromSatoshis(min) : min
           setSendInfo({ ...sendInfo, satoshis: min })
           setAmountTextValue(textValue.toString())
+          setAmountIsReadOnly(true)
         }
         return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
       })
@@ -601,7 +602,7 @@ export default function SendForm() {
     } else {
       const num = Number(value)
       if (Number.isNaN(num) || !Number.isFinite(num)) return setError('Invalid amount')
-      const sats = useFiat ? fromFiat(num) : config.currencyDisplay === 'BTC' ? toSatoshis(num) : Math.floor(num)
+      const sats = useFiat ? fromFiat(num) : config.unit === Unit.BTC ? toSatoshis(num) : Math.floor(num)
       setSendInfo({ ...sendInfo, satoshis: sats })
     }
   }
@@ -700,7 +701,7 @@ export default function SendForm() {
       setAmountTextValue(
         useFiat
           ? prettyNumber(toFiat(liquidBalance), fiatDecimals(), false)
-          : config.currencyDisplay === 'BTC'
+          : config.unit === Unit.BTC
             ? prettyNumber(fromSatoshis(liquidBalance), 8, false)
             : prettyNumber(liquidBalance, 0, false),
       )
@@ -729,9 +730,9 @@ export default function SendForm() {
     }
 
     const pretty = useFiat
-      ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, { bitcoinUnit: config.currencyDisplay })
-      : config.currencyDisplay === 'BTC'
-        ? prettyAmount(fromSatoshis(liquidBalance), config.currencyDisplay, 8)
+      ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, { bitcoinUnit: config.unit })
+      : config.unit === Unit.BTC
+        ? prettyAmount(fromSatoshis(liquidBalance), config.unit, 8)
         : prettyAmount(liquidBalance)
 
     return (
@@ -772,7 +773,7 @@ export default function SendForm() {
     ? `${prettyAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`
     : `${
         useFiat
-          ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, { bitcoinUnit: config.currencyDisplay })
+          ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, { bitcoinUnit: config.unit })
           : prettyAmount(liquidBalance)
       } available`
 
@@ -953,7 +954,7 @@ export default function SendForm() {
                                 <span className='send-asset-option__meta'>
                                   {useFiat
                                     ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, {
-                                        bitcoinUnit: config.currencyDisplay,
+                                        bitcoinUnit: config.unit,
                                       })
                                     : prettyAmount(liquidBalance)}{' '}
                                   available

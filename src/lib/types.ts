@@ -16,7 +16,6 @@ export type Config = {
     }
   }
   aspUrl: string
-  currencyDisplay: CurrencyDisplay
   delegate: boolean
   fiat: Currencies
   importedAssets: string[]
@@ -29,12 +28,6 @@ export type Config = {
   theme: Themes
   unit: Unit
   walletMode: ServiceWorkerWalletMode
-}
-
-export enum CurrencyDisplay {
-  BTC = 'BTC',
-  Sats = 'sats',
-  Bip177 = '₿',
 }
 
 export type Delegate = {

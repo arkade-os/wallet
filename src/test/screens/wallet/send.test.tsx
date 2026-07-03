@@ -23,7 +23,7 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { SwapsContext } from '../../../providers/swaps'
 import { OptionsContext } from '../../../providers/options'
-import { Currencies, CurrencyDisplay } from '@/lib/types'
+import { Currencies, Unit } from '../../../lib/types'
 
 describe('Send screen', () => {
   const renderSendForm = ({
@@ -158,7 +158,7 @@ describe('Send screen', () => {
     const configValue = {
       ...mockConfigContextValue,
       useFiat: false,
-      config: { ...mockConfigContextValue.config, fiat: Currencies.BTC, currencyDisplay: CurrencyDisplay.BTC },
+      config: { ...mockConfigContextValue.config, fiat: Currencies.BTC, unit: Unit.BTC },
     }
 
     renderSendForm({ configContext: configValue, walletContext: walletValue })
@@ -181,7 +181,7 @@ describe('Send screen', () => {
     const configValue = {
       ...mockConfigContextValue,
       useFiat: false,
-      config: { ...mockConfigContextValue.config, fiat: Currencies.BTC, currencyDisplay: CurrencyDisplay.Sats },
+      config: { ...mockConfigContextValue.config, fiat: Currencies.BTC, unit: Unit.SATS },
     }
 
     renderSendForm({ configContext: configValue, walletContext: walletValue })
@@ -204,7 +204,7 @@ describe('Send screen', () => {
     const configValue = {
       ...mockConfigContextValue,
       useFiat: true,
-      config: { ...mockConfigContextValue.config, fiat: Currencies.USD, currencyDisplay: CurrencyDisplay.BTC },
+      config: { ...mockConfigContextValue.config, fiat: Currencies.USD, unit: Unit.BTC },
     }
     const fiatValue = {
       ...mockFiatContextValue,
@@ -236,7 +236,7 @@ describe('Send screen', () => {
     const configValue = {
       ...mockConfigContextValue,
       useFiat: false,
-      config: { ...mockConfigContextValue.config, fiat: Currencies.BTC, currencyDisplay: CurrencyDisplay.BTC },
+      config: { ...mockConfigContextValue.config, fiat: Currencies.BTC, unit: Unit.BTC },
     }
 
     renderSendForm({

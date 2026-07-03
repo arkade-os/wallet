@@ -3,7 +3,7 @@ import { Pages, Tabs } from '../../providers/navigation'
 import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { AspInfo } from '../../providers/asp'
 import { SingleKey, IVtxoManager } from '@arkade-os/sdk'
-import { CurrencyDisplay, Currencies, SettingsOptions, Themes, Unit } from '../../lib/types'
+import { Currencies, SettingsOptions, Themes, Unit } from '../../lib/types'
 import { AssetIconApprovalManager } from '../../lib/assetIconApproval'
 
 const mockAspInfo: AspInfo = {
@@ -59,7 +59,6 @@ export const mockConfigContextValue = {
     apps: { assets: { enabled: true }, boltz: { connected: true } },
     aspUrl: 'http://asp.local',
     dismissedBanners: [],
-    currencyDisplay: CurrencyDisplay.BTC,
     delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
     fiat: Currencies.EUR,
     importedAssets: [],

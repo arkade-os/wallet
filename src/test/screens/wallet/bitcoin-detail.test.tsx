@@ -13,7 +13,7 @@ import {
   mockNavigationContextValue,
   mockWalletContextValue,
 } from '../mocks'
-import { CurrencyDisplay, Currencies } from '../../../lib/types'
+import { Currencies, Unit } from '../../../lib/types'
 
 vi.mock('liveline', () => ({
   Liveline: ({ paused }: { paused?: boolean }) => <div data-testid='liveline-chart' data-paused={String(paused)} />,
@@ -82,7 +82,7 @@ describe('Bitcoin detail screen', () => {
           ...mockConfigContextValue,
           config: {
             ...mockConfigContextValue.config,
-            currencyDisplay: CurrencyDisplay.Bip177,
+            unit: Unit.BIP177,
             fiat: Currencies.BTC,
           },
         }}

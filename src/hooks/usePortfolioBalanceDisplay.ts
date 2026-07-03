@@ -13,16 +13,16 @@ export function usePortfolioBalanceDisplay() {
   const decimals = fiatDecimals()
 
   const { amount: balance, unit } = formatFiatAmountParts(totalFiat, config.fiat, {
-    bitcoinUnit: config.currencyDisplay,
+    bitcoinUnit: config.unit,
     maximumFractionDigits: decimals,
     minimumFractionDigits: decimals,
   })
 
   const maskedBalance =
     config.fiat === 'BTC'
-      ? config.currencyDisplay === '₿'
+      ? config.unit === '₿'
         ? '₿••••'
-        : `•••• ${config.currencyDisplay}`
+        : `•••• ${config.unit}`
       : FIAT_SYMBOLS[config.fiat]
         ? maskedFiat(FIAT_SYMBOLS[config.fiat])
         : `•••• ${config.fiat}`
