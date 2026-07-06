@@ -6,13 +6,17 @@ import { FiatContext } from '../../providers/fiat'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { prettyFiatAmount } from '../../lib/format'
 import { FlowContext } from '../../providers/flow'
+import { AssetsContext } from '@/providers/assets'
 
 export default function AssetsSection() {
   const { config } = useContext(ConfigContext)
   const { fiatDecimals } = useContext(FiatContext)
   const { setAssetInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
+  const { isRegistered } = useContext(AssetsContext)
+
   const { rows } = usePortfolioFiat()
+  const visibleRows = rows.filter((row) => isRegistered(row.assetId) || row.assetId === 'btc')
 
   const fiatLabel = (amount: number) => {
     const decimals = fiatDecimals()
@@ -38,7 +42,7 @@ export default function AssetsSection() {
         <span className='home-section-label'>Assets</span>
       </div>
       <div className='home-section__content'>
-        {rows.map((row) => (
+        {visibleRows.map((row) => (
           <AssetCard
             key={row.assetId}
             assetId={row.assetId === 'btc' ? '' : row.assetId}

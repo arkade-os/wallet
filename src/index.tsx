@@ -22,6 +22,7 @@ import { AnnouncementProvider } from './providers/announcements'
 import { ToastProvider } from './components/Toast'
 import ErrorBoundary from './components/ErrorBoundary'
 import { DevModeProvider } from './providers/devMode'
+import { AssetsProvider } from './providers/assets'
 
 const DEV_SERVICE_WORKER_RESET_KEY = 'arkade-dev-service-worker-reset-attempted'
 const DEV_WALLET_STORAGE_RESET_KEY_PREFIX = 'arkade-dev-wallet-storage-reset'
@@ -135,33 +136,35 @@ root.render(
     <NavigationProvider>
       <ConfigProvider>
         <AspProvider>
-          <NotificationsProvider>
-            <FiatProvider>
-              <FlowProvider>
-                <WalletProvider>
-                  <SwapsProvider>
-                    <LnurlProvider>
-                      <LimitsProvider>
-                        <FeesProvider>
-                          <OptionsProvider>
-                            <NudgeProvider>
-                              <AnnouncementProvider>
-                                <ToastProvider>
-                                  <ErrorBoundary>
-                                    <App />
-                                  </ErrorBoundary>
-                                </ToastProvider>
-                              </AnnouncementProvider>
-                            </NudgeProvider>
-                          </OptionsProvider>
-                        </FeesProvider>
-                      </LimitsProvider>
-                    </LnurlProvider>
-                  </SwapsProvider>
-                </WalletProvider>
-              </FlowProvider>
-            </FiatProvider>
-          </NotificationsProvider>
+          <AssetsProvider>
+            <NotificationsProvider>
+              <FiatProvider>
+                <FlowProvider>
+                  <WalletProvider>
+                    <SwapsProvider>
+                      <LnurlProvider>
+                        <LimitsProvider>
+                          <FeesProvider>
+                            <OptionsProvider>
+                              <NudgeProvider>
+                                <AnnouncementProvider>
+                                  <ToastProvider>
+                                    <ErrorBoundary>
+                                      <App />
+                                    </ErrorBoundary>
+                                  </ToastProvider>
+                                </AnnouncementProvider>
+                              </NudgeProvider>
+                            </OptionsProvider>
+                          </FeesProvider>
+                        </LimitsProvider>
+                      </LnurlProvider>
+                    </SwapsProvider>
+                  </WalletProvider>
+                </FlowProvider>
+              </FiatProvider>
+            </NotificationsProvider>
+          </AssetsProvider>
         </AspProvider>
       </ConfigProvider>
     </NavigationProvider>
