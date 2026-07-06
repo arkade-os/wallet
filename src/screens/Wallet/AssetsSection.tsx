@@ -6,7 +6,7 @@ import { FiatContext } from '../../providers/fiat'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { prettyFiatAmount } from '../../lib/format'
 import { FlowContext } from '../../providers/flow'
-import { AssetsContext } from '@/providers/assets'
+import { AssetsContext } from '../../providers/assets'
 
 export default function AssetsSection() {
   const { config } = useContext(ConfigContext)
