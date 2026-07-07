@@ -6,11 +6,11 @@ import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
-import Success from '../../../components/Success'
 import CenterScreen from '../../../components/CenterScreen'
 import FlexCol from '../../../components/FlexCol'
 import Padded from '../../../components/Padded'
 import Text from '../../../components/Text'
+import WalletSuccessSplash from '../../../components/WalletSuccessSplash'
 import SuccessIcon from '../../../icons/Success'
 import SpinnerIcon from '../../../icons/Spinner'
 import { prettyAmount, prettyFiatAmount } from '../../../lib/format'
@@ -196,14 +196,11 @@ export default function SendSuccess() {
   }
 
   return (
-    <>
-      <Header text='Success' />
-      <Content>
-        <Success headline='Payment sent!' text={`${displayAmount} sent successfully`} />
-      </Content>
-      <ButtonsOnBottom>
-        <Button label='Sounds good' onClick={() => navigate(Pages.Wallet)} />
-      </ButtonsOnBottom>
-    </>
+    <WalletSuccessSplash
+      headline='Payment sent'
+      text={`${displayAmount} sent successfully`}
+      ariaLabel='Payment sent successfully. Tap to go home.'
+      onDone={() => navigate(Pages.Wallet)}
+    />
   )
 }

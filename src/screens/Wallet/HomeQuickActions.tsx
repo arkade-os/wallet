@@ -1,9 +1,8 @@
-import { ReactNode, useContext, useState } from 'react'
+import { ReactNode, useContext } from 'react'
 import ReceiveIcon from '../../icons/Receive'
 import ScanIcon from '../../icons/Scan'
 import SendIcon from '../../icons/Send'
 import SwapIcon from '../../icons/Swap'
-import SwapComingSoonSheet from '../../components/SwapComingSoonSheet'
 import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { hapticLight } from '../../lib/haptics'
@@ -19,7 +18,6 @@ interface HomeAction {
 export default function HomeQuickActions() {
   const { navigate } = useContext(NavigationContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
-  const [swapSheetOpen, setSwapSheetOpen] = useState(false)
 
   const actions: HomeAction[] = [
     {
@@ -44,7 +42,7 @@ export default function HomeQuickActions() {
       icon: <SwapIcon />,
       label: 'Swap',
       onClick: () => {
-        setSwapSheetOpen(true)
+        navigate(Pages.WalletSwap)
       },
       testId: 'home-action-swap',
     },
@@ -73,16 +71,13 @@ export default function HomeQuickActions() {
   })
 
   return (
-    <>
-      <div className='home-quick-actions' role='toolbar' aria-label='Wallet actions'>
-        {actions.map((action) => (
-          <button key={action.label} {...actionButtonProps(action)}>
-            <span className='home-quick-action__icon'>{action.icon}</span>
-            <span className='home-quick-action__label'>{action.label}</span>
-          </button>
-        ))}
-      </div>
-      <SwapComingSoonSheet isOpen={swapSheetOpen} onClose={() => setSwapSheetOpen(false)} />
-    </>
+    <div className='home-quick-actions' role='toolbar' aria-label='Wallet actions'>
+      {actions.map((action) => (
+        <button key={action.label} {...actionButtonProps(action)}>
+          <span className='home-quick-action__icon'>{action.icon}</span>
+          <span className='home-quick-action__label'>{action.label}</span>
+        </button>
+      ))}
+    </div>
   )
 }

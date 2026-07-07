@@ -1,7 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useRef } from 'react'
 import { WalletContext } from '../providers/wallet'
-import { Currencies, Tx } from '../lib/types'
+import { Currencies, Tx, Unit } from '../lib/types'
 import {
   isBurn,
   isIssuance,
@@ -40,13 +40,14 @@ const TransactionLine = ({
   mode: 'virtual' | 'static'
 }) => {
   const { config } = useContext(ConfigContext)
-  const { toFiat } = useContext(FiatContext)
+  const { fromFiatAmount, toFiat, toFiatAmount } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
 
   const prefix = tx.type === 'sent' ? '-' : '+'
   const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
   const asAssets = Boolean(tx.assets?.length)
   const swap = tx.type === 'swap'
+  const swapStatus = swap ? swapStatusForTx(tx) : undefined
   const issuance = isIssuance(tx)
   const burn = isBurn(tx)
 
@@ -64,7 +65,14 @@ const TransactionLine = ({
     )
   }
 
-  const iconTone = tx.preconfirmed && tx.boardingTxid ? 'pending' : burn ? 'burn' : swap ? 'pending' : 'default'
+  const iconTone =
+    tx.preconfirmed && tx.boardingTxid
+      ? 'pending'
+      : burn || swapStatus === 'failed'
+        ? 'burn'
+        : swapStatus === 'pending'
+          ? 'pending'
+          : 'default'
   const Icon = () => {
     const icon = swap ? (
       <SwapRouteIcon fromTicker={tx.prototypeSwap?.fromTicker} toTicker={tx.prototypeSwap?.toTicker} />
@@ -82,10 +90,23 @@ const TransactionLine = ({
     return <span className={`activity-row__icon activity-row__icon--${iconTone}`}>{icon}</span>
   }
 
-  const kind = swap ? 'Swap' : issuance ? 'Issuance' : burn ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received'
+  const kind = swap
+    ? swapStatus === 'pending'
+      ? 'Swap pending'
+      : swapStatus === 'failed'
+        ? 'Swap failed'
+        : 'Swap'
+    : issuance
+      ? 'Issuance'
+      : burn
+        ? 'Burn'
+        : tx.type === 'sent'
+          ? 'Sent'
+          : 'Received'
   const Kind = () => <span className='activity-row__kind'>{kind}</span>
 
-  const When = () => <span className='activity-row__meta'>{date}</span>
+  const swapRoute = swap ? [tx.prototypeSwap?.fromTicker, tx.prototypeSwap?.toTicker].filter(Boolean).join(' to ') : ''
+  const When = () => <span className='activity-row__meta'>{swapRoute ? `${swapRoute} · ${date}` : date}</span>
 
   const Bitcoin = () =>
     issuance || burn ? null : (
@@ -139,7 +160,15 @@ const TransactionLine = ({
 
   const Right = () => (
     <div className='activity-row__right'>
-      {tx.assets?.length ? (
+      {swap ? (
+        <SwapAmountInfo
+          bitcoinUnit={config.unit}
+          configFiat={config.currency}
+          fromFiatAmount={fromFiatAmount}
+          toFiatAmount={toFiatAmount}
+          tx={tx}
+        />
+      ) : tx.assets?.length ? (
         <>
           <AssetInfo />
           {config.currency === Currencies.BTC ? <Bitcoin /> : <Currency />}
@@ -160,6 +189,65 @@ const TransactionLine = ({
       <Right />
     </div>
   )
+}
+
+function SwapAmountInfo({
+  bitcoinUnit,
+  configFiat,
+  fromFiatAmount,
+  toFiatAmount,
+  tx,
+}: {
+  bitcoinUnit: Unit
+  configFiat: Currencies
+  fromFiatAmount: (amount: number, currency: Currencies) => number
+  toFiatAmount: (satoshis: number, currency: Currencies) => number
+  tx: Tx
+}) {
+  const status = swapStatusForTx(tx)
+  const from = formatPrototypeSwapAmount(tx, 'from')
+  const to = formatPrototypeSwapAmount(tx, 'to')
+  const fiat = tx.prototypeSwap?.fiatAmount
+
+  if (status === 'failed') {
+    return (
+      <span className='activity-row__amount activity-row__amount--failed'>{from ? `Failed ${from}` : 'Failed'}</span>
+    )
+  }
+
+  return (
+    <>
+      <span className={`activity-row__amount${status === 'pending' ? ' activity-row__amount--pending' : ''}`}>
+        {to ? `+ ${to}` : status === 'pending' ? 'Pending' : 'Completed'}
+      </span>
+      <span className='activity-row__amount activity-row__amount--secondary'>
+        {from
+          ? `- ${from}`
+          : fiat
+            ? prettyFiatAmount(toFiatAmount(fromFiatAmount(fiat, Currencies.USD), configFiat), configFiat, {
+                bitcoinUnit,
+              })
+            : ''}
+      </span>
+    </>
+  )
+}
+
+function swapStatusForTx(tx: Tx): 'pending' | 'failed' | 'completed' {
+  if (tx.prototypeSwap?.status) return tx.prototypeSwap.status
+  if (tx.settled) return 'completed'
+  if (tx.preconfirmed) return 'pending'
+  return 'pending'
+}
+
+function formatPrototypeSwapAmount(tx: Tx, side: 'from' | 'to'): string {
+  const swap = tx.prototypeSwap
+  if (!swap) return ''
+  const amount = side === 'from' ? swap.fromAmount : swap.toAmount
+  const decimals = side === 'from' ? swap.fromDecimals : swap.toDecimals
+  const ticker = side === 'from' ? swap.fromTicker : swap.toTicker
+  if (amount === undefined || decimals === undefined || !ticker) return ''
+  return `${prettyCurrencyAssetAmount(amount, decimals, ticker)} ${ticker}`
 }
 
 interface TransactionsListProps {
@@ -319,6 +407,11 @@ export default function TransactionsList({ assetIdFilter, mode = 'virtual', limi
 
 function matchesAssetFilter(tx: Tx, assetIdFilter?: string | string[]): boolean {
   if (!assetIdFilter) return true
+  if (tx.type === 'swap' && tx.prototypeSwap) {
+    const swapAssetIds = [tx.prototypeSwap.fromAssetId, tx.prototypeSwap.toAssetId].filter(Boolean)
+    if (Array.isArray(assetIdFilter)) return swapAssetIds.some((assetId) => assetIdFilter.includes(assetId))
+    return swapAssetIds.includes(assetIdFilter)
+  }
   if (Array.isArray(assetIdFilter)) {
     if (!assetIdFilter.length) return false
     return tx.assets?.some((asset) => assetIdFilter.includes(asset.assetId)) ?? false
