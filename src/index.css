@@ -237,6 +237,7 @@ iframe {
 
 .buttons-on-bottom {
   padding: 1rem;
+  padding-bottom: var(--bottom-actions-safe-gutter);
 }
 
 @media (prefers-reduced-motion: reduce) {
