@@ -57,7 +57,7 @@ export default function BitcoinDetail() {
   const [swapSheetOpen, setSwapSheetOpen] = useState(false)
   const chartHapticState = useRef({ lastPointTime: 0, lastTriggerTime: 0 })
 
-  const marketFiat = config.fiat === Currencies.BTC ? Currencies.USD : config.fiat
+  const marketFiat = config.currency === Currencies.BTC ? Currencies.USD : config.currency
   const marketDecimals = fiatDecimalsFor(marketFiat)
   const bitcoinUnit = config.unit
   const fallbackUnitPrice = toFiatAmount(100_000_000, marketFiat)
@@ -383,15 +383,15 @@ function useResolvedChartTheme(theme: Themes): 'light' | 'dark' {
   return resolved
 }
 
-function useBitcoinMarketChartData(fiat: Currencies, windowSecs: number): LivelinePoint[] {
+function useBitcoinMarketChartData(currency: Currencies, windowSecs: number): LivelinePoint[] {
   const [data, setData] = useState<LivelinePoint[]>([])
 
   useEffect(() => {
     const controller = new AbortController()
-    const cacheKey = bitcoinChartCacheKey(fiat, windowSecs)
+    const cacheKey = bitcoinChartCacheKey(currency, windowSecs)
     const cached = bitcoinChartCache.get(cacheKey)
 
-    if (fiat === Currencies.BTC) {
+    if (currency === Currencies.BTC) {
       setData([])
       return () => controller.abort()
     }
@@ -401,7 +401,7 @@ function useBitcoinMarketChartData(fiat: Currencies, windowSecs: number): Liveli
       return () => controller.abort()
     }
 
-    fetchHistoricalMarketData(windowSecs, fiat, controller.signal)
+    fetchHistoricalMarketData(windowSecs, currency, controller.signal)
       .then((points) => {
         if (controller.signal.aborted) return
         bitcoinChartCache.set(cacheKey, points)
@@ -414,7 +414,7 @@ function useBitcoinMarketChartData(fiat: Currencies, windowSecs: number): Liveli
       })
 
     return () => controller.abort()
-  }, [fiat, windowSecs])
+  }, [currency, windowSecs])
 
   return data
 }
@@ -514,8 +514,8 @@ function calculateDelta(data: LivelinePoint[]): number {
   return ((last - first) / first) * 100
 }
 
-function bitcoinChartCacheKey(fiat: Currencies, windowSecs: number): string {
-  return `${fiat}:${windowSecs}`
+function bitcoinChartCacheKey(currency: Currencies, windowSecs: number): string {
+  return `${currency}:${windowSecs}`
 }
 
 function isAllChartWindow(windowSecs: number): boolean {

@@ -20,7 +20,7 @@ export default function AssetsSection() {
 
   const fiatLabel = (amount: number) => {
     const decimals = fiatDecimals()
-    return prettyFiatAmount(amount, config.fiat, {
+    return prettyFiatAmount(amount, config.currency, {
       bitcoinUnit: config.unit,
       maximumFractionDigits: decimals,
       minimumFractionDigits: decimals,

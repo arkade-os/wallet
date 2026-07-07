@@ -11,11 +11,11 @@ async function openKeyboard(page: Page) {
 }
 
 // helper function to change the display currency in settings
-async function changeToFiat(page: Page, fiat: Currencies) {
+async function changeCurrency(page: Page, currency: Currencies) {
   await navigateToSettings(page)
   await page.getByText('display', { exact: true }).click()
   await page.getByText('currency').click()
-  await page.getByText(fiat).click()
+  await page.getByText(currency).click()
   await page.getByLabel('Go back').click()
   await page.getByLabel('Go back').click()
   await navigateHome(page)
@@ -40,7 +40,7 @@ test('should toggle between sats and FIAT on mobile keyboard', async ({ page, is
 
   // setup wallet and open keyboard
   await createWallet(page)
-  await changeToFiat(page, Currencies.USD)
+  await changeCurrency(page, Currencies.USD)
   await openKeyboard(page)
 
   // verify keyboard is visible
@@ -109,7 +109,7 @@ test('should limit FIAT decimals to 2 places', async ({ page, isMobile }) => {
 
   // setup wallet and open keyboard
   await createWallet(page)
-  await changeToFiat(page, Currencies.USD)
+  await changeCurrency(page, Currencies.USD)
   await openKeyboard(page)
 
   // enter 1.99 (valid)
@@ -130,7 +130,7 @@ test('should limit JPY decimals to 0 places', async ({ page, isMobile }) => {
 
   // setup wallet and open keyboard
   await createWallet(page)
-  await changeToFiat(page, Currencies.JPY)
+  await changeCurrency(page, Currencies.JPY)
   await openKeyboard(page)
 
   // clear any existing amount

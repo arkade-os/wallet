@@ -158,7 +158,7 @@ describe('Send screen', () => {
     const configValue = {
       ...mockConfigContextValue,
       useFiat: false,
-      config: { ...mockConfigContextValue.config, fiat: Currencies.BTC, unit: Unit.BTC },
+      config: { ...mockConfigContextValue.config, currency: Currencies.BTC, unit: Unit.BTC },
     }
 
     renderSendForm({ configContext: configValue, walletContext: walletValue })
@@ -181,7 +181,7 @@ describe('Send screen', () => {
     const configValue = {
       ...mockConfigContextValue,
       useFiat: false,
-      config: { ...mockConfigContextValue.config, fiat: Currencies.BTC, unit: Unit.SATS },
+      config: { ...mockConfigContextValue.config, currency: Currencies.BTC, unit: Unit.SATS },
     }
 
     renderSendForm({ configContext: configValue, walletContext: walletValue })
@@ -204,7 +204,7 @@ describe('Send screen', () => {
     const configValue = {
       ...mockConfigContextValue,
       useFiat: true,
-      config: { ...mockConfigContextValue.config, fiat: Currencies.USD, unit: Unit.BTC },
+      config: { ...mockConfigContextValue.config, currency: Currencies.USD, unit: Unit.BTC },
     }
     const fiatValue = {
       ...mockFiatContextValue,
@@ -236,7 +236,7 @@ describe('Send screen', () => {
     const configValue = {
       ...mockConfigContextValue,
       useFiat: false,
-      config: { ...mockConfigContextValue.config, fiat: Currencies.BTC, unit: Unit.BTC },
+      config: { ...mockConfigContextValue.config, currency: Currencies.BTC, unit: Unit.BTC },
     }
 
     renderSendForm({

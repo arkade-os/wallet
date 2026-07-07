@@ -18,13 +18,13 @@ export default function Balance({ amount }: BalanceProps) {
 
   const currencyAmount = toFiat(amount)
   const mainValue = config.showBalance
-    ? config.fiat === Currencies.BTC
+    ? config.currency === Currencies.BTC
       ? prettyBitcoinAmount(amount, config.unit)
-      : prettyFiatAmount(currencyAmount, config.fiat, {
+      : prettyFiatAmount(currencyAmount, config.currency, {
           maximumFractionDigits: fiatDecimals(),
           minimumFractionDigits: fiatDecimals(),
         })
-    : prettyFiatHide(currencyAmount, config.fiat, { bitcoinUnit: config.unit })
+    : prettyFiatHide(currencyAmount, config.currency, { bitcoinUnit: config.unit })
   const [mainBalance, mainUnit = ''] = mainValue.split(' ')
   const toggleShow = () => updateConfig({ ...config, showBalance: !config.showBalance })
 

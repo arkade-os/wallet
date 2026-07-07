@@ -10,8 +10,8 @@ import TokenLogo, { tokenLogoTickerForTicker } from '../../components/TokenLogo'
 export default function Fiat() {
   const { backupConfig, config, updateConfig } = useContext(ConfigContext)
 
-  const handleChange = async (fiat: string) => {
-    const newConfig = { ...config, fiat: fiat as Currencies }
+  const handleChange = async (currency: string) => {
+    const newConfig = { ...config, currency: currency as Currencies }
     if (config.nostrBackup) await backupConfig(newConfig)
     updateConfig(newConfig)
   }
@@ -39,7 +39,7 @@ export default function Fiat() {
                   const ticker = tokenLogoTickerForTicker(currency)
                   return ticker ? <TokenLogo ticker={ticker} /> : null
                 }}
-                selected={config.fiat}
+                selected={config.currency}
               />
             </section>
           </div>

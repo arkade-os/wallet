@@ -23,7 +23,7 @@ export default function NotesSuccess() {
   }, [])
 
   const displayAmount = useFiat
-    ? prettyFiatAmount(toFiat(noteInfo.satoshis), config.fiat, { bitcoinUnit: config.unit })
+    ? prettyFiatAmount(toFiat(noteInfo.satoshis), config.currency, { bitcoinUnit: config.unit })
     : prettyAmount(noteInfo.satoshis)
 
   return (

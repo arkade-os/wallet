@@ -57,8 +57,8 @@ const TransactionLine = ({
     const secondaryClassName = asAssets ? ' activity-row__amount--secondary' : ''
     return (
       <span className={`activity-row__amount${statusClassName}${secondaryClassName}`}>
-        <PrivacyAmount masked={prettyFiatHide(value, config.fiat, { bitcoinUnit: config.unit })}>
-          {prettyFiatAmount(value, config.fiat, { bitcoinUnit: config.unit })}
+        <PrivacyAmount masked={prettyFiatHide(value, config.currency, { bitcoinUnit: config.unit })}>
+          {prettyFiatAmount(value, config.currency, { bitcoinUnit: config.unit })}
         </PrivacyAmount>
       </span>
     )
@@ -95,7 +95,7 @@ const TransactionLine = ({
         }`}
       >
         <PrivacyAmount
-          masked={`${prefix} ${prettyFiatHide(toFiat(tx.amount), config.fiat, { bitcoinUnit: config.unit })}`}
+          masked={`${prefix} ${prettyFiatHide(toFiat(tx.amount), config.currency, { bitcoinUnit: config.unit })}`}
         >{`${prefix} ${prettyBitcoinAmount(tx.amount, config.unit)}`}</PrivacyAmount>
       </span>
     )
@@ -142,10 +142,10 @@ const TransactionLine = ({
       {tx.assets?.length ? (
         <>
           <AssetInfo />
-          {config.fiat === Currencies.BTC ? <Bitcoin /> : <Currency />}
+          {config.currency === Currencies.BTC ? <Bitcoin /> : <Currency />}
         </>
       ) : (
-        <>{config.fiat === Currencies.BTC ? <Bitcoin /> : <Currency />}</>
+        <>{config.currency === Currencies.BTC ? <Bitcoin /> : <Currency />}</>
       )}
     </div>
   )

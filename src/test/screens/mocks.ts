@@ -60,7 +60,7 @@ export const mockConfigContextValue = {
     aspUrl: 'http://asp.local',
     dismissedBanners: [],
     delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
-    fiat: Currencies.EUR,
+    currency: Currencies.EUR,
     importedAssets: [],
     haptics: true,
     nostrBackup: true,

@@ -13,7 +13,7 @@ export const test = base.extend({
     await page.addInitScript(() => {
       const raw = localStorage.getItem('config')
       const config = raw ? JSON.parse(raw) : {}
-      config.fiat = 'BTC'
+      config.currency = 'BTC'
       config.unit = 'sats'
       localStorage.setItem('config', JSON.stringify(config))
     })

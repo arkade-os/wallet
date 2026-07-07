@@ -162,7 +162,7 @@ export default function Keyboard({ asset, back, hideBalance, onClear, onSave, in
       inputMode === 'asset'
         ? `${textValue || '0'} ${asset?.ticker}`
         : inputMode === 'fiat'
-          ? prettyFiatAmount(amountInSats ? toFiat(amountInSats) : 0, config.fiat, {
+          ? prettyFiatAmount(amountInSats ? toFiat(amountInSats) : 0, config.currency, {
               bitcoinUnit: config.unit,
             })
           : `${textValue || '0'} ${config.unit}`,
@@ -170,14 +170,14 @@ export default function Keyboard({ asset, back, hideBalance, onClear, onSave, in
       ? ''
       : inputMode === 'fiat'
         ? prettyBitcoinAmount(amountInSats)
-        : prettyFiatAmount(amountInSats ? toFiat(amountInSats) : 0, config.fiat, {
+        : prettyFiatAmount(amountInSats ? toFiat(amountInSats) : 0, config.currency, {
             bitcoinUnit: config.unit,
           }),
     balance:
       inputMode === 'asset'
         ? `${prettyAssetAmount(asset?.balance ?? BigInt(0), asset?.decimals ?? 0)} ${asset?.ticker}`
         : inputMode === 'fiat'
-          ? prettyFiatAmount(toFiat(available), config.fiat, { bitcoinUnit: config.unit })
+          ? prettyFiatAmount(toFiat(available), config.currency, { bitcoinUnit: config.unit })
           : prettyBitcoinAmount(available),
   }
 
@@ -209,7 +209,7 @@ export default function Keyboard({ asset, back, hideBalance, onClear, onSave, in
     ['.', '0', 'x'],
   ]
 
-  const showSecondaryValue = !asset?.assetId && config.fiat !== Currencies.BTC
+  const showSecondaryValue = !asset?.assetId && config.currency !== Currencies.BTC
 
   return (
     <>

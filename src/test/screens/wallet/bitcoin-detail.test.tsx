@@ -83,7 +83,7 @@ describe('Bitcoin detail screen', () => {
           config: {
             ...mockConfigContextValue.config,
             unit: Unit.BIP177,
-            fiat: Currencies.BTC,
+            currency: Currencies.BTC,
           },
         }}
       >

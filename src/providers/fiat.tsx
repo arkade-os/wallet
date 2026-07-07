@@ -57,7 +57,7 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
     if (currency === Currencies.CNY) return fromCNY(amount)
     return fromUSD(amount)
   }
-  const fromFiat = (fiat = 0) => fromFiatAmount(fiat, config.fiat)
+  const fromFiat = (fiat = 0) => fromFiatAmount(fiat, config.currency)
   const toFiatAmount = (sats = 0, currency: Currencies) => {
     if (currency === Currencies.BTC) return toBTC(sats)
     if (currency === Currencies.EUR) return toEUR(sats)
@@ -67,16 +67,16 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
     if (currency === Currencies.CNY) return toCNY(sats)
     return toUSD(sats)
   }
-  const toFiat = (sats = 0) => toFiatAmount(sats, config.fiat)
+  const toFiat = (sats = 0) => toFiatAmount(sats, config.currency)
 
-  const fiatDecimals = () => fiatDecimalsFor(config.fiat, config.unit)
+  const fiatDecimals = () => fiatDecimalsFor(config.currency, config.unit)
 
   const updateFiatPrices = async () => {
     if (loading) return
     setLoading(true)
     const pf = await getPriceFeed()
     if (pf) prices.current = pf
-    else updateConfig({ ...config, fiat: Currencies.BTC }, false) // fallback to BTC if price feed fails
+    else updateConfig({ ...config, currency: Currencies.BTC }, false) // fallback to BTC if price feed fails
     setLoading(false)
   }
 

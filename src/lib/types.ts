@@ -16,8 +16,8 @@ export type Config = {
     }
   }
   aspUrl: string
+  currency: Currencies
   delegate: boolean
-  fiat: Currencies
   importedAssets: string[]
   haptics: boolean
   nostrBackup: boolean
@@ -28,6 +28,9 @@ export type Config = {
   theme: Themes
   unit: Unit
   walletMode: ServiceWorkerWalletMode
+  // deprecated
+  currencyDisplay?: string
+  fiat?: Currencies
 }
 
 export type Delegate = {

@@ -76,8 +76,8 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     if (useFiat) {
       const fiat = toFiat(amount)
       return config.showBalance
-        ? prettyFiatAmount(fiat, config.fiat, { bitcoinUnit: config.unit })
-        : prettyFiatHide(fiat, config.fiat, { bitcoinUnit: config.unit })
+        ? prettyFiatAmount(fiat, config.currency, { bitcoinUnit: config.unit })
+        : prettyFiatHide(fiat, config.currency, { bitcoinUnit: config.unit })
     }
     return config.showBalance ? prettyBitcoinAmount(amount, config.unit) : prettyBitcoinHide(amount, config.unit)
   }

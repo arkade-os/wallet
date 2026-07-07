@@ -730,7 +730,7 @@ export default function SendForm() {
     }
 
     const pretty = useFiat
-      ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, { bitcoinUnit: config.unit })
+      ? prettyFiatAmount(toFiat(liquidBalance), config.currency, { bitcoinUnit: config.unit })
       : config.unit === Unit.BTC
         ? prettyAmount(fromSatoshis(liquidBalance), config.unit, 8)
         : prettyAmount(liquidBalance)
@@ -773,7 +773,7 @@ export default function SendForm() {
     ? `${prettyAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`
     : `${
         useFiat
-          ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, { bitcoinUnit: config.unit })
+          ? prettyFiatAmount(toFiat(liquidBalance), config.currency, { bitcoinUnit: config.unit })
           : prettyAmount(liquidBalance)
       } available`
 
@@ -953,7 +953,7 @@ export default function SendForm() {
                                 <span className='send-asset-option__name'>Bitcoin</span>
                                 <span className='send-asset-option__meta'>
                                   {useFiat
-                                    ? prettyFiatAmount(toFiat(liquidBalance), config.fiat, {
+                                    ? prettyFiatAmount(toFiat(liquidBalance), config.currency, {
                                         bitcoinUnit: config.unit,
                                       })
                                     : prettyAmount(liquidBalance)}{' '}

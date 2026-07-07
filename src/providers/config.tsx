@@ -14,7 +14,7 @@ const defaultConfig: Config = {
   aspUrl: defaultArkServer(),
   dismissedBanners: [],
   delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
-  fiat: Currencies.USD,
+  currency: Currencies.USD,
   importedAssets: [],
   haptics: true,
   nostrBackup: false,
@@ -58,7 +58,7 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
     ? config.announcementsSeen
     : defaultConfig.announcementsSeen
   const importedAssets = Array.isArray(config.importedAssets) ? config.importedAssets : defaultConfig.importedAssets
-  return {
+  const updatedConfig: Config = {
     ...defaultConfig,
     ...config,
     announcementsSeen: [...announcementsSeen],
@@ -67,9 +67,15 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
       assets: { enabled: config.apps?.assets?.enabled ?? defaultConfig.apps.assets.enabled },
       boltz: { connected: config.apps?.boltz?.connected ?? defaultConfig.apps.boltz.connected },
     },
-    fiat: config.fiat === Currencies.BTC ? Currencies.BTC : (config.fiat ?? defaultConfig.fiat),
+    currency:
+      config.currency ??
+      (config.currencyDisplay === 'Sats only' ? Currencies.BTC : (config.currency ?? defaultConfig.currency)),
     unit: normalizeBitcoinUnit(config.unit as `${Unit}`),
   }
+  // Remove deprecated fields if present
+  if (updatedConfig.currencyDisplay) delete updatedConfig.currencyDisplay
+  if (updatedConfig.fiat) delete updatedConfig.fiat
+  return updatedConfig
 }
 
 const shouldUseDevEnvArkServer = (aspUrl: string) =>
@@ -154,7 +160,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     return () => mediaQuery.removeEventListener('change', handler)
   }, [config.theme])
 
-  const useFiat = config.fiat !== Currencies.BTC
+  const useFiat = config.currency !== Currencies.BTC
 
   return (
     <ConfigContext.Provider

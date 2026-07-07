@@ -96,8 +96,8 @@ export default function InputAmount({
   const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0
   const maximumSats = max ? Math.min(max, maxSwapAllowed()) : 0
 
-  const fiatSymbol = FIAT_SYMBOLS[config.fiat]
-  const fiatLabel = useFiat ? (fiatSymbol ?? config.fiat) : config.unit
+  const fiatSymbol = FIAT_SYMBOLS[config.currency]
+  const fiatLabel = useFiat ? (fiatSymbol ?? config.currency) : config.unit
 
   const leftLabel = asset?.assetId ? asset.ticker : useFiat ? fiatLabel : config.unit
   const rightLabel = !asset?.assetId && useFiat ? `${otherValue} ${config.unit}` : ''
