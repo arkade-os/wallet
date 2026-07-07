@@ -1,10 +1,9 @@
 import { motion } from 'framer-motion'
-import { ReactNode, useContext, useState } from 'react'
+import { ReactNode, useContext } from 'react'
 import ReceiveIcon from '../../icons/Receive'
 import ScanIcon from '../../icons/Scan'
 import SendIcon from '../../icons/Send'
 import SwapIcon from '../../icons/Swap'
-import SwapComingSoonSheet from '../../components/SwapComingSoonSheet'
 import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { homeActionStaggerChild, homeActionStaggerContainer } from '../../lib/animations'
@@ -22,7 +21,6 @@ interface HomeAction {
 export default function HomeQuickActions() {
   const { navigate } = useContext(NavigationContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
-  const [swapSheetOpen, setSwapSheetOpen] = useState(false)
   const prefersReduced = useReducedMotion()
 
   const actions: HomeAction[] = [
@@ -48,7 +46,7 @@ export default function HomeQuickActions() {
       icon: <SwapIcon />,
       label: 'Swap',
       onClick: () => {
-        setSwapSheetOpen(true)
+        navigate(Pages.WalletSwap)
       },
       testId: 'home-action-swap',
     },
@@ -78,41 +76,35 @@ export default function HomeQuickActions() {
 
   if (prefersReduced) {
     return (
-      <>
-        <div className='home-quick-actions' role='toolbar' aria-label='Wallet actions'>
-          {actions.map((action) => (
-            <button key={action.label} {...actionButtonProps(action)}>
-              <span className='home-quick-action__icon'>{action.icon}</span>
-              <span className='home-quick-action__label'>{action.label}</span>
-            </button>
-          ))}
-        </div>
-        <SwapComingSoonSheet isOpen={swapSheetOpen} onClose={() => setSwapSheetOpen(false)} />
-      </>
+      <div className='home-quick-actions' role='toolbar' aria-label='Wallet actions'>
+        {actions.map((action) => (
+          <button key={action.label} {...actionButtonProps(action)}>
+            <span className='home-quick-action__icon'>{action.icon}</span>
+            <span className='home-quick-action__label'>{action.label}</span>
+          </button>
+        ))}
+      </div>
     )
   }
 
   return (
-    <>
-      <motion.div
-        className='home-quick-actions'
-        role='toolbar'
-        aria-label='Wallet actions'
-        variants={homeActionStaggerContainer}
-      >
-        {actions.map((action) => (
-          <motion.button
-            key={action.label}
-            variants={homeActionStaggerChild}
-            whileTap={action.disabled ? undefined : { scale: 0.97 }}
-            {...actionButtonProps(action)}
-          >
-            <span className='home-quick-action__icon'>{action.icon}</span>
-            <span className='home-quick-action__label'>{action.label}</span>
-          </motion.button>
-        ))}
-      </motion.div>
-      <SwapComingSoonSheet isOpen={swapSheetOpen} onClose={() => setSwapSheetOpen(false)} />
-    </>
+    <motion.div
+      className='home-quick-actions'
+      role='toolbar'
+      aria-label='Wallet actions'
+      variants={homeActionStaggerContainer}
+    >
+      {actions.map((action) => (
+        <motion.button
+          key={action.label}
+          variants={homeActionStaggerChild}
+          whileTap={action.disabled ? undefined : { scale: 0.97 }}
+          {...actionButtonProps(action)}
+        >
+          <span className='home-quick-action__icon'>{action.icon}</span>
+          <span className='home-quick-action__label'>{action.label}</span>
+        </motion.button>
+      ))}
+    </motion.div>
   )
 }

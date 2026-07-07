@@ -45,11 +45,12 @@ describe('usePortfolioFiat', () => {
     )
 
     const { result } = renderHook(() => usePortfolioFiat(), { wrapper })
-    const chfRow = result.current.rows.find((row) => row.assetId === 'chf-asset')
+    const chfRow = result.current.rows.find((row) => row.assetId === 'account:chf')
 
     expect(chfRow?.fiatAmount).toBe(40000)
     expect(chfRow?.satsEquivalent).toBe(40000)
     expect(chfRow?.hasFiatPrice).toBe(true)
+    expect(chfRow?.sourceAssetIds).toEqual(['chf-asset'])
     expect(result.current.totalFiat).toBe(41000)
     expect(result.current.totalSats).toBe(41000)
   })

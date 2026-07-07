@@ -166,10 +166,10 @@ export default function Wallet() {
               <AssetsSection />
             </WalletStaggerChild>
             <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
-              <UpsellsSection />
+              <RecentActivitySection />
             </WalletStaggerChild>
             <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
-              <RecentActivitySection />
+              <UpsellsSection />
             </WalletStaggerChild>
             {psaMessage ? (
               <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>

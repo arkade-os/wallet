@@ -32,6 +32,7 @@ export default function Transaction() {
   const { assetMetadataCache, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } = useContext(WalletContext)
 
   const tx = txInfo
+  const swapTx = tx?.type === 'swap'
   const issuanceTx = tx ? isIssuance(tx) : false
   const burnTx = tx ? isBurn(tx) : false
   const boardingTx = Boolean(tx?.boardingTxid)
@@ -77,6 +78,7 @@ export default function Transaction() {
   }, [aspInfo, vtxos, svcWallet, vtxoManager, wallet.thresholdMs])
 
   const handleSettle = async () => {
+    if (tx?.isPrototype) return
     setError('')
     setSettling(true)
     try {
@@ -102,17 +104,27 @@ export default function Transaction() {
           : 'Preconfirmed'
 
   const details: DetailsProps = {
-    direction: issuanceTx ? 'Issuance' : burnTx ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received',
+    direction: swapTx ? 'Swap' : issuanceTx ? 'Issuance' : burnTx ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received',
     when: tx.createdAt ? prettyAgo(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
     date: tx.createdAt ? prettyDate(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
-    status,
-    type: boardingTx ? 'Boarding' : 'Offchain',
+    status: swapTx
+      ? swapStatusLabel(tx)
+      : expiredBoardingTx
+        ? 'Expired'
+        : unconfirmedBoardingTx
+          ? 'Unconfirmed'
+          : boardingTx && tx.preconfirmed
+            ? 'Pending boarding'
+            : settleSuccess || tx.settled
+              ? 'Settled'
+              : 'Preconfirmed',
+    type: swapTx ? 'Asset swap' : boardingTx ? 'Boarding' : 'Offchain',
     txid: tx.boardingTxid || tx.redeemTxid || tx.roundTxid || '',
     isOffchainTx: !tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
     assetId: tx.assets?.[0]?.assetId,
     wallet: wallet,
-    satoshis: tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
-    fees: tx.type === 'sent' ? defaultFee : 0,
+    satoshis: swapTx ? 0 : tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
+    fees: swapTx ? 0 : tx.type === 'sent' ? defaultFee : 0,
     total: tx.amount,
   }
 
@@ -137,6 +149,23 @@ export default function Transaction() {
           {settleSuccess ? (
             <Info color='green' icon={<CheckMarkIcon small />} title='Success'>
               <TextSecondary>Transaction settled successfully</TextSecondary>
+            </Info>
+          ) : null}
+          {swapTx && tx.prototypeSwap ? (
+            <Info
+              color={
+                tx.prototypeSwap.status === 'failed'
+                  ? 'red'
+                  : tx.prototypeSwap.status === 'pending'
+                    ? 'orange'
+                    : 'green'
+              }
+              icon={<CheckMarkIcon small />}
+              title={swapStatusLabel(tx)}
+            >
+              <TextSecondary>
+                {tx.prototypeSwap.fromTicker} to {tx.prototypeSwap.toTicker}
+              </TextSecondary>
             </Info>
           ) : null}
           {tx.assets?.length ? (
@@ -185,6 +214,9 @@ export default function Transaction() {
     hasInputsToSettle &&
     utxoTxsAllowed() &&
     vtxoTxsAllowed() &&
+    !tx.isPrototype &&
+    !unconfirmedBoardingTx &&
+    !expiredBoardingTx &&
     amountAboveDust &&
     !settling
 
@@ -212,4 +244,10 @@ export default function Transaction() {
       <Buttons />
     </>
   )
+}
+
+function swapStatusLabel(tx: { prototypeSwap?: { status?: 'pending' | 'failed' | 'completed' }; settled?: boolean }) {
+  if (tx.prototypeSwap?.status === 'failed') return 'Failed'
+  if (tx.prototypeSwap?.status === 'pending') return 'Pending'
+  return tx.settled || tx.prototypeSwap?.status === 'completed' ? 'Completed' : 'Pending'
 }
