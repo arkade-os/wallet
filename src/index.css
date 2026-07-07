@@ -369,6 +369,8 @@ iframe {
 }
 
 .home-quick-action {
+  --home-action-load-delay: 130ms;
+
   position: relative;
   display: flex;
   min-width: 0;
@@ -386,9 +388,32 @@ iframe {
   text-align: center;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-  transition:
-    opacity 180ms cubic-bezier(0.23, 1, 0.32, 1),
-    transform 180ms cubic-bezier(0.23, 1, 0.32, 1);
+  animation: home-quick-action-load-in 340ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  animation-delay: var(--home-action-load-delay);
+}
+
+.home-quick-action:nth-child(2) {
+  animation-delay: calc(var(--home-action-load-delay) + 45ms);
+}
+
+.home-quick-action:nth-child(3) {
+  animation-delay: calc(var(--home-action-load-delay) + 90ms);
+}
+
+.home-quick-action:nth-child(4) {
+  animation-delay: calc(var(--home-action-load-delay) + 135ms);
+}
+
+@keyframes home-quick-action-load-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 .home-quick-action::before {
@@ -465,6 +490,7 @@ iframe {
 @media (prefers-reduced-motion: reduce) {
   .home-quick-action,
   .home-quick-action__icon {
+    animation: none;
     transition-duration: 0.01ms;
   }
 

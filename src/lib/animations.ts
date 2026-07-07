@@ -83,29 +83,11 @@ export const walletLoadInContainer: Variants = {
 }
 
 export const walletLoadInChild: Variants = {
-  initial: { y: 18, opacity: 0, scale: 0.985 },
+  initial: { transform: 'translate3d(0, 18px, 0) scale(0.985)', opacity: 0 },
   animate: {
-    y: 0,
+    transform: 'translate3d(0, 0, 0) scale(1)',
     opacity: 1,
-    scale: 1,
     transition: { duration: 0.34, ease: EASE_OUT_QUINT_TUPLE },
-  },
-}
-
-export const homeActionStaggerContainer: Variants = {
-  initial: {},
-  animate: {
-    transition: { delayChildren: 0.04, staggerChildren: 0.045 },
-  },
-}
-
-export const homeActionStaggerChild: Variants = {
-  initial: { y: 10, opacity: 0, scale: 0.96 },
-  animate: {
-    y: 0,
-    opacity: 1,
-    scale: 1,
-    transition: { duration: STAGGER_DURATION, ease: EASE_OUT_QUINT_TUPLE },
   },
 }
 
