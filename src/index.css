@@ -353,6 +353,8 @@ iframe {
   flex-direction: column;
   gap: 1.5rem;
   width: 100%;
+  position: relative;
+  z-index: 0;
 }
 
 .home-stack__section + .home-stack__section {
@@ -1221,7 +1223,11 @@ iframe {
 }
 
 .home-header {
-  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background-color: var(--bg);
+  isolation: isolate;
   padding-top: env(safe-area-inset-top, 0px);
 }
 
