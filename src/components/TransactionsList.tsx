@@ -268,7 +268,6 @@ export default function TransactionsList({ assetIdFilter, mode = 'virtual', limi
         className='activity-list activity-list--full hide-scrollbar scroll-fade'
         style={{
           borderBottom: border,
-          height: 'calc(100dvh - 260px)',
           minHeight: '200px',
           overflowY: 'auto',
         }}
