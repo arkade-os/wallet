@@ -388,7 +388,7 @@ iframe {
   text-align: center;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-  animation: home-quick-action-load-in 340ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  animation: home-quick-action-load-in 340ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
   animation-delay: var(--home-action-load-delay);
 }
 
