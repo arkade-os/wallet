@@ -23,7 +23,7 @@ test('should navigate to assets and see disabled state', async ({ page }) => {
   await expect(page.getByText('Mint', { exact: true })).toBeVisible()
 })
 
-test('should mint an asset and it should appear on home', async ({ page }) => {
+test('should mint an asset and it should appear on arkade mint', async ({ page }) => {
   await createWallet(page)
   await fundWallet(page)
   await enableAssets(page)
@@ -35,11 +35,6 @@ test('should mint an asset and it should appear on home', async ({ page }) => {
 
   // go back to asset list
   await page.getByText('Back to Arkade Mint').click()
-
-  // go back to homepage
-  await page.getByLabel('Go back').click()
-  await page.getByLabel('Go back').click()
-  await page.getByLabel('Go back').click()
 
   // assert home page
   await page.waitForSelector('text=TestCoin', { state: 'visible' })
