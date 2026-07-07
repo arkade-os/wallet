@@ -172,7 +172,9 @@ export default function Transaction() {
               })}
             </div>
           ) : null}
-          <Details details={details} />
+          <div className='transaction-detail'>
+            <Details details={details} variant='receipt' />
+          </div>
         </FlexCol>
       </Padded>
     </Content>
