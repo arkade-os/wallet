@@ -87,7 +87,6 @@ export default function Server() {
               onEnter={handleEnter}
               openScan={() => setScan(true)}
               placeholder={config.aspUrl}
-              value={aspUrl}
             />
             <ErrorMessage error={Boolean(error)} text={error} />
             {info && !error ? <WarningBox green text='Server found' /> : null}

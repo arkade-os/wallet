@@ -9,12 +9,12 @@ import { NavigationContext, Pages } from '../../../providers/navigation'
 
 export default function AppAssetsSettings() {
   const { config, updateConfig } = useContext(ConfigContext)
-  const { navigate } = useContext(NavigationContext)
+  const { replace } = useContext(NavigationContext)
 
   const toggleConnection = () => {
     const enabling = !config.apps.assets.enabled
     updateConfig({ ...config, apps: { ...config.apps, assets: { enabled: enabling } } })
-    if (enabling) navigate(Pages.AppAssets)
+    if (enabling) replace(Pages.AppAssets, [Pages.Settings, Pages.WalletSettings])
   }
 
   return (

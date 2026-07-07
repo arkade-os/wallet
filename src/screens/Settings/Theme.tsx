@@ -47,12 +47,17 @@ export default function Theme() {
       <Header text='Theme' back />
       <Content>
         <Padded>
-          <div
-            onClickCapture={(e) => {
-              clickCoords.current = { x: e.clientX, y: e.clientY }
-            }}
-          >
-            <Select labels={labels} onChange={handleChange} options={options} selected={config.theme} />
+          <div className='settings-page'>
+            <section className='settings-section'>
+              <p className='settings-section-label'>Appearance</p>
+              <div
+                onClickCapture={(e) => {
+                  clickCoords.current = { x: e.clientX, y: e.clientY }
+                }}
+              >
+                <Select labels={labels} onChange={handleChange} options={options} selected={config.theme} />
+              </div>
+            </section>
           </div>
         </Padded>
       </Content>

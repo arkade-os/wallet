@@ -80,10 +80,11 @@ export default function Button({
 
   const handleClick = useCallback(
     (event: any) => {
+      if (disabled || loading) return
       hapticTap()
       onClick(event)
     },
-    [onClick],
+    [disabled, loading, onClick],
   )
 
   return (
@@ -92,6 +93,8 @@ export default function Button({
       type='button'
       className={cn(buttonVariants({ variant: resolvedVariant }), pressed && 'pressed', className)}
       disabled={disabled}
+      aria-busy={loading || undefined}
+      aria-disabled={loading || undefined}
       onClick={handleClick}
       onMouseDown={handlePressStart}
       onMouseUp={handlePressEnd}

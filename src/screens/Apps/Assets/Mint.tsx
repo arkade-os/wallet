@@ -22,6 +22,9 @@ import type { AssetDetails, IssuanceParams, KnownMetadata } from '@arkade-os/sdk
 import Input from '../../../components/Input'
 import AssetCard from '../../../components/AssetCard'
 import { MAX_DECIMALS, unitsToCents } from '../../../lib/assets'
+import { isInvalidDecimals, isInvalidMintAmount, isValidUrl } from '../../../lib/validators'
+import InputAssetAmount from '@/components/InputAssetAmount'
+import InputAssetDecimals from '@/components/InputAssetDecimals'
 
 interface KnownAssetOption {
   assetId: string
@@ -31,7 +34,7 @@ interface KnownAssetOption {
 }
 
 export default function AppAssetMint() {
-  const { navigate } = useContext(NavigationContext)
+  const { replace } = useContext(NavigationContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
   const { svcWallet, assetBalances, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
@@ -40,11 +43,11 @@ export default function AppAssetMint() {
   const [amount, setAmount] = useState(BigInt(0))
   const [name, setName] = useState('')
   const [ticker, setTicker] = useState('')
-  const [decimals, setDecimals] = useState<number | undefined>(0)
+  const [decimalsText, setDecimalsText] = useState<string>('0')
+  const [decimals, setDecimals] = useState<number>(0)
   const [iconUrl, setIconUrl] = useState('')
   const [error, setError] = useState('')
   const [minting, setMinting] = useState(false)
-  const [iconError, setIconError] = useState(false)
 
   const [controlAssetId, setControlAssetId] = useState('')
   const [showControlDropdown, setShowControlDropdown] = useState(false)
@@ -82,10 +85,23 @@ export default function AppAssetMint() {
   }, [svcWallet, assetBalances, assetMetadataCache])
 
   useEffect(() => {
-    if (decimals === undefined) return
-    const cents = unitsToCents(amountTextValue, decimals)
+    // validate amount
+    const invalidAmountReason = isInvalidMintAmount(amountTextValue)
+    if (invalidAmountReason) return setError(invalidAmountReason)
+    // validate decimals
+    const invalidDecimalsReason = isInvalidDecimals(decimalsText)
+    if (invalidDecimalsReason) return setError(invalidDecimalsReason)
+    // convert amount to cents and validate
+    const cents = unitsToCents(amountTextValue, Number(decimalsText))
+    const invalidCentsReason = isInvalidMintAmount(cents)
+    if (invalidCentsReason) return setError(invalidCentsReason)
+    // validate icon URL
+    if (iconUrl && !isValidUrl(iconUrl)) return setError('Invalid icon URL')
+    // all validations passed
+    setError('')
     setAmount(cents)
-  }, [amountTextValue, decimals])
+    setDecimals(Number(decimalsText))
+  }, [amountTextValue, decimalsText, iconUrl])
 
   const handleMint = async () => {
     if (!svcWallet) return
@@ -97,6 +113,8 @@ export default function AppAssetMint() {
     if (decimals === undefined || !Number.isInteger(decimals) || decimals < 0 || decimals > MAX_DECIMALS) {
       return setError(`Decimals must be an integer between 0 and ${MAX_DECIMALS}`)
     }
+
+    if (iconUrl && !isValidUrl(iconUrl)) return setError('Invalid icon URL')
 
     const supply = amount
 
@@ -164,7 +182,7 @@ export default function AppAssetMint() {
       }
       setCacheEntry(newAssetId, assetDetails)
       setAssetInfo(assetDetails)
-      pendingNav.current = () => navigate(Pages.AppAssetMintSuccess)
+      pendingNav.current = () => replace(Pages.AppAssetMintSuccess, Pages.AppAssets)
       setMintDone(true)
     } catch (err) {
       consoleError(err, 'error minting asset')
@@ -193,7 +211,9 @@ export default function AppAssetMint() {
                   ? 'Enter control asset amount'
                   : controlMode === 'New' && (isNaN(ctrlAmount) || ctrlAmount <= 0)
                     ? 'Control amount must be positive'
-                    : ''
+                    : !isValidUrl(iconUrl)
+                      ? 'Invalid icon URL'
+                      : ''
 
   const handleExitComplete = useCallback(() => {
     pendingNav.current?.()
@@ -204,7 +224,7 @@ export default function AppAssetMint() {
 
   return (
     <>
-      <Header text='Mint Asset' back={() => navigate(Pages.AppAssets)} />
+      <Header text='Mint Asset' back />
       <Content>
         <Padded>
           <FlexCol gap='1rem'>
@@ -214,9 +234,8 @@ export default function AppAssetMint() {
               balance={amount}
               name={name}
               ticker={ticker}
-              icon={iconUrl && !iconError ? iconUrl : undefined}
+              icon={iconUrl && isValidUrl(iconUrl) ? iconUrl : undefined}
               decimals={decimals}
-              darkPurple
             />
             <FlexRow gap='0.5rem' alignItems='flex-end'>
               <div style={{ flex: 1 }}>
@@ -241,25 +260,19 @@ export default function AppAssetMint() {
 
             <FlexRow gap='0.5rem' alignItems='flex-end'>
               <div style={{ flex: 1 }}>
-                <Input
-                  min='0'
-                  type='number'
+                <InputAssetAmount
                   label='Amount *'
                   placeholder='1000'
                   testId='asset-amount'
                   onChange={setAmountTextValue}
                 />
               </div>
-              <div style={{ minWidth: '6rem' }}>
-                <Input
-                  min='0'
-                  max='8'
-                  step='1'
-                  type='number'
+              <div style={{ width: '6rem' }}>
+                <InputAssetDecimals
                   placeholder='0'
                   label='Decimals'
                   testId='asset-decimals'
-                  onChange={(value: string) => setDecimals(value ? Number(value) : undefined)}
+                  onChange={setDecimalsText}
                 />
               </div>
             </FlexRow>
@@ -270,10 +283,7 @@ export default function AppAssetMint() {
               value={iconUrl}
               testId='asset-icon-url'
               placeholder='https://...'
-              onChange={(v: string) => {
-                setIconUrl(v)
-                setIconError(false)
-              }}
+              onChange={setIconUrl}
             />
 
             <FlexCol gap='0.5rem'>

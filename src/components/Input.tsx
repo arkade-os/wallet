@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 
 interface InputProps {
   className?: string
+  error?: string
   focus?: boolean
   label?: string
   max?: string
@@ -22,6 +23,7 @@ interface InputProps {
 
 export default function Input({
   className,
+  error,
   focus,
   label,
   max,
@@ -52,7 +54,7 @@ export default function Input({
   }
 
   return (
-    <InputContainer label={label} right={right}>
+    <InputContainer error={error} label={label} right={right}>
       <input
         max={max}
         min={min}

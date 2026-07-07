@@ -22,21 +22,30 @@ import Delegates from './Delegates'
 import SettingsPageTransition from '../../components/SettingsPageTransition'
 import Haptics from './Haptics'
 import Contracts from './Contracts'
+import { NavigationContext, Pages } from '../../providers/navigation'
 
-function settingsContent(option: SettingsOptions): JSX.Element {
+function settingsContent(option: SettingsOptions, menuBack?: () => void): JSX.Element {
   switch (option) {
     case SettingsOptions.Menu:
-      return <SettingsMenu />
+      return <SettingsMenu backFunc={menuBack} />
     case SettingsOptions.About:
       return <About />
     case SettingsOptions.Advanced:
       return <Advanced />
     case SettingsOptions.Backup:
       return <Backup />
+    case SettingsOptions.Contracts:
+      return <Contracts />
     case SettingsOptions.Delegates:
       return <Delegates />
-    case SettingsOptions.General:
+    case SettingsOptions.BitcoinUnit:
+      return <Display />
+    case SettingsOptions.Display:
       return <General />
+    case SettingsOptions.Currency:
+      return <Fiat />
+    case SettingsOptions.Haptics:
+      return <Haptics />
     case SettingsOptions.Lock:
       return <Lock />
     case SettingsOptions.Logs:
@@ -45,26 +54,18 @@ function settingsContent(option: SettingsOptions): JSX.Element {
       return <NotesForm />
     case SettingsOptions.Notifications:
       return <Notifications />
+    case SettingsOptions.Password:
+      return <Password />
     case SettingsOptions.Reset:
       return <Reset />
     case SettingsOptions.Server:
       return <Server />
     case SettingsOptions.Support:
       return <Support />
-    case SettingsOptions.Vtxos:
-      return <Vtxos />
-    case SettingsOptions.Contracts:
-      return <Contracts />
     case SettingsOptions.Theme:
       return <Theme />
-    case SettingsOptions.Fiat:
-      return <Fiat />
-    case SettingsOptions.Display:
-      return <Display />
-    case SettingsOptions.Password:
-      return <Password />
-    case SettingsOptions.Haptics:
-      return <Haptics />
+    case SettingsOptions.Vtxos:
+      return <Vtxos />
     default:
       return <></>
   }
@@ -72,10 +73,12 @@ function settingsContent(option: SettingsOptions): JSX.Element {
 
 export default function Settings() {
   const { option, direction } = useContext(OptionsContext)
+  const { goBack: navigationBack, screen } = useContext(NavigationContext)
+  const menuBack = screen === Pages.WalletSettings ? navigationBack : undefined
 
   return (
     <SettingsPageTransition direction={direction} optionKey={String(option)}>
-      {settingsContent(option)}
+      {settingsContent(option, menuBack)}
     </SettingsPageTransition>
   )
 }

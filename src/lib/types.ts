@@ -16,9 +16,8 @@ export type Config = {
     }
   }
   aspUrl: string
-  currencyDisplay: CurrencyDisplay
+  currency: Currencies
   delegate: boolean
-  fiat: Fiats
   importedAssets: string[]
   haptics: boolean
   nostrBackup: boolean
@@ -29,12 +28,9 @@ export type Config = {
   theme: Themes
   unit: Unit
   walletMode: ServiceWorkerWalletMode
-}
-
-export enum CurrencyDisplay {
-  Both = 'Show both',
-  Fiat = 'Fiat only',
-  Sats = 'Sats only',
+  // deprecated
+  currencyDisplay?: string
+  fiat?: Currencies
 }
 
 export type Delegate = {
@@ -45,18 +41,19 @@ export type Delegate = {
   address: string
 }
 
-export enum Fiats {
-  EUR = 'EUR',
+export enum Currencies {
   USD = 'USD',
+  EUR = 'EUR',
   CHF = 'CHF',
-  JPY = 'JPY',
   GBP = 'GBP',
+  JPY = 'JPY',
   CNY = 'CNY',
+  BTC = 'BTC',
 }
 
 export enum SettingsSections {
   Advanced = 'Advanced',
-  General = 'General',
+  Display = 'Display',
   Security = 'Security',
   Config = 'Config',
 }
@@ -65,8 +62,14 @@ export enum SettingsOptions {
   Menu = 'menu',
   About = 'about',
   Advanced = 'advanced',
+  ArkadeMint = 'Arkade Mint',
   Backup = 'backup',
-  General = 'general',
+  Boltz = 'Boltz',
+  Contracts = 'contracts',
+  Delegates = 'delegates',
+  BitcoinUnit = 'bitcoin unit',
+  Display = 'display',
+  Currency = 'Currency',
   Haptics = 'haptic feedback',
   Lock = 'lock wallet',
   Logs = 'logs',
@@ -76,12 +79,8 @@ export enum SettingsOptions {
   Reset = 'reset wallet',
   Server = 'server',
   Support = 'support',
-  Contracts = 'contracts',
-  Vtxos = 'coin control',
   Theme = 'theme',
-  Fiat = 'fiat currency',
-  Display = 'display preferences',
-  Delegates = 'delegates',
+  Vtxos = 'coin control',
 }
 
 export enum Themes {
@@ -101,14 +100,16 @@ export type Tx = {
   roundTxid: string
   settled: boolean
   type: string
+  prototypeSwap?: {
+    fromTicker: string
+    toTicker: string
+  }
 }
 
 export enum Unit {
-  BTC = 'btc',
-  EUR = 'eur',
-  USD = 'usd',
-  CHF = 'chf',
-  SAT = 'sat',
+  BTC = 'BTC',
+  SATS = 'sats',
+  BIP177 = '₿',
 }
 
 export type Vtxo = ExtendedVirtualCoin

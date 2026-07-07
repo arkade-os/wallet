@@ -16,7 +16,6 @@ import { consoleError } from '../../lib/logs'
 import Button from '../../components/Button'
 import Header from '../../components/Header'
 import Padded from '../../components/Padded'
-import Input from '../../components/Input'
 import Text, { TextSecondary } from '../../components/Text'
 import SegmentedControl from '../../components/SegmentedControl'
 import { DevModeContext } from '../../providers/devMode'
@@ -27,6 +26,7 @@ import { validateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import { deriveNostrKeyFromMnemonic } from '../../lib/mnemonic'
 import { AspContext } from '../../providers/asp'
+import InputNsec from '../../components/InputNsec'
 
 type RotationChoice = 'Inherit' | 'Static' | 'HD'
 
@@ -156,7 +156,7 @@ export default function InitRestore() {
             <OnboardStaggerChild>
               <FlexCol between>
                 <FlexCol>
-                  <Input name='private-key' label='Recovery phrase or private key' onChange={setSomeKey} />
+                  <InputNsec onChange={setSomeKey} />
                   <ErrorMessage error={Boolean(error)} text={error} />
                   {devMode && mnemonic ? (
                     <FlexCol gap='0.5rem'>

@@ -6,6 +6,9 @@ import {
   receiveLightning,
   resetAndRestoreWallet,
   waitForPaymentReceived,
+  navigateHome,
+  navigateToBoltz,
+  navigateToSettings,
   getInvoiceFromLND,
 } from './utils'
 import { exec } from 'child_process'
@@ -17,10 +20,10 @@ const execAsync = promisify(exec)
 // Test to verify that settings are saved to nostr and restored correctly
 // Since config persists across wallet resets, we need to add an extra step:
 // 1. Enable nostr backups
-// 2. Change a setting (fiat currency to euro)
+// 2. Change a setting (currency to euro)
 // 3. Verify setting is euro
 // 4. Disable nostr backups
-// 5. Change setting (fiat currency to usd)
+// 5. Change setting (currency to usd)
 // 6. Verify setting is usd
 // 7. Get nsec key
 // 8. Reset wallet
@@ -32,19 +35,18 @@ test('should save config to nostr', async ({ page }) => {
   await createWallet(page)
 
   // enable nostr backups
-  await page.getByTestId('tab-settings').click()
+  await navigateToSettings(page)
   await page.getByText('backup', { exact: true }).click()
   await page.getByTestId('toggle-backup').click()
 
-  // change fiat currency to euro
+  // change currency to euro
   await page.getByLabel('Go back').click()
-  await page.getByText('general', { exact: true }).click()
-  await expect(page.getByText('USD')).toBeVisible()
-  await page.getByText('Fiat currency').click()
+  await page.getByText('display', { exact: true }).click()
+  await page.getByText('currency').click()
   await page.getByText('EUR').click()
   await page.waitForTimeout(500)
 
-  // verify fiat currency is euro
+  // verify currency is euro
   await page.getByLabel('Go back').click()
   await expect(page.getByText('EUR')).toBeVisible({ timeout: 2000 })
 
@@ -53,22 +55,22 @@ test('should save config to nostr', async ({ page }) => {
   await page.getByText('backup', { exact: true }).click()
   await page.getByTestId('toggle-backup').click()
 
-  // change fiat currency to usd
+  // change currency to usd
   await page.getByLabel('Go back').click()
-  await page.getByText('general', { exact: true }).click()
-  await page.getByText('Fiat currency').click()
+  await page.getByText('display', { exact: true }).click()
+  await page.getByText('currency').click()
   await page.getByText('USD').click()
 
-  // verify fiat currency is usd
+  // verify currency is usd
   await page.getByLabel('Go back').click()
   await expect(page.getByText('USD')).toBeVisible()
 
   // restore wallet
   await resetAndRestoreWallet(page)
 
-  // verify fiat currency is euro
-  await page.getByTestId('tab-settings').click()
-  await page.getByText('general', { exact: true }).click()
+  // verify currency is euro
+  await navigateToSettings(page)
+  await page.getByText('display', { exact: true }).click()
   await expect(page.getByText('EUR')).toBeVisible()
 })
 
@@ -90,16 +92,14 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await waitForPaymentReceived(page)
 
   // should be visible in Boltz app
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
-  await expect(page.getByText('+ 4,980 SATS', { exact: true })).toBeVisible()
+  await navigateToBoltz(page)
+  await expect(page.getByText('+ 4,980 sats', { exact: true })).toBeVisible()
   await page.getByLabel('Go back').click()
 
   // transaction should be visible on main page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.waitForSelector('text=Received', { timeout: 10000 })
-  await expect(page.getByText('4,980', { exact: true })).toBeVisible()
+  await expect(page.getByText('+ 4,980 sats')).toBeVisible()
 
   /**
    * submarine swap
@@ -117,16 +117,14 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await pay(page, sendInvoice, isMobile)
 
   // should be visible in Boltz app
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
-  await expect(page.getByText('- 1,001 SATS', { exact: true })).toBeVisible()
+  await navigateToBoltz(page)
+  await expect(page.getByText('- 1,001 sats', { exact: true })).toBeVisible()
   await page.getByLabel('Go back').click()
 
   // transaction should be visible on main page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.waitForSelector('text=Sent', { timeout: 10000 })
-  await expect(page.getByText('- 1,001 SATS')).toBeVisible()
+  await expect(page.getByText('- 1,001 sats')).toBeVisible()
 
   /**
    * chain swap
@@ -139,14 +137,12 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await pay(page, someOnchainAddress, isMobile, 2000)
 
   // should be visible in Boltz app
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
+  await navigateToBoltz(page)
   await expect(page.getByText('Arkade to Bitcoin', { exact: true })).toBeVisible()
   await page.getByLabel('Go back').click()
 
   // enable nostr backups
-  await page.getByTestId('tab-settings').click()
+  await navigateToSettings(page)
   await page.getByText('backup', { exact: true }).click()
   await page.getByTestId('toggle-backup').click()
   await sleep(3000) // wait for backup to complete
@@ -156,10 +152,8 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await sleep(3000) // wait for restore to complete
 
   // should be visible in Boltz app
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
-  await expect(page.getByText('- 1,001 SATS', { exact: true })).toBeVisible()
-  await expect(page.getByText('+ 4,980 SATS', { exact: true })).toBeVisible()
+  await navigateToBoltz(page)
+  await expect(page.getByText('- 1,001 sats', { exact: true })).toBeVisible()
+  await expect(page.getByText('+ 4,980 sats', { exact: true })).toBeVisible()
   await expect(page.getByText('Arkade to Bitcoin', { exact: true })).toBeVisible()
 })

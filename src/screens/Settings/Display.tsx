@@ -1,5 +1,5 @@
 import { useContext } from 'react'
-import { CurrencyDisplay } from '../../lib/types'
+import { Unit } from '../../lib/types'
 import Select from '../../components/Select'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
@@ -9,22 +9,24 @@ import Header from './Header'
 export default function Display() {
   const { backupConfig, config, updateConfig } = useContext(ConfigContext)
 
-  const handleChange = async (currencyDisplay: string) => {
-    const newConfig = { ...config, currencyDisplay: currencyDisplay as CurrencyDisplay }
+  const handleChange = async (value: string) => {
+    const unit = value as Unit
+    const newConfig = { ...config, unit }
     if (config.nostrBackup) await backupConfig(newConfig)
     updateConfig(newConfig)
   }
 
   return (
     <>
-      <Header text='Display preferences' back />
+      <Header text='Bitcoin unit' back />
       <Content>
         <Padded>
-          <Select
-            onChange={handleChange}
-            options={[CurrencyDisplay.Both, CurrencyDisplay.Sats, CurrencyDisplay.Fiat]}
-            selected={config.currencyDisplay}
-          />
+          <div className='settings-page'>
+            <section className='settings-section'>
+              <p className='settings-section-label'>Bitcoin unit</p>
+              <Select onChange={handleChange} options={[Unit.BTC, Unit.SATS, Unit.BIP177]} selected={config.unit} />
+            </section>
+          </div>
         </Padded>
       </Content>
     </>

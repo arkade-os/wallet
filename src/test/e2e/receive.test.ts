@@ -8,6 +8,8 @@ import {
   handleKeyboardInput,
   readClipboard,
   createWalletWithFiat,
+  navigateHome,
+  navigateToBoltz,
 } from './utils'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
@@ -49,7 +51,7 @@ test('should receive offchain funds', async ({ page }) => {
 
   // wait for payment received
   await waitForPaymentReceived(page)
-  await page.waitForSelector('text=+ 10,000 SATS', { timeout: 10000 })
+  await page.waitForSelector('text=+ 10,000 sats', { timeout: 10000 })
 })
 
 test('changing amount should update the invoice (sats mode)', async ({ page, isMobile }) => {
@@ -59,7 +61,7 @@ test('changing amount should update the invoice (sats mode)', async ({ page, isM
   await createWallet(page)
 
   // go to receive page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.getByText('Receive', { exact: true }).click()
 
   // fill amount to receive if provided
@@ -116,7 +118,7 @@ test('changing amount should update the invoice (fiat mode)', async ({ page, isM
   await createWalletWithFiat(page)
 
   // go to receive page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.getByText('Receive', { exact: true }).click()
 
   // fill amount to receive if provided
@@ -180,7 +182,6 @@ test('receive without amount should not create swaps', async ({ page }) => {
   await waitForPaymentReceived(page)
 
   // check that no swap was created
-  await page.getByTestId('tab-apps').click()
-  await page.getByTestId('app-boltz').click()
+  await navigateToBoltz(page)
   await expect(page.getByTestId('empty-template')).toBeVisible()
 })

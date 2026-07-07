@@ -51,6 +51,9 @@ import { IndexedDbSwapRepository, migrateToSwapRepository, Network } from '@arka
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
 const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
+const DEV_AUTO_INIT_TIMEOUT_MS = 60_000
+const DEV_INITIAL_DATA_TIMEOUT_MS = 20_000
+const DEV_AUTO_INIT_RELOAD_KEY = 'arkade-dev-auto-init-reload-attempted'
 
 interface InitSvcWorkerWalletParams {
   arkServerUrl: string
@@ -102,6 +105,7 @@ interface WalletContextProps {
   dismissLoadError: () => void
   authState: WalletAuthState
   initialized?: boolean
+  devAutoInitFailed?: boolean
 }
 
 export const WalletContext = createContext<WalletContextProps>({
@@ -129,6 +133,7 @@ export const WalletContext = createContext<WalletContextProps>({
   authState: 'unknown',
   txs: [],
   vtxos: { spendable: [], spent: [] },
+  devAutoInitFailed: false,
 })
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
@@ -217,20 +222,53 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (initialized) return
     if (!aspInfo.url) return
 
+    let cancelled = false
+    let watchdog: ReturnType<typeof setTimeout> | undefined
+
     const autoInit = async () => {
       try {
+        watchdog = setTimeout(() => {
+          if (cancelled) return
+          consoleError(new Error('Dev wallet auto-init timed out'), 'Dev auto-init watchdog')
+          try {
+            if (sessionStorage.getItem(DEV_AUTO_INIT_RELOAD_KEY)) {
+              setDevAutoInitFailed(true)
+              return
+            }
+            sessionStorage.setItem(DEV_AUTO_INIT_RELOAD_KEY, 'true')
+          } catch {
+            // keep recovering even if session storage is unavailable
+          }
+          navigator.serviceWorker
+            ?.getRegistration()
+            .then((reg) => reg?.unregister())
+            .finally(() => window.location.reload())
+        }, DEV_AUTO_INIT_TIMEOUT_MS)
+        if (cancelled) return
+        clearTimeout(watchdog)
+        try {
+          sessionStorage.removeItem(DEV_AUTO_INIT_RELOAD_KEY)
+        } catch {
+          // ignore session storage errors
+        }
         if (devMnemonic) await initWallet({ mnemonic: devMnemonic })
         else if (devNsec) await initWallet({ privateKey: nsecToPrivateKey(devNsec) })
         setAuthState('authenticated')
       } catch (err) {
+        clearTimeout(watchdog)
+        if (cancelled) return
         consoleError(err, 'Dev auto-init failed')
         setDevAutoInitFailed(true)
       }
     }
 
     autoInit()
+    return () => {
+      cancelled = true
+      clearTimeout(watchdog)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspInfo.url, initialized, devAutoInitFailed])
+  }, [aspInfo.url, initialized, devAutoInitFailed, isDevAutoInit, devMnemonic, devNsec])
 
   useEffect(() => {
     // skip auth check when dev auto-init will handle it
@@ -277,6 +315,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (svcWallet) reloadWallet().catch(consoleError)
   }, [svcWallet])
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !isDevAutoInit) return
+    if (!initialized || dataReady || loadError) return
+
+    const timer = window.setTimeout(() => {
+      if (hasLoadedOnce.current) return
+      consoleError(new Error('Dev initial wallet data load timed out'), 'Dev initial data watchdog')
+      hasLoadedOnce.current = true
+      setDataReady(true)
+    }, DEV_INITIAL_DATA_TIMEOUT_MS)
+
+    return () => window.clearTimeout(timer)
+  }, [initialized, dataReady, loadError, isDevAutoInit])
 
   // calculate thresholdMs and next rollover
   useEffect(() => {
@@ -835,6 +887,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         loadError,
         dismissLoadError,
         reloadWallet,
+        devAutoInitFailed,
         vtxos: vtxos ?? { spendable: [], spent: [] },
       }}
     >

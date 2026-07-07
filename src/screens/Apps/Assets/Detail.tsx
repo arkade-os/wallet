@@ -19,7 +19,7 @@ import type { AssetDetails } from '@arkade-os/sdk'
 import { prettyAssetAmount } from '../../../lib/assets'
 
 export default function AppAssetDetail() {
-  const { navigate } = useContext(NavigationContext)
+  const { navigate, replace } = useContext(NavigationContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { assetInfo, setAssetInfo, setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { assetBalances, svcWallet, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
@@ -66,6 +66,7 @@ export default function AppAssetDetail() {
   const meta = assetInfo.metadata
   const name = meta?.name ?? 'Unknown Asset'
   const ticker = meta?.ticker ?? ''
+  const title = ticker || name
   const decimals = meta?.decimals ?? 8
   const supply = assetInfo.supply
   const controlAssetId = assetInfo.controlAssetId
@@ -100,12 +101,12 @@ export default function AppAssetDetail() {
   const handleRemove = () => {
     const updated = config.importedAssets.filter((id) => id !== assetInfo.assetId)
     updateConfig({ ...config, importedAssets: updated })
-    navigate(Pages.AppAssets)
+    replace(Pages.AppAssets, [Pages.Settings, Pages.WalletSettings])
   }
 
   return (
     <>
-      <Header text={name} back={() => navigate(Pages.AppAssets)} />
+      <Header text={title} back />
       <Content>
         <Padded>
           <FlexCol gap='1rem' centered>
