@@ -1141,6 +1141,12 @@ iframe {
   background-color: transparent;
 }
 
+.table--receipt .focusable:focus-visible .table-row {
+  position: relative;
+  z-index: 1;
+  box-shadow: inset 0 0 0 2px var(--purple-700);
+}
+
 .table-row {
   display: flex;
   min-height: 3.25rem;
