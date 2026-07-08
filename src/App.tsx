@@ -100,13 +100,13 @@ export default function App() {
     if (aspInfo.unreachable) return navigate(Pages.Unavailable)
     if (jsCapabilitiesChecked && !isCapable) return navigate(Pages.Unavailable)
     // avoid redirect if the user is still setting up the wallet
-    if (initInfo.password || initInfo.privateKey) return
+    if (initInfo.password || initInfo.privateKey || initInfo.prf) return
     if (!walletLoaded) return navigate(Pages.Loading)
     // dev auto-init: stay on loading screen while VITE_DEV_NSEC/MNEMONIC initializes the wallet
     if (import.meta.env.DEV && (import.meta.env.VITE_DEV_NSEC || import.meta.env.VITE_DEV_MNEMONIC) && !initialized)
       return
     if (!wallet.pubkey) return navigate(Pages.Init)
-    if (authState === 'locked') return navigate(Pages.Unlock)
+    if (authState === 'locked' || authState === 'passkey') return navigate(Pages.Unlock)
   }, [
     walletLoaded,
     wallet.pubkey,
@@ -131,12 +131,13 @@ export default function App() {
   const isNewUser = walletLoaded && !wallet.pubkey && !isDevAutoInitializing
   const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
   const hasStoredWallet = walletLoaded && !!wallet.pubkey
-  const shouldShowUnlock = hasStoredWallet && authState === 'locked' && !aspInfo.unreachable
+  const needsManualUnlock = authState === 'locked' || authState === 'passkey'
+  const shouldShowUnlock = hasStoredWallet && needsManualUnlock && !aspInfo.unreachable
   // Hold the loading screen during boot until wallet data is ready.
   // Skip during the init/connect flow (creating or restoring a wallet) so the
   // Connect component stays mounted and can run swap recovery before navigating.
-  const isInInitFlow = !!(initInfo.password || initInfo.privateKey)
-  const shouldHoldOnLoading = hasStoredWallet && (!initialized || !dataReady) && authState !== 'locked' && !isInInitFlow
+  const isInInitFlow = !!(initInfo.password || initInfo.privateKey || initInfo.prf)
+  const shouldHoldOnLoading = hasStoredWallet && (!initialized || !dataReady) && !needsManualUnlock && !isInInitFlow
 
   useEffect(() => {
     passwordlessBootAttempted.current = false

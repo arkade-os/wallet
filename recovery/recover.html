@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Hard-block every network request: this tool must work fully offline and never phone home -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'; connect-src 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Arkade Wallet — Offline Recovery Tool</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #101010;
+        --panel: #1c1c1e;
+        --border: #2c2c2e;
+        --text: #f2f2f7;
+        --muted: #98989e;
+        --accent: #8b7bf4;
+        --danger: #ff6b6b;
+        --ok: #4cd964;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0 auto;
+        max-width: 40rem;
+        padding: 1.5rem 1rem 4rem;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        line-height: 1.5;
+      }
+      h1 {
+        font-size: 1.4rem;
+        margin: 0 0 0.25rem;
+      }
+      h2 {
+        font-size: 1.05rem;
+        margin: 0 0 0.5rem;
+      }
+      p {
+        margin: 0.25rem 0;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-top: 1.25rem;
+      }
+      .notice {
+        border-left: 3px solid var(--accent);
+        padding-left: 0.75rem;
+        margin-top: 1rem;
+      }
+      textarea,
+      input {
+        width: 100%;
+        background: var(--bg);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        padding: 0.6rem;
+        font-size: 1rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        margin-top: 0.5rem;
+      }
+      textarea {
+        resize: vertical;
+        min-height: 4.5rem;
+      }
+      button {
+        margin-top: 0.75rem;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 0.5rem;
+        padding: 0.65rem 1rem;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.copy {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        padding: 0.15rem 0.5rem;
+        font-size: 0.8rem;
+        font-weight: 400;
+        margin: 0;
+      }
+      .row {
+        margin-top: 0.75rem;
+      }
+      .row .label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      .value {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.85rem;
+        word-break: break-all;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        padding: 0.5rem;
+        margin-top: 0.25rem;
+      }
+      .error {
+        color: var(--danger);
+        margin-top: 0.5rem;
+        min-height: 1.2rem;
+        font-size: 0.9rem;
+      }
+      .ok {
+        color: var(--ok);
+      }
+      .net {
+        display: flex;
+        gap: 1rem;
+        margin-top: 0.5rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .net label {
+        display: flex;
+        gap: 0.3rem;
+        align-items: center;
+        cursor: pointer;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Arkade Wallet — Offline Recovery</h1>
+    <p class="muted">
+      This is a self-contained recovery tool for your Arkade wallet. It runs entirely on your device and makes no
+      network requests — you can (and should) use it with your internet connection turned off. Keep a copy of this
+      file with your backup.
+    </p>
+    <div class="notice muted">
+      Your keys never leave this page. To verify: disconnect from the internet before typing your recovery phrase,
+      or check the network tab of your browser's developer tools.
+    </div>
+
+    <section class="panel">
+      <h2>Recover from your 12-word phrase</h2>
+      <p class="muted">Enter your recovery phrase to derive your wallet keys (BIP86 path m/86'/{0,1}'/0'/0/0).</p>
+      <textarea id="mnemonic" autocomplete="off" autocapitalize="off" spellcheck="false"
+        placeholder="twelve words separated by spaces"></textarea>
+      <div class="net">
+        <label><input type="radio" name="network" value="mainnet" checked /> Mainnet</label>
+        <label><input type="radio" name="network" value="testnet" /> Testnet / Signet / Mutinynet</label>
+      </div>
+      <button id="derive">Recover keys</button>
+      <div id="mnemonic-error" class="error"></div>
+      <div id="keys" class="hidden">
+        <div class="row">
+          <div class="label"><span>Private key (hex)</span><button class="copy" data-copy="priv-hex">copy</button></div>
+          <div class="value" id="priv-hex"></div>
+        </div>
+        <div class="row">
+          <div class="label"><span>Private key (nsec)</span><button class="copy" data-copy="nsec">copy</button></div>
+          <div class="value" id="nsec"></div>
+        </div>
+        <div class="row">
+          <div class="label"><span>Public key (hex)</span><button class="copy" data-copy="pub-hex">copy</button></div>
+          <div class="value" id="pub-hex"></div>
+        </div>
+        <div class="row">
+          <div class="label"><span>Public key (npub)</span><button class="copy" data-copy="npub">copy</button></div>
+          <div class="value" id="npub"></div>
+        </div>
+        <p class="muted" style="margin-top: 0.75rem">
+          To recover funds, restore the 12 words (or this private key) in any Arkade wallet instance — including a
+          self-hosted one — or use them to unilaterally exit with compatible Ark tooling.
+        </p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Decrypt an encrypted wallet backup</h2>
+      <p class="muted">
+        If you copied the encrypted value from the app's storage (<code>encrypted_mnemonic</code> or
+        <code>encrypted_private_key</code>), paste it here with the wallet password to decrypt it. Wallets secured
+        with a passkey can't be decrypted this way — use the 12 words above instead.
+      </p>
+      <textarea id="blob" autocomplete="off" spellcheck="false" placeholder="base64 encrypted backup"></textarea>
+      <input id="password" type="password" autocomplete="off" placeholder="wallet password" />
+      <button id="decrypt">Decrypt backup</button>
+      <div id="decrypt-error" class="error"></div>
+      <div id="decrypted" class="hidden">
+        <div class="row">
+          <div class="label"><span id="decrypted-label">Decrypted secret</span><button class="copy" data-copy="decrypted-value">copy</button></div>
+          <div class="value" id="decrypted-value"></div>
+        </div>
+      </div>
+    </section>
+
+    <p class="muted" style="margin-top: 1.5rem">
+      Source: this file is built from the Arkade wallet repository (recovery/) and ships with every release.
+    </p>
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>

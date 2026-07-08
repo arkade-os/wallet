@@ -37,6 +37,7 @@ import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
+import { hasPrfMnemonic, getMnemonicWithPasskey } from '../lib/passkeyVault'
 import { resolveWalletMode } from '../lib/walletMode'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { setLoadingStatus } from '../lib/loadingStatus'
@@ -72,7 +73,7 @@ const defaultWallet: Wallet = {
   nextRollover: 0,
 }
 
-export type WalletAuthState = 'unknown' | 'passwordless' | 'locked' | 'authenticated'
+export type WalletAuthState = 'unknown' | 'passwordless' | 'locked' | 'passkey' | 'authenticated'
 
 interface WalletContextProps {
   initWallet: (credentials: {
@@ -85,6 +86,7 @@ interface WalletContextProps {
   resetWallet: () => Promise<void>
   settlePreconfirmed: () => Promise<void>
   unlockWallet: (password: string) => Promise<void>
+  unlockWalletWithPasskey: () => Promise<void>
   updateWallet: (w: Wallet | ((prev: Wallet) => Wallet)) => void
   isLocked: () => Promise<boolean>
   reloadWallet: (svcWallet?: ServiceWorkerWallet) => Promise<void>
@@ -114,6 +116,7 @@ export const WalletContext = createContext<WalletContextProps>({
   resetWallet: () => Promise.resolve(),
   settlePreconfirmed: () => Promise.resolve(),
   unlockWallet: () => Promise.resolve(),
+  unlockWalletWithPasskey: () => Promise.resolve(),
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
   restartWallet: () => Promise.resolve(),
@@ -286,21 +289,23 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     let cancelled = false
     setAuthState('unknown')
 
-    const detectPasswordState = async () => {
+    const detectAuthState = async (): Promise<WalletAuthState> => {
+      // presence of a PRF vault is enough — decryption needs a passkey assertion
+      if (hasPrfMnemonic()) return 'passkey'
       if (hasMnemonic()) {
         try {
           await getMnemonic(defaultPassword)
-          return true // passwordless
+          return 'passwordless'
         } catch {
-          return false // has custom password
+          return 'locked' // has custom password
         }
       }
-      return noUserDefinedPassword()
+      return (await noUserDefinedPassword()) ? 'passwordless' : 'locked'
     }
 
-    detectPasswordState()
-      .then((noPassword) => {
-        if (!cancelled) setAuthState(noPassword ? 'passwordless' : 'locked')
+    detectAuthState()
+      .then((state) => {
+        if (!cancelled) setAuthState(state)
       })
       .catch(() => {
         if (!cancelled) setAuthState('locked')
@@ -729,7 +734,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       restoring: credentials.restoring,
     })
     if (!didInit) return
-    updateWallet({ ...wallet, network, pubkey })
+    // functional form: fields written right before init (e.g. passkey flags
+    // from onboarding) must not be clobbered by this closure's stale `wallet`
+    updateWallet((prev) => ({ ...prev, network, pubkey }))
     setInitialized(true)
   }
 
@@ -748,6 +755,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setAuthState('locked')
       if (err instanceof DOMException) throw new Error('Invalid password')
       throw err instanceof Error ? err : new Error('Invalid password')
+    }
+  }
+
+  const unlockWalletWithPasskey = async () => {
+    try {
+      const mnemonic = await getMnemonicWithPasskey()
+      setAuthState('authenticated')
+      await initWallet({ mnemonic })
+    } catch (err) {
+      setAuthState('passkey')
+      throw err // caller distinguishes user-cancel from PRF failure
     }
   }
 
@@ -814,7 +832,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     reloadTimerRef.current = undefined
     removeServiceWorkerMessageHandler()
     await svcWallet.clear()
-    setAuthState('locked')
+    setAuthState(hasPrfMnemonic() ? 'passkey' : 'locked')
     setInitialized(false)
     setDataReady(false)
     hasLoadedOnce.current = false
@@ -870,6 +888,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         resetWallet,
         settlePreconfirmed,
         unlockWallet,
+        unlockWalletWithPasskey,
         updateWallet,
         wallet,
         walletLoaded,

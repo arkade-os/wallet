@@ -9,6 +9,7 @@ import Text, { TextSecondary } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
 import { getPrivateKey, privateKeyToNsec } from '../../lib/privateKey'
 import { hasMnemonic, getMnemonic } from '../../lib/mnemonic'
+import { hasPrfMnemonic, getMnemonicWithPasskey } from '../../lib/passkeyVault'
 import { consoleError } from '../../lib/logs'
 import Shadow from '../../components/Shadow'
 import { defaultPassword } from '../../lib/constants'
@@ -32,13 +33,14 @@ import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
 import { SwapsContext } from '../../providers/swaps'
 
 export default function Backup() {
-  const { wallet } = useContext(WalletContext)
+  const { updateWallet, wallet } = useContext(WalletContext)
   const { arkadeSwaps } = useContext(SwapsContext)
   const { backupConfig, config, updateConfig } = useContext(ConfigContext)
 
   const { toast } = useToast()
 
-  const isMnemonicWallet = hasMnemonic()
+  const isPrfWallet = hasPrfMnemonic()
+  const isMnemonicWallet = hasMnemonic() || isPrfWallet
 
   const [secret, setSecret] = useState('')
   const [error, setError] = useState('')
@@ -53,6 +55,7 @@ export default function Backup() {
 
   const verifyPassword = async (password: string): Promise<string> => {
     try {
+      if (isPrfWallet) return '' // secret is revealed via passkey assertion, not password
       if (isMnemonicWallet) {
         return await getMnemonic(password)
       }
@@ -75,20 +78,46 @@ export default function Backup() {
 
   const showPrivateKey = async () => {
     if (!secret) {
-      const password = wallet.lockedByBiometrics
-        ? await authenticateUser(wallet.passkeyId).catch(setError)
-        : enteredPassword.current
-      if (!password) return
-      const result = await verifyPassword(password)
-      if (!result) {
-        setError('Invalid password')
-        return
+      if (isPrfWallet) {
+        try {
+          const mnemonic = await getMnemonicWithPasskey()
+          setError('')
+          setSecret(mnemonic)
+        } catch (err) {
+          consoleError(err, 'error revealing secret with passkey')
+          setError('Passkey confirmation failed')
+          return
+        }
+      } else {
+        const password = wallet.lockedByBiometrics
+          ? await authenticateUser(wallet.passkeyId).catch(setError)
+          : enteredPassword.current
+        if (!password) return
+        const result = await verifyPassword(password)
+        if (!result) {
+          setError('Invalid password')
+          return
+        }
+        setError('')
+        setSecret(result)
       }
-      setError('')
-      setSecret(result)
     }
     setShowSecret(true)
     setDialog(false)
+  }
+
+  const confirmBackedUp = () => {
+    updateWallet((prev) => ({ ...prev, walletBackedUp: true }))
+    toast('Backup confirmed')
+  }
+
+  const downloadRecoveryTool = () => {
+    const link = document.createElement('a')
+    link.href = '/recover.html'
+    link.download = 'arkade-recover.html'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
   }
 
   const toggleDialog = () => {
@@ -126,7 +155,7 @@ export default function Backup() {
         </TextSecondary>
       </FlexCol>
       {!secret ? (
-        wallet.lockedByBiometrics ? (
+        isPrfWallet || wallet.lockedByBiometrics ? (
           <FlexCol centered gap='0.5rem'>
             <FingerprintIcon />
             <Text centered>Unlock with your passkey</Text>
@@ -196,6 +225,9 @@ export default function Backup() {
                   }
                 />
               ) : null}
+              {showSecret && !wallet.walletBackedUp ? (
+                <Button onClick={confirmBackedUp} label="I've written it down" secondary />
+              ) : null}
             </FlexCol>
             <Toggle
               checked={config.nostrBackup}
@@ -204,6 +236,16 @@ export default function Backup() {
               subtext='Turn Nostr backups on or off'
               testId='toggle-backup'
             />
+            {isMnemonicWallet ? (
+              <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
+                <Text thin>Offline recovery tool</Text>
+                <TextSecondary wrap>
+                  A single HTML file that works fully offline. Keep it with your backup: with your recovery phrase it
+                  can recover your keys even if this app is ever unavailable.
+                </TextSecondary>
+                <Button onClick={downloadRecoveryTool} label='Download recovery tool' secondary />
+              </FlexCol>
+            ) : null}
           </FlexCol>
         </Padded>
       </Content>

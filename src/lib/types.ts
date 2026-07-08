@@ -121,6 +121,8 @@ export type Wallet = {
   nextRollover: number
   passkeyId?: string
   pubkey?: string
+  // user confirmed writing down the recovery phrase (or restored from it)
+  walletBackedUp?: boolean
 }
 
 export interface AssetOption {

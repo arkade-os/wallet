@@ -1,6 +1,7 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
 import { WalletContext } from './wallet'
-import { noUserDefinedPassword } from '../lib/privateKey'
+import { hasMnemonic } from '../lib/mnemonic'
+import { hasPrfMnemonic } from '../lib/passkeyVault'
 import { minSatsToNudge } from '../lib/constants'
 import { NavigationContext, Pages } from './navigation'
 import { OptionsContext } from './options'
@@ -20,6 +21,9 @@ export const NudgeContext = createContext<NudgeContextProps>({
   nudgeCheckComplete: false,
 })
 
+// Nudges the user to write down their recovery phrase once the balance is
+// worth protecting. Cleared by the explicit "I've written it down"
+// confirmation on the Backup screen (wallet.walletBackedUp).
 export const NudgeProvider = ({ children }: { children: ReactNode }) => {
   const { balance, wallet } = useContext(WalletContext)
   const { setOption } = useContext(OptionsContext)
@@ -29,8 +33,10 @@ export const NudgeProvider = ({ children }: { children: ReactNode }) => {
   const [shouldShow, setShouldShow] = useState(false)
   const [checkComplete, setCheckComplete] = useState(false)
 
-  const navigateToSettings = () => {
-    setOption(SettingsOptions.Password)
+  const isMnemonicWallet = hasMnemonic() || hasPrfMnemonic()
+
+  const navigateToBackup = () => {
+    setOption(SettingsOptions.Backup)
     navigate(Pages.Settings)
     setDismissed(true)
   }
@@ -40,38 +46,23 @@ export const NudgeProvider = ({ children }: { children: ReactNode }) => {
   }
 
   useEffect(() => {
-    if (!wallet || !balance || dismissed) {
+    if (!wallet || !balance || dismissed || wallet.walletBackedUp) {
       setShouldShow(false)
       setCheckComplete(true)
       return
     }
-    let cancelled = false
-    setCheckComplete(false)
-    noUserDefinedPassword()
-      .then((noPassword) => {
-        if (!cancelled) {
-          setShouldShow(noPassword && balance > minSatsToNudge)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setShouldShow(false)
-      })
-      .finally(() => {
-        if (!cancelled) setCheckComplete(true)
-      })
-    return () => {
-      cancelled = true
-    }
+    setShouldShow(balance > minSatsToNudge)
+    setCheckComplete(true)
   }, [wallet, balance, dismissed])
 
   const nudgeVisible = Boolean(shouldShow && !dismissed)
 
   const nudge = (
     <DismissibleBanner
-      id='password-nudge'
+      id='backup-nudge'
       icon={<LogoIconAnimated />}
-      title='Protect your wallet with a password'
-      action={{ label: 'Set password', onClick: navigateToSettings }}
+      title={isMnemonicWallet ? 'Back up your recovery phrase' : 'Back up your private key'}
+      action={{ label: 'Back up now', onClick: navigateToBackup }}
       onDismiss={dismissNudge}
       visible={nudgeVisible}
     />

@@ -2,15 +2,19 @@ import { useContext, useState } from 'react'
 import { WalletContext } from '../../providers/wallet'
 import { consoleError } from '../../lib/logs'
 import NeedsPassword from '../../components/NeedsPassword'
+import NeedsPasskey from '../../components/NeedsPasskey'
 import Header from '../../components/Header'
 import { NavigationContext, Pages } from '../../providers/navigation'
+import { hasPrfMnemonic } from '../../lib/passkeyVault'
 
 export default function Unlock() {
   const { navigate } = useContext(NavigationContext)
-  const { unlockWallet } = useContext(WalletContext)
+  const { unlockWallet, unlockWalletWithPasskey } = useContext(WalletContext)
 
   const [error, setError] = useState('')
   const [unlocking, setUnlocking] = useState(false)
+
+  const usesPasskey = hasPrfMnemonic()
 
   const handleUnlock = async (password: string) => {
     setError('')
@@ -28,6 +32,11 @@ export default function Unlock() {
     }
   }
 
+  const handleUnlockWithPasskey = async () => {
+    await unlockWalletWithPasskey()
+    navigate(Pages.Wallet)
+  }
+
   // While unlocking, render nothing — the boot animation from App.tsx
   // covers this loading state visually.
   if (unlocking) return null
@@ -35,7 +44,11 @@ export default function Unlock() {
   return (
     <>
       <Header text='Unlock' />
-      <NeedsPassword error={error} onPassword={handleUnlock} />
+      {usesPasskey ? (
+        <NeedsPasskey onUnlock={handleUnlockWithPasskey} />
+      ) : (
+        <NeedsPassword error={error} onPassword={handleUnlock} />
+      )}
     </>
   )
 }

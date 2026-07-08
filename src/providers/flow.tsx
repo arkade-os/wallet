@@ -9,6 +9,10 @@ export interface InitInfo {
   mnemonic?: string
   restoring?: boolean
   walletMode?: ServiceWorkerWalletMode
+  // passkey with PRF support: the vault key is derived from prfOutput
+  prf?: { credentialId: string; prfOutput: Uint8Array }
+  // passkey without PRF: password carries the legacy userHandle secret
+  legacyPasskey?: { credentialId: string }
 }
 
 export interface NoteInfo {

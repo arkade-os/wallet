@@ -13,6 +13,7 @@ import CenterScreen from '../../components/CenterScreen'
 import { consoleError } from '../../lib/logs'
 import LockIcon from '../../icons/Lock'
 import { noUserDefinedPassword } from '../../lib/privateKey'
+import { hasPrfMnemonic } from '../../lib/passkeyVault'
 import { OptionsContext } from '../../providers/options'
 import { SettingsOptions } from '../../lib/types'
 
@@ -24,7 +25,10 @@ export default function Lock() {
   const [error, setError] = useState('')
   const [noPassword, setNoPassword] = useState(true)
 
+  const usesPasskey = hasPrfMnemonic()
+
   useEffect(() => {
+    if (usesPasskey) return setNoPassword(false) // passkey wallets can always lock
     noUserDefinedPassword().then(setNoPassword)
   }, [])
 
@@ -53,7 +57,9 @@ export default function Lock() {
             <TextSecondary centered>
               {noPassword
                 ? 'You need to set a password to lock.'
-                : "After locking you'll need to re-enter your password to unlock."}
+                : usesPasskey
+                  ? "After locking you'll need your passkey to unlock."
+                  : "After locking you'll need to re-enter your password to unlock."}
             </TextSecondary>
           </CenterScreen>
         </Padded>
