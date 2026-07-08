@@ -159,6 +159,13 @@ export default function SendForm() {
     setError(str === '' ? (aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '') : str)
   }
 
+  const getTextValue = (sats: number) =>
+    useFiat
+      ? prettyNumber(toFiat(sats), fiatDecimals(), false)
+      : config.unit === Unit.BTC
+        ? prettyNumber(fromSatoshis(sats), 8, false)
+        : prettyNumber(sats, 0, false)
+
   useEffect(() => {
     if (!sendInfo.scan) return
     const nextSendInfo = { ...sendInfo }
@@ -284,7 +291,7 @@ export default function SendForm() {
             assets: [{ assetId, amount: rawAmount }],
           })
         }
-        return setSendInfo({
+        setSendInfo({
           address,
           arkAddress,
           assets: sendInfo.assets,
@@ -293,6 +300,8 @@ export default function SendForm() {
           recipient,
           satoshis: satoshis ?? sendInfo.satoshis,
         })
+        if (satoshis) setAmountTextValue(getTextValue(satoshis))
+        return
       }
       if (isArkAddress(lowerCaseData)) {
         return setSendInfo({ ...sendInfo, arkAddress: lowerCaseData })
@@ -308,6 +317,7 @@ export default function SendForm() {
         const satoshis = getInvoiceSatoshis(lowerCaseData)
         if (!satoshis) return setRecipientError('Invoice must have amount defined')
         setSendInfo({ ...sendInfo, invoice: lowerCaseData, satoshis })
+        setAmountTextValue(getTextValue(satoshis))
         setAmountIsReadOnly(true)
         return
       }
@@ -698,13 +708,7 @@ export default function SendForm() {
       setAmount(liquidBalance)
       setValueSats(liquidBalance)
       setSendInfo({ ...sendInfo, satoshis: liquidBalance })
-      setAmountTextValue(
-        useFiat
-          ? prettyNumber(toFiat(liquidBalance), fiatDecimals(), false)
-          : config.unit === Unit.BTC
-            ? prettyNumber(fromSatoshis(liquidBalance), 8, false)
-            : prettyNumber(liquidBalance, 0, false),
-      )
+      setAmountTextValue(getTextValue(liquidBalance))
     }
   }
 
