@@ -51,7 +51,11 @@ export const NudgeProvider = ({ children }: { children: ReactNode }) => {
       setCheckComplete(true)
       return
     }
-    setShouldShow(balance > minSatsToNudge)
+    // PRF-passkey wallets have no password fallback: if the passkey is lost, the
+    // 12 words are the only way back, and revealing them needs the passkey. So
+    // prompt to back up as soon as there are any funds, not just above 100k.
+    const threshold = hasPrfMnemonic() ? 0 : minSatsToNudge
+    setShouldShow(balance > threshold)
     setCheckComplete(true)
   }, [wallet, balance, dismissed])
 

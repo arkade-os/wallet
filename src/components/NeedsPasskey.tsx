@@ -32,9 +32,17 @@ export default function NeedsPasskey({ onUnlock }: NeedsPasskeyProps) {
       consoleError(err, 'error unlocking with passkey')
       if (err instanceof PrfUnavailableError) {
         setUnrecoverable(true)
-        setError('This passkey cannot unlock the wallet on this device.')
+        setError("This passkey can't unlock the wallet on this device.")
       } else if (err instanceof DOMException && err.name === 'NotAllowedError') {
-        setError('Passkey confirmation was cancelled. Try again.')
+        // no matching credential for this site, or the user cancelled / timed out
+        setError('Passkey not confirmed. Make sure you are on the same site where you created it, then try again.')
+      } else if (err instanceof DOMException && err.name === 'OperationError') {
+        // the passkey answered but its PRF output did not open the vault — it was
+        // sealed by a different passkey/browser, so this one can never open it
+        setUnrecoverable(true)
+        setError("This passkey didn't produce the right key for this wallet.")
+      } else if (err instanceof DOMException && err.name === 'SecurityError') {
+        setError('This site cannot use your passkey (domain mismatch). Open the wallet at its normal address.')
       } else {
         setError('Could not unlock with your passkey. Try again.')
       }

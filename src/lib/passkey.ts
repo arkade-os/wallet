@@ -91,11 +91,21 @@ export async function registerPasskey(): Promise<PasskeyRegistration> {
 
   if (!prf?.enabled) return { kind: 'legacy', credentialId, legacySecret: hex.encode(userId) }
 
-  // some authenticators evaluate PRF at create(), others only at get()
-  if (prf.results?.first) return { kind: 'prf', credentialId, prfOutput: new Uint8Array(prf.results.first) }
-
-  const prfOutput = await assertPrf(credentialId)
-  return { kind: 'prf', credentialId, prfOutput }
+  // PRF is only guaranteed at get(), and some authenticators return a value at
+  // create() that does NOT match get() (which then fails to decrypt the vault
+  // with an opaque OperationError). Always derive the vault key from a get()
+  // assertion so unlock — also a get() — reproduces the exact same key. If get()
+  // can't produce PRF, fall back to the legacy scheme on this same credential
+  // rather than minting a vault that can never be opened.
+  try {
+    const prfOutput = await assertPrf(credentialId)
+    return { kind: 'prf', credentialId, prfOutput }
+  } catch (err) {
+    if (err instanceof PrfUnavailableError) {
+      return { kind: 'legacy', credentialId, legacySecret: hex.encode(userId) }
+    }
+    throw err
+  }
 }
 
 /**

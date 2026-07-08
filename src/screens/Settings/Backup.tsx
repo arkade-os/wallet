@@ -85,7 +85,13 @@ export default function Backup() {
           setSecret(mnemonic)
         } catch (err) {
           consoleError(err, 'error revealing secret with passkey')
-          setError('Passkey confirmation failed')
+          if (err instanceof DOMException && err.name === 'NotAllowedError') {
+            setError('Passkey not confirmed. Try again.')
+          } else if (err instanceof DOMException && err.name === 'OperationError') {
+            setError("This passkey didn't produce the right key for this wallet.")
+          } else {
+            setError('Passkey confirmation failed')
+          }
           return
         }
       } else {

@@ -43,17 +43,22 @@ describe('registerPasskey', () => {
     vi.unstubAllGlobals()
   })
 
-  it('returns PRF output directly when evaluated at create()', async () => {
+  it('always seals with the get()-time PRF output, even when create() returned one', async () => {
+    // create() advertises a different value than get(); the vault must be sealed
+    // with the get()-time output so unlock (also a get()) reproduces the key.
+    const createSecret = new Uint8Array(32).fill(1)
+    const getSecret = new Uint8Array(32).fill(42)
     const { get } = mockCredentials({
-      createPrf: { enabled: true, results: { first: prfSecret.buffer as ArrayBuffer } },
+      createPrf: { enabled: true, results: { first: createSecret.buffer as ArrayBuffer } },
+      getPrf: { results: { first: getSecret.buffer as ArrayBuffer } },
     })
     const reg = await registerPasskey()
     expect(reg.kind).toBe('prf')
-    if (reg.kind === 'prf') expect(reg.prfOutput).toEqual(prfSecret)
-    expect(get).not.toHaveBeenCalled()
+    if (reg.kind === 'prf') expect(reg.prfOutput).toEqual(getSecret)
+    expect(get).toHaveBeenCalledOnce()
   })
 
-  it('falls back to an assertion when PRF is enabled but not evaluated at create()', async () => {
+  it('asserts PRF at get() when create() did not evaluate it', async () => {
     const { get } = mockCredentials({
       createPrf: { enabled: true },
       getPrf: { results: { first: prfSecret.buffer as ArrayBuffer } },
@@ -67,6 +72,14 @@ describe('registerPasskey', () => {
     expect(Array.from(new Uint8Array(options.extensions.prf.eval.first))).toEqual(Array.from(PRF_EVAL_INPUT))
   })
 
+  it('falls back to legacy when create() advertises PRF but get() cannot produce it', async () => {
+    // guards against minting a PRF vault that could never be opened
+    const { get } = mockCredentials({ createPrf: { enabled: true }, getPrf: {} })
+    const reg = await registerPasskey()
+    expect(reg.kind).toBe('legacy')
+    expect(get).toHaveBeenCalledOnce()
+  })
+
   it('returns the legacy scheme when the authenticator has no PRF support', async () => {
     const { create, get } = mockCredentials({ createPrf: { enabled: false } })
     const reg = await registerPasskey()
@@ -76,12 +89,13 @@ describe('registerPasskey', () => {
       const userId = new Uint8Array(create.mock.calls[0][0].publicKey.user.id)
       expect(reg.legacySecret).toBe(Array.from(userId, (b) => b.toString(16).padStart(2, '0')).join(''))
     }
-    expect(get).not.toHaveBeenCalled()
+    expect(get).not.toHaveBeenCalled() // no PRF at create → no wasted get() attempt
   })
 
   it('requests the PRF extension at create()', async () => {
     const { create } = mockCredentials({
-      createPrf: { enabled: true, results: { first: prfSecret.buffer as ArrayBuffer } },
+      createPrf: { enabled: true },
+      getPrf: { results: { first: prfSecret.buffer as ArrayBuffer } },
     })
     await registerPasskey()
     const options = create.mock.calls[0][0].publicKey
