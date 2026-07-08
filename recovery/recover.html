@@ -192,6 +192,56 @@
     </section>
 
     <section class="panel">
+      <h2>Recover with your passkey (no seed phrase)</h2>
+      <p class="muted">
+        Wallets secured with a passkey can be recovered <em>without</em> the 12 words — even if the website is gone
+        or seized. Passkeys only work for the wallet's domain, so this page must be served at that domain from your
+        own machine.
+      </p>
+      <div id="passkey-file-mode" class="hidden">
+        <div class="notice muted">
+          This page is opened from disk, so the passkey can't be used directly. Serve it at your wallet's domain
+          with the rescue server below (desktop only), then follow the printed steps.
+        </div>
+        <button id="download-serve">Download rescue server script</button>
+        <details style="margin-top: 0.75rem">
+          <summary class="muted" style="cursor: pointer">How it works / manual steps</summary>
+          <p class="muted" style="margin-top: 0.5rem">
+            1. On the computer and browser profile where the wallet was used, download the script above (needs
+            Node.js and openssl or mkcert).<br />
+            2. Run it next to this file: <code>sudo node arkade-rescue-server.mjs arkade-recover.html --host
+            &lt;your-wallet-domain&gt;</code><br />
+            3. It prints the remaining steps: add a hosts entry pointing the domain to 127.0.0.1 (this also blocks
+            the real site), trust the local certificate, and open the printed address in the same browser.<br />
+            4. This page then reappears served at the wallet's domain: your encrypted wallet is found automatically
+            and your passkey decrypts it. Undo the hosts entry and certificate trust afterwards.
+          </p>
+        </details>
+      </div>
+      <div id="passkey-served-mode" class="hidden">
+        <p class="muted" id="vault-status"></p>
+        <textarea
+          id="vault"
+          class="hidden"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder='{"v":1,"credentialId":"...","data":"..."} — value of localStorage key "encrypted_mnemonic_prf"'
+        ></textarea>
+        <button id="passkey-unlock">Unlock with passkey</button>
+        <div id="passkey-error" class="error"></div>
+        <div id="passkey-result" class="hidden">
+          <div class="row">
+            <div class="label"><span>Recovery phrase</span><button class="copy" data-copy="passkey-mnemonic">copy</button></div>
+            <div class="value" id="passkey-mnemonic"></div>
+          </div>
+          <p class="muted ok" style="margin-top: 0.5rem">
+            Write these words down now — they work everywhere and don't depend on this passkey or device.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
       <h2>Decrypt an encrypted wallet backup</h2>
       <p class="muted">
         If you copied the encrypted value from the app's storage (<code>encrypted_mnemonic</code> or

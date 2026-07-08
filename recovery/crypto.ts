@@ -4,6 +4,8 @@ import { wordlist } from '@scure/bip39/wordlists/english'
 import { hex } from '@scure/base'
 import { getPublicKey } from 'nostr-tools/pure'
 import * as nip19 from 'nostr-tools/nip19'
+// reuse the app's own vault code so the recovery tool can never drift from it
+import { decryptMnemonicWithPrf, type PrfVault } from '../src/lib/passkeyVault'
 
 export interface RecoveredKeys {
   privateKeyHex: string
@@ -96,4 +98,32 @@ export const decryptBackup = async (encryptedBase64: string, password: string): 
   if (isValidMnemonic(text)) return { kind: 'mnemonic', mnemonic: text.trim() }
   if (bytes.length === 32) return { kind: 'privateKey', privateKey: bytes }
   throw new Error('Decrypted data is neither a recovery phrase nor a private key')
+}
+
+/**
+ * Parses a passkey (PRF) vault as stored by the app under the localStorage
+ * key `encrypted_mnemonic_prf`: {"v":1,"credentialId":"<hex>","data":"<base64>"}.
+ */
+export const parsePrfVault = (raw: string): PrfVault => {
+  let vault: unknown
+  try {
+    vault = JSON.parse(raw.trim())
+  } catch {
+    throw new Error('Invalid vault: not valid JSON')
+  }
+  const v = vault as PrfVault
+  if (v?.v !== 1 || typeof v.credentialId !== 'string' || typeof v.data !== 'string') {
+    throw new Error('Invalid vault: expected {"v":1,"credentialId":...,"data":...}')
+  }
+  return v
+}
+
+/** Decrypts a passkey vault with the 32-byte PRF output of its passkey. */
+export const decryptPrfVault = async (raw: string, prfOutput: Uint8Array): Promise<string> => {
+  const vault = parsePrfVault(raw)
+  try {
+    return await decryptMnemonicWithPrf(vault, prfOutput)
+  } catch {
+    throw new Error('Decryption failed: this passkey does not match the vault')
+  }
 }

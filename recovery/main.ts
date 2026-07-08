@@ -1,4 +1,15 @@
-import { decryptBackup, isValidMnemonic, keysFromPrivateKey, recoverKeys } from './crypto'
+import {
+  decryptBackup,
+  decryptPrfVault,
+  isValidMnemonic,
+  keysFromPrivateKey,
+  parsePrfVault,
+  recoverKeys,
+} from './crypto'
+import { assertPrf } from '../src/lib/passkey'
+import { PRF_MNEMONIC_STORAGE_KEY } from '../src/lib/storageKeys'
+// embedded at build time so the rescue server ships inside this single file
+import serveScript from './serve.mjs?raw'
 
 const $ = (id: string): HTMLElement => {
   const el = document.getElementById(id)
@@ -58,6 +69,71 @@ $('decrypt').addEventListener('click', async () => {
     setText('decrypt-error', err instanceof Error ? err.message : 'Decryption failed')
   }
 })
+
+// --- passkey recovery (seized-domain rescue) ---
+// A passkey only answers to a page served under its RP ID (the wallet's
+// domain). From file:// we can only offer the rescue-server instructions;
+// when served (locally via serve.mjs, at the wallet's domain) we can assert
+// the passkey, derive the PRF secret, and decrypt the vault directly.
+const servedWithOrigin = window.location.protocol !== 'file:' && !!window.location.hostname && window.isSecureContext
+
+if (servedWithOrigin) {
+  $('passkey-served-mode').classList.remove('hidden')
+  const storedVault = localStorage.getItem(PRF_MNEMONIC_STORAGE_KEY)
+  if (storedVault) {
+    setText('vault-status', `Encrypted wallet found in this browser for ${window.location.hostname}.`)
+  } else {
+    setText(
+      'vault-status',
+      `No encrypted wallet found in this browser for ${window.location.hostname}. ` +
+        'Paste the vault JSON below (localStorage key "encrypted_mnemonic_prf" of the wallet, ' +
+        'or serve this page on port 443 so it shares the wallet’s origin).',
+    )
+    $('vault').classList.remove('hidden')
+  }
+
+  $('passkey-unlock').addEventListener('click', async () => {
+    setText('passkey-error', '')
+    $('passkey-result').classList.add('hidden')
+    try {
+      const raw = storedVault ?? ($('vault') as HTMLTextAreaElement).value
+      if (!raw.trim()) throw new Error('No vault to decrypt: paste the vault JSON first')
+      const vault = parsePrfVault(raw)
+      const prfOutput = await assertPrf(vault.credentialId)
+      const mnemonic = await decryptPrfVault(raw, prfOutput)
+      prfOutput.fill(0)
+      setText('passkey-mnemonic', mnemonic)
+      $('passkey-result').classList.remove('hidden')
+      // feed the derivation section so the keys show up too
+      ;($('mnemonic') as HTMLTextAreaElement).value = mnemonic
+      showKeys(recoverKeys(mnemonic, isMainnetSelected()))
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'NotAllowedError') {
+        setText('passkey-error', 'Passkey confirmation was cancelled or not allowed. Try again.')
+      } else if (err instanceof DOMException && err.name === 'SecurityError') {
+        setText(
+          'passkey-error',
+          'The browser refused the passkey for this origin — serve this page at the wallet’s exact domain (see the rescue server steps).',
+        )
+      } else {
+        setText('passkey-error', err instanceof Error ? err.message : 'Passkey recovery failed')
+      }
+    }
+  })
+} else {
+  $('passkey-file-mode').classList.remove('hidden')
+  $('download-serve').addEventListener('click', () => {
+    const blob = new Blob([serveScript], { type: 'text/javascript' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'arkade-rescue-server.mjs'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  })
+}
 
 // copy buttons: navigator.clipboard needs no network and works offline
 document.querySelectorAll<HTMLButtonElement>('button.copy').forEach((btn) => {

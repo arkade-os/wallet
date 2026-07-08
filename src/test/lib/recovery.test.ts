@@ -1,9 +1,17 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { hex } from '@scure/base'
-import { recoverKeys, keysFromPrivateKey, decryptBackup, isValidMnemonic } from '../../../recovery/crypto'
+import {
+  recoverKeys,
+  keysFromPrivateKey,
+  decryptBackup,
+  decryptPrfVault,
+  isValidMnemonic,
+  parsePrfVault,
+} from '../../../recovery/crypto'
 import { deriveNostrKeyFromMnemonic, setMnemonic } from '../../lib/mnemonic'
 import { setPrivateKey, privateKeyToNsec } from '../../lib/privateKey'
-import { MNEMONIC_STORAGE_KEY, NSEC_STORAGE_KEY } from '../../lib/storageKeys'
+import { setMnemonicWithPrf } from '../../lib/passkeyVault'
+import { MNEMONIC_STORAGE_KEY, NSEC_STORAGE_KEY, PRF_MNEMONIC_STORAGE_KEY } from '../../lib/storageKeys'
 
 const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
 
@@ -71,6 +79,29 @@ describe('offline recovery tool crypto', () => {
     it('rejects garbage input', async () => {
       await expect(decryptBackup('!!!not-base64!!!', 'x')).rejects.toThrow('not valid base64')
       await expect(decryptBackup('aGVsbG8=', 'x')).rejects.toThrow('too short')
+    })
+  })
+
+  describe('passkey vault recovery (seized-domain rescue)', () => {
+    const prfOutput = () => new Uint8Array(32).fill(7)
+
+    it('decrypts a PRF vault produced by the app', async () => {
+      await setMnemonicWithPrf(testMnemonic, 'deadbeef', prfOutput())
+      const raw = localStorage.getItem(PRF_MNEMONIC_STORAGE_KEY)!
+      expect(parsePrfVault(raw).credentialId).toBe('deadbeef')
+      expect(await decryptPrfVault(raw, prfOutput())).toBe(testMnemonic)
+    })
+
+    it('fails with the wrong PRF output', async () => {
+      await setMnemonicWithPrf(testMnemonic, 'deadbeef', prfOutput())
+      const raw = localStorage.getItem(PRF_MNEMONIC_STORAGE_KEY)!
+      await expect(decryptPrfVault(raw, new Uint8Array(32).fill(8))).rejects.toThrow('does not match the vault')
+    })
+
+    it('rejects malformed vaults', () => {
+      expect(() => parsePrfVault('not json')).toThrow('not valid JSON')
+      expect(() => parsePrfVault('{"v":2,"credentialId":"a","data":"b"}')).toThrow('expected')
+      expect(() => parsePrfVault('{"v":1}')).toThrow('expected')
     })
   })
 
