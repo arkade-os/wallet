@@ -218,7 +218,7 @@ export default function AppBoltzSwap() {
                   <TextSecondary>Swap refunded</TextSecondary>
                 </FlexRow>
               ) : null}
-              <Table data={tableData} />
+              <Table data={tableData} variant='receipt' />
             </FlexCol>
           )}
         </Padded>
