@@ -13,7 +13,7 @@ import WarningBox from '../../components/Warning'
 import { Delegate, SettingsOptions } from '../../lib/types'
 import { ConfigContext } from '../../providers/config'
 import { WalletContext } from '../../providers/wallet'
-import { getDelegateUrlForNetwork } from '../../lib/constants'
+import { getDelegateForNetwork, getDelegateUrlForNetwork } from '../../lib/constants'
 import { useContext, useEffect, useState } from 'react'
 import { OptionsContext } from '../../providers/options'
 import Text, { TextSecondary } from '../../components/Text'
@@ -37,7 +37,7 @@ const formatUrl = (host: string, path: string): string => {
 }
 
 // test connection to delegate by fetching delegate info and validating the response
-const testConnection = (aspInfo: AspInfo): Promise<Delegate> => {
+const testConnection = (aspInfo: AspInfo): Promise<Delegate | undefined> => {
   return new Promise((resolve, reject) => {
     // ensure expected pubkeys are in xonly format
     const now = Math.floor(Date.now() / 1000)
@@ -48,7 +48,8 @@ const testConnection = (aspInfo: AspInfo): Promise<Delegate> => {
       pk.length === 66 ? pk.slice(2) : pk,
     )
     if (possibleXOnlyPubkeys.some((pk) => pk.length !== 64)) return reject(new Error('Invalid expected server pubkey'))
-    const delegate = getDelegateUrlForNetwork(aspInfo.network as Network)
+    const delegate = getDelegateForNetwork(aspInfo.network as Network)
+    if (!delegate) return resolve(undefined)
     // fetch delegate info from the delegate server
     fetch(formatUrl(delegate.url, '/v1/delegator/info'))
       .then((res) => {
@@ -133,13 +134,14 @@ function DelegateCard() {
   const { toast } = useToast()
 
   const [active, setActive] = useState(false)
-  const [delegate, setDelegate] = useState<Delegate>(getDelegateUrlForNetwork(aspInfo.network as Network))
+  const [delegate, setDelegate] = useState<Delegate>()
 
   // test connection to delegate when url changes
   useEffect(() => {
     if (!config.delegate) return
     testConnection(aspInfo)
       .then((delegate) => {
+        if (!delegate) return
         setDelegate(delegate)
         setActive(true)
       })
@@ -159,6 +161,8 @@ function DelegateCard() {
   const nextRolloverText = wallet.nextRollover
     ? `next renewal ${prettyAgo(wallet.nextRollover)}`
     : 'No upcoming renewal'
+
+  if (!delegate) return <></>
 
   return (
     <Shadow lighter fat testId='delegate-card'>
@@ -199,8 +203,11 @@ function DelegateCard() {
 }
 
 export default function Delegates() {
+  const { aspInfo } = useContext(AspContext)
   const { goBack } = useContext(OptionsContext)
   const { config, updateConfig } = useContext(ConfigContext)
+
+  const noDelegateFound = getDelegateUrlForNetwork(aspInfo.network as Network) === undefined
 
   // toggle delegate
   const handleToggle = () => {
@@ -222,16 +229,22 @@ export default function Delegates() {
             <Shadow fat purple>
               <Hero />
             </Shadow>
-            <Toggle
-              checked={config.delegate}
-              onClick={handleToggle}
-              testId='toggle-delegates'
-              text='Use default Arkade delegate'
-              subtext="Use Arkade's default delegate to manage renewals"
-            />
-            <TextSecondary>The wallet will reload to apply the change.</TextSecondary>
-            <WarningBox text={warningText} />
-            <DelegateCard />
+            {noDelegateFound ? (
+              <WarningBox text='No delegate found for this network.' />
+            ) : (
+              <>
+                <Toggle
+                  checked={config.delegate}
+                  onClick={handleToggle}
+                  testId='toggle-delegates'
+                  text='Use default Arkade delegate'
+                  subtext="Use Arkade's default delegate to manage renewals"
+                />
+                <TextSecondary>The wallet will reload to apply the change.</TextSecondary>
+                <WarningBox text={warningText} />
+                <DelegateCard />
+              </>
+            )}
           </FlexCol>
         </Padded>
       </Content>
