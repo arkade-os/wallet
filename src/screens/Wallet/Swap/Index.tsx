@@ -21,8 +21,10 @@ import { FiatContext } from '../../../providers/fiat'
 import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
+import { useDiscoveryQuote } from '../../../hooks/useDiscoveryQuote'
 import { usePortfolioFiat, type PortfolioRow } from '../../../hooks/usePortfolioFiat'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
+import type { SwapQuoteResult } from '../../../lib/discovery/wallet'
 
 type AssetTarget = 'from' | 'to'
 type DrawerState = 'to' | 'review' | null
@@ -107,11 +109,18 @@ export default function WalletSwap() {
   const toAsset = toAssetId
     ? swapAssets.find((asset) => asset.assetId === toAssetId && asset.assetId !== fromAsset.assetId)
     : undefined
+  const depositRawAmount = toRawAmount(resolveFromUnits(amount, amountMode, fromAsset), fromAsset.decimals)
+  const discovery = useDiscoveryQuote({
+    fromAssetId: fromAsset.assetId,
+    toAssetId: toAsset?.assetId,
+    depositAmount: depositRawAmount,
+  })
   const quote = useMemo(
-    () => buildQuote(amount, amountMode, fromAsset, toAsset),
-    [amount, amountMode, fromAsset, toAsset],
+    () => buildQuote(amount, amountMode, fromAsset, toAsset, discovery.quote),
+    [amount, amountMode, fromAsset, toAsset, discovery.quote],
   )
-  const quoteAvailable = !toAsset || isQuoteAvailable(fromAsset, toAsset)
+  const quoteAvailable =
+    !toAsset || isQuoteAvailable(fromAsset, toAsset) || Boolean(discovery.quote) || discovery.loading
   const hasPositiveAmount = Number(amount) > 0
   const hasSufficientBalance = canSpendSwapAmount(amount, amountMode, fromAsset)
   const validationState: SwapValidationState = !quoteAvailable
@@ -119,7 +128,13 @@ export default function WalletSwap() {
     : hasPositiveAmount && !hasSufficientBalance
       ? 'insufficient-balance'
       : 'idle'
-  const canContinue = Boolean(toAsset) && hasPositiveAmount && hasSufficientBalance && quoteAvailable && !quoteLoading
+  const canContinue =
+    Boolean(toAsset) &&
+    hasPositiveAmount &&
+    hasSufficientBalance &&
+    quoteAvailable &&
+    !quoteLoading &&
+    !discovery.loading
 
   const stageTransition = prefersReduced ? { duration: 0 } : { duration: 0.28, ease: EASE_IN_OUT_QUINT_TUPLE }
 
@@ -164,6 +179,14 @@ export default function WalletSwap() {
     hapticSubtle()
     setInvalidPulse((current) => current + 1)
   }, [validationState])
+
+  // Fiat entry is meaningless for assets without a USD estimate (e.g. DePix):
+  // fall back to asset-denominated input when such an asset is selected.
+  useEffect(() => {
+    if (estimateSwapUsd(fromAsset) > 0) return
+    setAmountMode('asset')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromAsset.assetId])
 
   const openDrawer = (nextDrawer: DrawerState) => {
     hapticLight()
@@ -220,6 +243,7 @@ export default function WalletSwap() {
   }
 
   const toggleAmountMode = () => {
+    if (amountMode === 'asset' && estimateSwapUsd(fromAsset) <= 0) return
     hapticLight()
     setAmountMode((current) => (current === 'asset' ? 'fiat' : 'asset'))
   }
@@ -250,7 +274,7 @@ export default function WalletSwap() {
     setConfirming(true)
     window.setTimeout(() => {
       try {
-        const execution = buildPrototypeSwapExecution(amount, amountMode, fromAsset, toAsset)
+        const execution = buildPrototypeSwapExecution(amount, amountMode, fromAsset, toAsset, discovery.quote)
         addPrototypeSwap(execution)
         setConfirming(false)
         setDrawer(null)
@@ -349,6 +373,7 @@ export default function WalletSwap() {
       <ReviewDrawer
         open={drawer === 'review'}
         quote={quote}
+        discoveryQuote={discovery.quote}
         canConfirm={canContinue}
         confirming={confirming}
         error={confirmError}
@@ -808,6 +833,7 @@ function AssetPickerDrawer({
 function ReviewDrawer({
   open,
   quote,
+  discoveryQuote,
   canConfirm,
   confirming,
   error,
@@ -817,6 +843,7 @@ function ReviewDrawer({
 }: {
   open: boolean
   quote: SwapQuote
+  discoveryQuote?: SwapQuoteResult
   canConfirm: boolean
   confirming: boolean
   error: string
@@ -833,7 +860,7 @@ function ReviewDrawer({
         </DrawerHeader>
         <div className='swap-review-drawer-body'>
           <ReviewSummary quote={quote} loading={quoteLoading} />
-          <QuoteDetails quote={quote} loading={quoteLoading} />
+          <QuoteDetails quote={quote} discoveryQuote={discoveryQuote} loading={quoteLoading} />
         </div>
         <div className='swap-review-action'>
           <AnimatePresence initial={false}>
@@ -902,7 +929,15 @@ function ReviewSummary({ quote, loading }: { quote: SwapQuote; loading: boolean 
   )
 }
 
-function QuoteDetails({ quote, loading }: { quote: SwapQuote; loading: boolean }) {
+function QuoteDetails({
+  quote,
+  discoveryQuote,
+  loading,
+}: {
+  quote: SwapQuote
+  discoveryQuote?: SwapQuoteResult
+  loading: boolean
+}) {
   return (
     <div className='swap-detail-card'>
       <MetricRow
@@ -910,6 +945,13 @@ function QuoteDetails({ quote, loading }: { quote: SwapQuote; loading: boolean }
         value={quote.toAsset ? `1 ${quote.fromAsset.ticker} = ${quote.rateLabel} ${quote.toAsset.ticker}` : 'Pending'}
         loading={loading}
       />
+      {discoveryQuote ? (
+        <MetricRow
+          label='Solver'
+          value={`${discoveryQuote.solver} · ${(discoveryQuote.market.fee_bps / 100).toFixed(2)}% fee`}
+          loading={loading}
+        />
+      ) : null}
     </div>
   )
 }
@@ -996,14 +1038,32 @@ function MetricRow({ label, value, loading }: { label: ReactNode; value: string;
   )
 }
 
-function buildQuote(amount: string, mode: AmountMode, fromAsset: SwapAsset, toAsset?: SwapAsset): SwapQuote {
+function resolveFromUnits(amount: string, mode: AmountMode, fromAsset: SwapAsset): number {
+  const parsed = Number(amount) || 0
+  const fromUsd = estimateSwapUsd(fromAsset)
+  return mode === 'fiat' && fromUsd > 0 ? parsed / fromUsd : parsed
+}
+
+function buildQuote(
+  amount: string,
+  mode: AmountMode,
+  fromAsset: SwapAsset,
+  toAsset?: SwapAsset,
+  discoveryQuote?: SwapQuoteResult,
+): SwapQuote {
   const parsed = Number(amount) || 0
   const fromUsd = estimateSwapUsd(fromAsset)
   const toUsd = toAsset ? estimateSwapUsd(toAsset) : 0
-  const fromUnits = mode === 'fiat' && fromUsd > 0 ? parsed / fromUsd : parsed
+  const fromUnits = resolveFromUnits(amount, mode, fromAsset)
   const fromFiatNumber = mode === 'fiat' ? parsed : fromUnits * fromUsd
-  const received = toUsd > 0 ? fromFiatNumber / toUsd : 0
-  const rate = toUsd > 0 ? fromUsd / toUsd : 0
+  // The discovered market's feed price is authoritative; the USD estimate is
+  // only the prototype fallback for pairs with no discovered market.
+  const received = discoveryQuote
+    ? Number(discoveryQuote.wantAmount) / 10 ** (toAsset?.decimals ?? 0)
+    : toUsd > 0
+      ? fromFiatNumber / toUsd
+      : 0
+  const rate = discoveryQuote ? (fromUnits > 0 ? received / fromUnits : 0) : toUsd > 0 ? fromUsd / toUsd : 0
 
   return {
     fromAsset,
@@ -1022,11 +1082,17 @@ function formatFiatInputAmount(amount: string): string {
   return `$${Math.trunc(Number(normalized) || 0).toLocaleString('en-US')}`
 }
 
-function buildPrototypeSwapExecution(amount: string, mode: AmountMode, fromAsset: SwapAsset, toAsset: SwapAsset) {
+function buildPrototypeSwapExecution(
+  amount: string,
+  mode: AmountMode,
+  fromAsset: SwapAsset,
+  toAsset: SwapAsset,
+  discoveryQuote?: SwapQuoteResult,
+) {
   const parsed = Number(amount) || 0
   const fromUsd = estimateSwapUsd(fromAsset)
   const toUsd = estimateSwapUsd(toAsset)
-  const fromUnits = mode === 'fiat' && fromUsd > 0 ? parsed / fromUsd : parsed
+  const fromUnits = resolveFromUnits(amount, mode, fromAsset)
   const fromFiatNumber = mode === 'fiat' ? parsed : fromUnits * fromUsd
   const toUnits = toUsd > 0 ? fromFiatNumber / toUsd : 0
 
@@ -1038,7 +1104,7 @@ function buildPrototypeSwapExecution(amount: string, mode: AmountMode, fromAsset
     toAssetId: toAsset.assetId,
     toTicker: toAsset.ticker,
     toDecimals: toAsset.decimals,
-    toAmount: toRawAmount(toUnits, toAsset.decimals),
+    toAmount: discoveryQuote ? discoveryQuote.wantAmount : toRawAmount(toUnits, toAsset.decimals),
     fiatAmount: fromFiatNumber,
   }
 }
