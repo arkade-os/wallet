@@ -136,9 +136,15 @@ function DelegateCard() {
   const [active, setActive] = useState(false)
   const [delegate, setDelegate] = useState<Delegate>()
 
-  // test connection to delegate when url changes
+  // populate delegate info
   useEffect(() => {
-    if (!config.delegate) return
+    if (!config.delegate || !aspInfo.network) return
+    setDelegate(getDelegateForNetwork(aspInfo.network as Network))
+  }, [config.delegate, aspInfo.network])
+
+  // test connection to delegate and update status
+  useEffect(() => {
+    if (!delegate?.url || !aspInfo.signerPubkey) return
     testConnection(aspInfo)
       .then((delegate) => {
         if (!delegate) return
@@ -149,7 +155,7 @@ function DelegateCard() {
         consoleError(error, 'Error testing delegate connection:')
         setActive(false)
       })
-  }, [config.delegate, aspInfo.signerPubkey])
+  }, [delegate, aspInfo.signerPubkey])
 
   if (!config.delegate) return null
 
