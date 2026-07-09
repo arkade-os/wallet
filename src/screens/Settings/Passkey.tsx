@@ -43,6 +43,7 @@ export default function Passkey() {
   const [error, setError] = useState('')
   const [step, setStep] = useState<Step>('idle')
   const [movedSats, setMovedSats] = useState(0)
+  const [swapWarningAcknowledged, setSwapWarningAcknowledged] = useState(false)
 
   const isPasskeyWallet = hasPasskeyWallet()
   const hasAssets = assetBalances.length > 0
@@ -54,10 +55,18 @@ export default function Passkey() {
     if (hasAssets) return setError('This wallet holds assets, which cannot be moved automatically yet.')
     try {
       // pending swaps need this wallet's keys for their claim/refund paths —
-      // migrating now would strand them
-      const swaps = await getSwapHistory().catch(() => [])
-      if (swaps.some(isPendingSwap)) {
-        return setError('This wallet has pending swaps. Wait for them to finish (or refund), then try again.')
+      // but restored wallets often carry STALE pending records pulled from the
+      // network, so warn once and let the user proceed on a second press
+      if (!swapWarningAcknowledged) {
+        const swaps = await getSwapHistory().catch(() => [])
+        const pending = swaps.filter(isPendingSwap)
+        if (pending.length > 0) {
+          setSwapWarningAcknowledged(true)
+          return setError(
+            `${pending.length} swap${pending.length > 1 ? 's' : ''} look pending — possibly stale records from the restore. ` +
+              'If you have no swap actually in progress, press the button again to continue.',
+          )
+        }
       }
 
       // 1. new passkey → new seed (PRF must be supported; a legacy credential

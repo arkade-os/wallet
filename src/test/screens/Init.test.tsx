@@ -33,8 +33,9 @@ describe('Init screen — devMode triple-tap gesture (pristine wallet)', () => {
   it('enables devMode by triple-tapping the logo, then exposes the rotation toggle', async () => {
     renderInitWithProvider()
 
-    // devMode starts off: creating a wallet skips the options sheet
-    fireEvent.click(screen.getByText('+ Create wallet'))
+    // devMode starts off: confirming create skips the advanced options sheet
+    fireEvent.click(screen.getByText('+ Create new wallet'))
+    fireEvent.click(await screen.findByText('Create new wallet'))
     expect(screen.queryByTestId('toggle-hd-rotation')).not.toBeInTheDocument()
 
     // Three taps on the welcome heading toggle devMode on
@@ -43,8 +44,9 @@ describe('Init screen — devMode triple-tap gesture (pristine wallet)', () => {
     fireEvent.click(heading)
     fireEvent.click(heading)
 
-    // Now "+ Create wallet" opens the advanced sheet with the rotation toggle
-    fireEvent.click(screen.getByText('+ Create wallet'))
+    // Now confirming create opens the advanced sheet with the rotation toggle
+    fireEvent.click(screen.getByText('+ Create new wallet'))
+    fireEvent.click(await screen.findByText('Create new wallet'))
     expect(await screen.findByTestId('toggle-hd-rotation')).toBeInTheDocument()
   })
 })

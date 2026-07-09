@@ -41,8 +41,11 @@ export const NudgeProvider = ({ children }: { children: ReactNode }) => {
   const needsMigration = Boolean(wallet.restoredFromSeed) && !hasPasskeyWallet()
 
   const navigateToSettings = (option: SettingsOptions) => {
+    // WalletSettings is the redesign's settings entry (keeps the back stack).
+    // Navigate FIRST: navigating to a root page resets the settings sub-nav,
+    // which would wipe the option before the screen mounts.
+    navigate(Pages.WalletSettings)
     setOption(option)
-    navigate(Pages.Settings)
     setDismissed(true)
   }
 

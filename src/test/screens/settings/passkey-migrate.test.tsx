@@ -119,14 +119,19 @@ describe('Passkey settings — seed→passkey migration', () => {
     expect(sendOffChainMock).not.toHaveBeenCalled()
   })
 
-  it('blocks migration while swaps are pending', async () => {
+  it('warns about pending swaps once, then allows an explicit override', async () => {
     const { migrateToPasskeyWallet } = renderPasskey({}, true)
 
+    // first press: warn (restored wallets often carry stale pending records)
     fireEvent.click(screen.getByRole('button', { name: /create passkey & move funds/i }))
-
-    expect(await screen.findByText(/pending swaps/i)).toBeInTheDocument()
+    expect(await screen.findByText(/look pending/i)).toBeInTheDocument()
     expect(migrateToPasskeyWallet).not.toHaveBeenCalled()
     expect(sendOffChainMock).not.toHaveBeenCalled()
+
+    // second press: user confirmed no swap is actually in progress
+    fireEvent.click(screen.getByRole('button', { name: /create passkey & move funds/i }))
+    await waitFor(() => expect(screen.getByText('Wallet secured')).toBeInTheDocument())
+    expect(migrateToPasskeyWallet).toHaveBeenCalled()
   })
 
   it('blocks migration while the wallet holds assets', async () => {

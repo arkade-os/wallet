@@ -57,6 +57,13 @@ describe('onboarding — passkey registration wiring', () => {
     return { setInitInfo, navigate }
   }
 
+  // creating is guarded by a confirm sheet that offers login first, so a user
+  // with an existing passkey can't nuke it by accident
+  const clickThroughCreate = async () => {
+    fireEvent.click(screen.getByText('+ Create new wallet'))
+    fireEvent.click(await screen.findByText('Create new wallet'))
+  }
+
   it('derives the mnemonic from the passkey PRF and routes to Connect with the credential id', async () => {
     registerPasskeyMock.mockResolvedValue({
       kind: 'prf',
@@ -65,7 +72,7 @@ describe('onboarding — passkey registration wiring', () => {
     })
     const { setInitInfo, navigate } = renderInit()
 
-    fireEvent.click(screen.getByText('+ Create wallet'))
+    await clickThroughCreate()
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
     const info = setInitInfo.mock.calls.at(-1)[0]
@@ -78,7 +85,7 @@ describe('onboarding — passkey registration wiring', () => {
     registerPasskeyMock.mockResolvedValue({ kind: 'legacy', credentialId: 'ef01', legacySecret: 'deadbeef' })
     const { setInitInfo, navigate } = renderInit()
 
-    fireEvent.click(screen.getByText('+ Create wallet'))
+    await clickThroughCreate()
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
     const info = setInitInfo.mock.calls.at(-1)[0]
@@ -91,10 +98,15 @@ describe('onboarding — passkey registration wiring', () => {
     registerPasskeyMock.mockRejectedValue(new DOMException('cancelled', 'NotAllowedError'))
     const { navigate } = renderInit()
 
-    fireEvent.click(screen.getByText('+ Create wallet'))
+    await clickThroughCreate()
 
     expect(await screen.findByText('Continue without passkey')).toBeInTheDocument()
     expect(navigate).not.toHaveBeenCalledWith(Pages.InitConnect)
+  })
+
+  it('leads with passkey login as the primary action', () => {
+    renderInit()
+    expect(screen.getByText('Log in with Passkey')).toBeInTheDocument()
   })
 })
 

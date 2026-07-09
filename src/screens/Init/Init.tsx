@@ -66,9 +66,9 @@ export default function Init() {
 
   const prefersReduced = useReducedMotion()
   const [error, setError] = useState(false)
-  const [showOptions, setShowOptions] = useState(false)
   const [showCreateOptions, setShowCreateOptions] = useState(false)
   const [showPasskeyFallback, setShowPasskeyFallback] = useState(false)
+  const [showCreateConfirm, setShowCreateConfirm] = useState(false)
   const [creating, setCreating] = useState(false)
   const [loginError, setLoginError] = useState('')
   const [hdRotation, setHdRotation] = useState(false)
@@ -150,7 +150,6 @@ export default function Init() {
       const mnemonic = await mnemonicFromPrf(prfOutput)
       prfOutput.fill(0)
       setInitInfo({ mnemonic, passkeyCredentialId: credentialId, restoring: true })
-      setShowOptions(false)
       navigate(Pages.InitConnect)
     } catch (err) {
       consoleError(err, 'Passkey login failed')
@@ -166,7 +165,12 @@ export default function Init() {
     }
   }
 
-  const handleNewWallet = () => {
+  // creating is destructive-adjacent (a new passkey, a new wallet) — always
+  // confirm and offer login first so nobody mints a second wallet by accident
+  const handleNewWallet = () => setShowCreateConfirm(true)
+
+  const confirmCreate = () => {
+    setShowCreateConfirm(false)
     if (devMode) return setShowCreateOptions(true)
     createWallet('static')
   }
@@ -308,29 +312,34 @@ export default function Init() {
             pointerEvents: contentReady ? 'auto' : 'none',
           }}
         >
-          <Button disabled={error || !aspReady || creating} onClick={handleNewWallet} label='+ Create wallet' />
+          <Button disabled={error || !aspReady || creating} onClick={loginWithPasskey} label='Log in with Passkey' />
           <Button
-            disabled={error || !aspReady}
-            onClick={() => setShowOptions(true)}
-            label='I already have a wallet'
-            clear
-          />
-        </motion.div>
-      </ButtonsOnBottom>
-      <SheetModal isOpen={showOptions} onClose={() => setShowOptions(false)}>
-        <FlexCol gap='1rem'>
-          <Text>I already have a wallet</Text>
-          <Text color='neutral-800' thin wrap>
-            Created your wallet with a passkey? Log in with it — your wallet comes back even on a new device.
-          </Text>
-          <Button fancy disabled={error || creating} onClick={loginWithPasskey} label='Log in with passkey' />
-          <Button
-            disabled={error || creating}
-            onClick={handleOldWallet}
-            label='Restore with recovery phrase'
+            disabled={error || !aspReady || creating}
+            onClick={handleNewWallet}
+            label='+ Create new wallet'
             secondary
           />
+          <Button disabled={error || !aspReady || creating} onClick={handleOldWallet} label='Restore wallet' clear />
           <ErrorMessage error={Boolean(loginError)} text={loginError} />
+        </motion.div>
+      </ButtonsOnBottom>
+      <SheetModal isOpen={showCreateConfirm} onClose={() => setShowCreateConfirm(false)}>
+        <FlexCol gap='1rem'>
+          <Text>Create a new wallet?</Text>
+          <Text color='neutral-800' thin wrap>
+            This makes a brand-new wallet with a new passkey. If you already used Arkade on this device (or through
+            iCloud / Google passkey sync), log in with your existing passkey instead — creating again won&apos;t bring
+            your funds back.
+          </Text>
+          <Button
+            disabled={creating}
+            onClick={() => {
+              setShowCreateConfirm(false)
+              loginWithPasskey()
+            }}
+            label='Log in with existing passkey'
+          />
+          <Button disabled={creating} onClick={confirmCreate} label='Create new wallet' secondary />
         </FlexCol>
       </SheetModal>
       <SheetModal isOpen={showCreateOptions} onClose={() => setShowCreateOptions(false)}>

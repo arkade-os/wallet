@@ -12,11 +12,15 @@ import { SwapsContext } from '../../providers/swaps'
 import { useLoadingStatus } from '../../hooks/useLoadingStatus'
 import { setLoadingStatus } from '../../lib/loadingStatus'
 import { NavigationContext, Pages } from '../../providers/navigation'
+import { OptionsContext } from '../../providers/options'
+import { SettingsOptions } from '../../lib/types'
+import { isWebAuthnSupported } from '../../lib/passkey'
 
 export default function InitConnect() {
   const { initInfo, setInitInfo } = useContext(FlowContext)
   const { arkadeSwaps, restoreSwaps } = useContext(SwapsContext)
   const { navigate } = useContext(NavigationContext)
+  const { setOption } = useContext(OptionsContext)
   const { initWallet, updateWallet } = useContext(WalletContext)
 
   const loadingStatus = useLoadingStatus()
@@ -86,6 +90,10 @@ export default function InitConnect() {
   }, [arkadeSwaps, initialized, initInfo.restoring])
 
   const handleExitComplete = () => {
+    // a seed import is a recovery: route straight into the passkey migration
+    // screen so the funds move to a fresh passkey wallet (backing out is
+    // possible; the home nudge remains as backstop)
+    const seedImported = Boolean(initInfo.restoring && !initInfo.passkeyCredentialId && isWebAuthnSupported())
     setInitInfo({
       ...initInfo,
       password: undefined,
@@ -95,7 +103,13 @@ export default function InitConnect() {
       passkeyCredentialId: undefined,
       legacyPasskey: undefined,
     })
-    navigate(error ? Pages.Init : Pages.Wallet)
+    if (error) return navigate(Pages.Init)
+    if (seedImported) {
+      navigate(Pages.WalletSettings)
+      setOption(SettingsOptions.Passkey)
+      return
+    }
+    navigate(Pages.Wallet)
   }
 
   const abortConnectionWithError = (err: any) => {

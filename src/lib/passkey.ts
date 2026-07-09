@@ -77,8 +77,12 @@ export async function registerPasskey(): Promise<PasskeyRegistration> {
     timeout: 60000,
     user: {
       id: userId as BufferSource,
-      name: 'Arkade wallet',
-      displayName: 'Arkade wallet',
+      // MUST be unique per wallet: platform authenticators (notably iCloud
+      // Keychain) silently REPLACE an existing passkey for the same rp.id +
+      // user.name — which would destroy the PRF secret an existing wallet is
+      // derived from. A unique name makes a second wallet a second passkey.
+      name: `Arkade wallet · ${hex.encode(userId.slice(0, 3))}`,
+      displayName: `Arkade wallet · ${hex.encode(userId.slice(0, 3))}`,
     },
     extensions: { prf: { eval: { first: PRF_EVAL_INPUT as BufferSource } } } as PrfExtensionInputs,
   }
