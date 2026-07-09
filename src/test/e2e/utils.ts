@@ -196,6 +196,18 @@ async function clickCreateWallet(page: Page): Promise<void> {
 
 export async function createWallet(page: Page): Promise<void> {
   await page.goto('/')
+  // A previous wallet on this browser leaves last_passkey_id behind (it survives
+  // reset by design), which flips onboarding to the returning-user "Log in with
+  // Passkey" layout and hides "+ Create wallet". This helper always wants a
+  // fresh create, so if the create button isn't offered, drop that hint and
+  // reload to get the clean-device layout.
+  const createBtn = page.getByRole('button', { name: '+ Create wallet' })
+  const loginBtn = page.getByRole('button', { name: 'Log in with Passkey' })
+  await createBtn.or(loginBtn).first().waitFor({ state: 'visible', timeout: 30000 })
+  if (!(await createBtn.isVisible().catch(() => false))) {
+    await page.evaluate(() => localStorage.removeItem('last_passkey_id'))
+    await page.reload()
+  }
   // fresh device: '+ Create wallet' primary → confirm sheet → 'Create new wallet'.
   // (with the virtual authenticator the passkey ceremony completes silently)
   await clickCreateWallet(page)
