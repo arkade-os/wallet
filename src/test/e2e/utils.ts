@@ -193,15 +193,24 @@ export async function createWallet(page: Page): Promise<void> {
   await waitForWalletPage(page)
 }
 
-// Create a passwordless (no-passkey) wallet by removing the authenticator so
-// registration fails and the explicit fallback is taken. For legacy
-// password/lock flows.
+// Create a passwordless (no-passkey) wallet by forcing the passkey ceremony to
+// fail so the explicit fallback is taken. For legacy password/lock flows.
+//
+// We do NOT just remove the virtual authenticator: with no authenticator,
+// credentials.create() hangs until the WebAuthn timeout (tens of seconds)
+// rather than rejecting, so the fallback sheet appears far too late for the
+// action timeout. Instead we stub create() to reject immediately, which is
+// exactly the "user cancelled / unsupported" path the fallback handles.
 export async function createPasswordlessWallet(page: Page, webauthn: WebAuthn): Promise<void> {
   await webauthn.disable()
   await page.goto('/')
+  await page.evaluate(() => {
+    navigator.credentials.create = () =>
+      Promise.reject(new DOMException('passkey creation blocked for test', 'NotAllowedError'))
+  })
   await page.getByText('+ Create wallet').click()
   await page.getByRole('button', { name: 'Create new wallet' }).click()
-  // ceremony fails with no authenticator → fallback sheet
+  // ceremony rejects immediately → fallback sheet
   await page.getByText('Continue without passkey').click()
   await waitForWalletPage(page)
 }
