@@ -5,7 +5,11 @@ export default defineConfig({
   timeout: 60000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 5 : 0,
+  // 5 retries × 2 projects turns a handful of broken specs into a 45-minute
+  // job-timeout with no signal. Keep 2 retries for regtest flakiness, and bail
+  // after a few genuine failures so CI reports WHICH specs failed in minutes.
+  retries: process.env.CI ? 2 : 0,
+  maxFailures: process.env.CI ? 6 : undefined,
   workers: 1,
   reporter: 'list',
   use: {
