@@ -120,6 +120,7 @@ export const fiatForTicker = (ticker: string | undefined): Currencies | undefine
   if (normalized === 'GBP') return Currencies.GBP
   if (normalized === 'JPY') return Currencies.JPY
   if (normalized === 'CNY') return Currencies.CNY
+  if (normalized === 'BRL' || normalized === 'DPIX' || normalized === 'DEPIX') return Currencies.BRL
 }
 
 export const prettyCurrencyAssetAmount = (

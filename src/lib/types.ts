@@ -48,6 +48,7 @@ export enum Currencies {
   GBP = 'GBP',
   JPY = 'JPY',
   CNY = 'CNY',
+  BRL = 'BRL',
   BTC = 'BTC',
 }
 
