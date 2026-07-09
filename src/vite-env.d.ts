@@ -12,6 +12,7 @@ interface ImportMetaEnv {
   readonly VITE_BOLTZ_URL?: string
   readonly VITE_DELEGATOR_URL?: string
   readonly VITE_LNURL_SERVER_URL?: string
+  readonly VITE_DISCOVERY_REGISTRIES?: string
   // Add other env variables as needed
 }
 
