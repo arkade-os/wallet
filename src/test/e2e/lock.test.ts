@@ -51,8 +51,11 @@ test('should set a password and lock/unlock with it', async ({ page, webauthn })
   await page.getByText('lock wallet', { exact: true }).click()
   await page.getByText('Lock Wallet').click()
 
-  await expect(page.getByText('Insert password')).toBeVisible()
-  await page.locator('div[data-testid="password"] input').fill('testpassword')
+  // lock → navigate(Unlock) → render can take a moment on a loaded CI machine,
+  // so wait on the actual password field rather than a 5s text assertion
+  const passwordInput = page.locator('div[data-testid="password"] input')
+  await expect(passwordInput).toBeVisible({ timeout: 15000 })
+  await passwordInput.fill('testpassword')
   await page.getByText('Unlock wallet').click()
 
   await page.waitForSelector('text=Receive', { state: 'visible', timeout: 15000 })

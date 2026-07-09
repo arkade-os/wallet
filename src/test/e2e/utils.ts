@@ -388,10 +388,11 @@ async function restoreWallet(page: Page, nsec: string): Promise<void> {
   await page.locator('input[name="private-key"]').fill(nsec)
   await page.getByText('Continue').click()
   // a seed restore now lands on the Passkey migration screen (recovery vehicle);
-  // back out to the wallet — the migration itself is exercised separately
+  // its back button only returns to the Settings menu, so walk all the way back
+  // to the wallet home — the migration itself is exercised separately
   const migrateHeader = page.getByText('Move to a passkey wallet')
   if (await migrateHeader.isVisible({ timeout: 15000 }).catch(() => false)) {
-    await page.getByLabel('Go back').click()
+    await navigateHome(page)
   }
   await waitForWalletPage(page)
 }
