@@ -37,7 +37,7 @@ import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
-import { hasPasskeyWallet, getMnemonicWithPasskey } from '../lib/passkeyVault'
+import { hasPasskeyWallet, getMnemonicWithPasskey, setPasskeyWallet } from '../lib/passkeyVault'
 import { resolveWalletMode } from '../lib/walletMode'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { setLoadingStatus } from '../lib/loadingStatus'
@@ -83,6 +83,7 @@ interface WalletContextProps {
     restoring?: boolean
   }) => Promise<void>
   lockWallet: () => Promise<void>
+  migrateToPasskeyWallet: (credentialId: string, mnemonic: string) => Promise<void>
   resetWallet: () => Promise<void>
   settlePreconfirmed: () => Promise<void>
   unlockWallet: (password: string) => Promise<void>
@@ -113,6 +114,7 @@ interface WalletContextProps {
 export const WalletContext = createContext<WalletContextProps>({
   initWallet: () => Promise.resolve(),
   lockWallet: () => Promise.resolve(),
+  migrateToPasskeyWallet: () => Promise.resolve(),
   resetWallet: () => Promise.resolve(),
   settlePreconfirmed: () => Promise.resolve(),
   unlockWallet: () => Promise.resolve(),
@@ -143,7 +145,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
-  const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo, setLnurlInfo } = useContext(FlowContext)
+  const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo, lnurlInfo, setLnurlInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
 
   const [txs, setTxs] = useState<Tx[]>([])
@@ -286,6 +288,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       return
     }
 
+    // live session: the identity is already in memory (onboarding/migration
+    // just initialized it) — re-detecting would flip a fresh passkey wallet to
+    // 'passkey' and bounce the user to Unlock for a pointless second assertion
+    if (initialized) {
+      setAuthState('authenticated')
+      return
+    }
+
     let cancelled = false
     setAuthState('unknown')
 
@@ -314,6 +324,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet.pubkey])
 
   // reload wallet as soon as we have a service worker wallet available
@@ -823,6 +834,43 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     reinitSvcWalletRef.current = reinitSvcWallet
   })
 
+  /**
+   * Seed→passkey migration switch: tears the old wallet down (worker identity
+   * + IndexedDB repos + timers, so the status-ping can't resurrect the old
+   * identity mid-switch), persists the passkey descriptor (erasing the old
+   * seed vaults — callers MUST have moved funds first), and boots the new
+   * passkey-derived identity. Keeps the session authenticated throughout so
+   * the UI never bounces to Unlock.
+   */
+  const migrateToPasskeyWallet = async (credentialId: string, mnemonic: string) => {
+    if (!svcWallet) throw new Error('Service worker not initialized')
+    abortInitSession()
+    if (statusPingInterval.current) clearInterval(statusPingInterval.current)
+    statusPingInterval.current = undefined
+    clearTimeout(reloadTimerRef.current)
+    reloadTimerRef.current = undefined
+    removeServiceWorkerMessageHandler()
+    await svcWallet.clear() // drops worker identity AND wipes vtxo/contract repos
+    lnurlInfo?.fill(0) // zero the old wallet's raw signing key
+    setSvcWallet(undefined)
+    setVtxoManager(undefined)
+    setDataReady(false)
+    hasLoadedOnce.current = false
+    setPasskeyWallet(credentialId) // persists descriptor, erases old seed vaults
+    updateWallet((prev) => ({
+      ...prev,
+      walletBackedUp: false, // the NEW 12 words haven't been written down
+      restoredFromSeed: false,
+      lockedByBiometrics: false,
+      passkeyId: undefined,
+      nextRollover: 0,
+      thresholdMs: undefined,
+    }))
+    // explicit 'static' matches the new wallet's index-0 address computed by
+    // the migration before the send
+    await initWallet({ mnemonic, walletMode: 'static' })
+  }
+
   const lockWallet = async () => {
     abortInitSession()
     if (!svcWallet) throw new Error('Service worker not initialized')
@@ -831,7 +879,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     clearTimeout(reloadTimerRef.current)
     reloadTimerRef.current = undefined
     removeServiceWorkerMessageHandler()
+    // drop the worker's identity, then scrub the main thread too: zero the raw
+    // signing key and release the identity-holding wallet object so no key
+    // material outlives the lock. Unlock re-derives everything.
     await svcWallet.clear()
+    lnurlInfo?.fill(0)
+    setLnurlInfo(undefined)
+    setSvcWallet(undefined)
+    setVtxoManager(undefined)
     setAuthState(hasPasskeyWallet() ? 'passkey' : 'locked')
     setInitialized(false)
     setDataReady(false)
@@ -895,6 +950,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         svcWallet,
         vtxoManager,
         lockWallet,
+        migrateToPasskeyWallet,
         restartWallet,
         txs,
         balance,

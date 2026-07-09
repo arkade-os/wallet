@@ -26,9 +26,14 @@ export default function InitConnect() {
 
   const { password, privateKey, mnemonic, walletMode, passkeyCredentialId, legacyPasskey } = initInfo
 
-  // restored wallets don't need the backup nudge: the user already has the words
+  // seed-restored wallets don't need the backup nudge (the user already has
+  // the words) — but they're recovery vehicles: flag them so the app nudges
+  // moving funds to a fresh passkey wallet. Passkey logins are neither: the
+  // wallet is passkey-native, and the words may never have been written down.
   const markRestoredAsBackedUp = () => {
-    if (initInfo.restoring) updateWallet((prev) => ({ ...prev, walletBackedUp: true }))
+    if (initInfo.restoring && !passkeyCredentialId) {
+      updateWallet((prev) => ({ ...prev, walletBackedUp: true, restoredFromSeed: true }))
+    }
   }
 
   useEffect(() => {

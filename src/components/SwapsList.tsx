@@ -38,6 +38,10 @@ const statusDict = {
   'transaction.server.confirmed': 'Pending',
 } satisfies Record<BoltzSwapStatus, statusUI>
 
+// a swap that is neither settled nor failed still needs this wallet's keys
+// (claim/refund paths) — used to guard wallet migration
+export const isPendingSwap = (swap: BoltzSwap): boolean => statusDict[swap.status as BoltzSwapStatus] === 'Pending'
+
 const colorDict: Record<statusUI, string> = {
   Failed: 'red',
   Successful: 'green',

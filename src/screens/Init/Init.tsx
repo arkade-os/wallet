@@ -15,8 +15,8 @@ import Text from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
 import SheetModal from '../../components/SheetModal'
 import { defaultPassword } from '../../lib/constants'
-import { isWebAuthnSupported, registerPasskey } from '../../lib/passkey'
-import { mnemonicFromPrf } from '../../lib/passkeyVault'
+import { isWebAuthnSupported, registerPasskey, assertPrfDiscoverable, PrfUnavailableError } from '../../lib/passkey'
+import { mnemonicFromPrf, hasPasskeyWallet } from '../../lib/passkeyVault'
 import { consoleError } from '../../lib/logs'
 import { OnboardStaggerChild } from '../../components/OnboardLoadIn'
 import { motion } from 'framer-motion'
@@ -70,6 +70,7 @@ export default function Init() {
   const [showCreateOptions, setShowCreateOptions] = useState(false)
   const [showPasskeyFallback, setShowPasskeyFallback] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [loginError, setLoginError] = useState('')
   const [hdRotation, setHdRotation] = useState(false)
   const pendingCreate = useRef<{ mnemonic: string; mode: ServiceWorkerWalletMode }>()
   const [contentReady, setContentReady] = useState(prefersReduced)
@@ -98,6 +99,9 @@ export default function Init() {
   // (unsupported browser, user cancel) do we offer an explicit passwordless
   // fallback.
   const createWallet = async (mode: ServiceWorkerWalletMode) => {
+    // never override an existing passkey wallet with a new one — that's an
+    // explicit reset (Settings → Reset). Send the user to unlock instead.
+    if (hasPasskeyWallet()) return navigate(Pages.Unlock)
     // fallback mnemonic used only for the non-PRF paths (legacy / passwordless)
     const fallbackMnemonic = pendingCreate.current?.mnemonic ?? generateMnemonic(wordlist)
     pendingCreate.current = { mnemonic: fallbackMnemonic, mode }
@@ -134,6 +138,32 @@ export default function Init() {
     setShowPasskeyFallback(false)
     setInitInfo({ mnemonic: pending.mnemonic, password: defaultPassword, restoring: false, walletMode: pending.mode })
     navigate(Pages.InitConnect)
+  }
+
+  // "Log in with passkey": a discoverable assertion reconstructs the wallet
+  // from the passkey's PRF — works on a fresh browser with empty storage.
+  const loginWithPasskey = async () => {
+    setLoginError('')
+    setCreating(true)
+    try {
+      const { credentialId, prfOutput } = await assertPrfDiscoverable()
+      const mnemonic = await mnemonicFromPrf(prfOutput)
+      prfOutput.fill(0)
+      setInitInfo({ mnemonic, passkeyCredentialId: credentialId, restoring: true })
+      setShowOptions(false)
+      navigate(Pages.InitConnect)
+    } catch (err) {
+      consoleError(err, 'Passkey login failed')
+      if (err instanceof PrfUnavailableError) {
+        setLoginError("This passkey can't restore a wallet on this device.")
+      } else if (err instanceof DOMException && err.name === 'NotAllowedError') {
+        setLoginError('No passkey selected. Try again, or restore with your recovery phrase.')
+      } else {
+        setLoginError('Passkey login failed. Try again.')
+      }
+    } finally {
+      setCreating(false)
+    }
   }
 
   const handleNewWallet = () => {
@@ -282,15 +312,25 @@ export default function Init() {
           <Button
             disabled={error || !aspReady}
             onClick={() => setShowOptions(true)}
-            label='Other login options'
+            label='I already have a wallet'
             clear
           />
         </motion.div>
       </ButtonsOnBottom>
       <SheetModal isOpen={showOptions} onClose={() => setShowOptions(false)}>
         <FlexCol gap='1rem'>
-          <Text>Other login options</Text>
-          <Button fancy disabled={error} onClick={handleOldWallet} label='Restore wallet' secondary />
+          <Text>I already have a wallet</Text>
+          <Text color='neutral-800' thin wrap>
+            Created your wallet with a passkey? Log in with it — your wallet comes back even on a new device.
+          </Text>
+          <Button fancy disabled={error || creating} onClick={loginWithPasskey} label='Log in with passkey' />
+          <Button
+            disabled={error || creating}
+            onClick={handleOldWallet}
+            label='Restore with recovery phrase'
+            secondary
+          />
+          <ErrorMessage error={Boolean(loginError)} text={loginError} />
         </FlexCol>
       </SheetModal>
       <SheetModal isOpen={showCreateOptions} onClose={() => setShowCreateOptions(false)}>

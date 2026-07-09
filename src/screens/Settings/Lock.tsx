@@ -36,6 +36,10 @@ export default function Lock() {
     setOption(SettingsOptions.Password)
   }
 
+  const handleUsePasskey = () => {
+    setOption(SettingsOptions.Passkey)
+  }
+
   const handleLock = async () => {
     lockWallet()
       .then(() => navigate(Pages.Unlock))
@@ -53,10 +57,10 @@ export default function Lock() {
           <ErrorMessage error={Boolean(error)} text={error} />
           <CenterScreen>
             <LockIcon big />
-            <Text centered>{noPassword ? 'No password defined' : 'Lock your wallet'}</Text>
+            <Text centered>{noPassword ? 'Wallet not protected' : 'Lock your wallet'}</Text>
             <TextSecondary centered>
               {noPassword
-                ? 'You need to set a password to lock.'
+                ? 'Secure your wallet with a passkey (recommended) or a password to be able to lock it.'
                 : usesPasskey
                   ? "After locking you'll need your passkey to unlock."
                   : "After locking you'll need to re-enter your password to unlock."}
@@ -66,7 +70,10 @@ export default function Lock() {
       </Content>
       <ButtonsOnBottom>
         {noPassword ? (
-          <Button onClick={handleSetPassword} label='Set Password' />
+          <>
+            <Button onClick={handleUsePasskey} label='Use a passkey' />
+            <Button onClick={handleSetPassword} label='Set Password' secondary />
+          </>
         ) : (
           <Button onClick={handleLock} label='Lock Wallet' />
         )}

@@ -152,6 +152,7 @@ export const mockWalletContextValue = {
   settlePreconfirmed: () => Promise.resolve(),
   unlockWallet: () => Promise.resolve(),
   unlockWalletWithPasskey: () => Promise.resolve(),
+  migrateToPasskeyWallet: () => Promise.resolve(),
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
   restartWallet: () => Promise.resolve(),

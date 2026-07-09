@@ -131,3 +131,28 @@ export async function assertPrf(credentialIdHex: string): Promise<Uint8Array> {
 
   return new Uint8Array(prf.results.first)
 }
+
+/**
+ * "Log in with passkey": a discoverable-credential assertion (no credential id
+ * given — the browser shows the account picker of this site's passkeys). The
+ * chosen passkey's PRF output deterministically reconstructs the wallet, so
+ * this works even on a fresh browser with empty storage.
+ */
+export async function assertPrfDiscoverable(): Promise<{ credentialId: string; prfOutput: Uint8Array }> {
+  const challenge = randomBytes(32)
+
+  const options: PublicKeyCredentialRequestOptions = {
+    challenge: challenge as BufferSource,
+    rpId: window.location.hostname,
+    timeout: 60000,
+    extensions: { prf: { eval: { first: PRF_EVAL_INPUT as BufferSource } } } as PrfExtensionInputs,
+  }
+
+  const credentials = (await navigator.credentials.get({ publicKey: options })) as PublicKeyCredential
+  validateClientData(credentials.response, 'webauthn.get', challenge)
+
+  const prf = (credentials.getClientExtensionResults() as PrfExtensionOutputs).prf
+  if (!prf?.results?.first) throw new PrfUnavailableError()
+
+  return { credentialId: hex.encode(new Uint8Array(credentials.rawId)), prfOutput: new Uint8Array(prf.results.first) }
+}

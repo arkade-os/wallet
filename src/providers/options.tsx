@@ -1,5 +1,6 @@
 import { ReactElement, ReactNode, createContext, useCallback, useEffect, useRef, useState } from 'react'
 import BackupIcon from '../icons/Backup'
+import FingerprintIcon from '../icons/Fingerprint'
 import InfoIcon from '../icons/Info'
 import NotificationIcon from '../icons/Notification'
 import ResetIcon from '../icons/Reset'
@@ -97,6 +98,11 @@ export const options: Option[] = [
   {
     icon: <BackupIcon />,
     option: SettingsOptions.Backup,
+    section: SettingsSections.Security,
+  },
+  {
+    icon: <FingerprintIcon />,
+    option: SettingsOptions.Passkey,
     section: SettingsSections.Security,
   },
   {
