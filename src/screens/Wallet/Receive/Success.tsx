@@ -11,6 +11,13 @@ import { consoleError } from '../../../lib/logs'
 import type { AssetDetails } from '@arkade-os/sdk'
 import { prettyAssetAmount } from '../../../lib/assets'
 
+function formatAssetLabel(a: { assetId: string; amount: bigint }, details: AssetDetails | undefined) {
+  const meta = details?.metadata
+  const amount = prettyAssetAmount(a.amount, meta?.decimals ?? 0)
+  const ticker = meta?.ticker ?? meta?.name ?? 'assets'
+  return `${amount} ${ticker}`
+}
+
 export default function ReceiveSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
@@ -53,12 +60,7 @@ export default function ReceiveSuccess() {
   useEffect(() => {
     if (isAssetReceive) {
       if (assetDetails.size < receivedAssets.length) return
-      const labels = receivedAssets.map((a) => {
-        const meta = assetDetails.get(a.assetId)?.metadata
-        const amount = prettyAssetAmount(a.amount, meta?.decimals ?? 0)
-        const ticker = meta?.ticker ?? meta?.name ?? 'assets'
-        return `${amount} ${ticker}`
-      })
+      const labels = receivedAssets.map((a) => formatAssetLabel(a, assetDetails.get(a.assetId)))
       notifyPaymentReceived(recvInfo.satoshis, labels.join(', '))
     } else {
       notifyPaymentReceived(recvInfo.satoshis)
@@ -70,12 +72,7 @@ export default function ReceiveSuccess() {
     : prettyAmount(recvInfo.satoshis)
 
   const displayText = isAssetReceive
-    ? receivedAssets
-        .map((a) => {
-          const meta = assetDetails.get(a.assetId)?.metadata
-          return `${prettyAssetAmount(a.amount, meta?.decimals ?? 0)} ${meta?.ticker ?? meta?.name ?? 'assets'}`
-        })
-        .join(', ')
+    ? receivedAssets.map((a) => formatAssetLabel(a, assetDetails.get(a.assetId))).join(', ')
     : `${displayAmount} received successfully`
 
   return (

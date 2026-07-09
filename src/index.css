@@ -1799,7 +1799,7 @@ html.palette-dark .send-asset-menu {
   width: 1px;
   height: 1px;
   overflow: hidden;
-  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
   white-space: nowrap;
 }
 
@@ -2064,7 +2064,7 @@ html.palette-dark .send-asset-menu {
   height: 1rem;
   align-items: center;
   justify-content: center;
-  color: currentColor;
+  color: currentcolor;
   will-change: transform;
 }
 
@@ -2748,6 +2748,10 @@ html.palette-dark .send-asset-menu {
 
 @media (prefers-reduced-motion: reduce) {
   .wallet-success-splash__mark svg path {
+    animation: none;
+  }
+
+  .swap-skeleton-text::after {
     animation: none;
   }
 

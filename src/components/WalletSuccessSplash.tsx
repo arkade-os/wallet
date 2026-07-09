@@ -35,9 +35,9 @@ export default function WalletSuccessSplash({
           type='button'
           className='wallet-success-splash'
           onClick={handleDone}
-          initial={{ transform: 'translate3d(0, 100%, 0)' }}
-          animate={{ transform: 'translate3d(0, 0%, 0)' }}
-          exit={{ transform: 'translate3d(0, 100%, 0)' }}
+          initial={{ y: '100%' }}
+          animate={{ y: '0%' }}
+          exit={{ y: '100%' }}
           transition={{ type: 'spring', stiffness: 260, damping: 30, mass: 0.95 }}
           aria-label={ariaLabel}
         >
@@ -51,8 +51,8 @@ export default function WalletSuccessSplash({
           </motion.span>
           <motion.span
             className='wallet-success-splash__copy'
-            initial={{ opacity: 0, transform: 'translate3d(0, 10px, 0)' }}
-            animate={{ opacity: 1, transform: 'translate3d(0, 0, 0)' }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.24, ease: EASE_OUT_QUINT_TUPLE }}
           >
             <strong>{headline}</strong>

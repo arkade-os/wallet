@@ -823,6 +823,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setAuthState('locked')
     setInitialized(false)
     setDataReady(false)
+    setPrototypeTxs([])
+    setPrototypeAssetBalanceDeltas({})
     hasLoadedOnce.current = false
   }
 
@@ -839,6 +841,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     await svcWallet.walletRepository.clear()
     await svcWallet.contractRepository.clear()
     setDataReady(false)
+    setPrototypeTxs([])
+    setPrototypeAssetBalanceDeltas({})
     hasLoadedOnce.current = false
   }
 
