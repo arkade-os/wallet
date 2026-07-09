@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const calls: string[] = []
 vi.mock('../../../lib/passkey', () => ({
   isWebAuthnSupported: vi.fn(() => true),
+  signalPasskeyRetired: vi.fn(async () => {}),
   registerPasskey: vi.fn(async () => {
     calls.push('registerPasskey')
     return { kind: 'prf', credentialId: 'cafe', prfOutput: new Uint8Array(32).fill(3) }

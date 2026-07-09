@@ -26,6 +26,35 @@ export function isWebAuthnSupported(): boolean {
   return 'credentials' in navigator && typeof window.PublicKeyCredential === 'function'
 }
 
+// e.g. "Arkade wallet · 2026-07-09 · a3f9c1" — date to spot old ones in the
+// picker, random tag to guarantee same-day uniqueness
+function passkeyLabel(userId: Uint8Array): string {
+  return `Arkade wallet · ${new Date().toISOString().slice(0, 10)} · ${hex.encode(userId.slice(0, 3))}`
+}
+
+/**
+ * Best-effort: tells the browser a credential is no longer usable so it can
+ * hide/remove it from its passkey manager and pickers (WebAuthn signal API,
+ * Chromium-only for now). Use ONLY for credentials whose wallet is provably
+ * empty/retired — a signalled passkey may be deleted by the platform.
+ */
+export async function signalPasskeyRetired(credentialIdHex: string): Promise<void> {
+  const cred = PublicKeyCredential as unknown as {
+    signalUnknownCredential?: (args: { rpId: string; credentialId: string }) => Promise<void>
+  }
+  if (typeof cred?.signalUnknownCredential !== 'function') return
+  try {
+    const bytes = hex.decode(credentialIdHex)
+    const base64url = btoa(String.fromCharCode(...bytes))
+      .replaceAll('=', '')
+      .replaceAll('+', '-')
+      .replaceAll('/', '_')
+    await cred.signalUnknownCredential({ rpId: window.location.hostname, credentialId: base64url })
+  } catch {
+    // cleanup is cosmetic — never fail the caller
+  }
+}
+
 // webauthn returns the challenge base64url-encoded without padding,
 // so apply the same transformations before comparing
 function arrayToBase64(data: Uint8Array | ArrayBuffer): string {
@@ -80,9 +109,10 @@ export async function registerPasskey(): Promise<PasskeyRegistration> {
       // MUST be unique per wallet: platform authenticators (notably iCloud
       // Keychain) silently REPLACE an existing passkey for the same rp.id +
       // user.name — which would destroy the PRF secret an existing wallet is
-      // derived from. A unique name makes a second wallet a second passkey.
-      name: `Arkade wallet · ${hex.encode(userId.slice(0, 3))}`,
-      displayName: `Arkade wallet · ${hex.encode(userId.slice(0, 3))}`,
+      // derived from. A unique name makes a second wallet a second passkey,
+      // and the creation date makes older ones recognizable in the picker.
+      name: passkeyLabel(userId),
+      displayName: passkeyLabel(userId),
     },
     extensions: { prf: { eval: { first: PRF_EVAL_INPUT as BufferSource } } } as PrfExtensionInputs,
   }

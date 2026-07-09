@@ -163,6 +163,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [vtxoManager, setVtxoManager] = useState<IVtxoManager>()
 
   const hasLoadedOnce = useRef(false)
+  // survives a failed post-assertion init so retries don't re-prompt biometrics
+  const pendingUnlockMnemonic = useRef<string | null>(null)
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
   const iconApprovalManager = useRef(new AssetIconApprovalManager()).current
   const verifiedAssetsFetched = useRef(false)
@@ -770,13 +772,28 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const unlockWalletWithPasskey = async () => {
+    // A successful assertion must never be wasted: if wallet init fails after
+    // the biometric succeeded (service-worker/network hiccup right after a
+    // lock), keep the derived mnemonic for the retry so tapping Unlock again
+    // does NOT prompt for the passkey a second time. Cleared on success and
+    // by lockWallet.
+    let mnemonic = pendingUnlockMnemonic.current
+    if (!mnemonic) {
+      try {
+        mnemonic = await getMnemonicWithPasskey()
+      } catch (err) {
+        setAuthState('passkey')
+        throw err // caller distinguishes user-cancel from PRF failure
+      }
+      pendingUnlockMnemonic.current = mnemonic
+    }
     try {
-      const mnemonic = await getMnemonicWithPasskey()
       setAuthState('authenticated')
       await initWallet({ mnemonic })
+      pendingUnlockMnemonic.current = null
     } catch (err) {
       setAuthState('passkey')
-      throw err // caller distinguishes user-cancel from PRF failure
+      throw err
     }
   }
 
@@ -887,6 +904,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setLnurlInfo(undefined)
     setSvcWallet(undefined)
     setVtxoManager(undefined)
+    pendingUnlockMnemonic.current = null
     setAuthState(hasPasskeyWallet() ? 'passkey' : 'locked')
     setInitialized(false)
     setDataReady(false)

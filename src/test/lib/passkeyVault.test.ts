@@ -4,12 +4,14 @@ import { wordlist } from '@scure/bip39/wordlists/english'
 import {
   hasPasskeyWallet,
   getPasskeyDescriptor,
+  getLastPasskeyId,
   setPasskeyWallet,
   clearPasskeyWallet,
   mnemonicFromPrf,
 } from '../../lib/passkeyVault'
 import { setMnemonic, hasMnemonic } from '../../lib/mnemonic'
 import { setPrivateKey } from '../../lib/privateKey'
+import { clearStorage } from '../../lib/storage'
 import { MNEMONIC_STORAGE_KEY, NSEC_STORAGE_KEY, PASSKEY_WALLET_STORAGE_KEY } from '../../lib/storageKeys'
 
 const credentialId = 'deadbeef'
@@ -65,6 +67,16 @@ describe('passkey wallet (PRF-derived)', () => {
       setPasskeyWallet(credentialId)
       clearPasskeyWallet()
       expect(hasPasskeyWallet()).toBe(false)
+    })
+
+    it('remembers the last-used passkey id, surviving a wallet reset', async () => {
+      setPasskeyWallet(credentialId)
+      expect(getLastPasskeyId()).toBe(credentialId)
+      // reset wipes the wallet, but login must still know which passkey to
+      // target (identifier only — no secret)
+      await clearStorage()
+      expect(hasPasskeyWallet()).toBe(false)
+      expect(getLastPasskeyId()).toBe(credentialId)
     })
   })
 

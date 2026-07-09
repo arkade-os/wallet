@@ -15,8 +15,14 @@ import Text from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
 import SheetModal from '../../components/SheetModal'
 import { defaultPassword } from '../../lib/constants'
-import { isWebAuthnSupported, registerPasskey, assertPrfDiscoverable, PrfUnavailableError } from '../../lib/passkey'
-import { mnemonicFromPrf, hasPasskeyWallet } from '../../lib/passkeyVault'
+import {
+  isWebAuthnSupported,
+  registerPasskey,
+  assertPrf,
+  assertPrfDiscoverable,
+  PrfUnavailableError,
+} from '../../lib/passkey'
+import { mnemonicFromPrf, hasPasskeyWallet, getLastPasskeyId } from '../../lib/passkeyVault'
 import { consoleError } from '../../lib/logs'
 import { OnboardStaggerChild } from '../../components/OnboardLoadIn'
 import { motion } from 'framer-motion'
@@ -140,13 +146,25 @@ export default function Init() {
     navigate(Pages.InitConnect)
   }
 
-  // "Log in with passkey": a discoverable assertion reconstructs the wallet
-  // from the passkey's PRF — works on a fresh browser with empty storage.
+  // "Log in with passkey": reconstructs the wallet from the passkey's PRF.
+  // Targets the last-used passkey when known (survives reset — one direct
+  // biometric, no picker); cancelling or a deleted credential falls back to
+  // the discoverable picker so any other passkey can be chosen.
   const loginWithPasskey = async () => {
     setLoginError('')
     setCreating(true)
     try {
-      const { credentialId, prfOutput } = await assertPrfDiscoverable()
+      const { credentialId, prfOutput } = await (async () => {
+        const lastUsed = getLastPasskeyId()
+        if (lastUsed) {
+          try {
+            return { credentialId: lastUsed, prfOutput: await assertPrf(lastUsed) }
+          } catch {
+            // fall through to the picker (credential deleted, or user wants another)
+          }
+        }
+        return assertPrfDiscoverable()
+      })()
       const mnemonic = await mnemonicFromPrf(prfOutput)
       prfOutput.fill(0)
       setInitInfo({ mnemonic, passkeyCredentialId: credentialId, restoring: true })

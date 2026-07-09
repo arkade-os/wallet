@@ -14,7 +14,7 @@ import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
 import { ConfigContext } from '../../providers/config'
 import { NavigationContext, Pages } from '../../providers/navigation'
-import { isWebAuthnSupported, registerPasskey } from '../../lib/passkey'
+import { isWebAuthnSupported, registerPasskey, signalPasskeyRetired } from '../../lib/passkey'
 import { hasPasskeyWallet, mnemonicFromPrf } from '../../lib/passkeyVault'
 import { computeNewWalletAddress } from '../../lib/migrate'
 import { sendOffChain } from '../../lib/asp'
@@ -90,7 +90,11 @@ export default function Passkey() {
       // 3. switch identities — the provider tears the old wallet down safely
       //    (funds are already at the new address, so erasing the old seed is ok)
       setStep('switching')
+      const retiredLegacyPasskeyId = wallet.lockedByBiometrics ? wallet.passkeyId : undefined
       await migrateToPasskeyWallet(reg.credentialId, newMnemonic)
+      // the old legacy passkey guarded a now-swept wallet: ask the browser to
+      // drop it from its passkey manager (best-effort, Chromium only)
+      if (retiredLegacyPasskeyId) signalPasskeyRetired(retiredLegacyPasskeyId)
       // toast + navigate: the wallet switch can remount settings, so an
       // in-component success screen would not survive
       toast(
@@ -125,6 +129,11 @@ export default function Passkey() {
               <TextSecondary centered wrap>
                 Your wallet keys are derived from your passkey — unlocking and logging in only ever need it. Keep your
                 12-word recovery phrase written down as backup in case the passkey is lost.
+              </TextSecondary>
+              <TextSecondary centered wrap>
+                Old Arkade passkeys from past wallets can be deleted in your device's passkey manager (iPhone/Mac:
+                Settings → Passwords; Chrome: Settings → Passkeys). Passkeys are dated — keep the one this wallet uses,
+                and never delete a passkey whose wallet still holds funds.
               </TextSecondary>
             </CenterScreen>
           </Padded>

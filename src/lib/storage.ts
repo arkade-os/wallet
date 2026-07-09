@@ -1,15 +1,21 @@
 import { AssetDetails } from '@arkade-os/sdk'
 import { Config, Wallet } from '../lib/types'
+import { LAST_PASSKEY_STORAGE_KEY } from './storageKeys'
 
-// clear localStorage but persist config (with asset data reset)
+// clear localStorage but persist config (with asset data reset) and the
+// last-used passkey id — a plain identifier (no secret) that lets "Log in
+// with Passkey" target the right credential after a reset instead of showing
+// the browser's full passkey picker
 export async function clearStorage(): Promise<void> {
   const config = readConfigFromStorage()
+  const lastPasskeyId = localStorage.getItem(LAST_PASSKEY_STORAGE_KEY)
   localStorage.clear()
   if (config) {
     config.importedAssets = []
     config.apps.assets.enabled = false
     saveConfigToStorage(config)
   }
+  if (lastPasskeyId) localStorage.setItem(LAST_PASSKEY_STORAGE_KEY, lastPasskeyId)
 }
 
 export const getStorageItem = <T>(key: string, fallback: T, parser: (val: string) => T): T => {

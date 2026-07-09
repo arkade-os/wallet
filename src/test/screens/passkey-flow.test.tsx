@@ -6,10 +6,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../../lib/passkey', () => ({
   isWebAuthnSupported: vi.fn(() => true),
   registerPasskey: vi.fn(),
+  assertPrf: vi.fn(),
+  assertPrfDiscoverable: vi.fn(),
+  signalPasskeyRetired: vi.fn(async () => {}),
   PrfUnavailableError: class PrfUnavailableError extends Error {},
 }))
 vi.mock('../../lib/passkeyVault', () => ({
   hasPasskeyWallet: vi.fn(() => false),
+  getLastPasskeyId: vi.fn(() => null),
   // derive a deterministic 12-word mnemonic from the PRF output in tests
   mnemonicFromPrf: vi.fn(
     async () => 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
@@ -25,8 +29,8 @@ import { FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { WalletContext } from '../../providers/wallet'
 import { DevModeProvider } from '../../providers/devMode'
-import { registerPasskey } from '../../lib/passkey'
-import { hasPasskeyWallet } from '../../lib/passkeyVault'
+import { registerPasskey, assertPrf, assertPrfDiscoverable } from '../../lib/passkey'
+import { hasPasskeyWallet, getLastPasskeyId } from '../../lib/passkeyVault'
 import { mockAspContextValue, mockFlowContextValue, mockNavigationContextValue, mockWalletContextValue } from './mocks'
 
 const registerPasskeyMock = vi.mocked(registerPasskey)
@@ -107,6 +111,35 @@ describe('onboarding — passkey registration wiring', () => {
   it('leads with passkey login as the primary action', () => {
     renderInit()
     expect(screen.getByText('Log in with Passkey')).toBeInTheDocument()
+  })
+
+  it('targets the last-used passkey on login instead of showing the picker', async () => {
+    vi.mocked(getLastPasskeyId).mockReturnValue('feed01')
+    vi.mocked(assertPrf).mockResolvedValue(new Uint8Array(32).fill(4))
+    const { setInitInfo, navigate } = renderInit()
+
+    fireEvent.click(screen.getByText('Log in with Passkey'))
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
+    expect(assertPrf).toHaveBeenCalledWith('feed01')
+    expect(assertPrfDiscoverable).not.toHaveBeenCalled()
+    expect(setInitInfo.mock.calls.at(-1)[0].passkeyCredentialId).toBe('feed01')
+  })
+
+  it('falls back to the discoverable picker when the targeted passkey fails', async () => {
+    vi.mocked(getLastPasskeyId).mockReturnValue('feed01')
+    vi.mocked(assertPrf).mockRejectedValue(new DOMException('gone', 'NotAllowedError'))
+    vi.mocked(assertPrfDiscoverable).mockResolvedValue({
+      credentialId: 'beef02',
+      prfOutput: new Uint8Array(32).fill(5),
+    })
+    const { setInitInfo, navigate } = renderInit()
+
+    fireEvent.click(screen.getByText('Log in with Passkey'))
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
+    expect(assertPrfDiscoverable).toHaveBeenCalled()
+    expect(setInitInfo.mock.calls.at(-1)[0].passkeyCredentialId).toBe('beef02')
   })
 })
 

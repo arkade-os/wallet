@@ -2,6 +2,7 @@ import { entropyToMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import { assertPrf } from './passkey'
 import {
+  LAST_PASSKEY_STORAGE_KEY,
   MNEMONIC_STORAGE_KEY,
   NSEC_STORAGE_KEY,
   PASSKEY_WALLET_STORAGE_KEY,
@@ -61,11 +62,17 @@ export const getPasskeyDescriptor = (): PasskeyDescriptor | null => {
 export const setPasskeyWallet = (credentialId: string): void => {
   const descriptor: PasskeyDescriptor = { v: 1, credentialId }
   localStorage.setItem(PASSKEY_WALLET_STORAGE_KEY, JSON.stringify(descriptor))
+  // remember which passkey was used last (survives reset — see clearStorage)
+  // so a later login targets it directly instead of showing the picker
+  localStorage.setItem(LAST_PASSKEY_STORAGE_KEY, credentialId)
   // this wallet's secret is the passkey — drop any password/private-key vaults
   localStorage.removeItem(MNEMONIC_STORAGE_KEY)
   localStorage.removeItem(NSEC_STORAGE_KEY)
   localStorage.removeItem(PRF_MNEMONIC_STORAGE_KEY)
 }
+
+/** Hex credential id of the most recently used passkey, if any. */
+export const getLastPasskeyId = (): string | null => localStorage.getItem(LAST_PASSKEY_STORAGE_KEY)
 
 export const clearPasskeyWallet = (): void => {
   localStorage.removeItem(PASSKEY_WALLET_STORAGE_KEY)
