@@ -701,7 +701,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     let pubkey: string
     let walletMode: ServiceWorkerWalletMode
 
-    const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
+    const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network) : undefined
 
     if (credentials.mnemonic) {
       const mnemonicIdentity = MnemonicIdentity.fromMnemonic(credentials.mnemonic, { isMainnet: isMainnet(network) })
@@ -768,7 +768,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const identity = svcWallet.identity as Identity
     const arkServerUrl = aspInfo.url
     const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
-    const delegatorUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as Network).url : undefined
+    const delegatorUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as Network) : undefined
     await initSvcWorkerWallet({
       identity,
       arkServerUrl,
@@ -790,7 +790,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     try {
       const arkServerUrl = aspInfo.url
       const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
-      const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(aspInfo.network as Network).url : undefined
+      const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(aspInfo.network as Network) : undefined
       const initialized = await initSvcWorkerWallet({
         identity,
         arkServerUrl,

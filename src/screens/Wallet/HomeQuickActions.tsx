@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion'
 import { ReactNode, useContext } from 'react'
 import ReceiveIcon from '../../icons/Receive'
 import ScanIcon from '../../icons/Scan'
@@ -6,9 +5,7 @@ import SendIcon from '../../icons/Send'
 import SwapIcon from '../../icons/Swap'
 import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
-import { homeActionStaggerChild, homeActionStaggerContainer } from '../../lib/animations'
 import { hapticLight } from '../../lib/haptics'
-import { useReducedMotion } from '../../hooks/useReducedMotion'
 
 interface HomeAction {
   icon: ReactNode
@@ -21,7 +18,6 @@ interface HomeAction {
 export default function HomeQuickActions() {
   const { navigate } = useContext(NavigationContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
-  const prefersReduced = useReducedMotion()
 
   const actions: HomeAction[] = [
     {
@@ -74,37 +70,14 @@ export default function HomeQuickActions() {
     },
   })
 
-  if (prefersReduced) {
-    return (
-      <div className='home-quick-actions' role='toolbar' aria-label='Wallet actions'>
-        {actions.map((action) => (
-          <button key={action.label} {...actionButtonProps(action)}>
-            <span className='home-quick-action__icon'>{action.icon}</span>
-            <span className='home-quick-action__label'>{action.label}</span>
-          </button>
-        ))}
-      </div>
-    )
-  }
-
   return (
-    <motion.div
-      className='home-quick-actions'
-      role='toolbar'
-      aria-label='Wallet actions'
-      variants={homeActionStaggerContainer}
-    >
+    <div className='home-quick-actions' role='toolbar' aria-label='Wallet actions'>
       {actions.map((action) => (
-        <motion.button
-          key={action.label}
-          variants={homeActionStaggerChild}
-          whileTap={action.disabled ? undefined : { scale: 0.97 }}
-          {...actionButtonProps(action)}
-        >
+        <button key={action.label} {...actionButtonProps(action)}>
           <span className='home-quick-action__icon'>{action.icon}</span>
           <span className='home-quick-action__label'>{action.label}</span>
-        </motion.button>
+        </button>
       ))}
-    </motion.div>
+    </div>
   )
 }

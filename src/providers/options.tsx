@@ -65,23 +65,8 @@ export const options: Option[] = [
     section: SettingsSections.Advanced,
   },
   {
-    icon: <InfoIcon />,
-    option: SettingsOptions.About,
-    section: SettingsSections.Display,
-  },
-  {
-    icon: <PuzzleIcon />,
-    option: SettingsOptions.Advanced,
-    section: SettingsSections.Display,
-  },
-  {
     icon: <CogIcon />,
     option: SettingsOptions.Display,
-    section: SettingsSections.Display,
-  },
-  {
-    icon: <NotesIcon />,
-    option: SettingsOptions.Notes,
     section: SettingsSections.Display,
   },
   {
@@ -90,8 +75,23 @@ export const options: Option[] = [
     section: SettingsSections.Display,
   },
   {
+    icon: <NotesIcon />,
+    option: SettingsOptions.Notes,
+    section: SettingsSections.Display,
+  },
+  {
+    icon: <InfoIcon />,
+    option: SettingsOptions.About,
+    section: SettingsSections.Display,
+  },
+  {
     icon: <SupportIcon />,
     option: SettingsOptions.Support,
+    section: SettingsSections.Display,
+  },
+  {
+    icon: <PuzzleIcon />,
+    option: SettingsOptions.Advanced,
     section: SettingsSections.Display,
   },
   {

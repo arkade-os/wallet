@@ -58,10 +58,10 @@ export default function BitcoinDetail() {
   const marketFiat = config.currency === Currencies.BTC ? Currencies.USD : config.currency
   const marketDecimals = fiatDecimalsFor(marketFiat)
   const bitcoinUnit = config.unit
-  const fallbackUnitPrice = toFiatAmount(100_000_000, marketFiat)
+  const currentUnitPrice = toFiatAmount(100_000_000, marketFiat)
   const liveChartData = useBitcoinMarketChartData(marketFiat, chartWindow)
-  const unitPrice = liveChartData.at(-1)?.value ?? fallbackUnitPrice
-  const fiatValue = (balance / 100_000_000) * unitPrice
+  const chartUnitPrice = liveChartData.at(-1)?.value ?? currentUnitPrice
+  const fiatValue = (balance / 100_000_000) * currentUnitPrice
   const formattedFiat = prettyFiatAmount(fiatValue, marketFiat, {
     maximumFractionDigits: marketDecimals,
     minimumFractionDigits: marketDecimals,
@@ -70,8 +70,8 @@ export default function BitcoinDetail() {
   const chartTheme = useResolvedChartTheme(config.theme)
   const safeBalance = Number.isFinite(balance) ? Math.max(0, Math.floor(balance)) : 0
   const chartData = useMemo(
-    () => (liveChartData.length ? liveChartData : buildFlatChartData(unitPrice, chartWindow)),
-    [chartWindow, liveChartData, unitPrice],
+    () => (liveChartData.length ? liveChartData : buildFlatChartData(chartUnitPrice, chartWindow)),
+    [chartWindow, chartUnitPrice, liveChartData],
   )
   const chartDisplayData = useMemo(
     () => smoothChartData(chartData, chartWindow, chartInteracting),
@@ -165,14 +165,14 @@ export default function BitcoinDetail() {
               >
                 <AnimatePresence mode='popLayout' initial={false}>
                   <motion.div
-                    key={`${unitPrice}-${marketFiat}`}
+                    key={`${currentUnitPrice}-${marketFiat}`}
                     className='asset-detail-price'
                     initial={prefersReduced ? false : { opacity: 0, y: 8, filter: 'blur(2px)' }}
                     animate={prefersReduced ? undefined : { opacity: 1, y: 0, filter: 'blur(0px)' }}
                     exit={prefersReduced ? undefined : { opacity: 0, y: -8, filter: 'blur(2px)' }}
                     transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
                   >
-                    {prettyFiatAmount(unitPrice, marketFiat)}
+                    {prettyFiatAmount(currentUnitPrice, marketFiat)}
                   </motion.div>
                 </AnimatePresence>
                 <DeltaBadge value={chartDelta} />
@@ -204,7 +204,7 @@ export default function BitcoinDetail() {
                 {canRenderChart ? (
                   <Liveline
                     data={chartDisplayData}
-                    value={chartDisplayData.at(-1)?.value ?? unitPrice}
+                    value={chartDisplayData.at(-1)?.value ?? chartUnitPrice}
                     color={chartColor}
                     theme={chartTheme}
                     window={livelineWindow}

@@ -41,11 +41,13 @@ const DELEGATE_URL: Record<Network, string | null> = {
   testnet: null,
 }
 
-export const getDelegateUrlForNetwork = (network: Network): Delegate => {
-  const url = DELEGATE_URL[network]
-  if (!url) {
-    throw new Error(`Delegate URL not found for network: ${network}`)
-  }
+export const getDelegateUrlForNetwork = (network: Network): string | undefined => {
+  return DELEGATE_URL[network] ?? undefined
+}
+
+export const getDelegateForNetwork = (network: Network): Delegate | undefined => {
+  const url = getDelegateUrlForNetwork(network)
+  if (!url) return undefined
   return {
     url,
     fee: 0,
