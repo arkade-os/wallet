@@ -81,7 +81,15 @@ export { expect }
 export async function waitForWalletPage(page: Page, timeout = 90000): Promise<void> {
   const sendBtn = page.getByText('Send', { exact: true })
   const continueBtn = page.getByText('Continue anyway')
-  await sendBtn.or(continueBtn).first().waitFor({ state: 'visible', timeout })
+  // A passkey wallet that reloaded (e.g. the delegate toggle calls
+  // window.location.reload()) comes back on the passkey Unlock screen and must
+  // re-assert. The virtual authenticator auto-approves, so just click Unlock.
+  const passkeyUnlock = page.getByText('Unlock with your passkey')
+  await sendBtn.or(continueBtn).or(passkeyUnlock).first().waitFor({ state: 'visible', timeout })
+  if (await passkeyUnlock.isVisible().catch(() => false)) {
+    await page.getByRole('button', { name: 'Unlock wallet' }).click()
+    await sendBtn.or(continueBtn).first().waitFor({ state: 'visible', timeout: 30000 })
+  }
   if (await continueBtn.isVisible()) {
     await continueBtn.click()
     await sendBtn.waitFor({ state: 'visible', timeout: 30000 })
