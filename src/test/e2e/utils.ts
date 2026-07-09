@@ -184,11 +184,21 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
   await page.waitForSelector('text=Asset minted!', { timeout: 60000 })
 }
 
+// The onboarding "+ Create wallet" button is disabled until the Ark server
+// reports its signerPubkey (needed to derive addresses). In regtest that
+// readiness can lag past a click's 30s actionability window, so wait for the
+// button to become enabled — with its own generous timeout — before clicking.
+async function clickCreateWallet(page: Page): Promise<void> {
+  const createBtn = page.getByRole('button', { name: '+ Create wallet' })
+  await expect(createBtn).toBeEnabled({ timeout: 60000 })
+  await createBtn.click()
+}
+
 export async function createWallet(page: Page): Promise<void> {
   await page.goto('/')
   // fresh device: '+ Create wallet' primary → confirm sheet → 'Create new wallet'.
   // (with the virtual authenticator the passkey ceremony completes silently)
-  await page.getByText('+ Create wallet').click()
+  await clickCreateWallet(page)
   await page.getByRole('button', { name: 'Create new wallet' }).click()
   await waitForWalletPage(page)
 }
@@ -208,7 +218,7 @@ export async function createPasswordlessWallet(page: Page, webauthn: WebAuthn): 
     navigator.credentials.create = () =>
       Promise.reject(new DOMException('passkey creation blocked for test', 'NotAllowedError'))
   })
-  await page.getByText('+ Create wallet').click()
+  await clickCreateWallet(page)
   await page.getByRole('button', { name: 'Create new wallet' }).click()
   // ceremony rejects immediately → fallback sheet
   await page.getByText('Continue without passkey').click()
