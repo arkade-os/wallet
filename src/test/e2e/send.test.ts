@@ -49,6 +49,7 @@ test('should send sats (some and max) to ark address', async ({ page, isMobile }
   await page.locator('input[name="send-address"]').fill(someArkAddress)
 
   // click max
+  await page.waitForSelector(`text=3,000 sats available`, { timeout: 2100 })
   await page.getByTestId('input-amount-max').click()
 
   // continue to details page
@@ -105,6 +106,7 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
   await page.locator('input[name="send-address"]').fill(someArkAddress)
 
   // click max
+  await page.waitForSelector(`text=$${usdsRemaining} available`, { timeout: 2100 })
   await page.getByTestId('input-amount-max').click()
   const inputAmount = await page.locator('input[name="send-amount"]').inputValue()
   expect(Number(inputAmount).toFixed(2)).toBe(usdsRemaining)
@@ -261,6 +263,7 @@ test('should send sats (some and max) to onchain address with chain swap', async
   await page.locator('input[name="send-address"]').fill(someOnchainAddress)
 
   // click max
+  await page.waitForSelector(`text=${prettyNumber(balance)} sats available`, { timeout: 2100 })
   await page.getByTestId('input-amount-max').click()
   await page.waitForSelector('text=Fees will be deducted from the amount sent', { timeout: 2000 })
   const inputAmount = await page.locator('input[name="send-amount"]').inputValue()
@@ -320,6 +323,7 @@ test('should send usds (some and max) to onchain address with chain swap', async
   await page.locator('input[name="send-address"]').fill(someOnchainAddress)
 
   // click max
+  await page.waitForSelector(`text=$${balance} available`, { timeout: 2100 })
   await page.getByTestId('input-amount-max').click()
   await page.waitForSelector('text=Fees will be deducted from the amount sent', { timeout: 2000 })
 
@@ -385,6 +389,7 @@ test('should send sats (some and max) to onchain address with collaborative exit
   await page.locator('input[name="send-address"]').fill(someOnchainAddress)
 
   // click max
+  await page.waitForSelector(`text=${prettyNumber(balance)} sats available`, { timeout: 2100 })
   await page.getByTestId('input-amount-max').click()
   await page.waitForSelector('text=Fees will be deducted from the amount sent', { timeout: 2000 })
   const inputAmount = await page.locator('input[name="send-amount"]').inputValue()
