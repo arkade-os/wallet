@@ -2,7 +2,10 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './src/test/e2e',
-  timeout: 60000,
+  // passkey onboarding + the seed→passkey migration flow add real wall-clock to
+  // the heavier specs; 60s left no room for the final wallet boot. Give every
+  // spec more headroom (heavy swap/restore specs raise it further below).
+  timeout: 90000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   // 5 retries × 2 projects turns a handful of broken specs into a 45-minute
