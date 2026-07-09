@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import Header from './Header'
 import Button from '../../components/Button'
 import Padded from '../../components/Padded'
@@ -8,8 +8,8 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import ErrorMessage from '../../components/Error'
 import Text, { TextSecondary } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
-import Success from '../../components/Success'
 import FingerprintIcon from '../../icons/Fingerprint'
+import { useToast } from '../../components/Toast'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
 import { ConfigContext } from '../../providers/config'
@@ -21,9 +21,9 @@ import { sendOffChain } from '../../lib/asp'
 import { consoleError, consoleLog } from '../../lib/logs'
 import { prettyNumber } from '../../lib/format'
 import { SwapsContext } from '../../providers/swaps'
-import { isPendingSwap } from '../../components/SwapsList'
+import { isSwapWithFundsInFlight } from '../../components/SwapsList'
 
-type Step = 'idle' | 'registering' | 'sending' | 'switching' | 'done'
+type Step = 'idle' | 'registering' | 'sending' | 'switching'
 
 /**
  * Seed→passkey migration (the recovery counterpart of the passkey-derived
@@ -40,35 +40,32 @@ export default function Passkey() {
   const { navigate } = useContext(NavigationContext)
   const { getSwapHistory } = useContext(SwapsContext)
 
+  const { toast } = useToast()
   const [error, setError] = useState('')
   const [step, setStep] = useState<Step>('idle')
-  const [movedSats, setMovedSats] = useState(0)
-  const [swapWarningAcknowledged, setSwapWarningAcknowledged] = useState(false)
+  const [pendingSwapCount, setPendingSwapCount] = useState(0)
 
   const isPasskeyWallet = hasPasskeyWallet()
   const hasAssets = assetBalances.length > 0
-  const busy = step !== 'idle' && step !== 'done'
+  const busy = step !== 'idle'
+
+  // informational only: Boltz reports every swap this seed ever touched
+  // (including unpaid invoice stubs, which lock nothing and are ignored here).
+  // Even swaps with funds in flight stay claimable with the old seed, so
+  // nothing blocks the migration.
+  useEffect(() => {
+    if (isPasskeyWallet) return
+    getSwapHistory()
+      .then((swaps) => setPendingSwapCount(swaps.filter(isSwapWithFundsInFlight).length))
+      .catch(() => setPendingSwapCount(0))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPasskeyWallet])
 
   const migrate = async () => {
     setError('')
     if (!svcWallet) return setError('Wallet not ready. Try again in a moment.')
     if (hasAssets) return setError('This wallet holds assets, which cannot be moved automatically yet.')
     try {
-      // pending swaps need this wallet's keys for their claim/refund paths —
-      // but restored wallets often carry STALE pending records pulled from the
-      // network, so warn once and let the user proceed on a second press
-      if (!swapWarningAcknowledged) {
-        const swaps = await getSwapHistory().catch(() => [])
-        const pending = swaps.filter(isPendingSwap)
-        if (pending.length > 0) {
-          setSwapWarningAcknowledged(true)
-          return setError(
-            `${pending.length} swap${pending.length > 1 ? 's' : ''} look pending — possibly stale records from the restore. ` +
-              'If you have no swap actually in progress, press the button again to continue.',
-          )
-        }
-      }
-
       // 1. new passkey → new seed (PRF must be supported; a legacy credential
       //    cannot derive a wallet, so abort rather than downgrade silently)
       setStep('registering')
@@ -89,13 +86,19 @@ export default function Passkey() {
         const txid = await sendOffChain(svcWallet, available, address)
         consoleLog(`Migration: moved ${available} sats to new passkey wallet (${txid})`)
       }
-      setMovedSats(available)
 
       // 3. switch identities — the provider tears the old wallet down safely
       //    (funds are already at the new address, so erasing the old seed is ok)
       setStep('switching')
       await migrateToPasskeyWallet(reg.credentialId, newMnemonic)
-      setStep('done')
+      // toast + navigate: the wallet switch can remount settings, so an
+      // in-component success screen would not survive
+      toast(
+        available > 0
+          ? `Moved ${prettyNumber(available)} sats to your new passkey wallet`
+          : 'Your new passkey wallet is ready',
+      )
+      navigate(Pages.Wallet)
     } catch (err) {
       consoleError(err, 'migration to passkey wallet failed')
       // before migrateToPasskeyWallet ran, the old wallet is fully intact; after
@@ -108,27 +111,6 @@ export default function Passkey() {
         setError('Migration failed. Your funds have not been lost — try again.')
       }
     }
-  }
-
-  if (step === 'done') {
-    return (
-      <>
-        <Header text='Passkey' back />
-        <Content>
-          <Success
-            headline='Wallet secured'
-            text={
-              movedSats > 0
-                ? `${prettyNumber(movedSats)} sats are on their way to your new passkey wallet.`
-                : 'Your new passkey wallet is ready.'
-            }
-          />
-        </Content>
-        <ButtonsOnBottom>
-          <Button onClick={() => navigate(Pages.Wallet)} label='Go to wallet' />
-        </ButtonsOnBottom>
-      </>
-    )
   }
 
   if (isPasskeyWallet) {
@@ -189,8 +171,15 @@ export default function Passkey() {
                 The new wallet has its own recovery phrase — write it down afterwards from Settings → Backup.
               </TextSecondary>
               <TextSecondary centered wrap>
-                Onchain (boarding) funds and pending swaps stay with the old seed until settled.
+                Onchain (boarding) funds stay with the old seed until settled.
               </TextSecondary>
+              {pendingSwapCount > 0 ? (
+                <TextSecondary centered wrap>
+                  {pendingSwapCount === 1
+                    ? '1 unresolved swap from this seed’s history remains claimable with your old seed.'
+                    : `${pendingSwapCount} unresolved swaps from this seed’s history remain claimable with your old seed.`}
+                </TextSecondary>
+              ) : null}
               {hasAssets ? (
                 <TextSecondary centered wrap>
                   Note: this wallet holds assets, which can't be moved automatically yet.

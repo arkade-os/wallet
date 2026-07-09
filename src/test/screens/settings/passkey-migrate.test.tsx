@@ -51,11 +51,14 @@ function renderPasskey(overrides: Record<string, unknown> = {}, pendingSwaps = f
   const migrateToPasskeyWallet = vi.fn(async () => {
     calls.push('migrate')
   })
+  // 'transaction.mempool' = funds actually in flight; 'swap.created' = a mere
+  // unpaid invoice stub that must be ignored
   const getSwapHistory = vi.fn(async () =>
-    pendingSwaps ? [{ status: 'swap.created' }] : [{ status: 'invoice.settled' }],
+    pendingSwaps ? [{ status: 'transaction.mempool' }, { status: 'swap.created' }] : [{ status: 'swap.created' }],
   )
+  const navigate = vi.fn()
   render(
-    <NavigationContext.Provider value={mockNavigationContextValue as any}>
+    <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate } as any}>
       <AspContext.Provider value={mockAspContextValue as any}>
         <ConfigContext.Provider value={mockConfigContextValue as any}>
           <SwapsContext.Provider value={{ getSwapHistory } as any}>
@@ -78,7 +81,7 @@ function renderPasskey(overrides: Record<string, unknown> = {}, pendingSwaps = f
       </AspContext.Provider>
     </NavigationContext.Provider>,
   )
-  return { svcWallet, migrateToPasskeyWallet, getSwapHistory }
+  return { svcWallet, migrateToPasskeyWallet, getSwapHistory, navigate }
 }
 
 describe('Passkey settings — seed→passkey migration', () => {
@@ -95,11 +98,11 @@ describe('Passkey settings — seed→passkey migration', () => {
   })
 
   it('runs the migration in the safe order: send funds BEFORE erasing the old seed', async () => {
-    const { migrateToPasskeyWallet } = renderPasskey()
+    const { migrateToPasskeyWallet, navigate } = renderPasskey()
 
     fireEvent.click(screen.getByRole('button', { name: /create passkey & move funds/i }))
 
-    await waitFor(() => expect(screen.getByText('Wallet secured')).toBeInTheDocument())
+    await waitFor(() => expect(navigate).toHaveBeenCalled())
     // ordering is the safety property: a failure before migrate leaves the old
     // wallet fully intact
     expect(calls).toEqual(['registerPasskey', 'send', 'migrate'])
@@ -111,27 +114,31 @@ describe('Passkey settings — seed→passkey migration', () => {
   })
 
   it('skips the send when the balance is zero', async () => {
-    renderPasskey({ svcWallet: { getBalance: vi.fn(async () => ({ available: 0 })) } })
+    const { navigate } = renderPasskey({ svcWallet: { getBalance: vi.fn(async () => ({ available: 0 })) } })
 
     fireEvent.click(screen.getByRole('button', { name: /create passkey & move funds/i }))
 
-    await waitFor(() => expect(screen.getByText('Wallet secured')).toBeInTheDocument())
+    await waitFor(() => expect(navigate).toHaveBeenCalled())
     expect(sendOffChainMock).not.toHaveBeenCalled()
   })
 
-  it('warns about pending swaps once, then allows an explicit override', async () => {
+  it('mentions swaps with funds in flight as info only — migration proceeds in one press', async () => {
     const { migrateToPasskeyWallet } = renderPasskey({}, true)
 
-    // first press: warn (restored wallets often carry stale pending records)
-    fireEvent.click(screen.getByRole('button', { name: /create passkey & move funds/i }))
-    expect(await screen.findByText(/look pending/i)).toBeInTheDocument()
-    expect(migrateToPasskeyWallet).not.toHaveBeenCalled()
-    expect(sendOffChainMock).not.toHaveBeenCalled()
+    // funds-in-flight swaps remain claimable with the old seed, so they must
+    // never block migration — and only ONE of the two records counts (the
+    // unpaid invoice stub is ignored)
+    expect(await screen.findByText(/1 unresolved swap/i)).toBeInTheDocument()
 
-    // second press: user confirmed no swap is actually in progress
     fireEvent.click(screen.getByRole('button', { name: /create passkey & move funds/i }))
-    await waitFor(() => expect(screen.getByText('Wallet secured')).toBeInTheDocument())
-    expect(migrateToPasskeyWallet).toHaveBeenCalled()
+    await waitFor(() => expect(migrateToPasskeyWallet).toHaveBeenCalled())
+  })
+
+  it('shows no swap note for unpaid invoice stubs', async () => {
+    renderPasskey() // history contains only a 'swap.created' stub
+    // generating an invoice that was never paid locks nothing — no note
+    expect(screen.getByText('Move to a passkey wallet')).toBeInTheDocument()
+    expect(screen.queryByText(/unresolved swap/i)).not.toBeInTheDocument()
   })
 
   it('blocks migration while the wallet holds assets', async () => {
