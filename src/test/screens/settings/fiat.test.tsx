@@ -12,14 +12,15 @@ describe('Fiat screen', () => {
       </ConfigContext.Provider>,
     )
     expect(screen.getAllByText('Currency')).toHaveLength(2)
-    expect(screen.getByTestId('select-option-0').querySelector('p')?.textContent).toBe('BTC')
-    expect(screen.getByTestId('select-option-1').querySelector('p')?.textContent).toBe('CHF')
-    expect(screen.getByTestId('select-option-2').querySelector('p')?.textContent).toBe('CNY')
-    expect(screen.getByTestId('select-option-3').querySelector('p')?.textContent).toBe('EUR')
-    expect(screen.getByTestId('select-option-4').querySelector('p')?.textContent).toBe('GBP')
-    expect(screen.getByTestId('select-option-5').querySelector('p')?.textContent).toBe('JPY')
-    expect(screen.getByTestId('select-option-6').querySelector('p')?.textContent).toBe('USD')
-    for (let index = 0; index < 7; index++) {
+    expect(screen.getByTestId('select-option-0').querySelector('p')?.textContent).toBe('BRL')
+    expect(screen.getByTestId('select-option-1').querySelector('p')?.textContent).toBe('BTC')
+    expect(screen.getByTestId('select-option-2').querySelector('p')?.textContent).toBe('CHF')
+    expect(screen.getByTestId('select-option-3').querySelector('p')?.textContent).toBe('CNY')
+    expect(screen.getByTestId('select-option-4').querySelector('p')?.textContent).toBe('EUR')
+    expect(screen.getByTestId('select-option-5').querySelector('p')?.textContent).toBe('GBP')
+    expect(screen.getByTestId('select-option-6').querySelector('p')?.textContent).toBe('JPY')
+    expect(screen.getByTestId('select-option-7').querySelector('p')?.textContent).toBe('USD')
+    for (let index = 0; index < 8; index++) {
       expect(
         screen.getByTestId(`select-option-${index}`).querySelector('.settings-select-row__icon svg'),
       ).toBeInTheDocument()
@@ -41,15 +42,18 @@ describe('Fiat screen', () => {
     expect(
       screen.getByTestId('select-option-2').querySelector('[data-testid="green-status-icon"]'),
     ).not.toBeInTheDocument()
-    expect(screen.getByTestId('select-option-3').querySelector('[data-testid="green-status-icon"]')).toBeInTheDocument()
     expect(
-      screen.getByTestId('select-option-4').querySelector('[data-testid="green-status-icon"]'),
+      screen.getByTestId('select-option-3').querySelector('[data-testid="green-status-icon"]'),
     ).not.toBeInTheDocument()
+    expect(screen.getByTestId('select-option-4').querySelector('[data-testid="green-status-icon"]')).toBeInTheDocument()
     expect(
       screen.getByTestId('select-option-5').querySelector('[data-testid="green-status-icon"]'),
     ).not.toBeInTheDocument()
     expect(
       screen.getByTestId('select-option-6').querySelector('[data-testid="green-status-icon"]'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByTestId('select-option-7').querySelector('[data-testid="green-status-icon"]'),
     ).not.toBeInTheDocument()
   })
 })

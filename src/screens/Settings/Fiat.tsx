@@ -27,6 +27,7 @@ export default function Fiat() {
               <Select
                 onChange={handleChange}
                 options={[
+                  Currencies.BRL,
                   Currencies.BTC,
                   Currencies.CHF,
                   Currencies.CNY,
