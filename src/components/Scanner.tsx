@@ -1,9 +1,4 @@
-import Button from './Button'
-import ButtonsOnBottom from './ButtonsOnBottom'
-import Content from './Content'
 import ErrorMessage from './Error'
-import Header from './Header'
-import Padded from './Padded'
 import { QRCanvas, frameLoop, frontalCamera } from 'qr/dom.js'
 import { useRef, useEffect, useState } from 'react'
 import { extractError } from '../lib/error'
@@ -14,55 +9,85 @@ const videoStyle: React.CSSProperties = {
   margin: '0 auto',
 }
 
+export type ScannerImplementation = 'qr' | 'qrmini' | 'mills'
+
+export const scannerImplementationLabel: Record<ScannerImplementation, string> = {
+  qr: 'Q',
+  qrmini: 'q',
+  mills: 'M',
+}
+
+export const nextScannerImplementation = (implementation: ScannerImplementation): ScannerImplementation =>
+  implementation === 'qr' ? 'qrmini' : implementation === 'qrmini' ? 'mills' : 'qr'
+
 interface ScannerProps {
-  close: () => void
-  label: string
+  implementation?: ScannerImplementation
   onData: (arg0: string) => void
   onError: (arg0: string) => void
-  onSwitch?: () => void
+}
+
+interface ScannerViewProps {
+  onData: (arg0: string) => void
+  onError: (arg0: string) => void
   calculateScanRegion?: (v: HTMLVideoElement) => QrScanner.ScanRegion
 }
 
-export default function Scanner({ close, label, onData, onError }: ScannerProps) {
-  const [currentImplementation, setCurrentImplementation] = useState<'qr' | 'qrmini' | 'mills'>('qr')
-
-  const handleSwitch = () => {
-    setCurrentImplementation(
-      currentImplementation === 'qr' ? 'qrmini' : currentImplementation === 'qrmini' ? 'mills' : 'qr',
-    )
+// Make scan region smaller to match better small qr codes
+const calculateMiniScanRegion = (v: HTMLVideoElement): QrScanner.ScanRegion => {
+  const smallestDimension = Math.min(v.videoWidth, v.videoHeight)
+  const scanRegionSize = Math.round((1 / 4) * smallestDimension)
+  return {
+    x: Math.round((v.videoWidth - scanRegionSize) / 2),
+    y: Math.round((v.videoHeight - scanRegionSize) / 2),
+    width: scanRegionSize,
+    height: scanRegionSize,
   }
+}
 
-  return currentImplementation === 'qr' ? (
-    <ScannerQr close={close} label={label} onData={onData} onError={onError} onSwitch={handleSwitch} />
-  ) : currentImplementation === 'qrmini' ? (
-    <ScannerQrMini close={close} label={label} onData={onData} onError={onError} onSwitch={handleSwitch} />
+// Camera view only: renders the video feed and reports scanned data upwards.
+// Chrome (modal, buttons, dismissal) is owned by the invoking component.
+export default function Scanner({ implementation = 'qr', onData, onError }: ScannerProps) {
+  return implementation === 'mills' ? (
+    <ScannerMills key={implementation} onData={onData} onError={onError} />
   ) : (
-    <ScannerMills close={close} label={label} onData={onData} onError={onError} onSwitch={handleSwitch} />
+    <ScannerQr
+      key={implementation}
+      onData={onData}
+      onError={onError}
+      calculateScanRegion={implementation === 'qrmini' ? calculateMiniScanRegion : undefined}
+    />
   )
 }
 
-function ScannerMills({ close, label, onData, onError, onSwitch }: ScannerProps) {
+function ScannerMills({ onData, onError }: ScannerViewProps) {
   const [error, setError] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
 
-  let camera: any
-  let canvas: QRCanvas
-  let cancel: () => void
-
   useEffect(() => {
+    let camera: any
+    let canvas: QRCanvas | undefined
+    let cancel: (() => void) | undefined
+    let cancelled = false
+
+    const stopScan = () => {
+      if (cancel) cancel()
+      if (camera) camera.stop()
+      if (canvas) canvas.clear()
+    }
+
     const startCameraCapture = async () => {
       if (!videoRef.current) return
       try {
-        if (canvas) canvas.clear()
         canvas = new QRCanvas()
         camera = await frontalCamera(videoRef.current)
+        if (cancelled) return stopScan()
         const devices = await camera.listDevices()
         await camera.setDevice(devices[devices.length - 1].deviceId)
         cancel = frameLoop(() => {
           const res = camera.readFrame(canvas)
           if (res) {
+            stopScan()
             onData(res)
-            handleClose()
           }
         })
       } catch (e) {
@@ -71,40 +96,22 @@ function ScannerMills({ close, label, onData, onError, onSwitch }: ScannerProps)
       }
     }
     startCameraCapture()
+
+    return () => {
+      cancelled = true
+      stopScan()
+    }
   }, [videoRef])
-
-  const stopScan = () => {
-    if (cancel) cancel()
-    if (camera) camera.stop()
-  }
-
-  const handleClose = () => {
-    stopScan()
-    close()
-  }
-
-  const handleSwitch = () => {
-    stopScan()
-    if (onSwitch) onSwitch()
-  }
 
   return (
     <>
-      <Header auxFunc={handleSwitch} auxText='M' text={label} back={handleClose} />
-      <Content>
-        <Padded>
-          <ErrorMessage error={error} text='Camera not available' />
-          <video style={videoStyle} ref={videoRef} />
-        </Padded>
-      </Content>
-      <ButtonsOnBottom>
-        <Button onClick={handleClose} label='Cancel' />
-      </ButtonsOnBottom>
+      <ErrorMessage error={error} text='Camera not available' />
+      <video style={videoStyle} ref={videoRef} />
     </>
   )
 }
 
-function ScannerQr({ calculateScanRegion, close, label, onData, onError, onSwitch }: ScannerProps) {
+function ScannerQr({ calculateScanRegion, onData, onError }: ScannerViewProps) {
   const [error, setError] = useState(false)
   const [hasCamera, setHasCamera] = useState(false)
 
@@ -118,12 +125,16 @@ function ScannerQr({ calculateScanRegion, close, label, onData, onError, onSwitc
   useEffect(() => {
     if (!hasCamera) return
     if (!videoRef.current) return
+    const stopScan = () => {
+      qrScanner.current?.destroy()
+      qrScanner.current = null
+    }
     if (!qrScanner.current) {
       qrScanner.current = new QrScanner(
         videoRef.current,
         (result) => {
+          stopScan()
           onData(result.data)
-          handleClose()
         },
         {
           maxScansPerSecond: 100,
@@ -141,61 +152,12 @@ function ScannerQr({ calculateScanRegion, close, label, onData, onError, onSwitc
     return () => stopScan()
   }, [hasCamera])
 
-  const stopScan = () => {
-    qrScanner.current?.destroy()
-    qrScanner.current = null
-  }
-
-  const handleClose = () => {
-    stopScan()
-    close()
-  }
-
-  const handleSwitch = () => {
-    stopScan()
-    if (onSwitch) onSwitch()
-  }
-
   return (
     <>
-      <Header auxFunc={handleSwitch} auxText={calculateScanRegion ? 'q' : 'Q'} text={label} back={handleClose} />
-      <Content>
-        <Padded>
-          <ErrorMessage error={error} text='Camera not available' />
-          <div id='video-wrapper'>
-            <video id='qr-scanner' ref={videoRef} style={videoStyle} />
-          </div>
-        </Padded>
-      </Content>
-      <ButtonsOnBottom>
-        <Button onClick={handleClose} label='Cancel' />
-      </ButtonsOnBottom>
+      <ErrorMessage error={error} text='Camera not available' />
+      <div id='video-wrapper'>
+        <video id='qr-scanner' ref={videoRef} style={videoStyle} />
+      </div>
     </>
-  )
-}
-
-function ScannerQrMini({ close, label, onData, onError, onSwitch }: ScannerProps) {
-  // Make scan region smaller to match better small qr codes
-  const calculateScanRegion = (v: HTMLVideoElement): QrScanner.ScanRegion => {
-    const smallestDimension = Math.min(v.videoWidth, v.videoHeight)
-    const scanRegionSize = Math.round((1 / 4) * smallestDimension)
-    let region: QrScanner.ScanRegion = {
-      x: Math.round((v.videoWidth - scanRegionSize) / 2),
-      y: Math.round((v.videoHeight - scanRegionSize) / 2),
-      width: scanRegionSize,
-      height: scanRegionSize,
-    }
-    return region
-  }
-
-  return (
-    <ScannerQr
-      close={close}
-      label={label}
-      onData={onData}
-      onError={onError}
-      onSwitch={onSwitch}
-      calculateScanRegion={calculateScanRegion}
-    />
   )
 }

@@ -3,6 +3,7 @@ import ReceiveIcon from '../../icons/Receive'
 import ScanIcon from '../../icons/Scan'
 import SendIcon from '../../icons/Send'
 import SwapIcon from '../../icons/Swap'
+import ScanModal from '../../components/ScanModal'
 import SwapComingSoonSheet from '../../components/SwapComingSoonSheet'
 import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
@@ -19,7 +20,13 @@ interface HomeAction {
 export default function HomeQuickActions() {
   const { navigate } = useContext(NavigationContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
+  const [scanOpen, setScanOpen] = useState(false)
   const [swapSheetOpen, setSwapSheetOpen] = useState(false)
+
+  const handleCapture = (data: string) => {
+    setSendInfo({ ...emptySendInfo, scannedData: data })
+    navigate(Pages.SendForm)
+  }
 
   const actions: HomeAction[] = [
     {
@@ -51,10 +58,7 @@ export default function HomeQuickActions() {
     {
       icon: <ScanIcon />,
       label: 'Scan',
-      onClick: () => {
-        setSendInfo({ ...emptySendInfo, scan: true })
-        navigate(Pages.SendForm)
-      },
+      onClick: () => setScanOpen(true),
       testId: 'home-action-scan',
     },
   ]
@@ -82,6 +86,7 @@ export default function HomeQuickActions() {
           </button>
         ))}
       </div>
+      <ScanModal isOpen={scanOpen} label='Scan QR code' onCapture={handleCapture} onClose={() => setScanOpen(false)} />
       <SwapComingSoonSheet isOpen={swapSheetOpen} onClose={() => setSwapSheetOpen(false)} />
     </>
   )
