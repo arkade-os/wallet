@@ -31,7 +31,9 @@ export function assetPairId(walletAssetId: string): string | undefined {
   return undefined // account rows ('account:usd') and placeholders have no on-chain id
 }
 
-const DEFAULT_REGISTRIES = ['https://raw.githubusercontent.com/ArkLabsHQ/market-registry/master']
+// The well-known default registry, published via GitHub Pages; the index
+// client appends /<network>.json.
+const DEFAULT_REGISTRIES = ['https://arklabshq.github.io/solver-registry']
 
 /** Registries the wallet follows; override with VITE_DISCOVERY_REGISTRIES (comma-separated base URLs). */
 export function discoveryRegistryUrls(): string[] {
