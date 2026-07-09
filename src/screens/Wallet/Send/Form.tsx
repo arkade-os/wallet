@@ -567,7 +567,9 @@ export default function SendForm() {
   useEffect(() => {
     const satoshis = sendInfo.satoshis ?? 0
     const onlyBtcAddress = sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice
-    if (sendInfo.lnUrl) {
+    if (sendInfo.arkAddress) {
+      setDeductFromAmount(false)
+    } else if (sendInfo.lnUrl) {
       const fees = calcSubmarineSwapFee(satoshis)
       setDeductFromAmount(satoshis + fees > liquidBalance)
     } else if (onlyBtcAddress) {
