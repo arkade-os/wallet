@@ -40,6 +40,7 @@ describe('onboarding — passkey registration wiring', () => {
   beforeEach(() => {
     localStorage.clear()
     vi.clearAllMocks()
+    vi.mocked(getLastPasskeyId).mockReturnValue(null) // fresh device by default
   })
 
   const renderInit = (overrides: { setInitInfo?: any; navigate?: any } = {}) => {
@@ -64,7 +65,7 @@ describe('onboarding — passkey registration wiring', () => {
   // creating is guarded by a confirm sheet that offers login first, so a user
   // with an existing passkey can't nuke it by accident
   const clickThroughCreate = async () => {
-    fireEvent.click(screen.getByText('+ Create new wallet'))
+    fireEvent.click(screen.getByText('+ Create wallet'))
     fireEvent.click(await screen.findByText('Create new wallet'))
   }
 
@@ -108,9 +109,25 @@ describe('onboarding — passkey registration wiring', () => {
     expect(navigate).not.toHaveBeenCalledWith(Pages.InitConnect)
   })
 
-  it('leads with passkey login as the primary action', () => {
+  it('offers create as primary on a fresh device, with login still reachable', () => {
     renderInit()
+    expect(screen.getByText('+ Create wallet')).toBeInTheDocument()
+    // a synced passkey can exist without this browser knowing — login stays
     expect(screen.getByText('Log in with Passkey')).toBeInTheDocument()
+  })
+
+  it('hides create when a passkey is known, surfacing it only after login fails', async () => {
+    vi.mocked(getLastPasskeyId).mockReturnValue('feed01')
+    vi.mocked(assertPrf).mockRejectedValue(new DOMException('gone', 'NotAllowedError'))
+    vi.mocked(assertPrfDiscoverable).mockRejectedValue(new DOMException('none', 'NotAllowedError'))
+    renderInit()
+
+    expect(screen.getByText('Log in with Passkey')).toBeInTheDocument()
+    expect(screen.queryByText(/create wallet/i)).not.toBeInTheDocument()
+
+    // login can't succeed (passkey deleted) → the escape hatch appears
+    fireEvent.click(screen.getByText('Log in with Passkey'))
+    expect(await screen.findByText('+ Create new wallet')).toBeInTheDocument()
   })
 
   it('targets the last-used passkey on login instead of showing the picker', async () => {

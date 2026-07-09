@@ -88,6 +88,10 @@ export default function Init() {
   }, [])
 
   const aspReady = !!aspInfo.signerPubkey || aspInfo.unreachable
+  // best signal the web allows for "a passkey exists here": this browser used
+  // one before (the id survives reset). Enumerating device passkeys is not
+  // possible — a synced passkey can exist without us knowing.
+  const hasKnownPasskey = Boolean(getLastPasskeyId()) || hasPasskeyWallet()
 
   useEffect(() => {
     if (wallet.pubkey && authState === 'authenticated') navigate(Pages.Wallet)
@@ -330,14 +334,49 @@ export default function Init() {
             pointerEvents: contentReady ? 'auto' : 'none',
           }}
         >
-          <Button disabled={error || !aspReady || creating} onClick={loginWithPasskey} label='Log in with Passkey' />
-          <Button
-            disabled={error || !aspReady || creating}
-            onClick={handleNewWallet}
-            label='+ Create new wallet'
-            secondary
-          />
-          <Button disabled={error || !aspReady || creating} onClick={handleOldWallet} label='Restore wallet' clear />
+          {hasKnownPasskey ? (
+            <>
+              {/* a passkey was used on this browser before: log in IS the flow.
+                  Create only surfaces if login fails (e.g. passkey deleted). */}
+              <Button
+                disabled={error || !aspReady || creating}
+                onClick={loginWithPasskey}
+                label='Log in with Passkey'
+              />
+              {loginError ? (
+                <Button
+                  disabled={error || !aspReady || creating}
+                  onClick={handleNewWallet}
+                  label='+ Create new wallet'
+                  secondary
+                />
+              ) : null}
+              <Button
+                disabled={error || !aspReady || creating}
+                onClick={handleOldWallet}
+                label='Restore wallet'
+                clear
+              />
+            </>
+          ) : (
+            <>
+              {/* fresh device: creating is the primary flow, but a synced passkey
+                  may exist invisibly (the web can't enumerate), so login stays */}
+              <Button disabled={error || !aspReady || creating} onClick={handleNewWallet} label='+ Create wallet' />
+              <Button
+                disabled={error || !aspReady || creating}
+                onClick={loginWithPasskey}
+                label='Log in with Passkey'
+                secondary
+              />
+              <Button
+                disabled={error || !aspReady || creating}
+                onClick={handleOldWallet}
+                label='Restore wallet'
+                clear
+              />
+            </>
+          )}
           <ErrorMessage error={Boolean(loginError)} text={loginError} />
         </motion.div>
       </ButtonsOnBottom>

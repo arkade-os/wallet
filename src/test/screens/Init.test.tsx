@@ -34,7 +34,7 @@ describe('Init screen — devMode triple-tap gesture (pristine wallet)', () => {
     renderInitWithProvider()
 
     // devMode starts off: confirming create skips the advanced options sheet
-    fireEvent.click(screen.getByText('+ Create new wallet'))
+    fireEvent.click(screen.getByText('+ Create wallet'))
     fireEvent.click(await screen.findByText('Create new wallet'))
     expect(screen.queryByTestId('toggle-hd-rotation')).not.toBeInTheDocument()
 
@@ -45,7 +45,7 @@ describe('Init screen — devMode triple-tap gesture (pristine wallet)', () => {
     fireEvent.click(heading)
 
     // Now confirming create opens the advanced sheet with the rotation toggle
-    fireEvent.click(screen.getByText('+ Create new wallet'))
+    fireEvent.click(screen.getByText('+ Create wallet'))
     fireEvent.click(await screen.findByText('Create new wallet'))
     expect(await screen.findByTestId('toggle-hd-rotation')).toBeInTheDocument()
   })
