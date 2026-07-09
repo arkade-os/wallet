@@ -1,4 +1,4 @@
-import { test as base, type Page } from '@playwright/test'
+import { test as base, type Page, type CDPSession } from '@playwright/test'
 import { faucetOffchain } from './fundedWallet'
 import { sleep } from '../../lib/sleep'
 import { exec } from 'child_process'
@@ -6,7 +6,43 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
-export const test = base.extend({
+// Onboarding registers a WebAuthn passkey (PRF). Plain Chromium has no
+// authenticator, so credentials.create() would hang until timeout. Attach a
+// virtual platform authenticator with PRF so the passkey ceremony completes
+// automatically (no user interaction). Exposed via the `webauthn` fixture so
+// individual tests can remove it to exercise the passwordless fallback.
+export type WebAuthn = {
+  client: CDPSession
+  authenticatorId: string
+  /** remove the authenticator so create() falls back to passwordless */
+  disable: () => Promise<void>
+}
+
+async function addVirtualAuthenticator(page: Page): Promise<WebAuthn> {
+  const client = await page.context().newCDPSession(page)
+  await client.send('WebAuthn.enable')
+  const { authenticatorId } = await client.send('WebAuthn.addVirtualAuthenticator', {
+    options: {
+      protocol: 'ctap2',
+      ctap2Version: 'ctap2_1',
+      transport: 'internal',
+      hasResidentKey: true,
+      hasUserVerification: true,
+      hasPrf: true,
+      automaticPresenceSimulation: true,
+      isUserVerified: true,
+    },
+  })
+  return {
+    client,
+    authenticatorId,
+    disable: async () => {
+      await client.send('WebAuthn.removeVirtualAuthenticator', { authenticatorId }).catch(() => {})
+    },
+  }
+}
+
+export const test = base.extend<{ webauthn: WebAuthn }>({
   page: async ({ page }, use) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     // Pre-set currency to BTC/sats so e2e tests see sats amounts.
@@ -19,6 +55,15 @@ export const test = base.extend({
     })
     await use(page)
   },
+  // auto so EVERY test gets a working authenticator without opting in; a test
+  // can still declare `webauthn` in its args to disable it for passwordless
+  webauthn: [
+    async ({ page }, use) => {
+      const webauthn = await addVirtualAuthenticator(page)
+      await use(webauthn)
+    },
+    { auto: true },
+  ],
 })
 
 export { expect } from '@playwright/test'
@@ -141,7 +186,23 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
 
 export async function createWallet(page: Page): Promise<void> {
   await page.goto('/')
+  // fresh device: '+ Create wallet' primary → confirm sheet → 'Create new wallet'.
+  // (with the virtual authenticator the passkey ceremony completes silently)
   await page.getByText('+ Create wallet').click()
+  await page.getByRole('button', { name: 'Create new wallet' }).click()
+  await waitForWalletPage(page)
+}
+
+// Create a passwordless (no-passkey) wallet by removing the authenticator so
+// registration fails and the explicit fallback is taken. For legacy
+// password/lock flows.
+export async function createPasswordlessWallet(page: Page, webauthn: WebAuthn): Promise<void> {
+  await webauthn.disable()
+  await page.goto('/')
+  await page.getByText('+ Create wallet').click()
+  await page.getByRole('button', { name: 'Create new wallet' }).click()
+  // ceremony fails with no authenticator → fallback sheet
+  await page.getByText('Continue without passkey').click()
   await waitForWalletPage(page)
 }
 
@@ -156,8 +217,10 @@ export async function createWalletWithFiat(page: Page): Promise<void> {
   await navigateHome(page)
 }
 
-export async function createWalletWithPassword(page: Page, password: string): Promise<void> {
-  await createWallet(page)
+export async function createWalletWithPassword(page: Page, password: string, webauthn: WebAuthn): Promise<void> {
+  // password flows require a NON-passkey wallet (a passkey wallet has no
+  // password to change), so build the passwordless fallback wallet
+  await createPasswordlessWallet(page, webauthn)
   await navigateToSettings(page)
   await page.getByText('Advanced').click()
   await page.getByText('Change password').click()
@@ -299,10 +362,15 @@ async function getSecret(page: Page): Promise<string> {
 }
 
 async function restoreWallet(page: Page, nsec: string): Promise<void> {
-  await page.getByText('Other login options').click()
   await page.getByText('Restore wallet').click()
   await page.locator('input[name="private-key"]').fill(nsec)
   await page.getByText('Continue').click()
+  // a seed restore now lands on the Passkey migration screen (recovery vehicle);
+  // back out to the wallet — the migration itself is exercised separately
+  const migrateHeader = page.getByText('Move to a passkey wallet')
+  if (await migrateHeader.isVisible({ timeout: 15000 }).catch(() => false)) {
+    await page.getByLabel('Go back').click()
+  }
   await waitForWalletPage(page)
 }
 

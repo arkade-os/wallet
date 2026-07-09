@@ -23,9 +23,9 @@ test('should be able to get recovery phrase without password', async ({ page }) 
   expect(mnemonic?.trim().split(/\s+/).length).toBe(12)
 })
 
-test('should be able to get recovery phrase with password', async ({ page }) => {
+test('should be able to get recovery phrase with password', async ({ page, webauthn }) => {
   // Create wallet (mnemonic-based by default)
-  await createWalletWithPassword(page, 'testpassword')
+  await createWalletWithPassword(page, 'testpassword', webauthn)
 
   // Go to Settings > Backup
   await navigateToSettings(page)

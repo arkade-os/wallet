@@ -1,79 +1,69 @@
-import { test, expect, createWallet, createWalletWithPassword, navigateToSettings } from './utils'
+import { test, expect, createPasswordlessWallet, createWalletWithPassword, navigateToSettings } from './utils'
 
-test('should have lock wallet option', async ({ page }) => {
-  // Create wallet
-  await createWallet(page)
+// These cover the legacy password-based lock. Passkey wallets lock/unlock via
+// the passkey (covered by the passkey-flow vitest tests), so here we build the
+// passwordless fallback wallet and drive the password path.
 
-  // Go to settings and check for lock wallet option
+test('should offer passkey or password when the wallet is unprotected', async ({ page, webauthn }) => {
+  await createPasswordlessWallet(page, webauthn)
+
   await navigateToSettings(page)
   await page.getByText('lock wallet', { exact: true }).click()
-  await expect(page.getByText('No password defined')).toBeVisible()
-  await expect(page.getByText('You need to set a password to lock.')).toBeVisible()
-  await expect(page.getByText('Set password')).toBeVisible()
+  await expect(page.getByText('Wallet not protected')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Use a passkey' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Set Password' })).toBeVisible()
 })
 
-test('should set and verify password', async ({ page }) => {
-  // Create wallet
-  await createWallet(page)
+test('should set and verify password', async ({ page, webauthn }) => {
+  await createPasswordlessWallet(page, webauthn)
 
-  // Go to settings and set password
   await navigateToSettings(page)
   await page.getByText('lock wallet', { exact: true }).click()
-  await page.getByText('Set password').click()
+  await page.getByRole('button', { name: 'Set Password' }).click()
   await page.locator('div[data-testid="new-password"] input').fill('testpassword')
   await page.locator('div[data-testid="confirm-password"] input').fill('testpassword')
   await page.getByText('Save password').click()
 
-  // Verify password is set
   await expect(page.getByText('Password changed')).toBeVisible()
 })
 
-test('should lock and unlock wallet without previous password', async ({ page }) => {
-  // Create wallet
-  await createWallet(page)
+test('should lock and unlock wallet without previous password', async ({ page, webauthn }) => {
+  await createPasswordlessWallet(page, webauthn)
 
-  // Set password
+  // set a password
   await navigateToSettings(page)
   await page.getByText('lock wallet', { exact: true }).click()
-  await page.getByText('Set password').click()
+  await page.getByRole('button', { name: 'Set Password' }).click()
   await page.locator('div[data-testid="new-password"] input').fill('testpassword')
   await page.locator('div[data-testid="confirm-password"] input').fill('testpassword')
   await page.getByText('Save password').click()
   await page.getByLabel('Go back').click()
   await page.getByLabel('Go back').click()
 
-  // Lock wallet
+  // lock wallet
   await navigateToSettings(page)
   await page.getByText('lock wallet', { exact: true }).click()
-  await page.getByText('Lock wallet').click()
+  await page.getByText('Lock Wallet').click()
 
-  // Verify wallet is locked
   await expect(page.getByText('Insert password')).toBeVisible()
 
-  // Unlock wallet
   await page.locator('div[data-testid="password"] input').fill('testpassword')
   await page.getByText('Unlock wallet').click()
 
-  // Verify wallet is unlocked
   await page.waitForSelector('text=Receive', { state: 'visible', timeout: 5000 })
 })
 
-test('should lock and unlock wallet with previous password', async ({ page }) => {
-  // Create wallet
-  await createWalletWithPassword(page, 'testpassword')
+test('should lock and unlock wallet with previous password', async ({ page, webauthn }) => {
+  await createWalletWithPassword(page, 'testpassword', webauthn)
 
-  // Lock wallet
   await navigateToSettings(page)
   await page.getByText('lock wallet', { exact: true }).click()
-  await page.getByText('Lock wallet').click()
+  await page.getByText('Lock Wallet').click()
 
-  // Verify wallet is locked
   await expect(page.getByText('Insert password')).toBeVisible()
 
-  // Unlock wallet
   await page.locator('div[data-testid="password"] input').fill('testpassword')
   await page.getByText('Unlock wallet').click()
 
-  // Verify wallet is unlocked
   await page.waitForSelector('text=Receive', { state: 'visible', timeout: 5000 })
 })
