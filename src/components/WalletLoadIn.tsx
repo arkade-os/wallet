@@ -30,7 +30,7 @@ export function WalletStaggerContainer({
       initial='initial'
       animate={hold ? 'initial' : 'animate'}
       variants={walletLoadInContainer}
-      style={{ contain: 'layout style paint', width: '100%' }}
+      style={{ contain: 'layout style', width: '100%' }}
     >
       {children}
     </motion.div>
@@ -61,7 +61,7 @@ export function WalletStaggerChild({
       className={className}
       variants={walletLoadInChild}
       style={{
-        contain: 'layout style paint',
+        contain: 'layout style',
         width: '100%',
       }}
     >
