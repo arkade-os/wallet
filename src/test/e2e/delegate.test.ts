@@ -1,5 +1,7 @@
-import { test, expect } from '@playwright/test'
-import { createWallet, navigateToSettings, waitForWalletPage } from './utils'
+// import test/expect from ./utils (not @playwright/test) so this spec gets the
+// webauthn virtual-authenticator fixture — createWallet now runs a passkey
+// ceremony, which hangs without an authenticator and never boots the wallet.
+import { test, expect, createWallet, navigateToSettings, waitForWalletPage } from './utils'
 
 test('should toggle delegates', async ({ page }) => {
   test.setTimeout(120000)

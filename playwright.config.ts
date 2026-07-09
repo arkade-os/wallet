@@ -14,7 +14,7 @@ export default defineConfig({
   // authenticator + fast-fail stub), so restore generous retries and keep
   // maxFailures as the belt-and-suspenders so a truly broken spec still reports
   // in minutes rather than burning the whole job.
-  retries: process.env.CI ? 5 : 0,
+  retries: process.env.CI ? 4 : 0,
   maxFailures: process.env.CI ? 10 : undefined,
   workers: 1,
   reporter: 'list',
