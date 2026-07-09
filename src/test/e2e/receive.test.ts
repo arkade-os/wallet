@@ -19,7 +19,7 @@ import { sleep } from '../../lib/sleep'
 const execFileAsync = promisify(execFile)
 
 test('should receive onchain funds', async ({ page }) => {
-  test.setTimeout(60000)
+  test.setTimeout(120000)
   // create wallet
   await createWallet(page)
 

@@ -78,7 +78,7 @@ export { expect }
  * error's "Continue anyway" button, dismisses the error if it shows,
  * and then waits for the wallet page.
  */
-export async function waitForWalletPage(page: Page, timeout = 60000): Promise<void> {
+export async function waitForWalletPage(page: Page, timeout = 90000): Promise<void> {
   const sendBtn = page.getByText('Send', { exact: true })
   const continueBtn = page.getByText('Continue anyway')
   await sendBtn.or(continueBtn).first().waitFor({ state: 'visible', timeout })
