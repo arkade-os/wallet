@@ -7,6 +7,7 @@ import { AspContext } from '../../../providers/asp'
 import createFetchMock from 'vitest-fetch-mock'
 import { getDelegateUrlForNetwork } from '../../../lib/constants'
 
+let fetchMocker: ReturnType<typeof createFetchMock>
 let mockDelegatesAspContextValue = { ...mockAspContextValue }
 
 const getMockConfigWithDelegate = (bool: boolean) => ({
@@ -20,7 +21,7 @@ describe('Delegates screen', () => {
     mockDelegatesAspContextValue.aspInfo.signerPubkey =
       '02e35799157be4b37565bb5afe4d04e6a0fa0a4b6a4f4e48b0d904685d253cdbdb'
 
-    const fetchMocker = createFetchMock(vi)
+    fetchMocker = createFetchMock(vi)
     fetchMocker.enableMocks()
     fetchMocker.mockResponseOnce(
       JSON.stringify({
@@ -36,7 +37,6 @@ describe('Delegates screen', () => {
   })
 
   afterEach(() => {
-    const fetchMocker = createFetchMock(vi)
     fetchMocker.disableMocks()
   })
 
