@@ -30,7 +30,7 @@ const execAsync = promisify(exec)
 // 9. Restore wallet with nsec key
 // 10. Verify setting is euro (proving it was restored from nostr)
 test('should save config to nostr', async ({ page }) => {
-  test.setTimeout(180000)
+  test.setTimeout(120000)
   // create wallet
   await createWallet(page)
 
@@ -76,7 +76,7 @@ test('should save config to nostr', async ({ page }) => {
 })
 
 test('should save swaps to nostr', async ({ page, isMobile }) => {
-  test.setTimeout(180000)
+  test.setTimeout(120000)
   // create wallet
   await createWallet(page)
 

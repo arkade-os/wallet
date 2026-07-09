@@ -408,7 +408,14 @@ async function restoreWallet(page: Page, nsec: string): Promise<void> {
   const sendBtn = page.getByText('Send', { exact: true })
   await migrateHeader.or(sendBtn).first().waitFor({ state: 'visible', timeout: 60000 })
   if (await migrateHeader.isVisible().catch(() => false)) {
-    await page.goto('/')
+    // navigate to the wallet home via the in-app hook (no page reload) so the
+    // freshly restored nostr config (currency, swap history) isn't dropped by a
+    // reload racing the async config persist
+    await page.evaluate(() => {
+      const nav = (window as typeof window & { __ARKADE_E2E_NAVIGATE__?: (p: string) => void }).__ARKADE_E2E_NAVIGATE__
+      if (!nav) throw new Error('E2E navigation hook is unavailable')
+      nav('Wallet')
+    })
   }
   await waitForWalletPage(page)
 }

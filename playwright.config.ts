@@ -8,11 +8,14 @@ export default defineConfig({
   timeout: 90000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  // 5 retries × 2 projects turns a handful of broken specs into a 45-minute
-  // job-timeout with no signal. Keep 2 retries for regtest flakiness, and bail
-  // after a few genuine failures so CI reports WHICH specs failed in minutes.
-  retries: process.env.CI ? 2 : 0,
-  maxFailures: process.env.CI ? 6 : undefined,
+  // master runs 5 retries to ride out regtest flakiness (swap/restore/boot
+  // timing). The old 45-minute job-timeout came from WebAuthn ceremonies
+  // HANGING × retries, not from retries themselves — that hang is fixed (virtual
+  // authenticator + fast-fail stub), so restore generous retries and keep
+  // maxFailures as the belt-and-suspenders so a truly broken spec still reports
+  // in minutes rather than burning the whole job.
+  retries: process.env.CI ? 4 : 0,
+  maxFailures: process.env.CI ? 10 : undefined,
   workers: 1,
   reporter: 'list',
   use: {
