@@ -1,4 +1,4 @@
-import { test as base, type Page, type CDPSession } from '@playwright/test'
+import { test as base, expect, type Page, type CDPSession } from '@playwright/test'
 import { faucetOffchain } from './fundedWallet'
 import { sleep } from '../../lib/sleep'
 import { exec } from 'child_process'
@@ -66,7 +66,7 @@ export const test = base.extend<{ webauthn: WebAuthn }>({
   ],
 })
 
-export { expect } from '@playwright/test'
+export { expect }
 
 /**
  * Wait for the wallet main page to be ready.
@@ -357,6 +357,9 @@ async function getSecret(page: Page): Promise<string> {
   const viewBtn = page.getByText('View recovery phrase').or(page.getByText('View private key'))
   await viewBtn.click()
   await page.getByText('Confirm').click()
+  // a passkey wallet derives the phrase asynchronously (assertPrf + HKDF) after
+  // Confirm, so wait until the obfuscation is replaced before reading
+  await expect(page.getByTestId('private-key')).not.toHaveText(/^\*+$/)
   const secret = await page.getByTestId('private-key').innerText()
   return secret
 }
