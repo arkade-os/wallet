@@ -1,6 +1,11 @@
 import { getPublicKey, nip19 } from 'nostr-tools'
 import { defaultPassword } from './constants'
-import { MNEMONIC_STORAGE_KEY, NSEC_STORAGE_KEY, PRF_MNEMONIC_STORAGE_KEY } from './storageKeys'
+import {
+  MNEMONIC_STORAGE_KEY,
+  NSEC_STORAGE_KEY,
+  PASSKEY_WALLET_STORAGE_KEY,
+  PRF_MNEMONIC_STORAGE_KEY,
+} from './storageKeys'
 
 export const invalidPrivateKey = (key: Uint8Array): string => {
   if (key.length === 0) return ''
@@ -48,6 +53,7 @@ export const setPrivateKey = async (privateKey: Uint8Array, password: string): P
     storeEncryptedPrivateKey(encryptedPrivateKey)
     localStorage.removeItem(MNEMONIC_STORAGE_KEY)
     localStorage.removeItem(PRF_MNEMONIC_STORAGE_KEY)
+    localStorage.removeItem(PASSKEY_WALLET_STORAGE_KEY)
   } catch (error) {
     console.error('Failed to encrypt and store private key:', error)
     throw new Error('Failed to set private key')

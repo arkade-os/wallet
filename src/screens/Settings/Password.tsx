@@ -14,7 +14,7 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { isBiometricsSupported, registerUser } from '../../lib/biometrics'
 import { getPrivateKey, isValidPassword, noUserDefinedPassword, setPrivateKey } from '../../lib/privateKey'
 import { hasMnemonic, getMnemonic, setMnemonic } from '../../lib/mnemonic'
-import { hasPrfMnemonic } from '../../lib/passkeyVault'
+import { hasPasskeyWallet } from '../../lib/passkeyVault'
 import CenterScreen from '../../components/CenterScreen'
 import Text, { TextSecondary } from '../../components/Text'
 import FingerprintIcon from '../../icons/Fingerprint'
@@ -87,9 +87,9 @@ export default function Password() {
     if (ok) updateWallet({ ...wallet, lockedByBiometrics: false })
   }
 
-  // PRF-passkey wallets have no password to change: the encryption key comes
-  // from the passkey itself.
-  if (hasPrfMnemonic()) {
+  // PRF-passkey wallets have no password to change: the seed is derived from
+  // the passkey itself.
+  if (hasPasskeyWallet()) {
     return (
       <>
         <Header text='Change password' back />
@@ -99,7 +99,7 @@ export default function Password() {
               <FingerprintIcon />
               <Text centered>Secured with a passkey</Text>
               <TextSecondary centered wrap>
-                This wallet is encrypted with your passkey — there is no password to change. Keep your 12-word recovery
+                This wallet is derived from your passkey — there is no password to change. Keep your 12-word recovery
                 phrase backed up in case you lose access to your passkey.
               </TextSecondary>
             </CenterScreen>

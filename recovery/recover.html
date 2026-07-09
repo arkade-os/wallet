@@ -225,7 +225,7 @@
           class="hidden"
           autocomplete="off"
           spellcheck="false"
-          placeholder='{"v":1,"credentialId":"...","data":"..."} — value of localStorage key "encrypted_mnemonic_prf"'
+          placeholder='{"v":1,"credentialId":"..."} — value of localStorage key "passkey_wallet"'
         ></textarea>
         <button id="passkey-unlock">Unlock with passkey</button>
         <div id="passkey-error" class="error"></div>
@@ -245,8 +245,8 @@
       <h2>Decrypt an encrypted wallet backup</h2>
       <p class="muted">
         If you copied the encrypted value from the app's storage (<code>encrypted_mnemonic</code> or
-        <code>encrypted_private_key</code>), paste it here with the wallet password to decrypt it. Wallets secured
-        with a passkey can't be decrypted this way — use the 12 words above instead.
+        <code>encrypted_private_key</code>), paste it here with the wallet password to decrypt it. Passkey wallets
+        store no encrypted blob — recover them with the 12 words, or the passkey section above.
       </p>
       <textarea id="blob" autocomplete="off" spellcheck="false" placeholder="base64 encrypted backup"></textarea>
       <input id="password" type="password" autocomplete="off" placeholder="wallet password" />

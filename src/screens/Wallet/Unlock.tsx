@@ -5,7 +5,7 @@ import NeedsPassword from '../../components/NeedsPassword'
 import NeedsPasskey from '../../components/NeedsPasskey'
 import Header from '../../components/Header'
 import { NavigationContext, Pages } from '../../providers/navigation'
-import { hasPrfMnemonic } from '../../lib/passkeyVault'
+import { hasPasskeyWallet } from '../../lib/passkeyVault'
 
 export default function Unlock() {
   const { navigate } = useContext(NavigationContext)
@@ -14,7 +14,7 @@ export default function Unlock() {
   const [error, setError] = useState('')
   const [unlocking, setUnlocking] = useState(false)
 
-  const usesPasskey = hasPrfMnemonic()
+  const usesPasskey = hasPasskeyWallet()
 
   const handleUnlock = async (password: string) => {
     setError('')

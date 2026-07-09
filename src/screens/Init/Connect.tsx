@@ -6,7 +6,7 @@ import LoadingLogo from '../../components/LoadingLogo'
 import Header from '../../components/Header'
 import { setPrivateKey } from '../../lib/privateKey'
 import { setMnemonic } from '../../lib/mnemonic'
-import { setMnemonicWithPrf } from '../../lib/passkeyVault'
+import { setPasskeyWallet } from '../../lib/passkeyVault'
 import { consoleError, consoleLog } from '../../lib/logs'
 import { SwapsContext } from '../../providers/swaps'
 import { useLoadingStatus } from '../../hooks/useLoadingStatus'
@@ -24,7 +24,7 @@ export default function InitConnect() {
   const [initialized, setInitialized] = useState(false)
   const [connectDone, setConnectDone] = useState(false)
 
-  const { password, privateKey, mnemonic, walletMode, prf, legacyPasskey } = initInfo
+  const { password, privateKey, mnemonic, walletMode, passkeyCredentialId, legacyPasskey } = initInfo
 
   // restored wallets don't need the backup nudge: the user already has the words
   const markRestoredAsBackedUp = () => {
@@ -32,15 +32,16 @@ export default function InitConnect() {
   }
 
   useEffect(() => {
-    if (mnemonic && prf) {
-      setMnemonicWithPrf(mnemonic, prf.credentialId, prf.prfOutput)
-        .then(() => initWallet({ mnemonic, walletMode, restoring: initInfo.restoring }))
+    if (mnemonic && passkeyCredentialId) {
+      // FileKey model: the mnemonic is derived from the passkey PRF, so persist
+      // only which credential to assert — no secret is stored at rest.
+      setPasskeyWallet(passkeyCredentialId)
+      initWallet({ mnemonic, walletMode, restoring: initInfo.restoring })
         .then(() => {
           markRestoredAsBackedUp()
           setInitialized(true)
         })
         .catch(abortConnectionWithError)
-        .finally(() => prf.prfOutput.fill(0))
       return
     }
     if (!password || (!mnemonic && !privateKey)) {
@@ -86,7 +87,7 @@ export default function InitConnect() {
       privateKey: undefined,
       mnemonic: undefined,
       walletMode: undefined,
-      prf: undefined,
+      passkeyCredentialId: undefined,
       legacyPasskey: undefined,
     })
     navigate(error ? Pages.Init : Pages.Wallet)

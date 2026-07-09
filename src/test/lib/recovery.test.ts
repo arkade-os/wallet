@@ -4,14 +4,14 @@ import {
   recoverKeys,
   keysFromPrivateKey,
   decryptBackup,
-  decryptPrfVault,
+  mnemonicFromPrfOutput,
   isValidMnemonic,
-  parsePrfVault,
+  parsePasskeyDescriptor,
 } from '../../../recovery/crypto'
 import { deriveNostrKeyFromMnemonic, setMnemonic } from '../../lib/mnemonic'
 import { setPrivateKey, privateKeyToNsec } from '../../lib/privateKey'
-import { setMnemonicWithPrf } from '../../lib/passkeyVault'
-import { MNEMONIC_STORAGE_KEY, NSEC_STORAGE_KEY, PRF_MNEMONIC_STORAGE_KEY } from '../../lib/storageKeys'
+import { mnemonicFromPrf } from '../../lib/passkeyVault'
+import { MNEMONIC_STORAGE_KEY, NSEC_STORAGE_KEY } from '../../lib/storageKeys'
 
 const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
 
@@ -82,26 +82,26 @@ describe('offline recovery tool crypto', () => {
     })
   })
 
-  describe('passkey vault recovery (seized-domain rescue)', () => {
+  describe('passkey recovery (seized-domain rescue)', () => {
     const prfOutput = () => new Uint8Array(32).fill(7)
 
-    it('decrypts a PRF vault produced by the app', async () => {
-      await setMnemonicWithPrf(testMnemonic, 'deadbeef', prfOutput())
-      const raw = localStorage.getItem(PRF_MNEMONIC_STORAGE_KEY)!
-      expect(parsePrfVault(raw).credentialId).toBe('deadbeef')
-      expect(await decryptPrfVault(raw, prfOutput())).toBe(testMnemonic)
+    it('derives the same mnemonic as the app from a PRF output', async () => {
+      // the recovery tool must reproduce the app's exact derivation
+      expect(await mnemonicFromPrfOutput(prfOutput())).toBe(await mnemonicFromPrf(prfOutput()))
     })
 
-    it('fails with the wrong PRF output', async () => {
-      await setMnemonicWithPrf(testMnemonic, 'deadbeef', prfOutput())
-      const raw = localStorage.getItem(PRF_MNEMONIC_STORAGE_KEY)!
-      await expect(decryptPrfVault(raw, new Uint8Array(32).fill(8))).rejects.toThrow('does not match the vault')
+    it('derives a valid, restorable 12-word mnemonic', async () => {
+      const mnemonic = await mnemonicFromPrfOutput(prfOutput())
+      expect(isValidMnemonic(mnemonic)).toBe(true)
+      // a passkey-recovered mnemonic yields the same keys as typing those words
+      expect(recoverKeys(mnemonic, true).nsec).toBe(privateKeyToNsec(deriveNostrKeyFromMnemonic(mnemonic, true)))
     })
 
-    it('rejects malformed vaults', () => {
-      expect(() => parsePrfVault('not json')).toThrow('not valid JSON')
-      expect(() => parsePrfVault('{"v":2,"credentialId":"a","data":"b"}')).toThrow('expected')
-      expect(() => parsePrfVault('{"v":1}')).toThrow('expected')
+    it('parses a passkey descriptor and rejects malformed input', () => {
+      expect(parsePasskeyDescriptor('{"v":1,"credentialId":"abcd"}').credentialId).toBe('abcd')
+      expect(() => parsePasskeyDescriptor('not json')).toThrow('not valid JSON')
+      expect(() => parsePasskeyDescriptor('{"v":2,"credentialId":"a"}')).toThrow('expected')
+      expect(() => parsePasskeyDescriptor('{"v":1}')).toThrow('expected')
     })
   })
 

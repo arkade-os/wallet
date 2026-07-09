@@ -37,7 +37,7 @@ import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
-import { hasPrfMnemonic, getMnemonicWithPasskey } from '../lib/passkeyVault'
+import { hasPasskeyWallet, getMnemonicWithPasskey } from '../lib/passkeyVault'
 import { resolveWalletMode } from '../lib/walletMode'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { setLoadingStatus } from '../lib/loadingStatus'
@@ -291,7 +291,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
     const detectAuthState = async (): Promise<WalletAuthState> => {
       // presence of a PRF vault is enough — decryption needs a passkey assertion
-      if (hasPrfMnemonic()) return 'passkey'
+      if (hasPasskeyWallet()) return 'passkey'
       if (hasMnemonic()) {
         try {
           await getMnemonic(defaultPassword)
@@ -832,7 +832,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     reloadTimerRef.current = undefined
     removeServiceWorkerMessageHandler()
     await svcWallet.clear()
-    setAuthState(hasPrfMnemonic() ? 'passkey' : 'locked')
+    setAuthState(hasPasskeyWallet() ? 'passkey' : 'locked')
     setInitialized(false)
     setDataReady(false)
     hasLoadedOnce.current = false

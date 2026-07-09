@@ -1,7 +1,7 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
 import { WalletContext } from './wallet'
 import { hasMnemonic } from '../lib/mnemonic'
-import { hasPrfMnemonic } from '../lib/passkeyVault'
+import { hasPasskeyWallet } from '../lib/passkeyVault'
 import { minSatsToNudge } from '../lib/constants'
 import { NavigationContext, Pages } from './navigation'
 import { OptionsContext } from './options'
@@ -33,7 +33,7 @@ export const NudgeProvider = ({ children }: { children: ReactNode }) => {
   const [shouldShow, setShouldShow] = useState(false)
   const [checkComplete, setCheckComplete] = useState(false)
 
-  const isMnemonicWallet = hasMnemonic() || hasPrfMnemonic()
+  const isMnemonicWallet = hasMnemonic() || hasPasskeyWallet()
 
   const navigateToBackup = () => {
     setOption(SettingsOptions.Backup)
@@ -54,7 +54,7 @@ export const NudgeProvider = ({ children }: { children: ReactNode }) => {
     // PRF-passkey wallets have no password fallback: if the passkey is lost, the
     // 12 words are the only way back, and revealing them needs the passkey. So
     // prompt to back up as soon as there are any funds, not just above 100k.
-    const threshold = hasPrfMnemonic() ? 0 : minSatsToNudge
+    const threshold = hasPasskeyWallet() ? 0 : minSatsToNudge
     setShouldShow(balance > threshold)
     setCheckComplete(true)
   }, [wallet, balance, dismissed])

@@ -16,6 +16,7 @@ import FlexCol from '../../components/FlexCol'
 import SheetModal from '../../components/SheetModal'
 import { defaultPassword } from '../../lib/constants'
 import { isWebAuthnSupported, registerPasskey } from '../../lib/passkey'
+import { mnemonicFromPrf } from '../../lib/passkeyVault'
 import { consoleError } from '../../lib/logs'
 import { OnboardStaggerChild } from '../../components/OnboardLoadIn'
 import { motion } from 'framer-motion'
@@ -89,28 +90,28 @@ export default function Init() {
     setError(aspInfo.unreachable)
   }, [aspInfo.unreachable])
 
-  // Passkeys-only by default: register a passkey with the PRF extension and
-  // derive the vault key from its output. Authenticators without PRF silently
-  // reuse the same credential with the legacy userHandle scheme. Only when the
-  // passkey ceremony fails (unsupported browser, user cancel) do we offer an
-  // explicit passwordless fallback.
+  // Passkeys-only by default (FileKey model): the passkey PRF output IS the
+  // wallet seed — we derive the 12-word mnemonic deterministically from it, so
+  // the passkey alone reconstructs the wallet and the words are its backup.
+  // Authenticators without PRF fall back to an independently-generated mnemonic
+  // under the legacy userHandle scheme. Only when the passkey ceremony fails
+  // (unsupported browser, user cancel) do we offer an explicit passwordless
+  // fallback.
   const createWallet = async (mode: ServiceWorkerWalletMode) => {
-    const mnemonic = pendingCreate.current?.mnemonic ?? generateMnemonic(wordlist)
-    pendingCreate.current = { mnemonic, mode }
+    // fallback mnemonic used only for the non-PRF paths (legacy / passwordless)
+    const fallbackMnemonic = pendingCreate.current?.mnemonic ?? generateMnemonic(wordlist)
+    pendingCreate.current = { mnemonic: fallbackMnemonic, mode }
     if (!isWebAuthnSupported()) return createWalletWithoutPasskey()
     setCreating(true)
     try {
       const reg = await registerPasskey()
       if (reg.kind === 'prf') {
-        setInitInfo({
-          mnemonic,
-          prf: { credentialId: reg.credentialId, prfOutput: reg.prfOutput },
-          restoring: false,
-          walletMode: mode,
-        })
+        const mnemonic = await mnemonicFromPrf(reg.prfOutput)
+        reg.prfOutput.fill(0)
+        setInitInfo({ mnemonic, passkeyCredentialId: reg.credentialId, restoring: false, walletMode: mode })
       } else {
         setInitInfo({
-          mnemonic,
+          mnemonic: fallbackMnemonic,
           password: reg.legacySecret,
           legacyPasskey: { credentialId: reg.credentialId },
           restoring: false,

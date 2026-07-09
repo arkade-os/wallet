@@ -100,7 +100,7 @@ export default function App() {
     if (aspInfo.unreachable) return navigate(Pages.Unavailable)
     if (jsCapabilitiesChecked && !isCapable) return navigate(Pages.Unavailable)
     // avoid redirect if the user is still setting up the wallet
-    if (initInfo.password || initInfo.privateKey || initInfo.prf) return
+    if (initInfo.password || initInfo.privateKey || initInfo.passkeyCredentialId) return
     if (!walletLoaded) return navigate(Pages.Loading)
     // dev auto-init: stay on loading screen while VITE_DEV_NSEC/MNEMONIC initializes the wallet
     if (import.meta.env.DEV && (import.meta.env.VITE_DEV_NSEC || import.meta.env.VITE_DEV_MNEMONIC) && !initialized)
@@ -136,7 +136,7 @@ export default function App() {
   // Hold the loading screen during boot until wallet data is ready.
   // Skip during the init/connect flow (creating or restoring a wallet) so the
   // Connect component stays mounted and can run swap recovery before navigating.
-  const isInInitFlow = !!(initInfo.password || initInfo.privateKey || initInfo.prf)
+  const isInInitFlow = !!(initInfo.password || initInfo.privateKey || initInfo.passkeyCredentialId)
   const shouldHoldOnLoading = hasStoredWallet && (!initialized || !dataReady) && !needsManualUnlock && !isInInitFlow
 
   useEffect(() => {

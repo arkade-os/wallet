@@ -123,14 +123,14 @@ describe('App startup routing', () => {
   })
 
   it('shows the passkey unlock without auto-prompting for passkey wallets', async () => {
-    // presence of the PRF vault is what routes the Unlock screen to the passkey variant
-    localStorage.setItem('encrypted_mnemonic_prf', JSON.stringify({ v: 1, credentialId: 'aa', data: 'bb' }))
+    // presence of the passkey descriptor is what routes the Unlock screen to the passkey variant
+    localStorage.setItem('passkey_wallet', JSON.stringify({ v: 1, credentialId: 'aa' }))
     const { navigate, unlockWallet } = renderApp({ authState: 'passkey', initialized: false })
 
     expect(await screen.findByText('Unlock with your passkey')).toBeInTheDocument()
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.Unlock))
     expect(unlockWallet).not.toHaveBeenCalled()
-    localStorage.removeItem('encrypted_mnemonic_prf')
+    localStorage.removeItem('passkey_wallet')
   })
 
   it('keeps authenticated but uninitialized wallets on loading', async () => {

@@ -4,8 +4,8 @@ import { wordlist } from '@scure/bip39/wordlists/english'
 import { hex } from '@scure/base'
 import { getPublicKey } from 'nostr-tools/pure'
 import * as nip19 from 'nostr-tools/nip19'
-// reuse the app's own vault code so the recovery tool can never drift from it
-import { decryptMnemonicWithPrf, type PrfVault } from '../src/lib/passkeyVault'
+// reuse the app's own derivation so the recovery tool can never drift from it
+import { mnemonicFromPrf, type PasskeyDescriptor } from '../src/lib/passkeyVault'
 
 export interface RecoveredKeys {
   privateKeyHex: string
@@ -101,29 +101,23 @@ export const decryptBackup = async (encryptedBase64: string, password: string): 
 }
 
 /**
- * Parses a passkey (PRF) vault as stored by the app under the localStorage
- * key `encrypted_mnemonic_prf`: {"v":1,"credentialId":"<hex>","data":"<base64>"}.
+ * Parses a passkey-wallet descriptor as stored by the app under the
+ * localStorage key `passkey_wallet`: {"v":1,"credentialId":"<hex>"}.
+ * The descriptor holds no secret — it only names which passkey to assert.
  */
-export const parsePrfVault = (raw: string): PrfVault => {
-  let vault: unknown
+export const parsePasskeyDescriptor = (raw: string): PasskeyDescriptor => {
+  let desc: unknown
   try {
-    vault = JSON.parse(raw.trim())
+    desc = JSON.parse(raw.trim())
   } catch {
-    throw new Error('Invalid vault: not valid JSON')
+    throw new Error('Invalid descriptor: not valid JSON')
   }
-  const v = vault as PrfVault
-  if (v?.v !== 1 || typeof v.credentialId !== 'string' || typeof v.data !== 'string') {
-    throw new Error('Invalid vault: expected {"v":1,"credentialId":...,"data":...}')
+  const d = desc as PasskeyDescriptor
+  if (d?.v !== 1 || typeof d.credentialId !== 'string') {
+    throw new Error('Invalid descriptor: expected {"v":1,"credentialId":...}')
   }
-  return v
+  return d
 }
 
-/** Decrypts a passkey vault with the 32-byte PRF output of its passkey. */
-export const decryptPrfVault = async (raw: string, prfOutput: Uint8Array): Promise<string> => {
-  const vault = parsePrfVault(raw)
-  try {
-    return await decryptMnemonicWithPrf(vault, prfOutput)
-  } catch {
-    throw new Error('Decryption failed: this passkey does not match the vault')
-  }
-}
+/** Derives the wallet mnemonic from a passkey PRF output (FileKey model). */
+export const mnemonicFromPrfOutput = (prfOutput: Uint8Array): Promise<string> => mnemonicFromPrf(prfOutput)

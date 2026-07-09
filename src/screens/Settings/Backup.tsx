@@ -9,7 +9,7 @@ import Text, { TextSecondary } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
 import { getPrivateKey, privateKeyToNsec } from '../../lib/privateKey'
 import { hasMnemonic, getMnemonic } from '../../lib/mnemonic'
-import { hasPrfMnemonic, getMnemonicWithPasskey } from '../../lib/passkeyVault'
+import { hasPasskeyWallet, getMnemonicWithPasskey } from '../../lib/passkeyVault'
 import { consoleError } from '../../lib/logs'
 import Shadow from '../../components/Shadow'
 import { defaultPassword } from '../../lib/constants'
@@ -39,7 +39,7 @@ export default function Backup() {
 
   const { toast } = useToast()
 
-  const isPrfWallet = hasPrfMnemonic()
+  const isPrfWallet = hasPasskeyWallet()
   const isMnemonicWallet = hasMnemonic() || isPrfWallet
 
   const [secret, setSecret] = useState('')

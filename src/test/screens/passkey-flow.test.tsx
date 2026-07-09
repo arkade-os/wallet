@@ -9,7 +9,11 @@ vi.mock('../../lib/passkey', () => ({
   PrfUnavailableError: class PrfUnavailableError extends Error {},
 }))
 vi.mock('../../lib/passkeyVault', () => ({
-  hasPrfMnemonic: vi.fn(() => false),
+  hasPasskeyWallet: vi.fn(() => false),
+  // derive a deterministic 12-word mnemonic from the PRF output in tests
+  mnemonicFromPrf: vi.fn(
+    async () => 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
+  ),
 }))
 
 import Init from '../../screens/Init/Init'
@@ -20,11 +24,11 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import { WalletContext } from '../../providers/wallet'
 import { DevModeProvider } from '../../providers/devMode'
 import { registerPasskey } from '../../lib/passkey'
-import { hasPrfMnemonic } from '../../lib/passkeyVault'
+import { hasPasskeyWallet } from '../../lib/passkeyVault'
 import { mockAspContextValue, mockFlowContextValue, mockNavigationContextValue, mockWalletContextValue } from './mocks'
 
 const registerPasskeyMock = vi.mocked(registerPasskey)
-const hasPrfMnemonicMock = vi.mocked(hasPrfMnemonic)
+const hasPasskeyWalletMock = vi.mocked(hasPasskeyWallet)
 
 describe('onboarding — passkey registration wiring', () => {
   beforeEach(() => {
@@ -51,7 +55,7 @@ describe('onboarding — passkey registration wiring', () => {
     return { setInitInfo, navigate }
   }
 
-  it('seals a PRF passkey and routes to Connect with the prf payload', async () => {
+  it('derives the mnemonic from the passkey PRF and routes to Connect with the credential id', async () => {
     registerPasskeyMock.mockResolvedValue({
       kind: 'prf',
       credentialId: 'abcd',
@@ -63,8 +67,8 @@ describe('onboarding — passkey registration wiring', () => {
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
     const info = setInitInfo.mock.calls.at(-1)[0]
-    expect(info.prf).toEqual({ credentialId: 'abcd', prfOutput: expect.any(Uint8Array) })
-    expect(info.mnemonic.split(' ').length).toBe(12)
+    expect(info.passkeyCredentialId).toBe('abcd')
+    expect(info.mnemonic.split(' ').length).toBe(12) // derived from PRF, not stored
     expect(info.password).toBeUndefined()
   })
 
@@ -78,7 +82,7 @@ describe('onboarding — passkey registration wiring', () => {
     const info = setInitInfo.mock.calls.at(-1)[0]
     expect(info.legacyPasskey).toEqual({ credentialId: 'ef01' })
     expect(info.password).toBe('deadbeef')
-    expect(info.prf).toBeUndefined()
+    expect(info.passkeyCredentialId).toBeUndefined()
   })
 
   it('offers a passwordless fallback sheet when the passkey ceremony fails', async () => {
@@ -109,7 +113,7 @@ describe('unlock — passkey screen wiring', () => {
   }
 
   it('renders the passkey unlock and navigates home on success', async () => {
-    hasPrfMnemonicMock.mockReturnValue(true)
+    hasPasskeyWalletMock.mockReturnValue(true)
     const unlockWalletWithPasskey = vi.fn().mockResolvedValue(undefined)
     const { navigate } = renderUnlock(unlockWalletWithPasskey)
 
@@ -121,7 +125,7 @@ describe('unlock — passkey screen wiring', () => {
   })
 
   it('surfaces a legible message when the passkey cannot open the vault', async () => {
-    hasPrfMnemonicMock.mockReturnValue(true)
+    hasPasskeyWalletMock.mockReturnValue(true)
     const unlockWalletWithPasskey = vi.fn().mockRejectedValue(new DOMException('', 'OperationError'))
     renderUnlock(unlockWalletWithPasskey)
 

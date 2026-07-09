@@ -1,7 +1,12 @@
 import { HDKey } from '@scure/bip32'
 import { mnemonicToSeedSync, validateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
-import { MNEMONIC_STORAGE_KEY, NSEC_STORAGE_KEY, PRF_MNEMONIC_STORAGE_KEY } from './storageKeys'
+import {
+  MNEMONIC_STORAGE_KEY,
+  NSEC_STORAGE_KEY,
+  PASSKEY_WALLET_STORAGE_KEY,
+  PRF_MNEMONIC_STORAGE_KEY,
+} from './storageKeys'
 
 export const hasMnemonic = (): boolean => {
   return localStorage.getItem(MNEMONIC_STORAGE_KEY) !== null
@@ -12,6 +17,7 @@ export const setMnemonic = async (mnemonic: string, password: string): Promise<v
   localStorage.setItem(MNEMONIC_STORAGE_KEY, encrypted)
   localStorage.removeItem(NSEC_STORAGE_KEY)
   localStorage.removeItem(PRF_MNEMONIC_STORAGE_KEY)
+  localStorage.removeItem(PASSKEY_WALLET_STORAGE_KEY)
 }
 
 export const getMnemonic = async (password: string): Promise<string> => {
