@@ -15,6 +15,8 @@ vi.mock('../../lib/passkeyVault', () => ({
     async () => 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
   ),
 }))
+vi.mock('../../lib/mnemonic', async (orig) => ({ ...(await orig<object>()), hasMnemonic: vi.fn(() => false) }))
+vi.mock('../../lib/privateKey', async (orig) => ({ ...(await orig<object>()), hasPrivateKey: vi.fn(() => false) }))
 
 import Init from '../../screens/Init/Init'
 import Unlock from '../../screens/Wallet/Unlock'
@@ -132,5 +134,16 @@ describe('unlock — passkey screen wiring', () => {
     fireEvent.click(screen.getByText('Unlock wallet'))
 
     expect(await screen.findByText(/didn't produce the right key/i)).toBeInTheDocument()
+  })
+
+  it('shows a reset path (not a password prompt) when no secret is stored', async () => {
+    // no passkey descriptor, no mnemonic, no private key = orphaned wallet
+    hasPasskeyWalletMock.mockReturnValue(false)
+    renderUnlock(vi.fn())
+
+    expect(screen.getByText("This wallet can't be unlocked here")).toBeInTheDocument()
+    expect(screen.getByText('Reset and start over')).toBeInTheDocument()
+    // must NOT dead-end on the password field
+    expect(screen.queryByTestId('password')).not.toBeInTheDocument()
   })
 })

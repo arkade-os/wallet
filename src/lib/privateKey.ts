@@ -87,6 +87,8 @@ const storeEncryptedPrivateKey = (encryptedPrivateKey: string): void => {
   }
 }
 
+export const hasPrivateKey = (): boolean => getEncryptedPrivateKey() !== null
+
 const getEncryptedPrivateKey = (): string | null => {
   try {
     return localStorage.getItem(NSEC_STORAGE_KEY)
