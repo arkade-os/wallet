@@ -309,6 +309,8 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   const navigate = useCallback((page: Pages) => {
+    if (page === screenRef.current && backStack.current.length === 0 && subNavHandler.getDepth() === 0) return
+
     const isRootNavigation = ROOT_PAGES.has(page)
 
     previousPage.current = screenRef.current
