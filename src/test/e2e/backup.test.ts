@@ -18,14 +18,18 @@ test('should be able to get recovery phrase without password', async ({ page }) 
   await expect(page.getByText('Keep your recovery phrase safe')).toBeVisible()
   await page.getByText('Confirm').click()
 
+  // For a passkey wallet the phrase is derived asynchronously (assertPrf +
+  // HKDF) after Confirm, so wait until the obfuscation is replaced.
+  await expect(page.getByTestId('private-key')).not.toHaveText(/^\*+$/)
+
   // Verify 12-word mnemonic is shown
   const mnemonic = await page.getByTestId('private-key').textContent()
   expect(mnemonic?.trim().split(/\s+/).length).toBe(12)
 })
 
-test('should be able to get recovery phrase with password', async ({ page }) => {
+test('should be able to get recovery phrase with password', async ({ page, webauthn }) => {
   // Create wallet (mnemonic-based by default)
-  await createWalletWithPassword(page, 'testpassword')
+  await createWalletWithPassword(page, 'testpassword', webauthn)
 
   // Go to Settings > Backup
   await navigateToSettings(page)

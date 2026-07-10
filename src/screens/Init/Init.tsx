@@ -15,6 +15,15 @@ import Text from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
 import SheetModal from '../../components/SheetModal'
 import { defaultPassword } from '../../lib/constants'
+import {
+  isWebAuthnSupported,
+  registerPasskey,
+  assertPrf,
+  assertPrfDiscoverable,
+  PrfUnavailableError,
+} from '../../lib/passkey'
+import { mnemonicFromPrf, hasPasskeyWallet, getLastPasskeyId } from '../../lib/passkeyVault'
+import { consoleError } from '../../lib/logs'
 import { OnboardStaggerChild } from '../../components/OnboardLoadIn'
 import { motion } from 'framer-motion'
 import { onboardStaggerContainer, EASE_OUT_QUINT_TUPLE } from '../../lib/animations'
@@ -63,9 +72,13 @@ export default function Init() {
 
   const prefersReduced = useReducedMotion()
   const [error, setError] = useState(false)
-  const [showOptions, setShowOptions] = useState(false)
   const [showCreateOptions, setShowCreateOptions] = useState(false)
+  const [showPasskeyFallback, setShowPasskeyFallback] = useState(false)
+  const [showCreateConfirm, setShowCreateConfirm] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [loginError, setLoginError] = useState('')
   const [hdRotation, setHdRotation] = useState(false)
+  const pendingCreate = useRef<{ mnemonic: string; mode: ServiceWorkerWalletMode }>()
   const [contentReady, setContentReady] = useState(prefersReduced)
   const [sunriseVisible, setSunriseVisible] = useState(prefersReduced)
   const logoTargetRef = useRef<HTMLDivElement>(null)
@@ -75,6 +88,10 @@ export default function Init() {
   }, [])
 
   const aspReady = !!aspInfo.signerPubkey || aspInfo.unreachable
+  // best signal the web allows for "a passkey exists here": this browser used
+  // one before (the id survives reset). Enumerating device passkeys is not
+  // possible — a synced passkey can exist without us knowing.
+  const hasKnownPasskey = Boolean(getLastPasskeyId()) || hasPasskeyWallet()
 
   useEffect(() => {
     if (wallet.pubkey && authState === 'authenticated') navigate(Pages.Wallet)
@@ -84,13 +101,98 @@ export default function Init() {
     setError(aspInfo.unreachable)
   }, [aspInfo.unreachable])
 
-  const createWallet = (mode: ServiceWorkerWalletMode) => {
-    const mnemonic = generateMnemonic(wordlist)
-    setInitInfo({ mnemonic, password: defaultPassword, restoring: false, walletMode: mode })
+  // Passkeys-only by default (FileKey model): the passkey PRF output IS the
+  // wallet seed — we derive the 12-word mnemonic deterministically from it, so
+  // the passkey alone reconstructs the wallet and the words are its backup.
+  // Authenticators without PRF fall back to an independently-generated mnemonic
+  // under the legacy userHandle scheme. Only when the passkey ceremony fails
+  // (unsupported browser, user cancel) do we offer an explicit passwordless
+  // fallback.
+  const createWallet = async (mode: ServiceWorkerWalletMode) => {
+    // never override an existing passkey wallet with a new one — that's an
+    // explicit reset (Settings → Reset). Send the user to unlock instead.
+    if (hasPasskeyWallet()) return navigate(Pages.Unlock)
+    // fallback mnemonic used only for the non-PRF paths (legacy / passwordless)
+    const fallbackMnemonic = pendingCreate.current?.mnemonic ?? generateMnemonic(wordlist)
+    pendingCreate.current = { mnemonic: fallbackMnemonic, mode }
+    if (!isWebAuthnSupported()) return createWalletWithoutPasskey()
+    setCreating(true)
+    try {
+      const reg = await registerPasskey()
+      if (reg.kind === 'prf') {
+        const mnemonic = await mnemonicFromPrf(reg.prfOutput)
+        reg.prfOutput.fill(0)
+        setInitInfo({ mnemonic, passkeyCredentialId: reg.credentialId, restoring: false, walletMode: mode })
+      } else {
+        setInitInfo({
+          mnemonic: fallbackMnemonic,
+          password: reg.legacySecret,
+          legacyPasskey: { credentialId: reg.credentialId },
+          restoring: false,
+          walletMode: mode,
+        })
+      }
+      setShowPasskeyFallback(false)
+      navigate(Pages.InitConnect)
+    } catch (err) {
+      consoleError(err, 'Passkey registration failed')
+      setShowPasskeyFallback(true)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const createWalletWithoutPasskey = () => {
+    const pending = pendingCreate.current
+    if (!pending) return
+    setShowPasskeyFallback(false)
+    setInitInfo({ mnemonic: pending.mnemonic, password: defaultPassword, restoring: false, walletMode: pending.mode })
     navigate(Pages.InitConnect)
   }
 
-  const handleNewWallet = () => {
+  // "Log in with passkey": reconstructs the wallet from the passkey's PRF.
+  // Targets the last-used passkey when known (survives reset — one direct
+  // biometric, no picker); cancelling or a deleted credential falls back to
+  // the discoverable picker so any other passkey can be chosen.
+  const loginWithPasskey = async () => {
+    setLoginError('')
+    setCreating(true)
+    try {
+      const { credentialId, prfOutput } = await (async () => {
+        const lastUsed = getLastPasskeyId()
+        if (lastUsed) {
+          try {
+            return { credentialId: lastUsed, prfOutput: await assertPrf(lastUsed) }
+          } catch {
+            // fall through to the picker (credential deleted, or user wants another)
+          }
+        }
+        return assertPrfDiscoverable()
+      })()
+      const mnemonic = await mnemonicFromPrf(prfOutput)
+      prfOutput.fill(0)
+      setInitInfo({ mnemonic, passkeyCredentialId: credentialId, restoring: true })
+      navigate(Pages.InitConnect)
+    } catch (err) {
+      consoleError(err, 'Passkey login failed')
+      if (err instanceof PrfUnavailableError) {
+        setLoginError("This passkey can't restore a wallet on this device.")
+      } else if (err instanceof DOMException && err.name === 'NotAllowedError') {
+        setLoginError('No passkey selected. Try again, or restore with your recovery phrase.')
+      } else {
+        setLoginError('Passkey login failed. Try again.')
+      }
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  // creating is destructive-adjacent (a new passkey, a new wallet) — always
+  // confirm and offer login first so nobody mints a second wallet by accident
+  const handleNewWallet = () => setShowCreateConfirm(true)
+
+  const confirmCreate = () => {
+    setShowCreateConfirm(false)
     if (devMode) return setShowCreateOptions(true)
     createWallet('static')
   }
@@ -232,19 +334,69 @@ export default function Init() {
             pointerEvents: contentReady ? 'auto' : 'none',
           }}
         >
-          <Button disabled={error || !aspReady} onClick={handleNewWallet} label='+ Create wallet' />
-          <Button
-            disabled={error || !aspReady}
-            onClick={() => setShowOptions(true)}
-            label='Other login options'
-            clear
-          />
+          {hasKnownPasskey ? (
+            <>
+              {/* a passkey was used on this browser before: log in IS the flow.
+                  Create only surfaces if login fails (e.g. passkey deleted). */}
+              <Button
+                disabled={error || !aspReady || creating}
+                onClick={loginWithPasskey}
+                label='Log in with Passkey'
+              />
+              {loginError ? (
+                <Button
+                  disabled={error || !aspReady || creating}
+                  onClick={handleNewWallet}
+                  label='+ Create new wallet'
+                  secondary
+                />
+              ) : null}
+              <Button
+                disabled={error || !aspReady || creating}
+                onClick={handleOldWallet}
+                label='Restore wallet'
+                clear
+              />
+            </>
+          ) : (
+            <>
+              {/* fresh device: creating is the primary flow, but a synced passkey
+                  may exist invisibly (the web can't enumerate), so login stays */}
+              <Button disabled={error || !aspReady || creating} onClick={handleNewWallet} label='+ Create wallet' />
+              <Button
+                disabled={error || !aspReady || creating}
+                onClick={loginWithPasskey}
+                label='Log in with Passkey'
+                secondary
+              />
+              <Button
+                disabled={error || !aspReady || creating}
+                onClick={handleOldWallet}
+                label='Restore wallet'
+                clear
+              />
+            </>
+          )}
+          <ErrorMessage error={Boolean(loginError)} text={loginError} />
         </motion.div>
       </ButtonsOnBottom>
-      <SheetModal isOpen={showOptions} onClose={() => setShowOptions(false)}>
+      <SheetModal isOpen={showCreateConfirm} onClose={() => setShowCreateConfirm(false)}>
         <FlexCol gap='1rem'>
-          <Text>Other login options</Text>
-          <Button fancy disabled={error} onClick={handleOldWallet} label='Restore wallet' secondary />
+          <Text>Create a new wallet?</Text>
+          <Text color='neutral-800' thin wrap>
+            This makes a brand-new wallet with a new passkey. If you already used Arkade on this device (or through
+            iCloud / Google passkey sync), log in with your existing passkey instead — creating again won&apos;t bring
+            your funds back.
+          </Text>
+          <Button
+            disabled={creating}
+            onClick={() => {
+              setShowCreateConfirm(false)
+              loginWithPasskey()
+            }}
+            label='Log in with existing passkey'
+          />
+          <Button disabled={creating} onClick={confirmCreate} label='Create new wallet' secondary />
         </FlexCol>
       </SheetModal>
       <SheetModal isOpen={showCreateOptions} onClose={() => setShowCreateOptions(false)}>
@@ -258,6 +410,21 @@ export default function Init() {
             testId='toggle-hd-rotation'
           />
           <Button label='Create wallet' onClick={() => createWallet(hdRotation ? 'hd' : 'static')} />
+        </FlexCol>
+      </SheetModal>
+      <SheetModal isOpen={showPasskeyFallback} onClose={() => setShowPasskeyFallback(false)}>
+        <FlexCol gap='1rem'>
+          <Text>Couldn&apos;t create a passkey</Text>
+          <Text color='neutral-800' thin wrap>
+            Passkeys keep your wallet locked with your device&apos;s biometrics. You can try again, or continue without
+            one and protect your wallet later from Settings.
+          </Text>
+          <Button
+            disabled={creating}
+            onClick={() => pendingCreate.current && createWallet(pendingCreate.current.mode)}
+            label='Try again'
+          />
+          <Button disabled={creating} onClick={createWalletWithoutPasskey} label='Continue without passkey' secondary />
         </FlexCol>
       </SheetModal>
     </>

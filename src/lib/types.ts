@@ -76,6 +76,7 @@ export enum SettingsOptions {
   Logs = 'logs',
   Notifications = 'notifications',
   Notes = 'notes',
+  Passkey = 'passkey',
   Password = 'change password',
   Reset = 'reset wallet',
   Server = 'server',
@@ -122,6 +123,11 @@ export type Wallet = {
   nextRollover: number
   passkeyId?: string
   pubkey?: string
+  // user confirmed writing down the recovery phrase (or restored from it)
+  walletBackedUp?: boolean
+  // wallet was imported from a seed (recovery mode): funds should be moved to
+  // a fresh passkey wallet rather than living on the recovered seed
+  restoredFromSeed?: boolean
 }
 
 export interface AssetOption {

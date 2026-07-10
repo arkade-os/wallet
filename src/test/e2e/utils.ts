@@ -1,4 +1,4 @@
-import { test as base, type Page } from '@playwright/test'
+import { test as base, expect, type Page, type CDPSession } from '@playwright/test'
 import { faucetOffchain } from './fundedWallet'
 import { sleep } from '../../lib/sleep'
 import { exec } from 'child_process'
@@ -6,7 +6,43 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
-export const test = base.extend({
+// Onboarding registers a WebAuthn passkey (PRF). Plain Chromium has no
+// authenticator, so credentials.create() would hang until timeout. Attach a
+// virtual platform authenticator with PRF so the passkey ceremony completes
+// automatically (no user interaction). Exposed via the `webauthn` fixture so
+// individual tests can remove it to exercise the passwordless fallback.
+export type WebAuthn = {
+  client: CDPSession
+  authenticatorId: string
+  /** remove the authenticator so create() falls back to passwordless */
+  disable: () => Promise<void>
+}
+
+async function addVirtualAuthenticator(page: Page): Promise<WebAuthn> {
+  const client = await page.context().newCDPSession(page)
+  await client.send('WebAuthn.enable')
+  const { authenticatorId } = await client.send('WebAuthn.addVirtualAuthenticator', {
+    options: {
+      protocol: 'ctap2',
+      ctap2Version: 'ctap2_1',
+      transport: 'internal',
+      hasResidentKey: true,
+      hasUserVerification: true,
+      hasPrf: true,
+      automaticPresenceSimulation: true,
+      isUserVerified: true,
+    },
+  })
+  return {
+    client,
+    authenticatorId,
+    disable: async () => {
+      await client.send('WebAuthn.removeVirtualAuthenticator', { authenticatorId }).catch(() => {})
+    },
+  }
+}
+
+export const test = base.extend<{ webauthn: WebAuthn }>({
   page: async ({ page }, use) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     // Pre-set currency to BTC/sats so e2e tests see sats amounts.
@@ -19,9 +55,18 @@ export const test = base.extend({
     })
     await use(page)
   },
+  // auto so EVERY test gets a working authenticator without opting in; a test
+  // can still declare `webauthn` in its args to disable it for passwordless
+  webauthn: [
+    async ({ page }, use) => {
+      const webauthn = await addVirtualAuthenticator(page)
+      await use(webauthn)
+    },
+    { auto: true },
+  ],
 })
 
-export { expect } from '@playwright/test'
+export { expect }
 
 /**
  * Wait for the wallet main page to be ready.
@@ -33,10 +78,18 @@ export { expect } from '@playwright/test'
  * error's "Continue anyway" button, dismisses the error if it shows,
  * and then waits for the wallet page.
  */
-export async function waitForWalletPage(page: Page, timeout = 60000): Promise<void> {
+export async function waitForWalletPage(page: Page, timeout = 90000): Promise<void> {
   const sendBtn = page.getByText('Send', { exact: true })
   const continueBtn = page.getByText('Continue anyway')
-  await sendBtn.or(continueBtn).first().waitFor({ state: 'visible', timeout })
+  // A passkey wallet that reloaded (e.g. the delegate toggle calls
+  // window.location.reload()) comes back on the passkey Unlock screen and must
+  // re-assert. The virtual authenticator auto-approves, so just click Unlock.
+  const passkeyUnlock = page.getByText('Unlock with your passkey')
+  await sendBtn.or(continueBtn).or(passkeyUnlock).first().waitFor({ state: 'visible', timeout })
+  if (await passkeyUnlock.isVisible().catch(() => false)) {
+    await page.getByRole('button', { name: 'Unlock wallet' }).click()
+    await sendBtn.or(continueBtn).first().waitFor({ state: 'visible', timeout: 30000 })
+  }
   if (await continueBtn.isVisible()) {
     await continueBtn.click()
     await sendBtn.waitFor({ state: 'visible', timeout: 30000 })
@@ -139,9 +192,56 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
   await page.waitForSelector('text=Asset minted!', { timeout: 60000 })
 }
 
+// The onboarding "+ Create wallet" button is disabled until the Ark server
+// reports its signerPubkey (needed to derive addresses). In regtest that
+// readiness can lag past a click's 30s actionability window, so wait for the
+// button to become enabled — with its own generous timeout — before clicking.
+async function clickCreateWallet(page: Page): Promise<void> {
+  const createBtn = page.getByRole('button', { name: '+ Create wallet' })
+  await expect(createBtn).toBeEnabled({ timeout: 60000 })
+  await createBtn.click()
+}
+
 export async function createWallet(page: Page): Promise<void> {
   await page.goto('/')
-  await page.getByText('+ Create wallet').click()
+  // A previous wallet on this browser leaves last_passkey_id behind (it survives
+  // reset by design), which flips onboarding to the returning-user "Log in with
+  // Passkey" layout and hides "+ Create wallet". This helper always wants a
+  // fresh create, so if the create button isn't offered, drop that hint and
+  // reload to get the clean-device layout.
+  const createBtn = page.getByRole('button', { name: '+ Create wallet' })
+  const loginBtn = page.getByRole('button', { name: 'Log in with Passkey' })
+  await createBtn.or(loginBtn).first().waitFor({ state: 'visible', timeout: 30000 })
+  if (!(await createBtn.isVisible().catch(() => false))) {
+    await page.evaluate(() => localStorage.removeItem('last_passkey_id'))
+    await page.reload()
+  }
+  // fresh device: '+ Create wallet' primary → confirm sheet → 'Create new wallet'.
+  // (with the virtual authenticator the passkey ceremony completes silently)
+  await clickCreateWallet(page)
+  await page.getByRole('button', { name: 'Create new wallet' }).click()
+  await waitForWalletPage(page)
+}
+
+// Create a passwordless (no-passkey) wallet by forcing the passkey ceremony to
+// fail so the explicit fallback is taken. For legacy password/lock flows.
+//
+// We do NOT just remove the virtual authenticator: with no authenticator,
+// credentials.create() hangs until the WebAuthn timeout (tens of seconds)
+// rather than rejecting, so the fallback sheet appears far too late for the
+// action timeout. Instead we stub create() to reject immediately, which is
+// exactly the "user cancelled / unsupported" path the fallback handles.
+export async function createPasswordlessWallet(page: Page, webauthn: WebAuthn): Promise<void> {
+  await webauthn.disable()
+  await page.goto('/')
+  await page.evaluate(() => {
+    navigator.credentials.create = () =>
+      Promise.reject(new DOMException('passkey creation blocked for test', 'NotAllowedError'))
+  })
+  await clickCreateWallet(page)
+  await page.getByRole('button', { name: 'Create new wallet' }).click()
+  // ceremony rejects immediately → fallback sheet
+  await page.getByText('Continue without passkey').click()
   await waitForWalletPage(page)
 }
 
@@ -156,8 +256,10 @@ export async function createWalletWithFiat(page: Page): Promise<void> {
   await navigateHome(page)
 }
 
-export async function createWalletWithPassword(page: Page, password: string): Promise<void> {
-  await createWallet(page)
+export async function createWalletWithPassword(page: Page, password: string, webauthn: WebAuthn): Promise<void> {
+  // password flows require a NON-passkey wallet (a passkey wallet has no
+  // password to change), so build the passwordless fallback wallet
+  await createPasswordlessWallet(page, webauthn)
   await navigateToSettings(page)
   await page.getByText('Advanced').click()
   await page.getByText('Change password').click()
@@ -294,15 +396,35 @@ async function getSecret(page: Page): Promise<string> {
   const viewBtn = page.getByText('View recovery phrase').or(page.getByText('View private key'))
   await viewBtn.click()
   await page.getByText('Confirm').click()
+  // a passkey wallet derives the phrase asynchronously (assertPrf + HKDF) after
+  // Confirm, so wait until the obfuscation is replaced before reading
+  await expect(page.getByTestId('private-key')).not.toHaveText(/^\*+$/)
   const secret = await page.getByTestId('private-key').innerText()
   return secret
 }
 
 async function restoreWallet(page: Page, nsec: string): Promise<void> {
-  await page.getByText('Other login options').click()
   await page.getByText('Restore wallet').click()
   await page.locator('input[name="private-key"]').fill(nsec)
   await page.getByText('Continue').click()
+  // A seed restore settles on either the passkey-migration screen (a Settings
+  // sub-page whose back button only returns to the Settings menu) or directly
+  // on the wallet. Wait for whichever appears, then hard-navigate to the wallet
+  // home if we're on the migration screen — a reload auto-unlocks the
+  // default-password restored wallet, avoiding the fragile back-button walk.
+  const migrateHeader = page.getByText('Move to a passkey wallet')
+  const sendBtn = page.getByText('Send', { exact: true })
+  await migrateHeader.or(sendBtn).first().waitFor({ state: 'visible', timeout: 60000 })
+  if (await migrateHeader.isVisible().catch(() => false)) {
+    // navigate to the wallet home via the in-app hook (no page reload) so the
+    // freshly restored nostr config (currency, swap history) isn't dropped by a
+    // reload racing the async config persist
+    await page.evaluate(() => {
+      const nav = (window as typeof window & { __ARKADE_E2E_NAVIGATE__?: (p: string) => void }).__ARKADE_E2E_NAVIGATE__
+      if (!nav) throw new Error('E2E navigation hook is unavailable')
+      nav('Wallet')
+    })
+  }
   await waitForWalletPage(page)
 }
 

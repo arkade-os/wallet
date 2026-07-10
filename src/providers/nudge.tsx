@@ -1,6 +1,7 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
 import { WalletContext } from './wallet'
-import { noUserDefinedPassword } from '../lib/privateKey'
+import { hasMnemonic } from '../lib/mnemonic'
+import { hasPasskeyWallet } from '../lib/passkeyVault'
 import { minSatsToNudge } from '../lib/constants'
 import { NavigationContext, Pages } from './navigation'
 import { OptionsContext } from './options'
@@ -20,6 +21,13 @@ export const NudgeContext = createContext<NudgeContextProps>({
   nudgeCheckComplete: false,
 })
 
+// Two nudges, by priority:
+// 1. Migrate: a wallet restored from seed is a recovery vehicle — move funds
+//    to a fresh passkey wallet (any balance).
+// 2. Backup: write down the recovery phrase once the balance is worth
+//    protecting; passkey wallets nudge at any balance (no password fallback),
+//    others above minSatsToNudge. Cleared by the explicit "I've written it
+//    down" confirmation on the Backup screen (wallet.walletBackedUp).
 export const NudgeProvider = ({ children }: { children: ReactNode }) => {
   const { balance, wallet } = useContext(WalletContext)
   const { setOption } = useContext(OptionsContext)
@@ -29,9 +37,15 @@ export const NudgeProvider = ({ children }: { children: ReactNode }) => {
   const [shouldShow, setShouldShow] = useState(false)
   const [checkComplete, setCheckComplete] = useState(false)
 
-  const navigateToSettings = () => {
-    setOption(SettingsOptions.Password)
-    navigate(Pages.Settings)
+  const isMnemonicWallet = hasMnemonic() || hasPasskeyWallet()
+  const needsMigration = Boolean(wallet.restoredFromSeed) && !hasPasskeyWallet()
+
+  const navigateToSettings = (option: SettingsOptions) => {
+    // WalletSettings is the redesign's settings entry (keeps the back stack).
+    // Navigate FIRST: navigating to a root page resets the settings sub-nav,
+    // which would wipe the option before the screen mounts.
+    navigate(Pages.WalletSettings)
+    setOption(option)
     setDismissed(true)
   }
 
@@ -45,33 +59,41 @@ export const NudgeProvider = ({ children }: { children: ReactNode }) => {
       setCheckComplete(true)
       return
     }
-    let cancelled = false
-    setCheckComplete(false)
-    noUserDefinedPassword()
-      .then((noPassword) => {
-        if (!cancelled) {
-          setShouldShow(noPassword && balance > minSatsToNudge)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setShouldShow(false)
-      })
-      .finally(() => {
-        if (!cancelled) setCheckComplete(true)
-      })
-    return () => {
-      cancelled = true
+    if (needsMigration) {
+      setShouldShow(balance > 0)
+      setCheckComplete(true)
+      return
     }
-  }, [wallet, balance, dismissed])
+    if (wallet.walletBackedUp) {
+      setShouldShow(false)
+      setCheckComplete(true)
+      return
+    }
+    // Passkey wallets have no password fallback: if the passkey is lost, the
+    // 12 words are the only way back, so prompt as soon as there are any funds.
+    const threshold = hasPasskeyWallet() ? 0 : minSatsToNudge
+    setShouldShow(balance > threshold)
+    setCheckComplete(true)
+  }, [wallet, balance, dismissed, needsMigration])
 
   const nudgeVisible = Boolean(shouldShow && !dismissed)
 
-  const nudge = (
+  const nudge = needsMigration ? (
     <DismissibleBanner
-      id='password-nudge'
+      id='migrate-nudge'
       icon={<LogoIconAnimated />}
-      title='Protect your wallet with a password'
-      action={{ label: 'Set password', onClick: navigateToSettings }}
+      title='Move your funds to a passkey wallet'
+      description='This wallet was restored from a seed. Create a fresh passkey wallet and move your funds to it.'
+      action={{ label: 'Move now', onClick: () => navigateToSettings(SettingsOptions.Passkey) }}
+      onDismiss={dismissNudge}
+      visible={nudgeVisible}
+    />
+  ) : (
+    <DismissibleBanner
+      id='backup-nudge'
+      icon={<LogoIconAnimated />}
+      title={isMnemonicWallet ? 'Back up your recovery phrase' : 'Back up your private key'}
+      action={{ label: 'Back up now', onClick: () => navigateToSettings(SettingsOptions.Backup) }}
       onDismiss={dismissNudge}
       visible={nudgeVisible}
     />

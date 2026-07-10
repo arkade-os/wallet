@@ -38,6 +38,23 @@ const statusDict = {
   'transaction.server.confirmed': 'Pending',
 } satisfies Record<BoltzSwapStatus, statusUI>
 
+// a swap that is neither settled nor failed still needs this wallet's keys
+// (claim/refund paths) — used to guard wallet migration
+export const isPendingSwap = (swap: BoltzSwap): boolean => statusDict[swap.status as BoltzSwapStatus] === 'Pending'
+
+// stricter: swaps where funds have actually moved (lockup/claim in flight).
+// A merely generated-but-unpaid invoice ('swap.created' / 'invoice.set' /
+// 'invoice.pending') locks nothing and needs no keys — Boltz reports those
+// stubs forever, so they must not alarm anyone.
+const fundsInFlightStatuses = new Set<BoltzSwapStatus>([
+  'transaction.mempool',
+  'transaction.server.mempool',
+  'transaction.server.confirmed',
+  'transaction.claim.pending',
+])
+export const isSwapWithFundsInFlight = (swap: BoltzSwap): boolean =>
+  fundsInFlightStatuses.has(swap.status as BoltzSwapStatus)
+
 const colorDict: Record<statusUI, string> = {
   Failed: 'red',
   Successful: 'green',

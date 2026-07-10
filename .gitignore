@@ -2,6 +2,7 @@
 
 /src/_gitCommit.ts
 /public/wallet-service-worker.mjs
+/public/recover.html
 
 # dependencies
 /node_modules

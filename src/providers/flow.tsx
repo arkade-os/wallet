@@ -9,6 +9,11 @@ export interface InitInfo {
   mnemonic?: string
   restoring?: boolean
   walletMode?: ServiceWorkerWalletMode
+  // passkey with PRF: the mnemonic was derived from the PRF output; store only
+  // which credential to assert on unlock (no secret persisted)
+  passkeyCredentialId?: string
+  // passkey without PRF: password carries the legacy userHandle secret
+  legacyPasskey?: { credentialId: string }
 }
 
 export interface NoteInfo {

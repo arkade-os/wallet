@@ -30,7 +30,7 @@ const execAsync = promisify(exec)
 // 9. Restore wallet with nsec key
 // 10. Verify setting is euro (proving it was restored from nostr)
 test('should save config to nostr', async ({ page }) => {
-  test.setTimeout(60000)
+  test.setTimeout(120000)
   // create wallet
   await createWallet(page)
 
@@ -48,7 +48,7 @@ test('should save config to nostr', async ({ page }) => {
 
   // verify currency is euro
   await page.getByLabel('Go back').click()
-  await expect(page.getByText('EUR')).toBeVisible({ timeout: 2000 })
+  await expect(page.getByText('EUR')).toBeVisible({ timeout: 10000 })
 
   // disable nostr backups
   await page.getByLabel('Go back').click()
@@ -68,14 +68,15 @@ test('should save config to nostr', async ({ page }) => {
   // restore wallet
   await resetAndRestoreWallet(page)
 
-  // verify currency is euro
+  // verify currency is euro (config is restored from nostr asynchronously after
+  // the wallet reloads, so give it room)
   await navigateToSettings(page)
   await page.getByText('display', { exact: true }).click()
-  await expect(page.getByText('EUR')).toBeVisible()
+  await expect(page.getByText('EUR')).toBeVisible({ timeout: 30000 })
 })
 
 test('should save swaps to nostr', async ({ page, isMobile }) => {
-  test.setTimeout(60000)
+  test.setTimeout(120000)
   // create wallet
   await createWallet(page)
 

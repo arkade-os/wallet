@@ -18,6 +18,7 @@ import Theme from './Theme'
 import Fiat from './Fiat'
 import Display from './Display'
 import Password from './Password'
+import Passkey from './Passkey'
 import Delegates from './Delegates'
 import SettingsPageTransition from '../../components/SettingsPageTransition'
 import Haptics from './Haptics'
@@ -54,6 +55,8 @@ function settingsContent(option: SettingsOptions, menuBack?: () => void): JSX.El
       return <NotesForm />
     case SettingsOptions.Notifications:
       return <Notifications />
+    case SettingsOptions.Passkey:
+      return <Passkey />
     case SettingsOptions.Password:
       return <Password />
     case SettingsOptions.Reset:

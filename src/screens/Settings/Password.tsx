@@ -14,6 +14,10 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { isBiometricsSupported, registerUser } from '../../lib/biometrics'
 import { getPrivateKey, isValidPassword, noUserDefinedPassword, setPrivateKey } from '../../lib/privateKey'
 import { hasMnemonic, getMnemonic, setMnemonic } from '../../lib/mnemonic'
+import { hasPasskeyWallet } from '../../lib/passkeyVault'
+import CenterScreen from '../../components/CenterScreen'
+import Text, { TextSecondary } from '../../components/Text'
+import FingerprintIcon from '../../icons/Fingerprint'
 
 export default function Password() {
   const { updateWallet, wallet } = useContext(WalletContext)
@@ -81,6 +85,28 @@ export default function Password() {
   const handleContinue = async () => {
     const ok = await saveNewPassword(newPassword, false)
     if (ok) updateWallet({ ...wallet, lockedByBiometrics: false })
+  }
+
+  // PRF-passkey wallets have no password to change: the seed is derived from
+  // the passkey itself.
+  if (hasPasskeyWallet()) {
+    return (
+      <>
+        <Header text='Change password' back />
+        <Content>
+          <Padded>
+            <CenterScreen>
+              <FingerprintIcon />
+              <Text centered>Secured with a passkey</Text>
+              <TextSecondary centered wrap>
+                This wallet is derived from your passkey — there is no password to change. Keep your 12-word recovery
+                phrase backed up in case you lose access to your passkey.
+              </TextSecondary>
+            </CenterScreen>
+          </Padded>
+        </Content>
+      </>
+    )
   }
 
   if (!authenticated && !successText) return <NeedsPassword error={error} onPassword={setOldPassword} />

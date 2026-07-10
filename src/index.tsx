@@ -56,6 +56,8 @@ function resetDevWalletStorage() {
     localStorage.removeItem('wallet')
     localStorage.removeItem('encrypted_private_key')
     localStorage.removeItem('encrypted_mnemonic')
+    localStorage.removeItem('encrypted_mnemonic_prf')
+    localStorage.removeItem('passkey_wallet')
   } catch {
     // Keep booting even if dev browser storage is unavailable.
   }

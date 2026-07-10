@@ -2,10 +2,20 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './src/test/e2e',
-  timeout: 60000,
+  // passkey onboarding + the seed→passkey migration flow add real wall-clock to
+  // the heavier specs; 60s left no room for the final wallet boot. Give every
+  // spec more headroom (heavy swap/restore specs raise it further below).
+  timeout: 90000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 5 : 0,
+  // master runs 5 retries to ride out regtest flakiness (swap/restore/boot
+  // timing). The old 45-minute job-timeout came from WebAuthn ceremonies
+  // HANGING × retries, not from retries themselves — that hang is fixed (virtual
+  // authenticator + fast-fail stub), so restore generous retries and keep
+  // maxFailures as the belt-and-suspenders so a truly broken spec still reports
+  // in minutes rather than burning the whole job.
+  retries: process.env.CI ? 4 : 0,
+  maxFailures: process.env.CI ? 10 : undefined,
   workers: 1,
   reporter: 'list',
   use: {
