@@ -1,5 +1,5 @@
 import userEvent from '@testing-library/user-event'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import WalletSwap from '../../../screens/Wallet/Swap/Index'
 import { ConfigContext } from '../../../providers/config'
@@ -133,6 +133,30 @@ describe('Wallet swap flow', () => {
 
     expect(screen.getByRole('tooltip')).toBeVisible()
     expect(screen.getByRole('tooltip')).toHaveTextContent('Rates are dynamic and may update before you confirm.')
+  })
+
+  it('shows a human-readable amount and fee breakdown', async () => {
+    const setSwapFromAssetId = vi.fn()
+
+    renderSwap({ swapFromAssetId: assetId, setSwapFromAssetId })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Bitcoin/i }))
+    fireEvent.click(screen.getByRole('button', { name: '5' }))
+    fireEvent.click(screen.getByRole('button', { name: '0' }))
+
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).toBeEnabled())
+    fireEvent.click(continueButton)
+
+    const review = within(screen.getByRole('dialog'))
+    expect(review.getByText('Swap')).toBeInTheDocument()
+    expect(review.getByText('50 USD')).toBeInTheDocument()
+    expect(review.getByText('Receive')).toBeInTheDocument()
+    expect(review.getByText('Fees')).toBeInTheDocument()
+    expect(review.getByText('$0.00')).toBeInTheDocument()
+    expect(review.queryByText('Total value')).not.toBeInTheDocument()
+    expect(review.queryByText('Estimated receive')).not.toBeInTheDocument()
   })
 
   it('auto-dismisses the review rate note after tapping it', async () => {

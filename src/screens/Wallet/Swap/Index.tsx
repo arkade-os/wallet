@@ -49,6 +49,7 @@ interface SwapQuote {
   fromFiat: string
   toAmount: string
   toFiat: string
+  feeFiat: string
   rateLabel: string
 }
 
@@ -883,21 +884,13 @@ function ReviewSummary({ quote, loading }: { quote: SwapQuote; loading: boolean 
           </h3>
         </div>
       </div>
-      <div className='swap-review-total'>
-        <span>Estimated receive</span>
-        <strong>{loading ? <SwapSkeletonText width='5rem' /> : quote.toFiat}</strong>
-      </div>
+      <MetricRow label='Swap' value={`${quote.fromAmount} ${quote.fromAsset.ticker}`} loading={loading} />
       <MetricRow
-        label={`Swap ${quote.fromAsset.ticker}`}
-        value={`${quote.fromAmount} ${quote.fromAsset.ticker}`}
-        loading={loading}
-      />
-      <MetricRow
-        label={`Receive ${quote.toAsset?.ticker ?? 'asset'}`}
+        label='Receive'
         value={quote.toAsset ? `${quote.toAmount} ${quote.toAsset.ticker}` : 'Choose asset'}
         loading={loading}
       />
-      <MetricRow label='Total value' value={quote.toFiat} loading={loading} />
+      <MetricRow label='Fees' value={quote.feeFiat} loading={loading} />
     </div>
   )
 }
@@ -1012,6 +1005,7 @@ function buildQuote(amount: string, mode: AmountMode, fromAsset: SwapAsset, toAs
     fromFiat: prettyFiatAmount(fromFiatNumber, Currencies.USD),
     toAmount: prettyNumber(received, swapAmountDecimals(received)),
     toFiat: prettyFiatAmount(received * toUsd, Currencies.USD),
+    feeFiat: prettyFiatAmount(0, Currencies.USD),
     rateLabel: prettyNumber(rate, swapAmountDecimals(rate)),
   }
 }
