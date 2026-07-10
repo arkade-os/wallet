@@ -32,6 +32,10 @@ const BASE_URLS: Record<Network, string | null> = {
   testnet: null,
 }
 
+// When set, Lightning receives claim non-interactively via a covclaimd daemon
+// (funds are swept even if the app/worker is closed). Unset → interactive claim.
+const COVCLAIMD_URL = fromRuntimeEnv(import.meta.env.VITE_COVCLAIMD_URL) ?? undefined
+
 interface SwapsContextProps {
   connected: boolean
   arkadeSwaps: ServiceWorkerArkadeSwaps | null
@@ -127,6 +131,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       arkServerUrl: aspInfo.url,
       swapManager: config.apps.boltz.connected,
       referralId: 'arkade-money',
+      covclaimdUrl: COVCLAIMD_URL,
     })
       .then((instance) => {
         if (cancelled) {
@@ -265,7 +270,11 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   const createReverseSwap = async (sats: number): Promise<BoltzReverseSwap | null> => {
     if (!arkadeSwaps) return null
-    return arkadeSwaps.createReverseSwap({ amount: sats, description: 'Lightning Invoice' })
+    return arkadeSwaps.createReverseSwap({
+      amount: sats,
+      description: 'Lightning Invoice',
+      nonInteractive: !!COVCLAIMD_URL,
+    })
   }
 
   const claimVHTLC = async (swap: BoltzReverseSwap): Promise<void> => {
