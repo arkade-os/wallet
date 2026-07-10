@@ -5,7 +5,6 @@ import {
   MessageBus,
   WalletMessageHandler,
 } from '@arkade-os/sdk'
-import { gitCommit } from './_gitCommit'
 
 // Health-check ping: responds via MessageChannel so the main thread can
 // detect if this worker is alive before attempting full initialization.
@@ -43,21 +42,11 @@ declare const self: ServiceWorkerGlobalScope
 // service worker script the browser considers it a
 // different service worker, and it'll get its own install event.
 self.addEventListener('install', (event: ExtendableEvent) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(() => {
-      // activate service worker immediately
-      console.log(`Activating service worker ${gitCommit}`)
-      return self.skipWaiting()
-    }),
-  )
+  event.waitUntil(caches.open(CACHE_NAME))
 })
 
 // activate event: clean up old caches
 self.addEventListener('activate', (event: ExtendableEvent) => {
-  // claim clients immediately so that the new
-  // service worker starts controlling the page
-  event.waitUntil(self.clients.claim())
-
   // delete old caches
   event.waitUntil(
     caches.keys().then((cacheNames) => {
