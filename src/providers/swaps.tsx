@@ -28,7 +28,7 @@ const BASE_URLS: Record<Network, string | null> = {
   bitcoin: fromRuntimeEnv(import.meta.env.VITE_BOLTZ_URL) ?? null,
   mutinynet: 'https://api.boltz.mutinynet.arkade.sh',
   signet: 'https://boltz.signet.arkade.sh',
-  regtest: 'http://localhost:9069',
+  regtest: fromRuntimeEnv(import.meta.env.VITE_BOLTZ_URL) ?? 'http://localhost:9069',
   testnet: null,
 }
 
