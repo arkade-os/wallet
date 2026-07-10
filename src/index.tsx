@@ -24,66 +24,14 @@ import ErrorBoundary from './components/ErrorBoundary'
 import { DevModeProvider } from './providers/devMode'
 import { AssetsProvider } from './providers/assets'
 
-const DEV_SERVICE_WORKER_RESET_KEY = 'arkade-dev-service-worker-reset-attempted'
-const DEV_WALLET_STORAGE_RESET_KEY_PREFIX = 'arkade-dev-wallet-storage-reset'
-
-function getDevWalletStorageResetKey() {
-  const credential = import.meta.env.VITE_DEV_MNEMONIC || import.meta.env.VITE_DEV_NSEC || 'manual'
-  let hash = 5381
-
-  for (let i = 0; i < credential.length; i++) {
-    hash = (hash * 33) ^ credential.charCodeAt(i)
-  }
-
-  return `${DEV_WALLET_STORAGE_RESET_KEY_PREFIX}:${hash >>> 0}`
-}
-
-function reloadAfterUnregisteringServiceWorkers() {
-  navigator.serviceWorker
-    ?.getRegistrations()
-    .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
-    .finally(() => window.location.reload())
-}
-
-function resetDevWalletStorage() {
-  if (!import.meta.env.DEV || import.meta.env.VITE_DEV_RESET_WALLET_ON_BOOT !== 'true') return false
-
-  try {
-    const storageResetKey = getDevWalletStorageResetKey()
-    if (localStorage.getItem(storageResetKey)) return false
-    localStorage.setItem(storageResetKey, 'true')
-
-    localStorage.removeItem('wallet')
-    localStorage.removeItem('encrypted_private_key')
-    localStorage.removeItem('encrypted_mnemonic')
-  } catch {
-    // Keep booting even if dev browser storage is unavailable.
-  }
-
-  if ('serviceWorker' in navigator) {
-    reloadAfterUnregisteringServiceWorkers()
-    return true
-  }
-
-  window.location.reload()
-  return true
-}
-
-function resetControlledDevServiceWorker() {
-  if (!import.meta.env.DEV || !(import.meta.env.VITE_DEV_NSEC || import.meta.env.VITE_DEV_MNEMONIC)) return false
-  if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) return false
-
-  try {
-    if (sessionStorage.getItem(DEV_SERVICE_WORKER_RESET_KEY)) return false
-    sessionStorage.setItem(DEV_SERVICE_WORKER_RESET_KEY, 'true')
-  } catch {
-    // Prefer one reload over leaving a stale dev service worker controlling boot.
-  }
-
-  reloadAfterUnregisteringServiceWorkers()
-
-  return true
-}
+// Register service worker updatefound listener to reload the page when a new service worker
+// is found thus preventing some nasty race conditions when updating the service worker.
+navigator.serviceWorker?.getRegistration().then((reg) => {
+  reg?.addEventListener('updatefound', () => {
+    console.log('Service worker update found')
+    window.location.reload()
+  })
+})
 
 // Initialize Sentry only in production and when DSN is provided
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN
@@ -106,25 +54,6 @@ if (shouldInitializeSentry(sentryDsn)) {
       }
       return event
     },
-  })
-}
-
-// Pre-register service worker so activation happens in parallel with page
-// bootstrap (ASP fetch, auth check, etc.). On cold starts this saves the
-// full activation wait from the critical path; on warm starts it's a no-op.
-const devBootResetting = resetDevWalletStorage() || resetControlledDevServiceWorker()
-if ('serviceWorker' in navigator && !devBootResetting) {
-  navigator.serviceWorker.register('/wallet-service-worker.mjs').catch(() => {})
-
-  // check if there's a service worker controlling the page
-  const previousSW = navigator.serviceWorker.controller
-
-  // This fires when the service worker controlling this page changes,
-  // eg a new worker has skipped waiting and become the new active worker.
-  // We reload the page to have the new service worker properly initialized.
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    // don't reload on fresh install, only when the service worker changes (eg update)
-    if (previousSW) window.location.reload()
   })
 }
 
