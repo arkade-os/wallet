@@ -1,47 +1,26 @@
 import { useContext, useEffect, useState } from 'react'
-import {
-  AllSourcesFailedError,
-  FeedParseError,
-  FeedUnreachableError,
-  MarketSizeError,
-  NoMarketError,
-} from '../lib/discovery'
+import { DiscoveryError, DiscoveryErrorCode } from '../lib/discovery'
 import { discoveryNetwork, discoveryRegistryUrls, quoteSwap, SwapQuoteResult } from '../lib/discovery/wallet'
 import { consoleError } from '../lib/logs'
 import { AspContext } from '../providers/asp'
 
 const QUOTE_DEBOUNCE_MS = 250
 
-export type DiscoveryUnavailableReason =
-  | 'no-market' // no followed source lists this pair
-  | 'size' // markets exist but none accepts this trade size
-  | 'feed' // the market's price feed is unreachable (possibly CORS) or unparseable
-  | 'sources' // every followed registry and pinned card failed to load
-  | 'error'
-
 export interface DiscoveryQuoteState {
   /** Live quote priced from the discovered market's pinned feed. */
   quote?: SwapQuoteResult
   loading: boolean
   /** Set when discovery ran but could not price the pair. */
-  unavailable?: DiscoveryUnavailableReason
+  unavailable?: DiscoveryErrorCode | 'error'
 }
 
 const idle: DiscoveryQuoteState = { loading: false }
 
-function unavailableReason(error: unknown): DiscoveryUnavailableReason {
-  if (error instanceof NoMarketError) return 'no-market'
-  if (error instanceof MarketSizeError) return 'size'
-  if (error instanceof FeedUnreachableError || error instanceof FeedParseError) return 'feed'
-  if (error instanceof AllSourcesFailedError) return 'sources'
-  return 'error'
-}
-
 /**
  * Price a prospective swap via the discovery protocol: merge the followed
  * registries' per-network indexes, take the best market for the pair, and
- * price the deposit from that market's own feed. Returns an idle state when
- * the wallet's network has no registry partition or inputs are incomplete.
+ * price the deposit from that market's own feed. Idle when the wallet's
+ * network has no registry partition or inputs are incomplete.
  */
 export function useDiscoveryQuote({
   fromAssetId,
@@ -82,7 +61,7 @@ export function useDiscoveryQuote({
         .catch((error) => {
           if (cancelled) return
           consoleError(error, 'discovery quote failed:')
-          setState({ loading: false, unavailable: unavailableReason(error) })
+          setState({ loading: false, unavailable: error instanceof DiscoveryError ? error.code : 'error' })
         })
     }, QUOTE_DEBOUNCE_MS)
 

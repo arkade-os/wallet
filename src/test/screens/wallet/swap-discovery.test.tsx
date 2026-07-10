@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import WalletSwap from '../../../screens/Wallet/Swap/Index'
-import { clearFeedCache, clearIndexCache } from '../../../lib/discovery'
+import { clearDiscoveryCaches } from '../../../lib/discovery'
 import { AspContext } from '../../../providers/asp'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
@@ -65,8 +65,7 @@ function renderSwapOnMutinynet() {
 
 describe('Wallet swap priced via the discovery protocol', () => {
   beforeEach(() => {
-    clearIndexCache()
-    clearFeedCache()
+    clearDiscoveryCaches()
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) => {

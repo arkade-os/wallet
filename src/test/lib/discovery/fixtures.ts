@@ -1,4 +1,4 @@
-import { AssetDescriptor, DiscoveryIndex, IndexMarket } from '../../../lib/discovery/types'
+import { AssetDescriptor, DiscoveryIndex, IndexMarket } from '../../../lib/discovery'
 
 // Network-scoped asset ids as this wallet stores them: 68 hex chars.
 export const DEPIX_ID = '00d1' + 'ab'.repeat(32)

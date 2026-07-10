@@ -1,15 +1,12 @@
 // Adapter between this wallet's asset/network model and the discovery
-// protocol's wire identifiers. The wallet uses 'btc' for native bitcoin and
-// the on-chain 68-hex id for every other asset; a discovery market's identity
-// is (`base_asset.id`, `quote_asset.id`) with ids `btc` or lowercase hex — so
-// the wallet's asset ids pass through unchanged (modulo case) and MUST match
-// what the solver's card declares.
+// protocol's identifiers. A market's identity is (`base_asset.id`,
+// `quote_asset.id`) with ids `btc` or lowercase hex — the wallet's own asset
+// ids pass through unchanged (modulo case), so a listed market MUST carry the
+// same on-chain id the wallet holds the balance under.
 
 import { isValidAssetId } from '../assets'
 import { fromRuntimeEnv } from '../constants'
-import { AllSourcesFailedError, MarketSizeError, NoMarketError } from './errors'
-import { quoteOffer, QuoteOfferParams, QuoteOfferResult } from './index'
-import { SwapDirection } from './pricing'
+import { DiscoveryError, quoteOffer, QuoteOfferParams, QuoteOfferResult, SwapDirection } from './index'
 
 /** wallet/arkd network name → registry index file name (per-network partitioning). */
 const DISCOVERY_NETWORKS: Record<string, string> = {
@@ -66,29 +63,26 @@ export async function quoteSwap(params: SwapQuoteParams): Promise<SwapQuoteResul
   const { fromAssetId, toAssetId, ...rest } = params
   const from = assetPairId(fromAssetId)
   const to = assetPairId(toAssetId)
-  if (!from || !to || from === to) throw new NoMarketError(`${fromAssetId}/${toAssetId}`)
+  if (!from || !to || from === to) throw new DiscoveryError('no-market', `no market for ${fromAssetId}/${toAssetId}`)
 
+  const failures: DiscoveryError[] = []
   const orientations: { pair: string; direction: SwapDirection }[] = [
     { pair: `${from}/${to}`, direction: 'base-to-quote' },
     { pair: `${to}/${from}`, direction: 'quote-to-base' },
   ]
-
-  const failures: Error[] = []
   for (const { pair, direction } of orientations) {
     try {
-      const result = await quoteOffer({ ...rest, pair, direction })
-      return { ...result, pair, direction }
+      return { ...(await quoteOffer({ ...rest, pair, direction })), pair, direction }
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error))
+      const err = error instanceof DiscoveryError ? error : new DiscoveryError('feed', String(error))
       // The sources are identical for both orientations, so a total source
       // failure can't be salvaged by flipping the pair.
-      if (err instanceof AllSourcesFailedError) throw err
+      if (err.code === 'sources') throw err
       failures.push(err)
     }
   }
-  // Surface the most actionable failure: a real error (dead feed, ...) over
-  // "size out of bounds" over "pair not listed at all".
-  const notMarketGap = failures.find((e) => !(e instanceof NoMarketError) && !(e instanceof MarketSizeError))
-  const sizeGap = failures.find((e) => e instanceof MarketSizeError)
-  throw notMarketGap ?? sizeGap ?? failures[0] ?? new NoMarketError(`${from}/${to}`)
+  // Surface the most actionable failure: a real error (dead feed, bad data)
+  // over "size out of bounds" over "pair not listed at all".
+  const real = failures.find((e) => e.code !== 'no-market' && e.code !== 'size')
+  throw real ?? failures.find((e) => e.code === 'size') ?? failures[0]
 }
