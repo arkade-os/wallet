@@ -1873,7 +1873,7 @@ html.palette-dark .send-asset-menu {
   gap: 0.625rem;
 }
 
-.swap-input-card__asset > div {
+.swap-input-card__asset-copy {
   display: flex;
   min-width: 0;
   flex: 1;

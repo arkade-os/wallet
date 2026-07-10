@@ -481,7 +481,7 @@ function SwapComposer({
       <div className='swap-input-card'>
         <div className='swap-input-card__asset'>
           <TokenAvatar asset={fromAsset} size={36} />
-          <div>
+          <div className='swap-input-card__asset-copy'>
             <span>{fromAsset.name}</span>
             <small>{formatAssetBalance(fromAsset)}</small>
           </div>

@@ -17,7 +17,7 @@ import {
 
 const assetId = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd'
 
-function renderSwap(flowOverrides = {}) {
+function renderSwap(flowOverrides = {}, metadataOverrides: Record<string, unknown> = {}) {
   const navigate = vi.fn()
   const goBack = vi.fn()
   const assetMetadataCache = new Map([
@@ -28,6 +28,7 @@ function renderSwap(flowOverrides = {}) {
           name: 'USDC',
           ticker: 'USDC',
           decimals: 2,
+          ...metadataOverrides,
         },
       },
     ],
@@ -43,7 +44,7 @@ function renderSwap(flowOverrides = {}) {
     dispatchEvent: vi.fn(),
   }))
 
-  render(
+  const view = render(
     <NavigationContext.Provider
       value={{
         ...mockNavigationContextValue,
@@ -74,7 +75,7 @@ function renderSwap(flowOverrides = {}) {
     </NavigationContext.Provider>,
   )
 
-  return { navigate, goBack }
+  return { ...view, navigate, goBack }
 }
 
 describe('Wallet swap flow', () => {
@@ -110,6 +111,24 @@ describe('Wallet swap flow', () => {
     expect(screen.getAllByText('USD').length).toBeGreaterThan(0)
     expect(screen.queryByText('Choose asset to swap')).not.toBeInTheDocument()
     expect(setSwapFromAssetId).toHaveBeenCalledWith(undefined)
+  })
+
+  it('keeps custom asset logos separate from the flexible asset copy', () => {
+    const { container } = renderSwap(
+      { swapFromAssetId: assetId, setSwapFromAssetId: vi.fn() },
+      {
+        name: 'Decentralized Pix',
+        ticker: 'DEPIX',
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>',
+      },
+    )
+
+    const assetHeader = container.querySelector('.swap-input-card__asset')
+    const logo = assetHeader?.querySelector('img')?.parentElement
+
+    expect(logo).toHaveStyle({ width: '36px', height: '36px' })
+    expect(logo).not.toHaveClass('swap-input-card__asset-copy')
+    expect(assetHeader?.lastElementChild).toHaveClass('swap-input-card__asset-copy')
   })
 
   it('explains that the review rate can update', async () => {
