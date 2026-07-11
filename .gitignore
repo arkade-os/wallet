@@ -15,6 +15,11 @@
 /dist
 /dist-capacitor
 
+# Capacitor native platforms (generated scaffold; regenerate with
+# `npx cap add android|ios` then `pnpm cap:sync`)
+/android
+/ios
+
 # misc
 .DS_Store
 .env.local
