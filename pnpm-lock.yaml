@@ -12,32 +12,32 @@ importers:
         specifier: ^8.0.0
         version: 8.0.0
       '@arkade-os/boltz-swap':
-        specifier: 0.3.37
-        version: 0.3.37
+        specifier: 0.3.48
+        version: 0.3.48
       '@arkade-os/sdk':
-        specifier: 0.4.32
-        version: 0.4.32
+        specifier: 0.4.43
+        version: 0.4.43
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@branta-ops/branta':
-        specifier: 0.0.9
-        version: 0.0.9
+        specifier: 3.1.3
+        version: 3.1.3
       '@capacitor/android':
         specifier: ^8.4.0
-        version: 8.4.0(@capacitor/core@8.4.0)
+        version: 8.4.1(@capacitor/core@8.4.1)
       '@capacitor/app':
         specifier: ^8.1.0
-        version: 8.1.0(@capacitor/core@8.4.0)
+        version: 8.1.0(@capacitor/core@8.4.1)
       '@capacitor/cli':
         specifier: ^8.4.0
-        version: 8.4.0
+        version: 8.4.1
       '@capacitor/core':
         specifier: ^8.4.0
-        version: 8.4.0
+        version: 8.4.1
       '@capacitor/ios':
         specifier: ^8.4.0
-        version: 8.4.0(@capacitor/core@8.4.0)
+        version: 8.4.1(@capacitor/core@8.4.1)
       '@fontsource-variable/geist':
         specifier: ^5.2.8
         version: 5.2.8
@@ -101,6 +101,9 @@ importers:
       light-bolt11-decoder:
         specifier: ^3.2.0
         version: 3.2.0
+      liveline:
+        specifier: ^0.0.7
+        version: 0.0.7(react@18.3.1)
       lucide-react:
         specifier: ^0.575.0
         version: 0.575.0(react@18.3.1)
@@ -146,6 +149,9 @@ importers:
       vaul-base:
         specifier: ^1.0.0
         version: 1.0.0(@base-ui/react@1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      web-haptics:
+        specifier: ^0.0.6
+        version: 0.0.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
     devDependencies:
       '@eslint/compat':
         specifier: ^1.3.2
@@ -259,8 +265,8 @@ packages:
     resolution: {integrity: sha512-oYnwSjdIh23aRNgz8982+TmFvQH/2yZkEdw1iIg+H2ziFJoOVELPTc7u6Ez2HwOuDIW5AGqBX75GvrzQ+D70Qg==}
     engines: {node: '>=20.0.0'}
 
-  '@arkade-os/boltz-swap@0.3.37':
-    resolution: {integrity: sha512-wP4daP/sDpUahmivaIZC8Lfvqz4lhQMWM1R8/Ib5x7NMS6k++FSs4KKQ6wjPKpweF8ULilsJdorhmLpNlEba6A==}
+  '@arkade-os/boltz-swap@0.3.48':
+    resolution: {integrity: sha512-fQD6/T/Z0BvGkzqduxaGyKEozbE1l2VrMm4aEON5ajIpYokIKUidHR6wv+Qh8Pl4Zm0daVgEWAS+RvB8gzmaDw==}
     peerDependencies:
       expo-background-task: '>=0.1.0'
       expo-task-manager: '>=3.0.0'
@@ -270,8 +276,8 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/sdk@0.4.32':
-    resolution: {integrity: sha512-we7eNPuuW9PWRS/B4Nlw5MHXTgJ7CuQzbdSrisH0u3P2PPQd/0FbSspEW/OQRNjMrJl+29zAEKN5kswy9MTjxA==}
+  '@arkade-os/sdk@0.4.43':
+    resolution: {integrity: sha512-gn9aymz5apYLtkiRAhPNzE0YqmCLJn8a6yoB0SBVnzYhZxamCxP4Xnio0nVW+joWNNpGNsVP2S3shCbymXFIRQ==}
     engines: {node: '>=22.12.0 <25'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -300,6 +306,10 @@ packages:
 
   '@babel/code-frame@7.29.0':
     resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/code-frame@7.29.7':
+    resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
     engines: {node: '>=6.9.0'}
 
   '@babel/compat-data@7.28.5':
@@ -390,6 +400,10 @@ packages:
     resolution: {integrity: sha512-qSs4ifwzKJSV39ucNjsvc6WVHs6b7S03sOh2OcHF9UHfVPqWWALUsNUVzhSBiItjRZoLHx7nIarVjqKVusUZ1Q==}
     engines: {node: '>=6.9.0'}
 
+  '@babel/helper-validator-identifier@7.29.7':
+    resolution: {integrity: sha512-qehxGkRj55h/ff8EMaJ+cYhyaKlHIxqYDn682wQD7RNp9UujOQsHog2uS0r2vzr4pW+sXf90NeeayjcNaX3fFg==}
+    engines: {node: '>=6.9.0'}
+
   '@babel/helper-validator-option@7.27.1':
     resolution: {integrity: sha512-YvjJow9FxbhFFKDSuFnVCe2WxXk1zWc22fFePVNEaWJEu8IrZVlda6N0uHwzZrUM1il7NC9Mlp4MaJYbYd9JSg==}
     engines: {node: '>=6.9.0'}
@@ -456,6 +470,10 @@ packages:
 
   '@babel/runtime@7.29.2':
     resolution: {integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/runtime@7.29.7':
+    resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
     engines: {node: '>=6.9.0'}
 
   '@babel/template@7.27.2':
@@ -554,11 +572,11 @@ packages:
   '@bitcoinerlab/miniscript@2.0.0':
     resolution: {integrity: sha512-P8yyubPf6lphmIZfyD/ZbhT/umJX7zH1mKjGql7z0Qt+xuffnz2AueQqq2/01VE2rTIq80VM0oRFdJClGBYx/g==}
 
-  '@branta-ops/branta@0.0.9':
-    resolution: {integrity: sha512-CLx8UUJQ5dLGWSUmxaFOBitw8C6DTNV0Hk/sm7jOhLOQPjgELLpcIwe/L2Tm3m9kkyKV8M9xdK9YClGRLf5Epw==}
+  '@branta-ops/branta@3.1.3':
+    resolution: {integrity: sha512-rcyDBYnYD+cmvQWylJ+n3JdR65FiHP1tVPtWQMhKLmcXx56czL8Ez7+I9jy7pmLBIVwP6mS1EsUqSrvQi22v1w==}
 
-  '@capacitor/android@8.4.0':
-    resolution: {integrity: sha512-K1ZPkQzvRzPEALz9nBdLx5p5nAPzp5fsTYWk7LRiKZeH/NXqjDvqfTv7lrLgrziQNoDeaL6ijg64oBREzXiV+g==}
+  '@capacitor/android@8.4.1':
+    resolution: {integrity: sha512-igtDCJ7QQn0P2qHFD9p4KXaa6V1b2PRNt+MxjVwtjTm/BJvqmiazOJq6rPjwFSZnfHm6iFoZk8TfzHd44pyBGw==}
     peerDependencies:
       '@capacitor/core': ^8.4.0
 
@@ -567,21 +585,21 @@ packages:
     peerDependencies:
       '@capacitor/core': '>=8.0.0'
 
-  '@capacitor/cli@8.4.0':
-    resolution: {integrity: sha512-5Z9RKHxiqJYRTLrfMeZmzR4qrlg5B85MxsWZ5goyXsLkO3bgpW9a1qV/6fR1SX9s5gwLza5y7PZVwITl/hDJ7g==}
+  '@capacitor/cli@8.4.1':
+    resolution: {integrity: sha512-t7F2s7fFHCq113xgrggrmK6ctV0/8E5YfLNVLfPHp4GCTDO+tly9fZvWPf2/sOI8lMm18dLT43qbXLRTz/OZgw==}
     engines: {node: '>=22.0.0'}
     hasBin: true
 
-  '@capacitor/core@8.4.0':
-    resolution: {integrity: sha512-LrS1xPIrqLtJABBIPDGXxxKmI9OyesrzWw8DiHbxhSC9JoiLUleUAJlX1a0LWIVLRbuY4Szgf9huFeRqYH2SAQ==}
+  '@capacitor/core@8.4.1':
+    resolution: {integrity: sha512-xqhOGLbTAYeOWK+IDUNSjQJAPapQjRHrIcgk9PYp52or9zFTaaMko31uNi16N6W+CRJ8VrRram6fOYILkBG2Hg==}
 
-  '@capacitor/ios@8.4.0':
-    resolution: {integrity: sha512-tnwstEdbTJ2nHAfoAwnurXgYRscWeLY+IIGdz69o24gN2Crfj9Xc0TWo8L5uFLF1LmpbUywH1IT0U1oHV8c+CA==}
+  '@capacitor/ios@8.4.1':
+    resolution: {integrity: sha512-EgcAk7NYheHMTyP3CUrA65qKs4D2UEAKgw44HI6Uk3dTw6KjLQkdLOQWvbeRncHaZ2gklfOojUoc5DlSw2lhYg==}
     peerDependencies:
       '@capacitor/core': ^8.4.0
 
-  '@capacitor/keyboard@8.0.3':
-    resolution: {integrity: sha512-27Bv5/2w1Ss2njguBgTS98O0Bb8DRJhAARyzXYib0JlT/n6BrJw/EZ0CokM4C8GFUjFDjJnEKF1Ie01buTMEXQ==}
+  '@capacitor/keyboard@8.0.5':
+    resolution: {integrity: sha512-oFXygC4eKYA5l2MdpTR06L2M/4x6e2SLD5yS1T9+UBDKTkzyvhWKEhbYLUaTIBPpLKqlfGudJw1X73S1H9eUzQ==}
     peerDependencies:
       '@capacitor/core': '>=8.0.0'
 
@@ -946,8 +964,8 @@ packages:
   '@lendasat/lendasat-wallet-bridge@0.0.90':
     resolution: {integrity: sha512-VfgM5vUx81vVWlggtOReUkaC8VVOFVavIMixQM0G/ZI0L/nMi10fmkIBvXOVI4Jmsu9A5z6wHSUrERxD3a/Juw==}
 
-  '@marcbachmann/cel-js@7.3.1':
-    resolution: {integrity: sha512-P6o26TvjStT8V8+8EF+yq9Pp7ZFV00bpiUMbssr76XbIZGxaB+NNWeBp6WNxOrR9gp0JPzvJueCKHpOs5LE9PQ==}
+  '@marcbachmann/cel-js@8.0.0':
+    resolution: {integrity: sha512-oaTrAziGr3zDLFiMt/yLU3nZuRMawyWQB5X1a0I7s9eGy3JYzX9l8ZXXHyMd64nzbeVFZTewuUShwsZQdK6UCA==}
     engines: {node: '>=20.19.0'}
     hasBin: true
 
@@ -3156,6 +3174,12 @@ packages:
   lines-and-columns@1.2.4:
     resolution: {integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==}
 
+  liveline@0.0.7:
+    resolution: {integrity: sha512-S1Weo1kmefiOCNaW/WFXErqJXlV8A/ldIkIthaOeT57I2ZhqhKLKQDJ1wfabtMSK9vJeU8PeMNHd8Sr8TLByWQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      react: '>=18'
+
   locate-path@6.0.0:
     resolution: {integrity: sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw==}
     engines: {node: '>=10'}
@@ -3180,8 +3204,8 @@ packages:
   lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
 
-  lru-cache@11.5.1:
-    resolution: {integrity: sha512-RPimw/7aMdv2oqRrxKwvZXcPfwBrn/JZ2xYcY9Hus/6LaS3VOAKVWKWgNLCFSiOm1ESXinjsDlidVU7JlnCN2A==}
+  lru-cache@11.5.2:
+    resolution: {integrity: sha512-4pfM1Ff0x50o0tQwb5ucw/RzNyD0/YJME6IVcStalZuMWxdt3sR3huStTtxz4PUmvZfRguvDejasvQ2kifR11g==}
     engines: {node: 20 || >=22}
 
   lru-cache@5.1.1:
@@ -4023,8 +4047,8 @@ packages:
     resolution: {integrity: sha512-uxc/zpqFg6x7C8vOE7lh6Lbda8eEL9zmVm/PLeTPBRhh1xCgdWaQ+J1CUieGpIfm2HdtsUpRv+HshiasBMcc6A==}
     engines: {node: '>=6'}
 
-  tar@7.5.16:
-    resolution: {integrity: sha512-56adEpPMouktRlBLXiaYFFzZ/3+JXa8P9n7WbR+ibIjtviN55mEaOkiysCnPnWm+7kkui1Dn8J9l+g6zV8731w==}
+  tar@7.5.19:
+    resolution: {integrity: sha512-4LeEWl96twnS2Q7Bz4MGqgazLqO+hJN63GZxXoIqh1T3VweYD997gbU1ItNsQafqqXTXd5WFyFdReLtwvRBNiw==}
     engines: {node: '>=18'}
 
   text-table@0.2.0:
@@ -4339,6 +4363,23 @@ packages:
   warning@4.0.3:
     resolution: {integrity: sha512-rpJyN222KWIvHJ/F53XSZv0Zl/accqHR8et1kpaMTD/fLCRxtV8iX8czMzY7sVZupTI3zcUTg8eycS2kNF9l6w==}
 
+  web-haptics@0.0.6:
+    resolution: {integrity: sha512-eCzcf1LDi20+Fr0x9V3OkX92k0gxEQXaHajmhXHitsnk6SxPeshv8TBtBRqxyst8HI1uf2FyFVE7QS3jo1gkrw==}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+      svelte: '>=4'
+      vue: '>=3'
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
+
   web-streams-polyfill@3.3.3:
     resolution: {integrity: sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw==}
     engines: {node: '>= 8'}
@@ -4491,15 +4532,15 @@ snapshots:
 
   '@aparajita/capacitor-secure-storage@8.0.0':
     dependencies:
-      '@capacitor/android': 8.4.0(@capacitor/core@8.4.0)
-      '@capacitor/app': 8.1.0(@capacitor/core@8.4.0)
-      '@capacitor/core': 8.4.0
-      '@capacitor/ios': 8.4.0(@capacitor/core@8.4.0)
-      '@capacitor/keyboard': 8.0.3(@capacitor/core@8.4.0)
+      '@capacitor/android': 8.4.1(@capacitor/core@8.4.1)
+      '@capacitor/app': 8.1.0(@capacitor/core@8.4.1)
+      '@capacitor/core': 8.4.1
+      '@capacitor/ios': 8.4.1(@capacitor/core@8.4.1)
+      '@capacitor/keyboard': 8.0.5(@capacitor/core@8.4.1)
 
-  '@arkade-os/boltz-swap@0.3.37':
+  '@arkade-os/boltz-swap@0.3.48':
     dependencies:
-      '@arkade-os/sdk': 0.4.32
+      '@arkade-os/sdk': 0.4.43
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
@@ -4517,10 +4558,10 @@ snapshots:
       - expo-sqlite
       - utf-8-validate
 
-  '@arkade-os/sdk@0.4.32':
+  '@arkade-os/sdk@0.4.43':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
-      '@marcbachmann/cel-js': 7.3.1
+      '@marcbachmann/cel-js': 8.0.0
       '@noble/curves': 2.0.1
       '@noble/secp256k1': 3.0.0
       '@scure/base': 2.0.0
@@ -4553,6 +4594,12 @@ snapshots:
   '@babel/code-frame@7.29.0':
     dependencies:
       '@babel/helper-validator-identifier': 7.28.5
+      js-tokens: 4.0.0
+      picocolors: 1.1.1
+
+  '@babel/code-frame@7.29.7':
+    dependencies:
+      '@babel/helper-validator-identifier': 7.29.7
       js-tokens: 4.0.0
       picocolors: 1.1.1
 
@@ -4688,6 +4735,8 @@ snapshots:
 
   '@babel/helper-validator-identifier@7.28.5': {}
 
+  '@babel/helper-validator-identifier@7.29.7': {}
+
   '@babel/helper-validator-option@7.27.1': {}
 
   '@babel/helpers@7.28.4':
@@ -4756,6 +4805,8 @@ snapshots:
   '@babel/runtime@7.28.4': {}
 
   '@babel/runtime@7.29.2': {}
+
+  '@babel/runtime@7.29.7': {}
 
   '@babel/template@7.27.2':
     dependencies:
@@ -4858,17 +4909,17 @@ snapshots:
     dependencies:
       bip68: 1.0.4
 
-  '@branta-ops/branta@0.0.9': {}
+  '@branta-ops/branta@3.1.3': {}
 
-  '@capacitor/android@8.4.0(@capacitor/core@8.4.0)':
+  '@capacitor/android@8.4.1(@capacitor/core@8.4.1)':
     dependencies:
-      '@capacitor/core': 8.4.0
+      '@capacitor/core': 8.4.1
 
-  '@capacitor/app@8.1.0(@capacitor/core@8.4.0)':
+  '@capacitor/app@8.1.0(@capacitor/core@8.4.1)':
     dependencies:
-      '@capacitor/core': 8.4.0
+      '@capacitor/core': 8.4.1
 
-  '@capacitor/cli@8.4.0':
+  '@capacitor/cli@8.4.1':
     dependencies:
       '@ionic/cli-framework-output': 2.2.8
       '@ionic/utils-subprocess': 3.0.1
@@ -4884,23 +4935,23 @@ snapshots:
       prompts: 2.4.2
       rimraf: 6.1.3
       semver: 7.7.3
-      tar: 7.5.16
+      tar: 7.5.19
       tslib: 2.8.1
       xml2js: 0.6.2
     transitivePeerDependencies:
       - supports-color
 
-  '@capacitor/core@8.4.0':
+  '@capacitor/core@8.4.1':
     dependencies:
       tslib: 2.8.1
 
-  '@capacitor/ios@8.4.0(@capacitor/core@8.4.0)':
+  '@capacitor/ios@8.4.1(@capacitor/core@8.4.1)':
     dependencies:
-      '@capacitor/core': 8.4.0
+      '@capacitor/core': 8.4.1
 
-  '@capacitor/keyboard@8.0.3(@capacitor/core@8.4.0)':
+  '@capacitor/keyboard@8.0.5(@capacitor/core@8.4.1)':
     dependencies:
-      '@capacitor/core': 8.4.0
+      '@capacitor/core': 8.4.1
 
   '@csstools/color-helpers@5.1.0': {}
 
@@ -5219,7 +5270,7 @@ snapshots:
 
   '@lendasat/lendasat-wallet-bridge@0.0.90': {}
 
-  '@marcbachmann/cel-js@7.3.1': {}
+  '@marcbachmann/cel-js@8.0.0': {}
 
   '@modelcontextprotocol/sdk@1.29.0(zod@3.25.76)':
     dependencies:
@@ -5586,8 +5637,8 @@ snapshots:
 
   '@testing-library/dom@10.4.1':
     dependencies:
-      '@babel/code-frame': 7.29.0
-      '@babel/runtime': 7.29.2
+      '@babel/code-frame': 7.29.7
+      '@babel/runtime': 7.29.7
       '@types/aria-query': 5.0.4
       aria-query: 5.3.0
       dom-accessibility-api: 0.5.16
@@ -7520,6 +7571,10 @@ snapshots:
 
   lines-and-columns@1.2.4: {}
 
+  liveline@0.0.7(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+
   locate-path@6.0.0:
     dependencies:
       p-locate: 5.0.0
@@ -7541,7 +7596,7 @@ snapshots:
 
   lru-cache@10.4.3: {}
 
-  lru-cache@11.5.1: {}
+  lru-cache@11.5.2: {}
 
   lru-cache@5.1.1:
     dependencies:
@@ -7853,7 +7908,7 @@ snapshots:
 
   path-scurry@2.0.2:
     dependencies:
-      lru-cache: 11.5.1
+      lru-cache: 11.5.2
       minipass: 7.1.3
 
   path-to-regexp@6.3.0: {}
@@ -8507,7 +8562,7 @@ snapshots:
 
   tapable@2.3.3: {}
 
-  tar@7.5.16:
+  tar@7.5.19:
     dependencies:
       '@isaacs/fs-minipass': 4.0.1
       chownr: 3.0.0
@@ -8833,6 +8888,11 @@ snapshots:
   warning@4.0.3:
     dependencies:
       loose-envify: 1.4.0
+
+  web-haptics@0.0.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    optionalDependencies:
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
   web-streams-polyfill@3.3.3: {}
 

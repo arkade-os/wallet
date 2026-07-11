@@ -9,6 +9,8 @@ import {
   DelegateContractHandler,
   IVtxoManager,
   Asset,
+  ArkError,
+  DelegateInfo,
 } from '@arkade-os/sdk'
 import { Addresses, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
@@ -50,8 +52,22 @@ export const emptyAspInfo: AspInfo = {
   vtxoMaxAmount: BigInt(-1), // -1 means no limit (default)
   vtxoMinAmount: BigInt(1),
   unreachable: false,
+  outdated: false,
   url: '',
 }
+
+// arkd's structured error name when the client's X-Build-Version is below the
+// server's configured minimum (the version guard rejects even getInfo, so the
+// wallet would otherwise just see the server as unreachable).
+const BUILD_VERSION_TOO_OLD = 'BUILD_VERSION_TOO_OLD'
+
+// User-facing message for an unavailable server. Distinguishes "your client is
+// too old" (actionable: update) from a generic unreachable server, falling back
+// to each caller's existing wording for the non-outdated case.
+export const aspErrorText = (info: AspInfo, fallback: string): string =>
+  info.outdated
+    ? 'Your wallet is outdated and needs to be updated to be compatible with the latest Arkade version.'
+    : fallback
 
 export const collaborativeExit = async (wallet: IWallet, amount: number, address: string): Promise<string> => {
   const vtxos = await wallet.getVtxos()
@@ -148,6 +164,16 @@ export const getAspInfo = async (url: string): Promise<AspInfo> => {
     return { ...infos, unreachable: false, url }
   } catch (err) {
     consoleError(err, 'error getting asp info')
+    // A too-old client is rejected with a structured BUILD_VERSION_TOO_OLD error
+    // (handleError in the SDK surfaces it as a typed ArkError). Surface it as an
+    // actionable "update your wallet" state instead of a generic unreachable.
+    if (err instanceof ArkError && err.name === BUILD_VERSION_TOO_OLD) {
+      // Prefer structured metadata; fall back to the ">= X" in the message,
+      // since arkd's guard error reaches us without populated metadata.
+      const minBuildVersion =
+        err.metadata?.min_version ?? err.metadata?.minVersion ?? err.message.match(/>=\s*v?([\d.]+)/)?.[1]
+      return { ...emptyAspInfo, unreachable: true, outdated: true, minBuildVersion, url }
+    }
     return { ...emptyAspInfo, unreachable: true, url }
   }
 }
@@ -309,7 +335,14 @@ export const delegateVtxos = async (wallet: IWallet): Promise<void> => {
     throw new Error('Delegator manager not found')
   }
 
-  const delegateInfo = await dm.getDelegateInfo()
+  let delegateInfo: DelegateInfo
+  try {
+    delegateInfo = await dm.getDelegateInfo()
+  } catch (error) {
+    consoleError(error, 'Error fetching delegate info')
+    return
+  }
+
   const vtxosToDelegate = contractWithVtxos
     .filter(({ contract, vtxos }) => {
       if (vtxos.length === 0) return false
@@ -324,8 +357,7 @@ export const delegateVtxos = async (wallet: IWallet): Promise<void> => {
   const destination = await wallet.getAddress()
   const result = await dm.delegate(vtxosToDelegate, destination)
   if (result.failed.length > 0) {
-    // eslint-disable-next-line no-console
-    console.warn('Delegation partial failure:', result.failed)
+    consoleError(result.failed, 'Delegation partial failure:')
   }
 }
 

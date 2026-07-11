@@ -13,10 +13,19 @@ export const minSatsToNudge = 100_000
 export const maxPercentage = import.meta.env.VITE_MAX_PERCENTAGE ?? 10
 export const psaMessage = import.meta.env.VITE_PSA_MESSAGE ?? ''
 export const enableChainSwapsReceive = import.meta.env.VITE_CHAIN_SWAPS_RECEIVE_ENABLED === 'true'
-export const lnurlServerUrl: string | undefined = import.meta.env.VITE_LNURL_SERVER_URL
+// Vite bakes __VITE_FOO__ placeholders into the bundle at build time; the
+// Docker entrypoint substitutes them with real values at container startup.
+// A deployment that doesn't set a given var leaves the literal placeholder,
+// which must be treated as "unset" rather than used as a real value (e.g. a
+// truthy "__VITE_ARK_SERVER__" string being used as a server URL).
+export const fromRuntimeEnv = (value: string | undefined): string | undefined =>
+  value && !value.startsWith('__VITE_') ? value : undefined
+
+export const lnurlServerUrl: string | undefined = fromRuntimeEnv(import.meta.env.VITE_LNURL_SERVER_URL)
 
 export const defaultArkServer = () => {
-  if (import.meta.env.VITE_ARK_SERVER) return import.meta.env.VITE_ARK_SERVER
+  const arkServer = fromRuntimeEnv(import.meta.env.VITE_ARK_SERVER)
+  if (arkServer) return arkServer
   // Under Capacitor the WebView hostname is `localhost`, which would otherwise
   // match `testDomains` and pin the native app to a local dev server. Native
   // defaults to mainnet (matching the PWA); beta builds set VITE_ARK_SERVER.
@@ -37,11 +46,13 @@ const DELEGATE_URL: Record<Network, string | null> = {
   testnet: null,
 }
 
-export const getDelegateUrlForNetwork = (network: Network): Delegate => {
-  const url = DELEGATE_URL[network]
-  if (!url) {
-    throw new Error(`Delegate URL not found for network: ${network}`)
-  }
+export const getDelegateUrlForNetwork = (network: Network): string | undefined => {
+  return DELEGATE_URL[network] ?? undefined
+}
+
+export const getDelegateForNetwork = (network: Network): Delegate | undefined => {
+  const url = getDelegateUrlForNetwork(network)
+  if (!url) return undefined
   return {
     url,
     fee: 0,

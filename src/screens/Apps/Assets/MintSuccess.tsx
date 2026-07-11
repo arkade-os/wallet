@@ -13,7 +13,7 @@ import { WalletContext } from '../../../providers/wallet'
 import AssetCard from '../../../components/AssetCard'
 
 export default function AppAssetMintSuccess() {
-  const { navigate } = useContext(NavigationContext)
+  const { replace } = useContext(NavigationContext)
   const { assetInfo } = useContext(FlowContext)
   const { assetMetadataCache } = useContext(WalletContext)
 
@@ -25,7 +25,7 @@ export default function AppAssetMintSuccess() {
   const icon = details.metadata?.icon
 
   const handleViewAsset = () => {
-    navigate(Pages.AppAssetDetail)
+    replace(Pages.AppAssetDetail, Pages.AppAssets)
   }
 
   return (
@@ -45,7 +45,6 @@ export default function AppAssetMintSuccess() {
               icon={icon}
               name={name}
               ticker={ticker}
-              darkPurple
             />
             <FlexCol gap='0.25rem' centered>
               <Text copy={assetInfo.assetId} color='neutral-500' smaller>
@@ -58,7 +57,11 @@ export default function AppAssetMintSuccess() {
       </Content>
       <ButtonsOnBottom>
         <Button label='View Asset' onClick={handleViewAsset} />
-        <Button label='Back to Arkade Mint' onClick={() => navigate(Pages.AppAssets)} secondary />
+        <Button
+          label='Back to Arkade Mint'
+          onClick={() => replace(Pages.AppAssets, [Pages.Settings, Pages.WalletSettings])}
+          secondary
+        />
       </ButtonsOnBottom>
     </>
   )

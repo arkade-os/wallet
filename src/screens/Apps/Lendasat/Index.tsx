@@ -12,7 +12,7 @@ import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { hmac } from '@noble/hashes/hmac.js'
 import { Transaction } from '@arkade-os/sdk'
 import { isArkAddress, isBTCAddress } from '../../../lib/address'
-import { NavigationContext, Pages } from '../../../providers/navigation'
+import { NavigationContext, Pages } from '@/providers/navigation'
 
 const { bytesToHex, hexToBytes } = utils
 
@@ -181,7 +181,7 @@ export default function AppLendasat() {
 
   return (
     <>
-      <Header text='Lendasat' back={() => navigate(Pages.Apps)} />
+      <Header text='Lendasat' back={() => navigate(Pages.Wallet)} />
       <Content>
         <Padded>
           <FlexCol gap='2rem' between>

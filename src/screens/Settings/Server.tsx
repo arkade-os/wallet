@@ -5,7 +5,7 @@ import Content from '../../components/Content'
 import Padded from '../../components/Padded'
 import ErrorMessage from '../../components/Error'
 import { ConfigContext } from '../../providers/config'
-import { getAspInfo } from '../../lib/asp'
+import { getAspInfo, aspErrorText } from '../../lib/asp'
 import { WalletContext } from '../../providers/wallet'
 import Header from './Header'
 import WarningBox from '../../components/Warning'
@@ -35,8 +35,8 @@ export default function Server() {
   }
 
   useEffect(() => {
-    setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
-  }, [aspInfo.unreachable])
+    setError(aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '')
+  }, [aspInfo.unreachable, aspInfo.outdated])
 
   useEffect(() => {
     if (!aspUrl || !isValidUrl(aspUrl)) return
@@ -87,7 +87,6 @@ export default function Server() {
               onEnter={handleEnter}
               openScan={() => setScan(true)}
               placeholder={config.aspUrl}
-              value={aspUrl}
             />
             <ErrorMessage error={Boolean(error)} text={error} />
             {info && !error ? <WarningBox green text='Server found' /> : null}

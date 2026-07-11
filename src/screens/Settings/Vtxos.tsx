@@ -17,6 +17,7 @@ import Info from '../../components/Info'
 import LoadingIcon from '../../icons/Loading'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
+import { aspErrorText } from '../../lib/asp'
 import LoadingLogo from '../../components/LoadingLogo'
 import { LimitsContext } from '../../providers/limits'
 import { EmptyCoinsList } from '../../components/Empty'
@@ -55,8 +56,8 @@ export default function Vtxos() {
 
   // Update error state if aspInfo.unreachable changes
   useEffect(() => {
-    setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
-  }, [aspInfo.unreachable])
+    setError(aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '')
+  }, [aspInfo.unreachable, aspInfo.outdated])
 
   // Update label based on rolling over state and dust status
   useEffect(() => {
@@ -276,7 +277,7 @@ export default function Vtxos() {
                 : null}
       </FlexRow>
     )
-    return <CoinLine amount={`${satsAmount} SATS`} assets={assetsAmounts} tags={tags} expiry={expiry} />
+    return <CoinLine amount={`${satsAmount} sats`} assets={assetsAmounts} tags={tags} expiry={expiry} />
   }
 
   const UtxoLine = ({ utxo }: { utxo: ExtendedCoin }) => {
@@ -288,7 +289,7 @@ export default function Vtxos() {
         {!utxo.status.block_time ? Tags.unconfirmed : utxo.value < aspInfo.dust ? Tags.subdust : null}
       </FlexRow>
     )
-    return <CoinLine amount={`${amount} SATS`} tags={tags} expiry={expiry} />
+    return <CoinLine amount={`${amount} sats`} tags={tags} expiry={expiry} />
   }
 
   return (

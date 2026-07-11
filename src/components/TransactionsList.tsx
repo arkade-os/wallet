@@ -1,12 +1,12 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useRef } from 'react'
 import { WalletContext } from '../providers/wallet'
-import Text, { TextSecondary } from './Text'
-import { CurrencyDisplay, Tx } from '../lib/types'
+import { Currencies, Tx } from '../lib/types'
 import {
   isBurn,
   isIssuance,
-  prettyAmount,
+  prettyCurrencyAssetAmount,
+  prettyBitcoinAmount,
   prettyDate,
   prettyFiatAmount,
   prettyFiatHide,
@@ -23,45 +23,52 @@ import { FiatContext } from '../providers/fiat'
 import PreconfirmedIcon from '../icons/Preconfirmed'
 import Focusable from './Focusable'
 import { hapticSubtle } from '../lib/haptics'
-import { prettyAssetAmount, prettyAssetAmountHide } from '../lib/assets'
+import TokenLogo, { accountTickerForAssetTicker, tokenLogoTickerForTicker, type TokenLogoTicker } from './TokenLogo'
+import { PrivacyAmount } from './PrivacyAmount'
 
-const border = '1px solid var(--neutral-200)'
+const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
-const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void; isFirst?: boolean }) => {
+const TransactionLine = ({
+  tx,
+  onClick,
+  isFirst,
+  mode,
+}: {
+  tx: Tx
+  onClick: () => void
+  isFirst?: boolean
+  mode: 'virtual' | 'static'
+}) => {
   const { config } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
 
   const prefix = tx.type === 'sent' ? '-' : '+'
-  const amount = `${prefix} ${config.showBalance ? prettyAmount(tx.amount) : prettyHide(tx.amount)}`
   const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
   const asAssets = Boolean(tx.assets?.length)
+  const swap = tx.type === 'swap'
   const issuance = isIssuance(tx)
   const burn = isBurn(tx)
 
-  const Fiat = () => {
-    if (issuance || burn) return null
-    const color =
-      config.currencyDisplay === CurrencyDisplay.Both
-        ? 'neutral-500'
-        : tx.type === 'received'
-          ? 'green'
-          : tx.boardingTxid && tx.preconfirmed
-            ? 'orange'
-            : ''
+  const Currency = () => {
+    if (issuance || burn || swap) return null
     const value = toFiat(tx.amount)
-    const small = asAssets || config.currencyDisplay === CurrencyDisplay.Both
-    const text = config.showBalance ? prettyFiatAmount(value, config.fiat) : prettyFiatHide(value, config.fiat)
-    const fiatAmount = `${prefix} ${text}`
+    const statusClassName = tx.boardingTxid && tx.preconfirmed ? ' activity-row__amount--pending' : ''
+    const secondaryClassName = asAssets ? ' activity-row__amount--secondary' : ''
     return (
-      <Text color={color} small={small}>
-        {fiatAmount}
-      </Text>
+      <span className={`activity-row__amount${statusClassName}${secondaryClassName}`}>
+        <PrivacyAmount masked={prettyFiatHide(value, config.currency, { bitcoinUnit: config.unit })}>
+          {prettyFiatAmount(value, config.currency, { bitcoinUnit: config.unit })}
+        </PrivacyAmount>
+      </span>
     )
   }
 
-  const Icon = () =>
-    issuance ? (
+  const iconTone = tx.preconfirmed && tx.boardingTxid ? 'pending' : burn ? 'burn' : swap ? 'pending' : 'default'
+  const Icon = () => {
+    const icon = swap ? (
+      <SwapRouteIcon fromTicker={tx.prototypeSwap?.fromTicker} toTicker={tx.prototypeSwap?.toTicker} />
+    ) : issuance ? (
       <ReceivedIcon />
     ) : burn ? (
       <SentIcon />
@@ -72,42 +79,47 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
     ) : (
       <ReceivedIcon dotted={tx.preconfirmed} />
     )
+    return <span className={`activity-row__icon activity-row__icon--${iconTone}`}>{icon}</span>
+  }
 
-  const Kind = () => (
-    <Text thin>{issuance ? 'Issuance' : burn ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received'}</Text>
-  )
+  const kind = swap ? 'Swap' : issuance ? 'Issuance' : burn ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received'
+  const Kind = () => <span className='activity-row__kind'>{kind}</span>
 
-  const When = () => <TextSecondary>{date}</TextSecondary>
+  const When = () => <span className='activity-row__meta'>{date}</span>
 
-  const Sats = () =>
+  const Bitcoin = () =>
     issuance || burn ? null : (
-      <Text
-        color={tx.type === 'received' ? (tx.preconfirmed && tx.boardingTxid ? 'orange' : 'green') : ''}
-        smaller={asAssets}
-        thin
+      <span
+        className={`activity-row__amount${tx.preconfirmed && tx.boardingTxid ? ' activity-row__amount--pending' : ''}${
+          asAssets ? ' activity-row__amount--secondary' : ''
+        }`}
       >
-        {amount}
-      </Text>
+        <PrivacyAmount
+          masked={`${prefix} ${prettyFiatHide(toFiat(tx.amount), config.currency, { bitcoinUnit: config.unit })}`}
+        >{`${prefix} ${prettyBitcoinAmount(tx.amount, config.unit)}`}</PrivacyAmount>
+      </span>
     )
 
   const AssetInfo = () => {
     if (!tx.assets?.length) return null
-    const color = tx.type === 'received' || issuance ? 'green' : ''
     return (
       <>
         {tx.assets.map((a) => {
+          const accountInfo = accountInfoForAssetId(a.assetId)
           const meta = assetMetadataCache.get(a.assetId)?.metadata
-          const ticker = meta?.ticker
+          const ticker = accountInfo?.ticker ?? meta?.ticker
           const icon = meta?.icon
-          const decimals = meta?.decimals ?? 8
+          const decimals = accountInfo?.decimals ?? meta?.decimals ?? 8
+          const accountTicker = accountTickerForAssetTicker(ticker)
+          const label = accountInfo?.label ?? accountTicker ?? ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`
           return (
-            <FlexRow key={a.assetId} gap='0.25rem' end>
-              <AssetAvatar icon={icon} ticker={ticker} size={16} assetId={a.assetId} clickable />
-              <Text color={color} thin>
-                {config.showBalance
-                  ? `${prettyAssetAmount(a.amount, decimals, true)} ${ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`}`
-                  : prettyAssetAmountHide(a.amount, ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`)}
-              </Text>
+            <FlexRow key={a.assetId} gap='0.375rem' end>
+              <TransactionAssetAvatar icon={icon} ticker={accountTicker ?? ticker} assetId={a.assetId} />
+              <span className='activity-row__amount'>
+                <PrivacyAmount masked={prettyHide(a.amount, label)}>
+                  {`${prettyCurrencyAssetAmount(a.amount, decimals, accountTicker ?? ticker)} ${label}`}
+                </PrivacyAmount>
+              </span>
             </FlexRow>
           )
         })}
@@ -115,57 +127,58 @@ const TransactionLine = ({ tx, onClick, isFirst }: { tx: Tx; onClick: () => void
     )
   }
 
-  const rowStyle = {
-    alignItems: 'center',
-    borderTop: isFirst ? 'none' : border,
-    cursor: 'pointer',
-    padding: '0.5rem 0',
-  }
-
   const Left = () => (
-    <FlexRow>
+    <div className='activity-row__left'>
       <Icon />
-      <div>
+      <div className='activity-row__copy'>
         <Kind />
         <When />
       </div>
-    </FlexRow>
+    </div>
   )
 
   const Right = () => (
-    <div style={{ textAlign: 'right' }}>
+    <div className='activity-row__right'>
       {tx.assets?.length ? (
         <>
           <AssetInfo />
-          {config.currencyDisplay === CurrencyDisplay.Fiat ? <Fiat /> : <Sats />}
+          {config.currency === Currencies.BTC ? <Bitcoin /> : <Currency />}
         </>
-      ) : config.currencyDisplay === CurrencyDisplay.Fiat ? (
-        <Fiat />
-      ) : config.currencyDisplay === CurrencyDisplay.Sats ? (
-        <Sats />
       ) : (
-        <>
-          <Sats />
-          <Fiat />
-        </>
+        <>{config.currency === Currencies.BTC ? <Bitcoin /> : <Currency />}</>
       )}
     </div>
   )
 
   return (
-    <div style={rowStyle} onClick={onClick}>
-      <FlexRow between alignItems='start'>
-        <Left />
-        <Right />
-      </FlexRow>
+    <div
+      className={`activity-row ${isFirst ? 'activity-row--first' : ''} activity-row--${mode}`}
+      style={{ borderTop: isFirst ? 'none' : border }}
+      onClick={onClick}
+    >
+      <Left />
+      <Right />
     </div>
   )
 }
 
-export default function TransactionsList() {
+interface TransactionsListProps {
+  /** Show only transactions for a specific asset. Use 'btc' for bitcoin-only activity. */
+  assetIdFilter?: string | string[]
+  /** 'virtual' (default) uses virtualization; 'static' renders a simple list. */
+  mode?: 'virtual' | 'static'
+  /** Max number of transactions to show (only applies when mode='static'). */
+  limit?: number
+}
+
+export default function TransactionsList({ assetIdFilter, mode = 'virtual', limit }: TransactionsListProps) {
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { txs } = useContext(WalletContext)
+  const { assetMetadataCache, txs: allTxs } = useContext(WalletContext)
+  const visibleTxs = allTxs
+    .filter((tx) => !shouldHideDevPrototypeTx(tx, assetMetadataCache))
+    .filter((tx) => matchesAssetFilter(tx, assetIdFilter))
+  const txs = mode === 'static' && limit ? visibleTxs.slice(0, limit) : visibleTxs
 
   const focusedRef = useRef(false)
   const focusedIndexRef = useRef(0)
@@ -174,12 +187,15 @@ export default function TransactionsList() {
   const virtualizer = useVirtualizer({
     count: txs.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 61,
+    estimateSize: () => 72,
+    measureElement: (element) => element?.getBoundingClientRect().height,
     overscan: 5,
   })
 
-  const key = (tx: Tx, index: number) =>
-    [tx.roundTxid, tx.redeemTxid, tx.boardingTxid].filter(Boolean).join('-') || `tx-${index}`
+  const key = (tx: Tx, index: number) => {
+    const txKey = [tx.roundTxid, tx.redeemTxid, tx.boardingTxid].filter(Boolean).join('-') || 'tx'
+    return `${txKey}-${index}`
+  }
 
   const focusRow = (index: number) => {
     if (index < 0 || index >= txs.length) return
@@ -225,15 +241,33 @@ export default function TransactionsList() {
     navigate(Pages.Transaction)
   }
 
+  // Static mode: render a simple list without virtualization
+  if (mode === 'static') {
+    return (
+      <div className='activity-list activity-list--compact'>
+        {txs.map((tx, index) => (
+          <Focusable
+            key={key(tx, index)}
+            id={`tx-static-${key(tx, index)}`}
+            onEnter={() => handleClick(tx)}
+            ariaLabel={ariaLabel(tx)}
+          >
+            <TransactionLine onClick={() => handleClick(tx)} tx={tx} isFirst={index === 0} mode={mode} />
+          </Focusable>
+        ))}
+      </div>
+    )
+  }
+
+  // Virtual mode: use virtualization for performance
   return (
     <Focusable id='outer' onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
       <div
         ref={parentRef}
         onKeyDown={handleListKeyDown}
-        className='hide-scrollbar scroll-fade'
+        className='activity-list activity-list--full hide-scrollbar scroll-fade'
         style={{
           borderBottom: border,
-          height: 'calc(100dvh - 260px)',
           minHeight: '200px',
           overflowY: 'auto',
         }}
@@ -245,6 +279,7 @@ export default function TransactionsList() {
             return (
               <div
                 key={k}
+                ref={virtualizer.measureElement}
                 data-index={virtualItem.index}
                 data-testid='tx-row'
                 onFocus={() => {
@@ -266,7 +301,12 @@ export default function TransactionsList() {
                   onEscape={focusOnOuterShell}
                   ariaLabel={ariaLabel(tx)}
                 >
-                  <TransactionLine onClick={() => handleClick(tx)} tx={tx} isFirst={virtualItem.index === 0} />
+                  <TransactionLine
+                    onClick={() => handleClick(tx)}
+                    tx={tx}
+                    isFirst={virtualItem.index === 0}
+                    mode={mode}
+                  />
                 </Focusable>
               </div>
             )
@@ -275,4 +315,65 @@ export default function TransactionsList() {
       </div>
     </Focusable>
   )
+}
+
+function matchesAssetFilter(tx: Tx, assetIdFilter?: string | string[]): boolean {
+  if (!assetIdFilter) return true
+  if (Array.isArray(assetIdFilter)) {
+    if (!assetIdFilter.length) return false
+    return tx.assets?.some((asset) => assetIdFilter.includes(asset.assetId)) ?? false
+  }
+  if (assetIdFilter === 'btc') return !tx.assets?.length && tx.amount !== 0
+  return tx.assets?.some((asset) => asset.assetId === assetIdFilter) ?? false
+}
+
+function SwapRouteIcon({ fromTicker, toTicker }: { fromTicker?: string; toTicker?: string }) {
+  const from = accountTickerForAssetTicker(fromTicker) ?? 'BTC'
+  const to = accountTickerForAssetTicker(toTicker) ?? 'USD'
+
+  return (
+    <span className='activity-swap-route-icon' aria-hidden='true'>
+      <span>
+        <TokenLogo ticker={from} />
+      </span>
+      <span>
+        <TokenLogo ticker={to} />
+      </span>
+    </span>
+  )
+}
+
+function TransactionAssetAvatar({ assetId, icon, ticker }: { assetId: string; icon?: string; ticker?: string }) {
+  const tokenLogoTicker = tokenLogoTickerForTicker(accountTickerForAssetTicker(ticker) ?? ticker)
+  if (tokenLogoTicker) {
+    return (
+      <span className='transaction-asset-logo' aria-hidden='true'>
+        <TokenLogo ticker={tokenLogoTicker} />
+      </span>
+    )
+  }
+
+  return <AssetAvatar icon={icon} ticker={ticker} size={16} assetId={assetId} clickable />
+}
+
+function accountInfoForAssetId(
+  assetId: string,
+): { ticker: TokenLogoTicker; label: string; decimals: number } | undefined {
+  if (assetId === 'account:usd') return { ticker: 'USD', label: 'USD', decimals: 2 }
+  if (assetId === 'account:chf') return { ticker: 'CHF', label: 'CHF', decimals: 2 }
+  if (assetId === 'account:brl') return { ticker: 'BRL', label: 'BRL', decimals: 2 }
+}
+
+function shouldHideDevPrototypeTx(
+  tx: Tx,
+  assetMetadataCache: Map<string, { metadata?: { name?: string; ticker?: string } }>,
+): boolean {
+  if (!import.meta.env.DEV || !tx.assets?.length) return false
+
+  return tx.assets.every((asset) => {
+    const meta = assetMetadataCache.get(asset.assetId)?.metadata
+    const ticker = meta?.ticker?.trim().toUpperCase()
+    const name = meta?.name?.trim().toLowerCase()
+    return ticker === 'POP' || name === 'poop' || name === 'hoop'
+  })
 }

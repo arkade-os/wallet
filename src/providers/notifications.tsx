@@ -58,7 +58,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   }
 
   useEffect(() => {
-    if (!config.nostr) {
+    if (!config.nostrBackup) {
       if (relay.current) {
         if (relay.current.connected) relay.current.close()
         relay.current = undefined
@@ -66,7 +66,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
       return
     }
     connectRelay()
-  }, [config.nostr])
+  }, [config.nostrBackup])
 
   return (
     <NotificationsContext.Provider

@@ -17,6 +17,7 @@ export default function Refresher() {
   }
 
   const handleTouchMove = (e: TouchEvent) => {
+    if (touchstartY > 180) return
     const touchY = e.touches[0].clientY
     const touchDiff = touchY - touchstartY
     if (touchDiff > 100 && window.scrollY === 0) {

@@ -80,8 +80,8 @@ describe('AppBoltzSwap', () => {
 
     renderWithSwap(swap)
 
-    expect(screen.getByTestId('Amount').textContent).toBe('2,111 SATS')
-    expect(screen.getByTestId('Fees').textContent).toBe('164 SATS')
-    expect(screen.getByTestId('Total').textContent).toBe('2,275 SATS')
+    expect(screen.getByTestId('Amount').textContent).toBe('2,111 sats')
+    expect(screen.getByTestId('Fees').textContent).toBe('164 sats')
+    expect(screen.getByTestId('Total').textContent).toBe('2,275 sats')
   })
 })

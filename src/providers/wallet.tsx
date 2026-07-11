@@ -10,6 +10,7 @@ import {
   IWallet,
   Asset,
   type Identity,
+  type ServiceWorkerWalletMode,
 } from '@arkade-os/sdk'
 import {
   clearStorage,
@@ -44,6 +45,7 @@ import { consoleError } from '../lib/logs'
 import { Addresses, Tx, Vtxo, Wallet } from '../lib/types'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
+import { resolveWalletMode } from '../lib/walletMode'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
@@ -64,6 +66,10 @@ import {
   WalletRuntimeInstance,
 } from '../runtime/types'
 
+const DEV_AUTO_INIT_TIMEOUT_MS = 60_000
+const DEV_INITIAL_DATA_TIMEOUT_MS = 20_000
+const DEV_AUTO_INIT_RELOAD_KEY = 'arkade-dev-auto-init-reload-attempted'
+
 const defaultWallet: Wallet = {
   network: '',
   nextRollover: 0,
@@ -72,7 +78,12 @@ const defaultWallet: Wallet = {
 export type WalletAuthState = 'unknown' | 'passwordless' | 'locked' | 'authenticated'
 
 interface WalletContextProps {
-  initWallet: (credentials: { mnemonic?: string; privateKey?: Uint8Array }) => Promise<void>
+  initWallet: (credentials: {
+    mnemonic?: string
+    privateKey?: Uint8Array
+    walletMode?: ServiceWorkerWalletMode
+    restoring?: boolean
+  }) => Promise<void>
   lockWallet: () => Promise<void>
   resetWallet: () => Promise<void>
   settlePreconfirmed: () => Promise<void>
@@ -112,6 +123,7 @@ interface WalletContextProps {
   // Subscribe to runtime wallet update events (replaces direct service-worker
   // message listeners in screens, e.g. the receive payment listener).
   subscribeWalletEvents: (handler: (event: WalletRuntimeEvent) => void) => Unsubscribe
+  devAutoInitFailed?: boolean
 }
 
 const notReady = (): never => {
@@ -178,6 +190,7 @@ export const WalletContext = createContext<WalletContextProps>({
   advanced: defaultAdvanced,
   bridge: defaultBridge,
   subscribeWalletEvents: () => () => {},
+  devAutoInitFailed: false,
 })
 
 /**
@@ -250,30 +263,64 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   // wallet is read synchronously in useState initializer above
 
+  const devMnemonic = import.meta.env.VITE_DEV_MNEMONIC as string | undefined
   const devNsec = import.meta.env.VITE_DEV_NSEC as string | undefined
-  const isDevAutoInit = import.meta.env.DEV && Boolean(devNsec)
+  const isDevAutoInit = import.meta.env.DEV && (Boolean(devMnemonic) || Boolean(devNsec))
   const [devAutoInitFailed, setDevAutoInitFailed] = useState(false)
 
-  // dev-only: auto-initialize wallet from VITE_DEV_NSEC, bypassing onboarding and unlock
+  // dev-only: auto-initialize wallet from VITE_DEV_MNEMONIC / VITE_DEV_NSEC, bypassing onboarding and unlock
   useEffect(() => {
-    if (!isDevAutoInit || !devNsec || devAutoInitFailed) return
+    if (!isDevAutoInit || devAutoInitFailed) return
     if (initialized) return
     if (!aspInfo.url) return
 
+    let cancelled = false
+    let watchdog: ReturnType<typeof setTimeout> | undefined
+
     const autoInit = async () => {
       try {
-        const privateKey = nsecToPrivateKey(devNsec)
-        await initWallet({ privateKey })
+        watchdog = setTimeout(() => {
+          if (cancelled) return
+          consoleError(new Error('Dev wallet auto-init timed out'), 'Dev auto-init watchdog')
+          try {
+            if (sessionStorage.getItem(DEV_AUTO_INIT_RELOAD_KEY)) {
+              setDevAutoInitFailed(true)
+              return
+            }
+            sessionStorage.setItem(DEV_AUTO_INIT_RELOAD_KEY, 'true')
+          } catch {
+            // keep recovering even if session storage is unavailable
+          }
+          navigator.serviceWorker
+            ?.getRegistration()
+            .then((reg) => reg?.unregister())
+            .finally(() => window.location.reload())
+        }, DEV_AUTO_INIT_TIMEOUT_MS)
+        if (cancelled) return
+        clearTimeout(watchdog)
+        try {
+          sessionStorage.removeItem(DEV_AUTO_INIT_RELOAD_KEY)
+        } catch {
+          // ignore session storage errors
+        }
+        if (devMnemonic) await initWallet({ mnemonic: devMnemonic })
+        else if (devNsec) await initWallet({ privateKey: nsecToPrivateKey(devNsec) })
         setAuthState('authenticated')
       } catch (err) {
+        clearTimeout(watchdog)
+        if (cancelled) return
         consoleError(err, 'Dev auto-init failed')
         setDevAutoInitFailed(true)
       }
     }
 
     autoInit()
+    return () => {
+      cancelled = true
+      clearTimeout(watchdog)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspInfo.url, initialized, devAutoInitFailed])
+  }, [aspInfo.url, initialized, devAutoInitFailed, isDevAutoInit, devMnemonic, devNsec])
 
   useEffect(() => {
     // skip auth check when dev auto-init will handle it
@@ -347,6 +394,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     return unsubscribe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletRuntime])
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !isDevAutoInit) return
+    if (!initialized || dataReady || loadError) return
+
+    const timer = window.setTimeout(() => {
+      if (hasLoadedOnce.current) return
+      consoleError(new Error('Dev initial wallet data load timed out'), 'Dev initial data watchdog')
+      hasLoadedOnce.current = true
+      setDataReady(true)
+    }, DEV_INITIAL_DATA_TIMEOUT_MS)
+
+    return () => window.clearTimeout(timer)
+  }, [initialized, dataReady, loadError, isDevAutoInit])
 
   // calculate thresholdMs and next rollover
   useEffect(() => {
@@ -541,28 +602,41 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const isMainnet = (network: NetworkName | string): boolean =>
     network !== 'testnet' && network !== 'mutinynet' && network !== 'signet' && network !== 'regtest'
 
-  const initWallet = async (credentials: { mnemonic?: string; privateKey?: Uint8Array }) => {
+  const initWallet = async (credentials: {
+    mnemonic?: string
+    privateKey?: Uint8Array
+    walletMode?: ServiceWorkerWalletMode
+    restoring?: boolean
+  }) => {
     const arkServerUrl = aspInfo.url
     const network = aspInfo.network as NetworkName
     const esploraUrl = getRestApiExplorerURL(network)
 
     let identity: Identity
     let pubkey: string
+    let walletMode: ServiceWorkerWalletMode
 
-    const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network).url : undefined
+    const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network) : undefined
 
     if (credentials.mnemonic) {
       const mnemonicIdentity = MnemonicIdentity.fromMnemonic(credentials.mnemonic, { isMainnet: isMainnet(network) })
       identity = mnemonicIdentity
       pubkey = hex.encode(await mnemonicIdentity.compressedPublicKey())
+      // HD-capable: honor the requested mode (creation) or the persisted mode (unlock)
+      walletMode = resolveWalletMode({
+        hasMnemonic: true,
+        requested: credentials.walletMode,
+        persisted: config.walletMode,
+      })
       const secret = deriveNostrKeyFromMnemonic(credentials.mnemonic, isMainnet(network))
       setLnurlInfo(secret)
-      updateConfig({ ...config, pubkey })
+      updateConfig({ ...config, pubkey, walletMode })
     } else if (credentials.privateKey) {
       identity = SingleKey.fromPrivateKey(credentials.privateKey)
       pubkey = hex.encode(secp.getPublicKey(credentials.privateKey))
+      walletMode = 'static'
       setLnurlInfo(credentials.privateKey)
-      updateConfig({ ...config, pubkey })
+      updateConfig({ ...config, pubkey, walletMode })
     } else {
       throw new Error('Either mnemonic or privateKey must be provided')
     }
@@ -573,6 +647,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       esploraUrl,
       delegatorUrl,
       settlementConfig: buildSettlementConfig(),
+      walletMode,
+      restoring: credentials.restoring,
     })
     if (!didInit) return
     updateWallet({ ...wallet, network, pubkey })
@@ -609,7 +685,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const identity = instance.wallet.identity
     const arkServerUrl = aspInfo.url
     const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
-    const delegatorUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as Network).url : undefined
+    const delegatorUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as Network) : undefined
     await initRuntimeWallet({
       identity,
       arkServerUrl,
@@ -633,7 +709,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const identity = instance.wallet.identity
       const arkServerUrl = aspInfo.url
       const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
-      const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(aspInfo.network as Network).url : undefined
+      const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(aspInfo.network as Network) : undefined
       const ok = await initRuntimeWallet({
         identity,
         arkServerUrl,
@@ -804,6 +880,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         loadError,
         dismissLoadError,
         reloadWallet,
+        devAutoInitFailed,
         vtxos: vtxos ?? { spendable: [], spent: [] },
         getReceivingAddresses,
         getAvailableBalance,

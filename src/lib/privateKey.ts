@@ -1,9 +1,7 @@
 import { getPublicKey, nip19 } from 'nostr-tools'
 import { defaultPassword } from './constants'
 import { getSecretStore } from './secretStore'
-
-const STORAGE_KEY = 'encrypted_private_key'
-const MNEMONIC_STORAGE_KEY = 'encrypted_mnemonic'
+import { MNEMONIC_STORAGE_KEY, NSEC_STORAGE_KEY } from './storageKeys'
 
 export const invalidPrivateKey = (key: Uint8Array): string => {
   if (key.length === 0) return ''
@@ -49,6 +47,7 @@ export const setPrivateKey = async (privateKey: Uint8Array, password: string): P
   try {
     const encryptedPrivateKey = await encryptPrivateKey(privateKey, password)
     await storeEncryptedPrivateKey(encryptedPrivateKey)
+    await getSecretStore().removeItem(MNEMONIC_STORAGE_KEY)
   } catch (error) {
     console.error('Failed to encrypt and store private key:', error)
     throw new Error('Failed to set private key')
@@ -75,7 +74,7 @@ export const noUserDefinedPassword = async (): Promise<boolean> => {
 
 const storeEncryptedPrivateKey = async (encryptedPrivateKey: string): Promise<void> => {
   try {
-    await getSecretStore().setItem(STORAGE_KEY, encryptedPrivateKey)
+    await getSecretStore().setItem(NSEC_STORAGE_KEY, encryptedPrivateKey)
   } catch (error) {
     console.error('Failed to store encrypted private key:', error)
     throw new Error('Failed to store encrypted private key')
@@ -84,7 +83,7 @@ const storeEncryptedPrivateKey = async (encryptedPrivateKey: string): Promise<vo
 
 const getEncryptedPrivateKey = async (): Promise<string | null> => {
   try {
-    return await getSecretStore().getItem(STORAGE_KEY)
+    return await getSecretStore().getItem(NSEC_STORAGE_KEY)
   } catch (error) {
     console.error('Failed to retrieve encrypted private key:', error)
     return null

@@ -1,3 +1,4 @@
+import type { ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import { invalidPrivateKey, nsecToPrivateKey } from '../../lib/privateKey'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
@@ -15,8 +16,9 @@ import { consoleError } from '../../lib/logs'
 import Button from '../../components/Button'
 import Header from '../../components/Header'
 import Padded from '../../components/Padded'
-import Input from '../../components/Input'
-import { TextSecondary } from '../../components/Text'
+import Text, { TextSecondary } from '../../components/Text'
+import SegmentedControl from '../../components/SegmentedControl'
+import { DevModeContext } from '../../providers/devMode'
 import { hex } from '@scure/base'
 import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
 import { OnboardStaggerContainer, OnboardStaggerChild } from '../../components/OnboardLoadIn'
@@ -24,12 +26,25 @@ import { validateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import { deriveNostrKeyFromMnemonic } from '../../lib/mnemonic'
 import { AspContext } from '../../providers/asp'
+import InputNsec from '../../components/InputNsec'
+
+type RotationChoice = 'Inherit' | 'Static' | 'HD'
+
+// Maps the user's rotation choice to the wallet mode passed into initWallet.
+// `undefined` (Inherit) makes resolveWalletMode fall back to config.walletMode,
+// which the Nostr backup restored just before navigation (see handleProceed).
+const ROTATION_TO_MODE: Record<RotationChoice, ServiceWorkerWalletMode | undefined> = {
+  Inherit: undefined,
+  Static: 'static',
+  HD: 'hd',
+}
 
 export default function InitRestore() {
   const { updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
   const { setInitInfo } = useContext(FlowContext)
   const { aspInfo } = useContext(AspContext)
+  const { devMode } = useContext(DevModeContext)
 
   const buttonLabel = 'Continue'
 
@@ -40,6 +55,7 @@ export default function InitRestore() {
   const [restoring, setRestoring] = useState(false)
   const [restoreDone, setRestoreDone] = useState(false)
   const [someKey, setSomeKey] = useState<string>()
+  const [rotationChoice, setRotationChoice] = useState<RotationChoice>('Inherit')
 
   useEffect(() => {
     const trimmed = someKey?.trim() ?? ''
@@ -89,7 +105,12 @@ export default function InitRestore() {
     setRestoring(true)
     let seckey: Uint8Array
     if (mnemonic) {
-      setInitInfo({ mnemonic, password: defaultPassword, restoring: true })
+      setInitInfo({
+        mnemonic,
+        password: defaultPassword,
+        restoring: true,
+        walletMode: ROTATION_TO_MODE[rotationChoice],
+      })
       const isNet =
         aspInfo.network !== 'testnet' &&
         aspInfo.network !== 'mutinynet' &&
@@ -135,8 +156,23 @@ export default function InitRestore() {
             <OnboardStaggerChild>
               <FlexCol between>
                 <FlexCol>
-                  <Input name='private-key' label='Recovery phrase or private key' onChange={setSomeKey} />
+                  <InputNsec onChange={setSomeKey} />
                   <ErrorMessage error={Boolean(error)} text={error} />
+                  {devMode && mnemonic ? (
+                    <FlexCol gap='0.5rem'>
+                      <Text thin>Address rotation</Text>
+                      <SegmentedControl
+                        options={['Inherit', 'Static', 'HD']}
+                        selected={rotationChoice}
+                        onChange={(v) => setRotationChoice(v as RotationChoice)}
+                      />
+                      <TextSecondary wrap>
+                        Inherit uses your saved wallet setting (typically restored from backup). If backup restore is
+                        unavailable, it falls back to your local/default setting. Pick HD if this wallet rotated receive
+                        addresses and you need to force HD recovery.
+                      </TextSecondary>
+                    </FlexCol>
+                  ) : null}
                 </FlexCol>
                 <TextSecondary wrap>
                   Enter your 12-word recovery phrase, or a private key starting with 'nsec' or a raw hex key. Do not

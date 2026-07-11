@@ -20,7 +20,7 @@ import AssetCard from '../../../components/AssetCard'
 import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 
 export default function AppAssetBurn() {
-  const { navigate } = useContext(NavigationContext)
+  const { replace } = useContext(NavigationContext)
   const { assetInfo } = useContext(FlowContext)
   const { assetBalances, walletReady, assetManager, reloadWallet } = useContext(WalletContext)
 
@@ -65,7 +65,7 @@ export default function AppAssetBurn() {
     try {
       await assetManager.burn({ assetId: assetInfo.assetId, amount })
       await reloadWallet()
-      pendingNav.current = () => navigate(Pages.AppAssetDetail)
+      pendingNav.current = () => replace(Pages.AppAssetDetail, Pages.AppAssets)
       setOpDone(true)
     } catch (err) {
       consoleError(err, 'error burning asset')
@@ -96,7 +96,7 @@ export default function AppAssetBurn() {
 
   return (
     <>
-      <Header text={`Burn ${name}`} back={() => navigate(Pages.AppAssetDetail)} />
+      <Header text={`Burn ${ticker || name}`} back />
       <Modal open={showConfirm} onOpenChange={setShowConfirm} onExitComplete={handleConfirmExitComplete}>
         <FlexCol gap='1.5rem'>
           <FlexCol centered gap='0.5rem'>
@@ -120,7 +120,6 @@ export default function AppAssetBurn() {
             <AssetCard
               assetId={assetInfo.assetId}
               balance={balance}
-              darkPurple
               decimals={decimals}
               icon={icon}
               name={name}

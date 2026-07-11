@@ -36,7 +36,16 @@ const createServiceWorkerWallet = async (
   params: WalletRuntimeCreateParams,
   retryCount = 0,
 ): Promise<WalletRuntimeInstance> => {
-  const { identity, arkServerUrl, esploraUrl, delegatorUrl, settlementConfig, skipMigration = false } = params
+  const {
+    identity,
+    arkServerUrl,
+    esploraUrl,
+    delegatorUrl,
+    settlementConfig,
+    skipMigration = false,
+    walletMode,
+    restoring = false,
+  } = params
   try {
     setLoadingStatus('Starting wallet...')
     const walletRepository = new IndexedDBWalletRepository()
@@ -77,7 +86,7 @@ const createServiceWorkerWallet = async (
       arkServerUrl,
       esploraUrl,
       delegatorUrl,
-      walletMode: 'static',
+      walletMode: walletMode ?? 'static',
       storage: { walletRepository, contractRepository },
       serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
       messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
@@ -111,6 +120,15 @@ const createServiceWorkerWallet = async (
         }
       } catch (err) {
         consoleError(err, 'Error migrating wallet repository')
+      }
+    }
+
+    if (restoring) {
+      setLoadingStatus('Recovering addresses...')
+      try {
+        await svcWallet.restore()
+      } catch (err) {
+        consoleError(err, 'Error scanning for rotated addresses on restore')
       }
     }
 

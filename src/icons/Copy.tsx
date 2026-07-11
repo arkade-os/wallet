@@ -1,13 +1,19 @@
-export default function CopyIcon() {
+export default function CopyIcon({ small }: { small?: boolean }) {
+  const size = small ? 16 : 24
   return (
-    <svg width='24' height='24' viewBox='0 0 25 24' fill='none' xmlns='http://www.w3.org/2000/svg'>
-      <path
-        d='M8.5 16H6.5C5.96957 16 5.46086 15.7893 5.08579 15.4142C4.71071 15.0391 4.5 14.5304 4.5 14V6C4.5 5.46957 4.71071 4.96086 5.08579 4.58579C5.46086 4.21071 5.96957 4 6.5 4H14.5C15.0304 4 15.5391 4.21071 15.9142 4.58579C16.2893 4.96086 16.5 5.46957 16.5 6V8M10.5 20H18.5C19.0304 20 19.5391 19.7893 19.9142 19.4142C20.2893 19.0391 20.5 18.5304 20.5 18V10C20.5 9.46957 20.2893 8.96086 19.9142 8.58579C19.5391 8.21071 19.0304 8 18.5 8H10.5C9.96957 8 9.46086 8.21071 9.08579 8.58579C8.71071 8.96086 8.5 9.46957 8.5 10V18C8.5 18.5304 8.71071 19.0391 9.08579 19.4142C9.46086 19.7893 9.96957 20 10.5 20Z'
-        stroke='currentColor'
-        strokeWidth='1.75'
-        strokeLinecap='round'
-        strokeLinejoin='round'
-      />
+    <svg
+      fill='none'
+      width={size}
+      height={size}
+      viewBox='0 0 24 24'
+      strokeWidth='2'
+      stroke='currentColor'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+      xmlns='http://www.w3.org/2000/svg'
+    >
+      <rect width='14' height='14' x='8' y='8' rx='2' ry='2' />
+      <path d='M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2' />
     </svg>
   )
 }

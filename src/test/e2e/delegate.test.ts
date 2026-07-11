@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test'
-import { createWallet, waitForWalletPage } from './utils'
+import { createWallet, navigateToSettings, waitForWalletPage } from './utils'
 
 test('should toggle delegates', async ({ page }) => {
   test.setTimeout(60000)
   // create wallet
   await createWallet(page)
 
-  await page.getByTestId('tab-settings').click()
+  await navigateToSettings(page)
   await page.getByText('advanced', { exact: true }).click()
   await page.getByText('delegates', { exact: true }).click()
 
@@ -20,7 +20,7 @@ test('should toggle delegates', async ({ page }) => {
 
   // toggle triggers window.location.reload(), wait for wallet to load
   await waitForWalletPage(page)
-  await page.getByTestId('tab-settings').click()
+  await navigateToSettings(page)
   await page.getByText('advanced', { exact: true }).click()
   await page.getByText('delegates', { exact: true }).click()
   toggle = page.getByTestId('toggle-delegates')

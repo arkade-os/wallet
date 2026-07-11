@@ -3,7 +3,7 @@ import { Pages, Tabs } from '../../providers/navigation'
 import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { AspInfo } from '../../providers/asp'
 import { SingleKey, IVtxoManager } from '@arkade-os/sdk'
-import { CurrencyDisplay, Fiats, SettingsOptions, Themes } from '../../lib/types'
+import { Currencies, SettingsOptions, Themes, Unit } from '../../lib/types'
 import { AssetIconApprovalManager } from '../../lib/assetIconApproval'
 import { RuntimeContextValue } from '../../runtime/types'
 
@@ -109,33 +109,44 @@ export const mockAspContextValue = {
 
 export const mockConfigContextValue = {
   config: {
-    apps: {
-      assets: {
-        enabled: true,
-      },
-      boltz: {
-        connected: true,
-      },
-    },
-    currencyDisplay: CurrencyDisplay.Both,
-    delegate: false,
-    fiat: Fiats.EUR,
+    announcementsSeen: [],
+    apps: { assets: { enabled: true }, boltz: { connected: true } },
+    aspUrl: 'http://asp.local',
+    dismissedBanners: [],
+    delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
+    currency: Currencies.EUR,
     importedAssets: [],
+    haptics: true,
     nostrBackup: true,
     notifications: true,
+    pubkey: '',
     showBalance: true,
     theme: Themes.Dark,
+    unit: Unit.BTC,
+    walletMode: 'static' as const,
   },
   updateConfig: () => {},
-  effectiveTheme: Themes.Dark,
-  systemTheme: Themes.Dark,
-  useFiat: false,
+  effectiveTheme: Themes.Dark as const,
+  systemTheme: Themes.Dark as const,
+  useFiat: true,
+  backupConfig: () => Promise.resolve(),
+  configLoaded: true,
+  showConfig: false,
+  toggleShowConfig: () => {},
+}
+
+export const mockDevModeContextValue = {
+  devMode: false,
+  handleTap: () => {},
 }
 
 export const mockFiatContextValue = {
+  toFiat: (satoshis?: number) => satoshis ?? 0,
+  fromFiat: (fiat?: number) => fiat ?? 0,
+  updateFiatPrices: () => {},
   fiatDecimals: () => 2,
-  fromFiat: (amount: number) => amount,
-  toFiat: (amount: number) => amount,
+  fromFiatAmount: (amount: number) => amount,
+  toFiatAmount: (amount: number) => amount,
 }
 
 export const mockSwapsContextValue = {
@@ -182,6 +193,7 @@ export const mockNavigationContextValue = {
   goBack: () => {},
   isInitialLoad: false,
   navigate: () => {},
+  replace: () => {},
   screen: Pages.Init,
   tab: Tabs.None,
 }
@@ -267,6 +279,8 @@ export const mockFlowContextValue = {
   setAssetInfo: () => {},
   deepLinkInfo: undefined,
   setDeepLinkInfo: () => {},
+  lnurlInfo: undefined,
+  setLnurlInfo: () => {},
 }
 
 export const mockLimitsContextValue = {

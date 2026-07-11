@@ -1,20 +1,16 @@
 import { AnimatePresence } from 'framer-motion'
 import { ConfigContext } from './providers/config'
-import { NavigationContext, pageComponent, Pages, Tabs, type NavigationDirection } from './providers/navigation'
+import { NavigationContext, pageComponent, Pages, type NavigationDirection } from './providers/navigation'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { isInAppBrowser } from './lib/browser'
 import { detectJSCapabilities } from './lib/jsCapabilities'
-import { OptionsContext } from './providers/options'
 import { WalletContext } from './providers/wallet'
 import { FlowContext } from './providers/flow'
-import { SettingsOptions } from './lib/types'
 import { AspContext } from './providers/asp'
-import { hapticLight } from './lib/haptics'
 import { setBootAnimActive as syncBootAnimFlag } from './lib/logoAnchor'
 import { PageTransition } from './components/PageTransition'
 import BootError from './components/BootError'
 import LoadingLogo from './components/LoadingLogo'
-import PillNavbarOverlay from './components/PillNavbarOverlay'
 import { useReducedMotion } from './hooks/useReducedMotion'
 import { useLoadingStatus } from './hooks/useLoadingStatus'
 import { defaultPassword } from './lib/constants'
@@ -45,10 +41,10 @@ function PageAnimWrapper({
 export default function App() {
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
-  const { direction, navigate, screen, tab } = useContext(NavigationContext)
+  const { direction, navigate, screen } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
-  const { option, setOption } = useContext(OptionsContext)
-  const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError } = useContext(WalletContext)
+  const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError, devAutoInitFailed } =
+    useContext(WalletContext)
 
   const loadingStatus = useLoadingStatus()
   const isIAB = useMemo(() => isInAppBrowser(), [])
@@ -66,6 +62,12 @@ export default function App() {
 
   const passwordlessBootAttempted = useRef(false)
   const passwordlessReloadTimer = useRef<ReturnType<typeof setTimeout>>()
+  const devAutoInitHomeRedirected = useRef(false)
+  const hasDevAutoInit =
+    import.meta.env.DEV &&
+    Boolean(import.meta.env.VITE_DEV_NSEC || import.meta.env.VITE_DEV_MNEMONIC) &&
+    import.meta.env.VITE_DEV_AUTO_INIT !== 'false' &&
+    !devAutoInitFailed
 
   // lock screen orientation to portrait
   // this is a workaround for the issue with the screen orientation API
@@ -100,36 +102,33 @@ export default function App() {
     // avoid redirect if the user is still setting up the wallet
     if (initInfo.password || initInfo.privateKey) return
     if (!walletLoaded) return navigate(Pages.Loading)
-    // dev auto-init: stay on loading screen while VITE_DEV_NSEC initializes the wallet
-    if (import.meta.env.DEV && import.meta.env.VITE_DEV_NSEC && !initialized) return
+    // dev auto-init: stay on loading screen while VITE_DEV_NSEC/MNEMONIC initializes the wallet
+    if (import.meta.env.DEV && (import.meta.env.VITE_DEV_NSEC || import.meta.env.VITE_DEV_MNEMONIC) && !initialized)
+      return
     if (!wallet.pubkey) return navigate(Pages.Init)
     if (authState === 'locked') return navigate(Pages.Unlock)
-  }, [walletLoaded, wallet.pubkey, authState, initInfo, aspInfo.unreachable, jsCapabilitiesChecked, isCapable])
-
-  const handleWallet = () => {
-    hapticLight()
-    navigate(Pages.Wallet)
-  }
-
-  const handleApps = () => {
-    hapticLight()
-    navigate(Pages.Apps)
-  }
-
-  const handleSettings = () => {
-    hapticLight()
-    setOption(SettingsOptions.Menu)
-    navigate(Pages.Settings)
-  }
+  }, [
+    walletLoaded,
+    wallet.pubkey,
+    authState,
+    initInfo,
+    aspInfo.unreachable,
+    jsCapabilitiesChecked,
+    isCapable,
+    hasDevAutoInit,
+    initialized,
+  ])
 
   const prefersReduced = useReducedMotion()
   const effectiveDirection = prefersReduced ? 'none' : direction
+  const shouldAnimatePage = !prefersReduced && !hasDevAutoInit
+  const isDevAutoInitializing = hasDevAutoInit && !initialized
 
   // New users (no wallet in storage) skip straight to Init — the logo morph animation
   // serves as the intro visual while ASP and JS capability checks resolve in the background.
   // Init doesn't need ASP or crypto until "Create wallet" is clicked.
   const aspReady = aspInfo.signerPubkey || aspInfo.unreachable
-  const isNewUser = walletLoaded && !wallet.pubkey
+  const isNewUser = walletLoaded && !wallet.pubkey && !isDevAutoInitializing
   const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
   const hasStoredWallet = walletLoaded && !!wallet.pubkey
   const shouldShowUnlock = hasStoredWallet && authState === 'locked' && !aspInfo.unreachable
@@ -150,6 +149,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (!aspInfo.url) return
     if (!allChecksReady) return
     if (!wallet.pubkey || initialized) return
     if (authState !== 'passwordless') return
@@ -166,21 +166,34 @@ export default function App() {
         // ignore session storage errors; keep the app on loading instead of retry-looping
       }
     })
-  }, [allChecksReady, wallet.pubkey, initialized, authState, unlockWallet])
+  }, [allChecksReady, wallet.pubkey, initialized, authState, unlockWallet, aspInfo.url])
 
-  const page = !(allChecksReady || isNewUser)
-    ? Pages.Loading
-    : shouldHoldOnLoading
+  useEffect(() => {
+    if (!hasDevAutoInit) devAutoInitHomeRedirected.current = false
+  }, [hasDevAutoInit])
+
+  useEffect(() => {
+    if (!hasDevAutoInit) return
+    if (!initialized || !dataReady || !wallet.pubkey || authState !== 'authenticated') return
+    if (devAutoInitHomeRedirected.current) return
+    devAutoInitHomeRedirected.current = true
+    if (screen !== Pages.Wallet) navigate(Pages.Wallet)
+  }, [hasDevAutoInit, initialized, dataReady, wallet.pubkey, authState, screen, navigate])
+
+  const page =
+    isDevAutoInitializing || !(allChecksReady || isNewUser)
       ? Pages.Loading
-      : shouldShowUnlock
-        ? Pages.Unlock
-        : screen
+      : shouldHoldOnLoading
+        ? Pages.Loading
+        : shouldShowUnlock
+          ? Pages.Unlock
+          : screen
 
   // Boot animation: persists on Loading, then flies to the LogoIcon position when
   // Wallet is reached. For any other destination (Unlock, Init, etc.), exits with fly-up.
-  // Skip in dev with VITE_DEV_NSEC — the fast auto-init races with the animation.
+  // Skip in dev with VITE_DEV_NSEC/MNEMONIC — the fast auto-init races with the animation.
   useEffect(() => {
-    if (import.meta.env.DEV && import.meta.env.VITE_DEV_NSEC) return
+    if (import.meta.env.DEV && (import.meta.env.VITE_DEV_NSEC || import.meta.env.VITE_DEV_MNEMONIC)) return
 
     if (page === Pages.Loading && !bootAnimActive) {
       setBootAnimDone(false)
@@ -201,32 +214,30 @@ export default function App() {
       setBootExitMode('fly-up')
       setBootAnimDone(true)
     }
-  }, [page, bootAnimActive, bootAnimDone])
+  }, [page, bootAnimActive, bootAnimDone, hasDevAutoInit])
 
   const handleBootAnimComplete = useCallback(() => {
     updateBootAnim(false)
   }, [updateBootAnim])
 
-  const comp = page === Pages.Loading ? null : pageComponent(page)
-  const isSettingsRoot = screen === Pages.Settings && option === SettingsOptions.Menu
-  const showNavbar = page === screen && (screen === Pages.Wallet || screen === Pages.Apps || isSettingsRoot)
+  const comp =
+    page === Pages.Loading ? (
+      loadError ? (
+        <BootError />
+      ) : hasDevAutoInit ? (
+        <LoadingLogo text={loadingStatus} />
+      ) : null
+    ) : (
+      pageComponent(page)
+    )
 
   return (
-    <div className={showNavbar ? 'page has-pill-navbar' : 'page'} data-testid='app'>
-      <PageAnimWrapper animated={!prefersReduced} direction={effectiveDirection}>
+    <div className='page' data-testid='app'>
+      <PageAnimWrapper animated={shouldAnimatePage} direction={effectiveDirection}>
         <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
           {comp}
         </PageTransition>
       </PageAnimWrapper>
-      {tab !== Tabs.None && !bootAnimActive && (
-        <PillNavbarOverlay
-          visible={showNavbar}
-          activeTab={tab}
-          onWalletClick={handleWallet}
-          onAppsClick={handleApps}
-          onSettingsClick={handleSettings}
-        />
-      )}
       {bootAnimActive ? (
         loadError ? (
           <BootError />

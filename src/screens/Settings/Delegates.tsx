@@ -13,7 +13,7 @@ import WarningBox from '../../components/Warning'
 import { Delegate, SettingsOptions } from '../../lib/types'
 import { ConfigContext } from '../../providers/config'
 import { WalletContext } from '../../providers/wallet'
-import { getDelegateUrlForNetwork } from '../../lib/constants'
+import { getDelegateForNetwork, getDelegateUrlForNetwork } from '../../lib/constants'
 import { useContext, useEffect, useState } from 'react'
 import { OptionsContext } from '../../providers/options'
 import Text, { TextSecondary } from '../../components/Text'
@@ -21,6 +21,7 @@ import { decodeArkAddress, isArkAddress } from '../../lib/address'
 import { Network } from '@arkade-os/boltz-swap'
 import { copyToClipboard } from '../../lib/clipboard'
 import { useToast } from '../../components/Toast'
+import { consoleError } from '../../lib/logs'
 
 // format the URL to ensure it has the correct protocol and no trailing slashes
 const formatUrl = (host: string, path: string): string => {
@@ -36,12 +37,19 @@ const formatUrl = (host: string, path: string): string => {
 }
 
 // test connection to delegate by fetching delegate info and validating the response
-const testConnection = (aspInfo: AspInfo): Promise<Delegate> => {
+const testConnection = (aspInfo: AspInfo): Promise<Delegate | undefined> => {
   return new Promise((resolve, reject) => {
-    // ensure expected pubkey is in xonly format
-    const expectedPubKey = aspInfo.signerPubkey.length === 66 ? aspInfo.signerPubkey.slice(2) : aspInfo.signerPubkey
-    if (expectedPubKey.length !== 64) return reject(new Error('Invalid expected server pubkey'))
-    const delegate = getDelegateUrlForNetwork(aspInfo.network as Network)
+    // ensure expected pubkeys are in xonly format
+    const now = Math.floor(Date.now() / 1000)
+    const deprecatedSignerPubkeys = (aspInfo.deprecatedSigners || [])
+      .filter((ds) => ds.cutoffDate > now)
+      .map((ds) => ds.pubkey)
+    const possibleXOnlyPubkeys = [...deprecatedSignerPubkeys, aspInfo.signerPubkey].map((pk) =>
+      pk.length === 66 ? pk.slice(2) : pk,
+    )
+    if (possibleXOnlyPubkeys.some((pk) => pk.length !== 64)) return reject(new Error('Invalid expected server pubkey'))
+    const delegate = getDelegateForNetwork(aspInfo.network as Network)
+    if (!delegate) return resolve(undefined)
     // fetch delegate info from the delegate server
     fetch(formatUrl(delegate.url, '/v1/delegator/info'))
       .then((res) => {
@@ -59,7 +67,7 @@ const testConnection = (aspInfo: AspInfo): Promise<Delegate> => {
             if (!data.delegatorAddress) return reject(new Error('Missing delegate address'))
             if (!isArkAddress(data.delegatorAddress)) return reject(new Error('Invalid delegate address'))
             const { serverPubKey } = decodeArkAddress(data.delegatorAddress)
-            if (serverPubKey !== expectedPubKey) return reject(new Error('Invalid delegate server key'))
+            if (!possibleXOnlyPubkeys.includes(serverPubKey)) return reject(new Error('Invalid delegate server key'))
             resolve({ ...delegate, address: data.delegatorAddress, pubkey: data.pubkey, fee: parseInt(data.fee, 10) })
           })
           .catch(() => reject(new Error('Invalid json in delegate response')))
@@ -126,18 +134,28 @@ function DelegateCard() {
   const { toast } = useToast()
 
   const [active, setActive] = useState(false)
-  const [delegate, setDelegate] = useState<Delegate>(getDelegateUrlForNetwork(aspInfo.network as Network))
+  const [delegate, setDelegate] = useState<Delegate>()
 
-  // test connection to delegate when url changes
+  // populate delegate info
   useEffect(() => {
-    if (!config.delegate) return
+    if (!config.delegate || !aspInfo.network) return
+    setDelegate(getDelegateForNetwork(aspInfo.network as Network))
+  }, [config.delegate, aspInfo.network])
+
+  // test connection to delegate and update status
+  useEffect(() => {
+    if (!delegate?.url || !aspInfo.signerPubkey) return
     testConnection(aspInfo)
       .then((delegate) => {
+        if (!delegate) return
         setDelegate(delegate)
         setActive(true)
       })
-      .catch(() => setActive(false))
-  }, [config.delegate, aspInfo.signerPubkey])
+      .catch((error) => {
+        consoleError(error, 'Error testing delegate connection:')
+        setActive(false)
+      })
+  }, [delegate, aspInfo.signerPubkey])
 
   if (!config.delegate) return null
 
@@ -149,6 +167,8 @@ function DelegateCard() {
   const nextRolloverText = wallet.nextRollover
     ? `next renewal ${prettyAgo(wallet.nextRollover)}`
     : 'No upcoming renewal'
+
+  if (!delegate) return <></>
 
   return (
     <Shadow lighter fat testId='delegate-card'>
@@ -189,8 +209,11 @@ function DelegateCard() {
 }
 
 export default function Delegates() {
+  const { aspInfo } = useContext(AspContext)
   const { goBack } = useContext(OptionsContext)
   const { config, updateConfig } = useContext(ConfigContext)
+
+  const noDelegateFound = getDelegateUrlForNetwork(aspInfo.network as Network) === undefined
 
   // toggle delegate
   const handleToggle = () => {
@@ -212,16 +235,22 @@ export default function Delegates() {
             <Shadow fat purple>
               <Hero />
             </Shadow>
-            <Toggle
-              checked={config.delegate}
-              onClick={handleToggle}
-              testId='toggle-delegates'
-              text='Use default Arkade delegate'
-              subtext="Use Arkade's default delegate to manage renewals"
-            />
-            <TextSecondary>The wallet will reload to apply the change.</TextSecondary>
-            <WarningBox text={warningText} />
-            <DelegateCard />
+            {noDelegateFound ? (
+              <WarningBox text='No delegate found for this network.' />
+            ) : (
+              <>
+                <Toggle
+                  checked={config.delegate}
+                  onClick={handleToggle}
+                  testId='toggle-delegates'
+                  text='Use default Arkade delegate'
+                  subtext="Use Arkade's default delegate to manage renewals"
+                />
+                <TextSecondary>The wallet will reload to apply the change.</TextSecondary>
+                <WarningBox text={warningText} />
+                <DelegateCard />
+              </>
+            )}
           </FlexCol>
         </Padded>
       </Content>

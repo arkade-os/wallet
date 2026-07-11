@@ -1,4 +1,4 @@
-import { prettyLongText } from '../../lib/format'
+import { sleep } from '../../lib/sleep'
 import {
   test,
   expect,
@@ -7,8 +7,11 @@ import {
   receiveLightning,
   waitForPaymentReceived,
   fundWallet,
+  navigateHome,
+  navigateToBoltz,
   getInvoiceFromLND,
 } from './utils'
+import { prettyLongText } from '../../lib/format'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 
@@ -16,10 +19,7 @@ const execAsync = promisify(exec)
 
 test('should be connected to Boltz app', async ({ page }) => {
   await createWallet(page)
-
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
+  await navigateToBoltz(page)
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Connection status')).toBeVisible()
   await expect(page.getByText('http://localhost:')).toBeVisible()
@@ -43,15 +43,12 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   await waitForPaymentReceived(page)
 
   // main page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.waitForSelector('text=Received', { timeout: 10000 })
-  await expect(page.getByText('1,992', { exact: true })).toBeVisible()
-  await expect(page.getByText('+ 1,992 SATS')).toBeVisible()
+  await expect(page.getByText('+ 1,992 sats')).toBeVisible()
 
   // should be visible in Boltz app
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
+  await navigateToBoltz(page)
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Successful')).toBeVisible()
   await expect(page.getByText('+ 1,992')).toBeVisible()
@@ -74,9 +71,9 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   expect(await page.getByTestId('Kind').textContent()).toBe('Reverse Swap')
   expect(await page.getByTestId('Direction').textContent()).toBe('Lightning to Arkade')
   expect(await page.getByTestId('Status').textContent()).toBe('invoice.settled')
-  expect(await page.getByTestId('Amount').textContent()).toBe('1,992 SATS')
-  expect(await page.getByTestId('Fees').textContent()).toBe('8 SATS')
-  expect(await page.getByTestId('Total').textContent()).toBe('2,000 SATS')
+  expect(await page.getByTestId('Amount').textContent()).toBe('1,992 sats')
+  expect(await page.getByTestId('Fees').textContent()).toBe('8 sats')
+  expect(await page.getByTestId('Total').textContent()).toBe('2,000 sats')
 })
 
 test('should raise error when trying to pay invoice with little amount', async ({ page }) => {
@@ -88,7 +85,7 @@ test('should raise error when trying to pay invoice with little amount', async (
   expect(invoice).toContain('lnbcrt')
 
   // go to send page
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.getByText('Send').click()
 
   // fill invoice
@@ -109,9 +106,7 @@ test('should send funds to Lightning', async ({ page }) => {
   await pay(page, invoice)
 
   // should be visible in Boltz app
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
+  await navigateToBoltz(page)
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Successful')).toBeVisible()
   await page.waitForSelector('text=- 1,001', { timeout: 10000 })
@@ -124,8 +119,7 @@ test('should send funds to Lightning', async ({ page }) => {
   await expect(page.getByText('Swap ID')).toBeVisible()
   await expect(page.getByText('Direction')).toBeVisible()
   await expect(page.getByText('Date')).toBeVisible()
-  await expect(page.getByText('Preimage')).toBeVisible()
-  await expect(page.getByText('Invoice')).toBeVisible()
+  await expect(page.getByText('Invoice', { exact: true })).toBeVisible()
   await expect(page.getByText('Status')).toBeVisible()
   await expect(page.getByText('Amount')).toBeVisible()
   await expect(page.getByText('Fees')).toBeVisible()
@@ -134,9 +128,15 @@ test('should send funds to Lightning', async ({ page }) => {
   expect(await page.getByTestId('Kind').textContent()).toBe('Submarine Swap')
   expect(await page.getByTestId('Direction').textContent()).toBe('Arkade to Lightning')
   expect(await page.getByTestId('Status').textContent()).toBe('transaction.claimed')
-  expect(await page.getByTestId('Amount').textContent()).toBe('1,000 SATS')
-  expect(await page.getByTestId('Fees').textContent()).toBe('1 SAT')
-  expect(await page.getByTestId('Total').textContent()).toBe('1,001 SATS')
+  expect(await page.getByTestId('Amount').textContent()).toBe('1,000 sats')
+  expect(await page.getByTestId('Fees').textContent()).toBe('1 sat')
+  expect(await page.getByTestId('Total').textContent()).toBe('1,001 sats')
+
+  // go back, await for swap to settle and preimage to be visible
+  await page.getByLabel('Go back').click()
+  await sleep(3000) // wait for swap to settle
+  await page.getByText('Arkade to Lightning').click()
+  await expect(page.getByText('Preimage')).toBeVisible()
 })
 
 test('should send funds to Bitcoin', async ({ page, isMobile }) => {
@@ -149,9 +149,7 @@ test('should send funds to Bitcoin', async ({ page, isMobile }) => {
   await pay(page, someOnchainAddress, isMobile, 2000)
 
   // should be visible in Boltz app
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
+  await navigateToBoltz(page)
   await expect(page.getByText('Boltz')).toBeVisible()
   await expect(page.getByText('Successful')).toBeVisible()
   await expect(page.getByText('Arkade to Bitcoin')).toBeVisible()
@@ -172,9 +170,19 @@ test('should send funds to Bitcoin', async ({ page, isMobile }) => {
   expect(await page.getByTestId('Direction').textContent()).toBe('Arkade to BTC')
   expect(await page.getByTestId('BTC Address').textContent()).toBe(prettyLongText(someOnchainAddress))
   expect(await page.getByTestId('Status').textContent()).toBe('transaction.claimed')
-  expect(await page.getByTestId('Amount').textContent()).toBe('2,111 SATS')
-  expect(await page.getByTestId('Fees').textContent()).toBe('164 SATS')
-  expect(await page.getByTestId('Total').textContent()).toBe('2,275 SATS')
+  // The exact sat split depends on the onchain claim fee, which differs between
+  // Boltz releases: the arkade-regtest stack runs boltz/boltz:latest at a
+  // realistic 1 sat/vB, whereas nigiri's pinned Boltz produced a different fee
+  // (which is where the old 2,111 / 164 / 2,275 constants came from). Assert the
+  // amounts are present and internally consistent (Amount + Fees === Total)
+  // rather than pinning environment-specific sat values.
+  const toSats = (s: string | null) => Number((s ?? '').replace(/[^0-9]/g, ''))
+  const amount = toSats(await page.getByTestId('Amount').textContent())
+  const fees = toSats(await page.getByTestId('Fees').textContent())
+  const total = toSats(await page.getByTestId('Total').textContent())
+  expect(amount).toBeGreaterThan(0)
+  expect(fees).toBeGreaterThan(0)
+  expect(total).toEqual(amount + fees)
 })
 
 test('should refund failing swap', async ({ page }) => {
@@ -204,14 +212,13 @@ test('should refund failing swap', async ({ page }) => {
   await page.getByText('Continue').click()
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector('text=Swap failed', { timeout: 30000 })
-  await page.getByLabel('Go back').click()
-  await page.getByLabel('Go back').click()
+  // optimistic send: lands on the success screen once the swap is funded,
+  // then the failure surfaces there when the swap fails in the background
+  await page.waitForSelector('text=Payment failed', { timeout: 30000 })
+  await page.getByText('Sounds good').click()
 
   // should be visible in Boltz app
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
+  await navigateToBoltz(page)
   await expect(page.getByText('Boltz')).toBeVisible()
   await page.waitForSelector('text=Refunded', { timeout: 10000 })
   await expect(page.getByText('- 1,001')).toBeVisible()

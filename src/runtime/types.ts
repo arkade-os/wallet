@@ -12,6 +12,7 @@ import {
   IssuanceParams,
   IssuanceResult,
   ReissuanceParams,
+  ServiceWorkerWalletMode,
   Transaction,
 } from '@arkade-os/sdk'
 import { ArkadeSwaps, Network } from '@arkade-os/boltz-swap'
@@ -117,6 +118,10 @@ export interface WalletRuntimeCreateParams {
   /** vtxoThreshold in seconds, mirroring the SDK SettlementConfig. */
   settlementConfig: { vtxoThreshold: number }
   skipMigration?: boolean
+  /** HD wallets honor the resolved mode; SingleKey wallets are always 'static'. */
+  walletMode?: ServiceWorkerWalletMode
+  /** Restore flow: scan for rotated addresses (HD gap-scan) after setup. */
+  restoring?: boolean
 }
 
 /**
@@ -178,6 +183,7 @@ export type SwapRuntimeClient = Pick<
   | 'claimVHTLC'
   | 'refundVHTLC'
   | 'waitForSwapSettlement'
+  | 'waitForSwapFunded'
   | 'getFees'
   | 'getLimits'
   | 'getSwapHistory'

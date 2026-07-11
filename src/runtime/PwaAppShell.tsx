@@ -14,6 +14,67 @@ import { serviceWorkerSwapFactory } from './swaps/serviceWorkerSwaps'
 import { localStorageSecretStorage } from './secretStorage'
 import { setSecretStore } from '../lib/secretStore'
 
+const DEV_SERVICE_WORKER_RESET_KEY = 'arkade-dev-service-worker-reset-attempted'
+const DEV_WALLET_STORAGE_RESET_KEY_PREFIX = 'arkade-dev-wallet-storage-reset'
+
+function getDevWalletStorageResetKey() {
+  const credential = import.meta.env.VITE_DEV_MNEMONIC || import.meta.env.VITE_DEV_NSEC || 'manual'
+  let hash = 5381
+
+  for (let i = 0; i < credential.length; i++) {
+    hash = (hash * 33) ^ credential.charCodeAt(i)
+  }
+
+  return `${DEV_WALLET_STORAGE_RESET_KEY_PREFIX}:${hash >>> 0}`
+}
+
+function reloadAfterUnregisteringServiceWorkers() {
+  navigator.serviceWorker
+    ?.getRegistrations()
+    .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+    .finally(() => window.location.reload())
+}
+
+function resetDevWalletStorage() {
+  if (!import.meta.env.DEV || import.meta.env.VITE_DEV_RESET_WALLET_ON_BOOT !== 'true') return false
+
+  try {
+    const storageResetKey = getDevWalletStorageResetKey()
+    if (localStorage.getItem(storageResetKey)) return false
+    localStorage.setItem(storageResetKey, 'true')
+
+    localStorage.removeItem('wallet')
+    localStorage.removeItem('encrypted_private_key')
+    localStorage.removeItem('encrypted_mnemonic')
+  } catch {
+    // Keep booting even if dev browser storage is unavailable.
+  }
+
+  if ('serviceWorker' in navigator) {
+    reloadAfterUnregisteringServiceWorkers()
+    return true
+  }
+
+  window.location.reload()
+  return true
+}
+
+function resetControlledDevServiceWorker() {
+  if (!import.meta.env.DEV || !(import.meta.env.VITE_DEV_NSEC || import.meta.env.VITE_DEV_MNEMONIC)) return false
+  if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) return false
+
+  try {
+    if (sessionStorage.getItem(DEV_SERVICE_WORKER_RESET_KEY)) return false
+    sessionStorage.setItem(DEV_SERVICE_WORKER_RESET_KEY, 'true')
+  } catch {
+    // Prefer one reload over leaving a stale dev service worker controlling boot.
+  }
+
+  reloadAfterUnregisteringServiceWorkers()
+
+  return true
+}
+
 /**
  * Registers the wallet service worker and reloads on controller change.
  *
@@ -24,6 +85,12 @@ import { setSecretStore } from '../lib/secretStore'
  * `navigator.serviceWorker`.
  */
 const registerServiceWorker = (): void => {
+  // Dev-only: reset wallet storage / a stale controlled service worker on boot
+  // when the matching VITE_DEV_* flags are set. Ported from src/index.tsx as part
+  // of the runtime-shell split; a reset triggers a reload, so bail afterward.
+  const devBootResetting = resetDevWalletStorage() || resetControlledDevServiceWorker()
+  if (devBootResetting) return
+
   if (!('serviceWorker' in navigator)) return
 
   navigator.serviceWorker.register('/wallet-service-worker.mjs').catch(() => {})

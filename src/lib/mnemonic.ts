@@ -2,23 +2,23 @@ import { HDKey } from '@scure/bip32'
 import { mnemonicToSeedSync, validateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import { getSecretStore } from './secretStore'
-
-const STORAGE_KEY = 'encrypted_mnemonic'
+import { MNEMONIC_STORAGE_KEY, NSEC_STORAGE_KEY } from './storageKeys'
 
 // Secret persistence is routed through the runtime secret store (localStorage on
 // PWA, native secure storage on Capacitor — see src/lib/secretStore.ts). Native
 // secure storage reads are async, so `hasMnemonic` is async too.
 export const hasMnemonic = async (): Promise<boolean> => {
-  return (await getSecretStore().getItem(STORAGE_KEY)) !== null
+  return (await getSecretStore().getItem(MNEMONIC_STORAGE_KEY)) !== null
 }
 
 export const setMnemonic = async (mnemonic: string, password: string): Promise<void> => {
   const encrypted = await encryptMnemonic(mnemonic, password)
-  await getSecretStore().setItem(STORAGE_KEY, encrypted)
+  await getSecretStore().setItem(MNEMONIC_STORAGE_KEY, encrypted)
+  await getSecretStore().removeItem(NSEC_STORAGE_KEY)
 }
 
 export const getMnemonic = async (password: string): Promise<string> => {
-  const encrypted = await getSecretStore().getItem(STORAGE_KEY)
+  const encrypted = await getSecretStore().getItem(MNEMONIC_STORAGE_KEY)
   if (!encrypted) throw new Error('No encrypted mnemonic found')
   return decryptMnemonic(encrypted, password)
 }

@@ -1,10 +1,10 @@
-import { useContext, useEffect, useState } from 'react'
-import { V2BrantaClient, BrantaServerBaseUrl } from '@branta-ops/branta'
+import { useContext, useEffect, useRef, useState } from 'react'
+import { BrantaService, type Payment } from '@branta-ops/branta/v2'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import { FlowContext, SendInfo } from '../../../providers/flow'
+import { FlowContext } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
 import {
   isArkAddress,
@@ -19,17 +19,18 @@ import InputAmount from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
-import { prettyAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
+import { fromSatoshis, prettyAmount, prettyFiatAmount, prettyNumber, toSatoshis } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
-import Keyboard from '../../../components/Keyboard'
+import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import Text from '../../../components/Text'
 import Shadow from '../../../components/Shadow'
 import Scanner from '../../../components/Scanner'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
-import { Addresses, AssetOption, SettingsOptions } from '../../../lib/types'
+import { Addresses, AssetOption, SettingsOptions, Themes, Unit } from '../../../lib/types'
+import { aspErrorText } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
@@ -48,22 +49,54 @@ import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
 import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
-import { fiatDecimalsFor } from '@/lib/fiat'
+import TokenLogo, { TokenLogoTicker } from '../../../components/TokenLogo'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../../components/ui/dropdown-menu'
+import { hapticLight } from '../../../lib/haptics'
+import { testDomains } from '../../../lib/constants'
 
-// TODO: Replace when SDK is accurate
-type BrantaPayment = Partial<
-  Awaited<ReturnType<V2BrantaClient['addPayment']>>['payment'] & {
-    platform_logo_url: string
-  }
->
+const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
-const brantaClient = new V2BrantaClient({
-  baseUrl: BrantaServerBaseUrl.Production,
+const brantaClient = new BrantaService({
+  baseUrl: isProductionEnv ? 'Production' : 'Staging',
+  privacy: 'strict',
 })
+
+function AssetIcon({ asset }: { asset: AssetOption | null }) {
+  const ticker = asset?.ticker?.toUpperCase()
+  const tokenTicker =
+    ticker === 'USD' || ticker === 'USDT' || ticker === 'USDC' || ticker === 'CHF' || ticker === 'BRL'
+      ? (ticker as TokenLogoTicker)
+      : asset
+        ? null
+        : 'BTC'
+
+  if (tokenTicker) {
+    return (
+      <span className='send-asset-icon' aria-hidden='true'>
+        <TokenLogo ticker={tokenTicker} />
+      </span>
+    )
+  }
+
+  if (asset?.icon) {
+    return <img className='send-asset-icon' src={asset.icon} alt='' />
+  }
+
+  return (
+    <span className='send-asset-icon send-asset-icon--fallback' aria-hidden='true'>
+      {asset?.ticker?.[0] ?? 'A'}
+    </span>
+  )
+}
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
-  const { config, useFiat } = useContext(ConfigContext)
+  const { config, effectiveTheme, useFiat } = useContext(ConfigContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
@@ -105,43 +138,58 @@ export default function SendForm() {
   const [nudgeBoltz, setNudgeBoltz] = useState(false)
   const [proceed, setProceed] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [readyToParse, setReadyToParse] = useState(false)
   const [recipient, setRecipient] = useState('')
+  const [recipientError, setRecipientError] = useState('')
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
   const [scan, setScan] = useState(false)
   const [rawScanData, setRawScanData] = useState('')
-  const [brantaPayment, setBrantaPayment] = useState<BrantaPayment | null>(null)
+  const [brantaPayment, setBrantaPayment] = useState<Payment | null>(null)
+  const [brantaVerifyUrl, setBrantaVerifyUrl] = useState<string | undefined>(undefined)
   const [brantaLoading, setBrantaLoading] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<AssetOption | null>(null)
   const [showAssetSelector, setShowAssetSelector] = useState(false)
   const [showReserveModal, setShowReserveModal] = useState(false)
   const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
+  const [valueSats, setValueSats] = useState<number | undefined>(undefined)
+
+  const timeoutRef = useRef<NodeJS.Timeout>()
 
   const prefersReducedMotion = useReducedMotion()
   const isAssetSend = selectedAsset !== null
 
   const DUST_AMOUNT = 330
+  const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
   const reserveApplied = !isAssetSend && hasAssets
   const liquidBalance = availableBalance - (reserveApplied ? DUST_AMOUNT : 0)
 
   const smartSetError = (str: string) => {
-    setError(str === '' ? (aspInfo.unreachable ? 'Ark server unreachable' : '') : str)
+    setError(str === '' ? (aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '') : str)
   }
 
-  const setState = (info: SendInfo) => {
-    setScan(false)
-    setSendInfo(info)
-    if (info.satoshis) {
-      if (isAssetSend && info.assets) {
-        const cents = info.assets[0].amount
-        const units = centsToUnits(cents, selectedAsset.decimals)
-        setAmountTextValue(units)
-      } else {
-        const units = useFiat ? prettyNumber(toFiat(info.satoshis), fiatDecimals()) : info.satoshis
-        setAmountTextValue(units.toString())
-      }
+  const getTextValue = (sats: number) =>
+    useFiat
+      ? prettyNumber(toFiat(sats), fiatDecimals(), false)
+      : config.unit === Unit.BTC
+        ? prettyNumber(fromSatoshis(sats), 8, false)
+        : prettyNumber(sats, 0, false)
+
+  useEffect(() => {
+    if (!sendInfo.scan) return
+    const nextSendInfo = { ...sendInfo }
+    delete nextSendInfo.scan
+    setKeys(false)
+    setScan(true)
+    setSendInfo(nextSendInfo)
+  }, [sendInfo.scan])
+
+  // cleanup debounce timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
-  }
+  }, [])
 
   // get receiving addresses
   useEffect(() => {
@@ -207,13 +255,11 @@ export default function SendForm() {
   // repeat when asset changes to re-validate addresses (e.g. if user
   // selects an asset and the address is not compatible with it)
   useEffect(() => {
-    smartSetError('')
+    if (!readyToParse) return
+    setRecipientError('')
     const parseRecipient = async () => {
       setNudgeBoltz(false)
       if (!recipient) return
-      // Clean base — only carry forward asset selection; all parsed targets
-      // start empty so switching recipient types never leaks stale state.
-      const base: SendInfo = { recipient, assets: sendInfo.assets }
       const lowerCaseData = recipient.toLowerCase().replace(/^lightning:/, '')
       if (isURLWithLightningQueryString(recipient)) {
         const url = new URL(recipient)
@@ -221,7 +267,7 @@ export default function SendForm() {
       }
       if (isBip21(lowerCaseData)) {
         const { address, arkAddress, invoice, lnUrl, satoshis, assetId, assetAmount } = decodeBip21(recipient.trim())
-        if (!address && !arkAddress && !invoice && !lnUrl) return setError('Unable to parse bip21')
+        if (!address && !arkAddress && !invoice && !lnUrl) return setRecipientError('Unable to parse bip21')
         if (assetId) {
           let found = assetOptions.find((a) => a.assetId === assetId)
           if (!found) {
@@ -245,7 +291,7 @@ export default function SendForm() {
           }
           setSelectedAsset(found)
           const rawAmount = assetAmount ? unitsToCents(assetAmount, found.decimals) : BigInt(0)
-          return setState({
+          return setSendInfo({
             address,
             arkAddress,
             invoice,
@@ -254,30 +300,41 @@ export default function SendForm() {
             assets: [{ assetId, amount: rawAmount }],
           })
         }
-        return setState({ address, arkAddress, invoice, lnUrl, recipient, satoshis, assets: sendInfo.assets })
+        setSendInfo({
+          address,
+          arkAddress,
+          assets: sendInfo.assets,
+          invoice,
+          lnUrl,
+          recipient,
+          satoshis: satoshis ?? sendInfo.satoshis,
+        })
+        if (satoshis) setAmountTextValue(getTextValue(satoshis))
+        return
       }
       if (isArkAddress(lowerCaseData)) {
-        return setState({ ...base, arkAddress: lowerCaseData })
+        return setSendInfo({ ...sendInfo, arkAddress: lowerCaseData })
       }
       if (isLightningInvoice(lowerCaseData)) {
         if (isAssetSend) {
-          return setError('Assets can only be sent to Arkade addresses')
+          return setRecipientError('Assets can only be sent to Arkade addresses')
         }
         if (!connected) {
-          setError('Lightning swaps not enabled')
+          setRecipientError('Lightning swaps not enabled')
           return setNudgeBoltz(true)
         }
         const satoshis = getInvoiceSatoshis(lowerCaseData)
-        if (!satoshis) return setError('Invoice must have amount defined')
-        setState({ ...base, invoice: lowerCaseData, satoshis })
+        if (!satoshis) return setRecipientError('Invoice must have amount defined')
+        setSendInfo({ ...sendInfo, invoice: lowerCaseData, satoshis })
+        setAmountTextValue(getTextValue(satoshis))
         setAmountIsReadOnly(true)
         return
       }
       if (isBTCAddress(recipient)) {
         if (isAssetSend) {
-          return setError('Assets can only be sent to Arkade addresses')
+          return setRecipientError('Assets can only be sent to Arkade addresses')
         }
-        return setState({ ...base, address: recipient })
+        return setSendInfo({ ...sendInfo, address: recipient })
       }
       if (isArkNote(lowerCaseData)) {
         try {
@@ -289,66 +346,71 @@ export default function SendForm() {
         }
       }
       if (isValidLnUrl(lowerCaseData)) {
-        return setState({ ...base, lnUrl: lowerCaseData })
+        return setSendInfo({ ...sendInfo, lnUrl: lowerCaseData })
       }
-      setError('Invalid recipient address')
+      setRecipientError('Invalid recipient address')
+      setReadyToParse(false)
     }
     parseRecipient()
-  }, [recipient, isAssetSend])
+  }, [recipient, isAssetSend, readyToParse])
 
-  // fetch branta payment info for ZK QR-scanned addresses only
+  // fetch branta payment info for the current recipient (SDK strict mode gates non-ZK)
   useEffect(() => {
-    if (!rawScanData) {
+    const typed = recipient.trim()
+    if (!rawScanData && !typed) {
+      setBrantaPayment(null)
+      setBrantaVerifyUrl(undefined)
       setBrantaLoading(false)
       return
     }
+
     setBrantaPayment(null)
+    setBrantaVerifyUrl(undefined)
     let cancelled = false
 
-    let isValidZKCode = false
-    try {
-      const url = new URL(rawScanData.trim())
-      isValidZKCode = url.searchParams.has('branta_id') && url.searchParams.has('branta_secret')
-    } catch {
-      // Invalid URL, not a ZK code
-    }
+    const runLookup = () => {
+      if (cancelled) return
+      setBrantaLoading(true)
+      const lookup = rawScanData ? brantaClient.getPaymentsByQrCode(rawScanData) : brantaClient.getPayments(typed)
 
-    if (!isValidZKCode) {
-      setBrantaLoading(false)
-      return
-    }
-
-    setBrantaLoading(true)
-    brantaClient
-      .getPaymentsByQRCode(rawScanData)
-      .then((payments: BrantaPayment[]) => {
-        if (cancelled) return
-        const payment = payments?.[0] ?? null
-        if (payment) {
+      lookup
+        .then(({ payments, verifyUrl }) => {
+          if (cancelled) return
+          const payment = payments?.[0] ?? null
+          if (!payment) {
+            setBrantaPayment(null)
+            setBrantaVerifyUrl(undefined)
+            return
+          }
           const isHttpsUrl = (val: unknown): boolean => typeof val === 'string' && val.startsWith('https://')
           setBrantaPayment({
             ...payment,
-            verify_url: isHttpsUrl(payment.verify_url) ? payment.verify_url : undefined,
-            platform_logo_url: isHttpsUrl(payment.platform_logo_url) ? payment.platform_logo_url : undefined,
+            platformLogoUrl: isHttpsUrl(payment.platformLogoUrl) ? payment.platformLogoUrl : undefined,
+            platformLogoLightUrl: isHttpsUrl(payment.platformLogoLightUrl) ? payment.platformLogoLightUrl : undefined,
           })
-        } else {
+          setBrantaVerifyUrl(isHttpsUrl(verifyUrl) ? verifyUrl : undefined)
+        })
+        .catch((err) => {
+          if (cancelled) return
+          consoleError('Branta API error', err)
           setBrantaPayment(null)
-        }
-      })
-      .catch((err) => {
-        if (cancelled) return
-        consoleError('Branta API error', err)
-        setBrantaPayment(null)
-      })
-      .finally(() => {
-        if (cancelled) return
-        setBrantaLoading(false)
-      })
+          setBrantaVerifyUrl(undefined)
+        })
+        .finally(() => {
+          if (cancelled) return
+          setBrantaLoading(false)
+        })
+    }
+
+    // QR scans verify immediately; typed input is debounced to avoid one request per keystroke
+    const timer = rawScanData ? null : setTimeout(runLookup, 400)
+    if (rawScanData) runLookup()
 
     return () => {
       cancelled = true
+      if (timer) clearTimeout(timer)
     }
-  }, [rawScanData])
+  }, [rawScanData, recipient])
 
   // check lnurl limits
   useEffect(() => {
@@ -360,7 +422,6 @@ export default function SendForm() {
     if (satoshis && satoshis < min) return setError(`Amount below LNURL min limit`)
     if (satoshis && satoshis > max) return setError(`Amount above LNURL max limit`)
     if (min === max) {
-      setAmount(min) // set fixed amount automatically
       setAmountIsReadOnly(true)
     } else {
       setAmountIsReadOnly(false)
@@ -374,15 +435,25 @@ export default function SendForm() {
     if (sendInfo.lnUrl && sendInfo.invoice) return
     checkLnUrlConditions(sendInfo.lnUrl)
       .then((conditions) => {
-        if (!conditions) return setError('Unable to fetch LNURL conditions')
+        if (!conditions) return setRecipientError('Unable to fetch LNURL conditions')
         const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
         const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
-        if (min === max) setSendInfo({ ...sendInfo, satoshis: min }) // set amount automatically
+        // when the LNURL resolves to a fixed amount, set amountTextValue
+        if (min === max) {
+          setSendInfo({ ...sendInfo, satoshis: min })
+          setAmountTextValue(getTextValue(min))
+          setAmountIsReadOnly(true)
+        }
         return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
       })
       .catch((e) => {
+        if (e.status === 404) {
+          consoleError(e, 'LNURL not found')
+          setRecipientError('LNURL not found')
+          return
+        }
         consoleError(e, 'Error checking LNURL conditions')
-        setError(extractError(e))
+        setRecipientError(extractError(e))
       })
   }, [sendInfo.arkAddress, sendInfo.lnUrl])
 
@@ -398,11 +469,11 @@ export default function SendForm() {
     const { address, arkAddress, invoice, lnUrl } = sendInfo
     // check server limits for onchain transactions
     if (address && !arkAddress && !invoice && !lnUrl && !utxoTxsAllowed()) {
-      return setError('Sending onchain not allowed')
+      return setRecipientError('Sending onchain not allowed')
     }
     // check server limits for offchain transactions
     if (!address && (arkAddress || invoice || lnUrl) && !vtxoTxsAllowed()) {
-      return setError('Sending offchain not allowed')
+      return setRecipientError('Sending offchain not allowed')
     }
     // check swap limits for lightning transactions
     if (!address && !arkAddress && invoice) {
@@ -410,8 +481,8 @@ export default function SendForm() {
       const max = maxSwapAllowed()
       if (min === 0 && max === 0) return // limits not loaded yet
       const amountSats = getInvoiceSatoshis(invoice)
-      if (amountSats < min) return setError(`Invoice amount below min of ${prettyNumber(min)} sats`)
-      if (amountSats > max) return setError(`Invoice amount above max of ${prettyNumber(max)} sats`)
+      if (amountSats < min) return setRecipientError(`Invoice amount below min of ${prettyNumber(min)} sats`)
+      if (amountSats > max) return setRecipientError(`Invoice amount above max of ${prettyNumber(max)} sats`)
     }
     // check if server key is valid
     if (arkAddress && arkAddress.length > 0) {
@@ -419,7 +490,7 @@ export default function SendForm() {
       const { serverPubKey: expectedServerPubKey } = decodeArkAddress(offchainAddr)
       if (serverPubKey !== expectedServerPubKey) {
         // if there's no other way to pay, show error
-        if (!address && !invoice) return setError('Ark server key mismatch')
+        if (!address && !invoice) return setRecipientError('Arkade server key mismatch')
         // remove ark address from possibilities to send and continue
         // we will try to pay to lightning or mainnet instead
         setSendInfo({ ...sendInfo, arkAddress: '' })
@@ -428,12 +499,12 @@ export default function SendForm() {
     // check if is trying to self send
     if (address === boardingAddr || arkAddress === offchainAddr) {
       setTryingToSelfSend(true) // nudge user to rollover
-      return setError('Cannot send to yourself')
+      return setRecipientError('Cannot send to yourself')
     } else {
       setTryingToSelfSend(false)
     }
     // everything is ok, clean error
-    setError('')
+    setRecipientError('')
   }, [receivingAddresses, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl])
 
   // manage button label and errors
@@ -463,14 +534,18 @@ export default function SendForm() {
 
   // manage server unreachable error
   useEffect(() => {
-    const errTxt = 'Ark server unreachable'
+    const errTxt = aspErrorText(aspInfo, 'Arkade server unreachable')
     if (!aspInfo.unreachable) {
-      setError((prev) => (prev === errTxt ? '' : prev))
+      // Server reachable again: clear either unavailable variant we may have
+      // shown (generic unreachable or the outdated-client message) without
+      // clobbering unrelated errors.
+      const outdatedTxt = aspErrorText({ ...aspInfo, outdated: true }, errTxt)
+      setError((prev) => (prev === errTxt || prev === outdatedTxt ? '' : prev))
       return
     }
     setError(errTxt)
     setLabel('Server unreachable')
-  }, [aspInfo.unreachable])
+  }, [aspInfo.unreachable, aspInfo.outdated])
 
   // proceed to next step
   useEffect(() => {
@@ -481,7 +556,7 @@ export default function SendForm() {
       createSubmarineSwap(sendInfo.invoice)
         .then((pendingSwap) => {
           if (!pendingSwap) return handleError('Unable to create swap')
-          setState({ ...sendInfo, pendingSwap })
+          setSendInfo({ ...sendInfo, pendingSwap })
         })
         .catch(handleError)
     } else if (satoshis && sendInfo.address) {
@@ -491,7 +566,7 @@ export default function SendForm() {
       createArkToBtcSwap(sendInfo.address, amountForSwap)
         .then((result) => {
           if (!result) return navigate(Pages.SendDetails)
-          setState({ ...sendInfo, pendingSwap: result.pendingSwap })
+          setSendInfo({ ...sendInfo, pendingSwap: result.pendingSwap })
         })
         .catch(() => navigate(Pages.SendDetails))
     }
@@ -501,7 +576,9 @@ export default function SendForm() {
   useEffect(() => {
     const satoshis = sendInfo.satoshis ?? 0
     const onlyBtcAddress = sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice
-    if (sendInfo.lnUrl) {
+    if (sendInfo.arkAddress) {
+      setDeductFromAmount(false)
+    } else if (sendInfo.lnUrl) {
       const fees = calcSubmarineSwapFee(satoshis)
       setDeductFromAmount(satoshis + fees > liquidBalance)
     } else if (onlyBtcAddress) {
@@ -530,12 +607,13 @@ export default function SendForm() {
   }
 
   const handleAmountChange = (value: string) => {
+    setValueSats(undefined)
     setAmountTextValue(value)
     if (isAssetSend) {
       if (selectedAsset) {
         const decimals = selectedAsset?.decimals
         const cents = unitsToCents(value, decimals)
-        setState({
+        setSendInfo({
           ...sendInfo,
           assets: [{ assetId: selectedAsset.assetId, amount: cents }],
           satoshis: 0,
@@ -544,9 +622,20 @@ export default function SendForm() {
     } else {
       const num = Number(value)
       if (Number.isNaN(num) || !Number.isFinite(num)) return setError('Invalid amount')
-      const sats = useFiat ? fromFiat(num) : num
-      setState({ ...sendInfo, satoshis: sats })
+      const sats = useFiat ? fromFiat(num) : config.unit === Unit.BTC ? toSatoshis(num) : Math.floor(num)
+      setSendInfo({ ...sendInfo, satoshis: sats })
     }
+  }
+
+  const handleKeyboardAmountSave = (value: string, inputMode: KeyboardInputMode) => {
+    setKeys(false)
+    if (inputMode === 'asset') return handleAmountChange(value)
+    if (useFiat && inputMode !== 'fiat') {
+      const sats = inputMode === 'sats' ? Number(value) : toSatoshis(Number(value))
+      handleAmountChange(prettyNumber(toFiat(sats), fiatDecimals(), false))
+      return
+    }
+    handleAmountChange(value)
   }
 
   const handleSelectAsset = (asset: AssetOption | null) => {
@@ -556,36 +645,24 @@ export default function SendForm() {
       if (isBTCAddress(recipient)) {
         return setError('Assets can only be sent to Arkade addresses')
       }
-      setState({
+      setSendInfo({
         ...sendInfo,
         address: '',
         assets: [{ assetId: asset.assetId, amount: BigInt(0) }],
         satoshis: 0,
       })
     } else {
-      setState({ ...sendInfo, assets: undefined, satoshis: 0 })
+      setSendInfo({ ...sendInfo, assets: undefined, satoshis: 0 })
     }
-  }
-
-  const resetDerivedState = (newRecipient: string) => {
-    setBrantaPayment(null)
-    setState({
-      address: '',
-      arkAddress: '',
-      invoice: '',
-      lnUrl: '',
-      recipient: newRecipient,
-      satoshis: 0,
-      assets: sendInfo.assets,
-    })
-    setRecipient(newRecipient)
-    setAmountIsReadOnly(false)
-    setLnUrlResponse(undefined)
+    setAmountTextValue('')
   }
 
   const handleRecipientChange = (recipient: string) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    setRecipient(recipient)
+    setReadyToParse(false)
     setRawScanData('')
-    resetDerivedState(recipient)
+    timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
   }
 
   const handleContinue = async () => {
@@ -603,17 +680,17 @@ export default function SendForm() {
             handleError('Invalid Arkade address received from LNURL')
             return
           }
-          setState({ ...sendInfo, arkAddress: arkResponse.address, invoice: undefined })
+          setSendInfo({ ...sendInfo, arkAddress: arkResponse.address, invoice: undefined })
         } else {
           // Fallback to Lightning invoice
           const amountForInvoice = deductFromAmount ? satoshis - calcSubmarineSwapFee(satoshis) : satoshis
           if (amountForInvoice < 1) return handleError('Amount too low to cover fees')
           if (amountForInvoice > BigInt(Number.MAX_SAFE_INTEGER)) return handleError('Amount too large')
           const invoice = await fetchInvoice(sendInfo.lnUrl, Number(amountForInvoice), '')
-          setState({ ...sendInfo, invoice, arkAddress: undefined })
+          setSendInfo({ ...sendInfo, invoice, arkAddress: undefined })
         }
       } else {
-        setState({ ...sendInfo, satoshis })
+        setSendInfo({ ...sendInfo, satoshis })
       }
       setProceed(true)
     } catch (error) {
@@ -635,14 +712,13 @@ export default function SendForm() {
     if (isAssetSend && selectedAsset) {
       const { assetId, balance, decimals } = selectedAsset
       const assets = [{ assetId, amount: balance }]
-      setState({ ...sendInfo, assets, satoshis: 0 })
+      setSendInfo({ ...sendInfo, assets, satoshis: 0 })
       setAmountTextValue(centsToUnits(balance, decimals))
     } else {
-      setState({ ...sendInfo, satoshis: liquidBalance })
-      setAmountTextValue(
-        useFiat ? toFiat(liquidBalance).toFixed(fiatDecimalsFor(config.fiat)) : liquidBalance.toString(),
-      )
       setAmount(liquidBalance)
+      setValueSats(liquidBalance)
+      setSendInfo({ ...sendInfo, satoshis: liquidBalance })
+      setAmountTextValue(getTextValue(liquidBalance))
     }
   }
 
@@ -667,7 +743,11 @@ export default function SendForm() {
       )
     }
 
-    const pretty = useFiat ? prettyFiatAmount(toFiat(liquidBalance), config.fiat) : prettyAmount(liquidBalance)
+    const pretty = useFiat
+      ? prettyFiatAmount(toFiat(liquidBalance), config.currency, { bitcoinUnit: config.unit })
+      : config.unit === Unit.BTC
+        ? prettyAmount(fromSatoshis(liquidBalance), config.unit, 8)
+        : prettyAmount(liquidBalance)
 
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
@@ -685,6 +765,7 @@ export default function SendForm() {
   const buttonDisabled = isAssetSend
     ? !(arkAddress && assetAmt > 0) ||
       (selectedAsset ? assetAmt > selectedAsset.balance : true) ||
+      Boolean(recipientError) ||
       aspInfo.unreachable ||
       tryingToSelfSend ||
       Boolean(error) ||
@@ -701,39 +782,20 @@ export default function SendForm() {
       satoshis < 1 ||
       processing
 
-  const selectedAssetLabel = selectedAsset ? `${selectedAsset.name} (${selectedAsset.ticker})` : 'Bitcoin (BTC)'
-
-  const btcIcon = (
-    <div
-      style={{
-        width: 24,
-        height: 24,
-        borderRadius: '50%',
-        background: '#f7931a',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'white',
-        fontSize: '14px',
-        fontWeight: 'bold',
-      }}
-    >
-      ₿
-    </div>
-  )
+  const selectedAssetLabel = selectedAsset ? `${selectedAsset.name} (${selectedAsset.ticker})` : 'Bitcoin'
+  const selectedAssetBalance = selectedAsset
+    ? `${prettyAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`
+    : `${
+        useFiat
+          ? prettyFiatAmount(toFiat(liquidBalance), config.currency, { bitcoinUnit: config.unit })
+          : prettyAmount(liquidBalance)
+      } available`
 
   const overlayOpen = scan || (keys && !amountIsReadOnly)
   const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
 
   const Keys = () => (
-    <Keyboard
-      asset={selectedAsset ?? undefined}
-      back={() => setKeys(false)}
-      onSave={(value: string) => {
-        handleAmountChange(value)
-        setKeys(false)
-      }}
-    />
+    <Keyboard asset={selectedAsset ?? undefined} back={() => setKeys(false)} onSave={handleKeyboardAmountSave} />
   )
 
   if (keys && !amountIsReadOnly) {
@@ -762,8 +824,9 @@ export default function SendForm() {
       close={() => setScan(false)}
       label='Recipient address'
       onData={(data) => {
+        setRecipient(data)
         setRawScanData(data)
-        resetDerivedState(data)
+        setReadyToParse(true)
       }}
       onError={smartSetError}
     />
@@ -792,17 +855,22 @@ export default function SendForm() {
 
   return (
     <>
-      {/* @ts-expect-error inert is valid HTML but React types lag behind */}
-      <div inert={overlayOpen || undefined} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div
+        /* @ts-expect-error inert is valid HTML but React types lag behind */
+        inert={overlayOpen || undefined}
+        className='send-form'
+        style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
+      >
         <Header text='Send' back />
         <Content>
           <Padded>
-            <FlexCol gap='2rem'>
+            <FlexCol gap='1.25rem' className='send-form-stack'>
               <ErrorMessage error={Boolean(error)} text={error} />
               <InputAddress
-                name='send-address'
+                error={recipientError}
                 focus={focus === 'recipient'}
                 label='Recipient address'
+                name='send-address'
                 onChange={handleRecipientChange}
                 onEnter={handleEnter}
                 openScan={() => {
@@ -816,134 +884,132 @@ export default function SendForm() {
                   Verifying address...
                 </Text>
               ) : null}
-              {brantaPayment ? (
-                <Shadow>
-                  <FlexRow between padding='0.75rem'>
-                    <FlexCol gap='0.1rem'>
-                      <Text smaller>{brantaPayment.platform}</Text>
-                      <Text smaller color='neutral-500'>
-                        {brantaPayment.verify_url?.startsWith('https://') ? (
-                          <a href={brantaPayment.verify_url} target='_blank' rel='noreferrer'>
-                            Verified by Branta
-                          </a>
-                        ) : (
-                          'Verified by Branta'
-                        )}
-                      </Text>
-                    </FlexCol>
-                    {brantaPayment.platform_logo_url ? (
-                      <img src={brantaPayment.platform_logo_url} alt={brantaPayment.platform} width={48} height={48} />
-                    ) : null}
-                  </FlexRow>
-                </Shadow>
-              ) : null}
+              {brantaPayment
+                ? (() => {
+                    const card = (
+                      <Shadow>
+                        <FlexRow between padding='0.75rem'>
+                          <FlexCol gap='0.1rem'>
+                            <Text smaller>{brantaPayment.platform}</Text>
+                            {brantaPayment.description ? (
+                              <Text smaller color='neutral-500'>
+                                {brantaPayment.description}
+                              </Text>
+                            ) : null}
+                            <Text smaller color='neutral-500'>
+                              Verified by Branta
+                            </Text>
+                          </FlexCol>
+                          {(() => {
+                            const logoUrl =
+                              effectiveTheme === Themes.Light
+                                ? (brantaPayment.platformLogoLightUrl ?? brantaPayment.platformLogoUrl)
+                                : brantaPayment.platformLogoUrl
+                            return logoUrl ? (
+                              <img src={logoUrl} alt={brantaPayment.platform} width={48} height={48} />
+                            ) : null
+                          })()}
+                        </FlexRow>
+                      </Shadow>
+                    )
+                    // Only wrap in an anchor when there's a real verify URL; an <a> without href is a
+                    // placeholder link that screen readers may still announce.
+                    return brantaVerifyUrl ? (
+                      <a
+                        href={brantaVerifyUrl}
+                        target='_blank'
+                        rel='noreferrer'
+                        style={{ textDecoration: 'none', display: 'block', cursor: 'pointer' }}
+                      >
+                        {card}
+                      </a>
+                    ) : (
+                      card
+                    )
+                  })()
+                : null}
               {assetOptions.length > 0 ? (
-                <FlexCol gap='0.25rem'>
+                <FlexCol gap='0.5rem' className='send-asset-field'>
                   <Text smaller color='neutral-500'>
                     Asset
                   </Text>
-                  <Shadow border onClick={() => setShowAssetSelector(!showAssetSelector)} testId='asset-selector'>
-                    <FlexRow between padding='0.5rem'>
-                      <FlexRow>
-                        {selectedAsset ? (
-                          selectedAsset.icon ? (
-                            <img
-                              src={selectedAsset.icon}
-                              alt=''
-                              width={24}
-                              height={24}
-                              style={{ borderRadius: '50%' }}
-                            />
-                          ) : (
-                            <div
-                              style={{
-                                width: 24,
-                                height: 24,
-                                borderRadius: '50%',
-                                background: 'var(--neutral-200)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <Text smaller>{selectedAsset.ticker?.[0] ?? 'A'}</Text>
-                            </div>
-                          )
-                        ) : (
-                          btcIcon
-                        )}
-                        <Text>{selectedAssetLabel}</Text>
-                      </FlexRow>
-                      <Text color='neutral-500' smaller>
+                  <DropdownMenu
+                    open={showAssetSelector}
+                    onOpenChange={(open: any) => {
+                      if (open) hapticLight()
+                      setShowAssetSelector(open)
+                    }}
+                    modal={false}
+                  >
+                    <DropdownMenuTrigger
+                      aria-expanded={showAssetSelector}
+                      className='send-asset-trigger'
+                      data-testid='asset-selector'
+                    >
+                      <span className='send-asset-trigger__main'>
+                        <AssetIcon asset={selectedAsset} />
+                        <span className='send-asset-trigger__copy'>
+                          <span className='send-asset-trigger__name'>{selectedAssetLabel}</span>
+                          <span className='send-asset-trigger__balance'>{selectedAssetBalance}</span>
+                        </span>
+                      </span>
+                      <span className='send-asset-trigger__chevron' aria-hidden='true'>
                         {showAssetSelector ? '▲' : '▼'}
-                      </Text>
-                    </FlexRow>
-                  </Shadow>
-                  {showAssetSelector ? (
-                    <div style={{ maxHeight: '40vh', overflowY: 'auto', width: '100%' }}>
+                      </span>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className='send-asset-menu' align='start' side='bottom' sideOffset={8}>
                       <FlexCol gap='0.25rem'>
                         {selectedAsset ? (
-                          <Shadow onClick={() => handleSelectAsset(null)}>
-                            <FlexRow between padding='0.5rem'>
-                              <FlexRow>
-                                {btcIcon}
-                                <Text>Bitcoin (BTC)</Text>
-                              </FlexRow>
-                            </FlexRow>
-                          </Shadow>
+                          <DropdownMenuItem className='send-asset-option' onClick={() => handleSelectAsset(null)}>
+                            <span className='send-asset-option__main'>
+                              <AssetIcon asset={null} />
+                              <span>
+                                <span className='send-asset-option__name'>Bitcoin</span>
+                                <span className='send-asset-option__meta'>
+                                  {useFiat
+                                    ? prettyFiatAmount(toFiat(liquidBalance), config.currency, {
+                                        bitcoinUnit: config.unit,
+                                      })
+                                    : prettyAmount(liquidBalance)}{' '}
+                                  available
+                                </span>
+                              </span>
+                            </span>
+                          </DropdownMenuItem>
                         ) : null}
                         {assetOptions
                           .filter((asset) => asset.assetId !== selectedAsset?.assetId)
                           .map((asset) => (
-                            <Shadow
+                            <DropdownMenuItem
                               key={asset.assetId}
+                              className='send-asset-option'
                               onClick={() => handleSelectAsset(asset)}
-                              testId={`asset-${asset.ticker.toLowerCase()}-option`}
+                              data-testid={`asset-${asset.ticker.toLowerCase()}-option`}
                             >
-                              <FlexRow between padding='0.5rem'>
-                                <FlexRow>
-                                  {asset.icon ? (
-                                    <img
-                                      src={asset.icon}
-                                      alt=''
-                                      width={24}
-                                      height={24}
-                                      style={{ borderRadius: '50%' }}
-                                    />
-                                  ) : (
-                                    <div
-                                      style={{
-                                        width: 24,
-                                        height: 24,
-                                        borderRadius: '50%',
-                                        background: 'var(--neutral-200)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                      }}
-                                    >
-                                      <Text smaller>{asset.ticker?.[0] ?? 'A'}</Text>
-                                    </div>
-                                  )}
-                                  <Text>
+                              <span className='send-asset-option__main'>
+                                <AssetIcon asset={asset} />
+                                <span>
+                                  <span className='send-asset-option__name'>
                                     {asset.name} ({asset.ticker})
-                                  </Text>
-                                </FlexRow>
-                                <Text color='neutral-500' smaller>
-                                  {prettyAssetAmount(asset.balance, asset.decimals)} {asset.ticker}
-                                </Text>
-                              </FlexRow>
-                            </Shadow>
+                                  </span>
+                                  <span className='send-asset-option__meta'>Tap to send this asset</span>
+                                </span>
+                              </span>
+                              <span className='send-asset-option__amount'>
+                                {prettyAssetAmount(asset.balance, asset.decimals)} {asset.ticker}
+                              </span>
+                            </DropdownMenuItem>
                           ))}
                       </FlexCol>
-                    </div>
-                  ) : null}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </FlexCol>
               ) : null}
               <FlexCol gap='0.5rem'>
                 <InputAmount
                   label='Amount'
                   name='send-amount'
+                  valueSats={valueSats}
                   right={<Available />}
                   onEnter={handleEnter}
                   onFocus={handleFocus}

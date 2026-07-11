@@ -8,6 +8,8 @@ import {
   receiveLightning,
   resetAndRestoreWallet,
   waitForPaymentReceived,
+  navigateHome,
+  navigateToBoltz,
   getInvoiceFromLND,
 } from './utils'
 import { sleep } from '../../lib/sleep'
@@ -36,7 +38,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
    * reverse swap
    */
 
-  // define amount 5000 SATS
+  // define amount 5000 sats
   const invoice = await receiveLightning(page, isMobile, 5000)
   expect(invoice).toBeDefined()
   expect(invoice).toBeTruthy()
@@ -48,16 +50,14 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   await waitForPaymentReceived(page)
 
   // should be visible in Boltz app
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
-  await expect(page.getByText('+ 4,980 SATS', { exact: true })).toBeVisible()
+  await navigateToBoltz(page)
+  await expect(page.getByText('+ 4,980 sats', { exact: true })).toBeVisible()
   await page.getByLabel('Go back').click()
 
   // navigate to wallet tab and verify balance before proceeding
-  await page.getByTestId('tab-wallet').click()
+  await navigateHome(page)
   await page.waitForSelector('text=Received', { timeout: 10000 })
-  await expect(page.getByText('4,980', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('main-balance')).toHaveText('4,980')
 
   /**
    * submarine swap
@@ -73,10 +73,8 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
   await pay(page, paymentRequest, isMobile)
 
   // should be visible in Boltz app
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
-  await expect(page.getByText('- 1,001 SATS', { exact: true })).toBeVisible()
+  await navigateToBoltz(page)
+  await expect(page.getByText('- 1,001 sats', { exact: true })).toBeVisible()
   await page.getByLabel('Go back').click()
 
   /**
@@ -100,9 +98,7 @@ test('should restore swaps without nostr backup', async ({ page, isMobile }) => 
    */
 
   // go to Boltz app
-  await page.getByTestId('tab-apps').click()
-  await expect(page.getByText('Boltz', { exact: true })).toBeVisible()
-  await page.getByTestId('app-boltz').click()
+  await navigateToBoltz(page)
 
   // verify all swaps are present (swap recovery from Boltz API can take a moment)
   await expect(page.getByText('Boltz')).toBeVisible()

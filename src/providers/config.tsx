@@ -1,7 +1,8 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
-import { clearStorage, readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
+import { readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
 import { defaultArkServer, devServer } from '../lib/constants'
-import { Config, CurrencyDisplay, Fiats, Themes, Unit } from '../lib/types'
+import { Config, Currencies, Themes, Unit } from '../lib/types'
+import { normalizeBitcoinUnit } from '../lib/format'
 import { BackupProvider } from '../lib/backup'
 import { consoleError } from '../lib/logs'
 import { setHapticsEnabled } from '../lib/haptics'
@@ -12,9 +13,8 @@ const defaultConfig: Config = {
   apps: { assets: { enabled: false }, boltz: { connected: true } },
   aspUrl: defaultArkServer(),
   dismissedBanners: [],
-  currencyDisplay: CurrencyDisplay.Fiat,
   delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
-  fiat: Fiats.USD,
+  currency: Currencies.USD,
   importedAssets: [],
   haptics: true,
   nostrBackup: false,
@@ -23,6 +23,7 @@ const defaultConfig: Config = {
   showBalance: true,
   theme: Themes.Auto,
   unit: Unit.BTC,
+  walletMode: 'static',
 }
 
 interface ConfigContextProps {
@@ -30,12 +31,10 @@ interface ConfigContextProps {
   config: Config
   configLoaded: boolean
   effectiveTheme: Themes.Dark | Themes.Light
-  resetConfig: () => void
-  setConfig: (c: Config) => void
   showConfig: boolean
   systemTheme: Themes.Dark | Themes.Light
   toggleShowConfig: () => void
-  updateConfig: (c: Config) => void
+  updateConfig: (c: Config, save?: boolean) => void
   useFiat: boolean
 }
 
@@ -44,8 +43,6 @@ export const ConfigContext = createContext<ConfigContextProps>({
   config: defaultConfig,
   configLoaded: false,
   effectiveTheme: Themes.Dark,
-  resetConfig: () => {},
-  setConfig: () => {},
   showConfig: false,
   systemTheme: Themes.Dark,
   toggleShowConfig: () => {},
@@ -61,7 +58,7 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
     ? config.announcementsSeen
     : defaultConfig.announcementsSeen
   const importedAssets = Array.isArray(config.importedAssets) ? config.importedAssets : defaultConfig.importedAssets
-  return {
+  const updatedConfig: Config = {
     ...defaultConfig,
     ...config,
     announcementsSeen: [...announcementsSeen],
@@ -70,7 +67,15 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
       assets: { enabled: config.apps?.assets?.enabled ?? defaultConfig.apps.assets.enabled },
       boltz: { connected: config.apps?.boltz?.connected ?? defaultConfig.apps.boltz.connected },
     },
+    currency:
+      config.currency ??
+      (config.currencyDisplay === 'Sats only' ? Currencies.BTC : (config.currency ?? defaultConfig.currency)),
+    unit: normalizeBitcoinUnit(config.unit as `${Unit}`),
   }
+  // Remove deprecated fields if present
+  if (updatedConfig.currencyDisplay) delete updatedConfig.currencyDisplay
+  if (updatedConfig.fiat) delete updatedConfig.fiat
+  return updatedConfig
 }
 
 const shouldUseDevEnvArkServer = (aspUrl: string) =>
@@ -113,7 +118,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute('content', themeColor)
   }
 
-  const updateConfig = async (incoming: Config) => {
+  const updateConfig = async (incoming: Config, save = true) => {
     // merge with defaults so newly added fields are always present
     const config = updateDefaultConfig(incoming)
     // add protocol to aspUrl if missing
@@ -124,12 +129,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     setConfig(config)
     applyTheme(config.theme)
     setHapticsEnabled(config.haptics)
-    saveConfigToStorage(config)
-  }
-
-  const resetConfig = async () => {
-    await clearStorage()
-    updateConfig(defaultConfig)
+    if (save) saveConfigToStorage(config)
   }
 
   useEffect(() => {
@@ -160,7 +160,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     return () => mediaQuery.removeEventListener('change', handler)
   }, [config.theme])
 
-  const useFiat = config.currencyDisplay === CurrencyDisplay.Fiat
+  const useFiat = config.currency !== Currencies.BTC
 
   return (
     <ConfigContext.Provider
@@ -169,8 +169,6 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
         config,
         configLoaded,
         effectiveTheme,
-        resetConfig,
-        setConfig,
         showConfig,
         systemTheme,
         toggleShowConfig,

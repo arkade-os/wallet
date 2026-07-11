@@ -6,37 +6,65 @@ import { useReducedMotion } from '../hooks/useReducedMotion'
 export function WalletStaggerContainer({
   children,
   animate = true,
+  className,
   hold = false,
 }: {
   children: ReactNode
   animate?: boolean
+  className?: string
   hold?: boolean
 }) {
   const prefersReduced = useReducedMotion()
   const skip = prefersReduced || !animate
 
-  if (skip) return <div style={{ width: '100%' }}>{children}</div>
+  if (skip)
+    return (
+      <div className={className} style={{ width: '100%' }}>
+        {children}
+      </div>
+    )
 
   return (
     <motion.div
+      className={className}
       initial='initial'
       animate={hold ? 'initial' : 'animate'}
       variants={walletLoadInContainer}
-      style={{ width: '100%' }}
+      style={{ contain: 'layout style', width: '100%' }}
     >
       {children}
     </motion.div>
   )
 }
 
-export function WalletStaggerChild({ children, animate = true }: { children: ReactNode; animate?: boolean }) {
+export function WalletStaggerChild({
+  children,
+  animate = true,
+  className,
+}: {
+  children: ReactNode
+  animate?: boolean
+  className?: string
+}) {
   const prefersReduced = useReducedMotion()
   const skip = prefersReduced || !animate
 
-  if (skip) return <div style={{ width: '100%' }}>{children}</div>
+  if (skip)
+    return (
+      <div className={className} style={{ width: '100%' }}>
+        {children}
+      </div>
+    )
 
   return (
-    <motion.div variants={walletLoadInChild} style={{ width: '100%', willChange: 'transform, opacity' }}>
+    <motion.div
+      className={className}
+      variants={walletLoadInChild}
+      style={{
+        contain: 'layout style',
+        width: '100%',
+      }}
+    >
       {children}
     </motion.div>
   )

@@ -43,7 +43,7 @@ export default function AppDfx() {
 
   return (
     <>
-      <Header text='DFX' back={() => navigate(Pages.Apps)} />
+      <Header text='DFX' back={() => navigate(Pages.Wallet)} />
       <Content>
         <Padded>
           <FlexCol gap='2rem' between>

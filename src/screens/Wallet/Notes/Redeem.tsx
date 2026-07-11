@@ -7,6 +7,7 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Button from '../../../components/Button'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { extractError } from '../../../lib/error'
+import { aspErrorText } from '../../../lib/asp'
 import LoadingLogo from '../../../components/LoadingLogo'
 import Header from '../../../components/Header'
 import FlexCol from '../../../components/FlexCol'
@@ -28,8 +29,8 @@ export default function NotesRedeem() {
   const [redeeming, setRedeeming] = useState(false)
 
   useEffect(() => {
-    setError(aspInfo.unreachable ? 'Ark server unreachable' : '')
-  }, [aspInfo.unreachable])
+    setError(aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '')
+  }, [aspInfo.unreachable, aspInfo.outdated])
 
   useEffect(() => {
     setButtonLabel(redeeming ? 'Redeeming...' : defaultButtonLabel)
