@@ -111,6 +111,29 @@ It correctly bundles React in production mode and optimizes the build for the be
 The build is minified and the filenames include the hashes.\
 Your app is ready to be deployed!
 
+### Mobile (Capacitor)
+
+The wallet also runs as native iOS/Android apps via [Capacitor](https://capacitorjs.com).
+`capacitor.config.ts` is the source of truth (app id `money.arkade.app`); the native web
+assets are built to `dist-capacitor` by `pnpm run build:capacitor`.
+
+The `android/` and `ios/` folders are **generated scaffold and are not committed** — they are
+`.gitignore`d and recreated locally. The first time you build a platform, add it, then sync:
+
+```bash
+# add a platform once — creates the android/ (or ios/) folder
+npx cap add android        # and/or: npx cap add ios
+
+# build the web bundle (dist-capacitor) and copy it into the native project
+pnpm run cap:sync:android  # or: pnpm run cap:sync:ios
+
+# open the native project in Android Studio / Xcode
+pnpm run cap:open:android  # or: pnpm run cap:open:ios
+```
+
+Re-run `pnpm run cap:sync:<platform>` after any web change to refresh the native project.
+Android builds require Android Studio; iOS builds require Xcode (macOS only).
+
 ### `pnpm run regtest:start`
 
 Starts the regtest environment and sets up the arkd instance.\
