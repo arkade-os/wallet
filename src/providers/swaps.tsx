@@ -28,13 +28,9 @@ const BASE_URLS: Record<Network, string | null> = {
   bitcoin: fromRuntimeEnv(import.meta.env.VITE_BOLTZ_URL) ?? null,
   mutinynet: 'https://api.boltz.mutinynet.arkade.sh',
   signet: 'https://boltz.signet.arkade.sh',
-  regtest: fromRuntimeEnv(import.meta.env.VITE_BOLTZ_URL) ?? 'http://localhost:9069',
+  regtest: 'http://localhost:9069',
   testnet: null,
 }
-
-// When set, Lightning receives claim non-interactively via a covclaimd daemon
-// (funds are swept even if the app/worker is closed). Unset → interactive claim.
-const COVCLAIMD_URL = fromRuntimeEnv(import.meta.env.VITE_COVCLAIMD_URL) ?? undefined
 
 interface SwapsContextProps {
   connected: boolean
@@ -108,6 +104,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const [apiUrl, setApiUrl] = useState<string | null>(null)
 
   const connected = config.apps.boltz.connected
+  const covclaimdUrl = config.apps.boltz.covclaimdUrl || undefined
 
   // create ArkadeSwaps with SwapManager on first run with svcWallet
   useEffect(() => {
@@ -131,7 +128,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       arkServerUrl: aspInfo.url,
       swapManager: config.apps.boltz.connected,
       referralId: 'arkade-money',
-      covclaimdUrl: COVCLAIMD_URL,
+      covclaimdUrl,
     })
       .then((instance) => {
         if (cancelled) {
@@ -157,7 +154,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       cancelled = true
       if (disposeArkadeSwaps) disposeArkadeSwaps().catch(consoleError)
     }
-  }, [aspInfo, svcWallet, config.apps.boltz.connected])
+  }, [aspInfo, svcWallet, config.apps.boltz.connected, covclaimdUrl])
 
   // fetch fees when arkadeSwaps is ready
   useEffect(() => {
@@ -273,7 +270,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     return arkadeSwaps.createReverseSwap({
       amount: sats,
       description: 'Lightning Invoice',
-      nonInteractive: !!COVCLAIMD_URL,
+      nonInteractive: !!covclaimdUrl,
     })
   }
 

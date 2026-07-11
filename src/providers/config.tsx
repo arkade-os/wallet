@@ -1,6 +1,6 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
 import { readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
-import { defaultArkServer, devServer } from '../lib/constants'
+import { defaultArkServer, devServer, fromRuntimeEnv } from '../lib/constants'
 import { Config, Currencies, Themes, Unit } from '../lib/types'
 import { normalizeBitcoinUnit } from '../lib/format'
 import { BackupProvider } from '../lib/backup'
@@ -10,7 +10,10 @@ import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
 
 const defaultConfig: Config = {
   announcementsSeen: [],
-  apps: { assets: { enabled: false }, boltz: { connected: true } },
+  apps: {
+    assets: { enabled: false },
+    boltz: { connected: true, covclaimdUrl: fromRuntimeEnv(import.meta.env.VITE_COVCLAIMD_URL) },
+  },
   aspUrl: defaultArkServer(),
   dismissedBanners: [],
   delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
@@ -65,7 +68,10 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
     importedAssets: [...importedAssets],
     apps: {
       assets: { enabled: config.apps?.assets?.enabled ?? defaultConfig.apps.assets.enabled },
-      boltz: { connected: config.apps?.boltz?.connected ?? defaultConfig.apps.boltz.connected },
+      boltz: {
+        connected: config.apps?.boltz?.connected ?? defaultConfig.apps.boltz.connected,
+        covclaimdUrl: config.apps?.boltz?.covclaimdUrl ?? defaultConfig.apps.boltz.covclaimdUrl,
+      },
     },
     currency:
       config.currency ??

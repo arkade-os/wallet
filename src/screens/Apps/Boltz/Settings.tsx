@@ -7,7 +7,9 @@ import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
 import Toggle from '../../../components/Toggle'
 import Text from '../../../components/Text'
+import Input from '../../../components/Input'
 import Button from '../../../components/Button'
+import { ConfigContext } from '../../../providers/config'
 import ErrorMessage from '../../../components/Error'
 import WarningBox from '../../../components/Warning'
 import { SwapsContext } from '../../../providers/swaps'
@@ -18,7 +20,19 @@ import { prettyAmount } from '../../../lib/format'
 
 export default function AppBoltzSettings() {
   const { arkadeSwaps, connected, getApiUrl, restoreSwaps, toggleConnection } = useContext(SwapsContext)
+  const { config, updateConfig } = useContext(ConfigContext)
   const { toast } = useToast()
+
+  const [covclaimdUrl, setCovclaimdUrl] = useState(config.apps.boltz.covclaimdUrl ?? '')
+
+  const saveCovclaimdUrl = () => {
+    const trimmed = covclaimdUrl.trim()
+    updateConfig({
+      ...config,
+      apps: { ...config.apps, boltz: { ...config.apps.boltz, covclaimdUrl: trimmed || undefined } },
+    })
+    toast('Covclaimd URL saved')
+  }
 
   // Boltz API URL hidden tap counter (preserved from previous behaviour)
   const [counter, setCounter] = useState(0)
@@ -140,6 +154,25 @@ export default function AppBoltzSettings() {
               <Text color='neutral-500' small thin>
                 {getApiUrl() ?? 'No server available'}
               </Text>
+            </FlexCol>
+            <FlexCol gap='0.5rem'>
+              <Text thin>Covclaimd URL</Text>
+              <Text color='neutral-500' small thin>
+                When set, Lightning is received non-interactively (funds are claimed even if the app is closed).
+              </Text>
+              <Input
+                type='url'
+                placeholder='https://…'
+                value={covclaimdUrl}
+                onChange={setCovclaimdUrl}
+                onEnter={saveCovclaimdUrl}
+              />
+              <Button
+                label='Save'
+                secondary
+                onClick={saveCovclaimdUrl}
+                disabled={covclaimdUrl.trim() === (config.apps.boltz.covclaimdUrl ?? '')}
+              />
             </FlexCol>
             {restoreResults ? (
               <Text small thin>
