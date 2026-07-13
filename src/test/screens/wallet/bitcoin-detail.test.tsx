@@ -16,8 +16,23 @@ import {
 import { Currencies, Unit } from '../../../lib/types'
 
 vi.mock('liveline', () => ({
-  Liveline: ({ paused, formatTime }: { paused?: boolean; formatTime?: (timestamp: number) => string }) => (
-    <div data-testid='liveline-chart' data-paused={String(paused)}>
+  Liveline: ({
+    paused,
+    formatTime,
+    tooltipY,
+    padding,
+  }: {
+    paused?: boolean
+    formatTime?: (timestamp: number) => string
+    tooltipY?: number
+    padding?: { top: number; right: number; bottom: number; left: number }
+  }) => (
+    <div
+      data-testid='liveline-chart'
+      data-paused={String(paused)}
+      data-tooltip-y={tooltipY}
+      data-padding={JSON.stringify(padding)}
+    >
       {formatTime?.(new Date(2026, 6, 13, 14, 34).getTime() / 1000)}
     </div>
   ),
@@ -59,8 +74,11 @@ describe('Bitcoin detail screen', () => {
       </ConfigContext.Provider>,
     )
 
-    expect(screen.getByTestId('liveline-chart')).toHaveAttribute('data-paused', 'false')
-    expect(screen.getByTestId('liveline-chart')).toHaveTextContent('Jul 13, 2026, 2:34 PM')
+    const livelineChart = screen.getByTestId('liveline-chart')
+    expect(livelineChart).toHaveAttribute('data-paused', 'false')
+    expect(livelineChart).toHaveAttribute('data-tooltip-y', '-18')
+    expect(livelineChart).toHaveAttribute('data-padding', '{"top":28,"right":32,"bottom":8,"left":12}')
+    expect(livelineChart).toHaveTextContent('Jul 13, 2026, 2:34 PM')
 
     const chart = container.querySelector('.asset-detail-chart')
     expect(chart).not.toBeNull()
