@@ -34,21 +34,30 @@ export const localStorageSecretStorage: SecretStorageAdapter = {
  * bundle's eager graph (this module is also imported by `PwaAppShell` for
  * `localStorageSecretStorage`); the native chunk loads on first secret access.
  *
+ * We memoize the *module namespace*, not `m.SecureStorage`, and dereference the
+ * plugin inline on each call. `SecureStorage` is a Capacitor plugin proxy whose
+ * `get` handler returns a callable for any property name on native; if it were
+ * ever the resolution value of a promise (e.g. returning `m.SecureStorage` from
+ * a `.then`/async fn), the Promise-resolution procedure would probe its `.then`,
+ * treat the proxy as a thenable, and invoke
+ * the native bridge's non-existent `then` — "SecureStorage.then() is not
+ * implemented on android". Keeping the proxy out of any promise resolution and
+ * only ever calling methods on it avoids that.
+ *
  * Note: requires `cap sync` (+ `pod install` on iOS) to register the native
  * plugin — done as part of Phase 3 device setup. No migration from the prior
  * localStorage fallback: native is pre-release and the spike is password-only,
  * so a wallet whose blob lived in WebView localStorage simply re-onboards.
  */
-let securePlugin: Promise<typeof import('@aparajita/capacitor-secure-storage').SecureStorage> | undefined
-const secureStorage = () =>
-  (securePlugin ??= import('@aparajita/capacitor-secure-storage').then((m) => m.SecureStorage))
+let secureModule: Promise<typeof import('@aparajita/capacitor-secure-storage')> | undefined
+const secureStorage = () => (secureModule ??= import('@aparajita/capacitor-secure-storage'))
 
 export const nativeSecretStorage: SecretStorageAdapter = {
-  getItem: async (key) => (await secureStorage()).getItem(key),
+  getItem: async (key) => (await secureStorage()).SecureStorage.getItem(key),
   setItem: async (key, value) => {
-    await (await secureStorage()).setItem(key, value)
+    await (await secureStorage()).SecureStorage.setItem(key, value)
   },
   removeItem: async (key) => {
-    await (await secureStorage()).removeItem(key)
+    await (await secureStorage()).SecureStorage.removeItem(key)
   },
 }
