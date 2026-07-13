@@ -128,4 +128,38 @@ describe('usePortfolioFiat', () => {
     expect(result.current.totalFiat).toBe(7500)
     expect(result.current.totalSats).toBe(7500)
   })
+
+  it('presents DEPIX balances as a BRL account', () => {
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <FiatContext.Provider
+        value={{
+          ...mockFiatContextValue,
+          fromFiatAmount: (amount: number, currency: Currencies) => (currency === Currencies.BRL ? amount * 500 : 0),
+          toFiat: (sats?: number) => sats ?? 0,
+        }}
+      >
+        <WalletContext.Provider
+          value={{
+            ...mockWalletContextValue,
+            assetBalances: [{ assetId: 'depix-asset', amount: BigInt(12_345) }],
+            assetMetadataCache: new Map([['depix-asset', assetDetails('DEPIX', 'Decentralized Pix')]]),
+          }}
+        >
+          {children}
+        </WalletContext.Provider>
+      </FiatContext.Provider>
+    )
+
+    const { result } = renderHook(() => usePortfolioFiat(), { wrapper })
+    const brlRow = result.current.rows.find((row) => row.assetId === 'account:brl')
+
+    expect(brlRow).toMatchObject({
+      name: 'BRL',
+      ticker: 'BRL',
+      balance: BigInt(12_345),
+      fiatCurrency: Currencies.BRL,
+      sourceAssetIds: ['depix-asset'],
+    })
+    expect(result.current.rows.some((row) => row.ticker === 'DEPIX')).toBe(false)
+  })
 })

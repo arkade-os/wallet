@@ -49,7 +49,8 @@ import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
 import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
-import TokenLogo, { TokenLogoTicker } from '../../../components/TokenLogo'
+import TokenLogo, { tokenLogoTickerForTicker } from '../../../components/TokenLogo'
+import { walletAssetPresentation } from '../../../lib/accountAssets'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,13 +68,7 @@ const brantaClient = new BrantaService({
 })
 
 function AssetIcon({ asset }: { asset: AssetOption | null }) {
-  const ticker = asset?.ticker?.toUpperCase()
-  const tokenTicker =
-    ticker === 'USD' || ticker === 'USDT' || ticker === 'USDC' || ticker === 'CHF' || ticker === 'BRL'
-      ? (ticker as TokenLogoTicker)
-      : asset
-        ? null
-        : 'BTC'
+  const tokenTicker = asset ? tokenLogoTickerForTicker(asset.ticker) : 'BTC'
 
   if (tokenTicker) {
     return (
@@ -211,12 +206,13 @@ export default function SendForm() {
             consoleError(err, `error fetching metadata for ${ab.assetId}`)
           }
         }
+        const presentation = walletAssetPresentation(meta?.metadata, `${ab.assetId.slice(0, 8)}...`)
         options.push({
           assetId: ab.assetId,
           balance: ab.amount,
-          name: meta?.metadata?.name ?? `${ab.assetId.slice(0, 8)}...`,
-          ticker: meta?.metadata?.ticker ?? '',
-          icon: meta?.metadata?.icon,
+          name: presentation.name,
+          ticker: presentation.ticker,
+          icon: presentation.icon,
           decimals: meta?.metadata?.decimals ?? 8,
         })
       }
@@ -271,12 +267,13 @@ export default function SendForm() {
                 consoleError(err, `error fetching metadata for ${assetId}`)
               }
             }
+            const presentation = walletAssetPresentation(meta?.metadata, `${assetId.slice(0, 8)}...`)
             found = {
               assetId,
               balance: BigInt(0),
-              name: meta?.metadata?.name ?? `${assetId.slice(0, 8)}...`,
-              ticker: meta?.metadata?.ticker ?? '',
-              icon: meta?.metadata?.icon,
+              name: presentation.name,
+              ticker: presentation.ticker,
+              icon: presentation.icon,
               decimals: meta?.metadata?.decimals ?? 8,
             }
           }

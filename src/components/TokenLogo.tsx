@@ -1,3 +1,5 @@
+import { walletAccountTicker } from '../lib/accountAssets'
+
 export type TokenLogoTicker = 'BTC' | 'USD' | 'USDT' | 'USDC' | 'CHF' | 'BRL' | 'CNY' | 'EUR' | 'GBP' | 'JPY'
 
 export function tokenLogoTickerForTicker(ticker: string | undefined): TokenLogoTicker | undefined {
@@ -19,13 +21,7 @@ export function tokenLogoTickerForTicker(ticker: string | undefined): TokenLogoT
 }
 
 export function accountTickerForAssetTicker(ticker: string | undefined): TokenLogoTicker | undefined {
-  const normalized = ticker?.trim().toUpperCase()
-  if (normalized === 'BTC') return 'BTC'
-  if (normalized === 'USD' || normalized === 'AUSD') return 'USD'
-  if (normalized === 'USDT') return 'USDT'
-  if (normalized === 'USDC') return 'USDC'
-  if (normalized === 'CHF') return 'CHF'
-  if (normalized === 'BRL' || normalized === 'DPIX' || normalized === 'DEPIX') return 'BRL'
+  return walletAccountTicker(ticker)
 }
 
 export default function TokenLogo({ ticker }: { ticker: TokenLogoTicker }) {

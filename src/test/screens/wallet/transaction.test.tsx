@@ -396,4 +396,34 @@ describe('Transaction screen', () => {
     expect(screen.queryByText('123.45 ALP')).not.toBeInTheDocument()
     expect(screen.queryByText('67.89 BET')).not.toBeInTheDocument()
   })
+
+  it('hides issuer tickers in wallet-facing swap details', () => {
+    const txInfo = {
+      ...mockTxInfo,
+      type: 'swap',
+      isPrototype: true,
+      prototypeSwap: {
+        fromTicker: 'USDT',
+        toTicker: 'DEPIX',
+        status: 'completed' as const,
+      },
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+            <WalletContext.Provider value={mockWalletContextValue}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText('USD to BRL')).toBeInTheDocument()
+    expect(screen.queryByText(/USDT|DEPIX/)).not.toBeInTheDocument()
+  })
 })

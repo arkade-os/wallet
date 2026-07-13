@@ -1,4 +1,5 @@
 import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyFiatHide, prettyHide } from './format'
+import { walletAccountTicker } from './accountAssets'
 import { Currencies, Tx, Unit } from './types'
 
 export type SwapStatus = 'pending' | 'failed' | 'completed'
@@ -29,7 +30,10 @@ export function swapStatusLabel(tx: Tx): string {
 }
 
 export function swapRouteLabel(tx: Tx): string {
-  return [tx.prototypeSwap?.fromTicker, tx.prototypeSwap?.toTicker].filter(Boolean).join(' to ')
+  return [tx.prototypeSwap?.fromTicker, tx.prototypeSwap?.toTicker]
+    .map((ticker) => walletAccountTicker(ticker) ?? ticker)
+    .filter(Boolean)
+    .join(' to ')
 }
 
 export function formatSwapAssetAmount(tx: Tx, side: 'from' | 'to'): SwapDisplayAmount | undefined {
@@ -41,9 +45,10 @@ export function formatSwapAssetAmount(tx: Tx, side: 'from' | 'to'): SwapDisplayA
   const ticker = side === 'from' ? swap.fromTicker : swap.toTicker
 
   if (amount === undefined || decimals === undefined || !ticker) return undefined
+  const accountTicker = walletAccountTicker(ticker) ?? ticker
   return {
-    masked: prettyHide('hidden', ticker),
-    value: `${prettyCurrencyAssetAmount(amount, decimals, ticker)} ${ticker}`,
+    masked: prettyHide('hidden', accountTicker),
+    value: `${prettyCurrencyAssetAmount(amount, decimals, accountTicker)} ${accountTicker}`,
   }
 }
 

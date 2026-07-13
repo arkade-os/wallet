@@ -5,7 +5,7 @@ import Button from '../../../components/Button'
 import Content from '../../../components/Content'
 import Header from '../../../components/Header'
 import Padded from '../../../components/Padded'
-import TokenLogo, { type TokenLogoTicker } from '../../../components/TokenLogo'
+import TokenLogo, { tokenLogoTickerForTicker } from '../../../components/TokenLogo'
 import WalletSuccessSplash from '../../../components/WalletSuccessSplash'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../../components/ui/drawer'
 import ArrowUpDownIcon from '../../../icons/ArrowUpDown'
@@ -1148,14 +1148,6 @@ function formatAssetBalance(asset: SwapAsset): string {
   return `${prettyCurrencyAssetAmount(rawBalance, asset.decimals, asset.ticker)} ${asset.ticker}`
 }
 
-function getTokenLogoTicker(ticker: string | undefined): TokenLogoTicker | undefined {
-  const normalized = ticker?.trim().toUpperCase()
-  if (
-    normalized === 'BTC' ||
-    normalized === 'USD' ||
-    normalized === 'USDT' ||
-    normalized === 'USDC' ||
-    normalized === 'CHF'
-  )
-    return normalized
+function getTokenLogoTicker(ticker: string | undefined) {
+  return tokenLogoTickerForTicker(ticker)
 }

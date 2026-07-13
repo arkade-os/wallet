@@ -9,7 +9,7 @@ import ErrorMessage from '../../../components/Error'
 import { WalletContext } from '../../../providers/wallet'
 import Header from '../../../components/Header'
 import { defaultFee } from '../../../lib/constants'
-import { prettyNumber } from '../../../lib/format'
+import { prettyCurrencyAssetAmount, prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { collaborativeExitWithFees, sendAssets, sendOffChain } from '../../../lib/asp'
@@ -21,7 +21,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import Text from '../../../components/Text'
 import { isPendingChainSwap, isPendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { FeesContext } from '../../../providers/fees'
-import { prettyAssetAmount } from '../../../lib/assets'
+import { walletAssetPresentation } from '../../../lib/accountAssets'
 
 export default function SendDetails() {
   const { navigate } = useContext(NavigationContext)
@@ -34,8 +34,11 @@ export default function SendDetails() {
 
   const assetId = sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
-  const assetTicker = assetMeta?.metadata?.ticker ?? ''
-  const assetName = assetMeta?.metadata?.name ?? 'Asset'
+  const assetPresentation = walletAssetPresentation(assetMeta?.metadata)
+  const assetTicker = assetPresentation.ticker
+  const assetName = assetPresentation.name
+  const assetDecimals = assetMeta?.metadata?.decimals ?? 8
+  const assetLabel = assetName === assetTicker ? assetTicker : `${assetName} (${assetTicker})`
   const assetAmountValue = sendInfo.assets?.[0]?.amount ?? BigInt(0)
 
   const [buttonLabel, setButtonLabel] = useState('')
@@ -202,10 +205,10 @@ export default function SendDetails() {
               {isAssetSend ? (
                 <FlexCol gap='0.5rem'>
                   <Text color='neutral-500' smaller testId='send-details-asset-name'>
-                    {assetName} ({assetTicker})
+                    {assetLabel}
                   </Text>
                   <Text bold testId='send-details-asset-amount'>
-                    {prettyAssetAmount(assetAmountValue, assetMeta?.metadata?.decimals ?? 8)} {assetTicker}
+                    {prettyCurrencyAssetAmount(assetAmountValue, assetDecimals, assetTicker)} {assetTicker}
                   </Text>
                 </FlexCol>
               ) : null}

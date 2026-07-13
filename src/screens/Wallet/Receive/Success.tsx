@@ -3,18 +3,19 @@ import WalletSuccessSplash from '../../../components/WalletSuccessSplash'
 import { NotificationsContext } from '../../../providers/notifications'
 import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import { prettyAmount, prettyFiatAmount } from '../../../lib/format'
+import { prettyAmount, prettyCurrencyAssetAmount, prettyFiatAmount } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import type { AssetDetails } from '@arkade-os/sdk'
-import { prettyAssetAmount } from '../../../lib/assets'
+import { walletAssetPresentation } from '../../../lib/accountAssets'
 
 function formatAssetLabel(a: { assetId: string; amount: bigint }, details: AssetDetails | undefined) {
   const meta = details?.metadata
-  const amount = prettyAssetAmount(a.amount, meta?.decimals ?? 0)
-  const ticker = meta?.ticker ?? meta?.name ?? 'assets'
+  const presentation = walletAssetPresentation(meta, 'assets')
+  const ticker = presentation.ticker || presentation.name
+  const amount = prettyCurrencyAssetAmount(a.amount, meta?.decimals ?? 0, ticker)
   return `${amount} ${ticker}`
 }
 
