@@ -110,7 +110,15 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     if (!aspInfo.network || !walletRuntime) return
 
     const baseUrl = BASE_URLS[aspInfo.network as Network]
-    if (!baseUrl) return // No boltz server for this network
+    if (!baseUrl) {
+      // No Boltz server for this network: signal unavailability so consumers can
+      // distinguish "never coming" from "still loading" and degrade gracefully
+      // (onboarding gate, Receive/QrCode, lnurl all key off swapsInitError)
+      // instead of waiting forever for a swap client that is never created.
+      setArkadeSwaps(null)
+      setSwapsInitError('Swaps are not available for this network')
+      return
+    }
 
     setApiUrl(baseUrl)
 

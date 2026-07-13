@@ -14,7 +14,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 
 export default function InitConnect() {
   const { initInfo, setInitInfo } = useContext(FlowContext)
-  const { arkadeSwaps, restoreSwaps } = useContext(SwapsContext)
+  const { arkadeSwaps, restoreSwaps, swapsInitError } = useContext(SwapsContext)
   const { navigate } = useContext(NavigationContext)
   const { initWallet } = useContext(WalletContext)
 
@@ -44,14 +44,19 @@ export default function InitConnect() {
   }, [])
 
   useEffect(() => {
-    if (!initialized || !arkadeSwaps) return
+    if (!initialized) return
+    // Wait while the swap client is still initializing, but don't block
+    // onboarding forever when swaps can't come up for this network (e.g. no
+    // Boltz server): swapsInitError signals that case, so we proceed anyway.
+    if (!arkadeSwaps && !swapsInitError) return
     if (!initInfo.restoring) return setConnectDone(true)
+    if (!arkadeSwaps) return setConnectDone(true) // swaps unavailable; skip restore
     setLoadingStatus('Restoring swaps...')
     restoreSwaps()
       .then((count) => count && consoleLog(`Restored ${count} swaps from network`))
       .catch((err) => consoleError(err, 'Error restoring swaps:'))
       .finally(() => setConnectDone(true))
-  }, [arkadeSwaps, initialized, initInfo.restoring])
+  }, [arkadeSwaps, initialized, initInfo.restoring, swapsInitError])
 
   const handleExitComplete = () => {
     setInitInfo({ ...initInfo, password: undefined, privateKey: undefined, mnemonic: undefined, walletMode: undefined })
