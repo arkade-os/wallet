@@ -466,7 +466,7 @@ export default function ReceiveQRCode() {
                   {minSwapAllowed()} sats min for Lightning
                 </Text>
               ) : null}
-              {config.apps.boltz.covclaimdUrl && invoice && !isAssetReceive ? (
+              {config.apps.boltz.covclaimdUrl && (invoice || isAmountlessLnurl) && !isAssetReceive ? (
                 <Text small color='neutral-500'>
                   Non-interactive claim enabled
                 </Text>

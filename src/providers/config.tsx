@@ -1,6 +1,6 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
 import { readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
-import { defaultArkServer, devServer, fromRuntimeEnv } from '../lib/constants'
+import { defaultArkServer, defaultCovclaimdUrl, devServer, fromRuntimeEnv } from '../lib/constants'
 import { Config, Currencies, Themes, Unit } from '../lib/types'
 import { normalizeBitcoinUnit } from '../lib/format'
 import { BackupProvider } from '../lib/backup'
@@ -12,7 +12,7 @@ const defaultConfig: Config = {
   announcementsSeen: [],
   apps: {
     assets: { enabled: false },
-    boltz: { connected: true, covclaimdUrl: fromRuntimeEnv(import.meta.env.VITE_COVCLAIMD_URL) },
+    boltz: { connected: true, covclaimdUrl: fromRuntimeEnv(import.meta.env.VITE_COVCLAIMD_URL) ?? defaultCovclaimdUrl },
   },
   aspUrl: defaultArkServer(),
   dismissedBanners: [],
