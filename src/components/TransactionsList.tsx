@@ -53,17 +53,20 @@ const TransactionLine = ({
   const swapStatus = swap ? swapStatusForTx(tx) : undefined
   const issuance = isIssuance(tx)
   const burn = isBurn(tx)
-  const accountValueSatoshis = tx.assets?.reduce<number | undefined>((total, asset) => {
+  const accountAssetValues = tx.assets?.map((asset) => {
     const accountInfo = accountInfoForAssetId(asset.assetId)
     const metadata = assetMetadataCache.get(asset.assetId)?.metadata
-    const value = fiatAccountAssetSatoshis(
+    return fiatAccountAssetSatoshis(
       BigInt(asset.amount),
       accountInfo?.decimals ?? metadata?.decimals ?? 8,
       accountInfo?.ticker ?? metadata?.ticker,
       fromFiatAmount,
     )
-    return value === undefined ? total : (total ?? 0) + value
-  }, undefined)
+  })
+  const accountValueSatoshis =
+    accountAssetValues?.length && accountAssetValues.every((value) => value !== undefined)
+      ? accountAssetValues.reduce((total, value) => total + value, 0)
+      : undefined
 
   const Currency = () => {
     if (issuance || burn || swap) return null

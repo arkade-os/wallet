@@ -8,9 +8,9 @@ import { usePortfolioFiat } from '../../hooks/usePortfolioFiat'
 import { mockFiatContextValue, mockWalletContextValue } from '../screens/mocks'
 
 describe('usePortfolioFiat', () => {
-  const assetDetails = (ticker: string, name = ticker) => ({
+  const assetDetails = (ticker: string, name = ticker, decimals = 2) => ({
     metadata: {
-      decimals: 2,
+      decimals,
       name,
       ticker,
     },
@@ -90,6 +90,40 @@ describe('usePortfolioFiat', () => {
     expect(usdRow?.sourceAssetIds).toEqual(['usdt-asset', 'usdc-asset'])
     expect(result.current.totalFiat).toBe(18510)
     expect(result.current.totalSats).toBe(18510)
+  })
+
+  it('preserves combined sub-cent remainders across account assets', () => {
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <FiatContext.Provider
+        value={{
+          ...mockFiatContextValue,
+          fromFiatAmount: (amount: number, currency: Currencies) => (currency === Currencies.BRL ? amount * 1000 : 0),
+          toFiat: (sats?: number) => sats ?? 0,
+        }}
+      >
+        <WalletContext.Provider
+          value={{
+            ...mockWalletContextValue,
+            assetBalances: [
+              { assetId: 'depix-a', amount: BigInt(5) },
+              { assetId: 'depix-b', amount: BigInt(5) },
+            ],
+            assetMetadataCache: new Map([
+              ['depix-a', assetDetails('DEPIX', 'DEPIX A', 3)],
+              ['depix-b', assetDetails('DEPIX', 'DEPIX B', 3)],
+            ]),
+          }}
+        >
+          {children}
+        </WalletContext.Provider>
+      </FiatContext.Provider>
+    )
+
+    const { result } = renderHook(() => usePortfolioFiat(), { wrapper })
+    const brlRow = result.current.rows.find((row) => row.assetId === 'account:brl')
+
+    expect(brlRow?.balance).toBe(BigInt(1))
+    expect(brlRow?.fiatAmount).toBe(10)
   })
 
   it('applies prototype asset balance deltas to fiat account rows', () => {

@@ -61,6 +61,12 @@ export function walletAssetPresentation(
   }
 }
 
+export function walletAssetLabel(presentation: { name: string; ticker: string }): string {
+  return !presentation.ticker || presentation.name === presentation.ticker
+    ? presentation.name
+    : `${presentation.name} (${presentation.ticker})`
+}
+
 export function fiatAccountAssetSatoshis(
   amount: bigint,
   decimals: number,
@@ -79,6 +85,18 @@ export function normalizeAssetMinorUnits(rawAmount: number | bigint, fromDecimal
   if (fromDecimals === toDecimals) return amount
   if (fromDecimals > toDecimals) return amount / BigInt(10) ** BigInt(fromDecimals - toDecimals)
   return amount * BigInt(10) ** BigInt(toDecimals - fromDecimals)
+}
+
+export function aggregateFiatAccountMinorUnits(sources: FiatAccountSourceAsset[], accountDecimals: number): bigint {
+  const sharedDecimals = sources.reduce(
+    (highestDecimals, source) => Math.max(highestDecimals, source.decimals),
+    accountDecimals,
+  )
+  const sharedPrecisionTotal = sources.reduce(
+    (total, source) => total + normalizeAssetMinorUnits(source.balance, source.decimals, sharedDecimals),
+    BigInt(0),
+  )
+  return normalizeAssetMinorUnits(sharedPrecisionTotal, sharedDecimals, accountDecimals)
 }
 
 export function allocateFiatAccountAssets(

@@ -5,7 +5,7 @@ import { fiatForTicker } from '../lib/format'
 import { Currencies } from '../lib/types'
 import { FiatContext } from '../providers/fiat'
 import { WalletContext } from '../providers/wallet'
-import { normalizeAssetMinorUnits, type FiatAccountSourceAsset } from '../lib/accountAssets'
+import { aggregateFiatAccountMinorUnits, type FiatAccountSourceAsset } from '../lib/accountAssets'
 
 export interface PortfolioRow {
   /** 'btc' for the native bitcoin row, otherwise the asset's on-chain id. */
@@ -63,7 +63,6 @@ export function usePortfolioFiat(): PortfolioFiat {
     hasFiatPrice: true,
   })
 
-  const fiatAccountBalances = new Map<Currencies, bigint>()
   const fiatAccountSources = new Map<Currencies, FiatAccountSourceAsset[]>()
 
   // Non-bitcoin asset rows from real SDK data.
@@ -73,12 +72,6 @@ export function usePortfolioFiat(): PortfolioFiat {
     const sourceFiat = fiatForTicker(meta?.ticker)
 
     if (sourceFiat) {
-      const accountDecimals = fiatDecimalsFor(sourceFiat)
-      const currentBalance = fiatAccountBalances.get(sourceFiat) ?? BigInt(0)
-      fiatAccountBalances.set(
-        sourceFiat,
-        currentBalance + normalizeAssetMinorUnits(ab.amount, decimals, accountDecimals),
-      )
       fiatAccountSources.set(sourceFiat, [
         ...(fiatAccountSources.get(sourceFiat) ?? []),
         { assetId: ab.assetId, balance: BigInt(ab.amount), decimals },
@@ -104,7 +97,9 @@ export function usePortfolioFiat(): PortfolioFiat {
 
     const accountId = `account:${sourceFiat.toLowerCase()}`
     const decimals = fiatDecimalsFor(sourceFiat)
-    const minorUnits = (fiatAccountBalances.get(sourceFiat) ?? BigInt(0)) + (prototypeDeltas[accountId] ?? BigInt(0))
+    const sourceAssets = fiatAccountSources.get(sourceFiat) ?? []
+    const minorUnits =
+      aggregateFiatAccountMinorUnits(sourceAssets, decimals) + (prototypeDeltas[accountId] ?? BigInt(0))
     if (minorUnits <= BigInt(0)) continue
 
     const amount = Decimal.div(minorUnits.toString(), Decimal.pow(10, decimals)).toNumber()
@@ -121,8 +116,8 @@ export function usePortfolioFiat(): PortfolioFiat {
       satsEquivalent,
       hasFiatPrice: true,
       fiatCurrency: sourceFiat,
-      sourceAssetIds: (fiatAccountSources.get(sourceFiat) ?? []).map((source) => source.assetId),
-      sourceAssets: fiatAccountSources.get(sourceFiat) ?? [],
+      sourceAssetIds: sourceAssets.map((source) => source.assetId),
+      sourceAssets,
     })
   }
 

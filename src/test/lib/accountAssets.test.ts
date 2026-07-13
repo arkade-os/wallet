@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   accountChartColorToken,
+  aggregateFiatAccountMinorUnits,
   allocateFiatAccountAssets,
   primaryFiatAccountSource,
   walletAccountTicker,
+  walletAssetLabel,
   walletAssetPresentation,
 } from '../../lib/accountAssets'
 
@@ -43,6 +45,12 @@ describe('wallet account asset presentation', () => {
     ).toEqual({ name: 'USD', ticker: 'USD' })
   })
 
+  it('uses the fallback asset name without empty ticker parentheses', () => {
+    const presentation = walletAssetPresentation(undefined, 'asset-id')
+
+    expect(walletAssetLabel(presentation)).toBe('asset-id')
+  })
+
   it('allocates an account send across multiple backing assets', () => {
     const sources = [
       { assetId: 'usdt', balance: BigInt(6_000), decimals: 2 },
@@ -53,6 +61,15 @@ describe('wallet account asset presentation', () => {
       { assetId: 'usdt', amount: BigInt(6_000) },
       { assetId: 'usdc', amount: BigInt(200_000) },
     ])
+  })
+
+  it('aggregates backing assets before reducing to account precision', () => {
+    const sources = [
+      { assetId: 'first', balance: BigInt(5), decimals: 3 },
+      { assetId: 'second', balance: BigInt(5), decimals: 3 },
+    ]
+
+    expect(aggregateFiatAccountMinorUnits(sources, 2)).toBe(BigInt(1))
   })
 
   it('uses the largest backing balance as the default receive rail', () => {

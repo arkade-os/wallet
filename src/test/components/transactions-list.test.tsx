@@ -67,4 +67,60 @@ describe('TransactionsList', () => {
     expect(screen.queryByText(/67.89 BET/)).not.toBeInTheDocument()
     expect(container.querySelectorAll('.swap-route-icon__fallback')).toHaveLength(2)
   })
+
+  it('falls back to the transaction amount when any asset lacks account pricing', () => {
+    const tx: Tx = {
+      amount: 330,
+      boardingTxid: '',
+      createdAt: 1_700_000_000,
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: '',
+      roundTxid: 'mixed-asset-transaction',
+      settled: true,
+      type: 'received',
+      assets: [
+        { assetId: 'usdt-asset', amount: BigInt(10_000) },
+        { assetId: 'unknown-asset', amount: BigInt(50) },
+      ],
+    }
+    const fiatContextValue = {
+      ...mockFiatContextValue,
+      fromFiatAmount: (amount: number) => amount * 100,
+      toFiat: (satoshis?: number) => (satoshis ?? 0) / 100,
+    }
+    const walletContextValue = {
+      ...mockWalletContextValue,
+      txs: [tx],
+      assetMetadataCache: new Map([
+        [
+          'usdt-asset',
+          {
+            metadata: {
+              decimals: 2,
+              name: 'Tether USD',
+              ticker: 'USDT',
+            },
+          },
+        ],
+      ]),
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={fiatContextValue}>
+            <FlowContext.Provider value={mockFlowContextValue}>
+              <WalletContext.Provider value={walletContextValue as any}>
+                <TransactionsList mode='static' />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText('€3.30')).toBeInTheDocument()
+    expect(screen.queryByText('€100.00')).not.toBeInTheDocument()
+  })
 })

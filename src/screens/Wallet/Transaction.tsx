@@ -98,16 +98,14 @@ export default function Transaction() {
 
   if (!tx) return <></>
 
-  const accountValueSatoshis = tx.assets?.reduce<number | undefined>((total, asset) => {
+  const accountAssetValues = tx.assets?.map((asset) => {
     const metadata = assetMetadataCache.get(asset.assetId)?.metadata
-    const value = fiatAccountAssetSatoshis(
-      BigInt(asset.amount),
-      metadata?.decimals ?? 8,
-      metadata?.ticker,
-      fromFiatAmount,
-    )
-    return value === undefined ? total : (total ?? 0) + value
-  }, undefined)
+    return fiatAccountAssetSatoshis(BigInt(asset.amount), metadata?.decimals ?? 8, metadata?.ticker, fromFiatAmount)
+  })
+  const accountValueSatoshis =
+    accountAssetValues?.length && accountAssetValues.every((value) => value !== undefined)
+      ? accountAssetValues.reduce((total, value) => total + value, 0)
+      : undefined
 
   const status = expiredBoardingTx
     ? 'Expired'

@@ -504,4 +504,59 @@ describe('Transaction screen', () => {
       expect(screen.queryByText('Tether USD')).not.toBeInTheDocument()
     },
   )
+
+  it('falls back to the transaction amount when a mixed asset cannot be valued as an account', () => {
+    const txInfo = {
+      ...mockTxInfo,
+      amount: 330,
+      assets: [
+        { assetId: 'usdt-asset', amount: BigInt(10_000) },
+        { assetId: 'unknown-asset', amount: BigInt(50) },
+      ],
+      type: 'received',
+    }
+    const walletContextValue = {
+      ...mockWalletContextValue,
+      txs: [txInfo],
+      assetMetadataCache: new Map([
+        [
+          'usdt-asset',
+          {
+            metadata: {
+              decimals: 2,
+              name: 'Tether USD',
+              ticker: 'USDT',
+            },
+          },
+        ],
+      ]),
+    }
+    const fiatContextValue = {
+      ...mockFiatContextValue,
+      fromFiatAmount: (amount: number) => amount * 100,
+      toFiat: (satoshis?: number) => (satoshis ?? 0) / 100,
+    }
+
+    render(
+      <ConfigContext.Provider value={mockConfigContextValue}>
+        <FiatContext.Provider value={fiatContextValue}>
+          <NavigationContext.Provider value={mockNavigationContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+                <WalletContext.Provider value={walletContextValue as any}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <Transaction />
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </AspContext.Provider>
+          </NavigationContext.Provider>
+        </FiatContext.Provider>
+      </ConfigContext.Provider>,
+    )
+
+    expect(screen.getByTestId('Amount')).toHaveTextContent('€3.30')
+    expect(screen.getByTestId('Total')).toHaveTextContent('€3.30')
+    expect(screen.queryByText('€100.00')).not.toBeInTheDocument()
+  })
 })

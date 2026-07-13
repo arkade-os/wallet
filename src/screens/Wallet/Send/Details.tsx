@@ -21,7 +21,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import Text from '../../../components/Text'
 import { isPendingChainSwap, isPendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { FeesContext } from '../../../providers/fees'
-import { walletAssetPresentation } from '../../../lib/accountAssets'
+import { walletAssetLabel, walletAssetPresentation } from '../../../lib/accountAssets'
 
 export default function SendDetails() {
   const { navigate } = useContext(NavigationContext)
@@ -36,11 +36,12 @@ export default function SendDetails() {
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const assetPresentation = sendInfo.account
     ? { name: sendInfo.account.ticker, ticker: sendInfo.account.ticker }
-    : walletAssetPresentation(assetMeta?.metadata)
+    : walletAssetPresentation(assetMeta?.metadata, assetId ?? 'Asset')
   const assetTicker = assetPresentation.ticker
   const assetName = assetPresentation.name
   const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 8
-  const assetLabel = assetName === assetTicker ? assetTicker : `${assetName} (${assetTicker})`
+  const assetLabel = walletAssetLabel(assetPresentation)
+  const assetAmountUnit = assetTicker || assetName
   const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
 
   const [buttonLabel, setButtonLabel] = useState('')
@@ -210,7 +211,7 @@ export default function SendDetails() {
                     {assetLabel}
                   </Text>
                   <Text bold testId='send-details-asset-amount'>
-                    {prettyCurrencyAssetAmount(assetAmountValue, assetDecimals, assetTicker)} {assetTicker}
+                    {prettyCurrencyAssetAmount(assetAmountValue, assetDecimals, assetAmountUnit)} {assetAmountUnit}
                   </Text>
                 </FlexCol>
               ) : null}
