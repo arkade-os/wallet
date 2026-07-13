@@ -12,14 +12,13 @@ export interface FiatPrices {
 }
 
 // Currencies listed here are prefixed with their symbol when displaying amounts.
-// Those omitted (CHF, CNY) keep the trailing ISO code — CNY skips ¥ to avoid
-// clashing with JPY.
+// Those omitted (BRL, CHF, CNY) keep the trailing ISO code. BRL is explicit by
+// product convention, while CNY skips ¥ to avoid clashing with JPY.
 export const FIAT_SYMBOLS: Partial<Record<Currencies, string>> = {
   [Currencies.USD]: '$',
   [Currencies.EUR]: '€',
   [Currencies.GBP]: '£',
   [Currencies.JPY]: '¥',
-  [Currencies.BRL]: 'R$',
 }
 
 export const fiatDecimalsFor = (currency: Currencies, bitcoinUnit = Unit.BTC): number => {

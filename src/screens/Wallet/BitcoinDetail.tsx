@@ -32,6 +32,7 @@ import { FiatContext } from '../../providers/fiat'
 import { FlowContext, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { buildCrossRatePoints, fetchHistoricalMarketData } from '../../lib/marketData'
+import { accountChartColorToken } from '../../lib/accountAssets'
 
 const CHART_WINDOWS = [
   { label: '1H', secs: 3_600 },
@@ -104,7 +105,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
     ? prettyBitcoinAmount(safeBitcoinBalance, bitcoinUnit)
     : `${prettyCurrencyAssetAmount(rawBalance, row.decimals, row.ticker)} ${row.ticker}`
   const maskedBalance = isBitcoin ? prettyBitcoinHide(safeBitcoinBalance, bitcoinUnit) : `•••• ${row.ticker}`
-  const chartColor = useTokenColor(isBitcoin ? '--orange-500' : '--purple-700', config.theme)
+  const chartColor = useTokenColor(accountChartColorToken(row.ticker), config.theme)
   const chartTheme = useResolvedChartTheme(config.theme)
   const chartDisplayData = useMemo(
     () => smoothChartData(marketChart.data, chartWindow, chartInteracting),

@@ -3,6 +3,17 @@ import { Currencies } from './types'
 
 export type WalletAccountTicker = 'BTC' | 'USD' | 'CHF' | 'BRL' | 'CNY' | 'EUR' | 'GBP' | 'JPY'
 
+const ACCOUNT_CHART_COLOR_TOKENS: Record<WalletAccountTicker, string> = {
+  BTC: '--account-chart-btc',
+  USD: '--account-chart-usd',
+  CHF: '--account-chart-chf',
+  BRL: '--account-chart-brl',
+  CNY: '--account-chart-cny',
+  EUR: '--account-chart-eur',
+  GBP: '--account-chart-gbp',
+  JPY: '--account-chart-jpy',
+}
+
 export function walletAccountTicker(ticker: string | undefined): WalletAccountTicker | undefined {
   const normalized = ticker?.trim().toUpperCase()
   if (normalized === 'BTC') return 'BTC'
@@ -13,6 +24,11 @@ export function walletAccountTicker(ticker: string | undefined): WalletAccountTi
   if (normalized === 'EUR') return 'EUR'
   if (normalized === 'GBP') return 'GBP'
   if (normalized === 'JPY') return 'JPY'
+}
+
+export function accountChartColorToken(ticker: string | undefined): string {
+  const accountTicker = walletAccountTicker(ticker)
+  return accountTicker ? ACCOUNT_CHART_COLOR_TOKENS[accountTicker] : '--account-chart-default'
 }
 
 export function walletAssetPresentation(
