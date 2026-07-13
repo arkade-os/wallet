@@ -16,7 +16,11 @@ import {
 import { Currencies, Unit } from '../../../lib/types'
 
 vi.mock('liveline', () => ({
-  Liveline: ({ paused }: { paused?: boolean }) => <div data-testid='liveline-chart' data-paused={String(paused)} />,
+  Liveline: ({ paused, formatTime }: { paused?: boolean; formatTime?: (timestamp: number) => string }) => (
+    <div data-testid='liveline-chart' data-paused={String(paused)}>
+      {formatTime?.(new Date(2026, 6, 13, 14, 34).getTime() / 1000)}
+    </div>
+  ),
 }))
 
 describe('Bitcoin detail screen', () => {
@@ -56,6 +60,7 @@ describe('Bitcoin detail screen', () => {
     )
 
     expect(screen.getByTestId('liveline-chart')).toHaveAttribute('data-paused', 'false')
+    expect(screen.getByTestId('liveline-chart')).toHaveTextContent('Jul 13, 2026, 2:34 PM')
 
     const chart = container.querySelector('.asset-detail-chart')
     expect(chart).not.toBeNull()
