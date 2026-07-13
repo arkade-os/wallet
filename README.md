@@ -134,6 +134,13 @@ pnpm run cap:open:android  # or: pnpm run cap:open:ios
 Re-run `pnpm run cap:sync:<platform>` after any web change to refresh the native project.
 Android builds require Android Studio; iOS builds require Xcode (macOS only).
 
+Android's Gradle build requires **Java 21** (a dependency of
+`@aparajita/capacitor-secure-storage`). The repo pins this via a `.tool-versions`
+file for [mise](https://mise.jdx.dev) — run `mise install` then `mise trust` once
+per machine, and Java 21 will be selected automatically whenever you're in this
+directory. Do not hand-edit the generated `android/gradle.properties` to point at
+a JDK; it's regenerated on `cap add`/`cap sync` and any local edits will be lost.
+
 ### `pnpm run regtest:start`
 
 Starts the regtest environment and sets up the arkd instance.\
