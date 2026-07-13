@@ -426,4 +426,82 @@ describe('Transaction screen', () => {
     expect(screen.getByText('USD to BRL')).toBeInTheDocument()
     expect(screen.queryByText(/USDT|DEPIX/)).not.toBeInTheDocument()
   })
+
+  it.each([
+    {
+      assetAmount: BigInt(10_000),
+      assetLabel: '100.00 USD',
+      direction: 'Received',
+      total: '$100.00',
+      type: 'received',
+    },
+    {
+      assetAmount: BigInt(-10_000),
+      assetLabel: '-100.00 USD',
+      direction: 'Sent',
+      total: '$100.00',
+      type: 'sent',
+    },
+  ])(
+    'values a $direction USD transaction from its absolute account amount instead of its bitcoin dust amount',
+    ({ assetAmount, assetLabel, direction, total, type }) => {
+      const assetId = 'usdt-asset'
+      const txInfo = {
+        ...mockTxInfo,
+        amount: 330,
+        assets: [{ assetId, amount: assetAmount }],
+        type,
+      }
+      const walletContextValue = {
+        ...mockWalletContextValue,
+        txs: [txInfo],
+        assetMetadataCache: new Map([
+          [
+            assetId,
+            {
+              metadata: {
+                decimals: 2,
+                name: 'Tether USD',
+                ticker: 'USDT',
+              },
+            },
+          ],
+        ]),
+      }
+      const fiatContextValue = {
+        ...mockFiatContextValue,
+        fromFiatAmount: (amount: number) => amount * 100,
+        toFiat: (satoshis?: number) => (satoshis ?? 0) / 100,
+      }
+
+      render(
+        <ConfigContext.Provider
+          value={{
+            ...mockConfigContextValue,
+            config: { ...mockConfigContextValue.config, currency: Currencies.USD },
+          }}
+        >
+          <FiatContext.Provider value={fiatContextValue}>
+            <NavigationContext.Provider value={mockNavigationContextValue}>
+              <AspContext.Provider value={mockAspContextValue}>
+                <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+                  <WalletContext.Provider value={walletContextValue as any}>
+                    <LimitsContext.Provider value={mockLimitsContextValue}>
+                      <Transaction />
+                    </LimitsContext.Provider>
+                  </WalletContext.Provider>
+                </FlowContext.Provider>
+              </AspContext.Provider>
+            </NavigationContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>,
+      )
+
+      expect(screen.getByText(direction)).toBeInTheDocument()
+      expect(screen.getByText(assetLabel)).toBeInTheDocument()
+      expect(screen.getByTestId('Amount')).toHaveTextContent('$100.00')
+      expect(screen.getByTestId('Total')).toHaveTextContent(total)
+      expect(screen.queryByText('Tether USD')).not.toBeInTheDocument()
+    },
+  )
 })

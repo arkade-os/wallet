@@ -1,3 +1,6 @@
+import Decimal from 'decimal.js'
+import { Currencies } from './types'
+
 export type WalletAccountTicker = 'BTC' | 'USD' | 'CHF' | 'BRL' | 'CNY' | 'EUR' | 'GBP' | 'JPY'
 
 export function walletAccountTicker(ticker: string | undefined): WalletAccountTicker | undefined {
@@ -24,4 +27,17 @@ export function walletAssetPresentation(
     ticker: metadata?.ticker?.trim().toUpperCase() ?? '',
     icon: metadata?.icon,
   }
+}
+
+export function fiatAccountAssetSatoshis(
+  amount: bigint,
+  decimals: number,
+  ticker: string | undefined,
+  fromFiatAmount: (amount: number, currency: Currencies) => number,
+): number | undefined {
+  const accountTicker = walletAccountTicker(ticker)
+  if (!accountTicker || accountTicker === 'BTC') return undefined
+
+  const accountAmount = Decimal.div(amount.toString(), Decimal.pow(10, decimals)).toNumber()
+  return fromFiatAmount(accountAmount, accountTicker as Currencies)
 }
