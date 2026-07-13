@@ -23,7 +23,7 @@ describe('Wallet screen', () => {
     expect(screen.getByTestId('home-action-swap')).toBeEnabled()
     await user.click(screen.getByTestId('home-action-swap'))
     expect(navigate).toHaveBeenCalledWith(Pages.WalletSwap)
-    expect(screen.getByText('Assets')).toBeInTheDocument()
+    expect(screen.getByText('Accounts')).toBeInTheDocument()
     expect(screen.getByText('Bitcoin')).toBeInTheDocument()
     expect(screen.getByText('Recent activity')).toBeInTheDocument()
     expect(screen.getByText('Do more with your money')).toBeInTheDocument()

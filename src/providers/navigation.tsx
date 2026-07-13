@@ -18,6 +18,7 @@ import Activity from '../screens/Wallet/Activity'
 import Vtxos from '../screens/Settings/Vtxos'
 import Wallet from '../screens/Wallet/Index'
 import BitcoinDetail from '../screens/Wallet/BitcoinDetail'
+import AccountDetail from '../screens/Wallet/AccountDetail'
 import WalletSwap from '../screens/Wallet/Swap/Index'
 import Settings from '../screens/Settings/Index'
 
@@ -43,6 +44,7 @@ export type NavigationDirection = 'forward' | 'back' | 'none'
 
 export enum Pages {
   Activity,
+  AccountDetail,
   BitcoinDetail,
   AppBoltz,
   AppBoltzSettings,
@@ -91,6 +93,7 @@ export enum Tabs {
 
 const pageTab = {
   [Pages.Activity]: Tabs.Wallet,
+  [Pages.AccountDetail]: Tabs.Wallet,
   [Pages.BitcoinDetail]: Tabs.Wallet,
   [Pages.AppBoltz]: Tabs.Settings,
   [Pages.AppBoltzSettings]: Tabs.Settings,
@@ -153,6 +156,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
   switch (page) {
     case Pages.Activity:
       return <Activity />
+    case Pages.AccountDetail:
+      return <AccountDetail />
     case Pages.BitcoinDetail:
       return <BitcoinDetail />
     case Pages.AppBoltz:
