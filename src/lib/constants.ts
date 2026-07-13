@@ -22,6 +22,8 @@ export const fromRuntimeEnv = (value: string | undefined): string | undefined =>
 
 export const lnurlServerUrl: string | undefined = fromRuntimeEnv(import.meta.env.VITE_LNURL_SERVER_URL)
 
+export const defaultCovclaimdUrl = 'https://covclaimd.mutinynet.arkade.sh/'
+
 export const defaultArkServer = () => {
   const arkServer = fromRuntimeEnv(import.meta.env.VITE_ARK_SERVER)
   if (arkServer) return arkServer

@@ -104,6 +104,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const [apiUrl, setApiUrl] = useState<string | null>(null)
 
   const connected = config.apps.boltz.connected
+  const covclaimdUrl = config.apps.boltz.covclaimdUrl || undefined
 
   // create ArkadeSwaps with SwapManager on first run with svcWallet
   useEffect(() => {
@@ -127,6 +128,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       arkServerUrl: aspInfo.url,
       swapManager: config.apps.boltz.connected,
       referralId: 'arkade-money',
+      covclaimdUrl,
     })
       .then((instance) => {
         if (cancelled) {
@@ -152,7 +154,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       cancelled = true
       if (disposeArkadeSwaps) disposeArkadeSwaps().catch(consoleError)
     }
-  }, [aspInfo, svcWallet, config.apps.boltz.connected])
+  }, [aspInfo, svcWallet, config.apps.boltz.connected, covclaimdUrl])
 
   // fetch fees when arkadeSwaps is ready
   useEffect(() => {
@@ -265,7 +267,11 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   const createReverseSwap = async (sats: number): Promise<BoltzReverseSwap | null> => {
     if (!arkadeSwaps) return null
-    return arkadeSwaps.createReverseSwap({ amount: sats, description: 'Lightning Invoice' })
+    return arkadeSwaps.createReverseSwap({
+      amount: sats,
+      description: 'Lightning Invoice',
+      nonInteractive: !!covclaimdUrl,
+    })
   }
 
   const claimVHTLC = async (swap: BoltzReverseSwap): Promise<void> => {

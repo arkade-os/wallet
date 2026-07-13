@@ -13,6 +13,7 @@ export type Config = {
     }
     boltz: {
       connected: boolean
+      covclaimdUrl?: string
     }
   }
   aspUrl: string
