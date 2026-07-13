@@ -2,7 +2,7 @@ import { useContext, useEffect, useRef, useState } from 'react'
 import { FiatContext } from '../providers/fiat'
 import InputContainer from './InputContainer'
 import { ConfigContext } from '../providers/config'
-import { fromSatoshis, prettyNumber, toSatoshis } from '../lib/format'
+import { formatBitcoinAmountParts, prettyNumber, toSatoshis } from '../lib/format'
 import { FIAT_SYMBOLS } from '../lib/fiat'
 import { LimitsContext } from '../providers/limits'
 import { AssetOption, Unit } from '../lib/types'
@@ -79,10 +79,9 @@ export default function InputAmount({
   // update other value when satsValue change
   useEffect(() => {
     setError(satsValue ? (satsValue < 0 ? 'Invalid amount' : '') : '')
-    const useBTC = config.unit === Unit.BTC
-    const btcValue = useBTC ? fromSatoshis(satsValue) : satsValue
-    const decimals = useBTC ? 8 : 0
-    setOtherValue(useFiat ? prettyNumber(btcValue, decimals) : prettyNumber(toFiat(satsValue), fiatDecimals()))
+    const bitcoinAmount =
+      config.unit === Unit.BTC ? formatBitcoinAmountParts(satsValue, config.unit).amount : prettyNumber(satsValue, 0)
+    setOtherValue(useFiat ? bitcoinAmount : prettyNumber(toFiat(satsValue), fiatDecimals()))
   }, [satsValue, toFiat, fiatDecimals, useFiat])
 
   const handleAmountChange = (ev: React.ChangeEvent<HTMLInputElement>) => {

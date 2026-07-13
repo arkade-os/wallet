@@ -4,6 +4,7 @@ import { Currencies, Tx, Unit } from './types'
 import { Decimal } from 'decimal.js'
 
 export const BITCOIN_SYMBOL = '₿'
+export const BITCOIN_DECIMALS = 8
 
 export const fromSatoshis = (num: number): number => {
   return Decimal.div(num, 100_000_000).toNumber()
@@ -11,6 +12,11 @@ export const fromSatoshis = (num: number): number => {
 
 export const toSatoshis = (num: number): number => {
   return Decimal.mul(num, 100_000_000).floor().toNumber()
+}
+
+const prettyBitcoinNumber = (amount: number): string => {
+  if (amount === 0) return '0'
+  return prettyNumber(amount, BITCOIN_DECIMALS, true, BITCOIN_DECIMALS)
 }
 
 export const prettyAgo = (timestamp: number | string, long = false): string => {
@@ -30,10 +36,15 @@ export const prettyAgo = (timestamp: number | string, long = false): string => {
 }
 
 export const prettyAmount = (sats: number, suffix?: string, decimals = 2): string => {
-  if (suffix) return `${prettyNumber(sats, decimals)} ${suffix}`
-  if (sats >= 100_000_000_000_000) return `${prettyNumber(fromSatoshis(sats), 0)}K BTC`
-  if (sats >= 100_000_000_000) return `${prettyNumber(fromSatoshis(sats), 0)} BTC`
-  if (sats >= 100_000_000) return `${prettyNumber(fromSatoshis(sats), 3)} BTC`
+  if (suffix) {
+    if (suffix.trim().toUpperCase() === Unit.BTC) {
+      return `${prettyBitcoinNumber(sats)} ${Unit.BTC}`
+    }
+    return `${prettyNumber(sats, decimals)} ${suffix}`
+  }
+  if (sats >= 100_000_000) {
+    return `${prettyBitcoinNumber(fromSatoshis(sats))} ${Unit.BTC}`
+  }
   if (sats >= 1_000_000) return `${prettyNumber(sats / 1_000_000, 3)}M sats`
   return `${prettyNumber(sats, 0)} ${sats === 1 ? 'sat' : 'sats'}`
 }
@@ -50,11 +61,7 @@ export const normalizeBitcoinUnit = (unit?: Unit | string): Unit => {
   return Unit.BTC
 }
 
-const formatBitcoinUnitAmountParts = (
-  amount: number,
-  unit: Unit,
-  options: FiatAmountFormatOptions = {},
-): { amount: string; unit: string } => {
+const formatBitcoinUnitAmountParts = (amount: number, unit: Unit): { amount: string; unit: string } => {
   if (unit === Unit.SATS) {
     const sats = Math.round(amount)
     return { amount: prettyNumber(sats, 0), unit: sats === 1 ? 'sat' : 'sats' }
@@ -64,10 +71,8 @@ const formatBitcoinUnitAmountParts = (
     return { amount: `${BITCOIN_SYMBOL}${prettyNumber(Math.round(amount), 0)}`, unit: '' }
   }
 
-  const maximumFractionDigits = options.maximumFractionDigits ?? 8
-  const minimumFractionDigits = options.minimumFractionDigits ?? 0
   return {
-    amount: prettyNumber(amount, maximumFractionDigits, true, minimumFractionDigits),
+    amount: prettyBitcoinNumber(amount),
     unit: 'BTC',
   }
 }
@@ -77,8 +82,10 @@ export const formatBitcoinAmountParts = (
   unit: Unit,
   options: FiatAmountFormatOptions = {},
 ): { amount: string; unit: string } => {
-  if (unit === Unit.BTC) return formatBitcoinUnitAmountParts(fromSatoshis(sats), unit, options)
-  return formatBitcoinUnitAmountParts(sats, unit, options)
+  // Preserve the existing API while keeping BTC display precision fixed.
+  void options
+  if (unit === Unit.BTC) return formatBitcoinUnitAmountParts(fromSatoshis(sats), unit)
+  return formatBitcoinUnitAmountParts(sats, unit)
 }
 
 export const prettyBitcoinAmount = (sats: number, unit: Unit, options?: FiatAmountFormatOptions): string => {
@@ -92,7 +99,7 @@ export const formatFiatAmountParts = (
   options: FiatAmountFormatOptions = {},
 ): { amount: string; unit: string } => {
   if (currency === Currencies.BTC)
-    return formatBitcoinUnitAmountParts(amount, normalizeBitcoinUnit(options.bitcoinUnit), options)
+    return formatBitcoinUnitAmountParts(amount, normalizeBitcoinUnit(options.bitcoinUnit))
 
   const symbol = FIAT_SYMBOLS[currency]
   const maximumFractionDigits =
