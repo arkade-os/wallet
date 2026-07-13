@@ -23,6 +23,7 @@ vi.mock('liveline', () => ({
 describe('Account detail screen', () => {
   it('shows a USD account without exposing its underlying USDT asset', async () => {
     const sourceAssetId = 'usdt-asset'
+    const secondSourceAssetId = 'usdc-asset'
     const navigate = vi.fn()
     const setSendInfo = vi.fn()
     const fetchMock = vi.fn()
@@ -39,7 +40,7 @@ describe('Account detail screen', () => {
           config: {
             ...mockConfigContextValue.config,
             currency: Currencies.USD,
-            importedAssets: [sourceAssetId],
+            importedAssets: [sourceAssetId, secondSourceAssetId],
           },
         }}
       >
@@ -56,7 +57,10 @@ describe('Account detail screen', () => {
                 value={
                   {
                     ...mockWalletContextValue,
-                    assetBalances: [{ assetId: sourceAssetId, amount: BigInt(10_000) }],
+                    assetBalances: [
+                      { assetId: sourceAssetId, amount: BigInt(10_000) },
+                      { assetId: secondSourceAssetId, amount: BigInt(5_000) },
+                    ],
                     assetMetadataCache: new Map([
                       [
                         sourceAssetId,
@@ -66,6 +70,17 @@ describe('Account detail screen', () => {
                             icon: 'https://issuer.example/tether.svg',
                             name: 'Tether USD',
                             ticker: 'USDT',
+                          },
+                        },
+                      ],
+                      [
+                        secondSourceAssetId,
+                        {
+                          metadata: {
+                            decimals: 2,
+                            icon: 'https://issuer.example/usdc.svg',
+                            name: 'USD Coin',
+                            ticker: 'USDC',
                           },
                         },
                       ],
@@ -90,11 +105,12 @@ describe('Account detail screen', () => {
 
     expect(screen.getByRole('heading', { name: 'USD' })).toBeInTheDocument()
     expect(screen.getByText('$1.00')).toBeInTheDocument()
-    expect(screen.getByText('100.00 USD')).toBeInTheDocument()
-    expect(screen.getByText('$100.00')).toBeInTheDocument()
+    expect(screen.getByText('150.00 USD')).toBeInTheDocument()
+    expect(screen.getByText('$150.00')).toBeInTheDocument()
     expect(screen.getByText('$25.00')).toBeInTheDocument()
     expect(screen.getByTestId('liveline-chart')).toBeInTheDocument()
     expect(screen.queryByText('USDT')).not.toBeInTheDocument()
+    expect(screen.queryByText('USDC')).not.toBeInTheDocument()
     expect(screen.queryByText('Tether USD')).not.toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
 
@@ -102,7 +118,18 @@ describe('Account detail screen', () => {
 
     await waitFor(() => {
       expect(setSendInfo).toHaveBeenCalledWith(
-        expect.objectContaining({ assets: [{ assetId: sourceAssetId, amount: BigInt(0) }] }),
+        expect.objectContaining({
+          account: expect.objectContaining({
+            assetId: 'account:usd',
+            amount: BigInt(0),
+            balance: BigInt(15_000),
+            ticker: 'USD',
+            sources: [
+              { assetId: sourceAssetId, balance: BigInt(10_000), decimals: 2 },
+              { assetId: secondSourceAssetId, balance: BigInt(5_000), decimals: 2 },
+            ],
+          }),
+        }),
       )
       expect(navigate).toHaveBeenCalledWith(Pages.SendForm)
     })

@@ -1,7 +1,23 @@
 import Decimal from 'decimal.js'
+import type { Asset } from '@arkade-os/sdk'
 import { Currencies } from './types'
 
 export type WalletAccountTicker = 'BTC' | 'USD' | 'CHF' | 'BRL' | 'CNY' | 'EUR' | 'GBP' | 'JPY'
+
+export interface FiatAccountSourceAsset {
+  assetId: string
+  balance: bigint
+  decimals: number
+}
+
+export interface FiatAccountSend {
+  assetId: string
+  ticker: WalletAccountTicker
+  balance: bigint
+  decimals: number
+  amount: bigint
+  sources: FiatAccountSourceAsset[]
+}
 
 const ACCOUNT_CHART_COLOR_TOKENS: Record<WalletAccountTicker, string> = {
   BTC: '--account-chart-btc',
@@ -56,4 +72,47 @@ export function fiatAccountAssetSatoshis(
 
   const accountAmount = Decimal.div(amount.toString(), Decimal.pow(10, decimals)).toNumber()
   return fromFiatAmount(accountAmount, accountTicker as Currencies)
+}
+
+export function normalizeAssetMinorUnits(rawAmount: number | bigint, fromDecimals: number, toDecimals: number): bigint {
+  const amount = typeof rawAmount === 'bigint' ? rawAmount : BigInt(rawAmount)
+  if (fromDecimals === toDecimals) return amount
+  if (fromDecimals > toDecimals) return amount / BigInt(10) ** BigInt(fromDecimals - toDecimals)
+  return amount * BigInt(10) ** BigInt(toDecimals - fromDecimals)
+}
+
+export function allocateFiatAccountAssets(
+  amount: bigint,
+  accountDecimals: number,
+  sources: FiatAccountSourceAsset[],
+): Asset[] {
+  let remaining = amount > BigInt(0) ? amount : BigInt(0)
+  const assets: Asset[] = []
+
+  for (const source of sources) {
+    if (remaining === BigInt(0)) break
+    const available = normalizeAssetMinorUnits(source.balance, source.decimals, accountDecimals)
+    const allocated = remaining < available ? remaining : available
+    if (allocated <= BigInt(0)) continue
+
+    assets.push({
+      assetId: source.assetId,
+      amount: normalizeAssetMinorUnits(allocated, accountDecimals, source.decimals),
+    })
+    remaining -= allocated
+  }
+
+  return assets
+}
+
+export function primaryFiatAccountSource(
+  sources: FiatAccountSourceAsset[] | undefined,
+  accountDecimals: number,
+): FiatAccountSourceAsset | undefined {
+  return sources?.reduce<FiatAccountSourceAsset | undefined>((primary, source) => {
+    if (!primary) return source
+    const sourceBalance = normalizeAssetMinorUnits(source.balance, source.decimals, accountDecimals)
+    const primaryBalance = normalizeAssetMinorUnits(primary.balance, primary.decimals, accountDecimals)
+    return sourceBalance > primaryBalance ? source : primary
+  }, undefined)
 }

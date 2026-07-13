@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { accountChartColorToken, walletAccountTicker, walletAssetPresentation } from '../../lib/accountAssets'
+import {
+  accountChartColorToken,
+  allocateFiatAccountAssets,
+  primaryFiatAccountSource,
+  walletAccountTicker,
+  walletAssetPresentation,
+} from '../../lib/accountAssets'
 
 describe('wallet account asset presentation', () => {
   it.each([
@@ -35,5 +41,26 @@ describe('wallet account asset presentation', () => {
         icon: 'https://issuer.example/tether.svg',
       }),
     ).toEqual({ name: 'USD', ticker: 'USD' })
+  })
+
+  it('allocates an account send across multiple backing assets', () => {
+    const sources = [
+      { assetId: 'usdt', balance: BigInt(6_000), decimals: 2 },
+      { assetId: 'usdc', balance: BigInt(4_000_000), decimals: 4 },
+    ]
+
+    expect(allocateFiatAccountAssets(BigInt(8_000), 2, sources)).toEqual([
+      { assetId: 'usdt', amount: BigInt(6_000) },
+      { assetId: 'usdc', amount: BigInt(200_000) },
+    ])
+  })
+
+  it('uses the largest backing balance as the default receive rail', () => {
+    const sources = [
+      { assetId: 'smaller', balance: BigInt(2_500), decimals: 2 },
+      { assetId: 'larger', balance: BigInt(5_000_000), decimals: 4 },
+    ]
+
+    expect(primaryFiatAccountSource(sources, 2)?.assetId).toBe('larger')
   })
 })

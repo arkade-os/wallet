@@ -27,19 +27,21 @@ export default function SendDetails() {
   const { navigate } = useContext(NavigationContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
-  const isAssetSend = Boolean(sendInfo.assets?.length)
+  const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { payInvoice, payBtc } = useContext(SwapsContext)
   const { assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
 
   const assetId = sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
-  const assetPresentation = walletAssetPresentation(assetMeta?.metadata)
+  const assetPresentation = sendInfo.account
+    ? { name: sendInfo.account.ticker, ticker: sendInfo.account.ticker }
+    : walletAssetPresentation(assetMeta?.metadata)
   const assetTicker = assetPresentation.ticker
   const assetName = assetPresentation.name
-  const assetDecimals = assetMeta?.metadata?.decimals ?? 8
+  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 8
   const assetLabel = assetName === assetTicker ? assetTicker : `${assetName} (${assetTicker})`
-  const assetAmountValue = sendInfo.assets?.[0]?.amount ?? BigInt(0)
+  const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
 
   const [buttonLabel, setButtonLabel] = useState('')
   const [details, setDetails] = useState<DetailsProps>()

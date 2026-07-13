@@ -1,4 +1,4 @@
-import { walletAccountTicker } from '../lib/accountAssets'
+import { walletAccountTicker, type WalletAccountTicker } from '../lib/accountAssets'
 
 export type TokenLogoTicker = 'BTC' | 'USD' | 'USDT' | 'USDC' | 'CHF' | 'BRL' | 'CNY' | 'EUR' | 'GBP' | 'JPY'
 
@@ -20,7 +20,7 @@ export function tokenLogoTickerForTicker(ticker: string | undefined): TokenLogoT
   }
 }
 
-export function accountTickerForAssetTicker(ticker: string | undefined): TokenLogoTicker | undefined {
+export function accountTickerForAssetTicker(ticker: string | undefined): WalletAccountTicker | undefined {
   return walletAccountTicker(ticker)
 }
 

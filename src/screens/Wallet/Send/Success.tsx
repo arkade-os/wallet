@@ -53,15 +53,17 @@ export default function SendSuccess() {
   const { navigate } = useContext(NavigationContext)
   const { getSwapHistory, swapManager } = useContext(SwapsContext)
 
-  const isAssetSend = Boolean(sendInfo.assets?.length)
-  const assetId = sendInfo.assets?.[0]?.assetId
+  const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
+  const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
-  const assetPresentation = walletAssetPresentation(assetMeta?.metadata, 'Unknown asset')
+  const assetPresentation = sendInfo.account
+    ? { name: sendInfo.account.ticker, ticker: sendInfo.account.ticker }
+    : walletAssetPresentation(assetMeta?.metadata, 'Unknown asset')
   const assetName = assetPresentation.name
   const assetTicker = assetPresentation.ticker
   const assetIcon = assetPresentation.icon
-  const assetAmountValue = sendInfo.assets?.[0]?.amount ?? BigInt(0)
-  const assetDecimals = assetMeta?.metadata?.decimals ?? 8
+  const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
+  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 8
 
   // Lightning sends resolve optimistically once the swap is funded; track the
   // settlement happening in the background and reflect it live on screen.

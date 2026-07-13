@@ -30,9 +30,12 @@ export default function AssetsSection() {
   const handleAssetClick = (row: PortfolioRow) => {
     if (row.assetId === 'btc') {
       navigate(Pages.BitcoinDetail)
-    } else {
+    } else if (row.fiatCurrency) {
       setAssetInfo({ assetId: row.assetId, supply: BigInt(0) })
       navigate(Pages.AccountDetail)
+    } else {
+      setAssetInfo({ assetId: row.assetId, supply: BigInt(0) })
+      navigate(Pages.AppAssetDetail)
     }
   }
 

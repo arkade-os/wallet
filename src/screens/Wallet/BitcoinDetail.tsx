@@ -32,7 +32,7 @@ import { FiatContext } from '../../providers/fiat'
 import { FlowContext, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { buildCrossRatePoints, fetchHistoricalMarketData } from '../../lib/marketData'
-import { accountChartColorToken } from '../../lib/accountAssets'
+import { accountChartColorToken, primaryFiatAccountSource } from '../../lib/accountAssets'
 
 const CHART_WINDOWS = [
   { label: '1H', secs: 3_600 },
@@ -118,8 +118,20 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
   )
   const canRenderChart =
     marketChart.status === 'ready' && marketChart.data.length >= 2 && typeof ResizeObserver !== 'undefined'
-  const sourceAssetId = walletSourceAssetId(row)
   const accountTicker = accountTickerForAssetTicker(row.ticker)
+  const primarySource = primaryFiatAccountSource(row.sourceAssets, row.decimals)
+  const sourceAssetId = primarySource?.assetId ?? walletSourceAssetId(row)
+  const sendAccount =
+    !isBitcoin && accountTicker && accountTicker !== 'BTC' && row.sourceAssets?.length
+      ? {
+          assetId: row.assetId,
+          ticker: accountTicker,
+          balance: rawBalance,
+          decimals: row.decimals,
+          amount: BigInt(0),
+          sources: row.sourceAssets,
+        }
+      : undefined
   const tokenLogoTicker = tokenLogoTickerForTicker(accountTicker ?? row.ticker)
   const activityAssetFilter = isBitcoin
     ? 'btc'
@@ -136,9 +148,11 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
   const handleSend = () => {
     hapticLight()
     setSendInfo(
-      isBitcoin || !sourceAssetId
-        ? emptySendInfo
-        : { ...emptySendInfo, assets: [{ assetId: sourceAssetId, amount: BigInt(0) }] },
+      sendAccount
+        ? { ...emptySendInfo, account: sendAccount }
+        : isBitcoin || !sourceAssetId
+          ? emptySendInfo
+          : { ...emptySendInfo, assets: [{ assetId: sourceAssetId, amount: BigInt(0) }] },
     )
     navigate(Pages.SendForm)
   }
@@ -156,9 +170,11 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
   const handleScan = () => {
     hapticLight()
     setSendInfo(
-      isBitcoin || !sourceAssetId
-        ? { ...emptySendInfo, scan: true }
-        : { ...emptySendInfo, assets: [{ assetId: sourceAssetId, amount: BigInt(0) }], scan: true },
+      sendAccount
+        ? { ...emptySendInfo, account: sendAccount, scan: true }
+        : isBitcoin || !sourceAssetId
+          ? { ...emptySendInfo, scan: true }
+          : { ...emptySendInfo, assets: [{ assetId: sourceAssetId, amount: BigInt(0) }], scan: true },
     )
     navigate(Pages.SendForm)
   }
@@ -270,7 +286,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
                 icon={<SendIcon />}
                 label='Send'
                 onClick={handleSend}
-                disabled={rawBalance === BigInt(0) || (!isBitcoin && !sourceAssetId)}
+                disabled={rawBalance === BigInt(0) || (!isBitcoin && !sendAccount && !sourceAssetId)}
               />
               <AssetAction icon={<SwapIcon />} label='Swap' onClick={handleSwap} />
               <AssetAction

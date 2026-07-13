@@ -250,4 +250,51 @@ describe('Send screen', () => {
 
     await waitFor(() => expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ satoshis: 10000 })))
   })
+
+  it('splits an aggregated USD account send across its backing assets', async () => {
+    const setSendInfo = vi.fn()
+    const account = {
+      assetId: 'account:usd',
+      ticker: 'USD' as const,
+      balance: BigInt(10_000),
+      decimals: 2,
+      amount: BigInt(0),
+      sources: [
+        { assetId: 'usdt', balance: BigInt(6_000), decimals: 2 },
+        { assetId: 'usdc', balance: BigInt(4_000_000), decimals: 4 },
+      ],
+    }
+
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        sendInfo: { ...emptySendInfo, account },
+        setSendInfo,
+      },
+      walletContext: {
+        ...mockWalletContextValue,
+        svcWallet: {
+          ...mockSvcWallet,
+          getAddress: () => 'tark1mockoffchain',
+          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+          getBalance: () => Promise.resolve({ available: 1_000_000 }),
+        } as any,
+      },
+    })
+
+    const amountInput = document.querySelector('input[name="send-amount"]') as HTMLInputElement
+    fireEvent.change(amountInput, { target: { value: '80' } })
+
+    await waitFor(() =>
+      expect(setSendInfo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          account: expect.objectContaining({ amount: BigInt(8_000) }),
+          assets: [
+            { assetId: 'usdt', amount: BigInt(6_000) },
+            { assetId: 'usdc', amount: BigInt(200_000) },
+          ],
+        }),
+      ),
+    )
+  })
 })

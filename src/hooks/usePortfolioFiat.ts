@@ -5,6 +5,7 @@ import { fiatForTicker } from '../lib/format'
 import { Currencies } from '../lib/types'
 import { FiatContext } from '../providers/fiat'
 import { WalletContext } from '../providers/wallet'
+import { normalizeAssetMinorUnits, type FiatAccountSourceAsset } from '../lib/accountAssets'
 
 export interface PortfolioRow {
   /** 'btc' for the native bitcoin row, otherwise the asset's on-chain id. */
@@ -25,6 +26,8 @@ export interface PortfolioRow {
   fiatCurrency?: Currencies
   /** IDs of the underlying wallet assets when this is a product-level account row. */
   sourceAssetIds?: string[]
+  /** Backing asset balances used internally to fulfill account actions. */
+  sourceAssets?: FiatAccountSourceAsset[]
 }
 
 export interface PortfolioFiat {
@@ -61,7 +64,7 @@ export function usePortfolioFiat(): PortfolioFiat {
   })
 
   const fiatAccountBalances = new Map<Currencies, bigint>()
-  const fiatAccountSourceAssetIds = new Map<Currencies, string[]>()
+  const fiatAccountSources = new Map<Currencies, FiatAccountSourceAsset[]>()
 
   // Non-bitcoin asset rows from real SDK data.
   for (const ab of assetBalances) {
@@ -72,8 +75,14 @@ export function usePortfolioFiat(): PortfolioFiat {
     if (sourceFiat) {
       const accountDecimals = fiatDecimalsFor(sourceFiat)
       const currentBalance = fiatAccountBalances.get(sourceFiat) ?? BigInt(0)
-      fiatAccountBalances.set(sourceFiat, currentBalance + normalizeMinorUnits(ab.amount, decimals, accountDecimals))
-      fiatAccountSourceAssetIds.set(sourceFiat, [...(fiatAccountSourceAssetIds.get(sourceFiat) ?? []), ab.assetId])
+      fiatAccountBalances.set(
+        sourceFiat,
+        currentBalance + normalizeAssetMinorUnits(ab.amount, decimals, accountDecimals),
+      )
+      fiatAccountSources.set(sourceFiat, [
+        ...(fiatAccountSources.get(sourceFiat) ?? []),
+        { assetId: ab.assetId, balance: BigInt(ab.amount), decimals },
+      ])
       continue
     }
 
@@ -112,7 +121,8 @@ export function usePortfolioFiat(): PortfolioFiat {
       satsEquivalent,
       hasFiatPrice: true,
       fiatCurrency: sourceFiat,
-      sourceAssetIds: fiatAccountSourceAssetIds.get(sourceFiat) ?? [],
+      sourceAssetIds: (fiatAccountSources.get(sourceFiat) ?? []).map((source) => source.assetId),
+      sourceAssets: fiatAccountSources.get(sourceFiat) ?? [],
     })
   }
 
@@ -121,11 +131,4 @@ export function usePortfolioFiat(): PortfolioFiat {
     totalSats,
     rows,
   }
-}
-
-function normalizeMinorUnits(rawAmount: number | bigint, fromDecimals: number, toDecimals: number): bigint {
-  const amount = typeof rawAmount === 'bigint' ? rawAmount : BigInt(rawAmount)
-  if (fromDecimals === toDecimals) return amount
-  if (fromDecimals > toDecimals) return amount / BigInt(10) ** BigInt(fromDecimals - toDecimals)
-  return amount * BigInt(10) ** BigInt(toDecimals - fromDecimals)
 }
