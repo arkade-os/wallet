@@ -24,6 +24,8 @@ import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { LimitsContext } from '../../providers/limits'
 import { getInputsToSettle } from '../../lib/asp'
+import SwapTransactionSummary from '../../components/SwapTransactionSummary'
+import { formatSwapAssetAmount, swapStatusLabel } from '../../lib/swapDisplay'
 
 export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
@@ -103,30 +105,44 @@ export default function Transaction() {
           ? 'Settled'
           : 'Preconfirmed'
 
-  const details: DetailsProps = {
-    direction: swapTx ? 'Swap' : issuanceTx ? 'Issuance' : burnTx ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received',
-    when: tx.createdAt ? prettyAgo(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
-    date: tx.createdAt ? prettyDate(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
-    status: swapTx
-      ? swapStatusLabel(tx)
-      : expiredBoardingTx
-        ? 'Expired'
-        : unconfirmedBoardingTx
-          ? 'Unconfirmed'
-          : boardingTx && tx.preconfirmed
-            ? 'Pending boarding'
-            : settleSuccess || tx.settled
-              ? 'Settled'
-              : 'Preconfirmed',
-    type: swapTx ? 'Asset swap' : boardingTx ? 'Boarding' : 'Offchain',
-    txid: tx.boardingTxid || tx.redeemTxid || tx.roundTxid || '',
-    isOffchainTx: !tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
-    assetId: tx.assets?.[0]?.assetId,
-    wallet: wallet,
-    satoshis: swapTx ? 0 : tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
-    fees: swapTx ? 0 : tx.type === 'sent' ? defaultFee : 0,
-    total: tx.amount,
-  }
+  const when = tx.createdAt ? prettyAgo(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed'
+  const date = tx.createdAt ? prettyDate(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed'
+  const txid = tx.boardingTxid || tx.redeemTxid || tx.roundTxid || ''
+
+  const details: DetailsProps = swapTx
+    ? {
+        date,
+        feesLabel: 'Not available yet',
+        status: swapStatusLabel(tx),
+        swapFrom: formatSwapAssetAmount(tx, 'from'),
+        swapTo: formatSwapAssetAmount(tx, 'to'),
+        txid: tx.isPrototype ? undefined : txid,
+        txidLabel: tx.isPrototype ? 'Not available yet' : undefined,
+        type: 'Asset swap',
+        wallet,
+        when,
+      }
+    : {
+        assetId: tx.assets?.[0]?.assetId,
+        date,
+        direction: issuanceTx ? 'Issuance' : burnTx ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received',
+        fees: tx.type === 'sent' ? defaultFee : 0,
+        isOffchainTx: !tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
+        satoshis: tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
+        status,
+        total: tx.amount,
+        txid,
+        type: boardingTx ? 'Boarding' : 'Offchain',
+        wallet,
+        when,
+      }
+
+  const swapFromIcon = tx.prototypeSwap?.fromAssetId
+    ? assetMetadataCache.get(tx.prototypeSwap.fromAssetId)?.metadata?.icon
+    : undefined
+  const swapToIcon = tx.prototypeSwap?.toAssetId
+    ? assetMetadataCache.get(tx.prototypeSwap.toAssetId)?.metadata?.icon
+    : undefined
 
   const Body = () => (
     <Content>
@@ -152,23 +168,9 @@ export default function Transaction() {
             </Info>
           ) : null}
           {swapTx && tx.prototypeSwap ? (
-            <Info
-              color={
-                tx.prototypeSwap.status === 'failed'
-                  ? 'red'
-                  : tx.prototypeSwap.status === 'pending'
-                    ? 'orange'
-                    : 'green'
-              }
-              icon={<CheckMarkIcon small />}
-              title={swapStatusLabel(tx)}
-            >
-              <TextSecondary>
-                {tx.prototypeSwap.fromTicker} to {tx.prototypeSwap.toTicker}
-              </TextSecondary>
-            </Info>
+            <SwapTransactionSummary fromIcon={swapFromIcon} toIcon={swapToIcon} tx={tx} />
           ) : null}
-          {tx.assets?.length ? (
+          {!swapTx && tx.assets?.length ? (
             <div className='transaction-detail__assets'>
               {tx.assets.map((a) => {
                 const meta = assetMetadataCache.get(a.assetId)?.metadata
@@ -244,10 +246,4 @@ export default function Transaction() {
       <Buttons />
     </>
   )
-}
-
-function swapStatusLabel(tx: { prototypeSwap?: { status?: 'pending' | 'failed' | 'completed' }; settled?: boolean }) {
-  if (tx.prototypeSwap?.status === 'failed') return 'Failed'
-  if (tx.prototypeSwap?.status === 'pending') return 'Pending'
-  return tx.settled || tx.prototypeSwap?.status === 'completed' ? 'Completed' : 'Pending'
 }
