@@ -3,6 +3,9 @@ import { Currencies } from './types'
 
 const host = 'https://price-chart-proxy.arkade.money'
 
+const DEFAULT_CONSTANT_SERIES_WINDOW_SECS = 86_400
+const CONSTANT_SERIES_INTERVALS = 100
+
 interface HistoricalMarketDataResponse {
   when: number
   from: string
@@ -21,6 +24,21 @@ const PERIOD_WINDOWS = [
 const secsToPeriod = (secs: number): string => {
   const window = PERIOD_WINDOWS.find((w) => w.secs === secs)
   return window ? window.label : 'oneDay'
+}
+
+export const buildConstantMarketSeries = (
+  value: number,
+  windowSecs: number,
+  now = Math.floor(Date.now() / 1000),
+): LivelinePoint[] => {
+  const duration = windowSecs > 0 ? windowSecs : DEFAULT_CONSTANT_SERIES_WINDOW_SECS
+  const intervalCount = Math.max(1, Math.min(CONSTANT_SERIES_INTERVALS, Math.floor(duration)))
+  const start = now - duration
+
+  return Array.from({ length: intervalCount + 1 }, (_, index) => ({
+    time: start + Math.floor((duration * index) / intervalCount),
+    value,
+  }))
 }
 
 export const fetchHistoricalMarketData = async (

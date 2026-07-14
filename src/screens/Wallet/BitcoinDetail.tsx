@@ -31,7 +31,7 @@ import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
 import { FlowContext, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
-import { buildCrossRatePoints, fetchHistoricalMarketData } from '../../lib/marketData'
+import { buildConstantMarketSeries, buildCrossRatePoints, fetchHistoricalMarketData } from '../../lib/marketData'
 import { accountChartColorToken, primaryFiatAccountSource } from '../../lib/accountAssets'
 
 const CHART_WINDOWS = [
@@ -551,7 +551,7 @@ function useAccountMarketChartData(
     }
 
     if (sourceFiat === marketFiat) {
-      const points = buildConstantChartData(1, windowSecs)
+      const points = buildConstantMarketSeries(1, windowSecs)
       marketChartCache.set(cacheKey, points)
       setChart({ data: points, status: 'ready' })
       return () => controller.abort()
@@ -602,15 +602,6 @@ async function fetchAccountMarketData(
     fetchHistoricalMarketData(windowSecs, marketFiat, signal),
   ])
   return buildCrossRatePoints(sourcePoints, marketPoints)
-}
-
-function buildConstantChartData(latestValue: number, windowSecs: number): LivelinePoint[] {
-  const now = Math.floor(Date.now() / 1000)
-  const exactWindowSecs = isAllChartWindow(windowSecs) ? 86_400 : windowSecs
-  return [
-    { time: now - exactWindowSecs, value: latestValue },
-    { time: now, value: latestValue },
-  ]
 }
 
 function smoothChartData(data: LivelinePoint[], windowSecs: number, isInteracting: boolean): LivelinePoint[] {

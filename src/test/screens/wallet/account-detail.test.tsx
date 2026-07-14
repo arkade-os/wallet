@@ -17,7 +17,7 @@ import {
 } from '../mocks'
 
 vi.mock('liveline', () => ({
-  Liveline: () => <div data-testid='liveline-chart' />,
+  Liveline: ({ data }: { data: unknown[] }) => <div data-testid='liveline-chart' data-point-count={data.length} />,
 }))
 
 describe('Account detail screen', () => {
@@ -109,6 +109,7 @@ describe('Account detail screen', () => {
     expect(screen.getByText('$150.00')).toBeInTheDocument()
     expect(screen.getByText('$25.00')).toBeInTheDocument()
     expect(screen.getByTestId('liveline-chart')).toBeInTheDocument()
+    expect(Number(screen.getByTestId('liveline-chart').getAttribute('data-point-count'))).toBeGreaterThan(3)
     expect(screen.queryByText('USDT')).not.toBeInTheDocument()
     expect(screen.queryByText('USDC')).not.toBeInTheDocument()
     expect(screen.queryByText('Tether USD')).not.toBeInTheDocument()
