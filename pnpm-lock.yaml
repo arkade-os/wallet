@@ -15,8 +15,8 @@ importers:
         specifier: github:louisinger/wallet-sdk#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk
         version: git+https://git@github.com:louisinger/wallet-sdk.git#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk
       '@arkade-os/solver-discovery':
-        specifier: 0.1.1
-        version: 0.1.1
+        specifier: 0.1.2
+        version: 0.1.2
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -300,8 +300,8 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/solver-discovery@0.1.1':
-    resolution: {integrity: sha512-qDV1ticulRQl/C1264HvMfr7JVtRji8stSpi8xn6W2S/F6P0TtvZF+6LAkXUcO4U4bi8XEzZOeywoG7Kpl7hmQ==}
+  '@arkade-os/solver-discovery@0.1.2':
+    resolution: {integrity: sha512-RAHt5YO5X47JcwAxBPTgTTzrNWrrdbQr730eCQab/IIrXznnDQLZzx4B6x4m055GzfMGdc2ipFVd9x45s6ePtQ==}
     engines: {node: '>=18'}
 
   '@asamuzakjp/css-color@3.2.0':
@@ -4365,7 +4365,7 @@ snapshots:
       - ecpair
       - utf-8-validate
 
-  '@arkade-os/solver-discovery@0.1.1': {}
+  '@arkade-os/solver-discovery@0.1.2': {}
 
   '@asamuzakjp/css-color@3.2.0':
     dependencies:

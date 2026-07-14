@@ -41,6 +41,34 @@ const DELEGATE_URL: Record<Network, string | null> = {
   testnet: null,
 }
 
+// solver registry indexes for asset swaps (see arkade-os/solver-registry)
+const SOLVER_REGISTRY_URL: Record<Network, string | null> = {
+  bitcoin: null,
+  mutinynet: 'https://arkade-os.github.io/solver-registry/mutinynet.json',
+  signet: null,
+  regtest: null,
+  testnet: null,
+}
+
+export const getSolverRegistryUrl = (network: Network): string | undefined => {
+  return fromRuntimeEnv(import.meta.env.VITE_SOLVER_REGISTRY_URL) ?? SOLVER_REGISTRY_URL[network] ?? undefined
+}
+
+// the arkade signer co-signing banco swap covenants (separate service from arkd)
+const EMULATOR_URL: Record<Network, string | null> = {
+  bitcoin: null,
+  // ponytail: unverified guess following the delegator subdomain convention;
+  // the provider probes it at startup and disables swaps if unreachable
+  mutinynet: 'https://emulator.mutinynet.arkade.sh',
+  signet: null,
+  regtest: 'http://localhost:7073',
+  testnet: null,
+}
+
+export const getEmulatorUrlForNetwork = (network: Network): string | undefined => {
+  return fromRuntimeEnv(import.meta.env.VITE_EMULATOR_URL) ?? EMULATOR_URL[network] ?? undefined
+}
+
 export const getDelegateUrlForNetwork = (network: Network): string | undefined => {
   return DELEGATE_URL[network] ?? undefined
 }
