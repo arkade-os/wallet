@@ -24,7 +24,6 @@ import { FiatContext } from '../../../providers/fiat'
 import { SwapsContext } from '../../../providers/swaps'
 import { OptionsContext } from '../../../providers/options'
 import { Currencies, Unit } from '../../../lib/types'
-import { sleep } from '@/lib/sleep'
 
 describe('Send screen', () => {
   const renderSendForm = ({
