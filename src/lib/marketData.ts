@@ -29,9 +29,9 @@ export const fetchHistoricalMarketData = async (
   signal?: AbortSignal,
 ): Promise<LivelinePoint[]> => {
   try {
-    return fetchHistoricalMarketDataFromCoingecko(secs, fiat, signal)
+    return await fetchHistoricalMarketDataFromCoingecko(secs, fiat, signal)
   } catch {
-    return fetchHistoricalMarketDataFromFallback(secs, fiat, signal)
+    return await fetchHistoricalMarketDataFromFallback(secs, fiat, signal)
   }
 }
 
