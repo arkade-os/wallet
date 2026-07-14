@@ -12,8 +12,11 @@ importers:
         specifier: 0.3.48
         version: 0.3.48
       '@arkade-os/sdk':
-        specifier: 0.4.43
-        version: 0.4.43
+        specifier: github:louisinger/wallet-sdk#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk
+        version: git+https://git@github.com:louisinger/wallet-sdk.git#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk
+      '@arkade-os/solver-discovery':
+        specifier: 0.1.1
+        version: 0.1.1
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -274,6 +277,32 @@ packages:
         optional: true
       expo-task-manager:
         optional: true
+
+  '@arkade-os/sdk@git+https://git@github.com:louisinger/wallet-sdk.git#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk':
+    resolution: {commit: 36f61c9462b2004f39ad6bab7e5178cb8791c929, path: /packages/ts-sdk, repo: git@github.com:louisinger/wallet-sdk.git, type: git}
+    version: 0.4.41
+    engines: {node: '>=22.12.0 <25'}
+    peerDependencies:
+      '@react-native-async-storage/async-storage': '>=1.0.0'
+      expo: '>=54.0.0'
+      expo-background-task: ~1.0.10 || >=55.0.0
+      expo-sqlite: ~16.0.10 || >=55.0.0
+      expo-task-manager: ~14.0.9 || >=55.0.0
+    peerDependenciesMeta:
+      '@react-native-async-storage/async-storage':
+        optional: true
+      expo:
+        optional: true
+      expo-background-task:
+        optional: true
+      expo-sqlite:
+        optional: true
+      expo-task-manager:
+        optional: true
+
+  '@arkade-os/solver-discovery@0.1.1':
+    resolution: {integrity: sha512-qDV1ticulRQl/C1264HvMfr7JVtRji8stSpi8xn6W2S/F6P0TtvZF+6LAkXUcO4U4bi8XEzZOeywoG7Kpl7hmQ==}
+    engines: {node: '>=18'}
 
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
@@ -877,6 +906,11 @@ packages:
 
   '@lendasat/lendasat-wallet-bridge@0.0.90':
     resolution: {integrity: sha512-VfgM5vUx81vVWlggtOReUkaC8VVOFVavIMixQM0G/ZI0L/nMi10fmkIBvXOVI4Jmsu9A5z6wHSUrERxD3a/Juw==}
+
+  '@marcbachmann/cel-js@7.3.1':
+    resolution: {integrity: sha512-P6o26TvjStT8V8+8EF+yq9Pp7ZFV00bpiUMbssr76XbIZGxaB+NNWeBp6WNxOrR9gp0JPzvJueCKHpOs5LE9PQ==}
+    engines: {node: '>=20.19.0'}
+    hasBin: true
 
   '@marcbachmann/cel-js@8.0.0':
     resolution: {integrity: sha512-oaTrAziGr3zDLFiMt/yLU3nZuRMawyWQB5X1a0I7s9eGy3JYzX9l8ZXXHyMd64nzbeVFZTewuUShwsZQdK6UCA==}
@@ -4312,6 +4346,27 @@ snapshots:
       - ecpair
       - utf-8-validate
 
+  '@arkade-os/sdk@git+https://git@github.com:louisinger/wallet-sdk.git#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk':
+    dependencies:
+      '@bitcoinerlab/descriptors-scure': 3.1.7
+      '@marcbachmann/cel-js': 7.3.1
+      '@noble/curves': 2.0.1
+      '@noble/secp256k1': 3.0.0
+      '@scure/base': 2.0.0
+      '@scure/bip39': 2.0.1
+      '@scure/btc-signer': 2.0.1
+      bip68: 1.0.4
+      ws-electrumx-client: 1.0.5
+    transitivePeerDependencies:
+      - '@ledgerhq/ledger-bitcoin'
+      - bip32
+      - bitcoinjs-lib
+      - bufferutil
+      - ecpair
+      - utf-8-validate
+
+  '@arkade-os/solver-discovery@0.1.1': {}
+
   '@asamuzakjp/css-color@3.2.0':
     dependencies:
       '@csstools/css-calc': 2.1.4(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)
@@ -4882,6 +4937,8 @@ snapshots:
   '@juggle/resize-observer@3.4.0': {}
 
   '@lendasat/lendasat-wallet-bridge@0.0.90': {}
+
+  '@marcbachmann/cel-js@7.3.1': {}
 
   '@marcbachmann/cel-js@8.0.0': {}
 
