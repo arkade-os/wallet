@@ -14,6 +14,7 @@ import {
   isIssuance,
   isBurn,
   prettyBitcoinAmount,
+  prettyChartDateTime,
 } from '../../lib/format'
 import { Currencies, Tx, Unit } from '../../lib/types'
 import { Asset } from '@arkade-os/sdk'
@@ -144,6 +145,14 @@ describe('format utilities', () => {
         hour: '2-digit',
       }).format(d)
       expect(result).toBe(expected)
+    })
+  })
+
+  describe('prettyChartDateTime', () => {
+    it('formats a chart timestamp with its date and time', () => {
+      const date = new Date(2026, 6, 13, 14, 34)
+
+      expect(prettyChartDateTime(date.getTime() / 1000)).toBe('Jul 13, 2026, 2:34 PM')
     })
   })
 

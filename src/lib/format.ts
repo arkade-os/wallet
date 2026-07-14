@@ -170,6 +170,19 @@ export const prettyDate = (num: number): string => {
   }).format(date)
 }
 
+const chartDateTimeFormatter = new Intl.DateTimeFormat('en', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  minute: '2-digit',
+  hour: 'numeric',
+})
+
+export const prettyChartDateTime = (timestamp: number): string => {
+  if (!timestamp) return ''
+  return chartDateTimeFormatter.format(new Date(timestamp * 1000))
+}
+
 const hideDots = (): string => '·'.repeat(8)
 
 export const prettyHide = (value: string | number | bigint, suffix = 'sats'): string => {

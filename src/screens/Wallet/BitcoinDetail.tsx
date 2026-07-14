@@ -16,6 +16,7 @@ import { walletLoadInChild, walletLoadInContainer } from '../../lib/animations'
 import {
   prettyBitcoinAmount,
   prettyBitcoinHide,
+  prettyChartDateTime,
   prettyFiatAmount,
   prettyFiatHide,
   prettyNumber,
@@ -213,6 +214,7 @@ export default function BitcoinDetail() {
                     badgeTail
                     badgeVariant='minimal'
                     formatValue={(value) => prettyFiatAmount(value, marketFiat)}
+                    formatTime={prettyChartDateTime}
                     grid={false}
                     paused={chartInteracting}
                     pulse={!prefersReduced}
@@ -224,7 +226,8 @@ export default function BitcoinDetail() {
                     degen={false}
                     exaggerate={false}
                     lineWidth={4}
-                    padding={{ top: 8, right: 32, bottom: 8, left: 12 }}
+                    tooltipY={-18}
+                    padding={{ top: 28, right: 32, bottom: 8, left: 12 }}
                     lerpSpeed={prefersReduced ? 1 : 0.1}
                     onHover={(point) => {
                       setChartScrubbing(Boolean(point))
