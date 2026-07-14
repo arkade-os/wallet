@@ -1,4 +1,4 @@
-import { ReactNode, useContext, useEffect, useState } from 'react'
+import { ReactNode, useContext, useEffect, useMemo, useState } from 'react'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
@@ -27,6 +27,8 @@ import { consoleError } from '../../lib/logs'
 import * as Sentry from '@sentry/react'
 import Grid from '../../components/Grid'
 import { prettyAssetAmount } from '../../lib/assets'
+import { buildSignerSet, classifyCoin, signerKeyTail, CoinSignerInfo } from '../../lib/signer'
+import DeprecatedSignerBadge from '../../components/DeprecatedSignerBadge'
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -41,6 +43,7 @@ export default function Vtxos() {
   const [allVtxos, setAllVtxos] = useState<ExtendedVirtualCoin[]>([])
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState('')
+  const [excludedCount, setExcludedCount] = useState(0)
   const [hasInputsToSettle, setHasInputsToSettle] = useState(false)
   const [hideUtxos, setHideUtxos] = useState(false)
   const [label, setLabel] = useState(defaultLabel)
@@ -52,6 +55,10 @@ export default function Vtxos() {
   const [success, setSuccess] = useState(false)
   const [hasVtxosToSettle, setHasVtxosToSettle] = useState(false)
   const [hasBoardingUtxosToSettle, setHasBoardingUtxosToSettle] = useState(false)
+
+  // The operator's advertised signer set; each coin row classifies its own
+  // embedded server key against it to flag deprecated signers.
+  const signerSet = useMemo(() => buildSignerSet(aspInfo), [aspInfo])
 
   // Update error state if aspInfo.unreachable changes
   useEffect(() => {
@@ -117,11 +124,17 @@ export default function Vtxos() {
     let cancelled = false
     const fetchInputs = async () => {
       try {
-        const { boardingUtxos, inputs, vtxos } = await getInputsToSettle(svcWallet, vtxoManager, wallet.thresholdMs)
+        const { boardingUtxos, inputs, vtxos, excluded } = await getInputsToSettle(
+          svcWallet,
+          vtxoManager,
+          wallet.thresholdMs,
+          aspInfo,
+        )
         if (cancelled) return
         setHasBoardingUtxosToSettle(boardingUtxos.length > 0)
         setHasInputsToSettle(inputs.length > 0)
         setHasVtxosToSettle(vtxos.length > 0)
+        setExcludedCount(excluded.length)
         const amount = inputs.reduce((a, v) => a + v.value, 0) || 0
         setAboveDust(amount > aspInfo.dust)
       } catch (err) {
@@ -150,7 +163,7 @@ export default function Vtxos() {
   const handleRollover = async () => {
     try {
       setRollingover(true)
-      await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs)
+      await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs, aspInfo)
       await reloadWallet()
       setRollingover(false)
       setSuccess(true)
@@ -209,11 +222,13 @@ export default function Vtxos() {
   const CoinLine = ({
     amount,
     assets,
+    signer,
     tags,
     expiry,
   }: {
     amount: string
     assets?: string[]
+    signer?: CoinSignerInfo | null
     tags: React.ReactNode
     expiry: string
   }) => {
@@ -236,6 +251,14 @@ export default function Vtxos() {
                     {a}
                   </Text>
                 ))}
+                {signer ? (
+                  <FlexRow gap='0.35rem'>
+                    <Text tiny color='neutral-500'>
+                      …{signerKeyTail(signer.serverPubKey)}
+                    </Text>
+                    <DeprecatedSignerBadge status={signer.status} />
+                  </FlexRow>
+                ) : null}
               </FlexCol>
             </div>
             <div>{tags}</div>
@@ -251,6 +274,7 @@ export default function Vtxos() {
   const VtxoLine = ({ vtxo }: { vtxo: Vtxo }) => {
     const now = Date.now()
     const expired = vtxo.virtualStatus?.batchExpiry ? now > vtxo.virtualStatus.batchExpiry : false
+    const signer = classifyCoin(vtxo, signerSet, wallet.pubkey)
     const satsAmount = config.showBalance ? prettyNumber(vtxo.value) : prettyHide(vtxo.value)
     const assetsAmounts = vtxo.assets?.length
       ? vtxo.assets.map((a) => {
@@ -274,11 +298,12 @@ export default function Vtxos() {
                 : null}
       </FlexRow>
     )
-    return <CoinLine amount={`${satsAmount} sats`} assets={assetsAmounts} tags={tags} expiry={expiry} />
+    return <CoinLine amount={`${satsAmount} sats`} assets={assetsAmounts} signer={signer} tags={tags} expiry={expiry} />
   }
 
   const UtxoLine = ({ utxo }: { utxo: ExtendedCoin }) => {
     const expiration = Number(aspInfo.boardingExitDelay)
+    const signer = classifyCoin(utxo, signerSet, wallet.pubkey)
     const amount = config.showBalance ? prettyNumber(utxo.value) : prettyHide(utxo.value)
     const expiry = utxo.status.block_time ? prettyAgo(utxo.status.block_time + expiration) : ''
     const tags = (
@@ -286,7 +311,7 @@ export default function Vtxos() {
         {!utxo.status.block_time ? Tags.unconfirmed : utxo.value < aspInfo.dust ? Tags.subdust : null}
       </FlexRow>
     )
-    return <CoinLine amount={`${amount} sats`} tags={tags} expiry={expiry} />
+    return <CoinLine amount={`${amount} sats`} signer={signer} tags={tags} expiry={expiry} />
   }
 
   return (
@@ -305,6 +330,11 @@ export default function Vtxos() {
               <Info color='purple' icon={<LoadingIcon small />} title='Renewing'>
                 <Text wrap>Renewing your virtual coins. This may take a few moments.</Text>
               </Info>
+            ) : null}
+            {excludedCount > 0 ? (
+              <WarningBox
+                text={`${excludedCount} coin${excludedCount > 1 ? 's were' : ' was'} skipped: locked to an expired server signer. They will be swept at expiry and recover to the new signer automatically — no action needed.`}
+              />
             ) : null}
             {listableVtxos.length + allUtxos.length === 0 ? (
               <EmptyCoinsList />

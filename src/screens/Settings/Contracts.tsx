@@ -3,7 +3,6 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   Contract,
   encodeArkContract,
-  signerSetFromInfo,
   classifyAgainstSignerSet,
   type SignerSet,
   type SignerStatus,
@@ -32,6 +31,8 @@ import { copyToClipboard } from '../../lib/clipboard'
 import { hapticSubtle } from '../../lib/haptics'
 import { useToast } from '../../components/Toast'
 import { consoleError } from '../../lib/logs'
+import { buildSignerSet } from '../../lib/signer'
+import DeprecatedSignerBadge from '../../components/DeprecatedSignerBadge'
 
 // A boarding contract lives on-chain, so its `script` is a P2TR scriptPubKey
 // (OP_1 PUSH32 <x-only output key> = `5120<64 hex>`). Re-encode that witness
@@ -128,22 +129,6 @@ function CopyRow({ label, value, link }: { label: string; value: string; link?: 
   )
 }
 
-function DeprecatedSignerBadge({ status }: { status: SignerStatus | null }) {
-  if (status === 'EXPIRED')
-    return (
-      <Text tiny color='red'>
-        deprecated signer · past cutoff
-      </Text>
-    )
-  if (status === 'MIGRATABLE' || status === 'DUE_NOW')
-    return (
-      <Text tiny color='orange'>
-        deprecated signer
-      </Text>
-    )
-  return null
-}
-
 function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <div
@@ -227,16 +212,7 @@ export default function Contracts() {
   const network = aspInfo?.network ?? ''
 
   // Build the operator's signer set once; each card classifies against it.
-  // Guard the empty/unreachable default — signerSetFromInfo throws on a blank
-  // signer pubkey.
-  const signerSet = useMemo<SignerSet | null>(() => {
-    if (!aspInfo?.signerPubkey) return null
-    try {
-      return signerSetFromInfo(aspInfo)
-    } catch {
-      return null
-    }
-  }, [aspInfo])
+  const signerSet = useMemo<SignerSet | null>(() => buildSignerSet(aspInfo), [aspInfo])
 
   useEffect(() => {
     if (!svcWallet) return

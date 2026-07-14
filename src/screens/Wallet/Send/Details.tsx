@@ -21,6 +21,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import Text from '../../../components/Text'
 import { isPendingChainSwap, isPendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { FeesContext } from '../../../providers/fees'
+import { AspContext } from '../../../providers/asp'
 import { prettyAssetAmount } from '../../../lib/assets'
 
 export default function SendDetails() {
@@ -31,6 +32,7 @@ export default function SendDetails() {
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { payInvoice, payBtc } = useContext(SwapsContext)
   const { assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
+  const { aspInfo } = useContext(AspContext)
 
   const assetId = sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
@@ -161,7 +163,7 @@ export default function SendDetails() {
       } else {
         if (!details.total) return handleError('Missing total amount')
         if (!details.satoshis) return handleError('Missing satoshis amount')
-        collaborativeExitWithFees(svcWallet, details.total, details.satoshis, address)
+        collaborativeExitWithFees(svcWallet, details.total, details.satoshis, address, aspInfo)
           .then((txId: string) => handleTxid(txId))
           .catch(handleError)
       }

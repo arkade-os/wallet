@@ -17,6 +17,7 @@ import { Addresses, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
 import { consoleError } from './logs'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
+import { buildSignerSet, partitionByExpiredSigner } from './signer'
 import * as Sentry from '@sentry/react'
 import { hex } from '@scure/base'
 import { toXOnlyHex } from './keys'
@@ -70,8 +71,24 @@ export const aspErrorText = (info: AspInfo, fallback: string): string =>
     ? 'Your wallet is outdated and needs to be updated to be compatible with the latest Arkade version.'
     : fallback
 
-export const collaborativeExit = async (wallet: IWallet, amount: number, address: string): Promise<string> => {
-  const vtxos = await wallet.getVtxos()
+// Error for coin selections that would only cover the target amount by
+// spending coins locked to an expired (past-cutoff) server signer, which arkd
+// refuses to cosign. Those coins renew automatically after they expire.
+const insufficientFundsError = (excluded: ExtendedVirtualCoin[]): Error =>
+  new Error(
+    excluded.length > 0
+      ? `Insufficient available funds: ${excluded.length} coin(s) are locked to an expired server signer ` +
+        'and will become available after they renew automatically'
+      : 'Insufficient funds',
+  )
+
+export const collaborativeExit = async (
+  wallet: IWallet,
+  amount: number,
+  address: string,
+  aspInfo?: AspInfo,
+): Promise<string> => {
+  const { keep: vtxos, excluded } = partitionByExpiredSigner(await wallet.getVtxos(), buildSignerSet(aspInfo))
   const selectedVtxos = []
   let selectedAmount = 0
 
@@ -81,7 +98,7 @@ export const collaborativeExit = async (wallet: IWallet, amount: number, address
     selectedAmount += vtxo.value
   }
 
-  if (selectedAmount < amount) throw new Error('Insufficient funds')
+  if (selectedAmount < amount) throw insufficientFundsError(excluded)
 
   const outputs = [{ address, amount: BigInt(amount) }]
 
@@ -103,6 +120,7 @@ export const collaborativeExit = async (wallet: IWallet, amount: number, address
       selectedAmount,
       changeAmount,
       selectedVtxos: serializeForSentry(selectedVtxos),
+      excludedCount: excluded.length,
     })
     throw error
   }
@@ -113,8 +131,9 @@ export const collaborativeExitWithFees = async (
   inputAmount: number,
   outputAmount: number,
   address: string,
+  aspInfo?: AspInfo,
 ): Promise<string> => {
-  const vtxos = await wallet.getVtxos()
+  const { keep: vtxos, excluded } = partitionByExpiredSigner(await wallet.getVtxos(), buildSignerSet(aspInfo))
   const selectedVtxos = []
   let selectedAmount = 0
 
@@ -127,7 +146,7 @@ export const collaborativeExitWithFees = async (
     selectedAmount += vtxo.value
   }
 
-  if (selectedAmount < inputAmount) throw new Error('Insufficient funds')
+  if (selectedAmount < inputAmount) throw insufficientFundsError(excluded)
 
   const outputs = [{ address, amount: BigInt(outputAmount) }]
 
@@ -150,6 +169,7 @@ export const collaborativeExitWithFees = async (
       selectedAmount,
       changeAmount,
       selectedVtxos: serializeForSentry(selectedVtxos),
+      excludedCount: excluded.length,
     })
     throw error
   }
@@ -277,10 +297,28 @@ export const getInputsToSettle = async (
   wallet: IWallet,
   vtxoManager: IVtxoManager,
   thresholdMs?: number,
-): Promise<{ inputs: ExtendedCoin[]; vtxos: ExtendedVirtualCoin[]; boardingUtxos: ExtendedCoin[] }> => {
-  const vtxos = thresholdMs ? await vtxoManager.getExpiringVtxos(thresholdMs) : []
-  const boardingUtxos = await getConfirmedAndNotExpiredUtxos(wallet)
-  return { inputs: [...boardingUtxos, ...vtxos], vtxos, boardingUtxos }
+  aspInfo?: AspInfo,
+): Promise<{
+  inputs: ExtendedCoin[]
+  vtxos: ExtendedVirtualCoin[]
+  boardingUtxos: ExtendedCoin[]
+  excluded: ExtendedCoin[]
+}> => {
+  const allVtxos = thresholdMs ? await vtxoManager.getExpiringVtxos(thresholdMs) : []
+  const allBoardingUtxos = await getConfirmedAndNotExpiredUtxos(wallet)
+  // A coin locked to a past-cutoff (EXPIRED) deprecated signer can't be
+  // cosigned and would make arkd reject the whole intent, so it must not be
+  // bundled with the cosignable ones. Excluded coins recover automatically
+  // after the server sweeps their batch at expiry.
+  const signerSet = buildSignerSet(aspInfo)
+  const { keep: vtxos, excluded: excludedVtxos } = partitionByExpiredSigner(allVtxos, signerSet)
+  const { keep: boardingUtxos, excluded: excludedUtxos } = partitionByExpiredSigner(allBoardingUtxos, signerSet)
+  return {
+    inputs: [...boardingUtxos, ...vtxos],
+    vtxos,
+    boardingUtxos,
+    excluded: [...excludedUtxos, ...excludedVtxos],
+  }
 }
 
 export const settleVtxos = async (
@@ -288,10 +326,18 @@ export const settleVtxos = async (
   vtxoManager: IVtxoManager,
   dustAmount: bigint,
   thresholdMs?: number,
+  aspInfo?: AspInfo,
 ): Promise<void> => {
-  const { inputs } = await getInputsToSettle(wallet, vtxoManager, thresholdMs)
+  const { inputs, excluded } = await getInputsToSettle(wallet, vtxoManager, thresholdMs, aspInfo)
 
-  if (inputs.length === 0) throw new Error('No UTXOs or VTXOs eligible to settle')
+  if (inputs.length === 0) {
+    throw new Error(
+      excluded.length > 0
+        ? `All ${excluded.length} eligible coin(s) are locked to an expired server signer; ` +
+          'they will renew automatically after they expire'
+        : 'No UTXOs or VTXOs eligible to settle',
+    )
+  }
 
   const amount = inputs.reduce((sum, input) => sum + input.value, 0)
 
@@ -312,6 +358,8 @@ export const settleVtxos = async (
       dustAmount: dustAmount.toString(),
       thresholdMs,
       inputs: serializeForSentry(inputs),
+      excludedCount: excluded.length,
+      excluded: serializeForSentry(excluded.map(({ txid, vout, value }) => ({ txid, vout, value }))),
     })
     throw error
   }
@@ -322,9 +370,10 @@ export const renewCoins = async (
   vtxoManager: IVtxoManager,
   dustAmount: bigint,
   thresholdMs?: number,
+  aspInfo?: AspInfo,
 ): Promise<void> => {
-  const { inputs } = await getInputsToSettle(wallet, vtxoManager, thresholdMs)
-  if (inputs.length > 0) await settleVtxos(wallet, vtxoManager, dustAmount, thresholdMs)
+  const { inputs } = await getInputsToSettle(wallet, vtxoManager, thresholdMs, aspInfo)
+  if (inputs.length > 0) await settleVtxos(wallet, vtxoManager, dustAmount, thresholdMs, aspInfo)
 }
 
 export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> => {

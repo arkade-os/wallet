@@ -69,7 +69,7 @@ export default function Transaction() {
 
   useEffect(() => {
     if (!aspInfo || !svcWallet || !vtxoManager) return
-    getInputsToSettle(svcWallet, vtxoManager, wallet.thresholdMs).then(({ inputs }) => {
+    getInputsToSettle(svcWallet, vtxoManager, wallet.thresholdMs, aspInfo).then(({ inputs }) => {
       setHasInputsToSettle(inputs.length > 0)
       const totalAmount = inputs.reduce((a, v) => a + v.value, 0) || 0
       setAmountAboveDust(totalAmount > aspInfo.dust)

@@ -14,6 +14,7 @@ import { collaborativeExit, getReceivingAddresses } from '../../../lib/asp'
 import { Transaction } from '@arkade-os/sdk'
 import { isArkAddress, isBTCAddress } from '../../../lib/address'
 import { NavigationContext, Pages } from '@/providers/navigation'
+import { AspContext } from '../../../providers/asp'
 
 const { bytesToHex, hexToBytes } = utils
 
@@ -24,6 +25,7 @@ secp.hashes.hmacSha256 = (key, msg) => hmac(sha256, key, msg)
 export default function AppLendasat() {
   const { wallet, svcWallet } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
+  const { aspInfo } = useContext(AspContext)
 
   const [arkAddress, setArkAddress] = useState<string | null>(null)
   const [boardingAddress, setBoardingAddress] = useState<string | null>(null)
@@ -81,7 +83,7 @@ export default function AppLendasat() {
                   throw new Error('Unable to send bitcoin')
                 }
               } else if (isBTCAddress(address)) {
-                return await collaborativeExit(svcWallet, amount, address)
+                return await collaborativeExit(svcWallet, amount, address, aspInfo)
               } else {
                 throw Error(`Unsupported address ${address}`)
               }

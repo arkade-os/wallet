@@ -4,6 +4,7 @@ import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { WalletContext } from '../../../providers/wallet'
+import { AspContext } from '../../../providers/asp'
 import { WalletProvider, type LoanAsset, AddressType } from '@lendasat/lendasat-wallet-bridge'
 import { collaborativeExit, getReceivingAddresses } from '../../../lib/asp'
 import { isArkAddress, isBTCAddress } from '../../../lib/address'
@@ -13,6 +14,7 @@ const DEFAULT_SWAP_PATH = '/arkade:BTC/polygon:USDC'
 
 export default function AppSatora() {
   const { svcWallet } = useContext(WalletContext)
+  const { aspInfo } = useContext(AspContext)
   const [arkAddress, setArkAddress] = useState<string | null>(null)
 
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -85,7 +87,7 @@ export default function AppSatora() {
                   throw new Error('Unable to send bitcoin')
                 }
               } else if (isBTCAddress(address)) {
-                return await collaborativeExit(svcWallet, amount, address)
+                return await collaborativeExit(svcWallet, amount, address, aspInfo)
               } else {
                 throw Error(`Unsupported address ${address}`)
               }

@@ -838,7 +838,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const settlePreconfirmed = async () => {
     if (!svcWallet || !vtxoManager) throw new Error('Service worker not initialized')
-    await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs)
+    await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs, aspInfo)
     notifyTxSettled()
   }
 
