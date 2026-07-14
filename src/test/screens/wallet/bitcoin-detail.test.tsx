@@ -33,9 +33,11 @@ describe('Bitcoin detail screen', () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          prices: [
-            [Date.now() - 3_600_000, 77_000],
-            [Date.now(), 78_000],
+          when: Date.now(),
+          from: 'bitcoin',
+          data: [
+            { time: Math.floor(Date.now() / 1000) - 3_600, value: 77_000 },
+            { time: Math.floor(Date.now() / 1000), value: 78_000 },
           ],
         }),
       }),
@@ -55,7 +57,9 @@ describe('Bitcoin detail screen', () => {
       </ConfigContext.Provider>,
     )
 
-    expect(screen.getByTestId('liveline-chart')).toHaveAttribute('data-paused', 'false')
+    await waitFor(() => {
+      expect(screen.getByTestId('liveline-chart')).toHaveAttribute('data-paused', 'false')
+    })
 
     const chart = container.querySelector('.asset-detail-chart')
     expect(chart).not.toBeNull()
@@ -180,5 +184,32 @@ describe('Bitcoin detail screen', () => {
     })
 
     expect(screen.queryByText('$40,000.00')).not.toBeInTheDocument()
+  })
+
+  it('shows an unavailable state instead of inventing chart data', async () => {
+    vi.stubGlobal('ResizeObserver', vi.fn())
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('feed unavailable')))
+
+    render(
+      <ConfigContext.Provider
+        value={{
+          ...mockConfigContextValue,
+          config: { ...mockConfigContextValue.config, currency: Currencies.CNY },
+        }}
+      >
+        <FiatContext.Provider value={mockFiatContextValue}>
+          <FlowContext.Provider value={mockFlowContextValue}>
+            <NavigationContext.Provider value={mockNavigationContextValue}>
+              <WalletContext.Provider value={mockWalletContextValue}>
+                <BitcoinDetail />
+              </WalletContext.Provider>
+            </NavigationContext.Provider>
+          </FlowContext.Provider>
+        </FiatContext.Provider>
+      </ConfigContext.Provider>,
+    )
+
+    await waitFor(() => expect(screen.getByText('Price history unavailable')).toBeInTheDocument())
+    expect(screen.queryByTestId('liveline-chart')).not.toBeInTheDocument()
   })
 })

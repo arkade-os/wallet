@@ -28,13 +28,13 @@ export default function AssetsSection() {
   }
 
   const handleAssetClick = (row: PortfolioRow) => {
-    const assetId = detailAssetIdForRow(row, config.importedAssets, isRegistered)
-    if (!assetId) return
-
-    if (assetId === 'btc') {
+    if (row.assetId === 'btc') {
       navigate(Pages.BitcoinDetail)
+    } else if (row.fiatCurrency) {
+      setAssetInfo({ assetId: row.assetId, supply: BigInt(0) })
+      navigate(Pages.AccountDetail)
     } else {
-      setAssetInfo({ assetId, supply: BigInt(0) })
+      setAssetInfo({ assetId: row.assetId, supply: BigInt(0) })
       navigate(Pages.AppAssetDetail)
     }
   }
@@ -42,7 +42,7 @@ export default function AssetsSection() {
   return (
     <section className='home-section'>
       <div className='flex w-full items-center justify-between px-1'>
-        <span className='home-section-label'>Assets</span>
+        <span className='home-section-label'>Accounts</span>
       </div>
       <div className='home-section__content'>
         {visibleRows.map((row) => (
@@ -55,9 +55,7 @@ export default function AssetsSection() {
             decimals={row.decimals}
             balance={row.balance}
             fiatText={row.hasFiatPrice ? fiatLabel(row.fiatAmount) : undefined}
-            onClick={
-              detailAssetIdForRow(row, config.importedAssets, isRegistered) ? () => handleAssetClick(row) : undefined
-            }
+            onClick={() => handleAssetClick(row)}
           />
         ))}
       </div>
@@ -73,14 +71,4 @@ function isVisibleAssetRow(
   if (row.assetId === 'btc') return true
   if (importedAssets.includes(row.assetId) || isRegistered(row.assetId)) return true
   return Boolean(row.sourceAssetIds?.some((assetId) => importedAssets.includes(assetId) || isRegistered(assetId)))
-}
-
-function detailAssetIdForRow(
-  row: PortfolioRow,
-  importedAssets: string[],
-  isRegistered: (assetId: string) => boolean,
-): string | undefined {
-  if (row.assetId === 'btc') return 'btc'
-  if (importedAssets.includes(row.assetId) || isRegistered(row.assetId)) return row.assetId
-  return row.sourceAssetIds?.find((assetId) => importedAssets.includes(assetId) || isRegistered(assetId))
 }

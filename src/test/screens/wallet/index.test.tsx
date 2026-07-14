@@ -23,7 +23,7 @@ describe('Wallet screen', () => {
     expect(screen.getByTestId('home-action-swap')).toBeEnabled()
     await user.click(screen.getByTestId('home-action-swap'))
     expect(navigate).toHaveBeenCalledWith(Pages.WalletSwap)
-    expect(screen.getByText('Assets')).toBeInTheDocument()
+    expect(screen.getByText('Accounts')).toBeInTheDocument()
     expect(screen.getByText('Bitcoin')).toBeInTheDocument()
     expect(screen.getByText('Recent activity')).toBeInTheDocument()
     expect(screen.getByText('Do more with your money')).toBeInTheDocument()
@@ -83,5 +83,39 @@ describe('Wallet screen', () => {
 
     expect(screen.getByText('CHF')).toBeInTheDocument()
     expect(screen.getByText('10.00 CHF')).toBeInTheDocument()
+  })
+
+  it('keeps non-fiat assets on the asset administration detail screen', async () => {
+    const user = userEvent.setup()
+    const navigate = vi.fn()
+    const assetId = 'custom-asset'
+
+    render(
+      <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
+        <ConfigContext.Provider
+          value={{
+            ...mockConfigContextValue,
+            config: { ...mockConfigContextValue.config, importedAssets: [assetId] },
+          }}
+        >
+          <WalletContext.Provider
+            value={
+              {
+                ...mockWalletContextValue,
+                assetBalances: [{ assetId, amount: BigInt(1_000) }],
+                assetMetadataCache: new Map([
+                  [assetId, { metadata: { decimals: 2, name: 'Custom asset', ticker: 'TKN' } }],
+                ]),
+              } as any
+            }
+          >
+            <Wallet />
+          </WalletContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    await user.click(screen.getByTestId(/^asset-row-TKN-/))
+    expect(navigate).toHaveBeenCalledWith(Pages.AppAssetDetail)
   })
 })

@@ -13,13 +13,13 @@ import Text from '../../../components/Text'
 import WalletSuccessSplash from '../../../components/WalletSuccessSplash'
 import SuccessIcon from '../../../icons/Success'
 import SpinnerIcon from '../../../icons/Spinner'
-import { prettyAmount, prettyFiatAmount } from '../../../lib/format'
+import { prettyAmount, prettyCurrencyAssetAmount, prettyFiatAmount } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
 import { SwapsContext } from '../../../providers/swaps'
 import AssetCard from '../../../components/AssetCard'
-import { prettyAssetAmount } from '../../../lib/assets'
+import { walletAssetPresentation } from '../../../lib/accountAssets'
 import { consoleError } from '../../../lib/logs'
 import { BoltzSwap, BoltzSwapStatus, hasSubmarineStatusReached, isSubmarineFailedStatus } from '@arkade-os/boltz-swap'
 
@@ -53,14 +53,17 @@ export default function SendSuccess() {
   const { navigate } = useContext(NavigationContext)
   const { getSwapHistory, swapManager } = useContext(SwapsContext)
 
-  const isAssetSend = Boolean(sendInfo.assets?.length)
-  const assetId = sendInfo.assets?.[0]?.assetId
+  const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
+  const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
-  const assetName = assetMeta?.metadata?.name ?? 'Unknown Asset'
-  const assetTicker = assetMeta?.metadata?.ticker ?? ''
-  const assetIcon = assetMeta?.metadata?.icon
-  const assetAmountValue = sendInfo.assets?.[0]?.amount ?? BigInt(0)
-  const assetDecimals = assetMeta?.metadata?.decimals ?? 8
+  const assetPresentation = sendInfo.account
+    ? { name: sendInfo.account.ticker, ticker: sendInfo.account.ticker }
+    : walletAssetPresentation(assetMeta?.metadata, 'Unknown asset')
+  const assetName = assetPresentation.name
+  const assetTicker = assetPresentation.ticker
+  const assetIcon = assetPresentation.icon
+  const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
+  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 8
 
   // Lightning sends resolve optimistically once the swap is funded; track the
   // settlement happening in the background and reflect it live on screen.
@@ -121,7 +124,7 @@ export default function SendSuccess() {
 
   const totalSats = sendInfo.total ?? 0
   const displayAmount = isAssetSend
-    ? `${prettyAssetAmount(assetAmountValue, assetDecimals)} ${assetTicker}`
+    ? `${prettyCurrencyAssetAmount(assetAmountValue, assetDecimals, assetTicker)} ${assetTicker}`
     : useFiat
       ? prettyFiatAmount(toFiat(totalSats), config.currency, { bitcoinUnit: config.unit })
       : prettyAmount(totalSats)

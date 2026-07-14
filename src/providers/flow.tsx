@@ -2,6 +2,7 @@ import { BoltzSwap } from '@arkade-os/boltz-swap'
 import { ReactNode, createContext, useState } from 'react'
 import type { Asset, AssetDetails, ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import { Tx } from '../lib/types'
+import type { FiatAccountSend } from '../lib/accountAssets'
 
 export interface InitInfo {
   password?: string
@@ -36,6 +37,7 @@ export interface RecvInfo {
 }
 
 export type SendInfo = {
+  account?: FiatAccountSend
   address?: string
   assets?: Asset[]
   arkAddress?: string

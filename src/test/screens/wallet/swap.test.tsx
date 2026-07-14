@@ -113,7 +113,7 @@ describe('Wallet swap flow', () => {
     expect(setSwapFromAssetId).toHaveBeenCalledWith(undefined)
   })
 
-  it('keeps custom asset logos separate from the flexible asset copy', () => {
+  it('presents DEPIX as the BRL account without issuer branding', () => {
     const { container } = renderSwap(
       { swapFromAssetId: assetId, setSwapFromAssetId: vi.fn() },
       {
@@ -124,11 +124,14 @@ describe('Wallet swap flow', () => {
     )
 
     const assetHeader = container.querySelector('.swap-input-card__asset')
-    const logo = assetHeader?.querySelector('img')?.parentElement
+    const logo = assetHeader?.querySelector('svg')?.parentElement
 
     expect(logo).toHaveStyle({ width: '36px', height: '36px' })
     expect(logo).not.toHaveClass('swap-input-card__asset-copy')
     expect(assetHeader?.lastElementChild).toHaveClass('swap-input-card__asset-copy')
+    expect(assetHeader).toHaveTextContent('BRL')
+    expect(assetHeader).not.toHaveTextContent('DEPIX')
+    expect(assetHeader?.querySelector('img')).not.toBeInTheDocument()
   })
 
   it('explains that the review rate can update', async () => {

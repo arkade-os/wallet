@@ -27,6 +27,7 @@ import TokenLogo, { accountTickerForAssetTicker, tokenLogoTickerForTicker, type 
 import { PrivacyAmount } from './PrivacyAmount'
 import SwapRouteIcon from './SwapRouteIcon'
 import { swapRouteLabel, swapStatusForTx, swapStatusLabel, swapUnitOfAccountAmount } from '../lib/swapDisplay'
+import { fiatAccountAssetSatoshis } from '../lib/accountAssets'
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
@@ -52,10 +53,24 @@ const TransactionLine = ({
   const swapStatus = swap ? swapStatusForTx(tx) : undefined
   const issuance = isIssuance(tx)
   const burn = isBurn(tx)
+  const accountAssetValues = tx.assets?.map((asset) => {
+    const accountInfo = accountInfoForAssetId(asset.assetId)
+    const metadata = assetMetadataCache.get(asset.assetId)?.metadata
+    return fiatAccountAssetSatoshis(
+      BigInt(asset.amount),
+      accountInfo?.decimals ?? metadata?.decimals ?? 8,
+      accountInfo?.ticker ?? metadata?.ticker,
+      fromFiatAmount,
+    )
+  })
+  const accountValueSatoshis =
+    accountAssetValues?.length && accountAssetValues.every((value) => value !== undefined)
+      ? accountAssetValues.reduce((total, value) => total + value, 0)
+      : undefined
 
   const Currency = () => {
     if (issuance || burn || swap) return null
-    const value = toFiat(tx.amount)
+    const value = toFiat(accountValueSatoshis ?? tx.amount)
     const statusClassName = tx.boardingTxid && tx.preconfirmed ? ' activity-row__amount--pending' : ''
     const secondaryClassName = asAssets ? ' activity-row__amount--secondary' : ''
     return (
@@ -188,7 +203,7 @@ const TransactionLine = ({
       ) : tx.assets?.length ? (
         <>
           <AssetInfo />
-          {config.currency === Currencies.BTC ? <Bitcoin /> : <Currency />}
+          {config.currency === Currencies.BTC && accountValueSatoshis === undefined ? <Bitcoin /> : <Currency />}
         </>
       ) : (
         <>{config.currency === Currencies.BTC ? <Bitcoin /> : <Currency />}</>

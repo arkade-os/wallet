@@ -1,8 +1,11 @@
 import Decimal from 'decimal.js'
 import { useContext } from 'react'
+import { fiatDecimalsFor } from '../lib/fiat'
+import { fiatForTicker } from '../lib/format'
 import { Currencies } from '../lib/types'
 import { FiatContext } from '../providers/fiat'
 import { WalletContext } from '../providers/wallet'
+import { aggregateFiatAccountMinorUnits, type FiatAccountSourceAsset } from '../lib/accountAssets'
 
 export interface PortfolioRow {
   /** 'btc' for the native bitcoin row, otherwise the asset's on-chain id. */
@@ -19,8 +22,12 @@ export interface PortfolioRow {
   satsEquivalent: number
   /** True if this asset has a price feed and fiatAmount is meaningful. */
   hasFiatPrice: boolean
+  /** Fiat currency represented by this product-level account. */
+  fiatCurrency?: Currencies
   /** IDs of the underlying wallet assets when this is a product-level account row. */
   sourceAssetIds?: string[]
+  /** Backing asset balances used internally to fulfill account actions. */
+  sourceAssets?: FiatAccountSourceAsset[]
 }
 
 export interface PortfolioFiat {
@@ -56,97 +63,61 @@ export function usePortfolioFiat(): PortfolioFiat {
     hasFiatPrice: true,
   })
 
-  let usdMinorUnits = BigInt(0)
-  const usdSourceAssetIds: string[] = []
-  let chfMinorUnits = BigInt(0)
-  const chfSourceAssetIds: string[] = []
+  const fiatAccountSources = new Map<Currencies, FiatAccountSourceAsset[]>()
 
   // Non-bitcoin asset rows from real SDK data.
   for (const ab of assetBalances) {
     const meta = assetMetadataCache.get(ab.assetId)?.metadata
     const decimals = meta?.decimals ?? 8
-    const normalizedTicker = meta?.ticker?.trim().toUpperCase()
+    const sourceFiat = fiatForTicker(meta?.ticker)
 
-    if (normalizedTicker === 'USDT' || normalizedTicker === 'USDC') {
-      usdMinorUnits += normalizeMinorUnits(ab.amount, decimals, 2)
-      usdSourceAssetIds.push(ab.assetId)
+    if (sourceFiat) {
+      fiatAccountSources.set(sourceFiat, [
+        ...(fiatAccountSources.get(sourceFiat) ?? []),
+        { assetId: ab.assetId, balance: BigInt(ab.amount), decimals },
+      ])
       continue
     }
 
-    if (normalizedTicker === 'CHF') {
-      chfMinorUnits += normalizeMinorUnits(ab.amount, decimals, 2)
-      chfSourceAssetIds.push(ab.assetId)
-      continue
-    }
-
-    const pricedFiat = priceAssetFiat(ab.amount, decimals, meta?.ticker, convertToSelectedFiat)
-    const sourceFiat = fiatForAssetTicker(meta?.ticker)
-    const fiatUnits = Decimal.div(ab.amount.toString(), Decimal.pow(10, decimals)).toNumber()
-    const satsEquivalent = sourceFiat ? fromFiatAmount(fiatUnits, sourceFiat) : 0
-    totalSats += satsEquivalent
     rows.push({
       assetId: ab.assetId,
-      name: displayNameForAsset(meta?.ticker, meta?.name) ?? `Asset ${ab.assetId.slice(0, 8)}...`,
+      name: meta?.name ?? `Asset ${ab.assetId.slice(0, 8)}...`,
       ticker: meta?.ticker?.trim().toUpperCase() ?? 'TKN',
       icon: meta?.icon,
       decimals,
       balance: ab.amount,
-      fiatAmount: pricedFiat,
-      satsEquivalent,
-      hasFiatPrice: pricedFiat > 0,
+      fiatAmount: 0,
+      satsEquivalent: 0,
+      hasFiatPrice: false,
     })
   }
 
-  usdMinorUnits += prototypeDeltas['account:usd'] ?? BigInt(0)
-  const usdFiatAmount = Math.max(0, Number(usdMinorUnits) / 100)
-  const usdAccountFiatAmount = convertToSelectedFiat(usdFiatAmount, Currencies.USD)
-  if (usdFiatAmount > 0) {
-    const satsEquivalent = fromFiatAmount(usdFiatAmount, Currencies.USD)
+  for (const sourceFiat of Object.values(Currencies)) {
+    if (sourceFiat === Currencies.BTC) continue
+
+    const accountId = `account:${sourceFiat.toLowerCase()}`
+    const decimals = fiatDecimalsFor(sourceFiat)
+    const sourceAssets = fiatAccountSources.get(sourceFiat) ?? []
+    const minorUnits =
+      aggregateFiatAccountMinorUnits(sourceAssets, decimals) + (prototypeDeltas[accountId] ?? BigInt(0))
+    if (minorUnits <= BigInt(0)) continue
+
+    const amount = Decimal.div(minorUnits.toString(), Decimal.pow(10, decimals)).toNumber()
+    const fiatAmount = convertToSelectedFiat(amount, sourceFiat)
+    const satsEquivalent = fromFiatAmount(amount, sourceFiat)
     totalSats += satsEquivalent
     rows.push({
-      assetId: 'account:usd',
-      name: 'USD',
-      ticker: 'USD',
-      decimals: 2,
-      balance: usdMinorUnits,
-      fiatAmount: usdAccountFiatAmount,
-      satsEquivalent,
-      hasFiatPrice: true,
-      sourceAssetIds: usdSourceAssetIds,
-    })
-  }
-
-  const chfAccountMinorUnits =
-    (chfMinorUnits > BigInt(0) ? chfMinorUnits : BigInt(0)) + (prototypeDeltas['account:chf'] ?? BigInt(0))
-
-  const fiatAccounts = [
-    {
-      assetId: 'account:chf',
-      name: 'CHF',
-      ticker: 'CHF',
-      minorUnits: chfAccountMinorUnits,
-      sourceFiat: Currencies.CHF,
-      sourceAssetIds: chfSourceAssetIds,
-    },
-  ]
-
-  for (const account of fiatAccounts) {
-    if (account.minorUnits <= BigInt(0)) continue
-
-    const amount = Number(account.minorUnits) / 100
-    const fiatAmount = convertToSelectedFiat(amount, account.sourceFiat)
-    const satsEquivalent = fromFiatAmount(amount, account.sourceFiat)
-    totalSats += satsEquivalent
-    rows.push({
-      assetId: account.assetId,
-      name: account.name,
-      ticker: account.ticker,
-      decimals: 2,
-      balance: account.minorUnits,
+      assetId: accountId,
+      name: sourceFiat,
+      ticker: sourceFiat,
+      decimals,
+      balance: minorUnits,
       fiatAmount,
       satsEquivalent,
       hasFiatPrice: true,
-      sourceAssetIds: account.sourceAssetIds,
+      fiatCurrency: sourceFiat,
+      sourceAssetIds: sourceAssets.map((source) => source.assetId),
+      sourceAssets,
     })
   }
 
@@ -155,49 +126,4 @@ export function usePortfolioFiat(): PortfolioFiat {
     totalSats,
     rows,
   }
-}
-
-function normalizeMinorUnits(rawAmount: number | bigint, fromDecimals: number, toDecimals: number): bigint {
-  const amount = typeof rawAmount === 'bigint' ? rawAmount : BigInt(rawAmount)
-  if (fromDecimals === toDecimals) return amount
-  if (fromDecimals > toDecimals) return amount / BigInt(10) ** BigInt(fromDecimals - toDecimals)
-  return amount * BigInt(10) ** BigInt(toDecimals - fromDecimals)
-}
-
-function priceAssetFiat(
-  rawAmount: number | bigint,
-  decimals: number,
-  ticker: string | undefined,
-  convertToSelectedFiat: (amount: number, from: Currencies) => number,
-): number {
-  const sourceFiat = fiatForAssetTicker(ticker)
-  if (!sourceFiat) return 0
-
-  const fiatAmount = Decimal.div(rawAmount.toString(), Decimal.pow(10, decimals)).toNumber()
-  return convertToSelectedFiat(fiatAmount, sourceFiat)
-}
-
-function displayNameForAsset(ticker: string | undefined, name: string | undefined): string | undefined {
-  const normalizedTicker = ticker?.trim().toUpperCase()
-  if (
-    normalizedTicker === 'USDT' ||
-    normalizedTicker === 'USDC' ||
-    normalizedTicker === 'USD' ||
-    normalizedTicker === 'AUSD'
-  )
-    return 'USD'
-  if (normalizedTicker === 'CHF') return 'CHF'
-  return name
-}
-
-function fiatForAssetTicker(ticker: string | undefined): Currencies | undefined {
-  const normalized = ticker?.trim().toUpperCase()
-
-  if (normalized === 'USDT' || normalized === 'USDC' || normalized === 'USD' || normalized === 'AUSD')
-    return Currencies.USD
-  if (normalized === 'CHF') return Currencies.CHF
-  if (normalized === 'EUR') return Currencies.EUR
-  if (normalized === 'GBP') return Currencies.GBP
-  if (normalized === 'JPY') return Currencies.JPY
-  if (normalized === 'CNY') return Currencies.CNY
 }

@@ -26,10 +26,13 @@ import { LimitsContext } from '../../providers/limits'
 import { getInputsToSettle } from '../../lib/asp'
 import SwapTransactionSummary from '../../components/SwapTransactionSummary'
 import { formatSwapAssetAmount, swapStatusLabel } from '../../lib/swapDisplay'
+import { FiatContext } from '../../providers/fiat'
+import { fiatAccountAssetSatoshis } from '../../lib/accountAssets'
 
 export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo } = useContext(FlowContext)
+  const { fromFiatAmount } = useContext(FiatContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { assetMetadataCache, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } = useContext(WalletContext)
 
@@ -95,6 +98,15 @@ export default function Transaction() {
 
   if (!tx) return <></>
 
+  const accountAssetValues = tx.assets?.map((asset) => {
+    const metadata = assetMetadataCache.get(asset.assetId)?.metadata
+    return fiatAccountAssetSatoshis(BigInt(asset.amount), metadata?.decimals ?? 8, metadata?.ticker, fromFiatAmount)
+  })
+  const accountValueSatoshis =
+    accountAssetValues?.length && accountAssetValues.every((value) => value !== undefined)
+      ? accountAssetValues.reduce((total, value) => total + value, 0)
+      : undefined
+
   const status = expiredBoardingTx
     ? 'Expired'
     : unconfirmedBoardingTx
@@ -105,6 +117,9 @@ export default function Transaction() {
           ? 'Settled'
           : 'Preconfirmed'
 
+  const fees = tx.type === 'sent' ? defaultFee : 0
+  const accountTransferSatoshis = accountValueSatoshis === undefined ? undefined : Math.abs(accountValueSatoshis)
+  const transferSatoshis = accountTransferSatoshis ?? (tx.type === 'sent' ? tx.amount - defaultFee : tx.amount)
   const when = tx.createdAt ? prettyAgo(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed'
   const date = tx.createdAt ? prettyDate(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed'
   const txid = tx.boardingTxid || tx.redeemTxid || tx.roundTxid || ''
@@ -126,11 +141,11 @@ export default function Transaction() {
         assetId: tx.assets?.[0]?.assetId,
         date,
         direction: issuanceTx ? 'Issuance' : burnTx ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received',
-        fees: tx.type === 'sent' ? defaultFee : 0,
+        fees,
         isOffchainTx: !tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
-        satoshis: tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
+        satoshis: transferSatoshis,
         status,
-        total: tx.amount,
+        total: accountTransferSatoshis === undefined ? tx.amount : transferSatoshis + fees,
         txid,
         type: boardingTx ? 'Boarding' : 'Offchain',
         wallet,

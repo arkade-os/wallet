@@ -396,4 +396,167 @@ describe('Transaction screen', () => {
     expect(screen.queryByText('123.45 ALP')).not.toBeInTheDocument()
     expect(screen.queryByText('67.89 BET')).not.toBeInTheDocument()
   })
+
+  it('hides issuer tickers in wallet-facing swap details', () => {
+    const txInfo = {
+      ...mockTxInfo,
+      type: 'swap',
+      isPrototype: true,
+      prototypeSwap: {
+        fromTicker: 'USDT',
+        toTicker: 'DEPIX',
+        status: 'completed' as const,
+      },
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+            <WalletContext.Provider value={mockWalletContextValue}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText('USD to BRL')).toBeInTheDocument()
+    expect(screen.queryByText(/USDT|DEPIX/)).not.toBeInTheDocument()
+  })
+
+  it.each([
+    {
+      assetAmount: BigInt(10_000),
+      assetLabel: '100.00 USD',
+      direction: 'Received',
+      total: '$100.00',
+      type: 'received',
+    },
+    {
+      assetAmount: BigInt(-10_000),
+      assetLabel: '-100.00 USD',
+      direction: 'Sent',
+      total: '$100.00',
+      type: 'sent',
+    },
+  ])(
+    'values a $direction USD transaction from its absolute account amount instead of its bitcoin dust amount',
+    ({ assetAmount, assetLabel, direction, total, type }) => {
+      const assetId = 'usdt-asset'
+      const txInfo = {
+        ...mockTxInfo,
+        amount: 330,
+        assets: [{ assetId, amount: assetAmount }],
+        type,
+      }
+      const walletContextValue = {
+        ...mockWalletContextValue,
+        txs: [txInfo],
+        assetMetadataCache: new Map([
+          [
+            assetId,
+            {
+              metadata: {
+                decimals: 2,
+                name: 'Tether USD',
+                ticker: 'USDT',
+              },
+            },
+          ],
+        ]),
+      }
+      const fiatContextValue = {
+        ...mockFiatContextValue,
+        fromFiatAmount: (amount: number) => amount * 100,
+        toFiat: (satoshis?: number) => (satoshis ?? 0) / 100,
+      }
+
+      render(
+        <ConfigContext.Provider
+          value={{
+            ...mockConfigContextValue,
+            config: { ...mockConfigContextValue.config, currency: Currencies.USD },
+          }}
+        >
+          <FiatContext.Provider value={fiatContextValue}>
+            <NavigationContext.Provider value={mockNavigationContextValue}>
+              <AspContext.Provider value={mockAspContextValue}>
+                <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+                  <WalletContext.Provider value={walletContextValue as any}>
+                    <LimitsContext.Provider value={mockLimitsContextValue}>
+                      <Transaction />
+                    </LimitsContext.Provider>
+                  </WalletContext.Provider>
+                </FlowContext.Provider>
+              </AspContext.Provider>
+            </NavigationContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>,
+      )
+
+      expect(screen.getByText(direction)).toBeInTheDocument()
+      expect(screen.getByText(assetLabel)).toBeInTheDocument()
+      expect(screen.getByTestId('Amount')).toHaveTextContent('$100.00')
+      expect(screen.getByTestId('Total')).toHaveTextContent(total)
+      expect(screen.queryByText('Tether USD')).not.toBeInTheDocument()
+    },
+  )
+
+  it('falls back to the transaction amount when a mixed asset cannot be valued as an account', () => {
+    const txInfo = {
+      ...mockTxInfo,
+      amount: 330,
+      assets: [
+        { assetId: 'usdt-asset', amount: BigInt(10_000) },
+        { assetId: 'unknown-asset', amount: BigInt(50) },
+      ],
+      type: 'received',
+    }
+    const walletContextValue = {
+      ...mockWalletContextValue,
+      txs: [txInfo],
+      assetMetadataCache: new Map([
+        [
+          'usdt-asset',
+          {
+            metadata: {
+              decimals: 2,
+              name: 'Tether USD',
+              ticker: 'USDT',
+            },
+          },
+        ],
+      ]),
+    }
+    const fiatContextValue = {
+      ...mockFiatContextValue,
+      fromFiatAmount: (amount: number) => amount * 100,
+      toFiat: (satoshis?: number) => (satoshis ?? 0) / 100,
+    }
+
+    render(
+      <ConfigContext.Provider value={mockConfigContextValue}>
+        <FiatContext.Provider value={fiatContextValue}>
+          <NavigationContext.Provider value={mockNavigationContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+                <WalletContext.Provider value={walletContextValue as any}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <Transaction />
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </AspContext.Provider>
+          </NavigationContext.Provider>
+        </FiatContext.Provider>
+      </ConfigContext.Provider>,
+    )
+
+    expect(screen.getByTestId('Amount')).toHaveTextContent('€3.30')
+    expect(screen.getByTestId('Total')).toHaveTextContent('€3.30')
+    expect(screen.queryByText('€100.00')).not.toBeInTheDocument()
+  })
 })
