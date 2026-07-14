@@ -61,27 +61,27 @@ describe('findMarket', () => {
 describe('quoteOffer with the wallet quote options', () => {
   it('quotes btc->usdt through the nested CoinGecko schema (fee + safety conceded)', async () => {
     fetchMocker.mockResponseOnce(JSON.stringify({ bitcoin: { usd: 100000 } }))
-    const plan = await quoteOffer(btcUsdt, { give: 'base', giveAmount: 10_000n, ...QUOTE_OPTIONS })
-    expect(plan.deposit.atomic).toBe(10_000n)
+    const plan = await quoteOffer(btcUsdt, { give: 'base', giveAmount: BigInt(10_000), ...QUOTE_OPTIONS })
+    expect(plan.deposit.atomic).toBe(BigInt(10_000))
     // 10_000 sats * 0.1 cents/sat * (10000 - 30 - 50)bps = 992 cents
-    expect(plan.receive.atomic).toBe(992n)
+    expect(plan.receive.atomic).toBe(BigInt(992))
     expect(plan.receive.display).toBe('9.92')
     expect(plan.limits.withinLimits).toBe(true)
   })
 
   it('quotes usdt->btc in the same market (give quote side)', async () => {
     fetchMocker.mockResponseOnce(JSON.stringify({ bitcoin: { usd: 100000 } }))
-    const plan = await quoteOffer(btcUsdt, { give: 'quote', giveAmount: 1_000n, ...QUOTE_OPTIONS })
-    expect(plan.deposit.atomic).toBe(1_000n)
+    const plan = await quoteOffer(btcUsdt, { give: 'quote', giveAmount: BigInt(1_000), ...QUOTE_OPTIONS })
+    expect(plan.deposit.atomic).toBe(BigInt(1_000))
     // $10 / 0.1 cents-per-sat, minus 80bps: 9920 sats
-    expect(plan.receive.atomic).toBe(9_920n)
+    expect(plan.receive.atomic).toBe(BigInt(9_920))
   })
 
   it('quotes btc->depix through the Binance /price schema', async () => {
     fetchMocker.mockResponseOnce(JSON.stringify({ symbol: 'BTCBRL', price: '600000.00' }))
-    const plan = await quoteOffer(btcDepix, { give: 'base', giveAmount: 10_000n, ...QUOTE_OPTIONS })
+    const plan = await quoteOffer(btcDepix, { give: 'base', giveAmount: BigInt(10_000), ...QUOTE_OPTIONS })
     // 10_000 sats * 600_000 depix-atomic/sat * 9920bps = 59.52 DePix
-    expect(plan.receive.atomic).toBe(5_952_000_000n)
+    expect(plan.receive.atomic).toBe(BigInt(5_952_000_000))
     expect(plan.receive.display).toBe('59.52')
   })
 })
@@ -91,22 +91,22 @@ describe('validatePlan', () => {
     planOffer({ market: btcUsdt, give, feedValue: 100000, giveAmount, safetyBps: 50 })
 
   it('accepts a plan within balance and limits', () => {
-    expect(validatePlan(plan('base', 10_000n), 20_000n, 330n)).toBeUndefined()
+    expect(validatePlan(plan('base', BigInt(10_000)), BigInt(20_000), BigInt(330))).toBeUndefined()
   })
 
   it('flags insufficient balance', () => {
-    expect(validatePlan(plan('base', 10_000n), 5_000n, 330n)).toBe('insufficient-balance')
+    expect(validatePlan(plan('base', BigInt(10_000)), BigInt(5_000), BigInt(330))).toBe('insufficient-balance')
   })
 
   it('flags amounts outside the market limits', () => {
-    expect(validatePlan(plan('base', 500n), 20_000n, 330n)).toBe('below-min')
-    expect(validatePlan(plan('base', 6_000_000n), 10_000_000n, 330n)).toBe('above-max')
+    expect(validatePlan(plan('base', BigInt(500)), BigInt(20_000), BigInt(330))).toBe('below-min')
+    expect(validatePlan(plan('base', BigInt(6_000_000)), BigInt(10_000_000), BigInt(330))).toBe('above-max')
   })
 
   it('flags a btc side below dust', () => {
     // giving quote: the received btc must be a viable VTXO
-    const p = plan('quote', 152n) // -> 1507 sats, within limits
-    expect(validatePlan(p, 1_000n, 2_000n)).toBe('below-dust')
-    expect(validatePlan(p, 1_000n, 330n)).toBeUndefined()
+    const p = plan('quote', BigInt(152)) // -> 1507 sats, within limits
+    expect(validatePlan(p, BigInt(1_000), BigInt(2_000))).toBe('below-dust')
+    expect(validatePlan(p, BigInt(1_000), BigInt(330))).toBeUndefined()
   })
 })

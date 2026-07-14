@@ -28,10 +28,13 @@ import {
 import btcToAsset from './banco-btc-to-asset.program.json'
 import assetToBtc from './banco-asset-to-btc.program.json'
 
+// json imports widen "type": "pubkey" to string; parseArtifact validates at runtime
+type Artifact = Parameters<typeof arkade.parseArtifact>[0]
+
 /** The contracts — pure data, shared verbatim with any other implementation. */
 export const bancoPrograms = {
-  btcToAsset: arkade.parseArtifact(btcToAsset),
-  assetToBtc: arkade.parseArtifact(assetToBtc),
+  btcToAsset: arkade.parseArtifact(btcToAsset as Artifact),
+  assetToBtc: arkade.parseArtifact(assetToBtc as Artifact),
 }
 
 // ── Offer ────────────────────────────────────────────────────────────────────
@@ -179,7 +182,7 @@ export async function createOffer(
   arkServerUrl: string,
   emulatorUrl: string,
   params: { wantAmount: bigint; wantAsset?: asset.AssetId; offerAsset?: asset.AssetId },
-): Promise<{ offerHex: string; payload: Uint8Array; address: string }> {
+): Promise<{ offerHex: string; payload: Uint8Array; address: string; swapPkScript: Uint8Array }> {
   if (!params.wantAsset === !params.offerAsset) {
     throw new Error('set exactly one of wantAsset (BTC->asset) or offerAsset (asset->BTC)')
   }
@@ -207,6 +210,7 @@ export async function createOffer(
       script.tweakedPublicKey,
       getNetwork(info.network as NetworkName).hrp,
     ).encode(),
+    swapPkScript: script.pkScript,
   }
 }
 

@@ -16,11 +16,11 @@ const testAsset = asset.AssetId.fromString('aa'.repeat(32) + '0000')
 
 const goldens: [Omit<Offer, 'swapPkScript'>, string][] = [
   [
-    { wantAmount: 50_000n, wantAsset: testAsset, ...keys },
+    { wantAmount: BigInt(50_000), wantAsset: testAsset, ...keys },
     'tark1qp8n2k7uklxq4aegau7vawtptkgxsja4kt99lpv6krctwpq8tpc65wq0wnmwgr4nglzx999xqx7xahllp4gfh6638wkrjt5tl3k7c8vy6frzj2',
   ],
   [
-    { wantAmount: 50_000n, offerAsset: testAsset, ...keys },
+    { wantAmount: BigInt(50_000), offerAsset: testAsset, ...keys },
     'tark1qp8n2k7uklxq4aegau7vawtptkgxsja4kt99lpv6krctwpq8tpc65qz8884545l2ka5mps383ntsennz3csywl5t33gghnu9rxjlg5wfv467cj',
   ],
 ]
@@ -40,7 +40,7 @@ describe('banco offer', () => {
       const full: Offer = { ...offer, swapPkScript: script.pkScript }
       const back = decodeOffer(encodeOffer(full))
       expect(hex.encode(encodeOffer(back))).toBe(hex.encode(encodeOffer(full)))
-      expect(back.wantAmount).toBe(50_000n)
+      expect(back.wantAmount).toBe(BigInt(50_000))
       expect(back.wantAsset?.toString()).toBe(offer.wantAsset?.toString())
       expect(back.offerAsset?.toString()).toBe(offer.offerAsset?.toString())
     }
