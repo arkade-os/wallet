@@ -31,7 +31,7 @@ test('should receive onchain funds', async ({ page }) => {
   // faucet (--confirm mines a block so the deposit confirms, matching old nigiri auto-mine).
   // Await it (and pass args, not a shell string) so the deposit is sent+confirmed
   // before we wait — a fire-and-forget exec races waitForPaymentReceived.
-  await execFileAsync('node', ['regtest/regtest.mjs', 'faucet', boardingAddress, '0.0001', '--confirm'])
+  await execFileAsync('node', ['regtest/regtest.mjs', 'faucet', boardingAddress, '0.0001'])
 
   // wait for payment received
   await waitForPaymentReceived(page)
