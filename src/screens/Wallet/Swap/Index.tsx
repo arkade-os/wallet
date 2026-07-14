@@ -13,9 +13,9 @@ import ChevronDownIcon from '../../../icons/ChevronDown'
 import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
-import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
+import { formatFiatAmountParts, prettyCurrencyAssetAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
-import { Currencies } from '../../../lib/types'
+import { Currencies, Unit } from '../../../lib/types'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { FlowContext } from '../../../providers/flow'
@@ -86,6 +86,7 @@ export default function WalletSwap() {
   )
   const swapAssets = assets
   const initialFromAssetId = resolveInitialFromAssetId(swapAssets, swapFromAssetId)
+  const openedWithPreselectedAsset = useRef(Boolean(swapFromAssetId))
   const [step, setStep] = useState<SwapStep>(swapFromAssetId && initialFromAssetId ? 'compose' : 'select-from')
   const [search, setSearch] = useState('')
   const [amount, setAmount] = useState('0')
@@ -108,13 +109,14 @@ export default function WalletSwap() {
   const toAsset = toAssetId
     ? swapAssets.find((asset) => asset.assetId === toAssetId && asset.assetId !== fromAsset.assetId)
     : undefined
+  const unitOfAccountUsd = toFiatAmount(fromFiatAmount(1, config.currency), Currencies.USD)
   const quote = useMemo(
-    () => buildQuote(amount, amountMode, fromAsset, toAsset),
-    [amount, amountMode, fromAsset, toAsset],
+    () => buildQuote(amount, amountMode, fromAsset, toAsset, unitOfAccountUsd, config.currency, config.unit),
+    [amount, amountMode, config.currency, config.unit, fromAsset, toAsset, unitOfAccountUsd],
   )
   const quoteAvailable = !toAsset || isQuoteAvailable(fromAsset, toAsset)
   const hasPositiveAmount = Number(amount) > 0
-  const hasSufficientBalance = canSpendSwapAmount(amount, amountMode, fromAsset)
+  const hasSufficientBalance = canSpendSwapAmount(amount, amountMode, fromAsset, unitOfAccountUsd)
   const validationState: SwapValidationState = !quoteAvailable
     ? 'quote-unavailable'
     : hasPositiveAmount && !hasSufficientBalance
@@ -195,7 +197,7 @@ export default function WalletSwap() {
 
   const pressKey = (key: string) => {
     setConfirmError('')
-    const maxDecimals = amountMode === 'fiat' ? 2 : fromAsset.decimals
+    const maxDecimals = amountMode === 'fiat' ? fiatDecimals() : fromAsset.decimals
     const canApplyKey = (current: string) => {
       if (key === 'Back') return current !== '0'
       const base = current === '0' && key !== '.' ? '' : current
@@ -226,7 +228,7 @@ export default function WalletSwap() {
   }
 
   const handleBack = () => {
-    if (step === 'compose') {
+    if (step === 'compose' && !openedWithPreselectedAsset.current) {
       setStep('select-from')
       return
     }
@@ -251,7 +253,7 @@ export default function WalletSwap() {
     setConfirming(true)
     window.setTimeout(() => {
       try {
-        const execution = buildPrototypeSwapExecution(amount, amountMode, fromAsset, toAsset)
+        const execution = buildPrototypeSwapExecution(amount, amountMode, fromAsset, toAsset, unitOfAccountUsd)
         addPrototypeSwap(execution)
         setConfirming(false)
         setDrawer(null)
@@ -315,6 +317,8 @@ export default function WalletSwap() {
                   <SwapComposer
                     amount={amount}
                     amountMode={amountMode}
+                    currency={config.currency}
+                    bitcoinUnit={config.unit}
                     quote={quote}
                     fromAsset={fromAsset}
                     toAsset={toAsset}
@@ -439,6 +443,8 @@ function SwapAssetList({
 function SwapComposer({
   amount,
   amountMode,
+  currency,
+  bitcoinUnit,
   quote,
   fromAsset,
   toAsset,
@@ -453,6 +459,8 @@ function SwapComposer({
 }: {
   amount: string
   amountMode: AmountMode
+  currency: Currencies
+  bitcoinUnit: Unit
   quote: SwapQuote
   fromAsset: SwapAsset
   toAsset?: SwapAsset
@@ -466,9 +474,10 @@ function SwapComposer({
   swapTurn: number
 }) {
   const prefersReduced = useReducedMotion()
-  const amountLabel = amountMode === 'fiat' ? formatFiatInputAmount(amount) : `${amount} ${fromAsset.ticker}`
+  const amountLabel =
+    amountMode === 'fiat' ? formatCurrencyInputAmount(amount, currency, bitcoinUnit) : `${amount} ${fromAsset.ticker}`
   const subAmountLabel = amountMode === 'fiat' ? `${quote.fromAmount} ${fromAsset.ticker}` : quote.fromFiat
-  const nextAmountModeLabel = amountMode === 'fiat' ? 'asset amount' : 'fiat amount'
+  const nextAmountModeLabel = amountMode === 'fiat' ? 'asset amount' : `${currency} amount`
   const validationMessage =
     validationState === 'insufficient-balance'
       ? 'Insufficient balance'
@@ -989,40 +998,62 @@ function MetricRow({ label, value, loading }: { label: ReactNode; value: string;
   )
 }
 
-function buildQuote(amount: string, mode: AmountMode, fromAsset: SwapAsset, toAsset?: SwapAsset): SwapQuote {
+function buildQuote(
+  amount: string,
+  mode: AmountMode,
+  fromAsset: SwapAsset,
+  toAsset: SwapAsset | undefined,
+  unitOfAccountUsd: number,
+  currency: Currencies,
+  bitcoinUnit: Unit,
+): SwapQuote {
   const parsed = Number(amount) || 0
   const fromUsd = estimateSwapUsd(fromAsset)
   const toUsd = toAsset ? estimateSwapUsd(toAsset) : 0
-  const fromUnits = mode === 'fiat' && fromUsd > 0 ? parsed / fromUsd : parsed
-  const fromFiatNumber = mode === 'fiat' ? parsed : fromUnits * fromUsd
-  const received = toUsd > 0 ? fromFiatNumber / toUsd : 0
+  const fromUsdNumber = mode === 'fiat' ? parsed * unitOfAccountUsd : parsed * fromUsd
+  const fromUnits = mode === 'fiat' && fromUsd > 0 ? fromUsdNumber / fromUsd : parsed
+  const selectedCurrencyAmount = unitOfAccountUsd > 0 ? fromUsdNumber / unitOfAccountUsd : 0
+  const received = toUsd > 0 ? fromUsdNumber / toUsd : 0
   const rate = toUsd > 0 ? fromUsd / toUsd : 0
+  const formatOptions = { bitcoinUnit }
 
   return {
     fromAsset,
     toAsset,
     fromAmount: prettyNumber(fromUnits, swapAmountDecimals(fromUnits)),
-    fromFiat: prettyFiatAmount(fromFiatNumber, Currencies.USD),
+    fromFiat: prettyFiatAmount(selectedCurrencyAmount, currency, formatOptions),
     toAmount: prettyNumber(received, swapAmountDecimals(received)),
-    toFiat: prettyFiatAmount(received * toUsd, Currencies.USD),
-    feeFiat: prettyFiatAmount(0, Currencies.USD),
+    toFiat: prettyFiatAmount(selectedCurrencyAmount, currency, formatOptions),
+    feeFiat: prettyFiatAmount(0, currency, formatOptions),
     rateLabel: prettyNumber(rate, swapAmountDecimals(rate)),
   }
 }
 
-function formatFiatInputAmount(amount: string): string {
+function formatCurrencyInputAmount(amount: string, currency: Currencies, bitcoinUnit: Unit): string {
   const normalized = amount || '0'
-  if (normalized.includes('.')) return `$${normalized}`
-  return `$${Math.trunc(Number(normalized) || 0).toLocaleString('en-US')}`
+  const fractionDigits = normalized.includes('.') ? (normalized.split('.')[1]?.length ?? 0) : 0
+  const parts = formatFiatAmountParts(Number(normalized) || 0, currency, {
+    bitcoinUnit,
+    maximumFractionDigits: fractionDigits,
+    minimumFractionDigits: fractionDigits,
+  })
+  const formattedAmount = normalized.endsWith('.') ? `${parts.amount}.` : parts.amount
+  return parts.unit ? `${formattedAmount} ${parts.unit}` : formattedAmount
 }
 
-function buildPrototypeSwapExecution(amount: string, mode: AmountMode, fromAsset: SwapAsset, toAsset: SwapAsset) {
+function buildPrototypeSwapExecution(
+  amount: string,
+  mode: AmountMode,
+  fromAsset: SwapAsset,
+  toAsset: SwapAsset,
+  unitOfAccountUsd: number,
+) {
   const parsed = Number(amount) || 0
   const fromUsd = estimateSwapUsd(fromAsset)
   const toUsd = estimateSwapUsd(toAsset)
-  const fromUnits = mode === 'fiat' && fromUsd > 0 ? parsed / fromUsd : parsed
-  const fromFiatNumber = mode === 'fiat' ? parsed : fromUnits * fromUsd
-  const toUnits = toUsd > 0 ? fromFiatNumber / toUsd : 0
+  const fromUsdNumber = mode === 'fiat' ? parsed * unitOfAccountUsd : parsed * fromUsd
+  const fromUnits = mode === 'fiat' && fromUsd > 0 ? fromUsdNumber / fromUsd : parsed
+  const toUnits = toUsd > 0 ? fromUsdNumber / toUsd : 0
 
   return {
     fromAssetId: fromAsset.assetId,
@@ -1033,14 +1064,15 @@ function buildPrototypeSwapExecution(amount: string, mode: AmountMode, fromAsset
     toTicker: toAsset.ticker,
     toDecimals: toAsset.decimals,
     toAmount: toRawAmount(toUnits, toAsset.decimals),
-    fiatAmount: fromFiatNumber,
+    fiatAmount: fromUsdNumber,
   }
 }
 
-function canSpendSwapAmount(amount: string, mode: AmountMode, fromAsset: SwapAsset): boolean {
+function canSpendSwapAmount(amount: string, mode: AmountMode, fromAsset: SwapAsset, unitOfAccountUsd: number): boolean {
   const parsed = Number(amount) || 0
   const fromUsd = estimateSwapUsd(fromAsset)
-  const fromUnits = mode === 'fiat' && fromUsd > 0 ? parsed / fromUsd : parsed
+  const fromUsdNumber = mode === 'fiat' ? parsed * unitOfAccountUsd : parsed * fromUsd
+  const fromUnits = mode === 'fiat' && fromUsd > 0 ? fromUsdNumber / fromUsd : parsed
   const requestedRawAmount = toRawAmount(fromUnits, fromAsset.decimals)
   const balanceRawAmount = typeof fromAsset.balance === 'bigint' ? fromAsset.balance : BigInt(fromAsset.balance)
 

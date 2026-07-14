@@ -7,6 +7,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages, Tabs } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
+import { Currencies, Unit } from '../../../lib/types'
 import {
   mockConfigContextValue,
   mockFiatContextValue,
@@ -17,7 +18,12 @@ import {
 
 const assetId = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd'
 
-function renderSwap(flowOverrides = {}, metadataOverrides: Record<string, unknown> = {}) {
+function renderSwap(
+  flowOverrides = {},
+  metadataOverrides: Record<string, unknown> = {},
+  configOverrides: Partial<typeof mockConfigContextValue.config> = {},
+  fiatOverrides: Partial<typeof mockFiatContextValue> = {},
+) {
   const navigate = vi.fn()
   const goBack = vi.fn()
   const assetMetadataCache = new Map([
@@ -54,8 +60,16 @@ function renderSwap(flowOverrides = {}, metadataOverrides: Record<string, unknow
         tab: Tabs.Wallet,
       }}
     >
-      <ConfigContext.Provider value={{ ...mockConfigContextValue, configLoaded: true } as any}>
-        <FiatContext.Provider value={mockFiatContextValue as any}>
+      <ConfigContext.Provider
+        value={
+          {
+            ...mockConfigContextValue,
+            config: { ...mockConfigContextValue.config, ...configOverrides },
+            configLoaded: true,
+          } as any
+        }
+      >
+        <FiatContext.Provider value={{ ...mockFiatContextValue, ...fiatOverrides } as any}>
           <FlowContext.Provider value={{ ...mockFlowContextValue, ...flowOverrides } as any}>
             <WalletContext.Provider
               value={
@@ -79,8 +93,8 @@ function renderSwap(flowOverrides = {}, metadataOverrides: Record<string, unknow
 }
 
 describe('Wallet swap flow', () => {
-  it('starts with an asset picker, then opens the focused amount step', async () => {
-    renderSwap()
+  it('starts with an asset picker, opens the amount step, then returns to the picker', async () => {
+    const { goBack } = renderSwap()
 
     expect(screen.queryByText('Stacked quote')).not.toBeInTheDocument()
     expect(screen.queryByText('Composer first, quote second')).not.toBeInTheDocument()
@@ -92,6 +106,11 @@ describe('Wallet swap flow', () => {
     expect(screen.getByLabelText('Swap amount')).toBeInTheDocument()
     expect(screen.getByLabelText('Swap keypad for 0')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByLabelText('Go back'))
+
+    expect(screen.getByText('Choose asset to swap')).toBeInTheDocument()
+    expect(goBack).not.toHaveBeenCalled()
   })
 
   it('keeps the screen in the wallet back stack', async () => {
@@ -108,9 +127,39 @@ describe('Wallet swap flow', () => {
     renderSwap({ swapFromAssetId: assetId, setSwapFromAssetId })
 
     expect(screen.getByLabelText('Swap amount')).toBeInTheDocument()
+    expect(screen.getByLabelText('€0')).toBeInTheDocument()
     expect(screen.getAllByText('USD').length).toBeGreaterThan(0)
     expect(screen.queryByText('Choose asset to swap')).not.toBeInTheDocument()
     expect(setSwapFromAssetId).toHaveBeenCalledWith(undefined)
+  })
+
+  it('uses the configured bitcoin unit for the primary swap amount', async () => {
+    renderSwap(
+      { swapFromAssetId: assetId, setSwapFromAssetId: vi.fn() },
+      {},
+      { currency: Currencies.BTC, unit: Unit.BTC },
+      { fiatDecimals: () => 8 },
+    )
+
+    expect(screen.getByLabelText('0 BTC')).toBeInTheDocument()
+    expect(screen.queryByLabelText('$0')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: '.' }))
+    for (let index = 0; index < 7; index += 1) {
+      await userEvent.click(screen.getByRole('button', { name: '0' }))
+    }
+    await userEvent.click(screen.getByRole('button', { name: '1' }))
+
+    expect(screen.getByLabelText('0.00000001 BTC')).toBeInTheDocument()
+  })
+
+  it('returns to the asset detail page when backing out of a preselected swap', async () => {
+    const { goBack } = renderSwap({ swapFromAssetId: assetId, setSwapFromAssetId: vi.fn() })
+
+    await userEvent.click(screen.getByLabelText('Go back'))
+
+    expect(goBack).toHaveBeenCalledOnce()
+    expect(screen.queryByText('Choose asset to swap')).not.toBeInTheDocument()
   })
 
   it('presents DEPIX as the BRL account without issuer branding', () => {
@@ -176,7 +225,7 @@ describe('Wallet swap flow', () => {
     expect(review.getByText('50 USD')).toBeInTheDocument()
     expect(review.getByText('Receive')).toBeInTheDocument()
     expect(review.getByText('Fees')).toBeInTheDocument()
-    expect(review.getByText('$0.00')).toBeInTheDocument()
+    expect(review.getByText('€0.00')).toBeInTheDocument()
     expect(review.queryByText('Total value')).not.toBeInTheDocument()
     expect(review.queryByText('Estimated receive')).not.toBeInTheDocument()
   })
