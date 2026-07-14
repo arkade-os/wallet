@@ -1,12 +1,14 @@
 import {
   classifyAgainstSignerSet,
   decodeTapscript,
+  isRecoverable,
   MultisigTapscript,
   signerSetFromInfo,
   VtxoScript,
   type SignerSet,
   type SignerStatus,
   type TapLeafScript,
+  type VirtualCoin,
 } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import { AspInfo } from '../providers/asp'
@@ -14,11 +16,14 @@ import { toXOnlyHex } from './keys'
 
 /**
  * Minimal coin shape accepted by the helpers below, satisfied by
- * ExtendedCoin, ExtendedVirtualCoin and Vtxo alike.
+ * ExtendedCoin, ExtendedVirtualCoin and Vtxo alike. The virtual-coin fields
+ * are optional because boarding utxos don't carry them.
  */
 export type SignerCoin = {
   tapTree?: Uint8Array
   forfeitTapLeafScript?: TapLeafScript
+  virtualStatus?: { state: string }
+  isSpent?: boolean
 }
 
 export type CoinSignerInfo = {
@@ -128,12 +133,18 @@ export const classifyCoin = (
   }
 }
 
+// A swept-but-unspent vtxo. Its recovery settle carries no forfeit and no
+// deprecated key, so it stays settleable even under an EXPIRED signer.
+const isRecoverableCoin = (coin: SignerCoin): boolean =>
+  Boolean(coin.virtualStatus) && isRecoverable(coin as VirtualCoin)
+
 /**
- * Split coins into cosignable vs excluded. Only EXPIRED (past-cutoff
- * deprecated signer) coins are excluded: arkd refuses to cosign them, and the
- * SDK recovers them automatically after the server sweeps their batch.
- * MIGRATABLE/DUE_NOW coins can still be cosigned pre-cutoff and stay in;
- * UNKNOWN_SIGNER stays in (fail-open). Without a signer set nothing is
+ * Split coins into settleable vs excluded. Excluded means EXPIRED (past-cutoff
+ * deprecated signer) and not yet swept: arkd refuses to cosign those, and they
+ * become recoverable once the server sweeps their batch at expiry. Swept
+ * (recoverable) coins stay in — their recovery settle needs no deprecated-key
+ * cosign. MIGRATABLE/DUE_NOW coins can still be cosigned pre-cutoff and stay
+ * in; UNKNOWN_SIGNER stays in (fail-open). Without a signer set nothing is
  * filtered, matching previous behavior.
  */
 export const partitionByExpiredSigner = <T extends SignerCoin>(
@@ -144,7 +155,7 @@ export const partitionByExpiredSigner = <T extends SignerCoin>(
   const keep: T[] = []
   const excluded: T[] = []
   for (const coin of coins) {
-    if (classifyCoin(coin, signerSet)?.status === 'EXPIRED') excluded.push(coin)
+    if (classifyCoin(coin, signerSet)?.status === 'EXPIRED' && !isRecoverableCoin(coin)) excluded.push(coin)
     else keep.push(coin)
   }
   return { keep, excluded }

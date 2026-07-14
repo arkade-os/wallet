@@ -141,6 +141,31 @@ describe('partitionByExpiredSigner', () => {
     expect(excluded).toEqual([expiredCoin])
   })
 
+  it('keeps recoverable (swept) coins even under an expired signer', () => {
+    const recoverableCoin = {
+      ...makeCoin(deprecatedServerKey),
+      virtualStatus: { state: 'swept' },
+      isSpent: false,
+    }
+    const { keep, excluded } = partitionByExpiredSigner(
+      [recoverableCoin, expiredCoin],
+      buildSignerSet(makeAspInfo(pastCutoff)),
+    )
+    expect(keep).toEqual([recoverableCoin])
+    expect(excluded).toEqual([expiredCoin])
+  })
+
+  it('still excludes spent swept coins under an expired signer', () => {
+    const spentSweptCoin = {
+      ...makeCoin(deprecatedServerKey),
+      virtualStatus: { state: 'swept' },
+      isSpent: true,
+    }
+    const { keep, excluded } = partitionByExpiredSigner([spentSweptCoin], buildSignerSet(makeAspInfo(pastCutoff)))
+    expect(keep).toEqual([])
+    expect(excluded).toEqual([spentSweptCoin])
+  })
+
   it('keeps migratable (pre-cutoff) deprecated coins', () => {
     const { keep, excluded } = partitionByExpiredSigner(
       [currentCoin, expiredCoin],

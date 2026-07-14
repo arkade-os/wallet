@@ -46,6 +46,12 @@ const makeBoardingUtxo = (txid: string, value: number, serverPubKey: Uint8Array)
 const currentVtxo = makeVtxo('current-vtxo', 5000, activeServerKey)
 const expiredVtxo = makeVtxo('expired-vtxo', 7000, deprecatedServerKey)
 const expiredUtxo = makeBoardingUtxo('expired-utxo', 9000, deprecatedServerKey)
+// swept but unspent: recoverable, so settleable even under an expired signer
+const recoverableVtxo = {
+  ...makeVtxo('recoverable-vtxo', 3000, deprecatedServerKey),
+  virtualStatus: { state: 'swept' },
+  isSpent: false,
+}
 
 const makeWallet = () =>
   ({
@@ -70,6 +76,14 @@ describe('getInputsToSettle', () => {
     expect(inputs).toEqual([currentVtxo])
     expect(vtxos).toEqual([currentVtxo])
     expect(boardingUtxos).toEqual([])
+    expect(excluded).toEqual([expiredUtxo, expiredVtxo])
+  })
+
+  it('keeps recoverable (swept) coins under an expired signer in the batch', async () => {
+    const wallet = makeWallet()
+    const vtxoManager = makeVtxoManager([currentVtxo, expiredVtxo, recoverableVtxo])
+    const { inputs, excluded } = await getInputsToSettle(wallet, vtxoManager, 1000, aspInfo)
+    expect(inputs).toEqual([currentVtxo, recoverableVtxo])
     expect(excluded).toEqual([expiredUtxo, expiredVtxo])
   })
 
@@ -102,6 +116,16 @@ describe('settleVtxos', () => {
     expect(wallet.settle).toHaveBeenCalledTimes(1)
     expect(wallet.settle).toHaveBeenCalledWith(
       { inputs: [currentVtxo], outputs: [{ address: 'ark1qtest', amount: BigInt(5000) }] },
+      expect.any(Function),
+    )
+  })
+
+  it('includes recoverable expired-signer coins in the settled amount', async () => {
+    const wallet = makeWallet()
+    const vtxoManager = makeVtxoManager([currentVtxo, expiredVtxo, recoverableVtxo])
+    await settleVtxos(wallet, vtxoManager, BigInt(1000), 1000, aspInfo)
+    expect(wallet.settle).toHaveBeenCalledWith(
+      { inputs: [currentVtxo, recoverableVtxo], outputs: [{ address: 'ark1qtest', amount: BigInt(8000) }] },
       expect.any(Function),
     )
   })
