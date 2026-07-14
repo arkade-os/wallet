@@ -24,6 +24,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { SwapsContext } from '../../../providers/swaps'
 import { OptionsContext } from '../../../providers/options'
 import { Currencies, Unit } from '../../../lib/types'
+import { sleep } from '@/lib/sleep'
 
 describe('Send screen', () => {
   const renderSendForm = ({
@@ -218,7 +219,7 @@ describe('Send screen', () => {
     const amountInput = document.querySelector('input[name="send-amount"]') as HTMLInputElement
     fireEvent.change(amountInput, { target: { value: '10' } })
 
-    expect(await screen.findByText('0.0001 BTC')).toBeInTheDocument()
+    expect(await screen.findByText('0.00010000 BTC')).toBeInTheDocument()
     expect(screen.queryByText('10,000 sats')).not.toBeInTheDocument()
   })
 

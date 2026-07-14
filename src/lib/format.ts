@@ -32,8 +32,8 @@ export const prettyAgo = (timestamp: number | string, long = false): string => {
 export const prettyAmount = (sats: number, suffix?: string, decimals = 2): string => {
   if (suffix) return `${prettyNumber(sats, decimals)} ${suffix}`
   if (sats >= 100_000_000_000_000) return `${prettyNumber(fromSatoshis(sats), 0)}K BTC`
-  if (sats >= 100_000_000_000) return `${prettyNumber(fromSatoshis(sats), 0)} BTC`
-  if (sats >= 100_000_000) return `${prettyNumber(fromSatoshis(sats), 3)} BTC`
+  if (sats >= 100_000_000_000) return `${prettyNumber(fromSatoshis(sats), 8, true, 8)} BTC`
+  if (sats >= 100_000_000) return `${prettyNumber(fromSatoshis(sats), 8, true, 8)} BTC`
   if (sats >= 1_000_000) return `${prettyNumber(sats / 1_000_000, 3)}M sats`
   return `${prettyNumber(sats, 0)} ${sats === 1 ? 'sat' : 'sats'}`
 }
@@ -64,8 +64,8 @@ const formatBitcoinUnitAmountParts = (
     return { amount: `${BITCOIN_SYMBOL}${prettyNumber(Math.round(amount), 0)}`, unit: '' }
   }
 
-  const maximumFractionDigits = options.maximumFractionDigits ?? 8
-  const minimumFractionDigits = options.minimumFractionDigits ?? 0
+  const maximumFractionDigits = options.maximumFractionDigits ?? (amount === 0 ? 0 : 8)
+  const minimumFractionDigits = options.minimumFractionDigits ?? (amount === 0 ? 0 : 8)
   return {
     amount: prettyNumber(amount, maximumFractionDigits, true, minimumFractionDigits),
     unit: 'BTC',
