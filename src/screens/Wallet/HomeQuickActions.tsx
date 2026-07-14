@@ -4,6 +4,7 @@ import ScanIcon from '../../icons/Scan'
 import SendIcon from '../../icons/Send'
 import SwapIcon from '../../icons/Swap'
 import SwapComingSoonSheet from '../../components/SwapComingSoonSheet'
+import { AssetSwapsContext } from '../../providers/assetSwaps'
 import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { hapticLight } from '../../lib/haptics'
@@ -19,6 +20,7 @@ interface HomeAction {
 export default function HomeQuickActions() {
   const { navigate } = useContext(NavigationContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
+  const { swapAvailable } = useContext(AssetSwapsContext)
   const [swapSheetOpen, setSwapSheetOpen] = useState(false)
 
   const actions: HomeAction[] = [
@@ -44,7 +46,8 @@ export default function HomeQuickActions() {
       icon: <SwapIcon />,
       label: 'Swap',
       onClick: () => {
-        setSwapSheetOpen(true)
+        if (swapAvailable) navigate(Pages.WalletSwap)
+        else setSwapSheetOpen(true)
       },
       testId: 'home-action-swap',
     },

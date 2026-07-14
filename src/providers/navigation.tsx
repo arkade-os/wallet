@@ -19,6 +19,7 @@ import Vtxos from '../screens/Settings/Vtxos'
 import Wallet from '../screens/Wallet/Index'
 import BitcoinDetail from '../screens/Wallet/BitcoinDetail'
 import Settings from '../screens/Settings/Index'
+import WalletSwap from '../screens/Wallet/Swap/Index'
 
 import AppBoltz from '../screens/Apps/Boltz/Index'
 import AppBoltzSettings from '../screens/Apps/Boltz/Settings'
@@ -79,6 +80,7 @@ export enum Pages {
   Vtxos,
   Wallet,
   WalletSettings,
+  WalletSwap,
 }
 
 export enum Tabs {
@@ -126,6 +128,7 @@ const pageTab = {
   [Pages.Vtxos]: Tabs.Settings,
   [Pages.Wallet]: Tabs.Wallet,
   [Pages.WalletSettings]: Tabs.Wallet,
+  [Pages.WalletSwap]: Tabs.Wallet,
 }
 
 // Root pages of each tab — tab switches between these get no animation
@@ -224,6 +227,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <Wallet />
     case Pages.WalletSettings:
       return <Settings />
+    case Pages.WalletSwap:
+      return <WalletSwap />
     default:
       return <></>
   }
