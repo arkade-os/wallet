@@ -81,54 +81,7 @@ export enum Pages {
   WalletSettings,
 }
 
-export enum Tabs {
-  None = 'none',
-  Settings = 'settings',
-  Wallet = 'wallet',
-}
-
-const pageTab = {
-  [Pages.Activity]: Tabs.Wallet,
-  [Pages.BitcoinDetail]: Tabs.Wallet,
-  [Pages.AppBoltz]: Tabs.Settings,
-  [Pages.AppBoltzSettings]: Tabs.Settings,
-  [Pages.AppBoltzSwap]: Tabs.Settings,
-  [Pages.AppLendasat]: Tabs.Wallet,
-  [Pages.AppSatora]: Tabs.Wallet,
-  [Pages.AppAssets]: Tabs.Settings,
-  [Pages.AppAssetDetail]: Tabs.Settings,
-  [Pages.AppAssetImport]: Tabs.Settings,
-  [Pages.AppAssetMint]: Tabs.Settings,
-  [Pages.AppAssetMintSuccess]: Tabs.Settings,
-  [Pages.AppAssetReissue]: Tabs.Settings,
-  [Pages.AppAssetBurn]: Tabs.Settings,
-  [Pages.AppAssetsSettings]: Tabs.Settings,
-  [Pages.AppDfx]: Tabs.Wallet,
-  [Pages.Init]: Tabs.None,
-  [Pages.InitRestore]: Tabs.None,
-  [Pages.InitPassword]: Tabs.None,
-  [Pages.InitConnect]: Tabs.None,
-  [Pages.InAppBrowser]: Tabs.None,
-  [Pages.InitSuccess]: Tabs.None,
-  [Pages.Loading]: Tabs.None,
-  [Pages.NotesRedeem]: Tabs.Settings,
-  [Pages.NotesForm]: Tabs.Settings,
-  [Pages.NotesSuccess]: Tabs.Settings,
-  [Pages.ReceiveQRCode]: Tabs.Wallet,
-  [Pages.ReceiveSuccess]: Tabs.Wallet,
-  [Pages.SendForm]: Tabs.Wallet,
-  [Pages.SendDetails]: Tabs.Wallet,
-  [Pages.SendSuccess]: Tabs.Wallet,
-  [Pages.Settings]: Tabs.Settings,
-  [Pages.Transaction]: Tabs.Wallet,
-  [Pages.Unavailable]: Tabs.None,
-  [Pages.Unlock]: Tabs.None,
-  [Pages.Vtxos]: Tabs.Settings,
-  [Pages.Wallet]: Tabs.Wallet,
-  [Pages.WalletSettings]: Tabs.Wallet,
-}
-
-// Root pages of each tab — tab switches between these get no animation
+// Root pages - switches between these get no animation
 const ROOT_PAGES = new Set([Pages.Wallet, Pages.Settings])
 
 // Coordination point for sub-navigation (e.g., Settings options)
@@ -236,7 +189,6 @@ interface NavigationContextProps {
   navigate: (arg0: Pages) => void
   replace: (page: Pages, backTo?: Pages | Pages[]) => void
   screen: Pages
-  tab: Tabs
 }
 
 export const NavigationContext = createContext<NavigationContextProps>({
@@ -246,12 +198,10 @@ export const NavigationContext = createContext<NavigationContextProps>({
   navigate: () => {},
   replace: () => {},
   screen: Pages.Init,
-  tab: Tabs.None,
 })
 
 export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   const [screen, setScreen] = useState(Pages.Init)
-  const [tab, setTab] = useState(Tabs.None)
   const [direction, setDirection] = useState<NavigationDirection>('none')
 
   const screenRef = useRef(Pages.Init)
@@ -259,7 +209,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   const previousPage = useRef<Pages>(Pages.Init)
   const skipNextPopstate = useRef(false)
 
-  const isInitialLoad = pageTab[previousPage.current] === Tabs.None && screen === Pages.Wallet
+  const isInitialLoad = screen === Pages.Wallet
 
   const handlePopState = useCallback(() => {
     const fromButton = isButtonBack.current
@@ -291,7 +241,6 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     stack.pop()
     previousPage.current = screenRef.current
     setDirection(fromButton ? 'back' : 'none')
-    setTab(pageTab[prevPage])
     screenRef.current = prevPage
     setScreen(prevPage)
   }, [])
@@ -326,9 +275,8 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
         skipNextPopstate.current = true
         history.go(-entriesToRemove)
       }
-      const isSameTab = pageTab[page] === pageTab[screenRef.current]
       const isFromRoot = ROOT_PAGES.has(screenRef.current)
-      setDirection(isFromRoot || !isSameTab ? 'none' : 'back')
+      setDirection(isFromRoot ? 'none' : 'back')
     } else {
       // forward navigation: push to back stack AND browser history
       backStack.current.push(screenRef.current)
@@ -338,7 +286,6 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
 
     screenRef.current = page
     setScreen(page)
-    setTab(pageTab[page])
   }, [])
 
   const replace = useCallback((page: Pages, backTo?: Pages | Pages[]) => {
@@ -353,9 +300,8 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     }
 
     screenRef.current = page
-    setScreen(page)
-    setTab(pageTab[page])
     setDirection('back')
+    setScreen(page)
   }, [])
 
   useEffect(() => {
@@ -372,7 +318,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   }, [navigate])
 
   return (
-    <NavigationContext.Provider value={{ direction, goBack, isInitialLoad, navigate, replace, screen, tab }}>
+    <NavigationContext.Provider value={{ direction, goBack, isInitialLoad, navigate, replace, screen }}>
       {children}
     </NavigationContext.Provider>
   )
