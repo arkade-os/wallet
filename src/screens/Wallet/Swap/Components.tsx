@@ -4,7 +4,6 @@ import AssetAvatar from '../../../components/AssetAvatar'
 import Button from '../../../components/Button'
 import TokenLogo, { tokenLogoTickerForTicker } from '../../../components/TokenLogo'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../../components/ui/drawer'
-import ArrowUpDownIcon from '../../../icons/ArrowUpDown'
 import ChevronDownIcon from '../../../icons/ChevronDown'
 import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
@@ -109,13 +108,9 @@ export function SwapAssetList({
 
 export function SwapComposer({
   amount,
-  activeTicker,
-  activeSide,
-  onToggleSide,
   fromAsset,
   toAsset,
   receiveAmount,
-  payAmount,
   onOpenReceiveDrawer,
   onSwapSides,
   validationMessage,
@@ -124,13 +119,9 @@ export function SwapComposer({
   swapTurn,
 }: {
   amount: string
-  activeTicker: string
-  activeSide: 'give' | 'want'
-  onToggleSide: () => void
   fromAsset: SwapAsset
   toAsset?: SwapAsset
   receiveAmount: string
-  payAmount: string
   onOpenReceiveDrawer: () => void
   onSwapSides: () => void
   validationMessage: string
@@ -139,19 +130,16 @@ export function SwapComposer({
   swapTurn: number
 }) {
   const prefersReduced = useReducedMotion()
-  const amountLabel = `${amount} ${activeTicker}`
-  // the input card always wears the asset being typed; the card below carries
-  // the computed counter side
-  const activeAsset = activeSide === 'want' && toAsset ? toAsset : fromAsset
+  const amountLabel = `${amount} ${fromAsset.ticker}`
 
   return (
     <div className='swap-composer'>
       <div className='swap-input-card'>
         <div className='swap-input-card__asset'>
-          <TokenAvatar asset={activeAsset} size={36} />
+          <TokenAvatar asset={fromAsset} size={36} />
           <div className='swap-input-card__asset-copy'>
-            <span>{activeSide === 'want' ? `Receive ${activeAsset.name}` : activeAsset.name}</span>
-            <small>{activeSide === 'want' ? 'You get at least this amount' : formatAssetBalance(fromAsset)}</small>
+            <span>{fromAsset.name}</span>
+            <small>{formatAssetBalance(fromAsset)}</small>
           </div>
         </div>
         <div className='swap-amount-stack'>
@@ -181,26 +169,6 @@ export function SwapComposer({
             ) : null}
           </AnimatePresence>
         </div>
-        {toAsset ? (
-          <motion.button
-            type='button'
-            className='swap-amount-secondary'
-            layout
-            onClick={onToggleSide}
-            transition={{ duration: prefersReduced ? 0 : 0.18, ease: EASE_IN_OUT_QUINT_TUPLE }}
-          >
-            <motion.span
-              className='swap-amount-secondary__icon'
-              layout='position'
-              animate={{ rotate: activeSide === 'give' ? 0 : 180 }}
-              transition={{ duration: prefersReduced ? 0 : 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
-              aria-hidden='true'
-            >
-              <ArrowUpDownIcon />
-            </motion.span>
-            {activeSide === 'give' ? 'Enter receive amount' : 'Enter send amount'}
-          </motion.button>
-        ) : null}
       </div>
 
       <motion.button
@@ -215,40 +183,27 @@ export function SwapComposer({
         <SwapIcon />
       </motion.button>
 
-      {activeSide === 'want' && toAsset ? (
-        <button type='button' className='swap-receive-card' onClick={onToggleSide}>
-          <TokenAvatar asset={fromAsset} size={36} />
-          <div>
-            <span>Pay {fromAsset.ticker}</span>
-            <small>{quoteLoading ? <SwapSkeletonText width='5.75rem' /> : payAmount}</small>
-          </div>
-          <span className='swap-amount-secondary__icon' aria-hidden='true'>
-            <ArrowUpDownIcon />
-          </span>
-        </button>
-      ) : (
-        <button type='button' className='swap-receive-card' onClick={onOpenReceiveDrawer}>
-          {toAsset ? (
-            <>
-              <TokenAvatar asset={toAsset} size={36} />
-              <div>
-                <span>Receive {toAsset.ticker}</span>
-                <small>{quoteLoading ? <SwapSkeletonText width='5.75rem' /> : receiveAmount}</small>
-              </div>
-              <ChevronDownIcon />
-            </>
-          ) : (
-            <>
-              <span className='swap-receive-card__empty'>+</span>
-              <div>
-                <span>Receive</span>
-                <small>Choose asset</small>
-              </div>
-              <ChevronDownIcon />
-            </>
-          )}
-        </button>
-      )}
+      <button type='button' className='swap-receive-card' onClick={onOpenReceiveDrawer}>
+        {toAsset ? (
+          <>
+            <TokenAvatar asset={toAsset} size={36} />
+            <div>
+              <span>Receive {toAsset.ticker}</span>
+              <small>{quoteLoading ? <SwapSkeletonText width='5.75rem' /> : receiveAmount}</small>
+            </div>
+            <ChevronDownIcon />
+          </>
+        ) : (
+          <>
+            <span className='swap-receive-card__empty'>+</span>
+            <div>
+              <span>Receive</span>
+              <small>Choose asset</small>
+            </div>
+            <ChevronDownIcon />
+          </>
+        )}
+      </button>
     </div>
   )
 }

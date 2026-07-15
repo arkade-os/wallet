@@ -145,31 +145,6 @@ describe('Swap screen', () => {
     expect(screen.queryByText('Decentralized Pix')).not.toBeInTheDocument()
   })
 
-  it('supports typing the receive amount', async () => {
-    fetchMocker.mockResponse(JSON.stringify({ bitcoin: { usd: 100000 } }))
-    renderSwap()
-    fireEvent.click(screen.getByText('Bitcoin'))
-    await waitFor(() => expect(screen.getByText('Choose asset')).toBeInTheDocument())
-    fireEvent.click(screen.getByText('Choose asset'))
-    await waitFor(() => expect(screen.getByText('Choose asset to receive')).toBeInTheDocument())
-    fireEvent.click(screen.getByText('USDT'))
-
-    // 0.00001 BTC -> 0.99 USDT
-    for (const key of ['.', '0', '0', '0', '0', '1']) {
-      fireEvent.click(screen.getByRole('button', { name: key }))
-    }
-    await waitFor(() => expect(screen.getAllByText('≥ 0.99 USDT').length).toBeGreaterThan(0), { timeout: 3000 })
-
-    // switch to entering the receive side; buffer seeds from the quote and
-    // the input card now wears the receive asset
-    fireEvent.click(screen.getByRole('button', { name: 'Enter receive amount' }))
-    await waitFor(() => expect(screen.getByLabelText('0.99 USDT')).toBeInTheDocument())
-    expect(screen.getByText('Receive USDT')).toBeInTheDocument()
-    // the pay card shows the minimum btc deposit to fund that receive
-    expect(screen.getByText('Pay BTC')).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByText('0.00000998 BTC')).toBeInTheDocument(), { timeout: 3000 })
-  })
-
   it('types whole sats when the display unit is sats', async () => {
     fetchMocker.mockResponse(JSON.stringify({ bitcoin: { usd: 100000 } }))
     renderSwap({}, Unit.SATS)

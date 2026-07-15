@@ -53,7 +53,6 @@ export default function WalletSwap() {
   const [step, setStep] = useState<SwapStep>('select-from')
   const [search, setSearch] = useState('')
   const [amount, setAmount] = useState('0')
-  const [amountSide, setAmountSide] = useState<'give' | 'want'>('give')
   const [fromAssetId, setFromAssetId] = useState(BTC_ASSET_ID)
   const [toAssetId, setToAssetId] = useState<string>()
   const [drawer, setDrawer] = useState<DrawerState>(null)
@@ -107,11 +106,10 @@ export default function WalletSwap() {
 
   const fromAsset = swapAssets.find((asset) => asset.assetId === fromAssetId) ?? swapAssets[0]
   const toAsset = toAssetId ? swapAssets.find((asset) => asset.assetId === toAssetId) : undefined
-  const activeAsset = amountSide === 'want' && toAsset ? toAsset : fromAsset
 
   const pair = toAsset ? findMarket(markets, fromAsset.assetId, toAsset.assetId) : undefined
   const quote = useOfferQuote(pair?.market ?? null, { give: pair?.give, ...QUOTE_OPTIONS })
-  const { plan, setGiveAmount, setWantAmount, status } = quote
+  const { plan, setGiveAmount, status } = quote
 
   /** Amounts of the btc side render in the configured unit; assets in their own. */
   const fmtAmount = (offerAmount: OfferAmount): string =>
@@ -119,38 +117,28 @@ export default function WalletSwap() {
       ? prettyBitcoinAmount(Number(offerAmount.atomic), btcUnit)
       : `${offerAmount.display} ${offerAmount.asset.ticker}`
 
-  /** Keypad buffer for an amount, in the target asset's entry unit. */
-  const bufferFor = (offerAmount: OfferAmount, target: SwapAsset): string =>
-    target.assetId === BTC_ASSET_ID && btcEntryPrecision === 0 ? offerAmount.atomic.toString() : offerAmount.display
-
   // typed sats are converted to the btc display string the quote lib expects
   const amountForQuote = (value: string): string =>
-    activeAsset.assetId === BTC_ASSET_ID && btcEntryPrecision === 0
+    fromAsset.assetId === BTC_ASSET_ID && btcEntryPrecision === 0
       ? fromAtomic(BigInt(value.replace(/\D/g, '') || '0'), 8)
       : value
 
   // the keypad renders instantly; the quote (a price feed fetch) is debounced
   useEffect(() => {
-    const apply = amountSide === 'give' ? setGiveAmount : setWantAmount
-    const timer = window.setTimeout(() => apply(Number(amount) > 0 ? amountForQuote(amount) : ''), 300)
+    const timer = window.setTimeout(() => setGiveAmount(Number(amount) > 0 ? amountForQuote(amount) : ''), 300)
     return () => window.clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amount, amountSide, activeAsset.assetId, setGiveAmount, setWantAmount])
+  }, [amount, fromAsset.assetId, setGiveAmount])
 
-  // clearing the receive asset invalidates receive-side entry
-  useEffect(() => {
-    if (!toAssetId) setAmountSide('give')
-  }, [toAssetId])
-
-  // trim the buffer when the active asset allows fewer decimals
+  // trim the buffer when the send asset allows fewer decimals
   useEffect(() => {
     setAmount((current) => {
       const dot = current.indexOf('.')
       if (dot < 0) return current
-      if (activeAsset.precision === 0) return current.slice(0, dot) || '0'
-      return current.slice(0, dot + 1 + activeAsset.precision)
+      if (fromAsset.precision === 0) return current.slice(0, dot) || '0'
+      return current.slice(0, dot + 1 + fromAsset.precision)
     })
-  }, [activeAsset.assetId, activeAsset.precision])
+  }, [fromAsset.assetId, fromAsset.precision])
 
   const planError = plan ? validatePlan(plan, fromAsset.balance, aspInfo.dust) : undefined
   const validationMessage = !toAsset
@@ -190,18 +178,9 @@ export default function WalletSwap() {
         }
       : undefined
 
-  const toggleAmountSide = () => {
-    if (!toAsset || !pair?.market) return
-    hapticLight()
-    const next = amountSide === 'give' ? 'want' : 'give'
-    const seed = plan ? (next === 'want' ? plan.receive : plan.deposit) : undefined
-    setAmount(seed ? bufferFor(seed, next === 'want' ? toAsset : fromAsset) : '0')
-    setAmountSide(next)
-  }
-
   const pressKey = (key: string) => {
     setConfirmError('')
-    const maxDecimals = activeAsset.precision
+    const maxDecimals = fromAsset.precision
     hapticTap()
     if (key === 'Back') {
       setAmount((current) => current.slice(0, -1) || '0')
@@ -393,13 +372,9 @@ export default function WalletSwap() {
                 >
                   <SwapComposer
                     amount={amount}
-                    activeTicker={activeAsset.ticker}
-                    activeSide={amountSide}
-                    onToggleSide={toggleAmountSide}
                     fromAsset={fromAsset}
                     toAsset={toAsset}
                     receiveAmount={plan ? `≥ ${fmtAmount(plan.receive)}` : '—'}
-                    payAmount={plan ? fmtAmount(plan.deposit) : '—'}
                     onOpenReceiveDrawer={() => openDrawer('to')}
                     onSwapSides={swapSides}
                     validationMessage={validationMessage}
