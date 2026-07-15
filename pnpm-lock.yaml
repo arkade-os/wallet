@@ -12,8 +12,8 @@ importers:
         specifier: 0.3.48
         version: 0.3.48
       '@arkade-os/sdk':
-        specifier: git+https://github.com/louisinger/wallet-sdk.git#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk
-        version: git+https://github.com/louisinger/wallet-sdk.git#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk
+        specifier: file:vendor/arkade-os-sdk-0.4.41.tgz
+        version: file:vendor/arkade-os-sdk-0.4.41.tgz
       '@arkade-os/solver-discovery':
         specifier: 0.1.2
         version: 0.1.2
@@ -278,8 +278,8 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/sdk@git+https://github.com/louisinger/wallet-sdk.git#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk':
-    resolution: {commit: 36f61c9462b2004f39ad6bab7e5178cb8791c929, path: /packages/ts-sdk, repo: https://github.com/louisinger/wallet-sdk.git, type: git}
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.41.tgz':
+    resolution: {integrity: sha512-aU/0Co3FmwWQe6IuAyP8YX2u86qAmocJA/zr9E0pptW69/ab44qqsibvw4mLHvbW7+fHuVA5lG6EybLxm0UTMQ==, tarball: file:vendor/arkade-os-sdk-0.4.41.tgz}
     version: 0.4.41
     engines: {node: '>=22.12.0 <25'}
     peerDependencies:
@@ -4346,7 +4346,7 @@ snapshots:
       - ecpair
       - utf-8-validate
 
-  '@arkade-os/sdk@git+https://github.com/louisinger/wallet-sdk.git#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk':
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.41.tgz':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 7.3.1
