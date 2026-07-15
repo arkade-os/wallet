@@ -58,7 +58,6 @@ const pendingSwap: AssetSwap = {
 
 const mockAssetSwapsValue = {
   markets: [btcUsdt, btcDepix],
-  marketsLoaded: true,
   swapAvailable: true,
   swaps: [] as AssetSwap[],
   createSwap: vi.fn().mockResolvedValue(pendingSwap),

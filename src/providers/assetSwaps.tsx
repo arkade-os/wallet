@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
+import { ReactNode, createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { hex } from '@scure/base'
 import { asset, RestEmulatorProvider, RestIndexerProvider } from '@arkade-os/sdk'
 import { DiscoveredMarket, OfferPlan } from '@arkade-os/solver-discovery'
@@ -17,7 +17,6 @@ const POLL_INTERVAL_MS = 5_000
 interface AssetSwapsContextProps {
   /** Markets from the network's solver registry. */
   markets: DiscoveredMarket[]
-  marketsLoaded: boolean
   /** True when there are markets and the covenant co-signer is reachable. */
   swapAvailable: boolean
   swaps: AssetSwap[]
@@ -27,7 +26,6 @@ interface AssetSwapsContextProps {
 
 export const AssetSwapsContext = createContext<AssetSwapsContextProps>({
   markets: [],
-  marketsLoaded: false,
   swapAvailable: false,
   swaps: [],
   createSwap: async () => {
@@ -43,7 +41,6 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   const { svcWallet, reloadWallet } = useContext(WalletContext)
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
-  const [marketsLoaded, setMarketsLoaded] = useState(false)
   const [emulatorUrl, setEmulatorUrl] = useState<string>()
   const [swaps, setSwaps] = useState<AssetSwap[]>([])
 
@@ -58,7 +55,6 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     discoverMarkets(network)
       .then(setMarkets)
       .catch((err) => consoleError(err, 'solver discovery failed'))
-      .finally(() => setMarketsLoaded(true))
     const url = getEmulatorUrlForNetwork(network)
     if (!url) return
     new RestEmulatorProvider(url)
@@ -123,46 +119,49 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
 
   // ponytail: plain polling while swaps are pending; the indexer SSE
   // subscription is the upgrade path if this ever gets chatty
+  const pendingScripts = swaps
+    .filter((s) => s.status === 'pending')
+    .map((s) => s.swapPkScript)
+    .join(',')
+
   useEffect(() => {
-    const pending = swaps.filter((s) => s.status === 'pending')
-    if (!pending.length || !aspInfo.url) return
+    if (!pendingScripts || !aspInfo.url) return
     const indexer = new RestIndexerProvider(aspInfo.url)
     const check = async () => {
-      for (const swap of pending) {
-        try {
-          const { vtxos } = await indexer.getVtxos({ scripts: [swap.swapPkScript] })
-          const state = vtxos[0]?.virtualStatus.state
+      try {
+        const { vtxos } = await indexer.getVtxos({ scripts: pendingScripts.split(',') })
+        for (const vtxo of vtxos) {
+          const state = vtxo.virtualStatus.state
+          if (state !== 'spent' && state !== 'swept') continue
+          // re-read the store so an in-flight check never overwrites a cancel
+          // (cancelOffer also spends the swap vtxo)
+          const swap = getAssetSwaps().find((s) => s.swapPkScript === vtxo.script && s.status === 'pending')
+          if (!swap) continue
           if (state === 'spent') {
-            const spentTxid = vtxos[0].arkTxId ?? vtxos[0].spentBy
-            setSwaps(updateAssetSwap(swap.id, { status: 'fulfilled', spentTxid }))
+            setSwaps(updateAssetSwap(swap.id, { status: 'fulfilled', spentTxid: vtxo.arkTxId ?? vtxo.spentBy }))
             toast.success(`Swap completed, ${tickerFor(swap.toAsset)} received`)
             reloadWallet().catch(consoleError)
-          } else if (state === 'swept') {
+          } else {
             setSwaps(updateAssetSwap(swap.id, { status: 'recoverable' }))
           }
-        } catch (err) {
-          consoleError(err, 'swap status check failed')
         }
+      } catch (err) {
+        consoleError(err, 'swap status check failed')
       }
     }
     check()
     const interval = setInterval(check, POLL_INTERVAL_MS)
     return () => clearInterval(interval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [swaps, aspInfo.url])
+  }, [pendingScripts, aspInfo.url])
 
-  return (
-    <AssetSwapsContext.Provider
-      value={{
-        markets,
-        marketsLoaded,
-        swapAvailable: markets.length > 0 && Boolean(emulatorUrl),
-        swaps,
-        createSwap,
-        cancelSwap,
-      }}
-    >
-      {children}
-    </AssetSwapsContext.Provider>
+  const swapAvailable = markets.length > 0 && Boolean(emulatorUrl)
+  const value = useMemo(
+    () => ({ markets, swapAvailable, swaps, createSwap, cancelSwap }),
+    // createSwap/cancelSwap close over these
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [markets, swapAvailable, swaps, svcWallet, emulatorUrl, aspInfo.url],
   )
+
+  return <AssetSwapsContext.Provider value={value}>{children}</AssetSwapsContext.Provider>
 }

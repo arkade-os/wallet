@@ -186,9 +186,12 @@ export async function createOffer(
   if (!params.wantAsset === !params.offerAsset) {
     throw new Error('set exactly one of wantAsset (BTC->asset) or offerAsset (asset->BTC)')
   }
-  const info = await new RestArkProvider(arkServerUrl).getInfo()
+  const [info, emulatorInfo] = await Promise.all([
+    new RestArkProvider(arkServerUrl).getInfo(),
+    new RestEmulatorProvider(emulatorUrl).getInfo(),
+  ])
   const serverPubKey = hex.decode(info.signerPubkey).slice(1)
-  const emuKey = hex.decode((await new RestEmulatorProvider(emulatorUrl).getInfo()).signerPubkey)
+  const emuKey = hex.decode(emulatorInfo.signerPubkey)
 
   const offer: Offer = {
     swapPkScript: new Uint8Array(0), // placeholder, computed below
@@ -202,9 +205,10 @@ export async function createOffer(
   const script = offerVtxoScript(offer, serverPubKey)
   offer.swapPkScript = script.pkScript
 
+  const payload = encodeOffer(offer)
   return {
-    offerHex: hex.encode(encodeOffer(offer)),
-    payload: encodeOffer(offer),
+    offerHex: hex.encode(payload),
+    payload,
     address: new ArkAddress(
       serverPubKey,
       script.tweakedPublicKey,

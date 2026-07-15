@@ -19,19 +19,11 @@ export interface SwapAsset {
   balance: bigint
 }
 
-export type SwapValidationState =
-  | 'idle'
-  | 'insufficient-balance'
-  | 'quote-unavailable'
-  | 'below-min'
-  | 'above-max'
-  | 'below-dust'
-
 const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'Back']
 const rateNote = 'Rates are dynamic and may update before you confirm.'
 const rateNoteAutoDismissMs = 2400
 
-export function formatAssetBalance(asset: SwapAsset): string {
+function formatAssetBalance(asset: SwapAsset): string {
   return `${prettyCurrencyAssetAmount(asset.balance, asset.precision, asset.ticker)} ${asset.ticker}`
 }
 
@@ -62,7 +54,6 @@ export function SwapAssetList({
   subtitle,
   search,
   assets,
-  selectedId,
   onSearch,
   onSelect,
 }: {
@@ -70,7 +61,6 @@ export function SwapAssetList({
   subtitle: string
   search: string
   assets: SwapAsset[]
-  selectedId?: string
   onSearch: (value: string) => void
   onSelect: (asset: SwapAsset) => void
 }) {
@@ -106,7 +96,7 @@ export function SwapAssetList({
                 prefersReduced ? { duration: 0 } : { duration: 0.22, delay: index * 0.035, ease: EASE_OUT_QUINT_TUPLE }
               }
             >
-              <SwapAssetRow asset={asset} active={selectedId === asset.assetId} onClick={() => onSelect(asset)} />
+              <SwapAssetRow asset={asset} onClick={() => onSelect(asset)} />
             </motion.div>
           ))
         )}
@@ -217,7 +207,7 @@ export function SwapComposer({
   )
 }
 
-export function SwapSkeletonText({ width }: { width: string }) {
+function SwapSkeletonText({ width }: { width: string }) {
   return <span className='swap-skeleton-text' style={{ width }} aria-hidden='true' />
 }
 
@@ -241,7 +231,7 @@ function AnimatedAmountValue({ value, reducedMotion }: { value: string; reducedM
   )
 }
 
-export function SwapAssetRow({ asset, active, onClick }: { asset: SwapAsset; active?: boolean; onClick: () => void }) {
+function SwapAssetRow({ asset, active, onClick }: { asset: SwapAsset; active?: boolean; onClick: () => void }) {
   return (
     <button
       type='button'
@@ -257,7 +247,7 @@ export function SwapAssetRow({ asset, active, onClick }: { asset: SwapAsset; act
   )
 }
 
-export function TokenAvatar({ asset, size }: { asset: SwapAsset; size: number }) {
+function TokenAvatar({ asset, size }: { asset: SwapAsset; size: number }) {
   const tokenLogoTicker = tokenLogoTickerForTicker(asset.ticker)
   if (tokenLogoTicker) {
     return (
@@ -498,7 +488,7 @@ function RateLabel() {
   )
 }
 
-export function MetricRow({ label, value, loading }: { label: ReactNode; value: string; loading?: boolean }) {
+function MetricRow({ label, value, loading }: { label: ReactNode; value: string; loading?: boolean }) {
   return (
     <div className='swap-metric-row'>
       <span>{label}</span>
