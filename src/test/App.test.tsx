@@ -4,7 +4,7 @@ import App, { appReloader } from '../App'
 import { AspContext } from '../providers/asp'
 import { ConfigContext } from '../providers/config'
 import { FlowContext } from '../providers/flow'
-import { NavigationContext, Pages, Tabs } from '../providers/navigation'
+import { NavigationContext, Pages } from '../providers/navigation'
 import { OptionsContext } from '../providers/options'
 import { WalletContext, type WalletAuthState } from '../providers/wallet'
 import {
@@ -30,22 +30,18 @@ function renderApp({
   initialized,
   unlockWallet = vi.fn().mockResolvedValue(undefined),
   screen: screenOverride = Pages.Init,
-  tab: tabOverride = Tabs.None,
   option,
 }: {
   authState: WalletAuthState
   initialized: boolean
   unlockWallet?: ReturnType<typeof vi.fn>
   screen?: Pages
-  tab?: Tabs
   option?: SettingsOptions
 }) {
   const navigate = vi.fn()
 
   render(
-    <NavigationContext.Provider
-      value={{ ...mockNavigationContextValue, navigate, screen: screenOverride, tab: tabOverride }}
-    >
+    <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate, screen: screenOverride }}>
       <AspContext.Provider value={mockAspContextValue as any}>
         <ConfigContext.Provider value={{ ...mockConfigContextValue, configLoaded: true } as any}>
           <FlowContext.Provider value={mockFlowContextValue as any}>
@@ -181,7 +177,7 @@ describe('Navbar visibility', () => {
   })
 
   it('hides navbar on unlock screen even when navigation context has Wallet tab', async () => {
-    renderApp({ authState: 'locked', initialized: false, screen: Pages.Wallet, tab: Tabs.Wallet })
+    renderApp({ authState: 'locked', initialized: false, screen: Pages.Wallet })
 
     await screen.findByText('Unlock')
     const ionApp = screen.getByTestId('app')
@@ -189,14 +185,14 @@ describe('Navbar visibility', () => {
   })
 
   it('hides navbar during loading hold', async () => {
-    renderApp({ authState: 'authenticated', initialized: false, screen: Pages.Wallet, tab: Tabs.Wallet })
+    renderApp({ authState: 'authenticated', initialized: false, screen: Pages.Wallet })
 
     const ionApp = await screen.findByTestId('app')
     expect(ionApp.className).not.toContain('has-pill-navbar')
   })
 
   it('hides navbar on wallet root when authenticated and initialized', async () => {
-    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Wallet, tab: Tabs.Wallet })
+    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Wallet })
 
     const ionApp = await screen.findByTestId('app')
     expect(ionApp.className).not.toContain('has-pill-navbar')
@@ -207,7 +203,6 @@ describe('Navbar visibility', () => {
       authState: 'authenticated',
       initialized: true,
       screen: Pages.Settings,
-      tab: Tabs.Settings,
       option: SettingsOptions.Menu,
     })
 
@@ -220,7 +215,6 @@ describe('Navbar visibility', () => {
       authState: 'authenticated',
       initialized: true,
       screen: Pages.WalletSettings,
-      tab: Tabs.Wallet,
       option: SettingsOptions.Menu,
     })
 
@@ -233,7 +227,6 @@ describe('Navbar visibility', () => {
       authState: 'authenticated',
       initialized: true,
       screen: Pages.Settings,
-      tab: Tabs.Settings,
       option: SettingsOptions.Password,
     })
 
@@ -242,7 +235,7 @@ describe('Navbar visibility', () => {
   })
 
   it('hides navbar on app detail pages when authenticated and initialized', async () => {
-    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.AppLendasat, tab: Tabs.Wallet })
+    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.AppLendasat })
 
     const ionApp = await screen.findByTestId('app')
     expect(ionApp.className).not.toContain('has-pill-navbar')

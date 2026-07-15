@@ -48,19 +48,31 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     setSwaps(getAssetSwaps())
   }, [])
 
-  // discover markets and probe the emulator once the network is known
+  // discover markets and probe the emulator once the network is known;
+  // stale results from a previous network must never land after a switch
   useEffect(() => {
+    setMarkets([])
+    setEmulatorUrl(undefined)
     if (!aspInfo.network) return
+    let cancelled = false
     const network = aspInfo.network as Network
     discoverMarkets(network)
-      .then(setMarkets)
+      .then((found) => {
+        if (!cancelled) setMarkets(found)
+      })
       .catch((err) => consoleError(err, 'solver discovery failed'))
     const url = getEmulatorUrlForNetwork(network)
-    if (!url) return
-    new RestEmulatorProvider(url)
-      .getInfo()
-      .then(() => setEmulatorUrl(url))
-      .catch((err) => consoleError(err, 'swap emulator unreachable'))
+    if (url) {
+      new RestEmulatorProvider(url)
+        .getInfo()
+        .then(() => {
+          if (!cancelled) setEmulatorUrl(url)
+        })
+        .catch((err) => consoleError(err, 'swap emulator unreachable'))
+    }
+    return () => {
+      cancelled = true
+    }
   }, [aspInfo.network])
 
   const tickerFor = (assetId: string): string => {
@@ -111,7 +123,15 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     if (!svcWallet) throw new Error('wallet not available')
     const swap = getAssetSwaps().find((s) => s.id === id)
     if (!swap) throw new Error('swap not found')
-    await cancelOffer(svcWallet, aspInfo.url, swap.offerHex)
+    // leave 'pending' before spending so the poller can't read the cancel
+    // spend as a fulfillment
+    setSwaps(updateAssetSwap(id, { status: 'cancelling' }))
+    try {
+      await cancelOffer(svcWallet, aspInfo.url, swap.offerHex, swap.fundingTxid)
+    } catch (err) {
+      setSwaps(updateAssetSwap(id, { status: swap.status }))
+      throw err
+    }
     setSwaps(updateAssetSwap(id, { status: 'cancelled' }))
     toast.success('Swap cancelled, funds returned')
     reloadWallet().catch(consoleError)

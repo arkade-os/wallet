@@ -219,6 +219,7 @@ export function ReviewDrawer({
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
+  const prefersReduced = useReducedMotion()
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className='swap-drawer-content'>
@@ -255,10 +256,10 @@ export function ReviewDrawer({
             {error ? (
               <motion.p
                 className='swap-confirm-error'
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 6 }}
-                transition={{ duration: 0.2, ease: EASE_OUT_QUINT_TUPLE }}
+                initial={prefersReduced ? false : { opacity: 0, y: 6 }}
+                animate={prefersReduced ? undefined : { opacity: 1, y: 0 }}
+                exit={prefersReduced ? undefined : { opacity: 0, y: 6 }}
+                transition={{ duration: prefersReduced ? 0 : 0.2, ease: EASE_OUT_QUINT_TUPLE }}
               >
                 {error}
               </motion.p>

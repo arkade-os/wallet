@@ -82,7 +82,9 @@ export default function InputAmount({
     const useBTC = config.unit === Unit.BTC
     const btcValue = useBTC ? fromSatoshis(satsValue) : satsValue
     const decimals = useBTC ? 8 : 0
-    setOtherValue(useFiat ? prettyNumber(btcValue, decimals) : prettyNumber(toFiat(satsValue), fiatDecimals()))
+    setOtherValue(
+      useFiat ? prettyNumber(btcValue, decimals, true, decimals) : prettyNumber(toFiat(satsValue), fiatDecimals()),
+    )
   }, [satsValue, toFiat, fiatDecimals, useFiat])
 
   const handleAmountChange = (ev: React.ChangeEvent<HTMLInputElement>) => {

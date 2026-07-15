@@ -6,7 +6,7 @@
  *   banco-asset-to-btc.program.json  maker deposits an asset, wants BTC
  *
  * Coins locked by a contract can only be spent by a transaction that delivers
- * `$wantAmount` (of `$wantTxid`, or of BTC) to `$makerWP` — the `fulfill`
+ * `$wantAmount` (of `$wantAssetTxid`, or of BTC) to `$makerWP` — the `fulfill`
  * covenant, co-signed by the Arkade signer only after executing that script —
  * or cooperatively by the maker (`cancel`). This file is just plumbing: bind
  * an offer's values to the program's `$param`s, and speak the solver's TLV
@@ -69,7 +69,10 @@ export function offerVtxoScript(offer: Omit<Offer, 'swapPkScript'>, serverPubkey
       server: serverPubkey,
       user: offer.makerPublicKey,
       // internal byte order
-      ...(offer.wantAsset && { wantTxid: offer.wantAsset.txid.slice().reverse() }),
+      ...(offer.wantAsset && {
+        wantAssetTxid: offer.wantAsset.txid.slice().reverse(),
+        wantAssetGroupIndex: offer.wantAsset.groupIndex,
+      }),
     },
     {
       serverKey: serverPubkey,
@@ -149,6 +152,9 @@ export function decodeOffer(data: Uint8Array): Offer {
     return v
   }
   const amount = need('wantAmount', 8)
+  if (!fields.wantAsset === !fields.offerAsset) {
+    throw new Error('offer must carry exactly one of wantAsset or offerAsset')
+  }
   return {
     swapPkScript: need('swapPkScript'),
     wantAmount: new DataView(amount.buffer, amount.byteOffset).getBigUint64(0, false),
@@ -218,8 +224,15 @@ export async function createOffer(
   }
 }
 
-/** Cancel an offer: spend the swap VTXO back to the maker. Returns the ark txid. */
-export async function cancelOffer(wallet: IWallet, arkServerUrl: string, offerHex: string): Promise<string> {
+/** Cancel an offer: spend the swap VTXO back to the maker. Returns the ark txid.
+ * Identical offers derive the same address, so `fundingTxid` selects the exact
+ * deposit; without it the first spendable VTXO at the address is cancelled. */
+export async function cancelOffer(
+  wallet: IWallet,
+  arkServerUrl: string,
+  offerHex: string,
+  fundingTxid?: string,
+): Promise<string> {
   const offer = decodeOffer(hex.decode(offerHex))
 
   const client = await arkade.Arkade.connect({
@@ -239,7 +252,10 @@ export async function cancelOffer(wallet: IWallet, arkServerUrl: string, offerHe
       wantAmount: offer.wantAmount,
       server: client.serverKey,
       user: offer.makerPublicKey,
-      ...(offer.wantAsset && { wantTxid: offer.wantAsset.txid.slice().reverse() }),
+      ...(offer.wantAsset && {
+        wantAssetTxid: offer.wantAsset.txid.slice().reverse(),
+        wantAssetGroupIndex: offer.wantAsset.groupIndex,
+      }),
     },
     {
       serverKey: client.serverKey,
@@ -248,7 +264,8 @@ export async function cancelOffer(wallet: IWallet, arkServerUrl: string, offerHe
     },
   )
 
-  const [vtxo] = await contract.getUtxos()
+  const vtxos = await contract.getUtxos()
+  const vtxo = fundingTxid ? vtxos.find((v: { txid: string }) => v.txid === fundingTxid) : vtxos[0]
   if (!vtxo) throw new Error('no spendable VTXO at the swap address')
 
   const makerPkScript = ArkAddress.decode(await wallet.getAddress()).pkScript

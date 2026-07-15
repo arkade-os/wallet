@@ -36,6 +36,7 @@ type DrawerState = 'from' | 'to' | 'review' | null
 
 const statusLabels: Record<AssetSwapStatus, string> = {
   pending: 'Pending',
+  cancelling: 'Cancelling',
   fulfilled: 'Completed',
   cancelled: 'Cancelled',
   recoverable: 'Recoverable',
@@ -121,12 +122,19 @@ export default function WalletSwap() {
       ? fromAtomic(BigInt(value.replace(/\D/g, '') || '0'), 8)
       : value
 
-  // the keypad renders instantly; the quote (a price feed fetch) is debounced
+  // the keypad renders instantly; the quote (a price feed fetch) is debounced.
+  // quotedAmount tracks which input produced the current plan so a stale plan
+  // can never be confirmed during the debounce window
+  const [quotedAmount, setQuotedAmount] = useState('0')
   useEffect(() => {
-    const timer = window.setTimeout(() => setGiveAmount(Number(amount) > 0 ? amountForQuote(amount) : ''), 300)
+    const timer = window.setTimeout(() => {
+      setGiveAmount(Number(amount) > 0 ? amountForQuote(amount) : '')
+      setQuotedAmount(amount)
+    }, 300)
     return () => window.clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amount, fromAsset.assetId, setGiveAmount])
+  const quoteStale = quotedAmount !== amount
 
   // trim the buffer when the send asset allows fewer decimals
   useEffect(() => {
@@ -155,8 +163,8 @@ export default function WalletSwap() {
                 ? 'Amount too small'
                 : ''
 
-  const quoteLoading = status === 'loading'
-  const canContinue = Boolean(toAsset && plan && status === 'success' && !planError)
+  const quoteLoading = status === 'loading' || (quoteStale && Number(amount) > 0)
+  const canContinue = Boolean(toAsset && plan && status === 'success' && !planError && !quoteStale)
 
   useEffect(() => {
     if (!validationMessage) return
@@ -258,19 +266,6 @@ export default function WalletSwap() {
   const filteredAssets = useMemo(() => filterAssets(swapAssets, search), [search, swapAssets])
   const assetById = (assetId: string) => swapAssets.find((asset) => asset.assetId === assetId)
 
-  if (!swapAvailable) {
-    return (
-      <>
-        <Header text='Swap' back={goBack} />
-        <Content className='asset-swap-content'>
-          <Padded>
-            <SwapUnavailableState />
-          </Padded>
-        </Content>
-      </>
-    )
-  }
-
   return (
     <>
       <Header text='Swap' back={handleBack} />
@@ -287,14 +282,20 @@ export default function WalletSwap() {
                   exit={prefersReduced ? undefined : { opacity: 0, x: -16 }}
                   transition={stageTransition}
                 >
-                  <SwapAssetList
-                    title='Choose asset to swap'
-                    subtitle='Select the asset you want to trade from.'
-                    search={search}
-                    assets={filteredAssets}
-                    onSearch={setSearch}
-                    onSelect={selectFromAsset}
-                  />
+                  {/* an outage only blocks creating swaps; existing swaps stay
+                      listed so pending funds remain cancellable */}
+                  {swapAvailable ? (
+                    <SwapAssetList
+                      title='Choose asset to swap'
+                      subtitle='Select the asset you want to trade from.'
+                      search={search}
+                      assets={filteredAssets}
+                      onSearch={setSearch}
+                      onSelect={selectFromAsset}
+                    />
+                  ) : (
+                    <SwapUnavailableState />
+                  )}
                   {swaps.length > 0 ? (
                     <div className='swap-asset-list-panel'>
                       <div className='swap-step-heading'>
