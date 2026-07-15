@@ -26,7 +26,7 @@ import FlexRow from '../../../components/FlexRow'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import Text from '../../../components/Text'
 import Shadow from '../../../components/Shadow'
-import Scanner from '../../../components/Scanner'
+import ScanModal from '../../../components/ScanModal'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
 import { Addresses, AssetOption, SettingsOptions, Themes, Unit } from '../../../lib/types'
@@ -166,14 +166,15 @@ export default function SendForm() {
         ? prettyNumber(fromSatoshis(sats), 8, false)
         : prettyNumber(sats, 0, false)
 
+  // consume data scanned elsewhere (e.g. Scan quick action) to prefill the recipient
   useEffect(() => {
-    if (!sendInfo.scan) return
-    const nextSendInfo = { ...sendInfo }
-    delete nextSendInfo.scan
-    setKeys(false)
-    setScan(true)
+    if (!sendInfo.scannedData) return
+    const { scannedData, ...nextSendInfo } = sendInfo
     setSendInfo(nextSendInfo)
-  }, [sendInfo.scan])
+    setRecipient(scannedData)
+    setRawScanData(scannedData)
+    setReadyToParse(true)
+  }, [sendInfo.scannedData])
 
   // cleanup debounce timeout on unmount
   useEffect(() => {
@@ -656,6 +657,12 @@ export default function SendForm() {
     timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
   }
 
+  const handleScannedData = (data: string) => {
+    setRecipient(data)
+    setRawScanData(data)
+    setReadyToParse(true)
+  }
+
   const handleContinue = async () => {
     setProcessing(true)
     const satoshis = sendInfo.satoshis ?? 0
@@ -806,40 +813,6 @@ export default function SendForm() {
         >
           <Keys />
         </motion.div>
-      </AnimatePresence>
-    )
-  }
-
-  const Scan = () => (
-    <Scanner
-      close={() => setScan(false)}
-      label='Recipient address'
-      onData={(data) => {
-        setRecipient(data)
-        setRawScanData(data)
-        setReadyToParse(true)
-      }}
-      onError={smartSetError}
-    />
-  )
-
-  if (scan) {
-    return prefersReducedMotion ? (
-      <div style={sendOverlayStyle}>
-        <Scan />
-      </div>
-    ) : (
-      <AnimatePresence>
-        <motion.div
-          key='scanner'
-          variants={overlaySlideUp}
-          initial='initial'
-          animate='animate'
-          exit='exit'
-          style={sendOverlayStyle}
-        >
-          <Scan />
-        </motion.div>{' '}
       </AnimatePresence>
     )
   }
@@ -1036,6 +1009,13 @@ export default function SendForm() {
           <Button onClick={handleContinue} label={label} disabled={buttonDisabled} />
         </ButtonsOnBottom>
       </div>
+      <ScanModal
+        isOpen={scan}
+        label='Recipient address'
+        onCapture={handleScannedData}
+        onClose={() => setScan(false)}
+        onError={smartSetError}
+      />
       <SheetModal isOpen={showReserveModal} onClose={() => setShowReserveModal(false)}>
         <FlexCol gap='1rem'>
           <Text bold>Balance reserve</Text>

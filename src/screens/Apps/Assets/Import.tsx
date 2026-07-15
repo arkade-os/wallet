@@ -14,7 +14,7 @@ import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 import InputAssetId from '../../../components/InputAssetId'
-import Scanner from '../../../components/Scanner'
+import ScanModal from '../../../components/ScanModal'
 import { isValidAssetId } from '../../../lib/assets'
 
 export default function AppAssetImport() {
@@ -61,8 +61,6 @@ export default function AppAssetImport() {
 
   if (loading) return <LoadingLogo text='Fetching asset details...' />
 
-  if (scan) return <Scanner close={() => setScan(false)} label='Ark note' onData={setAssetId} onError={setError} />
-
   return (
     <>
       <Header text='Import Asset' back />
@@ -85,6 +83,13 @@ export default function AppAssetImport() {
       <ButtonsOnBottom>
         <Button label='Import' onClick={handleImport} disabled={!assetId} />
       </ButtonsOnBottom>
+      <ScanModal
+        isOpen={scan}
+        label='Asset ID'
+        onCapture={setAssetId}
+        onClose={() => setScan(false)}
+        onError={setError}
+      />
     </>
   )
 }
