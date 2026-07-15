@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useContext, useEffect, useMemo, useState } from 'react'
+import { fromAtomic, type OfferAmount } from '@arkade-os/solver-discovery'
 import { useOfferQuote } from '@arkade-os/solver-discovery/react'
 import Button from '../../../components/Button'
 import Content from '../../../components/Content'
@@ -8,12 +9,14 @@ import Padded from '../../../components/Padded'
 import WalletSuccessSplash from '../../../components/WalletSuccessSplash'
 import { EASE_IN_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { extractError } from '../../../lib/error'
-import { prettyCurrencyAssetAmount, prettyNumber } from '../../../lib/format'
+import { normalizeBitcoinUnit, prettyBitcoinAmount, prettyCurrencyAssetAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
 import { BTC_ASSET_ID, findMarket, QUOTE_OPTIONS, validatePlan } from '../../../lib/swap/markets'
 import { AssetSwap, AssetSwapStatus } from '../../../lib/swap/store'
+import { Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
 import { AssetSwapsContext } from '../../../providers/assetSwaps'
+import { ConfigContext } from '../../../providers/config'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
@@ -41,14 +44,16 @@ const statusLabels: Record<AssetSwapStatus, string> = {
 export default function WalletSwap() {
   const { aspInfo } = useContext(AspContext)
   const { cancelSwap, createSwap, markets, swapAvailable, swaps } = useContext(AssetSwapsContext)
+  const { config } = useContext(ConfigContext)
   const { goBack, navigate } = useContext(NavigationContext)
-  const { assetBalances, balance, svcWallet } = useContext(WalletContext)
+  const { assetBalances, assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
   const prefersReduced = useReducedMotion()
 
   const [availableSats, setAvailableSats] = useState(0)
   const [step, setStep] = useState<SwapStep>('select-from')
   const [search, setSearch] = useState('')
   const [amount, setAmount] = useState('0')
+  const [amountSide, setAmountSide] = useState<'give' | 'want'>('give')
   const [fromAssetId, setFromAssetId] = useState(BTC_ASSET_ID)
   const [toAssetId, setToAssetId] = useState<string>()
   const [drawer, setDrawer] = useState<DrawerState>(null)
@@ -69,32 +74,83 @@ export default function WalletSwap() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [balance, svcWallet])
 
+  // the wallet-wide bitcoin unit governs how the btc side is typed and shown
+  const btcUnit = normalizeBitcoinUnit(config.unit)
+  const btcEntryPrecision = btcUnit === Unit.BTC ? 8 : 0 // sats and ₿ are typed as whole sats
+
   // btc + every asset quoted by a discovered market, with wallet balances
   const swapAssets = useMemo<SwapAsset[]>(() => {
     const assets: SwapAsset[] = [
-      { assetId: BTC_ASSET_ID, name: 'Bitcoin', ticker: 'BTC', precision: 8, balance: BigInt(availableSats) },
+      {
+        assetId: BTC_ASSET_ID,
+        name: 'Bitcoin',
+        ticker: btcUnit === Unit.BTC ? 'BTC' : btcUnit,
+        precision: btcEntryPrecision,
+        balance: BigInt(availableSats),
+      },
     ]
     for (const market of markets) {
       const { id, name, ticker, precision } = market.quote_asset
       if (assets.some((asset) => asset.assetId === id)) continue
       const owned = assetBalances?.find((ab) => ab.assetId === id)
-      assets.push({ assetId: id, name, ticker, precision, balance: owned ? BigInt(owned.amount) : BigInt(0) })
+      assets.push({
+        assetId: id,
+        name,
+        ticker,
+        precision,
+        balance: owned ? BigInt(owned.amount) : BigInt(0),
+        icon: assetMetadataCache.get(id)?.metadata?.icon,
+      })
     }
     return assets
-  }, [markets, availableSats, assetBalances])
+  }, [markets, availableSats, assetBalances, assetMetadataCache, btcUnit, btcEntryPrecision])
 
   const fromAsset = swapAssets.find((asset) => asset.assetId === fromAssetId) ?? swapAssets[0]
   const toAsset = toAssetId ? swapAssets.find((asset) => asset.assetId === toAssetId) : undefined
+  const activeAsset = amountSide === 'want' && toAsset ? toAsset : fromAsset
 
   const pair = toAsset ? findMarket(markets, fromAsset.assetId, toAsset.assetId) : undefined
   const quote = useOfferQuote(pair?.market ?? null, { give: pair?.give, ...QUOTE_OPTIONS })
-  const { plan, setGiveAmount, status } = quote
+  const { plan, setGiveAmount, setWantAmount, status } = quote
+
+  /** Amounts of the btc side render in the configured unit; assets in their own. */
+  const fmtAmount = (offerAmount: OfferAmount): string =>
+    offerAmount.asset.id === BTC_ASSET_ID
+      ? prettyBitcoinAmount(Number(offerAmount.atomic), btcUnit)
+      : `${offerAmount.display} ${offerAmount.asset.ticker}`
+
+  /** Keypad buffer for an amount, in the target asset's entry unit. */
+  const bufferFor = (offerAmount: OfferAmount, target: SwapAsset): string =>
+    target.assetId === BTC_ASSET_ID && btcEntryPrecision === 0 ? offerAmount.atomic.toString() : offerAmount.display
+
+  // typed sats are converted to the btc display string the quote lib expects
+  const amountForQuote = (value: string): string =>
+    activeAsset.assetId === BTC_ASSET_ID && btcEntryPrecision === 0
+      ? fromAtomic(BigInt(value.replace(/\D/g, '') || '0'), 8)
+      : value
 
   // the keypad renders instantly; the quote (a price feed fetch) is debounced
   useEffect(() => {
-    const timer = window.setTimeout(() => setGiveAmount(Number(amount) > 0 ? amount : ''), 300)
+    const apply = amountSide === 'give' ? setGiveAmount : setWantAmount
+    const timer = window.setTimeout(() => apply(Number(amount) > 0 ? amountForQuote(amount) : ''), 300)
     return () => window.clearTimeout(timer)
-  }, [amount, setGiveAmount])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amount, amountSide, activeAsset.assetId, setGiveAmount, setWantAmount])
+
+  // clearing the receive asset invalidates receive-side entry
+  useEffect(() => {
+    if (!toAssetId) setAmountSide('give')
+  }, [toAssetId])
+
+  // trim the buffer when the active asset allows fewer decimals
+  useEffect(() => {
+    setAmount((current) => {
+      const dot = current.indexOf('.')
+      if (dot < 0) return current
+      if (activeAsset.precision === 0) return current.slice(0, dot) || '0'
+      return current.slice(0, dot + 1 + activeAsset.precision)
+    })
+  }, [activeAsset.assetId, activeAsset.precision])
 
   const planError = plan ? validatePlan(plan, fromAsset.balance, aspInfo.dust) : undefined
   const validationMessage = !toAsset
@@ -106,9 +162,9 @@ export default function WalletSwap() {
         : planError === 'insufficient-balance'
           ? 'Insufficient balance'
           : planError === 'below-min'
-            ? `Minimum ${plan!.limits.minBase.display} ${plan!.limits.baseAsset.ticker}`
+            ? `Minimum ${fmtAmount(plan!.limits.minBase)}`
             : planError === 'above-max'
-              ? `Maximum ${plan!.limits.maxBase.display} ${plan!.limits.baseAsset.ticker}`
+              ? `Maximum ${fmtAmount(plan!.limits.maxBase)}`
               : planError === 'below-dust'
                 ? 'Amount too small'
                 : ''
@@ -127,16 +183,33 @@ export default function WalletSwap() {
       ? {
           fromAsset,
           toAsset,
-          swapAmount: `${plan.deposit.display} ${fromAsset.ticker}`,
-          receiveAmount: `≥ ${plan.receive.display} ${toAsset.ticker}`,
+          swapAmount: fmtAmount(plan.deposit),
+          receiveAmount: `≥ ${fmtAmount(plan.receive)}`,
           feeLabel: `${prettyNumber((plan.market.fee_bps + plan.safetyBps) / 100, 2)}%`,
           rateLabel: `1 ${plan.market.base_asset.ticker} = ${prettyNumber(Number(plan.priceDisplay), 2)} ${plan.market.quote_asset.ticker}`,
         }
       : undefined
 
+  // the line under the big amount shows the computed other side of the quote
+  const counterAmount = plan ? (amountSide === 'give' ? plan.receive : plan.deposit) : undefined
+  const secondaryLabel = toAsset
+    ? counterAmount
+      ? `${amountSide === 'give' ? '≥ ' : ''}${fmtAmount(counterAmount)}`
+      : '—'
+    : undefined
+
+  const toggleAmountSide = () => {
+    if (!toAsset || !pair?.market) return
+    hapticLight()
+    const next = amountSide === 'give' ? 'want' : 'give'
+    const seed = plan ? (next === 'want' ? plan.receive : plan.deposit) : undefined
+    setAmount(seed ? bufferFor(seed, next === 'want' ? toAsset : fromAsset) : '0')
+    setAmountSide(next)
+  }
+
   const pressKey = (key: string) => {
     setConfirmError('')
-    const maxDecimals = fromAsset.precision
+    const maxDecimals = activeAsset.precision
     hapticTap()
     if (key === 'Back') {
       setAmount((current) => current.slice(0, -1) || '0')
@@ -154,7 +227,10 @@ export default function WalletSwap() {
   const selectFromAsset = (asset: SwapAsset) => {
     hapticLight()
     setFromAssetId(asset.assetId)
-    setToAssetId((current) => (current === asset.assetId ? undefined : current))
+    // keep the receive asset only if a market quotes the new pair
+    setToAssetId((current) =>
+      current && current !== asset.assetId && findMarket(markets, asset.assetId, current)?.market ? current : undefined,
+    )
     setSearch('')
     setStep('compose')
   }
@@ -325,9 +401,13 @@ export default function WalletSwap() {
                 >
                   <SwapComposer
                     amount={amount}
+                    activeTicker={activeAsset.ticker}
+                    activeSide={amountSide}
+                    secondaryLabel={secondaryLabel}
+                    onToggleSide={toggleAmountSide}
                     fromAsset={fromAsset}
                     toAsset={toAsset}
-                    receiveAmount={plan && toAsset ? `≥ ${plan.receive.display} ${toAsset.ticker}` : '—'}
+                    receiveAmount={plan ? `≥ ${fmtAmount(plan.receive)}` : '—'}
                     onOpenReceiveDrawer={() => openDrawer('to')}
                     onSwapSides={swapSides}
                     validationMessage={validationMessage}
@@ -346,7 +426,11 @@ export default function WalletSwap() {
 
       <AssetPickerDrawer
         open={drawer === 'to'}
-        assets={swapAssets.filter((asset) => asset.assetId !== fromAsset.assetId)}
+        assets={swapAssets.filter(
+          (asset) =>
+            asset.assetId !== fromAsset.assetId &&
+            Boolean(findMarket(markets, fromAsset.assetId, asset.assetId)?.market),
+        )}
         selectedId={toAsset?.assetId}
         onOpenChange={(open) => {
           if (!open) setDrawer(null)

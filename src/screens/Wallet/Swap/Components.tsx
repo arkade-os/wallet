@@ -4,6 +4,7 @@ import AssetAvatar from '../../../components/AssetAvatar'
 import Button from '../../../components/Button'
 import TokenLogo, { tokenLogoTickerForTicker } from '../../../components/TokenLogo'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../../components/ui/drawer'
+import ArrowUpDownIcon from '../../../icons/ArrowUpDown'
 import ChevronDownIcon from '../../../icons/ChevronDown'
 import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
@@ -17,6 +18,7 @@ export interface SwapAsset {
   ticker: string
   precision: number
   balance: bigint
+  icon?: string
 }
 
 const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'Back']
@@ -107,6 +109,10 @@ export function SwapAssetList({
 
 export function SwapComposer({
   amount,
+  activeTicker,
+  activeSide,
+  secondaryLabel,
+  onToggleSide,
   fromAsset,
   toAsset,
   receiveAmount,
@@ -118,6 +124,10 @@ export function SwapComposer({
   swapTurn,
 }: {
   amount: string
+  activeTicker: string
+  activeSide: 'give' | 'want'
+  secondaryLabel?: string
+  onToggleSide: () => void
   fromAsset: SwapAsset
   toAsset?: SwapAsset
   receiveAmount: string
@@ -129,7 +139,7 @@ export function SwapComposer({
   swapTurn: number
 }) {
   const prefersReduced = useReducedMotion()
-  const amountLabel = `${amount} ${fromAsset.ticker}`
+  const amountLabel = `${amount} ${activeTicker}`
 
   return (
     <div className='swap-composer'>
@@ -168,6 +178,27 @@ export function SwapComposer({
             ) : null}
           </AnimatePresence>
         </div>
+        {secondaryLabel ? (
+          <motion.button
+            type='button'
+            className='swap-amount-secondary'
+            layout
+            onClick={onToggleSide}
+            aria-label={activeSide === 'give' ? 'Enter the receive amount instead' : 'Enter the send amount instead'}
+            transition={{ duration: prefersReduced ? 0 : 0.18, ease: EASE_IN_OUT_QUINT_TUPLE }}
+          >
+            <AnimatedSecondaryAmountValue value={secondaryLabel} reducedMotion={prefersReduced} />
+            <motion.span
+              className='swap-amount-secondary__icon'
+              layout='position'
+              animate={{ rotate: activeSide === 'give' ? 0 : 180 }}
+              transition={{ duration: prefersReduced ? 0 : 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
+              aria-hidden='true'
+            >
+              <ArrowUpDownIcon />
+            </motion.span>
+          </motion.button>
+        ) : null}
       </div>
 
       <motion.button
@@ -211,6 +242,25 @@ function SwapSkeletonText({ width }: { width: string }) {
   return <span className='swap-skeleton-text' style={{ width }} aria-hidden='true' />
 }
 
+function AnimatedSecondaryAmountValue({ value, reducedMotion }: { value: string; reducedMotion: boolean }) {
+  return (
+    <span className='swap-amount-value swap-amount-value--secondary' aria-label={value}>
+      <AnimatePresence mode='wait' initial={false}>
+        <motion.span
+          key={value}
+          initial={reducedMotion ? false : { opacity: 0, y: 5 }}
+          animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+          exit={reducedMotion ? undefined : { opacity: 0, y: -5 }}
+          transition={reducedMotion ? { duration: 0 } : { duration: 0.14, ease: EASE_OUT_QUINT_TUPLE }}
+          aria-hidden='true'
+        >
+          {value}
+        </motion.span>
+      </AnimatePresence>
+    </span>
+  )
+}
+
 // ponytail: single crossfade instead of 727's per-character animation rig
 function AnimatedAmountValue({ value, reducedMotion }: { value: string; reducedMotion: boolean }) {
   return (
@@ -248,15 +298,19 @@ function SwapAssetRow({ asset, active, onClick }: { asset: SwapAsset; active?: b
 }
 
 function TokenAvatar({ asset, size }: { asset: SwapAsset; size: number }) {
-  const tokenLogoTicker = tokenLogoTickerForTicker(asset.ticker)
-  if (tokenLogoTicker) {
-    return (
-      <span className='swap-token-avatar' style={{ width: size, height: size }}>
+  // the btc row's ticker follows the display unit (sats/₿); the logo must not
+  const tokenLogoTicker = tokenLogoTickerForTicker(asset.assetId === 'btc' ? 'BTC' : asset.ticker)
+  // always wrapped: the bare AssetAvatar div would catch flex rules like
+  // .swap-receive-card > div { flex: 1 } and stretch
+  return (
+    <span className='swap-token-avatar' style={{ width: size, height: size }}>
+      {tokenLogoTicker ? (
         <TokenLogo ticker={tokenLogoTicker} />
-      </span>
-    )
-  }
-  return <AssetAvatar name={asset.name} ticker={asset.ticker} size={size} />
+      ) : (
+        <AssetAvatar icon={asset.icon} name={asset.name} ticker={asset.ticker} size={size} />
+      )}
+    </span>
+  )
 }
 
 export function Keypad({ amount, onPress }: { amount: string; onPress: (key: string) => void }) {

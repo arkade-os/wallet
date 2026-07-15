@@ -5,10 +5,17 @@ import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
 import WalletSwap from '../../../screens/Wallet/Swap/Index'
 import { AspContext } from '../../../providers/asp'
 import { AssetSwapsContext } from '../../../providers/assetSwaps'
+import { ConfigContext } from '../../../providers/config'
 import { NavigationContext } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { AssetSwap } from '../../../lib/swap/store'
-import { mockAspContextValue, mockNavigationContextValue, mockWalletContextValue } from '../mocks'
+import { Unit } from '../../../lib/types'
+import {
+  mockAspContextValue,
+  mockConfigContextValue,
+  mockNavigationContextValue,
+  mockWalletContextValue,
+} from '../mocks'
 
 const fetchMocker = createFetchMock(vi)
 fetchMocker.enableMocks()
@@ -66,17 +73,21 @@ const mockAssetSwapsValue = {
 
 const svcWallet = { getBalance: () => Promise.resolve({ available: 100_000 }) }
 
-const renderSwap = (overrides: Partial<typeof mockAssetSwapsValue> = {}) =>
+const renderSwap = (overrides: Partial<typeof mockAssetSwapsValue> = {}, unit = Unit.BTC) =>
   render(
-    <AspContext.Provider value={mockAspContextValue as any}>
-      <NavigationContext.Provider value={mockNavigationContextValue as any}>
-        <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: svcWallet as any } as any}>
-          <AssetSwapsContext.Provider value={{ ...mockAssetSwapsValue, ...overrides }}>
-            <WalletSwap />
-          </AssetSwapsContext.Provider>
-        </WalletContext.Provider>
-      </NavigationContext.Provider>
-    </AspContext.Provider>,
+    <ConfigContext.Provider
+      value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, unit } } as any}
+    >
+      <AspContext.Provider value={mockAspContextValue as any}>
+        <NavigationContext.Provider value={mockNavigationContextValue as any}>
+          <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: svcWallet as any } as any}>
+            <AssetSwapsContext.Provider value={{ ...mockAssetSwapsValue, ...overrides }}>
+              <WalletSwap />
+            </AssetSwapsContext.Provider>
+          </WalletContext.Provider>
+        </NavigationContext.Provider>
+      </AspContext.Provider>
+    </ConfigContext.Provider>,
   )
 
 describe('Swap screen', () => {
@@ -111,7 +122,7 @@ describe('Swap screen', () => {
     }
 
     // debounced quote resolves: 10_000 sats -> 9.92 USDT
-    await waitFor(() => expect(screen.getByText('≥ 9.92 USDT')).toBeInTheDocument(), { timeout: 3000 })
+    await waitFor(() => expect(screen.getAllByText('≥ 9.92 USDT').length).toBeGreaterThan(0), { timeout: 3000 })
 
     fireEvent.click(screen.getByText('Continue'))
     await waitFor(() => expect(screen.getByText('Review swap')).toBeInTheDocument())
@@ -121,6 +132,57 @@ describe('Swap screen', () => {
     const plan = mockAssetSwapsValue.createSwap.mock.calls[0][0]
     expect(plan.deposit.atomic).toBe(BigInt(10_000))
     expect(plan.receive.atomic).toBe(BigInt(992))
+  })
+
+  it('only offers receive assets that share a market with the from asset', async () => {
+    renderSwap()
+    fireEvent.click(screen.getByText('USDT'))
+    await waitFor(() => expect(screen.getByText('Choose asset')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('Choose asset'))
+    await waitFor(() => expect(screen.getByText('Choose asset to receive')).toBeInTheDocument())
+    // no USDT/DePix market: only btc can be received against USDT
+    expect(screen.getAllByText('Bitcoin').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Decentralized Pix')).not.toBeInTheDocument()
+  })
+
+  it('supports typing the receive amount', async () => {
+    fetchMocker.mockResponse(JSON.stringify({ bitcoin: { usd: 100000 } }))
+    renderSwap()
+    fireEvent.click(screen.getByText('Bitcoin'))
+    await waitFor(() => expect(screen.getByText('Choose asset')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('Choose asset'))
+    await waitFor(() => expect(screen.getByText('Choose asset to receive')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('USDT'))
+
+    // 0.00001 BTC -> 0.99 USDT
+    for (const key of ['.', '0', '0', '0', '0', '1']) {
+      fireEvent.click(screen.getByRole('button', { name: key }))
+    }
+    await waitFor(() => expect(screen.getAllByText('≥ 0.99 USDT').length).toBeGreaterThan(0), { timeout: 3000 })
+
+    // switch to entering the receive side; buffer seeds from the quote
+    fireEvent.click(screen.getByRole('button', { name: 'Enter the receive amount instead' }))
+    await waitFor(() => expect(screen.getByLabelText('0.99 USDT')).toBeInTheDocument())
+    // the counter line now shows the minimum btc deposit to fund that receive
+    await waitFor(() => expect(screen.getByText('0.00000998 BTC')).toBeInTheDocument(), { timeout: 3000 })
+  })
+
+  it('types whole sats when the display unit is sats', async () => {
+    fetchMocker.mockResponse(JSON.stringify({ bitcoin: { usd: 100000 } }))
+    renderSwap({}, Unit.SATS)
+    await waitFor(() => expect(screen.getByText('100K sats')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('Bitcoin'))
+    await waitFor(() => expect(screen.getByText('Choose asset')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('Choose asset'))
+    await waitFor(() => expect(screen.getByText('Choose asset to receive')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('USDT'))
+
+    // 1000 sats -> 0.99 USDT
+    for (const key of ['1', '0', '0', '0']) {
+      fireEvent.click(screen.getByRole('button', { name: key }))
+    }
+    expect(screen.getByLabelText('1000 sats')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getAllByText('≥ 0.99 USDT').length).toBeGreaterThan(0), { timeout: 3000 })
   })
 
   it('lists swaps and cancels a pending one', async () => {
