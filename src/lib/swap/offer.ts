@@ -6,7 +6,7 @@
  *   banco-asset-to-btc.program.json  maker deposits an asset, wants BTC
  *
  * Coins locked by a contract can only be spent by a transaction that delivers
- * `$wantAmount` (of `$wantTxid`, or of BTC) to `$makerWP` — the `fulfill`
+ * `$wantAmount` (of `$wantAssetTxid`, or of BTC) to `$makerWP` — the `fulfill`
  * covenant, co-signed by the Arkade signer only after executing that script —
  * or cooperatively by the maker (`cancel`). This file is just plumbing: bind
  * an offer's values to the program's `$param`s, and speak the solver's TLV
@@ -69,7 +69,10 @@ export function offerVtxoScript(offer: Omit<Offer, 'swapPkScript'>, serverPubkey
       server: serverPubkey,
       user: offer.makerPublicKey,
       // internal byte order
-      ...(offer.wantAsset && { wantTxid: offer.wantAsset.txid.slice().reverse() }),
+      ...(offer.wantAsset && {
+        wantAssetTxid: offer.wantAsset.txid.slice().reverse(),
+        wantAssetGroupIndex: offer.wantAsset.groupIndex,
+      }),
     },
     {
       serverKey: serverPubkey,
@@ -239,7 +242,10 @@ export async function cancelOffer(wallet: IWallet, arkServerUrl: string, offerHe
       wantAmount: offer.wantAmount,
       server: client.serverKey,
       user: offer.makerPublicKey,
-      ...(offer.wantAsset && { wantTxid: offer.wantAsset.txid.slice().reverse() }),
+      ...(offer.wantAsset && {
+        wantAssetTxid: offer.wantAsset.txid.slice().reverse(),
+        wantAssetGroupIndex: offer.wantAsset.groupIndex,
+      }),
     },
     {
       serverKey: client.serverKey,
