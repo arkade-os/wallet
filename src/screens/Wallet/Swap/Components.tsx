@@ -346,7 +346,6 @@ export interface ReviewInfo {
   swapAmount: string
   receiveAmount: string
   feeLabel: string
-  toleranceLabel: string
   rateLabel: string
 }
 
@@ -394,7 +393,6 @@ export function ReviewDrawer({
               <MetricRow label='Swap' value={review.swapAmount} loading={quoteLoading} />
               <MetricRow label='Receive' value={review.receiveAmount} loading={quoteLoading} />
               <MetricRow label='Solver fee' value={review.feeLabel} loading={quoteLoading} />
-              <MetricRow label='Price tolerance' value={review.toleranceLabel} loading={quoteLoading} />
             </div>
             <div className='swap-detail-card'>
               <MetricRow label={<RateLabel />} value={review.rateLabel} loading={quoteLoading} />

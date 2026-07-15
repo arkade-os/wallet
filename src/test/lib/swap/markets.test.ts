@@ -63,9 +63,9 @@ describe('quoteOffer with the wallet quote options', () => {
     fetchMocker.mockResponseOnce(JSON.stringify({ bitcoin: { usd: 100000 } }))
     const plan = await quoteOffer(btcUsdt, { give: 'base', giveAmount: BigInt(10_000), ...QUOTE_OPTIONS })
     expect(plan.deposit.atomic).toBe(BigInt(10_000))
-    // 10_000 sats * 0.1 cents/sat * (10000 - 30 - 50)bps = 992 cents
-    expect(plan.receive.atomic).toBe(BigInt(992))
-    expect(plan.receive.display).toBe('9.92')
+    // 10_000 sats * 0.1 cents/sat * (10000 - 30)bps = 997 cents
+    expect(plan.receive.atomic).toBe(BigInt(997))
+    expect(plan.receive.display).toBe('9.97')
     expect(plan.limits.withinLimits).toBe(true)
   })
 
@@ -73,22 +73,22 @@ describe('quoteOffer with the wallet quote options', () => {
     fetchMocker.mockResponseOnce(JSON.stringify({ bitcoin: { usd: 100000 } }))
     const plan = await quoteOffer(btcUsdt, { give: 'quote', giveAmount: BigInt(1_000), ...QUOTE_OPTIONS })
     expect(plan.deposit.atomic).toBe(BigInt(1_000))
-    // $10 / 0.1 cents-per-sat, minus 80bps: 9920 sats
-    expect(plan.receive.atomic).toBe(BigInt(9_920))
+    // $10 / 0.1 cents-per-sat, minus the 30bps fee: 9970 sats
+    expect(plan.receive.atomic).toBe(BigInt(9_970))
   })
 
   it('quotes btc->depix through the Binance /price schema', async () => {
     fetchMocker.mockResponseOnce(JSON.stringify({ symbol: 'BTCBRL', price: '600000.00' }))
     const plan = await quoteOffer(btcDepix, { give: 'base', giveAmount: BigInt(10_000), ...QUOTE_OPTIONS })
-    // 10_000 sats * 600_000 depix-atomic/sat * 9920bps = 59.52 DePix
-    expect(plan.receive.atomic).toBe(BigInt(5_952_000_000))
-    expect(plan.receive.display).toBe('59.52')
+    // 10_000 sats * 600_000 depix-atomic/sat * 9970bps = 59.82 DePix
+    expect(plan.receive.atomic).toBe(BigInt(5_982_000_000))
+    expect(plan.receive.display).toBe('59.82')
   })
 })
 
 describe('validatePlan', () => {
   const plan = (give: 'base' | 'quote', giveAmount: bigint) =>
-    planOffer({ market: btcUsdt, give, feedValue: 100000, giveAmount, safetyBps: 50 })
+    planOffer({ market: btcUsdt, give, feedValue: 100000, giveAmount, safetyBps: 0 })
 
   it('accepts a plan within balance and limits', () => {
     expect(validatePlan(plan('base', BigInt(10_000)), BigInt(20_000), BigInt(330))).toBeUndefined()
@@ -105,7 +105,7 @@ describe('validatePlan', () => {
 
   it('flags a btc side below dust', () => {
     // giving quote: the received btc must be a viable VTXO
-    const p = plan('quote', BigInt(152)) // -> 1507 sats, within limits
+    const p = plan('quote', BigInt(152)) // -> 1515 sats, within limits
     expect(validatePlan(p, BigInt(1_000), BigInt(2_000))).toBe('below-dust')
     expect(validatePlan(p, BigInt(1_000), BigInt(330))).toBeUndefined()
   })

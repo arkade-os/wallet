@@ -12,8 +12,10 @@ import { Network } from '@arkade-os/boltz-swap'
 
 export const BTC_ASSET_ID = 'btc'
 
-/** Shared quote options so the react hook and imperative quotes agree. */
-export const QUOTE_OPTIONS = { safetyBps: 50 }
+/** Shared quote options so the react hook and imperative quotes agree.
+ * No safety margin on top of the market fee: pricing drift between quote
+ * and fill is the solver's risk to manage, not the maker's to prepay. */
+export const QUOTE_OPTIONS = { safetyBps: 0 }
 
 /** Markets from the network's solver registry; [] when none is configured. */
 export const discoverMarkets = async (network: Network): Promise<DiscoveredMarket[]> => {

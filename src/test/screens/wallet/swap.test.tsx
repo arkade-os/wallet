@@ -122,7 +122,7 @@ describe('Swap screen', () => {
     }
 
     // debounced quote resolves: 10_000 sats -> 9.92 USDT
-    await waitFor(() => expect(screen.getAllByText('≥ 9.92 USDT').length).toBeGreaterThan(0), { timeout: 3000 })
+    await waitFor(() => expect(screen.getAllByText('≥ 9.97 USDT').length).toBeGreaterThan(0), { timeout: 3000 })
 
     fireEvent.click(screen.getByText('Continue'))
     await waitFor(() => expect(screen.getByText('Review swap')).toBeInTheDocument())
@@ -131,7 +131,7 @@ describe('Swap screen', () => {
     await waitFor(() => expect(mockAssetSwapsValue.createSwap).toHaveBeenCalled())
     const plan = mockAssetSwapsValue.createSwap.mock.calls[0][0]
     expect(plan.deposit.atomic).toBe(BigInt(10_000))
-    expect(plan.receive.atomic).toBe(BigInt(992))
+    expect(plan.receive.atomic).toBe(BigInt(997))
   })
 
   it('only offers receive assets that share a market with the from asset', async () => {
