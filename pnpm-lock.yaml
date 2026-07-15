@@ -12,8 +12,8 @@ importers:
         specifier: 0.3.48
         version: 0.3.48
       '@arkade-os/sdk':
-        specifier: github:louisinger/wallet-sdk#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk
-        version: git+https://git@github.com:louisinger/wallet-sdk.git#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk
+        specifier: git+https://github.com/louisinger/wallet-sdk.git#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk
+        version: git+https://github.com/louisinger/wallet-sdk.git#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk
       '@arkade-os/solver-discovery':
         specifier: 0.1.2
         version: 0.1.2
@@ -278,8 +278,8 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/sdk@git+https://git@github.com:louisinger/wallet-sdk.git#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk':
-    resolution: {commit: 36f61c9462b2004f39ad6bab7e5178cb8791c929, path: /packages/ts-sdk, repo: git@github.com:louisinger/wallet-sdk.git, type: git}
+  '@arkade-os/sdk@git+https://github.com/louisinger/wallet-sdk.git#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk':
+    resolution: {commit: 36f61c9462b2004f39ad6bab7e5178cb8791c929, path: /packages/ts-sdk, repo: https://github.com/louisinger/wallet-sdk.git, type: git}
     version: 0.4.41
     engines: {node: '>=22.12.0 <25'}
     peerDependencies:
@@ -4346,7 +4346,7 @@ snapshots:
       - ecpair
       - utf-8-validate
 
-  '@arkade-os/sdk@git+https://git@github.com:louisinger/wallet-sdk.git#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk':
+  '@arkade-os/sdk@git+https://github.com/louisinger/wallet-sdk.git#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 7.3.1
