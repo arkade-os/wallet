@@ -17,12 +17,52 @@ export const BTC_ASSET_ID = 'btc'
  * and fill is the solver's risk to manage, not the maker's to prepay. */
 export const QUOTE_OPTIONS = { safetyBps: 0 }
 
-/** Markets from the network's solver registry; [] when none is configured. */
+const MARKETS_CACHE_KEY = 'solverMarkets'
+const MARKETS_CACHE_TTL_MS = 60 * 60 * 1000
+
+interface MarketsCacheEntry {
+  markets: DiscoveredMarket[]
+  fetchedAt: number
+}
+
+const readMarketsCache = (network: Network): MarketsCacheEntry | undefined => {
+  const key = `${MARKETS_CACHE_KEY}-${network}`
+  const blob = localStorage.getItem(key)
+  if (!blob) return undefined
+  try {
+    const entry = JSON.parse(blob)
+    if (!Array.isArray(entry?.markets) || typeof entry?.fetchedAt !== 'number') throw new Error('malformed cache')
+    return entry
+  } catch {
+    localStorage.removeItem(key)
+    return undefined
+  }
+}
+
+const writeMarketsCache = (network: Network, markets: DiscoveredMarket[]): void => {
+  try {
+    localStorage.setItem(`${MARKETS_CACHE_KEY}-${network}`, JSON.stringify({ markets, fetchedAt: Date.now() }))
+  } catch {
+    // best effort: a quota error just means the next boot refetches
+  }
+}
+
+/**
+ * Markets from the network's solver registry; [] when none is configured.
+ * Registry content changes rarely, so results are cached for an hour and a
+ * stale cache backstops an unreachable registry (quotes stay live either way).
+ */
 export const discoverMarkets = async (network: Network): Promise<DiscoveredMarket[]> => {
   const registry = getSolverRegistryUrl(network)
   if (!registry || !isNetwork(network)) return []
+  const cached = readMarketsCache(network)
+  if (cached && Date.now() - cached.fetchedAt < MARKETS_CACHE_TTL_MS) return cached.markets
   const { markets, warnings } = await discover({ registries: [registry], network })
   if (warnings.length) consoleLog('solver discovery:', ...warnings)
+  // discover() isolates registry failures as warnings + zero markets, so an
+  // empty result with a cache in hand reads as unreachable, not delisted
+  if (markets.length === 0 && cached) return cached.markets
+  if (markets.length > 0) writeMarketsCache(network, markets)
   return markets
 }
 
