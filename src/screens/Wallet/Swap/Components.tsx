@@ -111,11 +111,11 @@ export function SwapComposer({
   amount,
   activeTicker,
   activeSide,
-  secondaryLabel,
   onToggleSide,
   fromAsset,
   toAsset,
   receiveAmount,
+  payAmount,
   onOpenReceiveDrawer,
   onSwapSides,
   validationMessage,
@@ -126,11 +126,11 @@ export function SwapComposer({
   amount: string
   activeTicker: string
   activeSide: 'give' | 'want'
-  secondaryLabel?: string
   onToggleSide: () => void
   fromAsset: SwapAsset
   toAsset?: SwapAsset
   receiveAmount: string
+  payAmount: string
   onOpenReceiveDrawer: () => void
   onSwapSides: () => void
   validationMessage: string
@@ -140,15 +140,18 @@ export function SwapComposer({
 }) {
   const prefersReduced = useReducedMotion()
   const amountLabel = `${amount} ${activeTicker}`
+  // the input card always wears the asset being typed; the card below carries
+  // the computed counter side
+  const activeAsset = activeSide === 'want' && toAsset ? toAsset : fromAsset
 
   return (
     <div className='swap-composer'>
       <div className='swap-input-card'>
         <div className='swap-input-card__asset'>
-          <TokenAvatar asset={fromAsset} size={36} />
+          <TokenAvatar asset={activeAsset} size={36} />
           <div className='swap-input-card__asset-copy'>
-            <span>{fromAsset.name}</span>
-            <small>{formatAssetBalance(fromAsset)}</small>
+            <span>{activeSide === 'want' ? `Receive ${activeAsset.name}` : activeAsset.name}</span>
+            <small>{activeSide === 'want' ? 'You get at least this amount' : formatAssetBalance(fromAsset)}</small>
           </div>
         </div>
         <div className='swap-amount-stack'>
@@ -178,16 +181,14 @@ export function SwapComposer({
             ) : null}
           </AnimatePresence>
         </div>
-        {secondaryLabel ? (
+        {toAsset ? (
           <motion.button
             type='button'
             className='swap-amount-secondary'
             layout
             onClick={onToggleSide}
-            aria-label={activeSide === 'give' ? 'Enter the receive amount instead' : 'Enter the send amount instead'}
             transition={{ duration: prefersReduced ? 0 : 0.18, ease: EASE_IN_OUT_QUINT_TUPLE }}
           >
-            <AnimatedSecondaryAmountValue value={secondaryLabel} reducedMotion={prefersReduced} />
             <motion.span
               className='swap-amount-secondary__icon'
               layout='position'
@@ -197,6 +198,7 @@ export function SwapComposer({
             >
               <ArrowUpDownIcon />
             </motion.span>
+            {activeSide === 'give' ? 'Enter receive amount' : 'Enter send amount'}
           </motion.button>
         ) : null}
       </div>
@@ -213,52 +215,46 @@ export function SwapComposer({
         <SwapIcon />
       </motion.button>
 
-      <button type='button' className='swap-receive-card' onClick={onOpenReceiveDrawer}>
-        {toAsset ? (
-          <>
-            <TokenAvatar asset={toAsset} size={36} />
-            <div>
-              <span>Receive {toAsset.ticker}</span>
-              <small>{quoteLoading ? <SwapSkeletonText width='5.75rem' /> : receiveAmount}</small>
-            </div>
-            <ChevronDownIcon />
-          </>
-        ) : (
-          <>
-            <span className='swap-receive-card__empty'>+</span>
-            <div>
-              <span>Receive</span>
-              <small>Choose asset</small>
-            </div>
-            <ChevronDownIcon />
-          </>
-        )}
-      </button>
+      {activeSide === 'want' && toAsset ? (
+        <button type='button' className='swap-receive-card' onClick={onToggleSide}>
+          <TokenAvatar asset={fromAsset} size={36} />
+          <div>
+            <span>Pay {fromAsset.ticker}</span>
+            <small>{quoteLoading ? <SwapSkeletonText width='5.75rem' /> : payAmount}</small>
+          </div>
+          <span className='swap-amount-secondary__icon' aria-hidden='true'>
+            <ArrowUpDownIcon />
+          </span>
+        </button>
+      ) : (
+        <button type='button' className='swap-receive-card' onClick={onOpenReceiveDrawer}>
+          {toAsset ? (
+            <>
+              <TokenAvatar asset={toAsset} size={36} />
+              <div>
+                <span>Receive {toAsset.ticker}</span>
+                <small>{quoteLoading ? <SwapSkeletonText width='5.75rem' /> : receiveAmount}</small>
+              </div>
+              <ChevronDownIcon />
+            </>
+          ) : (
+            <>
+              <span className='swap-receive-card__empty'>+</span>
+              <div>
+                <span>Receive</span>
+                <small>Choose asset</small>
+              </div>
+              <ChevronDownIcon />
+            </>
+          )}
+        </button>
+      )}
     </div>
   )
 }
 
 function SwapSkeletonText({ width }: { width: string }) {
   return <span className='swap-skeleton-text' style={{ width }} aria-hidden='true' />
-}
-
-function AnimatedSecondaryAmountValue({ value, reducedMotion }: { value: string; reducedMotion: boolean }) {
-  return (
-    <span className='swap-amount-value swap-amount-value--secondary' aria-label={value}>
-      <AnimatePresence mode='wait' initial={false}>
-        <motion.span
-          key={value}
-          initial={reducedMotion ? false : { opacity: 0, y: 5 }}
-          animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
-          exit={reducedMotion ? undefined : { opacity: 0, y: -5 }}
-          transition={reducedMotion ? { duration: 0 } : { duration: 0.14, ease: EASE_OUT_QUINT_TUPLE }}
-          aria-hidden='true'
-        >
-          {value}
-        </motion.span>
-      </AnimatePresence>
-    </span>
-  )
 }
 
 // ponytail: single crossfade instead of 727's per-character animation rig

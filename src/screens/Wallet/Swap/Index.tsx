@@ -190,14 +190,6 @@ export default function WalletSwap() {
         }
       : undefined
 
-  // the line under the big amount shows the computed other side of the quote
-  const counterAmount = plan ? (amountSide === 'give' ? plan.receive : plan.deposit) : undefined
-  const secondaryLabel = toAsset
-    ? counterAmount
-      ? `${amountSide === 'give' ? '≥ ' : ''}${fmtAmount(counterAmount)}`
-      : '—'
-    : undefined
-
   const toggleAmountSide = () => {
     if (!toAsset || !pair?.market) return
     hapticLight()
@@ -403,11 +395,11 @@ export default function WalletSwap() {
                     amount={amount}
                     activeTicker={activeAsset.ticker}
                     activeSide={amountSide}
-                    secondaryLabel={secondaryLabel}
                     onToggleSide={toggleAmountSide}
                     fromAsset={fromAsset}
                     toAsset={toAsset}
                     receiveAmount={plan ? `≥ ${fmtAmount(plan.receive)}` : '—'}
+                    payAmount={plan ? fmtAmount(plan.deposit) : '—'}
                     onOpenReceiveDrawer={() => openDrawer('to')}
                     onSwapSides={swapSides}
                     validationMessage={validationMessage}

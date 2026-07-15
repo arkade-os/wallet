@@ -160,10 +160,13 @@ describe('Swap screen', () => {
     }
     await waitFor(() => expect(screen.getAllByText('≥ 0.99 USDT').length).toBeGreaterThan(0), { timeout: 3000 })
 
-    // switch to entering the receive side; buffer seeds from the quote
-    fireEvent.click(screen.getByRole('button', { name: 'Enter the receive amount instead' }))
+    // switch to entering the receive side; buffer seeds from the quote and
+    // the input card now wears the receive asset
+    fireEvent.click(screen.getByRole('button', { name: 'Enter receive amount' }))
     await waitFor(() => expect(screen.getByLabelText('0.99 USDT')).toBeInTheDocument())
-    // the counter line now shows the minimum btc deposit to fund that receive
+    expect(screen.getByText('Receive USDT')).toBeInTheDocument()
+    // the pay card shows the minimum btc deposit to fund that receive
+    expect(screen.getByText('Pay BTC')).toBeInTheDocument()
     await waitFor(() => expect(screen.getByText('0.00000998 BTC')).toBeInTheDocument(), { timeout: 3000 })
   })
 
