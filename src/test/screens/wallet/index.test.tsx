@@ -19,6 +19,7 @@ describe('Wallet screen', () => {
     expect(screen.getByText('Assets')).toBeInTheDocument()
     expect(screen.getByText('Bitcoin')).toBeInTheDocument()
     expect(screen.getByText('Recent activity')).toBeInTheDocument()
+    expect(screen.getByText('0 BTC')).toBeInTheDocument()
   })
 
   it('opens the bitcoin detail page from the bitcoin asset row', async () => {
