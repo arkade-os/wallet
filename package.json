@@ -5,7 +5,7 @@
   "homepage": ".",
   "dependencies": {
     "@arkade-os/boltz-swap": "0.3.48",
-    "@arkade-os/sdk": "github:louisinger/wallet-sdk#36f61c9462b2004f39ad6bab7e5178cb8791c929&path:/packages/ts-sdk",
+    "@arkade-os/sdk": "../../louisinger/wallet-sdk/packages/ts-sdk",
     "@arkade-os/solver-discovery": "0.1.2",
     "@base-ui/react": "^1.4.1",
     "@branta-ops/branta": "3.1.3",

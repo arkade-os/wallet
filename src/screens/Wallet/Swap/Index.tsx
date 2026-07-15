@@ -10,7 +10,7 @@ import WalletSuccessSplash from '../../../components/WalletSuccessSplash'
 import { EASE_IN_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { extractError } from '../../../lib/error'
 import { normalizeBitcoinUnit, prettyBitcoinAmount, prettyCurrencyAssetAmount, prettyNumber } from '../../../lib/format'
-import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
+import { hapticLight, hapticSubtle } from '../../../lib/haptics'
 import { BTC_ASSET_ID, findMarket, QUOTE_OPTIONS, validatePlan } from '../../../lib/swap/markets'
 import { AssetSwap, AssetSwapStatus } from '../../../lib/swap/store'
 import { Unit } from '../../../lib/types'
@@ -23,16 +23,16 @@ import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import {
   AssetPickerDrawer,
   filterAssets,
-  Keypad,
   ReviewDrawer,
   SwapAsset,
   SwapAssetList,
-  SwapComposer,
   SwapUnavailableState,
 } from './Components'
+import ButtonsOnBottom from '@/components/ButtonsOnBottom'
+import Form from './Form'
 
 type SwapStep = 'select-from' | 'compose'
-type DrawerState = 'to' | 'review' | null
+type DrawerState = 'from' | 'to' | 'review' | null
 
 const statusLabels: Record<AssetSwapStatus, string> = {
   pending: 'Pending',
@@ -56,8 +56,6 @@ export default function WalletSwap() {
   const [fromAssetId, setFromAssetId] = useState(BTC_ASSET_ID)
   const [toAssetId, setToAssetId] = useState<string>()
   const [drawer, setDrawer] = useState<DrawerState>(null)
-  const [swapTurn, setSwapTurn] = useState(0)
-  const [invalidPulse, setInvalidPulse] = useState(0)
   const [confirming, setConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState('')
   const [successText, setSuccessText] = useState('')
@@ -84,7 +82,7 @@ export default function WalletSwap() {
         assetId: BTC_ASSET_ID,
         name: 'Bitcoin',
         ticker: btcUnit === Unit.BTC ? 'BTC' : btcUnit,
-        precision: btcEntryPrecision,
+        decimals: btcEntryPrecision,
         balance: BigInt(availableSats),
       },
     ]
@@ -96,7 +94,7 @@ export default function WalletSwap() {
         assetId: id,
         name,
         ticker,
-        precision,
+        decimals: precision,
         balance: owned ? BigInt(owned.amount) : BigInt(0),
         icon: assetMetadataCache.get(id)?.metadata?.icon,
       })
@@ -135,10 +133,10 @@ export default function WalletSwap() {
     setAmount((current) => {
       const dot = current.indexOf('.')
       if (dot < 0) return current
-      if (fromAsset.precision === 0) return current.slice(0, dot) || '0'
-      return current.slice(0, dot + 1 + fromAsset.precision)
+      if (fromAsset.decimals === 0) return current.slice(0, dot) || '0'
+      return current.slice(0, dot + 1 + fromAsset.decimals)
     })
-  }, [fromAsset.assetId, fromAsset.precision])
+  }, [fromAsset.assetId, fromAsset.decimals])
 
   const planError = plan ? validatePlan(plan, fromAsset.balance, aspInfo.dust) : undefined
   const validationMessage = !toAsset
@@ -163,7 +161,6 @@ export default function WalletSwap() {
   useEffect(() => {
     if (!validationMessage) return
     hapticSubtle()
-    setInvalidPulse((current) => current + 1)
   }, [validationMessage])
 
   const review =
@@ -177,23 +174,6 @@ export default function WalletSwap() {
           rateLabel: `1 ${plan.market.base_asset.ticker} = ${prettyNumber(Number(plan.priceDisplay), 2)} ${plan.market.quote_asset.ticker}`,
         }
       : undefined
-
-  const pressKey = (key: string) => {
-    setConfirmError('')
-    const maxDecimals = fromAsset.precision
-    hapticTap()
-    if (key === 'Back') {
-      setAmount((current) => current.slice(0, -1) || '0')
-      return
-    }
-    setAmount((current) => {
-      const base = current === '0' && key !== '.' ? '' : current
-      if (key === '.') return maxDecimals > 0 && !base.includes('.') ? `${base}.` : current
-      const decimalIndex = base.indexOf('.')
-      if (decimalIndex >= 0 && base.length - decimalIndex - 1 >= maxDecimals) return current
-      return `${base}${key}`.slice(0, 10)
-    })
-  }
 
   const selectFromAsset = (asset: SwapAsset) => {
     hapticLight()
@@ -216,7 +196,6 @@ export default function WalletSwap() {
   const swapSides = () => {
     if (!toAsset) return
     hapticLight()
-    setSwapTurn((current) => current + 1)
     setFromAssetId(toAsset.assetId)
     setToAssetId(fromAsset.assetId)
   }
@@ -326,10 +305,10 @@ export default function WalletSwap() {
                           const from = assetById(swap.fromAsset)
                           const to = assetById(swap.toAsset)
                           const fromAmount = from
-                            ? `${prettyCurrencyAssetAmount(BigInt(swap.fromAmount), from.precision, from.ticker)} ${from.ticker}`
+                            ? `${prettyCurrencyAssetAmount(BigInt(swap.fromAmount), from.decimals, from.ticker)} ${from.ticker}`
                             : swap.fromAmount
                           const toAmount = to
-                            ? `${prettyCurrencyAssetAmount(BigInt(swap.toAmount), to.precision, to.ticker)} ${to.ticker}`
+                            ? `${prettyCurrencyAssetAmount(BigInt(swap.toAmount), to.decimals, to.ticker)} ${to.ticker}`
                             : swap.toAmount
                           const cancellable = swap.status === 'pending' || swap.status === 'recoverable'
                           return (
@@ -370,39 +349,39 @@ export default function WalletSwap() {
                   exit={prefersReduced ? undefined : { opacity: 0, x: 18 }}
                   transition={stageTransition}
                 >
-                  <SwapComposer
+                  <Form
                     amount={amount}
                     fromAsset={fromAsset}
                     toAsset={toAsset}
                     receiveAmount={plan ? `≥ ${fmtAmount(plan.receive)}` : '—'}
-                    onOpenReceiveDrawer={() => openDrawer('to')}
+                    onChangeAmount={setAmount}
+                    onOpenDrawer={openDrawer}
                     onSwapSides={swapSides}
                     validationMessage={validationMessage}
-                    invalidPulse={invalidPulse}
                     quoteLoading={quoteLoading}
-                    swapTurn={swapTurn}
                   />
-                  <Keypad amount={amount} onPress={pressKey} />
-                  <Button label='Continue' disabled={!canContinue} onClick={() => openDrawer('review')} />
                 </motion.section>
               )}
             </AnimatePresence>
           </div>
         </Padded>
       </Content>
+      <ButtonsOnBottom>
+        <Button label='Continue' disabled={!canContinue} onClick={() => openDrawer('review')} />
+      </ButtonsOnBottom>
 
       <AssetPickerDrawer
-        open={drawer === 'to'}
+        open={drawer === 'to' || drawer === 'from'}
         assets={swapAssets.filter(
           (asset) =>
-            asset.assetId !== fromAsset.assetId &&
+            asset.assetId !== (drawer === 'to' ? fromAsset?.assetId : toAsset?.assetId) &&
             Boolean(findMarket(markets, fromAsset.assetId, asset.assetId)?.market),
         )}
-        selectedId={toAsset?.assetId}
+        selectedId={drawer === 'to' ? toAsset?.assetId : drawer === 'from' ? fromAsset?.assetId : undefined}
         onOpenChange={(open) => {
           if (!open) setDrawer(null)
         }}
-        onSelect={selectToAsset}
+        onSelect={drawer === 'to' ? selectToAsset : selectFromAsset}
       />
 
       <ReviewDrawer

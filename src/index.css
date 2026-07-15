@@ -3134,7 +3134,6 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   border: 0;
   border-radius: 999px;
   background: var(--bg);
-  color: var(--purple-700);
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--fg) 6%, transparent),
     0 6px 16px -10px color-mix(in srgb, var(--fg) 28%, transparent);
