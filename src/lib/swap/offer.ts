@@ -152,6 +152,9 @@ export function decodeOffer(data: Uint8Array): Offer {
     return v
   }
   const amount = need('wantAmount', 8)
+  if (!fields.wantAsset === !fields.offerAsset) {
+    throw new Error('offer must carry exactly one of wantAsset or offerAsset')
+  }
   return {
     swapPkScript: need('swapPkScript'),
     wantAmount: new DataView(amount.buffer, amount.byteOffset).getBigUint64(0, false),
@@ -221,8 +224,15 @@ export async function createOffer(
   }
 }
 
-/** Cancel an offer: spend the swap VTXO back to the maker. Returns the ark txid. */
-export async function cancelOffer(wallet: IWallet, arkServerUrl: string, offerHex: string): Promise<string> {
+/** Cancel an offer: spend the swap VTXO back to the maker. Returns the ark txid.
+ * Identical offers derive the same address, so `fundingTxid` selects the exact
+ * deposit; without it the first spendable VTXO at the address is cancelled. */
+export async function cancelOffer(
+  wallet: IWallet,
+  arkServerUrl: string,
+  offerHex: string,
+  fundingTxid?: string,
+): Promise<string> {
   const offer = decodeOffer(hex.decode(offerHex))
 
   const client = await arkade.Arkade.connect({
@@ -254,7 +264,8 @@ export async function cancelOffer(wallet: IWallet, arkServerUrl: string, offerHe
     },
   )
 
-  const [vtxo] = await contract.getUtxos()
+  const vtxos = await contract.getUtxos()
+  const vtxo = fundingTxid ? vtxos.find((v: { txid: string }) => v.txid === fundingTxid) : vtxos[0]
   if (!vtxo) throw new Error('no spendable VTXO at the swap address')
 
   const makerPkScript = ArkAddress.decode(await wallet.getAddress()).pkScript

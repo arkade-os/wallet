@@ -175,8 +175,8 @@ export function SwapComposer({
         type='button'
         className='swap-flip-button'
         aria-label='Switch swap direction'
-        animate={{ rotate: swapTurn * 180 }}
-        transition={{ duration: 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
+        animate={prefersReduced ? undefined : { rotate: swapTurn * 180 }}
+        transition={{ duration: prefersReduced ? 0 : 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
         disabled={!toAsset}
         onClick={onSwapSides}
       >
@@ -265,13 +265,14 @@ function TokenAvatar({ asset, size }: { asset: SwapAsset; size: number }) {
 }
 
 export function Keypad({ amount, onPress }: { amount: string; onPress: (key: string) => void }) {
+  const prefersReduced = useReducedMotion()
   return (
     <motion.div
       className='swap-keypad-shell'
       aria-label={`Swap keypad for ${amount || '0'}`}
-      initial={{ opacity: 0, y: 14 }}
+      initial={prefersReduced ? false : { opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, ease: EASE_OUT_QUINT_TUPLE }}
+      transition={prefersReduced ? { duration: 0 } : { duration: 0.22, ease: EASE_OUT_QUINT_TUPLE }}
     >
       <div className='swap-keypad'>
         {keypadKeys.map((key) => (
@@ -368,6 +369,7 @@ export function ReviewDrawer({
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
+  const prefersReduced = useReducedMotion()
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className='swap-drawer-content'>
@@ -404,10 +406,10 @@ export function ReviewDrawer({
             {error ? (
               <motion.p
                 className='swap-confirm-error'
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 6 }}
-                transition={{ duration: 0.2, ease: EASE_OUT_QUINT_TUPLE }}
+                initial={prefersReduced ? false : { opacity: 0, y: 6 }}
+                animate={prefersReduced ? undefined : { opacity: 1, y: 0 }}
+                exit={prefersReduced ? undefined : { opacity: 0, y: 6 }}
+                transition={{ duration: prefersReduced ? 0 : 0.2, ease: EASE_OUT_QUINT_TUPLE }}
               >
                 {error}
               </motion.p>

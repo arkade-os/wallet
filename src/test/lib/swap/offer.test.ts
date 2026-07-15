@@ -53,6 +53,14 @@ describe('banco offer', () => {
     expect(address).not.toBe(goldens[0][1])
   })
 
+  it('rejects offers without exactly one direction', () => {
+    const base = { wantAmount: BigInt(50_000), ...keys, swapPkScript: new Uint8Array(34) }
+    const both = encodeOffer({ ...base, wantAsset: testAsset, offerAsset: testAsset })
+    const neither = encodeOffer(base)
+    expect(() => decodeOffer(both)).toThrow('exactly one')
+    expect(() => decodeOffer(neither)).toThrow('exactly one')
+  })
+
   it('rejects malformed TLV payloads', () => {
     expect(() => decodeOffer(new Uint8Array([0x01, 0x00]))).toThrow('truncated TLV header')
     expect(() => decodeOffer(new Uint8Array([0x01, 0x00, 0x05, 0xaa]))).toThrow('truncated TLV value')
