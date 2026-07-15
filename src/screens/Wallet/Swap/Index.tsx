@@ -173,7 +173,8 @@ export default function WalletSwap() {
           toAsset,
           swapAmount: fmtAmount(plan.deposit),
           receiveAmount: `≥ ${fmtAmount(plan.receive)}`,
-          feeLabel: `${prettyNumber((plan.market.fee_bps + plan.safetyBps) / 100, 2)}%`,
+          feeLabel: `${prettyNumber(plan.market.fee_bps / 100, 2)}%`,
+          toleranceLabel: `${prettyNumber(plan.safetyBps / 100, 2)}%`,
           rateLabel: `1 ${plan.market.base_asset.ticker} = ${prettyNumber(Number(plan.priceDisplay), 2)} ${plan.market.quote_asset.ticker}`,
         }
       : undefined
