@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
 import { planOffer, quoteOffer, type DiscoveredMarket } from '@arkade-os/solver-discovery'
-import { findMarket, QUOTE_OPTIONS, validatePlan } from '../../../lib/swap/markets'
+import { discoverMarkets, findMarket, QUOTE_OPTIONS, validatePlan } from '../../../lib/swap/markets'
 
 const fetchMocker = createFetchMock(vi)
 fetchMocker.enableMocks()
@@ -83,6 +83,59 @@ describe('quoteOffer with the wallet quote options', () => {
     // 10_000 sats * 600_000 depix-atomic/sat * 9970bps = 59.82 DePix
     expect(plan.receive.atomic).toBe(BigInt(5_982_000_000))
     expect(plan.receive.display).toBe('59.82')
+  })
+})
+
+describe('discoverMarkets caching', () => {
+  const CACHE_KEY = 'solverMarkets-mutinynet'
+  // a valid registry index entry: btcUsdt without the fields discover() adds
+  const indexMarket: Record<string, unknown> = { ...btcUsdt }
+  delete indexMarket.source
+  delete indexMarket.sourceType
+  const registryIndex = () => ({
+    version: 0,
+    network: 'mutinynet',
+    generated_at: Math.floor(Date.now() / 1000),
+    commit: 'a'.repeat(40),
+    markets: [indexMarket],
+  })
+
+  beforeEach(() => {
+    localStorage.clear()
+    fetchMocker.resetMocks()
+  })
+
+  it('fetches on a cold start and caches the result', async () => {
+    fetchMocker.mockResponseOnce(JSON.stringify(registryIndex()))
+    const markets = await discoverMarkets('mutinynet')
+    expect(markets).toHaveLength(1)
+    expect(markets[0].pair).toBe('BTC/USDT')
+    expect(fetchMocker).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(localStorage.getItem(CACHE_KEY)!).markets).toHaveLength(1)
+  })
+
+  it('serves a fresh cache without fetching', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ markets: [btcUsdt], fetchedAt: Date.now() }))
+    const markets = await discoverMarkets('mutinynet')
+    expect(markets).toHaveLength(1)
+    expect(fetchMocker).not.toHaveBeenCalled()
+  })
+
+  it('falls back to a stale cache when the registry is unreachable', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ markets: [btcUsdt], fetchedAt: 0 }))
+    fetchMocker.mockRejectOnce(new Error('network down'))
+    const markets = await discoverMarkets('mutinynet')
+    expect(markets).toHaveLength(1)
+    expect(fetchMocker).toHaveBeenCalledTimes(1)
+  })
+
+  it('resets a corrupt cache blob and fetches', async () => {
+    localStorage.setItem(CACHE_KEY, '{not json')
+    fetchMocker.mockResponseOnce(JSON.stringify(registryIndex()))
+    const markets = await discoverMarkets('mutinynet')
+    expect(markets).toHaveLength(1)
+    expect(fetchMocker).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(localStorage.getItem(CACHE_KEY)!).markets).toHaveLength(1)
   })
 })
 

@@ -1,6 +1,6 @@
 import { ReactNode, createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { hex } from '@scure/base'
-import { asset, RestEmulatorProvider, RestIndexerProvider } from '@arkade-os/sdk'
+import { asset, RestEmulatorProvider, RestIndexerProvider, type VirtualCoin } from '@arkade-os/sdk'
 import { DiscoveredMarket, OfferPlan } from '@arkade-os/solver-discovery'
 import { Network } from '@arkade-os/boltz-swap'
 import { AspContext } from './asp'
@@ -12,7 +12,8 @@ import { getEmulatorUrlForNetwork } from '../lib/constants'
 import { consoleError } from '../lib/logs'
 import { toast } from '../components/Toast'
 
-const POLL_INTERVAL_MS = 5_000
+const STREAM_RETRY_MS = 5_000
+const SAFETY_RECONCILE_MS = 60_000
 
 interface AssetSwapsContextProps {
   /** Markets from the network's solver registry. */
@@ -137,43 +138,87 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     reloadWallet().catch(consoleError)
   }
 
-  // ponytail: plain polling while swaps are pending; the indexer SSE
-  // subscription is the upgrade path if this ever gets chatty
   const pendingScripts = swaps
     .filter((s) => s.status === 'pending')
     .map((s) => s.swapPkScript)
     .join(',')
 
+  // tear the monitor down while the tab is hidden — zero background traffic;
+  // the reconcile on refocus catches anything missed in the meantime
+  const [visible, setVisible] = useState(!document.hidden)
   useEffect(() => {
-    if (!pendingScripts || !aspInfo.url) return
+    const onVisibilityChange = () => setVisible(!document.hidden)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [])
+
+  // ponytail: one SSE subscription while swaps are pending, reconciled with a
+  // single getVtxos on each (re)connect since the stream has no replay; a slow
+  // safety reconcile stands in for a heartbeat watchdog on hung streams
+  useEffect(() => {
+    if (!pendingScripts || !aspInfo.url || !visible) return
+    const scripts = pendingScripts.split(',')
     const indexer = new RestIndexerProvider(aspInfo.url)
-    const check = async () => {
-      try {
-        const { vtxos } = await indexer.getVtxos({ scripts: pendingScripts.split(',') })
-        for (const vtxo of vtxos) {
-          const state = vtxo.virtualStatus.state
-          if (state !== 'spent' && state !== 'swept') continue
-          // re-read the store so an in-flight check never overwrites a cancel
-          // (cancelOffer also spends the swap vtxo)
-          const swap = getAssetSwaps().find((s) => s.swapPkScript === vtxo.script && s.status === 'pending')
-          if (!swap) continue
-          if (state === 'spent') {
-            setSwaps(updateAssetSwap(swap.id, { status: 'fulfilled', spentTxid: vtxo.arkTxId ?? vtxo.spentBy }))
-            toast.success(`Swap completed, ${tickerFor(swap.toAsset)} received`)
-            reloadWallet().catch(consoleError)
-          } else {
-            setSwaps(updateAssetSwap(swap.id, { status: 'recoverable' }))
-          }
+    const abort = new AbortController()
+
+    const applyVtxos = (vtxos: VirtualCoin[]) => {
+      for (const vtxo of vtxos) {
+        const state = vtxo.virtualStatus.state
+        if (state !== 'spent' && state !== 'swept') continue
+        // re-read the store so an in-flight update never overwrites a cancel
+        // (cancelOffer also spends the swap vtxo)
+        const swap = getAssetSwaps().find((s) => s.swapPkScript === vtxo.script && s.status === 'pending')
+        if (!swap) continue
+        if (state === 'spent') {
+          setSwaps(updateAssetSwap(swap.id, { status: 'fulfilled', spentTxid: vtxo.arkTxId ?? vtxo.spentBy }))
+          toast.success(`Swap completed, ${tickerFor(swap.toAsset)} received`)
+          reloadWallet().catch(consoleError)
+        } else {
+          setSwaps(updateAssetSwap(swap.id, { status: 'recoverable' }))
         }
-      } catch (err) {
-        consoleError(err, 'swap status check failed')
       }
     }
-    check()
-    const interval = setInterval(check, POLL_INTERVAL_MS)
-    return () => clearInterval(interval)
+
+    const reconcile = async () => {
+      const { vtxos } = await indexer.getVtxos({ scripts })
+      applyVtxos(vtxos)
+    }
+
+    const subscribe = async () => {
+      const subscriptionId = await indexer.subscribeForScripts(scripts)
+      try {
+        for await (const event of indexer.getSubscription(subscriptionId, abort.signal)) {
+          applyVtxos([...event.newVtxos, ...event.spentVtxos, ...event.sweptVtxos])
+        }
+      } finally {
+        indexer.unsubscribeForScripts(subscriptionId).catch(() => {})
+      }
+    }
+
+    const monitor = async () => {
+      while (!abort.signal.aborted) {
+        try {
+          await reconcile()
+          await subscribe()
+        } catch (err) {
+          if (!abort.signal.aborted) consoleError(err, 'swap status monitor failed')
+        }
+        if (abort.signal.aborted) return
+        await new Promise((resolve) => setTimeout(resolve, STREAM_RETRY_MS))
+      }
+    }
+    monitor()
+
+    const safety = setInterval(() => {
+      reconcile().catch((err) => consoleError(err, 'swap status check failed'))
+    }, SAFETY_RECONCILE_MS)
+
+    return () => {
+      clearInterval(safety)
+      abort.abort()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingScripts, aspInfo.url])
+  }, [pendingScripts, aspInfo.url, visible])
 
   const swapAvailable = markets.length > 0 && Boolean(emulatorUrl)
   const value = useMemo(
