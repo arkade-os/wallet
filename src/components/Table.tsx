@@ -13,6 +13,7 @@ export type TableLine = [string, string | undefined, JSX.Element?, (() => void)?
 export type TableData = TableLine[]
 
 export default function Table({ data, variant = 'default' }: { data: TableData; variant?: 'default' | 'receipt' }) {
+  const isReceipt = variant === 'receipt'
   const [focused, setFocused] = useState(false)
 
   const { toast } = useToast()
@@ -44,7 +45,7 @@ export default function Table({ data, variant = 'default' }: { data: TableData; 
 
   return (
     <Focusable id='outer' inactive={focused} onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
-      <FlexCol gap={variant === 'receipt' ? '0' : '0.5rem'}>
+      <FlexCol className={isReceipt ? 'table table--receipt' : undefined} gap={isReceipt ? '0' : '0.5rem'}>
         {data.map(([title, value, icon, onClick]) =>
           value == '' || value === undefined || value === null ? null : (
             <Focusable
@@ -55,19 +56,19 @@ export default function Table({ data, variant = 'default' }: { data: TableData; 
               onEscape={focusOnOuterShell}
               ariaLabel={ariaLabel(title, value)}
             >
-              {variant === 'receipt' ? (
-                <div className='details-row'>
-                  <div className='details-row__label'>
-                    <span className='details-row__icon'>{icon}</span>
-                    <span className='details-row__title'>{title}</span>
+              {isReceipt ? (
+                <div className='table-row'>
+                  <div className='table-row__label'>
+                    {icon ? <span className='table-row__icon'>{icon}</span> : null}
+                    <span className='table-row__title'>{title}</span>
                   </div>
-                  <div className='details-row__value-wrap'>
+                  <div className='table-row__value-wrap'>
                     {onClick ? (
-                      <span onClick={onClick} className='details-row__external' aria-hidden='true'>
+                      <span onClick={onClick} className='table-row__external' aria-hidden='true'>
                         <ExternalLinkIcon small />
                       </span>
                     ) : null}
-                    <span className='details-row__value' onClick={() => copy(value)} data-testid={title}>
+                    <span className='table-row__value' onClick={() => copy(value)} data-testid={title}>
                       {prettyLongText(value, onClick ? 8 : undefined)}
                     </span>
                   </div>

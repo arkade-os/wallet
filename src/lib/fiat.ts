@@ -8,6 +8,7 @@ export interface FiatPrices {
   jpy: number
   gbp: number
   cny: number
+  brl: number
 }
 
 // Currencies listed here are prefixed with their symbol when displaying amounts.
@@ -18,6 +19,7 @@ export const FIAT_SYMBOLS: Partial<Record<Currencies, string>> = {
   [Currencies.EUR]: '€',
   [Currencies.GBP]: '£',
   [Currencies.JPY]: '¥',
+  [Currencies.BRL]: 'R$',
 }
 
 export const fiatDecimalsFor = (currency: Currencies, bitcoinUnit = Unit.BTC): number => {
@@ -36,6 +38,7 @@ export const getPriceFeed = async (): Promise<FiatPrices | undefined> => {
       jpy: json.JPY?.last,
       gbp: json.GBP?.last,
       cny: json.CNY?.last,
+      brl: json.BRL?.last,
     }
   } catch (err) {
     consoleError(err, 'error fetching fiat prices')

@@ -14,6 +14,7 @@ import {
   isIssuance,
   isBurn,
   prettyBitcoinAmount,
+  prettyChartDateTime,
 } from '../../lib/format'
 import { Currencies, Tx, Unit } from '../../lib/types'
 import { Asset } from '@arkade-os/sdk'
@@ -45,9 +46,11 @@ describe('format utilities', () => {
     })
 
     it('should format amounts in BTC for large values', () => {
+      expect(prettyAmount(0)).toBe('0 sats')
+      expect(prettyAmount(0, 'BTC')).toBe('0 BTC')
       expect(prettyAmount(50000000)).toBe('50M sats')
-      expect(prettyAmount(100000000)).toBe('1 BTC')
-      expect(prettyAmount(150000000)).toBe('1.5 BTC')
+      expect(prettyAmount(100000000)).toBe('1.00000000 BTC')
+      expect(prettyAmount(150000000)).toBe('1.50000000 BTC')
     })
 
     it('should handle fiat currency formatting', () => {
@@ -88,7 +91,15 @@ describe('format utilities', () => {
     })
 
     it('should format BTC currency using the selected bitcoin unit', () => {
-      expect(prettyFiatAmount(0.000021, Currencies.BTC, { bitcoinUnit: Unit.BTC })).toBe('0.000021 BTC')
+      expect(prettyFiatAmount(0, Currencies.BTC, { bitcoinUnit: Unit.BTC })).toBe('0 BTC')
+      expect(prettyFiatAmount(0.000021, Currencies.BTC, { bitcoinUnit: Unit.BTC })).toBe('0.00002100 BTC')
+      expect(
+        prettyFiatAmount(1, Currencies.BTC, {
+          bitcoinUnit: Unit.BTC,
+          maximumFractionDigits: 2,
+          minimumFractionDigits: 2,
+        }),
+      ).toBe('1.00 BTC')
       expect(prettyFiatAmount(2100, Currencies.BTC, { bitcoinUnit: Unit.SATS })).toBe('2,100 sats')
       expect(prettyFiatAmount(2100, Currencies.BTC, { bitcoinUnit: Unit.BIP177 })).toBe('₿2,100')
     })
@@ -96,7 +107,8 @@ describe('format utilities', () => {
 
   describe('prettyBitcoinAmount', () => {
     it('should format satoshi amounts in the selected bitcoin unit', () => {
-      expect(prettyBitcoinAmount(2100, Unit.BTC)).toBe('0.000021 BTC')
+      expect(prettyBitcoinAmount(0, Unit.BTC)).toBe('0 BTC')
+      expect(prettyBitcoinAmount(2100, Unit.BTC)).toBe('0.00002100 BTC')
       expect(prettyBitcoinAmount(2100, Unit.SATS)).toBe('2,100 sats')
       expect(prettyBitcoinAmount(2100, Unit.BIP177)).toBe('₿2,100')
     })
@@ -144,6 +156,14 @@ describe('format utilities', () => {
         hour: '2-digit',
       }).format(d)
       expect(result).toBe(expected)
+    })
+  })
+
+  describe('prettyChartDateTime', () => {
+    it('formats a chart timestamp with its date and time', () => {
+      const date = new Date(2026, 6, 13, 14, 34)
+
+      expect(prettyChartDateTime(date.getTime() / 1000)).toBe('Jul 13, 2026, 2:34 PM')
     })
   })
 

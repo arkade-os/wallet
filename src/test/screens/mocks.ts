@@ -1,5 +1,5 @@
 import { emptyAspInfo } from '../../lib/asp'
-import { Pages, Tabs } from '../../providers/navigation'
+import { Pages } from '../../providers/navigation'
 import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { AspInfo } from '../../providers/asp'
 import { SingleKey, IVtxoManager } from '@arkade-os/sdk'
@@ -195,7 +195,6 @@ export const mockNavigationContextValue = {
   navigate: () => {},
   replace: () => {},
   screen: Pages.Init,
-  tab: Tabs.None,
 }
 
 const mockAssetManager = {
