@@ -278,8 +278,6 @@ packages:
       expo-task-manager:
         optional: true
 
-<<<<<<< HEAD
-=======
   '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.41.tgz':
     resolution: {integrity: sha512-aU/0Co3FmwWQe6IuAyP8YX2u86qAmocJA/zr9E0pptW69/ab44qqsibvw4mLHvbW7+fHuVA5lG6EybLxm0UTMQ==, tarball: file:vendor/arkade-os-sdk-0.4.41.tgz}
     version: 0.4.41
@@ -302,7 +300,6 @@ packages:
       expo-task-manager:
         optional: true
 
->>>>>>> claude/swap-ui-mutinynet-yktp51
   '@arkade-os/solver-discovery@0.1.2':
     resolution: {integrity: sha512-RAHt5YO5X47JcwAxBPTgTTzrNWrrdbQr730eCQab/IIrXznnDQLZzx4B6x4m055GzfMGdc2ipFVd9x45s6ePtQ==}
     engines: {node: '>=18'}
@@ -909,6 +906,11 @@ packages:
 
   '@lendasat/lendasat-wallet-bridge@0.0.90':
     resolution: {integrity: sha512-VfgM5vUx81vVWlggtOReUkaC8VVOFVavIMixQM0G/ZI0L/nMi10fmkIBvXOVI4Jmsu9A5z6wHSUrERxD3a/Juw==}
+
+  '@marcbachmann/cel-js@7.3.1':
+    resolution: {integrity: sha512-P6o26TvjStT8V8+8EF+yq9Pp7ZFV00bpiUMbssr76XbIZGxaB+NNWeBp6WNxOrR9gp0JPzvJueCKHpOs5LE9PQ==}
+    engines: {node: '>=20.19.0'}
+    hasBin: true
 
   '@marcbachmann/cel-js@8.0.0':
     resolution: {integrity: sha512-oaTrAziGr3zDLFiMt/yLU3nZuRMawyWQB5X1a0I7s9eGy3JYzX9l8ZXXHyMd64nzbeVFZTewuUShwsZQdK6UCA==}
@@ -4344,8 +4346,6 @@ snapshots:
       - ecpair
       - utf-8-validate
 
-<<<<<<< HEAD
-=======
   '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.41.tgz':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
@@ -4365,7 +4365,6 @@ snapshots:
       - ecpair
       - utf-8-validate
 
->>>>>>> claude/swap-ui-mutinynet-yktp51
   '@arkade-os/solver-discovery@0.1.2': {}
 
   '@asamuzakjp/css-color@3.2.0':
@@ -4938,6 +4937,8 @@ snapshots:
   '@juggle/resize-observer@3.4.0': {}
 
   '@lendasat/lendasat-wallet-bridge@0.0.90': {}
+
+  '@marcbachmann/cel-js@7.3.1': {}
 
   '@marcbachmann/cel-js@8.0.0': {}
 
