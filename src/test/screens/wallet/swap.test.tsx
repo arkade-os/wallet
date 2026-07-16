@@ -109,19 +109,17 @@ describe('Swap screen', () => {
     renderSwap()
 
     fireEvent.click(screen.getByText('Bitcoin'))
-    await waitFor(() => expect(screen.getByText('Choose asset')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Select asset')).toBeInTheDocument())
 
     // pick the receive asset from the drawer
-    fireEvent.click(screen.getByText('Choose asset'))
+    fireEvent.click(screen.getByText('Select asset'))
     await waitFor(() => expect(screen.getByText('Choose asset to receive')).toBeInTheDocument())
     fireEvent.click(screen.getByText('USDT'))
 
-    // type 0.0001 BTC on the keypad
-    for (const key of ['.', '0', '0', '0', '1']) {
-      fireEvent.click(screen.getByRole('button', { name: key === '.' ? '.' : key }))
-    }
+    // type 0.0001 BTC in the send input
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '0.0001' } })
 
-    // debounced quote resolves: 10_000 sats -> 9.92 USDT
+    // debounced quote resolves: 10_000 sats -> 9.97 USDT
     await waitFor(() => expect(screen.getAllByText('≥ 9.97 USDT').length).toBeGreaterThan(0), { timeout: 3000 })
 
     fireEvent.click(screen.getByText('Continue'))
@@ -137,8 +135,8 @@ describe('Swap screen', () => {
   it('only offers receive assets that share a market with the from asset', async () => {
     renderSwap()
     fireEvent.click(screen.getByText('USDT'))
-    await waitFor(() => expect(screen.getByText('Choose asset')).toBeInTheDocument())
-    fireEvent.click(screen.getByText('Choose asset'))
+    await waitFor(() => expect(screen.getByText('Select asset')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('Select asset'))
     await waitFor(() => expect(screen.getByText('Choose asset to receive')).toBeInTheDocument())
     // no USDT/DePix market: only btc can be received against USDT
     expect(screen.getAllByText('Bitcoin').length).toBeGreaterThan(0)
@@ -150,16 +148,17 @@ describe('Swap screen', () => {
     renderSwap({}, Unit.SATS)
     await waitFor(() => expect(screen.getByText('100K sats')).toBeInTheDocument())
     fireEvent.click(screen.getByText('Bitcoin'))
-    await waitFor(() => expect(screen.getByText('Choose asset')).toBeInTheDocument())
-    fireEvent.click(screen.getByText('Choose asset'))
+    await waitFor(() => expect(screen.getByText('Select asset')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('Select asset'))
     await waitFor(() => expect(screen.getByText('Choose asset to receive')).toBeInTheDocument())
     fireEvent.click(screen.getByText('USDT'))
 
+    // the send label follows the configured unit and whole sats are accepted
+    expect(screen.getByText('Send sats')).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '1000' } })
+    expect(screen.getByRole('textbox')).toHaveValue('1000')
+
     // 1000 sats -> 0.99 USDT
-    for (const key of ['1', '0', '0', '0']) {
-      fireEvent.click(screen.getByRole('button', { name: key }))
-    }
-    expect(screen.getByLabelText('1000 sats')).toBeInTheDocument()
     await waitFor(() => expect(screen.getAllByText('≥ 0.99 USDT').length).toBeGreaterThan(0), { timeout: 3000 })
   })
 

@@ -3,6 +3,7 @@ import { AssetWithBalance, SwapAsset } from './Components'
 import FlexCol from '@/components/FlexCol'
 import { TextSecondary } from '@/components/Text'
 import { isMobileBrowser } from '@/lib/browser'
+import { BTC_ASSET_ID } from '@/lib/swap/markets'
 import { useContext } from 'react'
 import { ConfigContext } from '@/providers/config'
 
@@ -28,14 +29,20 @@ export default function SwapFrom({ amount, asset, onChange, onShowKeypad }: Swap
     if (isMobileBrowser && onShowKeypad) onShowKeypad()
   }
 
-  const label = asset.assetId === 'btc' ? `Send ${config.unit}` : `Send ${asset.ticker}`
+  const label = asset.assetId === BTC_ASSET_ID ? `Send ${config.unit}` : `Send ${asset.ticker}`
 
   return (
     <div className='input-shell'>
       <FlexRow between>
         <FlexCol gap='0.25rem'>
           <TextSecondary small>{label}</TextSecondary>
-          <input value={amount} onChange={handleAmountChange} onFocus={handleFocus} />
+          {/* the custom keypad drives entry on mobile; keep the native keyboard away */}
+          <input
+            value={amount}
+            onChange={handleAmountChange}
+            onFocus={handleFocus}
+            inputMode={isMobileBrowser ? 'none' : undefined}
+          />
         </FlexCol>
         <FlexRow end minWidth='10rem'>
           <AssetWithBalance asset={asset} />
