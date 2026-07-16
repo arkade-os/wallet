@@ -60,8 +60,18 @@ describe('findMarket', () => {
 
 describe('quoteOffer with the wallet quote options', () => {
   it('quotes btc->usdt through the nested CoinGecko schema (fee + safety conceded)', async () => {
-    fetchMocker.mockResponseOnce(JSON.stringify({ bitcoin: { usd: 100000 } }))
-    const plan = await quoteOffer(btcUsdt, { give: 'base', giveAmount: BigInt(10_000), ...QUOTE_OPTIONS })
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ bitcoin: { usd: 100000 } }),
+    }))
+    const plan = await quoteOffer(btcUsdt, {
+      give: 'base',
+      giveAmount: BigInt(10_000),
+      fetchImpl,
+      ...QUOTE_OPTIONS,
+    })
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
     expect(plan.deposit.atomic).toBe(BigInt(10_000))
     // 10_000 sats * 0.1 cents/sat * (10000 - 30)bps = 997 cents
     expect(plan.receive.atomic).toBe(BigInt(997))

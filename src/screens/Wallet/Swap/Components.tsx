@@ -4,28 +4,29 @@ import AssetAvatar from '../../../components/AssetAvatar'
 import Button from '../../../components/Button'
 import TokenLogo, { tokenLogoTickerForTicker } from '../../../components/TokenLogo'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../../components/ui/drawer'
-import ChevronDownIcon from '../../../icons/ChevronDown'
 import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
-import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
+import { EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { prettyCurrencyAssetAmount } from '../../../lib/format'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
+import FlexRow from '../../../components/FlexRow'
+import FlexCol from '../../../components/FlexCol'
+import Text, { TextSecondary } from '../../../components/Text'
 
 export interface SwapAsset {
   assetId: string
   name: string
   ticker: string
-  precision: number
+  decimals: number
   balance: bigint
   icon?: string
 }
 
-const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'Back']
 const rateNote = 'Rates are dynamic and may update before you confirm.'
 const rateNoteAutoDismissMs = 2400
 
 function formatAssetBalance(asset: SwapAsset): string {
-  return `${prettyCurrencyAssetAmount(asset.balance, asset.precision, asset.ticker)} ${asset.ticker}`
+  return `${prettyCurrencyAssetAmount(asset.balance, asset.decimals, asset.ticker)} ${asset.ticker}`
 }
 
 export function filterAssets(assets: SwapAsset[], query: string): SwapAsset[] {
@@ -106,130 +107,8 @@ export function SwapAssetList({
   )
 }
 
-export function SwapComposer({
-  amount,
-  fromAsset,
-  toAsset,
-  receiveAmount,
-  onOpenReceiveDrawer,
-  onSwapSides,
-  validationMessage,
-  invalidPulse,
-  quoteLoading,
-  swapTurn,
-}: {
-  amount: string
-  fromAsset: SwapAsset
-  toAsset?: SwapAsset
-  receiveAmount: string
-  onOpenReceiveDrawer: () => void
-  onSwapSides: () => void
-  validationMessage: string
-  invalidPulse: number
-  quoteLoading: boolean
-  swapTurn: number
-}) {
-  const prefersReduced = useReducedMotion()
-  const amountLabel = `${amount} ${fromAsset.ticker}`
-
-  return (
-    <div className='swap-composer'>
-      <div className='swap-input-card'>
-        <div className='swap-input-card__asset'>
-          <TokenAvatar asset={fromAsset} size={36} />
-          <div className='swap-input-card__asset-copy'>
-            <span>{fromAsset.name}</span>
-            <small>{formatAssetBalance(fromAsset)}</small>
-          </div>
-        </div>
-        <div className='swap-amount-stack'>
-          <motion.div
-            key={invalidPulse}
-            className={validationMessage ? 'swap-amount-display swap-amount-display--invalid' : 'swap-amount-display'}
-            aria-label='Swap amount'
-            animate={prefersReduced || !validationMessage ? undefined : { x: [0, -7, 6, -4, 2, 0] }}
-            transition={
-              prefersReduced || !validationMessage ? undefined : { duration: 0.32, ease: EASE_OUT_QUINT_TUPLE }
-            }
-          >
-            <AnimatedAmountValue value={amountLabel} reducedMotion={prefersReduced} />
-          </motion.div>
-          <AnimatePresence initial={false}>
-            {validationMessage ? (
-              <motion.p
-                key={validationMessage}
-                className='swap-input-error'
-                initial={prefersReduced ? false : { opacity: 0, y: 4, scale: 0.96 }}
-                animate={prefersReduced ? undefined : { opacity: 1, y: 0, scale: 1 }}
-                exit={prefersReduced ? undefined : { opacity: 0, y: 4, scale: 0.96 }}
-                transition={{ duration: prefersReduced ? 0 : 0.16, ease: EASE_OUT_QUINT_TUPLE }}
-              >
-                {validationMessage}
-              </motion.p>
-            ) : null}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      <motion.button
-        type='button'
-        className='swap-flip-button'
-        aria-label='Switch swap direction'
-        animate={prefersReduced ? undefined : { rotate: swapTurn * 180 }}
-        transition={{ duration: prefersReduced ? 0 : 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
-        disabled={!toAsset}
-        onClick={onSwapSides}
-      >
-        <SwapIcon />
-      </motion.button>
-
-      <button type='button' className='swap-receive-card' onClick={onOpenReceiveDrawer}>
-        {toAsset ? (
-          <>
-            <TokenAvatar asset={toAsset} size={36} />
-            <div>
-              <span>Receive {toAsset.ticker}</span>
-              <small>{quoteLoading ? <SwapSkeletonText width='5.75rem' /> : receiveAmount}</small>
-            </div>
-            <ChevronDownIcon />
-          </>
-        ) : (
-          <>
-            <span className='swap-receive-card__empty'>+</span>
-            <div>
-              <span>Receive</span>
-              <small>Choose asset</small>
-            </div>
-            <ChevronDownIcon />
-          </>
-        )}
-      </button>
-    </div>
-  )
-}
-
 function SwapSkeletonText({ width }: { width: string }) {
   return <span className='swap-skeleton-text' style={{ width }} aria-hidden='true' />
-}
-
-// ponytail: single crossfade instead of 727's per-character animation rig
-function AnimatedAmountValue({ value, reducedMotion }: { value: string; reducedMotion: boolean }) {
-  return (
-    <span className='swap-amount-value' aria-label={value}>
-      <AnimatePresence mode='popLayout' initial={false}>
-        <motion.span
-          key={value}
-          initial={reducedMotion ? false : { opacity: 0, y: 8 }}
-          animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
-          exit={reducedMotion ? undefined : { opacity: 0, y: -7 }}
-          transition={reducedMotion ? { duration: 0 } : { duration: 0.16, ease: EASE_OUT_QUINT_TUPLE }}
-          aria-hidden='true'
-        >
-          {value}
-        </motion.span>
-      </AnimatePresence>
-    </span>
-  )
 }
 
 function SwapAssetRow({ asset, active, onClick }: { asset: SwapAsset; active?: boolean; onClick: () => void }) {
@@ -261,32 +140,6 @@ function TokenAvatar({ asset, size }: { asset: SwapAsset; size: number }) {
         <AssetAvatar icon={asset.icon} name={asset.name} ticker={asset.ticker} size={size} />
       )}
     </span>
-  )
-}
-
-export function Keypad({ amount, onPress }: { amount: string; onPress: (key: string) => void }) {
-  const prefersReduced = useReducedMotion()
-  return (
-    <motion.div
-      className='swap-keypad-shell'
-      aria-label={`Swap keypad for ${amount || '0'}`}
-      initial={prefersReduced ? false : { opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={prefersReduced ? { duration: 0 } : { duration: 0.22, ease: EASE_OUT_QUINT_TUPLE }}
-    >
-      <div className='swap-keypad'>
-        {keypadKeys.map((key) => (
-          <button
-            key={key}
-            type='button'
-            onClick={() => onPress(key)}
-            aria-label={key === 'Back' ? 'Delete digit' : key}
-          >
-            {key === 'Back' ? '<' : key}
-          </button>
-        ))}
-      </div>
-    </motion.div>
   )
 }
 
@@ -501,5 +354,17 @@ function MetricRow({ label, value, loading }: { label: ReactNode; value: string;
       <span>{label}</span>
       <span>{loading ? <SwapSkeletonText width='7rem' /> : value}</span>
     </div>
+  )
+}
+
+export function AssetWithBalance({ asset }: { asset: SwapAsset }) {
+  return (
+    <FlexRow gap='0.5rem' centered>
+      <TokenAvatar asset={asset} size={36} />
+      <FlexCol gap='0'>
+        <Text>{asset.name}</Text>
+        <TextSecondary small>{formatAssetBalance(asset)}</TextSecondary>
+      </FlexCol>
+    </FlexRow>
   )
 }
