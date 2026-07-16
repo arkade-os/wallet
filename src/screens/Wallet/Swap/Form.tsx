@@ -1,9 +1,10 @@
 import FlexCol from '@/components/FlexCol'
-import Input from './Input'
 import { SwapAsset } from './Components'
 import SwapIcon from '@/icons/Swap'
 import FlexRow from '@/components/FlexRow'
 import ErrorMessage from '@/components/Error'
+import From from './From'
+import To from './To'
 
 export default function SwapForm({
   amount,
@@ -13,6 +14,7 @@ export default function SwapForm({
   onChangeAmount,
   onOpenDrawer,
   onSwapSides,
+  onShowKeypad,
   validationMessage,
   quoteLoading,
 }: {
@@ -23,25 +25,18 @@ export default function SwapForm({
   onChangeAmount: (amount: string) => void
   onOpenDrawer: (state: 'from' | 'to') => void
   onSwapSides: () => void
+  onShowKeypad: () => void
   validationMessage: string
   quoteLoading: boolean
 }) {
   return (
     <FlexCol>
       <ErrorMessage error={Boolean(validationMessage)} text={validationMessage} />
-      <Input
-        side='from'
-        amount={amount}
-        asset={fromAsset}
-        onChange={onChangeAmount}
-        openAssetSelector={() => onOpenDrawer('from')}
-      />
+      <From amount={amount} asset={fromAsset} onChange={onChangeAmount} onShowKeypad={onShowKeypad} />
       <FlexRow centered onClick={onSwapSides}>
         <SwapIcon />
       </FlexRow>
-      <Input
-        readOnly
-        side='to'
+      <To
         asset={toAsset}
         quoteLoading={quoteLoading}
         amount={quoteLoading ? '—' : receiveAmount}

@@ -9,6 +9,9 @@ import SwapIcon from '../../../icons/Swap'
 import { EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { prettyCurrencyAssetAmount } from '../../../lib/format'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
+import FlexRow from '../../../components/FlexRow'
+import FlexCol from '../../../components/FlexCol'
+import Text, { TextSecondary } from '../../../components/Text'
 
 export interface SwapAsset {
   assetId: string
@@ -351,5 +354,17 @@ function MetricRow({ label, value, loading }: { label: ReactNode; value: string;
       <span>{label}</span>
       <span>{loading ? <SwapSkeletonText width='7rem' /> : value}</span>
     </div>
+  )
+}
+
+export function AssetWithBalance({ asset }: { asset: SwapAsset }) {
+  return (
+    <FlexRow gap='0.5rem' centered>
+      <TokenAvatar asset={asset} size={36} />
+      <FlexCol gap='0'>
+        <Text>{asset.name}</Text>
+        <TextSecondary small>{formatAssetBalance(asset)}</TextSecondary>
+      </FlexCol>
+    </FlexRow>
   )
 }

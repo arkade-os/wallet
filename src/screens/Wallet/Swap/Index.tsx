@@ -29,7 +29,8 @@ import {
   SwapUnavailableState,
 } from './Components'
 import ButtonsOnBottom from '@/components/ButtonsOnBottom'
-import Form from './Form'
+import SwapForm from './Form'
+import Keyboard from '@/components/Keyboard'
 
 type SwapStep = 'select-from' | 'compose'
 type DrawerState = 'from' | 'to' | 'review' | null
@@ -53,7 +54,7 @@ export default function WalletSwap() {
   const [availableSats, setAvailableSats] = useState(0)
   const [step, setStep] = useState<SwapStep>('select-from')
   const [search, setSearch] = useState('')
-  const [amount, setAmount] = useState('0')
+  const [amount, setAmount] = useState('')
   const [fromAssetId, setFromAssetId] = useState(BTC_ASSET_ID)
   const [toAssetId, setToAssetId] = useState<string>()
   const [drawer, setDrawer] = useState<DrawerState>(null)
@@ -61,6 +62,7 @@ export default function WalletSwap() {
   const [confirmError, setConfirmError] = useState('')
   const [successText, setSuccessText] = useState('')
   const [cancelling, setCancelling] = useState('')
+  const [showKeypad, setShowKeypad] = useState(false)
 
   // spendable offchain balance, refreshed like the send form does
   useEffect(() => {
@@ -130,7 +132,7 @@ export default function WalletSwap() {
     const timer = window.setTimeout(() => {
       setGiveAmount(Number(amount) > 0 ? amountForQuote(amount) : '')
       setQuotedAmount(amount)
-    }, 300)
+    }, 600)
     return () => window.clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amount, fromAsset.assetId, setGiveAmount])
@@ -147,21 +149,22 @@ export default function WalletSwap() {
   }, [fromAsset.assetId, fromAsset.decimals])
 
   const planError = plan ? validatePlan(plan, fromAsset.balance, aspInfo.dust) : undefined
-  const validationMessage = !toAsset
-    ? ''
-    : !pair?.market
-      ? 'Swap unavailable for this pair'
-      : status === 'error'
-        ? 'Quote unavailable'
-        : planError === 'insufficient-balance'
-          ? 'Insufficient balance'
-          : planError === 'below-min'
-            ? `Minimum ${fmtAmount(plan!.limits.minBase)}`
-            : planError === 'above-max'
-              ? `Maximum ${fmtAmount(plan!.limits.maxBase)}`
-              : planError === 'below-dust'
-                ? 'Amount too small'
-                : ''
+  const validationMessage =
+    !toAsset || !amount
+      ? ''
+      : !pair?.market
+        ? 'Swap unavailable for this pair'
+        : status === 'error'
+          ? 'Quote unavailable'
+          : planError === 'insufficient-balance'
+            ? 'Insufficient balance'
+            : planError === 'below-min'
+              ? `Minimum ${fmtAmount(plan!.limits.minBase)}`
+              : planError === 'above-max'
+                ? `Maximum ${fmtAmount(plan!.limits.maxBase)}`
+                : planError === 'below-dust'
+                  ? 'Amount too small'
+                  : ''
 
   const quoteLoading = status === 'loading' || (quoteStale && Number(amount) > 0)
   const canContinue = Boolean(toAsset && plan && status === 'success' && !planError && !quoteStale)
@@ -204,6 +207,7 @@ export default function WalletSwap() {
   const swapSides = () => {
     if (!toAsset) return
     hapticLight()
+    setAmount('')
     setFromAssetId(toAsset.assetId)
     setToAssetId(fromAsset.assetId)
   }
@@ -265,6 +269,19 @@ export default function WalletSwap() {
   const stageTransition = prefersReduced ? { duration: 0 } : { duration: 0.28, ease: EASE_IN_OUT_QUINT_TUPLE }
   const filteredAssets = useMemo(() => filterAssets(swapAssets, search), [search, swapAssets])
   const assetById = (assetId: string) => swapAssets.find((asset) => asset.assetId === assetId)
+
+  if (showKeypad) {
+    return (
+      <Keyboard
+        asset={fromAsset}
+        back={() => setShowKeypad(false)}
+        onSave={(value) => {
+          setAmount(value)
+          setShowKeypad(false)
+        }}
+      />
+    )
+  }
 
   return (
     <>
@@ -345,21 +362,22 @@ export default function WalletSwap() {
                 <motion.section
                   key='compose'
                   className='swap-flow-stage'
-                  initial={prefersReduced ? false : { opacity: 0, x: 18 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={prefersReduced ? undefined : { opacity: 0, x: 18 }}
                   transition={stageTransition}
+                  animate={{ opacity: 1, x: 0 }}
+                  initial={prefersReduced ? false : { opacity: 0, x: 18 }}
+                  exit={prefersReduced ? undefined : { opacity: 0, x: 18 }}
                 >
-                  <Form
+                  <SwapForm
                     amount={amount}
-                    fromAsset={fromAsset}
                     toAsset={toAsset}
-                    receiveAmount={plan ? `≥ ${fmtAmount(plan.receive)}` : '—'}
-                    onChangeAmount={setAmount}
-                    onOpenDrawer={openDrawer}
+                    fromAsset={fromAsset}
                     onSwapSides={swapSides}
-                    validationMessage={validationMessage}
+                    onOpenDrawer={openDrawer}
+                    onChangeAmount={setAmount}
                     quoteLoading={quoteLoading}
+                    validationMessage={validationMessage}
+                    onShowKeypad={() => setShowKeypad(true)}
+                    receiveAmount={plan ? `≥ ${fmtAmount(plan.receive)}` : '—'}
                   />
                 </motion.section>
               )}
@@ -372,17 +390,17 @@ export default function WalletSwap() {
       </ButtonsOnBottom>
 
       <AssetPickerDrawer
-        open={drawer === 'to' || drawer === 'from'}
+        open={drawer === 'to'}
         assets={swapAssets.filter(
           (asset) =>
-            asset.assetId !== (drawer === 'to' ? fromAsset?.assetId : toAsset?.assetId) &&
+            asset.assetId !== fromAsset?.assetId &&
             Boolean(findMarket(markets, fromAsset.assetId, asset.assetId)?.market),
         )}
-        selectedId={drawer === 'to' ? toAsset?.assetId : drawer === 'from' ? fromAsset?.assetId : undefined}
+        selectedId={toAsset?.assetId}
         onOpenChange={(open) => {
           if (!open) setDrawer(null)
         }}
-        onSelect={drawer === 'to' ? selectToAsset : selectFromAsset}
+        onSelect={selectToAsset}
       />
 
       <ReviewDrawer
