@@ -2465,7 +2465,7 @@ html.palette-dark .send-asset-menu {
 }
 
 .swap-drawer-content {
-  border-color: var(--neutral-100) !important;
+  border-top: 1px solid var(--neutral-100) !important;
   background: var(--bg) !important;
 }
 
@@ -4268,7 +4268,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 }
 
 .swap-drawer-content {
-  border-color: var(--neutral-100) !important;
+  border-top: 1px solid var(--neutral-100) !important;
   background: var(--bg) !important;
 }
 
