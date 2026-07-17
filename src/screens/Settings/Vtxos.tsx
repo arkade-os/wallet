@@ -27,7 +27,7 @@ import { consoleError } from '../../lib/logs'
 import * as Sentry from '@sentry/react'
 import Grid from '../../components/Grid'
 import { prettyAssetAmount } from '../../lib/assets'
-import { getAssetURL, openAssetInNewTab } from '../../lib/explorers'
+import { getAssetURL, getVtxoURL, openAssetInNewTab, openVtxoInNewTab } from '../../lib/explorers'
 import ExternalLinkIcon from '../../icons/ExternalLink'
 
 export default function Vtxos() {
@@ -210,11 +210,13 @@ export default function Vtxos() {
 
   const CoinLine = ({
     amount,
+    outpoint,
     assets,
     tags,
     expiry,
   }: {
     amount: string
+    outpoint?: { txid: string; vout: number }
     assets?: { text: string; assetId: string }[]
     tags: React.ReactNode
     expiry: string
@@ -232,7 +234,17 @@ export default function Vtxos() {
           <div>
             <div>
               <FlexCol gap='0.25rem'>
-                <Text>{amount}</Text>
+                <FlexRow gap='0.25rem' centered>
+                  <Text>{amount}</Text>
+                  {outpoint && getVtxoURL(outpoint.txid, outpoint.vout, wallet) ? (
+                    <span
+                      onClick={() => openVtxoInNewTab(outpoint.txid, outpoint.vout, wallet)}
+                      style={{ cursor: 'pointer', color: 'var(--neutral-500)' }}
+                    >
+                      <ExternalLinkIcon small />
+                    </span>
+                  ) : null}
+                </FlexRow>
                 {assets?.map((a) => {
                   const url = getAssetURL(a.assetId, wallet)
                   return (
@@ -290,7 +302,15 @@ export default function Vtxos() {
                 : null}
       </FlexRow>
     )
-    return <CoinLine amount={`${satsAmount} sats`} assets={assetsAmounts} tags={tags} expiry={expiry} />
+    return (
+      <CoinLine
+        amount={`${satsAmount} sats`}
+        outpoint={{ txid: vtxo.txid, vout: vtxo.vout }}
+        assets={assetsAmounts}
+        tags={tags}
+        expiry={expiry}
+      />
+    )
   }
 
   const UtxoLine = ({ utxo }: { utxo: ExtendedCoin }) => {

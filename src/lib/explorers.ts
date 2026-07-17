@@ -67,6 +67,11 @@ export const getAssetURL = (assetId: string, wallet: Wallet) => {
   return base ? `${base}/asset/${assetId}` : ''
 }
 
+export const getVtxoURL = (txid: string, vout: number, wallet: Wallet) => {
+  const base = getVmempoolURL(wallet.network as NetworkName)
+  return base ? `${base}/tx/${txid}#vout=${vout}` : ''
+}
+
 export const openInNewTab = (txid: string, wallet: Wallet) => {
   window.open(getTxIdURL(txid, wallet), '_blank', 'noreferrer')
 }
@@ -78,5 +83,10 @@ export const openOffchainTxInNewTab = (txid: string, wallet: Wallet) => {
 
 export const openAssetInNewTab = (assetId: string, wallet: Wallet) => {
   const url = getAssetURL(assetId, wallet)
+  if (url) window.open(url, '_blank', 'noreferrer')
+}
+
+export const openVtxoInNewTab = (txid: string, vout: number, wallet: Wallet) => {
+  const url = getVtxoURL(txid, vout, wallet)
   if (url) window.open(url, '_blank', 'noreferrer')
 }
