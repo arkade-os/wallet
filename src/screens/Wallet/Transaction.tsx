@@ -152,7 +152,7 @@ export default function Transaction() {
                 const trusted = isVerifiedAsset(a.assetId)
                 const accountTicker = trusted ? accountTickerForAssetTicker(ticker) : undefined
                 const trustedTicker = trusted ? (accountTicker ?? ticker) : undefined
-                const label = accountTicker ?? name ?? `${a.assetId.slice(0, 8)}...`
+                const label = accountTicker ?? ticker ?? name ?? `${a.assetId.slice(0, 8)}...`
                 const tokenLogoTicker = tokenLogoTickerForTicker(trustedTicker)
                 return (
                   <div key={a.assetId} className='transaction-detail-asset'>

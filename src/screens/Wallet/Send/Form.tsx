@@ -58,6 +58,7 @@ import {
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
 import { testDomains } from '../../../lib/constants'
+import { Badge } from '../../../components/ui/badge'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
@@ -66,9 +67,10 @@ const brantaClient = new BrantaService({
   privacy: 'strict',
 })
 
-function AssetIcon({ asset, verified }: { asset: AssetOption | null; verified: boolean }) {
+function AssetIcon({ asset }: { asset: AssetOption | null }) {
+  const { isVerifiedAsset } = useContext(WalletContext)
   // official token logos are pinned to verified asset IDs, not self-reported tickers
-  const ticker = verified ? asset?.ticker?.toUpperCase() : undefined
+  const ticker = !asset || isVerifiedAsset(asset.assetId) ? asset?.ticker?.toUpperCase() : undefined
   const tokenTicker =
     ticker === 'USD' || ticker === 'USDT' || ticker === 'USDC' || ticker === 'CHF' || ticker === 'BRL'
       ? (ticker as TokenLogoTicker)
@@ -940,12 +942,16 @@ export default function SendForm() {
                       data-testid='asset-selector'
                     >
                       <span className='send-asset-trigger__main'>
-                        <AssetIcon
-                          asset={selectedAsset}
-                          verified={!selectedAsset || isVerifiedAsset(selectedAsset.assetId)}
-                        />
+                        <AssetIcon asset={selectedAsset} />
                         <span className='send-asset-trigger__copy'>
-                          <span className='send-asset-trigger__name'>{selectedAssetLabel}</span>
+                          <span className='send-asset-trigger__name'>
+                            {selectedAssetLabel}
+                            {selectedAsset && !isVerifiedAsset(selectedAsset.assetId) ? (
+                              <Badge variant='outline' className='ml-1.5'>
+                                Unverified
+                              </Badge>
+                            ) : null}
+                          </span>
                           <span className='send-asset-trigger__balance'>{selectedAssetBalance}</span>
                         </span>
                       </span>
@@ -958,7 +964,7 @@ export default function SendForm() {
                         {selectedAsset ? (
                           <DropdownMenuItem className='send-asset-option' onClick={() => handleSelectAsset(null)}>
                             <span className='send-asset-option__main'>
-                              <AssetIcon asset={null} verified />
+                              <AssetIcon asset={null} />
                               <span>
                                 <span className='send-asset-option__name'>Bitcoin</span>
                                 <span className='send-asset-option__meta'>
@@ -983,10 +989,15 @@ export default function SendForm() {
                               data-testid={`asset-${asset.ticker.toLowerCase()}-option`}
                             >
                               <span className='send-asset-option__main'>
-                                <AssetIcon asset={asset} verified={isVerifiedAsset(asset.assetId)} />
+                                <AssetIcon asset={asset} />
                                 <span>
                                   <span className='send-asset-option__name'>
                                     {asset.name} ({asset.ticker})
+                                    {!isVerifiedAsset(asset.assetId) ? (
+                                      <Badge variant='outline' className='ml-1.5'>
+                                        Unverified
+                                      </Badge>
+                                    ) : null}
                                   </span>
                                   <span className='send-asset-option__meta'>Tap to send this asset</span>
                                 </span>
