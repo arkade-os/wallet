@@ -6,8 +6,12 @@ import { FiatContext } from '../../providers/fiat'
 import { FlowContext } from '../../providers/flow'
 import { NavigationContext } from '../../providers/navigation'
 import { WalletContext } from '../../providers/wallet'
+import { AspContext } from '../../providers/asp'
+import { AssetsContext } from '../../providers/assets'
 import { Currencies, Tx } from '../../lib/types'
+import { MUTINYNET_DEPIX_ASSET_ID } from '../../lib/accountAssets'
 import {
+  mockAspContextValue,
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
@@ -16,6 +20,57 @@ import {
 } from '../screens/mocks'
 
 describe('TransactionsList', () => {
+  it('formats designated account activity with the underlying asset decimals', () => {
+    const tx: Tx = {
+      amount: 330,
+      boardingTxid: '',
+      createdAt: 1_700_000_000,
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: '',
+      roundTxid: 'depix-send',
+      settled: true,
+      type: 'sent',
+      assets: [{ assetId: MUTINYNET_DEPIX_ASSET_ID, amount: BigInt(-200_000_000_000) }],
+    }
+
+    render(
+      <AspContext.Provider
+        value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' } } as any}
+      >
+        <AssetsContext.Provider value={{ isRegistered: () => true } as any}>
+          <NavigationContext.Provider value={mockNavigationContextValue}>
+            <ConfigContext.Provider value={mockConfigContextValue}>
+              <FiatContext.Provider value={mockFiatContextValue}>
+                <FlowContext.Provider value={mockFlowContextValue}>
+                  <WalletContext.Provider
+                    value={
+                      {
+                        ...mockWalletContextValue,
+                        txs: [tx],
+                        assetMetadataCache: new Map([
+                          [
+                            MUTINYNET_DEPIX_ASSET_ID,
+                            { metadata: { decimals: 8, name: 'Decentralized Pix', ticker: 'DEPIX' } },
+                          ],
+                        ]),
+                      } as any
+                    }
+                  >
+                    <TransactionsList mode='static' />
+                  </WalletContext.Provider>
+                </FlowContext.Provider>
+              </FiatContext.Provider>
+            </ConfigContext.Provider>
+          </NavigationContext.Provider>
+        </AssetsContext.Provider>
+      </AspContext.Provider>,
+    )
+
+    expect(screen.getByText('-2,000.00 BRL')).toBeInTheDocument()
+    expect(screen.queryByText('-2,000,000,000.00 BRL')).not.toBeInTheDocument()
+  })
+
   it('shows one configured-unit amount for an arbitrary swap pair', () => {
     const swapTx: Tx = {
       amount: 0,

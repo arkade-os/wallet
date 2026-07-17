@@ -28,7 +28,6 @@ import { PrivacyAmount } from './PrivacyAmount'
 import SwapRouteIcon from './SwapRouteIcon'
 import { swapRouteLabel, swapStatusForTx, swapStatusLabel, swapUnitOfAccountAmount } from '../lib/swapDisplay'
 import { designatedAccountCurrency, fiatAccountAssetSatoshis } from '../lib/accountAssets'
-import { fiatDecimalsFor } from '../lib/fiat'
 import { AspContext } from '../providers/asp'
 import { AssetsContext } from '../providers/assets'
 
@@ -63,7 +62,7 @@ const TransactionLine = ({
     const metadata = assetMetadataCache.get(asset.assetId)?.metadata
     return fiatAccountAssetSatoshis(
       BigInt(asset.amount),
-      accountInfo?.decimals ?? metadata?.decimals ?? 8,
+      metadata?.decimals ?? 8,
       accountInfo?.ticker ?? metadata?.ticker,
       fromFiatAmount,
     )
@@ -169,7 +168,7 @@ const TransactionLine = ({
           const meta = assetMetadataCache.get(a.assetId)?.metadata
           const ticker = accountInfo?.ticker ?? meta?.ticker
           const icon = meta?.icon
-          const decimals = accountInfo?.decimals ?? meta?.decimals ?? 8
+          const decimals = meta?.decimals ?? 8
           const accountTicker = accountTickerForAssetTicker(ticker)
           const label = accountInfo?.label ?? accountTicker ?? ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`
           return (
@@ -454,11 +453,11 @@ function accountInfoForAssetId(
   assetId: string,
   network: string | undefined,
   isRegistered: (assetId: string) => boolean,
-): { ticker: TokenLogoTicker; label: string; decimals: number } | undefined {
+): { ticker: TokenLogoTicker; label: string } | undefined {
   if (!isRegistered(assetId)) return
   const currency = designatedAccountCurrency(network, assetId)
   if (!currency || currency === Currencies.BTC) return
-  return { ticker: currency as TokenLogoTicker, label: currency, decimals: fiatDecimalsFor(currency) }
+  return { ticker: currency as TokenLogoTicker, label: currency }
 }
 
 function shouldHideDevAssetTx(

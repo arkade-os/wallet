@@ -84,7 +84,13 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
   const bitcoinUnit = config.unit
   const marketDecimals = fiatDecimalsFor(marketFiat, bitcoinUnit)
   const currentUnitPrice = currentPriceForRow(isBitcoin, sourceFiat, marketFiat, fromFiatAmount, toFiatAmount)
-  const marketChart = useAccountMarketChartData(sourceFiat, marketFiat, chartWindow, bitcoinUnit)
+  const marketChart = useAccountMarketChartData(
+    sourceFiat,
+    marketFiat,
+    chartWindow,
+    bitcoinUnit,
+    sourceFiat === Currencies.BTC ? undefined : currentUnitPrice,
+  )
   const chartUnitPrice = marketChart.data.at(-1)?.value ?? currentUnitPrice ?? 0
   const safeBitcoinBalance =
     isBitcoin && typeof row.balance === 'number' && Number.isFinite(row.balance)
@@ -534,6 +540,7 @@ function useAccountMarketChartData(
   marketFiat: Currencies,
   windowSecs: number,
   bitcoinUnit: Unit,
+  fallbackUnitPrice?: number,
 ): { data: LivelinePoint[]; status: MarketChartStatus } {
   const [chart, setChart] = useState<{ data: LivelinePoint[]; status: MarketChartStatus }>({
     data: [],
@@ -544,6 +551,10 @@ function useAccountMarketChartData(
     const controller = new AbortController()
     const cacheKey = marketChartCacheKey(sourceFiat, marketFiat, windowSecs, bitcoinUnit)
     const cached = marketChartCache.get(cacheKey)
+    const fallback =
+      fallbackUnitPrice && Number.isFinite(fallbackUnitPrice) && fallbackUnitPrice > 0
+        ? buildConstantMarketSeries(fallbackUnitPrice, windowSecs)
+        : []
 
     if (!sourceFiat) {
       setChart({ data: [], status: 'unavailable' })
@@ -567,7 +578,7 @@ function useAccountMarketChartData(
       .then((points) => {
         if (controller.signal.aborted) return
         if (points.length < 2) {
-          setChart({ data: [], status: 'unavailable' })
+          setChart({ data: fallback, status: fallback.length ? 'ready' : 'unavailable' })
           return
         }
         marketChartCache.set(cacheKey, points)
@@ -576,11 +587,11 @@ function useAccountMarketChartData(
       .catch((err) => {
         if (controller.signal.aborted) return
         consoleError(err, 'error fetching account market chart')
-        setChart({ data: [], status: 'unavailable' })
+        setChart({ data: fallback, status: fallback.length ? 'ready' : 'unavailable' })
       })
 
     return () => controller.abort()
-  }, [bitcoinUnit, marketFiat, sourceFiat, windowSecs])
+  }, [bitcoinUnit, fallbackUnitPrice, marketFiat, sourceFiat, windowSecs])
 
   return chart
 }

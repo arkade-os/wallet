@@ -9,7 +9,7 @@ import { WalletContext } from '../../../providers/wallet'
 import { Currencies } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
-import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
+import { MUTINYNET_DEPIX_ASSET_ID, MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
 import {
   mockConfigContextValue,
   mockAspContextValue,
@@ -25,6 +25,80 @@ vi.mock('liveline', () => ({
 }))
 
 describe('Account detail screen', () => {
+  it('keeps the BRL chart available when historical cross-rate data fails', async () => {
+    const sourceAssetId = MUTINYNET_DEPIX_ASSET_ID
+    const fetchMock = vi.fn().mockRejectedValue(new Error('BRL history unavailable'))
+    vi.stubGlobal('fetch', fetchMock)
+    vi.stubGlobal(
+      'ResizeObserver',
+      vi.fn(() => ({ observe: vi.fn(), unobserve: vi.fn(), disconnect: vi.fn() })),
+    )
+
+    render(
+      <AspContext.Provider
+        value={{
+          ...mockAspContextValue,
+          aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' },
+        }}
+      >
+        <AssetsContext.Provider value={{ isRegistered: (assetId) => assetId === sourceAssetId }}>
+          <ConfigContext.Provider
+            value={{
+              ...mockConfigContextValue,
+              config: {
+                ...mockConfigContextValue.config,
+                currency: Currencies.EUR,
+                importedAssets: [sourceAssetId],
+              },
+            }}
+          >
+            <FiatContext.Provider value={mockFiatContextValue}>
+              <FlowContext.Provider
+                value={{
+                  ...mockFlowContextValue,
+                  assetInfo: { assetId: sourceAssetId, supply: BigInt(0) },
+                }}
+              >
+                <NavigationContext.Provider value={mockNavigationContextValue}>
+                  <WalletContext.Provider
+                    value={
+                      {
+                        ...mockWalletContextValue,
+                        assetBalances: [{ assetId: sourceAssetId, amount: BigInt(200_000_000_000) }],
+                        assetMetadataCache: new Map([
+                          [
+                            sourceAssetId,
+                            {
+                              metadata: {
+                                decimals: 8,
+                                name: 'Decentralized Pix',
+                                ticker: 'DEPIX',
+                              },
+                            },
+                          ],
+                        ]),
+                        txs: [],
+                      } as any
+                    }
+                  >
+                    <AccountDetail />
+                  </WalletContext.Provider>
+                </NavigationContext.Provider>
+              </FlowContext.Provider>
+            </FiatContext.Provider>
+          </ConfigContext.Provider>
+        </AssetsContext.Provider>
+      </AspContext.Provider>,
+    )
+
+    expect(screen.getByRole('heading', { name: 'BRL' })).toBeInTheDocument()
+    expect(screen.getByText('2,000.00 BRL')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTestId('liveline-chart')).toBeInTheDocument())
+    expect(Number(screen.getByTestId('liveline-chart').getAttribute('data-point-count'))).toBeGreaterThan(3)
+    expect(screen.queryByText('Price history unavailable')).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalled()
+  })
+
   it('shows a USD account without exposing its underlying USDT asset', async () => {
     const sourceAssetId = MUTINYNET_USDT_ASSET_ID
     const navigate = vi.fn()
