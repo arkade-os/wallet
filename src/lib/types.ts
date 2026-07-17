@@ -113,13 +113,7 @@ export type Tx = {
     fiatAmount?: number
     status?: 'pending' | 'failed' | 'completed' | 'cancelled' | 'recoverable'
     feeBps?: number
-    rate?: string
     fiatCurrency?: string
-    toFiatAmount?: number
-    quotedAt?: number
-    completedAt?: number
-    fundingTxid?: string
-    fillTxid?: string
   }
 }
 

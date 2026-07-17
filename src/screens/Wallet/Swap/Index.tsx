@@ -1281,18 +1281,13 @@ function swapValidationMessage({
 
 function buildQuoteSnapshot(plan: OfferPlan, quote: SwapQuote, currency: Currencies): AssetSwapQuoteSnapshot {
   return {
-    fromName: quote.fromAsset.name,
     fromTicker: quote.fromAsset.ticker,
     fromDecimals: plan.deposit.asset.decimals,
-    toName: quote.toAsset?.name ?? plan.receive.asset.name,
     toTicker: quote.toAsset?.ticker ?? plan.receive.asset.ticker,
     toDecimals: plan.receive.asset.decimals,
     feeBps: plan.market.fee_bps,
-    rate: quote.rateLabel,
     fiatCurrency: currency,
     fromFiatAmount: quote.fromFiatValue,
-    toFiatAmount: quote.toFiatValue,
-    quotedAt: Date.now(),
   }
 }
 

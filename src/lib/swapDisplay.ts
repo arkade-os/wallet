@@ -1,5 +1,6 @@
 import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyFiatHide, prettyHide } from './format'
-import { walletAccountTicker } from './accountAssets'
+import { designatedAccountCurrency, walletAccountTicker } from './accountAssets'
+import { getAssetSwaps } from './swap/store'
 import { Currencies, Tx, Unit } from './types'
 
 export type SwapStatus = 'pending' | 'failed' | 'completed' | 'cancelled' | 'recoverable'
@@ -72,4 +73,63 @@ export function swapUnitOfAccountAmount({
     masked: prettyFiatHide(selectedCurrencyAmount, currency, formatOptions),
     value: prettyFiatAmount(selectedCurrencyAmount, currency, formatOptions),
   }
+}
+
+/** Collapse the funding and fill wallet rows into one persisted swap activity. */
+export const mergeAssetSwapActivity = (txs: Tx[], swaps = getAssetSwaps(), network?: string): Tx[] => {
+  const claimed = new Set<Tx>()
+  const activities = swaps.map<Tx>((swap) => {
+    const members = txs.filter((tx) => {
+      const ids = [tx.boardingTxid, tx.redeemTxid, tx.roundTxid]
+      const match = ids.includes(swap.fundingTxid) || Boolean(swap.spentTxid && ids.includes(swap.spentTxid))
+      if (match) claimed.add(tx)
+      return match
+    })
+    const quote = swap.quote
+    const status =
+      swap.status === 'fulfilled'
+        ? 'completed'
+        : swap.status === 'cancelled'
+          ? 'cancelled'
+          : swap.status === 'recoverable'
+            ? 'recoverable'
+            : 'pending'
+    const fill = swap.spentTxid
+      ? members.find((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(swap.spentTxid!))
+      : undefined
+    const receivedAsset = fill?.assets?.find((asset) => asset.assetId === swap.toAsset && asset.amount > BigInt(0))
+    const receivedAmount =
+      swap.toAsset === 'btc' && fill?.amount && fill.amount > 0
+        ? BigInt(fill.amount)
+        : (receivedAsset?.amount ?? BigInt(swap.toAmount))
+    const fallbackTicker = (assetId: string) =>
+      assetId === 'btc' ? 'BTC' : (designatedAccountCurrency(network, assetId) ?? assetId.slice(0, 8))
+    return {
+      amount: members[0]?.amount ?? 0,
+      boardingTxid: '',
+      createdAt: Math.floor(swap.createdAt / 1000),
+      explorable: undefined,
+      preconfirmed: status === 'pending',
+      redeemTxid: swap.spentTxid ?? swap.fundingTxid,
+      roundTxid: '',
+      settled: status !== 'pending',
+      type: 'swap',
+      assetSwap: {
+        fromAssetId: swap.fromAsset,
+        fromTicker: quote?.fromTicker ?? fallbackTicker(swap.fromAsset),
+        fromDecimals: quote?.fromDecimals,
+        fromAmount: BigInt(swap.fromAmount),
+        toAssetId: swap.toAsset,
+        toTicker: quote?.toTicker ?? fallbackTicker(swap.toAsset),
+        toDecimals: quote?.toDecimals,
+        toAmount: receivedAmount,
+        fiatAmount: quote?.fromFiatAmount,
+        fiatCurrency: quote?.fiatCurrency,
+        feeBps: quote?.feeBps,
+        status,
+      },
+    }
+  })
+
+  return [...activities, ...txs.filter((tx) => !claimed.has(tx))].sort((a, b) => b.createdAt - a.createdAt)
 }

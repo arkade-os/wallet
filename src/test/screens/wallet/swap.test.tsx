@@ -38,18 +38,13 @@ const pendingSwap: AssetSwap = {
   status: 'pending',
   createdAt: 1,
   quote: {
-    fromName: 'Bitcoin',
     fromTicker: 'BTC',
     fromDecimals: 8,
-    toName: 'USD',
     toTicker: 'USD',
     toDecimals: 2,
     feeBps: 30,
-    rate: '99700',
     fiatCurrency: 'USD',
     fromFiatAmount: 10,
-    toFiatAmount: 9.97,
-    quotedAt: 1,
   },
 }
 

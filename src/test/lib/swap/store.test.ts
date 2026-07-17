@@ -1,11 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import {
-  addAssetSwap,
-  getAssetSwaps,
-  mergeAssetSwapActivity,
-  updateAssetSwap,
-  AssetSwap,
-} from '../../../lib/swap/store'
+import { addAssetSwap, getAssetSwaps, updateAssetSwap, AssetSwap } from '../../../lib/swap/store'
+import { mergeAssetSwapActivity } from '../../../lib/swapDisplay'
 import type { Tx } from '../../../lib/types'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
 
@@ -53,18 +48,13 @@ describe('asset swap store', () => {
       spentTxid: 'fill-txid',
       completedAt: 2_000,
       quote: {
-        fromName: 'USD',
         fromTicker: 'USD',
         fromDecimals: 2,
-        toName: 'BRL',
         toTicker: 'BRL',
         toDecimals: 2,
         feeBps: 30,
-        rate: '5.41',
         fiatCurrency: 'USD',
         fromFiatAmount: 100,
-        toFiatAmount: 541,
-        quotedAt: 1_000,
       },
     }
     const tx = (redeemTxid: string, assets?: Tx['assets']): Tx => ({
@@ -92,17 +82,11 @@ describe('asset swap store', () => {
       type: 'swap',
       redeemTxid: 'fill-txid',
       assetSwap: {
-        fundingTxid: 'funding-txid',
-        fillTxid: 'fill-txid',
         fromTicker: 'USD',
         toTicker: 'BRL',
         toAmount: fillAmount,
         feeBps: 30,
-        rate: '5.41',
         fiatAmount: 100,
-        toFiatAmount: 541,
-        quotedAt: 1_000,
-        completedAt: 2_000,
         status: 'completed',
       },
     })

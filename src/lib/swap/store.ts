@@ -1,23 +1,17 @@
 import { getStorageItem } from '../storage'
 import { consoleError } from '../logs'
-import type { Tx } from '../types'
-import { designatedAccountCurrency } from '../accountAssets'
 
 export type AssetSwapStatus = 'pending' | 'cancelling' | 'fulfilled' | 'cancelled' | 'recoverable'
 
+/** Display facts frozen at quote time — only what the activity UI reads. */
 export interface AssetSwapQuoteSnapshot {
-  fromName: string
   fromTicker: string
   fromDecimals: number
-  toName: string
   toTicker: string
   toDecimals: number
   feeBps: number
-  rate: string
   fiatCurrency: string
   fromFiatAmount: number
-  toFiatAmount: number
-  quotedAt: number
 }
 
 export interface AssetSwap {
@@ -75,69 +69,4 @@ export const updateAssetSwap = (id: string, changes: Partial<AssetSwap>): AssetS
   const swaps = getAssetSwaps().map((s) => (s.id === id ? { ...s, ...changes } : s))
   saveAssetSwaps(swaps)
   return swaps
-}
-
-/** Collapse the funding and fill wallet rows into one persisted swap activity. */
-export const mergeAssetSwapActivity = (txs: Tx[], swaps = getAssetSwaps(), network?: string): Tx[] => {
-  const claimed = new Set<Tx>()
-  const activities = swaps.map<Tx>((swap) => {
-    const members = txs.filter((tx) => {
-      const ids = [tx.boardingTxid, tx.redeemTxid, tx.roundTxid]
-      const match = ids.includes(swap.fundingTxid) || Boolean(swap.spentTxid && ids.includes(swap.spentTxid))
-      if (match) claimed.add(tx)
-      return match
-    })
-    const quote = swap.quote
-    const status =
-      swap.status === 'fulfilled'
-        ? 'completed'
-        : swap.status === 'cancelled'
-          ? 'cancelled'
-          : swap.status === 'recoverable'
-            ? 'recoverable'
-            : 'pending'
-    const fill = swap.spentTxid
-      ? members.find((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(swap.spentTxid!))
-      : undefined
-    const receivedAsset = fill?.assets?.find((asset) => asset.assetId === swap.toAsset && asset.amount > BigInt(0))
-    const receivedAmount =
-      swap.toAsset === 'btc' && fill?.amount && fill.amount > 0
-        ? BigInt(fill.amount)
-        : (receivedAsset?.amount ?? BigInt(swap.toAmount))
-    const fallbackTicker = (assetId: string) =>
-      assetId === 'btc' ? 'BTC' : (designatedAccountCurrency(network, assetId) ?? assetId.slice(0, 8))
-    return {
-      amount: members[0]?.amount ?? 0,
-      boardingTxid: '',
-      createdAt: Math.floor(swap.createdAt / 1000),
-      explorable: undefined,
-      preconfirmed: status === 'pending',
-      redeemTxid: swap.spentTxid ?? swap.fundingTxid,
-      roundTxid: '',
-      settled: status !== 'pending',
-      type: 'swap',
-      assetSwap: {
-        fromAssetId: swap.fromAsset,
-        fromTicker: quote?.fromTicker ?? fallbackTicker(swap.fromAsset),
-        fromDecimals: quote?.fromDecimals,
-        fromAmount: BigInt(swap.fromAmount),
-        toAssetId: swap.toAsset,
-        toTicker: quote?.toTicker ?? fallbackTicker(swap.toAsset),
-        toDecimals: quote?.toDecimals,
-        toAmount: receivedAmount,
-        fiatAmount: quote?.fromFiatAmount,
-        fiatCurrency: quote?.fiatCurrency,
-        toFiatAmount: quote?.toFiatAmount,
-        feeBps: quote?.feeBps,
-        rate: quote?.rate,
-        quotedAt: quote?.quotedAt,
-        completedAt: swap.completedAt,
-        fundingTxid: swap.fundingTxid,
-        fillTxid: swap.spentTxid,
-        status,
-      },
-    }
-  })
-
-  return [...activities, ...txs.filter((tx) => !claimed.has(tx))].sort((a, b) => b.createdAt - a.createdAt)
 }
