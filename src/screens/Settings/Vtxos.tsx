@@ -256,7 +256,7 @@ export default function Vtxos() {
       ? vtxo.assets.map((a) => {
           const meta = assetMetadataCache.get(a.assetId)?.metadata
           const decimals = meta?.decimals ?? 8
-          const shortId = `${a.assetId.slice(0, 8)}...`
+          const shortId = shortAssetId(a.assetId)
           const label = meta?.ticker ? `${meta.ticker} (${shortId})` : shortId
           return `${prettyAssetAmount(a.amount, decimals)} ${label}`
         })
@@ -389,4 +389,9 @@ export default function Vtxos() {
       ) : null}
     </>
   )
+}
+
+function shortAssetId(id: string): string {
+  if (id.length <= 12) return id
+  return `${id.slice(0, 6)}…${id.slice(-4)}`
 }
