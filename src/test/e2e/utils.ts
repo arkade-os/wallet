@@ -192,11 +192,14 @@ export async function createWalletAndGetBIP21(page: Page, isMobile?: boolean, sa
   return bip21
 }
 
-export async function getInvoiceFromLND(amount = 2100): Promise<string> {
+export async function addInvoiceFromLND(amount: number): Promise<{ invoice: string; hash: string }> {
   const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt ${amount}`)
-  const output = stdout.trim()
-  const outputJSON = JSON.parse(output)
-  const invoice = outputJSON.payment_request
+  const outputJSON = JSON.parse(stdout.trim())
+  return { invoice: outputJSON.payment_request, hash: outputJSON.r_hash }
+}
+
+export async function getInvoiceFromLND(amount = 2100): Promise<string> {
+  const { invoice } = await addInvoiceFromLND(amount)
   return invoice
 }
 
