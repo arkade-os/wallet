@@ -103,6 +103,10 @@ export default function Transaction() {
           ? 'Settled'
           : 'Preconfirmed'
 
+  // on asset transfers tx.amount is just the dust carrying the asset — showing
+  // it as Amount/Total reads as a fiat price for the asset, so hide both rows
+  const assetTransfer = Boolean(tx.assets?.length)
+
   const details: DetailsProps = {
     direction: issuanceTx ? 'Issuance' : burnTx ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received',
     when: tx.createdAt ? prettyAgo(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
@@ -113,9 +117,9 @@ export default function Transaction() {
     isOffchainTx: !tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
     assetId: tx.assets?.[0]?.assetId,
     wallet: wallet,
-    satoshis: tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
+    satoshis: assetTransfer ? undefined : tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
     fees: tx.type === 'sent' ? defaultFee : 0,
-    total: tx.amount,
+    total: assetTransfer ? undefined : tx.amount,
   }
 
   const Body = () => (
