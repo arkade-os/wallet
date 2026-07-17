@@ -27,6 +27,8 @@ import { consoleError } from '../../lib/logs'
 import * as Sentry from '@sentry/react'
 import Grid from '../../components/Grid'
 import { prettyAssetAmount } from '../../lib/assets'
+import { getAssetURL, getOffchainTxURL } from '../../lib/explorers'
+import ExternalLinkIcon from '../../icons/ExternalLink'
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -206,14 +208,25 @@ export default function Vtxos() {
     ),
   }
 
+  const ExplorerLinkIcon = ({ url }: { url: string }) => (
+    <span
+      onClick={() => window.open(url, '_blank', 'noreferrer')}
+      style={{ cursor: 'pointer', color: 'var(--neutral-500)' }}
+    >
+      <ExternalLinkIcon small />
+    </span>
+  )
+
   const CoinLine = ({
     amount,
+    txid,
     assets,
     tags,
     expiry,
   }: {
     amount: string
-    assets?: string[]
+    txid?: string
+    assets?: { text: string; assetId: string }[]
     tags: React.ReactNode
     expiry: string
   }) => {
@@ -224,18 +237,28 @@ export default function Vtxos() {
       padding: '0',
       width: '100%',
     }
+    const txUrl = txid ? getOffchainTxURL(txid, wallet) : ''
     return (
       <div style={style}>
         <Grid>
           <div>
             <div>
               <FlexCol gap='0.25rem'>
-                <Text>{amount}</Text>
-                {assets?.map((a) => (
-                  <Text key={a} color='neutral-500' smaller>
-                    {a}
-                  </Text>
-                ))}
+                <FlexRow gap='0.25rem' centered>
+                  <Text>{amount}</Text>
+                  {txUrl ? <ExplorerLinkIcon url={txUrl} /> : null}
+                </FlexRow>
+                {assets?.map((a) => {
+                  const url = getAssetURL(a.assetId, wallet)
+                  return (
+                    <FlexRow key={a.assetId} gap='0.25rem' centered>
+                      <Text color='neutral-500' smaller>
+                        {a.text}
+                      </Text>
+                      {url ? <ExplorerLinkIcon url={url} /> : null}
+                    </FlexRow>
+                  )
+                })}
               </FlexCol>
             </div>
             <div>{tags}</div>
@@ -258,7 +281,7 @@ export default function Vtxos() {
           const decimals = meta?.decimals ?? 8
           const shortId = `${a.assetId.slice(0, 8)}...`
           const label = meta?.ticker ? `${meta.ticker} (${shortId})` : shortId
-          return `${prettyAssetAmount(a.amount, decimals)} ${label}`
+          return { text: `${prettyAssetAmount(a.amount, decimals)} ${label}`, assetId: a.assetId }
         })
       : []
     const expiry = vtxo.virtualStatus?.batchExpiry ? prettyAgo(vtxo.virtualStatus.batchExpiry) : 'Unknown'
@@ -275,7 +298,9 @@ export default function Vtxos() {
                 : null}
       </FlexRow>
     )
-    return <CoinLine amount={`${satsAmount} sats`} assets={assetsAmounts} tags={tags} expiry={expiry} />
+    return (
+      <CoinLine amount={`${satsAmount} sats`} txid={vtxo.txid} assets={assetsAmounts} tags={tags} expiry={expiry} />
+    )
   }
 
   const UtxoLine = ({ utxo }: { utxo: ExtendedCoin }) => {
