@@ -24,6 +24,7 @@ import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { LimitsContext } from '../../providers/limits'
 import { getInputsToSettle } from '../../lib/asp'
+import { Badge } from '../../components/ui/badge'
 
 export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
@@ -166,6 +167,11 @@ export default function Transaction() {
                     <div className='transaction-detail-asset__copy'>
                       <span className='transaction-detail-asset__amount'>
                         {prettyCurrencyAssetAmount(BigInt(a.amount), decimals, trustedTicker)} {label}
+                        {!trusted ? (
+                          <Badge variant='outline' className='ml-1.5'>
+                            Unverified
+                          </Badge>
+                        ) : null}
                       </span>
                       {name && ticker && !accountTicker ? (
                         <span className='transaction-detail-asset__name'>{name}</span>
