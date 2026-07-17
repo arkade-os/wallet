@@ -6,6 +6,8 @@ export type WalletAccountTicker = 'BTC' | 'USD' | 'CHF' | 'BRL' | 'CNY' | 'EUR' 
 export const MUTINYNET_DEPIX_ASSET_ID = '47004bf4a5fbdb2221f708030528de68ea28f5980044e546b7bb5a352457d1f30000'
 export const MUTINYNET_USDT_ASSET_ID = 'f121ac9b7656797cc68d1e8fecacfbaa2069ec1461edf0bf2f3c37404cb9791a0000'
 
+// ponytail: hand-pinned designations; source them from
+// https://github.com/ArkLabsHQ/asset-registry once it publishes them
 const DESIGNATED_ACCOUNT_ASSETS: Record<string, Partial<Record<string, Currencies>>> = {
   mutinynet: {
     [MUTINYNET_DEPIX_ASSET_ID]: Currencies.BRL,
