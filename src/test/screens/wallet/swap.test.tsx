@@ -1,145 +1,193 @@
+import userEvent from '@testing-library/user-event'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
 import WalletSwap from '../../../screens/Wallet/Swap/Index'
 import { AspContext } from '../../../providers/asp'
+import { AssetsContext } from '../../../providers/assets'
 import { AssetSwapsContext } from '../../../providers/assetSwaps'
 import { ConfigContext } from '../../../providers/config'
-import { NavigationContext } from '../../../providers/navigation'
+import { FiatContext } from '../../../providers/fiat'
+import { FlowContext } from '../../../providers/flow'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
-import { AssetSwap } from '../../../lib/swap/store'
-import { Unit } from '../../../lib/types'
+import type { AssetSwap } from '../../../lib/swap/store'
 import {
   mockAspContextValue,
   mockConfigContextValue,
+  mockFiatContextValue,
+  mockFlowContextValue,
   mockNavigationContextValue,
   mockWalletContextValue,
 } from '../mocks'
-
-import { btcDepix, btcUsdt, USDT_ID } from '../../lib/swap/fixtures'
+import { btcDepix, btcUsdt, DEPIX_ID, USDT_ID } from '../../lib/swap/fixtures'
 
 const fetchMocker = createFetchMock(vi)
 fetchMocker.enableMocks()
 
 const pendingSwap: AssetSwap = {
-  id: 'txid1',
+  id: 'funding-txid',
   fromAsset: 'btc',
   toAsset: USDT_ID,
   fromAmount: '10000',
-  toAmount: '992',
+  toAmount: '997',
   swapAddress: 'tark1q...',
-  swapPkScript: '5120' + 'ab'.repeat(32),
+  swapPkScript: `5120${'ab'.repeat(32)}`,
   offerHex: '0100',
-  fundingTxid: 'txid1',
+  fundingTxid: 'funding-txid',
   status: 'pending',
   createdAt: 1,
+  quote: {
+    fromName: 'Bitcoin',
+    fromTicker: 'BTC',
+    fromDecimals: 8,
+    toName: 'USD',
+    toTicker: 'USD',
+    toDecimals: 2,
+    feeBps: 30,
+    rate: '99700',
+    fiatCurrency: 'USD',
+    fromFiatAmount: 10,
+    toFiatAmount: 9.97,
+    quotedAt: 1,
+  },
 }
 
-const mockAssetSwapsValue = {
-  markets: [btcUsdt, btcDepix],
-  swapAvailable: true,
-  swaps: [] as AssetSwap[],
-  createSwap: vi.fn().mockResolvedValue(pendingSwap),
-  cancelSwap: vi.fn().mockResolvedValue(undefined),
-}
+const createSwap = vi.fn().mockResolvedValue(pendingSwap)
+const cancelSwap = vi.fn().mockResolvedValue(undefined)
 
-const svcWallet = { getBalance: () => Promise.resolve({ available: 100_000 }) }
+function renderSwap({
+  flow = {},
+  swap = {},
+}: {
+  flow?: Record<string, unknown>
+  swap?: Record<string, unknown>
+} = {}) {
+  const navigate = vi.fn()
+  const goBack = vi.fn()
+  const assetMetadataCache = new Map([
+    [USDT_ID, { metadata: { name: 'USDT', ticker: 'USDT', decimals: 2 } }],
+    [DEPIX_ID, { metadata: { name: 'Decentralized Pix', ticker: 'DEPIX', decimals: 8 } }],
+  ])
 
-const renderSwap = (overrides: Partial<typeof mockAssetSwapsValue> = {}, unit = Unit.BTC) =>
-  render(
-    <ConfigContext.Provider
-      value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, unit } } as any}
+  const view = render(
+    <AspContext.Provider
+      value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' } } as any}
     >
-      <AspContext.Provider value={mockAspContextValue as any}>
-        <NavigationContext.Provider value={mockNavigationContextValue as any}>
-          <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: svcWallet as any } as any}>
-            <AssetSwapsContext.Provider value={{ ...mockAssetSwapsValue, ...overrides }}>
-              <WalletSwap />
-            </AssetSwapsContext.Provider>
-          </WalletContext.Provider>
+      <AssetsContext.Provider value={{ isRegistered: () => true }}>
+        <NavigationContext.Provider
+          value={{ ...mockNavigationContextValue, goBack, navigate, screen: Pages.WalletSwap } as any}
+        >
+          <ConfigContext.Provider value={mockConfigContextValue as any}>
+            <FiatContext.Provider
+              value={
+                {
+                  ...mockFiatContextValue,
+                  toFiat: (sats?: number) => ((sats ?? 0) / 100_000_000) * 100_000,
+                } as any
+              }
+            >
+              <FlowContext.Provider value={{ ...mockFlowContextValue, ...flow } as any}>
+                <WalletContext.Provider
+                  value={
+                    {
+                      ...mockWalletContextValue,
+                      balance: 250_000,
+                      assetBalances: [
+                        { assetId: USDT_ID, amount: BigInt(15_000) },
+                        { assetId: DEPIX_ID, amount: BigInt(2_000_000_000) },
+                      ],
+                      assetMetadataCache,
+                      svcWallet: { getBalance: () => Promise.resolve({ available: 100_000 }) },
+                    } as any
+                  }
+                >
+                  <AssetSwapsContext.Provider
+                    value={
+                      {
+                        markets: [btcUsdt, btcDepix],
+                        swapAvailable: true,
+                        swaps: [],
+                        createSwap,
+                        cancelSwap,
+                        ...swap,
+                      } as any
+                    }
+                  >
+                    <WalletSwap />
+                  </AssetSwapsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </FiatContext.Provider>
+          </ConfigContext.Provider>
         </NavigationContext.Provider>
-      </AspContext.Provider>
-    </ConfigContext.Provider>,
+      </AssetsContext.Provider>
+    </AspContext.Provider>,
   )
 
-describe('Swap screen', () => {
-  it('shows the unavailable state when no markets or emulator', () => {
-    renderSwap({ swapAvailable: false })
+  return { ...view, goBack, navigate }
+}
+
+describe('Wallet swap flow', () => {
+  beforeEach(() => {
+    createSwap.mockClear()
+    cancelSwap.mockClear()
+    fetchMocker.resetMocks()
+    fetchMocker.mockResponse(JSON.stringify({ bitcoin: { usd: 100_000 }, price: '500000' }))
+  })
+
+  it('shows the unavailable state when the PR 784 swap service is unavailable', () => {
+    renderSwap({ swap: { swapAvailable: false } })
     expect(screen.getByText('Swaps are unavailable')).toBeInTheDocument()
   })
 
-  it('lists btc and the market-quoted assets with balances', async () => {
+  it('shows designated Mutinynet assets as separate USD and BRL accounts', () => {
     renderSwap()
+    expect(screen.getByText('Choose asset to swap')).toBeInTheDocument()
+    expect(screen.getByText('USD')).toBeInTheDocument()
+    expect(screen.getByText('BRL')).toBeInTheDocument()
+    expect(screen.queryByText('USDT')).not.toBeInTheDocument()
+    expect(screen.queryByText('DEPIX')).not.toBeInTheDocument()
+  })
+
+  it('opens directly with bitcoin selected when launched from bitcoin detail', () => {
+    const setSwapFromAssetId = vi.fn()
+    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId } })
+
+    expect(screen.getByLabelText('Swap amount')).toBeInTheDocument()
     expect(screen.getByText('Bitcoin')).toBeInTheDocument()
-    expect(screen.getByText('USDT')).toBeInTheDocument()
-    expect(screen.getByText('Decentralized Pix')).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByText('0.001 BTC')).toBeInTheDocument())
+    expect(screen.queryByText('Choose asset to swap')).not.toBeInTheDocument()
+    expect(setSwapFromAssetId).toHaveBeenCalledWith(undefined)
   })
 
-  it('quotes a btc to usdt swap and confirms it', async () => {
-    fetchMocker.mockResponse(JSON.stringify({ bitcoin: { usd: 100000 } }))
-    renderSwap()
-
-    fireEvent.click(screen.getByText('Bitcoin'))
-    await waitFor(() => expect(screen.getByText('Select asset')).toBeInTheDocument())
-
-    // pick the receive asset from the drawer
-    fireEvent.click(screen.getByText('Select asset'))
-    await waitFor(() => expect(screen.getByText('Choose asset to receive')).toBeInTheDocument())
-    fireEvent.click(screen.getByText('USDT'))
-
-    // type 0.0001 BTC in the send input
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: '0.0001' } })
-
-    // debounced quote resolves: 10_000 sats -> 9.97 USDT
-    await waitFor(() => expect(screen.getAllByText('≥ 9.97 USDT').length).toBeGreaterThan(0), { timeout: 3000 })
-
-    fireEvent.click(screen.getByText('Continue'))
-    await waitFor(() => expect(screen.getByText('Review swap')).toBeInTheDocument())
-
-    fireEvent.click(screen.getByText('Confirm swap'))
-    await waitFor(() => expect(mockAssetSwapsValue.createSwap).toHaveBeenCalled())
-    const plan = mockAssetSwapsValue.createSwap.mock.calls[0][0]
-    expect(plan.deposit.atomic).toBe(BigInt(10_000))
-    expect(plan.receive.atomic).toBe(BigInt(997))
+  it('opens directly with USD selected when launched from the USDT-backed account', () => {
+    renderSwap({ flow: { swapFromAssetId: USDT_ID, setSwapFromAssetId: vi.fn() } })
+    expect(screen.getByLabelText('Swap amount')).toBeInTheDocument()
+    expect(screen.getAllByText('USD').length).toBeGreaterThan(0)
   })
 
-  it('only offers receive assets that share a market with the from asset', async () => {
-    renderSwap()
-    fireEvent.click(screen.getByText('USDT'))
-    await waitFor(() => expect(screen.getByText('Select asset')).toBeInTheDocument())
-    fireEvent.click(screen.getByText('Select asset'))
-    await waitFor(() => expect(screen.getByText('Choose asset to receive')).toBeInTheDocument())
-    // no USDT/DePix market: only btc can be received against USDT
-    expect(screen.getAllByText('Bitcoin').length).toBeGreaterThan(0)
-    expect(screen.queryByText('Decentralized Pix')).not.toBeInTheDocument()
+  it('submits the live PR 784 offer plan and a historical display snapshot', async () => {
+    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    await userEvent.click(screen.getByRole('button', { name: '5' }))
+    await userEvent.click(screen.getByRole('button', { name: '0' }))
+
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
+    fireEvent.click(continueButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+
+    await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
+    expect(createSwap.mock.calls[0][0].deposit.atomic).toBe(BigInt(50_000))
+    expect(createSwap.mock.calls[0][1]).toMatchObject({ fromTicker: 'BTC', toTicker: 'USD', feeBps: 30 })
   })
 
-  it('types whole sats when the display unit is sats', async () => {
-    fetchMocker.mockResponse(JSON.stringify({ bitcoin: { usd: 100000 } }))
-    renderSwap({}, Unit.SATS)
-    await waitFor(() => expect(screen.getByText('100K sats')).toBeInTheDocument())
-    fireEvent.click(screen.getByText('Bitcoin'))
-    await waitFor(() => expect(screen.getByText('Select asset')).toBeInTheDocument())
-    fireEvent.click(screen.getByText('Select asset'))
-    await waitFor(() => expect(screen.getByText('Choose asset to receive')).toBeInTheDocument())
-    fireEvent.click(screen.getByText('USDT'))
-
-    // the send label follows the configured unit and whole sats are accepted
-    expect(screen.getByText('Send sats')).toBeInTheDocument()
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: '1000' } })
-    expect(screen.getByRole('textbox')).toHaveValue('1000')
-
-    // 1000 sats -> 0.99 USDT
-    await waitFor(() => expect(screen.getAllByText('≥ 0.99 USDT').length).toBeGreaterThan(0), { timeout: 3000 })
-  })
-
-  it('lists swaps and cancels a pending one', async () => {
-    renderSwap({ swaps: [pendingSwap] })
-    expect(screen.getByText('Your swaps')).toBeInTheDocument()
-    expect(screen.getByText('BTC to USDT')).toBeInTheDocument()
-    expect(screen.getByText('Pending')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Cancel'))
-    await waitFor(() => expect(mockAssetSwapsValue.cancelSwap).toHaveBeenCalledWith('txid1'))
+  it('keeps PR 784 pending-swap cancellation available', async () => {
+    renderSwap({ swap: { swaps: [pendingSwap] } })
+    expect(screen.getByText('BTC to USD')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(cancelSwap).toHaveBeenCalledWith('funding-txid'))
   })
 })

@@ -75,6 +75,17 @@
   --yellow-900: #423810;
   --yellow-950: #221c08;
 
+  /* Account chart identity — exact primary colors from each currency flag. */
+  --account-chart-btc: var(--orange-500);
+  --account-chart-usd: #3c3b6e;
+  --account-chart-chf: #d52b1e;
+  --account-chart-brl: #009b3a;
+  --account-chart-cny: #de2910;
+  --account-chart-eur: #003399;
+  --account-chart-gbp: #012169;
+  --account-chart-jpy: #bc002d;
+  --account-chart-default: var(--purple-700);
+
   /* Convenience aliases (backward compat with existing code) */
   --purple: var(--purple-700);
   --purple10: color-mix(in srgb, var(--purple-700) 8%, transparent);

@@ -6,22 +6,24 @@ import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
-import Success from '../../../components/Success'
 import CenterScreen from '../../../components/CenterScreen'
 import FlexCol from '../../../components/FlexCol'
 import Padded from '../../../components/Padded'
 import Text from '../../../components/Text'
+import WalletSuccessSplash from '../../../components/WalletSuccessSplash'
 import SuccessIcon from '../../../icons/Success'
 import SpinnerIcon from '../../../icons/Spinner'
-import { prettyAmount, prettyFiatAmount } from '../../../lib/format'
+import { prettyAmount, prettyCurrencyAssetAmount, prettyFiatAmount } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
 import { SwapsContext } from '../../../providers/swaps'
 import AssetCard from '../../../components/AssetCard'
-import { prettyAssetAmount } from '../../../lib/assets'
+import { walletAssetPresentationForId } from '../../../lib/accountAssets'
 import { consoleError } from '../../../lib/logs'
 import { BoltzSwap, BoltzSwapStatus, hasSubmarineStatusReached, isSubmarineFailedStatus } from '@arkade-os/boltz-swap'
+import { AspContext } from '../../../providers/asp'
+import { AssetsContext } from '../../../providers/assets'
 
 type LnSendStatus = 'processing' | 'completed' | 'failed' | 'refunded'
 
@@ -45,6 +47,8 @@ const lnStatusUI: Record<LnSendStatus, { color: string; label: string }> = {
 }
 
 export default function SendSuccess() {
+  const { aspInfo } = useContext(AspContext)
+  const { isRegistered } = useContext(AssetsContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
   const { sendInfo } = useContext(FlowContext)
@@ -53,14 +57,17 @@ export default function SendSuccess() {
   const { navigate } = useContext(NavigationContext)
   const { getSwapHistory, swapManager } = useContext(SwapsContext)
 
-  const isAssetSend = Boolean(sendInfo.assets?.length)
-  const assetId = sendInfo.assets?.[0]?.assetId
+  const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
+  const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
-  const assetName = assetMeta?.metadata?.name ?? 'Unknown Asset'
-  const assetTicker = assetMeta?.metadata?.ticker ?? ''
-  const assetIcon = assetMeta?.metadata?.icon
-  const assetAmountValue = sendInfo.assets?.[0]?.amount ?? BigInt(0)
-  const assetDecimals = assetMeta?.metadata?.decimals ?? 8
+  const assetPresentation = sendInfo.account
+    ? { name: sendInfo.account.ticker, ticker: sendInfo.account.ticker }
+    : walletAssetPresentationForId(aspInfo.network, assetId, isRegistered, assetMeta?.metadata, 'Unknown asset')
+  const assetName = assetPresentation.name
+  const assetTicker = assetPresentation.ticker
+  const assetIcon = assetPresentation.icon
+  const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
+  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 8
 
   // Lightning sends resolve optimistically once the swap is funded; track the
   // settlement happening in the background and reflect it live on screen.
@@ -121,7 +128,7 @@ export default function SendSuccess() {
 
   const totalSats = sendInfo.total ?? 0
   const displayAmount = isAssetSend
-    ? `${prettyAssetAmount(assetAmountValue, assetDecimals)} ${assetTicker}`
+    ? `${prettyCurrencyAssetAmount(assetAmountValue, assetDecimals, assetTicker)} ${assetTicker}`
     : useFiat
       ? prettyFiatAmount(toFiat(totalSats), config.currency, { bitcoinUnit: config.unit })
       : prettyAmount(totalSats)
@@ -196,14 +203,11 @@ export default function SendSuccess() {
   }
 
   return (
-    <>
-      <Header text='Success' />
-      <Content>
-        <Success headline='Payment sent!' text={`${displayAmount} sent successfully`} />
-      </Content>
-      <ButtonsOnBottom>
-        <Button label='Sounds good' onClick={() => navigate(Pages.Wallet)} />
-      </ButtonsOnBottom>
-    </>
+    <WalletSuccessSplash
+      headline='Payment sent'
+      text={`${displayAmount} sent successfully`}
+      ariaLabel='Payment sent successfully. Tap to go home.'
+      onDone={() => navigate(Pages.Wallet)}
+    />
   )
 }

@@ -7,7 +7,7 @@ import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { cancelOffer, createOffer, OFFER_PACKET_TYPE } from '../lib/swap/offer'
 import { BTC_ASSET_ID, discoverMarkets } from '../lib/swap/markets'
-import { addAssetSwap, AssetSwap, getAssetSwaps, updateAssetSwap } from '../lib/swap/store'
+import { addAssetSwap, AssetSwap, type AssetSwapQuoteSnapshot, getAssetSwaps, updateAssetSwap } from '../lib/swap/store'
 import { getEmulatorUrlForNetwork } from '../lib/constants'
 import { consoleError } from '../lib/logs'
 import { sleep } from '../lib/sleep'
@@ -22,7 +22,7 @@ interface AssetSwapsContextProps {
   /** True when there are markets and the covenant co-signer is reachable. */
   swapAvailable: boolean
   swaps: AssetSwap[]
-  createSwap: (plan: OfferPlan) => Promise<AssetSwap>
+  createSwap: (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot) => Promise<AssetSwap>
   cancelSwap: (id: string) => Promise<void>
 }
 
@@ -86,7 +86,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     return assetId.slice(0, 8)
   }
 
-  const createSwap = async (plan: OfferPlan): Promise<AssetSwap> => {
+  const createSwap = async (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<AssetSwap> => {
     if (!svcWallet) throw new Error('wallet not available')
     if (!emulatorUrl) throw new Error('swap service unavailable')
     const depositIsBtc = plan.deposit.asset.id === BTC_ASSET_ID
@@ -115,6 +115,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
       fundingTxid: txid,
       status: 'pending',
       createdAt: Date.now(),
+      quote,
     }
     setSwaps(addAssetSwap(swap))
     reloadWallet().catch(consoleError)
@@ -201,7 +202,13 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
           toast.success('Swap cancelled, funds returned')
           reloadWallet().catch(consoleError)
         } else {
-          setSwaps(updateAssetSwap(swap.id, { status: 'fulfilled', spentTxid: vtxo.arkTxId ?? vtxo.spentBy }))
+          setSwaps(
+            updateAssetSwap(swap.id, {
+              status: 'fulfilled',
+              spentTxid: vtxo.arkTxId ?? vtxo.spentBy,
+              completedAt: Date.now(),
+            }),
+          )
           toast.success(`Swap completed, ${tickerFor(swap.toAsset)} received`)
           reloadWallet().catch(consoleError)
         }

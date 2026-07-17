@@ -1,6 +1,6 @@
 import { useContext } from 'react'
 import AssetCard from '../../components/AssetCard'
-import { usePortfolioFiat } from '../../hooks/usePortfolioFiat'
+import { usePortfolioFiat, type PortfolioRow } from '../../hooks/usePortfolioFiat'
 import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
 import { NavigationContext, Pages } from '../../providers/navigation'
@@ -16,7 +16,7 @@ export default function AssetsSection() {
   const { isRegistered } = useContext(AssetsContext)
 
   const { rows } = usePortfolioFiat()
-  const visibleRows = rows.filter((row) => isRegistered(row.assetId) || row.assetId === 'btc')
+  const visibleRows = rows.filter((row) => isVisibleAssetRow(row, config.importedAssets, isRegistered))
 
   const fiatLabel = (amount: number) => {
     const decimals = fiatDecimals()
@@ -27,11 +27,14 @@ export default function AssetsSection() {
     })
   }
 
-  const handleAssetClick = (assetId: string) => {
-    if (assetId === 'btc') {
+  const handleAssetClick = (row: PortfolioRow) => {
+    if (row.assetId === 'btc') {
       navigate(Pages.BitcoinDetail)
+    } else if (row.fiatCurrency) {
+      setAssetInfo({ assetId: row.assetId, supply: BigInt(0) })
+      navigate(Pages.AccountDetail)
     } else {
-      setAssetInfo({ assetId, supply: BigInt(0) })
+      setAssetInfo({ assetId: row.assetId, supply: BigInt(0) })
       navigate(Pages.AppAssetDetail)
     }
   }
@@ -39,7 +42,7 @@ export default function AssetsSection() {
   return (
     <section className='home-section'>
       <div className='flex w-full items-center justify-between px-1'>
-        <span className='home-section-label'>Assets</span>
+        <span className='home-section-label'>Accounts</span>
       </div>
       <div className='home-section__content'>
         {visibleRows.map((row) => (
@@ -52,10 +55,19 @@ export default function AssetsSection() {
             decimals={row.decimals}
             balance={row.balance}
             fiatText={row.hasFiatPrice ? fiatLabel(row.fiatAmount) : undefined}
-            onClick={() => handleAssetClick(row.assetId)}
+            onClick={() => handleAssetClick(row)}
           />
         ))}
       </div>
     </section>
   )
+}
+
+function isVisibleAssetRow(
+  row: PortfolioRow,
+  importedAssets: string[],
+  isRegistered: (assetId: string) => boolean,
+): boolean {
+  if (row.assetId === 'btc') return true
+  return importedAssets.includes(row.assetId) || isRegistered(row.assetId)
 }

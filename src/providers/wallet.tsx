@@ -35,6 +35,7 @@ import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
+import { mergeAssetSwapActivity } from '../lib/swap/store'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
 import { resolveWalletMode } from '../lib/walletMode'
@@ -440,7 +441,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         updateConfig({ ...config, apps: { ...config.apps, assets: { enabled: true } } })
       }
       setVtxos(vtxos)
-      setTxs(txs)
+      setTxs(mergeAssetSwapActivity(txs, undefined, aspInfo.network))
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
         setDataReady(true)

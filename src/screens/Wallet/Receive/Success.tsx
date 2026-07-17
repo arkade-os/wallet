@@ -1,26 +1,34 @@
 import { useContext, useEffect, useState } from 'react'
-import Button from '../../../components/Button'
-import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
-import Content from '../../../components/Content'
-import FlexCol from '../../../components/FlexCol'
-import Padded from '../../../components/Padded'
-import Text from '../../../components/Text'
-import SuccessIcon from '../../../icons/Success'
-import Success from '../../../components/Success'
+import WalletSuccessSplash from '../../../components/WalletSuccessSplash'
 import { NotificationsContext } from '../../../providers/notifications'
 import { FlowContext } from '../../../providers/flow'
-import Header from '../../../components/Header'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import { prettyAmount, prettyFiatAmount } from '../../../lib/format'
+import { prettyAmount, prettyCurrencyAssetAmount, prettyFiatAmount } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import type { AssetDetails } from '@arkade-os/sdk'
-import AssetCard from '../../../components/AssetCard'
-import { prettyAssetAmount } from '../../../lib/assets'
+import { walletAssetPresentationForId } from '../../../lib/accountAssets'
+import { AspContext } from '../../../providers/asp'
+import { AssetsContext } from '../../../providers/assets'
+
+function formatAssetLabel(
+  a: { assetId: string; amount: bigint },
+  details: AssetDetails | undefined,
+  network: string | undefined,
+  isRegistered: (assetId: string) => boolean,
+) {
+  const meta = details?.metadata
+  const presentation = walletAssetPresentationForId(network, a.assetId, isRegistered, meta, 'assets')
+  const ticker = presentation.ticker || presentation.name
+  const amount = prettyCurrencyAssetAmount(a.amount, meta?.decimals ?? 0, ticker)
+  return `${amount} ${ticker}`
+}
 
 export default function ReceiveSuccess() {
+  const { aspInfo } = useContext(AspContext)
+  const { isRegistered } = useContext(AssetsContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
   const { recvInfo } = useContext(FlowContext)
@@ -62,12 +70,9 @@ export default function ReceiveSuccess() {
   useEffect(() => {
     if (isAssetReceive) {
       if (assetDetails.size < receivedAssets.length) return
-      const labels = receivedAssets.map((a) => {
-        const meta = assetDetails.get(a.assetId)?.metadata
-        const amount = prettyAssetAmount(a.amount, meta?.decimals ?? 0)
-        const ticker = meta?.ticker ?? meta?.name ?? 'assets'
-        return `${amount} ${ticker}`
-      })
+      const labels = receivedAssets.map((a) =>
+        formatAssetLabel(a, assetDetails.get(a.assetId), aspInfo.network, isRegistered),
+      )
       notifyPaymentReceived(recvInfo.satoshis, labels.join(', '))
     } else {
       notifyPaymentReceived(recvInfo.satoshis)
@@ -78,59 +83,18 @@ export default function ReceiveSuccess() {
     ? prettyFiatAmount(toFiat(recvInfo.satoshis), config.currency, { bitcoinUnit: config.unit })
     : prettyAmount(recvInfo.satoshis)
 
-  if (isAssetReceive) {
-    return (
-      <>
-        <Header text='Success' />
-        <Content>
-          <Padded>
-            <FlexCol gap='1.5rem' centered padding='1rem 0 0 0'>
-              <SuccessIcon small />
-              <Text centered big bold>
-                Payment received!
-              </Text>
-
-              {receivedAssets.map((a) => {
-                const meta = assetDetails.get(a.assetId)?.metadata
-                const name = meta?.name ?? 'Unknown Asset'
-                const ticker = meta?.ticker ?? ''
-                const icon = meta?.icon
-
-                return (
-                  <AssetCard
-                    icon={icon}
-                    name={name}
-                    ticker={ticker}
-                    key={a.assetId}
-                    assetId={a.assetId}
-                    balance={a.amount}
-                    decimals={meta?.decimals ?? 0}
-                  />
-                )
-              })}
-
-              <Text centered color='neutral-700' thin small wrap>
-                {displayAmount}
-              </Text>
-            </FlexCol>
-          </Padded>
-        </Content>
-        <ButtonsOnBottom>
-          <Button label='Sounds good' onClick={() => navigate(Pages.Wallet)} />
-        </ButtonsOnBottom>
-      </>
-    )
-  }
+  const displayText = isAssetReceive
+    ? receivedAssets
+        .map((a) => formatAssetLabel(a, assetDetails.get(a.assetId), aspInfo.network, isRegistered))
+        .join(', ')
+    : `${displayAmount} received successfully`
 
   return (
-    <>
-      <Header text='Success' />
-      <Content>
-        <Success headline='Payment received!' text={`${displayAmount} received successfully`} />
-      </Content>
-      <ButtonsOnBottom>
-        <Button label='Sounds good' onClick={() => navigate(Pages.Wallet)} />
-      </ButtonsOnBottom>
-    </>
+    <WalletSuccessSplash
+      headline='Payment received'
+      text={displayText}
+      ariaLabel='Payment received successfully. Tap to go home.'
+      onDone={() => navigate(Pages.Wallet)}
+    />
   )
 }

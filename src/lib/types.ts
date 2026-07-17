@@ -101,9 +101,25 @@ export type Tx = {
   roundTxid: string
   settled: boolean
   type: string
-  prototypeSwap?: {
+  assetSwap?: {
+    fromAssetId?: string
     fromTicker: string
+    fromDecimals?: number
+    fromAmount?: bigint
+    toAssetId?: string
     toTicker: string
+    toDecimals?: number
+    toAmount?: bigint
+    fiatAmount?: number
+    status?: 'pending' | 'failed' | 'completed' | 'cancelled' | 'recoverable'
+    feeBps?: number
+    rate?: string
+    fiatCurrency?: string
+    toFiatAmount?: number
+    quotedAt?: number
+    completedAt?: number
+    fundingTxid?: string
+    fillTxid?: string
   }
 }
 

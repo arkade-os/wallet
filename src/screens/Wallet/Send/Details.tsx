@@ -9,7 +9,7 @@ import ErrorMessage from '../../../components/Error'
 import { WalletContext } from '../../../providers/wallet'
 import Header from '../../../components/Header'
 import { defaultFee } from '../../../lib/constants'
-import { prettyNumber } from '../../../lib/format'
+import { prettyCurrencyAssetAmount, prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { collaborativeExitWithFees, sendAssets, sendOffChain } from '../../../lib/asp'
@@ -21,22 +21,32 @@ import { SwapsContext } from '../../../providers/swaps'
 import Text from '../../../components/Text'
 import { isPendingChainSwap, isPendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { FeesContext } from '../../../providers/fees'
-import { prettyAssetAmount } from '../../../lib/assets'
+import { walletAssetLabel, walletAssetPresentationForId } from '../../../lib/accountAssets'
+import { AspContext } from '../../../providers/asp'
+import { AssetsContext } from '../../../providers/assets'
 
 export default function SendDetails() {
+  const { aspInfo } = useContext(AspContext)
+  const { isRegistered } = useContext(AssetsContext)
   const { navigate } = useContext(NavigationContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
-  const isAssetSend = Boolean(sendInfo.assets?.length)
+  const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { payInvoice, payBtc } = useContext(SwapsContext)
   const { assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
 
-  const assetId = sendInfo.assets?.[0]?.assetId
+  const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
-  const assetTicker = assetMeta?.metadata?.ticker ?? ''
-  const assetName = assetMeta?.metadata?.name ?? 'Asset'
-  const assetAmountValue = sendInfo.assets?.[0]?.amount ?? BigInt(0)
+  const assetPresentation = sendInfo.account
+    ? { name: sendInfo.account.ticker, ticker: sendInfo.account.ticker }
+    : walletAssetPresentationForId(aspInfo.network, assetId, isRegistered, assetMeta?.metadata, assetId ?? 'Asset')
+  const assetTicker = assetPresentation.ticker
+  const assetName = assetPresentation.name
+  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 8
+  const assetLabel = walletAssetLabel(assetPresentation)
+  const assetAmountUnit = assetTicker || assetName
+  const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
 
   const [buttonLabel, setButtonLabel] = useState('')
   const [details, setDetails] = useState<DetailsProps>()
@@ -202,10 +212,10 @@ export default function SendDetails() {
               {isAssetSend ? (
                 <FlexCol gap='0.5rem'>
                   <Text color='neutral-500' smaller testId='send-details-asset-name'>
-                    {assetName} ({assetTicker})
+                    {assetLabel}
                   </Text>
                   <Text bold testId='send-details-asset-amount'>
-                    {prettyAssetAmount(assetAmountValue, assetMeta?.metadata?.decimals ?? 8)} {assetTicker}
+                    {prettyCurrencyAssetAmount(assetAmountValue, assetDecimals, assetAmountUnit)} {assetAmountUnit}
                   </Text>
                 </FlexCol>
               ) : null}

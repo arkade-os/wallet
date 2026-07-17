@@ -41,8 +41,11 @@ import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { AssetOption, Unit } from '../../../lib/types'
 import { EASE_OUT_QUINT } from '../../../lib/animations'
+import { walletAssetPresentationForId } from '../../../lib/accountAssets'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
+import { AspContext } from '../../../providers/asp'
+import { AssetsContext } from '../../../providers/assets'
 
 /**
  * Decide which value the QR should encode. Honours an explicit copy-sheet
@@ -60,6 +63,8 @@ export const resolveQrValue = (
 }
 
 export default function ReceiveQRCode() {
+  const { aspInfo } = useContext(AspContext)
+  const { isRegistered } = useContext(AssetsContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat } = useContext(FiatContext)
   const { navigate } = useContext(NavigationContext)
@@ -375,13 +380,20 @@ export default function ReceiveQRCode() {
     setAmountTextValue('')
   }
 
+  const assetPresentation = walletAssetPresentationForId(
+    aspInfo.network,
+    assetId,
+    isRegistered,
+    assetMeta?.metadata,
+    '',
+  )
   const assetOption: AssetOption = {
     assetId: assetId ?? '',
-    name: assetMeta?.metadata?.name ?? '',
-    ticker: assetMeta?.metadata?.ticker ?? '',
+    name: assetPresentation.name,
+    ticker: assetPresentation.ticker,
     balance: BigInt(0),
     decimals: assetMeta?.metadata?.decimals ?? 0,
-    icon: assetMeta?.metadata?.icon,
+    icon: assetPresentation.icon,
   }
 
   const data = { title: 'Receive', text: qrCodeValue }
@@ -413,7 +425,7 @@ export default function ReceiveQRCode() {
   }
 
   const amountLabel = hasAmount ? 'Edit amount' : 'Add amount'
-  const unitLabel = assetMeta?.metadata?.ticker ?? 'sats'
+  const unitLabel = assetMeta ? assetPresentation.ticker : 'sats'
 
   return (
     <>
