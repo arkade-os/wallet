@@ -160,10 +160,14 @@ describe('Wallet swap flow', () => {
     expect(setSwapFromAssetId).toHaveBeenCalledWith(undefined)
   })
 
-  it('opens directly with USD selected when launched from the USDT-backed account', () => {
+  it('does not report an unavailable pair before the receive asset is selected', async () => {
     renderSwap({ flow: { swapFromAssetId: USDT_ID, setSwapFromAssetId: vi.fn() } })
     expect(screen.getByLabelText('Swap amount')).toBeInTheDocument()
     expect(screen.getAllByText('USD').length).toBeGreaterThan(0)
+
+    await userEvent.click(screen.getByRole('button', { name: '1' }))
+
+    expect(screen.queryByText('Swap unavailable for this pair')).not.toBeInTheDocument()
   })
 
   it('submits the live PR 784 offer plan and a historical display snapshot', async () => {

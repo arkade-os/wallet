@@ -224,7 +224,7 @@ export default function WalletSwap() {
   const validationMessage = swapValidationMessage({
     amount,
     fromAsset,
-    pairAvailable: Boolean(pair?.market),
+    pairAvailable: toAsset ? Boolean(pair?.market) : undefined,
     plan,
     planError,
     solvable: solvable ?? undefined,
@@ -1250,13 +1250,14 @@ function swapValidationMessage({
 }: {
   amount: string
   fromAsset: SwapAsset
-  pairAvailable: boolean
+  pairAvailable: boolean | undefined
   plan: OfferPlan | null
   planError: ReturnType<typeof validatePlan>
   solvable: boolean | undefined
   status: string
 }): string {
   if (!Number(amount)) return ''
+  if (pairAvailable === undefined) return ''
   if (!pairAvailable || solvable === false) return 'Swap unavailable for this pair'
   if (status === 'error') return 'Quote unavailable'
   if (!plan) return ''
