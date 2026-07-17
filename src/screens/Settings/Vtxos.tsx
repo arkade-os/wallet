@@ -27,7 +27,7 @@ import { consoleError } from '../../lib/logs'
 import * as Sentry from '@sentry/react'
 import Grid from '../../components/Grid'
 import { prettyAssetAmount } from '../../lib/assets'
-import { getAssetURL, getVtxoURL, openAssetInNewTab, openVtxoInNewTab } from '../../lib/explorers'
+import { getAssetURL, getOffchainTxURL } from '../../lib/explorers'
 import ExternalLinkIcon from '../../icons/ExternalLink'
 
 export default function Vtxos() {
@@ -208,15 +208,24 @@ export default function Vtxos() {
     ),
   }
 
+  const ExplorerLinkIcon = ({ url }: { url: string }) => (
+    <span
+      onClick={() => window.open(url, '_blank', 'noreferrer')}
+      style={{ cursor: 'pointer', color: 'var(--neutral-500)' }}
+    >
+      <ExternalLinkIcon small />
+    </span>
+  )
+
   const CoinLine = ({
     amount,
-    outpoint,
+    txid,
     assets,
     tags,
     expiry,
   }: {
     amount: string
-    outpoint?: { txid: string; vout: number }
+    txid?: string
     assets?: { text: string; assetId: string }[]
     tags: React.ReactNode
     expiry: string
@@ -228,6 +237,7 @@ export default function Vtxos() {
       padding: '0',
       width: '100%',
     }
+    const txUrl = txid ? getOffchainTxURL(txid, wallet) : ''
     return (
       <div style={style}>
         <Grid>
@@ -236,14 +246,7 @@ export default function Vtxos() {
               <FlexCol gap='0.25rem'>
                 <FlexRow gap='0.25rem' centered>
                   <Text>{amount}</Text>
-                  {outpoint && getVtxoURL(outpoint.txid, outpoint.vout, wallet) ? (
-                    <span
-                      onClick={() => openVtxoInNewTab(outpoint.txid, outpoint.vout, wallet)}
-                      style={{ cursor: 'pointer', color: 'var(--neutral-500)' }}
-                    >
-                      <ExternalLinkIcon small />
-                    </span>
-                  ) : null}
+                  {txUrl ? <ExplorerLinkIcon url={txUrl} /> : null}
                 </FlexRow>
                 {assets?.map((a) => {
                   const url = getAssetURL(a.assetId, wallet)
@@ -252,14 +255,7 @@ export default function Vtxos() {
                       <Text color='neutral-500' smaller>
                         {a.text}
                       </Text>
-                      {url ? (
-                        <span
-                          onClick={() => openAssetInNewTab(a.assetId, wallet)}
-                          style={{ cursor: 'pointer', color: 'var(--neutral-500)' }}
-                        >
-                          <ExternalLinkIcon small />
-                        </span>
-                      ) : null}
+                      {url ? <ExplorerLinkIcon url={url} /> : null}
                     </FlexRow>
                   )
                 })}
@@ -303,13 +299,7 @@ export default function Vtxos() {
       </FlexRow>
     )
     return (
-      <CoinLine
-        amount={`${satsAmount} sats`}
-        outpoint={{ txid: vtxo.txid, vout: vtxo.vout }}
-        assets={assetsAmounts}
-        tags={tags}
-        expiry={expiry}
-      />
+      <CoinLine amount={`${satsAmount} sats`} txid={vtxo.txid} assets={assetsAmounts} tags={tags} expiry={expiry} />
     )
   }
 
