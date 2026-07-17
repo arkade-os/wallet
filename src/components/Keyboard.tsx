@@ -13,7 +13,7 @@ import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
 import SwapIcon from '../icons/Swap'
 import { AssetOption, Currencies, Unit } from '../lib/types'
-import { prettyAssetAmount, unitsToCents } from '../lib/assets'
+import { centsToUnits, prettyAssetAmount, unitsToCents } from '../lib/assets'
 
 export type KeyboardInputMode = 'sats' | 'fiat' | 'asset' | 'btc'
 
@@ -45,7 +45,8 @@ export default function Keyboard({ asset, back, hideBalance, onClear, onSave, in
   useEffect(() => {
     if (initialValue && inputMode && toFiat && fiatDecimals) {
       if (inputMode === 'asset') {
-        setTextValue(prettyAssetAmount(BigInt(initialValue), asset?.decimals ?? 0, false))
+        // plain decimal string: grouped output would fail the save gate's Number()
+        setTextValue(centsToUnits(BigInt(initialValue), asset?.decimals ?? 0))
       } else if (inputMode === 'fiat') {
         setTextValue(prettyNumber(toFiat(Number(initialValue)), fiatDecimals(), false))
       } else if (inputMode === 'btc') {
@@ -120,7 +121,8 @@ export default function Keyboard({ asset, back, hideBalance, onClear, onSave, in
   const handleMaxPress = () => {
     if (asset) {
       const { balance, decimals } = asset
-      setTextValue(prettyAssetAmount(balance, decimals, false))
+      // plain decimal string: toLocaleString grouping breaks Number() parsing
+      setTextValue(centsToUnits(balance, decimals))
       return
     } else {
       const maxSats = available - defaultFee

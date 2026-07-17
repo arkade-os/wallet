@@ -19,7 +19,11 @@ export default function SwapFrom({ amount, asset, onChange, onShowKeypad }: Swap
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
-    if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value)) {
+    // clamp to the asset's precision as typed: whole units only at 0 decimals
+    // (sats), at most `decimals` fraction digits otherwise — anything looser
+    // gets reinterpreted downstream (the quote strips what the asset can't hold)
+    const pattern = asset.decimals === 0 ? /^[0-9]*$/ : new RegExp(`^[0-9]*\\.?[0-9]{0,${asset.decimals}}$`)
+    if (value === '' || pattern.test(value)) {
       onChange(value)
     }
   }
@@ -38,6 +42,7 @@ export default function SwapFrom({ amount, asset, onChange, onShowKeypad }: Swap
           {/* the custom keypad drives entry on mobile; keep the native keyboard away */}
           <input
             value={amount}
+            aria-label={label}
             onChange={handleAmountChange}
             onFocus={handleFocus}
             inputMode={isMobileBrowser ? 'none' : undefined}

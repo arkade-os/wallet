@@ -118,6 +118,12 @@ function tlv(type: number, value: Uint8Array): Uint8Array {
 
 /** Serialize an offer to TLV bytes (the packet payload). */
 export function encodeOffer(offer: Offer): Uint8Array {
+  // the wire field is a fixed u64; setBigUint64 would wrap silently past 2^64
+  // (reachable at ~18.45 tokens of an 18-decimal asset) while the covenant
+  // binds the full amount — reject instead of advertising a wrapped amount
+  if (offer.wantAmount < BigInt(0) || offer.wantAmount >> BigInt(64) > BigInt(0)) {
+    throw new Error('wantAmount does not fit the offer wire format (u64)')
+  }
   const amount = new Uint8Array(8)
   new DataView(amount.buffer).setBigUint64(0, offer.wantAmount, false)
   const recs = [tlv(T.swapPkScript, offer.swapPkScript), tlv(T.wantAmount, amount)]
@@ -235,12 +241,15 @@ export async function createOffer(
 
 /** Cancel an offer: spend the swap VTXO back to the maker. Returns the ark txid.
  * Identical offers derive the same address, so `fundingTxid` selects the exact
- * deposit; without it the first spendable VTXO at the address is cancelled. */
+ * deposit; without it the first spendable VTXO at the address is cancelled.
+ * `swapAddress` (the funded address) pins the server key the covenant was
+ * built with, so cancel keeps working across a server signer rotation. */
 export async function cancelOffer(
   wallet: IWallet,
   arkServerUrl: string,
   offerHex: string,
   fundingTxid?: string,
+  swapAddress?: string,
 ): Promise<string> {
   const offer = decodeOffer(hex.decode(offerHex))
 
@@ -252,7 +261,8 @@ export async function cancelOffer(
 
   // Rebuild the contract with the offer's own keys (not the client's) so the
   // derived script matches the funded swap address exactly.
-  const { program, args, keys } = bancoProgramBinding(offer, client.serverKey)
+  const serverKey = swapAddress ? ArkAddress.decode(swapAddress).serverPubKey : client.serverKey
+  const { program, args, keys } = bancoProgramBinding(offer, serverKey)
   const contract = new arkade.ArkadeContract(client, program, args, keys)
 
   const [vtxos, makerAddress] = await Promise.all([contract.getUtxos(), wallet.getAddress()])

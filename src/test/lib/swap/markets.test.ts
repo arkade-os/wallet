@@ -68,7 +68,7 @@ describe('quoteOffer with the wallet quote options', () => {
 })
 
 describe('discoverMarkets caching', () => {
-  const CACHE_KEY = 'swapMarkets-mutinynet'
+  const CACHE_KEY = 'swapMarkets-mutinynet-https://arkade-os.github.io/solver-registry/mutinynet.json'
   // a valid registry index entry: btcUsdt without the fields discover() adds
   const indexMarket: Record<string, unknown> = { ...btcUsdt }
   delete indexMarket.source
@@ -105,6 +105,22 @@ describe('discoverMarkets caching', () => {
   it('falls back to a stale cache when the registry is unreachable', async () => {
     localStorage.setItem(CACHE_KEY, JSON.stringify({ markets: [btcUsdt], fetchedAt: 0 }))
     fetchMocker.mockRejectOnce(new Error('network down'))
+    const markets = await discoverMarkets('mutinynet')
+    expect(markets).toHaveLength(1)
+    expect(fetchMocker).toHaveBeenCalledTimes(1)
+  })
+
+  it('clears the stale cache when the registry is reachable but emptied', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ markets: [btcUsdt], fetchedAt: 0 }))
+    fetchMocker.mockResponseOnce(JSON.stringify({ ...registryIndex(), markets: [] }))
+    const markets = await discoverMarkets('mutinynet')
+    expect(markets).toHaveLength(0)
+    expect(JSON.parse(localStorage.getItem(CACHE_KEY)!).markets).toHaveLength(0)
+  })
+
+  it('refetches when a cached market is malformed', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ markets: [null], fetchedAt: Date.now() }))
+    fetchMocker.mockResponseOnce(JSON.stringify(registryIndex()))
     const markets = await discoverMarkets('mutinynet')
     expect(markets).toHaveLength(1)
     expect(fetchMocker).toHaveBeenCalledTimes(1)

@@ -61,6 +61,16 @@ describe('banco offer', () => {
     expect(() => decodeOffer(neither)).toThrow('exactly one')
   })
 
+  it('rejects want amounts beyond the u64 wire field', () => {
+    const offer = {
+      wantAmount: BigInt(1) << BigInt(64),
+      wantAsset: testAsset,
+      ...keys,
+      swapPkScript: new Uint8Array(34),
+    }
+    expect(() => encodeOffer(offer)).toThrow('u64')
+  })
+
   it('rejects malformed TLV payloads', () => {
     expect(() => decodeOffer(new Uint8Array([0x01, 0x00]))).toThrow('truncated TLV header')
     expect(() => decodeOffer(new Uint8Array([0x01, 0x00, 0x05, 0xaa]))).toThrow('truncated TLV value')

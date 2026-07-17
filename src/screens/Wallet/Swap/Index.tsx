@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useContext, useEffect, useMemo, useState } from 'react'
-import { fromAtomic, type OfferAmount } from '@arkade-os/solver-discovery'
+import { fromAtomic, toAtomic, type OfferAmount } from '@arkade-os/solver-discovery'
 import { useOfferQuote } from '@arkade-os/solver-discovery/react'
 import Button from '../../../components/Button'
 import Content from '../../../components/Content'
@@ -102,7 +102,10 @@ export default function WalletSwap() {
   const toAsset = toAssetId ? assetById(toAssetId) : undefined
 
   const pair = toAsset ? findMarket(markets, fromAsset.assetId, toAsset.assetId) : undefined
-  const { plan, setGiveAmount, status } = useOfferQuote(pair?.market ?? null, { give: pair?.give, ...QUOTE_OPTIONS })
+  const { plan, setGiveAmount, solvable, status } = useOfferQuote(pair?.market ?? null, {
+    give: pair?.give,
+    ...QUOTE_OPTIONS,
+  })
 
   /** Amounts of the btc side render in the configured unit; assets in their own. */
   const fmtAmount = (offerAmount: OfferAmount): string =>
@@ -110,10 +113,11 @@ export default function WalletSwap() {
       ? prettyBitcoinAmount(Number(offerAmount.atomic), btcUnit)
       : `${offerAmount.display} ${offerAmount.asset.ticker}`
 
-  // typed sats are converted to the btc display string the quote lib expects
+  // typed sats are converted to the btc display string the quote lib expects;
+  // the fraction is dropped, never concatenated (the input already blocks it)
   const amountForQuote = (value: string): string =>
     fromAsset.assetId === BTC_ASSET_ID && btcEntryPrecision === 0
-      ? fromAtomic(BigInt(value.replace(/\D/g, '') || '0'), 8)
+      ? fromAtomic(BigInt(value.split('.')[0].replace(/\D/g, '') || '0'), 8)
       : value
 
   // the keypad renders instantly; the quote (a price feed fetch) is debounced.
@@ -143,7 +147,7 @@ export default function WalletSwap() {
   const planError = plan ? validatePlan(plan, fromAsset.balance, aspInfo.dust) : undefined
   const validationMessage = ((): string => {
     if (!toAsset || !amount) return ''
-    if (!pair?.market) return 'Swap unavailable for this pair'
+    if (!pair?.market || solvable === false) return 'Swap unavailable for this pair'
     if (status === 'error') return 'Quote unavailable'
     switch (planError) {
       case 'insufficient-balance':
@@ -203,6 +207,10 @@ export default function WalletSwap() {
     if (!toAsset) return
     hapticLight()
     setAmount('')
+    // clear the hook synchronously too — the flipped `give` would otherwise
+    // re-quote the old amount in the new deposit asset's units until the
+    // debounce fires
+    setGiveAmount('')
     setFromAssetId(toAsset.assetId)
     setToAssetId(fromAsset.assetId)
   }
@@ -275,6 +283,8 @@ export default function WalletSwap() {
     return (
       <Keyboard
         asset={fromAsset}
+        // seed the keypad with the current entry (atomic units per contract)
+        initialValue={amount ? toAtomic(amount, fromAsset.decimals) : undefined}
         back={() => setShowKeypad(false)}
         onSave={(value) => {
           setAmount(value)
@@ -323,7 +333,9 @@ export default function WalletSwap() {
                           const to = assetById(swap.toAsset)
                           const fromAmount = fmtSwapAmount(swap.fromAsset, swap.fromAmount)
                           const toAmount = fmtSwapAmount(swap.toAsset, swap.toAmount)
-                          const cancellable = swap.status === 'pending' || swap.status === 'recoverable'
+                          // recoverable (swept) deposits cannot be cancelled cooperatively,
+                          // so no button; a persisted 'cancelling' can be retried
+                          const cancellable = swap.status === 'pending' || swap.status === 'cancelling'
                           return (
                             <div key={swap.id} className='swap-token-row'>
                               <span className='swap-token-row__copy'>
@@ -341,7 +353,11 @@ export default function WalletSwap() {
                                   disabled={Boolean(cancelling)}
                                   onClick={() => handleCancelSwap(swap)}
                                 >
-                                  {cancelling === swap.id ? 'Cancelling…' : 'Cancel'}
+                                  {cancelling === swap.id
+                                    ? 'Cancelling…'
+                                    : swap.status === 'cancelling'
+                                      ? 'Retry cancel'
+                                      : 'Cancel'}
                                 </button>
                               ) : null}
                               <strong>{statusLabels[swap.status]}</strong>
@@ -380,9 +396,11 @@ export default function WalletSwap() {
           </div>
         </Padded>
       </Content>
-      <ButtonsOnBottom>
-        <Button label='Continue' disabled={!canContinue} onClick={() => openDrawer('review')} />
-      </ButtonsOnBottom>
+      {step === 'compose' ? (
+        <ButtonsOnBottom>
+          <Button label='Continue' disabled={!canContinue} onClick={() => openDrawer('review')} />
+        </ButtonsOnBottom>
+      ) : null}
 
       <AssetPickerDrawer
         open={drawer === 'to'}
@@ -402,7 +420,9 @@ export default function WalletSwap() {
         error={confirmError}
         quoteLoading={quoteLoading}
         onOpenChange={(open) => {
-          if (!open) setDrawer(null)
+          // keep the drawer up while the swap is being created so a late
+          // failure still has a surface to report on
+          if (!open && !confirming) setDrawer(null)
         }}
         onConfirm={confirmSwap}
       />

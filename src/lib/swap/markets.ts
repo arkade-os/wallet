@@ -4,7 +4,7 @@ import {
   isNetwork,
   type DiscoveredMarket,
   type OfferPlan,
-  type OfferSide,
+  type Side,
 } from '@arkade-os/solver-discovery'
 import { getSolverRegistryUrl } from '../constants'
 import { consoleLog } from '../logs'
@@ -26,16 +26,34 @@ interface MarketsCacheEntry {
   fetchedAt: number
 }
 
-const readMarketsCache = (network: Network): MarketsCacheEntry | undefined =>
-  getStorageItem<MarketsCacheEntry | undefined>(`${MARKETS_CACHE_KEY}-${network}`, undefined, (blob) => {
+// keyed by network AND registry so a redeployed registry override never
+// serves markets cached from a different registry
+const cacheKey = (network: Network, registry: string) => `${MARKETS_CACHE_KEY}-${network}-${registry}`
+
+const isMarketShaped = (m: unknown): boolean => {
+  const market = m as DiscoveredMarket | null
+  return Boolean(
+    market &&
+      typeof market.pair === 'string' &&
+      market.base_asset &&
+      typeof market.base_asset.id === 'string' &&
+      market.quote_asset &&
+      typeof market.quote_asset.id === 'string' &&
+      typeof market.quote_asset.decimals === 'number',
+  )
+}
+
+const readMarketsCache = (network: Network, registry: string): MarketsCacheEntry | undefined =>
+  getStorageItem<MarketsCacheEntry | undefined>(cacheKey(network, registry), undefined, (blob) => {
     const entry = JSON.parse(blob)
     if (!Array.isArray(entry?.markets) || typeof entry?.fetchedAt !== 'number') throw new Error('malformed cache')
+    if (!entry.markets.every(isMarketShaped)) throw new Error('malformed cached market')
     return entry
   })
 
-const writeMarketsCache = (network: Network, markets: DiscoveredMarket[]): void => {
+const writeMarketsCache = (network: Network, registry: string, markets: DiscoveredMarket[]): void => {
   try {
-    localStorage.setItem(`${MARKETS_CACHE_KEY}-${network}`, JSON.stringify({ markets, fetchedAt: Date.now() }))
+    localStorage.setItem(cacheKey(network, registry), JSON.stringify({ markets, fetchedAt: Date.now() }))
   } catch {
     // best effort: a quota error just means the next boot refetches
   }
@@ -49,30 +67,36 @@ const writeMarketsCache = (network: Network, markets: DiscoveredMarket[]): void 
 export const discoverMarkets = async (network: Network): Promise<DiscoveredMarket[]> => {
   const registry = getSolverRegistryUrl(network)
   if (!registry || !isNetwork(network)) return []
-  const cached = readMarketsCache(network)
+  const cached = readMarketsCache(network, registry)
   if (cached && Date.now() - cached.fetchedAt < MARKETS_CACHE_TTL_MS) return cached.markets
-  const { markets, warnings } = await discover({ registries: [registry], network })
+  const { markets, sources, warnings } = await discover({ registries: [registry], network })
   if (warnings.length) consoleLog('solver discovery:', ...warnings)
-  // discover() isolates registry failures as warnings + zero markets, so an
-  // empty result with a cache in hand reads as unreachable, not delisted
-  if (markets.length === 0 && cached) return cached.markets
-  if (markets.length > 0) writeMarketsCache(network, markets)
+  // an unreachable registry (fetch/validation failure) falls back to the stale
+  // cache; a reachable registry is authoritative even when it emptied out
+  const reachable = sources.some((source) => source.ok)
+  if (!reachable && cached) return cached.markets
+  if (reachable) writeMarketsCache(network, registry, markets)
   return markets
 }
 
 /**
  * Best market for a from/to pair. All registry markets are BTC-based, so
  * `give` maps directly: paying BTC deposits the base side, receiving BTC
- * deposits the quote side. No market for asset↔asset pairs.
+ * deposits the quote side. `wantSide` skips markets whose receive side is
+ * disabled (max = "0"). No market for asset↔asset pairs.
  */
 export const findMarket = (
   markets: DiscoveredMarket[],
   fromId: string,
   toId: string,
-): { market: DiscoveredMarket | null; give: OfferSide } | undefined => {
+): { market: DiscoveredMarket | null; give: Side } | undefined => {
   if (fromId === toId) return undefined
-  if (fromId === BTC_ASSET_ID) return { market: bestMarket(markets, { baseId: fromId, quoteId: toId }), give: 'base' }
-  if (toId === BTC_ASSET_ID) return { market: bestMarket(markets, { baseId: toId, quoteId: fromId }), give: 'quote' }
+  if (fromId === BTC_ASSET_ID) {
+    return { market: bestMarket(markets, { baseId: fromId, quoteId: toId, wantSide: 'quote' }), give: 'base' }
+  }
+  if (toId === BTC_ASSET_ID) {
+    return { market: bestMarket(markets, { baseId: toId, quoteId: fromId, wantSide: 'base' }), give: 'quote' }
+  }
   return undefined
 }
 

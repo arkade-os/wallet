@@ -52,7 +52,7 @@ export default function BitcoinDetail() {
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { balance } = useContext(WalletContext)
-  const { swapAvailable } = useContext(AssetSwapsContext)
+  const { swapAvailable, swaps } = useContext(AssetSwapsContext)
   const prefersReduced = useReducedMotion()
 
   const [chartWindow, setChartWindow] = useState(CHART_WINDOWS[2].secs)
@@ -109,7 +109,9 @@ export default function BitcoinDetail() {
 
   const handleSwap = () => {
     hapticLight()
-    if (swapAvailable) navigate(Pages.WalletSwap)
+    // existing swaps stay reachable during outages so pending funds
+    // remain cancellable from the swap screen
+    if (swapAvailable || swaps.length > 0) navigate(Pages.WalletSwap)
     else setSwapSheetOpen(true)
   }
 

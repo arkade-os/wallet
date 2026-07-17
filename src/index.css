@@ -3211,7 +3211,29 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 .swap-token-row--active,
 .swap-token-row:active {
   background: var(--neutral-50);
+}
+
+/* press feedback only — the persistent selected state must not stay scaled */
+.swap-token-row:active {
   transform: scale(0.985);
+}
+
+.swap-direction-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  padding: 0.25rem;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.swap-direction-button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .swap-token-row__copy {

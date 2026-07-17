@@ -33,8 +33,16 @@ export default function SwapForm({
     <FlexCol>
       <ErrorMessage error={Boolean(validationMessage)} text={validationMessage} />
       <From amount={amount} asset={fromAsset} onChange={onChangeAmount} onShowKeypad={onShowKeypad} />
-      <FlexRow centered onClick={onSwapSides}>
-        <SwapIcon />
+      <FlexRow centered>
+        <button
+          type='button'
+          className='swap-direction-button'
+          aria-label='Switch swap direction'
+          disabled={!toAsset}
+          onClick={onSwapSides}
+        >
+          <SwapIcon />
+        </button>
       </FlexRow>
       <To
         asset={toAsset}
