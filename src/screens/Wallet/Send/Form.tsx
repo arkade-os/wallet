@@ -777,6 +777,10 @@ export default function SendForm() {
       satoshis < 1 ||
       processing
 
+  // unverified assets are never offered in the picker; they can still arrive
+  // preselected via sendInfo.assets from the Assets app detail screen
+  const verifiedAssetOptions = assetOptions.filter((asset) => isVerifiedAsset(asset.assetId))
+
   const selectedAssetLabel = selectedAsset ? `${selectedAsset.name} (${selectedAsset.ticker})` : 'Bitcoin'
   const selectedAssetBalance = selectedAsset
     ? `${prettyAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`
@@ -923,7 +927,7 @@ export default function SendForm() {
                     )
                   })()
                 : null}
-              {assetOptions.length > 0 ? (
+              {verifiedAssetOptions.length > 0 || selectedAsset ? (
                 <FlexCol gap='0.5rem' className='send-asset-field'>
                   <Text smaller color='neutral-500'>
                     Asset
@@ -979,7 +983,7 @@ export default function SendForm() {
                             </span>
                           </DropdownMenuItem>
                         ) : null}
-                        {assetOptions
+                        {verifiedAssetOptions
                           .filter((asset) => asset.assetId !== selectedAsset?.assetId)
                           .map((asset) => (
                             <DropdownMenuItem
@@ -993,11 +997,6 @@ export default function SendForm() {
                                 <span>
                                   <span className='send-asset-option__name'>
                                     {asset.name} ({asset.ticker})
-                                    {!isVerifiedAsset(asset.assetId) ? (
-                                      <Badge variant='outline' className='ml-1.5'>
-                                        Unverified
-                                      </Badge>
-                                    ) : null}
                                   </span>
                                   <span className='send-asset-option__meta'>Tap to send this asset</span>
                                 </span>
