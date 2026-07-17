@@ -23,8 +23,14 @@ import { FiatContext } from '../providers/fiat'
 import PreconfirmedIcon from '../icons/Preconfirmed'
 import Focusable from './Focusable'
 import { hapticSubtle } from '../lib/haptics'
-import TokenLogo, { accountTickerForAssetTicker, tokenLogoTickerForTicker, type TokenLogoTicker } from './TokenLogo'
+import TokenLogo, {
+  accountTickerForAssetTicker,
+  tokenLogoTickerForTicker,
+  trustedAssetTickers,
+  type TokenLogoTicker,
+} from './TokenLogo'
 import { PrivacyAmount } from './PrivacyAmount'
+import UnverifiedBadge from './UnverifiedBadge'
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
@@ -113,8 +119,7 @@ const TransactionLine = ({
           // internal account rows are wallet-defined; anything else must be a verified
           // asset ID before its ticker earns currency treatment (logo, fiat formatting)
           const trusted = Boolean(accountInfo) || isVerifiedAsset(a.assetId)
-          const accountTicker = trusted ? accountTickerForAssetTicker(ticker) : undefined
-          const trustedTicker = trusted ? (accountTicker ?? ticker) : undefined
+          const { accountTicker, trustedTicker } = trustedAssetTickers(ticker, trusted)
           const label = accountInfo?.label ?? accountTicker ?? ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`
           return (
             <FlexRow key={a.assetId} gap='0.375rem' end>
@@ -123,6 +128,7 @@ const TransactionLine = ({
                 <PrivacyAmount masked={prettyHide(a.amount, label)}>
                   {`${prettyCurrencyAssetAmount(a.amount, decimals, trustedTicker)} ${label}`}
                 </PrivacyAmount>
+                {!trusted ? <UnverifiedBadge /> : null}
               </span>
             </FlexRow>
           )

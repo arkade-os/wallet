@@ -58,7 +58,7 @@ import {
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
 import { testDomains } from '../../../lib/constants'
-import { Badge } from '../../../components/ui/badge'
+import UnverifiedBadge from '../../../components/UnverifiedBadge'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
@@ -950,11 +950,7 @@ export default function SendForm() {
                         <span className='send-asset-trigger__copy'>
                           <span className='send-asset-trigger__name'>
                             {selectedAssetLabel}
-                            {selectedAsset && !isVerifiedAsset(selectedAsset.assetId) ? (
-                              <Badge variant='outline' className='ml-1.5'>
-                                Unverified
-                              </Badge>
-                            ) : null}
+                            {selectedAsset && !isVerifiedAsset(selectedAsset.assetId) ? <UnverifiedBadge /> : null}
                           </span>
                           <span className='send-asset-trigger__balance'>{selectedAssetBalance}</span>
                         </span>

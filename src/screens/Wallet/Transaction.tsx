@@ -17,14 +17,14 @@ import { sleep } from '../../lib/sleep'
 import Text, { TextSecondary } from '../../components/Text'
 import AssetAvatar from '../../components/AssetAvatar'
 import Details, { DetailsProps } from '../../components/Details'
-import TokenLogo, { accountTickerForAssetTicker, tokenLogoTickerForTicker } from '../../components/TokenLogo'
+import TokenLogo, { tokenLogoTickerForTicker, trustedAssetTickers } from '../../components/TokenLogo'
 import VtxosIcon from '../../icons/Vtxos'
 import CheckMarkIcon from '../../icons/CheckMark'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { LimitsContext } from '../../providers/limits'
 import { getInputsToSettle } from '../../lib/asp'
-import { Badge } from '../../components/ui/badge'
+import UnverifiedBadge from '../../components/UnverifiedBadge'
 
 export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
@@ -151,8 +151,7 @@ export default function Transaction() {
                 const decimals = meta?.decimals ?? 8
                 // only verified asset IDs get currency treatment for their ticker
                 const trusted = isVerifiedAsset(a.assetId)
-                const accountTicker = trusted ? accountTickerForAssetTicker(ticker) : undefined
-                const trustedTicker = trusted ? (accountTicker ?? ticker) : undefined
+                const { accountTicker, trustedTicker } = trustedAssetTickers(ticker, trusted)
                 const label = accountTicker ?? ticker ?? name ?? `${a.assetId.slice(0, 8)}...`
                 const tokenLogoTicker = tokenLogoTickerForTicker(trustedTicker)
                 return (
@@ -166,12 +165,8 @@ export default function Transaction() {
                     </span>
                     <div className='transaction-detail-asset__copy'>
                       <span className='transaction-detail-asset__amount'>
-                        {prettyCurrencyAssetAmount(BigInt(a.amount), decimals, trustedTicker)} {label}
-                        {!trusted ? (
-                          <Badge variant='outline' className='ml-1.5'>
-                            Unverified
-                          </Badge>
-                        ) : null}
+                        {prettyCurrencyAssetAmount(a.amount, decimals, trustedTicker)} {label}
+                        {!trusted ? <UnverifiedBadge /> : null}
                       </span>
                       {name && ticker && !accountTicker ? (
                         <span className='transaction-detail-asset__name'>{name}</span>

@@ -7,7 +7,7 @@ import { prettyBitcoinAmount, prettyBitcoinHide, prettyCurrencyAssetAmount } fro
 import { useContext } from 'react'
 import { ConfigContext } from '../providers/config'
 import { WalletContext } from '../providers/wallet'
-import { Badge } from './ui/badge'
+import UnverifiedBadge from './UnverifiedBadge'
 
 interface AssetCardProps {
   assetId: string
@@ -82,11 +82,7 @@ export default function AssetCard({
         <div className='asset-card__copy'>
           <span className='asset-card__name'>
             {assetName}
-            {assetId && trustedTicker === undefined ? (
-              <Badge variant='outline' className='ml-1.5'>
-                Unverified
-              </Badge>
-            ) : null}
+            {trustedTicker === undefined ? <UnverifiedBadge /> : null}
           </span>
           <PrivacyAmount className='asset-card__balance' masked={maskedBalance}>
             {leftSecondary}
