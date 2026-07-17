@@ -5,14 +5,14 @@ import Text, { TextSecondary } from '@/components/Text'
 import SpinnerIcon from '@/icons/Spinner'
 import Button from '@/components/Button'
 
-export interface SwapInputProps {
+interface SwapToProps {
   amount: string
   asset: SwapAsset | undefined
-  openAssetSelector?: () => void
+  openAssetSelector: () => void
   quoteLoading?: boolean
 }
 
-export default function SwapAmount({ amount, asset, openAssetSelector, quoteLoading }: SwapInputProps) {
+export default function SwapTo({ amount, asset, openAssetSelector, quoteLoading }: SwapToProps) {
   return (
     <div className='input-shell'>
       <FlexRow between>
@@ -20,17 +20,15 @@ export default function SwapAmount({ amount, asset, openAssetSelector, quoteLoad
           <TextSecondary small>Receive</TextSecondary>
           {quoteLoading ? <SpinnerIcon small /> : <Text>{amount}</Text>}
         </FlexCol>
-        {asset ? (
-          <FlexRow end minWidth='10rem' onClick={openAssetSelector}>
+        <FlexRow end minWidth='10rem' onClick={asset ? openAssetSelector : undefined}>
+          {asset ? (
             <AssetWithBalance asset={asset} />
-          </FlexRow>
-        ) : (
-          <FlexRow end minWidth='10rem'>
-            <Button outline onClick={() => openAssetSelector?.()}>
+          ) : (
+            <Button outline onClick={openAssetSelector}>
               <Text>Select asset</Text>
             </Button>
-          </FlexRow>
-        )}
+          )}
+        </FlexRow>
       </FlexRow>
     </div>
   )

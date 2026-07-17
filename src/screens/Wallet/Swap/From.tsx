@@ -7,26 +7,25 @@ import { BTC_ASSET_ID } from '@/lib/swap/markets'
 import { useContext } from 'react'
 import { ConfigContext } from '@/providers/config'
 
-export interface SwapFromProps {
+interface SwapFromProps {
   amount: string
   asset: SwapAsset
-  onChange?: (amount: string) => void
-  onShowKeypad?: () => void
+  onChange: (amount: string) => void
+  onShowKeypad: () => void
 }
 
 export default function SwapFrom({ amount, asset, onChange, onShowKeypad }: SwapFromProps) {
   const { config } = useContext(ConfigContext)
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!onChange) return
     const value = e.target.value
     if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value)) {
-      onChange?.(value)
+      onChange(value)
     }
   }
 
   const handleFocus = () => {
-    if (isMobileBrowser && onShowKeypad) onShowKeypad()
+    if (isMobileBrowser) onShowKeypad()
   }
 
   const label = asset.assetId === BTC_ASSET_ID ? `Send ${config.unit}` : `Send ${asset.ticker}`

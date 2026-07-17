@@ -8,6 +8,7 @@ import {
 } from '@arkade-os/solver-discovery'
 import { getSolverRegistryUrl } from '../constants'
 import { consoleLog } from '../logs'
+import { getStorageItem } from '../storage'
 import { Network } from '@arkade-os/boltz-swap'
 
 export const BTC_ASSET_ID = 'btc'
@@ -25,19 +26,12 @@ interface MarketsCacheEntry {
   fetchedAt: number
 }
 
-const readMarketsCache = (network: Network): MarketsCacheEntry | undefined => {
-  const key = `${MARKETS_CACHE_KEY}-${network}`
-  const blob = localStorage.getItem(key)
-  if (!blob) return undefined
-  try {
+const readMarketsCache = (network: Network): MarketsCacheEntry | undefined =>
+  getStorageItem<MarketsCacheEntry | undefined>(`${MARKETS_CACHE_KEY}-${network}`, undefined, (blob) => {
     const entry = JSON.parse(blob)
     if (!Array.isArray(entry?.markets) || typeof entry?.fetchedAt !== 'number') throw new Error('malformed cache')
     return entry
-  } catch {
-    localStorage.removeItem(key)
-    return undefined
-  }
-}
+  })
 
 const writeMarketsCache = (network: Network, markets: DiscoveredMarket[]): void => {
   try {

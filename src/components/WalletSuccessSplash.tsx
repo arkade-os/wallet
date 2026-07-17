@@ -6,20 +6,14 @@ import { hapticLight } from '../lib/haptics'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 
 interface WalletSuccessSplashProps {
-  show?: boolean
+  show: boolean
   headline: string
   text?: string
   ariaLabel: string
   onDone: () => void
 }
 
-export default function WalletSuccessSplash({
-  show = true,
-  headline,
-  text,
-  ariaLabel,
-  onDone,
-}: WalletSuccessSplashProps) {
+export default function WalletSuccessSplash({ show, headline, text, ariaLabel, onDone }: WalletSuccessSplashProps) {
   const prefersReduced = useReducedMotion()
 
   useEffect(() => {

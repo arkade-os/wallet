@@ -8,19 +8,15 @@ import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
 import { EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { prettyCurrencyAssetAmount } from '../../../lib/format'
+import { BTC_ASSET_ID } from '../../../lib/swap/markets'
+import { AssetOption } from '../../../lib/types'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import FlexRow from '../../../components/FlexRow'
 import FlexCol from '../../../components/FlexCol'
 import Text, { TextSecondary } from '../../../components/Text'
 
-export interface SwapAsset {
-  assetId: string
-  name: string
-  ticker: string
-  decimals: number
-  balance: bigint
-  icon?: string
-}
+/** The wallet-wide asset row shape; the swap screens add nothing to it. */
+export type SwapAsset = AssetOption
 
 const rateNote = 'Rates are dynamic and may update before you confirm.'
 const rateNoteAutoDismissMs = 2400
@@ -29,7 +25,7 @@ function formatAssetBalance(asset: SwapAsset): string {
   return `${prettyCurrencyAssetAmount(asset.balance, asset.decimals, asset.ticker)} ${asset.ticker}`
 }
 
-export function filterAssets(assets: SwapAsset[], query: string): SwapAsset[] {
+function filterAssets(assets: SwapAsset[], query: string): SwapAsset[] {
   const normalized = query.trim().toLowerCase()
   if (!normalized) return assets
   return assets.filter((asset) => {
@@ -54,19 +50,17 @@ export function SwapUnavailableState() {
 export function SwapAssetList({
   title,
   subtitle,
-  search,
   assets,
-  onSearch,
   onSelect,
 }: {
   title: string
   subtitle: string
-  search: string
   assets: SwapAsset[]
-  onSearch: (value: string) => void
   onSelect: (asset: SwapAsset) => void
 }) {
   const prefersReduced = useReducedMotion()
+  const [query, setQuery] = useState('')
+  const filteredAssets = useMemo(() => filterAssets(assets, query), [assets, query])
 
   return (
     <div className='swap-asset-list-panel'>
@@ -78,18 +72,18 @@ export function SwapAssetList({
         <span>Search assets</span>
         <input
           type='search'
-          value={search}
+          value={query}
           placeholder='Search assets'
           autoComplete='off'
           spellCheck={false}
-          onChange={(event) => onSearch(event.target.value)}
+          onChange={(event) => setQuery(event.target.value)}
         />
       </label>
       <div className='swap-token-list swap-token-list--page'>
-        {assets.length === 0 ? (
+        {filteredAssets.length === 0 ? (
           <div className='swap-empty-state'>No assets match this search</div>
         ) : (
-          assets.map((asset, index) => (
+          filteredAssets.map((asset, index) => (
             <motion.div
               key={asset.assetId}
               initial={prefersReduced ? false : { opacity: 0, y: 8 }}
@@ -107,8 +101,8 @@ export function SwapAssetList({
   )
 }
 
-function SwapSkeletonText({ width }: { width: string }) {
-  return <span className='swap-skeleton-text' style={{ width }} aria-hidden='true' />
+function SwapSkeletonText() {
+  return <span className='swap-skeleton-text' style={{ width: '7rem' }} aria-hidden='true' />
 }
 
 function SwapAssetRow({ asset, active, onClick }: { asset: SwapAsset; active?: boolean; onClick: () => void }) {
@@ -129,9 +123,8 @@ function SwapAssetRow({ asset, active, onClick }: { asset: SwapAsset; active?: b
 
 function TokenAvatar({ asset, size }: { asset: SwapAsset; size: number }) {
   // the btc row's ticker follows the display unit (sats/₿); the logo must not
-  const tokenLogoTicker = tokenLogoTickerForTicker(asset.assetId === 'btc' ? 'BTC' : asset.ticker)
-  // always wrapped: the bare AssetAvatar div would catch flex rules like
-  // .swap-receive-card > div { flex: 1 } and stretch
+  const tokenLogoTicker = tokenLogoTickerForTicker(asset.assetId === BTC_ASSET_ID ? 'BTC' : asset.ticker)
+  // wrapped so the avatar keeps a fixed box regardless of the parent's flex rules
   return (
     <span className='swap-token-avatar' style={{ width: size, height: size }}>
       {tokenLogoTicker ? (
@@ -352,7 +345,7 @@ function MetricRow({ label, value, loading }: { label: ReactNode; value: string;
   return (
     <div className='swap-metric-row'>
       <span>{label}</span>
-      <span>{loading ? <SwapSkeletonText width='7rem' /> : value}</span>
+      <span>{loading ? <SwapSkeletonText /> : value}</span>
     </div>
   )
 }

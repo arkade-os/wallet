@@ -12,7 +12,7 @@ export default function SwapForm({
   toAsset,
   receiveAmount,
   onChangeAmount,
-  onOpenDrawer,
+  onOpenAssetPicker,
   onSwapSides,
   onShowKeypad,
   validationMessage,
@@ -23,7 +23,7 @@ export default function SwapForm({
   toAsset?: SwapAsset
   receiveAmount: string
   onChangeAmount: (amount: string) => void
-  onOpenDrawer: (state: 'from' | 'to') => void
+  onOpenAssetPicker: () => void
   onSwapSides: () => void
   onShowKeypad: () => void
   validationMessage: string
@@ -40,7 +40,7 @@ export default function SwapForm({
         asset={toAsset}
         quoteLoading={quoteLoading}
         amount={quoteLoading ? '—' : receiveAmount}
-        openAssetSelector={() => onOpenDrawer('to')}
+        openAssetSelector={onOpenAssetPicker}
       />
     </FlexCol>
   )

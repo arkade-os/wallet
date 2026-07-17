@@ -20,20 +20,13 @@ import { ConfigContext } from '../../../providers/config'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
-import {
-  AssetPickerDrawer,
-  filterAssets,
-  ReviewDrawer,
-  SwapAsset,
-  SwapAssetList,
-  SwapUnavailableState,
-} from './Components'
+import { AssetPickerDrawer, ReviewDrawer, SwapAsset, SwapAssetList, SwapUnavailableState } from './Components'
 import ButtonsOnBottom from '@/components/ButtonsOnBottom'
 import SwapForm from './Form'
 import Keyboard from '@/components/Keyboard'
 
 type SwapStep = 'select-from' | 'compose'
-type DrawerState = 'from' | 'to' | 'review' | null
+type DrawerState = 'to' | 'review' | null
 
 const statusLabels: Record<AssetSwapStatus, string> = {
   pending: 'Pending',
@@ -53,7 +46,6 @@ export default function WalletSwap() {
 
   const [availableSats, setAvailableSats] = useState(0)
   const [step, setStep] = useState<SwapStep>('select-from')
-  const [search, setSearch] = useState('')
   const [amount, setAmount] = useState('')
   const [fromAssetId, setFromAssetId] = useState(BTC_ASSET_ID)
   const [toAssetId, setToAssetId] = useState<string>()
@@ -105,12 +97,12 @@ export default function WalletSwap() {
     return assets
   }, [markets, availableSats, assetBalances, assetMetadataCache, btcUnit, btcEntryPrecision])
 
-  const fromAsset = swapAssets.find((asset) => asset.assetId === fromAssetId) ?? swapAssets[0]
-  const toAsset = toAssetId ? swapAssets.find((asset) => asset.assetId === toAssetId) : undefined
+  const assetById = (assetId: string) => swapAssets.find((asset) => asset.assetId === assetId)
+  const fromAsset = assetById(fromAssetId) ?? swapAssets[0]
+  const toAsset = toAssetId ? assetById(toAssetId) : undefined
 
   const pair = toAsset ? findMarket(markets, fromAsset.assetId, toAsset.assetId) : undefined
-  const quote = useOfferQuote(pair?.market ?? null, { give: pair?.give, ...QUOTE_OPTIONS })
-  const { plan, setGiveAmount, status } = quote
+  const { plan, setGiveAmount, status } = useOfferQuote(pair?.market ?? null, { give: pair?.give, ...QUOTE_OPTIONS })
 
   /** Amounts of the btc side render in the configured unit; assets in their own. */
   const fmtAmount = (offerAmount: OfferAmount): string =>
@@ -149,24 +141,25 @@ export default function WalletSwap() {
   }, [fromAsset.assetId, fromAsset.decimals])
 
   const planError = plan ? validatePlan(plan, fromAsset.balance, aspInfo.dust) : undefined
-  const validationMessage =
-    !toAsset || !amount
-      ? ''
-      : !pair?.market
-        ? 'Swap unavailable for this pair'
-        : status === 'error'
-          ? 'Quote unavailable'
-          : planError === 'insufficient-balance'
-            ? 'Insufficient balance'
-            : planError === 'side-disabled'
-              ? 'Swap unavailable for this pair'
-              : planError === 'below-min'
-                ? `Minimum ${fmtAmount(plan!.limits.min!)}`
-                : planError === 'above-max'
-                  ? `Maximum ${fmtAmount(plan!.limits.max!)}`
-                  : planError === 'below-dust'
-                    ? 'Amount too small'
-                    : ''
+  const validationMessage = ((): string => {
+    if (!toAsset || !amount) return ''
+    if (!pair?.market) return 'Swap unavailable for this pair'
+    if (status === 'error') return 'Quote unavailable'
+    switch (planError) {
+      case 'insufficient-balance':
+        return 'Insufficient balance'
+      case 'side-disabled':
+        return 'Swap unavailable for this pair'
+      case 'below-min':
+        return `Minimum ${fmtAmount(plan!.limits.min!)}`
+      case 'above-max':
+        return `Maximum ${fmtAmount(plan!.limits.max!)}`
+      case 'below-dust':
+        return 'Amount too small'
+      default:
+        return ''
+    }
+  })()
 
   const quoteLoading = status === 'loading' || (quoteStale && Number(amount) > 0)
   const canContinue = Boolean(toAsset && plan && status === 'success' && !planError && !quoteStale)
@@ -176,13 +169,14 @@ export default function WalletSwap() {
     hapticSubtle()
   }, [validationMessage])
 
+  const receiveLabel = plan ? `≥ ${fmtAmount(plan.receive)}` : undefined
   const review =
     plan && toAsset
       ? {
           fromAsset,
           toAsset,
           swapAmount: fmtAmount(plan.deposit),
-          receiveAmount: `≥ ${fmtAmount(plan.receive)}`,
+          receiveAmount: receiveLabel!,
           feeLabel: `${prettyNumber(plan.market.fee_bps / 100, 2)}%`,
           rateLabel: `1 ${plan.market.base_asset.ticker} = ${prettyNumber(Number(plan.priceDisplay), 2)} ${plan.market.quote_asset.ticker}`,
         }
@@ -195,7 +189,6 @@ export default function WalletSwap() {
     setToAssetId((current) =>
       current && current !== asset.assetId && findMarket(markets, asset.assetId, current)?.market ? current : undefined,
     )
-    setSearch('')
     setStep('compose')
   }
 
@@ -269,8 +262,14 @@ export default function WalletSwap() {
   }
 
   const stageTransition = prefersReduced ? { duration: 0 } : { duration: 0.28, ease: EASE_IN_OUT_QUINT_TUPLE }
-  const filteredAssets = useMemo(() => filterAssets(swapAssets, search), [search, swapAssets])
-  const assetById = (assetId: string) => swapAssets.find((asset) => asset.assetId === assetId)
+  const receiveAssets = useMemo(
+    () => swapAssets.filter((asset) => Boolean(findMarket(markets, fromAsset.assetId, asset.assetId)?.market)),
+    [swapAssets, markets, fromAsset.assetId],
+  )
+  const fmtSwapAmount = (assetId: string, atomic: string): string => {
+    const asset = assetById(assetId)
+    return asset ? `${prettyCurrencyAssetAmount(BigInt(atomic), asset.decimals, asset.ticker)} ${asset.ticker}` : atomic
+  }
 
   if (showKeypad) {
     return (
@@ -307,9 +306,7 @@ export default function WalletSwap() {
                     <SwapAssetList
                       title='Choose asset to swap'
                       subtitle='Select the asset you want to trade from.'
-                      search={search}
-                      assets={filteredAssets}
-                      onSearch={setSearch}
+                      assets={swapAssets}
                       onSelect={selectFromAsset}
                     />
                   ) : (
@@ -324,12 +321,8 @@ export default function WalletSwap() {
                         {swaps.map((swap) => {
                           const from = assetById(swap.fromAsset)
                           const to = assetById(swap.toAsset)
-                          const fromAmount = from
-                            ? `${prettyCurrencyAssetAmount(BigInt(swap.fromAmount), from.decimals, from.ticker)} ${from.ticker}`
-                            : swap.fromAmount
-                          const toAmount = to
-                            ? `${prettyCurrencyAssetAmount(BigInt(swap.toAmount), to.decimals, to.ticker)} ${to.ticker}`
-                            : swap.toAmount
+                          const fromAmount = fmtSwapAmount(swap.fromAsset, swap.fromAmount)
+                          const toAmount = fmtSwapAmount(swap.toAsset, swap.toAmount)
                           const cancellable = swap.status === 'pending' || swap.status === 'recoverable'
                           return (
                             <div key={swap.id} className='swap-token-row'>
@@ -374,12 +367,12 @@ export default function WalletSwap() {
                     toAsset={toAsset}
                     fromAsset={fromAsset}
                     onSwapSides={swapSides}
-                    onOpenDrawer={openDrawer}
+                    onOpenAssetPicker={() => openDrawer('to')}
                     onChangeAmount={setAmount}
                     quoteLoading={quoteLoading}
                     validationMessage={validationMessage}
                     onShowKeypad={() => setShowKeypad(true)}
-                    receiveAmount={plan ? `≥ ${fmtAmount(plan.receive)}` : '—'}
+                    receiveAmount={receiveLabel ?? '—'}
                   />
                 </motion.section>
               )}
@@ -393,11 +386,7 @@ export default function WalletSwap() {
 
       <AssetPickerDrawer
         open={drawer === 'to'}
-        assets={swapAssets.filter(
-          (asset) =>
-            asset.assetId !== fromAsset?.assetId &&
-            Boolean(findMarket(markets, fromAsset.assetId, asset.assetId)?.market),
-        )}
+        assets={receiveAssets}
         selectedId={toAsset?.assetId}
         onOpenChange={(open) => {
           if (!open) setDrawer(null)

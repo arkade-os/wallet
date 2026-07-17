@@ -58,12 +58,13 @@ export interface Offer {
   emulatorPubkey: Uint8Array
 }
 
-/** Compile the offer's contract: program + args -> taproot tree. */
-export function offerVtxoScript(offer: Omit<Offer, 'swapPkScript'>, serverPubkey: Uint8Array) {
-  const program = offer.wantAsset ? bancoPrograms.btcToAsset : bancoPrograms.assetToBtc
-  return new arkade.ArkadeProgramScript(
-    program,
-    {
+/** The program + argument/key binding of an offer's contract. Single source for
+ * both address derivation and cancel, so the two can never drift apart (any
+ * change here changes the derived swap addresses — see the golden test). */
+function bancoProgramBinding(offer: Omit<Offer, 'swapPkScript'>, serverPubkey: Uint8Array) {
+  return {
+    program: offer.wantAsset ? bancoPrograms.btcToAsset : bancoPrograms.assetToBtc,
+    args: {
       makerWP: offer.makerPkScript.subarray(2),
       wantAmount: offer.wantAmount,
       server: serverPubkey,
@@ -74,12 +75,18 @@ export function offerVtxoScript(offer: Omit<Offer, 'swapPkScript'>, serverPubkey
         wantAssetGroupIndex: offer.wantAsset.groupIndex,
       }),
     },
-    {
+    keys: {
       serverKey: serverPubkey,
       userKey: offer.makerPublicKey,
       emulatorKey: offer.emulatorPubkey,
     },
-  )
+  }
+}
+
+/** Compile the offer's contract: program + args -> taproot tree. */
+export function offerVtxoScript(offer: Omit<Offer, 'swapPkScript'>, serverPubkey: Uint8Array) {
+  const { program, args, keys } = bancoProgramBinding(offer, serverPubkey)
+  return new arkade.ArkadeProgramScript(program, args, keys)
 }
 
 // ── Offer wire format ────────────────────────────────────────────────────────
@@ -192,9 +199,11 @@ export async function createOffer(
   if (!params.wantAsset === !params.offerAsset) {
     throw new Error('set exactly one of wantAsset (BTC->asset) or offerAsset (asset->BTC)')
   }
-  const [info, emulatorInfo] = await Promise.all([
+  const [info, emulatorInfo, makerAddress, makerPublicKey] = await Promise.all([
     new RestArkProvider(arkServerUrl).getInfo(),
     new RestEmulatorProvider(emulatorUrl).getInfo(),
+    wallet.getAddress(),
+    wallet.identity.xOnlyPublicKey(),
   ])
   const serverPubKey = hex.decode(info.signerPubkey).slice(1)
   const emuKey = hex.decode(emulatorInfo.signerPubkey)
@@ -204,8 +213,8 @@ export async function createOffer(
     wantAmount: params.wantAmount,
     wantAsset: params.wantAsset,
     offerAsset: params.offerAsset,
-    makerPkScript: ArkAddress.decode(await wallet.getAddress()).pkScript,
-    makerPublicKey: await wallet.identity.xOnlyPublicKey(),
+    makerPkScript: ArkAddress.decode(makerAddress).pkScript,
+    makerPublicKey,
     emulatorPubkey: emuKey.length === 33 ? emuKey.slice(1) : emuKey,
   }
   const script = offerVtxoScript(offer, serverPubKey)
@@ -243,32 +252,14 @@ export async function cancelOffer(
 
   // Rebuild the contract with the offer's own keys (not the client's) so the
   // derived script matches the funded swap address exactly.
-  const program = offer.wantAsset ? bancoPrograms.btcToAsset : bancoPrograms.assetToBtc
-  const contract = new arkade.ArkadeContract(
-    client,
-    program,
-    {
-      makerWP: offer.makerPkScript.subarray(2),
-      wantAmount: offer.wantAmount,
-      server: client.serverKey,
-      user: offer.makerPublicKey,
-      ...(offer.wantAsset && {
-        wantAssetTxid: offer.wantAsset.txid.slice().reverse(),
-        wantAssetGroupIndex: offer.wantAsset.groupIndex,
-      }),
-    },
-    {
-      serverKey: client.serverKey,
-      userKey: offer.makerPublicKey,
-      emulatorKey: offer.emulatorPubkey,
-    },
-  )
+  const { program, args, keys } = bancoProgramBinding(offer, client.serverKey)
+  const contract = new arkade.ArkadeContract(client, program, args, keys)
 
-  const vtxos = await contract.getUtxos()
+  const [vtxos, makerAddress] = await Promise.all([contract.getUtxos(), wallet.getAddress()])
   const vtxo = fundingTxid ? vtxos.find((v: { txid: string }) => v.txid === fundingTxid) : vtxos[0]
   if (!vtxo) throw new Error('no spendable VTXO at the swap address')
 
-  const makerPkScript = ArkAddress.decode(await wallet.getAddress()).pkScript
+  const makerPkScript = ArkAddress.decode(makerAddress).pkScript
   const cancel = contract.functions
     .cancel()
     .from({ txid: vtxo.txid, vout: vtxo.vout, value: vtxo.value })

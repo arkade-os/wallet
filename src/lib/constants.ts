@@ -50,9 +50,12 @@ const SOLVER_REGISTRY_URL: Record<Network, string | null> = {
   testnet: null,
 }
 
-export const getSolverRegistryUrl = (network: Network): string | undefined => {
-  return fromRuntimeEnv(import.meta.env.VITE_SOLVER_REGISTRY_URL) ?? SOLVER_REGISTRY_URL[network] ?? undefined
-}
+// env override first (any network), then the per-network table
+const serviceUrlForNetwork = (envValue: string | undefined, table: Record<Network, string | null>, network: Network) =>
+  fromRuntimeEnv(envValue) ?? table[network] ?? undefined
+
+export const getSolverRegistryUrl = (network: Network): string | undefined =>
+  serviceUrlForNetwork(import.meta.env.VITE_SOLVER_REGISTRY_URL, SOLVER_REGISTRY_URL, network)
 
 // the arkade signer co-signing banco swap covenants (separate service from arkd)
 const EMULATOR_URL: Record<Network, string | null> = {
@@ -65,9 +68,8 @@ const EMULATOR_URL: Record<Network, string | null> = {
   testnet: null,
 }
 
-export const getEmulatorUrlForNetwork = (network: Network): string | undefined => {
-  return fromRuntimeEnv(import.meta.env.VITE_EMULATOR_URL) ?? EMULATOR_URL[network] ?? undefined
-}
+export const getEmulatorUrlForNetwork = (network: Network): string | undefined =>
+  serviceUrlForNetwork(import.meta.env.VITE_EMULATOR_URL, EMULATOR_URL, network)
 
 export const getDelegateUrlForNetwork = (network: Network): string | undefined => {
   return DELEGATE_URL[network] ?? undefined

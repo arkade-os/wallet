@@ -10,6 +10,7 @@ import { BTC_ASSET_ID, discoverMarkets } from '../lib/swap/markets'
 import { addAssetSwap, AssetSwap, getAssetSwaps, updateAssetSwap } from '../lib/swap/store'
 import { getEmulatorUrlForNetwork } from '../lib/constants'
 import { consoleError } from '../lib/logs'
+import { sleep } from '../lib/sleep'
 import { toast } from '../components/Toast'
 
 const STREAM_RETRY_MS = 5_000
@@ -43,11 +44,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
   const [emulatorUrl, setEmulatorUrl] = useState<string>()
-  const [swaps, setSwaps] = useState<AssetSwap[]>([])
-
-  useEffect(() => {
-    setSwaps(getAssetSwaps())
-  }, [])
+  const [swaps, setSwaps] = useState<AssetSwap[]>(getAssetSwaps)
 
   // discover markets and probe the emulator once the network is known;
   // stale results from a previous network must never land after a switch
@@ -204,7 +201,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
           if (!abort.signal.aborted) consoleError(err, 'swap status monitor failed')
         }
         if (abort.signal.aborted) return
-        await new Promise((resolve) => setTimeout(resolve, STREAM_RETRY_MS))
+        await sleep(STREAM_RETRY_MS)
       }
     }
     monitor()
