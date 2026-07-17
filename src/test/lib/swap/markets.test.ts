@@ -100,7 +100,7 @@ describe('quoteOffer with the wallet quote options', () => {
 })
 
 describe('discoverMarkets caching', () => {
-  const CACHE_KEY = 'solverMarkets-v2-mutinynet'
+  const CACHE_KEY = 'swapMarkets-mutinynet'
   // a valid registry index entry: btcUsdt without the fields discover() adds
   const indexMarket: Record<string, unknown> = { ...btcUsdt }
   delete indexMarket.source

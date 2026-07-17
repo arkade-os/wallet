@@ -17,9 +17,7 @@ export const BTC_ASSET_ID = 'btc'
  * and fill is the solver's risk to manage, not the maker's to prepay. */
 export const QUOTE_OPTIONS = { safetyBps: 0 }
 
-// v2: solver-discovery 0.1.3 changed the market schema (asset `decimals`,
-// per-side string limits) — the key bump orphans caches of the old shape
-const MARKETS_CACHE_KEY = 'solverMarkets-v2'
+const MARKETS_CACHE_KEY = 'swapMarkets'
 const MARKETS_CACHE_TTL_MS = 60 * 60 * 1000
 
 interface MarketsCacheEntry {
