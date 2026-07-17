@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import AssetAvatar from '../../../components/AssetAvatar'
 import Button from '../../../components/Button'
 import TokenLogo, { tokenLogoTickerForTicker } from '../../../components/TokenLogo'
@@ -14,6 +14,7 @@ import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import FlexRow from '../../../components/FlexRow'
 import FlexCol from '../../../components/FlexCol'
 import Text, { TextSecondary } from '../../../components/Text'
+import { WalletContext } from '../../../providers/wallet'
 
 /** The wallet-wide asset row shape; the swap screens add nothing to it. */
 export type SwapAsset = AssetOption
@@ -122,8 +123,13 @@ function SwapAssetRow({ asset, active, onClick }: { asset: SwapAsset; active?: b
 }
 
 function TokenAvatar({ asset, size }: { asset: SwapAsset; size: number }) {
+  const { isAssetVerified } = useContext(WalletContext)
   // the btc row's ticker follows the display unit (sats/₿); the logo must not
-  const tokenLogoTicker = tokenLogoTickerForTicker(asset.assetId === BTC_ASSET_ID ? 'BTC' : asset.ticker)
+  const isBitcoin = asset.assetId === BTC_ASSET_ID
+  const tokenLogoTicker = tokenLogoTickerForTicker(
+    isBitcoin ? 'BTC' : asset.ticker,
+    isBitcoin || isAssetVerified(asset.assetId),
+  )
   // wrapped so the avatar keeps a fixed box regardless of the parent's flex rules
   return (
     <span className='swap-token-avatar' style={{ width: size, height: size }}>

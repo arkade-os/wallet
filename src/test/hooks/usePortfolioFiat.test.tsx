@@ -21,6 +21,7 @@ describe('usePortfolioFiat', () => {
           value={{
             ...mockWalletContextValue,
             balance: 1000,
+            isAssetVerified: (assetId: string) => assetId === 'chf-asset',
             assetBalances: [{ assetId: 'chf-asset', amount: BigInt(2000) }],
             assetMetadataCache: new Map([
               [
@@ -52,5 +53,47 @@ describe('usePortfolioFiat', () => {
     expect(chfRow?.hasFiatPrice).toBe(true)
     expect(result.current.totalFiat).toBe(41000)
     expect(result.current.totalSats).toBe(41000)
+  })
+
+  it('does not price an unverified asset from its self-declared ticker', () => {
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <FiatContext.Provider
+        value={{
+          ...mockFiatContextValue,
+          fromFiatAmount: (amount: number) => amount * 2000,
+          toFiat: (sats?: number) => sats ?? 0,
+        }}
+      >
+        <WalletContext.Provider
+          value={{
+            ...mockWalletContextValue,
+            balance: 1000,
+            assetBalances: [{ assetId: 'spoofed-eur', amount: BigInt(100_000_000) }],
+            assetMetadataCache: new Map([
+              [
+                'spoofed-eur',
+                {
+                  metadata: { decimals: 2, name: 'Fake euros', ticker: 'EUR' },
+                  assetId: 'spoofed-eur',
+                  supply: BigInt(100_000_000),
+                  cachedAt: Date.now(),
+                },
+              ],
+            ]),
+          }}
+        >
+          {children}
+        </WalletContext.Provider>
+      </FiatContext.Provider>
+    )
+
+    const { result } = renderHook(() => usePortfolioFiat(), { wrapper })
+    const spoofedRow = result.current.rows.find((row) => row.assetId === 'spoofed-eur')
+
+    expect(spoofedRow?.hasFiatPrice).toBe(false)
+    expect(spoofedRow?.fiatAmount).toBe(0)
+    expect(spoofedRow?.satsEquivalent).toBe(0)
+    expect(result.current.totalFiat).toBe(1000)
+    expect(result.current.totalSats).toBe(1000)
   })
 })

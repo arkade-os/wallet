@@ -29,7 +29,8 @@ export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo } = useContext(FlowContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { assetMetadataCache, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, isAssetVerified, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
+    useContext(WalletContext)
 
   const tx = txInfo
   const issuanceTx = tx ? isIssuance(tx) : false
@@ -147,9 +148,10 @@ export default function Transaction() {
                 const name = meta?.name
                 const icon = meta?.icon
                 const decimals = meta?.decimals ?? 8
-                const accountTicker = accountTickerForAssetTicker(ticker)
+                const trustedIdentity = isAssetVerified(a.assetId)
+                const accountTicker = trustedIdentity ? accountTickerForAssetTicker(ticker) : undefined
                 const label = accountTicker ?? name ?? `${a.assetId.slice(0, 8)}...`
-                const tokenLogoTicker = tokenLogoTickerForTicker(accountTicker ?? ticker)
+                const tokenLogoTicker = tokenLogoTickerForTicker(accountTicker ?? ticker, trustedIdentity)
                 return (
                   <div key={a.assetId} className='transaction-detail-asset'>
                     <span className='transaction-detail-asset__logo'>

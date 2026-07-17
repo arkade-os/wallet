@@ -41,7 +41,7 @@ const TransactionLine = ({
 }) => {
   const { config } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
-  const { assetMetadataCache } = useContext(WalletContext)
+  const { assetMetadataCache, isAssetVerified } = useContext(WalletContext)
 
   const prefix = tx.type === 'sent' ? '-' : '+'
   const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
@@ -110,11 +110,17 @@ const TransactionLine = ({
           const ticker = accountInfo?.ticker ?? meta?.ticker
           const icon = meta?.icon
           const decimals = accountInfo?.decimals ?? meta?.decimals ?? 8
-          const accountTicker = accountTickerForAssetTicker(ticker)
+          const trustedIdentity = Boolean(accountInfo) || isAssetVerified(a.assetId)
+          const accountTicker = trustedIdentity ? accountTickerForAssetTicker(ticker) : undefined
           const label = accountInfo?.label ?? accountTicker ?? ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`
           return (
             <FlexRow key={a.assetId} gap='0.375rem' end>
-              <TransactionAssetAvatar icon={icon} ticker={accountTicker ?? ticker} assetId={a.assetId} />
+              <TransactionAssetAvatar
+                icon={icon}
+                ticker={accountTicker ?? ticker}
+                assetId={a.assetId}
+                trustedIdentity={trustedIdentity}
+              />
               <span className='activity-row__amount'>
                 <PrivacyAmount masked={prettyHide(a.amount, label)}>
                   {`${prettyCurrencyAssetAmount(a.amount, decimals, accountTicker ?? ticker)} ${label}`}
@@ -328,23 +334,30 @@ function matchesAssetFilter(tx: Tx, assetIdFilter?: string | string[]): boolean 
 }
 
 function SwapRouteIcon({ fromTicker, toTicker }: { fromTicker?: string; toTicker?: string }) {
-  const from = accountTickerForAssetTicker(fromTicker) ?? 'BTC'
-  const to = accountTickerForAssetTicker(toTicker) ?? 'USD'
-
   return (
     <span className='activity-swap-route-icon' aria-hidden='true'>
       <span>
-        <TokenLogo ticker={from} />
+        <AssetAvatar ticker={fromTicker} name='From asset' size={26} />
       </span>
       <span>
-        <TokenLogo ticker={to} />
+        <AssetAvatar ticker={toTicker} name='To asset' size={26} />
       </span>
     </span>
   )
 }
 
-function TransactionAssetAvatar({ assetId, icon, ticker }: { assetId: string; icon?: string; ticker?: string }) {
-  const tokenLogoTicker = tokenLogoTickerForTicker(accountTickerForAssetTicker(ticker) ?? ticker)
+function TransactionAssetAvatar({
+  assetId,
+  icon,
+  ticker,
+  trustedIdentity,
+}: {
+  assetId: string
+  icon?: string
+  ticker?: string
+  trustedIdentity: boolean
+}) {
+  const tokenLogoTicker = tokenLogoTickerForTicker(accountTickerForAssetTicker(ticker) ?? ticker, trustedIdentity)
   if (tokenLogoTicker) {
     return (
       <span className='transaction-asset-logo' aria-hidden='true'>

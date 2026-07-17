@@ -1,6 +1,10 @@
 export type TokenLogoTicker = 'BTC' | 'USD' | 'USDT' | 'USDC' | 'CHF' | 'BRL' | 'CNY' | 'EUR' | 'GBP' | 'JPY'
 
-export function tokenLogoTickerForTicker(ticker: string | undefined): TokenLogoTicker | undefined {
+export function tokenLogoTickerForTicker(
+  ticker: string | undefined,
+  trustedIdentity: boolean,
+): TokenLogoTicker | undefined {
+  if (!trustedIdentity) return
   const normalized = ticker?.trim().toUpperCase()
   if (
     normalized === 'BTC' ||

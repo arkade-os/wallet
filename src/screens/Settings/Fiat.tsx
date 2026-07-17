@@ -37,7 +37,7 @@ export default function Fiat() {
                   Currencies.USD,
                 ]}
                 renderStart={(currency) => {
-                  const ticker = tokenLogoTickerForTicker(currency)
+                  const ticker = tokenLogoTickerForTicker(currency, true)
                   return ticker ? <TokenLogo ticker={ticker} /> : null
                 }}
                 selected={config.currency}

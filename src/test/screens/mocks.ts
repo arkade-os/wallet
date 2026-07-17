@@ -167,6 +167,7 @@ export const mockWalletContextValue = {
   txs: [mockTxInfo],
   vtxos: { spendable: [], spent: [] },
   iconApprovalManager: new AssetIconApprovalManager(),
+  isAssetVerified: () => false,
   dataReady: false,
   loadError: null,
   dismissLoadError: () => {},

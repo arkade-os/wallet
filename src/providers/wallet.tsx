@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react'
+import { ReactNode, createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import {
   ArkNote,
   ServiceWorkerWallet,
@@ -100,6 +100,7 @@ interface WalletContextProps {
   assetMetadataCache: Map<string, CachedAssetDetails>
   setCacheEntry: (assetId: string, details: AssetDetails) => CachedAssetDetails
   iconApprovalManager: AssetIconApprovalManager
+  isAssetVerified: (assetId: string) => boolean
   dataReady: boolean
   loadError: string | null
   dismissLoadError: () => void
@@ -127,6 +128,7 @@ export const WalletContext = createContext<WalletContextProps>({
   assetMetadataCache: new Map(),
   setCacheEntry: () => ({ cachedAt: 0 }) as CachedAssetDetails,
   iconApprovalManager: new AssetIconApprovalManager(),
+  isAssetVerified: () => false,
   dataReady: false,
   loadError: null,
   dismissLoadError: () => {},
@@ -160,6 +162,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const hasLoadedOnce = useRef(false)
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
   const iconApprovalManager = useRef(new AssetIconApprovalManager()).current
+  const [verifiedAssetIds, setVerifiedAssetIds] = useState<Set<string>>(new Set())
+  const isAssetVerified = useCallback((assetId: string) => verifiedAssetIds.has(assetId), [verifiedAssetIds])
   const verifiedAssetsFetched = useRef(false)
   const statusPingInterval = useRef<ReturnType<typeof setInterval>>()
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout>>()
@@ -364,6 +368,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           throw new Error('Invalid verified assets response')
         }
         iconApprovalManager.setVerifiedAssets(data)
+        setVerifiedAssetIds(new Set(data))
       })
       .catch((err) => consoleError(err, 'Failed to fetch verified assets'))
   }, [initialized])
@@ -883,6 +888,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         assetMetadataCache: assetMetadataCache.current,
         setCacheEntry,
         iconApprovalManager,
+        isAssetVerified,
         dataReady,
         loadError,
         dismissLoadError,

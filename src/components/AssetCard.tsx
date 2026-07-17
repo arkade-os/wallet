@@ -6,6 +6,7 @@ import { PrivacyAmount, maskedFiat } from './PrivacyAmount'
 import { prettyBitcoinAmount, prettyBitcoinHide, prettyCurrencyAssetAmount } from '../lib/format'
 import { useContext } from 'react'
 import { ConfigContext } from '../providers/config'
+import { WalletContext } from '../providers/wallet'
 
 interface AssetCardProps {
   assetId: string
@@ -36,6 +37,7 @@ export default function AssetCard({
   onClick,
 }: AssetCardProps) {
   const { config } = useContext(ConfigContext)
+  const { isAssetVerified } = useContext(WalletContext)
   const assetName = name || truncatedAssetId(assetId) || 'Asset'
   const tokenTick = ticker ?? 'TKN'
   const rawBalance =
@@ -45,7 +47,8 @@ export default function AssetCard({
         ? BigInt(balance)
         : BigInt(0)
   const bitcoinUnit = config.unit
-  const isBitcoin = tokenTick.toUpperCase() === 'BTC'
+  const isBitcoin = assetId === ''
+  const hasTrustedIdentity = isBitcoin || isAssetVerified(assetId)
   const prettyBalance = isBitcoin
     ? prettyBitcoinAmount(Number(rawBalance), bitcoinUnit)
     : prettyCurrencyAssetAmount(rawBalance, decimals ?? 8, tokenTick)
@@ -60,7 +63,7 @@ export default function AssetCard({
       }
     : undefined
 
-  const tokenLogoTicker = tokenLogoTickerForTicker(tokenTick)
+  const tokenLogoTicker = tokenLogoTickerForTicker(tokenTick, hasTrustedIdentity)
   const renderedAvatar = tokenLogoTicker ? (
     <span className='asset-card__logo' aria-hidden='true'>
       <TokenLogo ticker={tokenLogoTicker} />

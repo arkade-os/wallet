@@ -49,7 +49,7 @@ import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
 import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
-import TokenLogo, { TokenLogoTicker } from '../../../components/TokenLogo'
+import TokenLogo, { tokenLogoTickerForTicker } from '../../../components/TokenLogo'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,13 +67,9 @@ const brantaClient = new BrantaService({
 })
 
 function AssetIcon({ asset }: { asset: AssetOption | null }) {
+  const { isAssetVerified } = useContext(WalletContext)
   const ticker = asset?.ticker?.toUpperCase()
-  const tokenTicker =
-    ticker === 'USD' || ticker === 'USDT' || ticker === 'USDC' || ticker === 'CHF' || ticker === 'BRL'
-      ? (ticker as TokenLogoTicker)
-      : asset
-        ? null
-        : 'BTC'
+  const tokenTicker = asset ? tokenLogoTickerForTicker(ticker, isAssetVerified(asset.assetId)) : 'BTC'
 
   if (tokenTicker) {
     return (
