@@ -256,7 +256,8 @@ export default function Vtxos() {
       ? vtxo.assets.map((a) => {
           const meta = assetMetadataCache.get(a.assetId)?.metadata
           const decimals = meta?.decimals ?? 8
-          const label = meta?.ticker ?? `${a.assetId.slice(0, 8)}...`
+          const shortId = `${a.assetId.slice(0, 8)}...`
+          const label = meta?.ticker ? `${meta.ticker} (${shortId})` : shortId
           return `${prettyAssetAmount(a.amount, decimals)} ${label}`
         })
       : []
