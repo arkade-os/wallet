@@ -90,14 +90,14 @@ export default function WalletSwap() {
       },
     ]
     for (const market of markets) {
-      const { id, name, ticker, precision } = market.quote_asset
+      const { id, name, ticker, decimals } = market.quote_asset
       if (assets.some((asset) => asset.assetId === id)) continue
       const owned = assetBalances?.find((ab) => ab.assetId === id)
       assets.push({
         assetId: id,
         name,
         ticker,
-        decimals: precision,
+        decimals,
         balance: owned ? BigInt(owned.amount) : BigInt(0),
         icon: assetMetadataCache.get(id)?.metadata?.icon,
       })
@@ -158,13 +158,15 @@ export default function WalletSwap() {
           ? 'Quote unavailable'
           : planError === 'insufficient-balance'
             ? 'Insufficient balance'
-            : planError === 'below-min'
-              ? `Minimum ${fmtAmount(plan!.limits.minBase)}`
-              : planError === 'above-max'
-                ? `Maximum ${fmtAmount(plan!.limits.maxBase)}`
-                : planError === 'below-dust'
-                  ? 'Amount too small'
-                  : ''
+            : planError === 'side-disabled'
+              ? 'Swap unavailable for this pair'
+              : planError === 'below-min'
+                ? `Minimum ${fmtAmount(plan!.limits.min!)}`
+                : planError === 'above-max'
+                  ? `Maximum ${fmtAmount(plan!.limits.max!)}`
+                  : planError === 'below-dust'
+                    ? 'Amount too small'
+                    : ''
 
   const quoteLoading = status === 'loading' || (quoteStale && Number(amount) > 0)
   const canContinue = Boolean(toAsset && plan && status === 'success' && !planError && !quoteStale)
