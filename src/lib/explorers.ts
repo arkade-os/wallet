@@ -62,6 +62,11 @@ export const getOffchainTxURL = (txid: string, wallet: Wallet) => {
   return base ? `${base}/tx/${txid}` : ''
 }
 
+export const getVtxoURL = (txid: string, vout: number, wallet: Wallet) => {
+  const base = getVmempoolURL(wallet.network as NetworkName)
+  return base ? `${base}/txout/${txid}:${vout}` : ''
+}
+
 export const getAssetURL = (assetId: string, wallet: Wallet) => {
   const base = getVmempoolURL(wallet.network as NetworkName)
   return base ? `${base}/asset/${assetId}` : ''

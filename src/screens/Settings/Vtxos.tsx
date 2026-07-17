@@ -27,6 +27,8 @@ import { consoleError } from '../../lib/logs'
 import * as Sentry from '@sentry/react'
 import Grid from '../../components/Grid'
 import { prettyAssetAmount } from '../../lib/assets'
+import { getVtxoURL } from '../../lib/explorers'
+import ExternalLinkIcon from '../../icons/ExternalLink'
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -211,11 +213,13 @@ export default function Vtxos() {
     assets,
     tags,
     expiry,
+    link,
   }: {
     amount: string
     assets?: string[]
     tags: React.ReactNode
     expiry: string
+    link?: string
   }) => {
     const style: React.CSSProperties = {
       backgroundColor: 'var(--neutral-100)',
@@ -240,7 +244,20 @@ export default function Vtxos() {
             </div>
             <div>{tags}</div>
             <div>
-              <Text right>{expiry}</Text>
+              <FlexRow end gap='0.5rem'>
+                <Text right>{expiry}</Text>
+                {link ? (
+                  <span
+                    style={{ display: 'flex', cursor: 'pointer' }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      window.open(link, '_blank', 'noreferrer')
+                    }}
+                  >
+                    <ExternalLinkIcon small />
+                  </span>
+                ) : null}
+              </FlexRow>
             </div>
           </div>
         </Grid>
@@ -274,7 +291,8 @@ export default function Vtxos() {
                 : null}
       </FlexRow>
     )
-    return <CoinLine amount={`${satsAmount} sats`} assets={assetsAmounts} tags={tags} expiry={expiry} />
+    const link = getVtxoURL(vtxo.txid, vtxo.vout, wallet)
+    return <CoinLine amount={`${satsAmount} sats`} assets={assetsAmounts} tags={tags} expiry={expiry} link={link || undefined} />
   }
 
   const UtxoLine = ({ utxo }: { utxo: ExtendedCoin }) => {
