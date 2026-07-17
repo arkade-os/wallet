@@ -1287,11 +1287,14 @@ iframe {
   z-index: 50;
   background-color: var(--bg);
   isolation: isolate;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
   padding-top: env(safe-area-inset-top, 0px);
 }
 
 .home-header > div {
   z-index: 1;
+  background-color: inherit;
 }
 
 .home-header::after {
