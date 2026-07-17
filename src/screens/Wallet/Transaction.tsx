@@ -17,19 +17,21 @@ import { sleep } from '../../lib/sleep'
 import Text, { TextSecondary } from '../../components/Text'
 import AssetAvatar from '../../components/AssetAvatar'
 import Details, { DetailsProps } from '../../components/Details'
-import TokenLogo, { accountTickerForAssetTicker, tokenLogoTickerForTicker } from '../../components/TokenLogo'
+import TokenLogo, { tokenLogoTickerForTicker, trustedAssetTickers } from '../../components/TokenLogo'
 import VtxosIcon from '../../icons/Vtxos'
 import CheckMarkIcon from '../../icons/CheckMark'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { LimitsContext } from '../../providers/limits'
 import { getInputsToSettle } from '../../lib/asp'
+import UnverifiedBadge from '../../components/UnverifiedBadge'
 
 export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo } = useContext(FlowContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { assetMetadataCache, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
+    useContext(WalletContext)
 
   const tx = txInfo
   const issuanceTx = tx ? isIssuance(tx) : false
@@ -101,6 +103,10 @@ export default function Transaction() {
           ? 'Settled'
           : 'Preconfirmed'
 
+  // on asset transfers tx.amount is just the dust carrying the asset — showing
+  // it as Amount/Total reads as a fiat price for the asset, so hide both rows
+  const assetTransfer = Boolean(tx.assets?.length)
+
   const details: DetailsProps = {
     direction: issuanceTx ? 'Issuance' : burnTx ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received',
     when: tx.createdAt ? prettyAgo(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed',
@@ -111,9 +117,9 @@ export default function Transaction() {
     isOffchainTx: !tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
     assetId: tx.assets?.[0]?.assetId,
     wallet: wallet,
-    satoshis: tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
+    satoshis: assetTransfer ? undefined : tx.type === 'sent' ? tx.amount - defaultFee : tx.amount,
     fees: tx.type === 'sent' ? defaultFee : 0,
-    total: tx.amount,
+    total: assetTransfer ? undefined : tx.amount,
   }
 
   const Body = () => (
@@ -147,9 +153,11 @@ export default function Transaction() {
                 const name = meta?.name
                 const icon = meta?.icon
                 const decimals = meta?.decimals ?? 8
-                const accountTicker = accountTickerForAssetTicker(ticker)
-                const label = accountTicker ?? name ?? `${a.assetId.slice(0, 8)}...`
-                const tokenLogoTicker = tokenLogoTickerForTicker(accountTicker ?? ticker)
+                // only verified asset IDs get currency treatment for their ticker
+                const trusted = isVerifiedAsset(a.assetId)
+                const { accountTicker, trustedTicker } = trustedAssetTickers(ticker, trusted)
+                const label = accountTicker ?? ticker ?? name ?? `${a.assetId.slice(0, 8)}...`
+                const tokenLogoTicker = tokenLogoTickerForTicker(trustedTicker)
                 return (
                   <div key={a.assetId} className='transaction-detail-asset'>
                     <span className='transaction-detail-asset__logo'>
@@ -161,7 +169,8 @@ export default function Transaction() {
                     </span>
                     <div className='transaction-detail-asset__copy'>
                       <span className='transaction-detail-asset__amount'>
-                        {prettyCurrencyAssetAmount(BigInt(a.amount), decimals, accountTicker ?? ticker)} {label}
+                        {prettyCurrencyAssetAmount(a.amount, decimals, trustedTicker)} {label}
+                        {!trusted ? <UnverifiedBadge /> : null}
                       </span>
                       {name && ticker && !accountTicker ? (
                         <span className='transaction-detail-asset__name'>{name}</span>

@@ -58,6 +58,7 @@ import {
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
 import { testDomains } from '../../../lib/constants'
+import UnverifiedBadge from '../../../components/UnverifiedBadge'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
@@ -67,7 +68,9 @@ const brantaClient = new BrantaService({
 })
 
 function AssetIcon({ asset }: { asset: AssetOption | null }) {
-  const ticker = asset?.ticker?.toUpperCase()
+  const { isVerifiedAsset } = useContext(WalletContext)
+  // official token logos are pinned to verified asset IDs, not self-reported tickers
+  const ticker = !asset || isVerifiedAsset(asset.assetId) ? asset?.ticker?.toUpperCase() : undefined
   const tokenTicker =
     ticker === 'USD' || ticker === 'USDT' || ticker === 'USDC' || ticker === 'CHF' || ticker === 'BRL'
       ? (ticker as TokenLogoTicker)
@@ -113,7 +116,8 @@ export default function SendForm() {
   } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
-  const { assetBalances, assetMetadataCache, balance, setCacheEntry, svcWallet } = useContext(WalletContext)
+  const { assetBalances, assetMetadataCache, balance, isVerifiedAsset, setCacheEntry, svcWallet } =
+    useContext(WalletContext)
 
   const [amount, setAmount] = useState<number>()
   const [amountTextValue, setAmountTextValue] = useState('')
@@ -773,6 +777,10 @@ export default function SendForm() {
       satoshis < 1 ||
       processing
 
+  // unverified assets are never offered in the picker; they can still arrive
+  // preselected via sendInfo.assets from the Assets app detail screen
+  const verifiedAssetOptions = assetOptions.filter((asset) => isVerifiedAsset(asset.assetId))
+
   const selectedAssetLabel = selectedAsset ? `${selectedAsset.name} (${selectedAsset.ticker})` : 'Bitcoin'
   const selectedAssetBalance = selectedAsset
     ? `${prettyAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`
@@ -919,7 +927,7 @@ export default function SendForm() {
                     )
                   })()
                 : null}
-              {assetOptions.length > 0 ? (
+              {verifiedAssetOptions.length > 0 || selectedAsset ? (
                 <FlexCol gap='0.5rem' className='send-asset-field'>
                   <Text smaller color='neutral-500'>
                     Asset
@@ -940,7 +948,10 @@ export default function SendForm() {
                       <span className='send-asset-trigger__main'>
                         <AssetIcon asset={selectedAsset} />
                         <span className='send-asset-trigger__copy'>
-                          <span className='send-asset-trigger__name'>{selectedAssetLabel}</span>
+                          <span className='send-asset-trigger__name'>
+                            {selectedAssetLabel}
+                            {selectedAsset && !isVerifiedAsset(selectedAsset.assetId) ? <UnverifiedBadge /> : null}
+                          </span>
                           <span className='send-asset-trigger__balance'>{selectedAssetBalance}</span>
                         </span>
                       </span>
@@ -968,7 +979,7 @@ export default function SendForm() {
                             </span>
                           </DropdownMenuItem>
                         ) : null}
-                        {assetOptions
+                        {verifiedAssetOptions
                           .filter((asset) => asset.assetId !== selectedAsset?.assetId)
                           .map((asset) => (
                             <DropdownMenuItem
