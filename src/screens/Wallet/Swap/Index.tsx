@@ -495,7 +495,9 @@ export default function WalletSwap() {
         error={confirmError}
         quoteLoading={quoteLoading}
         onOpenChange={(open) => {
-          if (!open) setDrawer(null)
+          // keep the drawer up while the swap is being created so a late
+          // failure still has a surface to report on
+          if (!open && !confirming) setDrawer(null)
         }}
         onConfirm={confirmSwap}
       />
