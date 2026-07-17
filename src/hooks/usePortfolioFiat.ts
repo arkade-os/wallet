@@ -31,12 +31,13 @@ export interface PortfolioFiat {
 }
 
 export function usePortfolioFiat(): PortfolioFiat {
-  const { assetBalances, assetMetadataCache, balance } = useContext(WalletContext)
+  const { assetBalances, assetMetadataCache, balance, isVerifiedAsset } = useContext(WalletContext)
   const { fromFiatAmount, toFiat } = useContext(FiatContext)
   const assetRows = assetBalances.map((asset) => {
     const meta = assetMetadataCache.get(asset.assetId)?.metadata
     const decimals = meta?.decimals ?? 8
-    const fiat = fiatForTicker(meta?.ticker)
+    // only verified asset IDs may claim a fiat price via their ticker
+    const fiat = isVerifiedAsset(asset.assetId) ? fiatForTicker(meta?.ticker) : undefined
     const fiatAmount = fiat ? Decimal.div(asset.amount.toString(), Decimal.pow(10, decimals)).toNumber() : 0
     const satsEquivalent = fiat ? fromFiatAmount(fiatAmount, fiat) : 0
 

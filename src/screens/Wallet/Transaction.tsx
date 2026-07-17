@@ -29,7 +29,8 @@ export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo } = useContext(FlowContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { assetMetadataCache, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
+    useContext(WalletContext)
 
   const tx = txInfo
   const issuanceTx = tx ? isIssuance(tx) : false
@@ -147,9 +148,12 @@ export default function Transaction() {
                 const name = meta?.name
                 const icon = meta?.icon
                 const decimals = meta?.decimals ?? 8
-                const accountTicker = accountTickerForAssetTicker(ticker)
+                // only verified asset IDs get currency treatment for their ticker
+                const trusted = isVerifiedAsset(a.assetId)
+                const accountTicker = trusted ? accountTickerForAssetTicker(ticker) : undefined
+                const trustedTicker = trusted ? (accountTicker ?? ticker) : undefined
                 const label = accountTicker ?? name ?? `${a.assetId.slice(0, 8)}...`
-                const tokenLogoTicker = tokenLogoTickerForTicker(accountTicker ?? ticker)
+                const tokenLogoTicker = tokenLogoTickerForTicker(trustedTicker)
                 return (
                   <div key={a.assetId} className='transaction-detail-asset'>
                     <span className='transaction-detail-asset__logo'>
@@ -161,7 +165,7 @@ export default function Transaction() {
                     </span>
                     <div className='transaction-detail-asset__copy'>
                       <span className='transaction-detail-asset__amount'>
-                        {prettyCurrencyAssetAmount(BigInt(a.amount), decimals, accountTicker ?? ticker)} {label}
+                        {prettyCurrencyAssetAmount(BigInt(a.amount), decimals, trustedTicker)} {label}
                       </span>
                       {name && ticker && !accountTicker ? (
                         <span className='transaction-detail-asset__name'>{name}</span>

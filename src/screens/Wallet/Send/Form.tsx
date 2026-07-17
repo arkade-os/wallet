@@ -66,8 +66,9 @@ const brantaClient = new BrantaService({
   privacy: 'strict',
 })
 
-function AssetIcon({ asset }: { asset: AssetOption | null }) {
-  const ticker = asset?.ticker?.toUpperCase()
+function AssetIcon({ asset, verified }: { asset: AssetOption | null; verified: boolean }) {
+  // official token logos are pinned to verified asset IDs, not self-reported tickers
+  const ticker = verified ? asset?.ticker?.toUpperCase() : undefined
   const tokenTicker =
     ticker === 'USD' || ticker === 'USDT' || ticker === 'USDC' || ticker === 'CHF' || ticker === 'BRL'
       ? (ticker as TokenLogoTicker)
@@ -113,7 +114,8 @@ export default function SendForm() {
   } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
-  const { assetBalances, assetMetadataCache, balance, setCacheEntry, svcWallet } = useContext(WalletContext)
+  const { assetBalances, assetMetadataCache, balance, isVerifiedAsset, setCacheEntry, svcWallet } =
+    useContext(WalletContext)
 
   const [amount, setAmount] = useState<number>()
   const [amountTextValue, setAmountTextValue] = useState('')
@@ -938,7 +940,10 @@ export default function SendForm() {
                       data-testid='asset-selector'
                     >
                       <span className='send-asset-trigger__main'>
-                        <AssetIcon asset={selectedAsset} />
+                        <AssetIcon
+                          asset={selectedAsset}
+                          verified={!selectedAsset || isVerifiedAsset(selectedAsset.assetId)}
+                        />
                         <span className='send-asset-trigger__copy'>
                           <span className='send-asset-trigger__name'>{selectedAssetLabel}</span>
                           <span className='send-asset-trigger__balance'>{selectedAssetBalance}</span>
@@ -953,7 +958,7 @@ export default function SendForm() {
                         {selectedAsset ? (
                           <DropdownMenuItem className='send-asset-option' onClick={() => handleSelectAsset(null)}>
                             <span className='send-asset-option__main'>
-                              <AssetIcon asset={null} />
+                              <AssetIcon asset={null} verified />
                               <span>
                                 <span className='send-asset-option__name'>Bitcoin</span>
                                 <span className='send-asset-option__meta'>
@@ -978,7 +983,7 @@ export default function SendForm() {
                               data-testid={`asset-${asset.ticker.toLowerCase()}-option`}
                             >
                               <span className='send-asset-option__main'>
-                                <AssetIcon asset={asset} />
+                                <AssetIcon asset={asset} verified={isVerifiedAsset(asset.assetId)} />
                                 <span>
                                   <span className='send-asset-option__name'>
                                     {asset.name} ({asset.ticker})
