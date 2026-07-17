@@ -27,6 +27,8 @@ import { consoleError } from '../../lib/logs'
 import * as Sentry from '@sentry/react'
 import Grid from '../../components/Grid'
 import { prettyAssetAmount } from '../../lib/assets'
+import { getAssetURL, openAssetInNewTab } from '../../lib/explorers'
+import ExternalLinkIcon from '../../icons/ExternalLink'
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -213,7 +215,7 @@ export default function Vtxos() {
     expiry,
   }: {
     amount: string
-    assets?: string[]
+    assets?: { text: string; assetId: string }[]
     tags: React.ReactNode
     expiry: string
   }) => {
@@ -231,11 +233,24 @@ export default function Vtxos() {
             <div>
               <FlexCol gap='0.25rem'>
                 <Text>{amount}</Text>
-                {assets?.map((a) => (
-                  <Text key={a} color='neutral-500' smaller>
-                    {a}
-                  </Text>
-                ))}
+                {assets?.map((a) => {
+                  const url = getAssetURL(a.assetId, wallet)
+                  return (
+                    <FlexRow key={a.assetId} gap='0.25rem' centered>
+                      <Text color='neutral-500' smaller>
+                        {a.text}
+                      </Text>
+                      {url ? (
+                        <span
+                          onClick={() => openAssetInNewTab(a.assetId, wallet)}
+                          style={{ cursor: 'pointer', color: 'var(--neutral-500)' }}
+                        >
+                          <ExternalLinkIcon small />
+                        </span>
+                      ) : null}
+                    </FlexRow>
+                  )
+                })}
               </FlexCol>
             </div>
             <div>{tags}</div>
@@ -258,7 +273,7 @@ export default function Vtxos() {
           const decimals = meta?.decimals ?? 8
           const shortId = `${a.assetId.slice(0, 8)}...`
           const label = meta?.ticker ? `${meta.ticker} (${shortId})` : shortId
-          return `${prettyAssetAmount(a.amount, decimals)} ${label}`
+          return { text: `${prettyAssetAmount(a.amount, decimals)} ${label}`, assetId: a.assetId }
         })
       : []
     const expiry = vtxo.virtualStatus?.batchExpiry ? prettyAgo(vtxo.virtualStatus.batchExpiry) : 'Unknown'
