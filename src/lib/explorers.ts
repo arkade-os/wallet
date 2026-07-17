@@ -69,7 +69,7 @@ export const getAssetURL = (assetId: string, wallet: Wallet) => {
 
 export const getVtxoURL = (txid: string, vout: number, wallet: Wallet) => {
   const base = getVmempoolURL(wallet.network as NetworkName)
-  return base ? `${base}/tx/${txid}#vout=${vout}` : ''
+  return base ? `${base}/txout/${txid}:${vout}` : ''
 }
 
 export const openInNewTab = (txid: string, wallet: Wallet) => {
