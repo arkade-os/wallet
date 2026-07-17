@@ -29,8 +29,6 @@ RUN corepack enable && corepack prepare pnpm@10.25.0 --activate
 
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-# the sdk resolves to a file: tarball, so it must exist at the install layer
-COPY vendor ./vendor
 RUN pnpm install --frozen-lockfile
 
 COPY . .
