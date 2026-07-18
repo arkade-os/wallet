@@ -195,19 +195,20 @@ describe('Wallet swap flow', () => {
 
     await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
     expect(createSwap.mock.calls[0][0].deposit.atomic).toBe(BigInt(50_000))
-    expect(createSwap.mock.calls[0][1]).toMatchObject({ fromTicker: 'sats', toTicker: 'USD', feeBps: 30 })
-    // fromDecimals must pair with fromTicker ('sats' -> 0), not the solver's
-    // real protocol decimals (8) — otherwise the persisted receipt divides
-    // the atomic sats amount by 1e8 and labels the result "sats"
-    expect(createSwap.mock.calls[0][1]).toMatchObject({ fromDecimals: 0 })
+    // the default display unit is BTC (mockConfigContextValue) — the swap
+    // entry/ticker/decimals follow it, same as the rest of the wallet
+    expect(createSwap.mock.calls[0][1]).toMatchObject({ fromTicker: 'BTC', toTicker: 'USD', feeBps: 30 })
+    // fromDecimals must pair with fromTicker ('BTC' -> 8), the solver's real
+    // protocol decimals — otherwise the persisted receipt mislabels the scale
+    expect(createSwap.mock.calls[0][1]).toMatchObject({ fromDecimals: 8 })
   })
 
   it('quotes the covenant floor with the market fee conceded', async () => {
-    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
     fireEvent.click(screen.getByRole('button', { name: /USD/i }))
-    // BTC is always entered in whole sats; type 10,000 sats on the asset side
+    // display unit is sats; type 10,000 sats on the asset side
     await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
     for (const key of ['1', '0', '0', '0', '0']) {
       await userEvent.click(screen.getByRole('button', { name: key }))
@@ -276,6 +277,36 @@ describe('Wallet swap flow', () => {
     expect(plan.deposit.atomic).toBe(BigInt(100_000))
   })
 
+  it('quotes the minimum in the asset being sent (BTC), not the asset being received (USDT)', async () => {
+    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    // switch to asset-unit entry and type a sats amount well under the
+    // market's minimum receivable USDT notional
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['1', '0', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    await waitFor(() => expect(screen.getByText(/^Minimum /)).toBeInTheDocument())
+    expect(screen.getByText(/^Minimum \S+ sats$/)).toBeInTheDocument()
+  })
+
+  it('quotes the minimum in the asset being sent (USD), not the asset being received (sats) — vice versa', async () => {
+    renderSwap({ flow: { swapFromAssetId: USDT_ID, setSwapFromAssetId: vi.fn() } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Bitcoin/i }))
+    // type a USD amount well under the market's minimum receivable sats notional
+    for (const key of ['0', '.', '0', '1']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    await waitFor(() => expect(screen.getByText(/^Minimum /)).toBeInTheDocument())
+    expect(screen.getByText(/^Minimum \S+ USD$/)).toBeInTheDocument()
+  })
+
   it('does not show a wildly inflated fiat preview for a sats amount before a receive asset is chosen', async () => {
     renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
 
@@ -294,20 +325,52 @@ describe('Wallet swap flow', () => {
     expect(container.querySelector('circle[fill="var(--orange-500)"]')).toBeInTheDocument()
   })
 
-  it('always shows the swap amount in sats, even when the wallet currency and display unit are both BTC', async () => {
+  it('shows the Bitcoin balance and quotes in whole BTC when the display unit is BTC, not sats', async () => {
+    const { container } = renderSwap({
+      config: { unit: Unit.BTC },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+    })
+
+    // the mocked wallet balance (100,000 sats) is shown in whole-BTC terms
+    const balanceText = container.querySelector('.swap-input-card__asset-copy small')?.textContent
+    expect(balanceText).toMatch(/BTC$/)
+    expect(balanceText).not.toMatch(/sats/)
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    // switch to asset-mode entry and type "0.001" BTC — not 0.001 sats
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['0', '.', '0', '0', '1']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
+    fireEvent.click(continueButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+
+    await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
+    const plan = createSwap.mock.calls[0][0]
+    // 0.001 BTC = 100,000 sats
+    expect(plan.deposit.atomic).toBe(BigInt(100_000))
+    expect(createSwap.mock.calls[0][1]).toMatchObject({ fromTicker: 'BTC', fromDecimals: 8 })
+  })
+
+  it('follows the wallet bitcoin-unit setting for the swap amount, including when the currency-of-account is BTC', async () => {
     const { container } = renderSwap({
       config: { currency: Currencies.BTC, unit: Unit.BTC },
       flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
     })
 
     // default entry mode is 'fiat' — with currency set to BTC that's a
-    // bitcoin-denominated amount, which must still render as sats, not BTC
+    // bitcoin-denominated amount, which must render in the configured unit
+    // (BTC here), not be forced to sats
     for (const key of ['1', '0', '0']) {
       await userEvent.click(screen.getByRole('button', { name: key }))
     }
 
     const amountLabel = container.querySelector('.swap-amount-display .swap-amount-value')?.getAttribute('aria-label')
-    expect(amountLabel).toMatch(/ sats$/)
+    expect(amountLabel).toMatch(/ BTC$/)
   })
 
   it('never assigns the same React key to two occurrences of the same letter in the amount label', async () => {
@@ -315,7 +378,7 @@ describe('Wallet swap flow', () => {
     // React reports as a duplicate-key warning and the animated renderer
     // then smears the repeated glyph
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
 
     // asset mode appends the ticker suffix ("1000 sats") to the amount label
     await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))

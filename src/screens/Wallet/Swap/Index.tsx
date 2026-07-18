@@ -16,7 +16,13 @@ import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { extractError } from '../../../lib/error'
-import { formatFiatAmountParts, prettyCurrencyAssetAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
+import {
+  formatFiatAmountParts,
+  normalizeBitcoinUnit,
+  prettyCurrencyAssetAmount,
+  prettyFiatAmount,
+  prettyNumber,
+} from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
 import { BTC_ASSET_ID, findMarket, QUOTE_OPTIONS, validatePlan } from '../../../lib/swap/markets'
 import { type AssetSwap, type AssetSwapQuoteSnapshot, type AssetSwapStatus } from '../../../lib/swap/store'
@@ -110,6 +116,8 @@ export default function WalletSwap() {
       .catch(() => {})
   }, [balance, svcWallet])
 
+  const btcUnit = normalizeBitcoinUnit(config.unit)
+  const btcEntryPrecision = btcUnit === Unit.BTC ? 8 : 0
   const swapAssets = useMemo<SwapAsset[]>(() => {
     const marketAssets = markets.flatMap((market) => [market.base_asset, market.quote_asset])
     const uniqueAssets = new Map(marketAssets.map((asset) => [asset.id, asset]))
@@ -126,15 +134,13 @@ export default function WalletSwap() {
         return {
           assetId: BTC_ASSET_ID,
           name: 'Bitcoin',
-          // the swap side always enters/displays BTC in sats, independent of
-          // the wallet-wide bitcoin-unit setting
-          ticker: 'sats',
-          decimals: 0,
+          // BTC enters/displays in whatever unit the wallet's bitcoin-unit
+          // setting picks (sats/BTC/₿), same as the rest of the wallet
+          ticker: btcUnit === Unit.BTC ? 'BTC' : btcUnit,
+          decimals: btcEntryPrecision,
           balance: BigInt(availableSats),
-          // always sats — never varies by config.unit, even when config.currency
-          // is itself BTC (the wallet's unit-of-account)
           fiatText: bitcoinRow?.hasFiatPrice
-            ? prettyFiatAmount(bitcoinRow.fiatAmount, config.currency, { bitcoinUnit: Unit.SATS })
+            ? prettyFiatAmount(bitcoinRow.fiatAmount, config.currency, { bitcoinUnit: config.unit })
             : undefined,
           usdPrice: bitcoinRow
             ? estimateRowUsdPrice(bitcoinRow, config.currency, fromFiatAmount, toFiat, toFiatAmount)
@@ -151,7 +157,7 @@ export default function WalletSwap() {
         decimals: asset.decimals,
         balance: BigInt(owned?.amount ?? 0),
         fiatText: row?.hasFiatPrice
-          ? prettyFiatAmount(row.fiatAmount, config.currency, { bitcoinUnit: Unit.SATS })
+          ? prettyFiatAmount(row.fiatAmount, config.currency, { bitcoinUnit: config.unit })
           : undefined,
         icon: assetMetadataCache.get(asset.id)?.metadata?.icon,
         usdPrice: row ? estimateRowUsdPrice(row, config.currency, fromFiatAmount, toFiat, toFiatAmount) : 0,
@@ -161,7 +167,10 @@ export default function WalletSwap() {
     assetBalances,
     assetMetadataCache,
     availableSats,
+    btcEntryPrecision,
+    btcUnit,
     config.currency,
+    config.unit,
     fromFiatAmount,
     markets,
     rows,
@@ -202,11 +211,11 @@ export default function WalletSwap() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setGiveAmount(Number(assetAmount) > 0 ? amountForQuote(assetAmount, fromAsset) : '')
+      setGiveAmount(Number(assetAmount) > 0 ? amountForQuote(assetAmount, fromAsset, btcEntryPrecision) : '')
       setQuotedAmount(amount)
     }, 600)
     return () => window.clearTimeout(timer)
-  }, [amount, assetAmount, fromAsset, setGiveAmount])
+  }, [amount, assetAmount, btcEntryPrecision, fromAsset, setGiveAmount])
 
   const quoteStale = quotedAmount !== amount
   const planError = plan
@@ -218,6 +227,7 @@ export default function WalletSwap() {
     : undefined
   const validationMessage = swapValidationMessage({
     amount,
+    fromAsset,
     pairAvailable: toAsset ? Boolean(pair?.market) : undefined,
     plan,
     planError,
@@ -225,8 +235,9 @@ export default function WalletSwap() {
     status,
   })
   const quote = useMemo(
-    () => buildQuoteFromPlan(plan, amount, amountMode, fromAsset, toAsset, unitOfAccountUsd, config.currency),
-    [amount, amountMode, config.currency, fromAsset, plan, toAsset, unitOfAccountUsd],
+    () =>
+      buildQuoteFromPlan(plan, amount, amountMode, fromAsset, toAsset, unitOfAccountUsd, config.currency, config.unit),
+    [amount, amountMode, config.currency, config.unit, fromAsset, plan, toAsset, unitOfAccountUsd],
   )
   const hasPositiveAmount = Number(amount) > 0
   const validationState: SwapValidationState =
@@ -446,6 +457,7 @@ export default function WalletSwap() {
                     amount={amount}
                     amountMode={amountMode}
                     currency={config.currency}
+                    bitcoinUnit={config.unit}
                     quote={quote}
                     fromAsset={fromAsset}
                     toAsset={toAsset}
@@ -633,6 +645,7 @@ function SwapComposer({
   amount,
   amountMode,
   currency,
+  bitcoinUnit,
   quote,
   fromAsset,
   toAsset,
@@ -649,6 +662,7 @@ function SwapComposer({
   amount: string
   amountMode: AmountMode
   currency: Currencies
+  bitcoinUnit: Unit
   quote: SwapQuote
   fromAsset: SwapAsset
   toAsset?: SwapAsset
@@ -664,7 +678,7 @@ function SwapComposer({
 }) {
   const prefersReduced = useReducedMotion()
   const amountLabel =
-    amountMode === 'fiat' ? formatCurrencyInputAmount(amount, currency) : `${amount} ${fromAsset.ticker}`
+    amountMode === 'fiat' ? formatCurrencyInputAmount(amount, currency, bitcoinUnit) : `${amount} ${fromAsset.ticker}`
   const subAmountLabel = amountMode === 'fiat' ? `${quote.fromAmount} ${fromAsset.ticker}` : quote.fromFiat
   const nextAmountModeLabel = amountMode === 'fiat' ? 'asset amount' : `${currency} amount`
   const validationMessage = validationText
@@ -1192,6 +1206,7 @@ function buildQuoteFromPlan(
   toAsset: SwapAsset | undefined,
   unitOfAccountUsd: number,
   currency: Currencies,
+  bitcoinUnit: Unit,
 ): SwapQuote {
   const parsed = Number(amount) || 0
   const fromUsd = estimateSwapUsd(fromAsset)
@@ -1213,9 +1228,7 @@ function buildQuoteFromPlan(
   const receivedCurrencyAmount = unitOfAccountUsd > 0 ? (receivedProtocol * toUsd) / unitOfAccountUsd : 0
   const rate = fromUnitsProtocol > 0 ? receivedProtocol / fromUnitsProtocol : 0
   const feeAmount = selectedCurrencyAmount * ((plan?.market.fee_bps ?? 0) / 10_000)
-  // always sats — never varies by config.unit, even when the unit of account
-  // (currency) is itself BTC
-  const formatOptions = { bitcoinUnit: Unit.SATS }
+  const formatOptions = { bitcoinUnit }
 
   return {
     fromAsset,
@@ -1241,11 +1254,13 @@ function protocolTicker(asset: SwapAsset): string {
   return asset.assetId === BTC_ASSET_ID ? 'BTC' : asset.ticker
 }
 
-/** BTC is always entered/displayed in sats in the swap screen, but its USD
- * price and the solver's plan.*.display are both in whole-BTC scale — this
- * is the one conversion between the two (a no-op for every other asset). */
+/** BTC's USD price and the solver's plan.*.display are both in whole-BTC
+ * scale, but the swap screen enters/displays BTC in whatever unit the wallet
+ * picks — sats/₿ (0 entry decimals) needs scaling up from whole BTC, while
+ * BTC entry (8 decimals) is already that same scale (a no-op, like every
+ * other asset). */
 function protocolToDisplayScale(asset: SwapAsset): number {
-  return asset.assetId === BTC_ASSET_ID ? 1e8 : 1
+  return asset.assetId === BTC_ASSET_ID && asset.decimals === 0 ? 1e8 : 1
 }
 
 /** USD-fiat amount converted into the asset's entry/display scale (sats for
@@ -1265,13 +1280,16 @@ function amountInAssetUnits(amount: string, mode: AmountMode, fromAsset: SwapAss
   return prettyNumber(units, fromAsset.decimals, false)
 }
 
-function amountForQuote(amount: string, fromAsset: SwapAsset): string {
-  if (fromAsset.assetId !== BTC_ASSET_ID) return amount
+function amountForQuote(amount: string, fromAsset: SwapAsset, btcEntryPrecision: number): string {
+  // BTC entered in whole-BTC (8 decimals) is already the solver's expected
+  // format — only a sats/₿ (0-decimal) entry needs converting to atomic
+  if (fromAsset.assetId !== BTC_ASSET_ID || btcEntryPrecision > 0) return amount
   return fromAtomic(BigInt(amount.split('.')[0].replace(/\D/g, '') || '0'), 8)
 }
 
 function swapValidationMessage({
   amount,
+  fromAsset,
   pairAvailable,
   plan,
   planError,
@@ -1279,6 +1297,7 @@ function swapValidationMessage({
   status,
 }: {
   amount: string
+  fromAsset: SwapAsset
   pairAvailable: boolean | undefined
   plan: OfferPlan | null
   planError: ReturnType<typeof validatePlan>
@@ -1296,9 +1315,9 @@ function swapValidationMessage({
     case 'side-disabled':
       return 'Swap unavailable for this pair'
     case 'below-min':
-      return formatLimitMessage('Minimum', plan.limits.min)
+      return formatLimitMessage('Minimum', plan.limits.min, plan, fromAsset)
     case 'above-max':
-      return formatLimitMessage('Maximum', plan.limits.max)
+      return formatLimitMessage('Maximum', plan.limits.max, plan, fromAsset)
     case 'below-dust':
       return 'Amount too small'
     default:
@@ -1306,15 +1325,26 @@ function swapValidationMessage({
   }
 }
 
-/** plan.limits bound the RECEIVE side (see validatePlan), in that asset's own
- * protocol decimals — the limit's own `.asset` says which one, so this never
- * has to guess or match against the give-side SwapAsset. */
-function formatLimitMessage(label: string, limit: OfferPlan['limits']['min']): string {
+/** plan.limits bound the RECEIVE side (see validatePlan), but the user is
+ * typing the GIVE (from) side — quoting a receive-side minimum/maximum while
+ * they're staring at the from-asset field reads as a typo ("Minimum 1 USDT"
+ * while typing a BTC amount). Convert through the plan's own price into the
+ * equivalent give-side amount instead. */
+function formatLimitMessage(
+  label: string,
+  limit: OfferPlan['limits']['min'],
+  plan: OfferPlan,
+  fromAsset: SwapAsset,
+): string {
   if (!limit) return ''
-  const isBtc = limit.asset.id === BTC_ASSET_ID
-  const value = Number(limit.display) * (isBtc ? 1e8 : 1)
-  const ticker = isBtc ? 'sats' : limit.asset.ticker
-  return `${label} ${prettyNumber(value, swapAmountDecimals(value))} ${ticker}`.trim()
+  const price = Number(plan.priceDisplay)
+  if (!price) return ''
+  const limitReceiveProtocol = Number(limit.display)
+  // priceDisplay is quote-per-base; convert the receive-side limit back to
+  // the give side using whichever side the plan actually gives
+  const giveProtocol = plan.give === 'base' ? limitReceiveProtocol / price : limitReceiveProtocol * price
+  const value = giveProtocol * protocolToDisplayScale(fromAsset)
+  return `${label} ${prettyNumber(value, swapAmountDecimals(value))} ${fromAsset.ticker}`.trim()
 }
 
 function buildQuoteSnapshot(plan: OfferPlan, quote: SwapQuote, currency: Currencies): AssetSwapQuoteSnapshot {
@@ -1332,13 +1362,11 @@ function buildQuoteSnapshot(plan: OfferPlan, quote: SwapQuote, currency: Currenc
   }
 }
 
-function formatCurrencyInputAmount(amount: string, currency: Currencies): string {
+function formatCurrencyInputAmount(amount: string, currency: Currencies, bitcoinUnit: Unit): string {
   const normalized = amount || '0'
   const fractionDigits = normalized.includes('.') ? (normalized.split('.')[1]?.length ?? 0) : 0
-  // always sats — never varies by config.unit, even when the unit of account
-  // (currency) is itself BTC
   const parts = formatFiatAmountParts(Number(normalized) || 0, currency, {
-    bitcoinUnit: Unit.SATS,
+    bitcoinUnit,
     maximumFractionDigits: fractionDigits,
     minimumFractionDigits: fractionDigits,
   })
