@@ -19,7 +19,8 @@ import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
 import { SwapsContext } from '../../../providers/swaps'
 import AssetCard from '../../../components/AssetCard'
-import { rawAssetPresentation } from '../../../lib/accountAssets'
+import { accountAssetLabel, rawAssetPresentation, verifiedDesignatedCurrency } from '../../../lib/accountAssets'
+import { AspContext } from '../../../providers/asp'
 import { consoleError } from '../../../lib/logs'
 import { BoltzSwap, BoltzSwapStatus, hasSubmarineStatusReached, isSubmarineFailedStatus } from '@arkade-os/boltz-swap'
 
@@ -49,9 +50,10 @@ export default function SendSuccess() {
   const { toFiat } = useContext(FiatContext)
   const { sendInfo } = useContext(FlowContext)
   const { notifyPaymentSent } = useContext(NotificationsContext)
-  const { assetMetadataCache } = useContext(WalletContext)
+  const { assetMetadataCache, isVerifiedAsset } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
   const { getSwapHistory, swapManager } = useContext(SwapsContext)
+  const { aspInfo } = useContext(AspContext)
 
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
@@ -59,7 +61,11 @@ export default function SendSuccess() {
   const assetPresentation = sendInfo.account
     ? { name: sendInfo.account.ticker, ticker: sendInfo.account.ticker }
     : rawAssetPresentation(assetMeta?.metadata, 'Unknown asset')
-  const assetName = assetPresentation.name
+  const designatedCurrency = sendInfo.account
+    ? undefined
+    : verifiedDesignatedCurrency(aspInfo.network, assetId, isVerifiedAsset)
+  // name only — the ticker already rides with the balance on AssetCard's left column
+  const assetName = accountAssetLabel(designatedCurrency, { name: assetPresentation.name, ticker: '' })
   const assetTicker = assetPresentation.ticker
   const assetIcon = assetPresentation.icon
   const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)

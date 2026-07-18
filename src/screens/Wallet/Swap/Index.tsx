@@ -7,7 +7,7 @@ import Button from '../../../components/Button'
 import Content from '../../../components/Content'
 import Header from '../../../components/Header'
 import Padded from '../../../components/Padded'
-import TokenLogo, { tokenLogoTickerForTicker } from '../../../components/TokenLogo'
+import TokenLogo, { tokenLogoTickerForAsset } from '../../../components/TokenLogo'
 import WalletSuccessSplash from '../../../components/WalletSuccessSplash'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../../components/ui/drawer'
 import ArrowUpDownIcon from '../../../icons/ArrowUpDown'
@@ -56,6 +56,8 @@ interface SwapQuote {
   toAmount: string
   toFiat: string
   feeFiat: string
+  rateFromTicker: string
+  rateToTicker: string
   rateLabel: string
   fromFiatValue: number
   toFiatValue: number
@@ -215,7 +217,6 @@ export default function WalletSwap() {
     : undefined
   const validationMessage = swapValidationMessage({
     amount,
-    fromAsset,
     pairAvailable: toAsset ? Boolean(pair?.market) : undefined,
     plan,
     planError,
@@ -914,10 +915,7 @@ function SwapAssetRow({ asset, active, onClick }: { asset: SwapAsset; active?: b
 }
 
 function TokenAvatar({ asset, size }: { asset: SwapAsset; size: number }) {
-  // asset.ticker is the wallet's configured bitcoin unit for the BTC row
-  // ('sats'/'₿'), not a real ticker — resolve the logo from the asset id
-  // instead so the Bitcoin icon doesn't vanish when the unit isn't BTC
-  const tokenLogoTicker = asset.assetId === BTC_ASSET_ID ? 'BTC' : getTokenLogoTicker(asset.ticker)
+  const tokenLogoTicker = tokenLogoTickerForAsset(asset.assetId, asset.ticker)
   if (tokenLogoTicker) {
     return (
       <span className='swap-token-avatar' style={{ width: size, height: size }}>
@@ -1100,7 +1098,7 @@ function QuoteDetails({ quote, loading }: { quote: SwapQuote; loading: boolean }
     <div className='swap-detail-card'>
       <MetricRow
         label={<RateLabel />}
-        value={quote.toAsset ? `1 ${quote.fromAsset.ticker} = ${quote.rateLabel} ${quote.toAsset.ticker}` : 'Pending'}
+        value={quote.toAsset ? `1 ${quote.rateFromTicker} = ${quote.rateLabel} ${quote.rateToTicker}` : 'Pending'}
         loading={loading}
       />
     </div>
@@ -1202,18 +1200,22 @@ function buildQuoteFromPlan(
   const parsed = Number(amount) || 0
   const fromUsd = estimateSwapUsd(fromAsset)
   const toUsd = toAsset ? estimateSwapUsd(toAsset) : 0
-  // fromUsd/toUsd price per whole BTC, and the solver's plan.*.display are in
-  // the same whole-BTC scale, but BTC is always entered/shown in sats here —
-  // protocolToDisplayScale is the one conversion between the two.
-  const estimatedFromUnits =
+  const fromScale = protocolToDisplayScale(fromAsset)
+  const toScale = toAsset ? protocolToDisplayScale(toAsset) : 1
+  // fromUsd/toUsd price per whole protocol unit (whole BTC, not sats), same
+  // as the solver's plan.*.display — do the USD math and the rate in that
+  // scale, and only convert to sats for the on-screen amount labels below.
+  const estimatedFromUnitsProtocol =
     mode === 'fiat'
-      ? (assetUnitsFromFiatAmount(amount, fromAsset, unitOfAccountUsd) ?? 0)
-      : parsed / protocolToDisplayScale(fromAsset)
-  const fromUnits = plan ? Number(plan.deposit.display) * protocolToDisplayScale(fromAsset) : estimatedFromUnits
-  const received = plan && toAsset ? Number(plan.receive.display) * protocolToDisplayScale(toAsset) : 0
-  const selectedCurrencyAmount = unitOfAccountUsd > 0 ? (fromUnits * fromUsd) / unitOfAccountUsd : 0
-  const receivedCurrencyAmount = unitOfAccountUsd > 0 ? (received * toUsd) / unitOfAccountUsd : 0
-  const rate = fromUnits > 0 ? received / fromUnits : 0
+      ? (assetUnitsFromFiatAmount(amount, fromAsset, unitOfAccountUsd) ?? 0) / fromScale
+      : parsed / fromScale
+  const fromUnitsProtocol = plan ? Number(plan.deposit.display) : estimatedFromUnitsProtocol
+  const receivedProtocol = plan && toAsset ? Number(plan.receive.display) : 0
+  const fromUnits = fromUnitsProtocol * fromScale
+  const received = receivedProtocol * toScale
+  const selectedCurrencyAmount = unitOfAccountUsd > 0 ? (fromUnitsProtocol * fromUsd) / unitOfAccountUsd : 0
+  const receivedCurrencyAmount = unitOfAccountUsd > 0 ? (receivedProtocol * toUsd) / unitOfAccountUsd : 0
+  const rate = fromUnitsProtocol > 0 ? receivedProtocol / fromUnitsProtocol : 0
   const feeAmount = selectedCurrencyAmount * ((plan?.market.fee_bps ?? 0) / 10_000)
   const formatOptions = { bitcoinUnit }
 
@@ -1225,10 +1227,20 @@ function buildQuoteFromPlan(
     toAmount: prettyNumber(received, swapAmountDecimals(received)),
     toFiat: prettyFiatAmount(receivedCurrencyAmount, currency, formatOptions),
     feeFiat: prettyFiatAmount(feeAmount, currency, formatOptions),
+    // the rate is always quoted per whole BTC even though amounts display in
+    // sats — "1 sats = 0.0000006 USD" is technically correct but unreadable
+    rateFromTicker: protocolTicker(fromAsset),
+    rateToTicker: toAsset ? protocolTicker(toAsset) : '',
     rateLabel: prettyNumber(rate, swapAmountDecimals(rate)),
     fromFiatValue: selectedCurrencyAmount,
     toFiatValue: receivedCurrencyAmount,
   }
+}
+
+/** The asset's ticker for contexts where BTC must read as "BTC" rather than
+ * its swap-entry unit ("sats"/"₿") — quoted rates and token logos. */
+function protocolTicker(asset: SwapAsset): string {
+  return asset.assetId === BTC_ASSET_ID ? 'BTC' : asset.ticker
 }
 
 /** BTC is always entered/displayed in sats in the swap screen, but its USD
@@ -1262,7 +1274,6 @@ function amountForQuote(amount: string, fromAsset: SwapAsset): string {
 
 function swapValidationMessage({
   amount,
-  fromAsset,
   pairAvailable,
   plan,
   planError,
@@ -1270,7 +1281,6 @@ function swapValidationMessage({
   status,
 }: {
   amount: string
-  fromAsset: SwapAsset
   pairAvailable: boolean | undefined
   plan: OfferPlan | null
   planError: ReturnType<typeof validatePlan>
@@ -1288,14 +1298,25 @@ function swapValidationMessage({
     case 'side-disabled':
       return 'Swap unavailable for this pair'
     case 'below-min':
-      return `Minimum ${plan.limits.min?.display ?? ''} ${fromAsset.ticker}`.trim()
+      return formatLimitMessage('Minimum', plan.limits.min)
     case 'above-max':
-      return `Maximum ${plan.limits.max?.display ?? ''} ${fromAsset.ticker}`.trim()
+      return formatLimitMessage('Maximum', plan.limits.max)
     case 'below-dust':
       return 'Amount too small'
     default:
       return ''
   }
+}
+
+/** plan.limits bound the RECEIVE side (see validatePlan), in that asset's own
+ * protocol decimals — the limit's own `.asset` says which one, so this never
+ * has to guess or match against the give-side SwapAsset. */
+function formatLimitMessage(label: string, limit: OfferPlan['limits']['min']): string {
+  if (!limit) return ''
+  const isBtc = limit.asset.id === BTC_ASSET_ID
+  const value = Number(limit.display) * (isBtc ? 1e8 : 1)
+  const ticker = isBtc ? 'sats' : limit.asset.ticker
+  return `${label} ${prettyNumber(value, swapAmountDecimals(value))} ${ticker}`.trim()
 }
 
 function buildQuoteSnapshot(plan: OfferPlan, quote: SwapQuote, currency: Currencies): AssetSwapQuoteSnapshot {
@@ -1361,7 +1382,10 @@ function filterAssets(assets: SwapAsset[], query: string): SwapAsset[] {
   const normalized = query.trim().toLowerCase()
   if (!normalized) return assets
   return assets.filter((asset) => {
-    return asset.name.toLowerCase().includes(normalized) || asset.ticker.toLowerCase().includes(normalized)
+    // the BTC row's ticker is the display unit ('sats'/'₿'), not 'BTC' —
+    // let searching "btc" still find it
+    const searchableTicker = asset.assetId === BTC_ASSET_ID ? 'btc' : asset.ticker.toLowerCase()
+    return asset.name.toLowerCase().includes(normalized) || searchableTicker.includes(normalized)
   })
 }
 
@@ -1380,8 +1404,4 @@ function firstPositiveBalanceAsset(assets: SwapAsset[]): SwapAsset | undefined {
 function formatAssetBalance(asset: SwapAsset): string {
   const rawBalance = typeof asset.balance === 'bigint' ? asset.balance : BigInt(asset.balance)
   return `${prettyCurrencyAssetAmount(rawBalance, asset.decimals, asset.ticker)} ${asset.ticker}`
-}
-
-function getTokenLogoTicker(ticker: string | undefined) {
-  return tokenLogoTickerForTicker(ticker)
 }

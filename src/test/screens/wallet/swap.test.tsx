@@ -151,6 +151,15 @@ describe('Wallet swap flow', () => {
     expect(screen.queryByText('DEPIX')).not.toBeInTheDocument()
   })
 
+  it('finds Bitcoin when searching "btc", even though its swap-entry ticker is sats', async () => {
+    renderSwap()
+    expect(screen.getByText('Bitcoin')).toBeInTheDocument()
+
+    await userEvent.type(screen.getByPlaceholderText('Search assets'), 'btc')
+
+    expect(screen.getByText('Bitcoin')).toBeInTheDocument()
+  })
+
   it('opens directly with bitcoin selected when launched from bitcoin detail', () => {
     const setSwapFromAssetId = vi.fn()
     renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId } })
@@ -204,9 +213,15 @@ describe('Wallet swap flow', () => {
       await userEvent.click(screen.getByRole('button', { name: key }))
     }
 
+    // 10,000 sats at $100,000/BTC is €10 — not the €1,000,000,000 a leftover
+    // sats-scaled-then-multiplied-by-per-BTC-price bug would show here
+    await waitFor(() => expect(screen.getByText('€10.00')).toBeInTheDocument())
+
     const continueButton = screen.getByRole('button', { name: 'Continue' })
     await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
     fireEvent.click(continueButton)
+    // the review drawer's rate is quoted per whole BTC, not per satoshi
+    expect(screen.getByText(/^1 BTC = /)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
@@ -214,6 +229,8 @@ describe('Wallet swap flow', () => {
     expect(plan.deposit.atomic).toBe(BigInt(10_000))
     // 10_000 sats * 0.1 cents/sat * (10000 - 30)bps = 997 cents
     expect(plan.receive.atomic).toBe(BigInt(997))
+    // the persisted quote snapshot must carry the same correct fiat value
+    expect(createSwap.mock.calls[0][1]).toMatchObject({ fromFiatAmount: 10 })
   })
 
   it('types whole sats when the display unit is sats', async () => {

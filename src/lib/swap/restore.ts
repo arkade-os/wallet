@@ -136,14 +136,9 @@ export async function restoreAssetSwaps(
     const state = vtxo.virtualStatus.state
     const spentTxid = state === 'spent' ? (vtxo.arkTxId ?? vtxo.spentBy) : undefined
     const spendTx = spentTxid ? txByAnyId.get(spentTxid) : undefined
-    const status: AssetSwapStatus =
-      state === 'swept'
-        ? 'recoverable'
-        : state !== 'spent'
-          ? 'pending'
-          : spendTx && isCancelSpend(offer, spendTx)
-            ? 'cancelled'
-            : 'fulfilled'
+    let status: AssetSwapStatus = 'pending'
+    if (state === 'swept') status = 'recoverable'
+    else if (state === 'spent') status = spendTx && isCancelSpend(offer, spendTx) ? 'cancelled' : 'fulfilled'
 
     restored.push({
       id: fundingTx.redeemTxid,

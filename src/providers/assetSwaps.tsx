@@ -118,7 +118,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   const marketsRef = useRef(markets)
   marketsRef.current = markets
   const tickerFor = (assetId: string): string => {
-    if (assetId === BTC_ASSET_ID) return 'BTC'
+    if (assetId === BTC_ASSET_ID) return 'sats'
     for (const market of marketsRef.current) {
       if (market.quote_asset.id === assetId) return market.quote_asset.ticker
       if (market.base_asset.id === assetId) return market.base_asset.ticker

@@ -24,6 +24,18 @@ export function accountTickerForAssetTicker(ticker: string | undefined): WalletA
   return walletAccountTicker(ticker)
 }
 
+/** Resolves the token logo for an asset, treating the wallet's native 'btc'
+ * asset id as Bitcoin regardless of what string rides along as its ticker —
+ * the swap screen's BTC leg carries the display unit ('sats'/'₿'), not a
+ * real ticker, and would otherwise fall back to a lettered avatar. */
+export function tokenLogoTickerForAsset(
+  assetId: string | undefined,
+  ticker: string | undefined,
+): TokenLogoTicker | undefined {
+  if (assetId === 'btc') return 'BTC'
+  return tokenLogoTickerForTicker(ticker)
+}
+
 // A ticker only earns currency treatment (official logo, fiat-style formatting)
 // once its asset is trusted — self-reported tickers of unverified assets get none.
 export function trustedAssetTickers(

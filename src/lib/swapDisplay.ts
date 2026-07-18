@@ -65,11 +65,16 @@ export function swapPriceRateLabel(tx: Tx): string | undefined {
   if (fromAmount === undefined || toAmount === undefined || fromDecimals === undefined || toDecimals === undefined)
     return undefined
   if (fromAmount <= BigInt(0) || toAmount <= BigInt(0)) return undefined
-  const fromUnits = new Decimal(fromAmount.toString()).div(Decimal.pow(10, fromDecimals))
-  const toUnits = new Decimal(toAmount.toString()).div(Decimal.pow(10, toDecimals))
+  // BTC always displays in sats (0 decimals) elsewhere on the receipt, but a
+  // rate quoted per satoshi ("1 sats = 0.0000006 USD") is unreadable — quote
+  // it per whole BTC instead, same as the live composer's rate line.
+  const fromRateDecimals = swap.fromAssetId === 'btc' ? 8 : fromDecimals
+  const toRateDecimals = swap.toAssetId === 'btc' ? 8 : toDecimals
+  const fromUnits = new Decimal(fromAmount.toString()).div(Decimal.pow(10, fromRateDecimals))
+  const toUnits = new Decimal(toAmount.toString()).div(Decimal.pow(10, toRateDecimals))
   const rate = toUnits.div(fromUnits)
-  const fromTicker = walletAccountTicker(swap.fromTicker) ?? swap.fromTicker
-  const toTicker = walletAccountTicker(swap.toTicker) ?? swap.toTicker
+  const fromTicker = swap.fromAssetId === 'btc' ? 'BTC' : (walletAccountTicker(swap.fromTicker) ?? swap.fromTicker)
+  const toTicker = swap.toAssetId === 'btc' ? 'BTC' : (walletAccountTicker(swap.toTicker) ?? swap.toTicker)
   // deliberately a coarser 2-bucket precision than swapAmountDecimals — a
   // receipt only needs enough precision to eyeball, not display-grid parity
   return `1 ${fromTicker} = ${prettyNumber(rate, rate.lt(1) ? 8 : 2, true, 2)} ${toTicker}`
