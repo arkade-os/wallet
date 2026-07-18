@@ -24,7 +24,7 @@ import {
   prettyNumber,
 } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
-import { BTC_ASSET_ID, findMarket, QUOTE_OPTIONS, validatePlan } from '../../../lib/swap/markets'
+import { BTC_ASSET_ID, findMarket, makeCachedFeedFetch, QUOTE_OPTIONS, validatePlan } from '../../../lib/swap/markets'
 import { type AssetSwap, type AssetSwapQuoteSnapshot, type AssetSwapStatus } from '../../../lib/swap/store'
 import { Currencies, Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
@@ -202,8 +202,12 @@ export default function WalletSwap() {
     : undefined
   const unitOfAccountUsd = toFiatAmount(fromFiatAmount(1, config.currency), Currencies.USD)
   const pair = toAsset ? findMarket(markets, fromAsset.assetId, toAsset.assetId) : undefined
+  // per-mount cache: a burst of keystroke-debounced quotes reuses one feed
+  // value instead of getting rate-limited into "Quote unavailable"
+  const feedFetch = useMemo(() => makeCachedFeedFetch(), [])
   const { plan, setGiveAmount, solvable, status } = useOfferQuote(pair?.market ?? null, {
     give: pair?.give,
+    fetchImpl: feedFetch,
     ...QUOTE_OPTIONS,
   })
   const assetAmount = amountInAssetUnits(amount, amountMode, fromAsset, unitOfAccountUsd)

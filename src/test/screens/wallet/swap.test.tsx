@@ -264,6 +264,29 @@ describe('Wallet swap flow', () => {
     expect(createSwap.mock.calls[0][1].fromFiatAmount).toBeCloseTo(4.99, 2)
   })
 
+  it('reuses one cached feed value across quotes instead of refetching per keystroke', async () => {
+    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['1', '0', '0', '0', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled(), { timeout: 3_000 })
+
+    const feedCalls = () => fetchMocker.mock.calls.filter(([url]) => String(url).includes('coingecko')).length
+    const afterFirstQuote = feedCalls()
+    expect(afterFirstQuote).toBeGreaterThan(0)
+
+    // one more digit — a fresh debounced quote that must NOT hit the feed
+    // again, or a burst of typing gets rate-limited into "Quote unavailable"
+    await userEvent.click(screen.getByRole('button', { name: '0' }))
+    await waitFor(() => expect(screen.getByText('99.7 USD')).toBeInTheDocument(), { timeout: 3_000 })
+
+    expect(feedCalls()).toBe(afterFirstQuote)
+  })
+
   it('types whole sats when the display unit is sats', async () => {
     renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
 
