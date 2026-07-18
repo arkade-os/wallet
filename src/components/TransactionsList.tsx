@@ -212,7 +212,9 @@ const TransactionLine = ({
       ) : tx.assets?.length ? (
         <>
           <AssetInfo />
-          {config.currency === Currencies.BTC && accountValueSatoshis === undefined ? <Bitcoin /> : <Currency />}
+          {/* the sats on an asset transfer are just the data carrier — showing
+              them reads as a price for the asset, so only account values show */}
+          {accountValueSatoshis === undefined ? null : <Currency />}
         </>
       ) : (
         <>{config.currency === Currencies.BTC ? <Bitcoin /> : <Currency />}</>

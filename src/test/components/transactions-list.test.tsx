@@ -123,7 +123,7 @@ describe('TransactionsList', () => {
     expect(container.querySelectorAll('.swap-route-icon__fallback')).toHaveLength(2)
   })
 
-  it('falls back to the transaction amount when any asset lacks account pricing', () => {
+  it('hides the data-carrier value when any asset lacks account pricing', () => {
     const tx: Tx = {
       amount: 330,
       boardingTxid: '',
@@ -175,7 +175,8 @@ describe('TransactionsList', () => {
       </NavigationContext.Provider>,
     )
 
-    expect(screen.getByText('€3.30')).toBeInTheDocument()
+    // the 330 sats are just the asset's data carrier, not a price
+    expect(screen.queryByText('€3.30')).not.toBeInTheDocument()
     expect(screen.queryByText('€100.00')).not.toBeInTheDocument()
   })
 })
