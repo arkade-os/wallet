@@ -838,10 +838,11 @@ export default function SendForm() {
   // preselected via sendInfo.assets from the Assets app detail screen
   const verifiedAssetOptions = assetOptions.filter((asset) => isVerifiedAsset(asset.assetId))
 
+  // name only — the ticker already rides with the amounts on the right
   const assetLabelFor = (asset: AssetOption) =>
     accountAssetLabel(
       isVerifiedAsset(asset.assetId) ? designatedAccountCurrency(aspInfo.network, asset.assetId) : undefined,
-      asset,
+      { name: asset.name, ticker: '' },
     )
   const selectedAssetLabel = activeAsset ? assetLabelFor(activeAsset) : 'Bitcoin'
   const selectedAssetBalance = activeAsset

@@ -104,14 +104,14 @@ export function walletAssetLabel(presentation: { name: string; ticker: string })
 }
 
 /** Send-flow label: the currency account riding with the real asset identity,
- * e.g. "BRL ~ Decentralized Pix (DEPIX)". Without a designation it is just
+ * e.g. "BRL · Decentralized Pix (DEPIX)". Without a designation it is just
  * the asset's own label. */
 export function accountAssetLabel(
   currency: Currencies | undefined,
   presentation: { name: string; ticker: string },
 ): string {
   const label = walletAssetLabel(presentation)
-  return currency ? `${currency} ~ ${label}` : label
+  return currency ? `${currency} · ${label}` : label
 }
 
 export function fiatAccountAssetSatoshis(
