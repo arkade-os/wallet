@@ -7,6 +7,7 @@ import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { cancelOffer, createOffer, OFFER_PACKET_TYPE } from '../lib/swap/offer'
 import { BTC_ASSET_ID, discoverMarkets } from '../lib/swap/markets'
+import { getScannedTxids, markTxidsScanned, restoreAssetSwaps, unscannedSwapCandidates } from '../lib/swap/restore'
 import { addAssetSwap, AssetSwap, type AssetSwapQuoteSnapshot, getAssetSwaps, updateAssetSwap } from '../lib/swap/store'
 import { getEmulatorUrlForNetwork } from '../lib/constants'
 import { consoleError } from '../lib/logs'
@@ -40,7 +41,7 @@ export const AssetSwapsContext = createContext<AssetSwapsContextProps>({
 
 export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { svcWallet, reloadWallet } = useContext(WalletContext)
+  const { dataReady, svcWallet, reloadWallet, txs } = useContext(WalletContext)
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
   const [emulatorUrl, setEmulatorUrl] = useState<string>()
@@ -72,6 +73,39 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
       cancelled = true
     }
   }, [aspInfo.network])
+
+  // After a restore the swap store is empty while the funding/fill txs are
+  // back in history, so swaps would show as bare sent/received rows. Scan the
+  // sent virtual txs for offer packets and rebuild the lost records by
+  // binding each funding vtxo to the tx that spent it (fill or cancel). The
+  // scan is incremental — answered txids persist, so late-synced history is
+  // picked up by later runs and nothing is fetched twice.
+  const scanningRef = useRef(false)
+  useEffect(() => {
+    if (!aspInfo.url || !dataReady || txs.length === 0 || scanningRef.current) return
+    const existing = new Set(getAssetSwaps().map((s) => s.id))
+    const scanned = getScannedTxids()
+    if (unscannedSwapCandidates(txs, existing, scanned).length === 0) return
+    scanningRef.current = true
+    restoreAssetSwaps(new RestIndexerProvider(aspInfo.url), txs, existing, scanned)
+      .then(({ restored, scannedTxids }) => {
+        // a wallet reset may have wiped storage while the scan ran — never
+        // write the old profile's records into the cleared store
+        if (!localStorage.getItem('wallet')) return
+        markTxidsScanned(scannedTxids)
+        if (restored.length === 0) return
+        let next: AssetSwap[] | undefined
+        for (const swap of restored) next = addAssetSwap(swap)
+        if (next) setSwaps(next)
+        // re-merge the activity list so the tx couple collapses into Swap rows
+        reloadWallet().catch(consoleError)
+      })
+      .catch((err) => consoleError(err, 'swap restore scan failed'))
+      .finally(() => {
+        scanningRef.current = false
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aspInfo.url, dataReady, txs])
 
   // read through a ref so the monitor effect (which deliberately does not
   // rebind on market refreshes) always names assets from the current list
