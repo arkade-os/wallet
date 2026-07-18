@@ -91,8 +91,7 @@ describe('Wallet screen', () => {
     expect(screen.queryByText('USDT')).not.toBeInTheDocument()
   })
 
-  it('collapses unverified assets into the Other assets basket, opening the administration detail', async () => {
-    const user = userEvent.setup()
+  it('keeps unverified assets off the home screen entirely', () => {
     const navigate = vi.fn()
     const assetId = 'custom-asset'
 
@@ -122,9 +121,7 @@ describe('Wallet screen', () => {
     )
 
     expect(screen.queryByTestId(/^asset-row-TKN-/)).not.toBeInTheDocument()
-    expect(screen.getByText('1 unverified asset')).toBeInTheDocument()
-    await user.click(screen.getByTestId('asset-row-other-assets'))
-    await user.click(screen.getByTestId(/^asset-row-TKN-/))
-    expect(navigate).toHaveBeenCalledWith(Pages.AppAssetDetail)
+    expect(screen.queryByTestId('asset-row-other-assets')).not.toBeInTheDocument()
+    expect(navigate).not.toHaveBeenCalledWith(Pages.AppAssetDetail)
   })
 })

@@ -16,8 +16,8 @@ export default function AssetsSection() {
   const { isVerifiedAsset } = useContext(WalletContext)
 
   const { rows } = usePortfolioFiat()
-  // unverified assets are spoofable, so they live in the Digital Assets basket
-  // section instead of posing as accounts
+  // unverified assets are spoofable, so they never show on home at all —
+  // they stay manageable in the Arkade Mint app
   const accountRows = rows.filter((row) => row.assetId === 'btc' || isVerifiedAsset(row.assetId))
 
   const fiatLabel = (amount: number) => {
