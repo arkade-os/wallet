@@ -21,7 +21,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import Text from '../../../components/Text'
 import { isPendingChainSwap, isPendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { FeesContext } from '../../../providers/fees'
-import { accountAssetLabel, designatedAccountCurrency, rawAssetPresentation } from '../../../lib/accountAssets'
+import { accountAssetLabel, rawAssetPresentation, verifiedDesignatedCurrency } from '../../../lib/accountAssets'
 import { AspContext } from '../../../providers/asp'
 
 export default function SendDetails() {
@@ -42,10 +42,9 @@ export default function SendDetails() {
   const assetTicker = assetPresentation.ticker
   const assetName = assetPresentation.name
   const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 8
-  const designatedCurrency =
-    !sendInfo.account && assetId && isVerifiedAsset(assetId)
-      ? designatedAccountCurrency(aspInfo.network, assetId)
-      : undefined
+  const designatedCurrency = sendInfo.account
+    ? undefined
+    : verifiedDesignatedCurrency(aspInfo.network, assetId, isVerifiedAsset)
   const assetLabel = accountAssetLabel(designatedCurrency, assetPresentation)
   const assetAmountUnit = assetTicker || assetName
   const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)

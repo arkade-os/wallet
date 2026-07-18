@@ -15,7 +15,7 @@
 import { base64, hex } from '@scure/base'
 import { Extension, RestIndexerProvider, Transaction } from '@arkade-os/sdk'
 import { decodeOffer, Offer, OFFER_PACKET_TYPE } from './offer'
-import { getStorageItem } from '../storage'
+import { getStorageItem, setStorageItemSafely } from '../storage'
 import type { AssetSwap, AssetSwapStatus } from './store'
 import type { Tx } from '../types'
 
@@ -36,11 +36,8 @@ export const getScannedTxids = (): Set<string> =>
 export const markTxidsScanned = (txids: Iterable<string>): void => {
   const merged = getScannedTxids()
   for (const txid of txids) merged.add(txid)
-  try {
-    localStorage.setItem(SWAP_RESTORE_SCAN_KEY, JSON.stringify([...merged]))
-  } catch {
-    // persistence is an optimization; an unsaved set only means a re-scan
-  }
+  // persistence is an optimization; an unsaved set only means a re-scan
+  setStorageItemSafely(SWAP_RESTORE_SCAN_KEY, JSON.stringify([...merged]), 'failed to persist swap-scan progress')
 }
 
 /** The candidate txs a scan would fetch: sent virtual txs with no stored swap
@@ -79,18 +76,22 @@ export async function restoreAssetSwaps(
 
   // fetch the raw txs and pick out the ones carrying an offer packet, binding
   // by the PSBT's own unsigned txid rather than trusting response order; a
-  // failed chunk is simply not marked scanned and retries on a later scan
+  // failed chunk is simply not marked scanned and retries on a later scan.
+  // Chunks are independent requests, so fetch them all concurrently.
   const byTxid = new Map(candidates.map((tx) => [tx.redeemTxid, tx]))
+  const chunks: string[][] = []
+  for (let i = 0; i < candidates.length; i += TXS_PER_REQUEST) {
+    chunks.push(candidates.slice(i, i + TXS_PER_REQUEST).map((tx) => tx.redeemTxid))
+  }
+  const chunkResults = await Promise.allSettled(
+    chunks.map(async (txids) => ({ txids, psbts: (await indexer.getVirtualTxs(txids)).txs })),
+  )
+
   const fetchedTxids: string[] = []
   const found: { fundingTx: Tx; offer: Offer; offerHex: string }[] = []
-  for (let i = 0; i < candidates.length; i += TXS_PER_REQUEST) {
-    const txids = candidates.slice(i, i + TXS_PER_REQUEST).map((tx) => tx.redeemTxid)
-    let psbts: string[]
-    try {
-      psbts = (await indexer.getVirtualTxs(txids)).txs
-    } catch {
-      continue
-    }
+  for (const result of chunkResults) {
+    if (result.status !== 'fulfilled') continue
+    const { txids, psbts } = result.value
     fetchedTxids.push(...txids)
     for (const psbt of psbts) {
       try {
@@ -112,6 +113,14 @@ export async function restoreAssetSwaps(
   const scripts = [...new Set(found.map((f) => hex.encode(f.offer.swapPkScript)))]
   const { vtxos } = await indexer.getVtxos({ scripts })
 
+  // one O(txs) pass so each restored swap's spend lookup below is O(1)
+  const txByAnyId = new Map<string, Tx>()
+  for (const tx of txs) {
+    for (const id of [tx.boardingTxid, tx.redeemTxid, tx.roundTxid]) {
+      if (id) txByAnyId.set(id, tx)
+    }
+  }
+
   const restored: AssetSwap[] = []
   for (const { fundingTx, offer, offerHex } of found) {
     const swapPkScript = hex.encode(offer.swapPkScript)
@@ -126,9 +135,7 @@ export async function restoreAssetSwaps(
 
     const state = vtxo.virtualStatus.state
     const spentTxid = state === 'spent' ? (vtxo.arkTxId ?? vtxo.spentBy) : undefined
-    const spendTx = spentTxid
-      ? txs.find((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(spentTxid))
-      : undefined
+    const spendTx = spentTxid ? txByAnyId.get(spentTxid) : undefined
     const status: AssetSwapStatus =
       state === 'swept'
         ? 'recoverable'

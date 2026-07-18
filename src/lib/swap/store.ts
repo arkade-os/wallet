@@ -1,5 +1,4 @@
-import { getStorageItem } from '../storage'
-import { consoleError } from '../logs'
+import { getStorageItem, setStorageItemSafely } from '../storage'
 
 export type AssetSwapStatus = 'pending' | 'cancelling' | 'fulfilled' | 'cancelled' | 'recoverable'
 
@@ -50,11 +49,7 @@ export const getAssetSwaps = (): AssetSwap[] => {
 // persistence must never fail the caller: by the time a swap is stored the
 // funding tx is already broadcast, and the offer stays recoverable from it
 const saveAssetSwaps = (swaps: AssetSwap[]): void => {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(swaps))
-  } catch (err) {
-    consoleError(err, 'failed to persist asset swaps')
-  }
+  setStorageItemSafely(KEY, JSON.stringify(swaps), 'failed to persist asset swaps')
 }
 
 /** Prepend a swap; no-op if the id is already stored. */

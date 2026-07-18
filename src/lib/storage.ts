@@ -1,5 +1,6 @@
 import { AssetDetails } from '@arkade-os/sdk'
 import { Config, Wallet } from '../lib/types'
+import { consoleError } from './logs'
 
 // clear localStorage but persist config (with asset data reset)
 export async function clearStorage(): Promise<void> {
@@ -23,6 +24,16 @@ export const getStorageItem = <T>(key: string, fallback: T, parser: (val: string
 
 const setStorageItem = (key: string, value: string): void => {
   localStorage.setItem(key, value)
+}
+
+/** For non-critical persistence where a failed write (quota, private mode)
+ * should degrade silently rather than fail the caller. */
+export const setStorageItemSafely = (key: string, value: string, context: string): void => {
+  try {
+    setStorageItem(key, value)
+  } catch (err) {
+    consoleError(err, context)
+  }
 }
 
 export const saveConfigToStorage = (config: Config): void => {

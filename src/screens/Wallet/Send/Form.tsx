@@ -55,6 +55,7 @@ import {
   designatedAccountCurrency,
   normalizeAssetMinorUnits,
   rawAssetPresentation,
+  verifiedDesignatedCurrency,
 } from '../../../lib/accountAssets'
 import {
   DropdownMenu,
@@ -78,15 +79,15 @@ function AssetIcon({ asset }: { asset: AssetOption | null }) {
   const { isVerifiedAsset } = useContext(WalletContext)
   // official token logos are pinned to verified asset IDs, not self-reported
   // tickers; designated assets wear their currency account's flag
-  const currency =
-    asset && isVerifiedAsset(asset.assetId) ? designatedAccountCurrency(aspInfo.network, asset.assetId) : undefined
-  const tokenTicker = asset
-    ? currency
+  const verified = Boolean(asset) && isVerifiedAsset(asset!.assetId)
+  const currency = verified ? designatedAccountCurrency(aspInfo.network, asset!.assetId) : undefined
+  const tokenTicker = !asset
+    ? 'BTC'
+    : currency
       ? tokenLogoTickerForTicker(currency)
-      : isVerifiedAsset(asset.assetId)
+      : verified
         ? tokenLogoTickerForTicker(asset.ticker)
         : null
-    : 'BTC'
 
   if (tokenTicker) {
     return (
@@ -840,10 +841,10 @@ export default function SendForm() {
 
   // name only — the ticker already rides with the amounts on the right
   const assetLabelFor = (asset: AssetOption) =>
-    accountAssetLabel(
-      isVerifiedAsset(asset.assetId) ? designatedAccountCurrency(aspInfo.network, asset.assetId) : undefined,
-      { name: asset.name, ticker: '' },
-    )
+    accountAssetLabel(verifiedDesignatedCurrency(aspInfo.network, asset.assetId, isVerifiedAsset), {
+      name: asset.name,
+      ticker: '',
+    })
   const selectedAssetLabel = activeAsset ? assetLabelFor(activeAsset) : 'Bitcoin'
   const selectedAssetBalance = activeAsset
     ? `${prettyAssetAmount(activeAsset.balance, activeAsset.decimals)} ${activeAsset.ticker} available`

@@ -57,6 +57,16 @@ export function designatedAccountCurrency(network: string | undefined, assetId: 
   return network ? DESIGNATED_ACCOUNT_ASSETS[network]?.[assetId] : undefined
 }
 
+/** A designated currency only applies once its asset id is verified —
+ * otherwise anyone could mint a lookalike asset and claim the currency. */
+export function verifiedDesignatedCurrency(
+  network: string | undefined,
+  assetId: string | undefined,
+  isVerifiedAsset: (assetId: string) => boolean,
+): Currencies | undefined {
+  return assetId && isVerifiedAsset(assetId) ? designatedAccountCurrency(network, assetId) : undefined
+}
+
 export function accountChartColorToken(ticker: string | undefined): string {
   const accountTicker = walletAccountTicker(ticker)
   return accountTicker ? ACCOUNT_CHART_COLOR_TOKENS[accountTicker] : '--account-chart-default'

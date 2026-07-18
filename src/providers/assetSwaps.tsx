@@ -7,7 +7,7 @@ import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { cancelOffer, createOffer, OFFER_PACKET_TYPE } from '../lib/swap/offer'
 import { BTC_ASSET_ID, discoverMarkets } from '../lib/swap/markets'
-import { getScannedTxids, markTxidsScanned, restoreAssetSwaps, unscannedSwapCandidates } from '../lib/swap/restore'
+import { getScannedTxids, markTxidsScanned, restoreAssetSwaps } from '../lib/swap/restore'
 import { addAssetSwap, AssetSwap, type AssetSwapQuoteSnapshot, getAssetSwaps, updateAssetSwap } from '../lib/swap/store'
 import { getEmulatorUrlForNetwork } from '../lib/constants'
 import { consoleError } from '../lib/logs'
@@ -83,20 +83,23 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   const scanningRef = useRef(false)
   useEffect(() => {
     if (!aspInfo.url || !dataReady || txs.length === 0 || scanningRef.current) return
-    const existing = new Set(getAssetSwaps().map((s) => s.id))
-    const scanned = getScannedTxids()
-    if (unscannedSwapCandidates(txs, existing, scanned).length === 0) return
+    let cancelled = false
     scanningRef.current = true
-    restoreAssetSwaps(new RestIndexerProvider(aspInfo.url), txs, existing, scanned)
+    restoreAssetSwaps(
+      new RestIndexerProvider(aspInfo.url),
+      txs,
+      new Set(getAssetSwaps().map((s) => s.id)),
+      getScannedTxids(),
+    )
       .then(({ restored, scannedTxids }) => {
         // a wallet reset may have wiped storage while the scan ran — never
         // write the old profile's records into the cleared store
-        if (!localStorage.getItem('wallet')) return
+        if (cancelled) return
         markTxidsScanned(scannedTxids)
         if (restored.length === 0) return
-        let next: AssetSwap[] | undefined
+        let next: AssetSwap[] = []
         for (const swap of restored) next = addAssetSwap(swap)
-        if (next) setSwaps(next)
+        setSwaps(next)
         // re-merge the activity list so the tx couple collapses into Swap rows
         reloadWallet().catch(consoleError)
       })
@@ -104,6 +107,9 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
       .finally(() => {
         scanningRef.current = false
       })
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspInfo.url, dataReady, txs])
 

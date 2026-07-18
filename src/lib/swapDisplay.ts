@@ -70,6 +70,8 @@ export function swapPriceRateLabel(tx: Tx): string | undefined {
   const rate = toUnits.div(fromUnits)
   const fromTicker = walletAccountTicker(swap.fromTicker) ?? swap.fromTicker
   const toTicker = walletAccountTicker(swap.toTicker) ?? swap.toTicker
+  // deliberately a coarser 2-bucket precision than swapAmountDecimals — a
+  // receipt only needs enough precision to eyeball, not display-grid parity
   return `1 ${fromTicker} = ${prettyNumber(rate, rate.lt(1) ? 8 : 2, true, 2)} ${toTicker}`
 }
 
@@ -81,23 +83,21 @@ export function swapUnitOfAccountAmount({
   tx,
 }: SwapUnitOfAccountAmountOptions): SwapDisplayAmount | undefined {
   const swap = tx.assetSwap
-  const fiatAmount = swap?.fiatAmount
   const formatOptions = { bitcoinUnit }
 
-  if (fiatAmount !== undefined) {
-    const sourceCurrency = (swap?.fiatCurrency as Currencies | undefined) ?? Currencies.USD
-    const selectedCurrencyAmount = toFiatAmount(fromFiatAmount(fiatAmount, sourceCurrency), currency)
-    return {
-      masked: prettyFiatHide(selectedCurrencyAmount, currency, formatOptions),
-      value: prettyFiatAmount(selectedCurrencyAmount, currency, formatOptions),
-    }
+  let selectedCurrencyAmount: number
+  if (swap?.fiatAmount !== undefined) {
+    const sourceCurrency = (swap.fiatCurrency as Currencies | undefined) ?? Currencies.USD
+    selectedCurrencyAmount = toFiatAmount(fromFiatAmount(swap.fiatAmount, sourceCurrency), currency)
+  } else {
+    // restored swaps lost the quote-time snapshot: value the BTC leg at the
+    // current rate instead
+    const btcSats =
+      swap?.fromAssetId === 'btc' ? swap.fromAmount : swap?.toAssetId === 'btc' ? swap.toAmount : undefined
+    if (btcSats === undefined || btcSats <= BigInt(0)) return undefined
+    selectedCurrencyAmount = toFiatAmount(Number(btcSats), currency)
   }
 
-  // restored swaps lost the quote-time snapshot: value the BTC leg at the
-  // current rate instead
-  const btcSats = swap?.fromAssetId === 'btc' ? swap.fromAmount : swap?.toAssetId === 'btc' ? swap.toAmount : undefined
-  if (btcSats === undefined || btcSats <= BigInt(0)) return undefined
-  const selectedCurrencyAmount = toFiatAmount(Number(btcSats), currency)
   return {
     masked: prettyFiatHide(selectedCurrencyAmount, currency, formatOptions),
     value: prettyFiatAmount(selectedCurrencyAmount, currency, formatOptions),
