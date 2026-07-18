@@ -19,11 +19,9 @@ import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
 import { SwapsContext } from '../../../providers/swaps'
 import AssetCard from '../../../components/AssetCard'
-import { walletAssetPresentationForId } from '../../../lib/accountAssets'
+import { rawAssetPresentation } from '../../../lib/accountAssets'
 import { consoleError } from '../../../lib/logs'
 import { BoltzSwap, BoltzSwapStatus, hasSubmarineStatusReached, isSubmarineFailedStatus } from '@arkade-os/boltz-swap'
-import { AspContext } from '../../../providers/asp'
-import { AssetsContext } from '../../../providers/assets'
 
 type LnSendStatus = 'processing' | 'completed' | 'failed' | 'refunded'
 
@@ -47,8 +45,6 @@ const lnStatusUI: Record<LnSendStatus, { color: string; label: string }> = {
 }
 
 export default function SendSuccess() {
-  const { aspInfo } = useContext(AspContext)
-  const { isRegistered } = useContext(AssetsContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
   const { sendInfo } = useContext(FlowContext)
@@ -62,7 +58,7 @@ export default function SendSuccess() {
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const assetPresentation = sendInfo.account
     ? { name: sendInfo.account.ticker, ticker: sendInfo.account.ticker }
-    : walletAssetPresentationForId(aspInfo.network, assetId, isRegistered, assetMeta?.metadata, 'Unknown asset')
+    : rawAssetPresentation(assetMeta?.metadata, 'Unknown asset')
   const assetName = assetPresentation.name
   const assetTicker = assetPresentation.ticker
   const assetIcon = assetPresentation.icon

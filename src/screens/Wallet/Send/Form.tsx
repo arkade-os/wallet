@@ -43,14 +43,14 @@ import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 import { SwapsContext } from '../../../providers/swaps'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { centsToUnits, prettyAssetAmount, truncatedAssetId, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
 import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import TokenLogo, { tokenLogoTickerForTicker } from '../../../components/TokenLogo'
-import { normalizeAssetMinorUnits, walletAssetPresentationForId } from '../../../lib/accountAssets'
+import { normalizeAssetMinorUnits, rawAssetPresentation } from '../../../lib/accountAssets'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -224,13 +224,7 @@ export default function SendForm() {
             consoleError(err, `error fetching metadata for ${ab.assetId}`)
           }
         }
-        const presentation = walletAssetPresentationForId(
-          aspInfo.network,
-          ab.assetId,
-          isVerifiedAsset,
-          meta?.metadata,
-          `${ab.assetId.slice(0, 8)}...`,
-        )
+        const presentation = rawAssetPresentation(meta?.metadata, `${ab.assetId.slice(0, 8)}...`)
         options.push({
           assetId: ab.assetId,
           balance: ab.amount,
@@ -295,13 +289,7 @@ export default function SendForm() {
                 consoleError(err, `error fetching metadata for ${assetId}`)
               }
             }
-            const presentation = walletAssetPresentationForId(
-              aspInfo.network,
-              assetId,
-              isVerifiedAsset,
-              meta?.metadata,
-              `${assetId.slice(0, 8)}...`,
-            )
+            const presentation = rawAssetPresentation(meta?.metadata, `${assetId.slice(0, 8)}...`)
             found = {
               assetId,
               balance: BigInt(0),
@@ -1052,7 +1040,7 @@ export default function SendForm() {
                                   <span className='send-asset-option__name'>
                                     {asset.name} ({asset.ticker})
                                   </span>
-                                  <span className='send-asset-option__meta'>Tap to send this asset</span>
+                                  <span className='send-asset-option__meta'>{truncatedAssetId(asset.assetId)}</span>
                                 </span>
                               </span>
                               <span className='send-asset-option__amount'>

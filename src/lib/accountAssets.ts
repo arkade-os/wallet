@@ -62,6 +62,18 @@ export function accountChartColorToken(ticker: string | undefined): string {
   return accountTicker ? ACCOUNT_CHART_COLOR_TOKENS[accountTicker] : '--account-chart-default'
 }
 
+/** The asset's own name/ticker, with no account-currency mapping. */
+export function rawAssetPresentation(
+  metadata: { name?: string; ticker?: string; icon?: string } | undefined,
+  fallbackName = 'Asset',
+): { name: string; ticker: string; icon?: string } {
+  return {
+    name: metadata?.name ?? fallbackName,
+    ticker: metadata?.ticker?.trim().toUpperCase() ?? '',
+    icon: metadata?.icon,
+  }
+}
+
 export function walletAssetPresentation(
   metadata: { name?: string; ticker?: string; icon?: string } | undefined,
   fallbackName = 'Asset',
@@ -69,11 +81,7 @@ export function walletAssetPresentation(
   const accountTicker = walletAccountTicker(metadata?.ticker)
   if (accountTicker) return { name: accountTicker, ticker: accountTicker }
 
-  return {
-    name: metadata?.name ?? fallbackName,
-    ticker: metadata?.ticker?.trim().toUpperCase() ?? '',
-    icon: metadata?.icon,
-  }
+  return rawAssetPresentation(metadata, fallbackName)
 }
 
 export function walletAssetPresentationForId(

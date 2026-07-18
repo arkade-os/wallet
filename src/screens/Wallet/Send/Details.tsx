@@ -21,13 +21,9 @@ import { SwapsContext } from '../../../providers/swaps'
 import Text from '../../../components/Text'
 import { isPendingChainSwap, isPendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { FeesContext } from '../../../providers/fees'
-import { walletAssetLabel, walletAssetPresentationForId } from '../../../lib/accountAssets'
-import { AspContext } from '../../../providers/asp'
-import { AssetsContext } from '../../../providers/assets'
+import { rawAssetPresentation, walletAssetLabel } from '../../../lib/accountAssets'
 
 export default function SendDetails() {
-  const { aspInfo } = useContext(AspContext)
-  const { isRegistered } = useContext(AssetsContext)
   const { navigate } = useContext(NavigationContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
@@ -40,7 +36,7 @@ export default function SendDetails() {
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const assetPresentation = sendInfo.account
     ? { name: sendInfo.account.ticker, ticker: sendInfo.account.ticker }
-    : walletAssetPresentationForId(aspInfo.network, assetId, isRegistered, assetMeta?.metadata, assetId ?? 'Asset')
+    : rawAssetPresentation(assetMeta?.metadata, assetId ?? 'Asset')
   const assetTicker = assetPresentation.ticker
   const assetName = assetPresentation.name
   const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 8
@@ -63,6 +59,7 @@ export default function SendDetails() {
       const destination = arkAddress ?? ''
       const feeInSats = defaultFee
       setDetails({
+        assetId,
         destination,
         direction: 'Sending assets',
         fees: feeInSats,
