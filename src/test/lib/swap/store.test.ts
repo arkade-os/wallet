@@ -28,6 +28,16 @@ describe('asset swap store', () => {
     expect(getAssetSwaps().map((s) => s.id)).toEqual(['b', 'a'])
   })
 
+  it('returns swaps newest-first even when a restore scan inserted them out of order', () => {
+    // the restore scan rebuilds records in tx-scan order, so an older
+    // completed swap can be added after a newer pending one — the prepend
+    // alone would then bury the pending swap (and its Cancel button) at the
+    // bottom of the Your swaps list
+    addAssetSwap({ ...swap('newer-pending'), createdAt: 2_000 })
+    addAssetSwap({ ...swap('older-completed'), status: 'fulfilled', createdAt: 1_000 })
+    expect(getAssetSwaps().map((s) => s.id)).toEqual(['newer-pending', 'older-completed'])
+  })
+
   it('updates a swap by id', () => {
     addAssetSwap(swap('a'))
     updateAssetSwap('a', { status: 'fulfilled', spentTxid: 'txid' })
