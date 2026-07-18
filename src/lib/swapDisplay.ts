@@ -12,7 +12,6 @@ export interface SwapDisplayAmount {
 }
 
 interface SwapUnitOfAccountAmountOptions {
-  bitcoinUnit: Unit
   currency: Currencies
   fromFiatAmount: (amount: number, currency: Currencies) => number
   toFiatAmount: (satoshis: number, currency: Currencies) => number
@@ -81,14 +80,16 @@ export function swapPriceRateLabel(tx: Tx): string | undefined {
 }
 
 export function swapUnitOfAccountAmount({
-  bitcoinUnit,
   currency,
   fromFiatAmount,
   toFiatAmount,
   tx,
 }: SwapUnitOfAccountAmountOptions): SwapDisplayAmount | undefined {
   const swap = tx.assetSwap
-  const formatOptions = { bitcoinUnit }
+  // the swap screens always display BTC in sats, independent of the
+  // wallet-wide bitcoin-unit setting — even when that setting is itself the
+  // unit of account (currency === BTC)
+  const formatOptions = { bitcoinUnit: Unit.SATS }
 
   let selectedCurrencyAmount: number
   if (swap?.fiatAmount !== undefined) {

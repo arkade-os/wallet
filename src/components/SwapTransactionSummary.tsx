@@ -20,7 +20,6 @@ export default function SwapTransactionSummary({ fromIcon, toIcon, tx }: SwapTra
   if (!swap) return null
 
   const amount = swapUnitOfAccountAmount({
-    bitcoinUnit: config.unit,
     currency: config.currency,
     fromFiatAmount,
     toFiatAmount,

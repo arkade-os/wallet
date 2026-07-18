@@ -1,7 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useRef } from 'react'
 import { WalletContext } from '../providers/wallet'
-import { Currencies, Tx, Unit } from '../lib/types'
+import { Currencies, Tx } from '../lib/types'
 import {
   isBurn,
   isIssuance,
@@ -203,7 +203,6 @@ const TransactionLine = ({
     <div className='activity-row__right'>
       {swap ? (
         <SwapAmountInfo
-          bitcoinUnit={config.unit}
           configFiat={config.currency}
           fromFiatAmount={fromFiatAmount}
           toFiatAmount={toFiatAmount}
@@ -235,13 +234,11 @@ const TransactionLine = ({
 }
 
 function SwapAmountInfo({
-  bitcoinUnit,
   configFiat,
   fromFiatAmount,
   toFiatAmount,
   tx,
 }: {
-  bitcoinUnit: Unit
   configFiat: Currencies
   fromFiatAmount: (amount: number, currency: Currencies) => number
   toFiatAmount: (satoshis: number, currency: Currencies) => number
@@ -249,7 +246,6 @@ function SwapAmountInfo({
 }) {
   const status = swapStatusForTx(tx)
   const amount = swapUnitOfAccountAmount({
-    bitcoinUnit,
     currency: configFiat,
     fromFiatAmount,
     toFiatAmount,

@@ -12,7 +12,7 @@ import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import type { AssetSwap } from '../../../lib/swap/store'
-import { Unit } from '../../../lib/types'
+import { Currencies, Unit } from '../../../lib/types'
 import {
   mockAspContextValue,
   mockConfigContextValue,
@@ -292,6 +292,22 @@ describe('Wallet swap flow', () => {
   it('shows the Bitcoin logo in the swap picker even when the display unit is sats', () => {
     const { container } = renderSwap({ config: { unit: Unit.SATS } })
     expect(container.querySelector('circle[fill="var(--orange-500)"]')).toBeInTheDocument()
+  })
+
+  it('always shows the swap amount in sats, even when the wallet currency and display unit are both BTC', async () => {
+    const { container } = renderSwap({
+      config: { currency: Currencies.BTC, unit: Unit.BTC },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+    })
+
+    // default entry mode is 'fiat' — with currency set to BTC that's a
+    // bitcoin-denominated amount, which must still render as sats, not BTC
+    for (const key of ['1', '0', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    const amountLabel = container.querySelector('.swap-amount-display .swap-amount-value')?.getAttribute('aria-label')
+    expect(amountLabel).toMatch(/ sats$/)
   })
 
   it('never assigns the same React key to two occurrences of the same letter in the amount label', async () => {

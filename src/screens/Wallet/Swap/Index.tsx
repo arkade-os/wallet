@@ -131,8 +131,10 @@ export default function WalletSwap() {
           ticker: 'sats',
           decimals: 0,
           balance: BigInt(availableSats),
+          // always sats — never varies by config.unit, even when config.currency
+          // is itself BTC (the wallet's unit-of-account)
           fiatText: bitcoinRow?.hasFiatPrice
-            ? prettyFiatAmount(bitcoinRow.fiatAmount, config.currency, { bitcoinUnit: config.unit })
+            ? prettyFiatAmount(bitcoinRow.fiatAmount, config.currency, { bitcoinUnit: Unit.SATS })
             : undefined,
           usdPrice: bitcoinRow
             ? estimateRowUsdPrice(bitcoinRow, config.currency, fromFiatAmount, toFiat, toFiatAmount)
@@ -149,7 +151,7 @@ export default function WalletSwap() {
         decimals: asset.decimals,
         balance: BigInt(owned?.amount ?? 0),
         fiatText: row?.hasFiatPrice
-          ? prettyFiatAmount(row.fiatAmount, config.currency, { bitcoinUnit: config.unit })
+          ? prettyFiatAmount(row.fiatAmount, config.currency, { bitcoinUnit: Unit.SATS })
           : undefined,
         icon: assetMetadataCache.get(asset.id)?.metadata?.icon,
         usdPrice: row ? estimateRowUsdPrice(row, config.currency, fromFiatAmount, toFiat, toFiatAmount) : 0,
@@ -160,7 +162,6 @@ export default function WalletSwap() {
     assetMetadataCache,
     availableSats,
     config.currency,
-    config.unit,
     fromFiatAmount,
     markets,
     rows,
@@ -224,9 +225,8 @@ export default function WalletSwap() {
     status,
   })
   const quote = useMemo(
-    () =>
-      buildQuoteFromPlan(plan, amount, amountMode, fromAsset, toAsset, unitOfAccountUsd, config.currency, config.unit),
-    [amount, amountMode, config.currency, config.unit, fromAsset, plan, toAsset, unitOfAccountUsd],
+    () => buildQuoteFromPlan(plan, amount, amountMode, fromAsset, toAsset, unitOfAccountUsd, config.currency),
+    [amount, amountMode, config.currency, fromAsset, plan, toAsset, unitOfAccountUsd],
   )
   const hasPositiveAmount = Number(amount) > 0
   const validationState: SwapValidationState =
@@ -446,7 +446,6 @@ export default function WalletSwap() {
                     amount={amount}
                     amountMode={amountMode}
                     currency={config.currency}
-                    bitcoinUnit={config.unit}
                     quote={quote}
                     fromAsset={fromAsset}
                     toAsset={toAsset}
@@ -634,7 +633,6 @@ function SwapComposer({
   amount,
   amountMode,
   currency,
-  bitcoinUnit,
   quote,
   fromAsset,
   toAsset,
@@ -651,7 +649,6 @@ function SwapComposer({
   amount: string
   amountMode: AmountMode
   currency: Currencies
-  bitcoinUnit: Unit
   quote: SwapQuote
   fromAsset: SwapAsset
   toAsset?: SwapAsset
@@ -667,7 +664,7 @@ function SwapComposer({
 }) {
   const prefersReduced = useReducedMotion()
   const amountLabel =
-    amountMode === 'fiat' ? formatCurrencyInputAmount(amount, currency, bitcoinUnit) : `${amount} ${fromAsset.ticker}`
+    amountMode === 'fiat' ? formatCurrencyInputAmount(amount, currency) : `${amount} ${fromAsset.ticker}`
   const subAmountLabel = amountMode === 'fiat' ? `${quote.fromAmount} ${fromAsset.ticker}` : quote.fromFiat
   const nextAmountModeLabel = amountMode === 'fiat' ? 'asset amount' : `${currency} amount`
   const validationMessage = validationText
@@ -1195,7 +1192,6 @@ function buildQuoteFromPlan(
   toAsset: SwapAsset | undefined,
   unitOfAccountUsd: number,
   currency: Currencies,
-  bitcoinUnit: Unit,
 ): SwapQuote {
   const parsed = Number(amount) || 0
   const fromUsd = estimateSwapUsd(fromAsset)
@@ -1217,7 +1213,9 @@ function buildQuoteFromPlan(
   const receivedCurrencyAmount = unitOfAccountUsd > 0 ? (receivedProtocol * toUsd) / unitOfAccountUsd : 0
   const rate = fromUnitsProtocol > 0 ? receivedProtocol / fromUnitsProtocol : 0
   const feeAmount = selectedCurrencyAmount * ((plan?.market.fee_bps ?? 0) / 10_000)
-  const formatOptions = { bitcoinUnit }
+  // always sats — never varies by config.unit, even when the unit of account
+  // (currency) is itself BTC
+  const formatOptions = { bitcoinUnit: Unit.SATS }
 
   return {
     fromAsset,
@@ -1334,11 +1332,13 @@ function buildQuoteSnapshot(plan: OfferPlan, quote: SwapQuote, currency: Currenc
   }
 }
 
-function formatCurrencyInputAmount(amount: string, currency: Currencies, bitcoinUnit: Unit): string {
+function formatCurrencyInputAmount(amount: string, currency: Currencies): string {
   const normalized = amount || '0'
   const fractionDigits = normalized.includes('.') ? (normalized.split('.')[1]?.length ?? 0) : 0
+  // always sats — never varies by config.unit, even when the unit of account
+  // (currency) is itself BTC
   const parts = formatFiatAmountParts(Number(normalized) || 0, currency, {
-    bitcoinUnit,
+    bitcoinUnit: Unit.SATS,
     maximumFractionDigits: fractionDigits,
     minimumFractionDigits: fractionDigits,
   })
