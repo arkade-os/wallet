@@ -318,6 +318,8 @@ describe('Transaction screen', () => {
         fiatAmount: 100,
         feeBps: 30,
         status: 'completed' as const,
+        fundingTxid: 'funding-txid',
+        fillTxid: 'fill-txid',
       },
       roundTxid: 'fill-txid',
       settled: true,
@@ -358,12 +360,16 @@ describe('Transaction screen', () => {
     expect(screen.getByText('$100.00')).toBeInTheDocument()
     expect(screen.getByTestId('From')).toHaveTextContent('123.45 ALP')
     expect(screen.getByTestId('To')).toHaveTextContent('67.89 BET')
-    expect(screen.getAllByText('Completed')).toHaveLength(1)
-    expect(screen.getByText('Asset swap')).toBeInTheDocument()
-    expect(screen.getByTestId('Transaction ID')).toHaveTextContent('fill-txid')
+    expect(screen.getByTestId('Status')).toHaveTextContent('Completed')
+    expect(screen.getByTestId('Type')).toHaveTextContent('Swap')
+    expect(screen.getByTestId('Funded')).toHaveTextContent('funding-txid')
+    expect(screen.getByTestId('Completed')).toHaveTextContent('fill-txid')
+    expect(screen.queryByTestId('Transaction ID')).not.toBeInTheDocument()
     expect(screen.queryByText('Direction')).not.toBeInTheDocument()
     expect(screen.queryByText('Amount')).not.toBeInTheDocument()
-    expect(screen.getByTestId('Network fees')).toHaveTextContent('0.3%')
+    expect(screen.getByTestId('Price rate')).toHaveTextContent('1 ALP = 0.5499')
+    expect(screen.getByTestId('Network fees')).toHaveTextContent('$0.00')
+    expect(screen.getByTestId('Swap fees')).toHaveTextContent('0.3%')
     expect(screen.queryByText('Total')).not.toBeInTheDocument()
   })
 

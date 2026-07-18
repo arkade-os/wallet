@@ -1,4 +1,5 @@
-import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyFiatHide, prettyHide } from './format'
+import Decimal from 'decimal.js'
+import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyFiatHide, prettyHide, prettyNumber } from './format'
 import { designatedAccountCurrency, walletAccountTicker } from './accountAssets'
 import { getAssetSwaps } from './swap/store'
 import { Currencies, Tx, Unit } from './types'
@@ -55,6 +56,23 @@ export function formatSwapAssetAmount(tx: Tx, side: 'from' | 'to'): SwapDisplayA
   }
 }
 
+/** Rate the covenant enforced: receive-asset units bought by one unit of the
+ * sent asset, recomputed from the stored atomic amounts. */
+export function swapPriceRateLabel(tx: Tx): string | undefined {
+  const swap = tx.assetSwap
+  if (!swap) return undefined
+  const { fromAmount, fromDecimals, toAmount, toDecimals } = swap
+  if (fromAmount === undefined || toAmount === undefined || fromDecimals === undefined || toDecimals === undefined)
+    return undefined
+  if (fromAmount <= BigInt(0) || toAmount <= BigInt(0)) return undefined
+  const fromUnits = new Decimal(fromAmount.toString()).div(Decimal.pow(10, fromDecimals))
+  const toUnits = new Decimal(toAmount.toString()).div(Decimal.pow(10, toDecimals))
+  const rate = toUnits.div(fromUnits)
+  const fromTicker = walletAccountTicker(swap.fromTicker) ?? swap.fromTicker
+  const toTicker = walletAccountTicker(swap.toTicker) ?? swap.toTicker
+  return `1 ${fromTicker} = ${prettyNumber(rate, rate.lt(1) ? 8 : 2, true, 2)} ${toTicker}`
+}
+
 export function swapUnitOfAccountAmount({
   bitcoinUnit,
   currency,
@@ -75,8 +93,15 @@ export function swapUnitOfAccountAmount({
   }
 }
 
-/** Collapse the funding and fill wallet rows into one persisted swap activity. */
-export const mergeAssetSwapActivity = (txs: Tx[], swaps = getAssetSwaps(), network?: string): Tx[] => {
+/** Collapse the funding and fill wallet rows into one persisted swap activity.
+ * Display facts are recomputed from the tx couple and asset metadata where
+ * possible; the quote snapshot only fills what cannot be recomputed. */
+export const mergeAssetSwapActivity = (
+  txs: Tx[],
+  swaps = getAssetSwaps(),
+  network?: string,
+  assetDisplay?: (assetId: string) => { ticker?: string; decimals?: number } | undefined,
+): Tx[] => {
   const claimed = new Set<Tx>()
   const activities = swaps.map<Tx>((swap) => {
     const members = txs.filter((tx) => {
@@ -102,8 +127,11 @@ export const mergeAssetSwapActivity = (txs: Tx[], swaps = getAssetSwaps(), netwo
       swap.toAsset === 'btc' && fill?.amount && fill.amount > 0
         ? BigInt(fill.amount)
         : (receivedAsset?.amount ?? BigInt(swap.toAmount))
-    const fallbackTicker = (assetId: string) =>
-      assetId === 'btc' ? 'BTC' : (designatedAccountCurrency(network, assetId) ?? assetId.slice(0, 8))
+    const derivedTicker = (assetId: string) =>
+      assetId === 'btc'
+        ? 'BTC'
+        : (assetDisplay?.(assetId)?.ticker ?? designatedAccountCurrency(network, assetId) ?? assetId.slice(0, 8))
+    const derivedDecimals = (assetId: string) => (assetId === 'btc' ? 8 : assetDisplay?.(assetId)?.decimals)
     return {
       amount: members[0]?.amount ?? 0,
       boardingTxid: '',
@@ -116,16 +144,18 @@ export const mergeAssetSwapActivity = (txs: Tx[], swaps = getAssetSwaps(), netwo
       type: 'swap',
       assetSwap: {
         fromAssetId: swap.fromAsset,
-        fromTicker: quote?.fromTicker ?? fallbackTicker(swap.fromAsset),
-        fromDecimals: quote?.fromDecimals,
+        fromTicker: quote?.fromTicker ?? derivedTicker(swap.fromAsset),
+        fromDecimals: quote?.fromDecimals ?? derivedDecimals(swap.fromAsset),
         fromAmount: BigInt(swap.fromAmount),
         toAssetId: swap.toAsset,
-        toTicker: quote?.toTicker ?? fallbackTicker(swap.toAsset),
-        toDecimals: quote?.toDecimals,
+        toTicker: quote?.toTicker ?? derivedTicker(swap.toAsset),
+        toDecimals: quote?.toDecimals ?? derivedDecimals(swap.toAsset),
         toAmount: receivedAmount,
         fiatAmount: quote?.fromFiatAmount,
         fiatCurrency: quote?.fiatCurrency,
         feeBps: quote?.feeBps,
+        fundingTxid: swap.fundingTxid,
+        fillTxid: swap.status === 'fulfilled' || swap.status === 'cancelled' ? swap.spentTxid : undefined,
         status,
       },
     }

@@ -451,7 +451,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         updateConfig({ ...config, apps: { ...config.apps, assets: { enabled: true } } })
       }
       setVtxos(vtxos)
-      setTxs(mergeAssetSwapActivity(txs, undefined, aspInfo.network))
+      setTxs(
+        mergeAssetSwapActivity(txs, undefined, aspInfo.network, (id) => assetMetadataCache.current.get(id)?.metadata),
+      )
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
         setDataReady(true)

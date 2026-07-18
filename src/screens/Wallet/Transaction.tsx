@@ -25,7 +25,7 @@ import Reminder from '../../components/Reminder'
 import { LimitsContext } from '../../providers/limits'
 import { getInputsToSettle } from '../../lib/asp'
 import SwapTransactionSummary from '../../components/SwapTransactionSummary'
-import { formatSwapAssetAmount, swapStatusLabel } from '../../lib/swapDisplay'
+import { formatSwapAssetAmount, swapPriceRateLabel, swapStatusLabel } from '../../lib/swapDisplay'
 import { FiatContext } from '../../providers/fiat'
 import { designatedAccountCurrency, fiatAccountAssetSatoshis } from '../../lib/accountAssets'
 import UnverifiedBadge from '../../components/UnverifiedBadge'
@@ -135,15 +135,19 @@ export default function Transaction() {
   const details: DetailsProps = swapTx
     ? {
         date,
-        feesLabel:
-          tx.assetSwap?.feeBps === undefined
-            ? 'Not available'
-            : `${prettyCurrencyAssetAmount(BigInt(tx.assetSwap.feeBps), 2, '')}%`,
+        fees: 0,
+        fundedTxid: tx.assetSwap?.fundingTxid,
+        priceRate: swapPriceRateLabel(tx),
+        spendLabel: tx.assetSwap?.status === 'cancelled' ? 'Cancelled' : 'Completed',
+        spendTxid: tx.assetSwap?.fillTxid,
         status: swapStatusLabel(tx),
+        swapFees:
+          tx.assetSwap?.feeBps === undefined
+            ? undefined
+            : `${prettyCurrencyAssetAmount(BigInt(tx.assetSwap.feeBps), 2, '')}%`,
         swapFrom: formatSwapAssetAmount(tx, 'from'),
         swapTo: formatSwapAssetAmount(tx, 'to'),
-        txid,
-        type: 'Asset swap',
+        type: 'Swap',
         wallet,
         when,
       }

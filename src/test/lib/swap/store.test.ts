@@ -88,6 +88,8 @@ describe('asset swap store', () => {
         feeBps: 30,
         fiatAmount: 100,
         status: 'completed',
+        fundingTxid: 'funding-txid',
+        fillTxid: 'fill-txid',
       },
     })
     expect(activity[1]).toBe(unrelated)

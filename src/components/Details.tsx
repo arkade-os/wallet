@@ -35,10 +35,15 @@ export interface DetailsProps {
   expiry?: string
   fees?: number
   feesLabel?: string
+  fundedTxid?: string
   invoice?: string
   isOffchainTx?: boolean
+  priceRate?: string
   satoshis?: number
+  spendLabel?: string
+  spendTxid?: string
   status?: string
+  swapFees?: string
   swapFrom?: SwapDisplayAmount
   swapId?: string
   swapTo?: SwapDisplayAmount
@@ -66,10 +71,15 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     expiry,
     fees,
     feesLabel,
+    fundedTxid,
     invoice,
     isOffchainTx,
+    priceRate,
     satoshis,
+    spendLabel,
+    spendTxid,
     status,
+    swapFees,
     swapFrom,
     swapId,
     swapTo,
@@ -112,6 +122,10 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
   // Hide offchain tx link if vmempool URL not configured for this network
   const showTxidLink = txidOnClick && (!isOffchainTx || getOffchainTxURL(txid ?? '', wallet!))
 
+  // Swap legs are Arkade virtual transactions, so always link to the arkade explorer
+  const offchainTxOnClick = (id?: string) =>
+    wallet && id && getOffchainTxURL(id, wallet) ? () => openOffchainTxInNewTab(id, wallet) : undefined
+
   const assetIdOnClick =
     wallet && assetId && getAssetURL(assetId, wallet)
       ? () => {
@@ -127,6 +141,8 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ['Invoice', invoice, <TypeIcon key='invoice-icon' />],
     ['Swap ID', swapId, <InfoIcon key='swap-id-icon' />],
     ['Destination', destination, <TypeIcon key='destination-icon' />],
+    ['Funded', fundedTxid, <HashIcon key='funded-icon' />, offchainTxOnClick(fundedTxid)],
+    [spendLabel ?? 'Completed', spendTxid, <HashIcon key='spend-icon' />, offchainTxOnClick(spendTxid)],
     ['Transaction ID', txid || txidLabel, <HashIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
     ['Asset ID', assetId, <InfoIcon key='asset-id-icon' />, assetIdOnClick],
     ['Direction', direction, <DirectionIcon key='direction-icon' />],
@@ -136,7 +152,9 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ['Date', date, <DateIcon key='date-icon' />],
     ['Expiry', expiry, <DateIcon key='expiry-icon' />],
     ['Amount', formatAmount(satoshis), <AmountIcon key='amount-icon' />],
+    ['Price rate', priceRate, <ArrowUpDownIcon key='price-rate-icon' />],
     ['Network fees', fees === undefined ? feesLabel : formatAmount(fees), <FeesIcon key='fees-icon' />],
+    ['Swap fees', swapFees, <FeesIcon key='swap-fees-icon' />],
     ['Total', formatAmount(total), <TotalIcon key='total-icon' />],
   ]
 

@@ -114,6 +114,8 @@ export type Tx = {
     status?: 'pending' | 'failed' | 'completed' | 'cancelled' | 'recoverable'
     feeBps?: number
     fiatCurrency?: string
+    fundingTxid?: string
+    fillTxid?: string
   }
 }
 
