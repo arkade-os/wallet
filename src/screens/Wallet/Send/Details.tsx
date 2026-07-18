@@ -21,16 +21,18 @@ import { SwapsContext } from '../../../providers/swaps'
 import Text from '../../../components/Text'
 import { isPendingChainSwap, isPendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { FeesContext } from '../../../providers/fees'
-import { rawAssetPresentation, walletAssetLabel } from '../../../lib/accountAssets'
+import { accountAssetLabel, designatedAccountCurrency, rawAssetPresentation } from '../../../lib/accountAssets'
+import { AspContext } from '../../../providers/asp'
 
 export default function SendDetails() {
+  const { aspInfo } = useContext(AspContext)
   const { navigate } = useContext(NavigationContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { payInvoice, payBtc } = useContext(SwapsContext)
-  const { assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, balance, isVerifiedAsset, svcWallet } = useContext(WalletContext)
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
@@ -40,7 +42,11 @@ export default function SendDetails() {
   const assetTicker = assetPresentation.ticker
   const assetName = assetPresentation.name
   const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 8
-  const assetLabel = walletAssetLabel(assetPresentation)
+  const designatedCurrency =
+    !sendInfo.account && assetId && isVerifiedAsset(assetId)
+      ? designatedAccountCurrency(aspInfo.network, assetId)
+      : undefined
+  const assetLabel = accountAssetLabel(designatedCurrency, assetPresentation)
   const assetAmountUnit = assetTicker || assetName
   const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
 

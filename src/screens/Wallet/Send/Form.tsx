@@ -50,7 +50,12 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import TokenLogo, { tokenLogoTickerForTicker } from '../../../components/TokenLogo'
-import { normalizeAssetMinorUnits, rawAssetPresentation } from '../../../lib/accountAssets'
+import {
+  accountAssetLabel,
+  designatedAccountCurrency,
+  normalizeAssetMinorUnits,
+  rawAssetPresentation,
+} from '../../../lib/accountAssets'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,9 +74,19 @@ const brantaClient = new BrantaService({
 })
 
 function AssetIcon({ asset }: { asset: AssetOption | null }) {
+  const { aspInfo } = useContext(AspContext)
   const { isVerifiedAsset } = useContext(WalletContext)
-  // official token logos are pinned to verified asset IDs, not self-reported tickers
-  const tokenTicker = asset ? (isVerifiedAsset(asset.assetId) ? tokenLogoTickerForTicker(asset.ticker) : null) : 'BTC'
+  // official token logos are pinned to verified asset IDs, not self-reported
+  // tickers; designated assets wear their currency account's flag
+  const currency =
+    asset && isVerifiedAsset(asset.assetId) ? designatedAccountCurrency(aspInfo.network, asset.assetId) : undefined
+  const tokenTicker = asset
+    ? currency
+      ? tokenLogoTickerForTicker(currency)
+      : isVerifiedAsset(asset.assetId)
+        ? tokenLogoTickerForTicker(asset.ticker)
+        : null
+    : 'BTC'
 
   if (tokenTicker) {
     return (
@@ -823,7 +838,12 @@ export default function SendForm() {
   // preselected via sendInfo.assets from the Assets app detail screen
   const verifiedAssetOptions = assetOptions.filter((asset) => isVerifiedAsset(asset.assetId))
 
-  const selectedAssetLabel = activeAsset ? `${activeAsset.name} (${activeAsset.ticker})` : 'Bitcoin'
+  const assetLabelFor = (asset: AssetOption) =>
+    accountAssetLabel(
+      isVerifiedAsset(asset.assetId) ? designatedAccountCurrency(aspInfo.network, asset.assetId) : undefined,
+      asset,
+    )
+  const selectedAssetLabel = activeAsset ? assetLabelFor(activeAsset) : 'Bitcoin'
   const selectedAssetBalance = activeAsset
     ? `${prettyAssetAmount(activeAsset.balance, activeAsset.decimals)} ${activeAsset.ticker} available`
     : `${
@@ -1037,9 +1057,7 @@ export default function SendForm() {
                               <span className='send-asset-option__main'>
                                 <AssetIcon asset={asset} />
                                 <span>
-                                  <span className='send-asset-option__name'>
-                                    {asset.name} ({asset.ticker})
-                                  </span>
+                                  <span className='send-asset-option__name'>{assetLabelFor(asset)}</span>
                                   <span className='send-asset-option__meta'>{truncatedAssetId(asset.assetId)}</span>
                                 </span>
                               </span>
