@@ -657,6 +657,18 @@ iframe {
   padding: 0.875rem 1rem;
 }
 
+/* the unverified-assets basket row: slightly bigger and more padded than
+   the account rows it sits between */
+.asset-card--basket {
+  min-height: 4.75rem;
+  padding: 1.125rem 1.25rem;
+}
+
+.asset-card--basket .asset-card__name {
+  font-size: var(--text-lg-size);
+  line-height: var(--text-lg-line);
+}
+
 .asset-card--interactive {
   cursor: pointer;
   touch-action: manipulation;

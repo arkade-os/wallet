@@ -8,9 +8,9 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import { FlowContext } from '../../providers/flow'
 import { WalletContext } from '../../providers/wallet'
 
-/** Basket for unverified assets: they are spoofable, so they share one
- * expandable row below the activity feed instead of posing as accounts. */
-export default function OtherAssetsSection() {
+/** Unverified assets are spoofable, so they never pose as accounts: they live
+ * in their own section behind one expandable basket row. */
+export default function DigitalAssetsSection() {
   const { setAssetInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { isVerifiedAsset } = useContext(WalletContext)
@@ -29,6 +29,9 @@ export default function OtherAssetsSection() {
 
   return (
     <section className='home-section'>
+      <div className='flex w-full items-center justify-between px-1'>
+        <span className='home-section-label'>Digital Assets</span>
+      </div>
       <div className='home-section__content'>
         <div
           role='button'
@@ -41,13 +44,13 @@ export default function OtherAssetsSection() {
             toggle()
           }}
           data-testid='asset-row-other-assets'
-          className='asset-card asset-card--interactive'
+          className='asset-card asset-card--interactive asset-card--basket'
           style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
         >
           <div className='asset-card__identity'>
-            <AssetAvatar ticker='?' name='Other assets' size={36} />
+            <AssetAvatar ticker='?' name='Other digital assets' size={36} />
             <div className='asset-card__copy'>
-              <span className='asset-card__name'>Other assets</span>
+              <span className='asset-card__name'>Other digital assets</span>
               <span className='asset-card__balance'>
                 {otherRows.length} unverified {otherRows.length === 1 ? 'asset' : 'assets'}
               </span>

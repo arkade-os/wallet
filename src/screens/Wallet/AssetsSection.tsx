@@ -16,8 +16,8 @@ export default function AssetsSection() {
   const { isVerifiedAsset } = useContext(WalletContext)
 
   const { rows } = usePortfolioFiat()
-  // unverified assets are spoofable, so they live in the Other assets basket
-  // below the activity feed instead of posing as accounts
+  // unverified assets are spoofable, so they live in the Digital Assets basket
+  // section instead of posing as accounts
   const accountRows = rows.filter((row) => row.assetId === 'btc' || isVerifiedAsset(row.assetId))
 
   const fiatLabel = (amount: number) => {

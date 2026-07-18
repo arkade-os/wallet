@@ -21,7 +21,7 @@ import HomeHeader from './HomeHeader'
 import PortfolioHero from './PortfolioHero'
 import HomeQuickActions from './HomeQuickActions'
 import AssetsSection from './AssetsSection'
-import OtherAssetsSection from './OtherAssetsSection'
+import DigitalAssetsSection from './DigitalAssetsSection'
 import UpsellsSection from './UpsellsSection'
 import RecentActivitySection from './RecentActivitySection'
 import { usePortfolioBalanceDisplay } from '../../hooks/usePortfolioBalanceDisplay'
@@ -167,13 +167,13 @@ export default function Wallet() {
               <AssetsSection />
             </WalletStaggerChild>
             <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
+              <DigitalAssetsSection />
+            </WalletStaggerChild>
+            <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
               <UpsellsSection />
             </WalletStaggerChild>
             <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
               <RecentActivitySection />
-            </WalletStaggerChild>
-            <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
-              <OtherAssetsSection />
             </WalletStaggerChild>
             {psaMessage ? (
               <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
