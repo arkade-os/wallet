@@ -17,7 +17,7 @@ import { sleep } from '../../lib/sleep'
 import Text, { TextSecondary } from '../../components/Text'
 import AssetAvatar from '../../components/AssetAvatar'
 import Details, { DetailsProps } from '../../components/Details'
-import TokenLogo, { accountTickerForAssetTicker, tokenLogoTickerForTicker } from '../../components/TokenLogo'
+import TokenLogo, { tokenLogoTickerForTicker, trustedAssetTickers } from '../../components/TokenLogo'
 import VtxosIcon from '../../icons/Vtxos'
 import CheckMarkIcon from '../../icons/CheckMark'
 import { AspContext } from '../../providers/asp'
@@ -28,15 +28,15 @@ import SwapTransactionSummary from '../../components/SwapTransactionSummary'
 import { formatSwapAssetAmount, swapStatusLabel } from '../../lib/swapDisplay'
 import { FiatContext } from '../../providers/fiat'
 import { designatedAccountCurrency, fiatAccountAssetSatoshis } from '../../lib/accountAssets'
-import { AssetsContext } from '../../providers/assets'
+import UnverifiedBadge from '../../components/UnverifiedBadge'
 
 export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo } = useContext(FlowContext)
   const { fromFiatAmount } = useContext(FiatContext)
-  const { isRegistered } = useContext(AssetsContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { assetMetadataCache, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
+    useContext(WalletContext)
 
   const tx = txInfo
   const swapTx = tx?.type === 'swap'
@@ -101,7 +101,9 @@ export default function Transaction() {
 
   const accountAssetValues = tx.assets?.map((asset) => {
     const metadata = assetMetadataCache.get(asset.assetId)?.metadata
-    const currency = isRegistered(asset.assetId) ? designatedAccountCurrency(aspInfo.network, asset.assetId) : undefined
+    const currency = isVerifiedAsset(asset.assetId)
+      ? designatedAccountCurrency(aspInfo.network, asset.assetId)
+      : undefined
     return fiatAccountAssetSatoshis(BigInt(asset.amount), metadata?.decimals ?? 8, currency, fromFiatAmount)
   })
   const accountValueSatoshis =
@@ -120,6 +122,10 @@ export default function Transaction() {
           : 'Preconfirmed'
 
   const fees = tx.type === 'sent' ? defaultFee : 0
+  // on asset transfers tx.amount is just the dust carrying the asset — showing
+  // it as Amount/Total reads as a fiat price for the asset, so hide both rows
+  // unless the asset resolves to a designated account value
+  const assetTransfer = Boolean(tx.assets?.length)
   const accountTransferSatoshis = accountValueSatoshis === undefined ? undefined : Math.abs(accountValueSatoshis)
   const transferSatoshis = accountTransferSatoshis ?? (tx.type === 'sent' ? tx.amount - defaultFee : tx.amount)
   const when = tx.createdAt ? prettyAgo(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed'
@@ -147,9 +153,9 @@ export default function Transaction() {
         direction: issuanceTx ? 'Issuance' : burnTx ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received',
         fees,
         isOffchainTx: !tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
-        satoshis: transferSatoshis,
+        satoshis: accountTransferSatoshis ?? (assetTransfer ? undefined : transferSatoshis),
         status,
-        total: accountTransferSatoshis === undefined ? tx.amount : transferSatoshis + fees,
+        total: accountTransferSatoshis !== undefined ? transferSatoshis + fees : assetTransfer ? undefined : tx.amount,
         txid,
         type: boardingTx ? 'Boarding' : 'Offchain',
         wallet,
@@ -197,13 +203,13 @@ export default function Transaction() {
                 const name = meta?.name
                 const icon = meta?.icon
                 const decimals = meta?.decimals ?? 8
-                const designatedCurrency = isRegistered(a.assetId)
-                  ? designatedAccountCurrency(aspInfo.network, a.assetId)
-                  : undefined
-                const accountTicker = accountTickerForAssetTicker(designatedCurrency)
-                const label = accountTicker ?? name ?? `${a.assetId.slice(0, 8)}...`
-                const amountLabel = accountTicker ?? ticker
-                const tokenLogoTicker = tokenLogoTickerForTicker(accountTicker ?? ticker)
+                // only verified asset IDs get currency treatment for their ticker
+                const trusted = isVerifiedAsset(a.assetId)
+                const designatedCurrency = trusted ? designatedAccountCurrency(aspInfo.network, a.assetId) : undefined
+                const { accountTicker, trustedTicker } = trustedAssetTickers(designatedCurrency ?? ticker, trusted)
+                const label = accountTicker ?? trustedTicker ?? name ?? `${a.assetId.slice(0, 8)}...`
+                const amountLabel = accountTicker ?? trustedTicker
+                const tokenLogoTicker = tokenLogoTickerForTicker(trustedTicker)
                 return (
                   <div key={a.assetId} className='transaction-detail-asset'>
                     <span className='transaction-detail-asset__logo'>
@@ -216,6 +222,7 @@ export default function Transaction() {
                     <div className='transaction-detail-asset__copy'>
                       <span className='transaction-detail-asset__amount'>
                         {prettyCurrencyAssetAmount(BigInt(a.amount), decimals, amountLabel)} {label}
+                        {!trusted ? <UnverifiedBadge /> : null}
                       </span>
                       {name && ticker && !accountTicker ? (
                         <span className='transaction-detail-asset__name'>{name}</span>

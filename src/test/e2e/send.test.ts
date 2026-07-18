@@ -10,6 +10,7 @@ import {
   handleKeyboardInput,
   createWalletWithFiat,
   navigateHome,
+  navigateToAssets,
 } from './utils'
 import { execSync } from 'child_process'
 
@@ -155,15 +156,14 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
     'tark1qr340xg400jtxat9hdd0ungyu6s05zjtdf85uj9smyzxshf98nda' +
     'h6u2nredqtn0cr4p4zqz53gsmhju4l9t7x47kzleesa9dprx7e56xhzlen'
 
-  // go to send page
-  await page.getByText('Send').click()
+  // unverified assets are excluded from the send picker; the sanctioned path
+  // is the asset detail screen, which preselects the asset in the send form
+  await navigateToAssets(page)
+  await page.getByTestId(/^asset-row-TST-/).click()
+  await page.getByText('Send', { exact: true }).click()
 
   // fill address
   await page.locator('input[name="send-address"]').fill(someArkAddress)
-
-  // select asset
-  await page.getByTestId('asset-selector').click()
-  await page.getByTestId('asset-tst-option').click()
 
   // fill amount
   if (isMobile) {
@@ -191,15 +191,13 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   await page.waitForSelector(`text=-${sendAmount} TST`, { timeout: 10000 })
   await expect(page.getByText('Sent')).toBeVisible()
 
-  // go to send page
-  await page.getByText('Send').click()
+  // send again via the asset detail screen
+  await navigateToAssets(page)
+  await page.getByTestId(/^asset-row-TST-/).click()
+  await page.getByText('Send', { exact: true }).click()
 
   // fill address
   await page.locator('input[name="send-address"]').fill(someArkAddress)
-
-  // select asset
-  await page.getByTestId('asset-selector').click()
-  await page.getByTestId('asset-tst-option').click()
 
   // click max
   await page.getByTestId('input-amount-max').click()

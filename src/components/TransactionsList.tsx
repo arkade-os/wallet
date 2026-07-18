@@ -23,13 +23,13 @@ import { FiatContext } from '../providers/fiat'
 import PreconfirmedIcon from '../icons/Preconfirmed'
 import Focusable from './Focusable'
 import { hapticSubtle } from '../lib/haptics'
-import TokenLogo, { accountTickerForAssetTicker, tokenLogoTickerForTicker, type TokenLogoTicker } from './TokenLogo'
+import TokenLogo, { tokenLogoTickerForTicker, trustedAssetTickers, type TokenLogoTicker } from './TokenLogo'
 import { PrivacyAmount } from './PrivacyAmount'
 import SwapRouteIcon from './SwapRouteIcon'
 import { swapRouteLabel, swapStatusForTx, swapStatusLabel, swapUnitOfAccountAmount } from '../lib/swapDisplay'
 import { designatedAccountCurrency, fiatAccountAssetSatoshis } from '../lib/accountAssets'
 import { AspContext } from '../providers/asp'
-import { AssetsContext } from '../providers/assets'
+import UnverifiedBadge from './UnverifiedBadge'
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
@@ -46,9 +46,8 @@ const TransactionLine = ({
 }) => {
   const { config } = useContext(ConfigContext)
   const { fromFiatAmount, toFiat, toFiatAmount } = useContext(FiatContext)
-  const { assetMetadataCache } = useContext(WalletContext)
+  const { assetMetadataCache, isVerifiedAsset } = useContext(WalletContext)
   const { aspInfo } = useContext(AspContext)
-  const { isRegistered } = useContext(AssetsContext)
 
   const prefix = tx.type === 'sent' ? '-' : '+'
   const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
@@ -58,7 +57,7 @@ const TransactionLine = ({
   const issuance = isIssuance(tx)
   const burn = isBurn(tx)
   const accountAssetValues = tx.assets?.map((asset) => {
-    const accountInfo = accountInfoForAssetId(asset.assetId, aspInfo.network, isRegistered)
+    const accountInfo = accountInfoForAssetId(asset.assetId, aspInfo.network, isVerifiedAsset)
     const metadata = assetMetadataCache.get(asset.assetId)?.metadata
     return fiatAccountAssetSatoshis(
       BigInt(asset.amount),
@@ -164,20 +163,24 @@ const TransactionLine = ({
     return (
       <>
         {tx.assets.map((a) => {
-          const accountInfo = accountInfoForAssetId(a.assetId, aspInfo.network, isRegistered)
+          const accountInfo = accountInfoForAssetId(a.assetId, aspInfo.network, isVerifiedAsset)
           const meta = assetMetadataCache.get(a.assetId)?.metadata
           const ticker = accountInfo?.ticker ?? meta?.ticker
           const icon = meta?.icon
           const decimals = meta?.decimals ?? 8
-          const accountTicker = accountTickerForAssetTicker(ticker)
+          // internal account rows are wallet-defined; anything else must be a verified
+          // asset ID before its ticker earns currency treatment (logo, fiat formatting)
+          const trusted = Boolean(accountInfo) || isVerifiedAsset(a.assetId)
+          const { accountTicker, trustedTicker } = trustedAssetTickers(ticker, trusted)
           const label = accountInfo?.label ?? accountTicker ?? ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`
           return (
             <FlexRow key={a.assetId} gap='0.375rem' end>
-              <TransactionAssetAvatar icon={icon} ticker={accountTicker ?? ticker} assetId={a.assetId} />
+              <TransactionAssetAvatar icon={icon} ticker={ticker} trustedTicker={trustedTicker} assetId={a.assetId} />
               <span className='activity-row__amount'>
                 <PrivacyAmount masked={prettyHide(a.amount, label)}>
-                  {`${prettyCurrencyAssetAmount(a.amount, decimals, accountTicker ?? ticker)} ${label}`}
+                  {`${prettyCurrencyAssetAmount(a.amount, decimals, trustedTicker)} ${label}`}
                 </PrivacyAmount>
+                {!trusted ? <UnverifiedBadge /> : null}
               </span>
             </FlexRow>
           )
@@ -436,8 +439,18 @@ function matchesAssetFilter(tx: Tx, assetIdFilter?: string | string[]): boolean 
   return tx.assets?.some((asset) => asset.assetId === assetIdFilter) ?? false
 }
 
-function TransactionAssetAvatar({ assetId, icon, ticker }: { assetId: string; icon?: string; ticker?: string }) {
-  const tokenLogoTicker = tokenLogoTickerForTicker(accountTickerForAssetTicker(ticker) ?? ticker)
+function TransactionAssetAvatar({
+  assetId,
+  icon,
+  ticker,
+  trustedTicker,
+}: {
+  assetId: string
+  icon?: string
+  ticker?: string
+  trustedTicker?: string
+}) {
+  const tokenLogoTicker = tokenLogoTickerForTicker(trustedTicker)
   if (tokenLogoTicker) {
     return (
       <span className='transaction-asset-logo' aria-hidden='true'>
@@ -452,9 +465,9 @@ function TransactionAssetAvatar({ assetId, icon, ticker }: { assetId: string; ic
 function accountInfoForAssetId(
   assetId: string,
   network: string | undefined,
-  isRegistered: (assetId: string) => boolean,
+  isVerified: (assetId: string) => boolean,
 ): { ticker: TokenLogoTicker; label: string } | undefined {
-  if (!isRegistered(assetId)) return
+  if (!isVerified(assetId)) return
   const currency = designatedAccountCurrency(network, assetId)
   if (!currency || currency === Currencies.BTC) return
   return { ticker: currency as TokenLogoTicker, label: currency }

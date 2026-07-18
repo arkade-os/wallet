@@ -2,7 +2,6 @@ import Decimal from 'decimal.js'
 import { useContext } from 'react'
 import { fiatDecimalsFor } from '../lib/fiat'
 import { Currencies } from '../lib/types'
-import { AssetsContext } from '../providers/assets'
 import { AspContext } from '../providers/asp'
 import { FiatContext } from '../providers/fiat'
 import { WalletContext } from '../providers/wallet'
@@ -42,8 +41,7 @@ export interface PortfolioFiat {
  */
 export function usePortfolioFiat(): PortfolioFiat {
   const { aspInfo } = useContext(AspContext)
-  const { isRegistered } = useContext(AssetsContext)
-  const { balance, assetBalances, assetMetadataCache } = useContext(WalletContext)
+  const { balance, assetBalances, assetMetadataCache, isVerifiedAsset } = useContext(WalletContext)
   const { fromFiatAmount, toFiat } = useContext(FiatContext)
   const convertToSelectedFiat = (amount: number, from: Currencies) => toFiat(fromFiatAmount(amount, from))
 
@@ -67,7 +65,8 @@ export function usePortfolioFiat(): PortfolioFiat {
   for (const ab of assetBalances) {
     const meta = assetMetadataCache.get(ab.assetId)?.metadata
     const assetDecimals = meta?.decimals ?? 8
-    const sourceFiat = isRegistered(ab.assetId) ? designatedAccountCurrency(aspInfo.network, ab.assetId) : undefined
+    // only verified asset IDs may claim currency-account treatment
+    const sourceFiat = isVerifiedAsset(ab.assetId) ? designatedAccountCurrency(aspInfo.network, ab.assetId) : undefined
 
     if (sourceFiat) {
       const accountDecimals = fiatDecimalsFor(sourceFiat)

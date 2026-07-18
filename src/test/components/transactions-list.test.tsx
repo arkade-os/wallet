@@ -47,6 +47,7 @@ describe('TransactionsList', () => {
                     value={
                       {
                         ...mockWalletContextValue,
+                        isVerifiedAsset: () => true,
                         txs: [tx],
                         assetMetadataCache: new Map([
                           [
@@ -105,7 +106,7 @@ describe('TransactionsList', () => {
         <ConfigContext.Provider value={localConfigContextValue}>
           <FiatContext.Provider value={mockFiatContextValue}>
             <FlowContext.Provider value={mockFlowContextValue}>
-              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [swapTx] }}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, isVerifiedAsset: () => true, txs: [swapTx] }}>
                 <TransactionsList mode='static' />
               </WalletContext.Provider>
             </FlowContext.Provider>

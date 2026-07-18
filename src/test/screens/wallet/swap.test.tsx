@@ -92,6 +92,7 @@ function renderSwap({
                   value={
                     {
                       ...mockWalletContextValue,
+                      isVerifiedAsset: () => true,
                       balance: 250_000,
                       assetBalances: [
                         { assetId: USDT_ID, amount: BigInt(15_000) },

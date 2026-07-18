@@ -24,6 +24,16 @@ export function accountTickerForAssetTicker(ticker: string | undefined): WalletA
   return walletAccountTicker(ticker)
 }
 
+// A ticker only earns currency treatment (official logo, fiat-style formatting)
+// once its asset is trusted — self-reported tickers of unverified assets get none.
+export function trustedAssetTickers(
+  ticker: string | undefined,
+  trusted: boolean,
+): { accountTicker: TokenLogoTicker | undefined; trustedTicker: string | undefined } {
+  const accountTicker = trusted ? accountTickerForAssetTicker(ticker) : undefined
+  return { accountTicker, trustedTicker: trusted ? (accountTicker ?? ticker) : undefined }
+}
+
 export default function TokenLogo({ ticker }: { ticker: TokenLogoTicker }) {
   if (ticker === 'USD') return <UnitedStatesFlagLogo />
   if (ticker === 'USDT') return <TetherLogo />

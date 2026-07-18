@@ -71,6 +71,7 @@ describe('Wallet screen', () => {
               value={
                 {
                   ...mockWalletContextValue,
+                  isVerifiedAsset: (assetId: string) => assetId === MUTINYNET_USDT_ASSET_ID,
                   assetBalances: [{ assetId: MUTINYNET_USDT_ASSET_ID, amount: BigInt(1_000) }],
                   assetMetadataCache: new Map([
                     [MUTINYNET_USDT_ASSET_ID, { metadata: { decimals: 2, name: 'Tether USD', ticker: 'USDT' } }],

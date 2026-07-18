@@ -59,7 +59,7 @@ import {
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
 import { testDomains } from '../../../lib/constants'
-import { AssetsContext } from '../../../providers/assets'
+import UnverifiedBadge from '../../../components/UnverifiedBadge'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
@@ -69,7 +69,9 @@ const brantaClient = new BrantaService({
 })
 
 function AssetIcon({ asset }: { asset: AssetOption | null }) {
-  const tokenTicker = asset ? tokenLogoTickerForTicker(asset.ticker) : 'BTC'
+  const { isVerifiedAsset } = useContext(WalletContext)
+  // official token logos are pinned to verified asset IDs, not self-reported tickers
+  const tokenTicker = asset ? (isVerifiedAsset(asset.assetId) ? tokenLogoTickerForTicker(asset.ticker) : null) : 'BTC'
 
   if (tokenTicker) {
     return (
@@ -92,7 +94,6 @@ function AssetIcon({ asset }: { asset: AssetOption | null }) {
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
-  const { isRegistered } = useContext(AssetsContext)
   const { config, effectiveTheme, useFiat } = useContext(ConfigContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
@@ -110,7 +111,8 @@ export default function SendForm() {
   } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
-  const { assetBalances, assetMetadataCache, balance, setCacheEntry, svcWallet } = useContext(WalletContext)
+  const { assetBalances, assetMetadataCache, balance, isVerifiedAsset, setCacheEntry, svcWallet } =
+    useContext(WalletContext)
 
   const [amount, setAmount] = useState<number>()
   const [amountTextValue, setAmountTextValue] = useState('')
@@ -225,7 +227,7 @@ export default function SendForm() {
         const presentation = walletAssetPresentationForId(
           aspInfo.network,
           ab.assetId,
-          isRegistered,
+          isVerifiedAsset,
           meta?.metadata,
           `${ab.assetId.slice(0, 8)}...`,
         )
@@ -296,7 +298,7 @@ export default function SendForm() {
             const presentation = walletAssetPresentationForId(
               aspInfo.network,
               assetId,
-              isRegistered,
+              isVerifiedAsset,
               meta?.metadata,
               `${assetId.slice(0, 8)}...`,
             )
@@ -829,6 +831,10 @@ export default function SendForm() {
       satoshis < 1 ||
       processing
 
+  // unverified assets are never offered in the picker; they can still arrive
+  // preselected via sendInfo.assets from the Assets app detail screen
+  const verifiedAssetOptions = assetOptions.filter((asset) => isVerifiedAsset(asset.assetId))
+
   const selectedAssetLabel = activeAsset ? `${activeAsset.name} (${activeAsset.ticker})` : 'Bitcoin'
   const selectedAssetBalance = activeAsset
     ? `${prettyAssetAmount(activeAsset.balance, activeAsset.decimals)} ${activeAsset.ticker} available`
@@ -975,7 +981,7 @@ export default function SendForm() {
                     )
                   })()
                 : null}
-              {assetOptions.length > 0 ? (
+              {verifiedAssetOptions.length > 0 || selectedAsset ? (
                 <FlexCol gap='0.5rem' className='send-asset-field'>
                   <Text smaller color='neutral-500'>
                     Asset
@@ -996,7 +1002,10 @@ export default function SendForm() {
                       <span className='send-asset-trigger__main'>
                         <AssetIcon asset={activeAsset} />
                         <span className='send-asset-trigger__copy'>
-                          <span className='send-asset-trigger__name'>{selectedAssetLabel}</span>
+                          <span className='send-asset-trigger__name'>
+                            {selectedAssetLabel}
+                            {activeAsset && !isVerifiedAsset(activeAsset.assetId) ? <UnverifiedBadge /> : null}
+                          </span>
                           <span className='send-asset-trigger__balance'>{selectedAssetBalance}</span>
                         </span>
                       </span>
@@ -1024,7 +1033,7 @@ export default function SendForm() {
                             </span>
                           </DropdownMenuItem>
                         ) : null}
-                        {assetOptions
+                        {verifiedAssetOptions
                           .filter(
                             (asset) =>
                               asset.assetId !== activeAsset?.assetId &&

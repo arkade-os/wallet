@@ -68,7 +68,9 @@ describe('Transaction screen', () => {
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <AspContext.Provider value={mockAspContextValue}>
           <FlowContext.Provider value={localFlowContextValue}>
-            <WalletContext.Provider value={localWalletContextValue}>
+            <WalletContext.Provider
+              value={{ ...localWalletContextValue, isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID }}
+            >
               <LimitsContext.Provider value={mockLimitsContextValue}>
                 <Transaction />
               </LimitsContext.Provider>
@@ -103,7 +105,9 @@ describe('Transaction screen', () => {
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <AspContext.Provider value={mockAspContextValue}>
           <FlowContext.Provider value={localFlowContextValue}>
-            <WalletContext.Provider value={localWalletContextValue}>
+            <WalletContext.Provider
+              value={{ ...localWalletContextValue, isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID }}
+            >
               <LimitsContext.Provider value={mockLimitsContextValue}>
                 <Transaction />
               </LimitsContext.Provider>
@@ -138,7 +142,9 @@ describe('Transaction screen', () => {
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <AspContext.Provider value={mockAspContextValue}>
           <FlowContext.Provider value={localFlowContextValue}>
-            <WalletContext.Provider value={localWalletContextValue}>
+            <WalletContext.Provider
+              value={{ ...localWalletContextValue, isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID }}
+            >
               <LimitsContext.Provider value={mockLimitsContextValue}>
                 <Transaction />
               </LimitsContext.Provider>
@@ -173,7 +179,9 @@ describe('Transaction screen', () => {
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <AspContext.Provider value={mockAspContextValue}>
           <FlowContext.Provider value={localFlowContextValue}>
-            <WalletContext.Provider value={localWalletContextValue}>
+            <WalletContext.Provider
+              value={{ ...localWalletContextValue, isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID }}
+            >
               <LimitsContext.Provider value={mockLimitsContextValue}>
                 <Transaction />
               </LimitsContext.Provider>
@@ -210,7 +218,9 @@ describe('Transaction screen', () => {
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <AspContext.Provider value={mockAspContextValue}>
           <FlowContext.Provider value={localFlowContextValue}>
-            <WalletContext.Provider value={localWalletContextValue}>
+            <WalletContext.Provider
+              value={{ ...localWalletContextValue, isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID }}
+            >
               <LimitsContext.Provider value={mockLimitsContextValue}>
                 <Transaction />
               </LimitsContext.Provider>
@@ -243,7 +253,9 @@ describe('Transaction screen', () => {
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <AspContext.Provider value={mockAspContextValue}>
           <FlowContext.Provider value={localFlowContextValue}>
-            <WalletContext.Provider value={localWalletContextValue}>
+            <WalletContext.Provider
+              value={{ ...localWalletContextValue, isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID }}
+            >
               <LimitsContext.Provider value={mockLimitsContextValue}>
                 <Transaction />
               </LimitsContext.Provider>
@@ -272,7 +284,9 @@ describe('Transaction screen', () => {
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <AspContext.Provider value={mockAspContextValue}>
           <FlowContext.Provider value={localFlowContextValue}>
-            <WalletContext.Provider value={localWalletContextValue}>
+            <WalletContext.Provider
+              value={{ ...localWalletContextValue, isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID }}
+            >
               <LimitsContext.Provider value={mockLimitsContextValue}>
                 <Transaction />
               </LimitsContext.Provider>
@@ -322,7 +336,12 @@ describe('Transaction screen', () => {
           <FiatContext.Provider value={mockFiatContextValue}>
             <AspContext.Provider value={mockAspContextValue}>
               <FlowContext.Provider value={localFlowContextValue}>
-                <WalletContext.Provider value={localWalletContextValue}>
+                <WalletContext.Provider
+                  value={{
+                    ...localWalletContextValue,
+                    isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID,
+                  }}
+                >
                   <LimitsContext.Provider value={mockLimitsContextValue}>
                     <Transaction />
                   </LimitsContext.Provider>
@@ -493,7 +512,14 @@ describe('Transaction screen', () => {
               >
                 <AssetsContext.Provider value={{ isRegistered: (id) => id === MUTINYNET_USDT_ASSET_ID }}>
                   <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
-                    <WalletContext.Provider value={walletContextValue as any}>
+                    <WalletContext.Provider
+                      value={
+                        {
+                          ...walletContextValue,
+                          isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID,
+                        } as any
+                      }
+                    >
                       <LimitsContext.Provider value={mockLimitsContextValue}>
                         <Transaction />
                       </LimitsContext.Provider>
@@ -514,7 +540,7 @@ describe('Transaction screen', () => {
     },
   )
 
-  it('falls back to the transaction amount when a mixed asset cannot be valued as an account', () => {
+  it('hides Amount and Total when a mixed asset cannot be valued as an account', () => {
     const txInfo = {
       ...mockTxInfo,
       amount: 330,
@@ -552,7 +578,11 @@ describe('Transaction screen', () => {
           <NavigationContext.Provider value={mockNavigationContextValue}>
             <AspContext.Provider value={mockAspContextValue}>
               <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
-                <WalletContext.Provider value={walletContextValue as any}>
+                <WalletContext.Provider
+                  value={
+                    { ...walletContextValue, isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID } as any
+                  }
+                >
                   <LimitsContext.Provider value={mockLimitsContextValue}>
                     <Transaction />
                   </LimitsContext.Provider>
@@ -564,8 +594,10 @@ describe('Transaction screen', () => {
       </ConfigContext.Provider>,
     )
 
-    expect(screen.getByTestId('Amount')).toHaveTextContent('€3.30')
-    expect(screen.getByTestId('Total')).toHaveTextContent('€3.30')
+    // master semantics: an asset transfer's dust must not read as a price,
+    // so Amount/Total are hidden when the asset can't be valued as an account
+    expect(screen.queryByTestId('Amount')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('Total')).not.toBeInTheDocument()
     expect(screen.queryByText('€100.00')).not.toBeInTheDocument()
   })
 })

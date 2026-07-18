@@ -29,6 +29,7 @@ import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
 import { getBalance, getTxHistory, getVtxos, settleVtxos } from '../lib/asp'
 import { AspContext } from './asp'
+import { AssetsContext } from './assets'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
@@ -101,6 +102,7 @@ interface WalletContextProps {
   assetMetadataCache: Map<string, CachedAssetDetails>
   setCacheEntry: (assetId: string, details: AssetDetails) => CachedAssetDetails
   iconApprovalManager: AssetIconApprovalManager
+  isVerifiedAsset: (assetId: string) => boolean
   dataReady: boolean
   loadError: string | null
   dismissLoadError: () => void
@@ -128,6 +130,7 @@ export const WalletContext = createContext<WalletContextProps>({
   assetMetadataCache: new Map(),
   setCacheEntry: () => ({ cachedAt: 0 }) as CachedAssetDetails,
   iconApprovalManager: new AssetIconApprovalManager(),
+  isVerifiedAsset: () => false,
   dataReady: false,
   loadError: null,
   dismissLoadError: () => {},
@@ -139,6 +142,7 @@ export const WalletContext = createContext<WalletContextProps>({
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
+  const { isRegistered } = useContext(AssetsContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
   const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo, setLnurlInfo } = useContext(FlowContext)
@@ -197,6 +201,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     navigator.serviceWorker.removeEventListener('message', handler)
     if (swMessageHandlerRef.current === handler) swMessageHandlerRef.current = undefined
   }
+
+  // Currency identity (flags, fiat rates, fiat-style formatting) must be pinned to
+  // asset IDs present in a curated list — never inferred from self-reported tickers,
+  // which anyone can mint.
+  const isVerifiedAsset = (assetId: string): boolean =>
+    Boolean(assetId) && (iconApprovalManager.isVerified(assetId) || isRegistered(assetId))
 
   const setCacheEntry = (assetId: string, details: AssetDetails): CachedAssetDetails => {
     const hasIcon = !!details.metadata?.icon
@@ -884,6 +894,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         assetMetadataCache: assetMetadataCache.current,
         setCacheEntry,
         iconApprovalManager,
+        isVerifiedAsset,
         dataReady,
         loadError,
         dismissLoadError,
