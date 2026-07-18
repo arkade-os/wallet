@@ -139,12 +139,13 @@ export const mergeAssetSwapActivity = (
         ? BigInt(fill.amount)
         : (receivedAsset?.amount ?? BigInt(swap.toAmount))
     // the currency designation outranks the asset's self-reported ticker, so
-    // restored swaps read "BRL to BTC", not "DEPIX to BTC"
+    // restored swaps read "BRL to sats", not "DEPIX to sats"; BTC is always
+    // shown in sats, matching the live swap screen
     const derivedTicker = (assetId: string) =>
       assetId === 'btc'
-        ? 'BTC'
+        ? 'sats'
         : (designatedAccountCurrency(network, assetId) ?? assetDisplay?.(assetId)?.ticker ?? assetId.slice(0, 8))
-    const derivedDecimals = (assetId: string) => (assetId === 'btc' ? 8 : assetDisplay?.(assetId)?.decimals)
+    const derivedDecimals = (assetId: string) => (assetId === 'btc' ? 0 : assetDisplay?.(assetId)?.decimals)
     return {
       amount: members[0]?.amount ?? 0,
       boardingTxid: '',

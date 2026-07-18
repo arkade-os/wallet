@@ -123,6 +123,49 @@ describe('TransactionsList', () => {
     expect(container.querySelectorAll('.swap-route-icon__fallback')).toHaveLength(2)
   })
 
+  it('shows the real Bitcoin logo for a BTC swap leg, even though its ticker is the display unit', () => {
+    const swapTx: Tx = {
+      amount: 0,
+      boardingTxid: '',
+      createdAt: 1_700_000_000,
+      explorable: undefined,
+      preconfirmed: false,
+      assetSwap: {
+        fromAmount: BigInt(10_000),
+        fromAssetId: 'btc',
+        fromDecimals: 0,
+        // the persisted ticker is the wallet's bitcoin display unit, not 'BTC'
+        fromTicker: 'sats',
+        status: 'completed',
+        toAmount: BigInt(500),
+        toAssetId: 'asset-beta',
+        toDecimals: 2,
+        toTicker: 'BET',
+      },
+      redeemTxid: '',
+      roundTxid: 'fill-txid',
+      settled: true,
+      type: 'swap',
+    }
+
+    const { container } = render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <FlowContext.Provider value={mockFlowContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, isVerifiedAsset: () => true, txs: [swapTx] }}>
+                <TransactionsList mode='static' />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(container.querySelector('circle[fill="var(--orange-500)"]')).toBeInTheDocument()
+    expect(container.querySelectorAll('.swap-route-icon__fallback')).toHaveLength(1)
+  })
+
   it('values a restored swap from its BTC leg instead of showing the status', () => {
     const swapTx: Tx = {
       amount: 0,

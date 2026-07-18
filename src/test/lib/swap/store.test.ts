@@ -99,13 +99,13 @@ describe('asset swap store', () => {
     const legacySwap = { ...swap('funding-txid'), toAsset: MUTINYNET_USDT_ASSET_ID }
     const [activity] = mergeAssetSwapActivity([], [legacySwap], 'mutinynet')
 
-    expect(activity.assetSwap).toMatchObject({ fromTicker: 'BTC', toTicker: 'USD' })
+    expect(activity.assetSwap).toMatchObject({ fromTicker: 'sats', toTicker: 'USD' })
   })
 
   it('prefers the currency designation over the asset metadata ticker', () => {
     const restoredSwap = { ...swap('funding-txid'), toAsset: MUTINYNET_USDT_ASSET_ID }
     const [activity] = mergeAssetSwapActivity([], [restoredSwap], 'mutinynet', () => ({ ticker: 'USDT', decimals: 2 }))
 
-    expect(activity.assetSwap).toMatchObject({ fromTicker: 'BTC', toTicker: 'USD', toDecimals: 2 })
+    expect(activity.assetSwap).toMatchObject({ fromTicker: 'sats', toTicker: 'USD', toDecimals: 2 })
   })
 })

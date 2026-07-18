@@ -186,7 +186,11 @@ describe('Wallet swap flow', () => {
 
     await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
     expect(createSwap.mock.calls[0][0].deposit.atomic).toBe(BigInt(50_000))
-    expect(createSwap.mock.calls[0][1]).toMatchObject({ fromTicker: 'BTC', toTicker: 'USD', feeBps: 30 })
+    expect(createSwap.mock.calls[0][1]).toMatchObject({ fromTicker: 'sats', toTicker: 'USD', feeBps: 30 })
+    // fromDecimals must pair with fromTicker ('sats' -> 0), not the solver's
+    // real protocol decimals (8) — otherwise the persisted receipt divides
+    // the atomic sats amount by 1e8 and labels the result "sats"
+    expect(createSwap.mock.calls[0][1]).toMatchObject({ fromDecimals: 0 })
   })
 
   it('quotes the covenant floor with the market fee conceded', async () => {
@@ -194,9 +198,9 @@ describe('Wallet swap flow', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
     fireEvent.click(screen.getByRole('button', { name: /USD/i }))
-    // type 0.0001 BTC on the asset side of the amount entry
+    // BTC is always entered in whole sats; type 10,000 sats on the asset side
     await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
-    for (const key of ['.', '0', '0', '0', '1']) {
+    for (const key of ['1', '0', '0', '0', '0']) {
       await userEvent.click(screen.getByRole('button', { name: key }))
     }
 
@@ -271,6 +275,26 @@ describe('Wallet swap flow', () => {
   it('shows the Bitcoin logo in the swap picker even when the display unit is sats', () => {
     const { container } = renderSwap({ config: { unit: Unit.SATS } })
     expect(container.querySelector('circle[fill="var(--orange-500)"]')).toBeInTheDocument()
+  })
+
+  it('never assigns the same React key to two occurrences of the same letter in the amount label', async () => {
+    // "sats" has two 's' — a naive per-character key collapses them, which
+    // React reports as a duplicate-key warning and the animated renderer
+    // then smears the repeated glyph
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+
+    // asset mode appends the ticker suffix ("1000 sats") to the amount label
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['1', '0', '0', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    const duplicateKeyWarning = errorSpy.mock.calls.some((call) =>
+      String(call[0]).includes('Encountered two children with the same key'),
+    )
+    expect(duplicateKeyWarning).toBe(false)
+    errorSpy.mockRestore()
   })
 
   it('keeps PR 784 pending-swap cancellation available', async () => {

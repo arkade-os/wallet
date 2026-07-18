@@ -16,13 +16,7 @@ import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { extractError } from '../../../lib/error'
-import {
-  formatFiatAmountParts,
-  normalizeBitcoinUnit,
-  prettyCurrencyAssetAmount,
-  prettyFiatAmount,
-  prettyNumber,
-} from '../../../lib/format'
+import { formatFiatAmountParts, prettyCurrencyAssetAmount, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
 import { BTC_ASSET_ID, findMarket, QUOTE_OPTIONS, validatePlan } from '../../../lib/swap/markets'
 import { type AssetSwap, type AssetSwapQuoteSnapshot, type AssetSwapStatus } from '../../../lib/swap/store'
@@ -114,8 +108,6 @@ export default function WalletSwap() {
       .catch(() => {})
   }, [balance, svcWallet])
 
-  const btcUnit = normalizeBitcoinUnit(config.unit)
-  const btcEntryPrecision = btcUnit === Unit.BTC ? 8 : 0
   const swapAssets = useMemo<SwapAsset[]>(() => {
     const marketAssets = markets.flatMap((market) => [market.base_asset, market.quote_asset])
     const uniqueAssets = new Map(marketAssets.map((asset) => [asset.id, asset]))
@@ -132,8 +124,10 @@ export default function WalletSwap() {
         return {
           assetId: BTC_ASSET_ID,
           name: 'Bitcoin',
-          ticker: btcUnit === Unit.BTC ? 'BTC' : btcUnit,
-          decimals: btcEntryPrecision,
+          // the swap side always enters/displays BTC in sats, independent of
+          // the wallet-wide bitcoin-unit setting
+          ticker: 'sats',
+          decimals: 0,
           balance: BigInt(availableSats),
           fiatText: bitcoinRow?.hasFiatPrice
             ? prettyFiatAmount(bitcoinRow.fiatAmount, config.currency, { bitcoinUnit: config.unit })
@@ -163,8 +157,6 @@ export default function WalletSwap() {
     assetBalances,
     assetMetadataCache,
     availableSats,
-    btcEntryPrecision,
-    btcUnit,
     config.currency,
     config.unit,
     fromFiatAmount,
@@ -207,11 +199,11 @@ export default function WalletSwap() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setGiveAmount(Number(assetAmount) > 0 ? amountForQuote(assetAmount, fromAsset, btcEntryPrecision) : '')
+      setGiveAmount(Number(assetAmount) > 0 ? amountForQuote(assetAmount, fromAsset) : '')
       setQuotedAmount(amount)
     }, 600)
     return () => window.clearTimeout(timer)
-  }, [amount, assetAmount, btcEntryPrecision, fromAsset, setGiveAmount])
+  }, [amount, assetAmount, fromAsset, setGiveAmount])
 
   const quoteStale = quotedAmount !== amount
   const planError = plan
@@ -874,7 +866,9 @@ function amountCharacterSlotKey(character: string, characterIndex: number, sourc
   if (character === '.') return 'decimal-point'
   if (character === ' ')
     return `space-${source.slice(0, characterIndex).filter((candidate) => candidate === ' ').length}`
-  return `symbol-${character}`
+  // a repeated letter in the ticker suffix (e.g. the two 's' in "sats") must
+  // not collapse onto the same React key, or the animated renderer smears it
+  return `symbol-${character}-${source.slice(0, characterIndex).filter((candidate) => candidate === character).length}`
 }
 
 function amountCharacterSlotClassName(character: string): string {
@@ -1208,14 +1202,15 @@ function buildQuoteFromPlan(
   const parsed = Number(amount) || 0
   const fromUsd = estimateSwapUsd(fromAsset)
   const toUsd = toAsset ? estimateSwapUsd(toAsset) : 0
-  // BTC shown in sats/₿ is typed as a raw sats count (0 entry decimals) but
-  // fromUsd is priced per whole BTC — scale down before using it in USD math,
-  // same as the fiat-entry conversion below scales up.
-  const btcSatsToWholeBtc = fromAsset.assetId === BTC_ASSET_ID && fromAsset.decimals === 0 ? 1e8 : 1
+  // fromUsd/toUsd price per whole BTC, and the solver's plan.*.display are in
+  // the same whole-BTC scale, but BTC is always entered/shown in sats here —
+  // protocolToDisplayScale is the one conversion between the two.
   const estimatedFromUnits =
-    mode === 'fiat' ? (assetUnitsFromFiatAmount(amount, fromAsset, unitOfAccountUsd) ?? 0) : parsed / btcSatsToWholeBtc
-  const fromUnits = plan ? Number(plan.deposit.display) : estimatedFromUnits
-  const received = plan ? Number(plan.receive.display) : 0
+    mode === 'fiat'
+      ? (assetUnitsFromFiatAmount(amount, fromAsset, unitOfAccountUsd) ?? 0)
+      : parsed / protocolToDisplayScale(fromAsset)
+  const fromUnits = plan ? Number(plan.deposit.display) * protocolToDisplayScale(fromAsset) : estimatedFromUnits
+  const received = plan && toAsset ? Number(plan.receive.display) * protocolToDisplayScale(toAsset) : 0
   const selectedCurrencyAmount = unitOfAccountUsd > 0 ? (fromUnits * fromUsd) / unitOfAccountUsd : 0
   const receivedCurrencyAmount = unitOfAccountUsd > 0 ? (received * toUsd) / unitOfAccountUsd : 0
   const rate = fromUnits > 0 ? received / fromUnits : 0
@@ -1236,14 +1231,19 @@ function buildQuoteFromPlan(
   }
 }
 
-/** USD-fiat amount converted into the asset's CURRENT entry scale — sats when
- * BTC is displayed in sats/₿ (0 entry decimals, but priced per whole BTC),
- * the asset's own decimals otherwise. Returns undefined with no price feed. */
+/** BTC is always entered/displayed in sats in the swap screen, but its USD
+ * price and the solver's plan.*.display are both in whole-BTC scale — this
+ * is the one conversion between the two (a no-op for every other asset). */
+function protocolToDisplayScale(asset: SwapAsset): number {
+  return asset.assetId === BTC_ASSET_ID ? 1e8 : 1
+}
+
+/** USD-fiat amount converted into the asset's entry/display scale (sats for
+ * BTC, the asset's own decimals otherwise). Returns undefined with no price feed. */
 function assetUnitsFromFiatAmount(amount: string, fromAsset: SwapAsset, unitOfAccountUsd: number): number | undefined {
   const assetUsd = estimateSwapUsd(fromAsset)
   if (!assetUsd) return undefined
-  const btcSatsScale = fromAsset.assetId === BTC_ASSET_ID && fromAsset.decimals === 0 ? 1e8 : 1
-  return (((Number(amount) || 0) * unitOfAccountUsd) / assetUsd) * btcSatsScale
+  return (((Number(amount) || 0) * unitOfAccountUsd) / assetUsd) * protocolToDisplayScale(fromAsset)
 }
 
 function amountInAssetUnits(amount: string, mode: AmountMode, fromAsset: SwapAsset, unitOfAccountUsd: number): string {
@@ -1255,8 +1255,8 @@ function amountInAssetUnits(amount: string, mode: AmountMode, fromAsset: SwapAss
   return prettyNumber(units, fromAsset.decimals, false)
 }
 
-function amountForQuote(amount: string, fromAsset: SwapAsset, btcEntryPrecision: number): string {
-  if (fromAsset.assetId !== BTC_ASSET_ID || btcEntryPrecision > 0) return amount
+function amountForQuote(amount: string, fromAsset: SwapAsset): string {
+  if (fromAsset.assetId !== BTC_ASSET_ID) return amount
   return fromAtomic(BigInt(amount.split('.')[0].replace(/\D/g, '') || '0'), 8)
 }
 
@@ -1299,11 +1299,14 @@ function swapValidationMessage({
 }
 
 function buildQuoteSnapshot(plan: OfferPlan, quote: SwapQuote, currency: Currencies): AssetSwapQuoteSnapshot {
+  // ticker and decimals must come from the same source (quote.*Asset) —
+  // plan.*.asset.decimals is the solver's real protocol decimals (8 for
+  // BTC), which mismatches the 'sats' ticker the receipt actually stores
   return {
     fromTicker: quote.fromAsset.ticker,
-    fromDecimals: plan.deposit.asset.decimals,
+    fromDecimals: quote.fromAsset.decimals,
     toTicker: quote.toAsset?.ticker ?? plan.receive.asset.ticker,
-    toDecimals: plan.receive.asset.decimals,
+    toDecimals: quote.toAsset?.decimals ?? plan.receive.asset.decimals,
     feeBps: plan.market.fee_bps,
     fiatCurrency: currency,
     fromFiatAmount: quote.fromFiatValue,

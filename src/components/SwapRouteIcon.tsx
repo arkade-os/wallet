@@ -22,8 +22,10 @@ export default function SwapRouteIcon({ from, size = 'compact', to }: SwapRouteI
 }
 
 function SwapRouteAssetLogo({ asset }: { asset: SwapRouteAsset }) {
+  // asset.ticker on the BTC leg is the wallet's bitcoin display unit
+  // ('sats'/'₿'), not a real ticker — resolve the logo from the asset id
   const accountTicker = accountTickerForAssetTicker(asset.ticker)
-  const tokenLogoTicker = tokenLogoTickerForTicker(accountTicker ?? asset.ticker)
+  const tokenLogoTicker = asset.assetId === 'btc' ? 'BTC' : tokenLogoTickerForTicker(accountTicker ?? asset.ticker)
 
   return (
     <span className='swap-route-icon__asset'>
