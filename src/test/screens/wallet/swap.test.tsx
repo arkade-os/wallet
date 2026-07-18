@@ -233,6 +233,46 @@ describe('Wallet swap flow', () => {
     expect(plan.receive.atomic).toBe(BigInt(99))
   })
 
+  it('quotes a sane amount when typing a fiat amount with the display unit set to sats', async () => {
+    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    // default entry mode is fiat; type "$100" without toggling to asset mode
+    for (const key of ['1', '0', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
+    fireEvent.click(continueButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+
+    await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
+    const plan = createSwap.mock.calls[0][0]
+    // $100 at $100,000/BTC = 0.001 BTC = 100,000 sats, not "0" (rounded to
+    // whole BTC) and not a comma-grouped string the solver can't parse
+    expect(plan.deposit.atomic).toBe(BigInt(100_000))
+  })
+
+  it('does not show a wildly inflated fiat preview for a sats amount before a receive asset is chosen', async () => {
+    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+
+    // switch to asset-unit entry and type a realistic sats amount (300,000 sats)
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['3', '0', '0', '0', '0', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    // 300,000 sats = 0.003 BTC, worth $300 at $100,000/BTC — not $30,000,000+
+    expect(screen.queryByText(/^\$3\d,\d{3},\d{3}/)).not.toBeInTheDocument()
+  })
+
+  it('shows the Bitcoin logo in the swap picker even when the display unit is sats', () => {
+    const { container } = renderSwap({ config: { unit: Unit.SATS } })
+    expect(container.querySelector('circle[fill="var(--orange-500)"]')).toBeInTheDocument()
+  })
+
   it('keeps PR 784 pending-swap cancellation available', async () => {
     renderSwap({ swap: { swaps: [pendingSwap] } })
     expect(screen.getByText('BTC to USD')).toBeInTheDocument()

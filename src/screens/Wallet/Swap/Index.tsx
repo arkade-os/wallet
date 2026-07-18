@@ -920,7 +920,10 @@ function SwapAssetRow({ asset, active, onClick }: { asset: SwapAsset; active?: b
 }
 
 function TokenAvatar({ asset, size }: { asset: SwapAsset; size: number }) {
-  const tokenLogoTicker = getTokenLogoTicker(asset.ticker)
+  // asset.ticker is the wallet's configured bitcoin unit for the BTC row
+  // ('sats'/'₿'), not a real ticker — resolve the logo from the asset id
+  // instead so the Bitcoin icon doesn't vanish when the unit isn't BTC
+  const tokenLogoTicker = asset.assetId === BTC_ASSET_ID ? 'BTC' : getTokenLogoTicker(asset.ticker)
   if (tokenLogoTicker) {
     return (
       <span className='swap-token-avatar' style={{ width: size, height: size }}>
@@ -1205,8 +1208,12 @@ function buildQuoteFromPlan(
   const parsed = Number(amount) || 0
   const fromUsd = estimateSwapUsd(fromAsset)
   const toUsd = toAsset ? estimateSwapUsd(toAsset) : 0
-  const fromUsdNumber = mode === 'fiat' ? parsed * unitOfAccountUsd : parsed * fromUsd
-  const estimatedFromUnits = mode === 'fiat' && fromUsd > 0 ? fromUsdNumber / fromUsd : parsed
+  // BTC shown in sats/₿ is typed as a raw sats count (0 entry decimals) but
+  // fromUsd is priced per whole BTC — scale down before using it in USD math,
+  // same as the fiat-entry conversion below scales up.
+  const btcSatsToWholeBtc = fromAsset.assetId === BTC_ASSET_ID && fromAsset.decimals === 0 ? 1e8 : 1
+  const estimatedFromUnits =
+    mode === 'fiat' ? (assetUnitsFromFiatAmount(amount, fromAsset, unitOfAccountUsd) ?? 0) : parsed / btcSatsToWholeBtc
   const fromUnits = plan ? Number(plan.deposit.display) : estimatedFromUnits
   const received = plan ? Number(plan.receive.display) : 0
   const selectedCurrencyAmount = unitOfAccountUsd > 0 ? (fromUnits * fromUsd) / unitOfAccountUsd : 0
@@ -1229,11 +1236,23 @@ function buildQuoteFromPlan(
   }
 }
 
+/** USD-fiat amount converted into the asset's CURRENT entry scale — sats when
+ * BTC is displayed in sats/₿ (0 entry decimals, but priced per whole BTC),
+ * the asset's own decimals otherwise. Returns undefined with no price feed. */
+function assetUnitsFromFiatAmount(amount: string, fromAsset: SwapAsset, unitOfAccountUsd: number): number | undefined {
+  const assetUsd = estimateSwapUsd(fromAsset)
+  if (!assetUsd) return undefined
+  const btcSatsScale = fromAsset.assetId === BTC_ASSET_ID && fromAsset.decimals === 0 ? 1e8 : 1
+  return (((Number(amount) || 0) * unitOfAccountUsd) / assetUsd) * btcSatsScale
+}
+
 function amountInAssetUnits(amount: string, mode: AmountMode, fromAsset: SwapAsset, unitOfAccountUsd: number): string {
   if (mode === 'asset') return amount
-  const assetUsd = estimateSwapUsd(fromAsset)
-  if (!assetUsd) return ''
-  return prettyNumber(((Number(amount) || 0) * unitOfAccountUsd) / assetUsd, fromAsset.decimals)
+  const units = assetUnitsFromFiatAmount(amount, fromAsset, unitOfAccountUsd)
+  if (units === undefined) return ''
+  // this string is parsed by Number()/BigInt downstream (the quote debounce
+  // gate, amountForQuote, the solver's giveAmount) — no thousands separators
+  return prettyNumber(units, fromAsset.decimals, false)
 }
 
 function amountForQuote(amount: string, fromAsset: SwapAsset, btcEntryPrecision: number): string {
