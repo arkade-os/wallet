@@ -80,13 +80,24 @@ export function swapUnitOfAccountAmount({
   toFiatAmount,
   tx,
 }: SwapUnitOfAccountAmountOptions): SwapDisplayAmount | undefined {
-  const fiatAmount = tx.assetSwap?.fiatAmount
-  if (fiatAmount === undefined) return undefined
-
-  const sourceCurrency = (tx.assetSwap?.fiatCurrency as Currencies | undefined) ?? Currencies.USD
-  const selectedCurrencyAmount = toFiatAmount(fromFiatAmount(fiatAmount, sourceCurrency), currency)
+  const swap = tx.assetSwap
+  const fiatAmount = swap?.fiatAmount
   const formatOptions = { bitcoinUnit }
 
+  if (fiatAmount !== undefined) {
+    const sourceCurrency = (swap?.fiatCurrency as Currencies | undefined) ?? Currencies.USD
+    const selectedCurrencyAmount = toFiatAmount(fromFiatAmount(fiatAmount, sourceCurrency), currency)
+    return {
+      masked: prettyFiatHide(selectedCurrencyAmount, currency, formatOptions),
+      value: prettyFiatAmount(selectedCurrencyAmount, currency, formatOptions),
+    }
+  }
+
+  // restored swaps lost the quote-time snapshot: value the BTC leg at the
+  // current rate instead
+  const btcSats = swap?.fromAssetId === 'btc' ? swap.fromAmount : swap?.toAssetId === 'btc' ? swap.toAmount : undefined
+  if (btcSats === undefined || btcSats <= BigInt(0)) return undefined
+  const selectedCurrencyAmount = toFiatAmount(Number(btcSats), currency)
   return {
     masked: prettyFiatHide(selectedCurrencyAmount, currency, formatOptions),
     value: prettyFiatAmount(selectedCurrencyAmount, currency, formatOptions),
@@ -127,10 +138,12 @@ export const mergeAssetSwapActivity = (
       swap.toAsset === 'btc' && fill?.amount && fill.amount > 0
         ? BigInt(fill.amount)
         : (receivedAsset?.amount ?? BigInt(swap.toAmount))
+    // the currency designation outranks the asset's self-reported ticker, so
+    // restored swaps read "BRL to BTC", not "DEPIX to BTC"
     const derivedTicker = (assetId: string) =>
       assetId === 'btc'
         ? 'BTC'
-        : (assetDisplay?.(assetId)?.ticker ?? designatedAccountCurrency(network, assetId) ?? assetId.slice(0, 8))
+        : (designatedAccountCurrency(network, assetId) ?? assetDisplay?.(assetId)?.ticker ?? assetId.slice(0, 8))
     const derivedDecimals = (assetId: string) => (assetId === 'btc' ? 8 : assetDisplay?.(assetId)?.decimals)
     return {
       amount: members[0]?.amount ?? 0,

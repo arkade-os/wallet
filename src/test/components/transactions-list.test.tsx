@@ -123,6 +123,53 @@ describe('TransactionsList', () => {
     expect(container.querySelectorAll('.swap-route-icon__fallback')).toHaveLength(2)
   })
 
+  it('values a restored swap from its BTC leg instead of showing the status', () => {
+    const swapTx: Tx = {
+      amount: 0,
+      boardingTxid: '',
+      createdAt: 1_700_000_000,
+      explorable: undefined,
+      preconfirmed: false,
+      // a restored swap has no quote snapshot, so no fiatAmount
+      assetSwap: {
+        fromAssetId: 'btc',
+        fromTicker: 'BTC',
+        fromDecimals: 8,
+        fromAmount: BigInt(10_000),
+        toAssetId: MUTINYNET_DEPIX_ASSET_ID,
+        toTicker: 'BRL',
+        toDecimals: 2,
+        toAmount: BigInt(500),
+        status: 'completed',
+      },
+      redeemTxid: '',
+      roundTxid: 'restored-fill-txid',
+      settled: true,
+      type: 'swap',
+    }
+    const localConfigContextValue = {
+      ...mockConfigContextValue,
+      config: { ...mockConfigContextValue.config, currency: Currencies.USD },
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={localConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <FlowContext.Provider value={mockFlowContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, isVerifiedAsset: () => true, txs: [swapTx] }}>
+                <TransactionsList mode='static' />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText('$10,000.00')).toBeInTheDocument()
+    expect(screen.queryByText('Completed')).not.toBeInTheDocument()
+  })
+
   it('hides the data-carrier value when any asset lacks account pricing', () => {
     const tx: Tx = {
       amount: 330,

@@ -101,4 +101,11 @@ describe('asset swap store', () => {
 
     expect(activity.assetSwap).toMatchObject({ fromTicker: 'BTC', toTicker: 'USD' })
   })
+
+  it('prefers the currency designation over the asset metadata ticker', () => {
+    const restoredSwap = { ...swap('funding-txid'), toAsset: MUTINYNET_USDT_ASSET_ID }
+    const [activity] = mergeAssetSwapActivity([], [restoredSwap], 'mutinynet', () => ({ ticker: 'USDT', decimals: 2 }))
+
+    expect(activity.assetSwap).toMatchObject({ fromTicker: 'BTC', toTicker: 'USD', toDecimals: 2 })
+  })
 })
