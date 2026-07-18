@@ -1224,10 +1224,22 @@ function buildQuoteFromPlan(
   const receivedProtocol = plan && toAsset ? Number(plan.receive.display) : 0
   const fromUnits = fromUnitsProtocol * fromScale
   const received = receivedProtocol * toScale
-  const selectedCurrencyAmount = unitOfAccountUsd > 0 ? (fromUnitsProtocol * fromUsd) / unitOfAccountUsd : 0
   const receivedCurrencyAmount = unitOfAccountUsd > 0 ? (receivedProtocol * toUsd) / unitOfAccountUsd : 0
+  const feeFraction = (plan?.market.fee_bps ?? 0) / 10_000
+  // once a live quote exists, price the give side off that SAME quote (via
+  // the solver's own exchange rate) instead of this asset's own independent
+  // price estimate — fromUsd/toUsd are fetched from two unrelated feeds, and
+  // when they disagree even slightly the two sides of one trade can show
+  // wildly different dollar values. Before a quote exists there's no shared
+  // rate yet, so fall back to the independent per-asset estimate.
+  const selectedCurrencyAmount =
+    plan && toAsset && feeFraction < 1
+      ? receivedCurrencyAmount / (1 - feeFraction)
+      : unitOfAccountUsd > 0
+        ? (fromUnitsProtocol * fromUsd) / unitOfAccountUsd
+        : 0
   const rate = fromUnitsProtocol > 0 ? receivedProtocol / fromUnitsProtocol : 0
-  const feeAmount = selectedCurrencyAmount * ((plan?.market.fee_bps ?? 0) / 10_000)
+  const feeAmount = selectedCurrencyAmount * feeFraction
   const formatOptions = { bitcoinUnit }
 
   return {

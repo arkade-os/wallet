@@ -234,6 +234,36 @@ describe('Wallet swap flow', () => {
     expect(createSwap.mock.calls[0][1]).toMatchObject({ fromFiatAmount: 10 })
   })
 
+  it('prices the give side off the live quote, not an independently-estimated price that can disagree with it', async () => {
+    // the wallet's own general BTC/USD estimate (FiatContext.toFiat, below)
+    // and the market's own price feed are two unrelated sources — mismatch
+    // them deliberately (market quotes BTC at $50k, the wallet's own feed at
+    // $100k) to prove the give-side fiat value tracks the actual quote
+    fetchMocker.mockResponse(JSON.stringify({ bitcoin: { usd: 50_000 }, price: '500000' }))
+    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['1', '0', '0', '0', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    // 10,000 sats at the market's actual $50k/BTC rate is ~€4.99 (the €4.98
+    // receive value grossed back up by the fee) — not the €10 the wallet's
+    // own (mismatched, $100k) independent estimate would show
+    await waitFor(() => expect(screen.getByText('€4.99')).toBeInTheDocument())
+    expect(screen.queryByText('€10.00')).not.toBeInTheDocument()
+
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
+    fireEvent.click(continueButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+
+    await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
+    expect(createSwap.mock.calls[0][1].fromFiatAmount).toBeCloseTo(4.99, 2)
+  })
+
   it('types whole sats when the display unit is sats', async () => {
     renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
 
