@@ -1,3 +1,4 @@
+import Decimal from 'decimal.js'
 import { AnimatePresence, motion } from 'framer-motion'
 import { fromAtomic, type OfferPlan } from '@arkade-os/solver-discovery'
 import { useOfferQuote } from '@arkade-os/solver-discovery/react'
@@ -357,6 +358,17 @@ export default function WalletSwap() {
     setAmountMode((current) => (current === 'asset' ? 'fiat' : 'asset'))
   }
 
+  const useMaxBalance = () => {
+    const rawBalance = typeof fromAsset.balance === 'bigint' ? fromAsset.balance : BigInt(fromAsset.balance)
+    if (rawBalance <= BigInt(0)) return
+    hapticLight()
+    setConfirmError('')
+    // enter the exact balance in the asset's own units — sidestep the fiat
+    // round-trip so "max" funds the whole balance to the last atomic unit
+    setAmountMode('asset')
+    setAmount(Decimal.div(rawBalance.toString(), Decimal.pow(10, fromAsset.decimals)).toFixed(fromAsset.decimals))
+  }
+
   const handleBack = () => {
     if (step === 'compose' && !openedWithPreselectedAsset.current) {
       setStep('select-from')
@@ -469,6 +481,7 @@ export default function WalletSwap() {
                     onModeToggle={toggleAmountMode}
                     onOpenReceiveDrawer={() => openDrawer('to')}
                     onSwapSides={swapSides}
+                    onUseMaxBalance={useMaxBalance}
                     validationState={validationState}
                     validationText={validationMessage}
                     invalidPulse={invalidPulse}
@@ -657,6 +670,7 @@ function SwapComposer({
   onModeToggle,
   onOpenReceiveDrawer,
   onSwapSides,
+  onUseMaxBalance,
   validationState,
   validationText,
   invalidPulse,
@@ -674,6 +688,7 @@ function SwapComposer({
   onModeToggle: () => void
   onOpenReceiveDrawer: () => void
   onSwapSides: () => void
+  onUseMaxBalance: () => void
   validationState: SwapValidationState
   validationText: string
   invalidPulse: number
@@ -694,7 +709,9 @@ function SwapComposer({
           <TokenAvatar asset={fromAsset} size={36} />
           <div className='swap-input-card__asset-copy'>
             <span>{fromAsset.name}</span>
-            <small>{formatAssetBalance(fromAsset)}</small>
+            <button type='button' className='swap-input-card__balance' onClick={onUseMaxBalance}>
+              {formatAssetBalance(fromAsset)}
+            </button>
           </div>
         </div>
         <div className='swap-amount-stack'>
@@ -1252,13 +1269,11 @@ function buildQuoteFromPlan(
   return {
     fromAsset,
     toAsset,
-    fromAmount: prettyNumber(fromUnits, assetDisplayDecimals(fromUnits, fromAsset)),
+    fromAmount: formatAssetQuantity(fromUnits, fromAsset.decimals),
     fromFiat: prettyFiatAmount(selectedCurrencyAmount, currency, formatOptions),
-    toAmount: toAsset ? prettyNumber(received, assetDisplayDecimals(received, toAsset)) : '0',
+    toAmount: toAsset ? formatAssetQuantity(received, toAsset.decimals) : '0',
     toFiat: prettyFiatAmount(receivedCurrencyAmount, currency, formatOptions),
-    feeLabel: toAsset
-      ? `${prettyNumber(feeReceived, assetDisplayDecimals(feeReceived, toAsset))} ${toAsset.ticker}`
-      : '',
+    feeLabel: toAsset ? `${formatAssetQuantity(feeReceived, toAsset.decimals)} ${toAsset.ticker}` : '',
     // the rate is always quoted per whole BTC even though amounts display in
     // sats — "1 sats = 0.0000006 USD" is technically correct but unreadable
     rateFromTicker: protocolTicker(fromAsset),
@@ -1401,12 +1416,12 @@ function swapAmountDecimals(value: number): number {
   return 8
 }
 
-/** How many decimals to show for an amount in this asset. The readability
- * heuristic never exceeds the asset's real precision — a derived value like
- * the fee could otherwise print fractional sats (asset.decimals 0 for the
- * sats/₿ bitcoin units), which is not a representable amount. */
-function assetDisplayDecimals(value: number, asset: SwapAsset): number {
-  return Math.min(swapAmountDecimals(value), asset.decimals)
+/** An asset amount at its full protocol precision, zero-padded — no compact
+ * "100K", no trimmed trailing zeros: BRL/BTC always show their 8 decimals, a
+ * 2-decimal currency shows 2, and the 0-decimal sats/₿ units stay whole
+ * (never a fractional sat). */
+function formatAssetQuantity(value: number | Decimal, decimals: number): string {
+  return prettyNumber(value, decimals, true, decimals)
 }
 
 function estimateSwapUsd(asset: SwapAsset): number {
@@ -1460,5 +1475,6 @@ function firstPositiveBalanceAsset(assets: SwapAsset[]): SwapAsset | undefined {
 
 function formatAssetBalance(asset: SwapAsset): string {
   const rawBalance = typeof asset.balance === 'bigint' ? asset.balance : BigInt(asset.balance)
-  return `${prettyCurrencyAssetAmount(rawBalance, asset.decimals, asset.ticker)} ${asset.ticker}`
+  const units = Decimal.div(rawBalance.toString(), Decimal.pow(10, asset.decimals))
+  return `${formatAssetQuantity(units, asset.decimals)} ${asset.ticker}`
 }

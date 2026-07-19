@@ -291,6 +291,25 @@ describe('Wallet swap flow', () => {
     expect(createSwap.mock.calls[0][1].fromFiatAmount).toBeCloseTo(4.99, 2)
   })
 
+  it('funds the whole balance when the balance under the from-asset is tapped', async () => {
+    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+
+    // the wallet holds 100,000 sats (loaded async) — tapping enters all of it
+    await userEvent.click(await screen.findByRole('button', { name: '100,000 sats' }))
+    expect(screen.getByLabelText('Swap amount')).toHaveTextContent('100000 sats')
+
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
+    fireEvent.click(continueButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+
+    await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
+    expect(createSwap.mock.calls[0][0].deposit.atomic).toBe(BigInt(100_000))
+  })
+
   it('reuses one cached feed value across quotes instead of refetching per keystroke', async () => {
     renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
 
@@ -309,7 +328,7 @@ describe('Wallet swap flow', () => {
     // one more digit — a fresh debounced quote that must NOT hit the feed
     // again, or a burst of typing gets rate-limited into "Quote unavailable"
     await userEvent.click(screen.getByRole('button', { name: '0' }))
-    await waitFor(() => expect(screen.getByText('99.7 USD')).toBeInTheDocument(), { timeout: 3_000 })
+    await waitFor(() => expect(screen.getByText('99.70 USD')).toBeInTheDocument(), { timeout: 3_000 })
 
     expect(feedCalls()).toBe(afterFirstQuote)
   })
@@ -406,14 +425,15 @@ describe('Wallet swap flow', () => {
   })
 
   it('shows the Bitcoin balance and quotes in whole BTC when the display unit is BTC, not sats', async () => {
-    const { container } = renderSwap({
+    renderSwap({
       config: { unit: Unit.BTC },
       flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
     })
 
-    // the mocked wallet balance (100,000 sats) is shown in whole-BTC terms
-    const balanceText = container.querySelector('.swap-input-card__asset-copy small')?.textContent
-    expect(balanceText).toMatch(/BTC$/)
+    // the mocked wallet balance (100,000 sats) is shown in whole-BTC terms, at
+    // BTC's full 8-decimal precision — 0.00100000 BTC, not 0.001 BTC
+    const balanceText = (await screen.findByRole('button', { name: /BTC$/ })).textContent
+    expect(balanceText).toBe('0.00100000 BTC')
     expect(balanceText).not.toMatch(/sats/)
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
