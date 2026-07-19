@@ -16,6 +16,7 @@ import ChevronDownIcon from '../../../icons/ChevronDown'
 import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
+import { centsToUnits } from '../../../lib/assets'
 import { extractError } from '../../../lib/error'
 import {
   formatFiatAmountParts,
@@ -118,7 +119,6 @@ export default function WalletSwap() {
   }, [balance, svcWallet])
 
   const btcUnit = normalizeBitcoinUnit(config.unit)
-  const btcEntryPrecision = btcUnit === Unit.BTC ? 8 : 0
   const swapAssets = useMemo<SwapAsset[]>(() => {
     const marketAssets = markets.flatMap((market) => [market.base_asset, market.quote_asset])
     const uniqueAssets = new Map(marketAssets.map((asset) => [asset.id, asset]))
@@ -138,7 +138,7 @@ export default function WalletSwap() {
           // BTC enters/displays in whatever unit the wallet's bitcoin-unit
           // setting picks (sats/BTC/₿), same as the rest of the wallet
           ticker: btcUnit === Unit.BTC ? 'BTC' : btcUnit,
-          decimals: btcEntryPrecision,
+          decimals: btcUnit === Unit.BTC ? 8 : 0,
           balance: BigInt(availableSats),
           fiatText: bitcoinRow?.hasFiatPrice
             ? prettyFiatAmount(bitcoinRow.fiatAmount, config.currency, { bitcoinUnit: config.unit })
@@ -168,7 +168,6 @@ export default function WalletSwap() {
     assetBalances,
     assetMetadataCache,
     availableSats,
-    btcEntryPrecision,
     btcUnit,
     config.currency,
     config.unit,
@@ -216,20 +215,14 @@ export default function WalletSwap() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setGiveAmount(Number(assetAmount) > 0 ? amountForQuote(assetAmount, fromAsset, btcEntryPrecision) : '')
+      setGiveAmount(Number(assetAmount) > 0 ? amountForQuote(assetAmount, fromAsset) : '')
       setQuotedAmount(amount)
     }, 600)
     return () => window.clearTimeout(timer)
-  }, [amount, assetAmount, btcEntryPrecision, fromAsset, setGiveAmount])
+  }, [amount, assetAmount, fromAsset, setGiveAmount])
 
   const quoteStale = quotedAmount !== amount
-  const planError = plan
-    ? validatePlan(
-        plan,
-        typeof fromAsset.balance === 'bigint' ? fromAsset.balance : BigInt(fromAsset.balance),
-        aspInfo.dust,
-      )
-    : undefined
+  const planError = plan ? validatePlan(plan, assetBalanceAtomic(fromAsset), aspInfo.dust) : undefined
   const validationMessage = swapValidationMessage({
     amount,
     fromAsset,
@@ -359,14 +352,14 @@ export default function WalletSwap() {
   }
 
   const useMaxBalance = () => {
-    const rawBalance = typeof fromAsset.balance === 'bigint' ? fromAsset.balance : BigInt(fromAsset.balance)
+    const rawBalance = assetBalanceAtomic(fromAsset)
     if (rawBalance <= BigInt(0)) return
     hapticLight()
     setConfirmError('')
     // enter the exact balance in the asset's own units — sidestep the fiat
     // round-trip so "max" funds the whole balance to the last atomic unit
     setAmountMode('asset')
-    setAmount(Decimal.div(rawBalance.toString(), Decimal.pow(10, fromAsset.decimals)).toFixed(fromAsset.decimals))
+    setAmount(centsToUnits(rawBalance, fromAsset.decimals))
   }
 
   const handleBack = () => {
@@ -1247,6 +1240,8 @@ function buildQuoteFromPlan(
   const received = receivedProtocol * toScale
   const receivedCurrencyAmount = unitOfAccountUsd > 0 ? (receivedProtocol * toUsd) / unitOfAccountUsd : 0
   const feeFraction = (plan?.market.fee_bps ?? 0) / 10_000
+  // received amounts are net of the fee; grossUp recovers the pre-fee total
+  const grossUp = feeFraction < 1 ? 1 / (1 - feeFraction) : 0
   // once a live quote exists, price the give side off that SAME quote (via
   // the solver's own exchange rate) instead of this asset's own independent
   // price estimate — fromUsd/toUsd are fetched from two unrelated feeds, and
@@ -1254,16 +1249,16 @@ function buildQuoteFromPlan(
   // wildly different dollar values. Before a quote exists there's no shared
   // rate yet, so fall back to the independent per-asset estimate.
   const selectedCurrencyAmount =
-    plan && toAsset && feeFraction < 1
-      ? receivedCurrencyAmount / (1 - feeFraction)
+    plan && toAsset && grossUp > 0
+      ? receivedCurrencyAmount * grossUp
       : unitOfAccountUsd > 0
         ? (fromUnitsProtocol * fromUsd) / unitOfAccountUsd
         : 0
   const rate = fromUnitsProtocol > 0 ? receivedProtocol / fromUnitsProtocol : 0
   // the market fee is deducted from the payout, so show it in the receive
   // asset (like the Swap/Receive rows), not the wallet's fiat display currency:
-  // received is net of fee, so the fee is the gross-minus-net gap
-  const feeReceived = feeFraction < 1 ? (received * feeFraction) / (1 - feeFraction) : 0
+  // the fee is the gross-minus-net gap
+  const feeReceived = received * feeFraction * grossUp
   const formatOptions = { bitcoinUnit }
 
   return {
@@ -1316,10 +1311,10 @@ function amountInAssetUnits(amount: string, mode: AmountMode, fromAsset: SwapAss
   return prettyNumber(units, fromAsset.decimals, false)
 }
 
-function amountForQuote(amount: string, fromAsset: SwapAsset, btcEntryPrecision: number): string {
+function amountForQuote(amount: string, fromAsset: SwapAsset): string {
   // BTC entered in whole-BTC (8 decimals) is already the solver's expected
   // format — only a sats/₿ (0-decimal) entry needs converting to atomic
-  if (fromAsset.assetId !== BTC_ASSET_ID || btcEntryPrecision > 0) return amount
+  if (fromAsset.assetId !== BTC_ASSET_ID || fromAsset.decimals > 0) return amount
   return fromAtomic(BigInt(amount.split('.')[0].replace(/\D/g, '') || '0'), 8)
 }
 
@@ -1420,7 +1415,7 @@ function swapAmountDecimals(value: number): number {
  * "100K", no trimmed trailing zeros: BRL/BTC always show their 8 decimals, a
  * 2-decimal currency shows 2, and the 0-decimal sats/₿ units stay whole
  * (never a fractional sat). */
-function formatAssetQuantity(value: number | Decimal, decimals: number): string {
+function formatAssetQuantity(value: number | string | Decimal, decimals: number): string {
   return prettyNumber(value, decimals, true, decimals)
 }
 
@@ -1466,15 +1461,15 @@ function resolveInitialFromAssetId(assets: SwapAsset[], requestedAssetId?: strin
   return firstPositiveBalanceAsset(assets)?.assetId ?? assets[0]?.assetId
 }
 
+/** The asset's atomic balance as a bigint, whichever way SwapAsset.balance holds it. */
+function assetBalanceAtomic(asset: SwapAsset): bigint {
+  return typeof asset.balance === 'bigint' ? asset.balance : BigInt(asset.balance)
+}
+
 function firstPositiveBalanceAsset(assets: SwapAsset[]): SwapAsset | undefined {
-  return assets.find((asset) => {
-    const balance = typeof asset.balance === 'bigint' ? asset.balance : BigInt(asset.balance)
-    return balance > BigInt(0)
-  })
+  return assets.find((asset) => assetBalanceAtomic(asset) > BigInt(0))
 }
 
 function formatAssetBalance(asset: SwapAsset): string {
-  const rawBalance = typeof asset.balance === 'bigint' ? asset.balance : BigInt(asset.balance)
-  const units = Decimal.div(rawBalance.toString(), Decimal.pow(10, asset.decimals))
-  return `${formatAssetQuantity(units, asset.decimals)} ${asset.ticker}`
+  return `${formatAssetQuantity(centsToUnits(assetBalanceAtomic(asset), asset.decimals), asset.decimals)} ${asset.ticker}`
 }

@@ -39,6 +39,16 @@ export function swapRouteLabel(tx: Tx): string {
     .join(' to ')
 }
 
+/** The masked/value pair for an asset amount, tickered by its account ticker
+ * (BRL/USD outrank the raw asset ticker). Shared by the from/to legs and the fee. */
+function swapAssetDisplayAmount(amount: bigint, decimals: number, ticker: string): SwapDisplayAmount {
+  const accountTicker = walletAccountTicker(ticker) ?? ticker
+  return {
+    masked: prettyHide('hidden', accountTicker),
+    value: `${prettyCurrencyAssetAmount(amount, decimals, accountTicker)} ${accountTicker}`,
+  }
+}
+
 export function formatSwapAssetAmount(tx: Tx, side: 'from' | 'to'): SwapDisplayAmount | undefined {
   const swap = tx.assetSwap
   if (!swap) return undefined
@@ -48,11 +58,7 @@ export function formatSwapAssetAmount(tx: Tx, side: 'from' | 'to'): SwapDisplayA
   const ticker = side === 'from' ? swap.fromTicker : swap.toTicker
 
   if (amount === undefined || decimals === undefined || !ticker) return undefined
-  const accountTicker = walletAccountTicker(ticker) ?? ticker
-  return {
-    masked: prettyHide('hidden', accountTicker),
-    value: `${prettyCurrencyAssetAmount(amount, decimals, accountTicker)} ${accountTicker}`,
-  }
+  return swapAssetDisplayAmount(amount, decimals, ticker)
 }
 
 /** The market fee, in the receive asset — same unit as the live composer's
@@ -70,11 +76,7 @@ export function swapFeeAmount(tx: Tx): SwapDisplayAmount | undefined {
       .div(10_000 - feeBps)
       .toFixed(0),
   )
-  const accountTicker = walletAccountTicker(toTicker) ?? toTicker
-  return {
-    masked: prettyHide('hidden', accountTicker),
-    value: `${prettyCurrencyAssetAmount(feeAtomic, toDecimals, accountTicker)} ${accountTicker}`,
-  }
+  return swapAssetDisplayAmount(feeAtomic, toDecimals, toTicker)
 }
 
 /** Rate the covenant enforced: receive-asset units bought by one unit of the

@@ -25,7 +25,10 @@ export const QUOTE_OPTIONS = { safetyBps: 0 }
  * enough for a preview whose rate is re-checked at fill anyway.
  * ponytail: no stale-serve when the fetch itself fails; add one if feeds
  * flake beyond the TTL window (cap the staleness — the feed value becomes
- * the covenant floor, so an old price must never price a real offer). */
+ * the covenant floor, so an old price must never price a real offer).
+ * Keyed on the request URL, so it assumes a market's feed URL is stable and
+ * amount-invariant (true today); a cache-busting nonce would silently make it
+ * a no-op — the flat-feedCalls swap test guards against that regressing. */
 export const makeCachedFeedFetch = (ttlMs = 30_000): typeof fetch => {
   const cache = new Map<string, { at: number; body: string }>()
   return async (input, init) => {
