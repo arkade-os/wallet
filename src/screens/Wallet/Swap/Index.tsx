@@ -1246,14 +1246,13 @@ function buildQuoteFromPlan(
   // the solver's own exchange rate) instead of this asset's own independent
   // price estimate — fromUsd/toUsd are fetched from two unrelated feeds, and
   // when they disagree even slightly the two sides of one trade can show
-  // wildly different dollar values. Before a quote exists there's no shared
-  // rate yet, so fall back to the independent per-asset estimate.
+  // wildly different dollar values. Fall back to the independent per-asset
+  // estimate before a quote exists, OR when the receive asset has no price
+  // feed (receivedCurrencyAmount 0) — otherwise a priced give side would read
+  // $0 just because the receive side can't be valued.
+  const giveEstimate = unitOfAccountUsd > 0 ? (fromUnitsProtocol * fromUsd) / unitOfAccountUsd : 0
   const selectedCurrencyAmount =
-    plan && toAsset && grossUp > 0
-      ? receivedCurrencyAmount * grossUp
-      : unitOfAccountUsd > 0
-        ? (fromUnitsProtocol * fromUsd) / unitOfAccountUsd
-        : 0
+    plan && toAsset && grossUp > 0 && receivedCurrencyAmount > 0 ? receivedCurrencyAmount * grossUp : giveEstimate
   const rate = fromUnitsProtocol > 0 ? receivedProtocol / fromUnitsProtocol : 0
   // the market fee is deducted from the payout, so show it in the receive
   // asset (like the Swap/Receive rows), not the wallet's fiat display currency:
