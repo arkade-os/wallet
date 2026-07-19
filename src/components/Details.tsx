@@ -43,7 +43,7 @@ export interface DetailsProps {
   spendLabel?: string
   spendTxid?: string
   status?: string
-  swapFees?: string
+  swapFees?: SwapDisplayAmount
   swapFrom?: SwapDisplayAmount
   swapId?: string
   swapTo?: SwapDisplayAmount
@@ -154,7 +154,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ['Amount', formatAmount(satoshis), <AmountIcon key='amount-icon' />],
     ['Price rate', priceRate, <ArrowUpDownIcon key='price-rate-icon' />],
     ['Network fees', fees === undefined ? feesLabel : formatAmount(fees), <FeesIcon key='fees-icon' />],
-    ['Swap fees', swapFees, <FeesIcon key='swap-fees-icon' />],
+    ['Swap fees', formatSensitiveDetail(swapFees), <FeesIcon key='swap-fees-icon' />],
     ['Total', formatAmount(total), <TotalIcon key='total-icon' />],
   ]
 

@@ -369,7 +369,9 @@ describe('Transaction screen', () => {
     expect(screen.queryByText('Amount')).not.toBeInTheDocument()
     expect(screen.getByTestId('Price rate')).toHaveTextContent('1 ALP = 0.5499')
     expect(screen.getByTestId('Network fees')).toHaveTextContent('$0.00')
-    expect(screen.getByTestId('Swap fees')).toHaveTextContent('0.3%')
+    // the fee is shown in the receive asset (like the live composer), not a
+    // bare percentage — 67.89 BET received net of a 0.30% fee is a 0.204 BET fee
+    expect(screen.getByTestId('Swap fees')).toHaveTextContent('0.204 BET')
     expect(screen.queryByText('Total')).not.toBeInTheDocument()
   })
 
@@ -388,6 +390,7 @@ describe('Transaction screen', () => {
         toDecimals: 3,
         toTicker: 'BET',
         fiatAmount: 100,
+        feeBps: 30,
         status: 'completed' as const,
       },
       roundTxid: 'fill-txid',
@@ -419,8 +422,10 @@ describe('Transaction screen', () => {
 
     expect(screen.getByTestId('From')).toHaveTextContent('········ ALP')
     expect(screen.getByTestId('To')).toHaveTextContent('········ BET')
+    expect(screen.getByTestId('Swap fees')).toHaveTextContent('········ BET')
     expect(screen.queryByText('123.45 ALP')).not.toBeInTheDocument()
     expect(screen.queryByText('67.89 BET')).not.toBeInTheDocument()
+    expect(screen.queryByText('0.204 BET')).not.toBeInTheDocument()
   })
 
   it('uses the persisted wallet-facing tickers in swap details', () => {

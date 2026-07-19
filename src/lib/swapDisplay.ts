@@ -55,6 +55,28 @@ export function formatSwapAssetAmount(tx: Tx, side: 'from' | 'to'): SwapDisplayA
   }
 }
 
+/** The market fee, in the receive asset — same unit as the live composer's
+ * Fees row. The stored toAmount is net of the fee, so the fee is the
+ * gross-minus-net gap: toAmount × feeBps / (10000 − feeBps). */
+export function swapFeeAmount(tx: Tx): SwapDisplayAmount | undefined {
+  const swap = tx.assetSwap
+  if (!swap) return undefined
+  const { toAmount, toDecimals, toTicker, feeBps } = swap
+  if (toAmount === undefined || toDecimals === undefined || !toTicker || feeBps === undefined) return undefined
+  if (toAmount <= BigInt(0) || feeBps <= 0 || feeBps >= 10_000) return undefined
+  const feeAtomic = BigInt(
+    new Decimal(toAmount.toString())
+      .mul(feeBps)
+      .div(10_000 - feeBps)
+      .toFixed(0),
+  )
+  const accountTicker = walletAccountTicker(toTicker) ?? toTicker
+  return {
+    masked: prettyHide('hidden', accountTicker),
+    value: `${prettyCurrencyAssetAmount(feeAtomic, toDecimals, accountTicker)} ${accountTicker}`,
+  }
+}
+
 /** Rate the covenant enforced: receive-asset units bought by one unit of the
  * sent asset, recomputed from the stored atomic amounts. */
 export function swapPriceRateLabel(tx: Tx): string | undefined {
