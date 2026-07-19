@@ -237,6 +237,30 @@ describe('Wallet swap flow', () => {
     expect(createSwap.mock.calls[0][1]).toMatchObject({ fromFiatAmount: 10 })
   })
 
+  it('never shows a fractional sats fee — sats and ₿ are whole numbers', async () => {
+    // a non-round BTC price so the give amount doesn't land on a whole-sat fee
+    fetchMocker.mockResponse(JSON.stringify({ bitcoin: { usd: 63_000 }, price: '500000' }))
+    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: USDT_ID, setSwapFromAssetId: vi.fn() } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Bitcoin/i }))
+    // type 100 USD on the asset side → a six-figure sats payout whose derived
+    // fee is fractional before rounding to the sats asset's 0 decimals
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['1', '0', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
+    fireEvent.click(continueButton)
+
+    // the review drawer's Swap/Receive/Fees are all in sats — none may carry a
+    // fractional part ("532.333 sats" is not a representable amount)
+    expect(screen.getByText('Confirm swap')).toBeInTheDocument()
+    expect(screen.queryByText(/\d\.\d+ sats/)).not.toBeInTheDocument()
+  })
+
   it('prices the give side off the live quote, not an independently-estimated price that can disagree with it', async () => {
     // the wallet's own general BTC/USD estimate (FiatContext.toFiat, below)
     // and the market's own price feed are two unrelated sources — mismatch

@@ -1252,11 +1252,13 @@ function buildQuoteFromPlan(
   return {
     fromAsset,
     toAsset,
-    fromAmount: prettyNumber(fromUnits, swapAmountDecimals(fromUnits)),
+    fromAmount: prettyNumber(fromUnits, assetDisplayDecimals(fromUnits, fromAsset)),
     fromFiat: prettyFiatAmount(selectedCurrencyAmount, currency, formatOptions),
-    toAmount: prettyNumber(received, swapAmountDecimals(received)),
+    toAmount: toAsset ? prettyNumber(received, assetDisplayDecimals(received, toAsset)) : '0',
     toFiat: prettyFiatAmount(receivedCurrencyAmount, currency, formatOptions),
-    feeLabel: toAsset ? `${prettyNumber(feeReceived, swapAmountDecimals(feeReceived))} ${toAsset.ticker}` : '',
+    feeLabel: toAsset
+      ? `${prettyNumber(feeReceived, assetDisplayDecimals(feeReceived, toAsset))} ${toAsset.ticker}`
+      : '',
     // the rate is always quoted per whole BTC even though amounts display in
     // sats — "1 sats = 0.0000006 USD" is technically correct but unreadable
     rateFromTicker: protocolTicker(fromAsset),
@@ -1397,6 +1399,14 @@ function swapAmountDecimals(value: number): number {
   if (value >= 1000) return 2
   if (value >= 1) return 4
   return 8
+}
+
+/** How many decimals to show for an amount in this asset. The readability
+ * heuristic never exceeds the asset's real precision — a derived value like
+ * the fee could otherwise print fractional sats (asset.decimals 0 for the
+ * sats/₿ bitcoin units), which is not a representable amount. */
+function assetDisplayDecimals(value: number, asset: SwapAsset): number {
+  return Math.min(swapAmountDecimals(value), asset.decimals)
 }
 
 function estimateSwapUsd(asset: SwapAsset): number {
