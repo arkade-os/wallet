@@ -223,6 +223,9 @@ describe('Wallet swap flow', () => {
     fireEvent.click(continueButton)
     // the review drawer's rate is quoted per whole BTC, not per satoshi
     expect(screen.getByText(/^1 BTC = /)).toBeInTheDocument()
+    // the fee is shown in the receive asset (USD), not the wallet's display
+    // currency — 9.97 received net of a 0.30% fee means a 0.03 USD fee
+    expect(screen.getByText('0.03 USD')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())

@@ -61,7 +61,7 @@ interface SwapQuote {
   fromFiat: string
   toAmount: string
   toFiat: string
-  feeFiat: string
+  feeLabel: string
   rateFromTicker: string
   rateToTicker: string
   rateLabel: string
@@ -1103,7 +1103,7 @@ function ReviewSummary({ quote, loading }: { quote: SwapQuote; loading: boolean 
         value={quote.toAsset ? `${quote.toAmount} ${quote.toAsset.ticker}` : 'Choose asset'}
         loading={loading}
       />
-      <MetricRow label='Fees' value={quote.feeFiat} loading={loading} />
+      <MetricRow label='Fees' value={quote.feeLabel} loading={loading} />
     </div>
   )
 }
@@ -1243,7 +1243,10 @@ function buildQuoteFromPlan(
         ? (fromUnitsProtocol * fromUsd) / unitOfAccountUsd
         : 0
   const rate = fromUnitsProtocol > 0 ? receivedProtocol / fromUnitsProtocol : 0
-  const feeAmount = selectedCurrencyAmount * feeFraction
+  // the market fee is deducted from the payout, so show it in the receive
+  // asset (like the Swap/Receive rows), not the wallet's fiat display currency:
+  // received is net of fee, so the fee is the gross-minus-net gap
+  const feeReceived = feeFraction < 1 ? (received * feeFraction) / (1 - feeFraction) : 0
   const formatOptions = { bitcoinUnit }
 
   return {
@@ -1253,7 +1256,7 @@ function buildQuoteFromPlan(
     fromFiat: prettyFiatAmount(selectedCurrencyAmount, currency, formatOptions),
     toAmount: prettyNumber(received, swapAmountDecimals(received)),
     toFiat: prettyFiatAmount(receivedCurrencyAmount, currency, formatOptions),
-    feeFiat: prettyFiatAmount(feeAmount, currency, formatOptions),
+    feeLabel: toAsset ? `${prettyNumber(feeReceived, swapAmountDecimals(feeReceived))} ${toAsset.ticker}` : '',
     // the rate is always quoted per whole BTC even though amounts display in
     // sats — "1 sats = 0.0000006 USD" is technically correct but unreadable
     rateFromTicker: protocolTicker(fromAsset),
