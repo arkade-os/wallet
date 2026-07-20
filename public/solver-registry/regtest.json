@@ -1,0 +1,35 @@
+{
+  "version": 0,
+  "network": "mutinynet",
+  "generated_at": 1784305115,
+  "commit": "d9fe7503f156e7ea2e7b4a70797405c1082d302b",
+  "markets": [
+    {
+      "pair": "BTC/asset",
+      "base_asset": {
+        "id": "btc",
+        "name": "Bitcoin",
+        "ticker": "BTC",
+        "decimals": 8
+      },
+      "quote_asset": {
+        "id": "d286a22c58c8db01b828a6f5d10bd9e461570814fe7721a8ff920de9b9fa2cdc0000",
+        "name": "Regtest Asset",
+        "ticker": "RGT",
+        "decimals": 0
+      },
+      "price_feed": "http://pricefeed/btc-asset",
+      "price_feed_schema": {
+        "type": "json",
+        "price_path": "/bitcoin/asset"
+      },
+      "price_decimals": 0,
+      "fee_bps": 110,
+      "min_base_amount": "1",
+      "max_base_amount": "100000000",
+      "min_quote_amount": "1",
+      "max_quote_amount": "100000000",
+      "solver": "jpmorgan"
+    }
+  ]
+}
