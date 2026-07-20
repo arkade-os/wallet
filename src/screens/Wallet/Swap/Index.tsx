@@ -1361,11 +1361,22 @@ function formatLimitMessage(
   const price = Number(plan.priceDisplay)
   if (!price) return ''
   const limitReceiveProtocol = Number(limit.display)
+  // the limits bound the NET receive side (post-fee), but priceDisplay is the
+  // pre-fee rate — gross the bound up by the market fee or the suggested give
+  // amount pays out just under the minimum
+  const feeFraction = plan.market.fee_bps / 10_000
+  const grossUp = feeFraction < 1 ? 1 / (1 - feeFraction) : 1
   // priceDisplay is quote-per-base; convert the receive-side limit back to
   // the give side using whichever side the plan actually gives
-  const giveProtocol = plan.give === 'base' ? limitReceiveProtocol / price : limitReceiveProtocol * price
-  const value = giveProtocol * protocolToDisplayScale(fromAsset)
-  return `${label} ${prettyNumber(value, swapAmountDecimals(value))} ${fromAsset.ticker}`.trim()
+  const giveProtocol = (plan.give === 'base' ? limitReceiveProtocol / price : limitReceiveProtocol * price) * grossUp
+  const raw = giveProtocol * protocolToDisplayScale(fromAsset)
+  // round the bound so the displayed amount actually satisfies it: a minimum
+  // rounds up, a maximum rounds down — round-to-nearest could display a
+  // minimum one atomic unit short of clearing the check, so entering exactly
+  // the suggested amount still failed (the epsilon absorbs float noise)
+  const scale = Math.pow(10, swapAmountDecimals(raw))
+  const value = label === 'Minimum' ? Math.ceil(raw * scale - 1e-9) / scale : Math.floor(raw * scale + 1e-9) / scale
+  return `${label} ${prettyNumber(value, swapAmountDecimals(raw))} ${fromAsset.ticker}`.trim()
 }
 
 function buildQuoteSnapshot(plan: OfferPlan, quote: SwapQuote, currency: Currencies): AssetSwapQuoteSnapshot {

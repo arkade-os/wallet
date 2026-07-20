@@ -390,6 +390,14 @@ describe('Wallet swap flow', () => {
 
     await waitFor(() => expect(screen.getByText(/^Minimum /)).toBeInTheDocument())
     expect(screen.getByText(/^Minimum \S+ sats$/)).toBeInTheDocument()
+
+    // the suggested bound rounds UP to the display precision, so entering
+    // exactly the displayed minimum clears the error — round-to-nearest used
+    // to show a minimum one sat short, forcing users to overshoot it
+    const minSats = (screen.getByText(/^Minimum \S+ sats$/).textContent ?? '').replace(/[^0-9]/g, '')
+    for (let i = 0; i < 3; i++) await userEvent.click(screen.getByRole('button', { name: 'Delete digit' }))
+    for (const key of minSats) await userEvent.click(screen.getByRole('button', { name: key }))
+    await waitFor(() => expect(screen.queryByText(/^Minimum /)).not.toBeInTheDocument(), { timeout: 5_000 })
   })
 
   it('quotes the minimum in the asset being sent (USD), not the asset being received (sats) — vice versa', async () => {
