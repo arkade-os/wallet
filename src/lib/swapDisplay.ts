@@ -115,15 +115,27 @@ export function swapUnitOfAccountAmount({
   // unit of account (currency === BTC)
   const formatOptions = { bitcoinUnit: Unit.SATS }
 
+  // every market has a BTC leg; its satoshi amount is the stable anchor
+  const btcSats = swap?.fromAssetId === 'btc' ? swap.fromAmount : swap?.toAssetId === 'btc' ? swap.toAmount : undefined
+
   let selectedCurrencyAmount: number
-  if (swap?.fiatAmount !== undefined) {
+  if (currency === Currencies.BTC) {
+    // the unit of account is bitcoin itself: the amount IS the BTC leg's
+    // satoshis, shown as sats. Never route this through toFiatAmount(_, BTC)
+    // or a persisted BTC-denominated snapshot — those re-apply the live
+    // bitcoin-unit setting (fromBTC/toBTC), so when the unit differs from swap
+    // time the sats get read as whole BTC and the receipt inflates by 1e8.
+    if (btcSats === undefined || btcSats <= BigInt(0)) return undefined
+    selectedCurrencyAmount = Number(btcSats)
+  } else if (swap?.fiatAmount !== undefined && swap.fiatCurrency !== Currencies.BTC) {
+    // a fiat snapshot in a stable (non-BTC) currency: reconvert it into the
+    // display currency. The round-trip through sats is price-stable in its own
+    // currency, and fromFiatAmount for a real fiat never depends on the unit.
     const sourceCurrency = (swap.fiatCurrency as Currencies | undefined) ?? Currencies.USD
     selectedCurrencyAmount = toFiatAmount(fromFiatAmount(swap.fiatAmount, sourceCurrency), currency)
   } else {
-    // restored swaps lost the quote-time snapshot: value the BTC leg at the
-    // current rate instead
-    const btcSats =
-      swap?.fromAssetId === 'btc' ? swap.fromAmount : swap?.toAssetId === 'btc' ? swap.toAmount : undefined
+    // no snapshot (restored swap), or a BTC-denominated one we can't trust:
+    // value the BTC leg at the current rate instead
     if (btcSats === undefined || btcSats <= BigInt(0)) return undefined
     selectedCurrencyAmount = toFiatAmount(Number(btcSats), currency)
   }
