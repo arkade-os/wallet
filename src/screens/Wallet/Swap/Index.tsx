@@ -1387,6 +1387,11 @@ function buildQuoteSnapshot(plan: OfferPlan, quote: SwapQuote, currency: Currenc
     toTicker: quote.toAsset?.ticker ?? plan.receive.asset.ticker,
     toDecimals: quote.toAsset?.decimals ?? plan.receive.asset.decimals,
     feeBps: plan.market.fee_bps,
+    // TODO: when currency is BTC this snapshot is write-only — every branch of
+    // swapUnitOfAccountAmount ignores a BTC-denominated fiatAmount (it values
+    // the BTC leg's sats directly, since the snapshot's sats-vs-BTC meaning
+    // depends on the bitcoin-unit setting at swap time). Skip persisting it
+    // next time the store shape changes.
     fiatCurrency: currency,
     fromFiatAmount: quote.fromFiatValue,
   }
