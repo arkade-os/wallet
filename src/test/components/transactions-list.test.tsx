@@ -8,7 +8,7 @@ import { NavigationContext } from '../../providers/navigation'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
 import { AssetsContext } from '../../providers/assets'
-import { Currencies, Tx } from '../../lib/types'
+import { Currencies, Tx, Unit } from '../../lib/types'
 import { MUTINYNET_DEPIX_ASSET_ID } from '../../lib/accountAssets'
 import {
   mockAspContextValue,
@@ -150,7 +150,9 @@ describe('TransactionsList', () => {
 
     const { container } = render(
       <NavigationContext.Provider value={mockNavigationContextValue}>
-        <ConfigContext.Provider value={mockConfigContextValue}>
+        <ConfigContext.Provider
+          value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, unit: Unit.BIP177 } }}
+        >
           <FiatContext.Provider value={mockFiatContextValue}>
             <FlowContext.Provider value={mockFlowContextValue}>
               <WalletContext.Provider value={{ ...mockWalletContextValue, isVerifiedAsset: () => true, txs: [swapTx] }}>
@@ -162,6 +164,7 @@ describe('TransactionsList', () => {
       </NavigationContext.Provider>,
     )
 
+    expect(screen.getByText(/BTC to BET/)).toBeInTheDocument()
     expect(container.querySelector('circle[fill="var(--orange-500)"]')).toBeInTheDocument()
     expect(container.querySelectorAll('.swap-route-icon__fallback')).toHaveLength(1)
   })
