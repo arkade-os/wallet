@@ -51,7 +51,6 @@ import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import TokenLogo, { tokenLogoTickerForTicker } from '../../../components/TokenLogo'
 import {
-  accountAssetLabel,
   designatedAccountCurrency,
   normalizeAssetMinorUnits,
   rawAssetPresentation,
@@ -839,12 +838,11 @@ export default function SendForm() {
   // preselected via sendInfo.assets from the Assets app detail screen
   const verifiedAssetOptions = assetOptions.filter((asset) => isVerifiedAsset(asset.assetId))
 
-  // name only — the ticker already rides with the amounts on the right
+  // currency designation only (ticker fallback) — the ticker already rides
+  // with the amounts on the right, and long asset names collide with the
+  // balance column on narrow screens
   const assetLabelFor = (asset: AssetOption) =>
-    accountAssetLabel(verifiedDesignatedCurrency(aspInfo.network, asset.assetId, isVerifiedAsset), {
-      name: asset.name,
-      ticker: '',
-    })
+    verifiedDesignatedCurrency(aspInfo.network, asset.assetId, isVerifiedAsset) ?? asset.ticker
   const selectedAssetLabel = activeAsset ? assetLabelFor(activeAsset) : 'Bitcoin'
   const selectedAssetBalance = activeAsset
     ? `${prettyAssetAmount(activeAsset.balance, activeAsset.decimals)} ${activeAsset.ticker} available`
@@ -1116,7 +1114,7 @@ export default function SendForm() {
       <SheetModal isOpen={showReserveModal} onClose={() => setShowReserveModal(false)}>
         <FlexCol gap='1rem'>
           <Text bold>Balance reserve</Text>
-          <Text color='neutral-500' small>
+          <Text color='neutral-500' small wrap>
             {`${DUST_AMOUNT} sats are kept in reserve to protect your assets. Your max sendable amount is ${prettyNumber(liquidBalance)} sats.`}
           </Text>
           <FlexCol gap='0.5rem'>
