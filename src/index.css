@@ -2198,7 +2198,9 @@ html.palette-dark .send-asset-menu {
 .wallet-success-splash {
   position: fixed;
   inset: 0;
-  z-index: 3000;
+  /* above the body::before status-bar backdrop strip (99999), which would
+   * otherwise paint a theme-colored band over the splash's safe-area top */
+  z-index: 100000;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -4016,7 +4018,9 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 .wallet-success-splash {
   position: fixed;
   inset: 0;
-  z-index: 3000;
+  /* above the body::before status-bar backdrop strip (99999), which would
+   * otherwise paint a theme-colored band over the splash's safe-area top */
+  z-index: 100000;
   display: flex;
   flex-direction: column;
   align-items: center;
