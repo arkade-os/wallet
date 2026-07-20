@@ -1801,16 +1801,7 @@ html.palette-dark .send-asset-menu {
    Asset swap
    ================================================ */
 
-.asset-swap-content .content-shell {
-  padding-bottom: 2rem;
-}
-
-.asset-swap-lab {
-  display: flex;
-  flex-direction: column;
-  gap: 0.875rem;
-  padding-bottom: 1.5rem;
-}
+/* container rules live with the rest of the swap layout further down */
 
 .swap-flip-button,
 .swap-keypad button,
@@ -3468,14 +3459,44 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
    ================================================ */
 
 .asset-swap-content .content-shell {
-  padding-bottom: 2rem;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
 }
 
 .asset-swap-lab {
   display: flex;
+  height: 100%;
   flex-direction: column;
   gap: 0.875rem;
-  padding-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+}
+
+/* The compose stage must fit the viewport with no scrolling: the amount card
+ * is the flexible element — it grows on tall screens and shrinks on short
+ * ones (down to its content) so the keypad and Continue stay on screen. */
+.swap-flow-stage--compose {
+  flex: 1;
+  min-height: 0;
+}
+
+.swap-flow-stage--compose .swap-composer {
+  flex: 1;
+  min-height: 0;
+}
+
+.swap-flow-stage--compose .swap-input-card {
+  flex: 1;
+  min-height: 0;
+}
+
+@media (max-height: 700px) {
+  .swap-keypad button {
+    min-height: 2.75rem;
+  }
+
+  .asset-swap-content .content-shell {
+    padding-top: 0.5rem;
+  }
 }
 
 .swap-token-row {

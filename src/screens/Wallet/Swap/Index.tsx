@@ -456,7 +456,7 @@ export default function WalletSwap() {
               ) : (
                 <motion.section
                   key='compose'
-                  className='swap-flow-stage'
+                  className='swap-flow-stage swap-flow-stage--compose'
                   initial={prefersReduced ? false : { opacity: 0, x: 18 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={prefersReduced ? undefined : { opacity: 0, x: 18 }}
