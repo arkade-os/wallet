@@ -103,20 +103,11 @@ export default function WalletSwap() {
   const { fiatDecimals, fromFiatAmount, toFiat, toFiatAmount } = useContext(FiatContext)
   const { swapFromAssetId, setSwapFromAssetId } = useContext(FlowContext)
   const { goBack, navigate } = useContext(NavigationContext)
-  const { assetBalances, assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
+  const { assetBalances, assetMetadataCache, availableBalance } = useContext(WalletContext)
   const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()
 
-  const [availableSats, setAvailableSats] = useState(0)
   const [cancelling, setCancelling] = useState('')
-
-  useEffect(() => {
-    if (!svcWallet) return
-    svcWallet
-      .getBalance()
-      .then((walletBalance) => setAvailableSats(walletBalance.available))
-      .catch(() => {})
-  }, [balance, svcWallet])
 
   const btcUnit = normalizeBitcoinUnit(config.unit)
   const swapAssets = useMemo<SwapAsset[]>(() => {
@@ -139,7 +130,7 @@ export default function WalletSwap() {
           // setting picks (sats/BTC/₿), same as the rest of the wallet
           ticker: btcUnit === Unit.BTC ? 'BTC' : btcUnit,
           decimals: btcUnit === Unit.BTC ? 8 : 0,
-          balance: BigInt(availableSats),
+          balance: BigInt(availableBalance),
           fiatText: bitcoinRow?.hasFiatPrice
             ? prettyFiatAmount(bitcoinRow.fiatAmount, config.currency, { bitcoinUnit: config.unit })
             : undefined,
@@ -167,7 +158,7 @@ export default function WalletSwap() {
   }, [
     assetBalances,
     assetMetadataCache,
-    availableSats,
+    availableBalance,
     btcUnit,
     config.currency,
     config.unit,

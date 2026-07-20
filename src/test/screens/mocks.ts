@@ -161,6 +161,7 @@ export const mockWalletContextValue = {
   svcWallet: undefined,
   isLocked: () => Promise.resolve(true),
   balance: 0,
+  availableBalance: 0,
   assetBalances: [],
   assetMetadataCache: new Map(),
   setCacheEntry: () => ({ cachedAt: 0 }) as any,

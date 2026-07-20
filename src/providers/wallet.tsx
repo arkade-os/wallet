@@ -98,6 +98,7 @@ interface WalletContextProps {
   txs: Tx[]
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: WalletBalance['total']
+  availableBalance: WalletBalance['available']
   assetBalances: WalletBalance['assets']
   assetMetadataCache: Map<string, CachedAssetDetails>
   setCacheEntry: (assetId: string, details: AssetDetails) => CachedAssetDetails
@@ -126,6 +127,7 @@ export const WalletContext = createContext<WalletContextProps>({
   vtxoManager: undefined,
   isLocked: () => Promise.resolve(true),
   balance: 0,
+  availableBalance: 0,
   assetBalances: [],
   assetMetadataCache: new Map(),
   setCacheEntry: () => ({ cachedAt: 0 }) as CachedAssetDetails,
@@ -150,6 +152,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const [txs, setTxs] = useState<Tx[]>([])
   const [balance, setBalance] = useState(0)
+  const [availableBalance, setAvailableBalance] = useState(0)
   const [wallet, setWallet] = useState(() => readWalletFromStorage() ?? defaultWallet)
   const walletLoaded = true
   const [initialized, setInitialized] = useState<boolean>(false)
@@ -439,7 +442,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (isFirstLoad) setLoadingStatus('Fetching transactions...')
       const txs = await getTxHistory(swWallet)
       if (isFirstLoad) setLoadingStatus('Updating balance...')
-      const { total, assets } = await getBalance(swWallet)
+      const { total, available, assets } = await getBalance(swWallet)
       // prefetch asset metadata before triggering re-renders
       if (isFirstLoad && assets.length > 0) setLoadingStatus('Loading asset metadata...')
       for (const ab of assets) {
@@ -453,6 +456,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }
       setBalance(total)
+      setAvailableBalance(available)
       setAssetBalances(assets)
       if (assets.length > 0 && !configRef.current.apps.assets.enabled) {
         const live = configRef.current
@@ -900,6 +904,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         restartWallet,
         txs,
         balance,
+        availableBalance,
         assetBalances,
         assetMetadataCache: assetMetadataCache.current,
         setCacheEntry,

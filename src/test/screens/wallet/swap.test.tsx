@@ -99,7 +99,7 @@ function renderSwap({
                         { assetId: DEPIX_ID, amount: BigInt(2_000_000_000) },
                       ],
                       assetMetadataCache,
-                      svcWallet: { getBalance: () => Promise.resolve({ available: 100_000 }) },
+                      availableBalance: 100_000,
                     } as any
                   }
                 >
