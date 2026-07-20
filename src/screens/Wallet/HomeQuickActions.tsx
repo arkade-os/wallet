@@ -48,6 +48,7 @@ export default function HomeQuickActions() {
       onClick: () => {
         // existing swaps stay reachable during outages so pending funds
         // remain cancellable from the swap screen
+        console.log('swapAvailable', swapAvailable, 'swaps.length', swaps.length)
         if (swapAvailable || swaps.length > 0) navigate(Pages.WalletSwap)
         else setSwapSheetOpen(true)
       },

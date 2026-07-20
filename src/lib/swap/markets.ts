@@ -66,8 +66,10 @@ const writeMarketsCache = (network: Network, registry: string, markets: Discover
  */
 export const discoverMarkets = async (network: Network): Promise<DiscoveredMarket[]> => {
   const registry = getSolverRegistryUrl(network)
+  console.log('discovered markets', { registry, isNetwork: isNetwork(network) })
   if (!registry || !isNetwork(network)) return []
   const cached = readMarketsCache(network, registry)
+  console.log('discovered markets', { registry, isNetwork: isNetwork(network), cached })
   if (cached && Date.now() - cached.fetchedAt < MARKETS_CACHE_TTL_MS) return cached.markets
   const { markets, sources, warnings } = await discover({ registries: [registry], network })
   if (warnings.length) consoleLog('solver discovery:', ...warnings)
@@ -76,6 +78,7 @@ export const discoverMarkets = async (network: Network): Promise<DiscoveredMarke
   const reachable = sources.some((source) => source.ok)
   if (!reachable && cached) return cached.markets
   if (reachable) writeMarketsCache(network, registry, markets)
+  console.log('discovered markets', { registry, isNetwork: isNetwork(network), markets, sources, warnings })
   return markets
 }
 

@@ -5,14 +5,18 @@ import { writeFile } from 'node:fs/promises'
 import { asset } from '@arkade-os/sdk'
 
 const DEFAULTS = {
-  pairsUrl: 'http://localhost:7091/v1/pairs',
-  assetUrlBase: 'http://localhost:7070/v1/indexer/asset',
-  network: 'mutinynet',
   version: 0,
-  solver: 'jpmorgan',
   feeBps: 110,
   priceDecimals: 0,
+  network: 'regtest',
+  solver: 'jpmorgan',
   pricePath: '/bitcoin/asset',
+  pairsUrl: 'http://localhost:7091/v1/pairs',
+  assetUrlBase: 'http://localhost:7070/v1/indexer/asset',
+  filenames: {
+    discovery: './public/solver-registry/regtest.json',
+    registry: './public/asset-registry/regtest.json',
+  },
 }
 
 const BTC_ASSET = {
@@ -23,81 +27,6 @@ const BTC_ASSET = {
 }
 
 const textDecoder = new TextDecoder()
-
-function printHelp() {
-  console.log(`Usage: node scripts/build-markets-json.mjs [options]
-
-Options:
-  --out <file>          Write output JSON to file (defaults to stdout)
-  --pairs-url <url>     Pairs endpoint (default: ${DEFAULTS.pairsUrl})
-  --asset-url <url>     Asset endpoint base (default: ${DEFAULTS.assetUrlBase})
-  --network <name>      Network name (default: ${DEFAULTS.network})
-  --solver <name>       Solver name (default: ${DEFAULTS.solver})
-  --fee-bps <number>    Fee in basis points (default: ${DEFAULTS.feeBps})
-  --price-path <path>   JSON pointer path for price feed (default: ${DEFAULTS.pricePath})
-  -h, --help            Show this message
-`)
-}
-
-function parseArgs(argv) {
-  const args = {
-    out: null,
-    pairsUrl: DEFAULTS.pairsUrl,
-    assetUrlBase: DEFAULTS.assetUrlBase,
-    network: DEFAULTS.network,
-    solver: DEFAULTS.solver,
-    feeBps: DEFAULTS.feeBps,
-    pricePath: DEFAULTS.pricePath,
-  }
-
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i]
-
-    if (arg === '-h' || arg === '--help') {
-      printHelp()
-      process.exit(0)
-    }
-
-    if (arg === '--out') {
-      args.out = argv[++i]
-      continue
-    }
-
-    if (arg === '--pairs-url') {
-      args.pairsUrl = argv[++i]
-      continue
-    }
-
-    if (arg === '--asset-url') {
-      args.assetUrlBase = argv[++i]
-      continue
-    }
-
-    if (arg === '--network') {
-      args.network = argv[++i]
-      continue
-    }
-
-    if (arg === '--solver') {
-      args.solver = argv[++i]
-      continue
-    }
-
-    if (arg === '--fee-bps') {
-      args.feeBps = Number(argv[++i])
-      continue
-    }
-
-    if (arg === '--price-path') {
-      args.pricePath = argv[++i]
-      continue
-    }
-
-    throw new Error(`Unknown argument: ${arg}`)
-  }
-
-  return args
-}
 
 async function fetchJson(url) {
   const response = await fetch(url)
@@ -181,7 +110,7 @@ async function buildConfig(options) {
     const quoteDecimals = Number(metadata.decimals ?? 0)
 
     markets.push({
-      pair: 'BTC/asset',
+      pair: 'BTC/RGT',
       base_asset: BTC_ASSET,
       quote_asset: {
         id: assetId,
@@ -214,16 +143,14 @@ async function buildConfig(options) {
 }
 
 async function main() {
-  const options = parseArgs(process.argv.slice(2))
+  const options = DEFAULTS
   const config = await buildConfig(options)
-  const json = `${JSON.stringify(config, null, 2)}\n`
 
-  if (options.out) {
-    await writeFile(options.out, json, 'utf8')
-    return
-  }
+  const market = `${JSON.stringify(config, null, 2)}\n`
+  await writeFile(options.filenames.discovery, market, 'utf8')
 
-  process.stdout.write(json)
+  const registry = JSON.stringify([config.markets[0].quote_asset.id])
+  await writeFile(options.filenames.registry, registry, 'utf8')
 }
 
 main().catch((error) => {

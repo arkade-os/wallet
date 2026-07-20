@@ -19,7 +19,7 @@ export const AssetsProvider = ({ children }: { children: ReactNode }) => {
 
   const getRegistryUrl = (network: string): string => {
     if (!getRegistryFileName(network)) return ''
-    const host = network === 'regtest' ? '/registry' : repo
+    const host = network === 'regtest' ? '/asset-registry' : repo
     return `${host}/${getRegistryFileName(network)}`
   }
 
