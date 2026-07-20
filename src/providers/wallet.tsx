@@ -172,6 +172,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const reinitInProgress = useRef(false)
   const initAbortRef = useRef<AbortController | null>(null)
   const reinitSvcWalletRef = useRef<((identity: Identity) => Promise<void>) | null>(null)
+  // reloadWallet runs from long-lived listeners (service-worker messages, the
+  // swap SSE monitor) whose closures captured an early `config` — theme still
+  // the default Themes.Auto. Read the live config through a ref so the assets-
+  // app auto-enable write below never spreads a stale snapshot and resets the
+  // user's saved theme (applyTheme(Auto) then falls back to the OS palette).
+  const configRef = useRef(config)
+  configRef.current = config
 
   // Each init gets its own AbortSignal; lock/reset aborts the current signal
   // with 'lock-reset' so stale paths can decide whether to tear down the SW.
@@ -447,8 +454,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
       setBalance(total)
       setAssetBalances(assets)
-      if (assets.length > 0 && !config.apps.assets.enabled) {
-        updateConfig({ ...config, apps: { ...config.apps, assets: { enabled: true } } })
+      if (assets.length > 0 && !configRef.current.apps.assets.enabled) {
+        const live = configRef.current
+        updateConfig({ ...live, apps: { ...live.apps, assets: { enabled: true } } })
       }
       setVtxos(vtxos)
       setTxs(
