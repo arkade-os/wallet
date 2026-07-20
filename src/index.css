@@ -2165,12 +2165,6 @@ html.palette-dark .send-asset-menu {
   background: var(--neutral-50);
 }
 
-@keyframes swap-skeleton-shimmer {
-  to {
-    transform: translateX(100%);
-  }
-}
-
 @keyframes swap-amount-character-in {
   from {
     opacity: 0;
@@ -2195,199 +2189,6 @@ html.palette-dark .send-asset-menu {
   }
 }
 
-.wallet-success-splash {
-  position: fixed;
-  inset: 0;
-  /* above the body::before status-bar backdrop strip (99999), which would
-   * otherwise paint a theme-colored band over the splash's safe-area top */
-  z-index: 100000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1.25rem;
-  border: 0;
-  background:
-    radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--purple-500) 28%, transparent), transparent 32%),
-    linear-gradient(180deg, var(--purple-600), var(--purple-800));
-  color: white;
-  font: inherit;
-  text-align: center;
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.wallet-success-splash__mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 7.75rem;
-  height: 7.5rem;
-}
-
-.wallet-success-splash__mark svg {
-  width: 7.25rem;
-  height: auto;
-  filter: drop-shadow(0 18px 26px color-mix(in srgb, black 22%, transparent));
-}
-
-.wallet-success-splash__mark svg path {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: swap-success-pixel-in 180ms cubic-bezier(0.23, 1, 0.32, 1) both;
-}
-
-.wallet-success-splash__mark svg path:nth-child(1),
-.wallet-success-splash__mark svg path:nth-child(2),
-.wallet-success-splash__mark svg path:nth-child(26),
-.wallet-success-splash__mark svg path:nth-child(27),
-.wallet-success-splash__mark svg path:nth-child(28),
-.wallet-success-splash__mark svg path:nth-child(29),
-.wallet-success-splash__mark svg path:nth-child(30),
-.wallet-success-splash__mark svg path:nth-child(31),
-.wallet-success-splash__mark svg path:nth-child(32),
-.wallet-success-splash__mark svg path:nth-child(33) {
-  animation-delay: 120ms;
-}
-
-.wallet-success-splash__mark svg path:nth-child(n + 3):nth-child(-n + 25) {
-  animation-delay: calc(170ms + (var(--swap-success-pixel-index, 0) * 18ms));
-}
-
-.wallet-success-splash__mark svg path:nth-child(3) {
-  --swap-success-pixel-index: 22;
-}
-
-.wallet-success-splash__mark svg path:nth-child(4) {
-  --swap-success-pixel-index: 21;
-}
-
-.wallet-success-splash__mark svg path:nth-child(5) {
-  --swap-success-pixel-index: 20;
-}
-
-.wallet-success-splash__mark svg path:nth-child(6) {
-  --swap-success-pixel-index: 19;
-}
-
-.wallet-success-splash__mark svg path:nth-child(7) {
-  --swap-success-pixel-index: 18;
-}
-
-.wallet-success-splash__mark svg path:nth-child(8) {
-  --swap-success-pixel-index: 17;
-}
-
-.wallet-success-splash__mark svg path:nth-child(9) {
-  --swap-success-pixel-index: 16;
-}
-
-.wallet-success-splash__mark svg path:nth-child(10) {
-  --swap-success-pixel-index: 15;
-}
-
-.wallet-success-splash__mark svg path:nth-child(11) {
-  --swap-success-pixel-index: 14;
-}
-
-.wallet-success-splash__mark svg path:nth-child(12) {
-  --swap-success-pixel-index: 13;
-}
-
-.wallet-success-splash__mark svg path:nth-child(13) {
-  --swap-success-pixel-index: 12;
-}
-
-.wallet-success-splash__mark svg path:nth-child(14) {
-  --swap-success-pixel-index: 11;
-}
-
-.wallet-success-splash__mark svg path:nth-child(15) {
-  --swap-success-pixel-index: 10;
-}
-
-.wallet-success-splash__mark svg path:nth-child(16) {
-  --swap-success-pixel-index: 9;
-}
-
-.wallet-success-splash__mark svg path:nth-child(17) {
-  --swap-success-pixel-index: 8;
-}
-
-.wallet-success-splash__mark svg path:nth-child(18) {
-  --swap-success-pixel-index: 7;
-}
-
-.wallet-success-splash__mark svg path:nth-child(19) {
-  --swap-success-pixel-index: 6;
-}
-
-.wallet-success-splash__mark svg path:nth-child(20) {
-  --swap-success-pixel-index: 5;
-}
-
-.wallet-success-splash__mark svg path:nth-child(21) {
-  --swap-success-pixel-index: 4;
-}
-
-.wallet-success-splash__mark svg path:nth-child(22) {
-  --swap-success-pixel-index: 3;
-}
-
-.wallet-success-splash__mark svg path:nth-child(23) {
-  --swap-success-pixel-index: 2;
-}
-
-.wallet-success-splash__mark svg path:nth-child(24) {
-  --swap-success-pixel-index: 1;
-}
-
-.wallet-success-splash__mark svg path:nth-child(25) {
-  --swap-success-pixel-index: 0;
-}
-
-@keyframes swap-success-pixel-in {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 3px, 0) scale(0.86);
-  }
-
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
-.wallet-success-splash__copy {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0 2rem;
-}
-
-.wallet-success-splash__copy strong {
-  font-family: var(--font-family-heading);
-  font-size: var(--heading-xl-size);
-  font-weight: 500;
-  letter-spacing: var(--heading-xl-tracking);
-  line-height: var(--heading-xl-line);
-}
-
-.wallet-success-splash__copy small {
-  color: color-mix(in srgb, white 72%, transparent);
-  font-size: var(--text-sm);
-  font-weight: 400;
-  line-height: var(--text-sm-line);
-}
-
-@media (min-width: 720px) {
-  .asset-swap-lab {
-    max-width: 44rem;
-    margin: 0 auto;
-  }
-}
-
 @media (max-width: 380px) {
   .swap-amount-display > .swap-amount-value {
     font-size: var(--heading-xl-size);
@@ -2396,10 +2197,6 @@ html.palette-dark .send-asset-menu {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wallet-success-splash__mark svg path {
-    animation: none;
-  }
-
   .swap-keypad button:active,
   .swap-token-row:active,
   .swap-receive-card:active,
@@ -3501,15 +3298,6 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   }
 }
 
-.swap-token-row {
-  border: 0;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
 .swap-flow-stage {
   display: flex;
   flex-direction: column;
@@ -3643,16 +3431,6 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--purple-700) 20%, transparent),
     0 0 0 3px color-mix(in srgb, var(--purple-700) 7%, transparent);
-}
-
-.swap-detail-card,
-.swap-review-card {
-  border-radius: var(--radius-xl);
-  background: var(--bg);
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--fg) 5%, transparent),
-    0 1px 2px -1px color-mix(in srgb, var(--fg) 7%, transparent),
-    0 2px 4px 0 color-mix(in srgb, var(--fg) 3%, transparent);
 }
 
 .swap-skeleton-text {
@@ -4203,10 +3981,6 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 
   .swap-skeleton-text::after {
     animation: none;
-  }
-
-  .swap-token-row:active {
-    transform: none;
   }
 }
 
