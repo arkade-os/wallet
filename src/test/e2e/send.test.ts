@@ -4,6 +4,7 @@ import {
   expect,
   createWallet,
   fundWallet,
+  dismissPaymentSuccess,
   prePay,
   enableAssets,
   mintAsset,
@@ -34,11 +35,11 @@ test('should send sats (some and max) to ark address', async ({ page, isMobile }
   // finalize payment
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector('text=Payment sent!', { timeout: 30000 })
+  await page.waitForSelector('text=Payment sent', { timeout: 30000 })
   await expect(page.getByText('2,000 sats sent successfully')).toBeVisible()
 
   // main page
-  await page.getByText('Sounds good').click()
+  await dismissPaymentSuccess(page)
   await expect(page.getByText('+ 5,000 sats')).toBeVisible()
   await page.waitForSelector('text=- 2,000 sats', { timeout: 10000 })
   await expect(page.getByText('Sent')).toBeVisible()
@@ -66,7 +67,7 @@ test('should send sats (some and max) to ark address', async ({ page, isMobile }
   await page.waitForSelector('text=3,000 sats sent successfully', { timeout: 10000 })
 
   // main page
-  await page.getByText('Sounds good').click()
+  await dismissPaymentSuccess(page)
   await page.waitForSelector('text=- 3,000 sats', { timeout: 10000 })
 })
 
@@ -92,11 +93,11 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
   // finalize payment
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector('text=Payment sent!', { timeout: 30000 })
+  await page.waitForSelector('text=Payment sent', { timeout: 30000 })
   await expect(page.getByText('$2.00 sent successfully')).toBeVisible()
 
   // main page
-  await page.getByText('Sounds good').click()
+  await dismissPaymentSuccess(page)
   await page.waitForSelector('text=$2.00', { timeout: 10000 })
   await expect(page.getByText('Sent')).toBeVisible()
 
@@ -125,7 +126,7 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
   await page.waitForSelector(`text=$${usdsRemaining} sent successfully`, { timeout: 10000 })
 
   // main page
-  await page.getByText('Sounds good').click()
+  await dismissPaymentSuccess(page)
   await page.waitForSelector(`text=$${usdsRemaining}`, { timeout: 10000 })
 })
 
@@ -187,7 +188,7 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   await page.waitForSelector(`text=${sendAmount} TST sent successfully`, { timeout: 10000 })
 
   // main page
-  await page.getByText('Sounds good').click()
+  await dismissPaymentSuccess(page)
   await page.waitForSelector(`text=-${sendAmount} TST`, { timeout: 10000 })
   await expect(page.getByText('Sent')).toBeVisible()
 
@@ -219,7 +220,7 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   await page.waitForSelector(`text=${sendAmountMax} TST sent successfully`, { timeout: 10000 })
 
   // main page
-  await page.getByText('Sounds good').click()
+  await dismissPaymentSuccess(page)
   await page.waitForSelector(`text=-${sendAmountMax} TST`, { timeout: 10000 })
 })
 
@@ -248,7 +249,7 @@ test('should send sats (some and max) to onchain address with chain swap', async
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
 
   // main page
-  await page.getByText('Sounds good').click()
+  await dismissPaymentSuccess(page)
   await page.waitForSelector('text=Sent', { timeout: 10000 })
 
   const balance = 5000 - feesNumber - 2000
@@ -278,7 +279,7 @@ test('should send sats (some and max) to onchain address with chain swap', async
   await page.waitForSelector(`text=${prettyNumber(balance)} sats sent successfully`, { timeout: 10000 })
 
   // main page
-  await page.getByText('Sounds good').click()
+  await dismissPaymentSuccess(page)
   await page.waitForSelector(`text=- ${prettyNumber(balance)} sats`, { timeout: 10000 })
 })
 
@@ -303,11 +304,11 @@ test('should send usds (some and max) to onchain address with chain swap', async
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector('text=Payment sent!', { timeout: 30000 })
+  await page.waitForSelector('text=Payment sent', { timeout: 30000 })
   await expect(page.getByText(`$${totalSent.toFixed(2)} sent successfully`)).toBeVisible()
 
   // main page
-  await page.getByText('Sounds good').click()
+  await dismissPaymentSuccess(page)
   await expect(page.getByText(`$${totalSent.toFixed(2)}`)).toBeVisible()
   await expect(page.getByText('Sent')).toBeVisible()
 
@@ -336,7 +337,7 @@ test('should send usds (some and max) to onchain address with chain swap', async
   await expect(page.getByText(`$${balance.toFixed(2)} sent successfully`)).toBeVisible()
 
   // main page
-  await page.getByText('Sounds good').click()
+  await dismissPaymentSuccess(page)
   await page.waitForSelector('text=$0.00', { timeout: 10000 })
 })
 
@@ -369,11 +370,11 @@ test('should send sats (some and max) to onchain address with collaborative exit
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector('text=Payment sent!', { timeout: 30000 })
+  await page.waitForSelector('text=Payment sent', { timeout: 30000 })
   await expect(page.getByText(`${totalSent} sats sent successfully`)).toBeVisible()
 
   // main page
-  await page.getByText('Sounds good').click()
+  await dismissPaymentSuccess(page)
   await expect(page.getByText('Received')).toBeVisible()
   await page.waitForSelector('text=Sent', { timeout: 10000 })
   await expect(page.getByText(`- ${totalSent} sats`)).toBeVisible()
@@ -404,7 +405,7 @@ test('should send sats (some and max) to onchain address with collaborative exit
   await page.waitForSelector(`text=${balance} sats sent successfully`, { timeout: 20000 })
 
   // main page
-  await page.getByText('Sounds good').click()
+  await dismissPaymentSuccess(page)
   await page.waitForSelector(`text=- ${balance} sats`, { timeout: 10000 })
 
   // clear fees
