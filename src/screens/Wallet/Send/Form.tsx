@@ -43,7 +43,7 @@ import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 import { SwapsContext } from '../../../providers/swaps'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { centsToUnits, prettyAssetAmount, truncatedAssetId, unitsToCents } from '../../../lib/assets'
+import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -1058,7 +1058,6 @@ export default function SendForm() {
                                 <AssetIcon asset={asset} />
                                 <span>
                                   <span className='send-asset-option__name'>{assetLabelFor(asset)}</span>
-                                  <span className='send-asset-option__meta'>{truncatedAssetId(asset.assetId)}</span>
                                 </span>
                               </span>
                               <span className='send-asset-option__amount'>
