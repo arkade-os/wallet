@@ -7,6 +7,7 @@ import {
   pay,
   receiveLightning,
   waitForPaymentReceived,
+  dismissPaymentSuccess,
   fundWallet,
   navigateHome,
   navigateToBoltz,
@@ -169,7 +170,7 @@ test('should refund failing swap', async ({ page }) => {
   // optimistic send: lands on the success screen once the swap is funded,
   // then the failure surfaces there when the swap fails in the background
   await page.waitForSelector('text=Payment failed', { timeout: 30000 })
-  await page.getByText('Sounds good').click()
+  await dismissPaymentSuccess(page)
 
   // should be visible in Boltz app
   await navigateToBoltz(page)

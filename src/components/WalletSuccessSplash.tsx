@@ -6,18 +6,38 @@ import { hapticLight } from '../lib/haptics'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 
 interface WalletSuccessSplashProps {
-  show: boolean
+  show?: boolean
   headline: string
   text?: string
   ariaLabel: string
   onDone: () => void
 }
 
-export default function WalletSuccessSplash({ show, headline, text, ariaLabel, onDone }: WalletSuccessSplashProps) {
+export default function WalletSuccessSplash({
+  show = true,
+  headline,
+  text,
+  ariaLabel,
+  onDone,
+}: WalletSuccessSplashProps) {
   const prefersReduced = useReducedMotion()
-
   useEffect(() => {
     if (show) hapticLight()
+  }, [show])
+
+  // The splash must read full-bleed: the OS bars around it (Android PWA
+  // status/nav bars, iOS status-bar backdrop) are painted from the
+  // theme-color meta, which is white in light mode — leaving white bands
+  // above and below the purple. Match it to the splash while shown.
+  useEffect(() => {
+    if (!show) return
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+    if (!meta) return
+    const previous = meta.getAttribute('content')
+    meta.setAttribute('content', '#5528d4') // --purple-600, the gradient's top
+    return () => {
+      if (previous) meta.setAttribute('content', previous)
+    }
   }, [show])
 
   const handleDone = () => {

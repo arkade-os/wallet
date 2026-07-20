@@ -7,7 +7,8 @@ import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { cancelOffer, createOffer, OFFER_PACKET_TYPE } from '../lib/swap/offer'
 import { BTC_ASSET_ID, discoverMarkets } from '../lib/swap/markets'
-import { addAssetSwap, AssetSwap, getAssetSwaps, updateAssetSwap } from '../lib/swap/store'
+import { getScannedTxids, markTxidsScanned, restoreAssetSwaps } from '../lib/swap/restore'
+import { addAssetSwap, AssetSwap, type AssetSwapQuoteSnapshot, getAssetSwaps, updateAssetSwap } from '../lib/swap/store'
 import { getEmulatorUrlForNetwork } from '../lib/constants'
 import { consoleError } from '../lib/logs'
 import { sleep } from '../lib/sleep'
@@ -22,7 +23,7 @@ interface AssetSwapsContextProps {
   /** True when there are markets and the covenant co-signer is reachable. */
   swapAvailable: boolean
   swaps: AssetSwap[]
-  createSwap: (plan: OfferPlan) => Promise<AssetSwap>
+  createSwap: (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot) => Promise<AssetSwap>
   cancelSwap: (id: string) => Promise<void>
 }
 
@@ -40,7 +41,7 @@ export const AssetSwapsContext = createContext<AssetSwapsContextProps>({
 
 export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { svcWallet, reloadWallet } = useContext(WalletContext)
+  const { dataReady, svcWallet, reloadWallet, txs } = useContext(WalletContext)
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
   const [emulatorUrl, setEmulatorUrl] = useState<string>()
@@ -73,12 +74,51 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [aspInfo.network])
 
+  // After a restore the swap store is empty while the funding/fill txs are
+  // back in history, so swaps would show as bare sent/received rows. Scan the
+  // sent virtual txs for offer packets and rebuild the lost records by
+  // binding each funding vtxo to the tx that spent it (fill or cancel). The
+  // scan is incremental — answered txids persist, so late-synced history is
+  // picked up by later runs and nothing is fetched twice.
+  const scanningRef = useRef(false)
+  useEffect(() => {
+    if (!aspInfo.url || !dataReady || txs.length === 0 || scanningRef.current) return
+    let cancelled = false
+    scanningRef.current = true
+    restoreAssetSwaps(
+      new RestIndexerProvider(aspInfo.url),
+      txs,
+      new Set(getAssetSwaps().map((s) => s.id)),
+      getScannedTxids(),
+    )
+      .then(({ restored, scannedTxids }) => {
+        // a wallet reset may have wiped storage while the scan ran — never
+        // write the old profile's records into the cleared store
+        if (cancelled) return
+        markTxidsScanned(scannedTxids)
+        if (restored.length === 0) return
+        let next: AssetSwap[] = []
+        for (const swap of restored) next = addAssetSwap(swap)
+        setSwaps(next)
+        // re-merge the activity list so the tx couple collapses into Swap rows
+        reloadWallet().catch(consoleError)
+      })
+      .catch((err) => consoleError(err, 'swap restore scan failed'))
+      .finally(() => {
+        scanningRef.current = false
+      })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aspInfo.url, dataReady, txs])
+
   // read through a ref so the monitor effect (which deliberately does not
   // rebind on market refreshes) always names assets from the current list
   const marketsRef = useRef(markets)
   marketsRef.current = markets
   const tickerFor = (assetId: string): string => {
-    if (assetId === BTC_ASSET_ID) return 'BTC'
+    if (assetId === BTC_ASSET_ID) return 'sats'
     for (const market of marketsRef.current) {
       if (market.quote_asset.id === assetId) return market.quote_asset.ticker
       if (market.base_asset.id === assetId) return market.base_asset.ticker
@@ -86,7 +126,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     return assetId.slice(0, 8)
   }
 
-  const createSwap = async (plan: OfferPlan): Promise<AssetSwap> => {
+  const createSwap = async (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<AssetSwap> => {
     if (!svcWallet) throw new Error('wallet not available')
     if (!emulatorUrl) throw new Error('swap service unavailable')
     const depositIsBtc = plan.deposit.asset.id === BTC_ASSET_ID
@@ -115,6 +155,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
       fundingTxid: txid,
       status: 'pending',
       createdAt: Date.now(),
+      quote,
     }
     setSwaps(addAssetSwap(swap))
     reloadWallet().catch(consoleError)
@@ -201,7 +242,13 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
           toast.success('Swap cancelled, funds returned')
           reloadWallet().catch(consoleError)
         } else {
-          setSwaps(updateAssetSwap(swap.id, { status: 'fulfilled', spentTxid: vtxo.arkTxId ?? vtxo.spentBy }))
+          setSwaps(
+            updateAssetSwap(swap.id, {
+              status: 'fulfilled',
+              spentTxid: vtxo.arkTxId ?? vtxo.spentBy,
+              completedAt: Date.now(),
+            }),
+          )
           toast.success(`Swap completed, ${tickerFor(swap.toAsset)} received`)
           reloadWallet().catch(consoleError)
         }

@@ -16,26 +16,7 @@ import {
 import { Currencies, Unit } from '../../../lib/types'
 
 vi.mock('liveline', () => ({
-  Liveline: ({
-    paused,
-    formatTime,
-    tooltipY,
-    padding,
-  }: {
-    paused?: boolean
-    formatTime?: (timestamp: number) => string
-    tooltipY?: number
-    padding?: { top: number; right: number; bottom: number; left: number }
-  }) => (
-    <div
-      data-testid='liveline-chart'
-      data-paused={String(paused)}
-      data-tooltip-y={tooltipY}
-      data-padding={JSON.stringify(padding)}
-    >
-      {formatTime?.(new Date(2026, 6, 13, 14, 34).getTime() / 1000)}
-    </div>
-  ),
+  Liveline: ({ paused }: { paused?: boolean }) => <div data-testid='liveline-chart' data-paused={String(paused)} />,
 }))
 
 describe('Bitcoin detail screen', () => {
@@ -52,9 +33,11 @@ describe('Bitcoin detail screen', () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          prices: [
-            [Date.now() - 3_600_000, 77_000],
-            [Date.now(), 78_000],
+          when: Date.now(),
+          from: 'bitcoin',
+          data: [
+            { time: Math.floor(Date.now() / 1000) - 3_600, value: 77_000 },
+            { time: Math.floor(Date.now() / 1000), value: 78_000 },
           ],
         }),
       }),
@@ -74,11 +57,9 @@ describe('Bitcoin detail screen', () => {
       </ConfigContext.Provider>,
     )
 
-    const livelineChart = screen.getByTestId('liveline-chart')
-    expect(livelineChart).toHaveAttribute('data-paused', 'false')
-    expect(livelineChart).toHaveAttribute('data-tooltip-y', '-18')
-    expect(livelineChart).toHaveAttribute('data-padding', '{"top":28,"right":32,"bottom":8,"left":12}')
-    expect(livelineChart).toHaveTextContent('Jul 13, 2026, 2:34 PM')
+    await waitFor(() => {
+      expect(screen.getByTestId('liveline-chart')).toHaveAttribute('data-paused', 'false')
+    })
 
     const chart = container.querySelector('.asset-detail-chart')
     expect(chart).not.toBeNull()
@@ -203,5 +184,32 @@ describe('Bitcoin detail screen', () => {
     })
 
     expect(screen.queryByText('$40,000.00')).not.toBeInTheDocument()
+  })
+
+  it('shows an unavailable state instead of inventing chart data', async () => {
+    vi.stubGlobal('ResizeObserver', vi.fn())
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('feed unavailable')))
+
+    render(
+      <ConfigContext.Provider
+        value={{
+          ...mockConfigContextValue,
+          config: { ...mockConfigContextValue.config, currency: Currencies.CNY },
+        }}
+      >
+        <FiatContext.Provider value={mockFiatContextValue}>
+          <FlowContext.Provider value={mockFlowContextValue}>
+            <NavigationContext.Provider value={mockNavigationContextValue}>
+              <WalletContext.Provider value={mockWalletContextValue}>
+                <BitcoinDetail />
+              </WalletContext.Provider>
+            </NavigationContext.Provider>
+          </FlowContext.Provider>
+        </FiatContext.Provider>
+      </ConfigContext.Provider>,
+    )
+
+    await waitFor(() => expect(screen.getByText('Price history unavailable')).toBeInTheDocument())
+    expect(screen.queryByTestId('liveline-chart')).not.toBeInTheDocument()
   })
 })

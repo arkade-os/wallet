@@ -18,6 +18,29 @@ export const BTC_ASSET_ID = 'btc'
  * and fill is the solver's risk to manage, not the maker's to prepay. */
 export const QUOTE_OPTIONS = { safetyBps: 0 }
 
+/** Feed fetcher with a short per-URL TTL cache. The quote hook refetches the
+ * market's price feed on every debounced keystroke, and public feeds
+ * (CoinGecko) rate-limit that burst hard enough that big amounts reliably die
+ * as "Quote unavailable" mid-typing — one feed value per TTL window is fresh
+ * enough for a preview whose rate is re-checked at fill anyway.
+ * ponytail: no stale-serve when the fetch itself fails; add one if feeds
+ * flake beyond the TTL window (cap the staleness — the feed value becomes
+ * the covenant floor, so an old price must never price a real offer).
+ * Keyed on the request URL, so it assumes a market's feed URL is stable and
+ * amount-invariant (true today); a cache-busting nonce would silently make it
+ * a no-op — the flat-feedCalls swap test guards against that regressing. */
+export const makeCachedFeedFetch = (ttlMs = 30_000): typeof fetch => {
+  const cache = new Map<string, { at: number; body: string }>()
+  return async (input, init) => {
+    const url = input instanceof Request ? input.url : String(input)
+    const hit = cache.get(url)
+    if (hit && Date.now() - hit.at < ttlMs) return new Response(hit.body)
+    const response = await fetch(input, init)
+    if (response.ok) cache.set(url, { at: Date.now(), body: await response.clone().text() })
+    return response
+  }
+}
+
 const MARKETS_CACHE_KEY = 'swapMarkets'
 const MARKETS_CACHE_TTL_MS = 60 * 60 * 1000
 

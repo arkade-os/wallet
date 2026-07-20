@@ -84,6 +84,7 @@ function setupTestEnvironment() {
     dispatchEvent: vi.fn(),
   }))
   vi.mocked(detectJSCapabilities).mockResolvedValue({ isSupported: true })
+  vi.stubEnv('VITE_DEV_MNEMONIC', '')
   vi.stubEnv('VITE_DEV_NSEC', '')
 }
 

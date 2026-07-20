@@ -1,13 +1,15 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Liveline, type HoverPoint, type LivelinePoint } from 'liveline'
 import { ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import AssetAvatar from '../../components/AssetAvatar'
 import Content from '../../components/Content'
 import Header from '../../components/Header'
 import Padded from '../../components/Padded'
 import { PrivacyAmount } from '../../components/PrivacyAmount'
 import SwapComingSoonSheet from '../../components/SwapComingSoonSheet'
-import TokenLogo from '../../components/TokenLogo'
+import TokenLogo, { accountTickerForAssetTicker, tokenLogoTickerForTicker } from '../../components/TokenLogo'
 import TransactionsList from '../../components/TransactionsList'
+import { usePortfolioFiat, type PortfolioRow } from '../../hooks/usePortfolioFiat'
 import ReceiveIcon from '../../icons/Receive'
 import ScanIcon from '../../icons/Scan'
 import SendIcon from '../../icons/Send'
@@ -17,6 +19,7 @@ import {
   prettyBitcoinAmount,
   prettyBitcoinHide,
   prettyChartDateTime,
+  prettyCurrencyAssetAmount,
   prettyFiatAmount,
   prettyFiatHide,
   prettyNumber,
@@ -24,15 +27,15 @@ import {
 import { fiatDecimalsFor } from '../../lib/fiat'
 import { hapticLight, hapticSubtle } from '../../lib/haptics'
 import { consoleError } from '../../lib/logs'
-import { Currencies, Themes } from '../../lib/types'
+import { Currencies, Themes, Unit } from '../../lib/types'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { AssetSwapsContext } from '../../providers/assetSwaps'
 import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
 import { FlowContext, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
-import { WalletContext } from '../../providers/wallet'
-import { fetchHistoricalMarketData } from '../../lib/marketData'
+import { buildConstantMarketSeries, buildCrossRatePoints, fetchHistoricalMarketData } from '../../lib/marketData'
+import { accountChartColorToken } from '../../lib/accountAssets'
 
 const CHART_WINDOWS = [
   { label: '1H', secs: 3_600 },
@@ -44,15 +47,28 @@ const CHART_WINDOWS = [
 ]
 
 const MIN_CHART_WINDOW_SECS = 30
-const bitcoinChartCache = new Map<string, LivelinePoint[]>()
+const marketChartCache = new Map<string, LivelinePoint[]>()
 
-export default function BitcoinDetail() {
+type MarketChartStatus = 'loading' | 'ready' | 'unavailable'
+
+const unavailableRow: PortfolioRow = {
+  assetId: '',
+  name: 'Account unavailable',
+  ticker: 'TKN',
+  decimals: 0,
+  balance: BigInt(0),
+  fiatAmount: 0,
+  satsEquivalent: 0,
+  hasFiatPrice: false,
+}
+
+export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string }) {
   const { config } = useContext(ConfigContext)
-  const { toFiatAmount } = useContext(FiatContext)
-  const { setRecvInfo, setSendInfo } = useContext(FlowContext)
+  const { fromFiatAmount, toFiatAmount } = useContext(FiatContext)
+  const { setRecvInfo, setSendInfo, setSwapFromAssetId } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { balance } = useContext(WalletContext)
   const { swapAvailable, swaps } = useContext(AssetSwapsContext)
+  const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()
 
   const [chartWindow, setChartWindow] = useState(CHART_WINDOWS[2].secs)
@@ -60,50 +76,114 @@ export default function BitcoinDetail() {
   const [swapSheetOpen, setSwapSheetOpen] = useState(false)
   const chartHapticState = useRef({ lastPointTime: 0, lastTriggerTime: 0 })
 
-  const marketFiat = config.currency === Currencies.BTC ? Currencies.USD : config.currency
-  const marketDecimals = fiatDecimalsFor(marketFiat)
+  const selectedRow = rows.find((candidate) => candidate.assetId === assetId)
+  const row = selectedRow ?? unavailableRow
+  const isBitcoin = row.assetId === 'btc'
+  const sourceFiat = isBitcoin ? Currencies.BTC : row.fiatCurrency
+  const marketFiat = isBitcoin && config.currency === Currencies.BTC ? Currencies.USD : config.currency
   const bitcoinUnit = config.unit
-  const currentUnitPrice = toFiatAmount(100_000_000, marketFiat)
-  const liveChartData = useBitcoinMarketChartData(marketFiat, chartWindow)
-  const chartUnitPrice = liveChartData.at(-1)?.value ?? currentUnitPrice
-  const fiatValue = (balance / 100_000_000) * currentUnitPrice
-  const formattedFiat = prettyFiatAmount(fiatValue, marketFiat, {
-    maximumFractionDigits: marketDecimals,
-    minimumFractionDigits: marketDecimals,
-  })
-  const chartColor = useTokenColor('--orange-500', config.theme)
+  const marketDecimals = fiatDecimalsFor(marketFiat, bitcoinUnit)
+  const currentUnitPrice = currentPriceForRow(isBitcoin, sourceFiat, marketFiat, fromFiatAmount, toFiatAmount)
+  const marketChart = useAccountMarketChartData(
+    sourceFiat,
+    marketFiat,
+    chartWindow,
+    bitcoinUnit,
+    sourceFiat === Currencies.BTC ? undefined : currentUnitPrice,
+  )
+  const chartUnitPrice = marketChart.data.at(-1)?.value ?? currentUnitPrice ?? 0
+  const safeBitcoinBalance =
+    isBitcoin && typeof row.balance === 'number' && Number.isFinite(row.balance)
+      ? Math.max(0, Math.floor(row.balance))
+      : 0
+  const fiatValue = isBitcoin
+    ? currentUnitPrice === undefined
+      ? undefined
+      : (safeBitcoinBalance / 100_000_000) * currentUnitPrice
+    : row.hasFiatPrice
+      ? row.fiatAmount
+      : undefined
+  const formattedFiat =
+    fiatValue === undefined
+      ? undefined
+      : prettyFiatAmount(fiatValue, marketFiat, {
+          bitcoinUnit,
+          maximumFractionDigits: marketDecimals,
+          minimumFractionDigits: marketDecimals,
+        })
+  const rawBalance = typeof row.balance === 'bigint' ? row.balance : BigInt(Math.max(0, Math.floor(row.balance)))
+  const formattedBalance = isBitcoin
+    ? prettyBitcoinAmount(safeBitcoinBalance, bitcoinUnit)
+    : `${prettyCurrencyAssetAmount(rawBalance, row.decimals, row.ticker)} ${row.ticker}`
+  const maskedBalance = isBitcoin ? prettyBitcoinHide(safeBitcoinBalance, bitcoinUnit) : `•••• ${row.ticker}`
+  const chartColor = useTokenColor(accountChartColorToken(row.ticker), config.theme)
   const chartTheme = useResolvedChartTheme(config.theme)
-  const safeBalance = Number.isFinite(balance) ? Math.max(0, Math.floor(balance)) : 0
-  const chartData = useMemo(
-    () => (liveChartData.length ? liveChartData : buildFlatChartData(chartUnitPrice, chartWindow)),
-    [chartWindow, chartUnitPrice, liveChartData],
-  )
   const chartDisplayData = useMemo(
-    () => smoothChartData(chartData, chartWindow, chartInteracting),
-    [chartData, chartInteracting, chartWindow],
+    () => smoothChartData(marketChart.data, chartWindow, chartInteracting),
+    [chartInteracting, chartWindow, marketChart.data],
   )
-  const chartDelta = calculateDelta(chartData)
+  const chartDelta = calculateDelta(marketChart.data)
   const livelineWindow = useMemo(
     () => getLivelineWindowSecs(chartDisplayData, chartWindow),
     [chartDisplayData, chartWindow],
   )
-  const canRenderChart = typeof ResizeObserver !== 'undefined'
+  const canRenderChart =
+    marketChart.status === 'ready' && marketChart.data.length >= 2 && typeof ResizeObserver !== 'undefined'
+  const accountTicker = accountTickerForAssetTicker(row.ticker)
+  const sourceAssetId = row.sourceAsset?.assetId ?? (!isBitcoin ? row.assetId : undefined)
+  const sendAccount =
+    !isBitcoin && accountTicker && accountTicker !== 'BTC' && row.sourceAsset
+      ? {
+          assetId: row.assetId,
+          ticker: accountTicker,
+          balance: rawBalance,
+          decimals: row.decimals,
+          amount: BigInt(0),
+          source: row.sourceAsset,
+        }
+      : undefined
+  const tokenLogoTicker = tokenLogoTickerForTicker(accountTicker ?? row.ticker)
+  const activityAssetFilter = isBitcoin ? 'btc' : row.assetId
+  const priceText =
+    currentUnitPrice === undefined
+      ? 'Price unavailable'
+      : prettyFiatAmount(currentUnitPrice, marketFiat, {
+          bitcoinUnit,
+          maximumFractionDigits: marketDecimals,
+          minimumFractionDigits: marketDecimals,
+        })
 
   const handleSend = () => {
     hapticLight()
-    setSendInfo(emptySendInfo)
+    setSendInfo(
+      sendAccount
+        ? { ...emptySendInfo, account: sendAccount }
+        : isBitcoin || !sourceAssetId
+          ? emptySendInfo
+          : { ...emptySendInfo, assets: [{ assetId: sourceAssetId, amount: BigInt(0) }] },
+    )
     navigate(Pages.SendForm)
   }
 
   const handleReceive = () => {
     hapticLight()
-    setRecvInfo(emptyRecvInfo)
+    setRecvInfo(
+      isBitcoin || !sourceAssetId
+        ? emptyRecvInfo
+        : { ...emptyRecvInfo, assetId: sourceAssetId, assetAmount: BigInt(0) },
+    )
     navigate(Pages.ReceiveQRCode)
   }
 
   const handleScan = () => {
     hapticLight()
-    setSendInfo({ ...emptySendInfo, scan: true })
+    setSendInfo(
+      sendAccount
+        ? { ...emptySendInfo, account: sendAccount, scan: true }
+        : isBitcoin || !sourceAssetId
+          ? { ...emptySendInfo, scan: true }
+          : { ...emptySendInfo, assets: [{ assetId: sourceAssetId, amount: BigInt(0) }], scan: true },
+    )
     navigate(Pages.SendForm)
   }
 
@@ -111,8 +191,12 @@ export default function BitcoinDetail() {
     hapticLight()
     // existing swaps stay reachable during outages so pending funds
     // remain cancellable from the swap screen
-    if (swapAvailable || swaps.length > 0) navigate(Pages.WalletSwap)
-    else setSwapSheetOpen(true)
+    if (swapAvailable || swaps.length > 0) {
+      setSwapFromAssetId(row.assetId)
+      navigate(Pages.WalletSwap)
+    } else {
+      setSwapSheetOpen(true)
+    }
   }
 
   const handleChartPress = useCallback(() => {
@@ -144,6 +228,19 @@ export default function BitcoinDetail() {
     [prefersReduced],
   )
 
+  if (!selectedRow) {
+    return (
+      <>
+        <Header text='' back />
+        <Content>
+          <Padded>
+            <div className='asset-detail-page'>Account unavailable</div>
+          </Padded>
+        </Content>
+      </>
+    )
+  }
+
   return (
     <>
       <Header text='' back />
@@ -158,10 +255,14 @@ export default function BitcoinDetail() {
             <motion.section className='asset-detail-hero' variants={prefersReduced ? undefined : walletLoadInChild}>
               <motion.div className='asset-detail-identity' variants={prefersReduced ? undefined : walletLoadInChild}>
                 <span className='asset-detail-logo' aria-hidden='true'>
-                  <TokenLogo ticker='BTC' />
+                  {tokenLogoTicker ? (
+                    <TokenLogo ticker={tokenLogoTicker} />
+                  ) : (
+                    <AssetAvatar icon={row.icon} name={row.name} ticker={row.ticker} size={60} />
+                  )}
                 </span>
                 <div>
-                  <h1 className='asset-detail-name'>Bitcoin</h1>
+                  <h1 className='asset-detail-name'>{row.name}</h1>
                 </div>
               </motion.div>
 
@@ -172,25 +273,42 @@ export default function BitcoinDetail() {
               >
                 <AnimatePresence mode='popLayout' initial={false}>
                   <motion.div
-                    key={`${currentUnitPrice}-${marketFiat}`}
-                    className='asset-detail-price'
+                    key={`${priceText}-${marketFiat}`}
+                    className={`asset-detail-price${currentUnitPrice === undefined ? ' asset-detail-price--unavailable' : ''}`}
                     initial={prefersReduced ? false : { opacity: 0, y: 8, filter: 'blur(2px)' }}
                     animate={prefersReduced ? undefined : { opacity: 1, y: 0, filter: 'blur(0px)' }}
                     exit={prefersReduced ? undefined : { opacity: 0, y: -8, filter: 'blur(2px)' }}
                     transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
                   >
-                    {prettyFiatAmount(currentUnitPrice, marketFiat)}
+                    {priceText}
                   </motion.div>
                 </AnimatePresence>
-                <DeltaBadge value={chartDelta} />
+                {marketChart.status === 'ready' && marketChart.data.length >= 2 ? (
+                  <DeltaBadge value={chartDelta} />
+                ) : null}
               </motion.div>
             </motion.section>
 
             <motion.div className='asset-detail-actions' variants={prefersReduced ? undefined : walletLoadInChild}>
-              <AssetAction icon={<ReceiveIcon />} label='Receive' onClick={handleReceive} />
-              <AssetAction icon={<SendIcon />} label='Send' onClick={handleSend} disabled={balance === 0} />
+              <AssetAction
+                icon={<ReceiveIcon />}
+                label='Receive'
+                onClick={handleReceive}
+                disabled={!isBitcoin && !sourceAssetId}
+              />
+              <AssetAction
+                icon={<SendIcon />}
+                label='Send'
+                onClick={handleSend}
+                disabled={rawBalance === BigInt(0) || (!isBitcoin && !sendAccount && !sourceAssetId)}
+              />
               <AssetAction icon={<SwapIcon />} label='Swap' onClick={handleSwap} />
-              <AssetAction icon={<ScanIcon />} label='Scan' onClick={handleScan} />
+              <AssetAction
+                icon={<ScanIcon />}
+                label='Scan'
+                onClick={handleScan}
+                disabled={!isBitcoin && !sourceAssetId}
+              />
             </motion.div>
 
             <motion.section
@@ -200,10 +318,13 @@ export default function BitcoinDetail() {
               <div
                 className='asset-detail-chart'
                 onPointerDown={() => {
+                  if (!canRenderChart) return
                   setChartScrubbing(true)
                   handleChartPress()
                 }}
-                onPointerEnter={() => setChartScrubbing(true)}
+                onPointerEnter={() => {
+                  if (canRenderChart) setChartScrubbing(true)
+                }}
                 onPointerLeave={() => setChartScrubbing(false)}
                 onPointerUp={() => setChartScrubbing(false)}
                 onPointerCancel={() => setChartScrubbing(false)}
@@ -218,7 +339,7 @@ export default function BitcoinDetail() {
                     badge={false}
                     badgeTail
                     badgeVariant='minimal'
-                    formatValue={(value) => prettyFiatAmount(value, marketFiat)}
+                    formatValue={(value) => prettyFiatAmount(value, marketFiat, { bitcoinUnit })}
                     formatTime={prettyChartDateTime}
                     grid={false}
                     paused={chartInteracting}
@@ -241,7 +362,9 @@ export default function BitcoinDetail() {
                     cursor='default'
                   />
                 ) : (
-                  <div className='asset-detail-chart-fallback' aria-hidden='true' />
+                  <div className='asset-detail-chart-fallback' role='status'>
+                    {marketChart.status === 'loading' ? 'Loading price history…' : 'Price history unavailable'}
+                  </div>
                 )}
               </div>
               <div className='asset-detail-range-tabs' role='tablist' aria-label='Price chart range'>
@@ -269,15 +392,21 @@ export default function BitcoinDetail() {
               <div className='asset-detail-holding'>
                 <span>Balance</span>
                 <strong>
-                  <PrivacyAmount masked={prettyBitcoinHide(safeBalance, bitcoinUnit)}>
-                    <span className='asset-detail-holding-amount'>{prettyBitcoinAmount(safeBalance, bitcoinUnit)}</span>
+                  <PrivacyAmount masked={maskedBalance}>
+                    <span className='asset-detail-holding-amount'>{formattedBalance}</span>
                   </PrivacyAmount>
                 </strong>
               </div>
               <div className='asset-detail-holding'>
                 <span>Value</span>
                 <strong>
-                  <PrivacyAmount masked={prettyFiatHide(fiatValue, marketFiat)}>{formattedFiat}</PrivacyAmount>
+                  {formattedFiat === undefined || fiatValue === undefined ? (
+                    'Unavailable'
+                  ) : (
+                    <PrivacyAmount masked={prettyFiatHide(fiatValue, marketFiat, { bitcoinUnit })}>
+                      {formattedFiat}
+                    </PrivacyAmount>
+                  )}
                 </strong>
               </div>
             </motion.section>
@@ -286,7 +415,7 @@ export default function BitcoinDetail() {
               <div className='asset-detail-section-header'>
                 <strong>Recent activity</strong>
               </div>
-              <TransactionsList mode='static' assetIdFilter='btc' limit={5} />
+              <TransactionsList mode='static' assetIdFilter={activityAssetFilter} limit={5} />
             </motion.section>
           </motion.div>
         </Padded>
@@ -391,49 +520,104 @@ function useResolvedChartTheme(theme: Themes): 'light' | 'dark' {
   return resolved
 }
 
-function useBitcoinMarketChartData(currency: Currencies, windowSecs: number): LivelinePoint[] {
-  const [data, setData] = useState<LivelinePoint[]>([])
+function currentPriceForRow(
+  isBitcoin: boolean,
+  sourceFiat: Currencies | undefined,
+  marketFiat: Currencies,
+  fromFiatAmount: (amount: number, currency: Currencies) => number,
+  toFiatAmount: (satoshis: number, currency: Currencies) => number,
+): number | undefined {
+  if (isBitcoin) return toFiatAmount(100_000_000, marketFiat)
+  if (!sourceFiat) return undefined
+  if (sourceFiat === marketFiat) return 1
+
+  const converted = toFiatAmount(fromFiatAmount(1, sourceFiat), marketFiat)
+  return Number.isFinite(converted) && converted > 0 ? converted : undefined
+}
+
+function useAccountMarketChartData(
+  sourceFiat: Currencies | undefined,
+  marketFiat: Currencies,
+  windowSecs: number,
+  bitcoinUnit: Unit,
+  fallbackUnitPrice?: number,
+): { data: LivelinePoint[]; status: MarketChartStatus } {
+  const [chart, setChart] = useState<{ data: LivelinePoint[]; status: MarketChartStatus }>({
+    data: [],
+    status: sourceFiat ? 'loading' : 'unavailable',
+  })
 
   useEffect(() => {
     const controller = new AbortController()
-    const cacheKey = bitcoinChartCacheKey(currency, windowSecs)
-    const cached = bitcoinChartCache.get(cacheKey)
+    const cacheKey = marketChartCacheKey(sourceFiat, marketFiat, windowSecs, bitcoinUnit)
+    const cached = marketChartCache.get(cacheKey)
+    const fallback =
+      fallbackUnitPrice && Number.isFinite(fallbackUnitPrice) && fallbackUnitPrice > 0
+        ? buildConstantMarketSeries(fallbackUnitPrice, windowSecs)
+        : []
 
-    if (currency === Currencies.BTC) {
-      setData([])
+    if (!sourceFiat) {
+      setChart({ data: [], status: 'unavailable' })
       return () => controller.abort()
     }
 
     if (cached) {
-      setData(cached)
+      setChart({ data: cached, status: 'ready' })
       return () => controller.abort()
     }
 
-    fetchHistoricalMarketData(windowSecs, currency, controller.signal)
+    if (sourceFiat === marketFiat) {
+      const points = buildConstantMarketSeries(1, windowSecs)
+      marketChartCache.set(cacheKey, points)
+      setChart({ data: points, status: 'ready' })
+      return () => controller.abort()
+    }
+
+    setChart({ data: [], status: 'loading' })
+    fetchAccountMarketData(sourceFiat, marketFiat, windowSecs, bitcoinUnit, controller.signal)
       .then((points) => {
         if (controller.signal.aborted) return
-        bitcoinChartCache.set(cacheKey, points)
-        setData(points)
+        if (points.length < 2) {
+          setChart({ data: fallback, status: fallback.length ? 'ready' : 'unavailable' })
+          return
+        }
+        marketChartCache.set(cacheKey, points)
+        setChart({ data: points, status: 'ready' })
       })
       .catch((err) => {
         if (controller.signal.aborted) return
-        consoleError(err, 'error fetching bitcoin market chart')
-        setData([])
+        consoleError(err, 'error fetching account market chart')
+        setChart({ data: fallback, status: fallback.length ? 'ready' : 'unavailable' })
       })
 
     return () => controller.abort()
-  }, [currency, windowSecs])
+  }, [bitcoinUnit, fallbackUnitPrice, marketFiat, sourceFiat, windowSecs])
 
-  return data
+  return chart
 }
 
-function buildFlatChartData(latestValue: number, windowSecs: number): LivelinePoint[] {
-  const now = Math.floor(Date.now() / 1000)
-  const fallbackWindowSecs = isAllChartWindow(windowSecs) ? 86_400 : windowSecs
-  return [
-    { time: now - fallbackWindowSecs, value: latestValue },
-    { time: now, value: latestValue },
-  ]
+async function fetchAccountMarketData(
+  sourceFiat: Currencies,
+  marketFiat: Currencies,
+  windowSecs: number,
+  bitcoinUnit: Unit,
+  signal: AbortSignal,
+): Promise<LivelinePoint[]> {
+  if (sourceFiat === Currencies.BTC) return fetchHistoricalMarketData(windowSecs, marketFiat, signal)
+
+  if (marketFiat === Currencies.BTC) {
+    const sourcePoints = await fetchHistoricalMarketData(windowSecs, sourceFiat, signal)
+    const bitcoinUnitScale = bitcoinUnit === Unit.BTC ? 1 : 100_000_000
+    return sourcePoints
+      .filter((point) => Number.isFinite(point.value) && point.value > 0)
+      .map((point) => ({ time: point.time, value: bitcoinUnitScale / point.value }))
+  }
+
+  const [sourcePoints, marketPoints] = await Promise.all([
+    fetchHistoricalMarketData(windowSecs, sourceFiat, signal),
+    fetchHistoricalMarketData(windowSecs, marketFiat, signal),
+  ])
+  return buildCrossRatePoints(sourcePoints, marketPoints)
 }
 
 function smoothChartData(data: LivelinePoint[], windowSecs: number, isInteracting: boolean): LivelinePoint[] {
@@ -522,8 +706,13 @@ function calculateDelta(data: LivelinePoint[]): number {
   return ((last - first) / first) * 100
 }
 
-function bitcoinChartCacheKey(currency: Currencies, windowSecs: number): string {
-  return `${currency}:${windowSecs}`
+function marketChartCacheKey(
+  sourceFiat: Currencies | undefined,
+  marketFiat: Currencies,
+  windowSecs: number,
+  bitcoinUnit: Unit,
+): string {
+  return `${sourceFiat ?? 'unpriced'}:${marketFiat}:${windowSecs}:${bitcoinUnit}`
 }
 
 function isAllChartWindow(windowSecs: number): boolean {

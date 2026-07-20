@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { BrantaService, type Payment } from '@branta-ops/branta/v2'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
@@ -43,13 +43,19 @@ import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 import { SwapsContext } from '../../../providers/swaps'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { centsToUnits, prettyAssetAmount, truncatedAssetId, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
 import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
-import TokenLogo, { TokenLogoTicker } from '../../../components/TokenLogo'
+import TokenLogo, { tokenLogoTickerForTicker } from '../../../components/TokenLogo'
+import {
+  designatedAccountCurrency,
+  normalizeAssetMinorUnits,
+  rawAssetPresentation,
+  verifiedDesignatedCurrency,
+} from '../../../lib/accountAssets'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,6 +64,7 @@ import {
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
 import { testDomains } from '../../../lib/constants'
+import UnverifiedBadge from '../../../components/UnverifiedBadge'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
@@ -67,13 +74,19 @@ const brantaClient = new BrantaService({
 })
 
 function AssetIcon({ asset }: { asset: AssetOption | null }) {
-  const ticker = asset?.ticker?.toUpperCase()
-  const tokenTicker =
-    ticker === 'USD' || ticker === 'USDT' || ticker === 'USDC' || ticker === 'CHF' || ticker === 'BRL'
-      ? (ticker as TokenLogoTicker)
-      : asset
-        ? null
-        : 'BTC'
+  const { aspInfo } = useContext(AspContext)
+  const { isVerifiedAsset } = useContext(WalletContext)
+  // official token logos are pinned to verified asset IDs, not self-reported
+  // tickers; designated assets wear their currency account's flag
+  const verified = Boolean(asset) && isVerifiedAsset(asset!.assetId)
+  const currency = verified ? designatedAccountCurrency(aspInfo.network, asset!.assetId) : undefined
+  const tokenTicker = !asset
+    ? 'BTC'
+    : currency
+      ? tokenLogoTickerForTicker(currency)
+      : verified
+        ? tokenLogoTickerForTicker(asset.ticker)
+        : null
 
   if (tokenTicker) {
     return (
@@ -113,7 +126,8 @@ export default function SendForm() {
   } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
-  const { assetBalances, assetMetadataCache, balance, setCacheEntry, svcWallet } = useContext(WalletContext)
+  const { assetBalances, assetMetadataCache, balance, isVerifiedAsset, setCacheEntry, svcWallet } =
+    useContext(WalletContext)
 
   const [amount, setAmount] = useState<number>()
   const [amountTextValue, setAmountTextValue] = useState('')
@@ -147,7 +161,21 @@ export default function SendForm() {
   const timeoutRef = useRef<NodeJS.Timeout>()
 
   const prefersReducedMotion = useReducedMotion()
-  const isAssetSend = selectedAsset !== null
+  const accountAsset = useMemo<AssetOption | null>(
+    () =>
+      sendInfo.account
+        ? {
+            assetId: sendInfo.account.assetId,
+            balance: sendInfo.account.balance,
+            decimals: sendInfo.account.decimals,
+            name: sendInfo.account.ticker,
+            ticker: sendInfo.account.ticker,
+          }
+        : null,
+    [sendInfo.account],
+  )
+  const activeAsset = accountAsset ?? selectedAsset
+  const isAssetSend = activeAsset !== null
 
   const DUST_AMOUNT = 330
   const RECIPIENT_DEBOUNCE_MS = 800
@@ -211,12 +239,13 @@ export default function SendForm() {
             consoleError(err, `error fetching metadata for ${ab.assetId}`)
           }
         }
+        const presentation = rawAssetPresentation(meta?.metadata, `${ab.assetId.slice(0, 8)}...`)
         options.push({
           assetId: ab.assetId,
           balance: ab.amount,
-          name: meta?.metadata?.name ?? `${ab.assetId.slice(0, 8)}...`,
-          ticker: meta?.metadata?.ticker ?? '',
-          icon: meta?.metadata?.icon,
+          name: presentation.name,
+          ticker: presentation.ticker,
+          icon: presentation.icon,
           decimals: meta?.metadata?.decimals ?? 8,
         })
       }
@@ -227,11 +256,15 @@ export default function SendForm() {
 
   // initialize selected asset from pre-set sendInfo.assets (e.g. from Asset Detail page)
   useEffect(() => {
+    if (sendInfo.account) {
+      setSelectedAsset(null)
+      return
+    }
     if (!sendInfo.assets?.length || assetOptions.length === 0) return
     const presetAssetId = sendInfo.assets[0].assetId
     const found = assetOptions.find((a) => a.assetId === presetAssetId)
     if (found && !selectedAsset) setSelectedAsset(found)
-  }, [assetOptions, sendInfo.assets])
+  }, [assetOptions, sendInfo.account, sendInfo.assets])
 
   // update available balance
   useEffect(() => {
@@ -271,12 +304,13 @@ export default function SendForm() {
                 consoleError(err, `error fetching metadata for ${assetId}`)
               }
             }
+            const presentation = rawAssetPresentation(meta?.metadata, `${assetId.slice(0, 8)}...`)
             found = {
               assetId,
               balance: BigInt(0),
-              name: meta?.metadata?.name ?? `${assetId.slice(0, 8)}...`,
-              ticker: meta?.metadata?.ticker ?? '',
-              icon: meta?.metadata?.icon,
+              name: presentation.name,
+              ticker: presentation.ticker,
+              icon: presentation.icon,
               decimals: meta?.metadata?.decimals ?? 8,
             }
           }
@@ -292,6 +326,7 @@ export default function SendForm() {
           })
         }
         setSendInfo({
+          account: sendInfo.account,
           address,
           arkAddress,
           assets: sendInfo.assets,
@@ -500,9 +535,9 @@ export default function SendForm() {
 
   // manage button label and errors
   useEffect(() => {
-    if (isAssetSend && selectedAsset) {
-      const assetAmt = sendInfo.assets?.[0]?.amount ?? 0
-      setLabel(assetAmt > selectedAsset.balance ? 'Insufficient asset balance' : 'Continue')
+    if (isAssetSend && activeAsset) {
+      const assetAmount = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
+      setLabel(assetAmount > activeAsset.balance ? 'Insufficient asset balance' : 'Continue')
       return
     }
     const satoshis = sendInfo.satoshis ?? 0
@@ -521,7 +556,7 @@ export default function SendForm() {
                   ? 'Amount below min limit'
                   : 'Continue',
     )
-  }, [sendInfo.satoshis, sendInfo.assets, liquidBalance, selectedAsset])
+  }, [sendInfo.satoshis, sendInfo.assets, sendInfo.account, liquidBalance, activeAsset])
 
   // manage server unreachable error
   useEffect(() => {
@@ -601,7 +636,24 @@ export default function SendForm() {
     setValueSats(undefined)
     setAmountTextValue(value)
     if (isAssetSend) {
-      if (selectedAsset) {
+      if (sendInfo.account) {
+        const accountAmount = unitsToCents(value, sendInfo.account.decimals)
+        setSendInfo({
+          ...sendInfo,
+          account: { ...sendInfo.account, amount: accountAmount },
+          assets: [
+            {
+              assetId: sendInfo.account.source.assetId,
+              amount: normalizeAssetMinorUnits(
+                accountAmount,
+                sendInfo.account.decimals,
+                sendInfo.account.source.decimals,
+              ),
+            },
+          ],
+          satoshis: 0,
+        })
+      } else if (selectedAsset) {
         const decimals = selectedAsset?.decimals
         const cents = unitsToCents(value, decimals)
         setSendInfo({
@@ -638,12 +690,13 @@ export default function SendForm() {
       }
       setSendInfo({
         ...sendInfo,
+        account: undefined,
         address: '',
         assets: [{ assetId: asset.assetId, amount: BigInt(0) }],
         satoshis: 0,
       })
     } else {
-      setSendInfo({ ...sendInfo, assets: undefined, satoshis: 0 })
+      setSendInfo({ ...sendInfo, account: undefined, assets: undefined, satoshis: 0 })
     }
     setAmountTextValue('')
   }
@@ -700,7 +753,15 @@ export default function SendForm() {
   }
 
   const applySendAll = () => {
-    if (isAssetSend && selectedAsset) {
+    if (sendInfo.account) {
+      setSendInfo({
+        ...sendInfo,
+        account: { ...sendInfo.account, amount: sendInfo.account.balance },
+        assets: [{ assetId: sendInfo.account.source.assetId, amount: sendInfo.account.source.balance }],
+        satoshis: 0,
+      })
+      setAmountTextValue(centsToUnits(sendInfo.account.balance, sendInfo.account.decimals))
+    } else if (isAssetSend && selectedAsset) {
       const { assetId, balance, decimals } = selectedAsset
       const assets = [{ assetId, amount: balance }]
       setSendInfo({ ...sendInfo, assets, satoshis: 0 })
@@ -724,11 +785,11 @@ export default function SendForm() {
   }
 
   const Available = () => {
-    if (isAssetSend && selectedAsset) {
+    if (isAssetSend && activeAsset) {
       return (
         <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
           <Text color='neutral-500' smaller>
-            {`${prettyAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`}
+            {`${prettyAssetAmount(activeAsset.balance, activeAsset.decimals)} ${activeAsset.ticker} available`}
           </Text>
         </div>
       )
@@ -751,11 +812,11 @@ export default function SendForm() {
 
   const { address, arkAddress, lnUrl, invoice, satoshis } = sendInfo
 
-  const assetAmt = sendInfo.assets?.[0]?.amount ?? BigInt(0)
+  const assetAmt = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
 
   const buttonDisabled = isAssetSend
     ? !(arkAddress && assetAmt > 0) ||
-      (selectedAsset ? assetAmt > selectedAsset.balance : true) ||
+      (activeAsset ? assetAmt > activeAsset.balance : true) ||
       Boolean(recipientError) ||
       aspInfo.unreachable ||
       tryingToSelfSend ||
@@ -773,9 +834,18 @@ export default function SendForm() {
       satoshis < 1 ||
       processing
 
-  const selectedAssetLabel = selectedAsset ? `${selectedAsset.name} (${selectedAsset.ticker})` : 'Bitcoin'
-  const selectedAssetBalance = selectedAsset
-    ? `${prettyAssetAmount(selectedAsset.balance, selectedAsset.decimals)} ${selectedAsset.ticker} available`
+  // unverified assets are never offered in the picker; they can still arrive
+  // preselected via sendInfo.assets from the Assets app detail screen
+  const verifiedAssetOptions = assetOptions.filter((asset) => isVerifiedAsset(asset.assetId))
+
+  // currency designation only (ticker fallback) — the ticker already rides
+  // with the amounts on the right, and long asset names collide with the
+  // balance column on narrow screens
+  const assetLabelFor = (asset: AssetOption) =>
+    verifiedDesignatedCurrency(aspInfo.network, asset.assetId, isVerifiedAsset) ?? asset.ticker
+  const selectedAssetLabel = activeAsset ? assetLabelFor(activeAsset) : 'Bitcoin'
+  const selectedAssetBalance = activeAsset
+    ? `${prettyAssetAmount(activeAsset.balance, activeAsset.decimals)} ${activeAsset.ticker} available`
     : `${
         useFiat
           ? prettyFiatAmount(toFiat(liquidBalance), config.currency, { bitcoinUnit: config.unit })
@@ -786,7 +856,7 @@ export default function SendForm() {
   const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
 
   const Keys = () => (
-    <Keyboard asset={selectedAsset ?? undefined} back={() => setKeys(false)} onSave={handleKeyboardAmountSave} />
+    <Keyboard asset={activeAsset ?? undefined} back={() => setKeys(false)} onSave={handleKeyboardAmountSave} />
   )
 
   if (keys && !amountIsReadOnly) {
@@ -919,7 +989,7 @@ export default function SendForm() {
                     )
                   })()
                 : null}
-              {assetOptions.length > 0 ? (
+              {verifiedAssetOptions.length > 0 || selectedAsset ? (
                 <FlexCol gap='0.5rem' className='send-asset-field'>
                   <Text smaller color='neutral-500'>
                     Asset
@@ -938,9 +1008,12 @@ export default function SendForm() {
                       data-testid='asset-selector'
                     >
                       <span className='send-asset-trigger__main'>
-                        <AssetIcon asset={selectedAsset} />
+                        <AssetIcon asset={activeAsset} />
                         <span className='send-asset-trigger__copy'>
-                          <span className='send-asset-trigger__name'>{selectedAssetLabel}</span>
+                          <span className='send-asset-trigger__name'>
+                            {selectedAssetLabel}
+                            {activeAsset && !isVerifiedAsset(activeAsset.assetId) ? <UnverifiedBadge /> : null}
+                          </span>
                           <span className='send-asset-trigger__balance'>{selectedAssetBalance}</span>
                         </span>
                       </span>
@@ -950,7 +1023,7 @@ export default function SendForm() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className='send-asset-menu' align='start' side='bottom' sideOffset={8}>
                       <FlexCol gap='0.25rem'>
-                        {selectedAsset ? (
+                        {activeAsset ? (
                           <DropdownMenuItem className='send-asset-option' onClick={() => handleSelectAsset(null)}>
                             <span className='send-asset-option__main'>
                               <AssetIcon asset={null} />
@@ -968,8 +1041,12 @@ export default function SendForm() {
                             </span>
                           </DropdownMenuItem>
                         ) : null}
-                        {assetOptions
-                          .filter((asset) => asset.assetId !== selectedAsset?.assetId)
+                        {verifiedAssetOptions
+                          .filter(
+                            (asset) =>
+                              asset.assetId !== activeAsset?.assetId &&
+                              asset.assetId !== sendInfo.account?.source.assetId,
+                          )
                           .map((asset) => (
                             <DropdownMenuItem
                               key={asset.assetId}
@@ -980,10 +1057,8 @@ export default function SendForm() {
                               <span className='send-asset-option__main'>
                                 <AssetIcon asset={asset} />
                                 <span>
-                                  <span className='send-asset-option__name'>
-                                    {asset.name} ({asset.ticker})
-                                  </span>
-                                  <span className='send-asset-option__meta'>Tap to send this asset</span>
+                                  <span className='send-asset-option__name'>{assetLabelFor(asset)}</span>
+                                  <span className='send-asset-option__meta'>{truncatedAssetId(asset.assetId)}</span>
                                 </span>
                               </span>
                               <span className='send-asset-option__amount'>
@@ -1010,7 +1085,7 @@ export default function SendForm() {
                   onChange={handleAmountChange}
                   min={lnUrlResponse?.minSendable}
                   max={lnUrlResponse?.maxSendable}
-                  asset={selectedAsset ?? undefined}
+                  asset={activeAsset ?? undefined}
                   focus={focus === 'amount' && !isMobileBrowser}
                 />
               </FlexCol>
@@ -1039,7 +1114,7 @@ export default function SendForm() {
       <SheetModal isOpen={showReserveModal} onClose={() => setShowReserveModal(false)}>
         <FlexCol gap='1rem'>
           <Text bold>Balance reserve</Text>
-          <Text color='neutral-500' small>
+          <Text color='neutral-500' small wrap>
             {`${DUST_AMOUNT} sats are kept in reserve to protect your assets. Your max sendable amount is ${prettyNumber(liquidBalance)} sats.`}
           </Text>
           <FlexCol gap='0.5rem'>

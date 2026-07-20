@@ -1,7 +1,17 @@
-import { getStorageItem } from '../storage'
-import { consoleError } from '../logs'
+import { getStorageItem, setStorageItemSafely } from '../storage'
 
 export type AssetSwapStatus = 'pending' | 'cancelling' | 'fulfilled' | 'cancelled' | 'recoverable'
+
+/** Display facts frozen at quote time — only what the activity UI reads. */
+export interface AssetSwapQuoteSnapshot {
+  fromTicker: string
+  fromDecimals: number
+  toTicker: string
+  toDecimals: number
+  feeBps: number
+  fiatCurrency: string
+  fromFiatAmount: number
+}
 
 export interface AssetSwap {
   /** Funding txid — the swap's identity. */
@@ -22,6 +32,8 @@ export interface AssetSwap {
   spentTxid?: string
   status: AssetSwapStatus
   createdAt: number
+  completedAt?: number
+  quote?: AssetSwapQuoteSnapshot
 }
 
 const KEY = 'assetSwaps'
@@ -30,18 +42,19 @@ export const getAssetSwaps = (): AssetSwap[] => {
   return getStorageItem(KEY, [], (val) => {
     const parsed = JSON.parse(val)
     if (!Array.isArray(parsed)) return []
-    return parsed.filter((s) => s && typeof s.id === 'string' && typeof s.offerHex === 'string')
+    // insertion order is not chronological — the restore scan rebuilds records
+    // in tx-scan order — so sort at read to keep newest-first canonical for
+    // every consumer (the Your swaps list, the activity merge)
+    return parsed
+      .filter((s) => s && typeof s.id === 'string' && typeof s.offerHex === 'string')
+      .sort((a, b) => b.createdAt - a.createdAt)
   })
 }
 
 // persistence must never fail the caller: by the time a swap is stored the
 // funding tx is already broadcast, and the offer stays recoverable from it
 const saveAssetSwaps = (swaps: AssetSwap[]): void => {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(swaps))
-  } catch (err) {
-    consoleError(err, 'failed to persist asset swaps')
-  }
+  setStorageItemSafely(KEY, JSON.stringify(swaps), 'failed to persist asset swaps')
 }
 
 /** Prepend a swap; no-op if the id is already stored. */

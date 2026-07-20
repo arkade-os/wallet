@@ -250,4 +250,45 @@ describe('Send screen', () => {
 
     await waitFor(() => expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ satoshis: 10000 })))
   })
+
+  it('converts a USD account amount into its designated asset units', async () => {
+    const setSendInfo = vi.fn()
+    const account = {
+      assetId: 'usdt',
+      ticker: 'USD' as const,
+      balance: BigInt(10_000),
+      decimals: 2,
+      amount: BigInt(0),
+      source: { assetId: 'usdt', balance: BigInt(1_000_000), decimals: 4 },
+    }
+
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        sendInfo: { ...emptySendInfo, account },
+        setSendInfo,
+      },
+      walletContext: {
+        ...mockWalletContextValue,
+        svcWallet: {
+          ...mockSvcWallet,
+          getAddress: () => 'tark1mockoffchain',
+          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+          getBalance: () => Promise.resolve({ available: 1_000_000 }),
+        } as any,
+      },
+    })
+
+    const amountInput = document.querySelector('input[name="send-amount"]') as HTMLInputElement
+    fireEvent.change(amountInput, { target: { value: '80' } })
+
+    await waitFor(() =>
+      expect(setSendInfo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          account: expect.objectContaining({ amount: BigInt(8_000) }),
+          assets: [{ assetId: 'usdt', amount: BigInt(800_000) }],
+        }),
+      ),
+    )
+  })
 })
