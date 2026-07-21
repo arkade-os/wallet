@@ -71,11 +71,11 @@ const TransactionLine = ({
       ? accountAssetValues.reduce((total, value) => total + value, 0)
       : undefined
 
-  const Currency = () => {
+  const Currency = ({ secondary = asAssets }: { secondary?: boolean } = {}) => {
     if (issuance || burn || swap) return null
     const value = toFiat(accountValueSatoshis ?? tx.amount)
     const statusClassName = tx.boardingTxid && tx.preconfirmed ? ' activity-row__amount--pending' : ''
-    const secondaryClassName = asAssets ? ' activity-row__amount--secondary' : ''
+    const secondaryClassName = secondary ? ' activity-row__amount--secondary' : ''
     return (
       <span className={`activity-row__amount${statusClassName}${secondaryClassName}`}>
         <PrivacyAmount masked={prettyFiatHide(value, config.currency, { bitcoinUnit: config.unit })}>
@@ -216,7 +216,12 @@ const TransactionLine = ({
           {accountValueSatoshis === undefined ? null : <Currency />}
         </>
       ) : (
-        <>{config.currency === Currencies.BTC ? <Bitcoin /> : <Currency />}</>
+        <>
+          {/* bitcoin amount first, like asset rows lead with the asset amount;
+              the fiat value rides underneath unless it IS the bitcoin amount */}
+          <Bitcoin />
+          {config.currency === Currencies.BTC ? null : <Currency secondary />}
+        </>
       )}
     </div>
   )

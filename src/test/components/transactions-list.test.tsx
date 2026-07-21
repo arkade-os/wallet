@@ -72,6 +72,48 @@ describe('TransactionsList', () => {
     expect(screen.queryByText('-2,000,000,000.00 BRL')).not.toBeInTheDocument()
   })
 
+  it('shows the bitcoin amount alongside the fiat value on plain BTC rows', () => {
+    const tx: Tx = {
+      amount: 1600,
+      boardingTxid: '',
+      createdAt: 1_700_000_000,
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: 'btc-receive',
+      roundTxid: '',
+      settled: true,
+      type: 'received',
+    }
+
+    render(
+      <AspContext.Provider value={mockAspContextValue}>
+        <AssetsContext.Provider value={{ isRegistered: () => true } as any}>
+          <NavigationContext.Provider value={mockNavigationContextValue}>
+            <ConfigContext.Provider
+              value={
+                {
+                  ...mockConfigContextValue,
+                  config: { ...mockConfigContextValue.config, unit: Unit.SATS },
+                } as any
+              }
+            >
+              <FiatContext.Provider value={mockFiatContextValue}>
+                <FlowContext.Provider value={mockFlowContextValue}>
+                  <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [tx] } as any}>
+                    <TransactionsList mode='static' />
+                  </WalletContext.Provider>
+                </FlowContext.Provider>
+              </FiatContext.Provider>
+            </ConfigContext.Provider>
+          </NavigationContext.Provider>
+        </AssetsContext.Provider>
+      </AspContext.Provider>,
+    )
+
+    expect(screen.getByText('+ 1,600 sats')).toBeInTheDocument()
+    expect(screen.getByText('€1,600.00')).toBeInTheDocument()
+  })
+
   it('shows one configured-unit amount for an arbitrary swap pair', () => {
     const swapTx: Tx = {
       amount: 0,
