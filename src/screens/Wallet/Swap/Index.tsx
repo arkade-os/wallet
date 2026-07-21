@@ -826,7 +826,11 @@ function AnimatedAmountValue({ value, reducedMotion }: { value: string; reducedM
   }, [value])
 
   return (
-    <span className='swap-amount-value' aria-label={value}>
+    <span
+      className='swap-amount-value'
+      aria-label={value}
+      style={{ '--swap-amount-scale': amountFontScale(value.length) } as React.CSSProperties}
+    >
       <AnimatePresence initial={false}>
         {characters.map((character, characterIndex) => {
           const characterChanged = previousCharacters[characterIndex] !== character
@@ -874,6 +878,17 @@ function AnimatedAmountValue({ value, reducedMotion }: { value: string; reducedM
       ))}
     </span>
   )
+}
+
+/** Long amounts (a full-precision balance plus ticker) shrink in steps so
+ * they stay inside the card — stepped rather than fit-to-width so the
+ * per-character animation keeps stable metrics while typing. */
+function amountFontScale(length: number): number {
+  if (length <= 12) return 1
+  if (length <= 16) return 0.8
+  if (length <= 20) return 0.66
+  if (length <= 26) return 0.54
+  return 0.44
 }
 
 function amountCharacterSlotKey(character: string, characterIndex: number, source: string[]): string {

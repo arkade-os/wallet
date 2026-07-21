@@ -1943,7 +1943,8 @@ html.palette-dark .send-asset-menu {
 .swap-amount-display > .swap-amount-value {
   color: var(--fg);
   font-family: var(--font-family-heading);
-  font-size: var(--heading-2xl-size);
+  /* --swap-amount-scale steps down for long amounts (set inline per length) */
+  font-size: calc(var(--heading-2xl-size) * var(--swap-amount-scale, 1));
   font-weight: 500;
   letter-spacing: var(--heading-2xl-tracking);
   line-height: var(--heading-2xl-line);
@@ -2196,7 +2197,7 @@ html.palette-dark .send-asset-menu {
 
 @media (max-width: 380px) {
   .swap-amount-display > .swap-amount-value {
-    font-size: var(--heading-xl-size);
+    font-size: calc(var(--heading-xl-size) * var(--swap-amount-scale, 1));
     line-height: var(--heading-xl-line);
   }
 }
