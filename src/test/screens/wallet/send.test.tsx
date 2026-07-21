@@ -148,11 +148,11 @@ describe('Send screen', () => {
   it('shows BTC units on the send amount field when currency and bitcoin unit are BTC', async () => {
     const walletValue = {
       ...mockWalletContextValue,
+      availableBalance: 12128,
       svcWallet: {
         ...mockSvcWallet,
         getAddress: () => 'tark1mockoffchain',
         getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
-        getBalance: () => Promise.resolve({ available: 12128 }),
       } as any,
     }
     const configValue = {
@@ -171,11 +171,11 @@ describe('Send screen', () => {
   it('shows sats units on the send amount field when currency is BTC and bitcoin unit is sats', async () => {
     const walletValue = {
       ...mockWalletContextValue,
+      availableBalance: 12128,
       svcWallet: {
         ...mockSvcWallet,
         getAddress: () => 'tark1mockoffchain',
         getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
-        getBalance: () => Promise.resolve({ available: 12128 }),
       } as any,
     }
     const configValue = {
@@ -194,11 +194,11 @@ describe('Send screen', () => {
   it('shows BTC as the secondary send amount when fiat currency uses BTC as the bitcoin unit', async () => {
     const walletValue = {
       ...mockWalletContextValue,
+      availableBalance: 12128,
       svcWallet: {
         ...mockSvcWallet,
         getAddress: () => 'tark1mockoffchain',
         getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
-        getBalance: () => Promise.resolve({ available: 12128 }),
       } as any,
     }
     const configValue = {

@@ -1593,8 +1593,7 @@ html.palette-dark .input-shell:focus-within {
   line-height: 1.25rem;
 }
 
-.send-asset-trigger__balance,
-.send-asset-option__meta {
+.send-asset-trigger__balance {
   color: color-mix(in srgb, var(--fg) 52%, transparent);
   font-size: 0.8125rem;
   line-height: 1.125rem;

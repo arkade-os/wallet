@@ -126,14 +126,13 @@ export default function SendForm() {
   } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
-  const { assetBalances, assetMetadataCache, balance, isVerifiedAsset, setCacheEntry, svcWallet } =
+  const { assetBalances, assetMetadataCache, availableBalance, balance, isVerifiedAsset, setCacheEntry, svcWallet } =
     useContext(WalletContext)
 
   const [amount, setAmount] = useState<number>()
   const [amountTextValue, setAmountTextValue] = useState('')
   const [amountIsReadOnly, setAmountIsReadOnly] = useState(false)
   const [assetOptions, setAssetOptions] = useState<AssetOption[]>([])
-  const [availableBalance, setAvailableBalance] = useState(0)
   const [deductFromAmount, setDeductFromAmount] = useState(false)
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
@@ -181,7 +180,9 @@ export default function SendForm() {
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
   const reserveApplied = !isAssetSend && hasAssets
-  const liquidBalance = availableBalance - (reserveApplied ? DUST_AMOUNT : 0)
+  // clamp: a balance below the reserve is "nothing sendable", not a negative
+  // amount (and the provider's availableBalance never flashes 0 on mount)
+  const liquidBalance = Math.max(0, availableBalance - (reserveApplied ? DUST_AMOUNT : 0))
 
   const smartSetError = (str: string) => {
     setError(str === '' ? (aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '') : str)
@@ -265,15 +266,6 @@ export default function SendForm() {
     const found = assetOptions.find((a) => a.assetId === presetAssetId)
     if (found && !selectedAsset) setSelectedAsset(found)
   }, [assetOptions, sendInfo.account, sendInfo.assets])
-
-  // update available balance
-  useEffect(() => {
-    if (!svcWallet) return
-    svcWallet
-      .getBalance()
-      .then((bal) => setAvailableBalance(bal.available))
-      .catch(smartSetError)
-  }, [balance])
 
   // parse recipient data
   // repeat when asset changes to re-validate addresses (e.g. if user
@@ -1029,15 +1021,12 @@ export default function SendForm() {
                               <AssetIcon asset={null} />
                               <span>
                                 <span className='send-asset-option__name'>Bitcoin</span>
-                                <span className='send-asset-option__meta'>
-                                  {useFiat
-                                    ? prettyFiatAmount(toFiat(liquidBalance), config.currency, {
-                                        bitcoinUnit: config.unit,
-                                      })
-                                    : prettyAmount(liquidBalance)}{' '}
-                                  available
-                                </span>
                               </span>
+                            </span>
+                            <span className='send-asset-option__amount'>
+                              {useFiat
+                                ? prettyFiatAmount(toFiat(liquidBalance), config.currency, { bitcoinUnit: config.unit })
+                                : prettyAmount(liquidBalance)}
                             </span>
                           </DropdownMenuItem>
                         ) : null}
