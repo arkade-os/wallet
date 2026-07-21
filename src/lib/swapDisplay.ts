@@ -32,9 +32,16 @@ export function swapStatusLabel(tx: Tx): string {
   return 'Completed'
 }
 
+export function swapRouteTicker(assetId: string | undefined, ticker: string | undefined): string | undefined {
+  return assetId === 'btc' ? 'BTC' : (walletAccountTicker(ticker) ?? ticker)
+}
+
 export function swapRouteLabel(tx: Tx): string {
-  return [tx.assetSwap?.fromTicker, tx.assetSwap?.toTicker]
-    .map((ticker) => walletAccountTicker(ticker) ?? ticker)
+  return [
+    { assetId: tx.assetSwap?.fromAssetId, ticker: tx.assetSwap?.fromTicker },
+    { assetId: tx.assetSwap?.toAssetId, ticker: tx.assetSwap?.toTicker },
+  ]
+    .map(({ assetId, ticker }) => swapRouteTicker(assetId, ticker))
     .filter(Boolean)
     .join(' to ')
 }
@@ -96,8 +103,8 @@ export function swapPriceRateLabel(tx: Tx): string | undefined {
   const fromUnits = new Decimal(fromAmount.toString()).div(Decimal.pow(10, fromRateDecimals))
   const toUnits = new Decimal(toAmount.toString()).div(Decimal.pow(10, toRateDecimals))
   const rate = toUnits.div(fromUnits)
-  const fromTicker = swap.fromAssetId === 'btc' ? 'BTC' : (walletAccountTicker(swap.fromTicker) ?? swap.fromTicker)
-  const toTicker = swap.toAssetId === 'btc' ? 'BTC' : (walletAccountTicker(swap.toTicker) ?? swap.toTicker)
+  const fromTicker = swapRouteTicker(swap.fromAssetId, swap.fromTicker)
+  const toTicker = swapRouteTicker(swap.toAssetId, swap.toTicker)
   // deliberately a coarser 2-bucket precision than swapAmountDecimals — a
   // receipt only needs enough precision to eyeball, not display-grid parity
   return `1 ${fromTicker} = ${prettyNumber(rate, rate.lt(1) ? 8 : 2, true, 2)} ${toTicker}`

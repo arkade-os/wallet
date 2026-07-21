@@ -221,6 +221,7 @@ describe('Wallet swap flow', () => {
     const continueButton = screen.getByRole('button', { name: 'Continue' })
     await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
     fireEvent.click(continueButton)
+    expect(screen.getByRole('heading', { name: 'BTC to USD' })).toBeInTheDocument()
     // the review drawer's rate is quoted per whole BTC, not per satoshi
     expect(screen.getByText(/^1 BTC = /)).toBeInTheDocument()
     // the fee is shown in the receive asset (USD), not the wallet's display
@@ -229,6 +230,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
+    expect(screen.getByText('BTC to USD · Waiting for fill')).toBeInTheDocument()
     const plan = createSwap.mock.calls[0][0]
     expect(plan.deposit.atomic).toBe(BigInt(10_000))
     // 10_000 sats * 0.1 cents/sat * (10000 - 30)bps = 997 cents
@@ -258,6 +260,7 @@ describe('Wallet swap flow', () => {
     // the review drawer's Swap/Receive/Fees are all in sats — none may carry a
     // fractional part ("532.333 sats" is not a representable amount)
     expect(screen.getByText('Confirm swap')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'USD to BTC' })).toBeInTheDocument()
     expect(screen.queryByText(/\d\.\d+ sats/)).not.toBeInTheDocument()
   })
 
@@ -502,7 +505,10 @@ describe('Wallet swap flow', () => {
   })
 
   it('keeps PR 784 pending-swap cancellation available', async () => {
-    renderSwap({ swap: { swaps: [pendingSwap] } })
+    renderSwap({
+      config: { unit: Unit.BIP177 },
+      swap: { swaps: [{ ...pendingSwap, quote: { ...pendingSwap.quote!, fromTicker: 'sats' } }] },
+    })
     expect(screen.getByText('BTC to USD')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     await waitFor(() => expect(cancelSwap).toHaveBeenCalledWith('funding-txid'))

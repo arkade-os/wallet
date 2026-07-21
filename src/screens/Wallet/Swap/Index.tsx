@@ -26,6 +26,7 @@ import {
   prettyNumber,
 } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
+import { swapRouteTicker } from '../../../lib/swapDisplay'
 import { BTC_ASSET_ID, findMarket, makeCachedFeedFetch, QUOTE_OPTIONS, validatePlan } from '../../../lib/swap/markets'
 import { type AssetSwap, type AssetSwapQuoteSnapshot, type AssetSwapStatus } from '../../../lib/swap/store'
 import { Currencies, Unit } from '../../../lib/types'
@@ -558,7 +559,8 @@ function PendingSwaps({
             <div key={swap.id} className='swap-token-row'>
               <span className='swap-token-row__copy'>
                 <span>
-                  {swap.quote?.fromTicker ?? from?.ticker ?? '?'} to {swap.quote?.toTicker ?? to?.ticker ?? '?'}
+                  {swapRouteTicker(swap.fromAsset, swap.quote?.fromTicker ?? from?.ticker) ?? '?'} to{' '}
+                  {swapRouteTicker(swap.toAsset, swap.quote?.toTicker ?? to?.ticker) ?? '?'}
                 </span>
                 <small>
                   {formatAmount(swap.fromAsset, swap.fromAmount)} for ≥ {formatAmount(swap.toAsset, swap.toAmount)}
@@ -1076,7 +1078,11 @@ function SwapSuccessOverlay({ quote, onDone }: { quote?: SwapQuote; onDone: () =
     <WalletSuccessSplash
       show={Boolean(quote)}
       headline='Swap created'
-      text={quote ? `${quote.fromAsset.ticker} to ${quote.toAsset?.ticker} · Waiting for fill` : undefined}
+      text={
+        quote
+          ? `${swapRouteTicker(quote.fromAsset.assetId, quote.fromAsset.ticker)} to ${swapRouteTicker(quote.toAsset?.assetId, quote.toAsset?.ticker)} · Waiting for fill`
+          : undefined
+      }
       ariaLabel='Swap created. Tap to go home.'
       onDone={onDone}
     />
@@ -1094,7 +1100,8 @@ function ReviewSummary({ quote, loading }: { quote: SwapQuote; loading: boolean 
         <div>
           <span>Swap route</span>
           <h3 className='text-heading-sm'>
-            {quote.fromAsset.ticker} to {quote.toAsset?.ticker ?? 'asset'}
+            {swapRouteTicker(quote.fromAsset.assetId, quote.fromAsset.ticker)} to{' '}
+            {swapRouteTicker(quote.toAsset?.assetId, quote.toAsset?.ticker) ?? 'asset'}
           </h3>
         </div>
       </div>
@@ -1261,18 +1268,12 @@ function buildQuoteFromPlan(
     feeLabel: toAsset ? `${formatAssetQuantity(feeReceived, toAsset.decimals)} ${toAsset.ticker}` : '',
     // the rate is always quoted per whole BTC even though amounts display in
     // sats — "1 sats = 0.0000006 USD" is technically correct but unreadable
-    rateFromTicker: protocolTicker(fromAsset),
-    rateToTicker: toAsset ? protocolTicker(toAsset) : '',
+    rateFromTicker: swapRouteTicker(fromAsset.assetId, fromAsset.ticker) ?? '',
+    rateToTicker: toAsset ? (swapRouteTicker(toAsset.assetId, toAsset.ticker) ?? '') : '',
     rateLabel: prettyNumber(rate, swapAmountDecimals(rate)),
     fromFiatValue: selectedCurrencyAmount,
     toFiatValue: receivedCurrencyAmount,
   }
-}
-
-/** The asset's ticker for contexts where BTC must read as "BTC" rather than
- * its swap-entry unit ("sats"/"₿") — quoted rates and token logos. */
-function protocolTicker(asset: SwapAsset): string {
-  return asset.assetId === BTC_ASSET_ID ? 'BTC' : asset.ticker
 }
 
 /** BTC's USD price and the solver's plan.*.display are both in whole-BTC

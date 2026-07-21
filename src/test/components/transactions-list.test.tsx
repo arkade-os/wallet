@@ -8,7 +8,7 @@ import { NavigationContext } from '../../providers/navigation'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
 import { AssetsContext } from '../../providers/assets'
-import { Currencies, Tx } from '../../lib/types'
+import { Currencies, Tx, Unit } from '../../lib/types'
 import { MUTINYNET_DEPIX_ASSET_ID } from '../../lib/accountAssets'
 import {
   mockAspContextValue,
@@ -70,6 +70,48 @@ describe('TransactionsList', () => {
 
     expect(screen.getByText('-2,000.00 BRL')).toBeInTheDocument()
     expect(screen.queryByText('-2,000,000,000.00 BRL')).not.toBeInTheDocument()
+  })
+
+  it('shows the bitcoin amount alongside the fiat value on plain BTC rows', () => {
+    const tx: Tx = {
+      amount: 1600,
+      boardingTxid: '',
+      createdAt: 1_700_000_000,
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: 'btc-receive',
+      roundTxid: '',
+      settled: true,
+      type: 'received',
+    }
+
+    render(
+      <AspContext.Provider value={mockAspContextValue}>
+        <AssetsContext.Provider value={{ isRegistered: () => true } as any}>
+          <NavigationContext.Provider value={mockNavigationContextValue}>
+            <ConfigContext.Provider
+              value={
+                {
+                  ...mockConfigContextValue,
+                  config: { ...mockConfigContextValue.config, unit: Unit.SATS },
+                } as any
+              }
+            >
+              <FiatContext.Provider value={mockFiatContextValue}>
+                <FlowContext.Provider value={mockFlowContextValue}>
+                  <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [tx] } as any}>
+                    <TransactionsList mode='static' />
+                  </WalletContext.Provider>
+                </FlowContext.Provider>
+              </FiatContext.Provider>
+            </ConfigContext.Provider>
+          </NavigationContext.Provider>
+        </AssetsContext.Provider>
+      </AspContext.Provider>,
+    )
+
+    expect(screen.getByText('+ 1,600 sats')).toBeInTheDocument()
+    expect(screen.getByText('€1,600.00')).toBeInTheDocument()
   })
 
   it('shows one configured-unit amount for an arbitrary swap pair', () => {
@@ -150,7 +192,9 @@ describe('TransactionsList', () => {
 
     const { container } = render(
       <NavigationContext.Provider value={mockNavigationContextValue}>
-        <ConfigContext.Provider value={mockConfigContextValue}>
+        <ConfigContext.Provider
+          value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, unit: Unit.BIP177 } }}
+        >
           <FiatContext.Provider value={mockFiatContextValue}>
             <FlowContext.Provider value={mockFlowContextValue}>
               <WalletContext.Provider value={{ ...mockWalletContextValue, isVerifiedAsset: () => true, txs: [swapTx] }}>
@@ -162,6 +206,7 @@ describe('TransactionsList', () => {
       </NavigationContext.Provider>,
     )
 
+    expect(screen.getByText(/BTC to BET/)).toBeInTheDocument()
     expect(container.querySelector('circle[fill="var(--orange-500)"]')).toBeInTheDocument()
     expect(container.querySelectorAll('.swap-route-icon__fallback')).toHaveLength(1)
   })

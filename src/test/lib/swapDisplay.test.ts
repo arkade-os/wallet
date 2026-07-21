@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { swapUnitOfAccountAmount } from '../../lib/swapDisplay'
+import { swapRouteLabel, swapUnitOfAccountAmount } from '../../lib/swapDisplay'
 import { Currencies, Tx, Unit } from '../../lib/types'
 
 const PRICE = 63_750 // USD per whole BTC
@@ -38,6 +38,22 @@ const btcCurrencySwap = (): Tx =>
       status: 'completed',
     },
   }) as unknown as Tx
+
+describe('swapRouteLabel', () => {
+  it('uses the BTC ticker for either bitcoin leg regardless of its persisted denomination', () => {
+    expect(swapRouteLabel(btcCurrencySwap())).toBe('BTC to USD')
+
+    const reverse = btcCurrencySwap()
+    reverse.assetSwap = {
+      ...reverse.assetSwap!,
+      fromAssetId: 'usd-asset',
+      fromTicker: 'USD',
+      toAssetId: 'btc',
+      toTicker: 'sats',
+    }
+    expect(swapRouteLabel(reverse)).toBe('USD to BTC')
+  })
+})
 
 describe('swapUnitOfAccountAmount', () => {
   it('does not inflate a BTC-denominated snapshot by 1e8 when viewed in a fiat currency', () => {

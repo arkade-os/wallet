@@ -20,27 +20,39 @@ export type KeyboardInputMode = 'sats' | 'fiat' | 'asset' | 'btc'
 interface KeyboardProps {
   asset?: AssetOption
   back: () => void
+  /** Starting denomination for bitcoin entry; the ⇅ toggle still switches.
+   * Omitted → the wallet-wide useFiat flag decides (fiat-first). */
+  defaultMode?: Exclude<KeyboardInputMode, 'asset'>
   hideBalance?: boolean
   onSave: (value: string, inputMode: KeyboardInputMode) => void
   onClear?: () => void
   initialValue?: bigint | number
 }
 
-export default function Keyboard({ asset, back, hideBalance, onClear, onSave, initialValue }: KeyboardProps) {
+export default function Keyboard({
+  asset,
+  back,
+  defaultMode,
+  hideBalance,
+  onClear,
+  onSave,
+  initialValue,
+}: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
-  const { balance, svcWallet } = useContext(WalletContext)
+  const { availableBalance: available } = useContext(WalletContext)
 
   const [assetInCents, setAssetInCents] = useState(BigInt(0))
   const [amountInSats, setAmountInSats] = useState(0)
-  const [available, setAvailable] = useState(0)
   const [error, setError] = useState('')
   const [inputMode, setInputMode] = useState<KeyboardInputMode>('sats')
   const [textValue, setTextValue] = useState('')
 
   useEffect(() => {
-    setInputMode(asset?.assetId ? 'asset' : useFiat ? 'fiat' : config.unit === Unit.BTC ? 'btc' : 'sats')
-  }, [asset, useFiat, config.unit])
+    setInputMode(
+      asset?.assetId ? 'asset' : (defaultMode ?? (useFiat ? 'fiat' : config.unit === Unit.BTC ? 'btc' : 'sats')),
+    )
+  }, [asset, defaultMode, useFiat, config.unit])
 
   useEffect(() => {
     if (initialValue && inputMode && toFiat && fiatDecimals) {
@@ -56,11 +68,6 @@ export default function Keyboard({ asset, back, hideBalance, onClear, onSave, in
       }
     }
   }, [initialValue, inputMode, asset, toFiat, fiatDecimals])
-
-  useEffect(() => {
-    if (!svcWallet) return
-    svcWallet.getBalance().then((bal) => setAvailable(bal.available))
-  }, [balance])
 
   useEffect(() => {
     const strValue = textValue.replaceAll(',', '')
@@ -104,6 +111,12 @@ export default function Keyboard({ asset, back, hideBalance, onClear, onSave, in
     if (k === 'x') {
       if (textValue.length === 0) return // nothing to delete
       return setTextValue(textValue.slice(0, -1))
+    }
+
+    // a lone leading zero is replaced, not extended ("0" + "5" → "5", "0" + "0" stays "0")
+    if (textValue === '0') {
+      if (k === '0') return
+      return setTextValue(k)
     }
 
     // Handle number input with decimal validation
@@ -183,6 +196,13 @@ export default function Keyboard({ asset, back, hideBalance, onClear, onSave, in
           : prettyBitcoinAmount(available),
   }
 
+  // over-balance paints the amount red, matching the swap composer; the
+  // available>0 gate avoids a false red before the wallet loads
+  const overBalance =
+    inputMode === 'asset'
+      ? Boolean(asset) && assetInCents > (asset?.balance ?? BigInt(0))
+      : available > 0 && amountInSats > available
+
   const disabled = !amountInSats && !assetInCents
 
   const gridStyle = {
@@ -225,7 +245,7 @@ export default function Keyboard({ asset, back, hideBalance, onClear, onSave, in
       <Content>
         <FlexCol centered gap='0.5rem'>
           <ErrorMessage error={Boolean(error)} text={error} />
-          <Text big centered heading>
+          <Text big centered heading color={overBalance ? 'red' : undefined}>
             {amount.primary}
           </Text>
           {showSecondaryValue ? <TextSecondary centered>≈ {amount.secondary}</TextSecondary> : null}

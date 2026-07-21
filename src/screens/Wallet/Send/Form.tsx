@@ -15,11 +15,11 @@ import {
 } from '../../../lib/address'
 import { AspContext } from '../../../providers/asp'
 import { isArkNote } from '../../../lib/arknote'
-import InputAmount from '../../../components/InputAmount'
+import InputAmount, { type InputAmountMode } from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
-import { fromSatoshis, prettyAmount, prettyFiatAmount, prettyNumber, toSatoshis } from '../../../lib/format'
+import { fromSatoshis, prettyAmount, prettyNumber, toSatoshis } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -43,7 +43,7 @@ import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
 import { SwapsContext } from '../../../providers/swaps'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { centsToUnits, prettyAssetAmount, truncatedAssetId, unitsToCents } from '../../../lib/assets'
+import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -126,14 +126,13 @@ export default function SendForm() {
   } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
-  const { assetBalances, assetMetadataCache, balance, isVerifiedAsset, setCacheEntry, svcWallet } =
+  const { assetBalances, assetMetadataCache, availableBalance, balance, isVerifiedAsset, setCacheEntry, svcWallet } =
     useContext(WalletContext)
 
   const [amount, setAmount] = useState<number>()
   const [amountTextValue, setAmountTextValue] = useState('')
   const [amountIsReadOnly, setAmountIsReadOnly] = useState(false)
   const [assetOptions, setAssetOptions] = useState<AssetOption[]>([])
-  const [availableBalance, setAvailableBalance] = useState(0)
   const [deductFromAmount, setDeductFromAmount] = useState(false)
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
@@ -181,18 +180,28 @@ export default function SendForm() {
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
   const reserveApplied = !isAssetSend && hasAssets
-  const liquidBalance = availableBalance - (reserveApplied ? DUST_AMOUNT : 0)
+  // clamp: a balance below the reserve is "nothing sendable", not a negative
+  // amount (and the provider's availableBalance never flashes 0 on mount)
+  const liquidBalance = Math.max(0, availableBalance - (reserveApplied ? DUST_AMOUNT : 0))
 
   const smartSetError = (str: string) => {
     setError(str === '' ? (aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '') : str)
   }
 
+  // Bitcoin amounts enter in the wallet's unit by default; the input's ⇅
+  // switch flips to display-currency entry (fiatEntry) on demand.
+  const [entryMode, setEntryMode] = useState<InputAmountMode>('unit')
+  const fiatEntry = entryMode === 'fiat' && useFiat
+
   const getTextValue = (sats: number) =>
-    useFiat
+    fiatEntry
       ? prettyNumber(toFiat(sats), fiatDecimals(), false)
       : config.unit === Unit.BTC
         ? prettyNumber(fromSatoshis(sats), 8, false)
         : prettyNumber(sats, 0, false)
+
+  const prettyUnitBalance = (sats: number) =>
+    config.unit === Unit.BTC ? prettyAmount(fromSatoshis(sats), config.unit, 8) : prettyAmount(sats)
 
   useEffect(() => {
     if (!sendInfo.scan) return
@@ -265,15 +274,6 @@ export default function SendForm() {
     const found = assetOptions.find((a) => a.assetId === presetAssetId)
     if (found && !selectedAsset) setSelectedAsset(found)
   }, [assetOptions, sendInfo.account, sendInfo.assets])
-
-  // update available balance
-  useEffect(() => {
-    if (!svcWallet) return
-    svcWallet
-      .getBalance()
-      .then((bal) => setAvailableBalance(bal.available))
-      .catch(smartSetError)
-  }, [balance])
 
   // parse recipient data
   // repeat when asset changes to re-validate addresses (e.g. if user
@@ -665,7 +665,7 @@ export default function SendForm() {
     } else {
       const num = Number(value)
       if (Number.isNaN(num) || !Number.isFinite(num)) return setError('Invalid amount')
-      const sats = useFiat ? fromFiat(num) : config.unit === Unit.BTC ? toSatoshis(num) : Math.floor(num)
+      const sats = fiatEntry ? fromFiat(num) : config.unit === Unit.BTC ? toSatoshis(num) : Math.floor(num)
       setSendInfo({ ...sendInfo, satoshis: sats })
     }
   }
@@ -673,12 +673,14 @@ export default function SendForm() {
   const handleKeyboardAmountSave = (value: string, inputMode: KeyboardInputMode) => {
     setKeys(false)
     if (inputMode === 'asset') return handleAmountChange(value)
-    if (useFiat && inputMode !== 'fiat') {
-      const sats = inputMode === 'sats' ? Number(value) : toSatoshis(Number(value))
-      handleAmountChange(prettyNumber(toFiat(sats), fiatDecimals(), false))
-      return
-    }
-    handleAmountChange(value)
+    // the form field adopts whichever denomination the keyboard was last in,
+    // so the saved text needs no re-expression — just its sats equivalent
+    const sats =
+      inputMode === 'fiat' ? fromFiat(Number(value)) : inputMode === 'btc' ? toSatoshis(Number(value)) : Number(value)
+    setEntryMode(inputMode === 'fiat' ? 'fiat' : 'unit')
+    setAmountTextValue(value)
+    setValueSats(sats)
+    setSendInfo({ ...sendInfo, satoshis: sats })
   }
 
   const handleSelectAsset = (asset: AssetOption | null) => {
@@ -795,16 +797,10 @@ export default function SendForm() {
       )
     }
 
-    const pretty = useFiat
-      ? prettyFiatAmount(toFiat(liquidBalance), config.currency, { bitcoinUnit: config.unit })
-      : config.unit === Unit.BTC
-        ? prettyAmount(fromSatoshis(liquidBalance), config.unit, 8)
-        : prettyAmount(liquidBalance)
-
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
         <Text color='neutral-500' smaller>
-          {`${pretty} available`}
+          {`${prettyUnitBalance(liquidBalance)} available`}
         </Text>
       </div>
     )
@@ -846,17 +842,18 @@ export default function SendForm() {
   const selectedAssetLabel = activeAsset ? assetLabelFor(activeAsset) : 'Bitcoin'
   const selectedAssetBalance = activeAsset
     ? `${prettyAssetAmount(activeAsset.balance, activeAsset.decimals)} ${activeAsset.ticker} available`
-    : `${
-        useFiat
-          ? prettyFiatAmount(toFiat(liquidBalance), config.currency, { bitcoinUnit: config.unit })
-          : prettyAmount(liquidBalance)
-      } available`
+    : `${prettyUnitBalance(liquidBalance)} available`
 
   const overlayOpen = scan || (keys && !amountIsReadOnly)
   const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
 
   const Keys = () => (
-    <Keyboard asset={activeAsset ?? undefined} back={() => setKeys(false)} onSave={handleKeyboardAmountSave} />
+    <Keyboard
+      asset={activeAsset ?? undefined}
+      back={() => setKeys(false)}
+      defaultMode={fiatEntry ? 'fiat' : config.unit === Unit.BTC ? 'btc' : 'sats'}
+      onSave={handleKeyboardAmountSave}
+    />
   )
 
   if (keys && !amountIsReadOnly) {
@@ -1029,16 +1026,9 @@ export default function SendForm() {
                               <AssetIcon asset={null} />
                               <span>
                                 <span className='send-asset-option__name'>Bitcoin</span>
-                                <span className='send-asset-option__meta'>
-                                  {useFiat
-                                    ? prettyFiatAmount(toFiat(liquidBalance), config.currency, {
-                                        bitcoinUnit: config.unit,
-                                      })
-                                    : prettyAmount(liquidBalance)}{' '}
-                                  available
-                                </span>
                               </span>
                             </span>
+                            <span className='send-asset-option__amount'>{prettyUnitBalance(liquidBalance)}</span>
                           </DropdownMenuItem>
                         ) : null}
                         {verifiedAssetOptions
@@ -1058,7 +1048,6 @@ export default function SendForm() {
                                 <AssetIcon asset={asset} />
                                 <span>
                                   <span className='send-asset-option__name'>{assetLabelFor(asset)}</span>
-                                  <span className='send-asset-option__meta'>{truncatedAssetId(asset.assetId)}</span>
                                 </span>
                               </span>
                               <span className='send-asset-option__amount'>
@@ -1083,6 +1072,9 @@ export default function SendForm() {
                   value={amountTextValue}
                   readOnly={amountIsReadOnly}
                   onChange={handleAmountChange}
+                  onModeChange={setEntryMode}
+                  mode={entryMode}
+                  switchable
                   min={lnUrlResponse?.minSendable}
                   max={lnUrlResponse?.maxSendable}
                   asset={activeAsset ?? undefined}

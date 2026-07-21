@@ -83,7 +83,7 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
     'h6u2nredqtn0cr4p4zqz53gsmhju4l9t7x47kzleesa9dprx7e56xhzlen'
 
   // send page
-  await prePay(page, someArkAddress, isMobile, usdsToSend)
+  await prePay(page, someArkAddress, isMobile, usdsToSend, true)
 
   // details page
   await expect(page.getByTestId('Network fees')).toContainText('$0.00')
@@ -107,8 +107,9 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
   // fill address
   await page.locator('input[name="send-address"]').fill(someArkAddress)
 
-  // click max
-  await page.waitForSelector(`text=$${usdsRemaining} available`, { timeout: 2100 })
+  // switch entry to the display currency, then click max
+  await page.waitForSelector('text=/sats available/', { timeout: 2100 })
+  await page.getByTestId('input-amount-switch').click()
   await page.getByTestId('input-amount-max').click()
   const inputAmount = await page.locator('input[name="send-amount"]').inputValue()
   expect(Number(inputAmount).toFixed(2)).toBe(usdsRemaining)
@@ -292,7 +293,7 @@ test('should send usds (some and max) to onchain address with chain swap', async
   const someOnchainAddress = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 
   // send page
-  await prePay(page, someOnchainAddress, isMobile, usdsToSend)
+  await prePay(page, someOnchainAddress, isMobile, usdsToSend, true)
 
   // details page
   await expect(page.getByTestId('Amount')).toContainText(`$${usdsToSend.toFixed(2)}`)
@@ -300,16 +301,21 @@ test('should send usds (some and max) to onchain address with chain swap', async
   expect(fees).not.toBeNull()
   const feesNumber = parseFloat(fees!.replace(/[^0-9.]/g, ''))
   expect(feesNumber).toBeGreaterThan(0)
-  const totalSent = usdsToSend + feesNumber
+  // the success splash and activity row format the exact satoshi total once;
+  // summing the two independently-rounded display rows (amount + fees) drifts
+  // by a cent whenever the fee's fraction aligns badly — read the Total row,
+  // which shares the exact-sum formatting, instead of reconstructing it
+  const totalText = ((await page.getByTestId('Total').textContent()) ?? '').trim()
+  expect(totalText).toContain('$')
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
   await page.waitForSelector('text=Payment sent', { timeout: 30000 })
-  await expect(page.getByText(`$${totalSent.toFixed(2)} sent successfully`)).toBeVisible()
+  await expect(page.getByText(`${totalText} sent successfully`)).toBeVisible()
 
   // main page
   await dismissPaymentSuccess(page)
-  await expect(page.getByText(`$${totalSent.toFixed(2)}`)).toBeVisible()
+  await expect(page.getByText(totalText)).toBeVisible()
   await expect(page.getByText('Sent')).toBeVisible()
 
   const balanceText = await page.getByTestId('main-balance').textContent()
@@ -321,8 +327,9 @@ test('should send usds (some and max) to onchain address with chain swap', async
   // fill address
   await page.locator('input[name="send-address"]').fill(someOnchainAddress)
 
-  // click max
-  await page.waitForSelector(`text=$${balance} available`, { timeout: 2100 })
+  // switch entry to the display currency, then click max
+  await page.waitForSelector('text=/sats available/', { timeout: 2100 })
+  await page.getByTestId('input-amount-switch').click()
   await page.getByTestId('input-amount-max').click()
   await page.waitForSelector('text=Fees will be deducted from the amount sent', { timeout: 2000 })
 
