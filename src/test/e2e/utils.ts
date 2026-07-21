@@ -203,7 +203,7 @@ export async function getInvoiceFromLND(amount = 2100): Promise<string> {
   return invoice
 }
 
-export async function prePay(page: Page, address: string, isMobile = false, sats = 0): Promise<void> {
+export async function prePay(page: Page, address: string, isMobile = false, amount = 0, fiat = false): Promise<void> {
   // go to send page
   await navigateHome(page)
   await page.getByText('Send').click()
@@ -211,13 +211,17 @@ export async function prePay(page: Page, address: string, isMobile = false, sats
   // fill address
   await page.locator('input[name="send-address"]').fill(address)
 
-  // fill amount
-  if (sats) {
+  // fill amount — entry defaults to the bitcoin unit; pass fiat=true to flip
+  // to display-currency entry first (desktop switch pill / keyboard toggle)
+  if (amount) {
     if (isMobile) {
       await page.locator('input[name="send-amount"]').click()
-      await handleKeyboardInput(page, sats)
+      await page.waitForSelector('text=Save', { state: 'visible' })
+      if (fiat) await page.getByLabel('Toggle currency').click()
+      await handleKeyboardInput(page, amount)
     } else {
-      await page.locator('input[name="send-amount"]').fill(sats.toString())
+      if (fiat) await page.getByTestId('input-amount-switch').click()
+      await page.locator('input[name="send-amount"]').fill(amount.toString())
     }
   }
 

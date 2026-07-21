@@ -20,13 +20,24 @@ export type KeyboardInputMode = 'sats' | 'fiat' | 'asset' | 'btc'
 interface KeyboardProps {
   asset?: AssetOption
   back: () => void
+  /** Starting denomination for bitcoin entry; the ⇅ toggle still switches.
+   * Omitted → the wallet-wide useFiat flag decides (fiat-first). */
+  defaultMode?: Exclude<KeyboardInputMode, 'asset'>
   hideBalance?: boolean
   onSave: (value: string, inputMode: KeyboardInputMode) => void
   onClear?: () => void
   initialValue?: bigint | number
 }
 
-export default function Keyboard({ asset, back, hideBalance, onClear, onSave, initialValue }: KeyboardProps) {
+export default function Keyboard({
+  asset,
+  back,
+  defaultMode,
+  hideBalance,
+  onClear,
+  onSave,
+  initialValue,
+}: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
   const { balance, svcWallet } = useContext(WalletContext)
@@ -39,8 +50,10 @@ export default function Keyboard({ asset, back, hideBalance, onClear, onSave, in
   const [textValue, setTextValue] = useState('')
 
   useEffect(() => {
-    setInputMode(asset?.assetId ? 'asset' : useFiat ? 'fiat' : config.unit === Unit.BTC ? 'btc' : 'sats')
-  }, [asset, useFiat, config.unit])
+    setInputMode(
+      asset?.assetId ? 'asset' : (defaultMode ?? (useFiat ? 'fiat' : config.unit === Unit.BTC ? 'btc' : 'sats')),
+    )
+  }, [asset, defaultMode, useFiat, config.unit])
 
   useEffect(() => {
     if (initialValue && inputMode && toFiat && fiatDecimals) {

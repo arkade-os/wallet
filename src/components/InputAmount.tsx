@@ -8,6 +8,11 @@ import { LimitsContext } from '../providers/limits'
 import { AssetOption, Unit } from '../lib/types'
 import { TextSecondary } from './Text'
 import { hapticLight } from '../lib/haptics'
+import { fiatAccountAssetSatoshis } from '../lib/accountAssets'
+import { unitsToCents } from '../lib/assets'
+import ArrowUpDownIcon from '../icons/ArrowUpDown'
+
+export type InputAmountMode = 'unit' | 'fiat'
 
 interface InputAmountProps {
   asset?: AssetOption
@@ -21,8 +26,10 @@ interface InputAmountProps {
   onEnter?: () => void
   onFocus?: () => void
   onMax?: () => void
+  onModeChange?: (mode: InputAmountMode) => void
   readOnly?: boolean
   right?: JSX.Element
+  switchable?: boolean
   value?: string
   valueSats?: number
 }
@@ -39,20 +46,27 @@ export default function InputAmount({
   onEnter,
   onFocus,
   onMax,
+  onModeChange,
   readOnly,
   right,
+  switchable,
   value,
   valueSats,
 }: InputAmountProps) {
   const { config, useFiat } = useContext(ConfigContext)
-  const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
+  const { toFiat, fromFiat, fiatDecimals, fromFiatAmount } = useContext(FiatContext)
   const { minSwapAllowed, maxSwapAllowed } = useContext(LimitsContext)
 
   const [error, setError] = useState('')
+  const [mode, setMode] = useState<InputAmountMode>('unit')
   const [otherValue, setOtherValue] = useState('')
   const [satsValue, setSatsValue] = useState(0)
 
   const input = useRef<HTMLInputElement>(null)
+
+  // A switchable input owns its denomination and starts on the asset unit; a
+  // plain one follows the wallet-wide useFiat flag (currency !== BTC → fiat).
+  const fiatEntry = switchable ? mode === 'fiat' && useFiat : useFiat
 
   const toSats = (value: number): number => {
     return config.unit === Unit.BTC ? toSatoshis(value) : value
@@ -73,8 +87,8 @@ export default function InputAmount({
   useEffect(() => {
     if (valueSats !== undefined) return
     if (!value || isNaN(Number(value))) return
-    setSatsValue(useFiat ? fromFiat(Number(value)) : toSats(Number(value)))
-  }, [value, fromFiat, useFiat, valueSats])
+    setSatsValue(fiatEntry ? fromFiat(Number(value)) : toSats(Number(value)))
+  }, [value, fromFiat, fiatEntry, valueSats])
 
   // update other value when satsValue change
   useEffect(() => {
@@ -83,26 +97,65 @@ export default function InputAmount({
     const btcValue = useBTC ? fromSatoshis(satsValue) : satsValue
     const decimals = useBTC ? 8 : 0
     setOtherValue(
-      useFiat ? prettyNumber(btcValue, decimals, true, decimals) : prettyNumber(toFiat(satsValue), fiatDecimals()),
+      fiatEntry ? prettyNumber(btcValue, decimals, true, decimals) : prettyNumber(toFiat(satsValue), fiatDecimals()),
     )
-  }, [satsValue, toFiat, fiatDecimals, useFiat])
+  }, [satsValue, toFiat, fiatDecimals, fiatEntry])
 
   const handleAmountChange = (ev: React.ChangeEvent<HTMLInputElement>) => {
     const textValue = ev.currentTarget.value
     onChange(textValue)
     if (asset?.assetId) return
     const value = Number(textValue)
-    setSatsValue(useFiat ? fromFiat(value) : toSats(value))
+    setSatsValue(fiatEntry ? fromFiat(value) : toSats(value))
+  }
+
+  const unitText = (sats: number) =>
+    config.unit === Unit.BTC ? prettyNumber(fromSatoshis(sats), 8, false) : prettyNumber(sats, 0, false)
+
+  const handleModeSwitch = () => {
+    hapticLight()
+    const nextMode: InputAmountMode = mode === 'unit' ? 'fiat' : 'unit'
+    // re-express the current amount in the new denomination so the typed text
+    // and the parent's parse of it stay in sync
+    if (satsValue) {
+      onChange(nextMode === 'fiat' ? prettyNumber(toFiat(satsValue), fiatDecimals(), false) : unitText(satsValue))
+    }
+    setMode(nextMode)
+    onModeChange?.(nextMode)
   }
 
   const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0
   const maximumSats = max ? Math.min(max, maxSwapAllowed()) : 0
 
   const fiatSymbol = FIAT_SYMBOLS[config.currency]
-  const fiatLabel = useFiat ? (fiatSymbol ?? config.currency) : config.unit
+  const fiatLabel = fiatSymbol ?? config.currency
 
-  const leftLabel = asset?.assetId ? asset.ticker : useFiat ? fiatLabel : config.unit
-  const rightLabel = !asset?.assetId && useFiat ? `${otherValue} ${config.unit}` : ''
+  // designated-currency assets (USD/BRL accounts) can price their amount in
+  // the display currency; other assets have no rate, so no conversion shows.
+  // Only plain decimal text converts — a number input can hold "1e5", which
+  // unitsToCents' BigInt would throw on.
+  const plainDecimalValue = value && /^\d*\.?\d*$/.test(value) ? value : ''
+  const assetSatoshis =
+    asset?.assetId && plainDecimalValue
+      ? fiatAccountAssetSatoshis(
+          unitsToCents(plainDecimalValue, asset.decimals),
+          asset.decimals,
+          asset.ticker,
+          fromFiatAmount,
+        )
+      : undefined
+  const assetFiatLabel =
+    assetSatoshis !== undefined && useFiat ? `${prettyNumber(toFiat(assetSatoshis), fiatDecimals())} ${fiatLabel}` : ''
+
+  const leftLabel = asset?.assetId ? asset.ticker : fiatEntry ? fiatLabel : config.unit
+  const rightLabel = asset?.assetId
+    ? assetFiatLabel
+    : fiatEntry
+      ? `${otherValue} ${config.unit}`
+      : switchable && useFiat
+        ? `${otherValue} ${fiatLabel}`
+        : ''
+  const showSwitch = Boolean(switchable && useFiat && !asset?.assetId && !disabled && !readOnly)
   const bottomLeft =
     minimumSats && satsValue !== undefined && satsValue < minimumSats
       ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'sat' : 'sats'}`
@@ -130,6 +183,17 @@ export default function InputAmount({
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
         />
         <TextSecondary>{rightLabel}</TextSecondary>
+        {showSwitch ? (
+          <button
+            type='button'
+            className='pill-base'
+            onClick={handleModeSwitch}
+            aria-label={`Enter amount in ${mode === 'unit' ? config.currency : config.unit}`}
+            data-testid='input-amount-switch'
+          >
+            <ArrowUpDownIcon />
+          </button>
+        ) : null}
         {onMax && !disabled && !readOnly ? (
           <button
             type='button'

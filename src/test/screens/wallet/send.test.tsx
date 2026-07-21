@@ -64,7 +64,8 @@ describe('Send screen', () => {
     expect(screen.getByText('Max')).toBeInTheDocument()
     expect(screen.getByText('Send')).toBeInTheDocument()
     expect(screen.getByText('Amount')).toBeInTheDocument()
-    expect(screen.getByText('€0.00 available')).toBeInTheDocument()
+    // available balance quotes the bitcoin unit, not the display currency
+    expect(screen.getByText('0 BTC available')).toBeInTheDocument()
     expect(screen.getByText('Recipient address')).toBeInTheDocument()
     expect(screen.getByText('Continue')).toBeInTheDocument()
   })
@@ -94,8 +95,10 @@ describe('Send screen', () => {
       } as any,
     }
     renderSendForm({ flowContext: flowValue, walletContext: walletValue })
-    // amount input is bound to amountTextValue; before the fix it stayed empty
-    const amountInput = await waitFor(() => screen.getByDisplayValue('21'))
+    // amount input is bound to amountTextValue; before the fix it stayed
+    // empty. Entry defaults to the bitcoin unit (BTC in the mock config), so
+    // the 21 fixed sats read as their BTC equivalent.
+    const amountInput = await waitFor(() => screen.getByDisplayValue('0.00000021'))
     expect(amountInput).toHaveAttribute('name', 'send-amount')
     expect(amountInput).toHaveAttribute('readonly')
     fetchMocker.disableMocks()
@@ -215,6 +218,8 @@ describe('Send screen', () => {
 
     renderSendForm({ configContext: configValue, fiatContext: fiatValue, walletContext: walletValue })
 
+    // entry starts on the bitcoin unit — switch to display-currency entry first
+    fireEvent.click(screen.getByTestId('input-amount-switch'))
     const amountInput = document.querySelector('input[name="send-amount"]') as HTMLInputElement
     fireEvent.change(amountInput, { target: { value: '10' } })
 
