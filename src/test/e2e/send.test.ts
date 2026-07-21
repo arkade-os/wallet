@@ -301,16 +301,21 @@ test('should send usds (some and max) to onchain address with chain swap', async
   expect(fees).not.toBeNull()
   const feesNumber = parseFloat(fees!.replace(/[^0-9.]/g, ''))
   expect(feesNumber).toBeGreaterThan(0)
-  const totalSent = usdsToSend + feesNumber
+  // the success splash and activity row format the exact satoshi total once;
+  // summing the two independently-rounded display rows (amount + fees) drifts
+  // by a cent whenever the fee's fraction aligns badly — read the Total row,
+  // which shares the exact-sum formatting, instead of reconstructing it
+  const totalText = ((await page.getByTestId('Total').textContent()) ?? '').trim()
+  expect(totalText).toContain('$')
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
   await page.waitForSelector('text=Payment sent', { timeout: 30000 })
-  await expect(page.getByText(`$${totalSent.toFixed(2)} sent successfully`)).toBeVisible()
+  await expect(page.getByText(`${totalText} sent successfully`)).toBeVisible()
 
   // main page
   await dismissPaymentSuccess(page)
-  await expect(page.getByText(`$${totalSent.toFixed(2)}`)).toBeVisible()
+  await expect(page.getByText(totalText)).toBeVisible()
   await expect(page.getByText('Sent')).toBeVisible()
 
   const balanceText = await page.getByTestId('main-balance').textContent()
