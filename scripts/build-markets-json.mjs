@@ -7,10 +7,10 @@ import { asset } from '@arkade-os/sdk'
 const DEFAULTS = {
   version: 0,
   feeBps: 110,
-  priceDecimals: 0,
+  priceDecimals: 8,
   network: 'regtest',
   solver: 'jpmorgan',
-  pricePath: '/bitcoin/asset',
+  pricePath: '/btc/asset',
   pairsUrl: 'http://localhost:7091/v1/pairs',
   assetUrlBase: 'http://localhost:7070/v1/indexer/asset',
   filenames: {
@@ -118,7 +118,7 @@ async function buildConfig(options) {
         ticker: metadata.ticker || 'ASSET',
         decimals: Number.isNaN(quoteDecimals) ? 0 : quoteDecimals,
       },
-      price_feed: btcToAsset.price_feed,
+      price_feed: btcToAsset.price_feed.replace(/pricefeed/, 'localhost:8088'),
       price_feed_schema: {
         type: 'json',
         price_path: options.pricePath,
