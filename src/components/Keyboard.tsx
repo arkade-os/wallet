@@ -113,6 +113,12 @@ export default function Keyboard({
       return setTextValue(textValue.slice(0, -1))
     }
 
+    // a lone leading zero is replaced, not extended ("0" + "5" → "5", "0" + "0" stays "0")
+    if (textValue === '0') {
+      if (k === '0') return
+      return setTextValue(k)
+    }
+
     // Handle number input with decimal validation
     const newText = textValue + k
     const parts = newText.split('.')

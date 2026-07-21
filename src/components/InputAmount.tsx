@@ -16,8 +16,6 @@ export type InputAmountMode = 'unit' | 'fiat'
 
 interface InputAmountProps {
   asset?: AssetOption
-  /** Spendable satoshis — amounts above it paint the insufficient-funds error */
-  available?: number
   disabled?: boolean
   focus?: boolean
   label?: string
@@ -40,7 +38,6 @@ interface InputAmountProps {
 
 export default function InputAmount({
   asset,
-  available,
   disabled,
   focus,
   label,
@@ -110,7 +107,8 @@ export default function InputAmount({
   }, [satsValue, toFiat, fiatDecimals, fiatEntry])
 
   const handleAmountChange = (ev: React.ChangeEvent<HTMLInputElement>) => {
-    const textValue = ev.currentTarget.value
+    // collapse redundant leading zeros ("00.0004" → "0.0004", "007" → "7")
+    const textValue = ev.currentTarget.value.replace(/^0+(?=\d)/, '')
     onChange(textValue)
     if (asset?.assetId) return
     const value = Number(textValue)
@@ -155,11 +153,6 @@ export default function InputAmount({
   const assetFiatLabel =
     assetSatoshis !== undefined && useFiat ? `${prettyNumber(toFiat(assetSatoshis), fiatDecimals())} ${fiatLabel}` : ''
 
-  // over-balance paints the insufficient error, matching the swap composer
-  const overBalance = asset?.assetId
-    ? Boolean(plainDecimalValue) && unitsToCents(plainDecimalValue, asset.decimals) > asset.balance
-    : available !== undefined && satsValue > available
-
   const leftLabel = asset?.assetId ? asset.ticker : fiatEntry ? fiatLabel : config.unit
   const rightLabel = asset?.assetId
     ? assetFiatLabel
@@ -179,13 +172,7 @@ export default function InputAmount({
       : ''
 
   return (
-    <InputContainer
-      error={error || (overBalance ? 'Insufficient funds' : '')}
-      label={label}
-      right={right}
-      bottomLeft={bottomLeft}
-      bottomRight={bottomRight}
-    >
+    <InputContainer error={error} label={label} right={right} bottomLeft={bottomLeft} bottomRight={bottomRight}>
       <label className='label'>
         <TextSecondary>{leftLabel}</TextSecondary>
         <input

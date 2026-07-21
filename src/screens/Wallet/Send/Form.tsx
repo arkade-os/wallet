@@ -1074,7 +1074,6 @@ export default function SendForm() {
                   onChange={handleAmountChange}
                   onModeChange={setEntryMode}
                   mode={entryMode}
-                  available={liquidBalance}
                   switchable
                   min={lnUrlResponse?.minSendable}
                   max={lnUrlResponse?.maxSendable}

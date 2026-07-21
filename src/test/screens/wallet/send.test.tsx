@@ -194,32 +194,6 @@ describe('Send screen', () => {
     expect(screen.queryByText('12,128 sats available')).toBeInTheDocument()
   })
 
-  it('flags an amount above the available balance as insufficient funds', async () => {
-    const walletValue = {
-      ...mockWalletContextValue,
-      availableBalance: 12128,
-      svcWallet: {
-        ...mockSvcWallet,
-        getAddress: () => 'tark1mockoffchain',
-        getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
-      } as any,
-    }
-    const configValue = {
-      ...mockConfigContextValue,
-      useFiat: false,
-      config: { ...mockConfigContextValue.config, currency: Currencies.BTC, unit: Unit.SATS },
-    }
-
-    renderSendForm({ configContext: configValue, walletContext: walletValue })
-
-    const amountInput = document.querySelector('input[name="send-amount"]') as HTMLInputElement
-    fireEvent.change(amountInput, { target: { value: '20000' } })
-    expect(await screen.findByText('Insufficient funds')).toBeInTheDocument()
-
-    fireEvent.change(amountInput, { target: { value: '2000' } })
-    await waitFor(() => expect(screen.queryByText('Insufficient funds')).not.toBeInTheDocument())
-  })
-
   it('shows BTC as the secondary send amount when fiat currency uses BTC as the bitcoin unit', async () => {
     const walletValue = {
       ...mockWalletContextValue,
