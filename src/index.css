@@ -1600,9 +1600,8 @@ html.palette-dark .input-shell:focus-within {
 }
 
 .send-asset-option__amount {
-  color: var(--fg);
+  color: color-mix(in srgb, var(--fg) 52%, transparent);
   font-size: 0.9375rem;
-  font-weight: 500;
   line-height: 1.25rem;
 }
 
