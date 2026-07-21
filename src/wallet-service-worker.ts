@@ -5,6 +5,7 @@ import {
   MessageBus,
   WalletMessageHandler,
 } from '@arkade-os/sdk'
+import { installEsploraFetchCompat } from './lib/esploraCompat'
 
 // Health-check ping: responds via MessageChannel so the main thread can
 // detect if this worker is alive before attempting full initialization.
@@ -14,6 +15,9 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     event.ports[0].postMessage({ type: 'PONG' })
   }
 })
+
+// Must be in place before the MessageBus starts issuing SDK fetches.
+installEsploraFetchCompat()
 
 const walletRepository = new IndexedDBWalletRepository()
 const contractRepository = new IndexedDBContractRepository()
