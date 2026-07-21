@@ -12,7 +12,7 @@ export default function InputNsec({ error, onChange }: InputNsecProps) {
   }
   return (
     <InputContainer error={error} label='Recovery phrase or private key'>
-      <input name='private-key' onChange={handleChange} style={{ width: '100%' }} />
+      <input name='private-key' onChange={handleChange} style={{ padding: '0.25rem 0', width: '100%' }} />
     </InputContainer>
   )
 }
