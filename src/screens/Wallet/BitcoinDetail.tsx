@@ -67,7 +67,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
   const { fromFiatAmount, toFiatAmount } = useContext(FiatContext)
   const { setRecvInfo, setSendInfo, setSwapFromAssetId } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { swapAvailable, swaps } = useContext(AssetSwapsContext)
+  const { swapAvailable } = useContext(AssetSwapsContext)
   const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()
 
@@ -189,9 +189,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
 
   const handleSwap = () => {
     hapticLight()
-    // existing swaps stay reachable during outages so pending funds
-    // remain cancellable from the swap screen
-    if (swapAvailable || swaps.length > 0) {
+    if (swapAvailable) {
       setSwapFromAssetId(row.assetId)
       navigate(Pages.WalletSwap)
     } else {

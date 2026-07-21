@@ -49,7 +49,7 @@ export const unscannedSwapCandidates = (txs: Tx[], existingIds: ReadonlySet<stri
 
 /** The cancel spend returns the deposit: a BTC offer gets its sats back (no
  * want-asset delivered), an asset offer gets the asset back. */
-function isCancelSpend(offer: Offer, spend: Tx): boolean {
+export function isCancelSpend(offer: Offer, spend: Tx): boolean {
   if (offer.wantAsset) {
     const wantId = offer.wantAsset.toString()
     return !spend.assets?.some((a) => a.assetId === wantId && a.amount > BigInt(0))

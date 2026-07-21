@@ -41,6 +41,23 @@ describe('Wallet screen', () => {
     expect(screen.queryByText('Borrow against your bitcoin')).not.toBeInTheDocument()
   })
 
+  it('does not use swap history to enter an unavailable swap composer', async () => {
+    const navigate = vi.fn()
+
+    render(
+      <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
+        <AssetSwapsContext.Provider value={{ swapAvailable: false, swaps: [{ id: 'pending-swap' }] } as any}>
+          <Wallet />
+        </AssetSwapsContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    await userEvent.click(screen.getByTestId('home-action-swap'))
+
+    expect(navigate).not.toHaveBeenCalledWith(Pages.WalletSwap)
+    expect(screen.getByText(/Swaps are coming soon/i)).toBeInTheDocument()
+  })
+
   it('opens the bitcoin detail page from the bitcoin asset row', async () => {
     const user = userEvent.setup()
     const navigate = vi.fn()

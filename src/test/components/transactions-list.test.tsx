@@ -20,6 +20,28 @@ import {
 } from '../screens/mocks'
 
 describe('TransactionsList', () => {
+  it('filters the list by transaction type', () => {
+    const swapTx = { ...mockWalletContextValue.txs[0], roundTxid: 'swap-tx', type: 'swap' }
+    const sentTx = { ...mockWalletContextValue.txs[0], roundTxid: 'sent-tx', type: 'sent' }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <FlowContext.Provider value={mockFlowContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [swapTx, sentTx] } as any}>
+                <TransactionsList mode='static' typeFilter='swap' />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText(/Swap/)).toBeInTheDocument()
+    expect(screen.queryByText('Sent')).not.toBeInTheDocument()
+  })
+
   it('formats designated account activity with the underlying asset decimals', () => {
     const tx: Tx = {
       amount: 330,

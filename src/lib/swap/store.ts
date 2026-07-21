@@ -44,7 +44,7 @@ export const getAssetSwaps = (): AssetSwap[] => {
     if (!Array.isArray(parsed)) return []
     // insertion order is not chronological — the restore scan rebuilds records
     // in tx-scan order — so sort at read to keep newest-first canonical for
-    // every consumer (the Your swaps list, the activity merge)
+    // every consumer (including the activity merge)
     return parsed
       .filter((s) => s && typeof s.id === 'string' && typeof s.offerHex === 'string')
       .sort((a, b) => b.createdAt - a.createdAt)
