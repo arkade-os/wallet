@@ -1370,14 +1370,34 @@ function formatLimitMessage(
   // priceDisplay is quote-per-base; convert the receive-side limit back to
   // the give side using whichever side the plan actually gives
   const giveProtocol = (plan.give === 'base' ? limitReceiveProtocol / price : limitReceiveProtocol * price) * grossUp
-  const raw = giveProtocol * protocolToDisplayScale(fromAsset)
+  // the market card also bounds the give side directly (atomic units of the
+  // deposit asset); the user must satisfy whichever constraint is tighter —
+  // e.g. a 1,000-sat card floor outranks a smaller converted receive minimum
+  const isMin = label === 'Minimum'
+  const giveCardAtomic = Number(
+    isMin
+      ? plan.give === 'base'
+        ? plan.market.min_base_amount
+        : plan.market.min_quote_amount
+      : plan.give === 'base'
+        ? plan.market.max_base_amount
+        : plan.market.max_quote_amount,
+  )
+  const giveCardProtocol = giveCardAtomic / Math.pow(10, plan.deposit.asset.decimals)
+  const combinedProtocol = isMin
+    ? Math.max(giveProtocol, giveCardProtocol)
+    : Math.min(giveProtocol, giveCardProtocol || Infinity)
+  const raw = combinedProtocol * protocolToDisplayScale(fromAsset)
   // round the bound so the displayed amount actually satisfies it: a minimum
   // rounds up, a maximum rounds down — round-to-nearest could display a
   // minimum one atomic unit short of clearing the check, so entering exactly
-  // the suggested amount still failed (the epsilon absorbs float noise)
-  const scale = Math.pow(10, swapAmountDecimals(raw))
-  const value = label === 'Minimum' ? Math.ceil(raw * scale - 1e-9) / scale : Math.floor(raw * scale + 1e-9) / scale
-  return `${label} ${prettyNumber(value, swapAmountDecimals(raw))} ${fromAsset.ticker}`.trim()
+  // the suggested amount still failed (the epsilon absorbs float noise). The
+  // bound can never be finer than the asset's own precision: a 0-decimal
+  // sats/₿ unit ceils to whole units, never "296.3665 sats"
+  const decimals = Math.min(swapAmountDecimals(raw), fromAsset.decimals)
+  const scale = Math.pow(10, decimals)
+  const value = isMin ? Math.ceil(raw * scale - 1e-9) / scale : Math.floor(raw * scale + 1e-9) / scale
+  return `${label} ${prettyNumber(value, decimals)} ${fromAsset.ticker}`.trim()
 }
 
 function buildQuoteSnapshot(plan: OfferPlan, quote: SwapQuote, currency: Currencies): AssetSwapQuoteSnapshot {

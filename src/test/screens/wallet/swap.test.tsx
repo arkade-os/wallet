@@ -392,7 +392,9 @@ describe('Wallet swap flow', () => {
     }
 
     await waitFor(() => expect(screen.getByText(/^Minimum /)).toBeInTheDocument())
-    expect(screen.getByText(/^Minimum \S+ sats$/)).toBeInTheDocument()
+    // the market card's 1,000-sat give-side floor outranks the smaller
+    // converted receive-side minimum, and a 0-decimal unit shows whole sats
+    expect(screen.getByText('Minimum 1,000 sats')).toBeInTheDocument()
 
     // the suggested bound rounds UP to the display precision, so entering
     // exactly the displayed minimum clears the error — round-to-nearest used
