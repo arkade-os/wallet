@@ -40,11 +40,10 @@ export default function Keyboard({
 }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
-  const { balance, svcWallet } = useContext(WalletContext)
+  const { availableBalance: available } = useContext(WalletContext)
 
   const [assetInCents, setAssetInCents] = useState(BigInt(0))
   const [amountInSats, setAmountInSats] = useState(0)
-  const [available, setAvailable] = useState(0)
   const [error, setError] = useState('')
   const [inputMode, setInputMode] = useState<KeyboardInputMode>('sats')
   const [textValue, setTextValue] = useState('')
@@ -69,11 +68,6 @@ export default function Keyboard({
       }
     }
   }, [initialValue, inputMode, asset, toFiat, fiatDecimals])
-
-  useEffect(() => {
-    if (!svcWallet) return
-    svcWallet.getBalance().then((bal) => setAvailable(bal.available))
-  }, [balance])
 
   useEffect(() => {
     const strValue = textValue.replaceAll(',', '')
@@ -196,6 +190,13 @@ export default function Keyboard({
           : prettyBitcoinAmount(available),
   }
 
+  // over-balance paints the amount red, matching the swap composer; the
+  // available>0 gate avoids a false red before the wallet loads
+  const overBalance =
+    inputMode === 'asset'
+      ? Boolean(asset) && assetInCents > (asset?.balance ?? BigInt(0))
+      : available > 0 && amountInSats > available
+
   const disabled = !amountInSats && !assetInCents
 
   const gridStyle = {
@@ -238,7 +239,7 @@ export default function Keyboard({
       <Content>
         <FlexCol centered gap='0.5rem'>
           <ErrorMessage error={Boolean(error)} text={error} />
-          <Text big centered heading>
+          <Text big centered heading color={overBalance ? 'red' : undefined}>
             {amount.primary}
           </Text>
           {showSecondaryValue ? <TextSecondary centered>≈ {amount.secondary}</TextSecondary> : null}

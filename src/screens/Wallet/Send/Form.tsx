@@ -673,11 +673,14 @@ export default function SendForm() {
   const handleKeyboardAmountSave = (value: string, inputMode: KeyboardInputMode) => {
     setKeys(false)
     if (inputMode === 'asset') return handleAmountChange(value)
-    // normalize whatever denomination the keyboard was in to sats, then
-    // re-express in the desktop input's current denomination
+    // the form field adopts whichever denomination the keyboard was last in,
+    // so the saved text needs no re-expression — just its sats equivalent
     const sats =
       inputMode === 'fiat' ? fromFiat(Number(value)) : inputMode === 'btc' ? toSatoshis(Number(value)) : Number(value)
-    handleAmountChange(getTextValue(sats))
+    setEntryMode(inputMode === 'fiat' ? 'fiat' : 'unit')
+    setAmountTextValue(value)
+    setValueSats(sats)
+    setSendInfo({ ...sendInfo, satoshis: sats })
   }
 
   const handleSelectAsset = (asset: AssetOption | null) => {
@@ -848,7 +851,7 @@ export default function SendForm() {
     <Keyboard
       asset={activeAsset ?? undefined}
       back={() => setKeys(false)}
-      defaultMode={config.unit === Unit.BTC ? 'btc' : 'sats'}
+      defaultMode={fiatEntry ? 'fiat' : config.unit === Unit.BTC ? 'btc' : 'sats'}
       onSave={handleKeyboardAmountSave}
     />
   )
@@ -1070,6 +1073,8 @@ export default function SendForm() {
                   readOnly={amountIsReadOnly}
                   onChange={handleAmountChange}
                   onModeChange={setEntryMode}
+                  mode={entryMode}
+                  available={liquidBalance}
                   switchable
                   min={lnUrlResponse?.minSendable}
                   max={lnUrlResponse?.maxSendable}

@@ -16,11 +16,15 @@ export type InputAmountMode = 'unit' | 'fiat'
 
 interface InputAmountProps {
   asset?: AssetOption
+  /** Spendable satoshis — amounts above it paint the insufficient-funds error */
+  available?: number
   disabled?: boolean
   focus?: boolean
   label?: string
   min?: number
   max?: number
+  /** Controlled entry denomination; omit to let the input own it */
+  mode?: InputAmountMode
   name?: string
   onChange: (value: string) => void
   onEnter?: () => void
@@ -36,11 +40,13 @@ interface InputAmountProps {
 
 export default function InputAmount({
   asset,
+  available,
   disabled,
   focus,
   label,
   min,
   max,
+  mode: controlledMode,
   name,
   onChange,
   onEnter,
@@ -58,14 +64,16 @@ export default function InputAmount({
   const { minSwapAllowed, maxSwapAllowed } = useContext(LimitsContext)
 
   const [error, setError] = useState('')
-  const [mode, setMode] = useState<InputAmountMode>('unit')
+  const [internalMode, setInternalMode] = useState<InputAmountMode>('unit')
   const [otherValue, setOtherValue] = useState('')
   const [satsValue, setSatsValue] = useState(0)
 
   const input = useRef<HTMLInputElement>(null)
 
-  // A switchable input owns its denomination and starts on the asset unit; a
-  // plain one follows the wallet-wide useFiat flag (currency !== BTC → fiat).
+  // A switchable input enters the asset unit until switched (the parent may
+  // control the mode so other entry surfaces — the mobile keyboard — stay on
+  // the same denomination); a plain one follows the wallet-wide useFiat flag.
+  const mode = controlledMode ?? internalMode
   const fiatEntry = switchable ? mode === 'fiat' && useFiat : useFiat
 
   const toSats = (value: number): number => {
@@ -120,7 +128,7 @@ export default function InputAmount({
     if (satsValue) {
       onChange(nextMode === 'fiat' ? prettyNumber(toFiat(satsValue), fiatDecimals(), false) : unitText(satsValue))
     }
-    setMode(nextMode)
+    setInternalMode(nextMode)
     onModeChange?.(nextMode)
   }
 
@@ -147,6 +155,11 @@ export default function InputAmount({
   const assetFiatLabel =
     assetSatoshis !== undefined && useFiat ? `${prettyNumber(toFiat(assetSatoshis), fiatDecimals())} ${fiatLabel}` : ''
 
+  // over-balance paints the insufficient error, matching the swap composer
+  const overBalance = asset?.assetId
+    ? Boolean(plainDecimalValue) && unitsToCents(plainDecimalValue, asset.decimals) > asset.balance
+    : available !== undefined && satsValue > available
+
   const leftLabel = asset?.assetId ? asset.ticker : fiatEntry ? fiatLabel : config.unit
   const rightLabel = asset?.assetId
     ? assetFiatLabel
@@ -166,7 +179,13 @@ export default function InputAmount({
       : ''
 
   return (
-    <InputContainer error={error} label={label} right={right} bottomLeft={bottomLeft} bottomRight={bottomRight}>
+    <InputContainer
+      error={error || (overBalance ? 'Insufficient funds' : '')}
+      label={label}
+      right={right}
+      bottomLeft={bottomLeft}
+      bottomRight={bottomRight}
+    >
       <label className='label'>
         <TextSecondary>{leftLabel}</TextSecondary>
         <input
