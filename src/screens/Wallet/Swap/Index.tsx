@@ -726,7 +726,7 @@ function SwapComposer({
       ? formatCurrencyInputAmount(amountMode === 'fiat' ? amount : alternateFiatAmount || '0', currency, bitcoinUnit)
       : quote.fromFiat
   const assetAmountLabel = `${assetAmount} ${fromAsset.ticker}`
-  const reservedAmountLabel = assetAmountLabel.length >= fiatAmountLabel.length ? assetAmountLabel : fiatAmountLabel
+  const secondaryAmountLabel = amountMode === 'fiat' ? assetAmountLabel : fiatAmountLabel
   const nextAmountModeLabel = amountMode === 'fiat' ? 'asset amount' : `${currency} amount`
   const validationMessage = validationText
   const amountValueTransition = prefersReduced ? { duration: 0 } : { duration: 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }
@@ -808,21 +808,23 @@ function SwapComposer({
                 )
               })}
             </motion.div>
-            <button
+            <motion.button
               type='button'
               className='swap-amount-secondary'
+              layout='size'
+              transition={{ layout: amountValueTransition }}
               onClick={onModeToggle}
               aria-label={`Show ${nextAmountModeLabel} first`}
             >
               <span
                 className='swap-amount-secondary__label-reserve'
-                data-reserve-width={reservedAmountLabel}
+                data-reserve-width={secondaryAmountLabel}
                 aria-hidden='true'
               />
               <span className='swap-amount-secondary__icon' aria-hidden='true'>
                 <ArrowUpDownIcon />
               </span>
-            </button>
+            </motion.button>
           </div>
           <div className='swap-input-error-slot'>
             <AnimatePresence initial={false}>

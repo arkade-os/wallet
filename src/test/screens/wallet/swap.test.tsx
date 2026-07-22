@@ -621,8 +621,13 @@ describe('Wallet swap flow', () => {
 
     expect(document.querySelector('.swap-amount-value--primary')).toHaveAttribute('aria-label', '$10')
     expect(document.querySelectorAll('.swap-amount-value--primary .swap-amount-character').length).toBeGreaterThan(0)
+    expect(document.querySelector('.swap-amount-secondary__label-reserve')).toHaveAttribute(
+      'data-reserve-width',
+      '10000 sats',
+    )
     await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
     expect(document.querySelector('.swap-amount-value--primary')).toHaveAttribute('aria-label', '10000 sats')
+    expect(document.querySelector('.swap-amount-secondary__label-reserve')).toHaveAttribute('data-reserve-width', '$10')
 
     await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
     expect(document.querySelector('.swap-amount-value--primary')).toHaveAttribute('aria-label', '$10')
