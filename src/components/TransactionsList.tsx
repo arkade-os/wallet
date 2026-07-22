@@ -275,19 +275,27 @@ function SwapAmountInfo({
 interface TransactionsListProps {
   /** Show only transactions for a specific asset. Use 'btc' for bitcoin-only activity. */
   assetIdFilter?: string | string[]
+  /** Show only transactions of this type. */
+  typeFilter?: Tx['type']
   /** 'virtual' (default) uses virtualization; 'static' renders a simple list. */
   mode?: 'virtual' | 'static'
   /** Max number of transactions to show (only applies when mode='static'). */
   limit?: number
 }
 
-export default function TransactionsList({ assetIdFilter, mode = 'virtual', limit }: TransactionsListProps) {
+export default function TransactionsList({
+  assetIdFilter,
+  typeFilter,
+  mode = 'virtual',
+  limit,
+}: TransactionsListProps) {
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { assetMetadataCache, txs: allTxs } = useContext(WalletContext)
   const visibleTxs = allTxs
     .filter((tx) => !shouldHideDevAssetTx(tx, assetMetadataCache))
     .filter((tx) => matchesAssetFilter(tx, assetIdFilter))
+    .filter((tx) => !typeFilter || tx.type === typeFilter)
   const txs = mode === 'static' && limit ? visibleTxs.slice(0, limit) : visibleTxs
 
   const focusedRef = useRef(false)
@@ -427,7 +435,7 @@ export default function TransactionsList({ assetIdFilter, mode = 'virtual', limi
   )
 }
 
-function matchesAssetFilter(tx: Tx, assetIdFilter?: string | string[]): boolean {
+export function matchesAssetFilter(tx: Tx, assetIdFilter?: string | string[]): boolean {
   if (!assetIdFilter) return true
   if (tx.type === 'swap' && tx.assetSwap) {
     const swapAssetIds = [tx.assetSwap.fromAssetId, tx.assetSwap.toAssetId].filter((assetId): assetId is string =>
@@ -478,7 +486,7 @@ function accountInfoForAssetId(
   return { ticker: currency as TokenLogoTicker, label: currency }
 }
 
-function shouldHideDevAssetTx(
+export function shouldHideDevAssetTx(
   tx: Tx,
   assetMetadataCache: Map<string, { metadata?: { name?: string; ticker?: string } }>,
 ): boolean {

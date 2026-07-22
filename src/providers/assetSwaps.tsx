@@ -5,10 +5,11 @@ import { DiscoveredMarket, OfferPlan } from '@arkade-os/solver-discovery'
 import { Network } from '@arkade-os/boltz-swap'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
-import { cancelOffer, createOffer, OFFER_PACKET_TYPE } from '../lib/swap/offer'
+import { cancelOffer, createOffer, decodeOffer, OFFER_PACKET_TYPE } from '../lib/swap/offer'
 import { BTC_ASSET_ID, discoverMarkets } from '../lib/swap/markets'
-import { getScannedTxids, markTxidsScanned, restoreAssetSwaps } from '../lib/swap/restore'
+import { getScannedTxids, isCancelSpend, markTxidsScanned, restoreAssetSwaps } from '../lib/swap/restore'
 import { addAssetSwap, AssetSwap, type AssetSwapQuoteSnapshot, getAssetSwaps, updateAssetSwap } from '../lib/swap/store'
+import { getTxHistory } from '../lib/asp'
 import { getEmulatorUrlForNetwork } from '../lib/constants'
 import { consoleError } from '../lib/logs'
 import { sleep } from '../lib/sleep'
@@ -170,7 +171,14 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     // spend as a fulfillment
     setSwaps(updateAssetSwap(id, { status: 'cancelling' }))
     try {
-      await cancelOffer(svcWallet, aspInfo.url, swap.offerHex, swap.fundingTxid, swap.swapAddress)
+      const cancelTxid = await cancelOffer(svcWallet, aspInfo.url, swap.offerHex, swap.fundingTxid, swap.swapAddress)
+      // Persist the spend ID returned by the wallet so the receipt remains
+      // complete after refresh and does not depend on a later monitor pass.
+      if (getAssetSwaps().find((candidate) => candidate.id === id)?.status === 'cancelling') {
+        setSwaps(updateAssetSwap(id, { status: 'cancelled', spentTxid: cancelTxid }))
+        toast.success('Swap cancelled, funds returned')
+        reloadWallet().catch(consoleError)
+      }
     } catch (err) {
       // the cancel tx may have broadcast before the failure surfaced; only
       // revert while the deposit is provably unspent, otherwise stay
@@ -179,7 +187,12 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
         const { vtxos } = await new RestIndexerProvider(aspInfo.url).getVtxos({ scripts: [swap.swapPkScript] })
         const deposit = vtxos.find((v) => v.txid === swap.fundingTxid)
         const state = deposit?.virtualStatus.state
-        if (state && state !== 'spent' && state !== 'swept') {
+        if (deposit && state === 'spent') {
+          if (await resolveCancellingSpend(swap, deposit.arkTxId ?? deposit.spentBy)) return
+        } else if (state === 'swept') {
+          setSwaps(updateAssetSwap(id, { status: 'recoverable' }))
+          return
+        } else if (state && getAssetSwaps().find((candidate) => candidate.id === id)?.status === 'cancelling') {
           setSwaps(updateAssetSwap(id, { status: swap.status }))
         }
       } catch {
@@ -187,16 +200,34 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
       }
       throw err
     }
-    // the SSE monitor may have already seen the cancel spend and resolved it
-    if (getAssetSwaps().find((s) => s.id === id)?.status !== 'cancelled') {
-      setSwaps(updateAssetSwap(id, { status: 'cancelled' }))
-      toast.success('Swap cancelled, funds returned')
-      reloadWallet().catch(consoleError)
-    }
   }
 
-  // pending swaps resolve to fulfilled/recoverable; cancelling ones (including
-  // cancels interrupted by a reload) resolve to cancelled once the spend lands
+  const resolveCancellingSpend = async (swap: AssetSwap, spentTxid?: string): Promise<boolean> => {
+    if (!svcWallet || !spentTxid) return false
+    const spend = (await getTxHistory(svcWallet)).find((tx) =>
+      [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(spentTxid),
+    )
+    if (!spend) return false
+
+    // Re-read after the async history lookup so a completed cancelOffer call
+    // or another monitor pass always wins over this reconciliation.
+    if (getAssetSwaps().find((candidate) => candidate.id === swap.id)?.status !== 'cancelling') return true
+    const cancelled = isCancelSpend(decodeOffer(hex.decode(swap.offerHex)), spend)
+    setSwaps(
+      updateAssetSwap(swap.id, {
+        status: cancelled ? 'cancelled' : 'fulfilled',
+        spentTxid,
+        ...(cancelled ? {} : { completedAt: Date.now() }),
+      }),
+    )
+    if (cancelled) toast.success('Swap cancelled, funds returned')
+    else toast.success(`Swap completed, ${tickerFor(swap.toAsset)} received`)
+    reloadWallet().catch(consoleError)
+    return true
+  }
+
+  // Pending and cancelling swaps stay watched until their spend can be
+  // classified as fulfilled, cancelled or recoverable.
   const watchedScripts = swaps
     .filter((s) => s.status === 'pending' || s.status === 'cancelling')
     .map((s) => s.swapPkScript)
@@ -215,7 +246,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   // single getVtxos on each (re)connect since the stream has no replay; a slow
   // safety reconcile stands in for a heartbeat watchdog on hung streams
   useEffect(() => {
-    if (!watchedScripts || !aspInfo.url || !visible) return
+    if (!watchedScripts || !aspInfo.url || !visible || !svcWallet) return
     const scripts = watchedScripts.split(',')
     const indexer = new RestIndexerProvider(aspInfo.url)
     const abort = new AbortController()
@@ -237,10 +268,11 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
         if (state === 'swept') {
           setSwaps(updateAssetSwap(swap.id, { status: 'recoverable' }))
         } else if (swap.status === 'cancelling') {
-          // a spend while cancelling is our own cancel landing
-          setSwaps(updateAssetSwap(swap.id, { status: 'cancelled', spentTxid: vtxo.arkTxId ?? vtxo.spentBy }))
-          toast.success('Swap cancelled, funds returned')
-          reloadWallet().catch(consoleError)
+          // The solver may win after cancellation starts. Classify the spend
+          // from wallet history instead of assuming every race is a cancel.
+          resolveCancellingSpend(swap, vtxo.arkTxId ?? vtxo.spentBy).catch((err) =>
+            consoleError(err, 'swap cancellation reconciliation failed'),
+          )
         } else {
           setSwaps(
             updateAssetSwap(swap.id, {
@@ -301,7 +333,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
       abort.abort()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watchedScripts, aspInfo.url, visible])
+  }, [watchedScripts, aspInfo.url, visible, svcWallet])
 
   const swapAvailable = markets.length > 0 && Boolean(emulatorUrl)
   const value = useMemo(

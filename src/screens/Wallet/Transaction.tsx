@@ -25,20 +25,64 @@ import Reminder from '../../components/Reminder'
 import { LimitsContext } from '../../providers/limits'
 import { getInputsToSettle } from '../../lib/asp'
 import SwapTransactionSummary from '../../components/SwapTransactionSummary'
-import { formatSwapAssetAmount, swapFeeAmount, swapPriceRateLabel, swapStatusLabel } from '../../lib/swapDisplay'
+import {
+  formatSwapAssetAmount,
+  swapFeeAmount,
+  swapPriceRateLabel,
+  swapStatusLabel,
+  type SwapStatus,
+} from '../../lib/swapDisplay'
 import { FiatContext } from '../../providers/fiat'
 import { designatedAccountCurrency, fiatAccountAssetSatoshis } from '../../lib/accountAssets'
 import UnverifiedBadge from '../../components/UnverifiedBadge'
+import { AssetSwapsContext } from '../../providers/assetSwaps'
+import { hapticTap } from '../../lib/haptics'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../components/ui/alert-dialog'
 
 export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo } = useContext(FlowContext)
+  const { cancelSwap, swaps } = useContext(AssetSwapsContext)
   const { fromFiatAmount } = useContext(FiatContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
     useContext(WalletContext)
 
-  const tx = txInfo
+  const liveSwap = txInfo?.assetSwap?.fundingTxid
+    ? swaps.find((swap) => swap.fundingTxid === txInfo.assetSwap?.fundingTxid)
+    : undefined
+  const liveSwapStatus: SwapStatus | undefined = liveSwap
+    ? liveSwap.status === 'fulfilled'
+      ? 'completed'
+      : liveSwap.status === 'cancelled'
+        ? 'cancelled'
+        : liveSwap.status === 'recoverable'
+          ? 'recoverable'
+          : 'pending'
+    : undefined
+  const tx =
+    txInfo && txInfo.assetSwap && liveSwap && liveSwapStatus
+      ? {
+          ...txInfo,
+          preconfirmed: liveSwapStatus === 'pending',
+          settled: liveSwapStatus === 'completed' || liveSwapStatus === 'cancelled',
+          redeemTxid: liveSwap.spentTxid ?? txInfo.redeemTxid,
+          assetSwap: {
+            ...txInfo.assetSwap,
+            status: liveSwapStatus,
+            fillTxid: liveSwap.spentTxid,
+          },
+        }
+      : txInfo
   const swapTx = tx?.type === 'swap'
   const issuanceTx = tx ? isIssuance(tx) : false
   const burnTx = tx ? isBurn(tx) : false
@@ -58,6 +102,9 @@ export default function Transaction() {
   const [settleSuccess, setSettleSuccess] = useState(false)
   const [settling, setSettling] = useState(false)
   const [startTime, setStartTime] = useState(0)
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
+  const [cancelFailed, setCancelFailed] = useState(false)
+  const [cancellingSwap, setCancellingSwap] = useState(false)
 
   useEffect(() => {
     setButtonLabel(settling ? 'Settling...' : defaultButtonLabel)
@@ -95,6 +142,23 @@ export default function Transaction() {
       setError(extractError(err))
     }
     setSettling(false)
+  }
+
+  const handleCancelSwap = async () => {
+    if (!liveSwap || cancellingSwap) return
+    hapticTap()
+    setCancelConfirmOpen(false)
+    setCancelFailed(false)
+    setError('')
+    setCancellingSwap(true)
+    try {
+      await cancelSwap(liveSwap.id)
+    } catch (err) {
+      setError(extractError(err))
+      setCancelFailed(true)
+    } finally {
+      setCancellingSwap(false)
+    }
   }
 
   if (!tx) return <></>
@@ -169,12 +233,14 @@ export default function Transaction() {
   const swapToIcon = tx.assetSwap?.toAssetId
     ? assetMetadataCache.get(tx.assetSwap.toAssetId)?.metadata?.icon
     : undefined
+  const showCancelSwap = swapTx && liveSwap && (liveSwap.status === 'pending' || liveSwap.status === 'cancelling')
+  const visibleError = cancelFailed && !showCancelSwap ? '' : error
 
   const Body = () => (
     <Content>
       <Padded>
         <FlexCol>
-          <ErrorMessage error={Boolean(error)} text={error} />
+          <ErrorMessage error={Boolean(visibleError)} text={visibleError} />
           {expiredBoardingTx ? (
             <Info color='red' icon={<VtxosIcon />} title='Expired'>
               <Text wrap>Boarding transaction expired.</Text>
@@ -253,7 +319,40 @@ export default function Transaction() {
     !settling
 
   const Buttons = () =>
-    showSettleButtons ? (
+    showCancelSwap ? (
+      <>
+        <ButtonsOnBottom>
+          <Button
+            variant='destructive'
+            label={
+              cancellingSwap
+                ? 'Cancelling…'
+                : cancelFailed || liveSwap.status === 'cancelling'
+                  ? 'Retry cancel'
+                  : 'Cancel swap'
+            }
+            disabled={cancellingSwap}
+            onClick={() => setCancelConfirmOpen(true)}
+          />
+        </ButtonsOnBottom>
+        <AlertDialog open={cancelConfirmOpen} onOpenChange={setCancelConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancel swap?</AlertDialogTitle>
+              <AlertDialogDescription>
+                If the swap is still pending, this will return its locked funds to your wallet.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className='min-h-11'>Keep swap</AlertDialogCancel>
+              <AlertDialogAction className='min-h-11' variant='destructive' onClick={handleCancelSwap}>
+                Cancel swap
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    ) : showSettleButtons ? (
       <>
         <ButtonsOnBottom>
           <Button onClick={handleSettle} label={buttonLabel} disabled={settling} />

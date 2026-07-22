@@ -20,7 +20,7 @@ interface HomeAction {
 export default function HomeQuickActions() {
   const { navigate } = useContext(NavigationContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
-  const { swapAvailable, swaps } = useContext(AssetSwapsContext)
+  const { swapAvailable } = useContext(AssetSwapsContext)
   const [swapSheetOpen, setSwapSheetOpen] = useState(false)
 
   const actions: HomeAction[] = [
@@ -46,9 +46,7 @@ export default function HomeQuickActions() {
       icon: <SwapIcon />,
       label: 'Swap',
       onClick: () => {
-        // existing swaps stay reachable during outages so pending funds
-        // remain cancellable from the swap screen
-        if (swapAvailable || swaps.length > 0) navigate(Pages.WalletSwap)
+        if (swapAvailable) navigate(Pages.WalletSwap)
         else setSwapSheetOpen(true)
       },
       testId: 'home-action-swap',

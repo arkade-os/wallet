@@ -522,13 +522,10 @@ describe('Wallet swap flow', () => {
     errorSpy.mockRestore()
   })
 
-  it('keeps PR 784 pending-swap cancellation available', async () => {
-    renderSwap({
-      config: { unit: Unit.BIP177 },
-      swap: { swaps: [{ ...pendingSwap, quote: { ...pendingSwap.quote!, fromTicker: 'sats' } }] },
-    })
-    expect(screen.getByText('BTC to USD')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    await waitFor(() => expect(cancelSwap).toHaveBeenCalledWith('funding-txid'))
+  it('keeps swap history out of the swap composer', () => {
+    renderSwap({ swap: { swaps: [pendingSwap] } })
+    expect(screen.queryByText('Your swaps')).not.toBeInTheDocument()
+    expect(screen.queryByText('BTC to USD')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
   })
 })
