@@ -433,7 +433,7 @@ export default function TransactionsList({
   )
 }
 
-function matchesAssetFilter(tx: Tx, assetIdFilter?: string | string[]): boolean {
+export function matchesAssetFilter(tx: Tx, assetIdFilter?: string | string[]): boolean {
   if (!assetIdFilter) return true
   if (tx.type === 'swap' && tx.assetSwap) {
     const swapAssetIds = [tx.assetSwap.fromAssetId, tx.assetSwap.toAssetId].filter((assetId): assetId is string =>

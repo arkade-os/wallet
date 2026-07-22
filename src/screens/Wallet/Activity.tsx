@@ -6,23 +6,15 @@ import Padded from '../../components/Padded'
 import TransactionsList from '../../components/TransactionsList'
 import { WalletContext } from '../../providers/wallet'
 import { EmptyTxList } from '../../components/Empty'
-import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../lib/animations'
-import { hapticSubtle } from '../../lib/haptics'
+import { EASE_OUT_QUINT_TUPLE } from '../../lib/animations'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
-
-type ActivityFilter = 'all' | 'swaps'
+import ActivityFilter, { type ActivityFilterValue } from '../../components/ActivityFilter'
 
 export default function Activity() {
   const { txs } = useContext(WalletContext)
-  const [filter, setFilter] = useState<ActivityFilter>('all')
+  const [filter, setFilter] = useState<ActivityFilterValue>('all')
   const prefersReduced = useReducedMotion()
   const hasSwaps = txs.some((tx) => tx.type === 'swap')
-
-  const selectFilter = (next: ActivityFilter) => {
-    if (next === filter) return
-    hapticSubtle()
-    setFilter(next)
-  }
 
   return (
     <>
@@ -33,30 +25,7 @@ export default function Activity() {
             <EmptyTxList />
           ) : (
             <>
-              {hasSwaps ? (
-                <div className='activity-filter' role='group' aria-label='Filter activity'>
-                  {(['all', 'swaps'] as const).map((option) => (
-                    <button
-                      key={option}
-                      type='button'
-                      className='activity-filter__option'
-                      aria-pressed={filter === option}
-                      onClick={() => selectFilter(option)}
-                    >
-                      {filter === option ? (
-                        <motion.span
-                          layoutId='activity-filter-selection'
-                          className='activity-filter__selection'
-                          transition={
-                            prefersReduced ? { duration: 0 } : { duration: 0.18, ease: EASE_IN_OUT_QUINT_TUPLE }
-                          }
-                        />
-                      ) : null}
-                      <span className='activity-filter__label'>{option === 'all' ? 'All' : 'Swaps'}</span>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
+              {hasSwaps ? <ActivityFilter value={filter} onChange={setFilter} /> : null}
               <AnimatePresence mode='wait' initial={false}>
                 <motion.div
                   key={filter}
