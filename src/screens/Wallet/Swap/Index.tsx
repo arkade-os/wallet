@@ -39,6 +39,7 @@ import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { usePortfolioFiat, type PortfolioRow } from '../../../hooks/usePortfolioFiat'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
+import { verifiedDesignatedCurrency } from '../../../lib/accountAssets'
 
 type AssetTarget = 'from' | 'to'
 type DrawerState = 'to' | 'review' | null
@@ -104,7 +105,7 @@ export default function WalletSwap() {
   const { fiatDecimals, fromFiatAmount, toFiat, toFiatAmount } = useContext(FiatContext)
   const { swapFromAssetId, setSwapFromAssetId } = useContext(FlowContext)
   const { goBack, navigate } = useContext(NavigationContext)
-  const { assetBalances, assetMetadataCache, availableBalance } = useContext(WalletContext)
+  const { assetBalances, assetMetadataCache, availableBalance, isVerifiedAsset } = useContext(WalletContext)
   const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()
 
@@ -143,10 +144,11 @@ export default function WalletSwap() {
 
       const row = rows.find((candidate) => candidate.assetId === asset.id)
       const owned = assetBalances.find((balance) => balance.assetId === asset.id)
+      const designatedCurrency = verifiedDesignatedCurrency(aspInfo.network, asset.id, isVerifiedAsset)
       return {
         assetId: asset.id,
-        name: row?.name ?? asset.name,
-        ticker: row?.ticker ?? asset.ticker,
+        name: row?.name ?? designatedCurrency ?? asset.name,
+        ticker: row?.ticker ?? designatedCurrency ?? asset.ticker,
         decimals: asset.decimals,
         balance: BigInt(owned?.amount ?? 0),
         fiatText: row?.hasFiatPrice
@@ -159,11 +161,13 @@ export default function WalletSwap() {
   }, [
     assetBalances,
     assetMetadataCache,
+    aspInfo.network,
     availableBalance,
     btcUnit,
     config.currency,
     config.unit,
     fromFiatAmount,
+    isVerifiedAsset,
     markets,
     rows,
     toFiat,
