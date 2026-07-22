@@ -90,7 +90,8 @@ describe('TransactionsList', () => {
       </AspContext.Provider>,
     )
 
-    expect(screen.getByText('-2,000.00 BRL')).toBeInTheDocument()
+    expect(screen.getByText('- €2,000.00')).toBeInTheDocument()
+    expect(screen.getByText('- 2,000.00 BRL')).toBeInTheDocument()
     expect(screen.queryByText('-2,000,000,000.00 BRL')).not.toBeInTheDocument()
   })
 
@@ -132,8 +133,8 @@ describe('TransactionsList', () => {
       </AspContext.Provider>,
     )
 
+    expect(screen.getByText('+ €1,600.00')).toBeInTheDocument()
     expect(screen.getByText('+ 1,600 sats')).toBeInTheDocument()
-    expect(screen.getByText('€1,600.00')).toBeInTheDocument()
   })
 
   it('shows one configured-unit amount for an arbitrary swap pair', () => {

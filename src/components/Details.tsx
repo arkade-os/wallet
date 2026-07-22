@@ -17,6 +17,7 @@ import InfoIcon from '../icons/Info'
 import ArrowUpDownIcon from '../icons/ArrowUpDown'
 import { Wallet } from '../lib/types'
 import { SwapDisplayAmount } from '../lib/swapDisplay'
+import type { TransactionAmountDisplay } from '../lib/transactionAmountDisplay'
 import {
   openInNewTab,
   openOffchainTxInNewTab,
@@ -29,6 +30,7 @@ export interface DetailsProps {
   address?: string
   arknote?: string
   assetId?: string
+  amountDisplay?: TransactionAmountDisplay
   date?: string
   destination?: string
   direction?: string
@@ -65,6 +67,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     address,
     arknote,
     assetId,
+    amountDisplay,
     date,
     direction,
     destination,
@@ -102,10 +105,36 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     return config.showBalance ? prettyBitcoinAmount(amount, config.unit) : prettyBitcoinHide(amount, config.unit)
   }
 
-  const formatSensitiveDetail = (detail?: SwapDisplayAmount) => {
+  const formatSensitiveDetail = (detail?: { masked: string; value: string }) => {
     if (!detail) return undefined
     return config.showBalance ? detail.value : detail.masked
   }
+
+  const amountRows: TableData = amountDisplay
+    ? [
+        ...amountDisplay.raw.map(
+          (amount) =>
+            [
+              amountDisplay.raw.length === 1
+                ? amount.assetId && !amount.trusted
+                  ? 'Unverified asset amount'
+                  : 'Asset amount'
+                : `Asset amount (${amount.ticker}${amount.assetId && !amount.trusted ? ', unverified' : ''})`,
+              formatSensitiveDetail(amount),
+              <AmountIcon key={`asset-amount-icon-${amount.assetId ?? amount.ticker}`} />,
+            ] satisfies TableData[number],
+        ),
+        ...(amountDisplay.configured
+          ? [
+              [
+                'Value',
+                formatSensitiveDetail(amountDisplay.configured),
+                <TotalIcon key='value-icon' />,
+              ] satisfies TableData[number],
+            ]
+          : []),
+      ]
+    : [['Amount', formatAmount(satoshis), <AmountIcon key='amount-icon' />]]
 
   // Only show explorer link if URL is available (e.g., mainnet for vmempool)
   const txidOnClick =
@@ -151,7 +180,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ['When', when, <WhenIcon key='when-icon' />],
     ['Date', date, <DateIcon key='date-icon' />],
     ['Expiry', expiry, <DateIcon key='expiry-icon' />],
-    ['Amount', formatAmount(satoshis), <AmountIcon key='amount-icon' />],
+    ...amountRows,
     ['Price rate', priceRate, <ArrowUpDownIcon key='price-rate-icon' />],
     ['Network fees', fees === undefined ? feesLabel : formatAmount(fees), <FeesIcon key='fees-icon' />],
     ['Swap fees', formatSensitiveDetail(swapFees), <FeesIcon key='swap-fees-icon' />],

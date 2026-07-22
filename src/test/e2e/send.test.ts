@@ -29,7 +29,7 @@ test('should send sats (some and max) to ark address', async ({ page, isMobile }
 
   // details page
   await expect(page.getByTestId('Network fees')).toContainText('0 sats')
-  await expect(page.getByTestId('Amount')).toContainText('2,000 sats')
+  await expect(page.getByTestId('primary-amount')).toContainText('2,000 sats')
   await expect(page.getByTestId('Total')).toContainText('2,000 sats')
 
   // finalize payment
@@ -59,7 +59,7 @@ test('should send sats (some and max) to ark address', async ({ page, isMobile }
 
   // details page
   await expect(page.getByTestId('Network fees')).toContainText('0 sats')
-  await expect(page.getByTestId('Amount')).toContainText('3,000 sats')
+  await expect(page.getByTestId('primary-amount')).toContainText('3,000 sats')
   await expect(page.getByTestId('Total')).toContainText('3,000 sats')
 
   await page.getByText('Tap to Sign').click()
@@ -87,7 +87,7 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
 
   // details page
   await expect(page.getByTestId('Network fees')).toContainText('$0.00')
-  await expect(page.getByTestId('Amount')).toContainText('$2.00')
+  await expect(page.getByTestId('primary-amount')).toContainText('$2.00')
   await expect(page.getByTestId('Total')).toContainText('$2.00')
 
   // finalize payment
@@ -119,7 +119,7 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
 
   // details page
   await expect(page.getByTestId('Network fees')).toContainText('$0.00')
-  await expect(page.getByTestId('Amount')).toContainText(`$${usdsRemaining}`)
+  await expect(page.getByTestId('primary-amount')).toContainText(`$${usdsRemaining}`)
   await expect(page.getByTestId('Total')).toContainText(`$${usdsRemaining}`)
 
   await page.getByText('Tap to Sign').click()
@@ -179,18 +179,18 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   await page.getByText('Continue').click()
 
   // details page
-  await expect(page.getByTestId('send-details-asset-name')).toHaveText('TestCoin (TST)')
-  await expect(page.getByTestId('send-details-asset-amount')).toHaveText(`${sendAmount} TST`)
+  await expect(page.getByTestId('primary-amount')).toHaveText(`${sendAmount} TST`)
+  await expect(page.getByTestId('Unverified asset amount')).toHaveText(`${sendAmount} TST`)
   await expect(page.getByTestId('Network fees')).toHaveText('0 sats')
-  await expect(page.getByTestId('Amount')).toHaveText('0 sats')
-  await expect(page.getByTestId('Total')).toHaveText('0 sats')
+  await expect(page.getByTestId('Value')).toHaveCount(0)
+  await expect(page.getByTestId('Total')).toHaveCount(0)
 
   await page.getByText('Tap to Sign').click()
   await page.waitForSelector(`text=${sendAmount} TST sent successfully`, { timeout: 10000 })
 
   // main page
   await dismissPaymentSuccess(page)
-  await page.waitForSelector(`text=-${sendAmount} TST`, { timeout: 10000 })
+  await page.waitForSelector(`text=- ${sendAmount} TST`, { timeout: 10000 })
   await expect(page.getByText('Sent')).toBeVisible()
 
   // send again via the asset detail screen
@@ -210,11 +210,11 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   await page.getByText('Continue').click()
 
   // details page
-  await expect(page.getByTestId('send-details-asset-name')).toHaveText('TestCoin (TST)')
-  await expect(page.getByTestId('send-details-asset-amount')).toHaveText(`${sendAmountMax} TST`)
+  await expect(page.getByTestId('primary-amount')).toHaveText(`${sendAmountMax} TST`)
+  await expect(page.getByTestId('Unverified asset amount')).toHaveText(`${sendAmountMax} TST`)
   await expect(page.getByTestId('Network fees')).toHaveText('0 sats')
-  await expect(page.getByTestId('Amount')).toHaveText('0 sats')
-  await expect(page.getByTestId('Total')).toHaveText('0 sats')
+  await expect(page.getByTestId('Value')).toHaveCount(0)
+  await expect(page.getByTestId('Total')).toHaveCount(0)
 
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
@@ -222,7 +222,7 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
 
   // main page
   await dismissPaymentSuccess(page)
-  await page.waitForSelector(`text=-${sendAmountMax} TST`, { timeout: 10000 })
+  await page.waitForSelector(`text=- ${sendAmountMax} TST`, { timeout: 10000 })
 })
 
 // wallet balance is 5000 sats,
@@ -369,7 +369,7 @@ test('should send sats (some and max) to onchain address with collaborative exit
     await prePay(page, someOnchainAddress, isMobile, 900)
 
     // details page
-    await expect(page.getByTestId('Amount')).toContainText('700 sats')
+    await expect(page.getByTestId('primary-amount')).toContainText('700 sats')
     const fees = await page.getByTestId('Network fees').textContent()
     expect(fees).not.toBeNull()
     const feesNumber = parseInt(fees!.replace(/[^0-9]/g, ''), 10)
