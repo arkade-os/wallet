@@ -259,9 +259,11 @@ function SwapAmountInfo({
   const statusClassName =
     status === 'pending'
       ? ' activity-row__amount--pending'
-      : status === 'failed' || status === 'cancelled'
+      : status === 'failed'
         ? ' activity-row__amount--failed'
-        : ''
+        : status === 'cancelled'
+          ? ' activity-row__amount--cancelled'
+          : ''
 
   return (
     <span className={`activity-row__amount${statusClassName}`}>
