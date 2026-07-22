@@ -1825,7 +1825,8 @@ html.palette-dark .send-asset-menu {
 .swap-input-card__asset button,
 .swap-amount-display,
 .swap-amount-secondary,
-.swap-receive-card {
+.swap-receive-card,
+.swap-receive-card button {
   border: 0;
   color: inherit;
   font: inherit;
@@ -2083,9 +2084,63 @@ html.palette-dark .send-asset-menu {
   min-height: 4.25rem;
   padding: 0.75rem 0.875rem;
   text-align: left;
+  cursor: default;
   transition:
     background-color 160ms ease,
     transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.swap-receive-card__asset-button {
+  display: flex;
+  min-width: 0;
+  min-height: var(--size-touch-min);
+  flex: 1;
+  align-items: center;
+  gap: 0.75rem;
+  background: transparent;
+  text-align: left;
+}
+
+.swap-receive-card__asset-button > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.swap-receive-card__amount {
+  display: flex;
+  min-height: var(--size-touch-min);
+  min-width: 0;
+  max-width: 58%;
+  flex: 0 1 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.0625rem;
+  border-radius: var(--radius-md);
+  background: transparent;
+  padding: 0.375rem 0.25rem 0.375rem 0.5rem;
+  transition:
+    background-color 160ms ease,
+    transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.swap-receive-card__amount strong {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.swap-receive-card__amount small.swap-receive-card__fiat {
+  max-width: 100%;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--fg) 46%, transparent);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .swap-receive-card > div {
@@ -2107,6 +2162,27 @@ html.palette-dark .send-asset-menu {
 .swap-input-card__asset button:active,
 .swap-amount-display:active {
   transform: scale(0.97);
+}
+
+.swap-receive-card--editable:active {
+  transform: none;
+}
+
+.swap-receive-card__asset-button:active,
+.swap-receive-card__amount:active {
+  transform: scale(0.97);
+}
+
+.swap-receive-card__asset-button:focus-visible,
+.swap-receive-card__amount:focus-visible {
+  outline: 2px solid currentcolor;
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .swap-receive-card__amount:hover {
+    background: color-mix(in srgb, var(--fg) 4%, transparent);
+  }
 }
 
 .swap-receive-card__empty {
@@ -2219,7 +2295,9 @@ html.palette-dark .send-asset-menu {
   .swap-receive-card:active,
   .swap-input-card__asset button:active,
   .swap-amount-secondary:active,
-  .swap-amount-display:active {
+  .swap-amount-display:active,
+  .swap-receive-card__asset-button:active,
+  .swap-receive-card__amount:active {
     transform: none;
   }
 }
@@ -3641,6 +3719,69 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 .swap-review-drawer-content {
   max-height: min(92vh, 42rem) !important;
   overflow: hidden;
+}
+
+.swap-receive-amount-drawer {
+  max-height: min(92dvh, 42rem) !important;
+  overflow: clip;
+}
+
+.swap-receive-amount-drawer__body {
+  display: flex;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  flex-direction: column;
+  padding: 0 1rem max(1rem, env(safe-area-inset-bottom));
+}
+
+.swap-receive-amount-drawer__hero {
+  display: flex;
+  min-height: 7.5rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  text-align: center;
+}
+
+.swap-receive-amount-drawer__quote {
+  display: flex;
+  min-height: var(--text-sm-line);
+  align-items: center;
+  justify-content: center;
+  color: color-mix(in srgb, var(--fg) 48%, transparent);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--text-sm-line);
+}
+
+.swap-receive-amount-drawer__value {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--fg);
+  font-family: var(--font-family-heading);
+  font-size: var(--heading-xl-size);
+  font-weight: 500;
+  letter-spacing: var(--heading-xl-tracking);
+  line-height: var(--heading-xl-line);
+  font-variant-numeric: tabular-nums;
+}
+
+.swap-receive-amount-drawer__error {
+  margin: 0.125rem 0 0;
+  color: color-mix(in srgb, var(--red-700) 84%, var(--fg));
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: var(--text-xs-line);
+}
+
+.swap-receive-amount-drawer .swap-keypad-shell {
+  padding-top: 0.25rem;
+}
+
+.swap-receive-amount-drawer__action {
+  padding-top: 0.5rem;
 }
 
 .swap-review-header {
