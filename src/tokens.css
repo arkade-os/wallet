@@ -217,6 +217,9 @@
      need to account for safe-area in layout math. */
   --bottom-anchor-gap: 8px;
 
+  --bottom-actions-gutter: 1rem;
+  --bottom-actions-safe-gutter: max(var(--bottom-actions-gutter), env(safe-area-inset-bottom, 0px));
+
   --pill-navbar-height: 52px;
   --pill-navbar-dock-padding-top: 6px;
   --pill-navbar-dock-padding-bottom: var(--bottom-anchor-gap);
