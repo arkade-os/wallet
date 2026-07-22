@@ -179,11 +179,15 @@ export default function WalletSwap() {
   const [search, setSearch] = useState('')
   const [amount, setAmount] = useState('0')
   const [amountMode, setAmountMode] = useState<AmountMode>('fiat')
+  const [preservedAmountPair, setPreservedAmountPair] = useState<{
+    assetId: string
+    assetAmount: string
+    fiatAmount: string
+  }>()
   const [fromAssetId, setFromAssetId] = useState(initialFromAssetId ?? swapAssets[0]?.assetId ?? 'btc')
   const [toAssetId, setToAssetId] = useState<string | undefined>()
   const [drawer, setDrawer] = useState<DrawerState>(null)
   const [swapTurn, setSwapTurn] = useState(0)
-  const [invalidPulse, setInvalidPulse] = useState(0)
   const [confirming, setConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState('')
   const [successQuote, setSuccessQuote] = useState<SwapQuote>()
@@ -206,33 +210,47 @@ export default function WalletSwap() {
     fetchImpl: feedFetch,
     ...QUOTE_OPTIONS,
   })
-  const assetAmount = amountInAssetUnits(amount, amountMode, fromAsset, unitOfAccountUsd)
-  const [quotedAmount, setQuotedAmount] = useState('')
+  const preservedAmounts = preservedAmountPair?.assetId === fromAsset.assetId ? preservedAmountPair : undefined
+  const assetAmount =
+    preservedAmounts?.assetAmount ?? amountInAssetUnits(amount, amountMode, fromAsset, unitOfAccountUsd)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setGiveAmount(Number(assetAmount) > 0 ? amountForQuote(assetAmount, fromAsset) : '')
-      setQuotedAmount(amount)
     }, 600)
     return () => window.clearTimeout(timer)
-  }, [amount, assetAmount, fromAsset, setGiveAmount])
+  }, [assetAmount, fromAsset, setGiveAmount])
 
-  const quoteStale = quotedAmount !== amount
-  const planError = plan ? validatePlan(plan, assetBalanceAtomic(fromAsset), aspInfo.dust) : undefined
+  const planMatchesAssetAmount = Boolean(
+    plan && new Decimal(plan.deposit.display).eq(amountForQuote(assetAmount, fromAsset) || '0'),
+  )
+  const currentPlan = status === 'success' && planMatchesAssetAmount ? plan : null
+  const quoteStale = Number(assetAmount) > 0 && !currentPlan
+  const planError = currentPlan ? validatePlan(currentPlan, assetBalanceAtomic(fromAsset), aspInfo.dust) : undefined
   const validationMessage = swapValidationMessage({
     amount,
     fromAsset,
     pairAvailable: toAsset ? Boolean(pair?.market) : undefined,
-    plan,
+    plan: currentPlan,
     planError,
     solvable: solvable ?? undefined,
     status,
   })
   const quote = useMemo(
     () =>
-      buildQuoteFromPlan(plan, amount, amountMode, fromAsset, toAsset, unitOfAccountUsd, config.currency, config.unit),
-    [amount, amountMode, config.currency, config.unit, fromAsset, plan, toAsset, unitOfAccountUsd],
+      buildQuoteFromPlan(currentPlan, assetAmount, fromAsset, toAsset, unitOfAccountUsd, config.currency, config.unit),
+    [assetAmount, config.currency, config.unit, currentPlan, fromAsset, toAsset, unitOfAccountUsd],
   )
+  const currentFiatValue =
+    currentPlan && quote.fromFiatValue > 0
+      ? quote.fromFiatValue
+      : fiatValueFromAssetAmount(assetAmount, fromAsset, unitOfAccountUsd)
+  const alternateFiatAmount =
+    Number(assetAmount) === 0
+      ? '0'
+      : currentFiatValue !== undefined && currentFiatValue > 0
+        ? prettyNumber(currentFiatValue, fiatDecimals(), false, fiatDecimals())
+        : undefined
   const hasPositiveAmount = Number(amount) > 0
   const validationState: SwapValidationState =
     validationMessage && validationMessage !== 'Insufficient balance'
@@ -241,7 +259,7 @@ export default function WalletSwap() {
         ? 'insufficient-balance'
         : 'idle'
   const quoteLoading = status === 'loading' || (quoteStale && hasPositiveAmount)
-  const canContinue = Boolean(toAsset && plan && status === 'success' && !planError && !quoteStale)
+  const canContinue = Boolean(toAsset && currentPlan && !planError)
 
   const stageTransition = prefersReduced ? { duration: 0 } : { duration: 0.28, ease: EASE_IN_OUT_QUINT_TUPLE }
 
@@ -283,7 +301,6 @@ export default function WalletSwap() {
   useEffect(() => {
     if (validationState === 'idle') return
     hapticSubtle()
-    setInvalidPulse((current) => current + 1)
   }, [validationState])
 
   const openDrawer = (nextDrawer: DrawerState) => {
@@ -294,6 +311,7 @@ export default function WalletSwap() {
 
   const selectFromAsset = (asset: SwapAsset) => {
     hapticLight()
+    setPreservedAmountPair(undefined)
     focusFromAsset(asset.assetId)
   }
 
@@ -308,6 +326,7 @@ export default function WalletSwap() {
   const swapSides = () => {
     if (!toAsset) return
     hapticLight()
+    setPreservedAmountPair(undefined)
     setAmount('0')
     setGiveAmount('')
     setSwapTurn((current) => current + 1)
@@ -328,6 +347,7 @@ export default function WalletSwap() {
 
     if (!canApplyKey(amount)) return
     hapticTap()
+    setPreservedAmountPair(undefined)
 
     if (key === 'Back') {
       setAmount((current) => current.slice(0, -1) || '0')
@@ -343,7 +363,18 @@ export default function WalletSwap() {
   }
 
   const toggleAmountMode = () => {
+    const nextAmount =
+      amountMode === 'fiat'
+        ? (preservedAmounts?.assetAmount ?? amountInAssetUnits(amount, amountMode, fromAsset, unitOfAccountUsd))
+        : (preservedAmounts?.fiatAmount ?? alternateFiatAmount)
+    if (nextAmount === undefined) return
     hapticLight()
+    setPreservedAmountPair({
+      assetId: fromAsset.assetId,
+      assetAmount: amountMode === 'asset' ? amount : nextAmount,
+      fiatAmount: amountMode === 'fiat' ? amount : nextAmount,
+    })
+    setAmount(nextAmount)
     setAmountMode((current) => (current === 'asset' ? 'fiat' : 'asset'))
   }
 
@@ -352,6 +383,7 @@ export default function WalletSwap() {
     if (rawBalance <= BigInt(0)) return
     hapticLight()
     setConfirmError('')
+    setPreservedAmountPair(undefined)
     // enter the exact balance in the asset's own units — sidestep the fiat
     // round-trip so "max" funds the whole balance to the last atomic unit
     setAmountMode('asset')
@@ -460,9 +492,11 @@ export default function WalletSwap() {
                 >
                   <SwapComposer
                     amount={amount}
+                    assetAmount={assetAmount}
                     amountMode={amountMode}
                     currency={config.currency}
                     bitcoinUnit={config.unit}
+                    alternateFiatAmount={preservedAmounts?.fiatAmount ?? alternateFiatAmount}
                     quote={quote}
                     fromAsset={fromAsset}
                     toAsset={toAsset}
@@ -473,7 +507,6 @@ export default function WalletSwap() {
                     onUseMaxBalance={useMaxBalance}
                     validationState={validationState}
                     validationText={validationMessage}
-                    invalidPulse={invalidPulse}
                     quoteLoading={quoteLoading}
                     swapTurn={swapTurn}
                   />
@@ -650,9 +683,11 @@ function SwapAssetList({
 
 function SwapComposer({
   amount,
+  assetAmount,
   amountMode,
   currency,
   bitcoinUnit,
+  alternateFiatAmount,
   quote,
   fromAsset,
   toAsset,
@@ -663,14 +698,15 @@ function SwapComposer({
   onUseMaxBalance,
   validationState,
   validationText,
-  invalidPulse,
   quoteLoading,
   swapTurn,
 }: {
   amount: string
+  assetAmount: string
   amountMode: AmountMode
   currency: Currencies
   bitcoinUnit: Unit
+  alternateFiatAmount?: string
   quote: SwapQuote
   fromAsset: SwapAsset
   toAsset?: SwapAsset
@@ -681,16 +717,23 @@ function SwapComposer({
   onUseMaxBalance: () => void
   validationState: SwapValidationState
   validationText: string
-  invalidPulse: number
   quoteLoading: boolean
   swapTurn: number
 }) {
   const prefersReduced = useReducedMotion()
-  const amountLabel =
-    amountMode === 'fiat' ? formatCurrencyInputAmount(amount, currency, bitcoinUnit) : `${amount} ${fromAsset.ticker}`
-  const subAmountLabel = amountMode === 'fiat' ? `${quote.fromAmount} ${fromAsset.ticker}` : quote.fromFiat
+  const fiatAmountLabel =
+    amountMode === 'fiat' || alternateFiatAmount !== undefined
+      ? formatCurrencyInputAmount(amountMode === 'fiat' ? amount : alternateFiatAmount || '0', currency, bitcoinUnit)
+      : quote.fromFiat
+  const assetAmountLabel = `${assetAmount} ${fromAsset.ticker}`
+  const reservedAmountLabel = assetAmountLabel.length >= fiatAmountLabel.length ? assetAmountLabel : fiatAmountLabel
   const nextAmountModeLabel = amountMode === 'fiat' ? 'asset amount' : `${currency} amount`
   const validationMessage = validationText
+  const amountValueTransition = prefersReduced ? { duration: 0 } : { duration: 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }
+  const amountValues = [
+    { label: fiatAmountLabel, mode: 'fiat' as const },
+    { label: assetAmountLabel, mode: 'asset' as const },
+  ]
 
   return (
     <div className='swap-composer'>
@@ -699,61 +742,105 @@ function SwapComposer({
           <TokenAvatar asset={fromAsset} size={36} />
           <div className='swap-input-card__asset-copy'>
             <span>{fromAsset.name}</span>
-            <button type='button' className='swap-input-card__balance' onClick={onUseMaxBalance}>
-              {formatAssetBalance(fromAsset)}
-            </button>
+            <small className='swap-input-card__balance'>{formatAssetBalance(fromAsset)}</small>
           </div>
+          {assetBalanceAtomic(fromAsset) > BigInt(0) ? (
+            <button type='button' className='swap-input-card__max' onClick={onUseMaxBalance}>
+              Use max
+            </button>
+          ) : null}
         </div>
         <div className='swap-amount-stack'>
-          <motion.button
-            key={invalidPulse}
-            type='button'
-            className={
-              validationState === 'idle' ? 'swap-amount-display' : 'swap-amount-display swap-amount-display--invalid'
-            }
-            onClick={onAmountFocus}
-            aria-label='Swap amount'
-            animate={prefersReduced || validationState === 'idle' ? undefined : { x: [0, -7, 6, -4, 2, 0] }}
-            transition={
-              prefersReduced || validationState === 'idle' ? undefined : { duration: 0.32, ease: EASE_OUT_QUINT_TUPLE }
-            }
-          >
-            <AnimatedAmountValue value={amountLabel} reducedMotion={prefersReduced} />
-          </motion.button>
-          <AnimatePresence initial={false}>
-            {validationMessage ? (
-              <motion.p
-                key={validationMessage}
-                className='swap-input-error'
-                initial={prefersReduced ? false : { opacity: 0, y: 4, scale: 0.96 }}
-                animate={prefersReduced ? undefined : { opacity: 1, y: 0, scale: 1 }}
-                exit={prefersReduced ? undefined : { opacity: 0, y: 4, scale: 0.96 }}
-                transition={{ duration: prefersReduced ? 0 : 0.16, ease: EASE_OUT_QUINT_TUPLE }}
-              >
-                {validationMessage}
-              </motion.p>
-            ) : null}
-          </AnimatePresence>
+          <div className='swap-amount-stage'>
+            <button
+              type='button'
+              className={
+                validationState === 'idle' ? 'swap-amount-display' : 'swap-amount-display swap-amount-display--invalid'
+              }
+              onClick={onAmountFocus}
+              aria-label='Swap amount'
+            />
+            <motion.div
+              className='swap-amount-values'
+              animate={prefersReduced || validationState === 'idle' ? undefined : { x: [0, -7, 6, -4, 2, 0] }}
+              transition={
+                prefersReduced || validationState === 'idle'
+                  ? undefined
+                  : { duration: 0.32, ease: EASE_OUT_QUINT_TUPLE }
+              }
+              aria-hidden='true'
+            >
+              {amountValues.map((value) => {
+                const primary = value.mode === amountMode
+                return (
+                  <motion.span
+                    key={value.mode}
+                    className='swap-amount-value-row'
+                    initial={false}
+                    animate={{
+                      transform: primary
+                        ? 'translate3d(-50%, -50%, 0) translateY(-27px)'
+                        : 'translate3d(-50%, -50%, 0) translateY(27px)',
+                    }}
+                    transition={amountValueTransition}
+                  >
+                    <motion.span
+                      className='swap-amount-value-scale'
+                      initial={false}
+                      animate={{ transform: primary ? 'scale(1)' : 'scale(0.3)' }}
+                      transition={amountValueTransition}
+                    >
+                      {primary ? (
+                        <AnimatedAmountValue
+                          value={value.label}
+                          reducedMotion={prefersReduced}
+                          className={
+                            validationState === 'idle'
+                              ? 'swap-amount-value--primary'
+                              : 'swap-amount-value--primary swap-amount-value--invalid'
+                          }
+                        />
+                      ) : (
+                        <span className='swap-amount-value swap-amount-value--secondary'>{value.label}</span>
+                      )}
+                    </motion.span>
+                  </motion.span>
+                )
+              })}
+            </motion.div>
+            <button
+              type='button'
+              className='swap-amount-secondary'
+              onClick={onModeToggle}
+              aria-label={`Show ${nextAmountModeLabel} first`}
+            >
+              <span
+                className='swap-amount-secondary__label-reserve'
+                data-reserve-width={reservedAmountLabel}
+                aria-hidden='true'
+              />
+              <span className='swap-amount-secondary__icon' aria-hidden='true'>
+                <ArrowUpDownIcon />
+              </span>
+            </button>
+          </div>
+          <div className='swap-input-error-slot'>
+            <AnimatePresence initial={false}>
+              {validationMessage ? (
+                <motion.p
+                  key={validationMessage}
+                  className='swap-input-error'
+                  initial={prefersReduced ? false : { opacity: 0, y: 4, scale: 0.96 }}
+                  animate={prefersReduced ? undefined : { opacity: 1, y: 0, scale: 1 }}
+                  exit={prefersReduced ? undefined : { opacity: 0, y: 4, scale: 0.96 }}
+                  transition={{ duration: prefersReduced ? 0 : 0.16, ease: EASE_OUT_QUINT_TUPLE }}
+                >
+                  {validationMessage}
+                </motion.p>
+              ) : null}
+            </AnimatePresence>
+          </div>
         </div>
-        <motion.button
-          type='button'
-          className='swap-amount-secondary'
-          layout
-          onClick={onModeToggle}
-          aria-label={`Show ${nextAmountModeLabel} first`}
-          transition={{ duration: prefersReduced ? 0 : 0.18, ease: EASE_IN_OUT_QUINT_TUPLE }}
-        >
-          <AnimatedSecondaryAmountValue value={subAmountLabel} reducedMotion={prefersReduced} />
-          <motion.span
-            className='swap-amount-secondary__icon'
-            layout='position'
-            animate={{ rotate: amountMode === 'fiat' ? 0 : 180 }}
-            transition={{ duration: prefersReduced ? 0 : 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
-            aria-hidden='true'
-          >
-            <ArrowUpDownIcon />
-          </motion.span>
-        </motion.button>
       </div>
 
       <motion.button
@@ -799,7 +886,15 @@ function SwapSkeletonText({ width }: { width: string }) {
   return <span className='swap-skeleton-text' style={{ width }} aria-hidden='true' />
 }
 
-function AnimatedAmountValue({ value, reducedMotion }: { value: string; reducedMotion: boolean }) {
+function AnimatedAmountValue({
+  value,
+  reducedMotion,
+  className,
+}: {
+  value: string
+  reducedMotion: boolean
+  className: string
+}) {
   const previousValueRef = useRef(value)
   const exitingIdRef = useRef(0)
   const [exitingCharacters, setExitingCharacters] = useState<ExitingAmountCharacter[]>([])
@@ -831,7 +926,7 @@ function AnimatedAmountValue({ value, reducedMotion }: { value: string; reducedM
 
   return (
     <span
-      className='swap-amount-value'
+      className={`swap-amount-value ${className}`}
       aria-label={value}
       style={{ '--swap-amount-scale': amountFontScale(value.length) } as React.CSSProperties}
     >
@@ -904,8 +999,6 @@ function amountCharacterSlotKey(character: string, characterIndex: number, sourc
   if (character === '.') return 'decimal-point'
   if (character === ' ')
     return `space-${source.slice(0, characterIndex).filter((candidate) => candidate === ' ').length}`
-  // a repeated letter in the ticker suffix (e.g. the two 's' in "sats") must
-  // not collapse onto the same React key, or the animated renderer smears it
   return `symbol-${character}-${source.slice(0, characterIndex).filter((candidate) => candidate === character).length}`
 }
 
@@ -913,25 +1006,6 @@ function amountCharacterSlotClassName(character: string): string {
   if (character === ' ') return 'swap-amount-character-slot swap-amount-character-slot--space'
   if (/\d/.test(character)) return 'swap-amount-character-slot swap-amount-character-slot--digit'
   return 'swap-amount-character-slot'
-}
-
-function AnimatedSecondaryAmountValue({ value, reducedMotion }: { value: string; reducedMotion: boolean }) {
-  return (
-    <span className='swap-amount-value swap-amount-value--secondary' aria-label={value}>
-      <AnimatePresence mode='wait' initial={false}>
-        <motion.span
-          key={value}
-          initial={reducedMotion ? false : { opacity: 0, y: 5 }}
-          animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
-          exit={reducedMotion ? undefined : { opacity: 0, y: -5 }}
-          transition={reducedMotion ? { duration: 0 } : { duration: 0.14, ease: EASE_OUT_QUINT_TUPLE }}
-          aria-hidden='true'
-        >
-          {value}
-        </motion.span>
-      </AnimatePresence>
-    </span>
-  )
 }
 
 function SwapAssetRow({ asset, active, onClick }: { asset: SwapAsset; active?: boolean; onClick: () => void }) {
@@ -1231,15 +1305,14 @@ function MetricRow({ label, value, loading }: { label: ReactNode; value: string;
 
 function buildQuoteFromPlan(
   plan: OfferPlan | null,
-  amount: string,
-  mode: AmountMode,
+  assetAmount: string,
   fromAsset: SwapAsset,
   toAsset: SwapAsset | undefined,
   unitOfAccountUsd: number,
   currency: Currencies,
   bitcoinUnit: Unit,
 ): SwapQuote {
-  const parsed = Number(amount) || 0
+  const parsed = Number(assetAmount) || 0
   const fromUsd = estimateSwapUsd(fromAsset)
   const toUsd = toAsset ? estimateSwapUsd(toAsset) : 0
   const fromScale = protocolToDisplayScale(fromAsset)
@@ -1247,10 +1320,7 @@ function buildQuoteFromPlan(
   // fromUsd/toUsd price per whole protocol unit (whole BTC, not sats), same
   // as the solver's plan.*.display — do the USD math and the rate in that
   // scale, and only convert to sats for the on-screen amount labels below.
-  const estimatedFromUnitsProtocol =
-    mode === 'fiat'
-      ? (assetUnitsFromFiatAmount(amount, fromAsset, unitOfAccountUsd) ?? 0) / fromScale
-      : parsed / fromScale
+  const estimatedFromUnitsProtocol = parsed / fromScale
   const fromUnitsProtocol = plan ? Number(plan.deposit.display) : estimatedFromUnitsProtocol
   const receivedProtocol = plan && toAsset ? Number(plan.receive.display) : 0
   const fromUnits = fromUnitsProtocol * fromScale
@@ -1310,6 +1380,16 @@ function assetUnitsFromFiatAmount(amount: string, fromAsset: SwapAsset, unitOfAc
   const assetUsd = estimateSwapUsd(fromAsset)
   if (!assetUsd) return undefined
   return (((Number(amount) || 0) * unitOfAccountUsd) / assetUsd) * protocolToDisplayScale(fromAsset)
+}
+
+function fiatValueFromAssetAmount(
+  assetAmount: string,
+  fromAsset: SwapAsset,
+  unitOfAccountUsd: number,
+): number | undefined {
+  const assetUsd = estimateSwapUsd(fromAsset)
+  if (!assetUsd || !unitOfAccountUsd) return undefined
+  return new Decimal(assetAmount).div(protocolToDisplayScale(fromAsset)).mul(assetUsd).div(unitOfAccountUsd).toNumber()
 }
 
 function amountInAssetUnits(amount: string, mode: AmountMode, fromAsset: SwapAsset, unitOfAccountUsd: number): string {
