@@ -56,10 +56,12 @@ function renderSwap({
   flow = {},
   swap = {},
   config = {},
+  wallet = {},
 }: {
   flow?: Record<string, unknown>
   swap?: Record<string, unknown>
   config?: Record<string, unknown>
+  wallet?: Record<string, unknown>
 } = {}) {
   const navigate = vi.fn()
   const goBack = vi.fn()
@@ -100,6 +102,7 @@ function renderSwap({
                       ],
                       assetMetadataCache,
                       availableBalance: 100_000,
+                      ...wallet,
                     } as any
                   }
                 >
@@ -149,6 +152,19 @@ describe('Wallet swap flow', () => {
     expect(screen.getByText('BRL')).toBeInTheDocument()
     expect(screen.queryByText('USDT')).not.toBeInTheDocument()
     expect(screen.queryByText('DEPIX')).not.toBeInTheDocument()
+  })
+
+  it('keeps the BRL identity and flag after spending the full DePix balance', () => {
+    renderSwap({
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      wallet: { assetBalances: [{ assetId: USDT_ID, amount: BigInt(15_000) }] },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+
+    expect(screen.getByText('BRL')).toBeInTheDocument()
+    expect(screen.queryByText(/DePix|DEPIX/)).not.toBeInTheDocument()
+    expect(document.querySelector('#br-flag-circle')).not.toBeNull()
   })
 
   it('finds Bitcoin when searching "btc", even though its swap-entry ticker is sats', async () => {
