@@ -154,6 +154,15 @@ Access the playwright code generator tool with:
 pnpm run test:codegen
 ```
 
+On CI the suite runs as four parallel jobs: two browser projects (`Mobile Chrome`,
+`Google Chrome`) times two file groups defined in `.github/workflows/playwright.yml`:
+
+- `assets-send`: `asset.test.ts`, `send.test.ts`
+- `core`: every other file in `src/test/e2e/`
+
+The groups list files explicitly, so **a new test file must be added to one of them**,
+otherwise it will never run on CI.
+
 ## Troubleshooting
 ### `address already in use` (Port 5000) on macOS
 macOS AirPlay Receiver uses port 5000 by default, which conflicts with the regtest stack.
