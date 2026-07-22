@@ -780,7 +780,7 @@ function SwapComposer({
                     animate={{
                       transform: primary
                         ? 'translate3d(-50%, -50%, 0) translateY(-27px)'
-                        : 'translate3d(-50%, -50%, 0) translateY(27px)',
+                        : 'translate3d(-50%, -50%, 0) translateY(25px)',
                     }}
                     transition={amountValueTransition}
                   >
@@ -808,23 +808,32 @@ function SwapComposer({
                 )
               })}
             </motion.div>
-            <motion.button
+            <button
               type='button'
               className='swap-amount-secondary'
-              layout='size'
-              transition={{ layout: amountValueTransition }}
               onClick={onModeToggle}
               aria-label={`Show ${nextAmountModeLabel} first`}
             >
+              <motion.span
+                className='swap-amount-secondary__background'
+                layout
+                transition={{ layout: amountValueTransition }}
+                aria-hidden='true'
+              />
               <span
                 className='swap-amount-secondary__label-reserve'
                 data-reserve-width={secondaryAmountLabel}
                 aria-hidden='true'
               />
-              <span className='swap-amount-secondary__icon' aria-hidden='true'>
+              <motion.span
+                className='swap-amount-secondary__icon'
+                layout='position'
+                transition={{ layout: amountValueTransition }}
+                aria-hidden='true'
+              >
                 <ArrowUpDownIcon />
-              </span>
-            </motion.button>
+              </motion.span>
+            </button>
           </div>
           <div className='swap-input-error-slot'>
             <AnimatePresence initial={false}>
