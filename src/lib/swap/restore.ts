@@ -136,6 +136,12 @@ export async function restoreAssetSwaps(
     const state = vtxo.virtualStatus.state
     const spentTxid = state === 'spent' ? (vtxo.arkTxId ?? vtxo.spentBy) : undefined
     const spendTx = spentTxid ? txByAnyId.get(spentTxid) : undefined
+    // TODO(arkade-os/wallet#836): if state === 'spent' but spendTx hasn't synced
+    // locally yet, status defaults to 'fulfilled' — a genuinely cancelled swap
+    // could be permanently mislabeled, since a persisted swap is skipped by
+    // future scans (see existingIds in unscannedSwapCandidates). No safer
+    // default exists without local wallet-initiated-cancel tracking (the live
+    // SSE monitor in assetSwaps.tsx has the same gap).
     let status: AssetSwapStatus = 'pending'
     if (state === 'swept') status = 'recoverable'
     else if (state === 'spent') status = spendTx && isCancelSpend(offer, spendTx) ? 'cancelled' : 'fulfilled'
