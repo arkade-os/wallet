@@ -192,7 +192,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
         } else if (state === 'swept') {
           setSwaps(updateAssetSwap(id, { status: 'recoverable' }))
           return
-        } else if (state) {
+        } else if (state && getAssetSwaps().find((candidate) => candidate.id === id)?.status === 'cancelling') {
           setSwaps(updateAssetSwap(id, { status: swap.status }))
         }
       } catch {

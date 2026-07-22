@@ -9,7 +9,7 @@ import Padded from '../../components/Padded'
 import { PrivacyAmount } from '../../components/PrivacyAmount'
 import SwapComingSoonSheet from '../../components/SwapComingSoonSheet'
 import TokenLogo, { accountTickerForAssetTicker, tokenLogoTickerForTicker } from '../../components/TokenLogo'
-import TransactionsList, { matchesAssetFilter } from '../../components/TransactionsList'
+import TransactionsList, { matchesAssetFilter, shouldHideDevAssetTx } from '../../components/TransactionsList'
 import { usePortfolioFiat, type PortfolioRow } from '../../hooks/usePortfolioFiat'
 import ReceiveIcon from '../../icons/Receive'
 import ScanIcon from '../../icons/Scan'
@@ -70,7 +70,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
   const { setRecvInfo, setSendInfo, setSwapFromAssetId } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { swapAvailable } = useContext(AssetSwapsContext)
-  const { txs } = useContext(WalletContext)
+  const { assetMetadataCache, txs } = useContext(WalletContext)
   const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()
 
@@ -148,8 +148,17 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
       : undefined
   const tokenLogoTicker = tokenLogoTickerForTicker(accountTicker ?? row.ticker)
   const activityAssetFilter = isBitcoin ? 'btc' : row.assetId
-  const hasAssetSwaps = txs.some((tx) => tx.type === 'swap' && matchesAssetFilter(tx, activityAssetFilter))
+  const hasAssetSwaps = txs.some(
+    (tx) =>
+      !shouldHideDevAssetTx(tx, assetMetadataCache) &&
+      tx.type === 'swap' &&
+      matchesAssetFilter(tx, activityAssetFilter),
+  )
   const activeActivityFilter = hasAssetSwaps ? activityFilter : 'all'
+
+  useEffect(() => {
+    if (!hasAssetSwaps && activityFilter !== 'all') setActivityFilter('all')
+  }, [activityFilter, hasAssetSwaps])
   const priceText =
     currentUnitPrice === undefined
       ? 'Price unavailable'

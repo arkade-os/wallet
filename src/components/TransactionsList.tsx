@@ -484,7 +484,7 @@ function accountInfoForAssetId(
   return { ticker: currency as TokenLogoTicker, label: currency }
 }
 
-function shouldHideDevAssetTx(
+export function shouldHideDevAssetTx(
   tx: Tx,
   assetMetadataCache: Map<string, { metadata?: { name?: string; ticker?: string } }>,
 ): boolean {

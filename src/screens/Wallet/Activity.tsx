@@ -1,9 +1,9 @@
-import { useContext, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import Content from '../../components/Content'
 import Header from '../../components/Header'
 import Padded from '../../components/Padded'
-import TransactionsList from '../../components/TransactionsList'
+import TransactionsList, { shouldHideDevAssetTx } from '../../components/TransactionsList'
 import { WalletContext } from '../../providers/wallet'
 import { EmptyTxList } from '../../components/Empty'
 import { EASE_OUT_QUINT_TUPLE } from '../../lib/animations'
@@ -11,10 +11,14 @@ import { useReducedMotion } from '../../hooks/useReducedMotion'
 import ActivityFilter, { type ActivityFilterValue } from '../../components/ActivityFilter'
 
 export default function Activity() {
-  const { txs } = useContext(WalletContext)
+  const { assetMetadataCache, txs } = useContext(WalletContext)
   const [filter, setFilter] = useState<ActivityFilterValue>('all')
   const prefersReduced = useReducedMotion()
-  const hasSwaps = txs.some((tx) => tx.type === 'swap')
+  const hasSwaps = txs.some((tx) => !shouldHideDevAssetTx(tx, assetMetadataCache) && tx.type === 'swap')
+
+  useEffect(() => {
+    if (!hasSwaps && filter !== 'all') setFilter('all')
+  }, [filter, hasSwaps])
 
   return (
     <>
