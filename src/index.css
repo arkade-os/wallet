@@ -1624,10 +1624,21 @@ html.palette-dark .input-shell:focus-within {
   line-height: 1.125rem;
 }
 
+/* long balances keep every digit; the short label side truncates instead */
+.send-asset-trigger__name,
+.send-asset-option__name,
+.send-asset-trigger__balance {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .send-asset-option__amount {
   color: color-mix(in srgb, var(--fg) 52%, transparent);
   font-size: 0.9375rem;
   line-height: 1.25rem;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .send-asset-trigger__chevron {
