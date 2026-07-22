@@ -9,9 +9,9 @@ export default function TransactionAmountSummary({
   amount: TransactionAmountDisplay
   label: string
 }) {
-  const primary = amount.configured ?? amount.raw[0]
-  const rawPrimary = amount.configured ? undefined : amount.raw[0]
+  const primary = amount.primary
   if (!primary) return null
+  const showUnverifiedBadge = !amount.configured && amount.raw[0]?.unverified
 
   return (
     <section className='transaction-amount-summary' aria-label={label}>
@@ -23,7 +23,7 @@ export default function TransactionAmountSummary({
       >
         {primary.value}
       </PrivacyAmount>
-      {rawPrimary?.assetId && !rawPrimary.trusted ? <UnverifiedBadge /> : null}
+      {showUnverifiedBadge ? <UnverifiedBadge /> : null}
     </section>
   )
 }

@@ -1199,14 +1199,6 @@ iframe {
   height: 100%;
 }
 
-.transaction-detail__assets {
-  display: flex;
-  width: 100%;
-  flex-direction: column;
-  gap: 0.625rem;
-  margin-bottom: 1rem;
-}
-
 .transaction-amount-summary {
   display: flex;
   width: 100%;
@@ -1281,60 +1273,6 @@ iframe {
   letter-spacing: var(--heading-xl-tracking);
   line-height: var(--heading-xl-line);
   font-variant-numeric: tabular-nums;
-}
-
-.transaction-detail-asset {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.25rem 0;
-}
-
-.transaction-detail-asset__logo {
-  display: inline-flex;
-  width: 2.25rem;
-  height: 2.25rem;
-  min-width: 2.25rem;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--neutral-50);
-}
-
-.transaction-detail-asset__logo svg {
-  width: 100%;
-  height: 100%;
-}
-
-.transaction-detail-asset__copy {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
-.transaction-detail-asset__amount {
-  overflow: hidden;
-  color: var(--fg);
-  font-family: var(--font-body);
-  font-size: var(--text-lg);
-  font-weight: 500;
-  line-height: var(--text-lg-line);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.transaction-detail-asset__name {
-  overflow: hidden;
-  color: color-mix(in srgb, var(--fg) 50%, transparent);
-  font-family: var(--font-body);
-  font-size: var(--text-sm);
-  font-weight: 400;
-  line-height: var(--text-sm-line);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .table--receipt {
@@ -1436,10 +1374,6 @@ iframe {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-}
-
-.palette-dark .transaction-detail-asset__name {
-  color: color-mix(in srgb, var(--fg) 58%, transparent);
 }
 
 .palette-dark .table--receipt {

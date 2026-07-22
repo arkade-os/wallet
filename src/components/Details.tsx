@@ -105,7 +105,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     return config.showBalance ? prettyBitcoinAmount(amount, config.unit) : prettyBitcoinHide(amount, config.unit)
   }
 
-  const formatSensitiveDetail = (detail?: { masked: string; value: string }) => {
+  const formatSensitiveDetail = (detail?: SwapDisplayAmount) => {
     if (!detail) return undefined
     return config.showBalance ? detail.value : detail.masked
   }
@@ -116,10 +116,10 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
           (amount) =>
             [
               amountDisplay.raw.length === 1
-                ? amount.assetId && !amount.trusted
+                ? amount.unverified
                   ? 'Unverified asset amount'
                   : 'Asset amount'
-                : `Asset amount (${amount.ticker}${amount.assetId && !amount.trusted ? ', unverified' : ''})`,
+                : `Asset amount (${amount.ticker}${amount.unverified ? ', unverified' : ''})`,
               formatSensitiveDetail(amount),
               <AmountIcon key={`asset-amount-icon-${amount.assetId ?? amount.ticker}`} />,
             ] satisfies TableData[number],

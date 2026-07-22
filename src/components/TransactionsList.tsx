@@ -146,7 +146,7 @@ const TransactionLine = ({
               ) : null}
               <span className='activity-row__amount activity-row__amount--secondary'>
                 <PrivacyAmount masked={`${prefix} ${amount.masked}`}>{`${prefix} ${amount.value}`}</PrivacyAmount>
-                {amount.assetId && !amount.trusted ? <UnverifiedBadge /> : null}
+                {amount.unverified ? <UnverifiedBadge /> : null}
               </span>
             </FlexRow>
           )
@@ -174,17 +174,15 @@ const TransactionLine = ({
           toFiatAmount={toFiatAmount}
           tx={tx}
         />
-      ) : amountDisplay && (amountDisplay.configured ?? amountDisplay.raw[0]) ? (
+      ) : amountDisplay?.primary ? (
         <>
           <span
             className={`activity-row__amount${tx.preconfirmed && tx.boardingTxid ? ' activity-row__amount--pending' : ''}`}
           >
-            <PrivacyAmount masked={`${prefix} ${(amountDisplay.configured ?? amountDisplay.raw[0]).masked}`}>
-              {`${prefix} ${(amountDisplay.configured ?? amountDisplay.raw[0]).value}`}
+            <PrivacyAmount masked={`${prefix} ${amountDisplay.primary.masked}`}>
+              {`${prefix} ${amountDisplay.primary.value}`}
             </PrivacyAmount>
-            {!amountDisplay.configured && amountDisplay.raw[0]?.assetId && !amountDisplay.raw[0].trusted ? (
-              <UnverifiedBadge />
-            ) : null}
+            {!amountDisplay.configured && amountDisplay.raw[0]?.unverified ? <UnverifiedBadge /> : null}
           </span>
           <RawAmounts />
         </>

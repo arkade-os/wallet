@@ -1,23 +1,30 @@
 import type { Asset } from '@arkade-os/sdk'
-import { prettyBitcoinAmount, prettyCurrencyAssetAmount, prettyFiatAmount, prettyFiatHide } from './format'
+import {
+  prettyBitcoinAmount,
+  prettyBitcoinHide,
+  prettyCurrencyAssetAmount,
+  prettyFiatAmount,
+  prettyFiatHide,
+  prettyHide,
+} from './format'
 import { fiatAccountAssetSatoshis, verifiedDesignatedCurrency } from './accountAssets'
 import { Currencies, Unit } from './types'
+import type { SwapDisplayAmount } from './swapDisplay'
 
-const hiddenAmount = '·'.repeat(8)
-
-export interface SensitiveAmountDisplay {
-  masked: string
-  value: string
-}
+export type SensitiveAmountDisplay = SwapDisplayAmount
 
 export interface RawAssetAmountDisplay extends SensitiveAmountDisplay {
   assetId?: string
   ticker: string
   trusted?: boolean
+  /** True for an asset entry whose ID is not registry-verified — render the badge. */
+  unverified?: boolean
 }
 
 export interface TransactionAmountDisplay {
   configured?: SensitiveAmountDisplay
+  /** The leading line: the configured denomination when priceable, else the first raw amount. */
+  primary?: SensitiveAmountDisplay
   raw: RawAssetAmountDisplay[]
 }
 
@@ -50,37 +57,53 @@ export function buildTransactionAmountDisplay({
   satoshis,
   toFiatAmount,
 }: BuildTransactionAmountDisplayArgs): TransactionAmountDisplay {
-  const raw = assets?.length
-    ? assets.map((asset) => rawAssetAmount(asset, metadataForAsset(asset.assetId), network, isVerifiedAsset))
-    : [rawBitcoinAmount(satoshis, bitcoinUnit)]
-  const satsEquivalent = assets?.length
-    ? assetSatoshisEquivalent(assets, metadataForAsset, network, isVerifiedAsset, fromFiatAmount)
+  // one pass per asset: the display entry and its sats-equivalent share the
+  // resolved currency/metadata instead of re-deriving them
+  const resolved = assets?.length
+    ? assets.map((asset) =>
+        resolveAsset(asset, metadataForAsset(asset.assetId), network, isVerifiedAsset, fromFiatAmount),
+      )
+    : undefined
+  const raw = resolved ? resolved.map((entry) => entry.raw) : [rawBitcoinAmount(satoshis, bitcoinUnit)]
+  const satsEquivalent = resolved
+    ? resolved.every((entry) => entry.satsEquivalent !== undefined)
+      ? resolved.reduce((total, entry) => total + (entry.satsEquivalent ?? 0), 0)
+      : undefined
     : Math.abs(satoshis)
+  const configured = configuredAmount(satsEquivalent, currency, bitcoinUnit, toFiatAmount)
 
-  return {
-    configured: configuredAmount(satsEquivalent, currency, bitcoinUnit, toFiatAmount),
-    raw,
-  }
+  return { configured, primary: configured ?? raw[0], raw }
 }
 
-function rawAssetAmount(
+function resolveAsset(
   asset: Asset,
   metadata: AssetMetadata | undefined,
   network: string | undefined,
   isVerifiedAsset: (assetId: string) => boolean,
-): RawAssetAmountDisplay {
+  fromFiatAmount: (amount: number, currency: Currencies) => number,
+): { raw: RawAssetAmountDisplay; satsEquivalent?: number } {
   const amount = absoluteBigInt(BigInt(asset.amount))
   const trusted = isVerifiedAsset(asset.assetId)
   const accountCurrency = verifiedDesignatedCurrency(network, asset.assetId, isVerifiedAsset)
   const ticker =
     accountCurrency ?? metadata?.ticker?.trim().toUpperCase() ?? metadata?.name ?? shortAssetId(asset.assetId)
+  const decimals = metadata?.decimals ?? 8
+  const value = accountCurrency
+    ? fiatAccountAssetSatoshis(amount, decimals, accountCurrency, fromFiatAmount)
+    : undefined
+  const satsEquivalent =
+    value !== undefined && Number.isFinite(value) && (amount === BigInt(0) || value !== 0) ? Math.abs(value) : undefined
 
   return {
-    assetId: asset.assetId,
-    masked: `${hiddenAmount} ${ticker}`,
-    ticker,
-    trusted,
-    value: `${prettyCurrencyAssetAmount(amount, metadata?.decimals ?? 8, trusted ? ticker : undefined)} ${ticker}`,
+    raw: {
+      assetId: asset.assetId,
+      masked: prettyHide(amount, ticker),
+      ticker,
+      trusted,
+      unverified: !trusted,
+      value: `${prettyCurrencyAssetAmount(amount, decimals, trusted ? ticker : undefined)} ${ticker}`,
+    },
+    satsEquivalent,
   }
 }
 
@@ -88,38 +111,10 @@ function rawBitcoinAmount(satoshis: number, bitcoinUnit: Unit): RawAssetAmountDi
   const amount = Math.abs(satoshis)
 
   return {
-    masked: prettyFiatHide(amount, Currencies.BTC, { bitcoinUnit }),
+    masked: prettyBitcoinHide(amount, bitcoinUnit),
     ticker: 'BTC',
     value: prettyBitcoinAmount(amount, bitcoinUnit),
   }
-}
-
-function assetSatoshisEquivalent(
-  assets: Asset[],
-  metadataForAsset: (assetId: string) => AssetMetadata | undefined,
-  network: string | undefined,
-  isVerifiedAsset: (assetId: string) => boolean,
-  fromFiatAmount: (amount: number, currency: Currencies) => number,
-): number | undefined {
-  const values = assets.map((asset) => {
-    const currency = verifiedDesignatedCurrency(network, asset.assetId, isVerifiedAsset)
-    if (!currency) return undefined
-
-    const amount = absoluteBigInt(BigInt(asset.amount))
-    const value = fiatAccountAssetSatoshis(
-      amount,
-      metadataForAsset(asset.assetId)?.decimals ?? 8,
-      currency,
-      fromFiatAmount,
-    )
-    return value !== undefined && Number.isFinite(value) && (amount === BigInt(0) || value !== 0)
-      ? Math.abs(value)
-      : undefined
-  })
-
-  return values.every((value) => value !== undefined)
-    ? values.reduce<number>((total, value) => total + (value ?? 0), 0)
-    : undefined
 }
 
 function configuredAmount(
