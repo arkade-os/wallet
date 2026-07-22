@@ -1086,6 +1086,14 @@ iframe {
   color: color-mix(in srgb, var(--red-700) 76%, var(--fg));
 }
 
+.activity-row__amount--cancelled {
+  color: color-mix(in srgb, var(--fg) 55%, transparent);
+}
+
+.activity-row__amount--cancelled .privacy-amount__value {
+  text-decoration: line-through;
+}
+
 .palette-dark .home-section-action {
   color: color-mix(in srgb, var(--purple-200) 86%, var(--fg));
 }
@@ -1120,6 +1128,10 @@ iframe {
 
 .palette-dark .activity-row__amount--failed {
   color: color-mix(in srgb, var(--red-400) 78%, var(--fg));
+}
+
+.palette-dark .activity-row__amount--cancelled {
+  color: color-mix(in srgb, var(--fg) 58%, transparent);
 }
 
 .transaction-asset-logo {

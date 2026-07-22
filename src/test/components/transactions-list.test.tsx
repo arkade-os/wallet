@@ -258,6 +258,52 @@ describe('TransactionsList', () => {
     expect(screen.queryByText('Completed')).not.toBeInTheDocument()
   })
 
+  it('separates a cancelled swap value from the failed treatment', () => {
+    const swapTx: Tx = {
+      amount: 0,
+      boardingTxid: '',
+      createdAt: 1_700_000_000,
+      explorable: undefined,
+      preconfirmed: false,
+      assetSwap: {
+        fiatAmount: 100,
+        fromAmount: BigInt(10_000),
+        fromAssetId: 'btc',
+        fromDecimals: 8,
+        fromTicker: 'BTC',
+        status: 'cancelled',
+        toAmount: BigInt(500),
+        toAssetId: MUTINYNET_DEPIX_ASSET_ID,
+        toDecimals: 2,
+        toTicker: 'BRL',
+      },
+      redeemTxid: '',
+      roundTxid: 'cancel-txid',
+      settled: true,
+      type: 'swap',
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider
+          value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, currency: Currencies.USD } }}
+        >
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <FlowContext.Provider value={mockFlowContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, isVerifiedAsset: () => true, txs: [swapTx] }}>
+                <TransactionsList mode='static' />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    const amount = screen.getByText('$100.00').closest('.activity-row__amount')
+    expect(amount).toHaveClass('activity-row__amount--cancelled')
+    expect(amount).not.toHaveClass('activity-row__amount--failed')
+  })
+
   it('hides the data-carrier value when any asset lacks account pricing', () => {
     const tx: Tx = {
       amount: 330,
