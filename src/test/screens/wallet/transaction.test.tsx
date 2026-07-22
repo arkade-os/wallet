@@ -172,7 +172,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
     expect(screen.getByText('Direction')).toBeInTheDocument()
-    expect(screen.getByText('Amount')).toBeInTheDocument()
+    expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
     expect(screen.getByText('When')).toBeInTheDocument()
@@ -212,7 +212,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
     expect(screen.getByText('Direction')).toBeInTheDocument()
-    expect(screen.getByText('Amount')).toBeInTheDocument()
+    expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
     expect(screen.getByText('When')).toBeInTheDocument()
@@ -249,7 +249,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
     expect(screen.getByText('Direction')).toBeInTheDocument()
-    expect(screen.getByText('Amount')).toBeInTheDocument()
+    expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
     expect(screen.getByText('When')).toBeInTheDocument()
@@ -286,7 +286,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
     expect(screen.getByText('Direction')).toBeInTheDocument()
-    expect(screen.getByText('Amount')).toBeInTheDocument()
+    expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
     expect(screen.getByText('When')).toBeInTheDocument()
@@ -323,7 +323,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
     expect(screen.getByText('Direction')).toBeInTheDocument()
-    expect(screen.getByText('Amount')).toBeInTheDocument()
+    expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
     expect(screen.getByText('When')).toBeInTheDocument()
@@ -362,7 +362,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
     expect(screen.getByText('Direction')).toBeInTheDocument()
-    expect(screen.getByText('Amount')).toBeInTheDocument()
+    expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
     expect(screen.getByText('When')).toBeInTheDocument()
@@ -591,19 +591,17 @@ describe('Transaction screen', () => {
       assetAmount: BigInt(10_000),
       assetLabel: '100.00 USD',
       direction: 'Received',
-      total: '$100.00',
       type: 'received',
     },
     {
       assetAmount: BigInt(-10_000),
-      assetLabel: '-100.00 USD',
+      assetLabel: '100.00 USD',
       direction: 'Sent',
-      total: '$100.00',
       type: 'sent',
     },
   ])(
     'values a $direction USD transaction from its absolute account amount instead of its bitcoin dust amount',
-    ({ assetAmount, assetLabel, direction, total, type }) => {
+    ({ assetAmount, assetLabel, direction, type }) => {
       const assetId = MUTINYNET_USDT_ASSET_ID
       const txInfo = {
         ...mockTxInfo,
@@ -631,6 +629,7 @@ describe('Transaction screen', () => {
         ...mockFiatContextValue,
         fromFiatAmount: (amount: number) => amount * 100,
         toFiat: (satoshis?: number) => (satoshis ?? 0) / 100,
+        toFiatAmount: (satoshis: number) => satoshis / 100,
       }
 
       render(
@@ -673,9 +672,10 @@ describe('Transaction screen', () => {
       )
 
       expect(screen.getByText(direction)).toBeInTheDocument()
-      expect(screen.getByText(assetLabel)).toBeInTheDocument()
-      expect(screen.getByTestId('Amount')).toHaveTextContent('$100.00')
-      expect(screen.getByTestId('Total')).toHaveTextContent(total)
+      expect(screen.getByTestId('primary-amount')).toHaveTextContent('$100.00')
+      expect(screen.getByTestId('Asset amount')).toHaveTextContent(assetLabel)
+      expect(screen.getByTestId('Value')).toHaveTextContent('$100.00')
+      expect(screen.queryByTestId('Total')).not.toBeInTheDocument()
       expect(screen.queryByText('Tether USD')).not.toBeInTheDocument()
     },
   )

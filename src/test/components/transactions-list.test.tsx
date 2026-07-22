@@ -9,7 +9,7 @@ import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
 import { AssetsContext } from '../../providers/assets'
 import { Currencies, Tx, Unit } from '../../lib/types'
-import { MUTINYNET_DEPIX_ASSET_ID } from '../../lib/accountAssets'
+import { MUTINYNET_DEPIX_ASSET_ID, MUTINYNET_USDT_ASSET_ID } from '../../lib/accountAssets'
 import {
   mockAspContextValue,
   mockConfigContextValue,
@@ -90,7 +90,8 @@ describe('TransactionsList', () => {
       </AspContext.Provider>,
     )
 
-    expect(screen.getByText('-2,000.00 BRL')).toBeInTheDocument()
+    expect(screen.getByText('- €2,000.00')).toBeInTheDocument()
+    expect(screen.getByText('- 2,000.00 BRL')).toBeInTheDocument()
     expect(screen.queryByText('-2,000,000,000.00 BRL')).not.toBeInTheDocument()
   })
 
@@ -132,8 +133,8 @@ describe('TransactionsList', () => {
       </AspContext.Provider>,
     )
 
+    expect(screen.getByText('+ €1,600.00')).toBeInTheDocument()
     expect(screen.getByText('+ 1,600 sats')).toBeInTheDocument()
-    expect(screen.getByText('€1,600.00')).toBeInTheDocument()
   })
 
   it('shows one configured-unit amount for an arbitrary swap pair', () => {
@@ -338,7 +339,7 @@ describe('TransactionsList', () => {
       settled: true,
       type: 'received',
       assets: [
-        { assetId: 'usdt-asset', amount: BigInt(10_000) },
+        { assetId: MUTINYNET_USDT_ASSET_ID, amount: BigInt(10_000) },
         { assetId: 'unknown-asset', amount: BigInt(50) },
       ],
     }
@@ -352,7 +353,7 @@ describe('TransactionsList', () => {
       txs: [tx],
       assetMetadataCache: new Map([
         [
-          'usdt-asset',
+          MUTINYNET_USDT_ASSET_ID,
           {
             metadata: {
               decimals: 2,
@@ -362,23 +363,32 @@ describe('TransactionsList', () => {
           },
         ],
       ]),
+      isVerifiedAsset: (assetId: string) => assetId === MUTINYNET_USDT_ASSET_ID,
     }
 
     render(
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <ConfigContext.Provider value={mockConfigContextValue}>
-          <FiatContext.Provider value={fiatContextValue}>
-            <FlowContext.Provider value={mockFlowContextValue}>
-              <WalletContext.Provider value={walletContextValue as any}>
-                <TransactionsList mode='static' />
-              </WalletContext.Provider>
-            </FlowContext.Provider>
-          </FiatContext.Provider>
+          <AspContext.Provider
+            value={{
+              ...mockAspContextValue,
+              aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' },
+            }}
+          >
+            <FiatContext.Provider value={fiatContextValue}>
+              <FlowContext.Provider value={mockFlowContextValue}>
+                <WalletContext.Provider value={walletContextValue as any}>
+                  <TransactionsList mode='static' />
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </FiatContext.Provider>
+          </AspContext.Provider>
         </ConfigContext.Provider>
       </NavigationContext.Provider>,
     )
 
     // the 330 sats are just the asset's data carrier, not a price
+    expect(screen.getByText('+ 100.00 USD')).toBeInTheDocument()
     expect(screen.queryByText('€3.30')).not.toBeInTheDocument()
     expect(screen.queryByText('€100.00')).not.toBeInTheDocument()
   })

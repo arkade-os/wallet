@@ -4,7 +4,7 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
-import { isBurn, isIssuance, prettyAgo, prettyCurrencyAssetAmount, prettyDate } from '../../lib/format'
+import { isBurn, isIssuance, prettyAgo, prettyDate } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
 import ErrorMessage from '../../components/Error'
 import { extractError } from '../../lib/error'
@@ -15,9 +15,7 @@ import FlexCol from '../../components/FlexCol'
 import WaitingForRound from '../../components/WaitingForRound'
 import { sleep } from '../../lib/sleep'
 import Text, { TextSecondary } from '../../components/Text'
-import AssetAvatar from '../../components/AssetAvatar'
 import Details, { DetailsProps } from '../../components/Details'
-import TokenLogo, { tokenLogoTickerForTicker, trustedAssetTickers } from '../../components/TokenLogo'
 import VtxosIcon from '../../icons/Vtxos'
 import CheckMarkIcon from '../../icons/CheckMark'
 import { AspContext } from '../../providers/asp'
@@ -33,10 +31,11 @@ import {
   type SwapStatus,
 } from '../../lib/swapDisplay'
 import { FiatContext } from '../../providers/fiat'
-import { designatedAccountCurrency, fiatAccountAssetSatoshis } from '../../lib/accountAssets'
-import UnverifiedBadge from '../../components/UnverifiedBadge'
 import { AssetSwapsContext } from '../../providers/assetSwaps'
 import { hapticTap } from '../../lib/haptics'
+import { ConfigContext } from '../../providers/config'
+import { buildTransactionAmountDisplay } from '../../lib/transactionAmountDisplay'
+import TransactionAmountSummary from '../../components/TransactionAmountSummary'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,8 +50,9 @@ import {
 export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo } = useContext(FlowContext)
+  const { config } = useContext(ConfigContext)
   const { cancelSwap, swaps } = useContext(AssetSwapsContext)
-  const { fromFiatAmount } = useContext(FiatContext)
+  const { fromFiatAmount, toFiatAmount } = useContext(FiatContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
     useContext(WalletContext)
@@ -163,18 +163,6 @@ export default function Transaction() {
 
   if (!tx) return <></>
 
-  const accountAssetValues = tx.assets?.map((asset) => {
-    const metadata = assetMetadataCache.get(asset.assetId)?.metadata
-    const currency = isVerifiedAsset(asset.assetId)
-      ? designatedAccountCurrency(aspInfo.network, asset.assetId)
-      : undefined
-    return fiatAccountAssetSatoshis(BigInt(asset.amount), metadata?.decimals ?? 8, currency, fromFiatAmount)
-  })
-  const accountValueSatoshis =
-    accountAssetValues?.length && accountAssetValues.every((value) => value !== undefined)
-      ? accountAssetValues.reduce((total, value) => total + value, 0)
-      : undefined
-
   const status = expiredBoardingTx
     ? 'Expired'
     : unconfirmedBoardingTx
@@ -186,12 +174,30 @@ export default function Transaction() {
           : 'Preconfirmed'
 
   const fees = tx.type === 'sent' ? defaultFee : 0
-  // on asset transfers tx.amount is just the dust carrying the asset — showing
-  // it as Amount/Total reads as a fiat price for the asset, so hide both rows
-  // unless the asset resolves to a designated account value
+  // On asset transfers tx.amount is only the data carrier, not the asset value.
+  // The asset-aware rows below replace the legacy Amount/Total rows.
   const assetTransfer = Boolean(tx.assets?.length)
-  const accountTransferSatoshis = accountValueSatoshis === undefined ? undefined : Math.abs(accountValueSatoshis)
-  const transferSatoshis = accountTransferSatoshis ?? (tx.type === 'sent' ? tx.amount - defaultFee : tx.amount)
+  const transferSatoshis = tx.type === 'sent' ? tx.amount - defaultFee : tx.amount
+  const amountDisplay = swapTx
+    ? undefined
+    : buildTransactionAmountDisplay({
+        assets: tx.assets,
+        bitcoinUnit: config.unit,
+        currency: config.currency,
+        fromFiatAmount,
+        isVerifiedAsset,
+        metadataForAsset: (assetId) => assetMetadataCache.get(assetId)?.metadata,
+        network: aspInfo.network,
+        satoshis: tx.assets?.length ? 0 : Math.max(transferSatoshis, 0),
+        toFiatAmount,
+      })
+  const summaryLabel = issuanceTx
+    ? 'Amount issued'
+    : burnTx
+      ? 'Amount burned'
+      : tx.type === 'sent'
+        ? 'Amount sent'
+        : 'Amount received'
   const when = tx.createdAt ? prettyAgo(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed'
   const date = tx.createdAt ? prettyDate(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed'
   const txid = tx.boardingTxid || tx.redeemTxid || tx.roundTxid || ''
@@ -213,14 +219,15 @@ export default function Transaction() {
         when,
       }
     : {
+        amountDisplay,
         assetId: tx.assets?.[0]?.assetId,
         date,
         direction: issuanceTx ? 'Issuance' : burnTx ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received',
         fees,
         isOffchainTx: !tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
-        satoshis: accountTransferSatoshis ?? (assetTransfer ? undefined : transferSatoshis),
+        satoshis: assetTransfer ? undefined : transferSatoshis,
         status,
-        total: accountTransferSatoshis !== undefined ? transferSatoshis + fees : assetTransfer ? undefined : tx.amount,
+        total: assetTransfer ? undefined : tx.amount,
         txid,
         type: boardingTx ? 'Boarding' : 'Offchain',
         wallet,
@@ -262,44 +269,7 @@ export default function Transaction() {
           {swapTx && tx.assetSwap ? (
             <SwapTransactionSummary fromIcon={swapFromIcon} toIcon={swapToIcon} tx={tx} />
           ) : null}
-          {!swapTx && tx.assets?.length ? (
-            <div className='transaction-detail__assets'>
-              {tx.assets.map((a) => {
-                const meta = assetMetadataCache.get(a.assetId)?.metadata
-                const ticker = meta?.ticker
-                const name = meta?.name
-                const icon = meta?.icon
-                const decimals = meta?.decimals ?? 8
-                // only verified asset IDs get currency treatment for their ticker
-                const trusted = isVerifiedAsset(a.assetId)
-                const designatedCurrency = trusted ? designatedAccountCurrency(aspInfo.network, a.assetId) : undefined
-                const { accountTicker, trustedTicker } = trustedAssetTickers(designatedCurrency ?? ticker, trusted)
-                const label = accountTicker ?? trustedTicker ?? name ?? `${a.assetId.slice(0, 8)}...`
-                const amountLabel = accountTicker ?? trustedTicker
-                const tokenLogoTicker = tokenLogoTickerForTicker(trustedTicker)
-                return (
-                  <div key={a.assetId} className='transaction-detail-asset'>
-                    <span className='transaction-detail-asset__logo'>
-                      {tokenLogoTicker ? (
-                        <TokenLogo ticker={tokenLogoTicker} />
-                      ) : (
-                        <AssetAvatar icon={icon} ticker={ticker} size={36} assetId={a.assetId} clickable />
-                      )}
-                    </span>
-                    <div className='transaction-detail-asset__copy'>
-                      <span className='transaction-detail-asset__amount'>
-                        {prettyCurrencyAssetAmount(BigInt(a.amount), decimals, amountLabel)} {label}
-                        {!trusted ? <UnverifiedBadge /> : null}
-                      </span>
-                      {name && ticker && !accountTicker ? (
-                        <span className='transaction-detail-asset__name'>{name}</span>
-                      ) : null}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : null}
+          {amountDisplay ? <TransactionAmountSummary amount={amountDisplay} label={summaryLabel} /> : null}
           <Details details={details} variant='receipt' />
         </FlexCol>
       </Padded>
