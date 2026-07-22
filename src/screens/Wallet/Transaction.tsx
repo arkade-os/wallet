@@ -30,11 +30,9 @@ import {
   swapStatusLabel,
   type SwapStatus,
 } from '../../lib/swapDisplay'
-import { FiatContext } from '../../providers/fiat'
 import { AssetSwapsContext } from '../../providers/assetSwaps'
 import { hapticTap } from '../../lib/haptics'
-import { ConfigContext } from '../../providers/config'
-import { buildTransactionAmountDisplay } from '../../lib/transactionAmountDisplay'
+import { useTransactionAmountDisplay } from '../../hooks/useTransactionAmountDisplay'
 import TransactionAmountSummary from '../../components/TransactionAmountSummary'
 import {
   AlertDialog,
@@ -50,12 +48,9 @@ import {
 export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo } = useContext(FlowContext)
-  const { config } = useContext(ConfigContext)
   const { cancelSwap, swaps } = useContext(AssetSwapsContext)
-  const { fromFiatAmount, toFiatAmount } = useContext(FiatContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
-    useContext(WalletContext)
+  const { assetMetadataCache, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } = useContext(WalletContext)
 
   const liveSwap = txInfo?.assetSwap?.fundingTxid
     ? swaps.find((swap) => swap.fundingTxid === txInfo.assetSwap?.fundingTxid)
@@ -84,6 +79,7 @@ export default function Transaction() {
         }
       : txInfo
   const swapTx = tx?.type === 'swap'
+  const amountDisplay = useTransactionAmountDisplay(tx)
   const issuanceTx = tx ? isIssuance(tx) : false
   const burnTx = tx ? isBurn(tx) : false
   const boardingTx = Boolean(tx?.boardingTxid)
@@ -178,19 +174,6 @@ export default function Transaction() {
   // The asset-aware rows below replace the legacy Amount/Total rows.
   const assetTransfer = Boolean(tx.assets?.length)
   const transferSatoshis = tx.type === 'sent' ? tx.amount - defaultFee : tx.amount
-  const amountDisplay = swapTx
-    ? undefined
-    : buildTransactionAmountDisplay({
-        assets: tx.assets,
-        bitcoinUnit: config.unit,
-        currency: config.currency,
-        fromFiatAmount,
-        isVerifiedAsset,
-        metadataForAsset: (assetId) => assetMetadataCache.get(assetId)?.metadata,
-        network: aspInfo.network,
-        satoshis: tx.assets?.length ? 0 : Math.max(transferSatoshis, 0),
-        toFiatAmount,
-      })
   const summaryLabel = issuanceTx
     ? 'Amount issued'
     : burnTx

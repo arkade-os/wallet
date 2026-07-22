@@ -20,23 +20,19 @@ import { LimitsContext } from '../../../providers/limits'
 import { SwapsContext } from '../../../providers/swaps'
 import { isPendingChainSwap, isPendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { FeesContext } from '../../../providers/fees'
-import { AspContext } from '../../../providers/asp'
-import { ConfigContext } from '../../../providers/config'
-import { FiatContext } from '../../../providers/fiat'
 import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDisplay'
+import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisplay'
 import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
 
 export default function SendDetails() {
-  const { aspInfo } = useContext(AspContext)
-  const { config } = useContext(ConfigContext)
-  const { fromFiatAmount, toFiatAmount } = useContext(FiatContext)
+  const displayContext = useAmountDisplayContext()
   const { navigate } = useContext(NavigationContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { payInvoice, payBtc } = useContext(SwapsContext)
-  const { assetMetadataCache, balance, isVerifiedAsset, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
@@ -53,20 +49,15 @@ export default function SendDetails() {
   const amountDisplay = pendingSwap
     ? undefined
     : buildTransactionAmountDisplay({
+        ...displayContext,
         assets: sendInfo.account
           ? [{ assetId: sendInfo.account.assetId, amount: sendInfo.account.amount }]
           : sendInfo.assets,
-        bitcoinUnit: config.unit,
-        currency: config.currency,
-        fromFiatAmount,
-        isVerifiedAsset,
-        metadataForAsset: (id) => ({
-          ...assetMetadataCache.get(id)?.metadata,
-          decimals: id === assetId ? assetDecimals : assetMetadataCache.get(id)?.metadata?.decimals,
-        }),
-        network: aspInfo.network,
+        metadataForAsset: (id) => {
+          const metadata = assetMetadataCache.get(id)?.metadata
+          return id === assetId ? { ...metadata, decimals: assetDecimals } : metadata
+        },
         satoshis: details?.satoshis ?? satoshis ?? 0,
-        toFiatAmount,
       })
 
   useEffect(() => {

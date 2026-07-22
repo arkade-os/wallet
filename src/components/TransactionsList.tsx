@@ -18,10 +18,8 @@ import TokenLogo, { tokenLogoTickerForTicker, trustedAssetTickers } from './Toke
 import { PrivacyAmount } from './PrivacyAmount'
 import SwapRouteIcon from './SwapRouteIcon'
 import { swapRouteLabel, swapStatusForTx, swapStatusLabel, swapUnitOfAccountAmount } from '../lib/swapDisplay'
-import { AspContext } from '../providers/asp'
 import UnverifiedBadge from './UnverifiedBadge'
-import { buildTransactionAmountDisplay } from '../lib/transactionAmountDisplay'
-import { defaultFee } from '../lib/constants'
+import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
@@ -38,8 +36,7 @@ const TransactionLine = ({
 }) => {
   const { config } = useContext(ConfigContext)
   const { fromFiatAmount, toFiatAmount } = useContext(FiatContext)
-  const { assetMetadataCache, isVerifiedAsset } = useContext(WalletContext)
-  const { aspInfo } = useContext(AspContext)
+  const { assetMetadataCache } = useContext(WalletContext)
 
   const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
   const swap = tx.type === 'swap'
@@ -47,20 +44,7 @@ const TransactionLine = ({
   const issuance = isIssuance(tx)
   const burn = isBurn(tx)
   const prefix = issuance ? '+' : burn || tx.type === 'sent' ? '-' : '+'
-  const transferSatoshis = tx.assets?.length ? 0 : tx.type === 'sent' ? Math.max(tx.amount - defaultFee, 0) : tx.amount
-  const amountDisplay = swap
-    ? undefined
-    : buildTransactionAmountDisplay({
-        assets: tx.assets,
-        bitcoinUnit: config.unit,
-        currency: config.currency,
-        fromFiatAmount,
-        isVerifiedAsset,
-        metadataForAsset: (assetId) => assetMetadataCache.get(assetId)?.metadata,
-        network: aspInfo.network,
-        satoshis: transferSatoshis,
-        toFiatAmount,
-      })
+  const amountDisplay = useTransactionAmountDisplay(tx)
 
   const iconTone =
     tx.preconfirmed && tx.boardingTxid
