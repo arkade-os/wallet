@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import Delegates from '../../../screens/Settings/Delegates'
 import { ConfigContext } from '../../../providers/config'
 import { mockAspContextValue, mockConfigContextValue } from '../mocks'
@@ -23,7 +23,7 @@ describe('Delegates screen', () => {
 
     fetchMocker = createFetchMock(vi)
     fetchMocker.enableMocks()
-    fetchMocker.mockResponseOnce(
+    fetchMocker.mockResponse(
       JSON.stringify({
         fee: '0',
         name: 'Arkade Default',
@@ -58,7 +58,7 @@ describe('Delegates screen', () => {
     expect(() => screen.getByTestId('delegate-card')).toThrow()
   })
 
-  it('renders the delegate card when toggle is on', () => {
+  it('renders the delegate card when toggle is on', async () => {
     render(
       <AspContext.Provider value={mockDelegatesAspContextValue as any}>
         <ConfigContext.Provider value={getMockConfigWithDelegate(true) as any}>
@@ -78,6 +78,9 @@ describe('Delegates screen', () => {
     expect(screen.getByText('fee: 0 sats')).toBeInTheDocument()
     expect(screen.getByText('address:')).toBeInTheDocument()
     expect(screen.getByText('pubkey:')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Active')).toBeInTheDocument())
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(fetchMocker).toHaveBeenCalledTimes(1)
   })
 
   it('renders warning when delegate is not found for the network', () => {
