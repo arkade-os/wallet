@@ -12,11 +12,10 @@ import {
   getInvoiceFromLND,
 } from './utils'
 import { prettyLongText } from '../../lib/format'
-import { exec, execFile } from 'child_process'
+import { exec } from 'child_process'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
-const execFileAsync = promisify(execFile)
 
 test('should be connected to Boltz app', async ({ page }) => {
   await createWallet(page)
