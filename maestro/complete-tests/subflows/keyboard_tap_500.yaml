@@ -1,0 +1,8 @@
+appId: com.android.chrome
+---
+- tapOn:
+    point: "50%, 62%"
+- tapOn:
+    point: "50%, 84%"
+- tapOn:
+    point: "50%, 84%"

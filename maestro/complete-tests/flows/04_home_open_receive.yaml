@@ -1,0 +1,15 @@
+appId: com.android.chrome
+name: Home — Receive opens QR screen
+tags:
+  - smoke
+  - receive
+---
+# Coordinates from recordings/taps-20260609-152620.log
+
+- runFlow: ../subflows/ensure_on_wallet_home.yaml
+- runFlow: ../subflows/tap_home_receive.yaml
+- runFlow: ../subflows/wait_2s.yaml
+- runFlow: ../subflows/tap_receive_qr.yaml
+- runFlow: ../subflows/wait_2s.yaml
+- runFlow: ../subflows/tap_receive_back.yaml
+- runFlow: ../subflows/wait_2s.yaml
