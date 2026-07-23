@@ -330,6 +330,15 @@ export default function WalletSwap() {
 
   const toggleAmountMode = () => {
     hapticLight()
+    // promote the value the secondary pill was showing — flipping only the
+    // unit would reread "115 BRL" as "€115" (#839). The fiat figure floors at
+    // display precision so a Max entry can't round above the balance.
+    const scale = Math.pow(10, fiatDecimals())
+    const converted =
+      amountMode === 'asset'
+        ? prettyNumber(Math.floor(quote.fromFiatValue * scale) / scale, fiatDecimals(), false)
+        : assetAmount
+    setAmount(Number(converted) > 0 ? converted : '0')
     setAmountMode((current) => (current === 'asset' ? 'fiat' : 'asset'))
   }
 

@@ -333,6 +333,23 @@ describe('Wallet swap flow', () => {
     expect(createSwap.mock.calls[0][1].fromFiatAmount).toBeCloseTo(50, 2)
   })
 
+  it('promotes the converted value when toggling denominations, not the raw digits (#839)', async () => {
+    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    // €50 typed in fiat mode is 50,000 sats at the $100k feed
+    for (const key of ['5', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+
+    // the sats side must carry the converted 50,000 over — rereading the "50"
+    // digits as 50 sats would show €0.05 here (and, from a Max entry, trip
+    // Insufficient balance as in the issue report)
+    await waitFor(() => expect(screen.getByText('€50.00')).toBeInTheDocument())
+  })
+
   it('funds the whole balance when the balance under the from-asset is tapped', async () => {
     renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
 
