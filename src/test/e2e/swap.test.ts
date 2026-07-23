@@ -12,10 +12,11 @@ import {
   getInvoiceFromLND,
 } from './utils'
 import { prettyLongText } from '../../lib/format'
-import { exec } from 'child_process'
+import { exec, execFile } from 'child_process'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 
 test('should be connected to Boltz app', async ({ page }) => {
   await createWallet(page)
@@ -205,6 +206,9 @@ test('should refund failing swap', async ({ page }) => {
   expect('r_hash' in outputJSON).toBeTruthy()
   const hash = outputJSON.r_hash
   exec(`docker exec lnd lncli --network=regtest cancelinvoice ${hash}`)
+
+  // mine 121 blocks to trigger Boltz refund
+  await execFileAsync('node', ['regtest/regtest.mjs', 'mine', '121'])
 
   // try to send funds to Lightning
   await page.getByText('Send').click()
