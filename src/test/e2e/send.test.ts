@@ -286,7 +286,7 @@ test('should send usds (some and max) to onchain address with chain swap', async
   // create wallet
   await createWalletWithFiat(page)
   await fundWallet(page, 5000)
-  const usdsToSend = 2
+  const usdsToSend = 1.97
 
   const someOnchainAddress = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 
@@ -321,7 +321,7 @@ test('should send usds (some and max) to onchain address with chain swap', async
   await page.locator('input[name="send-address"]').fill(someOnchainAddress)
 
   // click max
-  await page.waitForSelector(`text=$${balance} available`, { timeout: 2100 })
+  await page.waitForSelector(`text=$${balance.toFixed(2)} available`, { timeout: 2100 })
   await page.getByTestId('input-amount-max').click()
   await page.waitForSelector('text=Fees will be deducted from the amount sent', { timeout: 2000 })
 
