@@ -102,7 +102,10 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
         for (const swap of restored) {
           // quote-time facts are not on chain; the fee rate is the one fact a
           // restore can backfill, from the pair's current market card — an
-          // approximation if the solver changed its fee since the swap
+          // approximation if the solver changed its fee since the swap.
+          // TODO: delete this backfill once fee bps rides in a packet inside
+          // the funding tx — restoreAssetSwaps will then decode the actual
+          // historic rate from chain, like it already does the offer.
           const feeBps = findMarket(marketsRef.current, swap.fromAsset, swap.toAsset)?.market?.fee_bps
           next = addAssetSwap(feeBps === undefined ? swap : { ...swap, quote: { feeBps } })
         }

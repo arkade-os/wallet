@@ -65,7 +65,9 @@ export function isCancelSpend(offer: Offer, spend: Tx): boolean {
  * persists those so they are never fetched again. Quote-time facts are not
  * on chain: the caller backfills the fee rate from the pair's current market
  * card; the fiat snapshot is gone for good and its consumers fall back to
- * valuing the BTC leg at the current rate.
+ * valuing the BTC leg at the current rate. TODO: once fee bps rides in its
+ * own packet in the funding tx, decode it here next to the offer packet and
+ * the caller's market-card approximation goes away.
  */
 export async function restoreAssetSwaps(
   indexer: RestoreIndexer,

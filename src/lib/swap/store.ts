@@ -4,7 +4,10 @@ export type AssetSwapStatus = 'pending' | 'cancelling' | 'fulfilled' | 'cancelle
 
 /** Display facts frozen at quote time — only what the activity UI reads.
  * Every field is optional: a restore can only backfill what is recoverable
- * (feeBps from the market card), and every consumer falls back per-field. */
+ * (feeBps from the market card), and every consumer falls back per-field.
+ * TODO: once fee bps rides in a packet inside the funding tx, feeBps stops
+ * being a quote-time fact — read it from the tx (creation and restore alike)
+ * and drop the field here. */
 export interface AssetSwapQuoteSnapshot {
   fromTicker?: string
   fromDecimals?: number
