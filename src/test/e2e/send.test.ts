@@ -286,7 +286,7 @@ test('should send usds (some and max) to onchain address with chain swap', async
   // create wallet
   await createWalletWithFiat(page)
   await fundWallet(page, 5000)
-  const usdsToSend = 1.97
+  const usdsToSend = 2
 
   const someOnchainAddress = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 
