@@ -18,17 +18,11 @@ import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { centsToUnits } from '../../../lib/assets'
 import { extractError } from '../../../lib/error'
-import {
-  formatFiatAmountParts,
-  normalizeBitcoinUnit,
-  prettyCurrencyAssetAmount,
-  prettyFiatAmount,
-  prettyNumber,
-} from '../../../lib/format'
+import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
 import { swapRouteTicker } from '../../../lib/swapDisplay'
 import { BTC_ASSET_ID, findMarket, makeCachedFeedFetch, QUOTE_OPTIONS, validatePlan } from '../../../lib/swap/markets'
-import { type AssetSwap, type AssetSwapQuoteSnapshot, type AssetSwapStatus } from '../../../lib/swap/store'
+import { type AssetSwapQuoteSnapshot } from '../../../lib/swap/store'
 import { Currencies, Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
 import { AssetSwapsContext } from '../../../providers/assetSwaps'
@@ -71,6 +65,7 @@ interface SwapQuote {
   rateLabel: string
   fromFiatValue: number
   toFiatValue: number
+  giveFiatValue: number
 }
 
 interface ExitingAmountCharacter {
@@ -82,13 +77,6 @@ interface ExitingAmountCharacter {
 const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'Back']
 const rateNote = 'Rates are dynamic and may update before you confirm.'
 const rateNoteAutoDismissMs = 2400
-const statusLabels: Record<AssetSwapStatus, string> = {
-  pending: 'Pending',
-  cancelling: 'Cancelling',
-  fulfilled: 'Completed',
-  cancelled: 'Cancelled',
-  recoverable: 'Recoverable',
-}
 const emptySwapAsset: SwapAsset = {
   assetId: 'swap-empty',
   name: 'Asset',
@@ -100,7 +88,7 @@ const emptySwapAsset: SwapAsset = {
 
 export default function WalletSwap() {
   const { aspInfo } = useContext(AspContext)
-  const { cancelSwap, createSwap, markets, swapAvailable, swaps } = useContext(AssetSwapsContext)
+  const { createSwap, markets, swapAvailable } = useContext(AssetSwapsContext)
   const { config } = useContext(ConfigContext)
   const { fiatDecimals, fromFiatAmount, toFiat, toFiatAmount } = useContext(FiatContext)
   const { swapFromAssetId, setSwapFromAssetId } = useContext(FlowContext)
@@ -108,8 +96,6 @@ export default function WalletSwap() {
   const { assetBalances, assetMetadataCache, availableBalance, isVerifiedAsset } = useContext(WalletContext)
   const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()
-
-  const [cancelling, setCancelling] = useState('')
 
   const btcUnit = normalizeBitcoinUnit(config.unit)
   const swapAssets = useMemo<SwapAsset[]>(() => {
@@ -183,6 +169,7 @@ export default function WalletSwap() {
     assetId: string
     assetAmount: string
     fiatAmount: string
+    entryMode: AmountMode
   }>()
   const [fromAssetId, setFromAssetId] = useState(initialFromAssetId ?? swapAssets[0]?.assetId ?? 'btc')
   const [toAssetId, setToAssetId] = useState<string | undefined>()
@@ -238,8 +225,27 @@ export default function WalletSwap() {
   })
   const quote = useMemo(
     () =>
-      buildQuoteFromPlan(currentPlan, assetAmount, fromAsset, toAsset, unitOfAccountUsd, config.currency, config.unit),
-    [assetAmount, config.currency, config.unit, currentPlan, fromAsset, toAsset, unitOfAccountUsd],
+      buildQuoteFromPlan(
+        currentPlan,
+        assetAmount,
+        preservedAmounts?.entryMode ?? amountMode,
+        fromAsset,
+        toAsset,
+        unitOfAccountUsd,
+        config.currency,
+        config.unit,
+      ),
+    [
+      amountMode,
+      assetAmount,
+      config.currency,
+      config.unit,
+      currentPlan,
+      fromAsset,
+      preservedAmounts?.entryMode,
+      toAsset,
+      unitOfAccountUsd,
+    ],
   )
   const currentFiatValue =
     currentPlan && quote.fromFiatValue > 0
@@ -373,6 +379,7 @@ export default function WalletSwap() {
       assetId: fromAsset.assetId,
       assetAmount: amountMode === 'asset' ? amount : nextAmount,
       fiatAmount: amountMode === 'fiat' ? amount : nextAmount,
+      entryMode: preservedAmounts?.entryMode ?? amountMode,
     })
     setAmount(nextAmount)
     setAmountMode((current) => (current === 'asset' ? 'fiat' : 'asset'))
@@ -426,19 +433,6 @@ export default function WalletSwap() {
     }
   }
 
-  const handleCancelSwap = async (swap: AssetSwap) => {
-    if (cancelling) return
-    hapticLight()
-    setCancelling(swap.id)
-    try {
-      await cancelSwap(swap.id)
-    } catch (error) {
-      setConfirmError(extractError(error))
-    } finally {
-      setCancelling('')
-    }
-  }
-
   const receiveAssets = swapAssets.filter((asset) =>
     Boolean(findMarket(markets, fromAsset.assetId, asset.assetId)?.market),
   )
@@ -471,15 +465,6 @@ export default function WalletSwap() {
                   ) : (
                     <SwapUnavailableState />
                   )}
-                  {swaps.length ? (
-                    <PendingSwaps
-                      swaps={swaps}
-                      assets={swapAssets}
-                      cancelling={cancelling}
-                      error={confirmError}
-                      onCancel={handleCancelSwap}
-                    />
-                  ) : null}
                 </motion.section>
               ) : (
                 <motion.section
@@ -559,66 +544,6 @@ function SwapUnavailableState() {
         <p>Swaps are unavailable</p>
         <span>Add another supported asset to swap between balances.</span>
       </div>
-    </div>
-  )
-}
-
-function PendingSwaps({
-  swaps,
-  assets,
-  cancelling,
-  error,
-  onCancel,
-}: {
-  swaps: AssetSwap[]
-  assets: SwapAsset[]
-  cancelling: string
-  error: string
-  onCancel: (swap: AssetSwap) => void
-}) {
-  const assetById = (assetId: string) => assets.find((asset) => asset.assetId === assetId)
-  const formatAmount = (assetId: string, atomic: string) => {
-    const asset = assetById(assetId)
-    return asset ? `${prettyCurrencyAssetAmount(BigInt(atomic), asset.decimals, asset.ticker)} ${asset.ticker}` : atomic
-  }
-
-  return (
-    <div className='swap-asset-list-panel'>
-      <div className='swap-step-heading'>
-        <p>Your swaps</p>
-      </div>
-      <div className='swap-token-list'>
-        {swaps.map((swap) => {
-          const from = assetById(swap.fromAsset)
-          const to = assetById(swap.toAsset)
-          const cancellable = swap.status === 'pending' || swap.status === 'cancelling'
-          return (
-            <div key={swap.id} className='swap-token-row'>
-              <span className='swap-token-row__copy'>
-                <span>
-                  {swapRouteTicker(swap.fromAsset, swap.quote?.fromTicker ?? from?.ticker) ?? '?'} to{' '}
-                  {swapRouteTicker(swap.toAsset, swap.quote?.toTicker ?? to?.ticker) ?? '?'}
-                </span>
-                <small>
-                  {formatAmount(swap.fromAsset, swap.fromAmount)} for ≥ {formatAmount(swap.toAsset, swap.toAmount)}
-                </small>
-              </span>
-              {cancellable ? (
-                <button
-                  type='button'
-                  className='swap-cancel-button'
-                  disabled={Boolean(cancelling)}
-                  onClick={() => onCancel(swap)}
-                >
-                  {cancelling === swap.id ? 'Cancelling…' : swap.status === 'cancelling' ? 'Retry cancel' : 'Cancel'}
-                </button>
-              ) : null}
-              <strong>{statusLabels[swap.status]}</strong>
-            </div>
-          )
-        })}
-      </div>
-      {error ? <p className='swap-confirm-error'>{error}</p> : null}
     </div>
   )
 }
@@ -1317,6 +1242,7 @@ function MetricRow({ label, value, loading }: { label: ReactNode; value: string;
 function buildQuoteFromPlan(
   plan: OfferPlan | null,
   assetAmount: string,
+  entryMode: AmountMode,
   fromAsset: SwapAsset,
   toAsset: SwapAsset | undefined,
   unitOfAccountUsd: number,
@@ -1373,6 +1299,12 @@ function buildQuoteFromPlan(
     rateLabel: prettyNumber(rate, swapAmountDecimals(rate)),
     fromFiatValue: selectedCurrencyAmount,
     toFiatValue: receivedCurrencyAmount,
+    // what the persisted receipt echoes as the trade's volume: in fiat entry
+    // the user committed a fiat figure converted at the wallet's own rate, so
+    // echo it back (a "$5" swap reads $5.00 in activity, not a solver-rate
+    // $4.99); in unit entry the solver-priced give label is what they saw
+    // next to their amount and confirmed
+    giveFiatValue: entryMode === 'fiat' ? giveEstimate : selectedCurrencyAmount,
   }
 }
 
@@ -1526,7 +1458,7 @@ function buildQuoteSnapshot(plan: OfferPlan, quote: SwapQuote, currency: Currenc
     // depends on the bitcoin-unit setting at swap time). Skip persisting it
     // next time the store shape changes.
     fiatCurrency: currency,
-    fromFiatAmount: quote.fromFiatValue,
+    fromFiatAmount: quote.giveFiatValue > 0 ? quote.giveFiatValue : quote.fromFiatValue,
   }
 }
 

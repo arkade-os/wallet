@@ -20,6 +20,46 @@ vi.mock('liveline', () => ({
 }))
 
 describe('Bitcoin detail screen', () => {
+  it('filters the asset activity list to swaps involving bitcoin', async () => {
+    vi.stubGlobal('ResizeObserver', undefined)
+    const ordinaryTx = { ...mockWalletContextValue.txs[0], roundTxid: 'ordinary-tx', type: 'received' }
+    const swapTx = {
+      ...ordinaryTx,
+      roundTxid: 'swap-tx',
+      type: 'swap',
+      assetSwap: {
+        fromAssetId: 'btc',
+        fromTicker: 'BTC',
+        toAssetId: 'asset-id',
+        toTicker: 'USDT',
+        status: 'completed',
+      },
+    }
+
+    const { container } = render(
+      <ConfigContext.Provider value={mockConfigContextValue}>
+        <FiatContext.Provider value={mockFiatContextValue}>
+          <FlowContext.Provider value={mockFlowContextValue}>
+            <NavigationContext.Provider value={mockNavigationContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [ordinaryTx, swapTx] } as any}>
+                <BitcoinDetail />
+              </WalletContext.Provider>
+            </NavigationContext.Provider>
+          </FlowContext.Provider>
+        </FiatContext.Provider>
+      </ConfigContext.Provider>,
+    )
+
+    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true')
+    expect(container.querySelectorAll('.activity-row')).toHaveLength(2)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Swaps' }))
+
+    expect(screen.getByRole('button', { name: 'Swaps' })).toHaveAttribute('aria-pressed', 'true')
+    await waitFor(() => expect(container.querySelectorAll('.activity-row')).toHaveLength(1))
+    expect(container.querySelector('.activity-row__kind')).toHaveTextContent('Swap')
+  })
+
   it('pauses the liveline chart while the pointer is hovering it', async () => {
     const ResizeObserverMock = vi.fn(() => ({
       observe: vi.fn(),
