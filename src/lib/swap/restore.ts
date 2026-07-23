@@ -49,7 +49,7 @@ export const unscannedSwapCandidates = (txs: Tx[], existingIds: ReadonlySet<stri
 
 /** The cancel spend returns the deposit: a BTC offer gets its sats back (no
  * want-asset delivered), an asset offer gets the asset back. */
-function isCancelSpend(offer: Offer, spend: Tx): boolean {
+export function isCancelSpend(offer: Offer, spend: Tx): boolean {
   if (offer.wantAsset) {
     const wantId = offer.wantAsset.toString()
     return !spend.assets?.some((a) => a.assetId === wantId && a.amount > BigInt(0))
@@ -62,8 +62,12 @@ function isCancelSpend(offer: Offer, spend: Tx): boolean {
  * Scan the given candidates for offer packets and rebuild the AssetSwap
  * records the store lost. Returns the rebuilt swaps plus the txids that got
  * an authoritative answer (fetched fine, vtxo lookup fine) — the caller
- * persists those so they are never fetched again. Quote-time facts (fee bps,
- * fiat snapshot) are gone for good — their receipt rows simply hide.
+ * persists those so they are never fetched again. Quote-time facts are not
+ * on chain: the caller backfills the fee rate from the pair's current market
+ * card; the fiat snapshot is gone for good and its consumers fall back to
+ * valuing the BTC leg at the current rate. TODO: once fee bps rides in its
+ * own packet in the funding tx, decode it here next to the offer packet and
+ * the caller's market-card approximation goes away.
  */
 export async function restoreAssetSwaps(
   indexer: RestoreIndexer,
@@ -136,6 +140,12 @@ export async function restoreAssetSwaps(
     const state = vtxo.virtualStatus.state
     const spentTxid = state === 'spent' ? (vtxo.arkTxId ?? vtxo.spentBy) : undefined
     const spendTx = spentTxid ? txByAnyId.get(spentTxid) : undefined
+    // TODO(arkade-os/wallet#836): if state === 'spent' but spendTx hasn't synced
+    // locally yet, status defaults to 'fulfilled' — a genuinely cancelled swap
+    // could be permanently mislabeled, since a persisted swap is skipped by
+    // future scans (see existingIds in unscannedSwapCandidates). No safer
+    // default exists without local wallet-initiated-cancel tracking (the live
+    // SSE monitor in assetSwaps.tsx has the same gap).
     let status: AssetSwapStatus = 'pending'
     if (state === 'swept') status = 'recoverable'
     else if (state === 'spent') status = spendTx && isCancelSpend(offer, spendTx) ? 'cancelled' : 'fulfilled'

@@ -9,7 +9,7 @@ import ErrorMessage from '../../../components/Error'
 import { WalletContext } from '../../../providers/wallet'
 import Header from '../../../components/Header'
 import { defaultFee } from '../../../lib/constants'
-import { prettyCurrencyAssetAmount, prettyNumber } from '../../../lib/format'
+import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { collaborativeExitWithFees, sendAssets, sendOffChain } from '../../../lib/asp'
@@ -18,35 +18,25 @@ import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
 import { LimitsContext } from '../../../providers/limits'
 import { SwapsContext } from '../../../providers/swaps'
-import Text from '../../../components/Text'
 import { isPendingChainSwap, isPendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { FeesContext } from '../../../providers/fees'
-import { accountAssetLabel, rawAssetPresentation, verifiedDesignatedCurrency } from '../../../lib/accountAssets'
-import { AspContext } from '../../../providers/asp'
+import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDisplay'
+import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisplay'
+import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
 
 export default function SendDetails() {
-  const { aspInfo } = useContext(AspContext)
+  const displayContext = useAmountDisplayContext()
   const { navigate } = useContext(NavigationContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { payInvoice, payBtc } = useContext(SwapsContext)
-  const { assetMetadataCache, balance, isVerifiedAsset, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
-  const assetPresentation = sendInfo.account
-    ? { name: sendInfo.account.ticker, ticker: sendInfo.account.ticker }
-    : rawAssetPresentation(assetMeta?.metadata, assetId ?? 'Asset')
-  const assetTicker = assetPresentation.ticker
-  const assetName = assetPresentation.name
   const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 8
-  const designatedCurrency = sendInfo.account
-    ? undefined
-    : verifiedDesignatedCurrency(aspInfo.network, assetId, isVerifiedAsset)
-  const assetLabel = accountAssetLabel(designatedCurrency, assetPresentation)
-  const assetAmountUnit = assetTicker || assetName
   const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
 
   const [buttonLabel, setButtonLabel] = useState('')
@@ -56,6 +46,19 @@ export default function SendDetails() {
   const [sendDone, setSendDone] = useState(false)
 
   const { address, arkAddress, invoice, pendingSwap, satoshis } = sendInfo
+  const amountDisplay = pendingSwap
+    ? undefined
+    : buildTransactionAmountDisplay({
+        ...displayContext,
+        assets: sendInfo.account
+          ? [{ assetId: sendInfo.account.assetId, amount: sendInfo.account.amount }]
+          : sendInfo.assets,
+        metadataForAsset: (id) => {
+          const metadata = assetMetadataCache.get(id)?.metadata
+          return id === assetId ? { ...metadata, decimals: assetDecimals } : metadata
+        },
+        satoshis: details?.satoshis ?? satoshis ?? 0,
+      })
 
   useEffect(() => {
     if (!address && !arkAddress && !invoice) return setError('Missing address')
@@ -211,17 +214,14 @@ export default function SendDetails() {
           <Padded>
             <FlexCol>
               <ErrorMessage error={Boolean(error)} text={error} />
-              {isAssetSend ? (
-                <FlexCol gap='0.5rem'>
-                  <Text color='neutral-500' smaller testId='send-details-asset-name'>
-                    {assetLabel}
-                  </Text>
-                  <Text bold testId='send-details-asset-amount'>
-                    {prettyCurrencyAssetAmount(assetAmountValue, assetDecimals, assetAmountUnit)} {assetAmountUnit}
-                  </Text>
-                </FlexCol>
+              {details && amountDisplay ? (
+                <TransactionAmountSummary amount={amountDisplay} label='Amount sent' />
               ) : null}
-              <Details details={details} />
+              <Details
+                details={
+                  details ? { ...details, amountDisplay, total: isAssetSend ? undefined : details.total } : undefined
+                }
+              />
             </FlexCol>
           </Padded>
         )}

@@ -2,15 +2,20 @@ import { getStorageItem, setStorageItemSafely } from '../storage'
 
 export type AssetSwapStatus = 'pending' | 'cancelling' | 'fulfilled' | 'cancelled' | 'recoverable'
 
-/** Display facts frozen at quote time — only what the activity UI reads. */
+/** Display facts frozen at quote time — only what the activity UI reads.
+ * Every field is optional: a restore can only backfill what is recoverable
+ * (feeBps from the market card), and every consumer falls back per-field.
+ * TODO: once fee bps rides in a packet inside the funding tx, feeBps stops
+ * being a quote-time fact — read it from the tx (creation and restore alike)
+ * and drop the field here. */
 export interface AssetSwapQuoteSnapshot {
-  fromTicker: string
-  fromDecimals: number
-  toTicker: string
-  toDecimals: number
-  feeBps: number
-  fiatCurrency: string
-  fromFiatAmount: number
+  fromTicker?: string
+  fromDecimals?: number
+  toTicker?: string
+  toDecimals?: number
+  feeBps?: number
+  fiatCurrency?: string
+  fromFiatAmount?: number
 }
 
 export interface AssetSwap {
@@ -44,7 +49,7 @@ export const getAssetSwaps = (): AssetSwap[] => {
     if (!Array.isArray(parsed)) return []
     // insertion order is not chronological — the restore scan rebuilds records
     // in tx-scan order — so sort at read to keep newest-first canonical for
-    // every consumer (the Your swaps list, the activity merge)
+    // every consumer (including the activity merge)
     return parsed
       .filter((s) => s && typeof s.id === 'string' && typeof s.offerHex === 'string')
       .sort((a, b) => b.createdAt - a.createdAt)

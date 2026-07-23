@@ -153,6 +153,7 @@ export default function SendSuccess() {
                 icon={assetIcon}
                 name={assetName}
                 ticker={assetTicker}
+                logoTicker={designatedCurrency}
               />
               <Text centered color='neutral-700' thin small wrap>
                 {displayAmount} sent successfully
