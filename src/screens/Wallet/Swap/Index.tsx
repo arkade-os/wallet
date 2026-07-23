@@ -65,6 +65,7 @@ interface SwapQuote {
   rateLabel: string
   fromFiatValue: number
   toFiatValue: number
+  giveFiatValue: number
 }
 
 interface ExitingAmountCharacter {
@@ -1195,6 +1196,12 @@ function buildQuoteFromPlan(
     rateLabel: prettyNumber(rate, swapAmountDecimals(rate)),
     fromFiatValue: selectedCurrencyAmount,
     toFiatValue: receivedCurrencyAmount,
+    // what the persisted receipt echoes as the trade's volume: in fiat entry
+    // the user committed a fiat figure converted at the wallet's own rate, so
+    // echo it back (a "$5" swap reads $5.00 in activity, not a solver-rate
+    // $4.99); in unit entry the solver-priced give label is what they saw
+    // next to their amount and confirmed
+    giveFiatValue: mode === 'fiat' ? giveEstimate : selectedCurrencyAmount,
   }
 }
 
@@ -1338,7 +1345,7 @@ function buildQuoteSnapshot(plan: OfferPlan, quote: SwapQuote, currency: Currenc
     // depends on the bitcoin-unit setting at swap time). Skip persisting it
     // next time the store shape changes.
     fiatCurrency: currency,
-    fromFiatAmount: quote.fromFiatValue,
+    fromFiatAmount: quote.giveFiatValue > 0 ? quote.giveFiatValue : quote.fromFiatValue,
   }
 }
 

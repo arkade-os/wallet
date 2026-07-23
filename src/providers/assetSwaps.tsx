@@ -6,7 +6,7 @@ import { Network } from '@arkade-os/boltz-swap'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { cancelOffer, createOffer, decodeOffer, OFFER_PACKET_TYPE } from '../lib/swap/offer'
-import { BTC_ASSET_ID, discoverMarkets } from '../lib/swap/markets'
+import { BTC_ASSET_ID, discoverMarkets, findMarket } from '../lib/swap/markets'
 import { getScannedTxids, isCancelSpend, markTxidsScanned, restoreAssetSwaps } from '../lib/swap/restore'
 import { addAssetSwap, AssetSwap, type AssetSwapQuoteSnapshot, getAssetSwaps, updateAssetSwap } from '../lib/swap/store'
 import { getTxHistory } from '../lib/asp'
@@ -99,7 +99,13 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
         markTxidsScanned(scannedTxids)
         if (restored.length === 0) return
         let next: AssetSwap[] = []
-        for (const swap of restored) next = addAssetSwap(swap)
+        for (const swap of restored) {
+          // quote-time facts are not on chain; the fee rate is the one fact a
+          // restore can backfill, from the pair's current market card — an
+          // approximation if the solver changed its fee since the swap
+          const feeBps = findMarket(marketsRef.current, swap.fromAsset, swap.toAsset)?.market?.fee_bps
+          next = addAssetSwap(feeBps === undefined ? swap : { ...swap, quote: { feeBps } })
+        }
         setSwaps(next)
         // re-merge the activity list so the tx couple collapses into Swap rows
         reloadWallet().catch(consoleError)

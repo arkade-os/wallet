@@ -2,15 +2,17 @@ import { getStorageItem, setStorageItemSafely } from '../storage'
 
 export type AssetSwapStatus = 'pending' | 'cancelling' | 'fulfilled' | 'cancelled' | 'recoverable'
 
-/** Display facts frozen at quote time — only what the activity UI reads. */
+/** Display facts frozen at quote time — only what the activity UI reads.
+ * Every field is optional: a restore can only backfill what is recoverable
+ * (feeBps from the market card), and every consumer falls back per-field. */
 export interface AssetSwapQuoteSnapshot {
-  fromTicker: string
-  fromDecimals: number
-  toTicker: string
-  toDecimals: number
-  feeBps: number
-  fiatCurrency: string
-  fromFiatAmount: number
+  fromTicker?: string
+  fromDecimals?: number
+  toTicker?: string
+  toDecimals?: number
+  feeBps?: number
+  fiatCurrency?: string
+  fromFiatAmount?: number
 }
 
 export interface AssetSwap {

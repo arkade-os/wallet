@@ -62,8 +62,10 @@ export function isCancelSpend(offer: Offer, spend: Tx): boolean {
  * Scan the given candidates for offer packets and rebuild the AssetSwap
  * records the store lost. Returns the rebuilt swaps plus the txids that got
  * an authoritative answer (fetched fine, vtxo lookup fine) — the caller
- * persists those so they are never fetched again. Quote-time facts (fee bps,
- * fiat snapshot) are gone for good — their receipt rows simply hide.
+ * persists those so they are never fetched again. Quote-time facts are not
+ * on chain: the caller backfills the fee rate from the pair's current market
+ * card; the fiat snapshot is gone for good and its consumers fall back to
+ * valuing the BTC leg at the current rate.
  */
 export async function restoreAssetSwaps(
   indexer: RestoreIndexer,
