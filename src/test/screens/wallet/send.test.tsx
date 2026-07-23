@@ -64,7 +64,8 @@ describe('Send screen', () => {
     expect(screen.getByText('Max')).toBeInTheDocument()
     expect(screen.getByText('Send')).toBeInTheDocument()
     expect(screen.getByText('Amount')).toBeInTheDocument()
-    expect(screen.getByText('€0.00 available')).toBeInTheDocument()
+    // available balance quotes the bitcoin unit, not the display currency
+    expect(screen.getByText('0 BTC available')).toBeInTheDocument()
     expect(screen.getByText('Recipient address')).toBeInTheDocument()
     expect(screen.getByText('Continue')).toBeInTheDocument()
   })
@@ -94,8 +95,10 @@ describe('Send screen', () => {
       } as any,
     }
     renderSendForm({ flowContext: flowValue, walletContext: walletValue })
-    // amount input is bound to amountTextValue; before the fix it stayed empty
-    const amountInput = await waitFor(() => screen.getByDisplayValue('21'))
+    // amount input is bound to amountTextValue; before the fix it stayed
+    // empty. Entry defaults to the bitcoin unit (BTC in the mock config), so
+    // the 21 fixed sats read as their BTC equivalent.
+    const amountInput = await waitFor(() => screen.getByDisplayValue('0.00000021'))
     expect(amountInput).toHaveAttribute('name', 'send-amount')
     expect(amountInput).toHaveAttribute('readonly')
     fetchMocker.disableMocks()
@@ -148,11 +151,11 @@ describe('Send screen', () => {
   it('shows BTC units on the send amount field when currency and bitcoin unit are BTC', async () => {
     const walletValue = {
       ...mockWalletContextValue,
+      availableBalance: 12128,
       svcWallet: {
         ...mockSvcWallet,
         getAddress: () => 'tark1mockoffchain',
         getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
-        getBalance: () => Promise.resolve({ available: 12128 }),
       } as any,
     }
     const configValue = {
@@ -171,11 +174,11 @@ describe('Send screen', () => {
   it('shows sats units on the send amount field when currency is BTC and bitcoin unit is sats', async () => {
     const walletValue = {
       ...mockWalletContextValue,
+      availableBalance: 12128,
       svcWallet: {
         ...mockSvcWallet,
         getAddress: () => 'tark1mockoffchain',
         getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
-        getBalance: () => Promise.resolve({ available: 12128 }),
       } as any,
     }
     const configValue = {
@@ -194,11 +197,11 @@ describe('Send screen', () => {
   it('shows BTC as the secondary send amount when fiat currency uses BTC as the bitcoin unit', async () => {
     const walletValue = {
       ...mockWalletContextValue,
+      availableBalance: 12128,
       svcWallet: {
         ...mockSvcWallet,
         getAddress: () => 'tark1mockoffchain',
         getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
-        getBalance: () => Promise.resolve({ available: 12128 }),
       } as any,
     }
     const configValue = {
@@ -215,6 +218,8 @@ describe('Send screen', () => {
 
     renderSendForm({ configContext: configValue, fiatContext: fiatValue, walletContext: walletValue })
 
+    // entry starts on the bitcoin unit — switch to display-currency entry first
+    fireEvent.click(screen.getByTestId('input-amount-switch'))
     const amountInput = document.querySelector('input[name="send-amount"]') as HTMLInputElement
     fireEvent.change(amountInput, { target: { value: '10' } })
 
@@ -249,5 +254,46 @@ describe('Send screen', () => {
     fireEvent.change(amountInput, { target: { value: '0.0001' } })
 
     await waitFor(() => expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ satoshis: 10000 })))
+  })
+
+  it('converts a USD account amount into its designated asset units', async () => {
+    const setSendInfo = vi.fn()
+    const account = {
+      assetId: 'usdt',
+      ticker: 'USD' as const,
+      balance: BigInt(10_000),
+      decimals: 2,
+      amount: BigInt(0),
+      source: { assetId: 'usdt', balance: BigInt(1_000_000), decimals: 4 },
+    }
+
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        sendInfo: { ...emptySendInfo, account },
+        setSendInfo,
+      },
+      walletContext: {
+        ...mockWalletContextValue,
+        svcWallet: {
+          ...mockSvcWallet,
+          getAddress: () => 'tark1mockoffchain',
+          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+          getBalance: () => Promise.resolve({ available: 1_000_000 }),
+        } as any,
+      },
+    })
+
+    const amountInput = document.querySelector('input[name="send-amount"]') as HTMLInputElement
+    fireEvent.change(amountInput, { target: { value: '80' } })
+
+    await waitFor(() =>
+      expect(setSendInfo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          account: expect.objectContaining({ amount: BigInt(8_000) }),
+          assets: [{ assetId: 'usdt', amount: BigInt(800_000) }],
+        }),
+      ),
+    )
   })
 })

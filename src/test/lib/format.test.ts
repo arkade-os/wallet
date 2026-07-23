@@ -68,12 +68,14 @@ describe('format utilities', () => {
     })
 
     it('should keep the trailing code for currencies without a symbol', () => {
+      expect(prettyFiatAmount(51506, Currencies.BRL)).toBe('51,506.00 BRL')
       expect(prettyFiatAmount(2500, Currencies.CHF)).toBe('2,500.00 CHF')
       expect(prettyFiatAmount(12345, Currencies.CNY)).toBe('12,345.00 CNY')
     })
 
     it('should format fiat currencies with their standard minor units', () => {
       const cases: [Currencies, string, string][] = [
+        [Currencies.BRL, '10.00 BRL', '10.80 BRL'],
         [Currencies.EUR, '€10.00', '€10.80'],
         [Currencies.USD, '$10.00', '$10.80'],
         [Currencies.CHF, '10.00 CHF', '10.80 CHF'],
@@ -202,6 +204,7 @@ describe('format utilities', () => {
     })
 
     it('should keep the trailing code when masking fiat without a symbol', () => {
+      expect(prettyFiatHide(100, Currencies.BRL)).toBe('········ BRL')
       expect(prettyFiatHide(100, Currencies.CHF)).toBe('········ CHF')
       expect(prettyFiatHide(100, Currencies.CNY)).toBe('········ CNY')
     })

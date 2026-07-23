@@ -1,3 +1,4 @@
+import { Page } from '@playwright/test'
 import { sleep } from '../../lib/sleep'
 import {
   test,
@@ -6,9 +7,11 @@ import {
   pay,
   receiveLightning,
   waitForPaymentReceived,
+  dismissPaymentSuccess,
   fundWallet,
   navigateHome,
   navigateToBoltz,
+  addInvoiceFromLND,
   getInvoiceFromLND,
 } from './utils'
 import { prettyLongText } from '../../lib/format'
@@ -16,6 +19,26 @@ import { exec } from 'child_process'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
+
+/** Open the Boltz app on a successful swap's detail page. */
+async function openBoltzSwap(page: Page, direction: string, amountText?: string): Promise<void> {
+  await navigateToBoltz(page)
+  await expect(page.getByText('Boltz')).toBeVisible()
+  await expect(page.getByText('Successful')).toBeVisible()
+  if (amountText) await page.waitForSelector(`text=${amountText}`, { timeout: 10000 })
+  await page.getByText(direction).click()
+}
+
+/** Assert the swap detail page: the label rows are visible, the testId values exact. */
+async function expectSwapDetails(page: Page, extraLabels: string[], values: Record<string, string>): Promise<void> {
+  const labels = ['When', 'Kind', 'Swap ID', 'Direction', 'Date', 'Status', 'Amount', 'Fees', 'Total', ...extraLabels]
+  for (const label of labels) {
+    await expect(page.getByText(label, { exact: label === 'Invoice' })).toBeVisible()
+  }
+  for (const [testId, value] of Object.entries(values)) {
+    expect(await page.getByTestId(testId).textContent()).toBe(value)
+  }
+}
 
 test('should be connected to Boltz app', async ({ page }) => {
   await createWallet(page)
@@ -30,13 +53,9 @@ test('should be connected to Boltz app', async ({ page }) => {
 test('should receive funds from Lightning', async ({ page, isMobile }) => {
   await createWallet(page)
 
-  // get invoice
+  // get invoice and pay it from LND
   const invoice = await receiveLightning(page, isMobile, 2000)
-  expect(invoice).toBeDefined()
-  expect(invoice).toBeTruthy()
   expect(invoice).toContain('lnbcrt')
-
-  // pay invoice
   await execAsync(`docker exec lnd lncli --network=regtest payinvoice ${invoice} --force`)
 
   // wait for payment received
@@ -47,48 +66,27 @@ test('should receive funds from Lightning', async ({ page, isMobile }) => {
   await page.waitForSelector('text=Received', { timeout: 10000 })
   await expect(page.getByText('+ 1,992 sats')).toBeVisible()
 
-  // should be visible in Boltz app
-  await navigateToBoltz(page)
-  await expect(page.getByText('Boltz')).toBeVisible()
-  await expect(page.getByText('Successful')).toBeVisible()
-  await expect(page.getByText('+ 1,992')).toBeVisible()
-  await expect(page.getByText('Lightning to Arkade')).toBeVisible()
-
   // swap page should show correct details
-  await page.getByText('Lightning to Arkade').click()
-  await expect(page.getByText('When')).toBeVisible()
-  await expect(page.getByText('Kind')).toBeVisible()
-  await expect(page.getByText('Swap ID')).toBeVisible()
-  await expect(page.getByText('Direction')).toBeVisible()
-  await expect(page.getByText('Date')).toBeVisible()
-  await expect(page.getByText('Preimage')).toBeVisible()
-  await expect(page.getByText('Invoice', { exact: true })).toBeVisible()
-  await expect(page.getByText('Status')).toBeVisible()
-  await expect(page.getByText('Amount')).toBeVisible()
-  await expect(page.getByText('Fees')).toBeVisible()
-  await expect(page.getByText('Total')).toBeVisible()
-
-  expect(await page.getByTestId('Kind').textContent()).toBe('Reverse Swap')
-  expect(await page.getByTestId('Direction').textContent()).toBe('Lightning to Arkade')
-  expect(await page.getByTestId('Status').textContent()).toBe('invoice.settled')
-  expect(await page.getByTestId('Amount').textContent()).toBe('1,992 sats')
-  expect(await page.getByTestId('Fees').textContent()).toBe('8 sats')
-  expect(await page.getByTestId('Total').textContent()).toBe('2,000 sats')
+  await openBoltzSwap(page, 'Lightning to Arkade', '+ 1,992')
+  await expectSwapDetails(page, ['Preimage', 'Invoice'], {
+    Kind: 'Reverse Swap',
+    Direction: 'Lightning to Arkade',
+    Status: 'invoice.settled',
+    Amount: '1,992 sats',
+    Fees: '8 sats',
+    Total: '2,000 sats',
+  })
 })
 
 test('should raise error when trying to pay invoice with little amount', async ({ page }) => {
   await createWallet(page)
 
   const invoice = await getInvoiceFromLND(21)
-  expect(invoice).toBeDefined()
-  expect(invoice).toBeTruthy()
   expect(invoice).toContain('lnbcrt')
 
-  // go to send page
+  // go to send page and fill invoice
   await navigateHome(page)
   await page.getByText('Send').click()
-
-  // fill invoice
   await page.locator('input[name="send-address"]').fill(invoice)
   await page.waitForSelector('text=Invoice amount below min of 1,000 sats', { state: 'visible' })
 })
@@ -98,39 +96,21 @@ test('should send funds to Lightning', async ({ page }) => {
   await fundWallet(page, 5000)
 
   const invoice = await getInvoiceFromLND(1000)
-  expect(invoice).toBeDefined()
-  expect(invoice).toBeTruthy()
   expect(invoice).toContain('lnbcrt')
 
   // pay invoice
   await pay(page, invoice)
 
-  // should be visible in Boltz app
-  await navigateToBoltz(page)
-  await expect(page.getByText('Boltz')).toBeVisible()
-  await expect(page.getByText('Successful')).toBeVisible()
-  await page.waitForSelector('text=- 1,001', { timeout: 10000 })
-  await expect(page.getByText('Arkade to Lightning')).toBeVisible()
-
   // swap page should show correct details
-  await page.getByText('Arkade to Lightning').click()
-  await expect(page.getByText('When')).toBeVisible()
-  await expect(page.getByText('Kind')).toBeVisible()
-  await expect(page.getByText('Swap ID')).toBeVisible()
-  await expect(page.getByText('Direction')).toBeVisible()
-  await expect(page.getByText('Date')).toBeVisible()
-  await expect(page.getByText('Invoice', { exact: true })).toBeVisible()
-  await expect(page.getByText('Status')).toBeVisible()
-  await expect(page.getByText('Amount')).toBeVisible()
-  await expect(page.getByText('Fees')).toBeVisible()
-  await expect(page.getByText('Total')).toBeVisible()
-
-  expect(await page.getByTestId('Kind').textContent()).toBe('Submarine Swap')
-  expect(await page.getByTestId('Direction').textContent()).toBe('Arkade to Lightning')
-  expect(await page.getByTestId('Status').textContent()).toBe('transaction.claimed')
-  expect(await page.getByTestId('Amount').textContent()).toBe('1,000 sats')
-  expect(await page.getByTestId('Fees').textContent()).toBe('1 sat')
-  expect(await page.getByTestId('Total').textContent()).toBe('1,001 sats')
+  await openBoltzSwap(page, 'Arkade to Lightning', '- 1,001')
+  await expectSwapDetails(page, ['Invoice'], {
+    Kind: 'Submarine Swap',
+    Direction: 'Arkade to Lightning',
+    Status: 'transaction.claimed',
+    Amount: '1,000 sats',
+    Fees: '1 sat',
+    Total: '1,001 sats',
+  })
 
   // go back, await for swap to settle and preimage to be visible
   await page.getByLabel('Go back').click()
@@ -144,32 +124,17 @@ test('should send funds to Bitcoin', async ({ page, isMobile }) => {
   await fundWallet(page, 5000)
 
   const someOnchainAddress = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
-
-  // pay invoice
   await pay(page, someOnchainAddress, isMobile, 2000)
 
-  // should be visible in Boltz app
-  await navigateToBoltz(page)
-  await expect(page.getByText('Boltz')).toBeVisible()
-  await expect(page.getByText('Successful')).toBeVisible()
-  await expect(page.getByText('Arkade to Bitcoin')).toBeVisible()
-
   // swap page should show correct details
-  await page.getByText('Arkade to Bitcoin').click()
-  await expect(page.getByText('When')).toBeVisible()
-  await expect(page.getByText('Kind')).toBeVisible()
-  await expect(page.getByText('Swap ID')).toBeVisible()
-  await expect(page.getByText('Direction')).toBeVisible()
-  await expect(page.getByText('Date')).toBeVisible()
-  await expect(page.getByText('Status')).toBeVisible()
-  await expect(page.getByText('Amount')).toBeVisible()
-  await expect(page.getByText('Fees')).toBeVisible()
-  await expect(page.getByText('Total')).toBeVisible()
+  await openBoltzSwap(page, 'Arkade to Bitcoin')
+  await expectSwapDetails(page, [], {
+    Kind: 'Chain Swap',
+    Direction: 'Arkade to BTC',
+    'BTC Address': prettyLongText(someOnchainAddress),
+    Status: 'transaction.claimed',
+  })
 
-  expect(await page.getByTestId('Kind').textContent()).toBe('Chain Swap')
-  expect(await page.getByTestId('Direction').textContent()).toBe('Arkade to BTC')
-  expect(await page.getByTestId('BTC Address').textContent()).toBe(prettyLongText(someOnchainAddress))
-  expect(await page.getByTestId('Status').textContent()).toBe('transaction.claimed')
   // The exact sat split depends on the onchain claim fee, which differs between
   // Boltz releases: the arkade-regtest stack runs boltz/boltz:latest at a
   // realistic 1 sat/vB, whereas nigiri's pinned Boltz produced a different fee
@@ -190,20 +155,10 @@ test('should refund failing swap', async ({ page }) => {
   await createWallet(page)
   await fundWallet(page, 5000)
 
-  const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt 1000`)
-  const output = stdout.trim()
-  expect(output).toBeDefined()
-  expect(output).toBeTruthy()
-  const outputJSON = JSON.parse(output)
-  expect('payment_request' in outputJSON).toBeTruthy()
-  const invoice = outputJSON.payment_request
-  expect(invoice).toBeDefined()
-  expect(invoice).toBeTruthy()
+  const { invoice, hash } = await addInvoiceFromLND(1000)
   expect(invoice).toContain('lnbcrt')
 
   // cancel invoice to make the swap fail
-  expect('r_hash' in outputJSON).toBeTruthy()
-  const hash = outputJSON.r_hash
   exec(`docker exec lnd lncli --network=regtest cancelinvoice ${hash}`)
 
   // try to send funds to Lightning
@@ -215,7 +170,7 @@ test('should refund failing swap', async ({ page }) => {
   // optimistic send: lands on the success screen once the swap is funded,
   // then the failure surfaces there when the swap fails in the background
   await page.waitForSelector('text=Payment failed', { timeout: 30000 })
-  await page.getByText('Sounds good').click()
+  await dismissPaymentSuccess(page)
 
   // should be visible in Boltz app
   await navigateToBoltz(page)

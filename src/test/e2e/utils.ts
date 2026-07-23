@@ -192,15 +192,18 @@ export async function createWalletAndGetBIP21(page: Page, isMobile?: boolean, sa
   return bip21
 }
 
-export async function getInvoiceFromLND(amount = 2100): Promise<string> {
+export async function addInvoiceFromLND(amount: number): Promise<{ invoice: string; hash: string }> {
   const { stdout } = await execAsync(`docker exec lnd lncli --network=regtest addinvoice --amt ${amount}`)
-  const output = stdout.trim()
-  const outputJSON = JSON.parse(output)
-  const invoice = outputJSON.payment_request
+  const outputJSON = JSON.parse(stdout.trim())
+  return { invoice: outputJSON.payment_request, hash: outputJSON.r_hash }
+}
+
+export async function getInvoiceFromLND(amount = 2100): Promise<string> {
+  const { invoice } = await addInvoiceFromLND(amount)
   return invoice
 }
 
-export async function prePay(page: Page, address: string, isMobile = false, sats = 0): Promise<void> {
+export async function prePay(page: Page, address: string, isMobile = false, amount = 0, fiat = false): Promise<void> {
   // go to send page
   await navigateHome(page)
   await page.getByText('Send').click()
@@ -208,18 +211,30 @@ export async function prePay(page: Page, address: string, isMobile = false, sats
   // fill address
   await page.locator('input[name="send-address"]').fill(address)
 
-  // fill amount
-  if (sats) {
+  // fill amount — entry defaults to the bitcoin unit; pass fiat=true to flip
+  // to display-currency entry first (desktop switch pill / keyboard toggle)
+  if (amount) {
     if (isMobile) {
       await page.locator('input[name="send-amount"]').click()
-      await handleKeyboardInput(page, sats)
+      await page.waitForSelector('text=Save', { state: 'visible' })
+      if (fiat) await page.getByLabel('Toggle currency').click()
+      await handleKeyboardInput(page, amount)
     } else {
-      await page.locator('input[name="send-amount"]').fill(sats.toString())
+      if (fiat) await page.getByTestId('input-amount-switch').click()
+      await page.locator('input[name="send-amount"]').fill(amount.toString())
     }
   }
 
   // continue to details page
   await page.getByText('Continue').click()
+}
+
+/** Dismiss the payment-success screen and return home. Two shapes coexist:
+ * asset and Lightning sends keep a "Sounds good" button, while regular
+ * send/receive now render WalletSuccessSplash — a single tap-to-dismiss button
+ * whose accessible label ends in "Tap to go home." */
+export async function dismissPaymentSuccess(page: Page, timeout = 60000): Promise<void> {
+  await page.getByRole('button', { name: /Sounds good|Tap to go home/ }).click({ timeout })
 }
 
 export async function pay(page: Page, address: string, isMobile = false, sats = 0): Promise<void> {
@@ -229,8 +244,8 @@ export async function pay(page: Page, address: string, isMobile = false, sats = 
   // continue to send
   await page.getByText('Tap to Sign').click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector('text=Payment sent!', { timeout: 30000 })
-  await page.getByText('Sounds good').click()
+  await page.waitForSelector('text=Payment sent', { timeout: 30000 })
+  await dismissPaymentSuccess(page, 30000)
 }
 
 async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = false, sats = 0): Promise<string> {
@@ -340,8 +355,8 @@ export function readClipboard(page: Page): Promise<string> {
 }
 
 export async function waitForPaymentReceived(page: Page): Promise<void> {
-  await page.waitForSelector('text=Payment received!', { timeout: 60000 })
-  await page.getByText('Sounds good').click()
+  await page.waitForSelector('text=Payment received', { timeout: 60000 })
+  await dismissPaymentSuccess(page)
 }
 
 export async function handleKeyboardInput(page: Page, sats: number): Promise<void> {

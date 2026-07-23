@@ -6,20 +6,21 @@ import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
-import Success from '../../../components/Success'
 import CenterScreen from '../../../components/CenterScreen'
 import FlexCol from '../../../components/FlexCol'
 import Padded from '../../../components/Padded'
 import Text from '../../../components/Text'
+import WalletSuccessSplash from '../../../components/WalletSuccessSplash'
 import SuccessIcon from '../../../icons/Success'
 import SpinnerIcon from '../../../icons/Spinner'
-import { prettyAmount, prettyFiatAmount } from '../../../lib/format'
+import { prettyAmount, prettyCurrencyAssetAmount, prettyFiatAmount } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
 import { SwapsContext } from '../../../providers/swaps'
 import AssetCard from '../../../components/AssetCard'
-import { prettyAssetAmount } from '../../../lib/assets'
+import { accountAssetLabel, rawAssetPresentation, verifiedDesignatedCurrency } from '../../../lib/accountAssets'
+import { AspContext } from '../../../providers/asp'
 import { consoleError } from '../../../lib/logs'
 import { BoltzSwap, BoltzSwapStatus, hasSubmarineStatusReached, isSubmarineFailedStatus } from '@arkade-os/boltz-swap'
 
@@ -49,18 +50,26 @@ export default function SendSuccess() {
   const { toFiat } = useContext(FiatContext)
   const { sendInfo } = useContext(FlowContext)
   const { notifyPaymentSent } = useContext(NotificationsContext)
-  const { assetMetadataCache } = useContext(WalletContext)
+  const { assetMetadataCache, isVerifiedAsset } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
   const { getSwapHistory, swapManager } = useContext(SwapsContext)
+  const { aspInfo } = useContext(AspContext)
 
-  const isAssetSend = Boolean(sendInfo.assets?.length)
-  const assetId = sendInfo.assets?.[0]?.assetId
+  const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
+  const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
-  const assetName = assetMeta?.metadata?.name ?? 'Unknown Asset'
-  const assetTicker = assetMeta?.metadata?.ticker ?? ''
-  const assetIcon = assetMeta?.metadata?.icon
-  const assetAmountValue = sendInfo.assets?.[0]?.amount ?? BigInt(0)
-  const assetDecimals = assetMeta?.metadata?.decimals ?? 8
+  const assetPresentation = sendInfo.account
+    ? { name: sendInfo.account.ticker, ticker: sendInfo.account.ticker }
+    : rawAssetPresentation(assetMeta?.metadata, 'Unknown asset')
+  const designatedCurrency = sendInfo.account
+    ? undefined
+    : verifiedDesignatedCurrency(aspInfo.network, assetId, isVerifiedAsset)
+  // name only — the ticker already rides with the balance on AssetCard's left column
+  const assetName = accountAssetLabel(designatedCurrency, { name: assetPresentation.name, ticker: '' })
+  const assetTicker = assetPresentation.ticker
+  const assetIcon = assetPresentation.icon
+  const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
+  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 8
 
   // Lightning sends resolve optimistically once the swap is funded; track the
   // settlement happening in the background and reflect it live on screen.
@@ -121,7 +130,7 @@ export default function SendSuccess() {
 
   const totalSats = sendInfo.total ?? 0
   const displayAmount = isAssetSend
-    ? `${prettyAssetAmount(assetAmountValue, assetDecimals)} ${assetTicker}`
+    ? `${prettyCurrencyAssetAmount(assetAmountValue, assetDecimals, assetTicker)} ${assetTicker}`
     : useFiat
       ? prettyFiatAmount(toFiat(totalSats), config.currency, { bitcoinUnit: config.unit })
       : prettyAmount(totalSats)
@@ -144,6 +153,7 @@ export default function SendSuccess() {
                 icon={assetIcon}
                 name={assetName}
                 ticker={assetTicker}
+                logoTicker={designatedCurrency}
               />
               <Text centered color='neutral-700' thin small wrap>
                 {displayAmount} sent successfully
@@ -196,14 +206,11 @@ export default function SendSuccess() {
   }
 
   return (
-    <>
-      <Header text='Success' />
-      <Content>
-        <Success headline='Payment sent!' text={`${displayAmount} sent successfully`} />
-      </Content>
-      <ButtonsOnBottom>
-        <Button label='Sounds good' onClick={() => navigate(Pages.Wallet)} />
-      </ButtonsOnBottom>
-    </>
+    <WalletSuccessSplash
+      headline='Payment sent'
+      text={`${displayAmount} sent successfully`}
+      ariaLabel='Payment sent successfully. Tap to go home.'
+      onDone={() => navigate(Pages.Wallet)}
+    />
   )
 }

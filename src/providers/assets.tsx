@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
+import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
 import { consoleError } from '../lib/logs'
 import { AspContext } from './asp'
 
@@ -15,7 +15,7 @@ export const AssetsContext = createContext<AssetsContextProps>({
 export const AssetsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
 
-  const assetRegistry = useRef(null as string[] | null)
+  const [assetRegistry, setAssetRegistry] = useState<string[]>()
 
   const getRegistryUrl = (network: string): string => {
     if (!getRegistryFileName(network)) return ''
@@ -30,18 +30,24 @@ export const AssetsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   useEffect(() => {
+    setAssetRegistry(undefined)
     if (!aspInfo.network) return
     const url = getRegistryUrl(aspInfo.network)
     if (!url) return
+    let cancelled = false
     fetch(url)
       .then((response) => response.json())
-      .then((data: string[]) => (assetRegistry.current = data))
+      .then((data: string[]) => {
+        if (!cancelled) setAssetRegistry(data)
+      })
       .catch((error) => consoleError(error, 'Error fetching asset registry data:'))
+    return () => {
+      cancelled = true
+    }
   }, [aspInfo.network])
 
   const isRegistered = (assetId: string): boolean => {
-    if (!assetRegistry.current) return false
-    return assetRegistry.current.includes(assetId)
+    return assetRegistry?.includes(assetId) ?? false
   }
 
   return <AssetsContext.Provider value={{ isRegistered }}>{children}</AssetsContext.Provider>

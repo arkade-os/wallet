@@ -1,6 +1,7 @@
-export default function SpinnerIcon() {
+export default function SpinnerIcon({ small }: { small?: boolean }) {
+  const size = small ? 24 : 48
   return (
-    <svg height='48' width='48' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'>
+    <svg height={size} width={size} xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'>
       <radialGradient id='a12' cx='.66' fx='.66' cy='.3125' fy='.3125' gradientTransform='scale(1.5)'>
         <stop offset='0' stopColor='#dadada' />
         <stop offset='.3' stopColor='#dadada' stopOpacity='.9' />

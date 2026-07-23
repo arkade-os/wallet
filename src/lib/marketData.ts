@@ -3,6 +3,9 @@ import { Currencies } from './types'
 
 const host = 'https://price-chart-proxy.arkade.money'
 
+const DEFAULT_CONSTANT_SERIES_WINDOW_SECS = 86_400
+const CONSTANT_SERIES_INTERVALS = 100
+
 interface HistoricalMarketDataResponse {
   when: number
   from: string
@@ -23,6 +26,21 @@ const secsToPeriod = (secs: number): string => {
   return window ? window.label : 'oneDay'
 }
 
+export const buildConstantMarketSeries = (
+  value: number,
+  windowSecs: number,
+  now = Math.floor(Date.now() / 1000),
+): LivelinePoint[] => {
+  const duration = windowSecs > 0 ? windowSecs : DEFAULT_CONSTANT_SERIES_WINDOW_SECS
+  const intervalCount = Math.max(1, Math.min(CONSTANT_SERIES_INTERVALS, Math.floor(duration)))
+  const start = now - duration
+
+  return Array.from({ length: intervalCount + 1 }, (_, index) => ({
+    time: start + Math.floor((duration * index) / intervalCount),
+    value,
+  }))
+}
+
 export const fetchHistoricalMarketData = async (
   secs: number,
   fiat: Currencies,
@@ -34,6 +52,44 @@ export const fetchHistoricalMarketData = async (
   if (!resp.ok) throw new Error(`Market data fetch failed: ${resp.status}`)
   const data = await resp.json()
   return isValidHistoricalMarketDataResponse(data) ? data.data : []
+}
+
+export const buildCrossRatePoints = (sourcePoints: LivelinePoint[], marketPoints: LivelinePoint[]): LivelinePoint[] => {
+  const source = validMarketPoints(sourcePoints)
+  const market = validMarketPoints(marketPoints)
+  if (source.length < 2 || market.length < 2) return []
+
+  const tolerance = Math.ceil(Math.max(estimatePointInterval(source), estimatePointInterval(market)) * 1.5)
+  let marketIndex = 0
+
+  return source.flatMap((sourcePoint) => {
+    while (
+      marketIndex + 1 < market.length &&
+      Math.abs(market[marketIndex + 1].time - sourcePoint.time) <= Math.abs(market[marketIndex].time - sourcePoint.time)
+    ) {
+      marketIndex += 1
+    }
+
+    const marketPoint = market[marketIndex]
+    if (!marketPoint || Math.abs(marketPoint.time - sourcePoint.time) > tolerance) return []
+    return [{ time: sourcePoint.time, value: marketPoint.value / sourcePoint.value }]
+  })
+}
+
+const validMarketPoints = (points: LivelinePoint[]): LivelinePoint[] => {
+  return points
+    .filter((point) => Number.isFinite(point.time) && Number.isFinite(point.value) && point.time > 0 && point.value > 0)
+    .sort((a, b) => a.time - b.time)
+}
+
+const estimatePointInterval = (points: LivelinePoint[]): number => {
+  const intervals = points
+    .slice(1)
+    .map((point, index) => point.time - points[index].time)
+    .filter((interval) => interval > 0)
+    .sort((a, b) => a - b)
+
+  return intervals[Math.floor(intervals.length / 2)] ?? 3_600
 }
 
 const isValidHistoricalMarketDataResponse = (data: unknown): data is HistoricalMarketDataResponse => {

@@ -18,25 +18,26 @@ import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
 import { LimitsContext } from '../../../providers/limits'
 import { SwapsContext } from '../../../providers/swaps'
-import Text from '../../../components/Text'
 import { isPendingChainSwap, isPendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { FeesContext } from '../../../providers/fees'
-import { prettyAssetAmount } from '../../../lib/assets'
+import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDisplay'
+import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisplay'
+import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
 
 export default function SendDetails() {
+  const displayContext = useAmountDisplayContext()
   const { navigate } = useContext(NavigationContext)
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
-  const isAssetSend = Boolean(sendInfo.assets?.length)
+  const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { payInvoice, payBtc } = useContext(SwapsContext)
   const { assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
 
-  const assetId = sendInfo.assets?.[0]?.assetId
+  const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
-  const assetTicker = assetMeta?.metadata?.ticker ?? ''
-  const assetName = assetMeta?.metadata?.name ?? 'Asset'
-  const assetAmountValue = sendInfo.assets?.[0]?.amount ?? BigInt(0)
+  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 8
+  const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
 
   const [buttonLabel, setButtonLabel] = useState('')
   const [details, setDetails] = useState<DetailsProps>()
@@ -45,6 +46,19 @@ export default function SendDetails() {
   const [sendDone, setSendDone] = useState(false)
 
   const { address, arkAddress, invoice, pendingSwap, satoshis } = sendInfo
+  const amountDisplay = pendingSwap
+    ? undefined
+    : buildTransactionAmountDisplay({
+        ...displayContext,
+        assets: sendInfo.account
+          ? [{ assetId: sendInfo.account.assetId, amount: sendInfo.account.amount }]
+          : sendInfo.assets,
+        metadataForAsset: (id) => {
+          const metadata = assetMetadataCache.get(id)?.metadata
+          return id === assetId ? { ...metadata, decimals: assetDecimals } : metadata
+        },
+        satoshis: details?.satoshis ?? satoshis ?? 0,
+      })
 
   useEffect(() => {
     if (!address && !arkAddress && !invoice) return setError('Missing address')
@@ -53,6 +67,7 @@ export default function SendDetails() {
       const destination = arkAddress ?? ''
       const feeInSats = defaultFee
       setDetails({
+        assetId,
         destination,
         direction: 'Sending assets',
         fees: feeInSats,
@@ -199,17 +214,14 @@ export default function SendDetails() {
           <Padded>
             <FlexCol>
               <ErrorMessage error={Boolean(error)} text={error} />
-              {isAssetSend ? (
-                <FlexCol gap='0.5rem'>
-                  <Text color='neutral-500' smaller testId='send-details-asset-name'>
-                    {assetName} ({assetTicker})
-                  </Text>
-                  <Text bold testId='send-details-asset-amount'>
-                    {prettyAssetAmount(assetAmountValue, assetMeta?.metadata?.decimals ?? 8)} {assetTicker}
-                  </Text>
-                </FlexCol>
+              {details && amountDisplay ? (
+                <TransactionAmountSummary amount={amountDisplay} label='Amount sent' />
               ) : null}
-              <Details details={details} />
+              <Details
+                details={
+                  details ? { ...details, amountDisplay, total: isAssetSend ? undefined : details.total } : undefined
+                }
+              />
             </FlexCol>
           </Padded>
         )}
