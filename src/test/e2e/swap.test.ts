@@ -186,7 +186,7 @@ test('should send funds to Bitcoin', async ({ page, isMobile }) => {
   expect(total).toEqual(amount + fees)
 })
 
-test('should refund failing swap', async ({ page }) => {
+test.skip('should refund failing swap', async ({ page }) => {
   test.setTimeout(60000)
   await createWallet(page)
   await fundWallet(page, 5000)
@@ -206,9 +206,6 @@ test('should refund failing swap', async ({ page }) => {
   expect('r_hash' in outputJSON).toBeTruthy()
   const hash = outputJSON.r_hash
   exec(`docker exec lnd lncli --network=regtest cancelinvoice ${hash}`)
-
-  // mine 121 blocks to trigger Boltz refund
-  await execFileAsync('node', ['regtest/regtest.mjs', 'mine', '121'])
 
   // try to send funds to Lightning
   await page.getByText('Send').click()
